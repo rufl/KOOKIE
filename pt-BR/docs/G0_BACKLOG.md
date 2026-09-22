@@ -16,12 +16,14 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Transferência PCM limitada de silêncio e clip determinístico para um stream de áudio SDL sem callbacks.
 - Sonda do adaptador nativo aplicando eventos reais do adaptador ao estado Kof e executando o primeiro caminho de upload/draw de textura SPIR-V.
 - Contrato limitado de staging de frame Kof medido em 15 escritas escalares para um triângulo texturizado de três vértices, com verificações de ownership de publish/discard.
+- Contrato de retirement de frame Kof rejeita retirement duplicado ou obsoleto.
 - Reproduzível do lifetime de exceção nativa e controles negativos registrados no gate de verificação.
+- Adaptador nativo expõe timing decorrido de draw GPU após retirement com GPU ocioso.
 
 ## Próximo lote
 
-1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar aceitação de janela, áudio dummy e GPU.
-2. Medir tempo nativo decorrido do draw e retirement de frame com o caminho GPU isolado; a contagem de tuplas escalares já está limitada e registrada.
+1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar aceitação de janela, áudio dummy, GPU e timing medido do draw.
+2. Comparar o tempo nativo decorrido do draw e o retirement de frame com o orçamento de frame declarado.
 3. Reexecutar o reproduzível do handler de exceções nativas após qualquer upgrade do compilador e exigir mudança na saída de handler obsoleto antes de confiar na limpeza por exceção.
 4. Registrar toda falha medida ou limite de aceitação nas duas árvores de idioma.
 

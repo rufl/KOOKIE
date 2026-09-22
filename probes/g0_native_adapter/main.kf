@@ -7,6 +7,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open(Int windowToken): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_test(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_draw(Int frames): Int
 
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
@@ -51,6 +52,10 @@ main() {
     var gpu = kookie_gpu_open(window)
     if (gpu > 0) {
         assert(kookie_gpu_draw_test(), "first SDL GPU upload and draw must succeed")
+        var drawMicroseconds = kookie_gpu_measure_draw(3)
+        assert(drawMicroseconds > 0, "GPU draw timing must be positive")
+        println("gpu-draw-us")
+        println(drawMicroseconds)
         assert(kookie_gpu_close(gpu), "live GPU token must close")
         assert(!kookie_gpu_close(gpu), "stale GPU token must reject")
         println("gpu-open")

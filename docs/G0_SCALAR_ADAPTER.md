@@ -74,8 +74,8 @@ The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `glsl
 ```bash
 bash scripts/verify.sh
 ```
-The gate materializes temporary links to the canonical `src/core` package while compiling the standalone probe, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shader sources compile through `glslc`; the frame contract records 15 scalar writes for the three-vertex triangle. Native execution still emits the known full-runtime fallback warning outside the compiler checkout; JVM may emit the JDK restricted-native-access warning for direct SDL lookup.
+The gate materializes temporary links to the canonical `src/core` package while compiling the standalone probe, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shader sources compile through `glslc`; the frame contract records 15 scalar writes and explicit retirement for the three-vertex triangle. The native adapter's timing function measures complete draw submission through GPU-idle retirement; it remains unaccepted until the isolated probe records it.
 
 ## Next proof boundary
 
-Rerun the isolated native adapter smoke and record window/audio/GPU acceptance. Then measure elapsed native draw time and frame retirement; the scalar tuple count and ownership contract are already recorded. Do not cast SDL pointers to integer tokens, add callbacks into Kof, or call the optional GPU path accepted without isolated evidence.
+Rerun the isolated native adapter smoke and record window/audio/GPU acceptance plus elapsed draw timing. Compare that measurement with the frame budget; the scalar tuple count and ownership contract are already recorded. Do not cast SDL pointers to integer tokens, add callbacks into Kof, or call the optional GPU path accepted without isolated evidence.

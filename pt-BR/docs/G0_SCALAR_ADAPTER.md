@@ -73,8 +73,8 @@ O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `g
 ```bash
 bash scripts/verify.sh
 ```
-O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`; o contrato de frame registra 15 escritas escalares para o triângulo de três vértices. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador; a JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta.
+O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`; o contrato de frame registra 15 escritas escalares e retirement explícito para o triângulo de três vértices. A função de timing do adaptador mede a submissão completa do draw até o retirement com GPU ocioso; ela permanece não aceita até a sonda isolada registrá-la.
 
 ## Próximo limite de comprovação
 
-Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU. Depois meça o tempo nativo decorrido do draw e o retirement de frame; a contagem de tuplas escalares e o contrato de ownership já estão registrados. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o caminho GPU opcional de aceito sem evidência isolada.
+Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU e o timing decorrido do draw. Compare essa medição com o orçamento de frame; a contagem de tuplas escalares e o contrato de ownership já estão registrados. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o caminho GPU opcional de aceito sem evidência isolada.

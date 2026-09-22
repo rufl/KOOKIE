@@ -50,7 +50,9 @@ main() {
     assert(staging.scalarWrites() == 15, "triangle scalar write count must be measured")
     assert(staging.checksum() == 273, "triangle staging checksum must be stable")
     assert(staging.publish(), "frame staging must publish")
-    assert(staging.publishedFrame() == 1 && !staging.isOpen(), "published frame ownership must close")
+    assert(staging.retire(1), "published frame must retire")
+    var retired = staging.publishedFrame() == 1 && staging.retiredFrame() == 1 && !staging.isOpen()
+    assert(retired, "published frame ownership must close")
     println("KOOKIE G0 frame staging verified")
 }
 
@@ -93,7 +95,9 @@ test "frame staging ownership and scalar measurement" {
     assert(!staging.pushVertex(2, 9, 10, 11, 12))
     assert(staging.scalarWrites() == 10)
     assert(staging.publish())
-    assert(staging.publishedFrame() == 7)
+    assert(staging.retire(7))
+    assert(staging.publishedFrame() == 7 && staging.retiredFrame() == 7)
+    assert(!staging.retire(7))
     assert(!staging.begin(7))
     assert(staging.begin(8))
     assert(staging.discard())

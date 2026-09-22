@@ -412,6 +412,28 @@ cleanup:
     return success;
 }
 
+int kookie_gpu_measure_draw(int frames) {
+    if (frames <= 0 || frames > 8 || gpu_slot.device == NULL) {
+        return 0;
+    }
+    Uint64 start = SDL_GetPerformanceCounter();
+    for (int frame = 0; frame < frames; frame += 1) {
+        if (!kookie_gpu_draw_test()) {
+            return 0;
+        }
+    }
+    Uint64 elapsed = SDL_GetPerformanceCounter() - start;
+    Uint64 frequency = SDL_GetPerformanceFrequency();
+    if (frequency == 0) {
+        return 0;
+    }
+    Uint64 microseconds = (elapsed * 1000000u) / frequency;
+    if (microseconds == 0) {
+        microseconds = 1;
+    }
+    return (int)microseconds;
+}
+
 bool kookie_push_resize_event(int width, int height) {
     if (width <= 0 || height <= 0) {
         return false;

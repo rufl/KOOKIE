@@ -8,6 +8,7 @@ class FrameStaging {
     Int[] vs
     Int frame
     Int published
+    Int retired
     Int count
     Int writes
     Bool open
@@ -20,6 +21,7 @@ class FrameStaging {
         this.vs = new Int[capacity]
         this.frame = 0
         this.published = 0
+        this.retired = 0
         this.count = 0
         this.writes = 0
         this.open = false
@@ -58,6 +60,14 @@ class FrameStaging {
         return true
     }
 
+    Bool retire(Int frameId) {
+        if (open || frameId != published || frameId <= retired) {
+            return false
+        }
+        retired = frameId
+        return true
+    }
+
     Bool discard() {
         if (!open) {
             return false
@@ -82,6 +92,9 @@ class FrameStaging {
 
     Int publishedFrame() {
         return published
+    }
+    Int retiredFrame() {
+        return retired
     }
 
     Int checksum() {
