@@ -1,5 +1,4 @@
 import core
-import platform
 import session
 
 main() {
@@ -22,11 +21,6 @@ main() {
     assert(resources.isValid(replacement), "replacement token must be valid")
     println("KOOKIE G0 resource tokens verified")
 
-    var sdl = SdlLifecycle()
-    assert(sdl.initialize(0), "SDL scalar lifecycle must initialize")
-    assert(sdl.isInitialized(), "SDL lifecycle must report initialized")
-    sdl.shutdown()
-    assert(!sdl.isInitialized(), "SDL lifecycle must report shutdown")
 
     var window = WindowStateTracker(1280, 720)
     assert(window.applyFocus(1), "focus event must be accepted")

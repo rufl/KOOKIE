@@ -12,7 +12,7 @@ Status: **implementado e exercitado na JVM/nativo**. Este incremento comprova a 
 - `SDL_Init(Int): Bool`;
 - `SDL_Quit(): void`.
 
-`SdlLifecycle` possui a flag de inicialização no lado Kof. Rejeita flags negativos, torna a inicialização repetida idempotente e torna o encerramento explícito. O smoke chama `SDL_Init(0)` e `SDL_Quit()` nos dois alvos. `0` solicita deliberadamente nenhum subsistema SDL; isso evita afirmar que a inicialização de vídeo/áudio foi comprovada.
+`SdlLifecycle` possui a flag de inicialização no lado Kof. Rejeita flags negativos, torna a inicialização repetida idempotente e torna o encerramento explícito. `probes/g0_platform/main.kf` chama `SDL_Init(0)` e `SDL_Quit()` nos dois alvos quando `/usr/lib/libSDL3.so` está instalado. `0` solicita deliberadamente nenhum subsistema SDL; isso evita afirmar que a inicialização de vídeo/áudio foi comprovada.
 
 Nenhum ponteiro SDL, struct, união de evento, callback, janela, dispositivo GPU ou dispositivo de áudio atravessa este limite. A limitação medida da FFI permanece: chamadas extern escalares funcionam, enquanto arrays/structs/ponteiros/buffers de saída/callbacks não formam uma binding portável.
 
@@ -46,7 +46,7 @@ A classe armazena deliberadamente identidades inteiras de clips, não ponteiros.
 - `resource token lifecycle`;
 - `platform state and audio queue lifecycle`.
 
-O gate executa os dois testes e compara a saída de smoke JVM/nativa:
+O gate executa os dois testes e compara a saída de smoke JVM/nativa. Quando a biblioteca SDL3 local está disponível, ele também executa a sonda de plataforma escalar; a CI informa um skip explícito quando essa biblioteca de sistema opcional não está disponível:
 
 ```bash
 kof check src --target jvm
@@ -55,9 +55,11 @@ kof test src --target jvm
 kof test src --target native
 kof run src/main.kf --target jvm
 kof run src/main.kf --target native
+kof run probes/g0_platform/main.kf --target jvm
+kof run probes/g0_platform/main.kf --target native
 ```
 
-Os dois alvos passam. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador. A JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta; o resultado do ciclo de vida continua bem-sucedido.
+Os dois alvos passam nos contratos Kof. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador. A JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta; o resultado do ciclo de vida continua bem-sucedido.
 
 ## Próximo limite de comprovação
 

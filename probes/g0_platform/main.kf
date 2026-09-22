@@ -1,6 +1,13 @@
 extern "/usr/lib/libSDL3.so" SDL_GetVersion(): Int
+extern "/usr/lib/libSDL3.so" SDL_Init(Int flags): Bool
+extern "/usr/lib/libSDL3.so" SDL_Quit(): void
 
 main() {
     println("KOOKIE G0 scalar platform probe")
     println(SDL_GetVersion())
+    var initialized = SDL_Init(0)
+    println(initialized)
+    if (initialized) {
+        SDL_Quit()
+    }
 }

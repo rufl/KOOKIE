@@ -20,6 +20,14 @@ expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tok
 [[ "$(kof run src/main.kf --target jvm)" == "$expected_output" ]]
 [[ "$(kof run src/main.kf --target native 2>/dev/null)" == "$expected_output" ]]
 
+if [[ -f /usr/lib/libSDL3.so ]]; then
+  platform_output=$'KOOKIE G0 scalar platform probe\n3004016\ntrue'
+  [[ "$(kof run probes/g0_platform/main.kf --target jvm)" == "$platform_output" ]]
+  [[ "$(kof run probes/g0_platform/main.kf --target native 2>/dev/null)" == "$platform_output" ]]
+else
+  echo "SDL3 scalar platform probe skipped: /usr/lib/libSDL3.so is unavailable"
+fi
+
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
 trap 'rm -rf "$build_dir"' EXIT
 kof build src --target jvm --output "$build_dir/jvm"
