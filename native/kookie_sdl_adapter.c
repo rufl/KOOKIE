@@ -454,6 +454,7 @@ bool kookie_push_focus_event(int focused) {
     return SDL_PushEvent(&event);
 }
 
+
 int kookie_poll_event(void) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -484,6 +485,17 @@ int kookie_poll_event(void) {
         }
     }
     return 0;
+}
+
+int kookie_drain_events(int max_events) {
+    if (max_events <= 0) {
+        return 0;
+    }
+    int drained = 0;
+    while (drained < max_events && kookie_poll_event() != 0) {
+        drained += 1;
+    }
+    return drained;
 }
 
 int kookie_last_event_a(void) {

@@ -9,6 +9,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_draw(Int frames): Int
 
+extern "./build/libkookie_sdl_adapter.so" kookie_drain_events(Int maxEvents): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
@@ -27,12 +28,7 @@ main() {
     var window = kookie_window_create(320, 240, 1)
     assert(window > 0, "hidden SDL window must create")
     var state = WindowStateTracker(320, 240)
-    var drainKind = 1
-    var drainCount = 0
-    while (drainCount < 32 && drainKind != 0) {
-        drainKind = kookie_poll_event()
-        drainCount = drainCount + 1
-    }
+    var drainCount = kookie_drain_events(32)
 
     assert(kookie_push_resize_event(640, 480), "SDL resize event must enqueue")
     var eventKind = kookie_poll_event()

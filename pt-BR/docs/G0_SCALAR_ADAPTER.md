@@ -75,6 +75,11 @@ bash scripts/verify.sh
 ```
 O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`; o contrato de frame registra 15 escritas escalares e retirement explícito para o triângulo de três vértices. A função de timing do adaptador mede a submissão completa do draw até o retirement com GPU ocioso; ela permanece não aceita até a sonda isolada registrá-la.
 
+A sonda drena eventos SDL preexistentes por um helper nativo escalar limitado.
+Manter o loop de drain em C evita uma falha medida do compilador nativo em que
+atribuir um `Int` extern dentro daquele loop Kof emitia uma chamada inválida a
+`kof_unbox_int`; o crash estava no código gerado da sonda, não no SDL.
+
 ## Próximo limite de comprovação
 
 Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU e o timing decorrido do draw. Compare essa medição com o orçamento de frame; a contagem de tuplas escalares e o contrato de ownership já estão registrados. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o caminho GPU opcional de aceito sem evidência isolada.
