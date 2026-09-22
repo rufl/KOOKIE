@@ -159,4 +159,54 @@ test "authoritative loopback foundation" {
     assert(loopback.serverPosition(1) == 2)
     assert(loopback.inSync())
     assert(loopback.lastInputEdges(1).firePressed() == 1)
+    assert(loopback.snapshotCount(1) == 1, "loopback must retain bounded snapshots")
+    var rendered = loopback.interpolatedPosition(1, 1)
+    assert(rendered.ready() && rendered.position() == 2,
+        "loopback must expose an interpolated snapshot")
+    assert(loopback.predictClientInput(1, 4), "client prediction must accept input")
+    assert(loopback.predictedPosition(1) == 6, "prediction must stay locally bounded")
+    assert(loopback.applySnapshot(2, 1, 1, 2), "server snapshot must reconcile prediction")
+    assert(loopback.clientPosition(1) == 2, "reconciliation must restore authority")
+
+}
+
+test "bounded snapshot interpolation and prediction" {
+    var history = SnapshotHistory(2)
+    assert(!history.push(0, 0, 0), "snapshot sequence zero must reject")
+    assert(history.push(1, 10, 0), "first snapshot must store")
+    assert(history.push(2, 20, 10), "second snapshot must store")
+    assert(history.push(3, 30, 20), "history must evict oldest snapshot")
+    assert(history.size() == 2, "snapshot history must stay bounded")
+    var interpolated = history.interpolate(25)
+    assert(interpolated.ready(), "interpolation must be ready")
+    assert(interpolated.position() == 15, "interpolation must blend positions")
+    assert(interpolated.fromSequence() == 2 && interpolated.toSequence() == 3,
+        "interpolation must identify source snapshots")
+    assert(!history.push(3, 31, 30), "duplicate snapshot sequence must reject")
+
+    var prediction = ClientPredictionState(4)
+    assert(prediction.predict(9), "prediction must accept and clamp input")
+    assert(prediction.predicted() == 4, "prediction must clamp local movement")
+    assert(prediction.reconcile(2, 1), "authoritative snapshot must reconcile")
+    assert(prediction.authoritative() == 2 && prediction.predicted() == 2,
+        "reconciliation must restore server authority")
+    assert(!prediction.reconcile(3, 0), "older authority must reject")
+}
+
+test "bounded collision query and movement rejection" {
+    var world = BoundedCollisionWorld(0, 10, 4)
+    var hit = world.query(8, 4)
+    assert(hit.accepted() && hit.collided(), "boundary query must report contact")
+    assert(hit.requestedPosition() == 12 && hit.resolvedPosition() == 10,
+        "collision must resolve to the boundary")
+    assert(hit.distance() == 2, "collision must report resolved distance")
+    assert(!world.query(5, 5).accepted(), "over-budget query must reject")
+
+    var movement = MovementComponent(1, 4)
+    assert(movement.setBounds(0, 10), "movement bounds must configure")
+    assert(movement.add(1, 8), "bounded entity must add")
+    assert(movement.applyInput(1, 4), "bounded movement must resolve")
+    assert(movement.position(1) == 10, "movement must stop at collision boundary")
+    assert(movement.lastCollision().collided(), "movement must expose collision result")
+    assert(!movement.setPosition(1, -1), "out-of-bounds placement must reject")
 }

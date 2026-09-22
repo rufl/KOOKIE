@@ -21,20 +21,22 @@ This is the active bounded implementation sequence after the initial research an
 - G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
 - G1 two-client loopback admission, per-client input sequencing, stale snapshot rejection, bounded authoritative movement, and camera/input clamping.
 - Isolated native smoke accepted hidden-window lifecycle, resize/focus flattening, dummy audio, stale-token teardown, and clean process cleanup; GPU reported unavailable.
+- Bounded client snapshot history with integer interpolation and explicit prediction/reconciliation authority boundaries.
+- Bounded scalar collision queries with clamped movement resolution and out-of-bounds placement rejection.
 
 ## Next batch
 
 1. Expose a usable isolated SDL_GPU backend or render node; then record `gpu-open`, draw completion, and measured GPU-idle retirement.
 2. Compare elapsed native draw time and frame retirement against the declared frame budget once GPU timing is available.
-3. Add client interpolation/prediction boundaries and snapshot history without weakening server authority.
-4. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
-5. Add bounded collision/query contracts and movement rejection before weapons.
-6. Record every measured failure or acceptance boundary in both language trees.
+3. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
+4. Add bounded prediction input history and replay across authoritative reconciliation.
+5. Extend the scalar collision contract toward true-3D segment/triangle queries and capsule movement before weapons.
+6. Record each new measured failure or acceptance boundary in both language trees.
 
 ## Deferred
 
 - Textured mesh renderer and shader pipeline beyond the first smoke draw.
-- Collision, weapons, enemies, content cooking, save schema and multiplayer transport.
+- Full 3D collision/BVH, weapons, enemies, content cooking, save schema and multiplayer transport.
 - Production audio, image/text services, package compression and foreign physics/UI libraries.
 
 

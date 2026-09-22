@@ -3,6 +3,8 @@ package core
 class MovementComponent {
     IntComponentStore positions
     Int maxStep
+    BoundedCollisionWorld collision
+    CollisionResult lastResult
 
     public constructor(Int capacity, Int nextMaxStep) {
         positions = IntComponentStore(capacity)
@@ -10,14 +12,33 @@ class MovementComponent {
         if (maxStep <= 0) {
             maxStep = 1
         }
+        collision = BoundedCollisionWorld(-1000000, 1000000, maxStep)
+        lastResult = CollisionResult(false, false, 0, 0, 0, 0)
+    }
+
+    Bool setBounds(Int minPosition, Int maxPosition) {
+        return collision.configure(minPosition, maxPosition, maxStep)
     }
 
     Bool add(Int id, Int position) {
+        if (!collision.query(position, 0).accepted()) {
+            return false
+        }
         return positions.set(id, position)
     }
 
     Bool setPosition(Int id, Int position) {
+        if (!collision.query(position, 0).accepted()) {
+            return false
+        }
         return positions.set(id, position)
+    }
+
+    CollisionResult queryMovement(Int id, Int requestedStep) {
+        if (!positions.has(id)) {
+            return CollisionResult(false, false, 0, 0, 0, 0)
+        }
+        return collision.query(positions.get(id), requestedStep)
     }
 
     Bool applyInput(Int id, Int requestedStep) {
@@ -31,7 +52,15 @@ class MovementComponent {
         if (step < -maxStep) {
             step = -maxStep
         }
-        return positions.set(id, positions.get(id) + step)
+        lastResult = collision.query(positions.get(id), step)
+        if (!lastResult.accepted()) {
+            return false
+        }
+        return positions.set(id, lastResult.resolvedPosition())
+    }
+
+    CollisionResult lastCollision() {
+        return lastResult
     }
 
     Int position(Int id) {

@@ -21,20 +21,22 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Relógio de fixed-step G1, comandos de input limitados com transições de borda fire/jump, sincronização de snapshot servidor/cliente em loopback e storage limitado de componentes inteiros.
 - Admissão de dois clientes em loopback G1, sequência de input por cliente, rejeição de snapshot obsoleto, movimento autoritativo limitado e clamp de câmera/input.
 - Smoke nativo isolado aceitou ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy, teardown de tokens obsoletos e limpeza de processos; a GPU reportou indisponível.
+- Histórico limitado de snapshots do cliente com interpolação inteira e limites explícitos de autoridade de predição/reconciliação.
+- Consultas escalares limitadas de colisão com resolução de movimento no limite e rejeição de posicionamento fora dos limites.
 
 ## Próximo lote
 
 1. Expor um backend SDL_GPU ou render node utilizável no ambiente isolado; depois registrar `gpu-open`, conclusão do draw e retirement medido com GPU ocioso.
 2. Comparar o tempo nativo do draw e o retirement do frame com o orçamento de frame declarado quando o timing GPU estiver disponível.
-3. Adicionar limites de interpolação/predição do cliente e histórico de snapshots sem enfraquecer a autoridade do servidor.
-4. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
-5. Adicionar contratos limitados de colisão/consulta e rejeição de movimento antes das armas.
-6. Registrar toda falha medida ou limite de aceitação nas duas árvores de idioma.
+3. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
+4. Adicionar histórico limitado de inputs de predição e replay após reconciliação autoritativa.
+5. Estender o contrato escalar de colisão para consultas de segmento/triângulo 3D e movimento de cápsula antes das armas.
+6. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
 
 - Renderer de malha texturizada e pipeline de shaders além do primeiro draw de smoke.
-- Colisão, armas, inimigos, cooking de conteúdo, schema de saves e transporte multiplayer.
+- Colisão 3D/BVH completa, armas, inimigos, cooking de conteúdo, schema de saves e transporte multiplayer.
 - Áudio de produção, serviços de imagem/texto, compressão de pacotes e bibliotecas estrangeiras de física/UI.
 
 

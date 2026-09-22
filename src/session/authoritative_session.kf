@@ -16,6 +16,11 @@ class LoopbackSession {
     Int clientTick
     Int snapshotSequence
     Bool started
+    ClientPredictionState playerOnePrediction
+    ClientPredictionState playerTwoPrediction
+    SnapshotHistory playerOneSnapshots
+    SnapshotHistory playerTwoSnapshots
+
 
     public constructor(Int inputCapacity, Int entityCapacity) {
         clock = FixedStepClock(60, 4)
@@ -31,6 +36,10 @@ class LoopbackSession {
         clientTick = 0
         snapshotSequence = 0
         started = false
+        playerOnePrediction = ClientPredictionState(4)
+        playerTwoPrediction = ClientPredictionState(4)
+        playerOneSnapshots = SnapshotHistory(8)
+        playerTwoSnapshots = SnapshotHistory(8)
     }
 
     Bool start() {
@@ -104,26 +113,35 @@ class LoopbackSession {
         if (steps > 0) {
             snapshotSequence = snapshotSequence + 1
             if (playerOneConnected) {
-                clientMovement.setPosition(1, serverMovement.position(1))
+                var playerOnePosition = serverMovement.position(1)
+                playerOneSnapshots.push(snapshotSequence, serverTick, playerOnePosition)
+                playerOnePrediction.reconcile(playerOnePosition, serverTick)
+                clientMovement.setPosition(1, playerOnePrediction.predicted())
             }
             if (playerTwoConnected) {
-                clientMovement.setPosition(2, serverMovement.position(2))
+                var playerTwoPosition = serverMovement.position(2)
+                playerTwoSnapshots.push(snapshotSequence, serverTick, playerTwoPosition)
+                playerTwoPrediction.reconcile(playerTwoPosition, serverTick)
+                clientMovement.setPosition(2, playerTwoPrediction.predicted())
             }
             clientTick = serverTick
         }
         return steps
     }
-
     Bool applySnapshot(Int sequence, Int tick, Int player, Int position) {
         if (!started || sequence <= snapshotSequence || tick < clientTick) {
             return false
         }
         if (player == 1 && playerOneConnected) {
-            if (!clientMovement.setPosition(1, position)) {
+            if (!clientMovement.setPosition(1, position) ||
+                !playerOneSnapshots.push(sequence, tick, position) ||
+                !playerOnePrediction.reconcile(position, tick)) {
                 return false
             }
         } else if (player == 2 && playerTwoConnected) {
-            if (!clientMovement.setPosition(2, position)) {
+            if (!clientMovement.setPosition(2, position) ||
+                !playerTwoSnapshots.push(sequence, tick, position) ||
+                !playerTwoPrediction.reconcile(position, tick)) {
                 return false
             }
         } else {
@@ -133,6 +151,47 @@ class LoopbackSession {
         clientTick = tick
         return true
     }
+
+    Bool predictClientInput(Int player, Int requestedStep) {
+        if (!started) {
+            return false
+        }
+        if (player == 1 && playerOneConnected) {
+            if (!playerOnePrediction.predict(requestedStep)) {
+                return false
+            }
+            return clientMovement.setPosition(1, playerOnePrediction.predicted())
+        }
+        if (player == 2 && playerTwoConnected) {
+            if (!playerTwoPrediction.predict(requestedStep)) {
+                return false
+            }
+            return clientMovement.setPosition(2, playerTwoPrediction.predicted())
+        }
+        return false
+    }
+
+    Int predictedPosition(Int player) {
+        if (player == 1) {
+            return playerOnePrediction.predicted()
+        }
+        return playerTwoPrediction.predicted()
+    }
+
+    InterpolatedPosition interpolatedPosition(Int player, Int renderTick) {
+        if (player == 1) {
+            return playerOneSnapshots.interpolate(renderTick)
+        }
+        return playerTwoSnapshots.interpolate(renderTick)
+    }
+
+    Int snapshotCount(Int player) {
+        if (player == 1) {
+            return playerOneSnapshots.size()
+        }
+        return playerTwoSnapshots.size()
+    }
+
 
     Int playerCount() {
         var count = 0

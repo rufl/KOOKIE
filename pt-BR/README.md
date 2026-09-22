@@ -88,11 +88,13 @@ o ambiente reporta `gpu-unavailable`, portanto draw texturizado e timing GPU
 continuam não aceitos. G1 agora inclui autoridade fixed-step, comandos de input
 limitados e transições de borda, admissão de dois clientes em loopback,
 rejeição de input obsoleto por cliente, validação de sequência de snapshots,
-movimento autoritativo limitado, clamp de câmera/input e storage limitado de
-componentes inteiros. Em seguida: expor um backend SDL_GPU ou render node no
-ambiente isolado, medir o orçamento de frame declarado e adicionar limites de
-interpolação/predição do cliente e consultas limitadas de colisão. Use o
-wrapper descartável de display isolado do repositório para verificação gráfica.
+movimento autoritativo limitado, clamp de câmera/input, storage limitado de
+componentes inteiros, histórico limitado de snapshots com interpolação e
+limites de predição/reconciliação, além de consultas escalares de colisão com
+rejeição de movimento. Em seguida: expor um backend SDL_GPU ou render node no
+ambiente isolado, medir o orçamento de frame, adicionar replay dos inputs de
+predição e estender o contrato de colisão para 3D. Use o wrapper descartável de
+display isolado do repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

@@ -74,16 +74,18 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 Complete a prova GPU restante do G0 expondo um backend SDL_GPU ou render node
 utilizável no ambiente isolado, depois compare o retirement do draw com o
 orçamento de frame declarado. O smoke nativo do adaptador em display isolado
-agora aceita ciclo de vida da janela oculta, flattening de resize/focus, áudio
-dummy, teardown de tokens obsoletos e limpeza de processos; ele reporta
+aceita ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy,
+teardown de tokens obsoletos e limpeza de processos; ele reporta
 `gpu-unavailable`, portanto draw texturizado e timing GPU continuam não
-aceitos. G1 implementa autoridade fixed-step, comandos de input limitados e
+aceitos. G1 agora inclui autoridade fixed-step, comandos de input limitados e
 transições de borda, admissão de dois clientes em loopback, rejeição de input
 obsoleto por cliente, validação de sequência de snapshots, movimento
-autoritativo limitado, clamp de câmera/input e storage limitado de componentes
-inteiros. O próximo G1 é adicionar limites de interpolação/predição do cliente
-e consultas limitadas de colisão. O defeito do handler de exceções nativas
-continua sendo um gate do compilador.
+autoritativo limitado, clamp de câmera/input, storage limitado de componentes
+inteiros, histórico/interpolação de snapshots e limites de
+predição/reconciliação, além de consultas escalares de colisão com rejeição de
+movimento. O próximo G1 é fazer replay de inputs de predição após reconciliação
+e estender o contrato de colisão para 3D. O defeito do handler de exceções
+nativas continua sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar, 18 programas orientados pelo curso (36 execuções, duas verificações) e o par de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados completos estão nos documentos de pesquisa vinculados. Essas sondas de pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou gráficos iniciados. A verificação de instalação posterior exercitou a CLI do compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha gráfica do engine nem executou uma suíte completa.
 

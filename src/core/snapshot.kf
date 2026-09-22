@@ -1,0 +1,148 @@
+package core
+
+record InterpolatedPosition(Bool ready, Int position, Int fromSequence, Int toSequence)
+
+class SnapshotHistory {
+    Int[] sequences
+    Int[] ticks
+    Int[] positions
+    Int count
+
+    public constructor(Int capacity) {
+        var safeCapacity = capacity
+        if (safeCapacity <= 0) {
+            safeCapacity = 1
+        }
+        sequences = new Int[safeCapacity]
+        ticks = new Int[safeCapacity]
+        positions = new Int[safeCapacity]
+        count = 0
+    }
+
+    Bool push(Int sequence, Int tick, Int position) {
+        if (sequence <= 0 || tick < 0) {
+            return false
+        }
+        if (count > 0 && sequence <= sequences[count - 1]) {
+            return false
+        }
+        if (count > 0 && tick < ticks[count - 1]) {
+            return false
+        }
+        if (count == sequences.length) {
+            for (var index = 1; index < count; index = index + 1) {
+                sequences[index - 1] = sequences[index]
+                ticks[index - 1] = ticks[index]
+                positions[index - 1] = positions[index]
+            }
+            count = count - 1
+        }
+        sequences[count] = sequence
+        ticks[count] = tick
+        positions[count] = position
+        count = count + 1
+        return true
+    }
+
+    Int size() {
+        return count
+    }
+
+    Int latestSequence() {
+        if (count == 0) {
+            return 0
+        }
+        return sequences[count - 1]
+    }
+
+    Int latestTick() {
+        if (count == 0) {
+            return -1
+        }
+        return ticks[count - 1]
+    }
+
+    InterpolatedPosition interpolate(Int renderTick) {
+        if (count == 0) {
+            return InterpolatedPosition(false, 0, 0, 0)
+        }
+        if (count == 1 || renderTick <= ticks[0]) {
+            return InterpolatedPosition(true, positions[0], sequences[0], sequences[0])
+        }
+        for (var index = 1; index < count; index = index + 1) {
+            if (renderTick <= ticks[index]) {
+                var fromTick = ticks[index - 1]
+                var toTick = ticks[index]
+                var span = toTick - fromTick
+                if (span <= 0) {
+                    return InterpolatedPosition(
+                        true, positions[index], sequences[index], sequences[index])
+                }
+                var offset = renderTick - fromTick
+                var position = positions[index - 1] +
+                    ((positions[index] - positions[index - 1]) * offset) / span
+                return InterpolatedPosition(
+                    true, position, sequences[index - 1], sequences[index])
+            }
+        }
+        return InterpolatedPosition(
+            true, positions[count - 1], sequences[count - 1], sequences[count - 1])
+    }
+}
+
+class ClientPredictionState {
+    Int maxStep
+    Int authoritativePosition
+    Int predictedPosition
+    Int authoritativeTick
+    Int predictedTick
+
+    public constructor(Int nextMaxStep) {
+        maxStep = nextMaxStep
+        if (maxStep <= 0) {
+            maxStep = 1
+        }
+        authoritativePosition = 0
+        predictedPosition = 0
+        authoritativeTick = 0
+        predictedTick = 0
+    }
+
+    Bool predict(Int requestedStep) {
+        var step = requestedStep
+        if (step > maxStep) {
+            step = maxStep
+        }
+        if (step < -maxStep) {
+            step = -maxStep
+        }
+        predictedPosition = predictedPosition + step
+        predictedTick = predictedTick + 1
+        return true
+    }
+
+    Bool reconcile(Int nextAuthoritativePosition, Int nextAuthoritativeTick) {
+        if (nextAuthoritativeTick < authoritativeTick) {
+            return false
+        }
+        authoritativePosition = nextAuthoritativePosition
+        predictedPosition = nextAuthoritativePosition
+        authoritativeTick = nextAuthoritativeTick
+        if (predictedTick < authoritativeTick) {
+            predictedTick = authoritativeTick
+        }
+        return true
+    }
+
+    Int authoritative() {
+        return authoritativePosition
+    }
+
+    Int predicted() {
+        return predictedPosition
+    }
+
+    Int serverTick() {
+        return authoritativeTick
+    }
+}
