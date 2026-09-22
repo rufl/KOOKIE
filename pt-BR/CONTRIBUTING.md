@@ -21,7 +21,9 @@ O gate executa:
 1. o linter de fontes Kof do repositório;
 2. diagnósticos do LSP Kof para todo `.kf` em `src/` e `probes/`;
 3. verificações do compilador Kof nos alvos JVM e nativo;
-4. builds do compilador para JVM e nativo.
+4. a suíte nomeada de regressão Kof nos alvos JVM e nativo;
+5. a saída de smoke de runtime JVM/nativo para o contrato verificado de tokens de recursos;
+6. builds do compilador para JVM e nativo.
 
 O LSP Kof atual analisa cada documento aberto como um módulo temporário de
 arquivo único. Por isso o gate registra os diagnósticos conhecidos de pacote

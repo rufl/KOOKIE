@@ -13,10 +13,16 @@ python3 scripts/lsp_verify.py probes
 
 kof check src --target jvm
 kof check src --target native
+kof test src --target jvm
+kof test src --target native
+
+expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified'
+[[ "$(kof run src/main.kf --target jvm)" == "$expected_output" ]]
+[[ "$(kof run src/main.kf --target native 2>/dev/null)" == "$expected_output" ]]
 
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
 trap 'rm -rf "$build_dir"' EXIT
 kof build src --target jvm --output "$build_dir/jvm"
 kof build src --target native --output "$build_dir/native"
 
-echo "KOOKIE verification passed: linter, LSP, JVM/native checks, and JVM/native builds"
+echo "KOOKIE verification passed: linter, LSP, JVM/native checks, tests, runtime smoke, and JVM/native builds"

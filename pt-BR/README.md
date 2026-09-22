@@ -7,8 +7,9 @@ As páginas e a documentação pública são mantidas em português brasileiro e
 Pesquisa e planejamento para uma **engine de tiro 3D nativa e focada em Kof**: boomer shooters, looter shooters e ARPG FPS.
 
 **Estado atual:** a implementação G0 foi iniciada. Um núcleo Kof modular mínimo,
-um codec de teste do envelope de sessão e uma sonda escalar isolada de SDL3 existem e passam
-na JVM/nativo. Nenhuma janela, renderizador, dispositivo de áudio ou transporte multiplayer foi
+um codec de teste do envelope de sessão, um registry verificado de tokens de
+recursos e uma sonda escalar isolada de SDL3 existem e passam na JVM/nativo.
+Nenhuma janela, renderizador, dispositivo de áudio ou transporte multiplayer foi
 implementado; a correção nativa e a inicialização gráfica continuam sendo gates
 explícitos.
 
@@ -36,6 +37,8 @@ Esta é uma stack proposta, não uma binding gráfica comprovada. A FFI escalar 
 | [Análise aprofundada do curso](docs/KOF_COURSE.md) | Cobertura do curso/documentação oficial, divergência de versões, algoritmos, ferramentas e implicações para a engine |
 | [Sondas orientadas pelo curso](docs/COURSE_PROBES.md) | 18 programas completos e resultados medidos na JVM/nativo, incluindo falhas de serialização e exceção |
 | [Plano da engine](docs/ENGINE_PLAN.md) | Arquitetura, decisão de biblioteca, regras de propriedade, sistemas do gênero, pipeline de criação e gates de milestone |
+| [Tokens de recursos G0](docs/G0_RESOURCE_TOKENS.md) | Contrato verificado de ciclo de vida por slot/geração/tipo e prova de regressão |
+| [Backlog G0](docs/G0_BACKLOG.md) | Sequência ativa de implementação limitada e escopo adiado |
 
 [Documentação em inglês](../docs/) espelha todos os documentos em português.
 
@@ -66,17 +69,20 @@ Execute o mesmo gate localmente e nas GitHub Actions:
 bash scripts/verify.sh
 ```
 
-Ele executa o linter das fontes Kof, diagnósticos do LSP, verificações do compilador para JVM/nativo e builds JVM/nativo. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para o contrato.
+Ele executa o linter das fontes Kof, diagnósticos do LSP, verificações do
+compilador JVM/nativo, testes de regressão nomeados, smoke de runtime
+JVM/nativo e builds JVM/nativo. Consulte [CONTRIBUTING.md](CONTRIBUTING.md)
+para o contrato.
 
 Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
-## Próximo incremento
-
-G0 está em andamento. Em seguida: preservar as sondas modular/de sessão como regressões,
-estabelecer contratos verificados de tokens de recursos e, então, provar a inicialização real de janela SDL_GPU,
-entrada/foco/redimensionamento e áudio enfileirado a partir do ELF nativo. Use o
-wrapper descartável de display isolado do repositório para verificação gráfica.
-Não crie primeiro um grande esqueleto de engine não testado.
+G0 está em andamento. O contrato verificado de tokens de recursos por
+slot/geração/tipo está implementado e coberto na JVM/nativo. Em seguida:
+colocar os recursos pertencentes ao SDL atrás desse registry e provar a
+inicialização real de janela SDL_GPU, entrada/foco/redimensionamento e áudio
+enfileirado a partir do ELF nativo. Use o wrapper descartável de display isolado
+do repositório para verificação gráfica. Não crie primeiro um grande esqueleto
+de engine não testado.
 
 ## Procedência
 

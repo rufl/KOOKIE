@@ -1,10 +1,10 @@
 # Memória de trabalho do KOOKIE
 
-Última pesquisa e instalação de ferramentas: 2026-09-22. Leia [README](README.md) e depois [ENGINE_PLAN](docs/ENGINE_PLAN.md). A instalação das ferramentas não é a implementação do engine.
+Última pesquisa e instalação de ferramentas: 2026-09-22. Leia [README](README.md) e depois [ENGINE_PLAN](docs/ENGINE_PLAN.md). A implementação G0 agora inclui um contrato verificado de tokens de recursos; a instalação das ferramentas não é a implementação do engine.
 
 ## Intenção do usuário
 
-Criar um engine para boomer shooters / looter shooters / ARPG FPS usando **código-fonte nativo Kof `.kf` para toda a lógica portátil do engine/jogo/ferramentas**. Bibliotecas externas de gráficos/plataforma e código indispensável de ABI/shader são exceções, não permissão para construir o engine em outra linguagem. Aproveitar lógica útil de ZYLVE, DINX, CUBSHIP. A tarefa atual entregou pesquisa e planejamento, **não a implementação do engine**.
+Criar um engine para boomer shooters / looter shooters / ARPG FPS usando **código-fonte nativo Kof `.kf` para toda a lógica portátil do engine/jogo/ferramentas**. Bibliotecas externas de gráficos/plataforma e código indispensável de ABI/shader são exceções, não permissão para construir o engine em outra linguagem. Aproveitar lógica útil de ZYLVE, DINX, CUBSHIP. O trabalho atual iniciou a implementação G0 limitada; a engine nativa de gráficos/áudio ainda não foi implementada.
 
 ## Identidades de pesquisa fixadas
 
@@ -71,7 +71,13 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 
 ## Próxima ação e limite de comprovação
 
-Implemente **somente G0** primeiro: resolva/revalide o defeito registrado no ciclo de vida do handler de exceções nativas em um compilador fixado; em seguida, janela nativa SDL_GPU + malha texturizada + entrada/foco/redimensionamento + áudio enfileirado + verificações seguras de recursos/buffers, transferência das medições e comportamento de memória de thread única delimitado. Nenhum adaptador/programa desse tipo ou reparo de runtime nativo existe aqui ainda; o patch do compilador instalado repara apenas os protocolos das ferramentas.
+Implemente **somente G0**: coloque os recursos pertencentes ao SDL atrás do
+registry verificado por slot/geração/tipo; em seguida, comprove janela SDL_GPU
+nativa + malha texturizada + entrada/foco/redimensionamento + áudio enfileirado
+e verificações seguras de buffers, enquanto revalida o defeito registrado no
+ciclo de vida do handler de exceções nativas com um compilador fixado. Nenhum
+adaptador/programa nativo desse tipo ou reparo de runtime existe aqui ainda; o
+patch do compilador instalado repara apenas os protocolos das ferramentas.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar, 18 programas orientados pelo curso (36 execuções, duas verificações) e o par de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados completos estão nos documentos de pesquisa vinculados. Essas sondas de pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou gráficos iniciados. A verificação de instalação posterior exercitou a CLI do compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha gráfica do engine nem executou uma suíte completa.
 

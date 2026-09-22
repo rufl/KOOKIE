@@ -5,4 +5,31 @@ main() {
     println("KOOKIE G0 session foundation")
     println(tickRate())
     println(roundTripEnvelope(protocolVersion(), 1, 0, 1))
+
+    var resources = ResourceRegistry(2)
+    var mesh = resources.acquire(1)
+    assert(resources.isValid(mesh), "fresh token must be valid")
+    assert(resources.activeCount() == 1, "acquire must consume one slot")
+    assert(!resources.isValid(ResourceToken(mesh.slot(), mesh.generation(), 2)), "kind mismatch must reject")
+    assert(resources.release(mesh), "live token must release")
+    assert(!resources.isValid(mesh), "released token must be stale")
+    assert(!resources.release(mesh), "double release must reject")
+
+    var replacement = resources.acquire(1)
+    assert(replacement.slot() == mesh.slot(), "allocator should reuse the first free slot")
+    assert(replacement.generation() != mesh.generation(), "reuse must advance generation")
+    assert(resources.isValid(replacement), "replacement token must be valid")
+    println("KOOKIE G0 resource tokens verified")
+}
+
+test "resource token lifecycle" {
+    var resources = ResourceRegistry(1)
+    var token = resources.acquire(7)
+    assert(resources.isValid(token))
+    assert(!resources.isValid(ResourceToken(token.slot(), token.generation(), 8)))
+    assert(resources.release(token))
+    assert(!resources.isValid(token))
+    assert(!resources.release(token))
+    var replacement = resources.acquire(7)
+    assert(replacement.generation() != token.generation())
 }

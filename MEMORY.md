@@ -1,10 +1,10 @@
 # KOOKIE working memory
 
-Last research and tooling installation: 2026-09-22. Read [README](README.md) then [ENGINE_PLAN](docs/ENGINE_PLAN.md). Tooling installation is not engine implementation.
+Last research and tooling installation: 2026-09-22. Read [README](README.md) then [ENGINE_PLAN](docs/ENGINE_PLAN.md). G0 implementation now includes a checked resource-token contract; tooling installation is not engine implementation.
 
 ## User intent
 
-Create an engine for boomer shooters / looter shooters / ARPG FPS using **native Kof `.kf` source for all portable engine/game/tool logic**. External graphics/platform libraries and indispensable ABI/shader code are exceptions, not permission to build the engine in another language. Borrow useful logic from ZYLVE, DINX, CUBSHIP. Current task delivered research and planning, **not engine implementation**.
+Create an engine for boomer shooters / looter shooters / ARPG FPS using **native Kof `.kf` source for all portable engine/game/tool logic**. External graphics/platform libraries and indispensable ABI/shader code are exceptions, not permission to build the engine in another language. Borrow useful logic from ZYLVE, DINX, CUBSHIP. Current work has started bounded G0 implementation; it has not yet implemented the native graphics/audio engine.
 
 ## Pinned research identities
 
@@ -69,11 +69,14 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 - DINX MIT; ZYLVE whole-game private/internal notice; CUBSHIP README MIT claim lacks complete inspected notice packaging. User permission does not clear third-party assets. Capture source revision/hash and licenses at port time.
 - Minecraft: not a conventional archetype ECS. Borrow definition/instance separation, item override patches, validated codecs, extraction snapshots and audio voice lifecycles. Prioritize JOML/Brigadier MIT subsets, Artemis/Ashley storage contracts, owo layout and Flywheel instance lifecycles; see [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Recommended library set: SDL3/SDL_GPU; offline SDL_shadercross/DXC; OpenAL Soft for production FPS audio (SDL3_mixer is the basic-spatial alternative); SDL3_image for image decoding; FreeType/HarfBuzz for text services; zstd for cooked packages. G0 remains SDL-only with queued audio. Full boundaries, local availability, licenses and adoption gates are in [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
-- Jolt physics, Recast/Detour navigation and RmlUi/ImGui UI remain conditional foreign-subsystem alternatives requiring explicit ownership approval, not adopted dependencies. No wholesale mod ports. Sodium PolyForm Shield, Physics Mod All Rights Reserved and closed VSCore/Krunch components are not permissive source donors.
-
 ## Next action and proof boundary
 
-Implement **G0 only** first: resolve/revalidate the recorded native exception-handler lifetime defect in a pinned compiler, then native SDL_GPU window + textured mesh + input/focus/resize + queued audio + safe resource/buffer checks, transfer measurements and bounded single-thread memory behavior. No such adapter/program or native runtime repair exists here yet; the installed compiler patch repairs tooling protocols only.
+Implement **G0 only**: place native SDL-owned resources behind the checked
+slot/generation/kind registry, then prove native SDL_GPU window + textured mesh +
+input/focus/resize + queued audio + safe buffer checks, while revalidating the
+recorded native exception-handler lifetime defect in a pinned compiler. No such
+native adapter/program or runtime repair exists here yet; the installed compiler
+patch repairs tooling protocols only.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18 course-driven programs (36 runs, two checks), and the JOML JVM success/native import-rejection pair. Complete sources/results are in the linked research documents. Those research probes were JVM/native x86 only, with no games/editor/server or graphics launched. Later installation verification exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did not verify the engine graphics stack or run a full suite.
 
