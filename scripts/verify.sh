@@ -16,7 +16,7 @@ kof check src --target native
 kof test src --target jvm
 kof test src --target native
 
-expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified'
+expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified'
 [[ "$(kof run src/main.kf --target jvm)" == "$expected_output" ]]
 [[ "$(kof run src/main.kf --target native 2>/dev/null)" == "$expected_output" ]]
 

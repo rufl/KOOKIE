@@ -1,0 +1,43 @@
+package platform
+
+record WindowState(Int width, Int height, Bool focused, Bool closeRequested)
+
+class WindowStateTracker {
+    Int width
+    Int height
+    Bool focused
+    Bool closeRequested
+
+    public constructor(Int initialWidth, Int initialHeight) {
+        this.width = initialWidth
+        this.height = initialHeight
+        this.focused = false
+        this.closeRequested = false
+    }
+
+    WindowState snapshot() {
+        return WindowState(width, height, focused, closeRequested)
+    }
+
+    Bool applyFocus(Int active) {
+        if (active != 0 && active != 1) {
+            return false
+        }
+        focused = active == 1
+        return true
+    }
+
+    Bool applyResize(Int nextWidth, Int nextHeight) {
+        if (nextWidth <= 0 || nextHeight <= 0) {
+            return false
+        }
+        width = nextWidth
+        height = nextHeight
+        return true
+    }
+
+    Bool requestClose() {
+        closeRequested = true
+        return true
+    }
+}

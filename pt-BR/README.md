@@ -8,10 +8,11 @@ Pesquisa e planejamento para uma **engine de tiro 3D nativa e focada em Kof**: b
 
 **Estado atual:** a implementação G0 foi iniciada. Um núcleo Kof modular mínimo,
 um codec de teste do envelope de sessão, um registry verificado de tokens de
-recursos e uma sonda escalar isolada de SDL3 existem e passam na JVM/nativo.
-Nenhuma janela, renderizador, dispositivo de áudio ou transporte multiplayer foi
-implementado; a correção nativa e a inicialização gráfica continuam sendo gates
-explícitos.
+recursos, um contrato escalar de ciclo de vida SDL, um contrato limitado de
+estado de janela e um contrato de áudio enfileirado existem e passam na
+JVM/nativo. Nenhuma janela SDL, renderizador, dispositivo de áudio ou transporte
+multiplayer foi implementado; a correção nativa e a inicialização gráfica
+continuam sendo gates explícitos.
 
 ## Direção proposta
 
@@ -39,6 +40,7 @@ Esta é uma stack proposta, não uma binding gráfica comprovada. A FFI escalar 
 | [Plano da engine](docs/ENGINE_PLAN.md) | Arquitetura, decisão de biblioteca, regras de propriedade, sistemas do gênero, pipeline de criação e gates de milestone |
 | [Tokens de recursos G0](docs/G0_RESOURCE_TOKENS.md) | Contrato verificado de ciclo de vida por slot/geração/tipo e prova de regressão |
 | [Backlog G0](docs/G0_BACKLOG.md) | Sequência ativa de implementação limitada e escopo adiado |
+| [Adaptador escalar G0](docs/G0_SCALAR_ADAPTER.md) | Contratos escalares de ciclo SDL e de estado Kof de janela/áudio com limites de prova |
 
 [Documentação em inglês](../docs/) espelha todos os documentos em português.
 
@@ -76,13 +78,16 @@ para o contrato.
 
 Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
-G0 está em andamento. O contrato verificado de tokens de recursos por
-slot/geração/tipo está implementado e coberto na JVM/nativo. Em seguida:
-colocar os recursos pertencentes ao SDL atrás desse registry e provar a
-inicialização real de janela SDL_GPU, entrada/foco/redimensionamento e áudio
-enfileirado a partir do ELF nativo. Use o wrapper descartável de display isolado
-do repositório para verificação gráfica. Não crie primeiro um grande esqueleto
-de engine não testado.
+## Próximo incremento
+
+G0 está em andamento. O contrato verificado de tokens por slot/geração/tipo,
+a chamada escalar de ciclo de vida SDL, o contrato limitado de estado de janela
+e o contrato FIFO de áudio enfileirado estão implementados e cobertos na
+JVM/nativo. Em seguida: colocar os recursos pertencentes ao SDL atrás desse
+registry e provar janela SDL real, entrada/foco/redimensionamento e inicialização
+de dispositivo de áudio enfileirado a partir do ELF nativo. Use o wrapper
+descartável de display isolado do repositório para verificação gráfica. Não crie
+primeiro um grande esqueleto de engine não testado.
 
 ## Procedência
 

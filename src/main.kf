@@ -1,4 +1,5 @@
 import core
+import platform
 import session
 
 main() {
@@ -20,6 +21,31 @@ main() {
     assert(replacement.generation() != mesh.generation(), "reuse must advance generation")
     assert(resources.isValid(replacement), "replacement token must be valid")
     println("KOOKIE G0 resource tokens verified")
+
+    var sdl = SdlLifecycle()
+    assert(sdl.initialize(0), "SDL scalar lifecycle must initialize")
+    assert(sdl.isInitialized(), "SDL lifecycle must report initialized")
+    sdl.shutdown()
+    assert(!sdl.isInitialized(), "SDL lifecycle must report shutdown")
+
+    var window = WindowStateTracker(1280, 720)
+    assert(window.applyFocus(1), "focus event must be accepted")
+    assert(window.applyResize(1920, 1080), "positive resize must be accepted")
+    assert(!window.applyResize(0, 1080), "zero resize must be rejected")
+    assert(window.requestClose(), "close event must be accepted")
+    var windowState = window.snapshot()
+    assert(windowState.width() == 1920 && windowState.height() == 1080, "resize state must be copied")
+    assert(windowState.focused() && windowState.closeRequested(), "focus and close state must be copied")
+
+    var audio = QueuedAudio(2)
+    assert(audio.open(), "audio queue must open once")
+    assert(audio.queue(11, 80), "audio command must enqueue")
+    assert(audio.queue(12, 60), "audio queue must accept capacity")
+    assert(!audio.queue(13, 40), "audio queue must reject overflow")
+    assert(audio.dequeue(), "audio command must dequeue")
+    assert(audio.consumedClip() == 11 && audio.consumedGain() == 80, "audio order must be FIFO")
+    assert(audio.close(), "audio queue must close")
+    println("KOOKIE G0 scalar adapter contracts verified")
 }
 
 test "resource token lifecycle" {
@@ -32,4 +58,21 @@ test "resource token lifecycle" {
     assert(!resources.release(token))
     var replacement = resources.acquire(7)
     assert(replacement.generation() != token.generation())
+}
+
+test "platform state and audio queue lifecycle" {
+    var window = WindowStateTracker(800, 600)
+    assert(window.applyFocus(1))
+    assert(window.applyResize(1024, 768))
+    assert(!window.applyResize(-1, 768))
+    var state = window.snapshot()
+    assert(state.width() == 1024 && state.height() == 768 && state.focused())
+
+    var audio = QueuedAudio(1)
+    assert(audio.open())
+    assert(audio.queue(3, 100))
+    assert(!audio.queue(4, 100))
+    assert(audio.dequeue())
+    assert(audio.consumedClip() == 3 && audio.consumedGain() == 100)
+    assert(audio.close())
 }

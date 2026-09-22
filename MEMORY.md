@@ -72,11 +72,11 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 ## Next action and proof boundary
 
 Implement **G0 only**: place native SDL-owned resources behind the checked
-slot/generation/kind registry, then prove native SDL_GPU window + textured mesh +
-input/focus/resize + queued audio + safe buffer checks, while revalidating the
-recorded native exception-handler lifetime defect in a pinned compiler. No such
-native adapter/program or runtime repair exists here yet; the installed compiler
-patch repairs tooling protocols only.
+slot/generation/kind registry, then prove native SDL window + textured mesh +
+real input/focus/resize events + queued audio device + safe buffer checks,
+while revalidating the recorded native exception-handler lifetime defect in a
+pinned compiler. Scalar SDL lifecycle and Kof-owned state contracts are already
+covered; no native adapter/program or runtime repair exists here yet.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18 course-driven programs (36 runs, two checks), and the JOML JVM success/native import-rejection pair. Complete sources/results are in the linked research documents. Those research probes were JVM/native x86 only, with no games/editor/server or graphics launched. Later installation verification exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did not verify the engine graphics stack or run a full suite.
 

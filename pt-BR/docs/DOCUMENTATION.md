@@ -9,4 +9,4 @@ Toda página e todo documento público possui duas formas mantidas:
 
 Ao alterar um documento, atualize as duas formas no mesmo commit. Preserve links para evidências medidas, pins de origem, saída de comandos e limites de comprovação. Não traduza identificadores de código, caminhos, nomes de comandos, hashes ou produtos upstream.
 
-O README da raiz é a página inicial. Ele aponta para o conjunto em inglês e para o espelho em português. `CONTRIBUTING.md` define o gate de verificação exigido antes de cada push. A sequência G0 limitada e ativa está em [G0_BACKLOG](G0_BACKLOG.md); o primeiro contrato implementado está em [G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md).
+O README da raiz é a página inicial. Ele aponta para o conjunto em inglês e para o espelho em português. `CONTRIBUTING.md` define o gate de verificação exigido antes de cada push. A sequência G0 limitada e ativa está em [G0_BACKLOG](G0_BACKLOG.md); seus contratos de tokens de recursos e adaptador escalar estão em [G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md) e [G0_SCALAR_ADAPTER](G0_SCALAR_ADAPTER.md).

@@ -7,10 +7,11 @@ Public pages and documentation are maintained in English and Brazilian Portugues
 Research and plan for a **Kof-first, native 3D shooter engine**: boomer shooters, looter shooters and ARPG FPS.
 
 **Current state:** G0 implementation has started. A minimal modular Kof core,
-session envelope smoke codec, checked resource-token registry and isolated scalar
-SDL3 probe exist and pass on JVM/native. No window, renderer, audio device or
-multiplayer transport has been implemented; native correctness and graphics
-initialization remain explicit gates.
+session envelope smoke codec, checked resource-token registry, scalar SDL
+lifecycle contract, bounded window-state contract and queued-audio contract exist
+and pass on JVM/native. No SDL window, renderer, audio device or multiplayer
+transport has been implemented; native correctness and graphics initialization
+remain explicit gates.
 
 ## Proposed direction
 
@@ -38,6 +39,7 @@ This is a proposed stack, not a proven graphics binding. Kof scalar FFI works; b
 | [Engine plan](docs/ENGINE_PLAN.md) | Architecture, library decision, ownership rules, genre systems, creator pipeline and milestone gates |
 | [G0 resource tokens](docs/G0_RESOURCE_TOKENS.md) | Checked slot/generation/kind lifecycle contract and regression proof |
 | [G0 backlog](docs/G0_BACKLOG.md) | Active bounded implementation sequence and deferred scope |
+| [G0 scalar adapter](docs/G0_SCALAR_ADAPTER.md) | Scalar SDL lifecycle and Kof-owned window/audio state contracts with proof limits |
 
 [Portuguese documentation](pt-BR/docs/) mirrors every English document.
 
@@ -74,12 +76,13 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contract.
 
 This setup does not resolve the native runtime blockers below.
 
-G0 is underway. The checked slot/generation/kind resource-token contract is
-implemented and covered on JVM/native. Next: place native SDL-owned resources
-behind that registry, then prove real SDL_GPU window, input/focus/resize and
-queued audio initialization from the native ELF. Use the repository's
-disposable isolated-display wrapper for graphical verification. Do not create a
-large untested engine scaffold first.
+G0 is underway. The checked slot/generation/kind resource-token contract,
+scalar SDL lifecycle call, bounded window-state contract and queued-audio FIFO
+contract are implemented and covered on JVM/native. Next: place native
+SDL-owned resources behind that registry, then prove real SDL window,
+input/focus/resize and queued audio device initialization from the native ELF.
+Use the repository's disposable isolated-display wrapper for graphical
+verification. Do not create a large untested engine scaffold first.
 
 ## Provenance
 

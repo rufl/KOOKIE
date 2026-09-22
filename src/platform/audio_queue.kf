@@ -1,0 +1,83 @@
+package platform
+
+class QueuedAudio {
+    Int[] clips
+    Int[] gains
+    Int head
+    Int count
+    Bool opened
+    Int lastClip
+    Int lastGain
+
+    public constructor(Int capacity) {
+        this.clips = new Int[capacity]
+        this.gains = new Int[capacity]
+        this.head = 0
+        this.count = 0
+        this.opened = false
+        this.lastClip = 0
+        this.lastGain = 0
+    }
+
+    Bool open() {
+        if (opened) {
+            return false
+        }
+        opened = true
+        return true
+    }
+
+    Bool isOpen() {
+        return opened
+    }
+
+    Int queuedCount() {
+        return count
+    }
+
+    Bool queue(Int clip, Int gain) {
+        if (!opened || clip <= 0 || gain < 0 || gain > 100 || count >= clips.length) {
+            return false
+        }
+        var index = head + count
+        if (index >= clips.length) {
+            index = index - clips.length
+        }
+        clips[index] = clip
+        gains[index] = gain
+        count = count + 1
+        return true
+    }
+
+    Bool dequeue() {
+        if (!opened || count == 0) {
+            return false
+        }
+        lastClip = clips[head]
+        lastGain = gains[head]
+        head = head + 1
+        if (head >= clips.length) {
+            head = 0
+        }
+        count = count - 1
+        return true
+    }
+
+    Int consumedClip() {
+        return lastClip
+    }
+
+    Int consumedGain() {
+        return lastGain
+    }
+
+    Bool close() {
+        if (!opened) {
+            return false
+        }
+        opened = false
+        head = 0
+        count = 0
+        return true
+    }
+}
