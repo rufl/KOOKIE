@@ -77,12 +77,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contract.
 
 This setup does not resolve the native runtime blockers below.
 
-G0 native feasibility is implemented except for isolated graphical acceptance.
-G1 now includes fixed-step authority, bounded input commands and edge
-transitions, two-client loopback admission, per-client stale-input rejection,
-snapshot sequence validation, bounded authoritative movement, camera/input
-clamping, and bounded integer component storage. Next: rerun the isolated
-native adapter smoke, measure the declared frame budget, then add client
+G0 native feasibility is implemented. The isolated native adapter smoke now
+accepts hidden-window lifecycle, resize/focus event flattening, dummy audio,
+stale-token teardown, and process cleanup; the environment reports
+`gpu-unavailable`, so textured draw and GPU timing remain unaccepted. G1
+includes fixed-step authority, bounded input commands and edge transitions,
+two-client loopback admission, per-client stale-input rejection, snapshot
+sequence validation, bounded authoritative movement, camera/input clamping,
+and bounded integer component storage. Next: expose an isolated SDL_GPU backend
+or render node, then measure the declared frame budget and add client
 interpolation/prediction boundaries and bounded collision queries. Use the
 repository's disposable isolated-display wrapper for graphical verification.
 Do not create a large untested engine scaffold first.

@@ -2,7 +2,7 @@
 
 [English](../../docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento adiciona glue C SDL estreito de ciclo de vida de janela/áudio/GPU, transferência PCM limitada de clip, o primeiro caminho de upload/draw texturizado com SPIR-V e contratos de estado de eventos pertencentes ao Kof. O smoke nativo de janela/áudio/GPU está conectado, mas sua execução em display isolado foi adiada por pressão; nenhum draw texturizado aceito é afirmado.
+Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento adiciona glue C SDL estreito de ciclo de vida de janela/áudio/GPU, transferência PCM limitada de clip, o primeiro caminho de upload/draw texturizado com SPIR-V e contratos de estado de eventos pertencentes ao Kof. A sonda em display isolado agora aceita ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy e teardown; o ambiente isolado reportou `gpu-unavailable`, portanto nenhum draw texturizado ou timing GPU é aceito.
 
 ## Limite do ciclo de vida SDL
 
@@ -69,11 +69,11 @@ O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da j
 
 `scripts/verify_exception.sh` preserva o reproduzível do lifetime de exceções nativas e seus controles negativos JVM/nativo: a JVM termina na asserção falha; o nativo atualmente chega a `unreachable` com exit 0. Isso é um registro de defeito do compilador, não uma garantia de limpeza do engine.
 
-O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `glslc`, `pkg-config` e `overzeer-isolated-display` estão disponíveis, ele compila o adaptador e os shaders SPIR-V, emite o ELF nativo da sonda e o executa pelo wrapper de display isolado com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito. As tentativas atuais em display isolado foram adiadas pelo gate de pressão do wrapper; elas precisam ser repetidas antes de chamar o smoke de janela/áudio/GPU de aceito.
+O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `glslc`, `pkg-config` e `overzeer-isolated-display` estão disponíveis, ele compila o adaptador e os shaders SPIR-V, emite o ELF nativo da sonda e o executa pelo wrapper de display isolado com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito. A última execução isolada terminou com sucesso e `gpu-unavailable`.
 ```bash
 bash scripts/verify.sh
 ```
-O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`; o contrato de frame registra 15 escritas escalares e retirement explícito para o triângulo de três vértices. A função de timing do adaptador mede a submissão completa do draw até o retirement com GPU ocioso; ela permanece não aceita até a sonda isolada registrá-la.
+O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`; o contrato de frame registra 15 escritas escalares e retirement explícito para o triângulo de três vértices. A função de timing do adaptador está implementada, mas continua sem medição porque o ambiente isolado não expôs um dispositivo SDL_GPU utilizável.
 
 A sonda drena eventos SDL preexistentes por um helper nativo escalar limitado.
 Manter o loop de drain em C evita uma falha medida do compilador nativo em que
@@ -82,4 +82,9 @@ atribuir um `Int` extern dentro daquele loop Kof emitia uma chamada inválida a
 
 ## Próximo limite de comprovação
 
-Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU e o timing decorrido do draw. Compare essa medição com o orçamento de frame; a contagem de tuplas escalares e o contrato de ownership já estão registrados. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o caminho GPU opcional de aceito sem evidência isolada.
+Exponha um backend SDL_GPU ou render node utilizável no ambiente isolado, depois
+reexecute a sonda para registrar `gpu-open`, conclusão do draw e retirement
+decorrido com GPU ocioso. Compare essa medição com o orçamento de frame; a
+aceitação de janela/áudio/eventos já está registrada. Não converta ponteiros
+SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o
+caminho GPU opcional de aceito sem evidência isolada.

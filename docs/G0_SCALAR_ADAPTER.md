@@ -2,7 +2,7 @@
 
 [Português (Brasil)](../pt-BR/docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implemented and compiler-exercised on JVM/native**. This increment adds narrow C SDL window/audio/GPU lifecycle glue, bounded clip PCM transfer, a first SPIR-V texture upload/draw path, and Kof-owned event state contracts. The native window/audio/GPU smoke is wired but its isolated-display run is pressure-deferred; no accepted textured draw is claimed.
+Status: **implemented and compiler-exercised on JVM/native**. This increment adds narrow C SDL window/audio/GPU lifecycle glue, bounded clip PCM transfer, a first SPIR-V texture upload/draw path, and Kof-owned event state contracts. The isolated-display probe now accepts hidden-window lifecycle, resize/focus event flattening, dummy audio, and teardown; the isolated environment reported `gpu-unavailable`, so no textured draw or GPU timing is accepted.
 
 ## SDL lifecycle boundary
 
@@ -69,18 +69,22 @@ The adapter requests SPIR-V support, creates an SDL_GPU device, claims the hidde
 
 `scripts/verify_exception.sh` preserves the native exception-lifetime reproducer and its JVM/native negative controls: JVM exits on the failed assertion; native currently reaches `unreachable` with exit 0. This is a compiler defect record, not an engine cleanup guarantee.
 
-The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `glslc`, `pkg-config` and `overzeer-isolated-display` are available, it compiles the adapter and SPIR-V shaders, emits the native probe ELF and runs it through the isolated-display wrapper with dummy audio. If those dependencies are absent, CI records an explicit skip. The current isolated-display attempts were pressure-deferred by the wrapper's pressure gate; they must be rerun before calling the window/audio/GPU smoke accepted.
+The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `glslc`, `pkg-config` and `overzeer-isolated-display` are available, it compiles the adapter and SPIR-V shaders, emits the native probe ELF and runs it through the isolated-display wrapper with dummy audio. If those dependencies are absent, CI records an explicit skip. The latest isolated run completed successfully with `gpu-unavailable`.
 
 ```bash
 bash scripts/verify.sh
 ```
-The gate materializes temporary links to the canonical `src/core` package while compiling the standalone probe, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shader sources compile through `glslc`; the frame contract records 15 scalar writes and explicit retirement for the three-vertex triangle. The native adapter's timing function measures complete draw submission through GPU-idle retirement; it remains unaccepted until the isolated probe records it.
+
+The gate materializes temporary links to the canonical `src/core` package while compiling the standalone probe, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shader sources compile through `glslc`; the frame contract records 15 scalar writes and explicit retirement for the three-vertex triangle. The native adapter timing function is implemented but remains unmeasured because the isolated environment did not expose a usable SDL_GPU device.
 
 The probe drains pre-existing SDL events through one bounded native scalar
 helper. Keeping the drain loop in C avoids a measured native compiler failure
 where assigning an extern `Int` inside that Kof loop emitted an invalid
 `kof_unbox_int` call; the crash was in generated probe code, not SDL.
-
 ## Next proof boundary
 
-Rerun the isolated native adapter smoke and record window/audio/GPU acceptance plus elapsed draw timing. Compare that measurement with the frame budget; the scalar tuple count and ownership contract are already recorded. Do not cast SDL pointers to integer tokens, add callbacks into Kof, or call the optional GPU path accepted without isolated evidence.
+Expose a usable isolated SDL_GPU backend or render node, then rerun the probe
+to record `gpu-open`, draw completion, and elapsed GPU-idle retirement. Compare
+that measurement with the frame budget; window/audio/event acceptance is
+already recorded. Do not cast SDL pointers to integer tokens, add callbacks
+into Kof, or call the optional GPU path accepted without isolated evidence.

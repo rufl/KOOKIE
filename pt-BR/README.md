@@ -81,16 +81,19 @@ Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
 ## Próximo incremento
 
-A viabilidade nativa G0 está implementada, exceto pela aceitação gráfica
-isolada. G1 agora inclui autoridade fixed-step, comandos de input limitados e
-transições de borda, admissão de dois clientes em loopback, rejeição de input
-obsoleto por cliente, validação de sequência de snapshots, movimento
-autoritativo limitado, clamp de câmera/input e storage limitado de componentes
-inteiros. Em seguida: reexecutar o smoke nativo isolado, medir o orçamento de
-frame declarado e então adicionar limites de interpolação/predição do cliente
-e consultas limitadas de colisão. Use o wrapper descartável de display isolado
-do repositório para verificação gráfica. Não crie primeiro um grande esqueleto
-de engine não testado.
+A viabilidade nativa G0 está implementada. O smoke nativo do adaptador em
+display isolado agora aceita ciclo de vida da janela oculta, flattening de
+resize/focus, áudio dummy, teardown de tokens obsoletos e limpeza de processos;
+o ambiente reporta `gpu-unavailable`, portanto draw texturizado e timing GPU
+continuam não aceitos. G1 agora inclui autoridade fixed-step, comandos de input
+limitados e transições de borda, admissão de dois clientes em loopback,
+rejeição de input obsoleto por cliente, validação de sequência de snapshots,
+movimento autoritativo limitado, clamp de câmera/input e storage limitado de
+componentes inteiros. Em seguida: expor um backend SDL_GPU ou render node no
+ambiente isolado, medir o orçamento de frame declarado e adicionar limites de
+interpolação/predição do cliente e consultas limitadas de colisão. Use o
+wrapper descartável de display isolado do repositório para verificação gráfica.
+Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência
 

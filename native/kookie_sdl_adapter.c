@@ -1,6 +1,6 @@
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_gpu.h>
 
+#include <SDL3/SDL_gpu.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +30,7 @@ static KookieAudioSlot audio_slot;
 static KookieGpuSlot gpu_slot;
 static int last_event_a;
 static int last_event_b;
+static int pending_focus_event = -1;
 
 static int make_token(int slot, unsigned int generation, int kind) {
     return (((int)generation * 100) + slot + 1) * 10 + kind;
@@ -449,14 +450,18 @@ bool kookie_push_focus_event(int focused) {
     if (focused != 0 && focused != 1) {
         return false;
     }
-    SDL_Event event = {0};
-    event.type = focused ? SDL_EVENT_WINDOW_FOCUS_GAINED : SDL_EVENT_WINDOW_FOCUS_LOST;
-    return SDL_PushEvent(&event);
+    pending_focus_event = focused;
+    return true;
 }
-
 
 int kookie_poll_event(void) {
     SDL_Event event;
+    if (pending_focus_event >= 0) {
+        last_event_a = pending_focus_event;
+        last_event_b = 0;
+        pending_focus_event = -1;
+        return 3;
+    }
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_EVENT_QUIT:

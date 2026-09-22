@@ -20,11 +20,12 @@ This is the active bounded implementation sequence after the initial research an
 - Native adapter exposes elapsed GPU draw timing after GPU-idle retirement.
 - G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
 - G1 two-client loopback admission, per-client input sequencing, stale snapshot rejection, bounded authoritative movement, and camera/input clamping.
+- Isolated native smoke accepted hidden-window lifecycle, resize/focus flattening, dummy audio, stale-token teardown, and clean process cleanup; GPU reported unavailable.
 
 ## Next batch
 
-1. Re-run the isolated native adapter smoke after the pressure gate permits it; record window, dummy-audio, GPU and measured draw timing.
-2. Compare elapsed native draw time and frame retirement against the declared frame budget.
+1. Expose a usable isolated SDL_GPU backend or render node; then record `gpu-open`, draw completion, and measured GPU-idle retirement.
+2. Compare elapsed native draw time and frame retirement against the declared frame budget once GPU timing is available.
 3. Add client interpolation/prediction boundaries and snapshot history without weakening server authority.
 4. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
 5. Add bounded collision/query contracts and movement rejection before weapons.
