@@ -35,7 +35,9 @@ jobs:
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/$archive" "$url"
           echo "${KOF_ARCHIVE_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/kof-${KOF_VERSION}-linux-x86_64/bin" >> "$GITHUB_PATH"
+          kof_bin="$RUNNER_TEMP/kof-${KOF_VERSION}-linux-x86_64/bin"
+          echo "$kof_bin" >> "$GITHUB_PATH"
+          export PATH="$kof_bin:$PATH"
           kof version
 
       - name: Run repository verification gate
