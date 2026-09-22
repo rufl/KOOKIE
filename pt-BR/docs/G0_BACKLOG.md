@@ -25,14 +25,16 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Consultas escalares limitadas de colisão com resolução de movimento no limite e rejeição de posicionamento fora dos limites.
 - Histórico limitado de inputs de predição (capacidade oito) com replay após reconciliação autoritativa; o estado do servidor continua autoritativo.
 - Consultas limitadas de sweep de segmento 3D inteiro em volume alinhado aos eixos, rejeitando penetração inicial e traversal acima do orçamento.
+- Consultas limitadas de triângulo inteiro com rejeição de triângulo degenerado e resolução na amostra anterior.
+- Movimento limitado do centro de cápsula com limites expandidos pelo raio e admissão compartilhada de jogador/projétil/linha de visão.
 
 ## Próximo lote
 
 1. Expor um backend SDL_GPU ou render node utilizável no ambiente isolado; depois registrar `gpu-open`, conclusão do draw e retirement medido com GPU ocioso.
 2. Comparar o tempo nativo do draw e o retirement do frame com o orçamento de frame declarado quando o timing GPU estiver disponível.
 3. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
-4. Estender a consulta de segmento limitada para testes de triângulos/BVH e movimento de cápsula antes das armas.
-5. Integrar consultas espaciais limitadas compartilhadas para admissão de jogador, projétil e linha de visão.
+4. Estender as consultas inteiras de triângulo/segmento para coleções limitadas de triângulos e traversal BVH.
+5. Adicionar slide/step autoritativo de cápsula e diagnósticos de consulta antes das armas.
 6. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado

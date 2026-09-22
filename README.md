@@ -85,11 +85,13 @@ includes fixed-step authority, bounded input commands and edge transitions,
 two-client loopback admission, per-client stale-input rejection, snapshot
 sequence validation, bounded authoritative movement, camera/input clamping,
 bounded integer component storage, bounded snapshot history with
-interpolation, bounded prediction input replay, scalar collision queries and
-bounded integer 3D segment sweeps with movement rejection. Next: expose an
-isolated SDL_GPU backend or render node, measure the declared frame budget,
-and extend the 3D contract toward triangle/BVH/capsule movement. Use the
-repository's disposable isolated-display wrapper for graphical verification.
+interpolation, bounded prediction input replay, scalar collision queries,
+integer 3D segment and triangle sweeps, radius-expanded capsule movement, and
+shared player/projectile/line-of-sight admission. Next: expose an isolated
+SDL_GPU backend or render node, measure the declared frame budget, extend
+spatial queries toward bounded collections/BVH traversal, and add capsule
+slide/step handling. Use the repository's disposable isolated-display wrapper
+for graphical verification.
 Do not create a large untested engine scaffold first.
 ## Provenance
 

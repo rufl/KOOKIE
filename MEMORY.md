@@ -81,9 +81,10 @@ edge transitions, two-client loopback admission, per-client stale-input
 rejection, snapshot sequence validation, bounded authoritative movement,
 camera/input clamping, bounded integer component storage, bounded snapshot
 history/interpolation, bounded prediction input replay, scalar collision
-queries and bounded integer 3D segment sweeps with movement rejection. Next
-G1 work is GPU proof and extension of the 3D contract toward triangle/BVH
-queries and capsule movement. The native exception-handler defect remains a
+queries, integer 3D segment and triangle sweeps, radius-expanded capsule
+movement, and shared player/projectile/line-of-sight admission. Next G1 work
+is GPU proof, bounded triangle collections/BVH traversal, capsule slide/step
+handling, and query diagnostics. The native exception-handler defect remains a
 compiler gate.
 Earlier research evidence: original core/import/scalar-FFI probes, 18 course-driven programs (36 runs, two checks), and the JOML JVM success/native import-rejection pair. Complete sources/results are in the linked research documents. Those research probes were JVM/native x86 only, with no games/editor/server or graphics launched. Later installation verification exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did not verify the engine graphics stack or run a full suite.
 

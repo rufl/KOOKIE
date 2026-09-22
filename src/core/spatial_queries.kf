@@ -1,0 +1,312 @@
+package core
+
+class BoundedTriangleWorld {
+    Int minX
+    Int minY
+    Int minZ
+    Int maxX
+    Int maxY
+    Int maxZ
+    Int maxDistance
+    Int ax
+    Int ay
+    Int az
+    Int bx
+    Int by
+    Int bz
+    Int cx
+    Int cy
+    Int cz
+    Bool configured
+
+    public constructor(Int nextMaxDistance) {
+        maxDistance = nextMaxDistance
+        if (maxDistance <= 0) {
+            maxDistance = 1
+        }
+        minX = -1000000
+        minY = -1000000
+        minZ = -1000000
+        maxX = 1000000
+        maxY = 1000000
+        maxZ = 1000000
+        ax = 0
+        ay = 0
+        az = 0
+        bx = 0
+        by = 0
+        bz = 0
+        cx = 0
+        cy = 0
+        cz = 0
+        configured = false
+    }
+
+    Bool configureBounds(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ
+    ) {
+        if (nextMinX > nextMaxX || nextMinY > nextMaxY || nextMinZ > nextMaxZ) {
+            return false
+        }
+        minX = nextMinX
+        minY = nextMinY
+        minZ = nextMinZ
+        maxX = nextMaxX
+        maxY = nextMaxY
+        maxZ = nextMaxZ
+        return true
+    }
+
+    Bool configureTriangle(
+        Int nextAx, Int nextAy, Int nextAz,
+        Int nextBx, Int nextBy, Int nextBz,
+        Int nextCx, Int nextCy, Int nextCz
+    ) {
+        var abX = nextBx - nextAx
+        var abY = nextBy - nextAy
+        var abZ = nextBz - nextAz
+        var acX = nextCx - nextAx
+        var acY = nextCy - nextAy
+        var acZ = nextCz - nextAz
+        var normalX = abY * acZ - abZ * acY
+        var normalY = abZ * acX - abX * acZ
+        var normalZ = abX * acY - abY * acX
+        if (normalX == 0 && normalY == 0 && normalZ == 0) {
+            return false
+        }
+        ax = nextAx
+        ay = nextAy
+        az = nextAz
+        bx = nextBx
+        by = nextBy
+        bz = nextBz
+        cx = nextCx
+        cy = nextCy
+        cz = nextCz
+        configured = true
+        return true
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Bool inside(Int x, Int y, Int z) {
+        return x >= minX && x <= maxX &&
+            y >= minY && y <= maxY && z >= minZ && z <= maxZ
+    }
+
+    Int orientation(
+        Int firstX, Int firstY, Int secondX, Int secondY,
+        Int pointX, Int pointY
+    ) {
+        return (secondX - firstX) * (pointY - firstY) -
+            (secondY - firstY) * (pointX - firstX)
+    }
+
+    Bool pointOnTriangle(Int pointX, Int pointY, Int pointZ) {
+        var abX = bx - ax
+        var abY = by - ay
+        var abZ = bz - az
+        var acX = cx - ax
+        var acY = cy - ay
+        var acZ = cz - az
+        var normalX = abY * acZ - abZ * acY
+        var normalY = abZ * acX - abX * acZ
+        var normalZ = abX * acY - abY * acX
+        var apX = pointX - ax
+        var apY = pointY - ay
+        var apZ = pointZ - az
+        if (normalX * apX + normalY * apY + normalZ * apZ != 0) {
+            return false
+        }
+
+        var firstU = ax
+        var firstV = ay
+        var secondU = bx
+        var secondV = by
+        var thirdU = cx
+        var thirdV = cy
+        var pointU = pointX
+        var pointV = pointY
+        var absX = absolute(normalX)
+        var absY = absolute(normalY)
+        var absZ = absolute(normalZ)
+        if (absX >= absY && absX >= absZ) {
+            firstU = ay
+            firstV = az
+            secondU = by
+            secondV = bz
+            thirdU = cy
+            thirdV = cz
+            pointU = pointY
+            pointV = pointZ
+        } else if (absY >= absZ) {
+            firstU = ax
+            firstV = az
+            secondU = bx
+            secondV = bz
+            thirdU = cx
+            thirdV = cz
+            pointU = pointX
+            pointV = pointZ
+        }
+        var edgeOne = orientation(firstU, firstV, secondU, secondV, pointU, pointV)
+        var edgeTwo = orientation(secondU, secondV, thirdU, thirdV, pointU, pointV)
+        var edgeThree = orientation(thirdU, thirdV, firstU, firstV, pointU, pointV)
+        var allPositive = edgeOne >= 0
+        if (edgeTwo < 0 || edgeThree < 0) {
+            allPositive = false
+        }
+        var allNegative = edgeOne <= 0
+        if (edgeTwo > 0 || edgeThree > 0) {
+            allNegative = false
+        }
+        return allPositive || allNegative
+    }
+
+    SegmentCollisionResult rejected(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return SegmentCollisionResult(
+            false, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            startX, startY, startZ)
+    }
+
+    SegmentCollisionResult queryTriangle(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (!configured || !inside(startX, startY, startZ)) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        var deltaX = endX - startX
+        var deltaY = endY - startY
+        var deltaZ = endZ - startZ
+        var steps = absolute(deltaX)
+        if (absolute(deltaY) > steps) {
+            steps = absolute(deltaY)
+        }
+        if (absolute(deltaZ) > steps) {
+            steps = absolute(deltaZ)
+        }
+        if (steps > maxDistance) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        if (pointOnTriangle(startX, startY, startZ)) {
+            return SegmentCollisionResult(
+                true, true, 0,
+                startX, startY, startZ, endX, endY, endZ,
+                startX, startY, startZ)
+        }
+        for (var step = 1; step <= steps; step = step + 1) {
+            var sampleX = startX + (deltaX * step) / steps
+            var sampleY = startY + (deltaY * step) / steps
+            var sampleZ = startZ + (deltaZ * step) / steps
+            if (pointOnTriangle(sampleX, sampleY, sampleZ)) {
+                var previousX = startX + (deltaX * (step - 1)) / steps
+                var previousY = startY + (deltaY * (step - 1)) / steps
+                var previousZ = startZ + (deltaZ * (step - 1)) / steps
+                return SegmentCollisionResult(
+                    true, true, step,
+                    startX, startY, startZ, endX, endY, endZ,
+                    previousX, previousY, previousZ)
+            }
+        }
+        return SegmentCollisionResult(
+            true, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            endX, endY, endZ)
+    }
+}
+
+class BoundedCapsuleWorld {
+    BoundedSegmentWorld centerWorld
+    Int radius
+
+    public constructor(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ,
+        Int nextRadius, Int nextMaxDistance
+    ) {
+        radius = nextRadius
+        if (radius < 0) {
+            radius = 0
+        }
+        centerWorld = BoundedSegmentWorld(
+            nextMinX + radius, nextMinY + radius, nextMinZ + radius,
+            nextMaxX - radius, nextMaxY - radius, nextMaxZ - radius,
+            nextMaxDistance)
+    }
+
+    Bool configure(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ,
+        Int nextRadius, Int nextMaxDistance
+    ) {
+        if (nextRadius < 0 || nextMinX + nextRadius > nextMaxX - nextRadius ||
+            nextMinY + nextRadius > nextMaxY - nextRadius ||
+            nextMinZ + nextRadius > nextMaxZ - nextRadius) {
+            return false
+        }
+        radius = nextRadius
+        return centerWorld.configure(
+            nextMinX + radius, nextMinY + radius, nextMinZ + radius,
+            nextMaxX - radius, nextMaxY - radius, nextMaxZ - radius,
+            nextMaxDistance)
+    }
+
+    SegmentCollisionResult queryCapsule(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return centerWorld.querySegment(startX, startY, startZ, endX, endY, endZ)
+    }
+
+    Int capsuleRadius() {
+        return radius
+    }
+}
+
+class SpatialQueryGate {
+    BoundedSegmentWorld segmentWorld
+    BoundedCapsuleWorld capsuleWorld
+
+    public constructor(
+        Int minX, Int minY, Int minZ,
+        Int maxX, Int maxY, Int maxZ,
+        Int radius, Int maxDistance
+    ) {
+        segmentWorld = BoundedSegmentWorld(
+            minX, minY, minZ, maxX, maxY, maxZ, maxDistance)
+        capsuleWorld = BoundedCapsuleWorld(
+            minX, minY, minZ, maxX, maxY, maxZ, radius, maxDistance)
+    }
+
+    SegmentCollisionResult admitPlayerMove(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return capsuleWorld.queryCapsule(startX, startY, startZ, endX, endY, endZ)
+    }
+
+    SegmentCollisionResult admitProjectile(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return segmentWorld.querySegment(startX, startY, startZ, endX, endY, endZ)
+    }
+
+    SegmentCollisionResult admitLineOfSight(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return segmentWorld.querySegment(startX, startY, startZ, endX, endY, endZ)
+    }
+}

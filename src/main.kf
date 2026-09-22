@@ -242,3 +242,39 @@ test "bounded 3D segment collision query" {
     assert(!volume.querySegment(-1, 1, 1, 2, 1, 1).accepted(),
         "starting penetration must reject")
 }
+
+test "bounded triangle query" {
+    var triangle = BoundedTriangleWorld(20)
+    assert(triangle.configureBounds(0, 0, 0, 10, 10, 10),
+        "triangle bounds must configure")
+    assert(triangle.configureTriangle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "non-degenerate triangle must configure")
+    var hit = triangle.queryTriangle(2, 2, 0, 2, 2, 10)
+    assert(hit.accepted() && hit.collided(), "segment must hit configured triangle")
+    assert(hit.hitStep() == 5 && hit.resolvedZ() == 4,
+        "triangle hit must resolve to the previous sample")
+    var miss = triangle.queryTriangle(9, 9, 0, 9, 9, 10)
+    assert(miss.accepted() && !miss.collided(),
+        "segment outside triangle must miss")
+    assert(!triangle.configureTriangle(0, 0, 0, 1, 1, 1, 2, 2, 2),
+        "degenerate triangle must reject")
+}
+
+test "shared capsule and spatial admission" {
+    var capsule = BoundedCapsuleWorld(0, 0, 0, 10, 10, 10, 1, 20)
+    var capsuleHit = capsule.queryCapsule(2, 2, 2, 10, 2, 2)
+    assert(capsuleHit.accepted() && capsuleHit.collided(),
+        "capsule center must respect expanded bounds")
+    assert(capsule.capsuleRadius() == 1, "capsule radius must remain bounded")
+    assert(!capsule.configure(0, 0, 0, 1, 1, 1, 1, 20),
+        "capsule larger than volume must reject")
+
+    var gate = SpatialQueryGate(0, 0, 0, 10, 10, 10, 1, 20)
+    var player = gate.admitPlayerMove(2, 2, 2, 9, 2, 2)
+    var projectile = gate.admitProjectile(1, 1, 1, 12, 1, 1)
+    var lineOfSight = gate.admitLineOfSight(1, 1, 1, 12, 1, 1)
+    assert(player.accepted() && !player.collided(),
+        "player admission must use capsule bounds")
+    assert(projectile.collided() && lineOfSight.collided(),
+        "projectile and line-of-sight must share segment admission")
+}

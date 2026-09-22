@@ -82,10 +82,12 @@ transições de borda, admissão de dois clientes em loopback, rejeição de inp
 obsoleto por cliente, validação de sequência de snapshots, movimento
 autoritativo limitado, clamp de câmera/input, storage limitado de componentes
 inteiros, histórico/interpolação de snapshots, replay limitado de inputs de
-predição, consultas escalares de colisão e sweeps limitados de segmento 3D
-inteiro com rejeição de movimento. O próximo G1 é provar a GPU e estender o
-contrato 3D para consultas de triângulo/BVH e movimento de cápsula. O defeito
-do handler de exceções nativas continua sendo um gate do compilador.
+predição, consultas escalares de colisão, sweeps inteiros de segmento e
+triângulo 3D, movimento de cápsula expandido pelo raio e admissão
+compartilhada de jogador/projétil/linha de visão. O próximo G1 é provar a GPU,
+fazer traversal BVH/coleções limitadas de triângulos, adicionar slide/step de
+cápsula e diagnósticos de consulta. O defeito do handler de exceções nativas
+continua sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar, 18 programas orientados pelo curso (36 execuções, duas verificações) e o par de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados completos estão nos documentos de pesquisa vinculados. Essas sondas de pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou gráficos iniciados. A verificação de instalação posterior exercitou a CLI do compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha gráfica do engine nem executou uma suíte completa.
 
