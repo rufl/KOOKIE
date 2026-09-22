@@ -40,6 +40,18 @@ main() {
     assert(audio.consumedClip() == 11 && audio.consumedGain() == 80, "audio order must be FIFO")
     assert(audio.close(), "audio queue must close")
     println("KOOKIE G0 scalar adapter contracts verified")
+
+    var staging = FrameStaging(3)
+    assert(staging.begin(1), "frame staging must open")
+    assert(staging.pushVertex(1, -80, -80, 0, 100), "first vertex must stage")
+    assert(staging.pushVertex(1, 80, -80, 100, 100), "second vertex must stage")
+    assert(staging.pushVertex(1, 0, 80, 50, 0), "third vertex must stage")
+    assert(staging.stagedCount() == 3, "triangle vertex count must stage")
+    assert(staging.scalarWrites() == 15, "triangle scalar write count must be measured")
+    assert(staging.checksum() == 273, "triangle staging checksum must be stable")
+    assert(staging.publish(), "frame staging must publish")
+    assert(staging.publishedFrame() == 1 && !staging.isOpen(), "published frame ownership must close")
+    println("KOOKIE G0 frame staging verified")
 }
 
 test "resource token lifecycle" {
@@ -71,4 +83,19 @@ test "platform state and audio queue lifecycle" {
     assert(audio.dequeue())
     assert(audio.consumedClip() == 3 && audio.consumedGain() == 100)
     assert(audio.close())
+}
+
+test "frame staging ownership and scalar measurement" {
+    var staging = FrameStaging(2)
+    assert(staging.begin(7))
+    assert(staging.pushVertex(2, 1, 2, 3, 4))
+    assert(staging.pushVertex(2, 5, 6, 7, 8))
+    assert(!staging.pushVertex(2, 9, 10, 11, 12))
+    assert(staging.scalarWrites() == 10)
+    assert(staging.publish())
+    assert(staging.publishedFrame() == 7)
+    assert(!staging.begin(7))
+    assert(staging.begin(8))
+    assert(staging.discard())
+    assert(!staging.publish())
 }

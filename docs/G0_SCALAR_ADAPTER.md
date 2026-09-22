@@ -61,18 +61,21 @@ The adapter requests SPIR-V support, creates an SDL_GPU device, claims the hidde
 
 ## Regression proof
 
-`src/main.kf` contains the executable smoke path and two named tests:
+`src/main.kf` contains the executable smoke path and three named tests:
 
 - `resource token lifecycle`;
-- `platform state and audio queue lifecycle`.
+- `platform state and audio queue lifecycle`;
+- `frame staging ownership and scalar measurement`.
+
+`scripts/verify_exception.sh` preserves the native exception-lifetime reproducer and its JVM/native negative controls: JVM exits on the failed assertion; native currently reaches `unreachable` with exit 0. This is a compiler defect record, not an engine cleanup guarantee.
 
 The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `glslc`, `pkg-config` and `overzeer-isolated-display` are available, it compiles the adapter and SPIR-V shaders, emits the native probe ELF and runs it through the isolated-display wrapper with dummy audio. If those dependencies are absent, CI records an explicit skip. The current isolated-display attempts were pressure-deferred by the wrapper's pressure gate; they must be rerun before calling the window/audio/GPU smoke accepted.
 
 ```bash
 bash scripts/verify.sh
 ```
-The gate materializes temporary links to the canonical `src/core` package while compiling the standalone probe, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shader sources compile through `glslc`. Native execution still emits the known full-runtime fallback warning outside the compiler checkout; JVM may emit the JDK restricted-native-access warning for direct SDL lookup.
+The gate materializes temporary links to the canonical `src/core` package while compiling the standalone probe, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shader sources compile through `glslc`; the frame contract records 15 scalar writes for the three-vertex triangle. Native execution still emits the known full-runtime fallback warning outside the compiler checkout; JVM may emit the JDK restricted-native-access warning for direct SDL lookup.
 
 ## Next proof boundary
 
-Rerun the isolated native adapter smoke and record window/audio/GPU acceptance. Then measure scalar staging for the first bounded textured draw and rerun the native exception-handler reproducer with negative controls. Do not cast SDL pointers to integer tokens, add callbacks into Kof, or call the optional GPU path accepted without isolated evidence.
+Rerun the isolated native adapter smoke and record window/audio/GPU acceptance. Then measure elapsed native draw time and frame retirement; the scalar tuple count and ownership contract are already recorded. Do not cast SDL pointers to integer tokens, add callbacks into Kof, or call the optional GPU path accepted without isolated evidence.

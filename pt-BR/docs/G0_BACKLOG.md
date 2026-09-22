@@ -9,18 +9,20 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Fontes Kof modulares `core`/`session` e sonda escalar de SDL3.
 - Documentação bilíngue e gate de verificação antes do push.
 - Tokens de recursos pertencentes ao Kof, verificados por slot, geração e tipo.
-- Smoke JVM/nativo e dois testes nomeados de regressão.
+- Smoke JVM/nativo e três testes nomeados de regressão.
 - Ciclo escalar `SDL_Init(0)`/`SDL_Quit()` exercitado na JVM/nativo.
 - Estado Kof de foco/redimensionamento/fechamento e FIFO de áudio com capacidade limitada.
 - Adaptador C SDL estreito com tokens verificados de janela/áudio/GPU e flattening escalar de eventos.
 - Transferência PCM limitada de silêncio e clip determinístico para um stream de áudio SDL sem callbacks.
 - Sonda do adaptador nativo aplicando eventos reais do adaptador ao estado Kof e executando o primeiro caminho de upload/draw de textura SPIR-V.
+- Contrato limitado de staging de frame Kof medido em 15 escritas escalares para um triângulo texturizado de três vértices, com verificações de ownership de publish/discard.
+- Reproduzível do lifetime de exceção nativa e controles negativos registrados no gate de verificação.
 
 ## Próximo lote
 
 1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar aceitação de janela, áudio dummy e GPU.
-2. Medir staging escalar e ownership de frame em torno do primeiro draw texturizado limitado.
-3. Reexecutar o reproduzível do manipulador de exceções nativo e os controles negativos com o compilador fixado antes de confiar na limpeza por exceção.
+2. Medir tempo nativo decorrido do draw e retirement de frame com o caminho GPU isolado; a contagem de tuplas escalares já está limitada e registrada.
+3. Reexecutar o reproduzível do handler de exceções nativas após qualquer upgrade do compilador e exigir mudança na saída de handler obsoleto antes de confiar na limpeza por exceção.
 4. Registrar toda falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado

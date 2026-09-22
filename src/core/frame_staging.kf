@@ -1,0 +1,94 @@
+package core
+
+class FrameStaging {
+    Int[] resources
+    Int[] xs
+    Int[] ys
+    Int[] us
+    Int[] vs
+    Int frame
+    Int published
+    Int count
+    Int writes
+    Bool open
+
+    public constructor(Int capacity) {
+        this.resources = new Int[capacity]
+        this.xs = new Int[capacity]
+        this.ys = new Int[capacity]
+        this.us = new Int[capacity]
+        this.vs = new Int[capacity]
+        this.frame = 0
+        this.published = 0
+        this.count = 0
+        this.writes = 0
+        this.open = false
+    }
+    Bool begin(Int nextFrame) {
+        if (open || nextFrame <= 0 || nextFrame <= published) {
+            return false
+        }
+        frame = nextFrame
+        count = 0
+        writes = 0
+        open = true
+        return true
+    }
+
+    Bool pushVertex(Int resource, Int x, Int y, Int u, Int v) {
+        if (!open || resource <= 0 || count >= resources.length) {
+            return false
+        }
+        resources[count] = resource
+        xs[count] = x
+        ys[count] = y
+        us[count] = u
+        vs[count] = v
+        count = count + 1
+        writes = writes + 5
+        return true
+    }
+
+    Bool publish() {
+        if (!open || count == 0) {
+            return false
+        }
+        published = frame
+        open = false
+        return true
+    }
+
+    Bool discard() {
+        if (!open) {
+            return false
+        }
+        count = 0
+        writes = 0
+        open = false
+        return true
+    }
+
+    Bool isOpen() {
+        return open
+    }
+
+    Int stagedCount() {
+        return count
+    }
+
+    Int scalarWrites() {
+        return writes
+    }
+
+    Int publishedFrame() {
+        return published
+    }
+
+    Int checksum() {
+        var total = 0
+        for (var index = 0; index < count; index = index + 1) {
+            total = total + resources[index] + xs[index] + ys[index] + us[index] + vs[index]
+        }
+        return total
+    }
+}

@@ -61,17 +61,20 @@ O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da j
 
 ## Prova de regressão
 
-`src/main.kf` contém o caminho de smoke executável e dois testes nomeados:
+`src/main.kf` contém o caminho de smoke executável e três testes nomeados:
 
 - `resource token lifecycle`;
-- `platform state and audio queue lifecycle`.
+- `platform state and audio queue lifecycle`;
+- `frame staging ownership and scalar measurement`.
+
+`scripts/verify_exception.sh` preserva o reproduzível do lifetime de exceções nativas e seus controles negativos JVM/nativo: a JVM termina na asserção falha; o nativo atualmente chega a `unreachable` com exit 0. Isso é um registro de defeito do compilador, não uma garantia de limpeza do engine.
 
 O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `glslc`, `pkg-config` e `overzeer-isolated-display` estão disponíveis, ele compila o adaptador e os shaders SPIR-V, emite o ELF nativo da sonda e o executa pelo wrapper de display isolado com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito. As tentativas atuais em display isolado foram adiadas pelo gate de pressão do wrapper; elas precisam ser repetidas antes de chamar o smoke de janela/áudio/GPU de aceito.
 ```bash
 bash scripts/verify.sh
 ```
-O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador; a JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta.
+O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`; o contrato de frame registra 15 escritas escalares para o triângulo de três vértices. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador; a JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta.
 
 ## Próximo limite de comprovação
 
-Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU. Depois meça o staging escalar do primeiro draw texturizado limitado e reexecute o reproduzível do manipulador de exceções nativo com controles negativos. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o caminho GPU opcional de aceito sem evidência isolada.
+Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU. Depois meça o tempo nativo decorrido do draw e o retirement de frame; a contagem de tuplas escalares e o contrato de ownership já estão registrados. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o caminho GPU opcional de aceito sem evidência isolada.
