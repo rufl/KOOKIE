@@ -1,0 +1,6 @@
+extern "/usr/lib/libSDL3.so" SDL_GetVersion(): Int
+
+main() {
+    println("KOOKIE G0 scalar platform probe")
+    println(SDL_GetVersion())
+}

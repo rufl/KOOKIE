@@ -1,0 +1,83 @@
+# KOOKIE
+[English](../README.md)
+
+As páginas e a documentação pública são mantidas em português brasileiro e inglês. Mantenha as alterações correspondentes sincronizadas em `pt-BR/`.
+
+
+Pesquisa e planejamento para uma **engine de tiro 3D nativa e focada em Kof**: boomer shooters, looter shooters e ARPG FPS.
+
+**Estado atual:** a implementação G0 foi iniciada. Um núcleo Kof modular mínimo,
+um codec de teste do envelope de sessão e uma sonda escalar isolada de SDL3 existem e passam
+na JVM/nativo. Nenhuma janela, renderizador, dispositivo de áudio ou transporte multiplayer foi
+implementado; a correção nativa e a inicialização gráfica continuam sendo gates
+explícitos.
+
+## Direção proposta
+
+- Toda a lógica de CPU pertencente à engine e o comportamento de autoria/cozimento em **`.kf`**.
+- Runtime inicial: **Kof nativo Linux x86-64**, com a JVM usada como alvo de comparação durante o desenvolvimento.
+- Biblioteca preferida de plataforma/renderização: **SDL3 + SDL_GPU**, primeiro Vulkan/SPIR-V.
+- Não-Kof limitado a bibliotecas externas indispensáveis, pequeno marshaling de ABI, shaders de GPU e um glue mínimo de ferramentas/bootstrap. Nenhuma engine C/Java/Rust/Zig oculta.
+- Aproveitar algoritmos e contratos de DINX, ZYLVE e CUBSHIP; não transplantar suas engines nem presumir direitos sobre seus assets.
+
+Esta é uma stack proposta, não uma binding gráfica comprovada. A FFI escalar de Kof funciona; limitações de buffer/struct/pointer, correção dos manipuladores de exceção e comportamento do coletor nativo precisam ser resolvidos antes de assumir um workload sustentado de shooter.
+
+## Documentação
+
+| Documento | Finalidade |
+|---|---|
+| [MEMORY.md](MEMORY.md) | Referência curta para retomada: decisões, versões, ressalvas e próxima ação |
+| [Linguagem Kof](docs/KOF_LANGUAGE.md) | Sintaxe, tipos, módulos, alvos, ferramentas, FFI, GC, desempenho e licenciamento |
+| [Editor Kof](docs/KOF_EDITOR.md) | Arquitetura/workflows reais, defeitos atuais, limitações históricas e limite de segurança |
+| [Jogos e gráficos](docs/GAME_ECOSYSTEM.md) | DoomKof, Byte Eater, Pong relatado, bibliotecas reais e limites da pesquisa |
+| [Sistemas do Minecraft](docs/MINECRAFT_SYSTEMS.md) | Stack Java26.3 atual; reutilização de ECS/UI/física/áudio/renderização, licenças, limites do porte nativo e interop JOML medida |
+| [Reutilização do monorepo](docs/MONOREPO_REUSE.md) | Caminhos de origem específicos, invariantes reutilizáveis, não-exemplos e ressalvas de propriedade |
+| [Sondas executadas](docs/RESEARCH_PROBES.md) | Fontes `.kf` pequenas completas, comandos, resultados, falhas e limites das provas |
+| [Análise aprofundada do curso](docs/KOF_COURSE.md) | Cobertura do curso/documentação oficial, divergência de versões, algoritmos, ferramentas e implicações para a engine |
+| [Sondas orientadas pelo curso](docs/COURSE_PROBES.md) | 18 programas completos e resultados medidos na JVM/nativo, incluindo falhas de serialização e exceção |
+| [Plano da engine](docs/ENGINE_PLAN.md) | Arquitetura, decisão de biblioteca, regras de propriedade, sistemas do gênero, pipeline de criação e gates de milestone |
+
+[Documentação em inglês](../docs/) espelha todos os documentos em português.
+
+
+## Descobertas que mudam o plano
+
+1. **Divergência de versões:** o compilador/release examinado é 0.4.9-beta, enquanto o README/site obtidos anunciam versões mais antigas. Fixe a origem e o executável separadamente.
+2. **Existem jogos:** [DoomKof](https://github.com/M-Tesla/DoomKof) possui gameplay em `.kf` com JVM Jaylib/raylib ou Canvas do navegador; [Byte Eater](https://github.com/lavdev/kofman) usa KofJS/Canvas. Nenhum deles estabelece um FPS nativo-ELF distribuído.
+3. **Interop nativa real:** nossas sondas `.kf` chamaram libm e SDL3 instalado na JVM/nativo x86-64. A FFI de array de float foi corretamente rejeitada com `FFI001`.
+4. **Risco do runtime nativo:** o gate atual de GC automático fecha após `spawn` de Kof. Comece com uma única thread; pré-alocação é útil, mas não é prova de estabilidade em execução prolongada.
+5. **O editor não é uma IDE nativa totalmente em Kof:** um comportamento interativo substancial é escrito manualmente em JS servido a partir de strings `.kf`. A execução copia um documento e fixa a JVM; as rotas privilegiadas do host não têm autenticação. Use a CLI do compilador e um editor com capacidade de LSP configurado separadamente para o trabalho na engine.
+6. **Verificações mais profundas do compilador encontraram bloqueadores:** o JSON de registro fracionário nativo falhou; uma asserção após um try/catch concluído normalmente reentrou no manipulador antigo e saiu falsamente com sucesso. Não confie na saída “PASS” do curso nem em afirmações gerais de paridade entre alvos.
+7. **A reutilização do Minecraft é seletiva:** Java26.3 agora usa SDL3, mas seus mods não são bibliotecas de engine independentes. JOML1.10.9 foi executado a partir da JVM Kof com `--deps`; o nativo rejeitou suas importações Java. Prefira portes limitados de matemática/comandos e contratos de dados/ciclo de vida; Jolt, RmlUi ou ImGui exigiriam escolhas explícitas de propriedade de subsistemas estrangeiros.
+
+## Ferramentas locais instaladas
+
+`kof`, `mvn` e `kof-editor` estão no PATH do usuário. O Kof4j 0.4.9-beta possui uma
+correção local fixada de LSP/DAP; o Kof Editor 0.1.4-beta usa um iniciador restrito ao projeto e
+à rede privada. O MrCode existente possui um cliente real de linguagem Kof, tarefas de formatação e CLI
+e configurações de depuração JVM/nativa. Recarregue sua janela após a instalação.
+Consulte [instalação, comandos, segurança e limites das provas](docs/KOF_EDITOR.md#local-installation).
+
+## Verificação antes do push
+
+Execute o mesmo gate localmente e nas GitHub Actions:
+
+```bash
+bash scripts/verify.sh
+```
+
+Ele executa o linter das fontes Kof, diagnósticos do LSP, verificações do compilador para JVM/nativo e builds JVM/nativo. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para o contrato.
+
+Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
+
+## Próximo incremento
+
+G0 está em andamento. Em seguida: preservar as sondas modular/de sessão como regressões,
+estabelecer contratos verificados de tokens de recursos e, então, provar a inicialização real de janela SDL_GPU,
+entrada/foco/redimensionamento e áudio enfileirado a partir do ELF nativo. Use o
+wrapper descartável de display isolado do repositório para verificação gráfica.
+Não crie primeiro um grande esqueleto de engine não testado.
+
+## Procedência
+
+Pesquisa registrada em 2026-09-22. Os links primários, SHAs upstream fixados, hash do executável e as distinções entre afirmações medidas/derivadas da origem/propostas estão nos documentos. Árvores irmãs foram inspecionadas somente para leitura e podem mudar. Nenhuma licença de origem/asset foi atribuída ou alterada.

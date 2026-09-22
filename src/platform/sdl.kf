@@ -1,0 +1,3 @@
+package platform
+
+extern "/usr/lib/libSDL3.so" SDL_GetVersion(): Int

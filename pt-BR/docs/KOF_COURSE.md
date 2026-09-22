@@ -1,0 +1,133 @@
+# Aprofundamento do curso de Kof e da documentação oficial
+
+Data da pesquisa: 2026-09-22. Isto estende [KOF_LANGUAGE](KOF_LANGUAGE.md), não é uma implementação de engine. As fontes/resultados completos executados estão em [COURSE_PROBES](COURSE_PROBES.md).
+
+## Fontes, versões e evidências
+
+- [curso completo](https://github.com/lunalully/curso-completo-de-kof) fornecido, fixado em [`d6fc8318e77f30ab0d6be87055d86a7eb63960d3`](https://github.com/lunalully/curso-completo-de-kof/tree/d6fc8318e77f30ab0d6be87055d86a7eb63960d3). Seu README afirma que as soluções foram verificadas com **0.3.7-beta**. Essa é uma afirmação histórica do upstream, não uma certificação de todo o curso.
+- [portal oficial de documentação](https://koflang.github.io/docs) fornecido. Seu [docs-core.json](https://koflang.github.io/docs/docs-core.json) subjacente informa geração `2026-09-17T15:26:18.853Z`, repositório `KofLang/Kof4j@main`, **94 documentos: 47 learn + 47 training**. O leitor pode atualizar os documentos a partir do GitHub; o portal não é uma especificação da linguagem versionada.
+- O código-fonte do compilador permanece em [`22a186b9bf9df37c03809ba6ef4af85085386f63`](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), versão 0.4.9-beta. Os hashes dos blobs do portal para funções, coleções, exceções, stdlib e arquitetura nativa diferiram deste checkout; a lição sobre filesystem correspondeu. Não presuma que um snapshot do portal, o branch atual e o executável sejam idênticos.
+- O artefato executado permanece o jar de release **0.4.9-beta Linux** verificado por hash, OpenJDK 27; o ambiente exato e o digest estão em [RESEARCH_PROBES](RESEARCH_PROBES.md).
+- Rótulos das evidências: **medido** = nossa execução delimitada; **revisado no código-fonte** = implementação inspecionada; **lição** = material didático; **decisão** = política KOOKIE proposta. As conclusões de plataforma/segurança revisadas no código-fonte abaixo não foram exercitadas contra serviços ou sistemas adversariais.
+
+## Cobertura e lições mantidas
+
+O estudo cobriu todas as 16 áreas de módulos por meio de suas lições e soluções representativas, além dos cinco briefs de projeto e exemplos compactos relevantes. Não executou todos os exercícios nem certificou todas as APIs.
+
+| Módulo | Aprendizado útil | Interpretação / limites da engine |
+|---|---|---|
+| 00 fundamentos | Declarações, fluxo de controle, funções, captura, records versus classes mutáveis, coleções, erros, JSON/IO | Os formatos exatos do código-fonte importam; soluções alternativas históricas precisam de novas sondagens |
+| 01 algoritmos | Busca linear/binária, ordenação, recursão, custos assintóticos | Invariantes de entrada ordenada, travessia limitada, nenhum caminho quente recursivo com muitas alocações |
+| 02 estruturas de dados | Arrays fixos, listas, pilhas, filas circulares, travessia de grafos, hashing | Buffers de frame/evento pré-alocados; a implementação nativa real de coleções importa |
+| 03 bancos de dados | SQL/binds explícitos, linhas tipadas, posse de conexões, transações | Possível persistência/ indexação fora do caminho quente, atomicidade de salvamento de jogo não comprovada |
+| 04 segurança | Senhas, hashes/HMAC, criptografia autenticada, segredos, identidade | As primitivas disponíveis não fornecem autorização nem confiança no cliente |
+| 05 redes | Limites de protocolo, HTTP, handles de tarefas, distinção de processos | Prontidão/falha/posse de tarefas; nenhum transporte nativo de multiplayer estabelecido |
+| 06 servidores HTTP | Rotas, contexto da requisição, middleware, status e cabeçalhos | O estado capturado é compartilhado apesar do contexto local da requisição; nenhum servidor é necessário agora |
+| 07 frontend | Cores/temas, composição de widgets, KofJS/DOM | Valores de cor são úteis; chamadas nativas de widgets não estabelecem renderização |
+| 08 boas práticas | Separação de dados/estado/regras, composição explícita, configuração/logging | Evitar contêineres e logging em loops quentes; validar a configuração em tempo de execução |
+| 09 cibersegurança | Modelos de ameaça, entrada não confiável, limites de caminho/identidade | Não copiar receitas inseguras de prefixo de caminho, limitador de taxa ou login de demonstração |
+| 10 ciência de dados | Média/variância, correlação, regressão, vizinhos mais próximos | Conceitos de análise/IA offline; validar entradas degeneradas e usar APIs matemáticas reais |
+| 11 testes | Transições de estado observáveis, limites, asserções | Vários testes de exceção podem passar falsamente; o bug atual do handler nativo agrava isso |
+| 12 depuração | Taxonomia de erros, DAP, distinção entre compilação/execução/profile | Falhas fatais nativas diferem de throws de String; inspect não é um profiler nativo |
+| 13 microsserviços | Contratos de mensagens/erros, posse, configuração | Manter contratos, não uma arquitetura de serviços distribuídos para esta engine local |
+| 14 arquitetura | Records, donos de estado, regras puras, adaptadores de interface explícitos | Apenas pontos de separação reais; exemplos com variáveis concretas não comprovam despacho de interface |
+| 15 DevOps | Builds reproduzíveis, empacotamento, comprovantes do alvo | Fixar o toolchain real; o empacotamento do compilador não é o empacotamento de assets/bibliotecas do jogo |
+
+Os projetos são tarefas didáticas, não aplicações de referência concluídas. O gerenciador de tarefas baseado em arquivos é uma analogia útil para o modelo de salvamento, mas não possui um contrato completo e robusto de parser/escrita atômica. Os briefs de REST/blog/monitor de segurança não justificam adicionar infraestrutura ao KOOKIE.
+
+## Conhecimento da linguagem fortalecido pela execução
+
+Consulte o documento de sondagens para ver os programas completos e as saídas exatas.
+
+- **Funções:** sobrecarga de aridade, argumento String padrão, mutação visível para uma lambda capturada e invocação de lambda aninhada passada na JVM/nativo. A afirmação do curso de que sobrecargas no nível superior não existem está desatualizada para essas assinaturas.
+- **Números:** um campo de classe Long comparado com um literal Int e o resultado descartado de um método Double passaram; a solução alternativa histórica para crash/VerifyError não é necessária para essas formas medidas. Os métodos builtin Double `math.sqrt(16.0)`, `math.lerp(0.0,10.0,0.5)` e `math.pow(2.0,3.0)` retornaram `4.0`, `5.0`, `8.0` em ambos.
+- **Arrays:** `new Int[2][3]`, comprimentos, inicialização com zero e leitura/escrita aninhadas passaram. A lição mais antiga, que atribui outro array a um elemento `Int[]`, não é uma receita 2D válida. Prefira dimensões explicitamente corretas ou arrays planos de componentes.
+- **Coleções:** tanto `reduce(callback, seed)` quanto o `reduce(seed, callback)` do curso retornaram 6. Não fabrique uma limitação a partir da divergência da documentação. `.size()` de Map funcionou; uma chave existente com valor zero permaneceu distinguível de null de chave ausente.
+- **Records:** getters mistos de Int/Double/String, Double independente e Float retornaram valores corretos. O sucesso deles é distinto do tratamento quebrado de JSON.
+- **IO binário:** `File.writeBytes`, `readBytes`, a instância `readRange(1,2)` preservaram valores zero e de bit alto. Os bytes inspecionados independentemente foram `00 7f 80 ff` após cada execução do alvo. A representação de Kof é `Int[]`, não um ponteiro nativo de bytes emprestado. Isso não estabelece transferência via FFI, arquivos grandes, paridade de erros, sincronização ou substituição atômica.
+- **Código do curso:** `02-estruturas-de-dados/solucoes/16-fila-circular.kf` inalterado foi executado em ambos e imprimiu a ordem FIFO `10,20,30,40`. Esse exemplo não comprova overflow/underflow, reutilização após wraparound ou throughput.Aulas principais relevantes: [funções do curso](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/00-fundamentos/04-funcoes-e-lambdas.md), [soluções históricas](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/00-fundamentos/99-notas-workarounds.md), [funções atuais](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/learn/06-functions.md), [stdlib math](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/learn/39-stdlib.md), [sistema de arquivos](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/learn/34-file-system.md).
+
+## Discrepâncias medidas que mudam decisões de engenharia
+
+### O JSON nativo não é seguro para o esquema testado
+
+`record Save(Int version, Double speed, String name)` com `(1,1.25,"hero")` fez round-trip corretamente na JVM. O nativo codificou speed como `0.0`, decodificou um Double minúsculo incorreto e um nome vazio. Decodificar uma string JSON literal de forma independente também produziu um Double incorreto. Uma sondagem separada de record direto passou, restringindo o problema ao caminho de serialização, e não a uma falha generalizada de records.
+
+O curso é internamente inconsistente: seu README diz que JSN001/JSN002 foram encerrados, enquanto a aula de JSON mantém uma restrição de ponto flutuante mais antiga. Nenhuma das duas coisas prova a correção atual. **Decisão:** condicionar os esquemas nativos de save/conteúdo a uma correção upstream/compiler e a testes de round-trip/preservação de valores/erros. Não mova silenciosamente o cooker para outra linguagem, não trunque floats nem considere um compile verde como um serializer funcional. O sucesso da IO binária ainda não é um codec substituto implementado.
+
+### A divisão de strings difere por target
+
+Para `"a|b|c"`, `split("\\|")` produziu comprimento 3 na JVM e 1 no nativo; `split("|")` produziu 5 contra 3. Uma vírgula simples produziu 3 em ambos. O runtime nativo percorre um único caractere, em vez de uma regex ([RuntimeStringEdit.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeStringEdit.java#L188-L216)).
+
+**Decisão:** os parsers de formato precisam de contratos explícitos de delimitadores/escape/Unicode e de verificações por target. Não reutilize uma receita de regex da JVM no parsing nativo de assets/save. Um exemplo de vírgula correspondente não representa paridade geral.
+
+### Testes de asserção podem passar falsamente, por dois motivos diferentes
+
+1. **Erro do teste do curso em ambos os targets:** `try { operation(); assert(false, "must throw") } catch (String e) { assert(true) }` captura sua própria asserção que falhou quando a operação tem sucesso. Várias soluções de stack/search/cart/inventory usam esse padrão. As asserções são reduzidas a throws comuns da linguagem, não a um canal de testes independente.
+2. **Defeito atual do compilador nativo:** mesmo uma asserção colocada *depois* de um try/catch concluído normalmente reentrou no handler antigo. A sondagem mínima imprimiu `no-throw`, `false`, `true`, `unreachable` e terminou com código 0; a JVM parou depois de `false` com código de saída 1. Sem o try anterior, a asserção falsa falhou corretamente em ambos.
+
+A causa no código-fonte corresponde à observação: [StatementLowerer.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/StatementLowerer.java#L388-L477) salta para `finallyLabel` na linha 406; o ramo sem finally coloca `KofTryEnd` imediatamente **antes** desse label nas linhas 474–475. O fluxo normal ignora a remoção do handler. [NativeMethodEmitter.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/nat/NativeMethodEmitter.java#L284-L309) instala/restaura a cadeia de exceções TLS no início/fim do try; [RuntimeGc.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java#L370-L390) segue essa cadeia em um throw.
+
+Um helper que retornava em ambos os ramos produziu os valores esperados em uma sondagem de controle, mas **não é uma solução alternativa geral segura**: retornar não estabelece, por si só, que a cadeia TLS foi desvinculada; um throw posterior pode encontrar um frame expirado. Nenhum patch do compilador foi feito nesta pesquisa. **Decisão:** corrigir/revalidar isso antes de depender da limpeza de exceções nativas ou de resultados de testes baseados em exceções. Mantenha controles negativos e compare externamente as saídas/códigos de saída observados.
+
+Exemplo do curso: [teste de stack](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/11-testes-unitarios/solucoes/03-pilha-test.kf#L36-L42).
+
+### Falhas fatais nativas não são exceções comuns
+
+A propagação explícita de throw de String e o retorno através de finally imprimiram seus marcadores de limpeza em ambos os targets. O acesso de array em `length` dentro de try/catch/finally foi capturado na JVM; o nativo terminou com código 1 e `Runtime error: array index out of bounds`, sem **nenhum marcador de catch, limpeza ou continuação**. A [implementação nativa de panic/bounds/null](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java#L361-L412) usa saída do processo, não unwinding de String.
+
+**Decisão:** valide as entradas de capacidade/índice/recurso antes de acessar o armazenamento; não use erros de bounds capturáveis para ausências normais de pool. A desmontagem explícita do adapter continua sendo necessária; uma afirmação de finally não cobre a terminação fatal do processo. Falhas dinâmicas de divisão por zero/null foram revisadas no código-fonte, mas não executadas separadamente aqui.
+
+## Algoritmos: aprenda o contrato, não apenas o exemplo
+
+- **Busca:** a busca binária exige dados ordenados. Use um ponto médio seguro contra overflow, `low + (high - low) / 2`, com índices validados. Uma entidade ausente normal não é necessariamente excepcional; escolha um resultado explícito/uma verificação de geração ativa adequada ao hot path.
+- **Filas:** arrays circulares evitam os deslocamentos de `List.remove(0)`. Filas de eventos do engine precisam de contratos de admissão de capacidade, wraparound e estado cheio/vazio; o exemplo didático não é a implementação completa.
+- **Grafos:** a aula armazena uma lista de arestas, percorre todas as arestas para construir cada lista de vizinhos, remove elementos da frente da fila e busca linearmente nas listas de visitados. Ela não fornece uma BFS de engine O(V+E), sem alocação. Use adjacência pré-computada e scratch próprio de filas/visitados quando essa carga existir.
+- **Ordenação:** o bubble sort exibido não tem saída antecipada, portanto seu trabalho no melhor caso continua quadrático apesar da tabela. O exemplo de merge aloca listas de divisão/saída recursivamente e seleciona a metade direita em chaves iguais; uma ordenação estável de renderização com chaves iguais não pode simplesmente herdar o rótulo “stable” da tabela. Prefira arrays limitados/scratch reutilizado e uma chave explícita de desempate.
+- **Hashing:** o ensino genérico de tabelas hash com O(1) esperado não descreve este Map nativo. [RuntimeEnum.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeEnum.java#L109-L157) percorre as chaves linearmente. Use maps para dados frios adequados; não prometa busca de entidades nativa em tempo constante com base no nome da API.
+- **Recursão:** não há otimização garantida de tail-call. Conteúdo/árvores não confiáveis precisam de um limite ou de uma pilha de travessia explícita. Os exemplos de recursão de strings também alocam substrings e têm diferenças entre bytes nativos e UTF-16 da JVM.
+- **Numéricos:** use a matemática Double disponível em vez da raiz quadrada Newton codificada manualmente no curso. Os exemplos de Pearson/regressão precisam tratar variância zero/denominador zero e o comprimento das entradas. A distância ao quadrado evita raízes quadradas desnecessárias na classificação de candidatos mais próximos. `now()` corresponde a milissegundos desde a epoch, não ao relógio monotônico/de alta resolução exigido pelo engine.Capítulos principais do curso: [ordenação](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/01-algoritmos/03-ordenacao.md), [grafos](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/02-estruturas-de-dados/05-grafos.md), [hashing](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/02-estruturas-de-dados/06-hash.md), [estatística/vizinhos mais próximos](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/10-ciencia-de-dados/02-correlacao-regressao-knn.md).
+
+## APIs da plataforma: limites revisados no código-fonte, não certificação por execução
+
+| Superfície | Constatação atual no código-fonte | Consequência para KOOKIE |
+|---|---|---|
+| Banco de dados | O SQLite nativo existe (`sqlite:` DSN). A execução sem bindings retorna o status do SQLite; a execução com bindings não verifica consistentemente falhas de prepare/step. O rollback da transação responde a lançamentos de Kof, não automaticamente a todo erro de SQL | Nenhuma suposição de erros equivalentes aos do JDBC ou de atomicidade confiável de salvamento; o caminho do banco de dados permanece não comprovado |
+| Concorrência de tarefas | `spawn`/`await` do Kof diferem da inicialização de um processo do SO. O cancelamento é cooperativo; a conclusão pode representar uma falha | A decisão existente de GC sem workers nativos de Kof permanece; nenhum atalho de worker baseado no curso |
+| Processo externo | Tanto o `process.run` quanto o `process.spawn` nativos são rejeitados com `PROC001`. Os campos de resultado em outros lugares são `.stdout`, `.stderr`, `.exitCode`, não o `.output` do curso | O cooker nativo não pode presumir que consegue iniciar ferramentas de shaders/assets por meio dessas APIs; use a orquestração externa mínima de build permitida ou comprove uma extensão de plataforma adequada |
+| UI | A exibição/fechamento de Window nativos e a renderização de Canvas contêm no-ops explícitos | Mantenha o plano de SDL_GPU/entrada nativa; compilar widgets não é prova visual |
+| HTTP | HTTPS nativo explicitamente não é compatível; o cliente HTTPS da JVM usa um gerenciador de certificados que confia em tudo | Não é uma pilha autenticada de download/multiplayer; não envie credenciais nem confie em assets remotos com base na força do esquema de URL |
+| Configuração | A API tipada analisa o texto de implantação em tempo de execução; valores malformados podem usar fallback. O perfil selecionado substitui, em vez de criar uma camada sobre, o arquivo padrão na busca | Valide os intervalos/caminhos exigidos do engine na inicialização; a compilação não valida a configuração |
+| Segurança | A capacidade varia conforme a arquitetura; primitivas criptográficas não estabelecem autorização da aplicação, caminhos seguros ou identidade confiável do cliente | Nenhuma infraestrutura de autenticação/web adicionada; checksums de saves não são uma autoridade antitrapaça |
+
+Referências no código-fonte: [runtime do banco de dados](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeDb4.java#L63-L194), [controles de processo](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/ExpressionProcessCallLowerer.java#L18-L89), [UI nativa](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeUi.java), [analisador HTTP nativo](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/nat/NativeHttpParseUrl.java), [TLS/cliente da JVM](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/jvm/JvmWebHttpRuntime.java#L113-L186), [busca de configuração](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/jvm/JvmConfigRuntime.java#L81-L132).
+
+Não faça o port das demonstrações de segurança do curso como controles de produção:
+
+- Normalizar um caminho e rejeitar um prefixo `..` não estabelece contenção na raiz de assets: caminhos absolutos/symlinks continuam sendo preocupações.
+- O limitador manual filtra as entradas dos outros clientes ao processar um cliente; chaves alternadas podem apagar o histórico. Sua lista mutável compartilhada não é segura para concorrência.
+- O código de login de demonstração emite claims privilegiadas sem uma verificação real de credenciais; cabeçalhos de IP encaminhados exigem uma política de proxy confiável, não aceitação cega.
+- O contexto por requisição não torna privadas as coleções/conexões capturadas. Os exemplos de estoque distribuído do curso não implementam uma reserva atômica de inventário.
+
+Estas são observações sobre o código-fonte/algoritmos, não ataques executados. Consulte [codificação segura](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/09-ciberseguranca/06-secure-coding.md), [solução do limitador](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/09-ciberseguranca/solucoes/06-rate-limit.kf), [CRUD de autenticação de demonstração](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/06-http-servidores/solucoes/10-crud-auth-db.kf).
+
+## Lições de arquitetura, testes e toolchain
+
+- Modele dados frios com records, estado mutável com owners explícitos e regras determinísticas com funções. Argumentos de construtores/funções são injeção de dependência sem um container. Não crie camadas de repositório/serviço simplesmente para imitar um curso web.
+- Uma interface declarada não é uma chamada de interface testada. As soluções de arquitetura inferem variáveis de adaptadores concretos; uma separação do engine usando parâmetros tipados como interface ainda precisa de sua probe de dispatch exata.
+- `kof run` coleta fontes irmãs; `kof test` compila arquivos independentemente. Isole mains/tipos independentes do curso. Testes nomeados são executados sequencialmente dentro de um runner gerado e não redefinem estado ou recursos compartilhados. As constatações sobre exceções nativas impedem presumir que todo resultado de teste verde seja sólido.
+- `kof test` tem uma opção de timeout, mas o padrão é ilimitado no código-fonte inspecionado. Alguns exemplos de “integrator” chamam um loop de servidor bloqueante em vez de definir testes unitários. Não execute diretórios de soluções indiscriminadamente.
+- **Medido/revisado no código-fonte:** `check` compila em uma saída temporária; a verificação nativa emite assembly. Ele não executa o resultado. `inspect` seleciona a compilação da JVM e não é um profiler nativo. O perfil nativo relata tempo/RSS agregado quando compatível e rejeita `--methods`; a depuração nativa usa GDB ou uma ponte DAP GDB/MI.
+- As compilações do compilador a partir do código-fonte exigem Java **25**, não os 21 do CI do curso. Nosso JAR de release usou Java 27. `kof c` é um compilador separado de subconjunto de C; `kofc` não é um destino de build `.kf` válido.
+- A implantação nativa empacota um ELF com metadados/checksums; ela não coleta automaticamente assets ou dependências de SDL/bibliotecas compartilhadas. `kof deps` é um mecanismo de dependências de JAR, não um gerenciador nativo de pacotes gráficos/assets.
+- A análise de configuração e os builds de “release” não são prova de correção em tempo de execução; informações de depuração removidas não são um contrato de desativação de assertions.Fonte principal das ferramentas: [CmdCheck](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-cli/src/main/java/dev/kof/cli/CmdCheck.java), [CmdTest](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-cli/src/main/java/dev/kof/cli/CmdTest.java), [Inspect](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-cli/src/main/java/dev/kof/cli/Inspect.java), [Profile](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-cli/src/main/java/dev/kof/cli/Profile.java), [KofDebug](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-cli/src/main/java/dev/kof/cli/KofDebug.java), [CmdDeploy](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-cli/src/main/java/dev/kof/cli/CmdDeploy.java).
+
+## Decisões resultantes sobre o mecanismo
+
+1. Manter a propriedade de `.kf`, Linux priorizado nativamente, SDL_GPU e uma thread Kof. O curso não fornece um renderizador nativo nem remove os bloqueios existentes de FFI/GC.
+2. Colocar o reparo/revalidação do manipulador de exceções nativo no início de G0. Não desenvolver a limpeza de recursos e a confiança nos testes com base no comportamento obsoleto reproduzido do manipulador.
+3. Manter a correção do JSON nativo como um gate explícito de salvamento/conteúdo. O sucesso dos bytes do arquivo reduz uma incerteza, mas não estabelece salvamentos duráveis nem o upload de gráficos em massa.
+4. Usar arrays limitados de componentes/eventos/travessias, matemática integrada e invariantes explícitas de algoritmo; não transferir cegamente as tabelas de complexidade didática.
+5. Preservar observações, fontes exatas e controles negativos em [COURSE_PROBES](COURSE_PROBES.md). Atualizar executando novamente os contratos relevantes, não confiando em uma tabela mais recente de “todos os alvos”.
+
+O README do curso faz referência à filosofia/exemplos GPL-3.0 do Kof, em vez de fornecer um licenciamento permissivo independente claro. Preserve a atribuição do material reproduzido e revise os direitos antes de incorporar código. Nenhuma alteração no compilador/curso upstream, código do mecanismo, infraestrutura de banco de dados/servidor ou testes gráficos foi introduzida por este estudo.

@@ -1,0 +1,8 @@
+import core
+import session
+
+main() {
+    println("KOOKIE G0 session foundation")
+    println(tickRate())
+    println(roundTripEnvelope(protocolVersion(), 1, 0, 1))
+}

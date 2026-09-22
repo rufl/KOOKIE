@@ -1,0 +1,5 @@
+{
+  "[kof]": {
+    "editor.defaultFormatter": "lich-local.kof-lsp-client"
+  }
+}

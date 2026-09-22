@@ -1,0 +1,42 @@
+name: Verify KOOKIE
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KOF_VERSION: 0.4.9-beta
+  KOF_ARCHIVE_SHA256: ae34ec3f1b64d973af3d4fd2d6393b3cc28fb1fb085cbe6cb50d1e18976af238
+
+jobs:
+  verify:
+    name: LSP, linter, compiler, and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Kof toolchain
+        run: |
+          set -euo pipefail
+          archive="kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          url="https://github.com/KofLang/Kof4j/releases/download/kof-${KOF_VERSION}-linux-x86_64/${archive}"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/$archive" "$url"
+          echo "${KOF_ARCHIVE_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/kof-${KOF_VERSION}-linux-x86_64/bin" >> "$GITHUB_PATH"
+          kof version
+
+      - name: Run repository verification gate
+        run: bash scripts/verify.sh

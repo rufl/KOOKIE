@@ -1,0 +1,24 @@
+package session
+
+Int[] newEnvelope(Int protocol, Int kind, Int tick, Int sequence) {
+    var words = new Int[5]
+    words[0] = protocol
+    words[1] = kind
+    words[2] = tick
+    words[3] = sequence
+    words[4] = 0
+    return words
+}
+
+Bool validEnvelope(Int[] words) {
+    return words.length == 5 && words[0] == 1 && words[1] >= 0 && words[2] >= 0 && words[3] >= 0
+}
+
+Int envelopeSequence(Int[] words) {
+    return words[3]
+}
+
+Bool roundTripEnvelope(Int protocol, Int kind, Int tick, Int sequence) {
+    var encoded = newEnvelope(protocol, kind, tick, sequence)
+    return validEnvelope(encoded) && envelopeSequence(encoded) == sequence
+}

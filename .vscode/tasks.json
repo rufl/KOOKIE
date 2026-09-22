@@ -1,0 +1,118 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Kof: Run Active File",
+      "type": "process",
+      "command": "/home/lich/.local/bin/kof",
+      "args": [
+        "run",
+        "${file}",
+        "--target",
+        "${input:kofTarget}"
+      ],
+      "options": {
+        "cwd": "${fileDirname}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Kof: Check Active File",
+      "type": "process",
+      "command": "/home/lich/.local/bin/kof",
+      "args": [
+        "check",
+        "${file}",
+        "--target",
+        "${input:kofTarget}"
+      ],
+      "options": {
+        "cwd": "${fileDirname}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Kof: Build Active File Directory",
+      "type": "process",
+      "command": "/home/lich/.local/bin/kof",
+      "args": [
+        "build",
+        "${file}",
+        "--target",
+        "${input:kofTarget}",
+        "--output",
+        "${fileDirname}/build/kof/${input:kofTarget}"
+      ],
+      "options": {
+        "cwd": "${fileDirname}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "group": "build"
+    },
+    {
+      "label": "Kof: Check Workspace",
+      "type": "process",
+      "command": "/home/lich/.local/bin/kof",
+      "args": [
+        "check",
+        "${workspaceFolder}",
+        "--target",
+        "${input:kofTarget}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Kof: Build Workspace",
+      "type": "process",
+      "command": "/home/lich/.local/bin/kof",
+      "args": [
+        "build",
+        "${workspaceFolder}",
+        "--target",
+        "${input:kofTarget}",
+        "--output",
+        "${workspaceFolder}/build/kof/${input:kofTarget}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "group": "build"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "kofTarget",
+      "type": "pickString",
+      "description": "Kof backend",
+      "options": [
+        "jvm",
+        "native"
+      ],
+      "default": "jvm"
+    }
+  ]
+}
