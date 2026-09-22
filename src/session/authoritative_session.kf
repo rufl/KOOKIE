@@ -133,15 +133,19 @@ class LoopbackSession {
             return false
         }
         if (player == 1 && playerOneConnected) {
-            if (!clientMovement.setPosition(1, position) ||
-                !playerOneSnapshots.push(sequence, tick, position) ||
+            if (!playerOneSnapshots.push(sequence, tick, position) ||
                 !playerOnePrediction.reconcile(position, tick)) {
                 return false
             }
+            if (!clientMovement.setPosition(1, playerOnePrediction.predicted())) {
+                return false
+            }
         } else if (player == 2 && playerTwoConnected) {
-            if (!clientMovement.setPosition(2, position) ||
-                !playerTwoSnapshots.push(sequence, tick, position) ||
+            if (!playerTwoSnapshots.push(sequence, tick, position) ||
                 !playerTwoPrediction.reconcile(position, tick)) {
+                return false
+            }
+            if (!clientMovement.setPosition(2, playerTwoPrediction.predicted())) {
                 return false
             }
         } else {
@@ -177,6 +181,27 @@ class LoopbackSession {
         }
         return playerTwoPrediction.predicted()
     }
+    Int authoritativePosition(Int player) {
+        if (player == 1) {
+            return playerOnePrediction.authoritative()
+        }
+        return playerTwoPrediction.authoritative()
+    }
+
+    Int predictionCorrection(Int player) {
+        if (player == 1) {
+            return playerOnePrediction.correction()
+        }
+        return playerTwoPrediction.correction()
+    }
+
+    Int pendingPredictionInputs(Int player) {
+        if (player == 1) {
+            return playerOnePrediction.pendingInputs()
+        }
+        return playerTwoPrediction.pendingInputs()
+    }
+
 
     InterpolatedPosition interpolatedPosition(Int player, Int renderTick) {
         if (player == 1) {

@@ -1,0 +1,138 @@
+package core
+
+record SegmentCollisionResult(
+    Bool accepted,
+    Bool collided,
+    Int hitStep,
+    Int startX,
+    Int startY,
+    Int startZ,
+    Int endX,
+    Int endY,
+    Int endZ,
+    Int resolvedX,
+    Int resolvedY,
+    Int resolvedZ
+)
+
+class BoundedSegmentWorld {
+    Int minX
+    Int minY
+    Int minZ
+    Int maxX
+    Int maxY
+    Int maxZ
+    Int maxDistance
+
+    public constructor(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ,
+        Int nextMaxDistance
+    ) {
+        minX = nextMinX
+        minY = nextMinY
+        minZ = nextMinZ
+        maxX = nextMaxX
+        maxY = nextMaxY
+        maxZ = nextMaxZ
+        maxDistance = nextMaxDistance
+        if (minX > maxX || minY > maxY || minZ > maxZ) {
+            minX = -1000000
+            minY = -1000000
+            minZ = -1000000
+            maxX = 1000000
+            maxY = 1000000
+            maxZ = 1000000
+        }
+        if (maxDistance <= 0) {
+            maxDistance = 1
+        }
+    }
+
+    Bool configure(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ,
+        Int nextMaxDistance
+    ) {
+        if (nextMinX > nextMaxX || nextMinY > nextMaxY ||
+            nextMinZ > nextMaxZ || nextMaxDistance <= 0) {
+            return false
+        }
+        minX = nextMinX
+        minY = nextMinY
+        minZ = nextMinZ
+        maxX = nextMaxX
+        maxY = nextMaxY
+        maxZ = nextMaxZ
+        maxDistance = nextMaxDistance
+        return true
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Bool inside(Int x, Int y, Int z) {
+        return x >= minX && x <= maxX &&
+            y >= minY && y <= maxY && z >= minZ && z <= maxZ
+    }
+
+    SegmentCollisionResult rejected(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return SegmentCollisionResult(
+            false, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            startX, startY, startZ)
+    }
+
+    SegmentCollisionResult querySegment(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (!inside(startX, startY, startZ)) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        var deltaX = endX - startX
+        var deltaY = endY - startY
+        var deltaZ = endZ - startZ
+        var steps = absolute(deltaX)
+        if (absolute(deltaY) > steps) {
+            steps = absolute(deltaY)
+        }
+        if (absolute(deltaZ) > steps) {
+            steps = absolute(deltaZ)
+        }
+        if (steps > maxDistance) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        if (steps == 0) {
+            return SegmentCollisionResult(
+                true, false, -1,
+                startX, startY, startZ, endX, endY, endZ,
+                startX, startY, startZ)
+        }
+        for (var step = 1; step <= steps; step = step + 1) {
+            var sampleX = startX + (deltaX * step) / steps
+            var sampleY = startY + (deltaY * step) / steps
+            var sampleZ = startZ + (deltaZ * step) / steps
+            if (!inside(sampleX, sampleY, sampleZ)) {
+                var previousX = startX + (deltaX * (step - 1)) / steps
+                var previousY = startY + (deltaY * (step - 1)) / steps
+                var previousZ = startZ + (deltaZ * (step - 1)) / steps
+                return SegmentCollisionResult(
+                    true, true, step,
+                    startX, startY, startZ, endX, endY, endZ,
+                    previousX, previousY, previousZ)
+            }
+        }
+        return SegmentCollisionResult(
+            true, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            endX, endY, endZ)
+    }
+}

@@ -23,14 +23,16 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Smoke nativo isolado aceitou ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy, teardown de tokens obsoletos e limpeza de processos; a GPU reportou indisponível.
 - Histórico limitado de snapshots do cliente com interpolação inteira e limites explícitos de autoridade de predição/reconciliação.
 - Consultas escalares limitadas de colisão com resolução de movimento no limite e rejeição de posicionamento fora dos limites.
+- Histórico limitado de inputs de predição (capacidade oito) com replay após reconciliação autoritativa; o estado do servidor continua autoritativo.
+- Consultas limitadas de sweep de segmento 3D inteiro em volume alinhado aos eixos, rejeitando penetração inicial e traversal acima do orçamento.
 
 ## Próximo lote
 
 1. Expor um backend SDL_GPU ou render node utilizável no ambiente isolado; depois registrar `gpu-open`, conclusão do draw e retirement medido com GPU ocioso.
 2. Comparar o tempo nativo do draw e o retirement do frame com o orçamento de frame declarado quando o timing GPU estiver disponível.
 3. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
-4. Adicionar histórico limitado de inputs de predição e replay após reconciliação autoritativa.
-5. Estender o contrato escalar de colisão para consultas de segmento/triângulo 3D e movimento de cápsula antes das armas.
+4. Estender a consulta de segmento limitada para testes de triângulos/BVH e movimento de cápsula antes das armas.
+5. Integrar consultas espaciais limitadas compartilhadas para admissão de jogador, projétil e linha de visão.
 6. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado

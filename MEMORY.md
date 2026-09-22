@@ -80,10 +80,11 @@ unaccepted. G1 now includes fixed-step authority, bounded input commands and
 edge transitions, two-client loopback admission, per-client stale-input
 rejection, snapshot sequence validation, bounded authoritative movement,
 camera/input clamping, bounded integer component storage, bounded snapshot
-history/interpolation and prediction/reconciliation boundaries, plus scalar
-collision queries with movement rejection. Next G1 work is prediction input
-replay across reconciliation and extension of the collision contract toward
-true 3D. The native exception-handler defect remains a compiler gate.
+history/interpolation, bounded prediction input replay, scalar collision
+queries and bounded integer 3D segment sweeps with movement rejection. Next
+G1 work is GPU proof and extension of the 3D contract toward triangle/BVH
+queries and capsule movement. The native exception-handler defect remains a
+compiler gate.
 Earlier research evidence: original core/import/scalar-FFI probes, 18 course-driven programs (36 runs, two checks), and the JOML JVM success/native import-rejection pair. Complete sources/results are in the linked research documents. Those research probes were JVM/native x86 only, with no games/editor/server or graphics launched. Later installation verification exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did not verify the engine graphics stack or run a full suite.
 
 All graphical checks use `overzeer-isolated-display` or reviewed equivalent with private sockets, timeout and process cleanup; never the developer desktop. Full matrix only final pre-commit with user permit. Research docs and local tooling/configuration are delivered; no sibling engine/game source/assets were modified or copied.

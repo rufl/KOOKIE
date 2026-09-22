@@ -96,6 +96,9 @@ class ClientPredictionState {
     Int predictedPosition
     Int authoritativeTick
     Int predictedTick
+    Int[] inputTicks
+    Int[] inputSteps
+    Int inputCount
 
     public constructor(Int nextMaxStep) {
         maxStep = nextMaxStep
@@ -106,9 +109,12 @@ class ClientPredictionState {
         predictedPosition = 0
         authoritativeTick = 0
         predictedTick = 0
+        inputTicks = new Int[8]
+        inputSteps = new Int[8]
+        inputCount = 0
     }
 
-    Bool predict(Int requestedStep) {
+    Int clampStep(Int requestedStep) {
         var step = requestedStep
         if (step > maxStep) {
             step = maxStep
@@ -116,8 +122,23 @@ class ClientPredictionState {
         if (step < -maxStep) {
             step = -maxStep
         }
+        return step
+    }
+
+    Bool predict(Int requestedStep) {
+        return predictAt(predictedTick + 1, requestedStep)
+    }
+
+    Bool predictAt(Int tick, Int requestedStep) {
+        if (tick <= predictedTick || inputCount >= inputTicks.length) {
+            return false
+        }
+        var step = clampStep(requestedStep)
+        inputTicks[inputCount] = tick
+        inputSteps[inputCount] = step
+        inputCount = inputCount + 1
         predictedPosition = predictedPosition + step
-        predictedTick = predictedTick + 1
+        predictedTick = tick
         return true
     }
 
@@ -128,8 +149,21 @@ class ClientPredictionState {
         authoritativePosition = nextAuthoritativePosition
         predictedPosition = nextAuthoritativePosition
         authoritativeTick = nextAuthoritativeTick
-        if (predictedTick < authoritativeTick) {
-            predictedTick = authoritativeTick
+        var remaining = 0
+        for (var index = 0; index < inputCount; index = index + 1) {
+            if (inputTicks[index] > nextAuthoritativeTick) {
+                inputTicks[remaining] = inputTicks[index]
+                inputSteps[remaining] = inputSteps[index]
+                remaining = remaining + 1
+            }
+        }
+        inputCount = remaining
+        predictedTick = nextAuthoritativeTick
+        for (var replay = 0; replay < inputCount; replay = replay + 1) {
+            predictedPosition = predictedPosition + inputSteps[replay]
+            if (inputTicks[replay] > predictedTick) {
+                predictedTick = inputTicks[replay]
+            }
         }
         return true
     }
@@ -140,6 +174,14 @@ class ClientPredictionState {
 
     Int predicted() {
         return predictedPosition
+    }
+
+    Int correction() {
+        return predictedPosition - authoritativePosition
+    }
+
+    Int pendingInputs() {
+        return inputCount
     }
 
     Int serverTick() {

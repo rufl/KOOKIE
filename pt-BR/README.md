@@ -89,12 +89,12 @@ continuam não aceitos. G1 agora inclui autoridade fixed-step, comandos de input
 limitados e transições de borda, admissão de dois clientes em loopback,
 rejeição de input obsoleto por cliente, validação de sequência de snapshots,
 movimento autoritativo limitado, clamp de câmera/input, storage limitado de
-componentes inteiros, histórico limitado de snapshots com interpolação e
-limites de predição/reconciliação, além de consultas escalares de colisão com
-rejeição de movimento. Em seguida: expor um backend SDL_GPU ou render node no
-ambiente isolado, medir o orçamento de frame, adicionar replay dos inputs de
-predição e estender o contrato de colisão para 3D. Use o wrapper descartável de
-display isolado do repositório para verificação gráfica.
+componentes inteiros, histórico limitado de snapshots com interpolação, replay
+limitado de inputs de predição, consultas escalares de colisão e sweeps
+limitados de segmento 3D inteiro com rejeição de movimento. Em seguida: expor
+um backend SDL_GPU ou render node no ambiente isolado, medir o orçamento de
+frame e estender o contrato 3D para movimento de triângulos/BVH/cápsula. Use o
+wrapper descartável de display isolado do repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

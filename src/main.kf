@@ -165,8 +165,16 @@ test "authoritative loopback foundation" {
         "loopback must expose an interpolated snapshot")
     assert(loopback.predictClientInput(1, 4), "client prediction must accept input")
     assert(loopback.predictedPosition(1) == 6, "prediction must stay locally bounded")
+    assert(loopback.pendingPredictionInputs(1) == 1,
+        "prediction must retain unacknowledged input")
     assert(loopback.applySnapshot(2, 1, 1, 2), "server snapshot must reconcile prediction")
-    assert(loopback.clientPosition(1) == 2, "reconciliation must restore authority")
+    assert(loopback.authoritativePosition(1) == 2,
+        "reconciliation must retain server authority")
+    assert(loopback.clientPosition(1) == 6,
+        "reconciliation must replay pending client input")
+    assert(loopback.applySnapshot(3, 2, 1, 6), "acknowledged snapshot must retire input")
+    assert(loopback.pendingPredictionInputs(1) == 0 && loopback.clientPosition(1) == 6,
+        "acknowledged prediction must stop replaying")
 
 }
 
@@ -186,10 +194,16 @@ test "bounded snapshot interpolation and prediction" {
 
     var prediction = ClientPredictionState(4)
     assert(prediction.predict(9), "prediction must accept and clamp input")
-    assert(prediction.predicted() == 4, "prediction must clamp local movement")
+    assert(prediction.predicted() == 4 && prediction.pendingInputs() == 1,
+        "prediction must retain bounded input history")
     assert(prediction.reconcile(2, 1), "authoritative snapshot must reconcile")
     assert(prediction.authoritative() == 2 && prediction.predicted() == 2,
-        "reconciliation must restore server authority")
+        "acknowledged input must not replay")
+    assert(prediction.predictAt(2, 9), "prediction must accept a later tick")
+    assert(prediction.reconcile(3, 1), "reconciliation must replay pending input")
+    assert(prediction.predicted() == 7 && prediction.correction() == 4,
+        "reconciliation must replay and expose correction")
+    assert(prediction.pendingInputs() == 1, "unacknowledged input must remain pending")
     assert(!prediction.reconcile(3, 0), "older authority must reject")
 }
 
@@ -209,4 +223,22 @@ test "bounded collision query and movement rejection" {
     assert(movement.position(1) == 10, "movement must stop at collision boundary")
     assert(movement.lastCollision().collided(), "movement must expose collision result")
     assert(!movement.setPosition(1, -1), "out-of-bounds placement must reject")
+}
+
+test "bounded 3D segment collision query" {
+    var volume = BoundedSegmentWorld(0, 0, 0, 10, 10, 10, 20)
+    var clear = volume.querySegment(1, 1, 1, 4, 4, 4)
+    assert(clear.accepted() && !clear.collided(),
+        "interior segment must be accepted without collision")
+    assert(clear.resolvedX() == 4 && clear.resolvedY() == 4 && clear.resolvedZ() == 4,
+        "clear segment must resolve to its endpoint")
+
+    var hit = volume.querySegment(8, 8, 8, 12, 12, 12)
+    assert(hit.accepted() && hit.collided(), "segment must stop at volume boundary")
+    assert(hit.hitStep() > 0 && hit.resolvedX() <= 10 && hit.resolvedY() <= 10 &&
+        hit.resolvedZ() <= 10, "collision must expose the last interior sample")
+    assert(!volume.querySegment(1, 1, 1, 30, 1, 1).accepted(),
+        "over-budget segment must reject")
+    assert(!volume.querySegment(-1, 1, 1, 2, 1, 1).accepted(),
+        "starting penetration must reject")
 }

@@ -84,12 +84,12 @@ stale-token teardown, and process cleanup; the environment reports
 includes fixed-step authority, bounded input commands and edge transitions,
 two-client loopback admission, per-client stale-input rejection, snapshot
 sequence validation, bounded authoritative movement, camera/input clamping,
-bounded integer component storage, bounded snapshot history with interpolation
-and prediction/reconciliation boundaries, and scalar collision queries with
-movement rejection. Next: expose an isolated SDL_GPU backend or render node,
-measure the declared frame budget, add prediction input replay, and extend the
-collision contract toward true 3D. Use the repository's disposable
-isolated-display wrapper for graphical verification.
+bounded integer component storage, bounded snapshot history with
+interpolation, bounded prediction input replay, scalar collision queries and
+bounded integer 3D segment sweeps with movement rejection. Next: expose an
+isolated SDL_GPU backend or render node, measure the declared frame budget,
+and extend the 3D contract toward triangle/BVH/capsule movement. Use the
+repository's disposable isolated-display wrapper for graphical verification.
 Do not create a large untested engine scaffold first.
 ## Provenance
 

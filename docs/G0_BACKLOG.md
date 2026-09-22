@@ -23,14 +23,16 @@ This is the active bounded implementation sequence after the initial research an
 - Isolated native smoke accepted hidden-window lifecycle, resize/focus flattening, dummy audio, stale-token teardown, and clean process cleanup; GPU reported unavailable.
 - Bounded client snapshot history with integer interpolation and explicit prediction/reconciliation authority boundaries.
 - Bounded scalar collision queries with clamped movement resolution and out-of-bounds placement rejection.
+- Bounded prediction input history (capacity eight) with replay across authoritative reconciliation; server state remains authoritative.
+- Bounded integer 3D segment sweep queries through an axis-aligned volume, rejecting starting penetration and over-budget traversal.
 
 ## Next batch
 
 1. Expose a usable isolated SDL_GPU backend or render node; then record `gpu-open`, draw completion, and measured GPU-idle retirement.
 2. Compare elapsed native draw time and frame retirement against the declared frame budget once GPU timing is available.
 3. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
-4. Add bounded prediction input history and replay across authoritative reconciliation.
-5. Extend the scalar collision contract toward true-3D segment/triangle queries and capsule movement before weapons.
+4. Extend the bounded segment query toward triangle/BVH tests and capsule movement before weapons.
+5. Integrate shared bounded spatial queries for player, projectile and line-of-sight admission.
 6. Record each new measured failure or acceptance boundary in both language trees.
 
 ## Deferred
