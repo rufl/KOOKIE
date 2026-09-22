@@ -1,0 +1,36 @@
+extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
+extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int height, Int hidden): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_push_resize_event(Int width, Int height): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
+
+main() {
+    println("KOOKIE G0 native SDL adapter probe")
+    assert(kookie_sdl_init(48), "SDL video/audio adapter init must succeed")
+
+    var window = kookie_window_create(320, 240, 1)
+    assert(window > 0, "hidden SDL window must create")
+    assert(kookie_push_resize_event(640, 480), "SDL resize event must enqueue")
+    var eventKind = kookie_poll_event()
+    assert(eventKind == 2, "resize event must flatten to kind 2")
+    assert(kookie_last_event_a() == 640 && kookie_last_event_b() == 480, "resize payload must copy")
+    assert(kookie_push_focus_event(1), "SDL focus event must enqueue")
+    assert(kookie_poll_event() == 3, "focus event must flatten to kind 3")
+    assert(kookie_window_destroy(window), "live window token must destroy")
+    assert(!kookie_window_destroy(window), "stale window token must reject")
+
+    var audio = kookie_audio_open()
+    assert(audio > 0, "dummy SDL audio device must open")
+    assert(kookie_audio_close(audio), "live audio token must close")
+    assert(!kookie_audio_close(audio), "stale audio token must reject")
+    println("audio-open")
+
+    kookie_sdl_shutdown()
+    println("KOOKIE G0 native SDL adapter verified")
+}

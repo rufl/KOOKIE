@@ -8,10 +8,10 @@ Research and plan for a **Kof-first, native 3D shooter engine**: boomer shooters
 
 **Current state:** G0 implementation has started. A minimal modular Kof core,
 session envelope smoke codec, checked resource-token registry, scalar SDL
-lifecycle contract, bounded window-state contract and queued-audio contract exist
-and pass on JVM/native. No SDL window, renderer, audio device or multiplayer
-transport has been implemented; native correctness and graphics initialization
-remain explicit gates.
+lifecycle contract, bounded window/audio state, and a narrow native SDL adapter
+exist. Compiler checks and Kof contract tests pass on JVM/native. The native
+window/audio smoke is wired but its isolated-display run remains pressure-gated;
+SDL_GPU, textured rendering and multiplayer transport are not implemented.
 
 ## Proposed direction
 
@@ -71,18 +71,18 @@ bash scripts/verify.sh
 ```
 
 It runs the Kof source linter, LSP diagnostics, JVM/native compiler checks,
-named regression tests, JVM/native runtime smoke checks, and JVM/native builds.
+named regression tests, JVM/native runtime smoke checks, the optional native
+SDL adapter smoke when dependencies and pressure permit, and JVM/native builds.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contract.
 
 This setup does not resolve the native runtime blockers below.
 
-G0 is underway. The checked slot/generation/kind resource-token contract,
-scalar SDL lifecycle call, bounded window-state contract and queued-audio FIFO
-contract are implemented and covered on JVM/native. Next: place native
-SDL-owned resources behind that registry, then prove real SDL window,
-input/focus/resize and queued audio device initialization from the native ELF.
-Use the repository's disposable isolated-display wrapper for graphical
-verification. Do not create a large untested engine scaffold first.
+G0 is underway. Resource tokens, scalar SDL lifecycle, the narrow native
+window/audio adapter, bounded window state and queued-audio FIFO are implemented.
+Next: rerun the isolated native adapter smoke, apply flattened SDL events to Kof
+state, add bounded PCM transfer, then prove SDL_GPU window/device setup and a
+textured draw. Use the repository's disposable isolated-display wrapper for
+graphical verification. Do not create a large untested engine scaffold first.
 
 ## Provenance
 

@@ -56,11 +56,13 @@ test "resource token lifecycle" {
 
 test "platform state and audio queue lifecycle" {
     var window = WindowStateTracker(800, 600)
-    assert(window.applyFocus(1))
-    assert(window.applyResize(1024, 768))
-    assert(!window.applyResize(-1, 768))
+    assert(window.applyNativeEvent(3, 1, 0))
+    assert(window.applyNativeEvent(2, 1024, 768))
+    assert(!window.applyNativeEvent(2, -1, 768))
+    assert(window.applyNativeEvent(4, 0, 0))
+    assert(!window.applyNativeEvent(99, 0, 0))
     var state = window.snapshot()
-    assert(state.width() == 1024 && state.height() == 768 && state.focused())
+    assert(state.width() == 1024 && state.height() == 768 && state.focused() && state.closeRequested())
 
     var audio = QueuedAudio(1)
     assert(audio.open())

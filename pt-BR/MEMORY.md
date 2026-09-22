@@ -71,14 +71,14 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 
 ## Próxima ação e limite de comprovação
 
-Implemente **somente G0**: coloque os recursos pertencentes ao SDL atrás do
-registry verificado por slot/geração/tipo; em seguida, comprove janela SDL nativa
-e malha texturizada + eventos reais de entrada/foco/redimensionamento + dispositivo
-de áudio enfileirado + verificações seguras de buffers, enquanto revalida o
-defeito registrado no ciclo de vida do handler de exceções nativas com um
-compilador fixado. Os contratos escalares SDL e de estado pertencentes ao Kof já
-estão cobertos; nenhum adaptador/programa nativo ou reparo de runtime existe
-aqui ainda.
+Implemente **somente G0**: reexecute o smoke do adaptador SDL nativo em
+display isolado quando o gate de pressão permitir, aplique eventos achatados de
+entrada/foco/redimensionamento ao estado Kof, adicione transferência PCM
+limitada e então comprove configuração de janela/dispositivo SDL_GPU e um draw
+texturizado enquanto revalida o defeito registrado do handler de exceções
+nativas com um compilador fixado. Tokens de recursos, ciclo SDL escalar e o
+adaptador C estreito estão implementados; nenhuma prova aceita de GPU/render
+existe ainda.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar, 18 programas orientados pelo curso (36 execuções, duas verificações) e o par de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados completos estão nos documentos de pesquisa vinculados. Essas sondas de pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou gráficos iniciados. A verificação de instalação posterior exercitou a CLI do compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha gráfica do engine nem executou uma suíte completa.
 

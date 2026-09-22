@@ -40,4 +40,19 @@ class WindowStateTracker {
         closeRequested = true
         return true
     }
+    Bool applyNativeEvent(Int eventKind, Int dataA, Int dataB) {
+        if (eventKind == 1) {
+            return requestClose()
+        }
+        if (eventKind == 2) {
+            return applyResize(dataA, dataB)
+        }
+        if (eventKind == 3) {
+            return applyFocus(dataA)
+        }
+        if (eventKind == 4) {
+            return requestClose()
+        }
+        return false
+    }
 }

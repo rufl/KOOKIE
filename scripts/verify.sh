@@ -29,8 +29,27 @@ else
 fi
 
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
-trap 'rm -rf "$build_dir"' EXIT
+adapter_build_dir="$root_dir/build"
+rm -rf "$adapter_build_dir"
+mkdir -p "$adapter_build_dir"
+trap 'rm -rf "$build_dir" "$adapter_build_dir"' EXIT
+
+if command -v gcc >/dev/null && command -v pkg-config >/dev/null && command -v overzeer-isolated-display >/dev/null &&
+   pkg-config --exists sdl3 && [[ -f /usr/include/SDL3/SDL.h ]]; then
+  gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    native/kookie_sdl_adapter.c \
+    -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
+    $(pkg-config --cflags --libs sdl3)
+  SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
+    --target native --output "$adapter_build_dir/native-adapter"
+  overzeer-isolated-display --timeout 90 -- \
+    env SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=x11 \
+    "$adapter_build_dir/native-adapter/Default/Main"
+else
+  echo "native SDL adapter smoke skipped: SDL3 development headers, gcc, pkg-config, or isolated-display wrapper unavailable"
+fi
+
 kof build src --target jvm --output "$build_dir/jvm"
 kof build src --target native --output "$build_dir/native"
 
-echo "KOOKIE verification passed: linter, LSP, JVM/native checks, tests, runtime smoke, and JVM/native builds"
+echo "KOOKIE verification passed: linter, LSP, JVM/native checks, tests, runtime smoke, adapter smoke when available, and JVM/native builds"

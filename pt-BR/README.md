@@ -8,11 +8,12 @@ Pesquisa e planejamento para uma **engine de tiro 3D nativa e focada em Kof**: b
 
 **Estado atual:** a implementação G0 foi iniciada. Um núcleo Kof modular mínimo,
 um codec de teste do envelope de sessão, um registry verificado de tokens de
-recursos, um contrato escalar de ciclo de vida SDL, um contrato limitado de
-estado de janela e um contrato de áudio enfileirado existem e passam na
-JVM/nativo. Nenhuma janela SDL, renderizador, dispositivo de áudio ou transporte
-multiplayer foi implementado; a correção nativa e a inicialização gráfica
-continuam sendo gates explícitos.
+recursos, um contrato escalar de ciclo de vida SDL, estado limitado de
+janela/áudio e um adaptador nativo SDL estreito existem. As verificações do
+compilador e os testes de contrato Kof passam na JVM/nativo. O smoke nativo de
+janela/áudio está conectado, mas sua execução em display isolado continua sob
+gate de pressão; SDL_GPU, renderização texturizada e transporte multiplayer não
+foram implementados.
 
 ## Direção proposta
 
@@ -70,24 +71,23 @@ Execute o mesmo gate localmente e nas GitHub Actions:
 ```bash
 bash scripts/verify.sh
 ```
-
 Ele executa o linter das fontes Kof, diagnósticos do LSP, verificações do
 compilador JVM/nativo, testes de regressão nomeados, smoke de runtime
-JVM/nativo e builds JVM/nativo. Consulte [CONTRIBUTING.md](CONTRIBUTING.md)
+JVM/nativo, o smoke opcional do adaptador SDL nativo quando dependências e
+pressão permitirem e builds JVM/nativo. Consulte [CONTRIBUTING.md](CONTRIBUTING.md)
 para o contrato.
 
 Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
 ## Próximo incremento
 
-G0 está em andamento. O contrato verificado de tokens por slot/geração/tipo,
-a chamada escalar de ciclo de vida SDL, o contrato limitado de estado de janela
-e o contrato FIFO de áudio enfileirado estão implementados e cobertos na
-JVM/nativo. Em seguida: colocar os recursos pertencentes ao SDL atrás desse
-registry e provar janela SDL real, entrada/foco/redimensionamento e inicialização
-de dispositivo de áudio enfileirado a partir do ELF nativo. Use o wrapper
-descartável de display isolado do repositório para verificação gráfica. Não crie
-primeiro um grande esqueleto de engine não testado.
+G0 está em andamento. Tokens de recursos, ciclo de vida SDL escalar, o adaptador
+nativo estreito de janela/áudio, estado limitado de janela e FIFO de áudio estão
+implementados. Em seguida: reexecutar o smoke nativo em display isolado, aplicar
+os eventos SDL achatados ao estado Kof, adicionar transferência PCM limitada e
+então comprovar configuração de janela/dispositivo SDL_GPU e um draw texturizado.
+Use o wrapper descartável de display isolado do repositório para verificação
+gráfica. Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência
 

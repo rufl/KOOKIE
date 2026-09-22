@@ -22,8 +22,9 @@ The gate runs:
 2. Kof LSP diagnostics for every `.kf` source under `src/` and `probes/`;
 3. Kof compiler checks for JVM and native targets;
 4. the named Kof regression test suite for JVM and native targets;
-5. JVM/native runtime smoke output for the checked resource-token contract;
-6. JVM and native compiler builds.
+5. JVM/native runtime smoke output for the checked resource-token and state contracts;
+6. the optional native SDL adapter build and isolated-display smoke when its system dependencies and pressure gate permit it;
+7. JVM and native compiler builds.
 
 The current Kof LSP analyzes each open document as a temporary single-file
 module, so the gate records its known `PKG004`/`PKG006` package diagnostics and
