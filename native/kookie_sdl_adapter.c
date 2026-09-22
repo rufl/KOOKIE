@@ -1,8 +1,9 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_gpu.h>
 
-#include <stdbool.h>
-#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_WINDOW_KIND 1
 #define KOOKIE_AUDIO_KIND 2
@@ -18,7 +19,6 @@ typedef struct {
     SDL_AudioSpec spec;
     unsigned int generation;
 } KookieAudioSlot;
-
 typedef struct {
     SDL_GPUDevice *device;
     int window_slot;
@@ -182,6 +182,236 @@ bool kookie_gpu_close(int token) {
     return true;
 }
 
+static bool read_shader_binary(const char *name, Uint8 **bytes, size_t *size) {
+    const char *directory = getenv("KOOKIE_SHADER_DIR");
+    char path[512];
+    if (directory == NULL) {
+        directory = "build";
+    }
+    if (snprintf(path, sizeof(path), "%s/%s.spv", directory, name) < 0) {
+        return false;
+    }
+
+    FILE *file = fopen(path, "rb");
+    if (file == NULL || fseek(file, 0, SEEK_END) != 0) {
+        if (file != NULL) {
+            fclose(file);
+        }
+        return false;
+    }
+    long length = ftell(file);
+    if (length <= 0 || fseek(file, 0, SEEK_SET) != 0) {
+        fclose(file);
+        return false;
+    }
+
+    Uint8 *data = (Uint8 *)malloc((size_t)length);
+    if (data == NULL || fread(data, 1, (size_t)length, file) != (size_t)length) {
+        free(data);
+        fclose(file);
+        return false;
+    }
+    fclose(file);
+    *bytes = data;
+    *size = (size_t)length;
+    return true;
+}
+
+bool kookie_gpu_draw_test(void) {
+    if (gpu_slot.device == NULL || gpu_slot.window_slot < 0 ||
+        gpu_slot.window_slot >= KOOKIE_MAX_WINDOWS ||
+        window_slots[gpu_slot.window_slot].window == NULL) {
+        return false;
+    }
+
+    Uint8 *vertex_code = NULL;
+    Uint8 *fragment_code = NULL;
+    size_t vertex_size = 0;
+    size_t fragment_size = 0;
+    SDL_GPUShader *vertex_shader = NULL;
+    SDL_GPUShader *fragment_shader = NULL;
+    SDL_GPUGraphicsPipeline *pipeline = NULL;
+    SDL_GPUTexture *texture = NULL;
+    SDL_GPUSampler *sampler = NULL;
+    SDL_GPUTransferBuffer *transfer = NULL;
+    SDL_GPUCommandBuffer *command_buffer = NULL;
+    bool submitted = false;
+    bool success = false;
+    SDL_Window *window = window_slots[gpu_slot.window_slot].window;
+    SDL_GPUDevice *device = gpu_slot.device;
+
+    if (!read_shader_binary("g0_triangle.vert", &vertex_code, &vertex_size) ||
+        !read_shader_binary("g0_triangle.frag", &fragment_code, &fragment_size)) {
+        goto cleanup;
+    }
+
+    SDL_GPUShaderCreateInfo vertex_info = {0};
+    vertex_info.code_size = vertex_size;
+    vertex_info.code = vertex_code;
+    vertex_info.entrypoint = "main";
+    vertex_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    vertex_info.stage = SDL_GPU_SHADERSTAGE_VERTEX;
+    vertex_shader = SDL_CreateGPUShader(device, &vertex_info);
+    if (vertex_shader == NULL) {
+        goto cleanup;
+    }
+
+    SDL_GPUShaderCreateInfo fragment_info = {0};
+    fragment_info.code_size = fragment_size;
+    fragment_info.code = fragment_code;
+    fragment_info.entrypoint = "main";
+    fragment_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    fragment_info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
+    fragment_info.num_samplers = 1;
+    fragment_shader = SDL_CreateGPUShader(device, &fragment_info);
+    if (fragment_shader == NULL) {
+        goto cleanup;
+    }
+
+    SDL_GPUTextureCreateInfo texture_info = {0};
+    texture_info.type = SDL_GPU_TEXTURETYPE_2D;
+    texture_info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    texture_info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    texture_info.width = 2;
+    texture_info.height = 2;
+    texture_info.layer_count_or_depth = 1;
+    texture_info.num_levels = 1;
+    texture_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+    texture = SDL_CreateGPUTexture(device, &texture_info);
+    if (texture == NULL) {
+        goto cleanup;
+    }
+
+    SDL_GPUTransferBufferCreateInfo transfer_info = {0};
+    transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    transfer_info.size = 16;
+    transfer = SDL_CreateGPUTransferBuffer(device, &transfer_info);
+    if (transfer == NULL) {
+        goto cleanup;
+    }
+    Uint8 *pixels = (Uint8 *)SDL_MapGPUTransferBuffer(device, transfer, false);
+    if (pixels == NULL) {
+        goto cleanup;
+    }
+    const Uint8 checker[16] = {
+        255, 64, 64, 255, 64, 255, 64, 255,
+        64, 64, 255, 255, 255, 255, 64, 255
+    };
+    memcpy(pixels, checker, sizeof(checker));
+    SDL_UnmapGPUTransferBuffer(device, transfer);
+
+    SDL_GPUSamplerCreateInfo sampler_info = {0};
+    sampler_info.min_filter = SDL_GPU_FILTER_NEAREST;
+    sampler_info.mag_filter = SDL_GPU_FILTER_NEAREST;
+    sampler_info.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+    sampler_info.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    sampler_info.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    sampler_info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    sampler_info.max_lod = 1.0f;
+    sampler = SDL_CreateGPUSampler(device, &sampler_info);
+    if (sampler == NULL) {
+        goto cleanup;
+    }
+
+    SDL_GPUTextureFormat swapchain_format = SDL_GetGPUSwapchainTextureFormat(device, window);
+    SDL_GPUColorTargetDescription color_target = {0};
+    color_target.format = swapchain_format;
+    SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {0};
+    pipeline_info.vertex_shader = vertex_shader;
+    pipeline_info.fragment_shader = fragment_shader;
+    pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+    pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+    pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
+    pipeline_info.rasterizer_state.enable_depth_clip = true;
+    pipeline_info.multisample_state.sample_count = SDL_GPU_SAMPLECOUNT_1;
+    pipeline_info.target_info.color_target_descriptions = &color_target;
+    pipeline_info.target_info.num_color_targets = 1;
+    pipeline = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
+    if (pipeline == NULL) {
+        goto cleanup;
+    }
+
+    command_buffer = SDL_AcquireGPUCommandBuffer(device);
+    if (command_buffer == NULL) {
+        goto cleanup;
+    }
+    SDL_GPUCopyPass *copy_pass = SDL_BeginGPUCopyPass(command_buffer);
+    if (copy_pass == NULL) {
+        goto cleanup;
+    }
+    SDL_GPUTextureTransferInfo source = {0};
+    source.transfer_buffer = transfer;
+    SDL_GPUTextureRegion destination = {0};
+    destination.texture = texture;
+    destination.w = 2;
+    destination.h = 2;
+    destination.d = 1;
+    SDL_UploadToGPUTexture(copy_pass, &source, &destination, false);
+    SDL_EndGPUCopyPass(copy_pass);
+
+    SDL_GPUTexture *swapchain = NULL;
+    Uint32 swapchain_width = 0;
+    Uint32 swapchain_height = 0;
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+            command_buffer, window, &swapchain, &swapchain_width, &swapchain_height) ||
+        swapchain == NULL || swapchain_width == 0 || swapchain_height == 0) {
+        goto cleanup;
+    }
+
+    SDL_GPUColorTargetInfo target = {0};
+    target.texture = swapchain;
+    target.clear_color.r = 0.05f;
+    target.clear_color.g = 0.05f;
+    target.clear_color.b = 0.05f;
+    target.clear_color.a = 1.0f;
+    target.load_op = SDL_GPU_LOADOP_CLEAR;
+    target.store_op = SDL_GPU_STOREOP_STORE;
+    SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(command_buffer, &target, 1, NULL);
+    if (render_pass == NULL) {
+        goto cleanup;
+    }
+    SDL_GPUTextureSamplerBinding binding = {0};
+    binding.texture = texture;
+    binding.sampler = sampler;
+    SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
+    SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
+    SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
+    SDL_EndGPURenderPass(render_pass);
+    submitted = SDL_SubmitGPUCommandBuffer(command_buffer);
+    command_buffer = NULL;
+    if (!submitted || !SDL_WaitForGPUIdle(device)) {
+        goto cleanup;
+    }
+    success = true;
+
+cleanup:
+    if (command_buffer != NULL) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+    }
+    if (transfer != NULL) {
+        SDL_ReleaseGPUTransferBuffer(device, transfer);
+    }
+    if (texture != NULL) {
+        SDL_ReleaseGPUTexture(device, texture);
+    }
+    if (sampler != NULL) {
+        SDL_ReleaseGPUSampler(device, sampler);
+    }
+    if (pipeline != NULL) {
+        SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
+    }
+    if (fragment_shader != NULL) {
+        SDL_ReleaseGPUShader(device, fragment_shader);
+    }
+    if (vertex_shader != NULL) {
+        SDL_ReleaseGPUShader(device, vertex_shader);
+    }
+    free(fragment_code);
+    free(vertex_code);
+    return success;
+}
+
 bool kookie_push_resize_event(int width, int height) {
     if (width <= 0 || height <= 0) {
         return false;
@@ -275,6 +505,27 @@ bool kookie_audio_queue_silence(int frames) {
     }
     int bytes = frames * audio_slot.spec.channels * (int)sizeof(float);
     return SDL_PutAudioStreamData(audio_slot.stream, silence, bytes);
+}
+
+bool kookie_audio_queue_clip(int clip_id, int frames) {
+    static float clip[480 * 2];
+    static bool initialized;
+    if (audio_slot.stream == NULL || clip_id != 1 || frames <= 0 || frames > 480) {
+        return false;
+    }
+    if (!initialized) {
+        for (int frame = 0; frame < 480; frame += 1) {
+            int phase = frame % 24;
+            float sample = ((float)phase / 23.0f) * 0.4f - 0.2f;
+            clip[frame * 2] = sample;
+            clip[frame * 2 + 1] = sample;
+        }
+        initialized = true;
+    }
+    return SDL_PutAudioStreamData(
+        audio_slot.stream,
+        clip,
+        frames * audio_slot.spec.channels * (int)sizeof(float));
 }
 
 bool kookie_audio_close(int token) {

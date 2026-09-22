@@ -13,18 +13,15 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Ciclo escalar `SDL_Init(0)`/`SDL_Quit()` exercitado na JVM/nativo.
 - Estado Kof de foco/redimensionamento/fechamento e FIFO de áudio com capacidade limitada.
 - Adaptador C SDL estreito com tokens verificados de janela/áudio/GPU e flattening escalar de eventos.
-- Transferência limitada de silêncio PCM para um stream de áudio SDL sem callbacks.
-- Sonda do adaptador nativo e conexão opcional da verificação em display isolado.
+- Transferência PCM limitada de silêncio e clip determinístico para um stream de áudio SDL sem callbacks.
+- Sonda do adaptador nativo aplicando eventos reais do adaptador ao estado Kof e executando o primeiro caminho de upload/draw de textura SPIR-V.
 
 ## Próximo lote
 
 1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar aceitação de janela, áudio dummy e GPU.
-2. Encaminhar eventos reais do SO ao loop principal Kof e ao `WindowStateTracker`.
-3. Substituir o silêncio por uma transferência PCM limitada de um clip Kof sem segunda autoridade de mixer.
-4. Adicionar o primeiro caminho de upload/draw SDL_GPU e comprovar a ordem de desmontagem em torno do token de dispositivo/janela.
-5. Medir staging escalar do primeiro draw texturizado limitado antes de escolher uma mudança de FFI de buffers.
-6. Reexecutar o reproduzível do manipulador de exceções nativo e os controles negativos com o compilador fixado antes de confiar na limpeza por exceção.
-7. Registrar toda falha medida ou limite de aceitação nas duas árvores de idioma.
+2. Medir staging escalar e ownership de frame em torno do primeiro draw texturizado limitado.
+3. Reexecutar o reproduzível do manipulador de exceções nativo e os controles negativos com o compilador fixado antes de confiar na limpeza por exceção.
+4. Registrar toda falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
 

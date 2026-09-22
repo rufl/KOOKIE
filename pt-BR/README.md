@@ -82,13 +82,13 @@ Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 ## Próximo incremento
 
 G0 está em andamento. Tokens de recursos, ciclo de vida SDL escalar, o adaptador
-nativo estreito de janela/áudio/GPU, estado limitado de janela, transferência de
-silêncio PCM e FIFO de áudio estão implementados. Em seguida: reexecutar o
-smoke nativo em display isolado, aplicar eventos SDL reais ao estado Kof,
-substituir silêncio por transferência limitada de clips e então comprovar o
-primeiro upload/draw SDL_GPU. Use o wrapper descartável de display isolado do
-repositório para verificação gráfica. Não crie primeiro um grande esqueleto de
-engine não testado.
+nativo estreito de janela/áudio/GPU, estado limitado de janela, aplicação de
+eventos reais ao estado Kof, transferência PCM limitada de silêncio e clip e o
+primeiro caminho de upload/draw SPIR-V estão implementados. Em seguida:
+reexecutar o smoke nativo em display isolado e medir staging escalar/ownership
+de frame em torno do primeiro draw. Use o wrapper descartável de display isolado
+do repositório para verificação gráfica. Não crie primeiro um grande esqueleto
+de engine não testado.
 
 ## Procedência
 

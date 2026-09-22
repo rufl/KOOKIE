@@ -32,21 +32,31 @@ build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
 adapter_build_dir="$root_dir/build"
 rm -rf "$adapter_build_dir"
 mkdir -p "$adapter_build_dir"
-trap 'rm -rf "$build_dir" "$adapter_build_dir"' EXIT
+probe_core_dir="$root_dir/probes/g0_native_adapter/core"
+rm -rf "$probe_core_dir"
+trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir"' EXIT
 
-if command -v gcc >/dev/null && command -v pkg-config >/dev/null && command -v overzeer-isolated-display >/dev/null &&
+if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-config >/dev/null && command -v overzeer-isolated-display >/dev/null &&
    pkg-config --exists sdl3 && [[ -f /usr/include/SDL3/SDL.h ]]; then
+  mkdir -p "$probe_core_dir"
+  for core_file in "$root_dir"/src/core/*.kf; do
+    ln -s "$core_file" "$probe_core_dir/$(basename "$core_file")"
+  done
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3)
+  glslc -fshader-stage=vert native/shaders/g0_triangle.vert \
+    -o "$adapter_build_dir/g0_triangle.vert.spv"
+  glslc -fshader-stage=frag native/shaders/g0_triangle.frag \
+    -o "$adapter_build_dir/g0_triangle.frag.spv"
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
     --target native --output "$adapter_build_dir/native-adapter"
   overzeer-isolated-display --timeout 90 -- \
-    env SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=x11 \
+    env KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=x11 \
     "$adapter_build_dir/native-adapter/Default/Main"
 else
-  echo "native SDL adapter smoke skipped: SDL3 development headers, gcc, pkg-config, or isolated-display wrapper unavailable"
+  echo "native SDL adapter smoke skipped: SDL3 development headers, gcc, glslc, pkg-config, or isolated-display wrapper unavailable"
 fi
 
 kof build src --target jvm --output "$build_dir/jvm"

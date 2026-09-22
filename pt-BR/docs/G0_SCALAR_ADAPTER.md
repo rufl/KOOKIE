@@ -2,7 +2,7 @@
 
 [English](../../docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento adiciona glue C SDL estreito de ciclo de vida de janela/áudio/GPU, transferência PCM limitada de silêncio e contratos de estado pertencentes ao Kof. O smoke nativo de janela/áudio/GPU está conectado, mas sua execução em display isolado foi adiada por pressão; nenhum draw texturizado aceito é afirmado.
+Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento adiciona glue C SDL estreito de ciclo de vida de janela/áudio/GPU, transferência PCM limitada de clip, o primeiro caminho de upload/draw texturizado com SPIR-V e contratos de estado de eventos pertencentes ao Kof. O smoke nativo de janela/áudio/GPU está conectado, mas sua execução em display isolado foi adiada por pressão; nenhum draw texturizado aceito é afirmado.
 
 ## Limite do ciclo de vida SDL
 
@@ -24,11 +24,12 @@ A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de ev
 - rejeição de token de janela obsoleto ou de tipo incorreto;
 - `SDL_PollEvent` achatado para tipo de evento mais dois campos escalares;
 - abertura/fechamento de stream de áudio playback padrão com tokens por slot+geração+tipo;
-- transferência PCM limitada de silêncio para o stream SDL, sem callback;
+- transferência PCM limitada de silêncio e clip para o stream SDL, sem callback;
 - criação/claim/release/destruição de dispositivo SDL_GPU SPIR-V atrás de token verificado;
+- primeiro shader, upload de textura, sampler, pipeline e draw para swapchain;
 - ordem explícita de encerramento: liberar claim GPU, destruir dispositivo GPU, destruir janelas, destruir stream de áudio.
 
-O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades nem buffers de amostras pertencentes ao Kof. `probes/g0_native_adapter/main.kf` exercita criação/destruição de janela oculta, enfileiramento sintético de resize/foco SDL e polling escalar, ciclo GPU opcional, abertura/fechamento de dispositivo playback dummy, transferência limitada de silêncio e rejeição de token obsoleto.
+O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades nem buffers de amostras pertencentes ao Kof. `probes/g0_native_adapter/main.kf` exercita criação/destruição de janela oculta, polling real de eventos SDL para `WindowStateTracker`, enfileiramento sintético de resize/foco, ciclo GPU opcional com o primeiro upload/draw, abertura/fechamento de dispositivo playback dummy, transferência PCM limitada de silêncio e clip e rejeição de token obsoleto.
 
 ## Estado de janela e entrada
 
@@ -40,7 +41,7 @@ O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades 
 - `applyNativeEvent(kind, dataA, dataB)` mapeia os tipos de adaptador `1..4` para transições de fechamento, resize e foco;
 - `snapshot()` devolve uma cópia do estado escalar por meio de `WindowState`.
 
-O adaptador achata eventos SDL, enquanto o Kof possui a política de transição e o loop autoritativo. Os eventos inseridos pela sonda verificam a ABI de flattening; a aceitação de foco/redimensionamento gerados pelo SO continua parte do smoke isolado.
+O adaptador achata eventos SDL, enquanto o Kof possui a política de transição e o loop autoritativo. A sonda consulta a saída do adaptador e aplica tipos de evento e payloads escalares a um `WindowStateTracker` Kof; o smoke isolado continua sendo o limite de aceitação para comportamento gerado pelo SO.
 
 ## Estado de áudio enfileirado
 
@@ -52,11 +53,11 @@ O adaptador achata eventos SDL, enquanto o Kof possui a política de transição
 - dequeue FIFO com metadados copiados de clip/ganho;
 - nenhum callback para dentro do Kof e nenhuma autoridade estrangeira de mixer.
 
-O adaptador nativo agora comprova um ciclo real de stream de áudio SDL e transferência PCM limitada de silêncio. Ele ainda não envia payloads de clips Kof; o próximo passo de áudio deve escolher um contrato limitado de propriedade/transferência PCM sem introduzir uma segunda autoridade de mixer.
+O adaptador nativo agora comprova um ciclo real de stream de áudio SDL, transferência limitada de silêncio e um descritor de clip limitado (`clipId=1`, no máximo 480 frames estéreo F32). O adaptador gera esse payload determinístico porque a FFI escalar ainda não transporta um buffer de amostras pertencente ao Kof; o próximo limite de áudio é propriedade explícita do buffer, não uma segunda autoridade de mixer.
 
 ## Ciclo de vida GPU
 
-O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da janela SDL oculta e libera o claim antes de destruir o dispositivo. Falha de GPU é reportada como `gpu-unavailable` pela sonda, não convertida em falso sucesso. Nenhum shader, pipeline, transfer buffer, textura ou draw atravessa o limite ainda.
+O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da janela SDL oculta, envia uma textura RGBA limitada 2x2 por transfer buffer, faz sampling em um pipeline de triângulo, submete um draw de swapchain, espera o GPU ficar ocioso e libera os recursos. Falha de GPU é reportada como `gpu-unavailable`; a execução bem-sucedida só é aceita quando a sonda isolada registrar `gpu-open` e conclusão.
 
 ## Prova de regressão
 
@@ -65,15 +66,12 @@ O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da j
 - `resource token lifecycle`;
 - `platform state and audio queue lifecycle`.
 
-O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `pkg-config` e `overzeer-isolated-display` estão disponíveis, ele compila o adaptador, emite o ELF nativo da sonda e o executa pelo wrapper de display isolado com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito. As tentativas atuais em display isolado foram adiadas pelo gate de pressão do wrapper; elas precisam ser repetidas antes de chamar o smoke de janela/áudio/GPU de aceito.
-
+O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `glslc`, `pkg-config` e `overzeer-isolated-display` estão disponíveis, ele compila o adaptador e os shaders SPIR-V, emite o ELF nativo da sonda e o executa pelo wrapper de display isolado com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito. As tentativas atuais em display isolado foram adiadas pelo gate de pressão do wrapper; elas precisam ser repetidas antes de chamar o smoke de janela/áudio/GPU de aceito.
 ```bash
 bash scripts/verify.sh
-kof check probes/g0_native_adapter/main.kf --target native
 ```
-
-As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador; a JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta.
+O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador; a JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta.
 
 ## Próximo limite de comprovação
 
-Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU. Em seguida, encaminhe eventos reais do SO ao loop Kof, substitua o silêncio por transferência limitada de clips e adicione o primeiro caminho de upload/draw SDL_GPU. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem rotule o código de ciclo de vida do adaptador como prova de renderização texturizada.
+Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU. Depois meça o staging escalar do primeiro draw texturizado limitado e reexecute o reproduzível do manipulador de exceções nativo com controles negativos. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o caminho GPU opcional de aceito sem evidência isolada.

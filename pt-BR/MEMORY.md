@@ -72,13 +72,13 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 ## Próxima ação e limite de comprovação
 
 Implemente **somente G0**: reexecute o smoke do adaptador SDL/GPU nativo em
-display isolado quando o gate de pressão permitir, aplique eventos reais de
-entrada/foco/redimensionamento ao estado Kof, substitua silêncio por
-transferência PCM limitada de clips e então comprove o primeiro upload/draw
-SDL_GPU enquanto revalida o defeito registrado do handler de exceções nativas
-com um compilador fixado. Tokens de recursos, ciclo SDL escalar, adaptador C
-estreito e caminho limitado de silêncio estão implementados; nenhuma prova
-aceita de GPU/render existe ainda.
+display isolado quando o gate de pressão permitir, depois meça staging escalar e
+ownership de frame em torno do primeiro draw texturizado limitado e revalide o
+defeito registrado do handler de exceções nativas com um compilador fixado. Tokens
+de recursos, ciclo SDL escalar, adaptador C estreito, aplicação real de eventos
+ao Kof, caminhos limitados de silêncio e clip PCM e o primeiro caminho de
+upload/draw SPIR-V estão implementados; nenhuma prova aceita de GPU/render existe
+até a sonda isolada concluir.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar, 18 programas orientados pelo curso (36 execuções, duas verificações) e o par de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados completos estão nos documentos de pesquisa vinculados. Essas sondas de pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou gráficos iniciados. A verificação de instalação posterior exercitou a CLI do compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha gráfica do engine nem executou uma suíte completa.
 

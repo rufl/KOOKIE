@@ -72,13 +72,12 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 ## Next action and proof boundary
 
 Implement **G0 only**: rerun the isolated native SDL/GPU adapter smoke after the
-pressure gate permits it, apply real input/focus/resize events to Kof state,
-replace silence with bounded clip PCM transfer, then prove the first SDL_GPU
-upload/draw while revalidating the recorded native exception-handler lifetime
-defect in a pinned compiler. Resource tokens, scalar SDL lifecycle, narrow C
-adapter and bounded silence path are implemented; no accepted GPU/render proof
-exists yet.
-
+pressure gate permits it, then measure scalar staging and frame ownership around
+the first bounded textured draw and revalidate the recorded native
+exception-handler lifetime defect in a pinned compiler. Resource tokens, scalar
+SDL lifecycle, narrow C adapter, real event-to-Kof application, bounded silence
+and clip PCM paths, and the first SPIR-V upload/draw path are implemented; no
+accepted GPU/render proof exists until the isolated probe completes.
 Earlier research evidence: original core/import/scalar-FFI probes, 18 course-driven programs (36 runs, two checks), and the JOML JVM success/native import-rejection pair. Complete sources/results are in the linked research documents. Those research probes were JVM/native x86 only, with no games/editor/server or graphics launched. Later installation verification exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did not verify the engine graphics stack or run a full suite.
 
 All graphical checks use `overzeer-isolated-display` or reviewed equivalent with private sockets, timeout and process cleanup; never the developer desktop. Full matrix only final pre-commit with user permit. Research docs and local tooling/configuration are delivered; no sibling engine/game source/assets were modified or copied.

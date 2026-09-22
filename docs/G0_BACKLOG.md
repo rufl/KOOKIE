@@ -13,18 +13,15 @@ This is the active bounded implementation sequence after the initial research an
 - Scalar `SDL_Init(0)`/`SDL_Quit()` lifecycle exercised on JVM/native.
 - Kof-owned focus/resize/close state and bounded FIFO audio queue.
 - Narrow C SDL adapter with checked window/audio/GPU tokens and scalar event flattening.
-- Bounded PCM silence transfer into an SDL audio stream without callbacks.
-- Native adapter probe and optional isolated-display verification wiring.
+- Bounded PCM silence and deterministic clip transfer into an SDL audio stream without callbacks.
+- Native adapter probe applying real adapter events to Kof state and running the first SPIR-V texture upload/draw path.
 
 ## Next batch
 
 1. Re-run the isolated native adapter smoke after the pressure gate permits it; record window, dummy-audio and GPU acceptance.
-2. Feed real OS event output into the Kof main loop and `WindowStateTracker`.
-3. Replace silence with one bounded Kof clip PCM transfer without a second mixer authority.
-4. Add the first SDL_GPU upload/draw path and prove teardown ordering around the device/window token.
-5. Measure scalar staging for the first bounded textured draw before choosing a buffer-FFI change.
-6. Re-run the native exception-handler reproducer and negative controls with the pinned compiler before relying on exception cleanup.
-7. Record every measured failure or acceptance boundary in both language trees.
+2. Measure scalar staging and frame ownership around the first bounded textured draw.
+3. Re-run the native exception-handler reproducer and negative controls with the pinned compiler before relying on exception cleanup.
+4. Record every measured failure or acceptance boundary in both language trees.
 
 ## Deferred
 
