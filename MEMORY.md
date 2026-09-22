@@ -73,12 +73,13 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 
 Complete G0 proof by rerunning the isolated native SDL/GPU adapter smoke after
 the pressure gate permits it, then compare draw retirement with the declared
-frame budget. The first G1 foundation is implemented: fixed-step authority,
-bounded input commands and edge transitions, loopback server/client snapshot
-sync, and bounded integer component storage. Next G1 work is second-client
-admission, stale-input/snapshot validation, camera/input mapping and
-authoritative movement. The native exception-handler defect remains a compiler
-gate; no accepted GPU/render proof exists until the isolated probe completes.
+frame budget. G1 now implements fixed-step authority, bounded input commands
+and edge transitions, two-client loopback admission, per-client stale-input
+rejection, snapshot sequence validation, bounded authoritative movement,
+camera/input clamping, and bounded integer component storage. Next G1 work is
+client interpolation/prediction boundaries and bounded collision queries. The
+native exception-handler defect remains a compiler gate; no accepted GPU/render
+proof exists until the isolated probe completes.
 Earlier research evidence: original core/import/scalar-FFI probes, 18 course-driven programs (36 runs, two checks), and the JOML JVM success/native import-rejection pair. Complete sources/results are in the linked research documents. Those research probes were JVM/native x86 only, with no games/editor/server or graphics launched. Later installation verification exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did not verify the engine graphics stack or run a full suite.
 
 All graphical checks use `overzeer-isolated-display` or reviewed equivalent with private sockets, timeout and process cleanup; never the developer desktop. Full matrix only final pre-commit with user permit. Research docs and local tooling/configuration are delivered; no sibling engine/game source/assets were modified or copied.

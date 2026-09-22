@@ -19,21 +19,22 @@ This is the active bounded implementation sequence after the initial research an
 - Native exception lifetime reproducer and negative controls recorded in the verification gate.
 - Native adapter exposes elapsed GPU draw timing after GPU-idle retirement.
 - G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
+- G1 two-client loopback admission, per-client input sequencing, stale snapshot rejection, bounded authoritative movement, and camera/input clamping.
 
 ## Next batch
 
 1. Re-run the isolated native adapter smoke after the pressure gate permits it; record window, dummy-audio, GPU and measured draw timing.
 2. Compare elapsed native draw time and frame retirement against the declared frame budget.
-3. Add a second loopback client, explicit snapshot sequence validation and stale-input rejection tests.
-4. Add camera/input mapping and a bounded authoritative movement component before collision.
-5. Re-run the native exception-handler reproducer after any compiler upgrade and require the stale-handler output to change before trusting exception cleanup.
+3. Add client interpolation/prediction boundaries and snapshot history without weakening server authority.
+4. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
+5. Add bounded collision/query contracts and movement rejection before weapons.
 6. Record every measured failure or acceptance boundary in both language trees.
 
 ## Deferred
 
 - Textured mesh renderer and shader pipeline beyond the first smoke draw.
-- Input mapping, camera, server/client loopback and prediction.
 - Collision, weapons, enemies, content cooking, save schema and multiplayer transport.
 - Production audio, image/text services, package compression and foreign physics/UI libraries.
+
 
 Do not replace a blocked native capability with JVM fallback, a hidden C engine, a fake-success stub or an unverified graphics scaffold.

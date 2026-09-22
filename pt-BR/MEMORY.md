@@ -73,13 +73,14 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 
 Complete a prova G0 reexecutando o smoke do adaptador SDL/GPU nativo em display
 isolado quando o gate de pressão permitir, depois compare o retirement do draw
-com o orçamento de frame declarado. A primeira fundação G1 está implementada:
-autoridade fixed-step, comandos de input limitados e transições de borda,
-sincronização de snapshot servidor/cliente em loopback e storage limitado de
-componentes inteiros. O próximo G1 é admissão de segundo cliente, validação de
-input/snapshot obsoleto, mapeamento câmera/input e movimento autoritativo. O
-defeito do handler de exceções nativas continua sendo um gate do compilador;
-nenhuma prova aceita de GPU/render existe até a sonda isolada concluir.
+com o orçamento de frame declarado. G1 agora implementa autoridade fixed-step,
+comandos de input limitados e transições de borda, admissão de dois clientes em
+loopback, rejeição de input obsoleto por cliente, validação de sequência de
+snapshots, movimento autoritativo limitado, clamp de câmera/input e storage
+limitado de componentes inteiros. O próximo G1 é adicionar limites de
+interpolação/predição do cliente e consultas limitadas de colisão. O defeito do
+handler de exceções nativas continua sendo um gate do compilador; nenhuma prova
+aceita de GPU/render existe até a sonda isolada concluir.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar, 18 programas orientados pelo curso (36 execuções, duas verificações) e o par de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados completos estão nos documentos de pesquisa vinculados. Essas sondas de pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou gráficos iniciados. A verificação de instalação posterior exercitou a CLI do compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha gráfica do engine nem executou uma suíte completa.
 

@@ -19,21 +19,22 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Reproduzível do lifetime de exceção nativa e controles negativos registrados no gate de verificação.
 - Adaptador nativo expõe timing decorrido de draw GPU após retirement com GPU ocioso.
 - Relógio de fixed-step G1, comandos de input limitados com transições de borda fire/jump, sincronização de snapshot servidor/cliente em loopback e storage limitado de componentes inteiros.
+- Admissão de dois clientes em loopback G1, sequência de input por cliente, rejeição de snapshot obsoleto, movimento autoritativo limitado e clamp de câmera/input.
 
 ## Próximo lote
 
-1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar aceitação de janela, áudio dummy, GPU e timing medido do draw.
-2. Comparar o tempo nativo decorrido do draw e o retirement de frame com o orçamento de frame declarado.
-3. Adicionar um segundo cliente loopback, validação explícita de sequência de snapshot e testes de rejeição de input obsoleto.
-4. Adicionar mapeamento câmera/input e um componente de movimento autoritativo limitado antes da colisão.
-5. Reexecutar o reproduzível do handler de exceções nativas após qualquer upgrade do compilador e exigir mudança na saída de handler obsoleto antes de confiar na limpeza por exceção.
+1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar janela, áudio dummy, GPU e timing medido do draw.
+2. Comparar o tempo nativo do draw e o retirement do frame com o orçamento de frame declarado.
+3. Adicionar limites de interpolação/predição do cliente e histórico de snapshots sem enfraquecer a autoridade do servidor.
+4. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
+5. Adicionar contratos limitados de colisão/consulta e rejeição de movimento antes das armas.
 6. Registrar toda falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
 
 - Renderer de malha texturizada e pipeline de shaders além do primeiro draw de smoke.
-- Mapeamento de entrada, câmera, loopback servidor/cliente e predição.
 - Colisão, armas, inimigos, cooking de conteúdo, schema de saves e transporte multiplayer.
 - Áudio de produção, serviços de imagem/texto, compressão de pacotes e bibliotecas estrangeiras de física/UI.
+
 
 Não substitua uma capacidade nativa bloqueada por fallback JVM, engine C oculta, stub de falso sucesso ou scaffold gráfico não verificado.

@@ -1,0 +1,44 @@
+package core
+
+class MovementComponent {
+    IntComponentStore positions
+    Int maxStep
+
+    public constructor(Int capacity, Int nextMaxStep) {
+        positions = IntComponentStore(capacity)
+        maxStep = nextMaxStep
+        if (maxStep <= 0) {
+            maxStep = 1
+        }
+    }
+
+    Bool add(Int id, Int position) {
+        return positions.set(id, position)
+    }
+
+    Bool setPosition(Int id, Int position) {
+        return positions.set(id, position)
+    }
+
+    Bool applyInput(Int id, Int requestedStep) {
+        if (!positions.has(id)) {
+            return false
+        }
+        var step = requestedStep
+        if (step > maxStep) {
+            step = maxStep
+        }
+        if (step < -maxStep) {
+            step = -maxStep
+        }
+        return positions.set(id, positions.get(id) + step)
+    }
+
+    Int position(Int id) {
+        return positions.get(id)
+    }
+
+    Int activeCount() {
+        return positions.activeCount()
+    }
+}

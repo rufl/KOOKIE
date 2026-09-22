@@ -82,14 +82,15 @@ Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 ## Próximo incremento
 
 A viabilidade nativa G0 está implementada, exceto pela aceitação gráfica
-isolada. A primeira fundação G1 também está implementada: autoridade
-fixed-step, comandos de input limitados e transições de borda, sincronização de
-snapshot servidor/cliente em loopback e storage limitado de componentes
+isolada. G1 agora inclui autoridade fixed-step, comandos de input limitados e
+transições de borda, admissão de dois clientes em loopback, rejeição de input
+obsoleto por cliente, validação de sequência de snapshots, movimento
+autoritativo limitado, clamp de câmera/input e storage limitado de componentes
 inteiros. Em seguida: reexecutar o smoke nativo isolado, medir o orçamento de
-frame declarado e então adicionar admissão de segundo cliente e movimento
-autoritativo. Use o wrapper descartável de display isolado do repositório para
-verificação gráfica. Não crie primeiro um grande esqueleto de engine não
-testado.
+frame declarado e então adicionar limites de interpolação/predição do cliente
+e consultas limitadas de colisão. Use o wrapper descartável de display isolado
+do repositório para verificação gráfica. Não crie primeiro um grande esqueleto
+de engine não testado.
 
 ## Procedência
 
