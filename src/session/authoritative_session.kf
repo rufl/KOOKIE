@@ -1,0 +1,107 @@
+package session
+
+import core
+
+class LoopbackSession {
+    FixedStepClock clock
+    InputCommandBuffer inputs
+    InputEdgeState inputEdges
+    IntComponentStore serverPositions
+    Int playerEntity
+    Int serverTick
+    Int clientTick
+    Int snapshotSequence
+    Bool started
+
+    public constructor(Int inputCapacity, Int entityCapacity) {
+        clock = FixedStepClock(60, 4)
+        inputs = InputCommandBuffer(inputCapacity)
+        inputEdges = InputEdgeState()
+        serverPositions = IntComponentStore(entityCapacity)
+        playerEntity = 0
+        serverTick = 0
+        clientTick = 0
+        snapshotSequence = 0
+        started = false
+    }
+
+    Bool start() {
+        if (started) {
+            return false
+        }
+        started = true
+        return true
+    }
+
+    Int connectPlayer() {
+        if (!started || playerEntity != 0) {
+            return 0
+        }
+        playerEntity = 1
+        if (!serverPositions.set(playerEntity, 0)) {
+            playerEntity = 0
+            return 0
+        }
+        return playerEntity
+    }
+
+    Bool receiveInput(Int tick, Int sequence, Int moveX, Int moveY, Int lookX, Int lookY, Int fire, Int jump) {
+        if (!started || playerEntity == 0) {
+            return false
+        }
+        return inputs.queue(InputCommand(tick, sequence, moveX, moveY, lookX, lookY, fire, jump))
+    }
+
+    Int advance(Int elapsedMicros) {
+        if (!started) {
+            return -1
+        }
+        var steps = clock.advance(elapsedMicros)
+        if (steps < 0) {
+            return -1
+        }
+        for (var step = 0; step < steps; step = step + 1) {
+            if (inputs.queuedCount() > 0 && inputs.nextTick() <= clock.tick()) {
+                inputs.dequeue()
+                var command = inputs.lastConsumed()
+                inputEdges.apply(command.fire(), command.jump())
+                var nextPosition = serverPositions.get(playerEntity) + command.moveX()
+                serverPositions.set(playerEntity, nextPosition)
+            }
+        }
+        serverTick = clock.tick()
+        clientTick = serverTick
+        if (steps > 0) {
+            snapshotSequence = snapshotSequence + 1
+        }
+        return steps
+    }
+
+    Int serverPosition() {
+        return serverPositions.get(playerEntity)
+    }
+
+    Int clientPosition() {
+        return serverPositions.get(playerEntity)
+    }
+
+    Int currentServerTick() {
+        return serverTick
+    }
+
+    Int currentClientTick() {
+        return clientTick
+    }
+
+    Int latestSnapshotSequence() {
+        return snapshotSequence
+    }
+
+    Bool inSync() {
+        return serverTick == clientTick && serverPosition() == clientPosition()
+    }
+
+    InputEdges lastInputEdges() {
+        return inputEdges.lastEdges()
+    }
+}

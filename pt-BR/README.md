@@ -81,14 +81,15 @@ Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
 ## Próximo incremento
 
-G0 está em andamento. Tokens de recursos, ciclo de vida SDL escalar, o adaptador
-nativo estreito de janela/áudio/GPU, estado limitado de janela, aplicação de
-eventos reais ao estado Kof, transferência PCM limitada de silêncio e clip e o
-primeiro caminho de upload/draw SPIR-V estão implementados. Em seguida:
-reexecutar o smoke nativo em display isolado e medir staging escalar/ownership
-de frame em torno do primeiro draw. Use o wrapper descartável de display isolado
-do repositório para verificação gráfica. Não crie primeiro um grande esqueleto
-de engine não testado.
+A viabilidade nativa G0 está implementada, exceto pela aceitação gráfica
+isolada. A primeira fundação G1 também está implementada: autoridade
+fixed-step, comandos de input limitados e transições de borda, sincronização de
+snapshot servidor/cliente em loopback e storage limitado de componentes
+inteiros. Em seguida: reexecutar o smoke nativo isolado, medir o orçamento de
+frame declarado e então adicionar admissão de segundo cliente e movimento
+autoritativo. Use o wrapper descartável de display isolado do repositório para
+verificação gráfica. Não crie primeiro um grande esqueleto de engine não
+testado.
 
 ## Procedência
 

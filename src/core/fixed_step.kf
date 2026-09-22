@@ -1,0 +1,62 @@
+package core
+
+class FixedStepClock {
+    Int rate
+    Int stepMicros
+    Int maxCatchup
+    Int accumulator
+    Int droppedMicros
+    Int currentTick
+
+    public constructor(Int nextRate, Int nextMaxCatchup) {
+        rate = nextRate
+        if (rate <= 0) {
+            rate = 1
+        }
+        stepMicros = 1000000 / rate
+        if (stepMicros <= 0) {
+            stepMicros = 1
+        }
+        maxCatchup = nextMaxCatchup
+        if (maxCatchup <= 0) {
+            maxCatchup = 1
+        }
+        accumulator = 0
+        droppedMicros = 0
+        currentTick = 0
+    }
+
+    Int advance(Int elapsedMicros) {
+        if (elapsedMicros < 0) {
+            return -1
+        }
+        accumulator = accumulator + elapsedMicros
+        var steps = 0
+        while (accumulator >= stepMicros && steps < maxCatchup) {
+            accumulator = accumulator - stepMicros
+            currentTick = currentTick + 1
+            steps = steps + 1
+        }
+        if (steps == maxCatchup && accumulator >= stepMicros) {
+            droppedMicros = droppedMicros + accumulator
+            accumulator = 0
+        }
+        return steps
+    }
+
+    Int tickRate() {
+        return rate
+    }
+
+    Int tick() {
+        return currentTick
+    }
+
+    Int pendingMicros() {
+        return accumulator
+    }
+
+    Int droppedTimeMicros() {
+        return droppedMicros
+    }
+}

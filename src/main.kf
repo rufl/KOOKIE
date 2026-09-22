@@ -54,8 +54,30 @@ main() {
     var retired = staging.publishedFrame() == 1 && staging.retiredFrame() == 1 && !staging.isOpen()
     assert(retired, "published frame ownership must close")
     println("KOOKIE G0 frame staging verified")
-}
+    var clock = FixedStepClock(60, 4)
+    assert(clock.advance(16667) == 1, "fixed-step clock must advance one tick")
+    assert(clock.tick() == 1 && clock.pendingMicros() == 1, "fixed-step remainder must be retained")
+    assert(clock.advance(-1) == -1, "negative elapsed time must reject")
 
+    var component = IntComponentStore(2)
+    assert(component.set(1, 40), "component value must insert")
+    assert(component.set(2, 80), "component capacity must accept")
+    assert(!component.set(3, 120), "component capacity must reject overflow")
+    assert(component.get(1) == 40 && component.activeCount() == 2, "component values must be readable")
+    assert(component.remove(1) && !component.has(1), "component value must remove")
+
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start(), "loopback server must start")
+    assert(loopback.connectPlayer() == 1, "loopback client must connect")
+    assert(loopback.receiveInput(1, 1, 3, 0, 0, 0, 1, 0), "input command must queue")
+    assert(loopback.advance(16667) == 1, "authoritative tick must advance")
+    assert(loopback.serverPosition() == 3 && loopback.inSync(), "snapshot must reach loopback client")
+    var loopbackEdges = loopback.lastInputEdges()
+    var inputPublished = loopbackEdges.firePressed() == 1 && loopback.latestSnapshotSequence() == 1
+    assert(inputPublished, "input edge and snapshot must publish")
+    println("KOOKIE G1 loopback foundation verified")
+
+}
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)
@@ -102,4 +124,21 @@ test "frame staging ownership and scalar measurement" {
     assert(staging.begin(8))
     assert(staging.discard())
     assert(!staging.publish())
+}
+
+test "authoritative loopback foundation" {
+    var clock = FixedStepClock(60, 4)
+    assert(clock.advance(16667) == 1)
+    assert(clock.tick() == 1)
+    var component = IntComponentStore(1)
+    assert(component.set(1, 10))
+    assert(!component.set(2, 20))
+    var loopback = LoopbackSession(2, 1)
+    assert(loopback.start())
+    assert(loopback.connectPlayer() == 1)
+    assert(loopback.receiveInput(1, 1, 2, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1)
+    assert(loopback.serverPosition() == 2)
+    assert(loopback.inSync())
+    assert(loopback.lastInputEdges().firePressed() == 1)
 }

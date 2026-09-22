@@ -17,7 +17,7 @@ kof test src --target jvm
 kof test src --target native
 bash scripts/verify_exception.sh
 
-expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified'
+expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified\nKOOKIE G1 loopback foundation verified'
 [[ "$(kof run src/main.kf --target jvm)" == "$expected_output" ]]
 [[ "$(kof run src/main.kf --target native 2>/dev/null)" == "$expected_output" ]]
 

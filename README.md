@@ -77,13 +77,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contract.
 
 This setup does not resolve the native runtime blockers below.
 
-G0 is underway. Resource tokens, scalar SDL lifecycle, the narrow native
-window/audio/GPU adapter, bounded window state, real event-to-Kof application,
-bounded silence and clip PCM transfer, and the first SPIR-V upload/draw path are
-implemented. Next: rerun the isolated native adapter smoke and measure scalar
-staging/frame ownership around the first draw. Use the repository's disposable
-isolated-display wrapper for graphical verification. Do not create a large
-untested engine scaffold first.
+G0 native feasibility is implemented except for isolated graphical acceptance.
+The first G1 foundation is now also implemented: fixed-step authority, bounded
+input commands and edge transitions, loopback server/client snapshot sync, and
+bounded integer component storage. Next: rerun the isolated native adapter
+smoke, measure the declared frame budget, then add second-client admission and
+authoritative movement. Use the repository's disposable isolated-display
+wrapper for graphical verification. Do not create a large untested engine
+scaffold first.
 ## Provenance
 
 Research recorded 2026-09-22. Primary links, pinned upstream SHAs, executable hash and distinctions between measured/source-derived/proposed claims are in the documents. Sibling trees were inspected read-only and may change. No source/asset license was assigned or changed.

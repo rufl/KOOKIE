@@ -16,16 +16,18 @@ This is the active bounded implementation sequence after the initial research an
 - Bounded PCM silence and deterministic clip transfer into an SDL audio stream without callbacks.
 - Native adapter probe applying real adapter events to Kof state and running the first SPIR-V texture upload/draw path.
 - Bounded Kof frame staging contract measured at 15 scalar writes for a three-vertex textured triangle, with publish/discard ownership checks.
-- Kof frame retirement contract rejects duplicate or stale retirement.
 - Native exception lifetime reproducer and negative controls recorded in the verification gate.
 - Native adapter exposes elapsed GPU draw timing after GPU-idle retirement.
+- G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
 
 ## Next batch
 
 1. Re-run the isolated native adapter smoke after the pressure gate permits it; record window, dummy-audio, GPU and measured draw timing.
 2. Compare elapsed native draw time and frame retirement against the declared frame budget.
-3. Re-run the native exception-handler reproducer after any compiler upgrade and require the stale-handler output to change before trusting exception cleanup.
-4. Record every measured failure or acceptance boundary in both language trees.
+3. Add a second loopback client, explicit snapshot sequence validation and stale-input rejection tests.
+4. Add camera/input mapping and a bounded authoritative movement component before collision.
+5. Re-run the native exception-handler reproducer after any compiler upgrade and require the stale-handler output to change before trusting exception cleanup.
+6. Record every measured failure or acceptance boundary in both language trees.
 
 ## Deferred
 

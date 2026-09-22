@@ -1,0 +1,139 @@
+package core
+
+record InputCommand(Int tick, Int sequence, Int moveX, Int moveY, Int lookX, Int lookY, Int fire, Int jump)
+record InputEdges(Int firePressed, Int fireReleased, Int jumpPressed, Int jumpReleased)
+
+class InputEdgeState {
+    Int fire
+    Int jump
+    InputEdges edges
+
+    public constructor() {
+        fire = 0
+        jump = 0
+        edges = InputEdges(0, 0, 0, 0)
+    }
+
+    Bool apply(Int nextFire, Int nextJump) {
+        if ((nextFire != 0 && nextFire != 1) || (nextJump != 0 && nextJump != 1)) {
+            return false
+        }
+        var firePressed = 0
+        var fireReleased = 0
+        var jumpPressed = 0
+        var jumpReleased = 0
+        if (nextFire == 1 && fire == 0) {
+            firePressed = 1
+        }
+        if (nextFire == 0 && fire == 1) {
+            fireReleased = 1
+        }
+        if (nextJump == 1 && jump == 0) {
+            jumpPressed = 1
+        }
+        if (nextJump == 0 && jump == 1) {
+            jumpReleased = 1
+        }
+        edges = InputEdges(firePressed, fireReleased, jumpPressed, jumpReleased)
+        fire = nextFire
+        jump = nextJump
+        return true
+    }
+
+    InputEdges lastEdges() {
+        return edges
+    }
+
+    Int fireHeld() {
+        return fire
+    }
+
+    Int jumpHeld() {
+        return jump
+    }
+}
+
+class InputCommandBuffer {
+    Int[] ticks
+    Int[] sequences
+    Int[] moveXs
+    Int[] moveYs
+    Int[] lookXs
+    Int[] lookYs
+    Int[] fires
+    Int[] jumps
+    Int head
+    Int count
+    Int lastSequence
+    InputCommand consumed
+
+    public constructor(Int capacity) {
+        ticks = new Int[capacity]
+        sequences = new Int[capacity]
+        moveXs = new Int[capacity]
+        moveYs = new Int[capacity]
+        lookXs = new Int[capacity]
+        lookYs = new Int[capacity]
+        fires = new Int[capacity]
+        jumps = new Int[capacity]
+        head = 0
+        count = 0
+        lastSequence = -1
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+    }
+
+    Bool queue(InputCommand command) {
+        if (command.tick() < 0 || command.sequence() < 0 ||
+            command.sequence() <= lastSequence || count >= ticks.length) {
+            return false
+        }
+        if (command.fire() < 0 || command.fire() > 1 || command.jump() < 0 || command.jump() > 1) {
+            return false
+        }
+        var index = head + count
+        if (index >= ticks.length) {
+            index = index - ticks.length
+        }
+        ticks[index] = command.tick()
+        sequences[index] = command.sequence()
+        moveXs[index] = command.moveX()
+        moveYs[index] = command.moveY()
+        lookXs[index] = command.lookX()
+        lookYs[index] = command.lookY()
+        fires[index] = command.fire()
+        jumps[index] = command.jump()
+        count = count + 1
+        lastSequence = command.sequence()
+        return true
+    }
+
+    Int queuedCount() {
+        return count
+    }
+
+    Int nextTick() {
+        if (count == 0) {
+            return -1
+        }
+        return ticks[head]
+    }
+
+    Bool dequeue() {
+        if (count == 0) {
+            return false
+        }
+        consumed = InputCommand(
+            ticks[head], sequences[head], moveXs[head], moveYs[head],
+            lookXs[head], lookYs[head], fires[head], jumps[head])
+        head = head + 1
+        if (head >= ticks.length) {
+            head = 0
+        }
+        count = count - 1
+        return true
+    }
+
+    InputCommand lastConsumed() {
+        return consumed
+    }
+}
