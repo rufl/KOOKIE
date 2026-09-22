@@ -1,11 +1,12 @@
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_gpu.h>
 
 #include <stdbool.h>
 #include <stddef.h>
-
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_WINDOW_KIND 1
 #define KOOKIE_AUDIO_KIND 2
+#define KOOKIE_GPU_KIND 3
 
 typedef struct {
     SDL_Window *window;
@@ -13,12 +14,20 @@ typedef struct {
 } KookieWindowSlot;
 
 typedef struct {
-    SDL_AudioDeviceID device;
+    SDL_AudioStream *stream;
+    SDL_AudioSpec spec;
     unsigned int generation;
 } KookieAudioSlot;
 
+typedef struct {
+    SDL_GPUDevice *device;
+    int window_slot;
+    unsigned int generation;
+} KookieGpuSlot;
+
 static KookieWindowSlot window_slots[KOOKIE_MAX_WINDOWS];
 static KookieAudioSlot audio_slot;
+static KookieGpuSlot gpu_slot;
 static int last_event_a;
 static int last_event_b;
 
@@ -51,6 +60,16 @@ bool kookie_sdl_init(int flags) {
 }
 
 void kookie_sdl_shutdown(void) {
+    if (gpu_slot.device != NULL) {
+        if (gpu_slot.window_slot >= 0 && gpu_slot.window_slot < KOOKIE_MAX_WINDOWS &&
+            window_slots[gpu_slot.window_slot].window != NULL) {
+            SDL_ReleaseWindowFromGPUDevice(gpu_slot.device, window_slots[gpu_slot.window_slot].window);
+        }
+        SDL_DestroyGPUDevice(gpu_slot.device);
+        gpu_slot.device = NULL;
+        gpu_slot.window_slot = -1;
+        gpu_slot.generation += 1;
+    }
     for (int i = 0; i < KOOKIE_MAX_WINDOWS; i += 1) {
         if (window_slots[i].window != NULL) {
             SDL_DestroyWindow(window_slots[i].window);
@@ -58,9 +77,9 @@ void kookie_sdl_shutdown(void) {
             window_slots[i].generation += 1;
         }
     }
-    if (audio_slot.device != 0) {
-        SDL_CloseAudioDevice(audio_slot.device);
-        audio_slot.device = 0;
+    if (audio_slot.stream != NULL) {
+        SDL_DestroyAudioStream(audio_slot.stream);
+        audio_slot.stream = NULL;
         audio_slot.generation += 1;
     }
     SDL_Quit();
@@ -108,6 +127,58 @@ bool kookie_window_destroy(int token) {
     SDL_DestroyWindow(window_slots[slot].window);
     window_slots[slot].window = NULL;
     window_slots[slot].generation += 1;
+    return true;
+}
+
+int kookie_gpu_open(int window_token) {
+    if (gpu_slot.device != NULL) {
+        return 0;
+    }
+
+    int window_slot;
+    unsigned int window_generation;
+    if (!decode_token(window_token, KOOKIE_WINDOW_KIND, &window_slot, &window_generation)) {
+        return 0;
+    }
+    if (window_slots[window_slot].window == NULL ||
+        window_slots[window_slot].generation != window_generation) {
+        return 0;
+    }
+
+    SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
+    if (device == NULL || !SDL_ClaimWindowForGPUDevice(device, window_slots[window_slot].window)) {
+        if (device != NULL) {
+            SDL_DestroyGPUDevice(device);
+        }
+        return 0;
+    }
+
+    if (gpu_slot.generation == 0) {
+        gpu_slot.generation = 1;
+    }
+    gpu_slot.device = device;
+    gpu_slot.window_slot = window_slot;
+    return make_token(0, gpu_slot.generation, KOOKIE_GPU_KIND);
+}
+
+bool kookie_gpu_close(int token) {
+    int slot;
+    unsigned int generation;
+    if (!decode_token(token, KOOKIE_GPU_KIND, &slot, &generation) || slot != 0) {
+        return false;
+    }
+    if (gpu_slot.device == NULL || gpu_slot.generation != generation) {
+        return false;
+    }
+
+    if (gpu_slot.window_slot >= 0 && gpu_slot.window_slot < KOOKIE_MAX_WINDOWS &&
+        window_slots[gpu_slot.window_slot].window != NULL) {
+        SDL_ReleaseWindowFromGPUDevice(gpu_slot.device, window_slots[gpu_slot.window_slot].window);
+    }
+    SDL_DestroyGPUDevice(gpu_slot.device);
+    gpu_slot.device = NULL;
+    gpu_slot.window_slot = -1;
+    gpu_slot.generation += 1;
     return true;
 }
 
@@ -172,19 +243,38 @@ int kookie_last_event_b(void) {
 }
 
 int kookie_audio_open(void) {
-    if (audio_slot.device != 0) {
+    if (audio_slot.stream != NULL) {
         return 0;
     }
 
-    SDL_AudioDeviceID device = SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
-    if (device == 0) {
+    audio_slot.spec.format = SDL_AUDIO_F32LE;
+    audio_slot.spec.channels = 2;
+    audio_slot.spec.freq = 48000;
+    SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+        &audio_slot.spec,
+        NULL,
+        NULL);
+    if (stream == NULL || !SDL_ResumeAudioStreamDevice(stream)) {
+        if (stream != NULL) {
+            SDL_DestroyAudioStream(stream);
+        }
         return 0;
     }
     if (audio_slot.generation == 0) {
         audio_slot.generation = 1;
     }
-    audio_slot.device = device;
+    audio_slot.stream = stream;
     return make_token(0, audio_slot.generation, KOOKIE_AUDIO_KIND);
+}
+
+bool kookie_audio_queue_silence(int frames) {
+    static unsigned char silence[4096 * 8];
+    if (audio_slot.stream == NULL || frames <= 0 || frames > 4096) {
+        return false;
+    }
+    int bytes = frames * audio_slot.spec.channels * (int)sizeof(float);
+    return SDL_PutAudioStreamData(audio_slot.stream, silence, bytes);
 }
 
 bool kookie_audio_close(int token) {
@@ -193,12 +283,12 @@ bool kookie_audio_close(int token) {
     if (!decode_token(token, KOOKIE_AUDIO_KIND, &slot, &generation) || slot != 0) {
         return false;
     }
-    if (audio_slot.device == 0 || audio_slot.generation != generation) {
+    if (audio_slot.stream == NULL || audio_slot.generation != generation) {
         return false;
     }
 
-    SDL_CloseAudioDevice(audio_slot.device);
-    audio_slot.device = 0;
+    SDL_DestroyAudioStream(audio_slot.stream);
+    audio_slot.stream = NULL;
     audio_slot.generation += 1;
     return true;
 }

@@ -12,16 +12,17 @@ This is the active bounded implementation sequence after the initial research an
 - JVM/native regression smoke and two named regression tests.
 - Scalar `SDL_Init(0)`/`SDL_Quit()` lifecycle exercised on JVM/native.
 - Kof-owned focus/resize/close state and bounded FIFO audio queue.
-- Narrow C SDL adapter with checked window/audio tokens and scalar event flattening.
+- Narrow C SDL adapter with checked window/audio/GPU tokens and scalar event flattening.
+- Bounded PCM silence transfer into an SDL audio stream without callbacks.
 - Native adapter probe and optional isolated-display verification wiring.
 
 ## Next batch
 
-1. Re-run the isolated native adapter smoke after the pressure gate permits it; record window and dummy-audio acceptance.
-2. Apply flattened event kind/data fields to `WindowStateTracker` on the Kof main loop.
-3. Add one bounded PCM transfer path from the Kof audio queue without callbacks or a second mixer authority.
-4. Add SDL_GPU device/window setup behind the same explicit adapter lifecycle and prove teardown ordering.
-5. Measure scalar staging for one bounded textured draw before choosing a buffer-FFI change.
+1. Re-run the isolated native adapter smoke after the pressure gate permits it; record window, dummy-audio and GPU acceptance.
+2. Feed real OS event output into the Kof main loop and `WindowStateTracker`.
+3. Replace silence with one bounded Kof clip PCM transfer without a second mixer authority.
+4. Add the first SDL_GPU upload/draw path and prove teardown ordering around the device/window token.
+5. Measure scalar staging for the first bounded textured draw before choosing a buffer-FFI change.
 6. Re-run the native exception-handler reproducer and negative controls with the pinned compiler before relying on exception cleanup.
 7. Record every measured failure or acceptance boundary in both language trees.
 

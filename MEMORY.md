@@ -71,12 +71,13 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 - Recommended library set: SDL3/SDL_GPU; offline SDL_shadercross/DXC; OpenAL Soft for production FPS audio (SDL3_mixer is the basic-spatial alternative); SDL3_image for image decoding; FreeType/HarfBuzz for text services; zstd for cooked packages. G0 remains SDL-only with queued audio. Full boundaries, local availability, licenses and adoption gates are in [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
 ## Next action and proof boundary
 
-Implement **G0 only**: rerun the isolated native SDL adapter smoke after the
-pressure gate permits it, apply flattened input/focus/resize events to Kof state,
-add bounded PCM transfer, then prove SDL_GPU window/device setup and a textured
-draw while revalidating the recorded native exception-handler lifetime defect in
-a pinned compiler. Resource tokens, scalar SDL lifecycle and the narrow C
-adapter are implemented; no accepted GPU/render proof exists yet.
+Implement **G0 only**: rerun the isolated native SDL/GPU adapter smoke after the
+pressure gate permits it, apply real input/focus/resize events to Kof state,
+replace silence with bounded clip PCM transfer, then prove the first SDL_GPU
+upload/draw while revalidating the recorded native exception-handler lifetime
+defect in a pinned compiler. Resource tokens, scalar SDL lifecycle, narrow C
+adapter and bounded silence path are implemented; no accepted GPU/render proof
+exists yet.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18 course-driven programs (36 runs, two checks), and the JOML JVM success/native import-rejection pair. Complete sources/results are in the linked research documents. Those research probes were JVM/native x86 only, with no games/editor/server or graphics launched. Later installation verification exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did not verify the engine graphics stack or run a full suite.
 

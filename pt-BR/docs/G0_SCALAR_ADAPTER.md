@@ -2,7 +2,7 @@
 
 [English](../../docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento adiciona um adaptador C SDL estreito e contratos de estado pertencentes ao Kof. O smoke nativo de janela/áudio está conectado, mas sua execução em display isolado foi adiada por pressão; nenhum dispositivo GPU ou draw texturizado é afirmado.
+Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento adiciona glue C SDL estreito de ciclo de vida de janela/áudio/GPU, transferência PCM limitada de silêncio e contratos de estado pertencentes ao Kof. O smoke nativo de janela/áudio/GPU está conectado, mas sua execução em display isolado foi adiada por pressão; nenhum draw texturizado aceito é afirmado.
 
 ## Limite do ciclo de vida SDL
 
@@ -14,7 +14,7 @@ Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento 
 
 `SdlLifecycle` possui a flag de inicialização no lado Kof. Rejeita flags negativos, torna a inicialização repetida idempotente e torna o encerramento explícito. `probes/g0_platform/main.kf` chama `SDL_Init(0)` e `SDL_Quit()` nos dois alvos quando `/usr/lib/libSDL3.so` está instalado. `0` solicita deliberadamente nenhum subsistema SDL; isso não comprova inicialização de vídeo/áudio.
 
-A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de evento, callback, janela ou dispositivo de áudio. A limitação medida da FFI Kof permanece: chamadas extern escalares funcionam, enquanto arrays/structs/ponteiros/buffers de saída/callbacks não formam uma binding portável.
+A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de evento, callback, janela, dispositivo GPU ou dispositivo de áudio. A limitação medida da FFI Kof permanece: chamadas extern escalares funcionam, enquanto arrays/structs/ponteiros/buffers de saída/callbacks não formam uma binding portável.
 
 ## Adaptador nativo estreito
 
@@ -23,10 +23,12 @@ A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de ev
 - criação/destruição de janela com tokens por slot+geração+tipo;
 - rejeição de token de janela obsoleto ou de tipo incorreto;
 - `SDL_PollEvent` achatado para tipo de evento mais dois campos escalares;
-- abertura/fechamento do dispositivo de playback padrão com tokens por slot+geração+tipo;
-- encerramento explícito que destrói janelas pertencentes ao adaptador e fecha o áudio.
+- abertura/fechamento de stream de áudio playback padrão com tokens por slot+geração+tipo;
+- transferência PCM limitada de silêncio para o stream SDL, sem callback;
+- criação/claim/release/destruição de dispositivo SDL_GPU SPIR-V atrás de token verificado;
+- ordem explícita de encerramento: liberar claim GPU, destruir dispositivo GPU, destruir janelas, destruir stream de áudio.
 
-O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades nem buffers de amostras de áudio. `probes/g0_native_adapter/main.kf` exercita criação/destruição de janela oculta, polling escalar de eventos, abertura/fechamento de dispositivo playback dummy e rejeição de token obsoleto.
+O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades nem buffers de amostras pertencentes ao Kof. `probes/g0_native_adapter/main.kf` exercita criação/destruição de janela oculta, enfileiramento sintético de resize/foco SDL e polling escalar, ciclo GPU opcional, abertura/fechamento de dispositivo playback dummy, transferência limitada de silêncio e rejeição de token obsoleto.
 
 ## Estado de janela e entrada
 
@@ -35,9 +37,10 @@ O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades 
 - foco aceita somente `0` ou `1`;
 - redimensionamento aceita somente dimensões positivas;
 - fechamento é monotônico para o estado da sessão/frame atual;
+- `applyNativeEvent(kind, dataA, dataB)` mapeia os tipos de adaptador `1..4` para transições de fechamento, resize e foco;
 - `snapshot()` devolve uma cópia do estado escalar por meio de `WindowState`.
 
-O adaptador nativo agora achata eventos SDL, mas aplicar eventos ao estado ainda é o próximo limite de integração. O loop Kof continua autoritativo.
+O adaptador achata eventos SDL, enquanto o Kof possui a política de transição e o loop autoritativo. Os eventos inseridos pela sonda verificam a ABI de flattening; a aceitação de foco/redimensionamento gerados pelo SO continua parte do smoke isolado.
 
 ## Estado de áudio enfileirado
 
@@ -49,7 +52,11 @@ O adaptador nativo agora achata eventos SDL, mas aplicar eventos ao estado ainda
 - dequeue FIFO com metadados copiados de clip/ganho;
 - nenhum callback para dentro do Kof e nenhuma autoridade estrangeira de mixer.
 
-O adaptador nativo comprova apenas abertura/fechamento do dispositivo. Os dados da fila ainda não são enviados ao SDL; o próximo passo de áudio deve escolher um contrato limitado de transferência PCM sem introduzir uma segunda autoridade de mixer.
+O adaptador nativo agora comprova um ciclo real de stream de áudio SDL e transferência PCM limitada de silêncio. Ele ainda não envia payloads de clips Kof; o próximo passo de áudio deve escolher um contrato limitado de propriedade/transferência PCM sem introduzir uma segunda autoridade de mixer.
+
+## Ciclo de vida GPU
+
+O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da janela SDL oculta e libera o claim antes de destruir o dispositivo. Falha de GPU é reportada como `gpu-unavailable` pela sonda, não convertida em falso sucesso. Nenhum shader, pipeline, transfer buffer, textura ou draw atravessa o limite ainda.
 
 ## Prova de regressão
 
@@ -58,15 +65,15 @@ O adaptador nativo comprova apenas abertura/fechamento do dispositivo. Os dados 
 - `resource token lifecycle`;
 - `platform state and audio queue lifecycle`.
 
-O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `pkg-config` e `overzeer-isolated-display` estão disponíveis, ele compila o adaptador, emite o ELF nativo da sonda e o executa pelo wrapper de display isolado com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito. A tentativa atual em display isolado foi adiada pelo gate de pressão do wrapper; ela precisa ser repetida antes de chamar o smoke gráfico/áudio de aceito.
+O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `pkg-config` e `overzeer-isolated-display` estão disponíveis, ele compila o adaptador, emite o ELF nativo da sonda e o executa pelo wrapper de display isolado com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito. As tentativas atuais em display isolado foram adiadas pelo gate de pressão do wrapper; elas precisam ser repetidas antes de chamar o smoke de janela/áudio/GPU de aceito.
 
 ```bash
 bash scripts/verify.sh
 kof check probes/g0_native_adapter/main.kf --target native
 ```
 
-As sondas escalares locais passaram na JVM/nativo. As verificações de fonte Kof, testes e builds passam na JVM/nativo. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador; a JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta.
+As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`. A execução nativa ainda emite o aviso conhecido de fallback para runtime completo fora do checkout do compilador; a JVM pode emitir o aviso do JDK sobre acesso nativo restrito para a busca SDL direta.
 
 ## Próximo limite de comprovação
 
-Reexecute o smoke nativo do adaptador em display isolado e registre a aceitação de janela/áudio. Em seguida, aplique os eventos achatados ao `WindowStateTracker`, adicione uma transferência PCM limitada e meça a configuração de janela/dispositivo SDL_GPU. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem rotule estes contratos como prova de GPU/renderização texturizada.
+Reexecute o smoke nativo em display isolado e registre a aceitação de janela/áudio/GPU. Em seguida, encaminhe eventos reais do SO ao loop Kof, substitua o silêncio por transferência limitada de clips e adicione o primeiro caminho de upload/draw SDL_GPU. Não converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do Kof nem rotule o código de ciclo de vida do adaptador como prova de renderização texturizada.

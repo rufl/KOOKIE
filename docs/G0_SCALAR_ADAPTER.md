@@ -2,7 +2,7 @@
 
 [Português (Brasil)](../pt-BR/docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implemented and compiler-exercised on JVM/native**. This increment adds a narrow C SDL adapter and Kof-owned state contracts. The native window/audio smoke is wired but its isolated-display run is pressure-deferred; no GPU device or textured draw is claimed.
+Status: **implemented and compiler-exercised on JVM/native**. This increment adds narrow C SDL window/audio/GPU lifecycle glue, bounded PCM silence transfer and Kof-owned state contracts. The native window/audio/GPU smoke is wired but its isolated-display run is pressure-deferred; no accepted textured draw is claimed.
 
 ## SDL lifecycle boundary
 
@@ -14,7 +14,7 @@ Status: **implemented and compiler-exercised on JVM/native**. This increment add
 
 `SdlLifecycle` owns the Kof-side initialized flag. It rejects negative flags, makes repeated initialization idempotent, and makes shutdown explicit. `probes/g0_platform/main.kf` calls `SDL_Init(0)` and `SDL_Quit()` on both targets when `/usr/lib/libSDL3.so` is installed. `0` intentionally requests no SDL subsystem; it does not prove video/audio initialization.
 
-The direct Kof binding still carries no SDL pointer, struct, event union, callback, window or audio device. The measured Kof FFI limitation remains: scalar extern calls work, while arrays/structs/pointers/out-buffers/callbacks do not form a portable binding.
+The direct Kof binding still carries no SDL pointer, struct, event union, callback, window, GPU device or audio device. The measured Kof FFI limitation remains: scalar extern calls work, while arrays/structs/pointers/out-buffers/callbacks do not form a portable binding.
 
 ## Narrow native adapter
 
@@ -23,10 +23,12 @@ The direct Kof binding still carries no SDL pointer, struct, event union, callba
 - window create/destroy with slot+generation+kind tokens;
 - stale and wrong-kind window-token rejection;
 - `SDL_PollEvent` flattened to event kind plus two scalar payload fields;
-- default playback audio-device open/close with slot+generation+kind tokens;
-- explicit shutdown that destroys adapter-owned windows and closes audio.
+- default playback audio-stream open/close with slot+generation+kind tokens;
+- bounded PCM silence transfer into the SDL audio stream, with no callback;
+- SPIR-V SDL_GPU device create/claim/release/destroy behind a checked token;
+- explicit shutdown ordering: release GPU claim, destroy GPU device, destroy windows, destroy audio stream.
 
-The adapter does not retain Kof pointers, callbacks, gameplay state, entities or audio sample buffers. `probes/g0_native_adapter/main.kf` exercises hidden window creation/teardown, scalar event polling, dummy playback-device open/close and stale-token rejection.
+The adapter does not retain Kof pointers, callbacks, gameplay state, entities or Kof-owned audio sample buffers. `probes/g0_native_adapter/main.kf` exercises hidden window creation/teardown, synthetic SDL resize/focus queueing and scalar polling, optional GPU lifecycle, dummy playback-device open/close, bounded silence transfer and stale-token rejection.
 
 ## Window and input state
 
@@ -35,9 +37,10 @@ The adapter does not retain Kof pointers, callbacks, gameplay state, entities or
 - focus accepts only `0` or `1`;
 - resize accepts only positive dimensions;
 - close is monotonic for the current frame/session state;
+- `applyNativeEvent(kind, dataA, dataB)` maps adapter kinds `1..4` to close, resize and focus transitions;
 - `snapshot()` returns copied scalar state through `WindowState`.
 
-The native adapter now flattens SDL events, but Kof event-to-state application is still the next integration boundary. The Kof loop remains authoritative.
+The adapter flattens SDL events, while Kof owns the transition policy and authoritative loop. The probe's pushed events verify the flattening ABI; OS-generated focus/resize acceptance remains part of the isolated smoke.
 
 ## Queued audio state
 
@@ -49,7 +52,11 @@ The native adapter now flattens SDL events, but Kof event-to-state application i
 - FIFO dequeue with copied clip/gain metadata;
 - no callback into Kof and no foreign mixer authority.
 
-The native adapter proves device open/close only. Queue data is not uploaded to SDL yet; the next audio step must choose a bounded PCM transfer contract without introducing a second mixer authority.
+The native adapter now proves a real SDL audio stream lifecycle and bounded silence PCM transfer. It does not yet upload Kof clip payloads; the next audio step must choose a bounded PCM ownership/transfer contract without introducing a second mixer authority.
+
+## GPU lifecycle
+
+The adapter requests SPIR-V support, creates an SDL_GPU device, claims the hidden SDL window, and releases the claim before device destruction. GPU failure is reported as `gpu-unavailable` by the probe rather than converted into a false success. No shader, pipeline, transfer buffer, texture or draw call crosses the boundary yet.
 
 ## Regression proof
 
@@ -58,15 +65,15 @@ The native adapter proves device open/close only. Queue data is not uploaded to 
 - `resource token lifecycle`;
 - `platform state and audio queue lifecycle`.
 
-The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `pkg-config` and `overzeer-isolated-display` are available, it builds the adapter, emits the native probe ELF and runs it through the isolated-display wrapper with dummy audio. If those dependencies are absent, CI records an explicit skip. The current isolated-display attempt was deferred by the wrapper's pressure gate; it must be rerun before calling the graphical/audio smoke accepted.
+The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `pkg-config` and `overzeer-isolated-display` are available, it builds the adapter, emits the native probe ELF and runs it through the isolated-display wrapper with dummy audio. If those dependencies are absent, CI records an explicit skip. The current isolated-display attempts were deferred by the wrapper's pressure gate; they must be rerun before calling the window/audio/GPU smoke accepted.
 
 ```bash
 bash scripts/verify.sh
 kof check probes/g0_native_adapter/main.kf --target native
 ```
 
-Local scalar probes passed on JVM/native. Kof source checks, tests and builds pass on JVM/native. Native execution still emits the known full-runtime fallback warning outside the compiler checkout; JVM may emit the JDK restricted-native-access warning for direct SDL lookup.
+Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`. Native execution still emits the known full-runtime fallback warning outside the compiler checkout; JVM may emit the JDK restricted-native-access warning for direct SDL lookup.
 
 ## Next proof boundary
 
-Rerun the isolated native adapter smoke and record window/audio acceptance. Then apply flattened events to `WindowStateTracker`, add a bounded PCM queue transfer, and measure SDL_GPU window/device setup. Do not cast SDL pointers to integer tokens, add callbacks into Kof, or label these contracts as GPU/textured-render proof.
+Rerun the isolated native adapter smoke and record window/audio/GPU acceptance. Then feed real OS event output into the Kof loop, replace silence with a bounded clip transfer, and add the first SDL_GPU upload/draw path. Do not cast SDL pointers to integer tokens, add callbacks into Kof, or label adapter lifecycle code as textured-render proof.

@@ -12,16 +12,17 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Smoke JVM/nativo e dois testes nomeados de regressão.
 - Ciclo escalar `SDL_Init(0)`/`SDL_Quit()` exercitado na JVM/nativo.
 - Estado Kof de foco/redimensionamento/fechamento e FIFO de áudio com capacidade limitada.
-- Adaptador C SDL estreito com tokens verificados de janela/áudio e flattening escalar de eventos.
+- Adaptador C SDL estreito com tokens verificados de janela/áudio/GPU e flattening escalar de eventos.
+- Transferência limitada de silêncio PCM para um stream de áudio SDL sem callbacks.
 - Sonda do adaptador nativo e conexão opcional da verificação em display isolado.
 
 ## Próximo lote
 
-1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar aceitação de janela e áudio dummy.
-2. Aplicar os campos achatados de tipo/dados de evento ao `WindowStateTracker` no loop principal Kof.
-3. Adicionar um caminho limitado de transferência PCM da fila de áudio Kof sem callbacks nem segunda autoridade de mixer.
-4. Adicionar configuração de dispositivo/janela SDL_GPU atrás do mesmo ciclo de vida explícito do adaptador e comprovar a ordem de desmontagem.
-5. Medir staging escalar para um draw texturizado limitado antes de escolher uma mudança de FFI de buffers.
+1. Reexecutar o smoke do adaptador nativo após o gate de pressão permitir; registrar aceitação de janela, áudio dummy e GPU.
+2. Encaminhar eventos reais do SO ao loop principal Kof e ao `WindowStateTracker`.
+3. Substituir o silêncio por uma transferência PCM limitada de um clip Kof sem segunda autoridade de mixer.
+4. Adicionar o primeiro caminho de upload/draw SDL_GPU e comprovar a ordem de desmontagem em torno do token de dispositivo/janela.
+5. Medir staging escalar do primeiro draw texturizado limitado antes de escolher uma mudança de FFI de buffers.
 6. Reexecutar o reproduzível do manipulador de exceções nativo e os controles negativos com o compilador fixado antes de confiar na limpeza por exceção.
 7. Registrar toda falha medida ou limite de aceitação nas duas árvores de idioma.
 

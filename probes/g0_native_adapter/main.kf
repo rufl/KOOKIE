@@ -2,12 +2,15 @@ extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
 extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int height, Int hidden): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open(Int windowToken): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_push_resize_event(Int width, Int height): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 
 main() {
@@ -16,17 +19,32 @@ main() {
 
     var window = kookie_window_create(320, 240, 1)
     assert(window > 0, "hidden SDL window must create")
+    var drainKind = 1
+    var drainCount = 0
+    while (drainCount < 32 && drainKind != 0) {
+        drainKind = kookie_poll_event()
+        drainCount = drainCount + 1
+    }
     assert(kookie_push_resize_event(640, 480), "SDL resize event must enqueue")
     var eventKind = kookie_poll_event()
     assert(eventKind == 2, "resize event must flatten to kind 2")
     assert(kookie_last_event_a() == 640 && kookie_last_event_b() == 480, "resize payload must copy")
     assert(kookie_push_focus_event(1), "SDL focus event must enqueue")
     assert(kookie_poll_event() == 3, "focus event must flatten to kind 3")
+    var gpu = kookie_gpu_open(window)
+    if (gpu > 0) {
+        assert(kookie_gpu_close(gpu), "live GPU token must close")
+        assert(!kookie_gpu_close(gpu), "stale GPU token must reject")
+        println("gpu-open")
+    } else {
+        println("gpu-unavailable")
+    }
     assert(kookie_window_destroy(window), "live window token must destroy")
     assert(!kookie_window_destroy(window), "stale window token must reject")
 
     var audio = kookie_audio_open()
     assert(audio > 0, "dummy SDL audio device must open")
+    assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")
     assert(kookie_audio_close(audio), "live audio token must close")
     assert(!kookie_audio_close(audio), "stale audio token must reject")
     println("audio-open")
