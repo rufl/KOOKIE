@@ -58,7 +58,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 
 ## Próximo lote
 
-1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; Xvfb continua incompatível com apresentação.
+1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke isolado X11/offscreen foi executado novamente e reportou corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
 
 ## Adiado
 

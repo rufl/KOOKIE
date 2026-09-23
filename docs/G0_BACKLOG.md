@@ -59,7 +59,7 @@ This is the active bounded implementation sequence after the initial research an
 
 ## Next batch
 
-1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
+1. Run the DRI3-capable window screenshot path on an isolated present-capable host; the isolated X11/offscreen smoke was exercised again and correctly reported `gpu-unavailable`, while Xvfb remains presentation-incompatible.
 
 
 ## Deferred
