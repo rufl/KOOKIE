@@ -10,6 +10,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_draw(Int frames): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open_headless_ready(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recover_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_headless_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_headless_budget(Int frames, Int budgetMicroseconds): Bool
@@ -37,6 +38,10 @@ main() {
         assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
         assert(kookie_gpu_headless_budget(3, frameClock.frameBudgetMicros()),
             "headless GPU draw timing must fit the declared frame budget")
+        assert(kookie_gpu_recover_headless(), "headless GPU recovery must reopen")
+        assert(kookie_gpu_draw_headless_test(),
+            "headless GPU draw must succeed after recovery")
+        println("gpu-headless-recovered")
         println("gpu-headless-open")
         assert(kookie_gpu_close_headless(), "headless GPU must close")
         assert(!kookie_gpu_close_headless(), "stale headless GPU token must reject")

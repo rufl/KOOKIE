@@ -264,6 +264,7 @@ int kookie_gpu_open_headless(void) {
         return 0;
     }
 
+
     SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
     if (device == NULL) {
         return 0;
@@ -275,6 +276,16 @@ int kookie_gpu_open_headless(void) {
     gpu_slot.window_slot = -1;
     int token = make_token(0, gpu_slot.generation, KOOKIE_GPU_KIND);
     return token;
+}
+bool kookie_gpu_recover_headless(void) {
+    if (gpu_slot.device == NULL || gpu_slot.window_slot != -1) {
+        return false;
+    }
+    kookie_gpu_release_resources(gpu_slot.device);
+    SDL_DestroyGPUDevice(gpu_slot.device);
+    gpu_slot.device = NULL;
+    gpu_slot.generation += 1;
+    return kookie_gpu_open_headless() > 0;
 }
 bool kookie_gpu_open_headless_ready(void) {
     return kookie_gpu_open_headless() > 0;

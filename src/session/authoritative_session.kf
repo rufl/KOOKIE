@@ -23,6 +23,7 @@ class LoopbackSession {
     BoundedTriangleCollection broadPhaseCollection
     BoundedTriangleCollection clientBroadPhaseCollection
     Int clientBroadPhaseSnapshotSequence
+    BroadPhaseTransportQueue broadPhaseTransport
     Int broadPhaseRevisionValue
     Int clientBroadPhaseRevisionValue
 
@@ -49,6 +50,7 @@ class LoopbackSession {
         broadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
         clientBroadPhaseCollection = BoundedTriangleCollection(8, 20)
         clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
+        broadPhaseTransport = BroadPhaseTransportQueue(4, 8)
         clientBroadPhaseSnapshotSequence = 0
         broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
         clientBroadPhaseRevisionValue = broadPhaseRevisionValue
@@ -219,6 +221,22 @@ class LoopbackSession {
             protocolVersion(), tick, sequence,
             broadPhaseRevisionValue, broadPhaseCollection)
     }
+    Bool queueBroadPhaseSnapshot(Int tick, Int sequence) {
+        return broadPhaseTransport.send(broadPhaseSnapshot(tick, sequence))
+    }
+
+    Int pendingBroadPhaseSnapshots() {
+        return broadPhaseTransport.pending()
+    }
+
+    Bool receiveBroadPhaseSnapshot() {
+        var words = broadPhaseTransport.receive()
+        if (words.length == 0) {
+            return false
+        }
+        return applyBroadPhaseSnapshot(words)
+    }
+
 
     Bool acceptsBroadPhaseSnapshot(Int[] words) {
         return broadPhaseSnapshotMatches(words, broadPhaseRevisionValue)

@@ -44,8 +44,11 @@ Criar um engine para boomer shooters / looter shooters / ARPG FPS usando **códi
 13. O `split` nativo não é uma divisão por regex da JVM: o pipe escapado produziu um elemento em vez de três. Evite presumir semântica compartilhada do parser.
 14. Defeito crítico no handler nativo: após um try/catch normal, uma asserção falha posterior reentrou nesse catch e saiu com 0. A redução de código-fonte salta além de `KofTryEnd`. Uma asserção false simples falha corretamente. Não institucionalizar uma solução alternativa de fluxo de controle; corrigir/revalidar o compilador antes de depender de limpeza/exceções/testes.
 15. Erros de limites nativos terminam sem catch/finally; limpeza explícita de throw/return de String passou nas sondas mais restritas. Validar índices e entradas do adaptador antes do acesso; asserções são throws capturáveis da linguagem, não um canal independente de falha de testes.
-16. JOML1.10.9 do Minecraft26.3 funcionou com `--deps` da JVM Kof: comprimento/produto escalar de vetor e translação de matriz imprimiram `5.0,25.0,5.0,4.0`. O mesmo código-fonte/nativo rejeitou ambas as importações Java com `PKG006`. Isso prova o caminho restrito de matemática Java, não JNI/gráficos nem uso de JAR nativo.## Cuidados do editor
+16. JOML1.10.9 do Minecraft26.3 funcionou com `--deps` da JVM Kof: comprimento/produto escalar de vetor e translação de matriz imprimiram `5.0,25.0,5.0,4.0`. O mesmo código-fonte/nativo rejeitou ambas as importações Java com `PKG006`. Isso prova o caminho restrito de matemática Java, não JNI/gráficos nem uso de JAR nativo.
+17. Snapshots broad-phase autoritativos agora atravessam uma fila de transporte de capacidade fixa e validada; overflow rejeita sem descartar payloads enfileirados, e dequeue/apply atualiza a geometria do cliente com guardas de sequência.
+18. O smoke GPU headless agora cobre profundidade de sobreposição dois e recriação limpa do dispositivo com reconstrução de recursos em cache; callbacks reais de perda e retirement continuam não implementados.
 
+## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
 
 Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handler legado atende em `0.0.0.0` por padrão. O `--host 127.0.0.1` explícito se aplica ao **modo de handler legado**, não ao modo `web.app()+main`; o loopback ainda não constitui autorização/proteção de Origin. Prefira o uso em um scratch isolado, não as ações de Git/Run do monorepo. O scanner nativo antigo R1 está explicitamente encerrado no próprio registro histórico do editor.
@@ -74,25 +77,27 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 A prova GPU do G0 aceita um quad texturizado SDL_GPU offscreen indexado
 isolado, uploads explícitos de buffers de vértices/índices, submissão de draw
 SPIR-V, recursos GPU em cache por dispositivo e telemetria de espera da fence
-através de um render node. O smoke mais recente mediu 1431 microssegundos para
+através de um render node. O smoke mais recente mediu 1675 microssegundos para
 três draws contra o orçamento declarado de frame a 60 Hz de 16.667
-microssegundos em `renderD129`, incluindo uma amostra de 410 microssegundos de
+microssegundos em `renderD128`, incluindo uma amostra de 527 microssegundos de
 espera da fence. Uma sonda de sobreposição submeteu quatro frames em dois slots
 de destino, aposentou todas as fences e observou profundidade máxima em voo de
-dois. O caminho de janela ainda reporta `gpu-unavailable` porque Xvfb não
-oferece apresentação DRI3; uma sonda de capacidade agora informa o formato de
-swapchain e os modos de apresentação quando um dispositivo de janela pode ser
-reivindicado. O G1 agora também possui staging limitado de frame com seis
-vértices, consultas determinísticas limitadas de coleções/BVH de triângulos com
-remoção/rebuild e revisões de geometria, traversal autoritativo de slide/step
-de cápsula sobre oito obstáculos limitados ordenados, operações de
-limpeza/reconfiguração, snapshots broad-phase com aplicação no cliente e
+dois. A recriação limpa do dispositivo reconstruiu os recursos em cache e
+concluiu um draw após a recuperação. O caminho de janela ainda reporta
+`gpu-unavailable` porque Xvfb não oferece apresentação DRI3; uma sonda de
+capacidade informa o formato de swapchain e os modos de apresentação quando um
+dispositivo de janela pode ser reivindicado. O G1 agora também possui staging
+limitado de frame com seis vértices, consultas determinísticas limitadas de
+coleções/BVH de triângulos com remoção/rebuild e revisões de geometria,
+traversal autoritativo de slide/step de cápsula sobre oito obstáculos limitados
+ordenados, operações de limpeza/reconfiguração, snapshots broad-phase
+transportados por fila de capacidade fixa com dequeue/apply no cliente e
 guardas de sequência, rejeição de consultas obsoletas e admissão de movimento
 espacial combinando colisões de cápsula e broad-phase. Em seguida: adicionar
-apresentação isolada compatível com DRI3, transporte real de sessão/rede ao
-redor dos payloads broad-phase e retirement de recursos GPU durante perda e
-recuperação do dispositivo. O defeito do handler de exceções nativas continua
-sendo um gate do compilador.
+apresentação isolada compatível com DRI3, transporte real de sessão/rede,
+callbacks/retirement reais para perda do dispositivo e reexecutar o
+reproduzível de exceção nativa após upgrade do compilador. O defeito do handler
+de exceções nativas continua sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

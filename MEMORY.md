@@ -45,6 +45,9 @@ Create an engine for boomer shooters / looter shooters / ARPG FPS using **native
 14. Critical native handler defect: after a normal try/catch, a later failed assertion re-entered that catch and exited 0. Source lowering jumps past `KofTryEnd`. A bare false assertion fails correctly. Do not institutionalize a control-flow workaround; fix/revalidate the compiler before relying on exception cleanup/tests.
 15. Native bounds errors terminate without catch/finally; explicit String throw/return cleanup passed the narrower probes. Validate indices and adapter inputs before access; assertions are catchable language throws, not an independent test-failure channel.
 16. JOML1.10.9 from Minecraft26.3 worked with Kof JVM `--deps`: vector length/dot and matrix translation printed `5.0,25.0,5.0,4.0`. Same source/native rejected both Java imports with `PKG006`. This proves the narrow Java math path, not JNI/graphics or native JAR use.
+17. Authoritative broad-phase snapshots now traverse a fixed-capacity validated transport queue; overflow rejects without dropping queued payloads, then dequeue/apply updates client geometry with sequence guards.
+18. Headless GPU smoke now covers overlap depth two and clean device recreation with cached-resource rebuild; actual device-loss callbacks and retirement remain unimplemented.
+
 
 ## Editor cautions
 
@@ -74,21 +77,23 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 G0 GPU proof accepts an isolated offscreen SDL_GPU indexed textured quad,
 explicit vertex/index-buffer uploads, SPIR-V draw submission, per-device cached
 GPU resources, and fence-wait telemetry through a render node. The latest smoke
-measured 1431 microseconds for three draws against the declared 16,667-
-microsecond 60 Hz frame budget on `renderD129`, including a 410-microsecond
+measured 1675 microseconds for three draws against the declared 16,667-
+microsecond 60 Hz frame budget on `renderD128`, including a 527-microsecond
 fence-wait sample. An overlap probe submitted four frames across two target
-slots, retired all fences, and observed peak in-flight depth two. The window
-path still reports `gpu-unavailable` because Xvfb lacks DRI3 presentation
-support; a capability probe now reports swapchain format and present modes when
-a window device is claimable. G1 now also has bounded six-vertex frame staging,
+slots, retired all fences, and observed peak in-flight depth two. Clean device
+recreation rebuilt cached resources and completed a post-recovery draw. The
+window path still reports `gpu-unavailable` because Xvfb lacks DRI3 presentation
+support; a capability probe reports swapchain format and present modes when a
+window device is claimable. G1 now also has bounded six-vertex frame staging,
 deterministic triangle collection/BVH queries with removal/rebuild and geometry
 revisions, authoritative capsule slide/step traversal over eight ordered
 bounded obstacles, clear/reconfigure operations, bounded broad-phase transport
-snapshots with client application and sequence guards, stale query rejection,
-and spatial movement admission combining capsule and broad-phase collisions.
-Next: add a DRI3-capable isolated presentation path, actual network/session
-transport around broad-phase payloads, and GPU resource retirement under device
-loss and recovery. The native exception-handler defect remains a compiler gate.
+snapshots with fixed-capacity dequeue/apply and sequence guards, stale query
+rejection, and spatial movement admission combining capsule and broad-phase
+collisions. Next: add a DRI3-capable isolated presentation path, actual
+network/session transport around broad-phase payloads, actual device-loss
+callbacks/resource retirement, and rerun the native exception reproducer after
+a compiler upgrade. The native exception-handler defect remains a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

@@ -77,3 +77,75 @@ Bool roundTripEnvelope(Int protocol, Int kind, Int tick, Int sequence) {
     var encoded = newEnvelope(protocol, kind, tick, sequence)
     return validEnvelope(encoded) && envelopeSequence(encoded) == sequence
 }
+
+class BroadPhaseTransportQueue {
+    Int packetCapacityValue
+    Int maxPacketWordsValue
+    Int[] packetLengths
+    Int[] packetWords
+    Int head
+    Int tail
+    Int queued
+
+    public constructor(Int nextPacketCapacity, Int nextTriangleCapacity) {
+        packetCapacityValue = nextPacketCapacity
+        if (packetCapacityValue <= 0) {
+            packetCapacityValue = 1
+        }
+        var triangleCapacity = nextTriangleCapacity
+        if (triangleCapacity <= 0) {
+            triangleCapacity = 1
+        }
+        maxPacketWordsValue = 6 + triangleCapacity * 9
+        packetLengths = new Int[packetCapacityValue]
+        packetWords = new Int[packetCapacityValue * maxPacketWordsValue]
+        head = 0
+        tail = 0
+        queued = 0
+    }
+
+    Bool send(Int[] words) {
+        if (!validBroadPhaseSnapshot(words) ||
+            words.length > maxPacketWordsValue ||
+            queued == packetCapacityValue) {
+            return false
+        }
+        var offset = tail * maxPacketWordsValue
+        for (var index = 0; index < words.length; index = index + 1) {
+            packetWords[offset + index] = words[index]
+        }
+        packetLengths[tail] = words.length
+        tail = tail + 1
+        if (tail == packetCapacityValue) {
+            tail = 0
+        }
+        queued = queued + 1
+        return true
+    }
+
+    Int pending() {
+        return queued
+    }
+
+    Int capacity() {
+        return packetCapacityValue
+    }
+
+    Int[] receive() {
+        if (queued == 0) {
+            return new Int[0]
+        }
+        var length = packetLengths[head]
+        var offset = head * maxPacketWordsValue
+        var words = new Int[length]
+        for (var index = 0; index < length; index = index + 1) {
+            words[index] = packetWords[offset + index]
+        }
+        head = head + 1
+        if (head == packetCapacityValue) {
+            head = 0
+        }
+        queued = queued - 1
+        return words
+    }
+}

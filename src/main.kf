@@ -211,9 +211,19 @@ test "authoritative loopback foundation" {
         broadPhasePayload.length == 15 &&
         loopback.acceptsBroadPhaseSnapshot(broadPhasePayload),
         "broad-phase transport payload must preserve bounded geometry")
-    assert(loopback.applyBroadPhaseSnapshot(broadPhasePayload) &&
+    assert(loopback.queueBroadPhaseSnapshot(3, 4) &&
+        loopback.pendingBroadPhaseSnapshots() == 1 &&
+        loopback.receiveBroadPhaseSnapshot() &&
+        loopback.pendingBroadPhaseSnapshots() == 0 &&
         loopback.clientBroadPhaseTriangleCount() == 1,
-        "client session must apply a valid broad-phase payload")
+        "transport queue must deliver a valid broad-phase payload")
+    var boundedTransport = BroadPhaseTransportQueue(1, 1)
+    assert(boundedTransport.send(broadPhasePayload) &&
+        !boundedTransport.send(broadPhasePayload) &&
+        boundedTransport.pending() == 1 &&
+        boundedTransport.receive().length == broadPhasePayload.length &&
+        boundedTransport.pending() == 0,
+        "transport queue capacity must reject overflow without dropping data")
     var clientQuery = loopback.queryClientBroadPhase(
         broadPhaseRevision, 1, 1, 0, 1, 1, 10)
     assert(clientQuery.accepted() && clientQuery.collided(),
