@@ -20,6 +20,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_state(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_mark_headless_device_lost(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_pair(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_capabilities(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
     Int key0Low, Int key0High, Int key1Low, Int key1High
@@ -56,6 +59,13 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     if (!validBroadPhaseSnapshot(payload) ||
         !endpoint.valid() ||
         kookie_transport_open_pair() ||
+        !kookie_transport_set_key(
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
+        kookie_transport_open_remote_ipv4(127, 0, 0, 1, 0) ||
+        !kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1) ||
+        !kookie_transport_close() ||
         !kookie_transport_set_key(
             endpoint.keyWord(0), endpoint.keyWord(1),
             endpoint.keyWord(2), endpoint.keyWord(3)

@@ -108,8 +108,8 @@ transportados por fila de capacidade fixa com dequeue/apply no cliente e
 guardas de sequência, rejeição de consultas obsoletas e admissão de movimento
 espacial combinando colisões de cápsula e broad-phase. O adaptador também possui
 uma sonda UDP nativa de peer entre sockets localhost pareados com um
-`RemoteSessionEndpoint` validado, carregando endereço/porta IPv4 e chaves SipHash
-de teste configuráveis, validação de sequência/tamanho, palavras com sinal e
+`RemoteSessionEndpoint` validado, abertura nativa atômica de peer IPv4, endereço/
+porta configurável e chaves SipHash de teste, validação de sequência/tamanho,
 timeout de recebimento de 1.000 ms, além de estados explícitos de recuperação GPU
 e bitmask de capacidades para reopen limpo/marcador de perda. Em seguida:
 adicionar apresentação isolada compatível com DRI3, integrar frames autenticados
