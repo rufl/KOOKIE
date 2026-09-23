@@ -15,6 +15,110 @@ record DamageResult(
     Bool accepted, Int applied, Int remainingHealth,
     Bool died, Int deathSequence
 )
+record CombatEvent(
+    Int sequence, Int kind, Int sourceId, Int targetId,
+    Int applied, Int remainingHealth, Bool died
+)
+record ResolutionResult(
+    Bool accepted, Int actionId, Int sourceId, Int targetId,
+    Int applied, Int remainingHealth, Bool died, Int eventSequence
+)
+record ProjectileState(
+    Bool accepted, Int projectileId, Int sourceId, Int weaponId
+)
+
+class CombatEventQueue {
+    Int[] sequences
+    Int[] kinds
+    Int[] sources
+    Int[] targets
+    Int[] appliedAmounts
+    Int[] remainingHealth
+    Bool[] died
+    Int head
+    Int count
+    Int nextSequence
+    CombatEvent consumed
+
+    public constructor(Int capacity) {
+        sequences = new Int[capacity]
+        kinds = new Int[capacity]
+        sources = new Int[capacity]
+        targets = new Int[capacity]
+        appliedAmounts = new Int[capacity]
+        remainingHealth = new Int[capacity]
+        died = new Bool[capacity]
+        head = 0
+        count = 0
+        nextSequence = 1
+        consumed = CombatEvent(0, 0, 0, 0, 0, 0, false)
+        for (var index = 0; index < capacity; index = index + 1) {
+            sequences[index] = 0
+            kinds[index] = 0
+            sources[index] = 0
+            targets[index] = 0
+            appliedAmounts[index] = 0
+            remainingHealth[index] = 0
+            died[index] = false
+        }
+    }
+
+    Bool hasRoom() {
+        return count < sequences.length
+    }
+
+    Bool push(
+        Int kind, Int sourceId, Int targetId,
+        Int applied, Int remaining, Bool targetDied
+    ) {
+        if (kind <= 0 || sourceId <= 0 || targetId <= 0 || applied < 0 ||
+            remaining < 0 || !hasRoom()) {
+            return false
+        }
+        var index = head + count
+        if (index >= sequences.length) {
+            index = index - sequences.length
+        }
+        sequences[index] = nextSequence
+        kinds[index] = kind
+        sources[index] = sourceId
+        targets[index] = targetId
+        appliedAmounts[index] = applied
+        remainingHealth[index] = remaining
+        died[index] = targetDied
+        count = count + 1
+        nextSequence = nextSequence + 1
+        return true
+    }
+
+    Bool dequeue() {
+        if (count == 0) {
+            return false
+        }
+        consumed = CombatEvent(
+            sequences[head], kinds[head], sources[head], targets[head],
+            appliedAmounts[head], remainingHealth[head], died[head])
+        head = head + 1
+        if (head >= sequences.length) {
+            head = 0
+        }
+        count = count - 1
+        return true
+    }
+
+    Int pending() {
+        return count
+    }
+
+    Int lastSequence() {
+        return nextSequence - 1
+    }
+
+    CombatEvent lastConsumed() {
+        return consumed
+    }
+}
+
 
 class WeaponDefinitionStore {
     Int[] ids
@@ -159,9 +263,16 @@ class CombatWorld {
     Bool[] alive
     Int nextShotId
     Int deathCount
+    CombatEventQueue eventQueue
+    Int[] projectileIds
+    Int[] projectileSources
+    Int[] projectileWeapons
+    Bool[] projectileActive
+    Int nextProjectileId
 
     public constructor(Int actorCapacity, Int weaponCapacity) {
         weapons = WeaponDefinitionStore(weaponCapacity)
+        eventQueue = CombatEventQueue(actorCapacity * 4)
         actorIds = new Int[actorCapacity]
         health = new Int[actorCapacity]
         maxHealth = new Int[actorCapacity]
@@ -173,7 +284,12 @@ class CombatWorld {
         deathSequences = new Int[actorCapacity]
         active = new Bool[actorCapacity]
         alive = new Bool[actorCapacity]
+        projectileIds = new Int[actorCapacity]
+        projectileSources = new Int[actorCapacity]
+        projectileWeapons = new Int[actorCapacity]
+        projectileActive = new Bool[actorCapacity]
         nextShotId = 1
+        nextProjectileId = 1
         deathCount = 0
         for (var index = 0; index < actorCapacity; index = index + 1) {
             actorIds[index] = 0
@@ -187,6 +303,10 @@ class CombatWorld {
             deathSequences[index] = 0
             active[index] = false
             alive[index] = false
+            projectileIds[index] = 0
+            projectileSources[index] = 0
+            projectileWeapons[index] = 0
+            projectileActive[index] = false
         }
     }
 
@@ -202,6 +322,24 @@ class CombatWorld {
     Int freeActorSlot() {
         for (var index = 0; index < active.length; index = index + 1) {
             if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int findProjectile(Int id) {
+        for (var index = 0; index < projectileIds.length; index = index + 1) {
+            if (projectileActive[index] && projectileIds[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeProjectileSlot() {
+        for (var index = 0; index < projectileActive.length; index = index + 1) {
+            if (!projectileActive[index]) {
                 return index
             }
         }
@@ -327,6 +465,114 @@ class CombatWorld {
         }
         return DamageResult(
             true, applied, health[targetIndex], died, deathSequences[targetIndex])
+    }
+
+    ResolutionResult resolveHitscan(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var sourceIndex = findActor(sourceId)
+        var targetIndex = findActor(targetId)
+        if (sourceIndex < 0 || targetIndex < 0 ||
+            !alive[sourceIndex] || !alive[targetIndex] ||
+            tick < 0 || distance < 0 ||
+            (critical != 0 && critical != 1) ||
+            !eventQueue.hasRoom()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var weaponId = weaponIds[sourceIndex]
+        if (!weapons.has(weaponId) || distance > weapons.range(weaponId)) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var damage = applyDamage(DamageRequest(
+            sourceId, targetId, weapons.damage(weaponId),
+            weapons.channel(weaponId), critical))
+        if (!damage.accepted() ||
+            !eventQueue.push(
+                1, sourceId, targetId, damage.applied(),
+                damage.remainingHealth(), damage.died())) {
+            return ResolutionResult(false, shot.shotId(), sourceId, targetId,
+                0, 0, false, 0)
+        }
+        return ResolutionResult(
+            true, shot.shotId(), sourceId, targetId,
+            damage.applied(), damage.remainingHealth(), damage.died(),
+            eventQueue.lastSequence())
+    }
+
+    ProjectileState spawnProjectile(Int sourceId, Int tick) {
+        var sourceIndex = findActor(sourceId)
+        var projectileIndex = freeProjectileSlot()
+        if (sourceIndex < 0 || projectileIndex < 0 ||
+            !alive[sourceIndex]) {
+            return ProjectileState(false, 0, sourceId, 0)
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return ProjectileState(false, 0, sourceId, 0)
+        }
+        projectileIds[projectileIndex] = nextProjectileId
+        projectileSources[projectileIndex] = sourceId
+        projectileWeapons[projectileIndex] = shot.weaponId()
+        projectileActive[projectileIndex] = true
+        var result = ProjectileState(
+            true, nextProjectileId, sourceId, shot.weaponId())
+        nextProjectileId = nextProjectileId + 1
+        return result
+    }
+
+    ResolutionResult resolveProjectile(
+        Int projectileId, Int targetId, Int distance, Int critical
+    ) {
+        var projectileIndex = findProjectile(projectileId)
+        var targetIndex = findActor(targetId)
+        if (projectileIndex < 0 || targetIndex < 0 ||
+            !alive[targetIndex] || distance < 0 ||
+            (critical != 0 && critical != 1) ||
+            !eventQueue.hasRoom()) {
+            return ResolutionResult(false, projectileId, 0, targetId, 0, 0, false, 0)
+        }
+        var sourceId = projectileSources[projectileIndex]
+        var weaponId = projectileWeapons[projectileIndex]
+        if (!weapons.has(weaponId) ||
+            distance > weapons.range(weaponId)) {
+            return ResolutionResult(false, projectileId, sourceId, targetId,
+                0, 0, false, 0)
+        }
+        var damage = applyDamage(DamageRequest(
+            sourceId, targetId, weapons.damage(weaponId),
+            weapons.channel(weaponId), critical))
+        if (!damage.accepted() ||
+            !eventQueue.push(
+                2, sourceId, targetId, damage.applied(),
+                damage.remainingHealth(), damage.died())) {
+            return ResolutionResult(false, projectileId, sourceId, targetId,
+                0, 0, false, 0)
+        }
+        projectileActive[projectileIndex] = false
+        return ResolutionResult(
+            true, projectileId, sourceId, targetId,
+            damage.applied(), damage.remainingHealth(), damage.died(),
+            eventQueue.lastSequence())
+    }
+
+    Bool projectileIsActive(Int projectileId) {
+        return findProjectile(projectileId) >= 0
+    }
+
+    Int pendingCombatEvents() {
+        return eventQueue.pending()
+    }
+
+    Bool dequeueCombatEvent() {
+        return eventQueue.dequeue()
+    }
+
+    CombatEvent lastCombatEvent() {
+        return eventQueue.lastConsumed()
     }
 
     Bool isAlive(Int actorId) {

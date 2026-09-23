@@ -558,3 +558,43 @@ test "authoritative weapon and damage transitions" {
         combat.deaths() == 1,
         "dead targets must reject repeated damage and rewards")
 }
+
+test "shared hitscan projectile and bounded combat events" {
+    var combat = CombatWorld(2, 1)
+    assert(combat.defineWeapon(4, 3, 0, 0, 4, 2, 25))
+    assert(combat.addActor(1, 20, 0) && combat.addActor(2, 12, 0))
+    assert(combat.equipWeapon(1, 4))
+    var hitscan = combat.resolveHitscan(1, 2, 0, 25, 0)
+    assert(hitscan.accepted() && hitscan.actionId() == 1 &&
+        hitscan.applied() == 4 && hitscan.remainingHealth() == 8 &&
+        hitscan.eventSequence() == 1 && combat.magazine(1) == 2,
+        "hitscan must share weapon range, ammo and damage authority")
+    assert(combat.pendingCombatEvents() == 1 &&
+        combat.dequeueCombatEvent(),
+        "accepted hits must publish a bounded combat event")
+    var hitscanEvent = combat.lastCombatEvent()
+    assert(hitscanEvent.kind() == 1 && hitscanEvent.sourceId() == 1 &&
+        hitscanEvent.targetId() == 2 && hitscanEvent.applied() == 4 &&
+        !hitscanEvent.died(),
+        "hitscan events must preserve authoritative damage details")
+    assert(!combat.resolveHitscan(1, 2, 0, 26, 0).accepted() &&
+        combat.magazine(1) == 2,
+        "out-of-range hitscan must reject without consuming ammo")
+
+    var projectile = combat.spawnProjectile(1, 1)
+    assert(projectile.accepted() && projectile.projectileId() == 1 &&
+        combat.projectileIsActive(1) && combat.magazine(1) == 1,
+        "projectile spawn must consume one shot and reserve a bounded slot")
+    var projectileHit = combat.resolveProjectile(1, 2, 25, 1)
+    assert(projectileHit.accepted() && projectileHit.applied() == 8 &&
+        projectileHit.remainingHealth() == 0 && projectileHit.died() &&
+        !combat.projectileIsActive(1),
+        "projectile resolution must reuse critical damage and consume itself")
+    assert(combat.pendingCombatEvents() == 1 &&
+        combat.dequeueCombatEvent(),
+        "projectile resolution must enqueue one bounded event")
+    var projectileEvent = combat.lastCombatEvent()
+    assert(projectileEvent.kind() == 2 && projectileEvent.sequence() == 2 &&
+        projectileEvent.died() && combat.deaths() == 1,
+        "projectile event must preserve sequence and death transition")
+}
