@@ -47,8 +47,9 @@ Create an engine for boomer shooters / looter shooters / ARPG FPS using **native
 16. JOML1.10.9 from Minecraft26.3 worked with Kof JVM `--deps`: vector length/dot and matrix translation printed `5.0,25.0,5.0,4.0`. Same source/native rejected both Java imports with `PKG006`. This proves the narrow Java math path, not JNI/graphics or native JAR use.
 17. Authoritative broad-phase snapshots now traverse a fixed-capacity validated transport queue; overflow rejects without dropping queued payloads, then dequeue/apply updates client geometry with sequence guards.
 18. Headless GPU smoke now covers overlap depth two and clean device recreation with cached-resource rebuild; actual device-loss callbacks and retirement remain unimplemented.
-19. Native UDP loopback transport uses a fixed 78-word datagram bound to localhost, preserving signed integer payloads through scalar send/receive calls; remote endpoint/authenticated framing is not implemented.
+19. Native UDP loopback transport uses authenticated SipHash framing over a fixed 78-word payload bound to localhost, with protocol/length/sequence validation, signed integer preservation, and a 1,000 ms receive timeout; remote endpoint/key management remains unimplemented.
 20. GPU recovery now exposes unavailable/ready/lost/failed state transitions and rejects recovery without a live headless device; loss notification is an explicit probe marker, not an SDL device-loss callback.
+21. A claimed GPU window now requires a valid swapchain format through the present-capability probe; the Xvfb path still cannot claim DRI3 presentation.
 
 
 ## Editor cautions
@@ -91,14 +92,16 @@ deterministic triangle collection/BVH queries with removal/rebuild and geometry
 revisions, authoritative capsule slide/step traversal over eight ordered
 bounded obstacles, clear/reconfigure operations, bounded broad-phase transport
 snapshots with fixed-capacity dequeue/apply and sequence guards, a native
-localhost UDP loopback probe preserving signed payload words, explicit GPU
-recovery states with loss-marker recovery and closed-device rejection, stale
-query rejection, and spatial movement admission combining capsule and
-broad-phase collisions. Next: add a DRI3-capable isolated presentation path,
-integrate transport with a remote session endpoint and authenticated framing,
-add actual SDL/device-loss callbacks/resource retirement, and rerun the native
-exception reproducer after a compiler upgrade. The native exception-handler
-defect remains a compiler gate.
+localhost UDP loopback probe with authenticated SipHash framing, sequence and
+length validation, signed payload words, and a 1,000 ms receive timeout,
+explicit GPU recovery states with loss-marker recovery and closed-device
+rejection, stale query rejection, and spatial movement admission combining
+capsule and broad-phase collisions. Next: add a DRI3-capable isolated
+presentation path, integrate authenticated frames with a remote session
+endpoint and production key management, add actual SDL/device-loss
+callbacks/resource retirement, and rerun the native exception reproducer after
+a compiler upgrade. The native exception-handler defect remains a compiler
+gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

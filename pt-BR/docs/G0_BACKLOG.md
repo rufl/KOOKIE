@@ -37,7 +37,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - A admissão de movimento espacial combina limites de cápsula com consultas de triângulos broad-phase e rejeita revisões de geometria obsoletas.
 - O smoke isolado de sobreposição GPU submete quatro frames em dois slots de destino, aposenta todas as fences e reporta a profundidade máxima em voo.
 - O smoke de recuperação GPU headless destrói e recria o dispositivo, reconstrói recursos em cache e conclui um draw após a recuperação.
-- O transporte nativo UDP de loopback limitado envia e recebe payloads inteiros broad-phase por um socket de datagrama local; o smoke escalar nativo preserva palavras com sinal e impõe limites fixos de pacote.
+- O transporte nativo UDP de loopback limitado envia e recebe frames broad-phase inteiros autenticados por um socket de datagrama local; o framing SipHash cobre versão do protocolo, tamanho, sequência e palavras com sinal, com timeout fixo de recebimento de 1.000 ms e limites de pacote.
 - O estado de recuperação GPU expõe unavailable/ready/lost/failed, aceita um marcador explícito de perda, rejeita recuperação sem dispositivo headless ativo e reconstrói recursos após a recuperação.
 - A sonda de capacidade de apresentação GPU informa formato de swapchain e modos suportados quando um dispositivo de janela é reivindicado; Xvfb ainda não consegue reivindicar o caminho de apresentação.
 
@@ -45,7 +45,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 
 1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
 2. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; o gate atual continua observado e passando.
-3. Integrar o transporte UDP limitado com um endpoint de sessão remoto, política de timeout e framing autenticado.
+3. Integrar o frame UDP autenticado com um endpoint de sessão remoto, configuração de peer e gestão de chaves de produção.
 4. Adicionar callbacks reais SDL/perda do dispositivo e semântica de retirement de recursos; o caminho atual usa um marcador explícito de perda.
 5. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 

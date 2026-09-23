@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <arpa/inet.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -13,6 +13,10 @@
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_WORDS 78
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
+#define KOOKIE_TRANSPORT_MAGIC 0x4b4f4f4bU
+#define KOOKIE_TRANSPORT_VERSION 1U
+#define KOOKIE_TRANSPORT_HEADER_WORDS 6
+#define KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS 1000
 #define KOOKIE_GPU_RECOVERY_READY 1
 #define KOOKIE_GPU_RECOVERY_LOST 2
 #define KOOKIE_GPU_RECOVERY_FAILED 3
@@ -52,9 +56,12 @@ typedef struct {
     int socket_fd;
     struct sockaddr_in peer;
     int send_count;
+    uint32_t send_sequence;
     uint32_t send_words[KOOKIE_TRANSPORT_MAX_WORDS];
     int receive_count;
-    int32_t receive_words[KOOKIE_TRANSPORT_MAX_WORDS];
+    uint32_t receive_sequence;
+    int last_status;
+    int receive_words[KOOKIE_TRANSPORT_MAX_WORDS];
 } KookieTransport;
 static KookieTransport transport = {.socket_fd = -1};
 static int gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
@@ -144,6 +151,69 @@ static bool decode_token(int token, int expected_kind, int *slot, unsigned int *
     *generation = (unsigned int)encoded_generation;
     return true;
 }
+static uint64_t kookie_rotate_left(uint64_t value, unsigned int shift) {
+    return (value << shift) | (value >> (64u - shift));
+}
+
+static uint64_t kookie_load_u64_le(const Uint8 *bytes) {
+    uint64_t value = 0;
+    for (unsigned int index = 0; index < 8; index += 1) {
+        value |= ((uint64_t)bytes[index]) << (index * 8u);
+    }
+    return value;
+}
+
+static void kookie_sip_round(
+    uint64_t *v0, uint64_t *v1, uint64_t *v2, uint64_t *v3
+) {
+    *v0 += *v1;
+    *v1 = kookie_rotate_left(*v1, 13);
+    *v1 ^= *v0;
+    *v0 = kookie_rotate_left(*v0, 32);
+    *v2 += *v3;
+    *v3 = kookie_rotate_left(*v3, 16);
+    *v3 ^= *v2;
+    *v0 += *v3;
+    *v3 = kookie_rotate_left(*v3, 21);
+    *v3 ^= *v0;
+    *v2 += *v1;
+    *v1 = kookie_rotate_left(*v1, 17);
+    *v1 ^= *v2;
+    *v2 = kookie_rotate_left(*v2, 32);
+}
+
+static uint64_t kookie_transport_mac(const Uint8 *bytes, size_t length) {
+    const uint64_t key0 = UINT64_C(0x0706050403020100);
+    const uint64_t key1 = UINT64_C(0x0f0e0d0c0b0a0908);
+    uint64_t v0 = UINT64_C(0x736f6d6570736575) ^ key0;
+    uint64_t v1 = UINT64_C(0x646f72616e646f6d) ^ key1;
+    uint64_t v2 = UINT64_C(0x6c7967656e657261) ^ key0;
+    uint64_t v3 = UINT64_C(0x7465646279746573) ^ key1;
+    size_t offset = 0;
+    while (offset + 8 <= length) {
+        uint64_t message = kookie_load_u64_le(bytes + offset);
+        v3 ^= message;
+        kookie_sip_round(&v0, &v1, &v2, &v3);
+        kookie_sip_round(&v0, &v1, &v2, &v3);
+        v0 ^= message;
+        offset += 8;
+    }
+    uint64_t final_message = ((uint64_t)length) << 56;
+    for (size_t index = 0; offset + index < length; index += 1) {
+        final_message |= ((uint64_t)bytes[offset + index]) << (index * 8);
+    }
+    v3 ^= final_message;
+    kookie_sip_round(&v0, &v1, &v2, &v3);
+    kookie_sip_round(&v0, &v1, &v2, &v3);
+    v0 ^= final_message;
+    v2 ^= UINT64_C(0xff);
+    kookie_sip_round(&v0, &v1, &v2, &v3);
+    kookie_sip_round(&v0, &v1, &v2, &v3);
+    kookie_sip_round(&v0, &v1, &v2, &v3);
+    kookie_sip_round(&v0, &v1, &v2, &v3);
+    return v0 ^ v1 ^ v2 ^ v3;
+}
+
 
 bool kookie_transport_open(void) {
     if (transport.socket_fd >= 0) {
@@ -168,7 +238,10 @@ bool kookie_transport_open(void) {
         close(socket_fd);
         return false;
     }
-    struct timeval receive_timeout = {.tv_sec = 1, .tv_usec = 0};
+    struct timeval receive_timeout = {
+        .tv_sec = KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS / 1000,
+        .tv_usec = (KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS % 1000) * 1000
+    };
     if (setsockopt(
             socket_fd, SOL_SOCKET, SO_RCVTIMEO,
             &receive_timeout, sizeof(receive_timeout)) != 0) {
@@ -178,7 +251,10 @@ bool kookie_transport_open(void) {
     transport.socket_fd = socket_fd;
     transport.peer = peer;
     transport.send_count = 0;
+    transport.send_sequence = 0;
     transport.receive_count = 0;
+    transport.receive_sequence = 0;
+    transport.last_status = 0;
     return true;
 }
 
@@ -198,27 +274,45 @@ bool kookie_transport_send_word(int index, int word) {
         index >= transport.send_count) {
         return false;
     }
-    transport.send_words[index] = htonl((uint32_t)word);
+    transport.send_words[index] = (uint32_t)word;
     return true;
 }
 
 bool kookie_transport_send_commit(void) {
-    if (transport.socket_fd < 0 || transport.send_count <= 0) {
+    if (transport.socket_fd < 0 ||
+        transport.send_count <= 0 ||
+        transport.send_sequence == UINT32_MAX) {
         return false;
     }
-    size_t bytes = (size_t)transport.send_count * sizeof(uint32_t);
+    uint32_t wire[
+        KOOKIE_TRANSPORT_HEADER_WORDS + KOOKIE_TRANSPORT_MAX_WORDS];
+    int frame_words = KOOKIE_TRANSPORT_HEADER_WORDS + transport.send_count;
+    wire[0] = htonl(KOOKIE_TRANSPORT_MAGIC);
+    wire[1] = htonl(KOOKIE_TRANSPORT_VERSION);
+    wire[2] = htonl((uint32_t)transport.send_count);
+    wire[3] = htonl(transport.send_sequence + 1);
+    wire[4] = 0;
+    wire[5] = 0;
+    for (int index = 0; index < transport.send_count; index += 1) {
+        wire[KOOKIE_TRANSPORT_HEADER_WORDS + index] =
+            htonl(transport.send_words[index]);
+    }
+    size_t bytes = (size_t)frame_words * sizeof(uint32_t);
+    uint64_t mac = kookie_transport_mac((const Uint8 *)wire, bytes);
+    wire[4] = htonl((uint32_t)mac);
+    wire[5] = htonl((uint32_t)(mac >> 32));
     ssize_t sent = sendto(
         transport.socket_fd,
-        transport.send_words,
+        wire,
         bytes,
         0,
         (struct sockaddr *)&transport.peer,
         sizeof(transport.peer));
+    transport.send_count = 0;
     if (sent != (ssize_t)bytes) {
-        transport.send_count = 0;
         return false;
     }
-    transport.send_count = 0;
+    transport.send_sequence += 1;
     return true;
 }
 
@@ -226,24 +320,65 @@ int kookie_transport_receive(void) {
     if (transport.socket_fd < 0) {
         return 0;
     }
-    uint32_t words[KOOKIE_TRANSPORT_MAX_WORDS];
+    uint32_t wire[
+        KOOKIE_TRANSPORT_HEADER_WORDS + KOOKIE_TRANSPORT_MAX_WORDS];
     ssize_t bytes = recvfrom(
         transport.socket_fd,
-        words,
-        sizeof(words),
+        wire,
+        sizeof(wire),
         0,
         NULL,
         NULL);
-    if (bytes <= 0 ||
-        bytes % (ssize_t)sizeof(uint32_t) != 0 ||
-        bytes > (ssize_t)sizeof(words)) {
+    if (bytes < 0) {
         transport.receive_count = 0;
+        transport.last_status =
+            errno == EAGAIN || errno == EWOULDBLOCK ? 2 : 3;
         return 0;
     }
-    transport.receive_count = (int)(bytes / (ssize_t)sizeof(uint32_t));
-    for (int index = 0; index < transport.receive_count; index += 1) {
-        transport.receive_words[index] = (int32_t)ntohl(words[index]);
+    if (bytes <= 0 ||
+        bytes % (ssize_t)sizeof(uint32_t) != 0 ||
+        bytes > (ssize_t)sizeof(wire)) {
+        transport.receive_count = 0;
+        transport.last_status = 3;
+        return 0;
     }
+    int frame_words = (int)(bytes / (ssize_t)sizeof(uint32_t));
+    uint32_t payload_count = ntohl(wire[2]);
+    uint32_t sequence = ntohl(wire[3]);
+    if (ntohl(wire[0]) != KOOKIE_TRANSPORT_MAGIC ||
+        ntohl(wire[1]) != KOOKIE_TRANSPORT_VERSION ||
+        payload_count == 0 ||
+        payload_count > KOOKIE_TRANSPORT_MAX_WORDS ||
+        frame_words != KOOKIE_TRANSPORT_HEADER_WORDS + (int)payload_count ||
+        sequence == 0 ||
+        sequence <= transport.receive_sequence) {
+        transport.receive_count = 0;
+        transport.last_status = 3;
+        return 0;
+    }
+    uint64_t expected_mac =
+        (uint64_t)ntohl(wire[4]) |
+        ((uint64_t)ntohl(wire[5]) << 32);
+    uint32_t received_mac_low = wire[4];
+    uint32_t received_mac_high = wire[5];
+    wire[4] = 0;
+    wire[5] = 0;
+    uint64_t actual_mac = kookie_transport_mac(
+        (const Uint8 *)wire, bytes);
+    wire[4] = received_mac_low;
+    wire[5] = received_mac_high;
+    if (actual_mac != expected_mac) {
+        transport.receive_count = 0;
+        transport.last_status = 3;
+        return 0;
+    }
+    transport.receive_count = (int)payload_count;
+    transport.receive_sequence = sequence;
+    for (int index = 0; index < transport.receive_count; index += 1) {
+        transport.receive_words[index] =
+            (int)ntohl(wire[KOOKIE_TRANSPORT_HEADER_WORDS + index]);
+    }
+    transport.last_status = 1;
     return transport.receive_count;
 }
 
@@ -252,6 +387,22 @@ int kookie_transport_receive_word(int index) {
         return 0;
     }
     return transport.receive_words[index];
+}
+
+int kookie_transport_receive_sum(void) {
+    int sum = 0;
+    for (int index = 0; index < transport.receive_count; index += 1) {
+        sum += transport.receive_words[index];
+    }
+    return sum;
+}
+
+int kookie_transport_last_status(void) {
+    return transport.last_status;
+}
+
+int kookie_transport_timeout_milliseconds(void) {
+    return KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS;
 }
 
 bool kookie_transport_close(void) {
