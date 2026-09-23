@@ -36,20 +36,22 @@ class BoundedSaveSections {
     }
 
     Bool put(Int sectionId, Int schemaVersion, Int[] payload) {
-        if (sectionId <= 0 || schemaVersion <= 0 ||
+        if (sectionId <= 0 || schemaVersion < 0 ||
             payload.length > payloadCapacity ||
             sectionCountValue >= sectionCapacity ||
             find(sectionId) >= 0) {
             return false
+        }
+        for (var index = 0; index < payload.length; index = index + 1) {
+            if (payload[index] < 0 || payload[index] > 1000000) {
+                return false
+            }
         }
         var slot = sectionCountValue
         ids[slot] = sectionId
         versions[slot] = schemaVersion
         lengths[slot] = payload.length
         for (var index = 0; index < payload.length; index = index + 1) {
-            if (payload[index] < 0 || payload[index] > 1000000) {
-                return false
-            }
             payloads[slot * payloadCapacity + index] = payload[index]
         }
         sectionCountValue = sectionCountValue + 1

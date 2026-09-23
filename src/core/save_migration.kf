@@ -33,11 +33,23 @@ class BoundedSaveMigrationGate {
             return false
         }
         for (var index = 0; index < source.sectionCount(); index = index + 1) {
-            var payload = new Int[source.sectionLength(index)]
-            for (var valueIndex = 0; valueIndex < payload.length; valueIndex = valueIndex + 1) {
+            var sectionId = source.sectionId(index)
+            var sourceVersion = source.sectionVersion(index)
+            var sourceLength = source.sectionLength(index)
+            var targetVersion = sourceVersion
+            var targetLength = sourceLength
+            if (sourceVersion == 0 && (sectionId == 2 || sectionId == 3)) {
+                targetVersion = currentSectionVersion
+                targetLength = sourceLength + 1
+            }
+            var payload = new Int[targetLength]
+            for (var valueIndex = 0; valueIndex < sourceLength; valueIndex = valueIndex + 1) {
                 payload[valueIndex] = source.sectionValue(index, valueIndex)
             }
-            if (!target.put(source.sectionId(index), source.sectionVersion(index), payload)) {
+            if (targetLength > sourceLength) {
+                payload[targetLength - 1] = 0
+            }
+            if (!target.put(sectionId, targetVersion, payload)) {
                 target.clear()
                 return false
             }
@@ -50,7 +62,7 @@ class BoundedSaveMigrationGate {
             return false
         }
         for (var index = 0; index < source.sectionCount(); index = index + 1) {
-            if (!acceptsSection(source.sectionId(index), source.sectionVersion(index))) {
+            if (!acceptsSourceSection(source.sectionId(index), source.sectionVersion(index))) {
                 return false
             }
         }
@@ -60,5 +72,10 @@ class BoundedSaveMigrationGate {
     Bool acceptsSection(Int sectionId, Int schemaVersion) {
         return (sectionId == 1 || sectionId == 2 || sectionId == 3) &&
             schemaVersion == currentSectionVersion
+    }
+
+    Bool acceptsSourceSection(Int sectionId, Int schemaVersion) {
+        return acceptsSection(sectionId, schemaVersion) ||
+            ((sectionId == 2 || sectionId == 3) && schemaVersion == 0)
     }
 }

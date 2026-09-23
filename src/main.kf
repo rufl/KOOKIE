@@ -405,6 +405,31 @@ test "multi-section save migration" {
         migrated.sectionValue(1, 1) == 8 &&
         migrated.sectionValue(2, 0) == 99,
         "migration must preserve known progression, world and RNG sections")
+    var legacyWire = new Int[17]
+    legacyWire[0] = codec.encodedWord(0)
+    legacyWire[1] = 1
+    legacyWire[2] = 19
+    legacyWire[3] = 3
+    legacyWire[4] = 1
+    legacyWire[5] = 1
+    legacyWire[6] = 2
+    legacyWire[7] = 303
+    legacyWire[8] = 404
+    legacyWire[9] = 2
+    legacyWire[10] = 0
+    legacyWire[11] = 1
+    legacyWire[12] = 7
+    legacyWire[13] = 3
+    legacyWire[14] = 0
+    legacyWire[15] = 1
+    legacyWire[16] = 99
+    assert(codec.decode(legacyWire, decoded) &&
+        decoded.sectionVersion(1) == 1 &&
+        decoded.sectionLength(1) == 2 &&
+        decoded.sectionValue(1, 1) == 0 &&
+        decoded.sectionVersion(2) == 1 &&
+        decoded.sectionValue(2, 1) == 0,
+        "migration must transform version-zero world and RNG sections")
     var store = BoundedSaveSchemaFileStore(4, 2)
     var path = "/tmp/kookie-save-multi-test.bin"
     var loaded = BoundedSaveSections(4, 2)
