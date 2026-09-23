@@ -223,6 +223,39 @@ test "bounded save publication history" {
         "save history clear must remove published revisions")
 }
 
+test "bounded save wire codec" {
+    var state = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 77
+    payload[1] = 88
+    assert(state.stage(1, 42, payload))
+    var codec = BoundedSaveWireCodec(2)
+    assert(codec.encode(state) &&
+        codec.encodedLength() == 7 &&
+        codec.encodedWord(0) == 13371337 &&
+        codec.encodedWord(2) == 42 &&
+        codec.encodedWord(6) == 88 &&
+        codec.encodedWord(7) == -1,
+        "save wire codec must emit bounded envelope words")
+    var wire = new Int[7]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var restored = BoundedSaveState(2, 1000)
+    assert(codec.decode(wire, restored) &&
+        restored.revision() == 42 &&
+        restored.payloadValue(0) == 77 &&
+        restored.payloadValue(1) == 88,
+        "save wire codec must restore validated payloads")
+    wire[6] = 89
+    assert(!codec.decode(wire, restored),
+        "save wire codec must reject payload checksum corruption")
+    wire[6] = 88
+    wire[3] = 1
+    assert(!codec.decode(wire, restored),
+        "save wire codec must reject length framing corruption")
+}
+
 
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
