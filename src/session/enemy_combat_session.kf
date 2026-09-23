@@ -1,0 +1,165 @@
+package session
+
+import core
+
+record EnemyAttackDecision(
+    Bool accepted, Int enemyId, Int targetId, Int tick,
+    Bool fired, Int shotId, Int applied, Bool died
+)
+
+class AuthoritativeEnemySession {
+    CombatWorld combat
+    EnemyStateWorld enemies
+    EncounterDirector encounters
+    Int[] linkedEnemyIds
+    Int[] linkedEncounterIds
+    Bool[] linkedActive
+
+    public constructor(Int actorCapacity, Int encounterCapacity) {
+        combat = CombatWorld(actorCapacity, actorCapacity)
+        enemies = EnemyStateWorld(actorCapacity)
+        encounters = EncounterDirector(encounterCapacity)
+        linkedEnemyIds = new Int[actorCapacity]
+        linkedEncounterIds = new Int[actorCapacity]
+        linkedActive = new Bool[actorCapacity]
+        for (var index = 0; index < actorCapacity; index = index + 1) {
+            linkedEnemyIds[index] = 0
+            linkedEncounterIds[index] = 0
+            linkedActive[index] = false
+        }
+    }
+
+    Int findEnemyLink(Int enemyId) {
+        for (var index = 0; index < linkedEnemyIds.length; index = index + 1) {
+            if (linkedActive[index] && linkedEnemyIds[index] == enemyId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeEnemyLink() {
+        for (var index = 0; index < linkedActive.length; index = index + 1) {
+            if (!linkedActive[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
+        return enemies.configure(perceptionRange, attackRange, cooldown)
+    }
+
+    Bool defineWeapon(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        return combat.defineWeapon(
+            id, magazineSize, reserveCapacity,
+            cooldownTicks, damage, channel, range)
+    }
+
+    Bool defineEncounter(Int id, Int maxActive, Int budget) {
+        return encounters.define(id, maxActive, budget)
+    }
+
+    Bool addActor(Int id, Int health, Int armor) {
+        return combat.addActor(id, health, armor)
+    }
+
+    Bool equipWeapon(Int actorId, Int weaponId) {
+        return combat.equipWeapon(actorId, weaponId)
+    }
+
+    Bool admitEnemy(
+        Int encounterId, Int enemyId, Int tick,
+        Int health, Int armor, Int weaponId
+    ) {
+        var linkIndex = freeEnemyLink()
+        if (linkIndex < 0) {
+            return false
+        }
+        var admission = encounters.admit(encounterId, enemyId)
+        if (!admission.accepted()) {
+            return false
+        }
+        if (!combat.addActor(enemyId, health, armor)) {
+            encounters.release(encounterId)
+            return false
+        }
+        if (!enemies.addEnemy(enemyId, tick) ||
+            !combat.equipWeapon(enemyId, weaponId)) {
+            enemies.removeEnemy(enemyId)
+            combat.removeActor(enemyId)
+            encounters.release(encounterId)
+            return false
+        }
+        linkedEnemyIds[linkIndex] = enemyId
+        linkedEncounterIds[linkIndex] = encounterId
+        linkedActive[linkIndex] = true
+        return true
+    }
+
+    EnemyAttackDecision stepEnemy(
+        Int enemyId, Int tick, Int targetId,
+        Bool targetVisible, Int distance, Int critical
+    ) {
+        var step = enemies.step(
+            enemyId, tick, targetId, targetVisible, distance)
+        if (!step.accepted()) {
+            return EnemyAttackDecision(false, enemyId, targetId, tick, false, 0, 0, false)
+        }
+        if (!step.attackReady()) {
+            return EnemyAttackDecision(true, enemyId, step.targetId(), tick, false, 0, 0, false)
+        }
+        var resolution = combat.resolveHitscan(
+            enemyId, step.targetId(), tick, distance, critical)
+        return EnemyAttackDecision(
+            true, enemyId, step.targetId(), tick, resolution.accepted(),
+            resolution.actionId(), resolution.applied(), resolution.died())
+    }
+
+    Int consumeCombatEvents(Int tick) {
+        var consumed = 0
+        while (combat.pendingCombatEvents() > 0) {
+            if (!combat.dequeueCombatEvent()) {
+                break
+            }
+            var event = combat.lastCombatEvent()
+            var linkIndex = findEnemyLink(event.targetId())
+            if (event.died() && linkIndex >= 0) {
+                var enemyId = linkedEnemyIds[linkIndex]
+                if (enemies.kill(enemyId, tick)) {
+                    encounters.release(linkedEncounterIds[linkIndex])
+                    linkedActive[linkIndex] = false
+                    consumed = consumed + 1
+                }
+            }
+        }
+        return consumed
+    }
+
+    ResolutionResult playerHitscan(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var result = combat.resolveHitscan(
+            sourceId, targetId, tick, distance, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+
+    Int enemyState(Int enemyId) {
+        return enemies.state(enemyId)
+    }
+
+    Int encounterActiveCount(Int encounterId) {
+        return encounters.activeCount(encounterId)
+    }
+
+    Int pendingCombatEvents() {
+        return combat.pendingCombatEvents()
+    }
+}

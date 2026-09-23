@@ -47,11 +47,12 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - `CombatWorld` agora fornece definições autoritativas limitadas de armas, estado de recarga de magazine/reserva, disparos atômicos protegidos por cooldown, dano com armadura, críticos e exatamente uma transição de vivo para morto por ator; testes JVM/nativos cobrem atomicidade de munição e invariantes de dano/morte.
 - `CombatWorld` agora resolve disparos hitscan e projéteis limitados pela mesma autoridade de arma/alcance/dano, consome slots de projéteis deterministicamente e publica eventos sequenciados de hit/morte sem descartar silenciosamente eventos críticos; testes JVM/nativos cobrem rejeição por alcance, atomicidade de munição, aposentadoria de projéteis e ordem de eventos.
 - `EnemyStateWorld` agora implementa transições determinísticas idle/patrol/investigate/chase/attack/recover/stagger/dead com percepção e deadlines de ataque inteiros; `EncounterDirector` impõe limites ativos e orçamentos de spawn, com testes JVM/nativos para cooldown, morte terminal e overflow de admissão.
+- `AuthoritativeEnemySession` agora vincula estado de inimigos, atores de combate, orçamentos de encounters e eventos de combate sequenciados; ataques inimigos passam pela resolução hitscan autoritativa, enquanto eventos de morte consumidos levam inimigos ao estado terminal e liberam slots de encounter. Testes JVM/nativos cobrem decisões de ataque, consumo sem morte, ponte de morte e orçamento determinístico de respawn.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; Xvfb continua incompatível com apresentação.
-2. Integrar a morte de inimigos ao consumo de eventos de combate e adicionar decisões de ataque limitadas à sessão autoritativa.
+2. Integrar decisões autoritativas de inimigos ao tick fixed-step do `LoopbackSession` e aos snapshots replicados.
 
 ## Adiado
 

@@ -378,6 +378,25 @@ class CombatWorld {
         return true
     }
 
+    Bool removeActor(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return false
+        }
+        active[index] = false
+        alive[index] = false
+        actorIds[index] = 0
+        health[index] = 0
+        maxHealth[index] = 0
+        armor[index] = 0
+        weaponIds[index] = 0
+        magazines[index] = 0
+        reserves[index] = 0
+        nextReadyTicks[index] = 0
+        deathSequences[index] = 0
+        return true
+    }
+
     Bool equipWeapon(Int actorId, Int weaponId) {
         var actorIndex = findActor(actorId)
         if (actorIndex < 0 || !alive[actorIndex] || !weapons.has(weaponId)) {

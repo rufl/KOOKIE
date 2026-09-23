@@ -651,3 +651,32 @@ test "deterministic enemy states and encounter admission" {
         encounters.release(10) && !encounters.release(10),
         "exhausted encounters must reject spawns and extra releases")
 }
+
+test "authoritative enemy combat event bridge" {
+    var session = AuthoritativeEnemySession(3, 1)
+    assert(session.configureEnemyRules(100, 20, 2))
+    assert(session.defineWeapon(9, 2, 0, 0, 3, 1, 20))
+    assert(session.defineEncounter(4, 1, 2))
+    assert(session.addActor(1, 20, 0) && session.equipWeapon(1, 9))
+    assert(session.admitEnemy(4, 2, 0, 5, 0, 9) &&
+        session.encounterActiveCount(4) == 1,
+        "authoritative admission must link combat, AI and encounter state")
+
+    var enemyAttack = session.stepEnemy(2, 0, 1, true, 10, 0)
+    assert(enemyAttack.accepted() && enemyAttack.fired() &&
+        enemyAttack.targetId() == 1 && enemyAttack.applied() == 3 &&
+        session.pendingCombatEvents() == 1,
+        "enemy attack decisions must resolve through authoritative combat")
+    assert(session.consumeCombatEvents(0) == 0 &&
+        session.pendingCombatEvents() == 0,
+        "non-death attack events must be consumed without changing admission")
+
+    var enemyDeath = session.playerHitscan(1, 2, 1, 10, 1)
+    assert(enemyDeath.accepted() && enemyDeath.died() &&
+        session.enemyState(2) == 7 &&
+        session.encounterActiveCount(4) == 0 &&
+        session.pendingCombatEvents() == 0,
+        "enemy death events must transition AI state and release encounter slots")
+    assert(session.admitEnemy(4, 3, 2, 5, 0, 9),
+        "released encounter slots must admit remaining deterministic budget")
+}

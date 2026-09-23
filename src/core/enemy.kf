@@ -179,6 +179,20 @@ class EnemyStateWorld {
         return transition(id, deadState(), tick)
     }
 
+    Bool removeEnemy(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return false
+        }
+        active[index] = false
+        ids[index] = 0
+        states[index] = idleState()
+        targets[index] = 0
+        stateSinceTicks[index] = 0
+        attackReadyTicks[index] = 0
+        return true
+    }
+
     Int state(Int id) {
         var index = find(id)
         if (index < 0) {
