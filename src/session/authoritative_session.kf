@@ -39,6 +39,7 @@ class LoopbackSession {
     Int[] enemyPerceptionCriticals
     Bool[] enemyPerceptionVisible
     Bool[] enemyPerceptionActive
+    Bool[] enemySpatialPerceptionActive
     Int enemyCount
     Int enemySnapshotSequence
     Int clientEnemySnapshotSequence
@@ -74,6 +75,7 @@ class LoopbackSession {
         enemyPerceptionCriticals = new Int[entityCapacity]
         enemyPerceptionVisible = new Bool[entityCapacity]
         enemyPerceptionActive = new Bool[entityCapacity]
+        enemySpatialPerceptionActive = new Bool[entityCapacity]
         enemyCount = 0
         enemySnapshotSequence = 0
         clientEnemySnapshotSequence = 0
@@ -86,6 +88,7 @@ class LoopbackSession {
             enemyPerceptionCriticals[index] = 0
             enemyPerceptionVisible[index] = false
             enemyPerceptionActive[index] = false
+            enemySpatialPerceptionActive[index] = false
         }
         clientBroadPhaseCollection = BoundedTriangleCollection(8, 20)
         clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
@@ -132,6 +135,46 @@ class LoopbackSession {
         return enemyCombat.configureEnemyRules(
             perceptionRange, attackRange, cooldown)
     }
+
+    Bool configureEnemySpatialBounds(
+        Int minX, Int minY, Int minZ,
+        Int maxX, Int maxY, Int maxZ
+    ) {
+        return enemyCombat.configureSpatialBounds(
+            minX, minY, minZ, maxX, maxY, maxZ)
+    }
+
+    Bool addEnemySpatialObstacle(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return enemyCombat.addSpatialObstacle(
+            ax, ay, az, bx, by, bz, cx, cy, cz)
+    }
+
+    Bool setEnemySpatialPosition(Int id, Int x, Int y, Int z) {
+        return enemyCombat.setSpatialPosition(id, x, y, z)
+    }
+
+    SpatialVisibilityResult enemySpatialVisibility(
+        Int sourceId, Int targetId, Int range
+    ) {
+        return enemyCombat.spatialVisibility(sourceId, targetId, range)
+    }
+
+    EnemyMoveResult moveEnemyToward(
+        Int enemyId, Int targetId, Int step
+    ) {
+        return enemyCombat.moveEnemyToward(enemyId, targetId, step)
+    }
+    ResolutionResult enemyProjectileAttackSpatial(
+        Int sourceId, Int targetId, Int tick, Int range, Int critical
+    ) {
+        return enemyCombat.projectileAttackSpatial(
+            sourceId, targetId, tick, range, critical)
+    }
+
 
     Bool defineEnemyWeapon(
         Int id, Int magazineSize, Int reserveCapacity,
@@ -188,6 +231,24 @@ class LoopbackSession {
         }
         return false
     }
+    Bool configureEnemySpatialPerception(
+        Int enemyId, Int targetId, Int critical
+    ) {
+        if (targetId <= 0 || (critical != 0 && critical != 1)) {
+            return false
+        }
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyIds[index] == enemyId) {
+                enemyPerceptionTargets[index] = targetId
+                enemyPerceptionCriticals[index] = critical
+                enemySpatialPerceptionActive[index] = true
+                enemyPerceptionActive[index] = true
+                return true
+            }
+        }
+        return false
+    }
+
 
     Bool advanceEnemyTick(Int tick) {
         if (!started || tick < 0) {
@@ -196,17 +257,21 @@ class LoopbackSession {
         var accepted = true
         for (var index = 0; index < enemyCount && accepted; index = index + 1) {
             if (enemyPerceptionActive[index]) {
-                lastEnemyDecision = enemyCombat.stepEnemy(
-                    enemyIds[index], tick,
-                    enemyPerceptionTargets[index],
-                    enemyPerceptionVisible[index],
-                    enemyPerceptionDistances[index],
-                    enemyPerceptionCriticals[index])
+                if (enemySpatialPerceptionActive[index]) {
+                    lastEnemyDecision = enemyCombat.stepEnemySpatial(
+                        enemyIds[index], tick,
+                        enemyPerceptionTargets[index],
+                        enemyPerceptionCriticals[index])
+                } else {
+                    lastEnemyDecision = enemyCombat.stepEnemy(
+                        enemyIds[index], tick,
+                        enemyPerceptionTargets[index],
+                        enemyPerceptionVisible[index],
+                        enemyPerceptionDistances[index],
+                        enemyPerceptionCriticals[index])
+                }
                 accepted = lastEnemyDecision.accepted()
             }
-        }
-        if (accepted) {
-            enemyCombat.consumeCombatEvents(tick)
         }
         return accepted
     }

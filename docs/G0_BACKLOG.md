@@ -50,11 +50,12 @@ This is the active bounded implementation sequence after the initial research an
 - `EnemyStateWorld` now implements deterministic idle/patrol/investigate/chase/attack/recover/stagger/dead transitions with integer perception and attack deadlines; `EncounterDirector` enforces bounded active counts and spawn budgets, with JVM/native tests for cooldown, terminal death, and admission overflow.
 - `AuthoritativeEnemySession` now binds enemy state, combat actors, encounter budgets and sequenced combat events; enemy attacks resolve through authoritative hitscan, while consumed death events transition enemies to terminal state and release encounter slots. JVM/native tests cover attack decisions, non-death consumption, death bridging, and deterministic respawn budget.
 - `LoopbackSession` now owns bounded enemy perception inputs, steps configured enemy decisions inside the fixed-step tick, consumes combat events, and publishes monotonic enemy snapshots with client admission; JVM/native tests cover attack decisions and replicated state.
+- `EnemySpatialWorld` now provides bounded positions, deterministic BVH-backed line-of-sight queries, movement resolved at the last free sample, and spatial gating for enemy/projectile attacks in the authoritative tick; JVM/native tests cover clear paths, obstacles, blocked movement and projectile damage.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
-2. Add spatial LOS/perception queries, enemy movement, and projectile targeting to the authoritative tick.
+2. Add continuous projectile motion/sweep and richer encounter geometry to the authoritative tick.
 
 
 ## Deferred

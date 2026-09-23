@@ -84,6 +84,7 @@ class EnemySnapshotHistory {
 class AuthoritativeEnemySession {
     CombatWorld combat
     EnemyStateWorld enemies
+    EnemySpatialWorld spatial
     EncounterDirector encounters
     Int[] linkedEnemyIds
     Int[] linkedEncounterIds
@@ -92,6 +93,7 @@ class AuthoritativeEnemySession {
     public constructor(Int actorCapacity, Int encounterCapacity) {
         combat = CombatWorld(actorCapacity, actorCapacity)
         enemies = EnemyStateWorld(actorCapacity)
+        spatial = EnemySpatialWorld(actorCapacity, 1000000)
         encounters = EncounterDirector(encounterCapacity)
         linkedEnemyIds = new Int[actorCapacity]
         linkedEncounterIds = new Int[actorCapacity]
@@ -124,6 +126,36 @@ class AuthoritativeEnemySession {
     Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
         return enemies.configure(perceptionRange, attackRange, cooldown)
     }
+    Bool configureSpatialBounds(
+        Int minX, Int minY, Int minZ,
+        Int maxX, Int maxY, Int maxZ
+    ) {
+        return spatial.configureBounds(minX, minY, minZ, maxX, maxY, maxZ)
+    }
+
+    Bool addSpatialObstacle(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return spatial.addObstacle(
+            ax, ay, az, bx, by, bz, cx, cy, cz)
+    }
+
+    Bool setSpatialPosition(Int id, Int x, Int y, Int z) {
+        return spatial.setPosition(id, x, y, z)
+    }
+
+    SpatialVisibilityResult spatialVisibility(
+        Int sourceId, Int targetId, Int range
+    ) {
+        return spatial.visibility(sourceId, targetId, range)
+    }
+
+    EnemyMoveResult moveEnemyToward(Int enemyId, Int targetId, Int step) {
+        return spatial.moveToward(enemyId, targetId, step)
+    }
+
 
     Bool defineWeapon(
         Int id, Int magazineSize, Int reserveCapacity,
@@ -193,6 +225,22 @@ class AuthoritativeEnemySession {
             true, enemyId, step.targetId(), tick, resolution.accepted(),
             resolution.actionId(), resolution.applied(), resolution.died())
     }
+    EnemyAttackDecision stepEnemySpatial(
+        Int enemyId, Int tick, Int targetId, Int critical
+    ) {
+        var visibility = spatial.visibility(
+            enemyId, targetId, enemies.perceptionRangeValue())
+        if (!visibility.accepted()) {
+            return EnemyAttackDecision(false, enemyId, targetId, tick, false, 0, 0, false)
+        }
+        if (!visibility.visible()) {
+            spatial.moveToward(enemyId, targetId, 1)
+        }
+        return stepEnemy(
+            enemyId, tick, targetId,
+            visibility.visible(), visibility.distance(), critical)
+    }
+
 
     Int consumeCombatEvents(Int tick) {
         var consumed = 0
@@ -228,6 +276,25 @@ class AuthoritativeEnemySession {
     Int enemyTarget(Int enemyId) {
         return enemies.target(enemyId)
     }
+    ResolutionResult projectileAttackSpatial(
+        Int sourceId, Int targetId, Int tick, Int range, Int critical
+    ) {
+        var visibility = spatial.visibility(sourceId, targetId, range)
+        if (!visibility.accepted() || !visibility.visible()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var projectile = combat.spawnProjectile(sourceId, tick)
+        if (!projectile.accepted()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var result = combat.resolveProjectile(
+            projectile.projectileId(), targetId, visibility.distance(), critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+
 
     EnemyAuthoritySnapshot snapshotEnemy(
         Int enemyId, Int tick, Int sequence

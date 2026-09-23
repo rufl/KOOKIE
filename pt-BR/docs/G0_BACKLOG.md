@@ -49,11 +49,12 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - `EnemyStateWorld` agora implementa transições determinísticas idle/patrol/investigate/chase/attack/recover/stagger/dead com percepção e deadlines de ataque inteiros; `EncounterDirector` impõe limites ativos e orçamentos de spawn, com testes JVM/nativos para cooldown, morte terminal e overflow de admissão.
 - `AuthoritativeEnemySession` agora vincula estado de inimigos, atores de combate, orçamentos de encounters e eventos de combate sequenciados; ataques inimigos passam pela resolução hitscan autoritativa, enquanto eventos de morte consumidos levam inimigos ao estado terminal e liberam slots de encounter. Testes JVM/nativos cobrem decisões de ataque, consumo sem morte, ponte de morte e orçamento determinístico de respawn.
 - O `LoopbackSession` agora possui inputs limitados de percepção de inimigos, executa decisões configuradas de inimigos dentro do tick fixed-step, consome eventos de combate e publica snapshots monotônicos de inimigos com admissão do cliente; testes JVM/nativos cobrem decisões de ataque e estado replicado.
+- `EnemySpatialWorld` agora fornece posições limitadas, consultas determinísticas de LOS apoiadas por BVH, movimento resolvido na última amostra livre e gating espacial de ataques de inimigos/projéteis no tick autoritativo; testes JVM/nativos cobrem caminhos livres, obstáculos, movimento bloqueado e dano de projétil.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; Xvfb continua incompatível com apresentação.
-2. Adicionar consultas espaciais de LOS/percepção, movimento de inimigos e direcionamento de projéteis ao tick autoritativo.
+2. Adicionar movimento/sweep contínuo de projéteis e geometria de encounter mais rica ao tick autoritativo.
 
 ## Adiado
 

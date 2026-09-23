@@ -707,3 +707,59 @@ test "loopback enemy tick and replicated snapshots" {
         loopback.latestClientEnemySnapshot().sequence() == serverSnapshot.sequence(),
         "client must accept the monotonic enemy snapshot")
 }
+
+test "enemy spatial visibility movement and projectile targeting" {
+    var world = EnemySpatialWorld(2, 20)
+    assert(world.configureBounds(0, 0, 0, 10, 10, 10),
+        "enemy spatial bounds must configure")
+    assert(world.setPosition(2, 2, 2, 0) &&
+        world.setPosition(1, 2, 2, 10),
+        "enemy spatial actors must register")
+    var clear = world.visibility(2, 1, 20)
+    assert(clear.accepted() && clear.visible() && clear.distance() == 10,
+        "clear spatial path must be visible")
+    assert(world.addObstacle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "enemy spatial obstacle must insert")
+    var blocked = world.visibility(2, 1, 20)
+    assert(blocked.accepted() && !blocked.visible() && blocked.hitStep() == 5,
+        "obstacle must block enemy line of sight")
+    var movement = world.moveToward(2, 1, 10)
+    assert(movement.accepted() && movement.collided() &&
+        movement.resolvedZ() == 4 && world.positionZ(2) == 4,
+        "enemy movement must stop at the authoritative obstacle sample")
+
+    var session = AuthoritativeEnemySession(3, 1)
+    assert(session.configureEnemyRules(100, 20, 2) &&
+        session.defineWeapon(9, 2, 0, 0, 3, 1, 20) &&
+        session.defineEncounter(4, 1, 2),
+        "spatial combat rules must configure")
+    assert(session.addActor(1, 20, 0) &&
+        session.equipWeapon(1, 9) &&
+        session.admitEnemy(4, 2, 0, 5, 0, 9),
+        "spatial combat actors must admit")
+    assert(session.setSpatialPosition(1, 0, 0, 0) &&
+        session.setSpatialPosition(2, 0, 0, 10),
+        "spatial combat actors must position")
+    var projectile = session.projectileAttackSpatial(1, 2, 0, 20, 0)
+    assert(projectile.accepted() && projectile.applied() == 3,
+        "clear spatial projectile must resolve through combat")
+
+    var blockedSession = AuthoritativeEnemySession(3, 1)
+    assert(blockedSession.configureEnemyRules(100, 20, 2) &&
+        blockedSession.defineWeapon(9, 2, 0, 0, 3, 1, 20) &&
+        blockedSession.defineEncounter(4, 1, 2) &&
+        blockedSession.addActor(1, 20, 0) &&
+        blockedSession.admitEnemy(4, 2, 0, 5, 0, 9),
+        "blocked spatial combat actors must admit")
+    assert(blockedSession.setSpatialPosition(1, 2, 2, 0) &&
+        blockedSession.setSpatialPosition(2, 2, 2, 10) &&
+        blockedSession.addSpatialObstacle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "blocked spatial combat geometry must configure")
+    var blockedAttack = blockedSession.stepEnemySpatial(2, 0, 1, 0)
+    assert(blockedAttack.accepted() && !blockedAttack.fired() &&
+        blockedSession.enemyState(2) == 2,
+        "blocked enemy perception must investigate without attacking")
+    var blockedProjectile = blockedSession.projectileAttackSpatial(1, 2, 0, 20, 0)
+    assert(!blockedProjectile.accepted(),
+        "blocked spatial projectile must not resolve damage")
+}
