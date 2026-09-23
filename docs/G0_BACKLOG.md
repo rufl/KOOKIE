@@ -37,7 +37,7 @@ This is the active bounded implementation sequence after the initial research an
 - Spatial movement admission combines capsule bounds with broad-phase triangle queries and rejects stale geometry revisions.
 - Isolated GPU overlap smoke submits four frames across two target slots, retires all fences, and reports peak in-flight depth.
 - Headless GPU recovery smoke destroys and recreates the device, rebuilds cached resources, and completes a post-recovery draw.
-- Bounded native UDP peer transport sends and receives authenticated integer broad-phase frames across paired localhost datagram sockets; SipHash framing covers protocol version, payload length, sequence and signed payload words, with configurable test keys, a fixed 1,000 ms receive timeout, and packet bounds.
+- Bounded native UDP peer transport sends and receives authenticated integer broad-phase frames across paired localhost datagram sockets; configurable IPv4 peer address/port and SipHash test keys cover the endpoint seam, while framing covers protocol version, payload length, sequence and signed payload words with a fixed 1,000 ms receive timeout and packet bounds.
 - GPU recovery state exposes unavailable/ready/lost/failed states and a capability bitmask for clean reopen/loss-marker paths; it accepts an explicit loss marker, rejects recovery without a live headless device, and rebuilds resources after recovery.
 - GPU window presentation capability probing reports swapchain format and supported present modes when a window device is claimed; Xvfb still cannot claim the presentation path.
 
@@ -45,7 +45,7 @@ This is the active bounded implementation sequence after the initial research an
 
 1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
 2. Re-run the native exception-handler reproducer after a compiler upgrade; the current gate remains observed and passing.
-3. Integrate the authenticated UDP frame with a remote session endpoint, peer configuration, and production key management.
+3. Integrate the authenticated UDP frame with a remote session endpoint and production key management; IPv4 peer configuration and endpoint bounds are now covered.
 4. Add actual SDL/device-loss callbacks and resource retirement semantics; the current recovery path uses an explicit loss marker.
 5. Record each new measured failure or acceptance boundary in both language trees.
 

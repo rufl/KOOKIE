@@ -329,6 +329,36 @@ bool kookie_transport_open_pair(void) {
     kookie_transport_reset_counters();
     return true;
 }
+bool kookie_transport_set_peer_ipv4(
+    int first_octet, int second_octet, int third_octet,
+    int fourth_octet, int port
+) {
+    if (transport.socket_fd < 0 ||
+        first_octet < 0 || first_octet > 255 ||
+        second_octet < 0 || second_octet > 255 ||
+        third_octet < 0 || third_octet > 255 ||
+        fourth_octet < 0 || fourth_octet > 255 ||
+        port <= 0 || port > 65535) {
+        return false;
+    }
+    uint32_t address =
+        ((uint32_t)first_octet << 24) |
+        ((uint32_t)second_octet << 16) |
+        ((uint32_t)third_octet << 8) |
+        (uint32_t)fourth_octet;
+    transport.peer.sin_family = AF_INET;
+    transport.peer.sin_addr.s_addr = htonl(address);
+    transport.peer.sin_port = htons((uint16_t)port);
+    return true;
+}
+
+int kookie_transport_peer_port(void) {
+    if (transport.socket_fd < 0) {
+        return 0;
+    }
+    return (int)ntohs(transport.peer.sin_port);
+}
+
 
 bool kookie_transport_send_begin(int word_count) {
     if (transport.socket_fd < 0 ||

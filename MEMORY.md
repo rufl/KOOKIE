@@ -47,10 +47,16 @@ Create an engine for boomer shooters / looter shooters / ARPG FPS using **native
 16. JOML1.10.9 from Minecraft26.3 worked with Kof JVM `--deps`: vector length/dot and matrix translation printed `5.0,25.0,5.0,4.0`. Same source/native rejected both Java imports with `PKG006`. This proves the narrow Java math path, not JNI/graphics or native JAR use.
 17. Authoritative broad-phase snapshots now traverse a fixed-capacity validated transport queue; overflow rejects without dropping queued payloads, then dequeue/apply updates client geometry with sequence guards.
 18. Headless GPU smoke now covers overlap depth two and clean device recreation with cached-resource rebuild; actual device-loss callbacks and retirement remain unimplemented.
-19. Native UDP loopback transport uses authenticated SipHash framing over a fixed 78-word payload bound to localhost, with protocol/length/sequence validation, signed integer preservation, and a 1,000 ms receive timeout; remote endpoint/key management remains unimplemented.
+19. Native UDP transport uses authenticated SipHash framing over a fixed 78-word
+payload, with configurable IPv4 peer address/port, protocol/length/sequence
+validation, signed integer preservation, and a 1,000 ms receive timeout;
+production key management remains unimplemented.
 20. GPU recovery now exposes unavailable/ready/lost/failed state transitions and rejects recovery without a live headless device; loss notification is an explicit probe marker, not an SDL device-loss callback.
 21. A claimed GPU window now requires a valid swapchain format through the present-capability probe; the Xvfb path still cannot claim DRI3 presentation.
-22. The native transport can bind paired localhost UDP sockets, configure a test SipHash key before opening them, and exchange authenticated frames across the separate peer endpoint; production remote peer/key management remains unimplemented.
+22. The native transport can bind paired localhost UDP sockets, configure a test
+SipHash key and an IPv4 peer before opening frames, then exchange authenticated
+frames across the separate peer endpoint; production key management remains
+unimplemented.
 23. GPU recovery capability reporting distinguishes clean headless reopen plus loss-marker support; SDL3 exposes no device-loss callback in the installed GPU API.
 
 
@@ -95,8 +101,8 @@ revisions, authoritative capsule slide/step traversal over eight ordered
 bounded obstacles, clear/reconfigure operations, bounded broad-phase transport
 snapshots with fixed-capacity dequeue/apply and sequence guards, a native
 authenticated UDP peer probe across paired localhost sockets with configurable
-SipHash test keys, sequence/length validation, signed payload words, and a
-1,000 ms receive timeout, explicit GPU recovery states plus capability
+IPv4 peer address/port and SipHash test keys, sequence/length validation, signed
+payload words, and a 1,000 ms receive timeout, explicit GPU recovery states plus
 reporting for clean reopen/loss-marker paths and closed-device rejection, stale
 query rejection, and spatial movement admission combining capsule and
 broad-phase collisions. Next: add a DRI3-capable isolated presentation path,

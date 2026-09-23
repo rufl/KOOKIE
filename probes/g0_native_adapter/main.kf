@@ -24,6 +24,10 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_capabilities(): In
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
     Int key0Low, Int key0High, Int key1Low, Int key1High
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_peer_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_peer_port(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_begin(Int wordCount): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_word(Int index, Int word): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
@@ -51,6 +55,14 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         !kookie_transport_set_key(1, 2, 3, 4) ||
         !kookie_transport_open_pair() ||
         kookie_transport_timeout_milliseconds() != 1000) {
+        kookie_transport_close()
+        return false
+    }
+    var peerPort = kookie_transport_peer_port()
+    if (peerPort <= 0 ||
+        kookie_transport_set_peer_ipv4(127, 0, 0, 1, 0) ||
+        kookie_transport_set_peer_ipv4(127, 0, 0, 256, peerPort) ||
+        !kookie_transport_set_peer_ipv4(127, 0, 0, 1, peerPort)) {
         kookie_transport_close()
         return false
     }

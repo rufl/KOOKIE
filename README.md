@@ -105,8 +105,8 @@ eight-slot ordered capsule step obstacles with clear/reconfigure operations,
 frame staging budgets, authoritative-session broad-phase snapshots with bounded
 payload application and sequence guards, a fixed-capacity validated broad-phase
 transport queue with overflow rejection, a bounded native UDP peer transport
-probe across paired localhost sockets with authenticated SipHash framing,
-configurable test keys, sequence/length validation, signed payload words, and a
+probe across paired localhost sockets with configurable IPv4 peer address/port,
+authenticated SipHash framing, configurable test keys, sequence/length
 1,000 ms receive timeout, explicit GPU recovery states plus capability
 reporting for clean reopen/loss-marker paths and closed-device rejection, stale
 query rejection, and spatial movement admission combining capsule and
