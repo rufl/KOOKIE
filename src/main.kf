@@ -515,3 +515,46 @@ test "shared capsule and spatial admission" {
     assert(projectile.collided() && lineOfSight.collided(),
         "projectile and line-of-sight must share segment admission")
 }
+
+test "authoritative weapon and damage transitions" {
+    var combat = CombatWorld(2, 1)
+    assert(!combat.defineWeapon(0, 2, 3, 2, 5, 1, 100),
+        "weapon definitions must reject invalid identity")
+    assert(combat.defineWeapon(7, 2, 3, 2, 5, 1, 100),
+        "weapon definition must accept bounded firing data")
+    assert(combat.addActor(1, 20, 2) && combat.addActor(2, 9, 1),
+        "combat actors must admit bounded health and armor")
+    assert(combat.equipWeapon(1, 7),
+        "alive actors must equip a defined weapon")
+    var firstShot = combat.fire(1, 4)
+    assert(firstShot.accepted() && firstShot.shotId() == 1 &&
+        firstShot.magazine() == 1 && firstShot.reserve() == 3 &&
+        firstShot.nextReadyTick() == 6,
+        "accepted shots must atomically consume ammo and set cooldown")
+    assert(!combat.fire(1, 5).accepted(),
+        "cooldown must reject a shot before its ready tick")
+    var secondShot = combat.fire(1, 6)
+    assert(secondShot.accepted() && secondShot.magazine() == 0,
+        "ready weapons must fire with the remaining magazine")
+    assert(!combat.fire(1, 7).accepted(),
+        "empty magazines must reject shots without mutating state")
+    assert(combat.reload(1) && combat.magazine(1) == 2 &&
+        combat.reserve(1) == 1,
+        "reload must transfer bounded reserve ammo atomically")
+
+    var invalidSource = combat.applyDamage(DamageRequest(99, 2, 5, 1, 0))
+    assert(!invalidSource.accepted() && combat.currentHealth(2) == 9,
+        "damage must reject unknown sources without mutation")
+    var hit = combat.applyDamage(DamageRequest(1, 2, 5, 1, 0))
+    assert(hit.accepted() && hit.applied() == 4 &&
+        hit.remainingHealth() == 5 && !hit.died(),
+        "damage must apply armor before health reduction")
+    var critical = combat.applyDamage(DamageRequest(1, 2, 3, 1, 1))
+    assert(critical.accepted() && critical.applied() == 5 &&
+        critical.remainingHealth() == 0 && critical.died() &&
+        critical.deathSequence() == 1 && combat.deaths() == 1,
+        "critical damage must own the single alive-to-dead transition")
+    assert(!combat.applyDamage(DamageRequest(1, 2, 1, 1, 0)).accepted() &&
+        combat.deaths() == 1,
+        "dead targets must reject repeated damage and rewards")
+}

@@ -45,10 +45,12 @@ This is the active bounded implementation sequence after the initial research an
 - The authorized isolated native smoke now executes through the SDL adapter: authenticated session transport, headless GPU recovery and audio pass; window presentation logs `No DRI3 support detected`, so the capability-gated screenshot path remains unexecuted. This host exposes `/dev/dri/renderD128` and `/dev/dri/renderD129`, but the Xvfb-backed isolated display cannot provide DRI3.
 - The DRI3 runtime boundary is recorded in both language trees: the transport smoke is executable, while window presentation still requires an isolated present-capable host.
 - When a presentable window is available, `KOOKIE_SCREENSHOT_PATH` exports the captured swapchain frame as a binary PPM; the path remains capability-gated and unset by default.
+- `CombatWorld` now provides bounded authoritative weapon definitions, magazine/reserve reload state, cooldown-gated atomic shots, armor-aware damage, critical hits, and exactly one alive-to-dead transition per actor; JVM/native tests cover ammo atomicity and damage/death invariants.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
+2. Extend the combat authority with shared hitscan/projectile resolution and bounded combat events.
 
 
 ## Deferred

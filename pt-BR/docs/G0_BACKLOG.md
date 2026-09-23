@@ -44,10 +44,12 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - O smoke nativo isolado autorizado agora executa pelo adaptador SDL: transporte de sessão autenticado, recuperação GPU headless e áudio passam; a apresentação em janela registra `No DRI3 support detected`, então o caminho de screenshot protegido por capacidade permanece não executado. Esta estação expõe `/dev/dri/renderD128` e `/dev/dri/renderD129`, mas o display isolado baseado em Xvfb não fornece DRI3.
 - O limite de runtime DRI3 está registrado nas duas árvores de idioma: o smoke de transporte é executável, enquanto a apresentação em janela ainda requer um host isolado compatível com apresentação.
 - Quando uma janela compatível com apresentação está disponível, `KOOKIE_SCREENSHOT_PATH` exporta o frame capturado do swapchain como PPM binário; o caminho continua protegido por capacidade e não é definido por padrão.
+- `CombatWorld` agora fornece definições autoritativas limitadas de armas, estado de recarga de magazine/reserva, disparos atômicos protegidos por cooldown, dano com armadura, críticos e exatamente uma transição de vivo para morto por ator; testes JVM/nativos cobrem atomicidade de munição e invariantes de dano/morte.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; Xvfb continua incompatível com apresentação.
+2. Estender a autoridade de combate com resolução compartilhada de hitscan/projétil e eventos de combate limitados.
 
 ## Adiado
 

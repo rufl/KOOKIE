@@ -1,0 +1,364 @@
+package core
+
+record WeaponDefinition(
+    Int id, Int magazineSize, Int reserveCapacity,
+    Int cooldownTicks, Int damage, Int channel, Int range
+)
+record ShotResult(
+    Bool accepted, Int shotId, Int sourceId, Int weaponId,
+    Int magazine, Int reserve, Int nextReadyTick
+)
+record DamageRequest(
+    Int sourceId, Int targetId, Int amount, Int channel, Int critical
+)
+record DamageResult(
+    Bool accepted, Int applied, Int remainingHealth,
+    Bool died, Int deathSequence
+)
+
+class WeaponDefinitionStore {
+    Int[] ids
+    Int[] magazineSizes
+    Int[] reserveCapacities
+    Int[] cooldowns
+    Int[] damages
+    Int[] channels
+    Int[] ranges
+    Bool[] active
+
+    public constructor(Int capacity) {
+        ids = new Int[capacity]
+        magazineSizes = new Int[capacity]
+        reserveCapacities = new Int[capacity]
+        cooldowns = new Int[capacity]
+        damages = new Int[capacity]
+        channels = new Int[capacity]
+        ranges = new Int[capacity]
+        active = new Bool[capacity]
+        for (var index = 0; index < capacity; index = index + 1) {
+            ids[index] = 0
+            magazineSizes[index] = 0
+            reserveCapacities[index] = 0
+            cooldowns[index] = 0
+            damages[index] = 0
+            channels[index] = 0
+            ranges[index] = 0
+            active[index] = false
+        }
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool define(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        if (id <= 0 || magazineSize <= 0 || reserveCapacity < 0 ||
+            cooldownTicks < 0 || damage <= 0 || channel < 0 || range <= 0) {
+            return false
+        }
+        var index = find(id)
+        if (index < 0) {
+            index = freeSlot()
+            if (index < 0) {
+                return false
+            }
+            ids[index] = id
+            active[index] = true
+        }
+        magazineSizes[index] = magazineSize
+        reserveCapacities[index] = reserveCapacity
+        cooldowns[index] = cooldownTicks
+        damages[index] = damage
+        channels[index] = channel
+        ranges[index] = range
+        return true
+    }
+
+    Bool has(Int id) {
+        return find(id) >= 0
+    }
+
+    Int magazineSize(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return magazineSizes[index]
+    }
+
+    Int reserveCapacity(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return reserveCapacities[index]
+    }
+
+    Int cooldownTicks(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return cooldowns[index]
+    }
+
+    Int damage(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return damages[index]
+    }
+
+    Int channel(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return channels[index]
+    }
+
+    Int range(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return ranges[index]
+    }
+}
+
+class CombatWorld {
+    WeaponDefinitionStore weapons
+    Int[] actorIds
+    Int[] health
+    Int[] maxHealth
+    Int[] armor
+    Int[] weaponIds
+    Int[] magazines
+    Int[] reserves
+    Int[] nextReadyTicks
+    Int[] deathSequences
+    Bool[] active
+    Bool[] alive
+    Int nextShotId
+    Int deathCount
+
+    public constructor(Int actorCapacity, Int weaponCapacity) {
+        weapons = WeaponDefinitionStore(weaponCapacity)
+        actorIds = new Int[actorCapacity]
+        health = new Int[actorCapacity]
+        maxHealth = new Int[actorCapacity]
+        armor = new Int[actorCapacity]
+        weaponIds = new Int[actorCapacity]
+        magazines = new Int[actorCapacity]
+        reserves = new Int[actorCapacity]
+        nextReadyTicks = new Int[actorCapacity]
+        deathSequences = new Int[actorCapacity]
+        active = new Bool[actorCapacity]
+        alive = new Bool[actorCapacity]
+        nextShotId = 1
+        deathCount = 0
+        for (var index = 0; index < actorCapacity; index = index + 1) {
+            actorIds[index] = 0
+            health[index] = 0
+            maxHealth[index] = 0
+            armor[index] = 0
+            weaponIds[index] = 0
+            magazines[index] = 0
+            reserves[index] = 0
+            nextReadyTicks[index] = 0
+            deathSequences[index] = 0
+            active[index] = false
+            alive[index] = false
+        }
+    }
+
+    Int findActor(Int id) {
+        for (var index = 0; index < actorIds.length; index = index + 1) {
+            if (active[index] && actorIds[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeActorSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool defineWeapon(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        return weapons.define(
+            id, magazineSize, reserveCapacity,
+            cooldownTicks, damage, channel, range)
+    }
+
+    Bool addActor(Int id, Int startingHealth, Int startingArmor) {
+        if (id <= 0 || startingHealth <= 0 || startingArmor < 0 ||
+            findActor(id) >= 0) {
+            return false
+        }
+        var index = freeActorSlot()
+        if (index < 0) {
+            return false
+        }
+        actorIds[index] = id
+        health[index] = startingHealth
+        maxHealth[index] = startingHealth
+        armor[index] = startingArmor
+        weaponIds[index] = 0
+        magazines[index] = 0
+        reserves[index] = 0
+        nextReadyTicks[index] = 0
+        deathSequences[index] = 0
+        active[index] = true
+        alive[index] = true
+        return true
+    }
+
+    Bool equipWeapon(Int actorId, Int weaponId) {
+        var actorIndex = findActor(actorId)
+        if (actorIndex < 0 || !alive[actorIndex] || !weapons.has(weaponId)) {
+            return false
+        }
+        weaponIds[actorIndex] = weaponId
+        magazines[actorIndex] = weapons.magazineSize(weaponId)
+        reserves[actorIndex] = weapons.reserveCapacity(weaponId)
+        nextReadyTicks[actorIndex] = 0
+        return true
+    }
+
+    Bool reload(Int actorId) {
+        var actorIndex = findActor(actorId)
+        if (actorIndex < 0 || !alive[actorIndex]) {
+            return false
+        }
+        var weaponId = weaponIds[actorIndex]
+        if (!weapons.has(weaponId)) {
+            return false
+        }
+        var needed = weapons.magazineSize(weaponId) - magazines[actorIndex]
+        if (needed <= 0 || reserves[actorIndex] <= 0) {
+            return false
+        }
+        if (needed > reserves[actorIndex]) {
+            needed = reserves[actorIndex]
+        }
+        magazines[actorIndex] = magazines[actorIndex] + needed
+        reserves[actorIndex] = reserves[actorIndex] - needed
+        return true
+    }
+
+    ShotResult fire(Int actorId, Int tick) {
+        var actorIndex = findActor(actorId)
+        if (actorIndex < 0 || !alive[actorIndex] || tick < 0 ||
+            weaponIds[actorIndex] <= 0 ||
+            tick < nextReadyTicks[actorIndex] || magazines[actorIndex] <= 0) {
+            return ShotResult(false, 0, actorId, 0, 0, 0, 0)
+        }
+        var weaponId = weaponIds[actorIndex]
+        if (!weapons.has(weaponId)) {
+            return ShotResult(false, 0, actorId, weaponId, 0, 0, 0)
+        }
+        magazines[actorIndex] = magazines[actorIndex] - 1
+        nextReadyTicks[actorIndex] = tick + weapons.cooldownTicks(weaponId)
+        var result = ShotResult(
+            true, nextShotId, actorId, weaponId,
+            magazines[actorIndex], reserves[actorIndex], nextReadyTicks[actorIndex])
+        nextShotId = nextShotId + 1
+        return result
+    }
+
+    DamageResult applyDamage(DamageRequest request) {
+        var targetIndex = findActor(request.targetId())
+        if (targetIndex < 0 || !alive[targetIndex] || request.amount() <= 0 ||
+            request.channel() < 0 ||
+            (request.critical() != 0 && request.critical() != 1)) {
+            return DamageResult(false, 0, 0, false, 0)
+        }
+        if (request.sourceId() > 0) {
+            var sourceIndex = findActor(request.sourceId())
+            if (sourceIndex < 0 || !alive[sourceIndex]) {
+                return DamageResult(false, 0, 0, false, 0)
+            }
+        }
+        var amount = request.amount()
+        if (request.critical() == 1) {
+            amount = amount * 2
+        }
+        var applied = amount - armor[targetIndex]
+        if (applied < 1) {
+            applied = 1
+        }
+        if (applied > health[targetIndex]) {
+            applied = health[targetIndex]
+        }
+        health[targetIndex] = health[targetIndex] - applied
+        var died = false
+        if (health[targetIndex] == 0) {
+            alive[targetIndex] = false
+            deathCount = deathCount + 1
+            deathSequences[targetIndex] = deathCount
+            died = true
+        }
+        return DamageResult(
+            true, applied, health[targetIndex], died, deathSequences[targetIndex])
+    }
+
+    Bool isAlive(Int actorId) {
+        var index = findActor(actorId)
+        return index >= 0 && alive[index]
+    }
+
+    Int currentHealth(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return 0
+        }
+        return health[index]
+    }
+
+    Int magazine(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return 0
+        }
+        return magazines[index]
+    }
+
+    Int reserve(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return 0
+        }
+        return reserves[index]
+    }
+
+    Int deaths() {
+        return deathCount
+    }
+}
