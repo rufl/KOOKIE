@@ -1245,6 +1245,51 @@ bool kookie_gpu_draw_test(void) {
     return kookie_gpu_draw_test_internal(
         window_slots[gpu_slot.window_slot].window, NULL, NULL);
 }
+static bool kookie_gpu_write_window_screenshot_ppm(
+    const char *path,
+    const Uint8 *pixels,
+    size_t byte_count,
+    Uint32 width,
+    Uint32 height,
+    SDL_GPUTextureFormat format
+) {
+    if (path == NULL || path[0] == '\0' || pixels == NULL ||
+        width == 0 || height == 0 ||
+        (format != SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM &&
+            format != SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM &&
+            format != SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM_SRGB &&
+            format != SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB) ||
+        byte_count < (size_t)width * (size_t)height * 4u) {
+        return false;
+    }
+    FILE *file = fopen(path, "wb");
+    if (file == NULL) {
+        return false;
+    }
+    bool success = fprintf(
+        file, "P6\n%u %u\n255\n", (unsigned int)width, (unsigned int)height) >= 0;
+    bool blueFirst =
+        format == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM ||
+        format == SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM_SRGB;
+    size_t pixel_count = (size_t)width * (size_t)height;
+    for (size_t index = 0; index < pixel_count && success; index += 1) {
+        const Uint8 *pixel = pixels + index * 4u;
+        Uint8 rgb[3] = {
+            pixel[blueFirst ? 2 : 0],
+            pixel[1],
+            pixel[blueFirst ? 0 : 2]
+        };
+        success = fwrite(rgb, 1, sizeof(rgb), file) == sizeof(rgb);
+    }
+    if (fclose(file) != 0) {
+        success = false;
+    }
+    if (!success) {
+        remove(path);
+    }
+    return success;
+}
+
 int kookie_gpu_window_screenshot_checksum(void) {
     if (gpu_slot.device == NULL || gpu_slot.window_slot < 0 ||
         gpu_slot.window_slot >= KOOKIE_MAX_WINDOWS ||
@@ -1349,8 +1394,16 @@ int kookie_gpu_window_screenshot_checksum(void) {
     for (size_t index = 0; index < byte_count; index += 1) {
         checksum = (checksum + pixels[index]) & 0x7fffffffU;
     }
+    const char *screenshot_path = getenv("KOOKIE_SCREENSHOT_PATH");
+    bool export_success = screenshot_path == NULL || screenshot_path[0] == '\0' ||
+        kookie_gpu_write_window_screenshot_ppm(
+            screenshot_path, pixels, byte_count,
+            target_width, target_height, target_format);
     SDL_UnmapGPUTransferBuffer(device, transfer);
     SDL_ReleaseGPUTransferBuffer(device, transfer);
+    if (!export_success) {
+        return 0;
+    }
     return checksum == 0 ? 1 : (int)checksum;
 }
 

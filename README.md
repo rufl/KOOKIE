@@ -77,7 +77,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contract.
 The adapter smoke defaults to `SDL_VIDEODRIVER=offscreen` and passes the first
 available `/dev/dri/renderD*` node to the isolated wrapper. Override with
 `KOOKIE_RENDER_NODE=/dev/dri/renderD129`; set `KOOKIE_SDL_VIDEO_DRIVER=x11`
-only when testing a presentable window path.
+only when testing a presentable window path. Set
+`KOOKIE_SCREENSHOT_PATH=/absolute/path.ppm` to export a presentable frame as
+binary PPM; the file is written only when window presentation is available.
 
 This setup does not resolve the native runtime blockers below.
 

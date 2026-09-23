@@ -43,6 +43,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Eventos SDL de reset/perda do dispositivo de renderização agora passam pelo event pump, aposentam recursos GPU em cache com segurança nos caminhos de reset ou perda e conduzem a recuperação headless sem o antigo marcador explícito de perda; a sonda nativa exercita rebuild após reset e recuperação após perda.
 - O smoke nativo isolado autorizado agora executa pelo adaptador SDL: transporte de sessão autenticado, recuperação GPU headless e áudio passam; a apresentação em janela registra `No DRI3 support detected`, então o caminho de screenshot protegido por capacidade permanece não executado. Esta estação expõe `/dev/dri/renderD128` e `/dev/dri/renderD129`, mas o display isolado baseado em Xvfb não fornece DRI3.
 - O limite de runtime DRI3 está registrado nas duas árvores de idioma: o smoke de transporte é executável, enquanto a apresentação em janela ainda requer um host isolado compatível com apresentação.
+- Quando uma janela compatível com apresentação está disponível, `KOOKIE_SCREENSHOT_PATH` exporta o frame capturado do swapchain como PPM binário; o caminho continua protegido por capacidade e não é definido por padrão.
 
 ## Próximo lote
 

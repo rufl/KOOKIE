@@ -78,6 +78,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
   overzeer-isolated-display --timeout 90 "${render_node_args[@]}" -- \
     env KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
     KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
+    KOOKIE_SCREENSHOT_PATH="${KOOKIE_SCREENSHOT_PATH:-}" \
     KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
     SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
     "$adapter_build_dir/native-adapter/Default/Main"
