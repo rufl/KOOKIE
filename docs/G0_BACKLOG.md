@@ -27,20 +27,22 @@ This is the active bounded implementation sequence after the initial research an
 - Bounded integer 3D segment sweep queries through an axis-aligned volume, rejecting starting penetration and over-budget traversal.
 - Bounded integer triangle queries with degenerate-triangle rejection and previous-sample resolution.
 - Bounded capsule center movement with radius-expanded bounds and shared player/projectile/line-of-sight admission.
-- Isolated offscreen SDL_GPU device and SPIR-V indexed quad draw accepted with explicit vertex/index-buffer uploads and per-device cached GPU resources; the latest smoke measured 1434 microseconds for three draws against the declared 16,667-microsecond frame budget on `renderD129`, with a 484-microsecond fence-wait telemetry sample.
+- Isolated offscreen SDL_GPU device and SPIR-V indexed quad draw accepted with explicit vertex/index-buffer uploads and per-device cached GPU resources; the latest smoke measured 1431 microseconds for three draws against the declared 16,667-microsecond frame budget on `renderD129`, with a 410-microsecond fence-wait sample.
 - Fixed-step clock exposes the declared 60 Hz frame budget to GPU acceptance checks.
 - Frame staging accepts a six-vertex textured quad within a bounded 30-scalar-write budget.
 - Bounded triangle collections use a fixed-capacity deterministic binary BVH with nearest-hit selection, removal/rebuild, geometry revisions, and traversal diagnostics.
 - Bounded capsule movement returns authoritative slide/step results over an eight-slot collection of deterministically ordered step obstacles, with clear/reconfigure operations.
-- Authoritative sessions own the bounded broad-phase triangle collection, hand off its geometry revision with query snapshots, reject stale collection queries, and expose a bounded integer payload contract.
+- Authoritative sessions own the bounded broad-phase triangle collection, hand off its geometry revision with query snapshots, reject stale collection queries, expose a bounded integer payload contract, and apply payloads into a client collection with sequence guards.
 - Spatial movement admission combines capsule bounds with broad-phase triangle queries and rejects stale geometry revisions.
+- Isolated GPU overlap smoke submits four frames across two target slots, retires all fences, and reports peak in-flight depth.
+- GPU window presentation capability probing reports swapchain format and supported present modes when a window device is claimed; Xvfb still cannot claim the presentation path.
 
 ## Next batch
 
 1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
-2. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
-3. Add asynchronous frame overlap and resource retirement telemetry beyond the current fence-wait path.
-4. Add actual network/session replication around the bounded broad-phase payload contract.
+2. Re-run the native exception-handler reproducer after a compiler upgrade; the current gate remains observed and passing.
+3. Add actual network/session transport around the bounded broad-phase payload contract.
+4. Add GPU resource retirement under device loss and recovery rather than clean-close only.
 5. Record each new measured failure or acceptance boundary in both language trees.
 
 ## Deferred

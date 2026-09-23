@@ -21,6 +21,8 @@ class LoopbackSession {
     SnapshotHistory playerOneSnapshots
     SnapshotHistory playerTwoSnapshots
     BoundedTriangleCollection broadPhaseCollection
+    BoundedTriangleCollection clientBroadPhaseCollection
+    Int clientBroadPhaseSnapshotSequence
     Int broadPhaseRevisionValue
     Int clientBroadPhaseRevisionValue
 
@@ -45,6 +47,9 @@ class LoopbackSession {
         playerTwoSnapshots = SnapshotHistory(8)
         broadPhaseCollection = BoundedTriangleCollection(8, 20)
         broadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
+        clientBroadPhaseCollection = BoundedTriangleCollection(8, 20)
+        clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
+        clientBroadPhaseSnapshotSequence = 0
         broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
         clientBroadPhaseRevisionValue = broadPhaseRevisionValue
     }
@@ -218,6 +223,44 @@ class LoopbackSession {
     Bool acceptsBroadPhaseSnapshot(Int[] words) {
         return broadPhaseSnapshotMatches(words, broadPhaseRevisionValue)
     }
+    Bool applyBroadPhaseSnapshot(Int[] words) {
+        if (!validBroadPhaseSnapshot(words) ||
+            words[3] <= clientBroadPhaseSnapshotSequence ||
+            words[5] > clientBroadPhaseCollection.triangleCapacity()) {
+            return false
+        }
+        clientBroadPhaseCollection.clearTriangles()
+        for (var ordinal = 0; ordinal < words[5]; ordinal = ordinal + 1) {
+            var offset = 6 + ordinal * 9
+            if (!clientBroadPhaseCollection.addTriangle(
+                words[offset], words[offset + 1], words[offset + 2],
+                words[offset + 3], words[offset + 4], words[offset + 5],
+                words[offset + 6], words[offset + 7], words[offset + 8])) {
+                return false
+            }
+        }
+        clientBroadPhaseRevisionValue = words[4]
+        clientBroadPhaseSnapshotSequence = words[3]
+        return true
+    }
+
+    Int clientBroadPhaseTriangleCount() {
+        return clientBroadPhaseCollection.triangleCount()
+    }
+
+    SegmentCollisionResult queryClientBroadPhase(
+        Int geometryRevision,
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (geometryRevision != clientBroadPhaseRevisionValue) {
+            return rejectedBroadPhaseQuery(
+                startX, startY, startZ, endX, endY, endZ)
+        }
+        return clientBroadPhaseCollection.query(
+            startX, startY, startZ, endX, endY, endZ)
+    }
+
 
 
     SegmentCollisionResult rejectedBroadPhaseQuery(

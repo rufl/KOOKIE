@@ -92,26 +92,30 @@ resize/focus, áudio dummy, teardown de tokens obsoletos, limpeza de processos,
 um quad texturizado SDL_GPU offscreen indexado com uploads explícitos de
 buffers de vértices/índices, recursos GPU em cache por dispositivo e
 telemetria de espera da fence dentro do orçamento declarado de frame de 16.667
-microssegundos; a amostra mais recente mediu 1434 microssegundos para três
-draws em `renderD129`, incluindo uma amostra de 484 microssegundos de espera da
-fence. A apresentação em janela ainda reporta `gpu-unavailable` porque o
-caminho Xvfb não oferece suporte de apresentação DRI3. G1 agora inclui
-autoridade fixed-step, comandos de input limitados e transições de borda,
-admissão de dois clientes em loopback, rejeição de input obsoleto por cliente,
-validação de sequência de snapshots, movimento autoritativo limitado, clamp de
-câmera/input, storage limitado de componentes inteiros, histórico limitado de
-snapshots com interpolação, replay limitado de inputs de predição, consultas
-escalares de colisão, sweeps inteiros de segmento e triângulo 3D, movimento de
-cápsula expandido pelo raio, consultas determinísticas limitadas de
-coleções/BVH de triângulos com remoção/rebuild e revisões de geometria,
-obstáculos de step de cápsula ordenados em oito slots com operações de
-limpeza/reconfiguração, orçamentos de staging de frame, snapshots broad-phase
-da sessão autoritativa com payloads inteiros limitados, rejeição de consultas
-obsoletas e admissão de movimento espacial combinando colisões de cápsula e
-broad-phase. Em seguida: adicionar apresentação isolada compatível com DRI3,
-telemetria assíncrona de sobreposição/retirement de recursos e replicação real
-de sessão/rede ao redor do contrato de payload broad-phase. Use o wrapper
-descartável de display isolado do repositório para verificação gráfica.
+microssegundos; a amostra mais recente mediu 1431 microssegundos para três
+draws em `renderD129`, incluindo uma amostra de 410 microssegundos de espera da
+fence. Uma sonda de sobreposição submeteu quatro frames em dois slots de
+destino, aposentou todas as fences e observou profundidade máxima em voo de
+dois. A apresentação em janela ainda reporta `gpu-unavailable` porque o caminho
+Xvfb não oferece suporte de apresentação DRI3; uma sonda de capacidade agora
+informa o formato de swapchain e os modos de apresentação quando um dispositivo
+de janela pode ser reivindicado. G1 agora inclui autoridade fixed-step,
+comandos de input limitados e transições de borda, admissão de dois clientes em
+loopback, rejeição de input obsoleto por cliente, validação de sequência de
+snapshots, movimento autoritativo limitado, clamp de câmera/input, storage
+limitado de componentes inteiros, histórico limitado de snapshots com
+interpolação, replay limitado de inputs de predição, consultas escalares de
+colisão, sweeps inteiros de segmento e triângulo 3D, movimento de cápsula
+expandido pelo raio, consultas determinísticas limitadas de coleções/BVH de
+triângulos com remoção/rebuild e revisões de geometria, obstáculos de step de
+cápsula ordenados em oito slots com operações de limpeza/reconfiguração,
+orçamentos de staging de frame, snapshots broad-phase da sessão autoritativa
+com aplicação de payloads limitados e guardas de sequência, rejeição de
+consultas obsoletas e admissão de movimento espacial combinando colisões de
+cápsula e broad-phase. Em seguida: adicionar apresentação isolada compatível
+com DRI3, transporte real de sessão/rede ao redor dos payloads broad-phase e
+retirement de recursos GPU durante perda e recuperação do dispositivo. Use o
+wrapper descartável de display isolado do repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

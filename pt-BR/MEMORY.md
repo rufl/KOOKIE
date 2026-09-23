@@ -74,21 +74,25 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 A prova GPU do G0 aceita um quad texturizado SDL_GPU offscreen indexado
 isolado, uploads explícitos de buffers de vértices/índices, submissão de draw
 SPIR-V, recursos GPU em cache por dispositivo e telemetria de espera da fence
-através de um render node. O smoke mais recente mediu 1434 microssegundos para
+através de um render node. O smoke mais recente mediu 1431 microssegundos para
 três draws contra o orçamento declarado de frame a 60 Hz de 16.667
-microssegundos em `renderD129`, incluindo uma amostra de 484 microssegundos de
-espera da fence; o caminho de janela ainda reporta `gpu-unavailable` porque
-Xvfb não oferece apresentação DRI3. O G1 agora também possui staging limitado
-de frame com seis vértices, consultas determinísticas limitadas de
-coleções/BVH de triângulos com remoção/rebuild e revisões de geometria,
-traversal autoritativo de slide/step de cápsula sobre oito obstáculos limitados
-ordenados, operações de limpeza/reconfiguração, snapshots broad-phase com
-payloads de transporte limitados, rejeição de consultas obsoletas e admissão de
-movimento espacial combinando colisões de cápsula e broad-phase. Em seguida:
-adicionar apresentação isolada compatível com DRI3, telemetria assíncrona de
-sobreposição/retirement de recursos e replicação real de sessão/rede ao redor
-do contrato de payload broad-phase. O defeito do handler de exceções nativas
-continua sendo um gate do compilador.
+microssegundos em `renderD129`, incluindo uma amostra de 410 microssegundos de
+espera da fence. Uma sonda de sobreposição submeteu quatro frames em dois slots
+de destino, aposentou todas as fences e observou profundidade máxima em voo de
+dois. O caminho de janela ainda reporta `gpu-unavailable` porque Xvfb não
+oferece apresentação DRI3; uma sonda de capacidade agora informa o formato de
+swapchain e os modos de apresentação quando um dispositivo de janela pode ser
+reivindicado. O G1 agora também possui staging limitado de frame com seis
+vértices, consultas determinísticas limitadas de coleções/BVH de triângulos com
+remoção/rebuild e revisões de geometria, traversal autoritativo de slide/step
+de cápsula sobre oito obstáculos limitados ordenados, operações de
+limpeza/reconfiguração, snapshots broad-phase com aplicação no cliente e
+guardas de sequência, rejeição de consultas obsoletas e admissão de movimento
+espacial combinando colisões de cápsula e broad-phase. Em seguida: adicionar
+apresentação isolada compatível com DRI3, transporte real de sessão/rede ao
+redor dos payloads broad-phase e retirement de recursos GPU durante perda e
+recuperação do dispositivo. O defeito do handler de exceções nativas continua
+sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

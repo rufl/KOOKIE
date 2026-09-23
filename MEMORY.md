@@ -74,18 +74,21 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 G0 GPU proof accepts an isolated offscreen SDL_GPU indexed textured quad,
 explicit vertex/index-buffer uploads, SPIR-V draw submission, per-device cached
 GPU resources, and fence-wait telemetry through a render node. The latest smoke
-measured 1434 microseconds for three draws against the declared 16,667-
-microsecond 60 Hz frame budget on `renderD129`, including a 484-microsecond
-fence-wait sample; the window path still reports `gpu-unavailable` because Xvfb
-lacks DRI3 presentation support. G1 now also has bounded six-vertex frame
-staging, deterministic triangle collection/BVH queries with removal/rebuild and
-geometry revisions, authoritative capsule slide/step traversal over eight
-ordered bounded obstacles, clear/reconfigure operations, bounded broad-phase
-transport snapshots, stale query rejection, and spatial movement admission
-combining capsule and broad-phase collisions. Next: add a DRI3-capable isolated
-presentation path, asynchronous frame-overlap/resource-retirement telemetry,
-and actual network/session replication around the broad-phase payload contract.
-The native exception-handler defect remains a compiler gate.
+measured 1431 microseconds for three draws against the declared 16,667-
+microsecond 60 Hz frame budget on `renderD129`, including a 410-microsecond
+fence-wait sample. An overlap probe submitted four frames across two target
+slots, retired all fences, and observed peak in-flight depth two. The window
+path still reports `gpu-unavailable` because Xvfb lacks DRI3 presentation
+support; a capability probe now reports swapchain format and present modes when
+a window device is claimable. G1 now also has bounded six-vertex frame staging,
+deterministic triangle collection/BVH queries with removal/rebuild and geometry
+revisions, authoritative capsule slide/step traversal over eight ordered
+bounded obstacles, clear/reconfigure operations, bounded broad-phase transport
+snapshots with client application and sequence guards, stale query rejection,
+and spatial movement admission combining capsule and broad-phase collisions.
+Next: add a DRI3-capable isolated presentation path, actual network/session
+transport around broad-phase payloads, and GPU resource retirement under device
+loss and recovery. The native exception-handler defect remains a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

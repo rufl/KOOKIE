@@ -442,6 +442,24 @@ class BoundedTriangleCollection {
     Int triangleCount() {
         return activeCountValue
     }
+    Int triangleCapacity() {
+        return maxTriangles
+    }
+
+    Bool clearTriangles() {
+        if (activeCountValue == 0) {
+            return true
+        }
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            active[index] = false
+        }
+        triangleCountValue = 0
+        activeCountValue = 0
+        geometryRevisionValue = geometryRevisionValue + 1
+        rebuildBvh()
+        return true
+    }
+
     Int triangleIndexAt(Int ordinal) {
         if (ordinal < 0 || ordinal >= activeCountValue) {
             return -1

@@ -232,6 +232,33 @@ int kookie_gpu_open(int window_token) {
     gpu_slot.window_slot = window_slot;
     return make_token(0, gpu_slot.generation, KOOKIE_GPU_KIND);
 }
+int kookie_gpu_window_present_capabilities(void) {
+    if (gpu_slot.device == NULL || gpu_slot.window_slot < 0 ||
+        gpu_slot.window_slot >= KOOKIE_MAX_WINDOWS ||
+        window_slots[gpu_slot.window_slot].window == NULL) {
+        return 0;
+    }
+    SDL_Window *window = window_slots[gpu_slot.window_slot].window;
+    int capabilities = 0;
+    if (SDL_GetGPUSwapchainTextureFormat(gpu_slot.device, window) !=
+        SDL_GPU_TEXTUREFORMAT_INVALID) {
+        capabilities |= 1;
+    }
+    if (SDL_WindowSupportsGPUPresentMode(
+            gpu_slot.device, window, SDL_GPU_PRESENTMODE_VSYNC)) {
+        capabilities |= 2;
+    }
+    if (SDL_WindowSupportsGPUPresentMode(
+            gpu_slot.device, window, SDL_GPU_PRESENTMODE_IMMEDIATE)) {
+        capabilities |= 4;
+    }
+    if (SDL_WindowSupportsGPUPresentMode(
+            gpu_slot.device, window, SDL_GPU_PRESENTMODE_MAILBOX)) {
+        capabilities |= 8;
+    }
+    return capabilities;
+}
+
 int kookie_gpu_open_headless(void) {
     if (gpu_slot.device != NULL) {
         return 0;
@@ -538,8 +565,12 @@ cleanup:
 
 static bool kookie_gpu_draw_test_internal(
     SDL_Window *window,
-    SDL_GPUTexture *offscreen_target
+    SDL_GPUTexture *offscreen_target,
+    SDL_GPUFence **out_fence
 ) {
+    if (out_fence != NULL) {
+        *out_fence = NULL;
+    }
     if (gpu_slot.device == NULL) {
         return false;
     }
@@ -602,6 +633,10 @@ static bool kookie_gpu_draw_test_internal(
     SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
     SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
     SDL_EndGPURenderPass(render_pass);
+    if (out_fence != NULL) {
+        *out_fence = SDL_SubmitGPUCommandBufferAndAcquireFence(command_buffer);
+        return *out_fence != NULL;
+    }
     return kookie_gpu_submit_and_wait_fence(device, command_buffer);
 }
 
@@ -612,7 +647,7 @@ bool kookie_gpu_draw_test(void) {
         return false;
     }
     return kookie_gpu_draw_test_internal(
-        window_slots[gpu_slot.window_slot].window, NULL);
+        window_slots[gpu_slot.window_slot].window, NULL, NULL);
 }
 
 bool kookie_gpu_draw_headless_test(void) {
@@ -633,10 +668,106 @@ bool kookie_gpu_draw_headless_test(void) {
     if (target == NULL) {
         return false;
     }
-    bool success = kookie_gpu_draw_test_internal(NULL, target);
+    bool success = kookie_gpu_draw_test_internal(NULL, target, NULL);
     SDL_ReleaseGPUTexture(gpu_slot.device, target);
     return success;
 }
+int kookie_gpu_measure_headless_overlap(int frames, int slots) {
+    if (frames <= 0 || frames > 8 || slots <= 0 || slots > 2 ||
+        gpu_slot.device == NULL || gpu_slot.window_slot != -1) {
+        return 0;
+    }
+    SDL_GPUTexture *targets[2] = {NULL, NULL};
+    SDL_GPUFence *fences[2] = {NULL, NULL};
+    SDL_GPUTextureCreateInfo target_info = {0};
+    target_info.type = SDL_GPU_TEXTURETYPE_2D;
+    target_info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    target_info.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+    target_info.width = 320;
+    target_info.height = 240;
+    target_info.layer_count_or_depth = 1;
+    target_info.num_levels = 1;
+    target_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
+    for (int slot = 0; slot < slots; slot += 1) {
+        targets[slot] = SDL_CreateGPUTexture(gpu_slot.device, &target_info);
+        if (targets[slot] == NULL) {
+            goto cleanup;
+        }
+    }
+
+    Uint64 start = SDL_GetPerformanceCounter();
+    int submitted = 0;
+    int retired = 0;
+    int peak_in_flight = 0;
+    bool success = true;
+    for (int frame = 0; frame < frames; frame += 1) {
+        int slot = frame % slots;
+        if (fences[slot] != NULL) {
+            if (!SDL_WaitForGPUIdle(gpu_slot.device)) {
+                success = false;
+                break;
+            }
+            SDL_ReleaseGPUFence(gpu_slot.device, fences[slot]);
+            fences[slot] = NULL;
+            retired += 1;
+        }
+        if (!kookie_gpu_draw_test_internal(NULL, targets[slot], &fences[slot])) {
+            success = false;
+            break;
+        }
+        submitted += 1;
+        int in_flight = submitted - retired;
+        if (in_flight > peak_in_flight) {
+            peak_in_flight = in_flight;
+        }
+    }
+    if (success && !SDL_WaitForGPUIdle(gpu_slot.device)) {
+        success = false;
+    }
+    for (int slot = 0; slot < slots; slot += 1) {
+        if (fences[slot] != NULL) {
+            SDL_ReleaseGPUFence(gpu_slot.device, fences[slot]);
+            fences[slot] = NULL;
+            retired += 1;
+        }
+    }
+    Uint64 elapsed = SDL_GetPerformanceCounter() - start;
+    Uint64 frequency = SDL_GetPerformanceFrequency();
+    int microseconds = 0;
+    if (frequency != 0) {
+        microseconds = (int)((elapsed * 1000000u) / frequency);
+        if (microseconds == 0) {
+            microseconds = 1;
+        }
+    }
+    fprintf(stderr,
+        "KOOKIE gpu-overlap-frames=%d slots=%d submitted=%d retired=%d peak-inflight=%d elapsed-us=%d\n",
+        frames, slots, submitted, retired, peak_in_flight, microseconds);
+    for (int slot = 0; slot < slots; slot += 1) {
+        if (targets[slot] != NULL) {
+            SDL_ReleaseGPUTexture(gpu_slot.device, targets[slot]);
+        }
+    }
+    if (!success || submitted != frames || retired != submitted) {
+        return 0;
+    }
+    return microseconds;
+
+cleanup:
+    if (gpu_slot.device != NULL) {
+        SDL_WaitForGPUIdle(gpu_slot.device);
+    }
+    for (int slot = 0; slot < slots; slot += 1) {
+        if (fences[slot] != NULL) {
+            SDL_ReleaseGPUFence(gpu_slot.device, fences[slot]);
+        }
+        if (targets[slot] != NULL) {
+            SDL_ReleaseGPUTexture(gpu_slot.device, targets[slot]);
+        }
+    }
+    return 0;
+}
+
 
 int kookie_gpu_measure_draw(int frames) {
     if (frames <= 0 || frames > 8 || gpu_slot.device == NULL) {
@@ -685,6 +816,9 @@ int kookie_gpu_measure_headless_draw(int frames) {
 bool kookie_gpu_headless_budget(int frames, int budget_microseconds) {
     int microseconds = kookie_gpu_measure_headless_draw(frames);
     if (microseconds <= 0 || budget_microseconds <= 0) {
+        return false;
+    }
+    if (kookie_gpu_measure_headless_overlap(4, 2) <= 0) {
         return false;
     }
     fprintf(stderr, "KOOKIE gpu-headless-draw-us=%d budget-us=%d\n",

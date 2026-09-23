@@ -211,6 +211,15 @@ test "authoritative loopback foundation" {
         broadPhasePayload.length == 15 &&
         loopback.acceptsBroadPhaseSnapshot(broadPhasePayload),
         "broad-phase transport payload must preserve bounded geometry")
+    assert(loopback.applyBroadPhaseSnapshot(broadPhasePayload) &&
+        loopback.clientBroadPhaseTriangleCount() == 1,
+        "client session must apply a valid broad-phase payload")
+    var clientQuery = loopback.queryClientBroadPhase(
+        broadPhaseRevision, 1, 1, 0, 1, 1, 10)
+    assert(clientQuery.accepted() && clientQuery.collided(),
+        "client broad-phase query must use applied geometry")
+    assert(!loopback.applyBroadPhaseSnapshot(broadPhasePayload),
+        "duplicate broad-phase payload sequence must reject")
     assert(loopback.applyQuerySnapshot(4, 3, broadPhaseRevision, 1, 6),
         "matching geometry revision must accept query snapshot")
     var staleQuery = loopback.queryBroadPhase(
@@ -225,6 +234,11 @@ test "authoritative loopback foundation" {
         loopback.broadPhaseRevision() > broadPhaseRevision &&
         loopback.broadPhaseTriangleCount() == 0,
         "broad-phase removal must advance the handoff revision")
+    var clearedBroadPhasePayload = loopback.broadPhaseSnapshot(4, 5)
+    assert(loopback.applyBroadPhaseSnapshot(clearedBroadPhasePayload) &&
+        loopback.clientBroadPhaseTriangleCount() == 0 &&
+        loopback.clientBroadPhaseRevision() == loopback.broadPhaseRevision(),
+        "client session must apply broad-phase removal payload")
     assert(!loopback.acceptsBroadPhaseSnapshot(broadPhasePayload),
         "stale broad-phase transport payload must reject")
     assert(!loopback.applyQuerySnapshot(5, 4, broadPhaseRevision, 1, 6),
