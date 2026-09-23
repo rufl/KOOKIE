@@ -192,6 +192,8 @@ test "authoritative remote session handoff" {
     assert(!session.queueRemoteBroadPhaseSnapshot(1, 1))
     var snapshot = session.broadPhaseSnapshot(2, 2)
     assert(session.queueRemoteBroadPhaseSnapshot(2, 2))
+    assert(session.pumpRemoteBroadPhaseSnapshot(3))
+    assert(session.remoteSendSequence() == 3)
     assert(session.applyRemoteBroadPhaseSnapshot(snapshot))
     assert(!session.applyRemoteBroadPhaseSnapshot(snapshot))
     assert(session.closeRemoteSession())

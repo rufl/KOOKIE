@@ -54,16 +54,46 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, Int frames): Bool
+Bool transportSnapshot(
+    LoopbackSession session, Int[] payload
+) {
+    var sent = kookie_transport_send_begin(payload.length)
+    for (var index = 0; index < payload.length && sent; index = index + 1) {
+        sent = kookie_transport_send_word(index, payload[index])
+    }
+    sent = sent && kookie_transport_send_commit()
+    if (!sent) {
+        return false
+    }
+    var receivedCount = kookie_transport_receive()
+    if (receivedCount != payload.length ||
+        kookie_transport_last_status() != 1) {
+        return false
+    }
+    var expectedSum = 0
+    for (var index = 0; index < payload.length; index = index + 1) {
+        expectedSum = expectedSum + payload[index]
+    }
+    var headerMatches =
+        kookie_transport_receive_word(0) == payload[0] &&
+        kookie_transport_receive_word(1) == payload[1] &&
+        kookie_transport_receive_word(2) == payload[2] &&
+        kookie_transport_receive_word(3) == payload[3] &&
+        kookie_transport_receive_word(4) == payload[4] &&
+        kookie_transport_receive_word(5) == payload[5]
+    return headerMatches &&
+        kookie_transport_receive_sum() == expectedSum &&
+        session.applyRemoteBroadPhaseSnapshot(payload)
+}
+
 Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
-    var payload = session.broadPhaseSnapshot(6, 7)
     var endpoint = RemoteSessionEndpoint(
         127, 0, 0, 1, 1, 1, 2, 3, 4)
-    if (!validBroadPhaseSnapshot(payload) ||
-        !endpoint.valid() ||
+    if (!endpoint.valid() ||
         kookie_transport_open_pair() ||
         !kookie_transport_set_key_from_environment() ||
         kookie_transport_open_remote_ipv4(127, 0, 0, 1, 0) ||
-        !kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1) ||
+        kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1) ||
         !kookie_transport_close() ||
         !kookie_transport_set_key_from_environment() ||
         !kookie_transport_open_pair() ||
@@ -96,44 +126,18 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         kookie_transport_close()
         return false
     }
-    if (!session.queueRemoteBroadPhaseSnapshot(6, 7)) {
-        session.closeRemoteSession()
-        kookie_transport_close()
-        return false
+    var loopSucceeded = true
+    for (var tick = 6; tick <= 8 && loopSucceeded; tick = tick + 1) {
+        loopSucceeded = session.pumpRemoteBroadPhaseSnapshot(tick)
+        if (loopSucceeded) {
+            var payload = session.broadPhaseSnapshot(
+                tick, session.remoteSendSequence())
+            loopSucceeded = transportSnapshot(session, payload)
+        }
     }
-    var sent = kookie_transport_send_begin(payload.length)
-    for (var index = 0; index < payload.length && sent; index = index + 1) {
-        sent = kookie_transport_send_word(index, payload[index])
-    }
-    sent = sent && kookie_transport_send_commit()
-    if (!sent) {
-        kookie_transport_close()
-        return false
-    }
-    var receivedCount = kookie_transport_receive()
-    if (receivedCount != payload.length ||
-        kookie_transport_last_status() != 1) {
-        kookie_transport_close()
-        return false
-    }
-    var expectedSum = 0
-    for (var index = 0; index < payload.length; index = index + 1) {
-        expectedSum = expectedSum + payload[index]
-    }
-    var headerMatches =
-        kookie_transport_receive_word(0) == payload[0] &&
-        kookie_transport_receive_word(1) == payload[1] &&
-        kookie_transport_receive_word(2) == payload[2] &&
-        kookie_transport_receive_word(3) == payload[3] &&
-        kookie_transport_receive_word(4) == payload[4] &&
-        kookie_transport_receive_word(5) == payload[5]
-    var accepted = session.applyRemoteBroadPhaseSnapshot(payload)
-    var applied = headerMatches &&
-        kookie_transport_receive_sum() == expectedSum &&
-        accepted
     var disconnected = session.closeRemoteSession()
     var closed = kookie_transport_close()
-    return applied && disconnected && closed &&
+    return loopSucceeded && disconnected && closed &&
         session.clientBroadPhaseTriangleCount() == 1
 }
 

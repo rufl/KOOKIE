@@ -38,7 +38,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - O smoke isolado de sobreposição GPU submete quatro frames em dois slots de destino, aposenta todas as fences e reporta a profundidade máxima em voo.
 - O smoke de recuperação GPU headless destrói e recria o dispositivo, reconstrói recursos em cache e conclui um draw após a recuperação.
 - O transporte nativo UDP de peer envia e recebe frames broad-phase inteiros autenticados entre sockets de datagrama pareados no localhost; o provisionamento explícito de uma chave SipHash não nula é obrigatório antes da abertura, `kookie_transport_set_key_from_environment` aceita a fronteira `KOOKIE_TRANSPORT_KEY_HEX` com 32 caracteres hexadecimais, `kookie_transport_open_remote_ipv4` liga atomicamente um socket local a peer/porta IPv4 validados, e o framing cobre versão do protocolo, tamanho, sequência e palavras com sinal, com timeout fixo de recebimento de 1.000 ms e limites de pacote.
-- `LoopbackSession` agora possui a configuração autoritativa do endpoint remoto, ativação, bloqueio de envio de snapshots, validação monotônica de recebimento e desconexão; a sonda nativa exercita essa passagem de autoridade da sessão.
+- `LoopbackSession` agora possui a configuração autoritativa do endpoint remoto, ativação, bloqueio de envio de snapshots, validação monotônica de recebimento e desconexão; a sonda nativa conduz três ticks broad-phase autenticados por essa passagem autoritativa da sessão.
 - O estado de recuperação GPU expõe unavailable/ready/lost/failed e um bitmask de capacidades sensível ao estado: ready suporta reopen limpo e eventos de reset/perda, enquanto lost retém apenas reopen; rejeita recuperação sem dispositivo headless ativo e reconstrói recursos após a recuperação.
 - Eventos SDL de reset/perda do dispositivo de renderização agora passam pelo event pump, aposentam recursos GPU em cache com segurança nos caminhos de reset ou perda e conduzem a recuperação headless sem o antigo marcador explícito de perda; a sonda nativa exercita rebuild após reset e recuperação após perda.
 - A sonda de capacidade de apresentação GPU informa formato de swapchain e modos suportados quando um dispositivo de janela é reivindicado; Xvfb ainda não consegue reivindicar o caminho de apresentação.
@@ -47,7 +47,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 
 1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
 2. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; o gate atual continua observado e passando.
-3. Ligar a passagem autoritativa da sessão remota a um loop real de rede e adicionar armazenamento/rotação de segredos de produção; o endpoint de transporte e a troca com peer externo já estão cobertos.
+3. Adicionar armazenamento e rotação de segredos de produção; o provisionamento de chaves de transporte, a validação do endpoint e a troca com peer externo já estão cobertos.
 4. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
