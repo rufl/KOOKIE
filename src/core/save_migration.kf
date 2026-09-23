@@ -1,0 +1,43 @@
+package core
+
+class BoundedSaveMigrationGate {
+    Int currentSectionVersion
+
+    public constructor() {
+        currentSectionVersion = 1
+    }
+
+    Bool importLegacy(BoundedSaveState source, BoundedSaveSections target) {
+        return target.captureLegacy(source)
+    }
+
+    Bool exportLegacy(BoundedSaveSections source, BoundedSaveState target) {
+        if (!accepts(source) || source.revision() < 0 ||
+            source.sectionCount() != 1 || source.sectionId(0) != 1 ||
+            source.sectionVersion(0) != currentSectionVersion) {
+            return false
+        }
+        var payload = new Int[source.sectionLength(0)]
+        for (var index = 0; index < payload.length; index = index + 1) {
+            payload[index] = source.sectionValue(0, index)
+        }
+        return target.stage(1, source.revision(), payload)
+    }
+
+    Bool accepts(BoundedSaveSections source) {
+        if (source.revision() < 0) {
+            return false
+        }
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (source.sectionId(index) != 1 ||
+                source.sectionVersion(index) != currentSectionVersion) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool acceptsSection(Int sectionId, Int schemaVersion) {
+        return sectionId == 1 && schemaVersion == currentSectionVersion
+    }
+}

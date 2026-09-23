@@ -1,0 +1,134 @@
+package core
+
+class BoundedSaveSchemaWireCodec {
+    Int[] words
+    Int sectionCapacity
+    Int payloadCapacity
+    Int wordCount
+    Int magic
+    BoundedSaveMigrationGate gate
+
+    public constructor(Int nextSectionCapacity, Int nextPayloadCapacity) {
+        var actualSections = nextSectionCapacity
+        if (actualSections <= 0) {
+            actualSections = 1
+        }
+        if (actualSections > 8) {
+            actualSections = 8
+        }
+        var actualPayload = nextPayloadCapacity
+        if (actualPayload <= 0) {
+            actualPayload = 1
+        }
+        if (actualPayload > 16) {
+            actualPayload = 16
+        }
+        sectionCapacity = actualSections
+        payloadCapacity = actualPayload
+        words = new Int[4 + actualSections * (3 + actualPayload)]
+        wordCount = 0
+        magic = 99112233
+        gate = BoundedSaveMigrationGate()
+    }
+
+    Bool encode(BoundedSaveSections sections) {
+        if (sections.revision() < 0 ||
+            sections.sectionCount() > sectionCapacity) {
+            wordCount = 0
+            return false
+        }
+        var offset = 4
+        words[0] = magic
+        words[1] = 1
+        words[2] = sections.revision()
+        words[3] = sections.sectionCount()
+        for (var index = 0; index < sections.sectionCount(); index = index + 1) {
+            var length = sections.sectionLength(index)
+            if (!gate.acceptsSection(sections.sectionId(index), sections.sectionVersion(index)) ||
+                length > payloadCapacity) {
+                wordCount = 0
+                return false
+            }
+            words[offset] = sections.sectionId(index)
+            words[offset + 1] = sections.sectionVersion(index)
+            words[offset + 2] = length
+            for (var valueIndex = 0; valueIndex < length; valueIndex = valueIndex + 1) {
+                words[offset + 3 + valueIndex] = sections.sectionValue(index, valueIndex)
+            }
+            offset = offset + 3 + length
+        }
+        wordCount = offset
+        return true
+    }
+
+    Int encodedLength() {
+        return wordCount
+    }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCount) {
+            return -1
+        }
+        return words[index]
+    }
+
+    Bool decode(Int[] wire, BoundedSaveSections target) {
+        if (wire.length < 4 || wire.length > words.length ||
+            wire[0] != magic || wire[1] != 1 || wire[2] < 0 ||
+            wire[2] > 1000000 || wire[3] < 0 ||
+            wire[3] > sectionCapacity) {
+            return false
+        }
+        var offset = 4
+        var seenIds = new Int[sectionCapacity]
+        for (var index = 0; index < wire[3]; index = index + 1) {
+            if (offset + 3 > wire.length ||
+                !gate.acceptsSection(wire[offset], wire[offset + 1]) ||
+                wire[offset + 2] < 0 || wire[offset + 2] > payloadCapacity) {
+                return false
+            }
+            for (var seen = 0; seen < index; seen = seen + 1) {
+                if (seenIds[seen] == wire[offset]) {
+                    return false
+                }
+            }
+            seenIds[index] = wire[offset]
+            var length = wire[offset + 2]
+            if (offset + 3 + length > wire.length) {
+                return false
+            }
+            for (var valueIndex = 0; valueIndex < length; valueIndex = valueIndex + 1) {
+                var value = wire[offset + 3 + valueIndex]
+                if (value < 0 || value > 1000000) {
+                    return false
+                }
+            }
+            offset = offset + 3 + length
+        }
+        if (offset != wire.length) {
+            return false
+        }
+        target.clear()
+        if (!target.setRevision(wire[2])) {
+            return false
+        }
+        offset = 4
+        for (var index = 0; index < wire[3]; index = index + 1) {
+            var length = wire[offset + 2]
+            var payload = new Int[length]
+            for (var valueIndex = 0; valueIndex < length; valueIndex = valueIndex + 1) {
+                payload[valueIndex] = wire[offset + 3 + valueIndex]
+            }
+            if (!target.put(wire[offset], wire[offset + 1], payload)) {
+                target.clear()
+                return false
+            }
+            offset = offset + 3 + length
+        }
+        wordCount = wire.length
+        for (var index = 0; index < wordCount; index = index + 1) {
+            words[index] = wire[index]
+        }
+        return true
+    }
+}

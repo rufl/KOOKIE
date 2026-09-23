@@ -307,6 +307,45 @@ test "redundant save file recovery" {
         "redundant save must reject two corrupted copies")
 }
 
+test "bounded save schema migration" {
+    var source = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 303
+    payload[1] = 404
+    assert(source.stage(1, 12, payload))
+    var sections = BoundedSaveSections(4, 2)
+    var gate = BoundedSaveMigrationGate()
+    assert(gate.importLegacy(source, sections) &&
+        sections.revision() == 12 &&
+        sections.sectionCount() == 1 &&
+        sections.sectionId(0) == 1 &&
+        sections.sectionVersion(0) == 1 &&
+        sections.sectionValue(0, 1) == 404,
+        "migration gate must wrap legacy state as a versioned section")
+    var codec = BoundedSaveSchemaWireCodec(4, 2)
+    assert(codec.encode(sections) && codec.encodedLength() == 9)
+    var wire = new Int[codec.encodedLength()]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(4, 2)
+    var restored = BoundedSaveState(2, 1000)
+    assert(codec.decode(wire, decoded) &&
+        gate.exportLegacy(decoded, restored) &&
+        restored.revision() == 12 &&
+        restored.payloadValue(0) == 303 &&
+        restored.payloadValue(1) == 404,
+        "migration gate must restore the legacy state without loss")
+    wire[5] = 2
+    assert(!codec.decode(wire, decoded),
+        "schema codec must reject unsupported section versions")
+    var unsupported = BoundedSaveSections(4, 2)
+    assert(unsupported.setRevision(12) &&
+        unsupported.put(2, 1, payload) &&
+        !gate.exportLegacy(unsupported, restored),
+        "migration gate must reject unknown sections")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

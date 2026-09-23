@@ -1,0 +1,130 @@
+package core
+
+class BoundedSaveSections {
+    Int[] ids
+    Int[] versions
+    Int[] lengths
+    Int[] payloads
+    Int sectionCountValue
+    Int sectionCapacity
+    Int payloadCapacity
+    Int revisionValue
+
+    public constructor(Int nextSectionCapacity, Int nextPayloadCapacity) {
+        var actualSections = nextSectionCapacity
+        if (actualSections <= 0) {
+            actualSections = 1
+        }
+        if (actualSections > 8) {
+            actualSections = 8
+        }
+        var actualPayload = nextPayloadCapacity
+        if (actualPayload <= 0) {
+            actualPayload = 1
+        }
+        if (actualPayload > 16) {
+            actualPayload = 16
+        }
+        sectionCapacity = actualSections
+        payloadCapacity = actualPayload
+        ids = new Int[actualSections]
+        versions = new Int[actualSections]
+        lengths = new Int[actualSections]
+        payloads = new Int[actualSections * actualPayload]
+        sectionCountValue = 0
+        revisionValue = -1
+    }
+
+    Bool put(Int sectionId, Int schemaVersion, Int[] payload) {
+        if (sectionId <= 0 || schemaVersion <= 0 ||
+            payload.length > payloadCapacity ||
+            sectionCountValue >= sectionCapacity ||
+            find(sectionId) >= 0) {
+            return false
+        }
+        var slot = sectionCountValue
+        ids[slot] = sectionId
+        versions[slot] = schemaVersion
+        lengths[slot] = payload.length
+        for (var index = 0; index < payload.length; index = index + 1) {
+            if (payload[index] < 0 || payload[index] > 1000000) {
+                return false
+            }
+            payloads[slot * payloadCapacity + index] = payload[index]
+        }
+        sectionCountValue = sectionCountValue + 1
+        return true
+    }
+
+    Bool setRevision(Int revision) {
+        if (revision < 0 || revision > 1000000) {
+            return false
+        }
+        revisionValue = revision
+        return true
+    }
+
+    Bool captureLegacy(BoundedSaveState source) {
+        var envelope = source.envelope()
+        if (!envelope.accepted() || !clear() || !setRevision(envelope.revision())) {
+            return false
+        }
+        var payload = new Int[envelope.payloadLength()]
+        for (var index = 0; index < payload.length; index = index + 1) {
+            payload[index] = source.payloadValue(index)
+        }
+        return put(1, 1, payload)
+    }
+
+    Int sectionCount() {
+        return sectionCountValue
+    }
+
+    Int revision() {
+        return revisionValue
+    }
+
+    Int sectionId(Int index) {
+        if (index < 0 || index >= sectionCountValue) {
+            return -1
+        }
+        return ids[index]
+    }
+
+    Int sectionVersion(Int index) {
+        if (index < 0 || index >= sectionCountValue) {
+            return 0
+        }
+        return versions[index]
+    }
+
+    Int sectionLength(Int index) {
+        if (index < 0 || index >= sectionCountValue) {
+            return 0
+        }
+        return lengths[index]
+    }
+
+    Int sectionValue(Int sectionIndex, Int valueIndex) {
+        if (sectionIndex < 0 || sectionIndex >= sectionCountValue ||
+            valueIndex < 0 || valueIndex >= lengths[sectionIndex]) {
+            return 0
+        }
+        return payloads[sectionIndex * payloadCapacity + valueIndex]
+    }
+
+    Int find(Int sectionId) {
+        for (var index = 0; index < sectionCountValue; index = index + 1) {
+            if (ids[index] == sectionId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool clear() {
+        sectionCountValue = 0
+        revisionValue = -1
+        return true
+    }
+}
