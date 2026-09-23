@@ -15,7 +15,7 @@ class BoundedReplayFileStore {
         }
         codec = BoundedReplayWireCodec(actualCapacity)
         digitsPerWord = 6
-        bytes = new Int[(7 + actualCapacity * 10) * digitsPerWord]
+        bytes = new Int[(8 + actualCapacity * 11) * digitsPerWord]
     }
 
     Bool write(String path, InputReplayRecorder recorder,
