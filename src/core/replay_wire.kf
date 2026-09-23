@@ -3,6 +3,7 @@ package core
 class BoundedReplayWireCodec {
     Int[] words
     Int commandCapacity
+    Int checkpointCapacity
     Int wordCount
     Int magic
     Int engineVersionValue
@@ -18,11 +19,13 @@ class BoundedReplayWireCodec {
             actualCapacity = 64
         }
         commandCapacity = actualCapacity
-        words = new Int[6 + actualCapacity * 8]
+        checkpointCapacity = actualCapacity
+        words = new Int[7 + actualCapacity * 10]
         wordCount = 0
         magic = 22446688
         engineVersionValue = 0
         contentVersionValue = 0
+        seedValue = 0
     }
 
     Bool encode(InputReplayRecorder recorder, Int engineVersion, Int contentVersion, Int seed) {
@@ -41,24 +44,51 @@ class BoundedReplayWireCodec {
         words[5] = count
         for (var index = 0; index < count; index = index + 1) {
             var command = recorder.at(index)
-            var offset = 6 + index * 8
-            words[offset] = command.tick()
-            words[offset + 1] = command.sequence()
-            words[offset + 2] = command.moveX()
-            words[offset + 3] = command.moveY()
-            words[offset + 4] = command.lookX()
-            words[offset + 5] = command.lookY()
-            words[offset + 6] = command.fire()
-            words[offset + 7] = command.jump()
-            if (command.moveX() < -1000000 || command.moveX() > 1000000 ||
-                command.moveY() < -1000000 || command.moveY() > 1000000 ||
-                command.lookX() < -1000000 || command.lookX() > 1000000 ||
-                command.lookY() < -1000000 || command.lookY() > 1000000) {
+            if (!validCommand(command)) {
                 wordCount = 0
                 return false
             }
+            writeCommand(6 + index * 8, command)
         }
         wordCount = 6 + count * 8
+        engineVersionValue = engineVersion
+        contentVersionValue = contentVersion
+        seedValue = seed
+        return true
+    }
+
+    Bool encodeTimeline(BoundedReplayTimeline timeline,
+        Int engineVersion, Int contentVersion, Int seed) {
+        if (engineVersion < 0 || contentVersion < 0 ||
+            seed < -1000000 || seed > 1000000 ||
+            timeline.pending() > commandCapacity ||
+            timeline.checkpointCountValue() > checkpointCapacity) {
+            wordCount = 0
+            return false
+        }
+        var commandCount = timeline.pending()
+        var checkpointCount = timeline.checkpointCountValue()
+        words[0] = magic
+        words[1] = 2
+        words[2] = engineVersion
+        words[3] = contentVersion
+        words[4] = seed
+        words[5] = commandCount
+        words[6] = checkpointCount
+        for (var index = 0; index < commandCount; index = index + 1) {
+            var command = timeline.commandAt(index)
+            if (!validCommand(command)) {
+                wordCount = 0
+                return false
+            }
+            writeCommand(7 + index * 8, command)
+        }
+        var checkpointOffset = 7 + commandCount * 8
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            words[checkpointOffset + index * 2] = timeline.checkpointTick(index)
+            words[checkpointOffset + index * 2 + 1] = timeline.checkpointHash(index)
+        }
+        wordCount = checkpointOffset + checkpointCount * 2
         engineVersionValue = engineVersion
         contentVersionValue = contentVersion
         seedValue = seed
@@ -77,35 +107,13 @@ class BoundedReplayWireCodec {
     }
 
     Bool decode(Int[] wire, InputReplayRecorder target) {
-        if (wire.length < 6 || wire.length > words.length ||
-            wire[0] != magic || wire[1] != 1 ||
-            wire[2] < 0 || wire[3] < 0 ||
-            wire[4] < -1000000 || wire[4] > 1000000 ||
-            wire[5] < 0 || wire[5] > commandCapacity ||
+        if (!validHeader(wire, 1) ||
             wire.length != 6 + wire[5] * 8) {
             return false
         }
         var count = wire[5]
-        var previousTick = -1
-        var previousSequence = -1
-        for (var index = 0; index < count; index = index + 1) {
-            var offset = 6 + index * 8
-            var tick = wire[offset]
-            var sequence = wire[offset + 1]
-            var fire = wire[offset + 6]
-            var jump = wire[offset + 7]
-            if (tick < 0 || sequence < 0 ||
-                wire[offset + 2] < -1000000 || wire[offset + 2] > 1000000 ||
-                wire[offset + 3] < -1000000 || wire[offset + 3] > 1000000 ||
-                wire[offset + 4] < -1000000 || wire[offset + 4] > 1000000 ||
-                wire[offset + 5] < -1000000 || wire[offset + 5] > 1000000 ||
-                (index > 0 && tick < previousTick) ||
-                sequence <= previousSequence ||
-                fire < 0 || fire > 1 || jump < 0 || jump > 1) {
-                return false
-            }
-            previousTick = tick
-            previousSequence = sequence
+        if (!validCommands(wire, 6, count)) {
+            return false
         }
         target.reset()
         for (var index = 0; index < count; index = index + 1) {
@@ -117,6 +125,103 @@ class BoundedReplayWireCodec {
                 return false
             }
         }
+        acceptDecoded(wire)
+        return true
+    }
+
+    Bool decodeTimeline(Int[] wire, BoundedReplayTimeline target) {
+        if (!validHeader(wire, 2) ||
+            wire[6] < 0 || wire[6] > checkpointCapacity ||
+            wire.length != 7 + wire[5] * 8 + wire[6] * 2) {
+            return false
+        }
+        var commandCount = wire[5]
+        var checkpointCount = wire[6]
+        if (!validCommands(wire, 7, commandCount)) {
+            return false
+        }
+        var checkpointOffset = 7 + commandCount * 8
+        var previousTick = -1
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var tick = wire[checkpointOffset + index * 2]
+            var hash = wire[checkpointOffset + index * 2 + 1]
+            if (tick < 0 || hash < -1000000 || hash > 1000000 ||
+                (index > 0 && tick <= previousTick)) {
+                return false
+            }
+            previousTick = tick
+        }
+        target.reset()
+        for (var index = 0; index < commandCount; index = index + 1) {
+            var offset = 7 + index * 8
+            if (!target.append(InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                target.reset()
+                return false
+            }
+        }
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var offset = checkpointOffset + index * 2
+            if (!target.appendCheckpoint(wire[offset], wire[offset + 1])) {
+                target.reset()
+                return false
+            }
+        }
+        acceptDecoded(wire)
+        return true
+    }
+
+    Bool validHeader(Int[] wire, Int expectedVersion) {
+        return wire.length >= 6 && wire.length <= words.length &&
+            wire[0] == magic && wire[1] == expectedVersion &&
+            wire[2] >= 0 && wire[3] >= 0 &&
+            wire[4] >= -1000000 && wire[4] <= 1000000 &&
+            wire[5] >= 0 && wire[5] <= commandCapacity
+    }
+
+    Bool validCommand(InputCommand command) {
+        return command.tick() >= 0 && command.sequence() >= 0 &&
+            command.moveX() >= -1000000 && command.moveX() <= 1000000 &&
+            command.moveY() >= -1000000 && command.moveY() <= 1000000 &&
+            command.lookX() >= -1000000 && command.lookX() <= 1000000 &&
+            command.lookY() >= -1000000 && command.lookY() <= 1000000 &&
+            command.fire() >= 0 && command.fire() <= 1 &&
+            command.jump() >= 0 && command.jump() <= 1
+    }
+
+    Bool validCommands(Int[] wire, Int start, Int count) {
+        var previousTick = -1
+        var previousSequence = -1
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = start + index * 8
+            var command = InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7])
+            if (!validCommand(command) ||
+                (index > 0 && command.tick() < previousTick) ||
+                command.sequence() <= previousSequence) {
+                return false
+            }
+            previousTick = command.tick()
+            previousSequence = command.sequence()
+        }
+        return true
+    }
+
+    Bool writeCommand(Int offset, InputCommand command) {
+        words[offset] = command.tick()
+        words[offset + 1] = command.sequence()
+        words[offset + 2] = command.moveX()
+        words[offset + 3] = command.moveY()
+        words[offset + 4] = command.lookX()
+        words[offset + 5] = command.lookY()
+        words[offset + 6] = command.fire()
+        words[offset + 7] = command.jump()
+        return true
+    }
+
+    Bool acceptDecoded(Int[] wire) {
         engineVersionValue = wire[2]
         contentVersionValue = wire[3]
         seedValue = wire[4]

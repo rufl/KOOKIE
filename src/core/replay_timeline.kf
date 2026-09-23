@@ -1,0 +1,92 @@
+package core
+
+class BoundedReplayTimeline {
+    InputReplayRecorder commands
+    Int[] checkpointTicks
+    Int[] checkpointHashes
+    Int checkpointCount
+
+    public constructor(Int commandCapacity, Int checkpointCapacity) {
+        var actualCommands = commandCapacity
+        if (actualCommands <= 0) {
+            actualCommands = 1
+        }
+        if (actualCommands > 64) {
+            actualCommands = 64
+        }
+        var actualCheckpoints = checkpointCapacity
+        if (actualCheckpoints <= 0) {
+            actualCheckpoints = 1
+        }
+        if (actualCheckpoints > 64) {
+            actualCheckpoints = 64
+        }
+        commands = InputReplayRecorder(actualCommands)
+        checkpointTicks = new Int[actualCheckpoints]
+        checkpointHashes = new Int[actualCheckpoints]
+        checkpointCount = 0
+    }
+
+    Bool append(InputCommand command) {
+        return commands.append(command)
+    }
+
+    Bool appendCheckpoint(Int tick, Int hash) {
+        if (tick < 0 || hash < -1000000 || hash > 1000000 ||
+            checkpointCount >= checkpointTicks.length ||
+            (checkpointCount > 0 &&
+                tick <= checkpointTicks[checkpointCount - 1])) {
+            return false
+        }
+        checkpointTicks[checkpointCount] = tick
+        checkpointHashes[checkpointCount] = hash
+        checkpointCount = checkpointCount + 1
+        return true
+    }
+
+    Int pending() {
+        return commands.pending()
+    }
+
+    InputCommand commandAt(Int index) {
+        return commands.at(index)
+    }
+
+    Int checkpointCountValue() {
+        return checkpointCount
+    }
+
+    Int checkpointTick(Int index) {
+        if (index < 0 || index >= checkpointCount) {
+            return -1
+        }
+        return checkpointTicks[index]
+    }
+
+    Int checkpointHash(Int index) {
+        if (index < 0 || index >= checkpointCount) {
+            return 0
+        }
+        return checkpointHashes[index]
+    }
+
+    Int checkpointIndexAtOrBefore(Int tick) {
+        if (tick < 0) {
+            return -1
+        }
+        var selected = -1
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            if (checkpointTicks[index] > tick) {
+                return selected
+            }
+            selected = index
+        }
+        return selected
+    }
+
+    Bool reset() {
+        commands.reset()
+        checkpointCount = 0
+        return true
+    }
+}

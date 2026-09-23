@@ -15,7 +15,7 @@ class BoundedReplayFileStore {
         }
         codec = BoundedReplayWireCodec(actualCapacity)
         digitsPerWord = 6
-        bytes = new Int[(6 + actualCapacity * 8) * digitsPerWord]
+        bytes = new Int[(7 + actualCapacity * 10) * digitsPerWord]
     }
 
     Bool write(String path, InputReplayRecorder recorder,
@@ -23,6 +23,18 @@ class BoundedReplayFileStore {
         if (!codec.encode(recorder, engineVersion, contentVersion, seed)) {
             return false
         }
+        return writeEncoded(path)
+    }
+
+    Bool writeTimeline(String path, BoundedReplayTimeline timeline,
+        Int engineVersion, Int contentVersion, Int seed) {
+        if (!codec.encodeTimeline(timeline, engineVersion, contentVersion, seed)) {
+            return false
+        }
+        return writeEncoded(path)
+    }
+
+    Bool writeEncoded(String path) {
         var byteCount = codec.encodedLength() * digitsPerWord
         var output = new Int[byteCount]
         for (var wordIndex = 0; wordIndex < codec.encodedLength(); wordIndex = wordIndex + 1) {
@@ -42,12 +54,20 @@ class BoundedReplayFileStore {
     }
 
     Bool read(String path, InputReplayRecorder target) {
+        return codec.decode(readWords(path), target)
+    }
+
+    Bool readTimeline(String path, BoundedReplayTimeline target) {
+        return codec.decodeTimeline(readWords(path), target)
+    }
+
+    Int[] readWords(String path) {
         var file = File(path)
         var input = file.readRange(0, bytes.length)
         if (input.length < 6 * digitsPerWord ||
             input.length > bytes.length ||
             input.length % digitsPerWord != 0) {
-            return false
+            return new Int[0]
         }
         var words = new Int[input.length / digitsPerWord]
         for (var wordIndex = 0; wordIndex < words.length; wordIndex = wordIndex + 1) {
@@ -57,7 +77,7 @@ class BoundedReplayFileStore {
             for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
                 if (input[offset + digit] < 0 || input[offset + digit] >= 64 ||
                     (digit == digitsPerWord - 1 && input[offset + digit] != 0)) {
-                    return false
+                    return new Int[0]
                 }
                 encoded = encoded + input[offset + digit] * multiplier
                 if (digit < digitsPerWord - 1) {
@@ -70,7 +90,7 @@ class BoundedReplayFileStore {
                 words[wordIndex] = -(encoded / 2) - 1
             }
         }
-        return codec.decode(words, target)
+        return words
     }
 
     Int engineVersion() {
