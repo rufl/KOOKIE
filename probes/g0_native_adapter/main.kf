@@ -88,7 +88,6 @@ Bool transportSnapshot(
         kookie_transport_receive_sum() == expectedSum &&
         session.applyRemoteBroadPhaseSnapshot(payload)
 }
-
 Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     var endpoint = RemoteSessionEndpoint(
         127, 0, 0, 1, 1, 1, 2, 3, 4)
@@ -97,7 +96,7 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         (!kookie_transport_set_key_from_file() &&
             !kookie_transport_set_key_from_environment()) ||
         kookie_transport_open_remote_ipv4(127, 0, 0, 1, 0) ||
-        kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1) ||
+        !kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1) ||
         !kookie_transport_close() ||
         (!kookie_transport_rotate_key_from_file() &&
             !kookie_transport_set_key_from_environment()) ||

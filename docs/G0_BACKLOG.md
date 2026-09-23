@@ -42,9 +42,8 @@ This is the active bounded implementation sequence after the initial research an
 - `LoopbackSession` now owns remote endpoint configuration, activation, snapshot send gating, monotonic receive validation and disconnect; the native probe drives three authenticated broad-phase ticks through that authoritative session handoff.
 - GPU recovery state exposes unavailable/ready/lost/failed states and a state-aware capability bitmask: ready supports clean reopen plus reset/loss events, while lost retains reopen only; it rejects recovery without a live headless device and rebuilds resources after recovery.
 - SDL render-device reset/lost events now flow through the event pump, retire cached GPU resources safely for reset or lost-device paths, and drive headless recovery without the former explicit loss marker; the native probe exercises reset rebuild and loss recovery.
-- A capability-gated DRI3 window path now renders a swapchain frame and captures a non-empty screenshot checksum when a present-capable device is claimed; Xvfb still cannot claim the presentation path. This host exposes `/dev/dri/renderD128` and `/dev/dri/renderD129`; the authorized smoke was deferred because the isolated graphical lock remained busy for 60 seconds, so the screenshot runtime remains unexecuted here.
-- Kof 0.4.10-beta verification reran the native exception-lifetime reproducer after the compiler upgrade; the JVM/native behavior remains the recorded gate.
-- The DRI3 runtime boundary is recorded in both language trees: this host has render nodes but the authorized isolated run was blocked by the shared graphical lock, and the Xvfb-backed wrapper cannot provide presentation.
+- The authorized isolated native smoke now executes through the SDL adapter: authenticated session transport, headless GPU recovery and audio pass; window presentation logs `No DRI3 support detected`, so the capability-gated screenshot path remains unexecuted. This host exposes `/dev/dri/renderD128` and `/dev/dri/renderD129`, but the Xvfb-backed isolated display cannot provide DRI3.
+- The DRI3 runtime boundary is recorded in both language trees: the transport smoke is executable, while window presentation still requires an isolated present-capable host.
 
 ## Next batch
 
