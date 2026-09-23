@@ -540,13 +540,14 @@ int kookie_gpu_measure_headless_draw(int frames) {
     }
     return (int)microseconds;
 }
-bool kookie_gpu_measure_headless_draw_ok(int frames) {
+bool kookie_gpu_headless_budget(int frames, int budget_microseconds) {
     int microseconds = kookie_gpu_measure_headless_draw(frames);
-    if (microseconds <= 0) {
+    if (microseconds <= 0 || budget_microseconds <= 0) {
         return false;
     }
-    fprintf(stderr, "KOOKIE gpu-headless-draw-us=%d\n", microseconds);
-    return true;
+    fprintf(stderr, "KOOKIE gpu-headless-draw-us=%d budget-us=%d\n",
+        microseconds, budget_microseconds);
+    return microseconds <= budget_microseconds;
 }
 
 

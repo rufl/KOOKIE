@@ -48,6 +48,10 @@ class FixedStepClock {
         return rate
     }
 
+    Int frameBudgetMicros() {
+        return (1000000 + rate - 1) / rate
+    }
+
     Int tick() {
         return currentTick
     }

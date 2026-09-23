@@ -11,7 +11,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_draw(Int frames): I
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open_headless_ready(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_headless_test(): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_headless_draw_ok(Int frames): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_headless_budget(Int frames, Int budgetMicroseconds): Bool
 
 extern "./build/libkookie_sdl_adapter.so" kookie_drain_events(Int maxEvents): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
@@ -28,11 +28,14 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, In
 main() {
     println("KOOKIE G0 native SDL adapter probe")
     assert(kookie_sdl_init(48), "SDL video/audio adapter init must succeed")
+    var frameClock = FixedStepClock(60, 4)
+    assert(frameClock.frameBudgetMicros() == 16667,
+        "GPU smoke must use the declared 60 Hz frame budget")
 
     if (kookie_gpu_open_headless_ready()) {
         assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
-        assert(kookie_gpu_measure_headless_draw_ok(3),
-            "headless GPU draw timing must be positive")
+        assert(kookie_gpu_headless_budget(3, frameClock.frameBudgetMicros()),
+            "headless GPU draw timing must fit the declared frame budget")
         println("gpu-headless-open")
         assert(kookie_gpu_close_headless(), "headless GPU must close")
         assert(!kookie_gpu_close_headless(), "stale headless GPU token must reject")

@@ -27,21 +27,23 @@ This is the active bounded implementation sequence after the initial research an
 - Bounded integer 3D segment sweep queries through an axis-aligned volume, rejecting starting penetration and over-budget traversal.
 - Bounded integer triangle queries with degenerate-triangle rejection and previous-sample resolution.
 - Bounded capsule center movement with radius-expanded bounds and shared player/projectile/line-of-sight admission.
-- Isolated offscreen SDL_GPU device and SPIR-V draw accepted with render-node exposure; sample retirement timing was 2104 microseconds for three draws on `renderD129`.
+- Isolated offscreen SDL_GPU device and SPIR-V draw accepted with render-node exposure; the latest smoke measured 1638 microseconds for three draws against the declared 16,667-microsecond frame budget on `renderD129`.
+- Fixed-step clock exposes the declared 60 Hz frame budget to GPU acceptance checks.
+- Bounded triangle collections use a fixed-capacity deterministic binary BVH with nearest-hit selection and traversal diagnostics.
+- Bounded capsule movement now returns authoritative slide/step results and the shared spatial gate exposes the result.
 
 ## Next batch
 
 1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
-2. Compare offscreen GPU-idle timing against the declared 16,667-microsecond frame budget.
-3. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
-4. Extend integer triangle/segment queries toward bounded triangle collections and BVH traversal.
-5. Add authoritative capsule slide/step handling and query diagnostics before weapons.
+2. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
+3. Add an explicit bounded step-obstacle fixture and prove successful step traversal, not only slide fallback.
+4. Extend triangle collection maintenance with bounded removal/rebuild and stable geometry revisions.
+5. Build the textured mesh renderer beyond the first smoke draw, then measure the full frame staging budget.
 6. Record each new measured failure or acceptance boundary in both language trees.
 
 ## Deferred
 
-- Textured mesh renderer and shader pipeline beyond the first smoke draw.
-- Full 3D collision/BVH, weapons, enemies, content cooking, save schema and multiplayer transport.
+- Full physics, weapons, enemies, content cooking, save schema and multiplayer transport.
 - Production audio, image/text services, package compression and foreign physics/UI libraries.
 
 

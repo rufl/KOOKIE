@@ -226,6 +226,384 @@ class BoundedTriangleWorld {
     }
 }
 
+class BoundedTriangleCollection {
+    Int minX
+    Int minY
+    Int minZ
+    Int maxX
+    Int maxY
+    Int maxZ
+    Int maxDistance
+    Int maxTriangles
+    Int triangleCountValue
+    Int leafBase
+    Int nodeCount
+    Int[] ax
+    Int[] ay
+    Int[] az
+    Int[] bx
+    Int[] by
+    Int[] bz
+    Int[] cx
+    Int[] cy
+    Int[] cz
+    Bool[] active
+    Bool[] nodeActive
+    Int[] nodeMinX
+    Int[] nodeMinY
+    Int[] nodeMinZ
+    Int[] nodeMaxX
+    Int[] nodeMaxY
+    Int[] nodeMaxZ
+    Int[] traversalStack
+    BoundedTriangleWorld probe
+    Bool lastAcceptedValue
+    Int lastVisitedNodesValue
+    Int lastVisitedTrianglesValue
+    Int lastHitTriangleValue
+
+    public constructor(Int nextCapacity, Int nextMaxDistance) {
+        maxTriangles = nextCapacity
+        if (maxTriangles <= 0) {
+            maxTriangles = 1
+        }
+        maxDistance = nextMaxDistance
+        if (maxDistance <= 0) {
+            maxDistance = 1
+        }
+        minX = -1000000
+        minY = -1000000
+        minZ = -1000000
+        maxX = 1000000
+        maxY = 1000000
+        maxZ = 1000000
+        triangleCountValue = 0
+        leafBase = 1
+        while (leafBase < maxTriangles) {
+            leafBase = leafBase * 2
+        }
+        nodeCount = leafBase * 2
+        ax = new Int[maxTriangles]
+        ay = new Int[maxTriangles]
+        az = new Int[maxTriangles]
+        bx = new Int[maxTriangles]
+        by = new Int[maxTriangles]
+        bz = new Int[maxTriangles]
+        cx = new Int[maxTriangles]
+        cy = new Int[maxTriangles]
+        cz = new Int[maxTriangles]
+        active = new Bool[maxTriangles]
+        nodeActive = new Bool[nodeCount]
+        nodeMinX = new Int[nodeCount]
+        nodeMinY = new Int[nodeCount]
+        nodeMinZ = new Int[nodeCount]
+        nodeMaxX = new Int[nodeCount]
+        nodeMaxY = new Int[nodeCount]
+        nodeMaxZ = new Int[nodeCount]
+        traversalStack = new Int[nodeCount]
+        probe = BoundedTriangleWorld(maxDistance)
+        lastAcceptedValue = false
+        lastVisitedNodesValue = 0
+        lastVisitedTrianglesValue = 0
+        lastHitTriangleValue = -1
+        for (var index = 0; index < maxTriangles; index = index + 1) {
+            active[index] = false
+        }
+        rebuildBvh()
+    }
+
+    Bool configureBounds(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ
+    ) {
+        if (nextMinX > nextMaxX || nextMinY > nextMaxY || nextMinZ > nextMaxZ) {
+            return false
+        }
+        minX = nextMinX
+        minY = nextMinY
+        minZ = nextMinZ
+        maxX = nextMaxX
+        maxY = nextMaxY
+        maxZ = nextMaxZ
+        return true
+    }
+
+    Bool insideBounds(Int x, Int y, Int z) {
+        return x >= minX && x <= maxX &&
+            y >= minY && y <= maxY && z >= minZ && z <= maxZ
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Int minimum(Int first, Int second) {
+        if (first < second) {
+            return first
+        }
+        return second
+    }
+
+    Int maximum(Int first, Int second) {
+        if (first > second) {
+            return first
+        }
+        return second
+    }
+
+    Bool validTriangle(
+        Int nextAx, Int nextAy, Int nextAz,
+        Int nextBx, Int nextBy, Int nextBz,
+        Int nextCx, Int nextCy, Int nextCz
+    ) {
+        var abX = nextBx - nextAx
+        var abY = nextBy - nextAy
+        var abZ = nextBz - nextAz
+        var acX = nextCx - nextAx
+        var acY = nextCy - nextAy
+        var acZ = nextCz - nextAz
+        var normalX = abY * acZ - abZ * acY
+        var normalY = abZ * acX - abX * acZ
+        var normalZ = abX * acY - abY * acX
+        return (normalX != 0 || normalY != 0 || normalZ != 0) &&
+            insideBounds(nextAx, nextAy, nextAz) &&
+            insideBounds(nextBx, nextBy, nextBz) &&
+            insideBounds(nextCx, nextCy, nextCz)
+    }
+
+    Bool addTriangle(
+        Int nextAx, Int nextAy, Int nextAz,
+        Int nextBx, Int nextBy, Int nextBz,
+        Int nextCx, Int nextCy, Int nextCz
+    ) {
+        if (triangleCountValue >= maxTriangles ||
+            !validTriangle(
+                nextAx, nextAy, nextAz,
+                nextBx, nextBy, nextBz,
+                nextCx, nextCy, nextCz)) {
+            return false
+        }
+        var index = triangleCountValue
+        ax[index] = nextAx
+        ay[index] = nextAy
+        az[index] = nextAz
+        bx[index] = nextBx
+        by[index] = nextBy
+        bz[index] = nextBz
+        cx[index] = nextCx
+        cy[index] = nextCy
+        cz[index] = nextCz
+        active[index] = true
+        triangleCountValue = triangleCountValue + 1
+        rebuildBvh()
+        return true
+    }
+
+    void clearNode(Int node) {
+        nodeActive[node] = false
+        nodeMinX[node] = 1
+        nodeMinY[node] = 1
+        nodeMinZ[node] = 1
+        nodeMaxX[node] = 0
+        nodeMaxY[node] = 0
+        nodeMaxZ[node] = 0
+    }
+
+    void rebuildBvh() {
+        for (var leaf = 0; leaf < leafBase; leaf = leaf + 1) {
+            var node = leafBase + leaf
+            if (leaf < triangleCountValue && active[leaf]) {
+                nodeActive[node] = true
+                nodeMinX[node] = minimum(ax[leaf], minimum(bx[leaf], cx[leaf]))
+                nodeMinY[node] = minimum(ay[leaf], minimum(by[leaf], cy[leaf]))
+                nodeMinZ[node] = minimum(az[leaf], minimum(bz[leaf], cz[leaf]))
+                nodeMaxX[node] = maximum(ax[leaf], maximum(bx[leaf], cx[leaf]))
+                nodeMaxY[node] = maximum(ay[leaf], maximum(by[leaf], cy[leaf]))
+                nodeMaxZ[node] = maximum(az[leaf], maximum(bz[leaf], cz[leaf]))
+            } else {
+                clearNode(node)
+            }
+        }
+        for (var node = leafBase - 1; node > 0; node = node - 1) {
+            var left = node * 2
+            var right = left + 1
+            nodeActive[node] = nodeActive[left] || nodeActive[right]
+            if (nodeActive[node]) {
+                if (nodeActive[left] && nodeActive[right]) {
+                    nodeMinX[node] = minimum(nodeMinX[left], nodeMinX[right])
+                    nodeMinY[node] = minimum(nodeMinY[left], nodeMinY[right])
+                    nodeMinZ[node] = minimum(nodeMinZ[left], nodeMinZ[right])
+                    nodeMaxX[node] = maximum(nodeMaxX[left], nodeMaxX[right])
+                    nodeMaxY[node] = maximum(nodeMaxY[left], nodeMaxY[right])
+                    nodeMaxZ[node] = maximum(nodeMaxZ[left], nodeMaxZ[right])
+                } else if (nodeActive[left]) {
+                    nodeMinX[node] = nodeMinX[left]
+                    nodeMinY[node] = nodeMinY[left]
+                    nodeMinZ[node] = nodeMinZ[left]
+                    nodeMaxX[node] = nodeMaxX[left]
+                    nodeMaxY[node] = nodeMaxY[left]
+                    nodeMaxZ[node] = nodeMaxZ[left]
+                } else {
+                    nodeMinX[node] = nodeMinX[right]
+                    nodeMinY[node] = nodeMinY[right]
+                    nodeMinZ[node] = nodeMinZ[right]
+                    nodeMaxX[node] = nodeMaxX[right]
+                    nodeMaxY[node] = nodeMaxY[right]
+                    nodeMaxZ[node] = nodeMaxZ[right]
+                }
+            } else {
+                clearNode(node)
+            }
+        }
+    }
+
+    Bool segmentOverlapsBounds(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ,
+        Int boundMinX, Int boundMinY, Int boundMinZ,
+        Int boundMaxX, Int boundMaxY, Int boundMaxZ
+    ) {
+        var segmentMinX = minimum(startX, endX)
+        var segmentMinY = minimum(startY, endY)
+        var segmentMinZ = minimum(startZ, endZ)
+        var segmentMaxX = maximum(startX, endX)
+        var segmentMaxY = maximum(startY, endY)
+        var segmentMaxZ = maximum(startZ, endZ)
+        return segmentMaxX >= boundMinX && segmentMinX <= boundMaxX &&
+            segmentMaxY >= boundMinY && segmentMinY <= boundMaxY &&
+            segmentMaxZ >= boundMinZ && segmentMinZ <= boundMaxZ
+    }
+
+    SegmentCollisionResult rejected(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return SegmentCollisionResult(
+            false, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            startX, startY, startZ)
+    }
+
+    SegmentCollisionResult query(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        lastAcceptedValue = false
+        lastVisitedNodesValue = 0
+        lastVisitedTrianglesValue = 0
+        lastHitTriangleValue = -1
+        if (!insideBounds(startX, startY, startZ)) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        var deltaX = endX - startX
+        var deltaY = endY - startY
+        var deltaZ = endZ - startZ
+        var steps = absolute(deltaX)
+        if (absolute(deltaY) > steps) {
+            steps = absolute(deltaY)
+        }
+        if (absolute(deltaZ) > steps) {
+            steps = absolute(deltaZ)
+        }
+        if (steps > maxDistance) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        lastAcceptedValue = true
+        var best = SegmentCollisionResult(
+            true, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            endX, endY, endZ)
+        var found = false
+        var stackCount = 1
+        traversalStack[0] = 1
+        while (stackCount > 0) {
+            stackCount = stackCount - 1
+            var node = traversalStack[stackCount]
+            if (nodeActive[node] &&
+                segmentOverlapsBounds(
+                    startX, startY, startZ, endX, endY, endZ,
+                    nodeMinX[node], nodeMinY[node], nodeMinZ[node],
+                    nodeMaxX[node], nodeMaxY[node], nodeMaxZ[node])) {
+                lastVisitedNodesValue = lastVisitedNodesValue + 1
+                if (node >= leafBase) {
+                    var index = node - leafBase
+                    if (index < triangleCountValue && active[index]) {
+                        lastVisitedTrianglesValue = lastVisitedTrianglesValue + 1
+                        probe.configureBounds(minX, minY, minZ, maxX, maxY, maxZ)
+                        probe.configureTriangle(
+                            ax[index], ay[index], az[index],
+                            bx[index], by[index], bz[index],
+                            cx[index], cy[index], cz[index])
+                        var result = probe.queryTriangle(
+                            startX, startY, startZ, endX, endY, endZ)
+                        if (result.collided() &&
+                            (!found || result.hitStep() < best.hitStep())) {
+                            best = result
+                            found = true
+                            lastHitTriangleValue = index
+                        }
+                    }
+                } else {
+                    var left = node * 2
+                    var right = left + 1
+                    if (nodeActive[right]) {
+                        traversalStack[stackCount] = right
+                        stackCount = stackCount + 1
+                    }
+                    if (nodeActive[left]) {
+                        traversalStack[stackCount] = left
+                        stackCount = stackCount + 1
+                    }
+                }
+            }
+        }
+        return best
+    }
+
+    Int triangleCount() {
+        return triangleCountValue
+    }
+
+    Bool lastQueryAccepted() {
+        return lastAcceptedValue
+    }
+
+    Int lastVisitedNodes() {
+        return lastVisitedNodesValue
+    }
+
+    Int lastVisitedTriangles() {
+        return lastVisitedTrianglesValue
+    }
+
+    Int lastHitTriangle() {
+        return lastHitTriangleValue
+    }
+}
+
+
+record CapsuleMovementResult(
+    Bool accepted,
+    Bool collided,
+    Bool stepped,
+    Int startX,
+    Int startY,
+    Int startZ,
+    Int endX,
+    Int endY,
+    Int endZ,
+    Int resolvedX,
+    Int resolvedY,
+    Int resolvedZ,
+    Int slideX,
+    Int slideY,
+    Int slideZ,
+    Int stepHeight
+)
+
 class BoundedCapsuleWorld {
     BoundedSegmentWorld centerWorld
     Int radius
@@ -269,6 +647,82 @@ class BoundedCapsuleWorld {
         return centerWorld.querySegment(startX, startY, startZ, endX, endY, endZ)
     }
 
+    CapsuleMovementResult rejectedMove(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ,
+        Int stepHeight
+    ) {
+        return CapsuleMovementResult(
+            false, false, false,
+            startX, startY, startZ, endX, endY, endZ,
+            startX, startY, startZ, 0, 0, 0, stepHeight)
+    }
+
+    CapsuleMovementResult moveCapsule(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ,
+        Int stepHeight
+    ) {
+        if (stepHeight < 0) {
+            return rejectedMove(startX, startY, startZ, endX, endY, endZ, stepHeight)
+        }
+        var direct = centerWorld.querySegment(
+            startX, startY, startZ, endX, endY, endZ)
+        if (!direct.accepted()) {
+            return rejectedMove(startX, startY, startZ, endX, endY, endZ, stepHeight)
+        }
+        if (!direct.collided()) {
+            return CapsuleMovementResult(
+                true, false, false,
+                startX, startY, startZ, endX, endY, endZ,
+                endX, endY, endZ, 0, 0, 0, 0)
+        }
+
+        var resolvedX = startX
+        var resolvedY = startY
+        var resolvedZ = startZ
+        var xSlide = centerWorld.querySegment(
+            startX, startY, startZ, endX, startY, startZ)
+        if (xSlide.accepted()) {
+            resolvedX = xSlide.resolvedX()
+        }
+        var ySlide = centerWorld.querySegment(
+            resolvedX, startY, startZ, resolvedX, endY, startZ)
+        if (ySlide.accepted()) {
+            resolvedY = ySlide.resolvedY()
+        }
+        var zSlide = centerWorld.querySegment(
+            resolvedX, resolvedY, startZ, resolvedX, resolvedY, endZ)
+        if (zSlide.accepted()) {
+            resolvedZ = zSlide.resolvedZ()
+        }
+
+        if (stepHeight > 0) {
+            var raisedStartY = startY + stepHeight
+            var raisedEndY = endY + stepHeight
+            var rise = centerWorld.querySegment(
+                startX, startY, startZ, startX, raisedStartY, startZ)
+            var raisedTravel = centerWorld.querySegment(
+                startX, raisedStartY, startZ,
+                endX, raisedEndY, endZ)
+            var fall = centerWorld.querySegment(
+                endX, raisedEndY, endZ, endX, endY, endZ)
+            if (rise.accepted() && raisedTravel.accepted() &&
+                fall.accepted() && !raisedTravel.collided() && !fall.collided()) {
+                return CapsuleMovementResult(
+                    true, true, true,
+                    startX, startY, startZ, endX, endY, endZ,
+                    endX, endY, endZ,
+                    endX - startX, endY - startY, endZ - startZ, stepHeight)
+            }
+        }
+        return CapsuleMovementResult(
+            true, true, false,
+            startX, startY, startZ, endX, endY, endZ,
+            resolvedX, resolvedY, resolvedZ,
+            resolvedX - startX, resolvedY - startY, resolvedZ - startZ, 0)
+    }
+
     Int capsuleRadius() {
         return radius
     }
@@ -294,6 +748,15 @@ class SpatialQueryGate {
         Int endX, Int endY, Int endZ
     ) {
         return capsuleWorld.queryCapsule(startX, startY, startZ, endX, endY, endZ)
+    }
+
+    CapsuleMovementResult admitPlayerMoveWithStep(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ,
+        Int stepHeight
+    ) {
+        return capsuleWorld.moveCapsule(
+            startX, startY, startZ, endX, endY, endZ, stepHeight)
     }
 
     SegmentCollisionResult admitProjectile(

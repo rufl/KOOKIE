@@ -27,21 +27,23 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Consultas limitadas de sweep de segmento 3D inteiro em volume alinhado aos eixos, rejeitando penetração inicial e traversal acima do orçamento.
 - Consultas limitadas de triângulo inteiro com rejeição de triângulo degenerado e resolução na amostra anterior.
 - Movimento limitado do centro de cápsula com limites expandidos pelo raio e admissão compartilhada de jogador/projétil/linha de visão.
-- Dispositivo SDL_GPU offscreen isolado e draw SPIR-V aceitos com exposição do render node; a amostra mediu 2104 microssegundos de retirement para três draws em `renderD129`.
+- Dispositivo SDL_GPU offscreen isolado e draw SPIR-V aceitos com exposição do render node; o smoke mais recente mediu 1638 microssegundos para três draws contra o orçamento declarado de 16.667 microssegundos em `renderD129`.
+- O relógio fixed-step expõe o orçamento declarado de frame a 60 Hz para as verificações de aceitação da GPU.
+- Coleções limitadas de triângulos usam um BVH binário determinístico de capacidade fixa com seleção do hit mais próximo e diagnósticos de traversal.
+- O movimento limitado de cápsula agora retorna resultados autoritativos de slide/step e o gate espacial compartilhado expõe esse resultado.
 
 ## Próximo lote
 
 1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
-2. Comparar o timing de GPU ociosa offscreen com o orçamento de frame declarado de 16.667 microssegundos.
-3. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
-4. Estender as consultas inteiras de triângulo/segmento para coleções limitadas de triângulos e traversal BVH.
-5. Adicionar slide/step autoritativo de cápsula e diagnósticos de consulta antes das armas.
+2. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
+3. Adicionar um fixture limitado explícito de obstáculo de step e provar traversal de step bem-sucedido, não apenas fallback de slide.
+4. Estender a manutenção da coleção de triângulos com remoção/rebuild limitado e revisões estáveis de geometria.
+5. Construir o renderer de mesh texturizado além do primeiro draw de smoke e então medir o orçamento completo de staging do frame.
 6. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
 
-- Renderer de malha texturizada e pipeline de shaders além do primeiro draw de smoke.
-- Colisão 3D/BVH completa, armas, inimigos, cooking de conteúdo, schema de saves e transporte multiplayer.
+- Física completa, armas, inimigos, cooking de conteúdo, schema de save e transporte multiplayer.
 - Áudio de produção, serviços de imagem/texto, compressão de pacotes e bibliotecas estrangeiras de física/UI.
 
 

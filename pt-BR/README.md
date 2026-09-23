@@ -88,9 +88,10 @@ Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
 A viabilidade nativa G0 está implementada. O smoke nativo do adaptador em
 display isolado agora aceita ciclo de vida da janela oculta, flattening de
-resize/focus, áudio dummy, teardown de tokens obsoletos, limpeza de processos
-e um dispositivo SDL_GPU offscreen com submissão de draw SPIR-V e timing de
-GPU ociosa; a amostra mediu 2104 microssegundos para três draws em
+resize/focus, áudio dummy, teardown de tokens obsoletos, limpeza de processos,
+um dispositivo SDL_GPU offscreen com submissão de draw SPIR-V e timing de GPU
+ociosa dentro do orçamento declarado de frame de 16.667 microssegundos; a
+amostra mais recente mediu 1638 microssegundos para três draws em
 `renderD129`. A apresentação em janela ainda reporta `gpu-unavailable` porque
 o caminho Xvfb não oferece suporte de apresentação DRI3. G1 agora inclui
 autoridade fixed-step, comandos de input limitados e transições de borda,
@@ -99,12 +100,14 @@ validação de sequência de snapshots, movimento autoritativo limitado, clamp d
 câmera/input, storage limitado de componentes inteiros, histórico limitado de
 snapshots com interpolação, replay limitado de inputs de predição, consultas
 escalares de colisão, sweeps inteiros de segmento e triângulo 3D, movimento de
-cápsula expandido pelo raio e admissão compartilhada de
-jogador/projétil/linha de visão. Em seguida: adicionar apresentação isolada
-compatível com DRI3, comparar o timing de GPU ociosa com o orçamento de frame
-declarado de 16.667 microssegundos, estender as consultas espaciais para
-coleções/BVH limitados e adicionar slide/step de cápsula. Use o wrapper
-descartável de display isolado do repositório para verificação gráfica.
+cápsula expandido pelo raio, consultas determinísticas de coleções/BVH de
+triângulos limitadas com diagnósticos de traversal, resultados autoritativos de
+slide/step de cápsula e admissão compartilhada de jogador/projétil/linha de
+visão. Em seguida: adicionar apresentação isolada compatível com DRI3, provar
+traversal bem-sucedido de obstáculo de step limitado, estender a manutenção
+das coleções de triângulos e construir o renderer de mesh texturizado além do
+primeiro draw de smoke. Use o wrapper descartável de display isolado do
+repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

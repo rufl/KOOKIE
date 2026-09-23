@@ -57,6 +57,8 @@ main() {
     var clock = FixedStepClock(60, 4)
     assert(clock.advance(16667) == 1, "fixed-step clock must advance one tick")
     assert(clock.tick() == 1 && clock.pendingMicros() == 1, "fixed-step remainder must be retained")
+    assert(clock.frameBudgetMicros() == 16667,
+        "fixed-step frame budget must be declared")
     assert(clock.advance(-1) == -1, "negative elapsed time must reject")
 
     var component = IntComponentStore(2)
@@ -258,6 +260,48 @@ test "bounded triangle query" {
         "segment outside triangle must miss")
     assert(!triangle.configureTriangle(0, 0, 0, 1, 1, 1, 2, 2, 2),
         "degenerate triangle must reject")
+}
+
+test "bounded triangle collection and BVH diagnostics" {
+    var collection = BoundedTriangleCollection(4, 20)
+    assert(collection.configureBounds(0, 0, 0, 10, 10, 10),
+        "triangle collection bounds must configure")
+    assert(collection.addTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "first bounded triangle must insert")
+    assert(collection.addTriangle(6, 0, 5, 10, 0, 5, 6, 4, 5),
+        "second bounded triangle must insert")
+    assert(collection.addTriangle(0, 6, 8, 4, 6, 8, 0, 10, 8),
+        "third bounded triangle must insert")
+    assert(!collection.addTriangle(0, 0, 0, 1, 1, 1, 2, 2, 2),
+        "degenerate collection triangle must reject")
+    var hit = collection.query(8, 2, 0, 8, 2, 10)
+    assert(hit.accepted() && hit.collided() && hit.hitStep() == 5,
+        "BVH collection query must find the nearest triangle")
+    assert(collection.lastHitTriangle() == 1,
+        "BVH collection must report the hit triangle index")
+    assert(collection.lastVisitedNodes() > 0 && collection.lastVisitedTriangles() == 1,
+        "BVH diagnostics must report bounded traversal")
+    assert(!collection.query(0, 0, 0, 0, 0, 21).accepted(),
+        "BVH collection must reject over-budget traversal")
+    assert(!collection.lastQueryAccepted() && collection.lastHitTriangle() == -1,
+        "rejected BVH query diagnostics must reset")
+}
+
+test "capsule slide and step result" {
+    var capsule = BoundedCapsuleWorld(0, 0, 0, 10, 10, 10, 1, 20)
+    var slide = capsule.moveCapsule(2, 2, 2, 12, 2, 2, 1)
+    assert(slide.accepted() && slide.collided() && !slide.stepped(),
+        "capsule boundary movement must produce a slide")
+    assert(slide.resolvedX() == 9 && slide.slideX() == 7,
+        "capsule slide must stop at the radius-expanded boundary")
+    var clear = capsule.moveCapsule(2, 2, 2, 4, 2, 2, 1)
+    assert(clear.accepted() && !clear.collided() && !clear.stepped() &&
+        clear.resolvedX() == 4,
+        "clear capsule movement must preserve its endpoint")
+    var gate = SpatialQueryGate(0, 0, 0, 10, 10, 10, 1, 20)
+    var admitted = gate.admitPlayerMoveWithStep(2, 2, 2, 12, 2, 2, 1)
+    assert(admitted.accepted() && admitted.collided() && admitted.slideX() == 7,
+        "spatial gate must expose authoritative capsule slide")
 }
 
 test "shared capsule and spatial admission" {
