@@ -37,8 +37,8 @@ This is the active bounded implementation sequence after the initial research an
 - Spatial movement admission combines capsule bounds with broad-phase triangle queries and rejects stale geometry revisions.
 - Isolated GPU overlap smoke submits four frames across two target slots, retires all fences, and reports peak in-flight depth.
 - Headless GPU recovery smoke destroys and recreates the device, rebuilds cached resources, and completes a post-recovery draw.
-- Bounded native UDP loopback transport sends and receives authenticated integer broad-phase frames through a localhost datagram socket; SipHash framing covers protocol version, payload length, sequence and signed payload words, with a fixed 1,000 ms receive timeout and packet bounds.
-- GPU recovery state exposes unavailable/ready/lost/failed states, accepts an explicit loss marker, rejects recovery without a live headless device, and rebuilds resources after recovery.
+- Bounded native UDP peer transport sends and receives authenticated integer broad-phase frames across paired localhost datagram sockets; SipHash framing covers protocol version, payload length, sequence and signed payload words, with configurable test keys, a fixed 1,000 ms receive timeout, and packet bounds.
+- GPU recovery state exposes unavailable/ready/lost/failed states and a capability bitmask for clean reopen/loss-marker paths; it accepts an explicit loss marker, rejects recovery without a live headless device, and rebuilds resources after recovery.
 - GPU window presentation capability probing reports swapchain format and supported present modes when a window device is claimed; Xvfb still cannot claim the presentation path.
 
 ## Next batch

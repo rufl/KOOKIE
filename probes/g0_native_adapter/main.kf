@@ -19,6 +19,11 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_headless_budget(Int frames,
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_state(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_mark_headless_device_lost(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_pair(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_capabilities(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
+    Int key0Low, Int key0High, Int key1Low, Int key1High
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_begin(Int wordCount): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_word(Int index, Int word): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
@@ -43,7 +48,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, In
 Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     var payload = session.broadPhaseSnapshot(6, 7)
     if (!validBroadPhaseSnapshot(payload) ||
-        !kookie_transport_open() ||
+        !kookie_transport_set_key(1, 2, 3, 4) ||
+        !kookie_transport_open_pair() ||
         kookie_transport_timeout_milliseconds() != 1000) {
         kookie_transport_close()
         return false
@@ -100,6 +106,8 @@ main() {
     if (kookie_gpu_open_headless_ready()) {
         assert(kookie_gpu_recovery_state() == 1,
             "headless GPU must enter ready recovery state")
+        assert(kookie_gpu_recovery_capabilities() >= 3,
+            "headless GPU must report reopen and loss-marker capabilities")
         assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
         assert(kookie_gpu_headless_budget(3, frameClock.frameBudgetMicros()),
             "headless GPU draw timing must fit the declared 60 Hz frame budget")

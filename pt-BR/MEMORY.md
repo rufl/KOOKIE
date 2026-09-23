@@ -50,6 +50,8 @@ Criar um engine para boomer shooters / looter shooters / ARPG FPS usando **códi
 19. O transporte nativo UDP de loopback usa framing SipHash autenticado sobre um payload fixo de 78 palavras ligado ao localhost, com validação de protocolo/tamanho/sequência, preservação de inteiros com sinal e timeout de recebimento de 1.000 ms; endpoint remoto/gestão de chaves ainda não foram implementados.
 20. A recuperação GPU agora expõe transições unavailable/ready/lost/failed e rejeita recuperação sem dispositivo headless ativo; a notificação de perda é um marcador explícito da sonda, não um callback SDL de perda de dispositivo.
 21. Uma janela GPU reivindicada agora exige formato de swapchain válido pela sonda de capacidades de apresentação; o caminho Xvfb ainda não consegue reivindicar apresentação DRI3.
+22. O transporte nativo pode ligar sockets UDP pareados no localhost, configurar uma chave SipHash de teste antes da abertura e trocar frames autenticados entre endpoints distintos; gestão de peer remoto/chaves de produção ainda não foi implementada.
+23. O relatório de capacidades de recuperação GPU distingue reopen headless limpo e suporte ao marcador de perda; a SDL3 instalada não expõe callback de perda de dispositivo.
 
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
@@ -97,14 +99,16 @@ ordenados, operações de limpeza/reconfiguração, snapshots broad-phase
 transportados por fila de capacidade fixa com dequeue/apply no cliente e
 guardas de sequência, rejeição de consultas obsoletas e admissão de movimento
 espacial combinando colisões de cápsula e broad-phase. O adaptador também possui
-uma sonda UDP nativa de loopback com framing SipHash autenticado, validação de
+uma sonda UDP nativa de peer entre sockets localhost pareados, com framing
+SipHash autenticado, chaves de teste configuráveis, validação de
 sequência/tamanho, palavras com sinal e timeout de recebimento de 1.000 ms,
-estados explícitos de recuperação GPU com marcador de perda e rejeição após
-fechamento. Em seguida: adicionar apresentação isolada compatível com DRI3,
-integrar frames autenticados com endpoint de sessão remoto e gestão de chaves
-de produção, adicionar callbacks/retirement reais para perda do dispositivo e
-reexecutar o reproduzível de exceção nativa após upgrade do compilador. O
-defeito do handler de exceções nativas continua sendo um gate do compilador.
+além de estados explícitos de recuperação GPU e bitmask de capacidades para
+reopen limpo e marcador de perda. Em seguida: adicionar apresentação isolada
+compatível com DRI3, integrar frames autenticados com endpoint de sessão remoto
+e gestão de chaves de produção, adicionar callbacks/retirement reais para perda
+do dispositivo e reexecutar o reproduzível de exceção nativa após upgrade do
+compilador. O defeito do handler de exceções nativas continua sendo um gate do
+compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

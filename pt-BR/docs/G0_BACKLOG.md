@@ -37,8 +37,8 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - A admissão de movimento espacial combina limites de cápsula com consultas de triângulos broad-phase e rejeita revisões de geometria obsoletas.
 - O smoke isolado de sobreposição GPU submete quatro frames em dois slots de destino, aposenta todas as fences e reporta a profundidade máxima em voo.
 - O smoke de recuperação GPU headless destrói e recria o dispositivo, reconstrói recursos em cache e conclui um draw após a recuperação.
-- O transporte nativo UDP de loopback limitado envia e recebe frames broad-phase inteiros autenticados por um socket de datagrama local; o framing SipHash cobre versão do protocolo, tamanho, sequência e palavras com sinal, com timeout fixo de recebimento de 1.000 ms e limites de pacote.
-- O estado de recuperação GPU expõe unavailable/ready/lost/failed, aceita um marcador explícito de perda, rejeita recuperação sem dispositivo headless ativo e reconstrói recursos após a recuperação.
+- O transporte nativo UDP de peer envia e recebe frames broad-phase inteiros autenticados entre sockets de datagrama pareados no localhost; o framing SipHash cobre versão do protocolo, tamanho, sequência e palavras com sinal, com chaves de teste configuráveis, timeout fixo de recebimento de 1.000 ms e limites de pacote.
+- O estado de recuperação GPU expõe unavailable/ready/lost/failed e um bitmask de capacidades para caminhos de reopen limpo/marcador de perda; rejeita recuperação sem dispositivo headless ativo e reconstrói recursos após a recuperação.
 - A sonda de capacidade de apresentação GPU informa formato de swapchain e modos suportados quando um dispositivo de janela é reivindicado; Xvfb ainda não consegue reivindicar o caminho de apresentação.
 
 ## Próximo lote

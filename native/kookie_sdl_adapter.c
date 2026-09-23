@@ -17,6 +17,8 @@
 #define KOOKIE_TRANSPORT_VERSION 1U
 #define KOOKIE_TRANSPORT_HEADER_WORDS 6
 #define KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS 1000
+#define KOOKIE_TRANSPORT_DEFAULT_KEY0 UINT64_C(0x0706050403020100)
+#define KOOKIE_TRANSPORT_DEFAULT_KEY1 UINT64_C(0x0f0e0d0c0b0a0908)
 #define KOOKIE_GPU_RECOVERY_READY 1
 #define KOOKIE_GPU_RECOVERY_LOST 2
 #define KOOKIE_GPU_RECOVERY_FAILED 3
@@ -54,7 +56,10 @@ typedef struct {
 
 typedef struct {
     int socket_fd;
+    int receive_socket_fd;
     struct sockaddr_in peer;
+    uint64_t key0;
+    uint64_t key1;
     int send_count;
     uint32_t send_sequence;
     uint32_t send_words[KOOKIE_TRANSPORT_MAX_WORDS];
@@ -63,7 +68,12 @@ typedef struct {
     int last_status;
     int receive_words[KOOKIE_TRANSPORT_MAX_WORDS];
 } KookieTransport;
-static KookieTransport transport = {.socket_fd = -1};
+static KookieTransport transport = {
+    .socket_fd = -1,
+    .receive_socket_fd = -1,
+    .key0 = KOOKIE_TRANSPORT_DEFAULT_KEY0,
+    .key1 = KOOKIE_TRANSPORT_DEFAULT_KEY1
+};
 static int gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
 
 static KookieGpuResources gpu_resources;
@@ -183,8 +193,8 @@ static void kookie_sip_round(
 }
 
 static uint64_t kookie_transport_mac(const Uint8 *bytes, size_t length) {
-    const uint64_t key0 = UINT64_C(0x0706050403020100);
-    const uint64_t key1 = UINT64_C(0x0f0e0d0c0b0a0908);
+    const uint64_t key0 = transport.key0;
+    const uint64_t key1 = transport.key1;
     uint64_t v0 = UINT64_C(0x736f6d6570736575) ^ key0;
     uint64_t v1 = UINT64_C(0x646f72616e646f6d) ^ key1;
     uint64_t v2 = UINT64_C(0x6c7967656e657261) ^ key0;
@@ -213,29 +223,26 @@ static uint64_t kookie_transport_mac(const Uint8 *bytes, size_t length) {
     kookie_sip_round(&v0, &v1, &v2, &v3);
     return v0 ^ v1 ^ v2 ^ v3;
 }
-
-
-bool kookie_transport_open(void) {
-    if (transport.socket_fd >= 0) {
+static bool kookie_transport_bind_socket(
+    int *socket_fd,
+    struct sockaddr_in *address
+) {
+    int next_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (next_socket < 0) {
         return false;
     }
-    int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (socket_fd < 0) {
+    memset(address, 0, sizeof(*address));
+    address->sin_family = AF_INET;
+    address->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address->sin_port = htons(0);
+    if (bind(next_socket, (struct sockaddr *)address, sizeof(*address)) != 0) {
+        close(next_socket);
         return false;
     }
-    struct sockaddr_in address;
-    memset(&address, 0, sizeof(address));
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    address.sin_port = htons(0);
-    if (bind(socket_fd, (struct sockaddr *)&address, sizeof(address)) != 0) {
-        close(socket_fd);
-        return false;
-    }
-    struct sockaddr_in peer;
-    socklen_t peer_length = sizeof(peer);
-    if (getsockname(socket_fd, (struct sockaddr *)&peer, &peer_length) != 0) {
-        close(socket_fd);
+    socklen_t address_length = sizeof(*address);
+    if (getsockname(
+            next_socket, (struct sockaddr *)address, &address_length) != 0) {
+        close(next_socket);
         return false;
     }
     struct timeval receive_timeout = {
@@ -243,18 +250,83 @@ bool kookie_transport_open(void) {
         .tv_usec = (KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS % 1000) * 1000
     };
     if (setsockopt(
-            socket_fd, SOL_SOCKET, SO_RCVTIMEO,
+            next_socket, SOL_SOCKET, SO_RCVTIMEO,
             &receive_timeout, sizeof(receive_timeout)) != 0) {
-        close(socket_fd);
+        close(next_socket);
         return false;
     }
-    transport.socket_fd = socket_fd;
-    transport.peer = peer;
+    *socket_fd = next_socket;
+    return true;
+}
+
+static void kookie_transport_reset_counters(void) {
     transport.send_count = 0;
     transport.send_sequence = 0;
     transport.receive_count = 0;
     transport.receive_sequence = 0;
     transport.last_status = 0;
+}
+
+
+
+bool kookie_transport_set_key(
+    int key0_low, int key0_high, int key1_low, int key1_high
+) {
+    if (transport.socket_fd >= 0) {
+        return false;
+    }
+    uint64_t next_key0 =
+        (uint64_t)(uint32_t)key0_low |
+        ((uint64_t)(uint32_t)key0_high << 32);
+    uint64_t next_key1 =
+        (uint64_t)(uint32_t)key1_low |
+        ((uint64_t)(uint32_t)key1_high << 32);
+    if (next_key0 == 0 && next_key1 == 0) {
+        return false;
+    }
+    transport.key0 = next_key0;
+    transport.key1 = next_key1;
+    return true;
+}
+
+bool kookie_transport_open(void) {
+    if (transport.socket_fd >= 0) {
+        return false;
+    }
+    int socket_fd = -1;
+    struct sockaddr_in peer;
+    if (!kookie_transport_bind_socket(&socket_fd, &peer)) {
+        return false;
+    }
+    transport.socket_fd = socket_fd;
+    transport.receive_socket_fd = socket_fd;
+    transport.peer = peer;
+    kookie_transport_reset_counters();
+    return true;
+}
+
+bool kookie_transport_open_pair(void) {
+    if (transport.socket_fd >= 0) {
+        return false;
+    }
+    int socket_fd = -1;
+    int receive_socket_fd = -1;
+    struct sockaddr_in peer;
+    struct sockaddr_in receive_address;
+    if (!kookie_transport_bind_socket(&socket_fd, &peer) ||
+        !kookie_transport_bind_socket(&receive_socket_fd, &receive_address)) {
+        if (socket_fd >= 0) {
+            close(socket_fd);
+        }
+        if (receive_socket_fd >= 0) {
+            close(receive_socket_fd);
+        }
+        return false;
+    }
+    transport.socket_fd = socket_fd;
+    transport.receive_socket_fd = receive_socket_fd;
+    transport.peer = receive_address;
+    kookie_transport_reset_counters();
     return true;
 }
 
@@ -323,7 +395,7 @@ int kookie_transport_receive(void) {
     uint32_t wire[
         KOOKIE_TRANSPORT_HEADER_WORDS + KOOKIE_TRANSPORT_MAX_WORDS];
     ssize_t bytes = recvfrom(
-        transport.socket_fd,
+        transport.receive_socket_fd,
         wire,
         sizeof(wire),
         0,
@@ -410,8 +482,15 @@ bool kookie_transport_close(void) {
         return false;
     }
     close(transport.socket_fd);
+    if (transport.receive_socket_fd >= 0 &&
+        transport.receive_socket_fd != transport.socket_fd) {
+        close(transport.receive_socket_fd);
+    }
     memset(&transport, 0, sizeof(transport));
     transport.socket_fd = -1;
+    transport.receive_socket_fd = -1;
+    transport.key0 = KOOKIE_TRANSPORT_DEFAULT_KEY0;
+    transport.key1 = KOOKIE_TRANSPORT_DEFAULT_KEY1;
     return true;
 }
 
@@ -578,6 +657,13 @@ int kookie_gpu_open_headless(void) {
 
 int kookie_gpu_recovery_state(void) {
     return gpu_recovery_state;
+}
+int kookie_gpu_recovery_capabilities(void) {
+    int capabilities = 2;
+    if (gpu_slot.device != NULL && gpu_slot.window_slot == -1) {
+        capabilities |= 1;
+    }
+    return capabilities;
 }
 
 bool kookie_gpu_mark_headless_device_lost(void) {

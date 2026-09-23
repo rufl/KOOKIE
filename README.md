@@ -104,11 +104,13 @@ triangle collection/BVH queries with removal/rebuild and geometry revisions,
 eight-slot ordered capsule step obstacles with clear/reconfigure operations,
 frame staging budgets, authoritative-session broad-phase snapshots with bounded
 payload application and sequence guards, a fixed-capacity validated broad-phase
-transport queue with overflow rejection, a bounded native UDP loopback transport
-probe with authenticated SipHash framing, sequence/length validation, signed
-payload words, and a 1,000 ms receive timeout, explicit GPU recovery states
-with loss-marker recovery and closed-device rejection, stale query rejection,
-and spatial movement admission combining capsule and broad-phase collisions.
+transport queue with overflow rejection, a bounded native UDP peer transport
+probe across paired localhost sockets with authenticated SipHash framing,
+configurable test keys, sequence/length validation, signed payload words, and a
+1,000 ms receive timeout, explicit GPU recovery states plus capability
+reporting for clean reopen/loss-marker paths and closed-device rejection, stale
+query rejection, and spatial movement admission combining capsule and
+broad-phase collisions.
 Next: add a DRI3-capable isolated presentation path, integrate authenticated
 frames with a remote session endpoint and production key management, add actual
 SDL/device-loss callbacks/resource retirement, and rerun the native exception
