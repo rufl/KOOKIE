@@ -58,9 +58,9 @@ class BoundedSaveSchemaFileStore {
             return false
         }
         if (firstValid && (!secondValid || second.revision() <= first.revision())) {
-            return copySections(first, target)
+            return gate.migrate(first, target)
         }
-        return copySections(second, target)
+        return gate.migrate(second, target)
     }
 
     Bool readLegacy(String path, BoundedSaveState target) {
@@ -81,23 +81,6 @@ class BoundedSaveSchemaFileStore {
         return codec.decode(wire, target)
     }
 
-    Bool copySections(BoundedSaveSections source, BoundedSaveSections target) {
-        target.clear()
-        if (!target.setRevision(source.revision())) {
-            return false
-        }
-        for (var index = 0; index < source.sectionCount(); index = index + 1) {
-            var payload = new Int[source.sectionLength(index)]
-            for (var valueIndex = 0; valueIndex < payload.length; valueIndex = valueIndex + 1) {
-                payload[valueIndex] = source.sectionValue(index, valueIndex)
-            }
-            if (!target.put(source.sectionId(index), source.sectionVersion(index), payload)) {
-                target.clear()
-                return false
-            }
-        }
-        return true
-    }
 
     Bool writeWords(String path, Int[] words) {
         var output = new Int[words.length * digitsPerWord]

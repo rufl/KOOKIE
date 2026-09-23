@@ -375,6 +375,47 @@ test "schema save file persistence and recovery" {
         "schema file store must reject two corrupted copies")
 }
 
+test "multi-section save migration" {
+    var sections = BoundedSaveSections(4, 2)
+    var progression = new Int[2]
+    progression[0] = 303
+    progression[1] = 404
+    var world = new Int[2]
+    world[0] = 7
+    world[1] = 8
+    var rng = new Int[1]
+    rng[0] = 99
+    var gate = BoundedSaveMigrationGate()
+    assert(sections.setRevision(19) &&
+        sections.put(1, 1, progression) &&
+        sections.put(2, 1, world) &&
+        sections.put(3, 1, rng))
+    var codec = BoundedSaveSchemaWireCodec(4, 2)
+    assert(codec.encode(sections) && codec.encodedLength() == 18)
+    var wire = new Int[codec.encodedLength()]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(4, 2)
+    var migrated = BoundedSaveSections(4, 2)
+    assert(codec.decode(wire, decoded) &&
+        gate.migrate(decoded, migrated) &&
+        migrated.sectionCount() == 3 &&
+        migrated.revision() == 19 &&
+        migrated.sectionValue(1, 1) == 8 &&
+        migrated.sectionValue(2, 0) == 99,
+        "migration must preserve known progression, world and RNG sections")
+    var store = BoundedSaveSchemaFileStore(4, 2)
+    var path = "/tmp/kookie-save-multi-test.bin"
+    var loaded = BoundedSaveSections(4, 2)
+    assert(store.write(path, sections) &&
+        store.read(path, loaded) &&
+        loaded.sectionCount() == 3 &&
+        loaded.sectionId(2) == 3 &&
+        loaded.sectionValue(2, 0) == 99,
+        "schema file store must persist all known sections")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
