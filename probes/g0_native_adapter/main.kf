@@ -52,9 +52,14 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, In
 Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     var payload = session.broadPhaseSnapshot(6, 7)
     if (!validBroadPhaseSnapshot(payload) ||
+        kookie_transport_set_key(0, 0, 0, 0) ||
         !kookie_transport_set_key(1, 2, 3, 4) ||
         !kookie_transport_open_pair() ||
         kookie_transport_timeout_milliseconds() != 1000) {
+        kookie_transport_close()
+        return false
+    }
+    if (kookie_transport_set_key(9, 8, 7, 6)) {
         kookie_transport_close()
         return false
     }
@@ -127,6 +132,8 @@ main() {
             "headless GPU loss marker must enter recovery")
         assert(kookie_gpu_recovery_state() == 2,
             "headless GPU loss must expose lost recovery state")
+        assert(kookie_gpu_recovery_capabilities() == 1,
+            "lost headless GPU must retain reopen capability only")
         assert(kookie_gpu_recover_headless(), "headless GPU recovery must reopen")
         assert(kookie_gpu_recovery_state() == 1,
             "headless GPU recovery must return to ready state")
@@ -137,10 +144,14 @@ main() {
         assert(kookie_gpu_close_headless(), "headless GPU must close")
         assert(kookie_gpu_recovery_state() == 0,
             "closed headless GPU must clear recovery state")
+        assert(kookie_gpu_recovery_capabilities() == 0,
+            "closed headless GPU must clear recovery capabilities")
         assert(!kookie_gpu_close_headless(), "stale headless GPU token must reject")
         assert(!kookie_gpu_recover_headless(),
             "closed headless GPU must reject recovery without a device")
     } else {
+        assert(kookie_gpu_recovery_capabilities() == 0,
+            "unavailable headless GPU must report no recovery capabilities")
         println("gpu-headless-unavailable")
     }
     var window = kookie_window_create(320, 240, 1)

@@ -13,6 +13,8 @@
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_WORDS 78
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
+#define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
+#define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
 #define KOOKIE_TRANSPORT_MAGIC 0x4b4f4f4bU
 #define KOOKIE_TRANSPORT_VERSION 1U
 #define KOOKIE_TRANSPORT_HEADER_WORDS 6
@@ -689,11 +691,17 @@ int kookie_gpu_recovery_state(void) {
     return gpu_recovery_state;
 }
 int kookie_gpu_recovery_capabilities(void) {
-    int capabilities = 2;
-    if (gpu_slot.device != NULL && gpu_slot.window_slot == -1) {
-        capabilities |= 1;
+    if (gpu_slot.device == NULL || gpu_slot.window_slot != -1) {
+        return 0;
     }
-    return capabilities;
+    if (gpu_recovery_state == KOOKIE_GPU_RECOVERY_READY) {
+        return KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN |
+            KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER;
+    }
+    if (gpu_recovery_state == KOOKIE_GPU_RECOVERY_LOST) {
+        return KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN;
+    }
+    return 0;
 }
 
 bool kookie_gpu_mark_headless_device_lost(void) {

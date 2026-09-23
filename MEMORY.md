@@ -57,7 +57,7 @@ production key management remains unimplemented.
 SipHash key and an IPv4 peer before opening frames, then exchange authenticated
 frames across the separate peer endpoint; production key management remains
 unimplemented.
-23. GPU recovery capability reporting distinguishes clean headless reopen plus loss-marker support; SDL3 exposes no device-loss callback in the installed GPU API.
+23. GPU recovery capability reporting is state-aware: ready exposes clean reopen plus the explicit loss marker, lost exposes reopen only, and unavailable/failed expose no capabilities; SDL3 exposes no device-loss callback in the installed GPU API.
 
 
 ## Editor cautions

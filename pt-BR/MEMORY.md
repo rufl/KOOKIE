@@ -58,7 +58,7 @@ implementada.
 uma chave SipHash de teste e um peer IPv4 antes de trocar frames autenticados
 entre endpoints distintos; gestão de chaves de produção ainda não foi
 implementada.
-23. O relatório de capacidades de recuperação GPU distingue reopen headless limpo e suporte ao marcador de perda; a SDL3 instalada não expõe callback de perda de dispositivo.
+23. O relatório de capacidades de recuperação GPU é sensível ao estado: ready expõe reopen limpo e o marcador explícito de perda, lost expõe apenas reopen, e unavailable/failed não expõem capacidades; a SDL3 instalada não expõe callback de perda de dispositivo.
 
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
