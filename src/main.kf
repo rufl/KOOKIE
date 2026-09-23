@@ -598,3 +598,56 @@ test "shared hitscan projectile and bounded combat events" {
         projectileEvent.died() && combat.deaths() == 1,
         "projectile event must preserve sequence and death transition")
 }
+
+test "deterministic enemy states and encounter admission" {
+    var enemies = EnemyStateWorld(2)
+    assert(enemies.configure(100, 20, 4),
+        "enemy state world must configure perception and attack bounds")
+    assert(!enemies.configure(20, 30, 4),
+        "attack range cannot exceed perception range")
+    assert(enemies.addEnemy(7, 0) && enemies.state(7) == enemies.idleState(),
+        "enemy admission must start in idle")
+    var chase = enemies.step(7, 1, 1, true, 60)
+    assert(chase.accepted() && chase.state() == enemies.chaseState() &&
+        chase.targetId() == 1 && !chase.attackReady(),
+        "visible distant targets must drive deterministic chase")
+    var attack = enemies.step(7, 2, 1, true, 20)
+    assert(attack.accepted() && attack.state() == enemies.attackState() &&
+        attack.attackReady() && enemies.attackReadyTick(7) == 6,
+        "visible near targets must enter attack and schedule cooldown")
+    var waiting = enemies.step(7, 5, 1, true, 20)
+    assert(waiting.accepted() && !waiting.attackReady() &&
+        !waiting.transitioned(),
+        "attack cooldown must suppress repeated attack decisions")
+    var repeated = enemies.step(7, 6, 1, true, 20)
+    assert(repeated.attackReady() && enemies.attackReadyTick(7) == 10,
+        "attack readiness must recur on an integer tick boundary")
+    var lost = enemies.step(7, 7, 0, false, 0)
+    assert(lost.accepted() && lost.state() == enemies.investigateState() &&
+        lost.targetId() == 0,
+        "lost perception must clear target and enter investigate")
+    assert(!enemies.transition(7, enemies.patrolState(), 6),
+        "state transitions must reject time going backwards")
+    assert(enemies.kill(7, 8) && enemies.state(7) == enemies.deadState())
+    var dead = enemies.step(7, 9, 1, true, 1)
+    assert(dead.accepted() && dead.state() == enemies.deadState() &&
+        !dead.attackReady(),
+        "dead enemies must remain terminal")
+
+    var encounters = EncounterDirector(1)
+    assert(!encounters.define(0, 1, 2) && encounters.define(10, 1, 2),
+        "encounter definitions must validate identity and budgets")
+    var first = encounters.admit(10, 7)
+    assert(first.accepted() && first.activeCount() == 1 &&
+        first.remainingBudget() == 1,
+        "encounter admission must consume one bounded spawn budget")
+    assert(!encounters.admit(10, 8).accepted(),
+        "encounter active limit must reject overflow")
+    assert(encounters.release(10))
+    var second = encounters.admit(10, 8)
+    assert(second.accepted() && second.remainingBudget() == 0,
+        "released encounter slots must admit remaining budget")
+    assert(!encounters.admit(10, 9).accepted() &&
+        encounters.release(10) && !encounters.release(10),
+        "exhausted encounters must reject spawns and extra releases")
+}

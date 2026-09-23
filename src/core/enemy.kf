@@ -1,0 +1,312 @@
+package core
+
+record EnemyStepResult(
+    Bool accepted, Int enemyId, Int state, Int targetId,
+    Bool attackReady, Bool transitioned
+)
+record EncounterSpawnResult(
+    Bool accepted, Int encounterId, Int enemyId,
+    Int activeCount, Int remainingBudget
+)
+
+class EnemyStateWorld {
+    Int[] ids
+    Int[] states
+    Int[] targets
+    Int[] stateSinceTicks
+    Int[] attackReadyTicks
+    Bool[] active
+    Int perceptionRange
+    Int attackRange
+    Int attackCooldown
+
+    public constructor(Int capacity) {
+        ids = new Int[capacity]
+        states = new Int[capacity]
+        targets = new Int[capacity]
+        stateSinceTicks = new Int[capacity]
+        attackReadyTicks = new Int[capacity]
+        active = new Bool[capacity]
+        perceptionRange = 0
+        attackRange = 0
+        attackCooldown = 0
+        for (var index = 0; index < capacity; index = index + 1) {
+            ids[index] = 0
+            states[index] = 0
+            targets[index] = 0
+            stateSinceTicks[index] = 0
+            attackReadyTicks[index] = 0
+            active[index] = false
+        }
+    }
+
+    Bool configure(Int nextPerceptionRange, Int nextAttackRange, Int nextCooldown) {
+        if (nextPerceptionRange <= 0 || nextAttackRange <= 0 ||
+            nextAttackRange > nextPerceptionRange || nextCooldown < 0) {
+            return false
+        }
+        perceptionRange = nextPerceptionRange
+        attackRange = nextAttackRange
+        attackCooldown = nextCooldown
+        return true
+    }
+
+    Int idleState() {
+        return 0
+    }
+
+    Int patrolState() {
+        return 1
+    }
+
+    Int investigateState() {
+        return 2
+    }
+
+    Int chaseState() {
+        return 3
+    }
+
+    Int attackState() {
+        return 4
+    }
+
+    Int recoverState() {
+        return 5
+    }
+
+    Int staggerState() {
+        return 6
+    }
+
+    Int deadState() {
+        return 7
+    }
+
+    Bool validState(Int state) {
+        return state >= idleState() && state <= deadState()
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool addEnemy(Int id, Int tick) {
+        if (id <= 0 || tick < 0 || find(id) >= 0) {
+            return false
+        }
+        var index = freeSlot()
+        if (index < 0) {
+            return false
+        }
+        ids[index] = id
+        states[index] = idleState()
+        targets[index] = 0
+        stateSinceTicks[index] = tick
+        attackReadyTicks[index] = tick
+        active[index] = true
+        return true
+    }
+
+    Bool transition(Int id, Int nextState, Int tick) {
+        var index = find(id)
+        if (index < 0 || !validState(nextState) || tick < stateSinceTicks[index]) {
+            return false
+        }
+        if (states[index] == deadState() && nextState != deadState()) {
+            return false
+        }
+        if (states[index] != nextState) {
+            states[index] = nextState
+            stateSinceTicks[index] = tick
+        }
+        return true
+    }
+
+    EnemyStepResult step(
+        Int id, Int tick, Int targetId, Bool targetVisible, Int distance
+    ) {
+        var index = find(id)
+        if (index < 0 || tick < stateSinceTicks[index] || distance < 0 ||
+            (targetVisible && targetId <= 0) || perceptionRange <= 0) {
+            return EnemyStepResult(false, id, 0, 0, false, false)
+        }
+        if (states[index] == deadState()) {
+            return EnemyStepResult(true, id, deadState(), 0, false, false)
+        }
+        var priorState = states[index]
+        var attackReady = false
+        if (targetVisible && distance <= perceptionRange) {
+            targets[index] = targetId
+            if (distance <= attackRange) {
+                if (tick >= attackReadyTicks[index]) {
+                    states[index] = attackState()
+                    stateSinceTicks[index] = tick
+                    attackReadyTicks[index] = tick + attackCooldown
+                    attackReady = true
+                } else {
+                    states[index] = attackState()
+                }
+            } else {
+                states[index] = chaseState()
+                stateSinceTicks[index] = tick
+            }
+        } else {
+            targets[index] = 0
+            states[index] = investigateState()
+            stateSinceTicks[index] = tick
+        }
+        return EnemyStepResult(
+            true, id, states[index], targets[index], attackReady,
+            priorState != states[index])
+    }
+
+    Bool kill(Int id, Int tick) {
+        return transition(id, deadState(), tick)
+    }
+
+    Int state(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return states[index]
+    }
+
+    Int target(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return targets[index]
+    }
+
+    Int stateSince(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return stateSinceTicks[index]
+    }
+
+    Int attackReadyTick(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return attackReadyTicks[index]
+    }
+}
+
+class EncounterDirector {
+    Int[] ids
+    Int[] maxActive
+    Int[] remainingBudgets
+    Int[] activeCounts
+    Bool[] active
+
+    public constructor(Int capacity) {
+        ids = new Int[capacity]
+        maxActive = new Int[capacity]
+        remainingBudgets = new Int[capacity]
+        activeCounts = new Int[capacity]
+        active = new Bool[capacity]
+        for (var index = 0; index < capacity; index = index + 1) {
+            ids[index] = 0
+            maxActive[index] = 0
+            remainingBudgets[index] = 0
+            activeCounts[index] = 0
+            active[index] = false
+        }
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool define(Int id, Int nextMaxActive, Int budget) {
+        if (id <= 0 || nextMaxActive <= 0 || budget <= 0) {
+            return false
+        }
+        var index = find(id)
+        if (index < 0) {
+            index = freeSlot()
+            if (index < 0) {
+                return false
+            }
+            ids[index] = id
+            active[index] = true
+        }
+        maxActive[index] = nextMaxActive
+        remainingBudgets[index] = budget
+        activeCounts[index] = 0
+        return true
+    }
+
+    EncounterSpawnResult admit(Int encounterId, Int enemyId) {
+        var index = find(encounterId)
+        if (index < 0 || enemyId <= 0 ||
+            activeCounts[index] >= maxActive[index] ||
+            remainingBudgets[index] <= 0) {
+            return EncounterSpawnResult(false, encounterId, enemyId, 0, 0)
+        }
+        activeCounts[index] = activeCounts[index] + 1
+        remainingBudgets[index] = remainingBudgets[index] - 1
+        return EncounterSpawnResult(
+            true, encounterId, enemyId,
+            activeCounts[index], remainingBudgets[index])
+    }
+
+    Bool release(Int encounterId) {
+        var index = find(encounterId)
+        if (index < 0 || activeCounts[index] <= 0) {
+            return false
+        }
+        activeCounts[index] = activeCounts[index] - 1
+        return true
+    }
+
+    Int activeCount(Int encounterId) {
+        var index = find(encounterId)
+        if (index < 0) {
+            return 0
+        }
+        return activeCounts[index]
+    }
+
+    Int remainingBudget(Int encounterId) {
+        var index = find(encounterId)
+        if (index < 0) {
+            return 0
+        }
+        return remainingBudgets[index]
+    }
+}

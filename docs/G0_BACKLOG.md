@@ -47,11 +47,12 @@ This is the active bounded implementation sequence after the initial research an
 - When a presentable window is available, `KOOKIE_SCREENSHOT_PATH` exports the captured swapchain frame as a binary PPM; the path remains capability-gated and unset by default.
 - `CombatWorld` now provides bounded authoritative weapon definitions, magazine/reserve reload state, cooldown-gated atomic shots, armor-aware damage, critical hits, and exactly one alive-to-dead transition per actor; JVM/native tests cover ammo atomicity and damage/death invariants.
 - `CombatWorld` now resolves bounded hitscan and projectile shots through the same weapon/range/damage authority, consumes projectile slots deterministically, and publishes sequenced hit/death events without silently dropping critical events; JVM/native tests cover range rejection, ammo atomicity, projectile retirement, and event order.
+- `EnemyStateWorld` now implements deterministic idle/patrol/investigate/chase/attack/recover/stagger/dead transitions with integer perception and attack deadlines; `EncounterDirector` enforces bounded active counts and spawn budgets, with JVM/native tests for cooldown, terminal death, and admission overflow.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
-2. Add a deterministic bounded enemy state machine and encounter admission after combat resolution.
+2. Integrate enemy death with combat event consumption and add bounded attack decisions to the authoritative session.
 
 
 ## Deferred
