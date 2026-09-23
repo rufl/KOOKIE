@@ -2,9 +2,13 @@ package core
 
 class BoundedSaveMigrationGate {
     Int currentSectionVersion
+    Int currentWorldVersion
+    Int currentRngVersion
 
     public constructor() {
         currentSectionVersion = 1
+        currentWorldVersion = 2
+        currentRngVersion = 2
     }
 
     Bool importLegacy(BoundedSaveState source, BoundedSaveSections target) {
@@ -35,11 +39,10 @@ class BoundedSaveMigrationGate {
         for (var index = 0; index < source.sectionCount(); index = index + 1) {
             var sectionId = source.sectionId(index)
             var sourceVersion = source.sectionVersion(index)
+            var targetVersion = currentVersionFor(sectionId)
             var sourceLength = source.sectionLength(index)
-            var targetVersion = sourceVersion
             var targetLength = sourceLength
-            if (sourceVersion == 0 && (sectionId == 2 || sectionId == 3)) {
-                targetVersion = currentSectionVersion
+            if (sourceVersion < targetVersion) {
                 targetLength = sourceLength + 1
             }
             var payload = new Int[targetLength]
@@ -69,13 +72,30 @@ class BoundedSaveMigrationGate {
         return true
     }
 
+    Int currentVersionFor(Int sectionId) {
+        if (sectionId == 1) {
+            return currentSectionVersion
+        }
+        if (sectionId == 2) {
+            return currentWorldVersion
+        }
+        if (sectionId == 3) {
+            return currentRngVersion
+        }
+        return -1
+    }
+
     Bool acceptsSection(Int sectionId, Int schemaVersion) {
-        return (sectionId == 1 || sectionId == 2 || sectionId == 3) &&
-            schemaVersion == currentSectionVersion
+        return currentVersionFor(sectionId) == schemaVersion
     }
 
     Bool acceptsSourceSection(Int sectionId, Int schemaVersion) {
-        return acceptsSection(sectionId, schemaVersion) ||
-            ((sectionId == 2 || sectionId == 3) && schemaVersion == 0)
+        if (sectionId == 1) {
+            return schemaVersion == currentSectionVersion
+        }
+        if (sectionId == 2 || sectionId == 3) {
+            return schemaVersion == 0 || schemaVersion == 1 || schemaVersion == 2
+        }
+        return false
     }
 }
