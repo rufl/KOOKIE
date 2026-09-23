@@ -65,6 +65,14 @@ class BoundedRedundantSaveFileStore {
         }
         return target.load(selected.envelope(), payload)
     }
+    Bool repair(String path) {
+        var restored = BoundedSaveState(slotWords - 5, 1000000)
+        if (!read(path, restored)) {
+            return false
+        }
+        return write(path, restored)
+    }
+
 
     Bool decodeSlot(Int[] words, Int lengthIndex, Int start,
         BoundedSaveState target) {

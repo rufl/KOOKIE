@@ -67,6 +67,14 @@ class BoundedSaveSchemaFileStore {
         var sections = BoundedSaveSections(8, 16)
         return read(path, sections) && gate.exportLegacy(sections, target)
     }
+    Bool repair(String path) {
+        var restored = BoundedSaveSections(8, 16)
+        if (!read(path, restored)) {
+            return false
+        }
+        return write(path, restored)
+    }
+
 
     Bool decodeSlot(Int[] words, Int lengthIndex, Int start,
         BoundedSaveSections target) {

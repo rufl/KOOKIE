@@ -300,8 +300,15 @@ test "redundant save file recovery" {
         restored.revision() == 12 &&
         restored.payloadValue(1) == 404,
         "redundant save must recover from one corrupted copy")
+    assert(store.repair(path),
+        "redundant save repair must rewrite both copies")
+    var repaired = file.readBytes()
+    repaired[66] = repaired[66] + 1
+    assert(file.writeBytes(repaired) &&
+        store.read(path, restored),
+        "repaired save must survive corruption of the other copy")
     var fullyCorrupted = file.readBytes()
-    fullyCorrupted[66] = fullyCorrupted[66] + 1
+    fullyCorrupted[18] = fullyCorrupted[18] + 1
     assert(file.writeBytes(fullyCorrupted) &&
         !store.read(path, restored),
         "redundant save must reject two corrupted copies")
@@ -368,11 +375,18 @@ test "schema save file persistence and recovery" {
         store.readLegacy(path, restored) &&
         restored.revision() == 12,
         "schema file store must recover from one corrupted copy")
+    assert(store.repair(path),
+        "schema save repair must rewrite both migrated copies")
+    var repaired = file.readBytes()
+    repaired[960] = repaired[960] + 1
+    assert(file.writeBytes(repaired) &&
+        store.readLegacy(path, restored),
+        "repaired schema save must survive one copy corruption")
     var fullyCorrupted = file.readBytes()
-    fullyCorrupted[960] = fullyCorrupted[960] + 1
+    fullyCorrupted[18] = fullyCorrupted[18] + 1
     assert(file.writeBytes(fullyCorrupted) &&
         !store.readLegacy(path, restored),
-        "schema file store must reject two corrupted copies")
+        "schema save must reject two corrupted copies")
 }
 
 test "multi-section save migration" {
