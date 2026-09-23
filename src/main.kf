@@ -141,6 +141,21 @@ test "platform state and audio queue lifecycle" {
     assert(audio.consumedClip() == 3 && audio.consumedGain() == 100)
     assert(audio.close())
 }
+test "remote endpoint and key lifecycle" {
+    var endpoint = RemoteSessionEndpoint(
+        127, 0, 0, 1, 4000, 1, 2, 3, 4)
+    assert(endpoint.valid())
+    assert(!endpoint.active())
+    assert(!endpoint.setPeer(127, 0, 0, 1, 0))
+    assert(!endpoint.setKey(0, 0, 0, 0))
+    assert(endpoint.activate())
+    assert(endpoint.active())
+    assert(!endpoint.setPeer(127, 0, 0, 1, 4001))
+    assert(!endpoint.setKey(9, 8, 7, 6))
+    assert(endpoint.deactivate())
+    assert(endpoint.setKey(9, 8, 7, 6))
+    assert(endpoint.keyWord(0) == 9 && endpoint.keyWord(3) == 6)
+}
 
 test "frame staging ownership and scalar measurement" {
     var staging = FrameStaging(2)

@@ -115,13 +115,13 @@ da sessão autoritativa com aplicação de payloads limitados e guardas de
 sequência, uma fila de transporte broad-phase de capacidade fixa com rejeição
 de overflow, rejeição de consultas obsoletas e admissão de movimento espacial
 combinando colisões de cápsula e broad-phase. O adaptador também possui uma
-sonda UDP nativa de peer entre sockets localhost pareados, com endereço/porta
-IPv4 do peer configuráveis, framing SipHash autenticado, chaves de teste
-configuráveis, validação de sequência/tamanho, palavras com sinal e timeout de
-recebimento de 1.000 ms, além de estados explícitos de recuperação GPU e bitmask
-de capacidades para reopen limpo e marcador de perda. Em seguida: adicionar
-apresentação isolada compatível com DRI3, integrar frames autenticados com
-endpoint de sessão remoto e gestão de
+sonda UDP nativa de peer entre sockets localhost pareados com configuração
+`RemoteSessionEndpoint` validada para endereço/porta IPv4, framing SipHash
+autenticado, chaves de teste não nulas, congelamento após ativação, validação
+de sequência/tamanho, palavras com sinal e timeout de recebimento de 1.000 ms,
+além de estados explícitos de recuperação GPU e bitmask de capacidades para
+reopen limpo e marcador de perda. Em seguida: adicionar apresentação isolada
+compatível com DRI3, integrar frames autenticados com uma sessão remota real e
 chaves de produção, adicionar callbacks/retirement reais para perda do
 dispositivo e reexecutar o reproduzível de exceção nativa após upgrade do
 compilador. Use o wrapper descartável de display isolado do repositório para

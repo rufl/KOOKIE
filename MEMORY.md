@@ -58,6 +58,7 @@ SipHash key and an IPv4 peer before opening frames, then exchange authenticated
 frames across the separate peer endpoint; production key management remains
 unimplemented.
 23. GPU recovery capability reporting is state-aware: ready exposes clean reopen plus the explicit loss marker, lost exposes reopen only, and unavailable/failed expose no capabilities; SDL3 exposes no device-loss callback in the installed GPU API.
+24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is bound to the native paired-peer smoke; live remote session provisioning remains unimplemented.
 
 
 ## Editor cautions
@@ -100,16 +101,16 @@ deterministic triangle collection/BVH queries with removal/rebuild and geometry
 revisions, authoritative capsule slide/step traversal over eight ordered
 bounded obstacles, clear/reconfigure operations, bounded broad-phase transport
 snapshots with fixed-capacity dequeue/apply and sequence guards, a native
-authenticated UDP peer probe across paired localhost sockets with configurable
-IPv4 peer address/port and SipHash test keys, sequence/length validation, signed
-payload words, and a 1,000 ms receive timeout, explicit GPU recovery states plus
-reporting for clean reopen/loss-marker paths and closed-device rejection, stale
-query rejection, and spatial movement admission combining capsule and
-broad-phase collisions. Next: add a DRI3-capable isolated presentation path,
-integrate authenticated frames with a remote session endpoint and production
-key management, add actual SDL/device-loss callbacks/resource retirement, and
-rerun the native exception reproducer after a compiler upgrade. The native
-exception-handler defect remains a compiler gate.
+authenticated UDP peer probe across paired localhost sockets with a validated
+`RemoteSessionEndpoint` carrying configurable IPv4 peer/port and SipHash test
+keys, sequence/length validation, signed payload words, and a 1,000 ms receive
+timeout, explicit GPU recovery states plus reporting for clean reopen/loss-marker
+paths and closed-device rejection, stale query rejection, and spatial movement
+admission combining capsule and broad-phase collisions. Next: add a DRI3-capable
+isolated presentation path, integrate authenticated frames with a live remote
+session and production key provisioning, add actual SDL/device-loss
+callbacks/resource retirement, and rerun the native exception reproducer after a
+compiler upgrade. The native exception-handler defect remains a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

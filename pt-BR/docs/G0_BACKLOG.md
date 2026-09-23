@@ -45,7 +45,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 
 1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
 2. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; o gate atual continua observado e passando.
-3. Integrar o frame UDP autenticado com um endpoint de sessão remoto e gestão de chaves de produção; configuração IPv4 do peer e limites do endpoint já estão cobertos.
+3. Integrar o frame UDP autenticado com uma sessão remota real e provisionamento de chaves de produção; o contrato validado `RemoteSessionEndpoint` e o binding nativo agora cobrem limites IPv4, chaves não nulas, congelamento após ativação e alterações de chave com a sessão fechada.
 4. Adicionar callbacks reais SDL/perda do dispositivo e semântica de retirement de recursos; o caminho atual usa um marcador explícito de perda.
 5. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 

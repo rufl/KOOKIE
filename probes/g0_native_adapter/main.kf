@@ -51,9 +51,14 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, Int frames): Bool
 Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     var payload = session.broadPhaseSnapshot(6, 7)
+    var endpoint = RemoteSessionEndpoint(
+        127, 0, 0, 1, 1, 1, 2, 3, 4)
     if (!validBroadPhaseSnapshot(payload) ||
-        kookie_transport_set_key(0, 0, 0, 0) ||
-        !kookie_transport_set_key(1, 2, 3, 4) ||
+        !endpoint.valid() ||
+        !kookie_transport_set_key(
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
         !kookie_transport_open_pair() ||
         kookie_transport_timeout_milliseconds() != 1000) {
         kookie_transport_close()
@@ -67,7 +72,12 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     if (peerPort <= 0 ||
         kookie_transport_set_peer_ipv4(127, 0, 0, 1, 0) ||
         kookie_transport_set_peer_ipv4(127, 0, 0, 256, peerPort) ||
-        !kookie_transport_set_peer_ipv4(127, 0, 0, 1, peerPort)) {
+        !endpoint.setPeer(127, 0, 0, 1, peerPort) ||
+        !endpoint.activate() ||
+        !kookie_transport_set_peer_ipv4(
+            endpoint.firstOctet(), endpoint.secondOctet(),
+            endpoint.thirdOctet(), endpoint.fourthOctet(), endpoint.port()
+        )) {
         kookie_transport_close()
         return false
     }

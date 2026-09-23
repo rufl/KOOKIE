@@ -1,0 +1,134 @@
+package session
+
+class RemoteSessionEndpoint {
+    Int firstOctetValue
+    Int secondOctetValue
+    Int thirdOctetValue
+    Int fourthOctetValue
+    Int portValue
+    Int key0LowValue
+    Int key0HighValue
+    Int key1LowValue
+    Int key1HighValue
+    Bool activeValue
+
+    public constructor(
+        Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet,
+        Int port, Int key0Low, Int key0High, Int key1Low, Int key1High
+    ) {
+        firstOctetValue = firstOctet
+        secondOctetValue = secondOctet
+        thirdOctetValue = thirdOctet
+        fourthOctetValue = fourthOctet
+        portValue = port
+        key0LowValue = key0Low
+        key0HighValue = key0High
+        key1LowValue = key1Low
+        key1HighValue = key1High
+        activeValue = false
+    }
+
+    Bool validAddress() {
+        return firstOctetValue >= 0 && firstOctetValue <= 255 &&
+            secondOctetValue >= 0 && secondOctetValue <= 255 &&
+            thirdOctetValue >= 0 && thirdOctetValue <= 255 &&
+            fourthOctetValue >= 0 && fourthOctetValue <= 255 &&
+            portValue > 0 && portValue <= 65535
+    }
+
+    Bool validKey() {
+        return key0LowValue != 0 || key0HighValue != 0 ||
+            key1LowValue != 0 || key1HighValue != 0
+    }
+
+    Bool valid() {
+        return validAddress() && validKey()
+    }
+
+    Bool setPeer(
+        Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet,
+        Int port
+    ) {
+        if (activeValue || firstOctet < 0 || firstOctet > 255 ||
+            secondOctet < 0 || secondOctet > 255 ||
+            thirdOctet < 0 || thirdOctet > 255 ||
+            fourthOctet < 0 || fourthOctet > 255 ||
+            port <= 0 || port > 65535) {
+            return false
+        }
+        firstOctetValue = firstOctet
+        secondOctetValue = secondOctet
+        thirdOctetValue = thirdOctet
+        fourthOctetValue = fourthOctet
+        portValue = port
+        return true
+    }
+
+    Bool setKey(Int key0Low, Int key0High, Int key1Low, Int key1High) {
+        if (activeValue ||
+            (key0Low == 0 && key0High == 0 && key1Low == 0 && key1High == 0)) {
+            return false
+        }
+        key0LowValue = key0Low
+        key0HighValue = key0High
+        key1LowValue = key1Low
+        key1HighValue = key1High
+        return true
+    }
+
+    Bool activate() {
+        if (activeValue || !valid()) {
+            return false
+        }
+        activeValue = true
+        return true
+    }
+
+    Bool deactivate() {
+        if (!activeValue) {
+            return false
+        }
+        activeValue = false
+        return true
+    }
+
+    Bool active() {
+        return activeValue
+    }
+
+    Int firstOctet() {
+        return firstOctetValue
+    }
+
+    Int secondOctet() {
+        return secondOctetValue
+    }
+
+    Int thirdOctet() {
+        return thirdOctetValue
+    }
+
+    Int fourthOctet() {
+        return fourthOctetValue
+    }
+
+    Int port() {
+        return portValue
+    }
+
+    Int keyWord(Int index) {
+        if (index == 0) {
+            return key0LowValue
+        }
+        if (index == 1) {
+            return key0HighValue
+        }
+        if (index == 2) {
+            return key1LowValue
+        }
+        if (index == 3) {
+            return key1HighValue
+        }
+        return 0
+    }
+}

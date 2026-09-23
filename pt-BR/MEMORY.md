@@ -59,6 +59,7 @@ uma chave SipHash de teste e um peer IPv4 antes de trocar frames autenticados
 entre endpoints distintos; gestão de chaves de produção ainda não foi
 implementada.
 23. O relatório de capacidades de recuperação GPU é sensível ao estado: ready expõe reopen limpo e o marcador explícito de perda, lost expõe apenas reopen, e unavailable/failed não expõem capacidades; a SDL3 instalada não expõe callback de perda de dispositivo.
+24. `RemoteSessionEndpoint` valida IPv4/porta e chaves SipHash não nulas, congela alterações de peer/chave enquanto ativo, permite troca de chave apenas inativo e está ligado ao smoke nativo de peer pareado; provisionamento de sessão remota real ainda não foi implementado.
 
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
@@ -106,16 +107,16 @@ ordenados, operações de limpeza/reconfiguração, snapshots broad-phase
 transportados por fila de capacidade fixa com dequeue/apply no cliente e
 guardas de sequência, rejeição de consultas obsoletas e admissão de movimento
 espacial combinando colisões de cápsula e broad-phase. O adaptador também possui
-uma sonda UDP nativa de peer entre sockets localhost pareados, com endereço/porta
-IPv4 do peer e chaves SipHash de teste configuráveis, validação de
-sequência/tamanho, palavras com sinal e timeout de recebimento de 1.000 ms,
-além de estados explícitos de recuperação GPU e bitmask de capacidades para
-reopen limpo e marcador de perda. Em seguida: adicionar apresentação isolada
-compatível com DRI3, integrar frames autenticados com endpoint de sessão remoto
-e gestão de chaves de produção, adicionar callbacks/retirement reais para perda
-do dispositivo e reexecutar o reproduzível de exceção nativa após upgrade do
-compilador. O defeito do handler de exceções nativas continua sendo um gate do
-compilador.
+uma sonda UDP nativa de peer entre sockets localhost pareados com um
+`RemoteSessionEndpoint` validado, carregando endereço/porta IPv4 e chaves SipHash
+de teste configuráveis, validação de sequência/tamanho, palavras com sinal e
+timeout de recebimento de 1.000 ms, além de estados explícitos de recuperação GPU
+e bitmask de capacidades para reopen limpo/marcador de perda. Em seguida:
+adicionar apresentação isolada compatível com DRI3, integrar frames autenticados
+com uma sessão remota real e provisionamento de chaves de produção, adicionar
+callbacks/retirement reais para perda do dispositivo e reexecutar o reproduzível
+de exceção nativa após upgrade do compilador. O defeito do handler de exceções
+nativas continua sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

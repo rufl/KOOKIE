@@ -45,7 +45,7 @@ This is the active bounded implementation sequence after the initial research an
 
 1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
 2. Re-run the native exception-handler reproducer after a compiler upgrade; the current gate remains observed and passing.
-3. Integrate the authenticated UDP frame with a remote session endpoint and production key management; IPv4 peer configuration and endpoint bounds are now covered.
+3. Integrate the authenticated UDP frame with a live remote session and production key provisioning; the validated `RemoteSessionEndpoint` contract and native binding now cover IPv4 bounds, non-zero keys, activation freeze, and closed-session key changes.
 4. Add actual SDL/device-loss callbacks and resource retirement semantics; the current recovery path uses an explicit loss marker.
 5. Record each new measured failure or acceptance boundary in both language trees.
 
