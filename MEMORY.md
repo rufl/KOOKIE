@@ -59,7 +59,7 @@ open a configured IPv4 peer, requires a test SipHash key before exchanging
 authenticated frames, then clears key material on close; production key
 management remains unimplemented.
 23. GPU recovery capability reporting is state-aware: ready exposes clean reopen plus the explicit loss marker, lost exposes reopen only, and unavailable/failed expose no capabilities; SDL3 exposes no device-loss callback in the installed GPU API.
-24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is bound to the native paired-peer smoke; live remote session provisioning remains unimplemented.
+24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is bound to both the environment key boundary and a live external UDP peer smoke; session orchestration and production secret storage remain unimplemented.
 
 
 ## Editor cautions
@@ -109,7 +109,7 @@ and SipHash test keys, sequence/length validation, signed payload words, and a
 paths and closed-device rejection, stale query rejection, and spatial movement
 admission combining capsule and broad-phase collisions. Next: add a DRI3-capable
 isolated presentation path, integrate authenticated frames with a live remote
-session and production key provisioning, add actual SDL/device-loss
+session and production secret storage/rotation, add actual SDL/device-loss
 callbacks/resource retirement, and rerun the native exception reproducer after a
 compiler upgrade. The native exception-handler defect remains a compiler gate.
 

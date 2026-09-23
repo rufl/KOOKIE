@@ -37,7 +37,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - A admissão de movimento espacial combina limites de cápsula com consultas de triângulos broad-phase e rejeita revisões de geometria obsoletas.
 - O smoke isolado de sobreposição GPU submete quatro frames em dois slots de destino, aposenta todas as fences e reporta a profundidade máxima em voo.
 - O smoke de recuperação GPU headless destrói e recria o dispositivo, reconstrói recursos em cache e conclui um draw após a recuperação.
-- O transporte nativo UDP de peer envia e recebe frames broad-phase inteiros autenticados entre sockets de datagrama pareados no localhost; o provisionamento explícito de uma chave SipHash não nula é obrigatório antes da abertura, `kookie_transport_open_remote_ipv4` liga atomicamente um socket local a peer/porta IPv4 validados, e o framing cobre versão do protocolo, tamanho, sequência e palavras com sinal, com timeout fixo de recebimento de 1.000 ms e limites de pacote.
+- O transporte nativo UDP de peer envia e recebe frames broad-phase inteiros autenticados entre sockets de datagrama pareados no localhost; o provisionamento explícito de uma chave SipHash não nula é obrigatório antes da abertura, `kookie_transport_set_key_from_environment` aceita a fronteira `KOOKIE_TRANSPORT_KEY_HEX` com 32 caracteres hexadecimais, `kookie_transport_open_remote_ipv4` liga atomicamente um socket local a peer/porta IPv4 validados, e o framing cobre versão do protocolo, tamanho, sequência e palavras com sinal, com timeout fixo de recebimento de 1.000 ms e limites de pacote.
 - O estado de recuperação GPU expõe unavailable/ready/lost/failed e um bitmask de capacidades sensível ao estado: ready suporta reopen limpo e o marcador explícito de perda, enquanto lost retém apenas reopen; rejeita recuperação sem dispositivo headless ativo e reconstrói recursos após a recuperação.
 - A sonda de capacidade de apresentação GPU informa formato de swapchain e modos suportados quando um dispositivo de janela é reivindicado; Xvfb ainda não consegue reivindicar o caminho de apresentação.
 
@@ -45,7 +45,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 
 1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
 2. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; o gate atual continua observado e passando.
-3. Integrar o frame UDP autenticado com uma sessão remota real e provisionamento de chaves de produção; o contrato validado `RemoteSessionEndpoint` e o binding nativo agora cobrem limites IPv4, chaves não nulas, congelamento após ativação e alterações de chave com a sessão fechada.
+3. Integrar o frame UDP autenticado com uma sessão remota real e armazenamento/rotação de segredos de produção; configuração validada de endpoint e provisionamento de chave via ambiente agora cobrem a fronteira de transporte.
 4. Adicionar callbacks reais SDL/perda do dispositivo e semântica de retirement de recursos; o caminho atual usa um marcador explícito de perda.
 5. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 

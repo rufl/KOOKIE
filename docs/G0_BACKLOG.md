@@ -37,7 +37,7 @@ This is the active bounded implementation sequence after the initial research an
 - Spatial movement admission combines capsule bounds with broad-phase triangle queries and rejects stale geometry revisions.
 - Isolated GPU overlap smoke submits four frames across two target slots, retires all fences, and reports peak in-flight depth.
 - Headless GPU recovery smoke destroys and recreates the device, rebuilds cached resources, and completes a post-recovery draw.
-- Bounded native UDP peer transport sends and receives authenticated integer broad-phase frames across paired localhost datagram sockets; explicit non-zero SipHash key provisioning is required before open, `kookie_transport_open_remote_ipv4` atomically binds a local socket to a validated IPv4 peer/port, and framing covers protocol version, payload length, sequence and signed payload words with a fixed 1,000 ms receive timeout and packet bounds.
+- Bounded native UDP peer transport sends and receives authenticated integer broad-phase frames across paired localhost datagram sockets; explicit non-zero SipHash key provisioning is required before open, `kookie_transport_set_key_from_environment` accepts the 32-hex-character `KOOKIE_TRANSPORT_KEY_HEX` boundary, `kookie_transport_open_remote_ipv4` atomically binds a local socket to a validated IPv4 peer/port, and framing covers protocol version, payload length, sequence and signed payload words with a fixed 1,000 ms receive timeout and packet bounds.
 - GPU recovery state exposes unavailable/ready/lost/failed states and a state-aware capability bitmask: ready supports clean reopen plus the explicit loss marker, while lost retains reopen only; it rejects recovery without a live headless device and rebuilds resources after recovery.
 - GPU window presentation capability probing reports swapchain format and supported present modes when a window device is claimed; Xvfb still cannot claim the presentation path.
 
@@ -45,7 +45,7 @@ This is the active bounded implementation sequence after the initial research an
 
 1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
 2. Re-run the native exception-handler reproducer after a compiler upgrade; the current gate remains observed and passing.
-3. Integrate the authenticated UDP frame with a live remote session and production key provisioning; the validated `RemoteSessionEndpoint` contract and native binding now cover IPv4 bounds, non-zero keys, activation freeze, and closed-session key changes.
+3. Integrate the authenticated UDP frame with a live remote session and production secret storage/rotation; validated endpoint configuration and environment key provisioning now cover the transport boundary.
 4. Add actual SDL/device-loss callbacks and resource retirement semantics; the current recovery path uses an explicit loss marker.
 5. Record each new measured failure or acceptance boundary in both language trees.
 

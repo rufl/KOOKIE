@@ -288,6 +288,49 @@ bool kookie_transport_set_key(
     transport.key_configured = true;
     return true;
 }
+static bool kookie_transport_parse_hex_word(
+    const char *text,
+    uint32_t *value
+) {
+    uint32_t parsed = 0;
+    for (int index = 0; index < 8; index += 1) {
+        char digit = text[index];
+        uint32_t nibble;
+        if (digit >= '0' && digit <= '9') {
+            nibble = (uint32_t)(digit - '0');
+        } else if (digit >= 'a' && digit <= 'f') {
+            nibble = (uint32_t)(digit - 'a') + 10;
+        } else if (digit >= 'A' && digit <= 'F') {
+            nibble = (uint32_t)(digit - 'A') + 10;
+        } else {
+            return false;
+        }
+        parsed = (parsed << 4) | nibble;
+    }
+    *value = parsed;
+    return true;
+}
+
+bool kookie_transport_set_key_from_environment(void) {
+    if (transport.socket_fd >= 0) {
+        return false;
+    }
+    const char *encoded = getenv("KOOKIE_TRANSPORT_KEY_HEX");
+    if (encoded == NULL || strlen(encoded) != 32) {
+        return false;
+    }
+    uint32_t words[4];
+    for (int index = 0; index < 4; index += 1) {
+        if (!kookie_transport_parse_hex_word(
+                encoded + index * 8, &words[index])) {
+            return false;
+        }
+    }
+    return kookie_transport_set_key(
+        (int)words[0], (int)words[1],
+        (int)words[2], (int)words[3]);
+}
+
 
 bool kookie_transport_open(void) {
     if (transport.socket_fd >= 0 || !transport.key_configured) {
