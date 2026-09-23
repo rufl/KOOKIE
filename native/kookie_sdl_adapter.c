@@ -19,8 +19,6 @@
 #define KOOKIE_TRANSPORT_VERSION 1U
 #define KOOKIE_TRANSPORT_HEADER_WORDS 6
 #define KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS 1000
-#define KOOKIE_TRANSPORT_DEFAULT_KEY0 UINT64_C(0x0706050403020100)
-#define KOOKIE_TRANSPORT_DEFAULT_KEY1 UINT64_C(0x0f0e0d0c0b0a0908)
 #define KOOKIE_GPU_RECOVERY_READY 1
 #define KOOKIE_GPU_RECOVERY_LOST 2
 #define KOOKIE_GPU_RECOVERY_FAILED 3
@@ -62,6 +60,7 @@ typedef struct {
     struct sockaddr_in peer;
     uint64_t key0;
     uint64_t key1;
+    bool key_configured;
     int send_count;
     uint32_t send_sequence;
     uint32_t send_words[KOOKIE_TRANSPORT_MAX_WORDS];
@@ -72,9 +71,7 @@ typedef struct {
 } KookieTransport;
 static KookieTransport transport = {
     .socket_fd = -1,
-    .receive_socket_fd = -1,
-    .key0 = KOOKIE_TRANSPORT_DEFAULT_KEY0,
-    .key1 = KOOKIE_TRANSPORT_DEFAULT_KEY1
+    .receive_socket_fd = -1
 };
 static int gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
 
@@ -288,11 +285,12 @@ bool kookie_transport_set_key(
     }
     transport.key0 = next_key0;
     transport.key1 = next_key1;
+    transport.key_configured = true;
     return true;
 }
 
 bool kookie_transport_open(void) {
-    if (transport.socket_fd >= 0) {
+    if (transport.socket_fd >= 0 || !transport.key_configured) {
         return false;
     }
     int socket_fd = -1;
@@ -308,7 +306,7 @@ bool kookie_transport_open(void) {
 }
 
 bool kookie_transport_open_pair(void) {
-    if (transport.socket_fd >= 0) {
+    if (transport.socket_fd >= 0 || !transport.key_configured) {
         return false;
     }
     int socket_fd = -1;
@@ -521,8 +519,9 @@ bool kookie_transport_close(void) {
     memset(&transport, 0, sizeof(transport));
     transport.socket_fd = -1;
     transport.receive_socket_fd = -1;
-    transport.key0 = KOOKIE_TRANSPORT_DEFAULT_KEY0;
-    transport.key1 = KOOKIE_TRANSPORT_DEFAULT_KEY1;
+    transport.key0 = 0;
+    transport.key1 = 0;
+    transport.key_configured = false;
     return true;
 }
 

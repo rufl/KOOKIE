@@ -48,15 +48,14 @@ Create an engine for boomer shooters / looter shooters / ARPG FPS using **native
 17. Authoritative broad-phase snapshots now traverse a fixed-capacity validated transport queue; overflow rejects without dropping queued payloads, then dequeue/apply updates client geometry with sequence guards.
 18. Headless GPU smoke now covers overlap depth two and clean device recreation with cached-resource rebuild; actual device-loss callbacks and retirement remain unimplemented.
 19. Native UDP transport uses authenticated SipHash framing over a fixed 78-word
-payload, with configurable IPv4 peer address/port, protocol/length/sequence
-validation, signed integer preservation, and a 1,000 ms receive timeout;
-production key management remains unimplemented.
+payload, requires explicit non-zero key provisioning before open, and validates
+protocol/length/sequence with signed integer preservation and a 1,000 ms receive
+timeout; production key management remains unimplemented.
 20. GPU recovery now exposes unavailable/ready/lost/failed state transitions and rejects recovery without a live headless device; loss notification is an explicit probe marker, not an SDL device-loss callback.
 21. A claimed GPU window now requires a valid swapchain format through the present-capability probe; the Xvfb path still cannot claim DRI3 presentation.
-22. The native transport can bind paired localhost UDP sockets, configure a test
-SipHash key and an IPv4 peer before opening frames, then exchange authenticated
-frames across the separate peer endpoint; production key management remains
-unimplemented.
+22. The native transport can bind paired localhost UDP sockets, requires a test
+SipHash key and an IPv4 peer before exchanging authenticated frames, then clears
+key material on close; production key management remains unimplemented.
 23. GPU recovery capability reporting is state-aware: ready exposes clean reopen plus the explicit loss marker, lost exposes reopen only, and unavailable/failed expose no capabilities; SDL3 exposes no device-loss callback in the installed GPU API.
 24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is bound to the native paired-peer smoke; live remote session provisioning remains unimplemented.
 

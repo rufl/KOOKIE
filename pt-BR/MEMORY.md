@@ -48,15 +48,15 @@ Criar um engine para boomer shooters / looter shooters / ARPG FPS usando **códi
 17. Snapshots broad-phase autoritativos agora atravessam uma fila de transporte de capacidade fixa e validada; overflow rejeita sem descartar payloads enfileirados, e dequeue/apply atualiza a geometria do cliente com guardas de sequência.
 18. O smoke GPU headless agora cobre profundidade de sobreposição dois e recriação limpa do dispositivo com reconstrução de recursos em cache; callbacks reais de perda e retirement continuam não implementados.
 19. O transporte nativo UDP usa framing SipHash autenticado sobre um payload
-fixo de 78 palavras, com endereço/porta IPv4 do peer configuráveis, validação
-de protocolo/tamanho/sequência, preservação de inteiros com sinal e timeout de
-recebimento de 1.000 ms; gestão de chaves de produção ainda não foi
-implementada.
+fixo de 78 palavras, exige provisionamento explícito de chave não nula antes da
+abertura e valida protocolo/tamanho/sequência com preservação de inteiros com
+sinal e timeout de recebimento de 1.000 ms; gestão de chaves de produção ainda
+não foi implementada.
 20. A recuperação GPU agora expõe transições unavailable/ready/lost/failed e rejeita recuperação sem dispositivo headless ativo; a notificação de perda é um marcador explícito da sonda, não um callback SDL de perda de dispositivo.
 21. Uma janela GPU reivindicada agora exige formato de swapchain válido pela sonda de capacidades de apresentação; o caminho Xvfb ainda não consegue reivindicar apresentação DRI3.
-22. O transporte nativo pode ligar sockets UDP pareados no localhost, configurar
-uma chave SipHash de teste e um peer IPv4 antes de trocar frames autenticados
-entre endpoints distintos; gestão de chaves de produção ainda não foi
+22. O transporte nativo pode ligar sockets UDP pareados no localhost, exige uma
+chave SipHash de teste e um peer IPv4 antes de trocar frames autenticados, e
+limpa o material da chave ao fechar; gestão de chaves de produção ainda não foi
 implementada.
 23. O relatório de capacidades de recuperação GPU é sensível ao estado: ready expõe reopen limpo e o marcador explícito de perda, lost expõe apenas reopen, e unavailable/failed não expõem capacidades; a SDL3 instalada não expõe callback de perda de dispositivo.
 24. `RemoteSessionEndpoint` valida IPv4/porta e chaves SipHash não nulas, congela alterações de peer/chave enquanto ativo, permite troca de chave apenas inativo e está ligado ao smoke nativo de peer pareado; provisionamento de sessão remota real ainda não foi implementado.

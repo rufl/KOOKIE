@@ -107,11 +107,11 @@ payload application and sequence guards, a fixed-capacity validated broad-phase
 transport queue with overflow rejection, a bounded native UDP peer transport
 probe across paired localhost sockets with validated `RemoteSessionEndpoint`
 configuration for IPv4 peer address/port, authenticated SipHash framing,
-non-zero test keys, activation freeze, sequence/length validation, signed
-payload words, and a 1,000 ms receive timeout, explicit GPU recovery states
-plus capability reporting for clean reopen/loss-marker paths and closed-device
-rejection, stale query rejection, and spatial movement admission combining
-capsule and broad-phase collisions.
+explicit non-zero key provisioning before open, activation freeze,
+sequence/length validation, signed payload words, and a 1,000 ms receive
+timeout, explicit GPU recovery states plus capability reporting for clean
+reopen/loss-marker paths and closed-device rejection, stale query rejection, and
+spatial movement admission combining capsule and broad-phase collisions.
 Next: add a DRI3-capable isolated presentation path, integrate authenticated
 frames with a live remote session and production key provisioning, add actual
 SDL/device-loss callbacks/resource retirement, and rerun the native exception
