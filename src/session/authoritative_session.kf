@@ -20,6 +20,7 @@ class LoopbackSession {
     ClientPredictionState playerTwoPrediction
     SnapshotHistory playerOneSnapshots
     SnapshotHistory playerTwoSnapshots
+    BoundedTriangleCollection broadPhaseCollection
     Int broadPhaseRevisionValue
     Int clientBroadPhaseRevisionValue
 
@@ -42,8 +43,10 @@ class LoopbackSession {
         playerTwoPrediction = ClientPredictionState(4)
         playerOneSnapshots = SnapshotHistory(8)
         playerTwoSnapshots = SnapshotHistory(8)
-        broadPhaseRevisionValue = 1
-        clientBroadPhaseRevisionValue = 1
+        broadPhaseCollection = BoundedTriangleCollection(8, 20)
+        broadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
+        clientBroadPhaseRevisionValue = broadPhaseRevisionValue
     }
 
     Bool start() {
@@ -168,12 +171,66 @@ class LoopbackSession {
         return clientBroadPhaseRevisionValue
     }
 
-    Bool publishBroadPhaseRevision(Int nextRevision) {
-        if (nextRevision <= broadPhaseRevisionValue) {
+    Bool configureBroadPhaseBounds(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ
+    ) {
+        if (!broadPhaseCollection.configureBounds(
+            nextMinX, nextMinY, nextMinZ, nextMaxX, nextMaxY, nextMaxZ)) {
             return false
         }
-        broadPhaseRevisionValue = nextRevision
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
         return true
+    }
+
+    Bool addBroadPhaseTriangle(
+        Int axValue, Int ayValue, Int azValue,
+        Int bxValue, Int byValue, Int bzValue,
+        Int cxValue, Int cyValue, Int czValue
+    ) {
+        if (!broadPhaseCollection.addTriangle(
+            axValue, ayValue, azValue,
+            bxValue, byValue, bzValue,
+            cxValue, cyValue, czValue)) {
+            return false
+        }
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
+        return true
+    }
+
+    Bool removeBroadPhaseTriangle(Int index) {
+        if (!broadPhaseCollection.removeTriangle(index)) {
+            return false
+        }
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
+        return true
+    }
+
+    Int broadPhaseTriangleCount() {
+        return broadPhaseCollection.triangleCount()
+    }
+
+    SegmentCollisionResult rejectedBroadPhaseQuery(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return SegmentCollisionResult(
+            false, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            startX, startY, startZ)
+    }
+
+    SegmentCollisionResult queryBroadPhase(
+        Int geometryRevision,
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (geometryRevision != broadPhaseRevisionValue) {
+            return rejectedBroadPhaseQuery(
+                startX, startY, startZ, endX, endY, endZ)
+        }
+        return broadPhaseCollection.query(
+            startX, startY, startZ, endX, endY, endZ)
     }
 
     Bool applyQuerySnapshot(

@@ -27,20 +27,20 @@ This is the active bounded implementation sequence after the initial research an
 - Bounded integer 3D segment sweep queries through an axis-aligned volume, rejecting starting penetration and over-budget traversal.
 - Bounded integer triangle queries with degenerate-triangle rejection and previous-sample resolution.
 - Bounded capsule center movement with radius-expanded bounds and shared player/projectile/line-of-sight admission.
-- Isolated offscreen SDL_GPU device and SPIR-V indexed quad draw accepted with explicit vertex/index-buffer uploads; the latest smoke measured 1089 microseconds for three draws against the declared 16,667-microsecond frame budget on `renderD129`.
+- Isolated offscreen SDL_GPU device and SPIR-V indexed quad draw accepted with explicit vertex/index-buffer uploads and per-device cached GPU resources; the latest smoke measured 1049 microseconds for three draws against the declared 16,667-microsecond frame budget on `renderD129`.
 - Fixed-step clock exposes the declared 60 Hz frame budget to GPU acceptance checks.
 - Frame staging accepts a six-vertex textured quad within a bounded 30-scalar-write budget.
 - Bounded triangle collections use a fixed-capacity deterministic binary BVH with nearest-hit selection, removal/rebuild, geometry revisions, and traversal diagnostics.
-- Bounded capsule movement now returns authoritative slide/step results, including successful traversal over a configured bounded step obstacle.
-- Authoritative loopback rejects query snapshots carrying stale broad-phase geometry revisions.
+- Bounded capsule movement returns authoritative slide/step results over a fixed-capacity collection of deterministically ordered step obstacles, with clear/reconfigure operations.
+- Authoritative sessions own the bounded broad-phase triangle collection, hand off its geometry revision with query snapshots, and reject stale collection queries.
 
 ## Next batch
 
 1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
 2. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
-3. Add broad-phase collection handoff from the authoritative session instead of the revision-only contract.
-4. Extend capsule obstacles beyond one bounded step prism and add multiple-obstacle ordering.
-5. Add GPU resource reuse across frames; current smoke recreates buffers, pipeline, and texture per draw.
+3. Add a bounded broad-phase payload/transport contract for session consumers outside the in-process loopback.
+4. Extend capsule obstacle capacity and integrate obstacle collection queries with broad-phase movement admission.
+5. Add asynchronous frame overlap and GPU fence-retirement telemetry around cached resources.
 6. Record each new measured failure or acceptance boundary in both language trees.
 
 ## Deferred

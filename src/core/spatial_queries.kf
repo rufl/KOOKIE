@@ -325,12 +325,17 @@ class BoundedTriangleCollection {
         if (nextMinX > nextMaxX || nextMinY > nextMaxY || nextMinZ > nextMaxZ) {
             return false
         }
+        if (minX == nextMinX && minY == nextMinY && minZ == nextMinZ &&
+            maxX == nextMaxX && maxY == nextMaxY && maxZ == nextMaxZ) {
+            return true
+        }
         minX = nextMinX
         minY = nextMinY
         minZ = nextMinZ
         maxX = nextMaxX
         maxY = nextMaxY
         maxZ = nextMaxZ
+        geometryRevisionValue = geometryRevisionValue + 1
         return true
     }
 
@@ -651,12 +656,12 @@ record CapsuleMovementResult(
 class BoundedCapsuleWorld {
     BoundedSegmentWorld centerWorld
     Int radius
-    Bool stepConfigured
-    Int stepMinX
-    Int stepMaxX
-    Int stepMinZ
-    Int stepMaxZ
-    Int stepTopY
+    Int stepObstacleCountValue
+    Int[] stepMinXs
+    Int[] stepMaxXs
+    Int[] stepMinZs
+    Int[] stepMaxZs
+    Int[] stepTopYs
 
     public constructor(
         Int nextMinX, Int nextMinY, Int nextMinZ,
@@ -671,12 +676,12 @@ class BoundedCapsuleWorld {
             nextMinX + radius, nextMinY + radius, nextMinZ + radius,
             nextMaxX - radius, nextMaxY - radius, nextMaxZ - radius,
             nextMaxDistance)
-        stepConfigured = false
-        stepMinX = 0
-        stepMaxX = 0
-        stepMinZ = 0
-        stepMaxZ = 0
-        stepTopY = 0
+        stepObstacleCountValue = 0
+        stepMinXs = new Int[4]
+        stepMaxXs = new Int[4]
+        stepMinZs = new Int[4]
+        stepMaxZs = new Int[4]
+        stepTopYs = new Int[4]
     }
 
     Bool configure(
@@ -695,9 +700,28 @@ class BoundedCapsuleWorld {
             nextMaxX - radius, nextMaxY - radius, nextMaxZ - radius,
             nextMaxDistance)
         if (configured) {
-            stepConfigured = false
+            stepObstacleCountValue = 0
         }
         return configured
+    }
+
+    Bool addStepObstacle(
+        Int nextMinX, Int nextMaxX,
+        Int nextMinZ, Int nextMaxZ,
+        Int nextTopY
+    ) {
+        if (nextMinX > nextMaxX || nextMinZ > nextMaxZ || nextTopY < 0 ||
+            stepObstacleCountValue >= stepMinXs.length) {
+            return false
+        }
+        var index = stepObstacleCountValue
+        stepMinXs[index] = nextMinX - radius
+        stepMaxXs[index] = nextMaxX + radius
+        stepMinZs[index] = nextMinZ - radius
+        stepMaxZs[index] = nextMaxZ + radius
+        stepTopYs[index] = nextTopY + radius
+        stepObstacleCountValue = stepObstacleCountValue + 1
+        return true
     }
 
     Bool configureStepObstacle(
@@ -708,13 +732,17 @@ class BoundedCapsuleWorld {
         if (nextMinX > nextMaxX || nextMinZ > nextMaxZ || nextTopY < 0) {
             return false
         }
-        stepMinX = nextMinX - radius
-        stepMaxX = nextMaxX + radius
-        stepMinZ = nextMinZ - radius
-        stepMaxZ = nextMaxZ + radius
-        stepTopY = nextTopY + radius
-        stepConfigured = true
+        stepObstacleCountValue = 0
+        return addStepObstacle(nextMinX, nextMaxX, nextMinZ, nextMaxZ, nextTopY)
+    }
+
+    Bool clearStepObstacles() {
+        stepObstacleCountValue = 0
         return true
+    }
+
+    Int stepObstacleCount() {
+        return stepObstacleCountValue
     }
 
     Int absolute(Int value) {
@@ -725,8 +753,14 @@ class BoundedCapsuleWorld {
     }
 
     Bool stepBlocked(Int x, Int y, Int z) {
-        return stepConfigured && x >= stepMinX && x <= stepMaxX &&
-            y <= stepTopY && z >= stepMinZ && z <= stepMaxZ
+        for (var index = 0; index < stepObstacleCountValue; index = index + 1) {
+            if (x >= stepMinXs[index] && x <= stepMaxXs[index] &&
+                y <= stepTopYs[index] && z >= stepMinZs[index] &&
+                z <= stepMaxZs[index]) {
+                return true
+            }
+        }
+        return false
     }
 
     SegmentCollisionResult rejectedCapsule(
@@ -745,7 +779,7 @@ class BoundedCapsuleWorld {
     ) {
         var boundary = centerWorld.querySegment(
             startX, startY, startZ, endX, endY, endZ)
-        if (!boundary.accepted() || !stepConfigured) {
+        if (!boundary.accepted() || stepObstacleCountValue == 0) {
             return boundary
         }
         if (stepBlocked(startX, startY, startZ)) {

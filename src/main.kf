@@ -196,16 +196,33 @@ test "authoritative loopback foundation" {
         "acknowledged prediction must stop replaying")
 
     assert(loopback.broadPhaseRevision() == 1 &&
-        loopback.clientBroadPhaseRevision() == 1,
-        "loopback must expose initial broad-phase revision")
-    assert(loopback.applyQuerySnapshot(4, 3, 1, 1, 6),
+        loopback.clientBroadPhaseRevision() == 1 &&
+        loopback.broadPhaseTriangleCount() == 0,
+        "loopback must expose initial broad-phase collection")
+    assert(loopback.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "authoritative session must accept bounded broad-phase geometry")
+    var broadPhaseRevision = loopback.broadPhaseRevision()
+    assert(broadPhaseRevision == 2 && loopback.broadPhaseTriangleCount() == 1,
+        "broad-phase collection edits must advance its revision")
+    assert(loopback.applyQuerySnapshot(4, 3, broadPhaseRevision, 1, 6),
         "matching geometry revision must accept query snapshot")
-    assert(loopback.publishBroadPhaseRevision(2),
-        "authoritative geometry revision must advance")
-    assert(!loopback.applyQuerySnapshot(5, 4, 1, 1, 6),
+    var staleQuery = loopback.queryBroadPhase(
+        1, 1, 1, 0, 1, 1, 10)
+    assert(!staleQuery.accepted(),
+        "stale broad-phase collection query must reject")
+    var currentQuery = loopback.queryBroadPhase(
+        broadPhaseRevision, 1, 1, 0, 1, 1, 10)
+    assert(currentQuery.accepted() && currentQuery.collided(),
+        "matching broad-phase collection query must collide")
+    assert(loopback.removeBroadPhaseTriangle(0) &&
+        loopback.broadPhaseRevision() > broadPhaseRevision &&
+        loopback.broadPhaseTriangleCount() == 0,
+        "broad-phase removal must advance the handoff revision")
+    assert(!loopback.applyQuerySnapshot(5, 4, broadPhaseRevision, 1, 6),
         "stale geometry revision must reject query snapshot")
-    assert(loopback.applyQuerySnapshot(6, 4, 2, 1, 6) &&
-        loopback.clientBroadPhaseRevision() == 2,
+    assert(loopback.applyQuerySnapshot(
+        6, 4, loopback.broadPhaseRevision(), 1, 6) &&
+        loopback.clientBroadPhaseRevision() == loopback.broadPhaseRevision(),
         "matching new geometry revision must reconcile")
 
 }
@@ -353,6 +370,17 @@ test "capsule slide and step result" {
     assert(tooLow.accepted() && tooLow.collided() && !tooLow.stepped() &&
         tooLow.resolvedX() == 2,
         "capsule must slide when step height is insufficient")
+    assert(capsule.addStepObstacle(4, 6, 4, 6, 2) &&
+        capsule.stepObstacleCount() == 2,
+        "capsule must retain multiple bounded obstacles")
+    var orderedHit = capsule.queryCapsule(2, 2, 2, 8, 2, 8)
+    assert(orderedHit.accepted() && orderedHit.collided() && orderedHit.hitStep() == 1,
+        "capsule obstacles must resolve in deterministic traversal order")
+    assert(capsule.clearStepObstacles() && capsule.stepObstacleCount() == 0,
+        "capsule obstacle collection must clear")
+    var afterClear = capsule.moveCapsule(2, 2, 2, 8, 2, 8, 1)
+    assert(afterClear.accepted() && !afterClear.collided(),
+        "cleared capsule obstacles must no longer block movement")
     var gate = SpatialQueryGate(0, 0, 0, 10, 10, 10, 1, 20)
     var admitted = gate.admitPlayerMoveWithStep(2, 2, 2, 12, 2, 2, 1)
     assert(admitted.accepted() && admitted.collided() && admitted.slideX() == 7,

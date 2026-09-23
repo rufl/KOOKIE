@@ -24,9 +24,53 @@ typedef struct {
     int window_slot;
     unsigned int generation;
 } KookieGpuSlot;
+typedef struct {
+    SDL_GPUDevice *device;
+    SDL_GPUTextureFormat target_format;
+    SDL_GPUShader *vertex_shader;
+    SDL_GPUShader *fragment_shader;
+    SDL_GPUGraphicsPipeline *pipeline;
+    SDL_GPUTexture *texture;
+    SDL_GPUBuffer *vertex_buffer;
+    SDL_GPUBuffer *index_buffer;
+    SDL_GPUSampler *sampler;
+    bool ready;
+} KookieGpuResources;
+
+static KookieGpuResources gpu_resources;
 
 static KookieWindowSlot window_slots[KOOKIE_MAX_WINDOWS];
 static KookieAudioSlot audio_slot;
+static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
+    if (device == NULL || !gpu_resources.ready) {
+        memset(&gpu_resources, 0, sizeof(gpu_resources));
+        return;
+    }
+    SDL_WaitForGPUIdle(device);
+    if (gpu_resources.index_buffer != NULL) {
+        SDL_ReleaseGPUBuffer(device, gpu_resources.index_buffer);
+    }
+    if (gpu_resources.vertex_buffer != NULL) {
+        SDL_ReleaseGPUBuffer(device, gpu_resources.vertex_buffer);
+    }
+    if (gpu_resources.texture != NULL) {
+        SDL_ReleaseGPUTexture(device, gpu_resources.texture);
+    }
+    if (gpu_resources.sampler != NULL) {
+        SDL_ReleaseGPUSampler(device, gpu_resources.sampler);
+    }
+    if (gpu_resources.pipeline != NULL) {
+        SDL_ReleaseGPUGraphicsPipeline(device, gpu_resources.pipeline);
+    }
+    if (gpu_resources.fragment_shader != NULL) {
+        SDL_ReleaseGPUShader(device, gpu_resources.fragment_shader);
+    }
+    if (gpu_resources.vertex_shader != NULL) {
+        SDL_ReleaseGPUShader(device, gpu_resources.vertex_shader);
+    }
+    memset(&gpu_resources, 0, sizeof(gpu_resources));
+}
+
 static KookieGpuSlot gpu_slot;
 static int last_event_a;
 static int last_event_b;
@@ -66,6 +110,7 @@ void kookie_sdl_shutdown(void) {
             window_slots[gpu_slot.window_slot].window != NULL) {
             SDL_ReleaseWindowFromGPUDevice(gpu_slot.device, window_slots[gpu_slot.window_slot].window);
         }
+        kookie_gpu_release_resources(gpu_slot.device);
         SDL_DestroyGPUDevice(gpu_slot.device);
         gpu_slot.device = NULL;
         gpu_slot.window_slot = -1;
@@ -186,6 +231,7 @@ bool kookie_gpu_close_headless(void) {
     if (gpu_slot.device == NULL || gpu_slot.window_slot != -1) {
         return false;
     }
+    kookie_gpu_release_resources(gpu_slot.device);
     SDL_DestroyGPUDevice(gpu_slot.device);
     gpu_slot.device = NULL;
     gpu_slot.window_slot = -1;
@@ -209,6 +255,7 @@ bool kookie_gpu_close(int token) {
         window_slots[gpu_slot.window_slot].window != NULL) {
         SDL_ReleaseWindowFromGPUDevice(gpu_slot.device, window_slots[gpu_slot.window_slot].window);
     }
+    kookie_gpu_release_resources(gpu_slot.device);
     SDL_DestroyGPUDevice(gpu_slot.device);
     gpu_slot.device = NULL;
     gpu_slot.window_slot = -1;
@@ -250,37 +297,25 @@ static bool read_shader_binary(const char *name, Uint8 **bytes, size_t *size) {
     *size = (size_t)length;
     return true;
 }
-
-static bool kookie_gpu_draw_test_internal(
-    SDL_Window *window,
-    SDL_GPUTexture *offscreen_target
+static bool kookie_gpu_prepare_resources(
+    SDL_GPUDevice *device,
+    SDL_GPUTextureFormat target_format
 ) {
-    if (gpu_slot.device == NULL) {
-        return false;
+    if (gpu_resources.ready && gpu_resources.device == device &&
+        gpu_resources.target_format == target_format) {
+        return true;
+    }
+    if (gpu_resources.ready) {
+        kookie_gpu_release_resources(gpu_resources.device);
     }
 
-    SDL_GPUDevice *device = gpu_slot.device;
-    SDL_GPUTextureFormat target_format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
-    if (window != NULL) {
-        target_format = SDL_GetGPUSwapchainTextureFormat(device, window);
-        if (target_format == SDL_GPU_TEXTUREFORMAT_INVALID) {
-            return false;
-        }
-    } else if (offscreen_target == NULL) {
-        return false;
-    }
-
+    gpu_resources.device = device;
+    gpu_resources.target_format = target_format;
+    gpu_resources.ready = true;
     Uint8 *vertex_code = NULL;
     Uint8 *fragment_code = NULL;
     size_t vertex_size = 0;
     size_t fragment_size = 0;
-    SDL_GPUShader *vertex_shader = NULL;
-    SDL_GPUShader *fragment_shader = NULL;
-    SDL_GPUGraphicsPipeline *pipeline = NULL;
-    SDL_GPUTexture *texture = NULL;
-    SDL_GPUBuffer *vertex_buffer = NULL;
-    SDL_GPUBuffer *index_buffer = NULL;
-    SDL_GPUSampler *sampler = NULL;
     SDL_GPUTransferBuffer *transfer = NULL;
     SDL_GPUCommandBuffer *command_buffer = NULL;
     bool success = false;
@@ -296,8 +331,8 @@ static bool kookie_gpu_draw_test_internal(
     vertex_info.entrypoint = "main";
     vertex_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
     vertex_info.stage = SDL_GPU_SHADERSTAGE_VERTEX;
-    vertex_shader = SDL_CreateGPUShader(device, &vertex_info);
-    if (vertex_shader == NULL) {
+    gpu_resources.vertex_shader = SDL_CreateGPUShader(device, &vertex_info);
+    if (gpu_resources.vertex_shader == NULL) {
         goto cleanup;
     }
 
@@ -308,8 +343,8 @@ static bool kookie_gpu_draw_test_internal(
     fragment_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
     fragment_info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
     fragment_info.num_samplers = 1;
-    fragment_shader = SDL_CreateGPUShader(device, &fragment_info);
-    if (fragment_shader == NULL) {
+    gpu_resources.fragment_shader = SDL_CreateGPUShader(device, &fragment_info);
+    if (gpu_resources.fragment_shader == NULL) {
         goto cleanup;
     }
 
@@ -322,22 +357,72 @@ static bool kookie_gpu_draw_test_internal(
     texture_info.layer_count_or_depth = 1;
     texture_info.num_levels = 1;
     texture_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
-    texture = SDL_CreateGPUTexture(device, &texture_info);
-    if (texture == NULL) {
+    gpu_resources.texture = SDL_CreateGPUTexture(device, &texture_info);
+    if (gpu_resources.texture == NULL) {
         goto cleanup;
     }
+
     SDL_GPUBufferCreateInfo mesh_vertex_info = {0};
     mesh_vertex_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
     mesh_vertex_info.size = 96;
-    vertex_buffer = SDL_CreateGPUBuffer(device, &mesh_vertex_info);
-    if (vertex_buffer == NULL) {
+    gpu_resources.vertex_buffer = SDL_CreateGPUBuffer(device, &mesh_vertex_info);
+    if (gpu_resources.vertex_buffer == NULL) {
         goto cleanup;
     }
+
     SDL_GPUBufferCreateInfo mesh_index_info = {0};
     mesh_index_info.usage = SDL_GPU_BUFFERUSAGE_INDEX;
     mesh_index_info.size = 12;
-    index_buffer = SDL_CreateGPUBuffer(device, &mesh_index_info);
-    if (index_buffer == NULL) {
+    gpu_resources.index_buffer = SDL_CreateGPUBuffer(device, &mesh_index_info);
+    if (gpu_resources.index_buffer == NULL) {
+        goto cleanup;
+    }
+
+    SDL_GPUSamplerCreateInfo sampler_info = {0};
+    sampler_info.min_filter = SDL_GPU_FILTER_NEAREST;
+    sampler_info.mag_filter = SDL_GPU_FILTER_NEAREST;
+    sampler_info.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+    sampler_info.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    sampler_info.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    sampler_info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    sampler_info.max_lod = 1.0f;
+    gpu_resources.sampler = SDL_CreateGPUSampler(device, &sampler_info);
+    if (gpu_resources.sampler == NULL) {
+        goto cleanup;
+    }
+
+    SDL_GPUColorTargetDescription color_target = {0};
+    color_target.format = target_format;
+    SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {0};
+    pipeline_info.vertex_shader = gpu_resources.vertex_shader;
+    pipeline_info.fragment_shader = gpu_resources.fragment_shader;
+    pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    SDL_GPUVertexBufferDescription vertex_description = {0};
+    vertex_description.slot = 0;
+    vertex_description.pitch = 16;
+    vertex_description.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+    SDL_GPUVertexAttribute vertex_attributes[2] = {0};
+    vertex_attributes[0].location = 0;
+    vertex_attributes[0].buffer_slot = 0;
+    vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+    vertex_attributes[0].offset = 0;
+    vertex_attributes[1].location = 1;
+    vertex_attributes[1].buffer_slot = 0;
+    vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+    vertex_attributes[1].offset = 8;
+    pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_description;
+    pipeline_info.vertex_input_state.num_vertex_buffers = 1;
+    pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
+    pipeline_info.vertex_input_state.num_vertex_attributes = 2;
+    pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
+    pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+    pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
+    pipeline_info.rasterizer_state.enable_depth_clip = true;
+    pipeline_info.multisample_state.sample_count = SDL_GPU_SAMPLECOUNT_1;
+    pipeline_info.target_info.color_target_descriptions = &color_target;
+    pipeline_info.target_info.num_color_targets = 1;
+    gpu_resources.pipeline = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
+    if (gpu_resources.pipeline == NULL) {
         goto cleanup;
     }
 
@@ -370,54 +455,6 @@ static bool kookie_gpu_draw_test_internal(
     memcpy(pixels + 112, indices, sizeof(indices));
     SDL_UnmapGPUTransferBuffer(device, transfer);
 
-    SDL_GPUSamplerCreateInfo sampler_info = {0};
-    sampler_info.min_filter = SDL_GPU_FILTER_NEAREST;
-    sampler_info.mag_filter = SDL_GPU_FILTER_NEAREST;
-    sampler_info.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
-    sampler_info.address_mode_u = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
-    sampler_info.address_mode_v = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
-    sampler_info.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
-    sampler_info.max_lod = 1.0f;
-    sampler = SDL_CreateGPUSampler(device, &sampler_info);
-    if (sampler == NULL) {
-        goto cleanup;
-    }
-
-    SDL_GPUColorTargetDescription color_target = {0};
-    color_target.format = target_format;
-    SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {0};
-    pipeline_info.vertex_shader = vertex_shader;
-    pipeline_info.fragment_shader = fragment_shader;
-    pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
-    SDL_GPUVertexBufferDescription vertex_description = {0};
-    vertex_description.slot = 0;
-    vertex_description.pitch = 16;
-    vertex_description.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-    SDL_GPUVertexAttribute vertex_attributes[2] = {0};
-    vertex_attributes[0].location = 0;
-    vertex_attributes[0].buffer_slot = 0;
-    vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-    vertex_attributes[0].offset = 0;
-    vertex_attributes[1].location = 1;
-    vertex_attributes[1].buffer_slot = 0;
-    vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
-    vertex_attributes[1].offset = 8;
-    pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_description;
-    pipeline_info.vertex_input_state.num_vertex_buffers = 1;
-    pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
-    pipeline_info.vertex_input_state.num_vertex_attributes = 2;
-    pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
-    pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
-    pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
-    pipeline_info.rasterizer_state.enable_depth_clip = true;
-    pipeline_info.multisample_state.sample_count = SDL_GPU_SAMPLECOUNT_1;
-    pipeline_info.target_info.color_target_descriptions = &color_target;
-    pipeline_info.target_info.num_color_targets = 1;
-    pipeline = SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
-    if (pipeline == NULL) {
-        goto cleanup;
-    }
-
     command_buffer = SDL_AcquireGPUCommandBuffer(device);
     if (command_buffer == NULL) {
         goto cleanup;
@@ -429,7 +466,7 @@ static bool kookie_gpu_draw_test_internal(
     SDL_GPUTextureTransferInfo source = {0};
     source.transfer_buffer = transfer;
     SDL_GPUTextureRegion destination = {0};
-    destination.texture = texture;
+    destination.texture = gpu_resources.texture;
     destination.w = 2;
     destination.h = 2;
     destination.d = 1;
@@ -438,35 +475,78 @@ static bool kookie_gpu_draw_test_internal(
     vertex_source.transfer_buffer = transfer;
     vertex_source.offset = 16;
     SDL_GPUBufferRegion vertex_destination = {0};
-    vertex_destination.buffer = vertex_buffer;
+    vertex_destination.buffer = gpu_resources.vertex_buffer;
     vertex_destination.size = 96;
     SDL_UploadToGPUBuffer(copy_pass, &vertex_source, &vertex_destination, false);
     SDL_GPUTransferBufferLocation index_source = {0};
     index_source.transfer_buffer = transfer;
     index_source.offset = 112;
     SDL_GPUBufferRegion index_destination = {0};
-    index_destination.buffer = index_buffer;
+    index_destination.buffer = gpu_resources.index_buffer;
     index_destination.size = 12;
     SDL_UploadToGPUBuffer(copy_pass, &index_source, &index_destination, false);
     SDL_EndGPUCopyPass(copy_pass);
+    if (!SDL_SubmitGPUCommandBuffer(command_buffer) ||
+        !SDL_WaitForGPUIdle(device)) {
+        command_buffer = NULL;
+        goto cleanup;
+    }
+    command_buffer = NULL;
+    success = true;
 
+cleanup:
+    if (command_buffer != NULL) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+    }
+    if (transfer != NULL) {
+        SDL_ReleaseGPUTransferBuffer(device, transfer);
+    }
+    free(fragment_code);
+    free(vertex_code);
+    if (!success) {
+        kookie_gpu_release_resources(device);
+    }
+    return success;
+}
+
+
+static bool kookie_gpu_draw_test_internal(
+    SDL_Window *window,
+    SDL_GPUTexture *offscreen_target
+) {
+    if (gpu_slot.device == NULL) {
+        return false;
+    }
+
+    SDL_GPUDevice *device = gpu_slot.device;
+    SDL_GPUTextureFormat target_format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    if (window != NULL) {
+        target_format = SDL_GetGPUSwapchainTextureFormat(device, window);
+        if (target_format == SDL_GPU_TEXTUREFORMAT_INVALID) {
+            return false;
+        }
+    } else if (offscreen_target == NULL) {
+        return false;
+    }
+    if (!kookie_gpu_prepare_resources(device, target_format)) {
+        return false;
+    }
+
+    SDL_GPUCommandBuffer *command_buffer = SDL_AcquireGPUCommandBuffer(device);
+    if (command_buffer == NULL) {
+        return false;
+    }
     SDL_GPUTexture *render_target = offscreen_target;
     Uint32 target_width = 320;
     Uint32 target_height = 240;
     if (window != NULL) {
-        Uint32 swapchain_width = 0;
-        Uint32 swapchain_height = 0;
         if (!SDL_WaitAndAcquireGPUSwapchainTexture(
                 command_buffer, window, &render_target,
-                &swapchain_width, &swapchain_height) ||
-            render_target == NULL || swapchain_width == 0 || swapchain_height == 0) {
-            goto cleanup;
+                &target_width, &target_height) ||
+            render_target == NULL || target_width == 0 || target_height == 0) {
+            SDL_CancelGPUCommandBuffer(command_buffer);
+            return false;
         }
-        target_width = swapchain_width;
-        target_height = swapchain_height;
-    }
-    if (target_width == 0 || target_height == 0) {
-        goto cleanup;
     }
 
     SDL_GPUColorTargetInfo target = {0};
@@ -477,60 +557,29 @@ static bool kookie_gpu_draw_test_internal(
     target.clear_color.a = 1.0f;
     target.load_op = SDL_GPU_LOADOP_CLEAR;
     target.store_op = SDL_GPU_STOREOP_STORE;
-    SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(command_buffer, &target, 1, NULL);
+    SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(
+        command_buffer, &target, 1, NULL);
     if (render_pass == NULL) {
-        goto cleanup;
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return false;
     }
     SDL_GPUTextureSamplerBinding binding = {0};
-    binding.texture = texture;
-    binding.sampler = sampler;
+    binding.texture = gpu_resources.texture;
+    binding.sampler = gpu_resources.sampler;
     SDL_GPUBufferBinding vertex_binding = {0};
-    vertex_binding.buffer = vertex_buffer;
+    vertex_binding.buffer = gpu_resources.vertex_buffer;
     SDL_GPUBufferBinding index_binding = {0};
-    index_binding.buffer = index_buffer;
-    SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
+    index_binding.buffer = gpu_resources.index_buffer;
+    SDL_BindGPUGraphicsPipeline(render_pass, gpu_resources.pipeline);
     SDL_BindGPUVertexBuffers(render_pass, 0, &vertex_binding, 1);
     SDL_BindGPUIndexBuffer(render_pass, &index_binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
     SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
     SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
     SDL_EndGPURenderPass(render_pass);
     if (!SDL_SubmitGPUCommandBuffer(command_buffer)) {
-        goto cleanup;
+        return false;
     }
-    command_buffer = NULL;
-    success = SDL_WaitForGPUIdle(device);
-
-cleanup:
-    if (command_buffer != NULL) {
-        SDL_CancelGPUCommandBuffer(command_buffer);
-    }
-    if (index_buffer != NULL) {
-        SDL_ReleaseGPUBuffer(device, index_buffer);
-    }
-    if (vertex_buffer != NULL) {
-        SDL_ReleaseGPUBuffer(device, vertex_buffer);
-    }
-    if (transfer != NULL) {
-        SDL_ReleaseGPUTransferBuffer(device, transfer);
-    }
-    if (texture != NULL) {
-        SDL_ReleaseGPUTexture(device, texture);
-    }
-    if (sampler != NULL) {
-        SDL_ReleaseGPUSampler(device, sampler);
-    }
-    if (pipeline != NULL) {
-        SDL_ReleaseGPUGraphicsPipeline(device, pipeline);
-    }
-    if (fragment_shader != NULL) {
-        SDL_ReleaseGPUShader(device, fragment_shader);
-    }
-    if (vertex_shader != NULL) {
-        SDL_ReleaseGPUShader(device, vertex_shader);
-    }
-    free(fragment_code);
-    free(vertex_code);
-    return success;
+    return SDL_WaitForGPUIdle(device);
 }
 
 bool kookie_gpu_draw_test(void) {
