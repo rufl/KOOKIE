@@ -310,6 +310,31 @@ test "bounded input replay records tick commands" {
         "replay reset must rearm deterministic recording")
 }
 
+test "loopback replay capture records consumed commands" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.setInputReplayEnabled(true) &&
+        loopback.inputReplayEnabledValue())
+    assert(loopback.receiveInput(1, 1, 1, 3, 0, 2, -1, 0, 0) &&
+        loopback.receiveInput(1, 2, 2, -2, 0, 0, 4, 0, 1) &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.pendingPlayerReplay(1) == 2,
+        "loopback must capture commands when replay is enabled")
+    assert(loopback.playPlayerReplay(1) &&
+        loopback.lastPlayerReplay(1).tick() == 1 &&
+        loopback.lastPlayerReplay(1).moveX() == 3 &&
+        loopback.playPlayerReplay(1) &&
+        loopback.lastPlayerReplay(1).tick() == 2 &&
+        loopback.lastPlayerReplay(1).jump() == 1 &&
+        loopback.pendingPlayerReplay(1) == 0,
+        "loopback replay must preserve consumed command order")
+    assert(loopback.setInputReplayEnabled(false) &&
+        !loopback.inputReplayEnabledValue() &&
+        loopback.pendingPlayerReplay(1) == 0,
+        "disabling replay must reset bounded capture state")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

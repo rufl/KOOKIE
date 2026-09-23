@@ -59,7 +59,7 @@ This is the active bounded implementation sequence after the initial research an
 - `BoundedSaveState` now validates a version-1, revision-bounded integer payload, exposes deterministic envelope checksums, rejects capacity/value corruption, and supports in-memory restore; `BoundedSaveHistory` publishes strictly increasing revisions with bounded deterministic eviction and restore; file I/O, migrations and durable save publication remain deferred.
 - Focus loss now clears pending player commands, emits held-button release edges, blocks new input while unfocused, and rearms cleanly on focus regain; JVM/native coverage prevents stale firing.
 - Pause now resets fixed-step wall-clock debt, disarms pending player commands, blocks simulation/input while paused, and resumes without catch-up spikes; JVM/native coverage fixes the documented pause contract.
-- `InputReplayRecorder` now records validated resulting tick commands (not raw platform events) in a bounded FIFO, preserves deterministic order, rejects stale/duplicate/invalid commands, and replays or resets without unbounded growth.
+- `InputReplayRecorder` now records validated resulting tick commands (not raw platform events) in a bounded FIFO, preserves deterministic order, rejects stale/duplicate/invalid commands, and replays or resets without unbounded growth; `LoopbackSession` captures consumed commands only when explicitly enabled and resets the bounded capture on disable.
 
 ## Next batch
 

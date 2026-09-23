@@ -10,6 +10,8 @@ class LoopbackSession {
     InputEdgeState playerTwoEdges
     CombatWorld playerCombat
     PlayerWeaponPresenter playerWeaponPresentations
+    InputReplayRecorder playerOneReplay
+    InputReplayRecorder playerTwoReplay
     MovementComponent serverMovement
     MovementComponent clientMovement
     Bool playerOneConnected
@@ -21,6 +23,7 @@ class LoopbackSession {
     Int snapshotSequence
     Bool started
     Bool paused
+    Bool inputReplayEnabled
     ClientPredictionState playerOnePrediction
     ClientPredictionState playerTwoPrediction
     SnapshotHistory playerOneSnapshots
@@ -73,6 +76,9 @@ class LoopbackSession {
         clientTick = 0
         snapshotSequence = 0
         paused = false
+        playerOneReplay = InputReplayRecorder(256)
+        playerTwoReplay = InputReplayRecorder(256)
+        inputReplayEnabled = false
         started = false
         playerOnePrediction = ClientPredictionState(4)
         playerTwoPrediction = ClientPredictionState(4)
@@ -617,6 +623,47 @@ class LoopbackSession {
         return false
     }
 
+    Bool setInputReplayEnabled(Bool enabled) {
+        if (!started) {
+            return false
+        }
+        inputReplayEnabled = enabled
+        playerOneReplay.reset()
+        playerTwoReplay.reset()
+        return true
+    }
+
+    Bool inputReplayEnabledValue() {
+        return inputReplayEnabled
+    }
+
+    Int pendingPlayerReplay(Int player) {
+        if (player == 1) {
+            return playerOneReplay.pending()
+        }
+        if (player == 2) {
+            return playerTwoReplay.pending()
+        }
+        return -1
+    }
+
+    Bool playPlayerReplay(Int player) {
+        if (player == 1) {
+            return playerOneReplay.playNext()
+        }
+        if (player == 2) {
+            return playerTwoReplay.playNext()
+        }
+        return false
+    }
+
+    InputCommand lastPlayerReplay(Int player) {
+        if (player == 1) {
+            return playerOneReplay.lastPlayed()
+        }
+        return playerTwoReplay.lastPlayed()
+    }
+
     Bool receiveInput(
         Int player, Int tick, Int sequence, Int moveX, Int moveY,
         Int lookX, Int lookY, Int fire, Int jump
@@ -650,6 +697,9 @@ class LoopbackSession {
                 playerOneInputs.dequeue()
                 var commandOne = playerOneInputs.lastConsumed()
                 playerOneEdges.apply(commandOne.fire(), commandOne.jump())
+                if (inputReplayEnabled && !playerOneReplay.append(commandOne)) {
+                    return -1
+                }
                 serverMovement.applyInput(1, commandOne.moveX())
                 if (playerCombat.isAlive(1) &&
                     !playerWeaponPresentations.step(
@@ -660,6 +710,9 @@ class LoopbackSession {
             if (playerTwoConnected && playerTwoInputs.queuedCount() > 0 && playerTwoInputs.nextTick() <= clock.tick()) {
                 playerTwoInputs.dequeue()
                 var commandTwo = playerTwoInputs.lastConsumed()
+                if (inputReplayEnabled && !playerTwoReplay.append(commandTwo)) {
+                    return -1
+                }
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
                 serverMovement.applyInput(2, commandTwo.moveX())
                 if (playerCombat.isAlive(2) &&
