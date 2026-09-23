@@ -9,6 +9,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_WORDS 78
@@ -338,12 +340,7 @@ static bool kookie_transport_parse_hex_word(
     *value = parsed;
     return true;
 }
-
-bool kookie_transport_set_key_from_environment(void) {
-    if (transport.socket_fd >= 0) {
-        return false;
-    }
-    const char *encoded = getenv("KOOKIE_TRANSPORT_KEY_HEX");
+static bool kookie_transport_set_key_from_encoded(const char *encoded) {
     if (encoded == NULL || strlen(encoded) != 32) {
         return false;
     }
@@ -357,6 +354,45 @@ bool kookie_transport_set_key_from_environment(void) {
     return kookie_transport_set_key(
         (int)words[0], (int)words[1],
         (int)words[2], (int)words[3]);
+}
+
+bool kookie_transport_set_key_from_environment(void) {
+    if (transport.socket_fd >= 0) {
+        return false;
+    }
+    return kookie_transport_set_key_from_encoded(
+        getenv("KOOKIE_TRANSPORT_KEY_HEX"));
+}
+
+bool kookie_transport_set_key_from_file(void) {
+    if (transport.socket_fd >= 0) {
+        return false;
+    }
+    const char *path = getenv("KOOKIE_TRANSPORT_KEY_FILE");
+    if (path == NULL || path[0] == '\0') {
+        return false;
+    }
+    struct stat info;
+    if (stat(path, &info) != 0 || !S_ISREG(info.st_mode) ||
+        (info.st_mode & 0077) != 0) {
+        return false;
+    }
+    int file_descriptor = open(path, O_RDONLY);
+    if (file_descriptor < 0) {
+        return false;
+    }
+    char encoded[33];
+    ssize_t length = read(file_descriptor, encoded, sizeof(encoded));
+    close(file_descriptor);
+    if (length != 32) {
+        return false;
+    }
+    encoded[32] = '\0';
+    return kookie_transport_set_key_from_encoded(encoded);
+}
+
+bool kookie_transport_rotate_key_from_file(void) {
+    return kookie_transport_set_key_from_file();
 }
 
 

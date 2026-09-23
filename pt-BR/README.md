@@ -110,23 +110,21 @@ consultas escalares de colisão, sweeps inteiros de segmento e triângulo 3D,
 movimento de cápsula expandido pelo raio, consultas determinísticas limitadas
 de coleções/BVH de triângulos com remoção/rebuild e revisões de geometria,
 obstáculos de step de cápsula ordenados em oito slots com operações de
-limpeza/reconfiguração, orçamentos de staging de frame, snapshots broad-phase
-da sessão autoritativa com aplicação de payloads limitados e guardas de
 sequência, uma fila de transporte broad-phase de capacidade fixa com rejeição
 de overflow, rejeição de consultas obsoletas e admissão de movimento espacial
 combinando colisões de cápsula e broad-phase. O adaptador também possui uma
 sonda UDP nativa de peer entre sockets localhost pareados com configuração
 `RemoteSessionEndpoint` validada para endereço/porta IPv4, framing SipHash
 autenticado, provisionamento explícito de chave não nula antes da abertura via
-`KOOKIE_TRANSPORT_KEY_HEX`, congelamento após ativação, validação de
-sequência/tamanho, palavras com sinal e timeout de recebimento de 1.000 ms,
-além de estados explícitos de recuperação GPU e bitmask de capacidades para
-reopen limpo e marcador de perda. Em seguida: adicionar apresentação isolada
-compatível com DRI3, integrar frames autenticados com uma sessão remota real e
-chaves de produção, adicionar callbacks/retirement reais para perda do
-dispositivo e reexecutar o reproduzível de exceção nativa após upgrade do
-compilador. Use o wrapper descartável de display isolado do repositório para
-verificação gráfica.
+`KOOKIE_TRANSPORT_KEY_HEX` ou um `KOOKIE_TRANSPORT_KEY_FILE` em modo 0600 ou
+mais restritivo, rotação explícita de chave do transporte fechado, congelamento
+após ativação, validação de sequência/tamanho, palavras com sinal e timeout de
+recebimento de 1.000 ms. A sonda da sessão autoritativa conduz três ticks
+broad-phase autenticados, e eventos SDL de reset/perda aposentam recursos GPU
+pelo event pump antes da recuperação. Em seguida: adicionar apresentação
+isolada compatível com DRI3 e reexecutar o reproduzível de exceção nativa após
+upgrade do compilador. Use o wrapper descartável de display isolado do
+repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

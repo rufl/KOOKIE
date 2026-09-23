@@ -29,6 +29,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
     Int key0Low, Int key0High, Int key1Low, Int key1High
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key_from_environment(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key_from_file(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_rotate_key_from_file(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_peer_ipv4(
     Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
 ): Bool
@@ -91,11 +93,13 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         127, 0, 0, 1, 1, 1, 2, 3, 4)
     if (!endpoint.valid() ||
         kookie_transport_open_pair() ||
-        !kookie_transport_set_key_from_environment() ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
         kookie_transport_open_remote_ipv4(127, 0, 0, 1, 0) ||
         kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1) ||
         !kookie_transport_close() ||
-        !kookie_transport_set_key_from_environment() ||
+        (!kookie_transport_rotate_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
         !kookie_transport_open_pair() ||
         kookie_transport_timeout_milliseconds() != 1000) {
         kookie_transport_close()

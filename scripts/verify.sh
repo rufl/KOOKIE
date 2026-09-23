@@ -30,6 +30,9 @@ else
 fi
 
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
+transport_key_file="$build_dir/transport.key"
+printf '%s' '00000001000000020000000300000004' >"$transport_key_file"
+chmod 600 "$transport_key_file"
 adapter_build_dir="$root_dir/build"
 rm -rf "$adapter_build_dir"
 mkdir -p "$adapter_build_dir"
@@ -73,7 +76,9 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
     --target native --output "$adapter_build_dir/native-adapter"
   overzeer-isolated-display --timeout 90 "${render_node_args[@]}" -- \
-    env KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
+    env KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
+    KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
+    KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
     SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
     "$adapter_build_dir/native-adapter/Default/Main"
 else

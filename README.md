@@ -108,15 +108,15 @@ transport queue with overflow rejection, a bounded native UDP peer transport
 probe across paired localhost sockets with validated `RemoteSessionEndpoint`
 configuration for IPv4 peer address/port, authenticated SipHash framing,
 explicit non-zero key provisioning before open through
-`KOOKIE_TRANSPORT_KEY_HEX`, activation freeze, sequence/length validation,
-signed payload words, and a 1,000 ms receive timeout, explicit GPU recovery
-reopen/loss-marker paths and closed-device rejection, stale query rejection, and
-spatial movement admission combining capsule and broad-phase collisions.
-Next: add a DRI3-capable isolated presentation path, integrate authenticated
-frames with a live remote session and production secret storage/rotation, add
-SDL/device-loss callbacks/resource retirement, and rerun the native exception
-reproducer after a compiler upgrade. Use the repository's disposable
-isolated-display wrapper for graphical verification.
+`KOOKIE_TRANSPORT_KEY_HEX` or a mode-0600-or-stricter
+`KOOKIE_TRANSPORT_KEY_FILE`, explicit closed-transport key rotation,
+activation freeze, sequence/length validation, signed payload words, and a
+1,000 ms receive timeout. The authoritative session probe drives three
+authenticated broad-phase ticks, and SDL reset/lost events retire GPU resources
+through the event pump before recovery. Next: add a DRI3-capable isolated
+presentation path and rerun the native exception reproducer after a compiler
+upgrade. Use the repository's disposable isolated-display wrapper for graphical
+verification.
 Do not create a large untested engine scaffold first.
 ## Provenance
 

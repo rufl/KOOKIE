@@ -106,15 +106,16 @@ snapshots with fixed-capacity dequeue/apply and sequence guards, a native
 authenticated UDP peer probe across paired localhost sockets with a validated
 `RemoteSessionEndpoint`, atomic native IPv4 peer opening, configurable peer/port
 and SipHash test keys, sequence/length validation, signed payload words, and a
-1,000 ms receive timeout. `LoopbackSession` now owns authoritative remote
+1,000 ms receive timeout. A mode-0600-or-stricter `KOOKIE_TRANSPORT_KEY_FILE`
+loads exactly 32 hex characters, and closed transports can reprovision through
+the explicit key-rotation API. `LoopbackSession` now owns authoritative remote
 endpoint configuration, activation, snapshot send gating, monotonic receive
 validation and disconnect, and the native probe drives three authenticated
 broad-phase ticks through that handoff. SDL render-device reset/lost events now
 flow through the event pump, retire cached GPU resources for reset or lost-device
 paths, and drive headless recovery. Next: add a DRI3-capable isolated
-presentation path, add production secret storage/rotation, and rerun the native
-exception reproducer after a compiler upgrade. The native exception-handler
-defect remains a compiler gate.
+presentation path and rerun the native exception reproducer after a compiler
+upgrade. The native exception-handler defect remains a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native
