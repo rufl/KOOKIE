@@ -71,17 +71,17 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 - Recommended library set: SDL3/SDL_GPU; offline SDL_shadercross/DXC; OpenAL Soft for production FPS audio (SDL3_mixer is the basic-spatial alternative); SDL3_image for image decoding; FreeType/HarfBuzz for text services; zstd for cooked packages. G0 remains SDL-only with queued audio. Full boundaries, local availability, licenses and adoption gates are in [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
 ## Next action and proof boundary
 
-G0 GPU proof accepts an isolated offscreen SDL_GPU device, SPIR-V draw
-submission, and GPU-idle timing through a render node. The latest smoke
-measured 1638 microseconds for three draws against the declared 16,667-
-microsecond 60 Hz frame budget on `renderD129`; the window path still reports
-`gpu-unavailable` because Xvfb lacks DRI3 presentation support. G1 now also
-has bounded deterministic triangle collection/BVH queries with traversal
-diagnostics and authoritative capsule slide/step results. Next: add a
-DRI3-capable isolated presentation path, prove a successful bounded step
-obstacle traversal, extend triangle collection maintenance, and build the
-textured mesh renderer beyond the first smoke draw. The native
-exception-handler defect remains a compiler gate.
+G0 GPU proof accepts an isolated offscreen SDL_GPU textured quad mesh,
+SPIR-V draw submission, and GPU-idle timing through a render node. The latest
+smoke measured 1461 microseconds for three draws against the declared
+16,667-microsecond 60 Hz frame budget on `renderD129`; the window path still
+reports `gpu-unavailable` because Xvfb lacks DRI3 presentation support. G1 now
+also has bounded six-vertex frame staging, deterministic triangle
+collection/BVH queries with removal/rebuild and geometry revisions, and
+authoritative capsule slide/step traversal over a bounded step obstacle. Next:
+add a DRI3-capable isolated presentation path, upload actual bounded
+vertex/index buffers, reject stale broad-phase revisions, and extend capsule
+obstacles. The native exception-handler defect remains a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

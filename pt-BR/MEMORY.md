@@ -71,18 +71,19 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 
 ## Próxima ação e limite de comprovação
 
-A prova GPU do G0 aceita um dispositivo SDL_GPU offscreen isolado, submissão
-de draw SPIR-V e timing de GPU ociosa através de um render node. O smoke mais
-recente mediu 1638 microssegundos para três draws contra o orçamento declarado
-de frame a 60 Hz de 16.667 microssegundos em `renderD129`; o caminho de janela
-ainda reporta `gpu-unavailable` porque Xvfb não oferece apresentação DRI3. O G1
-agora também possui consultas determinísticas limitadas de coleções/BVH de
-triângulos com diagnósticos de traversal e resultados autoritativos de
-slide/step de cápsula. Em seguida: adicionar apresentação isolada compatível
-com DRI3, provar traversal bem-sucedido de obstáculo de step limitado,
-estender a manutenção das coleções de triângulos e construir o renderer de
-mesh texturizado além do primeiro draw de smoke. O defeito do handler de
-exceções nativas continua sendo um gate do compilador.
+A prova GPU do G0 aceita um mesh de quad texturizado SDL_GPU offscreen
+isolado, submissão de draw SPIR-V e timing de GPU ociosa através de um render
+node. O smoke mais recente mediu 1461 microssegundos para três draws contra o
+orçamento declarado de frame a 60 Hz de 16.667 microssegundos em `renderD129`;
+o caminho de janela ainda reporta `gpu-unavailable` porque Xvfb não oferece
+apresentação DRI3. O G1 agora também possui staging de frame limitado a seis
+vértices, consultas determinísticas limitadas de coleções/BVH de triângulos
+com remoção/rebuild e revisões de geometria, e traversal autoritativo de
+slide/step de cápsula sobre obstáculo limitado. Em seguida: adicionar
+apresentação isolada compatível com DRI3, fazer upload de buffers limitados
+reais de vértices/índices, rejeitar revisões obsoletas de broad-phase e
+estender os obstáculos de cápsula. O defeito do handler de exceções nativas
+continua sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

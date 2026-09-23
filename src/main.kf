@@ -49,10 +49,27 @@ main() {
     assert(staging.stagedCount() == 3, "triangle vertex count must stage")
     assert(staging.scalarWrites() == 15, "triangle scalar write count must be measured")
     assert(staging.checksum() == 273, "triangle staging checksum must be stable")
+    assert(staging.scalarBudget() == 15, "frame staging budget must be bounded")
+    assert(staging.fitsScalarBudget(15) && !staging.fitsScalarBudget(14),
+        "frame staging must report budget acceptance")
     assert(staging.publish(), "frame staging must publish")
     assert(staging.retire(1), "published frame must retire")
     var retired = staging.publishedFrame() == 1 && staging.retiredFrame() == 1 && !staging.isOpen()
     assert(retired, "published frame ownership must close")
+    var meshStaging = FrameStaging(6)
+    assert(meshStaging.begin(2), "quad mesh staging must open")
+    assert(meshStaging.pushVertex(1, -80, -80, 0, 100), "quad vertex one must stage")
+    assert(meshStaging.pushVertex(1, 80, -80, 100, 100), "quad vertex two must stage")
+    assert(meshStaging.pushVertex(1, 80, 80, 100, 0), "quad vertex three must stage")
+    assert(meshStaging.pushVertex(1, -80, -80, 0, 100), "quad vertex four must stage")
+    assert(meshStaging.pushVertex(1, 80, 80, 100, 0), "quad vertex five must stage")
+    assert(meshStaging.pushVertex(1, -80, 80, 0, 0), "quad vertex six must stage")
+    assert(meshStaging.stagedCount() == 6 && meshStaging.scalarWrites() == 30,
+        "quad mesh must stage six vertices")
+    assert(meshStaging.scalarBudget() == 30 && meshStaging.fitsScalarBudget(30),
+        "quad mesh must fit its bounded frame budget")
+    assert(meshStaging.publish() && meshStaging.retire(2),
+        "quad mesh staging must retire")
     println("KOOKIE G0 frame staging verified")
     var clock = FixedStepClock(60, 4)
     assert(clock.advance(16667) == 1, "fixed-step clock must advance one tick")
@@ -281,6 +298,21 @@ test "bounded triangle collection and BVH diagnostics" {
         "BVH collection must report the hit triangle index")
     assert(collection.lastVisitedNodes() > 0 && collection.lastVisitedTriangles() == 1,
         "BVH diagnostics must report bounded traversal")
+    var priorRevision = collection.triangleRevision(1)
+    var priorGeometryRevision = collection.geometryRevision()
+    assert(collection.removeTriangle(1) && collection.triangleCount() == 2,
+        "triangle removal must rebuild bounded collection")
+    assert(collection.geometryRevision() > priorGeometryRevision &&
+        collection.triangleRevision(1) > priorRevision,
+        "triangle revisions must advance on removal")
+    var removedHit = collection.query(8, 2, 0, 8, 2, 10)
+    assert(removedHit.accepted() && !removedHit.collided(),
+        "removed triangle must leave the BVH")
+    assert(collection.addTriangle(6, 0, 5, 10, 0, 5, 6, 4, 5),
+        "triangle collection must reuse bounded free slots")
+    assert(collection.triangleCount() == 3 &&
+        collection.triangleRevision(1) > priorRevision,
+        "reinserted triangle must retain a newer geometry revision")
     assert(!collection.query(0, 0, 0, 0, 0, 21).accepted(),
         "BVH collection must reject over-budget traversal")
     assert(!collection.lastQueryAccepted() && collection.lastHitTriangle() == -1,
@@ -298,6 +330,16 @@ test "capsule slide and step result" {
     assert(clear.accepted() && !clear.collided() && !clear.stepped() &&
         clear.resolvedX() == 4,
         "clear capsule movement must preserve its endpoint")
+    assert(capsule.configureStepObstacle(4, 6, 0, 10, 2),
+        "bounded step obstacle must configure")
+    var stepped = capsule.moveCapsule(2, 2, 2, 8, 2, 2, 2)
+    assert(stepped.accepted() && stepped.collided() && stepped.stepped() &&
+        stepped.resolvedX() == 8 && stepped.stepHeight() == 2,
+        "capsule must traverse a bounded obstacle with enough step height")
+    var tooLow = capsule.moveCapsule(2, 2, 2, 8, 2, 2, 1)
+    assert(tooLow.accepted() && tooLow.collided() && !tooLow.stepped() &&
+        tooLow.resolvedX() == 2,
+        "capsule must slide when step height is insufficient")
     var gate = SpatialQueryGate(0, 0, 0, 10, 10, 10, 1, 20)
     var admitted = gate.admitPlayerMoveWithStep(2, 2, 2, 12, 2, 2, 1)
     assert(admitted.accepted() && admitted.collided() && admitted.slideX() == 7,

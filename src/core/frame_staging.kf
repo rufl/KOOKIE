@@ -89,6 +89,13 @@ class FrameStaging {
     Int scalarWrites() {
         return writes
     }
+    Int scalarBudget() {
+        return resources.length * 5
+    }
+
+    Bool fitsScalarBudget(Int budget) {
+        return budget > 0 && writes <= budget
+    }
 
     Int publishedFrame() {
         return published

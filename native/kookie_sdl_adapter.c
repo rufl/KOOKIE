@@ -428,7 +428,7 @@ static bool kookie_gpu_draw_test_internal(
     binding.sampler = sampler;
     SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
     SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
-    SDL_DrawGPUPrimitives(render_pass, 3, 1, 0, 0);
+    SDL_DrawGPUPrimitives(render_pass, 6, 1, 0, 0);
     SDL_EndGPURenderPass(render_pass);
     if (!SDL_SubmitGPUCommandBuffer(command_buffer)) {
         goto cleanup;
