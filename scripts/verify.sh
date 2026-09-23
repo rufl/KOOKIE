@@ -30,12 +30,12 @@ else
 fi
 
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
-transport_key_file="$build_dir/transport.key"
-printf '%s' '00000001000000020000000300000004' >"$transport_key_file"
-chmod 600 "$transport_key_file"
 adapter_build_dir="$root_dir/build"
 rm -rf "$adapter_build_dir"
 mkdir -p "$adapter_build_dir"
+transport_key_file="$adapter_build_dir/transport.key"
+printf '%s' '00000001000000020000000300000004' >"$transport_key_file"
+chmod 600 "$transport_key_file"
 probe_core_dir="$root_dir/probes/g0_native_adapter/core"
 probe_session_dir="$root_dir/probes/g0_native_adapter/session"
 rm -rf "$probe_core_dir" "$probe_session_dir"
