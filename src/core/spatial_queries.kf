@@ -677,6 +677,10 @@ class BoundedTriangleCollection {
     Int lastVisitedTriangles() {
         return lastVisitedTrianglesValue
     }
+    Int lastHitTriangle() {
+        return lastHitTriangleValue
+    }
+
 }
 
 
@@ -727,7 +731,7 @@ class BoundedCapsuleWorld {
         stepMaxXs = new Int[8]
         stepMinZs = new Int[8]
         stepMaxZs = new Int[8]
-        stepTopYs = new Int[4]
+        stepTopYs = new Int[8]
     }
 
     Bool configure(

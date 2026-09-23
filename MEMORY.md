@@ -73,18 +73,19 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 
 G0 GPU proof accepts an isolated offscreen SDL_GPU indexed textured quad,
 explicit vertex/index-buffer uploads, SPIR-V draw submission, per-device cached
-GPU resources, and GPU-idle timing through a render node. The latest smoke
-measured 1049 microseconds for three draws against the declared 16,667-
-microsecond 60 Hz frame budget on `renderD129`; the window path still reports
-`gpu-unavailable` because Xvfb lacks DRI3 presentation support. G1 now also
-has bounded six-vertex frame staging, deterministic triangle collection/BVH
-queries with removal/rebuild and geometry revisions, authoritative capsule
-slide/step traversal over ordered bounded obstacles, clear/reconfigure
-operations, and authoritative-session broad-phase collection handoff with
-stale query rejection. Next: add a DRI3-capable isolated presentation path,
-define a broad-phase transport payload, extend capsule obstacle capacity and
-movement integration, and add asynchronous GPU fence-retirement telemetry. The
-native exception-handler defect remains a compiler gate.
+GPU resources, and fence-wait telemetry through a render node. The latest smoke
+measured 1434 microseconds for three draws against the declared 16,667-
+microsecond 60 Hz frame budget on `renderD129`, including a 484-microsecond
+fence-wait sample; the window path still reports `gpu-unavailable` because Xvfb
+lacks DRI3 presentation support. G1 now also has bounded six-vertex frame
+staging, deterministic triangle collection/BVH queries with removal/rebuild and
+geometry revisions, authoritative capsule slide/step traversal over eight
+ordered bounded obstacles, clear/reconfigure operations, bounded broad-phase
+transport snapshots, stale query rejection, and spatial movement admission
+combining capsule and broad-phase collisions. Next: add a DRI3-capable isolated
+presentation path, asynchronous frame-overlap/resource-retirement telemetry,
+and actual network/session replication around the broad-phase payload contract.
+The native exception-handler defect remains a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

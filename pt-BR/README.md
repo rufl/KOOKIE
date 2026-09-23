@@ -90,11 +90,12 @@ A viabilidade nativa G0 está implementada. O smoke nativo do adaptador em
 display isolado agora aceita ciclo de vida da janela oculta, flattening de
 resize/focus, áudio dummy, teardown de tokens obsoletos, limpeza de processos,
 um quad texturizado SDL_GPU offscreen indexado com uploads explícitos de
-buffers de vértices/índices, recursos GPU em cache por dispositivo e timing de
-GPU ociosa dentro do orçamento declarado de frame de 16.667 microssegundos; a
-amostra mais recente mediu 1049 microssegundos para três draws em
-`renderD129`. A apresentação em janela ainda reporta `gpu-unavailable` porque
-o caminho Xvfb não oferece suporte de apresentação DRI3. G1 agora inclui
+buffers de vértices/índices, recursos GPU em cache por dispositivo e
+telemetria de espera da fence dentro do orçamento declarado de frame de 16.667
+microssegundos; a amostra mais recente mediu 1434 microssegundos para três
+draws em `renderD129`, incluindo uma amostra de 484 microssegundos de espera da
+fence. A apresentação em janela ainda reporta `gpu-unavailable` porque o
+caminho Xvfb não oferece suporte de apresentação DRI3. G1 agora inclui
 autoridade fixed-step, comandos de input limitados e transições de borda,
 admissão de dois clientes em loopback, rejeição de input obsoleto por cliente,
 validação de sequência de snapshots, movimento autoritativo limitado, clamp de
@@ -103,14 +104,14 @@ snapshots com interpolação, replay limitado de inputs de predição, consultas
 escalares de colisão, sweeps inteiros de segmento e triângulo 3D, movimento de
 cápsula expandido pelo raio, consultas determinísticas limitadas de
 coleções/BVH de triângulos com remoção/rebuild e revisões de geometria,
-obstáculos de step de cápsula ordenados com capacidade fixa e operações de
-limpeza/reconfiguração, orçamentos de staging de frame e handoff da coleção
-broad-phase pela sessão autoritativa com rejeição de consultas obsoletas. Em
-seguida: adicionar apresentação isolada compatível com DRI3, definir payload de
-transporte para coleções broad-phase, estender a capacidade/integração dos
-obstáculos de cápsula e adicionar telemetria assíncrona de retirement por
-fences GPU. Use o wrapper descartável de display isolado do repositório para
-verificação gráfica.
+obstáculos de step de cápsula ordenados em oito slots com operações de
+limpeza/reconfiguração, orçamentos de staging de frame, snapshots broad-phase
+da sessão autoritativa com payloads inteiros limitados, rejeição de consultas
+obsoletas e admissão de movimento espacial combinando colisões de cápsula e
+broad-phase. Em seguida: adicionar apresentação isolada compatível com DRI3,
+telemetria assíncrona de sobreposição/retirement de recursos e replicação real
+de sessão/rede ao redor do contrato de payload broad-phase. Use o wrapper
+descartável de display isolado do repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

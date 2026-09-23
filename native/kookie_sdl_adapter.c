@@ -38,6 +38,7 @@ typedef struct {
 } KookieGpuResources;
 
 static KookieGpuResources gpu_resources;
+static int last_gpu_fence_wait_microseconds;
 
 static KookieWindowSlot window_slots[KOOKIE_MAX_WINDOWS];
 static KookieAudioSlot audio_slot;
@@ -70,6 +71,31 @@ static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
     }
     memset(&gpu_resources, 0, sizeof(gpu_resources));
 }
+static bool kookie_gpu_submit_and_wait_fence(
+    SDL_GPUDevice *device,
+    SDL_GPUCommandBuffer *command_buffer
+) {
+    Uint64 start = SDL_GetPerformanceCounter();
+    SDL_GPUFence *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(command_buffer);
+    if (fence == NULL) {
+        return false;
+    }
+    bool success = SDL_WaitForGPUIdle(device);
+    Uint64 elapsed = SDL_GetPerformanceCounter() - start;
+    Uint64 frequency = SDL_GetPerformanceFrequency();
+    if (frequency == 0) {
+        last_gpu_fence_wait_microseconds = 0;
+    } else {
+        Uint64 microseconds = (elapsed * 1000000u) / frequency;
+        if (microseconds == 0) {
+            microseconds = 1;
+        }
+        last_gpu_fence_wait_microseconds = (int)microseconds;
+    }
+    SDL_ReleaseGPUFence(device, fence);
+    return success;
+}
+
 
 static KookieGpuSlot gpu_slot;
 static int last_event_a;
@@ -576,10 +602,7 @@ static bool kookie_gpu_draw_test_internal(
     SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
     SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
     SDL_EndGPURenderPass(render_pass);
-    if (!SDL_SubmitGPUCommandBuffer(command_buffer)) {
-        return false;
-    }
-    return SDL_WaitForGPUIdle(device);
+    return kookie_gpu_submit_and_wait_fence(device, command_buffer);
 }
 
 bool kookie_gpu_draw_test(void) {
@@ -666,6 +689,8 @@ bool kookie_gpu_headless_budget(int frames, int budget_microseconds) {
     }
     fprintf(stderr, "KOOKIE gpu-headless-draw-us=%d budget-us=%d\n",
         microseconds, budget_microseconds);
+    fprintf(stderr, "KOOKIE gpu-headless-fence-wait-us=%d\n",
+        last_gpu_fence_wait_microseconds);
     return microseconds <= budget_microseconds;
 }
 
