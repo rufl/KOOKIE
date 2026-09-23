@@ -280,6 +280,36 @@ test "pause reset discards debt and one-shot input" {
         "unpause must resume clean fixed-step input")
 }
 
+test "bounded input replay records tick commands" {
+    var replay = InputReplayRecorder(2)
+    var first = InputCommand(4, 1, 3, 0, 2, -1, 1, 0)
+    var second = InputCommand(5, 2, 0, 1, -2, 3, 0, 1)
+    assert(replay.append(first) && replay.append(second) &&
+        replay.pending() == 2 &&
+        replay.lastRecordedTick() == 5 &&
+        replay.lastRecordedSequence() == 2,
+        "replay must retain ordered resulting tick commands")
+    assert(!replay.append(InputCommand(3, 3, 0, 0, 0, 0, 0, 0)) &&
+        !replay.append(InputCommand(6, 2, 0, 0, 0, 0, 0, 0)) &&
+        !replay.append(InputCommand(6, 3, 0, 0, 0, 0, 2, 0)),
+        "replay must reject stale, duplicate and invalid commands")
+    assert(replay.playNext() &&
+        replay.lastPlayed().tick() == 4 &&
+        replay.lastPlayed().sequence() == 1 &&
+        replay.lastPlayed().moveX() == 3 &&
+        replay.pending() == 1 &&
+        replay.playNext() &&
+        replay.lastPlayed().tick() == 5 &&
+        replay.lastPlayed().jump() == 1 &&
+        replay.pending() == 0 &&
+        !replay.playNext(),
+        "replay playback must preserve FIFO command values")
+    assert(replay.reset() && replay.pending() == 0 &&
+        replay.lastRecordedSequence() == -1 &&
+        replay.append(InputCommand(0, 0, 0, 0, 0, 0, 0, 0)),
+        "replay reset must rearm deterministic recording")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

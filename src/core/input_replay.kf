@@ -1,0 +1,104 @@
+package core
+
+class InputReplayRecorder {
+    Int[] ticks
+    Int[] sequences
+    Int[] moveXs
+    Int[] moveYs
+    Int[] lookXs
+    Int[] lookYs
+    Int[] fires
+    Int[] jumps
+    Int head
+    Int count
+    Int lastRecordedTickValue
+    Int lastRecordedSequenceValue
+    InputCommand consumed
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        ticks = new Int[actualCapacity]
+        sequences = new Int[actualCapacity]
+        moveXs = new Int[actualCapacity]
+        moveYs = new Int[actualCapacity]
+        lookXs = new Int[actualCapacity]
+        lookYs = new Int[actualCapacity]
+        fires = new Int[actualCapacity]
+        jumps = new Int[actualCapacity]
+        head = 0
+        count = 0
+        lastRecordedTickValue = -1
+        lastRecordedSequenceValue = -1
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+    }
+
+    Bool append(InputCommand command) {
+        if (command.tick() < 0 || command.sequence() < 0 ||
+            command.fire() < 0 || command.fire() > 1 ||
+            command.jump() < 0 || command.jump() > 1 ||
+            count >= ticks.length ||
+            (count > 0 && command.tick() < lastRecordedTickValue) ||
+            command.sequence() <= lastRecordedSequenceValue) {
+            return false
+        }
+        var index = head + count
+        if (index >= ticks.length) {
+            index = index - ticks.length
+        }
+        ticks[index] = command.tick()
+        sequences[index] = command.sequence()
+        moveXs[index] = command.moveX()
+        moveYs[index] = command.moveY()
+        lookXs[index] = command.lookX()
+        lookYs[index] = command.lookY()
+        fires[index] = command.fire()
+        jumps[index] = command.jump()
+        count = count + 1
+        lastRecordedTickValue = command.tick()
+        lastRecordedSequenceValue = command.sequence()
+        return true
+    }
+
+    Int pending() {
+        return count
+    }
+
+    Bool playNext() {
+        if (count == 0) {
+            return false
+        }
+        consumed = InputCommand(
+            ticks[head], sequences[head], moveXs[head], moveYs[head],
+            lookXs[head], lookYs[head], fires[head], jumps[head])
+        head = head + 1
+        if (head >= ticks.length) {
+            head = 0
+        }
+        count = count - 1
+        return true
+    }
+
+    InputCommand lastPlayed() {
+        return consumed
+    }
+
+    Int lastRecordedTick() {
+        return lastRecordedTickValue
+    }
+
+    Int lastRecordedSequence() {
+        return lastRecordedSequenceValue
+    }
+
+    Bool reset() {
+        head = 0
+        count = 0
+        lastRecordedTickValue = -1
+        lastRecordedSequenceValue = -1
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+        return true
+    }
+}
