@@ -253,6 +253,33 @@ test "focus loss clears held input and queued fire" {
         "focus regain must rearm input acceptance")
 }
 
+test "pause reset discards debt and one-shot input" {
+    var clock = FixedStepClock(60, 4)
+    assert(clock.advance(1000) == 0 &&
+        clock.pendingMicros() == 1000 &&
+        clock.resetDebt() &&
+        clock.pendingMicros() == 0)
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1)
+    assert(loopback.definePlayerWeapon(9, 2, 0, 1, 4, 1, 20) &&
+        loopback.addPlayerCombatActor(1, 20, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 9))
+    assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0) &&
+        loopback.setPaused(1) &&
+        loopback.isPaused() &&
+        !loopback.setPaused(2) &&
+        !loopback.receiveInput(1, 1, 2, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(100000) == 0 &&
+        loopback.playerWeaponPresentationCount() == 0,
+        "pause must disarm pending input and discard wall-clock debt")
+    assert(loopback.setPaused(0) &&
+        !loopback.isPaused() &&
+        loopback.receiveInput(1, 1, 3, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1,
+        "unpause must resume clean fixed-step input")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

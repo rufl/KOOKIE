@@ -44,6 +44,11 @@ class FixedStepClock {
         return steps
     }
 
+    Bool resetDebt() {
+        accumulator = 0
+        return true
+    }
+
     Int tickRate() {
         return rate
     }

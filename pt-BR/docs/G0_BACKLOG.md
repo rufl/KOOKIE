@@ -57,6 +57,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Bordas de disparo do jogador agora alimentam uma fila limitada de apresentação de arma autoritativa, com estado do tiro aceito, transições de munição e supressão de disparo mantido; o adaptador SDL nativo isolado consome clipes de impacto confirmados 201/202/203 pela ponte de áudio.
 - `BoundedSaveState` agora valida um payload inteiro limitado da versão 1 e revisão limitada, expõe checksums determinísticos do envelope, rejeita corrupção de capacidade/valor e suporta restauração em memória; `BoundedSaveHistory` publica revisões estritamente crescentes com eviction e restauração determinísticas limitadas; I/O de arquivo, migrações e publicação durável de saves continuam adiados.
 - A perda de foco agora limpa comandos de jogador pendentes, emite bordas de liberação dos botões mantidos, bloqueia novos inputs enquanto desfocado e rearma corretamente ao recuperar o foco; a cobertura JVM/nativa impede disparos obsoletos.
+- A pausa agora redefine a dívida de tempo do fixed-step, desarma comandos de jogador pendentes, bloqueia simulação/input enquanto pausado e retoma sem picos de catch-up; a cobertura JVM/nativa fixa o contrato documentado de pausa.
 
 ## Próximo lote
 

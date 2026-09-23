@@ -20,6 +20,7 @@ class LoopbackSession {
     Int clientTick
     Int snapshotSequence
     Bool started
+    Bool paused
     ClientPredictionState playerOnePrediction
     ClientPredictionState playerTwoPrediction
     SnapshotHistory playerOneSnapshots
@@ -71,6 +72,7 @@ class LoopbackSession {
         serverTick = 0
         clientTick = 0
         snapshotSequence = 0
+        paused = false
         started = false
         playerOnePrediction = ClientPredictionState(4)
         playerTwoPrediction = ClientPredictionState(4)
@@ -563,6 +565,25 @@ class LoopbackSession {
             playerCombat, actorId, tick, edges)
     }
 
+    Bool setPaused(Int active) {
+        if (!started || (active != 0 && active != 1)) {
+            return false
+        }
+        paused = active == 1
+        if (paused) {
+            clock.resetDebt()
+            playerOneInputs.clearPending()
+            playerTwoInputs.clearPending()
+            playerOneEdges.clearHeld()
+            playerTwoEdges.clearHeld()
+        }
+        return true
+    }
+
+    Bool isPaused() {
+        return paused
+    }
+
     Bool applyPlayerFocus(Int player, Int active) {
         if ((active != 0 && active != 1) || !started) {
             return false
@@ -600,7 +621,7 @@ class LoopbackSession {
         Int player, Int tick, Int sequence, Int moveX, Int moveY,
         Int lookX, Int lookY, Int fire, Int jump
     ) {
-        if (!started) {
+        if (!started || paused) {
             return false
         }
         var command = InputCommand(tick, sequence, moveX, moveY, lookX, lookY, fire, jump)
@@ -616,6 +637,9 @@ class LoopbackSession {
     Int advance(Int elapsedMicros) {
         if (!started) {
             return -1
+        }
+        if (paused) {
+            return 0
         }
         var steps = clock.advance(elapsedMicros)
         if (steps < 0) {
