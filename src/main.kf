@@ -143,6 +143,48 @@ test "player fire input publishes weapon presentation" {
         "a new fire edge must publish after release")
 }
 
+test "bounded save envelope validation" {
+    var save = BoundedSaveState(3, 1000)
+    var payload = new Int[3]
+    payload[0] = 12
+    payload[1] = 34
+    payload[2] = 56
+    assert(save.stage(1, 7, payload) &&
+        save.isStaged() &&
+        save.payloadLength() == 3 &&
+        save.schemaVersion() == 1 &&
+        save.revision() == 7 &&
+        save.payloadValue(1) == 34,
+        "bounded save state must stage versioned payload values")
+    var envelope = save.envelope()
+    assert(envelope.accepted() &&
+        envelope.schemaVersion() == 1 &&
+        envelope.revision() == 7 &&
+        envelope.payloadLength() == 3 &&
+        envelope.checksum() > 0,
+        "save envelope must expose deterministic metadata")
+    var restored = BoundedSaveState(3, 1000)
+    assert(restored.load(envelope, payload) &&
+        restored.payloadValue(0) == 12 &&
+        restored.payloadValue(2) == 56,
+        "matching envelope and payload must restore state")
+    payload[1] = 35
+    assert(!restored.load(envelope, payload),
+        "mutated payload must fail checksum validation")
+    assert(!save.stage(2, 7, payload) &&
+        !save.stage(1, -1, payload) &&
+        !save.stage(1, 1000001, payload) &&
+        !save.stage(1, 7, new Int[4]),
+        "unsupported versions, revisions and overflow must reject")
+    var invalidValue = new Int[1]
+    invalidValue[0] = 1001
+    assert(!save.stage(1, 8, invalidValue),
+        "values beyond the schema bound must reject")
+    assert(save.clear() && !save.isStaged() &&
+        save.payloadValue(0) == -1,
+        "clearing save state must remove staged payload access")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

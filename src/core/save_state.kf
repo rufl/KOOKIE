@@ -1,0 +1,127 @@
+package core
+
+record SaveEnvelope(
+    Bool accepted, Int schemaVersion, Int revision,
+    Int payloadLength, Int checksum
+)
+
+class BoundedSaveState {
+    Int[] values
+    Int length
+    Int version
+    Int revisionValue
+    Int checksumValue
+    Int maxValue
+    Bool staged
+
+    public constructor(Int capacity, Int valueLimit) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        values = new Int[actualCapacity]
+        length = 0
+        version = 0
+        revisionValue = 0
+        checksumValue = 0
+        maxValue = valueLimit
+        if (maxValue <= 0) {
+            maxValue = 1000000
+        }
+        staged = false
+    }
+
+    Int checksumFor(Int schemaVersion, Int revision, Int[] payload) {
+        var checksum = 1
+        var boundedRevision = revision % 1000003
+        checksum = (checksum + schemaVersion * 31 + boundedRevision * 17) % 1000003
+        for (var index = 0; index < payload.length; index = index + 1) {
+            checksum = (
+                checksum + payload[index] + (index + 1) * 17
+            ) % 1000003
+        }
+        return checksum
+    }
+
+    Bool validPayload(Int schemaVersion, Int revision, Int[] payload) {
+        if (schemaVersion != 1 || revision < 0 || revision > 1000000 ||
+            payload.length > values.length) {
+            return false
+        }
+        for (var index = 0; index < payload.length; index = index + 1) {
+            if (payload[index] < 0 || payload[index] > maxValue) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool stage(Int schemaVersion, Int revision, Int[] payload) {
+        if (!validPayload(schemaVersion, revision, payload)) {
+            return false
+        }
+        for (var index = 0; index < payload.length; index = index + 1) {
+            values[index] = payload[index]
+        }
+        length = payload.length
+        version = schemaVersion
+        revisionValue = revision
+        checksumValue = checksumFor(schemaVersion, revision, payload)
+        staged = true
+        return true
+    }
+
+    Bool load(SaveEnvelope envelope, Int[] payload) {
+        if (!envelope.accepted() ||
+            !validPayload(envelope.schemaVersion(), envelope.revision(), payload) ||
+            envelope.payloadLength() != payload.length ||
+            envelope.checksum() != checksumFor(
+                envelope.schemaVersion(), envelope.revision(), payload)) {
+            return false
+        }
+        return stage(envelope.schemaVersion(), envelope.revision(), payload)
+    }
+
+    SaveEnvelope envelope() {
+        if (!staged) {
+            return SaveEnvelope(false, 0, 0, 0, 0)
+        }
+        return SaveEnvelope(
+            true, version, revisionValue, length, checksumValue)
+    }
+
+    Bool isStaged() {
+        return staged
+    }
+
+    Int payloadLength() {
+        return length
+    }
+
+    Int schemaVersion() {
+        return version
+    }
+
+    Int revision() {
+        return revisionValue
+    }
+
+    Int payloadValue(Int index) {
+        if (!staged || index < 0 || index >= length) {
+            return -1
+        }
+        return values[index]
+    }
+
+    Bool clear() {
+        if (!staged) {
+            return false
+        }
+        length = 0
+        version = 0
+        revisionValue = 0
+        checksumValue = 0
+        staged = false
+        return true
+    }
+}
