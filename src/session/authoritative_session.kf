@@ -168,6 +168,11 @@ class LoopbackSession {
     ) {
         return enemyCombat.moveEnemyToward(enemyId, targetId, step)
     }
+    EnemySteeringResult steerEnemyToward(
+        Int enemyId, Int targetId, Int step
+    ) {
+        return enemyCombat.steerEnemySpatial(enemyId, targetId, step)
+    }
     ResolutionResult enemyProjectileAttackSpatial(
         Int sourceId, Int targetId, Int tick, Int range, Int critical
     ) {
@@ -196,6 +201,22 @@ class LoopbackSession {
 
     Int enemyProjectilesBlocked() {
         return enemyCombat.spatialProjectileBlocked()
+    }
+
+    EnemySteeringResult lastEnemySteering() {
+        return enemyCombat.lastEnemySteeringResult()
+    }
+
+    Int pendingEnemyImpacts() {
+        return enemyCombat.pendingSpatialImpacts()
+    }
+
+    Bool dequeueEnemyImpact() {
+        return enemyCombat.dequeueSpatialImpact()
+    }
+
+    SpatialImpactEvent lastEnemyImpact() {
+        return enemyCombat.lastSpatialImpact()
     }
 
 

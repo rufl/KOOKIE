@@ -838,3 +838,44 @@ test "continuous projectiles and encounter zones" {
         loopback.enemyProjectileHits() == 1,
         "fixed-step loopback must advance and resolve continuous projectiles")
 }
+test "deterministic navigation and projectile impact events" {
+    var navigation = EnemySpatialWorld(2, 20)
+    assert(navigation.configureBounds(0, 0, 0, 10, 10, 10) &&
+        navigation.setPosition(2, 1, 1, 1) &&
+        navigation.setPosition(1, 1, 1, 8),
+        "navigation actors must fit configured bounds")
+    assert(navigation.addObstacle(
+        0, 0, 4, 6, 0, 4, 0, 10, 4),
+        "navigation obstacle must insert")
+    var route = navigation.navigation(2, 1)
+    assert(route.accepted() && route.found() && route.routeLength() > 0 &&
+        route.waypointX() == 1 && route.waypointZ() == 2,
+        "bounded A* must choose the deterministic first detour waypoint")
+    var steering = navigation.steerToward(2, 1, 1)
+    assert(steering.accepted() && steering.found() &&
+        steering.resolvedX() == 1 && steering.resolvedZ() == 2 &&
+        navigation.positionZ(2) == 2,
+        "path steering must advance through the first route waypoint")
+
+    var impacts = AuthoritativeEnemySession(3, 1)
+    assert(impacts.configureEnemyRules(100, 20, 2) &&
+        impacts.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        impacts.defineEncounter(4, 1, 1) &&
+        impacts.addActor(1, 20, 0) &&
+        impacts.equipWeapon(1, 9) &&
+        impacts.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 6) &&
+        impacts.setSpatialPosition(1, 0, 0, 0),
+        "impact event actors must configure")
+    var projectile = impacts.spawnSpatialProjectile(1, 2, 0, 20, 3, 0)
+    assert(projectile.accepted() &&
+        impacts.advanceSpatialProjectiles(0) == 1 &&
+        impacts.advanceSpatialProjectiles(1) == 1 &&
+        impacts.pendingSpatialImpacts() == 1,
+        "terminal projectile hit must publish one impact event")
+    assert(impacts.dequeueSpatialImpact())
+    var impact = impacts.lastSpatialImpact()
+    assert(impact.kind() == 1 && impact.sourceId() == 1 &&
+        impact.targetId() == 2 && impact.applied() == 3 &&
+        impacts.pendingSpatialImpacts() == 0,
+        "hit impact must preserve authority and applied damage")
+}

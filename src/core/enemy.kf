@@ -22,6 +22,7 @@ record SpatialSweepResult(
 
 class EnemySpatialWorld {
     BoundedTriangleCollection obstacles
+    EnemyNavigator navigator
     Int[] ids
     Int[] positionsX
     Int[] positionsY
@@ -35,6 +36,7 @@ class EnemySpatialWorld {
             maxDistance = 1
         }
         obstacles = BoundedTriangleCollection(8, maxDistance)
+        navigator = EnemyNavigator(obstacles, 128, 64)
         ids = new Int[capacity]
         positionsX = new Int[capacity]
         positionsY = new Int[capacity]
@@ -53,7 +55,12 @@ class EnemySpatialWorld {
         Int minX, Int minY, Int minZ,
         Int maxX, Int maxY, Int maxZ
     ) {
-        return obstacles.configureBounds(minX, minY, minZ, maxX, maxY, maxZ)
+        if (!obstacles.configureBounds(
+            minX, minY, minZ, maxX, maxY, maxZ)) {
+            return false
+        }
+        return navigator.configureBounds(
+            minX, minY, minZ, maxX, maxY, maxZ)
     }
 
     Bool addObstacle(
@@ -236,6 +243,94 @@ class EnemySpatialWorld {
         positionsY[enemyIndex] = nextY
         positionsZ[enemyIndex] = nextZ
         return EnemyMoveResult(true, false, enemyId, nextX, nextY, nextZ)
+    }
+    NavigationResult navigation(Int enemyId, Int targetId) {
+        var enemyIndex = find(enemyId)
+        var targetIndex = find(targetId)
+        if (enemyIndex < 0 || targetIndex < 0) {
+            return NavigationResult(false, false, 0, 0, 0, 0, 0)
+        }
+        return navigator.findRoute(
+            positionsX[enemyIndex], positionsY[enemyIndex],
+            positionsZ[enemyIndex],
+            positionsX[targetIndex], positionsY[targetIndex],
+            positionsZ[targetIndex])
+    }
+
+    EnemyMoveResult moveTowardPoint(
+        Int enemyId, Int x, Int y, Int z, Int step
+    ) {
+        var enemyIndex = find(enemyId)
+        if (enemyIndex < 0 || step < 0 || step > maxDistance ||
+            !navigator.inside(x, y, z)) {
+            return EnemyMoveResult(false, false, enemyId, 0, 0, 0)
+        }
+        var startX = positionsX[enemyIndex]
+        var startY = positionsY[enemyIndex]
+        var startZ = positionsZ[enemyIndex]
+        var deltaX = x - startX
+        var deltaY = y - startY
+        var deltaZ = z - startZ
+        var distance = segmentDistance(
+            startX, startY, startZ, x, y, z)
+        if (distance == 0) {
+            return EnemyMoveResult(true, false, enemyId, startX, startY, startZ)
+        }
+        var nextX = startX + (deltaX * step) / distance
+        var nextY = startY + (deltaY * step) / distance
+        var nextZ = startZ + (deltaZ * step) / distance
+        if (nextX == startX && nextY == startY && nextZ == startZ) {
+            if (absolute(deltaX) >= absolute(deltaZ)) {
+                if (deltaX < 0) {
+                    nextX = startX - 1
+                } else {
+                    nextX = startX + 1
+                }
+            } else if (deltaZ < 0) {
+                nextZ = startZ - 1
+            } else {
+                nextZ = startZ + 1
+            }
+        }
+        var trace = obstacles.query(
+            startX, startY, startZ, nextX, nextY, nextZ)
+        if (!trace.accepted()) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        if (trace.collided()) {
+            positionsX[enemyIndex] = trace.resolvedX()
+            positionsY[enemyIndex] = trace.resolvedY()
+            positionsZ[enemyIndex] = trace.resolvedZ()
+            return EnemyMoveResult(
+                true, true, enemyId,
+                trace.resolvedX(), trace.resolvedY(), trace.resolvedZ())
+        }
+        positionsX[enemyIndex] = nextX
+        positionsY[enemyIndex] = nextY
+        positionsZ[enemyIndex] = nextZ
+        return EnemyMoveResult(true, false, enemyId, nextX, nextY, nextZ)
+    }
+
+    EnemySteeringResult steerToward(
+        Int enemyId, Int targetId, Int step
+    ) {
+        var route = navigation(enemyId, targetId)
+        if (!route.accepted()) {
+            return EnemySteeringResult(
+                false, false, false, enemyId, 0, route.expanded(), 0, 0, 0)
+        }
+        if (!route.found()) {
+            return EnemySteeringResult(
+                true, false, false, enemyId, 0, route.expanded(),
+                positionX(enemyId), positionY(enemyId), positionZ(enemyId))
+        }
+        var movement = moveTowardPoint(
+            enemyId, route.waypointX(), route.waypointY(),
+            route.waypointZ(), step)
+        return EnemySteeringResult(
+            movement.accepted(), true, movement.collided(), enemyId,
+            route.routeLength(), route.expanded(),
+            movement.resolvedX(), movement.resolvedY(), movement.resolvedZ())
     }
 
     Int positionX(Int id) {

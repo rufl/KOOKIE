@@ -52,16 +52,18 @@ This is the active bounded implementation sequence after the initial research an
 - `LoopbackSession` now owns bounded enemy perception inputs, steps configured enemy decisions inside the fixed-step tick, consumes combat events, and publishes monotonic enemy snapshots with client admission; JVM/native tests cover attack decisions and replicated state.
 - `EnemySpatialWorld` now provides bounded positions, deterministic BVH-backed line-of-sight queries, movement resolved at the last free sample, and spatial gating for enemy/projectile attacks in the authoritative tick; JVM/native tests cover clear paths, obstacles, blocked movement and projectile damage.
 - The authoritative enemy session now advances bounded projectiles across fixed ticks with obstacle sweeps, terminal target resolution, deterministic blocking and projectile retirement; encounter directors now support bounded spawn zones and positioned admission, with JVM/native coverage through direct and loopback ticks.
+- `EnemyNavigator` now provides bounded deterministic four-neighbor A* over the authoritative obstacle collection, with fixed node/route budgets, stable tie ordering and explicit no-route results; spatial enemy steering advances through the selected waypoint and JVM/native tests cover detour selection.
+- Spatial projectiles now publish bounded terminal impact events for hit, obstacle block and expiry/cancellation, preserving projectile/source/target IDs, impact position and applied damage; JVM/native tests cover the authoritative hit event.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
-2. Add deterministic enemy navigation/path steering and projectile impact effects to the spatial tick.
+2. Connect spatial impact events to bounded render/audio presentation queues and replicate them through the session snapshot contract.
 
 
 ## Deferred
 
-- Full physics, weapons, enemies, content cooking, save schema and multiplayer transport.
+- Full physics, content cooking, save schema and production multiplayer transport.
 - Production audio, image/text services, package compression and foreign physics/UI libraries.
 
 

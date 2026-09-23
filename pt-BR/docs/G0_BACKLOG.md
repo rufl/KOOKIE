@@ -51,15 +51,17 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - O `LoopbackSession` agora possui inputs limitados de percepção de inimigos, executa decisões configuradas de inimigos dentro do tick fixed-step, consome eventos de combate e publica snapshots monotônicos de inimigos com admissão do cliente; testes JVM/nativos cobrem decisões de ataque e estado replicado.
 - `EnemySpatialWorld` agora fornece posições limitadas, consultas determinísticas de LOS apoiadas por BVH, movimento resolvido na última amostra livre e gating espacial de ataques de inimigos/projéteis no tick autoritativo; testes JVM/nativos cobrem caminhos livres, obstáculos, movimento bloqueado e dano de projétil.
 - A sessão autoritativa de inimigos agora avança projéteis limitados entre ticks fixed-step com sweeps contra obstáculos, resolução terminal do alvo, bloqueio determinístico e aposentadoria de projéteis; os directors de encounter agora suportam zonas limitadas de spawn e admissão posicionada, com cobertura JVM/nativa em ticks diretos e de loopback.
+- `EnemyNavigator` agora fornece A* limitado e determinístico de quatro vizinhos sobre a coleção autoritativa de obstáculos, com limites fixos de nós/rotas, desempate estável e resultado explícito de rota ausente; o steering espacial de inimigos avança pelo waypoint selecionado e testes JVM/nativos cobrem a escolha do desvio.
+- Projéteis espaciais agora publicam eventos limitados de impacto terminal para acerto, bloqueio por obstáculo e expiração/cancelamento, preservando IDs de projétil/fonte/alvo, posição do impacto e dano aplicado; testes JVM/nativos cobrem o evento de acerto autoritativo.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; Xvfb continua incompatível com apresentação.
-2. Adicionar navegação/steering determinístico de inimigos e efeitos de impacto de projéteis ao tick espacial.
+2. Conectar eventos de impacto espacial a filas limitadas de apresentação de render/áudio e replicá-los pelo contrato de snapshot da sessão.
 
 ## Adiado
 
-- Física completa, armas, inimigos, cooking de conteúdo, schema de save e transporte multiplayer.
+- Física completa, cooking de conteúdo, schema de save e transporte multiplayer de produção.
 - Áudio de produção, serviços de imagem/texto, compressão de pacotes e bibliotecas estrangeiras de física/UI.
 
 
