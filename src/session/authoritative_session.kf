@@ -30,6 +30,19 @@ class LoopbackSession {
     RemoteSessionLink remoteLink
     Bool remoteConfigured
     Int remoteSendSequenceValue
+    AuthoritativeEnemySession enemyCombat
+    EnemySnapshotHistory enemyServerSnapshots
+    EnemySnapshotHistory enemyClientSnapshots
+    Int[] enemyIds
+    Int[] enemyPerceptionTargets
+    Int[] enemyPerceptionDistances
+    Int[] enemyPerceptionCriticals
+    Bool[] enemyPerceptionVisible
+    Bool[] enemyPerceptionActive
+    Int enemyCount
+    Int enemySnapshotSequence
+    Int clientEnemySnapshotSequence
+    EnemyAttackDecision lastEnemyDecision
 
 
     public constructor(Int inputCapacity, Int entityCapacity) {
@@ -52,6 +65,28 @@ class LoopbackSession {
         playerTwoSnapshots = SnapshotHistory(8)
         broadPhaseCollection = BoundedTriangleCollection(8, 20)
         broadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
+        enemyCombat = AuthoritativeEnemySession(entityCapacity, entityCapacity)
+        enemyServerSnapshots = EnemySnapshotHistory(entityCapacity * 8)
+        enemyClientSnapshots = EnemySnapshotHistory(entityCapacity * 8)
+        enemyIds = new Int[entityCapacity]
+        enemyPerceptionTargets = new Int[entityCapacity]
+        enemyPerceptionDistances = new Int[entityCapacity]
+        enemyPerceptionCriticals = new Int[entityCapacity]
+        enemyPerceptionVisible = new Bool[entityCapacity]
+        enemyPerceptionActive = new Bool[entityCapacity]
+        enemyCount = 0
+        enemySnapshotSequence = 0
+        clientEnemySnapshotSequence = 0
+        lastEnemyDecision = EnemyAttackDecision(
+            false, 0, 0, 0, false, 0, 0, false)
+        for (var index = 0; index < entityCapacity; index = index + 1) {
+            enemyIds[index] = 0
+            enemyPerceptionTargets[index] = 0
+            enemyPerceptionDistances[index] = 0
+            enemyPerceptionCriticals[index] = 0
+            enemyPerceptionVisible[index] = false
+            enemyPerceptionActive[index] = false
+        }
         clientBroadPhaseCollection = BoundedTriangleCollection(8, 20)
         clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
         broadPhaseTransport = BroadPhaseTransportQueue(4, 8)
@@ -93,6 +128,132 @@ class LoopbackSession {
         return 0
     }
 
+    Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
+        return enemyCombat.configureEnemyRules(
+            perceptionRange, attackRange, cooldown)
+    }
+
+    Bool defineEnemyWeapon(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        return enemyCombat.defineWeapon(
+            id, magazineSize, reserveCapacity,
+            cooldownTicks, damage, channel, range)
+    }
+
+    Bool defineEnemyEncounter(Int id, Int maxActive, Int budget) {
+        return enemyCombat.defineEncounter(id, maxActive, budget)
+    }
+
+    Bool addEnemyCombatActor(Int id, Int health, Int armor) {
+        return enemyCombat.addActor(id, health, armor)
+    }
+
+    Bool equipEnemyCombatWeapon(Int actorId, Int weaponId) {
+        return enemyCombat.equipWeapon(actorId, weaponId)
+    }
+
+    Bool admitEnemy(
+        Int encounterId, Int enemyId, Int tick,
+        Int health, Int armor, Int weaponId
+    ) {
+        if (!started || enemyCount >= enemyIds.length ||
+            !enemyCombat.admitEnemy(
+                encounterId, enemyId, tick, health, armor, weaponId)) {
+            return false
+        }
+        enemyIds[enemyCount] = enemyId
+        enemyCount = enemyCount + 1
+        return true
+    }
+
+    Bool configureEnemyPerception(
+        Int enemyId, Int targetId, Bool targetVisible,
+        Int distance, Int critical
+    ) {
+        if (distance < 0 || (targetVisible && targetId <= 0) ||
+            (critical != 0 && critical != 1)) {
+            return false
+        }
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyIds[index] == enemyId) {
+                enemyPerceptionTargets[index] = targetId
+                enemyPerceptionVisible[index] = targetVisible
+                enemyPerceptionDistances[index] = distance
+                enemyPerceptionCriticals[index] = critical
+                enemyPerceptionActive[index] = true
+                return true
+            }
+        }
+        return false
+    }
+
+    Bool advanceEnemyTick(Int tick) {
+        if (!started || tick < 0) {
+            return false
+        }
+        var accepted = true
+        for (var index = 0; index < enemyCount && accepted; index = index + 1) {
+            if (enemyPerceptionActive[index]) {
+                lastEnemyDecision = enemyCombat.stepEnemy(
+                    enemyIds[index], tick,
+                    enemyPerceptionTargets[index],
+                    enemyPerceptionVisible[index],
+                    enemyPerceptionDistances[index],
+                    enemyPerceptionCriticals[index])
+                accepted = lastEnemyDecision.accepted()
+            }
+        }
+        if (accepted) {
+            enemyCombat.consumeCombatEvents(tick)
+        }
+        return accepted
+    }
+
+    Bool publishEnemySnapshots(Int tick) {
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            enemySnapshotSequence = enemySnapshotSequence + 1
+            if (!enemyServerSnapshots.push(
+                enemyCombat.snapshotEnemy(
+                    enemyIds[index], tick, enemySnapshotSequence))) {
+                return false
+            }
+        }
+        return true
+    }
+
+    EnemyAuthoritySnapshot latestEnemySnapshot() {
+        return enemyServerSnapshots.latest()
+    }
+
+    Bool applyEnemySnapshot(EnemyAuthoritySnapshot snapshot) {
+        if (!started || snapshot.sequence() <= clientEnemySnapshotSequence ||
+            snapshot.tick() < clientTick ||
+            enemyCombat.enemyState(snapshot.enemyId()) < 0 ||
+            !enemyClientSnapshots.push(snapshot)) {
+            return false
+        }
+        clientEnemySnapshotSequence = snapshot.sequence()
+        return true
+    }
+
+    EnemyAuthoritySnapshot latestClientEnemySnapshot() {
+        return enemyClientSnapshots.latest()
+    }
+
+    Int enemySnapshotCount() {
+        return enemyServerSnapshots.size()
+    }
+
+    Int clientEnemySnapshotCount() {
+        return enemyClientSnapshots.size()
+    }
+
+    EnemyAttackDecision lastEnemyAttack() {
+        return lastEnemyDecision
+    }
+
     Bool receiveInput(
         Int player, Int tick, Int sequence, Int moveX, Int moveY,
         Int lookX, Int lookY, Int fire, Int jump
@@ -131,6 +292,10 @@ class LoopbackSession {
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
                 serverMovement.applyInput(2, commandTwo.moveX())
             }
+            var enemyTick = clock.tick() - steps + step + 1
+            if (!advanceEnemyTick(enemyTick)) {
+                return -1
+            }
         }
         serverTick = clock.tick()
         if (steps > 0) {
@@ -148,6 +313,9 @@ class LoopbackSession {
                 clientMovement.setPosition(2, playerTwoPrediction.predicted())
             }
             clientTick = serverTick
+            if (!publishEnemySnapshots(serverTick)) {
+                return -1
+            }
         }
         return steps
     }

@@ -680,3 +680,30 @@ test "authoritative enemy combat event bridge" {
     assert(session.admitEnemy(4, 3, 2, 5, 0, 9),
         "released encounter slots must admit remaining deterministic budget")
 }
+
+test "loopback enemy tick and replicated snapshots" {
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start())
+    assert(loopback.configureEnemyRules(100, 20, 2))
+    assert(loopback.defineEnemyWeapon(9, 2, 0, 0, 3, 1, 20))
+    assert(loopback.defineEnemyEncounter(4, 1, 2))
+    assert(loopback.addEnemyCombatActor(1, 20, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 9))
+    assert(loopback.admitEnemy(4, 2, 0, 5, 0, 9))
+    assert(loopback.configureEnemyPerception(2, 1, true, 10, 0))
+    assert(loopback.advance(16667) == 1,
+        "loopback must advance one authoritative enemy tick")
+    var decision = loopback.lastEnemyAttack()
+    assert(decision.accepted() && decision.fired() &&
+        decision.targetId() == 1 && decision.applied() == 3,
+        "loopback tick must publish the authoritative enemy attack decision")
+    assert(loopback.enemySnapshotCount() == 1)
+    var serverSnapshot = loopback.latestEnemySnapshot()
+    assert(serverSnapshot.tick() == 1 && serverSnapshot.enemyId() == 2 &&
+        serverSnapshot.state() == 4 && serverSnapshot.targetId() == 1,
+        "loopback must publish enemy state and target in its snapshot")
+    assert(loopback.applyEnemySnapshot(serverSnapshot) &&
+        loopback.clientEnemySnapshotCount() == 1 &&
+        loopback.latestClientEnemySnapshot().sequence() == serverSnapshot.sequence(),
+        "client must accept the monotonic enemy snapshot")
+}
