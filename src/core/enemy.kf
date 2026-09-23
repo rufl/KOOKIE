@@ -15,6 +15,10 @@ record EnemyMoveResult(
     Bool accepted, Bool collided, Int enemyId,
     Int resolvedX, Int resolvedY, Int resolvedZ
 )
+record SpatialSweepResult(
+    Bool accepted, Bool collided, Bool reached,
+    Int distance, Int resolvedX, Int resolvedY, Int resolvedZ
+)
 
 class EnemySpatialWorld {
     BoundedTriangleCollection obstacles
@@ -26,16 +30,16 @@ class EnemySpatialWorld {
     Int maxDistance
 
     public constructor(Int capacity, Int nextMaxDistance) {
-        obstacles = BoundedTriangleCollection(8, 20)
+        maxDistance = nextMaxDistance
+        if (maxDistance <= 0) {
+            maxDistance = 1
+        }
+        obstacles = BoundedTriangleCollection(8, maxDistance)
         ids = new Int[capacity]
         positionsX = new Int[capacity]
         positionsY = new Int[capacity]
         positionsZ = new Int[capacity]
         active = new Bool[capacity]
-        maxDistance = nextMaxDistance
-        if (maxDistance <= 0) {
-            maxDistance = 1
-        }
         for (var index = 0; index < capacity; index = index + 1) {
             ids[index] = 0
             positionsX[index] = 0
@@ -63,10 +67,14 @@ class EnemySpatialWorld {
     Int find(Int id) {
         for (var index = 0; index < ids.length; index = index + 1) {
             if (active[index] && ids[index] == id) {
+
                 return index
             }
         }
         return -1
+    }
+    Bool hasPosition(Int id) {
+        return find(id) >= 0
     }
 
     Int freeSlot() {
@@ -117,6 +125,14 @@ class EnemySpatialWorld {
         }
         return distance
     }
+    Int distanceBetween(
+        Int firstX, Int firstY, Int firstZ,
+        Int secondX, Int secondY, Int secondZ
+    ) {
+        return segmentDistance(
+            firstX, firstY, firstZ, secondX, secondY, secondZ)
+    }
+
 
     SpatialVisibilityResult visibility(Int sourceId, Int targetId, Int range) {
         var sourceIndex = find(sourceId)
@@ -139,6 +155,25 @@ class EnemySpatialWorld {
         return SpatialVisibilityResult(
             true, !result.collided(), distance, result.hitStep())
     }
+    SpatialSweepResult traceSegment(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ, Int range
+    ) {
+        var distance = segmentDistance(startX, startY, startZ, endX, endY, endZ)
+        if (range < 0 || distance > range || distance > maxDistance) {
+            return SpatialSweepResult(false, false, false, distance, startX, startY, startZ)
+        }
+        var result = obstacles.query(startX, startY, startZ, endX, endY, endZ)
+        if (!result.accepted()) {
+            return SpatialSweepResult(false, false, false, distance, startX, startY, startZ)
+        }
+        if (result.collided()) {
+            return SpatialSweepResult(
+                true, true, false, result.hitStep(),
+                result.resolvedX(), result.resolvedY(), result.resolvedZ())
+        }
+        return SpatialSweepResult(true, false, true, distance, endX, endY, endZ)
+    }
 
     EnemyMoveResult moveToward(Int enemyId, Int targetId, Int step) {
         var enemyIndex = find(enemyId)
@@ -149,6 +184,7 @@ class EnemySpatialWorld {
         var startX = positionsX[enemyIndex]
         var startY = positionsY[enemyIndex]
         var startZ = positionsZ[enemyIndex]
+
         var deltaX = positionsX[targetIndex] - startX
         var deltaY = positionsY[targetIndex] - startY
         var deltaZ = positionsZ[targetIndex] - startZ
@@ -457,6 +493,11 @@ class EncounterDirector {
     Int[] maxActive
     Int[] remainingBudgets
     Int[] activeCounts
+    Int[] zoneX
+    Int[] zoneY
+    Int[] zoneZ
+    Int[] zoneRadius
+    Bool[] zoneConfigured
     Bool[] active
 
     public constructor(Int capacity) {
@@ -464,12 +505,22 @@ class EncounterDirector {
         maxActive = new Int[capacity]
         remainingBudgets = new Int[capacity]
         activeCounts = new Int[capacity]
+        zoneX = new Int[capacity]
+        zoneY = new Int[capacity]
+        zoneZ = new Int[capacity]
+        zoneRadius = new Int[capacity]
+        zoneConfigured = new Bool[capacity]
         active = new Bool[capacity]
         for (var index = 0; index < capacity; index = index + 1) {
             ids[index] = 0
             maxActive[index] = 0
             remainingBudgets[index] = 0
             activeCounts[index] = 0
+            zoneX[index] = 0
+            zoneY[index] = 0
+            zoneZ[index] = 0
+            zoneRadius[index] = 0
+            zoneConfigured[index] = false
             active[index] = false
         }
     }
@@ -508,14 +559,60 @@ class EncounterDirector {
         maxActive[index] = nextMaxActive
         remainingBudgets[index] = budget
         activeCounts[index] = 0
+        zoneX[index] = 0
+        zoneY[index] = 0
+        zoneZ[index] = 0
+        zoneRadius[index] = 0
+        zoneConfigured[index] = false
+        return true
+    }
+    Bool configureZone(
+        Int encounterId, Int centerX, Int centerY, Int centerZ, Int radius
+    ) {
+        var index = find(encounterId)
+        if (index < 0 || radius <= 0) {
+            return false
+        }
+        zoneX[index] = centerX
+        zoneY[index] = centerY
+        zoneZ[index] = centerZ
+        zoneRadius[index] = radius
+        zoneConfigured[index] = true
         return true
     }
 
-    EncounterSpawnResult admit(Int encounterId, Int enemyId) {
+    Bool insideZone(Int index, Int x, Int y, Int z) {
+        var distance = x - zoneX[index]
+        if (distance < 0) {
+            distance = -distance
+        }
+        var yDistance = y - zoneY[index]
+        if (yDistance < 0) {
+            yDistance = -yDistance
+        }
+        if (yDistance > distance) {
+            distance = yDistance
+        }
+        var zDistance = z - zoneZ[index]
+        if (zDistance < 0) {
+            zDistance = -zDistance
+        }
+        if (zDistance > distance) {
+            distance = zDistance
+        }
+        return distance <= zoneRadius[index]
+    }
+
+
+    EncounterSpawnResult admitInternal(
+        Int encounterId, Int enemyId,
+        Int x, Int y, Int z, Bool positioned
+    ) {
         var index = find(encounterId)
         if (index < 0 || enemyId <= 0 ||
             activeCounts[index] >= maxActive[index] ||
-            remainingBudgets[index] <= 0) {
+            remainingBudgets[index] <= 0 ||
+            (positioned && zoneConfigured[index] && !insideZone(index, x, y, z))) {
             return EncounterSpawnResult(false, encounterId, enemyId, 0, 0)
         }
         activeCounts[index] = activeCounts[index] + 1
@@ -523,6 +620,16 @@ class EncounterDirector {
         return EncounterSpawnResult(
             true, encounterId, enemyId,
             activeCounts[index], remainingBudgets[index])
+    }
+
+    EncounterSpawnResult admit(Int encounterId, Int enemyId) {
+        return admitInternal(encounterId, enemyId, 0, 0, 0, false)
+    }
+
+    EncounterSpawnResult admitAt(
+        Int encounterId, Int enemyId, Int x, Int y, Int z
+    ) {
+        return admitInternal(encounterId, enemyId, x, y, z, true)
     }
 
     Bool release(Int encounterId) {

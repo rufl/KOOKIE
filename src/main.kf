@@ -763,3 +763,78 @@ test "enemy spatial visibility movement and projectile targeting" {
     assert(!blockedProjectile.accepted(),
         "blocked spatial projectile must not resolve damage")
 }
+
+test "continuous projectiles and encounter zones" {
+    var session = AuthoritativeEnemySession(4, 1)
+    assert(session.configureEnemyRules(100, 20, 2) &&
+        session.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        session.defineEncounter(4, 2, 2),
+        "continuous projectile rules must configure")
+    assert(session.addActor(1, 20, 0) &&
+        session.equipWeapon(1, 9) &&
+        session.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10),
+        "positioned encounter admission must register")
+    assert(session.setSpatialPosition(1, 0, 0, 0),
+        "projectile source position must register")
+    var projectile = session.spawnSpatialProjectile(1, 2, 0, 20, 3, 0)
+    assert(projectile.accepted() && session.activeSpatialProjectiles() == 1,
+        "continuous projectile must remain active between ticks")
+    assert(session.advanceSpatialProjectiles(0) == 1 &&
+        session.activeSpatialProjectiles() == 1,
+        "projectile must advance without resolving before target contact")
+    assert(session.advanceSpatialProjectiles(1) == 1 &&
+        session.advanceSpatialProjectiles(2) == 1 &&
+        session.advanceSpatialProjectiles(3) == 1 &&
+        session.activeSpatialProjectiles() == 0 &&
+        session.spatialProjectileHits() == 1,
+        "projectile must resolve exactly on its terminal sweep")
+
+    var blocked = AuthoritativeEnemySession(4, 1)
+    assert(blocked.configureEnemyRules(100, 20, 2) &&
+        blocked.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        blocked.defineEncounter(4, 2, 2) &&
+        blocked.addActor(1, 20, 0) &&
+        blocked.equipWeapon(1, 9) &&
+        blocked.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        blocked.setSpatialPosition(1, 0, 0, 0) &&
+        blocked.addSpatialObstacle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "blocked projectile geometry must configure")
+    var blockedProjectile = blocked.spawnSpatialProjectile(1, 2, 0, 20, 3, 0)
+    assert(blockedProjectile.accepted() &&
+        blocked.advanceSpatialProjectiles(0) == 1 &&
+        blocked.advanceSpatialProjectiles(1) == 0 &&
+        blocked.activeSpatialProjectiles() == 0 &&
+        blocked.spatialProjectileBlocked() == 1 &&
+        blocked.spatialProjectileHits() == 0,
+        "obstacle must terminate a continuous projectile without damage")
+
+    var zones = AuthoritativeEnemySession(4, 1)
+    assert(zones.defineWeapon(9, 1, 0, 0, 1, 1, 5) &&
+        zones.defineEncounter(7, 2, 2) &&
+        zones.configureEncounterZone(7, 0, 0, 0, 5),
+        "encounter zone must configure")
+    assert(zones.admitEnemyAt(7, 3, 0, 5, 0, 9, 2, 0, 0),
+        "enemy inside encounter zone must admit")
+    assert(!zones.admitEnemyAt(7, 4, 0, 5, 0, 9, 8, 0, 0) &&
+        zones.encounterActiveCount(7) == 1,
+        "enemy outside encounter zone must reject without consuming slot")
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start() &&
+        loopback.configureEnemyRules(100, 20, 2) &&
+        loopback.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        loopback.defineEnemyEncounter(4, 1, 1) &&
+        loopback.addEnemyCombatActor(1, 20, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 9) &&
+        loopback.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        loopback.setEnemySpatialPosition(1, 0, 0, 0),
+        "loopback must admit spatial projectile actors")
+    var loopbackProjectile = loopback.spawnEnemyProjectileSpatial(1, 2, 0, 20, 3, 0)
+    assert(loopbackProjectile.accepted() &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.activeEnemyProjectiles() == 0 &&
+        loopback.enemyProjectileHits() == 1,
+        "fixed-step loopback must advance and resolve continuous projectiles")
+}

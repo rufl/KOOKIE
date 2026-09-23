@@ -174,6 +174,30 @@ class LoopbackSession {
         return enemyCombat.projectileAttackSpatial(
             sourceId, targetId, tick, range, critical)
     }
+    SpatialProjectileResult spawnEnemyProjectileSpatial(
+        Int sourceId, Int targetId, Int tick,
+        Int range, Int step, Int critical
+    ) {
+        return enemyCombat.spawnSpatialProjectile(
+            sourceId, targetId, tick, range, step, critical)
+    }
+
+    Int advanceEnemyProjectiles(Int tick) {
+        return enemyCombat.advanceSpatialProjectiles(tick)
+    }
+
+    Int activeEnemyProjectiles() {
+        return enemyCombat.activeSpatialProjectiles()
+    }
+
+    Int enemyProjectileHits() {
+        return enemyCombat.spatialProjectileHits()
+    }
+
+    Int enemyProjectilesBlocked() {
+        return enemyCombat.spatialProjectileBlocked()
+    }
+
 
 
     Bool defineEnemyWeapon(
@@ -188,6 +212,13 @@ class LoopbackSession {
     Bool defineEnemyEncounter(Int id, Int maxActive, Int budget) {
         return enemyCombat.defineEncounter(id, maxActive, budget)
     }
+    Bool configureEnemyEncounterZone(
+        Int encounterId, Int centerX, Int centerY, Int centerZ, Int radius
+    ) {
+        return enemyCombat.configureEncounterZone(
+            encounterId, centerX, centerY, centerZ, radius)
+    }
+
 
     Bool addEnemyCombatActor(Int id, Int health, Int armor) {
         return enemyCombat.addActor(id, health, armor)
@@ -204,6 +235,22 @@ class LoopbackSession {
         if (!started || enemyCount >= enemyIds.length ||
             !enemyCombat.admitEnemy(
                 encounterId, enemyId, tick, health, armor, weaponId)) {
+            return false
+        }
+        enemyIds[enemyCount] = enemyId
+        enemyCount = enemyCount + 1
+        return true
+    }
+
+    Bool admitEnemyAt(
+        Int encounterId, Int enemyId, Int tick,
+        Int health, Int armor, Int weaponId,
+        Int x, Int y, Int z
+    ) {
+        if (!started || enemyCount >= enemyIds.length ||
+            !enemyCombat.admitEnemyAt(
+                encounterId, enemyId, tick, health, armor, weaponId,
+                x, y, z)) {
             return false
         }
         enemyIds[enemyCount] = enemyId
@@ -273,6 +320,7 @@ class LoopbackSession {
                 accepted = lastEnemyDecision.accepted()
             }
         }
+        enemyCombat.advanceSpatialProjectiles(tick)
         return accepted
     }
 

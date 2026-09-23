@@ -581,6 +581,15 @@ class CombatWorld {
     Bool projectileIsActive(Int projectileId) {
         return findProjectile(projectileId) >= 0
     }
+    Bool cancelProjectile(Int projectileId) {
+        var index = findProjectile(projectileId)
+        if (index < 0) {
+            return false
+        }
+        projectileActive[index] = false
+        return true
+    }
+
 
     Int pendingCombatEvents() {
         return eventQueue.pending()
