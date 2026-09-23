@@ -1,6 +1,8 @@
 import core
+import session
 
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
+
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
 extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int height, Int hidden): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
@@ -14,6 +16,16 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recover_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_headless_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_headless_budget(Int frames, Int budgetMicroseconds): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_state(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_mark_headless_device_lost(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_begin(Int wordCount): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_word(Int index, Int word): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
+
 
 extern "./build/libkookie_sdl_adapter.so" kookie_drain_events(Int maxEvents): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
@@ -25,6 +37,34 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, Int frames): Bool
+Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
+    var payload = session.broadPhaseSnapshot(6, 7)
+    if (!validBroadPhaseSnapshot(payload) || !kookie_transport_open()) {
+        return false
+    }
+    var sent = kookie_transport_send_begin(payload.length)
+    for (var index = 0; index < payload.length && sent; index = index + 1) {
+        sent = kookie_transport_send_word(index, payload[index])
+    }
+    sent = sent && kookie_transport_send_commit()
+    if (!sent) {
+        kookie_transport_close()
+        return false
+    }
+    var receivedCount = kookie_transport_receive()
+    if (receivedCount != payload.length) {
+        kookie_transport_close()
+        return false
+    }
+    var received = new Int[receivedCount]
+    for (var index = 0; index < receivedCount; index = index + 1) {
+        received[index] = kookie_transport_receive_word(index)
+    }
+    var applied = validBroadPhaseSnapshot(received) &&
+        session.applyBroadPhaseSnapshot(received)
+    var closed = kookie_transport_close()
+    return applied && closed && session.clientBroadPhaseTriangleCount() == 1
+}
 
 
 main() {
@@ -33,18 +73,38 @@ main() {
     var frameClock = FixedStepClock(60, 4)
     assert(frameClock.frameBudgetMicros() == 16667,
         "GPU smoke must use the declared 60 Hz frame budget")
+    var transportSession = LoopbackSession(4, 4)
+    assert(transportSession.start(), "session transport probe must start")
+    assert(transportSession.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "session transport probe must seed broad-phase geometry")
+    assert(transportBroadPhaseRoundTrip(transportSession),
+        "native datagram transport must apply a broad-phase snapshot")
+    println("session-transport-open")
+
 
     if (kookie_gpu_open_headless_ready()) {
+        assert(kookie_gpu_recovery_state() == 1,
+            "headless GPU must enter ready recovery state")
         assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
         assert(kookie_gpu_headless_budget(3, frameClock.frameBudgetMicros()),
-            "headless GPU draw timing must fit the declared frame budget")
+            "headless GPU draw timing must fit the declared 60 Hz frame budget")
+        assert(kookie_gpu_mark_headless_device_lost(),
+            "headless GPU loss marker must enter recovery")
+        assert(kookie_gpu_recovery_state() == 2,
+            "headless GPU loss must expose lost recovery state")
         assert(kookie_gpu_recover_headless(), "headless GPU recovery must reopen")
+        assert(kookie_gpu_recovery_state() == 1,
+            "headless GPU recovery must return to ready state")
         assert(kookie_gpu_draw_headless_test(),
             "headless GPU draw must succeed after recovery")
         println("gpu-headless-recovered")
         println("gpu-headless-open")
         assert(kookie_gpu_close_headless(), "headless GPU must close")
+        assert(kookie_gpu_recovery_state() == 0,
+            "closed headless GPU must clear recovery state")
         assert(!kookie_gpu_close_headless(), "stale headless GPU token must reject")
+        assert(!kookie_gpu_recover_headless(),
+            "closed headless GPU must reject recovery without a device")
     } else {
         println("gpu-headless-unavailable")
     }

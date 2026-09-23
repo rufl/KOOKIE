@@ -47,6 +47,8 @@ Criar um engine para boomer shooters / looter shooters / ARPG FPS usando **códi
 16. JOML1.10.9 do Minecraft26.3 funcionou com `--deps` da JVM Kof: comprimento/produto escalar de vetor e translação de matriz imprimiram `5.0,25.0,5.0,4.0`. O mesmo código-fonte/nativo rejeitou ambas as importações Java com `PKG006`. Isso prova o caminho restrito de matemática Java, não JNI/gráficos nem uso de JAR nativo.
 17. Snapshots broad-phase autoritativos agora atravessam uma fila de transporte de capacidade fixa e validada; overflow rejeita sem descartar payloads enfileirados, e dequeue/apply atualiza a geometria do cliente com guardas de sequência.
 18. O smoke GPU headless agora cobre profundidade de sobreposição dois e recriação limpa do dispositivo com reconstrução de recursos em cache; callbacks reais de perda e retirement continuam não implementados.
+19. O transporte nativo UDP de loopback usa um datagrama fixo de 78 palavras ligado ao localhost e preserva inteiros com sinal pelas chamadas escalares de envio/recebimento; endpoint remoto/framing autenticado ainda não foram implementados.
+20. A recuperação GPU agora expõe transições unavailable/ready/lost/failed e rejeita recuperação sem dispositivo headless ativo; a notificação de perda é um marcador explícito da sonda, não um callback SDL de perda de dispositivo.
 
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
@@ -93,9 +95,12 @@ traversal autoritativo de slide/step de cápsula sobre oito obstáculos limitado
 ordenados, operações de limpeza/reconfiguração, snapshots broad-phase
 transportados por fila de capacidade fixa com dequeue/apply no cliente e
 guardas de sequência, rejeição de consultas obsoletas e admissão de movimento
-espacial combinando colisões de cápsula e broad-phase. Em seguida: adicionar
-apresentação isolada compatível com DRI3, transporte real de sessão/rede,
-callbacks/retirement reais para perda do dispositivo e reexecutar o
+espacial combinando colisões de cápsula e broad-phase. O adaptador também possui
+uma sonda UDP nativa de loopback que preserva palavras inteiras com sinal e
+estados explícitos de recuperação GPU com marcador de perda e rejeição após
+fechamento. Em seguida: adicionar apresentação isolada compatível com DRI3,
+integrar o transporte com endpoint de sessão remoto e framing autenticado,
+adicionar callbacks/retirement reais para perda do dispositivo e reexecutar o
 reproduzível de exceção nativa após upgrade do compilador. O defeito do handler
 de exceções nativas continua sendo um gate do compilador.
 

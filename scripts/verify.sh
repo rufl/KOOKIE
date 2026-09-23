@@ -34,8 +34,9 @@ adapter_build_dir="$root_dir/build"
 rm -rf "$adapter_build_dir"
 mkdir -p "$adapter_build_dir"
 probe_core_dir="$root_dir/probes/g0_native_adapter/core"
-rm -rf "$probe_core_dir"
-trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir"' EXIT
+probe_session_dir="$root_dir/probes/g0_native_adapter/session"
+rm -rf "$probe_core_dir" "$probe_session_dir"
+trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_session_dir"' EXIT
 render_node="${KOOKIE_RENDER_NODE:-}"
 if [[ -z "$render_node" ]]; then
   for candidate in /dev/dri/renderD*; do
@@ -54,9 +55,12 @@ fi
 
 if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-config >/dev/null && command -v overzeer-isolated-display >/dev/null &&
    pkg-config --exists sdl3 && [[ -f /usr/include/SDL3/SDL.h ]]; then
-  mkdir -p "$probe_core_dir"
+  mkdir -p "$probe_core_dir" "$probe_session_dir"
   for core_file in "$root_dir"/src/core/*.kf; do
     ln -s "$core_file" "$probe_core_dir/$(basename "$core_file")"
+  done
+  for session_file in "$root_dir"/src/session/*.kf; do
+    ln -s "$session_file" "$probe_session_dir/$(basename "$session_file")"
   done
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \

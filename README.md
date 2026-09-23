@@ -104,12 +104,15 @@ triangle collection/BVH queries with removal/rebuild and geometry revisions,
 eight-slot ordered capsule step obstacles with clear/reconfigure operations,
 frame staging budgets, authoritative-session broad-phase snapshots with bounded
 payload application and sequence guards, a fixed-capacity validated broad-phase
-transport queue with overflow rejection, stale query rejection, and spatial
+transport queue with overflow rejection, a bounded native UDP loopback transport
+probe for signed payload words, explicit GPU recovery states with loss-marker
+recovery and closed-device rejection, stale query rejection, and spatial
 movement admission combining capsule and broad-phase collisions. Next: add a
-DRI3-capable isolated presentation path, actual network/session transport
-around broad-phase payloads, actual device-loss callbacks/resource retirement,
-and rerun the native exception reproducer after a compiler upgrade. Use the
-repository's disposable isolated-display wrapper for graphical verification.
+DRI3-capable isolated presentation path, integrate transport with a remote
+session endpoint and authenticated framing, add actual SDL/device-loss
+callbacks/resource retirement, and rerun the native exception reproducer after
+a compiler upgrade. Use the repository's disposable isolated-display wrapper
+for graphical verification.
 Do not create a large untested engine scaffold first.
 ## Provenance
 

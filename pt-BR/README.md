@@ -114,11 +114,14 @@ limpeza/reconfiguração, orçamentos de staging de frame, snapshots broad-phase
 da sessão autoritativa com aplicação de payloads limitados e guardas de
 sequência, uma fila de transporte broad-phase de capacidade fixa com rejeição
 de overflow, rejeição de consultas obsoletas e admissão de movimento espacial
-combinando colisões de cápsula e broad-phase. Em seguida: adicionar
-apresentação isolada compatível com DRI3, transporte real de sessão/rede,
-callbacks/retirement reais para perda do dispositivo e reexecutar o
-reproduzível de exceção nativa após upgrade do compilador. Use o wrapper
-descartável de display isolado do repositório para verificação gráfica.
+combinando colisões de cápsula e broad-phase. O adaptador também possui uma
+sonda UDP nativa de loopback para palavras inteiras com sinal e estados
+explícitos de recuperação GPU com marcador de perda e rejeição após fechamento.
+Em seguida: adicionar apresentação isolada compatível com DRI3, integrar o
+transporte com endpoint de sessão remoto e framing autenticado, adicionar
+callbacks/retirement reais para perda do dispositivo e reexecutar o reproduzível
+de exceção nativa após upgrade do compilador. Use o wrapper descartável de
+display isolado do repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

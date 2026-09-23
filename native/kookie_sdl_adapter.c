@@ -4,7 +4,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
 #define KOOKIE_MAX_WINDOWS 8
+#define KOOKIE_TRANSPORT_MAX_WORDS 78
+#define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
+#define KOOKIE_GPU_RECOVERY_READY 1
+#define KOOKIE_GPU_RECOVERY_LOST 2
+#define KOOKIE_GPU_RECOVERY_FAILED 3
 #define KOOKIE_WINDOW_KIND 1
 #define KOOKIE_AUDIO_KIND 2
 #define KOOKIE_GPU_KIND 3
@@ -36,6 +47,17 @@ typedef struct {
     SDL_GPUSampler *sampler;
     bool ready;
 } KookieGpuResources;
+
+typedef struct {
+    int socket_fd;
+    struct sockaddr_in peer;
+    int send_count;
+    uint32_t send_words[KOOKIE_TRANSPORT_MAX_WORDS];
+    int receive_count;
+    int32_t receive_words[KOOKIE_TRANSPORT_MAX_WORDS];
+} KookieTransport;
+static KookieTransport transport = {.socket_fd = -1};
+static int gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
 
 static KookieGpuResources gpu_resources;
 static int last_gpu_fence_wait_microseconds;
@@ -123,6 +145,125 @@ static bool decode_token(int token, int expected_kind, int *slot, unsigned int *
     return true;
 }
 
+bool kookie_transport_open(void) {
+    if (transport.socket_fd >= 0) {
+        return false;
+    }
+    int socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (socket_fd < 0) {
+        return false;
+    }
+    struct sockaddr_in address;
+    memset(&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons(0);
+    if (bind(socket_fd, (struct sockaddr *)&address, sizeof(address)) != 0) {
+        close(socket_fd);
+        return false;
+    }
+    struct sockaddr_in peer;
+    socklen_t peer_length = sizeof(peer);
+    if (getsockname(socket_fd, (struct sockaddr *)&peer, &peer_length) != 0) {
+        close(socket_fd);
+        return false;
+    }
+    struct timeval receive_timeout = {.tv_sec = 1, .tv_usec = 0};
+    if (setsockopt(
+            socket_fd, SOL_SOCKET, SO_RCVTIMEO,
+            &receive_timeout, sizeof(receive_timeout)) != 0) {
+        close(socket_fd);
+        return false;
+    }
+    transport.socket_fd = socket_fd;
+    transport.peer = peer;
+    transport.send_count = 0;
+    transport.receive_count = 0;
+    return true;
+}
+
+bool kookie_transport_send_begin(int word_count) {
+    if (transport.socket_fd < 0 ||
+        word_count <= 0 ||
+        word_count > KOOKIE_TRANSPORT_MAX_WORDS) {
+        return false;
+    }
+    transport.send_count = word_count;
+    return true;
+}
+
+bool kookie_transport_send_word(int index, int word) {
+    if (transport.socket_fd < 0 ||
+        index < 0 ||
+        index >= transport.send_count) {
+        return false;
+    }
+    transport.send_words[index] = htonl((uint32_t)word);
+    return true;
+}
+
+bool kookie_transport_send_commit(void) {
+    if (transport.socket_fd < 0 || transport.send_count <= 0) {
+        return false;
+    }
+    size_t bytes = (size_t)transport.send_count * sizeof(uint32_t);
+    ssize_t sent = sendto(
+        transport.socket_fd,
+        transport.send_words,
+        bytes,
+        0,
+        (struct sockaddr *)&transport.peer,
+        sizeof(transport.peer));
+    if (sent != (ssize_t)bytes) {
+        transport.send_count = 0;
+        return false;
+    }
+    transport.send_count = 0;
+    return true;
+}
+
+int kookie_transport_receive(void) {
+    if (transport.socket_fd < 0) {
+        return 0;
+    }
+    uint32_t words[KOOKIE_TRANSPORT_MAX_WORDS];
+    ssize_t bytes = recvfrom(
+        transport.socket_fd,
+        words,
+        sizeof(words),
+        0,
+        NULL,
+        NULL);
+    if (bytes <= 0 ||
+        bytes % (ssize_t)sizeof(uint32_t) != 0 ||
+        bytes > (ssize_t)sizeof(words)) {
+        transport.receive_count = 0;
+        return 0;
+    }
+    transport.receive_count = (int)(bytes / (ssize_t)sizeof(uint32_t));
+    for (int index = 0; index < transport.receive_count; index += 1) {
+        transport.receive_words[index] = (int32_t)ntohl(words[index]);
+    }
+    return transport.receive_count;
+}
+
+int kookie_transport_receive_word(int index) {
+    if (index < 0 || index >= transport.receive_count) {
+        return 0;
+    }
+    return transport.receive_words[index];
+}
+
+bool kookie_transport_close(void) {
+    if (transport.socket_fd < 0) {
+        return false;
+    }
+    close(transport.socket_fd);
+    memset(&transport, 0, sizeof(transport));
+    transport.socket_fd = -1;
+    return true;
+}
+
 bool kookie_sdl_init(int flags) {
     if (flags < 0) {
         return false;
@@ -141,6 +282,7 @@ void kookie_sdl_shutdown(void) {
         gpu_slot.device = NULL;
         gpu_slot.window_slot = -1;
         gpu_slot.generation += 1;
+        gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
     }
     for (int i = 0; i < KOOKIE_MAX_WINDOWS; i += 1) {
         if (window_slots[i].window != NULL) {
@@ -153,6 +295,9 @@ void kookie_sdl_shutdown(void) {
         SDL_DestroyAudioStream(audio_slot.stream);
         audio_slot.stream = NULL;
         audio_slot.generation += 1;
+    }
+    if (transport.socket_fd >= 0) {
+        kookie_transport_close();
     }
     SDL_Quit();
 }
@@ -230,6 +375,7 @@ int kookie_gpu_open(int window_token) {
     }
     gpu_slot.device = device;
     gpu_slot.window_slot = window_slot;
+    gpu_recovery_state = KOOKIE_GPU_RECOVERY_READY;
     return make_token(0, gpu_slot.generation, KOOKIE_GPU_KIND);
 }
 int kookie_gpu_window_present_capabilities(void) {
@@ -264,9 +410,9 @@ int kookie_gpu_open_headless(void) {
         return 0;
     }
 
-
     SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
     if (device == NULL) {
+        gpu_recovery_state = KOOKIE_GPU_RECOVERY_FAILED;
         return 0;
     }
     if (gpu_slot.generation == 0) {
@@ -274,13 +420,30 @@ int kookie_gpu_open_headless(void) {
     }
     gpu_slot.device = device;
     gpu_slot.window_slot = -1;
+    gpu_recovery_state = KOOKIE_GPU_RECOVERY_READY;
     int token = make_token(0, gpu_slot.generation, KOOKIE_GPU_KIND);
     return token;
 }
-bool kookie_gpu_recover_headless(void) {
-    if (gpu_slot.device == NULL || gpu_slot.window_slot != -1) {
+
+int kookie_gpu_recovery_state(void) {
+    return gpu_recovery_state;
+}
+
+bool kookie_gpu_mark_headless_device_lost(void) {
+    if (gpu_slot.device == NULL || gpu_slot.window_slot != -1 ||
+        gpu_recovery_state != KOOKIE_GPU_RECOVERY_READY) {
         return false;
     }
+    gpu_recovery_state = KOOKIE_GPU_RECOVERY_LOST;
+    return true;
+}
+
+bool kookie_gpu_recover_headless(void) {
+    if (gpu_slot.device == NULL || gpu_slot.window_slot != -1 ||
+        gpu_recovery_state != KOOKIE_GPU_RECOVERY_LOST) {
+        return false;
+    }
+    gpu_recovery_state = KOOKIE_GPU_RECOVERY_FAILED;
     kookie_gpu_release_resources(gpu_slot.device);
     SDL_DestroyGPUDevice(gpu_slot.device);
     gpu_slot.device = NULL;
@@ -300,10 +463,9 @@ bool kookie_gpu_close_headless(void) {
     gpu_slot.device = NULL;
     gpu_slot.window_slot = -1;
     gpu_slot.generation += 1;
+    gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
     return true;
 }
-
-
 
 bool kookie_gpu_close(int token) {
     int slot;
@@ -324,9 +486,9 @@ bool kookie_gpu_close(int token) {
     gpu_slot.device = NULL;
     gpu_slot.window_slot = -1;
     gpu_slot.generation += 1;
+    gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
     return true;
 }
-
 static bool read_shader_binary(const char *name, Uint8 **bytes, size_t *size) {
     const char *directory = getenv("KOOKIE_SHADER_DIR");
     char path[512];
