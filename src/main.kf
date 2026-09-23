@@ -373,6 +373,11 @@ test "capsule slide and step result" {
     assert(capsule.addStepObstacle(4, 6, 4, 6, 2) &&
         capsule.stepObstacleCount() == 2,
         "capsule must retain multiple bounded obstacles")
+    assert(capsule.addStepObstacle(0, 1, 0, 1, 1) &&
+        capsule.addStepObstacle(8, 9, 0, 1, 1) &&
+        capsule.addStepObstacle(8, 9, 8, 9, 1) &&
+        capsule.stepObstacleCount() == 5,
+        "capsule obstacle capacity must exceed the legacy four-slot bound")
     var orderedHit = capsule.queryCapsule(2, 2, 2, 8, 2, 8)
     assert(orderedHit.accepted() && orderedHit.collided() && orderedHit.hitStep() == 1,
         "capsule obstacles must resolve in deterministic traversal order")

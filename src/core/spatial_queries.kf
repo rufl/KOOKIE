@@ -442,6 +442,56 @@ class BoundedTriangleCollection {
     Int triangleCount() {
         return activeCountValue
     }
+    Int triangleIndexAt(Int ordinal) {
+        if (ordinal < 0 || ordinal >= activeCountValue) {
+            return -1
+        }
+        var seen = 0
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            if (active[index]) {
+                if (seen == ordinal) {
+                    return index
+                }
+                seen = seen + 1
+            }
+        }
+        return -1
+    }
+
+    Int triangleCoordinate(Int index, Int component) {
+        if (index < 0 || index >= triangleCountValue || !active[index]) {
+            return 0
+        }
+        if (component == 0) {
+            return ax[index]
+        }
+        if (component == 1) {
+            return ay[index]
+        }
+        if (component == 2) {
+            return az[index]
+        }
+        if (component == 3) {
+            return bx[index]
+        }
+        if (component == 4) {
+            return by[index]
+        }
+        if (component == 5) {
+            return bz[index]
+        }
+        if (component == 6) {
+            return cx[index]
+        }
+        if (component == 7) {
+            return cy[index]
+        }
+        if (component == 8) {
+            return cz[index]
+        }
+        return 0
+    }
+
 
     Int geometryRevision() {
         return geometryRevisionValue
@@ -627,10 +677,6 @@ class BoundedTriangleCollection {
     Int lastVisitedTriangles() {
         return lastVisitedTrianglesValue
     }
-
-    Int lastHitTriangle() {
-        return lastHitTriangleValue
-    }
 }
 
 
@@ -677,10 +723,10 @@ class BoundedCapsuleWorld {
             nextMaxX - radius, nextMaxY - radius, nextMaxZ - radius,
             nextMaxDistance)
         stepObstacleCountValue = 0
-        stepMinXs = new Int[4]
-        stepMaxXs = new Int[4]
-        stepMinZs = new Int[4]
-        stepMaxZs = new Int[4]
+        stepMinXs = new Int[8]
+        stepMaxXs = new Int[8]
+        stepMinZs = new Int[8]
+        stepMaxZs = new Int[8]
         stepTopYs = new Int[4]
     }
 
@@ -899,6 +945,8 @@ class BoundedCapsuleWorld {
 class SpatialQueryGate {
     BoundedSegmentWorld segmentWorld
     BoundedCapsuleWorld capsuleWorld
+    BoundedTriangleCollection broadPhaseCollection
+    Int broadPhaseRevisionValue
 
     public constructor(
         Int minX, Int minY, Int minZ,
@@ -909,7 +957,90 @@ class SpatialQueryGate {
             minX, minY, minZ, maxX, maxY, maxZ, maxDistance)
         capsuleWorld = BoundedCapsuleWorld(
             minX, minY, minZ, maxX, maxY, maxZ, radius, maxDistance)
+        broadPhaseCollection = BoundedTriangleCollection(8, maxDistance)
+        broadPhaseCollection.configureBounds(
+            minX, minY, minZ, maxX, maxY, maxZ)
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
     }
+    SegmentCollisionResult rejectedBroadPhaseMove(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return SegmentCollisionResult(
+            false, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            startX, startY, startZ)
+    }
+
+    Int broadPhaseRevision() {
+        return broadPhaseRevisionValue
+    }
+
+    Bool configureBroadPhaseBounds(
+        Int minX, Int minY, Int minZ,
+        Int maxX, Int maxY, Int maxZ
+    ) {
+        if (!broadPhaseCollection.configureBounds(
+            minX, minY, minZ, maxX, maxY, maxZ)) {
+            return false
+        }
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
+        return true
+    }
+
+    Bool addBroadPhaseTriangle(
+        Int axValue, Int ayValue, Int azValue,
+        Int bxValue, Int byValue, Int bzValue,
+        Int cxValue, Int cyValue, Int czValue
+    ) {
+        if (!broadPhaseCollection.addTriangle(
+            axValue, ayValue, azValue,
+            bxValue, byValue, bzValue,
+            cxValue, cyValue, czValue)) {
+            return false
+        }
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
+        return true
+    }
+    Int broadPhaseTriangleCount() {
+        return broadPhaseCollection.triangleCount()
+    }
+
+    Bool removeBroadPhaseTriangle(Int index) {
+        if (!broadPhaseCollection.removeTriangle(index)) {
+            return false
+        }
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
+        return true
+    }
+
+
+    SegmentCollisionResult admitPlayerMoveWithBroadPhase(
+        Int geometryRevision,
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (geometryRevision != broadPhaseRevisionValue) {
+            return rejectedBroadPhaseMove(
+                startX, startY, startZ, endX, endY, endZ)
+        }
+        var triangle = broadPhaseCollection.query(
+            startX, startY, startZ, endX, endY, endZ)
+        var capsule = capsuleWorld.queryCapsule(
+            startX, startY, startZ, endX, endY, endZ)
+        if (!triangle.accepted()) {
+            return triangle
+        }
+        if (!capsule.accepted()) {
+            return capsule
+        }
+        if (triangle.collided() &&
+            (!capsule.collided() || triangle.hitStep() < capsule.hitStep())) {
+            return triangle
+        }
+        return capsule
+    }
+
 
     SegmentCollisionResult admitPlayerMove(
         Int startX, Int startY, Int startZ,

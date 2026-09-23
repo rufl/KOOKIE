@@ -209,6 +209,16 @@ class LoopbackSession {
     Int broadPhaseTriangleCount() {
         return broadPhaseCollection.triangleCount()
     }
+    Int[] broadPhaseSnapshot(Int tick, Int sequence) {
+        return newBroadPhaseSnapshot(
+            protocolVersion(), tick, sequence,
+            broadPhaseRevisionValue, broadPhaseCollection)
+    }
+
+    Bool acceptsBroadPhaseSnapshot(Int[] words) {
+        return broadPhaseSnapshotMatches(words, broadPhaseRevisionValue)
+    }
+
 
     SegmentCollisionResult rejectedBroadPhaseQuery(
         Int startX, Int startY, Int startZ,

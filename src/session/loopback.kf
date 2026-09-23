@@ -1,4 +1,6 @@
 package session
+import core
+
 
 Int[] newEnvelope(Int protocol, Int kind, Int tick, Int sequence) {
     var words = new Int[5]
@@ -12,6 +14,59 @@ Int[] newEnvelope(Int protocol, Int kind, Int tick, Int sequence) {
 
 Bool validEnvelope(Int[] words) {
     return words.length == 5 && words[0] == 1 && words[1] >= 0 && words[2] >= 0 && words[3] >= 0
+}
+
+Int broadPhaseSnapshotKind() {
+    return 2
+}
+
+Int[] newBroadPhaseSnapshot(
+    Int protocol, Int tick, Int sequence, Int geometryRevision,
+    BoundedTriangleCollection collection
+) {
+    var triangleCount = collection.triangleCount()
+    var words = new Int[6 + triangleCount * 9]
+    words[0] = protocol
+    words[1] = broadPhaseSnapshotKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = geometryRevision
+    words[5] = triangleCount
+    for (var ordinal = 0; ordinal < triangleCount; ordinal = ordinal + 1) {
+        var index = collection.triangleIndexAt(ordinal)
+        var offset = 6 + ordinal * 9
+        for (var component = 0; component < 9; component = component + 1) {
+            words[offset + component] = collection.triangleCoordinate(index, component)
+        }
+    }
+    return words
+}
+
+Bool validBroadPhaseSnapshot(Int[] words) {
+    return words.length >= 6 &&
+        words[0] == protocolVersion() &&
+        words[1] == broadPhaseSnapshotKind() &&
+        words[2] >= 0 && words[3] >= 0 && words[4] > 0 &&
+        words[5] >= 0 && words.length == 6 + words[5] * 9
+}
+
+Int broadPhaseSnapshotRevision(Int[] words) {
+    if (!validBroadPhaseSnapshot(words)) {
+        return -1
+    }
+    return words[4]
+}
+
+Int broadPhaseSnapshotTriangleCount(Int[] words) {
+    if (!validBroadPhaseSnapshot(words)) {
+        return -1
+    }
+    return words[5]
+}
+
+Bool broadPhaseSnapshotMatches(Int[] words, Int geometryRevision) {
+    return validBroadPhaseSnapshot(words) &&
+        words[4] == geometryRevision
 }
 
 Int envelopeSequence(Int[] words) {
