@@ -195,6 +195,19 @@ test "authoritative loopback foundation" {
     assert(loopback.pendingPredictionInputs(1) == 0 && loopback.clientPosition(1) == 6,
         "acknowledged prediction must stop replaying")
 
+    assert(loopback.broadPhaseRevision() == 1 &&
+        loopback.clientBroadPhaseRevision() == 1,
+        "loopback must expose initial broad-phase revision")
+    assert(loopback.applyQuerySnapshot(4, 3, 1, 1, 6),
+        "matching geometry revision must accept query snapshot")
+    assert(loopback.publishBroadPhaseRevision(2),
+        "authoritative geometry revision must advance")
+    assert(!loopback.applyQuerySnapshot(5, 4, 1, 1, 6),
+        "stale geometry revision must reject query snapshot")
+    assert(loopback.applyQuerySnapshot(6, 4, 2, 1, 6) &&
+        loopback.clientBroadPhaseRevision() == 2,
+        "matching new geometry revision must reconcile")
+
 }
 
 test "bounded snapshot interpolation and prediction" {

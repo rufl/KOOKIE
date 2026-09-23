@@ -278,6 +278,8 @@ static bool kookie_gpu_draw_test_internal(
     SDL_GPUShader *fragment_shader = NULL;
     SDL_GPUGraphicsPipeline *pipeline = NULL;
     SDL_GPUTexture *texture = NULL;
+    SDL_GPUBuffer *vertex_buffer = NULL;
+    SDL_GPUBuffer *index_buffer = NULL;
     SDL_GPUSampler *sampler = NULL;
     SDL_GPUTransferBuffer *transfer = NULL;
     SDL_GPUCommandBuffer *command_buffer = NULL;
@@ -324,10 +326,24 @@ static bool kookie_gpu_draw_test_internal(
     if (texture == NULL) {
         goto cleanup;
     }
+    SDL_GPUBufferCreateInfo mesh_vertex_info = {0};
+    mesh_vertex_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
+    mesh_vertex_info.size = 96;
+    vertex_buffer = SDL_CreateGPUBuffer(device, &mesh_vertex_info);
+    if (vertex_buffer == NULL) {
+        goto cleanup;
+    }
+    SDL_GPUBufferCreateInfo mesh_index_info = {0};
+    mesh_index_info.usage = SDL_GPU_BUFFERUSAGE_INDEX;
+    mesh_index_info.size = 12;
+    index_buffer = SDL_CreateGPUBuffer(device, &mesh_index_info);
+    if (index_buffer == NULL) {
+        goto cleanup;
+    }
 
     SDL_GPUTransferBufferCreateInfo transfer_info = {0};
     transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transfer_info.size = 16;
+    transfer_info.size = 128;
     transfer = SDL_CreateGPUTransferBuffer(device, &transfer_info);
     if (transfer == NULL) {
         goto cleanup;
@@ -340,7 +356,18 @@ static bool kookie_gpu_draw_test_internal(
         255, 64, 64, 255, 64, 255, 64, 255,
         64, 64, 255, 255, 255, 255, 64, 255
     };
+    const float vertices[24] = {
+        -0.8f, -0.8f, 0.0f, 1.0f,
+         0.8f, -0.8f, 1.0f, 1.0f,
+         0.8f,  0.8f, 1.0f, 0.0f,
+        -0.8f, -0.8f, 0.0f, 1.0f,
+         0.8f,  0.8f, 1.0f, 0.0f,
+        -0.8f,  0.8f, 0.0f, 0.0f
+    };
+    const Uint16 indices[6] = {0, 1, 2, 3, 4, 5};
     memcpy(pixels, checker, sizeof(checker));
+    memcpy(pixels + 16, vertices, sizeof(vertices));
+    memcpy(pixels + 112, indices, sizeof(indices));
     SDL_UnmapGPUTransferBuffer(device, transfer);
 
     SDL_GPUSamplerCreateInfo sampler_info = {0};
@@ -362,6 +389,23 @@ static bool kookie_gpu_draw_test_internal(
     pipeline_info.vertex_shader = vertex_shader;
     pipeline_info.fragment_shader = fragment_shader;
     pipeline_info.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    SDL_GPUVertexBufferDescription vertex_description = {0};
+    vertex_description.slot = 0;
+    vertex_description.pitch = 16;
+    vertex_description.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
+    SDL_GPUVertexAttribute vertex_attributes[2] = {0};
+    vertex_attributes[0].location = 0;
+    vertex_attributes[0].buffer_slot = 0;
+    vertex_attributes[0].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+    vertex_attributes[0].offset = 0;
+    vertex_attributes[1].location = 1;
+    vertex_attributes[1].buffer_slot = 0;
+    vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
+    vertex_attributes[1].offset = 8;
+    pipeline_info.vertex_input_state.vertex_buffer_descriptions = &vertex_description;
+    pipeline_info.vertex_input_state.num_vertex_buffers = 1;
+    pipeline_info.vertex_input_state.vertex_attributes = vertex_attributes;
+    pipeline_info.vertex_input_state.num_vertex_attributes = 2;
     pipeline_info.rasterizer_state.fill_mode = SDL_GPU_FILLMODE_FILL;
     pipeline_info.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
     pipeline_info.rasterizer_state.front_face = SDL_GPU_FRONTFACE_COUNTER_CLOCKWISE;
@@ -390,6 +434,20 @@ static bool kookie_gpu_draw_test_internal(
     destination.h = 2;
     destination.d = 1;
     SDL_UploadToGPUTexture(copy_pass, &source, &destination, false);
+    SDL_GPUTransferBufferLocation vertex_source = {0};
+    vertex_source.transfer_buffer = transfer;
+    vertex_source.offset = 16;
+    SDL_GPUBufferRegion vertex_destination = {0};
+    vertex_destination.buffer = vertex_buffer;
+    vertex_destination.size = 96;
+    SDL_UploadToGPUBuffer(copy_pass, &vertex_source, &vertex_destination, false);
+    SDL_GPUTransferBufferLocation index_source = {0};
+    index_source.transfer_buffer = transfer;
+    index_source.offset = 112;
+    SDL_GPUBufferRegion index_destination = {0};
+    index_destination.buffer = index_buffer;
+    index_destination.size = 12;
+    SDL_UploadToGPUBuffer(copy_pass, &index_source, &index_destination, false);
     SDL_EndGPUCopyPass(copy_pass);
 
     SDL_GPUTexture *render_target = offscreen_target;
@@ -426,9 +484,15 @@ static bool kookie_gpu_draw_test_internal(
     SDL_GPUTextureSamplerBinding binding = {0};
     binding.texture = texture;
     binding.sampler = sampler;
+    SDL_GPUBufferBinding vertex_binding = {0};
+    vertex_binding.buffer = vertex_buffer;
+    SDL_GPUBufferBinding index_binding = {0};
+    index_binding.buffer = index_buffer;
     SDL_BindGPUGraphicsPipeline(render_pass, pipeline);
+    SDL_BindGPUVertexBuffers(render_pass, 0, &vertex_binding, 1);
+    SDL_BindGPUIndexBuffer(render_pass, &index_binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
     SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
-    SDL_DrawGPUPrimitives(render_pass, 6, 1, 0, 0);
+    SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
     SDL_EndGPURenderPass(render_pass);
     if (!SDL_SubmitGPUCommandBuffer(command_buffer)) {
         goto cleanup;
@@ -439,6 +503,12 @@ static bool kookie_gpu_draw_test_internal(
 cleanup:
     if (command_buffer != NULL) {
         SDL_CancelGPUCommandBuffer(command_buffer);
+    }
+    if (index_buffer != NULL) {
+        SDL_ReleaseGPUBuffer(device, index_buffer);
+    }
+    if (vertex_buffer != NULL) {
+        SDL_ReleaseGPUBuffer(device, vertex_buffer);
     }
     if (transfer != NULL) {
         SDL_ReleaseGPUTransferBuffer(device, transfer);

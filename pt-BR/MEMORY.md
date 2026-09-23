@@ -71,19 +71,20 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 
 ## Próxima ação e limite de comprovação
 
-A prova GPU do G0 aceita um mesh de quad texturizado SDL_GPU offscreen
-isolado, submissão de draw SPIR-V e timing de GPU ociosa através de um render
-node. O smoke mais recente mediu 1461 microssegundos para três draws contra o
-orçamento declarado de frame a 60 Hz de 16.667 microssegundos em `renderD129`;
-o caminho de janela ainda reporta `gpu-unavailable` porque Xvfb não oferece
-apresentação DRI3. O G1 agora também possui staging de frame limitado a seis
-vértices, consultas determinísticas limitadas de coleções/BVH de triângulos
-com remoção/rebuild e revisões de geometria, e traversal autoritativo de
-slide/step de cápsula sobre obstáculo limitado. Em seguida: adicionar
-apresentação isolada compatível com DRI3, fazer upload de buffers limitados
-reais de vértices/índices, rejeitar revisões obsoletas de broad-phase e
-estender os obstáculos de cápsula. O defeito do handler de exceções nativas
-continua sendo um gate do compilador.
+A prova GPU do G0 aceita um quad texturizado SDL_GPU offscreen indexado
+isolado, uploads explícitos de buffers de vértices/índices, submissão de draw
+SPIR-V e timing de GPU ociosa através de um render node. O smoke mais recente
+mediu 1089 microssegundos para três draws contra o orçamento declarado de frame
+a 60 Hz de 16.667 microssegundos em `renderD129`; o caminho de janela ainda
+reporta `gpu-unavailable` porque Xvfb não oferece apresentação DRI3. O G1 agora
+também possui staging limitado de frame com seis vértices, consultas
+determinísticas limitadas de coleções/BVH de triângulos com remoção/rebuild e
+revisões de geometria, traversal autoritativo de slide/step de cápsula e
+rejeição de snapshots de consulta broad-phase obsoletos. Em seguida: adicionar
+apresentação isolada compatível com DRI3, passar coleções broad-phase pela
+sessão autoritativa, estender a ordenação de obstáculos de cápsula e reutilizar
+recursos GPU entre frames. O defeito do handler de exceções nativas continua
+sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

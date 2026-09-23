@@ -20,6 +20,8 @@ class LoopbackSession {
     ClientPredictionState playerTwoPrediction
     SnapshotHistory playerOneSnapshots
     SnapshotHistory playerTwoSnapshots
+    Int broadPhaseRevisionValue
+    Int clientBroadPhaseRevisionValue
 
 
     public constructor(Int inputCapacity, Int entityCapacity) {
@@ -40,6 +42,8 @@ class LoopbackSession {
         playerTwoPrediction = ClientPredictionState(4)
         playerOneSnapshots = SnapshotHistory(8)
         playerTwoSnapshots = SnapshotHistory(8)
+        broadPhaseRevisionValue = 1
+        clientBroadPhaseRevisionValue = 1
     }
 
     Bool start() {
@@ -153,6 +157,36 @@ class LoopbackSession {
         }
         snapshotSequence = sequence
         clientTick = tick
+        return true
+    }
+
+    Int broadPhaseRevision() {
+        return broadPhaseRevisionValue
+    }
+
+    Int clientBroadPhaseRevision() {
+        return clientBroadPhaseRevisionValue
+    }
+
+    Bool publishBroadPhaseRevision(Int nextRevision) {
+        if (nextRevision <= broadPhaseRevisionValue) {
+            return false
+        }
+        broadPhaseRevisionValue = nextRevision
+        return true
+    }
+
+    Bool applyQuerySnapshot(
+        Int sequence, Int tick, Int geometryRevision,
+        Int player, Int position
+    ) {
+        if (geometryRevision != broadPhaseRevisionValue) {
+            return false
+        }
+        if (!applySnapshot(sequence, tick, player, position)) {
+            return false
+        }
+        clientBroadPhaseRevisionValue = geometryRevision
         return true
     }
 

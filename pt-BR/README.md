@@ -89,25 +89,26 @@ Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 A viabilidade nativa G0 está implementada. O smoke nativo do adaptador em
 display isolado agora aceita ciclo de vida da janela oculta, flattening de
 resize/focus, áudio dummy, teardown de tokens obsoletos, limpeza de processos,
-um mesh de quad texturizado SDL_GPU offscreen com timing de GPU ociosa dentro
-do orçamento declarado de frame de 16.667 microssegundos; a amostra mais
-recente mediu 1461 microssegundos para três draws em `renderD129`. A
-apresentação em janela ainda reporta `gpu-unavailable` porque o caminho Xvfb
-não oferece suporte de apresentação DRI3. G1 agora inclui autoridade
-fixed-step, comandos de input limitados e transições de borda, admissão de dois
-clientes em loopback, rejeição de input obsoleto por cliente, validação de
-sequência de snapshots, movimento autoritativo limitado, clamp de câmera/input,
-storage limitado de componentes inteiros, histórico limitado de snapshots com
-interpolação, replay limitado de inputs de predição, consultas escalares de
-colisão, sweeps inteiros de segmento e triângulo 3D, movimento de cápsula
-expandido pelo raio, consultas determinísticas limitadas de coleções/BVH de
-triângulos com remoção/rebuild e revisões de geometria, traversal limitado de
-slide/step de cápsula e admissão compartilhada de jogador/projétil/linha de
-visão. Em seguida: adicionar apresentação isolada compatível com DRI3,
-substituir vértices gerados pelo shader por uploads limitados de buffers GPU de
-vértices/índices, rejeitar revisões obsoletas de broad-phase e estender os
-obstáculos de cápsula antes das armas. Use o wrapper descartável de display
-isolado do repositório para verificação gráfica.
+um quad texturizado SDL_GPU offscreen indexado com uploads explícitos de
+buffers de vértices/índices e timing de GPU ociosa dentro do orçamento
+declarado de frame de 16.667 microssegundos; a amostra mais recente mediu 1089
+microssegundos para três draws em `renderD129`. A apresentação em janela ainda
+reporta `gpu-unavailable` porque o caminho Xvfb não oferece suporte de
+apresentação DRI3. G1 agora inclui autoridade fixed-step, comandos de input
+limitados e transições de borda, admissão de dois clientes em loopback,
+rejeição de input obsoleto por cliente, validação de sequência de snapshots,
+movimento autoritativo limitado, clamp de câmera/input, storage limitado de
+componentes inteiros, histórico limitado de snapshots com interpolação, replay
+limitado de inputs de predição, consultas escalares de colisão, sweeps inteiros
+de segmento e triângulo 3D, movimento de cápsula expandido pelo raio,
+consultas determinísticas limitadas de coleções/BVH de triângulos com
+remoção/rebuild e revisões de geometria, traversal limitado de slide/step de
+cápsula, orçamentos de staging de frame e rejeição de snapshots de consulta
+broad-phase obsoletos. Em seguida: adicionar apresentação isolada compatível
+com DRI3, passar coleções broad-phase pela sessão autoritativa, estender a
+ordenação de obstáculos de cápsula e reutilizar recursos GPU entre frames. Use
+o wrapper descartável de display isolado do repositório para verificação
+gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

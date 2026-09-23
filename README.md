@@ -83,23 +83,24 @@ This setup does not resolve the native runtime blockers below.
 
 G0 native feasibility is implemented. The isolated native adapter smoke now
 accepts hidden-window lifecycle, resize/focus event flattening, dummy audio,
-stale-token teardown, process cleanup, an offscreen SDL_GPU textured quad mesh
-with GPU-idle timing within the declared 16,667-microsecond frame budget; the
-latest sample measured 1461 microseconds for three draws on `renderD129`.
-Window presentation still reports `gpu-unavailable` because the Xvfb path has
-no DRI3 presentation support. G1 includes fixed-step authority, bounded input
-commands and edge transitions, two-client loopback admission, per-client
-stale-input rejection, snapshot sequence validation, bounded authoritative
-movement, camera/input clamping, bounded integer component storage, bounded
-snapshot history with interpolation, bounded prediction input replay, scalar
-collision queries, integer 3D segment and triangle sweeps, radius-expanded
-capsule movement, deterministic bounded triangle collection/BVH queries with
-removal/rebuild and geometry revisions, bounded capsule slide/step traversal,
-and shared player/projectile/line-of-sight admission. Next: add a DRI3-capable
-isolated presentation path, replace shader-generated vertices with bounded GPU
-vertex/index-buffer uploads, add stale broad-phase revision rejection, and
-extend capsule obstacles before weapons. Use the repository's disposable
-isolated-display wrapper for graphical verification.
+stale-token teardown, process cleanup, and an offscreen SDL_GPU indexed
+textured quad with explicit vertex/index-buffer uploads and GPU-idle timing
+within the declared 16,667-microsecond frame budget; the latest sample measured
+1089 microseconds for three draws on `renderD129`. Window presentation still
+reports `gpu-unavailable` because the Xvfb path has no DRI3 presentation
+support. G1 includes fixed-step authority, bounded input commands and edge
+transitions, two-client loopback admission, per-client stale-input rejection,
+snapshot sequence validation, bounded authoritative movement, camera/input
+clamping, bounded integer component storage, bounded snapshot history with
+interpolation, bounded prediction input replay, scalar collision queries,
+integer 3D segment and triangle sweeps, radius-expanded capsule movement,
+deterministic bounded triangle collection/BVH queries with removal/rebuild and
+geometry revisions, bounded capsule slide/step traversal, frame staging
+budgets, and stale broad-phase query-snapshot rejection. Next: add a DRI3-
+capable isolated presentation path, hand off broad-phase collections through
+the authoritative session, extend capsule obstacle ordering, and reuse GPU
+resources across frames. Use the repository's disposable isolated-display
+wrapper for graphical verification.
 Do not create a large untested engine scaffold first.
 ## Provenance
 

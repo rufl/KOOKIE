@@ -27,19 +27,20 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Consultas limitadas de sweep de segmento 3D inteiro em volume alinhado aos eixos, rejeitando penetração inicial e traversal acima do orçamento.
 - Consultas limitadas de triângulo inteiro com rejeição de triângulo degenerado e resolução na amostra anterior.
 - Movimento limitado do centro de cápsula com limites expandidos pelo raio e admissão compartilhada de jogador/projétil/linha de visão.
-- Dispositivo SDL_GPU offscreen isolado e draw de quad SPIR-V aceitos com exposição do render node; o smoke mais recente mediu 1461 microssegundos para três draws contra o orçamento declarado de 16.667 microssegundos em `renderD129`.
+- Dispositivo SDL_GPU offscreen isolado e draw indexado de quad SPIR-V aceitos com uploads explícitos de buffers de vértices/índices; o smoke mais recente mediu 1089 microssegundos para três draws contra o orçamento declarado de 16.667 microssegundos em `renderD129`.
 - O relógio fixed-step expõe o orçamento declarado de frame a 60 Hz para as verificações de aceitação da GPU.
 - O staging de frame aceita um quad texturizado de seis vértices dentro de um orçamento limitado de 30 escritas escalares.
 - Coleções limitadas de triângulos usam um BVH binário determinístico de capacidade fixa com seleção do hit mais próximo, remoção/rebuild, revisões de geometria e diagnósticos de traversal.
 - O movimento limitado de cápsula agora retorna resultados autoritativos de slide/step, incluindo traversal bem-sucedido sobre um obstáculo de step limitado configurado.
+- O loopback autoritativo rejeita snapshots de consulta com revisões obsoletas de geometria broad-phase.
 
 ## Próximo lote
 
 1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
 2. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
-3. Substituir vértices de quad gerados pelo shader por uploads limitados de buffers GPU de vértices/índices.
-4. Adicionar revisões de geometria de broad-phase à sessão autoritativa e rejeitar snapshots de consulta obsoletos.
-5. Estender os obstáculos de cápsula além de um único prisma de step antes das armas.
+3. Adicionar handoff da coleção broad-phase pela sessão autoritativa em vez do contrato somente de revisão.
+4. Estender os obstáculos de cápsula além de um único prisma de step e adicionar ordenação de múltiplos obstáculos.
+5. Adicionar reuso de recursos GPU entre frames; o smoke atual recria buffers, pipeline e textura por draw.
 6. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
