@@ -44,11 +44,11 @@ This is the active bounded implementation sequence after the initial research an
 - SDL render-device reset/lost events now flow through the event pump, retire cached GPU resources safely for reset or lost-device paths, and drive headless recovery without the former explicit loss marker; the native probe exercises reset rebuild and loss recovery.
 - A capability-gated DRI3 window path now renders a swapchain frame and captures a non-empty screenshot checksum when a present-capable device is claimed; Xvfb still cannot claim the presentation path. This workstation exposes no `/dev/dri/renderD*`, and the isolated wrapper is Xvfb-backed, so the screenshot runtime remains unexecuted here.
 - Kof 0.4.10-beta verification reran the native exception-lifetime reproducer after the compiler upgrade; the JVM/native behavior remains the recorded gate.
+- The DRI3 runtime boundary is recorded in both language trees: this host has no `/dev/dri/renderD*`, and the isolated Xvfb wrapper cannot provide presentation.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
-2. Record each new measured failure or acceptance boundary in both language trees.
 
 
 ## Deferred

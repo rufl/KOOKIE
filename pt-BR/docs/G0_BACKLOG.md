@@ -43,11 +43,11 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Eventos SDL de reset/perda do dispositivo de renderização agora passam pelo event pump, aposentam recursos GPU em cache com segurança nos caminhos de reset ou perda e conduzem a recuperação headless sem o antigo marcador explícito de perda; a sonda nativa exercita rebuild após reset e recuperação após perda.
 - Um caminho de janela DRI3 protegido por capacidade agora renderiza um frame de swapchain e captura um checksum de screenshot não vazio quando um dispositivo compatível com apresentação é reivindicado; Xvfb ainda não consegue reivindicar o caminho de apresentação. Esta estação não expõe `/dev/dri/renderD*`, e o wrapper isolado usa Xvfb, portanto o runtime de screenshot ainda não foi executado aqui.
 - A verificação com Kof 0.4.10-beta reexecutou o reproduzível de lifetime de exceções nativas após o upgrade do compilador; o comportamento JVM/nativo continua sendo o gate registrado.
+- O limite de runtime DRI3 está registrado nas duas árvores de idioma: esta estação não possui `/dev/dri/renderD*`, e o wrapper isolado baseado em Xvfb não pode fornecer apresentação.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; Xvfb continua incompatível com apresentação.
-2. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
 
