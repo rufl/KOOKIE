@@ -62,6 +62,19 @@ class InputReplayRecorder {
         return true
     }
 
+    InputCommand at(Int offset) {
+        if (offset < 0 || offset >= count) {
+            return InputCommand(-1, -1, 0, 0, 0, 0, 0, 0)
+        }
+        var index = head + offset
+        if (index >= ticks.length) {
+            index = index - ticks.length
+        }
+        return InputCommand(
+            ticks[index], sequences[index], moveXs[index], moveYs[index],
+            lookXs[index], lookYs[index], fires[index], jumps[index])
+    }
+
     Int pending() {
         return count
     }

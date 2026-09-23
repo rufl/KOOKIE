@@ -393,6 +393,52 @@ test "loopback replay capture records consumed commands" {
         "disabling replay must reset bounded capture state")
 }
 
+test "bounded replay wire and file codecs" {
+    var replay = InputReplayRecorder(2)
+    assert(replay.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
+        replay.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1)))
+    var codec = BoundedReplayWireCodec(2)
+    assert(codec.encode(replay, 7, 11, -19) &&
+        codec.encodedLength() == 22,
+        "replay wire codec must frame metadata and commands")
+    var wire = new Int[codec.encodedLength()]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var restored = InputReplayRecorder(2)
+    assert(codec.decode(wire, restored) &&
+        codec.engineVersion() == 7 &&
+        codec.contentVersion() == 11 &&
+        codec.seed() == -19 &&
+        restored.playNext() &&
+        restored.lastPlayed().moveX() == 3 &&
+        restored.playNext() &&
+        restored.lastPlayed().jump() == 1,
+        "replay wire codec must restore metadata and FIFO commands")
+    wire[0] = 0
+    assert(!codec.decode(wire, restored),
+        "replay wire codec must reject a corrupted header")
+    var path = "/tmp/kookie-replay-test.bin"
+    var files = BoundedReplayFileStore(2)
+    assert(files.write(path, replay, 7, 11, -19))
+    var loaded = InputReplayRecorder(2)
+    assert(files.read(path, loaded) &&
+        files.engineVersion() == 7 &&
+        files.contentVersion() == 11 &&
+        files.seed() == -19 &&
+        loaded.playNext() &&
+        loaded.lastPlayed().lookY() == -1 &&
+        loaded.playNext() &&
+        loaded.lastPlayed().sequence() == 2,
+        "replay file codec must restore signed commands")
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
+    assert(file.writeBytes(corrupted) &&
+        !files.read(path, loaded),
+        "replay file codec must reject corrupted digits")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

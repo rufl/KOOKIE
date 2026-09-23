@@ -1,0 +1,87 @@
+package core
+
+class BoundedReplayFileStore {
+    BoundedReplayWireCodec codec
+    Int[] bytes
+    Int digitsPerWord
+
+    public constructor(Int commandCapacity) {
+        var actualCapacity = commandCapacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        codec = BoundedReplayWireCodec(actualCapacity)
+        digitsPerWord = 6
+        bytes = new Int[(6 + actualCapacity * 8) * digitsPerWord]
+    }
+
+    Bool write(String path, InputReplayRecorder recorder,
+        Int engineVersion, Int contentVersion, Int seed) {
+        if (!codec.encode(recorder, engineVersion, contentVersion, seed)) {
+            return false
+        }
+        var byteCount = codec.encodedLength() * digitsPerWord
+        var output = new Int[byteCount]
+        for (var wordIndex = 0; wordIndex < codec.encodedLength(); wordIndex = wordIndex + 1) {
+            var value = codec.encodedWord(wordIndex)
+            if (value < 0) {
+                value = -value * 2 - 1
+            } else {
+                value = value * 2
+            }
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                output[wordIndex * digitsPerWord + digit] = value % 64
+                value = value / 64
+            }
+        }
+        var file = File(path)
+        return file.writeBytes(output)
+    }
+
+    Bool read(String path, InputReplayRecorder target) {
+        var file = File(path)
+        var input = file.readRange(0, bytes.length)
+        if (input.length < 6 * digitsPerWord ||
+            input.length > bytes.length ||
+            input.length % digitsPerWord != 0) {
+            return false
+        }
+        var words = new Int[input.length / digitsPerWord]
+        for (var wordIndex = 0; wordIndex < words.length; wordIndex = wordIndex + 1) {
+            var offset = wordIndex * digitsPerWord
+            var encoded = 0
+            var multiplier = 1
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                if (input[offset + digit] < 0 || input[offset + digit] >= 64 ||
+                    (digit == digitsPerWord - 1 && input[offset + digit] != 0)) {
+                    return false
+                }
+                encoded = encoded + input[offset + digit] * multiplier
+                if (digit < digitsPerWord - 1) {
+                    multiplier = multiplier * 64
+                }
+            }
+            if (encoded % 2 == 0) {
+                words[wordIndex] = encoded / 2
+            } else {
+                words[wordIndex] = -(encoded / 2) - 1
+            }
+        }
+        return codec.decode(words, target)
+    }
+
+    Int engineVersion() {
+        return codec.engineVersion()
+    }
+
+    Int contentVersion() {
+        return codec.contentVersion()
+    }
+
+    Int seed() {
+        return codec.seed()
+    }
+}

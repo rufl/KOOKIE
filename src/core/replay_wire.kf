@@ -1,0 +1,141 @@
+package core
+
+class BoundedReplayWireCodec {
+    Int[] words
+    Int commandCapacity
+    Int wordCount
+    Int magic
+    Int engineVersionValue
+    Int contentVersionValue
+    Int seedValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        commandCapacity = actualCapacity
+        words = new Int[6 + actualCapacity * 8]
+        wordCount = 0
+        magic = 22446688
+        engineVersionValue = 0
+        contentVersionValue = 0
+    }
+
+    Bool encode(InputReplayRecorder recorder, Int engineVersion, Int contentVersion, Int seed) {
+        if (engineVersion < 0 || contentVersion < 0 ||
+            seed < -1000000 || seed > 1000000 ||
+            recorder.pending() > commandCapacity) {
+            wordCount = 0
+            return false
+        }
+        var count = recorder.pending()
+        words[0] = magic
+        words[1] = 1
+        words[2] = engineVersion
+        words[3] = contentVersion
+        words[4] = seed
+        words[5] = count
+        for (var index = 0; index < count; index = index + 1) {
+            var command = recorder.at(index)
+            var offset = 6 + index * 8
+            words[offset] = command.tick()
+            words[offset + 1] = command.sequence()
+            words[offset + 2] = command.moveX()
+            words[offset + 3] = command.moveY()
+            words[offset + 4] = command.lookX()
+            words[offset + 5] = command.lookY()
+            words[offset + 6] = command.fire()
+            words[offset + 7] = command.jump()
+            if (command.moveX() < -1000000 || command.moveX() > 1000000 ||
+                command.moveY() < -1000000 || command.moveY() > 1000000 ||
+                command.lookX() < -1000000 || command.lookX() > 1000000 ||
+                command.lookY() < -1000000 || command.lookY() > 1000000) {
+                wordCount = 0
+                return false
+            }
+        }
+        wordCount = 6 + count * 8
+        engineVersionValue = engineVersion
+        contentVersionValue = contentVersion
+        seedValue = seed
+        return true
+    }
+
+    Int encodedLength() {
+        return wordCount
+    }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCount) {
+            return -1
+        }
+        return words[index]
+    }
+
+    Bool decode(Int[] wire, InputReplayRecorder target) {
+        if (wire.length < 6 || wire.length > words.length ||
+            wire[0] != magic || wire[1] != 1 ||
+            wire[2] < 0 || wire[3] < 0 ||
+            wire[4] < -1000000 || wire[4] > 1000000 ||
+            wire[5] < 0 || wire[5] > commandCapacity ||
+            wire.length != 6 + wire[5] * 8) {
+            return false
+        }
+        var count = wire[5]
+        var previousTick = -1
+        var previousSequence = -1
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = 6 + index * 8
+            var tick = wire[offset]
+            var sequence = wire[offset + 1]
+            var fire = wire[offset + 6]
+            var jump = wire[offset + 7]
+            if (tick < 0 || sequence < 0 ||
+                wire[offset + 2] < -1000000 || wire[offset + 2] > 1000000 ||
+                wire[offset + 3] < -1000000 || wire[offset + 3] > 1000000 ||
+                wire[offset + 4] < -1000000 || wire[offset + 4] > 1000000 ||
+                wire[offset + 5] < -1000000 || wire[offset + 5] > 1000000 ||
+                (index > 0 && tick < previousTick) ||
+                sequence <= previousSequence ||
+                fire < 0 || fire > 1 || jump < 0 || jump > 1) {
+                return false
+            }
+            previousTick = tick
+            previousSequence = sequence
+        }
+        target.reset()
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = 6 + index * 8
+            if (!target.append(InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                target.reset()
+                return false
+            }
+        }
+        engineVersionValue = wire[2]
+        contentVersionValue = wire[3]
+        seedValue = wire[4]
+        wordCount = wire.length
+        for (var index = 0; index < wordCount; index = index + 1) {
+            words[index] = wire[index]
+        }
+        return true
+    }
+
+    Int engineVersion() {
+        return engineVersionValue
+    }
+
+    Int contentVersion() {
+        return contentVersionValue
+    }
+
+    Int seed() {
+        return seedValue
+    }
+}
