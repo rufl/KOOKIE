@@ -1,0 +1,120 @@
+package core
+
+class BoundedRedundantSaveFileStore {
+    BoundedSaveWireCodec codec
+    Int[] bytes
+    Int digitsPerWord
+    Int slotWords
+    Int totalWords
+    Int magic
+
+    public constructor(Int payloadCapacity) {
+        var actualCapacity = payloadCapacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        codec = BoundedSaveWireCodec(actualCapacity)
+        digitsPerWord = 6
+        slotWords = actualCapacity + 5
+        totalWords = 4 + slotWords * 2
+        bytes = new Int[totalWords * digitsPerWord]
+        magic = 66442211
+    }
+
+    Bool write(String path, BoundedSaveState state) {
+        if (!codec.encode(state)) {
+            return false
+        }
+        var wireLength = codec.encodedLength()
+        var words = new Int[totalWords]
+        words[0] = magic
+        words[1] = 1
+        words[2] = wireLength
+        words[3 + slotWords] = wireLength
+        for (var index = 0; index < wireLength; index = index + 1) {
+            words[3 + index] = codec.encodedWord(index)
+            words[4 + slotWords + index] = codec.encodedWord(index)
+        }
+        return writeWords(path, words)
+    }
+
+    Bool read(String path, BoundedSaveState target) {
+        var words = readWords(path)
+        if (words.length != totalWords ||
+            words[0] != magic || words[1] != 1) {
+            return false
+        }
+        var first = BoundedSaveState(slotWords - 5, 1000000)
+        var second = BoundedSaveState(slotWords - 5, 1000000)
+        var firstValid = decodeSlot(words, 2, 3, first)
+        var secondValid = decodeSlot(words, 3 + slotWords, 4 + slotWords, second)
+        if (!firstValid && !secondValid) {
+            return false
+        }
+        var selected = first
+        if (!firstValid ||
+            (secondValid && second.revision() > first.revision())) {
+            selected = second
+        }
+        var payload = new Int[selected.payloadLength()]
+        for (var index = 0; index < payload.length; index = index + 1) {
+            payload[index] = selected.payloadValue(index)
+        }
+        return target.load(selected.envelope(), payload)
+    }
+
+    Bool decodeSlot(Int[] words, Int lengthIndex, Int start,
+        BoundedSaveState target) {
+        var length = words[lengthIndex]
+        if (length < 5 || length > slotWords) {
+            return false
+        }
+        var wire = new Int[length]
+        for (var index = 0; index < length; index = index + 1) {
+            wire[index] = words[start + index]
+        }
+        return codec.decode(wire, target)
+    }
+
+    Bool writeWords(String path, Int[] words) {
+        var output = new Int[words.length * digitsPerWord]
+        for (var wordIndex = 0; wordIndex < words.length; wordIndex = wordIndex + 1) {
+            var value = words[wordIndex]
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                output[wordIndex * digitsPerWord + digit] = value % 64
+                value = value / 64
+            }
+        }
+        var file = File(path)
+        return file.writeBytes(output)
+    }
+
+    Int[] readWords(String path) {
+        var file = File(path)
+        var input = file.readRange(0, bytes.length)
+        if (input.length != bytes.length) {
+            return new Int[0]
+        }
+        var words = new Int[totalWords]
+        for (var wordIndex = 0; wordIndex < totalWords; wordIndex = wordIndex + 1) {
+            var offset = wordIndex * digitsPerWord
+            var value = 0
+            var multiplier = 1
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                if (input[offset + digit] < 0 || input[offset + digit] >= 64 ||
+                    (digit == digitsPerWord - 1 && input[offset + digit] != 0)) {
+                    return new Int[0]
+                }
+                value = value + input[offset + digit] * multiplier
+                if (digit < digitsPerWord - 1) {
+                    multiplier = multiplier * 64
+                }
+            }
+            words[wordIndex] = value
+        }
+        return words
+    }
+}

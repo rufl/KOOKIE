@@ -282,6 +282,31 @@ test "bounded save file store" {
         "save file store must reject corrupted bytes")
 }
 
+test "redundant save file recovery" {
+    var state = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 303
+    payload[1] = 404
+    assert(state.stage(1, 12, payload))
+    var store = BoundedRedundantSaveFileStore(2)
+    var path = "/tmp/kookie-save-redundant-test.bin"
+    assert(store.write(path, state))
+    var restored = BoundedSaveState(2, 1000)
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[18] = corrupted[18] + 1
+    assert(file.writeBytes(corrupted) &&
+        store.read(path, restored) &&
+        restored.revision() == 12 &&
+        restored.payloadValue(1) == 404,
+        "redundant save must recover from one corrupted copy")
+    var fullyCorrupted = file.readBytes()
+    fullyCorrupted[66] = fullyCorrupted[66] + 1
+    assert(file.writeBytes(fullyCorrupted) &&
+        !store.read(path, restored),
+        "redundant save must reject two corrupted copies")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
