@@ -125,3 +125,133 @@ class BoundedSaveState {
         return true
     }
 }
+
+class BoundedSaveHistory {
+    Int[] revisions
+    Int[] lengths
+    Int[] checksums
+    Int[] payloads
+    Bool[] occupied
+    Int payloadCapacity
+    Int nextSlot
+    Int countValue
+
+    public constructor(Int historyCapacity, Int nextPayloadCapacity) {
+        var actualHistory = historyCapacity
+        var actualPayloadCapacity = nextPayloadCapacity
+        if (actualHistory <= 0) {
+            actualHistory = 1
+        }
+        if (actualHistory > 64) {
+            actualHistory = 64
+        }
+        if (actualPayloadCapacity <= 0) {
+            actualPayloadCapacity = 1
+        }
+        if (actualPayloadCapacity > 64) {
+            actualPayloadCapacity = 64
+        }
+        revisions = new Int[actualHistory]
+        lengths = new Int[actualHistory]
+        checksums = new Int[actualHistory]
+        payloads = new Int[actualHistory * actualPayloadCapacity]
+        occupied = new Bool[actualHistory]
+        payloadCapacity = actualPayloadCapacity
+        nextSlot = 0
+        countValue = 0
+        for (var index = 0; index < actualHistory; index = index + 1) {
+            revisions[index] = 0
+            lengths[index] = 0
+            checksums[index] = 0
+            occupied[index] = false
+        }
+    }
+
+    Int findRevision(Int revision) {
+        for (var index = 0; index < revisions.length; index = index + 1) {
+            if (occupied[index] && revisions[index] == revision) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int latestSlot() {
+        var slot = -1
+        for (var index = 0; index < revisions.length; index = index + 1) {
+            if (occupied[index] &&
+                (slot < 0 || revisions[index] > revisions[slot])) {
+                slot = index
+            }
+        }
+        return slot
+    }
+
+    Bool publish(BoundedSaveState state) {
+        var envelope = state.envelope()
+        if (!envelope.accepted() || envelope.schemaVersion() != 1 ||
+            envelope.payloadLength() > payloadCapacity ||
+            findRevision(envelope.revision()) >= 0) {
+            return false
+        }
+        var latest = latestSlot()
+        if (latest >= 0 && envelope.revision() <= revisions[latest]) {
+            return false
+        }
+        var slot = nextSlot
+        for (var index = 0; index < envelope.payloadLength(); index = index + 1) {
+            payloads[slot * payloadCapacity + index] = state.payloadValue(index)
+        }
+        revisions[slot] = envelope.revision()
+        lengths[slot] = envelope.payloadLength()
+        checksums[slot] = envelope.checksum()
+        occupied[slot] = true
+        nextSlot = nextSlot + 1
+        if (nextSlot >= revisions.length) {
+            nextSlot = 0
+        }
+        if (countValue < revisions.length) {
+            countValue = countValue + 1
+        }
+        return true
+    }
+
+    Bool restore(Int revision, BoundedSaveState target) {
+        var slot = findRevision(revision)
+        if (slot < 0) {
+            return false
+        }
+        var payload = new Int[lengths[slot]]
+        for (var index = 0; index < payload.length; index = index + 1) {
+            payload[index] = payloads[slot * payloadCapacity + index]
+        }
+        return target.load(SaveEnvelope(
+            true, 1, revisions[slot], lengths[slot], checksums[slot]), payload)
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int latestRevision() {
+        var slot = latestSlot()
+        if (slot < 0) {
+            return -1
+        }
+        return revisions[slot]
+    }
+
+    Bool clear() {
+        if (countValue == 0) {
+            return false
+        }
+        for (var index = 0; index < occupied.length; index = index + 1) {
+            occupied[index] = false
+            lengths[index] = 0
+            checksums[index] = 0
+        }
+        nextSlot = 0
+        countValue = 0
+        return true
+    }
+}

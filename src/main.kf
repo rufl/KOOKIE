@@ -184,6 +184,45 @@ test "bounded save envelope validation" {
         save.payloadValue(0) == -1,
         "clearing save state must remove staged payload access")
 }
+test "bounded save publication history" {
+    var first = BoundedSaveState(2, 100)
+    var firstPayload = new Int[2]
+    firstPayload[0] = 10
+    firstPayload[1] = 20
+    assert(first.stage(1, 1, firstPayload))
+    var second = BoundedSaveState(2, 100)
+    var secondPayload = new Int[2]
+    secondPayload[0] = 30
+    secondPayload[1] = 40
+    assert(second.stage(1, 2, secondPayload))
+    var history = BoundedSaveHistory(2, 2)
+    assert(history.publish(first) && history.publish(second) &&
+        history.count() == 2 && history.latestRevision() == 2,
+        "save history must publish strictly increasing revisions")
+    assert(!history.publish(second),
+        "save history must reject duplicate revisions")
+    var restored = BoundedSaveState(2, 100)
+    assert(history.restore(1, restored) &&
+        restored.payloadValue(0) == 10 &&
+        restored.payloadValue(1) == 20,
+        "save history must restore retained revisions")
+    var third = BoundedSaveState(2, 100)
+    var thirdPayload = new Int[2]
+    thirdPayload[0] = 50
+    thirdPayload[1] = 60
+    assert(third.stage(1, 3, thirdPayload) &&
+        history.publish(third) &&
+        history.latestRevision() == 3 &&
+        history.count() == 2 &&
+        !history.restore(1, restored) &&
+        history.restore(2, restored) &&
+        restored.payloadValue(0) == 30,
+        "full save history must evict its oldest revision deterministically")
+    assert(history.clear() && history.count() == 0 &&
+        history.latestRevision() == -1,
+        "save history clear must remove published revisions")
+}
+
 
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)

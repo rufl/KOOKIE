@@ -56,7 +56,7 @@ This is the active bounded implementation sequence after the initial research an
 - Spatial projectiles now publish bounded terminal impact events for hit, obstacle block and expiry/cancellation, preserving projectile/source/target IDs, impact position and applied damage; JVM/native tests cover the authoritative hit event.
 - `LoopbackSession` now stages replicated enemy impact snapshots into bounded render presentation and audio queues with deterministic hit/block/expiry clip mappings; duplicate snapshots are rejected and JVM/native tests cover identity, ordering and audio consumption.
 - Player fire edges now drive a bounded authoritative weapon presentation queue with accepted-shot state, ammo transitions and held-fire suppression; the isolated native SDL adapter consumes confirmed impact clips 201/202/203 through its audio bridge.
-- `BoundedSaveState` now validates a version-1, revision-bounded integer payload, exposes deterministic envelope checksums, rejects capacity/value corruption, and supports in-memory restore; file I/O, migrations and durable save publication remain deferred.
+- `BoundedSaveState` now validates a version-1, revision-bounded integer payload, exposes deterministic envelope checksums, rejects capacity/value corruption, and supports in-memory restore; `BoundedSaveHistory` publishes strictly increasing revisions with bounded deterministic eviction and restore; file I/O, migrations and durable save publication remain deferred.
 
 ## Next batch
 
