@@ -36,6 +36,21 @@ mkdir -p "$adapter_build_dir"
 probe_core_dir="$root_dir/probes/g0_native_adapter/core"
 rm -rf "$probe_core_dir"
 trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir"' EXIT
+render_node="${KOOKIE_RENDER_NODE:-}"
+if [[ -z "$render_node" ]]; then
+  for candidate in /dev/dri/renderD*; do
+    if [[ -c "$candidate" ]]; then
+      render_node="$candidate"
+      break
+    fi
+  done
+fi
+render_node_args=()
+if [[ -n "$render_node" ]]; then
+  render_node_args=(--render-node "$render_node")
+  echo "isolated SDL adapter render node: $render_node"
+fi
+
 
 if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-config >/dev/null && command -v overzeer-isolated-display >/dev/null &&
    pkg-config --exists sdl3 && [[ -f /usr/include/SDL3/SDL.h ]]; then
@@ -53,8 +68,9 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
     -o "$adapter_build_dir/g0_triangle.frag.spv"
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
     --target native --output "$adapter_build_dir/native-adapter"
-  overzeer-isolated-display --timeout 90 -- \
-    env KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=x11 \
+  overzeer-isolated-display --timeout 90 "${render_node_args[@]}" -- \
+    env KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
+    SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
     "$adapter_build_dir/native-adapter/Default/Main"
 else
   echo "native SDL adapter smoke skipped: SDL3 development headers, gcc, glslc, pkg-config, or isolated-display wrapper unavailable"

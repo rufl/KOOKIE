@@ -76,6 +76,11 @@ compilador JVM/nativo, testes de regressão nomeados, smoke de runtime
 JVM/nativo, o smoke opcional do adaptador SDL nativo quando dependências e
 pressão permitirem e builds JVM/nativo. Consulte [CONTRIBUTING.md](CONTRIBUTING.md)
 para o contrato.
+O smoke do adaptador usa `SDL_VIDEODRIVER=offscreen` por padrão e passa o
+primeiro node `/dev/dri/renderD*` disponível ao wrapper isolado. Sobrescreva
+com `KOOKIE_RENDER_NODE=/dev/dri/renderD129`; use
+`KOOKIE_SDL_VIDEO_DRIVER=x11` somente ao testar um caminho de janela
+apresentável.
 
 Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
@@ -83,20 +88,23 @@ Essa configuração não resolve os bloqueadores do runtime nativo abaixo.
 
 A viabilidade nativa G0 está implementada. O smoke nativo do adaptador em
 display isolado agora aceita ciclo de vida da janela oculta, flattening de
-resize/focus, áudio dummy, teardown de tokens obsoletos e limpeza de processos;
-o ambiente reporta `gpu-unavailable`, portanto draw texturizado e timing GPU
-continuam não aceitos. G1 agora inclui autoridade fixed-step, comandos de input
-limitados e transições de borda, admissão de dois clientes em loopback,
-rejeição de input obsoleto por cliente, validação de sequência de snapshots,
-movimento autoritativo limitado, clamp de câmera/input, storage limitado de
-componentes inteiros, histórico limitado de snapshots com interpolação, replay
-limitado de inputs de predição, consultas escalares de colisão, sweeps inteiros
-de segmento e triângulo 3D, movimento de cápsula expandido pelo raio e
-admissão compartilhada de jogador/projétil/linha de visão. Em seguida: expor
-um backend SDL_GPU ou render node no ambiente isolado, medir o orçamento de
-frame, estender as consultas espaciais para coleções/BVH limitados e adicionar
-slide/step de cápsula. Use o wrapper descartável de display isolado do
-repositório para verificação gráfica.
+resize/focus, áudio dummy, teardown de tokens obsoletos, limpeza de processos
+e um dispositivo SDL_GPU offscreen com submissão de draw SPIR-V e timing de
+GPU ociosa; a amostra mediu 2104 microssegundos para três draws em
+`renderD129`. A apresentação em janela ainda reporta `gpu-unavailable` porque
+o caminho Xvfb não oferece suporte de apresentação DRI3. G1 agora inclui
+autoridade fixed-step, comandos de input limitados e transições de borda,
+admissão de dois clientes em loopback, rejeição de input obsoleto por cliente,
+validação de sequência de snapshots, movimento autoritativo limitado, clamp de
+câmera/input, storage limitado de componentes inteiros, histórico limitado de
+snapshots com interpolação, replay limitado de inputs de predição, consultas
+escalares de colisão, sweeps inteiros de segmento e triângulo 3D, movimento de
+cápsula expandido pelo raio e admissão compartilhada de
+jogador/projétil/linha de visão. Em seguida: adicionar apresentação isolada
+compatível com DRI3, comparar o timing de GPU ociosa com o orçamento de frame
+declarado de 16.667 microssegundos, estender as consultas espaciais para
+coleções/BVH limitados e adicionar slide/step de cápsula. Use o wrapper
+descartável de display isolado do repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

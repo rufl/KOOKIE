@@ -74,24 +74,30 @@ It runs the Kof source linter, LSP diagnostics, JVM/native compiler checks,
 named regression tests, JVM/native runtime smoke checks, the optional native
 SDL adapter smoke when dependencies and pressure permit, and JVM/native builds.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contract.
+The adapter smoke defaults to `SDL_VIDEODRIVER=offscreen` and passes the first
+available `/dev/dri/renderD*` node to the isolated wrapper. Override with
+`KOOKIE_RENDER_NODE=/dev/dri/renderD129`; set `KOOKIE_SDL_VIDEO_DRIVER=x11`
+only when testing a presentable window path.
 
 This setup does not resolve the native runtime blockers below.
 
 G0 native feasibility is implemented. The isolated native adapter smoke now
 accepts hidden-window lifecycle, resize/focus event flattening, dummy audio,
-stale-token teardown, and process cleanup; the environment reports
-`gpu-unavailable`, so textured draw and GPU timing remain unaccepted. G1
+stale-token teardown, process cleanup, and an offscreen SDL_GPU device with
+SPIR-V draw submission plus GPU-idle timing; the sample measured 2104
+microseconds for three draws on `renderD129`. Window presentation still reports
+`gpu-unavailable` because the Xvfb path has no DRI3 presentation support. G1
 includes fixed-step authority, bounded input commands and edge transitions,
 two-client loopback admission, per-client stale-input rejection, snapshot
 sequence validation, bounded authoritative movement, camera/input clamping,
 bounded integer component storage, bounded snapshot history with
 interpolation, bounded prediction input replay, scalar collision queries,
 integer 3D segment and triangle sweeps, radius-expanded capsule movement, and
-shared player/projectile/line-of-sight admission. Next: expose an isolated
-SDL_GPU backend or render node, measure the declared frame budget, extend
-spatial queries toward bounded collections/BVH traversal, and add capsule
-slide/step handling. Use the repository's disposable isolated-display wrapper
-for graphical verification.
+shared player/projectile/line-of-sight admission. Next: add a DRI3-capable
+isolated presentation path, compare GPU-idle timing with the declared
+16,667-microsecond frame budget, extend spatial queries toward bounded
+collections/BVH traversal, and add capsule slide/step handling. Use the
+repository's disposable isolated-display wrapper for graphical verification.
 Do not create a large untested engine scaffold first.
 ## Provenance
 

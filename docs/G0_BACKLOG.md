@@ -20,18 +20,19 @@ This is the active bounded implementation sequence after the initial research an
 - Native adapter exposes elapsed GPU draw timing after GPU-idle retirement.
 - G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
 - G1 two-client loopback admission, per-client input sequencing, stale snapshot rejection, bounded authoritative movement, and camera/input clamping.
-- Isolated native smoke accepted hidden-window lifecycle, resize/focus flattening, dummy audio, stale-token teardown, and clean process cleanup; GPU reported unavailable.
+- Isolated native smoke accepted hidden-window lifecycle, resize/focus flattening, dummy audio, stale-token teardown, and clean process cleanup; GPU reported unavailable for window presentation.
 - Bounded client snapshot history with integer interpolation and explicit prediction/reconciliation authority boundaries.
 - Bounded scalar collision queries with clamped movement resolution and out-of-bounds placement rejection.
 - Bounded prediction input history (capacity eight) with replay across authoritative reconciliation; server state remains authoritative.
 - Bounded integer 3D segment sweep queries through an axis-aligned volume, rejecting starting penetration and over-budget traversal.
 - Bounded integer triangle queries with degenerate-triangle rejection and previous-sample resolution.
 - Bounded capsule center movement with radius-expanded bounds and shared player/projectile/line-of-sight admission.
+- Isolated offscreen SDL_GPU device and SPIR-V draw accepted with render-node exposure; sample retirement timing was 2104 microseconds for three draws on `renderD129`.
 
 ## Next batch
 
-1. Expose a usable isolated SDL_GPU backend or render node; then record `gpu-open`, draw completion, and measured GPU-idle retirement.
-2. Compare elapsed native draw time and frame retirement against the declared frame budget once GPU timing is available.
+1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
+2. Compare offscreen GPU-idle timing against the declared 16,667-microsecond frame budget.
 3. Re-run the native exception-handler reproducer after a compiler upgrade; require stale output change before trusting exception cleanup.
 4. Extend integer triangle/segment queries toward bounded triangle collections and BVH traversal.
 5. Add authoritative capsule slide/step handling and query diagnostics before weapons.

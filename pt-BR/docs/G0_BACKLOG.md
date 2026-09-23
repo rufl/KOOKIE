@@ -20,18 +20,19 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Adaptador nativo expõe timing decorrido de draw GPU após retirement com GPU ocioso.
 - Relógio de fixed-step G1, comandos de input limitados com transições de borda fire/jump, sincronização de snapshot servidor/cliente em loopback e storage limitado de componentes inteiros.
 - Admissão de dois clientes em loopback G1, sequência de input por cliente, rejeição de snapshot obsoleto, movimento autoritativo limitado e clamp de câmera/input.
-- Smoke nativo isolado aceitou ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy, teardown de tokens obsoletos e limpeza de processos; a GPU reportou indisponível.
+- Smoke nativo isolado aceitou ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy, teardown de tokens obsoletos e limpeza de processos; a GPU ficou indisponível para apresentação em janela.
 - Histórico limitado de snapshots do cliente com interpolação inteira e limites explícitos de autoridade de predição/reconciliação.
 - Consultas escalares limitadas de colisão com resolução de movimento no limite e rejeição de posicionamento fora dos limites.
 - Histórico limitado de inputs de predição (capacidade oito) com replay após reconciliação autoritativa; o estado do servidor continua autoritativo.
 - Consultas limitadas de sweep de segmento 3D inteiro em volume alinhado aos eixos, rejeitando penetração inicial e traversal acima do orçamento.
 - Consultas limitadas de triângulo inteiro com rejeição de triângulo degenerado e resolução na amostra anterior.
 - Movimento limitado do centro de cápsula com limites expandidos pelo raio e admissão compartilhada de jogador/projétil/linha de visão.
+- Dispositivo SDL_GPU offscreen isolado e draw SPIR-V aceitos com exposição do render node; a amostra mediu 2104 microssegundos de retirement para três draws em `renderD129`.
 
 ## Próximo lote
 
-1. Expor um backend SDL_GPU ou render node utilizável no ambiente isolado; depois registrar `gpu-open`, conclusão do draw e retirement medido com GPU ocioso.
-2. Comparar o tempo nativo do draw e o retirement do frame com o orçamento de frame declarado quando o timing GPU estiver disponível.
+1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
+2. Comparar o timing de GPU ociosa offscreen com o orçamento de frame declarado de 16.667 microssegundos.
 3. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; exigir mudança na saída obsoleta antes de confiar na limpeza.
 4. Estender as consultas inteiras de triângulo/segmento para coleções limitadas de triângulos e traversal BVH.
 5. Adicionar slide/step autoritativo de cápsula e diagnósticos de consulta antes das armas.

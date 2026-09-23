@@ -71,24 +71,24 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 
 ## Próxima ação e limite de comprovação
 
-Complete a prova GPU restante do G0 expondo um backend SDL_GPU ou render node
-utilizável no ambiente isolado, depois compare o retirement do draw com o
-orçamento de frame declarado. O smoke nativo do adaptador em display isolado
-aceita ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy,
-teardown de tokens obsoletos e limpeza de processos; ele reporta
-`gpu-unavailable`, portanto draw texturizado e timing GPU continuam não
-aceitos. G1 agora inclui autoridade fixed-step, comandos de input limitados e
-transições de borda, admissão de dois clientes em loopback, rejeição de input
-obsoleto por cliente, validação de sequência de snapshots, movimento
-autoritativo limitado, clamp de câmera/input, storage limitado de componentes
-inteiros, histórico/interpolação de snapshots, replay limitado de inputs de
-predição, consultas escalares de colisão, sweeps inteiros de segmento e
-triângulo 3D, movimento de cápsula expandido pelo raio e admissão
-compartilhada de jogador/projétil/linha de visão. O próximo G1 é provar a GPU,
-fazer traversal BVH/coleções limitadas de triângulos, adicionar slide/step de
-cápsula e diagnósticos de consulta. O defeito do handler de exceções nativas
+A prova GPU do G0 agora aceita um dispositivo SDL_GPU offscreen isolado,
+submissão de draw SPIR-V e timing de GPU ociosa através de um render node; a
+amostra mediu 2104 microssegundos para três draws em `renderD129`. O caminho de
+janela ainda reporta `gpu-unavailable` porque Xvfb não oferece apresentação
+DRI3. Em seguida: adicionar um caminho de apresentação isolado compatível com
+DRI3 para screenshots, comparar o timing GPU offscreen com o orçamento de frame
+declarado de 16.667 microssegundos, estender as consultas limitadas de
+triângulo/segmento para coleções/BVH e adicionar slide/step autoritativo de
+cápsula com diagnósticos de consulta. O defeito do handler de exceções nativas
 continua sendo um gate do compilador.
 
-Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar, 18 programas orientados pelo curso (36 execuções, duas verificações) e o par de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados completos estão nos documentos de pesquisa vinculados. Essas sondas de pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou gráficos iniciados. A verificação de instalação posterior exercitou a CLI do compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha gráfica do engine nem executou uma suíte completa.
+Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
+18 programas orientados pelo curso (36 execuções, duas verificações) e o par
+de sucesso da JVM/rejeição de importação nativa do JOML. As fontes/resultados
+completos estão nos documentos de pesquisa vinculados. Essas sondas de
+pesquisa foram somente para JVM/nativo x86, sem jogos/editor/servidor ou
+gráficos iniciados. A verificação de instalação posterior exercitou a CLI do
+compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha
+gráfica do engine nem executou uma suíte completa.
 
 Todas as verificações gráficas usam `overzeer-isolated-display` ou equivalente revisado, com sockets privados, timeout e limpeza de processos; nunca o desktop do desenvolvedor. A matriz completa somente na etapa final anterior ao commit, com permissão do usuário. Os documentos de pesquisa e as ferramentas/configurações locais foram entregues; nenhum código-fonte/ativo de engine/jogo irmão foi modificado ou copiado.

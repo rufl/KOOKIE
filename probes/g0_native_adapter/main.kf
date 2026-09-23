@@ -8,6 +8,10 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open(Int windowToken): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_draw(Int frames): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open_headless_ready(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_headless_test(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_headless_draw_ok(Int frames): Bool
 
 extern "./build/libkookie_sdl_adapter.so" kookie_drain_events(Int maxEvents): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
@@ -25,6 +29,16 @@ main() {
     println("KOOKIE G0 native SDL adapter probe")
     assert(kookie_sdl_init(48), "SDL video/audio adapter init must succeed")
 
+    if (kookie_gpu_open_headless_ready()) {
+        assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
+        assert(kookie_gpu_measure_headless_draw_ok(3),
+            "headless GPU draw timing must be positive")
+        println("gpu-headless-open")
+        assert(kookie_gpu_close_headless(), "headless GPU must close")
+        assert(!kookie_gpu_close_headless(), "stale headless GPU token must reject")
+    } else {
+        println("gpu-headless-unavailable")
+    }
     var window = kookie_window_create(320, 240, 1)
     assert(window > 0, "hidden SDL window must create")
     var state = WindowStateTracker(320, 240)
