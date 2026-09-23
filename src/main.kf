@@ -111,6 +111,38 @@ main() {
     println("KOOKIE G1 loopback foundation verified")
 
 }
+test "player fire input publishes weapon presentation" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1)
+    assert(loopback.definePlayerWeapon(9, 2, 1, 1, 4, 1, 20))
+    assert(loopback.addPlayerCombatActor(1, 20, 0))
+    assert(loopback.equipPlayerCombatWeapon(1, 9))
+    assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1)
+    assert(loopback.playerWeaponPresentationCount() == 1 &&
+        loopback.playerCombatMagazine(1) == 1 &&
+        loopback.playerCombatReserve(1) == 1,
+        "confirmed fire input must consume authoritative ammo")
+    assert(loopback.dequeuePlayerWeaponPresentation())
+    var shotPresentation = loopback.lastPlayerWeaponPresentation()
+    assert(shotPresentation.kind() == 1 &&
+        shotPresentation.actorId() == 1 &&
+        shotPresentation.shotId() == 1 &&
+        shotPresentation.weaponId() == 9 &&
+        shotPresentation.magazine() == 1,
+        "accepted fire must publish bounded weapon presentation")
+    assert(loopback.receiveInput(1, 2, 2, 0, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 0,
+        "held fire must not duplicate edge-triggered weapon presentation")
+    assert(loopback.receiveInput(1, 3, 3, 0, 0, 0, 0, 0, 0))
+    assert(loopback.advance(16667) == 1)
+    assert(loopback.receiveInput(1, 4, 4, 0, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1,
+        "a new fire edge must publish after release")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

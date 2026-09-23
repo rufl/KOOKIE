@@ -1712,23 +1712,33 @@ bool kookie_audio_queue_silence(int frames) {
 }
 
 bool kookie_audio_queue_clip(int clip_id, int frames) {
-    static float clip[480 * 2];
-    static bool initialized;
-    if (audio_slot.stream == NULL || clip_id != 1 || frames <= 0 || frames > 480) {
+    static float clips[4][480 * 2];
+    static bool initialized[4];
+    int variant = 0;
+    if (clip_id == 201) {
+        variant = 1;
+    } else if (clip_id == 202) {
+        variant = 2;
+    } else if (clip_id == 203) {
+        variant = 3;
+    } else if (clip_id != 1) {
         return false;
     }
-    if (!initialized) {
+    if (audio_slot.stream == NULL || frames <= 0 || frames > 480) {
+        return false;
+    }
+    if (!initialized[variant]) {
         for (int frame = 0; frame < 480; frame += 1) {
             int phase = frame % 24;
-            float sample = ((float)phase / 23.0f) * 0.4f - 0.2f;
-            clip[frame * 2] = sample;
-            clip[frame * 2 + 1] = sample;
+            float sample = ((float)phase / 23.0f) * (0.25f + variant * 0.05f) - 0.125f;
+            clips[variant][frame * 2] = sample;
+            clips[variant][frame * 2 + 1] = sample;
         }
-        initialized = true;
+        initialized[variant] = true;
     }
     return SDL_PutAudioStreamData(
         audio_slot.stream,
-        clip,
+        clips[variant],
         frames * audio_slot.spec.channels * (int)sizeof(float));
 }
 

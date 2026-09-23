@@ -1,0 +1,107 @@
+package core
+
+record PlayerWeaponEvent(
+    Int sequence, Int kind, Int actorId, Int shotId, Int weaponId,
+    Int magazine, Int reserve, Int nextReadyTick
+)
+
+class PlayerWeaponPresenter {
+    Int[] sequences
+    Int[] kinds
+    Int[] actorIds
+    Int[] shotIds
+    Int[] weaponIds
+    Int[] magazines
+    Int[] reserves
+    Int[] nextReadyTicks
+    Int count
+    Int nextSequence
+    PlayerWeaponEvent consumed
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        sequences = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        actorIds = new Int[actualCapacity]
+        shotIds = new Int[actualCapacity]
+        weaponIds = new Int[actualCapacity]
+        magazines = new Int[actualCapacity]
+        reserves = new Int[actualCapacity]
+        nextReadyTicks = new Int[actualCapacity]
+        count = 0
+        nextSequence = 1
+        consumed = PlayerWeaponEvent(0, 0, 0, 0, 0, 0, 0, 0)
+    }
+
+    Bool push(
+        Int kind, Int actorId, Int shotId, Int weaponId,
+        Int magazine, Int reserve, Int nextReadyTick
+    ) {
+        if (kind <= 0 || kind > 2 || actorId <= 0 || shotId < 0 ||
+            weaponId < 0 || magazine < 0 || reserve < 0 ||
+            nextReadyTick < 0 || count == sequences.length) {
+            return false
+        }
+        sequences[count] = nextSequence
+        kinds[count] = kind
+        actorIds[count] = actorId
+        shotIds[count] = shotId
+        weaponIds[count] = weaponId
+        magazines[count] = magazine
+        reserves[count] = reserve
+        nextReadyTicks[count] = nextReadyTick
+        count = count + 1
+        nextSequence = nextSequence + 1
+        return true
+    }
+
+    Bool step(CombatWorld combat, Int actorId, Int tick, InputEdges edges) {
+        if (actorId <= 0 || tick < 0 ||
+            edges.firePressed() < 0 || edges.firePressed() > 1) {
+            return false
+        }
+        if (edges.firePressed() == 0) {
+            return true
+        }
+        var shot = combat.fire(actorId, tick)
+        if (shot.accepted()) {
+            return push(
+                1, actorId, shot.shotId(), shot.weaponId(),
+                shot.magazine(), shot.reserve(), shot.nextReadyTick())
+        }
+        return push(2, actorId, 0, shot.weaponId(),
+            shot.magazine(), shot.reserve(), shot.nextReadyTick())
+    }
+
+    Int pending() {
+        return count
+    }
+
+    Bool dequeue() {
+        if (count == 0) {
+            return false
+        }
+        consumed = PlayerWeaponEvent(
+            sequences[0], kinds[0], actorIds[0], shotIds[0], weaponIds[0],
+            magazines[0], reserves[0], nextReadyTicks[0])
+        for (var index = 1; index < count; index = index + 1) {
+            sequences[index - 1] = sequences[index]
+            kinds[index - 1] = kinds[index]
+            actorIds[index - 1] = actorIds[index]
+            shotIds[index - 1] = shotIds[index]
+            weaponIds[index - 1] = weaponIds[index]
+            magazines[index - 1] = magazines[index]
+            reserves[index - 1] = reserves[index]
+            nextReadyTicks[index - 1] = nextReadyTicks[index]
+        }
+        count = count - 1
+        return true
+    }
+
+    PlayerWeaponEvent lastConsumed() {
+        return consumed
+    }
+}

@@ -55,11 +55,11 @@ This is the active bounded implementation sequence after the initial research an
 - `EnemyNavigator` now provides bounded deterministic four-neighbor A* over the authoritative obstacle collection, with fixed node/route budgets, stable tie ordering and explicit no-route results; spatial enemy steering advances through the selected waypoint and JVM/native tests cover detour selection.
 - Spatial projectiles now publish bounded terminal impact events for hit, obstacle block and expiry/cancellation, preserving projectile/source/target IDs, impact position and applied damage; JVM/native tests cover the authoritative hit event.
 - `LoopbackSession` now stages replicated enemy impact snapshots into bounded render presentation and audio queues with deterministic hit/block/expiry clip mappings; duplicate snapshots are rejected and JVM/native tests cover identity, ordering and audio consumption.
+- Player fire edges now drive a bounded authoritative weapon presentation queue with accepted-shot state, ammo transitions and held-fire suppression; the isolated native SDL adapter consumes confirmed impact clips 201/202/203 through its audio bridge.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
-2. Add bounded player-facing combat input/weapon presentation and connect confirmed impact events to the native SDL adapter.
 
 
 ## Deferred

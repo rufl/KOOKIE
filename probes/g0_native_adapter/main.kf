@@ -254,6 +254,32 @@ main() {
 
     var audio = kookie_audio_open()
     assert(audio > 0, "dummy SDL audio device must open")
+    var impactSession = LoopbackSession(4, 4)
+    assert(impactSession.start() &&
+        impactSession.configureEnemyRules(100, 20, 2) &&
+        impactSession.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        impactSession.defineEnemyEncounter(4, 1, 1) &&
+        impactSession.addEnemyCombatActor(1, 20, 0) &&
+        impactSession.equipEnemyCombatWeapon(1, 9) &&
+        impactSession.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        impactSession.setEnemySpatialPosition(1, 0, 0, 0),
+        "native impact audio actors must configure")
+    var impactShot = impactSession.spawnEnemyProjectileSpatial(
+        1, 2, 0, 20, 3, 0)
+    assert(impactShot.accepted() &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.enemyImpactSnapshotCount() == 1,
+        "native audio probe must receive a confirmed impact snapshot")
+    assert(impactSession.applyEnemyImpactSnapshot(
+        impactSession.latestEnemyImpactSnapshot()) &&
+        impactSession.dequeueEnemyImpactPresentation(),
+        "confirmed impact must stage native presentation")
+    var nativeImpact = impactSession.lastEnemyImpactPresentation()
+    assert(kookie_audio_queue_clip(nativeImpact.clip(), 240),
+        "confirmed impact presentation must reach native SDL audio")
     assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")
     assert(kookie_audio_queue_clip(1, 240), "bounded clip PCM must queue")
     assert(!kookie_audio_queue_clip(2, 240), "unknown clip must reject")

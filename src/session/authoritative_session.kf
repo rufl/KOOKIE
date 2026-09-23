@@ -8,6 +8,8 @@ class LoopbackSession {
     InputCommandBuffer playerTwoInputs
     InputEdgeState playerOneEdges
     InputEdgeState playerTwoEdges
+    CombatWorld playerCombat
+    PlayerWeaponPresenter playerWeaponPresentations
     MovementComponent serverMovement
     MovementComponent clientMovement
     Bool playerOneConnected
@@ -79,6 +81,8 @@ class LoopbackSession {
         enemyClientImpactSnapshots = EnemyImpactSnapshotHistory(entityCapacity * 8)
         enemyImpactPresentations = ImpactPresentationQueue(entityCapacity * 2)
         enemyImpactAudio = QueuedAudio(entityCapacity * 2)
+        playerCombat = CombatWorld(entityCapacity, entityCapacity)
+        playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
         enemyImpactAudio.open()
         enemyImpactSnapshotSequence = 0
         clientEnemyImpactSnapshotSequence = 0
@@ -508,6 +512,51 @@ class LoopbackSession {
         return lastEnemyDecision
     }
 
+    Bool definePlayerWeapon(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        return playerCombat.defineWeapon(
+            id, magazineSize, reserveCapacity,
+            cooldownTicks, damage, channel, range)
+    }
+
+    Bool addPlayerCombatActor(Int actorId, Int startingHealth, Int startingArmor) {
+        return playerCombat.addActor(actorId, startingHealth, startingArmor)
+    }
+
+    Bool equipPlayerCombatWeapon(Int actorId, Int weaponId) {
+        return playerCombat.equipWeapon(actorId, weaponId)
+    }
+
+    Int playerWeaponPresentationCount() {
+        return playerWeaponPresentations.pending()
+    }
+
+    Bool dequeuePlayerWeaponPresentation() {
+        return playerWeaponPresentations.dequeue()
+    }
+
+    PlayerWeaponEvent lastPlayerWeaponPresentation() {
+        return playerWeaponPresentations.lastConsumed()
+    }
+
+    Int playerCombatMagazine(Int actorId) {
+        return playerCombat.magazine(actorId)
+    }
+
+    Int playerCombatReserve(Int actorId) {
+        return playerCombat.reserve(actorId)
+    }
+
+    Bool stepPlayerWeaponPresentation(Int actorId, Int tick, InputEdges edges) {
+        if (!playerCombat.isAlive(actorId)) {
+            return false
+        }
+        return playerWeaponPresentations.step(
+            playerCombat, actorId, tick, edges)
+    }
+
     Bool receiveInput(
         Int player, Int tick, Int sequence, Int moveX, Int moveY,
         Int lookX, Int lookY, Int fire, Int jump
@@ -539,12 +588,22 @@ class LoopbackSession {
                 var commandOne = playerOneInputs.lastConsumed()
                 playerOneEdges.apply(commandOne.fire(), commandOne.jump())
                 serverMovement.applyInput(1, commandOne.moveX())
+                if (playerCombat.isAlive(1) &&
+                    !playerWeaponPresentations.step(
+                        playerCombat, 1, clock.tick(), playerOneEdges.lastEdges())) {
+                    return -1
+                }
             }
             if (playerTwoConnected && playerTwoInputs.queuedCount() > 0 && playerTwoInputs.nextTick() <= clock.tick()) {
                 playerTwoInputs.dequeue()
                 var commandTwo = playerTwoInputs.lastConsumed()
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
                 serverMovement.applyInput(2, commandTwo.moveX())
+                if (playerCombat.isAlive(2) &&
+                    !playerWeaponPresentations.step(
+                        playerCombat, 2, clock.tick(), playerTwoEdges.lastEdges())) {
+                    return -1
+                }
             }
             var enemyTick = clock.tick() - steps + step + 1
             if (!advanceEnemyTick(enemyTick)) {
