@@ -224,6 +224,35 @@ test "bounded save publication history" {
 }
 
 
+test "focus loss clears held input and queued fire" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1)
+    assert(loopback.definePlayerWeapon(9, 3, 0, 1, 4, 1, 20) &&
+        loopback.addPlayerCombatActor(1, 20, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 9))
+    assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1)
+    assert(loopback.dequeuePlayerWeaponPresentation())
+    assert(loopback.lastInputEdges(1).firePressed() == 1)
+    assert(loopback.receiveInput(1, 2, 2, 0, 0, 0, 0, 1, 0))
+    assert(loopback.applyPlayerFocus(1, 0) &&
+        !loopback.playerFocused(1) &&
+        loopback.lastInputEdges(1).fireReleased() == 1 &&
+        loopback.lastInputEdges(1).firePressed() == 0,
+        "focus loss must release held buttons")
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 0 &&
+        !loopback.receiveInput(1, 3, 3, 0, 0, 0, 0, 1, 0),
+        "focus loss must discard queued and new firing input")
+    assert(loopback.applyPlayerFocus(1, 1) &&
+        loopback.playerFocused(1) &&
+        loopback.receiveInput(1, 3, 4, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1,
+        "focus regain must rearm input acceptance")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

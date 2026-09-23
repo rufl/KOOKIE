@@ -13,6 +13,8 @@ class LoopbackSession {
     MovementComponent serverMovement
     MovementComponent clientMovement
     Bool playerOneConnected
+    Bool playerOneFocused
+    Bool playerTwoFocused
     Bool playerTwoConnected
     Int serverTick
     Int clientTick
@@ -63,6 +65,8 @@ class LoopbackSession {
         serverMovement = MovementComponent(entityCapacity, 4)
         clientMovement = MovementComponent(entityCapacity, 4)
         playerOneConnected = false
+        playerOneFocused = false
+        playerTwoFocused = false
         playerTwoConnected = false
         serverTick = 0
         clientTick = 0
@@ -135,6 +139,7 @@ class LoopbackSession {
         if (!playerOneConnected) {
             playerOneConnected = serverMovement.add(1, 0) && clientMovement.add(1, 0)
             if (playerOneConnected) {
+                playerOneFocused = true
                 return 1
             }
             return 0
@@ -142,6 +147,7 @@ class LoopbackSession {
         if (!playerTwoConnected) {
             playerTwoConnected = serverMovement.add(2, 0) && clientMovement.add(2, 0)
             if (playerTwoConnected) {
+                playerTwoFocused = true
                 return 2
             }
         }
@@ -557,6 +563,39 @@ class LoopbackSession {
             playerCombat, actorId, tick, edges)
     }
 
+    Bool applyPlayerFocus(Int player, Int active) {
+        if ((active != 0 && active != 1) || !started) {
+            return false
+        }
+        if (player == 1 && playerOneConnected) {
+            playerOneFocused = active == 1
+            if (active == 0) {
+                playerOneInputs.clearPending()
+                playerOneEdges.clearHeld()
+            }
+            return true
+        }
+        if (player == 2 && playerTwoConnected) {
+            playerTwoFocused = active == 1
+            if (active == 0) {
+                playerTwoInputs.clearPending()
+                playerTwoEdges.clearHeld()
+            }
+            return true
+        }
+        return false
+    }
+
+    Bool playerFocused(Int player) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneFocused
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoFocused
+        }
+        return false
+    }
+
     Bool receiveInput(
         Int player, Int tick, Int sequence, Int moveX, Int moveY,
         Int lookX, Int lookY, Int fire, Int jump
@@ -565,10 +604,10 @@ class LoopbackSession {
             return false
         }
         var command = InputCommand(tick, sequence, moveX, moveY, lookX, lookY, fire, jump)
-        if (player == 1 && playerOneConnected) {
+        if (player == 1 && playerOneConnected && playerOneFocused) {
             return playerOneInputs.queue(command)
         }
-        if (player == 2 && playerTwoConnected) {
+        if (player == 2 && playerTwoConnected && playerTwoFocused) {
             return playerTwoInputs.queue(command)
         }
         return false

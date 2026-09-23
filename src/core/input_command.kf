@@ -40,6 +40,14 @@ class InputEdgeState {
         return true
     }
 
+    Bool clearHeld() {
+        edges = InputEdges(0, fire, 0, jump)
+        fire = 0
+        jump = 0
+        return true
+    }
+
+
     InputEdges lastEdges() {
         return edges
     }
@@ -130,6 +138,12 @@ class InputCommandBuffer {
             head = 0
         }
         count = count - 1
+        return true
+    }
+
+    Bool clearPending() {
+        head = 0
+        count = 0
         return true
     }
 
