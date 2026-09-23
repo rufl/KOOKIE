@@ -879,3 +879,42 @@ test "deterministic navigation and projectile impact events" {
         impacts.pendingSpatialImpacts() == 0,
         "hit impact must preserve authority and applied damage")
 }
+test "replicated projectile presentation queues" {
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start() &&
+        loopback.configureEnemyRules(100, 20, 2) &&
+        loopback.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        loopback.defineEnemyEncounter(4, 1, 1) &&
+        loopback.addEnemyCombatActor(1, 20, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 9) &&
+        loopback.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        loopback.setEnemySpatialPosition(1, 0, 0, 0),
+        "presentation loopback actors must configure")
+    var projectile = loopback.spawnEnemyProjectileSpatial(1, 2, 0, 20, 3, 0)
+    assert(projectile.accepted() &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.enemyImpactSnapshotCount() == 1,
+        "loopback must publish the terminal impact snapshot")
+    var snapshot = loopback.latestEnemyImpactSnapshot()
+    assert(snapshot.kind() == 1 && snapshot.sourceId() == 1 &&
+        snapshot.targetId() == 2 && snapshot.applied() == 3 &&
+        loopback.applyEnemyImpactSnapshot(snapshot) &&
+        loopback.clientEnemyImpactSnapshotCount() == 1 &&
+        loopback.pendingEnemyImpactPresentations() == 1 &&
+        loopback.pendingEnemyImpactAudio() == 1,
+        "client admission must stage impact presentation and audio")
+    assert(loopback.dequeueEnemyImpactPresentation())
+    var presentation = loopback.lastEnemyImpactPresentation()
+    assert(presentation.sequence() == snapshot.sequence() &&
+        presentation.clip() == 201 && presentation.gain() == 100 &&
+        presentation.x() == snapshot.x(),
+        "presentation event must preserve replicated impact identity")
+    assert(loopback.dequeueEnemyImpactAudio() &&
+        loopback.consumedEnemyImpactClip() == 201 &&
+        loopback.consumedEnemyImpactGain() == 100 &&
+        !loopback.applyEnemyImpactSnapshot(snapshot),
+        "audio consumption and duplicate snapshot rejection must be bounded")
+}

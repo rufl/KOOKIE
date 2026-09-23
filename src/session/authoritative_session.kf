@@ -33,6 +33,12 @@ class LoopbackSession {
     AuthoritativeEnemySession enemyCombat
     EnemySnapshotHistory enemyServerSnapshots
     EnemySnapshotHistory enemyClientSnapshots
+    EnemyImpactSnapshotHistory enemyServerImpactSnapshots
+    EnemyImpactSnapshotHistory enemyClientImpactSnapshots
+    ImpactPresentationQueue enemyImpactPresentations
+    QueuedAudio enemyImpactAudio
+    Int enemyImpactSnapshotSequence
+    Int clientEnemyImpactSnapshotSequence
     Int[] enemyIds
     Int[] enemyPerceptionTargets
     Int[] enemyPerceptionDistances
@@ -69,6 +75,13 @@ class LoopbackSession {
         enemyCombat = AuthoritativeEnemySession(entityCapacity, entityCapacity)
         enemyServerSnapshots = EnemySnapshotHistory(entityCapacity * 8)
         enemyClientSnapshots = EnemySnapshotHistory(entityCapacity * 8)
+        enemyServerImpactSnapshots = EnemyImpactSnapshotHistory(entityCapacity * 8)
+        enemyClientImpactSnapshots = EnemyImpactSnapshotHistory(entityCapacity * 8)
+        enemyImpactPresentations = ImpactPresentationQueue(entityCapacity * 2)
+        enemyImpactAudio = QueuedAudio(entityCapacity * 2)
+        enemyImpactAudio.open()
+        enemyImpactSnapshotSequence = 0
+        clientEnemyImpactSnapshotSequence = 0
         enemyIds = new Int[entityCapacity]
         enemyPerceptionTargets = new Int[entityCapacity]
         enemyPerceptionDistances = new Int[entityCapacity]
@@ -342,7 +355,26 @@ class LoopbackSession {
             }
         }
         enemyCombat.advanceSpatialProjectiles(tick)
-        return accepted
+        return accepted && publishEnemyImpactSnapshots(tick)
+    }
+
+    Bool publishEnemyImpactSnapshots(Int tick) {
+        while (enemyCombat.pendingSpatialImpacts() > 0) {
+            if (!enemyCombat.dequeueSpatialImpact()) {
+                return false
+            }
+            var impact = enemyCombat.lastSpatialImpact()
+            var snapshot = EnemyImpactSnapshot(
+                impact.sequence(), tick, impact.kind(), impact.projectileId(),
+                impact.sourceId(), impact.targetId(),
+                impact.x(), impact.y(), impact.z(),
+                impact.applied(), impact.died())
+            if (!enemyServerImpactSnapshots.push(snapshot)) {
+                return false
+            }
+            enemyImpactSnapshotSequence = snapshot.sequence()
+        }
+        return true
     }
 
     Bool publishEnemySnapshots(Int tick) {
@@ -374,6 +406,94 @@ class LoopbackSession {
 
     EnemyAuthoritySnapshot latestClientEnemySnapshot() {
         return enemyClientSnapshots.latest()
+    }
+    Int impactClip(Int kind) {
+        if (kind == 1) {
+            return 201
+        }
+        if (kind == 2) {
+            return 202
+        }
+        return 203
+    }
+
+    Int impactGain(Int kind) {
+        if (kind == 1) {
+            return 100
+        }
+        if (kind == 2) {
+            return 70
+        }
+        return 35
+    }
+
+    Bool presentEnemyImpactSnapshot(EnemyImpactSnapshot snapshot) {
+        var clip = impactClip(snapshot.kind())
+        var gain = impactGain(snapshot.kind())
+        if (!enemyImpactPresentations.push(
+            snapshot.sequence(), snapshot.kind(), snapshot.sourceId(),
+            snapshot.targetId(), snapshot.x(), snapshot.y(), snapshot.z(),
+            snapshot.applied(), snapshot.died(), clip, gain)) {
+            return false
+        }
+        enemyImpactAudio.queue(clip, gain)
+        return true
+    }
+
+    EnemyImpactSnapshot latestEnemyImpactSnapshot() {
+        return enemyServerImpactSnapshots.latest()
+    }
+
+    Bool applyEnemyImpactSnapshot(EnemyImpactSnapshot snapshot) {
+        if (!started ||
+            snapshot.sequence() <= clientEnemyImpactSnapshotSequence ||
+            snapshot.tick() < clientTick ||
+            !enemyClientImpactSnapshots.push(snapshot) ||
+            !presentEnemyImpactSnapshot(snapshot)) {
+            return false
+        }
+        clientEnemyImpactSnapshotSequence = snapshot.sequence()
+        return true
+    }
+
+    EnemyImpactSnapshot latestClientEnemyImpactSnapshot() {
+        return enemyClientImpactSnapshots.latest()
+    }
+
+    Int enemyImpactSnapshotCount() {
+        return enemyServerImpactSnapshots.size()
+    }
+
+    Int clientEnemyImpactSnapshotCount() {
+        return enemyClientImpactSnapshots.size()
+    }
+
+    Int pendingEnemyImpactPresentations() {
+        return enemyImpactPresentations.pending()
+    }
+
+    Bool dequeueEnemyImpactPresentation() {
+        return enemyImpactPresentations.dequeue()
+    }
+
+    ImpactPresentationEvent lastEnemyImpactPresentation() {
+        return enemyImpactPresentations.lastConsumed()
+    }
+
+    Int pendingEnemyImpactAudio() {
+        return enemyImpactAudio.queuedCount()
+    }
+
+    Bool dequeueEnemyImpactAudio() {
+        return enemyImpactAudio.dequeue()
+    }
+
+    Int consumedEnemyImpactClip() {
+        return enemyImpactAudio.consumedClip()
+    }
+
+    Int consumedEnemyImpactGain() {
+        return enemyImpactAudio.consumedGain()
     }
 
     Int enemySnapshotCount() {

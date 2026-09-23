@@ -110,6 +110,100 @@ record EnemyAuthoritySnapshot(
     Int sequence, Int tick, Int enemyId,
     Int state, Int targetId
 )
+record EnemyImpactSnapshot(
+    Int sequence, Int tick, Int kind, Int projectileId,
+    Int sourceId, Int targetId, Int x, Int y, Int z,
+    Int applied, Bool died
+)
+
+class EnemyImpactSnapshotHistory {
+    Int[] sequences
+    Int[] ticks
+    Int[] kinds
+    Int[] projectileIds
+    Int[] sourceIds
+    Int[] targetIds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] appliedAmounts
+    Bool[] died
+    Int count
+    EnemyImpactSnapshot latestValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        sequences = new Int[actualCapacity]
+        ticks = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        projectileIds = new Int[actualCapacity]
+        sourceIds = new Int[actualCapacity]
+        targetIds = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        appliedAmounts = new Int[actualCapacity]
+        died = new Bool[actualCapacity]
+        count = 0
+        latestValue = EnemyImpactSnapshot(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+    }
+
+    Bool push(EnemyImpactSnapshot snapshot) {
+        if (snapshot.sequence() <= 0 || snapshot.tick() < 0 ||
+            snapshot.kind() <= 0 || snapshot.kind() > 3 ||
+            snapshot.projectileId() <= 0 || snapshot.sourceId() <= 0 ||
+            snapshot.targetId() < 0 || snapshot.applied() < 0 ||
+            (count > 0 && snapshot.sequence() <= sequences[count - 1])) {
+            return false
+        }
+        if (count == sequences.length) {
+            for (var index = 1; index < count; index = index + 1) {
+                sequences[index - 1] = sequences[index]
+                ticks[index - 1] = ticks[index]
+                kinds[index - 1] = kinds[index]
+                projectileIds[index - 1] = projectileIds[index]
+                sourceIds[index - 1] = sourceIds[index]
+                targetIds[index - 1] = targetIds[index]
+                positionsX[index - 1] = positionsX[index]
+                positionsY[index - 1] = positionsY[index]
+                positionsZ[index - 1] = positionsZ[index]
+                appliedAmounts[index - 1] = appliedAmounts[index]
+                died[index - 1] = died[index]
+            }
+            count = count - 1
+        }
+        sequences[count] = snapshot.sequence()
+        ticks[count] = snapshot.tick()
+        kinds[count] = snapshot.kind()
+        projectileIds[count] = snapshot.projectileId()
+        sourceIds[count] = snapshot.sourceId()
+        targetIds[count] = snapshot.targetId()
+        positionsX[count] = snapshot.x()
+        positionsY[count] = snapshot.y()
+        positionsZ[count] = snapshot.z()
+        appliedAmounts[count] = snapshot.applied()
+        died[count] = snapshot.died()
+        count = count + 1
+        latestValue = snapshot
+        return true
+    }
+
+    Int size() {
+        return count
+    }
+
+    Int latestSequence() {
+        return latestValue.sequence()
+    }
+
+    EnemyImpactSnapshot latest() {
+        return latestValue
+    }
+}
 
 class EnemySnapshotHistory {
     Int[] sequences

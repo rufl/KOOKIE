@@ -1,0 +1,100 @@
+package core
+
+record ImpactPresentationEvent(
+    Int sequence, Int kind, Int sourceId, Int targetId,
+    Int x, Int y, Int z, Int applied, Bool died,
+    Int clip, Int gain
+)
+
+class ImpactPresentationQueue {
+    Int[] sequences
+    Int[] kinds
+    Int[] sourceIds
+    Int[] targetIds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] appliedAmounts
+    Bool[] died
+    Int[] clips
+    Int[] gains
+    Int head
+    Int count
+    ImpactPresentationEvent consumed
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        sequences = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        sourceIds = new Int[actualCapacity]
+        targetIds = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        appliedAmounts = new Int[actualCapacity]
+        died = new Bool[actualCapacity]
+        clips = new Int[actualCapacity]
+        gains = new Int[actualCapacity]
+        head = 0
+        count = 0
+        consumed = ImpactPresentationEvent(
+            0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0)
+    }
+
+    Bool push(
+        Int sequence, Int kind, Int sourceId, Int targetId,
+        Int x, Int y, Int z, Int applied, Bool targetDied,
+        Int clip, Int gain
+    ) {
+        if (sequence <= 0 || kind <= 0 || kind > 3 ||
+            sourceId <= 0 || targetId < 0 || applied < 0 ||
+            clip < 0 || gain < 0 || gain > 100 ||
+            count == sequences.length) {
+            return false
+        }
+        var index = head + count
+        if (index >= sequences.length) {
+            index = index - sequences.length
+        }
+        sequences[index] = sequence
+        kinds[index] = kind
+        sourceIds[index] = sourceId
+        targetIds[index] = targetId
+        positionsX[index] = x
+        positionsY[index] = y
+        positionsZ[index] = z
+        appliedAmounts[index] = applied
+        died[index] = targetDied
+        clips[index] = clip
+        gains[index] = gain
+        count = count + 1
+        return true
+    }
+
+    Bool dequeue() {
+        if (count == 0) {
+            return false
+        }
+        consumed = ImpactPresentationEvent(
+            sequences[head], kinds[head], sourceIds[head], targetIds[head],
+            positionsX[head], positionsY[head], positionsZ[head],
+            appliedAmounts[head], died[head], clips[head], gains[head])
+        head = head + 1
+        if (head == sequences.length) {
+            head = 0
+        }
+        count = count - 1
+        return true
+    }
+
+    Int pending() {
+        return count
+    }
+
+    ImpactPresentationEvent lastConsumed() {
+        return consumed
+    }
+}
