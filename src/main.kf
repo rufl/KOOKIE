@@ -257,6 +257,31 @@ test "bounded save wire codec" {
 }
 
 
+test "bounded save file store" {
+    var state = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 101
+    payload[1] = 202
+    assert(state.stage(1, 9, payload))
+    var store = BoundedSaveFileStore(2)
+    var path = "/tmp/kookie-save-test.bin"
+    assert(store.write(path, state),
+        "save file store must write encoded bounded bytes")
+    var restored = BoundedSaveState(2, 1000)
+    assert(store.read(path, restored),
+        "save file store must read encoded bytes")
+    assert(restored.revision() == 9 &&
+        restored.payloadValue(0) == 101 &&
+        restored.payloadValue(1) == 202,
+        "save file store must restore decoded values")
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
+    assert(file.writeBytes(corrupted) &&
+        !store.read(path, restored),
+        "save file store must reject corrupted bytes")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
