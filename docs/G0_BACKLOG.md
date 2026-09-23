@@ -39,6 +39,7 @@ This is the active bounded implementation sequence after the initial research an
 - Headless GPU recovery smoke destroys and recreates the device, rebuilds cached resources, and completes a post-recovery draw.
 - Bounded native UDP peer transport sends and receives authenticated integer broad-phase frames across paired localhost datagram sockets; explicit non-zero SipHash key provisioning is required before open, `kookie_transport_set_key_from_environment` accepts the 32-hex-character `KOOKIE_TRANSPORT_KEY_HEX` boundary, `kookie_transport_open_remote_ipv4` atomically binds a local socket to a validated IPv4 peer/port, and framing covers protocol version, payload length, sequence and signed payload words with a fixed 1,000 ms receive timeout and packet bounds.
 - `RemoteSessionLink` now gates broad-phase snapshots on endpoint activation and monotonic send/receive sequences; the native probe binds, sends and applies a session snapshot through that link.
+- `LoopbackSession` now owns remote endpoint configuration, activation, snapshot send gating, monotonic receive validation, and disconnect; the native probe exercises the authoritative-session handoff.
 - GPU recovery state exposes unavailable/ready/lost/failed states and a state-aware capability bitmask: ready supports clean reopen plus the explicit loss marker, while lost retains reopen only; it rejects recovery without a live headless device and rebuilds resources after recovery.
 - GPU window presentation capability probing reports swapchain format and supported present modes when a window device is claimed; Xvfb still cannot claim the presentation path.
 
@@ -46,7 +47,7 @@ This is the active bounded implementation sequence after the initial research an
 
 1. Add a DRI3-capable isolated presentation path for window screenshots; Xvfb remains presentation-incompatible.
 2. Re-run the native exception-handler reproducer after a compiler upgrade; the current gate remains observed and passing.
-3. Wire `RemoteSessionLink` into a live network/session loop and add production secret storage/rotation; transport-level endpoint and external-peer exchange are now covered.
+3. Wire the authoritative remote session handoff into a live network loop and add production secret storage/rotation; transport-level endpoint and external-peer exchange are now covered.
 4. Add actual SDL/device-loss callbacks and resource retirement semantics; the current recovery path uses an explicit loss marker.
 5. Record each new measured failure or acceptance boundary in both language trees.
 

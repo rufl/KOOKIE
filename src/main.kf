@@ -176,6 +176,28 @@ test "remote session link sequences" {
     assert(!link.connected())
     assert(!link.disconnect())
 }
+test "authoritative remote session handoff" {
+    var session = LoopbackSession(2, 2)
+    assert(session.start())
+    assert(session.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5))
+    assert(!session.openRemoteSession())
+    assert(!session.configureRemoteEndpoint(
+        127, 0, 0, 1, 0, 1, 2, 3, 4))
+    assert(session.configureRemoteEndpoint(
+        127, 0, 0, 1, 4000, 1, 2, 3, 4))
+    assert(!session.queueRemoteBroadPhaseSnapshot(1, 1))
+    assert(session.openRemoteSession())
+    assert(session.remoteSessionConnected())
+    assert(session.queueRemoteBroadPhaseSnapshot(1, 1))
+    assert(!session.queueRemoteBroadPhaseSnapshot(1, 1))
+    var snapshot = session.broadPhaseSnapshot(2, 2)
+    assert(session.queueRemoteBroadPhaseSnapshot(2, 2))
+    assert(session.applyRemoteBroadPhaseSnapshot(snapshot))
+    assert(!session.applyRemoteBroadPhaseSnapshot(snapshot))
+    assert(session.closeRemoteSession())
+    assert(!session.remoteSessionConnected())
+}
+
 
 
 test "frame staging ownership and scalar measurement" {

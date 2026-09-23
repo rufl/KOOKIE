@@ -111,13 +111,15 @@ espacial combinando colisões de cápsula e broad-phase. O adaptador também pos
 uma sonda UDP nativa de peer entre sockets localhost pareados com um
 `RemoteSessionEndpoint` validado, abertura nativa atômica de peer IPv4, endereço/
 porta configurável e chaves SipHash de teste, validação de sequência/tamanho,
-timeout de recebimento de 1.000 ms, além de estados explícitos de recuperação GPU
-e bitmask de capacidades para reopen limpo/marcador de perda. Em seguida:
-adicionar apresentação isolada compatível com DRI3, ligar `RemoteSessionLink` a um
-loop real de rede/sessão e adicionar armazenamento/rotação de segredos de
-produção, adicionar callbacks/retirement reais para perda do dispositivo e
-reexecutar o reproduzível de exceção nativa após upgrade do compilador. O defeito
-do handler de exceções nativas continua sendo um gate do compilador.
+timeout de recebimento de 1.000 ms. `LoopbackSession` agora possui configuração
+autoritativa do endpoint remoto, ativação, bloqueio de envio de snapshots,
+validação monotônica de recebimento e desconexão, e a sonda nativa exercita essa
+passagem de autoridade. Em seguida: adicionar apresentação isolada compatível
+com DRI3, ligar `RemoteSessionLink` a um loop real de rede/sessão e adicionar
+armazenamento/rotação de segredos de produção, adicionar callbacks/retirement
+reais para perda do dispositivo e reexecutar o reproduzível de exceção nativa
+após upgrade do compilador. O defeito do handler de exceções nativas continua
+sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

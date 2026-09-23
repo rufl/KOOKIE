@@ -106,13 +106,14 @@ snapshots with fixed-capacity dequeue/apply and sequence guards, a native
 authenticated UDP peer probe across paired localhost sockets with a validated
 `RemoteSessionEndpoint`, atomic native IPv4 peer opening, configurable peer/port
 and SipHash test keys, sequence/length validation, signed payload words, and a
-1,000 ms receive timeout, explicit GPU recovery states plus reporting for clean
-paths and closed-device rejection, stale query rejection, and spatial movement
-admission combining capsule and broad-phase collisions. Next: add a DRI3-capable
-isolated presentation path, wire `RemoteSessionLink` into a live network/session
-loop and add production secret storage/rotation, add actual SDL/device-loss
-callbacks/resource retirement, and rerun the native exception reproducer after a
-compiler upgrade. The native exception-handler defect remains a compiler gate.
+1,000 ms receive timeout. `LoopbackSession` now owns authoritative remote
+endpoint configuration, activation, snapshot send gating, monotonic receive
+validation and disconnect, and the native probe exercises that handoff. Next:
+add a DRI3-capable isolated presentation path, wire `RemoteSessionLink` into a
+live network/session loop and add production secret storage/rotation, add actual
+SDL/device-loss callbacks/resource retirement, and rerun the native exception
+reproducer after a compiler upgrade. The native exception-handler defect remains
+a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

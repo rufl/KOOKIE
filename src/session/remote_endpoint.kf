@@ -175,9 +175,13 @@ class RemoteSessionLink {
         return true
     }
 
+    Bool canReceiveSnapshot(Int[] words) {
+        return connectedValue && validBroadPhaseSnapshot(words) &&
+            words[3] > receivedSequenceValue
+    }
+
     Bool receiveSnapshot(Int[] words) {
-        if (!connectedValue || !validBroadPhaseSnapshot(words) ||
-            words[3] <= receivedSequenceValue) {
+        if (!canReceiveSnapshot(words)) {
             return false
         }
         receivedSequenceValue = words[3]

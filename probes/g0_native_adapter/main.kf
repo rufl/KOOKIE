@@ -82,8 +82,12 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         kookie_transport_close()
         return false
     }
-    var link = RemoteSessionLink(endpoint)
-    if (!link.connect() ||
+    if (!session.configureRemoteEndpoint(
+            127, 0, 0, 1, peerPort,
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
+        !session.openRemoteSession() ||
         !kookie_transport_set_peer_ipv4(
             endpoint.firstOctet(), endpoint.secondOctet(),
             endpoint.thirdOctet(), endpoint.fourthOctet(), endpoint.port()
@@ -91,7 +95,8 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         kookie_transport_close()
         return false
     }
-    if (!link.sendSnapshot(payload)) {
+    if (!session.queueRemoteBroadPhaseSnapshot(6, 7)) {
+        session.closeRemoteSession()
         kookie_transport_close()
         return false
     }
@@ -121,12 +126,11 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         kookie_transport_receive_word(3) == payload[3] &&
         kookie_transport_receive_word(4) == payload[4] &&
         kookie_transport_receive_word(5) == payload[5]
-    var accepted = link.receiveSnapshot(payload)
+    var accepted = session.applyRemoteBroadPhaseSnapshot(payload)
     var applied = headerMatches &&
         kookie_transport_receive_sum() == expectedSum &&
-        accepted &&
-        session.applyBroadPhaseSnapshot(payload)
-    var disconnected = link.disconnect()
+        accepted
+    var disconnected = session.closeRemoteSession()
     var closed = kookie_transport_close()
     return applied && disconnected && closed &&
         session.clientBroadPhaseTriangleCount() == 1

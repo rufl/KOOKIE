@@ -26,6 +26,9 @@ class LoopbackSession {
     BroadPhaseTransportQueue broadPhaseTransport
     Int broadPhaseRevisionValue
     Int clientBroadPhaseRevisionValue
+    RemoteSessionEndpoint remoteEndpoint
+    RemoteSessionLink remoteLink
+    Bool remoteConfigured
 
 
     public constructor(Int inputCapacity, Int entityCapacity) {
@@ -51,6 +54,10 @@ class LoopbackSession {
         clientBroadPhaseCollection = BoundedTriangleCollection(8, 20)
         clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
         broadPhaseTransport = BroadPhaseTransportQueue(4, 8)
+        remoteEndpoint = RemoteSessionEndpoint(
+            127, 0, 0, 1, 1, 1, 2, 3, 4)
+        remoteLink = RemoteSessionLink(remoteEndpoint)
+        remoteConfigured = false
         clientBroadPhaseSnapshotSequence = 0
         broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
         clientBroadPhaseRevisionValue = broadPhaseRevisionValue
@@ -223,6 +230,50 @@ class LoopbackSession {
     }
     Bool queueBroadPhaseSnapshot(Int tick, Int sequence) {
         return broadPhaseTransport.send(broadPhaseSnapshot(tick, sequence))
+    }
+
+    Bool configureRemoteEndpoint(
+        Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet,
+        Int port, Int key0Low, Int key0High, Int key1Low, Int key1High
+    ) {
+        if (remoteLink.connected() ||
+            !remoteEndpoint.setKey(key0Low, key0High, key1Low, key1High) ||
+            !remoteEndpoint.setPeer(
+                firstOctet, secondOctet, thirdOctet, fourthOctet, port)) {
+            return false
+        }
+        remoteConfigured = remoteEndpoint.valid()
+        return remoteConfigured
+    }
+
+    Bool openRemoteSession() {
+        if (!started || !remoteConfigured) {
+            return false
+        }
+        return remoteLink.connect()
+    }
+
+    Bool closeRemoteSession() {
+        return remoteLink.disconnect()
+    }
+
+    Bool remoteSessionConnected() {
+        return remoteLink.connected()
+    }
+
+    Bool queueRemoteBroadPhaseSnapshot(Int tick, Int sequence) {
+        if (!started || !remoteLink.connected()) {
+            return false
+        }
+        return remoteLink.sendSnapshot(broadPhaseSnapshot(tick, sequence))
+    }
+
+    Bool applyRemoteBroadPhaseSnapshot(Int[] words) {
+        if (!started || !remoteLink.canReceiveSnapshot(words) ||
+            !applyBroadPhaseSnapshot(words)) {
+            return false
+        }
+        return remoteLink.receiveSnapshot(words)
     }
 
     Int pendingBroadPhaseSnapshots() {
