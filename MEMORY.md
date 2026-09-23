@@ -113,11 +113,12 @@ endpoint configuration, activation, snapshot send gating, monotonic receive
 validation and disconnect, and the native probe drives three authenticated
 broad-phase ticks through that handoff. SDL render-device reset/lost events now
 flow through the event pump, retire cached GPU resources for reset or lost-device
-paths, and drive headless recovery. A capability-gated DRI3 window path now
-renders a swapchain frame and captures a screenshot checksum when presentation
-is available. Next: run that path on an isolated present-capable host and rerun
-the native exception reproducer after a compiler upgrade. The native
-exception-handler defect remains a compiler gate.
+paths, and drive headless recovery. Kof 0.4.10-beta verification reran the
+native exception-lifetime reproducer after the compiler upgrade and preserved
+the observed JVM/native gate. A capability-gated DRI3 window path now renders a
+swapchain frame and captures a screenshot checksum when presentation is
+available. Next: run that path on an isolated present-capable host.
+The native exception-handler defect remains a compiler gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

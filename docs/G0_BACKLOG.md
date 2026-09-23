@@ -43,12 +43,12 @@ This is the active bounded implementation sequence after the initial research an
 - GPU recovery state exposes unavailable/ready/lost/failed states and a state-aware capability bitmask: ready supports clean reopen plus reset/loss events, while lost retains reopen only; it rejects recovery without a live headless device and rebuilds resources after recovery.
 - SDL render-device reset/lost events now flow through the event pump, retire cached GPU resources safely for reset or lost-device paths, and drive headless recovery without the former explicit loss marker; the native probe exercises reset rebuild and loss recovery.
 - A capability-gated DRI3 window path now renders a swapchain frame and captures a non-empty screenshot checksum when a present-capable device is claimed; Xvfb still cannot claim the presentation path.
+- Kof 0.4.10-beta verification reran the native exception-lifetime reproducer after the compiler upgrade; the JVM/native behavior remains the recorded gate.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; Xvfb remains presentation-incompatible.
-2. Re-run the native exception-handler reproducer after a compiler upgrade; the current gate remains observed and passing.
-3. Record each new measured failure or acceptance boundary in both language trees.
+2. Record each new measured failure or acceptance boundary in both language trees.
 
 
 ## Deferred

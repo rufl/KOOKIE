@@ -120,12 +120,13 @@ autenticado, provisionamento explícito de chave não nula antes da abertura via
 mais restritivo, rotação explícita de chave do transporte fechado, congelamento
 recebimento de 1.000 ms. A sonda da sessão autoritativa conduz três ticks
 broad-phase autenticados, e eventos SDL de reset/perda aposentam recursos GPU
-pelo event pump antes da recuperação. Um caminho de janela DRI3 protegido por
-capacidade agora renderiza um frame de swapchain e captura um checksum de
-screenshot quando a apresentação está disponível. Em seguida: executar esse
-caminho em um host isolado compatível com apresentação e reexecutar o
-reproduzível de exceção nativa após upgrade do compilador. Use o wrapper
-descartável de display isolado do repositório para verificação gráfica.
+pelo event pump antes da recuperação. A verificação com Kof 0.4.10-beta preserva
+o gate observado de lifetime de exceções nativas após o upgrade do compilador. Um
+caminho de janela DRI3 protegido por capacidade agora renderiza um frame de
+swapchain e captura um checksum de screenshot quando a apresentação está
+disponível. Em seguida: executar esse caminho em um host isolado compatível com
+apresentação. Use o wrapper descartável de display isolado do repositório para
+verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência
