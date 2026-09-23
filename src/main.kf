@@ -346,6 +346,35 @@ test "bounded save schema migration" {
         "migration gate must reject unknown sections")
 }
 
+test "schema save file persistence and recovery" {
+    var source = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 303
+    payload[1] = 404
+    assert(source.stage(1, 12, payload))
+    var store = BoundedSaveSchemaFileStore(4, 2)
+    var path = "/tmp/kookie-save-schema-test.bin"
+    assert(store.writeLegacy(path, source))
+    var restored = BoundedSaveState(2, 1000)
+    assert(store.readLegacy(path, restored) &&
+        restored.revision() == 12 &&
+        restored.payloadValue(0) == 303 &&
+        restored.payloadValue(1) == 404,
+        "schema file store must migrate legacy payloads on load")
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[18] = corrupted[18] + 1
+    assert(file.writeBytes(corrupted) &&
+        store.readLegacy(path, restored) &&
+        restored.revision() == 12,
+        "schema file store must recover from one corrupted copy")
+    var fullyCorrupted = file.readBytes()
+    fullyCorrupted[960] = fullyCorrupted[960] + 1
+    assert(file.writeBytes(fullyCorrupted) &&
+        !store.readLegacy(path, restored),
+        "schema file store must reject two corrupted copies")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

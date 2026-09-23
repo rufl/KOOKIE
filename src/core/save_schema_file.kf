@@ -1,0 +1,140 @@
+package core
+
+class BoundedSaveSchemaFileStore {
+    BoundedSaveSchemaWireCodec codec
+    BoundedSaveMigrationGate gate
+    Int[] bytes
+    Int digitsPerWord
+    Int slotWords
+    Int totalWords
+    Int magic
+
+    public constructor(Int sectionCapacity, Int payloadCapacity) {
+        codec = BoundedSaveSchemaWireCodec(sectionCapacity, payloadCapacity)
+        gate = BoundedSaveMigrationGate()
+        digitsPerWord = 6
+        slotWords = 4 + 8 * (3 + 16)
+        totalWords = 4 + slotWords * 2
+        bytes = new Int[totalWords * digitsPerWord]
+        magic = 11773399
+    }
+
+    Bool write(String path, BoundedSaveSections sections) {
+        if (!codec.encode(sections)) {
+            return false
+        }
+        var wireLength = codec.encodedLength()
+        var words = new Int[totalWords]
+        words[0] = magic
+        words[1] = 1
+        words[2] = wireLength
+        words[3 + slotWords] = wireLength
+        for (var index = 0; index < wireLength; index = index + 1) {
+            words[3 + index] = codec.encodedWord(index)
+            words[4 + slotWords + index] = codec.encodedWord(index)
+        }
+        return writeWords(path, words)
+    }
+
+    Bool writeLegacy(String path, BoundedSaveState state) {
+        var sections = BoundedSaveSections(8, 16)
+        if (!gate.importLegacy(state, sections)) {
+            return false
+        }
+        return write(path, sections)
+    }
+
+    Bool read(String path, BoundedSaveSections target) {
+        var words = readWords(path)
+        if (words.length != totalWords ||
+            words[0] != magic || words[1] != 1) {
+            return false
+        }
+        var first = BoundedSaveSections(8, 16)
+        var second = BoundedSaveSections(8, 16)
+        var firstValid = decodeSlot(words, 2, 3, first)
+        var secondValid = decodeSlot(words, 3 + slotWords, 4 + slotWords, second)
+        if (!firstValid && !secondValid) {
+            return false
+        }
+        if (firstValid && (!secondValid || second.revision() <= first.revision())) {
+            return copySections(first, target)
+        }
+        return copySections(second, target)
+    }
+
+    Bool readLegacy(String path, BoundedSaveState target) {
+        var sections = BoundedSaveSections(8, 16)
+        return read(path, sections) && gate.exportLegacy(sections, target)
+    }
+
+    Bool decodeSlot(Int[] words, Int lengthIndex, Int start,
+        BoundedSaveSections target) {
+        var length = words[lengthIndex]
+        if (length < 4 || length > slotWords) {
+            return false
+        }
+        var wire = new Int[length]
+        for (var index = 0; index < length; index = index + 1) {
+            wire[index] = words[start + index]
+        }
+        return codec.decode(wire, target)
+    }
+
+    Bool copySections(BoundedSaveSections source, BoundedSaveSections target) {
+        target.clear()
+        if (!target.setRevision(source.revision())) {
+            return false
+        }
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            var payload = new Int[source.sectionLength(index)]
+            for (var valueIndex = 0; valueIndex < payload.length; valueIndex = valueIndex + 1) {
+                payload[valueIndex] = source.sectionValue(index, valueIndex)
+            }
+            if (!target.put(source.sectionId(index), source.sectionVersion(index), payload)) {
+                target.clear()
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool writeWords(String path, Int[] words) {
+        var output = new Int[words.length * digitsPerWord]
+        for (var wordIndex = 0; wordIndex < words.length; wordIndex = wordIndex + 1) {
+            var value = words[wordIndex]
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                output[wordIndex * digitsPerWord + digit] = value % 64
+                value = value / 64
+            }
+        }
+        var file = File(path)
+        return file.writeBytes(output)
+    }
+
+    Int[] readWords(String path) {
+        var file = File(path)
+        var input = file.readRange(0, bytes.length)
+        if (input.length != bytes.length) {
+            return new Int[0]
+        }
+        var words = new Int[totalWords]
+        for (var wordIndex = 0; wordIndex < totalWords; wordIndex = wordIndex + 1) {
+            var offset = wordIndex * digitsPerWord
+            var value = 0
+            var multiplier = 1
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                if (input[offset + digit] < 0 || input[offset + digit] >= 64 ||
+                    (digit == digitsPerWord - 1 && input[offset + digit] != 0)) {
+                    return new Int[0]
+                }
+                value = value + input[offset + digit] * multiplier
+                if (digit < digitsPerWord - 1) {
+                    multiplier = multiplier * 64
+                }
+            }
+            words[wordIndex] = value
+        }
+        return words
+    }
+}
