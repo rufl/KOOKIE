@@ -17,7 +17,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_headless_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_headless_budget(Int frames, Int budgetMicroseconds): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_state(): Int
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_mark_headless_device_lost(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_push_headless_device_reset(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_push_headless_device_lost(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_pair(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
@@ -158,10 +159,20 @@ main() {
         assert(kookie_gpu_recovery_capabilities() >= 3,
             "headless GPU must report reopen and loss-marker capabilities")
         assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
+        assert(kookie_gpu_push_headless_device_reset(),
+            "headless GPU reset event must enqueue")
+        assert(kookie_poll_event() == 5,
+            "SDL GPU reset event must retire cached resources")
+        assert(kookie_gpu_recovery_state() == 1,
+            "headless GPU reset must retain ready state")
+        assert(kookie_gpu_draw_headless_test(),
+            "headless GPU draw must rebuild retired resources")
         assert(kookie_gpu_headless_budget(3, frameClock.frameBudgetMicros()),
             "headless GPU draw timing must fit the declared 60 Hz frame budget")
-        assert(kookie_gpu_mark_headless_device_lost(),
-            "headless GPU loss marker must enter recovery")
+        assert(kookie_gpu_push_headless_device_lost(),
+            "headless GPU loss event must enqueue")
+        assert(kookie_poll_event() == 6,
+            "SDL GPU loss event must invoke the recovery callback")
         assert(kookie_gpu_recovery_state() == 2,
             "headless GPU loss must expose lost recovery state")
         assert(kookie_gpu_recovery_capabilities() == 1,

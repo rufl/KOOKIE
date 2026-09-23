@@ -109,6 +109,17 @@ static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
     }
     memset(&gpu_resources, 0, sizeof(gpu_resources));
 }
+static void kookie_gpu_retire_resources(
+    SDL_GPUDevice *device, bool device_lost
+) {
+    if (device_lost) {
+        memset(&gpu_resources, 0, sizeof(gpu_resources));
+        return;
+    }
+    kookie_gpu_release_resources(device);
+}
+
+
 static bool kookie_gpu_submit_and_wait_fence(
     SDL_GPUDevice *device,
     SDL_GPUCommandBuffer *command_buffer
@@ -136,6 +147,23 @@ static bool kookie_gpu_submit_and_wait_fence(
 
 
 static KookieGpuSlot gpu_slot;
+static bool kookie_gpu_handle_device_event(SDL_EventType event_type) {
+    if (gpu_slot.device == NULL ||
+        gpu_recovery_state != KOOKIE_GPU_RECOVERY_READY) {
+        return false;
+    }
+    if (event_type == SDL_EVENT_RENDER_DEVICE_LOST) {
+        kookie_gpu_retire_resources(gpu_slot.device, true);
+        gpu_recovery_state = KOOKIE_GPU_RECOVERY_LOST;
+        return true;
+    }
+    if (event_type == SDL_EVENT_RENDER_DEVICE_RESET) {
+        kookie_gpu_retire_resources(gpu_slot.device, false);
+        gpu_recovery_state = KOOKIE_GPU_RECOVERY_READY;
+        return true;
+    }
+    return false;
+}
 static int last_event_a;
 static int last_event_b;
 static int pending_focus_event = -1;
@@ -777,13 +805,24 @@ int kookie_gpu_recovery_capabilities(void) {
     return 0;
 }
 
-bool kookie_gpu_mark_headless_device_lost(void) {
+bool kookie_gpu_push_headless_device_reset(void) {
     if (gpu_slot.device == NULL || gpu_slot.window_slot != -1 ||
         gpu_recovery_state != KOOKIE_GPU_RECOVERY_READY) {
         return false;
     }
-    gpu_recovery_state = KOOKIE_GPU_RECOVERY_LOST;
-    return true;
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_RENDER_DEVICE_RESET;
+    return SDL_PushEvent(&event);
+}
+
+bool kookie_gpu_push_headless_device_lost(void) {
+    if (gpu_slot.device == NULL || gpu_slot.window_slot != -1 ||
+        gpu_recovery_state != KOOKIE_GPU_RECOVERY_READY) {
+        return false;
+    }
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_RENDER_DEVICE_LOST;
+    return SDL_PushEvent(&event);
 }
 
 bool kookie_gpu_recover_headless(void) {
@@ -1400,6 +1439,20 @@ int kookie_poll_event(void) {
                 last_event_a = 0;
                 last_event_b = 0;
                 return 4;
+            case SDL_EVENT_RENDER_DEVICE_RESET:
+                if (kookie_gpu_handle_device_event(event.type)) {
+                    last_event_a = 0;
+                    last_event_b = KOOKIE_GPU_RECOVERY_READY;
+                    return 5;
+                }
+                break;
+            case SDL_EVENT_RENDER_DEVICE_LOST:
+                if (kookie_gpu_handle_device_event(event.type)) {
+                    last_event_a = 0;
+                    last_event_b = KOOKIE_GPU_RECOVERY_LOST;
+                    return 6;
+                }
+                break;
             default:
                 break;
         }
