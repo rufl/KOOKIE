@@ -78,12 +78,20 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     if (peerPort <= 0 ||
         kookie_transport_set_peer_ipv4(127, 0, 0, 1, 0) ||
         kookie_transport_set_peer_ipv4(127, 0, 0, 256, peerPort) ||
-        !endpoint.setPeer(127, 0, 0, 1, peerPort) ||
-        !endpoint.activate() ||
+        !endpoint.setPeer(127, 0, 0, 1, peerPort)) {
+        kookie_transport_close()
+        return false
+    }
+    var link = RemoteSessionLink(endpoint)
+    if (!link.connect() ||
         !kookie_transport_set_peer_ipv4(
             endpoint.firstOctet(), endpoint.secondOctet(),
             endpoint.thirdOctet(), endpoint.fourthOctet(), endpoint.port()
         )) {
+        kookie_transport_close()
+        return false
+    }
+    if (!link.sendSnapshot(payload)) {
         kookie_transport_close()
         return false
     }
@@ -113,11 +121,15 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         kookie_transport_receive_word(3) == payload[3] &&
         kookie_transport_receive_word(4) == payload[4] &&
         kookie_transport_receive_word(5) == payload[5]
+    var accepted = link.receiveSnapshot(payload)
     var applied = headerMatches &&
         kookie_transport_receive_sum() == expectedSum &&
+        accepted &&
         session.applyBroadPhaseSnapshot(payload)
+    var disconnected = link.disconnect()
     var closed = kookie_transport_close()
-    return applied && closed && session.clientBroadPhaseTriangleCount() == 1
+    return applied && disconnected && closed &&
+        session.clientBroadPhaseTriangleCount() == 1
 }
 
 

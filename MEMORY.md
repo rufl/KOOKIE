@@ -60,6 +60,7 @@ authenticated frames, then clears key material on close; production key
 management remains unimplemented.
 23. GPU recovery capability reporting is state-aware: ready exposes clean reopen plus the explicit loss marker, lost exposes reopen only, and unavailable/failed expose no capabilities; SDL3 exposes no device-loss callback in the installed GPU API.
 24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is bound to both the environment key boundary and a live external UDP peer smoke; session orchestration and production secret storage remain unimplemented.
+25. `RemoteSessionLink` gates broad-phase snapshots on endpoint activation and strictly increasing send/receive sequences; the native isolated probe sends and applies a snapshot through the link, while live session-loop orchestration remains unimplemented.
 
 
 ## Editor cautions
@@ -108,8 +109,8 @@ and SipHash test keys, sequence/length validation, signed payload words, and a
 1,000 ms receive timeout, explicit GPU recovery states plus reporting for clean
 paths and closed-device rejection, stale query rejection, and spatial movement
 admission combining capsule and broad-phase collisions. Next: add a DRI3-capable
-isolated presentation path, integrate authenticated frames with a live remote
-session and production secret storage/rotation, add actual SDL/device-loss
+isolated presentation path, wire `RemoteSessionLink` into a live network/session
+loop and add production secret storage/rotation, add actual SDL/device-loss
 callbacks/resource retirement, and rerun the native exception reproducer after a
 compiler upgrade. The native exception-handler defect remains a compiler gate.
 

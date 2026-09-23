@@ -60,6 +60,7 @@ limpa o material da chave ao fechar; gestão de chaves de produção ainda não 
 implementada.
 23. O relatório de capacidades de recuperação GPU é sensível ao estado: ready expõe reopen limpo e o marcador explícito de perda, lost expõe apenas reopen, e unavailable/failed não expõem capacidades; a SDL3 instalada não expõe callback de perda de dispositivo.
 24. `RemoteSessionEndpoint` valida IPv4/porta e chaves SipHash não nulas, congela alterações de peer/chave enquanto ativo, permite troca de chave apenas inativo e está ligado à fronteira de chave via ambiente e a um smoke de peer UDP externo real; orquestração de sessão e armazenamento de segredos de produção ainda não foram implementados.
+25. `RemoteSessionLink` bloqueia snapshots broad-phase até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes; a sonda nativa isolada envia e aplica um snapshot através do link, enquanto a orquestração em loop de sessão real ainda não foi implementada.
 
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
@@ -112,11 +113,11 @@ uma sonda UDP nativa de peer entre sockets localhost pareados com um
 porta configurável e chaves SipHash de teste, validação de sequência/tamanho,
 timeout de recebimento de 1.000 ms, além de estados explícitos de recuperação GPU
 e bitmask de capacidades para reopen limpo/marcador de perda. Em seguida:
-adicionar apresentação isolada compatível com DRI3, integrar frames autenticados
-com uma sessão remota real e armazenamento/rotação de segredos de produção,
-callbacks/retirement reais para perda do dispositivo e reexecutar o reproduzível
-de exceção nativa após upgrade do compilador. O defeito do handler de exceções
-nativas continua sendo um gate do compilador.
+adicionar apresentação isolada compatível com DRI3, ligar `RemoteSessionLink` a um
+loop real de rede/sessão e adicionar armazenamento/rotação de segredos de
+produção, adicionar callbacks/retirement reais para perda do dispositivo e
+reexecutar o reproduzível de exceção nativa após upgrade do compilador. O defeito
+do handler de exceções nativas continua sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

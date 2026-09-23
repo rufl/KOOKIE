@@ -156,6 +156,27 @@ test "remote endpoint and key lifecycle" {
     assert(endpoint.setKey(9, 8, 7, 6))
     assert(endpoint.keyWord(0) == 9 && endpoint.keyWord(3) == 6)
 }
+test "remote session link sequences" {
+    var endpoint = RemoteSessionEndpoint(
+        127, 0, 0, 1, 4000, 1, 2, 3, 4)
+    var link = RemoteSessionLink(endpoint)
+    var session = LoopbackSession(2, 2)
+    assert(session.start())
+    assert(session.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5))
+    var snapshot = session.broadPhaseSnapshot(1, 1)
+    assert(!link.sendSnapshot(snapshot))
+    assert(link.connect())
+    assert(link.connected())
+    assert(link.sendSnapshot(snapshot))
+    assert(!link.sendSnapshot(snapshot))
+    assert(link.receiveSnapshot(snapshot))
+    assert(!link.receiveSnapshot(snapshot))
+    assert(link.sentSequence() == 1 && link.receivedSequence() == 1)
+    assert(link.disconnect())
+    assert(!link.connected())
+    assert(!link.disconnect())
+}
+
 
 test "frame staging ownership and scalar measurement" {
     var staging = FrameStaging(2)

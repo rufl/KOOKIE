@@ -132,3 +132,63 @@ class RemoteSessionEndpoint {
         return 0
     }
 }
+
+class RemoteSessionLink {
+    RemoteSessionEndpoint endpointValue
+    Bool connectedValue
+    Int sentSequenceValue
+    Int receivedSequenceValue
+
+    public constructor(RemoteSessionEndpoint endpoint) {
+        endpointValue = endpoint
+        connectedValue = false
+        sentSequenceValue = 0
+        receivedSequenceValue = 0
+    }
+
+    Bool connect() {
+        if (connectedValue || !endpointValue.activate()) {
+            return false
+        }
+        connectedValue = true
+        return true
+    }
+
+    Bool disconnect() {
+        if (!connectedValue || !endpointValue.deactivate()) {
+            return false
+        }
+        connectedValue = false
+        return true
+    }
+
+    Bool connected() {
+        return connectedValue
+    }
+
+    Bool sendSnapshot(Int[] words) {
+        if (!connectedValue || !validBroadPhaseSnapshot(words) ||
+            words[3] <= sentSequenceValue) {
+            return false
+        }
+        sentSequenceValue = words[3]
+        return true
+    }
+
+    Bool receiveSnapshot(Int[] words) {
+        if (!connectedValue || !validBroadPhaseSnapshot(words) ||
+            words[3] <= receivedSequenceValue) {
+            return false
+        }
+        receivedSequenceValue = words[3]
+        return true
+    }
+
+    Int sentSequence() {
+        return sentSequenceValue
+    }
+
+    Int receivedSequence() {
+        return receivedSequenceValue
+    }
+}
