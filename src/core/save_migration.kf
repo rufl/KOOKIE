@@ -4,11 +4,15 @@ class BoundedSaveMigrationGate {
     Int currentSectionVersion
     Int currentWorldVersion
     Int currentRngVersion
+    Int currentItemVersion
+    Int currentQuestVersion
 
     public constructor() {
         currentSectionVersion = 1
         currentWorldVersion = 2
         currentRngVersion = 2
+        currentItemVersion = 1
+        currentQuestVersion = 1
     }
 
     Bool importLegacy(BoundedSaveState source, BoundedSaveSections target) {
@@ -82,6 +86,12 @@ class BoundedSaveMigrationGate {
         if (sectionId == 3) {
             return currentRngVersion
         }
+        if (sectionId == 4) {
+            return currentItemVersion
+        }
+        if (sectionId == 5) {
+            return currentQuestVersion
+        }
         return -1
     }
 
@@ -95,6 +105,12 @@ class BoundedSaveMigrationGate {
         }
         if (sectionId == 2 || sectionId == 3) {
             return schemaVersion == 0 || schemaVersion == 1 || schemaVersion == 2
+        }
+        if (sectionId == 4) {
+            return schemaVersion == currentItemVersion
+        }
+        if (sectionId == 5) {
+            return schemaVersion == currentQuestVersion
         }
         return false
     }

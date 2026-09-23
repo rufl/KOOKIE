@@ -390,7 +390,7 @@ test "schema save file persistence and recovery" {
 }
 
 test "multi-section save migration" {
-    var sections = BoundedSaveSections(4, 3)
+    var sections = BoundedSaveSections(6, 3)
     var progression = new Int[2]
     progression[0] = 303
     progression[1] = 404
@@ -401,27 +401,37 @@ test "multi-section save migration" {
     var rng = new Int[2]
     rng[0] = 99
     rng[1] = 0
+    var items = new Int[2]
+    items[0] = 17
+    items[1] = 18
+    var quests = new Int[1]
+    quests[0] = 2
     var gate = BoundedSaveMigrationGate()
     assert(sections.setRevision(19) &&
         sections.put(1, 1, progression) &&
         sections.put(2, 2, world) &&
-        sections.put(3, 2, rng))
-    var codec = BoundedSaveSchemaWireCodec(4, 3)
-    assert(codec.encode(sections) && codec.encodedLength() == 20)
+        sections.put(3, 2, rng) &&
+        sections.put(4, 1, items) &&
+        sections.put(5, 1, quests))
+    var codec = BoundedSaveSchemaWireCodec(6, 3)
+    assert(codec.encode(sections) && codec.encodedLength() == 29)
     var wire = new Int[codec.encodedLength()]
     for (var index = 0; index < wire.length; index = index + 1) {
         wire[index] = codec.encodedWord(index)
     }
-    var decoded = BoundedSaveSections(4, 3)
-    var migrated = BoundedSaveSections(4, 3)
+    var decoded = BoundedSaveSections(6, 3)
+    var migrated = BoundedSaveSections(6, 3)
     assert(codec.decode(wire, decoded) &&
         gate.migrate(decoded, migrated) &&
-        migrated.sectionCount() == 3 &&
+        migrated.sectionCount() == 5 &&
         migrated.revision() == 19 &&
         migrated.sectionVersion(1) == 2 &&
         migrated.sectionValue(1, 1) == 8 &&
-        migrated.sectionValue(2, 0) == 99,
-        "migration must preserve current progression, world and RNG sections")
+        migrated.sectionId(3) == 4 &&
+        migrated.sectionValue(3, 1) == 18 &&
+        migrated.sectionId(4) == 5 &&
+        migrated.sectionValue(4, 0) == 2,
+        "migration must preserve progression, world, RNG, item and quest sections")
     var legacyWire = new Int[18]
     legacyWire[0] = codec.encodedWord(0)
     legacyWire[1] = 1
@@ -449,16 +459,16 @@ test "multi-section save migration" {
         decoded.sectionLength(2) == 2 &&
         decoded.sectionValue(2, 1) == 0,
         "migration must transform prior world and RNG versions")
-    var store = BoundedSaveSchemaFileStore(4, 3)
+    var store = BoundedSaveSchemaFileStore(6, 3)
     var path = "/tmp/kookie-save-multi-test.bin"
-    var loaded = BoundedSaveSections(4, 3)
+    var loaded = BoundedSaveSections(6, 3)
     assert(store.write(path, sections) &&
         store.read(path, loaded) &&
-        loaded.sectionCount() == 3 &&
-        loaded.sectionId(2) == 3 &&
-        loaded.sectionVersion(2) == 2 &&
-        loaded.sectionValue(2, 0) == 99,
-        "schema file store must persist current section versions")
+        loaded.sectionCount() == 5 &&
+        loaded.sectionId(3) == 4 &&
+        loaded.sectionId(4) == 5 &&
+        loaded.sectionValue(4, 0) == 2,
+        "schema file store must persist all known sections")
 }
 
 test "focus loss clears held input and queued fire" {
