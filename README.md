@@ -113,10 +113,11 @@ explicit non-zero key provisioning before open through
 activation freeze, sequence/length validation, signed payload words, and a
 1,000 ms receive timeout. The authoritative session probe drives three
 authenticated broad-phase ticks, and SDL reset/lost events retire GPU resources
-through the event pump before recovery. Next: add a DRI3-capable isolated
-presentation path and rerun the native exception reproducer after a compiler
-upgrade. Use the repository's disposable isolated-display wrapper for graphical
-verification.
+through the event pump before recovery. A capability-gated DRI3 window path now
+renders a swapchain frame and captures a screenshot checksum when presentation
+is available. Next: run that path on an isolated present-capable host and rerun
+the native exception reproducer after a compiler upgrade. Use the repository's
+disposable isolated-display wrapper for graphical verification.
 Do not create a large untested engine scaffold first.
 ## Provenance
 

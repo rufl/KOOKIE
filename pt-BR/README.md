@@ -118,13 +118,14 @@ sonda UDP nativa de peer entre sockets localhost pareados com configuração
 autenticado, provisionamento explícito de chave não nula antes da abertura via
 `KOOKIE_TRANSPORT_KEY_HEX` ou um `KOOKIE_TRANSPORT_KEY_FILE` em modo 0600 ou
 mais restritivo, rotação explícita de chave do transporte fechado, congelamento
-após ativação, validação de sequência/tamanho, palavras com sinal e timeout de
 recebimento de 1.000 ms. A sonda da sessão autoritativa conduz três ticks
 broad-phase autenticados, e eventos SDL de reset/perda aposentam recursos GPU
-pelo event pump antes da recuperação. Em seguida: adicionar apresentação
-isolada compatível com DRI3 e reexecutar o reproduzível de exceção nativa após
-upgrade do compilador. Use o wrapper descartável de display isolado do
-repositório para verificação gráfica.
+pelo event pump antes da recuperação. Um caminho de janela DRI3 protegido por
+capacidade agora renderiza um frame de swapchain e captura um checksum de
+screenshot quando a apresentação está disponível. Em seguida: executar esse
+caminho em um host isolado compatível com apresentação e reexecutar o
+reproduzível de exceção nativa após upgrade do compilador. Use o wrapper
+descartável de display isolado do repositório para verificação gráfica.
 Não crie primeiro um grande esqueleto de engine não testado.
 
 ## Procedência

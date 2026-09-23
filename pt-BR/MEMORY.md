@@ -119,10 +119,12 @@ ativação, bloqueio de envio de snapshots, validação monotônica de recebimen
 desconexão, e a sonda nativa conduz três ticks broad-phase autenticados por essa
 passagem. Eventos SDL de reset/perda do dispositivo de renderização agora passam
 pelo event pump, aposentam recursos GPU em cache nos caminhos de reset ou perda e
-conduzem a recuperação headless. Em seguida: adicionar apresentação isolada
-compatível com DRI3 e reexecutar o reproduzível de exceção nativa após upgrade
-do compilador. O defeito do handler de exceções nativas continua sendo um gate
-do compilador.
+conduzem a recuperação headless. Um caminho de janela DRI3 protegido por
+capacidade agora renderiza um frame de swapchain e captura um checksum de
+screenshot quando a apresentação está disponível. Em seguida: executar esse
+caminho em um host isolado compatível com apresentação e reexecutar o
+reproduzível de exceção nativa após upgrade do compilador. O defeito do handler
+de exceções nativas continua sendo um gate do compilador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

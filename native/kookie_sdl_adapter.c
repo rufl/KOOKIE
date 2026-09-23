@@ -1245,6 +1245,114 @@ bool kookie_gpu_draw_test(void) {
     return kookie_gpu_draw_test_internal(
         window_slots[gpu_slot.window_slot].window, NULL, NULL);
 }
+int kookie_gpu_window_screenshot_checksum(void) {
+    if (gpu_slot.device == NULL || gpu_slot.window_slot < 0 ||
+        gpu_slot.window_slot >= KOOKIE_MAX_WINDOWS ||
+        window_slots[gpu_slot.window_slot].window == NULL ||
+        kookie_gpu_window_present_capabilities() < 1) {
+        return 0;
+    }
+    SDL_GPUDevice *device = gpu_slot.device;
+    SDL_Window *window = window_slots[gpu_slot.window_slot].window;
+    SDL_GPUTextureFormat target_format =
+        SDL_GetGPUSwapchainTextureFormat(device, window);
+    if (target_format == SDL_GPU_TEXTUREFORMAT_INVALID ||
+        !kookie_gpu_prepare_resources(device, target_format)) {
+        return 0;
+    }
+    SDL_GPUCommandBuffer *command_buffer = SDL_AcquireGPUCommandBuffer(device);
+    if (command_buffer == NULL) {
+        return 0;
+    }
+    SDL_GPUTexture *render_target = NULL;
+    Uint32 target_width = 0;
+    Uint32 target_height = 0;
+    if (!SDL_WaitAndAcquireGPUSwapchainTexture(
+            command_buffer, window, &render_target,
+            &target_width, &target_height) ||
+        render_target == NULL || target_width == 0 || target_height == 0 ||
+        target_width > 4096 || target_height > 4096) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return 0;
+    }
+    SDL_GPUColorTargetInfo target = {0};
+    target.texture = render_target;
+    target.clear_color.r = 0.05f;
+    target.clear_color.g = 0.05f;
+    target.clear_color.b = 0.05f;
+    target.clear_color.a = 1.0f;
+    target.load_op = SDL_GPU_LOADOP_CLEAR;
+    target.store_op = SDL_GPU_STOREOP_STORE;
+    SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(
+        command_buffer, &target, 1, NULL);
+    if (render_pass == NULL) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return 0;
+    }
+    SDL_GPUTextureSamplerBinding binding = {0};
+    binding.texture = gpu_resources.texture;
+    binding.sampler = gpu_resources.sampler;
+    SDL_GPUBufferBinding vertex_binding = {0};
+    vertex_binding.buffer = gpu_resources.vertex_buffer;
+    SDL_GPUBufferBinding index_binding = {0};
+    index_binding.buffer = gpu_resources.index_buffer;
+    SDL_BindGPUGraphicsPipeline(render_pass, gpu_resources.pipeline);
+    SDL_BindGPUVertexBuffers(render_pass, 0, &vertex_binding, 1);
+    SDL_BindGPUIndexBuffer(render_pass, &index_binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+    SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
+    SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
+    SDL_EndGPURenderPass(render_pass);
+
+    size_t byte_count = (size_t)target_width * (size_t)target_height * 4u;
+    SDL_GPUTransferBufferCreateInfo transfer_info = {0};
+    transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
+    transfer_info.size = (Uint32)byte_count;
+    SDL_GPUTransferBuffer *transfer = SDL_CreateGPUTransferBuffer(
+        device, &transfer_info);
+    if (transfer == NULL) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return 0;
+    }
+    SDL_GPUCopyPass *copy_pass = SDL_BeginGPUCopyPass(command_buffer);
+    if (copy_pass == NULL) {
+        SDL_ReleaseGPUTransferBuffer(device, transfer);
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return 0;
+    }
+    SDL_GPUTextureRegion source = {0};
+    source.texture = render_target;
+    source.w = target_width;
+    source.h = target_height;
+    source.d = 1;
+    SDL_GPUTextureTransferInfo destination = {0};
+    destination.transfer_buffer = transfer;
+    destination.pixels_per_row = target_width;
+    destination.rows_per_layer = target_height;
+    SDL_DownloadFromGPUTexture(copy_pass, &source, &destination);
+    SDL_EndGPUCopyPass(copy_pass);
+    SDL_GPUFence *fence =
+        SDL_SubmitGPUCommandBufferAndAcquireFence(command_buffer);
+    if (fence == NULL || !SDL_WaitForGPUIdle(device)) {
+        if (fence != NULL) {
+            SDL_ReleaseGPUFence(device, fence);
+        }
+        SDL_ReleaseGPUTransferBuffer(device, transfer);
+        return 0;
+    }
+    SDL_ReleaseGPUFence(device, fence);
+    Uint8 *pixels = (Uint8 *)SDL_MapGPUTransferBuffer(device, transfer, false);
+    if (pixels == NULL) {
+        SDL_ReleaseGPUTransferBuffer(device, transfer);
+        return 0;
+    }
+    unsigned int checksum = 0;
+    for (size_t index = 0; index < byte_count; index += 1) {
+        checksum = (checksum + pixels[index]) & 0x7fffffffU;
+    }
+    SDL_UnmapGPUTransferBuffer(device, transfer);
+    SDL_ReleaseGPUTransferBuffer(device, transfer);
+    return checksum == 0 ? 1 : (int)checksum;
+}
 
 bool kookie_gpu_draw_headless_test(void) {
     if (gpu_slot.device == NULL || gpu_slot.window_slot != -1) {

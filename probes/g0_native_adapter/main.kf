@@ -8,6 +8,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int he
 extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open(Int windowToken): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_window_present_capabilities(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_window_screenshot_checksum(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_draw(Int frames): Int
@@ -231,6 +232,11 @@ main() {
         var presentCapabilities = kookie_gpu_window_present_capabilities()
         assert(presentCapabilities >= 1,
             "claimed GPU window must expose a valid swapchain format")
+        var screenshotChecksum = kookie_gpu_window_screenshot_checksum()
+        assert(screenshotChecksum > 0,
+            "DRI3-capable window path must capture a non-empty screenshot")
+        println("gpu-window-screenshot-checksum")
+        println(screenshotChecksum)
         println("gpu-present-capabilities")
         println(presentCapabilities)
         var drawMicroseconds = kookie_gpu_measure_draw(3)

@@ -41,14 +41,13 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - `LoopbackSession` agora possui a configuração autoritativa do endpoint remoto, ativação, bloqueio de envio de snapshots, validação monotônica de recebimento e desconexão; a sonda nativa conduz três ticks broad-phase autenticados por essa passagem autoritativa da sessão.
 - O estado de recuperação GPU expõe unavailable/ready/lost/failed e um bitmask de capacidades sensível ao estado: ready suporta reopen limpo e eventos de reset/perda, enquanto lost retém apenas reopen; rejeita recuperação sem dispositivo headless ativo e reconstrói recursos após a recuperação.
 - Eventos SDL de reset/perda do dispositivo de renderização agora passam pelo event pump, aposentam recursos GPU em cache com segurança nos caminhos de reset ou perda e conduzem a recuperação headless sem o antigo marcador explícito de perda; a sonda nativa exercita rebuild após reset e recuperação após perda.
-- A sonda de capacidade de apresentação GPU informa formato de swapchain e modos suportados quando um dispositivo de janela é reivindicado; Xvfb ainda não consegue reivindicar o caminho de apresentação.
+- Um caminho de janela DRI3 protegido por capacidade agora renderiza um frame de swapchain e captura um checksum de screenshot não vazio quando um dispositivo compatível com apresentação é reivindicado; Xvfb ainda não consegue reivindicar o caminho de apresentação.
 
 ## Próximo lote
 
-1. Adicionar um caminho de apresentação isolado compatível com DRI3 para screenshots de janela; Xvfb continua incompatível com apresentação.
+1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; Xvfb continua incompatível com apresentação.
 2. Reexecutar o reproduzível do handler de exceções nativas após upgrade do compilador; o gate atual continua observado e passando.
-3. Adicionar armazenamento e rotação de segredos de produção; o provisionamento de chaves de transporte, a validação do endpoint e a troca com peer externo já estão cobertos.
-4. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
+3. Registrar cada nova falha medida ou limite de aceitação nas duas árvores de idioma.
 
 ## Adiado
 
