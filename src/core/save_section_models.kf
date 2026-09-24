@@ -1,0 +1,231 @@
+package core
+
+class BoundedItemSaveSection {
+    Int[] itemIds
+    Int[] ownerIds
+    Int[] quantities
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 16) {
+            actualCapacity = 16
+        }
+        itemIds = new Int[actualCapacity]
+        ownerIds = new Int[actualCapacity]
+        quantities = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Bool add(Int itemId, Int ownerId, Int quantity) {
+        if (itemId <= 0 || ownerId < 0 || quantity <= 0 ||
+            quantity > 1000000 || countValue >= itemIds.length ||
+            find(itemId) >= 0) {
+            return false
+        }
+        itemIds[countValue] = itemId
+        ownerIds[countValue] = ownerId
+        quantities[countValue] = quantity
+        countValue = countValue + 1
+        return true
+    }
+
+    Int find(Int itemId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (itemIds[index] == itemId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int itemId(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return itemIds[index]
+    }
+
+    Int ownerId(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return ownerIds[index]
+    }
+
+    Int quantity(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return quantities[index]
+    }
+
+    Bool encodeInto(BoundedSaveSections target) {
+        var payload = new Int[countValue * 3]
+        for (var index = 0; index < countValue; index = index + 1) {
+            payload[index * 3] = itemIds[index]
+            payload[index * 3 + 1] = ownerIds[index]
+            payload[index * 3 + 2] = quantities[index]
+        }
+        return target.put(4, 1, payload)
+    }
+
+    Bool decodeFrom(BoundedSaveSections source) {
+        var section = -1
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (source.sectionId(index) == 4) {
+                section = index
+                break
+            }
+        }
+        if (section < 0 || source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) % 3 != 0 ||
+            source.sectionLength(section) / 3 > itemIds.length) {
+            return false
+        }
+        var nextCount = source.sectionLength(section) / 3
+        for (var index = 0; index < nextCount; index = index + 1) {
+            var itemId = source.sectionValue(section, index * 3)
+            var ownerId = source.sectionValue(section, index * 3 + 1)
+            var quantity = source.sectionValue(section, index * 3 + 2)
+            if (itemId <= 0 || ownerId < 0 || quantity <= 0 ||
+                quantity > 1000000) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (source.sectionValue(section, prior * 3) == itemId) {
+                    return false
+                }
+            }
+        }
+        countValue = nextCount
+        for (var copy = 0; copy < nextCount; copy = copy + 1) {
+            itemIds[copy] = source.sectionValue(section, copy * 3)
+            ownerIds[copy] = source.sectionValue(section, copy * 3 + 1)
+            quantities[copy] = source.sectionValue(section, copy * 3 + 2)
+        }
+        return true
+    }
+}
+
+class BoundedQuestSaveSection {
+    Int[] questIds
+    Int[] states
+    Int[] progressValues
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 16) {
+            actualCapacity = 16
+        }
+        questIds = new Int[actualCapacity]
+        states = new Int[actualCapacity]
+        progressValues = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Bool add(Int questId, Int state, Int progress) {
+        if (questId <= 0 || state < 0 || state > 3 || progress < 0 ||
+            progress > 1000000 || countValue >= questIds.length ||
+            find(questId) >= 0) {
+            return false
+        }
+        questIds[countValue] = questId
+        states[countValue] = state
+        progressValues[countValue] = progress
+        countValue = countValue + 1
+        return true
+    }
+
+    Int find(Int questId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (questIds[index] == questId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int questId(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return questIds[index]
+    }
+
+    Int state(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return states[index]
+    }
+
+    Int progress(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return progressValues[index]
+    }
+
+    Bool encodeInto(BoundedSaveSections target) {
+        var payload = new Int[countValue * 3]
+        for (var index = 0; index < countValue; index = index + 1) {
+            payload[index * 3] = questIds[index]
+            payload[index * 3 + 1] = states[index]
+            payload[index * 3 + 2] = progressValues[index]
+        }
+        return target.put(5, 1, payload)
+    }
+
+    Bool decodeFrom(BoundedSaveSections source) {
+        var section = -1
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (source.sectionId(index) == 5) {
+                section = index
+                break
+            }
+        }
+        if (section < 0 || source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) % 3 != 0 ||
+            source.sectionLength(section) / 3 > questIds.length) {
+            return false
+        }
+        var nextCount = source.sectionLength(section) / 3
+        for (var index = 0; index < nextCount; index = index + 1) {
+            var questId = source.sectionValue(section, index * 3)
+            var state = source.sectionValue(section, index * 3 + 1)
+            var progress = source.sectionValue(section, index * 3 + 2)
+            if (questId <= 0 || state < 0 || state > 3 || progress < 0 ||
+                progress > 1000000) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (source.sectionValue(section, prior * 3) == questId) {
+                    return false
+                }
+            }
+        }
+        countValue = nextCount
+        for (var copy = 0; copy < nextCount; copy = copy + 1) {
+            questIds[copy] = source.sectionValue(section, copy * 3)
+            states[copy] = source.sectionValue(section, copy * 3 + 1)
+            progressValues[copy] = source.sectionValue(section, copy * 3 + 2)
+        }
+        return true
+    }
+}

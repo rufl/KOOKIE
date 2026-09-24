@@ -471,6 +471,42 @@ test "multi-section save migration" {
         "schema file store must persist all known sections")
 }
 
+test "typed item and quest save sections" {
+    var sections = BoundedSaveSections(6, 6)
+    var items = BoundedItemSaveSection(2)
+    var quests = BoundedQuestSaveSection(2)
+    assert(items.add(100, 7, 4) &&
+        items.add(101, 7, 1) &&
+        !items.add(100, 8, 2) &&
+        !items.add(102, 7, 0) &&
+        quests.add(20, 2, 3) &&
+        !quests.add(20, 1, 4) &&
+        !quests.add(21, 4, 0) &&
+        sections.setRevision(21) &&
+        items.encodeInto(sections) &&
+        quests.encodeInto(sections),
+        "typed save sections must validate ownership, quantity and quest state")
+    var codec = BoundedSaveSchemaWireCodec(6, 6)
+    var wire = new Int[19]
+    var restoredSections = BoundedSaveSections(6, 6)
+    var restoredItems = BoundedItemSaveSection(2)
+    var restoredQuests = BoundedQuestSaveSection(2)
+    assert(codec.encode(sections) &&
+        codec.encodedLength() == wire.length)
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    assert(codec.decode(wire, restoredSections) &&
+        restoredItems.decodeFrom(restoredSections) &&
+        restoredQuests.decodeFrom(restoredSections) &&
+        restoredItems.count() == 2 &&
+        restoredItems.ownerId(0) == 7 &&
+        restoredItems.quantity(1) == 1 &&
+        restoredQuests.state(0) == 2 &&
+        restoredQuests.progress(0) == 3,
+        "typed save sections must round-trip through the schema wire")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
@@ -633,6 +669,7 @@ test "bounded replay timeline checkpoints" {
     var snapshot = new Int[2]
     snapshot[0] = 12
     snapshot[1] = -4
+    var staged = InputReplayRecorder(2)
     assert(timeline.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
         timeline.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1)) &&
         timeline.setInitialSnapshot(snapshot) &&
@@ -646,8 +683,14 @@ test "bounded replay timeline checkpoints" {
         timeline.seekNextCommand() &&
         timeline.lastSeekCommand().tick() == 5 &&
         !timeline.seekNextCommand() &&
+        timeline.seek(8) &&
+        timeline.stageSeekCommands(staged) &&
+        staged.pending() == 1 &&
+        staged.playNext() &&
+        staged.lastPlayed().tick() == 5 &&
+        !staged.playNext() &&
         timeline.checkpointHash(1) == 202,
-        "timeline must retain snapshots, checkpoints and seek anchors")
+        "timeline must retain checkpoints and stage commands for re-execution")
     var files = BoundedReplayFileStore(2)
     var path = "/tmp/kookie-replay-timeline-test.bin"
     assert(files.writeTimeline(path, timeline, 7, 11, 99))

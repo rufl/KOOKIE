@@ -155,6 +155,21 @@ class BoundedReplayTimeline {
         return true
     }
 
+    Bool stageSeekCommands(InputReplayRecorder target) {
+        if (seekTargetTickValue < 0) {
+            return false
+        }
+        if (!target.reset()) {
+            return false
+        }
+        while (seekNextCommand()) {
+            if (!target.append(seekConsumed)) {
+                return false
+            }
+        }
+        return true
+    }
+
     Int seekTargetTick() {
         return seekTargetTickValue
     }
