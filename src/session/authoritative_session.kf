@@ -1235,6 +1235,110 @@ class LoopbackSession {
         return playerTwoReplay.lastPlayed()
     }
 
+    Int replaySidecarLength() {
+        return playerOneInventory.replayStateLength() +
+            playerOneEquipment.replayStateLength() +
+            playerTwoInventory.replayStateLength() +
+            playerTwoEquipment.replayStateLength() +
+            broadPhaseCollection.replayStateLength()
+    }
+
+    Bool encodeReplaySidecar(Int[] target) {
+        if (target.length != replaySidecarLength() || !started) {
+            return false
+        }
+        var inventoryOne = new Int[playerOneInventory.replayStateLength()]
+        var equipmentOne = new Int[playerOneEquipment.replayStateLength()]
+        var inventoryTwo = new Int[playerTwoInventory.replayStateLength()]
+        var equipmentTwo = new Int[playerTwoEquipment.replayStateLength()]
+        var world = new Int[broadPhaseCollection.replayStateLength()]
+        if (!playerOneInventory.encodeReplayState(inventoryOne) ||
+            !playerOneEquipment.encodeReplayState(equipmentOne) ||
+            !playerTwoInventory.encodeReplayState(inventoryTwo) ||
+            !playerTwoEquipment.encodeReplayState(equipmentTwo) ||
+            !broadPhaseCollection.encodeReplayState(world)) {
+            return false
+        }
+        var offset = 0
+        for (var index = 0; index < inventoryOne.length; index = index + 1) {
+            target[offset + index] = inventoryOne[index]
+        }
+        offset = offset + inventoryOne.length
+        for (var equipmentOneIndex = 0;
+             equipmentOneIndex < equipmentOne.length;
+             equipmentOneIndex = equipmentOneIndex + 1) {
+            target[offset + equipmentOneIndex] = equipmentOne[equipmentOneIndex]
+        }
+        offset = offset + equipmentOne.length
+        for (var inventoryTwoIndex = 0;
+             inventoryTwoIndex < inventoryTwo.length;
+             inventoryTwoIndex = inventoryTwoIndex + 1) {
+            target[offset + inventoryTwoIndex] = inventoryTwo[inventoryTwoIndex]
+        }
+        offset = offset + inventoryTwo.length
+        for (var equipmentTwoIndex = 0;
+             equipmentTwoIndex < equipmentTwo.length;
+             equipmentTwoIndex = equipmentTwoIndex + 1) {
+            target[offset + equipmentTwoIndex] = equipmentTwo[equipmentTwoIndex]
+        }
+        offset = offset + equipmentTwo.length
+        for (var worldIndex = 0; worldIndex < world.length; worldIndex = worldIndex + 1) {
+            target[offset + worldIndex] = world[worldIndex]
+        }
+        return true
+    }
+
+    Bool restoreReplaySidecar(Int[] source) {
+        if (source.length != replaySidecarLength()) {
+            return false
+        }
+        var offset = 0
+        var state = new Int[playerOneInventory.replayStateLength()]
+        for (var index = 0; index < state.length; index = index + 1) {
+            state[index] = source[offset + index]
+        }
+        if (!playerOneInventory.restoreReplayState(state)) {
+            return false
+        }
+        offset = offset + state.length
+        state = new Int[playerOneEquipment.replayStateLength()]
+        for (var equipmentOneIndex = 0; equipmentOneIndex < state.length; equipmentOneIndex = equipmentOneIndex + 1) {
+            state[equipmentOneIndex] = source[offset + equipmentOneIndex]
+        }
+        if (!playerOneEquipment.restoreReplayState(state, playerOneInventory)) {
+            return false
+        }
+        offset = offset + state.length
+        state = new Int[playerTwoInventory.replayStateLength()]
+        for (var inventoryTwoIndex = 0; inventoryTwoIndex < state.length; inventoryTwoIndex = inventoryTwoIndex + 1) {
+            state[inventoryTwoIndex] = source[offset + inventoryTwoIndex]
+        }
+        if (!playerTwoInventory.restoreReplayState(state)) {
+            return false
+        }
+        offset = offset + state.length
+        state = new Int[playerTwoEquipment.replayStateLength()]
+        for (var equipmentTwoIndex = 0; equipmentTwoIndex < state.length; equipmentTwoIndex = equipmentTwoIndex + 1) {
+            state[equipmentTwoIndex] = source[offset + equipmentTwoIndex]
+        }
+        if (!playerTwoEquipment.restoreReplayState(state, playerTwoInventory)) {
+            return false
+        }
+        offset = offset + state.length
+        state = new Int[broadPhaseCollection.replayStateLength()]
+        for (var worldIndex = 0; worldIndex < state.length; worldIndex = worldIndex + 1) {
+            state[worldIndex] = source[offset + worldIndex]
+        }
+        if (!broadPhaseCollection.restoreReplayState(state) ||
+            !clientBroadPhaseCollection.restoreReplayState(state)) {
+            return false
+        }
+        broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
+        clientBroadPhaseRevisionValue =
+            clientBroadPhaseCollection.geometryRevision()
+        return true
+    }
+
     Int replayCheckpointLength() {
         return 120 + enemyCombat.replayStateLength()
     }

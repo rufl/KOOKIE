@@ -1252,6 +1252,29 @@ test "bounded inventory equipment replay state" {
         world.triangleCount() == 1,
         "inventory, equipment and world replay state must restore deterministically")
 }
+test "loopback replay sidecar restores inventory and world state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() &&
+        loopback.connectPlayer() == 1 &&
+        loopback.addPlayerItem(1, 500, 2) &&
+        loopback.setPlayerCurrency(1, 100) &&
+        loopback.equipPlayerItem(1, 0, 500) &&
+        loopback.addBroadPhaseTriangle(
+            0, 0, 0, 1, 0, 0, 0, 0, 1))
+    var sidecar = new Int[loopback.replaySidecarLength()]
+    assert(loopback.encodeReplaySidecar(sidecar) &&
+        loopback.setPlayerCurrency(1, 1) &&
+        loopback.addPlayerItem(1, 501, 1) &&
+        loopback.removeBroadPhaseTriangle(0) &&
+        loopback.restoreReplaySidecar(sidecar) &&
+        loopback.playerCurrency(1) == 100 &&
+        loopback.playerItemQuantity(1, 500) == 2 &&
+        loopback.playerItemQuantity(1, 501) == 0 &&
+        loopback.playerEquipmentItem(1, 0) == 500 &&
+        loopback.broadPhaseTriangleCount() == 1,
+        "loopback replay sidecar must restore inventory equipment and world state")
+}
+
 test "loopback replay restores enemy combat checkpoint state" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() &&
