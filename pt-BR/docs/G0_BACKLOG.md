@@ -60,6 +60,8 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - A pausa agora redefine a dívida de tempo do fixed-step, desarma comandos de jogador pendentes, bloqueia simulação/input enquanto pausado e retoma sem picos de catch-up; a cobertura JVM/nativa fixa o contrato documentado de pausa.
 - `InputReplayRecorder` agora registra comandos de tick resultantes validados (não eventos crus da plataforma) em um FIFO limitado, preserva ordem determinística, rejeita comandos obsoletos/duplicados/inválidos e reproduz ou redefine sem crescimento ilimitado; `LoopbackSession` captura comandos consumidos somente quando explicitamente habilitado e redefine a captura limitada ao desabilitar.
 
+- DXPERF-051 agora possui um mecanismo nativo de despacho seguro para produção: seleção de AVX2/SSE2 em tempo de execução no x86, cobertura de origem NEON no AArch64, fallback escalar verificado, inicialização segura para threads, prova de execução no host/escalar e prova sintática com alvo cruzado AArch64. A integração de buffers do Kof continua bloqueada pelo limite `FFI001` existente; nenhum ganho de velocidade é alegado.
+
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke isolado X11/offscreen foi executado novamente e reportou corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.

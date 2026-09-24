@@ -636,6 +636,13 @@ Targets to measure on explicitly recorded CPU/GPU/driver/resolution/build: 60 Hz
 
 These thresholds are design goals. Correctness may be tested under software rendering, but software-renderer timings cannot certify hardware targets. Graphics/input proof must be serialized inside an isolated disposable display environment.
 
+### DXPERF-051 SIMD dispatch evidence
+
+`native/kookie_simd_dispatch.c` is a narrow native mechanism, not a gameplay implementation. It selects AVX2 or SSE2 at runtime on x86, NEON on AArch64, and always retains a checked scalar implementation. Dispatch initialization is thread-safe; unsupported or forced-scalar builds remain valid. `scripts/verify_simd_dispatch.sh` runs the same integer-sum contract through the host-selected path and scalar path, then compiles the AArch64 source path with Clang's cross target. This is dispatch and cross-architecture source evidence, not a frame-time or engine-speed measurement.
+
+Kof cannot currently call the bulk kernel: array/buffer FFI is rejected by the compiler (`FFI001`). Until that ABI exists, no Kof-owned hot loop is routed through this mechanism and no SIMD speedup is claimed. The scalar fallback is the production-safe behavior at the current language boundary.
+
+
 ## 11. Verification and decision risks
 
 ### Focused proof strategy

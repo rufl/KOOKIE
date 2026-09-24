@@ -73,6 +73,7 @@ This is the active bounded implementation sequence after the initial research an
 - `BoundedAffixPoolStore` now provides weighted deterministic selection of non-contiguous content affix IDs for item rolls; JVM/native coverage verifies stable seeded selection.
 - Save write durability still requires a proven atomic replacement plus flush/sync filesystem primitive; current bounded redundant/schema stores validate, recover one bad copy and repair it, but do not claim crash-durable publication.
 - Player weapon and replicated enemy impact/audio presentation events now enter replay history automatically and round-trip through checkpoint sidecars; JVM/native coverage verifies the path. DRI3 screenshot validation and crash-durable save publication remain host-capability blockers.
+- DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and AArch64 cross-target syntax proof. Bulk Kof integration remains blocked by the existing `FFI001` array/buffer boundary; no speedup is claimed.
 
 ## Next batch
 
