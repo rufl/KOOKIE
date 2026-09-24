@@ -5,6 +5,13 @@ record RayTargetResult(
     Int sampleX, Int sampleY, Int sampleZ
 )
 
+record SpatialAimContract(
+    Int sourceId,
+    Int startX, Int startY, Int startZ,
+    Int aimEndX, Int aimEndY, Int aimEndZ,
+    Int range, Int radius
+)
+
 class BoundedRayTargetWorld {
     Int[] ids
     Int[] positionsX
@@ -116,7 +123,8 @@ class BoundedRayTargetWorld {
         return RayTargetResult(false, false, 0, -1, 0, 0, 0)
     }
 
-    RayTargetResult query(
+    RayTargetResult queryFrom(
+        Int sourceId,
         Int startX, Int startY, Int startZ,
         Int endX, Int endY, Int endZ,
         Int range, Int radius
@@ -143,7 +151,7 @@ class BoundedRayTargetWorld {
             var bestTarget = 0
             var bestOffset = radius + 1
             for (var index = 0; index < ids.length; index = index + 1) {
-                if (active[index]) {
+                if (active[index] && ids[index] != sourceId) {
                     var offset = segmentDistance(
                         sampleX, sampleY, sampleZ,
                         positionsX[index], positionsY[index], positionsZ[index])
@@ -164,6 +172,23 @@ class BoundedRayTargetWorld {
         return RayTargetResult(true, false, 0, -1, endX, endY, endZ)
     }
 
+    RayTargetResult query(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ,
+        Int range, Int radius
+    ) {
+        return queryFrom(
+            0, startX, startY, startZ,
+            endX, endY, endZ, range, radius)
+    }
+
+    RayTargetResult queryAim(SpatialAimContract aim) {
+        return queryFrom(
+            aim.sourceId(), aim.startX(), aim.startY(), aim.startZ(),
+            aim.aimEndX(), aim.aimEndY(), aim.aimEndZ(),
+            aim.range(), aim.radius())
+    }
+
     RayTargetResult queryShotgunPellet(
         Int startX, Int startY, Int startZ,
         Int aimEndX, Int aimEndY, Int aimEndZ,
@@ -173,5 +198,14 @@ class BoundedRayTargetWorld {
             startX, startY, startZ,
             aimEndX + offsetX, aimEndY + offsetY, aimEndZ,
             range, radius)
+    }
+
+    RayTargetResult queryShotgunPelletAim(
+        SpatialAimContract aim, Int offsetX, Int offsetY
+    ) {
+        return queryFrom(
+            aim.sourceId(), aim.startX(), aim.startY(), aim.startZ(),
+            aim.aimEndX() + offsetX, aim.aimEndY() + offsetY,
+            aim.aimEndZ(), aim.range(), aim.radius())
     }
 }

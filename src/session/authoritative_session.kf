@@ -9,6 +9,7 @@ class LoopbackSession {
     InputEdgeState playerOneEdges
     InputEdgeState playerTwoEdges
     CombatWorld playerCombat
+    BoundedRayTargetWorld playerSpatialTargets
     PlayerWeaponPresenter playerWeaponPresentations
     BoundedReplayPresentationHistory replayPresentationHistory
     BoundedSkillDefinitionStore playerSkillDefinitions
@@ -107,6 +108,7 @@ class LoopbackSession {
         enemyImpactPresentations = ImpactPresentationQueue(entityCapacity * 2)
         enemyImpactAudio = QueuedAudio(entityCapacity * 2)
         playerCombat = CombatWorld(entityCapacity, entityCapacity)
+        playerSpatialTargets = BoundedRayTargetWorld(entityCapacity, 1000000)
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
         replayPresentationHistory = BoundedReplayPresentationHistory(entityCapacity * 8)
         playerSkillDefinitions = BoundedSkillDefinitionStore(16)
@@ -1038,6 +1040,45 @@ class LoopbackSession {
         return playerCombat.resolveShotgunPelletTargets(
             sourceId, targetIds, tick, distance, critical)
     }
+    Bool setPlayerSpatialTarget(Int id, Int x, Int y, Int z) {
+        return playerSpatialTargets.setTarget(id, x, y, z)
+    }
+
+    Bool removePlayerSpatialTarget(Int id) {
+        return playerSpatialTargets.removeTarget(id)
+    }
+
+    AreaDamageResult resolvePlayerSpatialShotgun(
+        Int sourceId,
+        Int startX, Int startY, Int startZ,
+        Int aimEndX, Int aimEndY, Int aimEndZ,
+        Int range, Int radius, Int tick, Int critical
+    ) {
+        var pelletCount = playerCombat.shotgunPelletCount(sourceId)
+        if (pelletCount <= 0) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var selectedTargets = new Int[pelletCount]
+        var aim = SpatialAimContract(
+            sourceId, startX, startY, startZ,
+            aimEndX, aimEndY, aimEndZ, range, radius)
+        for (var pellet = 0; pellet < pelletCount; pellet = pellet + 1) {
+            var offset = playerCombat.shotgunPelletOffsetForSource(
+                sourceId, pellet)
+            if (!offset.valid()) {
+                return AreaDamageResult(false, 0, 0, 0)
+            }
+            var target = playerSpatialTargets.queryShotgunPelletAim(
+                aim, offset.x(), offset.y())
+            selectedTargets[pellet] = 0
+            if (target.hit()) {
+                selectedTargets[pellet] = target.targetId()
+            }
+        }
+        return playerCombat.resolveShotgunPelletTargets(
+            sourceId, selectedTargets, tick, range, critical)
+    }
+
 
 
     Int playerCombatHealth(Int actorId) {

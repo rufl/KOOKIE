@@ -2236,6 +2236,11 @@ test "bounded spatial ray target selection" {
     assert(center.accepted() && center.hit() &&
         center.targetId() == 9 && center.distance() == 5,
         "ray query must select the nearest target on the center line")
+    var aim = SpatialAimContract(9, 0, 0, 0, 10, 0, 0, 20, 5)
+    var sourceExcluded = rays.queryAim(aim)
+    assert(sourceExcluded.accepted() && sourceExcluded.hit() &&
+        sourceExcluded.targetId() == 3,
+        "shared aim contract must exclude its source actor")
     var pellet = rays.queryShotgunPellet(
         0, 0, 0, 10, 0, 0, 0, 5, 20, 0)
     assert(pellet.accepted() && pellet.hit() &&
@@ -2248,6 +2253,34 @@ test "bounded spatial ray target selection" {
         !rays.query(0, 0, 0, 10, 0, 0, 20, -1).accepted(),
         "ray queries must reject invalid range and radius")
 }
+test "authoritative spatial shotgun uses shared aim contract" {
+    var session = LoopbackSession(8, 8)
+    assert(session.definePlayerWeapon(14, 2, 0, 0, 100, 1, 30) &&
+        session.setPlayerWeaponSpread(14, 3, 5) &&
+        session.addPlayerCombatActor(10, 1000, 0) &&
+        session.addPlayerCombatActor(11, 1000, 0) &&
+        session.addPlayerCombatActor(12, 1000, 0) &&
+        session.addPlayerCombatActor(13, 1000, 0) &&
+        session.equipPlayerCombatWeapon(10, 14),
+        "authoritative spatial shotgun rules must configure")
+    assert(session.setPlayerSpatialTarget(10, 0, 0, 0) &&
+        session.setPlayerSpatialTarget(11, 10, 5, 0) &&
+        session.setPlayerSpatialTarget(12, 5, -5, 0) &&
+        session.setPlayerSpatialTarget(13, 15, -5, 0),
+        "shared aim targets must register")
+    var result = session.resolvePlayerSpatialShotgun(
+        10, 0, 0, 0, 10, 0, 0, 30, 0, 0, 0)
+    assert(result.accepted() && result.targetCount() == 3 &&
+        result.applied() == 296 &&
+        session.playerCombatHealth(11) == 900 &&
+        session.playerCombatHealth(12) == 901 &&
+        session.playerCombatHealth(13) == 903,
+        "authoritative spatial shotgun must resolve one target per pellet")
+    assert(session.removePlayerSpatialTarget(12) &&
+        session.playerCombatHealth(12) == 901,
+        "spatial target removal must preserve prior authority state")
+}
+
 
 
 test "continuous projectiles and encounter zones" {

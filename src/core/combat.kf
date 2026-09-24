@@ -1064,6 +1064,28 @@ class CombatWorld {
         }
         return ShotgunPelletOffset(true, pellet, x, y)
     }
+    Int shotgunPelletCount(Int sourceId) {
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex]) {
+            return 0
+        }
+        var weaponId = weaponIds[sourceIndex]
+        if (!weapons.has(weaponId)) {
+            return 0
+        }
+        return weapons.pellets(weaponId)
+    }
+
+    ShotgunPelletOffset shotgunPelletOffsetForSource(
+        Int sourceId, Int pellet
+    ) {
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex]) {
+            return ShotgunPelletOffset(false, pellet, 0, 0)
+        }
+        return shotgunPelletOffset(weaponIds[sourceIndex], pellet)
+    }
+
     Int shotgunTargetStartIndex(
         Int weaponId, Int pellet, Int targetCount
     ) {
@@ -1243,9 +1265,14 @@ class CombatWorld {
             return AreaDamageResult(false, 0, 0, 0)
         }
         for (var index = 0; index < targetIds.length; index = index + 1) {
-            var targetIndex = findActor(targetIds[index])
-            if (targetIndex < 0 || !alive[targetIndex]) {
+            if (targetIds[index] < 0) {
                 return AreaDamageResult(false, 0, 0, 0)
+            }
+            if (targetIds[index] > 0) {
+                var targetIndex = findActor(targetIds[index])
+                if (targetIndex < 0 || !alive[targetIndex]) {
+                    return AreaDamageResult(false, 0, 0, 0)
+                }
             }
         }
         var shot = fire(sourceId, tick)
@@ -1258,7 +1285,11 @@ class CombatWorld {
         var baseDamage = effectiveDamage(sourceId, weapons.damage(weaponId))
         for (var pellet = 0; pellet < pelletCount; pellet = pellet + 1) {
             var selectedTarget = targetIds[pellet]
-            if (!alive[findActor(selectedTarget)]) {
+            if (selectedTarget == 0) {
+                continue
+            }
+            var selectedIndex = findActor(selectedTarget)
+            if (selectedIndex < 0 || !alive[selectedIndex]) {
                 continue
             }
             var spread = weapons.spread(weaponId) * pellet / pelletCount
