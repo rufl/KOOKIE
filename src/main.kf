@@ -548,6 +548,35 @@ test "atomic item inventory transactions and persistence" {
         "inventory currency and ownership must survive schema persistence")
 }
 
+test "deterministic item definitions and loot rolls" {
+    var definitions = BoundedItemDefinitionStore(2)
+    assert(definitions.define(10, 25, 1, 20, 4) &&
+        definitions.define(11, 50, 5, 20, 2) &&
+        !definitions.define(10, 30, 1, 20, 4) &&
+        !definitions.define(12, 30, 0, 20, 4))
+    var table = BoundedLootTable(2)
+    assert(table.add(10, 3, definitions) &&
+        table.add(11, 1, definitions) &&
+        !table.add(10, 1, definitions))
+    var first = BoundedItemRoll()
+    var second = BoundedItemRoll()
+    assert(table.roll(500, 12345, 10, definitions, first) &&
+        table.roll(500, 12345, 10, definitions, second) &&
+        first.accepted() &&
+        first.definitionId() == second.definitionId() &&
+        first.rarity() == second.rarity() &&
+        first.affixOne() == second.affixOne() &&
+        first.affixTwo() == second.affixTwo() &&
+        first.condition() == second.condition() &&
+        first.level() == 10,
+        "loot rolls must be deterministic for the same seed and inputs")
+    var inventory = BoundedItemInventory(3, 2)
+    assert(inventory.addLootedItem(first, 1) &&
+        inventory.itemId(0) == 500 &&
+        !inventory.addLootedItem(BoundedItemRoll(), 1),
+        "accepted loot rolls must enter inventory with stable identity")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

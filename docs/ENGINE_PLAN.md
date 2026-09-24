@@ -484,13 +484,13 @@ Separate immutable `WeaponDef` from runtime magazine/reload/cooldown/spin/burst 
 
 ### Loot, inventory and progression
 
-- `ItemDef` identifies a template; `ItemInstance` stores stable ID, seed, item level, rarity, selected affixes/rolled values and mutable condition/socket state.
-- Loot selection: encounter table → weighted base item → rarity → eligible prefix/suffix/mod pool → rolls with exclusions/tier constraints. Use separate per-system RNG streams; preserve results in saves.
-- Affix composition order explicit: base → flat → additive percentage → multiplicative groups → caps/rounding. Recompute on equipment/definition changes, not every frame.
-- Inventory/equipment/stash/crafting use validation + reservation + atomic commit. Full inventory, duplicate IDs, insufficient currency and incompatible slots leave items, currency and RNG unchanged.
+- `ItemDef` identifies a bounded template through `BoundedItemDefinitionStore`; `BoundedItemRoll` stores stable ID, seed, item level, rarity, selected affixes and condition, while `BoundedItemInventory` owns stable IDs, ownership and quantities.
+- `BoundedLootTable` performs deterministic weighted definition selection and deterministic rarity/affix/condition rolls from an explicit seed; accepted rolls enter inventory through bounded identity validation. Full affix composition and content-driven loot pools remain required.
+- Affix composition order remains explicit: base → flat → additive percentage → multiplicative groups → caps/rounding. Recompute on equipment/definition changes, not every frame.
+- Inventory/equipment/stash/crafting use validation + reservation + atomic commit. `BoundedItemInventory.purchaseFrom` now atomically transfers item quantity and currency, rejecting full inventory, duplicate IDs, insufficient currency and invalid quantities without mutation. Equipment, crafting and multi-operation reservations remain required.
 - Skill definitions declare prerequisites/rank caps/costs/cooldowns/tags; character instances own ranks/loadout/XP/resources.
 - Status definitions specify refresh/replace/add-stack rules, duration cap and ticking schedule. Death/reset/load clears or retains effects intentionally.
-- Save item rolls, not merely current RNG state, so balance/content migration cannot silently reroll equipment.
+- Save item rolls, not merely current RNG state, so balance/content migration cannot silently reroll equipment; roll-field persistence remains required.
 
 Borrow ZYLVE's transaction/identity invariants, not its fixed weapon names, small inventory sizes or fixed tier-drop tables. These systems are part of the planned engine, not deferred out of scope after a shooting demo.
 

@@ -1,0 +1,276 @@
+package core
+
+class BoundedItemDefinitionStore {
+    Int[] ids
+    Int[] baseValues
+    Int[] minimumLevels
+    Int[] maximumLevels
+    Int[] affixPools
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 32) {
+            actualCapacity = 32
+        }
+        ids = new Int[actualCapacity]
+        baseValues = new Int[actualCapacity]
+        minimumLevels = new Int[actualCapacity]
+        maximumLevels = new Int[actualCapacity]
+        affixPools = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Bool define(
+        Int id, Int baseValue, Int minimumLevel,
+        Int maximumLevel, Int affixPool
+    ) {
+        if (id <= 0 || baseValue < 0 || baseValue > 1000000 ||
+            minimumLevel <= 0 || maximumLevel < minimumLevel ||
+            maximumLevel > 1000000 || affixPool < 0 || affixPool > 64 ||
+            countValue >= ids.length || find(id) >= 0) {
+            return false
+        }
+        ids[countValue] = id
+        baseValues[countValue] = baseValue
+        minimumLevels[countValue] = minimumLevel
+        maximumLevels[countValue] = maximumLevel
+        affixPools[countValue] = affixPool
+        countValue = countValue + 1
+        return true
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool contains(Int id) {
+        return find(id) >= 0
+    }
+
+    Int baseValue(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return baseValues[index]
+    }
+
+    Int minimumLevel(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return minimumLevels[index]
+    }
+
+    Int maximumLevel(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return maximumLevels[index]
+    }
+
+    Int affixPool(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return affixPools[index]
+    }
+}
+
+class BoundedItemRoll {
+    Bool acceptedValue
+    Int stableIdValue
+    Int definitionIdValue
+    Int seedValue
+    Int levelValue
+    Int rarityValue
+    Int affixOneValue
+    Int affixTwoValue
+    Int conditionValue
+
+    public constructor() {
+        clear()
+    }
+
+    Bool stage(
+        Int stableId, Int definitionId, Int seed, Int level,
+        Int rarity, Int affixOne, Int affixTwo, Int condition
+    ) {
+        if (stableId <= 0 || definitionId <= 0 || seed < 0 ||
+            level <= 0 || level > 1000000 || rarity < 1 || rarity > 3 ||
+            affixOne < 0 || affixOne > 64 || affixTwo < 0 || affixTwo > 64 ||
+            condition < 0 || condition > 100) {
+            return false
+        }
+        acceptedValue = true
+        stableIdValue = stableId
+        definitionIdValue = definitionId
+        seedValue = seed
+        levelValue = level
+        rarityValue = rarity
+        affixOneValue = affixOne
+        affixTwoValue = affixTwo
+        conditionValue = condition
+        return true
+    }
+
+    Bool accepted() {
+        return acceptedValue
+    }
+
+    Int stableId() {
+        return stableIdValue
+    }
+
+    Int definitionId() {
+        return definitionIdValue
+    }
+
+    Int seed() {
+        return seedValue
+    }
+
+    Int level() {
+        return levelValue
+    }
+
+    Int rarity() {
+        return rarityValue
+    }
+
+    Int affixOne() {
+        return affixOneValue
+    }
+
+    Int affixTwo() {
+        return affixTwoValue
+    }
+
+    Int condition() {
+        return conditionValue
+    }
+
+    Bool clear() {
+        acceptedValue = false
+        stableIdValue = 0
+        definitionIdValue = 0
+        seedValue = 0
+        levelValue = 0
+        rarityValue = 0
+        affixOneValue = 0
+        affixTwoValue = 0
+        conditionValue = 0
+        return true
+    }
+}
+
+class BoundedLootTable {
+    Int[] definitionIds
+    Int[] weights
+    Int countValue
+    Int totalWeightValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 32) {
+            actualCapacity = 32
+        }
+        definitionIds = new Int[actualCapacity]
+        weights = new Int[actualCapacity]
+        countValue = 0
+        totalWeightValue = 0
+    }
+
+    Bool add(Int definitionId, Int weight, BoundedItemDefinitionStore definitions) {
+        if (definitionId <= 0 || weight <= 0 || weight > 1000000 ||
+            totalWeightValue > 1000000 - weight ||
+            countValue >= definitionIds.length ||
+            definitions.find(definitionId) < 0 || find(definitionId) >= 0) {
+            return false
+        }
+        definitionIds[countValue] = definitionId
+        weights[countValue] = weight
+        countValue = countValue + 1
+        totalWeightValue = totalWeightValue + weight
+        return true
+    }
+
+    Int find(Int definitionId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (definitionIds[index] == definitionId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int nextValue(Int seed, Int salt, Int bound) {
+        if (bound <= 0) {
+            return 0
+        }
+        var value = (seed * 48271 + salt * 7919 + 17) % 1000003
+        if (value < 0) {
+            value = value + 1000003
+        }
+        return value % bound
+    }
+
+    Bool roll(
+        Int stableId, Int seed, Int level,
+        BoundedItemDefinitionStore definitions, BoundedItemRoll target
+    ) {
+        if (stableId <= 0 || seed < 0 || seed > 1000000 || level <= 0 ||
+            level > 1000000 || countValue == 0 || totalWeightValue <= 0) {
+            return false
+        }
+        var pick = nextValue(seed, 1, totalWeightValue)
+        var selected = -1
+        var cursor = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            cursor = cursor + weights[index]
+            if (pick < cursor) {
+                selected = index
+                break
+            }
+        }
+        if (selected < 0) {
+            return false
+        }
+        var definitionId = definitionIds[selected]
+        if (level < definitions.minimumLevel(definitionId) ||
+            level > definitions.maximumLevel(definitionId)) {
+            return false
+        }
+        var affixPool = definitions.affixPool(definitionId)
+        var affixOne = 0
+        var affixTwo = 0
+        if (affixPool > 0) {
+            affixOne = 1 + nextValue(seed, 3, affixPool)
+            if (affixPool > 1) {
+                affixTwo = 1 + nextValue(seed, 4, affixPool)
+                if (affixTwo == affixOne) {
+                    affixTwo = (affixTwo % affixPool) + 1
+                }
+            }
+        }
+        return target.stage(
+            stableId, definitionId, seed, level,
+            1 + nextValue(seed, 2, 3), affixOne, affixTwo,
+            50 + nextValue(seed, 5, 51))
+    }
+}

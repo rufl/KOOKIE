@@ -103,6 +103,13 @@ class BoundedItemInventory {
         return items.add(itemId, ownerValue, quantity)
     }
 
+    Bool addLootedItem(BoundedItemRoll roll, Int quantity) {
+        if (!roll.accepted()) {
+            return false
+        }
+        return items.add(roll.stableId(), ownerValue, quantity)
+    }
+
     Bool removeItem(Int itemId, Int quantity) {
         return items.remove(itemId, quantity)
     }
