@@ -8,6 +8,8 @@ KOOKIE keeps portable engine, game, and tool CPU behavior in Kof `.kf` source. E
 
 Public pages and documentation are maintained in English and Brazilian Portuguese. Keep the matching file under `pt-BR/` synchronized whenever a page or document changes.
 
+For a quick picture of recent work, read [CHANGELOG.md](CHANGELOG.md). Keep the changelog and the matching Portuguese file useful to a person joining the project: describe the behavior that changed, the check that supports it, and the limit that remains.
+
 ## Verification gate
 
 Before every push, run the repository gate from its root:

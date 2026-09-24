@@ -4,24 +4,33 @@
 Public pages and documentation are maintained in English and Brazilian Portuguese. Keep matching changes synchronized under `pt-BR/`.
 
 
-Research and plan for a **Kof-first, native 3D shooter engine**: boomer shooters, looter shooters and ARPG FPS.
+Research and planning for a **Kof-first, native 3D shooter engine**: boomer shooters, looter shooters and ARPG FPS.
 
-**Current state:** G0 implementation has started. A minimal modular Kof core,
-session envelope smoke codec, checked resource-token registry, scalar SDL
-lifecycle contract, bounded window/audio state, and a narrow native SDL adapter
-exist. Compiler checks and Kof contract tests pass on JVM/native. The native
-window/audio smoke is wired but its isolated-display run remains pressure-gated;
-SDL_GPU, textured rendering and multiplayer transport are not implemented.
+**Where things stand:** KOOKIE is an engine under construction, not a finished game or a proven graphics stack. The bounded G0/G1 foundation is real and tested on JVM and native targets: sessions, fixed-step authority, snapshots, collision/BVH queries, spatial projectiles, saves/replays, item/progression state, and a narrow SDL adapter all exist. The latest combat work adds deterministic ray and shotgun-pellet selection plus an exact per-pellet damage contract.
+
+The honest short version:
+
+- The native target is Linux x86-64. JVM runs are our comparison target.
+- Headless SDL_GPU rendering, recovery, queued audio, and authenticated localhost UDP probes work in their limited test shapes.
+- Window presentation still depends on a host with isolated DRI3 support.
+- Kof bulk-buffer FFI is still blocked by `FFI001`, so the SIMD kernel is proven as a native mechanism but is not yet wired into Kof-owned hot loops.
+- Crash-durable saves, production multiplayer, content cooking, production audio, and the full physics stack are still ahead.
+
+This project favors small executable contracts over impressive scaffolding. If a claim is not backed by a focused probe or test, it stays a proposal.
 
 ## Proposed direction
 
-- All engine-owned CPU logic and authoring/cooking behavior in **`.kf`**.
-- Initial runtime: **Kof native Linux x86-64**, with JVM used as a development comparison target.
-- Preferred platform/render library: **SDL3 + SDL_GPU**, first Vulkan/SPIR-V.
-- Non-Kof limited to indispensable external libraries, small ABI marshaling, GPU shaders and minimal tool/bootstrap glue. No hidden C/Java/Rust/Zig engine.
-- Borrow algorithms and contracts from DINX, ZYLVE and CUBSHIP; do not transplant their engines or assume rights to their assets.
+- Keep engine, game, and tool CPU behavior in **`.kf`**.
+- Start with **Kof native Linux x86-64**, using JVM as a development comparison target.
+- Use **SDL3 + SDL_GPU**, initially Vulkan/SPIR-V.
+- Keep non-Kof code to indispensable libraries, narrow ABI marshaling, shaders, and minimal tool/bootstrap glue. No hidden C/Java/Rust/Zig engine.
+- Borrow useful algorithms and contracts from DINX, ZYLVE and CUBSHIP without transplanting their engines or assuming rights to their assets.
 
-This is a proposed stack, not a proven graphics binding. Kof scalar FFI works; buffer/struct/pointer limitations, exception-handler correctness and native collector behavior must be addressed before committing to a sustained shooter workload.
+The stack is promising, not proven end to end. Scalar FFI works; bulk buffers, native exception correctness, collector behavior, and long-running graphics/audio workloads still need real gates.
+
+## Changelog
+
+[Recent project history](CHANGELOG.md)
 
 ## Documentation
 

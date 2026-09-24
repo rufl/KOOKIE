@@ -1,10 +1,10 @@
 # KOOKIE working memory
 
-Last research and tooling installation: 2026-09-22. Read [README](README.md) then [ENGINE_PLAN](docs/ENGINE_PLAN.md). G0 implementation now includes a checked resource-token contract; tooling installation is not engine implementation.
+Last updated after the 2026-09-24 combat and documentation batch. Start with [README](README.md), then use [CHANGELOG](CHANGELOG.md) for the human summary and [ENGINE_PLAN](docs/ENGINE_PLAN.md) for the detailed gates. G0/G1 is real, bounded and tested; the native graphics/audio stack is still deliberately incomplete.
 
 ## User intent
 
-Create an engine for boomer shooters / looter shooters / ARPG FPS using **native Kof `.kf` source for all portable engine/game/tool logic**. External graphics/platform libraries and indispensable ABI/shader code are exceptions, not permission to build the engine in another language. Borrow useful logic from ZYLVE, DINX, CUBSHIP. Current work has started bounded G0 implementation; it has not yet implemented the native graphics/audio engine.
+Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf` source for portable engine, game and tool logic**. External graphics/platform libraries and narrow ABI/shader code are allowed where they are genuinely needed. Borrow useful ideas from ZYLVE, DINX and CUBSHIP without turning those projects into hidden dependencies. The current implementation is moving in small, testable slices rather than pretending the whole engine exists.
 
 ## Pinned research identities
 
@@ -61,7 +61,9 @@ management remains unimplemented.
 23. GPU recovery capability reporting is state-aware: ready exposes clean reopen plus the explicit loss marker, lost exposes reopen only, and unavailable/failed expose no capabilities; SDL3 exposes no device-loss callback in the installed GPU API.
 24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is bound to both the environment key boundary and a live external UDP peer smoke; session orchestration and production secret storage remain unimplemented.
 25. `RemoteSessionLink` gates broad-phase snapshots on endpoint activation and strictly increasing send/receive sequences; the native isolated probe sends and applies a snapshot through the link, while live session-loop orchestration remains unimplemented.
-
+26. `BoundedRayTargetWorld` performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits on one actor. Automatic spatial combat still needs a shared actor-radius/aim contract.
+27. Native SIMD dispatch now selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps a checked scalar fallback. `FFI001` still prevents Kof bulk-buffer integration, so this is not a measured engine speedup.
+28. The current focused source gate is 62 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
 
 ## Editor cautions
 

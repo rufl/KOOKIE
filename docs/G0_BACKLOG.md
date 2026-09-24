@@ -76,10 +76,10 @@ This is the active bounded implementation sequence after the initial research an
 - DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and AArch64 cross-target syntax proof. Bulk Kof integration remains blocked by the existing `FFI001` array/buffer boundary; no speedup is claimed.
 - `BoundedRayTargetWorld` now provides bounded integer ray and shotgun-pellet target selection with nearest-hit ordering, stable-ID ties, spread offsets, target removal and invalid-input rejection; JVM/native coverage proves center and offset pellet hits. Full combat integration still needs a shared actor-radius/aim contract.
 - `CombatWorld.resolveShotgunPelletTargets` and player/enemy session wrappers now accept exactly one validated target per pellet, preserve repeated target IDs when multiple pellets hit the same actor, and publish ordered combat events; JVM/native coverage proves target order and rejects wrong-length selections. Automatic spatial selection still requires the shared actor-radius/aim contract.
-
 ## Next batch
 
-1. Run the DRI3-capable window screenshot path on an isolated present-capable host; the isolated X11/offscreen smoke was exercised again and correctly reported `gpu-unavailable`, while Xvfb remains presentation-incompatible.
+1. Give spatial shotgun selection one shared actor-radius/aim contract and connect it to the authoritative spatial combat path.
+2. Run the DRI3-capable window screenshot path on an isolated present-capable host; the X11/offscreen smoke correctly reports `gpu-unavailable`, while Xvfb remains presentation-incompatible.
 
 
 ## Deferred

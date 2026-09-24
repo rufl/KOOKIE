@@ -66,8 +66,8 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 
 ## Próximo lote
 
-1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke isolado X11/offscreen foi executado novamente e reportou corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
-
+1. Dar à seleção espacial do shotgun um contrato único de raio do ator/mira e conectá-la ao caminho espacial autoritativo de combate.
+2. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke X11/offscreen reporta corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
 ## Adiado
 
 - Física completa, cooking de conteúdo, schema de save e transporte multiplayer de produção.

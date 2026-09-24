@@ -1,10 +1,10 @@
 # Memória de trabalho do KOOKIE
 
-Última pesquisa e instalação de ferramentas: 2026-09-22. Leia [README](README.md) e depois [ENGINE_PLAN](docs/ENGINE_PLAN.md). A implementação G0 agora inclui um contrato verificado de tokens de recursos; a instalação das ferramentas não é a implementação do engine.
+Atualizada após o lote de combate e documentação de 2026-09-24. Comece pelo [README](README.md), use o [CHANGELOG](CHANGELOG.md) para o resumo humano e o [ENGINE_PLAN](docs/ENGINE_PLAN.md) para os gates detalhados. G0/G1 é real, limitado e testado; a stack nativa de gráficos/áudio ainda está deliberadamente incompleta.
 
 ## Intenção do usuário
 
-Criar um engine para boomer shooters / looter shooters / ARPG FPS usando **código-fonte nativo Kof `.kf` para toda a lógica portátil do engine/jogo/ferramentas**. Bibliotecas externas de gráficos/plataforma e código indispensável de ABI/shader são exceções, não permissão para construir o engine em outra linguagem. Aproveitar lógica útil de ZYLVE, DINX, CUBSHIP. O trabalho atual iniciou a implementação G0 limitada; a engine nativa de gráficos/áudio ainda não foi implementada.
+Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código-fonte nativo Kof `.kf` para a lógica portátil da engine, do jogo e das ferramentas**. Bibliotecas externas de gráficos/plataforma e código estreito de ABI/shader são permitidos quando realmente necessários. Aproveitar ideias úteis de ZYLVE, DINX e CUBSHIP sem transformar esses projetos em dependências escondidas. A implementação avança em fatias pequenas e testáveis, sem fingir que a engine inteira já existe.
 
 ## Identidades de pesquisa fixadas
 
@@ -61,7 +61,9 @@ implementada.
 23. O relatório de capacidades de recuperação GPU é sensível ao estado: ready expõe reopen limpo e o marcador explícito de perda, lost expõe apenas reopen, e unavailable/failed não expõem capacidades; a SDL3 instalada não expõe callback de perda de dispositivo.
 24. `RemoteSessionEndpoint` valida IPv4/porta e chaves SipHash não nulas, congela alterações de peer/chave enquanto ativo, permite troca de chave apenas inativo e está ligado à fronteira de chave via ambiente e a um smoke de peer UDP externo real; orquestração de sessão e armazenamento de segredos de produção ainda não foram implementados.
 25. `RemoteSessionLink` bloqueia snapshots broad-phase até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes; a sonda nativa isolada envia e aplica um snapshot através do link, enquanto a orquestração em loop de sessão real ainda não foi implementada.
-
+26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo escolhido por pellet, inclusive impactos repetidos no mesmo ator. O combate espacial automático ainda precisa de um contrato compartilhado de raio do ator/mira.
+27. O despacho SIMD nativo agora seleciona AVX2/SSE2 no x86, possui caminho de origem NEON no AArch64 e mantém um fallback escalar verificado. `FFI001` ainda impede a integração de buffers do Kof, então isso não é um ganho de velocidade medido da engine.
+28. O gate focado atual tem 62 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
 

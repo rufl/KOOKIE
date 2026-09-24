@@ -7,6 +7,8 @@ O KOOKIE mantém em código-fonte Kof `.kf` todo comportamento portátil de CPU 
 ## Idioma
 
 As páginas e a documentação pública são mantidas em inglês e português brasileiro. Mantenha o arquivo correspondente em `pt-BR/` sincronizado sempre que uma página ou documento mudar.
+Para uma visão rápida do trabalho recente, leia [CHANGELOG.md](CHANGELOG.md). Mantenha o changelog e o arquivo correspondente em inglês úteis para quem está chegando ao projeto: descreva o comportamento que mudou, a verificação que o sustenta e o limite que continua.
+
 
 ## Gate de verificação
 

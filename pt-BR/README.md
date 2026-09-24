@@ -6,24 +6,31 @@ As páginas e a documentação pública são mantidas em português brasileiro e
 
 Pesquisa e planejamento para uma **engine de tiro 3D nativa e focada em Kof**: boomer shooters, looter shooters e ARPG FPS.
 
-**Estado atual:** a implementação G0 foi iniciada. Um núcleo Kof modular mínimo,
-um codec de teste do envelope de sessão, um registry verificado de tokens de
-recursos, um contrato escalar de ciclo de vida SDL, estado limitado de
-janela/áudio e um adaptador nativo SDL estreito existem. As verificações do
-compilador e os testes de contrato Kof passam na JVM/nativo. O smoke nativo de
-janela/áudio está conectado, mas sua execução em display isolado continua sob
-gate de pressão; SDL_GPU, renderização texturizada e transporte multiplayer não
-foram implementados.
+**Onde estamos:** o KOOKIE ainda está sendo construído; não é um jogo pronto nem uma stack gráfica comprovada. A fundação limitada de G0/G1 é real e passa nos testes JVM/nativo: sessões, autoridade fixed-step, snapshots, consultas de colisão/BVH, projéteis espaciais, saves/replays, estado de itens/progressão e um adaptador SDL estreito já existem. O trabalho de combate mais recente adiciona seleção determinística por raio e pellet de shotgun, além de um contrato exato de dano por pellet.
+
+A versão curta e honesta:
+
+- O alvo nativo é Linux x86-64. A JVM serve como alvo de comparação.
+- Renderização SDL_GPU headless, recuperação, áudio enfileirado e sondas UDP autenticadas em localhost funcionam nos formatos limitados que foram testados.
+- A apresentação em janela ainda depende de um host com suporte DRI3 isolado.
+- A FFI de buffers do Kof continua bloqueada por `FFI001`; o kernel SIMD está comprovado como mecanismo nativo, mas ainda não está ligado aos hot loops pertencentes ao Kof.
+- Saves realmente duráveis contra crash, multiplayer de produção, content cooker, áudio de produção e a stack completa de física ainda estão pela frente.
+
+O projeto prefere contratos pequenos e executáveis a um esqueleto impressionante. Se uma afirmação não tem uma sonda ou teste focado por trás, ela continua sendo proposta.
 
 ## Direção proposta
 
-- Toda a lógica de CPU pertencente à engine e o comportamento de autoria/cozimento em **`.kf`**.
-- Runtime inicial: **Kof nativo Linux x86-64**, com a JVM usada como alvo de comparação durante o desenvolvimento.
-- Biblioteca preferida de plataforma/renderização: **SDL3 + SDL_GPU**, primeiro Vulkan/SPIR-V.
-- Não-Kof limitado a bibliotecas externas indispensáveis, pequeno marshaling de ABI, shaders de GPU e um glue mínimo de ferramentas/bootstrap. Nenhuma engine C/Java/Rust/Zig oculta.
-- Aproveitar algoritmos e contratos de DINX, ZYLVE e CUBSHIP; não transplantar suas engines nem presumir direitos sobre seus assets.
+- Manter em **`.kf`** o comportamento de CPU da engine, do jogo e das ferramentas.
+- Começar com **Kof nativo Linux x86-64**, usando a JVM como comparação durante o desenvolvimento.
+- Usar **SDL3 + SDL_GPU**, inicialmente Vulkan/SPIR-V.
+- Limitar o código não-Kof a bibliotecas indispensáveis, marshaling estreito de ABI, shaders e glue mínimo de ferramentas/bootstrap. Nenhuma engine C/Java/Rust/Zig escondida.
+- Aproveitar algoritmos e contratos de DINX, ZYLVE e CUBSHIP sem transplantar suas engines nem presumir direitos sobre seus assets.
 
-Esta é uma stack proposta, não uma binding gráfica comprovada. A FFI escalar de Kof funciona; limitações de buffer/struct/pointer, correção dos manipuladores de exceção e comportamento do coletor nativo precisam ser resolvidos antes de assumir um workload sustentado de shooter.
+A stack é promissora, mas ainda não foi comprovada de ponta a ponta. A FFI escalar funciona; buffers em massa, correção das exceções nativas, comportamento do coletor e workloads longos de gráficos/áudio ainda precisam de gates reais.
+
+## Changelog
+
+[Histórico recente do projeto](CHANGELOG.md)
 
 ## Documentação
 
