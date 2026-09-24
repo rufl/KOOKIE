@@ -83,9 +83,9 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 O roadmap não terminou; o trabalho concluído permanece registrado aqui, sem arquivar o backlog ativo.
 
 - `kof info --json` instalado reporta 0.4.9-beta em Linux x86-64. O assembler nativo inspecionado vincula ELF Linux; builds nativos Windows não foram estabelecidos. Um launcher Windows do compilador não comprova o alvo Windows da engine.
-- O deploy ZTASH usa arquivos `.tar.gz`/`.zip` por alvo e metadados imutáveis de procedência, não um formato `.ztash`. KOOKIE possui descritor de aplicação no OVERZEER e caminhos de pacote nativo/JVM Linux. O rollout Linux do registro OVERZEER foi aceito pela lane remota, mas o serviço ativo do Chopper ainda anuncia o registro antigo até reiniciar; nenhuma ativação do KOOKIE teve sucesso.
+- O deploy ZTASH usa arquivos `.tar.gz`/`.zip` por alvo e metadados imutáveis de procedência, não um formato `.ztash`. KOOKIE possui descritor de aplicação no OVERZEER e caminhos de pacote nativo/JVM Linux. Um rollout Linux do registro OVERZEER foi aceito pela lane remota: o DDJARIN anuncia `kookie` para `windows-x86_64`, enquanto o serviço ativo do Chopper ainda anuncia o registro antigo e não lista o KOOKIE.
 - A reconexão da sessão remota agora preserva as marcas d'água de envio/recebimento de broad-phase ao fechar e reabrir. A sonda UDP nativa autenticada fecha e reabre o par local, retoma na sequência 9 e rejeita snapshots antigos pelo mesmo contrato monotônico do link. A prova LAN autenticada com dois clientes continua aberta.
-- As consultas autenticadas de dispositivos Chopper/DDJARIN retornam zero dispositivos; nenhuma ativação remota do pacote KOOKIE teve sucesso. Os arquivos de credencial foram usados somente por caminhos do cliente que verificam permissões.
+- As consultas autenticadas de dispositivos Chopper/DDJARIN retornam zero dispositivos; nenhuma ativação remota do pacote KOOKIE teve sucesso. Os pacotes disponíveis têm alvo Linux e não foram enviados ao alvo Windows do DDJARIN. Os arquivos de credencial foram usados somente por caminhos do cliente que verificam permissões.
 
 
 ## Adiado
