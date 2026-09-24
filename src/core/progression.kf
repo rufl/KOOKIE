@@ -4,6 +4,7 @@ class BoundedSkillDefinitionStore {
     Int[] ids
     Int[] maximumRanks
     Int[] experienceCosts
+    Int[] damagePercents
     Int countValue
 
     public constructor(Int capacity) {
@@ -17,6 +18,7 @@ class BoundedSkillDefinitionStore {
         ids = new Int[actualCapacity]
         maximumRanks = new Int[actualCapacity]
         experienceCosts = new Int[actualCapacity]
+        damagePercents = new Int[actualCapacity]
         countValue = 0
     }
 
@@ -56,6 +58,23 @@ class BoundedSkillDefinitionStore {
             return -1
         }
         return experienceCosts[index]
+    }
+
+    Bool setDamagePercent(Int skillId, Int percent) {
+        var index = find(skillId)
+        if (index < 0 || percent < 0 || percent > 1000000) {
+            return false
+        }
+        damagePercents[index] = percent
+        return true
+    }
+
+    Int damagePercent(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return damagePercents[index]
     }
 }
 
@@ -142,6 +161,26 @@ class BoundedSkillProgression {
         return true
     }
 
+    Int totalDamagePercent(BoundedSkillDefinitionStore definitions) {
+        var total = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            var perRank = definitions.damagePercent(ids[index])
+            if (perRank < 0) {
+                return -1
+            }
+            if (ranks[index] > 0 &&
+                perRank > 1000000 / ranks[index]) {
+                return -1
+            }
+            var contribution = perRank * ranks[index]
+            if (total > 1000000 - contribution) {
+                return -1
+            }
+            total = total + contribution
+        }
+        return total
+    }
+
     Bool encodeInto(BoundedSaveSections target) {
         var payload = new Int[countValue * 3]
         for (var index = 0; index < countValue; index = index + 1) {
@@ -206,6 +245,8 @@ class BoundedStatusDefinitionStore {
     Int[] ids
     Int[] durationCaps
     Int[] stackCaps
+    Int[] damageFlats
+    Int[] damagePercents
     Int countValue
 
     public constructor(Int capacity) {
@@ -219,6 +260,8 @@ class BoundedStatusDefinitionStore {
         ids = new Int[actualCapacity]
         durationCaps = new Int[actualCapacity]
         stackCaps = new Int[actualCapacity]
+        damageFlats = new Int[actualCapacity]
+        damagePercents = new Int[actualCapacity]
         countValue = 0
     }
 
@@ -258,6 +301,33 @@ class BoundedStatusDefinitionStore {
             return -1
         }
         return stackCaps[index]
+    }
+
+    Bool setDamageModifier(Int statusId, Int flatValue, Int percentValue) {
+        var index = find(statusId)
+        if (index < 0 || flatValue < 0 || flatValue > 1000000 ||
+            percentValue < 0 || percentValue > 1000000) {
+            return false
+        }
+        damageFlats[index] = flatValue
+        damagePercents[index] = percentValue
+        return true
+    }
+
+    Int damageFlat(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return damageFlats[index]
+    }
+
+    Int damagePercent(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return damagePercents[index]
     }
 }
 
@@ -351,6 +421,46 @@ class BoundedStatusEffects {
             }
         }
         return true
+    }
+
+    Int totalDamageFlat(BoundedStatusDefinitionStore definitions) {
+        var total = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            var perStack = definitions.damageFlat(ids[index])
+            if (perStack < 0) {
+                return -1
+            }
+            if (stackValues[index] > 0 &&
+                perStack > 1000000 / stackValues[index]) {
+                return -1
+            }
+            var contribution = perStack * stackValues[index]
+            if (total > 1000000 - contribution) {
+                return -1
+            }
+            total = total + contribution
+        }
+        return total
+    }
+
+    Int totalDamagePercent(BoundedStatusDefinitionStore definitions) {
+        var total = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            var perStack = definitions.damagePercent(ids[index])
+            if (perStack < 0) {
+                return -1
+            }
+            if (stackValues[index] > 0 &&
+                perStack > 1000000 / stackValues[index]) {
+                return -1
+            }
+            var contribution = perStack * stackValues[index]
+            if (total > 1000000 - contribution) {
+                return -1
+            }
+            total = total + contribution
+        }
+        return total
     }
 
     Bool encodeInto(BoundedSaveSections target) {

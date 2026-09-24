@@ -836,6 +836,44 @@ test "loopback progression authority and persistence" {
         "loopback progression state must round-trip through save sections")
 }
 
+test "progression modifiers affect authoritative combat" {
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.connectPlayer() == 2 &&
+        loopback.definePlayerSkill(50, 2, 100) &&
+        loopback.setPlayerSkillDamagePercent(50, 50) &&
+        loopback.learnPlayerSkill(1, 50) &&
+        loopback.gainPlayerSkillExperience(1, 50, 100) &&
+        loopback.definePlayerStatus(60, 5, 3) &&
+        loopback.setPlayerStatusDamageModifier(60, 2, 25) &&
+        loopback.applyPlayerStatus(1, 60, 5, 1) &&
+        loopback.definePlayerWeapon(9, 3, 0, 0, 10, 1, 20) &&
+        loopback.addPlayerCombatActor(1, 100, 0) &&
+        loopback.addPlayerCombatActor(2, 100, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 9),
+        "player progression modifiers must configure before combat")
+    var enhanced = loopback.resolvePlayerHitscan(1, 2, 0, 1, 0)
+    assert(enhanced.accepted() && enhanced.applied() == 21 &&
+        loopback.playerCombatHealth(2) == 79,
+        "skill and status modifiers must increase player damage")
+    assert(loopback.advance(4 * 16667) == 4 &&
+        loopback.playerStatusDuration(1, 60) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerStatusDuration(1, 60) == -1)
+    var expired = loopback.resolvePlayerHitscan(1, 2, 5, 1, 0)
+    assert(expired.accepted() && expired.applied() == 15 &&
+        loopback.playerCombatHealth(2) == 64,
+        "expired status modifiers must stop affecting player damage")
+    assert(loopback.defineEnemyWeapon(19, 2, 0, 0, 10, 1, 20) &&
+        loopback.addEnemyCombatActor(10, 100, 0) &&
+        loopback.addEnemyCombatActor(11, 100, 0) &&
+        loopback.equipEnemyCombatWeapon(10, 19) &&
+        loopback.setEnemyCombatDamageModifier(10, 1, 100))
+    var enemyHit = loopback.resolveEnemyHitscan(10, 11, 0, 1, 0)
+    assert(enemyHit.accepted() && enemyHit.applied() == 22,
+        "enemy combat must honor bounded damage modifiers")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

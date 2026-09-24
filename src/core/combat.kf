@@ -259,6 +259,8 @@ class CombatWorld {
     Int[] reserves
     Int[] nextReadyTicks
     Int[] deathSequences
+    Int[] damageFlats
+    Int[] damagePercents
     Bool[] active
     Bool[] alive
     Int nextShotId
@@ -282,6 +284,8 @@ class CombatWorld {
         reserves = new Int[actorCapacity]
         nextReadyTicks = new Int[actorCapacity]
         deathSequences = new Int[actorCapacity]
+        damageFlats = new Int[actorCapacity]
+        damagePercents = new Int[actorCapacity]
         active = new Bool[actorCapacity]
         alive = new Bool[actorCapacity]
         projectileIds = new Int[actorCapacity]
@@ -301,6 +305,8 @@ class CombatWorld {
             reserves[index] = 0
             nextReadyTicks[index] = 0
             deathSequences[index] = 0
+            damageFlats[index] = 0
+            damagePercents[index] = 0
             active[index] = false
             alive[index] = false
             projectileIds[index] = 0
@@ -373,6 +379,8 @@ class CombatWorld {
         reserves[index] = 0
         nextReadyTicks[index] = 0
         deathSequences[index] = 0
+        damageFlats[index] = 0
+        damagePercents[index] = 0
         active[index] = true
         alive[index] = true
         return true
@@ -394,7 +402,36 @@ class CombatWorld {
         reserves[index] = 0
         nextReadyTicks[index] = 0
         deathSequences[index] = 0
+        damageFlats[index] = 0
+        damagePercents[index] = 0
         return true
+    }
+
+    Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {
+        var index = findActor(actorId)
+        if (index < 0 || flatValue < 0 || flatValue > 1000000 ||
+            percentValue < 0 || percentValue > 1000000) {
+            return false
+        }
+        damageFlats[index] = flatValue
+        damagePercents[index] = percentValue
+        return true
+    }
+
+    Int effectiveDamage(Int actorId, Int baseDamage) {
+        var index = findActor(actorId)
+        if (index < 0 || baseDamage <= 0) {
+            return 0
+        }
+        var flat = baseDamage + damageFlats[index]
+        if (flat > 1000000) {
+            flat = 1000000
+        }
+        var bonus = flat * damagePercents[index] / 100
+        if (bonus > 1000000 - flat) {
+            return 1000000
+        }
+        return flat + bonus
     }
 
     Bool equipWeapon(Int actorId, Int weaponId) {
@@ -507,7 +544,7 @@ class CombatWorld {
             return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
         }
         var damage = applyDamage(DamageRequest(
-            sourceId, targetId, weapons.damage(weaponId),
+            sourceId, targetId, effectiveDamage(sourceId, weapons.damage(weaponId)),
             weapons.channel(weaponId), critical))
         if (!damage.accepted() ||
             !eventQueue.push(
@@ -562,7 +599,7 @@ class CombatWorld {
                 0, 0, false, 0)
         }
         var damage = applyDamage(DamageRequest(
-            sourceId, targetId, weapons.damage(weaponId),
+            sourceId, targetId, effectiveDamage(sourceId, weapons.damage(weaponId)),
             weapons.channel(weaponId), critical))
         if (!damage.accepted() ||
             !eventQueue.push(

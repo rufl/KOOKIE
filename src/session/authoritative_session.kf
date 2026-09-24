@@ -291,6 +291,18 @@ class LoopbackSession {
     Bool equipEnemyCombatWeapon(Int actorId, Int weaponId) {
         return enemyCombat.equipWeapon(actorId, weaponId)
     }
+    Bool setEnemyCombatDamageModifier(
+        Int actorId, Int flatValue, Int percentValue
+    ) {
+        return enemyCombat.setDamageModifier(
+            actorId, flatValue, percentValue)
+    }
+    ResolutionResult resolveEnemyHitscan(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        return enemyCombat.playerHitscan(
+            sourceId, targetId, tick, distance, critical)
+    }
 
     Bool admitEnemy(
         Int encounterId, Int enemyId, Int tick,
@@ -533,27 +545,36 @@ class LoopbackSession {
         return playerSkillDefinitions.define(
             skillId, maximumRank, experienceCost)
     }
+    Bool setPlayerSkillDamagePercent(Int skillId, Int percent) {
+        return playerSkillDefinitions.setDamagePercent(skillId, percent)
+    }
 
     Bool learnPlayerSkill(Int player, Int skillId) {
+        var accepted = false
         if (player == 1 && playerOneConnected) {
-            return playerOneSkills.learn(skillId, playerSkillDefinitions)
+            accepted = playerOneSkills.learn(skillId, playerSkillDefinitions)
+        } else if (player == 2 && playerTwoConnected) {
+            accepted = playerTwoSkills.learn(skillId, playerSkillDefinitions)
         }
-        if (player == 2 && playerTwoConnected) {
-            return playerTwoSkills.learn(skillId, playerSkillDefinitions)
+        if (!accepted) {
+            return false
         }
-        return false
+        return refreshPlayerCombatModifiers(player)
     }
 
     Bool gainPlayerSkillExperience(Int player, Int skillId, Int amount) {
+        var accepted = false
         if (player == 1 && playerOneConnected) {
-            return playerOneSkills.gainExperience(
+            accepted = playerOneSkills.gainExperience(
+                skillId, amount, playerSkillDefinitions)
+        } else if (player == 2 && playerTwoConnected) {
+            accepted = playerTwoSkills.gainExperience(
                 skillId, amount, playerSkillDefinitions)
         }
-        if (player == 2 && playerTwoConnected) {
-            return playerTwoSkills.gainExperience(
-                skillId, amount, playerSkillDefinitions)
+        if (!accepted) {
+            return false
         }
-        return false
+        return refreshPlayerCombatModifiers(player)
     }
 
     Int playerSkillRank(Int player, Int skillId) {
@@ -575,6 +596,12 @@ class LoopbackSession {
         }
         return -1
     }
+    Bool setPlayerStatusDamageModifier(
+        Int statusId, Int flatValue, Int percentValue
+    ) {
+        return playerStatusDefinitions.setDamageModifier(
+            statusId, flatValue, percentValue)
+    }
 
     Bool definePlayerStatus(Int statusId, Int durationCap, Int stackCap) {
         return playerStatusDefinitions.define(
@@ -584,15 +611,18 @@ class LoopbackSession {
     Bool applyPlayerStatus(
         Int player, Int statusId, Int duration, Int stacks
     ) {
+        var accepted = false
         if (player == 1 && playerOneConnected) {
-            return playerOneStatuses.apply(
+            accepted = playerOneStatuses.apply(
+                statusId, duration, stacks, playerStatusDefinitions)
+        } else if (player == 2 && playerTwoConnected) {
+            accepted = playerTwoStatuses.apply(
                 statusId, duration, stacks, playerStatusDefinitions)
         }
-        if (player == 2 && playerTwoConnected) {
-            return playerTwoStatuses.apply(
-                statusId, duration, stacks, playerStatusDefinitions)
+        if (!accepted) {
+            return false
         }
-        return false
+        return refreshPlayerCombatModifiers(player)
     }
 
     Int playerStatusDuration(Int player, Int statusId) {
@@ -647,10 +677,51 @@ class LoopbackSession {
         return false
     }
 
-    Bool tickPlayerStatuses() {
-        return playerOneStatuses.tick(1) &&
-            playerTwoStatuses.tick(1)
+    Bool refreshPlayerCombatModifiers(Int player) {
+        var skillPercent = 0
+        var statusFlat = 0
+        var statusPercent = 0
+        if (player == 1 && playerOneConnected) {
+            skillPercent = playerOneSkills.totalDamagePercent(
+                playerSkillDefinitions)
+            statusFlat = playerOneStatuses.totalDamageFlat(
+                playerStatusDefinitions)
+            statusPercent = playerOneStatuses.totalDamagePercent(
+                playerStatusDefinitions)
+        } else if (player == 2 && playerTwoConnected) {
+            skillPercent = playerTwoSkills.totalDamagePercent(
+                playerSkillDefinitions)
+            statusFlat = playerTwoStatuses.totalDamageFlat(
+                playerStatusDefinitions)
+            statusPercent = playerTwoStatuses.totalDamagePercent(
+                playerStatusDefinitions)
+        } else {
+            return false
+        }
+        if (skillPercent < 0 || statusFlat < 0 || statusPercent < 0 ||
+            skillPercent > 1000000 - statusPercent) {
+            return false
+        }
+        if (!playerCombat.isAlive(player)) {
+            return true
+        }
+        return playerCombat.setDamageModifier(
+            player, statusFlat, skillPercent + statusPercent)
     }
+
+    Bool tickPlayerStatuses() {
+        if (!playerOneStatuses.tick(1) || !playerTwoStatuses.tick(1)) {
+            return false
+        }
+        if (playerOneConnected && !refreshPlayerCombatModifiers(1)) {
+            return false
+        }
+        if (playerTwoConnected && !refreshPlayerCombatModifiers(2)) {
+            return false
+        }
+        return true
+    }
+
 
 
     Int clientEnemySnapshotCount() {
@@ -671,9 +742,25 @@ class LoopbackSession {
     }
 
     Bool addPlayerCombatActor(Int actorId, Int startingHealth, Int startingArmor) {
-        return playerCombat.addActor(actorId, startingHealth, startingArmor)
+        if (!playerCombat.addActor(actorId, startingHealth, startingArmor)) {
+            return false
+        }
+        if (actorId == 1 || actorId == 2) {
+            return refreshPlayerCombatModifiers(actorId)
+        }
+        return true
     }
 
+    ResolutionResult resolvePlayerHitscan(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        return playerCombat.resolveHitscan(
+            sourceId, targetId, tick, distance, critical)
+    }
+
+    Int playerCombatHealth(Int actorId) {
+        return playerCombat.currentHealth(actorId)
+    }
     Bool equipPlayerCombatWeapon(Int actorId, Int weaponId) {
         return playerCombat.equipWeapon(actorId, weaponId)
     }

@@ -420,6 +420,9 @@ class AuthoritativeEnemySession {
     Bool equipWeapon(Int actorId, Int weaponId) {
         return combat.equipWeapon(actorId, weaponId)
     }
+    Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {
+        return combat.setDamageModifier(actorId, flatValue, percentValue)
+    }
 
     Bool admitEnemyInternal(
         Int encounterId, Int enemyId, Int tick,
