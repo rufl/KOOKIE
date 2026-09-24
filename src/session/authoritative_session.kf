@@ -307,6 +307,23 @@ class LoopbackSession {
         return enemyCombat.setDefenseModifier(
             actorId, flatValue, percentValue)
     }
+    Bool setEnemyCombatShield(
+        Int actorId, Int currentValue, Int maximumValue
+    ) {
+        return enemyCombat.setShield(
+            actorId, currentValue, maximumValue)
+    }
+
+    Bool setEnemyCombatResistance(
+        Int actorId, Int channel, Int percentValue
+    ) {
+        return enemyCombat.setResistance(
+            actorId, channel, percentValue)
+    }
+
+    Int enemyCombatShield(Int actorId) {
+        return enemyCombat.currentShield(actorId)
+    }
     ResolutionResult resolveEnemyHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
@@ -844,6 +861,24 @@ class LoopbackSession {
             return refreshPlayerCombatModifiers(actorId)
         }
         return true
+    }
+
+    Bool setPlayerCombatShield(
+        Int actorId, Int currentValue, Int maximumValue
+    ) {
+        return playerCombat.setShield(
+            actorId, currentValue, maximumValue)
+    }
+
+    Bool setPlayerCombatResistance(
+        Int actorId, Int channel, Int percentValue
+    ) {
+        return playerCombat.setResistance(
+            actorId, channel, percentValue)
+    }
+
+    Int playerCombatShield(Int actorId) {
+        return playerCombat.currentShield(actorId)
     }
 
     ResolutionResult resolvePlayerHitscan(

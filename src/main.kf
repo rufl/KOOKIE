@@ -892,14 +892,30 @@ test "progression modifiers affect authoritative combat" {
     assert(expired.accepted() && expired.applied() == 15 &&
         loopback.playerCombatHealth(2) == 55,
         "expired status modifiers must stop affecting player damage")
+    assert(loopback.definePlayerWeapon(10, 3, 0, 0, 10, 1, 20),
+        "loopback must define a second combat weapon")
+    assert(loopback.equipPlayerCombatWeapon(1, 10),
+        "loopback must equip the second combat weapon")
+    assert(loopback.setPlayerCombatShield(2, 8, 8),
+        "loopback must set player shield state")
+    assert(loopback.setPlayerCombatResistance(2, 1, 50),
+        "loopback must set player resistance state")
+    var playerShielded = loopback.resolvePlayerHitscan(1, 2, 6, 1, 0)
+    assert(playerShielded.accepted() && playerShielded.applied() == 8 &&
+        loopback.playerCombatHealth(2) == 55 &&
+        loopback.playerCombatShield(2) == 0,
+        "loopback player combat must expose resistance and shield authority")
     assert(loopback.defineEnemyWeapon(19, 2, 0, 0, 10, 1, 20) &&
         loopback.addEnemyCombatActor(10, 100, 0) &&
         loopback.addEnemyCombatActor(11, 100, 0) &&
         loopback.equipEnemyCombatWeapon(10, 19) &&
-        loopback.setEnemyCombatDamageModifier(10, 1, 100))
+        loopback.setEnemyCombatDamageModifier(10, 1, 100) &&
+        loopback.setEnemyCombatShield(11, 3, 3) &&
+        loopback.setEnemyCombatResistance(11, 1, 50))
     var enemyHit = loopback.resolveEnemyHitscan(10, 11, 0, 1, 0)
-    assert(enemyHit.accepted() && enemyHit.applied() == 22,
-        "enemy combat must honor bounded damage modifiers")
+    assert(enemyHit.accepted() && enemyHit.applied() == 11 &&
+        loopback.enemyCombatShield(11) == 0,
+        "enemy combat must honor resistance and shield modifiers")
 }
 
 test "focus loss clears held input and queued fire" {
@@ -1587,6 +1603,29 @@ test "authoritative weapon and damage transitions" {
     assert(!combat.applyDamage(DamageRequest(1, 2, 1, 1, 0)).accepted() &&
         combat.deaths() == 1,
         "dead targets must reject repeated damage and rewards")
+}
+test "combat resistance and shield mitigation" {
+    var combat = CombatWorld(2, 1)
+    assert(!combat.defineWeapon(8, 1, 0, 0, 4, 4, 25) &&
+        combat.addActor(1, 30, 0) &&
+        combat.addActor(2, 20, 0) &&
+        combat.setResistance(2, 1, 50) &&
+        combat.setShield(2, 6, 6),
+        "combat must configure bounded resistance and shield state")
+    var shielded = combat.applyDamage(DamageRequest(1, 2, 10, 1, 0))
+    assert(shielded.accepted() && shielded.applied() == 5 &&
+        shielded.remainingHealth() == 20 && combat.currentShield(2) == 1,
+        "resistance must reduce damage before shield absorption")
+    var breached = combat.applyDamage(DamageRequest(1, 2, 10, 1, 0))
+    assert(breached.accepted() && breached.applied() == 5 &&
+        breached.remainingHealth() == 16 && combat.currentShield(2) == 0,
+        "shield depletion must transfer only remaining damage to health")
+    assert(combat.setResistance(2, 1, 100))
+    var resisted = combat.applyDamage(DamageRequest(1, 2, 10, 1, 0))
+    assert(resisted.accepted() && resisted.applied() == 1 &&
+        resisted.remainingHealth() == 15 &&
+        !combat.setResistance(2, 4, 25),
+        "full resistance still permits bounded minimum damage")
 }
 
 test "shared hitscan projectile and bounded combat events" {

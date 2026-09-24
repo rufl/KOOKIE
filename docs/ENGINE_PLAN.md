@@ -477,8 +477,8 @@ Separate immutable `WeaponDef` from runtime magazine/reload/cooldown/spin/burst 
 
 - One trigger state machine; no competing old/new firing systems.
 - Per-shot stable ID and explicit RNG stream; ammo consumption and accepted shot creation commit together.
-- One `DamageRequest` resolution path applies source scaling, crit, armor/resistance, shield/health, status application and death transition in a documented order.
-- Damage channels and mitigation formulas are data-driven but versioned. Do not silently combine incompatible CUBSHIP armor-before-resistance and ZYLVE formula assumptions.
+- One `DamageRequest` resolution path now applies source scaling, crit, channel resistance, armor, defensive modifiers, shield and health in a documented bounded order; status application and death transition remain centralized.
+- Damage channels now use four bounded resistance slots per actor with percentage mitigation and minimum damage; shields absorb post-mitigation damage before health and expose authoritative remaining shield state.
 - Exactly one alive→dead transition owns XP, loot and quest credit; presentation consumes events and never awards rewards.
 - Enemy/boss affixes can modify defined hooks without arbitrary same-frame recursive proc loops. Proc depth/rate limits explicit.
 

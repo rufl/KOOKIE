@@ -426,6 +426,17 @@ class AuthoritativeEnemySession {
     Bool setDefenseModifier(Int actorId, Int flatValue, Int percentValue) {
         return combat.setDefenseModifier(actorId, flatValue, percentValue)
     }
+    Bool setShield(Int actorId, Int currentValue, Int maximumValue) {
+        return combat.setShield(actorId, currentValue, maximumValue)
+    }
+
+    Bool setResistance(Int actorId, Int channel, Int percentValue) {
+        return combat.setResistance(actorId, channel, percentValue)
+    }
+
+    Int currentShield(Int actorId) {
+        return combat.currentShield(actorId)
+    }
 
     Bool admitEnemyInternal(
         Int encounterId, Int enemyId, Int tick,

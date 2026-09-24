@@ -174,7 +174,8 @@ class WeaponDefinitionStore {
         Int cooldownTicks, Int damage, Int channel, Int range
     ) {
         if (id <= 0 || magazineSize <= 0 || reserveCapacity < 0 ||
-            cooldownTicks < 0 || damage <= 0 || channel < 0 || range <= 0) {
+            cooldownTicks < 0 || damage <= 0 ||
+            channel < 0 || channel >= 4 || range <= 0) {
             return false
         }
         var index = find(id)
@@ -262,6 +263,9 @@ class CombatWorld {
     Int[] damageFlats
     Int[] damagePercents
     Int[] defenseFlats
+    Int[] shields
+    Int[] maxShields
+    Int[] resistancePercents
     Int[] defensePercents
     Bool[] active
     Bool[] alive
@@ -288,6 +292,9 @@ class CombatWorld {
         deathSequences = new Int[actorCapacity]
         damageFlats = new Int[actorCapacity]
         damagePercents = new Int[actorCapacity]
+        shields = new Int[actorCapacity]
+        maxShields = new Int[actorCapacity]
+        resistancePercents = new Int[actorCapacity * 4]
         defenseFlats = new Int[actorCapacity]
         defensePercents = new Int[actorCapacity]
         active = new Bool[actorCapacity]
@@ -313,6 +320,11 @@ class CombatWorld {
             damagePercents[index] = 0
             defenseFlats[index] = 0
             defensePercents[index] = 0
+            shields[index] = 0
+            maxShields[index] = 0
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                resistancePercents[index * 4 + channel] = 0
+            }
             active[index] = false
             alive[index] = false
             projectileIds[index] = 0
@@ -389,6 +401,11 @@ class CombatWorld {
         damagePercents[index] = 0
         defenseFlats[index] = 0
         defensePercents[index] = 0
+        shields[index] = 0
+        maxShields[index] = 0
+        for (var channel = 0; channel < 4; channel = channel + 1) {
+            resistancePercents[index * 4 + channel] = 0
+        }
         active[index] = true
         alive[index] = true
         return true
@@ -414,6 +431,11 @@ class CombatWorld {
         damagePercents[index] = 0
         defenseFlats[index] = 0
         defensePercents[index] = 0
+        shields[index] = 0
+        maxShields[index] = 0
+        for (var channel = 0; channel < 4; channel = channel + 1) {
+            resistancePercents[index * 4 + channel] = 0
+        }
         return true
     }
 
@@ -436,6 +458,50 @@ class CombatWorld {
         defenseFlats[index] = flatValue
         defensePercents[index] = percentValue
         return true
+    }
+    Bool setShield(Int actorId, Int currentValue, Int maximumValue) {
+        var index = findActor(actorId)
+        if (index < 0 || currentValue < 0 || maximumValue < 0 ||
+            currentValue > maximumValue || maximumValue > 1000000) {
+            return false
+        }
+        shields[index] = currentValue
+        maxShields[index] = maximumValue
+        return true
+    }
+
+    Int currentShield(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return -1
+        }
+        return shields[index]
+    }
+
+    Int maximumShield(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return -1
+        }
+        return maxShields[index]
+    }
+
+    Bool setResistance(Int actorId, Int channel, Int percentValue) {
+        var index = findActor(actorId)
+        if (index < 0 || channel < 0 || channel >= 4 ||
+            percentValue < 0 || percentValue > 100) {
+            return false
+        }
+        resistancePercents[index * 4 + channel] = percentValue
+        return true
+    }
+
+    Int resistance(Int actorId, Int channel) {
+        var index = findActor(actorId)
+        if (index < 0 || channel < 0 || channel >= 4) {
+            return -1
+        }
+        return resistancePercents[index * 4 + channel]
     }
 
     Int effectiveDamage(Int actorId, Int baseDamage) {
@@ -510,7 +576,7 @@ class CombatWorld {
     DamageResult applyDamage(DamageRequest request) {
         var targetIndex = findActor(request.targetId())
         if (targetIndex < 0 || !alive[targetIndex] || request.amount() <= 0 ||
-            request.channel() < 0 ||
+            request.channel() < 0 || request.channel() >= 4 ||
             (request.critical() != 0 && request.critical() != 1)) {
             return DamageResult(false, 0, 0, false, 0)
         }
@@ -524,24 +590,41 @@ class CombatWorld {
         if (request.critical() == 1) {
             amount = amount * 2
         }
+        var resistance = resistancePercents[
+            targetIndex * 4 + request.channel()]
+        var resistanceReduction = amount * resistance / 100
+        if (resistanceReduction >= amount) {
+            amount = 1
+        } else {
+            amount = amount - resistanceReduction
+        }
         var effectiveArmor = armor[targetIndex] + defenseFlats[targetIndex]
         if (effectiveArmor > 1000000) {
             effectiveArmor = 1000000
         }
-        var applied = amount - effectiveArmor
-        if (applied < 1) {
-            applied = 1
+        var mitigated = amount - effectiveArmor
+        if (mitigated < 1) {
+            mitigated = 1
         }
-        var reduction = applied * defensePercents[targetIndex] / 100
-        if (reduction >= applied) {
-            applied = 1
+        var reduction = mitigated * defensePercents[targetIndex] / 100
+        if (reduction >= mitigated) {
+            mitigated = 1
         } else {
-            applied = applied - reduction
+            mitigated = mitigated - reduction
         }
-        if (applied > health[targetIndex]) {
-            applied = health[targetIndex]
+        var shieldDamage = 0
+        if (shields[targetIndex] > 0) {
+            shieldDamage = mitigated
+            if (shieldDamage > shields[targetIndex]) {
+                shieldDamage = shields[targetIndex]
+            }
+            shields[targetIndex] = shields[targetIndex] - shieldDamage
         }
-        health[targetIndex] = health[targetIndex] - applied
+        var healthDamage = mitigated - shieldDamage
+        if (healthDamage > health[targetIndex]) {
+            healthDamage = health[targetIndex]
+        }
+        health[targetIndex] = health[targetIndex] - healthDamage
         var died = false
         if (health[targetIndex] == 0) {
             alive[targetIndex] = false
@@ -550,7 +633,8 @@ class CombatWorld {
             died = true
         }
         return DamageResult(
-            true, applied, health[targetIndex], died, deathSequences[targetIndex])
+            true, shieldDamage + healthDamage, health[targetIndex],
+            died, deathSequences[targetIndex])
     }
 
     ResolutionResult resolveHitscan(
