@@ -78,6 +78,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
     -o "$adapter_build_dir/g0_triangle.frag.spv"
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
     --target native --output "$adapter_build_dir/native-adapter"
+  set +e
   overzeer-isolated-display --timeout 90 "${render_node_args[@]}" -- \
     env KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
     KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
@@ -85,6 +86,13 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
     KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
     SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
     "$adapter_build_dir/native-adapter/Default/Main"
+  adapter_status=$?
+  set -e
+  if [[ "$adapter_status" -eq 75 ]]; then
+    echo "native SDL adapter smoke deferred: isolated display safety gate unavailable"
+  elif [[ "$adapter_status" -ne 0 ]]; then
+    exit "$adapter_status"
+  fi
 else
   echo "native SDL adapter smoke skipped: SDL3 development headers, gcc, glslc, pkg-config, or isolated-display wrapper unavailable"
 fi
