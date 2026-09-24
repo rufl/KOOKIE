@@ -1035,6 +1035,40 @@ test "shotgun pellets target bounded spread list" {
         combat.magazine(1) == 1,
         "shotgun target lists must distribute pellets deterministically")
 }
+test "shotgun pellet targets preserve spatial selection" {
+    var combat = CombatWorld(3, 1)
+    assert(combat.defineWeapon(14, 2, 0, 0, 100, 1, 30) &&
+        combat.setWeaponSpread(14, 3, 0) &&
+        combat.addActor(1, 1000, 0) &&
+        combat.addActor(2, 1000, 0) &&
+        combat.addActor(3, 1000, 0) &&
+        combat.equipWeapon(1, 14))
+    var selected = new Int[3]
+    selected[0] = 2
+    selected[1] = 2
+    selected[2] = 3
+    var result = combat.resolveShotgunPelletTargets(
+        1, selected, 0, 30, 0)
+    assert(result.accepted() && result.targetCount() == 3 &&
+        result.applied() == 300 &&
+        combat.currentHealth(2) == 800 &&
+        combat.currentHealth(3) == 900,
+        "spatial pellet targets must preserve per-pellet selection")
+    assert(combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 2 &&
+        combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 2 &&
+        combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 3,
+        "spatial pellet events must preserve selected target order")
+    var wrongLength = new Int[2]
+    wrongLength[0] = 2
+    wrongLength[1] = 3
+    assert(!combat.resolveShotgunPelletTargets(
+        1, wrongLength, 1, 30, 0).accepted(),
+        "spatial pellet targets must require one target per pellet")
+}
+
 
 
 

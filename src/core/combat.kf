@@ -1226,6 +1226,71 @@ class CombatWorld {
         return AreaDamageResult(true, hitCount, totalApplied, deaths)
     }
 
+    AreaDamageResult resolveShotgunPelletTargets(
+        Int sourceId, Int[] targetIds, Int tick, Int distance, Int critical
+    ) {
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex] ||
+            targetIds.length <= 0 || targetIds.length > actorIds.length ||
+            tick < 0 || distance < 0 || (critical != 0 && critical != 1)) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var weaponId = weaponIds[sourceIndex]
+        var pelletCount = weapons.pellets(weaponId)
+        if (!weapons.has(weaponId) || distance > weapons.range(weaponId) ||
+            pelletCount <= 0 || targetIds.length != pelletCount ||
+            eventQueue.sequences.length - eventQueue.pending() < pelletCount) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        for (var index = 0; index < targetIds.length; index = index + 1) {
+            var targetIndex = findActor(targetIds[index])
+            if (targetIndex < 0 || !alive[targetIndex]) {
+                return AreaDamageResult(false, 0, 0, 0)
+            }
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var totalApplied = 0
+        var hitCount = 0
+        var deaths = 0
+        var baseDamage = effectiveDamage(sourceId, weapons.damage(weaponId))
+        for (var pellet = 0; pellet < pelletCount; pellet = pellet + 1) {
+            var selectedTarget = targetIds[pellet]
+            if (!alive[findActor(selectedTarget)]) {
+                continue
+            }
+            var spread = weapons.spread(weaponId) * pellet / pelletCount
+            var spreadReduction = baseDamage * spread / 100
+            var pelletDamage = baseDamage
+            if (spreadReduction >= pelletDamage) {
+                pelletDamage = 1
+            } else {
+                pelletDamage = pelletDamage - spreadReduction
+            }
+            var damage = applyDamage(DamageRequest(
+                sourceId, selectedTarget, pelletDamage,
+                weapons.channel(weaponId), critical))
+            if (!damage.accepted() ||
+                !eventQueue.push(
+                    4, sourceId, selectedTarget, damage.applied(),
+                    damage.remainingHealth(), damage.died())) {
+                return AreaDamageResult(false, hitCount, totalApplied, deaths)
+            }
+            hitCount = hitCount + 1
+            if (damage.applied() > 1000000 - totalApplied) {
+                totalApplied = 1000000
+            } else {
+                totalApplied = totalApplied + damage.applied()
+            }
+            if (damage.died()) {
+                deaths = deaths + 1
+            }
+        }
+        return AreaDamageResult(true, hitCount, totalApplied, deaths)
+    }
+
 
 
     ProjectileState spawnProjectile(Int sourceId, Int tick) {

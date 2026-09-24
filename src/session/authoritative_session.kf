@@ -387,6 +387,13 @@ class LoopbackSession {
         return enemyCombat.playerShotgunTargets(
             sourceId, targetIds, tick, distance, critical)
     }
+    AreaDamageResult resolveEnemyShotgunPelletTargets(
+        Int sourceId, Int[] targetIds, Int tick,
+        Int distance, Int critical
+    ) {
+        return enemyCombat.playerShotgunPelletTargets(
+            sourceId, targetIds, tick, distance, critical)
+    }
 
     AreaDamageResult resolveEnemyAreaDamage(
         Int sourceId, Int[] targetIds, Int amount,
@@ -1022,6 +1029,13 @@ class LoopbackSession {
         Int distance, Int critical
     ) {
         return playerCombat.resolveShotgunTargets(
+            sourceId, targetIds, tick, distance, critical)
+    }
+    AreaDamageResult resolvePlayerShotgunPelletTargets(
+        Int sourceId, Int[] targetIds, Int tick,
+        Int distance, Int critical
+    ) {
+        return playerCombat.resolveShotgunPelletTargets(
             sourceId, targetIds, tick, distance, critical)
     }
 

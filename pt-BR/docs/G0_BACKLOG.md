@@ -62,6 +62,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 
 - DXPERF-051 agora possui um mecanismo nativo de despacho seguro para produção: seleção de AVX2/SSE2 em tempo de execução no x86, cobertura de origem NEON no AArch64, fallback escalar verificado, inicialização segura para threads, prova de execução no host/escalar e prova sintática com alvo cruzado AArch64. A integração de buffers do Kof continua bloqueada pelo limite `FFI001` existente; nenhum ganho de velocidade é alegado.
 - `BoundedRayTargetWorld` agora fornece seleção limitada de alvos por raio e pellets de shotgun com inteiros, ordenação pelo impacto mais próximo, desempate por ID estável, offsets de dispersão, remoção de alvos e rejeição de entradas inválidas; a cobertura JVM/native prova impactos central e deslocado. A integração completa ao combate ainda requer um contrato compartilhado de raio do ator/mira.
+- `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão do jogador/inimigo agora aceitam exatamente um alvo validado por pellet, preservam IDs repetidos quando vários pellets atingem o mesmo ator e publicam eventos de combate ordenados; a cobertura JVM/native prova a ordem dos alvos e rejeita seleções com tamanho incorreto. A seleção espacial automática ainda requer o contrato compartilhado de raio do ator/mira.
 
 ## Próximo lote
 

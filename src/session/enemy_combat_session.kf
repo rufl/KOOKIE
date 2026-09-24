@@ -784,6 +784,17 @@ class AuthoritativeEnemySession {
         }
         return result
     }
+    AreaDamageResult playerShotgunPelletTargets(
+        Int sourceId, Int[] targetIds, Int tick,
+        Int distance, Int critical
+    ) {
+        var result = combat.resolveShotgunPelletTargets(
+            sourceId, targetIds, tick, distance, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
 
     AreaDamageResult areaDamage(
         Int sourceId, Int[] targetIds, Int amount,
