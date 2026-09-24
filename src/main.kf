@@ -613,6 +613,62 @@ test "deterministic item definitions and loot rolls" {
         "typed inventory load must reject malformed rolled item fields")
 }
 
+test "equipment loadout transactions and persistence" {
+    var inventory = BoundedItemInventory(3, 3)
+    var loadout = BoundedEquipmentLoadout(4)
+    assert(inventory.addItem(500, 1) &&
+        inventory.addItem(501, 1) &&
+        loadout.equip(inventory, 0, 500) &&
+        loadout.equip(inventory, 1, 501) &&
+        !loadout.equip(inventory, 2, 500) &&
+        !loadout.equip(inventory, 2, 999) &&
+        loadout.itemAt(0) == 500 &&
+        loadout.itemAt(1) == 501 &&
+        loadout.unequip(1) &&
+        loadout.equip(inventory, 2, 501),
+        "equipment must validate ownership and unique slot assignment")
+    var sections = BoundedSaveSections(8, 16)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(sections.setRevision(24) &&
+        inventory.encodeInto(sections) &&
+        loadout.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 27)
+    var wire = new Int[27]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(8, 16)
+    var restoredInventory = BoundedItemInventory(3, 3)
+    var restoredLoadout = BoundedEquipmentLoadout(4)
+    assert(codec.decode(wire, decoded) &&
+        restoredInventory.decodeFrom(decoded) &&
+        restoredLoadout.decodeFrom(decoded, restoredInventory) &&
+        restoredLoadout.itemAt(0) == 500 &&
+        restoredLoadout.itemAt(2) == 501 &&
+        restoredLoadout.itemAt(1) == 0,
+        "equipment ownership must survive schema persistence")
+    var malformed = BoundedSaveSections(8, 16)
+    var malformedLoadout = BoundedEquipmentLoadout(4)
+    var malformedPayload = new Int[4]
+    malformedPayload[0] = 0
+    malformedPayload[1] = 500
+    malformedPayload[2] = 1
+    malformedPayload[3] = 500
+    assert(malformed.setRevision(24) &&
+        malformed.put(8, 1, malformedPayload) &&
+        !malformedLoadout.decodeFrom(malformed, restoredInventory),
+        "equipment load must reject duplicate item ownership")
+    var legacy = BoundedSaveSections(8, 16)
+    var legacyLoadout = BoundedEquipmentLoadout(4)
+    assert(legacy.setRevision(24) &&
+        legacyLoadout.equip(restoredInventory, 0, 500) &&
+        legacyLoadout.decodeFrom(legacy, restoredInventory) &&
+        legacyLoadout.itemAt(0) == 0,
+        "older saves without equipment must load empty")
+
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

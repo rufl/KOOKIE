@@ -1,0 +1,131 @@
+package core
+
+class BoundedEquipmentLoadout {
+    Int[] slotItemIds
+
+    public constructor(Int slotCapacity) {
+        var actualCapacity = slotCapacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 8) {
+            actualCapacity = 8
+        }
+        slotItemIds = new Int[actualCapacity]
+        clear()
+    }
+
+    Bool clear() {
+        for (var index = 0; index < slotItemIds.length; index = index + 1) {
+            slotItemIds[index] = 0
+        }
+        return true
+    }
+
+    Int slotCount() {
+        return slotItemIds.length
+    }
+
+    Int itemAt(Int slot) {
+        if (slot < 0 || slot >= slotItemIds.length) {
+            return -1
+        }
+        return slotItemIds[slot]
+    }
+
+    Int slotFor(Int itemId) {
+        for (var index = 0; index < slotItemIds.length; index = index + 1) {
+            if (slotItemIds[index] == itemId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool inventoryContains(BoundedItemInventory inventory, Int itemId) {
+        for (var index = 0; index < inventory.itemCount(); index = index + 1) {
+            if (inventory.itemId(index) == itemId) {
+                return true
+            }
+        }
+        return false
+    }
+
+    Bool equip(BoundedItemInventory inventory, Int slot, Int itemId) {
+        if (slot < 0 || slot >= slotItemIds.length || itemId <= 0 ||
+            !inventoryContains(inventory, itemId)) {
+            return false
+        }
+        var previousSlot = slotFor(itemId)
+        if (previousSlot >= 0 && previousSlot != slot) {
+            return false
+        }
+        slotItemIds[slot] = itemId
+        return true
+    }
+
+    Bool unequip(Int slot) {
+        if (slot < 0 || slot >= slotItemIds.length || slotItemIds[slot] == 0) {
+            return false
+        }
+        slotItemIds[slot] = 0
+        return true
+    }
+
+    Bool encodeInto(BoundedSaveSections target) {
+        var payload = new Int[slotItemIds.length * 2]
+        var write = 0
+        for (var slot = 0; slot < slotItemIds.length; slot = slot + 1) {
+            if (slotItemIds[slot] != 0) {
+                payload[write] = slot
+                payload[write + 1] = slotItemIds[slot]
+                write = write + 2
+            }
+        }
+        var compact = new Int[write]
+        for (var index = 0; index < write; index = index + 1) {
+            compact[index] = payload[index]
+        }
+        return target.put(8, 1, compact)
+    }
+
+    Bool decodeFrom(BoundedSaveSections source, BoundedItemInventory inventory) {
+        var section = -1
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (source.sectionId(index) == 8) {
+                section = index
+                break
+            }
+        }
+        if (section < 0) {
+            return clear()
+        }
+        if (source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) % 2 != 0 ||
+            source.sectionLength(section) > slotItemIds.length * 2) {
+            return false
+        }
+        var decoded = new Int[slotItemIds.length]
+        for (var index = 0; index < decoded.length; index = index + 1) {
+            decoded[index] = 0
+        }
+        for (var pair = 0; pair < source.sectionLength(section); pair = pair + 2) {
+            var slot = source.sectionValue(section, pair)
+            var itemId = source.sectionValue(section, pair + 1)
+            if (slot < 0 || slot >= slotItemIds.length || itemId <= 0 ||
+                !inventoryContains(inventory, itemId) || decoded[slot] != 0) {
+                return false
+            }
+            for (var occupied = 0; occupied < slotItemIds.length; occupied = occupied + 1) {
+                if (decoded[occupied] == itemId) {
+                    return false
+                }
+            }
+            decoded[slot] = itemId
+        }
+        for (var copy = 0; copy < slotItemIds.length; copy = copy + 1) {
+            slotItemIds[copy] = decoded[copy]
+        }
+        return true
+    }
+}
