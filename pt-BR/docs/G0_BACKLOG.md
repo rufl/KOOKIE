@@ -61,13 +61,14 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - `InputReplayRecorder` agora registra comandos de tick resultantes validados (não eventos crus da plataforma) em um FIFO limitado, preserva ordem determinística, rejeita comandos obsoletos/duplicados/inválidos e reproduz ou redefine sem crescimento ilimitado; `LoopbackSession` captura comandos consumidos somente quando explicitamente habilitado e redefine a captura limitada ao desabilitar.
 
 - DXPERF-051 agora possui um mecanismo nativo de despacho seguro para produção: seleção de AVX2/SSE2 em tempo de execução no x86, cobertura de origem NEON no AArch64, fallback escalar verificado, inicialização segura para threads, prova de execução no host/escalar e prova sintática com alvo cruzado AArch64. A integração de buffers do Kof continua bloqueada pelo limite `FFI001` existente; nenhum ganho de velocidade é alegado.
-- `BoundedRayTargetWorld` agora fornece seleção limitada de alvos por raio e pellets de shotgun com inteiros, ordenação pelo impacto mais próximo, desempate por ID estável, offsets de dispersão, remoção de alvos e rejeição de entradas inválidas; a cobertura JVM/native prova impactos central e deslocado. A integração completa ao combate ainda requer um contrato compartilhado de raio do ator/mira.
-- `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão do jogador/inimigo agora aceitam exatamente um alvo validado por pellet, preservam IDs repetidos quando vários pellets atingem o mesmo ator e publicam eventos de combate ordenados; a cobertura JVM/native prova a ordem dos alvos e rejeita seleções com tamanho incorreto. A seleção espacial automática ainda requer o contrato compartilhado de raio do ator/mira.
-
+- `BoundedRayTargetWorld` agora fornece seleção limitada de alvos por raio e pellets de shotgun com inteiros, ordenação pelo impacto mais próximo, desempate por ID estável, offsets de dispersão, exclusão da fonte por `SpatialAimContract`, remoção de alvos e rejeição de entradas inválidas; a cobertura JVM/native prova impactos central e deslocado.
+- `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão do jogador/inimigo agora aceitam exatamente um alvo validado por pellet, preservam IDs repetidos quando vários pellets atingem o mesmo ator, permitem erros de pontaria limitados e publicam eventos de combate ordenados; a cobertura JVM/native prova a ordem dos alvos e rejeita seleções com tamanho incorreto.
+- `LoopbackSession.resolvePlayerSpatialShotgun` agora constrói um `SpatialAimContract` compartilhado, deriva offsets de pellet do estado autoritativo de combate, seleciona alvos espaciais e resolve os IDs selecionados pelo caminho autoritativo por pellet; a cobertura JVM/native prova dano por dispersão, exclusão da fonte, remoção de alvo e vida dos alvos.
 ## Próximo lote
 
-1. Dar à seleção espacial do shotgun um contrato único de raio do ator/mira e conectá-la ao caminho espacial autoritativo de combate.
-2. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke X11/offscreen reporta corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
+1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke X11/offscreen reporta corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
+
+
 ## Adiado
 
 - Física completa, cooking de conteúdo, schema de save e transporte multiplayer de produção.

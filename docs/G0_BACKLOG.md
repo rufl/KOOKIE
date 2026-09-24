@@ -74,12 +74,12 @@ This is the active bounded implementation sequence after the initial research an
 - Save write durability still requires a proven atomic replacement plus flush/sync filesystem primitive; current bounded redundant/schema stores validate, recover one bad copy and repair it, but do not claim crash-durable publication.
 - Player weapon and replicated enemy impact/audio presentation events now enter replay history automatically and round-trip through checkpoint sidecars; JVM/native coverage verifies the path. DRI3 screenshot validation and crash-durable save publication remain host-capability blockers.
 - DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and AArch64 cross-target syntax proof. Bulk Kof integration remains blocked by the existing `FFI001` array/buffer boundary; no speedup is claimed.
-- `BoundedRayTargetWorld` now provides bounded integer ray and shotgun-pellet target selection with nearest-hit ordering, stable-ID ties, spread offsets, target removal and invalid-input rejection; JVM/native coverage proves center and offset pellet hits. Full combat integration still needs a shared actor-radius/aim contract.
-- `CombatWorld.resolveShotgunPelletTargets` and player/enemy session wrappers now accept exactly one validated target per pellet, preserve repeated target IDs when multiple pellets hit the same actor, and publish ordered combat events; JVM/native coverage proves target order and rejects wrong-length selections. Automatic spatial selection still requires the shared actor-radius/aim contract.
+- `BoundedRayTargetWorld` now provides bounded integer ray and shotgun-pellet target selection with nearest-hit ordering, stable-ID ties, spread offsets, source exclusion through `SpatialAimContract`, target removal and invalid-input rejection; JVM/native coverage proves center and offset pellet hits.
+- `CombatWorld.resolveShotgunPelletTargets` and player/enemy session wrappers now accept exactly one validated target per pellet, preserve repeated target IDs when multiple pellets hit the same actor, allow bounded misses, and publish ordered combat events; JVM/native coverage proves target order and rejects wrong-length selections.
+- `LoopbackSession.resolvePlayerSpatialShotgun` now builds one shared `SpatialAimContract`, derives weapon pellet offsets from the authoritative combat state, selects spatial targets, and resolves the selected IDs through the authoritative per-pellet combat path; JVM/native coverage proves spread-specific damage, source exclusion, target removal and target health.
 ## Next batch
 
-1. Give spatial shotgun selection one shared actor-radius/aim contract and connect it to the authoritative spatial combat path.
-2. Run the DRI3-capable window screenshot path on an isolated present-capable host; the X11/offscreen smoke correctly reports `gpu-unavailable`, while Xvfb remains presentation-incompatible.
+1. Run the DRI3-capable window screenshot path on an isolated present-capable host; the X11/offscreen smoke correctly reports `gpu-unavailable`, while Xvfb remains presentation-incompatible.
 
 
 ## Deferred
