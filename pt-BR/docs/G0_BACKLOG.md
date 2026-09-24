@@ -71,6 +71,7 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Corrigimos a serialização nativa de campos de rolagem de itens e registros de triângulos não usados; regressões com buffers contaminados impedem memória residual em arquivos de replay.
 - A integração de portas agora faz portas criadas fechadas bloquearem o movimento escalar autoritativo através do plano X; portas abertas deixam de bloquear. A geometria visível ao cliente é preparada por `FrameStaging` com estado aberto/fechado; o contrato continua sendo uma arena escalar `(x, 0, 0)`, não uma malha 3D completa.
 - O ciclo de vida do host loopback agora suporta desconexão/reconexão limitada. A reconexão preserva posição autoritativa e marcas d'água de sequência, limpa comandos pendentes, rejeita input obsoleto durante a desconexão e aceita somente sequências novas após o retorno. A prova LAN autenticada real continua aberta.
+- Adicionamos um construtor reproduzível de arquivo dogfood Linux x86-64 com procedência de commit/build, `SHA256SUMS` e smoke do binário extraído. O empacotamento Windows falha fechado porque o compilador Kof não possui alvo nativo Windows, prova de PE/runtime ou entradas de assinatura. O arquivo é apenas interno: KOOKIE não declarou licença e ainda não está registrado como aplicação de deploy no OVERZEER.
 
 ## Próximo lote
 
@@ -84,7 +85,7 @@ O roadmap não terminou; o trabalho concluído permanece registrado aqui, sem ar
 - `kof info --json` instalado reporta 0.4.9-beta em Linux x86-64. O assembler nativo inspecionado vincula ELF Linux; builds nativos Windows não foram estabelecidos. Um launcher Windows do compilador não comprova o alvo Windows da engine.
 - O deploy ZTASH usa arquivos `.tar.gz`/`.zip` por alvo e metadados imutáveis de procedência, não um formato `.ztash` presumido. KOOKIE ainda precisa de dependências relocáveis, licença/avisos e um descritor de aplicação no OVERZEER.
 - A reconexão da sessão remota agora preserva as marcas d'água de envio/recebimento de broad-phase ao fechar e reabrir. A sonda UDP nativa autenticada fecha e reabre o par local, retoma na sequência 9 e rejeita snapshots antigos pelo mesmo contrato monotônico do link. A prova LAN autenticada com dois clientes continua aberta.
-- Não encontramos arquivos antigos pertencentes ao KOOKIE nos locais de release/cache consultados. Pacotes de outras aplicações e estados de rollback permaneceram intactos.
+- As consultas autenticadas de dispositivos Chopper/DDJARIN retornam zero dispositivos; nenhuma mutação remota de pacote foi tentada. Os arquivos de credencial foram usados somente por caminhos do cliente que verificam permissões.
 
 
 ## Adiado

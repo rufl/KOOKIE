@@ -35,6 +35,16 @@ Install `kof` and Python 3. Run the focused gameplay/replay probe:
 bash scripts/verify_interactions.sh
 ```
 
+Build an internal Linux dogfood archive:
+
+```bash
+KOOKIE_VERSION=0.1.0-dogfood.1 scripts/package_kookie.sh
+```
+
+The builder emits a target-bound `.tar.gz`, `SHA256SUMS` and provenance JSON.
+Windows packaging intentionally fails until the Kof compiler can produce a
+real Windows target; an archive-shaped lie would be a poor deployment strategy.
+
 The full gate is for final pre-commit verification (in Pi, after `/precommit-matrix`):
 
 ```bash

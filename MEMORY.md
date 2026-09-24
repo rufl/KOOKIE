@@ -1,6 +1,6 @@
 # KOOKIE working memory
 
-Last updated after the 2026-09-24 remote reconnect batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active backlog. Bounded foundations execute; milestone acceptance gates are not complete.
+Last updated after the 2026-09-24 dogfood packaging batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active backlog. Bounded foundations execute; milestone acceptance gates are not complete.
 
 ## Latest batch
 
@@ -10,8 +10,9 @@ Last updated after the 2026-09-24 remote reconnect batch. Start with [README](RE
 - A native high-arity call forwarding record getters dropped the fire argument in a focused reproduction. Replay now queues the existing `InputCommand` instead of reconstructing a wide call; no compiler repair is claimed.
 - Loopback host lifecycle now preserves player position and input sequence watermarks across reconnect, clears pending commands, and rejects stale input. The authenticated LAN proof is still open; do not archive the active backlog.
 - Remote session reconnect now preserves broad-phase send/receive watermarks across close/reopen; the native authenticated UDP probe resumes at sequence 9 and rejects older snapshots. The authenticated two-client LAN proof remains open.
+- Linux x86-64 now has a reproducible internal dogfood archive builder with SHA256SUMS and provenance JSON. Windows packaging fails closed: no Kof Windows target, PE/runtime proof or signing inputs. KOOKIE has no declared license and is not registered with OVERZEER.
 - Current `kof info --json` reports 0.4.9-beta at `~/.local/share/kof4j/0.4.9-beta`, not the later 0.4.10 narrative below. No native Windows target was established.
-- Packaging is not ready: missing native Windows support, relocatable runtime/license closure and KOOKIE's OVERZEER descriptor. Health checks succeeded, but canonical Chopper credentials were absent and DDJARIN capability access returned HTTP 401. See the backlog for qualification and remaining implementation work.
+- Packaging is not ready: missing native Windows support, relocatable runtime/license closure and KOOKIE's OVERZEER descriptor. Authenticated Chopper/DDJARIN device checks currently return zero devices; no remote package mutation was attempted.
 
 ## User intent
 

@@ -84,6 +84,7 @@ This is the active bounded implementation sequence after the initial research an
 - Fixed native checkpoint serialization of unused inventory roll fields and triangle rows; poisoned-buffer regressions prevent stale memory from entering replay files.
 - Door integration now makes closed authored doors block authoritative scalar movement across their X plane, while opened doors stop blocking. Client-visible door geometry stages through `FrameStaging` with open/closed state; this remains a scalar `(x, 0, 0)` arena contract, not a completed 3D collision mesh.
 - Remote session reconnect now preserves broad-phase send/receive sequence watermarks across close/reopen. The native authenticated UDP probe closes and reopens its local pair, resumes at sequence 9 and rejects older snapshots through the same monotonic link contract. The authenticated two-client LAN proof remains open.
+- Added a reproducible Linux x86-64 dogfood archive builder with commit/build provenance, SHA256SUMS and an extracted-binary smoke. Windows packaging fails closed because the Kof compiler has no Windows native target, PE/runtime proof or signing inputs. The archive is internal-only: KOOKIE has no declared license and is not yet registered as an OVERZEER deployment application.
 
 ## Next batch
 
@@ -95,8 +96,8 @@ This is the active bounded implementation sequence after the initial research an
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
 - Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its inspected native assembler links Linux ELF; native Windows builds are not established. A Windows compiler launcher is not proof of a Windows engine target.
-- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives plus immutable provenance metadata, not an assumed `.ztash` file format. KOOKIE still needs relocatable runtime dependencies, license/notices and an OVERZEER application descriptor.
-- Read-only fleet checks on 2026-09-24: both health endpoints returned HTTP 200; canonical Chopper token lookup found no matching credential, and DDJARIN capability access returned HTTP 401. Credential lookup stays under `/home/lich/lichforge/oztok` or `C:\lichforge\oztok`; no credentials were changed or copied.
+- ZTASH deployment still uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE has no declared license and is not registered as an OVERZEER deployment application.
+- Authenticated Chopper and DDJARIN device checks currently return zero devices; no remote package mutation was attempted. Credential files were used only through permission-checked client paths.
 - No KOOKIE-owned old archives were found in the scoped local release/cache stores. Other applications' packages and rollback state were left untouched.
 
 

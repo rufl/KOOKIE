@@ -1,6 +1,7 @@
 # Kof compiler output and local caches
 build/
 .kof/
+release/
 *.class
 *.jar
 

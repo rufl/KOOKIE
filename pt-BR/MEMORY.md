@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-Atualizada após o lote de reconexão remota de 2026-09-24. Comece pelo [README](README.md), depois pelo [CHANGELOG](CHANGELOG.md) e pelo backlog ativo. As fundações limitadas executam; os gates de aceitação dos milestones não terminaram.
+Atualizada após o lote de empacotamento dogfood de 2026-09-24. Comece pelo [README](README.md), depois pelo [CHANGELOG](CHANGELOG.md) e pelo backlog ativo. As fundações limitadas executam; os gates de aceitação dos milestones não terminaram.
 
 ## Lote mais recente
 
@@ -10,9 +10,9 @@ Atualizada após o lote de reconexão remota de 2026-09-24. Comece pelo [README]
 - Uma chamada nativa com muitos argumentos encaminhados por getters perdeu o argumento de disparo em uma reprodução focada. O replay agora enfileira o `InputCommand` existente em vez de reconstruir a chamada longa; não declaramos reparo do compilador.
 - O ciclo de vida do host loopback preserva posição e marcas d'água de sequência na reconexão, limpa comandos pendentes e rejeita input obsoleto. A prova LAN autenticada ainda está aberta; não arquivar o backlog ativo.
 - A reconexão da sessão remota agora preserva as marcas d'água de envio/recebimento do broad-phase ao fechar e reabrir; a sonda UDP nativa autenticada retoma na sequência 9 e rejeita snapshots antigos. A prova LAN autenticada com dois clientes continua aberta.
+- Linux x86-64 agora possui um construtor reproduzível de arquivo dogfood interno com `SHA256SUMS` e JSON de procedência. O empacotamento Windows falha fechado: não há alvo Kof Windows, prova PE/runtime nem entradas de assinatura. KOOKIE não declarou licença e não está registrado no OVERZEER.
 - `kof info --json` atual reporta 0.4.9-beta em `~/.local/share/kof4j/0.4.9-beta`, não a narrativa posterior de 0.4.10 abaixo. Nenhum alvo nativo Windows foi estabelecido.
-- O empacotamento não está pronto: faltam suporte nativo Windows, runtime relocável/licenças e descritor KOOKIE no OVERZEER. As consultas de saúde passaram, mas faltou credencial canônica Chopper e o acesso às capacidades DDJARIN retornou HTTP 401. O backlog registra a qualificação e o trabalho restante.
-
+- O empacotamento não está pronto: faltam suporte nativo Windows, runtime/licenças relocáveis e descritor KOOKIE no OVERZEER. As consultas autenticadas de dispositivos Chopper/DDJARIN retornam zero dispositivos; nenhuma mutação remota de pacote foi tentada.
 ## Intenção do usuário
 
 Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código-fonte nativo Kof `.kf` para a lógica portátil da engine, do jogo e das ferramentas**. Bibliotecas externas de gráficos/plataforma e código estreito de ABI/shader são permitidos quando necessários. Aproveitar ideias de ZYLVE, DINX e CUBSHIP sem dependências ocultas. Preferir lotes maiores e coerentes com provas focadas; manter milestones incompletos explícitos.
