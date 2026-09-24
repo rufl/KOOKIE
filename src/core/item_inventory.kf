@@ -47,11 +47,13 @@ class BoundedCurrencySaveSection {
 class BoundedItemInventory {
     Int ownerValue
     BoundedItemSaveSection items
+    BoundedItemRollSaveSection rolls
     Int currencyValue
 
     public constructor(Int ownerId, Int capacity) {
         ownerValue = ownerId
         items = BoundedItemSaveSection(capacity)
+        rolls = BoundedItemRollSaveSection(capacity)
         currencyValue = 0
     }
 
@@ -71,6 +73,13 @@ class BoundedItemInventory {
         return items.itemId(index)
     }
 
+
+    BoundedItemRoll itemRoll(Int index) {
+        if (index < 0 || index >= items.count()) {
+            return BoundedItemRoll()
+        }
+        return rolls.at(rolls.find(items.itemId(index)))
+    }
     Int itemQuantity(Int index) {
         return items.quantity(index)
     }
@@ -104,14 +113,33 @@ class BoundedItemInventory {
     }
 
     Bool addLootedItem(BoundedItemRoll roll, Int quantity) {
-        if (!roll.accepted()) {
+        if (!roll.accepted() || rolls.count() >= rolls.capacity()) {
             return false
         }
-        return items.add(roll.stableId(), ownerValue, quantity)
+        if (!items.add(roll.stableId(), ownerValue, quantity)) {
+            return false
+        }
+        if (!rolls.add(roll)) {
+            items.remove(roll.stableId(), quantity)
+            return false
+        }
+        return true
     }
 
     Bool removeItem(Int itemId, Int quantity) {
-        return items.remove(itemId, quantity)
+        var index = items.find(itemId)
+        if (index < 0 || quantity <= 0 ||
+            quantity > items.quantity(index)) {
+            return false
+        }
+        var removesItem = quantity == items.quantity(index)
+        if (!items.remove(itemId, quantity)) {
+            return false
+        }
+        if (removesItem && rolls.find(itemId) >= 0) {
+            rolls.remove(itemId)
+        }
+        return true
     }
 
     Bool purchaseFrom(
@@ -122,18 +150,35 @@ class BoundedItemInventory {
             return false
         }
         var sellerIndex = seller.items.find(itemId)
+        var sellerRollIndex = seller.rolls.find(itemId)
         if (sellerIndex < 0 || seller.items.ownerId(sellerIndex) != seller.ownerValue ||
             seller.items.quantity(sellerIndex) < quantity || items.find(itemId) >= 0 ||
-            items.count() >= items.capacity()) {
+            items.count() >= items.capacity() ||
+            (sellerRollIndex >= 0 &&
+                (seller.items.quantity(sellerIndex) != quantity ||
+                    rolls.count() >= rolls.capacity()))) {
             return false
         }
         var total = quantity * unitPrice
         if (currencyValue < total || seller.currencyValue > 1000000 - total) {
             return false
         }
+        var transferred = BoundedItemRoll()
+        if (sellerRollIndex >= 0) {
+            transferred = seller.rolls.at(sellerRollIndex)
+            if (!rolls.add(transferred)) {
+                return false
+            }
+        }
         if (!seller.items.remove(itemId, quantity) ||
             !items.add(itemId, ownerValue, quantity)) {
+            if (sellerRollIndex >= 0) {
+                rolls.remove(itemId)
+            }
             return false
+        }
+        if (sellerRollIndex >= 0) {
+            seller.rolls.remove(itemId)
         }
         currencyValue = currencyValue - total
         seller.currencyValue = seller.currencyValue + total
@@ -143,7 +188,7 @@ class BoundedItemInventory {
     Bool encodeInto(BoundedSaveSections target) {
         var currency = BoundedCurrencySaveSection()
         if (!items.encodeInto(target) || !currency.setAmount(currencyValue) ||
-            !currency.encodeInto(target)) {
+            !currency.encodeInto(target) || !rolls.encodeInto(target)) {
             return false
         }
         return true
@@ -152,7 +197,9 @@ class BoundedItemInventory {
     Bool decodeFrom(BoundedSaveSections source) {
         var decodedItems = BoundedItemSaveSection(items.capacity())
         var currency = BoundedCurrencySaveSection()
-        if (!decodedItems.decodeFrom(source) || !currency.decodeFrom(source)) {
+        var decodedRolls = BoundedItemRollSaveSection(items.capacity())
+        if (!decodedItems.decodeFrom(source) || !currency.decodeFrom(source) ||
+            !decodedRolls.decodeFrom(source)) {
             return false
         }
         for (var index = 0; index < decodedItems.count(); index = index + 1) {
@@ -160,7 +207,13 @@ class BoundedItemInventory {
                 return false
             }
         }
+        for (var rollIndex = 0; rollIndex < decodedRolls.count(); rollIndex = rollIndex + 1) {
+            if (decodedItems.find(decodedRolls.at(rollIndex).stableId()) < 0) {
+                return false
+            }
+        }
         items = decodedItems
+        rolls = decodedRolls
         currencyValue = currency.amount()
         return true
     }

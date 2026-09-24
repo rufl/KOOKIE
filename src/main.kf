@@ -528,24 +528,38 @@ test "atomic item inventory transactions and persistence" {
         seller.currency() == 20 &&
         buyer.currency() == 80,
         "failed inventory purchase must leave both inventories unchanged")
-    var sections = BoundedSaveSections(6, 6)
+    var sections = BoundedSaveSections(8, 16)
     var restored = BoundedItemInventory(1, 2)
-    var codec = BoundedSaveSchemaWireCodec(6, 6)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
     assert(sections.setRevision(22) &&
         buyer.encodeInto(sections) &&
         codec.encode(sections) &&
-        codec.encodedLength() == 14)
-    var wire = new Int[14]
+        codec.encodedLength() == 17)
+    var wire = new Int[17]
     for (var index = 0; index < wire.length; index = index + 1) {
         wire[index] = codec.encodedWord(index)
     }
-    var decoded = BoundedSaveSections(6, 6)
+    var decoded = BoundedSaveSections(8, 16)
     assert(codec.decode(wire, decoded) &&
         restored.decodeFrom(decoded) &&
         restored.currency() == 80 &&
         restored.itemId(0) == 500 &&
         restored.itemQuantity(0) == 2,
         "inventory currency and ownership must survive schema persistence")
+    var legacySections = BoundedSaveSections(8, 16)
+    var legacyItems = new Int[3]
+    legacyItems[0] = 500
+    legacyItems[1] = 1
+    legacyItems[2] = 2
+    var legacyCurrency = new Int[1]
+    legacyCurrency[0] = 80
+    var legacyInventory = BoundedItemInventory(1, 2)
+    assert(legacySections.setRevision(21) &&
+        legacySections.put(4, 1, legacyItems) &&
+        legacySections.put(6, 1, legacyCurrency) &&
+        legacyInventory.decodeFrom(legacySections) &&
+        !legacyInventory.itemRoll(0).accepted(),
+        "legacy inventory loads without rolled-item section defaults")
 }
 
 test "deterministic item definitions and loot rolls" {
@@ -575,6 +589,28 @@ test "deterministic item definitions and loot rolls" {
         inventory.itemId(0) == 500 &&
         !inventory.addLootedItem(BoundedItemRoll(), 1),
         "accepted loot rolls must enter inventory with stable identity")
+    var sections = BoundedSaveSections(8, 16)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(sections.setRevision(23) &&
+        inventory.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 25)
+    var wire = new Int[25]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(8, 16)
+    var restored = BoundedItemInventory(3, 2)
+    assert(codec.decode(wire, decoded) &&
+        restored.decodeFrom(decoded) &&
+        restored.itemRoll(0).definitionId() == first.definitionId() &&
+        restored.itemRoll(0).seed() == first.seed() &&
+        restored.itemRoll(0).affixOne() == first.affixOne() &&
+        restored.itemRoll(0).condition() == first.condition(),
+        "rolled item fields must survive schema persistence")
+    wire[21] = 0
+    assert(codec.decode(wire, decoded) && !restored.decodeFrom(decoded),
+        "typed inventory load must reject malformed rolled item fields")
 }
 
 test "focus loss clears held input and queued fire" {

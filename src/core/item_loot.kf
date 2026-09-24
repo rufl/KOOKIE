@@ -176,6 +176,165 @@ class BoundedItemRoll {
     }
 }
 
+class BoundedItemRollSaveSection {
+    Int[] stableIds
+    Int[] definitionIds
+    Int[] seeds
+    Int[] levels
+    Int[] rarities
+    Int[] affixOnes
+    Int[] affixTwos
+    Int[] conditions
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 2) {
+            actualCapacity = 2
+        }
+        stableIds = new Int[actualCapacity]
+        definitionIds = new Int[actualCapacity]
+        seeds = new Int[actualCapacity]
+        levels = new Int[actualCapacity]
+        rarities = new Int[actualCapacity]
+        affixOnes = new Int[actualCapacity]
+        affixTwos = new Int[actualCapacity]
+        conditions = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Int capacity() {
+        return stableIds.length
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int find(Int stableId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (stableIds[index] == stableId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool add(BoundedItemRoll roll) {
+        if (!roll.accepted() || countValue >= stableIds.length ||
+            find(roll.stableId()) >= 0) {
+            return false
+        }
+        stableIds[countValue] = roll.stableId()
+        definitionIds[countValue] = roll.definitionId()
+        seeds[countValue] = roll.seed()
+        levels[countValue] = roll.level()
+        rarities[countValue] = roll.rarity()
+        affixOnes[countValue] = roll.affixOne()
+        affixTwos[countValue] = roll.affixTwo()
+        conditions[countValue] = roll.condition()
+        countValue = countValue + 1
+        return true
+    }
+
+    BoundedItemRoll at(Int index) {
+        var roll = BoundedItemRoll()
+        if (index < 0 || index >= countValue) {
+            return roll
+        }
+        roll.stage(
+            stableIds[index], definitionIds[index], seeds[index], levels[index],
+            rarities[index], affixOnes[index], affixTwos[index], conditions[index])
+        return roll
+    }
+
+    Bool remove(Int stableId) {
+        var index = find(stableId)
+        if (index < 0) {
+            return false
+        }
+        for (var shift = index; shift < countValue - 1; shift = shift + 1) {
+            stableIds[shift] = stableIds[shift + 1]
+            definitionIds[shift] = definitionIds[shift + 1]
+            seeds[shift] = seeds[shift + 1]
+            levels[shift] = levels[shift + 1]
+            rarities[shift] = rarities[shift + 1]
+            affixOnes[shift] = affixOnes[shift + 1]
+            affixTwos[shift] = affixTwos[shift + 1]
+            conditions[shift] = conditions[shift + 1]
+        }
+        countValue = countValue - 1
+        return true
+    }
+
+    Bool encodeInto(BoundedSaveSections target) {
+        var payload = new Int[countValue * 8]
+        for (var index = 0; index < countValue; index = index + 1) {
+            payload[index * 8] = stableIds[index]
+            payload[index * 8 + 1] = definitionIds[index]
+            payload[index * 8 + 2] = seeds[index]
+            payload[index * 8 + 3] = levels[index]
+            payload[index * 8 + 4] = rarities[index]
+            payload[index * 8 + 5] = affixOnes[index]
+            payload[index * 8 + 6] = affixTwos[index]
+            payload[index * 8 + 7] = conditions[index]
+        }
+        return target.put(7, 1, payload)
+    }
+
+    Bool decodeFrom(BoundedSaveSections source) {
+        var section = -1
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (source.sectionId(index) == 7) {
+                section = index
+                break
+            }
+        }
+        if (section < 0) {
+            countValue = 0
+            return true
+        }
+        if (source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) % 8 != 0 ||
+            source.sectionLength(section) / 8 > stableIds.length) {
+            return false
+        }
+        var nextCount = source.sectionLength(section) / 8
+        for (var index = 0; index < nextCount; index = index + 1) {
+            var offset = index * 8
+            var roll = BoundedItemRoll()
+            if (!roll.stage(
+                source.sectionValue(section, offset),
+                source.sectionValue(section, offset + 1),
+                source.sectionValue(section, offset + 2),
+                source.sectionValue(section, offset + 3),
+                source.sectionValue(section, offset + 4),
+                source.sectionValue(section, offset + 5),
+                source.sectionValue(section, offset + 6),
+                source.sectionValue(section, offset + 7)) ||
+                find(source.sectionValue(section, offset)) >= 0) {
+                return false
+            }
+        }
+        countValue = nextCount
+        for (var copy = 0; copy < nextCount; copy = copy + 1) {
+            var offset = copy * 8
+            stableIds[copy] = source.sectionValue(section, offset)
+            definitionIds[copy] = source.sectionValue(section, offset + 1)
+            seeds[copy] = source.sectionValue(section, offset + 2)
+            levels[copy] = source.sectionValue(section, offset + 3)
+            rarities[copy] = source.sectionValue(section, offset + 4)
+            affixOnes[copy] = source.sectionValue(section, offset + 5)
+            affixTwos[copy] = source.sectionValue(section, offset + 6)
+            conditions[copy] = source.sectionValue(section, offset + 7)
+        }
+        return true
+    }
+}
+
 class BoundedLootTable {
     Int[] definitionIds
     Int[] weights
