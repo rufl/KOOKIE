@@ -2192,6 +2192,29 @@ test "enemy spatial visibility movement and projectile targeting" {
     assert(!blockedProjectile.accepted(),
         "blocked spatial projectile must not resolve damage")
 }
+test "bounded spatial ray target selection" {
+    var rays = BoundedRayTargetWorld(4, 20)
+    assert(rays.setTarget(9, 5, 0, 0) &&
+        rays.setTarget(3, 10, 5, 0) &&
+        rays.activeCount() == 2,
+        "ray targets must register in bounded storage")
+    var center = rays.query(0, 0, 0, 10, 0, 0, 20, 0)
+    assert(center.accepted() && center.hit() &&
+        center.targetId() == 9 && center.distance() == 5,
+        "ray query must select the nearest target on the center line")
+    var pellet = rays.queryShotgunPellet(
+        0, 0, 0, 10, 0, 0, 0, 5, 20, 0)
+    assert(pellet.accepted() && pellet.hit() &&
+        pellet.targetId() == 3 && pellet.distance() == 10,
+        "pellet query must apply deterministic spread offsets")
+    assert(rays.removeTarget(9) &&
+        !rays.query(0, 0, 0, 4, 0, 0, 20, 0).hit(),
+        "removed ray targets must no longer be selectable")
+    assert(!rays.query(0, 0, 0, 10, 0, 0, -1, 0).accepted() &&
+        !rays.query(0, 0, 0, 10, 0, 0, 20, -1).accepted(),
+        "ray queries must reject invalid range and radius")
+}
+
 
 test "continuous projectiles and encounter zones" {
     var session = AuthoritativeEnemySession(4, 1)

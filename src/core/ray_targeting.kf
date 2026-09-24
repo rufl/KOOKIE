@@ -1,0 +1,177 @@
+package core
+
+record RayTargetResult(
+    Bool accepted, Bool hit, Int targetId, Int distance,
+    Int sampleX, Int sampleY, Int sampleZ
+)
+
+class BoundedRayTargetWorld {
+    Int[] ids
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Bool[] active
+    Int maxDistanceValue
+    Int activeCountValue
+
+    public constructor(Int capacity, Int nextMaxDistance) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        ids = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        active = new Bool[actualCapacity]
+        maxDistanceValue = nextMaxDistance
+        if (maxDistanceValue <= 0) {
+            maxDistanceValue = 1
+        }
+        activeCountValue = 0
+        for (var index = 0; index < actualCapacity; index = index + 1) {
+            ids[index] = 0
+            positionsX[index] = 0
+            positionsY[index] = 0
+            positionsZ[index] = 0
+            active[index] = false
+        }
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool setTarget(Int id, Int x, Int y, Int z) {
+        if (id <= 0) {
+            return false
+        }
+        var index = find(id)
+        if (index < 0) {
+            index = freeSlot()
+            if (index < 0) {
+                return false
+            }
+            ids[index] = id
+            active[index] = true
+            activeCountValue = activeCountValue + 1
+        }
+        positionsX[index] = x
+        positionsY[index] = y
+        positionsZ[index] = z
+        return true
+    }
+
+    Bool removeTarget(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return false
+        }
+        ids[index] = 0
+        active[index] = false
+        activeCountValue = activeCountValue - 1
+        return true
+    }
+
+    Int activeCount() {
+        return activeCountValue
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Int segmentDistance(
+        Int firstX, Int firstY, Int firstZ,
+        Int secondX, Int secondY, Int secondZ
+    ) {
+        var distance = absolute(secondX - firstX)
+        if (absolute(secondY - firstY) > distance) {
+            distance = absolute(secondY - firstY)
+        }
+        if (absolute(secondZ - firstZ) > distance) {
+            distance = absolute(secondZ - firstZ)
+        }
+        return distance
+    }
+
+    RayTargetResult rejected() {
+        return RayTargetResult(false, false, 0, -1, 0, 0, 0)
+    }
+
+    RayTargetResult query(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ,
+        Int range, Int radius
+    ) {
+        if (range < 0 || radius < 0 || range > maxDistanceValue) {
+            return rejected()
+        }
+        var distance = segmentDistance(startX, startY, startZ, endX, endY, endZ)
+        if (distance > range || distance > maxDistanceValue) {
+            return rejected()
+        }
+        var deltaX = endX - startX
+        var deltaY = endY - startY
+        var deltaZ = endZ - startZ
+        for (var step = 0; step <= distance; step = step + 1) {
+            var sampleX = startX
+            var sampleY = startY
+            var sampleZ = startZ
+            if (distance > 0) {
+                sampleX = startX + (deltaX * step) / distance
+                sampleY = startY + (deltaY * step) / distance
+                sampleZ = startZ + (deltaZ * step) / distance
+            }
+            var bestTarget = 0
+            var bestOffset = radius + 1
+            for (var index = 0; index < ids.length; index = index + 1) {
+                if (active[index]) {
+                    var offset = segmentDistance(
+                        sampleX, sampleY, sampleZ,
+                        positionsX[index], positionsY[index], positionsZ[index])
+                    if (offset <= radius &&
+                        (bestTarget == 0 || offset < bestOffset ||
+                            (offset == bestOffset && ids[index] < bestTarget))) {
+                        bestTarget = ids[index]
+                        bestOffset = offset
+                    }
+                }
+            }
+            if (bestTarget != 0) {
+                return RayTargetResult(
+                    true, true, bestTarget, step,
+                    sampleX, sampleY, sampleZ)
+            }
+        }
+        return RayTargetResult(true, false, 0, -1, endX, endY, endZ)
+    }
+
+    RayTargetResult queryShotgunPellet(
+        Int startX, Int startY, Int startZ,
+        Int aimEndX, Int aimEndY, Int aimEndZ,
+        Int offsetX, Int offsetY, Int range, Int radius
+    ) {
+        return query(
+            startX, startY, startZ,
+            aimEndX + offsetX, aimEndY + offsetY, aimEndZ,
+            range, radius)
+    }
+}

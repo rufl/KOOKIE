@@ -473,7 +473,7 @@ Targets such as viewmodel FOV, recoil/sway, muzzle flashes, hit feedback, readab
 
 ### Weapons and damage
 
-- Separate immutable `WeaponDef` from runtime magazine/reload/cooldown/spin/burst state and item-instance modifiers. Hitscan, swept projectile, deterministic bounded shotgun pellets and bounded multi-target area damage now share authoritative query/damage paths; richer spatial spread remains a planned extension.
+- Separate immutable `WeaponDef` from runtime magazine/reload/cooldown/spin/burst state and item-instance modifiers. Hitscan, swept projectile, deterministic bounded shotgun pellets and bounded multi-target area damage now share authoritative query/damage paths; `BoundedRayTargetWorld` adds bounded integer ray/pellet target selection with nearest-hit and stable-ID tie ordering. Full combat integration still requires a shared actor-radius/aim contract.
 
 - One trigger state machine; no competing old/new firing systems.
 - Per-shot stable ID and explicit RNG stream; ammo consumption and accepted shot creation commit together.
