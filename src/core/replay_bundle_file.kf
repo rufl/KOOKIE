@@ -1,0 +1,323 @@
+package core
+
+class BoundedReplayBundleFileStore {
+    Int commandCapacity
+    Int checkpointCapacity
+    Int[] words
+    Int[] bytes
+    Int digitsPerWord
+    Int wordCount
+    Int magic
+    Int engineVersionValue
+    Int contentVersionValue
+    Int seedValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        commandCapacity = actualCapacity
+        checkpointCapacity = actualCapacity
+        digitsPerWord = 6
+        words = new Int[8 + actualCapacity * 8 + actualCapacity * 4 +
+            actualCapacity * 640 + 320]
+        bytes = new Int[words.length * digitsPerWord]
+        wordCount = 0
+        magic = 22557799
+        engineVersionValue = 0
+        contentVersionValue = 0
+        seedValue = 0
+    }
+
+    Bool writeTimeline(String path, BoundedReplayTimeline timeline,
+        Int engineVersion, Int contentVersion, Int seed) {
+        if (!encodeTimeline(timeline, engineVersion, contentVersion, seed)) {
+            return false
+        }
+        return writeEncoded(path)
+    }
+
+    Bool encodeTimeline(BoundedReplayTimeline timeline,
+        Int engineVersion, Int contentVersion, Int seed) {
+        if (engineVersion < 0 || contentVersion < 0 ||
+            seed < -1000000 || seed > 1000000 ||
+            timeline.pending() > commandCapacity ||
+            timeline.checkpointCountValue() > checkpointCapacity ||
+            timeline.initialSnapshotLength() > 320) {
+            wordCount = 0
+            return false
+        }
+        var commandCount = timeline.pending()
+        var checkpointCount = timeline.checkpointCountValue()
+        var snapshotLength = timeline.initialSnapshotLength()
+        var totalValues = 0
+        for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
+            var primaryLength = timeline.checkpointSnapshotLength(checkpoint)
+            var sidecarLength = timeline.checkpointSidecarLength(checkpoint)
+            if (primaryLength < 0 || primaryLength > 320 ||
+                sidecarLength < 0 || sidecarLength > 320) {
+                wordCount = 0
+                return false
+            }
+            totalValues = totalValues + primaryLength + sidecarLength
+        }
+        if (totalValues > checkpointCapacity * 640) {
+            wordCount = 0
+            return false
+        }
+        words[0] = magic
+        words[1] = 1
+        words[2] = engineVersion
+        words[3] = contentVersion
+        words[4] = seed
+        words[5] = commandCount
+        words[6] = checkpointCount
+        words[7] = snapshotLength
+        for (var index = 0; index < commandCount; index = index + 1) {
+            var command = timeline.commandAt(index)
+            if (!validCommand(command)) {
+                wordCount = 0
+                return false
+            }
+            writeCommand(8 + index * 8, command)
+        }
+        var checkpointOffset = 8 + commandCount * 8
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var offset = checkpointOffset + index * 4
+            words[offset] = timeline.checkpointTick(index)
+            words[offset + 1] = timeline.checkpointHash(index)
+            words[offset + 2] = timeline.checkpointSnapshotLength(index)
+            words[offset + 3] = timeline.checkpointSidecarLength(index)
+        }
+        var valueWrite = checkpointOffset + checkpointCount * 4
+        for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
+            for (var index = 0;
+                index < timeline.checkpointSnapshotLength(checkpoint);
+                index = index + 1) {
+                words[valueWrite] = timeline.checkpointSnapshotValue(checkpoint, index)
+                valueWrite = valueWrite + 1
+            }
+        }
+        for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
+            for (var index = 0;
+                index < timeline.checkpointSidecarLength(checkpoint);
+                index = index + 1) {
+                words[valueWrite] = timeline.checkpointSidecarValue(checkpoint, index)
+                valueWrite = valueWrite + 1
+            }
+        }
+        for (var index = 0; index < snapshotLength; index = index + 1) {
+            words[valueWrite + index] = timeline.initialSnapshotValue(index)
+        }
+        wordCount = valueWrite + snapshotLength
+        engineVersionValue = engineVersion
+        contentVersionValue = contentVersion
+        seedValue = seed
+        return true
+    }
+
+    Bool readTimeline(String path, BoundedReplayTimeline target) {
+        var wire = readWords(path)
+        if (wire.length < 8 || wire[0] != magic || wire[1] != 1 ||
+            wire[2] < 0 || wire[3] < 0 ||
+            wire[4] < -1000000 || wire[4] > 1000000 ||
+            wire[5] < 0 || wire[5] > commandCapacity ||
+            wire[6] < 0 || wire[6] > checkpointCapacity ||
+            wire[7] < 0 || wire[7] > 320) {
+            return false
+        }
+        var commandCount = wire[5]
+        var checkpointCount = wire[6]
+        var snapshotLength = wire[7]
+        var checkpointOffset = 8 + commandCount * 8
+        var metadataEnd = checkpointOffset + checkpointCount * 4
+        var primaryCount = 0
+        var sidecarCount = 0
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var offset = checkpointOffset + index * 4
+            var primaryLength = wire[offset + 2]
+            var sidecarLength = wire[offset + 3]
+            if (wire[offset] < 0 || wire[offset + 1] < -1000000 ||
+                wire[offset + 1] > 1000000 || primaryLength < 0 ||
+                primaryLength > 320 || sidecarLength < 0 || sidecarLength > 320) {
+                return false
+            }
+            primaryCount = primaryCount + primaryLength
+            sidecarCount = sidecarCount + sidecarLength
+        }
+        var primaryOffset = metadataEnd
+        var sidecarOffset = primaryOffset + primaryCount
+        var snapshotOffset = sidecarOffset + sidecarCount
+        if (wire.length != snapshotOffset + snapshotLength ||
+            primaryCount + sidecarCount > checkpointCapacity * 640 ||
+            !validCommands(wire, 8, commandCount)) {
+            return false
+        }
+        for (var index = 0; index < primaryCount + sidecarCount + snapshotLength; index = index + 1) {
+            var value = wire[primaryOffset + index]
+            if (value < -1000000 || value > 1000000) {
+                return false
+            }
+        }
+        target.reset()
+        for (var index = 0; index < commandCount; index = index + 1) {
+            var offset = 8 + index * 8
+            if (!target.append(InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                target.reset()
+                return false
+            }
+        }
+        var primaryRead = primaryOffset
+        var sidecarRead = sidecarOffset
+        var previousTick = -1
+        for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
+            var offset = checkpointOffset + checkpoint * 4
+            var primaryLength = wire[offset + 2]
+            var sidecarLength = wire[offset + 3]
+            if (wire[offset] <= previousTick) {
+                target.reset()
+                return false
+            }
+            previousTick = wire[offset]
+            var primary = new Int[primaryLength]
+            var sidecar = new Int[sidecarLength]
+            for (var index = 0; index < primaryLength; index = index + 1) {
+                primary[index] = wire[primaryRead + index]
+            }
+            for (var index = 0; index < sidecarLength; index = index + 1) {
+                sidecar[index] = wire[sidecarRead + index]
+            }
+            if (!target.appendCheckpointBundle(
+                    wire[offset], wire[offset + 1], primary, sidecar)) {
+                target.reset()
+                return false
+            }
+            primaryRead = primaryRead + primaryLength
+            sidecarRead = sidecarRead + sidecarLength
+        }
+        var initial = new Int[snapshotLength]
+        for (var index = 0; index < snapshotLength; index = index + 1) {
+            initial[index] = wire[snapshotOffset + index]
+        }
+        if (!target.setInitialSnapshot(initial)) {
+            target.reset()
+            return false
+        }
+        engineVersionValue = wire[2]
+        contentVersionValue = wire[3]
+        seedValue = wire[4]
+        wordCount = wire.length
+        for (var index = 0; index < wordCount; index = index + 1) {
+            words[index] = wire[index]
+        }
+        return true
+    }
+
+    Bool writeEncoded(String path) {
+        var output = new Int[wordCount * digitsPerWord]
+        for (var wordIndex = 0; wordIndex < wordCount; wordIndex = wordIndex + 1) {
+            var value = words[wordIndex]
+            if (value < 0) {
+                value = -value * 2 - 1
+            } else {
+                value = value * 2
+            }
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                output[wordIndex * digitsPerWord + digit] = value % 64
+                value = value / 64
+            }
+        }
+        var file = File(path)
+        return file.writeBytes(output)
+    }
+
+    Int[] readWords(String path) {
+        var file = File(path)
+        var input = file.readRange(0, bytes.length)
+        if (input.length < 8 * digitsPerWord ||
+            input.length > bytes.length || input.length % digitsPerWord != 0) {
+            return new Int[0]
+        }
+        var result = new Int[input.length / digitsPerWord]
+        for (var wordIndex = 0; wordIndex < result.length; wordIndex = wordIndex + 1) {
+            var offset = wordIndex * digitsPerWord
+            var encoded = 0
+            var multiplier = 1
+            for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
+                if (input[offset + digit] < 0 || input[offset + digit] >= 64 ||
+                    (digit == digitsPerWord - 1 && input[offset + digit] != 0)) {
+                    return new Int[0]
+                }
+                encoded = encoded + input[offset + digit] * multiplier
+                if (digit < digitsPerWord - 1) {
+                    multiplier = multiplier * 64
+                }
+            }
+            if (encoded % 2 == 0) {
+                result[wordIndex] = encoded / 2
+            } else {
+                result[wordIndex] = -(encoded / 2) - 1
+            }
+        }
+        return result
+    }
+
+    Bool validCommand(InputCommand command) {
+        return command.tick() >= 0 && command.sequence() >= 0 &&
+            command.moveX() >= -1000000 && command.moveX() <= 1000000 &&
+            command.moveY() >= -1000000 && command.moveY() <= 1000000 &&
+            command.lookX() >= -1000000 && command.lookX() <= 1000000 &&
+            command.lookY() >= -1000000 && command.lookY() <= 1000000 &&
+            command.fire() >= 0 && command.fire() <= 1 &&
+            command.jump() >= 0 && command.jump() <= 1
+    }
+
+    Bool validCommands(Int[] wire, Int start, Int count) {
+        var previousTick = -1
+        var previousSequence = -1
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = start + index * 8
+            var command = InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7])
+            if (!validCommand(command) ||
+                (index > 0 && command.tick() < previousTick) ||
+                command.sequence() <= previousSequence) {
+                return false
+            }
+            previousTick = command.tick()
+            previousSequence = command.sequence()
+        }
+        return true
+    }
+
+    Bool writeCommand(Int offset, InputCommand command) {
+        words[offset] = command.tick()
+        words[offset + 1] = command.sequence()
+        words[offset + 2] = command.moveX()
+        words[offset + 3] = command.moveY()
+        words[offset + 4] = command.lookX()
+        words[offset + 5] = command.lookY()
+        words[offset + 6] = command.fire()
+        words[offset + 7] = command.jump()
+        return true
+    }
+
+    Int engineVersion() {
+        return engineVersionValue
+    }
+
+    Int contentVersion() {
+        return contentVersionValue
+    }
+
+    Int seed() {
+        return seedValue
+    }
+}

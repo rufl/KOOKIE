@@ -1439,6 +1439,35 @@ test "bounded replay timeline checkpoints" {
         "timeline file codec must reject corrupted checkpoints")
 }
 
+test "bounded replay bundle file codec" {
+    var timeline = BoundedReplayTimeline(2, 2)
+    var primary = new Int[2]
+    primary[0] = 30
+    primary[1] = -7
+    var sidecar = new Int[3]
+    sidecar[0] = 100
+    sidecar[1] = -200
+    sidecar[2] = 300
+    assert(timeline.appendCheckpointBundle(4, 101, primary, sidecar),
+        "bundle timeline must accept primary and sidecar state")
+    var files = BoundedReplayBundleFileStore(2)
+    var path = "/tmp/kookie-replay-bundle-test.bin"
+    var restored = BoundedReplayTimeline(2, 2)
+    assert(files.writeTimeline(path, timeline, 7, 11, 99) &&
+        files.readTimeline(path, restored) &&
+        files.engineVersion() == 7 &&
+        files.contentVersion() == 11 &&
+        files.seed() == 99 &&
+        restored.checkpointCountValue() == 1 &&
+        restored.checkpointSnapshotValue(0, 1) == -7 &&
+        restored.checkpointSidecarLength(0) == 3 &&
+        restored.checkpointSidecarValue(0, 1) == -200 &&
+        restored.seek(4) &&
+        restored.seekSidecarLength() == 3 &&
+        restored.seekSidecarValue(2) == 300,
+        "bundle file codec must round-trip primary and sidecar state")
+}
+
 test "resource token lifecycle" {
     var resources = ResourceRegistry(1)
     var token = resources.acquire(7)

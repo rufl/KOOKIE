@@ -315,6 +315,21 @@ class BoundedReplayTimeline {
         return seekConsumed
     }
 
+    Int checkpointSidecarLength(Int index) {
+        if (index < 0 || index >= checkpointCount) {
+            return 0
+        }
+        return checkpointSidecarLengths[index]
+    }
+
+    Int checkpointSidecarValue(Int index, Int valueIndex) {
+        if (index < 0 || index >= checkpointCount ||
+            valueIndex < 0 || valueIndex >= checkpointSidecarLengths[index]) {
+            return 0
+        }
+        return checkpointSidecarValues[index * 320 + valueIndex]
+    }
+
     Bool reset() {
         commands.reset()
         checkpointCount = 0
@@ -324,6 +339,8 @@ class BoundedReplayTimeline {
         seekCommandOffsetValue = 0
         seekSnapshotLengthValue = 0
         seekSnapshotOffsetValue = 0
+        seekSidecarLengthValue = 0
+        seekSidecarOffsetValue = 0
         seekConsumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
         return true
     }
