@@ -1274,7 +1274,9 @@ class LoopbackSession {
             for (var enemyIndex = 0; enemyIndex < enemyState.length; enemyIndex = enemyIndex + 1) {
                 enemyState[enemyIndex] = timeline.seekSnapshotValue(120 + enemyIndex)
             }
-            if (!enemyCombat.restoreReplayState(enemyState)) {
+            if (!enemyCombat.restoreReplayState(enemyState) ||
+                !enemyImpactPresentations.reset() ||
+                !enemyImpactAudio.reset()) {
                 return false
             }
         }

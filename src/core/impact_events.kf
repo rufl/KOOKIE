@@ -94,6 +94,14 @@ class ImpactPresentationQueue {
         return count
     }
 
+    Bool reset() {
+        head = 0
+        count = 0
+        consumed = ImpactPresentationEvent(
+            0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0)
+        return true
+    }
+
     ImpactPresentationEvent lastConsumed() {
         return consumed
     }

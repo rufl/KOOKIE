@@ -34,6 +34,13 @@ class QueuedAudio {
     Int queuedCount() {
         return count
     }
+    Bool reset() {
+        head = 0
+        count = 0
+        lastClip = 0
+        lastGain = 0
+        return true
+    }
 
     Bool queue(Int clip, Int gain) {
         if (!opened || clip <= 0 || gain < 0 || gain > 100 || count >= clips.length) {

@@ -101,6 +101,15 @@ class SpatialImpactQueue {
         return count
     }
 
+    Bool reset() {
+        head = 0
+        count = 0
+        nextSequence = 1
+        consumed = SpatialImpactEvent(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+        return true
+    }
+
     SpatialImpactEvent lastConsumed() {
         return consumed
     }
@@ -437,12 +446,78 @@ class AuthoritativeEnemySession {
         return combat.setResistance(actorId, channel, percentValue)
     }
 
+    Int projectileReplayStateLength() {
+        return 4 + spatialProjectileIds.length * 11
+    }
+
+    Bool encodeProjectileReplayState(Int[] target) {
+        if (target.length != projectileReplayStateLength()) {
+            return false
+        }
+        target[0] = 9701
+        target[1] = 1
+        target[2] = spatialProjectileHitsValue
+        target[3] = spatialProjectileBlockedValue
+        var offset = 4
+        for (var index = 0; index < spatialProjectileIds.length; index = index + 1) {
+            target[offset] = spatialProjectileIds[index]
+            target[offset + 1] = spatialProjectileSources[index]
+            target[offset + 2] = spatialProjectileTargets[index]
+            target[offset + 3] = spatialProjectileX[index]
+            target[offset + 4] = spatialProjectileY[index]
+            target[offset + 5] = spatialProjectileZ[index]
+            target[offset + 6] = spatialProjectileRanges[index]
+            target[offset + 7] = spatialProjectileTravelled[index]
+            target[offset + 8] = spatialProjectileSteps[index]
+            target[offset + 9] = spatialProjectileCriticals[index]
+            target[offset + 10] = 0
+            if (spatialProjectileActive[index]) {
+                target[offset + 10] = 1
+            }
+            offset = offset + 11
+        }
+        return true
+    }
+
+    Bool restoreProjectileReplayState(Int[] source) {
+        if (source.length != projectileReplayStateLength() ||
+            source[0] != 9701 || source[1] != 1 ||
+            source[2] < 0 || source[3] < 0) {
+            return false
+        }
+        spatialProjectileHitsValue = source[2]
+        spatialProjectileBlockedValue = source[3]
+        var offset = 4
+        for (var index = 0; index < spatialProjectileIds.length; index = index + 1) {
+            if (source[offset + 10] < 0 || source[offset + 10] > 1 ||
+                source[offset + 6] < 0 || source[offset + 7] < 0 ||
+                source[offset + 8] < 0 || source[offset + 9] < 0) {
+                return false
+            }
+            spatialProjectileIds[index] = source[offset]
+            spatialProjectileSources[index] = source[offset + 1]
+            spatialProjectileTargets[index] = source[offset + 2]
+            spatialProjectileX[index] = source[offset + 3]
+            spatialProjectileY[index] = source[offset + 4]
+            spatialProjectileZ[index] = source[offset + 5]
+            spatialProjectileRanges[index] = source[offset + 6]
+            spatialProjectileTravelled[index] = source[offset + 7]
+            spatialProjectileSteps[index] = source[offset + 8]
+            spatialProjectileCriticals[index] = source[offset + 9]
+            spatialProjectileActive[index] = source[offset + 10] == 1
+            offset = offset + 11
+        }
+        spatialImpacts.reset()
+        return true
+    }
+
     Int replayStateLength() {
         return combat.allReplayStateLength() +
             enemies.replayStateLength() +
             spatial.replayStateLength() +
             encounters.replayStateLength() +
-            linkedEnemyIds.length * 3
+            linkedEnemyIds.length * 3 +
+            projectileReplayStateLength()
     }
 
     Bool encodeReplayState(Int[] target) {
@@ -453,14 +528,17 @@ class AuthoritativeEnemySession {
         var enemyLength = enemies.replayStateLength()
         var spatialLength = spatial.replayStateLength()
         var encounterLength = encounters.replayStateLength()
+        var projectileLength = projectileReplayStateLength()
         var combatState = new Int[combatLength]
         var enemyState = new Int[enemyLength]
         var spatialState = new Int[spatialLength]
         var encounterState = new Int[encounterLength]
+        var projectileState = new Int[projectileLength]
         if (!combat.encodeAllReplayState(combatState) ||
             !enemies.encodeReplayState(enemyState) ||
             !spatial.encodeReplayState(spatialState) ||
-            !encounters.encodeReplayState(encounterState)) {
+            !encounters.encodeReplayState(encounterState) ||
+            !encodeProjectileReplayState(projectileState)) {
             return false
         }
         var offset = 0
@@ -489,6 +567,9 @@ class AuthoritativeEnemySession {
             }
             offset = offset + 3
         }
+        for (var projectileIndex = 0; projectileIndex < projectileLength; projectileIndex = projectileIndex + 1) {
+            target[offset + projectileIndex] = projectileState[projectileIndex]
+        }
         return true
     }
 
@@ -500,10 +581,12 @@ class AuthoritativeEnemySession {
         var enemyLength = enemies.replayStateLength()
         var spatialLength = spatial.replayStateLength()
         var encounterLength = encounters.replayStateLength()
+        var projectileLength = projectileReplayStateLength()
         var combatState = new Int[combatLength]
         var enemyState = new Int[enemyLength]
         var spatialState = new Int[spatialLength]
         var encounterState = new Int[encounterLength]
+        var projectileState = new Int[projectileLength]
         var offset = 0
         for (var index = 0; index < combatLength; index = index + 1) {
             combatState[index] = source[offset + index]
@@ -536,7 +619,10 @@ class AuthoritativeEnemySession {
             linkedActive[linkIndex] = source[offset + 2] == 1
             offset = offset + 3
         }
-        return true
+        for (var projectileIndex = 0; projectileIndex < projectileLength; projectileIndex = projectileIndex + 1) {
+            projectileState[projectileIndex] = source[offset + projectileIndex]
+        }
+        return restoreProjectileReplayState(projectileState)
     }
 
 

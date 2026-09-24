@@ -1237,6 +1237,10 @@ test "loopback replay restores enemy combat checkpoint state" {
         loopback.enemyEncounterRemainingBudget(4) == 99)
     var first = loopback.resolveEnemyHitscan(1, 100, 0, 1, 0)
     assert(first.accepted() && first.remainingHealth() == 90)
+    assert(loopback.setEnemySpatialPosition(1, 0, 0, 0) &&
+        loopback.spawnEnemyProjectileSpatial(
+            1, 100, 0, 20, 3, 0).accepted(),
+        "enemy projectile must spawn before checkpoint")
     var checkpoint = new Int[loopback.replayCheckpointLength()]
     assert(loopback.encodeReplayCheckpoint(checkpoint))
     var timeline = BoundedReplayTimeline(2, 2)
@@ -1244,13 +1248,17 @@ test "loopback replay restores enemy combat checkpoint state" {
         loopback.setEnemySpatialPosition(100, 30, 0, 0) &&
         loopback.resolveEnemyHitscan(1, 100, 1, 1, 0).remainingHealth() == 80 &&
         loopback.applyReplayCheckpoint(timeline, 1) &&
+        loopback.activeEnemyProjectiles() == 1 &&
+        loopback.pendingEnemyImpactPresentations() == 0 &&
+        loopback.pendingEnemyImpactAudio() == 0 &&
         loopback.enemyState(100) == 3 &&
         loopback.enemySpatialPositionX(100) == 20 &&
         loopback.enemyEncounterActiveCount(4) == 1 &&
-        loopback.enemyEncounterRemainingBudget(4) == 99)
+        loopback.enemyEncounterRemainingBudget(4) == 99,
+        "enemy world checkpoint restore must rewind combat, AI, spatial, projectile and encounter state")
     var restored = loopback.resolveEnemyHitscan(1, 100, 2, 1, 0)
     assert(restored.accepted() && restored.remainingHealth() == 80,
-        "enemy world checkpoint restore must rewind combat, AI, spatial and encounter state")
+        "enemy world checkpoint restore must rewind combat and projectile state")
 }
 
 
