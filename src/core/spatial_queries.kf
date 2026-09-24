@@ -528,7 +528,9 @@ class BoundedTriangleCollection {
         target[3] = geometryRevisionValue
         var offset = 4
         for (var ordinal = 0; ordinal < maxTriangles; ordinal = ordinal + 1) {
-            target[offset] = 0
+            for (var field = 0; field < 10; field = field + 1) {
+                target[offset + field] = 0
+            }
             if (ordinal < activeCountValue) {
                 var index = triangleIndexAt(ordinal)
                 target[offset] = 1

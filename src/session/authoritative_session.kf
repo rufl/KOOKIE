@@ -1698,7 +1698,7 @@ class LoopbackSession {
     }
 
     Int replayCheckpointLength() {
-        return 120 + enemyCombat.replayStateLength() + worldInteractions.replayStateLength() + 12
+        return 120 + enemyCombat.replayStateLength() + worldInteractions.replayStateLength() + 16
     }
 
     Bool encodeReplayCheckpoint(Int[] target) {
@@ -1761,6 +1761,10 @@ class LoopbackSession {
                 target[commandOffset + 5] = 1
             }
         }
+        target[target.length - 4] = playerOneEdges.fireHeld()
+        target[target.length - 3] = playerOneEdges.jumpHeld()
+        target[target.length - 2] = playerTwoEdges.fireHeld()
+        target[target.length - 1] = playerTwoEdges.jumpHeld()
         return true
     }
     Bool appendReplayCheckpointBundle(
@@ -1806,14 +1810,15 @@ class LoopbackSession {
         }
         var length = timeline.seekSnapshotLength()
         var previousFullLength = 120 + enemyCombat.replayStateLength()
-        if (length != replayCheckpointLength() && worldInteractions.size() != 0) {
+        var hasWorldState = length == replayCheckpointLength() || length == replayCheckpointLength() - 4
+        if (!hasWorldState && worldInteractions.size() != 0) {
             return false
         }
         if (length == 0) {
             return true
         }
         if (length != 1 && length != 4 && length != 50 && length != 120 &&
-            length != previousFullLength && length != replayCheckpointLength()) {
+            length != previousFullLength && !hasWorldState) {
             return false
         }
         if (length == 1 && playerTwoConnected) {
@@ -1835,10 +1840,17 @@ class LoopbackSession {
             restoredSequence < 0) {
             return false
         }
+        if (length == replayCheckpointLength()) {
+            for (var index = length - 4; index < length; index = index + 1) {
+                if (timeline.seekSnapshotValue(index) < 0 || timeline.seekSnapshotValue(index) > 1) {
+                    return false
+                }
+            }
+        }
         var decodedInteractions = BoundedInteractionWorld(16, 1000000)
         var worldOffset = previousFullLength
         var worldLength = worldInteractions.replayStateLength()
-        if (length == replayCheckpointLength()) {
+        if (hasWorldState) {
             var currentWorldState = new Int[worldLength]
             var decodedWorldState = new Int[worldLength]
             if (!worldInteractions.encodeReplayState(currentWorldState) ||
@@ -1873,7 +1885,7 @@ class LoopbackSession {
             }
         }
         if (length == 50 || length == 120 ||
-            length == previousFullLength || length == replayCheckpointLength()) {
+            length == previousFullLength || hasWorldState) {
             var combatState = new Int[46]
             for (var index = 0; index < combatState.length; index = index + 1) {
                 combatState[index] = timeline.seekSnapshotValue(index + 4)
@@ -1882,7 +1894,7 @@ class LoopbackSession {
                 return false
             }
         }
-        if (length == 120 || length == previousFullLength || length == replayCheckpointLength()) {
+        if (length == 120 || length == previousFullLength || hasWorldState) {
             var skillOneState = new Int[19]
             var statusOneState = new Int[15]
             var skillTwoState = new Int[19]
@@ -1922,7 +1934,7 @@ class LoopbackSession {
             playerOneSkillResource = timeline.seekSnapshotValue(118)
             playerTwoSkillResource = timeline.seekSnapshotValue(119)
         }
-        if (length == previousFullLength || length == replayCheckpointLength()) {
+        if (length == previousFullLength || hasWorldState) {
             var enemyState = new Int[enemyCombat.replayStateLength()]
             for (var enemyIndex = 0; enemyIndex < enemyState.length; enemyIndex = enemyIndex + 1) {
                 enemyState[enemyIndex] = timeline.seekSnapshotValue(120 + enemyIndex)
@@ -1952,7 +1964,7 @@ class LoopbackSession {
                 return false
             }
         }
-        if (length == 120 || length == previousFullLength || length == replayCheckpointLength()) {
+        if (length == 120 || length == previousFullLength || hasWorldState) {
             if ((playerOneConnected && !refreshPlayerCombatModifiers(1)) ||
                 (playerTwoConnected && !refreshPlayerCombatModifiers(2))) {
                 return false
@@ -1963,6 +1975,10 @@ class LoopbackSession {
         playerOneEdges.clearHeld()
         playerTwoEdges.clearHeld()
         if (length == replayCheckpointLength()) {
+            playerOneEdges.restoreHeld(timeline.seekSnapshotValue(length - 4), timeline.seekSnapshotValue(length - 3))
+            playerTwoEdges.restoreHeld(timeline.seekSnapshotValue(length - 2), timeline.seekSnapshotValue(length - 1))
+        }
+        if (hasWorldState) {
             worldInteractions = decodedInteractions
             for (var player = 1; player <= 2; player = player + 1) {
                 var offset = worldOffset + worldLength + (player - 1) * 6
@@ -1998,10 +2014,7 @@ class LoopbackSession {
         }
         while (staged.playNext()) {
             var command = staged.lastPlayed()
-            if (!receiveInput(
-                player, command.tick(), command.sequence(),
-                command.moveX(), command.moveY(), command.lookX(), command.lookY(),
-                command.fire(), command.jump())) {
+            if (!receiveInputCommand(player, command)) {
                 return false
             }
         }
@@ -2037,7 +2050,7 @@ class LoopbackSession {
         var pendingTicks = new Int[3]
         var pendingTargets = new Int[3]
         for (var player = 1; player <= 2; player = player + 1) {
-            var offset = timeline.seekSnapshotLength() - 12 + (player - 1) * 6
+            var offset = timeline.seekSnapshotLength() - 16 + (player - 1) * 6
             checkpointSequences[player] = timeline.seekSnapshotValue(offset)
             pendingTicks[player] = timeline.seekSnapshotValue(offset + 1)
             pendingTargets[player] = timeline.seekSnapshotValue(offset + 2)
@@ -2077,9 +2090,7 @@ class LoopbackSession {
         while (serverTick < targetTick) {
             var nextTick = serverTick + 1
             if (hasMovement && movement.tick() == nextTick) {
-                if (!receiveInput(movementPlayer, nextTick, movement.sequence(),
-                    movement.moveX(), movement.moveY(), movement.lookX(), movement.lookY(),
-                    movement.fire(), movement.jump())) {
+                if (!receiveInputCommand(movementPlayer, movement)) {
                     return false
                 }
                 hasMovement = movements.playNext()
@@ -2110,6 +2121,13 @@ class LoopbackSession {
             return false
         }
         var command = InputCommand(tick, sequence, moveX, moveY, lookX, lookY, fire, jump)
+        return receiveInputCommand(player, command)
+    }
+
+    Bool receiveInputCommand(Int player, InputCommand command) {
+        if (!started || paused) {
+            return false
+        }
         if (player == 1 && playerOneConnected && playerOneFocused) {
             return playerOneInputs.queue(command)
         }
@@ -2137,7 +2155,7 @@ class LoopbackSession {
                 playerOneInputs.dequeue()
                 var commandOne = playerOneInputs.lastConsumed()
                 playerOneEdges.apply(commandOne.fire(), commandOne.jump())
-                if (inputReplayEnabled && !playerOneReplay.append(commandOne)) {
+                if (inputReplayEnabled && !playerOneReplay.appendAtTick(commandOne, simulationTick)) {
                     return -1
                 }
                 serverMovement.applyInput(1, commandOne.moveX())
@@ -2151,7 +2169,7 @@ class LoopbackSession {
                 playerTwoInputs.nextTick() <= simulationTick) {
                 playerTwoInputs.dequeue()
                 var commandTwo = playerTwoInputs.lastConsumed()
-                if (inputReplayEnabled && !playerTwoReplay.append(commandTwo)) {
+                if (inputReplayEnabled && !playerTwoReplay.appendAtTick(commandTwo, simulationTick)) {
                     return -1
                 }
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())

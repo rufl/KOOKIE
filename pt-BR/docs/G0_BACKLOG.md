@@ -66,13 +66,15 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - `LoopbackSession.resolvePlayerSpatialShotgun` agora constrói um `SpatialAimContract` compartilhado, deriva offsets de pellet do estado autoritativo de combate, seleciona alvos espaciais e resolve os IDs selecionados pelo caminho autoritativo por pellet; a cobertura JVM/native prova dano por dispersão, exclusão da fonte, remoção de alvo e vida dos alvos.
 - `BoundedInteractionWorld` e `LoopbackSession` agora implementam progressão cooperativa de chave/porta/segredo/saída com ativação única, definições limitadas e seladas, alcance pela posição do servidor, admissão por sequência/tick, cancelamento por foco/pausa, pedidos simultâneos determinísticos e snapshots de ativação do cliente. Bundles de checkpoint preservam definições, ativações, pedidos pendentes e sequências.
 - Corrigimos agendamento pelo tick real no catch-up e sobreposição de registros espaciais de checkpoint. Sete cenários focados JVM/native e 14 testes existentes afetados por alvo passaram. Replay espacial v2 rejeita layouts v1 irrecuperáveis.
+- O replay de interações agora registra até 64 comandos consumidos, reserva capacidade antes da admissão, persiste os comandos em bundles v2 e simula novamente a partir de checkpoints completos. Movimento usa o tick consumido; input mantido e sequência de apresentação sobrevivem a buscas repetidas.
+- A progressão do nível agora usa seção 11/versão 1 com identidade de nível/conteúdo e correspondência exata de IDs estáveis. Arquivos de save usam cópias v2 limitadas e com checksum; arquivos v1 genuínos continuam legíveis e o reparo os atualiza. Dezesseis cenários focados e 20 regressões existentes afetadas passam em cada alvo.
+- Corrigimos a serialização nativa de campos de rolagem de itens e registros de triângulos não usados; regressões com buffers contaminados impedem memória residual em arquivos de replay.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke X11/offscreen reporta corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
 2. Conectar o estado das portas à colisão/renderização da arena criada; os gatilhos atuais usam a posição escalar existente `(x, 0, 0)`, não uma arena 3D completa.
-3. Capturar comandos de interação entre checkpoints de replay e adicionar progressão do nível às seções versionadas de save.
-4. Provar host e dois clientes em LAN, incluindo desconexão/reconexão limitada e tratamento de input obsoleto.
+3. Provar host e dois clientes em LAN, incluindo desconexão/reconexão limitada e tratamento de input obsoleto.
 
 ## Qualificação de release
 

@@ -79,13 +79,15 @@ This is the active bounded implementation sequence after the initial research an
 - `LoopbackSession.resolvePlayerSpatialShotgun` now builds one shared `SpatialAimContract`, derives weapon pellet offsets from the authoritative combat state, selects spatial targets, and resolves the selected IDs through the authoritative per-pellet combat path; JVM/native coverage proves spread-specific damage, source exclusion, target removal and target health.
 - `BoundedInteractionWorld` and `LoopbackSession` now implement cooperative one-shot key/door/secret/exit progression with sealed bounded definitions, server-position reach checks, per-player sequence/tick admission, focus/pause cancellation, deterministic simultaneous requests and client activation snapshots. Checkpoint bundles preserve definitions, activations, pending requests and sequence watermarks.
 - Fixed actual-tick catch-up scheduling and spatial checkpoint row overlap. Seven focused JVM/native scenarios and 14 affected existing tests per target pass. Spatial replay v2 rejects unrecoverable v1 row layouts.
+- Interaction replay now records up to 64 consumed commands, reserves capacity before admission, persists them in v2 bundles and re-simulates from full checkpoints. Movement uses consumed ticks; held input and presentation sequence survive repeated seeks.
+- Level progression now uses section 11/version 1 with level/content identity and exact stable-ID matching. Save files use bounded, checksummed v2 copies; genuine v1 files remain readable and repair upgrades them. Sixteen focused scenarios and 20 affected existing regressions pass on each target.
+- Fixed native checkpoint serialization of unused inventory roll fields and triangle rows; poisoned-buffer regressions prevent stale memory from entering replay files.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; the X11/offscreen smoke correctly reports `gpu-unavailable`, while Xvfb remains presentation-incompatible.
 2. Connect progression door state to authored arena collision/rendering; current triggers use the existing scalar player position `(x, 0, 0)`, not a completed 3D arena.
-3. Capture interaction commands between replay checkpoints and add level progression to versioned save sections.
-4. Prove host plus two clients over LAN, including bounded disconnect/reconnect and stale-input handling.
+3. Prove host plus two clients over LAN, including bounded disconnect/reconnect and stale-input handling.
 
 ## Release qualification
 

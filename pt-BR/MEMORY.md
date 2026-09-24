@@ -1,18 +1,20 @@
 # Memória de trabalho do KOOKIE
 
-Atualizada após o lote de interações/replay de 2026-09-24. Comece pelo [README](README.md), depois pelo [CHANGELOG](CHANGELOG.md) e pelo [backlog](docs/G0_BACKLOG.md) ativo. As fundações limitadas executam; os gates de aceitação dos milestones não terminaram.
+Atualizada após o lote de replay de comandos/saves do nível de 2026-09-24. Comece pelo [README](README.md), depois pelo [CHANGELOG](CHANGELOG.md) e pelo [backlog](docs/G0_BACKLOG.md) ativo. As fundações limitadas executam; os gates de aceitação dos milestones não terminaram.
 
 ## Lote mais recente
 
-- Gatilhos cooperativos de chave/porta/segredo/saída agora têm admissão autoritativa por tick, estado do cliente e restauração de checkpoint. Sete cenários focados JVM/native e 14 testes afetados por alvo passaram; nenhuma matriz completa foi executada.
-- Corrigimos o tick dos comandos de catch-up e a sobreposição dos registros de replay espacial. Replay espacial v2 rejeita o layout v1 irrecuperável; checkpoints primários agora permitem 512 palavras, com sidecars ainda limitados a 320.
-- A sonda nativa expôs memória de arrays reutilizada e não zerada; filas de interação e flags do cliente inicializam explicitamente cada posição observável.
+- Comandos de interação consumidos agora persistem em bundles de replay v2 e são simulados entre checkpoints completos. A captura reserva 64 posições; a reprodução cobre até 4096 ticks, um stream explícito de movimento e interações dos dois jogadores. Desative a captura antes de reproduzir; exporte antes de desativar.
+- A progressão do nível usa seção 11/versão 1, identidade de nível/conteúdo e IDs estáveis exatos. O arquivo de schema v2 suporta capacidades configuradas até 12 seções × 160 palavras e cópias duplicadas com checksum; arquivos v1 genuínos continuam legíveis. Isso não equivale a publicação durável contra crash nem autenticação.
+- Corrigimos campos não inicializados de inventário/triângulos em checkpoints nativos, ticks de movimento consumidos, input mantido nas buscas e encaminhamento de registros completos de replay. Dezesseis cenários focados e 20 regressões afetadas passaram na JVM/native; nenhuma matriz completa local foi executada.
+- Uma chamada nativa com muitos argumentos encaminhados por getters perdeu o argumento de disparo em uma reprodução focada. O replay agora enfileira o `InputCommand` existente em vez de reconstruir a chamada longa; não declaramos reparo do compilador.
+- Próximo lote de implementação desbloqueado: conectar estado autoritativo das portas à colisão/renderização da arena criada. Apresentação DRI3 isolada e qualificação LAN com host e dois clientes continuam abertas; não arquivar o backlog ativo.
 - `kof info --json` atual reporta 0.4.9-beta em `~/.local/share/kof4j/0.4.9-beta`, não a narrativa posterior de 0.4.10 abaixo. Nenhum alvo nativo Windows foi estabelecido.
 - O empacotamento não está pronto: faltam suporte nativo Windows, runtime relocável/licenças e descritor KOOKIE no OVERZEER. As consultas de saúde passaram, mas faltou credencial canônica Chopper e o acesso às capacidades DDJARIN retornou HTTP 401. O backlog registra a qualificação e o trabalho restante.
 
 ## Intenção do usuário
 
-Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código-fonte nativo Kof `.kf` para a lógica portátil da engine, do jogo e das ferramentas**. Bibliotecas externas de gráficos/plataforma e código estreito de ABI/shader são permitidos quando realmente necessários. Aproveitar ideias úteis de ZYLVE, DINX e CUBSHIP sem transformar esses projetos em dependências escondidas. A implementação avança em fatias pequenas e testáveis, sem fingir que a engine inteira já existe.
+Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código-fonte nativo Kof `.kf` para a lógica portátil da engine, do jogo e das ferramentas**. Bibliotecas externas de gráficos/plataforma e código estreito de ABI/shader são permitidos quando necessários. Aproveitar ideias de ZYLVE, DINX e CUBSHIP sem dependências ocultas. Preferir lotes maiores e coerentes com provas focadas; manter milestones incompletos explícitos.
 
 ## Identidades de pesquisa fixadas
 

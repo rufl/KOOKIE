@@ -47,6 +47,16 @@ class InputEdgeState {
         return true
     }
 
+    Bool restoreHeld(Int nextFire, Int nextJump) {
+        if (nextFire < 0 || nextFire > 1 || nextJump < 0 || nextJump > 1) {
+            return false
+        }
+        fire = nextFire
+        jump = nextJump
+        edges = InputEdges(0, 0, 0, 0)
+        return true
+    }
+
 
     InputEdges lastEdges() {
         return edges

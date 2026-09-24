@@ -3,6 +3,7 @@
 
 KOOKIE is an experimental 3D shooter engine built around Kof. It is for
 boomer-shooter, looter-shooter and ARPG-FPS experiments—not a finished game.
+The doors have prerequisites. So does calling this finished.
 
 ## The honest status
 
@@ -11,7 +12,7 @@ The useful foundation is running and tested on JVM and native Linux x86-64:
 - authoritative fixed-step sessions and snapshots;
 - bounded movement, collision, BVH and spatial projectile queries;
 - deterministic combat, including per-pellet shotgun targeting;
-- cooperative key, door, secret and exit progression with checkpoint restore;
+- cooperative key, door, secret and exit progression, command replay and versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
 - a small SDL3/SDL_GPU adapter and authenticated localhost transport probes.
 

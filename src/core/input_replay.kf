@@ -36,11 +36,15 @@ class InputReplayRecorder {
     }
 
     Bool append(InputCommand command) {
-        if (command.tick() < 0 || command.sequence() < 0 ||
+        return appendAtTick(command, command.tick())
+    }
+
+    Bool appendAtTick(InputCommand command, Int tick) {
+        if (tick < 0 || command.sequence() < 0 ||
             command.fire() < 0 || command.fire() > 1 ||
             command.jump() < 0 || command.jump() > 1 ||
             count >= ticks.length ||
-            (count > 0 && command.tick() < lastRecordedTickValue) ||
+            (count > 0 && tick < lastRecordedTickValue) ||
             command.sequence() <= lastRecordedSequenceValue) {
             return false
         }
@@ -48,7 +52,7 @@ class InputReplayRecorder {
         if (index >= ticks.length) {
             index = index - ticks.length
         }
-        ticks[index] = command.tick()
+        ticks[index] = tick
         sequences[index] = command.sequence()
         moveXs[index] = command.moveX()
         moveYs[index] = command.moveY()
@@ -57,7 +61,7 @@ class InputReplayRecorder {
         fires[index] = command.fire()
         jumps[index] = command.jump()
         count = count + 1
-        lastRecordedTickValue = command.tick()
+        lastRecordedTickValue = tick
         lastRecordedSequenceValue = command.sequence()
         return true
     }

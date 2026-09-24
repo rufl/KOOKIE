@@ -1,18 +1,20 @@
 # KOOKIE working memory
 
-Last updated after the 2026-09-24 interaction/replay batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active [backlog](docs/G0_BACKLOG.md). Bounded foundations execute; the milestone acceptance gates are not complete.
+Last updated after the 2026-09-24 command-replay/level-save batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active [backlog](docs/G0_BACKLOG.md). Bounded foundations execute; the milestone acceptance gates are not complete.
 
 ## Latest batch
 
-- Cooperative key/door/secret/exit triggers now have authoritative tick admission, client state and checkpoint restoration. Seven focused JVM/native scenarios plus 14 affected tests per target passed; no full matrix ran.
-- Fixed catch-up command timing and spatial replay row overlap. Spatial replay v2 rejects the unrecoverable v1 layout; new primary checkpoints allow 512 words, with sidecars still bounded to 320.
-- The native probe exposed reused, nonzero array storage; interaction queues and client flags explicitly initialize every observable slot.
+- Consumed interaction commands now persist in replay bundle v2 and re-simulate between full checkpoints. Capture reserves 64 slots; playback covers at most 4096 ticks, one explicit movement stream and both interaction players. Disable capture before playback; export captures before disabling.
+- Level progression uses section 11/version 1, level/content identity and exact stable IDs. Schema file v2 supports configured capacities up to 12 sections × 160 words and checksummed duplicate copies; genuine v1 files remain readable. This is not crash-durable publication or authentication.
+- Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Sixteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
+- A native high-arity call forwarding record getters dropped the fire argument in a focused reproduction. Replay now queues the existing `InputCommand` instead of reconstructing a wide call; no compiler repair is claimed.
+- Next unblocked implementation batch: connect authoritative door state to authored arena collision/rendering. Isolated DRI3 presentation and host plus two-client LAN qualification remain open; do not archive the active backlog.
 - Current `kof info --json` reports 0.4.9-beta at `~/.local/share/kof4j/0.4.9-beta`, not the later 0.4.10 narrative below. No native Windows target was established.
 - Packaging is not ready: missing native Windows support, relocatable runtime/license closure and KOOKIE's OVERZEER descriptor. Health checks succeeded, but canonical Chopper credentials were absent and DDJARIN capability access returned HTTP 401. See the backlog for qualification and remaining implementation work.
 
 ## User intent
 
-Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf` source for portable engine, game and tool logic**. External graphics/platform libraries and narrow ABI/shader code are allowed where they are genuinely needed. Borrow useful ideas from ZYLVE, DINX and CUBSHIP without turning those projects into hidden dependencies. The current implementation is moving in small, testable slices rather than pretending the whole engine exists.
+Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf` source for portable engine, game and tool logic**. External graphics/platform libraries and narrow ABI/shader code are allowed where genuinely needed. Borrow useful ideas from ZYLVE, DINX and CUBSHIP without hidden dependencies. Prefer larger coherent development batches with focused proofs; keep incomplete milestones explicit.
 
 ## Pinned research identities
 
