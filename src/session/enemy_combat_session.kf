@@ -436,6 +436,18 @@ class AuthoritativeEnemySession {
     Bool setResistance(Int actorId, Int channel, Int percentValue) {
         return combat.setResistance(actorId, channel, percentValue)
     }
+    Int replayStateLength() {
+        return combat.allReplayStateLength()
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        return combat.encodeAllReplayState(target)
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        return combat.restoreAllReplayState(source)
+    }
+
 
     Int currentShield(Int actorId) {
         return combat.currentShield(actorId)

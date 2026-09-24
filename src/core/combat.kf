@@ -614,6 +614,110 @@ class CombatWorld {
         }
         return eventQueue.reset()
     }
+    Int allReplayStateLength() {
+        return 4 + actorIds.length * 21
+    }
+
+    Bool encodeAllReplayState(Int[] target) {
+        if (target.length != allReplayStateLength()) {
+            return false
+        }
+        target[0] = 9102
+        target[1] = 1
+        target[2] = nextShotId
+        target[3] = deathCount
+        var offset = 4
+        for (var slot = 0; slot < actorIds.length; slot = slot + 1) {
+            target[offset] = actorIds[slot]
+            target[offset + 1] = 0
+            target[offset + 2] = 0
+            if (active[slot]) {
+                target[offset + 1] = 1
+            }
+            if (alive[slot]) {
+                target[offset + 2] = 1
+            }
+            target[offset + 3] = health[slot]
+            target[offset + 4] = maxHealth[slot]
+            target[offset + 5] = armor[slot]
+            target[offset + 6] = weaponIds[slot]
+            target[offset + 7] = magazines[slot]
+            target[offset + 8] = reserves[slot]
+            target[offset + 9] = nextReadyTicks[slot]
+            target[offset + 10] = deathSequences[slot]
+            target[offset + 11] = damageFlats[slot]
+            target[offset + 12] = damagePercents[slot]
+            target[offset + 13] = defenseFlats[slot]
+            target[offset + 14] = defensePercents[slot]
+            target[offset + 15] = shields[slot]
+            target[offset + 16] = maxShields[slot]
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                target[offset + 17 + channel] =
+                    resistancePercents[slot * 4 + channel]
+            }
+            offset = offset + 21
+        }
+        return true
+    }
+
+    Bool restoreAllReplayState(Int[] source) {
+        if (source.length != allReplayStateLength() ||
+            source[0] != 9102 || source[1] != 1 ||
+            source[2] <= 0 || source[3] < 0) {
+            return false
+        }
+        var offset = 4
+        for (var slot = 0; slot < actorIds.length; slot = slot + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1 || source[offset + 2] < 0 ||
+                source[offset + 2] > 1 || source[offset + 3] < 0 ||
+                source[offset + 4] < 0 || source[offset + 5] < 0 ||
+                source[offset + 6] < 0 || source[offset + 7] < 0 ||
+                source[offset + 8] < 0 || source[offset + 9] < 0 ||
+                source[offset + 10] < 0 || source[offset + 11] < 0 ||
+                source[offset + 12] < 0 || source[offset + 13] < 0 ||
+                source[offset + 14] < 0 || source[offset + 15] < 0 ||
+                source[offset + 16] < source[offset + 15]) {
+                return false
+            }
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                if (source[offset + 17 + channel] < 0 ||
+                    source[offset + 17 + channel] > 100) {
+                    return false
+                }
+            }
+            actorIds[slot] = source[offset]
+            active[slot] = source[offset + 1] == 1
+            alive[slot] = source[offset + 2] == 1
+            health[slot] = source[offset + 3]
+            maxHealth[slot] = source[offset + 4]
+            armor[slot] = source[offset + 5]
+            weaponIds[slot] = source[offset + 6]
+            magazines[slot] = source[offset + 7]
+            reserves[slot] = source[offset + 8]
+            nextReadyTicks[slot] = source[offset + 9]
+            deathSequences[slot] = source[offset + 10]
+            damageFlats[slot] = source[offset + 11]
+            damagePercents[slot] = source[offset + 12]
+            defenseFlats[slot] = source[offset + 13]
+            defensePercents[slot] = source[offset + 14]
+            shields[slot] = source[offset + 15]
+            maxShields[slot] = source[offset + 16]
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                resistancePercents[slot * 4 + channel] =
+                    source[offset + 17 + channel]
+            }
+            offset = offset + 21
+        }
+        nextShotId = source[2]
+        deathCount = source[3]
+        nextProjectileId = 1
+        for (var projectile = 0; projectile < projectileActive.length; projectile = projectile + 1) {
+            projectileActive[projectile] = false
+        }
+        return eventQueue.reset()
+    }
+
 
     Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {
         var index = findActor(actorId)

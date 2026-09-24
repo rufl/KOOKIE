@@ -1181,7 +1181,7 @@ test "loopback replay restores combat checkpoint state" {
         loopback.playerCombatHealth(2) == 90 &&
         loopback.playerCombatMagazine(1) == 2,
         "combat checkpoint setup must apply initial damage")
-    var checkpoint = new Int[120]
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
     assert(loopback.encodeReplayCheckpoint(checkpoint))
     var timeline = BoundedReplayTimeline(2, 2)
     assert(timeline.appendCheckpointSnapshot(0, 202, checkpoint) &&
@@ -1205,7 +1205,7 @@ test "loopback replay restores progression checkpoint state" {
         loopback.definePlayerStatus(40, 10, 3) &&
         loopback.applyPlayerStatus(1, 40, 5, 2) &&
         loopback.playerStatusDuration(1, 40) == 5)
-    var checkpoint = new Int[120]
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
     assert(loopback.encodeReplayCheckpoint(checkpoint))
     var timeline = BoundedReplayTimeline(2, 2)
     assert(timeline.appendCheckpointSnapshot(0, 303, checkpoint) &&
@@ -1219,6 +1219,27 @@ test "loopback replay restores progression checkpoint state" {
         loopback.playerStatusStacks(1, 40) == 2,
         "progression checkpoint restore must rewind resources, cooldowns and statuses")
 }
+test "loopback replay restores enemy combat checkpoint state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() &&
+        loopback.defineEnemyWeapon(31, 3, 0, 0, 10, 0, 20) &&
+        loopback.defineEnemyEncounter(4, 2, 100) &&
+        loopback.addEnemyCombatActor(1, 1000, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 31) &&
+        loopback.admitEnemy(4, 100, 0, 100, 0, 31))
+    var first = loopback.resolveEnemyHitscan(1, 100, 0, 1, 0)
+    assert(first.accepted() && first.remainingHealth() == 90)
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
+    assert(loopback.encodeReplayCheckpoint(checkpoint))
+    var timeline = BoundedReplayTimeline(2, 2)
+    assert(timeline.appendCheckpointSnapshot(0, 404, checkpoint) &&
+        loopback.resolveEnemyHitscan(1, 100, 1, 1, 0).remainingHealth() == 80 &&
+        loopback.applyReplayCheckpoint(timeline, 1))
+    var restored = loopback.resolveEnemyHitscan(1, 100, 2, 1, 0)
+    assert(restored.accepted() && restored.remainingHealth() == 80,
+        "enemy combat checkpoint restore must rewind health and ammunition")
+}
+
 
 
 

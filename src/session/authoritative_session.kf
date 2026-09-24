@@ -1108,8 +1108,12 @@ class LoopbackSession {
         }
         return playerTwoReplay.lastPlayed()
     }
+    Int replayCheckpointLength() {
+        return 120 + enemyCombat.replayStateLength()
+    }
+
     Bool encodeReplayCheckpoint(Int[] target) {
-        if (target.length != 120 || !started) {
+        if (target.length != replayCheckpointLength() || !started) {
             return false
         }
         var combatState = new Int[46]
@@ -1117,11 +1121,13 @@ class LoopbackSession {
         var statusOneState = new Int[15]
         var skillTwoState = new Int[19]
         var statusTwoState = new Int[15]
+        var enemyState = new Int[enemyCombat.replayStateLength()]
         if (!playerCombat.encodeReplayState(combatState) ||
             !playerOneSkills.encodeReplayState(skillOneState) ||
             !playerOneStatuses.encodeReplayState(statusOneState) ||
             !playerTwoSkills.encodeReplayState(skillTwoState) ||
-            !playerTwoStatuses.encodeReplayState(statusTwoState)) {
+            !playerTwoStatuses.encodeReplayState(statusTwoState) ||
+            !enemyCombat.encodeReplayState(enemyState)) {
             return false
         }
         target[0] = serverTick
@@ -1145,6 +1151,9 @@ class LoopbackSession {
         }
         target[118] = playerOneSkillResource
         target[119] = playerTwoSkillResource
+        for (var enemyIndex = 0; enemyIndex < enemyState.length; enemyIndex = enemyIndex + 1) {
+            target[120 + enemyIndex] = enemyState[enemyIndex]
+        }
         return true
     }
 
@@ -1160,7 +1169,8 @@ class LoopbackSession {
         if (length == 0) {
             return true
         }
-        if (length != 1 && length != 4 && length != 50 && length != 120) {
+        if (length != 1 && length != 4 && length != 50 && length != 120 &&
+            length != replayCheckpointLength()) {
             return false
         }
         if (length == 1 && playerTwoConnected) {
@@ -1182,7 +1192,7 @@ class LoopbackSession {
             restoredSequence < 0) {
             return false
         }
-        if (length == 50 || length == 120) {
+        if (length == 50 || length == 120 || length == replayCheckpointLength()) {
             var combatState = new Int[46]
             for (var index = 0; index < combatState.length; index = index + 1) {
                 combatState[index] = timeline.seekSnapshotValue(index + 4)
@@ -1191,7 +1201,7 @@ class LoopbackSession {
                 return false
             }
         }
-        if (length == 120) {
+        if (length == 120 || length == replayCheckpointLength()) {
             var skillOneState = new Int[19]
             var statusOneState = new Int[15]
             var skillTwoState = new Int[19]
@@ -1231,6 +1241,15 @@ class LoopbackSession {
             playerOneSkillResource = timeline.seekSnapshotValue(118)
             playerTwoSkillResource = timeline.seekSnapshotValue(119)
         }
+        if (length == replayCheckpointLength()) {
+            var enemyState = new Int[enemyCombat.replayStateLength()]
+            for (var enemyIndex = 0; enemyIndex < enemyState.length; enemyIndex = enemyIndex + 1) {
+                enemyState[enemyIndex] = timeline.seekSnapshotValue(120 + enemyIndex)
+            }
+            if (!enemyCombat.restoreReplayState(enemyState)) {
+                return false
+            }
+        }
         if (!clock.setState(restoredTick, 0)) {
             return false
         }
@@ -1250,7 +1269,7 @@ class LoopbackSession {
                 return false
             }
         }
-        if (length == 120) {
+        if (length == 120 || length == replayCheckpointLength()) {
             if ((playerOneConnected && !refreshPlayerCombatModifiers(1)) ||
                 (playerTwoConnected && !refreshPlayerCombatModifiers(2))) {
                 return false
