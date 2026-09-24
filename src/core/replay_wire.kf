@@ -20,7 +20,7 @@ class BoundedReplayWireCodec {
         }
         commandCapacity = actualCapacity
         checkpointCapacity = actualCapacity
-        words = new Int[8 + actualCapacity * 11]
+        words = new Int[8 + actualCapacity * 12 + actualCapacity * actualCapacity]
         wordCount = 0
         magic = 22446688
         engineVersionValue = 0
@@ -70,8 +70,21 @@ class BoundedReplayWireCodec {
         var commandCount = timeline.pending()
         var checkpointCount = timeline.checkpointCountValue()
         var snapshotLength = timeline.initialSnapshotLength()
+        var checkpointSnapshotCount = 0
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var length = timeline.checkpointSnapshotLength(index)
+            if (length < 0 || length > checkpointCapacity) {
+                wordCount = 0
+                return false
+            }
+            checkpointSnapshotCount = checkpointSnapshotCount + length
+        }
+        if (checkpointSnapshotCount > checkpointCapacity * checkpointCapacity) {
+            wordCount = 0
+            return false
+        }
         words[0] = magic
-        words[1] = 3
+        words[1] = 4
         words[2] = engineVersion
         words[3] = contentVersion
         words[4] = seed
@@ -88,10 +101,22 @@ class BoundedReplayWireCodec {
         }
         var checkpointOffset = 8 + commandCount * 8
         for (var index = 0; index < checkpointCount; index = index + 1) {
-            words[checkpointOffset + index * 2] = timeline.checkpointTick(index)
-            words[checkpointOffset + index * 2 + 1] = timeline.checkpointHash(index)
+            var offset = checkpointOffset + index * 3
+            words[offset] = timeline.checkpointTick(index)
+            words[offset + 1] = timeline.checkpointHash(index)
+            words[offset + 2] = timeline.checkpointSnapshotLength(index)
         }
-        var snapshotOffset = checkpointOffset + checkpointCount * 2
+        var checkpointSnapshotOffset = checkpointOffset + checkpointCount * 3
+        var checkpointSnapshotWrite = checkpointSnapshotOffset
+        for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
+            var length = timeline.checkpointSnapshotLength(checkpoint)
+            for (var index = 0; index < length; index = index + 1) {
+                words[checkpointSnapshotWrite] =
+                    timeline.checkpointSnapshotValue(checkpoint, index)
+                checkpointSnapshotWrite = checkpointSnapshotWrite + 1
+            }
+        }
+        var snapshotOffset = checkpointSnapshotWrite
         for (var index = 0; index < snapshotLength; index = index + 1) {
             words[snapshotOffset + index] = timeline.initialSnapshotValue(index)
         }
@@ -112,7 +137,6 @@ class BoundedReplayWireCodec {
         }
         return words[index]
     }
-
     Bool decode(Int[] wire, InputReplayRecorder target) {
         if (!validHeader(wire, 1) ||
             wire.length != 6 + wire[5] * 8) {
@@ -150,7 +174,8 @@ class BoundedReplayWireCodec {
         var checkpointCount = wire[6]
         var snapshotLength = 0
         var commandOffset = 7
-        if (version == 3) {
+        var checkpointEntryWidth = 2
+        if (version == 3 || version == 4) {
             if (wire.length < 8 || wire[7] < 0 || wire[7] > commandCapacity) {
                 return false
             }
@@ -159,21 +184,47 @@ class BoundedReplayWireCodec {
         } else if (version != 2) {
             return false
         }
+        if (version == 4) {
+            checkpointEntryWidth = 3
+        }
         var checkpointOffset = commandOffset + commandCount * 8
-        var snapshotOffset = checkpointOffset + checkpointCount * 2
+        var checkpointSnapshotCount = 0
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var metadataOffset = checkpointOffset + index * checkpointEntryWidth
+            if (version == 4) {
+                var length = wire[metadataOffset + 2]
+                if (length < 0 || length > checkpointCapacity) {
+                    return false
+                }
+                checkpointSnapshotCount = checkpointSnapshotCount + length
+            }
+        }
+        if (checkpointSnapshotCount > checkpointCapacity * checkpointCapacity) {
+            return false
+        }
+        var checkpointSnapshotOffset =
+            checkpointOffset + checkpointCount * checkpointEntryWidth
+        var snapshotOffset = checkpointSnapshotOffset + checkpointSnapshotCount
         if (wire.length != snapshotOffset + snapshotLength ||
             !validCommands(wire, commandOffset, commandCount)) {
             return false
         }
         var previousTick = -1
         for (var index = 0; index < checkpointCount; index = index + 1) {
-            var tick = wire[checkpointOffset + index * 2]
-            var hash = wire[checkpointOffset + index * 2 + 1]
+            var metadataOffset = checkpointOffset + index * checkpointEntryWidth
+            var tick = wire[metadataOffset]
+            var hash = wire[metadataOffset + 1]
             if (tick < 0 || hash < -1000000 || hash > 1000000 ||
                 (index > 0 && tick <= previousTick)) {
                 return false
             }
             previousTick = tick
+        }
+        for (var index = 0; index < checkpointSnapshotCount; index = index + 1) {
+            var value = wire[checkpointSnapshotOffset + index]
+            if (value < -1000000 || value > 1000000) {
+                return false
+            }
         }
         for (var index = 0; index < snapshotLength; index = index + 1) {
             var value = wire[snapshotOffset + index]
@@ -191,9 +242,26 @@ class BoundedReplayWireCodec {
                 return false
             }
         }
+        var checkpointSnapshotRead = checkpointSnapshotOffset
         for (var index = 0; index < checkpointCount; index = index + 1) {
-            var offset = checkpointOffset + index * 2
-            if (!target.appendCheckpoint(wire[offset], wire[offset + 1])) {
+            var offset = checkpointOffset + index * checkpointEntryWidth
+            var length = 0
+            if (version == 4) {
+                length = wire[offset + 2]
+            }
+            if (version == 4) {
+                var checkpointSnapshot = new Int[length]
+                for (var valueIndex = 0; valueIndex < length; valueIndex = valueIndex + 1) {
+                    checkpointSnapshot[valueIndex] =
+                        wire[checkpointSnapshotRead + valueIndex]
+                }
+                if (!target.appendCheckpointSnapshot(
+                    wire[offset], wire[offset + 1], checkpointSnapshot)) {
+                    target.reset()
+                    return false
+                }
+                checkpointSnapshotRead = checkpointSnapshotRead + length
+            } else if (!target.appendCheckpoint(wire[offset], wire[offset + 1])) {
                 target.reset()
                 return false
             }

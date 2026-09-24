@@ -664,6 +664,30 @@ class LoopbackSession {
         return playerTwoReplay.lastPlayed()
     }
 
+    Bool queueReplayCommands(
+        Int player, BoundedReplayTimeline timeline, Int targetTick
+    ) {
+        if (!started || paused || targetTick < 0 ||
+            (player != 1 && player != 2)) {
+            return false
+        }
+        var staged = InputReplayRecorder(64)
+        if (!timeline.seek(targetTick) ||
+            !timeline.stageSeekCommands(staged)) {
+            return false
+        }
+        while (staged.playNext()) {
+            var command = staged.lastPlayed()
+            if (!receiveInput(
+                player, command.tick(), command.sequence(),
+                command.moveX(), command.moveY(), command.lookX(), command.lookY(),
+                command.fire(), command.jump())) {
+                return false
+            }
+        }
+        return true
+    }
+
     Bool receiveInput(
         Int player, Int tick, Int sequence, Int moveX, Int moveY,
         Int lookX, Int lookY, Int fire, Int jump

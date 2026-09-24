@@ -618,6 +618,22 @@ test "loopback replay capture records consumed commands" {
         "disabling replay must reset bounded capture state")
 }
 
+test "loopback replay stages commands into simulation" {
+    var timeline = BoundedReplayTimeline(2, 2)
+    var initial = new Int[1]
+    initial[0] = 0
+    assert(timeline.setInitialSnapshot(initial) &&
+        timeline.append(InputCommand(1, 1, 3, 0, 0, 0, 0, 0)) &&
+        timeline.append(InputCommand(2, 2, -2, 0, 0, 0, 0, 0)))
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.queueReplayCommands(1, timeline, 2) &&
+        loopback.advance(33334) == 2 &&
+        loopback.currentServerTick() == 2 &&
+        loopback.serverPosition(1) == 1,
+        "loopback replay must queue staged commands for authoritative execution")
+}
+
 test "bounded replay wire and file codecs" {
     var replay = InputReplayRecorder(2)
     assert(replay.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
@@ -669,16 +685,23 @@ test "bounded replay timeline checkpoints" {
     var snapshot = new Int[2]
     snapshot[0] = 12
     snapshot[1] = -4
+    var checkpointSnapshot = new Int[2]
+    checkpointSnapshot[0] = 30
+    checkpointSnapshot[1] = -7
     var staged = InputReplayRecorder(2)
     assert(timeline.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
         timeline.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1)) &&
         timeline.setInitialSnapshot(snapshot) &&
-        timeline.appendCheckpoint(4, 101) &&
+        timeline.appendCheckpointSnapshot(4, 101, checkpointSnapshot) &&
         timeline.appendCheckpoint(9, 202) &&
+        timeline.checkpointSnapshotLength(0) == 2 &&
+        timeline.checkpointSnapshotValue(0, 1) == -7 &&
         timeline.checkpointIndexAtOrBefore(8) == 0 &&
-        timeline.checkpointIndexAtOrBefore(9) == 1 &&
         timeline.seek(8) &&
         timeline.seekCheckpointIndex() == 0 &&
+        timeline.seekSnapshotLength() == 2 &&
+        timeline.seekSnapshotValue(0) == 30 &&
+        timeline.seekSnapshotValue(1) == -7 &&
         timeline.seekRemainingCommands() == 1 &&
         timeline.seekNextCommand() &&
         timeline.lastSeekCommand().tick() == 5 &&
@@ -690,7 +713,7 @@ test "bounded replay timeline checkpoints" {
         staged.lastPlayed().tick() == 5 &&
         !staged.playNext() &&
         timeline.checkpointHash(1) == 202,
-        "timeline must retain checkpoints and stage commands for re-execution")
+        "timeline must restore checkpoint state and stage commands")
     var files = BoundedReplayFileStore(2)
     var path = "/tmp/kookie-replay-timeline-test.bin"
     assert(files.writeTimeline(path, timeline, 7, 11, 99))
@@ -705,12 +728,16 @@ test "bounded replay timeline checkpoints" {
         restored.initialSnapshotValue(1) == -4 &&
         restored.checkpointCountValue() == 2 &&
         restored.checkpointTick(0) == 4 &&
+        restored.checkpointSnapshotLength(0) == 2 &&
+        restored.checkpointSnapshotValue(0, 0) == 30 &&
+        restored.checkpointSnapshotValue(0, 1) == -7 &&
         restored.checkpointHash(1) == 202 &&
         restored.commandAt(1).sequence() == 2 &&
         restored.seek(8) &&
         restored.seekCheckpointIndex() == 0 &&
+        restored.seekSnapshotValue(1) == -7 &&
         restored.seekRemainingCommands() == 1,
-        "timeline file codec must restore snapshot, commands and checkpoints")
+        "timeline file codec must restore checkpoint state and commands")
     var file = File(path)
     var corrupted = file.readBytes()
     corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
