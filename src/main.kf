@@ -1616,6 +1616,14 @@ test "remote session link sequences" {
     assert(link.disconnect())
     assert(!link.connected())
     assert(!link.disconnect())
+    assert(link.reconnect())
+    var nextSnapshot = session.broadPhaseSnapshot(2, 2)
+    assert(link.sendSnapshot(nextSnapshot))
+    assert(!link.sendSnapshot(snapshot))
+    assert(link.receiveSnapshot(nextSnapshot))
+    assert(!link.receiveSnapshot(snapshot))
+    assert(link.sentSequence() == 2 && link.receivedSequence() == 2)
+    assert(link.disconnect())
 }
 test "authoritative remote session handoff" {
     var session = LoopbackSession(2, 2)
@@ -1636,9 +1644,14 @@ test "authoritative remote session handoff" {
     assert(session.pumpRemoteBroadPhaseSnapshot(3))
     assert(session.remoteSendSequence() == 3)
     assert(session.applyRemoteBroadPhaseSnapshot(snapshot))
-    assert(!session.applyRemoteBroadPhaseSnapshot(snapshot))
     assert(session.closeRemoteSession())
     assert(!session.remoteSessionConnected())
+    assert(session.openRemoteSession())
+    assert(session.remoteSessionConnected() &&
+        session.remoteSendSequence() == 3)
+    assert(session.pumpRemoteBroadPhaseSnapshot(4))
+    assert(session.remoteSendSequence() == 4)
+    assert(session.closeRemoteSession())
 }
 
 

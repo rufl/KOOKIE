@@ -139,9 +139,34 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
             loopSucceeded = transportSnapshot(session, payload)
         }
     }
-    var disconnected = session.closeRemoteSession()
-    var closed = kookie_transport_close()
-    return loopSucceeded && disconnected && closed &&
+    var disconnected = session.closeRemoteSession() &&
+        kookie_transport_close()
+    var reconnected = disconnected &&
+        kookie_transport_open_pair()
+    var reconnectPeerPort = kookie_transport_peer_port()
+    if (reconnected) {
+        reconnected = reconnectPeerPort > 0 &&
+            session.configureRemoteEndpoint(
+                127, 0, 0, 1, reconnectPeerPort,
+                endpoint.keyWord(0), endpoint.keyWord(1),
+                endpoint.keyWord(2), endpoint.keyWord(3)
+            ) &&
+            session.openRemoteSession() &&
+            kookie_transport_set_peer_ipv4(
+                127, 0, 0, 1, reconnectPeerPort)
+    }
+    if (reconnected) {
+        reconnected = session.pumpRemoteBroadPhaseSnapshot(9)
+        if (reconnected) {
+            var reconnectPayload = session.broadPhaseSnapshot(
+                9, session.remoteSendSequence())
+            reconnected = transportSnapshot(session, reconnectPayload)
+        }
+    }
+    var closed = session.closeRemoteSession() &&
+        kookie_transport_close()
+    return loopSucceeded && reconnected && closed &&
+        session.remoteSendSequence() == 9 &&
         session.clientBroadPhaseTriangleCount() == 1
 }
 

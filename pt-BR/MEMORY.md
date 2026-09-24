@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-Atualizada após o lote de reconexão loopback de 2026-09-24. Comece pelo [README](README.md), depois pelo [CHANGELOG](CHANGELOG.md) e pelo backlog ativo. As fundações limitadas executam; os gates de aceitação dos milestones não terminaram.
+Atualizada após o lote de reconexão remota de 2026-09-24. Comece pelo [README](README.md), depois pelo [CHANGELOG](CHANGELOG.md) e pelo backlog ativo. As fundações limitadas executam; os gates de aceitação dos milestones não terminaram.
 
 ## Lote mais recente
 
@@ -9,6 +9,7 @@ Atualizada após o lote de reconexão loopback de 2026-09-24. Comece pelo [READM
 - Corrigimos campos não inicializados de inventário/triângulos em checkpoints nativos, ticks de movimento consumidos, input mantido nas buscas e encaminhamento de registros completos de replay. Dezoito cenários focados e 20 regressões afetadas passaram na JVM/native; nenhuma matriz completa local foi executada.
 - Uma chamada nativa com muitos argumentos encaminhados por getters perdeu o argumento de disparo em uma reprodução focada. O replay agora enfileira o `InputCommand` existente em vez de reconstruir a chamada longa; não declaramos reparo do compilador.
 - O ciclo de vida do host loopback preserva posição e marcas d'água de sequência na reconexão, limpa comandos pendentes e rejeita input obsoleto. A prova LAN autenticada ainda está aberta; não arquivar o backlog ativo.
+- A reconexão da sessão remota agora preserva as marcas d'água de envio/recebimento do broad-phase ao fechar e reabrir; a sonda UDP nativa autenticada retoma na sequência 9 e rejeita snapshots antigos. A prova LAN autenticada com dois clientes continua aberta.
 - `kof info --json` atual reporta 0.4.9-beta em `~/.local/share/kof4j/0.4.9-beta`, não a narrativa posterior de 0.4.10 abaixo. Nenhum alvo nativo Windows foi estabelecido.
 - O empacotamento não está pronto: faltam suporte nativo Windows, runtime relocável/licenças e descritor KOOKIE no OVERZEER. As consultas de saúde passaram, mas faltou credencial canônica Chopper e o acesso às capacidades DDJARIN retornou HTTP 401. O backlog registra a qualificação e o trabalho restante.
 

@@ -2405,7 +2405,7 @@ class LoopbackSession {
         if (!remoteLink.connect()) {
             return false
         }
-        remoteSendSequenceValue = 0
+        remoteSendSequenceValue = remoteLink.sentSequence()
         return true
     }
 

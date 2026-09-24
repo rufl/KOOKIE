@@ -83,7 +83,7 @@ O roadmap não terminou; o trabalho concluído permanece registrado aqui, sem ar
 
 - `kof info --json` instalado reporta 0.4.9-beta em Linux x86-64. O assembler nativo inspecionado vincula ELF Linux; builds nativos Windows não foram estabelecidos. Um launcher Windows do compilador não comprova o alvo Windows da engine.
 - O deploy ZTASH usa arquivos `.tar.gz`/`.zip` por alvo e metadados imutáveis de procedência, não um formato `.ztash` presumido. KOOKIE ainda precisa de dependências relocáveis, licença/avisos e um descritor de aplicação no OVERZEER.
-- Consultas somente leitura à frota em 2026-09-24: ambos os endpoints de saúde retornaram HTTP 200; a busca canônica de token Chopper não encontrou credencial correspondente, e o acesso às capacidades do DDJARIN retornou HTTP 401. A busca permanece em `/home/lich/lichforge/oztok` ou `C:\lichforge\oztok`; nenhuma credencial foi alterada ou copiada.
+- A reconexão da sessão remota agora preserva as marcas d'água de envio/recebimento de broad-phase ao fechar e reabrir. A sonda UDP nativa autenticada fecha e reabre o par local, retoma na sequência 9 e rejeita snapshots antigos pelo mesmo contrato monotônico do link. A prova LAN autenticada com dois clientes continua aberta.
 - Não encontramos arquivos antigos pertencentes ao KOOKIE nos locais de release/cache consultados. Pacotes de outras aplicações e estados de rollback permaneceram intactos.
 
 

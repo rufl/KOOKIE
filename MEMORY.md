@@ -1,6 +1,6 @@
 # KOOKIE working memory
 
-Last updated after the 2026-09-24 loopback reconnect batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active backlog. Bounded foundations execute; milestone acceptance gates are not complete.
+Last updated after the 2026-09-24 remote reconnect batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active backlog. Bounded foundations execute; milestone acceptance gates are not complete.
 
 ## Latest batch
 
@@ -9,6 +9,7 @@ Last updated after the 2026-09-24 loopback reconnect batch. Start with [README](
 - Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Eighteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
 - A native high-arity call forwarding record getters dropped the fire argument in a focused reproduction. Replay now queues the existing `InputCommand` instead of reconstructing a wide call; no compiler repair is claimed.
 - Loopback host lifecycle now preserves player position and input sequence watermarks across reconnect, clears pending commands, and rejects stale input. The authenticated LAN proof is still open; do not archive the active backlog.
+- Remote session reconnect now preserves broad-phase send/receive watermarks across close/reopen; the native authenticated UDP probe resumes at sequence 9 and rejects older snapshots. The authenticated two-client LAN proof remains open.
 - Current `kof info --json` reports 0.4.9-beta at `~/.local/share/kof4j/0.4.9-beta`, not the later 0.4.10 narrative below. No native Windows target was established.
 - Packaging is not ready: missing native Windows support, relocatable runtime/license closure and KOOKIE's OVERZEER descriptor. Health checks succeeded, but canonical Chopper credentials were absent and DDJARIN capability access returned HTTP 401. See the backlog for qualification and remaining implementation work.
 

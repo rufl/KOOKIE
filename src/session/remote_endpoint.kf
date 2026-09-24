@@ -161,6 +161,13 @@ class RemoteSessionLink {
         connectedValue = false
         return true
     }
+    Bool reconnect() {
+        if (connectedValue && !disconnect()) {
+            return false
+        }
+        return connect()
+    }
+
 
     Bool connected() {
         return connectedValue

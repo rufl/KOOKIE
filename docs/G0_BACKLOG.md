@@ -83,7 +83,7 @@ This is the active bounded implementation sequence after the initial research an
 - Level progression now uses section 11/version 1 with level/content identity and exact stable-ID matching. Save files use bounded, checksummed v2 copies; genuine v1 files remain readable and repair upgrades them. Sixteen focused scenarios and 20 affected existing regressions pass on each target.
 - Fixed native checkpoint serialization of unused inventory roll fields and triangle rows; poisoned-buffer regressions prevent stale memory from entering replay files.
 - Door integration now makes closed authored doors block authoritative scalar movement across their X plane, while opened doors stop blocking. Client-visible door geometry stages through `FrameStaging` with open/closed state; this remains a scalar `(x, 0, 0)` arena contract, not a completed 3D collision mesh.
-- Loopback host lifecycle now supports bounded client disconnect/reconnect. Reconnect preserves authoritative position and input sequence watermarks, clears pending commands, rejects stale input while disconnected and accepts only newer sequences after rejoin. The actual authenticated LAN proof remains open.
+- Remote session reconnect now preserves broad-phase send/receive sequence watermarks across close/reopen. The native authenticated UDP probe closes and reopens its local pair, resumes at sequence 9 and rejects older snapshots through the same monotonic link contract. The authenticated two-client LAN proof remains open.
 
 ## Next batch
 

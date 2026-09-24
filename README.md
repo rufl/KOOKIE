@@ -3,7 +3,7 @@
 
 KOOKIE is an experimental 3D shooter engine built around Kof. It is for
 boomer-shooter, looter-shooter and ARPG-FPS experiments—not a finished game.
-The doors have prerequisites. So does calling this finished.
+The doors have prerequisites. The network has prerequisites. Calling this finished has paperwork.
 
 ## The honest status
 
