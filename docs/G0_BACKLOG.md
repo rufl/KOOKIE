@@ -96,8 +96,8 @@ This is the active bounded implementation sequence after the initial research an
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
 - Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its inspected native assembler links Linux ELF; native Windows builds are not established. A Windows compiler launcher is not proof of a Windows engine target.
-- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE now has an OVERZEER source descriptor and Linux native/JVM package paths; endpoint binaries still require the registry rollout and restart. No public license is declared.
-- Authenticated Chopper and DDJARIN device checks currently return zero devices; no remote package mutation was attempted. Credential files were used only through permission-checked client paths.
+- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE has an OVERZEER source descriptor and Linux native/JVM package paths. A Linux OVERZEER registry rollout was accepted by the remote deployment lane, but Chopper's active service still advertises the old registry until restart; no KOOKIE activation succeeded.
+- Authenticated Chopper and DDJARIN device checks currently return zero devices. Credential files were used only through permission-checked client paths; no successful KOOKIE package activation occurred.
 - No KOOKIE-owned old archives were found in the scoped local release/cache stores. Other applications' packages and rollback state were left untouched.
 
 
