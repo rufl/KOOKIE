@@ -1387,6 +1387,38 @@ class LoopbackSession {
         }
         return true
     }
+    Bool appendReplayCheckpointBundle(
+        BoundedReplayTimeline timeline, Int tick, Int hash
+    ) {
+        if (!started || tick < 0 || tick > serverTick) {
+            return false
+        }
+        var checkpoint = new Int[replayCheckpointLength()]
+        var sidecar = new Int[replaySidecarLength()]
+        if (!encodeReplayCheckpoint(checkpoint) ||
+            !encodeReplaySidecar(sidecar)) {
+            return false
+        }
+        return timeline.appendCheckpointBundle(tick, hash, checkpoint, sidecar)
+    }
+
+    Bool applyReplayCheckpointBundle(
+        BoundedReplayTimeline timeline, Int targetTick
+    ) {
+        if (!started || paused || targetTick < 0 ||
+            !timeline.seek(targetTick) ||
+            timeline.seekSidecarLength() != replaySidecarLength()) {
+            return false
+        }
+        if (!applyReplayCheckpoint(timeline, targetTick)) {
+            return false
+        }
+        var sidecar = new Int[replaySidecarLength()]
+        for (var index = 0; index < sidecar.length; index = index + 1) {
+            sidecar[index] = timeline.seekSidecarValue(index)
+        }
+        return restoreReplaySidecar(sidecar)
+    }
 
 
     Bool applyReplayCheckpoint(

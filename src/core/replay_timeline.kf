@@ -6,6 +6,8 @@ class BoundedReplayTimeline {
     Int[] checkpointHashes
     Int[] checkpointSnapshotLengths
     Int[] checkpointSnapshotValues
+    Int[] checkpointSidecarLengths
+    Int[] checkpointSidecarValues
     Int checkpointCount
     Int[] initialSnapshot
     Int snapshotLength
@@ -14,6 +16,8 @@ class BoundedReplayTimeline {
     Int seekCommandOffsetValue
     Int seekSnapshotLengthValue
     Int seekSnapshotOffsetValue
+    Int seekSidecarLengthValue
+    Int seekSidecarOffsetValue
     InputCommand seekConsumed
 
     public constructor(Int commandCapacity, Int checkpointCapacity) {
@@ -36,6 +40,8 @@ class BoundedReplayTimeline {
         checkpointHashes = new Int[actualCheckpoints]
         checkpointSnapshotLengths = new Int[actualCheckpoints]
         checkpointSnapshotValues = new Int[actualCheckpoints * 320]
+        checkpointSidecarLengths = new Int[actualCheckpoints]
+        checkpointSidecarValues = new Int[actualCheckpoints * 320]
         checkpointCount = 0
         initialSnapshot = new Int[320]
         snapshotLength = 0
@@ -43,6 +49,8 @@ class BoundedReplayTimeline {
         seekCheckpointValue = -1
         seekCommandOffsetValue = 0
         seekSnapshotLengthValue = 0
+        seekSidecarLengthValue = 0
+        seekSidecarOffsetValue = 0
         seekSnapshotOffsetValue = 0
         seekConsumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
     }
@@ -61,6 +69,7 @@ class BoundedReplayTimeline {
         checkpointTicks[checkpointCount] = tick
         checkpointHashes[checkpointCount] = hash
         checkpointSnapshotLengths[checkpointCount] = 0
+        checkpointSidecarLengths[checkpointCount] = 0
         checkpointCount = checkpointCount + 1
         return true
     }
@@ -81,9 +90,37 @@ class BoundedReplayTimeline {
         checkpointTicks[checkpointCount] = tick
         checkpointHashes[checkpointCount] = hash
         checkpointSnapshotLengths[checkpointCount] = values.length
+        checkpointSidecarLengths[checkpointCount] = 0
         var offset = checkpointCount * 320
         for (var copy = 0; copy < values.length; copy = copy + 1) {
             checkpointSnapshotValues[offset + copy] = values[copy]
+        }
+        checkpointCount = checkpointCount + 1
+        return true
+    }
+    Bool appendCheckpointBundle(Int tick, Int hash, Int[] values, Int[] sidecar) {
+        if (tick < 0 || hash < -1000000 || hash > 1000000 ||
+            values.length > 320 || sidecar.length > 320 ||
+            checkpointCount >= checkpointTicks.length ||
+            (checkpointCount > 0 &&
+                tick <= checkpointTicks[checkpointCount - 1])) {
+            return false
+        }
+        for (var index = 0; index < values.length; index = index + 1) {
+            if (values[index] < -1000000 || values[index] > 1000000) {
+                return false
+            }
+        }
+        checkpointTicks[checkpointCount] = tick
+        checkpointHashes[checkpointCount] = hash
+        checkpointSnapshotLengths[checkpointCount] = values.length
+        checkpointSidecarLengths[checkpointCount] = sidecar.length
+        var offset = checkpointCount * 320
+        for (var copy = 0; copy < values.length; copy = copy + 1) {
+            checkpointSnapshotValues[offset + copy] = values[copy]
+        }
+        for (var sidecarCopy = 0; sidecarCopy < sidecar.length; sidecarCopy = sidecarCopy + 1) {
+            checkpointSidecarValues[offset + sidecarCopy] = sidecar[sidecarCopy]
         }
         checkpointCount = checkpointCount + 1
         return true
@@ -182,9 +219,13 @@ class BoundedReplayTimeline {
             baseTick = checkpointTicks[checkpoint]
             seekSnapshotLengthValue = checkpointSnapshotLengths[checkpoint]
             seekSnapshotOffsetValue = checkpoint * 320
+            seekSidecarLengthValue = checkpointSidecarLengths[checkpoint]
+            seekSidecarOffsetValue = checkpoint * 320
         } else {
             seekSnapshotLengthValue = snapshotLength
             seekSnapshotOffsetValue = -1
+            seekSidecarLengthValue = 0
+            seekSidecarOffsetValue = -1
         }
         var commandOffset = 0
         while (commandOffset < commands.pending() &&
@@ -243,6 +284,17 @@ class BoundedReplayTimeline {
             return initialSnapshot[index]
         }
         return checkpointSnapshotValues[seekSnapshotOffsetValue + index]
+    }
+
+    Int seekSidecarLength() {
+        return seekSidecarLengthValue
+    }
+
+    Int seekSidecarValue(Int index) {
+        if (index < 0 || index >= seekSidecarLengthValue || seekSidecarOffsetValue < 0) {
+            return 0
+        }
+        return checkpointSidecarValues[seekSidecarOffsetValue + index]
     }
 
     Int seekRemainingCommands() {

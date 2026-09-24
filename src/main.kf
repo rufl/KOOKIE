@@ -1261,18 +1261,21 @@ test "loopback replay sidecar restores inventory and world state" {
         loopback.equipPlayerItem(1, 0, 500) &&
         loopback.addBroadPhaseTriangle(
             0, 0, 0, 1, 0, 0, 0, 0, 1))
-    var sidecar = new Int[loopback.replaySidecarLength()]
-    assert(loopback.encodeReplaySidecar(sidecar) &&
-        loopback.setPlayerCurrency(1, 1) &&
+    var timeline = BoundedReplayTimeline(4, 2)
+    assert(loopback.appendReplayCheckpointBundle(timeline, 0, 17),
+        "atomic replay bundle must append")
+    assert(loopback.setPlayerCurrency(1, 1) &&
         loopback.addPlayerItem(1, 501, 1) &&
-        loopback.removeBroadPhaseTriangle(0) &&
-        loopback.restoreReplaySidecar(sidecar) &&
-        loopback.playerCurrency(1) == 100 &&
+        loopback.removeBroadPhaseTriangle(0),
+        "atomic replay bundle mutation must apply")
+    assert(loopback.applyReplayCheckpointBundle(timeline, 0),
+        "atomic replay bundle must restore")
+    assert(loopback.playerCurrency(1) == 100 &&
         loopback.playerItemQuantity(1, 500) == 2 &&
         loopback.playerItemQuantity(1, 501) == 0 &&
         loopback.playerEquipmentItem(1, 0) == 500 &&
         loopback.broadPhaseTriangleCount() == 1,
-        "loopback replay sidecar must restore inventory equipment and world state")
+        "atomic replay bundle must restore inventory equipment and world state")
 }
 
 test "loopback replay restores enemy combat checkpoint state" {
