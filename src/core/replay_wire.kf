@@ -61,6 +61,7 @@ class BoundedReplayWireCodec {
         Int engineVersion, Int contentVersion, Int seed) {
         if (engineVersion < 0 || contentVersion < 0 ||
             seed < -1000000 || seed > 1000000 ||
+            timeline.interactionCount() != 0 ||
             timeline.pending() > commandCapacity ||
             timeline.checkpointCountValue() > checkpointCapacity ||
             timeline.initialSnapshotLength() > commandCapacity) {

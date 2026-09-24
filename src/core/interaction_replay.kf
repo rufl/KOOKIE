@@ -1,0 +1,87 @@
+package core
+
+record InteractionCommand(Int tick, Int player, Int sequence, Int targetId)
+
+class InteractionReplayRecorder {
+    Int[] ticks
+    Int[] players
+    Int[] sequences
+    Int[] targetIds
+    Int recordedCount
+    Int playerOneSequence
+    Int playerTwoSequence
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity < 1) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        ticks = new Int[actualCapacity]
+        players = new Int[actualCapacity]
+        sequences = new Int[actualCapacity]
+        targetIds = new Int[actualCapacity]
+        recordedCount = 0
+        playerOneSequence = 0
+        playerTwoSequence = 0
+    }
+
+    Bool canAppend(Int tick, Int player, Int sequence, Int targetId) {
+        if (recordedCount >= ticks.length || tick < 1 || tick > 1000000 ||
+            (player != 1 && player != 2) || sequence < 1 || sequence > 1000000 ||
+            targetId < 1 || targetId > 1000000) {
+            return false
+        }
+        if (recordedCount > 0 &&
+            (tick < ticks[recordedCount - 1] ||
+                (tick == ticks[recordedCount - 1] && player <= players[recordedCount - 1]))) {
+            return false
+        }
+        if ((player == 1 && sequence <= playerOneSequence) ||
+            (player == 2 && sequence <= playerTwoSequence)) {
+            return false
+        }
+        return true
+    }
+
+    Bool append(Int tick, Int player, Int sequence, Int targetId) {
+        if (!canAppend(tick, player, sequence, targetId)) {
+            return false
+        }
+        ticks[recordedCount] = tick
+        players[recordedCount] = player
+        sequences[recordedCount] = sequence
+        targetIds[recordedCount] = targetId
+        recordedCount = recordedCount + 1
+        if (player == 1) {
+            playerOneSequence = sequence
+        } else {
+            playerTwoSequence = sequence
+        }
+        return true
+    }
+
+    Int count() {
+        return recordedCount
+    }
+
+    Int capacity() {
+        return ticks.length
+    }
+
+    InteractionCommand at(Int index) {
+        if (index < 0 || index >= recordedCount) {
+            return InteractionCommand(-1, 0, 0, 0)
+        }
+        return InteractionCommand(ticks[index], players[index], sequences[index], targetIds[index])
+    }
+
+    Bool reset() {
+        recordedCount = 0
+        playerOneSequence = 0
+        playerTwoSequence = 0
+        return true
+    }
+}

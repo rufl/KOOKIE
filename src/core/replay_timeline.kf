@@ -2,6 +2,10 @@ package core
 
 class BoundedReplayTimeline {
     InputReplayRecorder commands
+    InteractionReplayRecorder interactions
+    Int commandCapacityValue
+    Int seekInteractionOffsetValue
+    InteractionCommand seekInteractionConsumed
     Int[] checkpointTicks
     Int[] checkpointHashes
     Int[] checkpointSnapshotLengths
@@ -36,6 +40,10 @@ class BoundedReplayTimeline {
             actualCheckpoints = 64
         }
         commands = InputReplayRecorder(actualCommands)
+        interactions = InteractionReplayRecorder(actualCommands)
+        commandCapacityValue = actualCommands
+        seekInteractionOffsetValue = 0
+        seekInteractionConsumed = InteractionCommand(-1, 0, 0, 0)
         checkpointTicks = new Int[actualCheckpoints]
         checkpointHashes = new Int[actualCheckpoints]
         checkpointSnapshotLengths = new Int[actualCheckpoints]
@@ -57,6 +65,75 @@ class BoundedReplayTimeline {
 
     Bool append(InputCommand command) {
         return commands.append(command)
+    }
+
+    Bool appendInteraction(Int tick, Int player, Int sequence, Int targetId) {
+        return interactions.append(tick, player, sequence, targetId)
+    }
+
+    Bool appendInteractions(InteractionReplayRecorder source) {
+        if (source.count() > interactions.capacity() - interactions.count()) {
+            return false
+        }
+        var previousTick = 0
+        var previousPlayer = 0
+        var playerOneSequence = 0
+        var playerTwoSequence = 0
+        for (var index = 0; index < interactions.count(); index = index + 1) {
+            var command = interactions.at(index)
+            previousTick = command.tick()
+            previousPlayer = command.player()
+            if (command.player() == 1) {
+                playerOneSequence = command.sequence()
+            } else {
+                playerTwoSequence = command.sequence()
+            }
+        }
+        for (var index = 0; index < source.count(); index = index + 1) {
+            var command = source.at(index)
+            if (command.tick() < 1 || command.tick() > 1000000 ||
+                (command.player() != 1 && command.player() != 2) ||
+                command.sequence() < 1 || command.sequence() > 1000000 ||
+                command.targetId() < 1 || command.targetId() > 1000000 ||
+                command.tick() < previousTick ||
+                (command.tick() == previousTick && command.player() <= previousPlayer) ||
+                (command.player() == 1 && command.sequence() <= playerOneSequence) ||
+                (command.player() == 2 && command.sequence() <= playerTwoSequence)) {
+                return false
+            }
+            previousTick = command.tick()
+            previousPlayer = command.player()
+            if (command.player() == 1) {
+                playerOneSequence = command.sequence()
+            } else {
+                playerTwoSequence = command.sequence()
+            }
+        }
+        for (var index = 0; index < source.count(); index = index + 1) {
+            var command = source.at(index)
+            interactions.append(command.tick(), command.player(), command.sequence(), command.targetId())
+        }
+        return true
+    }
+
+    Int interactionCount() {
+        return interactions.count()
+    }
+
+    Int interactionCapacity() {
+        return interactions.capacity()
+    }
+
+    InteractionCommand interactionAt(Int index) {
+        return interactions.at(index)
+    }
+
+    Int commandCapacity() {
+        return commandCapacityValue
+    }
+
+    Int checkpointCapacity() {
+        return checkpointTicks.length
     }
 
     Bool appendCheckpoint(Int tick, Int hash) {
@@ -106,6 +183,16 @@ class BoundedReplayTimeline {
                 tick <= checkpointTicks[checkpointCount - 1])) {
             return false
         }
+        for (var index = 0; index < values.length; index = index + 1) {
+            if (values[index] < -1000000 || values[index] > 1000000) {
+                return false
+            }
+        }
+        for (var index = 0; index < sidecar.length; index = index + 1) {
+            if (sidecar[index] < -1000000 || sidecar[index] > 1000000) {
+                return false
+            }
+        }
         checkpointTicks[checkpointCount] = tick
         checkpointHashes[checkpointCount] = hash
         checkpointSnapshotLengths[checkpointCount] = values.length
@@ -130,6 +217,8 @@ class BoundedReplayTimeline {
             if (values[index] < -1000000 || values[index] > 1000000) {
                 return false
             }
+        }
+        for (var index = 0; index < values.length; index = index + 1) {
             initialSnapshot[index] = values[index]
         }
         snapshotLength = values.length
@@ -228,6 +317,13 @@ class BoundedReplayTimeline {
             commands.at(commandOffset).tick() <= baseTick) {
             commandOffset = commandOffset + 1
         }
+        var interactionOffset = 0
+        while (interactionOffset < interactions.count() &&
+            interactions.at(interactionOffset).tick() <= baseTick) {
+            interactionOffset = interactionOffset + 1
+        }
+        seekInteractionOffsetValue = interactionOffset
+        seekInteractionConsumed = InteractionCommand(-1, 0, 0, 0)
         seekTargetTickValue = targetTick
         seekCheckpointValue = checkpoint
         seekCommandOffsetValue = commandOffset
@@ -243,6 +339,21 @@ class BoundedReplayTimeline {
         seekConsumed = commands.at(seekCommandOffsetValue)
         seekCommandOffsetValue = seekCommandOffsetValue + 1
         return true
+    }
+
+    Bool seekNextInteraction() {
+        if (seekTargetTickValue < 0 ||
+            seekInteractionOffsetValue >= interactions.count() ||
+            interactions.at(seekInteractionOffsetValue).tick() > seekTargetTickValue) {
+            return false
+        }
+        seekInteractionConsumed = interactions.at(seekInteractionOffsetValue)
+        seekInteractionOffsetValue = seekInteractionOffsetValue + 1
+        return true
+    }
+
+    InteractionCommand lastSeekInteraction() {
+        return seekInteractionConsumed
     }
 
     Bool stageSeekCommands(InputReplayRecorder target) {
@@ -326,8 +437,65 @@ class BoundedReplayTimeline {
         return checkpointSidecarValues[index * 320 + valueIndex]
     }
 
+    Bool replaceFrom(BoundedReplayTimeline source) {
+        if (source.pending() > commandCapacityValue ||
+            source.interactionCount() > interactions.capacity() ||
+            source.checkpointCountValue() > checkpointTicks.length) {
+            return false
+        }
+        var nextCommands = InputReplayRecorder(commandCapacityValue)
+        var nextInteractions = InteractionReplayRecorder(interactions.capacity())
+        for (var index = 0; index < source.pending(); index = index + 1) {
+            if (!nextCommands.append(source.commandAt(index))) {
+                return false
+            }
+        }
+        for (var index = 0; index < source.interactionCount(); index = index + 1) {
+            var command = source.interactionAt(index)
+            if (!nextInteractions.append(
+                    command.tick(), command.player(), command.sequence(), command.targetId())) {
+                return false
+            }
+        }
+        for (var index = 0; index < source.checkpointCount; index = index + 1) {
+            checkpointTicks[index] = source.checkpointTicks[index]
+            checkpointHashes[index] = source.checkpointHashes[index]
+            checkpointSnapshotLengths[index] = source.checkpointSnapshotLengths[index]
+            checkpointSidecarLengths[index] = source.checkpointSidecarLengths[index]
+            for (var value = 0; value < source.checkpointSnapshotLengths[index]; value = value + 1) {
+                checkpointSnapshotValues[index * 512 + value] =
+                    source.checkpointSnapshotValues[index * 512 + value]
+            }
+            for (var value = 0; value < source.checkpointSidecarLengths[index]; value = value + 1) {
+                checkpointSidecarValues[index * 320 + value] =
+                    source.checkpointSidecarValues[index * 320 + value]
+            }
+        }
+        for (var index = 0; index < source.snapshotLength; index = index + 1) {
+            initialSnapshot[index] = source.initialSnapshot[index]
+        }
+        commands = nextCommands
+        interactions = nextInteractions
+        checkpointCount = source.checkpointCount
+        snapshotLength = source.snapshotLength
+        seekTargetTickValue = -1
+        seekCheckpointValue = -1
+        seekCommandOffsetValue = 0
+        seekInteractionOffsetValue = 0
+        seekSnapshotLengthValue = 0
+        seekSnapshotOffsetValue = 0
+        seekSidecarLengthValue = 0
+        seekSidecarOffsetValue = 0
+        seekConsumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+        seekInteractionConsumed = InteractionCommand(-1, 0, 0, 0)
+        return true
+    }
+
     Bool reset() {
         commands.reset()
+        interactions.reset()
+        seekInteractionOffsetValue = 0
+        seekInteractionConsumed = InteractionCommand(-1, 0, 0, 0)
         checkpointCount = 0
         snapshotLength = 0
         seekTargetTickValue = -1

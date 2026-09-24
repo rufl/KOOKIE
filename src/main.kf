@@ -381,7 +381,8 @@ test "schema save file persistence and recovery" {
     assert(store.repair(path),
         "schema save repair must rewrite both migrated copies")
     var repaired = file.readBytes()
-    repaired[960] = repaired[960] + 1
+    var secondCopyStart = 18 + (repaired.length - 18) / 2
+    repaired[secondCopyStart] = repaired[secondCopyStart] + 1
     assert(file.writeBytes(repaired) &&
         store.readLegacy(path, restored),
         "repaired schema save must survive one copy corruption")

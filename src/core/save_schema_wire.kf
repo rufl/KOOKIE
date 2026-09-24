@@ -20,8 +20,8 @@ class BoundedSaveSchemaWireCodec {
         if (actualPayload <= 0) {
             actualPayload = 1
         }
-        if (actualPayload > 16) {
-            actualPayload = 16
+        if (actualPayload > 160) {
+            actualPayload = 160
         }
         sectionCapacity = actualSections
         payloadCapacity = actualPayload

@@ -164,6 +164,265 @@ Bool verifyCatchupTicks() {
     return true
 }
 
+Bool verifyInventoryReplayInitialization() {
+    var inventory = BoundedItemInventory(1, 2)
+    assert(inventory.addItem(500, 1))
+    var state = new Int[inventory.replayStateLength()]
+    for (var index = 0; index < state.length; index = index + 1) {
+        state[index] = 1000001
+    }
+    assert(inventory.encodeReplayState(state))
+    var timeline = BoundedReplayTimeline(1, 1)
+    assert(timeline.appendCheckpointSnapshot(0, 1, state),
+        "unused inventory roll fields must not leak stale storage into checkpoint files")
+    return true
+}
+
+Bool verifyConsumedInteractionReplay() {
+    var session = LoopbackSession(4, 2)
+    assert(session.defineWorldKey(10, 2, 0, 0, 0))
+    assert(session.defineWorldDoor(20, 10, 0, 0, 0, 2))
+    assert(session.defineWorldSecret(30, 2, 0, 0, 0))
+    assert(session.defineWorldExit(40, 20, 1, 0, 0, 0, 2))
+    assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
+    assert(session.definePlayerWeapon(9, 4, 0, 0, 4, 1, 20))
+    assert(session.addPlayerCombatActor(1, 20, 0) && session.equipPlayerCombatWeapon(1, 9))
+    var timeline = BoundedReplayTimeline(8, 2)
+    assert(session.appendReplayCheckpointBundle(timeline, 0, 90))
+    assert(session.setInputReplayEnabled(true))
+    assert(session.receiveInteraction(1, 1, 1, 10) && session.advance(16667) == 1)
+    assert(!session.lastInteractionAccepted(1), "out-of-reach attempts must remain replayable")
+    assert(session.receiveInput(1, 2, 1, 2, 0, 0, 0, 1, 0))
+    assert(session.receiveInteraction(1, 2, 2, 10) && session.receiveInteraction(2, 2, 1, 20))
+    assert(session.appendReplayCheckpointBundle(timeline, 1, 91))
+    assert(!session.appendReplayCheckpointBundle(timeline, 0, 92), "checkpoints cannot mislabel live ticks")
+    assert(session.advance(16667) == 1 && session.worldInteractionActive(20))
+    assert(session.receiveInteraction(1, 3, 3, 30) && session.advance(16667) == 1)
+    assert(session.receiveInteraction(2, 4, 2, 40) && session.advance(16667) == 1)
+    assert(session.levelCompleted() && session.interactionReplayCount() == 5)
+    assert(session.exportInteractionReplay(timeline))
+    while (session.playPlayerReplay(1)) {
+        assert(timeline.append(session.lastPlayerReplay(1)))
+    }
+    assert(session.setInputReplayEnabled(false))
+    assert(!session.queueReplayCommands(1, timeline, 4), "movement-only playback must not drop interactions")
+    var store = BoundedReplayBundleFileStore(8)
+    assert(store.writeTimeline("consumed-interactions.dat", timeline, 1, 7, 33))
+    var loaded = BoundedReplayTimeline(8, 2)
+    assert(store.readTimeline("consumed-interactions.dat", loaded) && loaded.interactionCount() == 5)
+    assert(session.replayTimelineToTick(1, loaded, 1))
+    assert(!session.worldInteractionActive(10) && !session.lastInteractionAccepted(1))
+    assert(!session.receiveInteraction(1, 2, 3, 30), "checkpoint pending commands retain their queue slots")
+    for (var replay = 0; replay < 2; replay = replay + 1) {
+        assert(session.replayTimelineToTick(1, loaded, 4))
+        assert(session.currentServerTick() == 4 && session.serverPosition(1) == 2)
+        assert(session.worldInteractionActive(10) && session.worldInteractionActive(20))
+        assert(session.worldSecretCount() == 1 && session.levelCompleted() && session.clientLevelCompleted())
+        assert(session.lastInteractionTick(2) == 4 && session.lastInteractionAccepted(2))
+        assert(session.dequeuePlayerWeaponPresentation())
+        assert(session.lastPlayerWeaponPresentation().sequence() == 1 &&
+            session.lastPlayerWeaponPresentation().magazine() == 3,
+            "repeated playback must restore ammunition and presentation sequence, not reuse live queues")
+    }
+    assert(!session.replayTimelineToTick(1, loaded, 5000) && session.currentServerTick() == 4)
+    return true
+}
+
+Bool verifyInteractionCaptureReservation() {
+    var session = LoopbackSession(2, 2)
+    assert(session.defineWorldKey(1, 10, 0, 0, 0))
+    assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
+    assert(session.setInputReplayEnabled(true))
+    for (var tick = 1; tick <= 63; tick = tick + 1) {
+        assert(session.receiveInteraction(1, tick, tick, 1) && session.advance(16667) == 1)
+    }
+    assert(session.receiveInteraction(1, 64, 64, 1))
+    assert(!session.receiveInteraction(2, 64, 1, 1),
+        "the final recording slot must be reserved before another player is admitted")
+    assert(session.advance(16667) == 1 && session.interactionReplayCount() == 64)
+    assert(!session.receiveInteraction(2, 65, 1, 1))
+    assert(session.setInputReplayEnabled(false) && session.receiveInteraction(2, 65, 1, 1),
+        "recording overflow must not advance rejected player sequence watermarks")
+    return true
+}
+
+Bool writeReplayFixture(String path, Int[] words) {
+    var bytes = new Int[words.length * 6]
+    for (var index = 0; index < words.length; index = index + 1) {
+        var value = words[index] * 2
+        if (words[index] < 0) {
+            value = -value - 1
+        }
+        for (var digit = 0; digit < 6; digit = digit + 1) {
+            bytes[index * 6 + digit] = value % 64
+            value = value / 64
+        }
+    }
+    var file = File(path)
+    return file.writeBytes(bytes)
+}
+
+Bool verifyReplayFileBoundaries() {
+    var timeline = BoundedReplayTimeline(2, 1)
+    var initial = new Int[1]
+    initial[0] = 4
+    assert(timeline.setInitialSnapshot(initial))
+    assert(timeline.append(InputCommand(2, 1, 2, 0, 0, 0, 0, 0)))
+    assert(timeline.appendInteraction(2, 1, 1, 10))
+    var store = BoundedReplayBundleFileStore(2)
+    assert(store.writeTimeline("replay-boundaries.dat", timeline, 1, 1, 7))
+    var words = store.readWords("replay-boundaries.dat")
+    var target = BoundedReplayTimeline(2, 1)
+    initial[0] = 9
+    assert(target.setInitialSnapshot(initial) && target.appendInteraction(1, 2, 1, 99))
+    words[18] = 3
+    assert(writeReplayFixture("replay-boundaries.dat", words))
+    assert(!store.readTimeline("replay-boundaries.dat", target))
+    assert(target.initialSnapshotValue(0) == 9 && target.interactionAt(0).targetId() == 99)
+    words[18] = 1
+    var truncated = new Int[words.length - 1]
+    for (var index = 0; index < truncated.length; index = index + 1) {
+        truncated[index] = words[index]
+    }
+    assert(writeReplayFixture("replay-boundaries.dat", truncated))
+    assert(!store.readTimeline("replay-boundaries.dat", target) && target.initialSnapshotValue(0) == 9)
+    var trailing = new Int[words.length + 1]
+    for (var index = 0; index < words.length; index = index + 1) {
+        trailing[index] = words[index]
+    }
+    trailing[words.length] = 0
+    assert(writeReplayFixture("replay-boundaries.dat", trailing) && !store.readTimeline("replay-boundaries.dat", target))
+    var legacy = new Int[9]
+    legacy[0] = 22557799
+    legacy[1] = 1
+    legacy[2] = 1
+    legacy[3] = 1
+    legacy[4] = 7
+    legacy[5] = 0
+    legacy[6] = 0
+    legacy[7] = 1
+    legacy[8] = 42
+    assert(writeReplayFixture("replay-boundaries.dat", legacy) && store.readTimeline("replay-boundaries.dat", target))
+    assert(target.interactionCount() == 0 && target.initialSnapshotValue(0) == 42,
+        "genuine v1 files must replace interaction history with an empty log")
+    return true
+}
+
+Bool verifyLevelSaveIdentity() {
+    var source = BoundedInteractionWorld(4, 100)
+    assert(source.defineKey(10, 0, 0, 0, 0) && source.defineDoor(20, 10, 0, 0, 0, 0))
+    assert(source.defineSecret(30, 0, 0, 0, 0) && source.defineExit(40, 20, 1, 0, 0, 0, 0))
+    assert(source.seal() && source.interact(10, 0, 0, 0) && source.interact(20, 0, 0, 0))
+    var sections = BoundedSaveSections(12, 160)
+    assert(sections.setRevision(7) && source.encodeLevelProgression(sections, 100, 3))
+    var target = BoundedInteractionWorld(4, 100)
+    assert(target.defineSecret(30, 0, 0, 0, 0) && target.defineKey(10, 0, 0, 0, 0))
+    assert(target.defineDoor(20, 10, 0, 0, 0, 0) && target.defineExit(40, 20, 1, 0, 0, 0, 0))
+    assert(target.seal() && target.restoreLevelProgression(sections, 100, 3))
+    assert(target.activated(10) && target.activated(20) && !target.activated(30),
+        "stable IDs, not authoring order, identify persisted interactions")
+    assert(!target.restoreLevelProgression(sections, 101, 3) && !target.restoreLevelProgression(sections, 100, 4))
+    var payload = new Int[11]
+    for (var index = 0; index < payload.length; index = index + 1) {
+        payload[index] = sections.sectionValue(0, index)
+    }
+    payload[3] = 20
+    var duplicate = BoundedSaveSections(12, 160)
+    assert(duplicate.setRevision(7) && duplicate.put(11, 1, payload))
+    assert(!target.restoreLevelProgression(duplicate, 100, 3) && target.activated(10))
+    payload[3] = 10
+    payload[4] = 0
+    var orphanDoor = BoundedSaveSections(12, 160)
+    assert(orphanDoor.setRevision(7) && orphanDoor.put(11, 1, payload))
+    assert(!target.restoreLevelProgression(orphanDoor, 100, 3) && target.activated(10) && target.activated(20),
+        "an active door with an inactive key must reject without changing live progress")
+    var missing = BoundedSaveSections(12, 160)
+    assert(missing.setRevision(8) && !target.restoreLevelProgression(missing, 100, 3))
+    return true
+}
+
+Bool verifyLevelSaveCapacityAndRecovery() {
+    var world = BoundedInteractionWorld(64, 100)
+    for (var id = 1; id <= 64; id = id + 1) {
+        assert(world.defineKey(id, 0, 0, 0, 0))
+    }
+    assert(world.seal() && world.interact(1, 0, 0, 0) && world.interact(64, 0, 0, 0))
+    var sections = BoundedSaveSections(12, 160)
+    assert(sections.setRevision(91) && world.encodeLevelProgression(sections, 7, 2))
+    for (var id = 1; id <= 10; id = id + 1) {
+        var payload = new Int[1]
+        payload[0] = id
+        var version = 1
+        if (id == 2 || id == 3) {
+            version = 2
+        }
+        assert(sections.put(id, version, payload))
+    }
+    var store = BoundedSaveSchemaFileStore(12, 160)
+    assert(store.write("level-progress.dat", sections))
+    var restored = BoundedSaveSections(12, 160)
+    assert(store.read("level-progress.dat", restored) && restored.sectionCount() == 11)
+    assert(world.restoreLevelProgression(restored, 7, 2) && world.activated(1) && world.activated(64))
+    var words = store.readWords("level-progress.dat")
+    var slotWords = words[2]
+    words[4] = words[4] + 1
+    assert(store.writeWords("level-progress.dat", words) && store.read("level-progress.dat", restored))
+    assert(store.repair("level-progress.dat"))
+    words = store.readWords("level-progress.dat")
+    words[4 + slotWords] = words[4 + slotWords] + 1
+    assert(store.writeWords("level-progress.dat", words) && store.read("level-progress.dat", restored))
+    words[4] = words[4] + 1
+    assert(store.writeWords("level-progress.dat", words) && !store.read("level-progress.dat", restored))
+    assert(restored.revision() == 91 && restored.sectionValue(restored.find(11), 4) == 1,
+        "two corrupt copies must not erase the destination")
+    return true
+}
+
+Bool verifyLegacyLevelSaveFile() {
+    var sections = BoundedSaveSections(8, 16)
+    var payload = new Int[2]
+    payload[0] = 303
+    payload[1] = 404
+    assert(sections.setRevision(12) && sections.put(1, 1, payload))
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(codec.encode(sections))
+    var legacy = new Int[316]
+    for (var index = 0; index < legacy.length; index = index + 1) {
+        legacy[index] = 0
+    }
+    legacy[0] = 11773399
+    legacy[1] = 1
+    legacy[2] = codec.encodedLength()
+    legacy[159] = codec.encodedLength()
+    for (var index = 0; index < codec.encodedLength(); index = index + 1) {
+        legacy[3 + index] = codec.encodedWord(index)
+        legacy[160 + index] = codec.encodedWord(index)
+    }
+    var store = BoundedSaveSchemaFileStore(12, 160)
+    var restored = BoundedSaveSections(12, 160)
+    assert(store.writeWords("legacy-level-save.dat", legacy) && store.read("legacy-level-save.dat", restored))
+    assert(restored.revision() == 12 && restored.sectionValue(0, 0) == 303 && restored.find(11) == -1)
+    assert(store.repair("legacy-level-save.dat") && store.read("legacy-level-save.dat", restored))
+    return true
+}
+
+Bool verifySessionLevelSaveRestore() {
+    var session = LoopbackSession(2, 2)
+    assert(session.defineWorldKey(1, 0, 0, 0, 0) && session.defineWorldDoor(2, 1, 0, 0, 0, 0))
+    assert(session.start() && session.connectPlayer() == 1)
+    var initial = BoundedSaveSections(12, 160)
+    assert(initial.setRevision(1) && session.encodeLevelProgression(initial, 7, 2))
+    assert(session.receiveInteraction(1, 1, 1, 1) && session.advance(16667) == 1)
+    assert(session.receiveInteraction(1, 2, 2, 2) && session.restoreLevelProgression(initial, 7, 2))
+    assert(!session.worldInteractionActive(1) && !session.clientWorldInteractionActive(1))
+    assert(session.advance(16667) == 1 && !session.worldInteractionActive(2),
+        "loading progress must cancel queued interactions and publish a decreasing world revision")
+    assert(!session.receiveInteraction(1, 3, 2, 1) && session.receiveInteraction(1, 3, 3, 1))
+    assert(session.setInputReplayEnabled(true) && !session.restoreLevelProgression(initial, 7, 2),
+        "loading cannot create an unrecorded state change inside a capture epoch")
+    return true
+}
+
 main() {
     assert(verifyWorldProgression())
     assert(verifyWorldRestore())
@@ -172,5 +431,13 @@ main() {
     assert(verifyInteractionCheckpoint())
     assert(verifySpatialCheckpointRows())
     assert(verifyCatchupTicks())
-    println("KOOKIE G2 interaction progression, admission, replay and catch-up verified")
+    assert(verifyInventoryReplayInitialization())
+    assert(verifyConsumedInteractionReplay())
+    assert(verifyInteractionCaptureReservation())
+    assert(verifyReplayFileBoundaries())
+    assert(verifyLevelSaveIdentity())
+    assert(verifyLevelSaveCapacityAndRecovery())
+    assert(verifyLegacyLevelSaveFile())
+    assert(verifySessionLevelSaveRestore())
+    println("KOOKIE G2 progression, bounded command replay, versioned saves and recovery verified")
 }

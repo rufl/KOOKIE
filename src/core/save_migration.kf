@@ -11,6 +11,7 @@ class BoundedSaveMigrationGate {
     Int currentEquipmentVersion
     Int currentSkillVersion
     Int currentStatusVersion
+    Int currentLevelVersion
 
     public constructor() {
         currentSectionVersion = 1
@@ -23,6 +24,7 @@ class BoundedSaveMigrationGate {
         currentEquipmentVersion = 1
         currentSkillVersion = 1
         currentStatusVersion = 1
+        currentLevelVersion = 1
     }
 
     Bool importLegacy(BoundedSaveState source, BoundedSaveSections target) {
@@ -46,8 +48,8 @@ class BoundedSaveMigrationGate {
         if (!accepts(source) || source.revision() < 0) {
             return false
         }
-        target.clear()
-        if (!target.setRevision(source.revision())) {
+        var staged = BoundedSaveSections(12, 160)
+        if (!staged.setRevision(source.revision())) {
             return false
         }
         for (var index = 0; index < source.sectionCount(); index = index + 1) {
@@ -66,12 +68,11 @@ class BoundedSaveMigrationGate {
             if (targetLength > sourceLength) {
                 payload[targetLength - 1] = 0
             }
-            if (!target.put(sectionId, targetVersion, payload)) {
-                target.clear()
+            if (!staged.put(sectionId, targetVersion, payload)) {
                 return false
             }
         }
-        return true
+        return target.replaceFrom(staged)
     }
 
     Bool accepts(BoundedSaveSections source) {
@@ -117,6 +118,9 @@ class BoundedSaveMigrationGate {
         if (sectionId == 10) {
             return currentStatusVersion
         }
+        if (sectionId == 11) {
+            return currentLevelVersion
+        }
         return -1
     }
 
@@ -151,6 +155,9 @@ class BoundedSaveMigrationGate {
         }
         if (sectionId == 10) {
             return schemaVersion == currentStatusVersion
+        }
+        if (sectionId == 11) {
+            return schemaVersion == currentLevelVersion
         }
         return false
     }

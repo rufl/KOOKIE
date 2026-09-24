@@ -23,7 +23,7 @@ class BoundedReplayBundleFileStore {
         commandCapacity = actualCapacity
         checkpointCapacity = actualCapacity
         digitsPerWord = 6
-        words = new Int[8 + actualCapacity * 8 + actualCapacity * 4 +
+        words = new Int[9 + actualCapacity * 12 + actualCapacity * 4 +
             actualCapacity * 832 + 512]
         bytes = new Int[words.length * digitsPerWord]
         wordCount = 0
@@ -43,9 +43,11 @@ class BoundedReplayBundleFileStore {
 
     Bool encodeTimeline(BoundedReplayTimeline timeline,
         Int engineVersion, Int contentVersion, Int seed) {
-        if (engineVersion < 0 || contentVersion < 0 ||
+        if (engineVersion < 0 || engineVersion > 536870911 ||
+            contentVersion < 0 || contentVersion > 536870911 ||
             seed < -1000000 || seed > 1000000 ||
             timeline.pending() > commandCapacity ||
+            timeline.interactionCount() > commandCapacity ||
             timeline.checkpointCountValue() > checkpointCapacity ||
             timeline.initialSnapshotLength() > 512) {
             wordCount = 0
@@ -54,11 +56,14 @@ class BoundedReplayBundleFileStore {
         var commandCount = timeline.pending()
         var checkpointCount = timeline.checkpointCountValue()
         var snapshotLength = timeline.initialSnapshotLength()
+        var interactionCount = timeline.interactionCount()
         var totalValues = 0
         for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
             var primaryLength = timeline.checkpointSnapshotLength(checkpoint)
             var sidecarLength = timeline.checkpointSidecarLength(checkpoint)
-            if (primaryLength < 0 || primaryLength > 512 ||
+            if (timeline.checkpointTick(checkpoint) < 0 ||
+                timeline.checkpointTick(checkpoint) > 536870911 ||
+                primaryLength < 0 || primaryLength > 512 ||
                 sidecarLength < 0 || sidecarLength > 320) {
                 wordCount = 0
                 return false
@@ -70,22 +75,32 @@ class BoundedReplayBundleFileStore {
             return false
         }
         words[0] = magic
-        words[1] = 1
+        words[1] = 2
         words[2] = engineVersion
         words[3] = contentVersion
         words[4] = seed
         words[5] = commandCount
         words[6] = checkpointCount
         words[7] = snapshotLength
+        words[8] = interactionCount
         for (var index = 0; index < commandCount; index = index + 1) {
             var command = timeline.commandAt(index)
             if (!validCommand(command)) {
                 wordCount = 0
                 return false
             }
-            writeCommand(8 + index * 8, command)
+            writeCommand(9 + index * 8, command)
         }
-        var checkpointOffset = 8 + commandCount * 8
+        var interactionOffset = 9 + commandCount * 8
+        for (var index = 0; index < interactionCount; index = index + 1) {
+            var command = timeline.interactionAt(index)
+            var offset = interactionOffset + index * 4
+            words[offset] = command.tick()
+            words[offset + 1] = command.player()
+            words[offset + 2] = command.sequence()
+            words[offset + 3] = command.targetId()
+        }
+        var checkpointOffset = interactionOffset + interactionCount * 4
         for (var index = 0; index < checkpointCount; index = index + 1) {
             var offset = checkpointOffset + index * 4
             words[offset] = timeline.checkpointTick(index)
@@ -122,30 +137,49 @@ class BoundedReplayBundleFileStore {
 
     Bool readTimeline(String path, BoundedReplayTimeline target) {
         var wire = readWords(path)
-        if (wire.length < 8 || wire[0] != magic || wire[1] != 1 ||
+        if (wire.length < 8 || wire[0] != magic ||
+            (wire[1] != 1 && wire[1] != 2) ||
             wire[2] < 0 || wire[3] < 0 ||
             wire[4] < -1000000 || wire[4] > 1000000 ||
             wire[5] < 0 || wire[5] > commandCapacity ||
+            wire[5] > target.commandCapacity() ||
             wire[6] < 0 || wire[6] > checkpointCapacity ||
+            wire[6] > target.checkpointCapacity() ||
             wire[7] < 0 || wire[7] > 512) {
             return false
         }
         var commandCount = wire[5]
         var checkpointCount = wire[6]
         var snapshotLength = wire[7]
-        var checkpointOffset = 8 + commandCount * 8
+        var commandOffset = 8
+        var interactionCount = 0
+        if (wire[1] == 2) {
+            if (wire.length < 9 || wire[8] < 0 ||
+                wire[8] > commandCapacity || wire[8] > target.interactionCapacity()) {
+                return false
+            }
+            commandOffset = 9
+            interactionCount = wire[8]
+        }
+        var interactionOffset = commandOffset + commandCount * 8
+        var checkpointOffset = interactionOffset + interactionCount * 4
         var metadataEnd = checkpointOffset + checkpointCount * 4
+        if (metadataEnd > wire.length) {
+            return false
+        }
         var primaryCount = 0
         var sidecarCount = 0
+        var previousTick = -1
         for (var index = 0; index < checkpointCount; index = index + 1) {
             var offset = checkpointOffset + index * 4
             var primaryLength = wire[offset + 2]
             var sidecarLength = wire[offset + 3]
-            if (wire[offset] < 0 || wire[offset + 1] < -1000000 ||
+            if (wire[offset] <= previousTick || wire[offset + 1] < -1000000 ||
                 wire[offset + 1] > 1000000 || primaryLength < 0 ||
                 primaryLength > 512 || sidecarLength < 0 || sidecarLength > 320) {
                 return false
             }
+            previousTick = wire[offset]
             primaryCount = primaryCount + primaryLength
             sidecarCount = sidecarCount + sidecarLength
         }
@@ -154,37 +188,36 @@ class BoundedReplayBundleFileStore {
         var snapshotOffset = sidecarOffset + sidecarCount
         if (wire.length != snapshotOffset + snapshotLength ||
             primaryCount + sidecarCount > checkpointCapacity * 832 ||
-            !validCommands(wire, 8, commandCount)) {
+            !validCommands(wire, commandOffset, commandCount)) {
             return false
         }
-        for (var index = 0; index < primaryCount + sidecarCount + snapshotLength; index = index + 1) {
-            var value = wire[primaryOffset + index]
-            if (value < -1000000 || value > 1000000) {
+        for (var index = primaryOffset; index < wire.length; index = index + 1) {
+            if (wire[index] < -1000000 || wire[index] > 1000000) {
                 return false
             }
         }
-        target.reset()
+        var staged = BoundedReplayTimeline(target.commandCapacity(), target.checkpointCapacity())
+        for (var index = 0; index < interactionCount; index = index + 1) {
+            var offset = interactionOffset + index * 4
+            if (!staged.appendInteraction(
+                    wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3])) {
+                return false
+            }
+        }
         for (var index = 0; index < commandCount; index = index + 1) {
-            var offset = 8 + index * 8
-            if (!target.append(InputCommand(
+            var offset = commandOffset + index * 8
+            if (!staged.append(InputCommand(
                 wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
                 wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
-                target.reset()
                 return false
             }
         }
         var primaryRead = primaryOffset
         var sidecarRead = sidecarOffset
-        var previousTick = -1
         for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
             var offset = checkpointOffset + checkpoint * 4
             var primaryLength = wire[offset + 2]
             var sidecarLength = wire[offset + 3]
-            if (wire[offset] <= previousTick) {
-                target.reset()
-                return false
-            }
-            previousTick = wire[offset]
             var primary = new Int[primaryLength]
             var sidecar = new Int[sidecarLength]
             for (var index = 0; index < primaryLength; index = index + 1) {
@@ -193,9 +226,8 @@ class BoundedReplayBundleFileStore {
             for (var index = 0; index < sidecarLength; index = index + 1) {
                 sidecar[index] = wire[sidecarRead + index]
             }
-            if (!target.appendCheckpointBundle(
+            if (!staged.appendCheckpointBundle(
                     wire[offset], wire[offset + 1], primary, sidecar)) {
-                target.reset()
                 return false
             }
             primaryRead = primaryRead + primaryLength
@@ -205,21 +237,17 @@ class BoundedReplayBundleFileStore {
         for (var index = 0; index < snapshotLength; index = index + 1) {
             initial[index] = wire[snapshotOffset + index]
         }
-        if (!target.setInitialSnapshot(initial)) {
-            target.reset()
+        if (!staged.setInitialSnapshot(initial) ||
+            !encodeTimeline(staged, wire[2], wire[3], wire[4])) {
             return false
         }
-        engineVersionValue = wire[2]
-        contentVersionValue = wire[3]
-        seedValue = wire[4]
-        wordCount = wire.length
-        for (var index = 0; index < wordCount; index = index + 1) {
-            words[index] = wire[index]
-        }
-        return true
+        return target.replaceFrom(staged)
     }
 
     Bool writeEncoded(String path) {
+        if (wordCount < 9 || words[1] != 2) {
+            return false
+        }
         var output = new Int[wordCount * digitsPerWord]
         for (var wordIndex = 0; wordIndex < wordCount; wordIndex = wordIndex + 1) {
             var value = words[wordIndex]
@@ -239,7 +267,7 @@ class BoundedReplayBundleFileStore {
 
     Int[] readWords(String path) {
         var file = File(path)
-        var input = file.readRange(0, bytes.length)
+        var input = file.readRange(0, bytes.length + 1)
         if (input.length < 8 * digitsPerWord ||
             input.length > bytes.length || input.length % digitsPerWord != 0) {
             return new Int[0]
@@ -269,7 +297,8 @@ class BoundedReplayBundleFileStore {
     }
 
     Bool validCommand(InputCommand command) {
-        return command.tick() >= 0 && command.sequence() >= 0 &&
+        return command.tick() >= 0 && command.tick() <= 536870911 &&
+            command.sequence() >= 0 && command.sequence() <= 536870911 &&
             command.moveX() >= -1000000 && command.moveX() <= 1000000 &&
             command.moveY() >= -1000000 && command.moveY() <= 1000000 &&
             command.lookX() >= -1000000 && command.lookX() <= 1000000 &&

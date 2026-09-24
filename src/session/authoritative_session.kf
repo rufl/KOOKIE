@@ -13,6 +13,7 @@ class LoopbackSession {
     PlayerWeaponPresenter playerWeaponPresentations
     BoundedReplayPresentationHistory replayPresentationHistory
     BoundedInteractionWorld worldInteractions
+    InteractionReplayRecorder interactionReplay
     Int[] interactionSequences
     Int[] interactionTicks
     Int[] interactionTargets
@@ -123,6 +124,7 @@ class LoopbackSession {
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
         replayPresentationHistory = BoundedReplayPresentationHistory(entityCapacity * 8)
         worldInteractions = BoundedInteractionWorld(16, 1000000)
+        interactionReplay = InteractionReplayRecorder(64)
         interactionSequences = new Int[3]
         interactionTicks = new Int[3]
         interactionTargets = new Int[3]
@@ -245,11 +247,22 @@ class LoopbackSession {
 
     Bool receiveInteraction(Int player, Int tick, Int sequence, Int targetId) {
         if (!started || paused || player < 1 || player > 2 ||
-            tick <= serverTick || tick - serverTick > 4 ||
+            tick <= serverTick || tick > 1000000 || tick - serverTick > 4 ||
             sequence <= interactionSequences[player] || sequence > 1000000 ||
             interactionTargets[player] != 0 || worldInteractions.kind(targetId) == 0 ||
             worldInteractions.completed() || !playerFocused(player)) {
             return false
+        }
+        if (inputReplayEnabled) {
+            var reserved = interactionReplay.count()
+            for (var pendingPlayer = 1; pendingPlayer <= 2; pendingPlayer = pendingPlayer + 1) {
+                if (interactionTargets[pendingPlayer] != 0) {
+                    reserved = reserved + 1
+                }
+            }
+            if (reserved >= interactionReplay.capacity()) {
+                return false
+            }
         }
         interactionSequences[player] = sequence
         interactionTicks[player] = tick
@@ -260,6 +273,10 @@ class LoopbackSession {
     Bool consumeWorldInteractions(Int tick) {
         for (var player = 1; player <= 2; player = player + 1) {
             if (interactionTargets[player] != 0 && interactionTicks[player] <= tick) {
+                if (inputReplayEnabled && !interactionReplay.append(
+                    tick, player, interactionSequences[player], interactionTargets[player])) {
+                    return false
+                }
                 interactionResultTargets[player] = interactionTargets[player]
                 interactionResultTicks[player] = tick
                 interactionResults[player] = worldInteractions.interact(
@@ -337,6 +354,38 @@ class LoopbackSession {
             return 0
         }
         return interactionResultTicks[player]
+    }
+
+    Int interactionReplayCount() {
+        return interactionReplay.count()
+    }
+
+    Bool exportInteractionReplay(BoundedReplayTimeline timeline) {
+        return started && timeline.appendInteractions(interactionReplay)
+    }
+
+    Bool encodeLevelProgression(
+        BoundedSaveSections target, Int levelId, Int contentVersion
+    ) {
+        return started && worldInteractions.encodeLevelProgression(target, levelId, contentVersion)
+    }
+
+    Bool restoreLevelProgression(
+        BoundedSaveSections source, Int levelId, Int contentVersion
+    ) {
+        if (!started || inputReplayEnabled ||
+            !worldInteractions.restoreLevelProgression(source, levelId, contentVersion)) {
+            return false
+        }
+        for (var player = 1; player <= 2; player = player + 1) {
+            interactionTicks[player] = 0
+            interactionTargets[player] = 0
+            interactionResultTicks[player] = 0
+            interactionResultTargets[player] = 0
+            interactionResults[player] = false
+        }
+        interactionReplay.reset()
+        return publishWorldInteractions()
     }
 
     Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
@@ -1386,6 +1435,7 @@ class LoopbackSession {
         inputReplayEnabled = enabled
         playerOneReplay.reset()
         playerTwoReplay.reset()
+        interactionReplay.reset()
         return true
     }
 
@@ -1716,7 +1766,7 @@ class LoopbackSession {
     Bool appendReplayCheckpointBundle(
         BoundedReplayTimeline timeline, Int tick, Int hash
     ) {
-        if (!started || tick < 0 || tick > serverTick) {
+        if (!started || tick < 0 || tick != serverTick) {
             return false
         }
         var checkpoint = new Int[replayCheckpointLength()]
@@ -1928,6 +1978,9 @@ class LoopbackSession {
         serverTick = restoredTick
         clientTick = restoredTick
         snapshotSequence = restoredSequence
+        playerOneReplay.reset()
+        playerTwoReplay.reset()
+        interactionReplay.reset()
         return true
     }
 
@@ -1935,7 +1988,7 @@ class LoopbackSession {
         Int player, BoundedReplayTimeline timeline, Int targetTick
     ) {
         if (!started || paused || targetTick < 0 ||
-            (player != 1 && player != 2)) {
+            timeline.interactionCount() != 0 || (player != 1 && player != 2)) {
             return false
         }
         var staged = InputReplayRecorder(64)
@@ -1949,6 +2002,100 @@ class LoopbackSession {
                 player, command.tick(), command.sequence(),
                 command.moveX(), command.moveY(), command.lookX(), command.lookY(),
                 command.fire(), command.jump())) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool replayTimelineToTick(
+        Int movementPlayer, BoundedReplayTimeline timeline, Int targetTick
+    ) {
+        if (!started || paused || inputReplayEnabled || !playerFocused(movementPlayer) ||
+            targetTick < 0 || targetTick > 1000000 || !timeline.seek(targetTick) ||
+            timeline.seekSnapshotLength() != replayCheckpointLength() ||
+            timeline.seekSidecarLength() < replaySidecarBaseLength() + 1) {
+            return false
+        }
+        var baseTick = timeline.seekSnapshotValue(0)
+        if (baseTick < 0 || baseTick > targetTick || targetTick - baseTick > 4096 ||
+            (timeline.seekCheckpointIndex() >= 0 &&
+                timeline.checkpointTick(timeline.seekCheckpointIndex()) != baseTick)) {
+            return false
+        }
+        var movements = InputReplayRecorder(64)
+        var interactions = InteractionReplayRecorder(64)
+        var lastMovementTick = baseTick
+        while (timeline.seekNextCommand()) {
+            var command = timeline.lastSeekCommand()
+            if (command.tick() <= lastMovementTick || !movements.append(command)) {
+                return false
+            }
+            lastMovementTick = command.tick()
+        }
+        var checkpointSequences = new Int[3]
+        var pendingTicks = new Int[3]
+        var pendingTargets = new Int[3]
+        for (var player = 1; player <= 2; player = player + 1) {
+            var offset = timeline.seekSnapshotLength() - 12 + (player - 1) * 6
+            checkpointSequences[player] = timeline.seekSnapshotValue(offset)
+            pendingTicks[player] = timeline.seekSnapshotValue(offset + 1)
+            pendingTargets[player] = timeline.seekSnapshotValue(offset + 2)
+        }
+        while (timeline.seekNextInteraction()) {
+            var command = timeline.lastSeekInteraction()
+            var player = command.player()
+            if (!playerFocused(player) || worldInteractions.kind(command.targetId()) == 0 ||
+                command.sequence() < checkpointSequences[player] ||
+                (command.sequence() == checkpointSequences[player] &&
+                    (command.targetId() != pendingTargets[player] || command.tick() != pendingTicks[player])) ||
+                (command.sequence() > checkpointSequences[player] && pendingTargets[player] != 0 &&
+                    command.tick() <= pendingTicks[player]) ||
+                !interactions.append(command.tick(), player, command.sequence(), command.targetId())) {
+                return false
+            }
+            checkpointSequences[player] = command.sequence()
+            pendingTargets[player] = 0
+        }
+        if (!applyReplayCheckpointBundle(timeline, targetTick)) {
+            return false
+        }
+        playerOneInputs.resetForReplay()
+        playerTwoInputs.resetForReplay()
+        var nextPresentationSequence = 1
+        for (var index = 0; index < replayPresentationHistory.count(); index = index + 1) {
+            var event = replayPresentationHistory.at(index)
+            if (event.kind() <= 2 && event.sequence() >= nextPresentationSequence) {
+                nextPresentationSequence = event.sequence() + 1
+            }
+        }
+        playerWeaponPresentations.resetForReplay(nextPresentationSequence)
+        var hasMovement = movements.playNext()
+        var movement = movements.lastPlayed()
+        var interactionIndex = 0
+        var interaction = interactions.at(interactionIndex)
+        while (serverTick < targetTick) {
+            var nextTick = serverTick + 1
+            if (hasMovement && movement.tick() == nextTick) {
+                if (!receiveInput(movementPlayer, nextTick, movement.sequence(),
+                    movement.moveX(), movement.moveY(), movement.lookX(), movement.lookY(),
+                    movement.fire(), movement.jump())) {
+                    return false
+                }
+                hasMovement = movements.playNext()
+                movement = movements.lastPlayed()
+            }
+            while (interactionIndex < interactions.count() && interaction.tick() == nextTick) {
+                var player = interaction.player()
+                // Recorded commands already passed live admission. Re-run their
+                // gameplay checks even when an earlier command completed the level.
+                interactionSequences[player] = interaction.sequence()
+                interactionTicks[player] = nextTick
+                interactionTargets[player] = interaction.targetId()
+                interactionIndex = interactionIndex + 1
+                interaction = interactions.at(interactionIndex)
+            }
+            if (advance(16667) != 1) {
                 return false
             }
         }
@@ -2015,7 +2162,9 @@ class LoopbackSession {
                     return -1
                 }
             }
-            consumeWorldInteractions(simulationTick)
+            if (!consumeWorldInteractions(simulationTick)) {
+                return -1
+            }
             if (!advanceEnemyTick(simulationTick)) {
                 return -1
             }

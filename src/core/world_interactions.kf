@@ -226,6 +226,65 @@ class BoundedInteractionWorld {
         return completedValue
     }
 
+    Bool encodeLevelProgression(
+        BoundedSaveSections target, Int levelId, Int contentVersion
+    ) {
+        if (!sealedValue || levelId < 1 || levelId > 1000000 ||
+            contentVersion < 1 || contentVersion > 1000000) {
+            return false
+        }
+        var payload = new Int[3 + sizeValue * 2]
+        payload[0] = levelId
+        payload[1] = contentVersion
+        payload[2] = sizeValue
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            payload[3 + index * 2] = ids[index]
+            payload[4 + index * 2] = 0
+            if (active[index]) {
+                payload[4 + index * 2] = 1
+            }
+        }
+        return target.put(11, 1, payload)
+    }
+
+    Bool restoreLevelProgression(
+        BoundedSaveSections source, Int levelId, Int contentVersion
+    ) {
+        if (!sealedValue || levelId < 1 || levelId > 1000000 ||
+            contentVersion < 1 || contentVersion > 1000000) {
+            return false
+        }
+        var section = source.find(11)
+        if (section < 0 || source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) != 3 + sizeValue * 2 ||
+            source.sectionValue(section, 0) != levelId ||
+            source.sectionValue(section, 1) != contentVersion ||
+            source.sectionValue(section, 2) != sizeValue) {
+            return false
+        }
+        var staged = new Int[replayStateLength()]
+        if (!encodeReplayState(staged)) {
+            return false
+        }
+        var seen = new Bool[sizeValue]
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            seen[index] = false
+        }
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            var slot = slotFor(source.sectionValue(section, 3 + index * 2))
+            var flag = source.sectionValue(section, 4 + index * 2)
+            if (slot == 0 || flag < 0 || flag > 1) {
+                return false
+            }
+            if (seen[slot - 1]) {
+                return false
+            }
+            seen[slot - 1] = true
+            staged[3 + (slot - 1) * 9 + 8] = flag
+        }
+        return restoreReplayState(staged)
+    }
+
     Int replayStateLength() {
         return 3 + capacityValue * 9
     }

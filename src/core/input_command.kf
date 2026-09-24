@@ -147,6 +147,13 @@ class InputCommandBuffer {
         return true
     }
 
+    Bool resetForReplay() {
+        clearPending()
+        lastSequence = -1
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+        return true
+    }
+
     InputCommand lastConsumed() {
         return consumed
     }

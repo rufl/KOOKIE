@@ -85,6 +85,17 @@ class PlayerWeaponPresenter {
         return count
     }
 
+    Bool resetForReplay(Int sequence) {
+        if (sequence <= 0) {
+            return false
+        }
+        count = 0
+        nextSequence = sequence
+        consumed = PlayerWeaponEvent(0, 0, 0, 0, 0, 0, 0, 0)
+        published = consumed
+        return true
+    }
+
     Bool dequeue() {
         if (count == 0) {
             return false

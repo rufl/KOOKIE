@@ -117,9 +117,9 @@ class BoundedItemInventory {
         target[4] = revisionValue
         var offset = 5
         for (var index = 0; index < items.capacity(); index = index + 1) {
-            target[offset] = 0
-            target[offset + 1] = 0
-            target[offset + 2] = 0
+            for (var field = 0; field < 11; field = field + 1) {
+                target[offset + field] = 0
+            }
             if (index < items.count()) {
                 var roll = itemRoll(index)
                 target[offset] = items.itemId(index)

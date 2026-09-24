@@ -22,8 +22,8 @@ class BoundedSaveSections {
         if (actualPayload <= 0) {
             actualPayload = 1
         }
-        if (actualPayload > 16) {
-            actualPayload = 16
+        if (actualPayload > 160) {
+            actualPayload = 160
         }
         sectionCapacity = actualSections
         payloadCapacity = actualPayload
@@ -122,6 +122,30 @@ class BoundedSaveSections {
             }
         }
         return -1
+    }
+
+    Bool replaceFrom(BoundedSaveSections source) {
+        if (source.revisionValue < 0 || source.revisionValue > 1000000 ||
+            source.sectionCountValue > sectionCapacity) {
+            return false
+        }
+        for (var index = 0; index < source.sectionCountValue; index = index + 1) {
+            if (source.lengths[index] > payloadCapacity) {
+                return false
+            }
+        }
+        for (var index = 0; index < source.sectionCountValue; index = index + 1) {
+            ids[index] = source.ids[index]
+            versions[index] = source.versions[index]
+            lengths[index] = source.lengths[index]
+            for (var valueIndex = 0; valueIndex < lengths[index]; valueIndex = valueIndex + 1) {
+                payloads[index * payloadCapacity + valueIndex] =
+                    source.payloads[index * source.payloadCapacity + valueIndex]
+            }
+        }
+        sectionCountValue = source.sectionCountValue
+        revisionValue = source.revisionValue
+        return true
     }
 
     Bool clear() {

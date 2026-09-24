@@ -3,19 +3,39 @@ package core
 class BoundedSaveSchemaFileStore {
     BoundedSaveSchemaWireCodec codec
     BoundedSaveMigrationGate gate
-    Int[] bytes
+    BoundedSaveState checksums
+    Int sectionCapacityValue
+    Int payloadCapacityValue
+    Int maxWireWords
+    Int maxBytes
     Int digitsPerWord
-    Int slotWords
-    Int totalWords
     Int magic
 
     public constructor(Int sectionCapacity, Int payloadCapacity) {
-        codec = BoundedSaveSchemaWireCodec(sectionCapacity, payloadCapacity)
+        sectionCapacityValue = sectionCapacity
+        if (sectionCapacityValue < 1) {
+            sectionCapacityValue = 1
+        }
+        if (sectionCapacityValue > 12) {
+            sectionCapacityValue = 12
+        }
+        payloadCapacityValue = payloadCapacity
+        if (payloadCapacityValue < 1) {
+            payloadCapacityValue = 1
+        }
+        if (payloadCapacityValue > 160) {
+            payloadCapacityValue = 160
+        }
+        codec = BoundedSaveSchemaWireCodec(sectionCapacityValue, payloadCapacityValue)
         gate = BoundedSaveMigrationGate()
+        checksums = BoundedSaveState(1, 1000000)
         digitsPerWord = 6
-        slotWords = 4 + 8 * (3 + 16)
-        totalWords = 4 + slotWords * 2
-        bytes = new Int[totalWords * digitsPerWord]
+        maxWireWords = 4 + sectionCapacityValue * (3 + payloadCapacityValue)
+        var maxWords = 3 + 2 * (maxWireWords + 2)
+        if (maxWords < 316) {
+            maxWords = 316
+        }
+        maxBytes = maxWords * digitsPerWord
         magic = 11773399
     }
 
@@ -24,20 +44,29 @@ class BoundedSaveSchemaFileStore {
             return false
         }
         var wireLength = codec.encodedLength()
-        var words = new Int[totalWords]
-        words[0] = magic
-        words[1] = 1
-        words[2] = wireLength
-        words[3 + slotWords] = wireLength
+        var wire = new Int[wireLength]
         for (var index = 0; index < wireLength; index = index + 1) {
-            words[3 + index] = codec.encodedWord(index)
-            words[4 + slotWords + index] = codec.encodedWord(index)
+            wire[index] = codec.encodedWord(index)
+        }
+        var checksum = checksums.checksumFor(wire[1], wire[2], wire)
+        var slotWords = wireLength + 2
+        var words = new Int[3 + slotWords * 2]
+        words[0] = magic
+        words[1] = 2
+        words[2] = slotWords
+        for (var copy = 0; copy < 2; copy = copy + 1) {
+            var start = 3 + copy * slotWords
+            words[start] = wireLength
+            words[start + 1] = checksum
+            for (var index = 0; index < wireLength; index = index + 1) {
+                words[start + 2 + index] = wire[index]
+            }
         }
         return writeWords(path, words)
     }
 
     Bool writeLegacy(String path, BoundedSaveState state) {
-        var sections = BoundedSaveSections(8, 16)
+        var sections = BoundedSaveSections(sectionCapacityValue, payloadCapacityValue)
         if (!gate.importLegacy(state, sections)) {
             return false
         }
@@ -46,49 +75,124 @@ class BoundedSaveSchemaFileStore {
 
     Bool read(String path, BoundedSaveSections target) {
         var words = readWords(path)
-        if (words.length != totalWords ||
-            words[0] != magic || words[1] != 1) {
+        if (words.length < 3 || words[0] != magic) {
             return false
         }
-        var first = BoundedSaveSections(8, 16)
-        var second = BoundedSaveSections(8, 16)
-        var firstValid = decodeSlot(words, 2, 3, first)
-        var secondValid = decodeSlot(words, 3 + slotWords, 4 + slotWords, second)
-        if (!firstValid && !secondValid) {
+        var first = BoundedSaveSections(sectionCapacityValue, payloadCapacityValue)
+        var second = BoundedSaveSections(sectionCapacityValue, payloadCapacityValue)
+        var firstStatus = 0
+        var secondStatus = 0
+        if (words[1] == 1) {
+            // Version 1 has fixed framing, regardless of this store's capacities.
+            if (words.length != 316) {
+                return false
+            }
+            firstStatus = decodeSlot(words, 2, 3, 156, false, first)
+            secondStatus = decodeSlot(words, 159, 160, 156, false, second)
+        } else if (words[1] == 2) {
+            var slotWords = words[2]
+            if (slotWords < 6 || slotWords > maxWireWords + 2) {
+                return false
+            }
+            if (words.length != 3 + slotWords * 2) {
+                return false
+            }
+            firstStatus = decodeSlot(words, 3, 5, slotWords - 2, true, first)
+            secondStatus = decodeSlot(words, 3 + slotWords, 5 + slotWords,
+                slotWords - 2, true, second)
+        } else {
             return false
         }
-        if (firstValid && (!secondValid || second.revision() <= first.revision())) {
-            return gate.migrate(first, target)
+        // A valid newer schema is not corruption: never silently roll it back.
+        if (firstStatus < 0 || secondStatus < 0 ||
+            (firstStatus == 0 && secondStatus == 0)) {
+            return false
         }
-        return gate.migrate(second, target)
+        if (firstStatus == 1 && (secondStatus == 0 || second.revision() <= first.revision())) {
+            return target.replaceFrom(first)
+        }
+        return target.replaceFrom(second)
     }
 
     Bool readLegacy(String path, BoundedSaveState target) {
-        var sections = BoundedSaveSections(8, 16)
+        var sections = BoundedSaveSections(sectionCapacityValue, payloadCapacityValue)
         return read(path, sections) && gate.exportLegacy(sections, target)
     }
+
     Bool repair(String path) {
-        var restored = BoundedSaveSections(8, 16)
+        var restored = BoundedSaveSections(sectionCapacityValue, payloadCapacityValue)
         if (!read(path, restored)) {
             return false
         }
         return write(path, restored)
     }
 
-
-    Bool decodeSlot(Int[] words, Int lengthIndex, Int start,
-        BoundedSaveSections target) {
+    // 1 is decoded, 0 is corrupt, -1 is an unsupported schema.
+    Int decodeSlot(Int[] words, Int lengthIndex, Int start, Int limit,
+        Bool checked, BoundedSaveSections target) {
+        if (lengthIndex < 0 || lengthIndex >= words.length || start < 0 ||
+            limit < 4 || start > words.length - limit) {
+            return 0
+        }
         var length = words[lengthIndex]
-        if (length < 4 || length > slotWords) {
-            return false
+        if (length < 4 || length > limit || length > maxWireWords ||
+            (checked && length != limit)) {
+            return 0
         }
         var wire = new Int[length]
         for (var index = 0; index < length; index = index + 1) {
+            if (words[start + index] < 0) {
+                return 0
+            }
             wire[index] = words[start + index]
         }
-        return codec.decode(wire, target)
+        if (wire[0] != 99112233 || wire[1] < 1 || wire[1] > 1000000 ||
+            wire[2] > 1000000 || wire[3] > sectionCapacityValue ||
+            (!checked && wire[3] > 8)) {
+            return 0
+        }
+        if (checked) {
+            if (start < 1 || words[start - 1] < 0 ||
+                words[start - 1] != checksums.checksumFor(wire[1], wire[2], wire)) {
+                return 0
+            }
+        }
+        if (wire[1] > 1) {
+            return -1
+        }
+        var offset = 4
+        var unsupported = false
+        for (var index = 0; index < wire[3]; index = index + 1) {
+            if (offset + 3 > length) {
+                return 0
+            }
+            var payloadLength = wire[offset + 2]
+            if (wire[offset] <= 0 || payloadLength > payloadCapacityValue ||
+                (!checked && payloadLength > 16) || offset + 3 + payloadLength > length) {
+                return 0
+            }
+            var currentVersion = gate.currentVersionFor(wire[offset])
+            if (currentVersion < 0 || wire[offset + 1] > currentVersion) {
+                unsupported = true
+            }
+            for (var valueIndex = 0; valueIndex < payloadLength; valueIndex = valueIndex + 1) {
+                if (wire[offset + 3 + valueIndex] > 1000000) {
+                    return 0
+                }
+            }
+            offset = offset + 3 + payloadLength
+        }
+        if (offset != length) {
+            return 0
+        }
+        if (unsupported) {
+            return -1
+        }
+        if (!codec.decode(wire, target)) {
+            return 0
+        }
+        return 1
     }
-
 
     Bool writeWords(String path, Int[] words) {
         var output = new Int[words.length * digitsPerWord]
@@ -105,26 +209,33 @@ class BoundedSaveSchemaFileStore {
 
     Int[] readWords(String path) {
         var file = File(path)
-        var input = file.readRange(0, bytes.length)
-        if (input.length != bytes.length) {
+        // The extra byte detects overlong files, including a valid maximum-size prefix.
+        var input = file.readRange(0, maxBytes + 1)
+        if (input.length < 3 * digitsPerWord || input.length > maxBytes ||
+            input.length % digitsPerWord != 0) {
             return new Int[0]
         }
-        var words = new Int[totalWords]
-        for (var wordIndex = 0; wordIndex < totalWords; wordIndex = wordIndex + 1) {
+        var words = new Int[input.length / digitsPerWord]
+        for (var wordIndex = 0; wordIndex < words.length; wordIndex = wordIndex + 1) {
             var offset = wordIndex * digitsPerWord
             var value = 0
             var multiplier = 1
+            var valid = true
             for (var digit = 0; digit < digitsPerWord; digit = digit + 1) {
                 if (input[offset + digit] < 0 || input[offset + digit] >= 64 ||
                     (digit == digitsPerWord - 1 && input[offset + digit] != 0)) {
-                    return new Int[0]
+                    valid = false
+                } else {
+                    value = value + input[offset + digit] * multiplier
                 }
-                value = value + input[offset + digit] * multiplier
                 if (digit < digitsPerWord - 1) {
                     multiplier = multiplier * 64
                 }
             }
-            words[wordIndex] = value
+            words[wordIndex] = -1
+            if (valid) {
+                words[wordIndex] = value
+            }
         }
         return words
     }
