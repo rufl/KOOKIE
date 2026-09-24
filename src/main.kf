@@ -584,6 +584,21 @@ test "deterministic item definitions and loot rolls" {
         first.condition() == second.condition() &&
         first.level() == 10,
         "loot rolls must be deterministic for the same seed and inputs")
+    var pools = BoundedAffixPoolStore(1)
+    var poolFirst = BoundedItemRoll()
+    var poolSecond = BoundedItemRoll()
+    assert(pools.define(4) &&
+        pools.add(4, 7, 3) &&
+        pools.add(4, 9, 1) &&
+        table.rollWithAffixPools(
+            501, 12345, 10, definitions, pools, poolFirst) &&
+        table.rollWithAffixPools(
+            501, 12345, 10, definitions, pools, poolSecond) &&
+        poolFirst.affixOne() > 0 &&
+        poolFirst.affixOne() != 1 &&
+        poolFirst.affixOne() == poolSecond.affixOne() &&
+        poolFirst.affixTwo() == poolSecond.affixTwo(),
+        "content affix pools must select deterministic non-contiguous ids")
     var inventory = BoundedItemInventory(3, 2)
     assert(inventory.addLootedItem(first, 1) &&
         inventory.itemId(0) == 500 &&
@@ -984,6 +999,26 @@ test "bounded shotgun pellets share damage authority" {
         combat.pendingCombatEvents() == 0,
         "shotgun pellet events must preserve deterministic order")
 }
+test "shotgun pellets target bounded spread list" {
+    var combat = CombatWorld(3, 1)
+    assert(combat.defineWeapon(13, 2, 0, 0, 100, 1, 30) &&
+        combat.setWeaponSpread(13, 3, 0) &&
+        combat.addActor(1, 1000, 0) &&
+        combat.addActor(2, 1000, 0) &&
+        combat.addActor(3, 1000, 0) &&
+        combat.equipWeapon(1, 13))
+    var targets = new Int[2]
+    targets[0] = 2
+    targets[1] = 3
+    var result = combat.resolveShotgunTargets(1, targets, 0, 30, 0)
+    assert(result.accepted() && result.targetCount() == 3 &&
+        result.applied() == 300 && result.deaths() == 0 &&
+        combat.currentHealth(2) == 800 &&
+        combat.currentHealth(3) == 900 &&
+        combat.magazine(1) == 1,
+        "shotgun target lists must distribute pellets deterministically")
+}
+
 
 
 
@@ -1133,6 +1168,31 @@ test "loopback replay applies checkpoint state" {
         loopback.serverPosition(1) == 43,
         "loopback replay must restore checkpoint position and tick")
 }
+test "loopback replay restores combat checkpoint state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.connectPlayer() == 2 &&
+        loopback.definePlayerWeapon(21, 3, 5, 0, 10, 0, 20) &&
+        loopback.addPlayerCombatActor(1, 100, 0) &&
+        loopback.addPlayerCombatActor(2, 100, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 21) &&
+        loopback.equipPlayerCombatWeapon(2, 21) &&
+        loopback.resolvePlayerHitscan(1, 2, 0, 1, 0).accepted() &&
+        loopback.playerCombatHealth(2) == 90 &&
+        loopback.playerCombatMagazine(1) == 2,
+        "combat checkpoint setup must apply initial damage")
+    var checkpoint = new Int[50]
+    assert(loopback.encodeReplayCheckpoint(checkpoint))
+    var timeline = BoundedReplayTimeline(2, 2)
+    assert(timeline.appendCheckpointSnapshot(0, 202, checkpoint) &&
+        loopback.resolvePlayerHitscan(1, 2, 1, 1, 0).accepted() &&
+        loopback.playerCombatHealth(2) == 80 &&
+        loopback.applyReplayCheckpoint(timeline, 1) &&
+        loopback.playerCombatHealth(2) == 90 &&
+        loopback.playerCombatMagazine(1) == 2,
+        "combat checkpoint restore must rewind health and ammunition")
+}
+
 
 
 test "bounded replay wire and file codecs" {

@@ -335,6 +335,109 @@ class BoundedItemRollSaveSection {
     }
 }
 
+class BoundedAffixPoolStore {
+    Int[] poolIds
+    Int[] memberIds
+    Int[] memberWeights
+    Int[] memberCounts
+    Int[] totalWeights
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 8) {
+            actualCapacity = 8
+        }
+        poolIds = new Int[actualCapacity]
+        memberIds = new Int[actualCapacity * 8]
+        memberWeights = new Int[actualCapacity * 8]
+        memberCounts = new Int[actualCapacity]
+        totalWeights = new Int[actualCapacity]
+        countValue = 0
+        for (var index = 0; index < actualCapacity; index = index + 1) {
+            memberCounts[index] = 0
+            totalWeights[index] = 0
+        }
+    }
+
+    Int find(Int poolId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (poolIds[index] == poolId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool define(Int poolId) {
+        if (poolId <= 0 || poolId > 64 ||
+            countValue >= poolIds.length || find(poolId) >= 0) {
+            return false
+        }
+        poolIds[countValue] = poolId
+        memberCounts[countValue] = 0
+        totalWeights[countValue] = 0
+        countValue = countValue + 1
+        return true
+    }
+
+    Bool add(Int poolId, Int affixId, Int weight) {
+        var pool = find(poolId)
+        if (pool < 0 || affixId <= 0 || affixId > 64 ||
+            weight <= 0 || weight > 1000000 ||
+            memberCounts[pool] >= 8 ||
+            totalWeights[pool] > 1000000 - weight) {
+            return false
+        }
+        var offset = pool * 8 + memberCounts[pool]
+        memberIds[offset] = affixId
+        memberWeights[offset] = weight
+        memberCounts[pool] = memberCounts[pool] + 1
+        totalWeights[pool] = totalWeights[pool] + weight
+        return true
+    }
+
+    Int count(Int poolId) {
+        var pool = find(poolId)
+        if (pool < 0) {
+            return -1
+        }
+        return memberCounts[pool]
+    }
+
+    Int nextValue(Int seed, Int salt, Int bound) {
+        if (bound <= 0) {
+            return 0
+        }
+        var value = (seed * 48271 + salt * 7919 + 17) % 1000003
+        if (value < 0) {
+            value = value + 1000003
+        }
+        return value % bound
+    }
+
+    Int roll(Int poolId, Int seed, Int salt) {
+        var pool = find(poolId)
+        if (pool < 0 || seed < 0 || seed > 1000000 ||
+            memberCounts[pool] == 0 || totalWeights[pool] <= 0) {
+            return 0
+        }
+        var pick = nextValue(seed, salt, totalWeights[pool])
+        var cursor = 0
+        for (var index = 0; index < memberCounts[pool]; index = index + 1) {
+            cursor = cursor + memberWeights[pool * 8 + index]
+            if (pick < cursor) {
+                return memberIds[pool * 8 + index]
+            }
+        }
+        return 0
+    }
+}
+
+
 class BoundedLootTable {
     Int[] definitionIds
     Int[] weights
@@ -432,6 +535,60 @@ class BoundedLootTable {
             1 + nextValue(seed, 2, 3), affixOne, affixTwo,
             50 + nextValue(seed, 5, 51))
     }
+    Bool rollWithAffixPools(
+        Int stableId, Int seed, Int level,
+        BoundedItemDefinitionStore definitions,
+        BoundedAffixPoolStore pools, BoundedItemRoll target
+    ) {
+        if (stableId <= 0 || seed < 0 || seed > 1000000 || level <= 0 ||
+            level > 1000000 || countValue == 0 || totalWeightValue <= 0) {
+            return false
+        }
+        var pick = nextValue(seed, 1, totalWeightValue)
+        var selected = -1
+        var cursor = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            cursor = cursor + weights[index]
+            if (pick < cursor) {
+                selected = index
+                break
+            }
+        }
+        if (selected < 0) {
+            return false
+        }
+        var definitionId = definitionIds[selected]
+        if (level < definitions.minimumLevel(definitionId) ||
+            level > definitions.maximumLevel(definitionId)) {
+            return false
+        }
+        var poolId = definitions.affixPool(definitionId)
+        var affixOne = 0
+        var affixTwo = 0
+        if (poolId > 0) {
+            affixOne = pools.roll(poolId, seed, 3)
+            if (affixOne == 0) {
+                return false
+            }
+            if (pools.count(poolId) > 1) {
+                affixTwo = pools.roll(poolId, seed, 4)
+                if (affixTwo == 0) {
+                    return false
+                }
+                if (affixTwo == affixOne) {
+                    affixTwo = pools.roll(poolId, seed, 5)
+                    if (affixTwo == affixOne) {
+                        affixTwo = 0
+                    }
+                }
+            }
+        }
+        return target.stage(
+            stableId, definitionId, seed, level,
+            1 + nextValue(seed, 2, 3), affixOne, affixTwo,
+            50 + nextValue(seed, 5, 51))
+    }
+
 }
 
 class BoundedAffixStatStore {

@@ -342,6 +342,14 @@ class LoopbackSession {
         return enemyCombat.playerShotgun(
             sourceId, targetId, tick, distance, critical)
     }
+    AreaDamageResult resolveEnemyShotgunTargets(
+        Int sourceId, Int[] targetIds, Int tick,
+        Int distance, Int critical
+    ) {
+        return enemyCombat.playerShotgunTargets(
+            sourceId, targetIds, tick, distance, critical)
+    }
+
     AreaDamageResult resolveEnemyAreaDamage(
         Int sourceId, Int[] targetIds, Int amount,
         Int channel, Int critical, Int tick
@@ -964,6 +972,14 @@ class LoopbackSession {
         return playerCombat.resolveShotgun(
             sourceId, targetId, tick, distance, critical)
     }
+    AreaDamageResult resolvePlayerShotgunTargets(
+        Int sourceId, Int[] targetIds, Int tick,
+        Int distance, Int critical
+    ) {
+        return playerCombat.resolveShotgunTargets(
+            sourceId, targetIds, tick, distance, critical)
+    }
+
 
     Int playerCombatHealth(Int actorId) {
         return playerCombat.currentHealth(actorId)
@@ -1092,6 +1108,24 @@ class LoopbackSession {
         }
         return playerTwoReplay.lastPlayed()
     }
+    Bool encodeReplayCheckpoint(Int[] target) {
+        if (target.length != 50 || !started) {
+            return false
+        }
+        var state = new Int[46]
+        if (!playerCombat.encodeReplayState(state)) {
+            return false
+        }
+        target[0] = serverTick
+        target[1] = serverMovement.position(1)
+        target[2] = serverMovement.position(2)
+        target[3] = snapshotSequence
+        for (var index = 0; index < state.length; index = index + 1) {
+            target[index + 4] = state[index]
+        }
+        return true
+    }
+
 
     Bool applyReplayCheckpoint(
         BoundedReplayTimeline timeline, Int targetTick
@@ -1104,7 +1138,7 @@ class LoopbackSession {
         if (length == 0) {
             return true
         }
-        if (length != 1 && length != 4) {
+        if (length != 1 && length != 4 && length != 50) {
             return false
         }
         if (length == 1 && playerTwoConnected) {
@@ -1125,6 +1159,15 @@ class LoopbackSession {
         if (restoredTick < 0 || restoredTick > targetTick ||
             restoredSequence < 0) {
             return false
+        }
+        if (length == 50) {
+            var state = new Int[46]
+            for (var index = 0; index < state.length; index = index + 1) {
+                state[index] = timeline.seekSnapshotValue(index + 4)
+            }
+            if (!playerCombat.restoreReplayState(state)) {
+                return false
+            }
         }
         if (!clock.setState(restoredTick, 0)) {
             return false
