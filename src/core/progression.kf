@@ -1,0 +1,441 @@
+package core
+
+class BoundedSkillDefinitionStore {
+    Int[] ids
+    Int[] maximumRanks
+    Int[] experienceCosts
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 16) {
+            actualCapacity = 16
+        }
+        ids = new Int[actualCapacity]
+        maximumRanks = new Int[actualCapacity]
+        experienceCosts = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Bool define(Int skillId, Int maximumRank, Int experienceCost) {
+        if (skillId <= 0 || maximumRank <= 0 || maximumRank > 1000000 ||
+            experienceCost <= 0 || experienceCost > 1000000 ||
+            countValue >= ids.length || find(skillId) >= 0) {
+            return false
+        }
+        ids[countValue] = skillId
+        maximumRanks[countValue] = maximumRank
+        experienceCosts[countValue] = experienceCost
+        countValue = countValue + 1
+        return true
+    }
+
+    Int find(Int skillId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ids[index] == skillId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int maximumRank(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return maximumRanks[index]
+    }
+
+    Int experienceCost(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return experienceCosts[index]
+    }
+}
+
+class BoundedSkillProgression {
+    Int[] ids
+    Int[] ranks
+    Int[] experiences
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 4) {
+            actualCapacity = 4
+        }
+        ids = new Int[actualCapacity]
+        ranks = new Int[actualCapacity]
+        experiences = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int find(Int skillId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ids[index] == skillId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int rank(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return ranks[index]
+    }
+
+    Int experience(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return experiences[index]
+    }
+
+    Bool learn(Int skillId, BoundedSkillDefinitionStore definitions) {
+        if (definitions.find(skillId) < 0 || countValue >= ids.length ||
+            find(skillId) >= 0) {
+            return false
+        }
+        ids[countValue] = skillId
+        ranks[countValue] = 0
+        experiences[countValue] = 0
+        countValue = countValue + 1
+        return true
+    }
+
+    Bool gainExperience(
+        Int skillId, Int amount, BoundedSkillDefinitionStore definitions
+    ) {
+        var index = find(skillId)
+        var maximumRank = definitions.maximumRank(skillId)
+        var experienceCost = definitions.experienceCost(skillId)
+        if (index < 0 || amount <= 0 || amount > 1000000 ||
+            maximumRank <= 0 || experienceCost <= 0 ||
+            experiences[index] > 1000000 - amount) {
+            return false
+        }
+        var nextRank = ranks[index]
+        var nextExperience = experiences[index] + amount
+        while (nextRank < maximumRank && nextExperience >= experienceCost) {
+            nextExperience = nextExperience - experienceCost
+            nextRank = nextRank + 1
+        }
+        ranks[index] = nextRank
+        experiences[index] = nextExperience
+        return true
+    }
+
+    Bool encodeInto(BoundedSaveSections target) {
+        var payload = new Int[countValue * 3]
+        for (var index = 0; index < countValue; index = index + 1) {
+            payload[index * 3] = ids[index]
+            payload[index * 3 + 1] = ranks[index]
+            payload[index * 3 + 2] = experiences[index]
+        }
+        return target.put(9, 1, payload)
+    }
+
+    Bool decodeFrom(
+        BoundedSaveSections source, BoundedSkillDefinitionStore definitions
+    ) {
+        var section = findSection(source, 9)
+        if (section < 0) {
+            countValue = 0
+            return true
+        }
+        if (source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) % 3 != 0 ||
+            source.sectionLength(section) / 3 > ids.length) {
+            return false
+        }
+        var nextCount = source.sectionLength(section) / 3
+        for (var index = 0; index < nextCount; index = index + 1) {
+            var offset = index * 3
+            var skillId = source.sectionValue(section, offset)
+            var nextRank = source.sectionValue(section, offset + 1)
+            var nextExperience = source.sectionValue(section, offset + 2)
+            if (definitions.find(skillId) < 0 || nextRank < 0 ||
+                nextRank > definitions.maximumRank(skillId) ||
+                nextExperience < 0 || nextExperience > 1000000) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (source.sectionValue(section, prior * 3) == skillId) {
+                    return false
+                }
+            }
+        }
+        countValue = nextCount
+        for (var copy = 0; copy < nextCount; copy = copy + 1) {
+            var copyOffset = copy * 3
+            ids[copy] = source.sectionValue(section, copyOffset)
+            ranks[copy] = source.sectionValue(section, copyOffset + 1)
+            experiences[copy] = source.sectionValue(section, copyOffset + 2)
+        }
+        return true
+    }
+
+    Int findSection(BoundedSaveSections source, Int sectionId) {
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (source.sectionId(index) == sectionId) {
+                return index
+            }
+        }
+        return -1
+    }
+}
+
+class BoundedStatusDefinitionStore {
+    Int[] ids
+    Int[] durationCaps
+    Int[] stackCaps
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 16) {
+            actualCapacity = 16
+        }
+        ids = new Int[actualCapacity]
+        durationCaps = new Int[actualCapacity]
+        stackCaps = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Bool define(Int statusId, Int durationCap, Int stackCap) {
+        if (statusId <= 0 || durationCap <= 0 || durationCap > 1000000 ||
+            stackCap <= 0 || stackCap > 1000000 || countValue >= ids.length ||
+            find(statusId) >= 0) {
+            return false
+        }
+        ids[countValue] = statusId
+        durationCaps[countValue] = durationCap
+        stackCaps[countValue] = stackCap
+        countValue = countValue + 1
+        return true
+    }
+
+    Int find(Int statusId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ids[index] == statusId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int durationCap(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return durationCaps[index]
+    }
+
+    Int stackCap(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return stackCaps[index]
+    }
+}
+
+class BoundedStatusEffects {
+    Int[] ids
+    Int[] durations
+    Int[] stackValues
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 4) {
+            actualCapacity = 4
+        }
+        ids = new Int[actualCapacity]
+        durations = new Int[actualCapacity]
+        stackValues = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int find(Int statusId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ids[index] == statusId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int duration(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return durations[index]
+    }
+
+    Int stacks(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return stackValues[index]
+    }
+
+    Bool apply(
+        Int statusId, Int durationValue, Int stackValue,
+        BoundedStatusDefinitionStore definitions
+    ) {
+        var definition = definitions.find(statusId)
+        if (definition < 0 || durationValue <= 0 ||
+            durationValue > definitions.durationCap(statusId) || stackValue <= 0 ||
+            stackValue > definitions.stackCap(statusId)) {
+            return false
+        }
+        var index = find(statusId)
+        if (index < 0) {
+            if (countValue >= ids.length) {
+                return false
+            }
+            ids[countValue] = statusId
+            durations[countValue] = durationValue
+            stackValues[countValue] = stackValue
+            countValue = countValue + 1
+            return true
+        }
+        durations[index] = maxValue(durations[index], durationValue)
+        stackValues[index] = minValue(
+            definitions.stackCap(statusId), stackValues[index] + stackValue)
+        return true
+    }
+
+    Bool tick(Int amount) {
+        if (amount <= 0 || amount > 1000000) {
+            return false
+        }
+        var index = 0
+        while (index < countValue) {
+            if (amount >= durations[index]) {
+                removeAt(index)
+            } else {
+                durations[index] = durations[index] - amount
+                index = index + 1
+            }
+        }
+        return true
+    }
+
+    Bool encodeInto(BoundedSaveSections target) {
+        var payload = new Int[countValue * 3]
+        for (var index = 0; index < countValue; index = index + 1) {
+            payload[index * 3] = ids[index]
+            payload[index * 3 + 1] = durations[index]
+            payload[index * 3 + 2] = stackValues[index]
+        }
+        return target.put(10, 1, payload)
+    }
+
+    Bool decodeFrom(
+        BoundedSaveSections source, BoundedStatusDefinitionStore definitions
+    ) {
+        var section = findSection(source, 10)
+        if (section < 0) {
+            countValue = 0
+            return true
+        }
+        if (source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) % 3 != 0 ||
+            source.sectionLength(section) / 3 > ids.length) {
+            return false
+        }
+        var nextCount = source.sectionLength(section) / 3
+        for (var index = 0; index < nextCount; index = index + 1) {
+            var offset = index * 3
+            var statusId = source.sectionValue(section, offset)
+            var durationValue = source.sectionValue(section, offset + 1)
+            var stackValue = source.sectionValue(section, offset + 2)
+            if (definitions.find(statusId) < 0 || durationValue <= 0 ||
+                durationValue > definitions.durationCap(statusId) ||
+                stackValue <= 0 || stackValue > definitions.stackCap(statusId)) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (source.sectionValue(section, prior * 3) == statusId) {
+                    return false
+                }
+            }
+        }
+        countValue = nextCount
+        for (var copy = 0; copy < nextCount; copy = copy + 1) {
+            var copyOffset = copy * 3
+            ids[copy] = source.sectionValue(section, copyOffset)
+            durations[copy] = source.sectionValue(section, copyOffset + 1)
+            stackValues[copy] = source.sectionValue(section, copyOffset + 2)
+        }
+        return true
+    }
+
+    Int maxValue(Int first, Int second) {
+        if (first > second) {
+            return first
+        }
+        return second
+    }
+
+    Int minValue(Int first, Int second) {
+        if (first < second) {
+            return first
+        }
+        return second
+    }
+
+    Bool removeAt(Int index) {
+        if (index < 0 || index >= countValue) {
+            return false
+        }
+        for (var shift = index; shift < countValue - 1; shift = shift + 1) {
+            ids[shift] = ids[shift + 1]
+            durations[shift] = durations[shift + 1]
+            stackValues[shift] = stackValues[shift + 1]
+        }
+        countValue = countValue - 1
+        return true
+    }
+
+    Int findSection(BoundedSaveSections source, Int sectionId) {
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (source.sectionId(index) == sectionId) {
+                return index
+            }
+        }
+        return -1
+    }
+}

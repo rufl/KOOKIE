@@ -732,6 +732,72 @@ test "item stat composition and crafting persistence" {
         "invalid crafting must leave inventory unchanged")
 }
 
+test "reservations skills and status persistence" {
+    var inventory = BoundedItemInventory(8, 4)
+    var reservation = BoundedItemReservation(2)
+    assert(inventory.addItem(1000, 3) &&
+        inventory.addItem(1001, 1) &&
+        inventory.setCurrency(50) &&
+        reservation.addItem(1000, 2) &&
+        reservation.addItem(1001, 1) &&
+        reservation.setCurrencyCost(20) &&
+        reservation.reserve(inventory) &&
+        inventory.depositCurrency(1) &&
+        !reservation.commit(inventory) &&
+        reservation.cancel(),
+        "reservations must reject stale inventory revisions")
+    var committed = BoundedItemReservation(2)
+    assert(committed.addItem(1000, 2) &&
+        committed.addItem(1001, 1) &&
+        committed.setCurrencyCost(20) &&
+        committed.reserve(inventory) &&
+        committed.commit(inventory) &&
+        inventory.itemQuantity(0) == 1 &&
+        inventory.itemCount() == 1 &&
+        inventory.currency() == 31,
+        "reservations must commit multiple item and currency operations")
+    var skillDefinitions = BoundedSkillDefinitionStore(2)
+    var skills = BoundedSkillProgression(2)
+    assert(skillDefinitions.define(10, 3, 100) &&
+        skills.learn(10, skillDefinitions) &&
+        skills.gainExperience(10, 250, skillDefinitions) &&
+        skills.rank(10) == 2 &&
+        skills.experience(10) == 50,
+        "skills must advance bounded ranks and retain remainder experience")
+    var statusDefinitions = BoundedStatusDefinitionStore(2)
+    var statuses = BoundedStatusEffects(2)
+    assert(statusDefinitions.define(20, 100, 3) &&
+        statuses.apply(20, 50, 2, statusDefinitions) &&
+        statuses.apply(20, 80, 2, statusDefinitions) &&
+        statuses.duration(20) == 80 &&
+        statuses.stacks(20) == 3 &&
+        statuses.tick(30) &&
+        statuses.duration(20) == 50,
+        "statuses must refresh duration, add capped stacks and tick")
+    var sections = BoundedSaveSections(12, 16)
+    var codec = BoundedSaveSchemaWireCodec(12, 16)
+    assert(sections.setRevision(31) &&
+        skills.encodeInto(sections) &&
+        statuses.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 16)
+    var wire = new Int[16]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(12, 16)
+    var restoredSkills = BoundedSkillProgression(2)
+    var restoredStatuses = BoundedStatusEffects(2)
+    assert(codec.decode(wire, decoded) &&
+        restoredSkills.decodeFrom(decoded, skillDefinitions) &&
+        restoredStatuses.decodeFrom(decoded, statusDefinitions) &&
+        restoredSkills.rank(10) == 2 &&
+        restoredSkills.experience(10) == 50 &&
+        restoredStatuses.duration(20) == 50 &&
+        restoredStatuses.stacks(20) == 3,
+        "skill and status state must survive versioned persistence")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

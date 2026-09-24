@@ -1,0 +1,150 @@
+package core
+
+class BoundedItemReservation {
+    Int[] itemIds
+    Int[] quantities
+    Int itemCountValue
+    Int currencyCostValue
+    Bool activeValue
+    Int ownerValue
+    Int revisionValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 8) {
+            actualCapacity = 8
+        }
+        itemIds = new Int[actualCapacity]
+        quantities = new Int[actualCapacity]
+        itemCountValue = 0
+        currencyCostValue = 0
+        activeValue = false
+        ownerValue = -1
+        revisionValue = -1
+    }
+
+    Bool clear() {
+        itemCountValue = 0
+        currencyCostValue = 0
+        activeValue = false
+        ownerValue = -1
+        revisionValue = -1
+        return true
+    }
+
+    Int itemCount() {
+        return itemCountValue
+    }
+
+    Int itemId(Int index) {
+        if (index < 0 || index >= itemCountValue) {
+            return -1
+        }
+        return itemIds[index]
+    }
+
+    Int quantity(Int index) {
+        if (index < 0 || index >= itemCountValue) {
+            return -1
+        }
+        return quantities[index]
+    }
+
+    Int currencyCost() {
+        return currencyCostValue
+    }
+
+    Bool active() {
+        return activeValue
+    }
+
+    Bool addItem(Int itemIdValue, Int quantityValue) {
+        if (activeValue || itemIdValue <= 0 || quantityValue <= 0 ||
+            quantityValue > 1000000 || itemCountValue >= itemIds.length ||
+            find(itemIdValue) >= 0) {
+            return false
+        }
+        itemIds[itemCountValue] = itemIdValue
+        quantities[itemCountValue] = quantityValue
+        itemCountValue = itemCountValue + 1
+        return true
+    }
+
+    Bool setCurrencyCost(Int amount) {
+        if (activeValue || amount < 0 || amount > 1000000) {
+            return false
+        }
+        currencyCostValue = amount
+        return true
+    }
+
+    Bool reserve(BoundedItemInventory inventory) {
+        if (activeValue || !hasResources(inventory)) {
+            return false
+        }
+        ownerValue = inventory.ownerId()
+        revisionValue = inventory.revision()
+        activeValue = true
+        return true
+    }
+
+    Bool cancel() {
+        if (!activeValue) {
+            return false
+        }
+        activeValue = false
+        return true
+    }
+
+    Bool commit(BoundedItemInventory inventory) {
+        if (!activeValue || inventory.ownerId() != ownerValue ||
+            inventory.revision() != revisionValue || !hasResources(inventory)) {
+            return false
+        }
+        for (var index = 0; index < itemCountValue; index = index + 1) {
+            if (!inventory.removeItem(itemIds[index], quantities[index])) {
+                return false
+            }
+        }
+        if (currencyCostValue > 0 &&
+            !inventory.withdrawCurrency(currencyCostValue)) {
+            return false
+        }
+        activeValue = false
+        return true
+    }
+
+    Int find(Int itemIdValue) {
+        for (var index = 0; index < itemCountValue; index = index + 1) {
+            if (itemIds[index] == itemIdValue) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool hasResources(BoundedItemInventory inventory) {
+        if (inventory.currency() < currencyCostValue) {
+            return false
+        }
+        for (var index = 0; index < itemCountValue; index = index + 1) {
+            var itemIndex = findInventoryItem(inventory, itemIds[index])
+            if (itemIndex < 0 || quantities[index] > inventory.itemQuantity(itemIndex)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int findInventoryItem(BoundedItemInventory inventory, Int itemIdValue) {
+        for (var index = 0; index < inventory.itemCount(); index = index + 1) {
+            if (inventory.itemId(index) == itemIdValue) {
+                return index
+            }
+        }
+        return -1
+    }
+}

@@ -15,8 +15,8 @@ class BoundedSaveSections {
         if (actualSections <= 0) {
             actualSections = 1
         }
-        if (actualSections > 8) {
-            actualSections = 8
+        if (actualSections > 12) {
+            actualSections = 12
         }
         var actualPayload = nextPayloadCapacity
         if (actualPayload <= 0) {
