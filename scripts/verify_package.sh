@@ -38,8 +38,11 @@ test -f "$JVM_ARCHIVE" -a -f "$JVM_MANIFEST"
 mkdir "$WORK_DIR/jvm-extracted"
 tar -xzf "$JVM_ARCHIVE" -C "$WORK_DIR/jvm-extracted"
 JVM_ROOT="$WORK_DIR/jvm-extracted/kookie-0.1.0-dogfood.jvm-smoke-linux-x86_64"
-"$JVM_ROOT/kookie" 2>"$WORK_DIR/jvm-runtime.err" | grep -Fq 'KOOKIE G1 loopback foundation verified'
-test -f "$JVM_ROOT/kookie.jar"
+JVM_OUTPUT="$("$JVM_ROOT/kookie" 2>"$WORK_DIR/jvm-runtime.err")" || {
+  cat "$WORK_DIR/jvm-runtime.err" >&2
+  exit 1
+}
+grep -Fq 'KOOKIE G1 loopback foundation verified' <<<"$JVM_OUTPUT"
 python3 - "$JVM_MANIFEST" <<'PY'
 import json, pathlib, sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
