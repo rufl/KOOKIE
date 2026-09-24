@@ -507,6 +507,47 @@ test "typed item and quest save sections" {
         "typed save sections must round-trip through the schema wire")
 }
 
+test "atomic item inventory transactions and persistence" {
+    var seller = BoundedItemInventory(2, 2)
+    var buyer = BoundedItemInventory(1, 2)
+    assert(seller.addItem(500, 5) &&
+        seller.setCurrency(0) &&
+        buyer.setCurrency(100) &&
+        buyer.purchaseFrom(seller, 500, 2, 10) &&
+        seller.itemCount() == 1 &&
+        seller.itemQuantity(0) == 3 &&
+        buyer.itemCount() == 1 &&
+        buyer.itemId(0) == 500 &&
+        buyer.itemQuantity(0) == 2 &&
+        seller.currency() == 20 &&
+        buyer.currency() == 80,
+        "inventory purchase must atomically transfer item and currency")
+    assert(!buyer.purchaseFrom(seller, 500, 4, 10) &&
+        seller.itemQuantity(0) == 3 &&
+        buyer.itemQuantity(0) == 2 &&
+        seller.currency() == 20 &&
+        buyer.currency() == 80,
+        "failed inventory purchase must leave both inventories unchanged")
+    var sections = BoundedSaveSections(6, 6)
+    var restored = BoundedItemInventory(1, 2)
+    var codec = BoundedSaveSchemaWireCodec(6, 6)
+    assert(sections.setRevision(22) &&
+        buyer.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 14)
+    var wire = new Int[14]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(6, 6)
+    assert(codec.decode(wire, decoded) &&
+        restored.decodeFrom(decoded) &&
+        restored.currency() == 80 &&
+        restored.itemId(0) == 500 &&
+        restored.itemQuantity(0) == 2,
+        "inventory currency and ownership must survive schema persistence")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

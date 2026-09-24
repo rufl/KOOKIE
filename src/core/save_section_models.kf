@@ -46,6 +46,10 @@ class BoundedItemSaveSection {
         return countValue
     }
 
+    Int capacity() {
+        return itemIds.length
+    }
+
     Int itemId(Int index) {
         if (index < 0 || index >= countValue) {
             return -1
@@ -65,6 +69,33 @@ class BoundedItemSaveSection {
             return -1
         }
         return quantities[index]
+    }
+
+    Bool setQuantity(Int itemId, Int quantity) {
+        var index = find(itemId)
+        if (index < 0 || quantity <= 0 || quantity > 1000000) {
+            return false
+        }
+        quantities[index] = quantity
+        return true
+    }
+
+    Bool remove(Int itemId, Int quantity) {
+        var index = find(itemId)
+        if (index < 0 || quantity <= 0 || quantity > quantities[index]) {
+            return false
+        }
+        if (quantity < quantities[index]) {
+            quantities[index] = quantities[index] - quantity
+            return true
+        }
+        for (var shift = index; shift < countValue - 1; shift = shift + 1) {
+            itemIds[shift] = itemIds[shift + 1]
+            ownerIds[shift] = ownerIds[shift + 1]
+            quantities[shift] = quantities[shift + 1]
+        }
+        countValue = countValue - 1
+        return true
     }
 
     Bool encodeInto(BoundedSaveSections target) {
