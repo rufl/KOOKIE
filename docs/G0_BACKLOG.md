@@ -84,7 +84,7 @@ This is the active bounded implementation sequence after the initial research an
 - Fixed native checkpoint serialization of unused inventory roll fields and triangle rows; poisoned-buffer regressions prevent stale memory from entering replay files.
 - Door integration now makes closed authored doors block authoritative scalar movement across their X plane, while opened doors stop blocking. Client-visible door geometry stages through `FrameStaging` with open/closed state; this remains a scalar `(x, 0, 0)` arena contract, not a completed 3D collision mesh.
 - Remote session reconnect now preserves broad-phase send/receive sequence watermarks across close/reopen. The native authenticated UDP probe closes and reopens its local pair, resumes at sequence 9 and rejects older snapshots through the same monotonic link contract. The authenticated two-client LAN proof remains open.
-- Added a reproducible Linux x86-64 dogfood archive builder with commit/build provenance, SHA256SUMS and an extracted-binary smoke. Windows packaging fails closed because the Kof compiler has no Windows native target, PE/runtime proof or signing inputs. The archive is internal-only: KOOKIE has no declared license and is not yet registered as an OVERZEER deployment application.
+- Reproducible Linux x86-64 dogfood archives now support both native Kof and executable-JAR JVM runtimes with SHA256SUMS, immutable provenance and extracted-binary smoke. Windows packaging still fails closed because no Kof Windows target, PE/runtime proof or signing inputs exist. The archive remains internal-only.
 
 ## Next batch
 
@@ -96,7 +96,7 @@ This is the active bounded implementation sequence after the initial research an
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
 - Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its inspected native assembler links Linux ELF; native Windows builds are not established. A Windows compiler launcher is not proof of a Windows engine target.
-- ZTASH deployment still uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE has no declared license and is not registered as an OVERZEER deployment application.
+- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE now has an OVERZEER source descriptor and Linux native/JVM package paths; endpoint binaries still require the registry rollout and restart. No public license is declared.
 - Authenticated Chopper and DDJARIN device checks currently return zero devices; no remote package mutation was attempted. Credential files were used only through permission-checked client paths.
 - No KOOKIE-owned old archives were found in the scoped local release/cache stores. Other applications' packages and rollback state were left untouched.
 

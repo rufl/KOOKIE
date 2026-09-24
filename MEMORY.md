@@ -10,9 +10,9 @@ Last updated after the 2026-09-24 dogfood packaging batch. Start with [README](R
 - A native high-arity call forwarding record getters dropped the fire argument in a focused reproduction. Replay now queues the existing `InputCommand` instead of reconstructing a wide call; no compiler repair is claimed.
 - Loopback host lifecycle now preserves player position and input sequence watermarks across reconnect, clears pending commands, and rejects stale input. The authenticated LAN proof is still open; do not archive the active backlog.
 - Remote session reconnect now preserves broad-phase send/receive watermarks across close/reopen; the native authenticated UDP probe resumes at sequence 9 and rejects older snapshots. The authenticated two-client LAN proof remains open.
-- Linux x86-64 now has a reproducible internal dogfood archive builder with SHA256SUMS and provenance JSON. Windows packaging fails closed: no Kof Windows target, PE/runtime proof or signing inputs. KOOKIE has no declared license and is not registered with OVERZEER.
-- Current `kof info --json` reports 0.4.9-beta at `~/.local/share/kof4j/0.4.9-beta`, not the later 0.4.10 narrative below. No native Windows target was established.
-- Packaging is not ready: missing native Windows support, relocatable runtime/license closure and KOOKIE's OVERZEER descriptor. Authenticated Chopper/DDJARIN device checks currently return zero devices; no remote package mutation was attempted.
+- Linux x86-64 now has reproducible internal dogfood archives for native Kof and executable-JAR JVM runtimes, with SHA256SUMS and provenance JSON. Windows packaging remains fail-closed: no Kof Windows target, PE/runtime proof or signing inputs.
+- OVERZEER now has a committed `kookie` application descriptor and deployment metadata path; running Chopper/DDJARIN binaries still need that registry rollout and restart. KOOKIE has no public license.
+- Authenticated Chopper/DDJARIN device checks currently return zero devices; no successful remote package activation has occurred.
 
 ## User intent
 

@@ -37,11 +37,21 @@ bash scripts/verify_interactions.sh
 
 Build an internal Linux dogfood archive:
 
-```bash
 KOOKIE_VERSION=0.1.0-dogfood.1 scripts/package_kookie.sh
 ```
 
 The builder emits a target-bound `.tar.gz`, `SHA256SUMS` and provenance JSON.
+For Linux-only JVM differential qualification, use the executable-JAR
+fallback:
+
+```bash
+KOOKIE_RUNTIME=jvm KOOKIE_VERSION=0.1.0-dogfood.jvm.1 \
+scripts/package_kookie.sh
+```
+
+The JVM archive contains `kookie.jar` and an executable `kookie` launcher, so
+OVERZEER still validates the same application descriptor. It is a Linux
+qualification fallback, not proof of native Windows support.
 Windows packaging intentionally fails until the Kof compiler can produce a
 real Windows target; an archive-shaped lie would be a poor deployment strategy.
 

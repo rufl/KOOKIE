@@ -5,22 +5,25 @@ IFS=$'\n\t'
 BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-https://github.com/rufl/KOOKIE/releases/download}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="linux-x86_64"
+RUNTIME="${KOOKIE_RUNTIME:-native}"
 VERSION="${KOOKIE_VERSION:-0.1.0-dogfood.1}"
 BUILD_ID="${KOOKIE_BUILD_ID:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}"
 OUTPUT_DIR="${KOOKIE_OUTPUT_DIR:-$ROOT_DIR/release}"
 
 usage() {
   cat <<'EOF'
-Usage: scripts/package_kookie.sh [--target linux-x86_64|windows-x86_64]
+Usage: scripts/package_kookie.sh [--runtime native|jvm] [--target linux-x86_64|windows-x86_64]
 
-Builds an immutable internal dogfood archive and SHA256SUMS. Linux is the only
-native target currently supported by the Kof compiler. Windows fails closed
-until a real PE build, runtime proof and signing inputs exist.
+Builds an immutable internal dogfood archive and SHA256SUMS. Native Linux
+packages contain the Kof executable. JVM Linux packages contain an executable
+launcher plus an executable JAR. Windows fails closed until a real PE build,
+runtime proof and signing inputs exist.
 EOF
 }
 
 while (($#)); do
   case "$1" in
+    --runtime) RUNTIME="${2:?missing runtime}"; shift 2 ;;
     --target) TARGET="${2:?missing target}"; shift 2 ;;
     --version) VERSION="${2:?missing version}"; shift 2 ;;
     --build-id) BUILD_ID="${2:?missing build id}"; shift 2 ;;
@@ -29,6 +32,11 @@ while (($#)); do
     *) echo "package_kookie: unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
+
+case "$RUNTIME" in
+  native|jvm) ;;
+  *) echo "package_kookie: unsupported runtime: $RUNTIME" >&2; exit 2 ;;
+esac
 
 case "$TARGET" in
   linux-x86_64) ;;
@@ -49,6 +57,10 @@ esac
 }
 command -v kof >/dev/null || { echo 'package_kookie: kof is required' >&2; exit 2; }
 command -v sha256sum >/dev/null || { echo 'package_kookie: sha256sum is required' >&2; exit 2; }
+if [[ "$RUNTIME" == jvm ]]; then
+  command -v jar >/dev/null || { echo 'package_kookie: jar is required for JVM packaging' >&2; exit 2; }
+  command -v java >/dev/null || { echo 'package_kookie: java is required for JVM packaging' >&2; exit 2; }
+fi
 
 if [[ -e "$OUTPUT_DIR" && ! -d "$OUTPUT_DIR" ]]; then
   echo 'package_kookie: output path exists and is not a directory' >&2
@@ -69,10 +81,20 @@ PACKAGE_ROOT="$WORK_DIR/$PACKAGE_NAME"
 ARCHIVE="$OUTPUT_DIR/$PACKAGE_NAME.tar.gz"
 mkdir -p "$PACKAGE_ROOT"
 
-kof build "$ROOT_DIR/src" --target native --output "$WORK_DIR/build" >/dev/null
-BINARY="$WORK_DIR/build/Default/Main"
-test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
-cp -- "$BINARY" "$PACKAGE_ROOT/kookie"
+if [[ "$RUNTIME" == native ]]; then
+  kof build "$ROOT_DIR/src" --target native --output "$WORK_DIR/build" >/dev/null
+  BINARY="$WORK_DIR/build/Default/Main"
+  test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
+  cp -- "$BINARY" "$PACKAGE_ROOT/kookie"
+else
+  kof build "$ROOT_DIR/src" --target jvm --output "$WORK_DIR/build" >/dev/null
+  jar --create --file "$PACKAGE_ROOT/kookie.jar" --main-class Default.Main -C "$WORK_DIR/build" .
+  cat > "$PACKAGE_ROOT/kookie" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+exec java -jar "$(dirname "$0")/kookie.jar" "$@"
+EOF
+fi
 chmod 755 "$PACKAGE_ROOT/kookie"
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
 cat > "$PACKAGE_ROOT/LICENSE" <<'EOF'
@@ -86,6 +108,7 @@ cat > "$PACKAGE_ROOT/PROVENANCE.txt" <<EOF
 application=kookie
 channel=dogfood
 target=$TARGET
+runtime=$RUNTIME
 version=$VERSION
 build_id=$BUILD_ID
 source_commit=$(git -C "$ROOT_DIR" rev-parse HEAD)

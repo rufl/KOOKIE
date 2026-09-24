@@ -24,6 +24,32 @@ BINARY="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/kookie"
 test -f "$BINARY"
 test -f "$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/LICENSE"
 "$BINARY" 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 loopback foundation verified'
+
+KOOKIE_VERSION=0.1.0-dogfood.jvm-smoke \
+KOOKIE_BUILD_ID=package-jvm-smoke \
+"$ROOT_DIR/scripts/package_kookie.sh" --runtime jvm --output "$WORK_DIR/jvm-release"
+(
+  cd "$WORK_DIR/jvm-release"
+  sha256sum --check SHA256SUMS >/dev/null
+)
+JVM_ARCHIVE="$WORK_DIR/jvm-release/kookie-0.1.0-dogfood.jvm-smoke-linux-x86_64.tar.gz"
+JVM_MANIFEST="$WORK_DIR/jvm-release/kookie-0.1.0-dogfood.jvm-smoke-linux-x86_64.json"
+test -f "$JVM_ARCHIVE" -a -f "$JVM_MANIFEST"
+mkdir "$WORK_DIR/jvm-extracted"
+tar -xzf "$JVM_ARCHIVE" -C "$WORK_DIR/jvm-extracted"
+JVM_ROOT="$WORK_DIR/jvm-extracted/kookie-0.1.0-dogfood.jvm-smoke-linux-x86_64"
+"$JVM_ROOT/kookie" 2>"$WORK_DIR/jvm-runtime.err" | grep -Fq 'KOOKIE G1 loopback foundation verified'
+test -f "$JVM_ROOT/kookie.jar"
+python3 - "$JVM_MANIFEST" <<'PY'
+import json, pathlib, sys
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert manifest["schema"] == "overzeer.package-provenance/v1"
+assert manifest["application"] == "kookie"
+assert manifest["target"] == "linux-x86_64"
+assert manifest["channel"] == "dogfood"
+assert manifest["signing"] == "unavailable"
+assert manifest["proof"] == "unavailable"
+PY
 python3 - "$MANIFEST" <<'PY'
 import json, pathlib, sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
