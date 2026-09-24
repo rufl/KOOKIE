@@ -59,9 +59,8 @@ initially with Vulkan/SPIR-V.
 
 ## Roadmap
 
-Next: qualify isolated window presentation, connect door state to arena
-collision/rendering, and prove the two-client LAN session with reconnect.
-Key/door/secret/exit progression is tested; a playable 3D arena is not done.
+Next: qualify isolated window presentation and prove the two-client LAN session with reconnect.
+Closed authored doors now block the scalar authoritative path and client geometry reflects activation; a playable 3D arena is still not done.
 
 Deferred until the core gates are stronger:
 

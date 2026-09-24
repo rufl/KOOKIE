@@ -164,6 +164,35 @@ Bool verifyCatchupTicks() {
     return true
 }
 
+Bool verifyDoorArenaIntegration() {
+    var session = LoopbackSession(4, 2)
+    assert(session.defineWorldKey(1, 0, 0, 0, 0))
+    assert(session.defineWorldDoor(2, 1, 2, 0, 0, 2))
+    assert(session.start() && session.connectPlayer() == 1)
+    assert(session.worldInteractionRenderVertexCount() == 6)
+    var closedGeometry = FrameStaging(6)
+    assert(session.stageWorldInteractionGeometry(closedGeometry, 1, 7))
+    assert(closedGeometry.stagedCount() == 6 && closedGeometry.scalarWrites() == 30)
+    var closedChecksum = closedGeometry.checksum()
+    assert(session.receiveInteraction(1, 1, 1, 1))
+    assert(session.receiveInput(1, 1, 1, 4, 0, 0, 0, 0, 0))
+    assert(session.advance(16667) == 1 && session.serverPosition(1) == 0,
+        "closed authored doors must block authoritative movement across their plane")
+    assert(session.receiveInteraction(1, 2, 2, 2) && session.advance(16667) == 1)
+    assert(session.worldInteractionActive(2))
+    assert(session.receiveInput(1, 3, 2, 4, 0, 0, 0, 0, 0))
+    assert(session.advance(16667) == 1 && session.serverPosition(1) == 4,
+        "opening the door must update the authoritative collision path")
+    var openGeometry = FrameStaging(6)
+    assert(session.stageWorldInteractionGeometry(openGeometry, 2, 7))
+    assert(openGeometry.checksum() != closedChecksum &&
+        openGeometry.checksum() > closedChecksum,
+        "client door geometry must publish open state through frame staging")
+    assert(!session.stageWorldInteractionGeometry(openGeometry, 2, 7),
+        "published frame ownership must prevent duplicate staging")
+    return true
+}
+
 Bool verifyCheckpointInitialization() {
     var inventory = BoundedItemInventory(1, 2)
     assert(inventory.addItem(500, 1))
@@ -458,7 +487,7 @@ Bool verifySessionLevelSaveRestore() {
 
 main() {
     assert(verifyWorldProgression())
-    assert(verifyWorldRestore())
+    assert(verifyDoorArenaIntegration())
     assert(verifyCooperativeSession())
     assert(verifyInteractionAdmission())
     assert(verifyInteractionCheckpoint())

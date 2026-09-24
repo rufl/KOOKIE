@@ -64,10 +64,10 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 ## Roadmap
 
-Próximos passos: qualificar apresentação isolada em janela, conectar o estado
-das portas à colisão/renderização da arena e provar a sessão LAN com dois
-clientes e reconexão. A progressão de chave/porta/segredo/saída está testada;
-a arena 3D jogável ainda não está pronta.
+Próximos passos: qualificar apresentação isolada em janela e provar a sessão LAN
+com dois clientes e reconexão. Portas criadas fechadas agora bloqueiam o caminho
+autoritativo escalar e a geometria do cliente reflete a ativação; a arena 3D
+jogável ainda não está pronta.
 
 Adiado até os gates centrais estarem mais fortes:
 

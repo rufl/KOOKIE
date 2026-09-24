@@ -203,6 +203,56 @@ class BoundedInteractionWorld {
         return kinds[slot - 1]
     }
 
+    Int positionX(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0) {
+            return 0
+        }
+        return positionsX[slot - 1]
+    }
+
+    Int positionY(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0) {
+            return 0
+        }
+        return positionsY[slot - 1]
+    }
+
+    Int positionZ(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0) {
+            return 0
+        }
+        return positionsZ[slot - 1]
+    }
+
+    Bool blocksScalarMove(Int fromPosition, Int toPosition) {
+        if (fromPosition == toPosition) {
+            return false
+        }
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            if (kinds[index] == 2 && !active[index]) {
+                var doorPosition = positionsX[index]
+                if ((fromPosition < doorPosition && toPosition >= doorPosition) ||
+                    (fromPosition > doorPosition && toPosition <= doorPosition)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    Int doorRenderVertexCount() {
+        var count = 0
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            if (kinds[index] == 2) {
+                count = count + 6
+            }
+        }
+        return count
+    }
+
     Int idAt(Int index) {
         if (index < 0 || index >= sizeValue) {
             return 0

@@ -82,12 +82,12 @@ This is the active bounded implementation sequence after the initial research an
 - Interaction replay now records up to 64 consumed commands, reserves capacity before admission, persists them in v2 bundles and re-simulates from full checkpoints. Movement uses consumed ticks; held input and presentation sequence survive repeated seeks.
 - Level progression now uses section 11/version 1 with level/content identity and exact stable-ID matching. Save files use bounded, checksummed v2 copies; genuine v1 files remain readable and repair upgrades them. Sixteen focused scenarios and 20 affected existing regressions pass on each target.
 - Fixed native checkpoint serialization of unused inventory roll fields and triangle rows; poisoned-buffer regressions prevent stale memory from entering replay files.
+- Door integration now makes closed authored doors block authoritative scalar movement across their X plane, while opened doors stop blocking. Client-visible door geometry stages through `FrameStaging` with open/closed state; this remains a scalar `(x, 0, 0)` arena contract, not a completed 3D collision mesh.
 
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; the X11/offscreen smoke correctly reports `gpu-unavailable`, while Xvfb remains presentation-incompatible.
-2. Connect progression door state to authored arena collision/rendering; current triggers use the existing scalar player position `(x, 0, 0)`, not a completed 3D arena.
-3. Prove host plus two clients over LAN, including bounded disconnect/reconnect and stale-input handling.
+2. Prove host plus two clients over LAN, including bounded disconnect/reconnect and stale-input handling.
 
 ## Release qualification
 

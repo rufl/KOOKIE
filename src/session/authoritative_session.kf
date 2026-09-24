@@ -338,6 +338,40 @@ class LoopbackSession {
         return clientLevelCompletedValue
     }
 
+
+    Bool stageWorldInteractionGeometry(
+        FrameStaging target, Int frame, Int resource
+    ) {
+        if (!started || resource <= 0 || !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < worldInteractions.size(); index = index + 1) {
+            var id = worldInteractions.idAt(index)
+            if (worldInteractions.kind(id) != 2) {
+                continue
+            }
+            var x = worldInteractions.positionX(id)
+            var y = worldInteractions.positionY(id)
+            var active = 0
+            if (clientInteractionFlags[index]) {
+                active = 100
+            }
+            if (!target.pushVertex(resource, x - 1, y - 1, active, 0) ||
+                !target.pushVertex(resource, x + 1, y - 1, active, 100) ||
+                !target.pushVertex(resource, x + 1, y + 1, active, 100) ||
+                !target.pushVertex(resource, x - 1, y - 1, active, 0) ||
+                !target.pushVertex(resource, x + 1, y + 1, active, 100) ||
+                !target.pushVertex(resource, x - 1, y + 1, active, 0)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+
+    Int worldInteractionRenderVertexCount() {
+        return worldInteractions.doorRenderVertexCount()
+    }
     Bool lastInteractionAccepted(Int player) {
         return player >= 1 && player <= 2 && interactionResults[player]
     }
@@ -2158,7 +2192,9 @@ class LoopbackSession {
                 if (inputReplayEnabled && !playerOneReplay.appendAtTick(commandOne, simulationTick)) {
                     return -1
                 }
-                serverMovement.applyInput(1, commandOne.moveX())
+                if (!applyDoorAwareMovement(1, commandOne.moveX())) {
+                    return -1
+                }
                 if (playerCombat.isAlive(1) &&
                     !stepPlayerWeaponPresentationCaptured(
                         1, simulationTick, playerOneEdges.lastEdges())) {
@@ -2173,7 +2209,9 @@ class LoopbackSession {
                     return -1
                 }
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
-                serverMovement.applyInput(2, commandTwo.moveX())
+                if (!applyDoorAwareMovement(2, commandTwo.moveX())) {
+                    return -1
+                }
                 if (playerCombat.isAlive(2) &&
                     !stepPlayerWeaponPresentationCaptured(
                         2, simulationTick, playerTwoEdges.lastEdges())) {
@@ -2214,6 +2252,21 @@ class LoopbackSession {
             }
         }
         return steps
+    }
+
+    Bool applyDoorAwareMovement(Int player, Int requestedStep) {
+        if (player != 1 && player != 2) {
+            return false
+        }
+        var current = serverMovement.position(player)
+        var movement = serverMovement.queryMovement(player, requestedStep)
+        if (!movement.accepted()) {
+            return false
+        }
+        if (worldInteractions.blocksScalarMove(current, movement.resolvedPosition())) {
+            return true
+        }
+        return serverMovement.applyInput(player, requestedStep)
     }
     Bool applySnapshot(Int sequence, Int tick, Int player, Int position) {
         if (!started || sequence <= snapshotSequence || tick < clientTick) {

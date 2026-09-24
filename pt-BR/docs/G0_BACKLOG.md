@@ -69,12 +69,12 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - O replay de interações agora registra até 64 comandos consumidos, reserva capacidade antes da admissão, persiste os comandos em bundles v2 e simula novamente a partir de checkpoints completos. Movimento usa o tick consumido; input mantido e sequência de apresentação sobrevivem a buscas repetidas.
 - A progressão do nível agora usa seção 11/versão 1 com identidade de nível/conteúdo e correspondência exata de IDs estáveis. Arquivos de save usam cópias v2 limitadas e com checksum; arquivos v1 genuínos continuam legíveis e o reparo os atualiza. Dezesseis cenários focados e 20 regressões existentes afetadas passam em cada alvo.
 - Corrigimos a serialização nativa de campos de rolagem de itens e registros de triângulos não usados; regressões com buffers contaminados impedem memória residual em arquivos de replay.
+- A integração de portas agora faz portas criadas fechadas bloquearem o movimento escalar autoritativo através do plano X; portas abertas deixam de bloquear. A geometria visível ao cliente é preparada por `FrameStaging` com estado aberto/fechado; o contrato continua sendo uma arena escalar `(x, 0, 0)`, não uma malha 3D completa.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke X11/offscreen reporta corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
-2. Conectar o estado das portas à colisão/renderização da arena criada; os gatilhos atuais usam a posição escalar existente `(x, 0, 0)`, não uma arena 3D completa.
-3. Provar host e dois clientes em LAN, incluindo desconexão/reconexão limitada e tratamento de input obsoleto.
+2. Provar host e dois clientes em LAN, incluindo desconexão/reconexão limitada e tratamento de input obsoleto.
 
 ## Qualificação de release
 
