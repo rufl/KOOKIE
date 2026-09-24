@@ -1,14 +1,14 @@
 # KOOKIE working memory
 
-Last updated after the 2026-09-24 command-replay/level-save batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active [backlog](docs/G0_BACKLOG.md). Bounded foundations execute; the milestone acceptance gates are not complete.
+Last updated after the 2026-09-24 loopback reconnect batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active backlog. Bounded foundations execute; milestone acceptance gates are not complete.
 
 ## Latest batch
 
 - Consumed interaction commands now persist in replay bundle v2 and re-simulate between full checkpoints. Capture reserves 64 slots; playback covers at most 4096 ticks, one explicit movement stream and both interaction players. Disable capture before playback; export captures before disabling.
 - Level progression uses section 11/version 1, level/content identity and exact stable IDs. Schema file v2 supports configured capacities up to 12 sections × 160 words and checksummed duplicate copies; genuine v1 files remain readable. This is not crash-durable publication or authentication.
-- Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Sixteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
+- Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Eighteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
 - A native high-arity call forwarding record getters dropped the fire argument in a focused reproduction. Replay now queues the existing `InputCommand` instead of reconstructing a wide call; no compiler repair is claimed.
-- Next unblocked implementation batch: connect authoritative door state to authored arena collision/rendering. Isolated DRI3 presentation and host plus two-client LAN qualification remain open; do not archive the active backlog.
+- Loopback host lifecycle now preserves player position and input sequence watermarks across reconnect, clears pending commands, and rejects stale input. The authenticated LAN proof is still open; do not archive the active backlog.
 - Current `kof info --json` reports 0.4.9-beta at `~/.local/share/kof4j/0.4.9-beta`, not the later 0.4.10 narrative below. No native Windows target was established.
 - Packaging is not ready: missing native Windows support, relocatable runtime/license closure and KOOKIE's OVERZEER descriptor. Health checks succeeded, but canonical Chopper credentials were absent and DDJARIN capability access returned HTTP 401. See the backlog for qualification and remaining implementation work.
 

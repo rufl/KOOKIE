@@ -10,6 +10,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added level progression save section 11/version 1 with stable IDs and level/content-version checks. Schema file v2 uses actual envelope sizes and independent checksums; configured capacities, one-copy recovery, repair and v1 compatibility are preserved.
 - Fixed uninitialized inventory/triangle checkpoint padding, preserved held input across seeks, and captured movement at its actual consumed tick. Replay now forwards complete input records; native fire bits and repeated presentation sequences are verified.
 - Connected authored door activation to authoritative scalar movement blocking and client-facing `FrameStaging` geometry. Closed doors block crossing their X plane; opened doors stop blocking. The 3D arena collision contract remains unfinished.
+- Added bounded loopback client disconnect/reconnect lifecycle. Reconnect preserves authoritative position and input sequence watermarks, clears pending input and rejects stale commands; the real authenticated LAN proof remains separate.
 - Fixed Ubuntu CI's AArch64 SIMD check selecting x86 host libc headers. Clang now uses its own freestanding C11 headers; the cross-target check remains mandatory and does not claim AArch64 linking or execution.
 - Added cooperative key/door/secret/exit progression, bounded tick commands, client state and file-backed checkpoint restore. Pause/focus loss cancels pending interactions; duplicate requests cannot award a secret twice.
 - Fixed catch-up inputs and weapon cooldowns using the final frame tick instead of the actual simulation tick.
@@ -25,7 +26,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 ### Checks
 
 - CI repair: host SIMD, forced scalar, AArch64 syntax, workflow validation and the JVM/native interaction probe passed locally.
-- Latest batch: 17 focused scenarios passed on JVM and native through `scripts/verify_interactions.sh`; 20 affected existing regressions passed on each target.
+- Latest batch: 18 focused scenarios passed on JVM and native through `scripts/verify_interactions.sh`; 20 affected existing regressions passed on each target.
 - Catch-up and two-actor spatial replay reproductions failed before their fixes and passed afterward.
 - Poisoned checkpoint buffers and held-fire checkpoint seek failed before their fixes and passed afterward.
 - Earlier combat batch: 63/63 tests on each target, plus SIMD host/scalar/AArch64 checks. That full suite was not rerun locally for this batch.

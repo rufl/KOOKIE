@@ -209,7 +209,11 @@ class LoopbackSession {
             return 0
         }
         if (!playerOneConnected) {
-            playerOneConnected = serverMovement.add(1, 0) && clientMovement.add(1, 0)
+            var positionOne = serverMovement.position(1)
+            playerOneConnected = serverMovement.setPosition(1, positionOne) &&
+                clientMovement.setPosition(1, positionOne) &&
+                playerOnePrediction.restore(positionOne, serverTick) &&
+                playerOneSnapshots.reset()
             if (playerOneConnected) {
                 playerOneFocused = true
                 return 1
@@ -217,13 +221,42 @@ class LoopbackSession {
             return 0
         }
         if (!playerTwoConnected) {
-            playerTwoConnected = serverMovement.add(2, 0) && clientMovement.add(2, 0)
+            var positionTwo = serverMovement.position(2)
+            playerTwoConnected = serverMovement.setPosition(2, positionTwo) &&
+                clientMovement.setPosition(2, positionTwo) &&
+                playerTwoPrediction.restore(positionTwo, serverTick) &&
+                playerTwoSnapshots.reset()
             if (playerTwoConnected) {
                 playerTwoFocused = true
                 return 2
             }
         }
         return 0
+    }
+
+    Bool disconnectPlayer(Int player) {
+        if (!started || (player != 1 && player != 2)) {
+            return false
+        }
+        if (player == 1 && playerOneConnected) {
+            playerOneConnected = false
+            playerOneFocused = false
+            playerOneInputs.clearPending()
+            playerOneEdges.clearHeld()
+            interactionTargets[1] = 0
+            interactionTicks[1] = 0
+            return true
+        }
+        if (player == 2 && playerTwoConnected) {
+            playerTwoConnected = false
+            playerTwoFocused = false
+            playerTwoInputs.clearPending()
+            playerTwoEdges.clearHeld()
+            interactionTargets[2] = 0
+            interactionTicks[2] = 0
+            return true
+        }
+        return false
     }
 
     Bool defineWorldKey(Int id, Int x, Int y, Int z, Int range) {
@@ -2553,6 +2586,16 @@ class LoopbackSession {
             return playerOnePrediction.pendingInputs()
         }
         return playerTwoPrediction.pendingInputs()
+    }
+
+    Bool playerConnected(Int player) {
+        if (player == 1) {
+            return playerOneConnected
+        }
+        if (player == 2) {
+            return playerTwoConnected
+        }
+        return false
     }
 
 

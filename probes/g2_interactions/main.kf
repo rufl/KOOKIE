@@ -193,6 +193,31 @@ Bool verifyDoorArenaIntegration() {
     return true
 }
 
+Bool verifyClientReconnectAndStaleInput() {
+    var session = LoopbackSession(4, 2)
+    assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
+    assert(session.receiveInput(2, 1, 1, 2, 0, 0, 0, 0, 0))
+    assert(session.advance(16667) == 1 && session.serverPosition(2) == 2)
+    assert(session.disconnectPlayer(2) && session.playerCount() == 1 &&
+        !session.playerConnected(2))
+    assert(!session.receiveInput(2, 2, 2, 2, 0, 0, 0, 0, 0),
+        "disconnected clients cannot submit input")
+    assert(session.connectPlayer() == 2 && session.playerConnected(2) &&
+        session.serverPosition(2) == 2 && session.clientPosition(2) == 2,
+        "reconnect must preserve authoritative position")
+    assert(!session.receiveInput(2, 2, 1, 2, 0, 0, 0, 0, 0),
+        "reconnect must retain the sequence watermark")
+    assert(session.receiveInput(2, 2, 2, 1, 0, 0, 0, 0, 0))
+    assert(session.advance(16667) == 1 && session.serverPosition(2) == 3)
+    assert(session.receiveInput(2, 3, 3, 1, 0, 0, 0, 0, 0))
+    assert(session.disconnectPlayer(2) && session.connectPlayer() == 2)
+    assert(session.advance(16667) == 1 && session.serverPosition(2) == 3,
+        "disconnect must discard pending stale movement")
+    assert(session.receiveInput(2, 4, 4, -1, 0, 0, 0, 0, 0) &&
+        session.advance(16667) == 1 && session.serverPosition(2) == 2)
+    return true
+}
+
 Bool verifyCheckpointInitialization() {
     var inventory = BoundedItemInventory(1, 2)
     assert(inventory.addItem(500, 1))
@@ -488,6 +513,7 @@ Bool verifySessionLevelSaveRestore() {
 main() {
     assert(verifyWorldProgression())
     assert(verifyDoorArenaIntegration())
+    assert(verifyClientReconnectAndStaleInput())
     assert(verifyCooperativeSession())
     assert(verifyInteractionAdmission())
     assert(verifyInteractionCheckpoint())

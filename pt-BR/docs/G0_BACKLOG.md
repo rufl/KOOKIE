@@ -70,11 +70,12 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - A progressão do nível agora usa seção 11/versão 1 com identidade de nível/conteúdo e correspondência exata de IDs estáveis. Arquivos de save usam cópias v2 limitadas e com checksum; arquivos v1 genuínos continuam legíveis e o reparo os atualiza. Dezesseis cenários focados e 20 regressões existentes afetadas passam em cada alvo.
 - Corrigimos a serialização nativa de campos de rolagem de itens e registros de triângulos não usados; regressões com buffers contaminados impedem memória residual em arquivos de replay.
 - A integração de portas agora faz portas criadas fechadas bloquearem o movimento escalar autoritativo através do plano X; portas abertas deixam de bloquear. A geometria visível ao cliente é preparada por `FrameStaging` com estado aberto/fechado; o contrato continua sendo uma arena escalar `(x, 0, 0)`, não uma malha 3D completa.
+- O ciclo de vida do host loopback agora suporta desconexão/reconexão limitada. A reconexão preserva posição autoritativa e marcas d'água de sequência, limpa comandos pendentes, rejeita input obsoleto durante a desconexão e aceita somente sequências novas após o retorno. A prova LAN autenticada real continua aberta.
 
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke X11/offscreen reporta corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
-2. Provar host e dois clientes em LAN, incluindo desconexão/reconexão limitada e tratamento de input obsoleto.
+2. Provar o caminho LAN autenticado com host e dois clientes, incluindo reconexão do transporte e tratamento de input obsoleto.
 
 ## Qualificação de release
 
