@@ -6,6 +6,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ### What moved forward
 
+- Fixed Ubuntu CI's AArch64 SIMD check selecting x86 host libc headers. Clang now uses its own freestanding C11 headers; the cross-target check remains mandatory and does not claim AArch64 linking or execution.
 - Added cooperative key/door/secret/exit progression, bounded tick commands, client state and file-backed checkpoint restore. Pause/focus loss cancels pending interactions; duplicate requests cannot award a secret twice.
 - Fixed catch-up inputs and weapon cooldowns using the final frame tick instead of the actual simulation tick.
 - Fixed overlapping spatial replay rows that overwrote an actor's Z coordinate and left native memory in the payload. Spatial state is now version 2; corrupted version-1 layouts are rejected, not guessed at.
@@ -19,6 +20,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ### Checks
 
+- CI repair: host SIMD, forced scalar, AArch64 syntax, workflow validation and the JVM/native interaction probe passed locally.
 - Latest batch: seven focused scenarios passed on JVM and native through `scripts/verify_interactions.sh`; 14 affected existing regressions passed on each target. Changed-source lint/LSP passed.
 - Catch-up and two-actor spatial replay reproductions failed before their fixes and passed afterward.
 - Earlier combat batch: 63/63 tests on each target, plus SIMD host/scalar/AArch64 checks. That full suite was not rerun for this batch.

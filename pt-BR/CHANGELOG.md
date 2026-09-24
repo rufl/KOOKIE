@@ -6,6 +6,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ### O que avançou
 
+- Corrigimos a verificação SIMD AArch64 no CI Ubuntu que selecionava headers da libc x86 do host. O Clang agora usa seus próprios headers C11 freestanding; a verificação cruzada continua obrigatória e não comprova vinculação nem execução AArch64.
 - Adicionamos progressão cooperativa de chave/porta/segredo/saída, comandos limitados por tick, estado do cliente e restauração de checkpoint em arquivo. Pausa/perda de foco cancela interações pendentes; pedidos duplicados não premiam um segredo duas vezes.
 - Corrigimos inputs de catch-up e cooldowns de armas que usavam o tick final do frame em vez do tick real da simulação.
 - Corrigimos registros sobrepostos de replay espacial que sobrescreviam a coordenada Z e deixavam memória nativa no payload. O estado espacial agora usa a versão 2; layouts corrompidos da versão 1 são rejeitados, sem tentar adivinhar dados perdidos.
@@ -19,6 +20,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ### Verificações
 
+- Correção de CI: SIMD do host, escalar forçado, sintaxe AArch64, validação do workflow e sonda de interações JVM/native passaram localmente.
 - Lote atual: sete cenários focados passaram na JVM e no nativo por `scripts/verify_interactions.sh`; 14 regressões existentes afetadas passaram em cada alvo. Lint/LSP dos fontes alterados passaram.
 - As reproduções de catch-up e replay espacial com dois atores falharam antes das correções e passaram depois.
 - Lote anterior de combate: 63/63 testes por alvo, mais verificações SIMD host/escalar/AArch64. A suíte completa não foi repetida neste lote.

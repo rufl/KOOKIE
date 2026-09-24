@@ -17,7 +17,12 @@ probe="$root/probes/g0_simd_dispatch.c"
 "$tmp/simd-scalar"
 
 if command -v clang >/dev/null 2>&1; then
-    clang --target=aarch64-linux-gnu "${common[@]}" -fsyntax-only "$source"
+    # This is a syntax proof, not a libc/linking check. Never mix host libc
+    # headers with the AArch64 target; the kernel uses only freestanding C11.
+    clang_resource_dir=$(clang -print-resource-dir)
+    clang --target=aarch64-linux-gnu -ffreestanding -nostdinc \
+        -isystem "$clang_resource_dir/include" \
+        "${common[@]}" -fsyntax-only "$source"
     echo "aarch64 syntax proof: passed"
 elif command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
     aarch64-linux-gnu-gcc "${common[@]}" -fsyntax-only "$source"
