@@ -261,6 +261,8 @@ class CombatWorld {
     Int[] deathSequences
     Int[] damageFlats
     Int[] damagePercents
+    Int[] defenseFlats
+    Int[] defensePercents
     Bool[] active
     Bool[] alive
     Int nextShotId
@@ -286,6 +288,8 @@ class CombatWorld {
         deathSequences = new Int[actorCapacity]
         damageFlats = new Int[actorCapacity]
         damagePercents = new Int[actorCapacity]
+        defenseFlats = new Int[actorCapacity]
+        defensePercents = new Int[actorCapacity]
         active = new Bool[actorCapacity]
         alive = new Bool[actorCapacity]
         projectileIds = new Int[actorCapacity]
@@ -307,6 +311,8 @@ class CombatWorld {
             deathSequences[index] = 0
             damageFlats[index] = 0
             damagePercents[index] = 0
+            defenseFlats[index] = 0
+            defensePercents[index] = 0
             active[index] = false
             alive[index] = false
             projectileIds[index] = 0
@@ -381,6 +387,8 @@ class CombatWorld {
         deathSequences[index] = 0
         damageFlats[index] = 0
         damagePercents[index] = 0
+        defenseFlats[index] = 0
+        defensePercents[index] = 0
         active[index] = true
         alive[index] = true
         return true
@@ -404,6 +412,8 @@ class CombatWorld {
         deathSequences[index] = 0
         damageFlats[index] = 0
         damagePercents[index] = 0
+        defenseFlats[index] = 0
+        defensePercents[index] = 0
         return true
     }
 
@@ -415,6 +425,16 @@ class CombatWorld {
         }
         damageFlats[index] = flatValue
         damagePercents[index] = percentValue
+        return true
+    }
+    Bool setDefenseModifier(Int actorId, Int flatValue, Int percentValue) {
+        var index = findActor(actorId)
+        if (index < 0 || flatValue < 0 || flatValue > 1000000 ||
+            percentValue < 0 || percentValue > 100) {
+            return false
+        }
+        defenseFlats[index] = flatValue
+        defensePercents[index] = percentValue
         return true
     }
 
@@ -504,9 +524,19 @@ class CombatWorld {
         if (request.critical() == 1) {
             amount = amount * 2
         }
-        var applied = amount - armor[targetIndex]
+        var effectiveArmor = armor[targetIndex] + defenseFlats[targetIndex]
+        if (effectiveArmor > 1000000) {
+            effectiveArmor = 1000000
+        }
+        var applied = amount - effectiveArmor
         if (applied < 1) {
             applied = 1
+        }
+        var reduction = applied * defensePercents[targetIndex] / 100
+        if (reduction >= applied) {
+            applied = 1
+        } else {
+            applied = applied - reduction
         }
         if (applied > health[targetIndex]) {
             applied = health[targetIndex]

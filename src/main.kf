@@ -841,10 +841,31 @@ test "progression modifiers affect authoritative combat" {
     assert(loopback.start() && loopback.connectPlayer() == 1 &&
         loopback.connectPlayer() == 2 &&
         loopback.definePlayerSkill(50, 2, 100) &&
+        loopback.definePlayerSkill(51, 1, 100) &&
+        loopback.setPlayerSkillPrerequisite(51, 50) &&
+        !loopback.learnPlayerSkill(1, 51) &&
         loopback.setPlayerSkillDamagePercent(50, 50) &&
         loopback.learnPlayerSkill(1, 50) &&
         loopback.gainPlayerSkillExperience(1, 50, 100) &&
-        loopback.definePlayerStatus(60, 5, 3) &&
+        loopback.learnPlayerSkill(1, 51) &&
+        loopback.setPlayerSkillActivation(50, 30, 3) &&
+        loopback.setPlayerSkillResource(1, 50),
+        "skill prerequisites and activation metadata must be enforced")
+    var activation = loopback.activatePlayerSkill(1, 50, 0)
+    assert(activation.accepted() && activation.resourceCost() == 30 &&
+        activation.cooldownUntil() == 3 &&
+        loopback.playerSkillResource(1) == 20 &&
+        loopback.playerSkillCooldown(1, 50, 1) == 2,
+        "skill activation must consume bounded resource and set cooldown")
+    var blockedActivation = loopback.activatePlayerSkill(1, 50, 1)
+    assert(!blockedActivation.accepted() &&
+        loopback.playerSkillResource(1) == 20,
+        "skill activation must reject cooldown reuse")
+    assert(loopback.setPlayerSkillResource(1, 50))
+    var readyActivation = loopback.activatePlayerSkill(1, 50, 3)
+    assert(readyActivation.accepted() && loopback.playerSkillResource(1) == 20,
+        "skill activation must become available at cooldown expiry")
+    assert(loopback.definePlayerStatus(60, 5, 3) &&
         loopback.setPlayerStatusDamageModifier(60, 2, 25) &&
         loopback.applyPlayerStatus(1, 60, 5, 1) &&
         loopback.definePlayerWeapon(9, 3, 0, 0, 10, 1, 20) &&
@@ -856,13 +877,20 @@ test "progression modifiers affect authoritative combat" {
     assert(enhanced.accepted() && enhanced.applied() == 21 &&
         loopback.playerCombatHealth(2) == 79,
         "skill and status modifiers must increase player damage")
+    assert(loopback.definePlayerStatus(61, 2, 1) &&
+        loopback.setPlayerStatusDefenseModifier(61, 3, 50) &&
+        loopback.applyPlayerStatus(2, 61, 2, 1))
+    var defended = loopback.resolvePlayerHitscan(1, 2, 1, 1, 0)
+    assert(defended.accepted() && defended.applied() == 9 &&
+        loopback.playerCombatHealth(2) == 70,
+        "defensive status modifiers must reduce incoming damage")
     assert(loopback.advance(4 * 16667) == 4 &&
         loopback.playerStatusDuration(1, 60) == 1 &&
         loopback.advance(16667) == 1 &&
         loopback.playerStatusDuration(1, 60) == -1)
     var expired = loopback.resolvePlayerHitscan(1, 2, 5, 1, 0)
     assert(expired.accepted() && expired.applied() == 15 &&
-        loopback.playerCombatHealth(2) == 64,
+        loopback.playerCombatHealth(2) == 55,
         "expired status modifiers must stop affecting player damage")
     assert(loopback.defineEnemyWeapon(19, 2, 0, 0, 10, 1, 20) &&
         loopback.addEnemyCombatActor(10, 100, 0) &&

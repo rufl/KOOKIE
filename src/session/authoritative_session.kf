@@ -13,6 +13,8 @@ class LoopbackSession {
     BoundedSkillDefinitionStore playerSkillDefinitions
     BoundedSkillProgression playerOneSkills
     BoundedSkillProgression playerTwoSkills
+    Int playerOneSkillResource
+    Int playerTwoSkillResource
     BoundedStatusDefinitionStore playerStatusDefinitions
     BoundedStatusEffects playerOneStatuses
     BoundedStatusEffects playerTwoStatuses
@@ -104,6 +106,8 @@ class LoopbackSession {
         playerSkillDefinitions = BoundedSkillDefinitionStore(16)
         playerOneSkills = BoundedSkillProgression(4)
         playerTwoSkills = BoundedSkillProgression(4)
+        playerOneSkillResource = 100
+        playerTwoSkillResource = 100
         playerStatusDefinitions = BoundedStatusDefinitionStore(16)
         playerOneStatuses = BoundedStatusEffects(4)
         playerTwoStatuses = BoundedStatusEffects(4)
@@ -295,6 +299,12 @@ class LoopbackSession {
         Int actorId, Int flatValue, Int percentValue
     ) {
         return enemyCombat.setDamageModifier(
+            actorId, flatValue, percentValue)
+    }
+    Bool setEnemyCombatDefenseModifier(
+        Int actorId, Int flatValue, Int percentValue
+    ) {
+        return enemyCombat.setDefenseModifier(
             actorId, flatValue, percentValue)
     }
     ResolutionResult resolveEnemyHitscan(
@@ -548,6 +558,71 @@ class LoopbackSession {
     Bool setPlayerSkillDamagePercent(Int skillId, Int percent) {
         return playerSkillDefinitions.setDamagePercent(skillId, percent)
     }
+    Bool setPlayerSkillPrerequisite(Int skillId, Int prerequisiteId) {
+        return playerSkillDefinitions.setPrerequisite(
+            skillId, prerequisiteId)
+    }
+    Bool setPlayerSkillActivation(
+        Int skillId, Int resourceCost, Int cooldownTicks
+    ) {
+        return playerSkillDefinitions.setActivation(
+            skillId, resourceCost, cooldownTicks)
+    }
+
+    BoundedSkillActivationResult activatePlayerSkill(
+        Int player, Int skillId, Int tick
+    ) {
+        var result = BoundedSkillActivationResult()
+        if (player == 1 && playerOneConnected) {
+            if (playerOneSkills.activate(
+                skillId, tick, playerOneSkillResource,
+                playerSkillDefinitions, result)) {
+                playerOneSkillResource = playerOneSkillResource - result.resourceCost()
+            }
+        } else if (player == 2 && playerTwoConnected) {
+            if (playerTwoSkills.activate(
+                skillId, tick, playerTwoSkillResource,
+                playerSkillDefinitions, result)) {
+                playerTwoSkillResource = playerTwoSkillResource - result.resourceCost()
+            }
+        }
+        return result
+    }
+
+    Bool setPlayerSkillResource(Int player, Int amount) {
+        if (amount < 0 || amount > 1000000) {
+            return false
+        }
+        if (player == 1 && playerOneConnected) {
+            playerOneSkillResource = amount
+            return true
+        }
+        if (player == 2 && playerTwoConnected) {
+            playerTwoSkillResource = amount
+            return true
+        }
+        return false
+    }
+
+    Int playerSkillResource(Int player) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkillResource
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkillResource
+        }
+        return -1
+    }
+
+    Int playerSkillCooldown(Int player, Int skillId, Int tick) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkills.cooldownRemaining(skillId, tick)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkills.cooldownRemaining(skillId, tick)
+        }
+        return -1
+    }
 
     Bool learnPlayerSkill(Int player, Int skillId) {
         var accepted = false
@@ -600,6 +675,12 @@ class LoopbackSession {
         Int statusId, Int flatValue, Int percentValue
     ) {
         return playerStatusDefinitions.setDamageModifier(
+            statusId, flatValue, percentValue)
+    }
+    Bool setPlayerStatusDefenseModifier(
+        Int statusId, Int flatValue, Int percentValue
+    ) {
+        return playerStatusDefinitions.setDefenseModifier(
             statusId, flatValue, percentValue)
     }
 
@@ -681,12 +762,18 @@ class LoopbackSession {
         var skillPercent = 0
         var statusFlat = 0
         var statusPercent = 0
+        var defenseFlat = 0
+        var defensePercent = 0
         if (player == 1 && playerOneConnected) {
             skillPercent = playerOneSkills.totalDamagePercent(
                 playerSkillDefinitions)
             statusFlat = playerOneStatuses.totalDamageFlat(
                 playerStatusDefinitions)
             statusPercent = playerOneStatuses.totalDamagePercent(
+                playerStatusDefinitions)
+            defenseFlat = playerOneStatuses.totalDefenseFlat(
+                playerStatusDefinitions)
+            defensePercent = playerOneStatuses.totalDefensePercent(
                 playerStatusDefinitions)
         } else if (player == 2 && playerTwoConnected) {
             skillPercent = playerTwoSkills.totalDamagePercent(
@@ -695,10 +782,15 @@ class LoopbackSession {
                 playerStatusDefinitions)
             statusPercent = playerTwoStatuses.totalDamagePercent(
                 playerStatusDefinitions)
+            defenseFlat = playerTwoStatuses.totalDefenseFlat(
+                playerStatusDefinitions)
+            defensePercent = playerTwoStatuses.totalDefensePercent(
+                playerStatusDefinitions)
         } else {
             return false
         }
         if (skillPercent < 0 || statusFlat < 0 || statusPercent < 0 ||
+            defenseFlat < 0 || defensePercent < 0 ||
             skillPercent > 1000000 - statusPercent) {
             return false
         }
@@ -706,7 +798,10 @@ class LoopbackSession {
             return true
         }
         return playerCombat.setDamageModifier(
-            player, statusFlat, skillPercent + statusPercent)
+                player, statusFlat, skillPercent + statusPercent) &&
+            playerCombat.setDefenseModifier(
+                player, defenseFlat, defensePercent)
+
     }
 
     Bool tickPlayerStatuses() {

@@ -423,6 +423,9 @@ class AuthoritativeEnemySession {
     Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {
         return combat.setDamageModifier(actorId, flatValue, percentValue)
     }
+    Bool setDefenseModifier(Int actorId, Int flatValue, Int percentValue) {
+        return combat.setDefenseModifier(actorId, flatValue, percentValue)
+    }
 
     Bool admitEnemyInternal(
         Int encounterId, Int enemyId, Int tick,

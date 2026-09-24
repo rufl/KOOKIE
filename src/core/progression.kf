@@ -5,6 +5,9 @@ class BoundedSkillDefinitionStore {
     Int[] maximumRanks
     Int[] experienceCosts
     Int[] damagePercents
+    Int[] prerequisiteIds
+    Int[] resourceCosts
+    Int[] cooldownTicks
     Int countValue
 
     public constructor(Int capacity) {
@@ -19,6 +22,9 @@ class BoundedSkillDefinitionStore {
         maximumRanks = new Int[actualCapacity]
         experienceCosts = new Int[actualCapacity]
         damagePercents = new Int[actualCapacity]
+        prerequisiteIds = new Int[actualCapacity]
+        resourceCosts = new Int[actualCapacity]
+        cooldownTicks = new Int[actualCapacity]
         countValue = 0
     }
 
@@ -31,6 +37,10 @@ class BoundedSkillDefinitionStore {
         ids[countValue] = skillId
         maximumRanks[countValue] = maximumRank
         experienceCosts[countValue] = experienceCost
+        damagePercents[countValue] = 0
+        prerequisiteIds[countValue] = 0
+        resourceCosts[countValue] = 0
+        cooldownTicks[countValue] = 0
         countValue = countValue + 1
         return true
     }
@@ -76,12 +86,83 @@ class BoundedSkillDefinitionStore {
         }
         return damagePercents[index]
     }
+
+    Bool setPrerequisite(Int skillId, Int prerequisiteId) {
+        var index = find(skillId)
+        if (index < 0 || prerequisiteId < 0 ||
+            (prerequisiteId > 0 &&
+                (prerequisiteId == skillId || find(prerequisiteId) < 0))) {
+            return false
+        }
+        prerequisiteIds[index] = prerequisiteId
+        return true
+    }
+
+    Int prerequisite(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return prerequisiteIds[index]
+    }
+
+    Bool setActivation(Int skillId, Int resourceCost, Int cooldown) {
+        var index = find(skillId)
+        if (index < 0 || resourceCost < 0 || resourceCost > 1000000 ||
+            cooldown < 0 || cooldown > 1000000) {
+            return false
+        }
+        resourceCosts[index] = resourceCost
+        cooldownTicks[index] = cooldown
+        return true
+    }
+
+    Int resourceCost(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return resourceCosts[index]
+    }
+
+    Int cooldown(Int skillId) {
+        var index = find(skillId)
+        if (index < 0) {
+            return -1
+        }
+        return cooldownTicks[index]
+    }
+}
+
+class BoundedSkillActivationResult {
+    Bool acceptedValue
+    Int resourceCostValue
+    Int cooldownUntilValue
+
+    public constructor() {
+        acceptedValue = false
+        resourceCostValue = 0
+        cooldownUntilValue = 0
+    }
+
+    Bool accepted() {
+        return acceptedValue
+    }
+
+    Int resourceCost() {
+        return resourceCostValue
+    }
+
+    Int cooldownUntil() {
+        return cooldownUntilValue
+    }
 }
 
 class BoundedSkillProgression {
     Int[] ids
     Int[] ranks
     Int[] experiences
+    Int[] cooldownUntilTicks
     Int countValue
 
     public constructor(Int capacity) {
@@ -95,12 +176,14 @@ class BoundedSkillProgression {
         ids = new Int[actualCapacity]
         ranks = new Int[actualCapacity]
         experiences = new Int[actualCapacity]
+        cooldownUntilTicks = new Int[actualCapacity]
         countValue = 0
     }
 
     Int count() {
         return countValue
     }
+
 
     Int find(Int skillId) {
         for (var index = 0; index < countValue; index = index + 1) {
@@ -128,17 +211,20 @@ class BoundedSkillProgression {
     }
 
     Bool learn(Int skillId, BoundedSkillDefinitionStore definitions) {
+        var prerequisiteId = definitions.prerequisite(skillId)
+        var prerequisiteIndex = find(prerequisiteId)
         if (definitions.find(skillId) < 0 || countValue >= ids.length ||
-            find(skillId) >= 0) {
+            find(skillId) >= 0 || (prerequisiteId > 0 &&
+                (prerequisiteIndex < 0 || ranks[prerequisiteIndex] <= 0))) {
             return false
         }
         ids[countValue] = skillId
         ranks[countValue] = 0
         experiences[countValue] = 0
+        cooldownUntilTicks[countValue] = 0
         countValue = countValue + 1
         return true
     }
-
     Bool gainExperience(
         Int skillId, Int amount, BoundedSkillDefinitionStore definitions
     ) {
@@ -159,6 +245,38 @@ class BoundedSkillProgression {
         ranks[index] = nextRank
         experiences[index] = nextExperience
         return true
+    }
+
+    Bool activate(
+        Int skillId, Int tick, Int resource,
+        BoundedSkillDefinitionStore definitions,
+        BoundedSkillActivationResult target
+    ) {
+        target.acceptedValue = false
+        target.resourceCostValue = 0
+        target.cooldownUntilValue = 0
+        var index = find(skillId)
+        var cost = definitions.resourceCost(skillId)
+        var cooldown = definitions.cooldown(skillId)
+        if (index < 0 || ranks[index] <= 0 || tick < 0 || resource < 0 ||
+            cost < 0 || cooldown < 0 || resource < cost ||
+            cooldownUntilTicks[index] > tick ||
+            tick > 1000000 - cooldown) {
+            return false
+        }
+        cooldownUntilTicks[index] = tick + cooldown
+        target.resourceCostValue = cost
+        target.cooldownUntilValue = cooldownUntilTicks[index]
+        target.acceptedValue = true
+        return true
+    }
+
+    Int cooldownRemaining(Int skillId, Int tick) {
+        var index = find(skillId)
+        if (index < 0 || tick < 0 || cooldownUntilTicks[index] <= tick) {
+            return 0
+        }
+        return cooldownUntilTicks[index] - tick
     }
 
     Int totalDamagePercent(BoundedSkillDefinitionStore definitions) {
@@ -227,6 +345,7 @@ class BoundedSkillProgression {
             ids[copy] = source.sectionValue(section, copyOffset)
             ranks[copy] = source.sectionValue(section, copyOffset + 1)
             experiences[copy] = source.sectionValue(section, copyOffset + 2)
+            cooldownUntilTicks[copy] = 0
         }
         return true
     }
@@ -247,6 +366,8 @@ class BoundedStatusDefinitionStore {
     Int[] stackCaps
     Int[] damageFlats
     Int[] damagePercents
+    Int[] defenseFlats
+    Int[] defensePercents
     Int countValue
 
     public constructor(Int capacity) {
@@ -262,6 +383,8 @@ class BoundedStatusDefinitionStore {
         stackCaps = new Int[actualCapacity]
         damageFlats = new Int[actualCapacity]
         damagePercents = new Int[actualCapacity]
+        defenseFlats = new Int[actualCapacity]
+        defensePercents = new Int[actualCapacity]
         countValue = 0
     }
 
@@ -274,6 +397,10 @@ class BoundedStatusDefinitionStore {
         ids[countValue] = statusId
         durationCaps[countValue] = durationCap
         stackCaps[countValue] = stackCap
+        damageFlats[countValue] = 0
+        damagePercents[countValue] = 0
+        defenseFlats[countValue] = 0
+        defensePercents[countValue] = 0
         countValue = countValue + 1
         return true
     }
@@ -329,7 +456,35 @@ class BoundedStatusDefinitionStore {
         }
         return damagePercents[index]
     }
+
+    Bool setDefenseModifier(Int statusId, Int flatValue, Int percentValue) {
+        var index = find(statusId)
+        if (index < 0 || flatValue < 0 || flatValue > 1000000 ||
+            percentValue < 0 || percentValue > 100) {
+            return false
+        }
+        defenseFlats[index] = flatValue
+        defensePercents[index] = percentValue
+        return true
+    }
+
+    Int defenseFlat(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return defenseFlats[index]
+    }
+
+    Int defensePercent(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return defensePercents[index]
+    }
 }
+
 
 class BoundedStatusEffects {
     Int[] ids
@@ -459,6 +614,43 @@ class BoundedStatusEffects {
                 return -1
             }
             total = total + contribution
+        }
+        return total
+    }
+
+    Int totalDefenseFlat(BoundedStatusDefinitionStore definitions) {
+        var total = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            var perStack = definitions.defenseFlat(ids[index])
+            if (perStack < 0 || (stackValues[index] > 0 &&
+                perStack > 1000000 / stackValues[index])) {
+                return -1
+            }
+            var contribution = perStack * stackValues[index]
+            if (total > 1000000 - contribution) {
+                return -1
+            }
+            total = total + contribution
+        }
+        return total
+    }
+
+    Int totalDefensePercent(BoundedStatusDefinitionStore definitions) {
+        var total = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            var perStack = definitions.defensePercent(ids[index])
+            if (perStack < 0 || (stackValues[index] > 0 &&
+                perStack > 1000000 / stackValues[index])) {
+                return -1
+            }
+            var contribution = perStack * stackValues[index]
+            if (total > 1000000 - contribution) {
+                return -1
+            }
+            total = total + contribution
+            if (total >= 100) {
+                return 100
+            }
         }
         return total
     }
