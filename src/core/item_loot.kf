@@ -433,3 +433,189 @@ class BoundedLootTable {
             50 + nextValue(seed, 5, 51))
     }
 }
+
+class BoundedAffixStatStore {
+    Int[] ids
+    Int[] flatValues
+    Int[] additivePercents
+    Int[] multiplicativePercents
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 32) {
+            actualCapacity = 32
+        }
+        ids = new Int[actualCapacity]
+        flatValues = new Int[actualCapacity]
+        additivePercents = new Int[actualCapacity]
+        multiplicativePercents = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Bool define(
+        Int id, Int flatValue, Int additivePercent, Int multiplicativePercent
+    ) {
+        if (id <= 0 || flatValue < 0 || flatValue > 1000000 ||
+            additivePercent < 0 || additivePercent > 1000000 ||
+            multiplicativePercent < 0 || multiplicativePercent > 1000000 ||
+            countValue >= ids.length || find(id) >= 0) {
+            return false
+        }
+        ids[countValue] = id
+        flatValues[countValue] = flatValue
+        additivePercents[countValue] = additivePercent
+        multiplicativePercents[countValue] = multiplicativePercent
+        countValue = countValue + 1
+        return true
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool contains(Int id) {
+        return find(id) >= 0
+    }
+
+    Int flatValue(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return flatValues[index]
+    }
+
+    Int additivePercent(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return additivePercents[index]
+    }
+
+    Int multiplicativePercent(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return multiplicativePercents[index]
+    }
+}
+
+class BoundedItemStatResult {
+    Bool acceptedValue
+    Int baseValue
+    Int flatValue
+    Int additiveValue
+    Int finalValue
+
+    public constructor() {
+        clear()
+    }
+
+    Bool clear() {
+        acceptedValue = false
+        baseValue = 0
+        flatValue = 0
+        additiveValue = 0
+        finalValue = 0
+        return true
+    }
+
+    Bool accepted() {
+        return acceptedValue
+    }
+
+    Int base() {
+        return baseValue
+    }
+
+    Int flat() {
+        return flatValue
+    }
+
+    Int additive() {
+        return additiveValue
+    }
+
+    Int finalAmount() {
+        return finalValue
+    }
+}
+
+class BoundedItemStatComposer {
+    Int maxValue
+
+    public constructor() {
+        maxValue = 1000000
+    }
+
+    Bool compose(
+        BoundedItemRoll roll,
+        BoundedItemDefinitionStore definitions,
+        BoundedAffixStatStore affixes,
+        BoundedItemStatResult target
+    ) {
+        target.clear()
+        if (!roll.accepted() ||
+            !definitions.contains(roll.definitionId()) ||
+            roll.level() <= 0) {
+            return false
+        }
+        var base = definitions.baseValue(roll.definitionId())
+        var flat = base
+        var additive = 0
+        var multiplicative = 0
+        var firstAffix = roll.affixOne()
+        var secondAffix = roll.affixTwo()
+        if (firstAffix != 0 && !affixes.contains(firstAffix)) {
+            return false
+        }
+        if (secondAffix != 0 && !affixes.contains(secondAffix)) {
+            return false
+        }
+        if (firstAffix != 0) {
+            flat = flat + affixes.flatValue(firstAffix)
+            additive = additive + affixes.additivePercent(firstAffix)
+            multiplicative = multiplicative +
+                affixes.multiplicativePercent(firstAffix)
+        }
+        if (secondAffix != 0) {
+            flat = flat + affixes.flatValue(secondAffix)
+            additive = additive + affixes.additivePercent(secondAffix)
+            multiplicative = multiplicative +
+                affixes.multiplicativePercent(secondAffix)
+        }
+        if (flat < 0 || flat > maxValue || additive < 0 ||
+            additive > 1000000 || multiplicative < 0 ||
+            multiplicative > 1000000) {
+            return false
+        }
+        var additiveBonus = flat * additive / 100
+        if (additiveBonus < 0 || additiveBonus > maxValue - flat) {
+            return false
+        }
+        var additiveValue = flat + additiveBonus
+        var multiplicativeBonus = additiveValue * multiplicative / 100
+        if (multiplicativeBonus < 0 ||
+            multiplicativeBonus > maxValue - additiveValue) {
+            return false
+        }
+        var finalValue = additiveValue + multiplicativeBonus
+        target.baseValue = base
+        target.flatValue = flat
+        target.additiveValue = additiveValue
+        target.finalValue = finalValue
+        target.acceptedValue = true
+        return true
+    }
+}

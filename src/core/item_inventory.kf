@@ -69,6 +69,18 @@ class BoundedItemInventory {
         return items.count()
     }
 
+    Int itemCapacity() {
+        return items.capacity()
+    }
+
+    Int rolledItemCount() {
+        return rolls.count()
+    }
+
+    Int rolledItemCapacity() {
+        return rolls.capacity()
+    }
+
     Int itemId(Int index) {
         return items.itemId(index)
     }

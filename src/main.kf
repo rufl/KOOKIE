@@ -669,6 +669,69 @@ test "equipment loadout transactions and persistence" {
 
 }
 
+test "item stat composition and crafting persistence" {
+    var definitions = BoundedItemDefinitionStore(2)
+    var affixes = BoundedAffixStatStore(4)
+    assert(definitions.define(100, 100, 1, 10, 2) &&
+        affixes.define(1, 10, 20, 10) &&
+        affixes.define(2, 5, 0, 20),
+        "stat definitions must accept bounded affix profiles")
+    var roll = BoundedItemRoll()
+    assert(roll.stage(900, 100, 5, 1, 1, 1, 2, 80))
+    var stats = BoundedItemStatResult()
+    var composer = BoundedItemStatComposer()
+    assert(composer.compose(roll, definitions, affixes, stats) &&
+        stats.base() == 100 &&
+        stats.flat() == 115 &&
+        stats.additive() == 138 &&
+        stats.finalAmount() == 179,
+        "item stats must compose base, flat, additive and multiplicative values")
+    var inventory = BoundedItemInventory(7, 4)
+    var recipe = BoundedCraftRecipe(2)
+    var crafting = BoundedCraftingSystem()
+    assert(inventory.addItem(700, 2) &&
+        inventory.addItem(701, 1) &&
+        inventory.setCurrency(100) &&
+        recipe.addIngredient(700, 2) &&
+        recipe.addIngredient(701, 1) &&
+        recipe.setCurrencyCost(25) &&
+        recipe.setOutput(roll) &&
+        crafting.validate(inventory, recipe) &&
+        crafting.craft(inventory, recipe) &&
+        inventory.itemCount() == 1 &&
+        inventory.itemId(0) == 900 &&
+        inventory.itemQuantity(0) == 1 &&
+        inventory.currency() == 75,
+        "crafting must atomically consume ingredients and currency")
+    var sections = BoundedSaveSections(8, 16)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(sections.setRevision(25) &&
+        inventory.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 25)
+    var wire = new Int[25]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(8, 16)
+    var restored = BoundedItemInventory(7, 4)
+    assert(codec.decode(wire, decoded) &&
+        restored.decodeFrom(decoded) &&
+        restored.itemId(0) == 900 &&
+        restored.itemRoll(0).affixOne() == 1 &&
+        restored.currency() == 75,
+        "crafted item ownership and roll fields must persist")
+    var rejected = BoundedCraftRecipe(1)
+    assert(rejected.addIngredient(900, 2) &&
+        rejected.setCurrencyCost(1000) &&
+        rejected.setOutput(roll) &&
+        !crafting.craft(restored, rejected) &&
+        restored.itemCount() == 1 &&
+        restored.itemQuantity(0) == 1 &&
+        restored.currency() == 75,
+        "invalid crafting must leave inventory unchanged")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
