@@ -15,9 +15,10 @@ usage() {
 Usage: scripts/package_kookie.sh [--runtime native|jvm] [--target linux-x86_64|windows-x86_64]
 
 Builds an immutable internal dogfood archive and SHA256SUMS. Native Linux
-packages contain the Kof executable. JVM Linux packages contain an executable
-launcher plus an executable JAR. Windows fails closed until a real PE build,
-runtime proof and signing inputs exist.
+packages contain the Kof executable. JVM packages contain an executable
+launcher plus an executable JAR; Windows JVM packages also embed the supplied
+Windows Java runtime. Windows native packaging fails closed until a real PE
+build exists.
 EOF
 }
 
@@ -41,8 +42,10 @@ esac
 case "$TARGET" in
   linux-x86_64) ;;
   windows-x86_64)
-    echo 'package_kookie: Windows packaging is blocked: Kof exposes no Windows native target, PE proof, runtime closure, or signing inputs' >&2
-    exit 2
+    if [[ "$RUNTIME" != jvm ]]; then
+      echo 'package_kookie: Windows native packaging is blocked: Kof exposes no Windows PE target' >&2
+      exit 2
+    fi
     ;;
   *) echo "package_kookie: unsupported target: $TARGET" >&2; exit 2 ;;
 esac
@@ -61,6 +64,14 @@ if [[ "$RUNTIME" == jvm ]]; then
   command -v jar >/dev/null || { echo 'package_kookie: jar is required for JVM packaging' >&2; exit 2; }
   command -v java >/dev/null || { echo 'package_kookie: java is required for JVM packaging' >&2; exit 2; }
 fi
+if [[ "$TARGET" == windows-x86_64 ]]; then
+  [[ -n "${KOOKIE_WINDOWS_JAVA_HOME:-}" &&
+    -f "$KOOKIE_WINDOWS_JAVA_HOME/bin/java.exe" ]] || {
+    echo 'package_kookie: Windows JVM packaging requires KOOKIE_WINDOWS_JAVA_HOME containing bin/java.exe' >&2
+    exit 2
+  }
+  command -v zip >/dev/null || { echo 'package_kookie: zip is required for Windows JVM packaging' >&2; exit 2; }
+fi
 
 if [[ -e "$OUTPUT_DIR" && ! -d "$OUTPUT_DIR" ]]; then
   echo 'package_kookie: output path exists and is not a directory' >&2
@@ -78,7 +89,7 @@ trap cleanup EXIT INT TERM
 
 PACKAGE_NAME="kookie-$VERSION-$TARGET"
 PACKAGE_ROOT="$WORK_DIR/$PACKAGE_NAME"
-ARCHIVE="$OUTPUT_DIR/$PACKAGE_NAME.tar.gz"
+ARCHIVE="$OUTPUT_DIR/$PACKAGE_NAME.$([[ "$TARGET" == windows-x86_64 ]] && echo zip || echo tar.gz)"
 mkdir -p "$PACKAGE_ROOT"
 
 if [[ "$RUNTIME" == native ]]; then
@@ -86,16 +97,28 @@ if [[ "$RUNTIME" == native ]]; then
   BINARY="$WORK_DIR/build/Default/Main"
   test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
   cp -- "$BINARY" "$PACKAGE_ROOT/kookie"
+  chmod 755 "$PACKAGE_ROOT/kookie"
 else
   kof build "$ROOT_DIR/src" --target jvm --output "$WORK_DIR/build" >/dev/null
   jar --create --file "$PACKAGE_ROOT/kookie.jar" --main-class Default.Main -C "$WORK_DIR/build" .
-  cat > "$PACKAGE_ROOT/kookie" <<'EOF'
+  if [[ "$TARGET" == windows-x86_64 ]]; then
+    cp -a -- "$KOOKIE_WINDOWS_JAVA_HOME" "$PACKAGE_ROOT/jdk"
+    cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
+@echo off
+setlocal
+set "ROOT=%~dp0"
+"%ROOT%jdk\bin\java.exe" -jar "%ROOT%kookie.jar" %*
+exit /b %ERRORLEVEL%
+EOF
+  else
+    cat > "$PACKAGE_ROOT/kookie" <<'EOF'
 #!/usr/bin/env sh
 set -eu
 exec java -jar "$(dirname "$0")/kookie.jar" "$@"
 EOF
+    chmod 755 "$PACKAGE_ROOT/kookie"
+  fi
 fi
-chmod 755 "$PACKAGE_ROOT/kookie"
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
 cat > "$PACKAGE_ROOT/LICENSE" <<'EOF'
 KOOKIE INTERNAL DOGFOOD NOTICE
@@ -114,10 +137,14 @@ build_id=$BUILD_ID
 source_commit=$(git -C "$ROOT_DIR" rev-parse HEAD)
 kof_version=$(kof version 2>/dev/null | tr '\n' ' ')
 license_status=internal-dogfood-only
-windows_status=blocked-no-native-target
+windows_status=$([[ "$TARGET" == windows-x86_64 ]] && echo jvm-runtime-embedded-no-native-pe || echo blocked-no-native-target)
 EOF
 rm -f -- "$ARCHIVE"
-tar -C "$WORK_DIR" -czf "$ARCHIVE" "$PACKAGE_NAME"
+if [[ "$TARGET" == windows-x86_64 ]]; then
+  (cd "$WORK_DIR" && zip -qr "$ARCHIVE" "$PACKAGE_NAME")
+else
+  tar -C "$WORK_DIR" -czf "$ARCHIVE" "$PACKAGE_NAME"
+fi
 (
   cd "$OUTPUT_DIR"
   sha256sum "$(basename "$ARCHIVE")" > SHA256SUMS
