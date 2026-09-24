@@ -368,6 +368,8 @@ class BoundedStatusDefinitionStore {
     Int[] damagePercents
     Int[] defenseFlats
     Int[] defensePercents
+    Int[] periodicDamages
+    Int[] periodicChannels
     Int countValue
 
     public constructor(Int capacity) {
@@ -383,6 +385,8 @@ class BoundedStatusDefinitionStore {
         stackCaps = new Int[actualCapacity]
         damageFlats = new Int[actualCapacity]
         damagePercents = new Int[actualCapacity]
+        periodicDamages = new Int[actualCapacity]
+        periodicChannels = new Int[actualCapacity]
         defenseFlats = new Int[actualCapacity]
         defensePercents = new Int[actualCapacity]
         countValue = 0
@@ -401,6 +405,8 @@ class BoundedStatusDefinitionStore {
         damagePercents[countValue] = 0
         defenseFlats[countValue] = 0
         defensePercents[countValue] = 0
+        periodicDamages[countValue] = 0
+        periodicChannels[countValue] = 0
         countValue = countValue + 1
         return true
     }
@@ -483,6 +489,34 @@ class BoundedStatusDefinitionStore {
         }
         return defensePercents[index]
     }
+    Bool setPeriodicDamage(
+        Int statusId, Int damage, Int channel
+    ) {
+        var index = find(statusId)
+        if (index < 0 || damage < 0 || damage > 1000000 ||
+            channel < 0 || channel >= 4) {
+            return false
+        }
+        periodicDamages[index] = damage
+        periodicChannels[index] = channel
+        return true
+    }
+
+    Int periodicDamage(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return periodicDamages[index]
+    }
+
+    Int periodicChannel(Int statusId) {
+        var index = find(statusId)
+        if (index < 0) {
+            return -1
+        }
+        return periodicChannels[index]
+    }
 }
 
 
@@ -509,6 +543,12 @@ class BoundedStatusEffects {
     Int count() {
         return countValue
     }
+    Int statusIdAt(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return ids[index]
+    }
 
     Int find(Int statusId) {
         for (var index = 0; index < countValue; index = index + 1) {
@@ -533,6 +573,29 @@ class BoundedStatusEffects {
             return -1
         }
         return stackValues[index]
+    }
+
+    Int periodicDamageAt(
+        Int index, BoundedStatusDefinitionStore definitions
+    ) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        var perStack = definitions.periodicDamage(ids[index])
+        if (perStack < 0 || (stackValues[index] > 0 &&
+            perStack > 1000000 / stackValues[index])) {
+            return -1
+        }
+        return perStack * stackValues[index]
+    }
+
+    Int periodicChannelAt(
+        Int index, BoundedStatusDefinitionStore definitions
+    ) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return definitions.periodicChannel(ids[index])
     }
 
     Bool apply(

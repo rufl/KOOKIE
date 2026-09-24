@@ -330,6 +330,13 @@ class LoopbackSession {
         return enemyCombat.playerHitscan(
             sourceId, targetId, tick, distance, critical)
     }
+    AreaDamageResult resolveEnemyAreaDamage(
+        Int sourceId, Int[] targetIds, Int amount,
+        Int channel, Int critical, Int tick
+    ) {
+        return enemyCombat.areaDamage(
+            sourceId, targetIds, amount, channel, critical, tick)
+    }
 
     Bool admitEnemy(
         Int encounterId, Int enemyId, Int tick,
@@ -700,6 +707,12 @@ class LoopbackSession {
         return playerStatusDefinitions.setDefenseModifier(
             statusId, flatValue, percentValue)
     }
+    Bool setPlayerStatusPeriodicDamage(
+        Int statusId, Int damage, Int channel
+    ) {
+        return playerStatusDefinitions.setPeriodicDamage(
+            statusId, damage, channel)
+    }
 
     Bool definePlayerStatus(Int statusId, Int durationCap, Int stackCap) {
         return playerStatusDefinitions.define(
@@ -818,10 +831,43 @@ class LoopbackSession {
                 player, statusFlat, skillPercent + statusPercent) &&
             playerCombat.setDefenseModifier(
                 player, defenseFlat, defensePercent)
+    }
+
+    Bool applyPeriodicStatusDamage(
+        Int player, BoundedStatusEffects effects
+    ) {
+        if (!playerCombat.isAlive(player)) {
+            return true
+        }
+        for (var index = 0; index < effects.count(); index = index + 1) {
+            var damage = effects.periodicDamageAt(
+                index, playerStatusDefinitions)
+            var channel = effects.periodicChannelAt(
+                index, playerStatusDefinitions)
+            if (damage < 0 || channel < 0) {
+                return false
+            }
+            if (damage > 0) {
+                var result = playerCombat.applyDamage(
+                    DamageRequest(0, player, damage, channel, 0))
+                if (!result.accepted()) {
+                    return false
+                }
+            }
+        }
+        return true
 
     }
 
     Bool tickPlayerStatuses() {
+        if (playerOneConnected &&
+            !applyPeriodicStatusDamage(1, playerOneStatuses)) {
+            return false
+        }
+        if (playerTwoConnected &&
+            !applyPeriodicStatusDamage(2, playerTwoStatuses)) {
+            return false
+        }
         if (!playerOneStatuses.tick(1) || !playerTwoStatuses.tick(1)) {
             return false
         }
@@ -879,6 +925,13 @@ class LoopbackSession {
 
     Int playerCombatShield(Int actorId) {
         return playerCombat.currentShield(actorId)
+    }
+    AreaDamageResult resolvePlayerAreaDamage(
+        Int sourceId, Int[] targetIds, Int amount,
+        Int channel, Int critical
+    ) {
+        return playerCombat.resolveAreaDamage(
+            sourceId, targetIds, amount, channel, critical)
     }
 
     ResolutionResult resolvePlayerHitscan(

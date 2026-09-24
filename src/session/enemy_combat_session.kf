@@ -570,6 +570,17 @@ class AuthoritativeEnemySession {
         }
         return result
     }
+    AreaDamageResult areaDamage(
+        Int sourceId, Int[] targetIds, Int amount,
+        Int channel, Int critical, Int tick
+    ) {
+        var result = combat.resolveAreaDamage(
+            sourceId, targetIds, amount, channel, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
 
     Int enemyTarget(Int enemyId) {
         return enemies.target(enemyId)

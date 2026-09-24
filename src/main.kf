@@ -917,6 +917,54 @@ test "progression modifiers affect authoritative combat" {
         loopback.enemyCombatShield(11) == 0,
         "enemy combat must honor resistance and shield modifiers")
 }
+test "periodic statuses damage players on fixed ticks" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.connectPlayer() == 2 &&
+        loopback.definePlayerStatus(70, 3, 2) &&
+        loopback.setPlayerStatusPeriodicDamage(70, 3, 1) &&
+        loopback.applyPlayerStatus(2, 70, 3, 2) &&
+        loopback.addPlayerCombatActor(1, 50, 0) &&
+        loopback.addPlayerCombatActor(2, 20, 0),
+        "periodic status damage must configure through authority")
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerCombatHealth(2) == 14 &&
+        loopback.playerStatusDuration(2, 70) == 2,
+        "periodic status damage must tick once per fixed step")
+    assert(loopback.advance(2 * 16667) == 2 &&
+        loopback.playerCombatHealth(2) == 2 &&
+        loopback.playerStatusDuration(2, 70) == -1,
+        "periodic status damage must stop when the status expires")
+}
+
+test "area damage resolves bounded target batches" {
+    var combat = CombatWorld(4, 1)
+    var targets = new Int[2]
+    targets[0] = 2
+    targets[1] = 3
+    assert(combat.addActor(1, 50, 0) &&
+        combat.addActor(2, 30, 0) &&
+        combat.addActor(3, 30, 0) &&
+        combat.setResistance(3, 1, 50))
+    var area = combat.resolveAreaDamage(1, targets, 10, 1, 0)
+    assert(area.accepted() && area.targetCount() == 2 &&
+        area.applied() == 15 && area.deaths() == 0 &&
+        combat.currentHealth(2) == 20 && combat.currentHealth(3) == 25 &&
+        combat.pendingCombatEvents() == 2,
+        "area damage must reuse bounded resistance and damage resolution")
+    assert(combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().kind() == 3 &&
+        combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 3,
+        "area damage must publish ordered combat events")
+    var duplicateTargets = new Int[2]
+    duplicateTargets[0] = 2
+    duplicateTargets[1] = 2
+    var rejected = combat.resolveAreaDamage(1, duplicateTargets, 10, 1, 0)
+    assert(!rejected.accepted() && combat.currentHealth(2) == 20,
+        "area damage must reject duplicate targets without mutation")
+}
+
 
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)

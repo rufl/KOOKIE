@@ -23,6 +23,9 @@ record ResolutionResult(
     Bool accepted, Int actionId, Int sourceId, Int targetId,
     Int applied, Int remainingHealth, Bool died, Int eventSequence
 )
+record AreaDamageResult(
+    Bool accepted, Int targetCount, Int applied, Int deaths
+)
 record ProjectileState(
     Bool accepted, Int projectileId, Int sourceId, Int weaponId
 )
@@ -635,6 +638,60 @@ class CombatWorld {
         return DamageResult(
             true, shieldDamage + healthDamage, health[targetIndex],
             died, deathSequences[targetIndex])
+    }
+
+    AreaDamageResult resolveAreaDamage(
+        Int sourceId, Int[] targetIds, Int amount, Int channel, Int critical
+    ) {
+        if (targetIds.length <= 0 || targetIds.length > actorIds.length ||
+            amount <= 0 || channel < 0 || channel >= 4 ||
+            (critical != 0 && critical != 1) ||
+            targetIds.length > eventQueue.sequences.length ||
+            !eventQueue.hasRoom()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        if (sourceId <= 0) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex]) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        for (var index = 0; index < targetIds.length; index = index + 1) {
+            var targetIndex = findActor(targetIds[index])
+            if (targetIndex < 0 || !alive[targetIndex]) {
+                return AreaDamageResult(false, 0, 0, 0)
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (targetIds[prior] == targetIds[index]) {
+                    return AreaDamageResult(false, 0, 0, 0)
+                }
+            }
+        }
+        var totalApplied = 0
+        var deaths = 0
+        for (var target = 0; target < targetIds.length; target = target + 1) {
+            var damage = applyDamage(DamageRequest(
+                sourceId, targetIds[target], amount, channel, critical))
+            if (!damage.accepted()) {
+                return AreaDamageResult(false, target, totalApplied, deaths)
+            }
+            if (damage.applied() > 1000000 - totalApplied) {
+                totalApplied = 1000000
+            } else {
+                totalApplied = totalApplied + damage.applied()
+            }
+            if (damage.died()) {
+                deaths = deaths + 1
+            }
+            if (!eventQueue.push(
+                3, sourceId, targetIds[target], damage.applied(),
+                damage.remainingHealth(), damage.died())) {
+                return AreaDamageResult(false, target, totalApplied, deaths)
+            }
+        }
+        return AreaDamageResult(
+            true, targetIds.length, totalApplied, deaths)
     }
 
     ResolutionResult resolveHitscan(
