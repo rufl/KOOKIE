@@ -17,6 +17,7 @@ class PlayerWeaponPresenter {
     Int count
     Int nextSequence
     PlayerWeaponEvent consumed
+    PlayerWeaponEvent published
 
     public constructor(Int capacity) {
         var actualCapacity = capacity
@@ -34,6 +35,7 @@ class PlayerWeaponPresenter {
         count = 0
         nextSequence = 1
         consumed = PlayerWeaponEvent(0, 0, 0, 0, 0, 0, 0, 0)
+        published = PlayerWeaponEvent(0, 0, 0, 0, 0, 0, 0, 0)
     }
 
     Bool push(
@@ -53,6 +55,9 @@ class PlayerWeaponPresenter {
         magazines[count] = magazine
         reserves[count] = reserve
         nextReadyTicks[count] = nextReadyTick
+        published = PlayerWeaponEvent(
+            nextSequence, kind, actorId, shotId, weaponId,
+            magazine, reserve, nextReadyTick)
         count = count + 1
         nextSequence = nextSequence + 1
         return true
@@ -103,5 +108,9 @@ class PlayerWeaponPresenter {
 
     PlayerWeaponEvent lastConsumed() {
         return consumed
+    }
+
+    PlayerWeaponEvent lastPublished() {
+        return published
     }
 }

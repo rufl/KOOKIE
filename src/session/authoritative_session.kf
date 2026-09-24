@@ -1079,12 +1079,33 @@ class LoopbackSession {
         return playerCombat.reserve(actorId)
     }
 
-    Bool stepPlayerWeaponPresentation(Int actorId, Int tick, InputEdges edges) {
+    Bool stepPlayerWeaponPresentationCaptured(
+        Int actorId, Int tick, InputEdges edges
+    ) {
         if (!playerCombat.isAlive(actorId)) {
             return false
         }
-        return playerWeaponPresentations.step(
-            playerCombat, actorId, tick, edges)
+        var before = playerWeaponPresentations.pending()
+        if (!playerWeaponPresentations.step(
+                playerCombat, actorId, tick, edges)) {
+            return false
+        }
+        if (playerWeaponPresentations.pending() == before) {
+            return true
+        }
+        var published = playerWeaponPresentations.lastPublished()
+        var fired = 0
+        if (published.kind() == 1) {
+            fired = 1
+        }
+        return recordReplayPresentation(
+            tick, published.kind(), published.sequence(), published.actorId(), 0,
+            published.shotId(), published.weaponId(), published.magazine(),
+            published.reserve(), published.nextReadyTick(), 0, fired)
+    }
+
+    Bool stepPlayerWeaponPresentation(Int actorId, Int tick, InputEdges edges) {
+        return stepPlayerWeaponPresentationCaptured(actorId, tick, edges)
     }
 
     Bool setPaused(Int active) {
@@ -1647,8 +1668,8 @@ class LoopbackSession {
                 }
                 serverMovement.applyInput(1, commandOne.moveX())
                 if (playerCombat.isAlive(1) &&
-                    !playerWeaponPresentations.step(
-                        playerCombat, 1, clock.tick(), playerOneEdges.lastEdges())) {
+                    !stepPlayerWeaponPresentationCaptured(
+                        1, clock.tick(), playerOneEdges.lastEdges())) {
                     return -1
                 }
             }
@@ -1661,8 +1682,8 @@ class LoopbackSession {
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
                 serverMovement.applyInput(2, commandTwo.moveX())
                 if (playerCombat.isAlive(2) &&
-                    !playerWeaponPresentations.step(
-                        playerCombat, 2, clock.tick(), playerTwoEdges.lastEdges())) {
+                    !stepPlayerWeaponPresentationCaptured(
+                        2, clock.tick(), playerTwoEdges.lastEdges())) {
                     return -1
                 }
             }

@@ -1064,6 +1064,26 @@ class CombatWorld {
         }
         return ShotgunPelletOffset(true, pellet, x, y)
     }
+    Int shotgunTargetStartIndex(
+        Int weaponId, Int pellet, Int targetCount
+    ) {
+        if (targetCount <= 0) {
+            return -1
+        }
+        var offset = shotgunPelletOffset(weaponId, pellet)
+        if (!offset.valid()) {
+            return -1
+        }
+        var x = offset.x()
+        if (x < 0) {
+            x = -x
+        }
+        var y = offset.y()
+        if (y < 0) {
+            y = -y
+        }
+        return (pellet + x + y) % targetCount
+    }
     ResolutionResult resolveShotgun(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {

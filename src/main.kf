@@ -120,9 +120,12 @@ test "player fire input publishes weapon presentation" {
     assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0))
     assert(loopback.advance(16667) == 1)
     assert(loopback.playerWeaponPresentationCount() == 1 &&
+        loopback.replayPresentationCount() == 1 &&
+        loopback.replayPresentationAt(0).kind() == 1 &&
+        loopback.replayPresentationAt(0).valueOne() == 1 &&
         loopback.playerCombatMagazine(1) == 1 &&
         loopback.playerCombatReserve(1) == 1,
-        "confirmed fire input must consume authoritative ammo")
+        "confirmed fire must consume ammo and capture presentation")
     assert(loopback.dequeuePlayerWeaponPresentation())
     var shotPresentation = loopback.lastPlayerWeaponPresentation()
     assert(shotPresentation.kind() == 1 &&
@@ -997,6 +1000,10 @@ test "bounded shotgun pellets share damage authority" {
         thirdPellet.valid() && thirdPellet.x() == 20 &&
         thirdPellet.y() == -20,
         "shotgun spread must publish deterministic geometric offsets")
+    assert(combat.shotgunTargetStartIndex(12, 0, 3) == 2 &&
+        combat.shotgunTargetStartIndex(12, 1, 3) == 2 &&
+        combat.shotgunTargetStartIndex(12, 2, 3) == 0,
+        "shotgun geometry must produce deterministic target starts")
     var blast = combat.resolveShotgun(1, 2, 0, 30, 0)
     assert(blast.accepted() && blast.applied() == 281 &&
         blast.remainingHealth() == 719 &&
