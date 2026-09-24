@@ -71,6 +71,10 @@ Bool transportSnapshot(
     var receivedCount = kookie_transport_receive()
     if (receivedCount != payload.length ||
         kookie_transport_last_status() != 1) {
+        println("transport-receive-count")
+        println(receivedCount)
+        println("transport-receive-status")
+        println(kookie_transport_last_status())
         return false
     }
     var expectedSum = 0
