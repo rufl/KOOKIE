@@ -2,6 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-https://github.com/rufl/KOOKIE/releases/download}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="linux-x86_64"
 VERSION="${KOOKIE_VERSION:-0.1.0-dogfood.1}"
@@ -74,6 +75,13 @@ test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY"
 cp -- "$BINARY" "$PACKAGE_ROOT/kookie"
 chmod 755 "$PACKAGE_ROOT/kookie"
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
+cat > "$PACKAGE_ROOT/LICENSE" <<'EOF'
+KOOKIE INTERNAL DOGFOOD NOTICE
+
+This package is supplied only for private qualification on authorized
+OVERZEER endpoints. No public redistribution or sublicensing grant is made.
+Contact the project owner before using this package outside those endpoints.
+EOF
 cat > "$PACKAGE_ROOT/PROVENANCE.txt" <<EOF
 application=kookie
 channel=dogfood
@@ -82,31 +90,34 @@ version=$VERSION
 build_id=$BUILD_ID
 source_commit=$(git -C "$ROOT_DIR" rev-parse HEAD)
 kof_version=$(kof version 2>/dev/null | tr '\n' ' ')
-license_status=unlicensed-internal-only
+license_status=internal-dogfood-only
 windows_status=blocked-no-native-target
 EOF
-
 rm -f -- "$ARCHIVE"
 tar -C "$WORK_DIR" -czf "$ARCHIVE" "$PACKAGE_NAME"
 (
   cd "$OUTPUT_DIR"
   sha256sum "$(basename "$ARCHIVE")" > SHA256SUMS
 )
-python3 - "$ARCHIVE" "$OUTPUT_DIR/$PACKAGE_NAME.json" "$TARGET" "$VERSION" "$BUILD_ID" <<'PY'
+python3 - "$ARCHIVE" "$OUTPUT_DIR/$PACKAGE_NAME.json" "$TARGET" "$VERSION" "$BUILD_ID" "$BASE_URL" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
+target, version, build_id, base_url = sys.argv[3:7]
+encoded = f"{base_url.rstrip('/')}/dogfood/{version}/{target}/{build_id}"
 manifest = {
-    "schema": "kookie.dogfood-package/v1",
+    "schema": "overzeer.package-provenance/v1",
     "application": "kookie",
     "channel": "dogfood",
-    "target": sys.argv[3],
-    "version": sys.argv[4],
-    "build_id": sys.argv[5],
+    "version": version,
+    "target": target,
+    "build_id": build_id,
     "archive": archive.name,
-    "bytes": archive.stat().st_size,
+    "size": archive.stat().st_size,
     "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
-    "license_status": "unlicensed-internal-only",
-    "windows_status": "blocked-no-native-target",
+    "signing": "unavailable",
+    "proof": "unavailable",
+    "url": f"{encoded}/{archive.name}",
+    "manifest_url": f"{encoded}/metadata.json",
 }
 pathlib.Path(sys.argv[2]).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 PY

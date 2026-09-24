@@ -21,15 +21,18 @@ test -f "$ARCHIVE" -a -f "$MANIFEST"
 mkdir "$WORK_DIR/extracted"
 tar -xzf "$ARCHIVE" -C "$WORK_DIR/extracted"
 BINARY="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/kookie"
-test -x "$BINARY"
+test -f "$BINARY"
+test -f "$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/LICENSE"
 "$BINARY" 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 loopback foundation verified'
 python3 - "$MANIFEST" <<'PY'
 import json, pathlib, sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert manifest["schema"] == "overzeer.package-provenance/v1"
+assert manifest["application"] == "kookie"
 assert manifest["target"] == "linux-x86_64"
 assert manifest["channel"] == "dogfood"
-assert manifest["license_status"] == "unlicensed-internal-only"
-assert manifest["windows_status"] == "blocked-no-native-target"
+assert manifest["signing"] == "unavailable"
+assert manifest["proof"] == "unavailable"
 PY
 if "$ROOT_DIR/scripts/package_kookie.sh" --target windows-x86_64 --output "$WORK_DIR/windows" >"$WORK_DIR/windows.out" 2>&1; then
   echo 'package smoke: Windows packaging unexpectedly succeeded' >&2
