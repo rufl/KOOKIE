@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this verification run is being started"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -32,7 +38,9 @@ jobs:
           set -euo pipefail
           archive="kof-${KOF_VERSION}-linux-x86_64.tar.gz"
           url="https://github.com/KofLang/Kof4j/releases/download/kof-${KOF_VERSION}-linux-x86_64/${archive}"
-          curl --fail --location --retry 3 --output "$RUNNER_TEMP/$archive" "$url"
+          curl --fail --location --retry 3 --retry-all-errors \
+            --connect-timeout 15 --max-time 180 \
+            --output "$RUNNER_TEMP/$archive" "$url"
           echo "${KOF_ARCHIVE_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
           kof_bin="$RUNNER_TEMP/kof-${KOF_VERSION}-linux-x86_64/bin"
