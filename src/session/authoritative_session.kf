@@ -571,7 +571,14 @@ class LoopbackSession {
             return false
         }
         enemyImpactAudio.queue(clip, gain)
-        return true
+        var died = 0
+        if (snapshot.died()) {
+            died = 1
+        }
+        return recordReplayPresentation(
+            snapshot.tick(), 3, snapshot.sequence(), snapshot.sourceId(),
+            snapshot.targetId(), snapshot.x(), snapshot.y(), snapshot.z(),
+            snapshot.applied(), clip, gain, died)
     }
 
     EnemyImpactSnapshot latestEnemyImpactSnapshot() {
@@ -1291,12 +1298,17 @@ class LoopbackSession {
         return playerTwoReplay.lastPlayed()
     }
 
-    Int replaySidecarLength() {
+    Int replaySidecarBaseLength() {
         return playerOneInventory.replayStateLength() +
             playerOneEquipment.replayStateLength() +
             playerTwoInventory.replayStateLength() +
             playerTwoEquipment.replayStateLength() +
             broadPhaseCollection.replayStateLength()
+    }
+
+    Int replaySidecarLength() {
+        return replaySidecarBaseLength() +
+            replayPresentationHistory.replayStateLength()
     }
 
     Bool encodeReplaySidecar(Int[] target) {
@@ -1341,11 +1353,21 @@ class LoopbackSession {
         for (var worldIndex = 0; worldIndex < world.length; worldIndex = worldIndex + 1) {
             target[offset + worldIndex] = world[worldIndex]
         }
+        offset = offset + world.length
+        var presentation = new Int[replayPresentationHistory.replayStateLength()]
+        if (!replayPresentationHistory.encodeReplayState(presentation)) {
+            return false
+        }
+        for (var presentationIndex = 0;
+            presentationIndex < presentation.length;
+            presentationIndex = presentationIndex + 1) {
+            target[offset + presentationIndex] = presentation[presentationIndex]
+        }
         return true
     }
 
     Bool restoreReplaySidecar(Int[] source) {
-        if (source.length != replaySidecarLength()) {
+        if (source.length < replaySidecarBaseLength() + 1) {
             return false
         }
         var offset = 0
@@ -1392,6 +1414,24 @@ class LoopbackSession {
         broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()
         clientBroadPhaseRevisionValue =
             clientBroadPhaseCollection.geometryRevision()
+        offset = offset + state.length
+        if (source[offset] < 0 ||
+            source[offset] > replayPresentationHistory.capacity()) {
+            return false
+        }
+        var presentationLength = 1 + source[offset] * 12
+        if (source.length != offset + presentationLength) {
+            return false
+        }
+        var presentation = new Int[presentationLength]
+        for (var presentationIndex = 0;
+            presentationIndex < presentationLength;
+            presentationIndex = presentationIndex + 1) {
+            presentation[presentationIndex] = source[offset + presentationIndex]
+        }
+        if (!replayPresentationHistory.restoreReplayState(presentation)) {
+            return false
+        }
         return true
     }
 
@@ -1463,13 +1503,13 @@ class LoopbackSession {
     ) {
         if (!started || paused || targetTick < 0 ||
             !timeline.seek(targetTick) ||
-            timeline.seekSidecarLength() != replaySidecarLength()) {
+            timeline.seekSidecarLength() < replaySidecarBaseLength() + 1) {
             return false
         }
         if (!applyReplayCheckpoint(timeline, targetTick)) {
             return false
         }
-        var sidecar = new Int[replaySidecarLength()]
+        var sidecar = new Int[timeline.seekSidecarLength()]
         for (var index = 0; index < sidecar.length; index = index + 1) {
             sidecar[index] = timeline.seekSidecarValue(index)
         }

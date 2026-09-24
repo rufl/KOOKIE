@@ -1279,6 +1279,9 @@ test "loopback replay sidecar restores inventory and world state" {
         loopback.equipPlayerItem(1, 0, 500) &&
         loopback.addBroadPhaseTriangle(
             0, 0, 0, 1, 0, 0, 0, 0, 1))
+    assert(loopback.recordReplayPresentation(
+            0, 1, 7, 1, 0, 500, 9, 2, 1, 0, 0, 1),
+        "replay sidecar must accept presentation history")
     var timeline = BoundedReplayTimeline(4, 2)
     var checkpoint = new Int[loopback.replayCheckpointLength()]
     var sidecar = new Int[loopback.replaySidecarLength()]
@@ -1298,8 +1301,10 @@ test "loopback replay sidecar restores inventory and world state" {
         loopback.playerItemQuantity(1, 500) == 2 &&
         loopback.playerItemQuantity(1, 501) == 0 &&
         loopback.playerEquipmentItem(1, 0) == 500 &&
-        loopback.broadPhaseTriangleCount() == 1,
-        "atomic replay bundle must restore inventory equipment and world state")
+        loopback.broadPhaseTriangleCount() == 1 &&
+        loopback.replayPresentationCount() == 1 &&
+        loopback.replayPresentationAt(0).valueOne() == 500,
+        "atomic replay bundle must restore inventory world and presentation state")
 }
 
 test "loopback replay restores enemy combat checkpoint state" {
@@ -2327,9 +2332,12 @@ test "replicated projectile presentation queues" {
         snapshot.targetId() == 2 && snapshot.applied() == 3 &&
         loopback.applyEnemyImpactSnapshot(snapshot) &&
         loopback.clientEnemyImpactSnapshotCount() == 1 &&
+        loopback.replayPresentationCount() == 1 &&
+        loopback.replayPresentationAt(0).kind() == 3 &&
+        loopback.replayPresentationAt(0).valueFive() == 201 &&
         loopback.pendingEnemyImpactPresentations() == 1 &&
         loopback.pendingEnemyImpactAudio() == 1,
-        "client admission must stage impact presentation and audio")
+        "client admission must stage impact and capture replay presentation")
     assert(loopback.dequeueEnemyImpactPresentation())
     var presentation = loopback.lastEnemyImpactPresentation()
     assert(presentation.sequence() == snapshot.sequence() &&
