@@ -64,8 +64,8 @@ assert manifest["signing"] == "unavailable"
 assert manifest["proof"] == "unavailable"
 PY
 if "$ROOT_DIR/scripts/package_kookie.sh" --target windows-x86_64 --output "$WORK_DIR/windows" >"$WORK_DIR/windows.out" 2>&1; then
-  echo 'package smoke: Windows packaging unexpectedly succeeded' >&2
+  echo 'package smoke: Windows native packaging unexpectedly succeeded' >&2
   exit 1
 fi
-grep -Fq 'Windows packaging is blocked' "$WORK_DIR/windows.out"
+grep -Fq 'Windows native packaging is blocked' "$WORK_DIR/windows.out"
 printf 'KOOKIE package smoke passed: Linux archive, checksum, provenance, runtime, and Windows fail-closed gate\n'
