@@ -84,7 +84,7 @@ This is the active bounded implementation sequence after the initial research an
 - Fixed native checkpoint serialization of unused inventory roll fields and triangle rows; poisoned-buffer regressions prevent stale memory from entering replay files.
 - Door integration now makes closed authored doors block authoritative scalar movement across their X plane, while opened doors stop blocking. Client-visible door geometry stages through `FrameStaging` with open/closed state; this remains a scalar `(x, 0, 0)` arena contract, not a completed 3D collision mesh.
 - Remote session reconnect now preserves broad-phase send/receive sequence watermarks across close/reopen. The native authenticated UDP probe closes and reopens its local pair, resumes at sequence 9 and rejects older snapshots through the same monotonic link contract. The authenticated two-client LAN proof remains open.
-- Reproducible Linux x86-64 dogfood archives now support both native Kof and executable-JAR JVM runtimes with SHA256SUMS, immutable provenance and extracted-binary smoke. Windows packaging still fails closed because no Kof Windows target, PE/runtime proof or signing inputs exist. The archive remains internal-only.
+- Reproducible Linux x86-64 dogfood archives support native Kof and executable-JAR JVM runtimes with SHA256SUMS and immutable provenance. A Windows JVM `.zip` path now embeds a Windows Java runtime and emits `kookie.cmd`; native Windows PE packaging remains blocked because Kof exposes no Windows target. The archive remains internal-only.
 
 ## Next batch
 
