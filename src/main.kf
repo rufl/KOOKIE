@@ -798,6 +798,44 @@ test "reservations skills and status persistence" {
         "skill and status state must survive versioned persistence")
 }
 
+test "loopback progression authority and persistence" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.definePlayerSkill(30, 2, 100) &&
+        loopback.learnPlayerSkill(1, 30) &&
+        loopback.gainPlayerSkillExperience(1, 30, 125) &&
+        loopback.playerSkillRank(1, 30) == 1 &&
+        loopback.playerSkillExperience(1, 30) == 25 &&
+        loopback.definePlayerStatus(40, 10, 3) &&
+        loopback.applyPlayerStatus(1, 40, 5, 2) &&
+        loopback.playerStatusDuration(1, 40) == 5 &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerStatusDuration(1, 40) == 4,
+        "loopback must authoritatively advance player progression state")
+    var sections = BoundedSaveSections(12, 16)
+    var codec = BoundedSaveSchemaWireCodec(12, 16)
+    assert(sections.setRevision(40) &&
+        loopback.encodePlayerProgression(1, sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 16)
+    var wire = new Int[16]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(12, 16)
+    var restored = LoopbackSession(4, 2)
+    assert(restored.start() && restored.connectPlayer() == 1 &&
+        restored.definePlayerSkill(30, 2, 100) &&
+        restored.definePlayerStatus(40, 10, 3) &&
+        codec.decode(wire, decoded) &&
+        restored.decodePlayerProgression(1, decoded) &&
+        restored.playerSkillRank(1, 30) == 1 &&
+        restored.playerSkillExperience(1, 30) == 25 &&
+        restored.playerStatusDuration(1, 40) == 4 &&
+        restored.playerStatusStacks(1, 40) == 2,
+        "loopback progression state must round-trip through save sections")
+}
+
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)

@@ -10,6 +10,12 @@ class LoopbackSession {
     InputEdgeState playerTwoEdges
     CombatWorld playerCombat
     PlayerWeaponPresenter playerWeaponPresentations
+    BoundedSkillDefinitionStore playerSkillDefinitions
+    BoundedSkillProgression playerOneSkills
+    BoundedSkillProgression playerTwoSkills
+    BoundedStatusDefinitionStore playerStatusDefinitions
+    BoundedStatusEffects playerOneStatuses
+    BoundedStatusEffects playerTwoStatuses
     InputReplayRecorder playerOneReplay
     InputReplayRecorder playerTwoReplay
     MovementComponent serverMovement
@@ -95,6 +101,12 @@ class LoopbackSession {
         enemyImpactAudio = QueuedAudio(entityCapacity * 2)
         playerCombat = CombatWorld(entityCapacity, entityCapacity)
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
+        playerSkillDefinitions = BoundedSkillDefinitionStore(16)
+        playerOneSkills = BoundedSkillProgression(4)
+        playerTwoSkills = BoundedSkillProgression(4)
+        playerStatusDefinitions = BoundedStatusDefinitionStore(16)
+        playerOneStatuses = BoundedStatusEffects(4)
+        playerTwoStatuses = BoundedStatusEffects(4)
         enemyImpactAudio.open()
         enemyImpactSnapshotSequence = 0
         clientEnemyImpactSnapshotSequence = 0
@@ -517,6 +529,129 @@ class LoopbackSession {
     Int enemySnapshotCount() {
         return enemyServerSnapshots.size()
     }
+    Bool definePlayerSkill(Int skillId, Int maximumRank, Int experienceCost) {
+        return playerSkillDefinitions.define(
+            skillId, maximumRank, experienceCost)
+    }
+
+    Bool learnPlayerSkill(Int player, Int skillId) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkills.learn(skillId, playerSkillDefinitions)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkills.learn(skillId, playerSkillDefinitions)
+        }
+        return false
+    }
+
+    Bool gainPlayerSkillExperience(Int player, Int skillId, Int amount) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkills.gainExperience(
+                skillId, amount, playerSkillDefinitions)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkills.gainExperience(
+                skillId, amount, playerSkillDefinitions)
+        }
+        return false
+    }
+
+    Int playerSkillRank(Int player, Int skillId) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkills.rank(skillId)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkills.rank(skillId)
+        }
+        return -1
+    }
+
+    Int playerSkillExperience(Int player, Int skillId) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkills.experience(skillId)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkills.experience(skillId)
+        }
+        return -1
+    }
+
+    Bool definePlayerStatus(Int statusId, Int durationCap, Int stackCap) {
+        return playerStatusDefinitions.define(
+            statusId, durationCap, stackCap)
+    }
+
+    Bool applyPlayerStatus(
+        Int player, Int statusId, Int duration, Int stacks
+    ) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneStatuses.apply(
+                statusId, duration, stacks, playerStatusDefinitions)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoStatuses.apply(
+                statusId, duration, stacks, playerStatusDefinitions)
+        }
+        return false
+    }
+
+    Int playerStatusDuration(Int player, Int statusId) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneStatuses.duration(statusId)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoStatuses.duration(statusId)
+        }
+        return -1
+    }
+
+    Int playerStatusStacks(Int player, Int statusId) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneStatuses.stacks(statusId)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoStatuses.stacks(statusId)
+        }
+        return -1
+    }
+
+    Bool encodePlayerProgression(Int player, BoundedSaveSections target) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkills.encodeInto(target) &&
+                playerOneStatuses.encodeInto(target)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkills.encodeInto(target) &&
+                playerTwoStatuses.encodeInto(target)
+        }
+        return false
+    }
+
+    Bool decodePlayerProgression(Int player, BoundedSaveSections source) {
+        var decodedSkills = BoundedSkillProgression(4)
+        var decodedStatuses = BoundedStatusEffects(4)
+        if (!decodedSkills.decodeFrom(source, playerSkillDefinitions) ||
+            !decodedStatuses.decodeFrom(source, playerStatusDefinitions)) {
+            return false
+        }
+        if (player == 1 && playerOneConnected) {
+            playerOneSkills = decodedSkills
+            playerOneStatuses = decodedStatuses
+            return true
+        }
+        if (player == 2 && playerTwoConnected) {
+            playerTwoSkills = decodedSkills
+            playerTwoStatuses = decodedStatuses
+            return true
+        }
+        return false
+    }
+
+    Bool tickPlayerStatuses() {
+        return playerOneStatuses.tick(1) &&
+            playerTwoStatuses.tick(1)
+    }
+
 
     Int clientEnemySnapshotCount() {
         return enemyClientSnapshots.size()
@@ -747,6 +882,9 @@ class LoopbackSession {
             }
             var enemyTick = clock.tick() - steps + step + 1
             if (!advanceEnemyTick(enemyTick)) {
+                return -1
+            }
+            if (!tickPlayerStatuses()) {
                 return -1
             }
         }
