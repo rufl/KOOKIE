@@ -106,11 +106,6 @@ class BoundedReplayTimeline {
                 tick <= checkpointTicks[checkpointCount - 1])) {
             return false
         }
-        for (var index = 0; index < values.length; index = index + 1) {
-            if (values[index] < -1000000 || values[index] > 1000000) {
-                return false
-            }
-        }
         checkpointTicks[checkpointCount] = tick
         checkpointHashes[checkpointCount] = hash
         checkpointSnapshotLengths[checkpointCount] = values.length

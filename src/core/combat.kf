@@ -29,6 +29,9 @@ record AreaDamageResult(
 record ProjectileState(
     Bool accepted, Int projectileId, Int sourceId, Int weaponId
 )
+record ShotgunPelletOffset(
+    Bool valid, Int pellet, Int x, Int y
+)
 
 class CombatEventQueue {
     Int[] sequences
@@ -1005,6 +1008,61 @@ class CombatWorld {
             true, shot.shotId(), sourceId, targetId,
             damage.applied(), damage.remainingHealth(), damage.died(),
             eventQueue.lastSequence())
+    }
+
+    ShotgunPelletOffset shotgunPelletOffset(Int weaponId, Int pellet) {
+        var pelletCount = weapons.pellets(weaponId)
+        var spread = weapons.spread(weaponId)
+        if (!weapons.has(weaponId) || pellet < 0 ||
+            pellet >= pelletCount || pelletCount <= 0) {
+            return ShotgunPelletOffset(false, pellet, 0, 0)
+        }
+        if (pelletCount == 1) {
+            return ShotgunPelletOffset(true, pellet, 0, 0)
+        }
+        var x = 0
+        var y = 0
+        if (pelletCount == 2) {
+            x = -spread
+            if (pellet == 1) {
+                x = spread
+            }
+        } else if (pelletCount == 3) {
+            if (pellet == 0) {
+                y = spread
+            } else {
+                x = -spread
+                y = -spread
+                if (pellet == 2) {
+                    x = spread
+                }
+            }
+        } else if (pelletCount == 4) {
+            x = -spread
+            y = -spread
+            if (pellet == 1 || pellet == 3) {
+                x = spread
+            }
+            if (pellet >= 2) {
+                y = spread
+            }
+        } else {
+            if (pellet == 0) {
+                return ShotgunPelletOffset(true, pellet, 0, 0)
+            }
+            var ringIndex = pellet - 1
+            var ringCount = pelletCount - 1
+            if (ringIndex * 4 < ringCount) {
+                x = spread
+            } else if (ringIndex * 2 < ringCount) {
+                y = spread
+            } else if (ringIndex * 4 < ringCount * 3) {
+                x = -spread
+            } else {
+                y = -spread
+            }
+        }
+        return ShotgunPelletOffset(true, pellet, x, y)
     }
     ResolutionResult resolveShotgun(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical

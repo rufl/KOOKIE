@@ -10,6 +10,7 @@ class LoopbackSession {
     InputEdgeState playerTwoEdges
     CombatWorld playerCombat
     PlayerWeaponPresenter playerWeaponPresentations
+    BoundedReplayPresentationHistory replayPresentationHistory
     BoundedSkillDefinitionStore playerSkillDefinitions
     BoundedSkillProgression playerOneSkills
     BoundedSkillProgression playerTwoSkills
@@ -107,6 +108,7 @@ class LoopbackSession {
         enemyImpactAudio = QueuedAudio(entityCapacity * 2)
         playerCombat = CombatWorld(entityCapacity, entityCapacity)
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
+        replayPresentationHistory = BoundedReplayPresentationHistory(entityCapacity * 8)
         playerSkillDefinitions = BoundedSkillDefinitionStore(16)
         playerOneSkills = BoundedSkillProgression(4)
         playerTwoSkills = BoundedSkillProgression(4)
@@ -1034,6 +1036,39 @@ class LoopbackSession {
 
     PlayerWeaponEvent lastPlayerWeaponPresentation() {
         return playerWeaponPresentations.lastConsumed()
+    }
+    Int replayPresentationCount() {
+        return replayPresentationHistory.count()
+    }
+
+    Bool recordReplayPresentation(
+        Int tick, Int kind, Int sequence, Int sourceId, Int targetId,
+        Int valueOne, Int valueTwo, Int valueThree, Int valueFour,
+        Int valueFive, Int valueSix, Int flag
+    ) {
+        if (flag != 0 && flag != 1) {
+            return false
+        }
+        return replayPresentationHistory.append(ReplayPresentationEvent(
+            tick, kind, sequence, sourceId, targetId,
+            valueOne, valueTwo, valueThree, valueFour, valueFive, valueSix,
+            flag == 1))
+    }
+
+    ReplayPresentationEvent replayPresentationAt(Int index) {
+        return replayPresentationHistory.at(index)
+    }
+
+    Int replayPresentationReplayStateLength() {
+        return replayPresentationHistory.replayStateLength()
+    }
+
+    Bool encodeReplayPresentationState(Int[] target) {
+        return replayPresentationHistory.encodeReplayState(target)
+    }
+
+    Bool restoreReplayPresentationState(Int[] source) {
+        return replayPresentationHistory.restoreReplayState(source)
     }
 
     Int playerCombatMagazine(Int actorId) {

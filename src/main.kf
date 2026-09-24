@@ -987,6 +987,16 @@ test "bounded shotgun pellets share damage authority" {
         combat.addActor(2, 1000, 0) &&
         combat.equipWeapon(1, 12) &&
         !combat.setWeaponSpread(12, 9, 10))
+    var firstPellet = combat.shotgunPelletOffset(12, 0)
+    var secondPellet = combat.shotgunPelletOffset(12, 1)
+    var thirdPellet = combat.shotgunPelletOffset(12, 2)
+    assert(firstPellet.valid() && firstPellet.x() == 0 &&
+        firstPellet.y() == 20 &&
+        secondPellet.valid() && secondPellet.x() == -20 &&
+        secondPellet.y() == -20 &&
+        thirdPellet.valid() && thirdPellet.x() == 20 &&
+        thirdPellet.y() == -20,
+        "shotgun spread must publish deterministic geometric offsets")
     var blast = combat.resolveShotgun(1, 2, 0, 30, 0)
     assert(blast.accepted() && blast.applied() == 281 &&
         blast.remainingHealth() == 719 &&
@@ -1252,6 +1262,7 @@ test "bounded inventory equipment replay state" {
         world.triangleCount() == 1,
         "inventory, equipment and world replay state must restore deterministically")
 }
+
 test "loopback replay sidecar restores inventory and world state" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() &&
@@ -1262,7 +1273,13 @@ test "loopback replay sidecar restores inventory and world state" {
         loopback.addBroadPhaseTriangle(
             0, 0, 0, 1, 0, 0, 0, 0, 1))
     var timeline = BoundedReplayTimeline(4, 2)
-    assert(loopback.appendReplayCheckpointBundle(timeline, 0, 17),
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
+    var sidecar = new Int[loopback.replaySidecarLength()]
+    assert(loopback.encodeReplayCheckpoint(checkpoint),
+        "atomic replay checkpoint encode must succeed")
+    assert(loopback.encodeReplaySidecar(sidecar),
+        "atomic replay sidecar encode must succeed")
+    assert(timeline.appendCheckpointBundle(0, 17, checkpoint, sidecar),
         "atomic replay bundle must append")
     assert(loopback.setPlayerCurrency(1, 1) &&
         loopback.addPlayerItem(1, 501, 1) &&
@@ -1466,6 +1483,26 @@ test "bounded replay bundle file codec" {
         restored.seekSidecarLength() == 3 &&
         restored.seekSidecarValue(2) == 300,
         "bundle file codec must round-trip primary and sidecar state")
+}
+
+test "replay presentation history round trips" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() &&
+        loopback.recordReplayPresentation(
+            4, 1, 7, 1, 2, 9, 10, 11, 12, 13, 14, 1) &&
+        loopback.recordReplayPresentation(
+            5, 2, 8, 1, 0, 20, 21, 22, 23, 24, 25, 0) &&
+        loopback.replayPresentationCount() == 2)
+    var state = new Int[loopback.replayPresentationReplayStateLength()]
+    assert(loopback.encodeReplayPresentationState(state) &&
+        loopback.restoreReplayPresentationState(new Int[2]) == false,
+        "presentation history must reject truncated replay state")
+    assert(loopback.restoreReplayPresentationState(state) &&
+        loopback.replayPresentationCount() == 2 &&
+        loopback.replayPresentationAt(0).tick() == 4 &&
+        loopback.replayPresentationAt(0).valueThree() == 11 &&
+        loopback.replayPresentationAt(1).flag() == false,
+        "presentation history must restore ordered replay events")
 }
 
 test "resource token lifecycle" {
