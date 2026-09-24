@@ -1,6 +1,14 @@
 # Memória de trabalho do KOOKIE
 
-Atualizada após o lote de combate e documentação de 2026-09-24. Comece pelo [README](README.md), use o [CHANGELOG](CHANGELOG.md) para o resumo humano e o [ENGINE_PLAN](docs/ENGINE_PLAN.md) para os gates detalhados. G0/G1 é real, limitado e testado; a stack nativa de gráficos/áudio ainda está deliberadamente incompleta.
+Atualizada após o lote de interações/replay de 2026-09-24. Comece pelo [README](README.md), depois pelo [CHANGELOG](CHANGELOG.md) e pelo [backlog](docs/G0_BACKLOG.md) ativo. As fundações limitadas executam; os gates de aceitação dos milestones não terminaram.
+
+## Lote mais recente
+
+- Gatilhos cooperativos de chave/porta/segredo/saída agora têm admissão autoritativa por tick, estado do cliente e restauração de checkpoint. Sete cenários focados JVM/native e 14 testes afetados por alvo passaram; nenhuma matriz completa foi executada.
+- Corrigimos o tick dos comandos de catch-up e a sobreposição dos registros de replay espacial. Replay espacial v2 rejeita o layout v1 irrecuperável; checkpoints primários agora permitem 512 palavras, com sidecars ainda limitados a 320.
+- A sonda nativa expôs memória de arrays reutilizada e não zerada; filas de interação e flags do cliente inicializam explicitamente cada posição observável.
+- `kof info --json` atual reporta 0.4.9-beta em `~/.local/share/kof4j/0.4.9-beta`, não a narrativa posterior de 0.4.10 abaixo. Nenhum alvo nativo Windows foi estabelecido.
+- O empacotamento não está pronto: faltam suporte nativo Windows, runtime relocável/licenças e descritor KOOKIE no OVERZEER. As consultas de saúde passaram, mas faltou credencial canônica Chopper e o acesso às capacidades DDJARIN retornou HTTP 401. O backlog registra a qualificação e o trabalho restante.
 
 ## Intenção do usuário
 

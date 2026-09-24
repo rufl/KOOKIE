@@ -11,6 +11,7 @@ The useful foundation is running and tested on JVM and native Linux x86-64:
 - authoritative fixed-step sessions and snapshots;
 - bounded movement, collision, BVH and spatial projectile queries;
 - deterministic combat, including per-pellet shotgun targeting;
+- cooperative key, door, secret and exit progression with checkpoint restore;
 - saves, replays, inventory, equipment, skills and status effects;
 - a small SDL3/SDL_GPU adapter and authenticated localhost transport probes.
 
@@ -27,16 +28,13 @@ done.
 
 ## Try it
 
-Install `kof` and Python 3, then run the focused project gate:
+Install `kof` and Python 3. Run the focused gameplay/replay probe:
 
 ```bash
-python3 scripts/lint_kf.py src probes
-python3 scripts/lsp_verify.py src
-kof test src --target jvm
-kof test src --target native
+bash scripts/verify_interactions.sh
 ```
 
-The complete local gate is:
+The full gate is for final pre-commit verification (in Pi, after `/precommit-matrix`):
 
 ```bash
 bash scripts/verify.sh
@@ -60,9 +58,9 @@ initially with Vulkan/SPIR-V.
 
 ## Roadmap
 
-The next concrete task is running the DRI3 window screenshot path on an
-isolated, present-capable host. The bounded gameplay and combat work is ahead
-of production content, networking and tooling.
+Next: qualify isolated window presentation, connect door state to arena
+collision/rendering, and prove the two-client LAN session with reconnect.
+Key/door/secret/exit progression is tested; a playable 3D arena is not done.
 
 Deferred until the core gates are stronger:
 

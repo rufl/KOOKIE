@@ -1,0 +1,362 @@
+package core
+
+class BoundedInteractionWorld {
+    Int capacityValue
+    Int maxCoordinateValue
+    Int sizeValue
+    Int revisionValue
+    Int definedSecretCount
+    Int secretCountValue
+    Bool sealedValue
+    Bool completedValue
+    Int[] ids
+    Int[] kinds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] ranges
+    Int[] prerequisites
+    Int[] secretRequirements
+    Bool[] active
+
+    public constructor(Int capacity, Int maxCoordinate) {
+        capacityValue = capacity
+        if (capacityValue < 1) {
+            capacityValue = 1
+        }
+        if (capacityValue > 64) {
+            capacityValue = 64
+        }
+        maxCoordinateValue = maxCoordinate
+        if (maxCoordinateValue < 1) {
+            maxCoordinateValue = 1
+        }
+        if (maxCoordinateValue > 1000000) {
+            maxCoordinateValue = 1000000
+        }
+        sizeValue = 0
+        revisionValue = 0
+        definedSecretCount = 0
+        secretCountValue = 0
+        sealedValue = false
+        completedValue = false
+        ids = new Int[capacityValue]
+        kinds = new Int[capacityValue]
+        positionsX = new Int[capacityValue]
+        positionsY = new Int[capacityValue]
+        positionsZ = new Int[capacityValue]
+        ranges = new Int[capacityValue]
+        prerequisites = new Int[capacityValue]
+        secretRequirements = new Int[capacityValue]
+        active = new Bool[capacityValue]
+    }
+
+    Bool validPoint(Int x, Int y, Int z) {
+        return x >= -maxCoordinateValue && x <= maxCoordinateValue &&
+            y >= -maxCoordinateValue && y <= maxCoordinateValue &&
+            z >= -maxCoordinateValue && z <= maxCoordinateValue
+    }
+
+    // Slots are one-based so zero always denotes an unknown or invalid ID.
+    Int slotFor(Int id) {
+        if (id <= 0 || id > 1000000) {
+            return 0
+        }
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            if (ids[index] == id) {
+                return index + 1
+            }
+        }
+        return 0
+    }
+
+    Bool defineInteraction(
+        Int id, Int interactionKind, Int prerequisiteId, Int requiredSecrets,
+        Int x, Int y, Int z, Int range
+    ) {
+        if (sealedValue || sizeValue >= capacityValue || id <= 0 || id > 1000000 ||
+            interactionKind < 1 || interactionKind > 4 || slotFor(id) != 0 ||
+            !validPoint(x, y, z) || range < 0 || range > maxCoordinateValue) {
+            return false
+        }
+        var prerequisiteSlot = 0
+        if (interactionKind == 2 || interactionKind == 4) {
+            prerequisiteSlot = slotFor(prerequisiteId)
+            if (prerequisiteSlot == 0) {
+                return false
+            }
+            if (interactionKind == 2 && kinds[prerequisiteSlot - 1] != 1) {
+                return false
+            }
+            if (interactionKind == 4 && kinds[prerequisiteSlot - 1] != 2) {
+                return false
+            }
+        } else if (prerequisiteId != 0) {
+            return false
+        }
+        if (interactionKind == 4) {
+            if (requiredSecrets < 0 || requiredSecrets > definedSecretCount) {
+                return false
+            }
+        } else if (requiredSecrets != 0) {
+            return false
+        }
+
+        ids[sizeValue] = id
+        kinds[sizeValue] = interactionKind
+        positionsX[sizeValue] = x
+        positionsY[sizeValue] = y
+        positionsZ[sizeValue] = z
+        ranges[sizeValue] = range
+        prerequisites[sizeValue] = prerequisiteSlot
+        secretRequirements[sizeValue] = requiredSecrets
+        active[sizeValue] = false
+        sizeValue = sizeValue + 1
+        if (interactionKind == 3) {
+            definedSecretCount = definedSecretCount + 1
+        }
+        return true
+    }
+
+    Bool defineKey(Int id, Int x, Int y, Int z, Int range) {
+        return defineInteraction(id, 1, 0, 0, x, y, z, range)
+    }
+
+    Bool defineDoor(Int id, Int keyId, Int x, Int y, Int z, Int range) {
+        return defineInteraction(id, 2, keyId, 0, x, y, z, range)
+    }
+
+    Bool defineSecret(Int id, Int x, Int y, Int z, Int range) {
+        return defineInteraction(id, 3, 0, 0, x, y, z, range)
+    }
+
+    Bool defineExit(
+        Int id, Int doorId, Int requiredSecrets, Int x, Int y, Int z, Int range
+    ) {
+        return defineInteraction(id, 4, doorId, requiredSecrets, x, y, z, range)
+    }
+
+    Bool seal() {
+        if (sealedValue) {
+            return false
+        }
+        sealedValue = true
+        return true
+    }
+
+    Bool interact(Int id, Int x, Int y, Int z) {
+        if (!sealedValue || completedValue || !validPoint(x, y, z)) {
+            return false
+        }
+        var slot = slotFor(id)
+        if (slot == 0) {
+            return false
+        }
+        var index = slot - 1
+        if (active[index]) {
+            return false
+        }
+        // Both points are bounded before subtraction; deltas cannot overflow.
+        var deltaX = x - positionsX[index]
+        var deltaY = y - positionsY[index]
+        var deltaZ = z - positionsZ[index]
+        var range = ranges[index]
+        if (deltaX < -range || deltaX > range ||
+            deltaY < -range || deltaY > range ||
+            deltaZ < -range || deltaZ > range) {
+            return false
+        }
+        var interactionKind = kinds[index]
+        if (interactionKind == 2 || interactionKind == 4) {
+            if (!active[prerequisites[index] - 1]) {
+                return false
+            }
+        }
+        if (interactionKind == 4 && secretCountValue < secretRequirements[index]) {
+            return false
+        }
+
+        active[index] = true
+        revisionValue = revisionValue + 1
+        if (interactionKind == 3) {
+            secretCountValue = secretCountValue + 1
+        }
+        if (interactionKind == 4) {
+            completedValue = true
+        }
+        return true
+    }
+
+    Bool activated(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0) {
+            return false
+        }
+        return active[slot - 1]
+    }
+
+    Int kind(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0) {
+            return 0
+        }
+        return kinds[slot - 1]
+    }
+
+    Int idAt(Int index) {
+        if (index < 0 || index >= sizeValue) {
+            return 0
+        }
+        return ids[index]
+    }
+
+    Int size() {
+        return sizeValue
+    }
+
+    Int revision() {
+        return revisionValue
+    }
+
+    Int secretCount() {
+        return secretCountValue
+    }
+
+    Bool completed() {
+        return completedValue
+    }
+
+    Int replayStateLength() {
+        return 3 + capacityValue * 9
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 1
+        target[1] = sizeValue
+        target[2] = 0
+        if (sealedValue) {
+            target[2] = 1
+        }
+        var offset = 3
+        for (var index = 0; index < capacityValue; index = index + 1) {
+            for (var field = 0; field < 9; field = field + 1) {
+                target[offset + field] = 0
+            }
+            if (index < sizeValue) {
+                target[offset] = ids[index]
+                target[offset + 1] = kinds[index]
+                if (prerequisites[index] != 0) {
+                    target[offset + 2] = ids[prerequisites[index] - 1]
+                }
+                target[offset + 3] = secretRequirements[index]
+                target[offset + 4] = positionsX[index]
+                target[offset + 5] = positionsY[index]
+                target[offset + 6] = positionsZ[index]
+                target[offset + 7] = ranges[index]
+                if (active[index]) {
+                    target[offset + 8] = 1
+                }
+            }
+            offset = offset + 9
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength()) {
+            return false
+        }
+        if (source[0] != 1 || source[1] < 0 || source[1] > capacityValue ||
+            source[2] < 0 || source[2] > 1) {
+            return false
+        }
+        var count = source[1]
+        if (sealedValue && (count != sizeValue || source[2] != 1)) {
+            return false
+        }
+        var staged = BoundedInteractionWorld(capacityValue, maxCoordinateValue)
+        var offset = 3
+        var activeExitCount = 0
+        for (var index = 0; index < capacityValue; index = index + 1) {
+            if (index < count) {
+                var activeFlag = source[offset + 8]
+                if (activeFlag < 0 || activeFlag > 1 ||
+                    (source[2] == 0 && activeFlag != 0)) {
+                    return false
+                }
+                if (!staged.defineInteraction(
+                    source[offset], source[offset + 1], source[offset + 2],
+                    source[offset + 3], source[offset + 4], source[offset + 5],
+                    source[offset + 6], source[offset + 7])) {
+                    return false
+                }
+                if (sealedValue) {
+                    if (staged.ids[index] != ids[index] ||
+                        staged.kinds[index] != kinds[index] ||
+                        staged.prerequisites[index] != prerequisites[index] ||
+                        staged.secretRequirements[index] != secretRequirements[index] ||
+                        staged.positionsX[index] != positionsX[index] ||
+                        staged.positionsY[index] != positionsY[index] ||
+                        staged.positionsZ[index] != positionsZ[index] ||
+                        staged.ranges[index] != ranges[index]) {
+                        return false
+                    }
+                }
+                if (activeFlag == 1) {
+                    staged.active[index] = true
+                    staged.revisionValue = staged.revisionValue + 1
+                    if (staged.kinds[index] == 3) {
+                        staged.secretCountValue = staged.secretCountValue + 1
+                    }
+                    if (staged.kinds[index] == 4) {
+                        activeExitCount = activeExitCount + 1
+                    }
+                }
+            } else {
+                for (var field = 0; field < 9; field = field + 1) {
+                    if (source[offset + field] != 0) {
+                        return false
+                    }
+                }
+            }
+            offset = offset + 9
+        }
+        if (activeExitCount > 1) {
+            return false
+        }
+        for (var index = 0; index < count; index = index + 1) {
+            if (staged.active[index]) {
+                var interactionKind = staged.kinds[index]
+                if (interactionKind == 2 || interactionKind == 4) {
+                    if (!staged.active[staged.prerequisites[index] - 1]) {
+                        return false
+                    }
+                }
+                if (interactionKind == 4 &&
+                    staged.secretCountValue < staged.secretRequirements[index]) {
+                    return false
+                }
+            }
+        }
+
+        sizeValue = staged.sizeValue
+        revisionValue = staged.revisionValue
+        definedSecretCount = staged.definedSecretCount
+        secretCountValue = staged.secretCountValue
+        sealedValue = source[2] == 1
+        completedValue = activeExitCount == 1
+        ids = staged.ids
+        kinds = staged.kinds
+        positionsX = staged.positionsX
+        positionsY = staged.positionsY
+        positionsZ = staged.positionsZ
+        ranges = staged.ranges
+        prerequisites = staged.prerequisites
+        secretRequirements = staged.secretRequirements
+        active = staged.active
+        return true
+    }
+}

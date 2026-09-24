@@ -1,6 +1,14 @@
 # KOOKIE working memory
 
-Last updated after the 2026-09-24 combat and documentation batch. Start with [README](README.md), then use [CHANGELOG](CHANGELOG.md) for the human summary and [ENGINE_PLAN](docs/ENGINE_PLAN.md) for the detailed gates. G0/G1 is real, bounded and tested; the native graphics/audio stack is still deliberately incomplete.
+Last updated after the 2026-09-24 interaction/replay batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active [backlog](docs/G0_BACKLOG.md). Bounded foundations execute; the milestone acceptance gates are not complete.
+
+## Latest batch
+
+- Cooperative key/door/secret/exit triggers now have authoritative tick admission, client state and checkpoint restoration. Seven focused JVM/native scenarios plus 14 affected tests per target passed; no full matrix ran.
+- Fixed catch-up command timing and spatial replay row overlap. Spatial replay v2 rejects the unrecoverable v1 layout; new primary checkpoints allow 512 words, with sidecars still bounded to 320.
+- The native probe exposed reused, nonzero array storage; interaction queues and client flags explicitly initialize every observable slot.
+- Current `kof info --json` reports 0.4.9-beta at `~/.local/share/kof4j/0.4.9-beta`, not the later 0.4.10 narrative below. No native Windows target was established.
+- Packaging is not ready: missing native Windows support, relocatable runtime/license closure and KOOKIE's OVERZEER descriptor. Health checks succeeded, but canonical Chopper credentials were absent and DDJARIN capability access returned HTTP 401. See the backlog for qualification and remaining implementation work.
 
 ## User intent
 

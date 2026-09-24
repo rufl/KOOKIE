@@ -77,9 +77,24 @@ This is the active bounded implementation sequence after the initial research an
 - `BoundedRayTargetWorld` now provides bounded integer ray and shotgun-pellet target selection with nearest-hit ordering, stable-ID ties, spread offsets, source exclusion through `SpatialAimContract`, target removal and invalid-input rejection; JVM/native coverage proves center and offset pellet hits.
 - `CombatWorld.resolveShotgunPelletTargets` and player/enemy session wrappers now accept exactly one validated target per pellet, preserve repeated target IDs when multiple pellets hit the same actor, allow bounded misses, and publish ordered combat events; JVM/native coverage proves target order and rejects wrong-length selections.
 - `LoopbackSession.resolvePlayerSpatialShotgun` now builds one shared `SpatialAimContract`, derives weapon pellet offsets from the authoritative combat state, selects spatial targets, and resolves the selected IDs through the authoritative per-pellet combat path; JVM/native coverage proves spread-specific damage, source exclusion, target removal and target health.
+- `BoundedInteractionWorld` and `LoopbackSession` now implement cooperative one-shot key/door/secret/exit progression with sealed bounded definitions, server-position reach checks, per-player sequence/tick admission, focus/pause cancellation, deterministic simultaneous requests and client activation snapshots. Checkpoint bundles preserve definitions, activations, pending requests and sequence watermarks.
+- Fixed actual-tick catch-up scheduling and spatial checkpoint row overlap. Seven focused JVM/native scenarios and 14 affected existing tests per target pass. Spatial replay v2 rejects unrecoverable v1 row layouts.
+
 ## Next batch
 
 1. Run the DRI3-capable window screenshot path on an isolated present-capable host; the X11/offscreen smoke correctly reports `gpu-unavailable`, while Xvfb remains presentation-incompatible.
+2. Connect progression door state to authored arena collision/rendering; current triggers use the existing scalar player position `(x, 0, 0)`, not a completed 3D arena.
+3. Capture interaction commands between replay checkpoints and add level progression to versioned save sections.
+4. Prove host plus two clients over LAN, including bounded disconnect/reconnect and stale-input handling.
+
+## Release qualification
+
+The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
+
+- Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its inspected native assembler links Linux ELF; native Windows builds are not established. A Windows compiler launcher is not proof of a Windows engine target.
+- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives plus immutable provenance metadata, not an assumed `.ztash` file format. KOOKIE still needs relocatable runtime dependencies, license/notices and an OVERZEER application descriptor.
+- Read-only fleet checks on 2026-09-24: both health endpoints returned HTTP 200; canonical Chopper token lookup found no matching credential, and DDJARIN capability access returned HTTP 401. Credential lookup stays under `/home/lich/lichforge/oztok` or `C:\lichforge\oztok`; no credentials were changed or copied.
+- No KOOKIE-owned old archives were found in the scoped local release/cache stores. Other applications' packages and rollback state were left untouched.
 
 
 ## Deferred

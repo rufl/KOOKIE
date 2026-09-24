@@ -12,6 +12,17 @@ class LoopbackSession {
     BoundedRayTargetWorld playerSpatialTargets
     PlayerWeaponPresenter playerWeaponPresentations
     BoundedReplayPresentationHistory replayPresentationHistory
+    BoundedInteractionWorld worldInteractions
+    Int[] interactionSequences
+    Int[] interactionTicks
+    Int[] interactionTargets
+    Int[] interactionResultTicks
+    Int[] interactionResultTargets
+    Bool[] interactionResults
+    Bool[] clientInteractionFlags
+    Int clientInteractionRevisionValue
+    Int clientSecretCountValue
+    Bool clientLevelCompletedValue
     BoundedSkillDefinitionStore playerSkillDefinitions
     BoundedSkillProgression playerOneSkills
     BoundedSkillProgression playerTwoSkills
@@ -111,6 +122,29 @@ class LoopbackSession {
         playerSpatialTargets = BoundedRayTargetWorld(entityCapacity, 1000000)
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
         replayPresentationHistory = BoundedReplayPresentationHistory(entityCapacity * 8)
+        worldInteractions = BoundedInteractionWorld(16, 1000000)
+        interactionSequences = new Int[3]
+        interactionTicks = new Int[3]
+        interactionTargets = new Int[3]
+        interactionResultTicks = new Int[3]
+        interactionResultTargets = new Int[3]
+        interactionResults = new Bool[3]
+        clientInteractionFlags = new Bool[16]
+        // Native array storage may be reused; initialize every observable slot.
+        for (var player = 0; player < 3; player = player + 1) {
+            interactionSequences[player] = 0
+            interactionTicks[player] = 0
+            interactionTargets[player] = 0
+            interactionResultTicks[player] = 0
+            interactionResultTargets[player] = 0
+            interactionResults[player] = false
+        }
+        for (var index = 0; index < clientInteractionFlags.length; index = index + 1) {
+            clientInteractionFlags[index] = false
+        }
+        clientInteractionRevisionValue = 0
+        clientSecretCountValue = 0
+        clientLevelCompletedValue = false
         playerSkillDefinitions = BoundedSkillDefinitionStore(16)
         playerOneSkills = BoundedSkillProgression(4)
         playerTwoSkills = BoundedSkillProgression(4)
@@ -161,7 +195,7 @@ class LoopbackSession {
     }
 
     Bool start() {
-        if (started) {
+        if (started || !worldInteractions.seal()) {
             return false
         }
         started = true
@@ -188,6 +222,121 @@ class LoopbackSession {
             }
         }
         return 0
+    }
+
+    Bool defineWorldKey(Int id, Int x, Int y, Int z, Int range) {
+        return !started && worldInteractions.defineKey(id, x, y, z, range)
+    }
+
+    Bool defineWorldDoor(Int id, Int keyId, Int x, Int y, Int z, Int range) {
+        return !started && worldInteractions.defineDoor(id, keyId, x, y, z, range)
+    }
+
+    Bool defineWorldSecret(Int id, Int x, Int y, Int z, Int range) {
+        return !started && worldInteractions.defineSecret(id, x, y, z, range)
+    }
+
+    Bool defineWorldExit(
+        Int id, Int doorId, Int requiredSecrets, Int x, Int y, Int z, Int range
+    ) {
+        return !started && worldInteractions.defineExit(
+            id, doorId, requiredSecrets, x, y, z, range)
+    }
+
+    Bool receiveInteraction(Int player, Int tick, Int sequence, Int targetId) {
+        if (!started || paused || player < 1 || player > 2 ||
+            tick <= serverTick || tick - serverTick > 4 ||
+            sequence <= interactionSequences[player] || sequence > 1000000 ||
+            interactionTargets[player] != 0 || worldInteractions.kind(targetId) == 0 ||
+            worldInteractions.completed() || !playerFocused(player)) {
+            return false
+        }
+        interactionSequences[player] = sequence
+        interactionTicks[player] = tick
+        interactionTargets[player] = targetId
+        return true
+    }
+
+    Bool consumeWorldInteractions(Int tick) {
+        for (var player = 1; player <= 2; player = player + 1) {
+            if (interactionTargets[player] != 0 && interactionTicks[player] <= tick) {
+                interactionResultTargets[player] = interactionTargets[player]
+                interactionResultTicks[player] = tick
+                interactionResults[player] = worldInteractions.interact(
+                    interactionTargets[player], serverMovement.position(player), 0, 0)
+                interactionTargets[player] = 0
+                interactionTicks[player] = 0
+            }
+        }
+        return true
+    }
+
+    Bool publishWorldInteractions() {
+        for (var index = 0; index < clientInteractionFlags.length; index = index + 1) {
+            clientInteractionFlags[index] = worldInteractions.activated(worldInteractions.idAt(index))
+        }
+        clientInteractionRevisionValue = worldInteractions.revision()
+        clientSecretCountValue = worldInteractions.secretCount()
+        clientLevelCompletedValue = worldInteractions.completed()
+        return true
+    }
+
+    Bool worldInteractionActive(Int id) {
+        return worldInteractions.activated(id)
+    }
+
+    Bool clientWorldInteractionActive(Int id) {
+        if (id <= 0) {
+            return false
+        }
+        for (var index = 0; index < worldInteractions.size(); index = index + 1) {
+            if (worldInteractions.idAt(index) == id) {
+                return clientInteractionFlags[index]
+            }
+        }
+        return false
+    }
+
+    Int worldInteractionRevision() {
+        return worldInteractions.revision()
+    }
+
+    Int clientWorldInteractionRevision() {
+        return clientInteractionRevisionValue
+    }
+
+    Int worldSecretCount() {
+        return worldInteractions.secretCount()
+    }
+
+    Int clientWorldSecretCount() {
+        return clientSecretCountValue
+    }
+
+    Bool levelCompleted() {
+        return worldInteractions.completed()
+    }
+
+    Bool clientLevelCompleted() {
+        return clientLevelCompletedValue
+    }
+
+    Bool lastInteractionAccepted(Int player) {
+        return player >= 1 && player <= 2 && interactionResults[player]
+    }
+
+    Int lastInteractionTarget(Int player) {
+        if (player < 1 || player > 2) {
+            return 0
+        }
+        return interactionResultTargets[player]
+    }
+
+    Int lastInteractionTick(Int player) {
+        if (player < 1 || player > 2) {
+            return 0
+        }
+        return interactionResultTicks[player]
     }
 
     Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
@@ -1181,6 +1330,10 @@ class LoopbackSession {
             playerTwoInputs.clearPending()
             playerOneEdges.clearHeld()
             playerTwoEdges.clearHeld()
+            interactionTargets[1] = 0
+            interactionTargets[2] = 0
+            interactionTicks[1] = 0
+            interactionTicks[2] = 0
         }
         return true
     }
@@ -1198,6 +1351,8 @@ class LoopbackSession {
             if (active == 0) {
                 playerOneInputs.clearPending()
                 playerOneEdges.clearHeld()
+                interactionTargets[1] = 0
+                interactionTicks[1] = 0
             }
             return true
         }
@@ -1206,6 +1361,8 @@ class LoopbackSession {
             if (active == 0) {
                 playerTwoInputs.clearPending()
                 playerTwoEdges.clearHeld()
+                interactionTargets[2] = 0
+                interactionTicks[2] = 0
             }
             return true
         }
@@ -1491,7 +1648,7 @@ class LoopbackSession {
     }
 
     Int replayCheckpointLength() {
-        return 120 + enemyCombat.replayStateLength()
+        return 120 + enemyCombat.replayStateLength() + worldInteractions.replayStateLength() + 12
     }
 
     Bool encodeReplayCheckpoint(Int[] target) {
@@ -1504,12 +1661,14 @@ class LoopbackSession {
         var skillTwoState = new Int[19]
         var statusTwoState = new Int[15]
         var enemyState = new Int[enemyCombat.replayStateLength()]
+        var worldState = new Int[worldInteractions.replayStateLength()]
         if (!playerCombat.encodeReplayState(combatState) ||
             !playerOneSkills.encodeReplayState(skillOneState) ||
             !playerOneStatuses.encodeReplayState(statusOneState) ||
             !playerTwoSkills.encodeReplayState(skillTwoState) ||
             !playerTwoStatuses.encodeReplayState(statusTwoState) ||
-            !enemyCombat.encodeReplayState(enemyState)) {
+            !enemyCombat.encodeReplayState(enemyState) ||
+            !worldInteractions.encodeReplayState(worldState)) {
             return false
         }
         target[0] = serverTick
@@ -1535,6 +1694,22 @@ class LoopbackSession {
         target[119] = playerTwoSkillResource
         for (var enemyIndex = 0; enemyIndex < enemyState.length; enemyIndex = enemyIndex + 1) {
             target[120 + enemyIndex] = enemyState[enemyIndex]
+        }
+        var worldOffset = 120 + enemyState.length
+        for (var worldIndex = 0; worldIndex < worldState.length; worldIndex = worldIndex + 1) {
+            target[worldOffset + worldIndex] = worldState[worldIndex]
+        }
+        for (var player = 1; player <= 2; player = player + 1) {
+            var commandOffset = worldOffset + worldState.length + (player - 1) * 6
+            target[commandOffset] = interactionSequences[player]
+            target[commandOffset + 1] = interactionTicks[player]
+            target[commandOffset + 2] = interactionTargets[player]
+            target[commandOffset + 3] = interactionResultTicks[player]
+            target[commandOffset + 4] = interactionResultTargets[player]
+            target[commandOffset + 5] = 0
+            if (interactionResults[player]) {
+                target[commandOffset + 5] = 1
+            }
         }
         return true
     }
@@ -1580,11 +1755,15 @@ class LoopbackSession {
             return false
         }
         var length = timeline.seekSnapshotLength()
+        var previousFullLength = 120 + enemyCombat.replayStateLength()
+        if (length != replayCheckpointLength() && worldInteractions.size() != 0) {
+            return false
+        }
         if (length == 0) {
             return true
         }
         if (length != 1 && length != 4 && length != 50 && length != 120 &&
-            length != replayCheckpointLength()) {
+            length != previousFullLength && length != replayCheckpointLength()) {
             return false
         }
         if (length == 1 && playerTwoConnected) {
@@ -1606,7 +1785,45 @@ class LoopbackSession {
             restoredSequence < 0) {
             return false
         }
-        if (length == 50 || length == 120 || length == replayCheckpointLength()) {
+        var decodedInteractions = BoundedInteractionWorld(16, 1000000)
+        var worldOffset = previousFullLength
+        var worldLength = worldInteractions.replayStateLength()
+        if (length == replayCheckpointLength()) {
+            var currentWorldState = new Int[worldLength]
+            var decodedWorldState = new Int[worldLength]
+            if (!worldInteractions.encodeReplayState(currentWorldState) ||
+                !decodedInteractions.restoreReplayState(currentWorldState)) {
+                return false
+            }
+            for (var index = 0; index < worldLength; index = index + 1) {
+                decodedWorldState[index] = timeline.seekSnapshotValue(worldOffset + index)
+            }
+            if (!decodedInteractions.restoreReplayState(decodedWorldState)) {
+                return false
+            }
+            for (var player = 1; player <= 2; player = player + 1) {
+                var offset = worldOffset + worldLength + (player - 1) * 6
+                var sequence = timeline.seekSnapshotValue(offset)
+                var tick = timeline.seekSnapshotValue(offset + 1)
+                var target = timeline.seekSnapshotValue(offset + 2)
+                var resultTick = timeline.seekSnapshotValue(offset + 3)
+                var resultTarget = timeline.seekSnapshotValue(offset + 4)
+                var result = timeline.seekSnapshotValue(offset + 5)
+                if (sequence < 0 || sequence > 1000000 || tick < 0 ||
+                    resultTick < 0 || resultTick > restoredTick || result < 0 || result > 1 ||
+                    (target == 0 && tick != 0) ||
+                    (target != 0 && (decodedInteractions.kind(target) == 0 ||
+                        sequence == 0 || tick <= restoredTick || tick - restoredTick > 4)) ||
+                    (resultTarget == 0 && (resultTick != 0 || result != 0)) ||
+                    (resultTarget != 0 && (decodedInteractions.kind(resultTarget) == 0 ||
+                        resultTick == 0 || sequence == 0)) ||
+                    (result == 1 && !decodedInteractions.activated(resultTarget))) {
+                    return false
+                }
+            }
+        }
+        if (length == 50 || length == 120 ||
+            length == previousFullLength || length == replayCheckpointLength()) {
             var combatState = new Int[46]
             for (var index = 0; index < combatState.length; index = index + 1) {
                 combatState[index] = timeline.seekSnapshotValue(index + 4)
@@ -1615,7 +1832,7 @@ class LoopbackSession {
                 return false
             }
         }
-        if (length == 120 || length == replayCheckpointLength()) {
+        if (length == 120 || length == previousFullLength || length == replayCheckpointLength()) {
             var skillOneState = new Int[19]
             var statusOneState = new Int[15]
             var skillTwoState = new Int[19]
@@ -1655,7 +1872,7 @@ class LoopbackSession {
             playerOneSkillResource = timeline.seekSnapshotValue(118)
             playerTwoSkillResource = timeline.seekSnapshotValue(119)
         }
-        if (length == replayCheckpointLength()) {
+        if (length == previousFullLength || length == replayCheckpointLength()) {
             var enemyState = new Int[enemyCombat.replayStateLength()]
             for (var enemyIndex = 0; enemyIndex < enemyState.length; enemyIndex = enemyIndex + 1) {
                 enemyState[enemyIndex] = timeline.seekSnapshotValue(120 + enemyIndex)
@@ -1685,7 +1902,7 @@ class LoopbackSession {
                 return false
             }
         }
-        if (length == 120 || length == replayCheckpointLength()) {
+        if (length == 120 || length == previousFullLength || length == replayCheckpointLength()) {
             if ((playerOneConnected && !refreshPlayerCombatModifiers(1)) ||
                 (playerTwoConnected && !refreshPlayerCombatModifiers(2))) {
                 return false
@@ -1695,6 +1912,19 @@ class LoopbackSession {
         playerTwoInputs.clearPending()
         playerOneEdges.clearHeld()
         playerTwoEdges.clearHeld()
+        if (length == replayCheckpointLength()) {
+            worldInteractions = decodedInteractions
+            for (var player = 1; player <= 2; player = player + 1) {
+                var offset = worldOffset + worldLength + (player - 1) * 6
+                interactionSequences[player] = timeline.seekSnapshotValue(offset)
+                interactionTicks[player] = timeline.seekSnapshotValue(offset + 1)
+                interactionTargets[player] = timeline.seekSnapshotValue(offset + 2)
+                interactionResultTicks[player] = timeline.seekSnapshotValue(offset + 3)
+                interactionResultTargets[player] = timeline.seekSnapshotValue(offset + 4)
+                interactionResults[player] = timeline.seekSnapshotValue(offset + 5) == 1
+            }
+            publishWorldInteractions()
+        }
         serverTick = restoredTick
         clientTick = restoredTick
         snapshotSequence = restoredSequence
@@ -1754,7 +1984,9 @@ class LoopbackSession {
             return -1
         }
         for (var step = 0; step < steps; step = step + 1) {
-            if (playerOneConnected && playerOneInputs.queuedCount() > 0 && playerOneInputs.nextTick() <= clock.tick()) {
+            var simulationTick = clock.tick() - steps + step + 1
+            if (playerOneConnected && playerOneInputs.queuedCount() > 0 &&
+                playerOneInputs.nextTick() <= simulationTick) {
                 playerOneInputs.dequeue()
                 var commandOne = playerOneInputs.lastConsumed()
                 playerOneEdges.apply(commandOne.fire(), commandOne.jump())
@@ -1764,11 +1996,12 @@ class LoopbackSession {
                 serverMovement.applyInput(1, commandOne.moveX())
                 if (playerCombat.isAlive(1) &&
                     !stepPlayerWeaponPresentationCaptured(
-                        1, clock.tick(), playerOneEdges.lastEdges())) {
+                        1, simulationTick, playerOneEdges.lastEdges())) {
                     return -1
                 }
             }
-            if (playerTwoConnected && playerTwoInputs.queuedCount() > 0 && playerTwoInputs.nextTick() <= clock.tick()) {
+            if (playerTwoConnected && playerTwoInputs.queuedCount() > 0 &&
+                playerTwoInputs.nextTick() <= simulationTick) {
                 playerTwoInputs.dequeue()
                 var commandTwo = playerTwoInputs.lastConsumed()
                 if (inputReplayEnabled && !playerTwoReplay.append(commandTwo)) {
@@ -1778,12 +2011,12 @@ class LoopbackSession {
                 serverMovement.applyInput(2, commandTwo.moveX())
                 if (playerCombat.isAlive(2) &&
                     !stepPlayerWeaponPresentationCaptured(
-                        2, clock.tick(), playerTwoEdges.lastEdges())) {
+                        2, simulationTick, playerTwoEdges.lastEdges())) {
                     return -1
                 }
             }
-            var enemyTick = clock.tick() - steps + step + 1
-            if (!advanceEnemyTick(enemyTick)) {
+            consumeWorldInteractions(simulationTick)
+            if (!advanceEnemyTick(simulationTick)) {
                 return -1
             }
             if (!tickPlayerStatuses()) {
@@ -1806,6 +2039,9 @@ class LoopbackSession {
                 clientMovement.setPosition(2, playerTwoPrediction.predicted())
             }
             clientTick = serverTick
+            if (clientInteractionRevisionValue != worldInteractions.revision()) {
+                publishWorldInteractions()
+            }
             if (!publishEnemySnapshots(serverTick)) {
                 return -1
             }

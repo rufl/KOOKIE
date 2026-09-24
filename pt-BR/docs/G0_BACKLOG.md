@@ -64,9 +64,24 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - `BoundedRayTargetWorld` agora fornece seleção limitada de alvos por raio e pellets de shotgun com inteiros, ordenação pelo impacto mais próximo, desempate por ID estável, offsets de dispersão, exclusão da fonte por `SpatialAimContract`, remoção de alvos e rejeição de entradas inválidas; a cobertura JVM/native prova impactos central e deslocado.
 - `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão do jogador/inimigo agora aceitam exatamente um alvo validado por pellet, preservam IDs repetidos quando vários pellets atingem o mesmo ator, permitem erros de pontaria limitados e publicam eventos de combate ordenados; a cobertura JVM/native prova a ordem dos alvos e rejeita seleções com tamanho incorreto.
 - `LoopbackSession.resolvePlayerSpatialShotgun` agora constrói um `SpatialAimContract` compartilhado, deriva offsets de pellet do estado autoritativo de combate, seleciona alvos espaciais e resolve os IDs selecionados pelo caminho autoritativo por pellet; a cobertura JVM/native prova dano por dispersão, exclusão da fonte, remoção de alvo e vida dos alvos.
+- `BoundedInteractionWorld` e `LoopbackSession` agora implementam progressão cooperativa de chave/porta/segredo/saída com ativação única, definições limitadas e seladas, alcance pela posição do servidor, admissão por sequência/tick, cancelamento por foco/pausa, pedidos simultâneos determinísticos e snapshots de ativação do cliente. Bundles de checkpoint preservam definições, ativações, pedidos pendentes e sequências.
+- Corrigimos agendamento pelo tick real no catch-up e sobreposição de registros espaciais de checkpoint. Sete cenários focados JVM/native e 14 testes existentes afetados por alvo passaram. Replay espacial v2 rejeita layouts v1 irrecuperáveis.
+
 ## Próximo lote
 
 1. Executar o caminho de screenshot da janela DRI3 em um host isolado compatível com apresentação; o smoke X11/offscreen reporta corretamente `gpu-unavailable`, enquanto Xvfb continua incompatível com apresentação.
+2. Conectar o estado das portas à colisão/renderização da arena criada; os gatilhos atuais usam a posição escalar existente `(x, 0, 0)`, não uma arena 3D completa.
+3. Capturar comandos de interação entre checkpoints de replay e adicionar progressão do nível às seções versionadas de save.
+4. Provar host e dois clientes em LAN, incluindo desconexão/reconexão limitada e tratamento de input obsoleto.
+
+## Qualificação de release
+
+O roadmap não terminou; o trabalho concluído permanece registrado aqui, sem arquivar o backlog ativo.
+
+- `kof info --json` instalado reporta 0.4.9-beta em Linux x86-64. O assembler nativo inspecionado vincula ELF Linux; builds nativos Windows não foram estabelecidos. Um launcher Windows do compilador não comprova o alvo Windows da engine.
+- O deploy ZTASH usa arquivos `.tar.gz`/`.zip` por alvo e metadados imutáveis de procedência, não um formato `.ztash` presumido. KOOKIE ainda precisa de dependências relocáveis, licença/avisos e um descritor de aplicação no OVERZEER.
+- Consultas somente leitura à frota em 2026-09-24: ambos os endpoints de saúde retornaram HTTP 200; a busca canônica de token Chopper não encontrou credencial correspondente, e o acesso às capacidades do DDJARIN retornou HTTP 401. A busca permanece em `/home/lich/lichforge/oztok` ou `C:\lichforge\oztok`; nenhuma credencial foi alterada ou copiada.
+- Não encontramos arquivos antigos pertencentes ao KOOKIE nos locais de release/cache consultados. Pacotes de outras aplicações e estados de rollback permaneceram intactos.
 
 
 ## Adiado

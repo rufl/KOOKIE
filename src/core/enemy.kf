@@ -365,7 +365,7 @@ class EnemySpatialWorld {
             return false
         }
         target[0] = 9501
-        target[1] = 1
+        target[1] = 2
         target[2] = maxDistance
         var offset = 3
         for (var index = 0; index < ids.length; index = index + 1) {
@@ -377,14 +377,14 @@ class EnemySpatialWorld {
             target[offset + 2] = positionsX[index]
             target[offset + 3] = positionsY[index]
             target[offset + 4] = positionsZ[index]
-            offset = offset + 4
+            offset = offset + 5
         }
         return true
     }
 
     Bool restoreReplayState(Int[] source) {
         if (source.length != replayStateLength() ||
-            source[0] != 9501 || source[1] != 1 ||
+            source[0] != 9501 || source[1] != 2 ||
             source[2] <= 0) {
             return false
         }
@@ -399,7 +399,7 @@ class EnemySpatialWorld {
             positionsX[index] = source[offset + 2]
             positionsY[index] = source[offset + 3]
             positionsZ[index] = source[offset + 4]
-            offset = offset + 4
+            offset = offset + 5
         }
         maxDistance = source[2]
         return true

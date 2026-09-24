@@ -24,7 +24,7 @@ class BoundedReplayBundleFileStore {
         checkpointCapacity = actualCapacity
         digitsPerWord = 6
         words = new Int[8 + actualCapacity * 8 + actualCapacity * 4 +
-            actualCapacity * 640 + 320]
+            actualCapacity * 832 + 512]
         bytes = new Int[words.length * digitsPerWord]
         wordCount = 0
         magic = 22557799
@@ -47,7 +47,7 @@ class BoundedReplayBundleFileStore {
             seed < -1000000 || seed > 1000000 ||
             timeline.pending() > commandCapacity ||
             timeline.checkpointCountValue() > checkpointCapacity ||
-            timeline.initialSnapshotLength() > 320) {
+            timeline.initialSnapshotLength() > 512) {
             wordCount = 0
             return false
         }
@@ -58,14 +58,14 @@ class BoundedReplayBundleFileStore {
         for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
             var primaryLength = timeline.checkpointSnapshotLength(checkpoint)
             var sidecarLength = timeline.checkpointSidecarLength(checkpoint)
-            if (primaryLength < 0 || primaryLength > 320 ||
+            if (primaryLength < 0 || primaryLength > 512 ||
                 sidecarLength < 0 || sidecarLength > 320) {
                 wordCount = 0
                 return false
             }
             totalValues = totalValues + primaryLength + sidecarLength
         }
-        if (totalValues > checkpointCapacity * 640) {
+        if (totalValues > checkpointCapacity * 832) {
             wordCount = 0
             return false
         }
@@ -127,7 +127,7 @@ class BoundedReplayBundleFileStore {
             wire[4] < -1000000 || wire[4] > 1000000 ||
             wire[5] < 0 || wire[5] > commandCapacity ||
             wire[6] < 0 || wire[6] > checkpointCapacity ||
-            wire[7] < 0 || wire[7] > 320) {
+            wire[7] < 0 || wire[7] > 512) {
             return false
         }
         var commandCount = wire[5]
@@ -143,7 +143,7 @@ class BoundedReplayBundleFileStore {
             var sidecarLength = wire[offset + 3]
             if (wire[offset] < 0 || wire[offset + 1] < -1000000 ||
                 wire[offset + 1] > 1000000 || primaryLength < 0 ||
-                primaryLength > 320 || sidecarLength < 0 || sidecarLength > 320) {
+                primaryLength > 512 || sidecarLength < 0 || sidecarLength > 320) {
                 return false
             }
             primaryCount = primaryCount + primaryLength
@@ -153,7 +153,7 @@ class BoundedReplayBundleFileStore {
         var sidecarOffset = primaryOffset + primaryCount
         var snapshotOffset = sidecarOffset + sidecarCount
         if (wire.length != snapshotOffset + snapshotLength ||
-            primaryCount + sidecarCount > checkpointCapacity * 640 ||
+            primaryCount + sidecarCount > checkpointCapacity * 832 ||
             !validCommands(wire, 8, commandCount)) {
             return false
         }

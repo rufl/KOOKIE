@@ -6,6 +6,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ### O que avançou
 
+- Adicionamos progressão cooperativa de chave/porta/segredo/saída, comandos limitados por tick, estado do cliente e restauração de checkpoint em arquivo. Pausa/perda de foco cancela interações pendentes; pedidos duplicados não premiam um segredo duas vezes.
+- Corrigimos inputs de catch-up e cooldowns de armas que usavam o tick final do frame em vez do tick real da simulação.
+- Corrigimos registros sobrepostos de replay espacial que sobrescreviam a coordenada Z e deixavam memória nativa no payload. O estado espacial agora usa a versão 2; layouts corrompidos da versão 1 são rejeitados, sem tentar adivinhar dados perdidos.
 - Adicionamos seleção determinística de alvos por raio usando inteiros: impacto mais próximo, desempate por ID estável, offsets de dispersão, armazenamento limitado, exclusão da fonte por `SpatialAimContract` e rejeição segura de consultas inválidas.
 - O contrato compartilhado de mira agora está conectado ao combate autoritativo de shotgun do jogador sem criar uma segunda autoridade de dano. `LoopbackSession.resolvePlayerSpatialShotgun` deriva offsets da arma, seleciona um alvo por pellet e resolve o resultado por `CombatWorld.resolveShotgunPelletTargets`.
 - Adicionamos tratamento limitado de erro de pontaria, remoção de alvos e wrappers de sessão para que os alvos selecionados atravessem o caminho normal de combate e eventos.
@@ -16,10 +19,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ### Verificações
 
-- Suíte de regressão JVM: 63/63 passou.
-- Suíte de regressão nativa: 63/63 passou.
-- Lint do Kof e diagnósticos do LSP: passaram.
-- Prova SIMD: caminho AVX2 do host, caminho escalar forçado e sintaxe com alvo AArch64 passaram.
+- Lote atual: sete cenários focados passaram na JVM e no nativo por `scripts/verify_interactions.sh`; 14 regressões existentes afetadas passaram em cada alvo. Lint/LSP dos fontes alterados passaram.
+- As reproduções de catch-up e replay espacial com dois atores falharam antes das correções e passaram depois.
+- Lote anterior de combate: 63/63 testes por alvo, mais verificações SIMD host/escalar/AArch64. A suíte completa não foi repetida neste lote.
 
 ### Ainda falta
 
@@ -27,6 +29,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O Kof precisa de FFI de buffers antes que o SIMD nativo possa atender hot loops pertencentes ao Kof.
 - A apresentação em janela ainda precisa de um host isolado com suporte DRI3 utilizável.
 - Multiplayer de produção, content cooking, áudio de produção e a stack completa de física continuam no roadmap.
+- Compilação nativa para Windows, runtime relocável, avisos de licença e registro do KOOKIE no OVERZEER continuam como pré-requisitos de release. Nenhum pacote ou deploy foi declarado pronto.
 
 ## Trabalho anterior
 

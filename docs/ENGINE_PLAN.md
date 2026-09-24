@@ -626,7 +626,7 @@ No calendar promise; each gate has runnable evidence. A successful gate authoriz
 | **G5 — Scale and release** | AI budgets, batching/instancing, animation, streaming only as needed, dedicated headless server, migrations/replay, reconnect/admission hardening, packaging/notices | Reference LAN workload meets declared budgets; dedicated server runs without graphics; memory/resource counts plateau; package runs outside source checkout; reconnect/session recovery and extension compatibility are proven |
 | **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Each extension proves actual runtime/ABI/content compatibility; no portability, WAN, sandbox or platform claim is inferred from dependency support |
 
-G0 small core/scalar/import/IO probes are **partially researched**, not complete. The precise experiments in RESEARCH_PROBES and COURSE_PROBES include both successes and unresolved native failures. There is no compiler repair, SDL window, GPU adapter, sustained timing or memory proof yet.
+Current evidence is tracked in [G0_BACKLOG](G0_BACKLOG.md). Bounded sessions, gameplay, saves/replay and offscreen SDL_GPU probes execute; isolated window presentation, sustained performance/resource acceptance and the complete playable arena remain open. Cooperative key/door/secret/exit triggers now run through authoritative tick admission and client snapshots, but do not yet drive door collision/render geometry or complete the G2 LAN gate.
 
 ### Initial performance hypotheses, not achieved numbers
 

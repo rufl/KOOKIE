@@ -1,0 +1,176 @@
+import core
+import session
+
+Bool verifyWorldProgression() {
+    var world = BoundedInteractionWorld(6, 100)
+    assert(!world.defineDoor(2, 1, 0, 0, 0, 1))
+    assert(world.defineKey(1, 0, 0, 0, 1))
+    assert(!world.defineSecret(1, 0, 0, 0, 1) && !world.defineKey(9, 101, 0, 0, 1))
+    assert(world.defineDoor(2, 1, 0, 0, 0, 1))
+    assert(world.defineSecret(3, 0, 0, 0, 1) && world.defineSecret(4, 0, 0, 0, 1))
+    assert(!world.defineExit(5, 1, 2, 0, 0, 0, 1))
+    assert(!world.defineExit(5, 2, 3, 0, 0, 0, 1))
+    assert(world.defineExit(5, 2, 2, 0, 0, 0, 1) && world.defineKey(6, 0, 0, 0, 1))
+    assert(!world.defineKey(7, 0, 0, 0, 1) && !world.interact(1, 0, 0, 0))
+    assert(world.seal() && !world.seal())
+    assert(!world.interact(2, 0, 0, 0) && !world.interact(1, 0, 0, 2) && world.revision() == 0)
+    assert(world.interact(1, -1, 1, 1) && world.interact(2, 0, 0, 0))
+    assert(world.activated(1) && world.activated(2) && !world.interact(1, 0, 0, 0))
+    assert(world.interact(3, 0, 0, 0) && !world.interact(5, 0, 0, 0))
+    assert(world.interact(4, 0, 0, 0) && world.secretCount() == 2)
+    assert(world.interact(5, 0, 0, 0) && world.completed() && world.revision() == 5)
+    assert(!world.interact(6, 0, 0, 0) && !world.activated(6) && world.revision() == 5)
+    return true
+}
+
+Bool verifyWorldRestore() {
+    var world = BoundedInteractionWorld(4, 100)
+    assert(world.defineKey(10, 0, 0, 0, 0) && world.defineDoor(20, 10, 0, 0, 0, 0))
+    assert(world.defineSecret(30, 0, 0, 0, 0) && world.defineExit(40, 20, 1, 0, 0, 0, 0))
+    assert(world.seal() && world.interact(10, 0, 0, 0) && world.interact(20, 0, 0, 0))
+    var state = new Int[world.replayStateLength()]
+    assert(world.encodeReplayState(state))
+    assert(world.interact(30, 0, 0, 0) && world.interact(40, 0, 0, 0))
+    state[11] = 0
+    assert(!world.restoreReplayState(state) && world.completed() && world.secretCount() == 1,
+        "invalid door/key dependency must reject without changing live state")
+    state[11] = 1
+    state[2] = 0
+    assert(!world.restoreReplayState(state) && world.completed(), "replay cannot unseal authored content")
+    state[2] = 1
+    state[7] = 1
+    assert(!world.restoreReplayState(state) && world.completed(), "replay cannot replace authored geometry")
+    state[7] = 0
+    assert(world.restoreReplayState(state) && !world.completed() && world.secretCount() == 0)
+    assert(world.activated(10) && world.activated(20) && !world.activated(30) && world.revision() == 2)
+    return true
+}
+
+Bool verifyCooperativeSession() {
+    var session = LoopbackSession(4, 2)
+    assert(session.defineWorldKey(1, 0, 0, 0, 0))
+    assert(session.defineWorldDoor(2, 1, 0, 0, 0, 0))
+    assert(session.defineWorldSecret(3, 0, 0, 0, 0))
+    assert(session.defineWorldExit(4, 2, 1, 0, 0, 0, 0))
+    assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
+    assert(!session.defineWorldKey(5, 0, 0, 0, 0))
+    assert(!session.receiveInteraction(0, 1, 1, 1) && !session.receiveInteraction(3, 1, 1, 1))
+    assert(!session.receiveInteraction(1, 0, 1, 1) && !session.receiveInteraction(1, 5, 1, 1))
+    assert(session.receiveInteraction(1, 1, 1, 1) && session.receiveInteraction(2, 1, 1, 2))
+    assert(!session.receiveInteraction(1, 1, 2, 3) && !session.worldInteractionActive(1))
+    assert(session.advance(16667) == 1)
+    assert(session.lastInteractionAccepted(1) && session.lastInteractionAccepted(2),
+        "same-tick key then door must use deterministic player ordering")
+    assert(session.clientWorldInteractionActive(1) && session.clientWorldInteractionActive(2))
+    assert(!session.receiveInteraction(1, 2, 1, 3), "stale interaction sequence must reject")
+    assert(session.receiveInteraction(1, 2, 2, 3) && session.receiveInteraction(2, 2, 2, 3))
+    assert(session.advance(16667) == 1)
+    assert(session.lastInteractionAccepted(1) && !session.lastInteractionAccepted(2))
+    assert(session.worldSecretCount() == 1 && session.clientWorldSecretCount() == 1,
+        "two players must not duplicate secret credit")
+    assert(session.receiveInteraction(2, 3, 3, 4) && session.advance(16667) == 1)
+    assert(session.levelCompleted() && session.clientLevelCompleted())
+    assert(session.worldInteractionRevision() == 4 && session.clientWorldInteractionRevision() == 4)
+    assert(!session.receiveInteraction(1, 4, 3, 1), "completed level must reject further interactions")
+    return true
+}
+
+Bool verifyInteractionAdmission() {
+    var session = LoopbackSession(4, 2)
+    assert(session.defineWorldKey(1, 4, 0, 0, 0) && session.start() && session.connectPlayer() == 1)
+    assert(!session.receiveInteraction(2, 1, 1, 1), "unconnected player must not interact")
+    assert(session.receiveInteraction(1, 1, 1, 1) && session.advance(16667) == 1)
+    assert(!session.lastInteractionAccepted(1) && !session.worldInteractionActive(1),
+        "server position, not client target selection, determines reach")
+    assert(session.receiveInteraction(1, 2, 2, 1) && session.applyPlayerFocus(1, 0))
+    assert(!session.receiveInteraction(1, 2, 3, 1) && session.applyPlayerFocus(1, 1))
+    assert(!session.receiveInteraction(1, 2, 2, 1), "focus reset must retain sequence watermark")
+    assert(session.receiveInteraction(1, 2, 3, 1) && session.setPaused(1))
+    assert(session.advance(1000000) == 0 && !session.receiveInteraction(1, 2, 4, 1))
+    assert(session.setPaused(0) && session.receiveInput(1, 2, 1, 4, 0, 0, 0, 0, 0))
+    assert(session.advance(16667) == 1 && !session.worldInteractionActive(1),
+        "focus loss and pause must discard queued interactions")
+    assert(session.receiveInteraction(1, 3, 4, 1) && session.advance(16667) == 1)
+    assert(session.lastInteractionAccepted(1) && session.clientWorldInteractionActive(1))
+    return true
+}
+
+Bool verifyInteractionCheckpoint() {
+    var session = LoopbackSession(4, 2)
+    assert(session.defineWorldKey(1, 0, 0, 0, 0))
+    assert(session.defineWorldDoor(2, 1, 0, 0, 0, 0))
+    assert(session.defineWorldSecret(3, 0, 0, 0, 0))
+    assert(session.start() && session.connectPlayer() == 1)
+    assert(session.receiveInteraction(1, 1, 1, 1) && session.advance(16667) == 1)
+    assert(session.receiveInteraction(1, 2, 2, 2))
+    var timeline = BoundedReplayTimeline(4, 2)
+    assert(session.appendReplayCheckpointBundle(timeline, 1, 71))
+    assert(session.advance(16667) == 1 && session.worldInteractionActive(2))
+    assert(session.receiveInteraction(1, 3, 3, 3) && session.advance(16667) == 1)
+    assert(session.appendReplayCheckpointBundle(timeline, 3, 73))
+    var store = BoundedReplayBundleFileStore(4)
+    assert(store.writeTimeline("interaction-replay.dat", timeline, 1, 1, 99))
+    var loaded = BoundedReplayTimeline(4, 2)
+    assert(store.readTimeline("interaction-replay.dat", loaded))
+    assert(session.applyReplayCheckpointBundle(loaded, 1))
+    assert(session.currentServerTick() == 1 && session.worldInteractionActive(1))
+    assert(!session.worldInteractionActive(2) && !session.clientWorldInteractionActive(2))
+    assert(session.worldSecretCount() == 0 && session.clientWorldSecretCount() == 0)
+    assert(!session.receiveInteraction(1, 2, 3, 3), "restored pending command must retain its queue slot")
+    assert(session.advance(16667) == 1 && session.worldInteractionActive(2))
+    assert(session.lastInteractionTarget(1) == 2 && session.lastInteractionTick(1) == 2)
+    assert(!session.receiveInteraction(1, 3, 2, 3), "restored sequence watermark must reject duplicates")
+    assert(session.applyReplayCheckpointBundle(loaded, 3) && session.worldSecretCount() == 1,
+        "second checkpoint must use independent primary and sidecar strides")
+    var state = new Int[session.replayCheckpointLength()]
+    assert(session.encodeReplayCheckpoint(state))
+    var worldOffset = state.length - 159
+    state[worldOffset + 11] = 0
+    var invalid = BoundedReplayTimeline(1, 1)
+    assert(invalid.appendCheckpointSnapshot(3, 73, state))
+    assert(!session.applyReplayCheckpoint(invalid, 3) && session.worldSecretCount() == 1)
+    assert(session.worldInteractionActive(1) && session.worldInteractionActive(2))
+    return true
+}
+
+Bool verifySpatialCheckpointRows() {
+    var world = EnemySpatialWorld(2, 100)
+    assert(world.configureBounds(0, 0, 0, 100, 100, 100))
+    assert(world.setPosition(7, 1, 2, 3) && world.setPosition(8, 4, 5, 6))
+    var state = new Int[world.replayStateLength()]
+    assert(world.encodeReplayState(state))
+    assert(world.setPosition(7, 9, 9, 9) && world.setPosition(8, 9, 9, 9))
+    assert(world.restoreReplayState(state))
+    assert(world.positionX(7) == 1 && world.positionY(7) == 2 && world.positionZ(7) == 3 &&
+        world.positionX(8) == 4 && world.positionY(8) == 5 && world.positionZ(8) == 6,
+        "spatial checkpoint rows must not overwrite the preceding actor Z coordinate")
+    state[1] = 1
+    assert(!world.restoreReplayState(state) && world.positionZ(7) == 3 && world.positionZ(8) == 6,
+        "overlapping v1 spatial records are not recoverable and must leave live state intact")
+    return true
+}
+
+Bool verifyCatchupTicks() {
+    var session = LoopbackSession(4, 2)
+    assert(session.start() && session.connectPlayer() == 1)
+    assert(session.definePlayerWeapon(9, 2, 1, 1, 4, 1, 20))
+    assert(session.addPlayerCombatActor(1, 20, 0) && session.equipPlayerCombatWeapon(1, 9))
+    assert(session.receiveInput(1, 3, 1, 0, 0, 0, 0, 1, 0))
+    assert(session.advance(66668) == 4 && session.dequeuePlayerWeaponPresentation())
+    assert(session.lastPlayerWeaponPresentation().nextReadyTick() == 4,
+        "catch-up fire cooldown must start at the command's simulation tick, not the frame's final tick")
+    assert(session.replayPresentationAt(0).tick() == 3,
+        "replay fire event must preserve the simulation tick")
+    return true
+}
+
+main() {
+    assert(verifyWorldProgression())
+    assert(verifyWorldRestore())
+    assert(verifyCooperativeSession())
+    assert(verifyInteractionAdmission())
+    assert(verifyInteractionCheckpoint())
+    assert(verifySpatialCheckpointRows())
+    assert(verifyCatchupTicks())
+    println("KOOKIE G2 interaction progression, admission, replay and catch-up verified")
+}

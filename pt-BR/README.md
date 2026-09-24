@@ -13,6 +13,7 @@ x86-64:
 - sessões autoritativas fixed-step e snapshots;
 - movimento limitado, colisão, BVH e consultas de projéteis espaciais;
 - combate determinístico, incluindo seleção de pellets de shotgun;
+- progressão cooperativa de chave, porta, segredo e saída com restauração de checkpoint;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
 - um adaptador pequeno SDL3/SDL_GPU e sondas de transporte localhost
   autenticado.
@@ -31,16 +32,13 @@ apresentada como concluída.
 
 ## Como executar
 
-Instale `kof` e Python 3. Depois execute o gate focado:
+Instale `kof` e Python 3. Execute a sonda focada de gameplay/replay:
 
 ```bash
-python3 scripts/lint_kf.py src probes
-python3 scripts/lsp_verify.py src
-kof test src --target jvm
-kof test src --target native
+bash scripts/verify_interactions.sh
 ```
 
-O gate local completo é:
+O gate completo fica para a verificação final pré-commit (no Pi, após `/precommit-matrix`):
 
 ```bash
 bash scripts/verify.sh
@@ -65,9 +63,10 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 ## Roadmap
 
-A próxima tarefa concreta é executar o caminho de screenshot DRI3 em um host
-isolado capaz de apresentação. O trabalho de gameplay e combate limitado está
-à frente do conteúdo de produção, networking e ferramentas.
+Próximos passos: qualificar apresentação isolada em janela, conectar o estado
+das portas à colisão/renderização da arena e provar a sessão LAN com dois
+clientes e reconexão. A progressão de chave/porta/segredo/saída está testada;
+a arena 3D jogável ainda não está pronta.
 
 Adiado até os gates centrais estarem mais fortes:
 
