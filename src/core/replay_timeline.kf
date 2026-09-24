@@ -35,9 +35,9 @@ class BoundedReplayTimeline {
         checkpointTicks = new Int[actualCheckpoints]
         checkpointHashes = new Int[actualCheckpoints]
         checkpointSnapshotLengths = new Int[actualCheckpoints]
-        checkpointSnapshotValues = new Int[actualCheckpoints * 64]
+        checkpointSnapshotValues = new Int[actualCheckpoints * 128]
         checkpointCount = 0
-        initialSnapshot = new Int[64]
+        initialSnapshot = new Int[128]
         snapshotLength = 0
         seekTargetTickValue = -1
         seekCheckpointValue = -1
@@ -67,7 +67,7 @@ class BoundedReplayTimeline {
 
     Bool appendCheckpointSnapshot(Int tick, Int hash, Int[] values) {
         if (tick < 0 || hash < -1000000 || hash > 1000000 ||
-            values.length > 64 ||
+            values.length > 128 ||
             checkpointCount >= checkpointTicks.length ||
             (checkpointCount > 0 &&
                 tick <= checkpointTicks[checkpointCount - 1])) {

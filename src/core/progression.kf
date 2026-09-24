@@ -308,6 +308,70 @@ class BoundedSkillProgression {
         }
         return target.put(9, 1, payload)
     }
+    Int replayStateLength() {
+        return 19
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9201
+        target[1] = 1
+        target[2] = countValue
+        var offset = 3
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (index < countValue) {
+                target[offset] = ids[index]
+                target[offset + 1] = ranks[index]
+                target[offset + 2] = experiences[index]
+                target[offset + 3] = cooldownUntilTicks[index]
+            } else {
+                target[offset] = 0
+                target[offset + 1] = 0
+                target[offset + 2] = 0
+                target[offset + 3] = 0
+            }
+            offset = offset + 4
+        }
+        return true
+    }
+
+    Bool restoreReplayState(
+        Int[] source, BoundedSkillDefinitionStore definitions
+    ) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9201 || source[1] != 1 ||
+            source[2] < 0 || source[2] > ids.length) {
+            return false
+        }
+        for (var index = 0; index < source[2]; index = index + 1) {
+            var offset = 3 + index * 4
+            var skillId = source[offset]
+            if (definitions.find(skillId) < 0 ||
+                source[offset + 1] < 0 ||
+                source[offset + 1] > definitions.maximumRank(skillId) ||
+                source[offset + 2] < 0 || source[offset + 2] > 1000000 ||
+                source[offset + 3] < 0) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (source[3 + prior * 4] == skillId) {
+                    return false
+                }
+            }
+        }
+        countValue = source[2]
+        for (var copy = 0; copy < ids.length; copy = copy + 1) {
+            var copyOffset = 3 + copy * 4
+            ids[copy] = source[copyOffset]
+            ranks[copy] = source[copyOffset + 1]
+            experiences[copy] = source[copyOffset + 2]
+            cooldownUntilTicks[copy] = source[copyOffset + 3]
+        }
+        return true
+    }
+
 
     Bool decodeFrom(
         BoundedSaveSections source, BoundedSkillDefinitionStore definitions
@@ -663,6 +727,7 @@ class BoundedStatusEffects {
 
     Int totalDamagePercent(BoundedStatusDefinitionStore definitions) {
         var total = 0
+
         for (var index = 0; index < countValue; index = index + 1) {
             var perStack = definitions.damagePercent(ids[index])
             if (perStack < 0) {
@@ -679,6 +744,66 @@ class BoundedStatusEffects {
             total = total + contribution
         }
         return total
+    }
+    Int replayStateLength() {
+        return 15
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9301
+        target[1] = 1
+        target[2] = countValue
+        var offset = 3
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (index < countValue) {
+                target[offset] = ids[index]
+                target[offset + 1] = durations[index]
+                target[offset + 2] = stackValues[index]
+            } else {
+                target[offset] = 0
+                target[offset + 1] = 0
+                target[offset + 2] = 0
+            }
+            offset = offset + 3
+        }
+        return true
+    }
+
+    Bool restoreReplayState(
+        Int[] source, BoundedStatusDefinitionStore definitions
+    ) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9301 || source[1] != 1 ||
+            source[2] < 0 || source[2] > ids.length) {
+            return false
+        }
+        for (var index = 0; index < source[2]; index = index + 1) {
+            var offset = 3 + index * 3
+            var statusId = source[offset]
+            if (definitions.find(statusId) < 0 ||
+                source[offset + 1] <= 0 ||
+                source[offset + 1] > definitions.durationCap(statusId) ||
+                source[offset + 2] <= 0 ||
+                source[offset + 2] > definitions.stackCap(statusId)) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (source[3 + prior * 3] == statusId) {
+                    return false
+                }
+            }
+        }
+        countValue = source[2]
+        for (var copy = 0; copy < ids.length; copy = copy + 1) {
+            var copyOffset = 3 + copy * 3
+            ids[copy] = source[copyOffset]
+            durations[copy] = source[copyOffset + 1]
+            stackValues[copy] = source[copyOffset + 2]
+        }
+        return true
     }
 
     Int totalDefenseFlat(BoundedStatusDefinitionStore definitions) {

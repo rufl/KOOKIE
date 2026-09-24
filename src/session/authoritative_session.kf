@@ -1109,20 +1109,42 @@ class LoopbackSession {
         return playerTwoReplay.lastPlayed()
     }
     Bool encodeReplayCheckpoint(Int[] target) {
-        if (target.length != 50 || !started) {
+        if (target.length != 120 || !started) {
             return false
         }
-        var state = new Int[46]
-        if (!playerCombat.encodeReplayState(state)) {
+        var combatState = new Int[46]
+        var skillOneState = new Int[19]
+        var statusOneState = new Int[15]
+        var skillTwoState = new Int[19]
+        var statusTwoState = new Int[15]
+        if (!playerCombat.encodeReplayState(combatState) ||
+            !playerOneSkills.encodeReplayState(skillOneState) ||
+            !playerOneStatuses.encodeReplayState(statusOneState) ||
+            !playerTwoSkills.encodeReplayState(skillTwoState) ||
+            !playerTwoStatuses.encodeReplayState(statusTwoState)) {
             return false
         }
         target[0] = serverTick
         target[1] = serverMovement.position(1)
         target[2] = serverMovement.position(2)
         target[3] = snapshotSequence
-        for (var index = 0; index < state.length; index = index + 1) {
-            target[index + 4] = state[index]
+        for (var index = 0; index < combatState.length; index = index + 1) {
+            target[index + 4] = combatState[index]
         }
+        for (var skillIndex = 0; skillIndex < skillOneState.length; skillIndex = skillIndex + 1) {
+            target[50 + skillIndex] = skillOneState[skillIndex]
+        }
+        for (var statusIndex = 0; statusIndex < statusOneState.length; statusIndex = statusIndex + 1) {
+            target[69 + statusIndex] = statusOneState[statusIndex]
+        }
+        for (var skillTwoIndex = 0; skillTwoIndex < skillTwoState.length; skillTwoIndex = skillTwoIndex + 1) {
+            target[84 + skillTwoIndex] = skillTwoState[skillTwoIndex]
+        }
+        for (var statusTwoIndex = 0; statusTwoIndex < statusTwoState.length; statusTwoIndex = statusTwoIndex + 1) {
+            target[103 + statusTwoIndex] = statusTwoState[statusTwoIndex]
+        }
+        target[118] = playerOneSkillResource
+        target[119] = playerTwoSkillResource
         return true
     }
 
@@ -1138,7 +1160,7 @@ class LoopbackSession {
         if (length == 0) {
             return true
         }
-        if (length != 1 && length != 4 && length != 50) {
+        if (length != 1 && length != 4 && length != 50 && length != 120) {
             return false
         }
         if (length == 1 && playerTwoConnected) {
@@ -1160,14 +1182,54 @@ class LoopbackSession {
             restoredSequence < 0) {
             return false
         }
-        if (length == 50) {
-            var state = new Int[46]
-            for (var index = 0; index < state.length; index = index + 1) {
-                state[index] = timeline.seekSnapshotValue(index + 4)
+        if (length == 50 || length == 120) {
+            var combatState = new Int[46]
+            for (var index = 0; index < combatState.length; index = index + 1) {
+                combatState[index] = timeline.seekSnapshotValue(index + 4)
             }
-            if (!playerCombat.restoreReplayState(state)) {
+            if (!playerCombat.restoreReplayState(combatState)) {
                 return false
             }
+        }
+        if (length == 120) {
+            var skillOneState = new Int[19]
+            var statusOneState = new Int[15]
+            var skillTwoState = new Int[19]
+            var statusTwoState = new Int[15]
+            for (var skillOneIndex = 0; skillOneIndex < skillOneState.length; skillOneIndex = skillOneIndex + 1) {
+                skillOneState[skillOneIndex] = timeline.seekSnapshotValue(50 + skillOneIndex)
+            }
+            for (var statusOneIndex = 0; statusOneIndex < statusOneState.length; statusOneIndex = statusOneIndex + 1) {
+                statusOneState[statusOneIndex] = timeline.seekSnapshotValue(69 + statusOneIndex)
+            }
+            for (var skillTwoIndex = 0; skillTwoIndex < skillTwoState.length; skillTwoIndex = skillTwoIndex + 1) {
+                skillTwoState[skillTwoIndex] = timeline.seekSnapshotValue(84 + skillTwoIndex)
+            }
+            for (var statusTwoIndex = 0; statusTwoIndex < statusTwoState.length; statusTwoIndex = statusTwoIndex + 1) {
+                statusTwoState[statusTwoIndex] = timeline.seekSnapshotValue(103 + statusTwoIndex)
+            }
+            var decodedSkillOne = BoundedSkillProgression(4)
+            var decodedStatusOne = BoundedStatusEffects(4)
+            var decodedSkillTwo = BoundedSkillProgression(4)
+            var decodedStatusTwo = BoundedStatusEffects(4)
+            if (!decodedSkillOne.restoreReplayState(
+                    skillOneState, playerSkillDefinitions) ||
+                !decodedStatusOne.restoreReplayState(
+                    statusOneState, playerStatusDefinitions) ||
+                !decodedSkillTwo.restoreReplayState(
+                    skillTwoState, playerSkillDefinitions) ||
+                !decodedStatusTwo.restoreReplayState(
+                    statusTwoState, playerStatusDefinitions) ||
+                timeline.seekSnapshotValue(118) < 0 ||
+                timeline.seekSnapshotValue(119) < 0) {
+                return false
+            }
+            playerOneSkills = decodedSkillOne
+            playerOneStatuses = decodedStatusOne
+            playerTwoSkills = decodedSkillTwo
+            playerTwoStatuses = decodedStatusTwo
+            playerOneSkillResource = timeline.seekSnapshotValue(118)
+            playerTwoSkillResource = timeline.seekSnapshotValue(119)
         }
         if (!clock.setState(restoredTick, 0)) {
             return false
@@ -1185,6 +1247,12 @@ class LoopbackSession {
                 !clientMovement.setPosition(2, positionTwo) ||
                 !playerTwoSnapshots.reset() ||
                 !playerTwoPrediction.restore(positionTwo, restoredTick)) {
+                return false
+            }
+        }
+        if (length == 120) {
+            if ((playerOneConnected && !refreshPlayerCombatModifiers(1)) ||
+                (playerTwoConnected && !refreshPlayerCombatModifiers(2))) {
                 return false
             }
         }

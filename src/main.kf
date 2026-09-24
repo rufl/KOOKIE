@@ -1181,7 +1181,7 @@ test "loopback replay restores combat checkpoint state" {
         loopback.playerCombatHealth(2) == 90 &&
         loopback.playerCombatMagazine(1) == 2,
         "combat checkpoint setup must apply initial damage")
-    var checkpoint = new Int[50]
+    var checkpoint = new Int[120]
     assert(loopback.encodeReplayCheckpoint(checkpoint))
     var timeline = BoundedReplayTimeline(2, 2)
     assert(timeline.appendCheckpointSnapshot(0, 202, checkpoint) &&
@@ -1192,6 +1192,34 @@ test "loopback replay restores combat checkpoint state" {
         loopback.playerCombatMagazine(1) == 2,
         "combat checkpoint restore must rewind health and ammunition")
 }
+test "loopback replay restores progression checkpoint state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.definePlayerSkill(30, 2, 100) &&
+        loopback.setPlayerSkillActivation(30, 20, 5) &&
+        loopback.learnPlayerSkill(1, 30) &&
+        loopback.gainPlayerSkillExperience(1, 30, 125) &&
+        loopback.setPlayerSkillResource(1, 100) &&
+        loopback.activatePlayerSkill(1, 30, 0).accepted() &&
+        loopback.playerSkillResource(1) == 80 &&
+        loopback.definePlayerStatus(40, 10, 3) &&
+        loopback.applyPlayerStatus(1, 40, 5, 2) &&
+        loopback.playerStatusDuration(1, 40) == 5)
+    var checkpoint = new Int[120]
+    assert(loopback.encodeReplayCheckpoint(checkpoint))
+    var timeline = BoundedReplayTimeline(2, 2)
+    assert(timeline.appendCheckpointSnapshot(0, 303, checkpoint) &&
+        loopback.setPlayerSkillResource(1, 1) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerStatusDuration(1, 40) == 4 &&
+        loopback.applyReplayCheckpoint(timeline, 1) &&
+        loopback.playerSkillResource(1) == 80 &&
+        loopback.playerSkillCooldown(1, 30, 0) == 5 &&
+        loopback.playerStatusDuration(1, 40) == 5 &&
+        loopback.playerStatusStacks(1, 40) == 2,
+        "progression checkpoint restore must rewind resources, cooldowns and statuses")
+}
+
 
 
 
