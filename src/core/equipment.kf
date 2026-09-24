@@ -41,6 +41,45 @@ class BoundedEquipmentLoadout {
         }
         return -1
     }
+    Int replayStateLength() {
+        return 3 + slotItemIds.length
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9811
+        target[1] = 1
+        target[2] = slotItemIds.length
+        for (var index = 0; index < slotItemIds.length; index = index + 1) {
+            target[3 + index] = slotItemIds[index]
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source, BoundedItemInventory inventory) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9811 || source[1] != 1 ||
+            source[2] != slotItemIds.length) {
+            return false
+        }
+        for (var index = 0; index < slotItemIds.length; index = index + 1) {
+            var itemId = source[3 + index]
+            if (itemId != 0 && !inventoryContains(inventory, itemId)) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (itemId != 0 && itemId == source[3 + prior]) {
+                    return false
+                }
+            }
+        }
+        for (var copy = 0; copy < slotItemIds.length; copy = copy + 1) {
+            slotItemIds[copy] = source[3 + copy]
+        }
+        return true
+    }
 
     Bool inventoryContains(BoundedItemInventory inventory, Int itemId) {
         for (var index = 0; index < inventory.itemCount(); index = index + 1) {

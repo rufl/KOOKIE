@@ -97,6 +97,10 @@ class BoundedItemSaveSection {
         countValue = countValue - 1
         return true
     }
+    Bool clear() {
+        countValue = 0
+        return true
+    }
 
     Bool encodeInto(BoundedSaveSections target) {
         var payload = new Int[countValue * 3]

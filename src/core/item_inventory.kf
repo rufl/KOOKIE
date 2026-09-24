@@ -102,6 +102,112 @@ class BoundedItemInventory {
     Int itemQuantity(Int index) {
         return items.quantity(index)
     }
+    Int replayStateLength() {
+        return 5 + items.capacity() * 11
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9801
+        target[1] = 1
+        target[2] = ownerValue
+        target[3] = currencyValue
+        target[4] = revisionValue
+        var offset = 5
+        for (var index = 0; index < items.capacity(); index = index + 1) {
+            target[offset] = 0
+            target[offset + 1] = 0
+            target[offset + 2] = 0
+            if (index < items.count()) {
+                var roll = itemRoll(index)
+                target[offset] = items.itemId(index)
+                target[offset + 1] = items.quantity(index)
+                if (roll.accepted()) {
+                    target[offset + 2] = 1
+                    target[offset + 3] = roll.stableId()
+                    target[offset + 4] = roll.definitionId()
+                    target[offset + 5] = roll.seed()
+                    target[offset + 6] = roll.level()
+                    target[offset + 7] = roll.rarity()
+                    target[offset + 8] = roll.affixOne()
+                    target[offset + 9] = roll.affixTwo()
+                    target[offset + 10] = roll.condition()
+                }
+            }
+            offset = offset + 11
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9801 || source[1] != 1 ||
+            source[2] != ownerValue || source[3] < 0 ||
+            source[3] > 1000000 || source[4] < 0) {
+            return false
+        }
+        var count = 0
+        var offset = 5
+        for (var index = 0; index < items.capacity(); index = index + 1) {
+            var itemId = source[offset]
+            var quantity = source[offset + 1]
+            var hasRoll = source[offset + 2]
+            if (hasRoll < 0 || hasRoll > 1) {
+                return false
+            }
+            if (itemId == 0 && quantity == 0 && hasRoll == 0) {
+                offset = offset + 11
+                continue
+            }
+            if (itemId <= 0 || quantity <= 0 || quantity > 1000000) {
+                return false
+            }
+            if (hasRoll == 1) {
+                var checkRoll = BoundedItemRoll()
+                if (!checkRoll.stage(
+                    source[offset + 3], source[offset + 4], source[offset + 5],
+                    source[offset + 6], source[offset + 7], source[offset + 8],
+                    source[offset + 9], source[offset + 10])) {
+                    return false
+                }
+            }
+            count = count + 1
+            offset = offset + 11
+        }
+        if (count > items.capacity()) {
+            return false
+        }
+        items.clear()
+        rolls.clear()
+        offset = 5
+        for (var index = 0; index < items.capacity(); index = index + 1) {
+            var itemId = source[offset]
+            var quantity = source[offset + 1]
+            var hasRoll = source[offset + 2]
+            if (itemId != 0) {
+                if (!items.add(itemId, ownerValue, quantity)) {
+                    return false
+                }
+                if (hasRoll == 1) {
+                    var roll = BoundedItemRoll()
+                    if (!roll.stage(
+                        source[offset + 3], source[offset + 4], source[offset + 5],
+                        source[offset + 6], source[offset + 7], source[offset + 8],
+                        source[offset + 9], source[offset + 10]) ||
+                        !rolls.add(roll)) {
+                        return false
+                    }
+                }
+            }
+            offset = offset + 11
+        }
+        currencyValue = source[3]
+        revisionValue = source[4]
+        return true
+    }
+
 
     Bool setCurrency(Int amount) {
         if (amount < 0 || amount > 1000000) {

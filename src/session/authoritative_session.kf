@@ -18,6 +18,10 @@ class LoopbackSession {
     BoundedStatusDefinitionStore playerStatusDefinitions
     BoundedStatusEffects playerOneStatuses
     BoundedStatusEffects playerTwoStatuses
+    BoundedItemInventory playerOneInventory
+    BoundedItemInventory playerTwoInventory
+    BoundedEquipmentLoadout playerOneEquipment
+    BoundedEquipmentLoadout playerTwoEquipment
     InputReplayRecorder playerOneReplay
     InputReplayRecorder playerTwoReplay
     MovementComponent serverMovement
@@ -107,6 +111,10 @@ class LoopbackSession {
         playerOneSkills = BoundedSkillProgression(4)
         playerTwoSkills = BoundedSkillProgression(4)
         playerOneSkillResource = 100
+        playerOneInventory = BoundedItemInventory(1, 8)
+        playerTwoInventory = BoundedItemInventory(2, 8)
+        playerOneEquipment = BoundedEquipmentLoadout(4)
+        playerTwoEquipment = BoundedEquipmentLoadout(4)
         playerTwoSkillResource = 100
         playerStatusDefinitions = BoundedStatusDefinitionStore(16)
         playerOneStatuses = BoundedStatusEffects(4)
@@ -1129,6 +1137,96 @@ class LoopbackSession {
         }
         return false
     }
+    BoundedItemInventory playerInventory(Int player) {
+        if (player == 1) {
+            return playerOneInventory
+        }
+        return playerTwoInventory
+    }
+
+    BoundedEquipmentLoadout playerEquipment(Int player) {
+        if (player == 1) {
+            return playerOneEquipment
+        }
+        return playerTwoEquipment
+    }
+
+    Bool setPlayerCurrency(Int player, Int amount) {
+        if (player == 1) {
+            return playerOneInventory.setCurrency(amount)
+        }
+        if (player == 2) {
+            return playerTwoInventory.setCurrency(amount)
+        }
+        return false
+    }
+
+    Int playerCurrency(Int player) {
+        if (player == 1) {
+            return playerOneInventory.currency()
+        }
+        if (player == 2) {
+            return playerTwoInventory.currency()
+        }
+        return -1
+    }
+
+    Bool addPlayerItem(Int player, Int itemId, Int quantity) {
+        if (player == 1) {
+            return playerOneInventory.addItem(itemId, quantity)
+        }
+        if (player == 2) {
+            return playerTwoInventory.addItem(itemId, quantity)
+        }
+        return false
+    }
+
+    Bool addPlayerLootedItem(Int player, BoundedItemRoll roll, Int quantity) {
+        if (player == 1) {
+            return playerOneInventory.addLootedItem(roll, quantity)
+        }
+        if (player == 2) {
+            return playerTwoInventory.addLootedItem(roll, quantity)
+        }
+        return false
+    }
+
+    Int playerItemQuantity(Int player, Int itemId) {
+        if (player == 1) {
+            for (var index = 0; index < playerOneInventory.itemCount(); index = index + 1) {
+                if (playerOneInventory.itemId(index) == itemId) {
+                    return playerOneInventory.itemQuantity(index)
+                }
+            }
+        } else if (player == 2) {
+            for (var indexTwo = 0; indexTwo < playerTwoInventory.itemCount(); indexTwo = indexTwo + 1) {
+                if (playerTwoInventory.itemId(indexTwo) == itemId) {
+                    return playerTwoInventory.itemQuantity(indexTwo)
+                }
+            }
+        }
+        return 0
+    }
+    Bool equipPlayerItem(Int player, Int slot, Int itemId) {
+        if (player == 1) {
+            return playerOneEquipment.equip(playerOneInventory, slot, itemId)
+        }
+        if (player == 2) {
+            return playerTwoEquipment.equip(playerTwoInventory, slot, itemId)
+        }
+        return false
+    }
+
+    Int playerEquipmentItem(Int player, Int slot) {
+        if (player == 1) {
+            return playerOneEquipment.itemAt(slot)
+        }
+        if (player == 2) {
+            return playerTwoEquipment.itemAt(slot)
+        }
+        return -1
+    }
+
 
     InputCommand lastPlayerReplay(Int player) {
         if (player == 1) {
@@ -1136,6 +1234,7 @@ class LoopbackSession {
         }
         return playerTwoReplay.lastPlayed()
     }
+
     Int replayCheckpointLength() {
         return 120 + enemyCombat.replayStateLength()
     }

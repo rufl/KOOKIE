@@ -1211,13 +1211,46 @@ test "loopback replay restores progression checkpoint state" {
     assert(timeline.appendCheckpointSnapshot(0, 303, checkpoint) &&
         loopback.setPlayerSkillResource(1, 1) &&
         loopback.advance(16667) == 1 &&
-        loopback.playerStatusDuration(1, 40) == 4 &&
-        loopback.applyReplayCheckpoint(timeline, 1) &&
-        loopback.playerSkillResource(1) == 80 &&
-        loopback.playerSkillCooldown(1, 30, 0) == 5 &&
-        loopback.playerStatusDuration(1, 40) == 5 &&
-        loopback.playerStatusStacks(1, 40) == 2,
-        "progression checkpoint restore must rewind resources, cooldowns and statuses")
+        loopback.playerStatusDuration(1, 40) == 4)
+    var progressionApplied = loopback.applyReplayCheckpoint(timeline, 1)
+    assert(progressionApplied, "progression checkpoint must apply")
+    assert(loopback.playerSkillResource(1) == 80,
+        "progression resource must rewind")
+    assert(loopback.playerSkillCooldown(1, 30, 0) == 5,
+        "progression cooldown must rewind")
+    assert(loopback.playerStatusDuration(1, 40) == 5,
+        "progression duration must rewind")
+    assert(loopback.playerStatusStacks(1, 40) == 2,
+        "progression stacks must rewind")
+}
+test "bounded inventory equipment replay state" {
+    var inventory = BoundedItemInventory(1, 4)
+    var equipment = BoundedEquipmentLoadout(2)
+    assert(inventory.addItem(500, 2) &&
+        inventory.setCurrency(100) &&
+        equipment.equip(inventory, 0, 500))
+    var inventoryState = new Int[inventory.replayStateLength()]
+    var world = BoundedTriangleCollection(4, 20)
+    var worldState = new Int[world.replayStateLength()]
+    var equipmentState = new Int[equipment.replayStateLength()]
+    assert(world.configureBounds(0, 0, 0, 10, 10, 10) &&
+        world.addTriangle(0, 0, 0, 1, 0, 0, 0, 0, 1) &&
+        inventory.encodeReplayState(inventoryState) &&
+        equipment.encodeReplayState(equipmentState) &&
+        world.encodeReplayState(worldState) &&
+        inventory.setCurrency(1) &&
+        inventory.addItem(501, 1) &&
+        equipment.unequip(0) &&
+        world.clearTriangles() &&
+        inventory.restoreReplayState(inventoryState) &&
+        equipment.restoreReplayState(equipmentState, inventory) &&
+        world.restoreReplayState(worldState) &&
+        inventory.currency() == 100 &&
+        inventory.itemQuantity(0) == 2 &&
+        inventory.itemId(0) == 500 &&
+        equipment.itemAt(0) == 500 &&
+        world.triangleCount() == 1,
+        "inventory, equipment and world replay state must restore deterministically")
 }
 test "loopback replay restores enemy combat checkpoint state" {
     var loopback = LoopbackSession(4, 2)
@@ -1246,16 +1279,19 @@ test "loopback replay restores enemy combat checkpoint state" {
     var timeline = BoundedReplayTimeline(2, 2)
     assert(timeline.appendCheckpointSnapshot(0, 404, checkpoint) &&
         loopback.setEnemySpatialPosition(100, 30, 0, 0) &&
-        loopback.resolveEnemyHitscan(1, 100, 1, 1, 0).remainingHealth() == 80 &&
-        loopback.applyReplayCheckpoint(timeline, 1) &&
-        loopback.activeEnemyProjectiles() == 1 &&
-        loopback.pendingEnemyImpactPresentations() == 0 &&
-        loopback.pendingEnemyImpactAudio() == 0 &&
-        loopback.enemyState(100) == 3 &&
+        loopback.resolveEnemyHitscan(1, 100, 1, 1, 0).remainingHealth() == 80)
+    var enemyApplied = loopback.applyReplayCheckpoint(timeline, 1)
+    assert(enemyApplied, "enemy checkpoint must apply")
+    assert(loopback.activeEnemyProjectiles() == 1,
+        "enemy projectile must rewind")
+    assert(loopback.pendingEnemyImpactPresentations() == 0 &&
+        loopback.pendingEnemyImpactAudio() == 0,
+        "enemy presentation queues must reset")
+    assert(loopback.enemyState(100) == 3 &&
         loopback.enemySpatialPositionX(100) == 20 &&
         loopback.enemyEncounterActiveCount(4) == 1 &&
         loopback.enemyEncounterRemainingBudget(4) == 99,
-        "enemy world checkpoint restore must rewind combat, AI, spatial, projectile and encounter state")
+        "enemy AI spatial and encounter state must rewind")
     var restored = loopback.resolveEnemyHitscan(1, 100, 2, 1, 0)
     assert(restored.accepted() && restored.remainingHealth() == 80,
         "enemy world checkpoint restore must rewind combat and projectile state")

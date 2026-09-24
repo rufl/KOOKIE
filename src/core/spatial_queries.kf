@@ -514,6 +514,73 @@ class BoundedTriangleCollection {
     Int geometryRevision() {
         return geometryRevisionValue
     }
+    Int replayStateLength() {
+        return 4 + maxTriangles * 10
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9831
+        target[1] = 1
+        target[2] = activeCountValue
+        target[3] = geometryRevisionValue
+        var offset = 4
+        for (var ordinal = 0; ordinal < maxTriangles; ordinal = ordinal + 1) {
+            target[offset] = 0
+            if (ordinal < activeCountValue) {
+                var index = triangleIndexAt(ordinal)
+                target[offset] = 1
+                for (var component = 0; component < 9; component = component + 1) {
+                    target[offset + 1 + component] =
+                        triangleCoordinate(index, component)
+                }
+            }
+            offset = offset + 10
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9831 || source[1] != 1 ||
+            source[2] < 0 || source[2] > maxTriangles ||
+            source[3] < 0) {
+            return false
+        }
+        var activeCount = 0
+        var offset = 4
+        for (var index = 0; index < maxTriangles; index = index + 1) {
+            if (source[offset] < 0 || source[offset] > 1) {
+                return false
+            }
+            if (source[offset] == 1) {
+                activeCount = activeCount + 1
+                if (activeCount > source[2]) {
+                    return false
+                }
+            }
+            offset = offset + 10
+        }
+        if (activeCount != source[2] || !clearTriangles()) {
+            return false
+        }
+        offset = 4
+        for (var index = 0; index < maxTriangles; index = index + 1) {
+            if (source[offset] == 1 &&
+                !addTriangle(
+                    source[offset + 1], source[offset + 2], source[offset + 3],
+                    source[offset + 4], source[offset + 5], source[offset + 6],
+                    source[offset + 7], source[offset + 8], source[offset + 9])) {
+                return false
+            }
+            offset = offset + 10
+        }
+        geometryRevisionValue = source[3]
+        rebuildBvh()
+        return true
+    }
 
     Int triangleRevision(Int index) {
         if (index < 0 || index >= triangleCountValue) {
