@@ -18,6 +18,10 @@ class SnapshotHistory {
         positions = new Int[safeCapacity]
         count = 0
     }
+    Bool reset() {
+        count = 0
+        return true
+    }
 
     Bool push(Int sequence, Int tick, Int position) {
         if (sequence <= 0 || tick < 0) {
@@ -112,6 +116,18 @@ class ClientPredictionState {
         inputTicks = new Int[8]
         inputSteps = new Int[8]
         inputCount = 0
+    }
+
+    Bool restore(Int position, Int tick) {
+        if (tick < 0) {
+            return false
+        }
+        authoritativePosition = position
+        predictedPosition = position
+        authoritativeTick = tick
+        predictedTick = tick
+        inputCount = 0
+        return true
     }
 
     Int clampStep(Int requestedStep) {

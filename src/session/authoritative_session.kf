@@ -295,6 +295,12 @@ class LoopbackSession {
     Bool equipEnemyCombatWeapon(Int actorId, Int weaponId) {
         return enemyCombat.equipWeapon(actorId, weaponId)
     }
+    Bool setEnemyCombatWeaponSpread(
+        Int weaponId, Int pellets, Int spreadPercent
+    ) {
+        return enemyCombat.setWeaponSpread(
+            weaponId, pellets, spreadPercent)
+    }
     Bool setEnemyCombatDamageModifier(
         Int actorId, Int flatValue, Int percentValue
     ) {
@@ -328,6 +334,12 @@ class LoopbackSession {
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
         return enemyCombat.playerHitscan(
+            sourceId, targetId, tick, distance, critical)
+    }
+    ResolutionResult resolveEnemyShotgun(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        return enemyCombat.playerShotgun(
             sourceId, targetId, tick, distance, critical)
     }
     AreaDamageResult resolveEnemyAreaDamage(
@@ -886,6 +898,12 @@ class LoopbackSession {
         return enemyClientSnapshots.size()
     }
 
+    Bool setPlayerWeaponSpread(
+        Int weaponId, Int pellets, Int spreadPercent
+    ) {
+        return playerCombat.setWeaponSpread(
+            weaponId, pellets, spreadPercent)
+    }
     EnemyAttackDecision lastEnemyAttack() {
         return lastEnemyDecision
     }
@@ -938,6 +956,12 @@ class LoopbackSession {
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
         return playerCombat.resolveHitscan(
+            sourceId, targetId, tick, distance, critical)
+    }
+    ResolutionResult resolvePlayerShotgun(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        return playerCombat.resolveShotgun(
             sourceId, targetId, tick, distance, critical)
     }
 
@@ -1069,6 +1093,68 @@ class LoopbackSession {
         return playerTwoReplay.lastPlayed()
     }
 
+    Bool applyReplayCheckpoint(
+        BoundedReplayTimeline timeline, Int targetTick
+    ) {
+        if (!started || paused || targetTick < 0 ||
+            !timeline.seek(targetTick)) {
+            return false
+        }
+        var length = timeline.seekSnapshotLength()
+        if (length == 0) {
+            return true
+        }
+        if (length != 1 && length != 4) {
+            return false
+        }
+        if (length == 1 && playerTwoConnected) {
+            return false
+        }
+        var restoredTick = 0
+        var restoredSequence = 0
+        var positionOne = 0
+        var positionTwo = 0
+        if (length == 1) {
+            positionOne = timeline.seekSnapshotValue(0)
+        } else {
+            restoredTick = timeline.seekSnapshotValue(0)
+            positionOne = timeline.seekSnapshotValue(1)
+            positionTwo = timeline.seekSnapshotValue(2)
+            restoredSequence = timeline.seekSnapshotValue(3)
+        }
+        if (restoredTick < 0 || restoredTick > targetTick ||
+            restoredSequence < 0) {
+            return false
+        }
+        if (!clock.setState(restoredTick, 0)) {
+            return false
+        }
+        if (playerOneConnected) {
+            if (!serverMovement.setPosition(1, positionOne) ||
+                !clientMovement.setPosition(1, positionOne) ||
+                !playerOneSnapshots.reset() ||
+                !playerOnePrediction.restore(positionOne, restoredTick)) {
+                return false
+            }
+        }
+        if (playerTwoConnected) {
+            if (!serverMovement.setPosition(2, positionTwo) ||
+                !clientMovement.setPosition(2, positionTwo) ||
+                !playerTwoSnapshots.reset() ||
+                !playerTwoPrediction.restore(positionTwo, restoredTick)) {
+                return false
+            }
+        }
+        playerOneInputs.clearPending()
+        playerTwoInputs.clearPending()
+        playerOneEdges.clearHeld()
+        playerTwoEdges.clearHeld()
+        serverTick = restoredTick
+        clientTick = restoredTick
+        snapshotSequence = restoredSequence
+        return true
+    }
+
     Bool queueReplayCommands(
         Int player, BoundedReplayTimeline timeline, Int targetTick
     ) {
@@ -1077,7 +1163,7 @@ class LoopbackSession {
             return false
         }
         var staged = InputReplayRecorder(64)
-        if (!timeline.seek(targetTick) ||
+        if (!applyReplayCheckpoint(timeline, targetTick) ||
             !timeline.stageSeekCommands(staged)) {
             return false
         }

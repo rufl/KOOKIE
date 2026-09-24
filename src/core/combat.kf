@@ -131,6 +131,8 @@ class WeaponDefinitionStore {
     Int[] damages
     Int[] channels
     Int[] ranges
+    Int[] pelletCounts
+    Int[] spreadPercents
     Bool[] active
 
     public constructor(Int capacity) {
@@ -139,6 +141,8 @@ class WeaponDefinitionStore {
         reserveCapacities = new Int[capacity]
         cooldowns = new Int[capacity]
         damages = new Int[capacity]
+        pelletCounts = new Int[capacity]
+        spreadPercents = new Int[capacity]
         channels = new Int[capacity]
         ranges = new Int[capacity]
         active = new Bool[capacity]
@@ -148,6 +152,8 @@ class WeaponDefinitionStore {
             reserveCapacities[index] = 0
             cooldowns[index] = 0
             damages[index] = 0
+            pelletCounts[index] = 1
+            spreadPercents[index] = 0
             channels[index] = 0
             ranges[index] = 0
             active[index] = false
@@ -196,6 +202,8 @@ class WeaponDefinitionStore {
         damages[index] = damage
         channels[index] = channel
         ranges[index] = range
+        pelletCounts[index] = 1
+        spreadPercents[index] = 0
         return true
     }
 
@@ -249,6 +257,32 @@ class WeaponDefinitionStore {
             return 0
         }
         return ranges[index]
+    }
+    Bool setSpread(Int id, Int pellets, Int spreadPercent) {
+        var index = find(id)
+        if (index < 0 || pellets <= 0 || pellets > 8 ||
+            spreadPercent < 0 || spreadPercent > 100) {
+            return false
+        }
+        pelletCounts[index] = pellets
+        spreadPercents[index] = spreadPercent
+        return true
+    }
+
+    Int pellets(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return pelletCounts[index]
+    }
+
+    Int spread(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return spreadPercents[index]
     }
 }
 
@@ -380,6 +414,9 @@ class CombatWorld {
         return weapons.define(
             id, magazineSize, reserveCapacity,
             cooldownTicks, damage, channel, range)
+    }
+    Bool setWeaponSpread(Int id, Int pellets, Int spreadPercent) {
+        return weapons.setSpread(id, pellets, spreadPercent)
     }
 
     Bool addActor(Int id, Int startingHealth, Int startingArmor) {
@@ -729,6 +766,71 @@ class CombatWorld {
             damage.applied(), damage.remainingHealth(), damage.died(),
             eventQueue.lastSequence())
     }
+    ResolutionResult resolveShotgun(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var sourceIndex = findActor(sourceId)
+        var targetIndex = findActor(targetId)
+        if (sourceIndex < 0 || targetIndex < 0 ||
+            !alive[sourceIndex] || !alive[targetIndex] ||
+            tick < 0 || distance < 0 ||
+            (critical != 0 && critical != 1)) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var weaponId = weaponIds[sourceIndex]
+        var pelletCount = weapons.pellets(weaponId)
+        if (!weapons.has(weaponId) || distance > weapons.range(weaponId) ||
+            pelletCount <= 0 ||
+            eventQueue.sequences.length - eventQueue.pending() < pelletCount) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var totalApplied = 0
+        var remainingHealth = health[targetIndex]
+        var targetDied = false
+        var baseDamage = effectiveDamage(sourceId, weapons.damage(weaponId))
+        for (var pellet = 0; pellet < pelletCount; pellet = pellet + 1) {
+            if (!alive[targetIndex]) {
+                break
+            }
+            var spread = weapons.spread(weaponId) * pellet / pelletCount
+            var spreadReduction = baseDamage * spread / 100
+            var pelletDamage = baseDamage
+            if (spreadReduction >= pelletDamage) {
+                pelletDamage = 1
+            } else {
+                pelletDamage = pelletDamage - spreadReduction
+            }
+            var damage = applyDamage(DamageRequest(
+                sourceId, targetId, pelletDamage,
+                weapons.channel(weaponId), critical))
+            if (!damage.accepted() ||
+                !eventQueue.push(
+                    4, sourceId, targetId, damage.applied(),
+                    damage.remainingHealth(), damage.died())) {
+                return ResolutionResult(false, shot.shotId(), sourceId, targetId,
+                    0, 0, false, 0)
+            }
+            if (damage.applied() > 1000000 - totalApplied) {
+                totalApplied = 1000000
+            } else {
+                totalApplied = totalApplied + damage.applied()
+            }
+            remainingHealth = damage.remainingHealth()
+            if (damage.died()) {
+                targetDied = true
+                break
+            }
+        }
+        return ResolutionResult(
+            true, shot.shotId(), sourceId, targetId,
+            totalApplied, remainingHealth, targetDied,
+            eventQueue.lastSequence())
+    }
+
 
     ProjectileState spawnProjectile(Int sourceId, Int tick) {
         var sourceIndex = findActor(sourceId)

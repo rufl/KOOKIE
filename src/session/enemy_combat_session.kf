@@ -420,6 +420,9 @@ class AuthoritativeEnemySession {
     Bool equipWeapon(Int actorId, Int weaponId) {
         return combat.equipWeapon(actorId, weaponId)
     }
+    Bool setWeaponSpread(Int weaponId, Int pellets, Int spreadPercent) {
+        return combat.setWeaponSpread(weaponId, pellets, spreadPercent)
+    }
     Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {
         return combat.setDamageModifier(actorId, flatValue, percentValue)
     }
@@ -564,6 +567,17 @@ class AuthoritativeEnemySession {
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
         var result = combat.resolveHitscan(
+            sourceId, targetId, tick, distance, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+
+    ResolutionResult playerShotgun(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var result = combat.resolveShotgun(
             sourceId, targetId, tick, distance, critical)
         if (result.accepted()) {
             consumeCombatEvents(tick)

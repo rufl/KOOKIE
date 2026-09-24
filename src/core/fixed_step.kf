@@ -48,6 +48,16 @@ class FixedStepClock {
         accumulator = 0
         return true
     }
+    Bool setState(Int tickValue, Int pendingValue) {
+        if (tickValue < 0 || pendingValue < 0 ||
+            pendingValue >= stepMicros) {
+            return false
+        }
+        currentTick = tickValue
+        accumulator = pendingValue
+        droppedMicros = 0
+        return true
+    }
 
     Int tickRate() {
         return rate

@@ -964,6 +964,27 @@ test "area damage resolves bounded target batches" {
     assert(!rejected.accepted() && combat.currentHealth(2) == 20,
         "area damage must reject duplicate targets without mutation")
 }
+test "bounded shotgun pellets share damage authority" {
+    var combat = CombatWorld(2, 1)
+    assert(combat.defineWeapon(12, 2, 0, 0, 100, 1, 30) &&
+        combat.setWeaponSpread(12, 3, 20) &&
+        combat.addActor(1, 1000, 0) &&
+        combat.addActor(2, 1000, 0) &&
+        combat.equipWeapon(1, 12) &&
+        !combat.setWeaponSpread(12, 9, 10))
+    var blast = combat.resolveShotgun(1, 2, 0, 30, 0)
+    assert(blast.accepted() && blast.applied() == 281 &&
+        blast.remainingHealth() == 719 &&
+        combat.magazine(1) == 1 && combat.pendingCombatEvents() == 3,
+        "shotgun must consume one shell and publish bounded pellet hits")
+    assert(combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().kind() == 4 &&
+        combat.dequeueCombatEvent() &&
+        combat.dequeueCombatEvent() &&
+        combat.pendingCombatEvents() == 0,
+        "shotgun pellet events must preserve deterministic order")
+}
+
 
 
 test "focus loss clears held input and queued fire" {
@@ -1092,6 +1113,27 @@ test "loopback replay stages commands into simulation" {
         loopback.serverPosition(1) == 1,
         "loopback replay must queue staged commands for authoritative execution")
 }
+test "loopback replay applies checkpoint state" {
+    var timeline = BoundedReplayTimeline(2, 4)
+    var snapshot = new Int[4]
+    snapshot[0] = 3
+    snapshot[1] = 42
+    snapshot[2] = 0
+    snapshot[3] = 9
+    assert(timeline.appendCheckpointSnapshot(3, 101, snapshot) &&
+        timeline.append(InputCommand(4, 1, 1, 0, 0, 0, 0, 0)))
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.applyReplayCheckpoint(timeline, 4) &&
+        loopback.currentServerTick() == 3 &&
+        loopback.serverPosition(1) == 42 &&
+        loopback.queueReplayCommands(1, timeline, 4) &&
+        loopback.advance(16667) == 1 &&
+        loopback.currentServerTick() == 4 &&
+        loopback.serverPosition(1) == 43,
+        "loopback replay must restore checkpoint position and tick")
+}
+
 
 test "bounded replay wire and file codecs" {
     var replay = InputReplayRecorder(2)
