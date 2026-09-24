@@ -330,6 +330,34 @@ class LoopbackSession {
     Int enemyCombatShield(Int actorId) {
         return enemyCombat.currentShield(actorId)
     }
+    Int enemyState(Int enemyId) {
+        return enemyCombat.enemyState(enemyId)
+    }
+
+    Int enemyTarget(Int enemyId) {
+        return enemyCombat.enemyTarget(enemyId)
+    }
+
+    Int enemySpatialPositionX(Int enemyId) {
+        return enemyCombat.enemySpatialPositionX(enemyId)
+    }
+
+    Int enemySpatialPositionY(Int enemyId) {
+        return enemyCombat.enemySpatialPositionY(enemyId)
+    }
+
+    Int enemySpatialPositionZ(Int enemyId) {
+        return enemyCombat.enemySpatialPositionZ(enemyId)
+    }
+
+    Int enemyEncounterActiveCount(Int encounterId) {
+        return enemyCombat.encounterActiveCount(encounterId)
+    }
+
+    Int enemyEncounterRemainingBudget(Int encounterId) {
+        return enemyCombat.encounterRemainingBudget(encounterId)
+    }
+
     ResolutionResult resolveEnemyHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {

@@ -436,16 +436,107 @@ class AuthoritativeEnemySession {
     Bool setResistance(Int actorId, Int channel, Int percentValue) {
         return combat.setResistance(actorId, channel, percentValue)
     }
+
     Int replayStateLength() {
-        return combat.allReplayStateLength()
+        return combat.allReplayStateLength() +
+            enemies.replayStateLength() +
+            spatial.replayStateLength() +
+            encounters.replayStateLength() +
+            linkedEnemyIds.length * 3
     }
 
     Bool encodeReplayState(Int[] target) {
-        return combat.encodeAllReplayState(target)
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        var combatLength = combat.allReplayStateLength()
+        var enemyLength = enemies.replayStateLength()
+        var spatialLength = spatial.replayStateLength()
+        var encounterLength = encounters.replayStateLength()
+        var combatState = new Int[combatLength]
+        var enemyState = new Int[enemyLength]
+        var spatialState = new Int[spatialLength]
+        var encounterState = new Int[encounterLength]
+        if (!combat.encodeAllReplayState(combatState) ||
+            !enemies.encodeReplayState(enemyState) ||
+            !spatial.encodeReplayState(spatialState) ||
+            !encounters.encodeReplayState(encounterState)) {
+            return false
+        }
+        var offset = 0
+        for (var index = 0; index < combatLength; index = index + 1) {
+            target[offset + index] = combatState[index]
+        }
+        offset = offset + combatLength
+        for (var enemyIndex = 0; enemyIndex < enemyLength; enemyIndex = enemyIndex + 1) {
+            target[offset + enemyIndex] = enemyState[enemyIndex]
+        }
+        offset = offset + enemyLength
+        for (var spatialIndex = 0; spatialIndex < spatialLength; spatialIndex = spatialIndex + 1) {
+            target[offset + spatialIndex] = spatialState[spatialIndex]
+        }
+        offset = offset + spatialLength
+        for (var encounterIndex = 0; encounterIndex < encounterLength; encounterIndex = encounterIndex + 1) {
+            target[offset + encounterIndex] = encounterState[encounterIndex]
+        }
+        offset = offset + encounterLength
+        for (var linkIndex = 0; linkIndex < linkedEnemyIds.length; linkIndex = linkIndex + 1) {
+            target[offset] = linkedEnemyIds[linkIndex]
+            target[offset + 1] = linkedEncounterIds[linkIndex]
+            target[offset + 2] = 0
+            if (linkedActive[linkIndex]) {
+                target[offset + 2] = 1
+            }
+            offset = offset + 3
+        }
+        return true
     }
 
     Bool restoreReplayState(Int[] source) {
-        return combat.restoreAllReplayState(source)
+        if (source.length != replayStateLength()) {
+            return false
+        }
+        var combatLength = combat.allReplayStateLength()
+        var enemyLength = enemies.replayStateLength()
+        var spatialLength = spatial.replayStateLength()
+        var encounterLength = encounters.replayStateLength()
+        var combatState = new Int[combatLength]
+        var enemyState = new Int[enemyLength]
+        var spatialState = new Int[spatialLength]
+        var encounterState = new Int[encounterLength]
+        var offset = 0
+        for (var index = 0; index < combatLength; index = index + 1) {
+            combatState[index] = source[offset + index]
+        }
+        offset = offset + combatLength
+        for (var enemyIndex = 0; enemyIndex < enemyLength; enemyIndex = enemyIndex + 1) {
+            enemyState[enemyIndex] = source[offset + enemyIndex]
+        }
+        offset = offset + enemyLength
+        for (var spatialIndex = 0; spatialIndex < spatialLength; spatialIndex = spatialIndex + 1) {
+            spatialState[spatialIndex] = source[offset + spatialIndex]
+        }
+        offset = offset + spatialLength
+        for (var encounterIndex = 0; encounterIndex < encounterLength; encounterIndex = encounterIndex + 1) {
+            encounterState[encounterIndex] = source[offset + encounterIndex]
+        }
+        offset = offset + encounterLength
+        if (!combat.restoreAllReplayState(combatState) ||
+            !enemies.restoreReplayState(enemyState) ||
+            !spatial.restoreReplayState(spatialState) ||
+            !encounters.restoreReplayState(encounterState)) {
+            return false
+        }
+        for (var linkIndex = 0; linkIndex < linkedEnemyIds.length; linkIndex = linkIndex + 1) {
+            if (source[offset + 2] < 0 || source[offset + 2] > 1) {
+                return false
+            }
+            linkedEnemyIds[linkIndex] = source[offset]
+            linkedEncounterIds[linkIndex] = source[offset + 1]
+            linkedActive[linkIndex] = source[offset + 2] == 1
+            offset = offset + 3
+        }
+        return true
     }
 
 
@@ -864,6 +955,23 @@ class AuthoritativeEnemySession {
 
     Int encounterActiveCount(Int encounterId) {
         return encounters.activeCount(encounterId)
+    }
+
+
+    Int enemySpatialPositionX(Int enemyId) {
+        return spatial.positionX(enemyId)
+    }
+
+    Int enemySpatialPositionY(Int enemyId) {
+        return spatial.positionY(enemyId)
+    }
+
+    Int enemySpatialPositionZ(Int enemyId) {
+        return spatial.positionZ(enemyId)
+    }
+
+    Int encounterRemainingBudget(Int encounterId) {
+        return encounters.remainingBudget(encounterId)
     }
 
     Int pendingCombatEvents() {

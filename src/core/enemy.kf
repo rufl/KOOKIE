@@ -356,6 +356,55 @@ class EnemySpatialWorld {
         }
         return positionsZ[index]
     }
+    Int replayStateLength() {
+        return 3 + ids.length * 5
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9501
+        target[1] = 1
+        target[2] = maxDistance
+        var offset = 3
+        for (var index = 0; index < ids.length; index = index + 1) {
+            target[offset] = ids[index]
+            target[offset + 1] = 0
+            if (active[index]) {
+                target[offset + 1] = 1
+            }
+            target[offset + 2] = positionsX[index]
+            target[offset + 3] = positionsY[index]
+            target[offset + 4] = positionsZ[index]
+            offset = offset + 4
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9501 || source[1] != 1 ||
+            source[2] <= 0) {
+            return false
+        }
+        var offset = 3
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1) {
+                return false
+            }
+            ids[index] = source[offset]
+            active[index] = source[offset + 1] == 1
+            positionsX[index] = source[offset + 2]
+            positionsY[index] = source[offset + 3]
+            positionsZ[index] = source[offset + 4]
+            offset = offset + 4
+        }
+        maxDistance = source[2]
+        return true
+    }
+
 }
 
 
@@ -581,6 +630,65 @@ class EnemyStateWorld {
     Int attackRangeValue() {
         return attackRange
     }
+    Int replayStateLength() {
+        return 5 + ids.length * 6
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9401
+        target[1] = 1
+        target[2] = perceptionRange
+        target[3] = attackRange
+        target[4] = attackCooldown
+        var offset = 5
+        for (var index = 0; index < ids.length; index = index + 1) {
+            target[offset] = ids[index]
+            target[offset + 1] = 0
+            if (active[index]) {
+                target[offset + 1] = 1
+            }
+            target[offset + 2] = states[index]
+            target[offset + 3] = targets[index]
+            target[offset + 4] = stateSinceTicks[index]
+            target[offset + 5] = attackReadyTicks[index]
+            offset = offset + 6
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9401 || source[1] != 1 ||
+            source[2] < 0 || source[3] < 0 ||
+            source[3] > source[2] || source[4] < 0 ||
+            (source[2] == 0 && source[3] != 0)) {
+            return false
+        }
+        var offset = 5
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1 || !validState(source[offset + 2]) ||
+                source[offset + 3] < 0 || source[offset + 4] < 0 ||
+                source[offset + 5] < 0) {
+                return false
+            }
+            ids[index] = source[offset]
+            active[index] = source[offset + 1] == 1
+            states[index] = source[offset + 2]
+            targets[index] = source[offset + 3]
+            stateSinceTicks[index] = source[offset + 4]
+            attackReadyTicks[index] = source[offset + 5]
+            offset = offset + 6
+        }
+        perceptionRange = source[2]
+        attackRange = source[3]
+        attackCooldown = source[4]
+        return true
+    }
+
 }
 
 class EncounterDirector {
@@ -751,4 +859,67 @@ class EncounterDirector {
         }
         return remainingBudgets[index]
     }
+    Int replayStateLength() {
+        return 2 + ids.length * 10
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9601
+        target[1] = 1
+        var offset = 2
+        for (var index = 0; index < ids.length; index = index + 1) {
+            target[offset] = ids[index]
+            target[offset + 1] = 0
+            if (active[index]) {
+                target[offset + 1] = 1
+            }
+            target[offset + 2] = maxActive[index]
+            target[offset + 3] = remainingBudgets[index]
+            target[offset + 4] = activeCounts[index]
+            target[offset + 5] = zoneX[index]
+            target[offset + 6] = zoneY[index]
+            target[offset + 7] = zoneZ[index]
+            target[offset + 8] = zoneRadius[index]
+            target[offset + 9] = 0
+            if (zoneConfigured[index]) {
+                target[offset + 9] = 1
+            }
+            offset = offset + 10
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9601 || source[1] != 1) {
+            return false
+        }
+        var offset = 2
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1 || source[offset + 2] < 0 ||
+                source[offset + 3] < 0 || source[offset + 4] < 0 ||
+                source[offset + 4] > source[offset + 2] ||
+                source[offset + 8] < 0 || source[offset + 9] < 0 ||
+                source[offset + 9] > 1) {
+                return false
+            }
+            ids[index] = source[offset]
+            active[index] = source[offset + 1] == 1
+            maxActive[index] = source[offset + 2]
+            remainingBudgets[index] = source[offset + 3]
+            activeCounts[index] = source[offset + 4]
+            zoneX[index] = source[offset + 5]
+            zoneY[index] = source[offset + 6]
+            zoneZ[index] = source[offset + 7]
+            zoneRadius[index] = source[offset + 8]
+            zoneConfigured[index] = source[offset + 9] == 1
+            offset = offset + 10
+        }
+        return true
+    }
+
 }
