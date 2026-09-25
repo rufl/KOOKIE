@@ -1,8 +1,23 @@
 # KOOKIE working memory
 
-Last updated after the 2026-09-24 dogfood packaging batch. Start with [README](README.md), then [CHANGELOG](CHANGELOG.md) and the active backlog. Bounded foundations execute; milestone acceptance gates are not complete.
+Bounded foundations execute; milestone acceptance gates are not complete.
 
 ## Latest batch
+
+- Remote broad-phase pumping now uses the caller's monotonic tick as the
+  sequence, so reconnect resumes at sequence 9 instead of restarting at the
+  next local counter.
+- The isolated precommit matrix passed lint, LSP, JVM/native checks (63/63 on
+  each target), exception and SIMD gates, interaction probe, package smoke and
+  JVM/native builds.
+- The SDL adapter smoke remains safely deferred when the isolated-display PSI
+  gate blocks execution; DRI3 screenshot proof and authenticated two-client LAN
+  proof remain external qualification gates.
+- Fresh internal dogfood archives are in `release/native` and
+  `release/windows`; remote Chopper/DDJARIN activation still lacks devices and
+  authenticated registry access.
+
+## Previous batch
 
 - Consumed interaction commands now persist in replay bundle v2 and re-simulate between full checkpoints. Capture reserves 64 slots; playback covers at most 4096 ticks, one explicit movement stream and both interaction players. Disable capture before playback; export captures before disabling.
 - Level progression uses section 11/version 1, level/content identity and exact stable IDs. Schema file v2 supports configured capacities up to 12 sections × 160 words and checksummed duplicate copies; genuine v1 files remain readable. This is not crash-durable publication or authentication.
