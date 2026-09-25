@@ -13,6 +13,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Windows remains a JVM qualification package, not native Kof/PE support.
 - Remote Chopper/DDJARIN publication remains blocked until authenticated device
   access and registry rollout are available.
+- Fixed remote broad-phase pump sequencing to use the caller's monotonic tick;
+  reconnect now resumes at sequence 9 in the native transport probe instead of
+  silently restarting at the next local counter.
 
 ## 2026-09-24
 

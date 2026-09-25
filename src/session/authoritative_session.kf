@@ -2430,11 +2430,10 @@ class LoopbackSession {
 
     Bool pumpRemoteBroadPhaseSnapshot(Int tick) {
         if (!started || !remoteLink.connected() ||
-            remoteSendSequenceValue == 2147483647) {
+            tick <= remoteSendSequenceValue) {
             return false
         }
-        return queueRemoteBroadPhaseSnapshot(
-            tick, remoteSendSequenceValue + 1)
+        return queueRemoteBroadPhaseSnapshot(tick, tick)
     }
 
     Int remoteSendSequence() {
