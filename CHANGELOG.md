@@ -7,7 +7,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 ### Qualification batch
 
 - Replaced the scoped local dogfood archives with fresh Linux native
-  `0.1.0-dogfood.10` and Windows JVM `0.1.0-dogfood.jvm.10` packages.
+  `0.1.0-dogfood.11` and Windows JVM `0.1.0-dogfood.jvm.11` packages.
 - Revalidated the interaction probe and package smoke gate before rebuilding;
   each archive has target-specific SHA256SUMS and OVERZEER provenance metadata.
 - Windows remains a JVM qualification package, not native Kof/PE support.
