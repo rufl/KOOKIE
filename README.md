@@ -49,11 +49,14 @@ KOOKIE_RUNTIME=jvm KOOKIE_VERSION=0.1.0-dogfood.jvm.1 \
 scripts/package_kookie.sh
 ```
 
-The JVM archive contains `kookie.jar` and an executable `kookie` launcher, so
-OVERZEER still validates the same application descriptor. It is a Linux
-qualification fallback, not proof of native Windows support.
-Windows packaging intentionally fails until the Kof compiler can produce a
-real Windows target; an archive-shaped lie would be a poor deployment strategy.
+The Windows JVM archive contains the Kof executable JAR, an embedded Windows
+JDK, a PE launcher, SDL3, and `kookie-visual.exe`. The OVERZEER Windows
+shortcut targets `kookie-visual.exe`, which opens the SDL visual qualification
+window; `kookie.exe` remains the console/runtime smoke launcher.
+
+Windows native Kof packaging still fails closed until the Kof compiler can
+produce a real Windows target. The visual package exercises the SDL/window
+boundary and is not proof of native Kof execution.
 
 The full gate is for final pre-commit verification (in Pi, after `/precommit-matrix`):
 

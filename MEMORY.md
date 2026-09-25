@@ -14,12 +14,14 @@ Bounded foundations execute; milestone acceptance gates are not complete.
   gate blocks execution; DRI3 screenshot proof and authenticated two-client LAN
   proof remain external qualification gates.
 - Fresh internal dogfood archives are in `release/native` and
-  `release/windows`; build `b902d46` is active on CHOPPER/Linux and
-  DDJARIN/Windows through OVERZEER.
-- Remote state confirms exact active archive SHA-256 and byte-size provenance:
-  Linux `f43891833d468e475d92572d5e23a9bafa7690ae2df019c243de656a328e6664`
-  (252643 bytes), Windows `93e1aeda4c816488120444bd8ba92a51361f87d32cbd0d3900f30d2e91b19c2b`
-  (205517816 bytes).
+  `release/windows`; build `b902d46` is active on CHOPPER/Linux through
+  OVERZEER.
+- DDJARIN has active Windows JVM visual package `0.1.0-dogfood.jvm.15` from
+  build `aa407f2`. Its shortcut targets the bundled SDL `kookie-visual.exe`;
+  `kookie.exe` remains the console/runtime smoke launcher.
+- Remote Windows visual package provenance is exact:
+  `b0635b7af2e3d433d3aa0314cfbfb284d7cda5342e864c1b2816d74f64a7656d`
+  (206892573 bytes).
 
 ## Previous batch
 

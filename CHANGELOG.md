@@ -26,6 +26,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Remote state confirms both packages active with exact archive SHA-256 and
   byte-size provenance. Windows remains a JVM qualification package, not native
   Kof/PE support.
+- Added the Windows SDL visual qualification launcher and deployed
+  `0.1.0-dogfood.jvm.15` from build `aa407f2`; the Windows shortcut now opens
+  `kookie-visual.exe` instead of the console-only JVM launcher.
 
 ## 2026-09-24
 
