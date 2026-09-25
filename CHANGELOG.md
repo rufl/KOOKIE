@@ -2,6 +2,18 @@
 
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
+## 2026-09-25
+
+### Qualification batch
+
+- Replaced the scoped local dogfood archives with fresh Linux native
+  `0.1.0-dogfood.10` and Windows JVM `0.1.0-dogfood.jvm.10` packages.
+- Revalidated the interaction probe and package smoke gate before rebuilding;
+  each archive has target-specific SHA256SUMS and OVERZEER provenance metadata.
+- Windows remains a JVM qualification package, not native Kof/PE support.
+- Remote Chopper/DDJARIN publication remains blocked until authenticated device
+  access and registry rollout are available.
+
 ## 2026-09-24
 
 ### What moved forward
