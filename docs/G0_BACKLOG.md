@@ -96,8 +96,8 @@ This is the active bounded implementation sequence after the initial research an
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
 - Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its inspected native assembler links Linux ELF; native Windows builds are not established. A Windows compiler launcher is not proof of a Windows engine target.
-- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE has an OVERZEER source descriptor and Linux native/JVM package paths. Build `0baa1fe` is now active on CHOPPER/Linux and DDJARIN/Windows through the authenticated native deployment lane.
-- Remote state confirms both KOOKIE packages active with exact provenance. Linux is `0.1.0-dogfood.12` (`cecc4286fd7afd4c7671725806f881f9449898ad06c8e89d8c1b39cccf1fe315`, 252649 bytes); Windows is `0.1.0-dogfood.jvm.12` (`914c56c9343fc1bff0ef80028b78f4115e0bf448d60619936a598836aaeef544`, 205517870 bytes). Windows remains a JVM qualification package, not native Kof/PE support.
+- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE has an OVERZEER source descriptor and Linux native/JVM package paths. Build `b902d46` is now active on CHOPPER/Linux and DDJARIN/Windows through the authenticated native deployment lane.
+- Remote state confirms both KOOKIE packages active with exact provenance. Linux is `0.1.0-dogfood.13` (`f43891833d468e475d92572d5e23a9bafa7690ae2df019c243de656a328e6664`, 252643 bytes); Windows is `0.1.0-dogfood.jvm.13` (`93e1aeda4c816488120444bd8ba92a51361f87d32cbd0d3900f30d2e91b19c2b`, 205517816 bytes). Windows remains a JVM qualification package, not native Kof/PE support.
 - No KOOKIE-owned old archives were found in the scoped local release/cache stores. Other applications' packages and rollback state were left untouched.
 
 

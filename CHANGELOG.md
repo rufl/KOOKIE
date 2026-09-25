@@ -21,8 +21,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ### OVERZEER dogfood deployment
 
-- Deployed Linux native `0.1.0-dogfood.12` to CHOPPER and Windows JVM
-  `0.1.0-dogfood.jvm.12` to DDJARIN from build `0baa1fe`.
+- Deployed Linux native `0.1.0-dogfood.13` to CHOPPER and Windows JVM
+  `0.1.0-dogfood.jvm.13` to DDJARIN from build `b902d46`.
 - Remote state confirms both packages active with exact archive SHA-256 and
   byte-size provenance. Windows remains a JVM qualification package, not native
   Kof/PE support.

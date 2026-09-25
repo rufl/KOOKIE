@@ -14,11 +14,12 @@ Bounded foundations execute; milestone acceptance gates are not complete.
   gate blocks execution; DRI3 screenshot proof and authenticated two-client LAN
   proof remain external qualification gates.
 - Fresh internal dogfood archives are in `release/native` and
-  `release/windows`; build `0baa1fe` is active on CHOPPER/Linux and
+  `release/windows`; build `b902d46` is active on CHOPPER/Linux and
   DDJARIN/Windows through OVERZEER.
 - Remote state confirms exact active archive SHA-256 and byte-size provenance:
-  Linux `cecc4286fd7afd4c7671725806f881f9449898ad06c8e89d8c1b39cccf1fe315`,
-  Windows `914c56c9343fc1bff0ef80028b78f4115e0bf448d60619936a598836aaeef544`.
+  Linux `f43891833d468e475d92572d5e23a9bafa7690ae2df019c243de656a328e6664`
+  (252643 bytes), Windows `93e1aeda4c816488120444bd8ba92a51361f87d32cbd0d3900f30d2e91b19c2b`
+  (205517816 bytes).
 
 ## Previous batch
 
