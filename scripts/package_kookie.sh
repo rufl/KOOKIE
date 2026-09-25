@@ -70,8 +70,19 @@ if [[ "$TARGET" == windows-x86_64 ]]; then
     echo 'package_kookie: Windows JVM packaging requires KOOKIE_WINDOWS_JAVA_HOME containing bin/java.exe' >&2
     exit 2
   }
+  [[ -n "${KOOKIE_WINDOWS_SDL_HEADERS:-}" &&
+    -f "$KOOKIE_WINDOWS_SDL_HEADERS/SDL3/SDL.h" ]] || {
+    echo 'package_kookie: Windows visual packaging requires KOOKIE_WINDOWS_SDL_HEADERS containing SDL3/SDL.h' >&2
+    exit 2
+  }
+  [[ -n "${KOOKIE_WINDOWS_SDL_LIB:-}" &&
+    -f "$KOOKIE_WINDOWS_SDL_LIB/libSDL3.dll.a" &&
+    -f "$KOOKIE_WINDOWS_SDL_LIB/SDL3.dll" ]] || {
+    echo 'package_kookie: Windows visual packaging requires KOOKIE_WINDOWS_SDL_LIB containing libSDL3.dll.a and SDL3.dll' >&2
+    exit 2
+  }
   command -v zip >/dev/null || { echo 'package_kookie: zip is required for Windows JVM packaging' >&2; exit 2; }
-  command -v zig >/dev/null || { echo 'package_kookie: zig is required for the Windows JVM PE launcher' >&2; exit 2; }
+  command -v zig >/dev/null || { echo 'package_kookie: zig is required for the Windows launchers' >&2; exit 2; }
 fi
 
 if [[ -e "$OUTPUT_DIR" && ! -d "$OUTPUT_DIR" ]]; then
@@ -107,6 +118,12 @@ else
     zig cc -target x86_64-windows-gnu -O2 -s \
       "$ROOT_DIR/scripts/kookie_windows_launcher.c" \
       -o "$PACKAGE_ROOT/kookie.exe"
+    zig cc -target x86_64-windows-gnu -O2 -s -Wl,/subsystem:windows \
+      -I "$KOOKIE_WINDOWS_SDL_HEADERS" \
+      "$ROOT_DIR/scripts/kookie_windows_visual_smoke.c" \
+      -L "$KOOKIE_WINDOWS_SDL_LIB" -lSDL3 \
+      -o "$PACKAGE_ROOT/kookie-visual.exe"
+    cp -- "$KOOKIE_WINDOWS_SDL_LIB/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
     cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
 @echo off
 setlocal
