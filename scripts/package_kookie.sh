@@ -71,6 +71,7 @@ if [[ "$TARGET" == windows-x86_64 ]]; then
     exit 2
   }
   command -v zip >/dev/null || { echo 'package_kookie: zip is required for Windows JVM packaging' >&2; exit 2; }
+  command -v zig >/dev/null || { echo 'package_kookie: zig is required for the Windows JVM PE launcher' >&2; exit 2; }
 fi
 
 if [[ -e "$OUTPUT_DIR" && ! -d "$OUTPUT_DIR" ]]; then
@@ -103,11 +104,14 @@ else
   jar --create --file "$PACKAGE_ROOT/kookie.jar" --main-class Default.Main -C "$WORK_DIR/build" .
   if [[ "$TARGET" == windows-x86_64 ]]; then
     cp -a -- "$KOOKIE_WINDOWS_JAVA_HOME" "$PACKAGE_ROOT/jdk"
+    zig cc -target x86_64-windows-gnu -O2 -s \
+      "$ROOT_DIR/scripts/kookie_windows_launcher.c" \
+      -o "$PACKAGE_ROOT/kookie.exe"
     cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
 @echo off
 setlocal
 set "ROOT=%~dp0"
-"%ROOT%jdk\bin\java.exe" -jar "%ROOT%kookie.jar" %*
+"%ROOT%kookie.exe" %*
 exit /b %ERRORLEVEL%
 EOF
   else
