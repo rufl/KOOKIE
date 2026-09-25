@@ -23,7 +23,7 @@ tar -xzf "$ARCHIVE" -C "$WORK_DIR/extracted"
 BINARY="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/kookie"
 test -f "$BINARY"
 test -f "$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/LICENSE"
-"$BINARY" 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 loopback foundation verified'
+"$BINARY" --package-smoke 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 loopback foundation verified'
 
 KOOKIE_VERSION=0.1.0-dogfood.jvm-smoke \
 KOOKIE_BUILD_ID=package-jvm-smoke \
