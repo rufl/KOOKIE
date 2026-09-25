@@ -17,6 +17,16 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   reconnect now resumes at sequence 9 in the native transport probe instead of
   silently restarting at the next local counter.
 
+## 2026-09-26
+
+### OVERZEER dogfood deployment
+
+- Deployed Linux native `0.1.0-dogfood.12` to CHOPPER and Windows JVM
+  `0.1.0-dogfood.jvm.12` to DDJARIN from build `0baa1fe`.
+- Remote state confirms both packages active with exact archive SHA-256 and
+  byte-size provenance. Windows remains a JVM qualification package, not native
+  Kof/PE support.
+
 ## 2026-09-24
 
 ### What moved forward
