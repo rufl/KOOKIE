@@ -124,6 +124,9 @@ EOF
   fi
 fi
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
+if [[ "$TARGET" == windows-x86_64 ]]; then
+  cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.txt"
+fi
 cat > "$PACKAGE_ROOT/LICENSE" <<'EOF'
 KOOKIE INTERNAL DOGFOOD NOTICE
 
