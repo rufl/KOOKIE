@@ -2,6 +2,20 @@
 
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
+## 2026-09-26
+
+### ZTASH qualification release
+
+- Ran the focused interaction, lint/LSP, and package smoke gates successfully.
+- Built deployable release `0.1.0-dogfood.14` under `release/ztash`: Linux
+  native and Windows JVM visual qualification archives with SHA256SUMS and
+  immutable provenance metadata.
+- Deployed the same release identity to CHOPPER/Linux and DDJARIN/Windows
+  through the authenticated OVERZEER fleet lane.
+- Removed older generated KOOKIE release directories and temporary package
+  artifacts. DRI3 screenshot proof and authenticated two-client LAN proof
+  remain open qualification gates.
+
 ## 2026-09-25
 
 ### Qualification batch

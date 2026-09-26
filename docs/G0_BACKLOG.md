@@ -96,9 +96,10 @@ This is the active bounded implementation sequence after the initial research an
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
 - Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its inspected native assembler links Linux ELF; native Windows builds are not established. A Windows compiler launcher is not proof of a Windows engine target.
-- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE has an OVERZEER source descriptor and Linux native/JVM package paths. Build `b902d46` is now active on CHOPPER/Linux and DDJARIN/Windows through the authenticated native deployment lane.
-- Remote state confirms both KOOKIE packages active with exact provenance. Linux is `0.1.0-dogfood.13` (`f43891833d468e475d92572d5e23a9bafa7690ae2df019c243de656a328e6664`, 252643 bytes); Windows is `0.1.0-dogfood.jvm.13` (`93e1aeda4c816488120444bd8ba92a51361f87d32cbd0d3900f30d2e91b19c2b`, 205517816 bytes). Windows remains a JVM qualification package, not native Kof/PE support.
-- No KOOKIE-owned old archives were found in the scoped local release/cache stores. Other applications' packages and rollback state were left untouched.
+- ZTASH deployment uses target-specific `.tar.gz`/`.zip` archives and immutable provenance metadata, not a `.ztash` archive. KOOKIE release `0.1.0-dogfood.14` is staged under `release/ztash` with build `2af931b0cbd1`.
+- The release archives are Linux native (`43080a8ba55bad6f0b80b99cea80b3b3d3649e4175d173ef612514afd9302002`) and Windows JVM visual qualification (`83a84f65fbb5bf52145f64d292cf02b4bf372a2fe5c231bd72904db5a02bc61a`). Windows remains a JVM qualification package, not native Kof/PE support.
+- The same release identity deployed successfully to CHOPPER/Linux and DDJARIN/Windows. DDJARIN still reports shortcut installation unavailable because its running agent has not yet been updated with the Windows service-profile fallback.
+- Older generated KOOKIE release directories and temporary package artifacts were removed; `release/ztash` is the retained deployable release directory.
 
 
 ## Deferred
