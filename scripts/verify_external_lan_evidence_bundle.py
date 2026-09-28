@@ -150,6 +150,10 @@ def verify_bundle(bundle_path: Path) -> tuple[dict | None, str]:
             return None, "interaction revision is not complete"
         if not isinstance(evidence.get("combatDamage"), int) or evidence["combatDamage"] <= 0:
             return None, "combat damage evidence is not positive"
+        if evidence.get("combatDeath") is not True:
+            return None, "combat death evidence is not terminal"
+        if evidence.get("arenaTriangleCount") != 26:
+            return None, "authored arena evidence is incomplete"
         sequences = evidence.get("transportSequences")
         if not isinstance(sequences, dict) or any(
             not isinstance(sequences.get(name), int) or sequences[name] <= 0

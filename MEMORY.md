@@ -17,11 +17,15 @@ Bounded foundations execute; G0 and G1 acceptance gates are complete.
   capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- JVM/native checks, identical G1 runtime markers and 70/70 tests pass on each
+- JVM/native checks, identical G1 runtime markers and 71/71 tests pass on each
   target.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
+- The JVM/native three-process G2 regression transports all 26 authored arena
+  triangles, preserves stacked-room collision, uses versioned checksummed
+  interaction/state messages, reaches terminal server-owned combat death and
+  revision-4 key/door/secret/exit completion, and rejects stale input.
 
 ## Previous batch
 - Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Eighteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
@@ -81,10 +85,11 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 16. JOML1.10.9 from Minecraft26.3 worked with Kof JVM `--deps`: vector length/dot and matrix translation printed `5.0,25.0,5.0,4.0`. Same source/native rejected both Java imports with `PKG006`. This proves the narrow Java math path, not JNI/graphics or native JAR use.
 17. Authoritative broad-phase snapshots now traverse a fixed-capacity validated transport queue; overflow rejects without dropping queued payloads, then dequeue/apply updates client geometry with sequence guards.
 18. Headless GPU smoke now covers overlap depth two and clean device recreation with cached-resource rebuild; actual device-loss callbacks and retirement remain unimplemented.
-19. Native UDP transport uses authenticated SipHash framing over a fixed 78-word
-payload, requires explicit non-zero key provisioning before open, and exposes an
-atomic `kookie_transport_open_remote_ipv4` bind for validated peer address/port;
-it validates protocol/length/sequence with signed integer preservation and a
+19. Native UDP transport uses authenticated SipHash framing over a fixed
+300-word payload, enough for 32 bounded triangles, requires explicit non-zero
+key provisioning before open, and exposes an atomic
+`kookie_transport_open_remote_ipv4` bind for validated peer address/port. It
+validates protocol/length/sequence with signed integer preservation and a
 1,000 ms receive timeout; production key management remains unimplemented.
 20. GPU recovery now exposes unavailable/ready/lost/failed state transitions and rejects recovery without a live headless device; loss notification is an explicit probe marker, not an SDL device-loss callback.
 21. A claimed GPU window now requires a valid swapchain format through the present-capability probe; the Xvfb path still cannot claim DRI3 presentation.
@@ -131,11 +136,14 @@ render/readback all execute. The no-per-frame-growth claim is limited to
 unchanged staging capacities across 64 deterministic frames and persistent
 native scene buffers; it is not a 30-minute RSS/performance result.
 
-Next is G2: use the qualified transport and G1 arena for a host-plus-two-client
-start→fight→key/door→secret→exit LAN run, with server-owned outcomes,
-join/leave/reconnect diagnostics and complete door collision/render geometry.
-G5 retains sustained workload, RSS and frame-budget acceptance. `FFI001` still
-blocks Kof bulk-buffer calls into the optional SIMD kernel.
+G2 now has a qualified transport slice: host plus two clients exchange the
+complete G1 arena and checksummed gameplay commands/state through server-owned
+combat death and key/door/secret/exit completion on JVM and native. Closing G2
+still requires replicated player/enemy simulation and rewards, bounded
+join/leave/reconnect diagnostics, complete 3D door collision/render geometry,
+and integrated feedback/audio. G5 retains sustained workload, RSS and
+frame-budget acceptance. `FFI001` still blocks Kof bulk-buffer calls into the
+optional SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

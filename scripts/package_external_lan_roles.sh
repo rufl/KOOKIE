@@ -76,17 +76,20 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-mkdir -p "$PACKAGE_ROOT" "$source_dir/core" "$source_dir/session" "$WORK_DIR/metadata-classes"
+mkdir -p "$PACKAGE_ROOT" "$source_dir/core" "$source_dir/session" "$source_dir/world" "$WORK_DIR/metadata-classes"
 for core_file in "$ROOT_DIR"/src/core/*.kf; do
   ln -s "$core_file" "$source_dir/core/$(basename "$core_file")"
 done
 for session_file in "$ROOT_DIR"/src/session/*.kf; do
   ln -s "$session_file" "$source_dir/session/$(basename "$session_file")"
 done
+for world_file in "$ROOT_DIR"/src/world/*.kf; do
+  ln -s "$world_file" "$source_dir/world/$(basename "$world_file")"
+done
 {
-  sed -n '1,2p' "$ROOT_DIR/probes/g0_external_transport/main.kf"
+  sed -n '1,3p' "$ROOT_DIR/probes/g0_external_transport/main.kf"
   cat "$ROOT_DIR/probes/g0_external_transport_backends/transport_jvm.kf"
-  sed -n '3,$p' "$ROOT_DIR/probes/g0_external_transport/main.kf"
+  sed -n '4,$p' "$ROOT_DIR/probes/g0_external_transport/main.kf"
 } > "$source_dir/main.kf"
 
 javac --release "$JAVA_RELEASE" \

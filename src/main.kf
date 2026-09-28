@@ -96,6 +96,34 @@ main() {
     println("KOOKIE G1 authoritative shooter verified")
 
 }
+test "G2 gameplay wire validates commands and authoritative state" {
+    assert(maximumSessionTransportWords() ==
+        12 + maximumSessionTransportTriangles() * 9,
+        "transport capacity must fit the complete bounded arena snapshot")
+    var command = newInteractionCommandMessage(2, 3, 4, 5)
+    assert(validInteractionCommandMessage(command) &&
+        interactionCommandPlayer(command) == 2 &&
+        interactionCommandTick(command) == 3 &&
+        interactionCommandSequence(command) == 4 &&
+        interactionCommandTarget(command) == 5,
+        "interaction commands must round-trip bounded identity and ordering")
+    command[5] = 6
+    assert(!validInteractionCommandMessage(command),
+        "interaction commands must reject checksum-breaking mutation")
+
+    var state = newGameplayStateMessage(3, 4, true, 2, 0, 1, true)
+    assert(validGameplayStateMessage(state) &&
+        gameplayStateAccepted(state) &&
+        gameplayStateInteractionRevision(state) == 2 &&
+        gameplayStateCombatHealth(state) == 0 &&
+        gameplayStateSecretCount(state) == 1 &&
+        gameplayStateLevelCompleted(state),
+        "gameplay state must expose authoritative progression and combat")
+    state[9] = state[9] + 1
+    assert(!validGameplayStateMessage(state),
+        "gameplay state must reject checksum corruption")
+}
+
 test "bounded content package schema and identity" {
     var contentPackage = BoundedContentPackage(2, 2, 3)
     assert(contentPackage.configureHeader(7, 3, 11, 1, 100),

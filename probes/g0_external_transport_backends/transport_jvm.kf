@@ -8,8 +8,9 @@ import java.net.SocketTimeoutException
 
 class KookieJvmTransportState {
     static Int maxSlots = 4
-    static Int maxWords = 78
+    static Int maxWords = 300
     static Int headerWords = 6
+    static Int maxWireBytes = 1224
     static Int magic = 0x4b4f4f4b
     static Int version = 1
     static Int defaultTimeoutMilliseconds = 1000
@@ -30,9 +31,9 @@ class KookieJvmTransportState {
     static Int[] receiveCounts = new Int[4]
     static Int[] receiveSequences = new Int[4]
     static Int[] lastStatuses = new Int[4]
-    static Int[][] sendWords = new Int[4][78]
-    static Int[][] receiveWords = new Int[4][78]
-    static Byte[][] lastSendWires = new Byte[4][336]
+    static Int[][] sendWords = new Int[4][300]
+    static Int[][] receiveWords = new Int[4][300]
+    static Byte[][] lastSendWires = new Byte[4][1224]
     static Int[] lastSendLengths = new Int[4]
     static Bool[] lastSendValid = new Bool[4]
     static Long[] macState = new Long[4]
@@ -45,6 +46,10 @@ Bool kookie_transport_select_slot(Int slot) {
     }
     KookieJvmTransportState.activeSlot = slot
     return true
+}
+
+Int kookie_transport_max_words() {
+    return KookieJvmTransportState.maxWords
 }
 
 Int kookie_transport_unsigned_byte(Byte value) {
@@ -416,7 +421,7 @@ Bool kookie_transport_send_commit() {
     var payloadCount = KookieJvmTransportState.sendCounts[slot]
     var frameWords = KookieJvmTransportState.headerWords + payloadCount
     var byteCount = frameWords * 4
-    var wire = new Byte[336]
+    var wire = new Byte[KookieJvmTransportState.maxWireBytes]
     kookie_transport_put_word(wire, 0, KookieJvmTransportState.magic)
     kookie_transport_put_word(wire, 4, KookieJvmTransportState.version)
     kookie_transport_put_word(wire, 8, payloadCount)
@@ -475,7 +480,7 @@ Int kookie_transport_receive() {
     if (!KookieJvmTransportState.socketOpen[slot]) {
         return 0
     }
-    var wire = new Byte[336]
+    var wire = new Byte[KookieJvmTransportState.maxWireBytes]
     var packet = new DatagramPacket(wire, wire.length)
     try {
         KookieJvmTransportState.sockets[slot].receive(packet)
@@ -494,7 +499,8 @@ Int kookie_transport_receive() {
     KookieJvmTransportState.lastSenderPorts[slot] = packet.getPort()
     KookieJvmTransportState.lastSenderValid[slot] = true
     var byteCount = packet.getLength()
-    if (byteCount <= 0 || byteCount % 4 != 0 || byteCount > 336) {
+    if (byteCount <= 0 || byteCount % 4 != 0 ||
+        byteCount > KookieJvmTransportState.maxWireBytes) {
         KookieJvmTransportState.receiveCounts[slot] = 0
         KookieJvmTransportState.lastStatuses[slot] = 3
         return 0

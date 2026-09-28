@@ -23,12 +23,15 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
 - progressão cooperativa de chave, porta, segredo e saída, replay de comandos e
   saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
-- um adaptador pequeno SDL3/SDL_GPU e sondas de transporte autenticado.
+- um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
+  na JVM e no nativo levam a arena completa de 26 triângulos, comandos/estado
+  com checksum, morte terminal e progressão até a revisão 4.
 
 As lacunas importantes continuam reais:
 
-- G2 ainda não conecta o transporte LAN qualificado ao fluxo completo
-  início→luta→chave/porta→segredo→saída da arena;
+- G2 ainda precisa de simulação replicada de jogadores/inimigos e recompensas,
+  diagnósticos limitados de entrada/saída/reconexão, geometria/colisão 3D
+  completa das portas e feedback/áudio integrado além do slice de transporte;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
 - saves duráveis contra crash, content cooker, física completa, áudio de
@@ -90,9 +93,10 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 ## Roadmap
 
-O próximo passo é G2: conectar transporte qualificado, arena criada, combate e
-interações em uma sessão LAN host mais dois clientes com o fluxo
-início→luta→chave/porta→segredo→saída e desconexão/reconexão limitadas.
+O próximo passo é concluir G2: ampliar o slice qualificado de arena, morte em
+combate e chave/porta/segredo/saída com host mais dois clientes para simulação
+replicada de jogadores/inimigos, recompensas, diagnósticos limitados de
+reconexão, portas 3D completas e feedback/áudio integrado.
 
 Adiado até os gates centrais estarem mais fortes:
 

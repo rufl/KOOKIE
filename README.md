@@ -21,12 +21,15 @@ G0 and G1 run on JVM and native Linux x86-64:
 - cooperative key, door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
-- a small SDL3/SDL_GPU adapter and authenticated transport probes.
+- a small SDL3/SDL_GPU adapter; JVM and native three-process transport
+  regressions carry the complete 26-triangle arena plus checksummed gameplay
+  commands/state through terminal combat death and revision-4 progression.
 
 The important gaps are still real:
 
-- G2 has not yet connected the qualified LAN transport to the complete
-  start→fight→key/door→secret→exit arena flow;
+- G2 still needs replicated player/enemy simulation and rewards, bounded
+  join/leave/reconnect diagnostics, complete 3D door collision/render geometry,
+  and integrated feedback/audio beyond the qualified transport slice;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, content cooking, full physics, production audio,
@@ -132,10 +135,10 @@ initially with Vulkan/SPIR-V.
 
 ## Roadmap
 
-Next is G2: connect the qualified transport, authored arena, combat and
-interaction systems into a host-plus-two-client
-start→fight→key/door→secret→exit LAN session, including bounded
-disconnect/reconnect behavior.
+Next is the rest of G2: extend the qualified host-plus-two-client arena,
+combat-death and key/door/secret/exit transport slice into replicated
+player/enemy simulation, rewards, bounded reconnect diagnostics, complete 3D
+doors and integrated feedback/audio.
 
 Deferred until the core gates are stronger:
 

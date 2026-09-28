@@ -19,10 +19,14 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- Checks JVM/nativo, marcadores G1 idênticos e 70/70 testes passam em cada alvo.
+- Checks JVM/nativo, marcadores G1 idênticos e 71/71 testes passam em cada alvo.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
+- A regressão G2 de três processos na JVM e no nativo transporta todos os 26
+  triângulos da arena, preserva colisão entre andares, usa mensagens de
+  interação/estado versionadas com checksum, chega à morte autoritativa e à
+  revisão 4 de chave/porta/segredo/saída e rejeita input obsoleto.
 
 ## Lote mais recente
 
@@ -30,8 +34,8 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
 - A progressão do nível usa seção 11/versão 1, identidade de nível/conteúdo e IDs estáveis exatos. O arquivo de schema v2 suporta capacidades configuradas até 12 seções × 160 palavras e cópias duplicadas com checksum; arquivos v1 genuínos continuam legíveis. Isso não equivale a publicação durável contra crash nem autenticação.
 - Corrigimos campos não inicializados de inventário/triângulos em checkpoints nativos, ticks de movimento consumidos, input mantido nas buscas e encaminhamento de registros completos de replay. Dezoito cenários focados e 20 regressões afetadas passaram na JVM/native; nenhuma matriz completa local foi executada.
 - Uma chamada nativa com muitos argumentos encaminhados por getters perdeu o argumento de disparo em uma reprodução focada. O replay agora enfileira o `InputCommand` existente em vez de reconstruir a chamada longa; não declaramos reparo do compilador.
-- O ciclo de vida do host loopback preserva posição e marcas d'água de sequência na reconexão, limpa comandos pendentes e rejeita input obsoleto. A prova LAN autenticada ainda está aberta; não arquivar o backlog ativo.
-- A reconexão da sessão remota agora preserva as marcas d'água de envio/recebimento do broad-phase ao fechar e reabrir; a sonda UDP nativa autenticada retoma na sequência 9 e rejeita snapshots antigos. A prova LAN autenticada com dois clientes continua aberta.
+- O ciclo de vida do host loopback preserva posição e marcas d'água de sequência na reconexão, limpa comandos pendentes e rejeita input obsoleto; a regressão LAN autenticada agora cobre esse pré-requisito com dois clientes.
+- A reconexão da sessão remota preserva as marcas d'água de envio/recebimento do broad-phase ao fechar e reabrir; a sonda UDP nativa retoma na sequência 9 e rejeita snapshots antigos, e o slice LAN de três processos passa na JVM e no nativo.
 - Linux x86-64 agora possui um construtor reproduzível de arquivo dogfood
   interno com `SHA256SUMS` e JSON de procedência. O empacotamento Windows
   nativo continua fechado: não há alvo Kof Windows, prova PE/runtime nem
@@ -89,10 +93,10 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 17. Snapshots broad-phase autoritativos agora atravessam uma fila de transporte de capacidade fixa e validada; overflow rejeita sem descartar payloads enfileirados, e dequeue/apply atualiza a geometria do cliente com guardas de sequência.
 18. O smoke GPU headless agora cobre profundidade de sobreposição dois e recriação limpa do dispositivo com reconstrução de recursos em cache; callbacks reais de perda e retirement continuam não implementados.
 19. O transporte nativo UDP usa framing SipHash autenticado sobre um payload
-fixo de 78 palavras, exige provisionamento explícito de chave não nula antes da
-abertura e valida protocolo/tamanho/sequência com preservação de inteiros com
-sinal e timeout de recebimento de 1.000 ms; gestão de chaves de produção ainda
-não foi implementada.
+fixo de 300 palavras, suficiente para 32 triângulos limitados, exige
+provisionamento explícito de chave não nula antes da abertura e valida
+protocolo/tamanho/sequência com preservação de inteiros com sinal e timeout de
+recebimento de 1.000 ms; gestão de chaves de produção ainda não foi implementada.
 20. A recuperação GPU agora expõe transições unavailable/ready/lost/failed e rejeita recuperação sem dispositivo headless ativo; a notificação de perda é um marcador explícito da sonda, não um callback SDL de perda de dispositivo.
 21. Uma janela GPU reivindicada agora exige formato de swapchain válido pela sonda de capacidades de apresentação; o caminho Xvfb ainda não consegue reivindicar apresentação DRI3.
 22. O transporte nativo pode ligar sockets UDP pareados no localhost, exige uma
@@ -139,12 +143,14 @@ por frame limita-se a capacidades de staging inalteradas em 64 frames
 determinísticos e buffers nativos persistentes; não é um resultado de
 RSS/desempenho por 30 minutos.
 
-O próximo passo é G2: usar transporte qualificado e arena G1 numa execução LAN
-host mais dois clientes com início→luta→chave/porta→segredo→saída, resultados
-pertencentes ao servidor, diagnósticos de entrada/saída/reconexão e geometria/
-colisão completa das portas. G5 mantém aceitação sustentada de carga, RSS e
-orçamento de frame. `FFI001` ainda bloqueia chamadas Kof com buffers em massa
-para o kernel SIMD opcional.
+G2 agora possui um slice de transporte qualificado: host mais dois clientes
+trocam a arena G1 completa e mensagens de gameplay com checksum até a morte
+autoritativa e a conclusão de chave/porta/segredo/saída na JVM e no nativo.
+Concluir G2 ainda exige simulação replicada de jogadores/inimigos e recompensas,
+diagnósticos limitados de entrada/saída/reconexão, geometria/colisão 3D completa
+das portas e feedback/áudio integrado. G5 mantém aceitação sustentada de carga,
+RSS e orçamento de frame. `FFI001` ainda bloqueia chamadas Kof com buffers em
+massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

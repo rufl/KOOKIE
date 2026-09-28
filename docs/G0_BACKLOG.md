@@ -130,6 +130,17 @@ This is the active bounded implementation sequence after the initial research an
   or `jvm`. JVM mode builds and launches three direct Kof JVM roles and uses
   the same role metadata and evidence validator as native mode; this expands
   local cross-target regression coverage without claiming separate-host proof.
+- Raised the shared authenticated UDP payload bound to 300 words (32 arena
+  triangles) and kept native/JVM transport capacities synchronized. The
+  three-process regression now exchanges the complete 26-triangle `G1Arena`
+  in both directions and proves stacked-room collision after receipt.
+- Added versioned checksummed interaction-command and authoritative gameplay
+  state messages. JVM/native role runs now prove terminal server-owned combat
+  death, revision-4 key/door/secret/exit completion, stale-command rejection
+  and client-visible authoritative state; retained evidence records death and
+  arena triangle count. This advances G2 but does not close its remaining
+  replicated simulation, rewards, reconnect diagnostics, 3D doors or
+  feedback/audio work.
 
 - `scripts/package_external_lan_roles.sh` builds Windows JVM host/client
   archives without embedding the raw key or run manifest. Its `.cmd`

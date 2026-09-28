@@ -15,7 +15,7 @@
 #include <unistd.h>
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
-#define KOOKIE_TRANSPORT_MAX_WORDS 78
+#define KOOKIE_TRANSPORT_MAX_WORDS 300
 #define KOOKIE_GPU_SCENE_MAX_VERTICES 128
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
@@ -731,6 +731,10 @@ int kookie_transport_local_port(void) {
         return 0;
     }
     return (int)ntohs(local.sin_port);
+}
+
+int kookie_transport_max_words(void) {
+    return KOOKIE_TRANSPORT_MAX_WORDS;
 }
 
 

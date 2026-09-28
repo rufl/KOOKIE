@@ -1,5 +1,6 @@
 import core
 import session
+import world
 
 
 Bool sendPayload(Int[] payload) {
@@ -48,51 +49,62 @@ Bool openRemoteSlot(Int slot, Int hostPort) {
         kookie_transport_open_remote_ipv4(127, 0, 0, 1, hostPort)
 }
 
-Int externalBoolWord(Bool value) {
-    if (value) {
-        return 1
-    }
-    return 0
-}
-Int[] externalRoleAction(Int player, Int sequence, Int tick, Int target) {
-    var payload = new Int[7]
-    payload[0] = 9001
-    payload[1] = 3
-    payload[2] = player
-    payload[3] = sequence
-    payload[4] = tick
-    payload[5] = target
-    payload[6] = 0
-    return payload
-}
-
-Bool externalRoleReceiveAck(Bool expected) {
+Bool externalRoleReceiveState(
+    Bool expected, Int minimumRevision, Bool completed
+) {
     var received = kookie_transport_receive()
-    if (received != 6 || kookie_transport_last_status() != 1) {
+    if (received != 10 || kookie_transport_last_status() != 1) {
+        println("external-state-receive-failed")
+        println(received)
+        println(kookie_transport_last_status())
         return false
     }
-    return kookie_transport_receive_word(0) == 9001 &&
-        kookie_transport_receive_word(1) == 2 &&
-        kookie_transport_receive_word(2) == externalBoolWord(expected) &&
-        kookie_transport_receive_word(3) >= 0
+    var state = new Int[10]
+    for (var index = 0; index < 10; index = index + 1) {
+        state[index] = kookie_transport_receive_word(index)
+    }
+    if (!validGameplayStateMessage(state)) {
+        println("external-state-invalid")
+        println(state[9])
+        println(gameplayMessageChecksum(state, 9))
+        return false
+    }
+    if (gameplayStateAccepted(state) != expected) {
+        println("external-state-acceptance-mismatch")
+        println(state[4])
+        return false
+    }
+    if (gameplayStateInteractionRevision(state) < minimumRevision) {
+        println("external-state-revision-behind")
+        println(gameplayStateInteractionRevision(state))
+        println(minimumRevision)
+        return false
+    }
+    if (gameplayStateCombatHealth(state) < 0 ||
+        gameplayStateLevelCompleted(state) != completed) {
+        println("external-state-authority-mismatch")
+        println(gameplayStateCombatHealth(state))
+        println(state[8])
+        return false
+    }
+    return true
 }
 
 Bool externalRoleSendAction(
-    Int player, Int sequence, Int tick, Int target, Bool expected
+    Int player, Int sequence, Int tick, Int target,
+    Bool expected, Int minimumRevision, Bool completed
 ) {
-    return sendPayload(externalRoleAction(player, sequence, tick, target)) &&
-        externalRoleReceiveAck(expected)
+    return sendPayload(
+            newInteractionCommandMessage(player, tick, sequence, target)) &&
+        externalRoleReceiveState(expected, minimumRevision, completed)
 }
 
-Bool externalRoleHostAck(LoopbackSession host, Bool accepted) {
-    var ack = new Int[6]
-    ack[0] = 9001
-    ack[1] = 2
-    ack[2] = externalBoolWord(accepted)
-    ack[3] = host.worldInteractionRevision()
-    ack[4] = host.playerCombatHealth(3)
-    ack[5] = host.clientWorldSecretCount()
-    return kookie_transport_set_peer_last_sender() && sendPayload(ack)
+Bool externalRoleHostState(
+    LoopbackSession host, Int tick, Int sequence, Bool accepted
+) {
+    var state = host.gameplayStateMessage(tick, sequence, accepted, 3)
+    return validGameplayStateMessage(state) &&
+        kookie_transport_set_peer_last_sender() && sendPayload(state)
 }
 
 Bool externalRoleHostReceiveSnapshot(
@@ -101,7 +113,7 @@ Bool externalRoleHostReceiveSnapshot(
     if (!receivePayload(host, expected, true)) {
         return false
     }
-    return externalRoleHostAck(host, true)
+    return kookie_transport_set_peer_last_sender() && sendPayload(expected)
 }
 
 Bool externalRoleHostReceiveAction(
@@ -115,40 +127,51 @@ Bool externalRoleHostReceiveAction(
 ) {
     if (!kookie_transport_select_slot(slot) ||
         kookie_transport_receive() != 7 ||
-        kookie_transport_last_status() != 1 ||
-        kookie_transport_receive_word(0) != 9001 ||
-        kookie_transport_receive_word(1) != 3 ||
-        kookie_transport_receive_word(2) != player ||
-        kookie_transport_receive_word(3) != sequence ||
-        kookie_transport_receive_word(4) != tick ||
-        kookie_transport_receive_word(5) != target) {
+        kookie_transport_last_status() != 1) {
         return false
     }
-    var accepted = host.receiveInteraction(player, tick, sequence, target)
+    var command = new Int[7]
+    for (var index = 0; index < command.length; index = index + 1) {
+        command[index] = kookie_transport_receive_word(index)
+    }
+    if (!validInteractionCommandMessage(command) ||
+        interactionCommandPlayer(command) != player ||
+        interactionCommandSequence(command) != sequence ||
+        interactionCommandTick(command) != tick ||
+        interactionCommandTarget(command) != target) {
+        return false
+    }
+    var accepted = host.applyRemoteInteractionCommand(command)
     if (advance && accepted) {
         accepted = host.advance(16667) == 1
     }
-    return externalRoleHostAck(host, accepted)
+    return externalRoleHostState(host, tick, sequence, accepted)
 }
 
 Bool externalRoleHostQualification() {
+    var arena = G1Arena()
     var host = LoopbackSession(4, 4)
-    assert(host.defineWorldKey(1, 0, 0, 0, 0) &&
+    assert(arena.ready() &&
+        kookie_transport_max_words() == maximumSessionTransportWords() &&
+        host.defineWorldKey(1, 0, 0, 0, 0) &&
         host.defineWorldDoor(2, 1, 0, 0, 0, 0) &&
         host.defineWorldSecret(3, 0, 0, 0, 0) &&
         host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
         host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
-        host.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
+        host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        host.broadPhaseTriangleCount() == arena.triangleCount() &&
         host.definePlayerWeapon(9, 2, 0, 0, 4, 1, 20) &&
         host.addPlayerCombatActor(1, 20, 0) &&
         host.addPlayerCombatActor(3, 8, 0) &&
         host.equipPlayerCombatWeapon(1, 9),
-        "external host must configure production session")
+        "external host must configure the authored production session")
     var healthBeforeShot = host.playerCombatHealth(3)
-    var shot = host.resolvePlayerHitscan(1, 3, 1, 10, 0)
-    assert(shot.accepted() && shot.applied() > 0 &&
-        host.playerCombatHealth(3) < healthBeforeShot,
-        "external host must apply server-owned damage")
+    var firstShot = host.resolvePlayerHitscan(1, 3, 1, 10, 0)
+    var secondShot = host.resolvePlayerHitscan(1, 3, 2, 10, 0)
+    assert(firstShot.accepted() && firstShot.applied() > 0 &&
+        secondShot.accepted() && secondShot.died() &&
+        host.playerCombatHealth(3) == 0,
+        "external host must own damage and the terminal death transition")
     assert(kookie_transport_select_slot(0) &&
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_listen_ipv4(47101) &&
@@ -163,6 +186,13 @@ Bool externalRoleHostQualification() {
         kookie_transport_select_slot(1) &&
         externalRoleHostReceiveSnapshot(host, expectedB),
         "external host must authenticate two client snapshots")
+    assert(host.clientBroadPhaseTriangleCount() == arena.triangleCount(),
+        "external host must receive the complete authored arena")
+    var upperFloor = host.queryClientBroadPhasePath(
+        host.clientBroadPhaseRevision(),
+        SpatialPoint(24, 12, 20), SpatialPoint(24, 6, 20))
+    assert(upperFloor.accepted() && upperFloor.collided(),
+        "transported arena must retain stacked-room collision")
     assert(externalRoleHostReceiveAction(host, 0, 1, 1, 1, 1, false) &&
         externalRoleHostReceiveAction(host, 1, 2, 1, 1, 2, false) &&
         host.advance(16667) == 1 &&
@@ -196,6 +226,10 @@ Bool externalRoleHostQualification() {
     println("external-host-reconnect")
     println("external-combat-damage")
     println(healthBeforeShot - host.playerCombatHealth(3))
+    println("external-combat-death")
+    println(1)
+    println("external-arena-triangles")
+    println(host.clientBroadPhaseTriangleCount())
     println("external-interaction-revision")
     println(host.worldInteractionRevision())
     println("external-authenticated-two-clients")
@@ -221,6 +255,7 @@ Bool externalRoleHostQualification() {
 }
 
 Bool externalRoleClientQualification(Int clientId) {
+    var arena = G1Arena()
     var client = LoopbackSession(4, 4)
     var hostFirstOctet = kookie_transport_external_host_octet(0)
     var hostSecondOctet = kookie_transport_external_host_octet(1)
@@ -235,9 +270,10 @@ Bool externalRoleClientQualification(Int clientId) {
     var endpoint = RemoteSessionEndpoint(
         hostFirstOctet, hostSecondOctet, hostThirdOctet, hostFourthOctet,
         hostPort, 1, 2, 3, 4)
-    assert(endpoint.valid() &&
+    assert(arena.ready() && endpoint.valid() &&
+        kookie_transport_max_words() == maximumSessionTransportWords() &&
         client.start() &&
-        client.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
+        client.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         kookie_transport_select_slot(0) &&
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_remote_environment(hostPort) &&
@@ -248,15 +284,18 @@ Bool externalRoleClientQualification(Int clientId) {
             endpoint.keyWord(2), endpoint.keyWord(3)) &&
         client.openRemoteSession() &&
         client.pumpRemoteBroadPhaseSnapshot(snapshotTick),
-        "external client must authenticate and stage its snapshot")
+        "external client must authenticate and stage the authored arena")
     var snapshot = client.broadPhaseSnapshot(
         snapshotTick, client.remoteSendSequence())
-    assert(sendPayload(snapshot) && externalRoleReceiveAck(true),
-        "external client must complete authenticated snapshot exchange")
+    assert(snapshot.length == 12 + arena.triangleCount() * 9 &&
+        snapshot.length <= kookie_transport_max_words() &&
+        sendPayload(snapshot) && receivePayload(client, snapshot, false) &&
+        client.clientBroadPhaseTriangleCount() == arena.triangleCount(),
+        "external client must receive the complete authoritative arena")
     if (clientId == 1) {
-        assert(externalRoleSendAction(1, 1, 1, 1, true) &&
-            externalRoleSendAction(1, 1, 2, 3, false) &&
-            externalRoleSendAction(1, 2, 2, 3, true),
+        assert(externalRoleSendAction(1, 1, 1, 1, true, 0, false) &&
+            externalRoleSendAction(1, 1, 2, 3, false, 2, false) &&
+            externalRoleSendAction(1, 2, 2, 3, true, 2, false),
             "client one must prove stale and accepted interaction sequence")
     } else {
         assert(client.closeRemoteSession(),
@@ -268,12 +307,12 @@ Bool externalRoleClientQualification(Int clientId) {
                 endpoint.keyWord(2), endpoint.keyWord(3)) &&
             client.openRemoteSession(),
             "client two must reopen its remote session")
-        assert(externalRoleSendAction(2, 1, 1, 2, true),
+        assert(externalRoleSendAction(2, 1, 1, 2, true, 0, false),
             "client two must send the key interaction after reconnect")
-        assert(externalRoleSendAction(2, 2, 2, 3, true),
+        assert(externalRoleSendAction(2, 2, 2, 3, true, 2, false),
             "client two must send the secret interaction after reconnect")
-        assert(externalRoleSendAction(2, 3, 3, 4, true),
-            "client two must send the exit interaction after reconnect")
+        assert(externalRoleSendAction(2, 3, 3, 4, true, 4, true),
+            "client two must receive the completed authoritative state")
     }
     client.closeRemoteSession()
     kookie_transport_close()
@@ -303,22 +342,25 @@ main() {
         assert(externalRoleClientQualification(2),
             "external client B role must qualify")
     } else {
+    var arena = G1Arena()
     var host = LoopbackSession(4, 4)
     var clientA = LoopbackSession(4, 4)
     var clientB = LoopbackSession(4, 4)
     var endpointA = RemoteSessionEndpoint(127, 0, 0, 1, 47101, 1, 2, 3, 4)
     var endpointB = RemoteSessionEndpoint(127, 0, 0, 1, 47102, 1, 2, 3, 4)
-    assert(endpointA.valid() && endpointB.valid() &&
+    assert(arena.ready() &&
+        kookie_transport_max_words() == maximumSessionTransportWords() &&
+        endpointA.valid() && endpointB.valid() &&
         host.defineWorldKey(1, 0, 0, 0, 0) &&
         host.defineWorldDoor(2, 1, 0, 0, 0, 0) &&
         host.defineWorldSecret(3, 0, 0, 0, 0) &&
         host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
         host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
         clientA.start() && clientB.start() &&
-        host.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
-        clientA.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
-        clientB.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
-        "transport-only sessions must configure bounded geometry")
+        host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        clientA.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        clientB.loadAuthoredBroadPhase(arena.authoredCollision()),
+        "transport sessions must configure the complete authored arena")
     var hostPortA = 47101
     var hostPortB = 47102
     assert(kookie_transport_select_slot(0), "host slot A must select")
@@ -390,31 +432,45 @@ main() {
         host.equipPlayerCombatWeapon(1, 9),
         "host must configure authoritative combat")
     var healthBeforeShot = host.playerCombatHealth(3)
-    var shot = host.resolvePlayerHitscan(1, 3, 1, 10, 0)
-    assert(shot.accepted() && shot.applied() > 0 &&
-        host.playerCombatHealth(3) < healthBeforeShot,
-        "host must apply server-owned damage")
-    assert(host.receiveInteraction(1, 1, 1, 1) &&
-        host.receiveInteraction(2, 1, 1, 2) &&
+    var firstShot = host.resolvePlayerHitscan(1, 3, 1, 10, 0)
+    var secondShot = host.resolvePlayerHitscan(1, 3, 2, 10, 0)
+    assert(firstShot.accepted() && firstShot.applied() > 0 &&
+        secondShot.accepted() && secondShot.died() &&
+        host.playerCombatHealth(3) == 0,
+        "host must own damage and the terminal death transition")
+    assert(host.applyRemoteInteractionCommand(
+            newInteractionCommandMessage(1, 1, 1, 1)) &&
+        host.applyRemoteInteractionCommand(
+            newInteractionCommandMessage(2, 1, 1, 2)) &&
         host.advance(16667) == 1 &&
         host.lastInteractionAccepted(1) &&
         host.lastInteractionAccepted(2) &&
         host.worldInteractionActive(1) &&
         host.worldInteractionActive(2),
-        "host must admit key then door progression")
-    assert(!host.receiveInteraction(1, 2, 1, 3) &&
-        host.receiveInteraction(1, 2, 2, 3) &&
-        host.receiveInteraction(2, 2, 2, 3) &&
+        "host must admit key then door gameplay messages")
+    assert(!host.applyRemoteInteractionCommand(
+            newInteractionCommandMessage(1, 2, 1, 3)) &&
+        host.applyRemoteInteractionCommand(
+            newInteractionCommandMessage(1, 2, 2, 3)) &&
+        host.applyRemoteInteractionCommand(
+            newInteractionCommandMessage(2, 2, 2, 3)) &&
         host.advance(16667) == 1 &&
         host.worldSecretCount() == 1 &&
         host.clientWorldSecretCount() == 1,
-        "host must reject stale input and replicate one secret")
-    assert(host.receiveInteraction(2, 3, 3, 4) &&
+        "host must reject stale gameplay messages and replicate one secret")
+    assert(host.applyRemoteInteractionCommand(
+            newInteractionCommandMessage(2, 3, 3, 4)) &&
         host.advance(16667) == 1 &&
         host.levelCompleted() &&
         host.clientLevelCompleted() &&
         host.worldInteractionRevision() == 4,
-        "host must complete the authenticated key-door-secret-exit path")
+        "host must complete the versioned key-door-secret-exit path")
+    var completedState = host.gameplayStateMessage(3, 3, true, 3)
+    assert(validGameplayStateMessage(completedState) &&
+        gameplayStateCombatHealth(completedState) == 0 &&
+        gameplayStateInteractionRevision(completedState) == 4 &&
+        gameplayStateLevelCompleted(completedState),
+        "authoritative state must expose death and completed progression")
     assert(host.disconnectPlayer(2) &&
         host.connectPlayer() == 2 &&
         host.clientLevelCompleted(),
@@ -427,6 +483,10 @@ main() {
     println("external-host-reconnect")
     println("external-combat-damage")
     println(healthBeforeShot - host.playerCombatHealth(3))
+    println("external-combat-death")
+    println(1)
+    println("external-arena-triangles")
+    println(host.broadPhaseTriangleCount())
     println("external-interaction-revision")
     println(host.worldInteractionRevision())
     var hostPayloadA = host.broadPhaseSnapshot(6, 1)
@@ -438,8 +498,15 @@ main() {
         kookie_transport_select_slot(1) &&
         kookie_transport_set_peer_ipv4(127, 0, 0, 1, reconnectClientPortB) &&
         sendPayload(hostPayloadB) && kookie_transport_select_slot(3) &&
-        receivePayload(clientB, hostPayloadB, false),
-        "host must serve authenticated snapshots to both clients")
+        receivePayload(clientB, hostPayloadB, false) &&
+        clientA.clientBroadPhaseTriangleCount() == arena.triangleCount() &&
+        clientB.clientBroadPhaseTriangleCount() == arena.triangleCount(),
+        "host must serve the complete authored arena to both clients")
+    var clientUpperFloor = clientA.queryClientBroadPhasePath(
+        clientA.clientBroadPhaseRevision(),
+        SpatialPoint(24, 12, 20), SpatialPoint(24, 6, 20))
+    assert(clientUpperFloor.accepted() && clientUpperFloor.collided(),
+        "client arena snapshot must retain stacked-room collision")
     assert(kookie_transport_select_slot(2) &&
         kookie_transport_replay_last_datagram() &&
         kookie_transport_select_slot(0) &&

@@ -20,6 +20,14 @@ Int broadPhaseSnapshotKind() {
     return 2
 }
 
+Int maximumSessionTransportWords() {
+    return 300
+}
+
+Int maximumSessionTransportTriangles() {
+    return 32
+}
+
 Int[] newBroadPhaseSnapshot(
     Int protocol, Int tick, Int sequence, Int geometryRevision,
     BoundedTriangleCollection collection
@@ -50,10 +58,12 @@ Int[] newBroadPhaseSnapshot(
 
 Bool validBroadPhaseSnapshot(Int[] words) {
     return words.length >= 12 &&
+        words.length <= maximumSessionTransportWords() &&
         words[0] == protocolVersion() &&
         words[1] == broadPhaseSnapshotKind() &&
         words[2] >= 0 && words[3] >= 0 && words[4] > 0 &&
-        words[5] >= 0 && words[6] <= words[9] &&
+        words[5] >= 0 && words[5] <= maximumSessionTransportTriangles() &&
+        words[6] <= words[9] &&
         words[7] <= words[10] && words[8] <= words[11] &&
         words.length == 12 + words[5] * 9
 }
@@ -75,6 +85,146 @@ Int broadPhaseSnapshotTriangleCount(Int[] words) {
 Bool broadPhaseSnapshotMatches(Int[] words, Int geometryRevision) {
     return validBroadPhaseSnapshot(words) &&
         words[4] == geometryRevision
+}
+
+Int interactionCommandMessageKind() {
+    return 3
+}
+
+Int gameplayStateMessageKind() {
+    return 4
+}
+
+Int gameplayMessageChecksum(Int[] words, Int length) {
+    if (length < 1 || length > words.length) {
+        return -1
+    }
+    var checksum = 0
+    for (var index = 0; index < length; index = index + 1) {
+        checksum = checksum + words[index] * (index + 1)
+    }
+    return checksum
+}
+
+Int[] newInteractionCommandMessage(
+    Int player, Int tick, Int sequence, Int target
+) {
+    var words = new Int[7]
+    words[0] = protocolVersion()
+    words[1] = interactionCommandMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = player
+    words[5] = target
+    words[6] = gameplayMessageChecksum(words, 6)
+    return words
+}
+
+Bool validInteractionCommandMessage(Int[] words) {
+    return words.length == 7 &&
+        words[0] == protocolVersion() &&
+        words[1] == interactionCommandMessageKind() &&
+        words[2] > 0 && words[2] <= 1000000 &&
+        words[3] > 0 && words[3] <= 1000000 &&
+        words[4] >= 1 && words[4] <= 2 &&
+        words[5] > 0 && words[5] <= 1000000 &&
+        words[6] == gameplayMessageChecksum(words, 6)
+}
+
+Int interactionCommandTick(Int[] words) {
+    if (!validInteractionCommandMessage(words)) {
+        return 0
+    }
+    return words[2]
+}
+
+Int interactionCommandSequence(Int[] words) {
+    if (!validInteractionCommandMessage(words)) {
+        return 0
+    }
+    return words[3]
+}
+
+Int interactionCommandPlayer(Int[] words) {
+    if (!validInteractionCommandMessage(words)) {
+        return 0
+    }
+    return words[4]
+}
+
+Int interactionCommandTarget(Int[] words) {
+    if (!validInteractionCommandMessage(words)) {
+        return 0
+    }
+    return words[5]
+}
+
+Int[] newGameplayStateMessage(
+    Int tick, Int sequence, Bool accepted,
+    Int interactionRevision, Int combatHealth, Int secretCount,
+    Bool levelCompleted
+) {
+    var words = new Int[10]
+    words[0] = protocolVersion()
+    words[1] = gameplayStateMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = 0
+    if (accepted) {
+        words[4] = 1
+    }
+    words[5] = interactionRevision
+    words[6] = combatHealth
+    words[7] = secretCount
+    words[8] = 0
+    if (levelCompleted) {
+        words[8] = 1
+    }
+    words[9] = gameplayMessageChecksum(words, 9)
+    return words
+}
+
+Bool validGameplayStateMessage(Int[] words) {
+    return words.length == 10 &&
+        words[0] == protocolVersion() &&
+        words[1] == gameplayStateMessageKind() &&
+        words[2] > 0 && words[2] <= 1000000 &&
+        words[3] > 0 && words[3] <= 1000000 &&
+        words[4] >= 0 && words[4] <= 1 &&
+        words[5] >= 0 && words[5] <= 1000000 &&
+        words[6] >= 0 && words[6] <= 1000000 &&
+        words[7] >= 0 && words[7] <= 64 &&
+        words[8] >= 0 && words[8] <= 1 &&
+        words[9] == gameplayMessageChecksum(words, 9)
+}
+
+Bool gameplayStateAccepted(Int[] words) {
+    return validGameplayStateMessage(words) && words[4] == 1
+}
+
+Int gameplayStateInteractionRevision(Int[] words) {
+    if (!validGameplayStateMessage(words)) {
+        return -1
+    }
+    return words[5]
+}
+
+Int gameplayStateCombatHealth(Int[] words) {
+    if (!validGameplayStateMessage(words)) {
+        return -1
+    }
+    return words[6]
+}
+
+Int gameplayStateSecretCount(Int[] words) {
+    if (!validGameplayStateMessage(words)) {
+        return -1
+    }
+    return words[7]
+}
+
+Bool gameplayStateLevelCompleted(Int[] words) {
+    return validGameplayStateMessage(words) && words[8] == 1
 }
 
 Int envelopeSequence(Int[] words) {
@@ -103,6 +253,9 @@ class BroadPhaseTransportQueue {
         var triangleCapacity = nextTriangleCapacity
         if (triangleCapacity <= 0) {
             triangleCapacity = 1
+        }
+        if (triangleCapacity > maximumSessionTransportTriangles()) {
+            triangleCapacity = maximumSessionTransportTriangles()
         }
         maxPacketWordsValue = 12 + triangleCapacity * 9
         packetLengths = new Int[packetCapacityValue]

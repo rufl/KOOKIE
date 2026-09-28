@@ -32,6 +32,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_select_slot(Int slot): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_max_words(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_pair(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
     Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
@@ -214,6 +215,9 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     var endpoint = RemoteSessionEndpoint(
         127, 0, 0, 1, 1, 1, 2, 3, 4)
     if (!endpoint.valid()) {
+        return false
+    }
+    if (kookie_transport_max_words() != maximumSessionTransportWords()) {
         return false
     }
     if (kookie_transport_open_pair()) {

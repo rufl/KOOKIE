@@ -303,6 +303,31 @@ class LoopbackSession {
         return true
     }
 
+    Bool applyRemoteInteractionCommand(Int[] words) {
+        if (!validInteractionCommandMessage(words)) {
+            return false
+        }
+        return receiveInteraction(
+            interactionCommandPlayer(words),
+            interactionCommandTick(words),
+            interactionCommandSequence(words),
+            interactionCommandTarget(words))
+    }
+
+    Int[] gameplayStateMessage(
+        Int tick, Int sequence, Bool accepted, Int combatActorId
+    ) {
+        var health = playerCombatHealth(combatActorId)
+        if (!started || tick <= 0 || tick > 1000000 ||
+            sequence <= 0 || sequence > 1000000 || health < 0) {
+            return new Int[0]
+        }
+        return newGameplayStateMessage(
+            tick, sequence, accepted,
+            worldInteractions.revision(), health,
+            worldInteractions.secretCount(), worldInteractions.completed())
+    }
+
     Bool consumeWorldInteractions(Int tick) {
         for (var player = 1; player <= 2; player = player + 1) {
             if (interactionTargets[player] != 0 && interactionTicks[player] <= tick) {

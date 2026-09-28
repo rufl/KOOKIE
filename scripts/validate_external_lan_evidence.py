@@ -100,6 +100,8 @@ def main() -> int:
         "KOOKIE_EXTERNAL_LAN_TOPOLOGY", "same-host-external-style")
     required = (
         "external-gameplay",
+        "external-combat-death",
+        "external-arena-triangles",
         "external-host-reconnect",
         "external-authenticated-two-clients",
         "external-stale-rejection",
@@ -123,6 +125,8 @@ def main() -> int:
     host_port_a = marker_value(lines, "external-host-port-a")
     host_port_b = marker_value(lines, "external-host-port-b")
     combat_damage = marker_value(lines, "external-combat-damage")
+    combat_death = marker_value(lines, "external-combat-death")
+    arena_triangles = marker_value(lines, "external-arena-triangles")
     interaction_revision = marker_value(lines, "external-interaction-revision")
     authentication_status = marker_value(
         lines, "external-authentication-status")
@@ -136,6 +140,10 @@ def main() -> int:
         return fail("invalid host listener port B")
     if combat_damage is None or combat_damage <= 0:
         return fail("server-owned combat damage was not positive")
+    if combat_death != 1:
+        return fail("server-owned combat death was not terminal")
+    if arena_triangles != 26:
+        return fail("complete authored arena did not traverse transport")
     if interaction_revision != 4:
         return fail("key-door-secret-exit revision was not 4")
     if authentication_status != 1:
@@ -299,6 +307,8 @@ def main() -> int:
         },
         "processExitStatuses": process_exit_statuses,
         "combatDamage": combat_damage,
+        "combatDeath": combat_death == 1,
+        "arenaTriangleCount": arena_triangles,
         "interactionRevision": interaction_revision,
         "transportKeySha256": hashlib.sha256(key_hex.encode("ascii")).hexdigest(),
         "probeLog": str(log_path),

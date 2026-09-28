@@ -73,17 +73,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$root_dir/build" "$source_dir/core" "$source_dir/session"
+mkdir -p "$root_dir/build" "$source_dir/core" "$source_dir/session" "$source_dir/world"
 for core_file in "$root_dir"/src/core/*.kf; do
   ln -s "$core_file" "$source_dir/core/$(basename "$core_file")"
 done
 for session_file in "$root_dir"/src/session/*.kf; do
   ln -s "$session_file" "$source_dir/session/$(basename "$session_file")"
 done
+for world_file in "$root_dir"/src/world/*.kf; do
+  ln -s "$world_file" "$source_dir/world/$(basename "$world_file")"
+done
 {
-  sed -n '1,2p' "$root_dir/probes/g0_external_transport/main.kf"
+  sed -n '1,3p' "$root_dir/probes/g0_external_transport/main.kf"
   cat "$root_dir/probes/g0_external_transport_backends/transport_${target}.kf"
-  sed -n '3,$p' "$root_dir/probes/g0_external_transport/main.kf"
+  sed -n '4,$p' "$root_dir/probes/g0_external_transport/main.kf"
 } > "$source_dir/main.kf"
 
 jvm_metadata_jar=""

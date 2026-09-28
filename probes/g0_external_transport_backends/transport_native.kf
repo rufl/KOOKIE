@@ -1,4 +1,5 @@
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_select_slot(Int slot): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_max_words(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_listen_ipv4(Int port): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
     Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
