@@ -1,0 +1,116 @@
+package ui
+
+import core
+
+class ShooterHud {
+    Int healthValue
+    Int maxHealthValue
+    Int ammunitionValue
+    Int maxAmmunitionValue
+    Int enemiesValue
+    Int tickValue
+    Bool focusedValue
+    Bool configuredValue
+
+    public constructor(Int maxHealth, Int maxAmmunition) {
+        healthValue = 0
+        maxHealthValue = maxHealth
+        if (maxHealthValue <= 0) {
+            maxHealthValue = 1
+        }
+        ammunitionValue = 0
+        maxAmmunitionValue = maxAmmunition
+        if (maxAmmunitionValue <= 0) {
+            maxAmmunitionValue = 1
+        }
+        enemiesValue = 0
+        tickValue = 0
+        focusedValue = false
+        configuredValue = false
+    }
+
+    Bool update(
+        Int health, Int ammunition,
+        Int enemies, Int tick, Bool focused
+    ) {
+        if (health < 0 || health > maxHealthValue ||
+            ammunition < 0 || ammunition > maxAmmunitionValue ||
+            enemies < 0 || tick < 0) {
+            return false
+        }
+        healthValue = health
+        ammunitionValue = ammunition
+        enemiesValue = enemies
+        tickValue = tick
+        focusedValue = focused
+        configuredValue = true
+        return true
+    }
+
+    Int renderVertexCount() {
+        return 18
+    }
+
+    Bool pushQuad(
+        FrameStaging target, Int resource,
+        Int left, Int bottom, Int right, Int top
+    ) {
+        return target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, bottom, 100, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, top, 0, 0)
+    }
+
+    Bool stage(FrameStaging target, Int frame, Int resourceBase) {
+        if (!configuredValue || resourceBase <= 0 ||
+            target.vertexCapacity() < renderVertexCount() ||
+            !target.begin(frame)) {
+            return false
+        }
+        var healthRight = -94 + (healthValue * 60) / maxHealthValue
+        var ammunitionRight = 32 +
+            (ammunitionValue * 60) / maxAmmunitionValue
+        var enemyWidth = enemiesValue * 12
+        if (enemyWidth < 8) {
+            enemyWidth = 8
+        }
+        if (enemyWidth > 60) {
+            enemyWidth = 60
+        }
+        var focusResource = resourceBase + 2
+        if (!focusedValue) {
+            focusResource = resourceBase + 3
+        }
+        if (!pushQuad(target, resourceBase, -94, -92, healthRight, -84) ||
+            !pushQuad(target, resourceBase + 1, 32, -92, ammunitionRight, -84) ||
+            !pushQuad(
+                target, focusResource,
+                -enemyWidth / 2, 84, enemyWidth / 2, 92)) {
+            target.discard()
+            return false
+        }
+        return target.publish()
+    }
+
+    Int health() {
+        return healthValue
+    }
+
+    Int ammunition() {
+        return ammunitionValue
+    }
+
+    Int enemies() {
+        return enemiesValue
+    }
+
+    Int tick() {
+        return tickValue
+    }
+
+    Bool focused() {
+        return focusedValue
+    }
+}

@@ -1,0 +1,236 @@
+package demo
+
+import core
+import session
+import world
+import ui
+
+class G1Demo {
+    G1Arena arena
+    LoopbackSession loopback
+    CameraState camera
+    ShooterHud hud
+    FrameStaging worldFrame
+    FrameStaging hudFrame
+    Int failureStepValue
+    Int worldCapacityValue
+    Int hudCapacityValue
+    Int worldChecksumValue
+    Int hudChecksumValue
+
+    public constructor() {
+        arena = G1Arena()
+        loopback = LoopbackSession(8, 4)
+        camera = CameraState(-450, 450)
+        hud = ShooterHud(20, 3)
+        worldFrame = FrameStaging(arena.renderVertexCount())
+        hudFrame = FrameStaging(hud.renderVertexCount())
+        failureStepValue = 0
+        worldCapacityValue = worldFrame.vertexCapacity()
+        hudCapacityValue = hudFrame.vertexCapacity()
+        worldChecksumValue = 0
+        hudChecksumValue = 0
+    }
+
+    Bool failAt(Int step) {
+        failureStepValue = step
+        return false
+    }
+
+    Bool prepareSession() {
+        if (!arena.ready() || arena.vertexCount() != 78 ||
+            arena.triangleCount() != 26 || arena.authoredChecksum() <= 0) {
+            return failAt(1)
+        }
+        if (!loopback.loadAuthoredBroadPhase(arena.authoredCollision()) ||
+            loopback.broadPhaseTriangleCount() != arena.triangleCount() ||
+            loopback.broadPhaseTriangleCapacity() != arena.triangleCapacity()) {
+            return failAt(2)
+        }
+        if (!loopback.configureEnemyRules(100, 20, 2) ||
+            !loopback.defineEnemyWeapon(7, 3, 0, 0, 3, 1, 20) ||
+            !loopback.defineEnemyEncounter(4, 1, 1) ||
+            !loopback.addEnemyCombatActor(1, 20, 0) ||
+            !loopback.equipEnemyCombatWeapon(1, 7)) {
+            return failAt(3)
+        }
+        if (!loopback.definePlayerWeapon(7, 3, 0, 0, 3, 1, 20) ||
+            !loopback.start() || loopback.connectPlayer() != 1 ||
+            loopback.connectPlayer() != 2 || loopback.playerCount() != 2) {
+            return failAt(4)
+        }
+        if (!loopback.addPlayerCombatActor(1, 20, 0) ||
+            !loopback.equipPlayerCombatWeapon(1, 7) ||
+            !loopback.admitEnemy(4, 3, 0, 5, 0, 7) ||
+            !loopback.configureEnemyPerception(3, 1, true, 40, 0)) {
+            return failAt(5)
+        }
+        if (!loopback.queueBroadPhaseSnapshot(0, 1) ||
+            !loopback.receiveBroadPhaseSnapshot() ||
+            loopback.clientBroadPhaseTriangleCount() != arena.triangleCount()) {
+            return failAt(6)
+        }
+        var upperStart = SpatialPoint(24, 12, 20)
+        var upperEnd = SpatialPoint(24, 6, 20)
+        var clientUpper = loopback.queryClientBroadPhasePath(
+            loopback.clientBroadPhaseRevision(), upperStart, upperEnd)
+        if (!clientUpper.accepted() || !clientUpper.collided()) {
+            return failAt(7)
+        }
+        return true
+    }
+
+    Bool runAuthoritativeSession() {
+        if (!loopback.predictClientInput(1, 4) ||
+            !loopback.applySnapshot(1, 0, 1, 0) ||
+            loopback.predictedPosition(1) != 4 ||
+            loopback.predictionCorrection(1) != 4 ||
+            loopback.pendingPredictionInputs(1) != 1) {
+            return failAt(8)
+        }
+        var firstCommand = InputCommand(1, 1, 3, 0, 0, 0, 1, 0)
+        var secondCommand = InputCommand(1, 1, 2, 0, 0, 0, 0, 1)
+        var staleCommand = InputCommand(1, 1, 4, 0, 0, 0, 1, 0)
+        if (!loopback.receiveInputCommand(1, firstCommand) ||
+            !loopback.receiveInputCommand(2, secondCommand) ||
+            loopback.receiveInputCommand(1, staleCommand) ||
+            loopback.advance(16667) != 1) {
+            return failAt(9)
+        }
+        if (loopback.serverPosition(1) != 3 ||
+            loopback.serverPosition(2) != 2 ||
+            loopback.pendingPredictionInputs(1) != 0 || !loopback.inSync()) {
+            return failAt(10)
+        }
+        if (loopback.lastInputEdges(1).firePressed() != 1 ||
+            loopback.playerWeaponPresentationCount() != 1 ||
+            !loopback.dequeuePlayerWeaponPresentation() ||
+            loopback.lastPlayerWeaponPresentation().actorId() != 1) {
+            return failAt(11)
+        }
+        var enemyHit = loopback.resolveEnemyHitscan(1, 3, 1, 10, 1)
+        if (!enemyHit.accepted() || !enemyHit.died() ||
+            loopback.enemyState(3) != 7) {
+            return failAt(12)
+        }
+        return true
+    }
+
+    Bool verifyFocusRecovery() {
+        var position = loopback.serverPosition(1)
+        var pending = InputCommand(2, 2, 4, 0, 0, 0, 1, 0)
+        if (!loopback.receiveInputCommand(1, pending) ||
+            !loopback.applyPlayerFocus(1, 0) ||
+            loopback.playerFocused(1) ||
+            loopback.lastInputEdges(1).fireReleased() != 1) {
+            return failAt(13)
+        }
+        var unfocused = InputCommand(3, 3, 4, 0, 0, 0, 1, 0)
+        if (loopback.advance(16667) != 1 ||
+            loopback.serverPosition(1) != position ||
+            loopback.playerWeaponPresentationCount() != 0 ||
+            loopback.receiveInputCommand(1, unfocused)) {
+            return failAt(14)
+        }
+        var resumed = InputCommand(3, 3, 2, 0, 0, 0, 1, 0)
+        if (!loopback.applyPlayerFocus(1, 1) ||
+            !loopback.receiveInputCommand(1, resumed) ||
+            loopback.advance(16667) != 1 ||
+            loopback.serverPosition(1) != position + 2 ||
+            loopback.playerWeaponPresentationCount() != 1 ||
+            !loopback.inSync()) {
+            return failAt(15)
+        }
+        return true
+    }
+
+    Bool verifyArenaContact() {
+        var rampProbe = arena.queryPath(
+            SpatialPoint(16, 10, 3), SpatialPoint(16, -2, 3))
+        if (!rampProbe.accepted() || !rampProbe.collided() ||
+            arena.lastHitSurface() != 2) {
+            return failAt(16)
+        }
+        var slopeMove = arena.movePath(
+            SpatialPoint(14, 3, 3), SpatialPoint(18, 5, 3))
+        if (!slopeMove.accepted() || !slopeMove.grounded() ||
+            !slopeMove.slopeAccepted()) {
+            return failAt(17)
+        }
+        var stairMove = arena.movePath(
+            SpatialPoint(2, 1, 20), SpatialPoint(6, 1, 20))
+        if (!stairMove.accepted() || !stairMove.stepped()) {
+            return failAt(18)
+        }
+        var upperRoom = arena.queryPath(
+            SpatialPoint(24, 12, 20), SpatialPoint(24, 6, 20))
+        if (!upperRoom.accepted() || !upperRoom.collided() ||
+            arena.lastHitSurface() != 7) {
+            return failAt(19)
+        }
+        var lowerRoom = arena.queryPath(
+            SpatialPoint(24, 7, 20), SpatialPoint(24, -2, 20))
+        if (!lowerRoom.accepted() || !lowerRoom.collided() ||
+            arena.lastHitSurface() != 6) {
+            return failAt(20)
+        }
+        return true
+    }
+
+    Bool verifyPresentation() {
+        if (!camera.applyLook(20, -20) ||
+            camera.currentYaw() != 20 || camera.currentPitch() != -20) {
+            return failAt(21)
+        }
+        var health = loopback.playerCombatHealth(1)
+        var ammunition = loopback.playerCombatMagazine(1)
+        var tick = loopback.currentClientTick()
+        var focused = loopback.playerFocused(1)
+        if (!hud.update(health, ammunition, 0, tick, focused)) {
+            return failAt(22)
+        }
+        for (var frame = 1; frame <= 64; frame = frame + 1) {
+            if (!arena.stage(worldFrame, frame, 1, camera) ||
+                !hud.stage(hudFrame, frame, 9) ||
+                worldFrame.stagedCount() != arena.renderVertexCount() ||
+                hudFrame.stagedCount() != hud.renderVertexCount()) {
+                return failAt(23)
+            }
+            if (frame == 1) {
+                worldChecksumValue = worldFrame.checksum()
+                hudChecksumValue = hudFrame.checksum()
+            } else if (worldFrame.checksum() != worldChecksumValue ||
+                hudFrame.checksum() != hudChecksumValue) {
+                return failAt(24)
+            }
+            if (!worldFrame.retire(frame) || !hudFrame.retire(frame)) {
+                return failAt(25)
+            }
+        }
+        if (worldFrame.vertexCapacity() != worldCapacityValue ||
+            hudFrame.vertexCapacity() != hudCapacityValue ||
+            worldFrame.scalarBudget() != worldCapacityValue * 5 ||
+            hudFrame.scalarBudget() != hudCapacityValue * 5) {
+            return failAt(26)
+        }
+        return true
+    }
+
+    Bool run() {
+        return prepareSession() && runAuthoritativeSession() &&
+            verifyFocusRecovery() && verifyArenaContact() &&
+            verifyPresentation()
+    }
+
+    Int failureStep() {
+        return failureStepValue
+    }
+
+    G1Arena authoredArena() {
+        return arena
+    }
+
+    ShooterHud shooterHud() {
+        return hud
+    }
+}

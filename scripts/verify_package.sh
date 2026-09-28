@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-package-smoke.XXXXXX")"
+cleanup() { rm -rf -- "$WORK_DIR"; }
+trap cleanup EXIT INT TERM
+
+KOOKIE_VERSION=0.1.0-dogfood.smoke \
+KOOKIE_BUILD_ID=package-smoke \
+"$ROOT_DIR/scripts/package_kookie.sh" --output "$WORK_DIR/release"
+
+(
+  cd "$WORK_DIR/release"
+  sha256sum --check SHA256SUMS >/dev/null
+)
+ARCHIVE="$WORK_DIR/release/kookie-0.1.0-dogfood.smoke-linux-x86_64.tar.gz"
+MANIFEST="$WORK_DIR/release/kookie-0.1.0-dogfood.smoke-linux-x86_64.json"
+test -f "$ARCHIVE" -a -f "$MANIFEST"
+mkdir "$WORK_DIR/extracted"
+tar -xzf "$ARCHIVE" -C "$WORK_DIR/extracted"
+BINARY="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/kookie"
+test -f "$BINARY"
+test -f "$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/LICENSE"
+"$BINARY" --package-smoke 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 authoritative shooter verified'
+
+KOOKIE_VERSION=0.1.0-dogfood.jvm-smoke \
+KOOKIE_BUILD_ID=package-jvm-smoke \
+"$ROOT_DIR/scripts/package_kookie.sh" --runtime jvm --output "$WORK_DIR/jvm-release"
+(
+  cd "$WORK_DIR/jvm-release"
+  sha256sum --check SHA256SUMS >/dev/null
+)
+JVM_ARCHIVE="$WORK_DIR/jvm-release/kookie-0.1.0-dogfood.jvm-smoke-linux-x86_64.tar.gz"
+JVM_MANIFEST="$WORK_DIR/jvm-release/kookie-0.1.0-dogfood.jvm-smoke-linux-x86_64.json"
+test -f "$JVM_ARCHIVE" -a -f "$JVM_MANIFEST"
+mkdir "$WORK_DIR/jvm-extracted"
+tar -xzf "$JVM_ARCHIVE" -C "$WORK_DIR/jvm-extracted"
+JVM_ROOT="$WORK_DIR/jvm-extracted/kookie-0.1.0-dogfood.jvm-smoke-linux-x86_64"
+JVM_OUTPUT="$("$JVM_ROOT/kookie" 2>"$WORK_DIR/jvm-runtime.err")" || {
+  cat "$WORK_DIR/jvm-runtime.err" >&2
+  exit 1
+}
+grep -Fq 'KOOKIE G1 authoritative shooter verified' <<<"$JVM_OUTPUT"
+python3 - "$JVM_MANIFEST" <<'PY'
+import json, pathlib, sys
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert manifest["schema"] == "kookie.package-provenance/v1"
+assert manifest["application"] == "kookie"
+assert manifest["target"] == "linux-x86_64"
+assert manifest["channel"] == "dogfood"
+assert manifest["signing"] == "unavailable"
+assert manifest["proof"] == "unavailable"
+PY
+python3 - "$MANIFEST" <<'PY'
+import json, pathlib, sys
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert manifest["schema"] == "kookie.package-provenance/v1"
+assert manifest["application"] == "kookie"
+assert manifest["target"] == "linux-x86_64"
+assert manifest["channel"] == "dogfood"
+assert manifest["signing"] == "unavailable"
+assert manifest["proof"] == "unavailable"
+PY
+if "$ROOT_DIR/scripts/package_kookie.sh" --target windows-x86_64 --output "$WORK_DIR/windows" >"$WORK_DIR/windows.out" 2>&1; then
+  echo 'package smoke: Windows native packaging unexpectedly succeeded' >&2
+  exit 1
+fi
+grep -Fq 'Windows native packaging is blocked' "$WORK_DIR/windows.out"
+printf 'KOOKIE package smoke passed: Linux archive, checksum, provenance, runtime, and Windows fail-closed gate\n'

@@ -1,0 +1,949 @@
+package core
+
+record EnemyStepResult(
+    Bool accepted, Int enemyId, Int state, Int targetId,
+    Bool attackReady, Bool transitioned
+)
+record EncounterSpawnResult(
+    Bool accepted, Int encounterId, Int enemyId,
+    Int activeCount, Int remainingBudget
+)
+record SpatialVisibilityResult(
+    Bool accepted, Bool visible, Int distance, Int hitStep
+)
+record EnemyMoveResult(
+    Bool accepted, Bool collided, Int enemyId,
+    Int resolvedX, Int resolvedY, Int resolvedZ
+)
+record SpatialSweepResult(
+    Bool accepted, Bool collided, Bool reached,
+    Int distance, Int resolvedX, Int resolvedY, Int resolvedZ
+)
+
+class EnemySpatialWorld {
+    BoundedTriangleCollection obstacles
+    EnemyNavigator navigator
+    BoundedNavigationProduct navigationProduct
+    Bool navigationProductLoaded
+    Int[] ids
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Bool[] active
+    Int maxDistance
+
+    public constructor(Int capacity, Int nextMaxDistance) {
+        maxDistance = nextMaxDistance
+        if (maxDistance <= 0) {
+            maxDistance = 1
+        }
+        obstacles = BoundedTriangleCollection(8, maxDistance)
+        navigator = EnemyNavigator(obstacles, 128, 64)
+        navigationProduct = BoundedNavigationProduct(1)
+        navigationProductLoaded = false
+        ids = new Int[capacity]
+        positionsX = new Int[capacity]
+        positionsY = new Int[capacity]
+        positionsZ = new Int[capacity]
+        active = new Bool[capacity]
+        for (var index = 0; index < capacity; index = index + 1) {
+            ids[index] = 0
+            positionsX[index] = 0
+            positionsY[index] = 0
+            positionsZ[index] = 0
+            active[index] = false
+        }
+    }
+
+    Bool configureBounds(
+        Int minX, Int minY, Int minZ,
+        Int maxX, Int maxY, Int maxZ
+    ) {
+        if (!obstacles.configureBounds(
+            minX, minY, minZ, maxX, maxY, maxZ)) {
+            return false
+        }
+        return navigator.configureBounds(
+            minX, minY, minZ, maxX, maxY, maxZ)
+    }
+
+    Bool addObstacle(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return obstacles.addTriangle(ax, ay, az, bx, by, bz, cx, cy, cz)
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+
+                return index
+            }
+        }
+        return -1
+    }
+    Bool hasPosition(Int id) {
+        return find(id) >= 0
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool setPosition(Int id, Int x, Int y, Int z) {
+        if (id <= 0) {
+            return false
+        }
+        var index = find(id)
+        if (index < 0) {
+            index = freeSlot()
+            if (index < 0) {
+                return false
+            }
+            ids[index] = id
+            active[index] = true
+        }
+        positionsX[index] = x
+        positionsY[index] = y
+        positionsZ[index] = z
+        return true
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Int segmentDistance(
+        Int firstX, Int firstY, Int firstZ,
+        Int secondX, Int secondY, Int secondZ
+    ) {
+        var distance = absolute(secondX - firstX)
+        if (absolute(secondY - firstY) > distance) {
+            distance = absolute(secondY - firstY)
+        }
+        if (absolute(secondZ - firstZ) > distance) {
+            distance = absolute(secondZ - firstZ)
+        }
+        return distance
+    }
+    Int distanceBetween(
+        Int firstX, Int firstY, Int firstZ,
+        Int secondX, Int secondY, Int secondZ
+    ) {
+        return segmentDistance(
+            firstX, firstY, firstZ, secondX, secondY, secondZ)
+    }
+
+
+    SpatialVisibilityResult visibility(Int sourceId, Int targetId, Int range) {
+        var sourceIndex = find(sourceId)
+        var targetIndex = find(targetId)
+        if (sourceIndex < 0 || targetIndex < 0 || range <= 0) {
+            return SpatialVisibilityResult(false, false, 0, -1)
+        }
+        var distance = segmentDistance(
+            positionsX[sourceIndex], positionsY[sourceIndex], positionsZ[sourceIndex],
+            positionsX[targetIndex], positionsY[targetIndex], positionsZ[targetIndex])
+        if (distance > range || distance > maxDistance) {
+            return SpatialVisibilityResult(false, false, distance, -1)
+        }
+        var result = obstacles.query(
+            positionsX[sourceIndex], positionsY[sourceIndex], positionsZ[sourceIndex],
+            positionsX[targetIndex], positionsY[targetIndex], positionsZ[targetIndex])
+        if (!result.accepted()) {
+            return SpatialVisibilityResult(false, false, distance, result.hitStep())
+        }
+        return SpatialVisibilityResult(
+            true, !result.collided(), distance, result.hitStep())
+    }
+    SpatialSweepResult traceSegment(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ, Int range
+    ) {
+        var distance = segmentDistance(startX, startY, startZ, endX, endY, endZ)
+        if (range < 0 || distance > range || distance > maxDistance) {
+            return SpatialSweepResult(false, false, false, distance, startX, startY, startZ)
+        }
+        var result = obstacles.query(startX, startY, startZ, endX, endY, endZ)
+        if (!result.accepted()) {
+            return SpatialSweepResult(false, false, false, distance, startX, startY, startZ)
+        }
+        if (result.collided()) {
+            return SpatialSweepResult(
+                true, true, false, result.hitStep(),
+                result.resolvedX(), result.resolvedY(), result.resolvedZ())
+        }
+        return SpatialSweepResult(true, false, true, distance, endX, endY, endZ)
+    }
+
+    EnemyMoveResult moveToward(Int enemyId, Int targetId, Int step) {
+        var enemyIndex = find(enemyId)
+        var targetIndex = find(targetId)
+        if (enemyIndex < 0 || targetIndex < 0 || step < 0 || step > maxDistance) {
+            return EnemyMoveResult(false, false, enemyId, 0, 0, 0)
+        }
+        var startX = positionsX[enemyIndex]
+        var startY = positionsY[enemyIndex]
+        var startZ = positionsZ[enemyIndex]
+
+        var deltaX = positionsX[targetIndex] - startX
+        var deltaY = positionsY[targetIndex] - startY
+        var deltaZ = positionsZ[targetIndex] - startZ
+        var distance = segmentDistance(
+            startX, startY, startZ,
+            positionsX[targetIndex], positionsY[targetIndex], positionsZ[targetIndex])
+        if (distance == 0) {
+            return EnemyMoveResult(true, false, enemyId, startX, startY, startZ)
+        }
+        var nextX = startX + (deltaX * step) / distance
+        var nextY = startY + (deltaY * step) / distance
+        var nextZ = startZ + (deltaZ * step) / distance
+        if (nextX == startX && nextY == startY && nextZ == startZ) {
+            if (absolute(deltaX) >= absolute(deltaY) &&
+                absolute(deltaX) >= absolute(deltaZ)) {
+                if (deltaX < 0) {
+                    nextX = startX - 1
+                } else {
+                    nextX = startX + 1
+                }
+            } else if (absolute(deltaY) >= absolute(deltaZ)) {
+                if (deltaY < 0) {
+                    nextY = startY - 1
+                } else {
+                    nextY = startY + 1
+                }
+            } else {
+                if (deltaZ < 0) {
+                    nextZ = startZ - 1
+                } else {
+                    nextZ = startZ + 1
+            }
+        }
+        }
+        var result = obstacles.query(
+            startX, startY, startZ, nextX, nextY, nextZ)
+        if (!result.accepted()) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        if (result.collided()) {
+            positionsX[enemyIndex] = result.resolvedX()
+            positionsY[enemyIndex] = result.resolvedY()
+            positionsZ[enemyIndex] = result.resolvedZ()
+            return EnemyMoveResult(
+                true, true, enemyId,
+                result.resolvedX(), result.resolvedY(), result.resolvedZ())
+        }
+        positionsX[enemyIndex] = nextX
+        positionsY[enemyIndex] = nextY
+        positionsZ[enemyIndex] = nextZ
+        return EnemyMoveResult(true, false, enemyId, nextX, nextY, nextZ)
+    }
+    Bool loadNavigationProduct(BoundedNavigationProduct product) {
+        if (!product.validate()) {
+            return false
+        }
+        navigationProduct = product
+        navigationProductLoaded = true
+        return true
+    }
+
+    Bool hasNavigationProduct() {
+        return navigationProductLoaded && navigationProduct.validate()
+    }
+
+    NavigationProductResult navigationProductRoute(Int startNodeId, Int targetNodeId) {
+        if (!hasNavigationProduct()) {
+            return NavigationProductResult(false, false, 0, 0, -1)
+        }
+        return navigationProduct.findRoute(startNodeId, targetNodeId)
+    }
+
+    NavigationResult navigation(Int enemyId, Int targetId) {
+        var enemyIndex = find(enemyId)
+        var targetIndex = find(targetId)
+        if (enemyIndex < 0 || targetIndex < 0) {
+            return NavigationResult(false, false, 0, 0, 0, 0, 0)
+        }
+        return navigator.findRoute(
+            positionsX[enemyIndex], positionsY[enemyIndex],
+            positionsZ[enemyIndex],
+            positionsX[targetIndex], positionsY[targetIndex],
+            positionsZ[targetIndex])
+    }
+
+    EnemyMoveResult moveTowardPoint(
+        Int enemyId, Int x, Int y, Int z, Int step
+    ) {
+        var enemyIndex = find(enemyId)
+        if (enemyIndex < 0 || step < 0 || step > maxDistance ||
+            !navigator.inside(x, y, z)) {
+            return EnemyMoveResult(false, false, enemyId, 0, 0, 0)
+        }
+        var startX = positionsX[enemyIndex]
+        var startY = positionsY[enemyIndex]
+        var startZ = positionsZ[enemyIndex]
+        var deltaX = x - startX
+        var deltaY = y - startY
+        var deltaZ = z - startZ
+        var distance = segmentDistance(
+            startX, startY, startZ, x, y, z)
+        if (distance == 0) {
+            return EnemyMoveResult(true, false, enemyId, startX, startY, startZ)
+        }
+        var nextX = startX + (deltaX * step) / distance
+        var nextY = startY + (deltaY * step) / distance
+        var nextZ = startZ + (deltaZ * step) / distance
+        if (nextX == startX && nextY == startY && nextZ == startZ) {
+            if (absolute(deltaX) >= absolute(deltaZ)) {
+                if (deltaX < 0) {
+                    nextX = startX - 1
+                } else {
+                    nextX = startX + 1
+                }
+            } else if (deltaZ < 0) {
+                nextZ = startZ - 1
+            } else {
+                nextZ = startZ + 1
+            }
+        }
+        var trace = obstacles.query(
+            startX, startY, startZ, nextX, nextY, nextZ)
+        if (!trace.accepted()) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        if (trace.collided()) {
+            positionsX[enemyIndex] = trace.resolvedX()
+            positionsY[enemyIndex] = trace.resolvedY()
+            positionsZ[enemyIndex] = trace.resolvedZ()
+            return EnemyMoveResult(
+                true, true, enemyId,
+                trace.resolvedX(), trace.resolvedY(), trace.resolvedZ())
+        }
+        positionsX[enemyIndex] = nextX
+        positionsY[enemyIndex] = nextY
+        positionsZ[enemyIndex] = nextZ
+        return EnemyMoveResult(true, false, enemyId, nextX, nextY, nextZ)
+    }
+
+    EnemySteeringResult steerToward(
+        Int enemyId, Int targetId, Int step
+    ) {
+        var route = navigation(enemyId, targetId)
+        if (!route.accepted()) {
+            return EnemySteeringResult(
+                false, false, false, enemyId, 0, route.expanded(), 0, 0, 0)
+        }
+        if (!route.found()) {
+            return EnemySteeringResult(
+                true, false, false, enemyId, 0, route.expanded(),
+                positionX(enemyId), positionY(enemyId), positionZ(enemyId))
+        }
+        var movement = moveTowardPoint(
+            enemyId, route.waypointX(), route.waypointY(),
+            route.waypointZ(), step)
+        return EnemySteeringResult(
+            movement.accepted(), true, movement.collided(), enemyId,
+            route.routeLength(), route.expanded(),
+            movement.resolvedX(), movement.resolvedY(), movement.resolvedZ())
+    }
+
+    Int positionX(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return positionsX[index]
+    }
+
+    Int positionY(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return positionsY[index]
+    }
+
+    Int positionZ(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return positionsZ[index]
+    }
+    Int replayStateLength() {
+        return 3 + ids.length * 5
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9501
+        target[1] = 2
+        target[2] = maxDistance
+        var offset = 3
+        for (var index = 0; index < ids.length; index = index + 1) {
+            target[offset] = ids[index]
+            target[offset + 1] = 0
+            if (active[index]) {
+                target[offset + 1] = 1
+            }
+            target[offset + 2] = positionsX[index]
+            target[offset + 3] = positionsY[index]
+            target[offset + 4] = positionsZ[index]
+            offset = offset + 5
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9501 || source[1] != 2 ||
+            source[2] <= 0) {
+            return false
+        }
+        var offset = 3
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1) {
+                return false
+            }
+            ids[index] = source[offset]
+            active[index] = source[offset + 1] == 1
+            positionsX[index] = source[offset + 2]
+            positionsY[index] = source[offset + 3]
+            positionsZ[index] = source[offset + 4]
+            offset = offset + 5
+        }
+        maxDistance = source[2]
+        return true
+    }
+
+}
+
+
+class EnemyStateWorld {
+    Int[] ids
+    Int[] states
+    Int[] targets
+    Int[] stateSinceTicks
+    Int[] attackReadyTicks
+    Bool[] active
+    Int perceptionRange
+    Int attackRange
+    Int attackCooldown
+
+    public constructor(Int capacity) {
+        ids = new Int[capacity]
+        states = new Int[capacity]
+        targets = new Int[capacity]
+        stateSinceTicks = new Int[capacity]
+        attackReadyTicks = new Int[capacity]
+        active = new Bool[capacity]
+        perceptionRange = 0
+        attackRange = 0
+        attackCooldown = 0
+        for (var index = 0; index < capacity; index = index + 1) {
+            ids[index] = 0
+            states[index] = 0
+            targets[index] = 0
+            stateSinceTicks[index] = 0
+            attackReadyTicks[index] = 0
+            active[index] = false
+        }
+    }
+
+    Bool configure(Int nextPerceptionRange, Int nextAttackRange, Int nextCooldown) {
+        if (nextPerceptionRange <= 0 || nextAttackRange <= 0 ||
+            nextAttackRange > nextPerceptionRange || nextCooldown < 0) {
+            return false
+        }
+        perceptionRange = nextPerceptionRange
+        attackRange = nextAttackRange
+        attackCooldown = nextCooldown
+        return true
+    }
+
+    Int idleState() {
+        return 0
+    }
+
+    Int patrolState() {
+        return 1
+    }
+
+    Int investigateState() {
+        return 2
+    }
+
+    Int chaseState() {
+        return 3
+    }
+
+    Int attackState() {
+        return 4
+    }
+
+    Int recoverState() {
+        return 5
+    }
+
+    Int staggerState() {
+        return 6
+    }
+
+    Int deadState() {
+        return 7
+    }
+
+    Bool validState(Int state) {
+        return state >= idleState() && state <= deadState()
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool addEnemy(Int id, Int tick) {
+        if (id <= 0 || tick < 0 || find(id) >= 0) {
+            return false
+        }
+        var index = freeSlot()
+        if (index < 0) {
+            return false
+        }
+        ids[index] = id
+        states[index] = idleState()
+        targets[index] = 0
+        stateSinceTicks[index] = tick
+        attackReadyTicks[index] = tick
+        active[index] = true
+        return true
+    }
+
+    Bool transition(Int id, Int nextState, Int tick) {
+        var index = find(id)
+        if (index < 0 || !validState(nextState) || tick < stateSinceTicks[index]) {
+            return false
+        }
+        if (states[index] == deadState() && nextState != deadState()) {
+            return false
+        }
+        if (states[index] != nextState) {
+            states[index] = nextState
+            stateSinceTicks[index] = tick
+        }
+        return true
+    }
+
+    EnemyStepResult step(
+        Int id, Int tick, Int targetId, Bool targetVisible, Int distance
+    ) {
+        var index = find(id)
+        if (index < 0 || tick < stateSinceTicks[index] || distance < 0 ||
+            (targetVisible && targetId <= 0) || perceptionRange <= 0) {
+            return EnemyStepResult(false, id, 0, 0, false, false)
+        }
+        if (states[index] == deadState()) {
+            return EnemyStepResult(true, id, deadState(), 0, false, false)
+        }
+        var priorState = states[index]
+        var attackReady = false
+        if (targetVisible && distance <= perceptionRange) {
+            targets[index] = targetId
+            if (distance <= attackRange) {
+                if (tick >= attackReadyTicks[index]) {
+                    states[index] = attackState()
+                    stateSinceTicks[index] = tick
+                    attackReadyTicks[index] = tick + attackCooldown
+                    attackReady = true
+                } else {
+                    states[index] = attackState()
+                }
+            } else {
+                states[index] = chaseState()
+                stateSinceTicks[index] = tick
+            }
+        } else {
+            targets[index] = 0
+            states[index] = investigateState()
+            stateSinceTicks[index] = tick
+        }
+        return EnemyStepResult(
+            true, id, states[index], targets[index], attackReady,
+            priorState != states[index])
+    }
+
+    Bool kill(Int id, Int tick) {
+        return transition(id, deadState(), tick)
+    }
+
+    Bool removeEnemy(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return false
+        }
+        active[index] = false
+        ids[index] = 0
+        states[index] = idleState()
+        targets[index] = 0
+        stateSinceTicks[index] = 0
+        attackReadyTicks[index] = 0
+        return true
+    }
+
+    Int state(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return states[index]
+    }
+
+    Int target(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return targets[index]
+    }
+
+    Int stateSince(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return stateSinceTicks[index]
+    }
+
+    Int attackReadyTick(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return attackReadyTicks[index]
+    }
+    Int perceptionRangeValue() {
+        return perceptionRange
+    }
+
+    Int attackRangeValue() {
+        return attackRange
+    }
+    Int replayStateLength() {
+        return 5 + ids.length * 6
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9401
+        target[1] = 1
+        target[2] = perceptionRange
+        target[3] = attackRange
+        target[4] = attackCooldown
+        var offset = 5
+        for (var index = 0; index < ids.length; index = index + 1) {
+            target[offset] = ids[index]
+            target[offset + 1] = 0
+            if (active[index]) {
+                target[offset + 1] = 1
+            }
+            target[offset + 2] = states[index]
+            target[offset + 3] = targets[index]
+            target[offset + 4] = stateSinceTicks[index]
+            target[offset + 5] = attackReadyTicks[index]
+            offset = offset + 6
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9401 || source[1] != 1 ||
+            source[2] < 0 || source[3] < 0 ||
+            source[3] > source[2] || source[4] < 0 ||
+            (source[2] == 0 && source[3] != 0)) {
+            return false
+        }
+        var offset = 5
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1 || !validState(source[offset + 2]) ||
+                source[offset + 3] < 0 || source[offset + 4] < 0 ||
+                source[offset + 5] < 0) {
+                return false
+            }
+            ids[index] = source[offset]
+            active[index] = source[offset + 1] == 1
+            states[index] = source[offset + 2]
+            targets[index] = source[offset + 3]
+            stateSinceTicks[index] = source[offset + 4]
+            attackReadyTicks[index] = source[offset + 5]
+            offset = offset + 6
+        }
+        perceptionRange = source[2]
+        attackRange = source[3]
+        attackCooldown = source[4]
+        return true
+    }
+
+}
+
+class EncounterDirector {
+    Int[] ids
+    Int[] maxActive
+    Int[] remainingBudgets
+    Int[] activeCounts
+    Int[] zoneX
+    Int[] zoneY
+    Int[] zoneZ
+    Int[] zoneRadius
+    Bool[] zoneConfigured
+    Bool[] active
+
+    public constructor(Int capacity) {
+        ids = new Int[capacity]
+        maxActive = new Int[capacity]
+        remainingBudgets = new Int[capacity]
+        activeCounts = new Int[capacity]
+        zoneX = new Int[capacity]
+        zoneY = new Int[capacity]
+        zoneZ = new Int[capacity]
+        zoneRadius = new Int[capacity]
+        zoneConfigured = new Bool[capacity]
+        active = new Bool[capacity]
+        for (var index = 0; index < capacity; index = index + 1) {
+            ids[index] = 0
+            maxActive[index] = 0
+            remainingBudgets[index] = 0
+            activeCounts[index] = 0
+            zoneX[index] = 0
+            zoneY[index] = 0
+            zoneZ[index] = 0
+            zoneRadius[index] = 0
+            zoneConfigured[index] = false
+            active[index] = false
+        }
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool define(Int id, Int nextMaxActive, Int budget) {
+        if (id <= 0 || nextMaxActive <= 0 || budget <= 0) {
+            return false
+        }
+        var index = find(id)
+        if (index < 0) {
+            index = freeSlot()
+            if (index < 0) {
+                return false
+            }
+            ids[index] = id
+            active[index] = true
+        }
+        maxActive[index] = nextMaxActive
+        remainingBudgets[index] = budget
+        activeCounts[index] = 0
+        zoneX[index] = 0
+        zoneY[index] = 0
+        zoneZ[index] = 0
+        zoneRadius[index] = 0
+        zoneConfigured[index] = false
+        return true
+    }
+    Bool configureZone(
+        Int encounterId, Int centerX, Int centerY, Int centerZ, Int radius
+    ) {
+        var index = find(encounterId)
+        if (index < 0 || radius <= 0) {
+            return false
+        }
+        zoneX[index] = centerX
+        zoneY[index] = centerY
+        zoneZ[index] = centerZ
+        zoneRadius[index] = radius
+        zoneConfigured[index] = true
+        return true
+    }
+
+    Bool insideZone(Int index, Int x, Int y, Int z) {
+        var distance = x - zoneX[index]
+        if (distance < 0) {
+            distance = -distance
+        }
+        var yDistance = y - zoneY[index]
+        if (yDistance < 0) {
+            yDistance = -yDistance
+        }
+        if (yDistance > distance) {
+            distance = yDistance
+        }
+        var zDistance = z - zoneZ[index]
+        if (zDistance < 0) {
+            zDistance = -zDistance
+        }
+        if (zDistance > distance) {
+            distance = zDistance
+        }
+        return distance <= zoneRadius[index]
+    }
+
+
+    EncounterSpawnResult admitInternal(
+        Int encounterId, Int enemyId,
+        Int x, Int y, Int z, Bool positioned
+    ) {
+        var index = find(encounterId)
+        if (index < 0 || enemyId <= 0 ||
+            activeCounts[index] >= maxActive[index] ||
+            remainingBudgets[index] <= 0 ||
+            (positioned && zoneConfigured[index] && !insideZone(index, x, y, z))) {
+            return EncounterSpawnResult(false, encounterId, enemyId, 0, 0)
+        }
+        activeCounts[index] = activeCounts[index] + 1
+        remainingBudgets[index] = remainingBudgets[index] - 1
+        return EncounterSpawnResult(
+            true, encounterId, enemyId,
+            activeCounts[index], remainingBudgets[index])
+    }
+
+    EncounterSpawnResult admit(Int encounterId, Int enemyId) {
+        return admitInternal(encounterId, enemyId, 0, 0, 0, false)
+    }
+
+    EncounterSpawnResult admitAt(
+        Int encounterId, Int enemyId, Int x, Int y, Int z
+    ) {
+        return admitInternal(encounterId, enemyId, x, y, z, true)
+    }
+
+    Bool release(Int encounterId) {
+        var index = find(encounterId)
+        if (index < 0 || activeCounts[index] <= 0) {
+            return false
+        }
+        activeCounts[index] = activeCounts[index] - 1
+        return true
+    }
+
+    Int activeCount(Int encounterId) {
+        var index = find(encounterId)
+        if (index < 0) {
+            return 0
+        }
+        return activeCounts[index]
+    }
+
+    Int remainingBudget(Int encounterId) {
+        var index = find(encounterId)
+        if (index < 0) {
+            return 0
+        }
+        return remainingBudgets[index]
+    }
+    Int replayStateLength() {
+        return 2 + ids.length * 10
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9601
+        target[1] = 1
+        var offset = 2
+        for (var index = 0; index < ids.length; index = index + 1) {
+            target[offset] = ids[index]
+            target[offset + 1] = 0
+            if (active[index]) {
+                target[offset + 1] = 1
+            }
+            target[offset + 2] = maxActive[index]
+            target[offset + 3] = remainingBudgets[index]
+            target[offset + 4] = activeCounts[index]
+            target[offset + 5] = zoneX[index]
+            target[offset + 6] = zoneY[index]
+            target[offset + 7] = zoneZ[index]
+            target[offset + 8] = zoneRadius[index]
+            target[offset + 9] = 0
+            if (zoneConfigured[index]) {
+                target[offset + 9] = 1
+            }
+            offset = offset + 10
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9601 || source[1] != 1) {
+            return false
+        }
+        var offset = 2
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1 || source[offset + 2] < 0 ||
+                source[offset + 3] < 0 || source[offset + 4] < 0 ||
+                source[offset + 4] > source[offset + 2] ||
+                source[offset + 8] < 0 || source[offset + 9] < 0 ||
+                source[offset + 9] > 1) {
+                return false
+            }
+            ids[index] = source[offset]
+            active[index] = source[offset + 1] == 1
+            maxActive[index] = source[offset + 2]
+            remainingBudgets[index] = source[offset + 3]
+            activeCounts[index] = source[offset + 4]
+            zoneX[index] = source[offset + 5]
+            zoneY[index] = source[offset + 6]
+            zoneZ[index] = source[offset + 7]
+            zoneRadius[index] = source[offset + 8]
+            zoneConfigured[index] = source[offset + 9] == 1
+            offset = offset + 10
+        }
+        return true
+    }
+
+}

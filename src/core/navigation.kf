@@ -1,0 +1,272 @@
+package core
+
+record NavigationResult(
+    Bool accepted, Bool found, Int routeLength, Int expanded,
+    Int waypointX, Int waypointY, Int waypointZ
+)
+
+record EnemySteeringResult(
+    Bool accepted, Bool found, Bool collided, Int enemyId,
+    Int routeLength, Int expanded, Int resolvedX, Int resolvedY, Int resolvedZ
+)
+
+class EnemyNavigator {
+    BoundedTriangleCollection obstacles
+    Int minX
+    Int minY
+    Int minZ
+    Int maxX
+    Int maxY
+    Int maxZ
+    Int nodeCapacity
+    Int routeCapacity
+    Int[] nodeX
+    Int[] nodeY
+    Int[] nodeZ
+    Int[] nodeG
+    Int[] nodeH
+    Int[] nodeF
+    Int[] nodeParents
+    Bool[] nodeOpen
+    Bool[] nodeClosed
+    Int[] reverseX
+    Int[] reverseY
+    Int[] reverseZ
+
+    public constructor(
+        BoundedTriangleCollection nextObstacles,
+        Int nextNodeCapacity, Int nextRouteCapacity
+    ) {
+        obstacles = nextObstacles
+        nodeCapacity = nextNodeCapacity
+        if (nodeCapacity <= 0) {
+            nodeCapacity = 1
+        }
+        routeCapacity = nextRouteCapacity
+        if (routeCapacity <= 0) {
+            routeCapacity = 1
+        }
+        minX = -1000000
+        minY = -1000000
+        minZ = -1000000
+        maxX = 1000000
+        maxY = 1000000
+        maxZ = 1000000
+        nodeX = new Int[nodeCapacity]
+        nodeY = new Int[nodeCapacity]
+        nodeZ = new Int[nodeCapacity]
+        nodeG = new Int[nodeCapacity]
+        nodeH = new Int[nodeCapacity]
+        nodeF = new Int[nodeCapacity]
+        nodeParents = new Int[nodeCapacity]
+        nodeOpen = new Bool[nodeCapacity]
+        nodeClosed = new Bool[nodeCapacity]
+        reverseX = new Int[routeCapacity + 1]
+        reverseY = new Int[routeCapacity + 1]
+        reverseZ = new Int[routeCapacity + 1]
+        resetNodes()
+    }
+
+    Bool configureBounds(
+        Int nextMinX, Int nextMinY, Int nextMinZ,
+        Int nextMaxX, Int nextMaxY, Int nextMaxZ
+    ) {
+        if (nextMinX > nextMaxX || nextMinY > nextMaxY ||
+            nextMinZ > nextMaxZ) {
+            return false
+        }
+        minX = nextMinX
+        minY = nextMinY
+        minZ = nextMinZ
+        maxX = nextMaxX
+        maxY = nextMaxY
+        maxZ = nextMaxZ
+        return true
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Int heuristic(Int x, Int y, Int z, Int targetX, Int targetY, Int targetZ) {
+        return absolute(targetX - x) + absolute(targetY - y) +
+            absolute(targetZ - z)
+    }
+
+    Bool inside(Int x, Int y, Int z) {
+        return x >= minX && x <= maxX &&
+            y >= minY && y <= maxY && z >= minZ && z <= maxZ
+    }
+
+    void resetNodes() {
+        for (var index = 0; index < nodeCapacity; index = index + 1) {
+            nodeX[index] = 0
+            nodeY[index] = 0
+            nodeZ[index] = 0
+            nodeG[index] = 0
+            nodeH[index] = 0
+            nodeF[index] = 0
+            nodeParents[index] = -1
+            nodeOpen[index] = false
+            nodeClosed[index] = false
+        }
+    }
+
+    Int findNode(Int x, Int y, Int z, Int count) {
+        for (var index = 0; index < count; index = index + 1) {
+            if (nodeX[index] == x && nodeY[index] == y && nodeZ[index] == z) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int bestOpenNode(Int count, Int targetX, Int targetY, Int targetZ) {
+        var best = -1
+        for (var index = 0; index < count; index = index + 1) {
+            if (!nodeOpen[index] || nodeClosed[index]) {
+                continue
+            }
+            if (best < 0 || nodeF[index] < nodeF[best] ||
+                (nodeF[index] == nodeF[best] &&
+                    (nodeH[index] < nodeH[best] ||
+                        (nodeH[index] == nodeH[best] && index < best)))) {
+                best = index
+            }
+        }
+        return best
+    }
+
+    Bool walkable(
+        Int firstX, Int firstY, Int firstZ,
+        Int secondX, Int secondY, Int secondZ
+    ) {
+        var result = obstacles.query(
+            firstX, firstY, firstZ, secondX, secondY, secondZ)
+        return result.accepted() && !result.collided()
+    }
+
+    NavigationResult failure(Int expanded) {
+        return NavigationResult(true, false, 0, expanded, 0, 0, 0)
+    }
+
+    NavigationResult invalid() {
+        return NavigationResult(false, false, 0, 0, 0, 0, 0)
+    }
+
+    NavigationResult reconstruct(
+        Int startIndex, Int goalIndex, Int expanded
+    ) {
+        var pathLength = 0
+        var cursor = goalIndex
+        while (cursor >= 0 && pathLength < reverseX.length) {
+            reverseX[pathLength] = nodeX[cursor]
+            reverseY[pathLength] = nodeY[cursor]
+            reverseZ[pathLength] = nodeZ[cursor]
+            pathLength = pathLength + 1
+            if (cursor == startIndex) {
+                break
+            }
+            cursor = nodeParents[cursor]
+        }
+        if (cursor != startIndex || pathLength <= 0) {
+            return failure(expanded)
+        }
+        var routeLength = pathLength - 1
+        if (routeLength > routeCapacity) {
+            return failure(expanded)
+        }
+        if (routeLength == 0) {
+            return NavigationResult(true, true, 0, expanded,
+                nodeX[startIndex], nodeY[startIndex], nodeZ[startIndex])
+        }
+        var waypointIndex = pathLength - 2
+        return NavigationResult(true, true, routeLength, expanded,
+            reverseX[waypointIndex], reverseY[waypointIndex],
+            reverseZ[waypointIndex])
+    }
+
+    NavigationResult findRoute(
+        Int startX, Int startY, Int startZ,
+        Int targetX, Int targetY, Int targetZ
+    ) {
+        if (!inside(startX, startY, startZ) ||
+            !inside(targetX, targetY, targetZ)) {
+            return invalid()
+        }
+        if (startY != targetY) {
+            return failure(0)
+        }
+        resetNodes()
+        nodeX[0] = startX
+        nodeY[0] = startY
+        nodeZ[0] = startZ
+        nodeG[0] = 0
+        nodeH[0] = heuristic(startX, startY, startZ, targetX, targetY, targetZ)
+        nodeF[0] = nodeH[0]
+        nodeParents[0] = -1
+        nodeOpen[0] = true
+        var nodeCount = 1
+        var expanded = 0
+        while (expanded < nodeCapacity) {
+            var current = bestOpenNode(nodeCount, targetX, targetY, targetZ)
+            if (current < 0) {
+                return failure(expanded)
+            }
+            if (nodeX[current] == targetX && nodeY[current] == targetY &&
+                nodeZ[current] == targetZ) {
+                return reconstruct(0, current, expanded)
+            }
+            nodeClosed[current] = true
+            expanded = expanded + 1
+
+            for (var direction = 0; direction < 4; direction = direction + 1) {
+                var nextX = nodeX[current]
+                var nextZ = nodeZ[current]
+                if (direction == 0) {
+                    nextX = nextX + 1
+                } else if (direction == 1) {
+                    nextX = nextX - 1
+                } else if (direction == 2) {
+                    nextZ = nextZ + 1
+                } else {
+                    nextZ = nextZ - 1
+                }
+                if (!inside(nextX, startY, nextZ) ||
+                    !walkable(nodeX[current], startY, nodeZ[current],
+                        nextX, startY, nextZ)) {
+                    continue
+                }
+                var candidate = findNode(nextX, startY, nextZ, nodeCount)
+                if (candidate >= 0 && nodeClosed[candidate]) {
+                    continue
+                }
+                var candidateG = nodeG[current] + 1
+                if (candidate < 0) {
+                    if (nodeCount >= nodeCapacity) {
+                        continue
+                    }
+                    candidate = nodeCount
+                    nodeCount = nodeCount + 1
+                    nodeX[candidate] = nextX
+                    nodeY[candidate] = startY
+                    nodeZ[candidate] = nextZ
+                    nodeH[candidate] = heuristic(
+                        nextX, startY, nextZ, targetX, targetY, targetZ)
+                    nodeOpen[candidate] = true
+                } else if (nodeOpen[candidate] &&
+                    candidateG >= nodeG[candidate]) {
+                    continue
+                }
+                nodeG[candidate] = candidateG
+                nodeF[candidate] = candidateG + nodeH[candidate]
+                nodeParents[candidate] = current
+                nodeOpen[candidate] = true
+            }
+        }
+        return failure(expanded)
+    }
+}

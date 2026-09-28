@@ -1,0 +1,88 @@
+package content
+
+record CollisionAdmissionIdentity(
+    Int packageChecksum,
+    Int collisionChecksum,
+    Int sourceNamespaceId,
+    Int sourceAssetId,
+    Int geometryRevision,
+    Int triangleCount
+)
+
+class BoundedCollisionPackageAdmission {
+    Bool acceptedValue
+    Int packageChecksumValue
+    Int collisionChecksumValue
+    Int sourceNamespaceIdValue
+    Int sourceAssetIdValue
+    Int geometryRevisionValue
+    Int triangleCountValue
+
+    public constructor() {
+        clear()
+    }
+
+    Bool clear() {
+        acceptedValue = false
+        packageChecksumValue = 0
+        collisionChecksumValue = 0
+        sourceNamespaceIdValue = 0
+        sourceAssetIdValue = 0
+        geometryRevisionValue = 0
+        triangleCountValue = 0
+        return true
+    }
+
+    Bool admit(
+        BoundedContentPackage packageValue,
+        BoundedAuthoredCollision collision,
+        Int chunkId,
+        Int chunkKind
+    ) {
+        clear()
+        if (!packageValue.validate() || !collision.validate() ||
+            !packageValue.containsAsset(
+                collision.sourceNamespaceId(), collision.sourceAssetId(),
+                collision.geometryRevision()) ||
+            !packageValue.containsChunk(
+                chunkId, chunkKind, collision.geometryRevision(),
+                collision.checksum(), collision.triangleCount())) {
+            return false
+        }
+        acceptedValue = true
+        packageChecksumValue = packageValue.checksum()
+        collisionChecksumValue = collision.checksum()
+        sourceNamespaceIdValue = collision.sourceNamespaceId()
+        sourceAssetIdValue = collision.sourceAssetId()
+        geometryRevisionValue = collision.geometryRevision()
+        triangleCountValue = collision.triangleCount()
+        return true
+    }
+
+    Bool accepted() {
+        return acceptedValue
+    }
+
+    CollisionAdmissionIdentity identity() {
+        return CollisionAdmissionIdentity(
+            packageChecksumValue, collisionChecksumValue,
+            sourceNamespaceIdValue, sourceAssetIdValue,
+            geometryRevisionValue, triangleCountValue)
+    }
+
+    Int packageChecksum() {
+        return packageChecksumValue
+    }
+
+    Int collisionChecksum() {
+        return collisionChecksumValue
+    }
+
+    Int geometryRevision() {
+        return geometryRevisionValue
+    }
+
+    Int triangleCount() {
+        return triangleCountValue
+    }
+}

@@ -1,0 +1,699 @@
+package content
+
+record ExternalGlbProvenanceReceipt(
+    Int sourceChecksum,
+    Int sourceNamespaceId,
+    Int sourceAssetId,
+    Int sourceRevision,
+    Int toolVersion,
+    Int optionsChecksum,
+    Int geometryChecksum
+)
+
+class BoundedExternalGlbSceneReader {
+    Int[] json
+    Int jsonLengthValue
+    Int binOffsetValue
+    Int binLengthValue
+    Int[] viewOffsets
+    Int[] viewLengths
+    Int[] viewTargets
+    Int[] viewStrides
+    Int viewCountValue
+    Int[] accessorViews
+    Int[] accessorOffsets
+    Int[] accessorComponents
+    Int[] accessorCounts
+    Int[] accessorKinds
+    Int accessorCountValue
+    Int positionAccessorValue
+    Int indexAccessorValue
+    Int vertexCountValue
+    Int triangleCountValue
+    Int modeValue
+    Int coordinateScaleValue
+    BoundedCanonicalGlb mesh
+    Int[] canonicalWire
+    Int canonicalLengthValue
+    Int sourceChecksumValue
+    Int namespaceValue
+    Int assetValue
+    Int revisionValue
+    Int toolVersionValue
+    Int optionsChecksumValue
+    Bool readValue
+
+    public constructor(Int vertexCapacity, Int triangleCapacity) {
+        var actualVertices = vertexCapacity
+        var actualTriangles = triangleCapacity
+        if (actualVertices <= 0) {
+            actualVertices = 1
+        }
+        if (actualTriangles <= 0) {
+            actualTriangles = 1
+        }
+        json = new Int[16384]
+        viewOffsets = new Int[8]
+        viewStrides = new Int[8]
+        viewLengths = new Int[8]
+        viewTargets = new Int[8]
+        accessorViews = new Int[8]
+        accessorOffsets = new Int[8]
+        accessorComponents = new Int[8]
+        accessorCounts = new Int[8]
+        accessorKinds = new Int[8]
+        mesh = BoundedCanonicalGlb(actualVertices, actualTriangles)
+        canonicalWire = new Int[16 + actualVertices * 3 + actualTriangles * 4]
+        jsonLengthValue = 0
+        binOffsetValue = 0
+        binLengthValue = 0
+        viewCountValue = 0
+        accessorCountValue = 0
+        positionAccessorValue = -1
+        indexAccessorValue = -1
+        modeValue = 4
+        vertexCountValue = 0
+        triangleCountValue = 0
+        coordinateScaleValue = 1
+        canonicalLengthValue = 0
+        sourceChecksumValue = 0
+        namespaceValue = 0
+        assetValue = 0
+        revisionValue = 0
+        toolVersionValue = 0
+        optionsChecksumValue = 0
+        readValue = false
+    }
+
+    Int u32(Int[] source, Int offset) {
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + source[offset + 3] * 16777216
+    }
+
+    Int i32(Int[] source, Int offset) {
+        var high = source[offset + 3]
+        if (high >= 128) {
+            return -2147483647 - 1 + (high - 128) * 16777216 +
+                source[offset + 2] * 65536 + source[offset + 1] * 256 +
+                source[offset]
+        }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + high * 16777216
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = (result * 31 + source[index]) % 1000003
+        }
+        return result
+    }
+
+    Int skipWhitespace(Int position, Int limit) {
+        var cursor = position
+        while (cursor < limit &&
+            (json[cursor] == 32 || json[cursor] == 9 ||
+                json[cursor] == 10 || json[cursor] == 13)) {
+            cursor = cursor + 1
+        }
+        return cursor
+    }
+
+    Bool keyMatches(Int position, Int field) {
+        if (field == 0) {
+            return position + 6 < jsonLengthValue && json[position] == 118 &&
+                json[position + 1] == 101 && json[position + 2] == 114 &&
+                json[position + 3] == 115 && json[position + 4] == 105 &&
+                json[position + 5] == 111 && json[position + 6] == 110
+        }
+        if (field == 1) {
+            return position + 9 < jsonLengthValue && json[position] == 98 &&
+                json[position + 1] == 121 && json[position + 2] == 116 &&
+                json[position + 3] == 101 && json[position + 4] == 76 &&
+                json[position + 5] == 101 && json[position + 6] == 110 &&
+                json[position + 7] == 103 && json[position + 8] == 116 &&
+                json[position + 9] == 104
+        }
+        if (field == 2) {
+            return position + 9 < jsonLengthValue && json[position] == 98 &&
+                json[position + 1] == 117 && json[position + 2] == 102 &&
+                json[position + 3] == 102 && json[position + 4] == 101 &&
+                json[position + 5] == 114 && json[position + 6] == 86 &&
+                json[position + 7] == 105 && json[position + 8] == 101 &&
+                json[position + 9] == 119
+        }
+        if (field == 3) {
+            return position + 9 < jsonLengthValue && json[position] == 98 &&
+                json[position + 1] == 121 && json[position + 2] == 116 &&
+                json[position + 3] == 101 && json[position + 4] == 79 &&
+                json[position + 5] == 102 && json[position + 6] == 102 &&
+                json[position + 7] == 115 && json[position + 8] == 101 &&
+                json[position + 9] == 116
+        }
+        if (field == 4) {
+            return position + 9 < jsonLengthValue && json[position] == 98 &&
+                json[position + 1] == 121 && json[position + 2] == 116 &&
+                json[position + 3] == 101 && json[position + 4] == 83 &&
+                json[position + 5] == 116 && json[position + 6] == 114 &&
+                json[position + 7] == 105 && json[position + 8] == 100 &&
+                json[position + 9] == 101
+        }
+        if (field == 5) {
+            return position + 12 < jsonLengthValue && json[position] == 99 &&
+                json[position + 1] == 111 && json[position + 2] == 109 &&
+                json[position + 3] == 112 && json[position + 4] == 111 &&
+                json[position + 5] == 110 && json[position + 6] == 101 &&
+                json[position + 7] == 110 && json[position + 8] == 116 &&
+                json[position + 9] == 84 && json[position + 10] == 121 &&
+                json[position + 11] == 112 && json[position + 12] == 101
+        }
+        if (field == 6) {
+            return position + 4 < jsonLengthValue && json[position] == 99 &&
+                json[position + 1] == 111 && json[position + 2] == 117 &&
+                json[position + 3] == 110 && json[position + 4] == 116
+        }
+        if (field == 7) {
+            return position + 3 < jsonLengthValue && json[position] == 116 &&
+                json[position + 1] == 121 && json[position + 2] == 112 &&
+                json[position + 3] == 101
+        }
+        if (field == 8) {
+            return position + 3 < jsonLengthValue && json[position] == 109 &&
+                json[position + 1] == 111 && json[position + 2] == 100 &&
+                json[position + 3] == 101
+        }
+        if (field == 9) {
+            return position + 6 < jsonLengthValue && json[position] == 105 &&
+                json[position + 1] == 110 && json[position + 2] == 100 &&
+                json[position + 3] == 105 && json[position + 4] == 99 &&
+                json[position + 5] == 101 && json[position + 6] == 115
+        }
+        if (field == 10) {
+            return position + 7 < jsonLengthValue && json[position] == 80 &&
+                json[position + 1] == 79 && json[position + 2] == 83 &&
+                json[position + 3] == 73 && json[position + 4] == 84 &&
+                json[position + 5] == 73 && json[position + 6] == 79 &&
+                json[position + 7] == 78
+        }
+        if (field == 11) {
+            return position + 6 < jsonLengthValue && json[position] == 98 &&
+                json[position + 1] == 117 && json[position + 2] == 102 &&
+                json[position + 3] == 102 && json[position + 4] == 101 &&
+                json[position + 5] == 114 && json[position + 6] == 115
+        }
+        if (field == 12) {
+            return position + 10 < jsonLengthValue && json[position] == 98 &&
+                json[position + 1] == 117 && json[position + 2] == 102 &&
+                json[position + 3] == 102 && json[position + 4] == 101 &&
+                json[position + 5] == 114 && json[position + 6] == 86 &&
+                json[position + 7] == 105 && json[position + 8] == 101 &&
+                json[position + 9] == 119 && json[position + 10] == 115
+        }
+        if (field == 13) {
+            return position + 8 < jsonLengthValue && json[position] == 97 &&
+                json[position + 1] == 99 && json[position + 2] == 99 &&
+                json[position + 3] == 101 && json[position + 4] == 115 &&
+                json[position + 5] == 115 && json[position + 6] == 111 &&
+                json[position + 7] == 114 && json[position + 8] == 115
+        }
+        if (field == 14) {
+            return position + 5 < jsonLengthValue && json[position] == 109 &&
+                json[position + 1] == 101 && json[position + 2] == 115 &&
+                json[position + 3] == 104 && json[position + 4] == 101 &&
+                json[position + 5] == 115
+        }
+        if (field == 15) {
+            return position + 5 < jsonLengthValue && json[position] == 98 &&
+                json[position + 1] == 117 && json[position + 2] == 102 &&
+                json[position + 3] == 102 && json[position + 4] == 101 &&
+                json[position + 5] == 114
+        }
+        return false
+    }
+
+    Int valueStart(Int start, Int limit, Int field) {
+        var cursor = start
+        while (cursor < limit) {
+            if (json[cursor] == 34 && keyMatches(cursor + 1, field)) {
+                var end = cursor + 1
+                while (end < limit && json[end] != 34) {
+                    end = end + 1
+                }
+                if (end >= limit) {
+                    return -1
+                }
+                end = skipWhitespace(end + 1, limit)
+                if (end >= limit || json[end] != 58) {
+                    return -1
+                }
+                return skipWhitespace(end + 1, limit)
+            }
+            cursor = cursor + 1
+        }
+        return -1
+    }
+    Int numberInObject(Int start, Int limit, Int field) {
+        var cursor = valueStart(start, limit, field)
+        if (cursor < 0 || cursor >= limit || json[cursor] < 48 ||
+            json[cursor] > 57) {
+            return -1
+        }
+        var result = 0
+        while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
+            result = result * 10 + json[cursor] - 48
+            if (result > 1000000000) {
+                return -1
+            }
+            cursor = cursor + 1
+        }
+        return result
+    }
+
+    Bool stringIs(Int start, Int limit, Int field, Int first, Int second, Int third, Int fourth) {
+        var cursor = valueStart(start, limit, field)
+        if (cursor < 0 || cursor + 5 >= limit || json[cursor] != 34) {
+            return false
+        }
+        return json[cursor + 1] == first && json[cursor + 2] == second &&
+            json[cursor + 3] == third && json[cursor + 4] == fourth &&
+            json[cursor + 5] == 34
+    }
+
+    Int arrayStart(Int field) {
+        var cursor = valueStart(0, jsonLengthValue, field)
+        if (cursor < 0 || cursor >= jsonLengthValue || json[cursor] != 91) {
+            return -1
+        }
+        return cursor + 1
+    }
+
+    Int objectEnd(Int start, Int limit) {
+        var depth = 0
+        var inString = false
+        var escaped = false
+        for (var cursor = start; cursor < limit; cursor = cursor + 1) {
+            var value = json[cursor]
+            if (inString) {
+                if (escaped) {
+                    escaped = false
+                } else if (value == 92) {
+                    escaped = true
+                } else if (value == 34) {
+                    inString = false
+                }
+            } else if (value == 34) {
+                inString = true
+            } else if (value == 123) {
+                depth = depth + 1
+            } else if (value == 125) {
+                depth = depth - 1
+                if (depth == 0) {
+                    return cursor
+                }
+            }
+        }
+        return -1
+    }
+
+    Bool parseViews() {
+        var cursor = arrayStart(12)
+        if (cursor < 0) {
+            return false
+        }
+        while (cursor < jsonLengthValue && json[cursor] != 93) {
+            cursor = skipWhitespace(cursor, jsonLengthValue)
+            if (cursor >= jsonLengthValue || json[cursor] != 123 || viewCountValue >= 8) {
+                return false
+            }
+            var end = objectEnd(cursor, jsonLengthValue)
+            if (end < 0) {
+                return false
+            }
+            var buffer = numberInObject(cursor, end, 15)
+            var offset = numberInObject(cursor, end, 3)
+            var length = numberInObject(cursor, end, 1)
+            var stride = numberInObject(cursor, end, 4)
+            if (offset < 0) {
+                offset = 0
+            }
+            if (stride < 0) {
+                stride = 0
+            }
+            if (buffer != 0 || length <= 0 || offset + length > binLengthValue) {
+                return false
+            }
+            viewOffsets[viewCountValue] = offset
+            viewLengths[viewCountValue] = length
+            viewTargets[viewCountValue] = numberInObject(cursor, end, 8)
+            viewStrides[viewCountValue] = stride
+            viewCountValue = viewCountValue + 1
+            cursor = end + 1
+            if (cursor < jsonLengthValue && json[cursor] == 44) {
+                cursor = cursor + 1
+            }
+        }
+        return viewCountValue >= 2
+    }
+
+    Int kindForType(Int start, Int limit) {
+        if (stringIs(start, limit, 7, 86, 69, 67, 51)) {
+            return 3
+        }
+        var cursor = valueStart(start, limit, 7)
+        if (cursor >= 0 && cursor + 7 < limit && json[cursor] == 34 &&
+            json[cursor + 1] == 83 && json[cursor + 2] == 67 &&
+            json[cursor + 3] == 65 && json[cursor + 4] == 76 &&
+            json[cursor + 5] == 65 && json[cursor + 6] == 82 &&
+            json[cursor + 7] == 34) {
+            return 1
+        }
+        return 0
+    }
+
+    Bool parseAccessors() {
+        var cursor = arrayStart(13)
+        if (cursor < 0) {
+            return false
+        }
+        while (cursor < jsonLengthValue && json[cursor] != 93) {
+            cursor = skipWhitespace(cursor, jsonLengthValue)
+            if (cursor >= jsonLengthValue || json[cursor] != 123 || accessorCountValue >= 8) {
+                return false
+            }
+            var end = objectEnd(cursor, jsonLengthValue)
+            if (end < 0) {
+                return false
+            }
+            accessorViews[accessorCountValue] = numberInObject(cursor, end, 2)
+            accessorOffsets[accessorCountValue] = numberInObject(cursor, end, 3)
+            if (accessorOffsets[accessorCountValue] < 0) {
+                accessorOffsets[accessorCountValue] = 0
+            }
+            accessorComponents[accessorCountValue] = numberInObject(cursor, end, 5)
+            accessorCounts[accessorCountValue] = numberInObject(cursor, end, 6)
+            accessorKinds[accessorCountValue] = kindForType(cursor, end)
+            if (accessorViews[accessorCountValue] < 0 ||
+                accessorCounts[accessorCountValue] <= 0 ||
+                accessorKinds[accessorCountValue] == 0) {
+                return false
+            }
+            accessorCountValue = accessorCountValue + 1
+            cursor = end + 1
+            if (cursor < jsonLengthValue && json[cursor] == 44) {
+                cursor = cursor + 1
+            }
+        }
+        return accessorCountValue >= 2
+    }
+
+    Bool parseMesh() {
+        var meshStart = arrayStart(14)
+        var positionStart = valueStart(meshStart, jsonLengthValue, 10)
+        var indicesStart = valueStart(meshStart, jsonLengthValue, 9)
+        if (meshStart < 0 || positionStart < 0 || indicesStart < 0 ||
+            json[positionStart] < 48 || json[positionStart] > 57 ||
+            json[indicesStart] < 48 || json[indicesStart] > 57) {
+            return false
+        }
+        positionAccessorValue = numberInObject(meshStart, jsonLengthValue, 10)
+        indexAccessorValue = numberInObject(meshStart, jsonLengthValue, 9)
+        modeValue = numberInObject(meshStart, jsonLengthValue, 8)
+        if (modeValue < 0) {
+            modeValue = 4
+        }
+        return modeValue == 4 && positionAccessorValue >= 0 &&
+            indexAccessorValue >= 0 &&
+            positionAccessorValue < accessorCountValue &&
+            indexAccessorValue < accessorCountValue
+    }
+
+    Int readFloatFixed(Int[] source, Int offset, Int scale) {
+        var b0 = source[offset]
+        var b1 = source[offset + 1]
+        var b2 = source[offset + 2]
+        var b3 = source[offset + 3]
+        var exponent = (b3 % 128) * 2 + b2 / 128
+        var fraction = b0 + b1 * 256 + (b2 % 128) * 65536
+        if (exponent == 255) {
+            return 2000000000
+        }
+        if (exponent == 0) {
+            return 0
+        }
+        var mantissa = 8388608 + fraction
+        var result = mantissa * scale
+        var shift = exponent - 150
+        if (shift >= 0) {
+            for (var index = 0; index < shift; index = index + 1) {
+                if (result > 1000000) {
+                    return 2000000000
+                }
+                result = result * 2
+            }
+        } else {
+            for (var index = 0; index < -shift; index = index + 1) {
+                result = result / 2
+            }
+        }
+        if (b3 >= 128) {
+            result = -result
+        }
+        return result
+    }
+
+    Int readIndex(Int[] source, Int offset, Int component) {
+        if (component == 5123) {
+            return source[offset] + source[offset + 1] * 256
+        }
+        if (component == 5125) {
+            return u32(source, offset)
+        }
+        return -1
+    }
+
+    Bool readMesh(Int[] source) {
+        if (positionAccessorValue < 0 || indexAccessorValue < 0 ||
+            positionAccessorValue >= accessorCountValue ||
+            indexAccessorValue >= accessorCountValue) {
+            return false
+        }
+        var positionView = accessorViews[positionAccessorValue]
+        var indexView = accessorViews[indexAccessorValue]
+        if (positionView < 0 || indexView < 0 || positionView >= viewCountValue ||
+            indexView >= viewCountValue || accessorKinds[positionAccessorValue] != 3 ||
+            accessorKinds[indexAccessorValue] != 1 ||
+            accessorComponents[positionAccessorValue] != 5126 ||
+            (accessorComponents[indexAccessorValue] != 5123 &&
+                accessorComponents[indexAccessorValue] != 5125)) {
+            return false
+        }
+        vertexCountValue = accessorCounts[positionAccessorValue]
+        var indexCount = accessorCounts[indexAccessorValue]
+        if (vertexCountValue <= 0 || vertexCountValue > mesh.vertexCapacity() ||
+            indexCount < 3 || indexCount % 3 != 0 ||
+            indexCount / 3 > mesh.triangleCapacity()) {
+            return false
+        }
+        var positionStride = viewStrides[positionView]
+        if (positionStride < 12) {
+            positionStride = 12
+        }
+        var indexStride = viewStrides[indexView]
+        if (indexStride <= 0) {
+            indexStride = 2
+        }
+        if (accessorComponents[indexAccessorValue] == 5125) {
+            if (indexStride < 4) {
+                indexStride = 4
+            }
+        } else if (indexStride < 2) {
+            indexStride = 2
+        }
+        var positionBase = viewOffsets[positionView] + accessorOffsets[positionAccessorValue]
+        var indexBase = viewOffsets[indexView] + accessorOffsets[indexAccessorValue]
+        if (positionBase + (vertexCountValue - 1) * positionStride + 12 >
+                viewOffsets[positionView] + viewLengths[positionView] ||
+            indexBase + (indexCount - 1) * indexStride + indexStride >
+                viewOffsets[indexView] + viewLengths[indexView]) {
+            return false
+        }
+        if (!mesh.configure(
+                namespaceValue, assetValue, revisionValue, 1, coordinateScaleValue,
+                -1000000, -1000000, -1000000, 1000000, 1000000, 1000000)) {
+            return false
+        }
+        for (var index = 0; index < vertexCountValue; index = index + 1) {
+            var position = binOffsetValue + positionBase + index * positionStride
+            var x = readFloatFixed(source, position, coordinateScaleValue)
+            var y = readFloatFixed(source, position + 4, coordinateScaleValue)
+            var z = readFloatFixed(source, position + 8, coordinateScaleValue)
+            if (x == 2000000000 || y == 2000000000 || z == 2000000000 ||
+                !mesh.addVertex(x, y, z)) {
+                return false
+            }
+        }
+        triangleCountValue = indexCount / 3
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            var first = binOffsetValue + indexBase + index * 3 * indexStride
+            var a = readIndex(source, first, accessorComponents[indexAccessorValue])
+            var b = readIndex(source, first + indexStride, accessorComponents[indexAccessorValue])
+            var c = readIndex(source, first + indexStride * 2, accessorComponents[indexAccessorValue])
+            if (a < 0 || b < 0 || c < 0 || !mesh.addTriangle(a, b, c, 1)) {
+                return false
+            }
+        }
+        return mesh.seal() && mesh.encode()
+    }
+
+    Bool read(
+        Int[] source, Int sourceNamespaceId, Int sourceAssetId,
+        Int sourceRevision, Int toolVersion, Int optionsChecksum,
+        Int coordinateScale
+    ) {
+        readValue = false
+        viewCountValue = 0
+        accessorCountValue = 0
+        positionAccessorValue = -1
+        indexAccessorValue = -1
+        if (source.length < 20 || source.length > 1048576 ||
+            sourceNamespaceId <= 0 || sourceAssetId <= 0 || sourceRevision <= 0 ||
+            toolVersion <= 0 || optionsChecksum < 0 || coordinateScale <= 0) {
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) {
+                return false
+            }
+        }
+        if (u32(source, 0) != 1179937895 || u32(source, 4) != 2 ||
+            u32(source, 8) != source.length) {
+            return false
+        }
+        var offset = 12
+        var jsonFound = false
+        var binFound = false
+        while (offset + 8 <= source.length) {
+            var length = u32(source, offset)
+            var type = u32(source, offset + 4)
+            offset = offset + 8
+            if (length < 0 || length > source.length - offset) {
+                return false
+            }
+            if (type == 1313821514) {
+                if (jsonFound || length > json.length) {
+                    return false
+                }
+                jsonFound = true
+                jsonLengthValue = length
+                for (var index = 0; index < length; index = index + 1) {
+                    json[index] = source[offset + index]
+                }
+            } else if (type == 5130562) {
+                if (binFound) {
+                    return false
+                }
+                binFound = true
+                binOffsetValue = offset
+                binLengthValue = length
+            } else {
+                return false
+            }
+            offset = offset + length
+        }
+        if (offset != source.length || !jsonFound || !binFound) {
+            return false
+        }
+        var versionStart = valueStart(0, jsonLengthValue, 0)
+        if (versionStart < 0 || versionStart + 4 >= jsonLengthValue ||
+            json[versionStart] != 34 || json[versionStart + 1] != 50 ||
+            json[versionStart + 2] != 46 || json[versionStart + 3] != 48 ||
+            json[versionStart + 4] != 34) {
+            return false
+        }
+        var bufferStart = arrayStart(11)
+        var bufferEnd = objectEnd(bufferStart, jsonLengthValue)
+        if (bufferStart < 0 || bufferEnd < 0 ||
+            numberInObject(bufferStart, bufferEnd, 1) != binLengthValue) {
+            return false
+        }
+        namespaceValue = sourceNamespaceId
+        assetValue = sourceAssetId
+        revisionValue = sourceRevision
+        toolVersionValue = toolVersion
+        optionsChecksumValue = optionsChecksum
+        coordinateScaleValue = coordinateScale
+        if (!parseViews() || !parseAccessors() || !parseMesh() || !readMesh(source)) {
+            return false
+        }
+        for (var index = 0; index < mesh.encodedLength(); index = index + 1) {
+            canonicalWire[index] = mesh.encodedWord(index)
+        }
+        canonicalLengthValue = mesh.encodedLength()
+        sourceChecksumValue = checksum(source)
+        readValue = true
+        return true
+    }
+
+    Bool reopenCanonical() {
+        if (!readValue || canonicalLengthValue <= 0) {
+            return false
+        }
+        var reopened = BoundedCanonicalGlb(mesh.vertexCapacity(), mesh.triangleCapacity())
+        var wire = new Int[canonicalLengthValue]
+        for (var index = 0; index < canonicalLengthValue; index = index + 1) {
+            wire[index] = canonicalWire[index]
+        }
+        return reopened.reopen(wire) && reopened.checksum() == mesh.checksum()
+    }
+
+    Bool emitCollision(BoundedAuthoredCollision target) {
+        return readValue && mesh.emitCollision(target)
+    }
+
+    ExternalGlbProvenanceReceipt provenance() {
+        return ExternalGlbProvenanceReceipt(
+            sourceChecksumValue, namespaceValue, assetValue, revisionValue,
+            toolVersionValue, optionsChecksumValue, mesh.checksum())
+    }
+
+    Bool valid() {
+        return readValue && mesh.validate()
+    }
+
+    Int vertexCount() {
+        return vertexCountValue
+    }
+
+    Int triangleCount() {
+        return triangleCountValue
+    }
+
+    Int geometryChecksum() {
+        return mesh.checksum()
+    }
+    Int vertexCoordinate(Int index, Int component) {
+        if (!readValue || index < 0 || index >= vertexCountValue) {
+            return 0
+        }
+        return mesh.vertexCoordinate(index, component)
+    }
+
+    Int triangleVertex(Int index, Int corner) {
+        if (!readValue || index < 0 || index >= triangleCountValue) {
+            return -1
+        }
+        return mesh.triangleVertex(index, corner)
+    }
+
+    Int sourceNamespaceId() {
+        return namespaceValue
+    }
+
+    Int sourceAssetId() {
+        return assetValue
+    }
+
+    Int sourceRevision() {
+        return revisionValue
+    }
+}

@@ -1,0 +1,3276 @@
+import core
+import session
+import content
+import demo
+
+main() {
+    println("KOOKIE G0 session foundation")
+    println(tickRate())
+    println(roundTripEnvelope(protocolVersion(), 1, 0, 1))
+
+    var resources = ResourceRegistry(2)
+    var mesh = resources.acquire(1)
+    assert(resources.isValid(mesh), "fresh token must be valid")
+    assert(resources.activeCount() == 1, "acquire must consume one slot")
+    assert(!resources.isValid(ResourceToken(mesh.slot(), mesh.generation(), 2)), "kind mismatch must reject")
+    assert(resources.release(mesh), "live token must release")
+    assert(!resources.isValid(mesh), "released token must be stale")
+    assert(!resources.release(mesh), "double release must reject")
+
+    var replacement = resources.acquire(1)
+    assert(replacement.slot() == mesh.slot(), "allocator should reuse the first free slot")
+    assert(replacement.generation() != mesh.generation(), "reuse must advance generation")
+    assert(resources.isValid(replacement), "replacement token must be valid")
+    println("KOOKIE G0 resource tokens verified")
+
+
+    var window = WindowStateTracker(1280, 720)
+    assert(window.applyFocus(1), "focus event must be accepted")
+    assert(window.applyResize(1920, 1080), "positive resize must be accepted")
+    assert(!window.applyResize(0, 1080), "zero resize must be rejected")
+    assert(window.requestClose(), "close event must be accepted")
+    var windowState = window.snapshot()
+    assert(windowState.width() == 1920 && windowState.height() == 1080, "resize state must be copied")
+    assert(windowState.focused() && windowState.closeRequested(), "focus and close state must be copied")
+
+    var audio = QueuedAudio(2)
+    assert(audio.open(), "audio queue must open once")
+    assert(audio.queue(11, 80), "audio command must enqueue")
+    assert(audio.queue(12, 60), "audio queue must accept capacity")
+    assert(!audio.queue(13, 40), "audio queue must reject overflow")
+    assert(audio.dequeue(), "audio command must dequeue")
+    assert(audio.consumedClip() == 11 && audio.consumedGain() == 80, "audio order must be FIFO")
+    assert(audio.close(), "audio queue must close")
+    println("KOOKIE G0 scalar adapter contracts verified")
+
+    var staging = FrameStaging(3)
+    assert(staging.begin(1), "frame staging must open")
+    assert(staging.pushVertex(1, -80, -80, 0, 100), "first vertex must stage")
+    assert(staging.pushVertex(1, 80, -80, 100, 100), "second vertex must stage")
+    assert(staging.pushVertex(1, 0, 80, 50, 0), "third vertex must stage")
+    assert(staging.stagedCount() == 3, "triangle vertex count must stage")
+    assert(staging.scalarWrites() == 15, "triangle scalar write count must be measured")
+    assert(staging.checksum() == 273, "triangle staging checksum must be stable")
+    assert(staging.scalarBudget() == 15, "frame staging budget must be bounded")
+    assert(staging.fitsScalarBudget(15) && !staging.fitsScalarBudget(14),
+        "frame staging must report budget acceptance")
+    assert(staging.publish(), "frame staging must publish")
+    assert(staging.retire(1), "published frame must retire")
+    var retired = staging.publishedFrame() == 1 && staging.retiredFrame() == 1 && !staging.isOpen()
+    assert(retired, "published frame ownership must close")
+    var meshStaging = FrameStaging(6)
+    assert(meshStaging.begin(2), "quad mesh staging must open")
+    assert(meshStaging.pushVertex(1, -80, -80, 0, 100), "quad vertex one must stage")
+    assert(meshStaging.pushVertex(1, 80, -80, 100, 100), "quad vertex two must stage")
+    assert(meshStaging.pushVertex(1, 80, 80, 100, 0), "quad vertex three must stage")
+    assert(meshStaging.pushVertex(1, -80, -80, 0, 100), "quad vertex four must stage")
+    assert(meshStaging.pushVertex(1, 80, 80, 100, 0), "quad vertex five must stage")
+    assert(meshStaging.pushVertex(1, -80, 80, 0, 0), "quad vertex six must stage")
+    assert(meshStaging.stagedCount() == 6 && meshStaging.scalarWrites() == 30,
+        "quad mesh must stage six vertices")
+    assert(meshStaging.scalarBudget() == 30 && meshStaging.fitsScalarBudget(30),
+        "quad mesh must fit its bounded frame budget")
+    assert(meshStaging.publish() && meshStaging.retire(2),
+        "quad mesh staging must retire")
+    println("KOOKIE G0 frame staging verified")
+    var clock = FixedStepClock(60, 4)
+    assert(clock.advance(16667) == 1, "fixed-step clock must advance one tick")
+    assert(clock.tick() == 1 && clock.pendingMicros() == 1, "fixed-step remainder must be retained")
+    assert(clock.frameBudgetMicros() == 16667,
+        "fixed-step frame budget must be declared")
+    assert(clock.advance(-1) == -1, "negative elapsed time must reject")
+
+    var component = IntComponentStore(2)
+    assert(component.set(1, 40), "component value must insert")
+    assert(component.set(2, 80), "component capacity must accept")
+    assert(!component.set(3, 120), "component capacity must reject overflow")
+    assert(component.get(1) == 40 && component.activeCount() == 2, "component values must be readable")
+    assert(component.remove(1) && !component.has(1), "component value must remove")
+
+    var g1 = G1Demo()
+    var g1Passed = g1.run()
+    if (!g1Passed) {
+        println(g1.failureStep())
+    }
+    assert(g1Passed, "G1 authoritative shooter scenario must complete")
+    println("KOOKIE G1 authoritative shooter verified")
+
+}
+test "bounded content package schema and identity" {
+    var contentPackage = BoundedContentPackage(2, 2, 3)
+    assert(contentPackage.configureHeader(7, 3, 11, 1, 100),
+        "content package header must validate")
+    assert(contentPackage.addAsset(10, 100, 1, 4, 111, 222, 3),
+        "content package must accept the first stable asset")
+    assert(contentPackage.addAsset(10, 200, 2, 4, 333, 444, 5),
+        "content package must accept sorted stable assets")
+    assert(!contentPackage.addAsset(10, 150, 1, 4, 1, 1, 1),
+        "content package must reject non-canonical asset order")
+    assert(contentPackage.addDependency(10, 100, 4, 555, 666),
+        "content package must accept dependencies")
+    assert(contentPackage.addChunk(1, 1, 0, 4096, 777, 888, 4) &&
+        contentPackage.addChunk(2, 2, 4096, 8192, 999, 1000, 4),
+        "content package must accept bounded chunks")
+    assert(contentPackage.seal() && contentPackage.validate() &&
+        contentPackage.checksum() > 0,
+        "content package must seal with a deterministic identity")
+    var checksum = contentPackage.checksum()
+    assert(contentPackage.encode() &&
+        contentPackage.encodedLength() == 11 + 2 * 7 + 1 * 5 + 2 * 7,
+        "content package wire length must be canonical")
+    var wire = new Int[contentPackage.encodedLength()]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = contentPackage.encodedWord(index)
+    }
+    var restored = BoundedContentPackage(2, 2, 3)
+    assert(restored.decode(wire) && restored.validate() &&
+        restored.checksum() == checksum &&
+        restored.identity().contentVersion() == 11 &&
+        restored.assetCount() == 2 &&
+        restored.dependencyCount() == 1 &&
+        restored.chunkCount() == 2,
+        "content package wire must round-trip identity and bounded records")
+    wire[10] = wire[10] + 1
+    assert(!restored.decode(wire),
+        "content package must reject a tampered identity checksum")
+    var invalid = BoundedContentPackage(1, 1, 1)
+    assert(invalid.configureHeader(1, 1, 1, 1, 1) &&
+        invalid.addAsset(1, 1, 1, 1, 0, 0, 1) &&
+        !invalid.addChunk(1, 1, 1000000000, 1, 1, 1, 1),
+        "content package must reject overflowing chunk ranges")
+}
+test "player fire input publishes weapon presentation" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1)
+    assert(loopback.definePlayerWeapon(9, 2, 1, 1, 4, 1, 20))
+    assert(loopback.addPlayerCombatActor(1, 20, 0))
+    assert(loopback.equipPlayerCombatWeapon(1, 9))
+    assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1)
+    assert(loopback.playerWeaponPresentationCount() == 1 &&
+        loopback.replayPresentationCount() == 1 &&
+        loopback.replayPresentationAt(0).kind() == 1 &&
+        loopback.replayPresentationAt(0).valueOne() == 1 &&
+        loopback.playerCombatMagazine(1) == 1 &&
+        loopback.playerCombatReserve(1) == 1,
+        "confirmed fire must consume ammo and capture presentation")
+    assert(loopback.dequeuePlayerWeaponPresentation())
+    var shotPresentation = loopback.lastPlayerWeaponPresentation()
+    assert(shotPresentation.kind() == 1 &&
+        shotPresentation.actorId() == 1 &&
+        shotPresentation.shotId() == 1 &&
+        shotPresentation.weaponId() == 9 &&
+        shotPresentation.magazine() == 1,
+        "accepted fire must publish bounded weapon presentation")
+    assert(loopback.receiveInput(1, 2, 2, 0, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 0,
+        "held fire must not duplicate edge-triggered weapon presentation")
+    assert(loopback.receiveInput(1, 3, 3, 0, 0, 0, 0, 0, 0))
+    assert(loopback.advance(16667) == 1)
+    assert(loopback.receiveInput(1, 4, 4, 0, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1,
+        "a new fire edge must publish after release")
+}
+
+test "bounded save envelope validation" {
+    var save = BoundedSaveState(3, 1000)
+    var payload = new Int[3]
+    payload[0] = 12
+    payload[1] = 34
+    payload[2] = 56
+    assert(save.stage(1, 7, payload) &&
+        save.isStaged() &&
+        save.payloadLength() == 3 &&
+        save.schemaVersion() == 1 &&
+        save.revision() == 7 &&
+        save.payloadValue(1) == 34,
+        "bounded save state must stage versioned payload values")
+    var envelope = save.envelope()
+    assert(envelope.accepted() &&
+        envelope.schemaVersion() == 1 &&
+        envelope.revision() == 7 &&
+        envelope.payloadLength() == 3 &&
+        envelope.checksum() > 0,
+        "save envelope must expose deterministic metadata")
+    var restored = BoundedSaveState(3, 1000)
+    assert(restored.load(envelope, payload) &&
+        restored.payloadValue(0) == 12 &&
+        restored.payloadValue(2) == 56,
+        "matching envelope and payload must restore state")
+    payload[1] = 35
+    assert(!restored.load(envelope, payload),
+        "mutated payload must fail checksum validation")
+    assert(!save.stage(2, 7, payload) &&
+        !save.stage(1, -1, payload) &&
+        !save.stage(1, 1000001, payload) &&
+        !save.stage(1, 7, new Int[4]),
+        "unsupported versions, revisions and overflow must reject")
+    var invalidValue = new Int[1]
+    invalidValue[0] = 1001
+    assert(!save.stage(1, 8, invalidValue),
+        "values beyond the schema bound must reject")
+    assert(save.clear() && !save.isStaged() &&
+        save.payloadValue(0) == -1,
+        "clearing save state must remove staged payload access")
+}
+test "bounded save publication history" {
+    var first = BoundedSaveState(2, 100)
+    var firstPayload = new Int[2]
+    firstPayload[0] = 10
+    firstPayload[1] = 20
+    assert(first.stage(1, 1, firstPayload))
+    var second = BoundedSaveState(2, 100)
+    var secondPayload = new Int[2]
+    secondPayload[0] = 30
+    secondPayload[1] = 40
+    assert(second.stage(1, 2, secondPayload))
+    var history = BoundedSaveHistory(2, 2)
+    assert(history.publish(first) && history.publish(second) &&
+        history.count() == 2 && history.latestRevision() == 2,
+        "save history must publish strictly increasing revisions")
+    assert(!history.publish(second),
+        "save history must reject duplicate revisions")
+    var restored = BoundedSaveState(2, 100)
+    assert(history.restore(1, restored) &&
+        restored.payloadValue(0) == 10 &&
+        restored.payloadValue(1) == 20,
+        "save history must restore retained revisions")
+    var third = BoundedSaveState(2, 100)
+    var thirdPayload = new Int[2]
+    thirdPayload[0] = 50
+    thirdPayload[1] = 60
+    assert(third.stage(1, 3, thirdPayload) &&
+        history.publish(third) &&
+        history.latestRevision() == 3 &&
+        history.count() == 2 &&
+        !history.restore(1, restored) &&
+        history.restore(2, restored) &&
+        restored.payloadValue(0) == 30,
+        "full save history must evict its oldest revision deterministically")
+    assert(history.clear() && history.count() == 0 &&
+        history.latestRevision() == -1,
+        "save history clear must remove published revisions")
+}
+
+test "bounded save wire codec" {
+    var state = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 77
+    payload[1] = 88
+    assert(state.stage(1, 42, payload))
+    var codec = BoundedSaveWireCodec(2)
+    assert(codec.encode(state) &&
+        codec.encodedLength() == 7 &&
+        codec.encodedWord(0) == 13371337 &&
+        codec.encodedWord(2) == 42 &&
+        codec.encodedWord(6) == 88 &&
+        codec.encodedWord(7) == -1,
+        "save wire codec must emit bounded envelope words")
+    var wire = new Int[7]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var restored = BoundedSaveState(2, 1000)
+    assert(codec.decode(wire, restored) &&
+        restored.revision() == 42 &&
+        restored.payloadValue(0) == 77 &&
+        restored.payloadValue(1) == 88,
+        "save wire codec must restore validated payloads")
+    wire[6] = 89
+    assert(!codec.decode(wire, restored),
+        "save wire codec must reject payload checksum corruption")
+    wire[6] = 88
+    wire[3] = 1
+    assert(!codec.decode(wire, restored),
+        "save wire codec must reject length framing corruption")
+}
+
+
+test "bounded save file store" {
+    var state = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 101
+    payload[1] = 202
+    assert(state.stage(1, 9, payload))
+    var store = BoundedSaveFileStore(2)
+    var path = "/tmp/kookie-save-test.bin"
+    assert(store.write(path, state),
+        "save file store must write encoded bounded bytes")
+    var restored = BoundedSaveState(2, 1000)
+    assert(store.read(path, restored),
+        "save file store must read encoded bytes")
+    assert(restored.revision() == 9 &&
+        restored.payloadValue(0) == 101 &&
+        restored.payloadValue(1) == 202,
+        "save file store must restore decoded values")
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
+    assert(file.writeBytes(corrupted) &&
+        !store.read(path, restored),
+        "save file store must reject corrupted bytes")
+}
+
+test "redundant save file recovery" {
+    var state = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 303
+    payload[1] = 404
+    assert(state.stage(1, 12, payload))
+    var store = BoundedRedundantSaveFileStore(2)
+    var path = "/tmp/kookie-save-redundant-test.bin"
+    assert(store.write(path, state))
+    var restored = BoundedSaveState(2, 1000)
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[18] = corrupted[18] + 1
+    assert(file.writeBytes(corrupted) &&
+        store.read(path, restored) &&
+        restored.revision() == 12 &&
+        restored.payloadValue(1) == 404,
+        "redundant save must recover from one corrupted copy")
+    assert(store.repair(path),
+        "redundant save repair must rewrite both copies")
+    var repaired = file.readBytes()
+    repaired[66] = repaired[66] + 1
+    assert(file.writeBytes(repaired) &&
+        store.read(path, restored),
+        "repaired save must survive corruption of the other copy")
+    var fullyCorrupted = file.readBytes()
+    fullyCorrupted[18] = fullyCorrupted[18] + 1
+    assert(file.writeBytes(fullyCorrupted) &&
+        !store.read(path, restored),
+        "redundant save must reject two corrupted copies")
+}
+
+test "bounded save schema migration" {
+    var source = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 303
+    payload[1] = 404
+    assert(source.stage(1, 12, payload))
+    var sections = BoundedSaveSections(4, 2)
+    var gate = BoundedSaveMigrationGate()
+    assert(gate.importLegacy(source, sections) &&
+        sections.revision() == 12 &&
+        sections.sectionCount() == 1 &&
+        sections.sectionId(0) == 1 &&
+        sections.sectionVersion(0) == 1 &&
+        sections.sectionValue(0, 1) == 404,
+        "migration gate must wrap legacy state as a versioned section")
+    var codec = BoundedSaveSchemaWireCodec(4, 2)
+    assert(codec.encode(sections) && codec.encodedLength() == 9)
+    var wire = new Int[codec.encodedLength()]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(4, 2)
+    var restored = BoundedSaveState(2, 1000)
+    assert(codec.decode(wire, decoded) &&
+        gate.exportLegacy(decoded, restored) &&
+        restored.revision() == 12 &&
+        restored.payloadValue(0) == 303 &&
+        restored.payloadValue(1) == 404,
+        "migration gate must restore the legacy state without loss")
+    wire[5] = 2
+    assert(!codec.decode(wire, decoded),
+        "schema codec must reject unsupported section versions")
+    var unsupported = BoundedSaveSections(4, 2)
+    assert(unsupported.setRevision(12) &&
+        unsupported.put(2, 1, payload) &&
+        !gate.exportLegacy(unsupported, restored),
+        "migration gate must reject unknown sections")
+}
+
+test "schema save file persistence and recovery" {
+    var source = BoundedSaveState(2, 1000)
+    var payload = new Int[2]
+    payload[0] = 303
+    payload[1] = 404
+    assert(source.stage(1, 12, payload))
+    var store = BoundedSaveSchemaFileStore(4, 2)
+    var path = "/tmp/kookie-save-schema-test.bin"
+    assert(store.writeLegacy(path, source))
+    var restored = BoundedSaveState(2, 1000)
+    assert(store.readLegacy(path, restored) &&
+        restored.revision() == 12 &&
+        restored.payloadValue(0) == 303 &&
+        restored.payloadValue(1) == 404,
+        "schema file store must migrate legacy payloads on load")
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[18] = corrupted[18] + 1
+    assert(file.writeBytes(corrupted) &&
+        store.readLegacy(path, restored) &&
+        restored.revision() == 12,
+        "schema file store must recover from one corrupted copy")
+    assert(store.repair(path),
+        "schema save repair must rewrite both migrated copies")
+    var repaired = file.readBytes()
+    var secondCopyStart = 18 + (repaired.length - 18) / 2
+    repaired[secondCopyStart] = repaired[secondCopyStart] + 1
+    assert(file.writeBytes(repaired) &&
+        store.readLegacy(path, restored),
+        "repaired schema save must survive one copy corruption")
+    var fullyCorrupted = file.readBytes()
+    fullyCorrupted[18] = fullyCorrupted[18] + 1
+    assert(file.writeBytes(fullyCorrupted) &&
+        !store.readLegacy(path, restored),
+        "schema save must reject two corrupted copies")
+}
+
+test "multi-section save migration" {
+    var sections = BoundedSaveSections(6, 3)
+    var progression = new Int[2]
+    progression[0] = 303
+    progression[1] = 404
+    var world = new Int[3]
+    world[0] = 7
+    world[1] = 8
+    world[2] = 0
+    var rng = new Int[2]
+    rng[0] = 99
+    rng[1] = 0
+    var items = new Int[2]
+    items[0] = 17
+    items[1] = 18
+    var quests = new Int[1]
+    quests[0] = 2
+    var gate = BoundedSaveMigrationGate()
+    assert(sections.setRevision(19) &&
+        sections.put(1, 1, progression) &&
+        sections.put(2, 2, world) &&
+        sections.put(3, 2, rng) &&
+        sections.put(4, 1, items) &&
+        sections.put(5, 1, quests))
+    var codec = BoundedSaveSchemaWireCodec(6, 3)
+    assert(codec.encode(sections) && codec.encodedLength() == 29)
+    var wire = new Int[codec.encodedLength()]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(6, 3)
+    var migrated = BoundedSaveSections(6, 3)
+    assert(codec.decode(wire, decoded) &&
+        gate.migrate(decoded, migrated) &&
+        migrated.sectionCount() == 5 &&
+        migrated.revision() == 19 &&
+        migrated.sectionVersion(1) == 2 &&
+        migrated.sectionValue(1, 1) == 8 &&
+        migrated.sectionId(3) == 4 &&
+        migrated.sectionValue(3, 1) == 18 &&
+        migrated.sectionId(4) == 5 &&
+        migrated.sectionValue(4, 0) == 2,
+        "migration must preserve progression, world, RNG, item and quest sections")
+    var legacyWire = new Int[18]
+    legacyWire[0] = codec.encodedWord(0)
+    legacyWire[1] = 1
+    legacyWire[2] = 19
+    legacyWire[3] = 3
+    legacyWire[4] = 1
+    legacyWire[5] = 1
+    legacyWire[6] = 2
+    legacyWire[7] = 303
+    legacyWire[8] = 404
+    legacyWire[9] = 2
+    legacyWire[10] = 1
+    legacyWire[11] = 2
+    legacyWire[12] = 7
+    legacyWire[13] = 8
+    legacyWire[14] = 3
+    legacyWire[15] = 1
+    legacyWire[16] = 1
+    legacyWire[17] = 99
+    assert(codec.decode(legacyWire, decoded) &&
+        decoded.sectionVersion(1) == 2 &&
+        decoded.sectionLength(1) == 3 &&
+        decoded.sectionValue(1, 2) == 0 &&
+        decoded.sectionVersion(2) == 2 &&
+        decoded.sectionLength(2) == 2 &&
+        decoded.sectionValue(2, 1) == 0,
+        "migration must transform prior world and RNG versions")
+    var store = BoundedSaveSchemaFileStore(6, 3)
+    var path = "/tmp/kookie-save-multi-test.bin"
+    var loaded = BoundedSaveSections(6, 3)
+    assert(store.write(path, sections) &&
+        store.read(path, loaded) &&
+        loaded.sectionCount() == 5 &&
+        loaded.sectionId(3) == 4 &&
+        loaded.sectionId(4) == 5 &&
+        loaded.sectionValue(4, 0) == 2,
+        "schema file store must persist all known sections")
+}
+
+test "typed item and quest save sections" {
+    var sections = BoundedSaveSections(6, 6)
+    var items = BoundedItemSaveSection(2)
+    var quests = BoundedQuestSaveSection(2)
+    assert(items.add(100, 7, 4) &&
+        items.add(101, 7, 1) &&
+        !items.add(100, 8, 2) &&
+        !items.add(102, 7, 0) &&
+        quests.add(20, 2, 3) &&
+        !quests.add(20, 1, 4) &&
+        !quests.add(21, 4, 0) &&
+        sections.setRevision(21) &&
+        items.encodeInto(sections) &&
+        quests.encodeInto(sections),
+        "typed save sections must validate ownership, quantity and quest state")
+    var codec = BoundedSaveSchemaWireCodec(6, 6)
+    var wire = new Int[19]
+    var restoredSections = BoundedSaveSections(6, 6)
+    var restoredItems = BoundedItemSaveSection(2)
+    var restoredQuests = BoundedQuestSaveSection(2)
+    assert(codec.encode(sections) &&
+        codec.encodedLength() == wire.length)
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    assert(codec.decode(wire, restoredSections) &&
+        restoredItems.decodeFrom(restoredSections) &&
+        restoredQuests.decodeFrom(restoredSections) &&
+        restoredItems.count() == 2 &&
+        restoredItems.ownerId(0) == 7 &&
+        restoredItems.quantity(1) == 1 &&
+        restoredQuests.state(0) == 2 &&
+        restoredQuests.progress(0) == 3,
+        "typed save sections must round-trip through the schema wire")
+}
+
+test "atomic item inventory transactions and persistence" {
+    var seller = BoundedItemInventory(2, 2)
+    var buyer = BoundedItemInventory(1, 2)
+    assert(seller.addItem(500, 5) &&
+        seller.setCurrency(0) &&
+        buyer.setCurrency(100) &&
+        buyer.purchaseFrom(seller, 500, 2, 10) &&
+        seller.itemCount() == 1 &&
+        seller.itemQuantity(0) == 3 &&
+        buyer.itemCount() == 1 &&
+        buyer.itemId(0) == 500 &&
+        buyer.itemQuantity(0) == 2 &&
+        seller.currency() == 20 &&
+        buyer.currency() == 80,
+        "inventory purchase must atomically transfer item and currency")
+    assert(!buyer.purchaseFrom(seller, 500, 4, 10) &&
+        seller.itemQuantity(0) == 3 &&
+        buyer.itemQuantity(0) == 2 &&
+        seller.currency() == 20 &&
+        buyer.currency() == 80,
+        "failed inventory purchase must leave both inventories unchanged")
+    var sections = BoundedSaveSections(8, 16)
+    var restored = BoundedItemInventory(1, 2)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(sections.setRevision(22) &&
+        buyer.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 17)
+    var wire = new Int[17]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(8, 16)
+    assert(codec.decode(wire, decoded) &&
+        restored.decodeFrom(decoded) &&
+        restored.currency() == 80 &&
+        restored.itemId(0) == 500 &&
+        restored.itemQuantity(0) == 2,
+        "inventory currency and ownership must survive schema persistence")
+    var legacySections = BoundedSaveSections(8, 16)
+    var legacyItems = new Int[3]
+    legacyItems[0] = 500
+    legacyItems[1] = 1
+    legacyItems[2] = 2
+    var legacyCurrency = new Int[1]
+    legacyCurrency[0] = 80
+    var legacyInventory = BoundedItemInventory(1, 2)
+    assert(legacySections.setRevision(21) &&
+        legacySections.put(4, 1, legacyItems) &&
+        legacySections.put(6, 1, legacyCurrency) &&
+        legacyInventory.decodeFrom(legacySections) &&
+        !legacyInventory.itemRoll(0).accepted(),
+        "legacy inventory loads without rolled-item section defaults")
+}
+
+test "deterministic item definitions and loot rolls" {
+    var definitions = BoundedItemDefinitionStore(2)
+    assert(definitions.define(10, 25, 1, 20, 4) &&
+        definitions.define(11, 50, 5, 20, 2) &&
+        !definitions.define(10, 30, 1, 20, 4) &&
+        !definitions.define(12, 30, 0, 20, 4))
+    var table = BoundedLootTable(2)
+    assert(table.add(10, 3, definitions) &&
+        table.add(11, 1, definitions) &&
+        !table.add(10, 1, definitions))
+    var first = BoundedItemRoll()
+    var second = BoundedItemRoll()
+    assert(table.roll(500, 12345, 10, definitions, first) &&
+        table.roll(500, 12345, 10, definitions, second) &&
+        first.accepted() &&
+        first.definitionId() == second.definitionId() &&
+        first.rarity() == second.rarity() &&
+        first.affixOne() == second.affixOne() &&
+        first.affixTwo() == second.affixTwo() &&
+        first.condition() == second.condition() &&
+        first.level() == 10,
+        "loot rolls must be deterministic for the same seed and inputs")
+    var pools = BoundedAffixPoolStore(1)
+    var poolFirst = BoundedItemRoll()
+    var poolSecond = BoundedItemRoll()
+    assert(pools.define(4) &&
+        pools.add(4, 7, 3) &&
+        pools.add(4, 9, 1) &&
+        table.rollWithAffixPools(
+            501, 12345, 10, definitions, pools, poolFirst) &&
+        table.rollWithAffixPools(
+            501, 12345, 10, definitions, pools, poolSecond) &&
+        poolFirst.affixOne() > 0 &&
+        poolFirst.affixOne() != 1 &&
+        poolFirst.affixOne() == poolSecond.affixOne() &&
+        poolFirst.affixTwo() == poolSecond.affixTwo(),
+        "content affix pools must select deterministic non-contiguous ids")
+    var inventory = BoundedItemInventory(3, 2)
+    assert(inventory.addLootedItem(first, 1) &&
+        inventory.itemId(0) == 500 &&
+        !inventory.addLootedItem(BoundedItemRoll(), 1),
+        "accepted loot rolls must enter inventory with stable identity")
+    var sections = BoundedSaveSections(8, 16)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(sections.setRevision(23) &&
+        inventory.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 25)
+    var wire = new Int[25]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(8, 16)
+    var restored = BoundedItemInventory(3, 2)
+    assert(codec.decode(wire, decoded) &&
+        restored.decodeFrom(decoded) &&
+        restored.itemRoll(0).definitionId() == first.definitionId() &&
+        restored.itemRoll(0).seed() == first.seed() &&
+        restored.itemRoll(0).affixOne() == first.affixOne() &&
+        restored.itemRoll(0).condition() == first.condition(),
+        "rolled item fields must survive schema persistence")
+    wire[21] = 0
+    assert(codec.decode(wire, decoded) && !restored.decodeFrom(decoded),
+        "typed inventory load must reject malformed rolled item fields")
+}
+
+test "equipment loadout transactions and persistence" {
+    var inventory = BoundedItemInventory(3, 3)
+    var loadout = BoundedEquipmentLoadout(4)
+    assert(inventory.addItem(500, 1) &&
+        inventory.addItem(501, 1) &&
+        loadout.equip(inventory, 0, 500) &&
+        loadout.equip(inventory, 1, 501) &&
+        !loadout.equip(inventory, 2, 500) &&
+        !loadout.equip(inventory, 2, 999) &&
+        loadout.itemAt(0) == 500 &&
+        loadout.itemAt(1) == 501 &&
+        loadout.unequip(1) &&
+        loadout.equip(inventory, 2, 501),
+        "equipment must validate ownership and unique slot assignment")
+    var sections = BoundedSaveSections(8, 16)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(sections.setRevision(24) &&
+        inventory.encodeInto(sections) &&
+        loadout.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 27)
+    var wire = new Int[27]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(8, 16)
+    var restoredInventory = BoundedItemInventory(3, 3)
+    var restoredLoadout = BoundedEquipmentLoadout(4)
+    assert(codec.decode(wire, decoded) &&
+        restoredInventory.decodeFrom(decoded) &&
+        restoredLoadout.decodeFrom(decoded, restoredInventory) &&
+        restoredLoadout.itemAt(0) == 500 &&
+        restoredLoadout.itemAt(2) == 501 &&
+        restoredLoadout.itemAt(1) == 0,
+        "equipment ownership must survive schema persistence")
+    var malformed = BoundedSaveSections(8, 16)
+    var malformedLoadout = BoundedEquipmentLoadout(4)
+    var malformedPayload = new Int[4]
+    malformedPayload[0] = 0
+    malformedPayload[1] = 500
+    malformedPayload[2] = 1
+    malformedPayload[3] = 500
+    assert(malformed.setRevision(24) &&
+        malformed.put(8, 1, malformedPayload) &&
+        !malformedLoadout.decodeFrom(malformed, restoredInventory),
+        "equipment load must reject duplicate item ownership")
+    var legacy = BoundedSaveSections(8, 16)
+    var legacyLoadout = BoundedEquipmentLoadout(4)
+    assert(legacy.setRevision(24) &&
+        legacyLoadout.equip(restoredInventory, 0, 500) &&
+        legacyLoadout.decodeFrom(legacy, restoredInventory) &&
+        legacyLoadout.itemAt(0) == 0,
+        "older saves without equipment must load empty")
+
+}
+
+test "item stat composition and crafting persistence" {
+    var definitions = BoundedItemDefinitionStore(2)
+    var affixes = BoundedAffixStatStore(4)
+    assert(definitions.define(100, 100, 1, 10, 2) &&
+        affixes.define(1, 10, 20, 10) &&
+        affixes.define(2, 5, 0, 20),
+        "stat definitions must accept bounded affix profiles")
+    var roll = BoundedItemRoll()
+    assert(roll.stage(900, 100, 5, 1, 1, 1, 2, 80))
+    var stats = BoundedItemStatResult()
+    var composer = BoundedItemStatComposer()
+    assert(composer.compose(roll, definitions, affixes, stats) &&
+        stats.base() == 100 &&
+        stats.flat() == 115 &&
+        stats.additive() == 138 &&
+        stats.finalAmount() == 179,
+        "item stats must compose base, flat, additive and multiplicative values")
+    var inventory = BoundedItemInventory(7, 4)
+    var recipe = BoundedCraftRecipe(2)
+    var crafting = BoundedCraftingSystem()
+    assert(inventory.addItem(700, 2) &&
+        inventory.addItem(701, 1) &&
+        inventory.setCurrency(100) &&
+        recipe.addIngredient(700, 2) &&
+        recipe.addIngredient(701, 1) &&
+        recipe.setCurrencyCost(25) &&
+        recipe.setOutput(roll) &&
+        crafting.validate(inventory, recipe) &&
+        crafting.craft(inventory, recipe) &&
+        inventory.itemCount() == 1 &&
+        inventory.itemId(0) == 900 &&
+        inventory.itemQuantity(0) == 1 &&
+        inventory.currency() == 75,
+        "crafting must atomically consume ingredients and currency")
+    var sections = BoundedSaveSections(8, 16)
+    var codec = BoundedSaveSchemaWireCodec(8, 16)
+    assert(sections.setRevision(25) &&
+        inventory.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 25)
+    var wire = new Int[25]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(8, 16)
+    var restored = BoundedItemInventory(7, 4)
+    assert(codec.decode(wire, decoded) &&
+        restored.decodeFrom(decoded) &&
+        restored.itemId(0) == 900 &&
+        restored.itemRoll(0).affixOne() == 1 &&
+        restored.currency() == 75,
+        "crafted item ownership and roll fields must persist")
+    var rejected = BoundedCraftRecipe(1)
+    assert(rejected.addIngredient(900, 2) &&
+        rejected.setCurrencyCost(1000) &&
+        rejected.setOutput(roll) &&
+        !crafting.craft(restored, rejected) &&
+        restored.itemCount() == 1 &&
+        restored.itemQuantity(0) == 1 &&
+        restored.currency() == 75,
+        "invalid crafting must leave inventory unchanged")
+}
+
+test "reservations skills and status persistence" {
+    var inventory = BoundedItemInventory(8, 4)
+    var reservation = BoundedItemReservation(2)
+    assert(inventory.addItem(1000, 3) &&
+        inventory.addItem(1001, 1) &&
+        inventory.setCurrency(50) &&
+        reservation.addItem(1000, 2) &&
+        reservation.addItem(1001, 1) &&
+        reservation.setCurrencyCost(20) &&
+        reservation.reserve(inventory) &&
+        inventory.depositCurrency(1) &&
+        !reservation.commit(inventory) &&
+        reservation.cancel(),
+        "reservations must reject stale inventory revisions")
+    var committed = BoundedItemReservation(2)
+    assert(committed.addItem(1000, 2) &&
+        committed.addItem(1001, 1) &&
+        committed.setCurrencyCost(20) &&
+        committed.reserve(inventory) &&
+        committed.commit(inventory) &&
+        inventory.itemQuantity(0) == 1 &&
+        inventory.itemCount() == 1 &&
+        inventory.currency() == 31,
+        "reservations must commit multiple item and currency operations")
+    var skillDefinitions = BoundedSkillDefinitionStore(2)
+    var skills = BoundedSkillProgression(2)
+    assert(skillDefinitions.define(10, 3, 100) &&
+        skills.learn(10, skillDefinitions) &&
+        skills.gainExperience(10, 250, skillDefinitions) &&
+        skills.rank(10) == 2 &&
+        skills.experience(10) == 50,
+        "skills must advance bounded ranks and retain remainder experience")
+    var statusDefinitions = BoundedStatusDefinitionStore(2)
+    var statuses = BoundedStatusEffects(2)
+    assert(statusDefinitions.define(20, 100, 3) &&
+        statuses.apply(20, 50, 2, statusDefinitions) &&
+        statuses.apply(20, 80, 2, statusDefinitions) &&
+        statuses.duration(20) == 80 &&
+        statuses.stacks(20) == 3 &&
+        statuses.tick(30) &&
+        statuses.duration(20) == 50,
+        "statuses must refresh duration, add capped stacks and tick")
+    var sections = BoundedSaveSections(12, 16)
+    var codec = BoundedSaveSchemaWireCodec(12, 16)
+    assert(sections.setRevision(31) &&
+        skills.encodeInto(sections) &&
+        statuses.encodeInto(sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 16)
+    var wire = new Int[16]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(12, 16)
+    var restoredSkills = BoundedSkillProgression(2)
+    var restoredStatuses = BoundedStatusEffects(2)
+    assert(codec.decode(wire, decoded) &&
+        restoredSkills.decodeFrom(decoded, skillDefinitions) &&
+        restoredStatuses.decodeFrom(decoded, statusDefinitions) &&
+        restoredSkills.rank(10) == 2 &&
+        restoredSkills.experience(10) == 50 &&
+        restoredStatuses.duration(20) == 50 &&
+        restoredStatuses.stacks(20) == 3,
+        "skill and status state must survive versioned persistence")
+}
+
+test "loopback progression authority and persistence" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.definePlayerSkill(30, 2, 100) &&
+        loopback.learnPlayerSkill(1, 30) &&
+        loopback.gainPlayerSkillExperience(1, 30, 125) &&
+        loopback.playerSkillRank(1, 30) == 1 &&
+        loopback.playerSkillExperience(1, 30) == 25 &&
+        loopback.definePlayerStatus(40, 10, 3) &&
+        loopback.applyPlayerStatus(1, 40, 5, 2) &&
+        loopback.playerStatusDuration(1, 40) == 5 &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerStatusDuration(1, 40) == 4,
+        "loopback must authoritatively advance player progression state")
+    var sections = BoundedSaveSections(12, 16)
+    var codec = BoundedSaveSchemaWireCodec(12, 16)
+    assert(sections.setRevision(40) &&
+        loopback.encodePlayerProgression(1, sections) &&
+        codec.encode(sections) &&
+        codec.encodedLength() == 16)
+    var wire = new Int[16]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var decoded = BoundedSaveSections(12, 16)
+    var restored = LoopbackSession(4, 2)
+    assert(restored.start() && restored.connectPlayer() == 1 &&
+        restored.definePlayerSkill(30, 2, 100) &&
+        restored.definePlayerStatus(40, 10, 3) &&
+        codec.decode(wire, decoded) &&
+        restored.decodePlayerProgression(1, decoded) &&
+        restored.playerSkillRank(1, 30) == 1 &&
+        restored.playerSkillExperience(1, 30) == 25 &&
+        restored.playerStatusDuration(1, 40) == 4 &&
+        restored.playerStatusStacks(1, 40) == 2,
+        "loopback progression state must round-trip through save sections")
+}
+
+test "progression modifiers affect authoritative combat" {
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.connectPlayer() == 2 &&
+        loopback.definePlayerSkill(50, 2, 100) &&
+        loopback.definePlayerSkill(51, 1, 100) &&
+        loopback.setPlayerSkillPrerequisite(51, 50) &&
+        !loopback.learnPlayerSkill(1, 51) &&
+        loopback.setPlayerSkillDamagePercent(50, 50) &&
+        loopback.learnPlayerSkill(1, 50) &&
+        loopback.gainPlayerSkillExperience(1, 50, 100) &&
+        loopback.learnPlayerSkill(1, 51) &&
+        loopback.setPlayerSkillActivation(50, 30, 3) &&
+        loopback.setPlayerSkillResource(1, 50),
+        "skill prerequisites and activation metadata must be enforced")
+    var activation = loopback.activatePlayerSkill(1, 50, 0)
+    assert(activation.accepted() && activation.resourceCost() == 30 &&
+        activation.cooldownUntil() == 3 &&
+        loopback.playerSkillResource(1) == 20 &&
+        loopback.playerSkillCooldown(1, 50, 1) == 2,
+        "skill activation must consume bounded resource and set cooldown")
+    var blockedActivation = loopback.activatePlayerSkill(1, 50, 1)
+    assert(!blockedActivation.accepted() &&
+        loopback.playerSkillResource(1) == 20,
+        "skill activation must reject cooldown reuse")
+    assert(loopback.setPlayerSkillResource(1, 50))
+    var readyActivation = loopback.activatePlayerSkill(1, 50, 3)
+    assert(readyActivation.accepted() && loopback.playerSkillResource(1) == 20,
+        "skill activation must become available at cooldown expiry")
+    assert(loopback.definePlayerStatus(60, 5, 3) &&
+        loopback.setPlayerStatusDamageModifier(60, 2, 25) &&
+        loopback.applyPlayerStatus(1, 60, 5, 1) &&
+        loopback.definePlayerWeapon(9, 3, 0, 0, 10, 1, 20) &&
+        loopback.addPlayerCombatActor(1, 100, 0) &&
+        loopback.addPlayerCombatActor(2, 100, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 9),
+        "player progression modifiers must configure before combat")
+    var enhanced = loopback.resolvePlayerHitscan(1, 2, 0, 1, 0)
+    assert(enhanced.accepted() && enhanced.applied() == 21 &&
+        loopback.playerCombatHealth(2) == 79,
+        "skill and status modifiers must increase player damage")
+    assert(loopback.definePlayerStatus(61, 2, 1) &&
+        loopback.setPlayerStatusDefenseModifier(61, 3, 50) &&
+        loopback.applyPlayerStatus(2, 61, 2, 1))
+    var defended = loopback.resolvePlayerHitscan(1, 2, 1, 1, 0)
+    assert(defended.accepted() && defended.applied() == 9 &&
+        loopback.playerCombatHealth(2) == 70,
+        "defensive status modifiers must reduce incoming damage")
+    assert(loopback.advance(4 * 16667) == 4 &&
+        loopback.playerStatusDuration(1, 60) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerStatusDuration(1, 60) == -1)
+    var expired = loopback.resolvePlayerHitscan(1, 2, 5, 1, 0)
+    assert(expired.accepted() && expired.applied() == 15 &&
+        loopback.playerCombatHealth(2) == 55,
+        "expired status modifiers must stop affecting player damage")
+    assert(loopback.definePlayerWeapon(10, 3, 0, 0, 10, 1, 20),
+        "loopback must define a second combat weapon")
+    assert(loopback.equipPlayerCombatWeapon(1, 10),
+        "loopback must equip the second combat weapon")
+    assert(loopback.setPlayerCombatShield(2, 8, 8),
+        "loopback must set player shield state")
+    assert(loopback.setPlayerCombatResistance(2, 1, 50),
+        "loopback must set player resistance state")
+    var playerShielded = loopback.resolvePlayerHitscan(1, 2, 6, 1, 0)
+    assert(playerShielded.accepted() && playerShielded.applied() == 8 &&
+        loopback.playerCombatHealth(2) == 55 &&
+        loopback.playerCombatShield(2) == 0,
+        "loopback player combat must expose resistance and shield authority")
+    assert(loopback.defineEnemyWeapon(19, 2, 0, 0, 10, 1, 20) &&
+        loopback.addEnemyCombatActor(10, 100, 0) &&
+        loopback.addEnemyCombatActor(11, 100, 0) &&
+        loopback.equipEnemyCombatWeapon(10, 19) &&
+        loopback.setEnemyCombatDamageModifier(10, 1, 100) &&
+        loopback.setEnemyCombatShield(11, 3, 3) &&
+        loopback.setEnemyCombatResistance(11, 1, 50))
+    var enemyHit = loopback.resolveEnemyHitscan(10, 11, 0, 1, 0)
+    assert(enemyHit.accepted() && enemyHit.applied() == 11 &&
+        loopback.enemyCombatShield(11) == 0,
+        "enemy combat must honor resistance and shield modifiers")
+}
+test "periodic statuses damage players on fixed ticks" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.connectPlayer() == 2 &&
+        loopback.definePlayerStatus(70, 3, 2) &&
+        loopback.setPlayerStatusPeriodicDamage(70, 3, 1) &&
+        loopback.applyPlayerStatus(2, 70, 3, 2) &&
+        loopback.addPlayerCombatActor(1, 50, 0) &&
+        loopback.addPlayerCombatActor(2, 20, 0),
+        "periodic status damage must configure through authority")
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerCombatHealth(2) == 14 &&
+        loopback.playerStatusDuration(2, 70) == 2,
+        "periodic status damage must tick once per fixed step")
+    assert(loopback.advance(2 * 16667) == 2 &&
+        loopback.playerCombatHealth(2) == 2 &&
+        loopback.playerStatusDuration(2, 70) == -1,
+        "periodic status damage must stop when the status expires")
+}
+
+test "area damage resolves bounded target batches" {
+    var combat = CombatWorld(4, 1)
+    var targets = new Int[2]
+    targets[0] = 2
+    targets[1] = 3
+    assert(combat.addActor(1, 50, 0) &&
+        combat.addActor(2, 30, 0) &&
+        combat.addActor(3, 30, 0) &&
+        combat.setResistance(3, 1, 50))
+    var area = combat.resolveAreaDamage(1, targets, 10, 1, 0)
+    assert(area.accepted() && area.targetCount() == 2 &&
+        area.applied() == 15 && area.deaths() == 0 &&
+        combat.currentHealth(2) == 20 && combat.currentHealth(3) == 25 &&
+        combat.pendingCombatEvents() == 2,
+        "area damage must reuse bounded resistance and damage resolution")
+    assert(combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().kind() == 3 &&
+        combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 3,
+        "area damage must publish ordered combat events")
+    var duplicateTargets = new Int[2]
+    duplicateTargets[0] = 2
+    duplicateTargets[1] = 2
+    var rejected = combat.resolveAreaDamage(1, duplicateTargets, 10, 1, 0)
+    assert(!rejected.accepted() && combat.currentHealth(2) == 20,
+        "area damage must reject duplicate targets without mutation")
+}
+test "bounded shotgun pellets share damage authority" {
+    var combat = CombatWorld(2, 1)
+    assert(combat.defineWeapon(12, 2, 0, 0, 100, 1, 30) &&
+        combat.setWeaponSpread(12, 3, 20) &&
+        combat.addActor(1, 1000, 0) &&
+        combat.addActor(2, 1000, 0) &&
+        combat.equipWeapon(1, 12) &&
+        !combat.setWeaponSpread(12, 9, 10))
+    var firstPellet = combat.shotgunPelletOffset(12, 0)
+    var secondPellet = combat.shotgunPelletOffset(12, 1)
+    var thirdPellet = combat.shotgunPelletOffset(12, 2)
+    assert(firstPellet.valid() && firstPellet.x() == 0 &&
+        firstPellet.y() == 20 &&
+        secondPellet.valid() && secondPellet.x() == -20 &&
+        secondPellet.y() == -20 &&
+        thirdPellet.valid() && thirdPellet.x() == 20 &&
+        thirdPellet.y() == -20,
+        "shotgun spread must publish deterministic geometric offsets")
+    assert(combat.shotgunTargetStartIndex(12, 0, 3) == 2 &&
+        combat.shotgunTargetStartIndex(12, 1, 3) == 2 &&
+        combat.shotgunTargetStartIndex(12, 2, 3) == 0,
+        "shotgun geometry must produce deterministic target starts")
+    var blast = combat.resolveShotgun(1, 2, 0, 30, 0)
+    assert(blast.accepted() && blast.applied() == 281 &&
+        blast.remainingHealth() == 719 &&
+        combat.magazine(1) == 1 && combat.pendingCombatEvents() == 3,
+        "shotgun must consume one shell and publish bounded pellet hits")
+    assert(combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().kind() == 4 &&
+        combat.dequeueCombatEvent() &&
+        combat.dequeueCombatEvent() &&
+        combat.pendingCombatEvents() == 0,
+        "shotgun pellet events must preserve deterministic order")
+}
+test "shotgun pellets target bounded spread list" {
+    var combat = CombatWorld(3, 1)
+    assert(combat.defineWeapon(13, 2, 0, 0, 100, 1, 30) &&
+        combat.setWeaponSpread(13, 3, 0) &&
+        combat.addActor(1, 1000, 0) &&
+        combat.addActor(2, 1000, 0) &&
+        combat.addActor(3, 1000, 0) &&
+        combat.equipWeapon(1, 13))
+    var targets = new Int[2]
+    targets[0] = 2
+    targets[1] = 3
+    var result = combat.resolveShotgunTargets(1, targets, 0, 30, 0)
+    assert(result.accepted() && result.targetCount() == 3 &&
+        result.applied() == 300 && result.deaths() == 0 &&
+        combat.currentHealth(2) == 800 &&
+        combat.currentHealth(3) == 900 &&
+        combat.magazine(1) == 1,
+        "shotgun target lists must distribute pellets deterministically")
+}
+test "shotgun pellet targets preserve spatial selection" {
+    var combat = CombatWorld(3, 1)
+    assert(combat.defineWeapon(14, 2, 0, 0, 100, 1, 30) &&
+        combat.setWeaponSpread(14, 3, 0) &&
+        combat.addActor(1, 1000, 0) &&
+        combat.addActor(2, 1000, 0) &&
+        combat.addActor(3, 1000, 0) &&
+        combat.equipWeapon(1, 14))
+    var selected = new Int[3]
+    selected[0] = 2
+    selected[1] = 2
+    selected[2] = 3
+    var result = combat.resolveShotgunPelletTargets(
+        1, selected, 0, 30, 0)
+    assert(result.accepted() && result.targetCount() == 3 &&
+        result.applied() == 300 &&
+        combat.currentHealth(2) == 800 &&
+        combat.currentHealth(3) == 900,
+        "spatial pellet targets must preserve per-pellet selection")
+    assert(combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 2 &&
+        combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 2 &&
+        combat.dequeueCombatEvent() &&
+        combat.lastCombatEvent().targetId() == 3,
+        "spatial pellet events must preserve selected target order")
+    var wrongLength = new Int[2]
+    wrongLength[0] = 2
+    wrongLength[1] = 3
+    assert(!combat.resolveShotgunPelletTargets(
+        1, wrongLength, 1, 30, 0).accepted(),
+        "spatial pellet targets must require one target per pellet")
+}
+
+
+
+
+
+test "focus loss clears held input and queued fire" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1)
+    assert(loopback.definePlayerWeapon(9, 3, 0, 1, 4, 1, 20) &&
+        loopback.addPlayerCombatActor(1, 20, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 9))
+    assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1)
+    assert(loopback.dequeuePlayerWeaponPresentation())
+    assert(loopback.lastInputEdges(1).firePressed() == 1)
+    assert(loopback.receiveInput(1, 2, 2, 0, 0, 0, 0, 1, 0))
+    assert(loopback.applyPlayerFocus(1, 0) &&
+        !loopback.playerFocused(1) &&
+        loopback.lastInputEdges(1).fireReleased() == 1 &&
+        loopback.lastInputEdges(1).firePressed() == 0,
+        "focus loss must release held buttons")
+    assert(loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 0 &&
+        !loopback.receiveInput(1, 3, 3, 0, 0, 0, 0, 1, 0),
+        "focus loss must discard queued and new firing input")
+    assert(loopback.applyPlayerFocus(1, 1) &&
+        loopback.playerFocused(1) &&
+        loopback.receiveInput(1, 3, 4, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1,
+        "focus regain must rearm input acceptance")
+}
+
+test "pause reset discards debt and one-shot input" {
+    var clock = FixedStepClock(60, 4)
+    assert(clock.advance(1000) == 0 &&
+        clock.pendingMicros() == 1000 &&
+        clock.resetDebt() &&
+        clock.pendingMicros() == 0)
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1)
+    assert(loopback.definePlayerWeapon(9, 2, 0, 1, 4, 1, 20) &&
+        loopback.addPlayerCombatActor(1, 20, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 9))
+    assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0) &&
+        loopback.setPaused(1) &&
+        loopback.isPaused() &&
+        !loopback.setPaused(2) &&
+        !loopback.receiveInput(1, 1, 2, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(100000) == 0 &&
+        loopback.playerWeaponPresentationCount() == 0,
+        "pause must disarm pending input and discard wall-clock debt")
+    assert(loopback.setPaused(0) &&
+        !loopback.isPaused() &&
+        loopback.receiveInput(1, 1, 3, 0, 0, 0, 0, 1, 0) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerWeaponPresentationCount() == 1,
+        "unpause must resume clean fixed-step input")
+}
+
+test "bounded input replay records tick commands" {
+    var replay = InputReplayRecorder(2)
+    var first = InputCommand(4, 1, 3, 0, 2, -1, 1, 0)
+    var second = InputCommand(5, 2, 0, 1, -2, 3, 0, 1)
+    assert(replay.append(first) && replay.append(second) &&
+        replay.pending() == 2 &&
+        replay.lastRecordedTick() == 5 &&
+        replay.lastRecordedSequence() == 2,
+        "replay must retain ordered resulting tick commands")
+    assert(!replay.append(InputCommand(3, 3, 0, 0, 0, 0, 0, 0)) &&
+        !replay.append(InputCommand(6, 2, 0, 0, 0, 0, 0, 0)) &&
+        !replay.append(InputCommand(6, 3, 0, 0, 0, 0, 2, 0)),
+        "replay must reject stale, duplicate and invalid commands")
+    assert(replay.playNext() &&
+        replay.lastPlayed().tick() == 4 &&
+        replay.lastPlayed().sequence() == 1 &&
+        replay.lastPlayed().moveX() == 3 &&
+        replay.pending() == 1 &&
+        replay.playNext() &&
+        replay.lastPlayed().tick() == 5 &&
+        replay.lastPlayed().jump() == 1 &&
+        replay.pending() == 0 &&
+        !replay.playNext(),
+        "replay playback must preserve FIFO command values")
+    assert(replay.reset() && replay.pending() == 0 &&
+        replay.lastRecordedSequence() == -1 &&
+        replay.append(InputCommand(0, 0, 0, 0, 0, 0, 0, 0)),
+        "replay reset must rearm deterministic recording")
+}
+
+test "loopback replay capture records consumed commands" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.setInputReplayEnabled(true) &&
+        loopback.inputReplayEnabledValue())
+    assert(loopback.receiveInput(1, 1, 1, 3, 0, 2, -1, 0, 0) &&
+        loopback.receiveInput(1, 2, 2, -2, 0, 0, 4, 0, 1) &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.pendingPlayerReplay(1) == 2,
+        "loopback must capture commands when replay is enabled")
+    assert(loopback.playPlayerReplay(1) &&
+        loopback.lastPlayerReplay(1).tick() == 1 &&
+        loopback.lastPlayerReplay(1).moveX() == 3 &&
+        loopback.playPlayerReplay(1) &&
+        loopback.lastPlayerReplay(1).tick() == 2 &&
+        loopback.lastPlayerReplay(1).jump() == 1 &&
+        loopback.pendingPlayerReplay(1) == 0,
+        "loopback replay must preserve consumed command order")
+    assert(loopback.setInputReplayEnabled(false) &&
+        !loopback.inputReplayEnabledValue() &&
+        loopback.pendingPlayerReplay(1) == 0,
+        "disabling replay must reset bounded capture state")
+}
+
+test "loopback replay stages commands into simulation" {
+    var timeline = BoundedReplayTimeline(2, 2)
+    var initial = new Int[1]
+    initial[0] = 0
+    assert(timeline.setInitialSnapshot(initial) &&
+        timeline.append(InputCommand(1, 1, 3, 0, 0, 0, 0, 0)) &&
+        timeline.append(InputCommand(2, 2, -2, 0, 0, 0, 0, 0)))
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.queueReplayCommands(1, timeline, 2) &&
+        loopback.advance(33334) == 2 &&
+        loopback.currentServerTick() == 2 &&
+        loopback.serverPosition(1) == 1,
+        "loopback replay must queue staged commands for authoritative execution")
+}
+test "loopback replay applies checkpoint state" {
+    var timeline = BoundedReplayTimeline(2, 4)
+    var snapshot = new Int[4]
+    snapshot[0] = 3
+    snapshot[1] = 42
+    snapshot[2] = 0
+    snapshot[3] = 9
+    assert(timeline.appendCheckpointSnapshot(3, 101, snapshot) &&
+        timeline.append(InputCommand(4, 1, 1, 0, 0, 0, 0, 0)))
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.applyReplayCheckpoint(timeline, 4) &&
+        loopback.currentServerTick() == 3 &&
+        loopback.serverPosition(1) == 42 &&
+        loopback.queueReplayCommands(1, timeline, 4) &&
+        loopback.advance(16667) == 1 &&
+        loopback.currentServerTick() == 4 &&
+        loopback.serverPosition(1) == 43,
+        "loopback replay must restore checkpoint position and tick")
+}
+test "loopback replay restores combat checkpoint state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.connectPlayer() == 2 &&
+        loopback.definePlayerWeapon(21, 3, 5, 0, 10, 0, 20) &&
+        loopback.addPlayerCombatActor(1, 100, 0) &&
+        loopback.addPlayerCombatActor(2, 100, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 21) &&
+        loopback.equipPlayerCombatWeapon(2, 21) &&
+        loopback.resolvePlayerHitscan(1, 2, 0, 1, 0).accepted() &&
+        loopback.playerCombatHealth(2) == 90 &&
+        loopback.playerCombatMagazine(1) == 2,
+        "combat checkpoint setup must apply initial damage")
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
+    assert(loopback.encodeReplayCheckpoint(checkpoint))
+    var timeline = BoundedReplayTimeline(2, 2)
+    assert(timeline.appendCheckpointSnapshot(0, 202, checkpoint) &&
+        loopback.resolvePlayerHitscan(1, 2, 1, 1, 0).accepted() &&
+        loopback.playerCombatHealth(2) == 80 &&
+        loopback.applyReplayCheckpoint(timeline, 1) &&
+        loopback.playerCombatHealth(2) == 90 &&
+        loopback.playerCombatMagazine(1) == 2,
+        "combat checkpoint restore must rewind health and ammunition")
+}
+test "loopback replay restores progression checkpoint state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.definePlayerSkill(30, 2, 100) &&
+        loopback.setPlayerSkillActivation(30, 20, 5) &&
+        loopback.learnPlayerSkill(1, 30) &&
+        loopback.gainPlayerSkillExperience(1, 30, 125) &&
+        loopback.setPlayerSkillResource(1, 100) &&
+        loopback.activatePlayerSkill(1, 30, 0).accepted() &&
+        loopback.playerSkillResource(1) == 80 &&
+        loopback.definePlayerStatus(40, 10, 3) &&
+        loopback.applyPlayerStatus(1, 40, 5, 2) &&
+        loopback.playerStatusDuration(1, 40) == 5)
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
+    assert(loopback.encodeReplayCheckpoint(checkpoint))
+    var timeline = BoundedReplayTimeline(2, 2)
+    assert(timeline.appendCheckpointSnapshot(0, 303, checkpoint) &&
+        loopback.setPlayerSkillResource(1, 1) &&
+        loopback.advance(16667) == 1 &&
+        loopback.playerStatusDuration(1, 40) == 4)
+    var progressionApplied = loopback.applyReplayCheckpoint(timeline, 1)
+    assert(progressionApplied, "progression checkpoint must apply")
+    assert(loopback.playerSkillResource(1) == 80,
+        "progression resource must rewind")
+    assert(loopback.playerSkillCooldown(1, 30, 0) == 5,
+        "progression cooldown must rewind")
+    assert(loopback.playerStatusDuration(1, 40) == 5,
+        "progression duration must rewind")
+    assert(loopback.playerStatusStacks(1, 40) == 2,
+        "progression stacks must rewind")
+}
+test "bounded inventory equipment replay state" {
+    var inventory = BoundedItemInventory(1, 4)
+    var equipment = BoundedEquipmentLoadout(2)
+    assert(inventory.addItem(500, 2) &&
+        inventory.setCurrency(100) &&
+        equipment.equip(inventory, 0, 500))
+    var inventoryState = new Int[inventory.replayStateLength()]
+    var world = BoundedTriangleCollection(4, 20)
+    var worldState = new Int[world.replayStateLength()]
+    var equipmentState = new Int[equipment.replayStateLength()]
+    assert(world.configureBounds(0, 0, 0, 10, 10, 10) &&
+        world.addTriangle(0, 0, 0, 1, 0, 0, 0, 0, 1) &&
+        inventory.encodeReplayState(inventoryState) &&
+        equipment.encodeReplayState(equipmentState) &&
+        world.encodeReplayState(worldState) &&
+        inventory.setCurrency(1) &&
+        inventory.addItem(501, 1) &&
+        equipment.unequip(0) &&
+        world.clearTriangles() &&
+        inventory.restoreReplayState(inventoryState) &&
+        equipment.restoreReplayState(equipmentState, inventory) &&
+        world.restoreReplayState(worldState) &&
+        inventory.currency() == 100 &&
+        inventory.itemQuantity(0) == 2 &&
+        inventory.itemId(0) == 500 &&
+        equipment.itemAt(0) == 500 &&
+        world.triangleCount() == 1,
+        "inventory, equipment and world replay state must restore deterministically")
+}
+
+test "loopback replay sidecar restores inventory and world state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() &&
+        loopback.connectPlayer() == 1 &&
+        loopback.addPlayerItem(1, 500, 2) &&
+        loopback.setPlayerCurrency(1, 100) &&
+        loopback.equipPlayerItem(1, 0, 500) &&
+        loopback.addBroadPhaseTriangle(
+            0, 0, 0, 1, 0, 0, 0, 0, 1))
+    assert(loopback.recordReplayPresentation(
+            0, 1, 7, 1, 0, 500, 9, 2, 1, 0, 0, 1),
+        "replay sidecar must accept presentation history")
+    var timeline = BoundedReplayTimeline(4, 2)
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
+    var sidecar = new Int[loopback.replaySidecarLength()]
+    assert(loopback.encodeReplayCheckpoint(checkpoint),
+        "atomic replay checkpoint encode must succeed")
+    assert(loopback.encodeReplaySidecar(sidecar),
+        "atomic replay sidecar encode must succeed")
+    assert(timeline.appendCheckpointBundle(0, 17, checkpoint, sidecar),
+        "atomic replay bundle must append")
+    assert(loopback.setPlayerCurrency(1, 1) &&
+        loopback.addPlayerItem(1, 501, 1) &&
+        loopback.removeBroadPhaseTriangle(0),
+        "atomic replay bundle mutation must apply")
+    assert(loopback.applyReplayCheckpointBundle(timeline, 0),
+        "atomic replay bundle must restore")
+    assert(loopback.playerCurrency(1) == 100 &&
+        loopback.playerItemQuantity(1, 500) == 2 &&
+        loopback.playerItemQuantity(1, 501) == 0 &&
+        loopback.playerEquipmentItem(1, 0) == 500 &&
+        loopback.broadPhaseTriangleCount() == 1 &&
+        loopback.replayPresentationCount() == 1 &&
+        loopback.replayPresentationAt(0).valueOne() == 500,
+        "atomic replay bundle must restore inventory world and presentation state")
+}
+
+test "loopback replay restores enemy combat checkpoint state" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() &&
+        loopback.defineEnemyWeapon(31, 3, 0, 0, 10, 0, 20) &&
+        loopback.defineEnemyEncounter(4, 2, 100) &&
+        loopback.configureEnemyRules(50, 10, 2) &&
+        loopback.addEnemyCombatActor(1, 1000, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 31) &&
+        loopback.admitEnemy(4, 100, 0, 100, 0, 31) &&
+        loopback.setEnemySpatialPosition(100, 20, 0, 0) &&
+        loopback.configureEnemyPerception(100, 1, true, 20, 0) &&
+        loopback.advanceEnemyTick(0) &&
+        loopback.enemyState(100) == 3 &&
+        loopback.enemySpatialPositionX(100) == 20 &&
+        loopback.enemyEncounterActiveCount(4) == 1 &&
+        loopback.enemyEncounterRemainingBudget(4) == 99)
+    var first = loopback.resolveEnemyHitscan(1, 100, 0, 1, 0)
+    assert(first.accepted() && first.remainingHealth() == 90)
+    assert(loopback.setEnemySpatialPosition(1, 0, 0, 0) &&
+        loopback.spawnEnemyProjectileSpatial(
+            1, 100, 0, 20, 3, 0).accepted(),
+        "enemy projectile must spawn before checkpoint")
+    var checkpoint = new Int[loopback.replayCheckpointLength()]
+    assert(loopback.encodeReplayCheckpoint(checkpoint))
+    var timeline = BoundedReplayTimeline(2, 2)
+    assert(timeline.appendCheckpointSnapshot(0, 404, checkpoint) &&
+        loopback.setEnemySpatialPosition(100, 30, 0, 0) &&
+        loopback.resolveEnemyHitscan(1, 100, 1, 1, 0).remainingHealth() == 80)
+    var enemyApplied = loopback.applyReplayCheckpoint(timeline, 1)
+    assert(enemyApplied, "enemy checkpoint must apply")
+    assert(loopback.activeEnemyProjectiles() == 1,
+        "enemy projectile must rewind")
+    assert(loopback.pendingEnemyImpactPresentations() == 0 &&
+        loopback.pendingEnemyImpactAudio() == 0,
+        "enemy presentation queues must reset")
+    assert(loopback.enemyState(100) == 3 &&
+        loopback.enemySpatialPositionX(100) == 20 &&
+        loopback.enemyEncounterActiveCount(4) == 1 &&
+        loopback.enemyEncounterRemainingBudget(4) == 99,
+        "enemy AI spatial and encounter state must rewind")
+    var restored = loopback.resolveEnemyHitscan(1, 100, 2, 1, 0)
+    assert(restored.accepted() && restored.remainingHealth() == 80,
+        "enemy world checkpoint restore must rewind combat and projectile state")
+}
+
+
+
+
+
+test "bounded replay wire and file codecs" {
+    var replay = InputReplayRecorder(2)
+    assert(replay.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
+        replay.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1)))
+    var codec = BoundedReplayWireCodec(2)
+    assert(codec.encode(replay, 7, 11, -19) &&
+        codec.encodedLength() == 22,
+        "replay wire codec must frame metadata and commands")
+    var wire = new Int[codec.encodedLength()]
+    for (var index = 0; index < wire.length; index = index + 1) {
+        wire[index] = codec.encodedWord(index)
+    }
+    var restored = InputReplayRecorder(2)
+    assert(codec.decode(wire, restored) &&
+        codec.engineVersion() == 7 &&
+        codec.contentVersion() == 11 &&
+        codec.seed() == -19 &&
+        restored.playNext() &&
+        restored.lastPlayed().moveX() == 3 &&
+        restored.playNext() &&
+        restored.lastPlayed().jump() == 1,
+        "replay wire codec must restore metadata and FIFO commands")
+    wire[0] = 0
+    assert(!codec.decode(wire, restored),
+        "replay wire codec must reject a corrupted header")
+    var path = "/tmp/kookie-replay-test.bin"
+    var files = BoundedReplayFileStore(2)
+    assert(files.write(path, replay, 7, 11, -19))
+    var loaded = InputReplayRecorder(2)
+    assert(files.read(path, loaded) &&
+        files.engineVersion() == 7 &&
+        files.contentVersion() == 11 &&
+        files.seed() == -19 &&
+        loaded.playNext() &&
+        loaded.lastPlayed().lookY() == -1 &&
+        loaded.playNext() &&
+        loaded.lastPlayed().sequence() == 2,
+        "replay file codec must restore signed commands")
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
+    assert(file.writeBytes(corrupted) &&
+        !files.read(path, loaded),
+        "replay file codec must reject corrupted digits")
+}
+
+test "bounded replay timeline checkpoints" {
+    var timeline = BoundedReplayTimeline(2, 2)
+    var snapshot = new Int[2]
+    snapshot[0] = 12
+    snapshot[1] = -4
+    var checkpointSnapshot = new Int[2]
+    checkpointSnapshot[0] = 30
+    checkpointSnapshot[1] = -7
+    var staged = InputReplayRecorder(2)
+    assert(timeline.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
+        timeline.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1)) &&
+        timeline.setInitialSnapshot(snapshot) &&
+        timeline.appendCheckpointSnapshot(4, 101, checkpointSnapshot) &&
+        timeline.appendCheckpoint(9, 202) &&
+        timeline.checkpointSnapshotLength(0) == 2 &&
+        timeline.checkpointSnapshotValue(0, 1) == -7 &&
+        timeline.checkpointIndexAtOrBefore(8) == 0 &&
+        timeline.seek(8) &&
+        timeline.seekCheckpointIndex() == 0 &&
+        timeline.seekSnapshotLength() == 2 &&
+        timeline.seekSnapshotValue(0) == 30 &&
+        timeline.seekSnapshotValue(1) == -7 &&
+        timeline.seekRemainingCommands() == 1 &&
+        timeline.seekNextCommand() &&
+        timeline.lastSeekCommand().tick() == 5 &&
+        !timeline.seekNextCommand() &&
+        timeline.seek(8) &&
+        timeline.stageSeekCommands(staged) &&
+        staged.pending() == 1 &&
+        staged.playNext() &&
+        staged.lastPlayed().tick() == 5 &&
+        !staged.playNext() &&
+        timeline.checkpointHash(1) == 202,
+        "timeline must restore checkpoint state and stage commands")
+    var files = BoundedReplayFileStore(2)
+    var path = "/tmp/kookie-replay-timeline-test.bin"
+    assert(files.writeTimeline(path, timeline, 7, 11, 99))
+    var restored = BoundedReplayTimeline(2, 2)
+    assert(files.readTimeline(path, restored) &&
+        files.engineVersion() == 7 &&
+        files.contentVersion() == 11 &&
+        files.seed() == 99 &&
+        restored.pending() == 2 &&
+        restored.initialSnapshotLength() == 2 &&
+        restored.initialSnapshotValue(0) == 12 &&
+        restored.initialSnapshotValue(1) == -4 &&
+        restored.checkpointCountValue() == 2 &&
+        restored.checkpointTick(0) == 4 &&
+        restored.checkpointSnapshotLength(0) == 2 &&
+        restored.checkpointSnapshotValue(0, 0) == 30 &&
+        restored.checkpointSnapshotValue(0, 1) == -7 &&
+        restored.checkpointHash(1) == 202 &&
+        restored.commandAt(1).sequence() == 2 &&
+        restored.seek(8) &&
+        restored.seekCheckpointIndex() == 0 &&
+        restored.seekSnapshotValue(1) == -7 &&
+        restored.seekRemainingCommands() == 1,
+        "timeline file codec must restore checkpoint state and commands")
+    var file = File(path)
+    var corrupted = file.readBytes()
+    corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
+    assert(file.writeBytes(corrupted) &&
+        !files.readTimeline(path, restored),
+        "timeline file codec must reject corrupted checkpoints")
+}
+
+test "bounded replay bundle file codec" {
+    var timeline = BoundedReplayTimeline(2, 2)
+    var primary = new Int[2]
+    primary[0] = 30
+    primary[1] = -7
+    var sidecar = new Int[3]
+    sidecar[0] = 100
+    sidecar[1] = -200
+    sidecar[2] = 300
+    assert(timeline.appendCheckpointBundle(4, 101, primary, sidecar),
+        "bundle timeline must accept primary and sidecar state")
+    var files = BoundedReplayBundleFileStore(2)
+    var path = "/tmp/kookie-replay-bundle-test.bin"
+    var restored = BoundedReplayTimeline(2, 2)
+    assert(files.writeTimeline(path, timeline, 7, 11, 99) &&
+        files.readTimeline(path, restored) &&
+        files.engineVersion() == 7 &&
+        files.contentVersion() == 11 &&
+        files.seed() == 99 &&
+        restored.checkpointCountValue() == 1 &&
+        restored.checkpointSnapshotValue(0, 1) == -7 &&
+        restored.checkpointSidecarLength(0) == 3 &&
+        restored.checkpointSidecarValue(0, 1) == -200 &&
+        restored.seek(4) &&
+        restored.seekSidecarLength() == 3 &&
+        restored.seekSidecarValue(2) == 300,
+        "bundle file codec must round-trip primary and sidecar state")
+}
+
+test "replay presentation history round trips" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() &&
+        loopback.recordReplayPresentation(
+            4, 1, 7, 1, 2, 9, 10, 11, 12, 13, 14, 1) &&
+        loopback.recordReplayPresentation(
+            5, 2, 8, 1, 0, 20, 21, 22, 23, 24, 25, 0) &&
+        loopback.replayPresentationCount() == 2)
+    var state = new Int[loopback.replayPresentationReplayStateLength()]
+    assert(loopback.encodeReplayPresentationState(state) &&
+        loopback.restoreReplayPresentationState(new Int[2]) == false,
+        "presentation history must reject truncated replay state")
+    assert(loopback.restoreReplayPresentationState(state) &&
+        loopback.replayPresentationCount() == 2 &&
+        loopback.replayPresentationAt(0).tick() == 4 &&
+        loopback.replayPresentationAt(0).valueThree() == 11 &&
+        loopback.replayPresentationAt(1).flag() == false,
+        "presentation history must restore ordered replay events")
+}
+
+test "resource token lifecycle" {
+    var resources = ResourceRegistry(1)
+    var token = resources.acquire(7)
+    assert(resources.isValid(token))
+    assert(!resources.isValid(ResourceToken(token.slot(), token.generation(), 8)))
+    assert(resources.release(token))
+    assert(!resources.isValid(token))
+    assert(!resources.release(token))
+    var replacement = resources.acquire(7)
+    assert(replacement.generation() != token.generation())
+}
+
+test "platform state and audio queue lifecycle" {
+    var window = WindowStateTracker(800, 600)
+    assert(window.applyNativeEvent(3, 1, 0))
+    assert(window.applyNativeEvent(2, 1024, 768))
+    assert(!window.applyNativeEvent(2, -1, 768))
+    assert(window.applyNativeEvent(4, 0, 0))
+    assert(!window.applyNativeEvent(99, 0, 0))
+    var state = window.snapshot()
+    assert(state.width() == 1024 && state.height() == 768 && state.focused() && state.closeRequested())
+
+    var audio = QueuedAudio(1)
+    assert(audio.open())
+    assert(audio.queue(3, 100))
+    assert(!audio.queue(4, 100))
+    assert(audio.dequeue())
+    assert(audio.consumedClip() == 3 && audio.consumedGain() == 100)
+    assert(audio.close())
+}
+test "remote endpoint and key lifecycle" {
+    var endpoint = RemoteSessionEndpoint(
+        127, 0, 0, 1, 4000, 1, 2, 3, 4)
+    assert(endpoint.valid())
+    assert(!endpoint.active())
+    assert(!endpoint.setPeer(127, 0, 0, 1, 0))
+    assert(!endpoint.setKey(0, 0, 0, 0))
+    assert(endpoint.activate())
+    assert(endpoint.active())
+    assert(!endpoint.setPeer(127, 0, 0, 1, 4001))
+    assert(!endpoint.setKey(9, 8, 7, 6))
+    assert(endpoint.deactivate())
+    assert(endpoint.setKey(9, 8, 7, 6))
+    assert(endpoint.keyWord(0) == 9 && endpoint.keyWord(3) == 6)
+}
+test "remote session link sequences" {
+    var endpoint = RemoteSessionEndpoint(
+        127, 0, 0, 1, 4000, 1, 2, 3, 4)
+    var link = RemoteSessionLink(endpoint)
+    var session = LoopbackSession(2, 2)
+    assert(session.start())
+    assert(session.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5))
+    var snapshot = session.broadPhaseSnapshot(1, 1)
+    assert(!link.sendSnapshot(snapshot))
+    assert(link.connect())
+    assert(link.connected())
+    assert(link.sendSnapshot(snapshot))
+    assert(!link.sendSnapshot(snapshot))
+    assert(link.receiveSnapshot(snapshot))
+    assert(!link.receiveSnapshot(snapshot))
+    assert(link.sentSequence() == 1 && link.receivedSequence() == 1)
+    assert(link.disconnect())
+    assert(!link.connected())
+    assert(!link.disconnect())
+    assert(link.reconnect())
+    var nextSnapshot = session.broadPhaseSnapshot(2, 2)
+    assert(link.sendSnapshot(nextSnapshot))
+    assert(!link.sendSnapshot(snapshot))
+    assert(link.receiveSnapshot(nextSnapshot))
+    assert(!link.receiveSnapshot(snapshot))
+    assert(link.sentSequence() == 2 && link.receivedSequence() == 2)
+    assert(link.disconnect())
+}
+test "authoritative remote session handoff" {
+    var session = LoopbackSession(2, 2)
+    assert(session.start())
+    assert(session.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5))
+    assert(!session.openRemoteSession())
+    assert(!session.configureRemoteEndpoint(
+        127, 0, 0, 1, 0, 1, 2, 3, 4))
+    assert(session.configureRemoteEndpoint(
+        127, 0, 0, 1, 4000, 1, 2, 3, 4))
+    assert(!session.queueRemoteBroadPhaseSnapshot(1, 1))
+    assert(session.openRemoteSession())
+    assert(session.remoteSessionConnected())
+    assert(session.queueRemoteBroadPhaseSnapshot(1, 1))
+    assert(!session.queueRemoteBroadPhaseSnapshot(1, 1))
+    var snapshot = session.broadPhaseSnapshot(2, 2)
+    assert(session.queueRemoteBroadPhaseSnapshot(2, 2))
+    assert(session.pumpRemoteBroadPhaseSnapshot(3))
+    assert(session.remoteSendSequence() == 3)
+    assert(session.applyRemoteBroadPhaseSnapshot(snapshot))
+    assert(session.closeRemoteSession())
+    assert(!session.remoteSessionConnected())
+    assert(session.openRemoteSession())
+    assert(session.remoteSessionConnected() &&
+        session.remoteSendSequence() == 3)
+    assert(session.pumpRemoteBroadPhaseSnapshot(4))
+    assert(session.remoteSendSequence() == 4)
+    assert(session.closeRemoteSession())
+}
+
+
+
+test "frame staging ownership and scalar measurement" {
+    var staging = FrameStaging(2)
+    assert(staging.begin(7))
+    assert(staging.pushVertex(2, 1, 2, 3, 4))
+    assert(staging.pushVertex(2, 5, 6, 7, 8))
+    assert(!staging.pushVertex(2, 9, 10, 11, 12))
+    assert(staging.scalarWrites() == 10)
+    assert(staging.publish())
+    assert(staging.retire(7))
+    assert(staging.publishedFrame() == 7 && staging.retiredFrame() == 7)
+    assert(!staging.retire(7))
+    assert(!staging.begin(7))
+    assert(staging.begin(8))
+    assert(staging.discard())
+    assert(!staging.publish())
+}
+
+test "authoritative loopback foundation" {
+    var clock = FixedStepClock(60, 4)
+    assert(clock.advance(16667) == 1)
+    assert(clock.tick() == 1)
+    var component = IntComponentStore(1)
+    assert(component.set(1, 10))
+    assert(!component.set(2, 20))
+    var movement = MovementComponent(1, 2)
+    assert(movement.add(1, 0))
+    assert(movement.applyInput(1, 9))
+    assert(movement.position(1) == 2)
+    var loopback = LoopbackSession(2, 1)
+    assert(loopback.start())
+    assert(loopback.connectPlayer() == 1)
+    assert(loopback.receiveInput(1, 1, 2, 2, 0, 0, 0, 1, 0))
+    assert(loopback.advance(16667) == 1)
+    assert(loopback.serverPosition(1) == 2)
+    assert(loopback.inSync())
+    assert(loopback.lastInputEdges(1).firePressed() == 1)
+    assert(loopback.snapshotCount(1) == 1, "loopback must retain bounded snapshots")
+    var rendered = loopback.interpolatedPosition(1, 1)
+    assert(rendered.ready() && rendered.position() == 2,
+        "loopback must expose an interpolated snapshot")
+    assert(loopback.predictClientInput(1, 4), "client prediction must accept input")
+    assert(loopback.predictedPosition(1) == 6, "prediction must stay locally bounded")
+    assert(loopback.pendingPredictionInputs(1) == 1,
+        "prediction must retain unacknowledged input")
+    assert(loopback.applySnapshot(2, 1, 1, 2), "server snapshot must reconcile prediction")
+    assert(loopback.authoritativePosition(1) == 2,
+        "reconciliation must retain server authority")
+    assert(loopback.clientPosition(1) == 6,
+        "reconciliation must replay pending client input")
+    assert(loopback.applySnapshot(3, 2, 1, 6), "acknowledged snapshot must retire input")
+    assert(loopback.pendingPredictionInputs(1) == 0 && loopback.clientPosition(1) == 6,
+        "acknowledged prediction must stop replaying")
+
+    assert(loopback.broadPhaseRevision() == 1 &&
+        loopback.clientBroadPhaseRevision() == 1 &&
+        loopback.broadPhaseTriangleCount() == 0,
+        "loopback must expose initial broad-phase collection")
+    assert(loopback.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "authoritative session must accept bounded broad-phase geometry")
+    var broadPhaseRevision = loopback.broadPhaseRevision()
+    assert(broadPhaseRevision == 2 && loopback.broadPhaseTriangleCount() == 1,
+        "broad-phase collection edits must advance its revision")
+    var broadPhasePayload = loopback.broadPhaseSnapshot(3, 4)
+    assert(validBroadPhaseSnapshot(broadPhasePayload) &&
+        broadPhaseSnapshotRevision(broadPhasePayload) == broadPhaseRevision &&
+        broadPhaseSnapshotTriangleCount(broadPhasePayload) == 1 &&
+        broadPhasePayload.length == 21 &&
+        loopback.acceptsBroadPhaseSnapshot(broadPhasePayload),
+        "broad-phase transport payload must preserve bounded geometry")
+    assert(loopback.queueBroadPhaseSnapshot(3, 4) &&
+        loopback.pendingBroadPhaseSnapshots() == 1 &&
+        loopback.receiveBroadPhaseSnapshot() &&
+        loopback.pendingBroadPhaseSnapshots() == 0 &&
+        loopback.clientBroadPhaseTriangleCount() == 1,
+        "transport queue must deliver a valid broad-phase payload")
+    var boundedTransport = BroadPhaseTransportQueue(1, 1)
+    assert(boundedTransport.send(broadPhasePayload) &&
+        !boundedTransport.send(broadPhasePayload) &&
+        boundedTransport.pending() == 1 &&
+        boundedTransport.receive().length == broadPhasePayload.length &&
+        boundedTransport.pending() == 0,
+        "transport queue capacity must reject overflow without dropping data")
+    var clientQuery = loopback.queryClientBroadPhase(
+        broadPhaseRevision, 1, 1, 0, 1, 1, 10)
+    assert(clientQuery.accepted() && clientQuery.collided(),
+        "client broad-phase query must use applied geometry")
+    assert(!loopback.applyBroadPhaseSnapshot(broadPhasePayload),
+        "duplicate broad-phase payload sequence must reject")
+    assert(loopback.applyQuerySnapshot(4, 3, broadPhaseRevision, 1, 6),
+        "matching geometry revision must accept query snapshot")
+    var staleQuery = loopback.queryBroadPhase(
+        1, 1, 1, 0, 1, 1, 10)
+    assert(!staleQuery.accepted(),
+        "stale broad-phase collection query must reject")
+    var currentQuery = loopback.queryBroadPhase(
+        broadPhaseRevision, 1, 1, 0, 1, 1, 10)
+    assert(currentQuery.accepted() && currentQuery.collided(),
+        "matching broad-phase collection query must collide")
+    assert(loopback.removeBroadPhaseTriangle(0) &&
+        loopback.broadPhaseRevision() > broadPhaseRevision &&
+        loopback.broadPhaseTriangleCount() == 0,
+        "broad-phase removal must advance the handoff revision")
+    var clearedBroadPhasePayload = loopback.broadPhaseSnapshot(4, 5)
+    assert(loopback.applyBroadPhaseSnapshot(clearedBroadPhasePayload) &&
+        loopback.clientBroadPhaseTriangleCount() == 0 &&
+        loopback.clientBroadPhaseRevision() == loopback.broadPhaseRevision(),
+        "client session must apply broad-phase removal payload")
+    assert(!loopback.acceptsBroadPhaseSnapshot(broadPhasePayload),
+        "stale broad-phase transport payload must reject")
+    assert(!loopback.applyQuerySnapshot(5, 4, broadPhaseRevision, 1, 6),
+        "stale geometry revision must reject query snapshot")
+    assert(loopback.applyQuerySnapshot(
+        6, 4, loopback.broadPhaseRevision(), 1, 6) &&
+        loopback.clientBroadPhaseRevision() == loopback.broadPhaseRevision(),
+        "matching new geometry revision must reconcile")
+
+}
+
+test "bounded snapshot interpolation and prediction" {
+    var history = SnapshotHistory(2)
+    assert(!history.push(0, 0, 0), "snapshot sequence zero must reject")
+    assert(history.push(1, 10, 0), "first snapshot must store")
+    assert(history.push(2, 20, 10), "second snapshot must store")
+    assert(history.push(3, 30, 20), "history must evict oldest snapshot")
+    assert(history.size() == 2, "snapshot history must stay bounded")
+    var interpolated = history.interpolate(25)
+    assert(interpolated.ready(), "interpolation must be ready")
+    assert(interpolated.position() == 15, "interpolation must blend positions")
+    assert(interpolated.fromSequence() == 2 && interpolated.toSequence() == 3,
+        "interpolation must identify source snapshots")
+    assert(!history.push(3, 31, 30), "duplicate snapshot sequence must reject")
+
+    var prediction = ClientPredictionState(4)
+    assert(prediction.predict(9), "prediction must accept and clamp input")
+    assert(prediction.predicted() == 4 && prediction.pendingInputs() == 1,
+        "prediction must retain bounded input history")
+    assert(prediction.reconcile(2, 1), "authoritative snapshot must reconcile")
+    assert(prediction.authoritative() == 2 && prediction.predicted() == 2,
+        "acknowledged input must not replay")
+    assert(prediction.predictAt(2, 9), "prediction must accept a later tick")
+    assert(prediction.reconcile(3, 1), "reconciliation must replay pending input")
+    assert(prediction.predicted() == 7 && prediction.correction() == 4,
+        "reconciliation must replay and expose correction")
+    assert(prediction.pendingInputs() == 1, "unacknowledged input must remain pending")
+    assert(!prediction.reconcile(3, 0), "older authority must reject")
+}
+
+test "bounded collision query and movement rejection" {
+    var world = BoundedCollisionWorld(0, 10, 4)
+    var hit = world.query(8, 4)
+    assert(hit.accepted() && hit.collided(), "boundary query must report contact")
+    assert(hit.requestedPosition() == 12 && hit.resolvedPosition() == 10,
+        "collision must resolve to the boundary")
+    assert(hit.distance() == 2, "collision must report resolved distance")
+    assert(!world.query(5, 5).accepted(), "over-budget query must reject")
+
+    var movement = MovementComponent(1, 4)
+    assert(movement.setBounds(0, 10), "movement bounds must configure")
+    assert(movement.add(1, 8), "bounded entity must add")
+    assert(movement.applyInput(1, 4), "bounded movement must resolve")
+    assert(movement.position(1) == 10, "movement must stop at collision boundary")
+    assert(movement.lastCollision().collided(), "movement must expose collision result")
+    assert(!movement.setPosition(1, -1), "out-of-bounds placement must reject")
+}
+
+test "bounded 3D segment collision query" {
+    var volume = BoundedSegmentWorld(0, 0, 0, 10, 10, 10, 20)
+    var clear = volume.querySegment(1, 1, 1, 4, 4, 4)
+    assert(clear.accepted() && !clear.collided(),
+        "interior segment must be accepted without collision")
+    assert(clear.resolvedX() == 4 && clear.resolvedY() == 4 && clear.resolvedZ() == 4,
+        "clear segment must resolve to its endpoint")
+
+    var hit = volume.querySegment(8, 8, 8, 12, 12, 12)
+    assert(hit.accepted() && hit.collided(), "segment must stop at volume boundary")
+    assert(hit.hitStep() > 0 && hit.resolvedX() <= 10 && hit.resolvedY() <= 10 &&
+        hit.resolvedZ() <= 10, "collision must expose the last interior sample")
+    assert(!volume.querySegment(1, 1, 1, 30, 1, 1).accepted(),
+        "over-budget segment must reject")
+    assert(!volume.querySegment(-1, 1, 1, 2, 1, 1).accepted(),
+        "starting penetration must reject")
+}
+
+test "bounded triangle query" {
+    var triangle = BoundedTriangleWorld(20)
+    assert(triangle.configureBounds(0, 0, 0, 10, 10, 10),
+        "triangle bounds must configure")
+    assert(triangle.configureTriangle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "non-degenerate triangle must configure")
+    var hit = triangle.queryTriangle(2, 2, 0, 2, 2, 10)
+    assert(hit.accepted() && hit.collided(), "segment must hit configured triangle")
+    assert(hit.hitStep() == 5 && hit.resolvedZ() == 4,
+        "triangle hit must resolve to the previous sample")
+    var miss = triangle.queryTriangle(9, 9, 0, 9, 9, 10)
+    assert(miss.accepted() && !miss.collided(),
+        "segment outside triangle must miss")
+    assert(!triangle.configureTriangle(0, 0, 0, 1, 1, 1, 2, 2, 2),
+        "degenerate triangle must reject")
+}
+
+test "bounded triangle collection and BVH diagnostics" {
+    var collection = BoundedTriangleCollection(4, 20)
+    assert(collection.configureBounds(0, 0, 0, 10, 10, 10),
+        "triangle collection bounds must configure")
+    assert(collection.addTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "first bounded triangle must insert")
+    assert(collection.addTriangle(6, 0, 5, 10, 0, 5, 6, 4, 5),
+        "second bounded triangle must insert")
+    assert(collection.addTriangle(0, 6, 8, 4, 6, 8, 0, 10, 8),
+        "third bounded triangle must insert")
+    assert(!collection.addTriangle(0, 0, 0, 1, 1, 1, 2, 2, 2),
+        "degenerate collection triangle must reject")
+    var hit = collection.query(8, 2, 0, 8, 2, 10)
+    assert(hit.accepted() && hit.collided() && hit.hitStep() == 5,
+        "BVH collection query must find the nearest triangle")
+    assert(collection.lastHitTriangle() == 1,
+        "BVH collection must report the hit triangle index")
+    assert(collection.lastVisitedNodes() > 0 && collection.lastVisitedTriangles() == 1,
+        "BVH diagnostics must report bounded traversal")
+    var priorRevision = collection.triangleRevision(1)
+    var priorGeometryRevision = collection.geometryRevision()
+    assert(collection.removeTriangle(1) && collection.triangleCount() == 2,
+        "triangle removal must rebuild bounded collection")
+    assert(collection.geometryRevision() > priorGeometryRevision &&
+        collection.triangleRevision(1) > priorRevision,
+        "triangle revisions must advance on removal")
+    var removedHit = collection.query(8, 2, 0, 8, 2, 10)
+    assert(removedHit.accepted() && !removedHit.collided(),
+        "removed triangle must leave the BVH")
+    assert(collection.addTriangle(6, 0, 5, 10, 0, 5, 6, 4, 5),
+        "triangle collection must reuse bounded free slots")
+    assert(collection.triangleCount() == 3 &&
+        collection.triangleRevision(1) > priorRevision,
+        "reinserted triangle must retain a newer geometry revision")
+    assert(!collection.query(0, 0, 0, 0, 0, 21).accepted(),
+        "BVH collection must reject over-budget traversal")
+    assert(!collection.lastQueryAccepted() && collection.lastHitTriangle() == -1,
+        "rejected BVH query diagnostics must reset")
+}
+
+test "Kof-owned authored collision representation" {
+    var authored = BoundedAuthoredCollision(6, 2)
+    assert(authored.configure(10, 77, 4, 1, 100, 0, 0, 0, 10, 10, 10),
+        "authored collision bounds and identity must configure")
+
+    assert(authored.addVertex(0, 0, 5) &&
+        authored.addVertex(4, 0, 5) &&
+        authored.addVertex(0, 4, 5) &&
+        authored.addVertex(6, 0, 5) &&
+        authored.addVertex(10, 0, 5) &&
+        authored.addVertex(6, 4, 5),
+        "authored collision vertices must be bounded")
+    assert(!authored.addTriangle(0, 1, 9, 1),
+        "authored collision must reject out-of-range vertex indices")
+    assert(authored.addTriangle(0, 1, 2, 1) &&
+        authored.addTriangle(3, 4, 5, 2),
+        "authored collision must accept indexed non-degenerate surfaces")
+    assert(authored.seal() && authored.validate(),
+        "authored collision must seal and validate")
+    var authoredChecksum = authored.checksum()
+    assert(authoredChecksum > 0 && authored.vertexCount() == 6 &&
+        authored.triangleCount() == 2 && authored.triangleSurface(1) == 2,
+        "authored collision identity and surface metadata must remain readable")
+    assert(!authored.addVertex(1, 1, 1),
+        "sealed authored collision must reject mutation")
+    assert(authored.encode() && authored.encodedLength() == 42,
+        "authored collision codec must emit canonical indexed wire data")
+    var collisionWire = new Int[authored.encodedLength()]
+    for (var index = 0; index < collisionWire.length; index = index + 1) {
+        collisionWire[index] = authored.encodedWord(index)
+    }
+    var restoredCollision = BoundedAuthoredCollision(6, 2)
+    assert(restoredCollision.decode(collisionWire) &&
+        restoredCollision.validate() &&
+        restoredCollision.sourceNamespaceId() == 10 &&
+        restoredCollision.checksum() == authoredChecksum,
+        "authored collision codec must round trip identity and geometry")
+    collisionWire[15] = collisionWire[15] + 1
+    var tamperedCollision = BoundedAuthoredCollision(6, 2)
+    assert(!tamperedCollision.decode(collisionWire),
+        "authored collision codec must reject checksum tampering")
+
+    var contentPackage = BoundedContentPackage(2, 1, 2)
+    assert(contentPackage.configureHeader(7, 3, 11, 1, 100) &&
+        contentPackage.addAsset(10, 77, 3, 4, 111, 222, 7) &&
+        contentPackage.addChunk(
+            99, 6, 0, authored.encodedLength(),
+            authoredChecksum, authored.triangleCount(), 4) &&
+        contentPackage.seal(),
+        "content package must publish the authored collision identity")
+    var collisionAdmission = BoundedCollisionPackageAdmission()
+    assert(collisionAdmission.admit(contentPackage, authored, 99, 6) &&
+        collisionAdmission.accepted() &&
+        collisionAdmission.collisionChecksum() == authoredChecksum &&
+        collisionAdmission.geometryRevision() == 4,
+        "collision admission must require matching package asset and chunk identity")
+    assert(!collisionAdmission.admit(contentPackage, authored, 99, 7),
+        "collision admission must reject mismatched chunk kinds")
+
+
+    var collection = BoundedTriangleCollection(2, 20)
+    assert(collection.replaceWithAuthored(authored),
+        "triangle collection must admit a validated authored collision")
+    assert(collection.triangleCount() == 2 &&
+        collection.authoredChecksum() == authoredChecksum &&
+        collection.authoredRevision() == 4,
+        "admission must retain authored identity and revision")
+    var hit = collection.query(8, 2, 0, 8, 2, 10)
+    assert(hit.accepted() && hit.collided() && hit.hitStep() == 5 &&
+        collection.lastHitTriangle() == 1,
+        "admitted authored triangles must drive nearest collision queries")
+
+    var replacement = BoundedAuthoredCollision(3, 1)
+    assert(replacement.configure(10, 78, 5, 1, 100, 0, 0, 0, 10, 10, 10) &&
+        replacement.addVertex(0, 0, 8) &&
+        replacement.addVertex(4, 0, 8) &&
+        replacement.addVertex(0, 4, 8) &&
+        replacement.addTriangle(0, 1, 2, 1) &&
+        replacement.seal(),
+        "replacement authored collision must validate")
+    assert(collection.replaceWithAuthored(replacement) &&
+        collection.triangleCount() == 1 &&
+        collection.authoredRevision() == 5 &&
+        collection.authoredChecksum() != authoredChecksum,
+        "replacement must atomically update collision identity")
+    var oldHit = collection.query(8, 2, 0, 8, 2, 6)
+    assert(oldHit.accepted() && !oldHit.collided(),
+        "replacement must remove stale authored triangles")
+}
+
+test "canonical GLB intake and reopen validation" {
+    var glb = BoundedCanonicalGlb(6, 2)
+    assert(glb.configure(10, 77, 4, 1, 100, 0, 0, 0, 10, 10, 10) &&
+        glb.addVertex(0, 0, 5) &&
+        glb.addVertex(4, 0, 5) &&
+        glb.addVertex(0, 4, 5) &&
+        glb.addVertex(6, 0, 5) &&
+        glb.addVertex(10, 0, 5) &&
+        glb.addVertex(6, 4, 5) &&
+        glb.addTriangle(0, 1, 2, 1) &&
+        glb.addTriangle(3, 4, 5, 2) &&
+        glb.seal() && glb.encode() && glb.encodedLength() == 42,
+        "canonical GLB intake must admit bounded indexed geometry")
+    var glbWire = new Int[glb.encodedLength()]
+    for (var index = 0; index < glbWire.length; index = index + 1) {
+        glbWire[index] = glb.encodedWord(index)
+    }
+    var reopenedGlb = BoundedCanonicalGlb(6, 2)
+    assert(reopenedGlb.reopen(glbWire) &&
+        reopenedGlb.validate() && reopenedGlb.checksum() == glb.checksum(),
+        "canonical GLB output must reopen byte-for-byte through the runtime reader")
+    glbWire[15] = glbWire[15] + 1
+    assert(!BoundedCanonicalGlb(6, 2).reopen(glbWire),
+        "GLB reopen validation must reject checksum corruption")
+    var emittedCollision = BoundedAuthoredCollision(6, 2)
+    assert(reopenedGlb.emitCollision(emittedCollision) &&
+        emittedCollision.validate() && emittedCollision.sourceAssetId() == 77,
+        "GLB intake must emit an identity-preserving collision product")
+}
+
+test "atomic geometry collision navigation replication publication" {
+    var publication = BoundedProductPublication()
+    assert(publication.stageGeometry(4, 101) &&
+        publication.stageCollision(4, 202) &&
+        publication.stageNavigation(4, 303) &&
+        publication.stageReplication(4, 404) &&
+        publication.publish() &&
+        publication.generation() == 1 &&
+        publication.revision() == 4 &&
+        publication.publishedValid(),
+        "complete product set must publish as one generation")
+    assert(publication.stageGeometry(5, 501) &&
+        !publication.publish() &&
+        publication.generation() == 1 &&
+        publication.revision() == 4,
+        "partial replacement must retain the previous published generation")
+    assert(publication.stageCollision(5, 502) &&
+        publication.stageNavigation(5, 503) &&
+        publication.stageReplication(5, 504) &&
+        publication.publish() &&
+        publication.generation() == 2 &&
+        publication.revision() == 5 &&
+        publication.collisionChecksum() == 502,
+        "matching replacement products must advance atomically")
+}
+
+test "swept convex dynamic broadphase and navigation products" {
+    var convex = BoundedConvexController(1, 20)
+    assert(convex.addPlane(1, 0, 0, 8) &&
+        convex.addPlane(-1, 0, 0, -1) &&
+        convex.addPlane(0, 1, 0, 8) &&
+        convex.addPlane(0, -1, 0, -1) &&
+        convex.addPlane(0, 0, 1, 8) &&
+        convex.addPlane(0, 0, -1, -1) &&
+        convex.sealObstacle(),
+        "convex controller must seal a bounded six-plane volume")
+    var convexMove = convex.move(3, 5, 5, 9, 5, 5)
+    assert(convexMove.accepted() && convexMove.collided() &&
+        convexMove.resolvedX() == 7,
+        "swept capsule must stop at the expanded convex plane")
+    assert(!convex.sweep(0, 5, 5, 3, 5, 5).accepted(),
+        "convex controller must reject starting penetration")
+
+    var dynamic = BoundedDynamicBroadPhase(2, 20)
+    assert(dynamic.add(7, 6, 0, 0, 7, 10, 10) &&
+        dynamic.add(9, 12, 0, 0, 13, 10, 10) &&
+        dynamic.count() == 2,
+        "dynamic broadphase must admit bounded actor boxes")
+    var actorHit = dynamic.query(0, 5, 5, 20, 5, 5, 0)
+    assert(actorHit.accepted() && actorHit.collided() &&
+        actorHit.actorId() == 7 && actorHit.resolvedX() == 5,
+        "dynamic broadphase must resolve the nearest actor sweep")
+    assert(dynamic.remove(9) &&
+        !dynamic.query(0, 5, 5, 20, 5, 5, 7).collided() &&
+        dynamic.update(7, 15, 0, 0, 16, 10, 10),
+        "dynamic actor updates, ignore filtering and removal must be bounded")
+
+    var navigationProduct = BoundedNavigationProduct(4)
+    assert(navigationProduct.configure(1, 300, 4) &&
+        navigationProduct.addNode(10, 0, 0, 0) &&
+        navigationProduct.addNode(20, 1, 0, 0) &&
+        navigationProduct.addNode(30, 2, 0, 0) &&
+        navigationProduct.addEdge(10, 20) &&
+        navigationProduct.addEdge(20, 30) &&
+        navigationProduct.seal() &&
+        navigationProduct.validate(),
+        "navigation product must seal reciprocal bounded links")
+    var route = navigationProduct.findRoute(10, 30)
+    assert(route.accepted() && route.found() && route.routeLength() == 2 &&
+        route.nextNodeId() == 20,
+        "navigation product must provide deterministic bounded routes")
+}
+
+
+test "external GLB JSON BIN provenance and reopen" {
+    var glb = new Int[476]
+    glb[0] = 103
+    glb[1] = 108
+    glb[2] = 84
+    glb[3] = 70
+    glb[4] = 2
+    glb[5] = 0
+    glb[6] = 0
+    glb[7] = 0
+    glb[8] = 220
+    glb[9] = 1
+    glb[10] = 0
+    glb[11] = 0
+    glb[12] = 148
+    glb[13] = 1
+    glb[14] = 0
+    glb[15] = 0
+    glb[16] = 74
+    glb[17] = 83
+    glb[18] = 79
+    glb[19] = 78
+    glb[20] = 123
+    glb[21] = 34
+    glb[22] = 97
+    glb[23] = 115
+    glb[24] = 115
+    glb[25] = 101
+    glb[26] = 116
+    glb[27] = 34
+    glb[28] = 58
+    glb[29] = 123
+    glb[30] = 34
+    glb[31] = 118
+    glb[32] = 101
+    glb[33] = 114
+    glb[34] = 115
+    glb[35] = 105
+    glb[36] = 111
+    glb[37] = 110
+    glb[38] = 34
+    glb[39] = 58
+    glb[40] = 34
+    glb[41] = 50
+    glb[42] = 46
+    glb[43] = 48
+    glb[44] = 34
+    glb[45] = 125
+    glb[46] = 44
+    glb[47] = 34
+    glb[48] = 98
+    glb[49] = 117
+    glb[50] = 102
+    glb[51] = 102
+    glb[52] = 101
+    glb[53] = 114
+    glb[54] = 115
+    glb[55] = 34
+    glb[56] = 58
+    glb[57] = 91
+    glb[58] = 123
+    glb[59] = 34
+    glb[60] = 98
+    glb[61] = 121
+    glb[62] = 116
+    glb[63] = 101
+    glb[64] = 76
+    glb[65] = 101
+    glb[66] = 110
+    glb[67] = 103
+    glb[68] = 116
+    glb[69] = 104
+    glb[70] = 34
+    glb[71] = 58
+    glb[72] = 52
+    glb[73] = 52
+    glb[74] = 125
+    glb[75] = 93
+    glb[76] = 44
+    glb[77] = 34
+    glb[78] = 98
+    glb[79] = 117
+    glb[80] = 102
+    glb[81] = 102
+    glb[82] = 101
+    glb[83] = 114
+    glb[84] = 86
+    glb[85] = 105
+    glb[86] = 101
+    glb[87] = 119
+    glb[88] = 115
+    glb[89] = 34
+    glb[90] = 58
+    glb[91] = 91
+    glb[92] = 123
+    glb[93] = 34
+    glb[94] = 98
+    glb[95] = 117
+    glb[96] = 102
+    glb[97] = 102
+    glb[98] = 101
+    glb[99] = 114
+    glb[100] = 34
+    glb[101] = 58
+    glb[102] = 48
+    glb[103] = 44
+    glb[104] = 34
+    glb[105] = 98
+    glb[106] = 121
+    glb[107] = 116
+    glb[108] = 101
+    glb[109] = 79
+    glb[110] = 102
+    glb[111] = 102
+    glb[112] = 115
+    glb[113] = 101
+    glb[114] = 116
+    glb[115] = 34
+    glb[116] = 58
+    glb[117] = 48
+    glb[118] = 44
+    glb[119] = 34
+    glb[120] = 98
+    glb[121] = 121
+    glb[122] = 116
+    glb[123] = 101
+    glb[124] = 76
+    glb[125] = 101
+    glb[126] = 110
+    glb[127] = 103
+    glb[128] = 116
+    glb[129] = 104
+    glb[130] = 34
+    glb[131] = 58
+    glb[132] = 51
+    glb[133] = 54
+    glb[134] = 125
+    glb[135] = 44
+    glb[136] = 123
+    glb[137] = 34
+    glb[138] = 98
+    glb[139] = 117
+    glb[140] = 102
+    glb[141] = 102
+    glb[142] = 101
+    glb[143] = 114
+    glb[144] = 34
+    glb[145] = 58
+    glb[146] = 48
+    glb[147] = 44
+    glb[148] = 34
+    glb[149] = 98
+    glb[150] = 121
+    glb[151] = 116
+    glb[152] = 101
+    glb[153] = 79
+    glb[154] = 102
+    glb[155] = 102
+    glb[156] = 115
+    glb[157] = 101
+    glb[158] = 116
+    glb[159] = 34
+    glb[160] = 58
+    glb[161] = 51
+    glb[162] = 54
+    glb[163] = 44
+    glb[164] = 34
+    glb[165] = 98
+    glb[166] = 121
+    glb[167] = 116
+    glb[168] = 101
+    glb[169] = 76
+    glb[170] = 101
+    glb[171] = 110
+    glb[172] = 103
+    glb[173] = 116
+    glb[174] = 104
+    glb[175] = 34
+    glb[176] = 58
+    glb[177] = 54
+    glb[178] = 125
+    glb[179] = 93
+    glb[180] = 44
+    glb[181] = 34
+    glb[182] = 97
+    glb[183] = 99
+    glb[184] = 99
+    glb[185] = 101
+    glb[186] = 115
+    glb[187] = 115
+    glb[188] = 111
+    glb[189] = 114
+    glb[190] = 115
+    glb[191] = 34
+    glb[192] = 58
+    glb[193] = 91
+    glb[194] = 123
+    glb[195] = 34
+    glb[196] = 98
+    glb[197] = 117
+    glb[198] = 102
+    glb[199] = 102
+    glb[200] = 101
+    glb[201] = 114
+    glb[202] = 86
+    glb[203] = 105
+    glb[204] = 101
+    glb[205] = 119
+    glb[206] = 34
+    glb[207] = 58
+    glb[208] = 48
+    glb[209] = 44
+    glb[210] = 34
+    glb[211] = 98
+    glb[212] = 121
+    glb[213] = 116
+    glb[214] = 101
+    glb[215] = 79
+    glb[216] = 102
+    glb[217] = 102
+    glb[218] = 115
+    glb[219] = 101
+    glb[220] = 116
+    glb[221] = 34
+    glb[222] = 58
+    glb[223] = 48
+    glb[224] = 44
+    glb[225] = 34
+    glb[226] = 99
+    glb[227] = 111
+    glb[228] = 109
+    glb[229] = 112
+    glb[230] = 111
+    glb[231] = 110
+    glb[232] = 101
+    glb[233] = 110
+    glb[234] = 116
+    glb[235] = 84
+    glb[236] = 121
+    glb[237] = 112
+    glb[238] = 101
+    glb[239] = 34
+    glb[240] = 58
+    glb[241] = 53
+    glb[242] = 49
+    glb[243] = 50
+    glb[244] = 54
+    glb[245] = 44
+    glb[246] = 34
+    glb[247] = 99
+    glb[248] = 111
+    glb[249] = 117
+    glb[250] = 110
+    glb[251] = 116
+    glb[252] = 34
+    glb[253] = 58
+    glb[254] = 51
+    glb[255] = 44
+    glb[256] = 34
+    glb[257] = 116
+    glb[258] = 121
+    glb[259] = 112
+    glb[260] = 101
+    glb[261] = 34
+    glb[262] = 58
+    glb[263] = 34
+    glb[264] = 86
+    glb[265] = 69
+    glb[266] = 67
+    glb[267] = 51
+    glb[268] = 34
+    glb[269] = 125
+    glb[270] = 44
+    glb[271] = 123
+    glb[272] = 34
+    glb[273] = 98
+    glb[274] = 117
+    glb[275] = 102
+    glb[276] = 102
+    glb[277] = 101
+    glb[278] = 114
+    glb[279] = 86
+    glb[280] = 105
+    glb[281] = 101
+    glb[282] = 119
+    glb[283] = 34
+    glb[284] = 58
+    glb[285] = 49
+    glb[286] = 44
+    glb[287] = 34
+    glb[288] = 98
+    glb[289] = 121
+    glb[290] = 116
+    glb[291] = 101
+    glb[292] = 79
+    glb[293] = 102
+    glb[294] = 102
+    glb[295] = 115
+    glb[296] = 101
+    glb[297] = 116
+    glb[298] = 34
+    glb[299] = 58
+    glb[300] = 48
+    glb[301] = 44
+    glb[302] = 34
+    glb[303] = 99
+    glb[304] = 111
+    glb[305] = 109
+    glb[306] = 112
+    glb[307] = 111
+    glb[308] = 110
+    glb[309] = 101
+    glb[310] = 110
+    glb[311] = 116
+    glb[312] = 84
+    glb[313] = 121
+    glb[314] = 112
+    glb[315] = 101
+    glb[316] = 34
+    glb[317] = 58
+    glb[318] = 53
+    glb[319] = 49
+    glb[320] = 50
+    glb[321] = 51
+    glb[322] = 44
+    glb[323] = 34
+    glb[324] = 99
+    glb[325] = 111
+    glb[326] = 117
+    glb[327] = 110
+    glb[328] = 116
+    glb[329] = 34
+    glb[330] = 58
+    glb[331] = 51
+    glb[332] = 44
+    glb[333] = 34
+    glb[334] = 116
+    glb[335] = 121
+    glb[336] = 112
+    glb[337] = 101
+    glb[338] = 34
+    glb[339] = 58
+    glb[340] = 34
+    glb[341] = 83
+    glb[342] = 67
+    glb[343] = 65
+    glb[344] = 76
+    glb[345] = 65
+    glb[346] = 82
+    glb[347] = 34
+    glb[348] = 125
+    glb[349] = 93
+    glb[350] = 44
+    glb[351] = 34
+    glb[352] = 109
+    glb[353] = 101
+    glb[354] = 115
+    glb[355] = 104
+    glb[356] = 101
+    glb[357] = 115
+    glb[358] = 34
+    glb[359] = 58
+    glb[360] = 91
+    glb[361] = 123
+    glb[362] = 34
+    glb[363] = 112
+    glb[364] = 114
+    glb[365] = 105
+    glb[366] = 109
+    glb[367] = 105
+    glb[368] = 116
+    glb[369] = 105
+    glb[370] = 118
+    glb[371] = 101
+    glb[372] = 115
+    glb[373] = 34
+    glb[374] = 58
+    glb[375] = 91
+    glb[376] = 123
+    glb[377] = 34
+    glb[378] = 97
+    glb[379] = 116
+    glb[380] = 116
+    glb[381] = 114
+    glb[382] = 105
+    glb[383] = 98
+    glb[384] = 117
+    glb[385] = 116
+    glb[386] = 101
+    glb[387] = 115
+    glb[388] = 34
+    glb[389] = 58
+    glb[390] = 123
+    glb[391] = 34
+    glb[392] = 80
+    glb[393] = 79
+    glb[394] = 83
+    glb[395] = 73
+    glb[396] = 84
+    glb[397] = 73
+    glb[398] = 79
+    glb[399] = 78
+    glb[400] = 34
+    glb[401] = 58
+    glb[402] = 48
+    glb[403] = 125
+    glb[404] = 44
+    glb[405] = 34
+    glb[406] = 105
+    glb[407] = 110
+    glb[408] = 100
+    glb[409] = 105
+    glb[410] = 99
+    glb[411] = 101
+    glb[412] = 115
+    glb[413] = 34
+    glb[414] = 58
+    glb[415] = 49
+    glb[416] = 125
+    glb[417] = 93
+    glb[418] = 125
+    glb[419] = 93
+    glb[420] = 125
+    glb[421] = 32
+    glb[422] = 32
+    glb[423] = 32
+    glb[424] = 44
+    glb[425] = 0
+    glb[426] = 0
+    glb[427] = 0
+    glb[428] = 66
+    glb[429] = 73
+    glb[430] = 78
+    glb[431] = 0
+    glb[432] = 0
+    glb[433] = 0
+    glb[434] = 0
+    glb[435] = 0
+    glb[436] = 0
+    glb[437] = 0
+    glb[438] = 0
+    glb[439] = 0
+    glb[440] = 0
+    glb[441] = 0
+    glb[442] = 160
+    glb[443] = 64
+    glb[444] = 0
+    glb[445] = 0
+    glb[446] = 128
+    glb[447] = 64
+    glb[448] = 0
+    glb[449] = 0
+    glb[450] = 0
+    glb[451] = 0
+    glb[452] = 0
+    glb[453] = 0
+    glb[454] = 160
+    glb[455] = 64
+    glb[456] = 0
+    glb[457] = 0
+    glb[458] = 0
+    glb[459] = 0
+    glb[460] = 0
+    glb[461] = 0
+    glb[462] = 128
+    glb[463] = 64
+    glb[464] = 0
+    glb[465] = 0
+    glb[466] = 160
+    glb[467] = 64
+    glb[468] = 0
+    glb[469] = 0
+    glb[470] = 1
+    glb[471] = 0
+    glb[472] = 2
+    glb[473] = 0
+    glb[474] = 0
+    glb[475] = 0
+    var reader = BoundedExternalGlbSceneReader(4, 2)
+    var admitted = reader.read(glb, 10, 77, 4, 9, 3, 100)
+    assert(admitted && reader.valid() &&
+        reader.vertexCount() == 3 && reader.triangleCount() == 1 &&
+        reader.geometryChecksum() > 0,
+        "external GLB JSON and BIN chunks must admit standard indexed geometry")
+    var receipt = reader.provenance()
+    assert(receipt.sourceNamespaceId() == 10 && receipt.sourceAssetId() == 77 &&
+        receipt.sourceRevision() == 4 && receipt.toolVersion() == 9 &&
+        receipt.optionsChecksum() == 3 && receipt.geometryChecksum() == reader.geometryChecksum(),
+        "external GLB admission must emit deterministic provenance")
+    assert(reader.reopenCanonical(),
+        "external GLB canonical geometry must reopen through the runtime reader")
+    var collision = BoundedAuthoredCollision(4, 2)
+    assert(reader.emitCollision(collision) && collision.validate() &&
+        collision.encode() && collision.sourceAssetId() == 77,
+        "external GLB geometry must emit an identity-preserving collision product")
+    var cookedPackage = BoundedContentPackage(1, 1, 1)
+    assert(cookedPackage.configureHeader(7, 9, 11, 1, 100) &&
+        cookedPackage.addAsset(10, 77, 3, 4, 111, 222, 15) &&
+        cookedPackage.addChunk(
+            99, 6, 0, collision.encodedLength(),
+            collision.checksum(), collision.triangleCount(), 4) &&
+        cookedPackage.seal(),
+        "external GLB output must fit the bounded package contract")
+    var cooker = BoundedGlbCooker(4, 2, 2)
+    var cookCache = BoundedGenerationCache(2)
+    var cookAccepted = cooker.cook(cookedPackage, reader, 99, 6, cookCache)
+    var cookResult = cooker.result()
+    assert(cookAccepted && cooker.accepted() &&
+        cookResult.packageChecksum() == cookedPackage.checksum() &&
+        cookResult.geometryChecksum() == reader.geometryChecksum() &&
+        cookResult.collisionChecksum() == collision.checksum() &&
+        cookResult.navigationChecksum() > 0 &&
+        cookResult.generation() == 1 &&
+        cookResult.navigationNodeCount() == 1 &&
+        cookCache.activeGeneration() == 1 &&
+        cooker.navigationProduct().findRoute(1, 1).found(),
+        "GLB cooker must atomically publish geometry collision navigation and replication")
+
+    glb[8] = glb[8] - 1
+    assert(!reader.read(glb, 10, 77, 4, 9, 3, 100),
+        "external GLB intake must reject a malformed total-length header")
+}
+
+test "runtime generation contact projectile and session navigation" {
+    var publication = BoundedProductPublication()
+    var cache = BoundedGenerationCache(2)
+    assert(publication.stageGeometry(4, 101) &&
+        publication.stageCollision(4, 202) &&
+        publication.stageNavigation(4, 303) &&
+        publication.stageReplication(4, 404) &&
+        publication.publishTo(cache) && cache.activeGeneration() == 1 &&
+        cache.isResident(1),
+        "runtime publication must admit one complete product generation")
+    assert(cache.retainGeneration(1) &&
+        publication.stageGeometry(5, 501) &&
+        publication.stageCollision(5, 502) &&
+        publication.stageNavigation(5, 503) &&
+        publication.stageReplication(5, 504) &&
+        publication.publishTo(cache) && cache.activeGeneration() == 2 &&
+        cache.isResident(1) && cache.isResident(2),
+        "runtime publication must retain referenced generations across replacement")
+    assert(cache.releaseGeneration(1) && cache.retireInactive() == 1 &&
+        !cache.isResident(1) && cache.count() == 1,
+        "frame boundary retirement must remove unreferenced inactive generations")
+
+    var wall = BoundedTriangleCollection(2, 20)
+    assert(wall.configureBounds(-10, -10, -10, 20, 20, 20) &&
+        wall.addTriangle(5, 0, 0, 5, 5, 0, 5, 0, 5),
+        "triangle contact geometry must admit a convex wall face")
+    var contact = BoundedTriangleContactController(wall, 1, 20, 60, 0)
+    var wallHit = contact.move(0, 2, 2, 10, 2, 2)
+    assert(wallHit.accepted() && wallHit.collided() &&
+        !wallHit.slopeAccepted() && wallHit.resolvedX() == 3,
+        "triangle contact must sweep capsule offsets and reject wall slopes")
+
+    var floor = BoundedTriangleCollection(2, 20)
+    assert(floor.configureBounds(-10, -10, -10, 20, 20, 20) &&
+        floor.addTriangle(0, 0, 0, 10, 0, 0, 0, 0, 10),
+        "ground contact geometry must admit a walkable floor")
+    var grounded = BoundedTriangleContactController(floor, 1, 20, 60, 0)
+    var groundHit = grounded.move(2, 2, 2, 4, 2, 2)
+    assert(groundHit.accepted() && groundHit.grounded() &&
+        groundHit.slopeAccepted(),
+        "triangle contact must expose grounded walkable-slope state")
+
+    var dynamic = BoundedDynamicBroadPhase(2, 20)
+    assert(dynamic.add(7, 6, 0, 0, 7, 10, 10))
+    var capsuleHit = dynamic.queryCapsule(0, 5, 5, 10, 5, 5, 1, 99)
+    assert(capsuleHit.accepted() && capsuleHit.collided() &&
+        capsuleHit.actorId() == 7,
+        "dynamic narrow phase must expand actor boxes by capsule radius")
+
+    var projectileGeometry = BoundedTriangleCollection(2, 20)
+    assert(projectileGeometry.configureBounds(-10, -10, -10, 20, 20, 20))
+    var projectileDynamics = BoundedDynamicBroadPhase(2, 20)
+    assert(projectileDynamics.add(8, 6, 0, 0, 7, 10, 10))
+    var projectiles = BoundedProjectileSweepWorld(
+        2, projectileGeometry, projectileDynamics)
+    assert(projectiles.launch(1, 2, 0, 5, 5, 20))
+    var projectileHit = projectiles.advance(1, 10, 0, 0, 1, 2)
+    assert(projectileHit.accepted() && projectileHit.hitDynamic() &&
+        projectileHit.actorId() == 8 && !projectiles.activeProjectile(1),
+        "projectile sweeps must use dynamic narrow-phase contacts")
+
+    var nav = BoundedNavigationProduct(3)
+    assert(nav.configure(1, 300, 4) &&
+        nav.addNode(10, 0, 0, 0) && nav.addNode(20, 1, 0, 0) &&
+        nav.addNode(30, 2, 0, 0) && nav.addEdge(10, 20) &&
+        nav.addEdge(20, 30) && nav.seal() && nav.validate())
+    var enemySession = AuthoritativeEnemySession(2, 1)
+    var productRoute = enemySession.navigationProductRoute(10, 30)
+    assert(enemySession.loadNavigationProduct(nav) &&
+        enemySession.navigationProductRoute(10, 30).found() &&
+        productRoute.accepted() == false,
+        "session navigation must admit and route only through published products")
+}
+
+test "capsule slide and step result" {
+    var capsule = BoundedCapsuleWorld(0, 0, 0, 10, 10, 10, 1, 20)
+    var slide = capsule.moveCapsule(2, 2, 2, 12, 2, 2, 1)
+    assert(slide.accepted() && slide.collided() && !slide.stepped(),
+        "capsule boundary movement must produce a slide")
+    assert(slide.resolvedX() == 9 && slide.slideX() == 7,
+        "capsule slide must stop at the radius-expanded boundary")
+
+    var clear = capsule.moveCapsule(2, 2, 2, 4, 2, 2, 1)
+    assert(clear.accepted() && !clear.collided() && !clear.stepped() &&
+        clear.resolvedX() == 4,
+        "clear capsule movement must preserve its endpoint")
+    assert(capsule.configureStepObstacle(4, 6, 0, 10, 2),
+        "bounded step obstacle must configure")
+    var stepped = capsule.moveCapsule(2, 2, 2, 8, 2, 2, 2)
+    assert(stepped.accepted() && stepped.collided() && stepped.stepped() &&
+        stepped.resolvedX() == 8 && stepped.stepHeight() == 2,
+        "capsule must traverse a bounded obstacle with enough step height")
+    var tooLow = capsule.moveCapsule(2, 2, 2, 8, 2, 2, 1)
+    assert(tooLow.accepted() && tooLow.collided() && !tooLow.stepped() &&
+        tooLow.resolvedX() == 2,
+        "capsule must slide when step height is insufficient")
+    assert(capsule.addStepObstacle(4, 6, 4, 6, 2) &&
+        capsule.stepObstacleCount() == 2,
+        "capsule must retain multiple bounded obstacles")
+    assert(capsule.addStepObstacle(0, 1, 8, 9, 1) &&
+        capsule.addStepObstacle(8, 9, 0, 1, 1) &&
+        capsule.addStepObstacle(8, 9, 8, 9, 1) &&
+        capsule.stepObstacleCount() == 5,
+        "capsule obstacle capacity must exceed the legacy four-slot bound")
+    var orderedHit = capsule.queryCapsule(2, 2, 2, 8, 2, 8)
+    assert(orderedHit.accepted() && orderedHit.collided() && orderedHit.hitStep() == 1,
+        "capsule obstacles must resolve in deterministic traversal order")
+    assert(capsule.clearStepObstacles() && capsule.stepObstacleCount() == 0,
+        "capsule obstacle collection must clear")
+    var afterClear = capsule.moveCapsule(2, 2, 2, 8, 2, 8, 1)
+    assert(afterClear.accepted() && !afterClear.collided(),
+        "cleared capsule obstacles must no longer block movement")
+    var gate = SpatialQueryGate(0, 0, 0, 10, 10, 10, 1, 20)
+    var admitted = gate.admitPlayerMoveWithStep(2, 2, 2, 12, 2, 2, 1)
+    assert(admitted.accepted() && admitted.collided() && admitted.slideX() == 7,
+        "spatial gate must expose authoritative capsule slide")
+    assert(gate.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "spatial gate must accept broad-phase movement geometry")
+    var gateRevision = gate.broadPhaseRevision()
+    var broadAdmitted = gate.admitPlayerMoveWithBroadPhase(
+        gateRevision, 1, 1, 1, 1, 1, 8)
+    assert(broadAdmitted.accepted() && broadAdmitted.collided() &&
+        broadAdmitted.resolvedZ() <= 5,
+        "spatial gate must combine broad-phase and capsule admission")
+    var staleBroadAdmitted = gate.admitPlayerMoveWithBroadPhase(
+        gateRevision - 1, 1, 1, 1, 1, 1, 8)
+    assert(!staleBroadAdmitted.accepted(),
+        "spatial gate must reject stale broad-phase movement geometry")
+}
+
+test "shared capsule and spatial admission" {
+    var capsule = BoundedCapsuleWorld(0, 0, 0, 10, 10, 10, 1, 20)
+    var capsuleHit = capsule.queryCapsule(2, 2, 2, 10, 2, 2)
+    assert(capsuleHit.accepted() && capsuleHit.collided(),
+        "capsule center must respect expanded bounds")
+    assert(capsule.capsuleRadius() == 1, "capsule radius must remain bounded")
+    assert(!capsule.configure(0, 0, 0, 1, 1, 1, 1, 20),
+        "capsule larger than volume must reject")
+
+    var gate = SpatialQueryGate(0, 0, 0, 10, 10, 10, 1, 20)
+    var player = gate.admitPlayerMove(2, 2, 2, 9, 2, 2)
+    var projectile = gate.admitProjectile(1, 1, 1, 12, 1, 1)
+    var lineOfSight = gate.admitLineOfSight(1, 1, 1, 12, 1, 1)
+    assert(player.accepted() && !player.collided(),
+        "player admission must use capsule bounds")
+    assert(projectile.collided() && lineOfSight.collided(),
+        "projectile and line-of-sight must share segment admission")
+}
+
+test "authoritative weapon and damage transitions" {
+    var combat = CombatWorld(2, 1)
+    assert(!combat.defineWeapon(0, 2, 3, 2, 5, 1, 100),
+        "weapon definitions must reject invalid identity")
+    assert(combat.defineWeapon(7, 2, 3, 2, 5, 1, 100),
+        "weapon definition must accept bounded firing data")
+    assert(combat.addActor(1, 20, 2) && combat.addActor(2, 9, 1),
+        "combat actors must admit bounded health and armor")
+    assert(combat.equipWeapon(1, 7),
+        "alive actors must equip a defined weapon")
+    var firstShot = combat.fire(1, 4)
+    assert(firstShot.accepted() && firstShot.shotId() == 1 &&
+        firstShot.magazine() == 1 && firstShot.reserve() == 3 &&
+        firstShot.nextReadyTick() == 6,
+        "accepted shots must atomically consume ammo and set cooldown")
+    assert(!combat.fire(1, 5).accepted(),
+        "cooldown must reject a shot before its ready tick")
+    var secondShot = combat.fire(1, 6)
+    assert(secondShot.accepted() && secondShot.magazine() == 0,
+        "ready weapons must fire with the remaining magazine")
+    assert(!combat.fire(1, 7).accepted(),
+        "empty magazines must reject shots without mutating state")
+    assert(combat.reload(1) && combat.magazine(1) == 2 &&
+        combat.reserve(1) == 1,
+        "reload must transfer bounded reserve ammo atomically")
+
+    var invalidSource = combat.applyDamage(DamageRequest(99, 2, 5, 1, 0))
+    assert(!invalidSource.accepted() && combat.currentHealth(2) == 9,
+        "damage must reject unknown sources without mutation")
+    var hit = combat.applyDamage(DamageRequest(1, 2, 5, 1, 0))
+    assert(hit.accepted() && hit.applied() == 4 &&
+        hit.remainingHealth() == 5 && !hit.died(),
+        "damage must apply armor before health reduction")
+    var critical = combat.applyDamage(DamageRequest(1, 2, 3, 1, 1))
+    assert(critical.accepted() && critical.applied() == 5 &&
+        critical.remainingHealth() == 0 && critical.died() &&
+        critical.deathSequence() == 1 && combat.deaths() == 1,
+        "critical damage must own the single alive-to-dead transition")
+    assert(!combat.applyDamage(DamageRequest(1, 2, 1, 1, 0)).accepted() &&
+        combat.deaths() == 1,
+        "dead targets must reject repeated damage and rewards")
+}
+test "combat resistance and shield mitigation" {
+    var combat = CombatWorld(2, 1)
+    assert(!combat.defineWeapon(8, 1, 0, 0, 4, 4, 25) &&
+        combat.addActor(1, 30, 0) &&
+        combat.addActor(2, 20, 0) &&
+        combat.setResistance(2, 1, 50) &&
+        combat.setShield(2, 6, 6),
+        "combat must configure bounded resistance and shield state")
+    var shielded = combat.applyDamage(DamageRequest(1, 2, 10, 1, 0))
+    assert(shielded.accepted() && shielded.applied() == 5 &&
+        shielded.remainingHealth() == 20 && combat.currentShield(2) == 1,
+        "resistance must reduce damage before shield absorption")
+    var breached = combat.applyDamage(DamageRequest(1, 2, 10, 1, 0))
+    assert(breached.accepted() && breached.applied() == 5 &&
+        breached.remainingHealth() == 16 && combat.currentShield(2) == 0,
+        "shield depletion must transfer only remaining damage to health")
+    assert(combat.setResistance(2, 1, 100))
+    var resisted = combat.applyDamage(DamageRequest(1, 2, 10, 1, 0))
+    assert(resisted.accepted() && resisted.applied() == 1 &&
+        resisted.remainingHealth() == 15 &&
+        !combat.setResistance(2, 4, 25),
+        "full resistance still permits bounded minimum damage")
+}
+
+test "shared hitscan projectile and bounded combat events" {
+    var combat = CombatWorld(2, 1)
+    assert(combat.defineWeapon(4, 3, 0, 0, 4, 2, 25))
+    assert(combat.addActor(1, 20, 0) && combat.addActor(2, 12, 0))
+    assert(combat.equipWeapon(1, 4))
+    var hitscan = combat.resolveHitscan(1, 2, 0, 25, 0)
+    assert(hitscan.accepted() && hitscan.actionId() == 1 &&
+        hitscan.applied() == 4 && hitscan.remainingHealth() == 8 &&
+        hitscan.eventSequence() == 1 && combat.magazine(1) == 2,
+        "hitscan must share weapon range, ammo and damage authority")
+    assert(combat.pendingCombatEvents() == 1 &&
+        combat.dequeueCombatEvent(),
+        "accepted hits must publish a bounded combat event")
+    var hitscanEvent = combat.lastCombatEvent()
+    assert(hitscanEvent.kind() == 1 && hitscanEvent.sourceId() == 1 &&
+        hitscanEvent.targetId() == 2 && hitscanEvent.applied() == 4 &&
+        !hitscanEvent.died(),
+        "hitscan events must preserve authoritative damage details")
+    assert(!combat.resolveHitscan(1, 2, 0, 26, 0).accepted() &&
+        combat.magazine(1) == 2,
+        "out-of-range hitscan must reject without consuming ammo")
+
+    var projectile = combat.spawnProjectile(1, 1)
+    assert(projectile.accepted() && projectile.projectileId() == 1 &&
+        combat.projectileIsActive(1) && combat.magazine(1) == 1,
+        "projectile spawn must consume one shot and reserve a bounded slot")
+    var projectileHit = combat.resolveProjectile(1, 2, 25, 1)
+    assert(projectileHit.accepted() && projectileHit.applied() == 8 &&
+        projectileHit.remainingHealth() == 0 && projectileHit.died() &&
+        !combat.projectileIsActive(1),
+        "projectile resolution must reuse critical damage and consume itself")
+    assert(combat.pendingCombatEvents() == 1 &&
+        combat.dequeueCombatEvent(),
+        "projectile resolution must enqueue one bounded event")
+    var projectileEvent = combat.lastCombatEvent()
+    assert(projectileEvent.kind() == 2 && projectileEvent.sequence() == 2 &&
+        projectileEvent.died() && combat.deaths() == 1,
+        "projectile event must preserve sequence and death transition")
+}
+
+test "deterministic enemy states and encounter admission" {
+    var enemies = EnemyStateWorld(2)
+    assert(enemies.configure(100, 20, 4),
+        "enemy state world must configure perception and attack bounds")
+    assert(!enemies.configure(20, 30, 4),
+        "attack range cannot exceed perception range")
+    assert(enemies.addEnemy(7, 0) && enemies.state(7) == enemies.idleState(),
+        "enemy admission must start in idle")
+    var chase = enemies.step(7, 1, 1, true, 60)
+    assert(chase.accepted() && chase.state() == enemies.chaseState() &&
+        chase.targetId() == 1 && !chase.attackReady(),
+        "visible distant targets must drive deterministic chase")
+    var attack = enemies.step(7, 2, 1, true, 20)
+    assert(attack.accepted() && attack.state() == enemies.attackState() &&
+        attack.attackReady() && enemies.attackReadyTick(7) == 6,
+        "visible near targets must enter attack and schedule cooldown")
+    var waiting = enemies.step(7, 5, 1, true, 20)
+    assert(waiting.accepted() && !waiting.attackReady() &&
+        !waiting.transitioned(),
+        "attack cooldown must suppress repeated attack decisions")
+    var repeated = enemies.step(7, 6, 1, true, 20)
+    assert(repeated.attackReady() && enemies.attackReadyTick(7) == 10,
+        "attack readiness must recur on an integer tick boundary")
+    var lost = enemies.step(7, 7, 0, false, 0)
+    assert(lost.accepted() && lost.state() == enemies.investigateState() &&
+        lost.targetId() == 0,
+        "lost perception must clear target and enter investigate")
+    assert(!enemies.transition(7, enemies.patrolState(), 6),
+        "state transitions must reject time going backwards")
+    assert(enemies.kill(7, 8) && enemies.state(7) == enemies.deadState())
+    var dead = enemies.step(7, 9, 1, true, 1)
+    assert(dead.accepted() && dead.state() == enemies.deadState() &&
+        !dead.attackReady(),
+        "dead enemies must remain terminal")
+
+    var encounters = EncounterDirector(1)
+    assert(!encounters.define(0, 1, 2) && encounters.define(10, 1, 2),
+        "encounter definitions must validate identity and budgets")
+    var first = encounters.admit(10, 7)
+    assert(first.accepted() && first.activeCount() == 1 &&
+        first.remainingBudget() == 1,
+        "encounter admission must consume one bounded spawn budget")
+    assert(!encounters.admit(10, 8).accepted(),
+        "encounter active limit must reject overflow")
+    assert(encounters.release(10))
+    var second = encounters.admit(10, 8)
+    assert(second.accepted() && second.remainingBudget() == 0,
+        "released encounter slots must admit remaining budget")
+    assert(!encounters.admit(10, 9).accepted() &&
+        encounters.release(10) && !encounters.release(10),
+        "exhausted encounters must reject spawns and extra releases")
+}
+
+test "authoritative enemy combat event bridge" {
+    var session = AuthoritativeEnemySession(3, 1)
+    assert(session.configureEnemyRules(100, 20, 2))
+    assert(session.defineWeapon(9, 2, 0, 0, 3, 1, 20))
+    assert(session.defineEncounter(4, 1, 2))
+    assert(session.addActor(1, 20, 0) && session.equipWeapon(1, 9))
+    assert(session.admitEnemy(4, 2, 0, 5, 0, 9) &&
+        session.encounterActiveCount(4) == 1,
+        "authoritative admission must link combat, AI and encounter state")
+
+    var enemyAttack = session.stepEnemy(2, 0, 1, true, 10, 0)
+    assert(enemyAttack.accepted() && enemyAttack.fired() &&
+        enemyAttack.targetId() == 1 && enemyAttack.applied() == 3 &&
+        session.pendingCombatEvents() == 1,
+        "enemy attack decisions must resolve through authoritative combat")
+    assert(session.consumeCombatEvents(0) == 0 &&
+        session.pendingCombatEvents() == 0,
+        "non-death attack events must be consumed without changing admission")
+
+    var enemyDeath = session.playerHitscan(1, 2, 1, 10, 1)
+    assert(enemyDeath.accepted() && enemyDeath.died() &&
+        session.enemyState(2) == 7 &&
+        session.encounterActiveCount(4) == 0 &&
+        session.pendingCombatEvents() == 0,
+        "enemy death events must transition AI state and release encounter slots")
+    assert(session.admitEnemy(4, 3, 2, 5, 0, 9),
+        "released encounter slots must admit remaining deterministic budget")
+}
+
+test "loopback enemy tick and replicated snapshots" {
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start())
+    assert(loopback.configureEnemyRules(100, 20, 2))
+    assert(loopback.defineEnemyWeapon(9, 2, 0, 0, 3, 1, 20))
+    assert(loopback.defineEnemyEncounter(4, 1, 2))
+    assert(loopback.addEnemyCombatActor(1, 20, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 9))
+    assert(loopback.admitEnemy(4, 2, 0, 5, 0, 9))
+    assert(loopback.configureEnemyPerception(2, 1, true, 10, 0))
+    assert(loopback.advance(16667) == 1,
+        "loopback must advance one authoritative enemy tick")
+    var decision = loopback.lastEnemyAttack()
+    assert(decision.accepted() && decision.fired() &&
+        decision.targetId() == 1 && decision.applied() == 3,
+        "loopback tick must publish the authoritative enemy attack decision")
+    assert(loopback.enemySnapshotCount() == 1)
+    var serverSnapshot = loopback.latestEnemySnapshot()
+    assert(serverSnapshot.tick() == 1 && serverSnapshot.enemyId() == 2 &&
+        serverSnapshot.state() == 4 && serverSnapshot.targetId() == 1,
+        "loopback must publish enemy state and target in its snapshot")
+    assert(loopback.applyEnemySnapshot(serverSnapshot) &&
+        loopback.clientEnemySnapshotCount() == 1 &&
+        loopback.latestClientEnemySnapshot().sequence() == serverSnapshot.sequence(),
+        "client must accept the monotonic enemy snapshot")
+}
+
+test "enemy spatial visibility movement and projectile targeting" {
+    var world = EnemySpatialWorld(2, 20)
+    assert(world.configureBounds(0, 0, 0, 10, 10, 10),
+        "enemy spatial bounds must configure")
+    assert(world.setPosition(2, 2, 2, 0) &&
+        world.setPosition(1, 2, 2, 10),
+        "enemy spatial actors must register")
+    var clear = world.visibility(2, 1, 20)
+    assert(clear.accepted() && clear.visible() && clear.distance() == 10,
+        "clear spatial path must be visible")
+    assert(world.addObstacle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "enemy spatial obstacle must insert")
+    var blocked = world.visibility(2, 1, 20)
+    assert(blocked.accepted() && !blocked.visible() && blocked.hitStep() == 5,
+        "obstacle must block enemy line of sight")
+    var movement = world.moveToward(2, 1, 10)
+    assert(movement.accepted() && movement.collided() &&
+        movement.resolvedZ() == 4 && world.positionZ(2) == 4,
+        "enemy movement must stop at the authoritative obstacle sample")
+
+    var session = AuthoritativeEnemySession(3, 1)
+    assert(session.configureEnemyRules(100, 20, 2) &&
+        session.defineWeapon(9, 2, 0, 0, 3, 1, 20) &&
+        session.defineEncounter(4, 1, 2),
+        "spatial combat rules must configure")
+    assert(session.addActor(1, 20, 0) &&
+        session.equipWeapon(1, 9) &&
+        session.admitEnemy(4, 2, 0, 5, 0, 9),
+        "spatial combat actors must admit")
+    assert(session.setSpatialPosition(1, 0, 0, 0) &&
+        session.setSpatialPosition(2, 0, 0, 10),
+        "spatial combat actors must position")
+    var projectile = session.projectileAttackSpatial(1, 2, 0, 20, 0)
+    assert(projectile.accepted() && projectile.applied() == 3,
+        "clear spatial projectile must resolve through combat")
+
+    var blockedSession = AuthoritativeEnemySession(3, 1)
+    assert(blockedSession.configureEnemyRules(100, 20, 2) &&
+        blockedSession.defineWeapon(9, 2, 0, 0, 3, 1, 20) &&
+        blockedSession.defineEncounter(4, 1, 2) &&
+        blockedSession.addActor(1, 20, 0) &&
+        blockedSession.admitEnemy(4, 2, 0, 5, 0, 9),
+        "blocked spatial combat actors must admit")
+    assert(blockedSession.setSpatialPosition(1, 2, 2, 0) &&
+        blockedSession.setSpatialPosition(2, 2, 2, 10) &&
+        blockedSession.addSpatialObstacle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "blocked spatial combat geometry must configure")
+    var blockedAttack = blockedSession.stepEnemySpatial(2, 0, 1, 0)
+    assert(blockedAttack.accepted() && !blockedAttack.fired() &&
+        blockedSession.enemyState(2) == 2,
+        "blocked enemy perception must investigate without attacking")
+    var blockedProjectile = blockedSession.projectileAttackSpatial(1, 2, 0, 20, 0)
+    assert(!blockedProjectile.accepted(),
+        "blocked spatial projectile must not resolve damage")
+}
+test "bounded spatial ray target selection" {
+    var rays = BoundedRayTargetWorld(4, 20)
+    assert(rays.setTarget(9, 5, 0, 0) &&
+        rays.setTarget(3, 10, 5, 0) &&
+        rays.activeCount() == 2,
+        "ray targets must register in bounded storage")
+    var center = rays.query(0, 0, 0, 10, 0, 0, 20, 0)
+    assert(center.accepted() && center.hit() &&
+        center.targetId() == 9 && center.distance() == 5,
+        "ray query must select the nearest target on the center line")
+    var aim = SpatialAimContract(9, 0, 0, 0, 10, 0, 0, 20, 5)
+    var sourceExcluded = rays.queryAim(aim)
+    assert(sourceExcluded.accepted() && sourceExcluded.hit() &&
+        sourceExcluded.targetId() == 3,
+        "shared aim contract must exclude its source actor")
+    var pellet = rays.queryShotgunPellet(
+        0, 0, 0, 10, 0, 0, 0, 5, 20, 0)
+    assert(pellet.accepted() && pellet.hit() &&
+        pellet.targetId() == 3 && pellet.distance() == 10,
+        "pellet query must apply deterministic spread offsets")
+    assert(rays.removeTarget(9) &&
+        !rays.query(0, 0, 0, 4, 0, 0, 20, 0).hit(),
+        "removed ray targets must no longer be selectable")
+    assert(!rays.query(0, 0, 0, 10, 0, 0, -1, 0).accepted() &&
+        !rays.query(0, 0, 0, 10, 0, 0, 20, -1).accepted(),
+        "ray queries must reject invalid range and radius")
+}
+test "authoritative spatial shotgun uses shared aim contract" {
+    var session = LoopbackSession(8, 8)
+    assert(session.definePlayerWeapon(14, 2, 0, 0, 100, 1, 30) &&
+        session.setPlayerWeaponSpread(14, 3, 5) &&
+        session.addPlayerCombatActor(10, 1000, 0) &&
+        session.addPlayerCombatActor(11, 1000, 0) &&
+        session.addPlayerCombatActor(12, 1000, 0) &&
+        session.addPlayerCombatActor(13, 1000, 0) &&
+        session.equipPlayerCombatWeapon(10, 14),
+        "authoritative spatial shotgun rules must configure")
+    assert(session.setPlayerSpatialTarget(10, 0, 0, 0) &&
+        session.setPlayerSpatialTarget(11, 10, 5, 0) &&
+        session.setPlayerSpatialTarget(12, 5, -5, 0) &&
+        session.setPlayerSpatialTarget(13, 15, -5, 0),
+        "shared aim targets must register")
+    var result = session.resolvePlayerSpatialShotgun(
+        10, 0, 0, 0, 10, 0, 0, 30, 0, 0, 0)
+    assert(result.accepted() && result.targetCount() == 3 &&
+        result.applied() == 296 &&
+        session.playerCombatHealth(11) == 900 &&
+        session.playerCombatHealth(12) == 901 &&
+        session.playerCombatHealth(13) == 903,
+        "authoritative spatial shotgun must resolve one target per pellet")
+    assert(session.removePlayerSpatialTarget(12) &&
+        session.playerCombatHealth(12) == 901,
+        "spatial target removal must preserve prior authority state")
+}
+
+
+
+test "continuous projectiles and encounter zones" {
+    var session = AuthoritativeEnemySession(4, 1)
+    assert(session.configureEnemyRules(100, 20, 2) &&
+        session.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        session.defineEncounter(4, 2, 2),
+        "continuous projectile rules must configure")
+    assert(session.addActor(1, 20, 0) &&
+        session.equipWeapon(1, 9) &&
+        session.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10),
+        "positioned encounter admission must register")
+    assert(session.setSpatialPosition(1, 0, 0, 0),
+        "projectile source position must register")
+    var projectile = session.spawnSpatialProjectile(1, 2, 0, 20, 3, 0)
+    assert(projectile.accepted() && session.activeSpatialProjectiles() == 1,
+        "continuous projectile must remain active between ticks")
+    assert(session.advanceSpatialProjectiles(0) == 1 &&
+        session.activeSpatialProjectiles() == 1,
+        "projectile must advance without resolving before target contact")
+    assert(session.advanceSpatialProjectiles(1) == 1 &&
+        session.advanceSpatialProjectiles(2) == 1 &&
+        session.advanceSpatialProjectiles(3) == 1 &&
+        session.activeSpatialProjectiles() == 0 &&
+        session.spatialProjectileHits() == 1,
+        "projectile must resolve exactly on its terminal sweep")
+
+    var blocked = AuthoritativeEnemySession(4, 1)
+    assert(blocked.configureEnemyRules(100, 20, 2) &&
+        blocked.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        blocked.defineEncounter(4, 2, 2) &&
+        blocked.addActor(1, 20, 0) &&
+        blocked.equipWeapon(1, 9) &&
+        blocked.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        blocked.setSpatialPosition(1, 0, 0, 0) &&
+        blocked.addSpatialObstacle(0, 0, 5, 10, 0, 5, 0, 10, 5),
+        "blocked projectile geometry must configure")
+    var blockedProjectile = blocked.spawnSpatialProjectile(1, 2, 0, 20, 3, 0)
+    assert(blockedProjectile.accepted() &&
+        blocked.advanceSpatialProjectiles(0) == 1 &&
+        blocked.advanceSpatialProjectiles(1) == 0 &&
+        blocked.activeSpatialProjectiles() == 0 &&
+        blocked.spatialProjectileBlocked() == 1 &&
+        blocked.spatialProjectileHits() == 0,
+        "obstacle must terminate a continuous projectile without damage")
+
+    var zones = AuthoritativeEnemySession(4, 1)
+    assert(zones.defineWeapon(9, 1, 0, 0, 1, 1, 5) &&
+        zones.defineEncounter(7, 2, 2) &&
+        zones.configureEncounterZone(7, 0, 0, 0, 5),
+        "encounter zone must configure")
+    assert(zones.admitEnemyAt(7, 3, 0, 5, 0, 9, 2, 0, 0),
+        "enemy inside encounter zone must admit")
+    assert(!zones.admitEnemyAt(7, 4, 0, 5, 0, 9, 8, 0, 0) &&
+        zones.encounterActiveCount(7) == 1,
+        "enemy outside encounter zone must reject without consuming slot")
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start() &&
+        loopback.configureEnemyRules(100, 20, 2) &&
+        loopback.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        loopback.defineEnemyEncounter(4, 1, 1) &&
+        loopback.addEnemyCombatActor(1, 20, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 9) &&
+        loopback.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        loopback.setEnemySpatialPosition(1, 0, 0, 0),
+        "loopback must admit spatial projectile actors")
+    var loopbackProjectile = loopback.spawnEnemyProjectileSpatial(1, 2, 0, 20, 3, 0)
+    assert(loopbackProjectile.accepted() &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.activeEnemyProjectiles() == 0 &&
+        loopback.enemyProjectileHits() == 1,
+        "fixed-step loopback must advance and resolve continuous projectiles")
+}
+test "deterministic navigation and projectile impact events" {
+    var navigation = EnemySpatialWorld(2, 20)
+    assert(navigation.configureBounds(0, 0, 0, 10, 10, 10) &&
+        navigation.setPosition(2, 1, 1, 1) &&
+        navigation.setPosition(1, 1, 1, 8),
+        "navigation actors must fit configured bounds")
+    assert(navigation.addObstacle(
+        0, 0, 4, 6, 0, 4, 0, 10, 4),
+        "navigation obstacle must insert")
+    var route = navigation.navigation(2, 1)
+    assert(route.accepted() && route.found() && route.routeLength() > 0 &&
+        route.waypointX() == 1 && route.waypointZ() == 2,
+        "bounded A* must choose the deterministic first detour waypoint")
+    var steering = navigation.steerToward(2, 1, 1)
+    assert(steering.accepted() && steering.found() &&
+        steering.resolvedX() == 1 && steering.resolvedZ() == 2 &&
+        navigation.positionZ(2) == 2,
+        "path steering must advance through the first route waypoint")
+
+    var impacts = AuthoritativeEnemySession(3, 1)
+    assert(impacts.configureEnemyRules(100, 20, 2) &&
+        impacts.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        impacts.defineEncounter(4, 1, 1) &&
+        impacts.addActor(1, 20, 0) &&
+        impacts.equipWeapon(1, 9) &&
+        impacts.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 6) &&
+        impacts.setSpatialPosition(1, 0, 0, 0),
+        "impact event actors must configure")
+    var projectile = impacts.spawnSpatialProjectile(1, 2, 0, 20, 3, 0)
+    assert(projectile.accepted() &&
+        impacts.advanceSpatialProjectiles(0) == 1 &&
+        impacts.advanceSpatialProjectiles(1) == 1 &&
+        impacts.pendingSpatialImpacts() == 1,
+        "terminal projectile hit must publish one impact event")
+    assert(impacts.dequeueSpatialImpact())
+    var impact = impacts.lastSpatialImpact()
+    assert(impact.kind() == 1 && impact.sourceId() == 1 &&
+        impact.targetId() == 2 && impact.applied() == 3 &&
+        impacts.pendingSpatialImpacts() == 0,
+        "hit impact must preserve authority and applied damage")
+}
+test "replicated projectile presentation queues" {
+    var loopback = LoopbackSession(4, 4)
+    assert(loopback.start() &&
+        loopback.configureEnemyRules(100, 20, 2) &&
+        loopback.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        loopback.defineEnemyEncounter(4, 1, 1) &&
+        loopback.addEnemyCombatActor(1, 20, 0) &&
+        loopback.equipEnemyCombatWeapon(1, 9) &&
+        loopback.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        loopback.setEnemySpatialPosition(1, 0, 0, 0),
+        "presentation loopback actors must configure")
+    var projectile = loopback.spawnEnemyProjectileSpatial(1, 2, 0, 20, 3, 0)
+    assert(projectile.accepted() &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.advance(16667) == 1 &&
+        loopback.enemyImpactSnapshotCount() == 1,
+        "loopback must publish the terminal impact snapshot")
+    var snapshot = loopback.latestEnemyImpactSnapshot()
+    assert(snapshot.kind() == 1 && snapshot.sourceId() == 1 &&
+        snapshot.targetId() == 2 && snapshot.applied() == 3 &&
+        loopback.applyEnemyImpactSnapshot(snapshot) &&
+        loopback.clientEnemyImpactSnapshotCount() == 1 &&
+        loopback.replayPresentationCount() == 1 &&
+        loopback.replayPresentationAt(0).kind() == 3 &&
+        loopback.replayPresentationAt(0).valueFive() == 201 &&
+        loopback.pendingEnemyImpactPresentations() == 1 &&
+        loopback.pendingEnemyImpactAudio() == 1,
+        "client admission must stage impact and capture replay presentation")
+    assert(loopback.dequeueEnemyImpactPresentation())
+    var presentation = loopback.lastEnemyImpactPresentation()
+    assert(presentation.sequence() == snapshot.sequence() &&
+        presentation.clip() == 201 && presentation.gain() == 100 &&
+        presentation.x() == snapshot.x(),
+        "presentation event must preserve replicated impact identity")
+    assert(loopback.dequeueEnemyImpactAudio() &&
+        loopback.consumedEnemyImpactClip() == 201 &&
+        loopback.consumedEnemyImpactGain() == 100 &&
+        !loopback.applyEnemyImpactSnapshot(snapshot),
+        "audio consumption and duplicate snapshot rejection must be bounded")
+}

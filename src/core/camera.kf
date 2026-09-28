@@ -1,0 +1,81 @@
+package core
+
+record MappedInput(Int moveX, Int moveY, Int lookX, Int lookY, Int fire, Int jump)
+
+class InputMapper {
+    Int maxAxis
+
+    public constructor(Int nextMaxAxis) {
+        maxAxis = nextMaxAxis
+        if (maxAxis <= 0) {
+            maxAxis = 1
+        }
+    }
+
+    Int clamp(Int value) {
+        if (value > maxAxis) {
+            return maxAxis
+        }
+        if (value < -maxAxis) {
+            return -maxAxis
+        }
+        return value
+    }
+
+    MappedInput map(Int moveX, Int moveY, Int lookX, Int lookY, Int fire, Int jump) {
+        var safeFire = fire
+        var safeJump = jump
+        if (safeFire < 0) {
+            safeFire = 0
+        }
+        if (safeFire > 1) {
+            safeFire = 1
+        }
+        if (safeJump < 0) {
+            safeJump = 0
+        }
+        if (safeJump > 1) {
+            safeJump = 1
+        }
+        return MappedInput(
+            clamp(moveX), clamp(moveY), clamp(lookX), clamp(lookY), safeFire, safeJump)
+    }
+}
+
+class CameraState {
+    Int yaw
+    Int pitch
+    Int minPitch
+    Int maxPitch
+
+    public constructor(Int nextMinPitch, Int nextMaxPitch) {
+        yaw = 0
+        pitch = 0
+        minPitch = nextMinPitch
+        maxPitch = nextMaxPitch
+        if (minPitch > maxPitch) {
+            minPitch = -890
+            maxPitch = 890
+        }
+    }
+
+    Bool applyLook(Int deltaYaw, Int deltaPitch) {
+        yaw = yaw + deltaYaw
+        pitch = pitch + deltaPitch
+        if (pitch < minPitch) {
+            pitch = minPitch
+        }
+        if (pitch > maxPitch) {
+            pitch = maxPitch
+        }
+        return true
+    }
+
+    Int currentYaw() {
+        return yaw
+    }
+
+    Int currentPitch() {
+        return pitch
+    }
+}

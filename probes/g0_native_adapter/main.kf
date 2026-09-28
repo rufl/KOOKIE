@@ -1,0 +1,692 @@
+import core
+import session
+import demo
+import world
+import ui
+
+extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
+
+extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
+extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int height, Int hidden): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open(Int windowToken): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_report_window_present_capabilities(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_window(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_test(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_report_window_draw(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open_headless_ready(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recover_headless(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_headless_test(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_headless_budget(Int frames, Int budgetMicroseconds): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_state(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_recovery_capabilities(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_push_headless_device_reset(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_push_headless_device_lost(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resource, Int x, Int y, Int u, Int v): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_select_slot(Int slot): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_pair(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_local_ipv4(Int port): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_listen_ipv4(Int port): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
+    Int key0Low, Int key0High, Int key1Low, Int key1High
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key_from_environment(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key_from_file(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_rotate_key_from_file(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_peer_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_peer_port(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_local_port(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_begin(Int wordCount): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_word(Int index, Int word): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_replay_last_datagram(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_last_status(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_sum(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_timeout_milliseconds(): Int
+
+
+extern "./build/libkookie_sdl_adapter.so" kookie_drain_events(Int maxEvents): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_push_resize_event(Int width, Int height): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, Int frames): Bool
+
+class G1HeadlessPresentation {
+    G1Demo scenario
+    G1Arena arena
+    ShooterHud hud
+    CameraState camera
+    FrameStaging worldFrame
+    FrameStaging hudFrame
+    Int worldCapacity
+    Int hudCapacity
+
+    public constructor() {
+        scenario = G1Demo()
+        arena = scenario.authoredArena()
+        hud = scenario.shooterHud()
+        camera = CameraState(-450, 450)
+        worldFrame = FrameStaging(arena.renderVertexCount())
+        hudFrame = FrameStaging(hud.renderVertexCount())
+        worldCapacity = worldFrame.vertexCapacity()
+        hudCapacity = hudFrame.vertexCapacity()
+    }
+
+    Bool upload(FrameStaging frame) {
+        for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+            if (!kookie_gpu_scene_push_vertex(
+                    frame.resourceAt(index),
+                    frame.xAt(index), frame.yAt(index),
+                    frame.uAt(index), frame.vAt(index))) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool capture() {
+        var vertexCount = worldCapacity + hudCapacity
+        if (!scenario.run() || !camera.applyLook(20, -20) ||
+            kookie_gpu_scene_capacity() < vertexCount ||
+            !arena.stage(worldFrame, 1, 1, camera) ||
+            !hud.stage(hudFrame, 1, 9) ||
+            !kookie_gpu_scene_begin(vertexCount) ||
+            !upload(worldFrame) || !upload(hudFrame) ||
+            !kookie_gpu_scene_commit() ||
+            kookie_gpu_scene_count() != vertexCount ||
+            kookie_gpu_capture_headless_scene() <= 0) {
+            return false
+        }
+        return worldFrame.retire(1) && hudFrame.retire(1) &&
+            worldFrame.vertexCapacity() == worldCapacity &&
+            hudFrame.vertexCapacity() == hudCapacity
+    }
+}
+
+Bool transportSnapshot(
+    LoopbackSession session, Int[] payload
+) {
+    var sent = kookie_transport_send_begin(payload.length)
+    for (var index = 0; index < payload.length && sent; index = index + 1) {
+        sent = kookie_transport_send_word(index, payload[index])
+    }
+    sent = sent && kookie_transport_send_commit()
+    if (!sent) {
+        println("transport-send-failed")
+        return false
+    }
+    var receivedCount = kookie_transport_receive()
+    if (receivedCount != payload.length ||
+        kookie_transport_last_status() != 1) {
+        println("transport-receive-count")
+        println(receivedCount)
+        println("transport-receive-status")
+        println(kookie_transport_last_status())
+        return false
+    }
+    var expectedSum = 0
+    for (var index = 0; index < payload.length; index = index + 1) {
+        expectedSum = expectedSum + payload[index]
+    }
+    var headerMatches =
+        kookie_transport_receive_word(0) == payload[0] &&
+        kookie_transport_receive_word(1) == payload[1] &&
+        kookie_transport_receive_word(2) == payload[2] &&
+        kookie_transport_receive_word(3) == payload[3] &&
+        kookie_transport_receive_word(4) == payload[4] &&
+        kookie_transport_receive_word(5) == payload[5]
+    return headerMatches &&
+        kookie_transport_receive_sum() == expectedSum &&
+        session.applyRemoteBroadPhaseSnapshot(payload)
+}
+Bool transportSend(Int[] payload) {
+    var sent = kookie_transport_send_begin(payload.length)
+    for (var index = 0; index < payload.length && sent; index = index + 1) {
+        sent = kookie_transport_send_word(index, payload[index])
+    }
+    return sent && kookie_transport_send_commit()
+}
+Bool transportReceive(LoopbackSession session, Int[] payload) {
+    var receivedCount = kookie_transport_receive()
+    if (receivedCount != payload.length ||
+        kookie_transport_last_status() != 1) {
+        return false
+    }
+    var expectedSum = 0
+    for (var index = 0; index < payload.length; index = index + 1) {
+        expectedSum = expectedSum + payload[index]
+    }
+    var headerMatches =
+        kookie_transport_receive_word(0) == payload[0] &&
+        kookie_transport_receive_word(1) == payload[1] &&
+        kookie_transport_receive_word(2) == payload[2] &&
+        kookie_transport_receive_word(3) == payload[3] &&
+        kookie_transport_receive_word(4) == payload[4] &&
+        kookie_transport_receive_word(5) == payload[5]
+    return headerMatches &&
+        kookie_transport_receive_sum() == expectedSum &&
+        session.applyRemoteBroadPhaseSnapshot(payload)
+}
+Bool transportReceiveHost(LoopbackSession session, Int[] payload) {
+    var receivedCount = kookie_transport_receive()
+    if (receivedCount != payload.length ||
+        kookie_transport_last_status() != 1) {
+        return false
+    }
+    var expectedSum = 0
+    for (var index = 0; index < payload.length; index = index + 1) {
+        expectedSum = expectedSum + payload[index]
+    }
+    var headerMatches =
+        kookie_transport_receive_word(0) == payload[0] &&
+        kookie_transport_receive_word(1) == payload[1] &&
+        kookie_transport_receive_word(2) == payload[2] &&
+        kookie_transport_receive_word(3) == payload[3] &&
+        kookie_transport_receive_word(4) == payload[4] &&
+        kookie_transport_receive_word(5) == payload[5]
+    return headerMatches &&
+        kookie_transport_receive_sum() == expectedSum &&
+        session.applyBroadPhaseSnapshot(payload)
+}
+
+Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
+    var endpoint = RemoteSessionEndpoint(
+        127, 0, 0, 1, 1, 1, 2, 3, 4)
+    if (!endpoint.valid()) {
+        return false
+    }
+    if (kookie_transport_open_pair()) {
+        return false
+    }
+    if (!kookie_transport_set_key_from_file() &&
+        !kookie_transport_set_key_from_environment()) {
+        return false
+    }
+    if (kookie_transport_open_remote_ipv4(127, 0, 0, 1, 0)) {
+        return false
+    }
+    if (!kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1)) {
+        return false
+    }
+    if (!kookie_transport_close()) {
+        return false
+    }
+    if (!kookie_transport_rotate_key_from_file() &&
+        !kookie_transport_set_key_from_environment()) {
+        return false
+    }
+    if (!kookie_transport_open_pair()) {
+        return false
+    }
+    var peerPort = kookie_transport_peer_port()
+    if (peerPort <= 0 ||
+        kookie_transport_set_peer_ipv4(127, 0, 0, 1, 0) ||
+        kookie_transport_set_peer_ipv4(127, 0, 0, 256, peerPort) ||
+        !endpoint.setPeer(127, 0, 0, 1, peerPort)) {
+        kookie_transport_close()
+        return false
+    }
+    if (!session.configureRemoteEndpoint(
+            127, 0, 0, 1, peerPort,
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
+        !session.openRemoteSession() ||
+        !kookie_transport_set_peer_ipv4(
+            endpoint.firstOctet(), endpoint.secondOctet(),
+            endpoint.thirdOctet(), endpoint.fourthOctet(), endpoint.port()
+        )) {
+        kookie_transport_close()
+        return false
+    }
+    var loopSucceeded = true
+    for (var tick = 6; tick <= 8 && loopSucceeded; tick = tick + 1) {
+        loopSucceeded = session.pumpRemoteBroadPhaseSnapshot(tick)
+        if (loopSucceeded) {
+            var payload = session.broadPhaseSnapshot(
+                tick, session.remoteSendSequence())
+            loopSucceeded = transportSnapshot(session, payload)
+        }
+    }
+    var disconnected = session.closeRemoteSession() &&
+        kookie_transport_close()
+    var reconnected = disconnected
+    if (reconnected) {
+        var keyRestored =
+            kookie_transport_set_key_from_file() ||
+            kookie_transport_set_key_from_environment()
+        reconnected = keyRestored && kookie_transport_open_pair()
+    }
+    var reconnectPeerPort = kookie_transport_peer_port()
+    if (reconnected) {
+        reconnected = reconnectPeerPort > 0 &&
+            session.configureRemoteEndpoint(
+                127, 0, 0, 1, reconnectPeerPort,
+                endpoint.keyWord(0), endpoint.keyWord(1),
+                endpoint.keyWord(2), endpoint.keyWord(3)
+            ) &&
+            session.openRemoteSession() &&
+            kookie_transport_set_peer_ipv4(
+                127, 0, 0, 1, reconnectPeerPort)
+    }
+    if (reconnected) {
+        reconnected = session.pumpRemoteBroadPhaseSnapshot(9)
+        if (reconnected) {
+            var reconnectPayload = session.broadPhaseSnapshot(
+                9, session.remoteSendSequence())
+            reconnected = transportSnapshot(session, reconnectPayload)
+        }
+    }
+    var closed = session.closeRemoteSession() &&
+        kookie_transport_close()
+    return loopSucceeded && reconnected && closed &&
+        session.remoteSendSequence() == 9 &&
+        session.clientBroadPhaseTriangleCount() == 1
+}
+Bool twoClientAuthenticatedRoundTrip() {
+    var clientA = LoopbackSession(4, 4)
+    var clientB = LoopbackSession(4, 4)
+    var endpoint = RemoteSessionEndpoint(127, 0, 0, 1, 1, 1, 2, 3, 4)
+    if (!endpoint.valid() ||
+        !clientA.start() ||
+        !clientB.start() ||
+        !clientA.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) ||
+        !clientB.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5)) {
+        return false
+    }
+    if (!kookie_transport_select_slot(0) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_local_ipv4(40001)) {
+        return false
+    }
+    var portA = kookie_transport_peer_port()
+    if (!kookie_transport_select_slot(1) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_local_ipv4(40002)) {
+        kookie_transport_select_slot(0)
+        kookie_transport_close()
+        return false
+    }
+    var portB = kookie_transport_peer_port()
+    if (portA <= 0 || portB <= 0 ||
+        !kookie_transport_select_slot(0) ||
+        !kookie_transport_set_peer_ipv4(127, 0, 0, 1, portB) ||
+        !clientA.configureRemoteEndpoint(
+            127, 0, 0, 1, portB,
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
+        !clientA.openRemoteSession() ||
+        !kookie_transport_select_slot(1) ||
+        !kookie_transport_set_peer_ipv4(127, 0, 0, 1, portA) ||
+        !clientB.configureRemoteEndpoint(
+            127, 0, 0, 1, portA,
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
+        !clientB.openRemoteSession()) {
+        kookie_transport_select_slot(0)
+        kookie_transport_close()
+        kookie_transport_select_slot(1)
+        kookie_transport_close()
+        return false
+    }
+    if (!clientA.pumpRemoteBroadPhaseSnapshot(6)) {
+        return false
+    }
+    var payloadA = clientA.broadPhaseSnapshot(6, clientA.remoteSendSequence())
+    var sentA = kookie_transport_select_slot(0) &&
+        transportSend(payloadA)
+    var receivedA = kookie_transport_select_slot(1) &&
+        transportReceive(clientB, payloadA)
+    var staleRejected = kookie_transport_select_slot(0) &&
+        kookie_transport_replay_last_datagram() &&
+        kookie_transport_select_slot(1) &&
+        kookie_transport_receive() == 0 &&
+        kookie_transport_last_status() == 3
+    if (!sentA || !receivedA || !staleRejected) {
+        return false
+    }
+    if (!clientB.pumpRemoteBroadPhaseSnapshot(6)) {
+        return false
+    }
+    var payloadB = clientB.broadPhaseSnapshot(6, clientB.remoteSendSequence())
+    if (!kookie_transport_select_slot(1) ||
+        !transportSend(payloadB) ||
+        !kookie_transport_select_slot(0) ||
+        !transportReceive(clientA, payloadB)) {
+        return false
+    }
+    var disconnected =
+        clientA.closeRemoteSession() &&
+        clientB.closeRemoteSession() &&
+        kookie_transport_select_slot(0) &&
+        kookie_transport_close() &&
+        kookie_transport_select_slot(1) &&
+        kookie_transport_close()
+    if (!disconnected ||
+        !kookie_transport_select_slot(0) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_local_ipv4(40003)) {
+        return false
+    }
+    portA = kookie_transport_peer_port()
+    if (!kookie_transport_select_slot(1) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_local_ipv4(40004)) {
+        return false
+    }
+    portB = kookie_transport_peer_port()
+    if (!kookie_transport_select_slot(0) ||
+        !kookie_transport_set_peer_ipv4(127, 0, 0, 1, portB) ||
+        !clientA.configureRemoteEndpoint(
+            127, 0, 0, 1, portB,
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
+        !clientA.openRemoteSession() ||
+        !kookie_transport_select_slot(1) ||
+        !kookie_transport_set_peer_ipv4(127, 0, 0, 1, portA) ||
+        !clientB.configureRemoteEndpoint(
+            127, 0, 0, 1, portA,
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)
+        ) ||
+        !clientB.openRemoteSession() ||
+        !clientA.pumpRemoteBroadPhaseSnapshot(7)) {
+        return false
+    }
+    var reconnectPayload = clientA.broadPhaseSnapshot(
+        7, clientA.remoteSendSequence())
+    var reconnected =
+        kookie_transport_select_slot(0) &&
+        transportSend(reconnectPayload) &&
+        kookie_transport_select_slot(1) &&
+        transportReceive(clientB, reconnectPayload) &&
+        clientA.remoteSendSequence() == 7 &&
+        clientB.clientBroadPhaseTriangleCount() == 1
+    clientA.closeRemoteSession()
+    clientB.closeRemoteSession()
+    kookie_transport_select_slot(0)
+    kookie_transport_close()
+    kookie_transport_select_slot(1)
+    kookie_transport_close()
+    return reconnected
+}
+
+
+
+Bool externalStyleHostTwoClientRoundTrip() {
+    var hostSession = LoopbackSession(4, 4)
+    var clientA = LoopbackSession(4, 4)
+    var clientB = LoopbackSession(4, 4)
+    var endpointA = RemoteSessionEndpoint(127, 0, 0, 1, 42101, 1, 2, 3, 4)
+    var endpointB = RemoteSessionEndpoint(127, 0, 0, 1, 42102, 1, 2, 3, 4)
+    if (!endpointA.valid() || !endpointB.valid() ||
+        !hostSession.start() || !clientA.start() || !clientB.start() ||
+        !hostSession.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) ||
+        !clientA.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) ||
+        !clientB.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5)) {
+        return false
+    }
+    if (!kookie_transport_select_slot(0) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_listen_ipv4(42101)) {
+        return false
+    }
+    var hostPortA = kookie_transport_peer_port()
+    if (!kookie_transport_select_slot(1) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_listen_ipv4(42102)) {
+        return false
+    }
+    var hostPortB = kookie_transport_peer_port()
+    if (!kookie_transport_select_slot(2) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_remote_ipv4(127, 0, 0, 1, hostPortA)) {
+        return false
+    }
+    var clientPortA = kookie_transport_local_port()
+    if (!kookie_transport_select_slot(3) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_remote_ipv4(127, 0, 0, 1, hostPortB)) {
+        return false
+    }
+    var clientPortB = kookie_transport_local_port()
+    if (hostPortA <= 0 || hostPortB <= 0 ||
+        clientPortA <= 0 || clientPortB <= 0 ||
+        !clientA.configureRemoteEndpoint(
+            127, 0, 0, 1, hostPortA,
+            endpointA.keyWord(0), endpointA.keyWord(1),
+            endpointA.keyWord(2), endpointA.keyWord(3)
+        ) ||
+        !clientA.openRemoteSession() ||
+        !clientB.configureRemoteEndpoint(
+            127, 0, 0, 1, hostPortB,
+            endpointB.keyWord(0), endpointB.keyWord(1),
+            endpointB.keyWord(2), endpointB.keyWord(3)
+        ) ||
+        !clientB.openRemoteSession()) {
+        return false
+    }
+    if (!clientA.pumpRemoteBroadPhaseSnapshot(6) ||
+        !clientB.pumpRemoteBroadPhaseSnapshot(7)) {
+        return false
+    }
+    var payloadA = clientA.broadPhaseSnapshot(
+        6, clientA.remoteSendSequence())
+    var payloadB = clientB.broadPhaseSnapshot(
+        7, clientB.remoteSendSequence())
+    var hostReceivedA = kookie_transport_select_slot(2) &&
+        transportSend(payloadA) &&
+        kookie_transport_select_slot(0) &&
+        transportReceiveHost(hostSession, payloadA)
+    var hostReceivedB = kookie_transport_select_slot(3) &&
+        transportSend(payloadB) &&
+        kookie_transport_select_slot(1) &&
+        transportReceiveHost(hostSession, payloadB)
+    var hostPayloadA = hostSession.broadPhaseSnapshot(6, 1)
+    var hostPayloadB = hostSession.broadPhaseSnapshot(6, 1)
+    var clientReceivedA = kookie_transport_select_slot(0) &&
+        kookie_transport_set_peer_ipv4(127, 0, 0, 1, clientPortA) &&
+        transportSend(hostPayloadA) &&
+        kookie_transport_select_slot(2) &&
+        transportReceive(clientA, hostPayloadA)
+    var clientReceivedB = kookie_transport_select_slot(1) &&
+        kookie_transport_set_peer_ipv4(127, 0, 0, 1, clientPortB) &&
+        transportSend(hostPayloadB) &&
+        kookie_transport_select_slot(3) &&
+        transportReceive(clientB, hostPayloadB)
+    var staleA = kookie_transport_select_slot(2) &&
+        kookie_transport_replay_last_datagram() &&
+        kookie_transport_select_slot(0) &&
+        kookie_transport_receive() == 0 &&
+        kookie_transport_last_status() == 3
+    clientA.closeRemoteSession()
+    clientB.closeRemoteSession()
+    kookie_transport_select_slot(0)
+    kookie_transport_close()
+    kookie_transport_select_slot(1)
+    kookie_transport_close()
+    kookie_transport_select_slot(2)
+    kookie_transport_close()
+    kookie_transport_select_slot(3)
+    kookie_transport_close()
+    return hostReceivedA && hostReceivedB &&
+        clientReceivedA && clientReceivedB && staleA
+}
+
+main() {
+    println("KOOKIE G0 native SDL adapter probe")
+    assert(kookie_sdl_init(48), "SDL video/audio adapter init must succeed")
+    var frameClock = FixedStepClock(60, 4)
+    assert(frameClock.frameBudgetMicros() == 16667,
+        "GPU smoke must use the declared 60 Hz frame budget")
+    var transportSession = LoopbackSession(4, 4)
+    assert(transportSession.start(), "session transport probe must start")
+    assert(externalStyleHostTwoClientRoundTrip(),
+        "one host listener pair must authenticate and serve two client sockets")
+    println("session-external-style-two-client")
+    assert(transportSession.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "session transport probe must seed broad-phase geometry")
+    assert(transportBroadPhaseRoundTrip(transportSession),
+        "native datagram transport must apply a broad-phase snapshot")
+    assert(twoClientAuthenticatedRoundTrip(),
+        "two authenticated clients must exchange and reconnect over UDP")
+    println("session-transport-open")
+    println("session-two-client-reconnected")
+
+
+    if (kookie_gpu_open_headless_ready()) {
+        assert(kookie_gpu_recovery_state() == 1,
+            "headless GPU must enter ready recovery state")
+        assert(kookie_gpu_recovery_capabilities() >= 3,
+            "headless GPU must report reopen and loss-marker capabilities")
+        assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
+        var g1Presentation = G1HeadlessPresentation()
+        assert(g1Presentation.capture(),
+            "G1 authored arena and authoritative HUD must render headlessly")
+        println("KOOKIE G1 native arena HUD verified")
+        assert(kookie_gpu_push_headless_device_reset(),
+            "headless GPU reset event must enqueue")
+        assert(kookie_poll_event() == 5,
+            "SDL GPU reset event must retire cached resources")
+        assert(kookie_gpu_recovery_state() == 1,
+            "headless GPU reset must retain ready state")
+        assert(kookie_gpu_draw_headless_test(),
+            "headless GPU draw must rebuild retired resources")
+        assert(kookie_gpu_headless_budget(3, frameClock.frameBudgetMicros()),
+            "headless GPU draw timing must fit the declared 60 Hz frame budget")
+        assert(kookie_gpu_push_headless_device_lost(),
+            "headless GPU loss event must enqueue")
+        assert(kookie_poll_event() == 6,
+            "SDL GPU loss event must invoke the recovery callback")
+        assert(kookie_gpu_recovery_state() == 2,
+            "headless GPU loss must expose lost recovery state")
+        assert(kookie_gpu_recovery_capabilities() == 1,
+            "lost headless GPU must retain reopen capability only")
+        assert(kookie_gpu_recover_headless(), "headless GPU recovery must reopen")
+        assert(kookie_gpu_recovery_state() == 1,
+            "headless GPU recovery must return to ready state")
+        assert(kookie_gpu_draw_headless_test(),
+            "headless GPU draw must succeed after recovery")
+        println("gpu-headless-recovered")
+        println("gpu-headless-open")
+        assert(kookie_gpu_close_headless(), "headless GPU must close")
+        assert(kookie_gpu_recovery_state() == 0,
+            "closed headless GPU must clear recovery state")
+        assert(kookie_gpu_recovery_capabilities() == 0,
+            "closed headless GPU must clear recovery capabilities")
+        assert(!kookie_gpu_close_headless(), "stale headless GPU token must reject")
+        assert(!kookie_gpu_recover_headless(),
+            "closed headless GPU must reject recovery without a device")
+    } else {
+        assert(kookie_gpu_recovery_capabilities() == 0,
+            "unavailable headless GPU must report no recovery capabilities")
+        println("gpu-headless-unavailable")
+    }
+    var window = kookie_window_create(320, 240, 1)
+    assert(window > 0, "hidden SDL window must create")
+    var state = WindowStateTracker(320, 240)
+    var drainCount = kookie_drain_events(32)
+
+    assert(kookie_push_resize_event(640, 480), "SDL resize event must enqueue")
+    var eventKind = kookie_poll_event()
+    assert(eventKind == 2, "resize event must flatten to kind 2")
+    assert(kookie_last_event_a() == 640 && kookie_last_event_b() == 480, "resize payload must copy")
+    var resizeApplied = state.applyNativeEvent(eventKind, kookie_last_event_a(), kookie_last_event_b())
+    assert(resizeApplied, "resize event must update Kof state")
+    assert(kookie_push_focus_event(1), "SDL focus event must enqueue")
+    eventKind = kookie_poll_event()
+    assert(eventKind == 3, "focus event must flatten to kind 3")
+    var focusApplied = state.applyNativeEvent(eventKind, kookie_last_event_a(), kookie_last_event_b())
+    assert(focusApplied, "focus event must update Kof state")
+    var stateSnapshot = state.snapshot()
+    var nativeStateApplied = stateSnapshot.width() == 640 && stateSnapshot.height() == 480 && stateSnapshot.focused()
+    assert(nativeStateApplied, "native events must reach Kof state")
+
+    var gpu = kookie_gpu_open(window)
+    if (gpu > 0) {
+        assert(kookie_gpu_draw_test(), "first SDL GPU upload and draw must succeed")
+        assert(kookie_gpu_report_window_present_capabilities(),
+            "claimed GPU window must expose a valid swapchain format")
+        assert(kookie_gpu_capture_window(),
+            "DRI3-capable window path must capture a non-empty screenshot")
+        assert(kookie_gpu_report_window_draw(), "GPU draw timing must be positive")
+        assert(kookie_gpu_close(gpu), "live GPU token must close")
+        assert(!kookie_gpu_close(gpu), "stale GPU token must reject")
+        println("gpu-open")
+    } else {
+        println("gpu-unavailable")
+    }
+
+    assert(kookie_window_destroy(window), "live window token must destroy")
+    assert(!kookie_window_destroy(window), "stale window token must reject")
+
+    var audio = kookie_audio_open()
+    assert(audio > 0, "dummy SDL audio device must open")
+    var impactSession = LoopbackSession(4, 4)
+    assert(impactSession.start() &&
+        impactSession.configureEnemyRules(100, 20, 2) &&
+        impactSession.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        impactSession.defineEnemyEncounter(4, 1, 1) &&
+        impactSession.addEnemyCombatActor(1, 20, 0) &&
+        impactSession.equipEnemyCombatWeapon(1, 9) &&
+        impactSession.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
+        impactSession.setEnemySpatialPosition(1, 0, 0, 0),
+        "native impact audio actors must configure")
+    var impactShot = impactSession.spawnEnemyProjectileSpatial(
+        1, 2, 0, 20, 3, 0)
+    assert(impactShot.accepted() &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.advance(16667) == 1 &&
+        impactSession.enemyImpactSnapshotCount() == 1,
+        "native audio probe must receive a confirmed impact snapshot")
+    assert(impactSession.applyEnemyImpactSnapshot(
+        impactSession.latestEnemyImpactSnapshot()) &&
+        impactSession.dequeueEnemyImpactPresentation(),
+        "confirmed impact must stage native presentation")
+    var nativeImpact = impactSession.lastEnemyImpactPresentation()
+    assert(kookie_audio_queue_clip(nativeImpact.clip(), 240),
+        "confirmed impact presentation must reach native SDL audio")
+    assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")
+    assert(kookie_audio_queue_clip(1, 240), "bounded clip PCM must queue")
+    assert(!kookie_audio_queue_clip(2, 240), "unknown clip must reject")
+    assert(kookie_audio_close(audio), "live audio token must close")
+    assert(!kookie_audio_close(audio), "stale audio token must reject")
+    println("audio-open")
+
+    kookie_sdl_shutdown()
+    println("KOOKIE G0 native SDL adapter verified")
+}

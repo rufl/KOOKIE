@@ -1,0 +1,67 @@
+package core
+
+class BoundedSaveWireCodec {
+    Int[] words
+    Int payloadCapacity
+    Int wordCount
+    Int magic
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        payloadCapacity = actualCapacity
+        words = new Int[actualCapacity + 5]
+        wordCount = 0
+        magic = 13371337
+    }
+
+    Bool encode(BoundedSaveState state) {
+        var envelope = state.envelope()
+        if (!envelope.accepted() ||
+            envelope.payloadLength() > payloadCapacity) {
+            wordCount = 0
+            return false
+        }
+        words[0] = magic
+        words[1] = envelope.schemaVersion()
+        words[2] = envelope.revision()
+        words[3] = envelope.payloadLength()
+        words[4] = envelope.checksum()
+        for (var index = 0; index < envelope.payloadLength(); index = index + 1) {
+            words[5 + index] = state.payloadValue(index)
+        }
+        wordCount = 5 + envelope.payloadLength()
+        return true
+    }
+
+    Int encodedLength() {
+        return wordCount
+    }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCount) {
+            return -1
+        }
+        return words[index]
+    }
+
+    Bool decode(Int[] wire, BoundedSaveState target) {
+        if (wire.length < 5 || wire.length > payloadCapacity + 5 ||
+            wire[0] != magic || wire[1] != 1 || wire[2] < 0 ||
+            wire[2] > 1000000 || wire[3] < 0 ||
+            wire[3] > payloadCapacity || wire.length != wire[3] + 5) {
+            return false
+        }
+        var payload = new Int[wire[3]]
+        for (var index = 0; index < payload.length; index = index + 1) {
+            payload[index] = wire[5 + index]
+        }
+        return target.load(
+            SaveEnvelope(true, wire[1], wire[2], wire[3], wire[4]), payload)
+    }
+}

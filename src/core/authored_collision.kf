@@ -1,0 +1,482 @@
+package core
+
+record AuthoredCollisionIdentity(
+    Int sourceNamespaceId,
+    Int sourceAssetId,
+    Int geometryRevision,
+    Int coordinateConvention,
+    Int unitScale,
+    Int checksum
+)
+
+
+class BoundedAuthoredCollision {
+    Int[] vertexX
+    Int[] vertexY
+    Int[] vertexZ
+    Int[] triangleA
+    Int[] triangleB
+    Int[] triangleC
+    Int[] triangleSurfaces
+    Int[] wire
+    Int wordCountValue
+
+    Int sourceNamespaceIdValue
+
+    Int vertexCountValue
+    Int triangleCountValue
+    Int sourceAssetIdValue
+    Int geometryRevisionValue
+    Int coordinateConventionValue
+    Int unitScaleValue
+    Int minXValue
+    Int minYValue
+    Int minZValue
+    Int maxXValue
+    Int maxYValue
+    Int maxZValue
+    Int checksumValue
+    Bool configuredValue
+    Bool sealedValue
+
+    public constructor(Int vertexCapacity, Int triangleCapacity) {
+        var actualVertices = vertexCapacity
+        var actualTriangles = triangleCapacity
+        if (actualVertices <= 0) {
+            actualVertices = 1
+        }
+        if (actualVertices > 256) {
+            actualVertices = 256
+        }
+        if (actualTriangles <= 0) {
+            actualTriangles = 1
+        }
+        if (actualTriangles > 256) {
+            actualTriangles = 256
+        }
+        vertexX = new Int[actualVertices]
+        vertexY = new Int[actualVertices]
+        vertexZ = new Int[actualVertices]
+        triangleA = new Int[actualTriangles]
+        triangleB = new Int[actualTriangles]
+        triangleC = new Int[actualTriangles]
+        triangleSurfaces = new Int[actualTriangles]
+        wire = new Int[16 + actualVertices * 3 + actualTriangles * 4]
+
+        clear()
+    }
+
+    Bool clear() {
+        vertexCountValue = 0
+        triangleCountValue = 0
+        sourceNamespaceIdValue = 0
+
+        sourceAssetIdValue = 0
+        geometryRevisionValue = 0
+        coordinateConventionValue = 0
+        unitScaleValue = 0
+        minXValue = 0
+        minYValue = 0
+        minZValue = 0
+        maxXValue = 0
+        maxYValue = 0
+        maxZValue = 0
+        wordCountValue = 0
+
+        checksumValue = 0
+        configuredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool validCoordinate(Int value) {
+        return value >= -1000000 && value <= 1000000
+    }
+
+    Bool configure(
+        Int sourceNamespaceId,
+        Int sourceAssetId,
+        Int geometryRevision,
+        Int coordinateConvention,
+        Int unitScale,
+        Int nextMinX,
+        Int nextMinY,
+        Int nextMinZ,
+        Int nextMaxX,
+        Int nextMaxY,
+        Int nextMaxZ
+    ) {
+        if (sourceNamespaceId <= 0 || sourceNamespaceId > 1000000 ||
+            sourceAssetId <= 0 || sourceAssetId > 1000000 ||
+            geometryRevision <= 0 || geometryRevision > 1000000 ||
+            coordinateConvention <= 0 || coordinateConvention > 8 ||
+            unitScale <= 0 || unitScale > 1000000 ||
+            nextMinX > nextMaxX || nextMinY > nextMaxY || nextMinZ > nextMaxZ ||
+            !validCoordinate(nextMinX) || !validCoordinate(nextMinY) ||
+            !validCoordinate(nextMinZ) || !validCoordinate(nextMaxX) ||
+            !validCoordinate(nextMaxY) || !validCoordinate(nextMaxZ)) {
+            return false
+        }
+        clear()
+        sourceNamespaceIdValue = sourceNamespaceId
+        sourceAssetIdValue = sourceAssetId
+        geometryRevisionValue = geometryRevision
+        coordinateConventionValue = coordinateConvention
+        unitScaleValue = unitScale
+        minXValue = nextMinX
+        minYValue = nextMinY
+        minZValue = nextMinZ
+        maxXValue = nextMaxX
+        maxYValue = nextMaxY
+        maxZValue = nextMaxZ
+        configuredValue = true
+        return true
+    }
+
+
+    Bool insideBounds(Int x, Int y, Int z) {
+        return x >= minXValue && x <= maxXValue &&
+            y >= minYValue && y <= maxYValue &&
+            z >= minZValue && z <= maxZValue
+    }
+
+    Bool addVertex(Int x, Int y, Int z) {
+        if (!configuredValue || sealedValue ||
+            vertexCountValue >= vertexX.length ||
+            !validCoordinate(x) || !validCoordinate(y) || !validCoordinate(z) ||
+            !insideBounds(x, y, z)) {
+            return false
+        }
+        var index = vertexCountValue
+        vertexX[index] = x
+        vertexY[index] = y
+        vertexZ[index] = z
+        vertexCountValue = vertexCountValue + 1
+        return true
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Bool validTriangle(
+        Int first,
+        Int second,
+        Int third,
+        Int surface
+    ) {
+        if (first < 0 || first >= vertexCountValue ||
+            second < 0 || second >= vertexCountValue ||
+            third < 0 || third >= vertexCountValue ||
+            surface <= 0 || surface > 16) {
+            return false
+        }
+        var abX = vertexX[second] - vertexX[first]
+        var abY = vertexY[second] - vertexY[first]
+        var abZ = vertexZ[second] - vertexZ[first]
+        var acX = vertexX[third] - vertexX[first]
+        var acY = vertexY[third] - vertexY[first]
+        var acZ = vertexZ[third] - vertexZ[first]
+        var normalX = abY * acZ - abZ * acY
+        var normalY = abZ * acX - abX * acZ
+        var normalZ = abX * acY - abY * acX
+        return normalX != 0 || normalY != 0 || normalZ != 0
+    }
+
+    Bool addTriangle(Int first, Int second, Int third, Int surface) {
+        if (!configuredValue || sealedValue ||
+            triangleCountValue >= triangleA.length ||
+            !validTriangle(first, second, third, surface)) {
+            return false
+        }
+        var index = triangleCountValue
+        triangleA[index] = first
+        triangleB[index] = second
+        triangleC[index] = third
+        triangleSurfaces[index] = surface
+        triangleCountValue = triangleCountValue + 1
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) {
+            normalized = normalized + 1000003
+        }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 17
+        result = mix(result, 1)
+        result = mix(result, sourceAssetIdValue)
+        result = mix(result, sourceNamespaceIdValue)
+
+        result = mix(result, geometryRevisionValue)
+        result = mix(result, coordinateConventionValue)
+        result = mix(result, unitScaleValue)
+        result = mix(result, minXValue)
+        result = mix(result, minYValue)
+        result = mix(result, minZValue)
+        result = mix(result, maxXValue)
+        result = mix(result, maxYValue)
+        result = mix(result, maxZValue)
+        result = mix(result, vertexCountValue)
+        result = mix(result, triangleCountValue)
+        for (var index = 0; index < vertexCountValue; index = index + 1) {
+            result = mix(result, vertexX[index])
+            result = mix(result, vertexY[index])
+            result = mix(result, vertexZ[index])
+        }
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            result = mix(result, triangleA[index])
+            result = mix(result, triangleB[index])
+            result = mix(result, triangleC[index])
+            result = mix(result, triangleSurfaces[index])
+        }
+        return result
+    }
+
+    Bool structuralValid() {
+        if (!configuredValue || sourceNamespaceIdValue <= 0 ||
+            sourceAssetIdValue <= 0 || geometryRevisionValue <= 0 ||
+            coordinateConventionValue <= 0 || unitScaleValue <= 0 ||
+            vertexCountValue <= 0 || triangleCountValue <= 0) {
+            return false
+        }
+
+        for (var index = 0; index < vertexCountValue; index = index + 1) {
+            if (!insideBounds(vertexX[index], vertexY[index], vertexZ[index])) {
+                return false
+            }
+        }
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            if (!validTriangle(
+                    triangleA[index], triangleB[index], triangleC[index],
+                    triangleSurfaces[index])) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool seal() {
+        if (sealedValue || !structuralValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && structuralValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    AuthoredCollisionIdentity identity() {
+        return AuthoredCollisionIdentity(
+            sourceNamespaceIdValue, sourceAssetIdValue, geometryRevisionValue,
+            coordinateConventionValue, unitScaleValue, checksumValue)
+    }
+
+
+    Int sourceAssetId() {
+        return sourceAssetIdValue
+    }
+    Int sourceNamespaceId() {
+        return sourceNamespaceIdValue
+    }
+
+
+    Int geometryRevision() {
+        return geometryRevisionValue
+    }
+
+    Int coordinateConvention() {
+        return coordinateConventionValue
+    }
+
+    Int unitScale() {
+        return unitScaleValue
+    }
+
+    Int checksum() {
+        if (!validate()) {
+            return -1
+        }
+        return checksumValue
+    }
+
+    Int vertexCount() {
+        return vertexCountValue
+    }
+
+    Int triangleCount() {
+        return triangleCountValue
+    }
+
+    Int vertexCoordinate(Int index, Int component) {
+        if (index < 0 || index >= vertexCountValue) {
+            return 0
+        }
+        if (component == 0) {
+            return vertexX[index]
+        }
+        if (component == 1) {
+            return vertexY[index]
+        }
+        if (component == 2) {
+            return vertexZ[index]
+        }
+        return 0
+    }
+
+    Int triangleVertex(Int index, Int corner) {
+        if (index < 0 || index >= triangleCountValue) {
+            return -1
+        }
+        if (corner == 0) {
+            return triangleA[index]
+        }
+        if (corner == 1) {
+            return triangleB[index]
+        }
+        if (corner == 2) {
+            return triangleC[index]
+        }
+        return -1
+    }
+
+    Int triangleSurface(Int index) {
+        if (index < 0 || index >= triangleCountValue) {
+            return 0
+        }
+        return triangleSurfaces[index]
+    }
+
+    Int minX() {
+        return minXValue
+    }
+
+    Int minY() {
+        return minYValue
+    }
+
+    Int minZ() {
+        return minZValue
+    }
+
+    Int maxX() {
+        return maxXValue
+    }
+
+    Int maxY() {
+        return maxYValue
+    }
+
+    Int maxZ() {
+        return maxZValue
+    }
+    Int encodedLength() {
+        return wordCountValue
+    }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) {
+            return -1
+        }
+        return wire[index]
+    }
+
+    Bool encode() {
+        if (!validate()) {
+            wordCountValue = 0
+            return false
+        }
+        var offset = 16
+        wire[0] = 7720441
+        wire[1] = 1
+        wire[2] = sourceNamespaceIdValue
+        wire[3] = sourceAssetIdValue
+        wire[4] = geometryRevisionValue
+        wire[5] = coordinateConventionValue
+        wire[6] = unitScaleValue
+        wire[7] = minXValue
+        wire[8] = minYValue
+        wire[9] = minZValue
+        wire[10] = maxXValue
+        wire[11] = maxYValue
+        wire[12] = maxZValue
+        wire[13] = vertexCountValue
+        wire[14] = triangleCountValue
+        wire[15] = checksumValue
+        for (var index = 0; index < vertexCountValue; index = index + 1) {
+            wire[offset] = vertexX[index]
+            wire[offset + 1] = vertexY[index]
+            wire[offset + 2] = vertexZ[index]
+            offset = offset + 3
+        }
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            wire[offset] = triangleA[index]
+            wire[offset + 1] = triangleB[index]
+            wire[offset + 2] = triangleC[index]
+            wire[offset + 3] = triangleSurfaces[index]
+            offset = offset + 4
+        }
+        wordCountValue = offset
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length < 16 || source.length > wire.length ||
+            source[0] != 7720441 || source[1] != 1 ||
+            source[2] <= 0 || source[2] > 1000000 ||
+            source[3] <= 0 || source[3] > 1000000 ||
+            source[4] <= 0 || source[4] > 1000000 ||
+            source[5] <= 0 || source[5] > 8 ||
+            source[6] <= 0 || source[6] > 1000000 ||
+            source[13] <= 0 || source[13] > vertexX.length ||
+            source[14] <= 0 || source[14] > triangleA.length) {
+            return false
+        }
+        var expectedLength = 16 + source[13] * 3 + source[14] * 4
+        if (source.length != expectedLength) {
+            return false
+        }
+        if (!configure(
+                source[2], source[3], source[4], source[5], source[6],
+                source[7], source[8], source[9],
+                source[10], source[11], source[12])) {
+            return false
+        }
+        var offset = 16
+        for (var index = 0; index < source[13]; index = index + 1) {
+            if (!addVertex(source[offset], source[offset + 1], source[offset + 2])) {
+                return false
+            }
+            offset = offset + 3
+        }
+        for (var index = 0; index < source[14]; index = index + 1) {
+            if (!addTriangle(
+                    source[offset], source[offset + 1], source[offset + 2],
+                    source[offset + 3])) {
+                return false
+            }
+            offset = offset + 4
+        }
+        if (!seal() || checksumValue != source[15]) {
+            clear()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            wire[index] = source[index]
+        }
+        wordCountValue = source.length
+        return true
+    }
+
+}

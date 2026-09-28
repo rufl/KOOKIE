@@ -1,0 +1,26 @@
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_select_slot(Int slot): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_listen_ipv4(Int port): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_environment(Int port): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_external_host_octet(Int index): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key_from_environment(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_peer_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_local_port(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_received_sequence_at_least(Int minimum): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_external_is_host(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_external_is_client_a(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_external_is_client_b(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_peer_last_sender(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_begin(Int wordCount): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_word(Int index, Int word): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_replay_last_datagram(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_sum(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_last_status(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool

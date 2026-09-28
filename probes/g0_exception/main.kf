@@ -1,0 +1,8 @@
+main() {
+    var caught = false
+    try { println("no-throw") }
+    catch (String e) { caught = true }
+    println(caught)
+    assert(caught, "expected failure")
+    println("unreachable")
+}

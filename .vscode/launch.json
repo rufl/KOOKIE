@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "kof",
+      "request": "launch",
+      "name": "Kof: Debug Active File (JVM)",
+      "program": "${file}",
+      "target": "jvm",
+      "cwd": "${fileDirname}"
+    },
+    {
+      "type": "kof",
+      "request": "launch",
+      "name": "Kof: Debug Active File (Native)",
+      "program": "${file}",
+      "target": "native",
+      "cwd": "${fileDirname}"
+    }
+  ]
+}

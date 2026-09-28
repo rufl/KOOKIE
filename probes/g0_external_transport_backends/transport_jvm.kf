@@ -1,0 +1,582 @@
+import java.lang.Exception
+import java.lang.Integer
+import java.lang.System
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
+import java.net.SocketTimeoutException
+
+class KookieJvmTransportState {
+    static Int maxSlots = 4
+    static Int maxWords = 78
+    static Int headerWords = 6
+    static Int magic = 0x4b4f4f4b
+    static Int version = 1
+    static Int defaultTimeoutMilliseconds = 1000
+    static Int activeSlot = 0
+    static DatagramSocket[] sockets = new DatagramSocket[4]
+    static Bool[] socketOpen = new Bool[4]
+    static InetAddress[] peers = new InetAddress[4]
+    static Int[] peerPorts = new Int[4]
+    static InetAddress[] lastSenders = new InetAddress[4]
+    static Int[] lastSenderPorts = new Int[4]
+    static Bool[] lastSenderValid = new Bool[4]
+    static Bool[] peerValid = new Bool[4]
+    static Long[] key0 = new Long[4]
+    static Long[] key1 = new Long[4]
+    static Bool[] keyConfigured = new Bool[4]
+    static Int[] sendCounts = new Int[4]
+    static Int[] sendSequences = new Int[4]
+    static Int[] receiveCounts = new Int[4]
+    static Int[] receiveSequences = new Int[4]
+    static Int[] lastStatuses = new Int[4]
+    static Int[][] sendWords = new Int[4][78]
+    static Int[][] receiveWords = new Int[4][78]
+    static Byte[][] lastSendWires = new Byte[4][336]
+    static Int[] lastSendLengths = new Int[4]
+    static Bool[] lastSendValid = new Bool[4]
+    static Long[] macState = new Long[4]
+    static Bool addressValid = false
+}
+
+Bool kookie_transport_select_slot(Int slot) {
+    if (slot < 0 || slot >= KookieJvmTransportState.maxSlots) {
+        return false
+    }
+    KookieJvmTransportState.activeSlot = slot
+    return true
+}
+
+Int kookie_transport_unsigned_byte(Byte value) {
+    if (value < 0) {
+        return value + 256
+    }
+    return value
+}
+
+Long kookie_transport_unsigned_int(Int value) {
+    var result: Long = value
+    if (value < 0) {
+        result = result + 4294967296L
+    }
+    return result
+}
+
+void kookie_transport_put_word(Byte[] wire, Int offset, Int value) {
+    wire[offset] = (value >> 24) & 255
+    wire[offset + 1] = (value >> 16) & 255
+    wire[offset + 2] = (value >> 8) & 255
+    wire[offset + 3] = value & 255
+}
+
+Int kookie_transport_read_word(Byte[] wire, Int offset) {
+    return (kookie_transport_unsigned_byte(wire[offset]) << 24) |
+        (kookie_transport_unsigned_byte(wire[offset + 1]) << 16) |
+        (kookie_transport_unsigned_byte(wire[offset + 2]) << 8) |
+        kookie_transport_unsigned_byte(wire[offset + 3])
+}
+
+Long kookie_transport_load_u64_le(Byte[] wire, Int offset) {
+    var result: Long = 0L
+    for (var index = 0; index < 8; index = index + 1) {
+        var octet: Long = kookie_transport_unsigned_byte(wire[offset + index])
+        result = result | (octet << (index * 8))
+    }
+    return result
+}
+
+void kookie_transport_sip_round(Long v0, Long v1, Long v2, Long v3) {
+    v0 = v0 + v1
+    v1 = (v1 << 13) | (v1 >>> 51)
+    v1 = v1 ^ v0
+    v0 = (v0 << 32) | (v0 >>> 32)
+    v2 = v2 + v3
+    v3 = (v3 << 16) | (v3 >>> 48)
+    v3 = v3 ^ v2
+    v0 = v0 + v3
+    v3 = (v3 << 21) | (v3 >>> 43)
+    v3 = v3 ^ v0
+    v2 = v2 + v1
+    v1 = (v1 << 17) | (v1 >>> 47)
+    v1 = v1 ^ v2
+    v2 = (v2 << 32) | (v2 >>> 32)
+    KookieJvmTransportState.macState[0] = v0
+    KookieJvmTransportState.macState[1] = v1
+    KookieJvmTransportState.macState[2] = v2
+    KookieJvmTransportState.macState[3] = v3
+}
+
+Long kookie_transport_mac(Byte[] wire, Int length) {
+    var slot = KookieJvmTransportState.activeSlot
+    var v0: Long = 0x736f6d6570736575L ^ KookieJvmTransportState.key0[slot]
+    var v1: Long = 0x646f72616e646f6dL ^ KookieJvmTransportState.key1[slot]
+    var v2: Long = 0x6c7967656e657261L ^ KookieJvmTransportState.key0[slot]
+    var v3: Long = 0x7465646279746573L ^ KookieJvmTransportState.key1[slot]
+    var offset = 0
+    while (offset + 8 <= length) {
+        var message = kookie_transport_load_u64_le(wire, offset)
+        v3 = v3 ^ message
+        kookie_transport_sip_round(v0, v1, v2, v3)
+        v0 = KookieJvmTransportState.macState[0]
+        v1 = KookieJvmTransportState.macState[1]
+        v2 = KookieJvmTransportState.macState[2]
+        v3 = KookieJvmTransportState.macState[3]
+        kookie_transport_sip_round(v0, v1, v2, v3)
+        v0 = KookieJvmTransportState.macState[0]
+        v1 = KookieJvmTransportState.macState[1]
+        v2 = KookieJvmTransportState.macState[2]
+        v3 = KookieJvmTransportState.macState[3]
+        v0 = v0 ^ message
+        offset = offset + 8
+    }
+    var finalMessage: Long = length
+    finalMessage = finalMessage << 56
+    for (var index = 0; offset + index < length; index = index + 1) {
+        var octet: Long = kookie_transport_unsigned_byte(wire[offset + index])
+        finalMessage = finalMessage | (octet << (index * 8))
+    }
+    v3 = v3 ^ finalMessage
+    kookie_transport_sip_round(v0, v1, v2, v3)
+    v0 = KookieJvmTransportState.macState[0]
+    v1 = KookieJvmTransportState.macState[1]
+    v2 = KookieJvmTransportState.macState[2]
+    v3 = KookieJvmTransportState.macState[3]
+    kookie_transport_sip_round(v0, v1, v2, v3)
+    v0 = KookieJvmTransportState.macState[0]
+    v1 = KookieJvmTransportState.macState[1]
+    v2 = KookieJvmTransportState.macState[2]
+    v3 = KookieJvmTransportState.macState[3]
+    v0 = v0 ^ finalMessage
+    v2 = v2 ^ 0xffL
+    for (var round = 0; round < 4; round = round + 1) {
+        kookie_transport_sip_round(v0, v1, v2, v3)
+        v0 = KookieJvmTransportState.macState[0]
+        v1 = KookieJvmTransportState.macState[1]
+        v2 = KookieJvmTransportState.macState[2]
+        v3 = KookieJvmTransportState.macState[3]
+    }
+    return v0 ^ v1 ^ v2 ^ v3
+}
+
+Long kookie_transport_parse_hex_word(String encoded, Int offset) {
+    var word = Integer.parseUnsignedInt(encoded.substring(offset, offset + 8), 16)
+    return kookie_transport_unsigned_int(word)
+}
+
+Bool kookie_transport_set_key_from_environment() {
+    var slot = KookieJvmTransportState.activeSlot
+    if (KookieJvmTransportState.socketOpen[slot]) {
+        return false
+    }
+    var encoded = System.getenv("KOOKIE_TRANSPORT_KEY_HEX")
+    if (encoded == null || encoded.length() != 32) {
+        return false
+    }
+    try {
+        var word0 = kookie_transport_parse_hex_word(encoded, 0)
+        var word1 = kookie_transport_parse_hex_word(encoded, 8)
+        var word2 = kookie_transport_parse_hex_word(encoded, 16)
+        var word3 = kookie_transport_parse_hex_word(encoded, 24)
+        KookieJvmTransportState.key0[slot] = word0 | (word1 << 32)
+        KookieJvmTransportState.key1[slot] = word2 | (word3 << 32)
+        if (KookieJvmTransportState.key0[slot] == 0L &&
+            KookieJvmTransportState.key1[slot] == 0L) {
+            return false
+        }
+        KookieJvmTransportState.keyConfigured[slot] = true
+        return true
+    } catch (Exception error) {
+        return false
+    }
+}
+
+Int kookie_transport_timeout_milliseconds() {
+    var encoded = System.getenv("KOOKIE_EXTERNAL_LAN_TIMEOUT_MILLISECONDS")
+    if (encoded == null || encoded.length() == 0) {
+        return KookieJvmTransportState.defaultTimeoutMilliseconds
+    }
+    try {
+        var value = Integer.parseInt(encoded)
+        if (value >= 1 && value <= 60000) {
+            return value
+        }
+    } catch (Exception error) {
+    }
+    return KookieJvmTransportState.defaultTimeoutMilliseconds
+}
+
+InetAddress kookie_transport_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet
+) {
+    KookieJvmTransportState.addressValid = false
+    if (firstOctet < 0 || firstOctet > 255 ||
+        secondOctet < 0 || secondOctet > 255 ||
+        thirdOctet < 0 || thirdOctet > 255 ||
+        fourthOctet < 0 || fourthOctet > 255) {
+        return InetAddress.getByName("0.0.0.0")
+    }
+    var encoded = firstOctet + "." + secondOctet + "." + thirdOctet + "." + fourthOctet
+    try {
+        var address = InetAddress.getByName(encoded)
+        if (address.getAddress().length == 4) {
+            KookieJvmTransportState.addressValid = true
+        }
+        return address
+    } catch (Exception error) {
+        return InetAddress.getByName("0.0.0.0")
+    }
+}
+
+InetAddress kookie_transport_external_host_address() {
+    KookieJvmTransportState.addressValid = false
+    var encoded = System.getenv("KOOKIE_EXTERNAL_LAN_HOST_IPV4")
+    if (encoded == null || encoded.length() == 0) {
+        encoded = "127.0.0.1"
+    }
+    try {
+        var address = InetAddress.getByName(encoded)
+        if (address.getAddress().length == 4) {
+            KookieJvmTransportState.addressValid = true
+        }
+        return address
+    } catch (Exception error) {
+        return InetAddress.getByName("0.0.0.0")
+    }
+}
+
+Bool kookie_transport_open_listen_ipv4(Int port) {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.keyConfigured[slot] ||
+        KookieJvmTransportState.socketOpen[slot] || port <= 0 || port > 65535) {
+        return false
+    }
+    try {
+        var socket = new DatagramSocket(port)
+        socket.setSoTimeout(kookie_transport_timeout_milliseconds())
+        KookieJvmTransportState.sockets[slot] = socket
+                KookieJvmTransportState.peerPorts[slot] = 0
+                KookieJvmTransportState.lastSenderValid[slot] = false
+        KookieJvmTransportState.peerValid[slot] = false
+        KookieJvmTransportState.socketOpen[slot] = true
+        KookieJvmTransportState.sendCounts[slot] = 0
+        KookieJvmTransportState.sendSequences[slot] = 0
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.receiveSequences[slot] = 0
+        KookieJvmTransportState.lastStatuses[slot] = 0
+        return true
+    } catch (Exception error) {
+        return false
+    }
+}
+
+Bool kookie_transport_open_remote_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+) {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.keyConfigured[slot] ||
+        KookieJvmTransportState.socketOpen[slot] || port <= 0 || port > 65535) {
+        return false
+    }
+    var address = kookie_transport_ipv4(
+        firstOctet, secondOctet, thirdOctet, fourthOctet)
+    if (!KookieJvmTransportState.addressValid) {
+        return false
+    }
+    try {
+        var socket = new DatagramSocket()
+        socket.setSoTimeout(kookie_transport_timeout_milliseconds())
+        KookieJvmTransportState.sockets[slot] = socket
+        KookieJvmTransportState.peers[slot] = address
+        KookieJvmTransportState.peerPorts[slot] = port
+        KookieJvmTransportState.lastSenderValid[slot] = false
+        KookieJvmTransportState.peerValid[slot] = true
+        KookieJvmTransportState.socketOpen[slot] = true
+        KookieJvmTransportState.sendCounts[slot] = 0
+        KookieJvmTransportState.sendSequences[slot] = 0
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.receiveSequences[slot] = 0
+        KookieJvmTransportState.lastStatuses[slot] = 0
+        return true
+    } catch (Exception error) {
+        return false
+    }
+}
+
+Bool kookie_transport_open_remote_environment(Int port) {
+    var address = kookie_transport_external_host_address()
+    if (!KookieJvmTransportState.addressValid) {
+        return false
+    }
+    var bytes = address.getAddress()
+    return kookie_transport_open_remote_ipv4(
+        kookie_transport_unsigned_byte(bytes[0]),
+        kookie_transport_unsigned_byte(bytes[1]),
+        kookie_transport_unsigned_byte(bytes[2]),
+        kookie_transport_unsigned_byte(bytes[3]),
+        port)
+}
+
+Int kookie_transport_external_host_octet(Int index) {
+    if (index < 0 || index > 3) {
+        return -1
+    }
+    var address = kookie_transport_external_host_address()
+    if (!KookieJvmTransportState.addressValid) {
+        return -1
+    }
+    return kookie_transport_unsigned_byte(address.getAddress()[index])
+}
+
+Bool kookie_transport_set_peer_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+) {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot] || port <= 0 || port > 65535) {
+        return false
+    }
+    var address = kookie_transport_ipv4(
+        firstOctet, secondOctet, thirdOctet, fourthOctet)
+    if (!KookieJvmTransportState.addressValid) {
+        return false
+    }
+    KookieJvmTransportState.peers[slot] = address
+    KookieJvmTransportState.peerPorts[slot] = port
+    KookieJvmTransportState.peerValid[slot] = true
+    return true
+}
+
+Bool kookie_transport_set_peer_last_sender() {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot] ||
+        !KookieJvmTransportState.lastSenderValid[slot]) {
+        return false
+    }
+    KookieJvmTransportState.peers[slot] = KookieJvmTransportState.lastSenders[slot]
+    KookieJvmTransportState.peerPorts[slot] = KookieJvmTransportState.lastSenderPorts[slot]
+    KookieJvmTransportState.peerValid[slot] = true
+    return true
+}
+
+Int kookie_transport_local_port() {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot]) {
+        return 0
+    }
+    return KookieJvmTransportState.sockets[slot].getLocalPort()
+}
+
+Bool kookie_transport_received_sequence_at_least(Int minimum) {
+    var slot = KookieJvmTransportState.activeSlot
+    return minimum >= 0 &&
+        kookie_transport_unsigned_int(KookieJvmTransportState.receiveSequences[slot]) >=
+        kookie_transport_unsigned_int(minimum)
+}
+
+Bool kookie_transport_external_is_host() {
+    return System.getenv("KOOKIE_EXTERNAL_LAN_ROLE") == "host"
+}
+
+Bool kookie_transport_external_is_client_a() {
+    return System.getenv("KOOKIE_EXTERNAL_LAN_ROLE") == "client-a"
+}
+
+Bool kookie_transport_external_is_client_b() {
+    return System.getenv("KOOKIE_EXTERNAL_LAN_ROLE") == "client-b"
+}
+
+Bool kookie_transport_send_begin(Int wordCount) {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot] ||
+        wordCount <= 0 || wordCount > KookieJvmTransportState.maxWords) {
+        return false
+    }
+    KookieJvmTransportState.sendCounts[slot] = wordCount
+    return true
+}
+
+Bool kookie_transport_send_word(Int index, Int word) {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot] ||
+        index < 0 || index >= KookieJvmTransportState.sendCounts[slot]) {
+        return false
+    }
+    KookieJvmTransportState.sendWords[slot][index] = word
+    return true
+}
+
+Bool kookie_transport_send_commit() {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot] ||
+        !KookieJvmTransportState.peerValid[slot] ||
+        KookieJvmTransportState.sendCounts[slot] <= 0 ||
+        kookie_transport_unsigned_int(KookieJvmTransportState.sendSequences[slot]) ==
+            4294967295L) {
+        return false
+    }
+    var payloadCount = KookieJvmTransportState.sendCounts[slot]
+    var frameWords = KookieJvmTransportState.headerWords + payloadCount
+    var byteCount = frameWords * 4
+    var wire = new Byte[336]
+    kookie_transport_put_word(wire, 0, KookieJvmTransportState.magic)
+    kookie_transport_put_word(wire, 4, KookieJvmTransportState.version)
+    kookie_transport_put_word(wire, 8, payloadCount)
+    kookie_transport_put_word(wire, 12, KookieJvmTransportState.sendSequences[slot] + 1)
+    kookie_transport_put_word(wire, 16, 0)
+    kookie_transport_put_word(wire, 20, 0)
+    for (var index = 0; index < payloadCount; index = index + 1) {
+        kookie_transport_put_word(
+            wire, (KookieJvmTransportState.headerWords + index) * 4,
+            KookieJvmTransportState.sendWords[slot][index])
+    }
+    var mac = kookie_transport_mac(wire, byteCount)
+    kookie_transport_put_word(wire, 16, mac.toInt())
+    kookie_transport_put_word(wire, 20, (mac >>> 32).toInt())
+    KookieJvmTransportState.sendCounts[slot] = 0
+    try {
+        var packet = new DatagramPacket(
+            wire, byteCount, KookieJvmTransportState.peers[slot],
+            KookieJvmTransportState.peerPorts[slot])
+        KookieJvmTransportState.sockets[slot].send(packet)
+        for (var copy = 0; copy < byteCount; copy = copy + 1) {
+            KookieJvmTransportState.lastSendWires[slot][copy] = wire[copy]
+        }
+        KookieJvmTransportState.lastSendLengths[slot] = byteCount
+        KookieJvmTransportState.lastSendValid[slot] = true
+        KookieJvmTransportState.sendSequences[slot] =
+            KookieJvmTransportState.sendSequences[slot] + 1
+        return true
+    } catch (Exception error) {
+        return false
+    }
+}
+
+Bool kookie_transport_replay_last_datagram() {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot] ||
+        !KookieJvmTransportState.peerValid[slot] ||
+        !KookieJvmTransportState.lastSendValid[slot]) {
+        return false
+    }
+    try {
+        var packet = new DatagramPacket(
+            KookieJvmTransportState.lastSendWires[slot],
+            KookieJvmTransportState.lastSendLengths[slot],
+            KookieJvmTransportState.peers[slot],
+            KookieJvmTransportState.peerPorts[slot])
+        KookieJvmTransportState.sockets[slot].send(packet)
+        return true
+    } catch (Exception error) {
+        return false
+    }
+}
+
+Int kookie_transport_receive() {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot]) {
+        return 0
+    }
+    var wire = new Byte[336]
+    var packet = new DatagramPacket(wire, wire.length)
+    try {
+        KookieJvmTransportState.sockets[slot].receive(packet)
+    } catch (SocketTimeoutException error) {
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.lastSenderValid[slot] = false
+        KookieJvmTransportState.lastStatuses[slot] = 2
+        return 0
+    } catch (Exception error) {
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.lastSenderValid[slot] = false
+        KookieJvmTransportState.lastStatuses[slot] = 3
+        return 0
+    }
+    KookieJvmTransportState.lastSenders[slot] = packet.getAddress()
+    KookieJvmTransportState.lastSenderPorts[slot] = packet.getPort()
+    KookieJvmTransportState.lastSenderValid[slot] = true
+    var byteCount = packet.getLength()
+    if (byteCount <= 0 || byteCount % 4 != 0 || byteCount > 336) {
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.lastStatuses[slot] = 3
+        return 0
+    }
+    var frameWords = byteCount / 4
+    var payloadCount = kookie_transport_read_word(wire, 8)
+    var sequence = kookie_transport_read_word(wire, 12)
+    if (kookie_transport_read_word(wire, 0) != KookieJvmTransportState.magic ||
+        kookie_transport_read_word(wire, 4) != KookieJvmTransportState.version ||
+        payloadCount <= 0 || payloadCount > KookieJvmTransportState.maxWords ||
+        frameWords != KookieJvmTransportState.headerWords + payloadCount ||
+        sequence == 0 ||
+        kookie_transport_unsigned_int(sequence) <=
+            kookie_transport_unsigned_int(KookieJvmTransportState.receiveSequences[slot])) {
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.lastStatuses[slot] = 3
+        return 0
+    }
+    var expectedMac = kookie_transport_unsigned_int(kookie_transport_read_word(wire, 16)) |
+        (kookie_transport_unsigned_int(kookie_transport_read_word(wire, 20)) << 32)
+    var receivedMacLow = kookie_transport_read_word(wire, 16)
+    var receivedMacHigh = kookie_transport_read_word(wire, 20)
+    kookie_transport_put_word(wire, 16, 0)
+    kookie_transport_put_word(wire, 20, 0)
+    var actualMac = kookie_transport_mac(wire, byteCount)
+    kookie_transport_put_word(wire, 16, receivedMacLow)
+    kookie_transport_put_word(wire, 20, receivedMacHigh)
+    if (actualMac != expectedMac) {
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.lastStatuses[slot] = 3
+        return 0
+    }
+    KookieJvmTransportState.receiveCounts[slot] = payloadCount
+    KookieJvmTransportState.receiveSequences[slot] = sequence
+    for (var index = 0; index < payloadCount; index = index + 1) {
+        KookieJvmTransportState.receiveWords[slot][index] =
+            kookie_transport_read_word(wire, (KookieJvmTransportState.headerWords + index) * 4)
+    }
+    KookieJvmTransportState.lastStatuses[slot] = 1
+    return payloadCount
+}
+
+Int kookie_transport_receive_word(Int index) {
+    var slot = KookieJvmTransportState.activeSlot
+    if (index < 0 || index >= KookieJvmTransportState.receiveCounts[slot]) {
+        return 0
+    }
+    return KookieJvmTransportState.receiveWords[slot][index]
+}
+
+Int kookie_transport_receive_sum() {
+    var slot = KookieJvmTransportState.activeSlot
+    var sum = 0
+    for (var index = 0; index < KookieJvmTransportState.receiveCounts[slot]; index = index + 1) {
+        sum = sum + KookieJvmTransportState.receiveWords[slot][index]
+    }
+    return sum
+}
+
+Int kookie_transport_last_status() {
+    return KookieJvmTransportState.lastStatuses[KookieJvmTransportState.activeSlot]
+}
+
+Bool kookie_transport_close() {
+    var slot = KookieJvmTransportState.activeSlot
+    if (!KookieJvmTransportState.socketOpen[slot]) {
+        return false
+    }
+    KookieJvmTransportState.sockets[slot].close()
+            KookieJvmTransportState.peerPorts[slot] = 0
+        KookieJvmTransportState.lastSenderValid[slot] = false
+    KookieJvmTransportState.key0[slot] = 0L
+    KookieJvmTransportState.key1[slot] = 0L
+    KookieJvmTransportState.keyConfigured[slot] = false
+    KookieJvmTransportState.sendCounts[slot] = 0
+    KookieJvmTransportState.sendSequences[slot] = 0
+    KookieJvmTransportState.lastSendLengths[slot] = 0
+    KookieJvmTransportState.lastSendValid[slot] = false
+    KookieJvmTransportState.peerValid[slot] = false
+    KookieJvmTransportState.socketOpen[slot] = false
+    KookieJvmTransportState.receiveCounts[slot] = 0
+    KookieJvmTransportState.receiveSequences[slot] = 0
+    KookieJvmTransportState.lastStatuses[slot] = 0
+    return true
+}

@@ -1,0 +1,82 @@
+package core
+
+record ResourceToken(Int slot, Int generation, Int kind)
+
+class ResourceRegistry {
+    Int[] generations
+    Int[] kinds
+    Bool[] occupied
+
+    public constructor(Int capacity) {
+        this.generations = new Int[capacity]
+        this.kinds = new Int[capacity]
+        this.occupied = new Bool[capacity]
+        for (var i = 0; i < capacity; i++) {
+            generations[i] = 1
+            kinds[i] = 0
+            occupied[i] = false
+        }
+    }
+
+    Int capacity() {
+        return generations.length
+    }
+
+    Int activeCount() {
+        var count = 0
+        for (var i = 0; i < occupied.length; i++) {
+            if (occupied[i]) {
+                count = count + 1
+            }
+        }
+        return count
+    }
+
+    Int findFreeSlot() {
+        for (var i = 0; i < occupied.length; i++) {
+            if (!occupied[i]) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    ResourceToken acquire(Int kind) {
+        if (kind <= 0) {
+            return ResourceToken(-1, 0, 0)
+        }
+        var slot = findFreeSlot()
+        if (slot < 0) {
+            return ResourceToken(-1, 0, 0)
+        }
+        occupied[slot] = true
+        kinds[slot] = kind
+        return ResourceToken(slot, generations[slot], kind)
+    }
+
+    Bool isValid(ResourceToken token) {
+        if (token.slot() < 0 || token.slot() >= generations.length) {
+            return false
+        }
+        if (token.generation() <= 0 || token.kind() <= 0) {
+            return false
+        }
+        var slot = token.slot()
+        return occupied[slot] && generations[slot] == token.generation() && kinds[slot] == token.kind()
+    }
+
+    Bool release(ResourceToken token) {
+        if (!isValid(token)) {
+            return false
+        }
+        var slot = token.slot()
+        occupied[slot] = false
+        kinds[slot] = 0
+        if (generations[slot] >= 2147483646) {
+            generations[slot] = 1
+        } else {
+            generations[slot] = generations[slot] + 1
+        }
+        return true
+    }
+}

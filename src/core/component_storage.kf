@@ -1,0 +1,86 @@
+package core
+
+class IntComponentStore {
+    Int[] entityIds
+    Int[] values
+    Bool[] active
+
+    public constructor(Int capacity) {
+        entityIds = new Int[capacity]
+        values = new Int[capacity]
+        active = new Bool[capacity]
+        for (var index = 0; index < capacity; index = index + 1) {
+            entityIds[index] = 0
+            values[index] = 0
+            active[index] = false
+        }
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < entityIds.length; index = index + 1) {
+            if (active[index] && entityIds[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool set(Int id, Int value) {
+        if (id <= 0) {
+            return false
+        }
+        var index = find(id)
+        if (index < 0) {
+            index = freeSlot()
+            if (index < 0) {
+                return false
+            }
+            entityIds[index] = id
+            active[index] = true
+        }
+        values[index] = value
+        return true
+    }
+
+    Bool remove(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return false
+        }
+        active[index] = false
+        entityIds[index] = 0
+        values[index] = 0
+        return true
+    }
+
+    Bool has(Int id) {
+        return find(id) >= 0
+    }
+
+    Int get(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return values[index]
+    }
+
+    Int activeCount() {
+        var count = 0
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (active[index]) {
+                count = count + 1
+            }
+        }
+        return count
+    }
+}

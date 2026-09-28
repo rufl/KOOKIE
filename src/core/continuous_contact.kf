@@ -1,0 +1,434 @@
+package core
+
+record TriangleContactResult(
+    Bool accepted,
+    Bool collided,
+    Bool grounded,
+    Bool stepped,
+    Bool slopeAccepted,
+    Int hitStep,
+    Int startX,
+    Int startY,
+    Int startZ,
+    Int endX,
+    Int endY,
+    Int endZ,
+    Int resolvedX,
+    Int resolvedY,
+    Int resolvedZ
+)
+
+class BoundedTriangleContactController {
+    BoundedTriangleCollection geometry
+    Int radiusValue
+    Int maxDistanceValue
+    Int slopeLimitValue
+    Int stepHeightValue
+    Int[] offsets
+
+    public constructor(
+        BoundedTriangleCollection nextGeometry,
+        Int radius, Int maxDistance, Int slopeLimit, Int stepHeight
+    ) {
+        geometry = nextGeometry
+        radiusValue = radius
+        maxDistanceValue = maxDistance
+        slopeLimitValue = slopeLimit
+        stepHeightValue = stepHeight
+        if (radiusValue < 0) {
+            radiusValue = 0
+        }
+        if (maxDistanceValue <= 0) {
+            maxDistanceValue = 1
+        }
+        if (slopeLimitValue < 0) {
+            slopeLimitValue = 0
+        }
+        if (slopeLimitValue > 100) {
+            slopeLimitValue = 100
+        }
+        if (stepHeightValue < 0) {
+            stepHeightValue = 0
+        }
+        offsets = new Int[10]
+        offsets[0] = 0
+        offsets[1] = 0
+        offsets[2] = radiusValue
+        offsets[3] = 0
+        offsets[4] = -radiusValue
+        offsets[5] = 0
+        offsets[6] = 0
+        offsets[7] = radiusValue
+        offsets[8] = 0
+        offsets[9] = -radiusValue
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Int distance(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        var result = absolute(endX - startX)
+        if (absolute(endY - startY) > result) {
+            result = absolute(endY - startY)
+        }
+        if (absolute(endZ - startZ) > result) {
+            result = absolute(endZ - startZ)
+        }
+        return result
+    }
+
+    Bool walkableTriangle(Int triangleIndex) {
+        if (triangleIndex < 0) {
+            return false
+        }
+        var ax = geometry.triangleCoordinate(triangleIndex, 0)
+        var ay = geometry.triangleCoordinate(triangleIndex, 1)
+        var az = geometry.triangleCoordinate(triangleIndex, 2)
+        var bx = geometry.triangleCoordinate(triangleIndex, 3)
+        var by = geometry.triangleCoordinate(triangleIndex, 4)
+        var bz = geometry.triangleCoordinate(triangleIndex, 5)
+        var cx = geometry.triangleCoordinate(triangleIndex, 6)
+        var cy = geometry.triangleCoordinate(triangleIndex, 7)
+        var cz = geometry.triangleCoordinate(triangleIndex, 8)
+        var abX = bx - ax
+        var abY = by - ay
+        var abZ = bz - az
+        var acX = cx - ax
+        var acY = cy - ay
+        var acZ = cz - az
+        var normalX = abY * acZ - abZ * acY
+        var normalY = abZ * acX - abX * acZ
+        var normalZ = abX * acY - abY * acX
+        var vertical = absolute(normalY)
+        var horizontal = absolute(normalX) + absolute(normalZ)
+        if (vertical == 0) {
+            return false
+        }
+        return vertical * 100 >= slopeLimitValue * (vertical + horizontal)
+    }
+
+    TriangleContactResult rejected(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return TriangleContactResult(
+            false, false, false, false, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            startX, startY, startZ)
+    }
+
+    TriangleContactResult sweepOffset(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ,
+        Int offsetX, Int offsetZ
+    ) {
+        var result = geometry.query(
+            startX + offsetX, startY, startZ + offsetZ,
+            endX + offsetX, endY, endZ + offsetZ)
+        if (!result.accepted()) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        var resolvedX = result.resolvedX() - offsetX
+        var resolvedY = result.resolvedY()
+        var resolvedZ = result.resolvedZ() - offsetZ
+        var slope = false
+        if (result.collided()) {
+            slope = walkableTriangle(geometry.lastHitTriangle())
+        }
+        return TriangleContactResult(
+            true, result.collided(), false, false, slope, result.hitStep(),
+            startX, startY, startZ, endX, endY, endZ,
+            resolvedX, resolvedY, resolvedZ)
+    }
+
+    TriangleContactResult sweep(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (distance(startX, startY, startZ, endX, endY, endZ) > maxDistanceValue) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        var best = rejected(startX, startY, startZ, endX, endY, endZ)
+        var found = false
+        for (var index = 0; index < 5; index = index + 1) {
+            var candidate = sweepOffset(
+                startX, startY, startZ, endX, endY, endZ,
+                offsets[index * 2], offsets[index * 2 + 1])
+            if (!candidate.accepted()) {
+                return candidate
+            }
+            if (candidate.collided() &&
+                (!found || candidate.hitStep() < best.hitStep())) {
+                best = candidate
+                found = true
+            } else if (!found) {
+                best = candidate
+            }
+        }
+        if (!found) {
+            return TriangleContactResult(
+                true, false, false, false, false, -1,
+                startX, startY, startZ, endX, endY, endZ,
+                endX, endY, endZ)
+        }
+        return best
+    }
+
+    TriangleContactResult groundState(
+        TriangleContactResult movement,
+        Int probeDistance
+    ) {
+        if (!movement.accepted() || probeDistance < 0) {
+            return movement
+        }
+        var ground = sweep(
+            movement.resolvedX(), movement.resolvedY(), movement.resolvedZ(),
+            movement.resolvedX(), movement.resolvedY() - probeDistance,
+            movement.resolvedZ())
+        if (!ground.accepted() || !ground.collided()) {
+            return movement
+        }
+        return TriangleContactResult(
+            true, movement.collided(), true, movement.stepped(),
+            walkableTriangle(geometry.lastHitTriangle()), movement.hitStep(),
+            movement.startX(), movement.startY(), movement.startZ(),
+            movement.endX(), movement.endY(), movement.endZ(),
+            movement.resolvedX(), movement.resolvedY(), movement.resolvedZ())
+    }
+
+    TriangleContactResult move(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        var direct = sweep(startX, startY, startZ, endX, endY, endZ)
+        if (!direct.accepted() || !direct.collided() || stepHeightValue <= 0) {
+            return groundState(direct, radiusValue + 1)
+        }
+        var raised = sweep(
+            startX, startY + stepHeightValue, startZ,
+            endX, endY + stepHeightValue, endZ)
+        if (raised.accepted() && !raised.collided()) {
+            var lowered = sweep(
+                endX, endY + stepHeightValue, endZ,
+                endX, endY, endZ)
+            if (lowered.accepted() && (!lowered.collided() || lowered.slopeAccepted())) {
+                var stepped = TriangleContactResult(
+                    true, true, false, true, lowered.slopeAccepted(),
+                    direct.hitStep(), startX, startY, startZ, endX, endY, endZ,
+                    lowered.resolvedX(), lowered.resolvedY(), lowered.resolvedZ())
+                return groundState(stepped, radiusValue + 1)
+            }
+        }
+        return groundState(direct, radiusValue + 1)
+    }
+
+    Int radius() {
+        return radiusValue
+    }
+
+    Int slopeLimit() {
+        return slopeLimitValue
+    }
+
+    Int stepHeight() {
+        return stepHeightValue
+    }
+}
+
+record ProjectileSweepResult(
+    Bool accepted,
+    Bool hitStatic,
+    Bool hitDynamic,
+    Bool expired,
+    Int projectileId,
+    Int actorId,
+    Int resolvedX,
+    Int resolvedY,
+    Int resolvedZ,
+    Int travelled
+)
+
+class BoundedProjectileSweepWorld {
+    Int[] ids
+    Int[] sources
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] ranges
+    Int[] travelledValues
+    Bool[] active
+    BoundedTriangleCollection geometry
+    BoundedDynamicBroadPhase dynamics
+
+    public constructor(
+        Int capacity, BoundedTriangleCollection nextGeometry,
+        BoundedDynamicBroadPhase nextDynamics
+    ) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        ids = new Int[actualCapacity]
+        sources = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        ranges = new Int[actualCapacity]
+        travelledValues = new Int[actualCapacity]
+        active = new Bool[actualCapacity]
+        geometry = nextGeometry
+        dynamics = nextDynamics
+        for (var index = 0; index < actualCapacity; index = index + 1) {
+            ids[index] = 0
+            sources[index] = 0
+            positionsX[index] = 0
+            positionsY[index] = 0
+            positionsZ[index] = 0
+            ranges[index] = 0
+            travelledValues[index] = 0
+            active[index] = false
+        }
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool launch(
+        Int id, Int sourceId, Int x, Int y, Int z, Int range
+    ) {
+        if (id <= 0 || sourceId <= 0 || range <= 0 || find(id) >= 0) {
+            return false
+        }
+        var slot = -1
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                slot = index
+                break
+            }
+        }
+        if (slot < 0) {
+            return false
+        }
+        ids[slot] = id
+        sources[slot] = sourceId
+        positionsX[slot] = x
+        positionsY[slot] = y
+        positionsZ[slot] = z
+        ranges[slot] = range
+        travelledValues[slot] = 0
+        active[slot] = true
+        return true
+    }
+
+    ProjectileSweepResult rejected(Int projectileId) {
+        return ProjectileSweepResult(false, false, false, false,
+            projectileId, -1, 0, 0, 0, 0)
+    }
+
+    ProjectileSweepResult advance(
+        Int projectileId, Int deltaX, Int deltaY, Int deltaZ,
+        Int radius, Int ignoredActorId
+    ) {
+        var slot = find(projectileId)
+        if (slot < 0 || radius < 0) {
+            return rejected(projectileId)
+        }
+        var distance = absolute(deltaX)
+        if (absolute(deltaY) > distance) {
+            distance = absolute(deltaY)
+        }
+        if (absolute(deltaZ) > distance) {
+            distance = absolute(deltaZ)
+        }
+        if (distance <= 0 || travelledValues[slot] + distance > ranges[slot]) {
+            return rejected(projectileId)
+        }
+        var startX = positionsX[slot]
+        var startY = positionsY[slot]
+        var startZ = positionsZ[slot]
+        var endX = startX + deltaX
+        var endY = startY + deltaY
+        var endZ = startZ + deltaZ
+        var staticHit = geometry.query(startX, startY, startZ, endX, endY, endZ)
+        if (!staticHit.accepted()) {
+            return rejected(projectileId)
+        }
+        var dynamicHit = dynamics.queryCapsule(
+            startX, startY, startZ, endX, endY, endZ,
+            radius, ignoredActorId)
+        if (!dynamicHit.accepted()) {
+            return rejected(projectileId)
+        }
+        var hitStatic = staticHit.collided()
+        var hitDynamic = dynamicHit.collided()
+        var hitStep = staticHit.hitStep()
+        if (!hitStatic || (hitDynamic && dynamicHit.hitStep() < hitStep)) {
+            hitStatic = false
+        }
+        if (hitStatic) {
+            positionsX[slot] = staticHit.resolvedX()
+            positionsY[slot] = staticHit.resolvedY()
+            positionsZ[slot] = staticHit.resolvedZ()
+            travelledValues[slot] = travelledValues[slot] + staticHit.hitStep()
+            active[slot] = false
+            return ProjectileSweepResult(
+                true, true, false, false, projectileId, -1,
+                positionsX[slot], positionsY[slot], positionsZ[slot],
+                travelledValues[slot])
+        }
+        if (hitDynamic) {
+            positionsX[slot] = dynamicHit.resolvedX()
+            positionsY[slot] = dynamicHit.resolvedY()
+            positionsZ[slot] = dynamicHit.resolvedZ()
+            travelledValues[slot] = travelledValues[slot] + dynamicHit.hitStep()
+            active[slot] = false
+            return ProjectileSweepResult(
+                true, false, true, false, projectileId, dynamicHit.actorId(),
+                positionsX[slot], positionsY[slot], positionsZ[slot],
+                travelledValues[slot])
+        }
+        positionsX[slot] = endX
+        positionsY[slot] = endY
+        positionsZ[slot] = endZ
+        travelledValues[slot] = travelledValues[slot] + distance
+        var expired = travelledValues[slot] >= ranges[slot]
+        if (expired) {
+            active[slot] = false
+        }
+        return ProjectileSweepResult(
+            true, false, false, expired, projectileId, -1,
+            endX, endY, endZ, travelledValues[slot])
+    }
+
+    Bool activeProjectile(Int projectileId) {
+        return find(projectileId) >= 0
+    }
+
+    Int positionX(Int projectileId) {
+        var slot = find(projectileId)
+        if (slot < 0) {
+            return 0
+        }
+        return positionsX[slot]
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+}

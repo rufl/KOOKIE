@@ -1,0 +1,161 @@
+package core
+
+record ReplayPresentationEvent(
+    Int tick, Int kind, Int sequence, Int sourceId, Int targetId,
+    Int valueOne, Int valueTwo, Int valueThree, Int valueFour,
+    Int valueFive, Int valueSix, Bool flag
+)
+
+class BoundedReplayPresentationHistory {
+    Int[] ticks
+    Int[] kinds
+    Int[] sequences
+    Int[] sourceIds
+    Int[] targetIds
+    Int[] valueOnes
+    Int[] valueTwos
+    Int[] valueThrees
+    Int[] valueFours
+    Int[] valueFives
+    Int[] valueSixes
+    Bool[] flags
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        ticks = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        sequences = new Int[actualCapacity]
+        sourceIds = new Int[actualCapacity]
+        targetIds = new Int[actualCapacity]
+        valueOnes = new Int[actualCapacity]
+        valueTwos = new Int[actualCapacity]
+        valueThrees = new Int[actualCapacity]
+        valueFours = new Int[actualCapacity]
+        valueFives = new Int[actualCapacity]
+        valueSixes = new Int[actualCapacity]
+        flags = new Bool[actualCapacity]
+        countValue = 0
+    }
+
+    Bool append(ReplayPresentationEvent event) {
+        if (event.tick() < 0 || event.kind() <= 0 || event.kind() > 4 ||
+            event.sequence() <= 0 || event.sourceId() <= 0 ||
+            event.targetId() < 0 || countValue == ticks.length) {
+            return false
+        }
+        ticks[countValue] = event.tick()
+        kinds[countValue] = event.kind()
+        sequences[countValue] = event.sequence()
+        sourceIds[countValue] = event.sourceId()
+        targetIds[countValue] = event.targetId()
+        valueOnes[countValue] = event.valueOne()
+        valueTwos[countValue] = event.valueTwo()
+        valueThrees[countValue] = event.valueThree()
+        valueFours[countValue] = event.valueFour()
+        valueFives[countValue] = event.valueFive()
+        valueSixes[countValue] = event.valueSix()
+        flags[countValue] = event.flag()
+        countValue = countValue + 1
+        return true
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int capacity() {
+        return ticks.length
+    }
+
+    ReplayPresentationEvent at(Int index) {
+        if (index < 0 || index >= countValue) {
+            return ReplayPresentationEvent(
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+        }
+        return ReplayPresentationEvent(
+            ticks[index], kinds[index], sequences[index], sourceIds[index],
+            targetIds[index], valueOnes[index], valueTwos[index],
+            valueThrees[index], valueFours[index], valueFives[index],
+            valueSixes[index], flags[index])
+    }
+
+    Bool clear() {
+        countValue = 0
+        return true
+    }
+
+    Int replayStateLength() {
+        return 1 + countValue * 12
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = countValue
+        var offset = 1
+        for (var index = 0; index < countValue; index = index + 1) {
+            target[offset] = ticks[index]
+            target[offset + 1] = kinds[index]
+            target[offset + 2] = sequences[index]
+            target[offset + 3] = sourceIds[index]
+            target[offset + 4] = targetIds[index]
+            target[offset + 5] = valueOnes[index]
+            target[offset + 6] = valueTwos[index]
+            target[offset + 7] = valueThrees[index]
+            target[offset + 8] = valueFours[index]
+            target[offset + 9] = valueFives[index]
+            target[offset + 10] = valueSixes[index]
+            target[offset + 11] = 0
+            if (flags[index]) {
+                target[offset + 11] = 1
+            }
+            offset = offset + 12
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length < 1 || source[0] < 0 || source[0] > ticks.length ||
+            source.length != 1 + source[0] * 12) {
+            return false
+        }
+        var count = source[0]
+        var offset = 1
+        for (var index = 0; index < count; index = index + 1) {
+            if (source[offset] < 0 || source[offset + 1] <= 0 ||
+                source[offset + 1] > 4 || source[offset + 2] <= 0 ||
+                source[offset + 3] <= 0 || source[offset + 4] < 0 ||
+                source[offset + 11] < 0 || source[offset + 11] > 1 ||
+                (index > 0 && source[offset] < source[offset - 12])) {
+                return false
+            }
+            offset = offset + 12
+        }
+        countValue = count
+        offset = 1
+        for (var index = 0; index < count; index = index + 1) {
+            ticks[index] = source[offset]
+            kinds[index] = source[offset + 1]
+            sequences[index] = source[offset + 2]
+            sourceIds[index] = source[offset + 3]
+            targetIds[index] = source[offset + 4]
+            valueOnes[index] = source[offset + 5]
+            valueTwos[index] = source[offset + 6]
+            valueThrees[index] = source[offset + 7]
+            valueFours[index] = source[offset + 8]
+            valueFives[index] = source[offset + 9]
+            valueSixes[index] = source[offset + 10]
+            flags[index] = source[offset + 11] == 1
+            offset = offset + 12
+        }
+        return true
+    }
+}

@@ -1,0 +1,396 @@
+package content
+
+record ProductGenerationIdentity(
+    Int generation,
+    Int revision,
+    Int geometryChecksum,
+    Int collisionChecksum,
+    Int navigationChecksum,
+    Int replicationChecksum
+)
+
+class BoundedProductPublication {
+    Bool stagedGeometryValue
+    Bool stagedCollisionValue
+    Bool stagedNavigationValue
+    Bool stagedReplicationValue
+    Int stagedGeometryRevisionValue
+    Int stagedCollisionRevisionValue
+    Int stagedNavigationRevisionValue
+    Int stagedReplicationRevisionValue
+    Int stagedGeometryChecksumValue
+    Int stagedCollisionChecksumValue
+    Int stagedNavigationChecksumValue
+    Int stagedReplicationChecksumValue
+    Int publishedGenerationValue
+    Int publishedRevisionValue
+    Int publishedGeometryChecksumValue
+    Int publishedCollisionChecksumValue
+    Int publishedNavigationChecksumValue
+    Int publishedReplicationChecksumValue
+
+    public constructor() {
+        clear()
+    }
+
+    Bool clear() {
+        stagedGeometryValue = false
+        stagedCollisionValue = false
+        stagedNavigationValue = false
+        stagedReplicationValue = false
+        stagedGeometryRevisionValue = 0
+        stagedCollisionRevisionValue = 0
+        stagedNavigationRevisionValue = 0
+        stagedReplicationRevisionValue = 0
+        stagedGeometryChecksumValue = 0
+        stagedCollisionChecksumValue = 0
+        stagedNavigationChecksumValue = 0
+        stagedReplicationChecksumValue = 0
+        publishedGenerationValue = 0
+        publishedRevisionValue = 0
+        publishedGeometryChecksumValue = 0
+        publishedCollisionChecksumValue = 0
+        publishedNavigationChecksumValue = 0
+        publishedReplicationChecksumValue = 0
+        return true
+    }
+
+    Bool stageGeometry(Int revision, Int checksum) {
+        if (revision <= 0 || checksum <= 0) {
+            return false
+        }
+        stagedGeometryValue = true
+        stagedGeometryRevisionValue = revision
+        stagedGeometryChecksumValue = checksum
+        return true
+    }
+
+    Bool stageCollision(Int revision, Int checksum) {
+        if (revision <= 0 || checksum <= 0) {
+            return false
+        }
+        stagedCollisionValue = true
+        stagedCollisionRevisionValue = revision
+        stagedCollisionChecksumValue = checksum
+        return true
+    }
+
+    Bool stageNavigation(Int revision, Int checksum) {
+        if (revision <= 0 || checksum <= 0) {
+            return false
+        }
+        stagedNavigationValue = true
+        stagedNavigationRevisionValue = revision
+        stagedNavigationChecksumValue = checksum
+        return true
+    }
+
+    Bool stageReplication(Int revision, Int checksum) {
+        if (revision <= 0 || checksum <= 0) {
+            return false
+        }
+        stagedReplicationValue = true
+        stagedReplicationRevisionValue = revision
+        stagedReplicationChecksumValue = checksum
+        return true
+    }
+
+    Bool stagedComplete() {
+        return stagedGeometryValue && stagedCollisionValue &&
+            stagedNavigationValue && stagedReplicationValue &&
+            stagedGeometryRevisionValue == stagedCollisionRevisionValue &&
+            stagedGeometryRevisionValue == stagedNavigationRevisionValue &&
+            stagedGeometryRevisionValue == stagedReplicationRevisionValue
+    }
+
+    Bool publish() {
+        if (!stagedComplete()) {
+            return false
+        }
+        if (publishedGenerationValue >= 1000000) {
+            publishedGenerationValue = 1
+        } else {
+            publishedGenerationValue = publishedGenerationValue + 1
+        }
+        publishedRevisionValue = stagedGeometryRevisionValue
+        publishedGeometryChecksumValue = stagedGeometryChecksumValue
+        publishedCollisionChecksumValue = stagedCollisionChecksumValue
+        publishedNavigationChecksumValue = stagedNavigationChecksumValue
+        publishedReplicationChecksumValue = stagedReplicationChecksumValue
+        stagedGeometryValue = false
+        stagedCollisionValue = false
+        stagedNavigationValue = false
+        stagedReplicationValue = false
+        return true
+    }
+
+    Bool publishTo(BoundedGenerationCache cache) {
+        if (!stagedComplete() ||
+            !cache.canActivate(
+                nextGeneration(), stagedGeometryRevisionValue,
+                stagedGeometryChecksumValue, stagedCollisionChecksumValue,
+                stagedNavigationChecksumValue, stagedReplicationChecksumValue)) {
+            return false
+        }
+        if (!publish()) {
+            return false
+        }
+        return cache.activate(identity())
+    }
+
+    Int nextGeneration() {
+        if (publishedGenerationValue >= 1000000) {
+            return 1
+        }
+        return publishedGenerationValue + 1
+    }
+
+    Bool publishedValid() {
+        return publishedGenerationValue > 0 && publishedRevisionValue > 0 &&
+            publishedGeometryChecksumValue > 0 &&
+            publishedCollisionChecksumValue > 0 &&
+            publishedNavigationChecksumValue > 0 &&
+            publishedReplicationChecksumValue > 0
+    }
+
+    ProductGenerationIdentity identity() {
+        return ProductGenerationIdentity(
+            publishedGenerationValue, publishedRevisionValue,
+            publishedGeometryChecksumValue, publishedCollisionChecksumValue,
+            publishedNavigationChecksumValue, publishedReplicationChecksumValue)
+    }
+
+    Int generation() {
+        return publishedGenerationValue
+    }
+
+    Int revision() {
+        return publishedRevisionValue
+    }
+
+    Int geometryChecksum() {
+        return publishedGeometryChecksumValue
+    }
+
+    Int collisionChecksum() {
+        return publishedCollisionChecksumValue
+    }
+
+    Int navigationChecksum() {
+        return publishedNavigationChecksumValue
+    }
+
+    Int replicationChecksum() {
+        return publishedReplicationChecksumValue
+    }
+}
+class BoundedGenerationCache {
+    Int[] generations
+    Int[] revisions
+    Int[] geometryChecksums
+    Int[] collisionChecksums
+    Int[] navigationChecksums
+    Int[] replicationChecksums
+    Int[] references
+    Bool[] resident
+    Bool[] active
+    Int countValue
+    Int activeGenerationValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        generations = new Int[actualCapacity]
+        revisions = new Int[actualCapacity]
+        geometryChecksums = new Int[actualCapacity]
+        collisionChecksums = new Int[actualCapacity]
+        navigationChecksums = new Int[actualCapacity]
+        replicationChecksums = new Int[actualCapacity]
+        references = new Int[actualCapacity]
+        resident = new Bool[actualCapacity]
+        active = new Bool[actualCapacity]
+        countValue = 0
+        activeGenerationValue = 0
+        for (var index = 0; index < actualCapacity; index = index + 1) {
+            generations[index] = 0
+            revisions[index] = 0
+            geometryChecksums[index] = 0
+            collisionChecksums[index] = 0
+            navigationChecksums[index] = 0
+            replicationChecksums[index] = 0
+            references[index] = 0
+            resident[index] = false
+            active[index] = false
+        }
+    }
+
+    Bool validIdentity(ProductGenerationIdentity identity) {
+        return identity.generation > 0 && identity.generation <= 1000000 &&
+            identity.revision > 0 && identity.revision <= 1000000 &&
+            identity.geometryChecksum > 0 && identity.collisionChecksum > 0 &&
+            identity.navigationChecksum > 0 && identity.replicationChecksum > 0
+    }
+
+    Int find(Int generation) {
+        for (var index = 0; index < generations.length; index = index + 1) {
+            if (resident[index] && generations[index] == generation) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int reclaimableSlot() {
+        var candidate = -1
+        for (var index = 0; index < generations.length; index = index + 1) {
+            if (resident[index] && !active[index] && references[index] == 0 &&
+                (candidate < 0 || generations[index] < generations[candidate])) {
+                candidate = index
+            }
+        }
+        return candidate
+    }
+
+    Bool canActivate(
+        Int generation, Int revision, Int geometryChecksum,
+        Int collisionChecksum, Int navigationChecksum, Int replicationChecksum
+    ) {
+        var identity = ProductGenerationIdentity(
+            generation, revision, geometryChecksum, collisionChecksum,
+            navigationChecksum, replicationChecksum)
+        if (!validIdentity(identity) || find(generation) >= 0) {
+            return false
+        }
+        if (activeGenerationValue > 0 && generation <= activeGenerationValue) {
+            return false
+        }
+        if (countValue < generations.length) {
+            return true
+        }
+        return reclaimableSlot() >= 0
+    }
+
+    Bool activate(ProductGenerationIdentity identity) {
+        if (!validIdentity(identity) ||
+            !canActivate(
+                identity.generation, identity.revision,
+                identity.geometryChecksum, identity.collisionChecksum,
+                identity.navigationChecksum, identity.replicationChecksum)) {
+            return false
+        }
+        var slot = -1
+        var replacingResident = false
+        for (var index = 0; index < generations.length; index = index + 1) {
+            if (!resident[index]) {
+                slot = index
+                break
+            }
+        }
+        if (slot < 0) {
+            slot = reclaimableSlot()
+            replacingResident = slot >= 0
+        }
+        if (slot < 0) {
+            return false
+        }
+        generations[slot] = identity.generation
+        revisions[slot] = identity.revision
+        geometryChecksums[slot] = identity.geometryChecksum
+        collisionChecksums[slot] = identity.collisionChecksum
+        navigationChecksums[slot] = identity.navigationChecksum
+        replicationChecksums[slot] = identity.replicationChecksum
+        references[slot] = 0
+        resident[slot] = true
+        active[slot] = true
+        if (!replacingResident) {
+            countValue = countValue + 1
+        }
+        if (activeGenerationValue > 0) {
+            var previous = find(activeGenerationValue)
+            if (previous >= 0 && previous != slot) {
+                active[previous] = false
+            }
+        }
+        activeGenerationValue = identity.generation
+        return true
+    }
+
+    Bool retainGeneration(Int generation) {
+        var slot = find(generation)
+        if (slot < 0) {
+            return false
+        }
+        references[slot] = references[slot] + 1
+        return true
+    }
+
+    Bool releaseGeneration(Int generation) {
+        var slot = find(generation)
+        if (slot < 0 || references[slot] <= 0) {
+            return false
+        }
+        references[slot] = references[slot] - 1
+        return true
+    }
+
+    Bool retire(Int generation) {
+        var slot = find(generation)
+        if (slot < 0 || active[slot] || references[slot] != 0) {
+            return false
+        }
+        resident[slot] = false
+        generations[slot] = 0
+        revisions[slot] = 0
+        countValue = countValue - 1
+        return true
+    }
+
+    Int retireInactive() {
+        var retired = 0
+        for (var index = 0; index < generations.length; index = index + 1) {
+            if (resident[index] && !active[index] && references[index] == 0) {
+                resident[index] = false
+                generations[index] = 0
+                revisions[index] = 0
+                countValue = countValue - 1
+                retired = retired + 1
+            }
+        }
+        return retired
+    }
+
+    Bool isResident(Int generation) {
+        return find(generation) >= 0
+    }
+
+    Bool isActive(Int generation) {
+        var slot = find(generation)
+        return slot >= 0 && active[slot]
+    }
+
+    Int referencesFor(Int generation) {
+        var slot = find(generation)
+        if (slot < 0) {
+            return -1
+        }
+        return references[slot]
+    }
+
+    Int activeGeneration() {
+        return activeGenerationValue
+    }
+
+    Int generationRevision(Int generation) {
+        var slot = find(generation)
+        if (slot < 0) {
+            return -1
+        }
+        return revisions[slot]
+    }
+
+    Int count() {
+        return countValue
+    }
+}

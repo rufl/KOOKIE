@@ -1,0 +1,159 @@
+package session
+import core
+
+
+Int[] newEnvelope(Int protocol, Int kind, Int tick, Int sequence) {
+    var words = new Int[5]
+    words[0] = protocol
+    words[1] = kind
+    words[2] = tick
+    words[3] = sequence
+    words[4] = 0
+    return words
+}
+
+Bool validEnvelope(Int[] words) {
+    return words.length == 5 && words[0] == 1 && words[1] >= 0 && words[2] >= 0 && words[3] >= 0
+}
+
+Int broadPhaseSnapshotKind() {
+    return 2
+}
+
+Int[] newBroadPhaseSnapshot(
+    Int protocol, Int tick, Int sequence, Int geometryRevision,
+    BoundedTriangleCollection collection
+) {
+    var triangleCount = collection.triangleCount()
+    var words = new Int[12 + triangleCount * 9]
+    words[0] = protocol
+    words[1] = broadPhaseSnapshotKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = geometryRevision
+    words[5] = triangleCount
+    words[6] = collection.minimumX()
+    words[7] = collection.minimumY()
+    words[8] = collection.minimumZ()
+    words[9] = collection.maximumX()
+    words[10] = collection.maximumY()
+    words[11] = collection.maximumZ()
+    for (var ordinal = 0; ordinal < triangleCount; ordinal = ordinal + 1) {
+        var index = collection.triangleIndexAt(ordinal)
+        var offset = 12 + ordinal * 9
+        for (var component = 0; component < 9; component = component + 1) {
+            words[offset + component] = collection.triangleCoordinate(index, component)
+        }
+    }
+    return words
+}
+
+Bool validBroadPhaseSnapshot(Int[] words) {
+    return words.length >= 12 &&
+        words[0] == protocolVersion() &&
+        words[1] == broadPhaseSnapshotKind() &&
+        words[2] >= 0 && words[3] >= 0 && words[4] > 0 &&
+        words[5] >= 0 && words[6] <= words[9] &&
+        words[7] <= words[10] && words[8] <= words[11] &&
+        words.length == 12 + words[5] * 9
+}
+
+Int broadPhaseSnapshotRevision(Int[] words) {
+    if (!validBroadPhaseSnapshot(words)) {
+        return -1
+    }
+    return words[4]
+}
+
+Int broadPhaseSnapshotTriangleCount(Int[] words) {
+    if (!validBroadPhaseSnapshot(words)) {
+        return -1
+    }
+    return words[5]
+}
+
+Bool broadPhaseSnapshotMatches(Int[] words, Int geometryRevision) {
+    return validBroadPhaseSnapshot(words) &&
+        words[4] == geometryRevision
+}
+
+Int envelopeSequence(Int[] words) {
+    return words[3]
+}
+
+Bool roundTripEnvelope(Int protocol, Int kind, Int tick, Int sequence) {
+    var encoded = newEnvelope(protocol, kind, tick, sequence)
+    return validEnvelope(encoded) && envelopeSequence(encoded) == sequence
+}
+
+class BroadPhaseTransportQueue {
+    Int packetCapacityValue
+    Int maxPacketWordsValue
+    Int[] packetLengths
+    Int[] packetWords
+    Int head
+    Int tail
+    Int queued
+
+    public constructor(Int nextPacketCapacity, Int nextTriangleCapacity) {
+        packetCapacityValue = nextPacketCapacity
+        if (packetCapacityValue <= 0) {
+            packetCapacityValue = 1
+        }
+        var triangleCapacity = nextTriangleCapacity
+        if (triangleCapacity <= 0) {
+            triangleCapacity = 1
+        }
+        maxPacketWordsValue = 12 + triangleCapacity * 9
+        packetLengths = new Int[packetCapacityValue]
+        packetWords = new Int[packetCapacityValue * maxPacketWordsValue]
+        head = 0
+        tail = 0
+        queued = 0
+    }
+
+    Bool send(Int[] words) {
+        if (!validBroadPhaseSnapshot(words) ||
+            words.length > maxPacketWordsValue ||
+            queued == packetCapacityValue) {
+            return false
+        }
+        var offset = tail * maxPacketWordsValue
+        for (var index = 0; index < words.length; index = index + 1) {
+            packetWords[offset + index] = words[index]
+        }
+        packetLengths[tail] = words.length
+        tail = tail + 1
+        if (tail == packetCapacityValue) {
+            tail = 0
+        }
+        queued = queued + 1
+        return true
+    }
+
+    Int pending() {
+        return queued
+    }
+
+    Int capacity() {
+        return packetCapacityValue
+    }
+
+    Int[] receive() {
+        if (queued == 0) {
+            return new Int[0]
+        }
+        var length = packetLengths[head]
+        var offset = head * maxPacketWordsValue
+        var words = new Int[length]
+        for (var index = 0; index < length; index = index + 1) {
+            words[index] = packetWords[offset + index]
+        }
+        head = head + 1
+        if (head == packetCapacityValue) {
+            head = 0
+        }
+        queued = queued - 1
+        return words
+    }
+}

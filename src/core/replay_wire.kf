@@ -1,0 +1,353 @@
+package core
+
+class BoundedReplayWireCodec {
+    Int[] words
+    Int commandCapacity
+    Int checkpointCapacity
+    Int wordCount
+    Int magic
+    Int engineVersionValue
+    Int contentVersionValue
+    Int seedValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 64) {
+            actualCapacity = 64
+        }
+        commandCapacity = actualCapacity
+        checkpointCapacity = actualCapacity
+        words = new Int[8 + actualCapacity * 12 + actualCapacity * actualCapacity]
+        wordCount = 0
+        magic = 22446688
+        engineVersionValue = 0
+        contentVersionValue = 0
+        seedValue = 0
+    }
+
+    Bool encode(InputReplayRecorder recorder, Int engineVersion, Int contentVersion, Int seed) {
+        if (engineVersion < 0 || contentVersion < 0 ||
+            seed < -1000000 || seed > 1000000 ||
+            recorder.pending() > commandCapacity) {
+            wordCount = 0
+            return false
+        }
+        var count = recorder.pending()
+        words[0] = magic
+        words[1] = 1
+        words[2] = engineVersion
+        words[3] = contentVersion
+        words[4] = seed
+        words[5] = count
+        for (var index = 0; index < count; index = index + 1) {
+            var command = recorder.at(index)
+            if (!validCommand(command)) {
+                wordCount = 0
+                return false
+            }
+            writeCommand(6 + index * 8, command)
+        }
+        wordCount = 6 + count * 8
+        engineVersionValue = engineVersion
+        contentVersionValue = contentVersion
+        seedValue = seed
+        return true
+    }
+
+    Bool encodeTimeline(BoundedReplayTimeline timeline,
+        Int engineVersion, Int contentVersion, Int seed) {
+        if (engineVersion < 0 || contentVersion < 0 ||
+            seed < -1000000 || seed > 1000000 ||
+            timeline.interactionCount() != 0 ||
+            timeline.pending() > commandCapacity ||
+            timeline.checkpointCountValue() > checkpointCapacity ||
+            timeline.initialSnapshotLength() > commandCapacity) {
+            wordCount = 0
+            return false
+        }
+        var commandCount = timeline.pending()
+        var checkpointCount = timeline.checkpointCountValue()
+        var snapshotLength = timeline.initialSnapshotLength()
+        var checkpointSnapshotCount = 0
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var length = timeline.checkpointSnapshotLength(index)
+            if (length < 0 || length > checkpointCapacity) {
+                wordCount = 0
+                return false
+            }
+            checkpointSnapshotCount = checkpointSnapshotCount + length
+        }
+        if (checkpointSnapshotCount > checkpointCapacity * checkpointCapacity) {
+            wordCount = 0
+            return false
+        }
+        words[0] = magic
+        words[1] = 4
+        words[2] = engineVersion
+        words[3] = contentVersion
+        words[4] = seed
+        words[5] = commandCount
+        words[6] = checkpointCount
+        words[7] = snapshotLength
+        for (var index = 0; index < commandCount; index = index + 1) {
+            var command = timeline.commandAt(index)
+            if (!validCommand(command)) {
+                wordCount = 0
+                return false
+            }
+            writeCommand(8 + index * 8, command)
+        }
+        var checkpointOffset = 8 + commandCount * 8
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var offset = checkpointOffset + index * 3
+            words[offset] = timeline.checkpointTick(index)
+            words[offset + 1] = timeline.checkpointHash(index)
+            words[offset + 2] = timeline.checkpointSnapshotLength(index)
+        }
+        var checkpointSnapshotOffset = checkpointOffset + checkpointCount * 3
+        var checkpointSnapshotWrite = checkpointSnapshotOffset
+        for (var checkpoint = 0; checkpoint < checkpointCount; checkpoint = checkpoint + 1) {
+            var length = timeline.checkpointSnapshotLength(checkpoint)
+            for (var index = 0; index < length; index = index + 1) {
+                words[checkpointSnapshotWrite] =
+                    timeline.checkpointSnapshotValue(checkpoint, index)
+                checkpointSnapshotWrite = checkpointSnapshotWrite + 1
+            }
+        }
+        var snapshotOffset = checkpointSnapshotWrite
+        for (var index = 0; index < snapshotLength; index = index + 1) {
+            words[snapshotOffset + index] = timeline.initialSnapshotValue(index)
+        }
+        wordCount = snapshotOffset + snapshotLength
+        engineVersionValue = engineVersion
+        contentVersionValue = contentVersion
+        seedValue = seed
+        return true
+    }
+
+    Int encodedLength() {
+        return wordCount
+    }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCount) {
+            return -1
+        }
+        return words[index]
+    }
+    Bool decode(Int[] wire, InputReplayRecorder target) {
+        if (!validHeader(wire, 1) ||
+            wire.length != 6 + wire[5] * 8) {
+            return false
+        }
+        var count = wire[5]
+        if (!validCommands(wire, 6, count)) {
+            return false
+        }
+        target.reset()
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = 6 + index * 8
+            if (!target.append(InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                target.reset()
+                return false
+            }
+        }
+        acceptDecoded(wire)
+        return true
+    }
+
+    Bool decodeTimeline(Int[] wire, BoundedReplayTimeline target) {
+        if (wire.length < 7 || wire.length > words.length ||
+            wire[0] != magic ||
+            wire[2] < 0 || wire[3] < 0 ||
+            wire[4] < -1000000 || wire[4] > 1000000 ||
+            wire[5] < 0 || wire[5] > commandCapacity ||
+            wire[6] < 0 || wire[6] > checkpointCapacity) {
+            return false
+        }
+        var version = wire[1]
+        var commandCount = wire[5]
+        var checkpointCount = wire[6]
+        var snapshotLength = 0
+        var commandOffset = 7
+        var checkpointEntryWidth = 2
+        if (version == 3 || version == 4) {
+            if (wire.length < 8 || wire[7] < 0 || wire[7] > commandCapacity) {
+                return false
+            }
+            snapshotLength = wire[7]
+            commandOffset = 8
+        } else if (version != 2) {
+            return false
+        }
+        if (version == 4) {
+            checkpointEntryWidth = 3
+        }
+        var checkpointOffset = commandOffset + commandCount * 8
+        var checkpointSnapshotCount = 0
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var metadataOffset = checkpointOffset + index * checkpointEntryWidth
+            if (version == 4) {
+                var length = wire[metadataOffset + 2]
+                if (length < 0 || length > checkpointCapacity) {
+                    return false
+                }
+                checkpointSnapshotCount = checkpointSnapshotCount + length
+            }
+        }
+        if (checkpointSnapshotCount > checkpointCapacity * checkpointCapacity) {
+            return false
+        }
+        var checkpointSnapshotOffset =
+            checkpointOffset + checkpointCount * checkpointEntryWidth
+        var snapshotOffset = checkpointSnapshotOffset + checkpointSnapshotCount
+        if (wire.length != snapshotOffset + snapshotLength ||
+            !validCommands(wire, commandOffset, commandCount)) {
+            return false
+        }
+        var previousTick = -1
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var metadataOffset = checkpointOffset + index * checkpointEntryWidth
+            var tick = wire[metadataOffset]
+            var hash = wire[metadataOffset + 1]
+            if (tick < 0 || hash < -1000000 || hash > 1000000 ||
+                (index > 0 && tick <= previousTick)) {
+                return false
+            }
+            previousTick = tick
+        }
+        for (var index = 0; index < checkpointSnapshotCount; index = index + 1) {
+            var value = wire[checkpointSnapshotOffset + index]
+            if (value < -1000000 || value > 1000000) {
+                return false
+            }
+        }
+        for (var index = 0; index < snapshotLength; index = index + 1) {
+            var value = wire[snapshotOffset + index]
+            if (value < -1000000 || value > 1000000) {
+                return false
+            }
+        }
+        target.reset()
+        for (var index = 0; index < commandCount; index = index + 1) {
+            var offset = commandOffset + index * 8
+            if (!target.append(InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                target.reset()
+                return false
+            }
+        }
+        var checkpointSnapshotRead = checkpointSnapshotOffset
+        for (var index = 0; index < checkpointCount; index = index + 1) {
+            var offset = checkpointOffset + index * checkpointEntryWidth
+            var length = 0
+            if (version == 4) {
+                length = wire[offset + 2]
+            }
+            if (version == 4) {
+                var checkpointSnapshot = new Int[length]
+                for (var valueIndex = 0; valueIndex < length; valueIndex = valueIndex + 1) {
+                    checkpointSnapshot[valueIndex] =
+                        wire[checkpointSnapshotRead + valueIndex]
+                }
+                if (!target.appendCheckpointSnapshot(
+                    wire[offset], wire[offset + 1], checkpointSnapshot)) {
+                    target.reset()
+                    return false
+                }
+                checkpointSnapshotRead = checkpointSnapshotRead + length
+            } else if (!target.appendCheckpoint(wire[offset], wire[offset + 1])) {
+                target.reset()
+                return false
+            }
+        }
+        var snapshot = new Int[snapshotLength]
+        for (var index = 0; index < snapshotLength; index = index + 1) {
+            snapshot[index] = wire[snapshotOffset + index]
+        }
+        if (!target.setInitialSnapshot(snapshot)) {
+            target.reset()
+            return false
+        }
+        acceptDecoded(wire)
+        return true
+    }
+
+    Bool validHeader(Int[] wire, Int expectedVersion) {
+        return wire.length >= 6 && wire.length <= words.length &&
+            wire[0] == magic && wire[1] == expectedVersion &&
+            wire[2] >= 0 && wire[3] >= 0 &&
+            wire[4] >= -1000000 && wire[4] <= 1000000 &&
+            wire[5] >= 0 && wire[5] <= commandCapacity
+    }
+
+    Bool validCommand(InputCommand command) {
+        return command.tick() >= 0 && command.sequence() >= 0 &&
+            command.moveX() >= -1000000 && command.moveX() <= 1000000 &&
+            command.moveY() >= -1000000 && command.moveY() <= 1000000 &&
+            command.lookX() >= -1000000 && command.lookX() <= 1000000 &&
+            command.lookY() >= -1000000 && command.lookY() <= 1000000 &&
+            command.fire() >= 0 && command.fire() <= 1 &&
+            command.jump() >= 0 && command.jump() <= 1
+    }
+
+    Bool validCommands(Int[] wire, Int start, Int count) {
+        var previousTick = -1
+        var previousSequence = -1
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = start + index * 8
+            var command = InputCommand(
+                wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7])
+            if (!validCommand(command) ||
+                (index > 0 && command.tick() < previousTick) ||
+                command.sequence() <= previousSequence) {
+                return false
+            }
+            previousTick = command.tick()
+            previousSequence = command.sequence()
+        }
+        return true
+    }
+
+    Bool writeCommand(Int offset, InputCommand command) {
+        words[offset] = command.tick()
+        words[offset + 1] = command.sequence()
+        words[offset + 2] = command.moveX()
+        words[offset + 3] = command.moveY()
+        words[offset + 4] = command.lookX()
+        words[offset + 5] = command.lookY()
+        words[offset + 6] = command.fire()
+        words[offset + 7] = command.jump()
+        return true
+    }
+
+    Bool acceptDecoded(Int[] wire) {
+        engineVersionValue = wire[2]
+        contentVersionValue = wire[3]
+        seedValue = wire[4]
+        wordCount = wire.length
+        for (var index = 0; index < wordCount; index = index + 1) {
+            words[index] = wire[index]
+        }
+        return true
+    }
+
+    Int engineVersion() {
+        return engineVersionValue
+    }
+
+    Int contentVersion() {
+        return contentVersionValue
+    }
+
+    Int seed() {
+        return seedValue
+    }
+}

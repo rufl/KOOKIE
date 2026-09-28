@@ -1,0 +1,203 @@
+package world
+
+import core
+
+class G1Arena {
+    BoundedAuthoredCollision authoredValue
+    BoundedTriangleCollection collisionValue
+    BoundedTriangleContactController contactValue
+    Bool readyValue
+
+    public constructor() {
+        authoredValue = BoundedAuthoredCollision(78, 26)
+        collisionValue = BoundedTriangleCollection(32, 64)
+        contactValue = BoundedTriangleContactController(
+            collisionValue, 1, 64, 60, 2)
+        readyValue = buildArena()
+    }
+
+    Bool appendTriangle(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int surface
+    ) {
+        var base = authoredValue.vertexCount()
+        return authoredValue.addVertex(ax, ay, az) &&
+            authoredValue.addVertex(bx, by, bz) &&
+            authoredValue.addVertex(cx, cy, cz) &&
+            authoredValue.addTriangle(base, base + 1, base + 2, surface)
+    }
+
+    Bool appendQuad(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int dx, Int dy, Int dz,
+        Int surface
+    ) {
+        return appendTriangle(
+                ax, ay, az, bx, by, bz, cx, cy, cz, surface) &&
+            appendTriangle(
+                ax, ay, az, cx, cy, cz, dx, dy, dz, surface)
+    }
+
+    Bool buildArena() {
+        if (!authoredValue.configure(
+                101, 1001, 1, 1, 100,
+                0, -4, 0, 32, 16, 28)) {
+            return false
+        }
+
+        if (!appendQuad(
+                0, 0, 0, 12, 0, 0, 12, 0, 12, 0, 0, 12, 1) ||
+            !appendQuad(
+                12, 0, 0, 20, 4, 0, 20, 4, 6, 12, 0, 6, 2) ||
+            !appendQuad(
+                20, 4, 0, 32, 4, 0, 32, 4, 12, 20, 4, 12, 3)) {
+            return false
+        }
+
+        if (!appendQuad(
+                0, 0, 16, 12, 0, 16, 12, 0, 24, 0, 0, 24, 4) ||
+            !appendQuad(
+                4, 1, 16, 8, 1, 16, 8, 1, 24, 4, 1, 24, 5) ||
+            !appendQuad(
+                4, 0, 16, 4, 1, 16, 4, 1, 24, 4, 0, 24, 5) ||
+            !appendQuad(
+                8, 2, 16, 12, 2, 16, 12, 2, 24, 8, 2, 24, 5) ||
+            !appendQuad(
+                8, 1, 16, 8, 2, 16, 8, 2, 24, 8, 1, 24, 5)) {
+            return false
+        }
+
+        if (!appendQuad(
+                20, 0, 16, 32, 0, 16, 32, 0, 28, 20, 0, 28, 6) ||
+            !appendQuad(
+                20, 8, 16, 32, 8, 16, 32, 8, 28, 20, 8, 28, 7) ||
+            !appendQuad(
+                20, 0, 16, 20, 16, 16, 20, 16, 28, 20, 0, 28, 8) ||
+            !appendQuad(
+                32, 0, 28, 32, 16, 28, 32, 16, 16, 32, 0, 16, 8) ||
+            !appendQuad(
+                20, 0, 28, 20, 16, 28, 32, 16, 28, 32, 0, 28, 8)) {
+            return false
+        }
+
+        return authoredValue.seal() && authoredValue.validate() &&
+            collisionValue.replaceWithAuthored(authoredValue)
+    }
+
+    Bool ready() {
+        return readyValue
+    }
+
+    BoundedAuthoredCollision authoredCollision() {
+        return authoredValue
+    }
+
+    Int authoredChecksum() {
+        return authoredValue.checksum()
+    }
+
+    Int vertexCount() {
+        return authoredValue.vertexCount()
+    }
+
+    Int triangleCount() {
+        return authoredValue.triangleCount()
+    }
+
+    Int triangleCapacity() {
+        return collisionValue.triangleCapacity()
+    }
+
+    Int renderVertexCount() {
+        return authoredValue.triangleCount() * 3
+    }
+
+    SegmentCollisionResult query(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return collisionValue.query(
+            startX, startY, startZ, endX, endY, endZ)
+    }
+    SegmentCollisionResult queryPath(SpatialPoint start, SpatialPoint end) {
+        return collisionValue.query(
+            start.x(), start.y(), start.z(),
+            end.x(), end.y(), end.z())
+    }
+
+
+    TriangleContactResult move(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return contactValue.move(
+            startX, startY, startZ, endX, endY, endZ)
+    }
+    TriangleContactResult movePath(SpatialPoint start, SpatialPoint end) {
+        return contactValue.move(
+            start.x(), start.y(), start.z(),
+            end.x(), end.y(), end.z())
+    }
+
+
+    Int lastHitSurface() {
+        var triangle = collisionValue.lastHitTriangle()
+        if (triangle < 0) {
+            return 0
+        }
+        return authoredValue.triangleSurface(triangle)
+    }
+
+    Int clampScreen(Int value) {
+        if (value < -98) {
+            return -98
+        }
+        if (value > 98) {
+            return 98
+        }
+        return value
+    }
+
+    Int projectX(Int x, Int z, CameraState camera) {
+        return clampScreen((x - z) * 3 + camera.currentYaw() / 10)
+    }
+
+    Int projectY(Int x, Int y, Int z, CameraState camera) {
+        return clampScreen(
+            (x + z) * 2 - y * 6 - 55 - camera.currentPitch() / 10)
+    }
+
+    Bool stage(
+        FrameStaging target, Int frame, Int resourceBase, CameraState camera
+    ) {
+        if (!readyValue || resourceBase <= 0 ||
+            target.vertexCapacity() < renderVertexCount() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var triangle = 0;
+            triangle < authoredValue.triangleCount();
+            triangle = triangle + 1) {
+            var surface = authoredValue.triangleSurface(triangle)
+            for (var corner = 0; corner < 3; corner = corner + 1) {
+                var vertex = authoredValue.triangleVertex(triangle, corner)
+                var x = authoredValue.vertexCoordinate(vertex, 0)
+                var y = authoredValue.vertexCoordinate(vertex, 1)
+                var z = authoredValue.vertexCoordinate(vertex, 2)
+                if (!target.pushVertex(
+                        resourceBase + surface - 1,
+                        projectX(x, z, camera),
+                        projectY(x, y, z, camera),
+                        corner * 50, surface * 12)) {
+                    target.discard()
+                    return false
+                }
+            }
+        }
+        return target.publish()
+    }
+}

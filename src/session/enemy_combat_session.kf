@@ -1,0 +1,1087 @@
+package session
+
+import core
+
+record EnemyAttackDecision(
+    Bool accepted, Int enemyId, Int targetId, Int tick,
+    Bool fired, Int shotId, Int applied, Bool died
+)
+record SpatialProjectileResult(
+    Bool accepted, Int projectileId, Int sourceId, Int targetId,
+    Bool hit, Bool blocked
+)
+record SpatialImpactEvent(
+    Int sequence, Int kind, Int projectileId,
+    Int sourceId, Int targetId, Int x, Int y, Int z,
+    Int applied, Bool died
+)
+
+class SpatialImpactQueue {
+    Int[] sequences
+    Int[] kinds
+    Int[] projectileIds
+    Int[] sourceIds
+    Int[] targetIds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] appliedAmounts
+    Bool[] died
+    Int head
+    Int count
+    Int nextSequence
+    SpatialImpactEvent consumed
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        sequences = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        projectileIds = new Int[actualCapacity]
+        sourceIds = new Int[actualCapacity]
+        targetIds = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        appliedAmounts = new Int[actualCapacity]
+        died = new Bool[actualCapacity]
+        head = 0
+        count = 0
+        nextSequence = 1
+        consumed = SpatialImpactEvent(0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+    }
+
+    Bool push(
+        Int kind, Int projectileId, Int sourceId, Int targetId,
+        Int x, Int y, Int z, Int applied, Bool targetDied
+    ) {
+        if (kind <= 0 || kind > 3 || projectileId <= 0 || sourceId <= 0 ||
+            targetId < 0 || applied < 0 || count == sequences.length) {
+            return false
+        }
+        var index = head + count
+        if (index >= sequences.length) {
+            index = index - sequences.length
+        }
+        sequences[index] = nextSequence
+        kinds[index] = kind
+        projectileIds[index] = projectileId
+        sourceIds[index] = sourceId
+        targetIds[index] = targetId
+        positionsX[index] = x
+        positionsY[index] = y
+        positionsZ[index] = z
+        appliedAmounts[index] = applied
+        died[index] = targetDied
+        count = count + 1
+        nextSequence = nextSequence + 1
+        return true
+    }
+
+    Bool dequeue() {
+        if (count == 0) {
+            return false
+        }
+        consumed = SpatialImpactEvent(
+            sequences[head], kinds[head], projectileIds[head],
+            sourceIds[head], targetIds[head],
+            positionsX[head], positionsY[head], positionsZ[head],
+            appliedAmounts[head], died[head])
+        head = head + 1
+        if (head == sequences.length) {
+            head = 0
+        }
+        count = count - 1
+        return true
+    }
+
+    Int pending() {
+        return count
+    }
+
+    Bool reset() {
+        head = 0
+        count = 0
+        nextSequence = 1
+        consumed = SpatialImpactEvent(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+        return true
+    }
+
+    SpatialImpactEvent lastConsumed() {
+        return consumed
+    }
+}
+
+record EnemyAuthoritySnapshot(
+    Int sequence, Int tick, Int enemyId,
+    Int state, Int targetId
+)
+record EnemyImpactSnapshot(
+    Int sequence, Int tick, Int kind, Int projectileId,
+    Int sourceId, Int targetId, Int x, Int y, Int z,
+    Int applied, Bool died
+)
+
+class EnemyImpactSnapshotHistory {
+    Int[] sequences
+    Int[] ticks
+    Int[] kinds
+    Int[] projectileIds
+    Int[] sourceIds
+    Int[] targetIds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] appliedAmounts
+    Bool[] died
+    Int count
+    EnemyImpactSnapshot latestValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        sequences = new Int[actualCapacity]
+        ticks = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        projectileIds = new Int[actualCapacity]
+        sourceIds = new Int[actualCapacity]
+        targetIds = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        appliedAmounts = new Int[actualCapacity]
+        died = new Bool[actualCapacity]
+        count = 0
+        latestValue = EnemyImpactSnapshot(
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
+    }
+
+    Bool push(EnemyImpactSnapshot snapshot) {
+        if (snapshot.sequence() <= 0 || snapshot.tick() < 0 ||
+            snapshot.kind() <= 0 || snapshot.kind() > 3 ||
+            snapshot.projectileId() <= 0 || snapshot.sourceId() <= 0 ||
+            snapshot.targetId() < 0 || snapshot.applied() < 0 ||
+            (count > 0 && snapshot.sequence() <= sequences[count - 1])) {
+            return false
+        }
+        if (count == sequences.length) {
+            for (var index = 1; index < count; index = index + 1) {
+                sequences[index - 1] = sequences[index]
+                ticks[index - 1] = ticks[index]
+                kinds[index - 1] = kinds[index]
+                projectileIds[index - 1] = projectileIds[index]
+                sourceIds[index - 1] = sourceIds[index]
+                targetIds[index - 1] = targetIds[index]
+                positionsX[index - 1] = positionsX[index]
+                positionsY[index - 1] = positionsY[index]
+                positionsZ[index - 1] = positionsZ[index]
+                appliedAmounts[index - 1] = appliedAmounts[index]
+                died[index - 1] = died[index]
+            }
+            count = count - 1
+        }
+        sequences[count] = snapshot.sequence()
+        ticks[count] = snapshot.tick()
+        kinds[count] = snapshot.kind()
+        projectileIds[count] = snapshot.projectileId()
+        sourceIds[count] = snapshot.sourceId()
+        targetIds[count] = snapshot.targetId()
+        positionsX[count] = snapshot.x()
+        positionsY[count] = snapshot.y()
+        positionsZ[count] = snapshot.z()
+        appliedAmounts[count] = snapshot.applied()
+        died[count] = snapshot.died()
+        count = count + 1
+        latestValue = snapshot
+        return true
+    }
+
+    Int size() {
+        return count
+    }
+
+    Int latestSequence() {
+        return latestValue.sequence()
+    }
+
+    EnemyImpactSnapshot latest() {
+        return latestValue
+    }
+}
+
+class EnemySnapshotHistory {
+    Int[] sequences
+    Int[] ticks
+    Int[] enemyIds
+    Int[] states
+    Int[] targets
+    Int count
+    EnemyAuthoritySnapshot latestValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        sequences = new Int[actualCapacity]
+        ticks = new Int[actualCapacity]
+        enemyIds = new Int[actualCapacity]
+        states = new Int[actualCapacity]
+        targets = new Int[actualCapacity]
+        count = 0
+        latestValue = EnemyAuthoritySnapshot(0, 0, 0, 0, 0)
+        for (var index = 0; index < actualCapacity; index = index + 1) {
+            sequences[index] = 0
+            ticks[index] = 0
+            enemyIds[index] = 0
+            states[index] = 0
+            targets[index] = 0
+        }
+    }
+
+    Bool push(EnemyAuthoritySnapshot snapshot) {
+        if (snapshot.sequence() <= 0 || snapshot.tick() < 0 ||
+            snapshot.enemyId() <= 0 || snapshot.state() < 0 ||
+            snapshot.targetId() < 0 ||
+            (count > 0 && snapshot.sequence() <= sequences[count - 1])) {
+            return false
+        }
+        if (count == sequences.length) {
+            for (var index = 1; index < count; index = index + 1) {
+                sequences[index - 1] = sequences[index]
+                ticks[index - 1] = ticks[index]
+                enemyIds[index - 1] = enemyIds[index]
+                states[index - 1] = states[index]
+                targets[index - 1] = targets[index]
+            }
+            count = count - 1
+        }
+        sequences[count] = snapshot.sequence()
+        ticks[count] = snapshot.tick()
+        enemyIds[count] = snapshot.enemyId()
+        states[count] = snapshot.state()
+        targets[count] = snapshot.targetId()
+        count = count + 1
+        latestValue = snapshot
+        return true
+    }
+
+    Int size() {
+        return count
+    }
+
+    Int latestSequence() {
+        return latestValue.sequence()
+    }
+
+    EnemyAuthoritySnapshot latest() {
+        return latestValue
+    }
+}
+
+class AuthoritativeEnemySession {
+    CombatWorld combat
+    EnemyStateWorld enemies
+    EnemySpatialWorld spatial
+    EncounterDirector encounters
+    Int[] linkedEnemyIds
+    Int[] linkedEncounterIds
+    Bool[] linkedActive
+    Int[] spatialProjectileIds
+    Int[] spatialProjectileSources
+    Int[] spatialProjectileTargets
+    Int[] spatialProjectileX
+    Int[] spatialProjectileY
+    Int[] spatialProjectileZ
+    Int[] spatialProjectileRanges
+    Int[] spatialProjectileTravelled
+    Int[] spatialProjectileSteps
+    Int[] spatialProjectileCriticals
+    Bool[] spatialProjectileActive
+    Int spatialProjectileHitsValue
+    Int spatialProjectileBlockedValue
+    SpatialImpactQueue spatialImpacts
+    EnemySteeringResult lastEnemySteering
+
+    public constructor(Int actorCapacity, Int encounterCapacity) {
+        combat = CombatWorld(actorCapacity, actorCapacity)
+        enemies = EnemyStateWorld(actorCapacity)
+        spatial = EnemySpatialWorld(actorCapacity, 1000000)
+        encounters = EncounterDirector(encounterCapacity)
+        linkedEnemyIds = new Int[actorCapacity]
+        linkedEncounterIds = new Int[actorCapacity]
+        linkedActive = new Bool[actorCapacity]
+        spatialProjectileIds = new Int[actorCapacity]
+        spatialProjectileSources = new Int[actorCapacity]
+        spatialProjectileTargets = new Int[actorCapacity]
+        spatialProjectileX = new Int[actorCapacity]
+        spatialProjectileY = new Int[actorCapacity]
+        spatialProjectileZ = new Int[actorCapacity]
+        spatialProjectileRanges = new Int[actorCapacity]
+        spatialProjectileTravelled = new Int[actorCapacity]
+        spatialProjectileSteps = new Int[actorCapacity]
+        spatialProjectileCriticals = new Int[actorCapacity]
+        spatialProjectileActive = new Bool[actorCapacity]
+        spatialProjectileHitsValue = 0
+        spatialProjectileBlockedValue = 0
+        spatialImpacts = SpatialImpactQueue(actorCapacity * 2)
+        lastEnemySteering = EnemySteeringResult(
+            false, false, false, 0, 0, 0, 0, 0, 0)
+        for (var index = 0; index < actorCapacity; index = index + 1) {
+            linkedEnemyIds[index] = 0
+            linkedEncounterIds[index] = 0
+            linkedActive[index] = false
+            spatialProjectileIds[index] = 0
+            spatialProjectileSources[index] = 0
+            spatialProjectileTargets[index] = 0
+            spatialProjectileX[index] = 0
+            spatialProjectileY[index] = 0
+            spatialProjectileZ[index] = 0
+            spatialProjectileRanges[index] = 0
+            spatialProjectileTravelled[index] = 0
+            spatialProjectileSteps[index] = 0
+            spatialProjectileCriticals[index] = 0
+            spatialProjectileActive[index] = false
+        }
+    }
+
+    Int findEnemyLink(Int enemyId) {
+        for (var index = 0; index < linkedEnemyIds.length; index = index + 1) {
+            if (linkedActive[index] && linkedEnemyIds[index] == enemyId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeEnemyLink() {
+        for (var index = 0; index < linkedActive.length; index = index + 1) {
+            if (!linkedActive[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
+        return enemies.configure(perceptionRange, attackRange, cooldown)
+    }
+    Bool configureSpatialBounds(
+        Int minX, Int minY, Int minZ,
+        Int maxX, Int maxY, Int maxZ
+    ) {
+        return spatial.configureBounds(minX, minY, minZ, maxX, maxY, maxZ)
+    }
+
+    Bool addSpatialObstacle(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return spatial.addObstacle(
+            ax, ay, az, bx, by, bz, cx, cy, cz)
+    }
+
+    Bool setSpatialPosition(Int id, Int x, Int y, Int z) {
+        return spatial.setPosition(id, x, y, z)
+    }
+
+    SpatialVisibilityResult spatialVisibility(
+        Int sourceId, Int targetId, Int range
+    ) {
+        return spatial.visibility(sourceId, targetId, range)
+    }
+
+    EnemyMoveResult moveEnemyToward(Int enemyId, Int targetId, Int step) {
+        return spatial.moveToward(enemyId, targetId, step)
+    }
+
+    Bool loadNavigationProduct(BoundedNavigationProduct product) {
+        return spatial.loadNavigationProduct(product)
+    }
+
+    NavigationProductResult navigationProductRoute(
+        Int startNodeId, Int targetNodeId
+    ) {
+        return spatial.navigationProductRoute(startNodeId, targetNodeId)
+    }
+
+
+    Bool defineWeapon(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        return combat.defineWeapon(
+            id, magazineSize, reserveCapacity,
+            cooldownTicks, damage, channel, range)
+    }
+
+    Bool defineEncounter(Int id, Int maxActive, Int budget) {
+        return encounters.define(id, maxActive, budget)
+    }
+    Bool configureEncounterZone(
+        Int encounterId, Int centerX, Int centerY, Int centerZ, Int radius
+    ) {
+        return encounters.configureZone(
+            encounterId, centerX, centerY, centerZ, radius)
+    }
+
+
+    Bool addActor(Int id, Int health, Int armor) {
+        return combat.addActor(id, health, armor)
+    }
+
+    Bool equipWeapon(Int actorId, Int weaponId) {
+        return combat.equipWeapon(actorId, weaponId)
+    }
+    Bool setWeaponSpread(Int weaponId, Int pellets, Int spreadPercent) {
+        return combat.setWeaponSpread(weaponId, pellets, spreadPercent)
+    }
+    Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {
+        return combat.setDamageModifier(actorId, flatValue, percentValue)
+    }
+    Bool setDefenseModifier(Int actorId, Int flatValue, Int percentValue) {
+        return combat.setDefenseModifier(actorId, flatValue, percentValue)
+    }
+    Bool setShield(Int actorId, Int currentValue, Int maximumValue) {
+        return combat.setShield(actorId, currentValue, maximumValue)
+    }
+
+    Bool setResistance(Int actorId, Int channel, Int percentValue) {
+        return combat.setResistance(actorId, channel, percentValue)
+    }
+
+    Int projectileReplayStateLength() {
+        return 4 + spatialProjectileIds.length * 11
+    }
+
+    Bool encodeProjectileReplayState(Int[] target) {
+        if (target.length != projectileReplayStateLength()) {
+            return false
+        }
+        target[0] = 9701
+        target[1] = 1
+        target[2] = spatialProjectileHitsValue
+        target[3] = spatialProjectileBlockedValue
+        var offset = 4
+        for (var index = 0; index < spatialProjectileIds.length; index = index + 1) {
+            target[offset] = spatialProjectileIds[index]
+            target[offset + 1] = spatialProjectileSources[index]
+            target[offset + 2] = spatialProjectileTargets[index]
+            target[offset + 3] = spatialProjectileX[index]
+            target[offset + 4] = spatialProjectileY[index]
+            target[offset + 5] = spatialProjectileZ[index]
+            target[offset + 6] = spatialProjectileRanges[index]
+            target[offset + 7] = spatialProjectileTravelled[index]
+            target[offset + 8] = spatialProjectileSteps[index]
+            target[offset + 9] = spatialProjectileCriticals[index]
+            target[offset + 10] = 0
+            if (spatialProjectileActive[index]) {
+                target[offset + 10] = 1
+            }
+            offset = offset + 11
+        }
+        return true
+    }
+
+    Bool restoreProjectileReplayState(Int[] source) {
+        if (source.length != projectileReplayStateLength() ||
+            source[0] != 9701 || source[1] != 1 ||
+            source[2] < 0 || source[3] < 0) {
+            return false
+        }
+        spatialProjectileHitsValue = source[2]
+        spatialProjectileBlockedValue = source[3]
+        var offset = 4
+        for (var index = 0; index < spatialProjectileIds.length; index = index + 1) {
+            if (source[offset + 10] < 0 || source[offset + 10] > 1 ||
+                source[offset + 6] < 0 || source[offset + 7] < 0 ||
+                source[offset + 8] < 0 || source[offset + 9] < 0) {
+                return false
+            }
+            spatialProjectileIds[index] = source[offset]
+            spatialProjectileSources[index] = source[offset + 1]
+            spatialProjectileTargets[index] = source[offset + 2]
+            spatialProjectileX[index] = source[offset + 3]
+            spatialProjectileY[index] = source[offset + 4]
+            spatialProjectileZ[index] = source[offset + 5]
+            spatialProjectileRanges[index] = source[offset + 6]
+            spatialProjectileTravelled[index] = source[offset + 7]
+            spatialProjectileSteps[index] = source[offset + 8]
+            spatialProjectileCriticals[index] = source[offset + 9]
+            spatialProjectileActive[index] = source[offset + 10] == 1
+            offset = offset + 11
+        }
+        spatialImpacts.reset()
+        return true
+    }
+
+    Int replayStateLength() {
+        return combat.allReplayStateLength() +
+            enemies.replayStateLength() +
+            spatial.replayStateLength() +
+            encounters.replayStateLength() +
+            linkedEnemyIds.length * 3 +
+            projectileReplayStateLength()
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        var combatLength = combat.allReplayStateLength()
+        var enemyLength = enemies.replayStateLength()
+        var spatialLength = spatial.replayStateLength()
+        var encounterLength = encounters.replayStateLength()
+        var projectileLength = projectileReplayStateLength()
+        var combatState = new Int[combatLength]
+        var enemyState = new Int[enemyLength]
+        var spatialState = new Int[spatialLength]
+        var encounterState = new Int[encounterLength]
+        var projectileState = new Int[projectileLength]
+        if (!combat.encodeAllReplayState(combatState) ||
+            !enemies.encodeReplayState(enemyState) ||
+            !spatial.encodeReplayState(spatialState) ||
+            !encounters.encodeReplayState(encounterState) ||
+            !encodeProjectileReplayState(projectileState)) {
+            return false
+        }
+        var offset = 0
+        for (var index = 0; index < combatLength; index = index + 1) {
+            target[offset + index] = combatState[index]
+        }
+        offset = offset + combatLength
+        for (var enemyIndex = 0; enemyIndex < enemyLength; enemyIndex = enemyIndex + 1) {
+            target[offset + enemyIndex] = enemyState[enemyIndex]
+        }
+        offset = offset + enemyLength
+        for (var spatialIndex = 0; spatialIndex < spatialLength; spatialIndex = spatialIndex + 1) {
+            target[offset + spatialIndex] = spatialState[spatialIndex]
+        }
+        offset = offset + spatialLength
+        for (var encounterIndex = 0; encounterIndex < encounterLength; encounterIndex = encounterIndex + 1) {
+            target[offset + encounterIndex] = encounterState[encounterIndex]
+        }
+        offset = offset + encounterLength
+        for (var linkIndex = 0; linkIndex < linkedEnemyIds.length; linkIndex = linkIndex + 1) {
+            target[offset] = linkedEnemyIds[linkIndex]
+            target[offset + 1] = linkedEncounterIds[linkIndex]
+            target[offset + 2] = 0
+            if (linkedActive[linkIndex]) {
+                target[offset + 2] = 1
+            }
+            offset = offset + 3
+        }
+        for (var projectileIndex = 0; projectileIndex < projectileLength; projectileIndex = projectileIndex + 1) {
+            target[offset + projectileIndex] = projectileState[projectileIndex]
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength()) {
+            return false
+        }
+        var combatLength = combat.allReplayStateLength()
+        var enemyLength = enemies.replayStateLength()
+        var spatialLength = spatial.replayStateLength()
+        var encounterLength = encounters.replayStateLength()
+        var projectileLength = projectileReplayStateLength()
+        var combatState = new Int[combatLength]
+        var enemyState = new Int[enemyLength]
+        var spatialState = new Int[spatialLength]
+        var encounterState = new Int[encounterLength]
+        var projectileState = new Int[projectileLength]
+        var offset = 0
+        for (var index = 0; index < combatLength; index = index + 1) {
+            combatState[index] = source[offset + index]
+        }
+        offset = offset + combatLength
+        for (var enemyIndex = 0; enemyIndex < enemyLength; enemyIndex = enemyIndex + 1) {
+            enemyState[enemyIndex] = source[offset + enemyIndex]
+        }
+        offset = offset + enemyLength
+        for (var spatialIndex = 0; spatialIndex < spatialLength; spatialIndex = spatialIndex + 1) {
+            spatialState[spatialIndex] = source[offset + spatialIndex]
+        }
+        offset = offset + spatialLength
+        for (var encounterIndex = 0; encounterIndex < encounterLength; encounterIndex = encounterIndex + 1) {
+            encounterState[encounterIndex] = source[offset + encounterIndex]
+        }
+        offset = offset + encounterLength
+        if (!combat.restoreAllReplayState(combatState) ||
+            !enemies.restoreReplayState(enemyState) ||
+            !spatial.restoreReplayState(spatialState) ||
+            !encounters.restoreReplayState(encounterState)) {
+            return false
+        }
+        for (var linkIndex = 0; linkIndex < linkedEnemyIds.length; linkIndex = linkIndex + 1) {
+            if (source[offset + 2] < 0 || source[offset + 2] > 1) {
+                return false
+            }
+            linkedEnemyIds[linkIndex] = source[offset]
+            linkedEncounterIds[linkIndex] = source[offset + 1]
+            linkedActive[linkIndex] = source[offset + 2] == 1
+            offset = offset + 3
+        }
+        for (var projectileIndex = 0; projectileIndex < projectileLength; projectileIndex = projectileIndex + 1) {
+            projectileState[projectileIndex] = source[offset + projectileIndex]
+        }
+        return restoreProjectileReplayState(projectileState)
+    }
+
+
+    Int currentShield(Int actorId) {
+        return combat.currentShield(actorId)
+    }
+
+    Bool admitEnemyInternal(
+        Int encounterId, Int enemyId, Int tick,
+        Int health, Int armor, Int weaponId,
+        Bool positioned, Int x, Int y, Int z
+    ) {
+        var linkIndex = freeEnemyLink()
+        if (linkIndex < 0) {
+            return false
+        }
+        var admission = EncounterSpawnResult(false, encounterId, enemyId, 0, 0)
+        if (positioned) {
+            admission = encounters.admitAt(encounterId, enemyId, x, y, z)
+        } else {
+            admission = encounters.admit(encounterId, enemyId)
+        }
+        if (!admission.accepted()) {
+            return false
+        }
+        if (!combat.addActor(enemyId, health, armor)) {
+            encounters.release(encounterId)
+            return false
+        }
+        if (!enemies.addEnemy(enemyId, tick) ||
+            !combat.equipWeapon(enemyId, weaponId) ||
+            (positioned && !spatial.setPosition(enemyId, x, y, z))) {
+            enemies.removeEnemy(enemyId)
+            combat.removeActor(enemyId)
+            encounters.release(encounterId)
+            return false
+        }
+        linkedEnemyIds[linkIndex] = enemyId
+        linkedEncounterIds[linkIndex] = encounterId
+        linkedActive[linkIndex] = true
+        return true
+    }
+
+    Bool admitEnemy(
+        Int encounterId, Int enemyId, Int tick,
+        Int health, Int armor, Int weaponId
+    ) {
+        return admitEnemyInternal(
+            encounterId, enemyId, tick, health, armor, weaponId,
+            false, 0, 0, 0)
+    }
+
+    Bool admitEnemyAt(
+        Int encounterId, Int enemyId, Int tick,
+        Int health, Int armor, Int weaponId,
+        Int x, Int y, Int z
+    ) {
+        return admitEnemyInternal(
+            encounterId, enemyId, tick, health, armor, weaponId,
+            true, x, y, z)
+    }
+    EnemyAttackDecision stepEnemy(
+        Int enemyId, Int tick, Int targetId,
+        Bool targetVisible, Int distance, Int critical
+    ) {
+        var step = enemies.step(
+            enemyId, tick, targetId, targetVisible, distance)
+        if (!step.accepted()) {
+            return EnemyAttackDecision(false, enemyId, targetId, tick, false, 0, 0, false)
+        }
+        if (!step.attackReady()) {
+            return EnemyAttackDecision(true, enemyId, step.targetId(), tick, false, 0, 0, false)
+        }
+        var resolution = combat.resolveHitscan(
+            enemyId, step.targetId(), tick, distance, critical)
+        return EnemyAttackDecision(
+            true, enemyId, step.targetId(), tick, resolution.accepted(),
+            resolution.actionId(), resolution.applied(), resolution.died())
+    }
+    EnemySteeringResult steerEnemySpatial(
+        Int enemyId, Int targetId, Int step
+    ) {
+        lastEnemySteering = spatial.steerToward(enemyId, targetId, step)
+        return lastEnemySteering
+    }
+
+    EnemyAttackDecision stepEnemySpatial(
+        Int enemyId, Int tick, Int targetId, Int critical
+    ) {
+        var visibility = spatial.visibility(
+            enemyId, targetId, enemies.perceptionRangeValue())
+        if (!visibility.accepted()) {
+            return EnemyAttackDecision(false, enemyId, targetId, tick, false, 0, 0, false)
+        }
+        if (!visibility.visible() ||
+            visibility.distance() > enemies.attackRangeValue()) {
+            lastEnemySteering = spatial.steerToward(enemyId, targetId, 1)
+        } else {
+            lastEnemySteering = EnemySteeringResult(
+                true, true, false, enemyId, 0, 0,
+                spatial.positionX(enemyId), spatial.positionY(enemyId),
+                spatial.positionZ(enemyId))
+        }
+        return stepEnemy(
+            enemyId, tick, targetId,
+            visibility.visible(), visibility.distance(), critical)
+    }
+
+
+    Int consumeCombatEvents(Int tick) {
+        var consumed = 0
+        while (combat.pendingCombatEvents() > 0) {
+            if (!combat.dequeueCombatEvent()) {
+                break
+            }
+            var event = combat.lastCombatEvent()
+            var linkIndex = findEnemyLink(event.targetId())
+            if (event.died() && linkIndex >= 0) {
+                var enemyId = linkedEnemyIds[linkIndex]
+                if (enemies.kill(enemyId, tick)) {
+                    encounters.release(linkedEncounterIds[linkIndex])
+                    linkedActive[linkIndex] = false
+                    consumed = consumed + 1
+                }
+            }
+        }
+        return consumed
+    }
+
+    ResolutionResult playerHitscan(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var result = combat.resolveHitscan(
+            sourceId, targetId, tick, distance, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+
+    ResolutionResult playerShotgun(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var result = combat.resolveShotgun(
+            sourceId, targetId, tick, distance, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+    AreaDamageResult playerShotgunTargets(
+        Int sourceId, Int[] targetIds, Int tick,
+        Int distance, Int critical
+    ) {
+        var result = combat.resolveShotgunTargets(
+            sourceId, targetIds, tick, distance, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+    AreaDamageResult playerShotgunPelletTargets(
+        Int sourceId, Int[] targetIds, Int tick,
+        Int distance, Int critical
+    ) {
+        var result = combat.resolveShotgunPelletTargets(
+            sourceId, targetIds, tick, distance, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+
+    AreaDamageResult areaDamage(
+        Int sourceId, Int[] targetIds, Int amount,
+        Int channel, Int critical, Int tick
+    ) {
+        var result = combat.resolveAreaDamage(
+            sourceId, targetIds, amount, channel, critical)
+        if (result.accepted()) {
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+
+    Int enemyTarget(Int enemyId) {
+        return enemies.target(enemyId)
+    }
+    ResolutionResult projectileAttackSpatial(
+        Int sourceId, Int targetId, Int tick, Int range, Int critical
+    ) {
+        var visibility = spatial.visibility(sourceId, targetId, range)
+        if (!visibility.accepted() || !visibility.visible()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var projectile = combat.spawnProjectile(sourceId, tick)
+        if (!projectile.accepted()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var result = combat.resolveProjectile(
+            projectile.projectileId(), targetId, visibility.distance(), critical)
+        if (result.accepted()) {
+            publishSpatialImpact(
+                1, projectile.projectileId(), sourceId, targetId,
+                spatial.positionX(targetId), spatial.positionY(targetId),
+                spatial.positionZ(targetId), result.applied(), result.died())
+            consumeCombatEvents(tick)
+        }
+        return result
+    }
+    Int freeSpatialProjectile() {
+        for (var index = 0; index < spatialProjectileActive.length; index = index + 1) {
+            if (!spatialProjectileActive[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+    Bool publishSpatialImpact(
+        Int kind, Int projectileId, Int sourceId, Int targetId,
+        Int x, Int y, Int z, Int applied, Bool died
+    ) {
+        return spatialImpacts.push(
+            kind, projectileId, sourceId, targetId,
+            x, y, z, applied, died)
+    }
+
+    SpatialProjectileResult spawnSpatialProjectile(
+        Int sourceId, Int targetId, Int tick,
+        Int range, Int step, Int critical
+    ) {
+        var slot = freeSpatialProjectile()
+        if (slot < 0 || range <= 0 || step <= 0 ||
+            (critical != 0 && critical != 1) ||
+            !spatial.hasPosition(sourceId) ||
+            !spatial.hasPosition(targetId)) {
+            return SpatialProjectileResult(false, 0, sourceId, targetId, false, false)
+        }
+        var projectile = combat.spawnProjectile(sourceId, tick)
+        if (!projectile.accepted()) {
+            return SpatialProjectileResult(false, 0, sourceId, targetId, false, false)
+        }
+        spatialProjectileIds[slot] = projectile.projectileId()
+        spatialProjectileSources[slot] = sourceId
+        spatialProjectileTargets[slot] = targetId
+        spatialProjectileX[slot] = spatial.positionX(sourceId)
+        spatialProjectileY[slot] = spatial.positionY(sourceId)
+        spatialProjectileZ[slot] = spatial.positionZ(sourceId)
+        spatialProjectileRanges[slot] = range
+        spatialProjectileTravelled[slot] = 0
+        spatialProjectileSteps[slot] = step
+        spatialProjectileCriticals[slot] = critical
+        spatialProjectileActive[slot] = true
+        return SpatialProjectileResult(
+            true, projectile.projectileId(), sourceId, targetId, false, false)
+    }
+
+    Int advanceSpatialProjectiles(Int tick) {
+        spatialProjectileHitsValue = 0
+        spatialProjectileBlockedValue = 0
+        var moved = 0
+        for (var index = 0; index < spatialProjectileActive.length; index = index + 1) {
+            if (!spatialProjectileActive[index]) {
+                continue
+            }
+            var projectileId = spatialProjectileIds[index]
+            var targetId = spatialProjectileTargets[index]
+            if (!spatial.hasPosition(targetId)) {
+                publishSpatialImpact(
+                    3, projectileId, spatialProjectileSources[index],
+                    targetId, spatialProjectileX[index],
+                    spatialProjectileY[index], spatialProjectileZ[index], 0, false)
+                combat.cancelProjectile(projectileId)
+                spatialProjectileActive[index] = false
+                continue
+            }
+            var startX = spatialProjectileX[index]
+            var startY = spatialProjectileY[index]
+            var startZ = spatialProjectileZ[index]
+            var targetX = spatial.positionX(targetId)
+            var targetY = spatial.positionY(targetId)
+            var targetZ = spatial.positionZ(targetId)
+            var distance = spatial.distanceBetween(
+                startX, startY, startZ, targetX, targetY, targetZ)
+            var remaining = spatialProjectileRanges[index] -
+                spatialProjectileTravelled[index]
+            if (remaining < 0) {
+                remaining = 0
+            }
+            var travel = spatialProjectileSteps[index]
+            if (travel > distance) {
+                travel = distance
+            }
+            if (travel > remaining) {
+                travel = remaining
+            }
+            var nextX = startX
+            var nextY = startY
+            var nextZ = startZ
+            if (distance > 0 && travel > 0) {
+                nextX = startX + ((targetX - startX) * travel) / distance
+                nextY = startY + ((targetY - startY) * travel) / distance
+                nextZ = startZ + ((targetZ - startZ) * travel) / distance
+                if (nextX == startX && nextY == startY && nextZ == startZ) {
+                    if (targetX != startX) {
+                        if (targetX < startX) {
+                            nextX = startX - 1
+                        } else {
+                            nextX = startX + 1
+                        }
+                    } else if (targetY != startY) {
+                        if (targetY < startY) {
+                            nextY = startY - 1
+                        } else {
+                            nextY = startY + 1
+                        }
+                    } else if (targetZ < startZ) {
+                        nextZ = startZ - 1
+                    } else {
+                        nextZ = startZ + 1
+                    }
+                }
+            }
+            var trace = spatial.traceSegment(
+                startX, startY, startZ, nextX, nextY, nextZ, travel)
+            if (!trace.accepted()) {
+                publishSpatialImpact(
+                    3, projectileId, spatialProjectileSources[index],
+                    targetId, startX, startY, startZ, 0, false)
+                combat.cancelProjectile(projectileId)
+                spatialProjectileActive[index] = false
+                continue
+            }
+            if (trace.collided()) {
+                publishSpatialImpact(
+                    2, projectileId, spatialProjectileSources[index],
+                    targetId, trace.resolvedX(), trace.resolvedY(),
+                    trace.resolvedZ(), 0, false)
+                combat.cancelProjectile(projectileId)
+                spatialProjectileActive[index] = false
+                spatialProjectileBlockedValue = spatialProjectileBlockedValue + 1
+                continue
+            }
+            spatialProjectileX[index] = nextX
+            spatialProjectileY[index] = nextY
+            spatialProjectileZ[index] = nextZ
+            spatialProjectileTravelled[index] =
+                spatialProjectileTravelled[index] + travel
+            moved = moved + 1
+            if (travel == distance) {
+                var result = combat.resolveProjectile(
+                    projectileId, targetId,
+                    spatialProjectileTravelled[index],
+                    spatialProjectileCriticals[index])
+                if (result.accepted()) {
+                    publishSpatialImpact(
+                        1, projectileId, spatialProjectileSources[index],
+                        targetId, nextX, nextY, nextZ,
+                        result.applied(), result.died())
+                    spatialProjectileHitsValue = spatialProjectileHitsValue + 1
+                    consumeCombatEvents(tick)
+                } else {
+                    publishSpatialImpact(
+                        3, projectileId, spatialProjectileSources[index],
+                        targetId, nextX, nextY, nextZ, 0, false)
+                    combat.cancelProjectile(projectileId)
+                }
+                spatialProjectileActive[index] = false
+            } else if (spatialProjectileTravelled[index] >=
+                spatialProjectileRanges[index]) {
+                publishSpatialImpact(
+                    3, projectileId, spatialProjectileSources[index],
+                    targetId, nextX, nextY, nextZ, 0, false)
+                combat.cancelProjectile(projectileId)
+                spatialProjectileActive[index] = false
+            }
+        }
+        return moved
+    }
+
+    Int activeSpatialProjectiles() {
+        var count = 0
+        for (var index = 0; index < spatialProjectileActive.length; index = index + 1) {
+            if (spatialProjectileActive[index]) {
+                count = count + 1
+            }
+        }
+        return count
+    }
+
+    Int spatialProjectileHits() {
+        return spatialProjectileHitsValue
+    }
+
+    Int spatialProjectileBlocked() {
+        return spatialProjectileBlockedValue
+    }
+    EnemySteeringResult lastEnemySteeringResult() {
+        return lastEnemySteering
+    }
+
+    Int pendingSpatialImpacts() {
+        return spatialImpacts.pending()
+    }
+
+    Bool dequeueSpatialImpact() {
+        return spatialImpacts.dequeue()
+    }
+
+    SpatialImpactEvent lastSpatialImpact() {
+        return spatialImpacts.lastConsumed()
+    }
+
+
+
+    EnemyAuthoritySnapshot snapshotEnemy(
+        Int enemyId, Int tick, Int sequence
+    ) {
+        return EnemyAuthoritySnapshot(
+            sequence, tick, enemyId,
+            enemies.state(enemyId), enemies.target(enemyId))
+    }
+
+    Int enemyState(Int enemyId) {
+        return enemies.state(enemyId)
+    }
+
+    Int encounterActiveCount(Int encounterId) {
+        return encounters.activeCount(encounterId)
+    }
+
+
+    Int enemySpatialPositionX(Int enemyId) {
+        return spatial.positionX(enemyId)
+    }
+
+    Int enemySpatialPositionY(Int enemyId) {
+        return spatial.positionY(enemyId)
+    }
+
+    Int enemySpatialPositionZ(Int enemyId) {
+        return spatial.positionZ(enemyId)
+    }
+
+    Int encounterRemainingBudget(Int encounterId) {
+        return encounters.remainingBudget(encounterId)
+    }
+
+    Int pendingCombatEvents() {
+        return combat.pendingCombatEvents()
+    }
+}

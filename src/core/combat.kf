@@ -1,0 +1,1440 @@
+package core
+
+record WeaponDefinition(
+    Int id, Int magazineSize, Int reserveCapacity,
+    Int cooldownTicks, Int damage, Int channel, Int range
+)
+record ShotResult(
+    Bool accepted, Int shotId, Int sourceId, Int weaponId,
+    Int magazine, Int reserve, Int nextReadyTick
+)
+record DamageRequest(
+    Int sourceId, Int targetId, Int amount, Int channel, Int critical
+)
+record DamageResult(
+    Bool accepted, Int applied, Int remainingHealth,
+    Bool died, Int deathSequence
+)
+record CombatEvent(
+    Int sequence, Int kind, Int sourceId, Int targetId,
+    Int applied, Int remainingHealth, Bool died
+)
+record ResolutionResult(
+    Bool accepted, Int actionId, Int sourceId, Int targetId,
+    Int applied, Int remainingHealth, Bool died, Int eventSequence
+)
+record AreaDamageResult(
+    Bool accepted, Int targetCount, Int applied, Int deaths
+)
+record ProjectileState(
+    Bool accepted, Int projectileId, Int sourceId, Int weaponId
+)
+record ShotgunPelletOffset(
+    Bool valid, Int pellet, Int x, Int y
+)
+
+class CombatEventQueue {
+    Int[] sequences
+    Int[] kinds
+    Int[] sources
+    Int[] targets
+    Int[] appliedAmounts
+    Int[] remainingHealth
+    Bool[] died
+    Int head
+    Int count
+    Int nextSequence
+    CombatEvent consumed
+
+    public constructor(Int capacity) {
+        sequences = new Int[capacity]
+        kinds = new Int[capacity]
+        sources = new Int[capacity]
+        targets = new Int[capacity]
+        appliedAmounts = new Int[capacity]
+        remainingHealth = new Int[capacity]
+        died = new Bool[capacity]
+        head = 0
+        count = 0
+        nextSequence = 1
+        consumed = CombatEvent(0, 0, 0, 0, 0, 0, false)
+        for (var index = 0; index < capacity; index = index + 1) {
+            sequences[index] = 0
+            kinds[index] = 0
+            sources[index] = 0
+            targets[index] = 0
+            appliedAmounts[index] = 0
+            remainingHealth[index] = 0
+            died[index] = false
+        }
+    }
+
+    Bool hasRoom() {
+        return count < sequences.length
+    }
+
+    Bool push(
+        Int kind, Int sourceId, Int targetId,
+        Int applied, Int remaining, Bool targetDied
+    ) {
+        if (kind <= 0 || sourceId <= 0 || targetId <= 0 || applied < 0 ||
+            remaining < 0 || !hasRoom()) {
+            return false
+        }
+        var index = head + count
+        if (index >= sequences.length) {
+            index = index - sequences.length
+        }
+        sequences[index] = nextSequence
+        kinds[index] = kind
+        sources[index] = sourceId
+        targets[index] = targetId
+        appliedAmounts[index] = applied
+        remainingHealth[index] = remaining
+        died[index] = targetDied
+        count = count + 1
+        nextSequence = nextSequence + 1
+        return true
+    }
+
+    Bool dequeue() {
+        if (count == 0) {
+            return false
+        }
+        consumed = CombatEvent(
+            sequences[head], kinds[head], sources[head], targets[head],
+            appliedAmounts[head], remainingHealth[head], died[head])
+        head = head + 1
+        if (head >= sequences.length) {
+            head = 0
+        }
+        count = count - 1
+        return true
+    }
+
+    Int pending() {
+        return count
+    }
+
+    Int lastSequence() {
+        return nextSequence - 1
+    }
+
+    CombatEvent lastConsumed() {
+        return consumed
+    }
+    Bool reset() {
+        head = 0
+        count = 0
+        nextSequence = 1
+        consumed = CombatEvent(0, 0, 0, 0, 0, 0, false)
+        return true
+    }
+}
+
+
+
+class WeaponDefinitionStore {
+    Int[] ids
+    Int[] magazineSizes
+    Int[] reserveCapacities
+    Int[] cooldowns
+    Int[] damages
+    Int[] channels
+    Int[] ranges
+    Int[] pelletCounts
+    Int[] spreadPercents
+    Bool[] active
+
+    public constructor(Int capacity) {
+        ids = new Int[capacity]
+        magazineSizes = new Int[capacity]
+        reserveCapacities = new Int[capacity]
+        cooldowns = new Int[capacity]
+        damages = new Int[capacity]
+        pelletCounts = new Int[capacity]
+        spreadPercents = new Int[capacity]
+        channels = new Int[capacity]
+        ranges = new Int[capacity]
+        active = new Bool[capacity]
+        for (var index = 0; index < capacity; index = index + 1) {
+            ids[index] = 0
+            magazineSizes[index] = 0
+            reserveCapacities[index] = 0
+            cooldowns[index] = 0
+            damages[index] = 0
+            pelletCounts[index] = 1
+            spreadPercents[index] = 0
+            channels[index] = 0
+            ranges[index] = 0
+            active[index] = false
+        }
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < ids.length; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool define(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        if (id <= 0 || magazineSize <= 0 || reserveCapacity < 0 ||
+            cooldownTicks < 0 || damage <= 0 ||
+            channel < 0 || channel >= 4 || range <= 0) {
+            return false
+        }
+        var index = find(id)
+        if (index < 0) {
+            index = freeSlot()
+            if (index < 0) {
+                return false
+            }
+            ids[index] = id
+            active[index] = true
+        }
+        magazineSizes[index] = magazineSize
+        reserveCapacities[index] = reserveCapacity
+        cooldowns[index] = cooldownTicks
+        damages[index] = damage
+        channels[index] = channel
+        ranges[index] = range
+        pelletCounts[index] = 1
+        spreadPercents[index] = 0
+        return true
+    }
+
+    Bool has(Int id) {
+        return find(id) >= 0
+    }
+
+    Int magazineSize(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return magazineSizes[index]
+    }
+
+    Int reserveCapacity(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return reserveCapacities[index]
+    }
+
+    Int cooldownTicks(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return cooldowns[index]
+    }
+
+    Int damage(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return damages[index]
+    }
+
+    Int channel(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return channels[index]
+    }
+
+    Int range(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return ranges[index]
+    }
+    Bool setSpread(Int id, Int pellets, Int spreadPercent) {
+        var index = find(id)
+        if (index < 0 || pellets <= 0 || pellets > 8 ||
+            spreadPercent < 0 || spreadPercent > 100) {
+            return false
+        }
+        pelletCounts[index] = pellets
+        spreadPercents[index] = spreadPercent
+        return true
+    }
+
+    Int pellets(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return 0
+        }
+        return pelletCounts[index]
+    }
+
+    Int spread(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return -1
+        }
+        return spreadPercents[index]
+    }
+}
+
+class CombatWorld {
+    WeaponDefinitionStore weapons
+    Int[] actorIds
+    Int[] health
+    Int[] maxHealth
+    Int[] armor
+    Int[] weaponIds
+    Int[] magazines
+    Int[] reserves
+    Int[] nextReadyTicks
+    Int[] deathSequences
+    Int[] damageFlats
+    Int[] damagePercents
+    Int[] defenseFlats
+    Int[] shields
+    Int[] maxShields
+    Int[] resistancePercents
+    Int[] defensePercents
+    Bool[] active
+    Bool[] alive
+    Int nextShotId
+    Int deathCount
+    CombatEventQueue eventQueue
+    Int[] projectileIds
+    Int[] projectileSources
+    Int[] projectileWeapons
+    Bool[] projectileActive
+    Int nextProjectileId
+
+    public constructor(Int actorCapacity, Int weaponCapacity) {
+        weapons = WeaponDefinitionStore(weaponCapacity)
+        eventQueue = CombatEventQueue(actorCapacity * 4)
+        actorIds = new Int[actorCapacity]
+        health = new Int[actorCapacity]
+        maxHealth = new Int[actorCapacity]
+        armor = new Int[actorCapacity]
+        weaponIds = new Int[actorCapacity]
+        magazines = new Int[actorCapacity]
+        reserves = new Int[actorCapacity]
+        nextReadyTicks = new Int[actorCapacity]
+        deathSequences = new Int[actorCapacity]
+        damageFlats = new Int[actorCapacity]
+        damagePercents = new Int[actorCapacity]
+        shields = new Int[actorCapacity]
+        maxShields = new Int[actorCapacity]
+        resistancePercents = new Int[actorCapacity * 4]
+        defenseFlats = new Int[actorCapacity]
+        defensePercents = new Int[actorCapacity]
+        active = new Bool[actorCapacity]
+        alive = new Bool[actorCapacity]
+        projectileIds = new Int[actorCapacity]
+        projectileSources = new Int[actorCapacity]
+        projectileWeapons = new Int[actorCapacity]
+        projectileActive = new Bool[actorCapacity]
+        nextShotId = 1
+        nextProjectileId = 1
+        deathCount = 0
+        for (var index = 0; index < actorCapacity; index = index + 1) {
+            actorIds[index] = 0
+            health[index] = 0
+            maxHealth[index] = 0
+            armor[index] = 0
+            weaponIds[index] = 0
+            magazines[index] = 0
+            reserves[index] = 0
+            nextReadyTicks[index] = 0
+            deathSequences[index] = 0
+            damageFlats[index] = 0
+            damagePercents[index] = 0
+            defenseFlats[index] = 0
+            defensePercents[index] = 0
+            shields[index] = 0
+            maxShields[index] = 0
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                resistancePercents[index * 4 + channel] = 0
+            }
+            active[index] = false
+            alive[index] = false
+            projectileIds[index] = 0
+            projectileSources[index] = 0
+            projectileWeapons[index] = 0
+            projectileActive[index] = false
+        }
+    }
+
+    Int findActor(Int id) {
+        for (var index = 0; index < actorIds.length; index = index + 1) {
+            if (active[index] && actorIds[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeActorSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int findProjectile(Int id) {
+        for (var index = 0; index < projectileIds.length; index = index + 1) {
+            if (projectileActive[index] && projectileIds[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeProjectileSlot() {
+        for (var index = 0; index < projectileActive.length; index = index + 1) {
+            if (!projectileActive[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool defineWeapon(
+        Int id, Int magazineSize, Int reserveCapacity,
+        Int cooldownTicks, Int damage, Int channel, Int range
+    ) {
+        return weapons.define(
+            id, magazineSize, reserveCapacity,
+            cooldownTicks, damage, channel, range)
+    }
+    Bool setWeaponSpread(Int id, Int pellets, Int spreadPercent) {
+        return weapons.setSpread(id, pellets, spreadPercent)
+    }
+
+    Bool addActor(Int id, Int startingHealth, Int startingArmor) {
+        if (id <= 0 || startingHealth <= 0 || startingArmor < 0 ||
+            findActor(id) >= 0) {
+            return false
+        }
+        var index = freeActorSlot()
+        if (index < 0) {
+            return false
+        }
+        actorIds[index] = id
+        health[index] = startingHealth
+        maxHealth[index] = startingHealth
+        armor[index] = startingArmor
+        weaponIds[index] = 0
+        magazines[index] = 0
+        reserves[index] = 0
+        nextReadyTicks[index] = 0
+        deathSequences[index] = 0
+        damageFlats[index] = 0
+        damagePercents[index] = 0
+        defenseFlats[index] = 0
+        defensePercents[index] = 0
+        shields[index] = 0
+        maxShields[index] = 0
+        for (var channel = 0; channel < 4; channel = channel + 1) {
+            resistancePercents[index * 4 + channel] = 0
+        }
+        active[index] = true
+        alive[index] = true
+        return true
+    }
+
+    Bool removeActor(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return false
+        }
+        active[index] = false
+        alive[index] = false
+        actorIds[index] = 0
+        health[index] = 0
+        maxHealth[index] = 0
+        armor[index] = 0
+        weaponIds[index] = 0
+        magazines[index] = 0
+        reserves[index] = 0
+        nextReadyTicks[index] = 0
+        deathSequences[index] = 0
+        damageFlats[index] = 0
+        damagePercents[index] = 0
+
+        defenseFlats[index] = 0
+        defensePercents[index] = 0
+        shields[index] = 0
+        maxShields[index] = 0
+        for (var channel = 0; channel < 4; channel = channel + 1) {
+            resistancePercents[index * 4 + channel] = 0
+        }
+        return true
+    }
+    Int stateSlot(Int actorId) {
+        for (var index = 0; index < actorIds.length; index = index + 1) {
+            if (actorIds[index] == actorId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int replayStateLength() {
+        return 46
+    }
+
+    Bool encodeReplayState(Int[] target) {
+        if (target.length != replayStateLength()) {
+            return false
+        }
+        target[0] = 9101
+        target[1] = 1
+        target[2] = nextShotId
+        target[3] = deathCount
+        var offset = 4
+        for (var actorId = 1; actorId <= 2; actorId = actorId + 1) {
+            var slot = stateSlot(actorId)
+            if (slot < 0) {
+                target[offset] = 0
+                for (var missing = 1; missing < 21; missing = missing + 1) {
+                    target[offset + missing] = 0
+                }
+            } else {
+                target[offset] = actorIds[slot]
+                target[offset + 1] = 0
+                target[offset + 2] = 0
+                if (active[slot]) {
+                    target[offset + 1] = 1
+                }
+                if (alive[slot]) {
+                    target[offset + 2] = 1
+                }
+                target[offset + 3] = health[slot]
+                target[offset + 4] = maxHealth[slot]
+                target[offset + 5] = armor[slot]
+                target[offset + 6] = weaponIds[slot]
+                target[offset + 7] = magazines[slot]
+                target[offset + 8] = reserves[slot]
+                target[offset + 9] = nextReadyTicks[slot]
+                target[offset + 10] = deathSequences[slot]
+                target[offset + 11] = damageFlats[slot]
+                target[offset + 12] = damagePercents[slot]
+                target[offset + 13] = defenseFlats[slot]
+                target[offset + 14] = defensePercents[slot]
+                target[offset + 15] = shields[slot]
+                target[offset + 16] = maxShields[slot]
+                for (var channel = 0; channel < 4; channel = channel + 1) {
+                    target[offset + 17 + channel] =
+                        resistancePercents[slot * 4 + channel]
+                }
+            }
+            offset = offset + 21
+        }
+        return true
+    }
+
+    Bool restoreReplayState(Int[] source) {
+        if (source.length != replayStateLength() ||
+            source[0] != 9101 || source[1] != 1 ||
+            source[2] <= 0 || source[3] < 0) {
+            return false
+        }
+        var offset = 4
+        for (var actorId = 1; actorId <= 2; actorId = actorId + 1) {
+            var savedId = source[offset]
+            if (savedId != 0 && savedId != actorId) {
+                return false
+            }
+            if (savedId == actorId) {
+                var slot = stateSlot(actorId)
+                if (slot < 0 || source[offset + 1] < 0 ||
+                    source[offset + 1] > 1 || source[offset + 2] < 0 ||
+                    source[offset + 2] > 1 || source[offset + 3] < 0 ||
+                    source[offset + 4] <= 0 || source[offset + 5] < 0 ||
+                    source[offset + 6] < 0 || source[offset + 7] < 0 ||
+                    source[offset + 8] < 0 || source[offset + 9] < 0 ||
+                    source[offset + 10] < 0 || source[offset + 11] < 0 ||
+                    source[offset + 12] < 0 || source[offset + 13] < 0 ||
+                    source[offset + 14] < 0 || source[offset + 15] < 0 ||
+                    source[offset + 16] < source[offset + 15]) {
+                    return false
+                }
+                for (var channel = 0; channel < 4; channel = channel + 1) {
+                    if (source[offset + 17 + channel] < 0 ||
+                        source[offset + 17 + channel] > 100) {
+                        return false
+                    }
+                }
+                actorIds[slot] = actorId
+                active[slot] = source[offset + 1] == 1
+                alive[slot] = source[offset + 2] == 1
+                health[slot] = source[offset + 3]
+                maxHealth[slot] = source[offset + 4]
+                armor[slot] = source[offset + 5]
+                weaponIds[slot] = source[offset + 6]
+                magazines[slot] = source[offset + 7]
+                reserves[slot] = source[offset + 8]
+                nextReadyTicks[slot] = source[offset + 9]
+                deathSequences[slot] = source[offset + 10]
+                damageFlats[slot] = source[offset + 11]
+                damagePercents[slot] = source[offset + 12]
+                defenseFlats[slot] = source[offset + 13]
+                defensePercents[slot] = source[offset + 14]
+                shields[slot] = source[offset + 15]
+                maxShields[slot] = source[offset + 16]
+                for (var channel = 0; channel < 4; channel = channel + 1) {
+                    resistancePercents[slot * 4 + channel] =
+                        source[offset + 17 + channel]
+                }
+            }
+            offset = offset + 21
+        }
+        nextShotId = source[2]
+        deathCount = source[3]
+        nextProjectileId = 1
+        for (var projectile = 0; projectile < projectileActive.length; projectile = projectile + 1) {
+            projectileActive[projectile] = false
+        }
+        return eventQueue.reset()
+    }
+    Int allReplayStateLength() {
+        return 4 + actorIds.length * 21
+    }
+
+    Bool encodeAllReplayState(Int[] target) {
+        if (target.length != allReplayStateLength()) {
+            return false
+        }
+        target[0] = 9102
+        target[1] = 1
+        target[2] = nextShotId
+        target[3] = deathCount
+        var offset = 4
+        for (var slot = 0; slot < actorIds.length; slot = slot + 1) {
+            target[offset] = actorIds[slot]
+            target[offset + 1] = 0
+            target[offset + 2] = 0
+            if (active[slot]) {
+                target[offset + 1] = 1
+            }
+            if (alive[slot]) {
+                target[offset + 2] = 1
+            }
+            target[offset + 3] = health[slot]
+            target[offset + 4] = maxHealth[slot]
+            target[offset + 5] = armor[slot]
+            target[offset + 6] = weaponIds[slot]
+            target[offset + 7] = magazines[slot]
+            target[offset + 8] = reserves[slot]
+            target[offset + 9] = nextReadyTicks[slot]
+            target[offset + 10] = deathSequences[slot]
+            target[offset + 11] = damageFlats[slot]
+            target[offset + 12] = damagePercents[slot]
+            target[offset + 13] = defenseFlats[slot]
+            target[offset + 14] = defensePercents[slot]
+            target[offset + 15] = shields[slot]
+            target[offset + 16] = maxShields[slot]
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                target[offset + 17 + channel] =
+                    resistancePercents[slot * 4 + channel]
+            }
+            offset = offset + 21
+        }
+        return true
+    }
+
+    Bool restoreAllReplayState(Int[] source) {
+        if (source.length != allReplayStateLength() ||
+            source[0] != 9102 || source[1] != 1 ||
+            source[2] <= 0 || source[3] < 0) {
+            return false
+        }
+        var offset = 4
+        for (var slot = 0; slot < actorIds.length; slot = slot + 1) {
+            if (source[offset] < 0 || source[offset + 1] < 0 ||
+                source[offset + 1] > 1 || source[offset + 2] < 0 ||
+                source[offset + 2] > 1 || source[offset + 3] < 0 ||
+                source[offset + 4] < 0 || source[offset + 5] < 0 ||
+                source[offset + 6] < 0 || source[offset + 7] < 0 ||
+                source[offset + 8] < 0 || source[offset + 9] < 0 ||
+                source[offset + 10] < 0 || source[offset + 11] < 0 ||
+                source[offset + 12] < 0 || source[offset + 13] < 0 ||
+                source[offset + 14] < 0 || source[offset + 15] < 0 ||
+                source[offset + 16] < source[offset + 15]) {
+                return false
+            }
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                if (source[offset + 17 + channel] < 0 ||
+                    source[offset + 17 + channel] > 100) {
+                    return false
+                }
+            }
+            actorIds[slot] = source[offset]
+            active[slot] = source[offset + 1] == 1
+            alive[slot] = source[offset + 2] == 1
+            health[slot] = source[offset + 3]
+            maxHealth[slot] = source[offset + 4]
+            armor[slot] = source[offset + 5]
+            weaponIds[slot] = source[offset + 6]
+            magazines[slot] = source[offset + 7]
+            reserves[slot] = source[offset + 8]
+            nextReadyTicks[slot] = source[offset + 9]
+            deathSequences[slot] = source[offset + 10]
+            damageFlats[slot] = source[offset + 11]
+            damagePercents[slot] = source[offset + 12]
+            defenseFlats[slot] = source[offset + 13]
+            defensePercents[slot] = source[offset + 14]
+            shields[slot] = source[offset + 15]
+            maxShields[slot] = source[offset + 16]
+            for (var channel = 0; channel < 4; channel = channel + 1) {
+                resistancePercents[slot * 4 + channel] =
+                    source[offset + 17 + channel]
+            }
+            offset = offset + 21
+        }
+        nextShotId = source[2]
+        deathCount = source[3]
+        nextProjectileId = 1
+        for (var projectile = 0; projectile < projectileActive.length; projectile = projectile + 1) {
+            projectileActive[projectile] = false
+        }
+        return eventQueue.reset()
+    }
+
+
+    Bool setDamageModifier(Int actorId, Int flatValue, Int percentValue) {
+        var index = findActor(actorId)
+        if (index < 0 || flatValue < 0 || flatValue > 1000000 ||
+            percentValue < 0 || percentValue > 1000000) {
+            return false
+        }
+        damageFlats[index] = flatValue
+        damagePercents[index] = percentValue
+        return true
+    }
+    Bool setDefenseModifier(Int actorId, Int flatValue, Int percentValue) {
+        var index = findActor(actorId)
+        if (index < 0 || flatValue < 0 || flatValue > 1000000 ||
+            percentValue < 0 || percentValue > 100) {
+            return false
+        }
+        defenseFlats[index] = flatValue
+        defensePercents[index] = percentValue
+        return true
+    }
+    Bool setShield(Int actorId, Int currentValue, Int maximumValue) {
+        var index = findActor(actorId)
+        if (index < 0 || currentValue < 0 || maximumValue < 0 ||
+            currentValue > maximumValue || maximumValue > 1000000) {
+            return false
+        }
+        shields[index] = currentValue
+        maxShields[index] = maximumValue
+        return true
+    }
+
+    Int currentShield(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return -1
+        }
+        return shields[index]
+    }
+
+    Int maximumShield(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return -1
+        }
+        return maxShields[index]
+    }
+
+    Bool setResistance(Int actorId, Int channel, Int percentValue) {
+        var index = findActor(actorId)
+        if (index < 0 || channel < 0 || channel >= 4 ||
+            percentValue < 0 || percentValue > 100) {
+            return false
+        }
+        resistancePercents[index * 4 + channel] = percentValue
+        return true
+    }
+
+    Int resistance(Int actorId, Int channel) {
+        var index = findActor(actorId)
+        if (index < 0 || channel < 0 || channel >= 4) {
+            return -1
+        }
+        return resistancePercents[index * 4 + channel]
+    }
+
+    Int effectiveDamage(Int actorId, Int baseDamage) {
+        var index = findActor(actorId)
+        if (index < 0 || baseDamage <= 0) {
+            return 0
+        }
+        var flat = baseDamage + damageFlats[index]
+        if (flat > 1000000) {
+            flat = 1000000
+        }
+        var bonus = flat * damagePercents[index] / 100
+        if (bonus > 1000000 - flat) {
+            return 1000000
+        }
+        return flat + bonus
+    }
+
+    Bool equipWeapon(Int actorId, Int weaponId) {
+        var actorIndex = findActor(actorId)
+        if (actorIndex < 0 || !alive[actorIndex] || !weapons.has(weaponId)) {
+            return false
+        }
+        weaponIds[actorIndex] = weaponId
+        magazines[actorIndex] = weapons.magazineSize(weaponId)
+        reserves[actorIndex] = weapons.reserveCapacity(weaponId)
+        nextReadyTicks[actorIndex] = 0
+        return true
+    }
+
+    Bool reload(Int actorId) {
+        var actorIndex = findActor(actorId)
+        if (actorIndex < 0 || !alive[actorIndex]) {
+            return false
+        }
+        var weaponId = weaponIds[actorIndex]
+        if (!weapons.has(weaponId)) {
+            return false
+        }
+        var needed = weapons.magazineSize(weaponId) - magazines[actorIndex]
+        if (needed <= 0 || reserves[actorIndex] <= 0) {
+            return false
+        }
+        if (needed > reserves[actorIndex]) {
+            needed = reserves[actorIndex]
+        }
+        magazines[actorIndex] = magazines[actorIndex] + needed
+        reserves[actorIndex] = reserves[actorIndex] - needed
+        return true
+    }
+
+    ShotResult fire(Int actorId, Int tick) {
+        var actorIndex = findActor(actorId)
+        if (actorIndex < 0 || !alive[actorIndex] || tick < 0 ||
+            weaponIds[actorIndex] <= 0 ||
+            tick < nextReadyTicks[actorIndex] || magazines[actorIndex] <= 0) {
+            return ShotResult(false, 0, actorId, 0, 0, 0, 0)
+        }
+        var weaponId = weaponIds[actorIndex]
+        if (!weapons.has(weaponId)) {
+            return ShotResult(false, 0, actorId, weaponId, 0, 0, 0)
+        }
+        magazines[actorIndex] = magazines[actorIndex] - 1
+        nextReadyTicks[actorIndex] = tick + weapons.cooldownTicks(weaponId)
+        var result = ShotResult(
+            true, nextShotId, actorId, weaponId,
+            magazines[actorIndex], reserves[actorIndex], nextReadyTicks[actorIndex])
+        nextShotId = nextShotId + 1
+        return result
+    }
+
+    DamageResult applyDamage(DamageRequest request) {
+        var targetIndex = findActor(request.targetId())
+        if (targetIndex < 0 || !alive[targetIndex] || request.amount() <= 0 ||
+            request.channel() < 0 || request.channel() >= 4 ||
+            (request.critical() != 0 && request.critical() != 1)) {
+            return DamageResult(false, 0, 0, false, 0)
+        }
+        if (request.sourceId() > 0) {
+            var sourceIndex = findActor(request.sourceId())
+            if (sourceIndex < 0 || !alive[sourceIndex]) {
+                return DamageResult(false, 0, 0, false, 0)
+            }
+        }
+        var amount = request.amount()
+        if (request.critical() == 1) {
+            amount = amount * 2
+        }
+        var resistance = resistancePercents[
+            targetIndex * 4 + request.channel()]
+        var resistanceReduction = amount * resistance / 100
+        if (resistanceReduction >= amount) {
+            amount = 1
+        } else {
+            amount = amount - resistanceReduction
+        }
+        var effectiveArmor = armor[targetIndex] + defenseFlats[targetIndex]
+        if (effectiveArmor > 1000000) {
+            effectiveArmor = 1000000
+        }
+        var mitigated = amount - effectiveArmor
+        if (mitigated < 1) {
+            mitigated = 1
+        }
+        var reduction = mitigated * defensePercents[targetIndex] / 100
+        if (reduction >= mitigated) {
+            mitigated = 1
+        } else {
+            mitigated = mitigated - reduction
+        }
+        var shieldDamage = 0
+        if (shields[targetIndex] > 0) {
+            shieldDamage = mitigated
+            if (shieldDamage > shields[targetIndex]) {
+                shieldDamage = shields[targetIndex]
+            }
+            shields[targetIndex] = shields[targetIndex] - shieldDamage
+        }
+        var healthDamage = mitigated - shieldDamage
+        if (healthDamage > health[targetIndex]) {
+            healthDamage = health[targetIndex]
+        }
+        health[targetIndex] = health[targetIndex] - healthDamage
+        var died = false
+        if (health[targetIndex] == 0) {
+            alive[targetIndex] = false
+            deathCount = deathCount + 1
+            deathSequences[targetIndex] = deathCount
+            died = true
+        }
+        return DamageResult(
+            true, shieldDamage + healthDamage, health[targetIndex],
+            died, deathSequences[targetIndex])
+    }
+
+    AreaDamageResult resolveAreaDamage(
+        Int sourceId, Int[] targetIds, Int amount, Int channel, Int critical
+    ) {
+        if (targetIds.length <= 0 || targetIds.length > actorIds.length ||
+            amount <= 0 || channel < 0 || channel >= 4 ||
+            (critical != 0 && critical != 1) ||
+            targetIds.length > eventQueue.sequences.length ||
+            !eventQueue.hasRoom()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        if (sourceId <= 0) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex]) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        for (var index = 0; index < targetIds.length; index = index + 1) {
+            var targetIndex = findActor(targetIds[index])
+            if (targetIndex < 0 || !alive[targetIndex]) {
+                return AreaDamageResult(false, 0, 0, 0)
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (targetIds[prior] == targetIds[index]) {
+                    return AreaDamageResult(false, 0, 0, 0)
+                }
+            }
+        }
+        var totalApplied = 0
+        var deaths = 0
+        for (var target = 0; target < targetIds.length; target = target + 1) {
+            var damage = applyDamage(DamageRequest(
+                sourceId, targetIds[target], amount, channel, critical))
+            if (!damage.accepted()) {
+                return AreaDamageResult(false, target, totalApplied, deaths)
+            }
+            if (damage.applied() > 1000000 - totalApplied) {
+                totalApplied = 1000000
+            } else {
+                totalApplied = totalApplied + damage.applied()
+            }
+            if (damage.died()) {
+                deaths = deaths + 1
+            }
+            if (!eventQueue.push(
+                3, sourceId, targetIds[target], damage.applied(),
+                damage.remainingHealth(), damage.died())) {
+                return AreaDamageResult(false, target, totalApplied, deaths)
+            }
+        }
+        return AreaDamageResult(
+            true, targetIds.length, totalApplied, deaths)
+    }
+
+    ResolutionResult resolveHitscan(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var sourceIndex = findActor(sourceId)
+        var targetIndex = findActor(targetId)
+        if (sourceIndex < 0 || targetIndex < 0 ||
+            !alive[sourceIndex] || !alive[targetIndex] ||
+            tick < 0 || distance < 0 ||
+            (critical != 0 && critical != 1) ||
+            !eventQueue.hasRoom()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var weaponId = weaponIds[sourceIndex]
+        if (!weapons.has(weaponId) || distance > weapons.range(weaponId)) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var damage = applyDamage(DamageRequest(
+            sourceId, targetId, effectiveDamage(sourceId, weapons.damage(weaponId)),
+            weapons.channel(weaponId), critical))
+        if (!damage.accepted() ||
+            !eventQueue.push(
+                1, sourceId, targetId, damage.applied(),
+                damage.remainingHealth(), damage.died())) {
+            return ResolutionResult(false, shot.shotId(), sourceId, targetId,
+                0, 0, false, 0)
+        }
+        return ResolutionResult(
+            true, shot.shotId(), sourceId, targetId,
+            damage.applied(), damage.remainingHealth(), damage.died(),
+            eventQueue.lastSequence())
+    }
+
+    ShotgunPelletOffset shotgunPelletOffset(Int weaponId, Int pellet) {
+        var pelletCount = weapons.pellets(weaponId)
+        var spread = weapons.spread(weaponId)
+        if (!weapons.has(weaponId) || pellet < 0 ||
+            pellet >= pelletCount || pelletCount <= 0) {
+            return ShotgunPelletOffset(false, pellet, 0, 0)
+        }
+        if (pelletCount == 1) {
+            return ShotgunPelletOffset(true, pellet, 0, 0)
+        }
+        var x = 0
+        var y = 0
+        if (pelletCount == 2) {
+            x = -spread
+            if (pellet == 1) {
+                x = spread
+            }
+        } else if (pelletCount == 3) {
+            if (pellet == 0) {
+                y = spread
+            } else {
+                x = -spread
+                y = -spread
+                if (pellet == 2) {
+                    x = spread
+                }
+            }
+        } else if (pelletCount == 4) {
+            x = -spread
+            y = -spread
+            if (pellet == 1 || pellet == 3) {
+                x = spread
+            }
+            if (pellet >= 2) {
+                y = spread
+            }
+        } else {
+            if (pellet == 0) {
+                return ShotgunPelletOffset(true, pellet, 0, 0)
+            }
+            var ringIndex = pellet - 1
+            var ringCount = pelletCount - 1
+            if (ringIndex * 4 < ringCount) {
+                x = spread
+            } else if (ringIndex * 2 < ringCount) {
+                y = spread
+            } else if (ringIndex * 4 < ringCount * 3) {
+                x = -spread
+            } else {
+                y = -spread
+            }
+        }
+        return ShotgunPelletOffset(true, pellet, x, y)
+    }
+    Int shotgunPelletCount(Int sourceId) {
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex]) {
+            return 0
+        }
+        var weaponId = weaponIds[sourceIndex]
+        if (!weapons.has(weaponId)) {
+            return 0
+        }
+        return weapons.pellets(weaponId)
+    }
+
+    ShotgunPelletOffset shotgunPelletOffsetForSource(
+        Int sourceId, Int pellet
+    ) {
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex]) {
+            return ShotgunPelletOffset(false, pellet, 0, 0)
+        }
+        return shotgunPelletOffset(weaponIds[sourceIndex], pellet)
+    }
+
+    Int shotgunTargetStartIndex(
+        Int weaponId, Int pellet, Int targetCount
+    ) {
+        if (targetCount <= 0) {
+            return -1
+        }
+        var offset = shotgunPelletOffset(weaponId, pellet)
+        if (!offset.valid()) {
+            return -1
+        }
+        var x = offset.x()
+        if (x < 0) {
+            x = -x
+        }
+        var y = offset.y()
+        if (y < 0) {
+            y = -y
+        }
+        return (pellet + x + y) % targetCount
+    }
+    ResolutionResult resolveShotgun(
+        Int sourceId, Int targetId, Int tick, Int distance, Int critical
+    ) {
+        var sourceIndex = findActor(sourceId)
+        var targetIndex = findActor(targetId)
+        if (sourceIndex < 0 || targetIndex < 0 ||
+            !alive[sourceIndex] || !alive[targetIndex] ||
+            tick < 0 || distance < 0 ||
+            (critical != 0 && critical != 1)) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var weaponId = weaponIds[sourceIndex]
+        var pelletCount = weapons.pellets(weaponId)
+        if (!weapons.has(weaponId) || distance > weapons.range(weaponId) ||
+            pelletCount <= 0 ||
+            eventQueue.sequences.length - eventQueue.pending() < pelletCount) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return ResolutionResult(false, 0, sourceId, targetId, 0, 0, false, 0)
+        }
+        var totalApplied = 0
+        var remainingHealth = health[targetIndex]
+        var targetDied = false
+        var baseDamage = effectiveDamage(sourceId, weapons.damage(weaponId))
+        for (var pellet = 0; pellet < pelletCount; pellet = pellet + 1) {
+            if (!alive[targetIndex]) {
+                break
+            }
+            var spread = weapons.spread(weaponId) * pellet / pelletCount
+            var spreadReduction = baseDamage * spread / 100
+            var pelletDamage = baseDamage
+            if (spreadReduction >= pelletDamage) {
+                pelletDamage = 1
+            } else {
+                pelletDamage = pelletDamage - spreadReduction
+            }
+            var damage = applyDamage(DamageRequest(
+                sourceId, targetId, pelletDamage,
+                weapons.channel(weaponId), critical))
+            if (!damage.accepted() ||
+                !eventQueue.push(
+                    4, sourceId, targetId, damage.applied(),
+                    damage.remainingHealth(), damage.died())) {
+                return ResolutionResult(false, shot.shotId(), sourceId, targetId,
+                    0, 0, false, 0)
+            }
+            if (damage.applied() > 1000000 - totalApplied) {
+                totalApplied = 1000000
+            } else {
+                totalApplied = totalApplied + damage.applied()
+            }
+            remainingHealth = damage.remainingHealth()
+            if (damage.died()) {
+                targetDied = true
+                break
+            }
+        }
+        return ResolutionResult(
+            true, shot.shotId(), sourceId, targetId,
+            totalApplied, remainingHealth, targetDied,
+            eventQueue.lastSequence())
+    }
+    AreaDamageResult resolveShotgunTargets(
+        Int sourceId, Int[] targetIds, Int tick, Int distance, Int critical
+    ) {
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex] ||
+            targetIds.length <= 0 || targetIds.length > actorIds.length ||
+            tick < 0 || distance < 0 || (critical != 0 && critical != 1)) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var weaponId = weaponIds[sourceIndex]
+        var pelletCount = weapons.pellets(weaponId)
+        if (!weapons.has(weaponId) || distance > weapons.range(weaponId) ||
+            pelletCount <= 0 ||
+            eventQueue.sequences.length - eventQueue.pending() < pelletCount) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        for (var index = 0; index < targetIds.length; index = index + 1) {
+            var targetIndex = findActor(targetIds[index])
+            if (targetIndex < 0 || !alive[targetIndex]) {
+                return AreaDamageResult(false, 0, 0, 0)
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (targetIds[prior] == targetIds[index]) {
+                    return AreaDamageResult(false, 0, 0, 0)
+                }
+            }
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var totalApplied = 0
+        var hitCount = 0
+        var deaths = 0
+        var baseDamage = effectiveDamage(sourceId, weapons.damage(weaponId))
+        for (var pellet = 0; pellet < pelletCount; pellet = pellet + 1) {
+            var selectedTarget = -1
+            var start = pellet % targetIds.length
+            for (var offset = 0; offset < targetIds.length; offset = offset + 1) {
+                var candidate = targetIds[(start + offset) % targetIds.length]
+                if (findActor(candidate) >= 0 && alive[findActor(candidate)]) {
+                    selectedTarget = candidate
+                    break
+                }
+            }
+            if (selectedTarget < 0) {
+                break
+            }
+            var spread = weapons.spread(weaponId) * pellet / pelletCount
+            var spreadReduction = baseDamage * spread / 100
+            var pelletDamage = baseDamage
+            if (spreadReduction >= pelletDamage) {
+                pelletDamage = 1
+            } else {
+                pelletDamage = pelletDamage - spreadReduction
+            }
+            var damage = applyDamage(DamageRequest(
+                sourceId, selectedTarget, pelletDamage,
+                weapons.channel(weaponId), critical))
+            if (!damage.accepted() ||
+                !eventQueue.push(
+                    4, sourceId, selectedTarget, damage.applied(),
+                    damage.remainingHealth(), damage.died())) {
+                return AreaDamageResult(false, hitCount, totalApplied, deaths)
+            }
+            hitCount = hitCount + 1
+            if (damage.applied() > 1000000 - totalApplied) {
+                totalApplied = 1000000
+            } else {
+                totalApplied = totalApplied + damage.applied()
+            }
+            if (damage.died()) {
+                deaths = deaths + 1
+            }
+        }
+        return AreaDamageResult(true, hitCount, totalApplied, deaths)
+    }
+
+    AreaDamageResult resolveShotgunPelletTargets(
+        Int sourceId, Int[] targetIds, Int tick, Int distance, Int critical
+    ) {
+        var sourceIndex = findActor(sourceId)
+        if (sourceIndex < 0 || !alive[sourceIndex] ||
+            targetIds.length <= 0 || targetIds.length > actorIds.length ||
+            tick < 0 || distance < 0 || (critical != 0 && critical != 1)) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var weaponId = weaponIds[sourceIndex]
+        var pelletCount = weapons.pellets(weaponId)
+        if (!weapons.has(weaponId) || distance > weapons.range(weaponId) ||
+            pelletCount <= 0 || targetIds.length != pelletCount ||
+            eventQueue.sequences.length - eventQueue.pending() < pelletCount) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        for (var index = 0; index < targetIds.length; index = index + 1) {
+            if (targetIds[index] < 0) {
+                return AreaDamageResult(false, 0, 0, 0)
+            }
+            if (targetIds[index] > 0) {
+                var targetIndex = findActor(targetIds[index])
+                if (targetIndex < 0 || !alive[targetIndex]) {
+                    return AreaDamageResult(false, 0, 0, 0)
+                }
+            }
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var totalApplied = 0
+        var hitCount = 0
+        var deaths = 0
+        var baseDamage = effectiveDamage(sourceId, weapons.damage(weaponId))
+        for (var pellet = 0; pellet < pelletCount; pellet = pellet + 1) {
+            var selectedTarget = targetIds[pellet]
+            if (selectedTarget == 0) {
+                continue
+            }
+            var selectedIndex = findActor(selectedTarget)
+            if (selectedIndex < 0 || !alive[selectedIndex]) {
+                continue
+            }
+            var spread = weapons.spread(weaponId) * pellet / pelletCount
+            var spreadReduction = baseDamage * spread / 100
+            var pelletDamage = baseDamage
+            if (spreadReduction >= pelletDamage) {
+                pelletDamage = 1
+            } else {
+                pelletDamage = pelletDamage - spreadReduction
+            }
+            var damage = applyDamage(DamageRequest(
+                sourceId, selectedTarget, pelletDamage,
+                weapons.channel(weaponId), critical))
+            if (!damage.accepted() ||
+                !eventQueue.push(
+                    4, sourceId, selectedTarget, damage.applied(),
+                    damage.remainingHealth(), damage.died())) {
+                return AreaDamageResult(false, hitCount, totalApplied, deaths)
+            }
+            hitCount = hitCount + 1
+            if (damage.applied() > 1000000 - totalApplied) {
+                totalApplied = 1000000
+            } else {
+                totalApplied = totalApplied + damage.applied()
+            }
+            if (damage.died()) {
+                deaths = deaths + 1
+            }
+        }
+        return AreaDamageResult(true, hitCount, totalApplied, deaths)
+    }
+
+
+
+    ProjectileState spawnProjectile(Int sourceId, Int tick) {
+        var sourceIndex = findActor(sourceId)
+        var projectileIndex = freeProjectileSlot()
+        if (sourceIndex < 0 || projectileIndex < 0 ||
+            !alive[sourceIndex]) {
+            return ProjectileState(false, 0, sourceId, 0)
+        }
+        var shot = fire(sourceId, tick)
+        if (!shot.accepted()) {
+            return ProjectileState(false, 0, sourceId, 0)
+        }
+        projectileIds[projectileIndex] = nextProjectileId
+        projectileSources[projectileIndex] = sourceId
+        projectileWeapons[projectileIndex] = shot.weaponId()
+        projectileActive[projectileIndex] = true
+        var result = ProjectileState(
+            true, nextProjectileId, sourceId, shot.weaponId())
+        nextProjectileId = nextProjectileId + 1
+        return result
+    }
+
+    ResolutionResult resolveProjectile(
+        Int projectileId, Int targetId, Int distance, Int critical
+    ) {
+        var projectileIndex = findProjectile(projectileId)
+        var targetIndex = findActor(targetId)
+        if (projectileIndex < 0 || targetIndex < 0 ||
+            !alive[targetIndex] || distance < 0 ||
+            (critical != 0 && critical != 1) ||
+            !eventQueue.hasRoom()) {
+            return ResolutionResult(false, projectileId, 0, targetId, 0, 0, false, 0)
+        }
+        var sourceId = projectileSources[projectileIndex]
+        var weaponId = projectileWeapons[projectileIndex]
+        if (!weapons.has(weaponId) ||
+            distance > weapons.range(weaponId)) {
+            return ResolutionResult(false, projectileId, sourceId, targetId,
+                0, 0, false, 0)
+        }
+        var damage = applyDamage(DamageRequest(
+            sourceId, targetId, effectiveDamage(sourceId, weapons.damage(weaponId)),
+            weapons.channel(weaponId), critical))
+        if (!damage.accepted() ||
+            !eventQueue.push(
+                2, sourceId, targetId, damage.applied(),
+                damage.remainingHealth(), damage.died())) {
+            return ResolutionResult(false, projectileId, sourceId, targetId,
+                0, 0, false, 0)
+        }
+        projectileActive[projectileIndex] = false
+        return ResolutionResult(
+            true, projectileId, sourceId, targetId,
+            damage.applied(), damage.remainingHealth(), damage.died(),
+            eventQueue.lastSequence())
+    }
+
+    Bool projectileIsActive(Int projectileId) {
+        return findProjectile(projectileId) >= 0
+    }
+    Bool cancelProjectile(Int projectileId) {
+        var index = findProjectile(projectileId)
+        if (index < 0) {
+            return false
+        }
+        projectileActive[index] = false
+        return true
+    }
+
+
+    Int pendingCombatEvents() {
+        return eventQueue.pending()
+    }
+
+    Bool dequeueCombatEvent() {
+        return eventQueue.dequeue()
+    }
+
+    CombatEvent lastCombatEvent() {
+        return eventQueue.lastConsumed()
+    }
+
+    Bool isAlive(Int actorId) {
+        var index = findActor(actorId)
+        return index >= 0 && alive[index]
+    }
+
+    Int currentHealth(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return 0
+        }
+        return health[index]
+    }
+
+    Int magazine(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return 0
+        }
+        return magazines[index]
+    }
+
+    Int reserve(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return 0
+        }
+        return reserves[index]
+    }
+
+    Int deaths() {
+        return deathCount
+    }
+}

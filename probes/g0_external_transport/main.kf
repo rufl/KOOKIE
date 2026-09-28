@@ -1,0 +1,475 @@
+import core
+import session
+
+
+Bool sendPayload(Int[] payload) {
+    if (!kookie_transport_send_begin(payload.length)) {
+        return false
+    }
+    for (var index = 0; index < payload.length; index = index + 1) {
+        if (!kookie_transport_send_word(index, payload[index])) {
+            return false
+        }
+    }
+    if (!kookie_transport_send_commit()) {
+        return false
+    }
+    return true
+}
+
+Bool receivePayload(LoopbackSession session, Int[] payload, Bool host) {
+    var received = kookie_transport_receive()
+    if (received != payload.length || kookie_transport_last_status() != 1) {
+        return false
+    }
+    var expectedSum = 0
+    for (var index = 0; index < payload.length; index = index + 1) {
+        expectedSum = expectedSum + payload[index]
+    }
+    var headerMatches =
+        kookie_transport_receive_word(0) == payload[0] &&
+        kookie_transport_receive_word(1) == payload[1] &&
+        kookie_transport_receive_word(2) == payload[2] &&
+        kookie_transport_receive_word(3) == payload[3] &&
+        kookie_transport_receive_word(4) == payload[4] &&
+        kookie_transport_receive_word(5) == payload[5]
+    if (!headerMatches || kookie_transport_receive_sum() != expectedSum) {
+        return false
+    }
+    if (host) {
+        return session.applyBroadPhaseSnapshot(payload)
+    }
+    return session.applyRemoteBroadPhaseSnapshot(payload)
+}
+
+Bool openRemoteSlot(Int slot, Int hostPort) {
+    return kookie_transport_select_slot(slot) &&
+        kookie_transport_set_key_from_environment() &&
+        kookie_transport_open_remote_ipv4(127, 0, 0, 1, hostPort)
+}
+
+Int externalBoolWord(Bool value) {
+    if (value) {
+        return 1
+    }
+    return 0
+}
+Int[] externalRoleAction(Int player, Int sequence, Int tick, Int target) {
+    var payload = new Int[7]
+    payload[0] = 9001
+    payload[1] = 3
+    payload[2] = player
+    payload[3] = sequence
+    payload[4] = tick
+    payload[5] = target
+    payload[6] = 0
+    return payload
+}
+
+Bool externalRoleReceiveAck(Bool expected) {
+    var received = kookie_transport_receive()
+    if (received != 6 || kookie_transport_last_status() != 1) {
+        return false
+    }
+    return kookie_transport_receive_word(0) == 9001 &&
+        kookie_transport_receive_word(1) == 2 &&
+        kookie_transport_receive_word(2) == externalBoolWord(expected) &&
+        kookie_transport_receive_word(3) >= 0
+}
+
+Bool externalRoleSendAction(
+    Int player, Int sequence, Int tick, Int target, Bool expected
+) {
+    return sendPayload(externalRoleAction(player, sequence, tick, target)) &&
+        externalRoleReceiveAck(expected)
+}
+
+Bool externalRoleHostAck(LoopbackSession host, Bool accepted) {
+    var ack = new Int[6]
+    ack[0] = 9001
+    ack[1] = 2
+    ack[2] = externalBoolWord(accepted)
+    ack[3] = host.worldInteractionRevision()
+    ack[4] = host.playerCombatHealth(3)
+    ack[5] = host.clientWorldSecretCount()
+    return kookie_transport_set_peer_last_sender() && sendPayload(ack)
+}
+
+Bool externalRoleHostReceiveSnapshot(
+    LoopbackSession host, Int[] expected
+) {
+    if (!receivePayload(host, expected, true)) {
+        return false
+    }
+    return externalRoleHostAck(host, true)
+}
+
+Bool externalRoleHostReceiveAction(
+    LoopbackSession host,
+    Int slot,
+    Int player,
+    Int sequence,
+    Int tick,
+    Int target,
+    Bool advance
+) {
+    if (!kookie_transport_select_slot(slot) ||
+        kookie_transport_receive() != 7 ||
+        kookie_transport_last_status() != 1 ||
+        kookie_transport_receive_word(0) != 9001 ||
+        kookie_transport_receive_word(1) != 3 ||
+        kookie_transport_receive_word(2) != player ||
+        kookie_transport_receive_word(3) != sequence ||
+        kookie_transport_receive_word(4) != tick ||
+        kookie_transport_receive_word(5) != target) {
+        return false
+    }
+    var accepted = host.receiveInteraction(player, tick, sequence, target)
+    if (advance && accepted) {
+        accepted = host.advance(16667) == 1
+    }
+    return externalRoleHostAck(host, accepted)
+}
+
+Bool externalRoleHostQualification() {
+    var host = LoopbackSession(4, 4)
+    assert(host.defineWorldKey(1, 0, 0, 0, 0) &&
+        host.defineWorldDoor(2, 1, 0, 0, 0, 0) &&
+        host.defineWorldSecret(3, 0, 0, 0, 0) &&
+        host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
+        host.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
+        host.definePlayerWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.addPlayerCombatActor(1, 20, 0) &&
+        host.addPlayerCombatActor(3, 8, 0) &&
+        host.equipPlayerCombatWeapon(1, 9),
+        "external host must configure production session")
+    var healthBeforeShot = host.playerCombatHealth(3)
+    var shot = host.resolvePlayerHitscan(1, 3, 1, 10, 0)
+    assert(shot.accepted() && shot.applied() > 0 &&
+        host.playerCombatHealth(3) < healthBeforeShot,
+        "external host must apply server-owned damage")
+    assert(kookie_transport_select_slot(0) &&
+        kookie_transport_set_key_from_environment() &&
+        kookie_transport_open_listen_ipv4(47101) &&
+        kookie_transport_select_slot(1) &&
+        kookie_transport_set_key_from_environment() &&
+        kookie_transport_open_listen_ipv4(47102),
+        "external host must bind two authenticated listeners")
+    var expectedA = host.broadPhaseSnapshot(6, 6)
+    var expectedB = host.broadPhaseSnapshot(7, 7)
+    assert(kookie_transport_select_slot(0) &&
+        externalRoleHostReceiveSnapshot(host, expectedA) &&
+        kookie_transport_select_slot(1) &&
+        externalRoleHostReceiveSnapshot(host, expectedB),
+        "external host must authenticate two client snapshots")
+    assert(externalRoleHostReceiveAction(host, 0, 1, 1, 1, 1, false) &&
+        externalRoleHostReceiveAction(host, 1, 2, 1, 1, 2, false) &&
+        host.advance(16667) == 1 &&
+        host.lastInteractionAccepted(1) &&
+        host.lastInteractionAccepted(2) &&
+        host.worldInteractionActive(1) &&
+        host.worldInteractionActive(2),
+        "external host must admit key then door actions")
+    assert(externalRoleHostReceiveAction(host, 0, 1, 1, 2, 3, false) &&
+        externalRoleHostReceiveAction(host, 0, 1, 2, 2, 3, false) &&
+        externalRoleHostReceiveAction(host, 1, 2, 2, 2, 3, false) &&
+        host.advance(16667) == 1 &&
+        host.worldSecretCount() == 1 &&
+        host.clientWorldSecretCount() == 1,
+        "external host must reject stale input and single-credit secret")
+    assert(externalRoleHostReceiveAction(host, 1, 2, 3, 3, 4, true),
+        "external host must apply exit action")
+    assert(host.levelCompleted() &&
+        host.clientLevelCompleted() &&
+        host.worldInteractionRevision() == 4,
+        "external host must complete the interaction path")
+    assert(host.disconnectPlayer(2) &&
+        host.connectPlayer() == 2,
+        "external host must reconnect client two")
+    println("external-role-processes")
+    println("external-gameplay")
+    println("external-host-port-a")
+    println(47101)
+    println("external-host-port-b")
+    println(47102)
+    println("external-host-reconnect")
+    println("external-combat-damage")
+    println(healthBeforeShot - host.playerCombatHealth(3))
+    println("external-interaction-revision")
+    println(host.worldInteractionRevision())
+    println("external-authenticated-two-clients")
+    println("external-stale-rejection")
+    println("external-authentication-status")
+    println(1)
+    assert(kookie_transport_select_slot(0) &&
+        kookie_transport_received_sequence_at_least(4),
+        "external host must inspect client A sequence")
+    assert(kookie_transport_select_slot(1) &&
+        kookie_transport_received_sequence_at_least(4),
+        "external host must inspect client B sequence")
+    println("external-transport-sequence-a")
+    println(4)
+    println("external-transport-sequence-b")
+    println(4)
+    kookie_transport_select_slot(0)
+    kookie_transport_close()
+    kookie_transport_select_slot(1)
+    kookie_transport_close()
+    println("KOOKIE external-style authenticated host/two-client transport verified")
+    return true
+}
+
+Bool externalRoleClientQualification(Int clientId) {
+    var client = LoopbackSession(4, 4)
+    var hostFirstOctet = kookie_transport_external_host_octet(0)
+    var hostSecondOctet = kookie_transport_external_host_octet(1)
+    var hostThirdOctet = kookie_transport_external_host_octet(2)
+    var hostFourthOctet = kookie_transport_external_host_octet(3)
+    var hostPort = 47101
+    var snapshotTick = 6
+    if (clientId == 2) {
+        hostPort = 47102
+        snapshotTick = 7
+    }
+    var endpoint = RemoteSessionEndpoint(
+        hostFirstOctet, hostSecondOctet, hostThirdOctet, hostFourthOctet,
+        hostPort, 1, 2, 3, 4)
+    assert(endpoint.valid() &&
+        client.start() &&
+        client.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
+        kookie_transport_select_slot(0) &&
+        kookie_transport_set_key_from_environment() &&
+        kookie_transport_open_remote_environment(hostPort) &&
+        client.configureRemoteEndpoint(
+            hostFirstOctet, hostSecondOctet, hostThirdOctet, hostFourthOctet,
+            hostPort,
+            endpoint.keyWord(0), endpoint.keyWord(1),
+            endpoint.keyWord(2), endpoint.keyWord(3)) &&
+        client.openRemoteSession() &&
+        client.pumpRemoteBroadPhaseSnapshot(snapshotTick),
+        "external client must authenticate and stage its snapshot")
+    var snapshot = client.broadPhaseSnapshot(
+        snapshotTick, client.remoteSendSequence())
+    assert(sendPayload(snapshot) && externalRoleReceiveAck(true),
+        "external client must complete authenticated snapshot exchange")
+    if (clientId == 1) {
+        assert(externalRoleSendAction(1, 1, 1, 1, true) &&
+            externalRoleSendAction(1, 1, 2, 3, false) &&
+            externalRoleSendAction(1, 2, 2, 3, true),
+            "client one must prove stale and accepted interaction sequence")
+    } else {
+        assert(client.closeRemoteSession(),
+            "client two must close its first remote session")
+        assert(client.configureRemoteEndpoint(
+                hostFirstOctet, hostSecondOctet, hostThirdOctet, hostFourthOctet,
+                hostPort,
+                endpoint.keyWord(0), endpoint.keyWord(1),
+                endpoint.keyWord(2), endpoint.keyWord(3)) &&
+            client.openRemoteSession(),
+            "client two must reopen its remote session")
+        assert(externalRoleSendAction(2, 1, 1, 2, true),
+            "client two must send the key interaction after reconnect")
+        assert(externalRoleSendAction(2, 2, 2, 3, true),
+            "client two must send the secret interaction after reconnect")
+        assert(externalRoleSendAction(2, 3, 3, 4, true),
+            "client two must send the exit interaction after reconnect")
+    }
+    client.closeRemoteSession()
+    kookie_transport_close()
+    return true
+}
+
+main() {
+    var hostRole = kookie_transport_external_is_host()
+    var clientARole = kookie_transport_external_is_client_a()
+    var clientBRole = kookie_transport_external_is_client_b()
+    if (hostRole) {
+        println("external-role-host")
+    } else if (clientARole) {
+        println("external-role-client-a")
+    } else if (clientBRole) {
+        println("external-role-client-b")
+    } else {
+        println("external-role-default")
+    }
+    if (hostRole) {
+        assert(externalRoleHostQualification(),
+            "external host role must qualify")
+    } else if (clientARole) {
+        assert(externalRoleClientQualification(1),
+            "external client A role must qualify")
+    } else if (clientBRole) {
+        assert(externalRoleClientQualification(2),
+            "external client B role must qualify")
+    } else {
+    var host = LoopbackSession(4, 4)
+    var clientA = LoopbackSession(4, 4)
+    var clientB = LoopbackSession(4, 4)
+    var endpointA = RemoteSessionEndpoint(127, 0, 0, 1, 47101, 1, 2, 3, 4)
+    var endpointB = RemoteSessionEndpoint(127, 0, 0, 1, 47102, 1, 2, 3, 4)
+    assert(endpointA.valid() && endpointB.valid() &&
+        host.defineWorldKey(1, 0, 0, 0, 0) &&
+        host.defineWorldDoor(2, 1, 0, 0, 0, 0) &&
+        host.defineWorldSecret(3, 0, 0, 0, 0) &&
+        host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
+        clientA.start() && clientB.start() &&
+        host.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
+        clientA.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5) &&
+        clientB.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+        "transport-only sessions must configure bounded geometry")
+    var hostPortA = 47101
+    var hostPortB = 47102
+    assert(kookie_transport_select_slot(0), "host slot A must select")
+    assert(kookie_transport_set_key_from_environment(),
+        "host slot A must authenticate")
+    assert(kookie_transport_open_listen_ipv4(hostPortA),
+        "host slot A must bind")
+    assert(kookie_transport_select_slot(1), "host slot B must select")
+    assert(kookie_transport_set_key_from_environment(),
+        "host slot B must authenticate")
+    assert(kookie_transport_open_listen_ipv4(hostPortB),
+        "host slot B must bind")
+    assert(openRemoteSlot(2, hostPortA),
+        "client A must bind and target host listener A")
+    var clientPortA = kookie_transport_local_port()
+    assert(openRemoteSlot(3, hostPortB),
+        "client B must bind and target host listener B")
+    var clientPortB = kookie_transport_local_port()
+    assert(clientPortA > 0 && clientPortB > 0 &&
+        clientA.configureRemoteEndpoint(
+            127, 0, 0, 1, hostPortA,
+            endpointA.keyWord(0), endpointA.keyWord(1),
+            endpointA.keyWord(2), endpointA.keyWord(3)) &&
+        clientA.openRemoteSession() &&
+        clientB.configureRemoteEndpoint(
+            127, 0, 0, 1, hostPortB,
+            endpointB.keyWord(0), endpointB.keyWord(1),
+            endpointB.keyWord(2), endpointB.keyWord(3)) &&
+        clientB.openRemoteSession(),
+        "two clients must authenticate against host endpoints")
+    assert(clientA.pumpRemoteBroadPhaseSnapshot(6) &&
+        clientB.pumpRemoteBroadPhaseSnapshot(7),
+        "clients must stage authoritative snapshots")
+    var payloadA = clientA.broadPhaseSnapshot(6, clientA.remoteSendSequence())
+    var payloadB = clientB.broadPhaseSnapshot(7, clientB.remoteSendSequence())
+    assert(kookie_transport_select_slot(2), "client A transport slot must select")
+    assert(sendPayload(payloadA), "client A must send snapshot")
+    assert(kookie_transport_select_slot(0), "host A transport slot must select")
+    assert(receivePayload(host, payloadA, true),
+        "host must receive client A snapshot")
+    assert(kookie_transport_select_slot(3), "client B transport slot must select")
+    assert(sendPayload(payloadB), "client B must send snapshot")
+    assert(kookie_transport_select_slot(1), "host B transport slot must select")
+    assert(receivePayload(host, payloadB, true),
+        "host must receive client B snapshot")
+    assert(clientB.closeRemoteSession() &&
+        kookie_transport_select_slot(3) &&
+        kookie_transport_set_peer_ipv4(127, 0, 0, 1, hostPortB),
+        "client B must close and reopen its authenticated session")
+    var reconnectClientPortB = kookie_transport_local_port()
+    assert(reconnectClientPortB > 0 &&
+        clientB.configureRemoteEndpoint(
+            127, 0, 0, 1, hostPortB,
+            endpointB.keyWord(0), endpointB.keyWord(1),
+            endpointB.keyWord(2), endpointB.keyWord(3)) &&
+        clientB.openRemoteSession() &&
+        clientB.pumpRemoteBroadPhaseSnapshot(8),
+        "client B must reconnect the production session link")
+    var reconnectPayloadB = clientB.broadPhaseSnapshot(
+        8, clientB.remoteSendSequence())
+    assert(kookie_transport_select_slot(3) &&
+        sendPayload(reconnectPayloadB) &&
+        kookie_transport_select_slot(1) &&
+        receivePayload(host, reconnectPayloadB, true),
+        "host must accept client B after reconnect")
+    assert(host.definePlayerWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.addPlayerCombatActor(1, 20, 0) &&
+        host.addPlayerCombatActor(3, 8, 0) &&
+        host.equipPlayerCombatWeapon(1, 9),
+        "host must configure authoritative combat")
+    var healthBeforeShot = host.playerCombatHealth(3)
+    var shot = host.resolvePlayerHitscan(1, 3, 1, 10, 0)
+    assert(shot.accepted() && shot.applied() > 0 &&
+        host.playerCombatHealth(3) < healthBeforeShot,
+        "host must apply server-owned damage")
+    assert(host.receiveInteraction(1, 1, 1, 1) &&
+        host.receiveInteraction(2, 1, 1, 2) &&
+        host.advance(16667) == 1 &&
+        host.lastInteractionAccepted(1) &&
+        host.lastInteractionAccepted(2) &&
+        host.worldInteractionActive(1) &&
+        host.worldInteractionActive(2),
+        "host must admit key then door progression")
+    assert(!host.receiveInteraction(1, 2, 1, 3) &&
+        host.receiveInteraction(1, 2, 2, 3) &&
+        host.receiveInteraction(2, 2, 2, 3) &&
+        host.advance(16667) == 1 &&
+        host.worldSecretCount() == 1 &&
+        host.clientWorldSecretCount() == 1,
+        "host must reject stale input and replicate one secret")
+    assert(host.receiveInteraction(2, 3, 3, 4) &&
+        host.advance(16667) == 1 &&
+        host.levelCompleted() &&
+        host.clientLevelCompleted() &&
+        host.worldInteractionRevision() == 4,
+        "host must complete the authenticated key-door-secret-exit path")
+    assert(host.disconnectPlayer(2) &&
+        host.connectPlayer() == 2 &&
+        host.clientLevelCompleted(),
+        "host must admit a reconnecting client identity")
+    println("external-gameplay")
+    println("external-host-port-a")
+    println(hostPortA)
+    println("external-host-port-b")
+    println(hostPortB)
+    println("external-host-reconnect")
+    println("external-combat-damage")
+    println(healthBeforeShot - host.playerCombatHealth(3))
+    println("external-interaction-revision")
+    println(host.worldInteractionRevision())
+    var hostPayloadA = host.broadPhaseSnapshot(6, 1)
+    var hostPayloadB = host.broadPhaseSnapshot(6, 1)
+    assert(kookie_transport_select_slot(0) &&
+        kookie_transport_set_peer_ipv4(127, 0, 0, 1, clientPortA) &&
+        sendPayload(hostPayloadA) && kookie_transport_select_slot(2) &&
+        receivePayload(clientA, hostPayloadA, false) &&
+        kookie_transport_select_slot(1) &&
+        kookie_transport_set_peer_ipv4(127, 0, 0, 1, reconnectClientPortB) &&
+        sendPayload(hostPayloadB) && kookie_transport_select_slot(3) &&
+        receivePayload(clientB, hostPayloadB, false),
+        "host must serve authenticated snapshots to both clients")
+    assert(kookie_transport_select_slot(2) &&
+        kookie_transport_replay_last_datagram() &&
+        kookie_transport_select_slot(0) &&
+        kookie_transport_receive() == 0 &&
+        kookie_transport_last_status() == 3,
+        "host must reject a replayed client datagram")
+    println("external-authentication-status")
+    println(1)
+    assert(kookie_transport_select_slot(0) &&
+        kookie_transport_received_sequence_at_least(1),
+        "host must inspect integrated client A sequence")
+    assert(kookie_transport_select_slot(1) &&
+        kookie_transport_received_sequence_at_least(2),
+        "host must inspect integrated client B sequence")
+    println("external-transport-sequence-a")
+    println(1)
+    println("external-transport-sequence-b")
+    println(2)
+    println("external-authenticated-two-clients")
+    println("external-stale-rejection")
+    clientA.closeRemoteSession()
+    clientB.closeRemoteSession()
+    kookie_transport_select_slot(0)
+    kookie_transport_close()
+    kookie_transport_select_slot(1)
+    kookie_transport_close()
+    kookie_transport_select_slot(2)
+    kookie_transport_close()
+    kookie_transport_select_slot(3)
+    kookie_transport_close()
+    println("KOOKIE external-style authenticated host/two-client transport verified")
+    }
+}

@@ -1,0 +1,149 @@
+package core
+
+class BoundedCraftRecipe {
+    Int[] ingredientIds
+    Int[] ingredientQuantities
+    Int ingredientCountValue
+    Int currencyCostValue
+    BoundedItemRoll outputValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        if (actualCapacity > 4) {
+            actualCapacity = 4
+        }
+        ingredientIds = new Int[actualCapacity]
+        ingredientQuantities = new Int[actualCapacity]
+        ingredientCountValue = 0
+        currencyCostValue = 0
+        outputValue = BoundedItemRoll()
+    }
+
+    Int ingredientCount() {
+        return ingredientCountValue
+    }
+
+    Int ingredientId(Int index) {
+        if (index < 0 || index >= ingredientCountValue) {
+            return -1
+        }
+        return ingredientIds[index]
+    }
+
+    Int ingredientQuantity(Int index) {
+        if (index < 0 || index >= ingredientCountValue) {
+            return -1
+        }
+        return ingredientQuantities[index]
+    }
+
+    Int currencyCost() {
+        return currencyCostValue
+    }
+
+    Bool addIngredient(Int itemId, Int quantity) {
+        if (itemId <= 0 || quantity <= 0 || quantity > 1000000 ||
+            ingredientCountValue >= ingredientIds.length ||
+            findIngredient(itemId) >= 0) {
+            return false
+        }
+        ingredientIds[ingredientCountValue] = itemId
+        ingredientQuantities[ingredientCountValue] = quantity
+        ingredientCountValue = ingredientCountValue + 1
+        return true
+    }
+
+    Bool setCurrencyCost(Int amount) {
+        if (amount < 0 || amount > 1000000) {
+            return false
+        }
+        currencyCostValue = amount
+        return true
+    }
+
+    Bool setOutput(BoundedItemRoll output) {
+        if (!output.accepted()) {
+            return false
+        }
+        outputValue = output
+        return true
+    }
+
+    Bool hasOutput() {
+        return outputValue.accepted()
+    }
+
+    BoundedItemRoll output() {
+        return outputValue
+    }
+
+    Int findIngredient(Int itemId) {
+        for (var index = 0; index < ingredientCountValue; index = index + 1) {
+            if (ingredientIds[index] == itemId) {
+                return index
+            }
+        }
+        return -1
+    }
+}
+
+class BoundedCraftingSystem {
+    Int maxQuantity
+
+    public constructor() {
+        maxQuantity = 1000000
+    }
+
+    Bool validate(BoundedItemInventory inventory, BoundedCraftRecipe recipe) {
+        if (!recipe.hasOutput() || inventory.itemCount() >= inventory.itemCapacity() ||
+            inventory.rolledItemCount() >= inventory.rolledItemCapacity() ||
+            inventory.currency() < recipe.currencyCost()) {
+            return false
+        }
+        var output = recipe.output()
+        if (output.stableId() <= 0 || inventoryContains(inventory, output.stableId())) {
+            return false
+        }
+        for (var index = 0; index < recipe.ingredientCount(); index = index + 1) {
+            var itemIndex = findItem(inventory, recipe.ingredientId(index))
+            if (itemIndex < 0 ||
+                recipe.ingredientQuantity(index) > inventory.itemQuantity(itemIndex)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool craft(BoundedItemInventory inventory, BoundedCraftRecipe recipe) {
+        if (!validate(inventory, recipe)) {
+            return false
+        }
+        for (var index = 0; index < recipe.ingredientCount(); index = index + 1) {
+            if (!inventory.removeItem(
+                recipe.ingredientId(index), recipe.ingredientQuantity(index))) {
+                return false
+            }
+        }
+        if (recipe.currencyCost() > 0 &&
+            !inventory.withdrawCurrency(recipe.currencyCost())) {
+            return false
+        }
+        return inventory.addLootedItem(recipe.output(), 1)
+    }
+
+    Bool inventoryContains(BoundedItemInventory inventory, Int itemId) {
+        return findItem(inventory, itemId) >= 0
+    }
+
+    Int findItem(BoundedItemInventory inventory, Int itemId) {
+        for (var index = 0; index < inventory.itemCount(); index = index + 1) {
+            if (inventory.itemId(index) == itemId) {
+                return index
+            }
+        }
+        return -1
+    }
+}

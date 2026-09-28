@@ -1,0 +1,69 @@
+package core
+
+record CollisionResult(
+    Bool accepted,
+    Bool collided,
+    Int startPosition,
+    Int requestedPosition,
+    Int resolvedPosition,
+    Int distance
+)
+
+class BoundedCollisionWorld {
+    Int minPosition
+    Int maxPosition
+    Int maxDistance
+
+    public constructor(Int nextMinPosition, Int nextMaxPosition, Int nextMaxDistance) {
+        minPosition = nextMinPosition
+        maxPosition = nextMaxPosition
+        maxDistance = nextMaxDistance
+        if (minPosition > maxPosition) {
+            minPosition = -1000000
+            maxPosition = 1000000
+        }
+        if (maxDistance <= 0) {
+            maxDistance = 1
+        }
+    }
+
+    Bool configure(Int nextMinPosition, Int nextMaxPosition, Int nextMaxDistance) {
+        if (nextMinPosition > nextMaxPosition || nextMaxDistance <= 0) {
+            return false
+        }
+        minPosition = nextMinPosition
+        maxPosition = nextMaxPosition
+        maxDistance = nextMaxDistance
+        return true
+    }
+
+    CollisionResult query(Int startPosition, Int requestedStep) {
+        if (startPosition < minPosition || startPosition > maxPosition ||
+            requestedStep > maxDistance || requestedStep < -maxDistance) {
+            return CollisionResult(false, false, startPosition, startPosition, startPosition, 0)
+        }
+        var requestedPosition = startPosition + requestedStep
+        var resolvedPosition = requestedPosition
+        if (resolvedPosition < minPosition) {
+            resolvedPosition = minPosition
+        }
+        if (resolvedPosition > maxPosition) {
+            resolvedPosition = maxPosition
+        }
+        return CollisionResult(
+            true,
+            resolvedPosition != requestedPosition,
+            startPosition,
+            requestedPosition,
+            resolvedPosition,
+            resolvedPosition - startPosition)
+    }
+
+    Int lowerBound() {
+        return minPosition
+    }
+
+    Int upperBound() {
+        return maxPosition
+    }
+}

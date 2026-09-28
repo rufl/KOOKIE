@@ -1,0 +1,194 @@
+package content
+
+record GlbCookResult(
+    Bool accepted,
+    Int packageChecksum,
+    Int geometryChecksum,
+    Int collisionChecksum,
+    Int navigationChecksum,
+    Int generation,
+    Int triangleCount,
+    Int navigationNodeCount
+)
+
+class BoundedGlbCooker {
+    BoundedAuthoredCollision collisionValue
+    BoundedNavigationProduct navigationValue
+    BoundedProductPublication publicationValue
+    BoundedCollisionPackageAdmission admissionValue
+    Bool acceptedValue
+    Int packageChecksumValue
+    Int geometryChecksumValue
+    Int collisionChecksumValue
+    Int navigationChecksumValue
+    Int generationValue
+    Int triangleCountValue
+    Int navigationNodeCountValue
+
+    public constructor(
+        Int vertexCapacity,
+        Int triangleCapacity,
+        Int navigationCapacity
+    ) {
+        var actualVertices = vertexCapacity
+        var actualTriangles = triangleCapacity
+        var actualNavigation = navigationCapacity
+        if (actualVertices <= 0) {
+            actualVertices = 1
+        }
+        if (actualTriangles <= 0) {
+            actualTriangles = 1
+        }
+        if (actualNavigation <= 0) {
+            actualNavigation = actualTriangles
+        }
+        collisionValue = BoundedAuthoredCollision(actualVertices, actualTriangles)
+        navigationValue = BoundedNavigationProduct(actualNavigation)
+        publicationValue = BoundedProductPublication()
+        admissionValue = BoundedCollisionPackageAdmission()
+        clear()
+    }
+
+    Bool clear() {
+        collisionValue.clear()
+        navigationValue.clear()
+        publicationValue.clear()
+        admissionValue.clear()
+        acceptedValue = false
+        packageChecksumValue = 0
+        geometryChecksumValue = 0
+        collisionChecksumValue = 0
+        navigationChecksumValue = 0
+        generationValue = 0
+        triangleCountValue = 0
+        navigationNodeCountValue = 0
+        return true
+    }
+
+    Bool sharesEdge(BoundedExternalGlbSceneReader reader, Int first, Int second) {
+        var shared = 0
+        for (var firstCorner = 0; firstCorner < 3; firstCorner = firstCorner + 1) {
+            var firstVertex = reader.triangleVertex(first, firstCorner)
+            for (var secondCorner = 0; secondCorner < 3; secondCorner = secondCorner + 1) {
+                if (firstVertex == reader.triangleVertex(second, secondCorner)) {
+                    shared = shared + 1
+                }
+            }
+        }
+        return shared >= 2
+    }
+
+    Bool buildNavigation(BoundedExternalGlbSceneReader reader) {
+        if (!navigationValue.configure(
+                reader.sourceNamespaceId(), reader.sourceAssetId(),
+                reader.sourceRevision())) {
+            return false
+        }
+        for (var index = 0; index < reader.triangleCount(); index = index + 1) {
+            var first = reader.triangleVertex(index, 0)
+            var second = reader.triangleVertex(index, 1)
+            var third = reader.triangleVertex(index, 2)
+            if (first < 0 || second < 0 || third < 0) {
+                return false
+            }
+            var x = (reader.vertexCoordinate(first, 0) +
+                reader.vertexCoordinate(second, 0) +
+                reader.vertexCoordinate(third, 0)) / 3
+            var y = (reader.vertexCoordinate(first, 1) +
+                reader.vertexCoordinate(second, 1) +
+                reader.vertexCoordinate(third, 1)) / 3
+            var z = (reader.vertexCoordinate(first, 2) +
+                reader.vertexCoordinate(second, 2) +
+                reader.vertexCoordinate(third, 2)) / 3
+            if (!navigationValue.addNode(index + 1, x, y, z)) {
+                return false
+            }
+        }
+        for (var first = 0; first < reader.triangleCount(); first = first + 1) {
+            for (var second = first + 1;
+                second < reader.triangleCount(); second = second + 1) {
+                if (sharesEdge(reader, first, second) &&
+                    !navigationValue.addEdge(first + 1, second + 1)) {
+                    return false
+                }
+            }
+        }
+        return navigationValue.seal() && navigationValue.validate()
+    }
+
+    GlbCookResult failure() {
+        return GlbCookResult(
+            false, packageChecksumValue, geometryChecksumValue,
+            collisionChecksumValue, navigationChecksumValue, generationValue,
+            triangleCountValue, navigationNodeCountValue)
+    }
+
+    Bool cook(
+        BoundedContentPackage packageValue,
+        BoundedExternalGlbSceneReader reader,
+        Int chunkId,
+        Int chunkKind,
+        BoundedGenerationCache cache
+    ) {
+        clear()
+        if (!reader.valid() || !packageValue.validate() ||
+            chunkId <= 0 || chunkKind <= 0 ||
+            !reader.emitCollision(collisionValue) ||
+            !collisionValue.validate() || !collisionValue.encode() ||
+            !admissionValue.admit(
+                packageValue, collisionValue, chunkId, chunkKind) ||
+            !buildNavigation(reader)) {
+            return false
+        }
+        if (!publicationValue.stageGeometry(
+                reader.sourceRevision(), reader.geometryChecksum()) ||
+            !publicationValue.stageCollision(
+                reader.sourceRevision(), collisionValue.checksum()) ||
+            !publicationValue.stageNavigation(
+                reader.sourceRevision(), navigationValue.checksum()) ||
+            !publicationValue.stageReplication(
+                reader.sourceRevision(), packageValue.checksum()) ||
+            !publicationValue.publishTo(cache)) {
+            return false
+        }
+        acceptedValue = true
+        packageChecksumValue = packageValue.checksum()
+        geometryChecksumValue = reader.geometryChecksum()
+        collisionChecksumValue = collisionValue.checksum()
+        navigationChecksumValue = navigationValue.checksum()
+        generationValue = publicationValue.generation()
+        triangleCountValue = reader.triangleCount()
+        navigationNodeCountValue = navigationValue.nodeCount()
+        return true
+    }
+
+    GlbCookResult result() {
+        if (!acceptedValue) {
+            return failure()
+        }
+        return GlbCookResult(
+            true, packageChecksumValue, geometryChecksumValue,
+            collisionChecksumValue, navigationChecksumValue, generationValue,
+            triangleCountValue, navigationNodeCountValue)
+    }
+
+    Bool accepted() {
+        return acceptedValue
+    }
+
+    BoundedAuthoredCollision collision() {
+        return collisionValue
+    }
+
+    BoundedNavigationProduct navigationProduct() {
+        return navigationValue
+    }
+
+    BoundedProductPublication publication() {
+        return publicationValue
+    }
+
+    BoundedCollisionPackageAdmission admission() {
+        return admissionValue
+    }
+}

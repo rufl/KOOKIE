@@ -1,0 +1,13 @@
+package core
+
+Int protocolVersion() {
+    return 1
+}
+
+Int tickRate() {
+    return 60
+}
+
+Bool validTick(Int tick) {
+    return tick >= 0
+}

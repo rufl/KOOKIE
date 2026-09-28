@@ -1,0 +1,164 @@
+package core
+
+class BoundedSaveMigrationGate {
+    Int currentSectionVersion
+    Int currentWorldVersion
+    Int currentRngVersion
+    Int currentItemVersion
+    Int currentQuestVersion
+    Int currentCurrencyVersion
+    Int currentItemRollVersion
+    Int currentEquipmentVersion
+    Int currentSkillVersion
+    Int currentStatusVersion
+    Int currentLevelVersion
+
+    public constructor() {
+        currentSectionVersion = 1
+        currentWorldVersion = 2
+        currentRngVersion = 2
+        currentItemVersion = 1
+        currentQuestVersion = 1
+        currentCurrencyVersion = 1
+        currentItemRollVersion = 1
+        currentEquipmentVersion = 1
+        currentSkillVersion = 1
+        currentStatusVersion = 1
+        currentLevelVersion = 1
+    }
+
+    Bool importLegacy(BoundedSaveState source, BoundedSaveSections target) {
+        return target.captureLegacy(source)
+    }
+
+    Bool exportLegacy(BoundedSaveSections source, BoundedSaveState target) {
+        if (!accepts(source) || source.revision() < 0 ||
+            source.sectionCount() != 1 || source.sectionId(0) != 1 ||
+            source.sectionVersion(0) != currentSectionVersion) {
+            return false
+        }
+        var payload = new Int[source.sectionLength(0)]
+        for (var index = 0; index < payload.length; index = index + 1) {
+            payload[index] = source.sectionValue(0, index)
+        }
+        return target.stage(1, source.revision(), payload)
+    }
+
+    Bool migrate(BoundedSaveSections source, BoundedSaveSections target) {
+        if (!accepts(source) || source.revision() < 0) {
+            return false
+        }
+        var staged = BoundedSaveSections(12, 160)
+        if (!staged.setRevision(source.revision())) {
+            return false
+        }
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            var sectionId = source.sectionId(index)
+            var sourceVersion = source.sectionVersion(index)
+            var targetVersion = currentVersionFor(sectionId)
+            var sourceLength = source.sectionLength(index)
+            var targetLength = sourceLength
+            if (sourceVersion < targetVersion) {
+                targetLength = sourceLength + 1
+            }
+            var payload = new Int[targetLength]
+            for (var valueIndex = 0; valueIndex < sourceLength; valueIndex = valueIndex + 1) {
+                payload[valueIndex] = source.sectionValue(index, valueIndex)
+            }
+            if (targetLength > sourceLength) {
+                payload[targetLength - 1] = 0
+            }
+            if (!staged.put(sectionId, targetVersion, payload)) {
+                return false
+            }
+        }
+        return target.replaceFrom(staged)
+    }
+
+    Bool accepts(BoundedSaveSections source) {
+        if (source.revision() < 0) {
+            return false
+        }
+        for (var index = 0; index < source.sectionCount(); index = index + 1) {
+            if (!acceptsSourceSection(source.sectionId(index), source.sectionVersion(index))) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int currentVersionFor(Int sectionId) {
+        if (sectionId == 1) {
+            return currentSectionVersion
+        }
+        if (sectionId == 2) {
+            return currentWorldVersion
+        }
+        if (sectionId == 3) {
+            return currentRngVersion
+        }
+        if (sectionId == 4) {
+            return currentItemVersion
+        }
+        if (sectionId == 5) {
+            return currentQuestVersion
+        }
+        if (sectionId == 6) {
+            return currentCurrencyVersion
+        }
+        if (sectionId == 7) {
+            return currentItemRollVersion
+        }
+        if (sectionId == 8) {
+            return currentEquipmentVersion
+        }
+        if (sectionId == 9) {
+            return currentSkillVersion
+        }
+        if (sectionId == 10) {
+            return currentStatusVersion
+        }
+        if (sectionId == 11) {
+            return currentLevelVersion
+        }
+        return -1
+    }
+
+    Bool acceptsSection(Int sectionId, Int schemaVersion) {
+        return currentVersionFor(sectionId) == schemaVersion
+    }
+
+    Bool acceptsSourceSection(Int sectionId, Int schemaVersion) {
+        if (sectionId == 1) {
+            return schemaVersion == currentSectionVersion
+        }
+        if (sectionId == 2 || sectionId == 3) {
+            return schemaVersion == 0 || schemaVersion == 1 || schemaVersion == 2
+        }
+        if (sectionId == 4) {
+            return schemaVersion == currentItemVersion
+        }
+        if (sectionId == 5) {
+            return schemaVersion == currentQuestVersion
+        }
+        if (sectionId == 6) {
+            return schemaVersion == currentCurrencyVersion
+        }
+        if (sectionId == 7) {
+            return schemaVersion == currentItemRollVersion
+        }
+        if (sectionId == 8) {
+            return schemaVersion == currentEquipmentVersion
+        }
+        if (sectionId == 9) {
+            return schemaVersion == currentSkillVersion
+        }
+        if (sectionId == 10) {
+            return schemaVersion == currentStatusVersion
+        }
+        if (sectionId == 11) {
+            return schemaVersion == currentLevelVersion
+        }
+        return false
+    }
+}

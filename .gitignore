@@ -1,0 +1,19 @@
+# Kof compiler output and local caches
+build/
+.kof/
+release/
+*.class
+*.jar
+
+# Editor and operating-system noise
+.vscode/*.log
+.DS_Store
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example

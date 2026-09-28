@@ -1,0 +1,521 @@
+package content
+
+record ContentPackageIdentity(
+    Int engineVersion,
+    Int toolVersion,
+    Int contentVersion,
+    Int coordinateConvention,
+    Int unitScale,
+    Int checksum
+)
+
+class BoundedContentPackage {
+    Int[] assetNamespaces
+    Int[] assetIds
+    Int[] assetKinds
+    Int[] assetRevisions
+    Int[] assetSourceHashesLow
+    Int[] assetSourceHashesHigh
+    Int[] assetProducts
+    Int[] dependencyNamespaces
+    Int[] dependencyIds
+    Int[] dependencyRevisions
+    Int[] dependencyHashesLow
+    Int[] dependencyHashesHigh
+    Int[] chunkIds
+    Int[] chunkKinds
+    Int[] chunkOffsets
+    Int[] chunkLengths
+    Int[] chunkHashesLow
+    Int[] chunkHashesHigh
+    Int[] chunkRevisions
+    Int[] wire
+    Int assetCountValue
+    Int dependencyCountValue
+    Int chunkCountValue
+    Int engineVersionValue
+    Int toolVersionValue
+    Int contentVersionValue
+    Int coordinateConventionValue
+    Int unitScaleValue
+    Int checksumValue
+    Int wordCountValue
+    Bool headerConfiguredValue
+    Bool sealedValue
+
+    public constructor(
+        Int assetCapacity,
+        Int dependencyCapacity,
+        Int chunkCapacity
+    ) {
+        var actualAssets = assetCapacity
+        var actualDependencies = dependencyCapacity
+        var actualChunks = chunkCapacity
+        if (actualAssets <= 0) {
+            actualAssets = 1
+        }
+        if (actualAssets > 32) {
+            actualAssets = 32
+        }
+        if (actualDependencies <= 0) {
+            actualDependencies = 1
+        }
+        if (actualDependencies > 32) {
+            actualDependencies = 32
+        }
+        if (actualChunks <= 0) {
+            actualChunks = 1
+        }
+        if (actualChunks > 64) {
+            actualChunks = 64
+        }
+        assetNamespaces = new Int[actualAssets]
+        assetIds = new Int[actualAssets]
+        assetKinds = new Int[actualAssets]
+        assetRevisions = new Int[actualAssets]
+        assetSourceHashesLow = new Int[actualAssets]
+        assetSourceHashesHigh = new Int[actualAssets]
+        assetProducts = new Int[actualAssets]
+        dependencyNamespaces = new Int[actualDependencies]
+        dependencyIds = new Int[actualDependencies]
+        dependencyRevisions = new Int[actualDependencies]
+        dependencyHashesLow = new Int[actualDependencies]
+        dependencyHashesHigh = new Int[actualDependencies]
+        chunkIds = new Int[actualChunks]
+        chunkKinds = new Int[actualChunks]
+        chunkOffsets = new Int[actualChunks]
+        chunkLengths = new Int[actualChunks]
+        chunkHashesLow = new Int[actualChunks]
+        chunkHashesHigh = new Int[actualChunks]
+        chunkRevisions = new Int[actualChunks]
+        wire = new Int[11 + actualAssets * 7 + actualDependencies * 5 + actualChunks * 7]
+        clear()
+    }
+
+    Bool clear() {
+        assetCountValue = 0
+        dependencyCountValue = 0
+        chunkCountValue = 0
+        engineVersionValue = 0
+        toolVersionValue = 0
+        contentVersionValue = 0
+        coordinateConventionValue = 0
+        unitScaleValue = 0
+        checksumValue = 0
+        wordCountValue = 0
+        headerConfiguredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool configureHeader(
+        Int engineVersion,
+        Int toolVersion,
+        Int contentVersion,
+        Int coordinateConvention,
+        Int unitScale
+    ) {
+        if (engineVersion <= 0 || engineVersion > 1000000 ||
+            toolVersion <= 0 || toolVersion > 1000000 ||
+            contentVersion <= 0 || contentVersion > 1000000 ||
+            coordinateConvention <= 0 || coordinateConvention > 8 ||
+            unitScale <= 0 || unitScale > 1000000) {
+            return false
+        }
+        clear()
+        engineVersionValue = engineVersion
+        toolVersionValue = toolVersion
+        contentVersionValue = contentVersion
+        coordinateConventionValue = coordinateConvention
+        unitScaleValue = unitScale
+        headerConfiguredValue = true
+        return true
+    }
+
+    Bool assetKeyAfter(Int namespaceId, Int assetId) {
+        if (assetCountValue == 0) {
+            return true
+        }
+        var last = assetCountValue - 1
+        return namespaceId > assetNamespaces[last] ||
+            (namespaceId == assetNamespaces[last] &&
+                assetId > assetIds[last])
+    }
+
+    Bool dependencyKeyAfter(Int namespaceId, Int assetId) {
+        if (dependencyCountValue == 0) {
+            return true
+        }
+        var last = dependencyCountValue - 1
+        return namespaceId > dependencyNamespaces[last] ||
+            (namespaceId == dependencyNamespaces[last] &&
+                assetId > dependencyIds[last])
+    }
+
+    Bool addAsset(
+        Int namespaceId,
+        Int assetId,
+        Int assetKind,
+        Int revision,
+        Int sourceHashLow,
+        Int sourceHashHigh,
+        Int productMask
+    ) {
+        if (!headerConfiguredValue || sealedValue ||
+            namespaceId <= 0 || namespaceId > 1000000 ||
+            assetId <= 0 || assetId > 1000000 ||
+            assetKind <= 0 || assetKind > 32 ||
+            revision <= 0 || revision > 1000000 ||
+            sourceHashLow < 0 || sourceHashLow > 1000000 ||
+            sourceHashHigh < 0 || sourceHashHigh > 1000000 ||
+            productMask <= 0 || productMask > 31 ||
+            assetCountValue >= assetNamespaces.length ||
+            !assetKeyAfter(namespaceId, assetId)) {
+            return false
+        }
+        var index = assetCountValue
+        assetNamespaces[index] = namespaceId
+        assetIds[index] = assetId
+        assetKinds[index] = assetKind
+        assetRevisions[index] = revision
+        assetSourceHashesLow[index] = sourceHashLow
+        assetSourceHashesHigh[index] = sourceHashHigh
+        assetProducts[index] = productMask
+        assetCountValue = assetCountValue + 1
+        return true
+    }
+
+    Bool addDependency(
+        Int namespaceId,
+        Int assetId,
+        Int revision,
+        Int hashLow,
+        Int hashHigh
+    ) {
+        if (!headerConfiguredValue || sealedValue ||
+            namespaceId <= 0 || namespaceId > 1000000 ||
+            assetId <= 0 || assetId > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            hashLow < 0 || hashLow > 1000000 ||
+            hashHigh < 0 || hashHigh > 1000000 ||
+            dependencyCountValue >= dependencyNamespaces.length ||
+            !dependencyKeyAfter(namespaceId, assetId)) {
+            return false
+        }
+        var index = dependencyCountValue
+        dependencyNamespaces[index] = namespaceId
+        dependencyIds[index] = assetId
+        dependencyRevisions[index] = revision
+        dependencyHashesLow[index] = hashLow
+        dependencyHashesHigh[index] = hashHigh
+        dependencyCountValue = dependencyCountValue + 1
+        return true
+    }
+
+    Bool addChunk(
+        Int chunkId,
+        Int chunkKind,
+        Int offset,
+        Int length,
+        Int hashLow,
+        Int hashHigh,
+        Int revision
+    ) {
+        if (!headerConfiguredValue || sealedValue ||
+            chunkId <= 0 || chunkId > 1000000 ||
+            chunkKind <= 0 || chunkKind > 64 ||
+            offset < 0 || offset > 1000000000 ||
+            length <= 0 || length > 10000000 ||
+            offset > 1000000000 - length ||
+            hashLow < 0 || hashLow > 1000000 ||
+            hashHigh < 0 || hashHigh > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            chunkCountValue >= chunkIds.length ||
+            (chunkCountValue > 0 &&
+                chunkId <= chunkIds[chunkCountValue - 1])) {
+            return false
+        }
+        var index = chunkCountValue
+        chunkIds[index] = chunkId
+        chunkKinds[index] = chunkKind
+        chunkOffsets[index] = offset
+        chunkLengths[index] = length
+        chunkHashesLow[index] = hashLow
+        chunkHashesHigh[index] = hashHigh
+        chunkRevisions[index] = revision
+        chunkCountValue = chunkCountValue + 1
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) {
+            normalized = normalized + 1000003
+        }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 17
+        result = mix(result, 1)
+        result = mix(result, engineVersionValue)
+        result = mix(result, toolVersionValue)
+        result = mix(result, contentVersionValue)
+        result = mix(result, coordinateConventionValue)
+        result = mix(result, unitScaleValue)
+        result = mix(result, assetCountValue)
+        result = mix(result, dependencyCountValue)
+        result = mix(result, chunkCountValue)
+        for (var index = 0; index < assetCountValue; index = index + 1) {
+            result = mix(result, assetNamespaces[index])
+            result = mix(result, assetIds[index])
+            result = mix(result, assetKinds[index])
+            result = mix(result, assetRevisions[index])
+            result = mix(result, assetSourceHashesLow[index])
+            result = mix(result, assetSourceHashesHigh[index])
+            result = mix(result, assetProducts[index])
+        }
+        for (var index = 0; index < dependencyCountValue; index = index + 1) {
+            result = mix(result, dependencyNamespaces[index])
+            result = mix(result, dependencyIds[index])
+            result = mix(result, dependencyRevisions[index])
+            result = mix(result, dependencyHashesLow[index])
+            result = mix(result, dependencyHashesHigh[index])
+        }
+        for (var index = 0; index < chunkCountValue; index = index + 1) {
+            result = mix(result, chunkIds[index])
+            result = mix(result, chunkKinds[index])
+            result = mix(result, chunkOffsets[index])
+            result = mix(result, chunkLengths[index])
+            result = mix(result, chunkHashesLow[index])
+            result = mix(result, chunkHashesHigh[index])
+            result = mix(result, chunkRevisions[index])
+        }
+        return result
+    }
+
+    Bool structuralValid() {
+        if (!headerConfiguredValue ||
+            engineVersionValue <= 0 || toolVersionValue <= 0 ||
+            contentVersionValue <= 0 || coordinateConventionValue <= 0 ||
+            unitScaleValue <= 0 || assetCountValue <= 0 ||
+            chunkCountValue <= 0) {
+            return false
+        }
+        for (var index = 1; index < assetCountValue; index = index + 1) {
+            if (!assetKeyAfterAt(index)) {
+                return false
+            }
+        }
+        for (var index = 1; index < dependencyCountValue; index = index + 1) {
+            if (!dependencyKeyAfterAt(index)) {
+                return false
+            }
+        }
+        for (var index = 0; index < chunkCountValue; index = index + 1) {
+            if (chunkOffsets[index] < 0 || chunkLengths[index] <= 0 ||
+                chunkOffsets[index] > 1000000000 - chunkLengths[index]) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool assetKeyAfterAt(Int index) {
+        return assetNamespaces[index] > assetNamespaces[index - 1] ||
+            (assetNamespaces[index] == assetNamespaces[index - 1] &&
+                assetIds[index] > assetIds[index - 1])
+    }
+
+    Bool dependencyKeyAfterAt(Int index) {
+        return dependencyNamespaces[index] > dependencyNamespaces[index - 1] ||
+            (dependencyNamespaces[index] == dependencyNamespaces[index - 1] &&
+                dependencyIds[index] > dependencyIds[index - 1])
+    }
+
+    Bool seal() {
+        if (sealedValue || !structuralValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && structuralValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    ContentPackageIdentity identity() {
+        return ContentPackageIdentity(
+            engineVersionValue, toolVersionValue, contentVersionValue,
+            coordinateConventionValue, unitScaleValue, checksumValue)
+    }
+
+    Int assetCount() {
+        return assetCountValue
+    }
+
+    Int dependencyCount() {
+        return dependencyCountValue
+    }
+
+    Int chunkCount() {
+        return chunkCountValue
+    }
+    Bool containsAsset(Int namespaceId, Int assetId, Int revision) {
+        for (var index = 0; index < assetCountValue; index = index + 1) {
+            if (assetNamespaces[index] == namespaceId &&
+                assetIds[index] == assetId &&
+                assetRevisions[index] == revision) {
+                return true
+            }
+        }
+        return false
+    }
+
+    Bool containsChunk(
+        Int chunkId,
+        Int chunkKind,
+        Int revision,
+        Int hashLow,
+        Int hashHigh
+    ) {
+        for (var index = 0; index < chunkCountValue; index = index + 1) {
+            if (chunkIds[index] == chunkId &&
+                chunkKinds[index] == chunkKind &&
+                chunkRevisions[index] == revision &&
+                chunkHashesLow[index] == hashLow &&
+                chunkHashesHigh[index] == hashHigh) {
+                return true
+            }
+        }
+        return false
+    }
+
+
+    Int checksum() {
+        if (!validate()) {
+            return -1
+        }
+        return checksumValue
+    }
+
+    Int encodedLength() {
+        return wordCountValue
+    }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) {
+            return -1
+        }
+        return wire[index]
+    }
+
+    Bool encode() {
+        if (!validate()) {
+            wordCountValue = 0
+            return false
+        }
+        var offset = 11
+        wire[0] = 126276129
+        wire[1] = 1
+        wire[2] = engineVersionValue
+        wire[3] = toolVersionValue
+        wire[4] = contentVersionValue
+        wire[5] = coordinateConventionValue
+        wire[6] = unitScaleValue
+        wire[7] = assetCountValue
+        wire[8] = dependencyCountValue
+        wire[9] = chunkCountValue
+        wire[10] = checksumValue
+        for (var index = 0; index < assetCountValue; index = index + 1) {
+            wire[offset] = assetNamespaces[index]
+            wire[offset + 1] = assetIds[index]
+            wire[offset + 2] = assetKinds[index]
+            wire[offset + 3] = assetRevisions[index]
+            wire[offset + 4] = assetSourceHashesLow[index]
+            wire[offset + 5] = assetSourceHashesHigh[index]
+            wire[offset + 6] = assetProducts[index]
+            offset = offset + 7
+        }
+        for (var index = 0; index < dependencyCountValue; index = index + 1) {
+            wire[offset] = dependencyNamespaces[index]
+            wire[offset + 1] = dependencyIds[index]
+            wire[offset + 2] = dependencyRevisions[index]
+            wire[offset + 3] = dependencyHashesLow[index]
+            wire[offset + 4] = dependencyHashesHigh[index]
+            offset = offset + 5
+        }
+        for (var index = 0; index < chunkCountValue; index = index + 1) {
+            wire[offset] = chunkIds[index]
+            wire[offset + 1] = chunkKinds[index]
+            wire[offset + 2] = chunkOffsets[index]
+            wire[offset + 3] = chunkLengths[index]
+            wire[offset + 4] = chunkHashesLow[index]
+            wire[offset + 5] = chunkHashesHigh[index]
+            wire[offset + 6] = chunkRevisions[index]
+            offset = offset + 7
+        }
+        wordCountValue = offset
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length < 11 || source.length > wire.length ||
+            source[0] != 126276129 || source[1] != 1 ||
+            source[2] <= 0 || source[3] <= 0 || source[4] <= 0 ||
+            source[5] <= 0 || source[5] > 8 ||
+            source[6] <= 0 || source[6] > 1000000 ||
+            source[7] <= 0 || source[7] > assetNamespaces.length ||
+            source[8] < 0 || source[8] > dependencyNamespaces.length ||
+            source[9] <= 0 || source[9] > chunkIds.length) {
+            return false
+        }
+        var expectedLength = 11 + source[7] * 7 + source[8] * 5 + source[9] * 7
+        if (source.length != expectedLength) {
+            return false
+        }
+        if (!configureHeader(
+                source[2], source[3], source[4], source[5], source[6])) {
+            return false
+        }
+        var offset = 11
+        for (var index = 0; index < source[7]; index = index + 1) {
+            if (!addAsset(
+                    source[offset], source[offset + 1], source[offset + 2],
+                    source[offset + 3], source[offset + 4], source[offset + 5],
+                    source[offset + 6])) {
+                return false
+            }
+            offset = offset + 7
+        }
+        for (var index = 0; index < source[8]; index = index + 1) {
+            if (!addDependency(
+                    source[offset], source[offset + 1], source[offset + 2],
+                    source[offset + 3], source[offset + 4])) {
+                return false
+            }
+            offset = offset + 5
+        }
+        for (var index = 0; index < source[9]; index = index + 1) {
+            if (!addChunk(
+                    source[offset], source[offset + 1], source[offset + 2],
+                    source[offset + 3], source[offset + 4], source[offset + 5],
+                    source[offset + 6])) {
+                return false
+            }
+            offset = offset + 7
+        }
+        if (!seal() || checksumValue != source[10]) {
+            clear()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            wire[index] = source[index]
+        }
+        wordCountValue = source.length
+        return true
+    }
+}
