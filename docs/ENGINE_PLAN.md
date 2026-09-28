@@ -643,11 +643,13 @@ scene buffer. An isolated GPU smoke rendered and read back that scene, and 71/71
 tests pass on JVM and native. G1's no-per-frame-growth evidence is 64
 deterministic stages with unchanged Kof capacities plus persistent native scene
 buffers; the 30-minute RSS/performance soak remains G5. G2 has a JVM/native
-three-process transport slice carrying the full arena and checksummed
-interaction/state messages through terminal combat death and
-key/door/secret/exit completion. G2 remains open for replicated player/enemy
-simulation and rewards, bounded join/leave/reconnect diagnostics, complete 3D
-door collision/render geometry, and integrated feedback/audio.
+three-process transport slice carrying the full arena and unified checksummed
+movement, fire, interaction, disconnect and reconnect commands. Client-applied
+state proves authoritative position, terminal combat death plus currency
+reward, revision-4 progression, reconnect generation and stale diagnosis. G2
+remains open for replicated enemy encounters, full player
+prediction/reconciliation, production join/recovery, complete 3D door
+collision/render geometry, and integrated feedback/audio.
 
 ### Initial performance hypotheses, not achieved numbers
 

@@ -198,7 +198,7 @@ Bool verifyClientReconnectAndStaleInput() {
     assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
     assert(session.receiveInput(2, 1, 1, 2, 0, 0, 0, 0, 0))
     assert(session.advance(16667) == 1 && session.serverPosition(2) == 2)
-    assert(session.disconnectPlayer(2) && session.playerCount() == 1 &&
+    assert(session.disconnectPlayer(2, 1) && session.playerCount() == 1 &&
         !session.playerConnected(2))
     assert(!session.receiveInput(2, 2, 2, 2, 0, 0, 0, 0, 0),
         "disconnected clients cannot submit input")
@@ -210,7 +210,7 @@ Bool verifyClientReconnectAndStaleInput() {
     assert(session.receiveInput(2, 2, 2, 1, 0, 0, 0, 0, 0))
     assert(session.advance(16667) == 1 && session.serverPosition(2) == 3)
     assert(session.receiveInput(2, 3, 3, 1, 0, 0, 0, 0, 0))
-    assert(session.disconnectPlayer(2) && session.connectPlayer() == 2)
+    assert(session.disconnectPlayer(2, 2) && session.connectPlayer() == 2)
     assert(session.advance(16667) == 1 && session.serverPosition(2) == 3,
         "disconnect must discard pending stale movement")
     assert(session.receiveInput(2, 4, 4, -1, 0, 0, 0, 0, 0) &&
@@ -510,10 +510,107 @@ Bool verifySessionLevelSaveRestore() {
     return true
 }
 
+Bool verifyRemoteGameplayAuthority() {
+    var host = LoopbackSession(8, 4)
+    var clientA = LoopbackSession(4, 4)
+    var clientB = LoopbackSession(4, 4)
+    assert(host.defineWorldKey(1, 2, 0, 0, 0) &&
+        host.defineWorldDoor(2, 1, 3, 0, 0, 3) &&
+        host.defineWorldSecret(3, 2, 0, 0, 0) &&
+        host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        clientA.defineWorldKey(1, 2, 0, 0, 0) &&
+        clientA.defineWorldDoor(2, 1, 3, 0, 0, 3) &&
+        clientA.defineWorldSecret(3, 2, 0, 0, 0) &&
+        clientA.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        clientB.defineWorldKey(1, 2, 0, 0, 0) &&
+        clientB.defineWorldDoor(2, 1, 3, 0, 0, 3) &&
+        clientB.defineWorldSecret(3, 2, 0, 0, 0) &&
+        clientB.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        host.start() && host.connectPlayer() == 1 &&
+        host.connectPlayer() == 2 && clientA.start() && clientB.start(),
+        "remote gameplay sessions must share authored interaction identity")
+    assert(host.definePlayerWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.addPlayerCombatActor(1, 20, 0) &&
+        host.addPlayerCombatActor(3, 8, 0) &&
+        host.equipPlayerCombatWeapon(1, 9) &&
+        host.definePlayerCombatReward(3, 25),
+        "host must own combat and reward configuration")
+
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+        1, 1, 1, gameplayFireAction(), 3, 10, 0, 0)) &&
+        host.lastRemoteGameplayAccepted())
+    var state = host.gameplayStateMessage(1, 3, 1)
+    assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.clientRemoteCombatActor() == 3 &&
+        clientA.clientRemoteCombatHealth() == 4 &&
+        clientA.clientRemoteCurrency() == 0 &&
+        clientA.clientRemoteDiagnostic() == gameplayFireDiagnostic(),
+        "first remote shot must publish authoritative damage")
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+        1, 2, 2, gameplayFireAction(), 3, 10, 0, 0)) &&
+        host.lastRemoteGameplayAccepted())
+    state = host.gameplayStateMessage(2, 3, 1)
+    assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.clientRemoteCombatHealth() == 0 &&
+        clientA.clientRemoteCurrency() == 25 &&
+        host.playerCurrency(1) == 25,
+        "terminal remote shot must grant one server-owned reward")
+
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+        1, 3, 3, gameplayMoveAction(), 2, 0, 0, 0)),
+        "remote movement command must pass wire validation")
+    assert(host.lastRemoteGameplayAccepted(),
+        "remote movement command must enter the authoritative tick")
+    assert(host.serverPosition(1) == 2,
+        "remote movement must change the authoritative position")
+    state = host.gameplayStateMessage(3, 3, 1)
+    assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.clientRemotePlayerPosition(1) == 2,
+        "remote movement must publish authoritative position")
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+        1, 4, 4, gameplayInteractAction(), 1, 0, 0, 0)) &&
+        host.lastRemoteGameplayAccepted())
+    state = host.gameplayStateMessage(4, 3, 1)
+    assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.clientWorldInteractionActive(1),
+        "remote interaction mask must activate matching client content")
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+        1, 5, 4, gameplayInteractAction(), 3, 0, 0, 0)) &&
+        !host.lastRemoteGameplayAccepted() &&
+        host.lastRemoteGameplayDiagnostic() == gameplayStaleDiagnostic())
+    state = host.gameplayStateMessage(5, 3, 1)
+    assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.clientRemoteDiagnostic() == gameplayStaleDiagnostic(),
+        "stale remote command must return an explicit client diagnostic")
+
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+        2, 1, 1, gameplayDisconnectAction(), 2, 0, 0, 0)) &&
+        host.lastRemoteGameplayAccepted())
+    var lifecycle = host.gameplayStateMessage(1, 3, 2)
+    assert(clientB.applyRemoteGameplayState(lifecycle) &&
+        !clientB.clientRemoteConnected() &&
+        clientB.clientRemoteDisconnectReason() == 2 &&
+        clientB.clientRemoteConnectionGeneration() == 1 &&
+        clientB.clientRemoteDiagnostic() == gameplayDisconnectDiagnostic(),
+        "disconnect must publish bounded reason and generation")
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+        2, 1, 2, gameplayReconnectAction(), 0, 0, 0, 0)) &&
+        host.lastRemoteGameplayAccepted())
+    lifecycle = host.gameplayStateMessage(1, 3, 2)
+    assert(clientB.applyRemoteGameplayState(lifecycle) &&
+        clientB.clientRemoteConnected() &&
+        clientB.clientRemoteDisconnectReason() == 0 &&
+        clientB.clientRemoteConnectionGeneration() == 2 &&
+        clientB.clientRemoteDiagnostic() == gameplayReconnectDiagnostic(),
+        "reconnect must preserve identity and advance its generation")
+    return true
+}
+
 main() {
     assert(verifyWorldProgression())
     assert(verifyDoorArenaIntegration())
     assert(verifyClientReconnectAndStaleInput())
+    assert(verifyRemoteGameplayAuthority())
     assert(verifyCooperativeSession())
     assert(verifyInteractionAdmission())
     assert(verifyInteractionCheckpoint())

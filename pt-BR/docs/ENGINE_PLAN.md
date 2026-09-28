@@ -663,12 +663,17 @@ criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degra
 salas empilhadas; o servidor replica triângulos e limites explícitos para o
 cliente. Câmera, staging do mundo e HUD numérico alimentam um buffer nativo
 SDL_GPU fixo de 96 vértices. Um smoke GPU isolado renderizou e leu essa cena, e
-70/70 testes passam na JVM e no nativo. A
-evidência de ausência de crescimento por frame em G1 cobre 64 stagings
-determinísticos com capacidades Kof inalteradas e buffers nativos persistentes;
-o soak de RSS/desempenho por 30 minutos permanece em G5. G2 agora controla a
-fatia LAN integrada início→luta→chave/porta→segredo→saída e a colisão/geometria
-completa das portas.
+71/71 testes passam na JVM e no nativo. A evidência de ausência de crescimento
+por frame em G1 cobre 64 stagings determinísticos com capacidades Kof
+inalteradas e buffers nativos persistentes; o soak de RSS/desempenho por 30
+minutos permanece em G5. G2 possui um slice de transporte com três processos na
+JVM e no nativo que leva a arena completa e comandos unificados com checksum
+para movimento, disparo, interação, desconexão e reconexão. O estado aplicado
+pelo cliente comprova posição autoritativa, morte terminal mais recompensa em
+moeda, progressão até a revisão 4, geração de reconexão e diagnóstico de input
+obsoleto. G2 continua aberto para encounters replicados de inimigos,
+predição/reconciliação completa dos jogadores, entrada/recuperação em produção,
+geometria/colisão 3D completa das portas e feedback/áudio integrado.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

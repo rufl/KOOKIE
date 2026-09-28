@@ -5,6 +5,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 ## 2026-09-28
 ### Current qualification batch
 
+- Replaced the narrow interaction wire with one bounded checksummed gameplay
+  protocol for movement, fire, interaction, disconnect and reconnect. The
+  authoritative state now carries both player positions, combat health,
+  currency, progression mask and lifecycle generation/reason/diagnostic.
+- Added exact server-tick admission for remote fire/movement/interactions and a
+  server-owned terminal hitscan currency reward. JVM/native host-plus-two-client
+  processes now prove movement, death plus 25 currency, revision-4 progression,
+  reconnect generation two and explicit stale-command diagnosis.
 - Closed the G1 authoritative-shooter gate with one executable scenario on JVM
   and native: a 60 Hz server admits two loopback clients, exposes a four-unit
   prediction correction and reconciliation, resolves one player weapon/enemy
@@ -22,7 +30,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   presentation history remain atomic; the previously failing replay bundle now
   passes.
 - JVM and native checks pass, the focused G1 runtime marker is identical on
-  both targets, and all 70 tests pass on each target.
+  both targets, and all 71 tests pass on each target.
 
 - The isolated presentation gate validated real window presentation, input,
   audio, GPU draw, screenshot capture and clean exit without touching an active

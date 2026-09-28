@@ -154,6 +154,14 @@ def verify_bundle(bundle_path: Path) -> tuple[dict | None, str]:
             return None, "combat death evidence is not terminal"
         if evidence.get("arenaTriangleCount") != 26:
             return None, "authored arena evidence is incomplete"
+        if evidence.get("combatReward") != 25:
+            return None, "combat reward evidence is incomplete"
+        if evidence.get("playerPosition") != 2:
+            return None, "authoritative movement evidence is incomplete"
+        if evidence.get("reconnectGeneration") != 2:
+            return None, "reconnect generation evidence is incomplete"
+        if evidence.get("staleDiagnostic") != 6:
+            return None, "stale diagnostic evidence is incomplete"
         sequences = evidence.get("transportSequences")
         if not isinstance(sequences, dict) or any(
             not isinstance(sequences.get(name), int) or sequences[name] <= 0

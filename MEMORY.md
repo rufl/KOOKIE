@@ -23,9 +23,11 @@ Bounded foundations execute; G0 and G1 acceptance gates are complete.
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
 - The JVM/native three-process G2 regression transports all 26 authored arena
-  triangles, preserves stacked-room collision, uses versioned checksummed
-  interaction/state messages, reaches terminal server-owned combat death and
-  revision-4 key/door/secret/exit completion, and rejects stale input.
+  triangles and unified checksummed movement, fire, interaction, disconnect
+  and reconnect commands. Client-applied state proves authoritative position,
+  terminal server-owned combat death plus 25 currency, revision-4
+  key/door/secret/exit completion, reconnect generation two and explicit stale
+  diagnosis.
 
 ## Previous batch
 - Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Eighteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
@@ -102,7 +104,7 @@ management remains unimplemented.
 25. `RemoteSessionLink` gates broad-phase snapshots on endpoint activation and strictly increasing send/receive sequences; the native isolated probe sends and applies a snapshot through the link, while live session-loop orchestration remains unimplemented.
 26. `BoundedRayTargetWorld` now performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering, source exclusion through `SpatialAimContract`, and target removal. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits and bounded misses. `LoopbackSession.resolvePlayerSpatialShotgun` now connects that selection to authoritative player combat.
 27. Native SIMD dispatch now selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps a checked scalar fallback. `FFI001` still prevents Kof bulk-buffer integration, so this is not a measured engine speedup.
-28. The current focused source gate is 63 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
+28. The current focused source gate is 71 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
 
 ## Editor cautions
 
@@ -137,13 +139,14 @@ unchanged staging capacities across 64 deterministic frames and persistent
 native scene buffers; it is not a 30-minute RSS/performance result.
 
 G2 now has a qualified transport slice: host plus two clients exchange the
-complete G1 arena and checksummed gameplay commands/state through server-owned
-combat death and key/door/secret/exit completion on JVM and native. Closing G2
-still requires replicated player/enemy simulation and rewards, bounded
-join/leave/reconnect diagnostics, complete 3D door collision/render geometry,
-and integrated feedback/audio. G5 retains sustained workload, RSS and
-frame-budget acceptance. `FFI001` still blocks Kof bulk-buffer calls into the
-optional SIMD kernel.
+complete G1 arena and unified checksummed movement, fire, interaction and
+lifecycle commands. Client-applied state reaches server-owned combat
+death/reward, authoritative movement, reconnect generation two and
+key/door/secret/exit completion on JVM and native. Closing G2 still requires
+replicated enemy encounters, full player prediction/reconciliation, production
+join/recovery, complete 3D door collision/render geometry and integrated
+feedback/audio. G5 retains sustained workload, RSS and frame-budget acceptance.
+`FFI001` still blocks Kof bulk-buffer calls into the optional SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

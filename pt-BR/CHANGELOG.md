@@ -5,6 +5,16 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 ## 2026-09-28
 ### Lote atual de qualificação
 
+- Substituímos o wire estreito de interação por um protocolo de gameplay
+  limitado e com checksum para movimento, disparo, interação, desconexão e
+  reconexão. O estado autoritativo agora carrega posições dos dois jogadores,
+  vida, moeda, máscara de progressão e geração/motivo/diagnóstico do ciclo de
+  vida.
+- Adicionamos admissão por tick exato do servidor para disparo,
+  movimento/interação remotos e uma recompensa terminal hitscan em moeda
+  controlada pelo servidor. Três processos na JVM e no nativo agora comprovam
+  movimento, morte mais 25 de moeda, progressão até revisão 4, geração 2 após
+  reconexão e diagnóstico explícito de comando obsoleto.
 - Fechamos o gate G1 do shooter autoritativo com um cenário executável na JVM e
   no nativo: servidor a 60 Hz admite dois clientes loopback, expõe correção de
   predição de quatro unidades e reconciliação, resolve uma eliminação com uma
@@ -23,7 +33,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   32 triângulos e o histórico limitado de apresentação; o bundle de replay que
   falhava agora passa.
 - Checks JVM/nativo passam, o marcador focado de runtime G1 é idêntico nos dois
-  alvos e todos os 70 testes passam em cada alvo.
+  alvos e todos os 71 testes passam em cada alvo.
 
 - O gate de apresentação isolada validou janela real, input, áudio, draw GPU,
   captura de screenshot e saída limpa sem tocar o desktop ativo.

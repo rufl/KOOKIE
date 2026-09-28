@@ -134,13 +134,18 @@ This is the active bounded implementation sequence after the initial research an
   triangles) and kept native/JVM transport capacities synchronized. The
   three-process regression now exchanges the complete 26-triangle `G1Arena`
   in both directions and proves stacked-room collision after receipt.
-- Added versioned checksummed interaction-command and authoritative gameplay
-  state messages. JVM/native role runs now prove terminal server-owned combat
-  death, revision-4 key/door/secret/exit completion, stale-command rejection
-  and client-visible authoritative state; retained evidence records death and
-  arena triangle count. This advances G2 but does not close its remaining
-  replicated simulation, rewards, reconnect diagnostics, 3D doors or
-  feedback/audio work.
+- Replaced the interaction-only wire with unified, versioned checksummed
+  movement, fire, interaction, disconnect and reconnect commands plus
+  authoritative state for both player positions, combat health, currency,
+  progression masks and connection generation/reason/diagnostic. Admitted
+  fire, movement and interactions advance exact server ticks.
+- JVM/native three-process role runs now prove client-issued movement, terminal
+  server-owned hitscan death plus 25 currency, revision-4
+  key/door/secret/exit completion, disconnect/reconnect generation two and
+  explicit stale-command diagnosis. Retained evidence validates these values.
+  This advances G2 but does not prove the evolved protocol on separate hosts or
+  close replicated enemy encounters, full player prediction/reconciliation,
+  production join recovery, 3D doors or feedback/audio.
 
 - `scripts/package_external_lan_roles.sh` builds Windows JVM host/client
   archives without embedding the raw key or run manifest. Its `.cmd`

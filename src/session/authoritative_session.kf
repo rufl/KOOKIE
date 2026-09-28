@@ -9,6 +9,9 @@ class LoopbackSession {
     InputEdgeState playerOneEdges
     InputEdgeState playerTwoEdges
     CombatWorld playerCombat
+    Int[] playerCombatRewardTargets
+    Int[] playerCombatRewardCurrencies
+    Int playerCombatRewardCount
     BoundedRayTargetWorld playerSpatialTargets
     PlayerWeaponPresenter playerWeaponPresentations
     BoundedReplayPresentationHistory replayPresentationHistory
@@ -20,6 +23,22 @@ class LoopbackSession {
     Int[] interactionResultTicks
     Int[] interactionResultTargets
     Bool[] interactionResults
+    Int[] remoteGameplaySequences
+    Int[] gameplayStateSequences
+    Int[] connectionGenerations
+    Int[] disconnectReasons
+    Bool lastRemoteGameplayAcceptedValue
+    Int lastRemoteGameplayDiagnosticValue
+    Int clientRemoteStateSequenceValue
+    Int clientRemoteCombatActorValue
+    Int clientRemoteCombatHealthValue
+    Int clientRemotePlayerOnePositionValue
+    Int clientRemotePlayerTwoPositionValue
+    Int clientRemoteCurrencyValue
+    Bool clientRemoteConnectedValue
+    Int clientRemoteConnectionGenerationValue
+    Int clientRemoteDisconnectReasonValue
+    Int clientRemoteDiagnosticValue
     Bool[] clientInteractionFlags
     Int clientInteractionRevisionValue
     Int clientSecretCountValue
@@ -120,11 +139,20 @@ class LoopbackSession {
         enemyImpactPresentations = ImpactPresentationQueue(entityCapacity * 2)
         enemyImpactAudio = QueuedAudio(entityCapacity * 2)
         playerCombat = CombatWorld(entityCapacity, entityCapacity)
+        playerCombatRewardTargets = new Int[entityCapacity]
+        playerCombatRewardCurrencies = new Int[entityCapacity]
+        playerCombatRewardCount = 0
         playerSpatialTargets = BoundedRayTargetWorld(entityCapacity, 1000000)
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
         replayPresentationHistory = BoundedReplayPresentationHistory(entityCapacity * 8)
         worldInteractions = BoundedInteractionWorld(16, 1000000)
         interactionReplay = InteractionReplayRecorder(64)
+        remoteGameplaySequences = new Int[3]
+        gameplayStateSequences = new Int[3]
+        connectionGenerations = new Int[3]
+        disconnectReasons = new Int[3]
+        lastRemoteGameplayAcceptedValue = false
+        lastRemoteGameplayDiagnosticValue = gameplayRejectedDiagnostic()
         interactionSequences = new Int[3]
         interactionTicks = new Int[3]
         interactionTargets = new Int[3]
@@ -140,6 +168,10 @@ class LoopbackSession {
             interactionResultTicks[player] = 0
             interactionResultTargets[player] = 0
             interactionResults[player] = false
+            remoteGameplaySequences[player] = 0
+            gameplayStateSequences[player] = 0
+            connectionGenerations[player] = 0
+            disconnectReasons[player] = 0
         }
         for (var index = 0; index < clientInteractionFlags.length; index = index + 1) {
             clientInteractionFlags[index] = false
@@ -147,6 +179,16 @@ class LoopbackSession {
         clientInteractionRevisionValue = 0
         clientSecretCountValue = 0
         clientLevelCompletedValue = false
+        clientRemoteStateSequenceValue = 0
+        clientRemoteCombatActorValue = 0
+        clientRemoteCombatHealthValue = 0
+        clientRemotePlayerOnePositionValue = 0
+        clientRemotePlayerTwoPositionValue = 0
+        clientRemoteCurrencyValue = 0
+        clientRemoteConnectedValue = false
+        clientRemoteConnectionGenerationValue = 0
+        clientRemoteDisconnectReasonValue = 0
+        clientRemoteDiagnosticValue = 0
         playerSkillDefinitions = BoundedSkillDefinitionStore(16)
         playerOneSkills = BoundedSkillProgression(4)
         playerTwoSkills = BoundedSkillProgression(4)
@@ -182,6 +224,8 @@ class LoopbackSession {
             enemyPerceptionVisible[index] = false
             enemyPerceptionActive[index] = false
             enemySpatialPerceptionActive[index] = false
+            playerCombatRewardTargets[index] = 0
+            playerCombatRewardCurrencies[index] = 0
         }
         clientBroadPhaseCollection = BoundedTriangleCollection(32, 64)
         clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
@@ -204,38 +248,67 @@ class LoopbackSession {
         return true
     }
 
+    Bool connectSpecificPlayer(Int player) {
+        if (!started || (player != 1 && player != 2)) {
+            return false
+        }
+        if (player == 1) {
+            if (playerOneConnected) {
+                return false
+            }
+            var positionOne = serverMovement.position(1)
+            if (!serverMovement.setPosition(1, positionOne) ||
+                !clientMovement.setPosition(1, positionOne) ||
+                !playerOnePrediction.restore(positionOne, serverTick) ||
+                !playerOneSnapshots.reset()) {
+                return false
+            }
+            playerOneConnected = true
+            playerOneFocused = true
+        } else {
+            if (playerTwoConnected) {
+                return false
+            }
+            var positionTwo = serverMovement.position(2)
+            if (!serverMovement.setPosition(2, positionTwo) ||
+                !clientMovement.setPosition(2, positionTwo) ||
+                !playerTwoPrediction.restore(positionTwo, serverTick) ||
+                !playerTwoSnapshots.reset()) {
+                return false
+            }
+            playerTwoConnected = true
+            playerTwoFocused = true
+        }
+        connectionGenerations[player] = connectionGenerations[player] + 1
+        disconnectReasons[player] = 0
+        return true
+    }
+
     Int connectPlayer() {
         if (!started) {
             return 0
         }
         if (!playerOneConnected) {
-            var positionOne = serverMovement.position(1)
-            playerOneConnected = serverMovement.setPosition(1, positionOne) &&
-                clientMovement.setPosition(1, positionOne) &&
-                playerOnePrediction.restore(positionOne, serverTick) &&
-                playerOneSnapshots.reset()
-            if (playerOneConnected) {
-                playerOneFocused = true
+            if (connectSpecificPlayer(1)) {
                 return 1
             }
             return 0
         }
-        if (!playerTwoConnected) {
-            var positionTwo = serverMovement.position(2)
-            playerTwoConnected = serverMovement.setPosition(2, positionTwo) &&
-                clientMovement.setPosition(2, positionTwo) &&
-                playerTwoPrediction.restore(positionTwo, serverTick) &&
-                playerTwoSnapshots.reset()
-            if (playerTwoConnected) {
-                playerTwoFocused = true
-                return 2
-            }
+        if (!playerTwoConnected && connectSpecificPlayer(2)) {
+            return 2
         }
         return 0
     }
 
-    Bool disconnectPlayer(Int player) {
-        if (!started || (player != 1 && player != 2)) {
+    Bool reconnectPlayer(Int player) {
+        return player >= 1 && player <= 2 &&
+            connectionGenerations[player] > 0 &&
+            connectSpecificPlayer(player)
+    }
+
+    Bool disconnectPlayer(Int player, Int reason) {
+        if (!started || (player != 1 && player != 2) ||
+            reason < 1 || reason > 4) {
             return false
         }
         if (player == 1 && playerOneConnected) {
@@ -245,6 +318,7 @@ class LoopbackSession {
             playerOneEdges.clearHeld()
             interactionTargets[1] = 0
             interactionTicks[1] = 0
+            disconnectReasons[1] = reason
             return true
         }
         if (player == 2 && playerTwoConnected) {
@@ -254,9 +328,24 @@ class LoopbackSession {
             playerTwoEdges.clearHeld()
             interactionTargets[2] = 0
             interactionTicks[2] = 0
+            disconnectReasons[2] = reason
             return true
         }
         return false
+    }
+
+    Int playerConnectionGeneration(Int player) {
+        if (player < 1 || player > 2) {
+            return -1
+        }
+        return connectionGenerations[player]
+    }
+
+    Int playerDisconnectReason(Int player) {
+        if (player < 1 || player > 2) {
+            return -1
+        }
+        return disconnectReasons[player]
     }
 
     Bool defineWorldKey(Int id, Int x, Int y, Int z, Int range) {
@@ -303,29 +392,184 @@ class LoopbackSession {
         return true
     }
 
-    Bool applyRemoteInteractionCommand(Int[] words) {
-        if (!validInteractionCommandMessage(words)) {
+    Bool applyRemoteGameplayCommand(Int[] words) {
+        lastRemoteGameplayAcceptedValue = false
+        lastRemoteGameplayDiagnosticValue = gameplayRejectedDiagnostic()
+        if (!validGameplayCommandMessage(words)) {
             return false
         }
-        return receiveInteraction(
-            interactionCommandPlayer(words),
-            interactionCommandTick(words),
-            interactionCommandSequence(words),
-            interactionCommandTarget(words))
+        var player = gameplayCommandPlayer(words)
+        var tick = gameplayCommandTick(words)
+        var sequence = gameplayCommandSequence(words)
+        var action = gameplayCommandAction(words)
+        if (sequence <= remoteGameplaySequences[player]) {
+            lastRemoteGameplayDiagnosticValue = gameplayStaleDiagnostic()
+            return true
+        }
+        remoteGameplaySequences[player] = sequence
+        if (action == gameplayReconnectAction()) {
+            lastRemoteGameplayAcceptedValue = reconnectPlayer(player)
+            if (lastRemoteGameplayAcceptedValue) {
+                lastRemoteGameplayDiagnosticValue = gameplayReconnectDiagnostic()
+            }
+            return true
+        }
+        if (!playerConnected(player)) {
+            return true
+        }
+        if (action == gameplayDisconnectAction()) {
+            lastRemoteGameplayAcceptedValue = disconnectPlayer(
+                player, gameplayCommandValue(words, 0))
+            if (lastRemoteGameplayAcceptedValue) {
+                lastRemoteGameplayDiagnosticValue = gameplayDisconnectDiagnostic()
+            }
+            return true
+        }
+        if (action == gameplayMoveAction()) {
+            if (tick == serverTick + 1 &&
+                receiveInput(
+                    player, tick, sequence,
+                    gameplayCommandValue(words, 0), 0, 0, 0, 0, 0)) {
+                lastRemoteGameplayAcceptedValue = advance(16667) == 1
+            }
+            if (lastRemoteGameplayAcceptedValue) {
+                lastRemoteGameplayDiagnosticValue = gameplayMoveDiagnostic()
+            }
+            return true
+        }
+        if (action == gameplayFireAction()) {
+            if (tick == serverTick + 1 && advance(16667) == 1) {
+                var result = resolvePlayerHitscan(
+                    player, gameplayCommandValue(words, 0), tick,
+                    gameplayCommandValue(words, 1),
+                    gameplayCommandValue(words, 2))
+                lastRemoteGameplayAcceptedValue = result.accepted()
+            }
+            if (lastRemoteGameplayAcceptedValue) {
+                lastRemoteGameplayDiagnosticValue = gameplayFireDiagnostic()
+            }
+            return true
+        }
+        if (tick == serverTick + 1 &&
+            receiveInteraction(
+                player, tick, sequence, gameplayCommandValue(words, 0)) &&
+            advance(16667) == 1) {
+            lastRemoteGameplayAcceptedValue = lastInteractionAccepted(player)
+        }
+        if (lastRemoteGameplayAcceptedValue) {
+            lastRemoteGameplayDiagnosticValue = gameplayInteractionDiagnostic()
+        }
+        return true
     }
 
-    Int[] gameplayStateMessage(
-        Int tick, Int sequence, Bool accepted, Int combatActorId
-    ) {
+    Bool lastRemoteGameplayAccepted() {
+        return lastRemoteGameplayAcceptedValue
+    }
+
+    Int lastRemoteGameplayDiagnostic() {
+        return lastRemoteGameplayDiagnosticValue
+    }
+
+    Int[] gameplayStateMessage(Int tick, Int combatActorId, Int player) {
         var health = playerCombatHealth(combatActorId)
         if (!started || tick <= 0 || tick > 1000000 ||
-            sequence <= 0 || sequence > 1000000 || health < 0) {
+            health < 0 || player < 1 || player > 2 ||
+            connectionGenerations[player] <= 0 ||
+            gameplayStateSequences[player] >= 1000000) {
             return new Int[0]
         }
-        return newGameplayStateMessage(
-            tick, sequence, accepted,
-            worldInteractions.revision(), health,
-            worldInteractions.secretCount(), worldInteractions.completed())
+        gameplayStateSequences[player] = gameplayStateSequences[player] + 1
+        var state = newGameplayStateMessage(
+            tick, gameplayStateSequences[player],
+            lastRemoteGameplayAcceptedValue,
+            worldInteractions.revision(), combatActorId, health)
+        if (!setGameplayStateProgression(
+                state, worldInteractions.secretCount(),
+                worldInteractions.completed(), worldInteractions.activeMask()) ||
+            !setGameplayStateReplication(
+                state, serverMovement.position(1), serverMovement.position(2),
+                playerCurrency(player)) ||
+            !setGameplayStateConnection(
+                state, playerConnected(player), connectionGenerations[player],
+                disconnectReasons[player], lastRemoteGameplayDiagnosticValue) ||
+            !sealGameplayStateMessage(state)) {
+            return new Int[0]
+        }
+        return state
+    }
+
+    Bool applyRemoteGameplayState(Int[] words) {
+        if (!started || !validGameplayStateMessage(words) ||
+            words[3] <= clientRemoteStateSequenceValue ||
+            gameplayStateInteractionRevision(words) <
+                clientInteractionRevisionValue) {
+            return false
+        }
+        var mask = gameplayStateInteractionMask(words)
+        var divisor = 1
+        for (var index = 0;
+            index < clientInteractionFlags.length;
+            index = index + 1) {
+            clientInteractionFlags[index] = (mask / divisor) % 2 == 1
+            divisor = divisor * 2
+        }
+        clientInteractionRevisionValue =
+            gameplayStateInteractionRevision(words)
+        clientSecretCountValue = gameplayStateSecretCount(words)
+        clientLevelCompletedValue = gameplayStateLevelCompleted(words)
+        clientRemoteStateSequenceValue = words[3]
+        clientRemoteCombatActorValue = gameplayStateCombatActor(words)
+        clientRemoteCombatHealthValue = gameplayStateCombatHealth(words)
+        clientRemotePlayerOnePositionValue =
+            gameplayStatePlayerPosition(words, 1)
+        clientRemotePlayerTwoPositionValue =
+            gameplayStatePlayerPosition(words, 2)
+        clientRemoteCurrencyValue = gameplayStateCurrency(words)
+        clientRemoteConnectedValue = gameplayStateConnected(words)
+        clientRemoteConnectionGenerationValue =
+            gameplayStateConnectionGeneration(words)
+        clientRemoteDisconnectReasonValue =
+            gameplayStateDisconnectReason(words)
+        clientRemoteDiagnosticValue = gameplayStateDiagnostic(words)
+        return true
+    }
+
+    Int clientRemoteCombatActor() {
+        return clientRemoteCombatActorValue
+    }
+
+    Int clientRemoteCombatHealth() {
+        return clientRemoteCombatHealthValue
+    }
+
+    Int clientRemotePlayerPosition(Int player) {
+        if (player == 1) {
+            return clientRemotePlayerOnePositionValue
+        }
+        if (player == 2) {
+            return clientRemotePlayerTwoPositionValue
+        }
+        return -1000001
+    }
+
+    Int clientRemoteCurrency() {
+        return clientRemoteCurrencyValue
+    }
+
+    Bool clientRemoteConnected() {
+        return clientRemoteConnectedValue
+    }
+
+    Int clientRemoteConnectionGeneration() {
+        return clientRemoteConnectionGenerationValue
+    }
+
+    Int clientRemoteDisconnectReason() {
+        return clientRemoteDisconnectReasonValue
+    }
+
+    Int clientRemoteDiagnostic() {
+        return clientRemoteDiagnosticValue
     }
 
     Bool consumeWorldInteractions(Int tick) {
@@ -1289,6 +1533,36 @@ class LoopbackSession {
         return true
     }
 
+    Bool definePlayerCombatReward(Int actorId, Int currency) {
+        if (actorId <= 0 || playerCombat.currentHealth(actorId) <= 0 ||
+            currency <= 0 || currency > 1000000 ||
+            playerCombatRewardCount >= playerCombatRewardTargets.length) {
+            return false
+        }
+        for (var index = 0;
+            index < playerCombatRewardCount;
+            index = index + 1) {
+            if (playerCombatRewardTargets[index] == actorId) {
+                return false
+            }
+        }
+        playerCombatRewardTargets[playerCombatRewardCount] = actorId
+        playerCombatRewardCurrencies[playerCombatRewardCount] = currency
+        playerCombatRewardCount = playerCombatRewardCount + 1
+        return true
+    }
+
+    Int playerCombatRewardCurrency(Int actorId) {
+        for (var index = 0;
+            index < playerCombatRewardCount;
+            index = index + 1) {
+            if (playerCombatRewardTargets[index] == actorId) {
+                return playerCombatRewardCurrencies[index]
+            }
+        }
+        return 0
+    }
+
     Bool setPlayerCombatShield(
         Int actorId, Int currentValue, Int maximumValue
     ) {
@@ -1317,8 +1591,31 @@ class LoopbackSession {
     ResolutionResult resolvePlayerHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
-        return playerCombat.resolveHitscan(
+        var reward = playerCombatRewardCurrency(targetId)
+        if (reward > 0 &&
+            (sourceId < 1 || sourceId > 2 ||
+                playerCurrency(sourceId) > 1000000 - reward)) {
+            return ResolutionResult(
+                false, 0, sourceId, targetId, 0,
+                playerCombat.currentHealth(targetId), false, 0)
+        }
+        var result = playerCombat.resolveHitscan(
             sourceId, targetId, tick, distance, critical)
+        if (result.accepted() && result.died() && reward > 0) {
+            var granted = false
+            if (sourceId == 1) {
+                granted = playerOneInventory.depositCurrency(reward)
+            } else if (sourceId == 2) {
+                granted = playerTwoInventory.depositCurrency(reward)
+            }
+            if (!granted) {
+                return ResolutionResult(
+                    false, result.actionId(), sourceId, targetId,
+                    result.applied(), result.remainingHealth(),
+                    result.died(), result.eventSequence())
+            }
+        }
+        return result
     }
     ResolutionResult resolvePlayerShotgun(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical

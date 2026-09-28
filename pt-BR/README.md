@@ -24,14 +24,18 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
   saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
-  na JVM e no nativo levam a arena completa de 26 triângulos, comandos/estado
-  com checksum, morte terminal e progressão até a revisão 4.
+  na JVM e no nativo levam a arena completa de 26 triângulos e comandos
+  unificados com checksum para movimento, disparo, interação, desconexão e
+  reconexão. Os clientes aplicam posições autoritativas, vida de combate, uma
+  recompensa terminal em moeda, progressão até a revisão 4 e diagnósticos
+  explícitos de ciclo de vida/input obsoleto.
 
 As lacunas importantes continuam reais:
 
-- G2 ainda precisa de simulação replicada de jogadores/inimigos e recompensas,
-  diagnósticos limitados de entrada/saída/reconexão, geometria/colisão 3D
-  completa das portas e feedback/áudio integrado além do slice de transporte;
+- G2 ainda precisa de simulação/encounters replicados de inimigos,
+  predição/reconciliação completa dos jogadores e recuperação de
+  entrada/admissão em produção, geometria/colisão 3D completa das portas e
+  feedback/áudio integrado;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
 - saves duráveis contra crash, content cooker, física completa, áudio de

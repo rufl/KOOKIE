@@ -24,9 +24,11 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
 - A regressão G2 de três processos na JVM e no nativo transporta todos os 26
-  triângulos da arena, preserva colisão entre andares, usa mensagens de
-  interação/estado versionadas com checksum, chega à morte autoritativa e à
-  revisão 4 de chave/porta/segredo/saída e rejeita input obsoleto.
+  triângulos da arena e comandos unificados com checksum para movimento,
+  disparo, interação, desconexão e reconexão. O estado aplicado pelo cliente
+  comprova posição autoritativa, morte terminal mais 25 de moeda controladas
+  pelo servidor, revisão 4 de chave/porta/segredo/saída, geração 2 após
+  reconexão e diagnóstico explícito de input obsoleto.
 
 ## Lote mais recente
 
@@ -108,7 +110,7 @@ implementada.
 25. `RemoteSessionLink` bloqueia snapshots broad-phase até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes; a sonda nativa isolada envia e aplica um snapshot através do link, enquanto a orquestração em loop de sessão real ainda não foi implementada.
 26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo escolhido por pellet, inclusive impactos repetidos no mesmo ator. O combate espacial automático ainda precisa de um contrato compartilhado de raio do ator/mira.
 27. O despacho SIMD nativo agora seleciona AVX2/SSE2 no x86, possui caminho de origem NEON no AArch64 e mantém um fallback escalar verificado. `FFI001` ainda impede a integração de buffers do Kof, então isso não é um ganho de velocidade medido da engine.
-28. O gate focado atual tem 62 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
+28. O gate focado atual tem 71 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
 
@@ -144,13 +146,15 @@ determinísticos e buffers nativos persistentes; não é um resultado de
 RSS/desempenho por 30 minutos.
 
 G2 agora possui um slice de transporte qualificado: host mais dois clientes
-trocam a arena G1 completa e mensagens de gameplay com checksum até a morte
-autoritativa e a conclusão de chave/porta/segredo/saída na JVM e no nativo.
-Concluir G2 ainda exige simulação replicada de jogadores/inimigos e recompensas,
-diagnósticos limitados de entrada/saída/reconexão, geometria/colisão 3D completa
-das portas e feedback/áudio integrado. G5 mantém aceitação sustentada de carga,
-RSS e orçamento de frame. `FFI001` ainda bloqueia chamadas Kof com buffers em
-massa para o kernel SIMD opcional.
+trocam a arena G1 completa e comandos unificados com checksum para movimento,
+disparo, interação e ciclo de vida. O estado aplicado pelo cliente alcança
+morte/recompensa controladas pelo servidor, movimento autoritativo, geração 2
+após reconexão e conclusão de chave/porta/segredo/saída na JVM e no nativo.
+Concluir G2 ainda exige encounters replicados de inimigos,
+predição/reconciliação completa dos jogadores, entrada/recuperação em produção,
+geometria/colisão 3D completa das portas e feedback/áudio integrado. G5 mantém
+aceitação sustentada de carga, RSS e orçamento de frame.
+`FFI001` ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

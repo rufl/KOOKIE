@@ -195,6 +195,18 @@ class BoundedInteractionWorld {
         return active[slot - 1]
     }
 
+    Int activeMask() {
+        var mask = 0
+        var weight = 1
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            if (active[index]) {
+                mask = mask + weight
+            }
+            weight = weight * 2
+        }
+        return mask
+    }
+
     Int kind(Int id) {
         var slot = slotFor(id)
         if (slot == 0) {

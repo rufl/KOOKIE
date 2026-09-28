@@ -102,6 +102,10 @@ def main() -> int:
         "external-gameplay",
         "external-combat-death",
         "external-arena-triangles",
+        "external-combat-reward",
+        "external-player-position",
+        "external-reconnect-generation",
+        "external-stale-diagnostic",
         "external-host-reconnect",
         "external-authenticated-two-clients",
         "external-stale-rejection",
@@ -127,6 +131,11 @@ def main() -> int:
     combat_damage = marker_value(lines, "external-combat-damage")
     combat_death = marker_value(lines, "external-combat-death")
     arena_triangles = marker_value(lines, "external-arena-triangles")
+    combat_reward = marker_value(lines, "external-combat-reward")
+    player_position = marker_value(lines, "external-player-position")
+    reconnect_generation = marker_value(
+        lines, "external-reconnect-generation")
+    stale_diagnostic = marker_value(lines, "external-stale-diagnostic")
     interaction_revision = marker_value(lines, "external-interaction-revision")
     authentication_status = marker_value(
         lines, "external-authentication-status")
@@ -144,6 +153,14 @@ def main() -> int:
         return fail("server-owned combat death was not terminal")
     if arena_triangles != 26:
         return fail("complete authored arena did not traverse transport")
+    if combat_reward != 25:
+        return fail("server-owned combat reward was not replicated")
+    if player_position != 2:
+        return fail("authoritative player movement was not replicated")
+    if reconnect_generation != 2:
+        return fail("reconnect generation was not diagnosed")
+    if stale_diagnostic != 6:
+        return fail("stale command diagnostic was not explicit")
     if interaction_revision != 4:
         return fail("key-door-secret-exit revision was not 4")
     if authentication_status != 1:
@@ -309,6 +326,10 @@ def main() -> int:
         "combatDamage": combat_damage,
         "combatDeath": combat_death == 1,
         "arenaTriangleCount": arena_triangles,
+        "combatReward": combat_reward,
+        "playerPosition": player_position,
+        "reconnectGeneration": reconnect_generation,
+        "staleDiagnostic": stale_diagnostic,
         "interactionRevision": interaction_revision,
         "transportKeySha256": hashlib.sha256(key_hex.encode("ascii")).hexdigest(),
         "probeLog": str(log_path),

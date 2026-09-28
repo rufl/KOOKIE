@@ -22,14 +22,16 @@ G0 and G1 run on JVM and native Linux x86-64:
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
-  regressions carry the complete 26-triangle arena plus checksummed gameplay
-  commands/state through terminal combat death and revision-4 progression.
+  regressions carry the complete 26-triangle arena plus unified checksummed
+  movement, fire, interaction, disconnect and reconnect commands. Clients
+  apply authoritative positions, combat health, one terminal currency reward,
+  revision-4 progression and explicit lifecycle/stale-command diagnostics.
 
 The important gaps are still real:
 
-- G2 still needs replicated player/enemy simulation and rewards, bounded
-  join/leave/reconnect diagnostics, complete 3D door collision/render geometry,
-  and integrated feedback/audio beyond the qualified transport slice;
+- G2 still needs replicated enemy simulation/encounters, full player
+  prediction/reconciliation and production join/admission recovery, complete
+  3D door collision/render geometry, and integrated feedback/audio;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, content cooking, full physics, production audio,
@@ -135,10 +137,10 @@ initially with Vulkan/SPIR-V.
 
 ## Roadmap
 
-Next is the rest of G2: extend the qualified host-plus-two-client arena,
-combat-death and key/door/secret/exit transport slice into replicated
-player/enemy simulation, rewards, bounded reconnect diagnostics, complete 3D
-doors and integrated feedback/audio.
+Next is the rest of G2: extend the qualified host-plus-two-client movement,
+combat-death/reward, lifecycle and key/door/secret/exit transport slice into
+replicated enemy encounters, full player prediction/reconciliation, production
+join recovery, complete 3D doors and integrated feedback/audio.
 
 Deferred until the core gates are stronger:
 
