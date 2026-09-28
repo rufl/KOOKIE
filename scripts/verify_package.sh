@@ -44,30 +44,51 @@ JVM_OUTPUT="$("$JVM_ROOT/kookie" 2>"$WORK_DIR/jvm-runtime.err")" || {
 }
 grep -Fq 'KOOKIE G1 authoritative shooter verified' <<<"$JVM_OUTPUT"
 
-KOOKIE_VERSION=0.1.0-dogfood.presentation-smoke \
-KOOKIE_BUILD_ID=package-presentation-smoke \
-"$ROOT_DIR/scripts/package_kookie.sh" --runtime presentation \
-  --output "$WORK_DIR/presentation-release"
-(
-  cd "$WORK_DIR/presentation-release"
-  sha256sum --check SHA256SUMS >/dev/null
-)
-PRESENTATION_ARCHIVE="$WORK_DIR/presentation-release/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64.tar.gz"
-PRESENTATION_MANIFEST="$WORK_DIR/presentation-release/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64.json"
-test -f "$PRESENTATION_ARCHIVE" -a -f "$PRESENTATION_MANIFEST"
-mkdir "$WORK_DIR/presentation-extracted"
-tar -xzf "$PRESENTATION_ARCHIVE" -C "$WORK_DIR/presentation-extracted"
-PRESENTATION_ROOT="$WORK_DIR/presentation-extracted/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64"
-test -x "$PRESENTATION_ROOT/kookie"
-test -x "$PRESENTATION_ROOT/kookie.bin"
-test -f "$PRESENTATION_ROOT/build/libkookie_sdl_adapter.so"
-test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
-test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
-python3 - "$MANIFEST" "$JVM_MANIFEST" "$PRESENTATION_MANIFEST" <<'PY'
+presentation_manifest_args=()
+presentation_status="dependency fail-closed gate"
+if command -v glslc >/dev/null &&
+   command -v pkg-config >/dev/null &&
+   pkg-config --exists sdl3; then
+  KOOKIE_VERSION=0.1.0-dogfood.presentation-smoke \
+  KOOKIE_BUILD_ID=package-presentation-smoke \
+  "$ROOT_DIR/scripts/package_kookie.sh" --runtime presentation \
+    --output "$WORK_DIR/presentation-release"
+  (
+    cd "$WORK_DIR/presentation-release"
+    sha256sum --check SHA256SUMS >/dev/null
+  )
+  PRESENTATION_ARCHIVE="$WORK_DIR/presentation-release/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64.tar.gz"
+  PRESENTATION_MANIFEST="$WORK_DIR/presentation-release/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64.json"
+  test -f "$PRESENTATION_ARCHIVE" -a -f "$PRESENTATION_MANIFEST"
+  mkdir "$WORK_DIR/presentation-extracted"
+  tar -xzf "$PRESENTATION_ARCHIVE" -C "$WORK_DIR/presentation-extracted"
+  PRESENTATION_ROOT="$WORK_DIR/presentation-extracted/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64"
+  test -x "$PRESENTATION_ROOT/kookie"
+  test -x "$PRESENTATION_ROOT/kookie.bin"
+  test -f "$PRESENTATION_ROOT/build/libkookie_sdl_adapter.so"
+  test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
+  test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
+  presentation_manifest_args=("$PRESENTATION_MANIFEST" presentation)
+  presentation_status="archive"
+else
+  if KOOKIE_VERSION=0.1.0-dogfood.presentation-smoke \
+     KOOKIE_BUILD_ID=package-presentation-smoke \
+     "$ROOT_DIR/scripts/package_kookie.sh" --runtime presentation \
+       --output "$WORK_DIR/presentation-unavailable" \
+       >"$WORK_DIR/presentation-unavailable.out" 2>&1; then
+    echo 'package smoke: presentation packaging unexpectedly ignored missing dependencies' >&2
+    exit 1
+  fi
+  grep -Eq 'glslc is required|pkg-config is required|SDL3 development files are required' \
+    "$WORK_DIR/presentation-unavailable.out"
+fi
+python3 - "$MANIFEST" native "$JVM_MANIFEST" jvm \
+  "${presentation_manifest_args[@]}" <<'PY'
 import json, pathlib, sys
-expected = ("native", "jvm", "presentation")
-assert len(sys.argv[1:]) == len(expected)
-for raw_path, runtime in zip(sys.argv[1:], expected):
+arguments = sys.argv[1:]
+assert len(arguments) >= 4 and len(arguments) % 2 == 0
+for index in range(0, len(arguments), 2):
+    raw_path, runtime = arguments[index:index + 2]
     manifest = json.loads(pathlib.Path(raw_path).read_text(encoding="utf-8"))
     assert manifest["schema"] == "kookie.package-provenance/v1"
     assert manifest["application"] == "kookie"
@@ -82,4 +103,4 @@ if "$ROOT_DIR/scripts/package_kookie.sh" --target windows-x86_64 --output "$WORK
   exit 1
 fi
 grep -Fq 'Windows native packaging is blocked' "$WORK_DIR/windows.out"
-printf 'KOOKIE package smoke passed: Linux native, JVM, and presentation archives, checksums, provenance, runtime, and Windows fail-closed gate\n'
+printf 'KOOKIE package smoke passed: Linux native/JVM archives, presentation %s, checksums, provenance, runtime, and Windows fail-closed gate\n' "$presentation_status"
