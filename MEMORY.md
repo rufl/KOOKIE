@@ -11,13 +11,14 @@ Bounded foundations execute; G0 and G1 acceptance gates are complete.
 - `G1Arena` owns 78 vertices/26 triangles for lower floor, ramp, upper
   platform, two stair steps and stacked rooms. Server snapshots include
   explicit bounds and all triangles; client upper/lower-floor queries pass.
-- World plus numeric HUD staging uses 96 fixed vertices. The native SDL_GPU
-  bridge owns persistent scene buffers; an isolated GPU run produced a 320×240
-  P6 frame. Sixty-four deterministic stages retained the original Kof
-  capacities.
+- World plus semantic HUD staging uses 216 fixed vertices: 78 arena vertices
+  and 138 HUD vertices for framed health/ammo tracks, structural icons,
+  encounter pips and a focus-responsive crosshair. The native SDL_GPU bridge
+  owns persistent scene buffers and a 16-color semantic palette; the
+  no-per-frame-growth proof remains bounded to unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- JVM/native checks, identical G1 runtime markers and 71/71 tests pass on each
+- JVM/native checks, identical G1 runtime markers and 72/72 tests pass on each
   target.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
@@ -104,7 +105,7 @@ management remains unimplemented.
 25. `RemoteSessionLink` gates broad-phase snapshots on endpoint activation and strictly increasing send/receive sequences; the native isolated probe sends and applies a snapshot through the link, while live session-loop orchestration remains unimplemented.
 26. `BoundedRayTargetWorld` now performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering, source exclusion through `SpatialAimContract`, and target removal. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits and bounded misses. `LoopbackSession.resolvePlayerSpatialShotgun` now connects that selection to authoritative player combat.
 27. Native SIMD dispatch now selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps a checked scalar fallback. `FFI001` still prevents Kof bulk-buffer integration, so this is not a measured engine speedup.
-28. The current focused source gate is 71 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
+28. The current focused source gate is 72 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
 
 ## Editor cautions
 

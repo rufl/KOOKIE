@@ -13,13 +13,14 @@ PROVENANCE_SCHEMA="${KOOKIE_PACKAGE_PROVENANCE_SCHEMA:-kookie.package-provenance
 
 usage() {
   cat <<'EOF'
-Usage: scripts/package_kookie.sh [--runtime native|jvm] [--target linux-x86_64|windows-x86_64]
+Usage: scripts/package_kookie.sh [--runtime native|jvm|presentation] [--target linux-x86_64|windows-x86_64]
 
 Builds an immutable internal dogfood archive and SHA256SUMS. Native Linux
-packages contain the Kof executable. JVM packages contain an executable
-launcher plus an executable JAR; Windows JVM packages also embed the supplied
-Windows Java runtime. Windows native packaging fails closed until a real PE
-build exists.
+packages contain the Kof executable. Presentation packages contain the native
+Kof SDL_GPU arena/HUD executable, adapter, shaders, and their Linux runtime
+libraries. JVM packages contain an executable launcher plus an executable JAR;
+Windows JVM packages also embed the supplied Windows Java runtime. Windows
+native and presentation packaging fail closed until a real PE build exists.
 EOF
 }
 
@@ -36,7 +37,7 @@ while (($#)); do
 done
 
 case "$RUNTIME" in
-  native|jvm) ;;
+  native|jvm|presentation) ;;
   *) echo "package_kookie: unsupported runtime: $RUNTIME" >&2; exit 2 ;;
 esac
 
@@ -60,10 +61,15 @@ esac
   exit 2
 }
 command -v sha256sum >/dev/null || { echo 'package_kookie: sha256sum is required' >&2; exit 2; }
-if [[ "$RUNTIME" == native && "$TARGET" == linux-x86_64 ]]; then
+if [[ "$RUNTIME" != jvm && "$TARGET" == linux-x86_64 ]]; then
   command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for Linux native packaging' >&2; exit 2; }
   command -v readelf >/dev/null || { echo 'package_kookie: readelf is required for Linux native packaging' >&2; exit 2; }
-  command -v cc >/dev/null || { echo 'package_kookie: cc is required for the Linux native launcher' >&2; exit 2; }
+  command -v cc >/dev/null || { echo 'package_kookie: cc is required for Linux native packaging' >&2; exit 2; }
+fi
+if [[ "$RUNTIME" == presentation ]]; then
+  command -v glslc >/dev/null || { echo 'package_kookie: glslc is required for presentation packaging' >&2; exit 2; }
+  command -v pkg-config >/dev/null || { echo 'package_kookie: pkg-config is required for presentation packaging' >&2; exit 2; }
+  pkg-config --exists sdl3 || { echo 'package_kookie: SDL3 development files are required for presentation packaging' >&2; exit 2; }
 fi
 if [[ "$RUNTIME" == jvm ]]; then
   command -v jar >/dev/null || { echo 'package_kookie: jar is required for JVM packaging' >&2; exit 2; }
@@ -108,30 +114,58 @@ PACKAGE_NAME="kookie-$VERSION-$TARGET"
 PACKAGE_ROOT="$WORK_DIR/$PACKAGE_NAME"
 ARCHIVE="$OUTPUT_DIR/$PACKAGE_NAME.$([[ "$TARGET" == windows-x86_64 ]] && echo zip || echo tar.gz)"
 mkdir -p "$PACKAGE_ROOT"
+
+bundle_linux_native() {
+  local binary="$1"
+  shift
+  local loader dependency library
+  cp -- "$binary" "$PACKAGE_ROOT/kookie.bin"
+  chmod 755 "$PACKAGE_ROOT/kookie.bin"
+  loader="$(readelf -l "$binary" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')"
+  [[ -n "$loader" && -f "$loader" ]] || {
+    echo 'package_kookie: native Linux interpreter could not be resolved' >&2
+    exit 1
+  }
+  mkdir "$PACKAGE_ROOT/lib"
+  cp -L -- "$loader" "$PACKAGE_ROOT/lib/$(basename "$loader")"
+  for dependency in "$binary" "$@"; do
+    while IFS= read -r library; do
+      cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
+    done < <(ldd "$dependency" | sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p; s/^[[:space:]]*(\/[^ ]+) .*/\1/p')
+  done
+  cc -static -O2 -s \
+    "$ROOT_DIR/scripts/kookie_linux_launcher.c" \
+    -o "$PACKAGE_ROOT/kookie"
+  chmod 755 "$PACKAGE_ROOT/kookie"
+}
+
 if [[ "$RUNTIME" == native ]]; then
   kof build "$ROOT_DIR/src" --target native --output "$WORK_DIR/build" >/dev/null
   BINARY="$WORK_DIR/build/Default/Main"
   test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
-  cp -- "$BINARY" "$PACKAGE_ROOT/kookie.bin"
-  chmod 755 "$PACKAGE_ROOT/kookie.bin"
-  if [[ "$TARGET" == linux-x86_64 ]]; then
-    loader="$(readelf -l "$BINARY" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')"
-    [[ -n "$loader" && -f "$loader" ]] || {
-      echo 'package_kookie: native Linux interpreter could not be resolved' >&2
-      exit 1
-    }
-    mkdir "$PACKAGE_ROOT/lib"
-    cp -L -- "$loader" "$PACKAGE_ROOT/lib/$(basename "$loader")"
-    while IFS= read -r library; do
-      cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
-    done < <(ldd "$BINARY" | sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p; s/^[[:space:]]*(\/[^ ]+) .*/\1/p')
-    cc -static -O2 -s \
-      "$ROOT_DIR/scripts/kookie_linux_launcher.c" \
-      -o "$PACKAGE_ROOT/kookie"
-    chmod 755 "$PACKAGE_ROOT/kookie"
-  else
-    mv -- "$PACKAGE_ROOT/kookie.bin" "$PACKAGE_ROOT/kookie"
-  fi
+  bundle_linux_native "$BINARY"
+elif [[ "$RUNTIME" == presentation ]]; then
+  PRESENTATION_ROOT="$WORK_DIR/presentation"
+  mkdir -p "$PRESENTATION_ROOT"/{core,session,world,ui,demo} "$PACKAGE_ROOT/build"
+  cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" "$PRESENTATION_ROOT/main.kf"
+  for module in core session world ui demo; do
+    for source in "$ROOT_DIR/src/$module/"*.kf; do
+      ln -s -- "$source" "$PRESENTATION_ROOT/$module/$(basename "$source")"
+    done
+  done
+  IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3)"
+  cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    "$ROOT_DIR/native/kookie_sdl_adapter.c" \
+    -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
+    "${SDL_FLAGS[@]}"
+  glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
+    -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
+  glslc -fshader-stage=frag "$ROOT_DIR/native/shaders/g0_triangle.frag" \
+    -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
+  (cd "$PACKAGE_ROOT" && kof build "$PRESENTATION_ROOT/main.kf" --target native --output "$WORK_DIR/build" >/dev/null)
+  BINARY="$WORK_DIR/build/Default/Main"
+  test -x "$BINARY" || { echo "package_kookie: presentation executable missing: $BINARY" >&2; exit 1; }
+  bundle_linux_native "$BINARY" "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so"
 else
   kof build "$ROOT_DIR/src" --target jvm --output "$WORK_DIR/build" >/dev/null
   jar --create --file "$PACKAGE_ROOT/kookie.jar" --main-class Default.Main -C "$WORK_DIR/build" .
@@ -178,7 +212,7 @@ application=kookie
 channel=dogfood
 target=$TARGET
 runtime=$RUNTIME
-native_linux_launcher=$([[ "$RUNTIME" == native && "$TARGET" == linux-x86_64 ]] && echo bundled-static-loader || echo direct)
+native_linux_launcher=$([[ "$RUNTIME" != jvm && "$TARGET" == linux-x86_64 ]] && echo bundled-static-loader || echo direct)
 version=$VERSION
 build_id=$BUILD_ID
 source_commit=$(git -C "$ROOT_DIR" rev-parse HEAD)
@@ -196,10 +230,10 @@ fi
   cd "$OUTPUT_DIR"
   sha256sum "$(basename "$ARCHIVE")" > SHA256SUMS
 )
-python3 - "$ARCHIVE" "$OUTPUT_DIR/$PACKAGE_NAME.json" "$TARGET" "$VERSION" "$BUILD_ID" "$BASE_URL" "$PROVENANCE_SCHEMA" <<'PY'
+python3 - "$ARCHIVE" "$OUTPUT_DIR/$PACKAGE_NAME.json" "$TARGET" "$VERSION" "$BUILD_ID" "$BASE_URL" "$PROVENANCE_SCHEMA" "$RUNTIME" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
-target, version, build_id, base_url, schema = sys.argv[3:8]
+target, version, build_id, base_url, schema, runtime = sys.argv[3:9]
 encoded = f"{base_url.rstrip('/')}/dogfood/{version}/{target}/{build_id}"
 manifest = {
     "schema": schema,
@@ -207,6 +241,7 @@ manifest = {
     "channel": "dogfood",
     "version": version,
     "target": target,
+    "runtime": runtime,
     "build_id": build_id,
     "archive": archive.name,
     "size": archive.stat().st_size,

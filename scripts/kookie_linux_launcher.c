@@ -20,6 +20,7 @@ int main(int argc, char **argv) {
     char *slash = strrchr(module, '/');
     if (slash == NULL) return 127;
     *slash = '\0';
+    if (chdir(module) != 0) return 127;
 
     char loader[PATH_MAX];
     char library_path[PATH_MAX];

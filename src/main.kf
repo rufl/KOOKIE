@@ -2,6 +2,7 @@ import core
 import session
 import content
 import demo
+import ui
 
 main() {
     println("KOOKIE G0 session foundation")
@@ -96,6 +97,29 @@ main() {
     println("KOOKIE G1 authoritative shooter verified")
 
 }
+test "shooter HUD stages semantic status hierarchy" {
+    var hud = ShooterHud(100, 30)
+    assert(hud.renderVertexCount() == 138,
+        "HUD geometry must retain a fixed bounded budget")
+    var frame = FrameStaging(hud.renderVertexCount())
+    assert(hud.update(100, 30, 0, 1, true) &&
+        hud.stage(frame, 1, 9) &&
+        frame.stagedCount() == hud.renderVertexCount(),
+        "ready HUD must stage panels icons crosshair and status")
+    var readyChecksum = frame.checksum()
+    assert(frame.retire(1))
+    assert(hud.update(20, 3, 3, 2, false) &&
+        hud.stage(frame, 2, 9) &&
+        frame.checksum() != readyChecksum &&
+        hud.health() == 20 && hud.ammunition() == 3 &&
+        hud.enemies() == 3 && hud.tick() == 2 && !hud.focused(),
+        "critical unfocused state must produce distinct visual feedback")
+    assert(frame.retire(2))
+    var undersized = FrameStaging(hud.renderVertexCount() - 1)
+    assert(!hud.stage(undersized, 1, 9),
+        "HUD staging must fail closed below its declared geometry budget")
+}
+
 test "G2 gameplay wire validates commands and authoritative state" {
     assert(maximumSessionTransportWords() ==
         12 + maximumSessionTransportTriangles() * 9,

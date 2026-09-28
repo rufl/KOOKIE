@@ -16,7 +16,9 @@
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 300
-#define KOOKIE_GPU_SCENE_MAX_VERTICES 128
+#define KOOKIE_GPU_SCENE_MAX_VERTICES 256
+#define KOOKIE_GPU_PALETTE_WIDTH 4
+#define KOOKIE_GPU_PALETTE_COLORS 16
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -1267,8 +1269,8 @@ static bool kookie_gpu_prepare_resources(
     texture_info.type = SDL_GPU_TEXTURETYPE_2D;
     texture_info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     texture_info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-    texture_info.width = 2;
-    texture_info.height = 2;
+    texture_info.width = KOOKIE_GPU_PALETTE_WIDTH;
+    texture_info.height = KOOKIE_GPU_PALETTE_WIDTH;
     texture_info.layer_count_or_depth = 1;
     texture_info.num_levels = 1;
     texture_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
@@ -1363,7 +1365,7 @@ static bool kookie_gpu_prepare_resources(
 
     SDL_GPUTransferBufferCreateInfo transfer_info = {0};
     transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transfer_info.size = 128;
+    transfer_info.size = 172;
     transfer = SDL_CreateGPUTransferBuffer(device, &transfer_info);
     if (transfer == NULL) {
         goto cleanup;
@@ -1372,9 +1374,15 @@ static bool kookie_gpu_prepare_resources(
     if (pixels == NULL) {
         goto cleanup;
     }
-    const Uint8 checker[16] = {
-        255, 64, 64, 255, 64, 255, 64, 255,
-        64, 64, 255, 255, 255, 255, 64, 255
+    const Uint8 palette[64] = {
+         71,  85, 105, 255,  37,  99, 235, 255,
+         15, 118, 110, 255, 124,  58, 237, 255,
+        180,  83,   9, 255, 220,  38,  38, 255,
+          8, 145, 178, 255, 101, 163,  13, 255,
+        100, 116, 139, 255,  15,  23,  42, 255,
+         30,  41,  59, 255, 239,  68,  68, 255,
+        245, 158,  11, 255,  56, 189, 248, 255,
+         34, 197,  94, 255, 248, 250, 252, 255
     };
     const float vertices[24] = {
         -0.8f, -0.8f, 0.0f, 1.0f,
@@ -1385,9 +1393,9 @@ static bool kookie_gpu_prepare_resources(
         -0.8f,  0.8f, 0.0f, 0.0f
     };
     const Uint16 indices[6] = {0, 1, 2, 3, 4, 5};
-    memcpy(pixels, checker, sizeof(checker));
-    memcpy(pixels + 16, vertices, sizeof(vertices));
-    memcpy(pixels + 112, indices, sizeof(indices));
+    memcpy(pixels, palette, sizeof(palette));
+    memcpy(pixels + 64, vertices, sizeof(vertices));
+    memcpy(pixels + 160, indices, sizeof(indices));
     SDL_UnmapGPUTransferBuffer(device, transfer);
 
     command_buffer = SDL_AcquireGPUCommandBuffer(device);
@@ -1402,20 +1410,20 @@ static bool kookie_gpu_prepare_resources(
     source.transfer_buffer = transfer;
     SDL_GPUTextureRegion destination = {0};
     destination.texture = gpu_resources.texture;
-    destination.w = 2;
-    destination.h = 2;
+    destination.w = KOOKIE_GPU_PALETTE_WIDTH;
+    destination.h = KOOKIE_GPU_PALETTE_WIDTH;
     destination.d = 1;
     SDL_UploadToGPUTexture(copy_pass, &source, &destination, false);
     SDL_GPUTransferBufferLocation vertex_source = {0};
     vertex_source.transfer_buffer = transfer;
-    vertex_source.offset = 16;
+    vertex_source.offset = 64;
     SDL_GPUBufferRegion vertex_destination = {0};
     vertex_destination.buffer = gpu_resources.vertex_buffer;
     vertex_destination.size = 96;
     SDL_UploadToGPUBuffer(copy_pass, &vertex_source, &vertex_destination, false);
     SDL_GPUTransferBufferLocation index_source = {0};
     index_source.transfer_buffer = transfer;
-    index_source.offset = 112;
+    index_source.offset = 160;
     SDL_GPUBufferRegion index_destination = {0};
     index_destination.buffer = gpu_resources.index_buffer;
     index_destination.size = 12;
@@ -1474,14 +1482,16 @@ bool kookie_gpu_scene_push_vertex(
         u < 0 || u > 100 || v < 0 || v > 100) {
         return false;
     }
-    int palette = (resource - 1) & 3;
+    int palette = (resource - 1) % KOOKIE_GPU_PALETTE_COLORS;
+    int palette_x = palette % KOOKIE_GPU_PALETTE_WIDTH;
+    int palette_y = palette / KOOKIE_GPU_PALETTE_WIDTH;
     size_t offset = (size_t)gpu_scene.count * 4u;
     gpu_scene.vertices[offset] = (float)x / 100.0f;
     gpu_scene.vertices[offset + 1u] = (float)y / 100.0f;
     gpu_scene.vertices[offset + 2u] =
-        (palette & 1) == 0 ? 0.25f : 0.75f;
+        ((float)palette_x + 0.5f) / (float)KOOKIE_GPU_PALETTE_WIDTH;
     gpu_scene.vertices[offset + 3u] =
-        (palette & 2) == 0 ? 0.25f : 0.75f;
+        ((float)palette_y + 0.5f) / (float)KOOKIE_GPU_PALETTE_WIDTH;
     gpu_scene.count += 1;
     return true;
 }

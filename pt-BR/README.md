@@ -18,8 +18,9 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
   pellets de shotgun;
 - arena criada com 78 vértices e 26 triângulos, inclinação caminhável, degraus e
   salas empilhadas, replicada com limites explícitos do broad-phase;
-- câmera, staging limitado do mundo/HUD e upload de cena SDL_GPU por buffers
-  fixos; a perda de foco limpa movimento e disparo enfileirados;
+- câmera, staging limitado do mundo e um HUD semântico com painéis de
+  vida/munição, pips de encounter e mira responsiva ao foco; o SDL_GPU envia a
+  cena fixa de 216 vértices sem crescimento de buffer por frame;
 - progressão cooperativa de chave, porta, segredo e saída, replay de comandos e
   saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
@@ -58,6 +59,19 @@ Execute a sonda focada de gameplay/replay:
 ```bash
 bash scripts/verify_interactions.sh
 ```
+
+Gere o pacote nativo Linux de apresentação SDL_GPU usado para qualificação
+visual isolada e deployment dogfood via ztash:
+
+```bash
+KOOKIE_RUNTIME=presentation \
+KOOKIE_VERSION=0.1.0-dogfood.presentation.1 \
+scripts/package_kookie.sh
+```
+
+Ele contém o executável Kof de arena/HUD, adaptador SDL, shaders SPIR-V e as
+bibliotecas Linux resolvidas. É uma superfície limitada de qualificação, não
+um jogo interativo completo.
 
 O gate completo fica para a verificação final pré-commit (no Pi, após `/precommit-matrix`):
 

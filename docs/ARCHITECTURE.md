@@ -495,8 +495,9 @@ real GPU/audio lifecycle, bounded wire envelope and loopback codecs.
 Implemented IDs/component arrays, a 60 Hz authoritative tick, client commands,
 two-client loopback admission, snapshot baselines, observable
 prediction/reconciliation, capsule/triangle-BVH contact, one weapon/enemy,
-camera and numeric HUD. The authored arena, shared collision data and fixed
-SDL_GPU scene staging close G1; sustained scale/soak remains G5.
+camera and a semantic health/ammo/focus/encounter HUD. The authored arena,
+shared collision data and fixed SDL_GPU scene staging close G1; sustained
+scale/soak remains G5.
 
 ### G2 — LAN boomer-shooter slice
 

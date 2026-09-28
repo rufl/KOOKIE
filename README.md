@@ -16,8 +16,9 @@ G0 and G1 run on JVM and native Linux x86-64:
   per-pellet shotgun targeting;
 - an authored 78-vertex/26-triangle arena with a walkable slope, steps and
   stacked rooms, replicated with explicit broad-phase bounds;
-- camera, bounded world/HUD staging and SDL_GPU scene upload through fixed
-  buffers; focus loss clears queued movement and fire;
+- camera, bounded world staging and a semantic status HUD with framed
+  health/ammo indicators, encounter pips and focus-responsive crosshair;
+  SDL_GPU uploads the fixed 216-vertex scene without per-frame buffer growth;
 - cooperative key, door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
@@ -67,6 +68,19 @@ fallback:
 KOOKIE_RUNTIME=jvm KOOKIE_VERSION=0.1.0-dogfood.jvm.1 \
 scripts/package_kookie.sh
 ```
+
+Build the native Linux SDL_GPU presentation package used for isolated visual
+qualification and ztash dogfood deployment:
+
+```bash
+KOOKIE_RUNTIME=presentation \
+KOOKIE_VERSION=0.1.0-dogfood.presentation.1 \
+scripts/package_kookie.sh
+```
+
+It contains the Kof arena/HUD executable, SDL adapter, SPIR-V shaders and
+resolved Linux runtime libraries. It is a bounded qualification surface, not a
+finished interactive game.
 
 The Windows JVM archive contains the Kof executable JAR, an embedded Windows
 JDK, a PE launcher, SDL3, and `kookie-visual.exe`. The installed shortcut

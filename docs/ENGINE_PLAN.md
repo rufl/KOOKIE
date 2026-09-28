@@ -638,11 +638,12 @@ exposes prediction correction and reconciliation, resolves one weapon/enemy
 encounter, and clears held movement/fire across focus loss. Its authored
 78-vertex/26-triangle arena supplies a walkable slope, steps and stacked rooms;
 the server replicates its triangle data and explicit bounds to the client.
-Camera, world staging and a numeric HUD feed a fixed 96-vertex native SDL_GPU
-scene buffer. An isolated GPU smoke rendered and read back that scene, and 71/71
-tests pass on JVM and native. G1's no-per-frame-growth evidence is 64
-deterministic stages with unchanged Kof capacities plus persistent native scene
-buffers; the 30-minute RSS/performance soak remains G5. G2 has a JVM/native
+Camera, world staging and a semantic health/ammo/focus/encounter HUD feed a
+fixed 216-vertex native SDL_GPU scene buffer backed by a 16-color palette. An
+isolated GPU smoke rendered and read back the bounded scene, and 72/72 tests
+pass on JVM and native. G1's no-per-frame-growth evidence is 64 deterministic
+stages with unchanged Kof capacities plus persistent native scene buffers; the
+30-minute RSS/performance soak remains G5. G2 has a JVM/native
 three-process transport slice carrying the full arena and unified checksummed
 movement, fire, interaction, disconnect and reconnect commands. Client-applied
 state proves authoritative position, terminal combat death plus currency

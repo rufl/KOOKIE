@@ -2,6 +2,27 @@
 
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
+## 2026-09-29
+### Semantic HUD and visual dogfood
+
+- Replaced three unlabeled numeric bars with bounded dark status panels:
+  framed health and ammunition tracks, structural health/round icons,
+  encounter pips and a focus-responsive crosshair. Critical and unfocused
+  states change geometry as well as color.
+- Expanded the persistent SDL_GPU scene budget from 128 to 256 vertices and
+  replaced the four-color debug texture with a 16-color semantic world/HUD
+  palette. The authored scene now stages 78 world plus 138 HUD vertices.
+- Added a Linux `presentation` package runtime containing the native Kof
+  arena/HUD executable, SDL adapter, SPIR-V shaders and resolved runtime
+  libraries. The relocatable launcher anchors asset loading to its package.
+- Added observable HUD-state regression coverage. All 72 source tests pass on
+  JVM and native; native, JVM and presentation archive/checksum/provenance
+  package smokes pass.
+- The packaged presentation ran inside `overzeer-isolated-display` with a
+  nested compositor, reported present capability `11`, rendered in 11,257 µs,
+  captured a validated 320×240 frame and exited cleanly. Machine-specific
+  evidence remains outside the repository.
+
 ## 2026-09-28
 ### Current qualification batch
 
