@@ -11,7 +11,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   no mundo. Cada estado usa forma estrutural além de cor; slots inativos
   permanecem degenerados na cena fixa de arena/porta/HUD com 378 vértices.
 - O demo de apresentação agora deriva esse painel do caminho autoritativo real
-  de eliminação G3, drop rank 3, skill, coleta/equipamento e recompensa em moeda.
+  de eliminação G3, drop rank 3, skill e recompensa em moeda.
 - Encaminhamos autoridade do jogador tipo `7` e loot no mundo tipo `8` por
   processos autenticados na mesma máquina com host mais dois clientes na JVM e
   no nativo. O validador comprova item/equipamento `900`, rank de skill `1` e
@@ -19,6 +19,16 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Todos os 74 cenários-fonte passam na JVM e no nativo. Lint/LSP de Kof, a sonda
   focada de interação e as regressões de transporte entre processos na JVM/no
   nativo passam.
+- Geramos e implantamos o dogfood Linux de apresentação
+  `0.1.0-dogfood.25` a partir de `a02c7c1edd58` pelo catálogo ztash verificado
+  de 30 pacotes (SHA256
+  `15f74f040f02a6faadea161057f8b8184323b9b5ccf9b1c3fe10d8dbf0bbab6a`,
+  4.207.580 bytes). O marcador ZEER ativo e o smoke do pacote implantado
+  identificam a versão, o build e o arquivo exatos. O pacote de apresentação
+  exato também encerrou com código `0` dentro de `overzeer-isolated-display`
+  mais niri aninhado, informou capacidade de apresentação `11`, desenhou em
+  83.543 µs e produziu um frame 320×240 validado com checksum `29.772.824`; a
+  revisão visual não encontrou clipping nem sobreposição do HUD.
 
 ### Primeiro slice vertical autoritativo G3 de loot/progressão
 

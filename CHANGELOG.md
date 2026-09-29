@@ -11,13 +11,22 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   Every state has structural shape feedback as well as color; inactive slots
   remain degenerate inside the fixed 378-vertex arena/door/HUD scene.
 - The presentation demo now derives this panel from the real authoritative G3
-  kill, rank-3 drop, skill, pickup/equip and currency-reward path.
+  kill, rank-3 drop, skill and currency-reward path.
 - Routed recipient player-authority kind `7` and world-loot kind `8` through
   authenticated same-host host-plus-two-client processes on JVM and native.
   The evidence validator proves item/equipment `900`, skill rank `1` and zero
   world drops after pickup; separate-host execution remains unproven.
 - All 74 source scenarios pass on JVM and native. Kof lint/LSP, the focused
   interaction probe and JVM/native external-process transport regressions pass.
+- Built and deployed Linux presentation dogfood `0.1.0-dogfood.25` from
+  `a02c7c1edd58` through the verified 30-package ztash catalog (SHA256
+  `15f74f040f02a6faadea161057f8b8184323b9b5ccf9b1c3fe10d8dbf0bbab6a`,
+  4,207,580 bytes). The active ZEER marker and deployed package smoke both
+  identify the exact version, build and archive. The exact presentation
+  package also exited `0` inside `overzeer-isolated-display` plus nested niri,
+  reported present capability `11`, drew in 83,543 µs and produced a validated
+  320×240 frame with checksum `29,772,824`; visual review found no clipping or
+  HUD overlap.
 
 ### First authoritative G3 loot/progression vertical slice
 
