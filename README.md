@@ -12,30 +12,32 @@ G0 and G1 run on JVM and native Linux x86-64:
 - authoritative 60 Hz loopback server/client sessions, two-client admission,
   snapshots and observable prediction/reconciliation;
 - bounded movement, capsule contact, triangle BVH and spatial projectile queries;
-- deterministic combat with one integrated player weapon/enemy path,
-  per-pellet shotgun targeting and confirmed impact events that feed bounded
-  HUD/audio presentation;
+- deterministic combat with one integrated player/enemy path, bounded
+  per-pellet shotgun targeting, and authoritative encounter snapshots carrying
+  up to 32 enemy states plus the latest confirmed impact into client HUD/audio;
 - an authored 78-vertex/26-triangle arena with a walkable slope, steps and
   stacked rooms, replicated with explicit broad-phase bounds;
 - camera, bounded world staging and a semantic combat HUD with framed
-  health/ammo indicators, encounter pips, a focus-responsive crosshair,
-  hit/kill markers and edge damage warnings; SDL_GPU uploads the fixed
-  252-vertex scene without per-frame buffer growth;
+  health/ammo indicators, a connection glyph, active/reserve encounter load,
+  a focus-responsive crosshair, hit/kill markers and edge damage warnings;
+  SDL_GPU uploads the fixed 252-vertex scene without per-frame buffer growth;
 - cooperative key, door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
-  regressions carry the complete 26-triangle arena plus unified checksummed
-  movement, fire, interaction, disconnect and reconnect commands. Clients
-  apply authoritative positions, combat health, one terminal currency reward,
-  revision-4 progression and explicit lifecycle/stale-command diagnostics.
+  regressions carry the complete 26-triangle arena, unified checksummed
+  movement/fire/interaction/lifecycle commands, and a bounded authoritative
+  enemy-encounter message. Clients apply positions, terminal enemy state and
+  health, the latest confirmed impact, one 25-currency reward, revision-4
+  progression and explicit lifecycle/stale-command diagnostics.
 
 The important gaps are still real:
 
-- G2 still needs replicated enemy simulation/encounters, full player
-  prediction/reconciliation and production join/admission recovery, complete
-  3D door collision/render geometry, complete multiplayer feedback coverage
-  and production audio mixing/spatialization;
+- G2 still needs continuous replicated multi-role enemy simulation beyond the
+  qualified one-encounter state/impact slice, full player
+  prediction/reconciliation, production join/admission recovery, complete 3D
+  door collision/render geometry, complete multiplayer feedback coverage and
+  production audio mixing/spatialization;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, content cooking, full physics, production audio,
@@ -60,6 +62,7 @@ bash scripts/verify_interactions.sh
 
 Build an internal Linux dogfood archive:
 
+```bash
 KOOKIE_VERSION=0.1.0-dogfood.1 scripts/package_kookie.sh
 ```
 
@@ -156,10 +159,10 @@ initially with Vulkan/SPIR-V.
 ## Roadmap
 
 Next is the rest of G2: extend the qualified host-plus-two-client movement,
-combat-death/reward, lifecycle and key/door/secret/exit transport slice into
-replicated enemy encounters, full player prediction/reconciliation, production
-join recovery, complete 3D doors, complete multiplayer combat feedback and
-production audio.
+enemy death/reward, encounter-state/impact, lifecycle and
+key/door/secret/exit transport slice into continuous multi-role enemy
+simulation, full player prediction/reconciliation, production join recovery,
+complete 3D doors, complete multiplayer combat feedback and production audio.
 
 Deferred until the core gates are stronger:
 

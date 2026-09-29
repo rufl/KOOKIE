@@ -29,6 +29,8 @@ class LoopbackSession {
     Int[] disconnectReasons
     Bool lastRemoteGameplayAcceptedValue
     Int lastRemoteGameplayDiagnosticValue
+    Int remoteImpactSequenceValue
+    ImpactPresentationEvent lastRemoteImpactValue
     Int clientRemoteStateSequenceValue
     Int clientRemoteCombatActorValue
     Int clientRemoteCombatHealthValue
@@ -43,6 +45,20 @@ class LoopbackSession {
     Int clientInteractionRevisionValue
     Int clientSecretCountValue
     Bool clientLevelCompletedValue
+    Int enemyEncounterStateSequenceValue
+    Int clientRemoteEnemyEncounterSequenceValue
+    Int clientRemoteEncounterIdValue
+    Int clientRemoteEncounterActiveCountValue
+    Int clientRemoteEncounterRemainingBudgetValue
+    Int clientRemoteEnemyCountValue
+    Int clientRemoteImpactSequenceValue
+    Int[] clientRemoteEnemyIds
+    Int[] clientRemoteEnemyStates
+    Int[] clientRemoteEnemyTargets
+    Int[] clientRemoteEnemyHealthValues
+    Int[] clientRemoteEnemyPositionsX
+    Int[] clientRemoteEnemyPositionsY
+    Int[] clientRemoteEnemyPositionsZ
     BoundedSkillDefinitionStore playerSkillDefinitions
     BoundedSkillProgression playerOneSkills
     BoundedSkillProgression playerTwoSkills
@@ -96,6 +112,7 @@ class LoopbackSession {
     Int impactPresentationDropCountValue
 
     Int[] enemyIds
+    Int[] enemyEncounterIds
     Int[] enemyPerceptionTargets
     Int[] enemyPerceptionDistances
     Int[] enemyPerceptionCriticals
@@ -157,6 +174,9 @@ class LoopbackSession {
         disconnectReasons = new Int[3]
         lastRemoteGameplayAcceptedValue = false
         lastRemoteGameplayDiagnosticValue = gameplayRejectedDiagnostic()
+        remoteImpactSequenceValue = 0
+        lastRemoteImpactValue = ImpactPresentationEvent(
+            0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0)
         interactionSequences = new Int[3]
         interactionTicks = new Int[3]
         interactionTargets = new Int[3]
@@ -164,6 +184,13 @@ class LoopbackSession {
         interactionResultTargets = new Int[3]
         interactionResults = new Bool[3]
         clientInteractionFlags = new Bool[16]
+        clientRemoteEnemyIds = new Int[entityCapacity]
+        clientRemoteEnemyStates = new Int[entityCapacity]
+        clientRemoteEnemyTargets = new Int[entityCapacity]
+        clientRemoteEnemyHealthValues = new Int[entityCapacity]
+        clientRemoteEnemyPositionsX = new Int[entityCapacity]
+        clientRemoteEnemyPositionsY = new Int[entityCapacity]
+        clientRemoteEnemyPositionsZ = new Int[entityCapacity]
         // Native array storage may be reused; initialize every observable slot.
         for (var player = 0; player < 3; player = player + 1) {
             interactionSequences[player] = 0
@@ -193,6 +220,13 @@ class LoopbackSession {
         clientRemoteConnectionGenerationValue = 0
         clientRemoteDisconnectReasonValue = 0
         clientRemoteDiagnosticValue = 0
+        enemyEncounterStateSequenceValue = 0
+        clientRemoteEnemyEncounterSequenceValue = 0
+        clientRemoteEncounterIdValue = 0
+        clientRemoteEncounterActiveCountValue = 0
+        clientRemoteEncounterRemainingBudgetValue = 0
+        clientRemoteEnemyCountValue = 0
+        clientRemoteImpactSequenceValue = 0
         playerSkillDefinitions = BoundedSkillDefinitionStore(16)
         playerOneSkills = BoundedSkillProgression(4)
         playerTwoSkills = BoundedSkillProgression(4)
@@ -212,6 +246,7 @@ class LoopbackSession {
         impactPresentationDropCountValue = 0
 
         enemyIds = new Int[entityCapacity]
+        enemyEncounterIds = new Int[entityCapacity]
         enemyPerceptionTargets = new Int[entityCapacity]
         enemyPerceptionDistances = new Int[entityCapacity]
         enemyPerceptionCriticals = new Int[entityCapacity]
@@ -225,6 +260,14 @@ class LoopbackSession {
             false, 0, 0, 0, false, 0, 0, false)
         for (var index = 0; index < entityCapacity; index = index + 1) {
             enemyIds[index] = 0
+            enemyEncounterIds[index] = 0
+            clientRemoteEnemyIds[index] = 0
+            clientRemoteEnemyStates[index] = 0
+            clientRemoteEnemyTargets[index] = 0
+            clientRemoteEnemyHealthValues[index] = 0
+            clientRemoteEnemyPositionsX[index] = 0
+            clientRemoteEnemyPositionsY[index] = 0
+            clientRemoteEnemyPositionsZ[index] = 0
             enemyPerceptionTargets[index] = 0
             enemyPerceptionDistances[index] = 0
             enemyPerceptionCriticals[index] = 0
@@ -399,6 +442,26 @@ class LoopbackSession {
         return true
     }
 
+    Bool recordRemoteImpact(
+        ResolutionResult result, Int x, Int y, Int z
+    ) {
+        if (!result.accepted() || result.applied() <= 0 ||
+            remoteImpactSequenceValue >= 1000000) {
+            return false
+        }
+        remoteImpactSequenceValue = remoteImpactSequenceValue + 1
+        var gain = 70
+        if (result.died()) {
+            gain = 100
+        }
+        lastRemoteImpactValue = ImpactPresentationEvent(
+            remoteImpactSequenceValue, 1,
+            result.sourceId(), result.targetId(),
+            x, y, z, result.applied(), result.died(),
+            impactClip(1), gain)
+        return true
+    }
+
     Bool applyRemoteGameplayCommand(Int[] words) {
         lastRemoteGameplayAcceptedValue = false
         lastRemoteGameplayDiagnosticValue = gameplayRejectedDiagnostic()
@@ -446,10 +509,30 @@ class LoopbackSession {
         }
         if (action == gameplayFireAction()) {
             if (tick == serverTick + 1 && advance(16667) == 1) {
-                var result = resolvePlayerHitscan(
-                    player, gameplayCommandValue(words, 0), tick,
-                    gameplayCommandValue(words, 1),
-                    gameplayCommandValue(words, 2))
+                var targetId = gameplayCommandValue(words, 0)
+                var result = ResolutionResult(
+                    false, 0, player, targetId, 0, 0, false, 0)
+                if (enemyCombat.enemyState(targetId) >= 0) {
+                    result = resolveEnemyHitscan(
+                        player, targetId, tick,
+                        gameplayCommandValue(words, 1),
+                        gameplayCommandValue(words, 2))
+                    if (result.accepted()) {
+                        recordRemoteImpact(
+                            result,
+                            enemyCombat.enemySpatialPositionX(targetId),
+                            enemyCombat.enemySpatialPositionY(targetId),
+                            enemyCombat.enemySpatialPositionZ(targetId))
+                    }
+                } else {
+                    result = resolvePlayerHitscan(
+                        player, targetId, tick,
+                        gameplayCommandValue(words, 1),
+                        gameplayCommandValue(words, 2))
+                    if (result.accepted()) {
+                        recordRemoteImpact(result, 0, 0, 0)
+                    }
+                }
                 lastRemoteGameplayAcceptedValue = result.accepted()
             }
             if (lastRemoteGameplayAcceptedValue) {
@@ -479,6 +562,9 @@ class LoopbackSession {
 
     Int[] gameplayStateMessage(Int tick, Int combatActorId, Int player) {
         var health = playerCombatHealth(combatActorId)
+        if (enemyCombat.enemyState(combatActorId) >= 0) {
+            health = enemyCombat.currentHealth(combatActorId)
+        }
         if (!started || tick <= 0 || tick > 1000000 ||
             health < 0 || player < 1 || player > 2 ||
             connectionGenerations[player] <= 0 ||
@@ -539,6 +625,226 @@ class LoopbackSession {
             gameplayStateDisconnectReason(words)
         clientRemoteDiagnosticValue = gameplayStateDiagnostic(words)
         return true
+    }
+
+    Int[] enemyEncounterStateMessage(Int tick, Int encounterId) {
+        if (!started || tick <= 0 || tick > 1000000 ||
+            encounterId <= 0 || encounterId > 1000000 ||
+            enemyEncounterStateSequenceValue >= 1000000) {
+            return new Int[0]
+        }
+        var encounterEnemyCount = 0
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyEncounterIds[index] == encounterId) {
+                encounterEnemyCount = encounterEnemyCount + 1
+            }
+        }
+        if (encounterEnemyCount <= 0 ||
+            encounterEnemyCount > maximumEnemyEncounterStateEnemies()) {
+            return new Int[0]
+        }
+        enemyEncounterStateSequenceValue =
+            enemyEncounterStateSequenceValue + 1
+        var state = newEnemyEncounterStateMessage(
+            tick, enemyEncounterStateSequenceValue, encounterId,
+            enemyCombat.encounterActiveCount(encounterId),
+            enemyCombat.encounterRemainingBudget(encounterId),
+            encounterEnemyCount)
+        var impactBelongs = false
+        if (lastRemoteImpactValue.sequence() > 0) {
+            for (var index = 0;
+                index < enemyCount && !impactBelongs;
+                index = index + 1) {
+                impactBelongs =
+                    enemyEncounterIds[index] == encounterId &&
+                    enemyIds[index] == lastRemoteImpactValue.targetId()
+            }
+        }
+        if (impactBelongs && !setEnemyEncounterStateImpact(
+                state,
+                lastRemoteImpactValue.sequence(),
+                lastRemoteImpactValue.kind(),
+                lastRemoteImpactValue.sourceId(),
+                lastRemoteImpactValue.targetId(),
+                lastRemoteImpactValue.x(),
+                lastRemoteImpactValue.y(),
+                lastRemoteImpactValue.z(),
+                lastRemoteImpactValue.applied(),
+                lastRemoteImpactValue.died(),
+                lastRemoteImpactValue.clip(),
+                lastRemoteImpactValue.gain())) {
+            return new Int[0]
+        }
+        var entry = 0
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyEncounterIds[index] == encounterId) {
+                var enemyId = enemyIds[index]
+                if (!setEnemyEncounterStateEntry(
+                        state, entry, enemyId,
+                        enemyCombat.enemyState(enemyId),
+                        enemyCombat.enemyTarget(enemyId),
+                        enemyCombat.currentHealth(enemyId),
+                        enemyCombat.enemySpatialPositionX(enemyId),
+                        enemyCombat.enemySpatialPositionY(enemyId),
+                        enemyCombat.enemySpatialPositionZ(enemyId))) {
+                    return new Int[0]
+                }
+                entry = entry + 1
+            }
+        }
+        if (!sealEnemyEncounterStateMessage(state)) {
+            return new Int[0]
+        }
+        return state
+    }
+
+    Bool applyRemoteEnemyEncounterState(Int[] words) {
+        if (!started || !validEnemyEncounterStateMessage(words) ||
+            enemyEncounterStateSequence(words) <=
+                clientRemoteEnemyEncounterSequenceValue ||
+            enemyEncounterStateEnemyCount(words) >
+                clientRemoteEnemyIds.length) {
+            return false
+        }
+        clientRemoteEnemyEncounterSequenceValue =
+            enemyEncounterStateSequence(words)
+        clientRemoteEncounterIdValue =
+            enemyEncounterStateEncounterId(words)
+        clientRemoteEncounterActiveCountValue =
+            enemyEncounterStateActiveCount(words)
+        clientRemoteEncounterRemainingBudgetValue =
+            enemyEncounterStateRemainingBudget(words)
+        clientRemoteEnemyCountValue =
+            enemyEncounterStateEnemyCount(words)
+        for (var index = 0;
+            index < clientRemoteEnemyIds.length;
+            index = index + 1) {
+            clientRemoteEnemyIds[index] = 0
+            clientRemoteEnemyStates[index] = 0
+            clientRemoteEnemyTargets[index] = 0
+            clientRemoteEnemyHealthValues[index] = 0
+            clientRemoteEnemyPositionsX[index] = 0
+            clientRemoteEnemyPositionsY[index] = 0
+            clientRemoteEnemyPositionsZ[index] = 0
+            if (index < clientRemoteEnemyCountValue) {
+                var offset = enemyEncounterStateEntriesOffset() +
+                    index * enemyEncounterStateEntryWidth()
+                clientRemoteEnemyIds[index] = words[offset]
+                clientRemoteEnemyStates[index] = words[offset + 1]
+                clientRemoteEnemyTargets[index] = words[offset + 2]
+                clientRemoteEnemyHealthValues[index] = words[offset + 3]
+                clientRemoteEnemyPositionsX[index] = words[offset + 4]
+                clientRemoteEnemyPositionsY[index] = words[offset + 5]
+                clientRemoteEnemyPositionsZ[index] = words[offset + 6]
+            }
+        }
+        var impact = enemyEncounterStateImpact(words)
+        if (impact.sequence() > clientRemoteImpactSequenceValue) {
+            clientRemoteImpactSequenceValue = impact.sequence()
+            if (pushImpactPresentation(
+                    impact.kind(), impact.sourceId(), impact.targetId(),
+                    impact.x(), impact.y(), impact.z(),
+                    impact.applied(), impact.died(),
+                    impact.clip(), impact.gain())) {
+                var died = 0
+                if (impact.died()) {
+                    died = 1
+                }
+                recordReplayPresentation(
+                    words[2], 3, impact.sequence(),
+                    impact.sourceId(), impact.targetId(),
+                    impact.x(), impact.y(), impact.z(),
+                    impact.applied(), impact.clip(), impact.gain(), died)
+            }
+        }
+        return true
+    }
+
+    Int clientRemoteEnemyIndex(Int enemyId) {
+        for (var index = 0;
+            index < clientRemoteEnemyCountValue;
+            index = index + 1) {
+            if (clientRemoteEnemyIds[index] == enemyId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int clientRemoteEnemyEncounterSequence() {
+        return clientRemoteEnemyEncounterSequenceValue
+    }
+
+    Int clientRemoteEncounterId() {
+        return clientRemoteEncounterIdValue
+    }
+
+    Int clientRemoteEncounterActiveCount() {
+        return clientRemoteEncounterActiveCountValue
+    }
+
+    Int clientRemoteEncounterRemainingBudget() {
+        return clientRemoteEncounterRemainingBudgetValue
+    }
+
+    Int clientRemoteEnemyCount() {
+        return clientRemoteEnemyCountValue
+    }
+
+    Int clientRemoteEnemyState(Int enemyId) {
+        var index = clientRemoteEnemyIndex(enemyId)
+        if (index < 0) {
+            return -1
+        }
+        return clientRemoteEnemyStates[index]
+    }
+
+    Int clientRemoteEnemyTarget(Int enemyId) {
+        var index = clientRemoteEnemyIndex(enemyId)
+        if (index < 0) {
+            return 0
+        }
+        return clientRemoteEnemyTargets[index]
+    }
+
+    Int clientRemoteEnemyHealth(Int enemyId) {
+        var index = clientRemoteEnemyIndex(enemyId)
+        if (index < 0) {
+            return -1
+        }
+        return clientRemoteEnemyHealthValues[index]
+    }
+
+    Int clientRemoteEnemyPositionX(Int enemyId) {
+        var index = clientRemoteEnemyIndex(enemyId)
+        if (index < 0) {
+            return 0
+        }
+        return clientRemoteEnemyPositionsX[index]
+    }
+
+    Int clientRemoteEnemyPositionY(Int enemyId) {
+        var index = clientRemoteEnemyIndex(enemyId)
+        if (index < 0) {
+            return 0
+        }
+        return clientRemoteEnemyPositionsY[index]
+    }
+
+    Int clientRemoteEnemyPositionZ(Int enemyId) {
+        var index = clientRemoteEnemyIndex(enemyId)
+        if (index < 0) {
+            return 0
+        }
+        return clientRemoteEnemyPositionsZ[index]
+    }
+
+    Int clientRemoteImpactSequence() {
+        return clientRemoteImpactSequenceValue
+    }
+
+    Int remoteImpactSequence() {
+        return remoteImpactSequenceValue
     }
 
     Int clientRemoteCombatActor() {
@@ -893,6 +1199,9 @@ class LoopbackSession {
     Int enemyCombatShield(Int actorId) {
         return enemyCombat.currentShield(actorId)
     }
+    Int enemyCombatHealth(Int actorId) {
+        return enemyCombat.currentHealth(actorId)
+    }
     Int enemyState(Int enemyId) {
         return enemyCombat.enemyState(enemyId)
     }
@@ -924,16 +1233,42 @@ class LoopbackSession {
     ResolutionResult resolveEnemyHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
+        var reward = combatRewardCurrency(targetId)
+        if (!canGrantCombatReward(sourceId, reward)) {
+            return ResolutionResult(
+                false, 0, sourceId, targetId, 0,
+                enemyCombat.currentHealth(targetId), false, 0)
+        }
         var result = enemyCombat.playerHitscan(
             sourceId, targetId, tick, distance, critical)
+        if (result.accepted() && result.died() && reward > 0 &&
+            !grantCombatReward(sourceId, reward)) {
+            return ResolutionResult(
+                false, result.actionId(), sourceId, targetId,
+                result.applied(), result.remainingHealth(),
+                result.died(), result.eventSequence())
+        }
         presentEnemyResolution(result, tick)
         return result
     }
     ResolutionResult resolveEnemyShotgun(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
+        var reward = combatRewardCurrency(targetId)
+        if (!canGrantCombatReward(sourceId, reward)) {
+            return ResolutionResult(
+                false, 0, sourceId, targetId, 0,
+                enemyCombat.currentHealth(targetId), false, 0)
+        }
         var result = enemyCombat.playerShotgun(
             sourceId, targetId, tick, distance, critical)
+        if (result.accepted() && result.died() && reward > 0 &&
+            !grantCombatReward(sourceId, reward)) {
+            return ResolutionResult(
+                false, result.actionId(), sourceId, targetId,
+                result.applied(), result.remainingHealth(),
+                result.died(), result.eventSequence())
+        }
         presentEnemyResolution(result, tick)
         return result
     }
@@ -971,6 +1306,7 @@ class LoopbackSession {
             return false
         }
         enemyIds[enemyCount] = enemyId
+        enemyEncounterIds[enemyCount] = encounterId
         enemyCount = enemyCount + 1
         return true
     }
@@ -987,6 +1323,7 @@ class LoopbackSession {
             return false
         }
         enemyIds[enemyCount] = enemyId
+        enemyEncounterIds[enemyCount] = encounterId
         enemyCount = enemyCount + 1
         return true
     }
@@ -1603,8 +1940,14 @@ class LoopbackSession {
         return true
     }
 
-    Bool definePlayerCombatReward(Int actorId, Int currency) {
-        if (actorId <= 0 || playerCombat.currentHealth(actorId) <= 0 ||
+    Bool defineCombatReward(
+        Int actorId, Int currency, Bool enemyActor
+    ) {
+        var health = playerCombat.currentHealth(actorId)
+        if (enemyActor) {
+            health = enemyCombat.currentHealth(actorId)
+        }
+        if (actorId <= 0 || health <= 0 ||
             currency <= 0 || currency > 1000000 ||
             playerCombatRewardCount >= playerCombatRewardTargets.length) {
             return false
@@ -1622,7 +1965,18 @@ class LoopbackSession {
         return true
     }
 
-    Int playerCombatRewardCurrency(Int actorId) {
+    Bool definePlayerCombatReward(Int actorId, Int currency) {
+        return defineCombatReward(actorId, currency, false)
+    }
+
+    Bool defineEnemyCombatReward(Int actorId, Int currency) {
+        if (enemyCombat.enemyState(actorId) < 0) {
+            return false
+        }
+        return defineCombatReward(actorId, currency, true)
+    }
+
+    Int combatRewardCurrency(Int actorId) {
         for (var index = 0;
             index < playerCombatRewardCount;
             index = index + 1) {
@@ -1631,6 +1985,25 @@ class LoopbackSession {
             }
         }
         return 0
+    }
+
+    Bool canGrantCombatReward(Int sourceId, Int reward) {
+        return reward == 0 ||
+            (sourceId >= 1 && sourceId <= 2 &&
+                playerCurrency(sourceId) <= 1000000 - reward)
+    }
+
+    Bool grantCombatReward(Int sourceId, Int reward) {
+        if (reward == 0) {
+            return true
+        }
+        if (sourceId == 1) {
+            return playerOneInventory.depositCurrency(reward)
+        }
+        if (sourceId == 2) {
+            return playerTwoInventory.depositCurrency(reward)
+        }
+        return false
     }
 
     Bool setPlayerCombatShield(
@@ -1661,29 +2034,20 @@ class LoopbackSession {
     ResolutionResult resolvePlayerHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
-        var reward = playerCombatRewardCurrency(targetId)
-        if (reward > 0 &&
-            (sourceId < 1 || sourceId > 2 ||
-                playerCurrency(sourceId) > 1000000 - reward)) {
+        var reward = combatRewardCurrency(targetId)
+        if (!canGrantCombatReward(sourceId, reward)) {
             return ResolutionResult(
                 false, 0, sourceId, targetId, 0,
                 playerCombat.currentHealth(targetId), false, 0)
         }
         var result = playerCombat.resolveHitscan(
             sourceId, targetId, tick, distance, critical)
-        if (result.accepted() && result.died() && reward > 0) {
-            var granted = false
-            if (sourceId == 1) {
-                granted = playerOneInventory.depositCurrency(reward)
-            } else if (sourceId == 2) {
-                granted = playerTwoInventory.depositCurrency(reward)
-            }
-            if (!granted) {
-                return ResolutionResult(
-                    false, result.actionId(), sourceId, targetId,
-                    result.applied(), result.remainingHealth(),
-                    result.died(), result.eventSequence())
-            }
+        if (result.accepted() && result.died() && reward > 0 &&
+            !grantCombatReward(sourceId, reward)) {
+            return ResolutionResult(
+                false, result.actionId(), sourceId, targetId,
+                result.applied(), result.remainingHealth(),
+                result.died(), result.eventSequence())
         }
         return result
     }

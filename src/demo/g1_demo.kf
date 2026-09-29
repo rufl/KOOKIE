@@ -49,7 +49,7 @@ class G1Demo {
         }
         if (!loopback.configureEnemyRules(100, 20, 2) ||
             !loopback.defineEnemyWeapon(7, 3, 0, 0, 3, 1, 20) ||
-            !loopback.defineEnemyEncounter(4, 1, 1) ||
+            !loopback.defineEnemyEncounter(4, 1, 2) ||
             !loopback.addEnemyCombatActor(1, 20, 0) ||
             !loopback.equipEnemyCombatWeapon(1, 7)) {
             return failAt(3)
@@ -119,10 +119,17 @@ class G1Demo {
             return failAt(12)
         }
         var impact = loopback.lastImpactPresentation()
+        var encounter = loopback.enemyEncounterStateMessage(
+            loopback.currentServerTick(), 4)
         if (impact.sourceId() != 1 || impact.targetId() != 3 ||
             impact.applied() != enemyHit.applied() || !impact.died() ||
             impact.clip() != 201 || impact.gain() != 100 ||
-            !hud.presentImpact(1, impact, loopback.currentClientTick())) {
+            !hud.presentImpact(1, impact, loopback.currentClientTick()) ||
+            !loopback.applyRemoteEnemyEncounterState(encounter) ||
+            loopback.clientRemoteEnemyState(3) != 7 ||
+            loopback.clientRemoteEnemyHealth(3) != 0 ||
+            loopback.clientRemoteEncounterActiveCount() != 0 ||
+            loopback.clientRemoteEncounterRemainingBudget() != 1) {
             return failAt(12)
         }
         return true
@@ -196,10 +203,16 @@ class G1Demo {
         }
         var health = loopback.playerCombatHealth(1)
         var ammunition = loopback.playerCombatMagazine(1)
-        var enemies = loopback.enemyEncounterActiveCount(4)
+        var enemies = loopback.clientRemoteEncounterActiveCount()
         var tick = loopback.currentClientTick()
         var focused = loopback.playerFocused(1)
-        if (!hud.update(health, ammunition, enemies, tick, focused)) {
+        if (!hud.update(health, ammunition, enemies, tick, focused) ||
+            !hud.updateEncounterReplication(
+                enemies,
+                loopback.clientRemoteEncounterRemainingBudget(),
+                loopback.playerConnected(1),
+                loopback.playerConnectionGeneration(1),
+                loopback.clientRemoteEnemyEncounterSequence())) {
             return failAt(22)
         }
 

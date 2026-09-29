@@ -76,18 +76,20 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - A integração de portas agora faz portas criadas fechadas bloquearem o movimento escalar autoritativo através do plano X; portas abertas deixam de bloquear. A geometria visível ao cliente é preparada por `FrameStaging` com estado aberto/fechado; o contrato continua sendo uma arena escalar `(x, 0, 0)`, não uma malha 3D completa.
 - Substituímos o wire exclusivo de interação por comandos unificados,
   versionados e com checksum para movimento, disparo, interação, desconexão e
-  reconexão, além de estado autoritativo com posições dos dois jogadores, vida,
-  moeda, máscara de progressão e geração/motivo/diagnóstico da conexão.
-  Disparos, movimentos e interações admitidos avançam ticks exatos do servidor.
+  reconexão, além de estado autoritativo com posições, vida, moeda, progressão
+  e diagnóstico de conexão.
 - Os três processos na JVM e no nativo agora comprovam movimento emitido pelo
-  cliente, morte hitscan terminal mais 25 de moeda controladas pelo servidor,
-  revisão 4 de chave/porta/segredo/saída, geração 2 após reconexão e diagnóstico
-  explícito de comando obsoleto. A evidência retida valida esses valores. Isso
-  avança G2, mas não comprova o protocolo evoluído entre hosts separados nem
-  conclui encounters replicados de inimigos, predição/reconciliação completa
-  dos jogadores, recuperação de entrada em produção, portas 3D, cobertura
-  completa de feedback multiplayer ou mixagem/espacialização de áudio de
-  produção.
+  cliente, morte hitscan de inimigo mais 25 moedas, estado e vida terminais do
+  encounter, sequência do impacto confirmado mais recente, revisão 4 de
+  chave/porta/segredo/saída, geração 2 após reconexão e diagnóstico explícito
+  de comando obsoleto. A resposta do host combina estado fixo do
+  jogador/progressão com mensagem de encounter `20 + 7N`, limitada a 32
+  inimigos.
+- Isso avança G2, mas não comprova o protocolo evoluído entre hosts separados
+  nem conclui simulação contínua e replicada de vários papéis de inimigos,
+  predição/reconciliação completa, recuperação de entrada em produção, portas
+  3D, cobertura completa de feedback multiplayer ou mixagem/espacialização de
+  áudio de produção.
 
 - O contrato de transporte da sonda G0 agora é neutro ao alvo, com backend UDP
   nativo e backend UDP JVM direto em Kof por meio das APIs JDK `java.net`.

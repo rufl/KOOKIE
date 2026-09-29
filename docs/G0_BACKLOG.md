@@ -139,14 +139,17 @@ This is the active bounded implementation sequence after the initial research an
   authoritative state for both player positions, combat health, currency,
   progression masks and connection generation/reason/diagnostic. Admitted
   fire, movement and interactions advance exact server ticks.
-- JVM/native three-process role runs now prove client-issued movement, terminal
-  server-owned hitscan death plus 25 currency, revision-4
+- JVM/native three-process role runs now prove client-issued movement,
+  authoritative enemy hitscan death plus 25 currency, terminal encounter state
+  and health, latest confirmed impact sequence, revision-4
   key/door/secret/exit completion, disconnect/reconnect generation two and
-  explicit stale-command diagnosis. Retained evidence validates these values.
-  This advances G2 but does not prove the evolved protocol on separate hosts or
-  close replicated enemy encounters, full player prediction/reconciliation,
-  production join recovery, 3D doors, complete multiplayer feedback coverage
-  or production audio mixing/spatialization.
+  explicit stale-command diagnosis. Host responses pair fixed
+  player/progression state with a checksummed `20 + 7N` encounter message for
+  at most 32 enemies.
+- This advances G2 but does not prove the evolved protocol on separate hosts or
+  close continuous replicated multi-role enemy simulation, full player
+  prediction/reconciliation, production join recovery, 3D doors, complete
+  multiplayer feedback coverage or production audio mixing/spatialization.
 
 
 - `scripts/package_external_lan_roles.sh` builds Windows JVM host/client
@@ -254,9 +257,11 @@ The completed bounded contracts already mapped to this definition are:
 - atomic four-product publication and generation retirement;
 - triangle capsule contact, dynamic narrow phase, projectile sweeps and
   authoritative session navigation routing.
+- bounded authoritative enemy encounter state/impact replication and terminal
+  reward evidence across the host-plus-two-client process path.
 
 These contracts are complete because JVM/native behavior coverage currently
-passes 70 scenarios and both external evidence gates pass. No G0 release
+passes 72 scenarios and both external evidence gates pass. No G0 release
 blocker remains.
 
 ### Explicit non-goals for this release

@@ -70,18 +70,67 @@ Bool externalRoleReceiveState(LoopbackSession client) {
     return client.applyRemoteGameplayState(state)
 }
 
+Bool externalRoleReceiveEncounter(LoopbackSession client) {
+    var received = kookie_transport_receive()
+    if (received < 20 || received > maximumSessionTransportWords() ||
+        kookie_transport_last_status() != 1) {
+        println("external-encounter-receive-failed")
+        println(received)
+        println(kookie_transport_last_status())
+        return false
+    }
+    var enemyCount = kookie_transport_receive_word(7)
+    var expectedLength = 20 +
+        enemyCount * enemyEncounterStateEntryWidth()
+    if (kookie_transport_receive_word(0) != protocolVersion() ||
+        kookie_transport_receive_word(1) !=
+            enemyEncounterStateMessageKind() ||
+        enemyCount < 0 ||
+        enemyCount > maximumEnemyEncounterStateEnemies() ||
+        received != expectedLength) {
+        println("external-encounter-shape-invalid")
+        return false
+    }
+    var state = newEnemyEncounterStateMessage(
+        kookie_transport_receive_word(2),
+        kookie_transport_receive_word(3),
+        kookie_transport_receive_word(4),
+        kookie_transport_receive_word(5),
+        kookie_transport_receive_word(6),
+        enemyCount)
+    if (state.length == 0) {
+        println("external-encounter-header-invalid")
+        return false
+    }
+    for (var index = 8; index < state.length; index = index + 1) {
+        state[index] = kookie_transport_receive_word(index)
+    }
+    if (!validEnemyEncounterStateMessage(state)) {
+        println("external-encounter-invalid")
+        println(state[state.length - 1])
+        println(gameplayMessageChecksum(state, state.length - 1))
+        return false
+    }
+    return client.applyRemoteEnemyEncounterState(state)
+}
+
 Bool externalRoleSendCommand(
     LoopbackSession client, Int[] command
 ) {
-    return sendPayload(command) && externalRoleReceiveState(client)
+    return sendPayload(command) &&
+        externalRoleReceiveState(client) &&
+        externalRoleReceiveEncounter(client)
 }
 
 Bool externalRoleHostState(
     LoopbackSession host, Int tick, Int player
 ) {
     var state = host.gameplayStateMessage(tick, 3, player)
+    var encounter = host.enemyEncounterStateMessage(tick, 4)
     return validGameplayStateMessage(state) &&
-        kookie_transport_set_peer_last_sender() && sendPayload(state)
+        validEnemyEncounterStateMessage(encounter) &&
+        kookie_transport_set_peer_last_sender() &&
+        sendPayload(state) && sendPayload(encounter)
 }
 
 Bool externalRoleHostReceiveSnapshot(
@@ -129,13 +178,15 @@ Bool externalRoleHostQualification() {
         host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
         host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         host.broadPhaseTriangleCount() == arena.triangleCount() &&
-        host.definePlayerWeapon(9, 2, 0, 0, 4, 1, 20) &&
-        host.addPlayerCombatActor(1, 20, 0) &&
-        host.addPlayerCombatActor(3, 8, 0) &&
-        host.equipPlayerCombatWeapon(1, 9) &&
-        host.definePlayerCombatReward(3, 25),
-        "external host must configure authored combat progression and reward authority")
-    var healthBeforeShot = host.playerCombatHealth(3)
+        host.configureEnemyRules(100, 20, 2) &&
+        host.defineEnemyWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.defineEnemyEncounter(4, 1, 1) &&
+        host.addEnemyCombatActor(1, 20, 0) &&
+        host.equipEnemyCombatWeapon(1, 9) &&
+        host.admitEnemyAt(4, 3, 0, 8, 0, 9, 6, 0, 0) &&
+        host.defineEnemyCombatReward(3, 25),
+        "external host must configure replicated enemy combat and rewards")
+    var healthBeforeShot = host.enemyCombatHealth(3)
     assert(kookie_transport_select_slot(0) &&
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_listen_ipv4(47101) &&
@@ -161,11 +212,11 @@ Bool externalRoleHostQualification() {
     assert(externalRoleHostReceiveCommand(
             host, 0, 1, 1, gameplayFireAction()) &&
         host.lastRemoteGameplayAccepted() &&
-        host.playerCombatHealth(3) == 4 &&
+        host.enemyCombatHealth(3) == 4 &&
         externalRoleHostReceiveCommand(
             host, 0, 1, 2, gameplayFireAction()) &&
         host.lastRemoteGameplayAccepted() &&
-        host.playerCombatHealth(3) == 0 &&
+        host.enemyCombatHealth(3) == 0 &&
         host.playerCurrency(1) == 25,
         "external client fire commands must produce server-owned death and reward")
     assert(externalRoleHostReceiveCommand(
@@ -219,11 +270,19 @@ Bool externalRoleHostQualification() {
     println("external-reconnect-generation")
     println(host.playerConnectionGeneration(2))
     println("external-combat-damage")
-    println(healthBeforeShot - host.playerCombatHealth(3))
+    println(healthBeforeShot - host.enemyCombatHealth(3))
     println("external-combat-death")
     println(1)
     println("external-combat-reward")
     println(host.playerCurrency(1))
+    println("external-enemy-encounter")
+    println(host.enemyEncounterActiveCount(4))
+    println("external-enemy-state")
+    println(host.enemyState(3))
+    println("external-enemy-health")
+    println(host.enemyCombatHealth(3))
+    println("external-impact-sequence")
+    println(host.remoteImpactSequence())
     println("external-player-position")
     println(host.serverPosition(1))
     println("external-arena-triangles")
@@ -301,14 +360,34 @@ Bool externalRoleClientQualification(Int clientId) {
                 1, 1, 1, gameplayFireAction(), 3, 10, 0, 0)) &&
             client.clientRemoteCombatActor() == 3 &&
             client.clientRemoteCombatHealth() == 4 &&
+            client.clientRemoteEnemyHealth(3) == 4 &&
+            client.clientRemoteEnemyState(3) >= 0 &&
+            client.clientRemoteEncounterActiveCount() == 1 &&
+            client.clientRemoteImpactSequence() == 1 &&
             client.clientRemoteCurrency() == 0 &&
-            client.clientRemoteDiagnostic() == gameplayFireDiagnostic(),
-            "client one must receive first authoritative damage")
+            client.clientRemoteDiagnostic() == gameplayFireDiagnostic() &&
+            client.pendingImpactPresentations() == 1 &&
+            client.dequeueImpactPresentation(),
+            "client one must receive first authoritative enemy impact")
+        var firstImpact = client.lastImpactPresentation()
+        assert(firstImpact.targetId() == 3 &&
+            firstImpact.applied() == 4 && !firstImpact.died(),
+            "first replicated impact must preserve damage identity")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
                 1, 2, 2, gameplayFireAction(), 3, 10, 0, 0)) &&
             client.clientRemoteCombatHealth() == 0 &&
-            client.clientRemoteCurrency() == 25,
-            "client one must receive terminal death and reward")
+            client.clientRemoteEnemyHealth(3) == 0 &&
+            client.clientRemoteEnemyState(3) == 7 &&
+            client.clientRemoteEncounterActiveCount() == 0 &&
+            client.clientRemoteImpactSequence() == 2 &&
+            client.clientRemoteCurrency() == 25 &&
+            client.pendingImpactPresentations() == 1 &&
+            client.dequeueImpactPresentation(),
+            "client one must receive terminal enemy death and reward")
+        var terminalImpact = client.lastImpactPresentation()
+        assert(terminalImpact.targetId() == 3 &&
+            terminalImpact.applied() == 4 && terminalImpact.died(),
+            "terminal replicated impact must preserve death feedback")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
                 1, 3, 3, gameplayMoveAction(), 2, 0, 0, 0)) &&
             client.clientRemotePlayerPosition(1) == 2 &&
@@ -486,26 +565,45 @@ main() {
         kookie_transport_select_slot(1) &&
         receivePayload(host, reconnectPayloadB, true),
         "host must accept client B after reconnect")
-    assert(host.definePlayerWeapon(9, 2, 0, 0, 4, 1, 20) &&
-        host.addPlayerCombatActor(1, 20, 0) &&
-        host.addPlayerCombatActor(3, 8, 0) &&
-        host.equipPlayerCombatWeapon(1, 9) &&
-        host.definePlayerCombatReward(3, 25),
-        "host must configure authoritative combat rewards")
-    var healthBeforeShot = host.playerCombatHealth(3)
+    assert(host.configureEnemyRules(100, 20, 2) &&
+        host.defineEnemyWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.defineEnemyEncounter(4, 1, 1) &&
+        host.addEnemyCombatActor(1, 20, 0) &&
+        host.equipEnemyCombatWeapon(1, 9) &&
+        host.admitEnemyAt(4, 3, 0, 8, 0, 9, 6, 0, 0) &&
+        host.defineEnemyCombatReward(3, 25),
+        "host must configure replicated enemy combat and rewards")
+    var healthBeforeShot = host.enemyCombatHealth(3)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 1, 1, gameplayFireAction(), 3, 10, 0, 0)))
     var state = host.gameplayStateMessage(1, 3, 1)
+    var encounter = host.enemyEncounterStateMessage(1, 4)
     assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.applyRemoteEnemyEncounterState(encounter) &&
         clientA.clientRemoteCombatActor() == 3 &&
-        clientA.clientRemoteCombatHealth() == 4)
+        clientA.clientRemoteCombatHealth() == 4 &&
+        clientA.clientRemoteEnemyHealth(3) == 4 &&
+        clientA.clientRemoteEncounterActiveCount() == 1 &&
+        clientA.pendingImpactPresentations() == 1 &&
+        clientA.dequeueImpactPresentation())
+    var firstImpact = clientA.lastImpactPresentation()
+    assert(firstImpact.applied() == 4 && !firstImpact.died())
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 2, 2, gameplayFireAction(), 3, 10, 0, 0)))
     state = host.gameplayStateMessage(2, 3, 1)
+    encounter = host.enemyEncounterStateMessage(2, 4)
     assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.applyRemoteEnemyEncounterState(encounter) &&
         clientA.clientRemoteCombatHealth() == 0 &&
-        clientA.clientRemoteCurrency() == 25,
-        "server-owned death and reward must replicate to client A")
+        clientA.clientRemoteEnemyHealth(3) == 0 &&
+        clientA.clientRemoteEnemyState(3) == 7 &&
+        clientA.clientRemoteEncounterActiveCount() == 0 &&
+        clientA.clientRemoteCurrency() == 25 &&
+        clientA.pendingImpactPresentations() == 1 &&
+        clientA.dequeueImpactPresentation(),
+        "server-owned enemy death, feedback and reward must replicate")
+    var terminalImpact = clientA.lastImpactPresentation()
+    assert(terminalImpact.applied() == 4 && terminalImpact.died())
 
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         2, 1, 1, gameplayDisconnectAction(), 2, 0, 0, 0)))
@@ -566,11 +664,19 @@ main() {
     println("external-reconnect-generation")
     println(host.playerConnectionGeneration(2))
     println("external-combat-damage")
-    println(healthBeforeShot - host.playerCombatHealth(3))
+    println(healthBeforeShot - host.enemyCombatHealth(3))
     println("external-combat-death")
     println(1)
     println("external-combat-reward")
     println(host.playerCurrency(1))
+    println("external-enemy-encounter")
+    println(host.enemyEncounterActiveCount(4))
+    println("external-enemy-state")
+    println(host.enemyState(3))
+    println("external-enemy-health")
+    println(host.enemyCombatHealth(3))
+    println("external-impact-sequence")
+    println(clientA.clientRemoteImpactSequence())
     println("external-player-position")
     println(host.serverPosition(1))
     println("external-arena-triangles")

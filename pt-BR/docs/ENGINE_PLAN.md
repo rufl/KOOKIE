@@ -393,6 +393,15 @@ O primeiro contrato de transporte é independente do transporte:
 - Nenhum ponteiro nativo, slot de runtime ou memória bruta de objetos Kof na
   rede.
 
+O slice implementado mantém comandos em 11 palavras e estado de
+jogador/progressão em 19. Uma segunda mensagem com checksum usa
+`20 + 7N` palavras para até 32 inimigos do encounter; cada entrada carrega ID
+estável, estado, alvo, vida e posição inteira, enquanto o cabeçalho carrega
+contagens ativa/reserva e o impacto confirmado mais recente. A mensagem cabe no
+limite compartilhado de 300 palavras do transporte nativo/JVM. Os clientes
+validam antes da mutação, rejeitam sequências obsoletas e aplicam o estado
+autoritativo mesmo quando filas limitadas de apresentação descartam feedback.
+
 O caminho de loopback deve serializar e decodificar mensagens em vez de passar
 referências diretamente. Isso comprova a fronteira real entre cliente e
 servidor no modo de jogador único e impede que o jogo local oculte bugs de
@@ -677,22 +686,26 @@ criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degra
 salas empilhadas; o servidor replica triângulos e limites explícitos para o
 cliente. Câmera, staging do mundo e HUD semântico de combate alimentam uma cena
 nativa SDL_GPU fixa de 252 vértices: 78 do mundo mais 174 do HUD para
-vida/munição, estado de foco/encounter, marcadores confirmados de
-acerto/eliminação e alertas laterais de dano. O evento confirmado de hitscan
-local também alcança filas limitadas de replay/áudio e playback nativo do clip
-SDL. Um smoke GPU isolado renderizou e leu a cena limitada, e 72/72 testes
-passam na JVM e no nativo. A evidência de ausência de crescimento por frame em
-G1 cobre 64 stagings determinísticos com capacidades Kof inalteradas e buffers
-nativos persistentes; o soak de RSS/desempenho por 30 minutos permanece em G5.
+vida/munição, glifo de conexão distinguível pela forma, carga ativa/reserva do
+encounter, marcadores confirmados de acerto/eliminação e alertas laterais de
+dano. O evento confirmado de hitscan local também alcança filas limitadas de
+replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
+leu a cena limitada, e 72/72 testes passam na JVM e no nativo. A evidência de
+ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
+capacidades Kof inalteradas e buffers nativos persistentes; o soak de
+RSS/desempenho por 30 minutos permanece em G5.
+
 G2 possui um slice de transporte com três processos na JVM e no nativo que leva
-a arena completa e comandos unificados com checksum para movimento, disparo,
-interação, desconexão e reconexão. O estado aplicado pelo cliente comprova
-posição autoritativa, morte terminal mais recompensa em moeda, progressão até a
-revisão 4, geração de reconexão e diagnóstico de input obsoleto. G2 continua
-aberto para encounters replicados de inimigos, predição/reconciliação completa,
-entrada/recuperação em produção, geometria/colisão 3D completa das portas,
-cobertura completa de feedback multiplayer e mixagem/espacialização de áudio
-de produção.
+a arena completa, comandos unificados com checksum para
+movimento/disparo/interação/ciclo de vida, estado fixo do jogador/progressão e
+estado limitado do encounter. A aplicação pelo cliente comprova posição
+autoritativa, estado e vida terminais do inimigo, impacto confirmado mais
+recente, recompensa de 25 moedas, progressão até a revisão 4, geração de
+reconexão e diagnóstico de input obsoleto. G2 continua aberto para simulação
+contínua e replicada de vários papéis de inimigos, predição/reconciliação
+completa, entrada/recuperação em produção, geometria/colisão 3D completa das
+portas, cobertura completa de feedback multiplayer e mixagem/espacialização de
+áudio de produção.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

@@ -380,6 +380,15 @@ The first transport contract is transport-independent:
 - Bounded packet sizes, decode work, queues and entity counts.
 - No native pointers, runtime slots or raw Kof object memory on the wire.
 
+The implemented protocol slice keeps commands at 11 words and
+player/progression state at 19 words. A second checksummed message uses
+`20 + 7N` words for at most 32 encounter enemies; each entry carries stable ID,
+state, target, health and integer position, while the header carries
+active/reserve counts and the latest confirmed impact. The message fits the
+shared 300-word native/JVM transport bound. Clients validate before mutation,
+reject stale sequences and apply authoritative state even when bounded
+presentation queues drop feedback.
+
 The loopback path must serialize and decode messages instead of passing
 references directly. This proves the real client/server boundary in
 single-player and prevents local play from hiding replication bugs.
@@ -642,18 +651,21 @@ encounter, and clears held movement/fire across focus loss. Its authored
 the server replicates its triangle data and explicit bounds to the client.
 Camera, world staging and a semantic combat HUD feed a fixed 252-vertex native
 SDL_GPU scene: 78 world vertices plus 174 HUD vertices for health/ammunition,
-focus/encounter status, confirmed hit/kill markers and edge damage warnings.
-The confirmed local hitscan event also reaches bounded replay/audio queues and
-native SDL clip playback. An isolated GPU smoke rendered and read back the
-bounded scene, and 72/72 tests pass on JVM and native. G1's
-no-per-frame-growth evidence is 64 deterministic stages with unchanged Kof
-capacities plus persistent native scene buffers; the 30-minute RSS/performance
-soak remains G5. G2 has a JVM/native three-process transport slice carrying the
-full arena and unified checksummed movement, fire, interaction, disconnect and
-reconnect commands. Client-applied state proves authoritative position,
-terminal combat death plus currency reward, revision-4 progression, reconnect
-generation and stale diagnosis. G2 remains open for replicated enemy
-encounters, full player prediction/reconciliation, production join/recovery,
+a shape-distinct connection glyph, active/reserve encounter load, confirmed
+hit/kill markers and edge damage warnings. The confirmed local hitscan event
+also reaches bounded replay/audio queues and native SDL clip playback. An
+isolated GPU smoke rendered and read back the bounded scene, and 72/72 tests
+pass on JVM and native. G1's no-per-frame-growth evidence is 64 deterministic
+stages with unchanged Kof capacities plus persistent native scene buffers; the
+30-minute RSS/performance soak remains G5.
+
+G2 has a JVM/native three-process transport slice carrying the full arena,
+unified checksummed movement/fire/interaction/lifecycle commands, fixed
+player/progression state and bounded encounter state. Client application proves
+authoritative position, terminal enemy state and health, latest confirmed
+impact, 25-currency reward, revision-4 progression, reconnect generation and
+stale diagnosis. G2 remains open for continuous replicated multi-role enemy
+simulation, full player prediction/reconciliation, production join/recovery,
 complete 3D door collision/render geometry, complete multiplayer feedback
 coverage and production audio mixing/spatialization.
 

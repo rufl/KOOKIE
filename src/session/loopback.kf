@@ -434,6 +434,302 @@ Int gameplayStateInteractionMask(Int[] words) {
     return words[17]
 }
 
+Int enemyEncounterStateMessageKind() {
+    return 5
+}
+
+Int maximumEnemyEncounterStateEnemies() {
+    return 32
+}
+
+Int enemyEncounterStateEntryWidth() {
+    return 7
+}
+
+Int enemyEncounterStateEntriesOffset() {
+    return 19
+}
+
+Bool validEnemyEncounterStateShape(Int[] words) {
+    if (words.length < 20 ||
+        words[0] != protocolVersion() ||
+        words[1] != enemyEncounterStateMessageKind() ||
+        words[2] <= 0 || words[2] > 1000000 ||
+        words[3] <= 0 || words[3] > 1000000 ||
+        words[4] <= 0 || words[4] > 1000000 ||
+        words[5] < 0 ||
+        words[7] < 0 ||
+        words[7] > maximumEnemyEncounterStateEnemies() ||
+        words[5] > words[7] ||
+        words[6] < 0 || words[6] > 1000000) {
+        return false
+    }
+    return words.length == 20 +
+        words[7] * enemyEncounterStateEntryWidth()
+}
+
+Int[] newEnemyEncounterStateMessage(
+    Int tick, Int sequence, Int encounterId,
+    Int activeCount, Int remainingBudget, Int enemyCount
+) {
+    if (tick <= 0 || tick > 1000000 ||
+        sequence <= 0 || sequence > 1000000 ||
+        encounterId <= 0 || encounterId > 1000000 ||
+        enemyCount < 0 ||
+        enemyCount > maximumEnemyEncounterStateEnemies() ||
+        activeCount < 0 || activeCount > enemyCount ||
+        remainingBudget < 0 || remainingBudget > 1000000) {
+        return new Int[0]
+    }
+    var words = new Int[
+        20 + enemyCount * enemyEncounterStateEntryWidth()]
+    words[0] = protocolVersion()
+    words[1] = enemyEncounterStateMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = encounterId
+    words[5] = activeCount
+    words[6] = remainingBudget
+    words[7] = enemyCount
+    return words
+}
+
+Bool setEnemyEncounterStateImpact(
+    Int[] words, Int sequence, Int kind,
+    Int sourceId, Int targetId,
+    Int x, Int y, Int z, Int applied, Bool died,
+    Int clip, Int gain
+) {
+    if (!validEnemyEncounterStateShape(words) ||
+        sequence <= 0 || sequence > 1000000 ||
+        kind <= 0 || kind > 3 ||
+        sourceId <= 0 || sourceId > 1000000 ||
+        targetId < 0 || targetId > 1000000 ||
+        x < -1000000 || x > 1000000 ||
+        y < -1000000 || y > 1000000 ||
+        z < -1000000 || z > 1000000 ||
+        applied < 0 || applied > 1000000 ||
+        clip <= 0 || clip > 1000000 ||
+        gain < 0 || gain > 100) {
+        return false
+    }
+    words[8] = sequence
+    words[9] = kind
+    words[10] = sourceId
+    words[11] = targetId
+    words[12] = x
+    words[13] = y
+    words[14] = z
+    words[15] = applied
+    words[16] = 0
+    if (died) {
+        words[16] = 1
+    }
+    words[17] = clip
+    words[18] = gain
+    return true
+}
+
+Bool setEnemyEncounterStateEntry(
+    Int[] words, Int index,
+    Int enemyId, Int state, Int targetId, Int health,
+    Int x, Int y, Int z
+) {
+    if (!validEnemyEncounterStateShape(words) ||
+        index < 0 || index >= words[7] ||
+        enemyId <= 0 || enemyId > 1000000 ||
+        state < 0 || state > 7 ||
+        targetId < 0 || targetId > 1000000 ||
+        health < 0 || health > 1000000 ||
+        ((state == 7 && health != 0) ||
+            (state != 7 && health == 0)) ||
+        x < -1000000 || x > 1000000 ||
+        y < -1000000 || y > 1000000 ||
+        z < -1000000 || z > 1000000) {
+        return false
+    }
+    var offset = enemyEncounterStateEntriesOffset() +
+        index * enemyEncounterStateEntryWidth()
+    for (var other = 0; other < words[7]; other = other + 1) {
+        var otherOffset = enemyEncounterStateEntriesOffset() +
+            other * enemyEncounterStateEntryWidth()
+        if (other != index && words[otherOffset] == enemyId) {
+            return false
+        }
+    }
+    words[offset] = enemyId
+    words[offset + 1] = state
+    words[offset + 2] = targetId
+    words[offset + 3] = health
+    words[offset + 4] = x
+    words[offset + 5] = y
+    words[offset + 6] = z
+    return true
+}
+
+Bool validEnemyEncounterStateFields(Int[] words) {
+    if (!validEnemyEncounterStateShape(words)) {
+        return false
+    }
+    if (words[8] == 0) {
+        for (var index = 9; index <= 18; index = index + 1) {
+            if (words[index] != 0) {
+                return false
+            }
+        }
+    } else if (words[8] < 0 || words[8] > 1000000 ||
+        words[9] <= 0 || words[9] > 3 ||
+        words[10] <= 0 || words[10] > 1000000 ||
+        words[11] < 0 || words[11] > 1000000 ||
+        words[12] < -1000000 || words[12] > 1000000 ||
+        words[13] < -1000000 || words[13] > 1000000 ||
+        words[14] < -1000000 || words[14] > 1000000 ||
+        words[15] < 0 || words[15] > 1000000 ||
+        words[16] < 0 || words[16] > 1 ||
+        words[17] <= 0 || words[17] > 1000000 ||
+        words[18] < 0 || words[18] > 100) {
+        return false
+    }
+    var activeEntries = 0
+    for (var index = 0; index < words[7]; index = index + 1) {
+        var offset = enemyEncounterStateEntriesOffset() +
+            index * enemyEncounterStateEntryWidth()
+        var enemyId = words[offset]
+        var state = words[offset + 1]
+        var health = words[offset + 3]
+        if (enemyId <= 0 || enemyId > 1000000 ||
+            state < 0 || state > 7 ||
+            words[offset + 2] < 0 ||
+            words[offset + 2] > 1000000 ||
+            health < 0 || health > 1000000 ||
+            ((state == 7 && health != 0) ||
+                (state != 7 && health == 0)) ||
+            words[offset + 4] < -1000000 ||
+            words[offset + 4] > 1000000 ||
+            words[offset + 5] < -1000000 ||
+            words[offset + 5] > 1000000 ||
+            words[offset + 6] < -1000000 ||
+            words[offset + 6] > 1000000) {
+            return false
+        }
+        if (state != 7) {
+            activeEntries = activeEntries + 1
+        }
+        for (var other = index + 1;
+            other < words[7];
+            other = other + 1) {
+            var otherOffset = enemyEncounterStateEntriesOffset() +
+                other * enemyEncounterStateEntryWidth()
+            if (words[otherOffset] == enemyId) {
+                return false
+            }
+        }
+    }
+    return activeEntries == words[5]
+}
+
+Bool sealEnemyEncounterStateMessage(Int[] words) {
+    if (!validEnemyEncounterStateFields(words)) {
+        return false
+    }
+    words[words.length - 1] =
+        gameplayMessageChecksum(words, words.length - 1)
+    return true
+}
+
+Bool validEnemyEncounterStateMessage(Int[] words) {
+    return validEnemyEncounterStateFields(words) &&
+        words[words.length - 1] ==
+            gameplayMessageChecksum(words, words.length - 1)
+}
+
+Int enemyEncounterStateSequence(Int[] words) {
+    if (!validEnemyEncounterStateMessage(words)) {
+        return 0
+    }
+    return words[3]
+}
+
+Int enemyEncounterStateEncounterId(Int[] words) {
+    if (!validEnemyEncounterStateMessage(words)) {
+        return 0
+    }
+    return words[4]
+}
+
+Int enemyEncounterStateActiveCount(Int[] words) {
+    if (!validEnemyEncounterStateMessage(words)) {
+        return -1
+    }
+    return words[5]
+}
+
+Int enemyEncounterStateRemainingBudget(Int[] words) {
+    if (!validEnemyEncounterStateMessage(words)) {
+        return -1
+    }
+    return words[6]
+}
+
+Int enemyEncounterStateEnemyCount(Int[] words) {
+    if (!validEnemyEncounterStateMessage(words)) {
+        return -1
+    }
+    return words[7]
+}
+
+ImpactPresentationEvent enemyEncounterStateImpact(Int[] words) {
+    if (!validEnemyEncounterStateMessage(words) || words[8] == 0) {
+        return ImpactPresentationEvent(
+            0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0)
+    }
+    return ImpactPresentationEvent(
+        words[8], words[9], words[10], words[11],
+        words[12], words[13], words[14], words[15],
+        words[16] == 1, words[17], words[18])
+}
+
+Int enemyEncounterStateEnemyValue(
+    Int[] words, Int index, Int component
+) {
+    if (!validEnemyEncounterStateMessage(words) ||
+        index < 0 || index >= words[7] ||
+        component < 0 || component >= enemyEncounterStateEntryWidth()) {
+        return 0
+    }
+    return words[
+        enemyEncounterStateEntriesOffset() +
+        index * enemyEncounterStateEntryWidth() + component]
+}
+
+Int enemyEncounterStateEnemyId(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 0)
+}
+
+Int enemyEncounterStateEnemyState(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 1)
+}
+
+Int enemyEncounterStateEnemyTarget(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 2)
+}
+
+Int enemyEncounterStateEnemyHealth(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 3)
+}
+
+Int enemyEncounterStateEnemyPositionX(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 4)
+}
+
+Int enemyEncounterStateEnemyPositionY(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 5)
+}
+
+Int enemyEncounterStateEnemyPositionZ(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 6)
+}
+
 Int envelopeSequence(Int[] words) {
     return words[3]
 }

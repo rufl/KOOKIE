@@ -103,6 +103,10 @@ def main() -> int:
         "external-combat-death",
         "external-arena-triangles",
         "external-combat-reward",
+        "external-enemy-encounter",
+        "external-enemy-state",
+        "external-enemy-health",
+        "external-impact-sequence",
         "external-player-position",
         "external-reconnect-generation",
         "external-stale-diagnostic",
@@ -133,6 +137,11 @@ def main() -> int:
     arena_triangles = marker_value(lines, "external-arena-triangles")
     combat_reward = marker_value(lines, "external-combat-reward")
     player_position = marker_value(lines, "external-player-position")
+    enemy_encounter_active = marker_value(
+        lines, "external-enemy-encounter")
+    enemy_state = marker_value(lines, "external-enemy-state")
+    enemy_health = marker_value(lines, "external-enemy-health")
+    impact_sequence = marker_value(lines, "external-impact-sequence")
     reconnect_generation = marker_value(
         lines, "external-reconnect-generation")
     stale_diagnostic = marker_value(lines, "external-stale-diagnostic")
@@ -155,6 +164,14 @@ def main() -> int:
         return fail("complete authored arena did not traverse transport")
     if combat_reward != 25:
         return fail("server-owned combat reward was not replicated")
+    if enemy_encounter_active != 0:
+        return fail("replicated enemy encounter did not reach terminal state")
+    if enemy_state != 7:
+        return fail("replicated enemy state was not terminal")
+    if enemy_health != 0:
+        return fail("replicated enemy health was not zero")
+    if impact_sequence is None or impact_sequence < 2:
+        return fail("latest confirmed enemy impact did not replicate")
     if player_position != 2:
         return fail("authoritative player movement was not replicated")
     if reconnect_generation != 2:
@@ -327,6 +344,10 @@ def main() -> int:
         "combatDeath": combat_death == 1,
         "arenaTriangleCount": arena_triangles,
         "combatReward": combat_reward,
+        "enemyEncounterActive": enemy_encounter_active,
+        "enemyState": enemy_state,
+        "enemyHealth": enemy_health,
+        "impactSequence": impact_sequence,
         "playerPosition": player_position,
         "reconnectGeneration": reconnect_generation,
         "staleDiagnostic": stale_diagnostic,

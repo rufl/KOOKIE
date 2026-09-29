@@ -3,6 +3,27 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## 2026-09-29
+### Replicação autoritativa de encounter de inimigos
+
+- Adicionamos uma mensagem de estado do encounter com checksum e
+  `20 + 7N` palavras para até 32 inimigos, abaixo do limite autenticado de 300
+  palavras. Ela carrega contagens ativa/reserva, ID/estado/alvo/vida/posição de
+  cada inimigo e o impacto confirmado mais recente; o cliente rejeita estado
+  malformado ou obsoleto.
+- O disparo remoto agora resolve pela autoridade real de combate/encounter dos
+  inimigos, não por um ator fictício de combate entre jogadores. O dano
+  terminal libera o slot, concede a recompensa de 25 moedas no servidor e
+  replica estado `7`, vida `0` e sequência de impacto `2`.
+- Respostas do host agora enviam estado de jogador/progressão e do encounter aos
+  dois clientes autenticados. A admissão no cliente atualiza filas limitadas de
+  apresentação/áudio sem deixar backpressure desfazer o estado.
+- Polimos o HUD fixo de 174 vértices com glifo de conexão distinguível pela
+  forma e track de carga ativa/reserva. Conexão e reserva mudam geometria além
+  da cor; a cena completa continua com 252 vértices.
+- Os 72 cenários JVM, a sonda de interação JVM/nativo e a regressão local JVM
+  com host mais dois clientes passam. O validador LAN agora exige marcadores
+  terminais de encounter/estado/vida e impacto confirmado.
+
 ### Slice de feedback de combate confirmado
 
 - Conectamos resultados autoritativos aceitos de hitscan e shotgun de alvo

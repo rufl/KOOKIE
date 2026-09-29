@@ -640,6 +640,10 @@ class AuthoritativeEnemySession {
         return combat.currentShield(actorId)
     }
 
+    Int currentHealth(Int actorId) {
+        return combat.currentHealth(actorId)
+    }
+
     Bool admitEnemyInternal(
         Int encounterId, Int enemyId, Int tick,
         Int health, Int armor, Int weaponId,

@@ -125,12 +125,13 @@ checked native adapter
 
 A apresentação não pode gravar em arrays autoritativos nem conceder resultados de jogabilidade.
 
-O slice limitado implementado segue essa fronteira: uma resolução autoritativa
-de combate emite um `ImpactPresentationEvent` monotônico; o HUD do cliente
-deriva geometria de acerto/eliminação/dano limitada por tick, enquanto uma fila
-de áudio limitada e paralela seleciona o clip SDL. Overflow da apresentação é
-diagnosticado e nunca desfaz dano autoritativo. A cena criada atual é fixa em
-252 vértices.
+O slice limitado implementado segue essa fronteira: resoluções autoritativas de
+combate emitem registros `ImpactPresentationEvent` monotônicos; o snapshot do
+encounter leva o evento confirmado mais recente às filas de HUD/áudio do
+cliente. O HUD deriva geometria de acerto/eliminação/dano limitada por tick,
+além de estado de conexão e carga ativa/reserva distinguíveis pela forma.
+Overflow de apresentação é diagnosticado e nunca desfaz estado autoritativo.
+A cena criada atual é fixa em 252 vértices.
 
 
 ### Adaptador nativo
@@ -201,6 +202,16 @@ O protocolo é independente do transporte:
   de entidades limitados.
 - Rejeição de comandos obsoletos, identificadores inválidos, conteúdo
   incompatível e capacidades não suportadas.
+
+O slice G2 implementado usa comandos fixos de 11 palavras e estado fixo de
+jogador/progressão com 19 palavras, seguido por uma mensagem dinâmica do
+encounter com checksum e `20 + 7N` palavras. `N` é limitado a 32; cada entrada
+contém ID estável, estado, alvo, vida e posição inteira do inimigo. O cabeçalho
+contém contagens ativa/reserva do encounter e o impacto confirmado mais
+recente. O decode valida a mensagem inteira antes da mutação, rejeita
+sequências não monotônicas e não trata apresentação descartada como falha do
+estado autoritativo.
+
 
 A biblioteca de rede de terceiros é selecionada depois da validação do protocolo
 e da prova de loopback, não antes.
@@ -517,12 +528,12 @@ escala/soak sustentado permanece em G5.
 
 ### G2 — Fatia de boomer-shooter em LAN
 
-Em andamento: o transporte autenticado limitado já executa host mais dois
-clientes em movimento, recompensa de combate, ciclo de vida e progressão do
-nível; o caminho autoritativo local agora emite feedback de impacto para
-HUD/áudio. Restam encounters replicados de inimigos,
+Em andamento: o transporte autenticado limitado executa host mais dois clientes
+em movimento, morte/recompensa autoritativa de inimigo, um stream limitado de
+estado/impacto do encounter, ciclo de vida e progressão do nível. Restam
+simulação contínua e replicada de vários papéis de inimigos,
 predição/reconciliação completa, entrada/recuperação de produção, portas 3D
-completas e apresentação/áudio multiplayer completos.
+completas e cobertura completa de apresentação/áudio multiplayer.
 
 
 ### G3 — Fatia multiplayer de looter/ARPG

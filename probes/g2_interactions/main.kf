@@ -529,32 +529,55 @@ Bool verifyRemoteGameplayAuthority() {
         host.start() && host.connectPlayer() == 1 &&
         host.connectPlayer() == 2 && clientA.start() && clientB.start(),
         "remote gameplay sessions must share authored interaction identity")
-    assert(host.definePlayerWeapon(9, 2, 0, 0, 4, 1, 20) &&
-        host.addPlayerCombatActor(1, 20, 0) &&
-        host.addPlayerCombatActor(3, 8, 0) &&
-        host.equipPlayerCombatWeapon(1, 9) &&
-        host.definePlayerCombatReward(3, 25),
-        "host must own combat and reward configuration")
+    assert(host.configureEnemyRules(100, 20, 2) &&
+        host.defineEnemyWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.defineEnemyEncounter(4, 1, 1) &&
+        host.addEnemyCombatActor(1, 20, 0) &&
+        host.equipEnemyCombatWeapon(1, 9) &&
+        host.admitEnemyAt(4, 3, 0, 8, 0, 9, 6, 0, 0) &&
+        host.defineEnemyCombatReward(3, 25),
+        "host must own enemy encounter combat and reward configuration")
 
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 1, 1, gameplayFireAction(), 3, 10, 0, 0)) &&
         host.lastRemoteGameplayAccepted())
     var state = host.gameplayStateMessage(1, 3, 1)
+    var encounter = host.enemyEncounterStateMessage(1, 4)
     assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.applyRemoteEnemyEncounterState(encounter) &&
         clientA.clientRemoteCombatActor() == 3 &&
         clientA.clientRemoteCombatHealth() == 4 &&
+        clientA.clientRemoteEnemyHealth(3) == 4 &&
+        clientA.clientRemoteEncounterActiveCount() == 1 &&
+        clientA.clientRemoteImpactSequence() == 1 &&
         clientA.clientRemoteCurrency() == 0 &&
-        clientA.clientRemoteDiagnostic() == gameplayFireDiagnostic(),
-        "first remote shot must publish authoritative damage")
+        clientA.clientRemoteDiagnostic() == gameplayFireDiagnostic() &&
+        clientA.pendingImpactPresentations() == 1 &&
+        clientA.dequeueImpactPresentation(),
+        "first remote shot must publish authoritative enemy damage")
+    var firstImpact = clientA.lastImpactPresentation()
+    assert(firstImpact.targetId() == 3 &&
+        firstImpact.applied() == 4 && !firstImpact.died())
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 2, 2, gameplayFireAction(), 3, 10, 0, 0)) &&
         host.lastRemoteGameplayAccepted())
     state = host.gameplayStateMessage(2, 3, 1)
+    encounter = host.enemyEncounterStateMessage(2, 4)
     assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.applyRemoteEnemyEncounterState(encounter) &&
         clientA.clientRemoteCombatHealth() == 0 &&
+        clientA.clientRemoteEnemyHealth(3) == 0 &&
+        clientA.clientRemoteEnemyState(3) == 7 &&
+        clientA.clientRemoteEncounterActiveCount() == 0 &&
+        clientA.clientRemoteImpactSequence() == 2 &&
         clientA.clientRemoteCurrency() == 25 &&
-        host.playerCurrency(1) == 25,
-        "terminal remote shot must grant one server-owned reward")
+        host.playerCurrency(1) == 25 &&
+        clientA.pendingImpactPresentations() == 1 &&
+        clientA.dequeueImpactPresentation(),
+        "terminal remote shot must replicate enemy death, feedback and reward")
+    var terminalImpact = clientA.lastImpactPresentation()
+    assert(terminalImpact.targetId() == 3 &&
+        terminalImpact.applied() == 4 && terminalImpact.died())
 
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 3, 3, gameplayMoveAction(), 2, 0, 0, 0)),

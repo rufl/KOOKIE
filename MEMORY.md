@@ -13,12 +13,13 @@ Bounded foundations execute; G0 and G1 acceptance gates are complete.
   platform, two stair steps and stacked rooms. Server snapshots include
   explicit bounds and all triangles; client upper/lower-floor queries pass.
 - World plus semantic HUD staging uses 252 fixed vertices: 78 arena vertices
-  and 174 HUD vertices for framed health/ammo tracks, structural icons,
-  encounter pips, a focus-responsive crosshair, hit/kill markers and edge
-  damage warnings. Feedback expires by simulation tick and rejects duplicate
-  event sequences. The native SDL_GPU bridge owns persistent scene buffers and
-  a 16-color semantic palette; the no-per-frame-growth proof remains bounded to
-  unchanged staging capacities.
+  and 174 HUD vertices for framed health/ammo tracks, structural icons, a
+  shape-distinct connection glyph, active/reserve encounter load, a
+  focus-responsive crosshair, hit/kill markers and edge damage warnings.
+  Feedback expires by simulation tick and rejects duplicate event sequences.
+  The native SDL_GPU bridge owns persistent scene buffers and a 16-color
+  semantic palette; the no-per-frame-growth proof remains bounded to unchanged
+  staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
 - JVM/native checks, identical G1 runtime markers and 72/72 tests pass on each
@@ -27,11 +28,12 @@ Bounded foundations execute; G0 and G1 acceptance gates are complete.
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
 - The JVM/native three-process G2 regression transports all 26 authored arena
-  triangles and unified checksummed movement, fire, interaction, disconnect
-  and reconnect commands. Client-applied state proves authoritative position,
-  terminal server-owned combat death plus 25 currency, revision-4
-  key/door/secret/exit completion, reconnect generation two and explicit stale
-  diagnosis.
+  triangles, unified checksummed gameplay commands and bounded authoritative
+  encounter state. Clients apply enemy ID/state/target/health/position, active
+  and reserve counts, and the latest confirmed impact. The qualified path
+  proves terminal enemy state `7`, health `0`, impact sequence `2`, 25 currency,
+  revision-4 key/door/secret/exit completion, reconnect generation two and
+  explicit stale diagnosis.
 
 ## Previous batch
 - Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Eighteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
@@ -114,6 +116,11 @@ management remains unimplemented.
     distinguishes hit, kill and incoming damage without relying on color alone;
     presentation backpressure is counted and cannot roll back authoritative
     damage.
+30. Host encounter state uses a dynamic checksummed `20 + 7N`-word message,
+    bounded to 32 enemies and the shared 300-word transport capacity. Decode is
+    validate-before-mutate and sequence-guarded. Presentation queue backpressure
+    may drop feedback but cannot reject or roll back newer authoritative enemy
+    state.
 
 
 ## Editor cautions
@@ -148,15 +155,18 @@ render/readback all execute. The no-per-frame-growth claim is limited to
 unchanged staging capacities across 64 deterministic frames and persistent
 native scene buffers; it is not a 30-minute RSS/performance result.
 
-G2 now has a qualified transport slice: host plus two clients exchange the
-complete G1 arena and unified checksummed movement, fire, interaction and
-lifecycle commands. Client-applied state reaches server-owned combat
-death/reward, authoritative movement, reconnect generation two and
-key/door/secret/exit completion on JVM and native. A local confirmed hitscan
-now reaches bounded replay/HUD/audio presentation and native SDL playback.
-Closing G2 still requires replicated enemy encounters, full player
-prediction/reconciliation, production join/recovery, complete 3D door
-collision/render geometry, complete multiplayer feedback coverage and
+G2 now has a qualified encounter replication slice: host plus two clients
+exchange the complete G1 arena, unified checksummed gameplay commands, fixed
+player/progression state and bounded enemy encounter state. Client application
+reaches terminal enemy state/health, the latest confirmed impact, a
+server-owned reward, authoritative movement, reconnect generation two and
+key/door/secret/exit completion. The same replicated counts feed a
+shape-distinct connection/active-reserve HUD; confirmed impacts enter bounded
+presentation/audio queues.
+
+Closing G2 still requires continuous replicated multi-role enemy simulation,
+full player prediction/reconciliation, production join/recovery, complete 3D
+door collision/render geometry, complete multiplayer feedback coverage and
 production audio mixing/spatialization. G5 retains sustained workload, RSS and
 frame-budget acceptance. `FFI001` still blocks Kof bulk-buffer calls into the
 optional SIMD kernel.

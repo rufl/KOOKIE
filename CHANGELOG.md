@@ -3,6 +3,26 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## 2026-09-29
+### Authoritative enemy encounter replication
+
+- Added a checksummed encounter-state message of `20 + 7N` words for at most
+  32 enemies, below the authenticated transport's 300-word bound. It carries
+  encounter active/reserve counts, enemy ID/state/target/health/position and
+  the latest confirmed impact; clients reject malformed or stale state.
+- Remote fire now resolves against the real enemy combat/encounter authority
+  instead of a dummy player-combat actor. Terminal damage releases the
+  encounter slot, grants the server-owned 25-currency reward and replicates
+  enemy state `7`, health `0` and impact sequence `2`.
+- Host responses now send player/progression state plus encounter state to both
+  authenticated clients. Client admission updates bounded presentation/audio
+  queues without allowing presentation backpressure to roll back state.
+- Polished the fixed 174-vertex HUD with a shape-distinct connection glyph and
+  active/reserve encounter track. Connection and reserve status change geometry
+  as well as color; the full scene remains within 252 vertices.
+- The 72 JVM source scenarios, JVM/native interaction probe and local JVM
+  host-plus-two-client process regression pass. The LAN evidence validator now
+  requires terminal encounter/state/health and confirmed-impact markers.
+
 ### Confirmed combat feedback slice
 
 - Connected accepted authoritative hitscan and single-target shotgun results to

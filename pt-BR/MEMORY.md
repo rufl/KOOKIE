@@ -14,12 +14,12 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
   incluem limites explícitos e todos os triângulos; consultas do cliente aos
   andares superior/inferior passam.
 - O staging de mundo mais HUD semântico usa 252 vértices fixos: 78 da arena e
-  174 do HUD para tracks emolduradas de vida/munição, ícones estruturais, pips
-  de encounter, mira responsiva ao foco, marcadores de acerto/eliminação e
-  alertas laterais de dano. O feedback expira por tick de simulação e rejeita
-  sequências duplicadas. A ponte SDL_GPU mantém buffers persistentes e uma
-  paleta semântica de 16 cores; 64 stagings determinísticos mantêm as
-  capacidades Kof originais.
+  174 do HUD para tracks emolduradas de vida/munição, ícones estruturais, glifo
+  de conexão distinguível pela forma, carga ativa/reserva do encounter, mira
+  responsiva ao foco, marcadores de acerto/eliminação e alertas laterais de
+  dano. O feedback expira por tick e rejeita sequências duplicadas. A ponte
+  SDL_GPU mantém buffers persistentes e uma paleta semântica de 16 cores; a
+  prova sem crescimento por frame fica limitada às capacidades inalteradas.
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
@@ -28,11 +28,12 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
 - A regressão G2 de três processos na JVM e no nativo transporta todos os 26
-  triângulos da arena e comandos unificados com checksum para movimento,
-  disparo, interação, desconexão e reconexão. O estado aplicado pelo cliente
-  comprova posição autoritativa, morte terminal mais 25 de moeda controladas
-  pelo servidor, revisão 4 de chave/porta/segredo/saída, geração 2 após
-  reconexão e diagnóstico explícito de input obsoleto.
+  triângulos da arena, comandos unificados com checksum e estado autoritativo
+  limitado do encounter. Os clientes aplicam ID/estado/alvo/vida/posição,
+  contagens ativa/reserva e o impacto confirmado mais recente. O caminho
+  qualificado comprova estado terminal `7`, vida `0`, sequência de impacto `2`,
+  25 moedas, revisão 4, geração 2 após reconexão e diagnóstico explícito de
+  input obsoleto.
 
 ## Lote mais recente
 
@@ -120,6 +121,11 @@ implementada.
     emitem eventos monotônicos e limitados de apresentação e áudio de impacto.
     A geometria do HUD distingue acerto, eliminação e dano recebido sem depender
     somente de cor; backpressure é contabilizado e não desfaz dano autoritativo.
+30. O estado do encounter usa mensagem dinâmica com checksum de
+    `20 + 7N` palavras, limitada a 32 inimigos e ao transporte compartilhado de
+    300 palavras. O decode valida antes de mutar e protege a sequência.
+    Backpressure pode descartar feedback, mas não rejeita nem desfaz estado
+    autoritativo mais recente.
 
 
 ## Cuidados do editor
@@ -156,19 +162,21 @@ por frame limita-se a capacidades de staging inalteradas em 64 frames
 determinísticos e buffers nativos persistentes; não é um resultado de
 RSS/desempenho por 30 minutos.
 
-G2 agora possui um slice de transporte qualificado: host mais dois clientes
-trocam a arena G1 completa e comandos unificados com checksum para movimento,
-disparo, interação e ciclo de vida. O estado aplicado pelo cliente alcança
-morte/recompensa controladas pelo servidor, movimento autoritativo, geração 2
-após reconexão e conclusão de chave/porta/segredo/saída na JVM e no nativo.
-Um hitscan local confirmado agora alcança apresentação limitada de
-replay/HUD/áudio e playback SDL nativo. Concluir G2 ainda exige encounters
-replicados de inimigos, predição/reconciliação completa dos jogadores,
-entrada/recuperação em produção, geometria/colisão 3D completa das portas,
-cobertura completa de feedback multiplayer e mixagem/espacialização de áudio
-de produção. G5 mantém aceitação sustentada de carga, RSS e orçamento de frame.
-`FFI001` ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD
-opcional.
+G2 agora possui um slice qualificado de replicação de encounter: host mais dois
+clientes trocam a arena G1 completa, comandos unificados com checksum, estado
+fixo do jogador/progressão e estado limitado dos inimigos. A aplicação no
+cliente alcança estado/vida terminais, impacto confirmado mais recente,
+recompensa controlada pelo servidor, movimento autoritativo, geração 2 após
+reconexão e conclusão de chave/porta/segredo/saída. As mesmas contagens
+replicadas alimentam o HUD de conexão/carga ativa-reserva distinguível pela
+forma; impactos confirmados entram nas filas limitadas de apresentação/áudio.
+
+Concluir G2 ainda exige simulação contínua e replicada de vários papéis de
+inimigos, predição/reconciliação completa, entrada/recuperação em produção,
+geometria/colisão 3D completa das portas, cobertura completa de feedback
+multiplayer e mixagem/espacialização de áudio de produção. G5 mantém aceitação
+sustentada de carga, RSS e orçamento de frame. `FFI001` ainda bloqueia chamadas
+Kof com buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

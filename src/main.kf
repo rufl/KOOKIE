@@ -103,9 +103,10 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         "HUD geometry must retain a fixed bounded budget")
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
+        hud.updateEncounterReplication(0, 0, true, 1, 1) &&
         hud.stage(frame, 1, 9) &&
         frame.stagedCount() == hud.renderVertexCount(),
-        "ready HUD must stage panels icons crosshair status and feedback layer")
+        "ready HUD must stage panels icons crosshair network and encounter status")
     var readyChecksum = frame.checksum()
     assert(frame.retire(1))
 
@@ -133,12 +134,16 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         2, 1, 3, 1, 0, 0, 0, 20, false, 201, 70)
     assert(hud.presentImpact(1, incoming, 21) &&
         hud.update(20, 3, 3, 21, false) &&
+        hud.updateEncounterReplication(3, 2, false, 2, 2) &&
         hud.stage(frame, 4, 9) &&
         hud.damageFeedbackActive() && !hud.hitFeedbackActive() &&
         !hud.killFeedbackActive() &&
         hud.health() == 20 && hud.ammunition() == 3 &&
-        hud.enemies() == 3 && hud.tick() == 21 && !hud.focused(),
-        "incoming damage must stage edge warning independently of color")
+        hud.enemies() == 3 && hud.encounterRemaining() == 2 &&
+        !hud.remoteConnected() && hud.remoteGeneration() == 2 &&
+        hud.remoteStateSequence() == 2 &&
+        hud.tick() == 21 && !hud.focused(),
+        "HUD must distinguish incoming damage disconnected state and encounter load")
     assert(frame.retire(4))
     assert(hud.update(20, 3, 3, 40, false) &&
         hud.stage(frame, 5, 9) &&
@@ -146,8 +151,16 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         hud.health() == 20 && hud.ammunition() == 3 &&
         hud.enemies() == 3 && !hud.focused(),
         "damage warning must expire without changing critical status")
-
+    var disconnectedChecksum = frame.checksum()
     assert(frame.retire(5))
+    assert(hud.updateEncounterReplication(3, 2, true, 3, 3) &&
+        !hud.updateEncounterReplication(3, 2, false, 3, 3) &&
+        hud.stage(frame, 6, 9) &&
+        frame.checksum() != disconnectedChecksum &&
+        hud.remoteConnected() && hud.remoteGeneration() == 3,
+        "connection status must change shape and reject duplicate state")
+    assert(frame.retire(6))
+
 
     var undersized = FrameStaging(hud.renderVertexCount() - 1)
     assert(!hud.stage(undersized, 1, 9),
@@ -157,8 +170,11 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
 
 test "G2 gameplay wire validates commands and authoritative state" {
     assert(maximumSessionTransportWords() ==
-        12 + maximumSessionTransportTriangles() * 9,
-        "transport capacity must fit the complete bounded arena snapshot")
+            12 + maximumSessionTransportTriangles() * 9 &&
+        20 + maximumEnemyEncounterStateEnemies() *
+            enemyEncounterStateEntryWidth() <=
+            maximumSessionTransportWords(),
+        "transport capacity must fit arena and encounter snapshots")
     var command = newGameplayCommandMessage(
         2, 3, 4, gameplayFireAction(), 5, 20, 0, 0)
     assert(validGameplayCommandMessage(command) &&
@@ -197,6 +213,41 @@ test "G2 gameplay wire validates commands and authoritative state" {
     state[18] = state[18] + 1
     assert(!validGameplayStateMessage(state),
         "gameplay state must reject checksum corruption")
+
+    var encounter = newEnemyEncounterStateMessage(7, 9, 4, 1, 3, 2)
+    assert(encounter.length <= maximumSessionTransportWords() &&
+        setEnemyEncounterStateImpact(
+            encounter, 12, 1, 1, 4,
+            30, 2, -7, 6, true, 201, 100) &&
+        setEnemyEncounterStateEntry(
+            encounter, 0, 3, 4, 1, 8, 10, 0, 4) &&
+        setEnemyEncounterStateEntry(
+            encounter, 1, 4, 7, 1, 0, 30, 2, -7) &&
+        sealEnemyEncounterStateMessage(encounter) &&
+        validEnemyEncounterStateMessage(encounter) &&
+        enemyEncounterStateSequence(encounter) == 9 &&
+        enemyEncounterStateEncounterId(encounter) == 4 &&
+        enemyEncounterStateActiveCount(encounter) == 1 &&
+        enemyEncounterStateRemainingBudget(encounter) == 3 &&
+        enemyEncounterStateEnemyCount(encounter) == 2 &&
+        enemyEncounterStateEnemyId(encounter, 0) == 3 &&
+        enemyEncounterStateEnemyHealth(encounter, 0) == 8 &&
+        enemyEncounterStateEnemyState(encounter, 1) == 7 &&
+        enemyEncounterStateEnemyPositionZ(encounter, 1) == -7,
+        "encounter wire must preserve bounded authoritative enemy state")
+    var replicatedImpact = enemyEncounterStateImpact(encounter)
+    assert(replicatedImpact.sequence() == 12 &&
+        replicatedImpact.sourceId() == 1 &&
+        replicatedImpact.targetId() == 4 &&
+        replicatedImpact.applied() == 6 &&
+        replicatedImpact.died() &&
+        replicatedImpact.clip() == 201 &&
+        replicatedImpact.gain() == 100,
+        "encounter wire must preserve latest confirmed impact feedback")
+    encounter[encounter.length - 1] =
+        encounter[encounter.length - 1] + 1
+    assert(!validEnemyEncounterStateMessage(encounter),
+        "encounter state must reject checksum corruption")
 }
 
 test "bounded content package schema and identity" {

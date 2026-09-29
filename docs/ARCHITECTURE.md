@@ -126,11 +126,13 @@ checked native adapter
 
 Presentation cannot write authoritative arrays or award gameplay results.
 
-The implemented bounded slice follows this boundary: an authoritative combat
-resolution emits a monotonic `ImpactPresentationEvent`; the client HUD derives
-tick-limited hit/kill/damage geometry while a parallel bounded audio queue
-selects the SDL clip. Presentation overflow is diagnosed and never rolls back
-authoritative damage. The current authored scene is fixed at 252 vertices.
+The implemented bounded slice follows this boundary: authoritative combat
+resolutions emit monotonic `ImpactPresentationEvent` records; the encounter
+snapshot carries the latest confirmed event into client HUD/audio queues.
+The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
+connection and active/reserve encounter status. Presentation overflow is
+diagnosed and never rolls back authoritative state. The current authored scene
+is fixed at 252 vertices.
 
 
 ### Native adapter
@@ -200,6 +202,15 @@ The protocol is transport-independent:
 - Bounded packet size, decode work, queue length and entity count.
 - Rejection of stale commands, invalid handles, incompatible content and
   unsupported capabilities.
+
+
+The implemented G2 slice uses fixed 11-word commands and a fixed 19-word
+player/progression state, followed by a dynamic checksummed encounter message
+of `20 + 7N` words. `N` is bounded to 32 and each entry contains stable enemy
+ID, state, target, health and integer position. The header contains encounter
+active/reserve counts and the latest confirmed impact. Decode validates the
+entire message before mutation, rejects non-monotonic sequence numbers and
+never treats dropped presentation as failed authoritative state.
 
 The third-party networking library is selected after the protocol and loopback
 proof, not before.
@@ -509,11 +520,12 @@ scale/soak remains G5.
 
 ### G2 — LAN boomer-shooter slice
 
-In progress: bounded authenticated transport already runs a host plus two
-clients through movement, combat reward, lifecycle and level progression; the
-local authoritative path now emits HUD/audio impact feedback. Remaining work is
-replicated enemy encounters, full prediction/reconciliation, production
-join/recovery, complete 3D doors and complete multiplayer presentation/audio.
+In progress: bounded authenticated transport runs a host plus two clients
+through movement, authoritative enemy death/reward, one bounded encounter
+state/impact stream, lifecycle and level progression. Remaining work is
+continuous replicated multi-role enemy simulation, full
+prediction/reconciliation, production join/recovery, complete 3D doors and
+complete multiplayer presentation/audio coverage.
 
 
 ### G3 — Looter/ARPG multiplayer slice

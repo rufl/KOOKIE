@@ -14,29 +14,31 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
   clientes, snapshots e predição/reconciliação observável;
 - movimento limitado, contato de cápsula, BVH de triângulos e consultas
   espaciais de projéteis;
-- combate determinístico com um caminho integrado de arma/inimigo, seleção de
-  pellets de shotgun e eventos confirmados de impacto que alimentam a
-  apresentação limitada de HUD/áudio;
+- combate determinístico com um caminho integrado de jogador/inimigo, seleção
+  limitada por pellet e snapshots autoritativos de encounter com até 32 estados
+  de inimigos e o impacto confirmado mais recente chegando ao HUD/áudio;
 - arena criada com 78 vértices e 26 triângulos, inclinação caminhável, degraus e
   salas empilhadas, replicada com limites explícitos do broad-phase;
 - câmera, staging limitado do mundo e um HUD semântico de combate com painéis
-  de vida/munição, pips de encounter, mira responsiva ao foco, marcadores de
-  acerto/eliminação e alertas laterais de dano; o SDL_GPU envia a cena fixa de
-  252 vértices sem crescimento de buffer por frame;
+  de vida/munição, glifo de conexão, carga ativa/reserva do encounter, mira
+  responsiva ao foco, marcadores de acerto/eliminação e alertas laterais de
+  dano; o SDL_GPU envia a cena fixa de 252 vértices sem crescer por frame;
 - progressão cooperativa de chave, porta, segredo e saída, replay de comandos e
   saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
-  na JVM e no nativo levam a arena completa de 26 triângulos e comandos
-  unificados com checksum para movimento, disparo, interação, desconexão e
-  reconexão. Os clientes aplicam posições autoritativas, vida de combate, uma
-  recompensa terminal em moeda, progressão até a revisão 4 e diagnósticos
-  explícitos de ciclo de vida/input obsoleto.
+  na JVM e no nativo levam a arena completa de 26 triângulos, comandos
+  unificados com checksum para movimento/disparo/interação/ciclo de vida e uma
+  mensagem limitada do encounter autoritativo. Os clientes aplicam posições,
+  estado e vida terminais do inimigo, impacto confirmado mais recente,
+  recompensa de 25 moedas, progressão até a revisão 4 e diagnósticos explícitos
+  de ciclo de vida/input obsoleto.
 
 As lacunas importantes continuam reais:
 
-- G2 ainda precisa de simulação/encounters replicados de inimigos,
-  predição/reconciliação completa dos jogadores e recuperação de
+- G2 ainda precisa de simulação contínua e replicada de vários papéis de
+  inimigos além do slice qualificado de um encounter/impacto,
+  predição/reconciliação completa dos jogadores, recuperação de
   entrada/admissão em produção, geometria/colisão 3D completa das portas,
   cobertura completa de feedback multiplayer e mixagem/espacialização de áudio
   de produção;
@@ -115,11 +117,12 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 ## Roadmap
 
-O próximo passo é concluir G2: ampliar o slice qualificado de arena, morte em
-combate e chave/porta/segredo/saída com host mais dois clientes para encounters
-replicados de inimigos, predição/reconciliação completa, recuperação de entrada
-em produção, portas 3D completas, feedback multiplayer completo e áudio de
-produção.
+O próximo passo é concluir G2: ampliar o slice qualificado de arena, morte e
+recompensa de inimigo, estado/impacto do encounter e
+chave/porta/segredo/saída com host mais dois clientes para simulação contínua
+de vários papéis de inimigos, predição/reconciliação completa, recuperação de
+entrada em produção, portas 3D completas, feedback multiplayer completo e
+áudio de produção.
 
 Adiado até os gates centrais estarem mais fortes:
 

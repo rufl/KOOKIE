@@ -16,6 +16,10 @@ class ShooterHud {
     Int hitFeedbackUntilTick
     Int killFeedbackUntilTick
 
+    Int encounterRemainingValue
+    Bool remoteConnectedValue
+    Int remoteGenerationValue
+    Int remoteStateSequenceValue
 
     public constructor(Int maxHealth, Int maxAmmunition) {
         healthValue = 0
@@ -36,6 +40,10 @@ class ShooterHud {
         damageFeedbackUntilTick = -1
         hitFeedbackUntilTick = -1
         killFeedbackUntilTick = -1
+        encounterRemainingValue = 0
+        remoteConnectedValue = true
+        remoteGenerationValue = 1
+        remoteStateSequenceValue = 0
 
     }
 
@@ -54,6 +62,23 @@ class ShooterHud {
         tickValue = tick
         focusedValue = focused
         configuredValue = true
+        return true
+    }
+    Bool updateEncounterReplication(
+        Int activeEnemies, Int remainingBudget,
+        Bool connected, Int generation, Int sequence
+    ) {
+        if (activeEnemies < 0 || activeEnemies > 32 ||
+            remainingBudget < 0 || remainingBudget > 1000000 ||
+            generation <= 0 || generation > 1000000 ||
+            sequence <= remoteStateSequenceValue || sequence > 1000000) {
+            return false
+        }
+        enemiesValue = activeEnemies
+        encounterRemainingValue = remainingBudget
+        remoteConnectedValue = connected
+        remoteGenerationValue = generation
+        remoteStateSequenceValue = sequence
         return true
     }
     Bool presentImpact(
@@ -127,36 +152,48 @@ class ShooterHud {
     }
 
     Bool pushEncounterStatus(
-        FrameStaging target, Int resourceBase, Int focusResource
+        FrameStaging target, Int resourceBase
     ) {
-        var focusRight = -12
-        if (!focusedValue) {
-            focusRight = 20
+        var connectionResource = resourceBase + 6
+        var connectionLeft = -36
+        var connectionBottom = 88
+        var connectionRight = -32
+        var connectionTop = 96
+        if (!remoteConnectedValue) {
+            connectionResource = resourceBase + 4
+            connectionLeft = -38
+            connectionBottom = 90
+            connectionRight = -30
+            connectionTop = 94
         }
-        var enemyOneTop = 91
-        var enemyTwoTop = 91
-        var enemyThreeTop = 91
-        var enemyOneResource = resourceBase + 2
-        var enemyTwoResource = resourceBase + 2
-        var enemyThreeResource = resourceBase + 2
-        if (enemiesValue > 0) {
-            enemyOneTop = 95
-            enemyOneResource = resourceBase + 3
+        var loadRight = -22
+        var encounterTotal = enemiesValue + encounterRemainingValue
+        if (encounterTotal > 0) {
+            loadRight = -22 + (enemiesValue * 50) / encounterTotal
         }
-        if (enemiesValue > 1) {
-            enemyTwoTop = 95
-            enemyTwoResource = resourceBase + 3
+        var reserveResource = resourceBase + 3
+        var reserveLeft = 32
+        var reserveBottom = 91
+        var reserveRight = 38
+        var reserveTop = 93
+        if (encounterRemainingValue > 0) {
+            reserveResource = resourceBase + 5
+            reserveLeft = 33
+            reserveBottom = 88
+            reserveRight = 37
+            reserveTop = 96
         }
-        if (enemiesValue > 2) {
-            enemyThreeTop = 95
-            enemyThreeResource = resourceBase + 3
-        }
-        return pushQuad(target, resourceBase, -24, 86, 24, 98) &&
-            pushQuad(target, resourceBase + 1, -22, 88, 22, 96) &&
-            pushQuad(target, focusResource, -20, 90, focusRight, 94) &&
-            pushQuad(target, enemyOneResource, 0, 90, 4, enemyOneTop) &&
-            pushQuad(target, enemyTwoResource, 7, 90, 11, enemyTwoTop) &&
-            pushQuad(target, enemyThreeResource, 14, 90, 18, enemyThreeTop)
+        return pushQuad(target, resourceBase, -42, 84, 42, 98) &&
+            pushQuad(target, resourceBase + 1, -40, 86, 40, 96) &&
+            pushQuad(
+                target, connectionResource,
+                connectionLeft, connectionBottom,
+                connectionRight, connectionTop) &&
+            pushQuad(target, resourceBase + 2, -22, 89, 28, 95) &&
+            pushQuad(target, resourceBase + 3, -22, 89, loadRight, 95) &&
+            pushQuad(
+                target, reserveResource,
+                reserveLeft, reserveBottom, reserveRight, reserveTop)
     }
     Bool pushCombatFeedback(FrameStaging target, Int resourceBase) {
         var damageLeftRight = -100
@@ -210,13 +247,11 @@ class ShooterHud {
         if (ammunitionValue * 4 <= maxAmmunitionValue) {
             ammunitionResource = resourceBase + 4
         }
-        var focusResource = resourceBase + 6
         var crosshairResource = resourceBase + 7
         var crosshairGap = 3
         var crosshairReach = 9
         var crosshairThickness = 1
         if (!focusedValue) {
-            focusResource = resourceBase + 4
             crosshairResource = resourceBase + 4
             crosshairGap = 7
             crosshairReach = 13
@@ -228,7 +263,7 @@ class ShooterHud {
             !pushCrosshair(
                 target, crosshairResource,
                 crosshairGap, crosshairReach, crosshairThickness) ||
-            !pushEncounterStatus(target, resourceBase, focusResource) ||
+            !pushEncounterStatus(target, resourceBase) ||
             !pushCombatFeedback(target, resourceBase)) {
 
             target.discard()
@@ -247,6 +282,22 @@ class ShooterHud {
 
     Int enemies() {
         return enemiesValue
+    }
+
+    Int encounterRemaining() {
+        return encounterRemainingValue
+    }
+
+    Bool remoteConnected() {
+        return remoteConnectedValue
+    }
+
+    Int remoteGeneration() {
+        return remoteGenerationValue
+    }
+
+    Int remoteStateSequence() {
+        return remoteStateSequenceValue
     }
 
     Int tick() {
