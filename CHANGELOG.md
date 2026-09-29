@@ -32,6 +32,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   review confirmed bounded panel contents, readable shape-distinct
   source/validation/publication/success and boss-crown cues, and no clipping or
   overlap in those panels.
+- Built and deployed Linux presentation dogfood `0.1.0-dogfood.27` from
+  `82bf57d69083` through ZEER into the ztash state (SHA256
+  `ad4a57ee4f92cf8da93d7d29b8002d95656327d35438c54f29a2b8e8d056abce`,
+  4,281,751 bytes). The active marker and deployed package smoke bind that exact
+  version, build and archive. The extracted archive also exited `0` inside
+  `overzeer-isolated-display` plus nested niri, reported capability `11`, drew
+  in 9,087 µs and reproduced frame checksum `30,358,034`; its persisted capture
+  was byte-identical to the source verification capture.
 
 
 ### G3 closure: bounded extensions, data-defined bosses and threat HUD

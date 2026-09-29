@@ -35,6 +35,16 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   revisão visual confirmou conteúdo limitado aos painéis, sinais legíveis e
   distinguíveis pela forma para fonte/validação/publicação/sucesso e coroa de
   chefe, sem clipping nem sobreposição nesses painéis.
+- Geramos e implantamos o dogfood Linux de apresentação
+  `0.1.0-dogfood.27` a partir de `82bf57d69083` pelo ZEER no estado ztash
+  (SHA256
+  `ad4a57ee4f92cf8da93d7d29b8002d95656327d35438c54f29a2b8e8d056abce`,
+  4.281.751 bytes). O marcador ativo e o smoke do pacote implantado vinculam a
+  versão, o build e o arquivo exatos. O arquivo extraído também encerrou com
+  código `0` dentro de `overzeer-isolated-display` mais niri aninhado, informou
+  capability `11`, desenhou em 9.087 µs e reproduziu o checksum de frame
+  `30.358.034`; sua captura persistida foi idêntica byte a byte à captura da
+  verificação da fonte.
 
 
 ### Encerramento G3: extensões limitadas, chefes por dados e HUD de ameaças
