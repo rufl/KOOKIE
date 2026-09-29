@@ -146,13 +146,99 @@ Bool externalRoleReceiveEncounter(LoopbackSession client) {
     return client.applyRemoteEnemyEncounterState(state)
 }
 
+Int[] newExternalPlayerAuthorityStorage(Int[] counts) {
+    if (counts.length != 5 ||
+        counts[0] < 0 || counts[0] > maximumPlayerAuthorityItems() ||
+        counts[1] < 0 || counts[1] > maximumPlayerAuthorityEquipment() ||
+        counts[2] < 0 || counts[2] > maximumPlayerAuthoritySkills() ||
+        counts[3] < 0 || counts[3] > maximumPlayerAuthorityStatuses()) {
+        return new Int[0]
+    }
+    return new Int[13 +
+        counts[0] * playerAuthorityItemEntryWidth() +
+        counts[1] * playerAuthorityEquipmentEntryWidth() +
+        counts[2] * playerAuthoritySkillEntryWidth() +
+        counts[3] * playerAuthorityStatusEntryWidth()]
+}
+
+Int[] newExternalWorldLootStorage(Int dropCount) {
+    if (dropCount < 0 || dropCount > maximumWorldLootStateDrops()) {
+        return new Int[0]
+    }
+    return new Int[9 + dropCount * worldLootStateEntryWidth()]
+}
+
+Bool externalRoleReceivePlayerAuthority(LoopbackSession client) {
+    var received = kookie_transport_receive()
+    if (received < 13 ||
+        received > maximumSessionTransportWords() ||
+        kookie_transport_last_status() != 1) {
+        println("external-player-authority-receive-failed")
+        return false
+    }
+    var counts = new Int[5]
+    counts[4] = received
+    counts[0] = kookie_transport_receive_word(8)
+    counts[1] = kookie_transport_receive_word(9)
+    counts[2] = kookie_transport_receive_word(10)
+    counts[3] = kookie_transport_receive_word(11)
+    var state = newExternalPlayerAuthorityStorage(counts)
+    if (state.length != counts[4]) {
+        println("external-player-authority-shape-invalid")
+        return false
+    }
+    for (var index = 0; index < state.length; index = index + 1) {
+        state[index] = kookie_transport_receive_word(index)
+    }
+    if (!validPlayerAuthorityStateMessage(state)) {
+        println("external-player-authority-invalid")
+        return false
+    }
+    if (!client.applyRemotePlayerAuthorityState(state)) {
+        println("external-player-authority-apply-failed")
+        return false
+    }
+    return true
+}
+
+Bool externalRoleReceiveWorldLoot(LoopbackSession client) {
+    var received = kookie_transport_receive()
+    if (received < 9 ||
+        received > maximumSessionTransportWords() ||
+        kookie_transport_last_status() != 1) {
+        println("external-world-loot-receive-failed")
+        return false
+    }
+    var shape = new Int[2]
+    shape[0] = received
+    shape[1] = kookie_transport_receive_word(7)
+    var state = newExternalWorldLootStorage(shape[1])
+    if (state.length != shape[0]) {
+        println("external-world-loot-shape-invalid")
+        return false
+    }
+    for (var index = 0; index < state.length; index = index + 1) {
+        state[index] = kookie_transport_receive_word(index)
+    }
+    return validWorldLootStateMessage(state) &&
+        client.applyRemoteWorldLootState(state)
+}
+
+
 Bool externalRoleSendCommand(
     LoopbackSession client, Int[] command
 ) {
-    return sendPayload(command) &&
-        externalRoleReceiveState(client) &&
-        externalRoleReceiveFeedback(client) &&
-        externalRoleReceiveEncounter(client)
+    if (!sendPayload(command) ||
+        !externalRoleReceiveState(client) ||
+        !externalRoleReceiveFeedback(client) ||
+        !externalRoleReceiveEncounter(client)) {
+        return false
+    }
+    if (!client.clientRemoteConnected()) {
+        return true
+    }
+    return externalRoleReceivePlayerAuthority(client) &&
+        externalRoleReceiveWorldLoot(client)
 }
 
 Bool externalRoleHostState(
@@ -173,8 +259,20 @@ Bool externalRoleHostState(
         return false
     }
     var encounter = host.enemyEncounterStateMessage(tick, 4)
-    return validEnemyEncounterStateMessage(encounter) &&
-        sendPayload(encounter)
+    if (!validEnemyEncounterStateMessage(encounter) ||
+        !sendPayload(encounter)) {
+        return false
+    }
+    if (!host.playerConnected(player)) {
+        return true
+    }
+    var authority = host.playerAuthorityStateMessage(tick, player)
+    if (!validPlayerAuthorityStateMessage(authority) ||
+        !sendPayload(authority)) {
+        return false
+    }
+    var loot = host.worldLootStateMessage(tick, player)
+    return validWorldLootStateMessage(loot) && sendPayload(loot)
 }
 
 Bool externalRoleHostReceiveSnapshot(
@@ -231,9 +329,19 @@ Bool externalRoleHostQualification() {
         host.defineEnemyEncounter(4, 1, 1) &&
         host.addEnemyCombatActor(1, 20, 0) &&
         host.equipEnemyCombatWeapon(1, 9) &&
+        host.addPlayerCombatActor(1, 200, 0) &&
+        host.addPlayerCombatActor(2, 200, 0) &&
         host.admitEnemyAt(4, 3, 0, 8, 0, 9, 6, 0, 0) &&
-        host.defineEnemyCombatReward(3, 25),
-        "external host must configure replicated enemy combat and rewards")
+        host.defineEnemyCombatReward(3, 25) &&
+        host.defineLootAffixPool(1) &&
+        host.addLootAffix(1, 11, 1) &&
+        host.defineLootAffixStat(11, 5, 0, 0) &&
+        host.defineLootItem(501, 10, 1, 10, 1) &&
+        host.addLootTableEntry(501, 1) &&
+        host.definePlayerSkill(30, 2, 100) &&
+        host.defineEnemyLootReward(3, 900, 77, 4, 3) &&
+        host.defineEnemyLootProgressionReward(3, 30, 100),
+        "external host must configure replicated combat loot and progression")
     var healthBeforeShot = host.enemyCombatHealth(3)
     assert(kookie_transport_select_slot(0) &&
         kookie_transport_set_key_from_environment() &&
@@ -258,18 +366,26 @@ Bool externalRoleHostQualification() {
         "transported arena must retain stacked-room collision")
 
     assert(externalRoleHostReceiveCommand(
-            host, 0, 1, 1, gameplayFireAction()) &&
+            host, 0, 1, 1, gameplayProgressionAction()) &&
+        host.lastRemoteGameplayAccepted() &&
+        host.playerSkillRank(1, 30) == 0,
+        "external progression request must enter server authority")
+    assert(externalRoleHostReceiveCommand(
+            host, 0, 1, 2, gameplayFireAction()) &&
         host.lastRemoteGameplayAccepted(),
         "external first fire command must enter authority")
     assert(host.enemyCombatHealth(3) == 4,
         "external first fire must apply authoritative damage")
     assert(externalRoleHostReceiveCommand(
-            host, 0, 1, 2, gameplayFireAction()) &&
+            host, 0, 1, 3, gameplayFireAction()) &&
         host.lastRemoteGameplayAccepted(),
         "external terminal fire command must enter authority")
     assert(host.enemyCombatHealth(3) == 0 &&
-        host.playerCurrency(1) == 25,
-        "external terminal fire must award server-owned death")
+        host.playerCurrency(1) == 25 &&
+        host.playerSkillRank(1, 30) == 1 &&
+        host.worldLootCount() == 1 &&
+        host.worldLootStableId(0) == 900,
+        "external terminal fire must award server-owned G3 state")
     assert(externalRoleHostReceiveCommand(
             host, 1, 2, 1, gameplayDisconnectAction()) &&
         host.lastRemoteGameplayAccepted() &&
@@ -282,12 +398,23 @@ Bool externalRoleHostQualification() {
         host.playerConnectionGeneration(2) == 2,
         "external client reconnect must preserve identity and advance diagnostics")
     assert(externalRoleHostReceiveCommand(
-            host, 0, 1, 3, gameplayMoveAction()) &&
+            host, 0, 1, 4, gameplayMoveAction()) &&
         host.lastRemoteGameplayAccepted() &&
         host.serverPosition(1) == 2,
         "external movement must update authoritative position")
     assert(externalRoleHostReceiveCommand(
-            host, 0, 1, 4, gameplayInteractAction()) &&
+            host, 0, 1, 5, gameplayPickupAction()) &&
+        host.lastRemoteGameplayAccepted() &&
+        host.worldLootCount() == 0 &&
+        host.playerItemQuantity(1, 900) == 1,
+        "external pickup must atomically move replicated loot into inventory")
+    assert(externalRoleHostReceiveCommand(
+            host, 0, 1, 6, gameplayEquipAction()) &&
+        host.lastRemoteGameplayAccepted() &&
+        host.playerEquipmentItem(1, 0) == 900,
+        "external equip must publish the authoritative loadout")
+    assert(externalRoleHostReceiveCommand(
+            host, 0, 1, 7, gameplayInteractAction()) &&
         host.lastRemoteGameplayAccepted() &&
         host.worldInteractionActive(1) &&
         externalRoleHostReceiveCommand(
@@ -296,11 +423,11 @@ Bool externalRoleHostQualification() {
         host.worldInteractionActive(2),
         "external clients must complete key and door actions")
     assert(externalRoleHostReceiveCommand(
-            host, 0, 1, 4, gameplayInteractAction()) &&
+            host, 0, 1, 7, gameplayInteractAction()) &&
         !host.lastRemoteGameplayAccepted() &&
         host.lastRemoteGameplayDiagnostic() == gameplayStaleDiagnostic() &&
         externalRoleHostReceiveCommand(
-            host, 0, 1, 5, gameplayInteractAction()) &&
+            host, 0, 1, 8, gameplayInteractAction()) &&
         host.lastRemoteGameplayAccepted() &&
         host.worldSecretCount() == 1,
         "external host must diagnose stale input and admit the next secret")
@@ -347,13 +474,13 @@ Bool externalRoleHostQualification() {
     println("external-authentication-status")
     println(1)
     assert(kookie_transport_select_slot(0) &&
-        kookie_transport_received_sequence_at_least(7),
+        kookie_transport_received_sequence_at_least(10),
         "external host must inspect client A sequence")
     assert(kookie_transport_select_slot(1) &&
         kookie_transport_received_sequence_at_least(5),
         "external host must inspect client B sequence")
     println("external-transport-sequence-a")
-    println(7)
+    println(10)
     println("external-transport-sequence-b")
     println(5)
     kookie_transport_select_slot(0)
@@ -412,6 +539,10 @@ Bool externalRoleClientQualification(Int clientId) {
         "external client must receive its join feedback baseline")
     assert(externalRoleReceiveEncounter(client),
         "external client must receive its join encounter baseline")
+    assert(externalRoleReceivePlayerAuthority(client),
+        "external client must receive its join player-authority baseline")
+    assert(externalRoleReceiveWorldLoot(client),
+        "external client must receive its join world-loot baseline")
     assert(client.clientBroadPhaseTriangleCount() ==
             arena.triangleCount(),
         "external client join must restore authored arena")
@@ -420,8 +551,14 @@ Bool externalRoleClientQualification(Int clientId) {
         client.clientRemoteConnectionGeneration() == 1,
         "external client join must establish identity generation")
     if (clientId == 1) {
+        assert(externalRoleSendCommand(client, newGameplayProgressionCommand(
+                1, 1, 1, 30, 1, 1)) &&
+            client.clientRemoteSkillRank(30) == 0 &&
+            client.clientRemoteItemCount() == 0 &&
+            client.clientRemoteWorldLootCount() == 0,
+            "client one must receive its initial G3 authority baseline")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 1, 1, gameplayFireAction(), 3, 10, 0, 1)) &&
+                1, 2, 2, gameplayFireAction(), 3, 10, 0, 1)) &&
             client.clientRemoteCombatActor() == 3 &&
             client.clientRemoteCombatHealth() == 4 &&
             client.clientRemoteEnemyHealth(3) == 4 &&
@@ -438,45 +575,71 @@ Bool externalRoleClientQualification(Int clientId) {
             firstImpact.applied() == 4 && !firstImpact.died(),
             "first replicated impact must preserve damage identity")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 2, 2, gameplayFireAction(), 3, 10, 0, 1)) &&
+                1, 3, 3, gameplayFireAction(), 3, 10, 0, 1)) &&
             client.clientRemoteCombatHealth() == 0 &&
             client.clientRemoteEnemyHealth(3) == 0 &&
             client.clientRemoteEnemyState(3) == 7 &&
             client.clientRemoteEncounterActiveCount() == 0 &&
             client.clientRemoteImpactSequence() == 2 &&
             client.clientRemoteCurrency() == 25 &&
+            client.clientRemoteSkillRank(30) == 1 &&
+            client.clientRemoteWorldLootCount() == 1 &&
+            client.clientRemoteWorldLootStableId(0) == 900 &&
+            client.clientRemoteWorldLootRank(0) == 3 &&
             client.pendingImpactPresentations() == 1 &&
             client.dequeueImpactPresentation(),
-            "client one must receive terminal enemy death and reward")
+            "client one must receive terminal combat loot and progression")
         var terminalImpact = client.lastImpactPresentation()
         assert(terminalImpact.targetId() == 3 &&
             terminalImpact.applied() == 4 && terminalImpact.died(),
             "terminal replicated impact must preserve death feedback")
-        assert(client.predictRemoteGameplayInput(1, 3, 2, 1) &&
+        assert(client.predictRemoteGameplayInput(1, 4, 2, 1) &&
             client.clientRemotePredictedPosition() == 2,
             "external client must predict local movement before round trip")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 3, 3, gameplayMoveAction(), 2, 0, 0, 1)) &&
+                1, 4, 4, gameplayMoveAction(), 2, 0, 0, 1)) &&
             client.clientRemotePlayerPosition(1) == 2 &&
             client.clientRemotePredictedPosition() == 2 &&
             client.clientRemotePendingPredictionInputs() == 0 &&
             client.clientRemoteDiagnostic() == gameplayMoveDiagnostic(),
             "client one must reconcile authoritative movement")
+        assert(externalRoleSendCommand(client, newGameplayPickupCommand(
+                1, 5, 5, 900, 1)) &&
+            client.clientRemoteItemCount() == 1 &&
+            client.clientRemoteItemId(0) == 900 &&
+            client.clientRemoteWorldLootCount() == 0,
+            "client one must receive authoritative pickup state")
+        assert(externalRoleSendCommand(client, newGameplayEquipCommand(
+                1, 6, 6, 0, 900, 1)) &&
+            client.clientRemoteEquipmentItem(0) == 900,
+            "client one must receive authoritative equipment state")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 4, 4, gameplayInteractAction(), 1, 0, 0, 1)) &&
+                1, 7, 7, gameplayInteractAction(), 1, 0, 0, 1)) &&
             client.clientWorldInteractionActive(1),
             "client one must receive key activation")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 6, 4, gameplayInteractAction(), 3, 0, 0, 1)) &&
+                1, 9, 7, gameplayInteractAction(), 3, 0, 0, 1)) &&
             client.clientRemoteDiagnostic() == gameplayStaleDiagnostic() &&
             client.clientWorldInteractionRevision() == 2,
             "client one must receive explicit stale-command diagnosis")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 6, 5, gameplayInteractAction(), 3, 0, 0, 1)) &&
+                1, 9, 8, gameplayInteractAction(), 3, 0, 0, 1)) &&
             client.clientWorldInteractionActive(3) &&
             client.clientWorldSecretCount() == 1 &&
             client.clientWorldInteractionRevision() == 3,
             "client one must receive accepted secret progression")
+        println("external-player-authority-kind")
+        println(playerAuthorityStateMessageKind())
+        println("external-world-loot-kind")
+        println(worldLootStateMessageKind())
+        println("external-client-g3-item")
+        println(client.clientRemoteItemId(0))
+        println("external-client-g3-equipment")
+        println(client.clientRemoteEquipmentItem(0))
+        println("external-client-g3-skill-rank")
+        println(client.clientRemoteSkillRank(30))
+        println("external-client-g3-world-loot-count")
+        println(client.clientRemoteWorldLootCount())
     } else {
         assert(client.closeRemoteSession(),
             "client two must close its first remote session")
@@ -502,13 +665,13 @@ Bool externalRoleClientQualification(Int clientId) {
             client.clientRemoteDiagnostic() == gameplayReconnectDiagnostic(),
             "client two must receive reconnect generation")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                2, 5, 1, gameplayInteractAction(), 2, 0, 0, 2)) &&
+                2, 8, 1, gameplayInteractAction(), 2, 0, 0, 2)) &&
             client.clientWorldInteractionActive(1) &&
             client.clientWorldInteractionActive(2) &&
             client.clientWorldInteractionRevision() == 2,
             "client two must receive key and door progression")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                2, 7, 2, gameplayInteractAction(), 4, 0, 0, 2)) &&
+                2, 10, 2, gameplayInteractAction(), 4, 0, 0, 2)) &&
             client.clientWorldInteractionActive(3) &&
             client.clientLevelCompleted() &&
             client.clientWorldInteractionRevision() == 4,
@@ -640,35 +803,64 @@ main() {
         host.defineEnemyEncounter(4, 1, 1) &&
         host.addEnemyCombatActor(1, 20, 0) &&
         host.equipEnemyCombatWeapon(1, 9) &&
+        host.addPlayerCombatActor(1, 200, 0) &&
+        host.addPlayerCombatActor(2, 200, 0) &&
         host.admitEnemyAt(4, 3, 0, 8, 0, 9, 6, 0, 0) &&
-        host.defineEnemyCombatReward(3, 25),
-        "host must configure replicated enemy combat and rewards")
+        host.defineEnemyCombatReward(3, 25) &&
+        host.defineLootAffixPool(1) &&
+        host.addLootAffix(1, 11, 1) &&
+        host.defineLootAffixStat(11, 5, 0, 0) &&
+        host.defineLootItem(501, 10, 1, 10, 1) &&
+        host.addLootTableEntry(501, 1) &&
+        host.definePlayerSkill(30, 2, 100) &&
+        host.defineEnemyLootReward(3, 900, 77, 4, 3) &&
+        host.defineEnemyLootProgressionReward(3, 30, 100),
+        "host must configure replicated combat loot and progression")
     var state = host.gameplayStateMessage(0, 3, 1)
     var feedback = host.multiplayerFeedbackStateMessage(0)
     var encounter = host.enemyEncounterStateMessage(0, 4)
+    var authority = host.playerAuthorityStateMessage(0, 1)
+    var loot = host.worldLootStateMessage(0, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.applyRemoteMultiplayerFeedback(feedback) &&
         clientA.applyRemoteEnemyEncounterState(encounter) &&
+        clientA.applyRemotePlayerAuthorityState(authority) &&
+        clientA.applyRemoteWorldLootState(loot) &&
         clientA.clientRemoteBaselineReady() &&
         clientA.clientRemotePlayer() == 1)
     state = host.gameplayStateMessage(0, 3, 2)
     feedback = host.multiplayerFeedbackStateMessage(0)
     encounter = host.enemyEncounterStateMessage(0, 4)
+    authority = host.playerAuthorityStateMessage(0, 2)
+    loot = host.worldLootStateMessage(0, 2)
     assert(clientB.applyRemoteGameplayState(state) &&
         clientB.applyRemoteMultiplayerFeedback(feedback) &&
         clientB.applyRemoteEnemyEncounterState(encounter) &&
+        clientB.applyRemotePlayerAuthorityState(authority) &&
+        clientB.applyRemoteWorldLootState(loot) &&
         clientB.clientRemoteBaselineReady() &&
         clientB.clientRemotePlayer() == 2,
-        "both production joins must establish authoritative baselines")
+        "both production joins must establish all authoritative baselines")
+    assert(host.applyRemoteGameplayCommand(newGameplayProgressionCommand(
+        1, 1, 1, 30, 1, 1)))
+    authority = host.playerAuthorityStateMessage(1, 1)
+    loot = host.worldLootStateMessage(1, 1)
+    assert(clientA.applyRemotePlayerAuthorityState(authority) &&
+        clientA.applyRemoteWorldLootState(loot) &&
+        clientA.clientRemoteSkillRank(30) == 0)
     var healthBeforeShot = host.enemyCombatHealth(3)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 1, 1, gameplayFireAction(), 3, 10, 0, 1)))
-    state = host.gameplayStateMessage(1, 3, 1)
-    feedback = host.multiplayerFeedbackStateMessage(1)
-    encounter = host.enemyEncounterStateMessage(1, 4)
+        1, 2, 2, gameplayFireAction(), 3, 10, 0, 1)))
+    state = host.gameplayStateMessage(2, 3, 1)
+    feedback = host.multiplayerFeedbackStateMessage(2)
+    encounter = host.enemyEncounterStateMessage(2, 4)
+    authority = host.playerAuthorityStateMessage(2, 1)
+    loot = host.worldLootStateMessage(2, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.applyRemoteMultiplayerFeedback(feedback) &&
         clientA.applyRemoteEnemyEncounterState(encounter) &&
+        clientA.applyRemotePlayerAuthorityState(authority) &&
+        clientA.applyRemoteWorldLootState(loot) &&
         clientA.clientRemoteCombatActor() == 3 &&
         clientA.clientRemoteCombatHealth() == 4 &&
         clientA.clientRemoteEnemyHealth(3) == 4 &&
@@ -678,21 +870,28 @@ main() {
     var firstImpact = clientA.lastImpactPresentation()
     assert(firstImpact.applied() == 4 && !firstImpact.died())
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 2, 2, gameplayFireAction(), 3, 10, 0, 1)))
-    state = host.gameplayStateMessage(2, 3, 1)
-    feedback = host.multiplayerFeedbackStateMessage(2)
-    encounter = host.enemyEncounterStateMessage(2, 4)
+        1, 3, 3, gameplayFireAction(), 3, 10, 0, 1)))
+    state = host.gameplayStateMessage(3, 3, 1)
+    feedback = host.multiplayerFeedbackStateMessage(3)
+    encounter = host.enemyEncounterStateMessage(3, 4)
+    authority = host.playerAuthorityStateMessage(3, 1)
+    loot = host.worldLootStateMessage(3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.applyRemoteMultiplayerFeedback(feedback) &&
         clientA.applyRemoteEnemyEncounterState(encounter) &&
+        clientA.applyRemotePlayerAuthorityState(authority) &&
+        clientA.applyRemoteWorldLootState(loot) &&
         clientA.clientRemoteCombatHealth() == 0 &&
         clientA.clientRemoteEnemyHealth(3) == 0 &&
         clientA.clientRemoteEnemyState(3) == 7 &&
         clientA.clientRemoteEncounterActiveCount() == 0 &&
         clientA.clientRemoteCurrency() == 25 &&
+        clientA.clientRemoteSkillRank(30) == 1 &&
+        clientA.clientRemoteWorldLootCount() == 1 &&
+        clientA.clientRemoteWorldLootStableId(0) == 900 &&
         clientA.pendingImpactPresentations() == 1 &&
         clientA.dequeueImpactPresentation(),
-        "server-owned enemy death, feedback and reward must replicate")
+        "server-owned combat loot and progression must replicate")
     var terminalImpact = clientA.lastImpactPresentation()
     assert(terminalImpact.applied() == 4 && terminalImpact.died())
 
@@ -712,28 +911,43 @@ main() {
         clientB.clientRemoteConnectionGeneration() == 2,
         "client B lifecycle generation must replicate after reconnect")
 
-    assert(clientA.predictRemoteGameplayInput(1, 3, 2, 1) &&
+    assert(clientA.predictRemoteGameplayInput(1, 4, 2, 1) &&
         clientA.clientRemotePredictedPosition() == 2)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 3, 3, gameplayMoveAction(), 2, 0, 0, 1)))
-    state = host.gameplayStateMessage(3, 3, 1)
+        1, 4, 4, gameplayMoveAction(), 2, 0, 0, 1)))
+    state = host.gameplayStateMessage(4, 3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientRemotePlayerPosition(1) == 2 &&
         clientA.clientRemotePredictedPosition() == 2 &&
         clientA.clientRemotePendingPredictionInputs() == 0)
+    assert(host.applyRemoteGameplayCommand(newGameplayPickupCommand(
+        1, 5, 5, 900, 1)))
+    authority = host.playerAuthorityStateMessage(5, 1)
+    loot = host.worldLootStateMessage(5, 1)
+    assert(clientA.applyRemotePlayerAuthorityState(authority) &&
+        clientA.applyRemoteWorldLootState(loot) &&
+        clientA.clientRemoteItemId(0) == 900 &&
+        clientA.clientRemoteWorldLootCount() == 0)
+    assert(host.applyRemoteGameplayCommand(newGameplayEquipCommand(
+        1, 6, 6, 0, 900, 1)))
+    authority = host.playerAuthorityStateMessage(6, 1)
+    loot = host.worldLootStateMessage(6, 1)
+    assert(clientA.applyRemotePlayerAuthorityState(authority) &&
+        clientA.applyRemoteWorldLootState(loot) &&
+        clientA.clientRemoteEquipmentItem(0) == 900)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 4, 4, gameplayInteractAction(), 1, 0, 0, 1)))
-    state = host.gameplayStateMessage(4, 3, 1)
+        1, 7, 7, gameplayInteractAction(), 1, 0, 0, 1)))
+    state = host.gameplayStateMessage(7, 3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientWorldInteractionActive(1))
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        2, 5, 1, gameplayInteractAction(), 2, 0, 0, 2)))
-    lifecycle = host.gameplayStateMessage(5, 3, 2)
+        2, 8, 1, gameplayInteractAction(), 2, 0, 0, 2)))
+    lifecycle = host.gameplayStateMessage(8, 3, 2)
     assert(clientB.applyRemoteGameplayState(lifecycle) &&
         clientB.clientWorldInteractionActive(2),
         "key and door progression must replicate by authored interaction mask")
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 6, 4, gameplayInteractAction(), 3, 0, 0, 1)) &&
+        1, 9, 7, gameplayInteractAction(), 3, 0, 0, 1)) &&
         !host.lastRemoteGameplayAccepted() &&
         host.lastRemoteGameplayDiagnostic() == gameplayStaleDiagnostic())
     state = host.gameplayStateMessage(
@@ -741,18 +955,30 @@ main() {
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientRemoteDiagnostic() == gameplayStaleDiagnostic())
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 6, 5, gameplayInteractAction(), 3, 0, 0, 1)))
-    state = host.gameplayStateMessage(6, 3, 1)
+        1, 9, 8, gameplayInteractAction(), 3, 0, 0, 1)))
+    state = host.gameplayStateMessage(9, 3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientWorldSecretCount() == 1)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        2, 7, 2, gameplayInteractAction(), 4, 0, 0, 2)))
-    lifecycle = host.gameplayStateMessage(7, 3, 2)
+        2, 10, 2, gameplayInteractAction(), 4, 0, 0, 2)))
+    lifecycle = host.gameplayStateMessage(10, 3, 2)
     assert(clientB.applyRemoteGameplayState(lifecycle) &&
         clientB.clientLevelCompleted() &&
         host.levelCompleted() && host.worldInteractionRevision() == 4,
         "authoritative key-door-secret-exit path must complete")
 
+    println("external-player-authority-kind")
+    println(playerAuthorityStateMessageKind())
+    println("external-world-loot-kind")
+    println(worldLootStateMessageKind())
+    println("external-client-g3-item")
+    println(clientA.clientRemoteItemId(0))
+    println("external-client-g3-equipment")
+    println(clientA.clientRemoteEquipmentItem(0))
+    println("external-client-g3-skill-rank")
+    println(clientA.clientRemoteSkillRank(30))
+    println("external-client-g3-world-loot-count")
+    println(clientA.clientRemoteWorldLootCount())
     println("external-gameplay")
     println("external-host-port-a")
     println(hostPortA)

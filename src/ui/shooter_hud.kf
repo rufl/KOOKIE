@@ -20,6 +20,15 @@ class ShooterHud {
     Bool remoteConnectedValue
     Int remoteGenerationValue
     Int remoteStateSequenceValue
+    Int inventoryItemsValue
+    Int inventoryCapacityValue
+    Bool equipmentReadyValue
+    Int skillRankValue
+    Int skillExperienceValue
+    Int skillGoalValue
+    Int worldLootCountValue
+    Int worldLootRankValue
+
 
     public constructor(Int maxHealth, Int maxAmmunition) {
         healthValue = 0
@@ -44,6 +53,15 @@ class ShooterHud {
         remoteConnectedValue = true
         remoteGenerationValue = 1
         remoteStateSequenceValue = 0
+        inventoryItemsValue = 0
+        inventoryCapacityValue = 1
+        equipmentReadyValue = false
+        skillRankValue = 0
+        skillExperienceValue = 0
+        skillGoalValue = 1
+        worldLootCountValue = 0
+        worldLootRankValue = 0
+
 
     }
 
@@ -81,6 +99,44 @@ class ShooterHud {
         remoteStateSequenceValue = sequence
         return true
     }
+    Bool updateInventoryStatus(
+        Int itemCount, Int itemCapacity, Bool equipped
+    ) {
+        if (itemCount < 0 || itemCapacity <= 0 ||
+            itemCapacity > 8 || itemCount > itemCapacity) {
+            return false
+        }
+        inventoryItemsValue = itemCount
+        inventoryCapacityValue = itemCapacity
+        equipmentReadyValue = equipped
+        return true
+    }
+
+    Bool updateSkillStatus(
+        Int rank, Int experience, Int experienceGoal
+    ) {
+        if (rank < 0 || rank > 1000000 ||
+            experience < 0 || experience > 1000000 ||
+            experienceGoal <= 0 || experienceGoal > 1000000) {
+            return false
+        }
+        skillRankValue = rank
+        skillExperienceValue = experience
+        skillGoalValue = experienceGoal
+        return true
+    }
+
+    Bool updateWorldLootStatus(Int count, Int highestRank) {
+        if (count < 0 || count > 8 ||
+            (count == 0 && highestRank != 0) ||
+            (count > 0 && (highestRank < 1 || highestRank > 3))) {
+            return false
+        }
+        worldLootCountValue = count
+        worldLootRankValue = highestRank
+        return true
+    }
+
     Bool presentImpact(
         Int localActorId, ImpactPresentationEvent impact, Int tick
     ) {
@@ -105,7 +161,7 @@ class ShooterHud {
 
 
     Int renderVertexCount() {
-        return 174
+        return 264
     }
 
 
@@ -150,6 +206,119 @@ class ShooterHud {
             pushQuad(target, resource, -thickness, -reach, thickness, -gap) &&
             pushQuad(target, resource, -thickness, gap, thickness, reach)
     }
+    Bool pushDiamond(
+        FrameStaging target, Int resource,
+        Int centerX, Int centerY, Int radius
+    ) {
+        return target.pushVertex(
+                resource, centerX, centerY + radius, 50, 0) &&
+            target.pushVertex(
+                resource, centerX + radius, centerY, 100, 50) &&
+            target.pushVertex(
+                resource, centerX, centerY - radius, 50, 100) &&
+            target.pushVertex(
+                resource, centerX, centerY + radius, 50, 0) &&
+            target.pushVertex(
+                resource, centerX, centerY - radius, 50, 100) &&
+            target.pushVertex(
+                resource, centerX - radius, centerY, 0, 50)
+    }
+
+    Bool pushBuildStatus(FrameStaging target, Int resourceBase) {
+        var inventoryRight = -14 +
+            (inventoryItemsValue * 28) / inventoryCapacityValue
+        var inventoryResource = resourceBase + 5
+        if (inventoryItemsValue == inventoryCapacityValue) {
+            inventoryResource = resourceBase + 3
+        }
+        var experience = skillExperienceValue
+        if (experience > skillGoalValue) {
+            experience = skillGoalValue
+        }
+        var skillRight = -14 + (experience * 28) / skillGoalValue
+
+        var bladeRight = -10
+        var guardLeft = -10
+        var guardRight = -10
+        if (equipmentReadyValue) {
+            bladeRight = -8
+            guardLeft = -12
+            guardRight = -6
+        }
+
+        var skillPipOneRight = -3
+        var skillPipTwoRight = 0
+        var skillPipThreeRight = 3
+        if (skillRankValue >= 1) {
+            skillPipOneRight = -1
+        }
+        if (skillRankValue >= 2) {
+            skillPipTwoRight = 2
+        }
+        if (skillRankValue >= 3) {
+            skillPipThreeRight = 5
+        }
+
+        var lootResource = resourceBase + 6
+        if (worldLootRankValue == 2) {
+            lootResource = resourceBase + 5
+        } else if (worldLootRankValue == 3) {
+            lootResource = resourceBase + 4
+        }
+        var lootRadius = 0
+        if (worldLootCountValue > 0) {
+            lootRadius = 3
+        }
+        var lootPipOneRight = 9
+        var lootPipTwoRight = 12
+        var lootPipThreeRight = 15
+        if (worldLootRankValue >= 1) {
+            lootPipOneRight = 11
+        }
+        if (worldLootRankValue >= 2) {
+            lootPipTwoRight = 14
+        }
+        if (worldLootRankValue >= 3) {
+            lootPipThreeRight = 17
+        }
+
+        return pushQuad(target, resourceBase, -18, -98, 18, -70) &&
+            pushQuad(target, resourceBase + 1, -16, -96, 16, -72) &&
+            pushQuad(target, resourceBase + 2, -14, -94, 14, -90) &&
+            pushQuad(
+                target, inventoryResource,
+                -14, -94, inventoryRight, -90) &&
+            pushQuad(target, resourceBase + 2, -14, -77, 14, -73) &&
+            pushQuad(
+                target, resourceBase + 6,
+                -14, -77, skillRight, -73) &&
+            pushQuad(
+                target, resourceBase + 7,
+                -10, -88, bladeRight, -80) &&
+            pushQuad(
+                target, resourceBase + 7,
+                guardLeft, -85, guardRight, -83) &&
+            pushQuad(
+                target, resourceBase + 6,
+                -3, -86, skillPipOneRight, -84) &&
+            pushQuad(
+                target, resourceBase + 6,
+                0, -86, skillPipTwoRight, -84) &&
+            pushQuad(
+                target, resourceBase + 6,
+                3, -86, skillPipThreeRight, -84) &&
+            pushDiamond(target, lootResource, 12, -84, lootRadius) &&
+            pushQuad(
+                target, lootResource,
+                9, -89, lootPipOneRight, -88) &&
+            pushQuad(
+                target, lootResource,
+                12, -89, lootPipTwoRight, -88) &&
+            pushQuad(
+                target, lootResource,
+                15, -89, lootPipThreeRight, -88)
+    }
+
 
     Bool pushEncounterStatus(
         FrameStaging target, Int resourceBase
@@ -264,7 +433,8 @@ class ShooterHud {
                 target, crosshairResource,
                 crosshairGap, crosshairReach, crosshairThickness) ||
             !pushEncounterStatus(target, resourceBase) ||
-            !pushCombatFeedback(target, resourceBase)) {
+            !pushCombatFeedback(target, resourceBase) ||
+            !pushBuildStatus(target, resourceBase)) {
 
             target.discard()
             return false
@@ -322,5 +492,37 @@ class ShooterHud {
 
     Bool killFeedbackActive() {
         return tickValue <= killFeedbackUntilTick
+    }
+
+    Int inventoryItems() {
+        return inventoryItemsValue
+    }
+
+    Int inventoryCapacity() {
+        return inventoryCapacityValue
+    }
+
+    Bool equipmentReady() {
+        return equipmentReadyValue
+    }
+
+    Int skillRank() {
+        return skillRankValue
+    }
+
+    Int skillExperience() {
+        return skillExperienceValue
+    }
+
+    Int skillGoal() {
+        return skillGoalValue
+    }
+
+    Int worldLootCount() {
+        return worldLootCountValue
+    }
+
+    Int worldLootRank() {
+        return worldLootRankValue
     }
 }

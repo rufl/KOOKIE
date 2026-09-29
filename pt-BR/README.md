@@ -21,9 +21,10 @@ G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
   salas empilhadas, replicada com limites explícitos do broad-phase;
 - câmera, staging limitado do mundo e HUD semântico de combate com painéis de
   vida/munição, glifo de conexão, carga ativa/reserva do encounter, mira
-  responsiva ao foco, marcadores de acerto/eliminação e alertas laterais de
-  dano; o SDL_GPU envia a cena fixa de 288 vértices de arena/porta/HUD sem
-  crescer buffers por frame;
+  responsiva ao foco, marcadores de acerto/eliminação, alertas laterais de dano
+  e painel por formas para inventário/equipamento/skill/loot no mundo; o
+  SDL_GPU envia a cena fixa de 378 vértices de arena/porta/HUD sem crescer
+  buffers por frame;
 - progressão cooperativa de chave, porta 3D, segredo e saída, replay de comandos
   e saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
@@ -34,8 +35,9 @@ G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
   na JVM e no nativo levam a arena completa de 26 triângulos, comandos
   unificados com checksum para movimento/disparo/interação/ciclo de vida,
-  baselines de gameplay por destinatário, feedback multiplayer ordenado e
-  estado autoritativo limitado do encounter;
+  baselines por destinatário de gameplay, autoridade G3 do jogador e loot no
+  mundo, feedback multiplayer ordenado e estado autoritativo limitado do
+  encounter;
 - papéis contínuos de inimigos hitscan/projétil/shotgun, predição de movimento
   no cliente com replay de inputs ainda não confirmados, recuperação de
   reconexão segura por geração, colisão/geometria visual 3D completa das portas
@@ -46,9 +48,9 @@ G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
 
 As lacunas importantes continuam reais:
 
-- o slice de gameplay G3 está qualificado em loopback no código-fonte; o
-  transporte dos novos schemas entre processos, registros de extensões e
-  regras completas orientadas por dados para elites/chefes permanecem abertos;
+- o slice de gameplay G3 está qualificado por processos externos na mesma
+  máquina na JVM/no nativo; registros públicos limitados de extensões e regras
+  completas orientadas por dados para elites/chefes permanecem abertos;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
 - saves duráveis contra crash, content cooker, física completa, áudio
@@ -126,12 +128,13 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 O primeiro slice vertical G3 agora executa na JVM e no nativo o caminho
 multiplayer autoritativo de eliminação→drop gerado→coleta/equipamento→mudança
-de atributo/skill→recompensa de chefe→salvar/recarregar. G3 permanece aberto
-para transportar os novos schemas entre processos, registrar extensões e
-completar regras orientadas por dados para elites/chefes. G2 continua coberto
-pela suíte de código-fonte na JVM/no nativo, pela sonda focada de interação,
-pela qualificação de processos host mais dois clientes e pela sonda
-SDL_GPU/áudio headless isolada.
+de atributo/skill→recompensa de chefe→salvar/recarregar. Os tipos de estado
+`7`/`8` também atravessam o caminho autenticado de host mais dois clientes em
+processos na mesma máquina nos dois alvos. G3 permanece aberto para registros
+públicos limitados de extensões e regras completas orientadas por dados para
+elites/chefes. G2 continua coberto pela suíte de código-fonte na JVM/no nativo,
+pela sonda focada de interação, pela qualificação de processos host mais dois
+clientes e pela sonda SDL_GPU/áudio headless isolada.
 
 Adiado até os gates centrais estarem mais fortes:
 

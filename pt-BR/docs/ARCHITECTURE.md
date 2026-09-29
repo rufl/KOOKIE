@@ -1,6 +1,6 @@
 # Arquitetura do projeto KOOKIE
 
-Status: **arquitetura-alvo viva; G0/G1/G2 estão implementados e G3 é o próximo marco**.
+Status: **arquitetura-alvo viva; G0/G1/G2 estão implementados e G3 está em andamento**.
 
 
 Este documento é a autoridade de arquitetura no nível do projeto. Os experimentos
@@ -129,12 +129,12 @@ O slice limitado implementado segue essa fronteira: resoluções autoritativas d
 combate emitem registros `ImpactPresentationEvent` monotônicos; lotes ordenados
 de feedback levam cada evento confirmado às filas limitadas de HUD/áudio do
 cliente. O HUD deriva geometria de acerto/eliminação/dano limitada por tick,
-além de estado de conexão e carga ativa/reserva distinguíveis pela forma.
-Overflow de apresentação é diagnosticado e nunca desfaz estado autoritativo.
-Portas 3D criadas adicionam um cuboide de 36 vértices entre a arena de 78 e o
-HUD de 174; a cena fixa atual tem 288 vértices. O Kof deriva atenuação por
-distância e pan estéreo antes do envio de canais PCM esquerdo/direito pelo
-adaptador nativo.
+além de estado de conexão, encounter e inventário/equipamento/skill/loot G3
+distinguíveis pela forma. Overflow de apresentação é diagnosticado e nunca
+desfaz estado autoritativo. Portas 3D criadas adicionam um cuboide de 36
+vértices entre a arena de 78 e o HUD de 264; a cena fixa atual tem 378
+vértices. O Kof deriva atenuação por distância e pan estéreo antes do envio de
+canais PCM esquerdo/direito pelo adaptador nativo.
 
 
 ### Adaptador nativo

@@ -13,14 +13,15 @@ As fundações limitadas executam; os gates de aceitação G0, G1 e G2 estão co
   plataforma superior, dois degraus e salas empilhadas. Snapshots do servidor
   incluem limites explícitos e todos os triângulos; consultas do cliente aos
   andares superior/inferior passam.
-- O staging de mundo, porta e HUD semântico usa 288 vértices fixos: 78 da
-  arena, 36 da porta e 174 do HUD para tracks emolduradas de vida/munição,
+- O staging de mundo, porta e HUD semântico usa 378 vértices fixos: 78 da
+  arena, 36 da porta e 264 do HUD para tracks emolduradas de vida/munição,
   ícones estruturais, glifo de conexão distinguível pela forma, carga
-  ativa/reserva do encounter, mira
-  responsiva ao foco, marcadores de acerto/eliminação e alertas laterais de
-  dano. O feedback expira por tick e rejeita sequências duplicadas. A ponte
-  SDL_GPU mantém buffers persistentes e uma paleta semântica de 16 cores; a
-  prova sem crescimento por frame fica limitada às capacidades inalteradas.
+  ativa/reserva do encounter, mira responsiva ao foco, marcadores de
+  acerto/eliminação, alertas laterais de dano e estado estrutural de
+  inventário/equipamento/skill/loot no mundo. O feedback expira por tick e
+  rejeita sequências duplicadas. A ponte SDL_GPU mantém buffers persistentes e
+  uma paleta semântica de 16 cores; a prova sem crescimento por frame fica
+  limitada às capacidades inalteradas.
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
@@ -40,25 +41,25 @@ As fundações limitadas executam; os gates de aceitação G0, G1 e G2 estão co
   morte do inimigo controla loot determinístico gerado no mundo, admissão
   remota de coleta/equipamento/progressão, modificadores de combate por
   equipamento/status e loot/XP/moeda de chefe. Os tipos de estado 7/8 com
-  checksum replicam autoridade completa por jogador e drops no mundo; a seção
-  12 do save preserva drops e reivindicações de recompensa.
+  checksum replicam autoridade completa por jogador e drops pelo loopback e por
+  processos externos na mesma máquina na JVM/no nativo; a seção 12 do save
+  preserva drops e reivindicações de recompensa.
 
 ## Lote de implementação mais recente
 
-- Adicionamos loot limitado no mundo com identidade exata do item gerado,
-  origem/rank e posição 3D; inventário cheio deixa drop, moeda e identidade do
-  RNG inalterados.
-- Conectamos morte do inimigo a preflight de loot/XP/moeda, comandos remotos de
-  coleta e equipamento, recomposição de atributos, progressão de skill e
-  recompensas de chefe sem duplicação.
-- Adicionamos schemas de autoridade do jogador/loot no mundo por destinatário e
-  save/reload G3 atômico pelo armazenamento real de arquivo de schema. Um 74º
-  cenário cobre seed/conteúdo determinísticos, rejeição de falsificação, dano
-  observado no chefe, réplica cliente e idempotência da reivindicação após
-  reload na JVM/no nativo.
-- Dividimos novas chamadas nativas largas de métodos em chamadas limitadas ou
-  entrada estruturada de posição após o encaminhamento nativo corromper
-  argumentos finais de arma/recompensa. Isso não declara correção do compilador.
+- Estendemos o HUD fixo com estado de inventário cheio/preenchido, glifo do item
+  equipado, XP/rank da skill e indicadores de loot ranqueado no mundo. Forma e
+  cor codificam estado, capacidade inativa continua degenerada e o demo de
+  apresentação deriva cada valor G3 do caminho autoritativo de eliminação e
+  recompensa.
+- Encaminhamos os tipos de estado 7/8 pela sonda autenticada com host mais dois
+  clientes em processos na JVM e no nativo. O cliente A agora aprende uma skill,
+  elimina, recebe loot ranqueado, coleta e equipa; a validação comprova os tipos,
+  item `900`, equipamento `900`, rank de skill `1` e zero drops restantes.
+- Usamos armazenamento no heap dimensionado pelo schema e helpers limitados de
+  um argumento após o decode dinâmico nativo corromper metadados escalares de
+  forma/encaminhamento do construtor. É um workaround contido, não correção do
+  compilador.
 
 ## Lotes anteriores
 
@@ -201,12 +202,13 @@ O primeiro slice vertical de gameplay G3 está implementado e todos os 74
 cenários-fonte passam na JVM/no nativo. O caminho sob autoridade do servidor de
 eliminação→drop gerado→coleta/equipamento→mudança observável de dano/skill→
 recompensa de chefe→save/reload em arquivo de schema executa sem resultados
-criados pelo cliente ou recompensas duplicadas. G3 permanece aberto para
-transportar os tipos de estado 7/8 pela sonda externa de host mais dois
-clientes, registros públicos limitados de extensões e regras completas
-orientadas por dados para elites/chefes. G5 mantém a aceitação sustentada de
-carga, RSS e orçamento de frame; `FFI001` ainda bloqueia chamadas Kof com
-buffers em massa para o kernel SIMD opcional.
+criados pelo cliente ou recompensas duplicadas. Os tipos de estado 7/8 também
+atravessam o caminho autenticado com host mais dois clientes em processos na
+mesma máquina nos dois alvos. G3 permanece aberto para registros públicos
+limitados de extensões e regras completas orientadas por dados para
+elites/chefes. G5 mantém a aceitação sustentada de carga, RSS e orçamento de
+frame; `FFI001` ainda bloqueia chamadas Kof com buffers em massa para o kernel
+SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

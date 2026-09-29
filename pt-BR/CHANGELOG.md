@@ -4,6 +4,22 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-29
 
+### Replicação G3 entre processos e polimento do HUD semântico
+
+- Estendemos o HUD semântico fixo de 174 para 264 vértices com estados limitados
+  de inventário preenchido/cheio, equipamento, XP/rank da skill e loot ranqueado
+  no mundo. Cada estado usa forma estrutural além de cor; slots inativos
+  permanecem degenerados na cena fixa de arena/porta/HUD com 378 vértices.
+- O demo de apresentação agora deriva esse painel do caminho autoritativo real
+  de eliminação G3, drop rank 3, skill, coleta/equipamento e recompensa em moeda.
+- Encaminhamos autoridade do jogador tipo `7` e loot no mundo tipo `8` por
+  processos autenticados na mesma máquina com host mais dois clientes na JVM e
+  no nativo. O validador comprova item/equipamento `900`, rank de skill `1` e
+  zero drops após a coleta; execução entre máquinas continua não comprovada.
+- Todos os 74 cenários-fonte passam na JVM e no nativo. Lint/LSP de Kof, a sonda
+  focada de interação e as regressões de transporte entre processos na JVM/no
+  nativo passam.
+
 ### Primeiro slice vertical autoritativo G3 de loot/progressão
 
 - Conectamos a única transição vivo→morto a rolagens completas determinísticas,

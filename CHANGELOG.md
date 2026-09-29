@@ -4,6 +4,21 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-29
 
+### G3 process replication and semantic HUD polish
+
+- Extended the fixed semantic HUD from 174 to 264 vertices with bounded
+  inventory fill/full, equipment, skill XP/rank and ranked world-loot status.
+  Every state has structural shape feedback as well as color; inactive slots
+  remain degenerate inside the fixed 378-vertex arena/door/HUD scene.
+- The presentation demo now derives this panel from the real authoritative G3
+  kill, rank-3 drop, skill, pickup/equip and currency-reward path.
+- Routed recipient player-authority kind `7` and world-loot kind `8` through
+  authenticated same-host host-plus-two-client processes on JVM and native.
+  The evidence validator proves item/equipment `900`, skill rank `1` and zero
+  world drops after pickup; separate-host execution remains unproven.
+- All 74 source scenarios pass on JVM and native. Kof lint/LSP, the focused
+  interaction probe and JVM/native external-process transport regressions pass.
+
 ### First authoritative G3 loot/progression vertical slice
 
 - Connected the single alive→dead reward transition to deterministic complete

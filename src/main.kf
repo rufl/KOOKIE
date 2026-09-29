@@ -99,7 +99,7 @@ main() {
 }
 test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
-    assert(hud.renderVertexCount() == 174,
+    assert(hud.renderVertexCount() == 264,
         "HUD geometry must retain a fixed bounded budget")
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
@@ -165,6 +165,25 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
     var undersized = FrameStaging(hud.renderVertexCount() - 1)
     assert(!hud.stage(undersized, 1, 9),
         "HUD staging must fail closed below its declared geometry budget")
+    assert(hud.updateInventoryStatus(7, 8, true) &&
+        hud.updateSkillStatus(2, 60, 100) &&
+        hud.updateWorldLootStatus(2, 3) &&
+        hud.stage(frame, 7, 9) &&
+        frame.stagedCount() == hud.renderVertexCount() &&
+        hud.inventoryItems() == 7 && hud.inventoryCapacity() == 8 &&
+        hud.equipmentReady() && hud.skillRank() == 2 &&
+        hud.skillExperience() == 60 && hud.skillGoal() == 100 &&
+        hud.worldLootCount() == 2 && hud.worldLootRank() == 3,
+        "G3 build status must stage inventory equipment skill and ranked loot")
+    var buildChecksum = frame.checksum()
+    assert(frame.retire(7))
+    assert(!hud.updateInventoryStatus(9, 8, false) &&
+        !hud.updateSkillStatus(-1, 0, 100) &&
+        !hud.updateWorldLootStatus(0, 3) &&
+        hud.stage(frame, 8, 9) &&
+        frame.checksum() == buildChecksum,
+        "invalid build status must reject without partially changing the HUD")
+    assert(frame.retire(8))
 }
 
 
@@ -3696,6 +3715,31 @@ test "G3 authoritative loot progression replication and save reload" {
         client.clientRemoteWorldLootStableId(0) == 901 &&
         client.clientRemoteWorldLootSeed(0) == 88,
         "G3 replication must expose inventory, equipment, progression, and drops")
+    var replicatedHud = ShooterHud(200, 8)
+    assert(replicatedHud.update(200, 8, 0, 7, true) &&
+        replicatedHud.updateEncounterReplication(0, 0, true, 1, 1) &&
+        replicatedHud.updateInventoryStatus(
+            client.clientRemoteItemCount(), 8,
+            client.clientRemoteEquipmentItem(0) > 0) &&
+        replicatedHud.updateSkillStatus(
+            client.clientRemoteSkillRank(30),
+            client.clientRemoteSkillExperience(30), 100) &&
+        replicatedHud.updateWorldLootStatus(
+            client.clientRemoteWorldLootCount(),
+            client.clientRemoteWorldLootRank(0)),
+        "replicated G3 authority must map into bounded HUD state")
+    var replicatedHudFrame = FrameStaging(
+        replicatedHud.renderVertexCount())
+    assert(replicatedHud.stage(replicatedHudFrame, 1, 9) &&
+        replicatedHudFrame.stagedCount() ==
+            replicatedHud.renderVertexCount() &&
+        replicatedHud.inventoryItems() == 1 &&
+        replicatedHud.equipmentReady() &&
+        replicatedHud.skillRank() == 1 &&
+        replicatedHud.worldLootCount() == 1 &&
+        replicatedHud.worldLootRank() == 3,
+        "replicated inventory skill equipment and ranked loot must render")
+    assert(replicatedHudFrame.retire(1))
 
     var full = LoopbackSession(8, 4)
     assert(full.configureEnemyRules(100, 5, 1) &&

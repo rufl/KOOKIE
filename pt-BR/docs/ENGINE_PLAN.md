@@ -210,7 +210,7 @@ staging pode evitar FFI por byte **somente** quando Kof validou/preparou o
 formato, offset e tamanho; o adaptador não pode se tornar um parser/cooker de
 assets. Pequenas sondas de `File.writeBytes/readBytes/readRange` preservaram
 bytes zero/de bit alto na JVM/nativo. O renderer implementado agora envia uma
-cena fixa de 288 vértices de arena/porta/HUD por chamadas escalares verificadas
+cena fixa de 378 vértices de arena/porta/HUD por chamadas escalares verificadas
 e buffers nativos persistentes. Casos grandes/de erro por intervalo e um
 adaptador real de buffer em massa ainda não foram comprovados.
 
@@ -692,10 +692,11 @@ uma arma/inimigo e limpa movimento/disparo mantidos na perda de foco. A arena
 criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degraus e
 salas empilhadas; o servidor replica triângulos e limites explícitos para o
 cliente. Câmera, staging do mundo e HUD semântico de combate alimentam uma cena
-nativa SDL_GPU fixa de 288 vértices: 78 da arena, 36 da porta e 174 do HUD para
+nativa SDL_GPU fixa de 378 vértices: 78 da arena, 36 da porta e 264 do HUD para
 vida/munição, glifo de conexão distinguível pela forma, carga ativa/reserva do
-encounter, marcadores confirmados de acerto/eliminação e alertas laterais de
-dano. O evento confirmado de hitscan local também alcança filas limitadas de
+encounter, marcadores confirmados de acerto/eliminação, alertas laterais de dano
+e estado estrutural de inventário/equipamento/skill/loot derivado da autoridade.
+O evento confirmado de hitscan local também alcança filas limitadas de
 replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
 leu a cena limitada, e 74/74 testes passam na JVM e no nativo. A evidência de
 ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
@@ -715,7 +716,7 @@ inicial publica baselines no tick zero de gameplay, feedback e encounter;
 gerações obsoletas são rejeitadas antes da admissão da sequência. As portas
 usam semieixos criados para colisão 3D completa por segmento/AABB e geram um
 cuboide de 36 vértices projetado pela câmera; a sonda GPU nativa headless
-desenha a cena resultante de arena/porta/HUD com 288 vértices. O transporte de
+desenha a cena resultante de arena/porta/HUD com 378 vértices. O transporte de
 feedback preserva a ordem de vários eventos, rejeita duplicatas e lacunas sem
 apresentação parcial e retoma pelo baseline da nova geração. O Kof calcula
 atenuação por distância e pan estéreo relativos ao listener, enquanto o
@@ -730,10 +731,12 @@ modificadores de equipamento/status alteram o dano observado no chefe; e as
 reivindicações de loot/XP/moeda do chefe sobrevivem a save/reload atômico em
 arquivo de schema sem duplicação. Schemas com checksum de autoridade por
 destinatário e loot no mundo são aplicados a uma réplica cliente, enquanto
-inventário cheio preserva o drop, a moeda e a identidade do RNG. G3 não está
-fechado: restam o transporte dos tipos `7`/`8` pela sonda externa com host mais
-dois clientes, registros públicos limitados de extensões e definições
-completas de regras orientadas por dados para elites/chefes.
+inventário cheio preserva o drop, a moeda e a identidade do RNG. Os tipos de
+estado `7`/`8` atravessam a sonda autenticada com host mais dois clientes em
+processos na mesma máquina na JVM e no nativo, incluindo resultados de aprender,
+eliminar, coletar loot ranqueado e equipar. G3 não está fechado: restam registros
+públicos limitados de extensões e definições completas de regras orientadas por
+dados para elites/chefes.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

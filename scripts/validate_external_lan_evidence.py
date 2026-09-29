@@ -116,6 +116,12 @@ def main() -> int:
         "external-authentication-status",
         "external-transport-sequence-a",
         "external-transport-sequence-b",
+        "external-player-authority-kind",
+        "external-world-loot-kind",
+        "external-client-g3-item",
+        "external-client-g3-equipment",
+        "external-client-g3-skill-rank",
+        "external-client-g3-world-loot-count",
         "KOOKIE external-style authenticated host/two-client transport verified",
     )
     for marker in required:
@@ -152,6 +158,16 @@ def main() -> int:
         lines, "external-transport-sequence-a")
     transport_sequence_b = marker_value(
         lines, "external-transport-sequence-b")
+    player_authority_kind = marker_value(
+        lines, "external-player-authority-kind")
+    world_loot_kind = marker_value(lines, "external-world-loot-kind")
+    g3_item = marker_value(lines, "external-client-g3-item")
+    g3_equipment = marker_value(
+        lines, "external-client-g3-equipment")
+    g3_skill_rank = marker_value(
+        lines, "external-client-g3-skill-rank")
+    g3_world_loot_count = marker_value(
+        lines, "external-client-g3-world-loot-count")
     if host_port_a is None or not 1 <= host_port_a <= 65535:
         return fail("invalid host listener port A")
     if host_port_b is None or not 1 <= host_port_b <= 65535:
@@ -186,6 +202,18 @@ def main() -> int:
         return fail("missing positive transport sequence for client A")
     if transport_sequence_b is None or transport_sequence_b <= 0:
         return fail("missing positive transport sequence for client B")
+    if player_authority_kind != 7:
+        return fail("player-authority state kind 7 did not traverse transport")
+    if world_loot_kind != 8:
+        return fail("world-loot state kind 8 did not traverse transport")
+    if g3_item != 900:
+        return fail("authoritative picked-up item did not reach client A")
+    if g3_equipment != 900:
+        return fail("authoritative equipment did not reach client A")
+    if g3_skill_rank != 1:
+        return fail("authoritative skill rank did not reach client A")
+    if g3_world_loot_count != 0:
+        return fail("picked-up world loot did not disappear for client A")
     key_hex = os.environ.get("KOOKIE_TRANSPORT_KEY_HEX", "")
     if len(key_hex) != 32:
         return fail("transport key evidence is not a 32-character boundary")
@@ -352,6 +380,14 @@ def main() -> int:
         "reconnectGeneration": reconnect_generation,
         "staleDiagnostic": stale_diagnostic,
         "interactionRevision": interaction_revision,
+        "g3Replication": {
+            "playerAuthorityKind": player_authority_kind,
+            "worldLootKind": world_loot_kind,
+            "itemId": g3_item,
+            "equipmentItemId": g3_equipment,
+            "skillRank": g3_skill_rank,
+            "worldLootCountAfterPickup": g3_world_loot_count,
+        },
         "transportKeySha256": hashlib.sha256(key_hex.encode("ascii")).hexdigest(),
         "probeLog": str(log_path),
         "probeOutputSha256": hashlib.sha256(output).hexdigest(),

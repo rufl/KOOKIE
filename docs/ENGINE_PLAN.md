@@ -194,7 +194,7 @@ Rules:
 
 The first cube can use scalar staging calls. A matrix/instance is written as a fixed tuple per call, not sixteen individual FFI calls. Static vertex/index payloads upload once; dynamic data uses bounded reusable staging buffers. Kof owns packing policy and resource layout; the C side only copies the specified tuple into checked buffer positions.
 
-For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/cooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 288-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
+For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/cooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 378-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
 
 
 Scalar staging overhead is a **go/no-go measurement**. If representative draw/instance/animation uploads miss budget, prefer a properly specified upstream buffer-FFI addition (element format, length, borrow/copy lifetime, ownership and GC rules). Do not encode binary frames as JSON/Base64 strings or assume a pointer cast solves bulk transfer. Do not grow the shim into a C renderer to pass a benchmark.
@@ -652,15 +652,16 @@ exposes prediction correction and reconciliation, resolves one weapon/enemy
 encounter, and clears held movement/fire across focus loss. Its authored
 78-vertex/26-triangle arena supplies a walkable slope, steps and stacked rooms;
 the server replicates its triangle data and explicit bounds to the client.
-Camera, world staging and a semantic combat HUD feed a fixed 288-vertex native
-SDL_GPU scene: 78 arena vertices, 36 door vertices and 174 HUD vertices for
+Camera, world staging and a semantic combat HUD feed a fixed 378-vertex native
+SDL_GPU scene: 78 arena vertices, 36 door vertices and 264 HUD vertices for
 health/ammunition, a shape-distinct connection glyph, active/reserve encounter
-load, confirmed hit/kill markers and edge damage warnings. The confirmed local
-hitscan event also reaches bounded replay/audio queues and native SDL clip
-playback. An isolated GPU smoke rendered and read back the bounded scene, and
-74/74 tests pass on JVM and native. G1's no-per-frame-growth evidence is 64
-deterministic stages with unchanged Kof capacities plus persistent native scene
-buffers; the 30-minute RSS/performance soak remains G5.
+load, confirmed hit/kill markers, edge damage warnings, and structural
+inventory/equipment/skill/world-loot status derived from authority state. The
+confirmed local hitscan event also reaches bounded replay/audio queues and
+native SDL clip playback. An isolated GPU smoke rendered and read back the
+bounded scene, and 74/74 tests pass on JVM and native. G1's no-per-frame-growth
+evidence is 64 deterministic stages with unchanged Kof capacities plus
+persistent native scene buffers; the 30-minute RSS/performance soak remains G5.
 
 G2 is closed by the JVM/native three-process transport slice carrying the full
 arena, unified checksummed movement/fire/interaction/lifecycle commands,
@@ -673,7 +674,7 @@ when a reconnect advances the connection generation. Initial join publishes
 tick-zero gameplay, feedback and encounter baselines; stale generations reject
 before sequence admission. Doors use authored half-extents for full 3D
 segment/AABB collision and stage a 36-vertex camera-projected cuboid; the native
-headless GPU probe draws the resulting 288-vertex arena/door/HUD scene.
+headless GPU probe draws the resulting 378-vertex arena/door/HUD scene.
 Feedback transport preserves multi-event order, rejects duplicates and gaps
 without partial presentation, and resumes from the new-generation baseline.
 Kof computes listener-relative distance attenuation and stereo panning, while
@@ -687,9 +688,11 @@ commands cannot author outcomes, equipment/status modifiers change observed
 boss damage, and boss loot/XP/currency claims survive an atomic schema-file
 save/reload without duplication. Checksummed recipient authority and world-loot
 schemas apply to a client replica, while a full inventory preserves the drop,
-currency and RNG identity. G3 is not closed: transport of kinds `7`/`8` through
-the external host-plus-two-client process probe, bounded public extension
-registries, and complete data-driven elite/boss rule definitions remain.
+currency and RNG identity. State kinds `7`/`8` traverse the authenticated
+same-host host-plus-two-client process probe on JVM and native, including
+learn, kill, ranked-loot pickup and equip outcomes. G3 is not closed: bounded
+public extension registries and complete data-driven elite/boss rule
+definitions remain.
 
 ### Initial performance hypotheses, not achieved numbers
 

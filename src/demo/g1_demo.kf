@@ -67,6 +67,18 @@ class G1Demo {
             !loopback.configureEnemyPerception(3, 1, true, 40, 0)) {
             return failAt(5)
         }
+        if (!loopback.defineLootAffixPool(1) ||
+            !loopback.addLootAffix(1, 11, 1) ||
+            !loopback.defineLootAffixStat(11, 5, 0, 0) ||
+            !loopback.defineLootItem(501, 10, 1, 10, 1) ||
+            !loopback.addLootTableEntry(501, 1) ||
+            !loopback.definePlayerSkill(30, 2, 100) ||
+            !loopback.defineEnemyLootReward(3, 900, 77, 4, 3) ||
+            !loopback.defineEnemyLootProgressionReward(3, 30, 100) ||
+            !loopback.defineEnemyCombatReward(3, 25) ||
+            !loopback.learnPlayerSkill(1, 30)) {
+            return failAt(5)
+        }
         if (!loopback.queueBroadPhaseSnapshot(0, 1) ||
             !loopback.receiveBroadPhaseSnapshot() ||
             loopback.clientBroadPhaseTriangleCount() != arena.triangleCount()) {
@@ -118,6 +130,13 @@ class G1Demo {
             loopback.pendingImpactAudio() != 1 ||
             loopback.impactPresentationDrops() != 0 ||
             !loopback.dequeueImpactPresentation()) {
+            return failAt(12)
+        }
+        if (loopback.playerCurrency(1) != 25 ||
+            loopback.playerSkillRank(1, 30) != 1 ||
+            loopback.worldLootCount() != 1 ||
+            loopback.worldLootStableId(0) != 900 ||
+            loopback.worldLootRank(0) != 3) {
             return failAt(12)
         }
         var impact = loopback.lastImpactPresentation()
@@ -208,13 +227,26 @@ class G1Demo {
         var enemies = loopback.clientRemoteEncounterActiveCount()
         var tick = loopback.currentClientTick()
         var focused = loopback.playerFocused(1)
+        var inventory = loopback.playerInventory(1)
+        var lootRank = 0
+        if (loopback.worldLootCount() > 0) {
+            lootRank = loopback.worldLootRank(0)
+        }
         if (!hud.update(health, ammunition, enemies, tick, focused) ||
             !hud.updateEncounterReplication(
                 enemies,
                 loopback.clientRemoteEncounterRemainingBudget(),
                 loopback.playerConnected(1),
                 loopback.playerConnectionGeneration(1),
-                loopback.clientRemoteEnemyEncounterSequence())) {
+                loopback.clientRemoteEnemyEncounterSequence()) ||
+            !hud.updateInventoryStatus(
+                inventory.itemCount(), inventory.itemCapacity(),
+                loopback.playerEquipmentItem(1, 0) > 0) ||
+            !hud.updateSkillStatus(
+                loopback.playerSkillRank(1, 30),
+                loopback.playerSkillExperience(1, 30), 100) ||
+            !hud.updateWorldLootStatus(
+                loopback.worldLootCount(), lootRank)) {
             return failAt(22)
         }
 

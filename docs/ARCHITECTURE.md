@@ -1,6 +1,6 @@
 # KOOKIE project architecture
 
-Status: **living target architecture; G0/G1/G2 are implemented and G3 is next**.
+Status: **living target architecture; G0/G1/G2 are implemented and G3 is underway**.
 
 
 This document is the project-level architecture authority. Detailed acceptance
@@ -130,11 +130,12 @@ The implemented bounded slice follows this boundary: authoritative combat
 resolutions emit monotonic `ImpactPresentationEvent` records; ordered feedback
 batches carry every confirmed event into bounded client HUD/audio queues.
 The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
-connection and active/reserve encounter status. Presentation overflow is
-diagnosed and never rolls back authoritative state. Authored 3D doors add a
-36-vertex cuboid between the 78-vertex arena and 174-vertex HUD; the current
-fixed scene is 288 vertices. Kof derives distance attenuation and stereo pan
-before the native adapter submits left/right PCM channels.
+connection, encounter and G3 inventory/equipment/skill/world-loot status.
+Presentation overflow is diagnosed and never rolls back authoritative state.
+Authored 3D doors add a 36-vertex cuboid between the 78-vertex arena and
+264-vertex HUD; the current fixed scene is 378 vertices. Kof derives distance
+attenuation and stereo pan before the native adapter submits left/right PCM
+channels.
 
 
 ### Native adapter
