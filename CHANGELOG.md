@@ -36,6 +36,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   role probe also passed with the host and two clients in separate Linux
   network namespaces and distinct IPv4 stacks, including reconnect and the
   compatibility handshake. This is not evidence from three physical machines.
+- The Creator candidate-preservation and activation path also rendered through
+  isolated headless SDL_GPU at 320×240. The final frame checksum was
+  `28,585,778` (PPM SHA-256
+  `c9c17e6de93dfd13ac04ee70896a2739be0ba5cf70c9c65b06e924b430064a6d`);
+  visual review found no clipping, overlap or illegible labels. Isolated Xvfb
+  could not qualify window presentation because it lacks DRI3, so this claim is
+  limited to the actual offscreen GPU render/reload path.
 
 ### Persistent native game shell, menus and permissive packaging
 

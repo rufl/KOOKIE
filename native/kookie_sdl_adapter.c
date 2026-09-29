@@ -1273,12 +1273,23 @@ bool kookie_gpu_recover_headless(void) {
         gpu_recovery_state != KOOKIE_GPU_RECOVERY_LOST) {
         return false;
     }
+    int active_generation = gpu_reload.active_generation;
+    int active_checksum = gpu_reload.active_checksum;
+    int retired_generation = gpu_reload.retired_generation;
+    int completed_fence = gpu_reload.completed_fence;
     gpu_recovery_state = KOOKIE_GPU_RECOVERY_FAILED;
     kookie_gpu_release_resources(gpu_slot.device);
     SDL_DestroyGPUDevice(gpu_slot.device);
     gpu_slot.device = NULL;
     gpu_slot.generation += 1;
-    return kookie_gpu_open_headless() > 0;
+    if (kookie_gpu_open_headless() <= 0) {
+        return false;
+    }
+    gpu_reload.active_generation = active_generation;
+    gpu_reload.active_checksum = active_checksum;
+    gpu_reload.retired_generation = retired_generation;
+    gpu_reload.completed_fence = completed_fence;
+    return true;
 }
 bool kookie_gpu_open_headless_ready(void) {
     return kookie_gpu_open_headless() > 0;
@@ -1712,6 +1723,29 @@ int kookie_gpu_reload_completed_fence(void) {
     return gpu_reload.completed_fence;
 }
 
+static bool kookie_gpu_pending_scene_ready(void) {
+    return gpu_reload.pending_generation != 0 &&
+        gpu_reload.pending_scene_committed &&
+        gpu_reload.scene_generation == gpu_reload.pending_generation;
+}
+
+static bool kookie_gpu_activate_pending_scene(void) {
+    if (!kookie_gpu_pending_scene_ready() ||
+        gpu_reload.completed_fence >= 1000000) {
+        return false;
+    }
+    gpu_scene = gpu_pending_scene;
+    memset(&gpu_pending_scene, 0, sizeof(gpu_pending_scene));
+    gpu_reload.completed_fence += 1;
+    gpu_reload.retired_generation = gpu_reload.active_generation;
+    gpu_reload.active_generation = gpu_reload.pending_generation;
+    gpu_reload.active_checksum = gpu_reload.pending_checksum;
+    gpu_reload.pending_generation = 0;
+    gpu_reload.pending_checksum = 0;
+    gpu_reload.pending_scene_committed = false;
+    return true;
+}
+
 bool kookie_gpu_scene_begin(int vertex_count) {
     if (vertex_count <= 0 ||
         vertex_count > KOOKIE_GPU_SCENE_MAX_VERTICES ||
@@ -1970,16 +2004,8 @@ bool kookie_gpu_draw_scene(void) {
         !kookie_gpu_upload_scene(gpu_slot.device, scene)) {
         return false;
     }
-    if (activate_pending) {
-        gpu_scene = gpu_pending_scene;
-        memset(&gpu_pending_scene, 0, sizeof(gpu_pending_scene));
-        gpu_reload.completed_fence += 1;
-        gpu_reload.retired_generation = gpu_reload.active_generation;
-        gpu_reload.active_generation = gpu_reload.pending_generation;
-        gpu_reload.active_checksum = gpu_reload.pending_checksum;
-        gpu_reload.pending_generation = 0;
-        gpu_reload.pending_checksum = 0;
-        gpu_reload.pending_scene_committed = false;
+    if (activate_pending && !kookie_gpu_activate_pending_scene()) {
+        return false;
     }
     gpu_scene.active = true;
     if (!kookie_gpu_draw_test_internal(window, NULL, NULL)) {
@@ -2181,10 +2207,17 @@ int kookie_gpu_capture_headless_scene(void) {
         !gpu_scene.committed) {
         return 0;
     }
+    bool activate_pending = kookie_gpu_pending_scene_ready();
+    KookieGpuScene *scene =
+        activate_pending ? &gpu_pending_scene : &gpu_scene;
+    if (activate_pending && gpu_reload.completed_fence >= 1000000) {
+        return 0;
+    }
     SDL_GPUDevice *device = gpu_slot.device;
     SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     if (!kookie_gpu_prepare_resources(device, format) ||
-        !kookie_gpu_upload_scene(device, &gpu_scene)) {
+        !kookie_gpu_upload_scene(device, scene) ||
+        (activate_pending && !kookie_gpu_activate_pending_scene())) {
         return 0;
     }
     SDL_GPUTextureCreateInfo target_info = {0};

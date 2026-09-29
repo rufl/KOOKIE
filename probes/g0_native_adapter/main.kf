@@ -31,6 +31,17 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resou
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_stage(
+    Int generation, Int productChecksum
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_cancel(
+    Int generation
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_active_generation(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_active_checksum(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_pending_generation(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_retired_generation(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_completed_fence(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_select_slot(Int slot): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_pair(): Bool
@@ -156,6 +167,63 @@ class G1HeadlessPresentation {
             worldFrame.vertexCapacity() == worldCapacity &&
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity
+    }
+
+    Bool captureCreatorReload() {
+        var shell = GameShell()
+        var shellFrame = FrameStaging(shell.renderVertexCapacity())
+        var reload = BoundedGpuReloadCoordinator()
+        if (!reload.bindInitial(
+                1, shell.creator().worldChecksum(),
+                shell.creator().collisionChecksum(),
+                shell.creator().renderChecksum(),
+                shell.renderVertexCapacity(), 0) ||
+            !kookie_gpu_reload_stage(2, shell.creator().renderChecksum()) ||
+            !kookie_gpu_scene_begin(3) ||
+            !kookie_gpu_scene_push_vertex(1, 0, 0, 0, 0) ||
+            kookie_gpu_scene_push_vertex(0, 0, 0, 0, 0) ||
+            !kookie_gpu_reload_cancel(2) ||
+            kookie_gpu_reload_pending_generation() != 0 ||
+            kookie_gpu_reload_active_generation() != 1 ||
+            kookie_gpu_capture_headless_scene() <= 0) {
+            return false
+        }
+        if (!shell.handleAction(gameShellActionDown()) ||
+            !shell.handleAction(gameShellActionDown()) ||
+            !shell.handleAction(gameShellActionDown()) ||
+            !shell.handleAction(gameShellActionActivate()) ||
+            shell.screen() != gameShellScreenCreator() ||
+            !shell.handleAction(gameShellActionActivate()) ||
+            shell.creator().generation() != 2 ||
+            !shell.stage(shellFrame, 2) ||
+            !reload.stage(
+                reload.activeGeneration(), shell.creator().generation(),
+                shell.creator().worldChecksum(),
+                shell.creator().collisionChecksum(),
+                shell.creator().renderChecksum(),
+                shell.renderVertexCapacity()) ||
+            !kookie_gpu_reload_stage(
+                shell.creator().generation(),
+                shell.creator().renderChecksum()) ||
+            !kookie_gpu_scene_begin(shellFrame.stagedCount()) ||
+            !upload(shellFrame) ||
+            !kookie_gpu_scene_commit() ||
+            kookie_gpu_scene_count() != shellFrame.stagedCount() ||
+            kookie_gpu_capture_headless_scene() <= 0) {
+            return false
+        }
+        var generation = shell.creator().generation()
+        var completedFence = kookie_gpu_reload_completed_fence()
+        return kookie_gpu_reload_pending_generation() == 0 &&
+            kookie_gpu_reload_active_generation() == generation &&
+            kookie_gpu_reload_active_checksum() ==
+                shell.creator().renderChecksum() &&
+            reload.markUploaded(generation, completedFence) &&
+            reload.activateAtFrame(generation, 2, completedFence) &&
+            kookie_gpu_reload_retired_generation() ==
+                reload.retiringGeneration() &&
+            reload.retire(completedFence) &&
+            shellFrame.retire(2)
     }
 }
 
@@ -634,6 +702,12 @@ main() {
             "G1 arena, G2 door and authoritative HUD must render headlessly")
         println("KOOKIE G1 native arena HUD verified")
         println("KOOKIE G2 native 3D door verified")
+        assert(g1Presentation.captureCreatorReload(),
+            "Creator scene reload must preserve, fence and activate GPU products")
+        println("KOOKIE G4 GPU-safe creator reload verified")
+        println("KOOKIE native creator screen verified")
+        var reloadGeneration = kookie_gpu_reload_active_generation()
+        var reloadChecksum = kookie_gpu_reload_active_checksum()
         assert(kookie_gpu_push_headless_device_reset(),
             "headless GPU reset event must enqueue")
         assert(kookie_poll_event() == 5,
@@ -653,8 +727,10 @@ main() {
         assert(kookie_gpu_recovery_capabilities() == 1,
             "lost headless GPU must retain reopen capability only")
         assert(kookie_gpu_recover_headless(), "headless GPU recovery must reopen")
-        assert(kookie_gpu_recovery_state() == 1,
-            "headless GPU recovery must return to ready state")
+        assert(kookie_gpu_recovery_state() == 1 &&
+            kookie_gpu_reload_active_generation() == reloadGeneration &&
+            kookie_gpu_reload_active_checksum() == reloadChecksum,
+            "headless GPU recovery must preserve the active Creator generation")
         assert(kookie_gpu_draw_headless_test(),
             "headless GPU draw must succeed after recovery")
         println("gpu-headless-recovered")

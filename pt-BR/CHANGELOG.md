@@ -39,6 +39,14 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   papéis autenticada também passou com host e dois clientes em namespaces de
   rede Linux separados e pilhas IPv4 distintas, incluindo reconexão e o
   handshake de compatibilidade. Isso não é evidência de três máquinas físicas.
+- O caminho de preservação e ativação de candidata do Creator também renderizou
+  por SDL_GPU headless isolado em 320×240. O checksum do frame final foi
+  `28.585.778` (SHA-256 do PPM
+  `c9c17e6de93dfd13ac04ee70896a2739be0ba5cf70c9c65b06e924b430064a6d`);
+  a revisão visual não encontrou clipping, sobreposição nem rótulos ilegíveis.
+  O Xvfb isolado não pôde qualificar apresentação em janela porque não oferece
+  DRI3; portanto, esta afirmação fica limitada ao caminho GPU offscreen real de
+  render/reload.
 
 ### Shell nativo persistente, menus e pacotes permissivos
 
