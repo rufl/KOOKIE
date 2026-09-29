@@ -17,7 +17,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Routed `G1Demo`'s real authoritative kill through the HUD and native
   presentation probe. SDL audio now receives that event's clip `201` at gain
   `100` instead of an unrelated sample clip.
-
+- Built and deployed Linux presentation dogfood `0.1.0-dogfood.22` from
+  `82ccdd5` to the local ztash catalog (SHA256
+  `3fa7b256ccec83104c33799dd2ac723381135f60ab6aecc5551d013c0280a474`,
+  3,802,863 bytes). The exact archive exited `0` inside
+  `overzeer-isolated-display` plus a nested Wayland compositor, reported
+  present capability `11`, drew in 8,399 µs and produced a validated 320×240
+  frame with checksum `29,150,337`.
 
 ### Semantic HUD and visual dogfood
 

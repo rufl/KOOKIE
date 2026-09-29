@@ -18,6 +18,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Encaminhamos a eliminação autoritativa real de `G1Demo` pelo HUD e pela sonda
   de apresentação nativa. O áudio SDL agora recebe o clip `201` desse evento
   com ganho `100`, em vez de um clip de amostra sem relação.
+- Construímos e implantamos o dogfood Linux de apresentação
+  `0.1.0-dogfood.22` do commit `82ccdd5` no catálogo ztash local (SHA256
+  `3fa7b256ccec83104c33799dd2ac723381135f60ab6aecc5551d013c0280a474`,
+  3.802.863 bytes). O arquivo exato saiu com `0` dentro do
+  `overzeer-isolated-display` mais um compositor Wayland aninhado, reportou
+  capacidade de apresentação `11`, desenhou em 8.399 µs e produziu um frame
+  320×240 validado com checksum `29.150.337`.
 
 ### HUD semântico e dogfood visual
 
