@@ -1,6 +1,6 @@
 # KOOKIE project architecture
 
-Status: **living target architecture; G0/G1/G2 are implemented and G3 is underway**.
+Status: **living target architecture; G0/G1/G2/G3 are implemented and G4 is next**.
 
 
 This document is the project-level architecture authority. Detailed acceptance
@@ -130,12 +130,12 @@ The implemented bounded slice follows this boundary: authoritative combat
 resolutions emit monotonic `ImpactPresentationEvent` records; ordered feedback
 batches carry every confirmed event into bounded client HUD/audio queues.
 The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
-connection, encounter and G3 inventory/equipment/skill/world-loot status.
-Presentation overflow is diagnosed and never rolls back authoritative state.
-Authored 3D doors add a 36-vertex cuboid between the 78-vertex arena and
-264-vertex HUD; the current fixed scene is 378 vertices. Kof derives distance
-attenuation and stereo pan before the native adapter submits left/right PCM
-channels.
+connection, encounter, elite/boss threat/defeat and G3
+inventory/equipment/skill/world-loot status. Presentation overflow is diagnosed
+and never rolls back authoritative state. Authored 3D doors add a 36-vertex
+cuboid between the 78-vertex arena and 312-vertex HUD; the current fixed scene
+is 426 vertices. Kof derives distance attenuation and stereo pan before the
+native adapter submits left/right PCM channels.
 
 
 ### Native adapter
@@ -534,8 +534,14 @@ stereo spatialization complete the G2 contract.
 
 ### G3 — Looter/ARPG multiplayer slice
 
-Add item instances, inventory, skills, statuses, progression, authoritative
-saves and replicated extension schemas.
+Implemented: item instances, inventory/equipment, skills, statuses,
+progression, authoritative schema saves and recipient-specific replicated
+state. `BoundedExtensionRegistry` seals versioned manifests, dependencies,
+capabilities and namespaced contributions with deterministic load/priority
+ordering, capacity/conflict diagnostics and immutable checksums.
+`BoundedEnemyDefinitionRegistry` seals complete elite/boss combat, behavior,
+loot, progression and currency rules; the authoritative session instantiates
+the actor and every reward contract atomically from those definitions.
 
 ### G4 — Creator and extension pipeline
 

@@ -17,6 +17,8 @@ class LoopbackSession {
     PlayerWeaponPresenter playerWeaponPresentations
     BoundedReplayPresentationHistory replayPresentationHistory
     BoundedInteractionWorld worldInteractions
+    BoundedExtensionRegistry extensionRegistry
+    BoundedEnemyDefinitionRegistry enemyDefinitions
     InteractionReplayRecorder interactionReplay
     Int[] interactionSequences
     Int[] interactionTicks
@@ -183,6 +185,9 @@ class LoopbackSession {
     Int audioListenerMaxDistance
 
     Int[] enemyIds
+    Int[] enemyDefinitionNamespaces
+    Int[] enemyDefinitionIds
+    Int[] enemyKinds
     Int[] enemyEncounterIds
     Int[] enemyPerceptionTargets
     Int[] enemyPerceptionDistances
@@ -241,6 +246,8 @@ class LoopbackSession {
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
         replayPresentationHistory = BoundedReplayPresentationHistory(entityCapacity * 8)
         worldInteractions = BoundedInteractionWorld(16, 1000000)
+        extensionRegistry = BoundedExtensionRegistry(8, 16, 32, 32)
+        enemyDefinitions = BoundedEnemyDefinitionRegistry(16)
         interactionReplay = InteractionReplayRecorder(64)
         remoteGameplaySequences = new Int[3]
         gameplayStateSequences = new Int[3]
@@ -430,6 +437,9 @@ class LoopbackSession {
         audioListenerMaxDistance = 100
 
         enemyIds = new Int[entityCapacity]
+        enemyDefinitionNamespaces = new Int[entityCapacity]
+        enemyDefinitionIds = new Int[entityCapacity]
+        enemyKinds = new Int[entityCapacity]
         enemyEncounterIds = new Int[entityCapacity]
         enemyPerceptionTargets = new Int[entityCapacity]
         enemyPerceptionDistances = new Int[entityCapacity]
@@ -445,6 +455,9 @@ class LoopbackSession {
             false, 0, 0, 0, false, 0, 0, false)
         for (var index = 0; index < entityCapacity; index = index + 1) {
             enemyIds[index] = 0
+            enemyDefinitionNamespaces[index] = 0
+            enemyDefinitionIds[index] = 0
+            enemyKinds[index] = enemyDefinitionNormalKind()
             enemyEncounterIds[index] = 0
             clientRemoteEnemyIds[index] = 0
             clientRemoteEnemyRoles[index] = 0
@@ -485,8 +498,142 @@ class LoopbackSession {
         clientBroadPhaseRevisionValue = broadPhaseRevisionValue
     }
 
+    Bool registerExtensionManifest(
+        Int namespaceId, Int extensionId,
+        Int apiVersion, Int schemaVersion, Int role
+    ) {
+        return !started && extensionRegistry.registerManifest(
+            namespaceId, extensionId, apiVersion, schemaVersion, role)
+    }
+
+    Bool configureExtensionLoadOrder(
+        Int namespaceId, Int extensionId, Int loadOrder
+    ) {
+        return !started && extensionRegistry.setLoadOrder(
+            namespaceId, extensionId, loadOrder)
+    }
+
+    Bool configureExtensionProvenance(
+        Int namespaceId, Int extensionId, Int provenanceHash
+    ) {
+        return !started && extensionRegistry.setProvenance(
+            namespaceId, extensionId, provenanceHash)
+    }
+
+    Bool configureExtensionSchemas(
+        Int namespaceId, Int extensionId,
+        Int migrationVersion, Int networkSchema
+    ) {
+        return !started && extensionRegistry.setSchemas(
+            namespaceId, extensionId, migrationVersion, networkSchema)
+    }
+
+    Bool addExtensionDependency(
+        Int ownerNamespace, Int ownerId,
+        Int dependencyNamespace, Int dependencyId
+    ) {
+        return !started && extensionRegistry.addDependency(
+            ownerNamespace, ownerId, dependencyNamespace, dependencyId)
+    }
+
+    Bool grantExtensionCapability(
+        Int ownerNamespace, Int ownerId, Int capabilityId
+    ) {
+        return !started && extensionRegistry.grantCapability(
+            ownerNamespace, ownerId, capabilityId)
+    }
+
+    Bool registerExtensionContribution(
+        Int ownerNamespace, Int ownerId,
+        Int kind, Int publicId, Int priority
+    ) {
+        return !started && extensionRegistry.registerContribution(
+            ownerNamespace, ownerId, kind, publicId, priority)
+    }
+
+    Bool defineEnemyDefinition(
+        Int ownerNamespace, Int ownerExtension,
+        Int definitionId, Int revision, Int kind
+    ) {
+        return !started && extensionRegistry.hasContribution(
+                ownerNamespace, ownerExtension,
+                extensionContributionEnemyDefinitionKind(), definitionId) &&
+            enemyDefinitions.define(
+                ownerNamespace, definitionId, revision, kind)
+    }
+
+    Bool setEnemyDefinitionCombat(
+        Int namespaceId, Int definitionId,
+        Int health, Int armor, Int weaponId
+    ) {
+        return !started && enemyDefinitions.setCombat(
+            namespaceId, definitionId, health, armor, weaponId)
+    }
+
+    Bool setEnemyDefinitionBehavior(
+        Int namespaceId, Int definitionId,
+        Int role, Int moveStep, Int projectileStep
+    ) {
+        return !started && enemyDefinitions.setBehavior(
+            namespaceId, definitionId, role, moveStep, projectileStep)
+    }
+
+    Bool setEnemyDefinitionCritical(
+        Int namespaceId, Int definitionId, Int critical
+    ) {
+        return !started && enemyDefinitions.setCritical(
+            namespaceId, definitionId, critical)
+    }
+
+    Bool setEnemyDefinitionLoot(
+        Int namespaceId, Int definitionId,
+        Int stableBase, Int seedSalt, Int level
+    ) {
+        return !started && enemyDefinitions.setLoot(
+            namespaceId, definitionId, stableBase, seedSalt, level)
+    }
+
+    Bool setEnemyDefinitionRankCurrency(
+        Int namespaceId, Int definitionId, Int rank, Int currency
+    ) {
+        return !started && enemyDefinitions.setRankCurrency(
+            namespaceId, definitionId, rank, currency)
+    }
+
+    Bool setEnemyDefinitionProgression(
+        Int namespaceId, Int definitionId, Int skillId, Int experience
+    ) {
+        return !started && enemyDefinitions.setProgression(
+            namespaceId, definitionId, skillId, experience)
+    }
+
+    Int extensionRegistryChecksum() {
+        return extensionRegistry.checksum()
+    }
+
+    Int enemyDefinitionChecksum() {
+        return enemyDefinitions.checksum()
+    }
+
+    Int lastExtensionDiagnostic() {
+        return extensionRegistry.lastDiagnostic()
+    }
+
+    Int extensionContributionCount() {
+        return extensionRegistry.contributionCount()
+    }
+
+    Int extensionContributionPublicId(Int position) {
+        return extensionRegistry.orderedContributionPublicId(position)
+    }
+
+    Int enemyDefinitionCount() {
+        return enemyDefinitions.count()
+    }
+
     Bool start() {
-        if (started || !worldInteractions.seal()) {
+        if (started || !extensionRegistry.seal() ||
+            !enemyDefinitions.seal() || !worldInteractions.seal()) {
             return false
         }
         started = true
@@ -2426,6 +2573,9 @@ class LoopbackSession {
             return false
         }
         enemyIds[enemyCount] = enemyId
+        enemyDefinitionNamespaces[enemyCount] = 0
+        enemyDefinitionIds[enemyCount] = 0
+        enemyKinds[enemyCount] = enemyDefinitionNormalKind()
         enemyEncounterIds[enemyCount] = encounterId
         enemyCount = enemyCount + 1
         return true
@@ -2443,9 +2593,167 @@ class LoopbackSession {
             return false
         }
         enemyIds[enemyCount] = enemyId
+        enemyDefinitionNamespaces[enemyCount] = 0
+        enemyDefinitionIds[enemyCount] = 0
+        enemyKinds[enemyCount] = enemyDefinitionNormalKind()
         enemyEncounterIds[enemyCount] = encounterId
         enemyCount = enemyCount + 1
         return true
+    }
+
+    Bool rollbackDefinedEnemy(Int enemyId) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0 || slot != enemyCount - 1 ||
+            !enemyCombat.cancelEnemyAdmission(enemyId)) {
+            return false
+        }
+        if (playerCombatRewardCount > 0 &&
+            playerCombatRewardTargets[playerCombatRewardCount - 1] == enemyId) {
+            var reward = playerCombatRewardCount - 1
+            playerCombatRewardTargets[reward] = 0
+            playerCombatRewardCurrencies[reward] = 0
+            playerCombatRewardClaimed[reward] = false
+            playerCombatRewardCount = reward
+        }
+        enemyIds[slot] = 0
+        enemyDefinitionNamespaces[slot] = 0
+        enemyDefinitionIds[slot] = 0
+        enemyKinds[slot] = enemyDefinitionNormalKind()
+        enemyEncounterIds[slot] = 0
+        enemyPerceptionTargets[slot] = 0
+        enemyPerceptionDistances[slot] = 0
+        enemyPerceptionCriticals[slot] = 0
+        enemyPerceptionVisible[slot] = false
+        enemyPerceptionActive[slot] = false
+        enemySpatialPerceptionActive[slot] = false
+        enemyAutonomous[slot] = false
+        enemyLootStableIds[slot] = 0
+        enemyLootSeeds[slot] = 0
+        enemyLootLevels[slot] = 0
+        enemyLootRanks[slot] = 0
+        enemyLootSkillIds[slot] = 0
+        enemyLootSkillExperiences[slot] = 0
+        enemyLootClaimed[slot] = false
+        enemyCount = enemyCount - 1
+        return true
+    }
+
+    Bool admitDefinedEnemy(
+        Int encounterId, Int enemyId,
+        Int namespaceId, Int definitionId
+    ) {
+        if (!started || !extensionRegistry.validate() ||
+            !enemyDefinitions.validate() ||
+            enemyDefinitions.find(namespaceId, definitionId) < 0 ||
+            enemySlot(enemyId) >= 0 || enemyCount >= enemyIds.length) {
+            return false
+        }
+        var stableId = enemyDefinitions.stableId(
+            namespaceId, definitionId, enemyId)
+        var seed = enemyDefinitions.seed(
+            namespaceId, definitionId, enemyId)
+        var level = enemyDefinitions.level(namespaceId, definitionId)
+        var rank = enemyDefinitions.rank(namespaceId, definitionId)
+        var skillId = enemyDefinitions.skill(namespaceId, definitionId)
+        var experience = enemyDefinitions.experience(
+            namespaceId, definitionId)
+        var currency = enemyDefinitions.currency(namespaceId, definitionId)
+        if (stableId <= 0 || seed < 0 ||
+            !previewLootRoll(stableId, seed, level).accepted() ||
+            (experience > 0 && playerSkillDefinitions.find(skillId) < 0) ||
+            (currency > 0 &&
+                (playerCombatRewardCount >= playerCombatRewardTargets.length ||
+                    playerCombatRewardCount >= 16))) {
+            return false
+        }
+        var configuredLoot = 0
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyLootStableIds[index] > 0) {
+                configuredLoot = configuredLoot + 1
+            }
+            if (enemyLootStableIds[index] == stableId) {
+                return false
+            }
+        }
+        if (configuredLoot >= 8 || worldLoot.find(stableId) >= 0) {
+            return false
+        }
+        for (var index = 0;
+            index < playerCombatRewardCount;
+            index = index + 1) {
+            if (playerCombatRewardTargets[index] == enemyId) {
+                return false
+            }
+        }
+        if (!admitEnemy(
+                encounterId, enemyId,
+                enemyDefinitions.health(namespaceId, definitionId),
+                enemyDefinitions.armor(namespaceId, definitionId),
+                enemyDefinitions.weapon(namespaceId, definitionId))) {
+            return false
+        }
+        var slot = enemyCount - 1
+        enemyDefinitionNamespaces[slot] = namespaceId
+        enemyDefinitionIds[slot] = definitionId
+        enemyKinds[slot] = enemyDefinitions.kind(namespaceId, definitionId)
+        var configured = configureEnemyRole(
+                enemyId,
+                enemyDefinitions.role(namespaceId, definitionId),
+                enemyDefinitions.moveStep(namespaceId, definitionId),
+                enemyDefinitions.projectileStep(namespaceId, definitionId),
+                enemyDefinitions.critical(namespaceId, definitionId)) &&
+            defineEnemyLootReward(enemyId, stableId, seed, level, rank)
+        if (configured && experience > 0) {
+            configured = defineEnemyLootProgressionReward(
+                enemyId, skillId, experience)
+        }
+        if (configured && currency > 0) {
+            configured = defineEnemyCombatReward(enemyId, currency)
+        }
+        if (!configured) {
+            rollbackDefinedEnemy(enemyId)
+            return false
+        }
+        return true
+    }
+
+    Int enemyKind(Int enemyId) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0) {
+            return 0
+        }
+        return enemyKinds[slot]
+    }
+
+    Int enemyDefinitionNamespace(Int enemyId) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0) {
+            return 0
+        }
+        return enemyDefinitionNamespaces[slot]
+    }
+
+    Int enemyDefinitionId(Int enemyId) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0) {
+            return 0
+        }
+        return enemyDefinitionIds[slot]
+    }
+
+    Int activeEnemyKindCount(Int kind) {
+        if (kind < enemyDefinitionEliteKind() ||
+            kind > enemyDefinitionBossKind()) {
+            return -1
+        }
+        var result = 0
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyKinds[index] == kind &&
+                enemyCombat.enemyState(enemyIds[index]) != 7) {
+                result = result + 1
+            }
+        }
+        return result
     }
 
     Bool configureEnemyRole(

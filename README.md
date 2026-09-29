@@ -7,7 +7,7 @@ The doors have prerequisites. The network has prerequisites. Calling this finish
 
 ## The honest status
 
-G0, G1 and G2 run on JVM and native Linux x86-64:
+G0, G1, G2 and G3 run on JVM and native Linux x86-64:
 
 - authoritative 60 Hz loopback server/client sessions, two-client admission,
   snapshots and observable prediction/reconciliation;
@@ -19,15 +19,19 @@ G0, G1 and G2 run on JVM and native Linux x86-64:
   stacked rooms, replicated with explicit broad-phase bounds;
 - camera, bounded world staging and a semantic combat HUD with framed
   health/ammo indicators, a connection glyph, active/reserve encounter load,
-  a focus-responsive crosshair, hit/kill markers, edge damage warnings and a
-  shape-backed inventory/equipment/skill/world-loot panel; SDL_GPU uploads the
-  fixed 378-vertex arena/door/HUD scene without per-frame buffer growth;
+  a focus-responsive crosshair, hit/kill markers, edge damage warnings,
+  shape-backed inventory/equipment/skill/world-loot state and structural
+  elite/boss threat/defeat cues; SDL_GPU uploads the fixed 426-vertex
+  arena/door/HUD scene without per-frame buffer growth;
 - cooperative key, 3D door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
 - authoritative G3 kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward
   flow, recipient-specific inventory/equipment/progression and world-loot
   schemas, plus atomic save/reload of rolls and reward claims;
+- bounded public extension manifests, dependencies, capabilities and
+  deterministic content contributions, plus sealed data-defined elite/boss
+  combat, behavior, loot, progression and currency rules;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
   regressions carry the complete 26-triangle arena, unified checksummed
   movement/fire/interaction/lifecycle commands, recipient-specific gameplay
@@ -43,9 +47,9 @@ G0, G1 and G2 run on JVM and native Linux x86-64:
 
 The important gaps are still real:
 
-- the G3 gameplay slice is qualified through same-host JVM/native external
-  processes; bounded public extension registries and full data-driven
-  elite/boss rules remain open;
+- G3 process qualification is same-host; separate-host execution remains
+  unproven, and the G4 cooker, trusted-module hooks and staged content
+  publication are not implemented;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, content cooking, full physics, streamed/compressed
@@ -167,14 +171,15 @@ initially with Vulkan/SPIR-V.
 
 ## Roadmap
 
-The first G3 vertical slice now executes the authoritative multiplayer
-kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward→save/reload path on
-JVM and native. State kinds `7`/`8` also traverse the authenticated same-host
-host-plus-two-client process path on both targets. G3 remains open for bounded
-public extension registries and full data-driven elite/boss rules. G2 remains
-covered by the JVM/native source suite, focused interaction probe,
-host-plus-two-client process qualification and isolated headless SDL_GPU/audio
-probe.
+G3 is closed at its current acceptance gate: the authoritative multiplayer
+kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward→save/reload path
+runs on JVM and native; state kinds `7`/`8` traverse authenticated same-host
+host-plus-two-client processes; and bounded manifest/capability/contribution
+registries instantiate complete sealed elite/boss definitions. This does not
+claim separate-host qualification or the G4 cooker, trusted-module hooks,
+editor transactions and staged content publication. G2 remains covered by the
+source suite, focused interaction probe, process qualification and isolated
+SDL_GPU/audio probe.
 
 Deferred until the core gates are stronger:
 

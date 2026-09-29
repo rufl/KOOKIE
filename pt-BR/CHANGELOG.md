@@ -4,6 +4,30 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-29
 
+### Encerramento G3: extensões limitadas, chefes por dados e HUD de ameaças
+
+- Adicionamos `BoundedExtensionRegistry` com manifests versionados, dependências
+  e capabilities declaradas, contribuições com namespace, resolução
+  determinística de carga/prioridade, checksums imutáveis e diagnósticos
+  fail-closed.
+- Adicionamos definições completas e seladas de elite/chefe para combate,
+  comportamento, loot determinístico por instância, progressão e moeda. A
+  admissão do inimigo definido faz preflight da capacidade de ator/recompensa
+  e commit atômico.
+- Migramos o demo G1, o caminho G3 de save/reload e a sonda autenticada de
+  transporte externo JVM/nativo para instanciar essas definições em vez de
+  configurar recompensas de elite/chefe por inimigo.
+- Estendemos o HUD fixo de 264 para 312 vértices e a cena completa de 378 para
+  426 com sinais estruturais de diamante de elite, coroa de chefe, contagem e
+  derrota. A apresentação deriva esses sinais do tipo autoritativo do inimigo
+  sem crescimento de capacidade por frame.
+- Todos os 75 cenários-fonte passam na JVM e no nativo. Lint/LSP de Kof,
+  transporte autenticado na mesma máquina na JVM/no nativo e apresentação
+  SDL_GPU Wayland isolada passam. A captura 320×240 informou capability de
+  apresentação `11`, desenhou em 10.789 µs e produziu checksum `30.593.757`; a
+  revisão visual não encontrou clipping, sobreposição de painéis nem estado de
+  ameaça ambíguo dependente apenas de cor.
+
 ### Replicação G3 entre processos e polimento do HUD semântico
 
 - Estendemos o HUD semântico fixo de 174 para 264 vértices com estados limitados

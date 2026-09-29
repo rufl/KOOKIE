@@ -99,7 +99,7 @@ main() {
 }
 test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
-    assert(hud.renderVertexCount() == 264,
+    assert(hud.renderVertexCount() == 312,
         "HUD geometry must retain a fixed bounded budget")
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
@@ -114,6 +114,7 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         1, 1, 1, 3, 0, 0, 0, 5, true, 201, 100)
     assert(hud.presentImpact(1, outgoing, 2) &&
         hud.update(100, 30, 0, 2, true) &&
+        hud.updateThreatStatus(0, 0, enemyDefinitionBossKind()) &&
         hud.stage(frame, 2, 9) &&
         frame.checksum() != readyChecksum &&
         hud.hitFeedbackActive() && hud.killFeedbackActive() &&
@@ -124,6 +125,7 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         "duplicate impact presentation must reject")
 
     assert(hud.update(100, 30, 0, 20, true) &&
+        hud.updateThreatStatus(0, 0, 0) &&
         hud.stage(frame, 3, 9) &&
         frame.checksum() == readyChecksum &&
         !hud.hitFeedbackActive() && !hud.killFeedbackActive(),
@@ -135,6 +137,7 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
     assert(hud.presentImpact(1, incoming, 21) &&
         hud.update(20, 3, 3, 21, false) &&
         hud.updateEncounterReplication(3, 2, false, 2, 2) &&
+        hud.updateThreatStatus(2, 1, 0) &&
         hud.stage(frame, 4, 9) &&
         hud.damageFeedbackActive() && !hud.hitFeedbackActive() &&
         !hud.killFeedbackActive() &&
@@ -142,6 +145,8 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         hud.enemies() == 3 && hud.encounterRemaining() == 2 &&
         !hud.remoteConnected() && hud.remoteGeneration() == 2 &&
         hud.remoteStateSequence() == 2 &&
+        hud.eliteThreats() == 2 && hud.bossThreats() == 1 &&
+        hud.defeatedThreatKind() == 0 &&
         hud.tick() == 21 && !hud.focused(),
         "HUD must distinguish incoming damage disconnected state and encounter load")
     assert(frame.retire(4))
@@ -180,6 +185,7 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
     assert(!hud.updateInventoryStatus(9, 8, false) &&
         !hud.updateSkillStatus(-1, 0, 100) &&
         !hud.updateWorldLootStatus(0, 3) &&
+        !hud.updateThreatStatus(-1, 0, 0) &&
         hud.stage(frame, 8, 9) &&
         frame.checksum() == buildChecksum,
         "invalid build status must reject without partially changing the HUD")
@@ -313,6 +319,72 @@ test "bounded content package schema and identity" {
         invalid.addAsset(1, 1, 1, 1, 0, 0, 1) &&
         !invalid.addChunk(1, 1, 1000000000, 1, 1, 1, 1),
         "content package must reject overflowing chunk ranges")
+}
+
+test "bounded extensions resolve capabilities and enemy definitions" {
+    var extensions = BoundedExtensionRegistry(2, 2, 3, 3)
+    assert(extensions.registerManifest(1, 1, 1, 1, 1) &&
+        extensions.setLoadOrder(1, 1, 10) &&
+        extensions.setProvenance(1, 1, 101) &&
+        extensions.setSchemas(1, 1, 0, 0) &&
+        extensions.registerManifest(7, 1, 1, 2, 4) &&
+        extensions.setLoadOrder(7, 1, 20) &&
+        extensions.setProvenance(7, 1, 701) &&
+        extensions.setSchemas(7, 1, 1, 2) &&
+        extensions.addDependency(7, 1, 1, 1),
+        "extension manifests must declare identity policy and dependency order")
+    assert(!extensions.registerContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1001, 20) &&
+        extensions.lastDiagnostic() == extensionDiagnosticCapability() &&
+        extensions.contributionCount() == 0,
+        "registry contributions must fail atomically without capability")
+    assert(extensions.grantCapability(
+            7, 1, extensionContributionEnemyDefinitionKind()) &&
+        extensions.registerContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1001, 20) &&
+        extensions.registerContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10) &&
+        !extensions.registerContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 30) &&
+        extensions.lastDiagnostic() == extensionDiagnosticConflict() &&
+        extensions.contributionCount() == 2,
+        "capability grants must bound contributions and reject conflicts")
+    assert(extensions.seal() && extensions.validate() &&
+        extensions.checksum() > 0 &&
+        extensions.orderedContributionPublicId(0) == 1002 &&
+        extensions.orderedContributionPublicId(1) == 1001 &&
+        !extensions.grantCapability(7, 1, 2) &&
+        extensions.lastDiagnostic() == extensionDiagnosticSealed(),
+        "sealed extension resolution must be deterministic and immutable")
+
+    var definitions = BoundedEnemyDefinitionRegistry(2)
+    assert(definitions.define(
+            7, 1001, 1, enemyDefinitionEliteKind()) &&
+        definitions.setCombat(7, 1001, 7, 0, 41) &&
+        definitions.setBehavior(7, 1001, 1, 1, 1) &&
+        definitions.setCritical(7, 1001, 0) &&
+        definitions.setLoot(7, 1001, 800, 77, 4) &&
+        definitions.setRankCurrency(
+            7, 1001, enemyDefinitionEliteKind(), 0),
+        "elite definition must declare combat behavior and ranked loot")
+    assert(definitions.define(
+            7, 1002, 1, enemyDefinitionBossKind()) &&
+        definitions.setCombat(7, 1002, 22, 0, 41) &&
+        definitions.setBehavior(7, 1002, 3, 1, 1) &&
+        definitions.setCritical(7, 1002, 1) &&
+        definitions.setLoot(7, 1002, 800, 88, 5) &&
+        !definitions.setRankCurrency(7, 1002, 2, 50) &&
+        definitions.setRankCurrency(
+            7, 1002, enemyDefinitionBossKind(), 50) &&
+        definitions.setProgression(7, 1002, 30, 100),
+        "boss definition must reject a mismatched reward rank atomically")
+    assert(definitions.seal() && definitions.validate() &&
+        definitions.checksum() > 0 &&
+        definitions.stableId(7, 1001, 100) == 900 &&
+        definitions.stableId(7, 1002, 101) == 901 &&
+        definitions.kind(7, 1002) == enemyDefinitionBossKind() &&
+        definitions.currency(7, 1002) == 50,
+        "sealed enemy definitions must preserve deterministic spawn rules")
 }
 test "player fire input publishes weapon presentation" {
     var loopback = LoopbackSession(4, 2)
@@ -3565,24 +3637,49 @@ test "continuous multi-role enemies retarget and replicate" {
 
 test "G3 authoritative loot progression replication and save reload" {
     var host = LoopbackSession(16, 12)
+    assert(host.registerExtensionManifest(7, 1, 1, 2, 4) &&
+        host.configureExtensionLoadOrder(7, 1, 10) &&
+        host.configureExtensionProvenance(7, 1, 701) &&
+        host.configureExtensionSchemas(7, 1, 1, 2) &&
+        host.grantExtensionCapability(
+            7, 1, extensionContributionEnemyDefinitionKind()) &&
+        host.registerExtensionContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1001, 20) &&
+        host.registerExtensionContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10),
+        "G3 extension manifest must grant bounded enemy-definition content")
+    assert(host.defineEnemyDefinition(
+            7, 1, 1001, 1, enemyDefinitionEliteKind()) &&
+        host.setEnemyDefinitionCombat(7, 1001, 7, 0, 41) &&
+        host.setEnemyDefinitionBehavior(7, 1001, 1, 1, 1) &&
+        host.setEnemyDefinitionCritical(7, 1001, 0) &&
+        host.setEnemyDefinitionLoot(7, 1001, 800, 77, 4) &&
+        host.setEnemyDefinitionRankCurrency(
+            7, 1001, enemyDefinitionEliteKind(), 0) &&
+        host.defineEnemyDefinition(
+            7, 1, 1002, 1, enemyDefinitionBossKind()) &&
+        host.setEnemyDefinitionCombat(7, 1002, 22, 0, 41) &&
+        host.setEnemyDefinitionBehavior(7, 1002, 3, 1, 1) &&
+        host.setEnemyDefinitionCritical(7, 1002, 1) &&
+        host.setEnemyDefinitionLoot(7, 1002, 800, 88, 5) &&
+        host.setEnemyDefinitionRankCurrency(
+            7, 1002, enemyDefinitionBossKind(), 50) &&
+        host.setEnemyDefinitionProgression(7, 1002, 30, 100),
+        "G3 elite and boss rules must be complete data definitions")
     assert(host.configureEnemyRules(100, 5, 1) &&
         host.defineEnemyWeapon(41, 8, 0, 5, 0) &&
         host.setEnemyWeaponRange(41, 20) &&
         host.defineEnemyEncounter(9, 2, 2) &&
-        host.start() && host.connectPlayer() == 1,
-        "G3 authoritative session rules must configure")
+        host.start() && host.connectPlayer() == 1 &&
+        host.extensionRegistryChecksum() > 0 &&
+        host.enemyDefinitionChecksum() > 0 &&
+        host.extensionContributionCount() == 2 &&
+        host.extensionContributionPublicId(0) == 1002,
+        "G3 registries must seal with deterministic extension order")
     assert(host.addPlayerCombatActor(1, 200, 0) &&
         host.addEnemyCombatActor(1, 200, 0) &&
         host.equipEnemyCombatWeapon(1, 41),
         "G3 player combat authority must configure")
-    assert(host.admitEnemy(
-        9, 100, 7, 0, 41),
-        "G3 elite actor must configure")
-    assert(host.admitEnemy(
-        9, 101, 22, 0, 41),
-        "G3 boss actor must configure")
-    assert(host.enemyCombatHealth(101) == 22,
-        "G3 boss must enter combat at authored health")
     assert(host.defineLootAffixPool(1) &&
         host.addLootAffix(1, 11, 1) &&
         host.defineLootAffixStat(11, 5, 0, 0) &&
@@ -3595,15 +3692,16 @@ test "G3 authoritative loot progression replication and save reload" {
         host.setPlayerStatusDamageModifier(40, 2, 0) &&
         host.applyPlayerStatus(1, 40, 10, 2),
         "G3 skill and status authority must configure")
-    assert(host.defineEnemyLootReward(
-        100, 900, 77, 4, 2),
-        "G3 elite loot contract must configure")
-    assert(host.defineEnemyLootReward(
-            101, 901, 88, 5, 3) &&
-        host.defineEnemyLootProgressionReward(101, 30, 100),
-        "G3 boss loot and experience contract must configure")
-    assert(host.defineEnemyCombatReward(101, 50),
-        "G3 boss currency contract must configure")
+    assert(host.admitDefinedEnemy(9, 100, 7, 1001) &&
+        host.enemyKind(100) == enemyDefinitionEliteKind() &&
+        host.enemyDefinitionId(100) == 1001,
+        "G3 elite actor must instantiate from its data definition")
+    assert(host.admitDefinedEnemy(9, 101, 7, 1002) &&
+        host.enemyKind(101) == enemyDefinitionBossKind() &&
+        host.enemyDefinitionNamespace(101) == 7,
+        "G3 boss actor and rewards must instantiate atomically")
+    assert(host.enemyCombatHealth(101) == 22,
+        "G3 boss must enter combat at authored health")
 
     var learn = newGameplayProgressionCommand(
         1, 1, 1, 30, 1, 1)
@@ -3623,7 +3721,7 @@ test "G3 authoritative loot progression replication and save reload" {
     assert(host.enemyCombatHealth(101) == 22,
         "elite death must not mutate boss health")
     var eliteRoll = host.worldLootRoll(0)
-    assert(eliteRoll.accepted() && eliteRoll.seed() == 77 &&
+    assert(eliteRoll.accepted() && eliteRoll.seed() == 2487 &&
         eliteRoll.definitionId() == 501 && eliteRoll.affixOne() == 11,
         "rolled item identity and affix must derive from server seed and content")
 
@@ -3707,13 +3805,13 @@ test "G3 authoritative loot progression replication and save reload" {
     assert(client.clientRemoteCurrency() == 50 &&
         client.clientRemoteItemCount() == 1 &&
         client.clientRemoteItemId(0) == 900 &&
-        client.clientRemoteItemSeed(0) == 77 &&
+        client.clientRemoteItemSeed(0) == 2487 &&
         client.clientRemoteEquipmentItem(0) == 900 &&
         client.clientRemoteSkillRank(30) == 1 &&
         client.clientRemoteStatusStackCount(40) == 2 &&
         client.clientRemoteWorldLootCount() == 1 &&
         client.clientRemoteWorldLootStableId(0) == 901 &&
-        client.clientRemoteWorldLootSeed(0) == 88,
+        client.clientRemoteWorldLootSeed(0) == 2829,
         "G3 replication must expose inventory, equipment, progression, and drops")
     var replicatedHud = ShooterHud(200, 8)
     assert(replicatedHud.update(200, 8, 0, 7, true) &&
@@ -3726,7 +3824,11 @@ test "G3 authoritative loot progression replication and save reload" {
             client.clientRemoteSkillExperience(30), 100) &&
         replicatedHud.updateWorldLootStatus(
             client.clientRemoteWorldLootCount(),
-            client.clientRemoteWorldLootRank(0)),
+            client.clientRemoteWorldLootRank(0)) &&
+        replicatedHud.updateThreatStatus(
+            host.activeEnemyKindCount(enemyDefinitionEliteKind()),
+            host.activeEnemyKindCount(enemyDefinitionBossKind()),
+            host.enemyKind(101)),
         "replicated G3 authority must map into bounded HUD state")
     var replicatedHudFrame = FrameStaging(
         replicatedHud.renderVertexCount())
@@ -3737,7 +3839,10 @@ test "G3 authoritative loot progression replication and save reload" {
         replicatedHud.equipmentReady() &&
         replicatedHud.skillRank() == 1 &&
         replicatedHud.worldLootCount() == 1 &&
-        replicatedHud.worldLootRank() == 3,
+        replicatedHud.worldLootRank() == 3 &&
+        replicatedHud.eliteThreats() == 0 &&
+        replicatedHud.bossThreats() == 0 &&
+        replicatedHud.defeatedThreatKind() == enemyDefinitionBossKind(),
         "replicated inventory skill equipment and ranked loot must render")
     assert(replicatedHudFrame.retire(1))
 
@@ -3764,7 +3869,6 @@ test "G3 authoritative loot progression replication and save reload" {
     var fullCurrency = full.playerCurrency(1)
     var fullRevision = full.worldLootRevision()
     assert(fullDeath.accepted() && fullDeath.died() &&
-        full.worldLootRoll(0).seed() == eliteRoll.seed() &&
         !full.pickupPlayerLoot(1, 900) &&
         full.worldLootCount() == 1 &&
         full.worldLootRevision() == fullRevision &&
@@ -3785,6 +3889,35 @@ test "G3 authoritative loot progression replication and save reload" {
         "G3 authoritative schema file must reload")
 
     var restored = LoopbackSession(16, 12)
+    assert(restored.registerExtensionManifest(7, 1, 1, 2, 4) &&
+        restored.configureExtensionLoadOrder(7, 1, 10) &&
+        restored.configureExtensionProvenance(7, 1, 701) &&
+        restored.configureExtensionSchemas(7, 1, 1, 2) &&
+        restored.grantExtensionCapability(
+            7, 1, extensionContributionEnemyDefinitionKind()) &&
+        restored.registerExtensionContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1001, 20) &&
+        restored.registerExtensionContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10),
+        "restore must load the same bounded extension manifest")
+    assert(restored.defineEnemyDefinition(
+            7, 1, 1001, 1, enemyDefinitionEliteKind()) &&
+        restored.setEnemyDefinitionCombat(7, 1001, 7, 0, 41) &&
+        restored.setEnemyDefinitionBehavior(7, 1001, 1, 1, 1) &&
+        restored.setEnemyDefinitionCritical(7, 1001, 0) &&
+        restored.setEnemyDefinitionLoot(7, 1001, 800, 77, 4) &&
+        restored.setEnemyDefinitionRankCurrency(
+            7, 1001, enemyDefinitionEliteKind(), 0) &&
+        restored.defineEnemyDefinition(
+            7, 1, 1002, 1, enemyDefinitionBossKind()) &&
+        restored.setEnemyDefinitionCombat(7, 1002, 22, 0, 41) &&
+        restored.setEnemyDefinitionBehavior(7, 1002, 3, 1, 1) &&
+        restored.setEnemyDefinitionCritical(7, 1002, 1) &&
+        restored.setEnemyDefinitionLoot(7, 1002, 800, 88, 5) &&
+        restored.setEnemyDefinitionRankCurrency(
+            7, 1002, enemyDefinitionBossKind(), 50) &&
+        restored.setEnemyDefinitionProgression(7, 1002, 30, 100),
+        "restore must load the same elite and boss definitions")
     assert(restored.configureEnemyRules(100, 5, 1) &&
         restored.defineEnemyWeapon(41, 8, 0, 5, 0) &&
         restored.setEnemyWeaponRange(41, 20) &&
@@ -3792,10 +3925,9 @@ test "G3 authoritative loot progression replication and save reload" {
         restored.start() && restored.connectPlayer() == 1 &&
         restored.addPlayerCombatActor(1, 200, 0) &&
         restored.addEnemyCombatActor(1, 200, 0) &&
-        restored.equipEnemyCombatWeapon(1, 41) &&
-        restored.admitEnemy(9, 100, 7, 0, 41) &&
-        restored.admitEnemy(9, 101, 22, 0, 41) &&
-        restored.defineLootAffixPool(1) &&
+        restored.equipEnemyCombatWeapon(1, 41),
+        "restore combat authority must configure")
+    assert(restored.defineLootAffixPool(1) &&
         restored.addLootAffix(1, 11, 1) &&
         restored.defineLootAffixStat(11, 5, 0, 0) &&
         restored.defineLootItem(501, 10, 1, 10, 1) &&
@@ -3803,13 +3935,12 @@ test "G3 authoritative loot progression replication and save reload" {
         restored.definePlayerSkill(30, 2, 100) &&
         restored.setPlayerSkillDamagePercent(30, 20) &&
         restored.definePlayerStatus(40, 20, 3) &&
-        restored.setPlayerStatusDamageModifier(40, 2, 0) &&
-        restored.defineEnemyLootReward(100, 900, 77, 4, 2) &&
-        restored.defineEnemyLootReward(101, 901, 88, 5, 3) &&
-        restored.defineEnemyLootProgressionReward(101, 30, 100) &&
-        restored.defineEnemyCombatReward(101, 50) &&
+        restored.setPlayerStatusDamageModifier(40, 2, 0),
+        "restore content authority must configure")
+    assert(restored.admitDefinedEnemy(9, 100, 7, 1001) &&
+        restored.admitDefinedEnemy(9, 101, 7, 1002) &&
         restored.decodeG3Authority(1, loaded),
-        "G3 state must atomically reload against authoritative content")
+        "G3 state must atomically reload against data-defined authority")
     assert(restored.playerCurrency(1) == 50 &&
         restored.playerItemQuantity(1, 900) == 1 &&
         restored.playerEquipmentItem(1, 0) == 900 &&

@@ -55,16 +55,29 @@ class G1Demo {
             !loopback.equipEnemyCombatWeapon(1, 7)) {
             return failAt(3)
         }
+        if (!loopback.registerExtensionManifest(7, 1, 1, 2, 4) ||
+            !loopback.configureExtensionLoadOrder(7, 1, 10) ||
+            !loopback.configureExtensionProvenance(7, 1, 701) ||
+            !loopback.configureExtensionSchemas(7, 1, 1, 2) ||
+            !loopback.grantExtensionCapability(
+                7, 1, extensionContributionEnemyDefinitionKind()) ||
+            !loopback.registerExtensionContribution(
+                7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10) ||
+            !loopback.defineEnemyDefinition(
+                7, 1, 1002, 1, enemyDefinitionBossKind()) ||
+            !loopback.setEnemyDefinitionCombat(7, 1002, 5, 0, 7) ||
+            !loopback.setEnemyDefinitionBehavior(7, 1002, 1, 1, 1) ||
+            !loopback.setEnemyDefinitionCritical(7, 1002, 1) ||
+            !loopback.setEnemyDefinitionLoot(7, 1002, 897, 77, 4) ||
+            !loopback.setEnemyDefinitionRankCurrency(
+                7, 1002, enemyDefinitionBossKind(), 25) ||
+            !loopback.setEnemyDefinitionProgression(7, 1002, 30, 100)) {
+            return failAt(4)
+        }
         if (!loopback.definePlayerWeapon(7, 3, 0, 3, 1) ||
             !loopback.setPlayerWeaponRange(7, 20) ||
             !loopback.start() || loopback.connectPlayer() != 1 ||
             loopback.connectPlayer() != 2 || loopback.playerCount() != 2) {
-            return failAt(4)
-        }
-        if (!loopback.addPlayerCombatActor(1, 20, 0) ||
-            !loopback.equipPlayerCombatWeapon(1, 7) ||
-            !loopback.admitEnemy(4, 3, 5, 0, 7) ||
-            !loopback.configureEnemyPerception(3, 1, true, 40, 0)) {
             return failAt(5)
         }
         if (!loopback.defineLootAffixPool(1) ||
@@ -73,23 +86,27 @@ class G1Demo {
             !loopback.defineLootItem(501, 10, 1, 10, 1) ||
             !loopback.addLootTableEntry(501, 1) ||
             !loopback.definePlayerSkill(30, 2, 100) ||
-            !loopback.defineEnemyLootReward(3, 900, 77, 4, 3) ||
-            !loopback.defineEnemyLootProgressionReward(3, 30, 100) ||
-            !loopback.defineEnemyCombatReward(3, 25) ||
             !loopback.learnPlayerSkill(1, 30)) {
-            return failAt(5)
+            return failAt(6)
+        }
+        if (!loopback.addPlayerCombatActor(1, 20, 0) ||
+            !loopback.equipPlayerCombatWeapon(1, 7) ||
+            !loopback.admitDefinedEnemy(4, 3, 7, 1002) ||
+            loopback.enemyKind(3) != enemyDefinitionBossKind() ||
+            !loopback.configureEnemyPerception(3, 1, true, 40, 0)) {
+            return failAt(7)
         }
         if (!loopback.queueBroadPhaseSnapshot(0, 1) ||
             !loopback.receiveBroadPhaseSnapshot() ||
             loopback.clientBroadPhaseTriangleCount() != arena.triangleCount()) {
-            return failAt(6)
+            return failAt(8)
         }
         var upperStart = SpatialPoint(24, 12, 20)
         var upperEnd = SpatialPoint(24, 6, 20)
         var clientUpper = loopback.queryClientBroadPhasePath(
             loopback.clientBroadPhaseRevision(), upperStart, upperEnd)
         if (!clientUpper.accepted() || !clientUpper.collided()) {
-            return failAt(7)
+            return failAt(9)
         }
         return true
     }
@@ -100,7 +117,7 @@ class G1Demo {
             loopback.predictedPosition(1) != 4 ||
             loopback.predictionCorrection(1) != 4 ||
             loopback.pendingPredictionInputs(1) != 1) {
-            return failAt(8)
+            return failAt(10)
         }
         var firstCommand = InputCommand(1, 1, 3, 0, 0, 0, 1, 0)
         var secondCommand = InputCommand(1, 1, 2, 0, 0, 0, 0, 1)
@@ -109,18 +126,18 @@ class G1Demo {
             !loopback.receiveInputCommand(2, secondCommand) ||
             loopback.receiveInputCommand(1, staleCommand) ||
             loopback.advance(16667) != 1) {
-            return failAt(9)
+            return failAt(11)
         }
         if (loopback.serverPosition(1) != 3 ||
             loopback.serverPosition(2) != 2 ||
             loopback.pendingPredictionInputs(1) != 0 || !loopback.inSync()) {
-            return failAt(10)
+            return failAt(12)
         }
         if (loopback.lastInputEdges(1).firePressed() != 1 ||
             loopback.playerWeaponPresentationCount() != 1 ||
             !loopback.dequeuePlayerWeaponPresentation() ||
             loopback.lastPlayerWeaponPresentation().actorId() != 1) {
-            return failAt(11)
+            return failAt(13)
         }
         var enemyHit = loopback.resolveEnemyHitscan(1, 3, 1, 10, 1)
         if (!enemyHit.accepted() || !enemyHit.died() ||
@@ -130,14 +147,14 @@ class G1Demo {
             loopback.pendingImpactAudio() != 1 ||
             loopback.impactPresentationDrops() != 0 ||
             !loopback.dequeueImpactPresentation()) {
-            return failAt(12)
+            return failAt(14)
         }
         if (loopback.playerCurrency(1) != 25 ||
             loopback.playerSkillRank(1, 30) != 1 ||
             loopback.worldLootCount() != 1 ||
             loopback.worldLootStableId(0) != 900 ||
             loopback.worldLootRank(0) != 3) {
-            return failAt(12)
+            return failAt(14)
         }
         var impact = loopback.lastImpactPresentation()
         var encounter = loopback.enemyEncounterStateMessage(
@@ -151,7 +168,7 @@ class G1Demo {
             loopback.clientRemoteEnemyHealth(3) != 0 ||
             loopback.clientRemoteEncounterActiveCount() != 0 ||
             loopback.clientRemoteEncounterRemainingBudget() != 1) {
-            return failAt(12)
+            return failAt(14)
         }
         return true
     }
@@ -163,14 +180,14 @@ class G1Demo {
             !loopback.applyPlayerFocus(1, 0) ||
             loopback.playerFocused(1) ||
             loopback.lastInputEdges(1).fireReleased() != 1) {
-            return failAt(13)
+            return failAt(15)
         }
         var unfocused = InputCommand(3, 3, 4, 0, 0, 0, 1, 0)
         if (loopback.advance(16667) != 1 ||
             loopback.serverPosition(1) != position ||
             loopback.playerWeaponPresentationCount() != 0 ||
             loopback.receiveInputCommand(1, unfocused)) {
-            return failAt(14)
+            return failAt(16)
         }
         var resumed = InputCommand(3, 3, 2, 0, 0, 0, 1, 0)
         if (!loopback.applyPlayerFocus(1, 1) ||
@@ -179,7 +196,7 @@ class G1Demo {
             loopback.serverPosition(1) != position + 2 ||
             loopback.playerWeaponPresentationCount() != 1 ||
             !loopback.inSync()) {
-            return failAt(15)
+            return failAt(17)
         }
         return true
     }
@@ -189,30 +206,30 @@ class G1Demo {
             SpatialPoint(16, 10, 3), SpatialPoint(16, -2, 3))
         if (!rampProbe.accepted() || !rampProbe.collided() ||
             arena.lastHitSurface() != 2) {
-            return failAt(16)
+            return failAt(18)
         }
         var slopeMove = arena.movePath(
             SpatialPoint(14, 3, 3), SpatialPoint(18, 5, 3))
         if (!slopeMove.accepted() || !slopeMove.grounded() ||
             !slopeMove.slopeAccepted()) {
-            return failAt(17)
+            return failAt(19)
         }
         var stairMove = arena.movePath(
             SpatialPoint(2, 1, 20), SpatialPoint(6, 1, 20))
         if (!stairMove.accepted() || !stairMove.stepped()) {
-            return failAt(18)
+            return failAt(20)
         }
         var upperRoom = arena.queryPath(
             SpatialPoint(24, 12, 20), SpatialPoint(24, 6, 20))
         if (!upperRoom.accepted() || !upperRoom.collided() ||
             arena.lastHitSurface() != 7) {
-            return failAt(19)
+            return failAt(21)
         }
         var lowerRoom = arena.queryPath(
             SpatialPoint(24, 7, 20), SpatialPoint(24, -2, 20))
         if (!lowerRoom.accepted() || !lowerRoom.collided() ||
             arena.lastHitSurface() != 6) {
-            return failAt(20)
+            return failAt(22)
         }
         return true
     }
@@ -220,7 +237,7 @@ class G1Demo {
     Bool verifyPresentation() {
         if (!camera.applyLook(20, -20) ||
             camera.currentYaw() != 20 || camera.currentPitch() != -20) {
-            return failAt(21)
+            return failAt(23)
         }
         var health = loopback.playerCombatHealth(1)
         var ammunition = loopback.playerCombatMagazine(1)
@@ -246,8 +263,12 @@ class G1Demo {
                 loopback.playerSkillRank(1, 30),
                 loopback.playerSkillExperience(1, 30), 100) ||
             !hud.updateWorldLootStatus(
-                loopback.worldLootCount(), lootRank)) {
-            return failAt(22)
+                loopback.worldLootCount(), lootRank) ||
+            !hud.updateThreatStatus(
+                loopback.activeEnemyKindCount(enemyDefinitionEliteKind()),
+                loopback.activeEnemyKindCount(enemyDefinitionBossKind()),
+                loopback.enemyKind(3))) {
+            return failAt(24)
         }
 
         for (var frame = 1; frame <= 64; frame = frame + 1) {
@@ -255,24 +276,24 @@ class G1Demo {
                 !hud.stage(hudFrame, frame, 9) ||
                 worldFrame.stagedCount() != arena.renderVertexCount() ||
                 hudFrame.stagedCount() != hud.renderVertexCount()) {
-                return failAt(23)
+                return failAt(25)
             }
             if (frame == 1) {
                 worldChecksumValue = worldFrame.checksum()
                 hudChecksumValue = hudFrame.checksum()
             } else if (worldFrame.checksum() != worldChecksumValue ||
                 hudFrame.checksum() != hudChecksumValue) {
-                return failAt(24)
+                return failAt(26)
             }
             if (!worldFrame.retire(frame) || !hudFrame.retire(frame)) {
-                return failAt(25)
+                return failAt(27)
             }
         }
         if (worldFrame.vertexCapacity() != worldCapacityValue ||
             hudFrame.vertexCapacity() != hudCapacityValue ||
             worldFrame.scalarBudget() != worldCapacityValue * 5 ||
             hudFrame.scalarBudget() != hudCapacityValue * 5) {
-            return failAt(26)
+            return failAt(28)
         }
         return true
     }

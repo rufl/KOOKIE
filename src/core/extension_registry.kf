@@ -1,0 +1,1072 @@
+package core
+
+Int extensionContributionEnemyDefinitionKind() {
+    return 1
+}
+
+Int extensionDiagnosticNone() {
+    return 0
+}
+
+Int extensionDiagnosticInvalid() {
+    return 1
+}
+
+Int extensionDiagnosticConflict() {
+    return 2
+}
+
+Int extensionDiagnosticCapacity() {
+    return 3
+}
+
+Int extensionDiagnosticOwner() {
+    return 4
+}
+
+Int extensionDiagnosticCapability() {
+    return 5
+}
+
+Int extensionDiagnosticDependency() {
+    return 6
+}
+
+Int extensionDiagnosticOrder() {
+    return 7
+}
+
+Int extensionDiagnosticSealed() {
+    return 8
+}
+
+Int enemyDefinitionNormalKind() {
+    return 1
+}
+
+Int enemyDefinitionEliteKind() {
+    return 2
+}
+
+Int enemyDefinitionBossKind() {
+    return 3
+}
+
+class BoundedExtensionRegistry {
+    Int[] manifestNamespaces
+    Int[] manifestIds
+    Int[] manifestApiVersions
+    Int[] manifestSchemaVersions
+    Int[] manifestRoles
+    Int[] manifestLoadOrders
+    Int[] manifestProvenanceHashes
+    Int[] manifestMigrationVersions
+    Int[] manifestNetworkSchemas
+    Int[] dependencyOwnerNamespaces
+    Int[] dependencyOwnerIds
+    Int[] dependencyNamespaces
+    Int[] dependencyIds
+    Int[] capabilityOwnerNamespaces
+    Int[] capabilityOwnerIds
+    Int[] capabilityIds
+    Int[] contributionOwnerNamespaces
+    Int[] contributionOwnerIds
+    Int[] contributionKinds
+    Int[] contributionPublicIds
+    Int[] contributionPriorities
+    Int manifestCountValue
+    Int dependencyCountValue
+    Int capabilityCountValue
+    Int contributionCountValue
+    Int checksumValue
+    Int lastDiagnosticValue
+    Bool sealedValue
+
+    public constructor(
+        Int manifestCapacity,
+        Int dependencyCapacity,
+        Int capabilityCapacity,
+        Int contributionCapacity
+    ) {
+        var manifests = manifestCapacity
+        var dependencies = dependencyCapacity
+        var capabilities = capabilityCapacity
+        var contributions = contributionCapacity
+        if (manifests <= 0) {
+            manifests = 1
+        }
+        if (manifests > 16) {
+            manifests = 16
+        }
+        if (dependencies <= 0) {
+            dependencies = 1
+        }
+        if (dependencies > 32) {
+            dependencies = 32
+        }
+        if (capabilities <= 0) {
+            capabilities = 1
+        }
+        if (capabilities > 64) {
+            capabilities = 64
+        }
+        if (contributions <= 0) {
+            contributions = 1
+        }
+        if (contributions > 64) {
+            contributions = 64
+        }
+        manifestNamespaces = new Int[manifests]
+        manifestIds = new Int[manifests]
+        manifestApiVersions = new Int[manifests]
+        manifestSchemaVersions = new Int[manifests]
+        manifestRoles = new Int[manifests]
+        manifestLoadOrders = new Int[manifests]
+        manifestProvenanceHashes = new Int[manifests]
+        manifestMigrationVersions = new Int[manifests]
+        manifestNetworkSchemas = new Int[manifests]
+        dependencyOwnerNamespaces = new Int[dependencies]
+        dependencyOwnerIds = new Int[dependencies]
+        dependencyNamespaces = new Int[dependencies]
+        dependencyIds = new Int[dependencies]
+        capabilityOwnerNamespaces = new Int[capabilities]
+        capabilityOwnerIds = new Int[capabilities]
+        capabilityIds = new Int[capabilities]
+        contributionOwnerNamespaces = new Int[contributions]
+        contributionOwnerIds = new Int[contributions]
+        contributionKinds = new Int[contributions]
+        contributionPublicIds = new Int[contributions]
+        contributionPriorities = new Int[contributions]
+        manifestCountValue = 0
+        dependencyCountValue = 0
+        capabilityCountValue = 0
+        contributionCountValue = 0
+        checksumValue = 0
+        lastDiagnosticValue = extensionDiagnosticNone()
+        sealedValue = false
+        for (var index = 0; index < manifests; index = index + 1) {
+            manifestNamespaces[index] = 0
+            manifestIds[index] = 0
+            manifestApiVersions[index] = 0
+            manifestSchemaVersions[index] = 0
+            manifestRoles[index] = 0
+            manifestLoadOrders[index] = 0
+            manifestProvenanceHashes[index] = 0
+            manifestMigrationVersions[index] = 0
+            manifestNetworkSchemas[index] = 0
+        }
+        for (var index = 0; index < dependencies; index = index + 1) {
+            dependencyOwnerNamespaces[index] = 0
+            dependencyOwnerIds[index] = 0
+            dependencyNamespaces[index] = 0
+            dependencyIds[index] = 0
+        }
+        for (var index = 0; index < capabilities; index = index + 1) {
+            capabilityOwnerNamespaces[index] = 0
+            capabilityOwnerIds[index] = 0
+            capabilityIds[index] = 0
+        }
+        for (var index = 0; index < contributions; index = index + 1) {
+            contributionOwnerNamespaces[index] = 0
+            contributionOwnerIds[index] = 0
+            contributionKinds[index] = 0
+            contributionPublicIds[index] = 0
+            contributionPriorities[index] = 0
+        }
+    }
+
+    Bool reject(Int diagnostic) {
+        lastDiagnosticValue = diagnostic
+        return false
+    }
+
+    Int manifestIndex(Int namespaceId, Int extensionId) {
+        for (var index = 0; index < manifestCountValue; index = index + 1) {
+            if (manifestNamespaces[index] == namespaceId &&
+                manifestIds[index] == extensionId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int capabilityIndex(
+        Int ownerNamespace, Int ownerId, Int capabilityId
+    ) {
+        for (var index = 0; index < capabilityCountValue; index = index + 1) {
+            if (capabilityOwnerNamespaces[index] == ownerNamespace &&
+                capabilityOwnerIds[index] == ownerId &&
+                capabilityIds[index] == capabilityId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int contributionIndex(
+        Int ownerNamespace, Int ownerId, Int kind, Int publicId
+    ) {
+        for (var index = 0; index < contributionCountValue; index = index + 1) {
+            if (contributionOwnerNamespaces[index] == ownerNamespace &&
+                contributionOwnerIds[index] == ownerId &&
+                contributionKinds[index] == kind &&
+                contributionPublicIds[index] == publicId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool registerManifest(
+        Int namespaceId, Int extensionId,
+        Int apiVersion, Int schemaVersion, Int role
+    ) {
+        if (sealedValue) {
+            return reject(extensionDiagnosticSealed())
+        }
+        if (namespaceId <= 0 || namespaceId > 1000000 ||
+            extensionId <= 0 || extensionId > 1000000 ||
+            apiVersion <= 0 || apiVersion > 1000000 ||
+            schemaVersion <= 0 || schemaVersion > 1000000 ||
+            role <= 0 || role > 16) {
+            return reject(extensionDiagnosticInvalid())
+        }
+        if (manifestIndex(namespaceId, extensionId) >= 0) {
+            return reject(extensionDiagnosticConflict())
+        }
+        if (manifestCountValue >= manifestNamespaces.length) {
+            return reject(extensionDiagnosticCapacity())
+        }
+        var index = manifestCountValue
+        manifestNamespaces[index] = namespaceId
+        manifestIds[index] = extensionId
+        manifestApiVersions[index] = apiVersion
+        manifestSchemaVersions[index] = schemaVersion
+        manifestRoles[index] = role
+        manifestLoadOrders[index] = 0
+        manifestProvenanceHashes[index] = 0
+        manifestMigrationVersions[index] = 0
+        manifestNetworkSchemas[index] = 0
+        manifestCountValue = manifestCountValue + 1
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool setLoadOrder(Int namespaceId, Int extensionId, Int loadOrder) {
+        if (sealedValue) {
+            return reject(extensionDiagnosticSealed())
+        }
+        var index = manifestIndex(namespaceId, extensionId)
+        if (index < 0) {
+            return reject(extensionDiagnosticOwner())
+        }
+        if (loadOrder <= 0 || loadOrder > 1000000) {
+            return reject(extensionDiagnosticInvalid())
+        }
+        manifestLoadOrders[index] = loadOrder
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool setProvenance(
+        Int namespaceId, Int extensionId, Int provenanceHash
+    ) {
+        if (sealedValue) {
+            return reject(extensionDiagnosticSealed())
+        }
+        var index = manifestIndex(namespaceId, extensionId)
+        if (index < 0) {
+            return reject(extensionDiagnosticOwner())
+        }
+        if (provenanceHash <= 0 || provenanceHash > 1000000) {
+            return reject(extensionDiagnosticInvalid())
+        }
+        manifestProvenanceHashes[index] = provenanceHash
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool setSchemas(
+        Int namespaceId, Int extensionId,
+        Int migrationVersion, Int networkSchema
+    ) {
+        if (sealedValue) {
+            return reject(extensionDiagnosticSealed())
+        }
+        var index = manifestIndex(namespaceId, extensionId)
+        if (index < 0) {
+            return reject(extensionDiagnosticOwner())
+        }
+        if (migrationVersion < 0 || migrationVersion > 1000000 ||
+            networkSchema < 0 || networkSchema > 1000000) {
+            return reject(extensionDiagnosticInvalid())
+        }
+        manifestMigrationVersions[index] = migrationVersion
+        manifestNetworkSchemas[index] = networkSchema
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool addDependency(
+        Int ownerNamespace, Int ownerId,
+        Int dependencyNamespace, Int dependencyId
+    ) {
+        if (sealedValue) {
+            return reject(extensionDiagnosticSealed())
+        }
+        if (manifestIndex(ownerNamespace, ownerId) < 0) {
+            return reject(extensionDiagnosticOwner())
+        }
+        if (dependencyNamespace <= 0 || dependencyNamespace > 1000000 ||
+            dependencyId <= 0 || dependencyId > 1000000 ||
+            (ownerNamespace == dependencyNamespace && ownerId == dependencyId)) {
+            return reject(extensionDiagnosticInvalid())
+        }
+        if (dependencyCountValue >= dependencyOwnerNamespaces.length) {
+            return reject(extensionDiagnosticCapacity())
+        }
+        for (var index = 0; index < dependencyCountValue; index = index + 1) {
+            if (dependencyOwnerNamespaces[index] == ownerNamespace &&
+                dependencyOwnerIds[index] == ownerId &&
+                dependencyNamespaces[index] == dependencyNamespace &&
+                dependencyIds[index] == dependencyId) {
+                return reject(extensionDiagnosticConflict())
+            }
+        }
+        var index = dependencyCountValue
+        dependencyOwnerNamespaces[index] = ownerNamespace
+        dependencyOwnerIds[index] = ownerId
+        dependencyNamespaces[index] = dependencyNamespace
+        dependencyIds[index] = dependencyId
+        dependencyCountValue = dependencyCountValue + 1
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool grantCapability(
+        Int ownerNamespace, Int ownerId, Int capabilityId
+    ) {
+        if (sealedValue) {
+            return reject(extensionDiagnosticSealed())
+        }
+        if (manifestIndex(ownerNamespace, ownerId) < 0) {
+            return reject(extensionDiagnosticOwner())
+        }
+        if (capabilityId <= 0 || capabilityId > 64) {
+            return reject(extensionDiagnosticInvalid())
+        }
+        if (capabilityIndex(ownerNamespace, ownerId, capabilityId) >= 0) {
+            return reject(extensionDiagnosticConflict())
+        }
+        if (capabilityCountValue >= capabilityOwnerNamespaces.length) {
+            return reject(extensionDiagnosticCapacity())
+        }
+        var index = capabilityCountValue
+        capabilityOwnerNamespaces[index] = ownerNamespace
+        capabilityOwnerIds[index] = ownerId
+        capabilityIds[index] = capabilityId
+        capabilityCountValue = capabilityCountValue + 1
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool registerContribution(
+        Int ownerNamespace, Int ownerId,
+        Int kind, Int publicId, Int priority
+    ) {
+        if (sealedValue) {
+            return reject(extensionDiagnosticSealed())
+        }
+        if (manifestIndex(ownerNamespace, ownerId) < 0) {
+            return reject(extensionDiagnosticOwner())
+        }
+        if (kind <= 0 || kind > 64 ||
+            publicId <= 0 || publicId > 1000000 ||
+            priority < 0 || priority > 1000000) {
+            return reject(extensionDiagnosticInvalid())
+        }
+        if (capabilityIndex(ownerNamespace, ownerId, kind) < 0) {
+            return reject(extensionDiagnosticCapability())
+        }
+        if (contributionCountValue >= contributionOwnerNamespaces.length) {
+            return reject(extensionDiagnosticCapacity())
+        }
+        for (var index = 0; index < contributionCountValue; index = index + 1) {
+            if (contributionKinds[index] == kind &&
+                contributionOwnerNamespaces[index] == ownerNamespace &&
+                contributionPublicIds[index] == publicId) {
+                return reject(extensionDiagnosticConflict())
+            }
+        }
+        var index = contributionCountValue
+        contributionOwnerNamespaces[index] = ownerNamespace
+        contributionOwnerIds[index] = ownerId
+        contributionKinds[index] = kind
+        contributionPublicIds[index] = publicId
+        contributionPriorities[index] = priority
+        contributionCountValue = contributionCountValue + 1
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool hasContribution(
+        Int ownerNamespace, Int ownerId, Int kind, Int publicId
+    ) {
+        return contributionIndex(ownerNamespace, ownerId, kind, publicId) >= 0
+    }
+
+    Bool structuralValid() {
+        for (var index = 0; index < manifestCountValue; index = index + 1) {
+            if (manifestNamespaces[index] <= 0 || manifestIds[index] <= 0 ||
+                manifestApiVersions[index] <= 0 ||
+                manifestSchemaVersions[index] <= 0 ||
+                manifestRoles[index] <= 0 || manifestRoles[index] > 16 ||
+                manifestLoadOrders[index] <= 0 ||
+                manifestProvenanceHashes[index] <= 0) {
+                return false
+            }
+            for (var other = index + 1; other < manifestCountValue; other = other + 1) {
+                if (manifestNamespaces[index] == manifestNamespaces[other] &&
+                    manifestIds[index] == manifestIds[other]) {
+                    return false
+                }
+            }
+        }
+        for (var index = 0; index < dependencyCountValue; index = index + 1) {
+            var owner = manifestIndex(
+                dependencyOwnerNamespaces[index], dependencyOwnerIds[index])
+            var dependency = manifestIndex(
+                dependencyNamespaces[index], dependencyIds[index])
+            if (owner < 0 || dependency < 0 ||
+                manifestLoadOrders[dependency] >= manifestLoadOrders[owner]) {
+                return false
+            }
+        }
+        for (var index = 0; index < capabilityCountValue; index = index + 1) {
+            if (manifestIndex(
+                    capabilityOwnerNamespaces[index],
+                    capabilityOwnerIds[index]) < 0 ||
+                capabilityIds[index] <= 0 || capabilityIds[index] > 64) {
+                return false
+            }
+        }
+        for (var index = 0; index < contributionCountValue; index = index + 1) {
+            if (manifestIndex(
+                    contributionOwnerNamespaces[index],
+                    contributionOwnerIds[index]) < 0 ||
+                capabilityIndex(
+                    contributionOwnerNamespaces[index],
+                    contributionOwnerIds[index],
+                    contributionKinds[index]) < 0 ||
+                contributionPublicIds[index] <= 0 ||
+                contributionPriorities[index] < 0) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) {
+            normalized = normalized + 1000003
+        }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 17
+        result = mix(result, 1)
+        result = mix(result, manifestCountValue)
+        result = mix(result, dependencyCountValue)
+        result = mix(result, capabilityCountValue)
+        result = mix(result, contributionCountValue)
+        for (var index = 0; index < manifestCountValue; index = index + 1) {
+            result = mix(result, manifestNamespaces[index])
+            result = mix(result, manifestIds[index])
+            result = mix(result, manifestApiVersions[index])
+            result = mix(result, manifestSchemaVersions[index])
+            result = mix(result, manifestRoles[index])
+            result = mix(result, manifestLoadOrders[index])
+            result = mix(result, manifestProvenanceHashes[index])
+            result = mix(result, manifestMigrationVersions[index])
+            result = mix(result, manifestNetworkSchemas[index])
+        }
+        for (var index = 0; index < dependencyCountValue; index = index + 1) {
+            result = mix(result, dependencyOwnerNamespaces[index])
+            result = mix(result, dependencyOwnerIds[index])
+            result = mix(result, dependencyNamespaces[index])
+            result = mix(result, dependencyIds[index])
+        }
+        for (var index = 0; index < capabilityCountValue; index = index + 1) {
+            result = mix(result, capabilityOwnerNamespaces[index])
+            result = mix(result, capabilityOwnerIds[index])
+            result = mix(result, capabilityIds[index])
+        }
+        for (var index = 0; index < contributionCountValue; index = index + 1) {
+            result = mix(result, contributionOwnerNamespaces[index])
+            result = mix(result, contributionOwnerIds[index])
+            result = mix(result, contributionKinds[index])
+            result = mix(result, contributionPublicIds[index])
+            result = mix(result, contributionPriorities[index])
+        }
+        return result
+    }
+
+    Bool seal() {
+        if (sealedValue) {
+            return validate()
+        }
+        if (!structuralValid()) {
+            return reject(extensionDiagnosticDependency())
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        lastDiagnosticValue = extensionDiagnosticNone()
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && structuralValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    Bool contributionBefore(Int first, Int second) {
+        var firstOwner = manifestIndex(
+            contributionOwnerNamespaces[first], contributionOwnerIds[first])
+        var secondOwner = manifestIndex(
+            contributionOwnerNamespaces[second], contributionOwnerIds[second])
+        if (manifestLoadOrders[firstOwner] != manifestLoadOrders[secondOwner]) {
+            return manifestLoadOrders[firstOwner] < manifestLoadOrders[secondOwner]
+        }
+        if (contributionPriorities[first] != contributionPriorities[second]) {
+            return contributionPriorities[first] < contributionPriorities[second]
+        }
+        if (contributionOwnerNamespaces[first] != contributionOwnerNamespaces[second]) {
+            return contributionOwnerNamespaces[first] < contributionOwnerNamespaces[second]
+        }
+        if (contributionPublicIds[first] != contributionPublicIds[second]) {
+            return contributionPublicIds[first] < contributionPublicIds[second]
+        }
+        if (contributionOwnerIds[first] != contributionOwnerIds[second]) {
+            return contributionOwnerIds[first] < contributionOwnerIds[second]
+        }
+        return contributionKinds[first] < contributionKinds[second]
+    }
+
+    Int orderedContributionIndex(Int position) {
+        if (!validate() || position < 0 || position >= contributionCountValue) {
+            return -1
+        }
+        for (var candidate = 0; candidate < contributionCountValue; candidate = candidate + 1) {
+            var rank = 0
+            for (var other = 0; other < contributionCountValue; other = other + 1) {
+                if (other != candidate && contributionBefore(other, candidate)) {
+                    rank = rank + 1
+                }
+            }
+            if (rank == position) {
+                return candidate
+            }
+        }
+        return -1
+    }
+
+    Int manifestCount() {
+        return manifestCountValue
+    }
+
+    Int dependencyCount() {
+        return dependencyCountValue
+    }
+
+    Int capabilityCount() {
+        return capabilityCountValue
+    }
+
+    Int contributionCount() {
+        return contributionCountValue
+    }
+
+    Int checksum() {
+        if (!validate()) {
+            return -1
+        }
+        return checksumValue
+    }
+
+    Int lastDiagnostic() {
+        return lastDiagnosticValue
+    }
+
+    Int orderedContributionNamespace(Int position) {
+        var index = orderedContributionIndex(position)
+        if (index < 0) {
+            return 0
+        }
+        return contributionOwnerNamespaces[index]
+    }
+
+    Int orderedContributionOwner(Int position) {
+        var index = orderedContributionIndex(position)
+        if (index < 0) {
+            return 0
+        }
+        return contributionOwnerIds[index]
+    }
+
+    Int orderedContributionKind(Int position) {
+        var index = orderedContributionIndex(position)
+        if (index < 0) {
+            return 0
+        }
+        return contributionKinds[index]
+    }
+
+    Int orderedContributionPublicId(Int position) {
+        var index = orderedContributionIndex(position)
+        if (index < 0) {
+            return 0
+        }
+        return contributionPublicIds[index]
+    }
+}
+
+class BoundedEnemyDefinitionRegistry {
+    Int[] namespaces
+    Int[] ids
+    Int[] revisions
+    Int[] kinds
+    Int[] healthValues
+    Int[] armorValues
+    Int[] weaponIds
+    Int[] roles
+    Int[] moveSteps
+    Int[] projectileSteps
+    Int[] criticalValues
+    Int[] lootStableBases
+    Int[] lootSeedSalts
+    Int[] lootLevels
+    Int[] lootRanks
+    Int[] skillIds
+    Int[] skillExperiences
+    Int[] currencies
+    Bool[] combatConfigured
+    Bool[] behaviorConfigured
+    Bool[] lootConfigured
+    Bool[] rewardConfigured
+    Int countValue
+    Int checksumValue
+    Bool sealedValue
+
+    public constructor(Int capacity) {
+        var actual = capacity
+        if (actual <= 0) {
+            actual = 1
+        }
+        if (actual > 32) {
+            actual = 32
+        }
+        namespaces = new Int[actual]
+        ids = new Int[actual]
+        revisions = new Int[actual]
+        kinds = new Int[actual]
+        healthValues = new Int[actual]
+        armorValues = new Int[actual]
+        weaponIds = new Int[actual]
+        roles = new Int[actual]
+        moveSteps = new Int[actual]
+        projectileSteps = new Int[actual]
+        criticalValues = new Int[actual]
+        lootStableBases = new Int[actual]
+        lootSeedSalts = new Int[actual]
+        lootLevels = new Int[actual]
+        lootRanks = new Int[actual]
+        skillIds = new Int[actual]
+        skillExperiences = new Int[actual]
+        currencies = new Int[actual]
+        combatConfigured = new Bool[actual]
+        behaviorConfigured = new Bool[actual]
+        lootConfigured = new Bool[actual]
+        rewardConfigured = new Bool[actual]
+        countValue = 0
+        checksumValue = 0
+        sealedValue = false
+        for (var index = 0; index < actual; index = index + 1) {
+            namespaces[index] = 0
+            ids[index] = 0
+            revisions[index] = 0
+            kinds[index] = 0
+            healthValues[index] = 0
+            armorValues[index] = 0
+            weaponIds[index] = 0
+            roles[index] = 0
+            moveSteps[index] = 0
+            projectileSteps[index] = 0
+            criticalValues[index] = 0
+            lootStableBases[index] = 0
+            lootSeedSalts[index] = 0
+            lootLevels[index] = 0
+            lootRanks[index] = 0
+            skillIds[index] = 0
+            skillExperiences[index] = 0
+            currencies[index] = 0
+            combatConfigured[index] = false
+            behaviorConfigured[index] = false
+            lootConfigured[index] = false
+            rewardConfigured[index] = false
+        }
+    }
+
+    Int find(Int namespaceId, Int definitionId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (namespaces[index] == namespaceId && ids[index] == definitionId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool keyAfter(Int namespaceId, Int definitionId) {
+        if (countValue == 0) {
+            return true
+        }
+        var last = countValue - 1
+        return namespaceId > namespaces[last] ||
+            (namespaceId == namespaces[last] && definitionId > ids[last])
+    }
+
+    Bool define(
+        Int namespaceId, Int definitionId, Int revision, Int kind
+    ) {
+        if (sealedValue || namespaceId <= 0 || namespaceId > 1000000 ||
+            definitionId <= 0 || definitionId > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            kind < enemyDefinitionNormalKind() ||
+            kind > enemyDefinitionBossKind() ||
+            countValue >= namespaces.length ||
+            find(namespaceId, definitionId) >= 0 ||
+            !keyAfter(namespaceId, definitionId)) {
+            return false
+        }
+        var index = countValue
+        namespaces[index] = namespaceId
+        ids[index] = definitionId
+        revisions[index] = revision
+        kinds[index] = kind
+        countValue = countValue + 1
+        return true
+    }
+
+    Bool setCombat(
+        Int namespaceId, Int definitionId,
+        Int health, Int armor, Int weaponId
+    ) {
+        var index = find(namespaceId, definitionId)
+        if (sealedValue || index < 0 || combatConfigured[index] ||
+            health <= 0 || health > 1000000 ||
+            armor < 0 || armor > 1000000 ||
+            weaponId <= 0 || weaponId > 1000000) {
+            return false
+        }
+        healthValues[index] = health
+        armorValues[index] = armor
+        weaponIds[index] = weaponId
+        combatConfigured[index] = true
+        return true
+    }
+
+    Bool setBehavior(
+        Int namespaceId, Int definitionId,
+        Int role, Int moveStep, Int projectileStep
+    ) {
+        var index = find(namespaceId, definitionId)
+        if (sealedValue || index < 0 || behaviorConfigured[index] ||
+            role < 1 || role > 3 ||
+            moveStep <= 0 || moveStep > 1000000 ||
+            projectileStep <= 0 || projectileStep > 1000000) {
+            return false
+        }
+        roles[index] = role
+        moveSteps[index] = moveStep
+        projectileSteps[index] = projectileStep
+        behaviorConfigured[index] = true
+        return true
+    }
+
+    Bool setCritical(
+        Int namespaceId, Int definitionId, Int critical
+    ) {
+        var index = find(namespaceId, definitionId)
+        if (sealedValue || index < 0 || critical < 0 || critical > 1) {
+            return false
+        }
+        criticalValues[index] = critical
+        return true
+    }
+
+    Bool setLoot(
+        Int namespaceId, Int definitionId,
+        Int stableBase, Int seedSalt, Int level
+    ) {
+        var index = find(namespaceId, definitionId)
+        if (sealedValue || index < 0 || lootConfigured[index] ||
+            stableBase <= 0 || stableBase > 999999 ||
+            seedSalt < 0 || seedSalt > 1000000 ||
+            level <= 0 || level > 1000000) {
+            return false
+        }
+        lootStableBases[index] = stableBase
+        lootSeedSalts[index] = seedSalt
+        lootLevels[index] = level
+        lootConfigured[index] = true
+        return true
+    }
+
+    Bool setRankCurrency(
+        Int namespaceId, Int definitionId, Int rank, Int currency
+    ) {
+        var index = find(namespaceId, definitionId)
+        if (sealedValue || index < 0 || rewardConfigured[index] ||
+            rank != kinds[index] ||
+            currency < 0 || currency > 1000000) {
+            return false
+        }
+        lootRanks[index] = rank
+        currencies[index] = currency
+        rewardConfigured[index] = true
+        return true
+    }
+
+    Bool setProgression(
+        Int namespaceId, Int definitionId, Int skillId, Int experience
+    ) {
+        var index = find(namespaceId, definitionId)
+        if (sealedValue || index < 0 ||
+            skillIds[index] != 0 || skillExperiences[index] != 0 ||
+            ((skillId == 0 || experience == 0) &&
+                (skillId != 0 || experience != 0)) ||
+            skillId < 0 || skillId > 1000000 ||
+            experience < 0 || experience > 1000000) {
+            return false
+        }
+        skillIds[index] = skillId
+        skillExperiences[index] = experience
+        return true
+    }
+
+    Bool structuralValid() {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (namespaces[index] <= 0 || ids[index] <= 0 ||
+                revisions[index] <= 0 ||
+                kinds[index] < enemyDefinitionNormalKind() ||
+                kinds[index] > enemyDefinitionBossKind() ||
+                !combatConfigured[index] || !behaviorConfigured[index] ||
+                !lootConfigured[index] || !rewardConfigured[index] ||
+                healthValues[index] <= 0 || armorValues[index] < 0 ||
+                weaponIds[index] <= 0 || roles[index] < 1 || roles[index] > 3 ||
+                moveSteps[index] <= 0 || projectileSteps[index] <= 0 ||
+                criticalValues[index] < 0 || criticalValues[index] > 1 ||
+                lootStableBases[index] <= 0 || lootSeedSalts[index] < 0 ||
+                lootLevels[index] <= 0 || lootRanks[index] != kinds[index] ||
+                currencies[index] < 0 ||
+                (skillExperiences[index] > 0 &&
+                    kinds[index] != enemyDefinitionBossKind()) ||
+                ((skillIds[index] == 0 || skillExperiences[index] == 0) &&
+                    (skillIds[index] != 0 || skillExperiences[index] != 0))) {
+                return false
+            }
+            if (index > 0 &&
+                !(namespaces[index] > namespaces[index - 1] ||
+                    (namespaces[index] == namespaces[index - 1] &&
+                        ids[index] > ids[index - 1]))) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) {
+            normalized = normalized + 1000003
+        }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 23
+        result = mix(result, 1)
+        result = mix(result, countValue)
+        for (var index = 0; index < countValue; index = index + 1) {
+            result = mix(result, namespaces[index])
+            result = mix(result, ids[index])
+            result = mix(result, revisions[index])
+            result = mix(result, kinds[index])
+            result = mix(result, healthValues[index])
+            result = mix(result, armorValues[index])
+            result = mix(result, weaponIds[index])
+            result = mix(result, roles[index])
+            result = mix(result, moveSteps[index])
+            result = mix(result, projectileSteps[index])
+            result = mix(result, criticalValues[index])
+            result = mix(result, lootStableBases[index])
+            result = mix(result, lootSeedSalts[index])
+            result = mix(result, lootLevels[index])
+            result = mix(result, lootRanks[index])
+            result = mix(result, skillIds[index])
+            result = mix(result, skillExperiences[index])
+            result = mix(result, currencies[index])
+        }
+        return result
+    }
+
+    Bool seal() {
+        if (sealedValue) {
+            return validate()
+        }
+        if (!structuralValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && structuralValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int checksum() {
+        if (!validate()) {
+            return -1
+        }
+        return checksumValue
+    }
+
+    Int kind(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return kinds[index]
+    }
+
+    Int health(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return healthValues[index]
+    }
+
+    Int armor(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return armorValues[index]
+    }
+
+    Int weapon(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return weaponIds[index]
+    }
+
+    Int role(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return roles[index]
+    }
+
+    Int moveStep(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return moveSteps[index]
+    }
+
+    Int projectileStep(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return projectileSteps[index]
+    }
+
+    Int critical(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return criticalValues[index]
+    }
+
+    Int stableId(Int namespaceId, Int definitionId, Int enemyId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0 || enemyId <= 0 ||
+            lootStableBases[index] > 1000000 - enemyId) {
+            return 0
+        }
+        return lootStableBases[index] + enemyId
+    }
+
+    Int seed(Int namespaceId, Int definitionId, Int enemyId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0 || enemyId <= 0 || enemyId > 1000000) {
+            return -1
+        }
+        return (lootSeedSalts[index] * 31 + enemyId) % 1000001
+    }
+
+    Int level(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return lootLevels[index]
+    }
+
+    Int rank(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return lootRanks[index]
+    }
+
+    Int skill(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return skillIds[index]
+    }
+
+    Int experience(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return skillExperiences[index]
+    }
+
+    Int currency(Int namespaceId, Int definitionId) {
+        var index = find(namespaceId, definitionId)
+        if (index < 0) {
+            return 0
+        }
+        return currencies[index]
+    }
+}

@@ -320,6 +320,23 @@ Bool externalRoleHostQualification() {
         host.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         host.defineWorldSecret(3, 2, 0, 0, 0) &&
         host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        host.registerExtensionManifest(7, 1, 1, 2, 4) &&
+        host.configureExtensionLoadOrder(7, 1, 10) &&
+        host.configureExtensionProvenance(7, 1, 701) &&
+        host.configureExtensionSchemas(7, 1, 1, 2) &&
+        host.grantExtensionCapability(
+            7, 1, extensionContributionEnemyDefinitionKind()) &&
+        host.registerExtensionContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10) &&
+        host.defineEnemyDefinition(
+            7, 1, 1002, 1, enemyDefinitionBossKind()) &&
+        host.setEnemyDefinitionCombat(7, 1002, 8, 0, 9) &&
+        host.setEnemyDefinitionBehavior(7, 1002, 1, 1, 1) &&
+        host.setEnemyDefinitionCritical(7, 1002, 0) &&
+        host.setEnemyDefinitionLoot(7, 1002, 897, 77, 4) &&
+        host.setEnemyDefinitionRankCurrency(
+            7, 1002, enemyDefinitionBossKind(), 25) &&
+        host.setEnemyDefinitionProgression(7, 1002, 30, 100) &&
         host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
         host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         host.broadPhaseTriangleCount() == arena.triangleCount() &&
@@ -331,16 +348,14 @@ Bool externalRoleHostQualification() {
         host.equipEnemyCombatWeapon(1, 9) &&
         host.addPlayerCombatActor(1, 200, 0) &&
         host.addPlayerCombatActor(2, 200, 0) &&
-        host.admitEnemyAt(4, 3, 0, 8, 0, 9, 6, 0, 0) &&
-        host.defineEnemyCombatReward(3, 25) &&
         host.defineLootAffixPool(1) &&
         host.addLootAffix(1, 11, 1) &&
         host.defineLootAffixStat(11, 5, 0, 0) &&
         host.defineLootItem(501, 10, 1, 10, 1) &&
         host.addLootTableEntry(501, 1) &&
         host.definePlayerSkill(30, 2, 100) &&
-        host.defineEnemyLootReward(3, 900, 77, 4, 3) &&
-        host.defineEnemyLootProgressionReward(3, 30, 100),
+        host.admitDefinedEnemy(4, 3, 7, 1002) &&
+        host.setEnemySpatialPosition(3, 6, 0, 0),
         "external host must configure replicated combat loot and progression")
     var healthBeforeShot = host.enemyCombatHealth(3)
     assert(kookie_transport_select_slot(0) &&
@@ -726,6 +741,23 @@ main() {
         clientB.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         clientB.defineWorldSecret(3, 2, 0, 0, 0) &&
         clientB.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        host.registerExtensionManifest(7, 1, 1, 2, 4) &&
+        host.configureExtensionLoadOrder(7, 1, 10) &&
+        host.configureExtensionProvenance(7, 1, 701) &&
+        host.configureExtensionSchemas(7, 1, 1, 2) &&
+        host.grantExtensionCapability(
+            7, 1, extensionContributionEnemyDefinitionKind()) &&
+        host.registerExtensionContribution(
+            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10) &&
+        host.defineEnemyDefinition(
+            7, 1, 1002, 1, enemyDefinitionBossKind()) &&
+        host.setEnemyDefinitionCombat(7, 1002, 8, 0, 9) &&
+        host.setEnemyDefinitionBehavior(7, 1002, 1, 1, 1) &&
+        host.setEnemyDefinitionCritical(7, 1002, 0) &&
+        host.setEnemyDefinitionLoot(7, 1002, 897, 77, 4) &&
+        host.setEnemyDefinitionRankCurrency(
+            7, 1002, enemyDefinitionBossKind(), 25) &&
+        host.setEnemyDefinitionProgression(7, 1002, 30, 100) &&
         host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
         clientA.start() && clientB.start() &&
         host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
@@ -805,16 +837,14 @@ main() {
         host.equipEnemyCombatWeapon(1, 9) &&
         host.addPlayerCombatActor(1, 200, 0) &&
         host.addPlayerCombatActor(2, 200, 0) &&
-        host.admitEnemyAt(4, 3, 0, 8, 0, 9, 6, 0, 0) &&
-        host.defineEnemyCombatReward(3, 25) &&
         host.defineLootAffixPool(1) &&
         host.addLootAffix(1, 11, 1) &&
         host.defineLootAffixStat(11, 5, 0, 0) &&
         host.defineLootItem(501, 10, 1, 10, 1) &&
         host.addLootTableEntry(501, 1) &&
         host.definePlayerSkill(30, 2, 100) &&
-        host.defineEnemyLootReward(3, 900, 77, 4, 3) &&
-        host.defineEnemyLootProgressionReward(3, 30, 100),
+        host.admitDefinedEnemy(4, 3, 7, 1002) &&
+        host.setEnemySpatialPosition(3, 6, 0, 0),
         "host must configure replicated combat loot and progression")
     var state = host.gameplayStateMessage(0, 3, 1)
     var feedback = host.multiplayerFeedbackStateMessage(0)

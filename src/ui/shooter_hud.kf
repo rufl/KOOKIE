@@ -28,6 +28,9 @@ class ShooterHud {
     Int skillGoalValue
     Int worldLootCountValue
     Int worldLootRankValue
+    Int eliteThreatsValue
+    Int bossThreatsValue
+    Int defeatedThreatKindValue
 
 
     public constructor(Int maxHealth, Int maxAmmunition) {
@@ -61,6 +64,9 @@ class ShooterHud {
         skillGoalValue = 1
         worldLootCountValue = 0
         worldLootRankValue = 0
+        eliteThreatsValue = 0
+        bossThreatsValue = 0
+        defeatedThreatKindValue = 0
 
 
     }
@@ -136,6 +142,22 @@ class ShooterHud {
         worldLootRankValue = highestRank
         return true
     }
+    Bool updateThreatStatus(
+        Int eliteCount, Int bossCount, Int defeatedKind
+    ) {
+        if (eliteCount < 0 || eliteCount > 32 ||
+            bossCount < 0 || bossCount > 32 ||
+            (defeatedKind != 0 &&
+                defeatedKind != enemyDefinitionEliteKind() &&
+                defeatedKind != enemyDefinitionBossKind())) {
+            return false
+        }
+        eliteThreatsValue = eliteCount
+        bossThreatsValue = bossCount
+        defeatedThreatKindValue = defeatedKind
+        return true
+    }
+
 
     Bool presentImpact(
         Int localActorId, ImpactPresentationEvent impact, Int tick
@@ -161,7 +183,7 @@ class ShooterHud {
 
 
     Int renderVertexCount() {
-        return 264
+        return 312
     }
 
 
@@ -364,6 +386,105 @@ class ShooterHud {
                 target, reserveResource,
                 reserveLeft, reserveBottom, reserveRight, reserveTop)
     }
+    Bool pushThreatStatus(
+        FrameStaging target, Int resourceBase
+    ) {
+        var visible = eliteThreatsValue > 0 || bossThreatsValue > 0 ||
+            defeatedThreatKindValue > 0
+        var panelLeft = 0
+        var panelBottom = 0
+        var panelRight = 0
+        var panelTop = 0
+        var panelInset = 0
+        if (visible) {
+            panelLeft = -26
+            panelBottom = 66
+            panelRight = 26
+            panelTop = 80
+            panelInset = 2
+        }
+
+        var eliteRadius = 0
+        var eliteResource = resourceBase + 5
+        if (eliteThreatsValue > 0 ||
+            defeatedThreatKindValue == enemyDefinitionEliteKind()) {
+            eliteRadius = 4
+        }
+        if (defeatedThreatKindValue == enemyDefinitionEliteKind()) {
+            eliteResource = resourceBase + 3
+        }
+
+        var bossLeft = 0
+        var bossBottom = 0
+        var bossRight = 0
+        var bossTop = 0
+        var bossLeftPeakLeft = 0
+        var bossLeftPeakRight = 0
+        var bossRightPeakLeft = 0
+        var bossRightPeakRight = 0
+        var bossPeakTop = 0
+        var bossResource = resourceBase + 4
+        if (bossThreatsValue > 0 ||
+            defeatedThreatKindValue == enemyDefinitionBossKind()) {
+            bossLeft = 8
+            bossBottom = 69
+            bossRight = 22
+            bossTop = 72
+            bossLeftPeakLeft = 9
+            bossLeftPeakRight = 13
+            bossRightPeakLeft = 17
+            bossRightPeakRight = 21
+            bossPeakTop = 78
+        }
+        if (defeatedThreatKindValue == enemyDefinitionBossKind()) {
+            bossResource = resourceBase + 3
+        }
+
+        var elitePipRight = -22
+        var elitePips = eliteThreatsValue
+        if (elitePips > 3) {
+            elitePips = 3
+        }
+        if (visible) {
+            elitePipRight = -22 + elitePips * 2
+        }
+        var bossPipLeft = 22
+        var bossPips = bossThreatsValue
+        if (bossPips > 3) {
+            bossPips = 3
+        }
+        if (visible) {
+            bossPipLeft = 22 - bossPips * 2
+        }
+
+        return pushQuad(
+                target, resourceBase,
+                panelLeft, panelBottom, panelRight, panelTop) &&
+            pushQuad(
+                target, resourceBase + 1,
+                panelLeft + panelInset, panelBottom + panelInset,
+                panelRight - panelInset, panelTop - panelInset) &&
+            pushDiamond(
+                target, eliteResource, -14, 73, eliteRadius) &&
+            pushQuad(
+                target, bossResource,
+                bossLeft, bossBottom, bossRight, bossTop) &&
+            pushQuad(
+                target, bossResource,
+                bossLeftPeakLeft, bossTop,
+                bossLeftPeakRight, bossPeakTop) &&
+            pushQuad(
+                target, bossResource,
+                bossRightPeakLeft, bossTop,
+                bossRightPeakRight, bossPeakTop) &&
+            pushQuad(
+                target, eliteResource,
+                -22, 68, elitePipRight, 70) &&
+            pushQuad(
+                target, bossResource,
+                bossPipLeft, 77, 22, 79)
+    }
+
     Bool pushCombatFeedback(FrameStaging target, Int resourceBase) {
         var damageLeftRight = -100
         var damageRightLeft = 100
@@ -433,6 +554,7 @@ class ShooterHud {
                 target, crosshairResource,
                 crosshairGap, crosshairReach, crosshairThickness) ||
             !pushEncounterStatus(target, resourceBase) ||
+            !pushThreatStatus(target, resourceBase) ||
             !pushCombatFeedback(target, resourceBase) ||
             !pushBuildStatus(target, resourceBase)) {
 
@@ -524,5 +646,17 @@ class ShooterHud {
 
     Int worldLootRank() {
         return worldLootRankValue
+    }
+
+    Int eliteThreats() {
+        return eliteThreatsValue
+    }
+
+    Int bossThreats() {
+        return bossThreatsValue
+    }
+
+    Int defeatedThreatKind() {
+        return defeatedThreatKindValue
     }
 }

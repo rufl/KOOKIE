@@ -4,6 +4,27 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-29
 
+### G3 closure: bounded extensions, data-defined bosses and threat HUD
+
+- Added `BoundedExtensionRegistry` with versioned manifests, declared
+  dependencies/capabilities, namespaced contributions, deterministic
+  load/priority resolution, immutable checksums and fail-closed diagnostics.
+- Added complete sealed elite/boss definitions for combat, behavior,
+  deterministic instance loot, progression and currency. Defined enemy
+  admission preflights all actor/reward capacity and commits atomically.
+- Migrated the G1 demo, G3 save/reload path and authenticated external
+  JVM/native transport probe to instantiate those definitions rather than
+  configuring elite/boss rewards per enemy.
+- Extended the fixed HUD from 264 to 312 vertices, and the complete scene from
+  378 to 426, with structural elite-diamond, boss-crown, count and defeat cues.
+  The presentation derives those cues from authoritative enemy kind without
+  per-frame capacity growth.
+- All 75 source scenarios pass on JVM and native. Kof lint/LSP, authenticated
+  same-host JVM/native transport and isolated Wayland SDL_GPU presentation
+  pass. The 320×240 capture reported present capability `11`, drew in
+  10,789 µs and produced checksum `30,593,757`; visual review found no clipping,
+  panel overlap or ambiguous color-only threat state.
+
 ### G3 process replication and semantic HUD polish
 
 - Extended the fixed semantic HUD from 174 to 264 vertices with bounded

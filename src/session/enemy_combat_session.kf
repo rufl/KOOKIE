@@ -772,6 +772,23 @@ class AuthoritativeEnemySession {
         return true
     }
 
+    Bool cancelEnemyAdmission(Int enemyId) {
+        var linkIndex = findEnemyLink(enemyId)
+        if (linkIndex < 0) {
+            return false
+        }
+        var encounterId = linkedEncounterIds[linkIndex]
+        if (!enemies.removeEnemy(enemyId) ||
+            !combat.removeActor(enemyId) ||
+            !encounters.release(encounterId)) {
+            return false
+        }
+        linkedEnemyIds[linkIndex] = 0
+        linkedEncounterIds[linkIndex] = 0
+        linkedActive[linkIndex] = false
+        return true
+    }
+
     Bool admitEnemyAt(
         Int encounterId, Int enemyId, Int tick,
         Int health, Int armor, Int weaponId,

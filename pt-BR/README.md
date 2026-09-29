@@ -8,7 +8,7 @@ As portas têm pré-requisitos. Chamar isto de pronto também.
 
 ## Estado honesto
 
-G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
+G0, G1, G2 e G3 executam na JVM e no Linux nativo x86-64:
 
 - sessões autoritativas servidor/cliente em loopback a 60 Hz, admissão de dois
   clientes, snapshots e predição/reconciliação observável;
@@ -21,10 +21,10 @@ G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
   salas empilhadas, replicada com limites explícitos do broad-phase;
 - câmera, staging limitado do mundo e HUD semântico de combate com painéis de
   vida/munição, glifo de conexão, carga ativa/reserva do encounter, mira
-  responsiva ao foco, marcadores de acerto/eliminação, alertas laterais de dano
-  e painel por formas para inventário/equipamento/skill/loot no mundo; o
-  SDL_GPU envia a cena fixa de 378 vértices de arena/porta/HUD sem crescer
-  buffers por frame;
+  responsiva ao foco, marcadores de acerto/eliminação, alertas laterais de dano,
+  estado por formas de inventário/equipamento/skill/loot e sinais estruturais
+  de ameaça/derrota de elite/chefe; o SDL_GPU envia a cena fixa de 426 vértices
+  de arena/porta/HUD sem crescer buffers por frame;
 - progressão cooperativa de chave, porta 3D, segredo e saída, replay de comandos
   e saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
@@ -32,6 +32,9 @@ G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
   de atributo/skill→recompensa de chefe, schemas por destinatário para
   inventário/equipamento/progressão e loot no mundo, além de save/reload
   atômico das rolagens e reivindicações de recompensa;
+- manifestos públicos limitados de extensões, dependências, capacidades e
+  contribuições determinísticas de conteúdo, mais regras seladas orientadas por
+  dados para combate, comportamento, loot, progressão e moeda de elites/chefes;
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
   na JVM e no nativo levam a arena completa de 26 triângulos, comandos
   unificados com checksum para movimento/disparo/interação/ciclo de vida,
@@ -48,9 +51,9 @@ G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
 
 As lacunas importantes continuam reais:
 
-- o slice de gameplay G3 está qualificado por processos externos na mesma
-  máquina na JVM/no nativo; registros públicos limitados de extensões e regras
-  completas orientadas por dados para elites/chefes permanecem abertos;
+- a qualificação G3 entre processos usa a mesma máquina; execução entre
+  máquinas continua não comprovada, e o cooker G4, hooks de módulos confiáveis
+  e publicação em etapas de conteúdo ainda não foram implementados;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
 - saves duráveis contra crash, content cooker, física completa, áudio
@@ -126,15 +129,16 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 ## Roadmap
 
-O primeiro slice vertical G3 agora executa na JVM e no nativo o caminho
-multiplayer autoritativo de eliminação→drop gerado→coleta/equipamento→mudança
-de atributo/skill→recompensa de chefe→salvar/recarregar. Os tipos de estado
-`7`/`8` também atravessam o caminho autenticado de host mais dois clientes em
-processos na mesma máquina nos dois alvos. G3 permanece aberto para registros
-públicos limitados de extensões e regras completas orientadas por dados para
-elites/chefes. G2 continua coberto pela suíte de código-fonte na JVM/no nativo,
-pela sonda focada de interação, pela qualificação de processos host mais dois
-clientes e pela sonda SDL_GPU/áudio headless isolada.
+G3 está fechado no gate de aceitação atual: o caminho multiplayer autoritativo
+de eliminação→drop gerado→coleta/equipamento→mudança de atributo/skill→
+recompensa de chefe→salvar/recarregar executa na JVM e no nativo; os tipos de
+estado `7`/`8` atravessam processos autenticados na mesma máquina com host mais
+dois clientes; e registros limitados de manifesto/capacidade/contribuição
+instanciam definições completas e seladas de elites/chefes. Isso não comprova
+execução entre máquinas nem o cooker, hooks de módulos confiáveis, transações
+do editor e publicação em etapas do G4. G2 continua coberto pela suíte de
+código-fonte, sonda focada de interação, qualificação por processos e sonda
+SDL_GPU/áudio isolada.
 
 Adiado até os gates centrais estarem mais fortes:
 

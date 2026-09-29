@@ -1,6 +1,6 @@
 # Arquitetura do projeto KOOKIE
 
-Status: **arquitetura-alvo viva; G0/G1/G2 estão implementados e G3 está em andamento**.
+Status: **arquitetura-alvo viva; G0/G1/G2/G3 estão implementados e G4 é o próximo gate**.
 
 
 Este documento é a autoridade de arquitetura no nível do projeto. Os experimentos
@@ -129,12 +129,12 @@ O slice limitado implementado segue essa fronteira: resoluções autoritativas d
 combate emitem registros `ImpactPresentationEvent` monotônicos; lotes ordenados
 de feedback levam cada evento confirmado às filas limitadas de HUD/áudio do
 cliente. O HUD deriva geometria de acerto/eliminação/dano limitada por tick,
-além de estado de conexão, encounter e inventário/equipamento/skill/loot G3
-distinguíveis pela forma. Overflow de apresentação é diagnosticado e nunca
-desfaz estado autoritativo. Portas 3D criadas adicionam um cuboide de 36
-vértices entre a arena de 78 e o HUD de 264; a cena fixa atual tem 378
-vértices. O Kof deriva atenuação por distância e pan estéreo antes do envio de
-canais PCM esquerdo/direito pelo adaptador nativo.
+além de estados de conexão, encounter, ameaça/derrota de elite/chefe e
+inventário/equipamento/skill/loot G3 distinguíveis pela forma. Overflow de
+apresentação é diagnosticado e nunca desfaz estado autoritativo. Portas 3D
+criadas adicionam um cuboide de 36 vértices entre a arena de 78 e o HUD de 312;
+a cena fixa atual tem 426 vértices. O Kof deriva atenuação por distância e pan
+estéreo antes do envio de canais PCM esquerdo/direito pelo adaptador nativo.
 
 
 ### Adaptador nativo
@@ -543,8 +543,15 @@ completam o contrato G2.
 
 ### G3 — Fatia multiplayer de looter/ARPG
 
-Adicionar instâncias de itens, inventário, habilidades, status, progressão, salvamentos autoritativos
-e esquemas de extensões replicados.
+Implementado: instâncias de itens, inventário/equipamento, habilidades, status,
+progressão, saves autoritativos por schema e estado replicado por destinatário.
+`BoundedExtensionRegistry` sela manifestos versionados, dependências,
+capacidades e contribuições com namespace, ordenação determinística por
+carga/prioridade, diagnósticos de capacidade/conflito e checksums imutáveis.
+`BoundedEnemyDefinitionRegistry` sela regras completas de combate,
+comportamento, loot, progressão e moeda para elites/chefes; a sessão
+autoritativa instancia o ator e todos os contratos de recompensa atomicamente a
+partir dessas definições.
 
 ### G4 — Pipeline de criação e extensões
 

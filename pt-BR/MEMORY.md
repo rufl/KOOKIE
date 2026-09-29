@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-As fundações limitadas executam; os gates de aceitação G0, G1 e G2 estão completos.
+As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estão completos.
 
 ## Lote atual de qualificação
 
@@ -13,19 +13,20 @@ As fundações limitadas executam; os gates de aceitação G0, G1 e G2 estão co
   plataforma superior, dois degraus e salas empilhadas. Snapshots do servidor
   incluem limites explícitos e todos os triângulos; consultas do cliente aos
   andares superior/inferior passam.
-- O staging de mundo, porta e HUD semântico usa 378 vértices fixos: 78 da
-  arena, 36 da porta e 264 do HUD para tracks emolduradas de vida/munição,
+- O staging de mundo, porta e HUD semântico usa 426 vértices fixos: 78 da
+  arena, 36 da porta e 312 do HUD para tracks emolduradas de vida/munição,
   ícones estruturais, glifo de conexão distinguível pela forma, carga
   ativa/reserva do encounter, mira responsiva ao foco, marcadores de
-  acerto/eliminação, alertas laterais de dano e estado estrutural de
-  inventário/equipamento/skill/loot no mundo. O feedback expira por tick e
-  rejeita sequências duplicadas. A ponte SDL_GPU mantém buffers persistentes e
-  uma paleta semântica de 16 cores; a prova sem crescimento por frame fica
-  limitada às capacidades inalteradas.
+  acerto/eliminação, alertas laterais de dano, estado estrutural de
+  inventário/equipamento/skill/loot e sinais de ameaça/derrota de elite/chefe
+  distinguíveis pela forma. O feedback expira por tick e rejeita sequências
+  duplicadas. A ponte SDL_GPU mantém buffers persistentes e uma paleta
+  semântica de 16 cores; a prova sem crescimento por frame fica limitada às
+  capacidades inalteradas.
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- Checks e 74/74 cenários-fonte passam na JVM e no nativo; os marcadores
+- Checks e 75/75 cenários-fonte passam na JVM e no nativo; os marcadores
   executáveis de runtime G1 permanecem idênticos.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
@@ -37,29 +38,33 @@ As fundações limitadas executam; os gates de aceitação G0, G1 e G2 estão co
   qualificado comprova estado terminal `7`, vida `0`, sequência de impacto `2`,
   25 moedas, revisão 4, geração 2 após reconexão e diagnóstico explícito de
   input obsoleto.
-- O primeiro slice vertical autoritativo G3 agora executa na JVM/no nativo. A
-  morte do inimigo controla loot determinístico gerado no mundo, admissão
-  remota de coleta/equipamento/progressão, modificadores de combate por
+- G3 está encerrado no gate de aceitação atual. A morte do inimigo controla
+  loot determinístico gerado no mundo, admissão remota de
+  coleta/equipamento/progressão, modificadores de combate por
   equipamento/status e loot/XP/moeda de chefe. Os tipos de estado 7/8 com
-  checksum replicam autoridade completa por jogador e drops pelo loopback e por
+  checksum replicam autoridade completa por jogador e drops por loopback e por
   processos externos na mesma máquina na JVM/no nativo; a seção 12 do save
-  preserva drops e reivindicações de recompensa.
+  preserva drops e reivindicações de recompensa. Execução entre máquinas
+  continua não comprovada.
 
 ## Lote de implementação mais recente
 
-- Estendemos o HUD fixo com estado de inventário cheio/preenchido, glifo do item
-  equipado, XP/rank da skill e indicadores de loot ranqueado no mundo. Forma e
-  cor codificam estado, capacidade inativa continua degenerada e o demo de
-  apresentação deriva cada valor G3 do caminho autoritativo de eliminação e
-  recompensa.
-- Encaminhamos os tipos de estado 7/8 pela sonda autenticada com host mais dois
-  clientes em processos na JVM e no nativo. O cliente A agora aprende uma skill,
-  elimina, recebe loot ranqueado, coleta e equipa; a validação comprova os tipos,
-  item `900`, equipamento `900`, rank de skill `1` e zero drops restantes.
-- Usamos armazenamento no heap dimensionado pelo schema e helpers limitados de
-  um argumento após o decode dinâmico nativo corromper metadados escalares de
-  forma/encaminhamento do construtor. É um workaround contido, não correção do
-  compilador.
+- Adicionamos `BoundedExtensionRegistry`: manifests versionados, ordem declarada
+  de dependências, capabilities, contribuições de conteúdo com namespace,
+  resolução determinística de carga/prioridade, diagnósticos fail-closed e
+  checksums imutáveis.
+- Adicionamos `BoundedEnemyDefinitionRegistry` e
+  `LoopbackSession.admitDefinedEnemy`. Definições seladas de elite/chefe
+  controlam combate, comportamento, loot determinístico por instância,
+  progressão e moeda; o registro de ator e recompensas faz commit atômico. Os
+  caminhos G1, G3 e de transporte externo agora instanciam essas definições em
+  vez de configurar recompensas de elite/chefe por inimigo.
+- Adicionamos ao HUD um rail estrutural fixo de ameaça/derrota de elite/chefe.
+  A apresentação G1 deriva seu estado de chefe derrotado da eliminação
+  autoritativa orientada por dados sem alterar a capacidade fixa de staging.
+- O gate focado tem 75 cenários JVM/nativos. Transporte na mesma máquina na
+  JVM/no nativo, lint/LSP do Kof e apresentação SDL_GPU isolada passam; a
+  matriz completa do repositório não foi executada localmente.
 
 ## Lotes anteriores
 
@@ -142,7 +147,7 @@ implementada.
 26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável, exclusão da origem via `SpatialAimContract` e remoção de alvos. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo por pellet, inclusive impactos repetidos e misses limitados. `LoopbackSession.resolvePlayerSpatialShotgun` conecta essa seleção ao combate autoritativo dos jogadores.
 
 27. O despacho SIMD nativo agora seleciona AVX2/SSE2 no x86, possui caminho de origem NEON no AArch64 e mantém um fallback escalar verificado. `FFI001` ainda impede a integração de buffers do Kof, então isso não é um ganho de velocidade medido da engine.
-28. O gate focado atual tem 73 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
+28. O gate focado atual tem 75 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
 29. Impactos autoritativos aceitos entram no histórico monotônico e limitado de
     apresentação/áudio e em lotes ordenados de feedback `6 + 11F`. A validação
     da mensagem inteira, a rejeição de duplicatas/lacunas e os baselines por
@@ -156,6 +161,13 @@ implementada.
     geração, colisão de portas por segmento/AABB 3D mais renderização de 36
     vértices, recuperação completa de feedback e atenuação/pan estéreo
     pertencentes ao Kof enviados pelo SDL.
+32. O limite público de conteúdo do G3 é um registro limitado e imutável, não
+    uma ABI de plugins: manifests declaram versões, dependências, capabilities,
+    ordem de carga, migrações, schema de rede e procedência; contribuições e
+    definições de elite/chefe falham fechado antes do início da sessão. Hooks
+    de módulos confiáveis, saída do cooker e reload em estágios continuam no
+    G4.
+
 
 
 ## Cuidados do editor
@@ -198,17 +210,18 @@ vários papéis. Os clientes predizem movimento, reproduzem inputs ainda não
 confirmados na reconciliação e reiniciam épocas após reconexão; as sondas de
 interação, processos e SDL isolado passam.
 
-O primeiro slice vertical de gameplay G3 está implementado e todos os 74
-cenários-fonte passam na JVM/no nativo. O caminho sob autoridade do servidor de
-eliminação→drop gerado→coleta/equipamento→mudança observável de dano/skill→
-recompensa de chefe→save/reload em arquivo de schema executa sem resultados
-criados pelo cliente ou recompensas duplicadas. Os tipos de estado 7/8 também
-atravessam o caminho autenticado com host mais dois clientes em processos na
-mesma máquina nos dois alvos. G3 permanece aberto para registros públicos
-limitados de extensões e regras completas orientadas por dados para
-elites/chefes. G5 mantém a aceitação sustentada de carga, RSS e orçamento de
-frame; `FFI001` ainda bloqueia chamadas Kof com buffers em massa para o kernel
-SIMD opcional.
+G3 está concluído no gate atual e passa em todos os 75 cenários-fonte na
+JVM/no nativo. O caminho sob autoridade do servidor de eliminação→drop
+gerado→coleta/equipamento→mudança observável de dano/skill→recompensa de
+chefe→save/reload em arquivo de schema executa sem resultados criados pelo
+cliente ou recompensas duplicadas. Os tipos de estado 7/8 atravessam processos
+autenticados na mesma máquina com host mais dois clientes nos dois alvos.
+Manifests públicos limitados, capabilities e contribuições determinísticas
+agora instanciam regras completas e seladas de elite/chefe de forma atômica.
+Execução entre máquinas continua não comprovada; G4 mantém cooker, hooks de
+módulos confiáveis, transações do editor e publicação em estágios. G5 mantém a
+aceitação sustentada de carga, RSS e orçamento de frame; `FFI001` ainda
+bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

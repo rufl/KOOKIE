@@ -1,6 +1,6 @@
 # KOOKIE working memory
 
-Bounded foundations execute; G0, G1 and G2 acceptance gates are complete.
+Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete.
 
 ## Current qualification batch
 
@@ -12,17 +12,18 @@ Bounded foundations execute; G0, G1 and G2 acceptance gates are complete.
 - `G1Arena` owns 78 vertices/26 triangles for lower floor, ramp, upper
   platform, two stair steps and stacked rooms. Server snapshots include
   explicit bounds and all triangles; client upper/lower-floor queries pass.
-- World, door and semantic HUD staging uses 378 fixed vertices: 78 arena, 36
-  door and 264 HUD vertices for framed health/ammo tracks, structural icons, a
+- World, door and semantic HUD staging uses 426 fixed vertices: 78 arena, 36
+  door and 312 HUD vertices for framed health/ammo tracks, structural icons, a
   shape-distinct connection glyph, active/reserve encounter load, a
-  focus-responsive crosshair, hit/kill markers, edge damage warnings and
-  structural inventory/equipment/skill/world-loot status. Feedback expires by
-  simulation tick and rejects duplicate event sequences. The native SDL_GPU
-  bridge owns persistent scene buffers and a 16-color semantic palette; the
-  no-per-frame-growth proof remains bounded to unchanged staging capacities.
+  focus-responsive crosshair, hit/kill markers, edge damage warnings,
+  inventory/equipment/skill/world-loot state and shape-distinct elite/boss
+  threat/defeat cues. Feedback expires by simulation tick and rejects duplicate
+  event sequences. The native SDL_GPU bridge owns persistent scene buffers and
+  a 16-color semantic palette; no-per-frame-growth proof remains bounded to
+  unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- JVM/native checks and 74/74 source scenarios pass on each target; the
+- JVM/native checks and 75/75 source scenarios pass on each target; the
   executable G1 runtime markers remain identical.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
@@ -34,26 +35,30 @@ Bounded foundations execute; G0, G1 and G2 acceptance gates are complete.
   proves terminal enemy state `7`, health `0`, impact sequence `2`, 25 currency,
   revision-4 key/door/secret/exit completion, reconnect generation two and
   explicit stale diagnosis.
-- The first G3 authoritative vertical slice now runs on JVM/native. Enemy death
-  owns deterministic rolled world loot, remote pickup/equip/progression
-  admission, equipment/status combat modifiers and boss loot/XP/currency.
-  Checksummed state kinds 7/8 replicate complete per-player authority and world
-  drops through loopback and same-host JVM/native external processes; save
-  section 12 preserves drops and reward claims.
+- G3 is closed at its current acceptance gate. Enemy death owns deterministic
+  rolled world loot, remote pickup/equip/progression admission,
+  equipment/status combat modifiers and boss loot/XP/currency. Checksummed
+  state kinds 7/8 replicate complete per-player authority and world drops
+  through loopback and same-host JVM/native external processes; save section 12
+  preserves drops and reward claims. Separate-host execution remains unproven.
 
 ## Latest implementation batch
 
-- Extended the fixed HUD with inventory fill/full state, equipped-item glyph,
-  skill XP/rank and ranked world-loot indicators. Shape and color both encode
-  state, inactive capacity remains degenerate, and the presentation demo derives
-  every G3 value from the authoritative kill/reward path.
-- Routed state kinds 7/8 through the authenticated host-plus-two-client process
-  probe on JVM and native. Client A now learns a skill, kills, receives ranked
-  loot, picks it up and equips it; validation proves kinds, item `900`,
-  equipment `900`, skill rank `1` and zero remaining world drops.
-- Used schema-sized heap storage and bounded one-argument decode helpers after
-  native dynamic decode corrupted scalar shape metadata/constructor forwarding.
-  This is a contained workaround, not a compiler repair.
+- Added `BoundedExtensionRegistry`: versioned manifests, declared dependency
+  order, capabilities, namespaced content contributions, deterministic
+  load/priority resolution, fail-closed diagnostics and immutable checksums.
+- Added `BoundedEnemyDefinitionRegistry` and
+  `LoopbackSession.admitDefinedEnemy`. Sealed elite/boss definitions own combat,
+  behavior, deterministic instance loot, progression and currency; actor and
+  reward registration commit atomically. G1, G3 and external transport paths
+  now instantiate these definitions instead of configuring elite/boss rewards
+  per enemy.
+- Added a fixed structural elite/boss threat/defeat rail to the HUD. The G1
+  presentation derives its defeated-boss state from the authoritative
+  data-defined kill while retaining fixed staging capacity.
+- The focused source gate is 75 JVM/native scenarios. JVM/native same-host
+  transport, Kof lint/LSP and isolated SDL_GPU presentation pass; the full
+  repository matrix was not run locally.
 
 ## Earlier batches
 - Fixed native inventory/triangle checkpoint padding, actual consumed movement ticks, held input across seeks and whole-record replay forwarding. Eighteen focused scenarios and 20 affected regressions passed on JVM/native; no local full matrix ran.
@@ -130,7 +135,7 @@ management remains unimplemented.
 25. `RemoteSessionLink` gates snapshots on endpoint activation and strictly increasing send/receive sequences. JVM/native three-process qualification carries gameplay, feedback and encounter state through the real session loop.
 26. `BoundedRayTargetWorld` now performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering, source exclusion through `SpatialAimContract`, and target removal. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits and bounded misses. `LoopbackSession.resolvePlayerSpatialShotgun` now connects that selection to authoritative player combat.
 27. Native SIMD dispatch now selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps a checked scalar fallback. `FFI001` still prevents Kof bulk-buffer integration, so this is not a measured engine speedup.
-28. The current focused source gate is 74 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
+28. The current focused source gate is 75 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
 29. Accepted authoritative impacts enter bounded monotonic presentation/audio
     history and ordered `6 + 11F` feedback batches. Whole-message validation,
     duplicate/gap rejection and generation baselines prevent partial or stale
@@ -142,6 +147,11 @@ management remains unimplemented.
     unacknowledged-input prediction replay, generation-safe join/recovery, 3D
     door segment/AABB collision plus 36-vertex rendering, full feedback
     recovery and Kof-owned attenuation/stereo pan submitted through SDL.
+32. G3's public content boundary is a bounded immutable registry, not a plugin
+    ABI: manifests declare versions, dependencies, capabilities, load order,
+    migrations, network schema and provenance; contributions and elite/boss
+    definitions fail closed before session start. Trusted module hooks, cooker
+    output and staged reload remain G4.
 
 
 ## Editor cautions
@@ -182,15 +192,16 @@ Clients predict movement, replay unacknowledged inputs on reconciliation and
 reset epochs after reconnect; the interaction, process and isolated SDL probes
 pass.
 
-The first G3 gameplay vertical slice is implemented and passes all 74 source
-scenarios on JVM/native. Server-owned kill→rolled drop→pickup/equip→observable
-damage/skill change→boss reward→schema-file save/reload executes without
-client-authored outcomes or duplicate rewards. State kinds 7/8 also traverse
-the authenticated same-host host-plus-two-client path on both targets. G3
-remains open for bounded public extension registries and complete data-driven
-elite/boss rules. G5 retains sustained workload, RSS and frame-budget
-acceptance; `FFI001` still blocks Kof bulk-buffer calls into the optional SIMD
-kernel.
+G3 is complete at the current gate and passes all 75 source scenarios on
+JVM/native. Server-owned kill→rolled drop→pickup/equip→observable damage/skill
+change→boss reward→schema-file save/reload executes without client-authored
+outcomes or duplicate rewards. State kinds 7/8 traverse authenticated same-host
+host-plus-two-client processes on both targets. Bounded public manifests,
+capabilities and deterministic contributions now instantiate complete sealed
+elite/boss rules atomically. Separate-host execution is unproven; G4 remains
+the cooker, trusted-module hooks, editor transactions and staged publication.
+G5 retains sustained workload, RSS and frame-budget acceptance; `FFI001` still
+blocks Kof bulk-buffer calls into the optional SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native
