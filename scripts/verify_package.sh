@@ -90,7 +90,7 @@ python3 - "$MANIFEST" native \
   "${presentation_manifest_args[@]}" <<'PY'
 import json, pathlib, sys
 arguments = sys.argv[1:]
-assert len(arguments) >= 4 and len(arguments) % 2 == 0
+assert len(arguments) >= 2 and len(arguments) % 2 == 0
 for index in range(0, len(arguments), 2):
     raw_path, runtime = arguments[index:index + 2]
     manifest = json.loads(pathlib.Path(raw_path).read_text(encoding="utf-8"))
