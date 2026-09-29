@@ -4,22 +4,33 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-29
 
-### First bounded G5 headless scale slice
+### Bounded G5 headless timing and scale transport
 
 - Added `BoundedDedicatedServer`, a graphics-free fixed-step workload using the
-  real enemy, projectile and world-loot modules. The declared baseline owns 64
-  enemies, 256 moving projectiles and 512 pickups.
-- Added rolling per-tick ceilings of 16 AI states, 64 projectile slots and 128
-  pickup slots. Spatial projectile advancement can now cover a bounded rotating
-  range instead of scanning every slot.
-- Added `apps/server`, a JVM/native focused probe, package integration and
-  outside-checkout smoke coverage. Linux archives contain `kookie-server` and
-  its Kof binary; its dynamic closure contains libc/libm only, not a graphics
-  stack.
-- JVM and native matched workload checksum `797255` and logical resource
-  signature `675172` after 256 ticks. This does not claim p95 timing, a
-  networked reference workload or the required 30-minute RSS soak; G5 remains
-  open.
+  real enemy, projectile and world-loot modules. The declared baseline owns
+  64 enemies, 256 moving projectiles and 512 pickups under rolling per-tick
+  ceilings of 16 AI states, 64 projectile slots and 128 pickup slots.
+- Removed repeated spatial-position scans from enemy/projectile hot paths and
+  bypassed sweep-result allocation when the workload has no authored obstacles.
+- Extracted authenticated UDP from the SDL adapter into
+  `libkookie_headless_adapter.so`. The same graphics-independent library now
+  supplies monotonic timing, RSS sampling, real-time pacing and configurable
+  warm-up/measurement lengths to the packaged Linux server.
+- Added bounded request/state messages, generation-aware admission and client
+  views for the dedicated workload. A native focused gate runs one host and two
+  client processes through compatibility admission, four workload checkpoints,
+  disconnect and generation-2 reconnect.
+- JVM and native match checksum `797255` and resource signature `675172` after
+  256 ticks. On the recorded Linux workstation, a native 512-tick sample after
+  128 warm-up ticks recorded p50/p95/p99/max
+  1.186/1.245/1.269/2.195 ms and 64 KiB RSS growth/range. A 30-minute paced run
+  then measured 108,000 ticks after 600 warm-up ticks at
+  1.216/1.891/2.182/4.110 ms with 128 KiB RSS growth/range across 181 samples.
+  This qualifies the collision-free headless subset, not the authored
+  collision/render scene, multi-machine gameplay or 1080p frame timing.
+- Linux packages contain the server binary and its headless adapter; package
+  smoke checks telemetry outside the checkout and rejects graphics-linked
+  server dependencies.
 
 ### Bounded G4 creator pipeline completion
 

@@ -19,6 +19,7 @@ bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_interactions.sh
 bash scripts/verify_dedicated_server.sh
+bash scripts/verify_dedicated_network.sh
 bash scripts/verify_package.sh
 
 expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified\nKOOKIE G1 authoritative shooter verified'
@@ -109,6 +110,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
   done
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
+    native/kookie_transport.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer)
   glslc -fshader-stage=vert native/shaders/g0_triangle.vert \

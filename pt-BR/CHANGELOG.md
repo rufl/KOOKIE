@@ -4,21 +4,35 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-29
 
-### Primeiro slice limitado de escala G5 headless
+### Tempo headless e transporte de escala G5 limitados
 
 - Adicionamos `BoundedDedicatedServer`, uma carga de passo fixo sem gráficos
   que usa os módulos reais de inimigos, projéteis e loot no mundo. A linha de
-  base declarada contém 64 inimigos, 256 projéteis móveis e 512 itens.
-- Adicionamos tetos móveis por tick de 16 estados de IA, 64 slots de projéteis
-  e 128 slots de itens. O avanço de projéteis espaciais agora pode cobrir um
-  intervalo rotativo limitado em vez de varrer todos os slots.
-- Adicionamos `apps/server`, sonda focada JVM/nativa, integração no pacote e
-  smoke fora do checkout. Os arquivos Linux contêm `kookie-server` e seu
-  binário Kof; o fechamento dinâmico contém apenas libc/libm, sem stack gráfica.
-- JVM e nativo produziram o mesmo checksum de carga `797255` e assinatura
-  lógica de recursos `675172` após 256 ticks. Isso não afirma tempo p95, carga
-  de referência em rede ou o soak de RSS exigido por 30 minutos; G5 continua
-  aberto.
+  base contém 64 inimigos, 256 projéteis móveis e 512 itens sob tetos móveis por
+  tick de 16 estados de IA, 64 slots de projéteis e 128 slots de itens.
+- Removemos buscas repetidas de posição espacial dos hot paths de
+  inimigos/projéteis e evitamos alocar resultados de sweep quando a carga não
+  contém obstáculos criados manualmente.
+- Extraímos o UDP autenticado do adaptador SDL para
+  `libkookie_headless_adapter.so`. A mesma biblioteca independente de gráficos
+  agora fornece tempo monotônico, amostras de RSS, pacing em tempo real e
+  períodos configuráveis de aquecimento/medição ao servidor Linux empacotado.
+- Adicionamos mensagens limitadas de solicitação/estado, admissão consciente de
+  geração e views de cliente para a carga dedicada. Um gate nativo focado
+  executa um host e dois processos clientes por admissão de compatibilidade,
+  quatro checkpoints, desconexão e reconexão na geração 2.
+- JVM e nativo produzem checksum `797255` e assinatura de recursos `675172`
+  após 256 ticks. Na estação Linux registrada, uma amostra nativa de 512 ticks
+  após 128 de aquecimento registrou p50/p95/p99/máximo de
+  1,186/1,245/1,269/2,195 ms e 64 KiB de crescimento/faixa de RSS. Uma execução
+  ritmada de 30 minutos mediu então 108.000 ticks após 600 de aquecimento com
+  1,216/1,891/2,182/4,110 ms e 128 KiB de crescimento/faixa de RSS em
+  181 amostras. Isso qualifica o subconjunto headless sem colisão, não a cena
+  com colisão/render criada manualmente, gameplay em várias máquinas nem tempo
+  de frame em 1080p.
+- Pacotes Linux contêm o binário do servidor e seu adaptador headless; o smoke
+  de pacote verifica a telemetria fora do checkout e rejeita dependências
+  gráficas do servidor.
 
 ### Conclusão do pipeline limitado G4 do criador
 

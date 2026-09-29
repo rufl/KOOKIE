@@ -73,9 +73,13 @@ G0, G1, G2, G3 and the bounded G4 implementation run on JVM and native Linux x86
 - listener-relative distance attenuation and stereo panning computed in Kof,
   with allocation-free PCM submission to independent SDL_mixer effects and
   music buses.
-- a graphics-free Linux `kookie-server` workload runner preallocates the first
-  G5 reference load of 64 enemies, 256 moving projectiles and 512 pickups, then
-  schedules fixed per-tick AI/projectile/pickup work budgets of 16/64/128.
+- a graphics-free Linux `kookie-server` workload runner preallocates 64 enemies,
+  256 moving projectiles and 512 pickups, enforces per-tick
+  AI/projectile/pickup work budgets of 16/64/128, and reports native tick-time
+  percentiles plus RSS samples;
+- an authenticated same-host scale gate runs that exact workload with one host,
+  two client processes, content admission, bounded checkpoints, disconnect and
+  generation-safe reconnect.
 
 The important gaps are still real:
 
@@ -91,9 +95,13 @@ The important gaps are still real:
   shaders, editor plugins or unbounded resource streaming;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
-- the bounded G5 reference load has matching JVM/native logical-capacity
-  plateau evidence for 256 simulated ticks, not measured p95 frame/simulation
-  time or a 30-minute RSS soak;
+- the collision-free headless workload reached native simulation p95
+  1.245 ms/tick over 512 measured ticks, then passed a 30-minute real-time soak
+  at p95 1.891 ms/tick with 128 KiB RSS growth/range after warm-up on the
+  recorded Linux workstation; the medium authored collision scene, dynamic
+  lights/effects and 1080p render-frame target remain unqualified;
+- the scale transport proof is same-host loopback with checkpoint replication,
+  not full per-tick remote gameplay or fresh multi-machine evidence;
 - crash-durable saves, full physics, streamed/compressed audio and HRTF/EFX,
   richer G6 authoring and sandboxed runtime extensions remain unfinished.
 - the native Windows shell is interactive and persistent, but Kof cannot yet
@@ -128,10 +136,12 @@ Distributable JVM packages are intentionally unsupported because a Java
 runtime would violate KOOKIE's permissive-only distributed dependency policy.
 The JVM target remains available for local differential verification.
 
-Every Linux archive also includes `kookie-server`. Running it executes the
-fixed 256-tick headless reference workload and reports budgets, counts,
-checksum and logical resource plateau. It is not yet the networked sustained
-G5 server qualification.
+Every Linux archive also includes `kookie-server` and its graphics-independent
+native timing/RSS adapter. Running it executes a runtime-configurable bounded
+headless workload and reports counts, budgets, p50/p95/p99/max tick time, RSS
+range/growth, checksum and logical resource plateau. The focused authenticated
+host-plus-two-client qualification remains a probe, not a packaged production
+dedicated-server service.
 
 Cook authoring files and build or inspect one-chunk external packages with the
 JVM-only developer CLI:
@@ -261,12 +271,18 @@ and compatibility offer/response transport. The handshake passed across three
 isolated Linux network namespaces with distinct IPv4 stacks. This does not
 claim general source-format compatibility, arbitrary live-code reload, a
 production-grade editor or fresh qualification on three physical machines.
-The first G5 slice adds the graphics-free packaged workload runner, bounded
-rolling projectile work and the declared 64-enemy/256-projectile/512-pickup
-load with 16/64/128 work-unit ceilings. JVM and native produce the same
-checksum and stable logical resource signature across 256 ticks. G5 remains
-open for a networked reference run, hardware timings, 30-minute RSS/resource
-soak, render batching/instancing and remaining persistence/recovery hardening.
+The bounded G5 work now includes the graphics-free packaged workload runner,
+rolling spatial work, native timing/RSS telemetry and an authenticated
+host-plus-two-client checkpoint/reconnect protocol at the declared
+64-enemy/256-projectile/512-pickup load with 16/64/128 work-unit ceilings. JVM
+and native produce checksum `797255` and resource signature `675172` after 256
+ticks. A 512-tick native sample reached simulation p95 1.245 ms/tick with
+64 KiB RSS growth/range. A separate 30-minute real-time run measured
+108,000 ticks after 600 warm-up ticks at p50/p95/p99/max
+1.216/1.891/2.182/4.110 ms, with 128 KiB RSS growth/range across 181 samples.
+This qualifies only the collision-free headless subset. G5 remains open for
+the medium authored scene, full remote gameplay load, 1080p render
+timing/batching/instancing and remaining persistence/recovery hardening.
 
 G2 remains covered by the source suite, focused interaction probe, process
 qualification and isolated SDL_GPU/audio probe.

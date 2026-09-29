@@ -1,0 +1,279 @@
+package session
+
+import core
+
+Int dedicatedWorkloadRequestMessageKind() { return 9 }
+Int dedicatedWorkloadStateMessageKind() { return 10 }
+Int dedicatedWorkloadPollAction() { return 1 }
+Int dedicatedWorkloadDisconnectAction() { return 2 }
+Int dedicatedWorkloadSnapshotDiagnostic() { return 1 }
+Int dedicatedWorkloadDisconnectDiagnostic() { return 2 }
+Int dedicatedWorkloadReconnectDiagnostic() { return 3 }
+Int dedicatedWorkloadRequestLength() { return 8 }
+Int dedicatedWorkloadStateLength() { return 18 }
+
+Int dedicatedWorkloadMessageChecksum(Int[] words, Int length) {
+    if (length <= 0 || length > words.length) {
+        return -1
+    }
+    var result = 83
+    for (var index = 0; index < length; index = index + 1) {
+        var value = words[index] % 1000003
+        if (value < 0) {
+            value = value + 1000003
+        }
+        result = (result * 31 + value) % 1000003
+    }
+    return result
+}
+
+Int[] newDedicatedWorkloadRequest(
+    Int clientId, Int generation, Int sequence,
+    Int acknowledgedTick, Int action
+) {
+    if (clientId < 1 || clientId > 2 ||
+        generation <= 0 || generation > 1000000 ||
+        sequence <= 0 || sequence > 1000000 ||
+        acknowledgedTick < 0 || acknowledgedTick > 10000000 ||
+        (action != dedicatedWorkloadPollAction() &&
+            action != dedicatedWorkloadDisconnectAction())) {
+        return new Int[0]
+    }
+    var words = new Int[dedicatedWorkloadRequestLength()]
+    words[0] = protocolVersion()
+    words[1] = dedicatedWorkloadRequestMessageKind()
+    words[2] = clientId
+    words[3] = generation
+    words[4] = sequence
+    words[5] = acknowledgedTick
+    words[6] = action
+    words[7] = dedicatedWorkloadMessageChecksum(words, 7)
+    return words
+}
+
+Bool validDedicatedWorkloadRequest(Int[] words) {
+    return words.length == dedicatedWorkloadRequestLength() &&
+        words[0] == protocolVersion() &&
+        words[1] == dedicatedWorkloadRequestMessageKind() &&
+        words[2] >= 1 && words[2] <= 2 &&
+        words[3] > 0 && words[3] <= 1000000 &&
+        words[4] > 0 && words[4] <= 1000000 &&
+        words[5] >= 0 && words[5] <= 10000000 &&
+        (words[6] == dedicatedWorkloadPollAction() ||
+            words[6] == dedicatedWorkloadDisconnectAction()) &&
+        words[7] == dedicatedWorkloadMessageChecksum(words, 7)
+}
+
+Bool validDedicatedWorkloadState(Int[] words) {
+    if (words.length != dedicatedWorkloadStateLength() ||
+        words[0] != protocolVersion() ||
+        words[1] != dedicatedWorkloadStateMessageKind() ||
+        words[2] < 0 || words[2] > 10000000 ||
+        words[3] <= 0 || words[3] > 1000000 ||
+        words[4] < 1 || words[4] > 2 ||
+        words[5] <= 0 || words[5] > 1000000 ||
+        words[6] < 0 || words[6] > 1 ||
+        words[7] <= 0 || words[7] > 64 ||
+        words[8] <= 0 || words[8] > 256 ||
+        words[9] <= 0 || words[9] > 512 ||
+        words[10] <= 0 || words[10] > words[7] ||
+        words[11] <= 0 || words[11] > words[8] ||
+        words[12] <= 0 || words[12] > words[9] ||
+        words[13] < 0 || words[13] > 1000002 ||
+        words[14] <= 0 || words[14] > 1000002 ||
+        words[15] < 0 || words[15] > 1000000 ||
+        words[16] < dedicatedWorkloadSnapshotDiagnostic() ||
+        words[16] > dedicatedWorkloadReconnectDiagnostic() ||
+        words[17] != dedicatedWorkloadMessageChecksum(words, 17)) {
+        return false
+    }
+    if (words[16] == dedicatedWorkloadDisconnectDiagnostic()) {
+        return words[6] == 0
+    }
+    return words[6] == 1
+}
+
+Int[] newDedicatedWorkloadState(
+    BoundedDedicatedServer server,
+    Int clientId, Int generation, Int sequence,
+    Bool connected, Int diagnostic
+) {
+    if (!server.configured() || !server.healthy() ||
+        !server.resourcePlateau() || clientId < 1 || clientId > 2 ||
+        generation <= 0 || generation > 1000000 ||
+        sequence <= 0 || sequence > 1000000 ||
+        diagnostic < dedicatedWorkloadSnapshotDiagnostic() ||
+        diagnostic > dedicatedWorkloadReconnectDiagnostic() ||
+        (diagnostic == dedicatedWorkloadDisconnectDiagnostic() && connected) ||
+        (diagnostic != dedicatedWorkloadDisconnectDiagnostic() && !connected)) {
+        return new Int[0]
+    }
+    var words = new Int[dedicatedWorkloadStateLength()]
+    words[0] = protocolVersion()
+    words[1] = dedicatedWorkloadStateMessageKind()
+    words[2] = server.ticksProcessed()
+    words[3] = sequence
+    words[4] = clientId
+    words[5] = generation
+    words[6] = if (connected) 1 else 0
+    words[7] = server.enemyCount()
+    words[8] = server.projectileCount()
+    words[9] = server.pickupCount()
+    words[10] = server.aiBudget()
+    words[11] = server.projectileBudget()
+    words[12] = server.pickupBudget()
+    words[13] = server.workloadChecksum()
+    words[14] = server.baselineResourceSignature()
+    words[15] = server.overloadCount()
+    words[16] = diagnostic
+    words[17] = dedicatedWorkloadMessageChecksum(words, 17)
+    if (!validDedicatedWorkloadState(words)) {
+        return new Int[0]
+    }
+    return words
+}
+
+class BoundedDedicatedClientAdmission {
+    Int clientIdValue
+    Int generationValue
+    Int lastRequestSequenceValue
+    Int lastAcknowledgedTickValue
+    Bool connectedValue
+    Bool validValue
+
+    public constructor(Int clientId) {
+        clientIdValue = clientId
+        generationValue = 0
+        lastRequestSequenceValue = 0
+        lastAcknowledgedTickValue = 0
+        connectedValue = false
+        validValue = clientId >= 1 && clientId <= 2
+    }
+
+    Bool admitCompatibleGeneration(Int generation) {
+        if (!validValue || connectedValue || generation <= 0 ||
+            generation > 1000000 ||
+            ((generationValue == 0 && generation != 1) ||
+                (generationValue > 0 && generation != generationValue + 1))) {
+            return false
+        }
+        generationValue = generation
+        lastRequestSequenceValue = 0
+        lastAcknowledgedTickValue = 0
+        connectedValue = true
+        return true
+    }
+
+    Bool applyRequest(Int[] words) {
+        if (!validDedicatedWorkloadRequest(words) || !connectedValue ||
+            words[2] != clientIdValue || words[3] != generationValue ||
+            words[4] <= lastRequestSequenceValue ||
+            words[5] < lastAcknowledgedTickValue) {
+            return false
+        }
+        lastRequestSequenceValue = words[4]
+        lastAcknowledgedTickValue = words[5]
+        if (words[6] == dedicatedWorkloadDisconnectAction()) {
+            connectedValue = false
+        }
+        return true
+    }
+
+    Bool valid() { return validValue }
+    Bool connected() { return connectedValue }
+    Int clientId() { return clientIdValue }
+    Int generation() { return generationValue }
+    Int lastRequestSequence() { return lastRequestSequenceValue }
+    Int lastAcknowledgedTick() { return lastAcknowledgedTickValue }
+}
+
+class BoundedDedicatedClientView {
+    Int clientIdValue
+    Int generationValue
+    Int stateSequenceValue
+    Int tickValue
+    Int enemyCountValue
+    Int projectileCountValue
+    Int pickupCountValue
+    Int aiBudgetValue
+    Int projectileBudgetValue
+    Int pickupBudgetValue
+    Int workloadChecksumValue
+    Int resourceSignatureValue
+    Int updateCountValue
+    Bool connectedValue
+    Bool validValue
+
+    public constructor(Int clientId) {
+        clientIdValue = clientId
+        generationValue = 0
+        stateSequenceValue = 0
+        tickValue = 0
+        enemyCountValue = 0
+        projectileCountValue = 0
+        pickupCountValue = 0
+        aiBudgetValue = 0
+        projectileBudgetValue = 0
+        pickupBudgetValue = 0
+        workloadChecksumValue = 0
+        resourceSignatureValue = 0
+        updateCountValue = 0
+        connectedValue = false
+        validValue = clientId >= 1 && clientId <= 2
+    }
+
+    Bool beginCompatibleGeneration(Int generation) {
+        if (!validValue || connectedValue || generation <= 0 ||
+            generation > 1000000 ||
+            ((generationValue == 0 && generation != 1) ||
+                (generationValue > 0 && generation != generationValue + 1))) {
+            return false
+        }
+        generationValue = generation
+        stateSequenceValue = 0
+        tickValue = 0
+        connectedValue = true
+        return true
+    }
+
+    Bool applyState(Int[] words) {
+        if (!validDedicatedWorkloadState(words) ||
+            words[4] != clientIdValue || words[5] != generationValue ||
+            words[3] <= stateSequenceValue || words[2] < tickValue) {
+            return false
+        }
+        if (resourceSignatureValue > 0 &&
+            words[14] != resourceSignatureValue) {
+            return false
+        }
+        stateSequenceValue = words[3]
+        tickValue = words[2]
+        connectedValue = words[6] == 1
+        enemyCountValue = words[7]
+        projectileCountValue = words[8]
+        pickupCountValue = words[9]
+        aiBudgetValue = words[10]
+        projectileBudgetValue = words[11]
+        pickupBudgetValue = words[12]
+        workloadChecksumValue = words[13]
+        resourceSignatureValue = words[14]
+        updateCountValue = updateCountValue + 1
+        return true
+    }
+
+    Bool valid() { return validValue }
+    Bool connected() { return connectedValue }
+    Int clientId() { return clientIdValue }
+    Int generation() { return generationValue }
+    Int stateSequence() { return stateSequenceValue }
+    Int tick() { return tickValue }
+    Int enemyCount() { return enemyCountValue }
+    Int projectileCount() { return projectileCountValue }
+    Int pickupCount() { return pickupCountValue }
+    Int aiBudget() { return aiBudgetValue }
+    Int projectileBudget() { return projectileBudgetValue }
+    Int pickupBudget() { return pickupBudgetValue }
+    Int workloadChecksum() { return workloadChecksumValue }
+    Int resourceSignature() { return resourceSignatureValue }
+    Int updateCount() { return updateCountValue }
+}

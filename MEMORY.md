@@ -216,6 +216,17 @@ management remains unimplemented.
     migrations, network schema and provenance; contributions and elite/boss
     definitions fail closed before session start. G4 adds generation-bound
     trusted hooks, deterministic cooker products and staged package/GPU reload.
+33. Current native lowering can clobber a scalar `extern` result retained in a
+    local across later calls; returning an `extern` Bool directly also reached
+    `kof_unbox_bool` with an invalid value. Headless configuration and transport
+    receive paths therefore consume results immediately into validated object
+    fields before any later call. This is a focused compiler workaround, not a
+    compiler repair or permission to generalize the ABI.
+34. Retaining a spatial slot or `SpatialPositionResult` across later calls in
+    the continuous-projectile loop passed on JVM but broke terminal hits,
+    impact events and presentation on native. Keep the proven coordinate-call
+    shape; `EnemySpatialWorld.find` caches the last ID/slot internally to remove
+    repeat scans without exposing that native-lowering defect.
 
 
 ## Editor cautions
@@ -266,13 +277,20 @@ elite/boss rules atomically.
 
 G4 is complete for the bounded implementation summarized above. Its
 compatibility exchange uses production role transport and separate processes,
-but the retained qualification is not a fresh three-machine run. The first G5
-slice now runs 64 enemies, 256 moving projectiles and 512 pickups without
-graphics under 16/64/128 rolling work budgets. JVM/native match checksum
-`797255`; logical resource signature `675172` remains unchanged across 256
-ticks, and the Linux archive runs the same server outside the checkout. This
-is not p95 timing or RSS evidence. G5 still requires the networked reference
-workload, a 30-minute soak, hardware frame/simulation budgets and remaining
+but the retained qualification is not a fresh three-machine run. The bounded
+G5 headless path now runs 64 enemies, 256 moving projectiles and 512 pickups
+under 16/64/128 rolling budgets. JVM/native match checksum `797255`; resource
+signature `675172` is unchanged after 256 ticks. A native 128-warm-up/512-tick
+sample recorded p50/p95/p99/max 1.186/1.245/1.269/2.195 ms and 64 KiB RSS
+growth/range. A separate 600-warm-up/108,000-tick real-time run recorded
+1.216/1.891/2.182/4.110 ms and a 128 KiB RSS range across 181 samples while
+preserving the resource signature. An authenticated native host and two client
+processes replicated four checkpoints; client B disconnected, repeated content
+compatibility and resumed as generation 2. The package runs the
+telemetry-enabled server outside the checkout without a graphics dependency.
+This evidence is same-host and collision-free. G5 still requires the medium
+authored collision/render scene, full per-tick remote load, repeating
+performance/resource qualification there, 1080p frame budgets and remaining
 release hardening; `FFI001` still blocks Kof bulk-buffer calls into the optional
 SIMD kernel.
 

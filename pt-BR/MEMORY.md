@@ -203,6 +203,19 @@ implementada.
     definições de elite/chefe falham fechado antes do início da sessão. G4
     adiciona hooks confiáveis vinculados à geração, produtos determinísticos do
     cooker e reload em estágios de pacote/GPU.
+33. A redução nativa atual pode corromper um resultado escalar de `extern`
+    retido em variável local entre chamadas posteriores; retornar diretamente
+    um Bool de `extern` também chegou a `kof_unbox_bool` com valor inválido. Por
+    isso, a configuração headless e a recepção do transporte consomem
+    resultados imediatamente em campos validados de objetos antes de outra
+    chamada. Essa é uma solução focada para o compilador, não seu reparo nem
+    permissão para generalizar a ABI.
+34. Reter um slot espacial ou `SpatialPositionResult` entre chamadas
+    posteriores no loop contínuo de projéteis passou na JVM, mas quebrou
+    impactos terminais, eventos de impacto e apresentação no nativo. Preserve
+    a forma comprovada das chamadas de coordenadas; `EnemySpatialWorld.find`
+    mantém internamente o último ID/slot para remover buscas repetidas sem expor
+    esse defeito da redução nativa.
 
 
 
@@ -258,14 +271,22 @@ atômica.
 G4 está completo para a implementação limitada resumida acima. Sua troca de
 compatibilidade usa o transporte de papéis de produção e processos separados,
 mas a qualificação retida não é uma execução recente em três máquinas. O
-primeiro slice G5 agora executa 64 inimigos, 256 projéteis móveis e 512 itens
-sem gráficos sob orçamentos móveis de 16/64/128. JVM/nativo produzem o mesmo
-checksum `797255`; a assinatura lógica de recursos `675172` permanece
-inalterada por 256 ticks, e o pacote Linux executa o mesmo servidor fora do
-checkout. Isso não é evidência de tempo p95 ou RSS. G5 ainda exige carga de
-referência em rede, soak de 30 minutos, orçamentos de frame/simulação em
-hardware e o reforço restante de release; `FFI001` ainda bloqueia chamadas Kof
-com buffers em massa para o kernel SIMD opcional.
+caminho G5 headless limitado agora executa 64 inimigos, 256 projéteis móveis e
+512 itens sob orçamentos móveis de 16/64/128. JVM/nativo produzem checksum
+`797255`; a assinatura de recursos `675172` fica inalterada após 256 ticks. Uma
+amostra nativa com 128 ticks de aquecimento e 512 medidos registrou
+p50/p95/p99/máximo de 1,186/1,245/1,269/2,195 ms e 64 KiB de
+crescimento/faixa de RSS. Outra execução em tempo real, com 600 ticks de
+aquecimento e 108.000 medidos, registrou 1,216/1,891/2,182/4,110 ms e faixa de
+RSS de 128 KiB em 181 amostras, preservando a assinatura de recursos. Um host
+nativo autenticado e dois processos clientes replicaram quatro checkpoints; o
+cliente B desconectou, repetiu a compatibilidade de conteúdo e retomou na
+geração 2. O pacote executa o servidor com telemetria fora do checkout sem
+dependência gráfica. Essa evidência é na mesma máquina e sem colisão. G5 ainda
+exige a cena média criada manualmente com colisão/render, carga remota completa
+por tick, repetição da qualificação de desempenho/recursos nesse caminho,
+orçamentos de frame em 1080p e o reforço restante de release; `FFI001` ainda
+bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

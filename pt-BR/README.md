@@ -81,10 +81,13 @@ G0, G1, G2, G3 e a implementação limitada de G4 executam na JVM e no Linux nat
 - atenuação por distância e pan estéreo relativos ao listener calculados no
   Kof, com PCM sem alocação em buses separados de efeitos e música no
   SDL_mixer.
-- um runner `kookie-server` sem gráficos no pacote Linux pré-aloca a primeira
-  carga de referência G5 com 64 inimigos, 256 projéteis móveis e 512 itens
-  coletáveis, e agenda orçamentos fixos por tick de 16/64/128 para
-  IA/projéteis/itens.
+- um runner `kookie-server` sem gráficos no pacote Linux pré-aloca 64 inimigos,
+  256 projéteis móveis e 512 itens coletáveis, aplica orçamentos por tick de
+  16/64/128 para IA/projéteis/itens e informa percentis nativos de tempo por
+  tick e amostras de RSS;
+- um gate autenticado de escala na mesma máquina executa a carga exata com um
+  host, dois processos clientes, admissão de conteúdo, checkpoints limitados,
+  desconexão e reconexão segura por geração.
 
 As lacunas importantes continuam reais:
 
@@ -100,9 +103,15 @@ As lacunas importantes continuam reais:
   shaders, plugins de editor ou streaming ilimitado de recursos;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
-- a carga G5 limitada tem evidência igual na JVM e no nativo de capacidades
-  lógicas estáveis por 256 ticks simulados, não tempos p95 de frame/simulação
-  nem soak de RSS por 30 minutos;
+- a carga headless sem colisão atingiu p95 nativo de simulação de
+  1,245 ms/tick em 512 ticks medidos e depois passou um soak em tempo real de
+  30 minutos com p95 de 1,891 ms/tick e 128 KiB de crescimento/faixa de RSS
+  após aquecimento na estação Linux registrada; a cena média com colisão criada
+  manualmente, as luzes/efeitos dinâmicos e a meta de frame em 1080p continuam
+  sem qualificação;
+- a prova de transporte de escala usa loopback na mesma máquina com replicação
+  por checkpoint, não gameplay remoto completo por tick nem evidência recente
+  em várias máquinas;
 - saves duráveis contra crash, física completa, áudio comprimido/em streaming
   e HRTF/EFX, autoria G6 mais rica e extensões de runtime em sandbox continuam
   incompletos.
@@ -140,10 +149,13 @@ SDL3 e SDL_mixer. O launcher usa o runtime do sistema, sem empacotar o loader
 dinâmico ou libc. Pacotes JVM distribuíveis são rejeitados; JVM fica restrita
 à qualificação diferencial local.
 
-Todo arquivo Linux também contém `kookie-server`. Sua execução roda a carga
-headless fixa de 256 ticks e informa orçamentos, contagens, checksum e
-estabilidade lógica de recursos. Ainda não é a qualificação G5 sustentada com
-servidor em rede.
+Todo arquivo Linux também contém `kookie-server` e seu adaptador nativo de
+tempo/RSS independente de gráficos. Sua execução roda uma carga headless
+limitada configurável em runtime e informa contagens, orçamentos, tempos
+p50/p95/p99/máximo por tick, faixa/crescimento de RSS, checksum e estabilidade
+lógica de recursos. A qualificação autenticada focada com host mais dois
+clientes continua sendo uma sonda, não um serviço de servidor dedicado de
+produção empacotado.
 
 Cozinhe arquivos de autoria e monte ou inspecione pacotes externos de um chunk
 com a CLI de desenvolvimento exclusiva da JVM:
@@ -231,13 +243,19 @@ geral de formatos, reload arbitrário de código, editor de produção ou
 qualificação recente em três máquinas físicas. G2 continua coberto pela suíte
 de código-fonte, sonda focada de interação, qualificação por processos e sonda
 SDL_GPU/áudio isolada.
-O primeiro slice G5 adiciona o runner sem gráficos no pacote, trabalho móvel
-limitado de projéteis e a carga declarada de 64 inimigos/256 projéteis/512
-itens com tetos de 16/64/128 unidades de trabalho. JVM e nativo produzem o
-mesmo checksum e assinatura lógica estável por 256 ticks. G5 continua aberto
-para execução de referência em rede, tempos em hardware, soak de
-RSS/recursos por 30 minutos, batching/instancing de render e o reforço restante
-de persistência/recuperação.
+O trabalho G5 limitado agora inclui o runner sem gráficos no pacote, trabalho
+espacial móvel, telemetria nativa de tempo/RSS e um protocolo autenticado de
+checkpoint/reconexão com host mais dois clientes na carga declarada de
+64 inimigos/256 projéteis/512 itens e tetos de 16/64/128 unidades de trabalho.
+JVM e nativo produzem checksum `797255` e assinatura de recursos `675172` após
+256 ticks. Uma amostra nativa de 512 ticks atingiu p95 de simulação de
+1,245 ms/tick e crescimento/faixa de RSS de 64 KiB. Uma execução separada em
+tempo real por 30 minutos mediu 108.000 ticks após 600 de aquecimento com
+p50/p95/p99/máximo de 1,216/1,891/2,182/4,110 ms e 128 KiB de
+crescimento/faixa de RSS em 181 amostras. Isso qualifica apenas o subconjunto
+headless sem colisão. G5 continua aberto para a cena média criada manualmente,
+gameplay remoto completo, tempo/batching/instancing de render em 1080p e o
+reforço restante de persistência/recuperação.
 
 
 Adiado até os gates centrais estarem mais fortes:

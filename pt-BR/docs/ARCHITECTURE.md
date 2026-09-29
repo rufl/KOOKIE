@@ -627,13 +627,24 @@ ficam fora deste gate.
 
 ### G5 — Escala e lançamento
 
-O primeiro slice limitado agora distribui no Linux uma carga de servidor sem
-gráficos usando os mesmos módulos de passo fixo, inimigos, projéteis e loot.
-Ela pré-aloca 64 inimigos, 256 projéteis e 512 itens, e avança orçamentos móveis
-de IA/projéteis/itens de 16/64/128 sem alterar capacidades lógicas. G5 ainda
-exige carga de referência em rede, orçamentos medidos de CPU/GPU, soak de
-RSS/recursos por 30 minutos, batching/instancing, robustez de migração/replay e
-qualificação de release da recuperação de reconexão/sessão.
+O slice limitado no Linux agora usa os mesmos módulos de passo fixo, inimigos,
+projéteis e loot em um servidor sem gráficos. Ele pré-aloca 64 inimigos,
+256 projéteis e 512 itens; os orçamentos móveis de IA/projéteis/itens continuam
+16/64/128. Tempo nativo e RSS vêm do adaptador independente de
+transporte/headless autenticado, não do SDL. Um contrato dedicado de mensagens
+admite gerações de clientes com conteúdo compatível, rejeita solicitações e
+snapshots obsoletos, publica contagens/orçamentos/checksum/assinatura de recursos
+e exige nova troca de compatibilidade antes da reconexão. O gate nativo focado
+executa um host e dois clientes por desconexão/reconexão em UDP na mesma
+máquina.
+
+O subconjunto headless sem colisão atende à meta p95 de simulação de 4 ms tanto
+na execução curta quanto em uma execução ritmada por 30 minutos; nessa execução,
+o RSS ficou em uma faixa de 128 KiB e a assinatura lógica de recursos
+permaneceu estável. G5 ainda exige a cena média criada manualmente e a carga
+remota completa por tick, repetir ali a qualificação de desempenho/recursos,
+renderização/batching/instancing em 1080p, robustez de migração/replay e
+qualificação de release de reconexão/sessão em produção.
 
 ### G6 — Expansão
 

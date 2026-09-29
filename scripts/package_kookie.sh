@@ -18,10 +18,10 @@ Usage: scripts/package_kookie.sh [--runtime native|presentation] [--target linux
 Builds an immutable KOOKIE archive and SHA256SUMS. Native Linux packages
 contain the Kof executable and use the host's system runtime. Presentation
 packages contain the persistent native Kof SDL_GPU application, SDL3,
-SDL_mixer, the adapter, and shaders. Every Linux package also contains the
-graphics-free Kof dedicated workload server. Windows packages contain the
-native SDL3 and SDL_mixer game shell. Java runtimes are deliberately excluded
-from distributable packages.
+SDL_mixer, the adapter, and shaders. Every Linux package also contains a
+graphics-free Kof dedicated workload server with native timing and RSS
+telemetry. Windows packages contain the native SDL3 and SDL_mixer game shell.
+Java runtimes are deliberately excluded from distributable packages.
 EOF
 }
 
@@ -62,6 +62,12 @@ esac
   exit 2
 }
 command -v sha256sum >/dev/null || { echo 'package_kookie: sha256sum is required' >&2; exit 2; }
+if [[ "$TARGET" == linux-x86_64 ]]; then
+  command -v cc >/dev/null || {
+    echo 'package_kookie: cc is required for the headless server adapter' >&2
+    exit 2
+  }
+fi
 if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
   command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for presentation packaging' >&2; exit 2; }
   command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
@@ -167,15 +173,18 @@ EOF
 bundle_linux_server() {
   local server_root="$WORK_DIR/server-source"
   local server_build="$WORK_DIR/server-build"
-  mkdir -p "$server_root"/{core,content,session}
+  mkdir -p "$server_root"/{core,content,session,lib} "$PACKAGE_ROOT/lib"
   cp -- "$ROOT_DIR/apps/server/main.kf" "$server_root/main.kf"
   for module in core content session; do
     for source in "$ROOT_DIR/src/$module/"*.kf; do
       ln -s -- "$source" "$server_root/$module/$(basename "$source")"
     done
   done
-  kof build "$server_root/main.kf" --target native \
-    --output "$server_build" >/dev/null
+  cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
+    "$ROOT_DIR/native/kookie_transport.c" \
+    -o "$server_root/lib/libkookie_headless_adapter.so"
+  (cd "$server_root" && kof build main.kf --target native \
+    --output "$server_build" >/dev/null)
   local server_binary="$server_build/Default/Main"
   test -x "$server_binary" || {
     echo "package_kookie: dedicated server executable missing: $server_binary" >&2
@@ -183,6 +192,8 @@ bundle_linux_server() {
   }
   cp -- "$server_binary" "$PACKAGE_ROOT/kookie-server.bin"
   chmod 755 "$PACKAGE_ROOT/kookie-server.bin"
+  cp -- "$server_root/lib/libkookie_headless_adapter.so" \
+    "$PACKAGE_ROOT/lib/libkookie_headless_adapter.so"
   cat > "$PACKAGE_ROOT/kookie-server" <<'EOF'
 #!/usr/bin/env sh
 set -eu
@@ -191,7 +202,8 @@ if [ "$#" -ne 0 ]; then
   echo "Usage: kookie-server" >&2
   exit 2
 fi
-exec "$root/kookie-server.bin"
+cd "$root"
+exec ./kookie-server.bin
 EOF
   chmod 755 "$PACKAGE_ROOT/kookie-server"
 }
@@ -232,6 +244,7 @@ else
   IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
+    "$ROOT_DIR/native/kookie_transport.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
     "${SDL_FLAGS[@]}"
   glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
@@ -277,7 +290,7 @@ dependency_policy=permissive-distributed-only
 sdl_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.4.16 || echo not-bundled)
 sdl_mixer_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.2.4 || echo not-bundled)
 runtime_dependencies=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo SDL3+SDL_mixer || echo system-only)
-dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload || echo unavailable)
+dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
 EOF
 rm -f -- "$ARCHIVE"
 if [[ "$TARGET" == windows-x86_64 ]]; then

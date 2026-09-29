@@ -3,9 +3,9 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-dedicated-server.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-dedicated-soak.XXXXXX")"
 cleanup() {
-  if [[ "${KOOKIE_KEEP_DEDICATED_WORK_DIR:-0}" == 1 ]]; then
+  if [[ "${KOOKIE_KEEP_DEDICATED_SOAK_WORK_DIR:-0}" == 1 ]]; then
     printf 'preserved-work-dir=%s\n' "$WORK_DIR"
   else
     rm -rf -- "$WORK_DIR"
@@ -13,52 +13,48 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-mkdir -p "$WORK_DIR/core" "$WORK_DIR/content" "$WORK_DIR/session"
+SOURCE_DIR="$WORK_DIR/source"
+BUILD_DIR="$WORK_DIR/build"
+mkdir -p "$SOURCE_DIR"/{core,content,session,lib}
 for module in core content session; do
   for source_file in "$ROOT_DIR/src/$module/"*.kf; do
-    ln -s "$source_file" "$WORK_DIR/$module/$(basename "$source_file")"
+    ln -s "$source_file" "$SOURCE_DIR/$module/$(basename "$source_file")"
   done
 done
-ln -s "$ROOT_DIR/probes/g5_dedicated_server/main.kf" "$WORK_DIR/main.kf"
-
-jvm_output="$(kof run "$WORK_DIR/main.kf" --target jvm)"
-native_output="$(kof run "$WORK_DIR/main.kf" --target native)"
-[[ "$jvm_output" == "$native_output" ]]
-
-SERVER_ROOT="$WORK_DIR/server"
-mkdir -p "$SERVER_ROOT/core" "$SERVER_ROOT/content" \
-  "$SERVER_ROOT/session" "$SERVER_ROOT/lib"
-for module in core content session; do
-  for source_file in "$ROOT_DIR/src/$module/"*.kf; do
-    ln -s "$source_file" "$SERVER_ROOT/$module/$(basename "$source_file")"
-  done
-done
-cp -- "$ROOT_DIR/apps/server/main.kf" "$SERVER_ROOT/main.kf"
+cp -- "$ROOT_DIR/apps/server/main.kf" "$SOURCE_DIR/main.kf"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_transport.c" \
-  -o "$SERVER_ROOT/lib/libkookie_headless_adapter.so"
-SERVER_BUILD="$WORK_DIR/server-build"
-(cd "$SERVER_ROOT" && kof build main.kf --target native \
-  --output "$SERVER_BUILD" >/dev/null)
+  -o "$SOURCE_DIR/lib/libkookie_headless_adapter.so"
+(cd "$SOURCE_DIR" && kof build main.kf --target native \
+  --output "$BUILD_DIR" >/dev/null)
+
+warmup_ticks="${KOOKIE_SOAK_WARMUP_TICKS:-600}"
+measured_ticks="${KOOKIE_SOAK_TICKS:-108000}"
+sample_ticks="${KOOKIE_SOAK_RSS_SAMPLE_TICKS:-600}"
+server_log="$WORK_DIR/server.log"
 server_status=0
-server_output="$(
-  cd "$SERVER_ROOT"
-  KOOKIE_SERVER_WARMUP_TICKS=128 \
-  KOOKIE_SERVER_TICKS=512 \
-  KOOKIE_SERVER_RSS_SAMPLE_TICKS=32 \
-    "$SERVER_BUILD/Default/Main"
-)" || server_status=$?
+(
+  cd "$SOURCE_DIR"
+  KOOKIE_SERVER_WARMUP_TICKS="$warmup_ticks" \
+  KOOKIE_SERVER_TICKS="$measured_ticks" \
+  KOOKIE_SERVER_RSS_SAMPLE_TICKS="$sample_ticks" \
+  KOOKIE_SERVER_REALTIME=1 \
+    "$BUILD_DIR/Default/Main"
+) >"$server_log" 2>&1 || server_status=$?
+cat "$server_log"
 if [[ "$server_status" -ne 0 ]]; then
-  printf '%s\nserver-status=%s\n' "$server_output" "$server_status" >&2
+  printf 'dedicated-soak-status=%s\n' "$server_status" >&2
   exit "$server_status"
 fi
-server_log="$WORK_DIR/server.log"
-printf '%s\n' "$server_output" >"$server_log"
-python3 - "$server_log" <<'PY'
+
+python3 - "$server_log" "$warmup_ticks" "$measured_ticks" "$sample_ticks" <<'PY'
 import pathlib
 import sys
 
 lines = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+warmup = int(sys.argv[2])
+measured = int(sys.argv[3])
+sample_interval = int(sys.argv[4])
 fields = {}
 paired = {
     "warmup-ticks", "measured-ticks",
@@ -78,11 +74,10 @@ while index < len(lines):
         index += 1
     index += 1
 
-assert lines[0] == "KOOKIE G5 dedicated headless server"
 assert fields["graphics"] == "none"
-assert int(fields["warmup-ticks"]) == 128
-assert int(fields["measured-ticks"]) == 512
-assert int(fields["ticks"]) == 640
+assert int(fields["warmup-ticks"]) == warmup
+assert int(fields["measured-ticks"]) == measured
+assert int(fields["ticks"]) == warmup + measured
 assert fields["enemies"] == "64"
 assert fields["projectiles"] == "256"
 assert fields["pickups"] == "512"
@@ -97,10 +92,15 @@ assert p95 <= 4000
 assert fields["simulation-budget-pass"] == "true"
 assert int(fields["rss-growth-kib"]) <= 1024
 assert int(fields["rss-range-kib"]) <= 4096
-assert int(fields["rss-samples"]) == 17
+expected_samples = 1 + measured // sample_interval
+if measured % sample_interval:
+    expected_samples += 1
+assert int(fields["rss-samples"]) == expected_samples
 assert fields["rss-plateau"] == "true"
-assert fields["realtime"] == "false"
+assert fields["realtime"] == "true"
 assert fields["resource-plateau"] == "true"
 PY
-grep -Fqx 'KOOKIE G5 dedicated headless workload verified' <<<"$jvm_output"
-printf '%s\n%s\n' "$jvm_output" "$server_output"
+
+printf 'KOOKIE G5 real-time dedicated soak gate passed\n'
+printf 'soak-kernel=%s\n' "$(uname -srm)"
+printf 'soak-logical-cpus=%s\n' "$(nproc)"

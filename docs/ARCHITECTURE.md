@@ -608,13 +608,23 @@ physical machines remain outside this gate.
 
 ### G5 — Scale and release
 
-The first bounded slice now ships a graphics-free Linux server workload using
-the same fixed-step, enemy, projectile and loot modules. It preallocates 64
-enemies, 256 projectiles and 512 pickups, and advances rolling
-AI/projectile/pickup budgets of 16/64/128 without changing logical capacities.
-G5 still requires the networked reference workload, measured CPU/GPU budgets,
-the 30-minute RSS/resource soak, batching/instancing, migration/replay
-hardening and reconnect/session release qualification.
+The bounded Linux slice now uses the same fixed-step, enemy, projectile and
+loot modules in a graphics-free server. It preallocates 64 enemies,
+256 projectiles and 512 pickups; rolling AI/projectile/pickup budgets remain
+16/64/128. Native timing and RSS come from the standalone authenticated
+transport/headless adapter, not SDL. A dedicated message contract admits
+content-compatible client generations, rejects stale requests and snapshots,
+publishes counts/budgets/checksum/resource signature, and requires a fresh
+compatibility exchange before reconnect. The focused native gate runs one host
+and two clients through disconnect/reconnect on same-host UDP.
+
+The collision-free headless subset meets the 4 ms simulation-p95 target in
+both the short sample and a 30-minute paced run; that run held RSS within a
+128 KiB range and kept the logical resource signature stable. G5 still requires
+the medium authored scene and full per-tick remote workload, repeating
+performance/resource qualification there, 1080p rendering/batching/instancing,
+migration/replay hardening and production reconnect/session release
+qualification.
 
 ### G6 — Expansion
 

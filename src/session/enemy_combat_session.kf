@@ -418,17 +418,15 @@ class AuthoritativeEnemySession {
     }
 
     Int spatialDistance(Int firstId, Int secondId) {
-        if (!spatial.hasPosition(firstId) ||
-            !spatial.hasPosition(secondId)) {
+        var first = spatial.positionSlot(firstId)
+        var second = spatial.positionSlot(secondId)
+        if (first < 0 || second < 0) {
             return -1
         }
         return spatial.distanceBetween(
-            spatial.positionX(firstId),
-            spatial.positionY(firstId),
-            spatial.positionZ(firstId),
-            spatial.positionX(secondId),
-            spatial.positionY(secondId),
-            spatial.positionZ(secondId))
+            spatial.positionXAt(first), spatial.positionYAt(first),
+            spatial.positionZAt(first), spatial.positionXAt(second),
+            spatial.positionYAt(second), spatial.positionZAt(second))
     }
 
     SpatialVisibilityResult spatialVisibility(
@@ -837,10 +835,10 @@ class AuthoritativeEnemySession {
             lastEnemySteering = spatial.steerToward(
                 enemyId, targetId, enemies.moveStep(enemyId))
         } else {
+            var current = spatial.position(enemyId)
             lastEnemySteering = EnemySteeringResult(
                 true, true, false, enemyId, 0, 0,
-                spatial.positionX(enemyId), spatial.positionY(enemyId),
-                spatial.positionZ(enemyId))
+                current.x(), current.y(), current.z())
         }
         return enemies.step(
             enemyId, tick, targetId,
@@ -861,10 +859,7 @@ class AuthoritativeEnemySession {
                 true, enemyId, step.targetId(), tick,
                 false, 0, 0, false)
         }
-        var distance = spatial.distanceBetween(
-            spatial.positionX(enemyId), spatial.positionY(enemyId),
-            spatial.positionZ(enemyId), spatial.positionX(targetId),
-            spatial.positionY(targetId), spatial.positionZ(targetId))
+        var distance = spatialDistance(enemyId, targetId)
         var resolution = combat.resolveHitscan(
             enemyId, step.targetId(), tick, distance, critical)
         return EnemyAttackDecision(
@@ -898,10 +893,7 @@ class AuthoritativeEnemySession {
                 projectile.accepted(), projectile.projectileId(),
                 0, false)
         }
-        var distance = spatial.distanceBetween(
-            spatial.positionX(enemyId), spatial.positionY(enemyId),
-            spatial.positionZ(enemyId), spatial.positionX(targetId),
-            spatial.positionY(targetId), spatial.positionZ(targetId))
+        var distance = spatialDistance(enemyId, targetId)
         var resolution = ResolutionResult(
             false, 0, enemyId, step.targetId(), 0,
             combat.currentHealth(step.targetId()), false, 0)
@@ -1012,10 +1004,11 @@ class AuthoritativeEnemySession {
         var result = combat.resolveProjectile(
             projectile.projectileId(), targetId, visibility.distance(), critical)
         if (result.accepted()) {
+            var target = spatial.position(targetId)
             publishSpatialImpact(
                 1, projectile.projectileId(), sourceId, targetId,
-                spatial.positionX(targetId), spatial.positionY(targetId),
-                spatial.positionZ(targetId), result.applied(), result.died())
+                target.x(), target.y(), target.z(),
+                result.applied(), result.died())
             consumeCombatEvents(tick)
         }
         return result
@@ -1147,25 +1140,28 @@ class AuthoritativeEnemySession {
                     }
                 }
             }
-            var trace = spatial.traceSegment(
-                startX, startY, startZ, nextX, nextY, nextZ, travel)
-            if (!trace.accepted()) {
-                publishSpatialImpact(
-                    3, projectileId, spatialProjectileSources[index],
-                    targetId, startX, startY, startZ, 0, false)
-                combat.cancelProjectile(projectileId)
-                spatialProjectileActive[index] = false
-                continue
-            }
-            if (trace.collided()) {
-                publishSpatialImpact(
-                    2, projectileId, spatialProjectileSources[index],
-                    targetId, trace.resolvedX(), trace.resolvedY(),
-                    trace.resolvedZ(), 0, false)
-                combat.cancelProjectile(projectileId)
-                spatialProjectileActive[index] = false
-                spatialProjectileBlockedValue = spatialProjectileBlockedValue + 1
-                continue
+            if (spatial.hasObstacles()) {
+                var trace = spatial.traceSegment(
+                    startX, startY, startZ, nextX, nextY, nextZ, travel)
+                if (!trace.accepted()) {
+                    publishSpatialImpact(
+                        3, projectileId, spatialProjectileSources[index],
+                        targetId, startX, startY, startZ, 0, false)
+                    combat.cancelProjectile(projectileId)
+                    spatialProjectileActive[index] = false
+                    continue
+                }
+                if (trace.collided()) {
+                    publishSpatialImpact(
+                        2, projectileId, spatialProjectileSources[index],
+                        targetId, trace.resolvedX(), trace.resolvedY(),
+                        trace.resolvedZ(), 0, false)
+                    combat.cancelProjectile(projectileId)
+                    spatialProjectileActive[index] = false
+                    spatialProjectileBlockedValue =
+                        spatialProjectileBlockedValue + 1
+                    continue
+                }
             }
             spatialProjectileX[index] = nextX
             spatialProjectileY[index] = nextY

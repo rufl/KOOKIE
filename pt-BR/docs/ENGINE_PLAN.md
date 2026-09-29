@@ -744,8 +744,9 @@ evento confirmado de hitscan local também alcança filas limitadas de
 replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
 leu a cena limitada, e 84/84 testes-fonte focados passam na JVM e no nativo. A
 ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
-capacidades Kof inalteradas e buffers nativos persistentes; o soak de
-RSS/desempenho por 30 minutos permanece em G5.
+capacidades Kof inalteradas e buffers nativos persistentes. A evidência G5
+abaixo adiciona um soak headless sem colisão de 30 minutos; ela não amplia a
+afirmação gráfica de G1.
 
 G2 está fechado pelo slice de transporte com três processos na JVM e no nativo,
 que leva a arena completa, comandos unificados com checksum para
@@ -798,16 +799,34 @@ geral de formatos, reload arbitrário de código/shader, editor de produção e
 qualificação recente em três máquinas físicas ficam explicitamente fora dessa
 afirmação.
 
-O primeiro slice G5 limitado agora executa a população exata de 64 inimigos,
+O slice G5 limitado atual executa a população exata de 64 inimigos,
 256 projéteis móveis e 512 itens coletáveis em um servidor Kof sem gráficos.
 Os limites móveis admitem 16 estados de IA, 64 slots de projéteis e 128 slots
-de itens por tick. `scripts/verify_dedicated_server.sh` executa 256 ticks na
-JVM e no nativo com checksum igual `797255` e assinatura lógica de recursos
-`675172` inalterada; o arquivo Linux executa o mesmo binário fora do checkout
-sem dependência de SDL/X11/Wayland/Vulkan. Isso é evidência de correção e
-capacidade lógica, não de tempo p95 atingido, carga de rede ou soak de RSS.
+de itens por tick. `scripts/verify_dedicated_server.sh` comprova checksum
+`797255` igual na JVM/nativo e assinatura de recursos `675172` inalterada,
+depois mede o binário nativo por 512 ticks após 128 ticks de aquecimento. Em
+Linux 6.18.54-1-lts/x86_64, CPU Genuine Intel família 6 modelo 197 com 16
+cores e 48.848.828 KiB de RAM, a carga sem colisão registrou
+p50/p95/p99/máximo de 1,186/1,245/1,269/2,195 ms e 64 KiB de
+crescimento/faixa de RSS em 17 amostras.
+`scripts/verify_dedicated_soak.sh` então ritmou 108.000 ticks medidos a 60 Hz
+após 600 ticks de aquecimento: p50/p95/p99/máximo foram
+1,216/1,891/2,182/4,110 ms, o RSS inicial/final foi 3.884/4.012 KiB, o
+crescimento/faixa de RSS foi 128 KiB em 181 amostras e a assinatura lógica de
+recursos permaneceu `675172`.
+`scripts/verify_dedicated_network.sh` também executa um host autenticado e dois
+processos clientes com admissão de conteúdo, quatro checkpoints limitados,
+desconexão do cliente B e reconexão na geração 2; todos terminam no tick 256
+com assinatura de recursos `675172`. O arquivo Linux executa o servidor com
+telemetria fora do checkout, sem dependência de SDL/X11/Wayland/Vulkan no
+binário/adaptador do servidor.
 
-### Hipóteses iniciais de desempenho, não números alcançados
+Essa evidência qualifica apenas a carga headless sem colisão e o protocolo de
+checkpoint na mesma máquina. Ela não qualifica a cena média com colisão criada
+manualmente, gameplay remoto por tick, renderização nem operação em várias
+máquinas.
+
+### Evidência limitada medida e metas de desempenho restantes
 
 Cena de referência para o primeiro estágio de escala: 64 inimigos ativos, 256 projéteis em movimento, 512 itens coletáveis, luzes/efeitos dinâmicos limitados e um nível médio criado manualmente. Mantenha uma variante de estresse mais pesada após a correção da linha de base; não alegue escalabilidade arbitrária da população.
 

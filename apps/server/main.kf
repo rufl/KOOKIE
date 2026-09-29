@@ -1,17 +1,95 @@
 import session
 import kof.process
 
-main() {
-    var ticks = 256
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_measure_begin(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_measure_elapsed_microseconds(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_rss_kib(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_sleep_microseconds(Int microseconds): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_requested_ticks(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_warmup_ticks(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_sample_interval(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_realtime(): Bool
 
+main() {
+    // Persist each extern result before a later call; native local liveness is
+    // not reliable across this scalar FFI boundary.
+    var configuration = BoundedDedicatedRunConfiguration()
+    if (!configuration.setMeasuredTicks(
+            kookie_headless_requested_ticks()) ||
+        !configuration.setWarmupTicks(
+            kookie_headless_warmup_ticks()) ||
+        !configuration.setRssSampleInterval(
+            kookie_headless_sample_interval()) ||
+        !configuration.setRealtime(kookie_headless_realtime()) ||
+        !configuration.ready()) {
+        println("dedicated-server-configuration-rejected")
+        process.exit(1)
+    }
     var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
-    if (!server.configureReferenceWorkload() || !server.runTicks(ticks) ||
-        !server.resourcePlateau() || server.overloadCount() != 0) {
+    var telemetry = BoundedTickTelemetry(20000)
+    if (!telemetry.valid() || !server.configureReferenceWorkload() ||
+        (configuration.warmupTicks() > 0 &&
+            !server.runTicks(configuration.warmupTicks()))) {
         println("dedicated-server-rejected")
+        process.exit(1)
+    }
+    if (!telemetry.recordRss(kookie_headless_rss_kib())) {
+        println("dedicated-server-rss-rejected")
+        process.exit(1)
+    }
+    for (var sample = 0; sample < configuration.measuredTicks();
+        sample = sample + 1) {
+        if (!kookie_headless_measure_begin() ||
+            !server.advance(16666)) {
+            println("dedicated-server-tick-rejected")
+            process.exit(1)
+        }
+        if (!telemetry.recordTick(
+                kookie_headless_measure_elapsed_microseconds())) {
+            println("dedicated-server-telemetry-rejected")
+            process.exit(1)
+        }
+        if ((sample + 1) % configuration.rssSampleInterval() == 0 ||
+            sample + 1 == configuration.measuredTicks()) {
+            if (!telemetry.recordRss(kookie_headless_rss_kib())) {
+                println("dedicated-server-rss-rejected")
+                process.exit(1)
+            }
+        }
+        if (configuration.realtime()) {
+            var remainingMicros = 16666 - telemetry.lastTickMicros()
+            if (remainingMicros < 0) {
+                remainingMicros = 0
+            }
+            if (!kookie_headless_sleep_microseconds(remainingMicros)) {
+                println("dedicated-server-pacing-rejected")
+                process.exit(1)
+            }
+        }
+    }
+    var simulationBudgetPass = telemetry.p95Micros() <= 4000
+    var rssPlateau =
+        telemetry.rssGrowthKib() <= 1024 &&
+        telemetry.rssRangeKib() <= 4096
+    if (!server.resourcePlateau() || server.overloadCount() != 0 ||
+        telemetry.tickSamples() != configuration.measuredTicks()) {
+        println("dedicated-server-rejected")
+        println("resource-plateau")
+        println(server.resourcePlateau())
+        println("overload-count")
+        println(server.overloadCount())
+        println("tick-samples")
+        println(telemetry.tickSamples())
+        println("expected-tick-samples")
+        println(configuration.measuredTicks())
         process.exit(1)
     }
     println("KOOKIE G5 dedicated headless server")
     println("graphics=none")
+    println("warmup-ticks")
+    println(configuration.warmupTicks())
+    println("measured-ticks")
+    println(configuration.measuredTicks())
     println("ticks=" + server.ticksProcessed())
     println("enemies=" + server.enemyCount())
     println("projectiles=" + server.projectileCount())
@@ -20,6 +98,30 @@ main() {
         server.projectileBudget() + "," + server.pickupBudget())
     println("peak-work=" + server.peakAiWork() + "," +
         server.peakProjectileWork() + "," + server.peakPickupWork())
+    println("simulation-p50-us")
+    println(telemetry.p50Micros())
+    println("simulation-p95-us")
+    println(telemetry.p95Micros())
+    println("simulation-p99-us")
+    println(telemetry.p99Micros())
+    println("simulation-max-us")
+    println(telemetry.maximumTickMicros())
+    println("simulation-budget-pass")
+    println(simulationBudgetPass)
+    println("rss-first-kib")
+    println(telemetry.firstRssKib())
+    println("rss-last-kib")
+    println(telemetry.lastRssKib())
+    println("rss-growth-kib")
+    println(telemetry.rssGrowthKib())
+    println("rss-range-kib")
+    println(telemetry.rssRangeKib())
+    println("rss-samples")
+    println(telemetry.rssSamples())
+    println("rss-plateau")
+    println(rssPlateau)
+    println("realtime")
+    println(configuration.realtime())
     println("resource-signature=" + server.baselineResourceSignature())
     println("workload-checksum=" + server.workloadChecksum())
     println("resource-plateau=true")

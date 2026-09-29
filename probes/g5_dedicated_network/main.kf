@@ -1,0 +1,333 @@
+import core
+import content
+import session
+
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_select_slot(Int slot): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_max_words(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_open_listen_ipv4(Int port): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_open_remote_environment(Int port): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_set_key_from_environment(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_set_peer_last_sender(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_external_is_host(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_external_is_client_a(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_external_is_client_b(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_send_begin(Int wordCount): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_send_word(Int index, Int word): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_send_commit(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_receive(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_receive_word(Int index): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_last_status(): Int
+extern "./lib/libkookie_headless_adapter.so" kookie_transport_close(): Bool
+
+Bool sendDedicatedPayload(Int[] payload) {
+    if (payload.length <= 0 || payload.length > kookie_transport_max_words() ||
+        !kookie_transport_send_begin(payload.length)) {
+        return false
+    }
+    for (var index = 0; index < payload.length; index = index + 1) {
+        if (!kookie_transport_send_word(index, payload[index])) {
+            return false
+        }
+    }
+    if (!kookie_transport_send_commit()) {
+        return false
+    }
+    return true
+}
+
+class DedicatedTransportReceiver {
+    // Fields keep scalar extern results stable across the following FFI calls.
+    Int receivedValue
+    Int statusValue
+
+    public constructor() {
+        receivedValue = 0
+        statusValue = 0
+    }
+
+    Int[] receive(Int expectedLength) {
+        receivedValue = kookie_transport_receive()
+        statusValue = kookie_transport_last_status()
+        if (receivedValue != expectedLength || statusValue != 1) {
+            println("g5-scale-receive-failed")
+            println(receivedValue)
+            println(statusValue)
+            return new Int[0]
+        }
+        var payload = new Int[expectedLength]
+        for (var index = 0; index < expectedLength; index = index + 1) {
+            payload[index] = kookie_transport_receive_word(index)
+        }
+        return payload
+    }
+}
+
+Int[] receiveDedicatedPayload(
+    DedicatedTransportReceiver receiver, Int expectedLength
+) {
+    return receiver.receive(expectedLength)
+}
+
+BoundedContentCompatibility dedicatedCompatibility() {
+    var identity = BoundedContentCompatibility()
+    var networkChecksum = (
+        protocolVersion() * 31 + dedicatedWorkloadRequestMessageKind() * 17 +
+        dedicatedWorkloadStateMessageKind() * 13 +
+        dedicatedWorkloadStateLength() * 7) % 1000003
+    assert(networkChecksum > 0 &&
+        identity.configureVersions(7, 5, networkChecksum) &&
+        identity.configureContent(675172, 772001, 772002, 772003) &&
+        identity.configurePublication(1, 1, 675172) &&
+        identity.seal() && identity.encode(),
+        "dedicated scale compatibility identity must seal")
+    return identity
+}
+
+Bool hostCompatibility(
+    Int slot, BoundedContentCompatibility local, Int expectedSequence,
+    DedicatedTransportReceiver receiver
+) {
+    if (!kookie_transport_select_slot(slot)) {
+        return false
+    }
+    var offer = receiveDedicatedPayload(
+        receiver, compatibilityHandshakeOfferLength())
+    var remote = BoundedContentCompatibility()
+    if (offer.length != compatibilityHandshakeOfferLength() ||
+        offer[3] != expectedSequence ||
+        !decodeCompatibilityHandshakeOffer(offer, remote)) {
+        return false
+    }
+    var response = newCompatibilityHandshakeResponse(
+        local, remote, expectedSequence)
+    return compatibilityHandshakeAccepted(response) &&
+        kookie_transport_set_peer_last_sender() &&
+        sendDedicatedPayload(response)
+}
+
+Bool clientCompatibility(
+    BoundedContentCompatibility local, Int sequence,
+    DedicatedTransportReceiver receiver
+) {
+    var offer = newCompatibilityHandshakeOffer(local, sequence)
+    if (!sendDedicatedPayload(offer)) {
+        return false
+    }
+    var response = receiveDedicatedPayload(
+        receiver, compatibilityHandshakeResponseLength())
+    return validCompatibilityHandshakeResponse(
+            response, sequence, local.checksum()) &&
+        compatibilityHandshakeAccepted(response)
+}
+
+Bool hostReceiveRequest(
+    Int slot, BoundedDedicatedClientAdmission admission,
+    Int generation, Int sequence, Int acknowledgedTick, Int action,
+    DedicatedTransportReceiver receiver
+) {
+    if (!kookie_transport_select_slot(slot)) {
+        return false
+    }
+    var request = receiveDedicatedPayload(
+        receiver, dedicatedWorkloadRequestLength())
+    return validDedicatedWorkloadRequest(request) &&
+        request[3] == generation && request[4] == sequence &&
+        request[5] == acknowledgedTick && request[6] == action &&
+        admission.applyRequest(request)
+}
+
+Bool hostSendState(
+    Int slot, BoundedDedicatedServer server,
+    Int clientId, Int generation, Int sequence,
+    Bool connected, Int diagnostic
+) {
+    var state = newDedicatedWorkloadState(
+        server, clientId, generation, sequence, connected, diagnostic)
+    return state.length == dedicatedWorkloadStateLength() &&
+        kookie_transport_select_slot(slot) &&
+        kookie_transport_set_peer_last_sender() &&
+        sendDedicatedPayload(state)
+}
+
+Bool clientPoll(
+    BoundedDedicatedClientView view,
+    Int generation, Int sequence, Int acknowledgedTick,
+    DedicatedTransportReceiver receiver
+) {
+    var request = newDedicatedWorkloadRequest(
+        view.clientId(), generation, sequence,
+        acknowledgedTick, dedicatedWorkloadPollAction())
+    if (!sendDedicatedPayload(request)) {
+        return false
+    }
+    var state = receiveDedicatedPayload(
+        receiver, dedicatedWorkloadStateLength())
+    return view.applyState(state)
+}
+
+Bool dedicatedHost() {
+    var identity = dedicatedCompatibility()
+    var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
+    var clientA = BoundedDedicatedClientAdmission(1)
+    var clientB = BoundedDedicatedClientAdmission(2)
+    var receiver = DedicatedTransportReceiver()
+    assert(server.configureReferenceWorkload() &&
+        kookie_transport_max_words() == maximumSessionTransportWords() &&
+        kookie_transport_select_slot(0) &&
+        kookie_transport_set_key_from_environment() &&
+        kookie_transport_open_listen_ipv4(48101) &&
+        kookie_transport_select_slot(1) &&
+        kookie_transport_set_key_from_environment() &&
+        kookie_transport_open_listen_ipv4(48102),
+        "dedicated host must bind two authenticated headless endpoints")
+    assert(hostCompatibility(0, identity, 1, receiver) &&
+        clientA.admitCompatibleGeneration(1) &&
+        hostCompatibility(1, identity, 1, receiver) &&
+        clientB.admitCompatibleGeneration(1),
+        "dedicated host must compatibility-admit both clients")
+
+    for (var round = 1; round <= 2; round = round + 1) {
+        var acknowledgedTick = (round - 1) * 64
+        assert(hostReceiveRequest(
+                0, clientA, 1, round, acknowledgedTick,
+                dedicatedWorkloadPollAction(), receiver) &&
+            hostReceiveRequest(
+                1, clientB, 1, round, acknowledgedTick,
+                dedicatedWorkloadPollAction(), receiver) &&
+            server.runTicks(64),
+            "dedicated host must advance each admitted scale round")
+        assert(hostSendState(
+                0, server, 1, 1, round, true,
+                dedicatedWorkloadSnapshotDiagnostic()) &&
+            hostSendState(
+                1, server, 2, 1, round, true,
+                dedicatedWorkloadSnapshotDiagnostic()),
+            "dedicated host must publish each scale checkpoint")
+    }
+
+    assert(hostReceiveRequest(
+            1, clientB, 1, 3, 128,
+            dedicatedWorkloadDisconnectAction(), receiver) &&
+        !clientB.connected() &&
+        hostSendState(
+            1, server, 2, 1, 3, false,
+            dedicatedWorkloadDisconnectDiagnostic()),
+        "dedicated host must publish a bounded disconnect state")
+    assert(hostCompatibility(1, identity, 2, receiver) &&
+        clientB.admitCompatibleGeneration(2),
+        "dedicated reconnect must repeat compatibility admission")
+
+    for (var tail = 1; tail <= 2; tail = tail + 1) {
+        var acknowledgedTick = 128 + (tail - 1) * 64
+        assert(hostReceiveRequest(
+                0, clientA, 1, tail + 2, acknowledgedTick,
+                dedicatedWorkloadPollAction(), receiver) &&
+            hostReceiveRequest(
+                1, clientB, 2, tail, acknowledgedTick,
+                dedicatedWorkloadPollAction(), receiver) &&
+            server.runTicks(64),
+            "dedicated host must continue the workload after reconnect")
+        var clientBDiagnostic = dedicatedWorkloadSnapshotDiagnostic()
+        if (tail == 1) {
+            clientBDiagnostic = dedicatedWorkloadReconnectDiagnostic()
+        }
+        assert(hostSendState(
+                0, server, 1, 1, tail + 2, true,
+                dedicatedWorkloadSnapshotDiagnostic()) &&
+            hostSendState(
+                1, server, 2, 2, tail, true,
+                clientBDiagnostic),
+            "dedicated host must resume both client streams")
+    }
+
+    assert(server.ticksProcessed() == 256 && server.resourcePlateau() &&
+        server.overloadCount() == 0 && clientA.connected() &&
+        clientB.connected() && clientB.generation() == 2,
+        "dedicated host must finish the networked reference workload")
+    kookie_transport_select_slot(0)
+    kookie_transport_close()
+    kookie_transport_select_slot(1)
+    kookie_transport_close()
+    println("g5-scale-role-host")
+    println("g5-scale-ticks")
+    println(server.ticksProcessed())
+    println("g5-scale-checksum")
+    println(server.workloadChecksum())
+    println("g5-scale-resource-signature")
+    println(server.baselineResourceSignature())
+    println("g5-scale-client-b-generation")
+    println(clientB.generation())
+    println("KOOKIE G5 authenticated host/two-client workload verified")
+    return true
+}
+
+Bool dedicatedClient(Int clientId) {
+    var identity = dedicatedCompatibility()
+    var view = BoundedDedicatedClientView(clientId)
+    var receiver = DedicatedTransportReceiver()
+    var hostPort = 48101
+    if (clientId == 2) {
+        hostPort = 48102
+    }
+    assert(kookie_transport_select_slot(0) &&
+        kookie_transport_set_key_from_environment() &&
+        kookie_transport_open_remote_environment(hostPort) &&
+        clientCompatibility(identity, 1, receiver) &&
+        view.beginCompatibleGeneration(1),
+        "dedicated client must authenticate and compatibility-admit")
+    assert(clientPoll(view, 1, 1, 0, receiver) && view.tick() == 64 &&
+        clientPoll(view, 1, 2, 64, receiver) && view.tick() == 128,
+        "dedicated client must consume the first two scale checkpoints")
+    if (clientId == 2) {
+        var disconnect = newDedicatedWorkloadRequest(
+            2, 1, 3, 128, dedicatedWorkloadDisconnectAction())
+        assert(sendDedicatedPayload(disconnect) &&
+            view.applyState(receiveDedicatedPayload(
+                receiver, dedicatedWorkloadStateLength())) &&
+            !view.connected() &&
+            clientCompatibility(identity, 2, receiver) &&
+            view.beginCompatibleGeneration(2),
+            "dedicated client B must disconnect and repeat compatibility")
+        assert(clientPoll(view, 2, 1, 128, receiver) &&
+            view.tick() == 192 &&
+            clientPoll(view, 2, 2, 192, receiver) && view.tick() == 256,
+            "dedicated client B must resume on generation two")
+    } else {
+        assert(clientPoll(view, 1, 3, 128, receiver) &&
+            view.tick() == 192 &&
+            clientPoll(view, 1, 4, 192, receiver) && view.tick() == 256,
+            "dedicated client A must remain continuous during reconnect")
+    }
+    assert(view.connected() && view.enemyCount() == 64 &&
+        view.projectileCount() == 256 && view.pickupCount() == 512 &&
+        view.aiBudget() == 16 && view.projectileBudget() == 64 &&
+        view.pickupBudget() == 128 && view.resourceSignature() == 675172,
+        "dedicated client must preserve the complete scale state")
+    kookie_transport_close()
+    if (clientId == 1) {
+        println("g5-scale-role-client-a")
+    } else {
+        println("g5-scale-role-client-b")
+    }
+    println("g5-scale-final-tick")
+    println(view.tick())
+    println("g5-scale-final-generation")
+    println(view.generation())
+    println("g5-scale-updates")
+    println(view.updateCount())
+    println("g5-scale-resource-signature")
+    println(view.resourceSignature())
+    return true
+}
+
+main() {
+    if (kookie_transport_external_is_host()) {
+        assert(dedicatedHost(), "dedicated scale host role must qualify")
+    } else if (kookie_transport_external_is_client_a()) {
+        assert(dedicatedClient(1), "dedicated scale client A must qualify")
+    } else if (kookie_transport_external_is_client_b()) {
+        assert(dedicatedClient(2), "dedicated scale client B must qualify")
+    } else {
+        assert(false, "KOOKIE_EXTERNAL_LAN_ROLE must select a dedicated scale role")
+    }
+}

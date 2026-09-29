@@ -708,7 +708,8 @@ local hitscan event also reaches bounded replay/audio queues and native SDL clip
 playback. An isolated GPU smoke rendered and read back the bounded scene, and
 84/84 focused source tests pass on JVM and native. G1's no-per-frame-growth
 evidence is 64 deterministic stages with unchanged Kof capacities plus
-persistent native scene buffers; the 30-minute RSS/performance soak remains G5.
+persistent native scene buffers. The G5 evidence below adds a 30-minute
+collision-free headless soak; it does not extend G1's graphical claim.
 
 G2 is closed by the JVM/native three-process transport slice carrying the full
 arena, unified checksummed movement/fire/interaction/lifecycle commands,
@@ -757,17 +758,32 @@ compatibility, arbitrary code/shader reload, a production-grade editor, and
 fresh qualification on three physical machines are explicitly outside that
 claim.
 
-The first bounded G5 slice now executes the exact 64-enemy,
+The current bounded G5 slice executes the exact 64-enemy,
 256-moving-projectile and 512-pickup population in a graphics-free Kof server.
 Rolling work limits admit 16 AI states, 64 projectile slots and 128 pickup
-slots per tick. `scripts/verify_dedicated_server.sh` runs 256 ticks on JVM and
-native with matching checksum `797255` and unchanged logical resource
-signature `675172`; the Linux archive runs the same binary outside the source
-checkout with no SDL/X11/Wayland/Vulkan dependency. This is correctness and
-logical-capacity evidence, not achieved p95 timing, network-load or RSS-soak
-evidence.
+slots per tick. `scripts/verify_dedicated_server.sh` proves matching JVM/native
+checksum `797255` and unchanged resource signature `675172`, then measures the
+native binary after 128 warm-up ticks for 512 ticks. On Linux
+6.18.54-1-lts/x86_64, a 16-core Genuine Intel family 6 model 197 CPU and
+48,848,828 KiB RAM, the collision-free workload recorded p50/p95/p99/max
+1.186/1.245/1.269/2.195 ms and 64 KiB RSS growth/range across 17 samples.
+`scripts/verify_dedicated_soak.sh` then paced 108,000 measured ticks at 60 Hz
+after 600 warm-up ticks: p50/p95/p99/max were
+1.216/1.891/2.182/4.110 ms, RSS first/last was 3,884/4,012 KiB, RSS
+growth/range was 128 KiB across 181 samples, and the logical resource signature
+remained `675172`.
+`scripts/verify_dedicated_network.sh` additionally runs one authenticated host
+and two client processes through content admission, four bounded checkpoints,
+client-B disconnect and generation-2 reconnect; every process ends at tick 256
+with resource signature `675172`. The Linux archive runs the telemetry-enabled
+server outside the checkout and its server binary/adapter have no
+SDL/X11/Wayland/Vulkan dependency.
 
-### Initial performance hypotheses, not achieved numbers
+This evidence qualifies the collision-free headless workload and same-host
+checkpoint protocol only. It does not qualify the medium authored collision
+scene, per-tick remote gameplay, rendering, or multi-machine operation.
+
+### Measured bounded evidence and remaining performance targets
 
 Reference scene for first scale gate: 64 active enemies, 256 moving projectiles, 512 pickups, bounded dynamic lights/effects and one medium authored level. Maintain a heavier stress variant after the baseline is correct; do not claim arbitrary population scalability.
 

@@ -20,6 +20,7 @@ record SpatialSweepResult(
     Int distance, Int resolvedX, Int resolvedY, Int resolvedZ
 )
 
+record SpatialPositionResult(Bool accepted, Int x, Int y, Int z)
 class EnemySpatialWorld {
     BoundedTriangleCollection obstacles
     EnemyNavigator navigator
@@ -31,6 +32,10 @@ class EnemySpatialWorld {
     Int[] positionsZ
     Bool[] active
     Int maxDistance
+    // Keep the lookup cache inside the owner; native callers must not retain
+    // returned slots across later method calls.
+    Int cachedPositionId
+    Int cachedPositionSlot
 
     public constructor(Int capacity, Int nextMaxDistance) {
         maxDistance = nextMaxDistance
@@ -46,6 +51,8 @@ class EnemySpatialWorld {
         positionsY = new Int[capacity]
         positionsZ = new Int[capacity]
         active = new Bool[capacity]
+        cachedPositionId = 0
+        cachedPositionSlot = -1
         for (var index = 0; index < capacity; index = index + 1) {
             ids[index] = 0
             positionsX[index] = 0
@@ -75,17 +82,61 @@ class EnemySpatialWorld {
         return obstacles.addTriangle(ax, ay, az, bx, by, bz, cx, cy, cz)
     }
 
+    Bool hasObstacles() {
+        return obstacles.triangleCount() > 0
+    }
+
     Int find(Int id) {
+        if (cachedPositionId == id) {
+            return cachedPositionSlot
+        }
         for (var index = 0; index < ids.length; index = index + 1) {
             if (active[index] && ids[index] == id) {
-
+                cachedPositionId = id
+                cachedPositionSlot = index
                 return index
             }
         }
+        cachedPositionId = id
+        cachedPositionSlot = -1
         return -1
     }
     Bool hasPosition(Int id) {
         return find(id) >= 0
+    }
+
+    Int positionSlot(Int id) {
+        return find(id)
+    }
+
+    Int positionXAt(Int slot) {
+        if (slot < 0 || slot >= active.length || !active[slot]) {
+            return 0
+        }
+        return positionsX[slot]
+    }
+
+    Int positionYAt(Int slot) {
+        if (slot < 0 || slot >= active.length || !active[slot]) {
+            return 0
+        }
+        return positionsY[slot]
+    }
+
+    Int positionZAt(Int slot) {
+        if (slot < 0 || slot >= active.length || !active[slot]) {
+            return 0
+        }
+        return positionsZ[slot]
+    }
+
+    SpatialPositionResult position(Int id) {
+        var index = find(id)
+        if (index < 0) {
+            return SpatialPositionResult(false, 0, 0, 0)
+        }
+        return SpatialPositionResult(
+            true, positionsX[index], positionsY[index], positionsZ[index])
     }
 
     Int freeSlot() {
@@ -109,6 +160,8 @@ class EnemySpatialWorld {
             }
             ids[index] = id
             active[index] = true
+            cachedPositionId = id
+            cachedPositionSlot = index
         }
         positionsX[index] = x
         positionsY[index] = y
@@ -157,6 +210,9 @@ class EnemySpatialWorld {
         if (distance > range || distance > maxDistance) {
             return SpatialVisibilityResult(false, false, distance, -1)
         }
+        if (obstacles.triangleCount() == 0) {
+            return SpatialVisibilityResult(true, true, distance, -1)
+        }
         var result = obstacles.query(
             positionsX[sourceIndex], positionsY[sourceIndex], positionsZ[sourceIndex],
             positionsX[targetIndex], positionsY[targetIndex], positionsZ[targetIndex])
@@ -173,6 +229,10 @@ class EnemySpatialWorld {
         var distance = segmentDistance(startX, startY, startZ, endX, endY, endZ)
         if (range < 0 || distance > range || distance > maxDistance) {
             return SpatialSweepResult(false, false, false, distance, startX, startY, startZ)
+        }
+        if (obstacles.triangleCount() == 0) {
+            return SpatialSweepResult(
+                true, false, true, distance, endX, endY, endZ)
         }
         var result = obstacles.query(startX, startY, startZ, endX, endY, endZ)
         if (!result.accepted()) {
@@ -344,9 +404,10 @@ class EnemySpatialWorld {
                 false, false, false, enemyId, 0, route.expanded(), 0, 0, 0)
         }
         if (!route.found()) {
+            var current = position(enemyId)
             return EnemySteeringResult(
                 true, false, false, enemyId, 0, route.expanded(),
-                positionX(enemyId), positionY(enemyId), positionZ(enemyId))
+                current.x(), current.y(), current.z())
         }
         var movement = moveTowardPoint(
             enemyId, route.waypointX(), route.waypointY(),
@@ -412,6 +473,8 @@ class EnemySpatialWorld {
             source[2] <= 0) {
             return false
         }
+        cachedPositionId = 0
+        cachedPositionSlot = -1
         var offset = 3
         for (var index = 0; index < ids.length; index = index + 1) {
             if (source[offset] < 0 || source[offset + 1] < 0 ||

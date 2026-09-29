@@ -2,6 +2,166 @@ package session
 
 import core
 
+class BoundedDedicatedRunConfiguration {
+    Int measuredTicksValue
+    Int warmupTicksValue
+    Int rssSampleIntervalValue
+    Bool realtimeValue
+
+    public constructor() {
+        measuredTicksValue = 0
+        warmupTicksValue = -1
+        rssSampleIntervalValue = 0
+        realtimeValue = false
+    }
+
+    Bool setMeasuredTicks(Int value) {
+        if (value <= 0 || value > 10000000) {
+            return false
+        }
+        measuredTicksValue = value
+        return true
+    }
+
+    Bool setWarmupTicks(Int value) {
+        if (value < 0 || value > 1000000) {
+            return false
+        }
+        warmupTicksValue = value
+        return true
+    }
+
+    Bool setRssSampleInterval(Int value) {
+        if (value <= 0 || value > 1000000) {
+            return false
+        }
+        rssSampleIntervalValue = value
+        return true
+    }
+
+    Bool setRealtime(Bool value) {
+        realtimeValue = value
+        return true
+    }
+
+    Bool ready() {
+        return measuredTicksValue > 0 &&
+            warmupTicksValue >= 0 &&
+            rssSampleIntervalValue > 0
+    }
+
+    Int measuredTicks() { return measuredTicksValue }
+    Int warmupTicks() { return warmupTicksValue }
+    Int rssSampleInterval() { return rssSampleIntervalValue }
+    Bool realtime() { return realtimeValue }
+}
+
+class BoundedTickTelemetry {
+    Int[] durationCounts
+    Int tickSamplesValue
+    Int maximumTickMicrosValue
+    Int lastTickMicrosValue
+    Int rssSamplesValue
+    Int firstRssKibValue
+    Int lastRssKibValue
+    Int minimumRssKibValue
+    Int maximumRssKibValue
+    Bool validValue
+
+    public constructor(Int maximumTrackedMicros) {
+        validValue =
+            maximumTrackedMicros > 0 && maximumTrackedMicros <= 100000
+        var actualMaximum = maximumTrackedMicros
+        if (!validValue) {
+            actualMaximum = 1
+        }
+        durationCounts = new Int[actualMaximum + 1]
+        for (var index = 0; index < durationCounts.length; index = index + 1) {
+            durationCounts[index] = 0
+        }
+        tickSamplesValue = 0
+        maximumTickMicrosValue = 0
+        lastTickMicrosValue = 0
+        rssSamplesValue = 0
+        firstRssKibValue = 0
+        lastRssKibValue = 0
+        minimumRssKibValue = 0
+        maximumRssKibValue = 0
+    }
+
+    Bool recordTick(Int microseconds) {
+        if (!validValue || microseconds < 0 ||
+            tickSamplesValue == 10000000) {
+            return false
+        }
+        var bucket = microseconds
+        if (bucket >= durationCounts.length) {
+            bucket = durationCounts.length - 1
+        }
+        durationCounts[bucket] = durationCounts[bucket] + 1
+        lastTickMicrosValue = microseconds
+        tickSamplesValue = tickSamplesValue + 1
+        if (microseconds > maximumTickMicrosValue) {
+            maximumTickMicrosValue = microseconds
+        }
+        return true
+    }
+
+    Int percentile(Int percentileValue) {
+        if (tickSamplesValue == 0 ||
+            percentileValue <= 0 || percentileValue > 100) {
+            return -1
+        }
+        var rank =
+            (tickSamplesValue * percentileValue + 99) / 100
+        var observed = 0
+        for (var bucket = 0; bucket < durationCounts.length;
+            bucket = bucket + 1) {
+            observed = observed + durationCounts[bucket]
+            if (observed >= rank) {
+                return bucket
+            }
+        }
+        return durationCounts.length - 1
+    }
+
+    Bool recordRss(Int rssKib) {
+        if (!validValue || rssKib <= 0 ||
+            rssSamplesValue == 10000000) {
+            return false
+        }
+        if (rssSamplesValue == 0) {
+            firstRssKibValue = rssKib
+            minimumRssKibValue = rssKib
+            maximumRssKibValue = rssKib
+        }
+        lastRssKibValue = rssKib
+        if (rssKib < minimumRssKibValue) {
+            minimumRssKibValue = rssKib
+        }
+        if (rssKib > maximumRssKibValue) {
+            maximumRssKibValue = rssKib
+        }
+        rssSamplesValue = rssSamplesValue + 1
+        return true
+    }
+
+    Bool valid() { return validValue }
+    Int tickSamples() { return tickSamplesValue }
+    Int p50Micros() { return percentile(50) }
+    Int p95Micros() { return percentile(95) }
+    Int p99Micros() { return percentile(99) }
+    Int maximumTickMicros() { return maximumTickMicrosValue }
+    Int lastTickMicros() { return lastTickMicrosValue }
+    Int rssSamples() { return rssSamplesValue }
+    Int firstRssKib() { return firstRssKibValue }
+    Int lastRssKib() { return lastRssKibValue }
+    Int minimumRssKib() { return minimumRssKibValue }
+    Int maximumRssKib() { return maximumRssKibValue }
+    Int rssGrowthKib() { return lastRssKibValue - firstRssKibValue }
+    Int rssRangeKib() { return maximumRssKibValue - minimumRssKibValue }
+}
+
 class BoundedDedicatedServer {
     FixedStepClock clock
     AuthoritativeEnemySession authority

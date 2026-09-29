@@ -96,6 +96,7 @@ jvm_metadata_jar=""
 if [[ "$target" == native ]]; then
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
+    native/kookie_transport.c \
     -o "$root_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer)
   kof build "$source_dir/main.kf" \
