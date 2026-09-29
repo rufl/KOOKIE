@@ -47,13 +47,16 @@ G0, G1, G2, G3 e o primeiro slice vertical limitado de G4 executam na JVM e no L
   baselines por destinatário de gameplay, autoridade G3 do jogador e loot no
   mundo, feedback multiplayer ordenado e estado autoritativo limitado do
   encounter;
+- um shell persistente e redimensionável em 1280×720, com menus pixel old
+  school, mouse/teclado, opções transacionais de vídeo/áudio/texto e lobby
+  simples de host/join/leave marcado por SipHash;
 - papéis contínuos de inimigos hitscan/projétil/shotgun, predição de movimento
   no cliente com replay de inputs ainda não confirmados, recuperação de
   reconexão segura por geração, colisão/geometria visual 3D completa das portas
   e recuperação de lacunas/duplicatas em lotes de feedback;
 - atenuação por distância e pan estéreo relativos ao listener calculados no
-  Kof, com envio PCM esquerdo/direito sem alocação pelo adaptador de áudio SDL
-  nativo.
+  Kof, com PCM sem alocação em buses separados de efeitos e música no
+  SDL_mixer.
 
 As lacunas importantes continuam reais:
 
@@ -68,6 +71,9 @@ As lacunas importantes continuam reais:
 - saves duráveis contra crash, física completa, áudio comprimido/em streaming
   e HRTF/EFX, soak/desempenho sustentado de G5 e o pipeline completo de criação
   continuam incompletos.
+- o shell Windows nativo é interativo e persistente, mas o Kof ainda não gera
+  gameplay PE para Windows; a tela Play não comprova execução autoritativa Kof
+  nesse sistema.
 
 Se uma afirmação não tem um teste ou uma sonda focada por trás, ela não é
 apresentada como concluída.
@@ -86,8 +92,7 @@ Execute a sonda focada de gameplay/replay:
 bash scripts/verify_interactions.sh
 ```
 
-Gere o pacote nativo Linux de apresentação SDL_GPU usado para qualificação
-visual isolada e deployment dogfood via ztash:
+Gere o pacote de apresentação SDL_GPU persistente para Linux:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
@@ -95,10 +100,28 @@ KOOKIE_VERSION=0.1.0-dogfood.presentation.1 \
 scripts/package_kookie.sh
 ```
 
-Ele contém o executável Kof de arena/HUD de combate, adaptador SDL, shaders
-SPIR-V e bibliotecas Linux resolvidas. Impactos autoritativos confirmados
-acionam o mesmo marcador limitado do HUD e clip SDL sintetizado exercitado pela
-sonda. É uma superfície de qualificação, não um jogo interativo completo.
+Ele contém o aplicativo Kof com menus/gameplay, adaptador SDL, shaders SPIR-V,
+SDL3 e SDL_mixer. O launcher usa o runtime do sistema, sem empacotar o loader
+dinâmico ou libc. Pacotes JVM distribuíveis são rejeitados; JVM fica restrita
+à qualificação diferencial local.
+
+Gere o shell Windows x86-64 nativo com os pacotes de desenvolvimento MinGW
+oficiais de SDL 3.4.16 e SDL_mixer 3.2.4:
+
+```bash
+KOOKIE_WINDOWS_SDL_PREFIX=/caminho/SDL3/x86_64-w64-mingw32 \
+KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/SDL3_mixer/x86_64-w64-mingw32 \
+scripts/package_kookie.sh --runtime native --target windows-x86_64
+```
+
+O `.zip` contém `kookie.exe`, as duas DLLs, licenças e procedência, sem JDK ou
+teste de matriz de cores que fecha sozinho. A janela permanece aberta até o
+usuário sair. Use setas ou WASD, Enter/Espaço, Esc e clique. As opções cobrem
+resolução, modo janela/borderless/fullscreen, volumes separados e tamanho de
+texto. O lobby oferece Host, Join, Leave, IPv4/porta editáveis e estado da
+conexão. Pacotes têm tags SipHash e sequências contra replay. Uma chave secreta
+compartilhada de 128 bits autentica os peers; o fallback local público apenas
+detecta corrupção acidental. Não há criptografia nem identidade pública.
 
 O gate completo fica para a verificação final pré-commit (no Pi, após `/precommit-matrix`):
 
@@ -127,14 +150,14 @@ guardar um frame capturado.
 
 ## O que estamos construindo
 
-O comportamento de CPU da engine, do jogo e das ferramentas permanece em
-`.kf`. O código nativo fica limitado a adaptadores pequenos, fronteiras de ABI,
-shaders e glue de bootstrap. Não há uma engine substituta escondida em C,
-Java, Rust ou Zig.
+O comportamento autoritativo de CPU da engine e do jogo permanece em `.kf`.
+Código nativo fica limitado a adaptadores, fronteiras ABI, shaders e bootstrap
+de plataforma. Enquanto o Kof não possui alvo PE, o shell Windows nativo cuida
+somente de menu, opções, lobby e apresentação; ele não substitui a engine.
 
-O primeiro alvo nativo suportado é Linux x86-64. A JVM é um alvo de comparação,
-não um substituto do comportamento nativo. A fronteira gráfica é SDL3 +
-SDL_GPU, inicialmente com Vulkan/SPIR-V.
+O primeiro alvo de gameplay nativo autoritativo é Linux x86-64. JVM é um alvo
+local de comparação, não um fallback distribuível. SDL3 + SDL_GPU forma a
+fronteira gráfica e SDL_mixer mantém buses de efeitos e música.
 
 ## Roadmap
 
@@ -179,8 +202,13 @@ que não foi exercitada em um host compatível.
 
 ## Licença e procedência
 
-As notas de pesquisa registram versões do compilador, links upstream, SHAs
-fixados e limites das provas. Repositórios irmãos foram inspecionados somente
-para leitura; nenhuma licença de origem ou asset foi alterada aqui. Consulte
-[CONTRIBUTING.md](CONTRIBUTING.md) antes de adicionar dependências ou mudar a
-fronteira de verificação.
+O código e os programas gerados do KOOKIE usam a
+[Licença MIT](../LICENSE). Os componentes distribuídos de fonte/runtime são
+permissivos: SDL 3.4.16 e SDL_mixer 3.2.4 usam zlib. Versões, fontes e avisos
+completos estão em
+[THIRD_PARTY_NOTICES.txt](../THIRD_PARTY_NOTICES.txt).
+
+O compilador Kof é uma ferramenta externa de build, não é distribuído e
+permite licença própria aos programas gerados. Java fica restrito à
+qualificação local. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) antes de
+adicionar dependências ou mudar a fronteira de verificação.

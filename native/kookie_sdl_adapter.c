@@ -1,6 +1,16 @@
 #include <SDL3/SDL.h>
 
 #include <SDL3/SDL_gpu.h>
+#include <SDL3_mixer/SDL_mixer.h>
+#if SDL_VERSION != SDL_VERSIONNUM(3, 4, 16)
+#error "KOOKIE requires SDL 3.4.16 headers"
+#endif
+#if SDL_MIXER_VERSION != SDL_VERSIONNUM(3, 2, 4)
+#error "KOOKIE requires SDL_mixer 3.2.4 headers"
+#endif
+
+
+#include "kookie_pixel_font.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,9 +26,14 @@
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 300
-#define KOOKIE_GPU_SCENE_MAX_VERTICES 512
-#define KOOKIE_GPU_PALETTE_WIDTH 4
-#define KOOKIE_GPU_PALETTE_COLORS 16
+#define KOOKIE_GPU_SCENE_MAX_VERTICES 2048
+#define KOOKIE_GPU_ATLAS_WIDTH 128
+#define KOOKIE_GPU_ATLAS_HEIGHT 128
+#define KOOKIE_GPU_ATLAS_TILE_SIZE 8
+#define KOOKIE_GPU_ATLAS_TILES_PER_ROW 16
+#define KOOKIE_GPU_SOLID_COLORS 16
+#define KOOKIE_GPU_FONT_COLORS 5
+#define KOOKIE_GPU_FONT_GLYPHS_PER_COLOR 48
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -39,8 +54,15 @@ typedef struct {
 } KookieWindowSlot;
 
 typedef struct {
-    SDL_AudioStream *stream;
+    MIX_Mixer *mixer;
+    MIX_Track *effects_track;
+    MIX_Track *music_track;
+    SDL_AudioStream *effects_stream;
+    SDL_AudioStream *music_stream;
     SDL_AudioSpec spec;
+    int effects_volume;
+    int music_volume;
+    bool mixer_initialized;
     unsigned int generation;
 } KookieAudioSlot;
 typedef struct {
@@ -121,6 +143,30 @@ static int last_gpu_fence_wait_microseconds;
 
 static KookieWindowSlot window_slots[KOOKIE_MAX_WINDOWS];
 static KookieAudioSlot audio_slot;
+static void kookie_audio_release(void) {
+    unsigned int generation = audio_slot.generation;
+    bool mixer_initialized = audio_slot.mixer_initialized;
+    if (audio_slot.effects_track != NULL) {
+        MIX_DestroyTrack(audio_slot.effects_track);
+    }
+    if (audio_slot.music_track != NULL) {
+        MIX_DestroyTrack(audio_slot.music_track);
+    }
+    if (audio_slot.effects_stream != NULL) {
+        SDL_DestroyAudioStream(audio_slot.effects_stream);
+    }
+    if (audio_slot.music_stream != NULL) {
+        SDL_DestroyAudioStream(audio_slot.music_stream);
+    }
+    if (audio_slot.mixer != NULL) {
+        MIX_DestroyMixer(audio_slot.mixer);
+    }
+    memset(&audio_slot, 0, sizeof(audio_slot));
+    audio_slot.generation = generation;
+    if (mixer_initialized) {
+        MIX_Quit();
+    }
+}
 static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
     if (device == NULL || !gpu_resources.ready) {
         memset(&gpu_resources, 0, sizeof(gpu_resources));
@@ -816,7 +862,7 @@ bool kookie_transport_replay_last_datagram(void) {
     return sent == (ssize_t)transport.last_send_bytes;
 }
 
-int kookie_transport_receive(void) {
+static int kookie_transport_receive_with_flags(int flags) {
     if (transport.socket_fd < 0) {
         return 0;
     }
@@ -829,7 +875,7 @@ int kookie_transport_receive(void) {
         transport.receive_socket_fd,
         wire,
         sizeof(wire),
-        0,
+        flags,
         (struct sockaddr *)&sender,
         &sender_length);
     if (bytes < 0) {
@@ -870,7 +916,7 @@ int kookie_transport_receive(void) {
     wire[4] = 0;
     wire[5] = 0;
     uint64_t actual_mac = kookie_transport_mac(
-        (const Uint8 *)wire, bytes);
+        (const Uint8 *)wire, (size_t)bytes);
     wire[4] = received_mac_low;
     wire[5] = received_mac_high;
     if (actual_mac != expected_mac) {
@@ -886,6 +932,14 @@ int kookie_transport_receive(void) {
     }
     transport.last_status = 1;
     return transport.receive_count;
+}
+
+int kookie_transport_receive(void) {
+    return kookie_transport_receive_with_flags(0);
+}
+
+int kookie_transport_receive_available(void) {
+    return kookie_transport_receive_with_flags(MSG_DONTWAIT);
 }
 
 int kookie_transport_receive_word(int index) {
@@ -930,7 +984,8 @@ bool kookie_transport_close(void) {
 }
 
 bool kookie_sdl_init(int flags) {
-    if (flags < 0) {
+    if (flags < 0 || SDL_GetVersion() != SDL_VERSION ||
+        MIX_Version() != SDL_MIXER_VERSION) {
         return false;
     }
     memset(&gpu_scene, 0, sizeof(gpu_scene));
@@ -957,10 +1012,8 @@ void kookie_sdl_shutdown(void) {
             window_slots[i].generation += 1;
         }
     }
-    if (audio_slot.stream != NULL) {
-        SDL_DestroyAudioStream(audio_slot.stream);
-        audio_slot.stream = NULL;
-        audio_slot.generation += 1;
+    if (audio_slot.mixer != NULL) {
+        kookie_audio_release();
     }
     if (transport.socket_fd >= 0) {
         kookie_transport_close();
@@ -985,9 +1038,17 @@ int kookie_window_create(int width, int height, int hidden) {
         return 0;
     }
 
-    SDL_WindowFlags flags = hidden ? SDL_WINDOW_HIDDEN : 0;
-    SDL_Window *window = SDL_CreateWindow("KOOKIE G0", width, height, flags);
-    if (window == NULL) {
+    SDL_WindowFlags flags =
+        SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+    if (hidden) {
+        flags |= SDL_WINDOW_HIDDEN;
+    }
+    SDL_Window *window = SDL_CreateWindow("KOOKIE", width, height, flags);
+    if (window == NULL ||
+        !SDL_SetWindowMinimumSize(window, 320, 180)) {
+        if (window != NULL) {
+            SDL_DestroyWindow(window);
+        }
         return 0;
     }
 
@@ -996,6 +1057,56 @@ int kookie_window_create(int width, int height, int hidden) {
     }
     window_slots[slot].window = window;
     return make_token(slot, window_slots[slot].generation, KOOKIE_WINDOW_KIND);
+}
+
+bool kookie_window_is_resizable(int token) {
+    int slot;
+    unsigned int generation;
+    if (!decode_token(token, KOOKIE_WINDOW_KIND, &slot, &generation) ||
+        window_slots[slot].window == NULL ||
+        window_slots[slot].generation != generation) {
+        return false;
+    }
+    return (SDL_GetWindowFlags(window_slots[slot].window) &
+        SDL_WINDOW_RESIZABLE) != 0;
+}
+
+bool kookie_window_apply_display(
+    int token, int mode, int width, int height
+) {
+    int slot;
+    unsigned int generation;
+    if (!decode_token(token, KOOKIE_WINDOW_KIND, &slot, &generation) ||
+        window_slots[slot].window == NULL ||
+        window_slots[slot].generation != generation ||
+        mode < 0 || mode > 2 ||
+        width < 320 || width > 7680 ||
+        height < 180 || height > 4320) {
+        return false;
+    }
+    SDL_Window *window = window_slots[slot].window;
+    if (mode == 0) {
+        return SDL_SetWindowFullscreen(window, false) &&
+            SDL_SetWindowFullscreenMode(window, NULL) &&
+            SDL_SetWindowBordered(window, true) &&
+            SDL_SetWindowResizable(window, true) &&
+            SDL_SetWindowSize(window, width, height) &&
+            SDL_SetWindowPosition(
+                window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    }
+    if (mode == 1) {
+        return SDL_SetWindowFullscreenMode(window, NULL) &&
+            SDL_SetWindowFullscreen(window, true);
+    }
+    SDL_DisplayID display = SDL_GetDisplayForWindow(window);
+    SDL_DisplayMode closest;
+    if (display == 0 ||
+        !SDL_GetClosestFullscreenDisplayMode(
+            display, width, height, 0.0f, true, &closest)) {
+        return false;
+    }
+    return SDL_SetWindowFullscreenMode(window, &closest) &&
+        SDL_SetWindowFullscreen(window, true);
 }
 
 bool kookie_window_destroy(int token) {
@@ -1029,8 +1140,12 @@ int kookie_gpu_open(int window_token) {
         return 0;
     }
 
-    SDL_GPUDevice *device = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
-    if (device == NULL || !SDL_ClaimWindowForGPUDevice(device, window_slots[window_slot].window)) {
+    SDL_GPUDevice *device = SDL_CreateGPUDevice(
+        SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
+    if (device == NULL ||
+        !SDL_ClaimWindowForGPUDevice(
+            device, window_slots[window_slot].window)) {
+        fprintf(stderr, "kookie_gpu_open: %s\n", SDL_GetError());
         if (device != NULL) {
             SDL_DestroyGPUDevice(device);
         }
@@ -1214,6 +1329,62 @@ static bool read_shader_binary(const char *name, Uint8 **bytes, size_t *size) {
     *size = (size_t)length;
     return true;
 }
+static void kookie_gpu_build_atlas(Uint8 *pixels) {
+    static const Uint8 palette[KOOKIE_GPU_SOLID_COLORS][4] = {
+        { 71,  85, 105, 255}, { 37,  99, 235, 255},
+        { 15, 118, 110, 255}, {124,  58, 237, 255},
+        {180,  83,   9, 255}, {220,  38,  38, 255},
+        {  8, 145, 178, 255}, {101, 163,  13, 255},
+        {100, 116, 139, 255}, { 15,  23,  42, 255},
+        { 30,  41,  59, 255}, {239,  68,  68, 255},
+        {245, 158,  11, 255}, { 56, 189, 248, 255},
+        { 34, 197,  94, 255}, {248, 250, 252, 255}
+    };
+    static const int font_palette[KOOKIE_GPU_FONT_COLORS] = {
+        15, 13, 12, 11, 14
+    };
+    memset(
+        pixels, 0,
+        KOOKIE_GPU_ATLAS_WIDTH * KOOKIE_GPU_ATLAS_HEIGHT * 4u);
+    for (int color = 0; color < KOOKIE_GPU_SOLID_COLORS; color += 1) {
+        int tile_x = (color % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        int tile_y = (color / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        for (int y = 0; y < KOOKIE_GPU_ATLAS_TILE_SIZE; y += 1) {
+            for (int x = 0; x < KOOKIE_GPU_ATLAS_TILE_SIZE; x += 1) {
+                size_t offset = (size_t)(
+                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) * 4u;
+                memcpy(pixels + offset, palette[color], 4u);
+            }
+        }
+    }
+    for (int color = 0; color < KOOKIE_GPU_FONT_COLORS; color += 1) {
+        for (int glyph = 1; glyph <= KOOKIE_PIXEL_GLYPH_COUNT; glyph += 1) {
+            int tile = KOOKIE_GPU_SOLID_COLORS +
+                color * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph - 1;
+            int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+                KOOKIE_GPU_ATLAS_TILE_SIZE;
+            int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+                KOOKIE_GPU_ATLAS_TILE_SIZE;
+            for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
+                uint8_t row = kookie_pixel_glyph_rows[glyph][y];
+                for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
+                    if ((row & (uint8_t)(1u << (4 - x))) == 0) {
+                        continue;
+                    }
+                    size_t offset = (size_t)(
+                        (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
+                        4u;
+                    memcpy(
+                        pixels + offset,
+                        palette[font_palette[color]],
+                        4u);
+                }
+            }
+        }
+    }
+}
 static bool kookie_gpu_prepare_resources(
     SDL_GPUDevice *device,
     SDL_GPUTextureFormat target_format
@@ -1269,8 +1440,8 @@ static bool kookie_gpu_prepare_resources(
     texture_info.type = SDL_GPU_TEXTURETYPE_2D;
     texture_info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     texture_info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-    texture_info.width = KOOKIE_GPU_PALETTE_WIDTH;
-    texture_info.height = KOOKIE_GPU_PALETTE_WIDTH;
+    texture_info.width = KOOKIE_GPU_ATLAS_WIDTH;
+    texture_info.height = KOOKIE_GPU_ATLAS_HEIGHT;
     texture_info.layer_count_or_depth = 1;
     texture_info.num_levels = 1;
     texture_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
@@ -1330,6 +1501,17 @@ static bool kookie_gpu_prepare_resources(
 
     SDL_GPUColorTargetDescription color_target = {0};
     color_target.format = target_format;
+    color_target.blend_state.src_color_blendfactor =
+        SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    color_target.blend_state.dst_color_blendfactor =
+        SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    color_target.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+    color_target.blend_state.src_alpha_blendfactor =
+        SDL_GPU_BLENDFACTOR_ONE;
+    color_target.blend_state.dst_alpha_blendfactor =
+        SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    color_target.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+    color_target.blend_state.enable_blend = true;
     SDL_GPUGraphicsPipelineCreateInfo pipeline_info = {0};
     pipeline_info.vertex_shader = gpu_resources.vertex_shader;
     pipeline_info.fragment_shader = gpu_resources.fragment_shader;
@@ -1363,9 +1545,13 @@ static bool kookie_gpu_prepare_resources(
         goto cleanup;
     }
 
+    const Uint32 atlas_bytes =
+        KOOKIE_GPU_ATLAS_WIDTH * KOOKIE_GPU_ATLAS_HEIGHT * 4u;
+    const Uint32 vertex_offset = atlas_bytes;
+    const Uint32 index_offset = vertex_offset + 96u;
     SDL_GPUTransferBufferCreateInfo transfer_info = {0};
     transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    transfer_info.size = 172;
+    transfer_info.size = index_offset + 12u;
     transfer = SDL_CreateGPUTransferBuffer(device, &transfer_info);
     if (transfer == NULL) {
         goto cleanup;
@@ -1374,28 +1560,18 @@ static bool kookie_gpu_prepare_resources(
     if (pixels == NULL) {
         goto cleanup;
     }
-    const Uint8 palette[64] = {
-         71,  85, 105, 255,  37,  99, 235, 255,
-         15, 118, 110, 255, 124,  58, 237, 255,
-        180,  83,   9, 255, 220,  38,  38, 255,
-          8, 145, 178, 255, 101, 163,  13, 255,
-        100, 116, 139, 255,  15,  23,  42, 255,
-         30,  41,  59, 255, 239,  68,  68, 255,
-        245, 158,  11, 255,  56, 189, 248, 255,
-         34, 197,  94, 255, 248, 250, 252, 255
-    };
     const float vertices[24] = {
         -0.8f, -0.8f, 0.0f, 1.0f,
          0.8f, -0.8f, 1.0f, 1.0f,
          0.8f,  0.8f, 1.0f, 0.0f,
         -0.8f, -0.8f, 0.0f, 1.0f,
          0.8f,  0.8f, 1.0f, 0.0f,
-        -0.8f,  0.8f, 0.0f, 0.0f
+        -0.8f,  0.8f, 0.0f, 1.0f
     };
     const Uint16 indices[6] = {0, 1, 2, 3, 4, 5};
-    memcpy(pixels, palette, sizeof(palette));
-    memcpy(pixels + 64, vertices, sizeof(vertices));
-    memcpy(pixels + 160, indices, sizeof(indices));
+    kookie_gpu_build_atlas(pixels);
+    memcpy(pixels + vertex_offset, vertices, sizeof(vertices));
+    memcpy(pixels + index_offset, indices, sizeof(indices));
     SDL_UnmapGPUTransferBuffer(device, transfer);
 
     command_buffer = SDL_AcquireGPUCommandBuffer(device);
@@ -1410,20 +1586,20 @@ static bool kookie_gpu_prepare_resources(
     source.transfer_buffer = transfer;
     SDL_GPUTextureRegion destination = {0};
     destination.texture = gpu_resources.texture;
-    destination.w = KOOKIE_GPU_PALETTE_WIDTH;
-    destination.h = KOOKIE_GPU_PALETTE_WIDTH;
+    destination.w = KOOKIE_GPU_ATLAS_WIDTH;
+    destination.h = KOOKIE_GPU_ATLAS_HEIGHT;
     destination.d = 1;
     SDL_UploadToGPUTexture(copy_pass, &source, &destination, false);
     SDL_GPUTransferBufferLocation vertex_source = {0};
     vertex_source.transfer_buffer = transfer;
-    vertex_source.offset = 64;
+    vertex_source.offset = vertex_offset;
     SDL_GPUBufferRegion vertex_destination = {0};
     vertex_destination.buffer = gpu_resources.vertex_buffer;
     vertex_destination.size = 96;
     SDL_UploadToGPUBuffer(copy_pass, &vertex_source, &vertex_destination, false);
     SDL_GPUTransferBufferLocation index_source = {0};
     index_source.transfer_buffer = transfer;
-    index_source.offset = 160;
+    index_source.offset = index_offset;
     SDL_GPUBufferRegion index_destination = {0};
     index_destination.buffer = gpu_resources.index_buffer;
     index_destination.size = 12;
@@ -1482,16 +1658,41 @@ bool kookie_gpu_scene_push_vertex(
         u < 0 || u > 100 || v < 0 || v > 100) {
         return false;
     }
-    int palette = (resource - 1) % KOOKIE_GPU_PALETTE_COLORS;
-    int palette_x = palette % KOOKIE_GPU_PALETTE_WIDTH;
-    int palette_y = palette / KOOKIE_GPU_PALETTE_WIDTH;
+    int tile = 0;
+    float texture_x = 0.0f;
+    float texture_y = 0.0f;
+    if (resource < 101) {
+        tile = (resource - 1) % KOOKIE_GPU_SOLID_COLORS;
+        texture_x = (float)(
+            (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 3.5f;
+        texture_y = (float)(
+            (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 3.5f;
+    } else {
+        int encoded = resource - 101;
+        int color = encoded / KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
+        int glyph = encoded % KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
+        if (color < 0 || color >= KOOKIE_GPU_FONT_COLORS ||
+            glyph >= KOOKIE_PIXEL_GLYPH_COUNT) {
+            return false;
+        }
+        tile = KOOKIE_GPU_SOLID_COLORS +
+            color * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph;
+        texture_x = (float)(
+            (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f + (float)u * 4.0f / 100.0f;
+        texture_y = (float)(
+            (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f + (float)v * 6.0f / 100.0f;
+    }
     size_t offset = (size_t)gpu_scene.count * 4u;
     gpu_scene.vertices[offset] = (float)x / 100.0f;
     gpu_scene.vertices[offset + 1u] = (float)y / 100.0f;
     gpu_scene.vertices[offset + 2u] =
-        ((float)palette_x + 0.5f) / (float)KOOKIE_GPU_PALETTE_WIDTH;
+        texture_x / (float)KOOKIE_GPU_ATLAS_WIDTH;
     gpu_scene.vertices[offset + 3u] =
-        ((float)palette_y + 0.5f) / (float)KOOKIE_GPU_PALETTE_WIDTH;
+        texture_y / (float)KOOKIE_GPU_ATLAS_HEIGHT;
     gpu_scene.count += 1;
     return true;
 }
@@ -2163,6 +2364,18 @@ bool kookie_push_focus_event(int focused) {
     pending_focus_event = focused;
     return true;
 }
+bool kookie_delay(int milliseconds) {
+    if (milliseconds < 0) {
+        return false;
+    }
+    SDL_Delay((Uint32)milliseconds);
+    return true;
+}
+
+bool kookie_presentation_smoke_requested(void) {
+    const char *value = getenv("KOOKIE_PRESENTATION_SMOKE");
+    return value != NULL && strcmp(value, "1") == 0;
+}
 
 int kookie_poll_event(void) {
     SDL_Event event;
@@ -2197,6 +2410,62 @@ int kookie_poll_event(void) {
                     last_event_a = 0;
                     last_event_b = 0;
                     return 4;
+                case SDL_EVENT_KEY_DOWN:
+                    if (event.key.repeat) {
+                        break;
+                    }
+                    switch (event.key.key) {
+                        case SDLK_UP:
+                        case SDLK_W:
+                            last_event_a = 1;
+                            break;
+                        case SDLK_DOWN:
+                        case SDLK_S:
+                            last_event_a = 2;
+                            break;
+                        case SDLK_LEFT:
+                        case SDLK_A:
+                            last_event_a = 3;
+                            break;
+                        case SDLK_RIGHT:
+                        case SDLK_D:
+                            last_event_a = 4;
+                            break;
+                        case SDLK_RETURN:
+                        case SDLK_SPACE:
+                            last_event_a = 5;
+                            break;
+                        case SDLK_ESCAPE:
+                            last_event_a = 6;
+                            break;
+                        default:
+                            last_event_a = 0;
+                            break;
+                    }
+                    if (last_event_a != 0) {
+                        last_event_b = 0;
+                        return 7;
+                    }
+                    break;
+                case SDL_EVENT_MOUSE_BUTTON_DOWN: {
+                    if (event.button.button != SDL_BUTTON_LEFT) {
+                        break;
+                    }
+                    SDL_Window *event_window =
+                        SDL_GetWindowFromID(event.button.windowID);
+                    int width = 0;
+                    int height = 0;
+                    if (event_window == NULL ||
+                        !SDL_GetWindowSize(event_window, &width, &height) ||
+                        width <= 0 || height <= 0) {
+                        break;
+                    }
+                    last_event_a =
+                        (int)(event.button.x * 200.0f / (float)width) - 100;
+                    last_event_b =
+                        100 - (int)(event.button.y * 200.0f / (float)height);
+                    return 8;
+                }
                 case SDL_EVENT_RENDER_DEVICE_RESET:
                     if (kookie_gpu_handle_device_event(event.type)) {
                         last_event_a = 0;
@@ -2239,38 +2508,105 @@ int kookie_last_event_b(void) {
 }
 
 int kookie_audio_open(void) {
-    if (audio_slot.stream != NULL) {
-        return 0;
-    }
-
-    audio_slot.spec.format = SDL_AUDIO_F32LE;
-    audio_slot.spec.channels = 2;
-    audio_slot.spec.freq = 48000;
-    SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(
-        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-        &audio_slot.spec,
-        NULL,
-        NULL);
-    if (stream == NULL || !SDL_ResumeAudioStreamDevice(stream)) {
-        if (stream != NULL) {
-            SDL_DestroyAudioStream(stream);
-        }
+    if (audio_slot.mixer != NULL) {
         return 0;
     }
     if (audio_slot.generation == 0) {
         audio_slot.generation = 1;
     }
-    audio_slot.stream = stream;
+    if (!MIX_Init()) {
+        return 0;
+    }
+    audio_slot.mixer_initialized = true;
+    audio_slot.spec.format = SDL_AUDIO_F32LE;
+    audio_slot.spec.channels = 2;
+    audio_slot.spec.freq = 48000;
+    audio_slot.mixer = MIX_CreateMixerDevice(
+        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &audio_slot.spec);
+    audio_slot.effects_stream = SDL_CreateAudioStream(
+        &audio_slot.spec, &audio_slot.spec);
+    audio_slot.music_stream = SDL_CreateAudioStream(
+        &audio_slot.spec, &audio_slot.spec);
+    if (audio_slot.mixer == NULL ||
+        audio_slot.effects_stream == NULL ||
+        audio_slot.music_stream == NULL) {
+        kookie_audio_release();
+        return 0;
+    }
+    audio_slot.effects_track = MIX_CreateTrack(audio_slot.mixer);
+    audio_slot.music_track = MIX_CreateTrack(audio_slot.mixer);
+    if (audio_slot.effects_track == NULL ||
+        audio_slot.music_track == NULL ||
+        !MIX_SetTrackAudioStream(
+            audio_slot.effects_track, audio_slot.effects_stream) ||
+        !MIX_SetTrackAudioStream(
+            audio_slot.music_track, audio_slot.music_stream)) {
+        kookie_audio_release();
+        return 0;
+    }
+    SDL_PropertiesID play_options = SDL_CreateProperties();
+    if (play_options == 0 ||
+        !SDL_SetBooleanProperty(
+            play_options,
+            MIX_PROP_PLAY_HALT_WHEN_EXHAUSTED_BOOLEAN,
+            false) ||
+        !MIX_PlayTrack(audio_slot.effects_track, play_options) ||
+        !MIX_PlayTrack(audio_slot.music_track, play_options)) {
+        if (play_options != 0) {
+            SDL_DestroyProperties(play_options);
+        }
+        kookie_audio_release();
+        return 0;
+    }
+    SDL_DestroyProperties(play_options);
+    audio_slot.effects_volume = 80;
+    audio_slot.music_volume = 60;
+    if (!MIX_SetTrackGain(audio_slot.effects_track, 0.8f) ||
+        !MIX_SetTrackGain(audio_slot.music_track, 0.6f)) {
+        kookie_audio_release();
+        return 0;
+    }
     return make_token(0, audio_slot.generation, KOOKIE_AUDIO_KIND);
+}
+
+bool kookie_audio_set_volumes(int effects, int music) {
+    if (audio_slot.mixer == NULL ||
+        effects < 0 || effects > 100 ||
+        music < 0 || music > 100) {
+        return false;
+    }
+    if (!MIX_SetTrackGain(
+            audio_slot.effects_track, (float)effects / 100.0f) ||
+        !MIX_SetTrackGain(
+            audio_slot.music_track, (float)music / 100.0f)) {
+        return false;
+    }
+    audio_slot.effects_volume = effects;
+    audio_slot.music_volume = music;
+    return true;
+}
+
+int kookie_audio_effects_volume(void) {
+    return audio_slot.mixer == NULL ? -1 : audio_slot.effects_volume;
+}
+
+int kookie_audio_music_volume(void) {
+    return audio_slot.mixer == NULL ? -1 : audio_slot.music_volume;
+}
+
+int kookie_audio_mixer_version(void) {
+    return MIX_Version();
 }
 
 bool kookie_audio_queue_silence(int frames) {
     static unsigned char silence[4096 * 8];
-    if (audio_slot.stream == NULL || frames <= 0 || frames > 4096) {
+    if (audio_slot.effects_stream == NULL ||
+        frames <= 0 || frames > 4096) {
         return false;
     }
     int bytes = frames * audio_slot.spec.channels * (int)sizeof(float);
-    return SDL_PutAudioStreamData(audio_slot.stream, silence, bytes);
+    return SDL_PutAudioStreamData(
+        audio_slot.effects_stream, silence, bytes);
 }
 
 bool kookie_audio_queue_spatial_clip(
@@ -2292,7 +2628,8 @@ bool kookie_audio_queue_spatial_clip(
     } else if (clip_id != 1) {
         return false;
     }
-    if (audio_slot.stream == NULL || frames <= 0 || frames > 480 ||
+    if (audio_slot.effects_stream == NULL ||
+        frames <= 0 || frames > 480 ||
         left_gain < 0 || left_gain > 100 ||
         right_gain < 0 || right_gain > 100) {
         return false;
@@ -2315,7 +2652,7 @@ bool kookie_audio_queue_spatial_clip(
             clips[variant][frame] * right_scale;
     }
     return SDL_PutAudioStreamData(
-        audio_slot.stream,
+        audio_slot.effects_stream,
         stereo,
         frames * audio_slot.spec.channels * (int)sizeof(float));
 }
@@ -2328,15 +2665,13 @@ bool kookie_audio_queue_clip(int clip_id, int frames) {
 bool kookie_audio_close(int token) {
     int slot;
     unsigned int generation;
-    if (!decode_token(token, KOOKIE_AUDIO_KIND, &slot, &generation) || slot != 0) {
+    if (!decode_token(token, KOOKIE_AUDIO_KIND, &slot, &generation) ||
+        slot != 0 ||
+        audio_slot.mixer == NULL ||
+        audio_slot.generation != generation) {
         return false;
     }
-    if (audio_slot.stream == NULL || audio_slot.generation != generation) {
-        return false;
-    }
-
-    SDL_DestroyAudioStream(audio_slot.stream);
-    audio_slot.stream = NULL;
+    kookie_audio_release();
     audio_slot.generation += 1;
     return true;
 }

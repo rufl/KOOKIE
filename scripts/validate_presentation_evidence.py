@@ -79,6 +79,7 @@ def main() -> int:
         "audio-open",
         "KOOKIE G0 native SDL adapter verified",
         "KOOKIE G1 native arena HUD verified",
+        "KOOKIE native main menu verified",
     )
     for marker in required:
         if marker not in log:

@@ -7,11 +7,14 @@ extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
 extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int height, Int hidden): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_window_is_resizable(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_window_apply_display(
+    Int token, Int mode, Int width, Int height
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open(Int windowToken): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_report_window_present_capabilities(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_window(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_test(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_report_window_draw(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
@@ -19,18 +22,108 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resou
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_scene(): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_drain_events(Int maxEvents): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
-extern "./build/libkookie_sdl_adapter.so" kookie_push_resize_event(Int width, Int height): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_delay(Int milliseconds): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_presentation_smoke_requested(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_set_volumes(Int effects, Int music): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_spatial_clip(
     Int clipId, Int frames, Int leftGain, Int rightGain
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_select_slot(Int slot): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_listen_ipv4(Int port): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
+    Int key0Low, Int key0High, Int key1Low, Int key1High
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key_from_environment(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_peer_last_sender(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_begin(Int wordCount): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_word(Int index, Int word): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_available(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
+
+Int lobbyProtocolMagic() { return 1263488843 }
+Int lobbyMessageHello() { return 1 }
+Int lobbyMessageAccept() { return 2 }
+Int lobbyMessageLeave() { return 3 }
+
+Bool configureLobbyKey() {
+    if (kookie_transport_set_key_from_environment()) { return true }
+    return kookie_transport_set_key(1263488843, 1330332754, 1229737803, 1162760019)
+}
+
+Bool sendLobbyMessage(Int operation, Int port) {
+    return kookie_transport_send_begin(4) &&
+        kookie_transport_send_word(0, lobbyProtocolMagic()) &&
+        kookie_transport_send_word(1, 1) &&
+        kookie_transport_send_word(2, operation) &&
+        kookie_transport_send_word(3, port) &&
+        kookie_transport_send_commit()
+}
+
+Bool serviceNetworkRequest(GameShell shell) {
+    var operation = shell.networkRequest()
+    if (operation == 0) { return true }
+    if (operation == gameShellNetworkLeaveRequest()) {
+        if (shell.networkStatus() == gameShellNetworkConnected()) {
+            sendLobbyMessage(lobbyMessageLeave(), shell.port())
+        }
+        kookie_transport_close()
+        return shell.completeNetworkRequest(operation, true)
+    }
+    kookie_transport_close()
+    var success = kookie_transport_select_slot(0) && configureLobbyKey()
+    if (success && operation == gameShellNetworkHostRequest()) {
+        success = kookie_transport_open_listen_ipv4(shell.port())
+    } else if (success && operation == gameShellNetworkJoinRequest()) {
+        success = kookie_transport_open_remote_ipv4(
+            shell.addressOne(), shell.addressTwo(),
+            shell.addressThree(), shell.addressFour(), shell.port()) &&
+            sendLobbyMessage(lobbyMessageHello(), shell.port())
+    }
+    if (!success) { kookie_transport_close() }
+    return shell.completeNetworkRequest(operation, success)
+}
+
+Bool serviceNetworkHandshake(GameShell shell) {
+    if (shell.networkStatus() != gameShellNetworkHosting() &&
+        shell.networkStatus() != gameShellNetworkJoining() &&
+        shell.networkStatus() != gameShellNetworkConnected()) {
+        return true
+    }
+    var received = kookie_transport_receive_available()
+    if (received == 0) { return true }
+    if (received != 4 ||
+        kookie_transport_receive_word(0) != lobbyProtocolMagic() ||
+        kookie_transport_receive_word(1) != 1) {
+        return true
+    }
+    var operation = kookie_transport_receive_word(2)
+    if (operation == lobbyMessageLeave()) {
+        kookie_transport_close()
+        return shell.markNetworkDisconnected()
+    }
+    if (shell.networkStatus() == gameShellNetworkHosting() &&
+        operation == lobbyMessageHello()) {
+        return kookie_transport_set_peer_last_sender() &&
+            sendLobbyMessage(lobbyMessageAccept(), shell.port()) &&
+            shell.markNetworkConnected()
+    }
+    if (shell.networkStatus() == gameShellNetworkJoining() &&
+        operation == lobbyMessageAccept()) {
+        return shell.markNetworkConnected()
+    }
+    return true
+}
 
 class G1NativePresentation {
     G1Demo scenario
@@ -71,8 +164,7 @@ class G1NativePresentation {
                 creatorScenario.publicationDiagnostic(),
                 creatorScenario.completed()) ||
             !camera.applyLook(20, -20) ||
-            !interactionSession.defineWorldKey(
-                1, 30, 0, 0, 0) ||
+            !interactionSession.defineWorldKey(1, 30, 0, 0, 0) ||
             !interactionSession.defineWorldDoor(
                 2, 1, 0, 5, 5, 3, 5, 1, 8) ||
             !interactionSession.start()) {
@@ -87,8 +179,7 @@ class G1NativePresentation {
             return false
         }
         nativeCapacity = kookie_gpu_scene_capacity()
-        return nativeCapacity >=
-            worldCapacity + doorCapacity + hudCapacity
+        return nativeCapacity >= worldCapacity + doorCapacity + hudCapacity
     }
 
     Bool upload(FrameStaging frame) {
@@ -103,24 +194,33 @@ class G1NativePresentation {
         return true
     }
 
-    Bool drawFrame(Int frame) {
-        var vertexCount =
-            worldCapacity + doorCapacity + hudCapacity
+    Bool drawGameFrame(Int frame) {
+        var vertexCount = worldCapacity + doorCapacity + hudCapacity
         if (!arena.stage(worldFrame, frame, 1, camera) ||
             !interactionSession.stageWorldInteractionGeometry(
                 doorFrame, frame, 7, camera) ||
             !hud.stage(hudFrame, frame, 9) ||
             !kookie_gpu_scene_begin(vertexCount) ||
-            !upload(worldFrame) || !upload(doorFrame) ||
-            !upload(hudFrame) ||
+            !upload(worldFrame) || !upload(doorFrame) || !upload(hudFrame) ||
             !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != vertexCount ||
             !kookie_gpu_draw_scene()) {
             return false
         }
         return worldFrame.retire(frame) &&
-            doorFrame.retire(frame) &&
-            hudFrame.retire(frame)
+            doorFrame.retire(frame) && hudFrame.retire(frame)
+    }
+
+    Bool drawShellFrame(GameShell shell, FrameStaging shellFrame, Int frame) {
+        if (!shell.stage(shellFrame, frame)) { return false }
+        var vertexCount = shellFrame.stagedCount()
+        if (!kookie_gpu_scene_begin(vertexCount) ||
+            !upload(shellFrame) || !kookie_gpu_scene_commit() ||
+            kookie_gpu_scene_count() != vertexCount ||
+            !kookie_gpu_draw_scene()) {
+            return false
+        }
+        return shellFrame.retire(frame)
     }
 
     Bool capacitiesStable() {
@@ -134,87 +234,138 @@ class G1NativePresentation {
         return scenario.dequeueCombatFeedbackAudio()
     }
 
-    Int combatFeedbackClip() {
-        return scenario.combatFeedbackClip()
-    }
-
-    Int combatFeedbackGain() {
-        return scenario.combatFeedbackGain()
-    }
-
-    Int combatFeedbackLeftGain() {
-        return scenario.combatFeedbackLeftGain()
-    }
-
-    Int combatFeedbackRightGain() {
-        return scenario.combatFeedbackRightGain()
-    }
-
+    Int combatFeedbackClip() { return scenario.combatFeedbackClip() }
+    Int combatFeedbackGain() { return scenario.combatFeedbackGain() }
+    Int combatFeedbackLeftGain() { return scenario.combatFeedbackLeftGain() }
+    Int combatFeedbackRightGain() { return scenario.combatFeedbackRightGain() }
 }
 
 main() {
-    println("KOOKIE G0 native SDL presentation probe")
+    println("KOOKIE native SDL game shell")
     assert(kookie_sdl_init(48), "SDL video/audio adapter init must succeed")
-    var window = kookie_window_create(320, 240, 0)
+    var window = kookie_window_create(1280, 720, 0)
     assert(window > 0, "visible SDL window must create")
-    var state = WindowStateTracker(320, 240)
-    kookie_drain_events(32)
-
-    assert(kookie_push_resize_event(640, 480), "SDL resize event must enqueue")
-    var eventKind = kookie_poll_event()
-    assert(eventKind == 2, "resize event must flatten to kind 2")
-    assert(kookie_last_event_a() == 640 && kookie_last_event_b() == 480,
-        "resize payload must copy")
-    assert(state.applyNativeEvent(eventKind, kookie_last_event_a(), kookie_last_event_b()),
-        "resize event must update Kof state")
-
-    assert(kookie_push_focus_event(1), "SDL focus event must enqueue")
-    eventKind = kookie_poll_event()
-    assert(eventKind == 3, "focus event must flatten to kind 3")
-    assert(state.applyNativeEvent(eventKind, kookie_last_event_a(), kookie_last_event_b()),
-        "focus event must update Kof state")
-    var snapshot = state.snapshot()
-    assert(snapshot.width() == 640 && snapshot.height() == 480 && snapshot.focused(),
-        "native resize and focus must reach Kof state")
+    assert(kookie_window_is_resizable(window),
+        "desktop window must be resizable and maximizable")
 
     var gpu = kookie_gpu_open(window)
     assert(gpu > 0, "GPU must claim the visible SDL window")
-    assert(kookie_gpu_draw_test(), "first SDL GPU upload and draw must succeed")
     var presentation = G1NativePresentation()
-    assert(presentation.prepare(), "G1 scenario and bounded scene must prepare")
-    for (var frame = 1; frame <= 3; frame = frame + 1) {
-        assert(presentation.drawFrame(frame),
-            "authored arena and authoritative HUD must draw")
-    }
-    assert(presentation.capacitiesStable(),
-        "scene staging capacities must remain fixed")
-    assert(kookie_gpu_capture_window(),
-        "G1 arena, G2 door and HUD screenshot capture must succeed")
-    println("KOOKIE G1 native arena HUD verified")
-    println("KOOKIE G2 native 3D door verified")
-    assert(kookie_gpu_report_window_present_capabilities(),
-        "window must expose a present capability")
-    assert(kookie_gpu_report_window_draw(),
-        "GPU draw timing must be positive")
-    var audio = kookie_audio_open()
-    assert(audio > 0, "dummy SDL audio device must open")
-    assert(presentation.dequeueCombatFeedbackAudio() &&
-        presentation.combatFeedbackClip() == 201 &&
-        presentation.combatFeedbackGain() == 100 &&
-        presentation.combatFeedbackLeftGain() == 100 &&
-        presentation.combatFeedbackRightGain() == 100,
-        "authoritative kill must expose bounded stereo feedback audio")
-    assert(kookie_audio_queue_spatial_clip(
-            presentation.combatFeedbackClip(), 240,
-            presentation.combatFeedbackLeftGain(),
-            presentation.combatFeedbackRightGain()),
-        "authoritative combat feedback must reach native SDL channels")
-    assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")
-    assert(kookie_audio_close(audio), "live audio token must close")
-    println("combat-feedback-audio-open")
+    assert(presentation.prepare(), "authored bounded game scene must prepare")
+    var shell = GameShell()
+    var shellFrame = FrameStaging(shell.renderVertexCapacity())
+    assert(kookie_gpu_scene_capacity() >= shell.renderVertexCapacity(),
+        "native scene must hold menu geometry")
 
+    var audio = kookie_audio_open()
+    var appliedSettingsRevision = 0
+    if (audio > 0) {
+        assert(kookie_audio_set_volumes(
+            shell.effectsVolume(), shell.musicVolume()),
+            "SDL mixer FX and music buses must accept initial gains")
+        appliedSettingsRevision = shell.settingsRevision()
+    }
+
+    var smoke = kookie_presentation_smoke_requested()
+    var frame = 1
+    if (smoke) {
+        assert(presentation.drawGameFrame(frame),
+            "authored arena and authoritative HUD must draw")
+        frame = frame + 1
+        println("KOOKIE G1 native arena HUD verified")
+        println("KOOKIE G2 native 3D door verified")
+    }
+
+    var running = true
+    var menuFrames = 0
+    while (running && !shell.quitRequested()) {
+        var eventKind = kookie_poll_event()
+        while (eventKind != 0) {
+            if (eventKind == 1 || eventKind == 4) {
+                running = false
+            } else if (eventKind == 7) {
+                var handled = shell.handleAction(kookie_last_event_a())
+                if (handled && audio > 0) {
+                    kookie_audio_queue_spatial_clip(1, 120, 70, 70)
+                }
+            } else if (eventKind == 8) {
+                var clicked = shell.handlePointer(
+                    kookie_last_event_a(), kookie_last_event_b())
+                if (clicked && audio > 0) {
+                    kookie_audio_queue_spatial_clip(1, 120, 70, 70)
+                }
+            }
+            eventKind = kookie_poll_event()
+        }
+
+        assert(serviceNetworkRequest(shell),
+            "lobby request must reach the authenticated UDP transport")
+        assert(serviceNetworkHandshake(shell),
+            "lobby handshake must remain valid")
+
+        if (audio > 0 &&
+            shell.settingsRevision() != appliedSettingsRevision) {
+            assert(kookie_audio_set_volumes(
+                shell.effectsVolume(), shell.musicVolume()),
+                "SDL mixer FX and music gains must update")
+            appliedSettingsRevision = shell.settingsRevision()
+        }
+        if (shell.displayApplyPending()) {
+            var displayApplied = kookie_window_apply_display(
+                window, shell.displayMode(),
+                shell.resolutionWidth(), shell.resolutionHeight())
+            assert(shell.acknowledgeDisplayApply(displayApplied),
+                "display transaction must complete")
+        }
+
+        if (running && !shell.quitRequested()) {
+            if (shell.gameplayVisible()) {
+                assert(presentation.drawGameFrame(frame),
+                    "gameplay scene must draw")
+            } else {
+                assert(presentation.drawShellFrame(shell, shellFrame, frame),
+                    "menu screen must draw")
+                menuFrames = menuFrames + 1
+            }
+            frame = frame + 1
+        }
+
+        if (smoke && menuFrames >= 3) {
+            assert(kookie_gpu_capture_window(),
+                "main menu screenshot capture must succeed")
+            assert(kookie_gpu_report_window_present_capabilities(),
+                "window must expose a present capability")
+            assert(kookie_gpu_report_window_draw(),
+                "GPU draw timing must be positive")
+            assert(presentation.capacitiesStable(),
+                "scene staging capacities must remain fixed")
+            if (audio > 0) {
+                assert(presentation.dequeueCombatFeedbackAudio() &&
+                    presentation.combatFeedbackClip() == 201 &&
+                    presentation.combatFeedbackGain() == 100,
+                    "authoritative combat feedback must remain available")
+                assert(kookie_audio_queue_spatial_clip(
+                    presentation.combatFeedbackClip(), 240,
+                    presentation.combatFeedbackLeftGain(),
+                    presentation.combatFeedbackRightGain()),
+                    "combat feedback must reach SDL mixer")
+                assert(kookie_audio_queue_silence(480),
+                    "bounded PCM silence must queue")
+                println("audio-open")
+            }
+            println("KOOKIE native main menu verified")
+            println("gpu-open")
+            running = false
+        }
+        if (running) { kookie_delay(16) }
+    }
+
+    kookie_transport_close()
+    if (audio > 0) {
+        assert(kookie_audio_close(audio), "live SDL mixer token must close")
+    }
+    assert(kookie_gpu_close(gpu), "live GPU token must close")
     assert(kookie_window_destroy(window), "live SDL window token must close")
     kookie_sdl_shutdown()
-    println("gpu-open")
     println("KOOKIE G0 native SDL adapter verified")
 }

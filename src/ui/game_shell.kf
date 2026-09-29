@@ -1,0 +1,694 @@
+package ui
+
+import core
+
+Int gameShellScreenMain() { return 1 }
+Int gameShellScreenOptions() { return 2 }
+Int gameShellScreenMultiplayer() { return 3 }
+Int gameShellScreenGame() { return 4 }
+
+Int gameShellActionUp() { return 1 }
+Int gameShellActionDown() { return 2 }
+Int gameShellActionLeft() { return 3 }
+Int gameShellActionRight() { return 4 }
+Int gameShellActionActivate() { return 5 }
+Int gameShellActionBack() { return 6 }
+
+Int gameShellNetworkIdle() { return 0 }
+Int gameShellNetworkHosting() { return 1 }
+Int gameShellNetworkJoining() { return 2 }
+Int gameShellNetworkConnected() { return 3 }
+Int gameShellNetworkFailed() { return 4 }
+
+Int gameShellNetworkHostRequest() { return 1 }
+Int gameShellNetworkJoinRequest() { return 2 }
+Int gameShellNetworkLeaveRequest() { return 3 }
+
+class GameShell {
+    Int screenValue
+    Int selectionValue
+    Bool quitRequestedValue
+
+    Int resolutionValue
+    Int displayModeValue
+    Int effectsVolumeValue
+    Int musicVolumeValue
+    Int textSizeValue
+    Int settingsRevisionValue
+    Bool displayApplyPendingValue
+    Int displayApplyResultValue
+
+    Int networkStatusValue
+    Int networkRequestValue
+    Bool networkEditingValue
+    Int networkAddressFieldValue
+    Int addressOneValue
+    Int addressTwoValue
+    Int addressThreeValue
+    Int addressFourValue
+    Int portValue
+
+    public constructor() {
+        screenValue = gameShellScreenMain()
+        selectionValue = 0
+        quitRequestedValue = false
+        resolutionValue = 0
+        displayModeValue = 0
+        effectsVolumeValue = 80
+        musicVolumeValue = 60
+        textSizeValue = 1
+        settingsRevisionValue = 1
+        displayApplyPendingValue = false
+        displayApplyResultValue = 0
+        networkStatusValue = gameShellNetworkIdle()
+        networkRequestValue = 0
+        networkEditingValue = false
+        networkAddressFieldValue = 0
+        addressOneValue = 127
+        addressTwoValue = 0
+        addressThreeValue = 0
+        addressFourValue = 1
+        portValue = 47101
+    }
+
+    Int screen() { return screenValue }
+    Int selection() { return selectionValue }
+    Bool quitRequested() { return quitRequestedValue }
+    Bool gameplayVisible() { return screenValue == gameShellScreenGame() }
+    Int renderVertexCapacity() { return 1024 }
+
+    Int resolutionIndex() { return resolutionValue }
+    Int displayMode() { return displayModeValue }
+    Int effectsVolume() { return effectsVolumeValue }
+    Int musicVolume() { return musicVolumeValue }
+    Int textSize() { return textSizeValue + 1 }
+    Int settingsRevision() { return settingsRevisionValue }
+    Bool displayApplyPending() { return displayApplyPendingValue }
+    Int displayApplyResult() { return displayApplyResultValue }
+
+    Int resolutionWidth() {
+        if (resolutionValue == 1) { return 1600 }
+        if (resolutionValue == 2) { return 1920 }
+        if (resolutionValue == 3) { return 2560 }
+        return 1280
+    }
+
+    Int resolutionHeight() {
+        if (resolutionValue == 1) { return 900 }
+        if (resolutionValue == 2) { return 1080 }
+        if (resolutionValue == 3) { return 1440 }
+        return 720
+    }
+
+    Int networkStatus() { return networkStatusValue }
+    Int networkRequest() { return networkRequestValue }
+    Bool networkEditing() { return networkEditingValue }
+    Int networkAddressField() { return networkAddressFieldValue }
+    Int addressOne() { return addressOneValue }
+    Int addressTwo() { return addressTwoValue }
+    Int addressThree() { return addressThreeValue }
+    Int addressFour() { return addressFourValue }
+    Int port() { return portValue }
+
+    Bool acknowledgeDisplayApply(Bool success) {
+        if (!displayApplyPendingValue) { return false }
+        displayApplyPendingValue = false
+        displayApplyResultValue = if (success) 1 else 2
+        return true
+    }
+
+    Bool completeNetworkRequest(Int operation, Bool success) {
+        if (operation <= 0 || operation != networkRequestValue) { return false }
+        networkRequestValue = 0
+        if (!success) {
+            networkStatusValue = gameShellNetworkFailed()
+            return true
+        }
+        if (operation == gameShellNetworkHostRequest()) {
+            networkStatusValue = gameShellNetworkHosting()
+        } else if (operation == gameShellNetworkJoinRequest()) {
+            networkStatusValue = gameShellNetworkJoining()
+        } else {
+            networkStatusValue = gameShellNetworkIdle()
+        }
+        return true
+    }
+
+    Bool markNetworkConnected() {
+        if (networkStatusValue != gameShellNetworkHosting() &&
+            networkStatusValue != gameShellNetworkJoining()) {
+            return false
+        }
+        networkStatusValue = gameShellNetworkConnected()
+        return true
+    }
+
+    Bool markNetworkDisconnected() {
+        if (networkStatusValue == gameShellNetworkIdle()) { return false }
+        networkRequestValue = 0
+        networkStatusValue = gameShellNetworkIdle()
+        return true
+    }
+
+    Bool setNetworkAddress(
+        Int one, Int two, Int three, Int four, Int nextPort
+    ) {
+        if (networkRequestValue != 0 ||
+            one < 0 || one > 255 || two < 0 || two > 255 ||
+            three < 0 || three > 255 || four < 0 || four > 255 ||
+            nextPort <= 0 || nextPort > 65535) {
+            return false
+        }
+        addressOneValue = one
+        addressTwoValue = two
+        addressThreeValue = three
+        addressFourValue = four
+        portValue = nextPort
+        return true
+    }
+
+    Int optionCount() {
+        if (screenValue == gameShellScreenMain()) { return 4 }
+        if (screenValue == gameShellScreenOptions()) { return 7 }
+        if (screenValue == gameShellScreenMultiplayer()) { return 6 }
+        return 0
+    }
+
+    Bool moveSelection(Int direction) {
+        var count = optionCount()
+        if (count <= 0 || (direction != -1 && direction != 1)) { return false }
+        selectionValue = selectionValue + direction
+        if (selectionValue < 0) { selectionValue = count - 1 }
+        if (selectionValue >= count) { selectionValue = 0 }
+        return true
+    }
+
+    Bool adjustOption(Int direction) {
+        if (direction != -1 && direction != 1) { return false }
+        if (selectionValue == 0) {
+            resolutionValue = resolutionValue + direction
+            if (resolutionValue < 0) { resolutionValue = 3 }
+            if (resolutionValue > 3) { resolutionValue = 0 }
+        } else if (selectionValue == 1) {
+            displayModeValue = displayModeValue + direction
+            if (displayModeValue < 0) { displayModeValue = 2 }
+            if (displayModeValue > 2) { displayModeValue = 0 }
+        } else if (selectionValue == 2) {
+            effectsVolumeValue = effectsVolumeValue + direction * 10
+            if (effectsVolumeValue < 0) { effectsVolumeValue = 0 }
+            if (effectsVolumeValue > 100) { effectsVolumeValue = 100 }
+        } else if (selectionValue == 3) {
+            musicVolumeValue = musicVolumeValue + direction * 10
+            if (musicVolumeValue < 0) { musicVolumeValue = 0 }
+            if (musicVolumeValue > 100) { musicVolumeValue = 100 }
+        } else if (selectionValue == 4) {
+            textSizeValue = textSizeValue + direction
+            if (textSizeValue < 0) { textSizeValue = 2 }
+            if (textSizeValue > 2) { textSizeValue = 0 }
+        } else {
+            return false
+        }
+        settingsRevisionValue = settingsRevisionValue + 1
+        displayApplyResultValue = 0
+        return true
+    }
+
+    Int selectedAddressValue() {
+        if (networkAddressFieldValue == 0) { return addressOneValue }
+        if (networkAddressFieldValue == 1) { return addressTwoValue }
+        if (networkAddressFieldValue == 2) { return addressThreeValue }
+        return addressFourValue
+    }
+
+    void storeSelectedAddressValue(Int value) {
+        if (networkAddressFieldValue == 0) {
+            addressOneValue = value
+        } else if (networkAddressFieldValue == 1) {
+            addressTwoValue = value
+        } else if (networkAddressFieldValue == 2) {
+            addressThreeValue = value
+        } else {
+            addressFourValue = value
+        }
+    }
+
+    Bool editNetworkValue(Int action) {
+        if (!networkEditingValue) { return false }
+        if (action == gameShellActionActivate() || action == gameShellActionBack()) {
+            networkEditingValue = false
+            return true
+        }
+        if (selectionValue == 3) {
+            if (action == gameShellActionLeft()) {
+                networkAddressFieldValue = networkAddressFieldValue - 1
+                if (networkAddressFieldValue < 0) { networkAddressFieldValue = 3 }
+                return true
+            }
+            if (action == gameShellActionRight()) {
+                networkAddressFieldValue = networkAddressFieldValue + 1
+                if (networkAddressFieldValue > 3) { networkAddressFieldValue = 0 }
+                return true
+            }
+            var nextValue = selectedAddressValue()
+            if (action == gameShellActionUp()) { nextValue = nextValue + 1 }
+            if (action == gameShellActionDown()) { nextValue = nextValue - 1 }
+            if (nextValue < 0) { nextValue = 255 }
+            if (nextValue > 255) { nextValue = 0 }
+            storeSelectedAddressValue(nextValue)
+            return action == gameShellActionUp() || action == gameShellActionDown()
+        }
+        if (selectionValue == 4) {
+            var change = 0
+            if (action == gameShellActionLeft()) { change = -100 }
+            if (action == gameShellActionRight()) { change = 100 }
+            if (action == gameShellActionUp()) { change = 1 }
+            if (action == gameShellActionDown()) { change = -1 }
+            if (change == 0) { return false }
+            portValue = portValue + change
+            if (portValue < 1024) { portValue = 65535 }
+            if (portValue > 65535) { portValue = 1024 }
+            return true
+        }
+        return false
+    }
+
+    Bool activateMain() {
+        if (selectionValue == 0) {
+            screenValue = gameShellScreenGame()
+        } else if (selectionValue == 1) {
+            screenValue = gameShellScreenMultiplayer()
+            selectionValue = 0
+        } else if (selectionValue == 2) {
+            screenValue = gameShellScreenOptions()
+            selectionValue = 0
+        } else {
+            quitRequestedValue = true
+        }
+        return true
+    }
+
+    Bool activateOptions() {
+        if (selectionValue <= 4) { return adjustOption(1) }
+        if (selectionValue == 5) {
+            if (displayApplyPendingValue) { return false }
+            displayApplyPendingValue = true
+            displayApplyResultValue = 0
+            return true
+        }
+        screenValue = gameShellScreenMain()
+        selectionValue = 0
+        return true
+    }
+
+    Bool activateMultiplayer() {
+        if (selectionValue == 3 || selectionValue == 4) {
+            networkEditingValue = true
+            return true
+        }
+        if (selectionValue == 5) {
+            screenValue = gameShellScreenMain()
+            selectionValue = 1
+            return true
+        }
+        if (networkRequestValue != 0) { return false }
+        if (selectionValue == 0) {
+            if (networkStatusValue != gameShellNetworkIdle() &&
+                networkStatusValue != gameShellNetworkFailed()) { return false }
+            networkRequestValue = gameShellNetworkHostRequest()
+            return true
+        }
+        if (selectionValue == 1) {
+            if (networkStatusValue != gameShellNetworkIdle() &&
+                networkStatusValue != gameShellNetworkFailed()) { return false }
+            networkRequestValue = gameShellNetworkJoinRequest()
+            return true
+        }
+        if (networkStatusValue == gameShellNetworkIdle()) { return false }
+        networkRequestValue = gameShellNetworkLeaveRequest()
+        return true
+    }
+
+    Bool handleAction(Int action) {
+        if (action < gameShellActionUp() || action > gameShellActionBack()) {
+            return false
+        }
+        if (screenValue == gameShellScreenGame()) {
+            if (action == gameShellActionBack()) {
+                screenValue = gameShellScreenMain()
+                selectionValue = 0
+                return true
+            }
+            return false
+        }
+        if (screenValue == gameShellScreenMultiplayer() && networkEditingValue) {
+            return editNetworkValue(action)
+        }
+        if (action == gameShellActionUp()) { return moveSelection(-1) }
+        if (action == gameShellActionDown()) { return moveSelection(1) }
+        if (action == gameShellActionBack()) {
+            if (screenValue == gameShellScreenMain()) {
+                quitRequestedValue = true
+            } else {
+                screenValue = gameShellScreenMain()
+                selectionValue = 0
+            }
+            return true
+        }
+        if (action == gameShellActionLeft() || action == gameShellActionRight()) {
+            if (screenValue == gameShellScreenOptions()) {
+                return adjustOption(if (action == gameShellActionLeft()) -1 else 1)
+            }
+            return false
+        }
+        if (screenValue == gameShellScreenMain()) { return activateMain() }
+        if (screenValue == gameShellScreenOptions()) { return activateOptions() }
+        return activateMultiplayer()
+    }
+
+    Bool handlePointer(Int x, Int y) {
+        if (x < -100 || x > 100 || y < -100 || y > 100 ||
+            screenValue == gameShellScreenGame()) { return false }
+        if (screenValue == gameShellScreenMain()) {
+            if (y >= 18 && y <= 42) { selectionValue = 0 }
+            else if (y >= -10 && y <= 14) { selectionValue = 1 }
+            else if (y >= -38 && y <= -14) { selectionValue = 2 }
+            else if (y >= -66 && y <= -42) { selectionValue = 3 }
+            else { return false }
+            return activateMain()
+        }
+        if (screenValue == gameShellScreenOptions()) {
+            if (y >= 41 && y <= 53) { selectionValue = 0 }
+            else if (y >= 21 && y <= 33) { selectionValue = 1 }
+            else if (y >= 1 && y <= 13) { selectionValue = 2 }
+            else if (y >= -19 && y <= -7) { selectionValue = 3 }
+            else if (y >= -39 && y <= -27) { selectionValue = 4 }
+            else if (y >= -64 && y <= -52) { selectionValue = 5 }
+            else if (y >= -82 && y <= -70) { selectionValue = 6 }
+            else { return false }
+            return activateOptions()
+        }
+        if (y >= 31 && y <= 43) { selectionValue = 0 }
+        else if (y >= 13 && y <= 25) { selectionValue = 1 }
+        else if (y >= -5 && y <= 7) { selectionValue = 2 }
+        else if (y >= -33 && y <= -21) { selectionValue = 3 }
+        else if (y >= -51 && y <= -39) { selectionValue = 4 }
+        else if (y >= -72 && y <= -60) { selectionValue = 5 }
+        else { return false }
+        return activateMultiplayer()
+    }
+
+    Int glyph(Char value) {
+        if (value >= 'A' && value <= 'Z') { return (value as Int) - ('A' as Int) + 1 }
+        if (value >= '0' && value <= '9') { return (value as Int) - ('0' as Int) + 27 }
+        if (value == '.') { return 37 }
+        if (value == ':') { return 38 }
+        if (value == '-') { return 39 }
+        if (value == '/') { return 40 }
+        if (value == '%') { return 41 }
+        if (value == '>') { return 42 }
+        if (value == '+') { return 43 }
+        if (value == '?') { return 44 }
+        return 0
+    }
+
+    Int textResource(Int color, Int glyphValue) {
+        return 100 + color * 48 + glyphValue
+    }
+
+    Bool pushQuad(
+        FrameStaging target, Int resource,
+        Int left, Int bottom, Int right, Int top
+    ) {
+        return target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, bottom, 100, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, top, 0, 0)
+    }
+
+    Int textWidth(String text, Int scale) {
+        if (text.length() == 0) { return 0 }
+        return text.length() * 6 * scale - scale
+    }
+
+    Bool pushText(
+        FrameStaging target, String text,
+        Int left, Int bottom, Int scale, Int color
+    ) {
+        if (scale <= 0 || color < 0 || color > 4) { return false }
+        var x = left
+        for (var index = 0; index < text.length(); index = index + 1) {
+            var glyphValue = glyph(text.charAt(index))
+            if (glyphValue > 0 &&
+                !pushQuad(target, textResource(color, glyphValue),
+                    x, bottom, x + 5 * scale, bottom + 7 * scale)) {
+                return false
+            }
+            x = x + 6 * scale
+        }
+        return true
+    }
+
+    Bool pushCenteredText(
+        FrameStaging target, String text,
+        Int bottom, Int scale, Int color
+    ) {
+        return pushText(target, text, -textWidth(text, scale) / 2,
+            bottom, scale, color)
+    }
+
+    Int numberWidth(Int value, Int scale) {
+        var digits = 1
+        var remaining = value
+        while (remaining >= 10) {
+            digits = digits + 1
+            remaining = remaining / 10
+        }
+        return digits * 6 * scale - scale
+    }
+
+    Bool pushNumber(
+        FrameStaging target, Int value,
+        Int left, Int bottom, Int scale, Int color
+    ) {
+        if (value < 0) { return false }
+        var divisor = 1
+        while (value / divisor >= 10) { divisor = divisor * 10 }
+        var x = left
+        while (divisor > 0) {
+            var digit = (value / divisor) % 10
+            if (!pushQuad(target, textResource(color, 27 + digit),
+                    x, bottom, x + 5 * scale, bottom + 7 * scale)) {
+                return false
+            }
+            x = x + 6 * scale
+            divisor = divisor / 10
+        }
+        return true
+    }
+
+    Bool pushSelectionPanel(
+        FrameStaging target, Int row, Int bottom, Int top
+    ) {
+        var resource = 11
+        if (selectionValue == row) { resource = 13 }
+        return pushQuad(target, resource, -92, bottom, 92, top) &&
+            pushQuad(target, 10, -90, bottom + 1, 90, top - 1)
+    }
+
+    Bool stageMain(FrameStaging target) {
+        var scale = textSize()
+        var itemColor = 0
+        return pushQuad(target, 10, -100, -100, 100, 100) &&
+            pushQuad(target, 11, -96, -96, 96, 96) &&
+            pushQuad(target, 10, -94, -94, 94, 94) &&
+            pushCenteredText(target, "KOOKIE", 66, 3, 1) &&
+            pushCenteredText(target, "OLD SCHOOL COOP", 51, 1, 2) &&
+            pushSelectionPanel(target, 0, 18, 43) &&
+            pushCenteredText(target, "PLAY", 22, scale,
+                if (selectionValue == 0) 2 else itemColor) &&
+            pushSelectionPanel(target, 1, -10, 15) &&
+            pushCenteredText(target, "MULTIPLAYER", -6, scale,
+                if (selectionValue == 1) 2 else itemColor) &&
+            pushSelectionPanel(target, 2, -38, -13) &&
+            pushCenteredText(target, "OPTIONS", -34, scale,
+                if (selectionValue == 2) 2 else itemColor) &&
+            pushSelectionPanel(target, 3, -66, -41) &&
+            pushCenteredText(target, "QUIT", -62, scale,
+                if (selectionValue == 3) 3 else itemColor) &&
+            pushCenteredText(target, "ARROWS ENTER ESC", -89, 1, 0)
+    }
+
+    String resolutionLabel() {
+        if (resolutionValue == 1) { return "1600X900" }
+        if (resolutionValue == 2) { return "1920X1080" }
+        if (resolutionValue == 3) { return "2560X1440" }
+        return "1280X720"
+    }
+
+    String displayModeLabel() {
+        if (displayModeValue == 1) { return "BORDERLESS" }
+        if (displayModeValue == 2) { return "FULLSCREEN" }
+        return "WINDOWED"
+    }
+
+    String textSizeLabel() {
+        if (textSizeValue == 1) { return "MEDIUM" }
+        if (textSizeValue == 2) { return "LARGE" }
+        return "SMALL"
+    }
+
+    Bool pushVolume(
+        FrameStaging target, Int value, Int left, Int bottom, Int color
+    ) {
+        if (!pushNumber(target, value, left, bottom, 1, color) ||
+            !pushText(target, "%", left + numberWidth(value, 1) + 2,
+                bottom, 1, color)) { return false }
+        var filled = value / 10
+        for (var index = 0; index < 10; index = index + 1) {
+            var resource = 9
+            if (index < filled) { resource = 14 }
+            if (!pushQuad(target, resource,
+                    54 + index * 3, bottom, 56 + index * 3, bottom + 7)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool stageOptions(FrameStaging target) {
+        var rowColor = 0
+        var resultColor = 4
+        var resultText = "APPLY"
+        if (displayApplyPendingValue) {
+            resultColor = 2
+            resultText = "APPLYING"
+        } else if (displayApplyResultValue == 1) {
+            resultText = "APPLIED"
+        } else if (displayApplyResultValue == 2) {
+            resultColor = 3
+            resultText = "FAILED"
+        }
+        return pushQuad(target, 10, -100, -100, 100, 100) &&
+            pushQuad(target, 11, -96, -96, 96, 96) &&
+            pushQuad(target, 10, -94, -94, 94, 94) &&
+            pushCenteredText(target, "OPTIONS", 77, 2, 1) &&
+            pushSelectionPanel(target, 0, 41, 53) &&
+            pushText(target, "RESOLUTION", -84, 44, 1, rowColor) &&
+            pushText(target, resolutionLabel(), 20, 44, 1, 2) &&
+            pushSelectionPanel(target, 1, 21, 33) &&
+            pushText(target, "DISPLAY MODE", -84, 24, 1, rowColor) &&
+            pushText(target, displayModeLabel(), 20, 24, 1, 2) &&
+            pushSelectionPanel(target, 2, 1, 13) &&
+            pushText(target, "FX VOLUME", -84, 4, 1, rowColor) &&
+            pushVolume(target, effectsVolumeValue, 20, 4, 2) &&
+            pushSelectionPanel(target, 3, -19, -7) &&
+            pushText(target, "MUSIC VOLUME", -84, -16, 1, rowColor) &&
+            pushVolume(target, musicVolumeValue, 20, -16, 2) &&
+            pushSelectionPanel(target, 4, -39, -27) &&
+            pushText(target, "TEXT SIZE", -84, -36, 1, rowColor) &&
+            pushText(target, textSizeLabel(), 20, -36, 1, 2) &&
+            pushSelectionPanel(target, 5, -64, -52) &&
+            pushCenteredText(target, resultText, -61, 1,
+                if (selectionValue == 5) resultColor else rowColor) &&
+            pushSelectionPanel(target, 6, -82, -70) &&
+            pushCenteredText(target, "BACK", -79, 1,
+                if (selectionValue == 6) 2 else rowColor) &&
+            pushCenteredText(target, "LEFT RIGHT CHANGE", -93, 1, 0)
+    }
+
+    String networkStatusLabel() {
+        if (networkStatusValue == gameShellNetworkHosting()) { return "HOSTING" }
+        if (networkStatusValue == gameShellNetworkJoining()) { return "CONNECTING" }
+        if (networkStatusValue == gameShellNetworkConnected()) { return "CONNECTED" }
+        if (networkStatusValue == gameShellNetworkFailed()) { return "FAILED CHECK KEY" }
+        return "OFFLINE"
+    }
+
+    Int networkStatusColor() {
+        if (networkStatusValue == gameShellNetworkConnected()) { return 4 }
+        if (networkStatusValue == gameShellNetworkFailed()) { return 3 }
+        if (networkStatusValue == gameShellNetworkHosting() ||
+            networkStatusValue == gameShellNetworkJoining()) { return 2 }
+        return 0
+    }
+
+    Bool pushAddress(FrameStaging target, Int bottom) {
+        var cursor = 12
+        var color = 1
+        if (!pushNumber(target, addressOneValue, cursor, bottom, 1,
+                if (networkEditingValue && networkAddressFieldValue == 0) 2 else color)) {
+            return false
+        }
+        cursor = cursor + numberWidth(addressOneValue, 1) + 2
+        if (!pushText(target, ".", cursor, bottom, 1, color)) { return false }
+        cursor = cursor + 6
+        if (!pushNumber(target, addressTwoValue, cursor, bottom, 1,
+                if (networkEditingValue && networkAddressFieldValue == 1) 2 else color)) {
+            return false
+        }
+        cursor = cursor + numberWidth(addressTwoValue, 1) + 2
+        if (!pushText(target, ".", cursor, bottom, 1, color)) { return false }
+        cursor = cursor + 6
+        if (!pushNumber(target, addressThreeValue, cursor, bottom, 1,
+                if (networkEditingValue && networkAddressFieldValue == 2) 2 else color)) {
+            return false
+        }
+        cursor = cursor + numberWidth(addressThreeValue, 1) + 2
+        if (!pushText(target, ".", cursor, bottom, 1, color)) { return false }
+        cursor = cursor + 6
+        return pushNumber(target, addressFourValue, cursor, bottom, 1,
+            if (networkEditingValue && networkAddressFieldValue == 3) 2 else color)
+    }
+
+    Bool stageMultiplayer(FrameStaging target) {
+        var normal = 0
+        return pushQuad(target, 10, -100, -100, 100, 100) &&
+            pushQuad(target, 11, -96, -96, 96, 96) &&
+            pushQuad(target, 10, -94, -94, 94, 94) &&
+            pushCenteredText(target, "MULTIPLAYER", 77, 2, 1) &&
+            pushCenteredText(target, networkStatusLabel(), 61, 1,
+                networkStatusColor()) &&
+            pushSelectionPanel(target, 0, 31, 43) &&
+            pushCenteredText(target, "HOST GAME", 34, 1,
+                if (selectionValue == 0) 2 else normal) &&
+            pushSelectionPanel(target, 1, 13, 25) &&
+            pushCenteredText(target, "JOIN GAME", 16, 1,
+                if (selectionValue == 1) 2 else normal) &&
+            pushSelectionPanel(target, 2, -5, 7) &&
+            pushCenteredText(target, "LEAVE GAME", -2, 1,
+                if (selectionValue == 2) 3 else normal) &&
+            pushSelectionPanel(target, 3, -33, -21) &&
+            pushText(target, "ADDRESS", -84, -30, 1, normal) &&
+            pushAddress(target, -30) &&
+            pushSelectionPanel(target, 4, -51, -39) &&
+            pushText(target, "PORT", -84, -48, 1, normal) &&
+            pushNumber(target, portValue, 20, -48, 1,
+                if (networkEditingValue && selectionValue == 4) 2 else 1) &&
+            pushSelectionPanel(target, 5, -72, -60) &&
+            pushCenteredText(target, "BACK", -69, 1,
+                if (selectionValue == 5) 2 else normal) &&
+            pushCenteredText(target,
+                if (networkEditingValue) "ARROWS CHANGE ENTER DONE" else "ENTER SELECT ESC BACK",
+                -93, 1, 0)
+    }
+
+    Bool stage(FrameStaging target, Int frame) {
+        if (target.vertexCapacity() < renderVertexCapacity() ||
+            frame <= 0 || !target.begin(frame)) { return false }
+        var staged = false
+        if (screenValue == gameShellScreenMain()) {
+            staged = stageMain(target)
+        } else if (screenValue == gameShellScreenOptions()) {
+            staged = stageOptions(target)
+        } else if (screenValue == gameShellScreenMultiplayer()) {
+            staged = stageMultiplayer(target)
+        }
+        if (!staged) {
+            target.discard()
+            return false
+        }
+        return target.publish()
+    }
+}

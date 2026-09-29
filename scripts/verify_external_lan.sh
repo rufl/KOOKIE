@@ -21,7 +21,10 @@ if [[ "$target" == native ]]; then
     echo "external LAN native gate requires pkg-config" >&2
     exit 75
   }
-  pkg-config --exists sdl3 || { echo "external LAN native gate requires SDL3" >&2; exit 75; }
+  pkg-config --exists sdl3 sdl3-mixer || {
+    echo "external LAN native gate requires SDL3 and SDL_mixer" >&2
+    exit 75
+  }
 else
   command -v java >/dev/null || { echo "external LAN JVM gate requires java" >&2; exit 75; }
 fi
@@ -80,7 +83,7 @@ if [[ "$target" == native ]]; then
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
     -o "$root_dir/build/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3)
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer)
 fi
 if [[ "$lan_mode" == "processes" ]]; then
   for role in host client-a client-b; do

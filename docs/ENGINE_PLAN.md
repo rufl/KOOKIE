@@ -75,7 +75,12 @@ Sources: [SDL GPU contract](https://wiki.libsdl.org/SDL3/CategoryGPU), [relative
 
 Prioritize bounded `.kf` math/command ports from JOML/Brigadier, Artemis/Ashley-inspired typed storage, Minecraft-style definition/item-patch/codec contracts, owo-inspired layout and Flywheel-inspired instance lifecycles. JOML1.10.9 was measured on Kof JVM; native rejected its Java imports. Do not import JARs or entire mod runtimes as native engine libraries.
 
-Keep queued SDL audio through G2: Kof now owns bounded listener-relative attenuation and stereo panning, and the native adapter submits distinct left/right PCM channels without per-call allocation. For later HRTF, Doppler and EFX expansion, **recommend OpenAL Soft**; SDL3_mixer remains the simpler alternative, not a second mandatory backend. OpenAL is a library-selection recommendation, not an adopted redistribution license. Jolt physics and RmlUi/ImGui UI still require explicit foreign-subsystem ownership approval.
+Kof owns bounded listener-relative attenuation and stereo panning and submits
+PCM without per-call allocation. SDL_mixer 3.2.4 is now the sole
+device/mixing authority with separate effects and music buses. OpenAL Soft is
+not distributable under the current permissive-only dependency policy. Jolt
+physics and RmlUi/ImGui UI still require explicit foreign-subsystem ownership
+approval.
 
 ### Recommended library set (2026-09-22)
 
@@ -87,20 +92,18 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 |---|---|---|
 | Platform and graphics | **SDL3 + SDL_GPU** | One window/input/gamepad/GPU stack; 3D and compute. Kof owns extraction, culling, batching and passes. zlib license. Keep Sokol as an alternative only if the GPU/ABI spike fails |
 | Shader build | **SDL_shadercross + DXC**, SPIRV-Cross and SPIRV-Tools as required by the build | HLSL → offline SPIR-V for Linux; reflect resource layouts. Build-time tools, not mandatory shipped runtime shader compilers. Installed ShaderC alone is not the selected HLSL pipeline |
-| Rich spatial-audio expansion | **OpenAL Soft** | Optional post-G2 sources/listener DSP, Doppler, HRTF and EFX. The implemented G2 SDL path already provides bounded Kof-owned attenuation/panning and stereo submission. Adopt OpenAL only when richer acceptance requires it; Kof retains cues, voice admission/priority, world occlusion queries and effect policy |
+| Audio | **SDL_mixer 3.2.4** | One zlib-licensed mixer authority with separate effects/music streams and Kof-owned cue, gain and spatial policy. Optional codec backends are disabled/not bundled; PCM streams require no decoder dependency |
 | Image decoding | **SDL3_image** | Decode authored PNG initially into bounded pixel buffers. Keep format admission, color-space/material decisions, cooking and GPU uploads under Kof policy. zlib library; optional codec dependencies have their own notices |
 | Text rendering | **FreeType**, then **HarfBuzz** when implementing shaped text | Rasterization and shaping services only. Kof owns widgets, layout, focus and glyph-cache policy. Font fallback, bidi/line breaking, IME and accessibility are not solved merely by linking these libraries |
 | Package compression | **Zstandard (`libzstd`)** | Add at the cooked-package stage, not per frame. Use bounded independently addressable chunks, declared decoded lengths and decoder limits; compression is not integrity/authentication. BSD license option |
 
-**Audio choice details.** OpenAL is not an audio-file decoder. Start with a
-restricted PCM WAV input policy using SDL's existing `SDL_LoadWAV`; add one
-compressed-audio decoder only when streamed music requirements justify it.
-Do not run SDL_mixer and OpenAL as competing device/mixer authorities. OpenAL
-Soft is LGPL-2.0-or-later, with separately Apache-2.0 HRTF data in the inspected
-source: review notices, corresponding-source and relinking obligations for the
-actual distribution. If that tradeoff is unwanted and basic spatial audio is
-enough, choose SDL3_mixer instead (zlib, SDL >= 3.4.0). Its simpler licensing
-does not automatically license every optional decoder.
+**Audio choice details.** SDL_mixer is the adopted device/mixer authority.
+KOOKIE currently submits generated PCM streams, so packages do not need
+optional compressed-audio decoders. Any future codec must pass the
+permissive-license and dependency-closure gate before packaging. OpenAL Soft is
+not an alternative under the current permissive-only distributed dependency
+policy because the inspected implementation is LGPL-2.0-or-later. Do not run a
+second library as a competing mixer authority.
 
 **Keep these engine libraries in Kof:** typed entity/component storage; a small
 math library using selective MIT JOML ports; shooter movement/collision;
@@ -133,20 +136,18 @@ choosing a third-party networking library until the LAN slice requires one; a
 transport still does not supply replication, prediction or authoritative
 simulation.
 
-**Observed local availability:** `pacman -Q` and `pkg-config` found SDL3
-3.4.16, OpenAL 1.25.2, FreeType 2.14.3, HarfBuzz 14.5.0 and zstd 1.5.7.
-SDL3_image, SDL3_mixer and SDL_shadercross were absent from the queried package
-database and pkg-config modules. This inventory does not prove native Kof
-integration, device compatibility or completed binding work. No libraries were
-installed or devices opened during this selection.
+**Observed local availability:** SDL3 3.4.16 is the system package;
+SDL_mixer 3.2.4 was built from pinned source with only the PCM input needed by
+this integration. FreeType 2.14.3, HarfBuzz 14.5.0 and zstd 1.5.7 are also
+available. SDL3_image and SDL_shadercross remain outside the current gate.
+This inventory does not prove automatic future integration.
 
-**Adoption status/order:** native compiler correctness, SDL_GPU/input/queued
-audio, checked token/buffer transfer and bounded stereo spatialization are
-proven through G2. Next add image/text services; integrate OpenAL Soft only if
-HRTF/Doppler/EFX requirements justify a new audio authority, then add package
-compression when its format is established. Pin artifact hashes, build options,
-transitive notices and adapter ABI at each adoption. This shortlist implies no
-separate backend/plugin framework or performance promise.
+**Adoption status/order:** SDL_GPU/input, checked token transfer, bounded stereo
+spatialization and SDL_mixer effects/music gain are integrated. Add image/text
+services and package compression only when each contract is established. Pin
+artifact hashes, build options, transitive notices and adapter ABI at each
+adoption. This shortlist implies no separate backend/plugin framework or
+performance promise.
 
 Primary sources: [SDL GPU](https://wiki.libsdl.org/SDL3/CategoryGPU),
 [shadercross](https://github.com/libsdl-org/SDL_shadercross) and its
@@ -690,9 +691,9 @@ headless GPU probe draws the resulting 486-vertex arena/door/HUD scene.
 Feedback transport preserves multi-event order, rejects duplicates and gaps
 without partial presentation, and resumes from the new-generation baseline.
 Kof computes listener-relative distance attenuation and stereo panning, while
-the SDL adapter queues the resulting left/right PCM gains. OpenAL HRTF/EFX,
-streamed decoding and the G5 soak remain later expansion, not missing G2
-acceptance.
+SDL_mixer queues the resulting left/right PCM gains. HRTF/EFX waits for a
+proven permissive solution; streamed decoding and the G5 soak remain later
+expansion, not missing G2 acceptance.
 
 G3 is closed at its current acceptance gate. Server-owned enemy deaths produce
 deterministic full rolls; remote pickup/equip/progression commands cannot

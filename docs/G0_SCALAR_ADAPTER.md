@@ -2,7 +2,7 @@
 
 [Português (Brasil)](../pt-BR/docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, bounded synthesized clips, SPIR-V scene upload/draw and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the 252-vertex authored scene, and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
+Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, bounded synthesized clips, SPIR-V scene upload/draw and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the 486-vertex authored scene, and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
 
 
 ## SDL lifecycle boundary
@@ -24,11 +24,12 @@ The direct Kof binding still carries no SDL pointer, struct, event union, callba
 - window create/destroy with slot+generation+kind tokens;
 - stale and wrong-kind window-token rejection;
 - `SDL_PollEvent` flattened to event kind plus two scalar payload fields;
-- default playback audio-stream open/close with slot+generation+kind tokens;
-- bounded PCM silence and clip transfer into the SDL audio stream, with no callback;
+- default playback SDL_mixer open/close with slot+generation+kind tokens;
+- independent effects/music tracks backed by SDL audio streams;
+- bounded PCM silence and clip transfer without a callback into Kof;
 - SPIR-V SDL_GPU device create/claim/release/destroy behind a checked token;
 - first shader, texture upload, sampler, pipeline and swapchain draw path;
-- explicit shutdown ordering: release GPU claim, destroy GPU device, destroy windows, destroy audio stream.
+- explicit shutdown ordering for GPU, windows, mixer tracks/streams and SDL.
 
 The adapter does not retain Kof pointers, callbacks, gameplay state, entities or Kof-owned audio sample buffers. `probes/g0_native_adapter/main.kf` exercises hidden window creation/teardown, real SDL event polling into `WindowStateTracker`, synthetic resize/focus queueing, optional GPU lifecycle plus the first upload/draw, dummy playback-device open/close, bounded silence and clip PCM transfer, and stale-token rejection.
 
@@ -52,9 +53,14 @@ The adapter flattens SDL events, while Kof owns the transition policy and author
 - positive clip token and gain in `[0, 100]` admission;
 - fixed-capacity overflow rejection;
 - FIFO dequeue with copied clip/gain metadata;
-- no callback into Kof and no foreign mixer authority.
+- no callback into Kof and no competing gameplay/audio policy authority.
 
-The native adapter proves a real SDL audio stream lifecycle, bounded silence transfer and deterministic synthesized clip variants (`clipId=1` and impact clips `201`–`203`, at most 480 stereo F32 frames). The presentation probe now selects clip `201` from the confirmed authoritative kill event. Scalar FFI still cannot pass a Kof-owned sample buffer; the next audio boundary is explicit buffer ownership and production mixing, not a second gameplay authority.
+The native adapter proves a real SDL_mixer lifecycle, separate gain controls,
+bounded silence transfer and deterministic synthesized clip variants
+(`clipId=1` and impact clips `201`–`203`, at most 480 stereo F32 frames). The
+presentation probe selects clip `201` from the confirmed authoritative kill
+event. Scalar FFI still cannot pass a Kof-owned sample buffer; decoded asset
+ownership and streamed voice lifetimes remain later boundaries.
 
 ## GPU lifecycle
 
@@ -62,11 +68,9 @@ The adapter requests SPIR-V support, creates an SDL_GPU device, claims an SDL wi
 
 ## Regression proof
 
-`src/main.kf` contains the executable smoke path and three named tests:
-
-- `resource token lifecycle`;
-- `platform state and audio queue lifecycle`;
-- `frame staging ownership and scalar measurement`.
+`src/main.kf` contains the executable smoke path and focused contracts for
+resource tokens, platform/audio lifecycle, frame staging and the GameShell
+menu/options/lobby transaction.
 
 `scripts/verify_exception.sh` preserves the native exception-lifetime reproducer and its JVM/native negative controls: JVM exits on the failed assertion; native currently reaches `unreachable` with exit 0. This is a compiler defect record, not an engine cleanup guarantee.
 
@@ -85,8 +89,8 @@ where assigning an extern `Int` inside that Kof loop emitted an invalid
 
 ## Next proof boundary
 
-Production work now starts beyond G0: explicit Kof/native sample-buffer
-ownership, mixing/spatialization, real SDL device-loss notification and bounded
-resource retirement under sustained load. Do not cast SDL pointers to integer
-tokens, add callbacks into Kof, or infer those contracts from the qualified
-scene/clip probe.
+Production work beyond this boundary includes decoded asset ownership,
+streamed voices, real SDL device-loss notification and bounded resource
+retirement under sustained load. Do not cast SDL pointers to integer tokens,
+add callbacks into Kof, or infer those contracts from the qualified scene/clip
+probe.

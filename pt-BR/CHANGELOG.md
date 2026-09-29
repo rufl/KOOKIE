@@ -4,6 +4,26 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-29
 
+### Shell nativo persistente, menus e pacotes permissivos
+
+- Substituímos o teste Windows de matriz de cores que fechava sozinho e o
+  pacote com JDK embutido por um único `kookie.exe` nativo com SDL3 e
+  SDL_mixer. A janela high-DPI redimensionável cobre maximizar, restaurar,
+  modo janela, borderless e fullscreen exclusivo.
+- Adicionamos menu pixel old school, opções transacionais de
+  vídeo/áudio/texto e lobby Host/Join/Leave com IPv4/porta editáveis e estado
+  explícito. Mouse e teclado usam as mesmas ações.
+- Adicionamos o shell Kof persistente equivalente à apresentação Linux SDL_GPU
+  e preservamos a cena limitada de gameplay G1.
+- Migramos o áudio nativo para streams separados de efeitos e música no
+  SDL_mixer, com volumes independentes.
+- Licenciamos o KOOKIE sob MIT e limitamos componentes distribuídos de
+  fonte/runtime a licenças permissivas. Os pacotes incluem MIT e avisos de
+  terceiros, não empacotam loader/libc no Linux e rejeitam runtime JVM.
+- O ZEER agora inicia `kookie.exe`. Verificações Wine isoladas exercitaram
+  telas principal, opções e multiplayer, redimensionar, maximizar e restaurar;
+  o smoke de pacote carregou SDL 3.4.16 e SDL_mixer 3.2.4 sem abrir janela.
+
 ### Primeiro slice transacional G4 de publicação do criador
 
 - Adicionamos `BoundedTrustedModuleRegistry` para no máximo 32 declarações de

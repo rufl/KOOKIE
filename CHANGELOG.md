@@ -4,6 +4,27 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-29
 
+### Persistent native game shell, menus and permissive packaging
+
+- Replaced the Windows auto-closing color-matrix executable and embedded-JDK
+  package with one persistent native `kookie.exe` using SDL3 and SDL_mixer.
+  The resizable high-DPI window supports maximize, restore, windowed,
+  borderless and exclusive-fullscreen transitions.
+- Added an old-school pixel main menu, display/audio/text options transaction
+  and a host/join/leave lobby with editable IPv4/port fields and explicit
+  connection state. Keyboard and mouse navigation share the same actions.
+- Added the equivalent persistent Kof game shell to the Linux SDL_GPU
+  presentation while preserving the bounded G1 gameplay scene.
+- Migrated native audio submission to separate SDL_mixer effects and music
+  streams with independent volume controls.
+- Licensed KOOKIE under MIT and restricted distributable source/runtime
+  dependencies to permissive components. Packages now include MIT and
+  third-party notices; Linux packages no longer bundle the dynamic loader or
+  libc, and distributable JVM packages are rejected.
+- Updated ZEER to launch `kookie.exe`. Focused isolated Wine checks exercised
+  main, options and multiplayer screens plus real resize, maximize and restore;
+  package smoke loaded SDL 3.4.16 and SDL_mixer 3.2.4 without opening a window.
+
 ### First G4 transactional creator-publication slice
 
 - Added `BoundedTrustedModuleRegistry` for at most 32 statically compiled hook

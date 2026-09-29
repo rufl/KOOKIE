@@ -43,13 +43,16 @@ G0, G1, G2, G3 and the first bounded G4 vertical slice run on JVM and native Lin
   movement/fire/interaction/lifecycle commands, recipient-specific gameplay
   and G3 player-authority/world-loot baselines, ordered multiplayer feedback
   and bounded authoritative encounter state;
+- a persistent, resizable 1280×720 game shell with old-school pixel menus,
+  mouse and keyboard navigation, a display/audio/text options transaction and
+  a simple SipHash-tagged host/join/leave lobby;
 - continuous hitscan/projectile/shotgun enemy roles, client movement
   prediction with unacknowledged-input replay, generation-safe reconnect
   recovery, full 3D door collision/render geometry and feedback batch
   gap/duplicate recovery;
 - listener-relative distance attenuation and stereo panning computed in Kof,
-  with allocation-free left/right PCM submission through the native SDL audio
-  adapter.
+  with allocation-free PCM submission to independent SDL_mixer effects and
+  music buses.
 
 The important gaps are still real:
 
@@ -63,6 +66,9 @@ The important gaps are still real:
 - crash-durable saves, full physics, streamed/compressed audio and HRTF/EFX,
   sustained G5 soak/performance proof and the complete creator pipeline are
   unfinished.
+- the native Windows shell is interactive and persistent, but Kof cannot yet
+  emit Windows PE gameplay code; its Play screen is not proof of authoritative
+  Kof execution on Windows;
 
 If a claim is not backed by a focused test or probe, it is not presented as
 done.
@@ -81,23 +87,19 @@ Run the focused gameplay/replay probe:
 bash scripts/verify_interactions.sh
 ```
 
-Build an internal Linux dogfood archive:
+Build a native Linux package:
 
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.1 scripts/package_kookie.sh
 ```
 
 The builder emits a target-bound `.tar.gz`, `SHA256SUMS` and provenance JSON.
-For Linux-only JVM differential qualification, use the executable-JAR
-fallback:
+Distributable JVM packages are intentionally unsupported because a Java
+runtime would violate KOOKIE's permissive-only distributed dependency policy.
+The JVM target remains available for local differential verification.
 
-```bash
-KOOKIE_RUNTIME=jvm KOOKIE_VERSION=0.1.0-dogfood.jvm.1 \
-scripts/package_kookie.sh
-```
-
-Build the native Linux SDL_GPU presentation package used for isolated visual
-qualification and ztash dogfood deployment:
+Build the persistent Linux SDL_GPU presentation package used for isolated
+visual qualification and ZEER dogfood deployment:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
@@ -105,19 +107,35 @@ KOOKIE_VERSION=0.1.0-dogfood.presentation.1 \
 scripts/package_kookie.sh
 ```
 
-It contains the Kof arena/combat-HUD executable, SDL adapter, SPIR-V shaders
-and resolved Linux runtime libraries. Confirmed authoritative impacts drive the
-same bounded HUD marker and synthesized SDL clip exercised by the probe. It is
-a qualification surface, not a finished interactive game.
+It contains the Kof menu/game application, SDL adapter, SPIR-V shaders, SDL3
+and SDL_mixer. The launcher uses the host system runtime rather than bundling
+the dynamic loader or libc.
 
-The Windows JVM archive contains the Kof executable JAR, an embedded Windows
-JDK, a PE launcher, SDL3, and `kookie-visual.exe`. The installed shortcut
-targets `kookie-visual.exe`, which opens the SDL visual qualification window;
-`kookie.exe` remains the console/runtime smoke launcher.
+Build the native Windows x86-64 shell from the official MinGW development
+packages for SDL 3.4.16 and SDL_mixer 3.2.4:
 
-Windows native Kof packaging still fails closed until the Kof compiler can
-produce a real Windows target. The visual package exercises the SDL/window
-boundary and is not proof of native Kof execution.
+```bash
+KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
+KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
+scripts/package_kookie.sh --runtime native --target windows-x86_64
+```
+
+The `.zip` contains `kookie.exe`, `SDL3.dll`, `SDL3_mixer.dll`, licenses and
+provenance. It contains no JDK and no auto-closing color-matrix executable.
+Normal launch remains open until the user quits. `--package-smoke` is a
+non-graphical dependency/version check for deployment automation.
+
+Main-menu controls are arrow keys or WASD, Enter/Space to select, Escape to go
+back, and mouse click. Options include 1280×720 through 2560×1440, windowed,
+borderless or exclusive fullscreen, separate effects/music volume and three
+text sizes. Display changes commit only on Apply. Multiplayer exposes Host,
+Join, Leave, editable IPv4/port fields and connection state. Lobby packets use
+SipHash tags and replay sequences. A configured 128-bit shared key
+authenticates peers; the built-in local fallback only detects accidental
+corruption. The lobby provides neither encryption nor public identity.
+
+Windows uses the same native menu/lobby contract while the compiler lacks a PE
+target. Linux remains the authoritative Kof gameplay target.
 
 For the authenticated G0 LAN qualification, build the Windows JVM role
 archive separately:
@@ -133,9 +151,11 @@ The archive contains host/client JARs and Windows `.cmd` launchers, but no
 transport key or run manifest. The authenticated JVM transport is implemented
 directly in Kof through the JDK `java.net` UDP APIs; Java is used only for
 launcher evidence metadata. JVM and native roles share the authenticated UDP
-wire contract and may be mixed during protocol qualification. Cross-host
-qualification evidence contains operational machine data and is intentionally
-kept outside this repository. Revalidate a locally produced bundle with:
+wire contract and may be mixed during protocol qualification. This bundle is
+qualification tooling, not a distributable KOOKIE runtime; its JVM/JDK
+requirements are outside the product package dependency policy. Cross-host
+evidence contains operational machine data and is intentionally kept outside
+this repository. Revalidate a locally produced bundle with:
 
 ```bash
 python3 scripts/verify_external_lan_evidence_bundle.py \
@@ -169,13 +189,15 @@ a captured frame.
 
 ## What we are building
 
-Engine, game and tool CPU behavior stays in `.kf`. Native code is limited to
-small adapters, ABI boundaries, shaders and bootstrap glue. There is no hidden
-replacement engine in C, Java, Rust or Zig.
+Authoritative engine and gameplay CPU behavior stays in `.kf`. Native code is
+limited to adapters, ABI boundaries, shaders and platform bootstrap glue. The
+Windows native shell owns only the menu, options, lobby and presentation
+boundary required while Kof lacks a PE target; it is not a replacement
+gameplay engine.
 
-The first supported native target is Linux x86-64. JVM is a comparison target,
-not a substitute for native behavior. SDL3 + SDL_GPU is the graphics boundary,
-initially with Vulkan/SPIR-V.
+The first authoritative native gameplay target is Linux x86-64. JVM is a
+local comparison target, not a distributable fallback. SDL3 + SDL_GPU is the
+graphics boundary and SDL_mixer owns effects/music buses.
 
 ## Roadmap
 
@@ -219,7 +241,14 @@ on a capable host.
 
 ## License and provenance
 
-Research notes record the compiler versions, upstream links, pinned SHAs and
-proof limits. Sibling repositories were inspected read-only; no source or
-asset license was changed here. See [CONTRIBUTING.md](CONTRIBUTING.md) before
-adding dependencies or changing the verification boundary.
+KOOKIE source and produced programs use the [MIT License](LICENSE). Distributed
+third-party source/runtime components are permissive: SDL 3.4.16 and
+SDL_mixer 3.2.4 use the zlib License. Exact versions, sources and notices are
+in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+
+The Kof compiler is an external build tool, is not distributed, and permits
+generated programs to use their own license. Java remains local
+qualification-only and is excluded from KOOKIE packages. Research notes record
+compiler versions, pinned SHAs and proof limits. See
+[CONTRIBUTING.md](CONTRIBUTING.md) before adding dependencies or changing the
+verification boundary.

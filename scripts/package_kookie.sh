@@ -13,14 +13,14 @@ PROVENANCE_SCHEMA="${KOOKIE_PACKAGE_PROVENANCE_SCHEMA:-kookie.package-provenance
 
 usage() {
   cat <<'EOF'
-Usage: scripts/package_kookie.sh [--runtime native|jvm|presentation] [--target linux-x86_64|windows-x86_64]
+Usage: scripts/package_kookie.sh [--runtime native|presentation] [--target linux-x86_64|windows-x86_64]
 
-Builds an immutable internal dogfood archive and SHA256SUMS. Native Linux
-packages contain the Kof executable. Presentation packages contain the native
-Kof SDL_GPU arena/HUD executable, adapter, shaders, and their Linux runtime
-libraries. JVM packages contain an executable launcher plus an executable JAR;
-Windows JVM packages also embed the supplied Windows Java runtime. Windows
-native and presentation packaging fail closed until a real PE build exists.
+Builds an immutable KOOKIE archive and SHA256SUMS. Native Linux packages
+contain the Kof executable and use the host's system runtime. Presentation
+packages contain the persistent native Kof SDL_GPU application, SDL3,
+SDL_mixer, the adapter, and shaders. Windows packages contain the native SDL3
+and SDL_mixer game shell. Java runtimes are deliberately excluded from
+distributable packages.
 EOF
 }
 
@@ -37,15 +37,15 @@ while (($#)); do
 done
 
 case "$RUNTIME" in
-  native|jvm|presentation) ;;
-  *) echo "package_kookie: unsupported runtime: $RUNTIME" >&2; exit 2 ;;
+  native|presentation) ;;
+  *) echo "package_kookie: unsupported distributable runtime: $RUNTIME" >&2; exit 2 ;;
 esac
 
 case "$TARGET" in
   linux-x86_64) ;;
   windows-x86_64)
-    if [[ "$RUNTIME" != jvm ]]; then
-      echo 'package_kookie: Windows native packaging is blocked: Kof exposes no Windows PE target' >&2
+    if [[ "$RUNTIME" != native ]]; then
+      echo 'package_kookie: Windows packaging requires --runtime native' >&2
       exit 2
     fi
     ;;
@@ -61,39 +61,33 @@ esac
   exit 2
 }
 command -v sha256sum >/dev/null || { echo 'package_kookie: sha256sum is required' >&2; exit 2; }
-if [[ "$RUNTIME" != jvm && "$TARGET" == linux-x86_64 ]]; then
-  command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for Linux native packaging' >&2; exit 2; }
-  command -v readelf >/dev/null || { echo 'package_kookie: readelf is required for Linux native packaging' >&2; exit 2; }
-  command -v cc >/dev/null || { echo 'package_kookie: cc is required for Linux native packaging' >&2; exit 2; }
-fi
-if [[ "$RUNTIME" == presentation ]]; then
+if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
+  command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for presentation packaging' >&2; exit 2; }
+  command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
   command -v glslc >/dev/null || { echo 'package_kookie: glslc is required for presentation packaging' >&2; exit 2; }
   command -v pkg-config >/dev/null || { echo 'package_kookie: pkg-config is required for presentation packaging' >&2; exit 2; }
-  pkg-config --exists sdl3 || { echo 'package_kookie: SDL3 development files are required for presentation packaging' >&2; exit 2; }
-fi
-if [[ "$RUNTIME" == jvm ]]; then
-  command -v jar >/dev/null || { echo 'package_kookie: jar is required for JVM packaging' >&2; exit 2; }
-  command -v java >/dev/null || { echo 'package_kookie: java is required for JVM packaging' >&2; exit 2; }
+  pkg-config --exists sdl3 sdl3-mixer || {
+    echo 'package_kookie: SDL3 or SDL_mixer development files are required for presentation packaging' >&2
+    exit 2
+  }
 fi
 if [[ "$TARGET" == windows-x86_64 ]]; then
-  [[ -n "${KOOKIE_WINDOWS_JAVA_HOME:-}" &&
-    -f "$KOOKIE_WINDOWS_JAVA_HOME/bin/java.exe" ]] || {
-    echo 'package_kookie: Windows JVM packaging requires KOOKIE_WINDOWS_JAVA_HOME containing bin/java.exe' >&2
+  [[ -n "${KOOKIE_WINDOWS_SDL_PREFIX:-}" &&
+    -f "$KOOKIE_WINDOWS_SDL_PREFIX/include/SDL3/SDL.h" &&
+    -f "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" &&
+    -f "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" ]] || {
+    echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_SDL_PREFIX containing the SDL3 MinGW package' >&2
     exit 2
   }
-  [[ -n "${KOOKIE_WINDOWS_SDL_HEADERS:-}" &&
-    -f "$KOOKIE_WINDOWS_SDL_HEADERS/SDL3/SDL.h" ]] || {
-    echo 'package_kookie: Windows visual packaging requires KOOKIE_WINDOWS_SDL_HEADERS containing SDL3/SDL.h' >&2
+  [[ -n "${KOOKIE_WINDOWS_SDL_MIXER_PREFIX:-}" &&
+    -f "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include/SDL3_mixer/SDL_mixer.h" &&
+    -f "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" &&
+    -f "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" ]] || {
+    echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_SDL_MIXER_PREFIX containing the SDL_mixer MinGW package' >&2
     exit 2
   }
-  [[ -n "${KOOKIE_WINDOWS_SDL_LIB:-}" &&
-    -f "$KOOKIE_WINDOWS_SDL_LIB/libSDL3.dll.a" &&
-    -f "$KOOKIE_WINDOWS_SDL_LIB/SDL3.dll" ]] || {
-    echo 'package_kookie: Windows visual packaging requires KOOKIE_WINDOWS_SDL_LIB containing libSDL3.dll.a and SDL3.dll' >&2
-    exit 2
-  }
-  command -v zip >/dev/null || { echo 'package_kookie: zip is required for Windows JVM packaging' >&2; exit 2; }
-  command -v zig >/dev/null || { echo 'package_kookie: zig is required for the Windows launchers' >&2; exit 2; }
+  command -v zip >/dev/null || { echo 'package_kookie: zip is required for Windows packaging' >&2; exit 2; }
+  command -v zig >/dev/null || { echo 'package_kookie: zig is required for Windows packaging' >&2; exit 2; }
 fi
 
 if [[ -e "$OUTPUT_DIR" && ! -d "$OUTPUT_DIR" ]]; then
@@ -121,31 +115,79 @@ bundle_linux_native() {
   shift 2
   cp -- "$binary" "$PACKAGE_ROOT/kookie.bin"
   chmod 755 "$PACKAGE_ROOT/kookie.bin"
-  loader="$(readelf -l "$binary" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')"
-  [[ -n "$loader" && -f "$loader" ]] || {
-    echo 'package_kookie: native Linux interpreter could not be resolved' >&2
-    exit 1
-  }
-  mkdir "$PACKAGE_ROOT/lib"
-  cp -L -- "$loader" "$PACKAGE_ROOT/lib/$(basename "$loader")"
-  for dependency in "$binary" "$@"; do
-    while IFS= read -r library; do
-      cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
-    done < <(ldd "$dependency" | sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p; s/^[[:space:]]*(\/[^ ]+) .*/\1/p')
-  done
-  cc -static -O2 -s \
-    -DKOOKIE_PRESENTATION_PACKAGE="$presentation_package" \
-    "$ROOT_DIR/scripts/kookie_linux_launcher.c" \
-    -o "$PACKAGE_ROOT/kookie"
+  if [[ "$presentation_package" == 1 ]]; then
+    mkdir "$PACKAGE_ROOT/lib"
+    local found_sdl=0
+    for dependency in "$binary" "$@"; do
+      while IFS= read -r library; do
+        case "$(basename "$library")" in
+          libSDL3_mixer.so*)
+            cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
+            found_mixer=1
+            ;;
+          libSDL3.so*)
+            cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
+            found_sdl=1
+            ;;
+          ld-linux-x86-64.so*|libc.so*|libm.so*|libdl.so*|libpthread.so*|librt.so*|libgcc_s.so*|libz.so*)
+            ;;
+          *)
+            echo "package_kookie: unreviewed Linux runtime dependency: $(basename "$library")" >&2
+            exit 1
+            ;;
+        esac
+      done < <(ldd "$dependency" | sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p')
+    done
+    [[ "$found_sdl" == 1 && "$found_mixer" == 1 ]] || {
+      echo 'package_kookie: SDL3 and SDL_mixer runtime libraries must resolve' >&2
+      exit 1
+    }
+    cat > "$PACKAGE_ROOT/kookie" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+if [ "${1:-}" = "--package-smoke" ]; then
+  exec "$root/kookie-smoke.bin"
+fi
+exec "$root/kookie.bin" "$@"
+EOF
+  else
+    cat > "$PACKAGE_ROOT/kookie" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$root/kookie.bin" "$@"
+EOF
+  fi
   chmod 755 "$PACKAGE_ROOT/kookie"
 }
 
-if [[ "$RUNTIME" == native ]]; then
+if [[ "$TARGET" == windows-x86_64 ]]; then
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -s -Wl,/subsystem:windows \
+    -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
+    -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
+    "$ROOT_DIR/scripts/kookie_windows_shell.c" \
+    "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
+    "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
+    -lws2_32 -o "$PACKAGE_ROOT/kookie.exe"
+  cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
+  cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
+    "$PACKAGE_ROOT/SDL3_mixer.dll"
+  cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
+@echo off
+setlocal
+set "ROOT=%~dp0"
+"%ROOT%kookie.exe" %*
+exit /b %ERRORLEVEL%
+EOF
+elif [[ "$RUNTIME" == native ]]; then
   kof build "$ROOT_DIR/src" --target native --output "$WORK_DIR/build" >/dev/null
   BINARY="$WORK_DIR/build/Default/Main"
   test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
   bundle_linux_native "$BINARY" 0
-elif [[ "$RUNTIME" == presentation ]]; then
+else
   PRESENTATION_ROOT="$WORK_DIR/presentation"
   mkdir -p "$PRESENTATION_ROOT"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
   cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" "$PRESENTATION_ROOT/main.kf"
@@ -154,7 +196,7 @@ elif [[ "$RUNTIME" == presentation ]]; then
       ln -s -- "$source" "$PRESENTATION_ROOT/$module/$(basename "$source")"
     done
   done
-  IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3)"
+  IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
@@ -176,59 +218,29 @@ elif [[ "$RUNTIME" == presentation ]]; then
   }
   cp -- "$SMOKE_BINARY" "$PACKAGE_ROOT/kookie-smoke.bin"
   chmod 755 "$PACKAGE_ROOT/kookie-smoke.bin"
-else
-  kof build "$ROOT_DIR/src" --target jvm --output "$WORK_DIR/build" >/dev/null
-  jar --create --file "$PACKAGE_ROOT/kookie.jar" --main-class Default.Main -C "$WORK_DIR/build" .
-  if [[ "$TARGET" == windows-x86_64 ]]; then
-    cp -a -- "$KOOKIE_WINDOWS_JAVA_HOME" "$PACKAGE_ROOT/jdk"
-    zig cc -target x86_64-windows-gnu -O2 -s \
-      "$ROOT_DIR/scripts/kookie_windows_launcher.c" \
-      -o "$PACKAGE_ROOT/kookie.exe"
-    zig cc -target x86_64-windows-gnu -O2 -s -Wl,/subsystem:windows \
-      -I "$KOOKIE_WINDOWS_SDL_HEADERS" \
-      "$ROOT_DIR/scripts/kookie_windows_visual_smoke.c" \
-      -L "$KOOKIE_WINDOWS_SDL_LIB" -lSDL3 \
-      -o "$PACKAGE_ROOT/kookie-visual.exe"
-    cp -- "$KOOKIE_WINDOWS_SDL_LIB/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
-    cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
-@echo off
-setlocal
-set "ROOT=%~dp0"
-"%ROOT%kookie.exe" %*
-exit /b %ERRORLEVEL%
-EOF
-  else
-    cat > "$PACKAGE_ROOT/kookie" <<'EOF'
-#!/usr/bin/env sh
-set -eu
-exec java -jar "$(dirname "$0")/kookie.jar" "$@"
-EOF
-    chmod 755 "$PACKAGE_ROOT/kookie"
-  fi
 fi
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
 if [[ "$TARGET" == windows-x86_64 ]]; then
   cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.txt"
 fi
-cat > "$PACKAGE_ROOT/LICENSE" <<'EOF'
-KOOKIE INTERNAL DOGFOOD NOTICE
-
-This package is supplied only for private qualification on authorized
-deployment endpoints. No public redistribution or sublicensing grant is made.
-Contact the project owner before using this package outside those endpoints.
-EOF
+cp -- "$ROOT_DIR/LICENSE" "$PACKAGE_ROOT/LICENSE"
+cp -- "$ROOT_DIR/THIRD_PARTY_NOTICES.txt" "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 cat > "$PACKAGE_ROOT/PROVENANCE.txt" <<EOF
 application=kookie
 channel=dogfood
 target=$TARGET
 runtime=$RUNTIME
-native_linux_launcher=$([[ "$RUNTIME" != jvm && "$TARGET" == linux-x86_64 ]] && echo bundled-static-loader || echo direct)
+native_linux_launcher=$([[ "$TARGET" == linux-x86_64 ]] && echo system-loader || echo direct)
 version=$VERSION
 build_id=$BUILD_ID
 source_commit=$(git -C "$ROOT_DIR" rev-parse HEAD)
 kof_version=$(kof version 2>/dev/null | tr '\n' ' ')
-license_status=internal-dogfood-only
-windows_status=$([[ "$TARGET" == windows-x86_64 ]] && echo jvm-runtime-embedded-no-native-pe || echo blocked-no-native-target)
+license_status=MIT
+windows_status=$([[ "$TARGET" == windows-x86_64 ]] && echo native-sdl-shell || echo not-applicable)
+dependency_policy=permissive-distributed-only
+sdl_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.4.16 || echo not-bundled)
+sdl_mixer_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.2.4 || echo not-bundled)
+runtime_dependencies=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo SDL3+SDL_mixer || echo system-only)
 EOF
 rm -f -- "$ARCHIVE"
 if [[ "$TARGET" == windows-x86_64 ]]; then

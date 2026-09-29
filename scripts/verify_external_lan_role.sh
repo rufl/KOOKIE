@@ -30,8 +30,8 @@ if [[ "$target" == native ]]; then
     echo "external LAN native role requires pkg-config" >&2
     exit 75
   }
-  pkg-config --exists sdl3 || {
-    echo "external LAN native role requires SDL3" >&2
+  pkg-config --exists sdl3 sdl3-mixer || {
+    echo "external LAN native role requires SDL3 and SDL_mixer" >&2
     exit 75
   }
 else
@@ -94,7 +94,7 @@ if [[ "$target" == native ]]; then
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
     -o "$root_dir/build/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3)
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer)
   kof build "$source_dir/main.kf" \
     --target native --output "$build_dir/native-$role"
 else

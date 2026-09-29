@@ -10,6 +10,14 @@ Public pages and documentation are maintained in English and Brazilian Portugues
 
 For a quick picture of recent work, read [CHANGELOG.md](CHANGELOG.md). Keep the changelog and the matching Portuguese file useful to a person joining the project: describe the behavior that changed, the check that supports it, and the limit that remains.
 
+## Dependencies and licensing
+
+KOOKIE is MIT. Every source or runtime component distributed in a KOOKIE
+package must use a reviewed permissive license. Build and qualification tools
+may use other licenses only when they are not linked, copied or required at
+runtime. Pin versions and hashes, update `THIRD_PARTY_NOTICES.txt`, and make the
+package dependency-closure check reject any unreviewed library.
+
 ## Verification gate
 
 Before every push, run the repository gate from its root:

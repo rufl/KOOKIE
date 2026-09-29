@@ -9,11 +9,11 @@ This is the active bounded implementation sequence after the initial research an
 - Modular `core`/`session` Kof source and scalar SDL3 probe.
 - Bilingual documentation and push verification gate.
 - Checked Kof-owned resource tokens with slot, generation and kind validation.
-- JVM/native regression smoke and three named regression tests.
+- Focused JVM/native regression smoke and named behavioral contracts.
 - Scalar `SDL_Init(0)`/`SDL_Quit()` lifecycle exercised on JVM/native.
 - Kof-owned focus/resize/close state and bounded FIFO audio queue.
 - Narrow C SDL adapter with checked window/audio/GPU tokens and scalar event flattening.
-- Bounded PCM silence and deterministic clip transfer into an SDL audio stream without callbacks.
+- Bounded PCM silence and deterministic clip transfer into an SDL_mixer effects stream without callbacks into Kof.
 - Native adapter probe applying real adapter events to Kof state and running the first SPIR-V texture upload/draw path.
 - Bounded Kof frame staging contract measured at 15 scalar writes for a three-vertex textured triangle, with publish/discard ownership checks.
 - Native exception lifetime reproducer and negative controls recorded in the verification gate.
@@ -97,12 +97,13 @@ This is the active bounded implementation sequence after the initial research an
   `DatagramSocket`, `DatagramPacket` and `InetAddress` imports and runtime
   send/receive. The same imports remain rejected on the native target, so
   this backend is intentionally JVM-only; see `docs/KOF_LANGUAGE.md`.
-- Reproducible Linux x86-64 dogfood archives support native Kof and
-  executable-JAR JVM runtimes with SHA256SUMS and immutable provenance. A
-  Windows JVM `.zip` path embeds a Windows JDK and emits `kookie.cmd`; the
-  external-LAN role package adds host/client JARs and `.cmd` launchers for the
-  same authenticated transport. Native Windows PE packaging remains blocked
-  because Kof exposes no Windows target. The archive remains internal-only.
+- Reproducible Linux x86-64 archives support native Kof and the persistent SDL
+  presentation. Windows x86-64 now ships a native SDL3 + SDL_mixer shell with
+  a resizable/maximizable window, menu/options/lobby and no embedded JDK.
+  Kof-authored Windows gameplay remains blocked because the compiler exposes no
+  PE target. JVM host/client role archives remain qualification tooling, not
+  distributable KOOKIE runtimes. Product packages include MIT/zlib notices and
+  reject unreviewed distributed runtime libraries.
 - Added the first bounded content package schema under `src/content`: versioned engine/tool/content identities, coordinate/unit metadata, sorted namespaced asset and dependency IDs, bounded chunk ranges, product masks, deterministic package checksums, canonical integer-wire encoding, decode validation and tamper rejection. JVM/native coverage adds the 64th passing scenario. Full source importers beyond the bounded GLB path remain open.
 - Added Kof-owned authored collision representation in `src/core`: bounded indexed vertices and triangles, coordinate/unit metadata, stable source/revision identity, surface kinds, deterministic checksums, sealing/validation, and atomic replacement into the authoritative BVH collection. Collision admission and nearest-hit queries are covered on JVM/native.
 - Collision package admission now binds a sealed indexed collision codec to the package's namespaced asset, geometry revision, chunk kind, checksum and triangle count; JVM/native coverage rejects tampered wire data and mismatched package identities.
@@ -295,9 +296,11 @@ indefinitely.
 
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
-- Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its inspected native assembler links Linux ELF; native Windows builds are not established. A Windows compiler launcher is not proof of a Windows engine target.
-- Release archives cover native Linux and Windows JVM visual qualification.
-  Windows remains a JVM qualification package, not native Kof/PE support.
+- Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its native
+  assembler emits Linux ELF; the native Windows SDL shell does not change that
+  compiler limit.
+- Release archives cover native Linux and the native Windows SDL3 + SDL_mixer
+  platform shell. Authoritative Kof gameplay on Windows remains unproven.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

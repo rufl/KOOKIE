@@ -134,15 +134,15 @@ inventário/equipamento/skill/loot G3 e publicação de criador G4 distinguívei
 pela forma. Overflow de apresentação é diagnosticado e nunca desfaz estado
 autoritativo. Portas 3D criadas adicionam um cuboide de 36 vértices entre a
 arena de 78 e o HUD de 372; a cena fixa atual tem 486 vértices. O Kof deriva
-atenuação por distância e pan estéreo antes do envio de canais PCM
-esquerdo/direito pelo adaptador nativo.
+atenuação por distância e pan estéreo antes do envio PCM para streams
+independentes de efeitos e música no SDL_mixer.
 
 
 ### Adaptador nativo
 
-A pilha nativa inicial é SDL3 + SDL_GPU, com Vulkan/SPIR-V primeiro. As
-bibliotecas opcionais de mecanismos incluem OpenAL Soft, FreeType/HarfBuzz,
-SDL3_image e zstd.
+A pilha nativa é SDL3 + SDL_GPU + SDL_mixer 3.2.4, com Vulkan/SPIR-V primeiro.
+Bibliotecas futuras distribuídas devem continuar permissivas; os candidatos
+atuais incluem FreeType/HarfBuzz, SDL3_image e zstd.
 
 O adaptador é responsável por:
 

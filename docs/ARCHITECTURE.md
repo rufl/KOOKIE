@@ -135,15 +135,15 @@ inventory/equipment/skill/world-loot status and G4 creator-publication status.
 Presentation overflow is diagnosed and never rolls back authoritative state.
 Authored 3D doors add a 36-vertex cuboid between the 78-vertex arena and
 372-vertex HUD; the current fixed scene is 486 vertices. Kof derives distance
-attenuation and stereo pan before the native adapter submits left/right PCM
-channels.
+attenuation and stereo pan before the native adapter submits left/right PCM to
+independent SDL_mixer effects and music streams.
 
 
 ### Native adapter
 
-The initial native stack is SDL3 + SDL_GPU, with Vulkan/SPIR-V first. Optional
-mechanism libraries include OpenAL Soft, FreeType/HarfBuzz, SDL3_image and
-zstd.
+The native stack is SDL3 + SDL_GPU + SDL_mixer 3.2.4, with Vulkan/SPIR-V
+first. Future distributed mechanism libraries must remain permissively
+licensed; current candidates include FreeType/HarfBuzz, SDL3_image and zstd.
 
 The adapter owns:
 

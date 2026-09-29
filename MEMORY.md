@@ -23,8 +23,9 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
   no-per-frame-growth proof remains bounded to unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- JVM/native checks and 77/77 source scenarios pass on each target; the
-  executable G1 runtime markers remain identical.
+- The prior 77-scenario JVM/native source gate passed. The new GameShell
+  end-to-end scenario and both target checks pass; the full source matrix was
+  not rerun locally without the pre-commit permit.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
@@ -51,6 +52,27 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
 
 ## Latest implementation batch
 
+- Replaced the Windows color-matrix/JVM launch split with one persistent native
+  SDL3 + SDL_mixer shell. Its resizable high-DPI window, old-school main menu,
+  display/audio/text options and SipHash-tagged host/join/leave lobby match the
+  Kof-owned Linux shell contract. Windows remains a platform shell rather than
+  proof of Kof gameplay because the compiler has no PE target.
+- The Linux presentation now starts at a persistent Kof main menu and keeps
+  the bounded G1 scene behind Play. SDL_mixer owns distinct effects/music
+  streams; the adapter remains scalar, token-checked and allocation-free on
+  queue submission.
+- KOOKIE is MIT. Distributable packages contain only reviewed permissive
+  components and host system APIs: SDL 3.4.16 and SDL_mixer 3.2.4 are zlib.
+  Linux no longer bundles its loader/libc, Windows no longer embeds a JDK, and
+  distributable JVM packaging fails closed.
+- Focused isolated Wine runs visually verified main/options/multiplayer and
+  exercised resize, maximize and restore. The packaged executable loaded the
+  pinned SDL versions and exited its non-graphical smoke cleanly. An isolated
+  X11 adapter run verified the Linux resizable-window contract; this host could
+  not provide a private SDL_GPU presentation backend for the new Linux menu.
+
+### Prior creator-publication batch
+
 - Added `BoundedTrustedModuleRegistry`: at most 32 static hook declarations,
   each tied to a manifest capability/contribution, phase and bounded
   command/event budgets, sealed in dependency/load/priority order.
@@ -69,10 +91,11 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
 - Existing `BoundedExtensionRegistry` and `BoundedEnemyDefinitionRegistry`
   remain the manifest and data-definition foundations used by G1, G3, the
   external transport probe and the new creator transaction.
-- The focused source gate is 77 JVM/native scenarios. Kof checks, lint and LSP
-  pass. Isolated Wayland SDL_GPU presentation passes at 320×240 with present
-  capability `11`, an 11,270 µs draw and frame checksum `30,358,034`; visual
-  review found no clipping or overlap in the creator/threat panels. The full
+- That batch's focused source gate was 77 JVM/native scenarios; Kof checks,
+  lint and LSP passed. Isolated Wayland SDL_GPU presentation passed at 320×240
+  with present capability `11`, an 11,270 µs draw and frame checksum
+  `30,358,034`; visual review found no clipping or overlap in the
+  creator/threat panels. The full
   repository matrix was not run locally.
 
 ## Earlier batches
@@ -80,13 +103,14 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
 - A native high-arity call forwarding record getters dropped the fire argument in a focused reproduction. Replay now queues the existing `InputCommand` instead of reconstructing a wide call; no compiler repair is claimed.
 - Loopback host lifecycle preserved player position and input sequence watermarks across reconnect, cleared pending commands and rejected stale input; this was local prerequisite coverage before the external bundle above closed the gate.
 - Remote session reconnect preserved broad-phase send/receive watermarks across close/reopen; the native authenticated UDP probe resumed at sequence 9 and rejected older snapshots. The current qualification batch now supplies the formerly missing two-client external proof.
-- Linux x86-64 has reproducible internal dogfood archives for native Kof and
-  executable-JAR JVM runtimes, plus a Windows JVM external-LAN role archive.
-  Windows native Kof/PE packaging remains fail-closed: no Kof Windows target,
-  PE/runtime proof or signing inputs.
-- Reproducible packages use project-owned provenance metadata. Deployment
-  endpoint compatibility is kept outside this repository. KOOKIE has no public
-  license.
+- Linux x86-64 has reproducible native Kof and SDL presentation archives. The
+  Windows x86-64 archive is a native SDL shell with no Java runtime; the
+  Windows JVM external-LAN role bundle remains qualification tooling only.
+  Kof-authored Windows PE gameplay remains blocked by the absent compiler
+  target, not hidden behind the platform shell.
+- Reproducible packages use project-owned provenance metadata, include MIT and
+  zlib notices and reject unreviewed distributed runtime libraries. Deployment
+  endpoint compatibility remains outside this repository.
 
 ## User intent
 
@@ -105,13 +129,17 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 
 ## Proposed decisions
 
-- Native Linux x86-64 first; JVM differential oracle. Additional OS/architectures not promised.
-- SDL3 + SDL_GPU, first Vulkan/SPIR-V; thin checked scalar ABI adapter until Kof buffer FFI exists. SDL3 3.4.16 was installed for the version-query probe; graphics was not tested.
+- Native Linux x86-64 is the authoritative Kof gameplay target; JVM is a local
+  differential oracle. The native Windows platform shell is supported, but
+  Windows Kof gameplay waits for a compiler PE target.
+- SDL 3.4.16 + SDL_GPU with Vulkan/SPIR-V is the graphics boundary; SDL_mixer
+  3.2.4 owns effects/music buses. The scalar ABI adapter remains until Kof
+  buffer FFI exists.
 - One Kof simulation thread; 60 Hz tick, independently interpolated rendering, four-step catch-up proposal.
 - Typed component arrays + generation IDs, true-3D capsule/BVH collision, one damage/death/reward authority.
 - Kof-owned renderer policy, content cooker, game UI and creator tooling; HLSL/GPU shader exception explicit.
 - Full looter/ARPG systems are milestone G3, not dropped after a boomer-shooter demonstration. Creator workflow is G4. See plan for exact scope/acceptance.
-- No automatic JVM fallback, no hidden C engine, no editor fork prerequisite.
+- No automatic JVM fallback, no hidden C gameplay engine, no editor fork prerequisite.
 
 ## Facts not to forget
 
@@ -150,7 +178,9 @@ management remains unimplemented.
 25. `RemoteSessionLink` gates snapshots on endpoint activation and strictly increasing send/receive sequences. JVM/native three-process qualification carries gameplay, feedback and encounter state through the real session loop.
 26. `BoundedRayTargetWorld` now performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering, source exclusion through `SpatialAimContract`, and target removal. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits and bounded misses. `LoopbackSession.resolvePlayerSpatialShotgun` now connects that selection to authoritative player combat.
 27. Native SIMD dispatch now selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps a checked scalar fallback. `FFI001` still prevents Kof bulk-buffer integration, so this is not a measured engine speedup.
-28. The current focused source gate is 75 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
+28. The historical G3 focused gate was 75 JVM/native tests, plus Kof lint/LSP
+    and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for
+    current focused verification.
 29. Accepted authoritative impacts enter bounded monotonic presentation/audio
     history and ordered `6 + 11F` feedback batches. Whole-message validation,
     duplicate/gap rejection and generation baselines prevent partial or stale
@@ -226,4 +256,4 @@ games/editor/server or graphics launched. Later installation verification
 exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did
 not verify the engine graphics stack or run a full suite.
 
-All graphical checks use a reviewed wrapper configured through `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, with private sockets, timeout and process cleanup; never the developer desktop. Full matrix only final pre-commit with user permit. Research docs and local tooling/configuration are delivered; no sibling engine/game source/assets were modified or copied.
+All graphical checks use a reviewed wrapper configured through `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, with private sockets, timeout and process cleanup; never the developer desktop. Full matrix only final pre-commit with user permit. Sibling source changes are limited to ZEER's KOOKIE deployment descriptor; no sibling engine/game source or assets were copied.

@@ -130,7 +130,11 @@ Actual26.3 metadata confirms **LWJGL OpenAL**. This establishes the OpenAL bindi
 
 The pinned [SDL3_mixer header](https://raw.githubusercontent.com/libsdl-org/SDL_mixer/cfa8d2c106caf89c585a5aae9eae9d75939eaf2f/include/SDL3_mixer/SDL_mixer.h) explicitly describes its spatial feature as basic and directs advanced3D users toward OpenAL. Decoder options have their own licenses. [OpenAL Soft README](https://raw.githubusercontent.com/kcat/openal-soft/8d2d2e2ed1f51df960e7eb4bb26b64625c873c0d/README.md) states the LGPL/HRTF split; [miniaudio license](https://raw.githubusercontent.com/mackron/miniaudio/9634bedb5b5a2ca38c1ee7108a9358a4e233f14d/LICENSE) states its alternatives. These are pinned source snapshots, not claims about their latest stable release numbers.
 
-**Choice:** retain queued SDL audio for G0. For a production mixer, evaluate SDL3_mixer first if basic spatial sound suffices; choose OpenAL Soft instead when HRTF/EFX are actual requirements. miniaudio is a third packaging/license alternative, not a reason to build three backends. No audio device was opened in this research.
+**Choice:** SDL_mixer 3.2.4 is the adopted single mixer authority. KOOKIE uses
+generated PCM streams and bundles no optional codec backend. OpenAL Soft is
+excluded by the current permissive-only distributed dependency policy;
+miniaudio remains research, not a second backend. The table's older pinned
+snapshots remain provenance for this assessment.
 
 **Kof-owned audio library:** cue IDs, asset selection, bus/category policy, source lifetime, voice budget/priority, loops/fades/cancellation, subtitle events and bounded occlusion updates. Native library owns device, decoding, mixing and DSP. World queries stay in the chosen collision owner; do not cast one occlusion ray per voice per frame without a budget. Backend attenuation/effects are explicitly configured mechanisms; policy remains Kof-owned. Existing ENGINE_PLAN's Kof-owned attenuation baseline is unchanged unless delegation of that calculation is deliberately selected.
 

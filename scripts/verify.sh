@@ -75,7 +75,7 @@ fi
 isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
 if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-config >/dev/null &&
    [[ -n "$isolation_wrapper" ]] && command -v "$isolation_wrapper" >/dev/null &&
-   pkg-config --exists sdl3 && [[ -f /usr/include/SDL3/SDL.h ]]; then
+   pkg-config --exists sdl3 sdl3-mixer; then
   mkdir -p "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" \
     "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" \
     "$presentation_probe_core_dir" "$presentation_probe_content_dir" \
@@ -109,7 +109,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3)
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer)
   glslc -fshader-stage=vert native/shaders/g0_triangle.vert \
     -o "$adapter_build_dir/g0_triangle.vert.spv"
   glslc -fshader-stage=frag native/shaders/g0_triangle.frag \
@@ -161,6 +161,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
     env "${presentation_env[@]}" \
     KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
     KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
+    KOOKIE_PRESENTATION_SMOKE="${KOOKIE_REQUIRE_PRESENTATION:-0}" \
     KOOKIE_SCREENSHOT_PATH="${KOOKIE_SCREENSHOT_PATH:-}" \
     KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
     SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
@@ -184,7 +185,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
         "${KOOKIE_PRESENTATION_EVIDENCE_JSON:-}"
   fi
 else
-  echo "native SDL adapter smoke skipped: SDL3 development headers, gcc, glslc, pkg-config, or isolated-display wrapper unavailable"
+  echo "native SDL adapter smoke skipped: SDL3/SDL_mixer development files, gcc, glslc, pkg-config, or isolated-display wrapper unavailable"
 fi
 
 kof build src --target jvm --output "$build_dir/jvm"

@@ -97,6 +97,92 @@ main() {
     println("KOOKIE G1 authoritative shooter verified")
 
 }
+test "game shell menus transact display audio and lobby state" {
+    var shell = GameShell()
+    assert(shell.screen() == gameShellScreenMain() &&
+        shell.selection() == 0 && !shell.quitRequested(),
+        "game shell must open on a stable main menu")
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenOptions() &&
+        shell.selection() == 0,
+        "main menu must enter options through keyboard navigation")
+    assert(shell.handleAction(gameShellActionRight()) &&
+        shell.resolutionWidth() == 1600 && shell.resolutionHeight() == 900 &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.displayMode() == 1 &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionLeft()) &&
+        shell.effectsVolume() == 70 &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionLeft()) &&
+        shell.musicVolume() == 50 &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.textSize() == 3,
+        "options must adjust resolution display audio and readable text")
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.displayApplyPending() &&
+        shell.acknowledgeDisplayApply(true) &&
+        !shell.displayApplyPending() && shell.displayApplyResult() == 1,
+        "display changes must complete as an acknowledged transaction")
+    var optionsFrame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(optionsFrame, 1) &&
+        optionsFrame.stagedCount() > 0 &&
+        optionsFrame.stagedCount() <= shell.renderVertexCapacity() &&
+        optionsFrame.checksum() != 0 &&
+        optionsFrame.retire(1),
+        "options menu must publish bounded visible geometry")
+    assert(shell.handleAction(gameShellActionBack()) &&
+        shell.screen() == gameShellScreenMain() &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenMultiplayer(),
+        "back must return to main and multiplayer must remain reachable")
+    assert(shell.handleAction(gameShellActionActivate()) &&
+        shell.networkRequest() == gameShellNetworkHostRequest() &&
+        shell.completeNetworkRequest(gameShellNetworkHostRequest(), true) &&
+        shell.networkStatus() == gameShellNetworkHosting() &&
+        shell.markNetworkConnected() &&
+        shell.networkStatus() == gameShellNetworkConnected(),
+        "host flow must expose hosting and connected transitions")
+    assert(shell.markNetworkDisconnected() &&
+        shell.networkStatus() == gameShellNetworkIdle() &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.completeNetworkRequest(gameShellNetworkHostRequest(), true) &&
+        shell.markNetworkConnected(),
+        "remote leave must reset state and allow another lobby")
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.networkRequest() == gameShellNetworkLeaveRequest() &&
+        shell.completeNetworkRequest(gameShellNetworkLeaveRequest(), true) &&
+        shell.networkStatus() == gameShellNetworkIdle(),
+        "leave must return the lobby to offline state")
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.networkEditing() &&
+        shell.handleAction(gameShellActionUp()) &&
+        shell.addressOne() == 128 &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.addressTwo() == 255 &&
+        shell.handleAction(gameShellActionActivate()) &&
+        !shell.networkEditing(),
+        "address editor must expose bounded octet navigation")
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.networkEditing() &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.port() == 47201 &&
+        shell.handleAction(gameShellActionActivate()) &&
+        !shell.networkEditing(),
+        "port editor must support coarse and bounded changes")
+}
+
 test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
     assert(hud.renderVertexCount() == 372,

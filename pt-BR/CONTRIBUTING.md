@@ -10,6 +10,15 @@ As páginas e a documentação pública são mantidas em inglês e português br
 Para uma visão rápida do trabalho recente, leia [CHANGELOG.md](CHANGELOG.md). Mantenha o changelog e o arquivo correspondente em inglês úteis para quem está chegando ao projeto: descreva o comportamento que mudou, a verificação que o sustenta e o limite que continua.
 
 
+## Dependências e licenciamento
+
+O KOOKIE usa MIT. Todo componente de fonte ou runtime distribuído em um pacote
+KOOKIE deve ter licença permissiva revisada. Ferramentas de build/qualificação
+podem usar outras licenças somente quando não são vinculadas, copiadas ou
+exigidas em runtime. Fixe versões e hashes, atualize
+`THIRD_PARTY_NOTICES.txt` e faça o gate de fechamento de dependências rejeitar
+qualquer biblioteca não revisada.
+
 ## Gate de verificação
 
 Antes de cada push, execute a verificação na raiz do repositório:

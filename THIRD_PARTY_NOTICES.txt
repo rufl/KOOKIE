@@ -1,0 +1,49 @@
+KOOKIE third-party notices
+
+Distributed runtime and source dependencies are restricted to permissive
+licenses.
+
+SDL 3.4.16
+Source: https://github.com/libsdl-org/SDL/releases/tag/release-3.4.16
+Windows MinGW archive:
+https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-devel-3.4.16-mingw.tar.gz
+SHA-256: c7ef65bd72eabac6e5b535411dbd8d5824d0aab24fd62ff8812666b336f18a9c
+
+SDL_mixer 3.2.4
+Source: https://github.com/libsdl-org/SDL_mixer/releases/tag/release-3.2.4
+Source archive:
+https://github.com/libsdl-org/SDL_mixer/releases/download/release-3.2.4/SDL3_mixer-3.2.4.tar.gz
+SHA-256: 182a07c745375e113dc740d43964ff21b0be29f29f59876c4dbc4db3d32f6901
+Windows MinGW archive:
+https://github.com/libsdl-org/SDL_mixer/releases/download/release-3.2.4/SDL3_mixer-devel-3.2.4-mingw.tar.gz
+SHA-256: 2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6
+
+SDL and SDL_mixer use the following zlib License:
+
+Copyright (C) 1997-2026 Sam Lantinga <slouken@libsdl.org>
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+
+The Windows package links only SDL and SDL_mixer; its mixer DLL imports no
+optional codec library. Linux release packaging rejects unreviewed non-system
+runtime libraries and copies only SDL and SDL_mixer. Host operating-system
+libraries are not redistributed.
+
+Kof compiler note
+The Kof compiler is a build tool and is not distributed in KOOKIE packages.
+Upstream permits programs produced by Kof to use their own license. KOOKIE's
+source and produced program are licensed under the MIT License in LICENSE.

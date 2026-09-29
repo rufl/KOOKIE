@@ -9,11 +9,11 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - Fontes Kof modulares `core`/`session` e sonda escalar de SDL3.
 - Documentação bilíngue e gate de verificação antes do push.
 - Tokens de recursos pertencentes ao Kof, verificados por slot, geração e tipo.
-- Smoke JVM/nativo e três testes nomeados de regressão.
+- Smoke focado JVM/nativo e contratos comportamentais nomeados.
 - Ciclo escalar `SDL_Init(0)`/`SDL_Quit()` exercitado na JVM/nativo.
 - Estado Kof de foco/redimensionamento/fechamento e FIFO de áudio com capacidade limitada.
 - Adaptador C SDL estreito com tokens verificados de janela/áudio/GPU e flattening escalar de eventos.
-- Transferência PCM limitada de silêncio e clip determinístico para um stream de áudio SDL sem callbacks.
+- Transferência PCM limitada para stream de efeitos SDL_mixer, sem callback para o Kof.
 - Sonda do adaptador nativo aplicando eventos reais do adaptador ao estado Kof e executando o primeiro caminho de upload/draw de textura SPIR-V.
 - Contrato limitado de staging de frame Kof medido em 15 escritas escalares para um triângulo texturizado de três vértices, com verificações de ownership de publish/discard.
 - Reproduzível do lifetime de exceção nativa e controles negativos registrados no gate de verificação.
@@ -142,11 +142,12 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
   evidência gerada é dado operacional e não deve ser commitada.
 - O validador fail-closed aceita somente janela real com capacidade positiva,
   marcador de draw, screenshot P6 válido e saída limpa.
-- Adicionamos um construtor reproduzível de arquivo dogfood Linux x86-64 com
-  procedência de commit/build, `SHA256SUMS` e smoke do binário extraído. O
-  pacote de roles LAN Windows JVM fornece JARs e launchers `.cmd`, sem chave
-  ou manifesto embutidos; o empacotamento nativo Windows continua bloqueado
-  porque o compilador Kof não possui alvo PE, prova de runtime ou assinatura.
+- Arquivos reproduzíveis cobrem Kof nativo e a apresentação SDL persistente no
+  Linux. O Windows x86-64 agora recebe um shell nativo SDL3 + SDL_mixer com
+  janela redimensionável/maximizável, menus/opções/lobby e sem JDK embutido.
+  Gameplay Kof PE continua bloqueado pela ausência do alvo no compilador; o
+  pacote JVM de roles LAN é somente ferramenta de qualificação. Pacotes do
+  produto incluem avisos MIT/zlib e rejeitam bibliotecas não revisadas.
 
 ## Evidência externa reproduzível
 
@@ -180,9 +181,12 @@ O bundle e os logs operacionais não devem ser commitados.
 
 O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos concluídos continuam registrados aqui.
 
-- `kof info --json` instalado reporta 0.4.9-beta em Linux x86-64. O assembler nativo inspecionado vincula ELF Linux; builds nativos Windows não foram estabelecidos. Um launcher Windows do compilador não comprova o alvo Windows da engine.
-- Arquivos de release cobrem Linux nativo e qualificação visual JVM no Windows;
-  o suporte nativo Windows do Kof continua fora do escopo comprovado.
+- O `kof info --json` instalado reporta 0.4.9-beta no Linux x86-64. O assembler
+  nativo emite ELF Linux; o shell SDL nativo Windows não muda esse limite do
+  compilador.
+- Arquivos de release cobrem Linux nativo e o shell de plataforma Windows
+  SDL3 + SDL_mixer. Gameplay Kof autoritativo no Windows continua não
+  comprovado.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 

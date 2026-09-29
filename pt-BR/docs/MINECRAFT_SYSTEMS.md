@@ -120,7 +120,11 @@ Os metadados 26.3 confirmam **OpenAL via LWJGL**, não uma versão exata indepen
 | **miniaudio** | Snapshot fixado, MIT-0 ou alternativa domínio público | Alternativa permissiva com mixer, node graph, espacialização e decoders. WAV/FLAC/MP3 não implica Ogg embutido. Fixe ABI/build |
 | **Sound Physics Remastered** | 1.5.1+26.3, GPLv3 | Estudo de oclusão/absorção/reverb. Acoplado a Minecraft/OpenAL/mod; não traduza sua fonte para um módulo Kof permissivo |
 
-**Escolha:** retenha áudio SDL enfileirado para G0. Para mixer de produção, avalie SDL3_mixer primeiro se espacialização básica bastar; escolha OpenAL Soft se HRTF/EFX forem requisitos reais. miniaudio é uma terceira alternativa de empacotamento/licença, não motivo para três backends.
+**Escolha:** SDL_mixer 3.2.4 é a única autoridade de mixer adotada. O KOOKIE
+usa streams PCM gerados e não empacota codecs opcionais. OpenAL Soft fica
+excluído pela política atual de dependências distribuídas somente permissivas;
+miniaudio continua pesquisa, não um segundo backend. Os snapshots antigos da
+tabela permanecem como procedência desta avaliação.
 
 A biblioteca de áudio possui dispositivo, decodificação, mixagem e DSP. O Kof possui IDs de cue, seleção de asset, buses/categorias, vida das fontes, orçamento/prioridade de vozes, loops/fades/cancelamento, legendas e atualizações limitadas de oclusão. Nenhum dispositivo de áudio foi aberto nesta pesquisa.
 
