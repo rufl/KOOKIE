@@ -280,11 +280,15 @@ Public extension operations are:
 Systems execute in dependency order, then declared priority, then namespaced
 ID. Conflicts and capacity failures fail closed with diagnostics.
 
-The first implemented G4 slice makes these declarations executable metadata,
-not arbitrary callbacks: `BoundedTrustedModuleRegistry` binds at most 32
-statically compiled hook IDs to declared manifest contributions, phase and
-command/event budgets. It seals them in dependency/load/priority order. Hook
-execution and mutable core access are not implied.
+The G4 trusted-module path does not expose arbitrary callbacks.
+`BoundedTrustedModuleRegistry` binds at most 32 statically compiled hook IDs
+and binary versions to declared manifest contributions, phases and
+command/event budgets. `BoundedTrustedHookRuntime` accepts only a sealed module
+whose extension/module checksums match a published generation, executes
+increasing phases on monotonic ticks, and preflights every per-hook/global
+capacity before emission. The authoritative session currently consumes only a
+bounded grant-currency command, exactly once and after aggregate overflow
+validation. Hooks never receive mutable core access.
 
 ## 6. Content and asset pipeline
 
@@ -552,13 +556,15 @@ the actor and every reward contract atomically from those definitions.
 
 ### G4 — Creator and extension pipeline
 
-In progress: the first slice binds packages, extension manifests, trusted-hook
-declarations, enemy definitions and aligned geometry/collision/navigation/
-replication products into one revision-checked compatibility identity.
-Stale or invalid transactions preserve the active generation; exact client
-identity admission and a second definition-driven multiplayer sample execute.
-Authoring-file intake, hook execution, inspector/editors and live staged reload
-remain open.
+In progress: packages, extension manifests, static trusted-hook
+implementations, enemy definitions and aligned geometry/collision/navigation/
+replication products share one revision-checked compatibility identity. Stale
+or invalid transactions preserve the active generation. Exact client identity
+admission and a second definition-driven multiplayer sample execute; its
+published elite-bounty hook emits a bounded event/command after authoritative
+death, and the session applies the currency command exactly once. The broader
+hook/event surface, authoring-file intake, external package loading,
+inspector/editors and live GPU-safe staged reload remain open.
 
 ### G5 — Scale and release
 

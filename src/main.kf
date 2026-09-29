@@ -516,7 +516,7 @@ test "bounded extensions resolve capabilities and enemy definitions" {
         "sealed enemy definitions must preserve deterministic spawn rules")
 }
 
-test "G4 creator publication is atomic and compatibility bound" {
+test "G4 creator publication and trusted execution are bounded" {
     var extensions = BoundedExtensionRegistry(2, 2, 4, 4)
     assert(extensions.registerManifest(1, 1, 2, 1, 1) &&
         extensions.setLoadOrder(1, 1, 10) &&
@@ -545,9 +545,13 @@ test "G4 creator publication is atomic and compatibility bound" {
     assert(hooks.defineHook(
             extensions, 8, 1, 3001, trustedHookPostSimulationPhase()) &&
         hooks.setBudget(8, 1, 3001, 8, 4) &&
+        hooks.bindImplementation(
+            8, 1, 3001, trustedHookImplementationEliteBounty(), 1) &&
         hooks.defineHook(
             extensions, 1, 1, 110, trustedHookPreSimulationPhase()) &&
         hooks.setBudget(1, 1, 110, 4, 2) &&
+        hooks.bindImplementation(
+            1, 1, 110, trustedHookImplementationSessionAudit(), 1) &&
         extensions.seal() && extensions.apiCompatible(2) &&
         extensions.networkSchemaChecksum() > 0 &&
         hooks.seal(extensions) && hooks.validate(extensions) &&
@@ -558,8 +562,108 @@ test "G4 creator publication is atomic and compatibility bound" {
         hooks.orderedHookOwner(extensions, 1) == 1 &&
         hooks.orderedHookId(extensions, 1) == 3001 &&
         hooks.orderedHookCommandBudget(extensions, 1) == 8 &&
-        hooks.orderedHookEventBudget(extensions, 1) == 4,
-        "trusted hooks must resolve namespaced dependency-first budgets")
+        hooks.orderedHookEventBudget(extensions, 1) == 4 &&
+        hooks.orderedHookImplementation(extensions, 0) ==
+            trustedHookImplementationSessionAudit() &&
+        hooks.orderedHookImplementation(extensions, 1) ==
+            trustedHookImplementationEliteBounty(),
+        "trusted hooks must resolve namespaced dependency-first implementations")
+    var hookModuleChecksum = hooks.checksum()
+
+    var lowBudgetHooks = BoundedTrustedModuleRegistry(2)
+    assert(lowBudgetHooks.defineHook(
+            extensions, 8, 1, 3001, trustedHookPostSimulationPhase()) &&
+        lowBudgetHooks.setBudget(8, 1, 3001, 1, 1) &&
+        lowBudgetHooks.bindImplementation(
+            8, 1, 3001, trustedHookImplementationEliteBounty(), 1) &&
+        lowBudgetHooks.defineHook(
+            extensions, 1, 1, 110, trustedHookPreSimulationPhase()) &&
+        lowBudgetHooks.setBudget(1, 1, 110, 1, 0) &&
+        !lowBudgetHooks.bindImplementation(
+            1, 1, 110, trustedHookImplementationEliteBounty(), 1) &&
+        !lowBudgetHooks.bindImplementation(
+            1, 1, 110, trustedHookImplementationSessionAudit(), 2) &&
+        lowBudgetHooks.bindImplementation(
+            1, 1, 110, trustedHookImplementationSessionAudit(), 1) &&
+        lowBudgetHooks.seal(extensions),
+        "trusted hook bindings must reject wrong phases and binary versions")
+    var lowBudgetModuleChecksum = lowBudgetHooks.checksum()
+    var budgetRuntime = BoundedTrustedHookRuntime(2, 2)
+    assert(budgetRuntime.bindPublishedGeneration(
+            extensions, lowBudgetHooks, 1, lowBudgetModuleChecksum) &&
+        budgetRuntime.beginTick(1) &&
+        !budgetRuntime.executePhase(
+            extensions, lowBudgetHooks, trustedHookPreSimulationPhase(),
+            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
+        budgetRuntime.diagnostic() == trustedHookRuntimeDiagnosticBudget() &&
+        budgetRuntime.commandCount() == 0 &&
+        budgetRuntime.eventCount() == 0 &&
+        budgetRuntime.finishTick(),
+        "hook budget rejection must leave the tick output empty")
+
+    var capacityRuntime = BoundedTrustedHookRuntime(1, 1)
+    assert(capacityRuntime.bindPublishedGeneration(
+            extensions, hooks, 1, hookModuleChecksum) &&
+        capacityRuntime.beginTick(1) &&
+        capacityRuntime.executePhase(
+            extensions, hooks, trustedHookPreSimulationPhase(),
+            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
+        !capacityRuntime.executePhase(
+            extensions, hooks, trustedHookPostSimulationPhase(),
+            1, 100, enemyDefinitionEliteKind(),
+            trustedHookOutcomeEnemyDefeated()) &&
+        capacityRuntime.diagnostic() ==
+            trustedHookRuntimeDiagnosticCapacity() &&
+        capacityRuntime.commandCount() == 0 &&
+        capacityRuntime.eventCount() == 1 &&
+        capacityRuntime.finishTick(),
+        "hook capacity rejection must preserve prior phase output atomically")
+
+    var executionRuntime = BoundedTrustedHookRuntime(2, 2)
+    var executionSession = LoopbackSession(2, 2)
+    assert(executionSession.start() &&
+        executionSession.connectPlayer() == 1 &&
+        executionSession.connectPlayer() == 2 &&
+        executionSession.setPlayerCurrency(1, 999998) &&
+        executionRuntime.bindPublishedGeneration(
+            extensions, hooks, 1, hookModuleChecksum) &&
+        executionRuntime.boundGeneration() == 1 &&
+        executionRuntime.beginTick(1) &&
+        !executionRuntime.executePhase(
+            extensions, lowBudgetHooks, trustedHookPreSimulationPhase(),
+            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
+        executionRuntime.diagnostic() ==
+            trustedHookRuntimeDiagnosticRegistry() &&
+        executionRuntime.commandCount() == 0 &&
+        executionRuntime.eventCount() == 0 &&
+        executionRuntime.executePhase(
+            extensions, hooks, trustedHookPreSimulationPhase(),
+            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
+        executionRuntime.executePhase(
+            extensions, hooks, trustedHookPostSimulationPhase(),
+            1, 100, enemyDefinitionEliteKind(),
+            trustedHookOutcomeEnemyDefeated()) &&
+        executionRuntime.commandCount() == 1 &&
+        executionRuntime.commandKind(0) ==
+            trustedHookCommandGrantCurrency() &&
+        executionRuntime.commandValue(0) == 4 &&
+        executionRuntime.eventCount() == 2 &&
+        executionRuntime.eventKind(1) == trustedHookEventEliteBounty() &&
+        !executionSession.applyTrustedHookCommands(executionRuntime) &&
+        executionSession.playerCurrency(1) == 999998 &&
+        executionSession.setPlayerCurrency(1, 0) &&
+        executionSession.applyTrustedHookCommands(executionRuntime) &&
+        executionSession.playerCurrency(1) == 4 &&
+        !executionSession.applyTrustedHookCommands(executionRuntime) &&
+        executionRuntime.finishTick() &&
+        executionRuntime.lastCompletedTick() == 1 &&
+        executionRuntime.executionChecksum() > 0 &&
+        !executionRuntime.bindPublishedGeneration(
+            extensions, hooks, 1, hookModuleChecksum) &&
+        !executionRuntime.beginTick(1) &&
+        executionRuntime.diagnostic() ==
+            trustedHookRuntimeDiagnosticState(),
+        "trusted hook commands must apply once without partial overflow")
 
     var definitions = BoundedEnemyDefinitionRegistry(1)
     assert(definitions.define(
@@ -701,8 +805,12 @@ test "G4 creator definitions drive a distinct multiplayer sample" {
         creatorDemo.publicationDiagnostic() == creatorDiagnosticNone() &&
         creatorDemo.playerCount() == 2 &&
         creatorDemo.worldLootCount() == 1 &&
-        creatorDemo.worldLootStableId() == 4100,
-        "trusted module and data definitions must build a second bounded multiplayer sample")
+        creatorDemo.worldLootStableId() == 4100 &&
+        creatorDemo.playerCurrency() == 9 &&
+        creatorDemo.hookEventCount() == 1 &&
+        creatorDemo.hookEventKind() == trustedHookEventEliteBounty() &&
+        creatorDemo.hookExecutionChecksum() > 0,
+        "trusted hook execution and definitions must drive the second sample")
 }
 test "player fire input publishes weapon presentation" {
     var loopback = LoopbackSession(4, 2)

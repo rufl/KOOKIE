@@ -33,11 +33,11 @@ G0, G1, G2, G3 and the first bounded G4 vertical slice run on JVM and native Lin
 - bounded public extension manifests, dependencies, capabilities and
   deterministic content contributions, plus sealed data-defined elite/boss
   combat, behavior, loot, progression and currency rules;
-- a first transactional G4 path that binds package, extension, trusted-hook,
-  enemy-definition and geometry/collision/navigation/replication checksums into
-  a 13-word compatibility identity; stale or invalid edits retain the active
-  generation, and a second two-player sample uses only public definitions and
-  extension/session APIs;
+- a transactional G4 path that binds package, extension, trusted-hook
+  implementation/version, enemy-definition and aligned product checksums into
+  a 13-word compatibility identity; stale edits retain the active generation,
+  while a generation-bound runtime executes the compiled elite-bounty hook
+  after a confirmed kill and applies its bounded currency command exactly once;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
   regressions carry the complete 26-triangle arena, unified checksummed
   movement/fire/interaction/lifecycle commands, recipient-specific gameplay
@@ -58,9 +58,9 @@ The important gaps are still real:
 
 - G3 process qualification remains same-host, G4 content-identity admission is
   currently in-process, and separate-host execution remains unproven;
-- G4 remains open for trusted-hook execution, the complete supported
-  mesh/brush/source cooker intake, external package loading, inspector/editors
-  and GPU-safe staged reload;
+- G4 remains open for the broader trusted-hook/domain-event surface, the
+  complete supported mesh/brush/source cooker intake, external package loading,
+  inspector/editors and GPU-safe staged reload;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, full physics, streamed/compressed audio and HRTF/EFX,
@@ -206,8 +206,9 @@ kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward→save/reloa
 runs on JVM and native; state kinds `7`/`8` traverse authenticated same-host
 host-plus-two-client processes; and bounded manifest/capability/contribution
 registries instantiate complete sealed elite/boss definitions. This does not
-claim separate-host qualification or the G4 cooker, trusted-module hooks,
-editor transactions and staged content publication. G2 remains covered by the
+claim separate-host qualification or the complete G4 cooker, broader
+trusted-module surface, editor transactions and staged content publication. G2
+remains covered by the
 source suite, focused interaction probe, process qualification and isolated
 SDL_GPU/audio probe.
 

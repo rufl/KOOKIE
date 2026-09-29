@@ -42,13 +42,15 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
   state kinds 7/8 replicate complete per-player authority and world drops
   through loopback and same-host JVM/native external processes; save section 12
   preserves drops and reward claims. Separate-host execution remains unproven.
-- G4 is in progress. The first slice publishes a sealed package, extension
-  manifest, trusted-hook declarations, enemy definitions and aligned
-  geometry/collision/navigation/replication products under one exact
-  compatibility identity. Stale/invalid edits retain the prior generation, and
-  a second two-player definition-driven encounter executes. Hook execution,
-  remaining source formats, external package loading, editor tooling, live
-  staged reload and transport qualification remain open.
+- G4 is in progress. Its published compatibility identity now binds a sealed
+  package, extension manifest, trusted-hook implementation/version, enemy
+  definitions and aligned geometry/collision/navigation/replication products.
+  A generation/checksum-bound runtime executes the compiled elite-bounty hook
+  after authoritative death, preflights budgets/capacity and applies its
+  currency command exactly once. Stale or invalid state retains prior output.
+  Remaining source formats, the broader hook/event surface, external package
+  loading, editor tooling, live staged reload and transport qualification are
+  open.
 
 ## Latest implementation batch
 
@@ -70,6 +72,21 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
   pinned SDL versions and exited its non-graphical smoke cleanly. An isolated
   X11 adapter run verified the Linux resizable-window contract; this host could
   not provide a private SDL_GPU presentation backend for the new Linux menu.
+
+### Trusted-hook execution batch
+
+- Extended `BoundedTrustedModuleRegistry` so every declaration must bind a
+  supported static implementation ID and binary version before sealing; both
+  values participate in compatibility identity.
+- Added `BoundedTrustedHookRuntime` with monotonic ticks, deterministic phase
+  order, published generation/checksum binding, per-hook budgets, global
+  capacities and atomic rejection diagnostics.
+- Added exactly-once authoritative hook-command application to
+  `LoopbackSession`; invalid recipients, unsupported commands and aggregate
+  currency overflow preserve session state.
+- `G4CreatorDemo` now consumes its published module: a confirmed elite death
+  executes the bounty hook, emits a typed event and grants four currency above
+  the definition-owned reward.
 
 ### Prior creator-publication batch
 
@@ -237,16 +254,18 @@ Clients predict movement, replay unacknowledged inputs on reconciliation and
 reset epochs after reconnect; the interaction, process and isolated SDL probes
 pass.
 
-G3 is complete at the current gate and passes all 75 source scenarios on
-JVM/native. Server-owned kill→rolled drop→pickup/equip→observable damage/skill
+G3 remains complete at its current gate, and all 78 source scenarios now pass
+on JVM/native. Server-owned kill→rolled drop→pickup/equip→observable damage/skill
 change→boss reward→schema-file save/reload executes without client-authored
 outcomes or duplicate rewards. State kinds 7/8 traverse authenticated same-host
 host-plus-two-client processes on both targets. Bounded public manifests,
 capabilities and deterministic contributions now instantiate complete sealed
 elite/boss rules atomically. Separate-host execution is unproven; G4 remains
-the cooker, trusted-module hooks, editor transactions and staged publication.
-G5 retains sustained workload, RSS and frame-budget acceptance; `FFI001` still
-blocks Kof bulk-buffer calls into the optional SIMD kernel.
+the complete cooker/source intake, broader trusted-hook/domain-event surface,
+external package loading, editor transactions, GPU-safe staged reload and
+compatibility-handshake transport. G5 retains sustained workload, RSS and
+frame-budget acceptance; `FFI001` still blocks Kof bulk-buffer calls into the
+optional SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

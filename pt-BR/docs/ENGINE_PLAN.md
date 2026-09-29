@@ -603,6 +603,17 @@ incompletas, divergentes ou inválidas preservam a geração anterior. Isso não
 comprova os leitores restantes de formatos-fonte, uma CLI de cooker orientada a
 arquivos nem substituição ao vivo de recursos da GPU.
 
+A camada seguinte implementada vincula cada declaração a um ID/versão de
+implementação estática compatível dentro do checksum do módulo.
+`BoundedTrustedHookRuntime` vincula esse módulo e o checksum da extensão a uma
+geração publicada, exige ticks monotônicos e fases crescentes, e verifica
+orçamentos por hook e capacidade global antes de emitir comandos/eventos
+limitados. `LoopbackSession` aceita o comando atual de concessão de moeda
+exatamente uma vez após validar destinatário/overflow agregado.
+`G4CreatorDemo` exercita esse caminho depois da morte autoritativa da elite.
+Isso comprova um caminho de execução de hook confiável compilado, não callbacks
+arbitrários de extensões nem sandbox.
+
 O JSON nativo de registros mistos Int/Double/String falhou no round-trip medido,
 incluindo valores numéricos/string corrompidos; getters diretos de registros foram
 aprovados. Antes de adotar JSON nativo para definições, glTF ou saves, exija um
@@ -746,16 +757,17 @@ controlam combate, comportamento, loot, progressão e moeda;
 contratos de recompensa. Schemas com checksum preservam inventário completo e
 identidade do RNG; os tipos `7`/`8` atravessam processos autenticados na mesma
 máquina com host mais dois clientes na JVM e no nativo. Execução entre máquinas
-continua não comprovada. O primeiro slice limitado de G4 agora sela declarações
-determinísticas de hooks confiáveis com fase e orçamentos de comandos/eventos;
-vincula checksums de pacote, manifesto, hook, definição e produtos alinhados
-numa identidade de compatibilidade versionada; rejeita conteúdo obsoleto ou
-divergente sem substituir a geração ativa; e executa um segundo encontro com
-dois jogadores, orientado por definições, por APIs públicas de extensão/sessão.
-Execução de hooks confiáveis, formatos-fonte adicionais do cooker, carregamento
-externo de pacotes, inspector/editores, recarregamento ao vivo em etapas e
-transporte do handshake de compatibilidade continuam abertos; portanto G4 não
-está encerrado.
+continua não comprovada. O caminho limitado G4 agora sela implementações
+estáticas determinísticas de hooks e versões binárias com fases e orçamentos de
+comandos/eventos; vincula checksums de pacote, manifesto, módulo, definição e
+produtos alinhados numa identidade de compatibilidade versionada; rejeita
+gerações obsoletas/divergentes sem substituir estado; e executa o hook compilado
+de recompensa de elite após uma morte autoritativa no segundo exemplo com dois
+jogadores. Capacidade de saída e overflow de recompensa falham atomicamente, e
+a sessão aplica cada comando aceito uma vez. Contratos adicionais de
+hooks/eventos, formatos-fonte do cooker, carregamento externo de pacotes,
+inspector/editores, reload ao vivo em etapas seguro para GPU e transporte do
+handshake de compatibilidade continuam abertos; portanto G4 não está encerrado.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

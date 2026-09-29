@@ -284,12 +284,16 @@ Os sistemas são executados na ordem das dependências, depois pela prioridade
 declarada e, por fim, pelo ID com namespace. Conflitos e falhas de capacidade
 fazem o sistema falhar de forma segura, com diagnósticos.
 
-O primeiro slice G4 implementado transforma essas declarações em metadados
-executáveis, não callbacks arbitrários: `BoundedTrustedModuleRegistry` vincula
-no máximo 32 IDs de hooks compilados estaticamente às contribuições declaradas
-no manifesto, fase e orçamentos de comandos/eventos. O registro os sela na
-ordem de dependência/carga/prioridade. Isso não implica execução dos hooks nem
-acesso mutável ao núcleo.
+O caminho G4 de módulos confiáveis não expõe callbacks arbitrários.
+`BoundedTrustedModuleRegistry` vincula no máximo 32 IDs de hooks compilados
+estaticamente e suas versões binárias a contribuições declaradas no manifesto,
+fases e orçamentos de comandos/eventos. `BoundedTrustedHookRuntime` aceita
+somente módulo selado cujos checksums de extensão/módulo correspondam a uma
+geração publicada, executa fases crescentes em ticks monotônicos e verifica
+todas as capacidades por hook/globais antes da emissão. A sessão autoritativa
+consome atualmente apenas um comando limitado de concessão de moeda, exatamente
+uma vez e após validar overflow agregado. Hooks nunca recebem acesso mutável ao
+núcleo.
 
 ## 6. Pipeline de conteúdo e assets
 
@@ -563,13 +567,16 @@ partir dessas definições.
 
 ### G4 — Pipeline de criação e extensões
 
-Em andamento: o primeiro slice vincula pacotes, manifestos de extensão,
-declarações de hooks confiáveis, definições de inimigos e produtos alinhados de
-geometria/colisão/navegação/replicação numa identidade de compatibilidade
-verificada por revisão. Transações obsoletas ou inválidas preservam a geração
-ativa; a admissão por identidade exata do cliente e um segundo exemplo
-multiplayer orientado por definições executam. Entrada de arquivos de autoria,
-execução de hooks, inspector/editores e recarregamento ao vivo em etapas
+Em andamento: pacotes, manifestos de extensão, implementações estáticas de hooks
+confiáveis, definições de inimigos e produtos alinhados de
+geometria/colisão/navegação/replicação compartilham uma identidade de
+compatibilidade verificada por revisão. Transações obsoletas ou inválidas
+preservam a geração ativa. Admissão exata da identidade do cliente e um segundo
+exemplo multiplayer orientado por definições executam; seu hook publicado de
+recompensa de elite emite evento/comando limitado após a morte autoritativa, e
+a sessão aplica o comando de moeda exatamente uma vez. A superfície mais ampla
+de hooks/eventos, entrada de arquivos de autoria, carregamento externo de
+pacotes, inspector/editores e reload ao vivo em etapas seguro para GPU
 continuam abertos.
 
 ### G5 — Escala e lançamento

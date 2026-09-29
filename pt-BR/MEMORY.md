@@ -46,14 +46,30 @@ As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estã
   processos externos na mesma máquina na JVM/no nativo; a seção 12 do save
   preserva drops e reivindicações de recompensa. Execução entre máquinas
   continua não comprovada.
-- G4 está em andamento. O primeiro slice publica pacote selado, manifesto de
-  extensão, declarações de hooks confiáveis, definições de inimigos e produtos
-  alinhados de geometria/colisão/navegação/replicação sob uma identidade exata
-  de compatibilidade. Edições obsoletas/inválidas preservam a geração anterior,
-  e um segundo encontro com dois jogadores orientado por definições executa.
-  Execução de hooks, formatos-fonte restantes, carregamento externo de pacotes,
-  ferramentas de edição, recarregamento ao vivo em etapas e qualificação do
-  transporte continuam abertos.
+- G4 está em andamento. Sua identidade publicada agora vincula pacote selado,
+  manifesto de extensão, implementação/versão de hook confiável, definições de
+  inimigos e produtos alinhados de geometria/colisão/navegação/replicação. Um
+  runtime vinculado à geração/checksums executa o hook compilado de recompensa
+  de elite após a morte autoritativa, verifica orçamentos/capacidade antes da
+  emissão e aplica seu comando de moeda exatamente uma vez. Estado obsoleto ou
+  inválido preserva a saída anterior. Formatos-fonte restantes, a superfície
+  mais ampla de hooks/eventos, carregamento externo de pacotes, ferramentas de
+  edição, reload ao vivo em etapas e qualificação do transporte estão abertos.
+
+## Lote mais recente de execução de hooks confiáveis
+
+- Estendemos `BoundedTrustedModuleRegistry`: toda declaração precisa vincular
+  um ID de implementação estática compatível e sua versão binária antes do
+  fechamento; ambos participam da identidade de compatibilidade.
+- Adicionamos `BoundedTrustedHookRuntime` com ticks monotônicos, ordem
+  determinística de fases, vínculo à geração/checksums publicados, orçamentos
+  por hook, capacidades globais e diagnósticos de rejeição atômica.
+- Adicionamos aplicação autoritativa exatamente uma vez dos comandos de hook em
+  `LoopbackSession`; destinatários inválidos, comandos incompatíveis e overflow
+  agregado de moeda preservam o estado da sessão.
+- `G4CreatorDemo` agora consome seu módulo publicado: a morte confirmada da
+  elite executa o hook de recompensa, emite evento tipado e concede quatro
+  moedas acima da recompensa pertencente à definição.
 
 ## Lote de implementação mais recente
 
@@ -226,18 +242,20 @@ vários papéis. Os clientes predizem movimento, reproduzem inputs ainda não
 confirmados na reconciliação e reiniciam épocas após reconexão; as sondas de
 interação, processos e SDL isolado passam.
 
-G3 está concluído no gate atual e passa em todos os 75 cenários-fonte na
-JVM/no nativo. O caminho sob autoridade do servidor de eliminação→drop
+G3 continua concluído no gate atual, e todos os 78 cenários-fonte agora passam
+na JVM/no nativo. O caminho sob autoridade do servidor de eliminação→drop
 gerado→coleta/equipamento→mudança observável de dano/skill→recompensa de
 chefe→save/reload em arquivo de schema executa sem resultados criados pelo
 cliente ou recompensas duplicadas. Os tipos de estado 7/8 atravessam processos
 autenticados na mesma máquina com host mais dois clientes nos dois alvos.
 Manifests públicos limitados, capabilities e contribuições determinísticas
 agora instanciam regras completas e seladas de elite/chefe de forma atômica.
-Execução entre máquinas continua não comprovada; G4 mantém cooker, hooks de
-módulos confiáveis, transações do editor e publicação em estágios. G5 mantém a
-aceitação sustentada de carga, RSS e orçamento de frame; `FFI001` ainda
-bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
+Execução entre máquinas continua não comprovada; G4 mantém a entrada
+completa do cooker/fontes, a superfície mais ampla de hooks confiáveis/eventos
+de domínio, carregamento externo de pacotes, transações do editor, reload em
+etapas seguro para a GPU e transporte do handshake de compatibilidade. G5
+mantém a aceitação sustentada de carga, RSS e orçamento de frame; `FFI001`
+ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

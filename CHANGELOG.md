@@ -25,6 +25,27 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   main, options and multiplayer screens plus real resize, maximize and restore;
   package smoke loaded SDL 3.4.16 and SDL_mixer 3.2.4 without opening a window.
 
+### Generation-bound trusted-hook execution
+
+- Trusted-hook declarations now bind a supported static implementation ID and
+  binary version into the sealed module checksum. Missing implementations,
+  unsupported versions and phase mismatches fail closed before publication.
+- Added `BoundedTrustedHookRuntime`: a published generation and its exact
+  extension/module checksums are bound before monotonic ticks execute hooks in
+  deterministic phase order. Per-hook budgets and global command/event
+  capacities are preflighted, so rejection leaves prior phase output intact.
+- Added one-time authoritative application of bounded hook commands.
+  Disconnected recipients, unsupported commands and currency overflow reject
+  without partial mutation or command replay.
+- The G4 two-player sample now executes the compiled elite-bounty hook after a
+  confirmed enemy death. It emits a typed event and adds four currency through
+  the authoritative session on top of the data-defined five-currency reward.
+- Focused tests cover wrong implementation phase/version, budget and capacity
+  rejection, mismatched published generations, monotonic ticks, overflow and
+  exactly-once command application.
+- All 78 source scenarios pass on JVM and native; Kof checks, lint and LSP pass.
+
+
 ### First G4 transactional creator-publication slice
 
 - Added `BoundedTrustedModuleRegistry` for at most 32 statically compiled hook

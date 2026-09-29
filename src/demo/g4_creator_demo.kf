@@ -8,6 +8,9 @@ class G4CreatorDemo {
     LoopbackSession multiplayer
     BoundedCreatorPublication publication
     BoundedGenerationCache generations
+    BoundedExtensionRegistry extensions
+    BoundedTrustedModuleRegistry hooks
+    BoundedTrustedHookRuntime hookRuntime
     Int failureStepValue
     Bool completedValue
 
@@ -15,6 +18,9 @@ class G4CreatorDemo {
         multiplayer = LoopbackSession(12, 8)
         publication = BoundedCreatorPublication()
         generations = BoundedGenerationCache(2)
+        extensions = BoundedExtensionRegistry(1, 1, 2, 2)
+        hooks = BoundedTrustedModuleRegistry(1)
+        hookRuntime = BoundedTrustedHookRuntime(2, 2)
         failureStepValue = 0
         completedValue = false
     }
@@ -25,7 +31,6 @@ class G4CreatorDemo {
     }
 
     Bool publishCreatorContent() {
-        var extensions = BoundedExtensionRegistry(1, 1, 2, 2)
         if (!extensions.registerManifest(8, 1, 2, 3, 4) ||
             !extensions.setLoadOrder(8, 1, 10) ||
             !extensions.setProvenance(8, 1, 801) ||
@@ -40,11 +45,12 @@ class G4CreatorDemo {
                 8, 1, extensionContributionTrustedHookKind(), 3001, 10)) {
             return failAt(1)
         }
-        var hooks = BoundedTrustedModuleRegistry(1)
         if (!hooks.defineHook(
                 extensions, 8, 1, 3001,
                 trustedHookPostSimulationPhase()) ||
             !hooks.setBudget(8, 1, 3001, 8, 4) ||
+            !hooks.bindImplementation(
+                8, 1, 3001, trustedHookImplementationEliteBounty(), 1) ||
             !extensions.seal() || !hooks.seal(extensions)) {
             return failAt(2)
         }
@@ -85,7 +91,11 @@ class G4CreatorDemo {
             wire[index] = active.encodedWord(index)
         }
         var client = BoundedContentCompatibility()
-        if (!client.decode(wire) || !publication.admit(client)) {
+        var moduleChecksum = active.moduleChecksum()
+        var generation = publication.activeGeneration()
+        if (!client.decode(wire) || !publication.admit(client) ||
+            !hookRuntime.bindPublishedGeneration(
+                extensions, hooks, generation, moduleChecksum)) {
             return failAt(7)
         }
         return true
@@ -161,6 +171,18 @@ class G4CreatorDemo {
             multiplayer.worldLootRank(0) != enemyDefinitionEliteKind()) {
             return failAt(14)
         }
+        if (!hookRuntime.beginTick(1) ||
+            !hookRuntime.executePhase(
+                extensions, hooks, trustedHookPostSimulationPhase(),
+                1, 100, enemyDefinitionEliteKind(),
+                trustedHookOutcomeEnemyDefeated()) ||
+            !multiplayer.applyTrustedHookCommands(hookRuntime) ||
+            !hookRuntime.finishTick() ||
+            hookRuntime.eventCount() != 1 ||
+            hookRuntime.eventKind(0) != trustedHookEventEliteBounty() ||
+            multiplayer.playerCurrency(1) != 9) {
+            return failAt(15)
+        }
         var encounter = multiplayer.enemyEncounterStateMessage(0, 12)
         var playerOne = multiplayer.playerAuthorityStateMessage(0, 1)
         var playerTwo = multiplayer.playerAuthorityStateMessage(0, 2)
@@ -171,7 +193,7 @@ class G4CreatorDemo {
             !validWorldLootStateMessage(loot) ||
             enemyEncounterStateEnemyState(encounter, 0) != 7 ||
             worldLootStateValue(loot, 0, 0) != 4100) {
-            return failAt(15)
+            return failAt(16)
         }
         completedValue = true
         return true
@@ -207,5 +229,21 @@ class G4CreatorDemo {
 
     Int worldLootStableId() {
         return multiplayer.worldLootStableId(0)
+    }
+
+    Int playerCurrency() {
+        return multiplayer.playerCurrency(1)
+    }
+
+    Int hookEventCount() {
+        return hookRuntime.eventCount()
+    }
+
+    Int hookEventKind() {
+        return hookRuntime.eventKind(0)
+    }
+
+    Int hookExecutionChecksum() {
+        return hookRuntime.executionChecksum()
     }
 }

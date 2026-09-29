@@ -570,6 +570,16 @@ invalid transactions retain the prior generation. This is not evidence for
 the remaining source-format readers, a file-oriented cooker CLI or live GPU
 resource replacement.
 
+The next implemented layer binds each declaration to a supported static
+implementation ID/version inside the module checksum.
+`BoundedTrustedHookRuntime` binds that module and extension checksum to a
+published generation, requires monotonic ticks and increasing phases, and
+preflights per-hook budgets plus global output capacity before emitting bounded
+commands/events. `LoopbackSession` accepts the current grant-currency command
+exactly once after aggregate overflow/recipient validation. `G4CreatorDemo`
+exercises this path after authoritative elite death. This proves one compiled
+trusted-hook execution path, not arbitrary extension callbacks or sandboxing.
+
 Native mixed Int/Double/String record JSON failed the measured round-trip, including corrupt numeric/string values; direct record getters passed. Before adopting native JSON for definitions, glTF or saves, require a compiler/runtime repair and schema-specific round-trip, malformed-input and bounds proof. Do not truncate floats, silently switch the cooker to JVM or move content semantics into the adapter. Binary file IO passed a small probe but is not an implemented alternative format/codec.
 
 Current source rejects native `process.run`/`process.spawn` with `PROC001`. External shader/conversion tools therefore need the permitted minimal build orchestration or a separately proven platform capability; the native `.kf` cooker cannot assume the course's process examples work. It still owns content validation and cooking decisions.
@@ -707,15 +717,16 @@ definitions drive combat, behavior, loot, progression and currency, and
 atomically. Checksummed recipient authority/world-loot schemas preserve full
 inventory and RNG identity; state kinds `7`/`8` traverse authenticated
 same-host host-plus-two-client processes on JVM and native. Separate-host
-execution remains unproven. The first bounded G4 slice now seals deterministic
-trusted-hook declarations with phase and command/event budgets; binds package,
-manifest, hook, definition and aligned product checksums into one revisioned
-compatibility identity; rejects stale/mismatched content without replacing the
-active generation; and runs a second definition-driven two-player encounter
-through public extension/session APIs. Trusted-hook execution, additional
-source cooker formats, external package loading, inspector/editors, live staged
-reload and transport of the compatibility handshake remain open, so G4 is not
-closed.
+execution remains unproven. The bounded G4 path now seals deterministic static
+hook implementations and binary versions with phase and command/event budgets;
+binds package, manifest, module, definition and aligned product checksums into
+one revisioned compatibility identity; rejects stale/mismatched generations
+without replacing state; and runs the compiled elite-bounty hook after an
+authoritative death in the second two-player sample. Output capacity and reward
+overflow fail atomically, and the session applies each accepted command once.
+Additional hook/event contracts, source cooker formats, external package
+loading, inspector/editors, live GPU-safe staged reload and transport of the
+compatibility handshake remain open, so G4 is not closed.
 
 ### Initial performance hypotheses, not achieved numbers
 

@@ -36,11 +36,12 @@ G0, G1, G2, G3 e o primeiro slice vertical limitado de G4 executam na JVM e no L
 - manifestos públicos limitados de extensões, dependências, capacidades e
   contribuições determinísticas de conteúdo, mais regras seladas orientadas por
   dados para combate, comportamento, loot, progressão e moeda de elites/chefes;
-- um primeiro caminho G4 transacional que vincula checksums de pacote, extensão,
-  hook confiável, definição de inimigo e geometria/colisão/navegação/replicação
-  numa identidade de compatibilidade de 13 palavras; edições obsoletas ou
-  inválidas preservam a geração ativa, e um segundo exemplo com dois jogadores
-  usa somente APIs públicas de definições, extensões e sessão;
+- um caminho G4 transacional que vincula checksums de pacote, extensão,
+  implementação/versão de hook confiável, definição de inimigo e produtos
+  alinhados numa identidade de compatibilidade de 13 palavras; edições
+  obsoletas preservam a geração ativa, enquanto um runtime vinculado à geração
+  executa o hook compilado de recompensa de elite após uma eliminação
+  confirmada e aplica seu comando limitado de moeda exatamente uma vez;
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
   na JVM e no nativo levam a arena completa de 26 triângulos, comandos
   unificados com checksum para movimento/disparo/interação/ciclo de vida,
@@ -63,9 +64,10 @@ As lacunas importantes continuam reais:
 - a qualificação G3 entre processos continua na mesma máquina, a admissão da
   identidade de conteúdo G4 ainda ocorre no mesmo processo, e execução entre
   máquinas continua não comprovada;
-- G4 continua aberto para execução de hooks confiáveis, toda a entrada
-  suportada de cooker para malhas/brushes/fontes, carregamento externo de
-  pacotes, inspector/editores e recarregamento em etapas seguro para a GPU;
+- G4 continua aberto para a superfície mais ampla de hooks confiáveis/eventos de
+  domínio, toda a entrada compatível de cooker para malhas/brushes/fontes,
+  carregamento externo de pacotes, inspector/editores e recarregamento em etapas
+  seguro para a GPU;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
 - saves duráveis contra crash, física completa, áudio comprimido/em streaming
@@ -167,8 +169,9 @@ recompensa de chefe→salvar/recarregar executa na JVM e no nativo; os tipos de
 estado `7`/`8` atravessam processos autenticados na mesma máquina com host mais
 dois clientes; e registros limitados de manifesto/capacidade/contribuição
 instanciam definições completas e seladas de elites/chefes. Isso não comprova
-execução entre máquinas nem o cooker, hooks de módulos confiáveis, transações
-do editor e publicação em etapas do G4. G2 continua coberto pela suíte de
+execução entre máquinas nem o cooker G4 completo, a superfície mais ampla de
+módulos confiáveis, transações do editor e publicação em etapas. G2 continua
+coberto pela suíte de
 código-fonte, sonda focada de interação, qualificação por processos e sonda
 SDL_GPU/áudio isolada.
 

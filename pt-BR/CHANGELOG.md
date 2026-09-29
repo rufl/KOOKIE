@@ -24,6 +24,31 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   telas principal, opções e multiplayer, redimensionar, maximizar e restaurar;
   o smoke de pacote carregou SDL 3.4.16 e SDL_mixer 3.2.4 sem abrir janela.
 
+### Execução de hooks confiáveis vinculada à geração
+
+- Declarações de hooks confiáveis agora vinculam um ID de implementação
+  estática compatível e sua versão binária ao checksum selado do módulo.
+  Implementações ausentes, versões incompatíveis e fases divergentes falham de
+  forma segura antes da publicação.
+- Adicionamos `BoundedTrustedHookRuntime`: uma geração publicada e seus
+  checksums exatos de extensão/módulo são vinculados antes que ticks monotônicos
+  executem hooks em ordem determinística de fases. Orçamentos por hook e
+  capacidades globais de comandos/eventos são verificados antes da emissão,
+  preservando a saída da fase anterior quando há rejeição.
+- Adicionamos aplicação autoritativa única de comandos limitados dos hooks.
+  Destinatários desconectados, comandos incompatíveis e overflow de moeda são
+  rejeitados sem mutação parcial nem reaplicação.
+- O exemplo G4 com dois jogadores agora executa o hook compilado de recompensa
+  de elite depois da morte confirmada do inimigo. Ele emite evento tipado e
+  adiciona quatro moedas pela sessão autoritativa sobre a recompensa de cinco
+  moedas definida por dados.
+- Testes focados cobrem fase/versão de implementação incorretas, rejeição por
+  orçamento e capacidade, gerações publicadas divergentes, ticks monotônicos,
+  overflow e aplicação exatamente uma vez.
+- Todos os 78 cenários-fonte passam na JVM e no nativo; checks, lint e LSP do
+  Kof passam.
+
+
 ### Primeiro slice transacional G4 de publicação do criador
 
 - Adicionamos `BoundedTrustedModuleRegistry` para no máximo 32 declarações de
