@@ -97,28 +97,63 @@ main() {
     println("KOOKIE G1 authoritative shooter verified")
 
 }
-test "shooter HUD stages semantic status hierarchy" {
+test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
-    assert(hud.renderVertexCount() == 138,
+    assert(hud.renderVertexCount() == 174,
         "HUD geometry must retain a fixed bounded budget")
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
         hud.stage(frame, 1, 9) &&
         frame.stagedCount() == hud.renderVertexCount(),
-        "ready HUD must stage panels icons crosshair and status")
+        "ready HUD must stage panels icons crosshair status and feedback layer")
     var readyChecksum = frame.checksum()
     assert(frame.retire(1))
-    assert(hud.update(20, 3, 3, 2, false) &&
+
+    var outgoing = ImpactPresentationEvent(
+        1, 1, 1, 3, 0, 0, 0, 5, true, 201, 100)
+    assert(hud.presentImpact(1, outgoing, 2) &&
+        hud.update(100, 30, 0, 2, true) &&
         hud.stage(frame, 2, 9) &&
         frame.checksum() != readyChecksum &&
-        hud.health() == 20 && hud.ammunition() == 3 &&
-        hud.enemies() == 3 && hud.tick() == 2 && !hud.focused(),
-        "critical unfocused state must produce distinct visual feedback")
+        hud.hitFeedbackActive() && hud.killFeedbackActive() &&
+        !hud.damageFeedbackActive() && hud.lastImpactSequence() == 1,
+        "confirmed kill must stage structural hit and kill markers")
     assert(frame.retire(2))
+    assert(!hud.presentImpact(1, outgoing, 3),
+        "duplicate impact presentation must reject")
+
+    assert(hud.update(100, 30, 0, 20, true) &&
+        hud.stage(frame, 3, 9) &&
+        frame.checksum() == readyChecksum &&
+        !hud.hitFeedbackActive() && !hud.killFeedbackActive(),
+        "combat markers must expire back to the stable ready HUD")
+    assert(frame.retire(3))
+
+    var incoming = ImpactPresentationEvent(
+        2, 1, 3, 1, 0, 0, 0, 20, false, 201, 70)
+    assert(hud.presentImpact(1, incoming, 21) &&
+        hud.update(20, 3, 3, 21, false) &&
+        hud.stage(frame, 4, 9) &&
+        hud.damageFeedbackActive() && !hud.hitFeedbackActive() &&
+        !hud.killFeedbackActive() &&
+        hud.health() == 20 && hud.ammunition() == 3 &&
+        hud.enemies() == 3 && hud.tick() == 21 && !hud.focused(),
+        "incoming damage must stage edge warning independently of color")
+    assert(frame.retire(4))
+    assert(hud.update(20, 3, 3, 40, false) &&
+        hud.stage(frame, 5, 9) &&
+        !hud.damageFeedbackActive() &&
+        hud.health() == 20 && hud.ammunition() == 3 &&
+        hud.enemies() == 3 && !hud.focused(),
+        "damage warning must expire without changing critical status")
+
+    assert(frame.retire(5))
+
     var undersized = FrameStaging(hud.renderVertexCount() - 1)
     assert(!hud.stage(undersized, 1, 9),
         "HUD staging must fail closed below its declared geometry budget")
 }
+
 
 test "G2 gameplay wire validates commands and authoritative state" {
     assert(maximumSessionTransportWords() ==
@@ -1470,8 +1505,8 @@ test "loopback replay restores enemy combat checkpoint state" {
     assert(enemyApplied, "enemy checkpoint must apply")
     assert(loopback.activeEnemyProjectiles() == 1,
         "enemy projectile must rewind")
-    assert(loopback.pendingEnemyImpactPresentations() == 0 &&
-        loopback.pendingEnemyImpactAudio() == 0,
+    assert(loopback.pendingImpactPresentations() == 0 &&
+        loopback.pendingImpactAudio() == 0,
         "enemy presentation queues must reset")
     assert(loopback.enemyState(100) == 3 &&
         loopback.enemySpatialPositionX(100) == 20 &&
@@ -3327,18 +3362,18 @@ test "replicated projectile presentation queues" {
         loopback.replayPresentationCount() == 1 &&
         loopback.replayPresentationAt(0).kind() == 3 &&
         loopback.replayPresentationAt(0).valueFive() == 201 &&
-        loopback.pendingEnemyImpactPresentations() == 1 &&
-        loopback.pendingEnemyImpactAudio() == 1,
+        loopback.pendingImpactPresentations() == 1 &&
+        loopback.pendingImpactAudio() == 1,
         "client admission must stage impact and capture replay presentation")
-    assert(loopback.dequeueEnemyImpactPresentation())
-    var presentation = loopback.lastEnemyImpactPresentation()
+    assert(loopback.dequeueImpactPresentation())
+    var presentation = loopback.lastImpactPresentation()
     assert(presentation.sequence() == snapshot.sequence() &&
         presentation.clip() == 201 && presentation.gain() == 100 &&
         presentation.x() == snapshot.x(),
         "presentation event must preserve replicated impact identity")
-    assert(loopback.dequeueEnemyImpactAudio() &&
-        loopback.consumedEnemyImpactClip() == 201 &&
-        loopback.consumedEnemyImpactGain() == 100 &&
+    assert(loopback.dequeueImpactAudio() &&
+        loopback.consumedImpactClip() == 201 &&
+        loopback.consumedImpactGain() == 100 &&
         !loopback.applyEnemyImpactSnapshot(snapshot),
         "audio consumption and duplicate snapshot rejection must be bounded")
 }

@@ -1,6 +1,7 @@
 # Arquitetura do projeto KOOKIE
 
-Status: **arquitetura proposta; a implementação ainda não foi iniciada**.
+Status: **arquitetura-alvo viva; G0/G1 estão implementados e slices de G2 estão em andamento**.
+
 
 Este documento é a autoridade de arquitetura no nível do projeto. Os experimentos
 detalhados de aceitação permanecem em [ENGINE_PLAN.md](ENGINE_PLAN.md). As decisões
@@ -123,6 +124,14 @@ checked native adapter
 ```
 
 A apresentação não pode gravar em arrays autoritativos nem conceder resultados de jogabilidade.
+
+O slice limitado implementado segue essa fronteira: uma resolução autoritativa
+de combate emite um `ImpactPresentationEvent` monotônico; o HUD do cliente
+deriva geometria de acerto/eliminação/dano limitada por tick, enquanto uma fila
+de áudio limitada e paralela seleciona o clip SDL. Overflow da apresentação é
+diagnosticado e nunca desfaz dano autoritativo. A cena criada atual é fixa em
+252 vértices.
+
 
 ### Adaptador nativo
 
@@ -499,17 +508,22 @@ o ciclo de vida real de GPU/áudio, o envelope de rede limitado e os codecs de l
 
 ### G1 — Base de shooter autoritativo
 
-Implementados IDs/arrays de componentes, tick autoritativo a 60 Hz, comandos
-do cliente, admissão loopback de dois clientes, baselines de snapshot,
+Foram implementados IDs/arrays de componentes, tick autoritativo a 60 Hz,
+comandos do cliente, admissão loopback de dois clientes, baselines de snapshot,
 predição/reconciliação observável, contato cápsula/BVH de triângulos, uma
-arma/inimigo, câmera e HUD numérico. Arena criada, dados de colisão
-compartilhados e staging SDL_GPU fixo fecham G1; escala/soak sustentado
-permanece em G5.
+arma/inimigo, câmera e HUD semântico de vida/munição/foco/encounter. A arena
+criada, os dados compartilhados de colisão e o staging SDL_GPU fixo fecham G1;
+escala/soak sustentado permanece em G5.
 
 ### G2 — Fatia de boomer-shooter em LAN
 
-Adicionar transporte LAN, host mais vários clientes, tratamento de entrada/saída/reconexão,
-hitscan/projéteis, encontros e recompensas pertencentes ao servidor.
+Em andamento: o transporte autenticado limitado já executa host mais dois
+clientes em movimento, recompensa de combate, ciclo de vida e progressão do
+nível; o caminho autoritativo local agora emite feedback de impacto para
+HUD/áudio. Restam encounters replicados de inimigos,
+predição/reconciliação completa, entrada/recuperação de produção, portas 3D
+completas e apresentação/áudio multiplayer completos.
+
 
 ### G3 — Fatia multiplayer de looter/ARPG
 

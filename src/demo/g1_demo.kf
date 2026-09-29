@@ -110,7 +110,19 @@ class G1Demo {
         }
         var enemyHit = loopback.resolveEnemyHitscan(1, 3, 1, 10, 1)
         if (!enemyHit.accepted() || !enemyHit.died() ||
-            loopback.enemyState(3) != 7) {
+            loopback.enemyState(3) != 7 ||
+            loopback.enemyEncounterActiveCount(4) != 0 ||
+            loopback.pendingImpactPresentations() != 1 ||
+            loopback.pendingImpactAudio() != 1 ||
+            loopback.impactPresentationDrops() != 0 ||
+            !loopback.dequeueImpactPresentation()) {
+            return failAt(12)
+        }
+        var impact = loopback.lastImpactPresentation()
+        if (impact.sourceId() != 1 || impact.targetId() != 3 ||
+            impact.applied() != enemyHit.applied() || !impact.died() ||
+            impact.clip() != 201 || impact.gain() != 100 ||
+            !hud.presentImpact(1, impact, loopback.currentClientTick())) {
             return failAt(12)
         }
         return true
@@ -184,11 +196,13 @@ class G1Demo {
         }
         var health = loopback.playerCombatHealth(1)
         var ammunition = loopback.playerCombatMagazine(1)
+        var enemies = loopback.enemyEncounterActiveCount(4)
         var tick = loopback.currentClientTick()
         var focused = loopback.playerFocused(1)
-        if (!hud.update(health, ammunition, 0, tick, focused)) {
+        if (!hud.update(health, ammunition, enemies, tick, focused)) {
             return failAt(22)
         }
+
         for (var frame = 1; frame <= 64; frame = frame + 1) {
             if (!arena.stage(worldFrame, frame, 1, camera) ||
                 !hud.stage(hudFrame, frame, 9) ||
@@ -232,5 +246,17 @@ class G1Demo {
 
     ShooterHud shooterHud() {
         return hud
+    }
+
+    Bool dequeueCombatFeedbackAudio() {
+        return loopback.dequeueImpactAudio()
+    }
+
+    Int combatFeedbackClip() {
+        return loopback.consumedImpactClip()
+    }
+
+    Int combatFeedbackGain() {
+        return loopback.consumedImpactGain()
     }
 }

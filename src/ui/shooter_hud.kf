@@ -11,6 +11,11 @@ class ShooterHud {
     Int tickValue
     Bool focusedValue
     Bool configuredValue
+    Int lastImpactSequenceValue
+    Int damageFeedbackUntilTick
+    Int hitFeedbackUntilTick
+    Int killFeedbackUntilTick
+
 
     public constructor(Int maxHealth, Int maxAmmunition) {
         healthValue = 0
@@ -27,6 +32,11 @@ class ShooterHud {
         tickValue = 0
         focusedValue = false
         configuredValue = false
+        lastImpactSequenceValue = 0
+        damageFeedbackUntilTick = -1
+        hitFeedbackUntilTick = -1
+        killFeedbackUntilTick = -1
+
     }
 
     Bool update(
@@ -46,10 +56,33 @@ class ShooterHud {
         configuredValue = true
         return true
     }
+    Bool presentImpact(
+        Int localActorId, ImpactPresentationEvent impact, Int tick
+    ) {
+        if (localActorId <= 0 || tick < 0 ||
+            impact.sequence() <= lastImpactSequenceValue) {
+            return false
+        }
+        lastImpactSequenceValue = impact.sequence()
+        if (impact.kind() == 1 && impact.applied() > 0) {
+            if (impact.targetId() == localActorId) {
+                damageFeedbackUntilTick = tick + 10
+            }
+            if (impact.sourceId() == localActorId) {
+                hitFeedbackUntilTick = tick + 6
+                if (impact.died()) {
+                    killFeedbackUntilTick = tick + 15
+                }
+            }
+        }
+        return true
+    }
+
 
     Int renderVertexCount() {
-        return 138
+        return 174
     }
+
 
     Bool pushQuad(
         FrameStaging target, Int resource,
@@ -125,6 +158,39 @@ class ShooterHud {
             pushQuad(target, enemyTwoResource, 7, 90, 11, enemyTwoTop) &&
             pushQuad(target, enemyThreeResource, 14, 90, 18, enemyThreeTop)
     }
+    Bool pushCombatFeedback(FrameStaging target, Int resourceBase) {
+        var damageLeftRight = -100
+        var damageRightLeft = 100
+        if (damageFeedbackActive()) {
+            damageLeftRight = -96
+            damageRightLeft = 96
+        }
+        var markerResource = resourceBase + 7
+        var markerGap = 0
+        var markerReach = 0
+        var markerThickness = 0
+        if (hitFeedbackActive()) {
+            markerGap = 11
+            markerReach = 18
+            markerThickness = 1
+        }
+        if (killFeedbackActive()) {
+            markerResource = resourceBase + 4
+            markerGap = 10
+            markerReach = 24
+            markerThickness = 2
+        }
+        return pushQuad(
+                target, resourceBase + 3,
+                -100, -48, damageLeftRight, 48) &&
+            pushQuad(
+                target, resourceBase + 3,
+                damageRightLeft, -48, 100, 48) &&
+            pushCrosshair(
+                target, markerResource,
+                markerGap, markerReach, markerThickness)
+    }
+
 
     Bool stage(FrameStaging target, Int frame, Int resourceBase) {
         if (!configuredValue || resourceBase <= 0 ||
@@ -162,7 +228,9 @@ class ShooterHud {
             !pushCrosshair(
                 target, crosshairResource,
                 crosshairGap, crosshairReach, crosshairThickness) ||
-            !pushEncounterStatus(target, resourceBase, focusResource)) {
+            !pushEncounterStatus(target, resourceBase, focusResource) ||
+            !pushCombatFeedback(target, resourceBase)) {
+
             target.discard()
             return false
         }
@@ -187,5 +255,21 @@ class ShooterHud {
 
     Bool focused() {
         return focusedValue
+    }
+
+    Int lastImpactSequence() {
+        return lastImpactSequenceValue
+    }
+
+    Bool damageFeedbackActive() {
+        return tickValue <= damageFeedbackUntilTick
+    }
+
+    Bool hitFeedbackActive() {
+        return tickValue <= hitFeedbackUntilTick
+    }
+
+    Bool killFeedbackActive() {
+        return tickValue <= killFeedbackUntilTick
     }
 }

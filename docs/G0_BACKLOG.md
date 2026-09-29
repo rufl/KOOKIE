@@ -145,7 +145,9 @@ This is the active bounded implementation sequence after the initial research an
   explicit stale-command diagnosis. Retained evidence validates these values.
   This advances G2 but does not prove the evolved protocol on separate hosts or
   close replicated enemy encounters, full player prediction/reconciliation,
-  production join recovery, 3D doors or feedback/audio.
+  production join recovery, 3D doors, complete multiplayer feedback coverage
+  or production audio mixing/spatialization.
+
 
 - `scripts/package_external_lan_roles.sh` builds Windows JVM host/client
   archives without embedding the raw key or run manifest. Its `.cmd`

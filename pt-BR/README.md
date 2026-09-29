@@ -14,13 +14,15 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
   clientes, snapshots e predição/reconciliação observável;
 - movimento limitado, contato de cápsula, BVH de triângulos e consultas
   espaciais de projéteis;
-- combate determinístico com um caminho integrado de arma/inimigo e seleção de
-  pellets de shotgun;
+- combate determinístico com um caminho integrado de arma/inimigo, seleção de
+  pellets de shotgun e eventos confirmados de impacto que alimentam a
+  apresentação limitada de HUD/áudio;
 - arena criada com 78 vértices e 26 triângulos, inclinação caminhável, degraus e
   salas empilhadas, replicada com limites explícitos do broad-phase;
-- câmera, staging limitado do mundo e um HUD semântico com painéis de
-  vida/munição, pips de encounter e mira responsiva ao foco; o SDL_GPU envia a
-  cena fixa de 216 vértices sem crescimento de buffer por frame;
+- câmera, staging limitado do mundo e um HUD semântico de combate com painéis
+  de vida/munição, pips de encounter, mira responsiva ao foco, marcadores de
+  acerto/eliminação e alertas laterais de dano; o SDL_GPU envia a cena fixa de
+  252 vértices sem crescimento de buffer por frame;
 - progressão cooperativa de chave, porta, segredo e saída, replay de comandos e
   saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
@@ -35,8 +37,9 @@ As lacunas importantes continuam reais:
 
 - G2 ainda precisa de simulação/encounters replicados de inimigos,
   predição/reconciliação completa dos jogadores e recuperação de
-  entrada/admissão em produção, geometria/colisão 3D completa das portas e
-  feedback/áudio integrado;
+  entrada/admissão em produção, geometria/colisão 3D completa das portas,
+  cobertura completa de feedback multiplayer e mixagem/espacialização de áudio
+  de produção;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
 - saves duráveis contra crash, content cooker, física completa, áudio de
@@ -69,9 +72,10 @@ KOOKIE_VERSION=0.1.0-dogfood.presentation.1 \
 scripts/package_kookie.sh
 ```
 
-Ele contém o executável Kof de arena/HUD, adaptador SDL, shaders SPIR-V e as
-bibliotecas Linux resolvidas. É uma superfície limitada de qualificação, não
-um jogo interativo completo.
+Ele contém o executável Kof de arena/HUD de combate, adaptador SDL, shaders
+SPIR-V e bibliotecas Linux resolvidas. Impactos autoritativos confirmados
+acionam o mesmo marcador limitado do HUD e clip SDL sintetizado exercitado pela
+sonda. É uma superfície de qualificação, não um jogo interativo completo.
 
 O gate completo fica para a verificação final pré-commit (no Pi, após `/precommit-matrix`):
 
@@ -112,9 +116,10 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 ## Roadmap
 
 O próximo passo é concluir G2: ampliar o slice qualificado de arena, morte em
-combate e chave/porta/segredo/saída com host mais dois clientes para simulação
-replicada de jogadores/inimigos, recompensas, diagnósticos limitados de
-reconexão, portas 3D completas e feedback/áudio integrado.
+combate e chave/porta/segredo/saída com host mais dois clientes para encounters
+replicados de inimigos, predição/reconciliação completa, recuperação de entrada
+em produção, portas 3D completas, feedback multiplayer completo e áudio de
+produção.
 
 Adiado até os gates centrais estarem mais fortes:
 

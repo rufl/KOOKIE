@@ -92,6 +92,19 @@ class G1NativePresentation {
             hudFrame.vertexCapacity() == hudCapacity &&
             kookie_gpu_scene_capacity() == nativeCapacity
     }
+
+    Bool dequeueCombatFeedbackAudio() {
+        return scenario.dequeueCombatFeedbackAudio()
+    }
+
+    Int combatFeedbackClip() {
+        return scenario.combatFeedbackClip()
+    }
+
+    Int combatFeedbackGain() {
+        return scenario.combatFeedbackGain()
+    }
+
 }
 
 main() {
@@ -139,10 +152,16 @@ main() {
         "GPU draw timing must be positive")
     var audio = kookie_audio_open()
     assert(audio > 0, "dummy SDL audio device must open")
-    assert(kookie_audio_queue_clip(1, 240), "bounded clip PCM must queue")
+    assert(presentation.dequeueCombatFeedbackAudio() &&
+        presentation.combatFeedbackClip() == 201 &&
+        presentation.combatFeedbackGain() == 100,
+        "authoritative kill must expose bounded combat feedback audio")
+    assert(kookie_audio_queue_clip(
+            presentation.combatFeedbackClip(), 240),
+        "authoritative combat feedback must reach native SDL audio")
     assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")
     assert(kookie_audio_close(audio), "live audio token must close")
-    println("audio-open")
+    println("combat-feedback-audio-open")
 
     assert(kookie_window_destroy(window), "live SDL window token must close")
     kookie_sdl_shutdown()

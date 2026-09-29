@@ -12,13 +12,15 @@ G0 and G1 run on JVM and native Linux x86-64:
 - authoritative 60 Hz loopback server/client sessions, two-client admission,
   snapshots and observable prediction/reconciliation;
 - bounded movement, capsule contact, triangle BVH and spatial projectile queries;
-- deterministic combat with one integrated player weapon/enemy path and
-  per-pellet shotgun targeting;
+- deterministic combat with one integrated player weapon/enemy path,
+  per-pellet shotgun targeting and confirmed impact events that feed bounded
+  HUD/audio presentation;
 - an authored 78-vertex/26-triangle arena with a walkable slope, steps and
   stacked rooms, replicated with explicit broad-phase bounds;
-- camera, bounded world staging and a semantic status HUD with framed
-  health/ammo indicators, encounter pips and focus-responsive crosshair;
-  SDL_GPU uploads the fixed 216-vertex scene without per-frame buffer growth;
+- camera, bounded world staging and a semantic combat HUD with framed
+  health/ammo indicators, encounter pips, a focus-responsive crosshair,
+  hit/kill markers and edge damage warnings; SDL_GPU uploads the fixed
+  252-vertex scene without per-frame buffer growth;
 - cooperative key, door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
@@ -32,7 +34,8 @@ The important gaps are still real:
 
 - G2 still needs replicated enemy simulation/encounters, full player
   prediction/reconciliation and production join/admission recovery, complete
-  3D door collision/render geometry, and integrated feedback/audio;
+  3D door collision/render geometry, complete multiplayer feedback coverage
+  and production audio mixing/spatialization;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, content cooking, full physics, production audio,
@@ -78,9 +81,10 @@ KOOKIE_VERSION=0.1.0-dogfood.presentation.1 \
 scripts/package_kookie.sh
 ```
 
-It contains the Kof arena/HUD executable, SDL adapter, SPIR-V shaders and
-resolved Linux runtime libraries. It is a bounded qualification surface, not a
-finished interactive game.
+It contains the Kof arena/combat-HUD executable, SDL adapter, SPIR-V shaders
+and resolved Linux runtime libraries. Confirmed authoritative impacts drive the
+same bounded HUD marker and synthesized SDL clip exercised by the probe. It is
+a qualification surface, not a finished interactive game.
 
 The Windows JVM archive contains the Kof executable JAR, an embedded Windows
 JDK, a PE launcher, SDL3, and `kookie-visual.exe`. The installed shortcut
@@ -154,7 +158,8 @@ initially with Vulkan/SPIR-V.
 Next is the rest of G2: extend the qualified host-plus-two-client movement,
 combat-death/reward, lifecycle and key/door/secret/exit transport slice into
 replicated enemy encounters, full player prediction/reconciliation, production
-join recovery, complete 3D doors and integrated feedback/audio.
+join recovery, complete 3D doors, complete multiplayer combat feedback and
+production audio.
 
 Deferred until the core gates are stronger:
 

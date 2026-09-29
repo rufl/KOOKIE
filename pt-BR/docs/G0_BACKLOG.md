@@ -85,8 +85,10 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
   explícito de comando obsoleto. A evidência retida valida esses valores. Isso
   avança G2, mas não comprova o protocolo evoluído entre hosts separados nem
   conclui encounters replicados de inimigos, predição/reconciliação completa
-  dos jogadores, recuperação de entrada em produção, portas 3D ou
-  feedback/áudio.
+  dos jogadores, recuperação de entrada em produção, portas 3D, cobertura
+  completa de feedback multiplayer ou mixagem/espacialização de áudio de
+  produção.
+
 - O contrato de transporte da sonda G0 agora é neutro ao alvo, com backend UDP
   nativo e backend UDP JVM direto em Kof por meio das APIs JDK `java.net`.
   Ambos compartilham framing autenticado, chave, replay e rejeição de

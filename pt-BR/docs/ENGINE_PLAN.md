@@ -1,6 +1,6 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura proposta e gates de aceitação; nenhuma implementação do engine ainda**.
+Status: **arquitetura viva e gates de aceitação; G0/G1 estão implementados e G2 está em andamento**.
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
@@ -203,25 +203,39 @@ staging reutilizáveis e limitados. O Kof possui a política de empacotamento e 
 de recursos; o lado C apenas copia a tupla especificada para posições verificadas do
 buffer.
 
-Para cargas em massa de ativos, uma cópia de intervalo-de-arquivo-para-staging de
-baixo nível pode evitar FFI por byte **somente** quando o Kof tiver validado/cozinhado
-o formato, o deslocamento e o tamanho; o adaptador não deve se tornar um parser/cooker
-de ativos. Pequenas sondagens de `File.writeBytes/readBytes/readRange` preservaram
-bytes zero/de bit alto na JVM/nativo. Casos de erro grandes/por intervalo e o staging
-real do adaptador ainda não foram comprovados; o caminho do adaptador ainda é proposto,
-não implementado.
+Para payloads de assets em massa, uma cópia de intervalo de arquivo para
+staging pode evitar FFI por byte **somente** quando Kof validou/preparou o
+formato, offset e tamanho; o adaptador não pode se tornar um parser/cooker de
+assets. Pequenas sondas de `File.writeBytes/readBytes/readRange` preservaram
+bytes zero/de bit alto na JVM/nativo. O renderer implementado agora envia uma
+cena fixa de 252 vértices por chamadas escalares verificadas e buffers nativos
+persistentes. Casos grandes/de erro por intervalo e um adaptador real de buffer
+em massa ainda não foram comprovados.
 
-A sobrecarga do staging escalar é uma **medição de aprovação/reprovação**. Se uploads
-representativos de draw/instância/animação não atingirem o orçamento, prefira uma
-adição upstream de FFI de buffer devidamente especificada (formato do elemento,
-comprimento, tempo de vida de empréstimo/cópia, propriedade e regras de GC). Não
-codifique frames binários como strings JSON/Base64 nem presuma que um cast de ponteiro
-resolva a transferência em massa. Não transforme o shim em um renderer C para passar
-em um benchmark.
+A sobrecarga do staging escalar é uma **medição de aprovação/reprovação**. Se
+uploads representativos de draw/instância/animação não atingirem o orçamento,
+prefira uma adição upstream de FFI de buffer com especificação adequada
+(formato dos elementos, comprimento, tempo de vida de empréstimo/cópia,
+propriedade e regras de GC). Não codifique frames binários como strings
+JSON/Base64 nem presuma que um cast de ponteiro resolva a transferência em
+massa. Não transforme o shim em um renderer C para passar em um benchmark.
 
-### Gates de inicialização nativa e GCA inicialização real de vídeo/GPU/áudio do SDL deve ser executada a partir do ELF nativo emitido. A entrada/runtime nativa direta do Kof pode interagir de maneira diferente com a inicialização de libc/TLS/drivers do que um executável C convencional. Uma chamada de versão escalar não comprova nem a inicialização nem a segurança de callbacks/threads.
+### Gates de inicialização nativa e GC
 
-Comece com **uma thread Kof**. O código-fonte mostra que a auto-GC nativa é desabilitada após qualquer `spawn` do Kof; não use threads de trabalho nem coleta manual como solução alternativa. Pré-aloque arrays quentes/scratch e, em seguida, meça o comportamento da memória incluindo as alocações inevitáveis do runtime. Se o nativo não puder satisfazer os gates, documente a falha e corrija o compilador/ABI ou revisite explicitamente a escolha do alvo. Nunca altere silenciosamente o alvo de distribuição para JVM.
+A inicialização real de vídeo/GPU/áudio SDL agora executa a partir do ELF nativo
+emitido na sonda isolada de apresentação. Isso comprova o caminho exato de
+janela, cena fixa, clip sintetizado e teardown; não comprova callbacks retidos,
+threads estrangeiras, mixagem de produção nem suporte arbitrário de
+drivers/plataformas.
+
+Comece com **uma thread Kof**. O código-fonte mostra que a auto-GC nativa é
+desabilitada após qualquer `spawn` do Kof; não use threads de trabalho nem
+coleta manual como solução alternativa. Pré-aloque arrays quentes/scratch e,
+em seguida, meça o comportamento da memória incluindo as alocações inevitáveis
+do runtime. Se o nativo não puder satisfazer os gates, documente a falha e
+corrija o compilador/ABI ou revisite explicitamente a escolha do alvo. Nunca
+altere silenciosamente o alvo de distribuição para JVM.
+
 
 ### Gate de correção do compilador
 
@@ -661,19 +675,24 @@ loopback, expõe correção de predição e reconciliação, resolve um encontro
 uma arma/inimigo e limpa movimento/disparo mantidos na perda de foco. A arena
 criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degraus e
 salas empilhadas; o servidor replica triângulos e limites explícitos para o
-cliente. Câmera, staging do mundo e HUD numérico alimentam um buffer nativo
-SDL_GPU fixo de 96 vértices. Um smoke GPU isolado renderizou e leu essa cena, e
-71/71 testes passam na JVM e no nativo. A evidência de ausência de crescimento
-por frame em G1 cobre 64 stagings determinísticos com capacidades Kof
-inalteradas e buffers nativos persistentes; o soak de RSS/desempenho por 30
-minutos permanece em G5. G2 possui um slice de transporte com três processos na
-JVM e no nativo que leva a arena completa e comandos unificados com checksum
-para movimento, disparo, interação, desconexão e reconexão. O estado aplicado
-pelo cliente comprova posição autoritativa, morte terminal mais recompensa em
-moeda, progressão até a revisão 4, geração de reconexão e diagnóstico de input
-obsoleto. G2 continua aberto para encounters replicados de inimigos,
-predição/reconciliação completa dos jogadores, entrada/recuperação em produção,
-geometria/colisão 3D completa das portas e feedback/áudio integrado.
+cliente. Câmera, staging do mundo e HUD semântico de combate alimentam uma cena
+nativa SDL_GPU fixa de 252 vértices: 78 do mundo mais 174 do HUD para
+vida/munição, estado de foco/encounter, marcadores confirmados de
+acerto/eliminação e alertas laterais de dano. O evento confirmado de hitscan
+local também alcança filas limitadas de replay/áudio e playback nativo do clip
+SDL. Um smoke GPU isolado renderizou e leu a cena limitada, e 72/72 testes
+passam na JVM e no nativo. A evidência de ausência de crescimento por frame em
+G1 cobre 64 stagings determinísticos com capacidades Kof inalteradas e buffers
+nativos persistentes; o soak de RSS/desempenho por 30 minutos permanece em G5.
+G2 possui um slice de transporte com três processos na JVM e no nativo que leva
+a arena completa e comandos unificados com checksum para movimento, disparo,
+interação, desconexão e reconexão. O estado aplicado pelo cliente comprova
+posição autoritativa, morte terminal mais recompensa em moeda, progressão até a
+revisão 4, geração de reconexão e diagnóstico de input obsoleto. G2 continua
+aberto para encounters replicados de inimigos, predição/reconciliação completa,
+entrada/recuperação em produção, geometria/colisão 3D completa das portas,
+cobertura completa de feedback multiplayer e mixagem/espacialização de áudio
+de produção.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

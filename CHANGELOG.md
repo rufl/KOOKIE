@@ -3,6 +3,22 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## 2026-09-29
+### Confirmed combat feedback slice
+
+- Connected accepted authoritative hitscan and single-target shotgun results to
+  one monotonic, bounded impact presentation/audio queue. Presentation
+  backpressure never rolls back authoritative damage and exposes a drop count;
+  confirmed events also enter the bounded replay presentation history.
+- Extended the semantic HUD with structural hit and kill markers plus
+  full-height edge damage warnings. Feedback expires by simulation tick,
+  duplicate event sequences reject, and inactive geometry remains degenerate
+  inside the fixed allocation. HUD staging is now 174 vertices and the complete
+  authored scene is 252, below the existing 256-vertex native bound.
+- Routed `G1Demo`'s real authoritative kill through the HUD and native
+  presentation probe. SDL audio now receives that event's clip `201` at gain
+  `100` instead of an unrelated sample clip.
+
+
 ### Semantic HUD and visual dogfood
 
 - Replaced three unlabeled numeric bars with bounded dark status panels:

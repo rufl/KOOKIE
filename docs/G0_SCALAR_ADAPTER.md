@@ -2,7 +2,8 @@
 
 [Português (Brasil)](../pt-BR/docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implemented and compiler-exercised on JVM/native**. This increment adds narrow C SDL window/audio/GPU lifecycle glue, bounded clip PCM transfer, a first SPIR-V texture upload/draw path, and Kof-owned event state contracts. The isolated-display probe now accepts hidden-window lifecycle, resize/focus event flattening, dummy audio, and teardown; the isolated environment reported `gpu-unavailable`, so no textured draw or GPU timing is accepted.
+Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, bounded synthesized clips, SPIR-V scene upload/draw and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the 252-vertex authored scene, and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
+
 
 ## SDL lifecycle boundary
 
@@ -53,11 +54,11 @@ The adapter flattens SDL events, while Kof owns the transition policy and author
 - FIFO dequeue with copied clip/gain metadata;
 - no callback into Kof and no foreign mixer authority.
 
-The native adapter now proves a real SDL audio stream lifecycle, bounded silence transfer and a bounded clip descriptor (`clipId=1`, at most 480 stereo F32 frames). The adapter generates that deterministic clip payload because scalar FFI cannot yet pass a Kof-owned sample buffer; the next audio boundary is explicit buffer ownership, not a second mixer authority.
+The native adapter proves a real SDL audio stream lifecycle, bounded silence transfer and deterministic synthesized clip variants (`clipId=1` and impact clips `201`–`203`, at most 480 stereo F32 frames). The presentation probe now selects clip `201` from the confirmed authoritative kill event. Scalar FFI still cannot pass a Kof-owned sample buffer; the next audio boundary is explicit buffer ownership and production mixing, not a second gameplay authority.
 
 ## GPU lifecycle
 
-The adapter requests SPIR-V support, creates an SDL_GPU device, claims the hidden SDL window, uploads a bounded 2x2 RGBA texture through a transfer buffer, samples it in a triangle pipeline, submits one swapchain draw, waits for GPU idle, and releases resources. GPU failure is reported as `gpu-unavailable`; successful execution is not accepted until the isolated probe records `gpu-open` and completion.
+The adapter requests SPIR-V support, creates an SDL_GPU device, claims an SDL window, uploads a bounded semantic palette and scene vertices through transfer buffers, submits the swapchain draw, waits for GPU idle and releases resources. The reviewed isolated-display path has recorded `gpu-open`, positive swapchain capability, draw completion, screenshot capture and clean exit; unavailable environments still fail closed as `gpu-unavailable`.
 
 ## Regression proof
 
@@ -75,16 +76,17 @@ The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `glsl
 bash scripts/verify.sh
 ```
 
-The gate materializes temporary links to the canonical `src/core` package while compiling the standalone probe, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shader sources compile through `glslc`; the frame contract records 15 scalar writes and explicit retirement for the three-vertex triangle. The native adapter timing function is implemented but remains unmeasured because the isolated environment did not expose a usable SDL_GPU device.
+The gate materializes temporary links to canonical Kof packages while compiling standalone probes, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shaders compile through `glslc`; fixed scene staging, positive draw timing, screenshot capture and resource teardown are exercised inside the isolated display.
 
 The probe drains pre-existing SDL events through one bounded native scalar
 helper. Keeping the drain loop in C avoids a measured native compiler failure
 where assigning an extern `Int` inside that Kof loop emitted an invalid
 `kof_unbox_int` call; the crash was in generated probe code, not SDL.
+
 ## Next proof boundary
 
-Expose a usable isolated SDL_GPU backend or render node, then rerun the probe
-to record `gpu-open`, draw completion, and elapsed GPU-idle retirement. Compare
-that measurement with the frame budget; window/audio/event acceptance is
-already recorded. Do not cast SDL pointers to integer tokens, add callbacks
-into Kof, or call the optional GPU path accepted without isolated evidence.
+Production work now starts beyond G0: explicit Kof/native sample-buffer
+ownership, mixing/spatialization, real SDL device-loss notification and bounded
+resource retirement under sustained load. Do not cast SDL pointers to integer
+tokens, add callbacks into Kof, or infer those contracts from the qualified
+scene/clip probe.

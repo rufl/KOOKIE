@@ -679,9 +679,9 @@ main() {
         "native audio probe must receive a confirmed impact snapshot")
     assert(impactSession.applyEnemyImpactSnapshot(
         impactSession.latestEnemyImpactSnapshot()) &&
-        impactSession.dequeueEnemyImpactPresentation(),
+        impactSession.dequeueImpactPresentation(),
         "confirmed impact must stage native presentation")
-    var nativeImpact = impactSession.lastEnemyImpactPresentation()
+    var nativeImpact = impactSession.lastImpactPresentation()
     assert(kookie_audio_queue_clip(nativeImpact.clip(), 240),
         "confirmed impact presentation must reach native SDL audio")
     assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")

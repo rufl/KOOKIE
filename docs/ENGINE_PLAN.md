@@ -1,6 +1,6 @@
 # KOOKIE engine plan
 
-Status: **proposed architecture and acceptance gates; no engine implementation yet**.
+Status: **living architecture and acceptance gates; G0/G1 are implemented and G2 is in progress**.
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Project architecture is
 [ARCHITECTURE.md](ARCHITECTURE.md). See [language/runtime evidence](KOF_LANGUAGE.md),
@@ -193,13 +193,15 @@ Rules:
 
 The first cube can use scalar staging calls. A matrix/instance is written as a fixed tuple per call, not sixteen individual FFI calls. Static vertex/index payloads upload once; dynamic data uses bounded reusable staging buffers. Kof owns packing policy and resource layout; the C side only copies the specified tuple into checked buffer positions.
 
-For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/cooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. Large/ranged error cases and actual adapter staging remain unproven; the adapter path is still proposed, not implemented.
+For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/cooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 252-vertex scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
+
 
 Scalar staging overhead is a **go/no-go measurement**. If representative draw/instance/animation uploads miss budget, prefer a properly specified upstream buffer-FFI addition (element format, length, borrow/copy lifetime, ownership and GC rules). Do not encode binary frames as JSON/Base64 strings or assume a pointer cast solves bulk transfer. Do not grow the shim into a C renderer to pass a benchmark.
 
 ### Native startup and GC gates
 
-Real SDL video/GPU/audio initialization must run from the emitted native ELF. Kof's direct native entry/runtime may interact differently with libc/TLS/driver initialization than a conventional C executable. A scalar version call proves neither initialization nor callback/thread safety.
+Real SDL video/GPU/audio initialization now runs from the emitted native ELF in the isolated presentation probe. That proves the exact window, fixed scene, synthesized clip and teardown path; it does not prove retained callbacks, foreign threads, production mixing or arbitrary driver/platform support.
+
 
 Begin with **one Kof thread**. Source shows native auto-GC disabled after any Kof `spawn`; do not use worker threads or manual collection as a workaround. Preallocate hot arrays/scratch, then measure memory behavior including unavoidable runtime allocations. If native cannot satisfy the gates, document the failure and repair the compiler/ABI or explicitly revisit the target choice. Never silently change the shipping target to JVM.
 
@@ -638,19 +640,22 @@ exposes prediction correction and reconciliation, resolves one weapon/enemy
 encounter, and clears held movement/fire across focus loss. Its authored
 78-vertex/26-triangle arena supplies a walkable slope, steps and stacked rooms;
 the server replicates its triangle data and explicit bounds to the client.
-Camera, world staging and a semantic health/ammo/focus/encounter HUD feed a
-fixed 216-vertex native SDL_GPU scene buffer backed by a 16-color palette. An
-isolated GPU smoke rendered and read back the bounded scene, and 72/72 tests
-pass on JVM and native. G1's no-per-frame-growth evidence is 64 deterministic
-stages with unchanged Kof capacities plus persistent native scene buffers; the
-30-minute RSS/performance soak remains G5. G2 has a JVM/native
-three-process transport slice carrying the full arena and unified checksummed
-movement, fire, interaction, disconnect and reconnect commands. Client-applied
-state proves authoritative position, terminal combat death plus currency
-reward, revision-4 progression, reconnect generation and stale diagnosis. G2
-remains open for replicated enemy encounters, full player
-prediction/reconciliation, production join/recovery, complete 3D door
-collision/render geometry, and integrated feedback/audio.
+Camera, world staging and a semantic combat HUD feed a fixed 252-vertex native
+SDL_GPU scene: 78 world vertices plus 174 HUD vertices for health/ammunition,
+focus/encounter status, confirmed hit/kill markers and edge damage warnings.
+The confirmed local hitscan event also reaches bounded replay/audio queues and
+native SDL clip playback. An isolated GPU smoke rendered and read back the
+bounded scene, and 72/72 tests pass on JVM and native. G1's
+no-per-frame-growth evidence is 64 deterministic stages with unchanged Kof
+capacities plus persistent native scene buffers; the 30-minute RSS/performance
+soak remains G5. G2 has a JVM/native three-process transport slice carrying the
+full arena and unified checksummed movement, fire, interaction, disconnect and
+reconnect commands. Client-applied state proves authoritative position,
+terminal combat death plus currency reward, revision-4 progression, reconnect
+generation and stale diagnosis. G2 remains open for replicated enemy
+encounters, full player prediction/reconciliation, production join/recovery,
+complete 3D door collision/render geometry, complete multiplayer feedback
+coverage and production audio mixing/spatialization.
 
 ### Initial performance hypotheses, not achieved numbers
 

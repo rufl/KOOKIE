@@ -6,16 +6,19 @@ Bounded foundations execute; G0 and G1 acceptance gates are complete.
 
 - `G1Demo` is the single executable G1 acceptance path on JVM and native. It
   covers a 60 Hz authoritative server, two loopback clients, observable
-  prediction correction/reconciliation, one player weapon/enemy kill and
-  focus-loss recovery.
+  prediction correction/reconciliation, one player weapon/enemy kill,
+  focus-loss recovery and confirmed kill feedback reaching HUD plus queued
+  audio.
 - `G1Arena` owns 78 vertices/26 triangles for lower floor, ramp, upper
   platform, two stair steps and stacked rooms. Server snapshots include
   explicit bounds and all triangles; client upper/lower-floor queries pass.
-- World plus semantic HUD staging uses 216 fixed vertices: 78 arena vertices
-  and 138 HUD vertices for framed health/ammo tracks, structural icons,
-  encounter pips and a focus-responsive crosshair. The native SDL_GPU bridge
-  owns persistent scene buffers and a 16-color semantic palette; the
-  no-per-frame-growth proof remains bounded to unchanged staging capacities.
+- World plus semantic HUD staging uses 252 fixed vertices: 78 arena vertices
+  and 174 HUD vertices for framed health/ammo tracks, structural icons,
+  encounter pips, a focus-responsive crosshair, hit/kill markers and edge
+  damage warnings. Feedback expires by simulation tick and rejects duplicate
+  event sequences. The native SDL_GPU bridge owns persistent scene buffers and
+  a 16-color semantic palette; the no-per-frame-growth proof remains bounded to
+  unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
 - JVM/native checks, identical G1 runtime markers and 72/72 tests pass on each
@@ -106,6 +109,12 @@ management remains unimplemented.
 26. `BoundedRayTargetWorld` now performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering, source exclusion through `SpatialAimContract`, and target removal. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits and bounded misses. `LoopbackSession.resolvePlayerSpatialShotgun` now connects that selection to authoritative player combat.
 27. Native SIMD dispatch now selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps a checked scalar fallback. `FFI001` still prevents Kof bulk-buffer integration, so this is not a measured engine speedup.
 28. The current focused source gate is 72 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
+29. Accepted direct enemy hitscan/single-target shotgun resolutions now emit
+    bounded monotonic impact presentation and audio events. HUD geometry
+    distinguishes hit, kill and incoming damage without relying on color alone;
+    presentation backpressure is counted and cannot roll back authoritative
+    damage.
+
 
 ## Editor cautions
 
@@ -143,11 +152,14 @@ G2 now has a qualified transport slice: host plus two clients exchange the
 complete G1 arena and unified checksummed movement, fire, interaction and
 lifecycle commands. Client-applied state reaches server-owned combat
 death/reward, authoritative movement, reconnect generation two and
-key/door/secret/exit completion on JVM and native. Closing G2 still requires
-replicated enemy encounters, full player prediction/reconciliation, production
-join/recovery, complete 3D door collision/render geometry and integrated
-feedback/audio. G5 retains sustained workload, RSS and frame-budget acceptance.
-`FFI001` still blocks Kof bulk-buffer calls into the optional SIMD kernel.
+key/door/secret/exit completion on JVM and native. A local confirmed hitscan
+now reaches bounded replay/HUD/audio presentation and native SDL playback.
+Closing G2 still requires replicated enemy encounters, full player
+prediction/reconciliation, production join/recovery, complete 3D door
+collision/render geometry, complete multiplayer feedback coverage and
+production audio mixing/spatialization. G5 retains sustained workload, RSS and
+frame-budget acceptance. `FFI001` still blocks Kof bulk-buffer calls into the
+optional SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

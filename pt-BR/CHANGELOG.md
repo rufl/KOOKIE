@@ -2,6 +2,40 @@
 
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
+## 2026-09-29
+### Slice de feedback de combate confirmado
+
+- Conectamos resultados autoritativos aceitos de hitscan e shotgun de alvo
+  único a uma fila monotônica e limitada de apresentação/áudio de impacto.
+  Backpressure de apresentação não desfaz dano autoritativo e expõe a contagem
+  de descartes; eventos confirmados também entram no histórico limitado de
+  apresentação do replay.
+- Estendemos o HUD semântico com marcadores estruturais de acerto e eliminação,
+  além de alertas de dano nas bordas em altura total. O feedback expira por tick
+  de simulação, sequências duplicadas são rejeitadas e a geometria inativa
+  permanece degenerada dentro da alocação fixa. O HUD agora usa 174 vértices e
+  a cena criada completa usa 252, abaixo do limite nativo existente de 256.
+- Encaminhamos a eliminação autoritativa real de `G1Demo` pelo HUD e pela sonda
+  de apresentação nativa. O áudio SDL agora recebe o clip `201` desse evento
+  com ganho `100`, em vez de um clip de amostra sem relação.
+
+### HUD semântico e dogfood visual
+
+- Substituímos três barras numéricas sem rótulo por painéis escuros limitados:
+  tracks emolduradas de vida e munição, ícones estruturais de vida/cartucho,
+  pips de encounter e mira responsiva ao foco. Estados crítico e sem foco
+  mudam a geometria, não apenas a cor.
+- Expandimos o orçamento persistente da cena SDL_GPU de 128 para 256 vértices e
+  substituímos a textura de debug de quatro cores por uma paleta semântica de
+  16 cores para mundo/HUD.
+- Adicionamos um runtime de pacote Linux `presentation` com o executável Kof de
+  arena/HUD, adaptador SDL, shaders SPIR-V e bibliotecas de runtime resolvidas.
+  O launcher relocável ancora o carregamento de assets no próprio pacote.
+- Adicionamos cobertura observável do estado do HUD. Todos os 72 testes de
+  código-fonte passam na JVM e no nativo; os smokes de pacote
+  arquivo/checksum/procedência passam para os runtimes nativo, JVM e
+  apresentação.
+
 ## 2026-09-28
 ### Lote atual de qualificação
 

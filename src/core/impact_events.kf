@@ -93,6 +93,10 @@ class ImpactPresentationQueue {
     Int pending() {
         return count
     }
+    Bool canPush() {
+        return count < sequences.length
+    }
+
 
     Bool reset() {
         head = 0

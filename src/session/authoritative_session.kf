@@ -88,10 +88,13 @@ class LoopbackSession {
     EnemySnapshotHistory enemyClientSnapshots
     EnemyImpactSnapshotHistory enemyServerImpactSnapshots
     EnemyImpactSnapshotHistory enemyClientImpactSnapshots
-    ImpactPresentationQueue enemyImpactPresentations
-    QueuedAudio enemyImpactAudio
+    ImpactPresentationQueue impactPresentations
+    QueuedAudio impactAudio
     Int enemyImpactSnapshotSequence
     Int clientEnemyImpactSnapshotSequence
+    Int impactPresentationSequence
+    Int impactPresentationDropCountValue
+
     Int[] enemyIds
     Int[] enemyPerceptionTargets
     Int[] enemyPerceptionDistances
@@ -136,8 +139,9 @@ class LoopbackSession {
         enemyClientSnapshots = EnemySnapshotHistory(entityCapacity * 8)
         enemyServerImpactSnapshots = EnemyImpactSnapshotHistory(entityCapacity * 8)
         enemyClientImpactSnapshots = EnemyImpactSnapshotHistory(entityCapacity * 8)
-        enemyImpactPresentations = ImpactPresentationQueue(entityCapacity * 2)
-        enemyImpactAudio = QueuedAudio(entityCapacity * 2)
+        impactPresentations = ImpactPresentationQueue(entityCapacity * 2)
+        impactAudio = QueuedAudio(entityCapacity * 2)
+
         playerCombat = CombatWorld(entityCapacity, entityCapacity)
         playerCombatRewardTargets = new Int[entityCapacity]
         playerCombatRewardCurrencies = new Int[entityCapacity]
@@ -201,9 +205,12 @@ class LoopbackSession {
         playerStatusDefinitions = BoundedStatusDefinitionStore(16)
         playerOneStatuses = BoundedStatusEffects(4)
         playerTwoStatuses = BoundedStatusEffects(4)
-        enemyImpactAudio.open()
+        impactAudio.open()
         enemyImpactSnapshotSequence = 0
         clientEnemyImpactSnapshotSequence = 0
+        impactPresentationSequence = 0
+        impactPresentationDropCountValue = 0
+
         enemyIds = new Int[entityCapacity]
         enemyPerceptionTargets = new Int[entityCapacity]
         enemyPerceptionDistances = new Int[entityCapacity]
@@ -917,15 +924,20 @@ class LoopbackSession {
     ResolutionResult resolveEnemyHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
-        return enemyCombat.playerHitscan(
+        var result = enemyCombat.playerHitscan(
             sourceId, targetId, tick, distance, critical)
+        presentEnemyResolution(result, tick)
+        return result
     }
     ResolutionResult resolveEnemyShotgun(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
-        return enemyCombat.playerShotgun(
+        var result = enemyCombat.playerShotgun(
             sourceId, targetId, tick, distance, critical)
+        presentEnemyResolution(result, tick)
+        return result
     }
+
     AreaDamageResult resolveEnemyShotgunTargets(
         Int sourceId, Int[] targetIds, Int tick,
         Int distance, Int critical
@@ -1114,16 +1126,68 @@ class LoopbackSession {
         return 35
     }
 
+    Bool impactPresentationAvailable() {
+        return impactPresentations.canPush() && impactAudio.canQueue() &&
+            replayPresentationHistory.count() <
+                replayPresentationHistory.capacity()
+    }
+
+    Bool pushImpactPresentation(
+        Int kind, Int sourceId, Int targetId,
+        Int x, Int y, Int z, Int applied, Bool died,
+        Int clip, Int gain
+    ) {
+        if (!impactPresentationAvailable()) {
+            impactPresentationDropCountValue =
+                impactPresentationDropCountValue + 1
+            return false
+        }
+        impactPresentationSequence = impactPresentationSequence + 1
+        return impactPresentations.push(
+                impactPresentationSequence, kind, sourceId, targetId,
+                x, y, z, applied, died, clip, gain) &&
+            impactAudio.queue(clip, gain)
+    }
+
+    Bool presentEnemyResolution(ResolutionResult result, Int tick) {
+        if (!result.accepted() || result.applied() <= 0) {
+            return true
+        }
+        var gain = 70
+        if (result.died()) {
+            gain = 100
+        }
+        var targetId = result.targetId()
+        var clip = impactClip(1)
+        if (!pushImpactPresentation(
+                1, result.sourceId(), targetId,
+                enemyCombat.enemySpatialPositionX(targetId),
+                enemyCombat.enemySpatialPositionY(targetId),
+                enemyCombat.enemySpatialPositionZ(targetId),
+                result.applied(), result.died(), clip, gain)) {
+            return false
+        }
+        var died = 0
+        if (result.died()) {
+            died = 1
+        }
+        return recordReplayPresentation(
+            tick, 3, result.eventSequence(), result.sourceId(), targetId,
+            enemyCombat.enemySpatialPositionX(targetId),
+            enemyCombat.enemySpatialPositionY(targetId),
+            enemyCombat.enemySpatialPositionZ(targetId),
+            result.applied(), clip, gain, died)
+    }
+
     Bool presentEnemyImpactSnapshot(EnemyImpactSnapshot snapshot) {
         var clip = impactClip(snapshot.kind())
         var gain = impactGain(snapshot.kind())
-        if (!enemyImpactPresentations.push(
-            snapshot.sequence(), snapshot.kind(), snapshot.sourceId(),
-            snapshot.targetId(), snapshot.x(), snapshot.y(), snapshot.z(),
-            snapshot.applied(), snapshot.died(), clip, gain)) {
+        if (!pushImpactPresentation(
+                snapshot.kind(), snapshot.sourceId(), snapshot.targetId(),
+                snapshot.x(), snapshot.y(), snapshot.z(),
+                snapshot.applied(), snapshot.died(), clip, gain)) {
             return false
         }
-        enemyImpactAudio.queue(clip, gain)
         var died = 0
         if (snapshot.died()) {
             died = 1
@@ -1142,6 +1206,7 @@ class LoopbackSession {
         if (!started ||
             snapshot.sequence() <= clientEnemyImpactSnapshotSequence ||
             snapshot.tick() < clientTick ||
+            !impactPresentationAvailable() ||
             !enemyClientImpactSnapshots.push(snapshot) ||
             !presentEnemyImpactSnapshot(snapshot)) {
             return false
@@ -1162,33 +1227,38 @@ class LoopbackSession {
         return enemyClientImpactSnapshots.size()
     }
 
-    Int pendingEnemyImpactPresentations() {
-        return enemyImpactPresentations.pending()
+    Int pendingImpactPresentations() {
+        return impactPresentations.pending()
     }
 
-    Bool dequeueEnemyImpactPresentation() {
-        return enemyImpactPresentations.dequeue()
+    Bool dequeueImpactPresentation() {
+        return impactPresentations.dequeue()
     }
 
-    ImpactPresentationEvent lastEnemyImpactPresentation() {
-        return enemyImpactPresentations.lastConsumed()
+    ImpactPresentationEvent lastImpactPresentation() {
+        return impactPresentations.lastConsumed()
     }
 
-    Int pendingEnemyImpactAudio() {
-        return enemyImpactAudio.queuedCount()
+    Int pendingImpactAudio() {
+        return impactAudio.queuedCount()
     }
 
-    Bool dequeueEnemyImpactAudio() {
-        return enemyImpactAudio.dequeue()
+    Bool dequeueImpactAudio() {
+        return impactAudio.dequeue()
     }
 
-    Int consumedEnemyImpactClip() {
-        return enemyImpactAudio.consumedClip()
+    Int consumedImpactClip() {
+        return impactAudio.consumedClip()
     }
 
-    Int consumedEnemyImpactGain() {
-        return enemyImpactAudio.consumedGain()
+    Int consumedImpactGain() {
+        return impactAudio.consumedGain()
     }
+
+    Int impactPresentationDrops() {
+        return impactPresentationDropCountValue
+    }
+
 
     Int enemySnapshotCount() {
         return enemyServerSnapshots.size()
@@ -2339,8 +2409,8 @@ class LoopbackSession {
                 enemyState[enemyIndex] = timeline.seekSnapshotValue(120 + enemyIndex)
             }
             if (!enemyCombat.restoreReplayState(enemyState) ||
-                !enemyImpactPresentations.reset() ||
-                !enemyImpactAudio.reset()) {
+                !impactPresentations.reset() ||
+                !impactAudio.reset()) {
                 return false
             }
         }

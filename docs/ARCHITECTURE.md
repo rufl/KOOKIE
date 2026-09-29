@@ -1,6 +1,7 @@
 # KOOKIE project architecture
 
-Status: **proposed architecture; implementation has not started**.
+Status: **living target architecture; G0/G1 are implemented and G2 slices are in progress**.
+
 
 This document is the project-level architecture authority. Detailed acceptance
 experiments remain in [ENGINE_PLAN.md](ENGINE_PLAN.md). Reuse decisions remain
@@ -124,6 +125,13 @@ checked native adapter
 ```
 
 Presentation cannot write authoritative arrays or award gameplay results.
+
+The implemented bounded slice follows this boundary: an authoritative combat
+resolution emits a monotonic `ImpactPresentationEvent`; the client HUD derives
+tick-limited hit/kill/damage geometry while a parallel bounded audio queue
+selects the SDL clip. Presentation overflow is diagnosed and never rolls back
+authoritative damage. The current authored scene is fixed at 252 vertices.
+
 
 ### Native adapter
 
@@ -501,8 +509,12 @@ scale/soak remains G5.
 
 ### G2 — LAN boomer-shooter slice
 
-Add LAN transport, host plus multiple clients, join/leave/reconnect handling,
-hitscan/projectiles, encounters and server-owned rewards.
+In progress: bounded authenticated transport already runs a host plus two
+clients through movement, combat reward, lifecycle and level progression; the
+local authoritative path now emits HUD/audio impact feedback. Remaining work is
+replicated enemy encounters, full prediction/reconciliation, production
+join/recovery, complete 3D doors and complete multiplayer presentation/audio.
+
 
 ### G3 — Looter/ARPG multiplayer slice
 

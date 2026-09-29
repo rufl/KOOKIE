@@ -2,7 +2,8 @@
 
 [English](../../docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implementado e exercitado no compilador JVM/nativo**. Este incremento adiciona glue C SDL estreito de ciclo de vida de janela/áudio/GPU, transferência PCM limitada de clip, o primeiro caminho de upload/draw texturizado com SPIR-V e contratos de estado de eventos pertencentes ao Kof. A sonda em display isolado agora aceita ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy e teardown; o ambiente isolado reportou `gpu-unavailable`, portanto nenhum draw texturizado ou timing GPU é aceito.
+Status: **implementado e exercitado na JVM/nativo e em apresentação isolada com janela real**. A fronteira C estreita cobre ciclo de vida SDL, clips sintetizados limitados, upload/draw SPIR-V da cena e estado de eventos pertencente ao Kof. A sonda nativa atual de apresentação reporta capacidade válida de swapchain, desenha e captura a cena criada de 252 vértices e consome o clip `201` do evento autoritativo de combate; evidências específicas da máquina permanecem fora do repositório.
+
 
 ## Limite do ciclo de vida SDL
 
@@ -53,11 +54,11 @@ O adaptador achata eventos SDL, enquanto o Kof possui a política de transição
 - dequeue FIFO com metadados copiados de clip/ganho;
 - nenhum callback para dentro do Kof e nenhuma autoridade estrangeira de mixer.
 
-O adaptador nativo agora comprova um ciclo real de stream de áudio SDL, transferência limitada de silêncio e um descritor de clip limitado (`clipId=1`, no máximo 480 frames estéreo F32). O adaptador gera esse payload determinístico porque a FFI escalar ainda não transporta um buffer de amostras pertencente ao Kof; o próximo limite de áudio é propriedade explícita do buffer, não uma segunda autoridade de mixer.
+O adaptador nativo comprova um ciclo real de stream de áudio SDL, transferência limitada de silêncio e variantes determinísticas de clips sintetizados (`clipId=1` e clips de impacto `201`–`203`, no máximo 480 frames estéreo F32). A sonda de apresentação agora seleciona o clip `201` a partir do evento confirmado da eliminação autoritativa. A FFI escalar ainda não transporta um buffer de amostras pertencente ao Kof; o próximo limite de áudio é propriedade explícita do buffer e mixagem de produção, não uma segunda autoridade de gameplay.
 
 ## Ciclo de vida GPU
 
-O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da janela SDL oculta, envia uma textura RGBA limitada 2x2 por transfer buffer, faz sampling em um pipeline de triângulo, submete um draw de swapchain, espera o GPU ficar ocioso e libera os recursos. Falha de GPU é reportada como `gpu-unavailable`; a execução bem-sucedida só é aceita quando a sonda isolada registrar `gpu-open` e conclusão.
+O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim de uma janela SDL, envia a paleta semântica e vértices limitados da cena por transfer buffers, submete o draw de swapchain, aguarda o GPU ficar ocioso e libera os recursos. O caminho revisado de display isolado já registrou `gpu-open`, capacidade positiva de swapchain, conclusão do draw, captura de screenshot e saída limpa; ambientes indisponíveis continuam falhando de modo fechado como `gpu-unavailable`.
 
 ## Prova de regressão
 
@@ -70,10 +71,12 @@ O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim da j
 `scripts/verify_exception.sh` preserva o reproduzível do lifetime de exceções nativas e seus controles negativos JVM/nativo: a JVM termina na asserção falha; o nativo atualmente chega a `unreachable` com exit 0. Isso é um registro de defeito do compilador, não uma garantia de limpeza do engine.
 
 O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `glslc`, `pkg-config` e um `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` revisado estão disponíveis, ele compila o adaptador e os shaders SPIR-V, emite o ELF nativo da sonda e o executa pelo wrapper com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito.
+
 ```bash
 bash scripts/verify.sh
 ```
-O gate materializa links temporários para o pacote canônico `src/core` enquanto compila a sonda independente e os remove ao sair. As verificações de fonte Kof, testes e builds passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; as fontes de shader compilam por `glslc`; o contrato de frame registra 15 escritas escalares e retirement explícito para o triângulo de três vértices. A função de timing do adaptador está implementada, mas continua sem medição porque o ambiente isolado não expôs um dispositivo SDL_GPU utilizável.
+
+O gate materializa links temporários para os pacotes Kof canônicos ao compilar sondas independentes e os remove ao sair. Checks, testes e builds Kof passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; shaders compilam por `glslc`; staging fixo da cena, timing positivo de draw, captura de screenshot e teardown de recursos são exercitados dentro do display isolado.
 
 A sonda drena eventos SDL preexistentes por um helper nativo escalar limitado.
 Manter o loop de drain em C evita uma falha medida do compilador nativo em que
@@ -82,9 +85,9 @@ atribuir um `Int` extern dentro daquele loop Kof emitia uma chamada inválida a
 
 ## Próximo limite de comprovação
 
-Exponha um backend SDL_GPU ou render node utilizável no ambiente isolado, depois
-reexecute a sonda para registrar `gpu-open`, conclusão do draw e retirement
-decorrido com GPU ocioso. Compare essa medição com o orçamento de frame; a
-aceitação de janela/áudio/eventos já está registrada. Não converta ponteiros
-SDL em tokens inteiros, adicione callbacks para dentro do Kof nem chame o
-caminho GPU opcional de aceito sem evidência isolada.
+O trabalho de produção agora começa além de G0: propriedade explícita dos
+buffers de amostra entre Kof/nativo, mixagem/espacialização, notificação real de
+perda de dispositivo SDL e retirement limitado de recursos sob carga
+sustentada. Não converta ponteiros SDL em tokens inteiros, adicione callbacks
+para dentro do Kof nem infira esses contratos a partir da sonda qualificada de
+cena/clip.

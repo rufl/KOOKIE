@@ -6,20 +6,24 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
 
 - `G1Demo` é o caminho único e executável da aceitação G1 na JVM e no nativo.
   Ele cobre servidor autoritativo a 60 Hz, dois clientes loopback, correção de
-  predição/reconciliação observável, uma eliminação com arma/inimigo e
-  recuperação da perda de foco.
+  predição/reconciliação observável, uma eliminação com arma/inimigo,
+  recuperação da perda de foco e feedback confirmado da eliminação chegando ao
+  HUD e ao áudio enfileirado.
 - `G1Arena` contém 78 vértices e 26 triângulos para piso inferior, rampa,
   plataforma superior, dois degraus e salas empilhadas. Snapshots do servidor
   incluem limites explícitos e todos os triângulos; consultas do cliente aos
   andares superior/inferior passam.
-- O staging de mundo mais HUD numérico usa 96 vértices fixos. A ponte nativa
-  SDL_GPU mantém buffers persistentes; uma execução GPU isolada produziu um
-  frame P6 320×240. Sessenta e quatro stagings determinísticos mantiveram as
+- O staging de mundo mais HUD semântico usa 252 vértices fixos: 78 da arena e
+  174 do HUD para tracks emolduradas de vida/munição, ícones estruturais, pips
+  de encounter, mira responsiva ao foco, marcadores de acerto/eliminação e
+  alertas laterais de dano. O feedback expira por tick de simulação e rejeita
+  sequências duplicadas. A ponte SDL_GPU mantém buffers persistentes e uma
+  paleta semântica de 16 cores; 64 stagings determinísticos mantêm as
   capacidades Kof originais.
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- Checks JVM/nativo, marcadores G1 idênticos e 71/71 testes passam em cada alvo.
+- Checks JVM/nativo, marcadores G1 idênticos e 72/72 testes passam em cada alvo.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
@@ -108,9 +112,16 @@ implementada.
 23. O relatório de capacidades de recuperação GPU é sensível ao estado: ready expõe reopen limpo e o marcador explícito de perda, lost expõe apenas reopen, e unavailable/failed não expõem capacidades; a SDL3 instalada não expõe callback de perda de dispositivo.
 24. `RemoteSessionEndpoint` valida IPv4/porta e chaves SipHash não nulas, congela alterações de peer/chave enquanto ativo, permite troca de chave apenas inativo e está ligado à fronteira de chave via ambiente e a um smoke de peer UDP externo real; orquestração de sessão e armazenamento de segredos de produção ainda não foram implementados.
 25. `RemoteSessionLink` bloqueia snapshots broad-phase até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes; a sonda nativa isolada envia e aplica um snapshot através do link, enquanto a orquestração em loop de sessão real ainda não foi implementada.
-26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo escolhido por pellet, inclusive impactos repetidos no mesmo ator. O combate espacial automático ainda precisa de um contrato compartilhado de raio do ator/mira.
+26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável, exclusão da origem via `SpatialAimContract` e remoção de alvos. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo por pellet, inclusive impactos repetidos e misses limitados. `LoopbackSession.resolvePlayerSpatialShotgun` conecta essa seleção ao combate autoritativo dos jogadores.
+
 27. O despacho SIMD nativo agora seleciona AVX2/SSE2 no x86, possui caminho de origem NEON no AArch64 e mantém um fallback escalar verificado. `FFI001` ainda impede a integração de buffers do Kof, então isso não é um ganho de velocidade medido da engine.
-28. O gate focado atual tem 71 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
+28. O gate focado atual tem 72 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
+29. Resoluções aceitas de hitscan/shotgun de alvo único contra inimigos agora
+    emitem eventos monotônicos e limitados de apresentação e áudio de impacto.
+    A geometria do HUD distingue acerto, eliminação e dano recebido sem depender
+    somente de cor; backpressure é contabilizado e não desfaz dano autoritativo.
+
+
 ## Cuidados do editor
 Consulte [KOF_EDITOR](docs/KOF_EDITOR.md). A UI interativa é substancialmente implementada em JS dentro de `.kf`; trata-se de um scanner independente, sem reutilização do frontend do compilador. A execução copia o arquivo ativo para uma raiz temporária fixa e fixa a JVM. Nenhuma integração real de cliente LSP/DAP foi encontrada. Os endpoints do sistema de arquivos/shell do host são irrestritos e não autenticados.
 
@@ -150,11 +161,14 @@ trocam a arena G1 completa e comandos unificados com checksum para movimento,
 disparo, interação e ciclo de vida. O estado aplicado pelo cliente alcança
 morte/recompensa controladas pelo servidor, movimento autoritativo, geração 2
 após reconexão e conclusão de chave/porta/segredo/saída na JVM e no nativo.
-Concluir G2 ainda exige encounters replicados de inimigos,
-predição/reconciliação completa dos jogadores, entrada/recuperação em produção,
-geometria/colisão 3D completa das portas e feedback/áudio integrado. G5 mantém
-aceitação sustentada de carga, RSS e orçamento de frame.
-`FFI001` ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
+Um hitscan local confirmado agora alcança apresentação limitada de
+replay/HUD/áudio e playback SDL nativo. Concluir G2 ainda exige encounters
+replicados de inimigos, predição/reconciliação completa dos jogadores,
+entrada/recuperação em produção, geometria/colisão 3D completa das portas,
+cobertura completa de feedback multiplayer e mixagem/espacialização de áudio
+de produção. G5 mantém aceitação sustentada de carga, RSS e orçamento de frame.
+`FFI001` ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD
+opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par
