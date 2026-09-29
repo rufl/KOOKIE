@@ -1067,11 +1067,25 @@ class AuthoritativeEnemySession {
             true, projectile.projectileId(), sourceId, targetId, false, false)
     }
 
-    Int advanceSpatialProjectiles(Int tick) {
+    Int advanceSpatialProjectilesBudgeted(
+        Int tick, Int start, Int budget
+    ) {
+        if (tick < 0 || start < 0 ||
+            start >= spatialProjectileActive.length || budget <= 0) {
+            return -1
+        }
+        var limit = budget
+        if (limit > spatialProjectileActive.length) {
+            limit = spatialProjectileActive.length
+        }
         spatialProjectileHitsValue = 0
         spatialProjectileBlockedValue = 0
         var moved = 0
-        for (var index = 0; index < spatialProjectileActive.length; index = index + 1) {
+        for (var visited = 0; visited < limit; visited = visited + 1) {
+            var index = start + visited
+            if (index >= spatialProjectileActive.length) {
+                index = index - spatialProjectileActive.length
+            }
             if (!spatialProjectileActive[index]) {
                 continue
             }
@@ -1190,6 +1204,11 @@ class AuthoritativeEnemySession {
         return moved
     }
 
+    Int advanceSpatialProjectiles(Int tick) {
+        return advanceSpatialProjectilesBudgeted(
+            tick, 0, spatialProjectileActive.length)
+    }
+
     Int activeSpatialProjectiles() {
         var count = 0
         for (var index = 0; index < spatialProjectileActive.length; index = index + 1) {
@@ -1198,6 +1217,10 @@ class AuthoritativeEnemySession {
             }
         }
         return count
+    }
+
+    Int spatialProjectileCapacity() {
+        return spatialProjectileActive.length
     }
 
     Int spatialProjectileHits() {

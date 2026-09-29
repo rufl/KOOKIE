@@ -81,6 +81,10 @@ G0, G1, G2, G3 e a implementação limitada de G4 executam na JVM e no Linux nat
 - atenuação por distância e pan estéreo relativos ao listener calculados no
   Kof, com PCM sem alocação em buses separados de efeitos e música no
   SDL_mixer.
+- um runner `kookie-server` sem gráficos no pacote Linux pré-aloca a primeira
+  carga de referência G5 com 64 inimigos, 256 projéteis móveis e 512 itens
+  coletáveis, e agenda orçamentos fixos por tick de 16/64/128 para
+  IA/projéteis/itens.
 
 As lacunas importantes continuam reais:
 
@@ -96,9 +100,12 @@ As lacunas importantes continuam reais:
   shaders, plugins de editor ou streaming ilimitado de recursos;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
+- a carga G5 limitada tem evidência igual na JVM e no nativo de capacidades
+  lógicas estáveis por 256 ticks simulados, não tempos p95 de frame/simulação
+  nem soak de RSS por 30 minutos;
 - saves duráveis contra crash, física completa, áudio comprimido/em streaming
-  e HRTF/EFX, prova sustentada de soak/desempenho G5, autoria G6 mais rica e
-  extensões de runtime em sandbox continuam incompletos.
+  e HRTF/EFX, autoria G6 mais rica e extensões de runtime em sandbox continuam
+  incompletos.
 - o shell Windows nativo é interativo e persistente, mas o Kof ainda não gera
   gameplay PE para Windows; a tela Play não comprova execução autoritativa Kof
   nesse sistema.
@@ -132,6 +139,11 @@ Ele contém o aplicativo Kof com menus/gameplay, adaptador SDL, shaders SPIR-V,
 SDL3 e SDL_mixer. O launcher usa o runtime do sistema, sem empacotar o loader
 dinâmico ou libc. Pacotes JVM distribuíveis são rejeitados; JVM fica restrita
 à qualificação diferencial local.
+
+Todo arquivo Linux também contém `kookie-server`. Sua execução roda a carga
+headless fixa de 256 ticks e informa orçamentos, contagens, checksum e
+estabilidade lógica de recursos. Ainda não é a qualificação G5 sustentada com
+servidor em rede.
 
 Cozinhe arquivos de autoria e monte ou inspecione pacotes externos de um chunk
 com a CLI de desenvolvimento exclusiva da JVM:
@@ -219,6 +231,14 @@ geral de formatos, reload arbitrário de código, editor de produção ou
 qualificação recente em três máquinas físicas. G2 continua coberto pela suíte
 de código-fonte, sonda focada de interação, qualificação por processos e sonda
 SDL_GPU/áudio isolada.
+O primeiro slice G5 adiciona o runner sem gráficos no pacote, trabalho móvel
+limitado de projéteis e a carga declarada de 64 inimigos/256 projéteis/512
+itens com tetos de 16/64/128 unidades de trabalho. JVM e nativo produzem o
+mesmo checksum e assinatura lógica estável por 256 ticks. G5 continua aberto
+para execução de referência em rede, tempos em hardware, soak de
+RSS/recursos por 30 minutos, batching/instancing de render e o reforço restante
+de persistência/recuperação.
+
 
 Adiado até os gates centrais estarem mais fortes:
 

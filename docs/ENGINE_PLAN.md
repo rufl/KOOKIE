@@ -757,6 +757,16 @@ compatibility, arbitrary code/shader reload, a production-grade editor, and
 fresh qualification on three physical machines are explicitly outside that
 claim.
 
+The first bounded G5 slice now executes the exact 64-enemy,
+256-moving-projectile and 512-pickup population in a graphics-free Kof server.
+Rolling work limits admit 16 AI states, 64 projectile slots and 128 pickup
+slots per tick. `scripts/verify_dedicated_server.sh` runs 256 ticks on JVM and
+native with matching checksum `797255` and unchanged logical resource
+signature `675172`; the Linux archive runs the same binary outside the source
+checkout with no SDL/X11/Wayland/Vulkan dependency. This is correctness and
+logical-capacity evidence, not achieved p95 timing, network-load or RSS-soak
+evidence.
+
 ### Initial performance hypotheses, not achieved numbers
 
 Reference scene for first scale gate: 64 active enemies, 256 moving projectiles, 512 pickups, bounded dynamic lights/effects and one medium authored level. Maintain a heavier stress variant after the baseline is correct; do not claim arbitrary population scalability.

@@ -1,0 +1,277 @@
+package session
+
+import core
+
+class BoundedDedicatedServer {
+    FixedStepClock clock
+    AuthoritativeEnemySession authority
+    BoundedWorldLoot pickups
+    Int[] enemyIds
+    Int enemyCapacityValue
+    Int projectileCapacityValue
+    Int pickupCapacityValue
+    Int aiBudgetValue
+    Int projectileBudgetValue
+    Int pickupBudgetValue
+    Int enemyCursor
+    Int projectileCursor
+    Int pickupCursor
+    Int ticksProcessedValue
+    Int lastAiWorkValue
+    Int lastProjectileWorkValue
+    Int lastProjectileMovedValue
+    Int lastPickupWorkValue
+    Int peakAiWorkValue
+    Int peakProjectileWorkValue
+    Int peakPickupWorkValue
+    Int workloadChecksumValue
+    Int baselineResourceSignatureValue
+    Int droppedMicrosValue
+    Int overloadCountValue
+    Bool validConfigurationValue
+    Bool configuredValue
+    Bool healthyValue
+
+    public constructor(
+        Int enemyCapacity, Int projectileCapacity, Int pickupCapacity,
+        Int aiBudget, Int projectileBudget, Int pickupBudget
+    ) {
+        validConfigurationValue =
+            enemyCapacity > 0 && enemyCapacity <= 64 &&
+            projectileCapacity > 0 && projectileCapacity <= 256 &&
+            pickupCapacity > 0 && pickupCapacity <= 512 &&
+            aiBudget > 0 && aiBudget <= enemyCapacity &&
+            projectileBudget > 0 && projectileBudget <= projectileCapacity &&
+            pickupBudget > 0 && pickupBudget <= pickupCapacity
+        var actualEnemies = enemyCapacity
+        var actualProjectiles = projectileCapacity
+        var actualPickups = pickupCapacity
+        if (actualEnemies <= 0 || actualEnemies > 64) { actualEnemies = 1 }
+        if (actualProjectiles <= 0 || actualProjectiles > 256) {
+            actualProjectiles = 1
+        }
+        if (actualPickups <= 0 || actualPickups > 512) { actualPickups = 1 }
+        enemyCapacityValue = actualEnemies
+        projectileCapacityValue = actualProjectiles
+        pickupCapacityValue = actualPickups
+        aiBudgetValue = aiBudget
+        projectileBudgetValue = projectileBudget
+        pickupBudgetValue = pickupBudget
+        var runtimeCapacity = actualProjectiles
+        if (actualEnemies + 2 > runtimeCapacity) {
+            runtimeCapacity = actualEnemies + 2
+        }
+        clock = FixedStepClock(60, 4)
+        authority = AuthoritativeEnemySession(runtimeCapacity, 1)
+        pickups = BoundedWorldLoot(actualPickups)
+        enemyIds = new Int[actualEnemies]
+        for (var index = 0; index < enemyIds.length; index = index + 1) {
+            enemyIds[index] = 0
+        }
+        enemyCursor = 0
+        projectileCursor = 0
+        pickupCursor = 0
+        ticksProcessedValue = 0
+        lastAiWorkValue = 0
+        lastProjectileWorkValue = 0
+        lastProjectileMovedValue = 0
+        lastPickupWorkValue = 0
+        peakAiWorkValue = 0
+        peakProjectileWorkValue = 0
+        peakPickupWorkValue = 0
+        workloadChecksumValue = 97
+        baselineResourceSignatureValue = 0
+        droppedMicrosValue = 0
+        overloadCountValue = 0
+        configuredValue = false
+        healthyValue = validConfigurationValue
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Bool configureReferenceWorkload() {
+        if (!validConfigurationValue || configuredValue ||
+            !authority.configureEnemyRules(128, 1, 30) ||
+            !authority.configureSpatialBounds(0, 0, 0, 1000000, 1000000, 1000000) ||
+            !authority.defineWeapon(
+                1, projectileCapacityValue, 0, 1, 0) ||
+            !authority.setWeaponRange(1, 1000000) ||
+            !authority.setWeaponCooldown(1, 0) ||
+            !authority.defineEncounter(
+                1, enemyCapacityValue, enemyCapacityValue) ||
+            !authority.addActor(1, 1000000, 0) ||
+            !authority.addActor(2, 1000000, 0) ||
+            !authority.setSpatialPosition(1, 900000, 0, 0) ||
+            !authority.setSpatialPosition(2, 0, 0, 0)) {
+            healthyValue = false
+            return false
+        }
+        for (var index = 0; index < enemyIds.length; index = index + 1) {
+            var enemyId = 1001 + index
+            if (!authority.admitEnemyAt(
+                    1, enemyId, 0, 100, 0, 1,
+                    900001 + index, 0, 0)) {
+                healthyValue = false
+                return false
+            }
+            enemyIds[index] = enemyId
+        }
+        for (var index = 0;
+            index < projectileCapacityValue; index = index + 1) {
+            var sourceId = enemyIds[index % enemyIds.length]
+            if (!authority.spawnSpatialProjectile(
+                    sourceId, 2, 0, 1000000, 1, 0).accepted()) {
+                healthyValue = false
+                return false
+            }
+        }
+        for (var index = 0; index < pickupCapacityValue; index = index + 1) {
+            var roll = BoundedItemRoll()
+            if (!roll.stage(
+                    2001 + index, 1, 100 + index, 1,
+                    (index % 3) + 1, 0, 0, 100) ||
+                !pickups.stage(
+                    roll, enemyIds[index % enemyIds.length],
+                    (index % 3) + 1,
+                    SpatialPoint(index, 0, index % 64))) {
+                healthyValue = false
+                return false
+            }
+        }
+        if (authority.encounterActiveCount(1) != enemyCapacityValue ||
+            authority.activeSpatialProjectiles() != projectileCapacityValue ||
+            authority.spatialProjectileCapacity() < projectileCapacityValue ||
+            pickups.count() != pickupCapacityValue ||
+            pickups.capacity() != pickupCapacityValue) {
+            healthyValue = false
+            return false
+        }
+        configuredValue = true
+        baselineResourceSignatureValue = resourceSignature()
+        return baselineResourceSignatureValue > 0
+    }
+
+    Int resourceSignature() {
+        var result = 71
+        result = mix(result, enemyCapacityValue)
+        result = mix(result, authority.encounterActiveCount(1))
+        result = mix(result, projectileCapacityValue)
+        result = mix(result, authority.spatialProjectileCapacity())
+        result = mix(result, authority.activeSpatialProjectiles())
+        result = mix(result, pickupCapacityValue)
+        result = mix(result, pickups.capacity())
+        result = mix(result, pickups.count())
+        return result
+    }
+
+    Bool runTick(Int tick) {
+        lastAiWorkValue = 0
+        for (var work = 0; work < aiBudgetValue; work = work + 1) {
+            var enemyId = enemyIds[enemyCursor]
+            var visible = (tick + work) % 4 != 0
+            var distance = 2 + ((tick + work) % 127)
+            var decision = authority.stepEnemy(
+                enemyId, tick, 1, visible, distance, 0)
+            if (!decision.accepted()) { return false }
+            workloadChecksumValue = mix(workloadChecksumValue, enemyId)
+            workloadChecksumValue = mix(
+                workloadChecksumValue, authority.enemyState(enemyId))
+            enemyCursor = enemyCursor + 1
+            if (enemyCursor >= enemyIds.length) { enemyCursor = 0 }
+            lastAiWorkValue = lastAiWorkValue + 1
+        }
+        lastProjectileMovedValue = authority.advanceSpatialProjectilesBudgeted(
+            tick, projectileCursor, projectileBudgetValue)
+        if (lastProjectileMovedValue < 0) { return false }
+        lastProjectileWorkValue = projectileBudgetValue
+        projectileCursor = projectileCursor + projectileBudgetValue
+        while (projectileCursor >= authority.spatialProjectileCapacity()) {
+            projectileCursor = projectileCursor - authority.spatialProjectileCapacity()
+        }
+        lastPickupWorkValue = 0
+        for (var work = 0; work < pickupBudgetValue; work = work + 1) {
+            workloadChecksumValue = mix(
+                workloadChecksumValue, pickups.stableId(pickupCursor))
+            workloadChecksumValue = mix(
+                workloadChecksumValue, pickups.rank(pickupCursor))
+            pickupCursor = pickupCursor + 1
+            if (pickupCursor >= pickups.count()) { pickupCursor = 0 }
+            lastPickupWorkValue = lastPickupWorkValue + 1
+        }
+        workloadChecksumValue = mix(workloadChecksumValue, tick)
+        workloadChecksumValue = mix(
+            workloadChecksumValue, lastProjectileMovedValue)
+        if (lastAiWorkValue > peakAiWorkValue) {
+            peakAiWorkValue = lastAiWorkValue
+        }
+        if (lastProjectileWorkValue > peakProjectileWorkValue) {
+            peakProjectileWorkValue = lastProjectileWorkValue
+        }
+        if (lastPickupWorkValue > peakPickupWorkValue) {
+            peakPickupWorkValue = lastPickupWorkValue
+        }
+        ticksProcessedValue = ticksProcessedValue + 1
+        return lastAiWorkValue <= aiBudgetValue &&
+            lastProjectileWorkValue <= projectileBudgetValue &&
+            lastPickupWorkValue <= pickupBudgetValue
+    }
+
+    Bool advance(Int elapsedMicros) {
+        if (!configuredValue || !healthyValue || elapsedMicros < 0) {
+            return false
+        }
+        var priorDropped = clock.droppedTimeMicros()
+        var steps = clock.advance(elapsedMicros)
+        if (steps < 0) { return false }
+        var firstTick = clock.tick() - steps + 1
+        for (var step = 0; step < steps; step = step + 1) {
+            if (!runTick(firstTick + step)) {
+                healthyValue = false
+                return false
+            }
+        }
+        droppedMicrosValue = clock.droppedTimeMicros()
+        if (droppedMicrosValue > priorDropped) {
+            overloadCountValue = overloadCountValue + 1
+        }
+        return true
+    }
+
+    Bool runTicks(Int ticks) {
+        if (ticks <= 0 || ticks > 1000000) { return false }
+        for (var tick = 0; tick < ticks; tick = tick + 1) {
+            if (!advance(16666)) { return false }
+        }
+        return true
+    }
+
+    Bool resourcePlateau() {
+        return configuredValue && healthyValue &&
+            resourceSignature() == baselineResourceSignatureValue
+    }
+
+    Bool configured() { return configuredValue }
+    Bool healthy() { return healthyValue }
+    Int ticksProcessed() { return ticksProcessedValue }
+    Int enemyCount() { return authority.encounterActiveCount(1) }
+    Int projectileCount() { return authority.activeSpatialProjectiles() }
+    Int pickupCount() { return pickups.count() }
+    Int aiBudget() { return aiBudgetValue }
+    Int projectileBudget() { return projectileBudgetValue }
+    Int pickupBudget() { return pickupBudgetValue }
+    Int lastAiWork() { return lastAiWorkValue }
+    Int lastProjectileWork() { return lastProjectileWorkValue }
+    Int lastProjectileMoved() { return lastProjectileMovedValue }
+    Int lastPickupWork() { return lastPickupWorkValue }
+    Int peakAiWork() { return peakAiWorkValue }
+    Int peakProjectileWork() { return peakProjectileWorkValue }
+    Int peakPickupWork() { return peakPickupWorkValue }
+    Int workloadChecksum() { return workloadChecksumValue }
+    Int baselineResourceSignature() { return baselineResourceSignatureValue }
+    Int droppedMicros() { return droppedMicrosValue }
+    Int overloadCount() { return overloadCountValue }
+}

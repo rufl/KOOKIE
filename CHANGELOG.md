@@ -4,6 +4,23 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-29
 
+### First bounded G5 headless scale slice
+
+- Added `BoundedDedicatedServer`, a graphics-free fixed-step workload using the
+  real enemy, projectile and world-loot modules. The declared baseline owns 64
+  enemies, 256 moving projectiles and 512 pickups.
+- Added rolling per-tick ceilings of 16 AI states, 64 projectile slots and 128
+  pickup slots. Spatial projectile advancement can now cover a bounded rotating
+  range instead of scanning every slot.
+- Added `apps/server`, a JVM/native focused probe, package integration and
+  outside-checkout smoke coverage. Linux archives contain `kookie-server` and
+  its Kof binary; its dynamic closure contains libc/libm only, not a graphics
+  stack.
+- JVM and native matched workload checksum `797255` and logical resource
+  signature `675172` after 256 ticks. This does not claim p95 timing, a
+  networked reference workload or the required 30-minute RSS soak; G5 remains
+  open.
+
 ### Bounded G4 creator pipeline completion
 
 - Expanded trusted modules from the elite-death path to typed

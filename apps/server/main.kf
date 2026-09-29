@@ -1,0 +1,26 @@
+import session
+import kof.process
+
+main() {
+    var ticks = 256
+
+    var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
+    if (!server.configureReferenceWorkload() || !server.runTicks(ticks) ||
+        !server.resourcePlateau() || server.overloadCount() != 0) {
+        println("dedicated-server-rejected")
+        process.exit(1)
+    }
+    println("KOOKIE G5 dedicated headless server")
+    println("graphics=none")
+    println("ticks=" + server.ticksProcessed())
+    println("enemies=" + server.enemyCount())
+    println("projectiles=" + server.projectileCount())
+    println("pickups=" + server.pickupCount())
+    println("work-budgets=" + server.aiBudget() + "," +
+        server.projectileBudget() + "," + server.pickupBudget())
+    println("peak-work=" + server.peakAiWork() + "," +
+        server.peakProjectileWork() + "," + server.peakPickupWork())
+    println("resource-signature=" + server.baselineResourceSignature())
+    println("workload-checksum=" + server.workloadChecksum())
+    println("resource-plateau=true")
+}

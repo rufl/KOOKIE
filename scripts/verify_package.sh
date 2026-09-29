@@ -23,12 +23,24 @@ tar -xzf "$ARCHIVE" -C "$WORK_DIR/extracted"
 BINARY="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/kookie"
 test -f "$BINARY"
 PACKAGE_ROOT="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64"
+SERVER="$PACKAGE_ROOT/kookie-server"
+SERVER_BINARY="$PACKAGE_ROOT/kookie-server.bin"
+test -x "$SERVER" -a -x "$SERVER_BINARY"
 test -f "$PACKAGE_ROOT/LICENSE"
 test -f "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 grep -Fq 'MIT License' "$PACKAGE_ROOT/LICENSE"
 grep -Fq 'SDL_mixer 3.2.4' "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 grep -Fq 'license_status=MIT' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dependency_policy=permissive-distributed-only' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'dedicated_server=bounded-headless-workload' "$PACKAGE_ROOT/PROVENANCE.txt"
+SERVER_OUTPUT="$("$SERVER")"
+grep -Fq 'KOOKIE G5 dedicated headless server' <<<"$SERVER_OUTPUT"
+grep -Fq 'graphics=none' <<<"$SERVER_OUTPUT"
+grep -Fq 'resource-plateau=true' <<<"$SERVER_OUTPUT"
+if ldd "$SERVER_BINARY" 2>/dev/null | grep -Eq 'SDL|Vulkan|X11|Wayland'; then
+  echo 'package smoke: dedicated server acquired a graphics dependency' >&2
+  exit 1
+fi
 "$BINARY" --package-smoke 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 authoritative shooter verified'
 
 if "$ROOT_DIR/scripts/package_kookie.sh" --runtime jvm \
@@ -60,6 +72,8 @@ if command -v glslc >/dev/null &&
   test -x "$PRESENTATION_ROOT/kookie"
   test -x "$PRESENTATION_ROOT/kookie.bin"
   test -x "$PRESENTATION_ROOT/kookie-smoke.bin"
+  test -x "$PRESENTATION_ROOT/kookie-server"
+  test -x "$PRESENTATION_ROOT/kookie-server.bin"
   test -f "$PRESENTATION_ROOT/build/libkookie_sdl_adapter.so"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
@@ -72,6 +86,8 @@ if command -v glslc >/dev/null &&
       exit 1
     }
   grep -Fq 'KOOKIE G1 authoritative shooter verified' <<<"$PRESENTATION_OUTPUT"
+  "$PRESENTATION_ROOT/kookie-server" |
+    grep -Fq 'resource-plateau=true'
   presentation_manifest_args=("$PRESENTATION_MANIFEST" presentation)
   presentation_status="archive"
 else
@@ -101,6 +117,7 @@ for index in range(0, len(arguments), 2):
     assert manifest["runtime"] == runtime
     assert manifest["signing"] == "unavailable"
     assert manifest["proof"] == "unavailable"
+    assert manifest["dedicated_server"] is True
 PY
 if env -u KOOKIE_WINDOWS_SDL_PREFIX -u KOOKIE_WINDOWS_SDL_MIXER_PREFIX \
    "$ROOT_DIR/scripts/package_kookie.sh" --target windows-x86_64 \

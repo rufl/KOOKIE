@@ -7,7 +7,7 @@ cd "$root_dir"
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
 
-python3 scripts/lint_kf.py src probes
+python3 scripts/lint_kf.py src probes apps
 python3 scripts/lsp_verify.py src
 python3 scripts/lsp_verify.py probes
 
@@ -18,6 +18,7 @@ kof test src --target native
 bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_interactions.sh
+bash scripts/verify_dedicated_server.sh
 bash scripts/verify_package.sh
 
 expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified\nKOOKIE G1 authoritative shooter verified'

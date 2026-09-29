@@ -1,0 +1,37 @@
+import session
+
+main() {
+    var invalid = BoundedDedicatedServer(65, 256, 512, 16, 64, 128)
+    assert(!invalid.configureReferenceWorkload(),
+        "reference workload must reject capacities above the declared G5 ceiling")
+
+    var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
+    assert(server.configureReferenceWorkload() && server.configured() &&
+        server.healthy(),
+        "dedicated server must configure the complete bounded reference workload")
+    var baseline = server.baselineResourceSignature()
+    assert(baseline > 0 && server.enemyCount() == 64 &&
+        server.projectileCount() == 256 && server.pickupCount() == 512,
+        "reference workload must own 64 enemies 256 projectiles and 512 pickups")
+    assert(!server.advance(-1) && server.ticksProcessed() == 0,
+        "dedicated server must reject invalid elapsed time without advancing")
+    assert(server.runTicks(256),
+        "dedicated server must complete repeated full workload cycles without graphics")
+    assert(server.ticksProcessed() == 256 &&
+        server.lastAiWork() == 16 && server.peakAiWork() == 16 &&
+        server.lastProjectileWork() == 64 &&
+        server.peakProjectileWork() == 64 &&
+        server.lastProjectileMoved() == 64 &&
+        server.lastPickupWork() == 128 && server.peakPickupWork() == 128,
+        "every tick must remain inside the declared AI projectile and pickup budgets")
+    assert(server.enemyCount() == 64 && server.projectileCount() == 256 &&
+        server.pickupCount() == 512 && server.resourcePlateau() &&
+        server.baselineResourceSignature() == baseline &&
+        server.droppedMicros() == 0 && server.overloadCount() == 0,
+        "logical resource counts and capacities must plateau after warm-up")
+    assert(server.workloadChecksum() > 0,
+        "bounded workload must produce observable deterministic work")
+    println("KOOKIE G5 dedicated headless workload verified")
+    println(server.workloadChecksum())
+    println(server.baselineResourceSignature())
+}

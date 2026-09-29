@@ -627,8 +627,13 @@ ficam fora deste gate.
 
 ### G5 — Escala e lançamento
 
-Adicionar servidor dedicado headless, orçamentos de carga, robustez de migração/replay,
-recuperação de reconexão/sessão, empacotamento e avisos.
+O primeiro slice limitado agora distribui no Linux uma carga de servidor sem
+gráficos usando os mesmos módulos de passo fixo, inimigos, projéteis e loot.
+Ela pré-aloca 64 inimigos, 256 projéteis e 512 itens, e avança orçamentos móveis
+de IA/projéteis/itens de 16/64/128 sem alterar capacidades lógicas. G5 ainda
+exige carga de referência em rede, orçamentos medidos de CPU/GPU, soak de
+RSS/recursos por 30 minutos, batching/instancing, robustez de migração/replay e
+qualificação de release da recuperação de reconexão/sessão.
 
 ### G6 — Expansão
 

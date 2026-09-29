@@ -4,6 +4,22 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-29
 
+### Primeiro slice limitado de escala G5 headless
+
+- Adicionamos `BoundedDedicatedServer`, uma carga de passo fixo sem gráficos
+  que usa os módulos reais de inimigos, projéteis e loot no mundo. A linha de
+  base declarada contém 64 inimigos, 256 projéteis móveis e 512 itens.
+- Adicionamos tetos móveis por tick de 16 estados de IA, 64 slots de projéteis
+  e 128 slots de itens. O avanço de projéteis espaciais agora pode cobrir um
+  intervalo rotativo limitado em vez de varrer todos os slots.
+- Adicionamos `apps/server`, sonda focada JVM/nativa, integração no pacote e
+  smoke fora do checkout. Os arquivos Linux contêm `kookie-server` e seu
+  binário Kof; o fechamento dinâmico contém apenas libc/libm, sem stack gráfica.
+- JVM e nativo produziram o mesmo checksum de carga `797255` e assinatura
+  lógica de recursos `675172` após 256 ticks. Isso não afirma tempo p95, carga
+  de referência em rede ou o soak de RSS exigido por 30 minutos; G5 continua
+  aberto.
+
 ### Conclusão do pipeline limitado G4 do criador
 
 - Expandimos módulos confiáveis do caminho de morte da elite para assinaturas

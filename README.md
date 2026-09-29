@@ -73,6 +73,9 @@ G0, G1, G2, G3 and the bounded G4 implementation run on JVM and native Linux x86
 - listener-relative distance attenuation and stereo panning computed in Kof,
   with allocation-free PCM submission to independent SDL_mixer effects and
   music buses.
+- a graphics-free Linux `kookie-server` workload runner preallocates the first
+  G5 reference load of 64 enemies, 256 moving projectiles and 512 pickups, then
+  schedules fixed per-tick AI/projectile/pickup work budgets of 16/64/128.
 
 The important gaps are still real:
 
@@ -88,9 +91,11 @@ The important gaps are still real:
   shaders, editor plugins or unbounded resource streaming;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
+- the bounded G5 reference load has matching JVM/native logical-capacity
+  plateau evidence for 256 simulated ticks, not measured p95 frame/simulation
+  time or a 30-minute RSS soak;
 - crash-durable saves, full physics, streamed/compressed audio and HRTF/EFX,
-  sustained G5 soak/performance proof, richer G6 authoring and sandboxed
-  runtime extensions remain unfinished.
+  richer G6 authoring and sandboxed runtime extensions remain unfinished.
 - the native Windows shell is interactive and persistent, but Kof cannot yet
   emit Windows PE gameplay code; its Play screen is not proof of authoritative
   Kof execution on Windows;
@@ -122,6 +127,11 @@ The builder emits a target-bound `.tar.gz`, `SHA256SUMS` and provenance JSON.
 Distributable JVM packages are intentionally unsupported because a Java
 runtime would violate KOOKIE's permissive-only distributed dependency policy.
 The JVM target remains available for local differential verification.
+
+Every Linux archive also includes `kookie-server`. Running it executes the
+fixed 256-tick headless reference workload and reports budgets, counts,
+checksum and logical resource plateau. It is not yet the networked sustained
+G5 server qualification.
 
 Cook authoring files and build or inspect one-chunk external packages with the
 JVM-only developer CLI:
@@ -251,6 +261,13 @@ and compatibility offer/response transport. The handshake passed across three
 isolated Linux network namespaces with distinct IPv4 stacks. This does not
 claim general source-format compatibility, arbitrary live-code reload, a
 production-grade editor or fresh qualification on three physical machines.
+The first G5 slice adds the graphics-free packaged workload runner, bounded
+rolling projectile work and the declared 64-enemy/256-projectile/512-pickup
+load with 16/64/128 work-unit ceilings. JVM and native produce the same
+checksum and stable logical resource signature across 256 ticks. G5 remains
+open for a networked reference run, hardware timings, 30-minute RSS/resource
+soak, render batching/instancing and remaining persistence/recovery hardening.
+
 G2 remains covered by the source suite, focused interaction probe, process
 qualification and isolated SDL_GPU/audio probe.
 

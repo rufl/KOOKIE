@@ -608,8 +608,13 @@ physical machines remain outside this gate.
 
 ### G5 — Scale and release
 
-Add headless dedicated server, workload budgets, migration/replay hardening,
-reconnect/session recovery, packaging and notices.
+The first bounded slice now ships a graphics-free Linux server workload using
+the same fixed-step, enemy, projectile and loot modules. It preallocates 64
+enemies, 256 projectiles and 512 pickups, and advances rolling
+AI/projectile/pickup budgets of 16/64/128 without changing logical capacities.
+G5 still requires the networked reference workload, measured CPU/GPU budgets,
+the 30-minute RSS/resource soak, batching/instancing, migration/replay
+hardening and reconnect/session release qualification.
 
 ### G6 — Expansion
 

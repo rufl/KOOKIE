@@ -257,9 +257,15 @@ atômica.
 
 G4 está completo para a implementação limitada resumida acima. Sua troca de
 compatibilidade usa o transporte de papéis de produção e processos separados,
-mas a qualificação retida não é uma execução recente em três máquinas. G5
-mantém a aceitação sustentada de carga, RSS e orçamento de frame; `FFI001`
-ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
+mas a qualificação retida não é uma execução recente em três máquinas. O
+primeiro slice G5 agora executa 64 inimigos, 256 projéteis móveis e 512 itens
+sem gráficos sob orçamentos móveis de 16/64/128. JVM/nativo produzem o mesmo
+checksum `797255`; a assinatura lógica de recursos `675172` permanece
+inalterada por 256 ticks, e o pacote Linux executa o mesmo servidor fora do
+checkout. Isso não é evidência de tempo p95 ou RSS. G5 ainda exige carga de
+referência em rede, soak de 30 minutos, orçamentos de frame/simulação em
+hardware e o reforço restante de release; `FFI001` ainda bloqueia chamadas Kof
+com buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

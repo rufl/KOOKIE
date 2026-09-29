@@ -803,8 +803,8 @@ class BoundedWorldLoot {
         if (actualCapacity <= 0) {
             actualCapacity = 1
         }
-        if (actualCapacity > 8) {
-            actualCapacity = 8
+        if (actualCapacity > 512) {
+            actualCapacity = 512
         }
         stableIds = new Int[actualCapacity]
         sourceIds = new Int[actualCapacity]

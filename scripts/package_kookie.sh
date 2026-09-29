@@ -18,9 +18,10 @@ Usage: scripts/package_kookie.sh [--runtime native|presentation] [--target linux
 Builds an immutable KOOKIE archive and SHA256SUMS. Native Linux packages
 contain the Kof executable and use the host's system runtime. Presentation
 packages contain the persistent native Kof SDL_GPU application, SDL3,
-SDL_mixer, the adapter, and shaders. Windows packages contain the native SDL3
-and SDL_mixer game shell. Java runtimes are deliberately excluded from
-distributable packages.
+SDL_mixer, the adapter, and shaders. Every Linux package also contains the
+graphics-free Kof dedicated workload server. Windows packages contain the
+native SDL3 and SDL_mixer game shell. Java runtimes are deliberately excluded
+from distributable packages.
 EOF
 }
 
@@ -163,6 +164,38 @@ EOF
   chmod 755 "$PACKAGE_ROOT/kookie"
 }
 
+bundle_linux_server() {
+  local server_root="$WORK_DIR/server-source"
+  local server_build="$WORK_DIR/server-build"
+  mkdir -p "$server_root"/{core,content,session}
+  cp -- "$ROOT_DIR/apps/server/main.kf" "$server_root/main.kf"
+  for module in core content session; do
+    for source in "$ROOT_DIR/src/$module/"*.kf; do
+      ln -s -- "$source" "$server_root/$module/$(basename "$source")"
+    done
+  done
+  kof build "$server_root/main.kf" --target native \
+    --output "$server_build" >/dev/null
+  local server_binary="$server_build/Default/Main"
+  test -x "$server_binary" || {
+    echo "package_kookie: dedicated server executable missing: $server_binary" >&2
+    exit 1
+  }
+  cp -- "$server_binary" "$PACKAGE_ROOT/kookie-server.bin"
+  chmod 755 "$PACKAGE_ROOT/kookie-server.bin"
+  cat > "$PACKAGE_ROOT/kookie-server" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ "$#" -ne 0 ]; then
+  echo "Usage: kookie-server" >&2
+  exit 2
+fi
+exec "$root/kookie-server.bin"
+EOF
+  chmod 755 "$PACKAGE_ROOT/kookie-server"
+}
+
 if [[ "$TARGET" == windows-x86_64 ]]; then
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -s -Wl,/subsystem:windows \
@@ -219,6 +252,9 @@ else
   cp -- "$SMOKE_BINARY" "$PACKAGE_ROOT/kookie-smoke.bin"
   chmod 755 "$PACKAGE_ROOT/kookie-smoke.bin"
 fi
+if [[ "$TARGET" == linux-x86_64 ]]; then
+  bundle_linux_server
+fi
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
 if [[ "$TARGET" == windows-x86_64 ]]; then
   cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.txt"
@@ -241,6 +277,7 @@ dependency_policy=permissive-distributed-only
 sdl_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.4.16 || echo not-bundled)
 sdl_mixer_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.2.4 || echo not-bundled)
 runtime_dependencies=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo SDL3+SDL_mixer || echo system-only)
+dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload || echo unavailable)
 EOF
 rm -f -- "$ARCHIVE"
 if [[ "$TARGET" == windows-x86_64 ]]; then
@@ -268,6 +305,7 @@ manifest = {
     "archive": archive.name,
     "size": archive.stat().st_size,
     "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+    "dedicated_server": target == "linux-x86_64",
     "signing": "unavailable",
     "proof": "unavailable",
     "url": f"{encoded}/{archive.name}",

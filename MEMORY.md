@@ -266,9 +266,15 @@ elite/boss rules atomically.
 
 G4 is complete for the bounded implementation summarized above. Its
 compatibility exchange uses production role transport and separate processes,
-but the retained qualification is not a fresh three-machine run. G5 retains
-sustained workload, RSS and frame-budget acceptance; `FFI001` still blocks Kof
-bulk-buffer calls into the optional SIMD kernel.
+but the retained qualification is not a fresh three-machine run. The first G5
+slice now runs 64 enemies, 256 moving projectiles and 512 pickups without
+graphics under 16/64/128 rolling work budgets. JVM/native match checksum
+`797255`; logical resource signature `675172` remains unchanged across 256
+ticks, and the Linux archive runs the same server outside the checkout. This
+is not p95 timing or RSS evidence. G5 still requires the networked reference
+workload, a 30-minute soak, hardware frame/simulation budgets and remaining
+release hardening; `FFI001` still blocks Kof bulk-buffer calls into the optional
+SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

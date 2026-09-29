@@ -798,6 +798,15 @@ geral de formatos, reload arbitrário de código/shader, editor de produção e
 qualificação recente em três máquinas físicas ficam explicitamente fora dessa
 afirmação.
 
+O primeiro slice G5 limitado agora executa a população exata de 64 inimigos,
+256 projéteis móveis e 512 itens coletáveis em um servidor Kof sem gráficos.
+Os limites móveis admitem 16 estados de IA, 64 slots de projéteis e 128 slots
+de itens por tick. `scripts/verify_dedicated_server.sh` executa 256 ticks na
+JVM e no nativo com checksum igual `797255` e assinatura lógica de recursos
+`675172` inalterada; o arquivo Linux executa o mesmo binário fora do checkout
+sem dependência de SDL/X11/Wayland/Vulkan. Isso é evidência de correção e
+capacidade lógica, não de tempo p95 atingido, carga de rede ou soak de RSS.
+
 ### Hipóteses iniciais de desempenho, não números alcançados
 
 Cena de referência para o primeiro estágio de escala: 64 inimigos ativos, 256 projéteis em movimento, 512 itens coletáveis, luzes/efeitos dinâmicos limitados e um nível médio criado manualmente. Mantenha uma variante de estresse mais pesada após a correção da linha de base; não alegue escalabilidade arbitrária da população.
