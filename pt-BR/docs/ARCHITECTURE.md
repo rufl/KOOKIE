@@ -1,6 +1,6 @@
 # Arquitetura do projeto KOOKIE
 
-Status: **arquitetura-alvo viva; G0/G1/G2/G3 estão implementados e G4 é o próximo gate**.
+Status: **arquitetura-alvo viva; G0/G1/G2/G3 estão implementados e G4 possui seu primeiro slice vertical transacional**.
 
 
 Este documento é a autoridade de arquitetura no nível do projeto. Os experimentos
@@ -127,14 +127,15 @@ A apresentação não pode gravar em arrays autoritativos nem conceder resultado
 
 O slice limitado implementado segue essa fronteira: resoluções autoritativas de
 combate emitem registros `ImpactPresentationEvent` monotônicos; lotes ordenados
-de feedback levam cada evento confirmado às filas limitadas de HUD/áudio do
-cliente. O HUD deriva geometria de acerto/eliminação/dano limitada por tick,
-além de estados de conexão, encounter, ameaça/derrota de elite/chefe e
-inventário/equipamento/skill/loot G3 distinguíveis pela forma. Overflow de
-apresentação é diagnosticado e nunca desfaz estado autoritativo. Portas 3D
-criadas adicionam um cuboide de 36 vértices entre a arena de 78 e o HUD de 312;
-a cena fixa atual tem 426 vértices. O Kof deriva atenuação por distância e pan
-estéreo antes do envio de canais PCM esquerdo/direito pelo adaptador nativo.
+de feedback levam cada evento confirmado às filas limitadas de HUD/áudio do cliente.
+O HUD deriva geometria limitada por tick de acerto/eliminação/dano, além de
+estados de conexão, encounter, ameaça/derrota de elite/chefe,
+inventário/equipamento/skill/loot G3 e publicação de criador G4 distinguíveis
+pela forma. Overflow de apresentação é diagnosticado e nunca desfaz estado
+autoritativo. Portas 3D criadas adicionam um cuboide de 36 vértices entre a
+arena de 78 e o HUD de 372; a cena fixa atual tem 486 vértices. O Kof deriva
+atenuação por distância e pan estéreo antes do envio de canais PCM
+esquerdo/direito pelo adaptador nativo.
 
 
 ### Adaptador nativo
@@ -282,6 +283,13 @@ As operações públicas das extensões são:
 Os sistemas são executados na ordem das dependências, depois pela prioridade
 declarada e, por fim, pelo ID com namespace. Conflitos e falhas de capacidade
 fazem o sistema falhar de forma segura, com diagnósticos.
+
+O primeiro slice G4 implementado transforma essas declarações em metadados
+executáveis, não callbacks arbitrários: `BoundedTrustedModuleRegistry` vincula
+no máximo 32 IDs de hooks compilados estaticamente às contribuições declaradas
+no manifesto, fase e orçamentos de comandos/eventos. O registro os sela na
+ordem de dependência/carga/prioridade. Isso não implica execução dos hooks nem
+acesso mutável ao núcleo.
 
 ## 6. Pipeline de conteúdo e assets
 
@@ -555,8 +563,14 @@ partir dessas definições.
 
 ### G4 — Pipeline de criação e extensões
 
-Adicionar cooker de pacotes, mods de dados, módulos Kof confiáveis, registries, manifestos,
-transações do editor e publicação em etapas de conteúdo multiplayer.
+Em andamento: o primeiro slice vincula pacotes, manifestos de extensão,
+declarações de hooks confiáveis, definições de inimigos e produtos alinhados de
+geometria/colisão/navegação/replicação numa identidade de compatibilidade
+verificada por revisão. Transações obsoletas ou inválidas preservam a geração
+ativa; a admissão por identidade exata do cliente e um segundo exemplo
+multiplayer orientado por definições executam. Entrada de arquivos de autoria,
+execução de hooks, inspector/editores e recarregamento ao vivo em etapas
+continuam abertos.
 
 ### G5 — Escala e lançamento
 

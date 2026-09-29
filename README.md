@@ -7,7 +7,7 @@ The doors have prerequisites. The network has prerequisites. Calling this finish
 
 ## The honest status
 
-G0, G1, G2 and G3 run on JVM and native Linux x86-64:
+G0, G1, G2, G3 and the first bounded G4 vertical slice run on JVM and native Linux x86-64:
 
 - authoritative 60 Hz loopback server/client sessions, two-client admission,
   snapshots and observable prediction/reconciliation;
@@ -20,9 +20,10 @@ G0, G1, G2 and G3 run on JVM and native Linux x86-64:
 - camera, bounded world staging and a semantic combat HUD with framed
   health/ammo indicators, a connection glyph, active/reserve encounter load,
   a focus-responsive crosshair, hit/kill markers, edge damage warnings,
-  shape-backed inventory/equipment/skill/world-loot state and structural
-  elite/boss threat/defeat cues; SDL_GPU uploads the fixed 426-vertex
-  arena/door/HUD scene without per-frame buffer growth;
+  shape-backed inventory/equipment/skill/world-loot state, structural
+  elite/boss threat cues and a source→validation→publication creator rail;
+  SDL_GPU uploads the fixed 486-vertex arena/door/HUD scene (372 HUD vertices)
+  without per-frame buffer growth;
 - cooperative key, 3D door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
@@ -32,6 +33,11 @@ G0, G1, G2 and G3 run on JVM and native Linux x86-64:
 - bounded public extension manifests, dependencies, capabilities and
   deterministic content contributions, plus sealed data-defined elite/boss
   combat, behavior, loot, progression and currency rules;
+- a first transactional G4 path that binds package, extension, trusted-hook,
+  enemy-definition and geometry/collision/navigation/replication checksums into
+  a 13-word compatibility identity; stale or invalid edits retain the active
+  generation, and a second two-player sample uses only public definitions and
+  extension/session APIs;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
   regressions carry the complete 26-triangle arena, unified checksummed
   movement/fire/interaction/lifecycle commands, recipient-specific gameplay
@@ -47,14 +53,16 @@ G0, G1, G2 and G3 run on JVM and native Linux x86-64:
 
 The important gaps are still real:
 
-- G3 process qualification is same-host; separate-host execution remains
-  unproven, and the G4 cooker, trusted-module hooks and staged content
-  publication are not implemented;
+- G3 process qualification remains same-host, G4 content-identity admission is
+  currently in-process, and separate-host execution remains unproven;
+- G4 remains open for trusted-hook execution, the complete supported
+  mesh/brush/source cooker intake, external package loading, inspector/editors
+  and GPU-safe staged reload;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
-- crash-durable saves, content cooking, full physics, streamed/compressed
-  audio and HRTF/EFX, sustained G5 soak/performance proof and the creator
-  pipeline are unfinished.
+- crash-durable saves, full physics, streamed/compressed audio and HRTF/EFX,
+  sustained G5 soak/performance proof and the complete creator pipeline are
+  unfinished.
 
 If a claim is not backed by a focused test or probe, it is not presented as
 done.

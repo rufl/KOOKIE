@@ -1,6 +1,6 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura e gates de aceitação vivos; G0/G1/G2/G3 estão implementados e G4 é o próximo gate**.
+Status: **arquitetura e gates de aceitação vivos; G0/G1/G2/G3 estão implementados, e G4 possui seu primeiro slice vertical transacional**.
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
@@ -210,7 +210,7 @@ staging pode evitar FFI por byte **somente** quando Kof validou/preparou o
 formato, offset e tamanho; o adaptador não pode se tornar um parser/cooker de
 assets. Pequenas sondas de `File.writeBytes/readBytes/readRange` preservaram
 bytes zero/de bit alto na JVM/nativo. O renderer implementado agora envia uma
-cena fixa de 426 vértices de arena/porta/HUD por chamadas escalares verificadas
+cena fixa de 486 vértices de arena/porta/HUD por chamadas escalares verificadas
 e buffers nativos persistentes. Casos grandes/de erro por intervalo e um
 adaptador real de buffer em massa ainda não foram comprovados.
 
@@ -596,6 +596,17 @@ explícito, limites e verificações de corrupção. Rejeite traversal, IDs dupl
 payloads sobrepostos/fora do intervalo e overrun de descompressão. Não serialize a
 memória de objetos do Kof nem cabeçalhos de arrays internos.
 
+O primeiro slice vertical G4 implementado consome o `BoundedContentPackage`
+selado e os produtos existentes do cooker GLB canônico. Ele prepara checksums
+do pacote, extensão, declaração de hook confiável, definição de inimigo e
+geometria/colisão/navegação/replicação, verifica a revisão da geração ativa e
+então publica os quatro produtos atomicamente. Sua identidade de compatibilidade
+de 13 palavras vincula engine/API/schema de rede e todos os checksums de
+conteúdo para admissão exata no mesmo processo. Transações obsoletas,
+incompletas, divergentes ou inválidas preservam a geração anterior. Isso não
+comprova os leitores restantes de formatos-fonte, uma CLI de cooker orientada a
+arquivos nem substituição ao vivo de recursos da GPU.
+
 O JSON nativo de registros mistos Int/Double/String falhou no round-trip medido,
 incluindo valores numéricos/string corrompidos; getters diretos de registros foram
 aprovados. Antes de adotar JSON nativo para definições, glTF ou saves, exija um
@@ -692,14 +703,14 @@ uma arma/inimigo e limpa movimento/disparo mantidos na perda de foco. A arena
 criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degraus e
 salas empilhadas; o servidor replica triângulos e limites explícitos para o
 cliente. Câmera, staging do mundo e HUD semântico de combate alimentam uma cena
-nativa SDL_GPU fixa de 426 vértices: 78 da arena, 36 da porta e 312 do HUD para
+nativa SDL_GPU fixa de 486 vértices: 78 da arena, 36 da porta e 372 do HUD para
 vida/munição, glifo de conexão distinguível pela forma, carga ativa/reserva do
-encounter, marcadores confirmados de acerto/eliminação, alertas laterais de dano,
-estado estrutural de inventário/equipamento/skill/loot e sinais de
-ameaça/derrota de elite/chefe distinguíveis pela forma e derivados da
-autoridade. O evento confirmado de hitscan local também alcança filas limitadas
-de replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou
-e leu a cena limitada, e 75/75 testes passam na JVM e no nativo. A evidência de
+encounter, marcadores confirmados de acerto/eliminação, alertas laterais de
+dano, estado estrutural de inventário/equipamento/skill/loot, sinais de
+ameaça/derrota de elite/chefe e um rail estrutural de publicação do criador. O
+evento confirmado de hitscan local também alcança filas limitadas de
+replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
+leu a cena limitada, e 77/77 testes passam na JVM e no nativo. A evidência de
 ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
 capacidades Kof inalteradas e buffers nativos persistentes; o soak de
 RSS/desempenho por 30 minutos permanece em G5.
@@ -717,7 +728,7 @@ inicial publica baselines no tick zero de gameplay, feedback e encounter;
 gerações obsoletas são rejeitadas antes da admissão da sequência. As portas
 usam semieixos criados para colisão 3D completa por segmento/AABB e geram um
 cuboide de 36 vértices projetado pela câmera; a sonda GPU nativa headless
-desenha a cena resultante de arena/porta/HUD com 426 vértices. O transporte de
+desenha a cena resultante de arena/porta/HUD com 486 vértices. O transporte de
 feedback preserva a ordem de vários eventos, rejeita duplicatas e lacunas sem
 apresentação parcial e retoma pelo baseline da nova geração. O Kof calcula
 atenuação por distância e pan estéreo relativos ao listener, enquanto o
@@ -738,8 +749,16 @@ controlam combate, comportamento, loot, progressão e moeda;
 contratos de recompensa. Schemas com checksum preservam inventário completo e
 identidade do RNG; os tipos `7`/`8` atravessam processos autenticados na mesma
 máquina com host mais dois clientes na JVM e no nativo. Execução entre máquinas
-continua não comprovada. G4 ainda contém o cooker, hooks de módulos confiáveis,
-transações do editor e publicação em etapas de conteúdo multiplayer.
+continua não comprovada. O primeiro slice limitado de G4 agora sela declarações
+determinísticas de hooks confiáveis com fase e orçamentos de comandos/eventos;
+vincula checksums de pacote, manifesto, hook, definição e produtos alinhados
+numa identidade de compatibilidade versionada; rejeita conteúdo obsoleto ou
+divergente sem substituir a geração ativa; e executa um segundo encontro com
+dois jogadores, orientado por definições, por APIs públicas de extensão/sessão.
+Execução de hooks confiáveis, formatos-fonte adicionais do cooker, carregamento
+externo de pacotes, inspector/editores, recarregamento ao vivo em etapas e
+transporte do handshake de compatibilidade continuam abertos; portanto G4 não
+está encerrado.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

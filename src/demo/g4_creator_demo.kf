@@ -1,0 +1,211 @@
+package demo
+
+import core
+import content
+import session
+
+class G4CreatorDemo {
+    LoopbackSession multiplayer
+    BoundedCreatorPublication publication
+    BoundedGenerationCache generations
+    Int failureStepValue
+    Bool completedValue
+
+    public constructor() {
+        multiplayer = LoopbackSession(12, 8)
+        publication = BoundedCreatorPublication()
+        generations = BoundedGenerationCache(2)
+        failureStepValue = 0
+        completedValue = false
+    }
+
+    Bool failAt(Int step) {
+        failureStepValue = step
+        return false
+    }
+
+    Bool publishCreatorContent() {
+        var extensions = BoundedExtensionRegistry(1, 1, 2, 2)
+        if (!extensions.registerManifest(8, 1, 2, 3, 4) ||
+            !extensions.setLoadOrder(8, 1, 10) ||
+            !extensions.setProvenance(8, 1, 801) ||
+            !extensions.setSchemas(8, 1, 2, 9) ||
+            !extensions.grantCapability(
+                8, 1, extensionContributionEnemyDefinitionKind()) ||
+            !extensions.grantCapability(
+                8, 1, extensionContributionTrustedHookKind()) ||
+            !extensions.registerContribution(
+                8, 1, extensionContributionEnemyDefinitionKind(), 2001, 20) ||
+            !extensions.registerContribution(
+                8, 1, extensionContributionTrustedHookKind(), 3001, 10)) {
+            return failAt(1)
+        }
+        var hooks = BoundedTrustedModuleRegistry(1)
+        if (!hooks.defineHook(
+                extensions, 8, 1, 3001,
+                trustedHookPostSimulationPhase()) ||
+            !hooks.setBudget(8, 1, 3001, 8, 4) ||
+            !extensions.seal() || !hooks.seal(extensions)) {
+            return failAt(2)
+        }
+        var definitions = BoundedEnemyDefinitionRegistry(1)
+        if (!definitions.define(
+                8, 2001, 1, enemyDefinitionEliteKind()) ||
+            !definitions.setCombat(8, 2001, 12, 2, 51) ||
+            !definitions.setBehavior(8, 2001, 2, 2, 3) ||
+            !definitions.setCritical(8, 2001, 0) ||
+            !definitions.setLoot(8, 2001, 4000, 91, 6) ||
+            !definitions.setRankCurrency(
+                8, 2001, enemyDefinitionEliteKind(), 5) ||
+            !definitions.seal()) {
+            return failAt(3)
+        }
+        var packageValue = BoundedContentPackage(1, 1, 1)
+        if (!packageValue.configureHeader(7, 4, 1, 1, 100) ||
+            !packageValue.addAsset(8, 2001, 3, 1, 811, 812, 15) ||
+            !packageValue.addChunk(1, 9, 0, 64, 813, 814, 1) ||
+            !packageValue.seal()) {
+            return failAt(4)
+        }
+        if (!publication.begin(0, 1) ||
+            !publication.stagePackage(packageValue, 7) ||
+            !publication.stageExtensions(extensions, hooks, 2) ||
+            !publication.stageDefinitions(definitions) ||
+            !publication.stageProducts(901, 902, 903, packageValue.checksum()) ||
+            !publication.validate(generations) ||
+            !publication.publish(generations)) {
+            return failAt(5)
+        }
+        var active = publication.activeCompatibility()
+        if (!active.encode()) {
+            return failAt(6)
+        }
+        var wire = new Int[active.encodedLength()]
+        for (var index = 0; index < wire.length; index = index + 1) {
+            wire[index] = active.encodedWord(index)
+        }
+        var client = BoundedContentCompatibility()
+        if (!client.decode(wire) || !publication.admit(client)) {
+            return failAt(7)
+        }
+        return true
+    }
+
+    Bool configureMultiplayerSample() {
+        if (!multiplayer.registerExtensionManifest(8, 1, 2, 3, 4) ||
+            !multiplayer.configureExtensionLoadOrder(8, 1, 10) ||
+            !multiplayer.configureExtensionProvenance(8, 1, 801) ||
+            !multiplayer.configureExtensionSchemas(8, 1, 2, 9) ||
+            !multiplayer.grantExtensionCapability(
+                8, 1, extensionContributionEnemyDefinitionKind()) ||
+            !multiplayer.grantExtensionCapability(
+                8, 1, extensionContributionTrustedHookKind()) ||
+            !multiplayer.registerExtensionContribution(
+                8, 1, extensionContributionEnemyDefinitionKind(), 2001, 20) ||
+            !multiplayer.registerExtensionContribution(
+                8, 1, extensionContributionTrustedHookKind(), 3001, 10)) {
+            return failAt(8)
+        }
+        if (!multiplayer.defineEnemyDefinition(
+                8, 1, 2001, 1, enemyDefinitionEliteKind()) ||
+            !multiplayer.setEnemyDefinitionCombat(8, 2001, 12, 2, 51) ||
+            !multiplayer.setEnemyDefinitionBehavior(8, 2001, 2, 2, 3) ||
+            !multiplayer.setEnemyDefinitionCritical(8, 2001, 0) ||
+            !multiplayer.setEnemyDefinitionLoot(8, 2001, 4000, 91, 6) ||
+            !multiplayer.setEnemyDefinitionRankCurrency(
+                8, 2001, enemyDefinitionEliteKind(), 5)) {
+            return failAt(9)
+        }
+        if (!multiplayer.configureEnemyRules(100, 5, 1) ||
+            !multiplayer.defineEnemyWeapon(51, 3, 0, 14, 0) ||
+            !multiplayer.setEnemyWeaponRange(51, 20) ||
+            !multiplayer.defineEnemyEncounter(12, 1, 1) ||
+            !multiplayer.start() || multiplayer.connectPlayer() != 1 ||
+            multiplayer.connectPlayer() != 2 || multiplayer.playerCount() != 2) {
+            return failAt(10)
+        }
+        var active = publication.activeCompatibility()
+        if (multiplayer.extensionRegistryChecksum() != active.extensionChecksum() ||
+            multiplayer.enemyDefinitionChecksum() != active.definitionChecksum()) {
+            return failAt(11)
+        }
+        if (!multiplayer.addPlayerCombatActor(1, 100, 0) ||
+            !multiplayer.addPlayerCombatActor(2, 100, 0) ||
+            !multiplayer.addEnemyCombatActor(1, 100, 0) ||
+            !multiplayer.equipEnemyCombatWeapon(1, 51) ||
+            !multiplayer.defineLootAffixPool(1) ||
+            !multiplayer.addLootAffix(1, 21, 1) ||
+            !multiplayer.defineLootAffixStat(21, 2, 0, 0) ||
+            !multiplayer.defineLootItem(601, 8, 1, 8, 1) ||
+            !multiplayer.addLootTableEntry(601, 1)) {
+            return failAt(12)
+        }
+        if (!multiplayer.admitDefinedEnemy(12, 100, 8, 2001) ||
+            multiplayer.enemyKind(100) != enemyDefinitionEliteKind() ||
+            multiplayer.enemyCombatHealth(100) != 12) {
+            return failAt(13)
+        }
+        return true
+    }
+
+    Bool run() {
+        completedValue = false
+        failureStepValue = 0
+        if (!publishCreatorContent() || !configureMultiplayerSample()) {
+            return false
+        }
+        var death = multiplayer.resolveEnemyHitscan(1, 100, 1, 1, 0)
+        if (!death.accepted() || !death.died() || death.applied() != 12 ||
+            multiplayer.worldLootCount() != 1 ||
+            multiplayer.worldLootStableId(0) != 4100 ||
+            multiplayer.worldLootRank(0) != enemyDefinitionEliteKind()) {
+            return failAt(14)
+        }
+        var encounter = multiplayer.enemyEncounterStateMessage(0, 12)
+        var playerOne = multiplayer.playerAuthorityStateMessage(0, 1)
+        var playerTwo = multiplayer.playerAuthorityStateMessage(0, 2)
+        var loot = multiplayer.worldLootStateMessage(0, 1)
+        if (!validEnemyEncounterStateMessage(encounter) ||
+            !validPlayerAuthorityStateMessage(playerOne) ||
+            !validPlayerAuthorityStateMessage(playerTwo) ||
+            !validWorldLootStateMessage(loot) ||
+            enemyEncounterStateEnemyState(encounter, 0) != 7 ||
+            worldLootStateValue(loot, 0, 0) != 4100) {
+            return failAt(15)
+        }
+        completedValue = true
+        return true
+    }
+
+    Bool completed() {
+        return completedValue
+    }
+
+    Int failureStep() {
+        return failureStepValue
+    }
+
+    Int publishedGeneration() {
+        return publication.activeGeneration()
+    }
+
+    Int publicationStatus() {
+        return publication.status()
+    }
+
+    Int publicationDiagnostic() {
+        return publication.diagnostic()
+    }
+
+    Int playerCount() {
+        return multiplayer.playerCount()
+    }
+
+    Int worldLootCount() {
+        return multiplayer.worldLootCount()
+    }
+
+    Int worldLootStableId() {
+        return multiplayer.worldLootStableId(0)
+    }
+}

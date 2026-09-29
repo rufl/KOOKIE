@@ -147,9 +147,9 @@ if [[ "$RUNTIME" == native ]]; then
   bundle_linux_native "$BINARY" 0
 elif [[ "$RUNTIME" == presentation ]]; then
   PRESENTATION_ROOT="$WORK_DIR/presentation"
-  mkdir -p "$PRESENTATION_ROOT"/{core,session,world,ui,demo} "$PACKAGE_ROOT/build"
+  mkdir -p "$PRESENTATION_ROOT"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
   cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" "$PRESENTATION_ROOT/main.kf"
-  for module in core session world ui demo; do
+  for module in core content session world ui demo; do
     for source in "$ROOT_DIR/src/$module/"*.kf; do
       ln -s -- "$source" "$PRESENTATION_ROOT/$module/$(basename "$source")"
     done

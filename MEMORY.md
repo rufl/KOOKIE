@@ -1,6 +1,6 @@
 # KOOKIE working memory
 
-Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete.
+Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, and G4 has its first transactional vertical slice.
 
 ## Current qualification batch
 
@@ -12,18 +12,18 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete.
 - `G1Arena` owns 78 vertices/26 triangles for lower floor, ramp, upper
   platform, two stair steps and stacked rooms. Server snapshots include
   explicit bounds and all triangles; client upper/lower-floor queries pass.
-- World, door and semantic HUD staging uses 426 fixed vertices: 78 arena, 36
-  door and 312 HUD vertices for framed health/ammo tracks, structural icons, a
+- World, door and semantic HUD staging uses 486 fixed vertices: 78 arena, 36
+  door and 372 HUD vertices for framed health/ammo tracks, structural icons, a
   shape-distinct connection glyph, active/reserve encounter load, a
   focus-responsive crosshair, hit/kill markers, edge damage warnings,
-  inventory/equipment/skill/world-loot state and shape-distinct elite/boss
-  threat/defeat cues. Feedback expires by simulation tick and rejects duplicate
-  event sequences. The native SDL_GPU bridge owns persistent scene buffers and
-  a 16-color semantic palette; no-per-frame-growth proof remains bounded to
-  unchanged staging capacities.
+  inventory/equipment/skill/world-loot state, shape-distinct elite/boss cues
+  and a creator source→validation→publication rail. Feedback expires by
+  simulation tick and rejects duplicate event sequences. The native SDL_GPU
+  bridge owns persistent scene buffers and a 16-color semantic palette;
+  no-per-frame-growth proof remains bounded to unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- JVM/native checks and 75/75 source scenarios pass on each target; the
+- JVM/native checks and 77/77 source scenarios pass on each target; the
   executable G1 runtime markers remain identical.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
@@ -41,23 +41,38 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete.
   state kinds 7/8 replicate complete per-player authority and world drops
   through loopback and same-host JVM/native external processes; save section 12
   preserves drops and reward claims. Separate-host execution remains unproven.
+- G4 is in progress. The first slice publishes a sealed package, extension
+  manifest, trusted-hook declarations, enemy definitions and aligned
+  geometry/collision/navigation/replication products under one exact
+  compatibility identity. Stale/invalid edits retain the prior generation, and
+  a second two-player definition-driven encounter executes. Hook execution,
+  remaining source formats, external package loading, editor tooling, live
+  staged reload and transport qualification remain open.
 
 ## Latest implementation batch
 
-- Added `BoundedExtensionRegistry`: versioned manifests, declared dependency
-  order, capabilities, namespaced content contributions, deterministic
-  load/priority resolution, fail-closed diagnostics and immutable checksums.
-- Added `BoundedEnemyDefinitionRegistry` and
-  `LoopbackSession.admitDefinedEnemy`. Sealed elite/boss definitions own combat,
-  behavior, deterministic instance loot, progression and currency; actor and
-  reward registration commit atomically. G1, G3 and external transport paths
-  now instantiate these definitions instead of configuring elite/boss rewards
-  per enemy.
-- Added a fixed structural elite/boss threat/defeat rail to the HUD. The G1
-  presentation derives its defeated-boss state from the authoritative
-  data-defined kill while retaining fixed staging capacity.
-- The focused source gate is 75 JVM/native scenarios. JVM/native same-host
-  transport, Kof lint/LSP and isolated SDL_GPU presentation pass; the full
+- Added `BoundedTrustedModuleRegistry`: at most 32 static hook declarations,
+  each tied to a manifest capability/contribution, phase and bounded
+  command/event budgets, sealed in dependency/load/priority order.
+- Added `BoundedCreatorPublication` and `BoundedContentCompatibility`: a
+  revision-checked transaction binds package, extension, hook, definition and
+  four product checksums; a 13-word wire identity rejects API/network/content
+  mismatches, and failed publication leaves the active generation intact.
+- Added `G4CreatorDemo`, a distinct two-player extension/definition-driven
+  elite encounter using public engine APIs. Its deterministic death publishes
+  encounter, player-authority and world-loot state.
+- Extended the HUD to 372 fixed vertices with a structural
+  source→validation→publication rail and separate success/failure marks.
+  Creator/threat staging now uses small fixed-coordinate helpers so native and
+  JVM structural vertices remain exact. The full scene remains below the native
+  512-vertex capacity at 486 vertices.
+- Existing `BoundedExtensionRegistry` and `BoundedEnemyDefinitionRegistry`
+  remain the manifest and data-definition foundations used by G1, G3, the
+  external transport probe and the new creator transaction.
+- The focused source gate is 77 JVM/native scenarios. Kof checks, lint and LSP
+  pass. Isolated Wayland SDL_GPU presentation passes at 320×240 with present
+  capability `11`, an 11,270 µs draw and frame checksum `30,358,034`; visual
+  review found no clipping or overlap in the creator/threat panels. The full
   repository matrix was not run locally.
 
 ## Earlier batches

@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estão completos.
+As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estão completos, e G4 possui seu primeiro slice vertical transacional.
 
 ## Lote atual de qualificação
 
@@ -13,20 +13,20 @@ As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estã
   plataforma superior, dois degraus e salas empilhadas. Snapshots do servidor
   incluem limites explícitos e todos os triângulos; consultas do cliente aos
   andares superior/inferior passam.
-- O staging de mundo, porta e HUD semântico usa 426 vértices fixos: 78 da
-  arena, 36 da porta e 312 do HUD para tracks emolduradas de vida/munição,
+- O staging de mundo, porta e HUD semântico usa 486 vértices fixos: 78 da
+  arena, 36 da porta e 372 do HUD para tracks emolduradas de vida/munição,
   ícones estruturais, glifo de conexão distinguível pela forma, carga
   ativa/reserva do encounter, mira responsiva ao foco, marcadores de
   acerto/eliminação, alertas laterais de dano, estado estrutural de
-  inventário/equipamento/skill/loot e sinais de ameaça/derrota de elite/chefe
-  distinguíveis pela forma. O feedback expira por tick e rejeita sequências
-  duplicadas. A ponte SDL_GPU mantém buffers persistentes e uma paleta
-  semântica de 16 cores; a prova sem crescimento por frame fica limitada às
-  capacidades inalteradas.
+  inventário/equipamento/skill/loot, sinais de elite/chefe distinguíveis pela
+  forma e um rail do criador fonte→validação→publicação. O feedback expira por
+  tick e rejeita sequências duplicadas. A ponte SDL_GPU mantém buffers
+  persistentes e uma paleta semântica de 16 cores; a prova sem crescimento por
+  frame fica limitada às capacidades inalteradas.
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- Checks e 75/75 cenários-fonte passam na JVM e no nativo; os marcadores
+- Checks e 77/77 cenários-fonte passam na JVM e no nativo; os marcadores
   executáveis de runtime G1 permanecem idênticos.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
@@ -46,25 +46,41 @@ As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estã
   processos externos na mesma máquina na JVM/no nativo; a seção 12 do save
   preserva drops e reivindicações de recompensa. Execução entre máquinas
   continua não comprovada.
+- G4 está em andamento. O primeiro slice publica pacote selado, manifesto de
+  extensão, declarações de hooks confiáveis, definições de inimigos e produtos
+  alinhados de geometria/colisão/navegação/replicação sob uma identidade exata
+  de compatibilidade. Edições obsoletas/inválidas preservam a geração anterior,
+  e um segundo encontro com dois jogadores orientado por definições executa.
+  Execução de hooks, formatos-fonte restantes, carregamento externo de pacotes,
+  ferramentas de edição, recarregamento ao vivo em etapas e qualificação do
+  transporte continuam abertos.
 
 ## Lote de implementação mais recente
 
-- Adicionamos `BoundedExtensionRegistry`: manifests versionados, ordem declarada
-  de dependências, capabilities, contribuições de conteúdo com namespace,
-  resolução determinística de carga/prioridade, diagnósticos fail-closed e
-  checksums imutáveis.
-- Adicionamos `BoundedEnemyDefinitionRegistry` e
-  `LoopbackSession.admitDefinedEnemy`. Definições seladas de elite/chefe
-  controlam combate, comportamento, loot determinístico por instância,
-  progressão e moeda; o registro de ator e recompensas faz commit atômico. Os
-  caminhos G1, G3 e de transporte externo agora instanciam essas definições em
-  vez de configurar recompensas de elite/chefe por inimigo.
-- Adicionamos ao HUD um rail estrutural fixo de ameaça/derrota de elite/chefe.
-  A apresentação G1 deriva seu estado de chefe derrotado da eliminação
-  autoritativa orientada por dados sem alterar a capacidade fixa de staging.
-- O gate focado tem 75 cenários JVM/nativos. Transporte na mesma máquina na
-  JVM/no nativo, lint/LSP do Kof e apresentação SDL_GPU isolada passam; a
-  matriz completa do repositório não foi executada localmente.
+- Adicionamos `BoundedTrustedModuleRegistry`: no máximo 32 declarações de hooks
+  estáticos, cada uma vinculada à capability/contribuição do manifesto, fase e
+  orçamentos limitados de comandos/eventos, seladas na ordem de
+  dependência/carga/prioridade.
+- Adicionamos `BoundedCreatorPublication` e `BoundedContentCompatibility`: uma
+  transação verificada por revisão vincula checksums de pacote, extensão, hook,
+  definição e quatro produtos; uma identidade wire de 13 palavras rejeita
+  divergências de API/rede/conteúdo, e falhas preservam a geração ativa.
+- Adicionamos `G4CreatorDemo`, um encontro distinto com dois jogadores, elite
+  orientada por extensão/definição e somente APIs públicas do engine. A morte
+  determinística publica estado de encounter, autoridade do jogador e loot.
+- Estendemos o HUD para 372 vértices fixos com um rail estrutural
+  fonte→validação→publicação e marcas separadas de sucesso/falha. O staging de
+  criador/ameaças agora usa helpers pequenos de coordenadas fixas para manter
+  exatos os vértices estruturais no nativo e na JVM. A cena completa permanece
+  abaixo da capacidade nativa de 512 vértices, com 486.
+- `BoundedExtensionRegistry` e `BoundedEnemyDefinitionRegistry` continuam como
+  fundamentos de manifesto/definição usados por G1, G3, sonda de transporte e
+  nova transação do criador.
+- O gate focado tem 77 cenários JVM/nativos. Checks, lint e LSP do Kof passam.
+  A apresentação SDL_GPU Wayland isolada passa em 320×240 com capability de
+  apresentação `11`, draw de 11.270 µs e checksum de frame `30.358.034`; a
+  revisão visual não encontrou clipping nem sobreposição nos painéis de
+  criador/ameaças. A matriz completa do repositório não foi executada localmente.
 
 ## Lotes anteriores
 

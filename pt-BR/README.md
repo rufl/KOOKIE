@@ -8,7 +8,7 @@ As portas têm pré-requisitos. Chamar isto de pronto também.
 
 ## Estado honesto
 
-G0, G1, G2 e G3 executam na JVM e no Linux nativo x86-64:
+G0, G1, G2, G3 e o primeiro slice vertical limitado de G4 executam na JVM e no Linux nativo x86-64:
 
 - sessões autoritativas servidor/cliente em loopback a 60 Hz, admissão de dois
   clientes, snapshots e predição/reconciliação observável;
@@ -22,9 +22,10 @@ G0, G1, G2 e G3 executam na JVM e no Linux nativo x86-64:
 - câmera, staging limitado do mundo e HUD semântico de combate com painéis de
   vida/munição, glifo de conexão, carga ativa/reserva do encounter, mira
   responsiva ao foco, marcadores de acerto/eliminação, alertas laterais de dano,
-  estado por formas de inventário/equipamento/skill/loot e sinais estruturais
-  de ameaça/derrota de elite/chefe; o SDL_GPU envia a cena fixa de 426 vértices
-  de arena/porta/HUD sem crescer buffers por frame;
+  estado por formas de inventário/equipamento/skill/loot, sinais estruturais de
+  ameaça de elite/chefe e um rail de criador fonte→validação→publicação; o
+  SDL_GPU envia a cena fixa de 486 vértices de arena/porta/HUD (372 do HUD) sem
+  crescer buffers por frame;
 - progressão cooperativa de chave, porta 3D, segredo e saída, replay de comandos
   e saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
@@ -35,6 +36,11 @@ G0, G1, G2 e G3 executam na JVM e no Linux nativo x86-64:
 - manifestos públicos limitados de extensões, dependências, capacidades e
   contribuições determinísticas de conteúdo, mais regras seladas orientadas por
   dados para combate, comportamento, loot, progressão e moeda de elites/chefes;
+- um primeiro caminho G4 transacional que vincula checksums de pacote, extensão,
+  hook confiável, definição de inimigo e geometria/colisão/navegação/replicação
+  numa identidade de compatibilidade de 13 palavras; edições obsoletas ou
+  inválidas preservam a geração ativa, e um segundo exemplo com dois jogadores
+  usa somente APIs públicas de definições, extensões e sessão;
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
   na JVM e no nativo levam a arena completa de 26 triângulos, comandos
   unificados com checksum para movimento/disparo/interação/ciclo de vida,
@@ -51,14 +57,17 @@ G0, G1, G2 e G3 executam na JVM e no Linux nativo x86-64:
 
 As lacunas importantes continuam reais:
 
-- a qualificação G3 entre processos usa a mesma máquina; execução entre
-  máquinas continua não comprovada, e o cooker G4, hooks de módulos confiáveis
-  e publicação em etapas de conteúdo ainda não foram implementados;
+- a qualificação G3 entre processos continua na mesma máquina, a admissão da
+  identidade de conteúdo G4 ainda ocorre no mesmo processo, e execução entre
+  máquinas continua não comprovada;
+- G4 continua aberto para execução de hooks confiáveis, toda a entrada
+  suportada de cooker para malhas/brushes/fontes, carregamento externo de
+  pacotes, inspector/editores e recarregamento em etapas seguro para a GPU;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
-- saves duráveis contra crash, content cooker, física completa, áudio
-  comprimido/em streaming e HRTF/EFX, soak/desempenho sustentado de G5 e o
-  pipeline de criação continuam incompletos.
+- saves duráveis contra crash, física completa, áudio comprimido/em streaming
+  e HRTF/EFX, soak/desempenho sustentado de G5 e o pipeline completo de criação
+  continuam incompletos.
 
 Se uma afirmação não tem um teste ou uma sonda focada por trás, ela não é
 apresentada como concluída.

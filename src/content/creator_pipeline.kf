@@ -1,0 +1,651 @@
+package content
+
+import core
+
+Int creatorPublicationIdleStatus() {
+    return 0
+}
+
+Int creatorPublicationStagedStatus() {
+    return 1
+}
+
+Int creatorPublicationValidatedStatus() {
+    return 2
+}
+
+Int creatorPublicationPublishedStatus() {
+    return 3
+}
+
+Int creatorPublicationRejectedStatus() {
+    return 4
+}
+
+Int creatorDiagnosticNone() {
+    return 0
+}
+
+Int creatorDiagnosticInvalid() {
+    return 1
+}
+
+Int creatorDiagnosticState() {
+    return 2
+}
+
+Int creatorDiagnosticStale() {
+    return 3
+}
+
+Int creatorDiagnosticPackage() {
+    return 4
+}
+
+Int creatorDiagnosticApi() {
+    return 5
+}
+
+Int creatorDiagnosticManifest() {
+    return 6
+}
+
+Int creatorDiagnosticModule() {
+    return 7
+}
+
+Int creatorDiagnosticDefinition() {
+    return 8
+}
+
+Int creatorDiagnosticProduct() {
+    return 9
+}
+
+Int creatorDiagnosticNetwork() {
+    return 10
+}
+
+class BoundedContentCompatibility {
+    Int engineVersionValue
+    Int apiVersionValue
+    Int networkSchemaChecksumValue
+    Int packageChecksumValue
+    Int extensionChecksumValue
+    Int moduleChecksumValue
+    Int definitionChecksumValue
+    Int generationValue
+    Int revisionValue
+    Int productChecksumValue
+    Int checksumValue
+    Int[] wire
+    Bool versionsConfigured
+    Bool contentConfigured
+    Bool publicationConfigured
+    Bool sealedValue
+
+    public constructor() {
+        wire = new Int[13]
+        clear()
+    }
+
+    Bool clear() {
+        engineVersionValue = 0
+        apiVersionValue = 0
+        networkSchemaChecksumValue = 0
+        packageChecksumValue = 0
+        extensionChecksumValue = 0
+        moduleChecksumValue = 0
+        definitionChecksumValue = 0
+        generationValue = 0
+        revisionValue = 0
+        productChecksumValue = 0
+        checksumValue = 0
+        versionsConfigured = false
+        contentConfigured = false
+        publicationConfigured = false
+        sealedValue = false
+        for (var index = 0; index < wire.length; index = index + 1) {
+            wire[index] = 0
+        }
+        return true
+    }
+
+    Bool configureVersions(
+        Int engineVersion, Int apiVersion, Int networkSchemaChecksum
+    ) {
+        if (sealedValue || versionsConfigured ||
+            engineVersion <= 0 || engineVersion > 1000000 ||
+            apiVersion <= 0 || apiVersion > 1000000 ||
+            networkSchemaChecksum <= 0 || networkSchemaChecksum > 1000002) {
+            return false
+        }
+        engineVersionValue = engineVersion
+        apiVersionValue = apiVersion
+        networkSchemaChecksumValue = networkSchemaChecksum
+        versionsConfigured = true
+        return true
+    }
+
+    Bool configureContent(
+        Int packageChecksum, Int extensionChecksum,
+        Int moduleChecksum, Int definitionChecksum
+    ) {
+        if (sealedValue || contentConfigured ||
+            packageChecksum <= 0 || packageChecksum > 1000002 ||
+            extensionChecksum <= 0 || extensionChecksum > 1000002 ||
+            moduleChecksum <= 0 || moduleChecksum > 1000002 ||
+            definitionChecksum <= 0 || definitionChecksum > 1000002) {
+            return false
+        }
+        packageChecksumValue = packageChecksum
+        extensionChecksumValue = extensionChecksum
+        moduleChecksumValue = moduleChecksum
+        definitionChecksumValue = definitionChecksum
+        contentConfigured = true
+        return true
+    }
+
+    Bool configurePublication(
+        Int generation, Int revision, Int productChecksum
+    ) {
+        if (sealedValue || publicationConfigured ||
+            generation <= 0 || generation > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            productChecksum <= 0 || productChecksum > 1000002) {
+            return false
+        }
+        generationValue = generation
+        revisionValue = revision
+        productChecksumValue = productChecksum
+        publicationConfigured = true
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) {
+            normalized = normalized + 1000003
+        }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 43
+        result = mix(result, 1)
+        result = mix(result, engineVersionValue)
+        result = mix(result, apiVersionValue)
+        result = mix(result, networkSchemaChecksumValue)
+        result = mix(result, packageChecksumValue)
+        result = mix(result, extensionChecksumValue)
+        result = mix(result, moduleChecksumValue)
+        result = mix(result, definitionChecksumValue)
+        result = mix(result, generationValue)
+        result = mix(result, revisionValue)
+        result = mix(result, productChecksumValue)
+        return result
+    }
+
+    Bool structuralValid() {
+        return versionsConfigured && contentConfigured && publicationConfigured &&
+            engineVersionValue > 0 && apiVersionValue > 0 &&
+            networkSchemaChecksumValue > 0 && packageChecksumValue > 0 &&
+            extensionChecksumValue > 0 && moduleChecksumValue > 0 &&
+            definitionChecksumValue > 0 && generationValue > 0 &&
+            revisionValue > 0 && productChecksumValue > 0
+    }
+
+    Bool seal() {
+        if (sealedValue || !structuralValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        if (checksumValue <= 0) {
+            return false
+        }
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && structuralValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    Bool copyFrom(BoundedContentCompatibility source) {
+        if (!source.validate()) {
+            return false
+        }
+        clear()
+        return configureVersions(
+                source.engineVersion(), source.apiVersion(),
+                source.networkSchemaChecksum()) &&
+            configureContent(
+                source.packageChecksum(), source.extensionChecksum(),
+                source.moduleChecksum(), source.definitionChecksum()) &&
+            configurePublication(
+                source.generation(), source.revision(),
+                source.productChecksum()) &&
+            seal()
+    }
+
+    Int mismatch(BoundedContentCompatibility other) {
+        if (!validate() || !other.validate()) {
+            return creatorDiagnosticInvalid()
+        }
+        if (engineVersionValue != other.engineVersion() ||
+            apiVersionValue != other.apiVersion()) {
+            return creatorDiagnosticApi()
+        }
+        if (networkSchemaChecksumValue != other.networkSchemaChecksum()) {
+            return creatorDiagnosticNetwork()
+        }
+        if (packageChecksumValue != other.packageChecksum()) {
+            return creatorDiagnosticPackage()
+        }
+        if (extensionChecksumValue != other.extensionChecksum()) {
+            return creatorDiagnosticManifest()
+        }
+        if (moduleChecksumValue != other.moduleChecksum()) {
+            return creatorDiagnosticModule()
+        }
+        if (definitionChecksumValue != other.definitionChecksum()) {
+            return creatorDiagnosticDefinition()
+        }
+        if (generationValue != other.generation() ||
+            revisionValue != other.revision() ||
+            productChecksumValue != other.productChecksum()) {
+            return creatorDiagnosticProduct()
+        }
+        return creatorDiagnosticNone()
+    }
+
+    Bool matches(BoundedContentCompatibility other) {
+        return mismatch(other) == creatorDiagnosticNone()
+    }
+
+    Bool encode() {
+        if (!validate()) {
+            return false
+        }
+        wire[0] = 126276130
+        wire[1] = 1
+        wire[2] = engineVersionValue
+        wire[3] = apiVersionValue
+        wire[4] = networkSchemaChecksumValue
+        wire[5] = packageChecksumValue
+        wire[6] = extensionChecksumValue
+        wire[7] = moduleChecksumValue
+        wire[8] = definitionChecksumValue
+        wire[9] = generationValue
+        wire[10] = revisionValue
+        wire[11] = productChecksumValue
+        wire[12] = checksumValue
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length != 13 || source[0] != 126276130 || source[1] != 1) {
+            return false
+        }
+        var candidate = BoundedContentCompatibility()
+        if (!candidate.configureVersions(source[2], source[3], source[4]) ||
+            !candidate.configureContent(
+                source[5], source[6], source[7], source[8]) ||
+            !candidate.configurePublication(source[9], source[10], source[11]) ||
+            !candidate.seal() || candidate.checksum() != source[12]) {
+            return false
+        }
+        return copyFrom(candidate)
+    }
+
+    Int encodedLength() {
+        if (!validate()) {
+            return 0
+        }
+        return 13
+    }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wire.length) {
+            return -1
+        }
+        return wire[index]
+    }
+
+    Int engineVersion() {
+        return engineVersionValue
+    }
+
+    Int apiVersion() {
+        return apiVersionValue
+    }
+
+    Int networkSchemaChecksum() {
+        return networkSchemaChecksumValue
+    }
+
+    Int packageChecksum() {
+        return packageChecksumValue
+    }
+
+    Int extensionChecksum() {
+        return extensionChecksumValue
+    }
+
+    Int moduleChecksum() {
+        return moduleChecksumValue
+    }
+
+    Int definitionChecksum() {
+        return definitionChecksumValue
+    }
+
+    Int generation() {
+        return generationValue
+    }
+
+    Int revision() {
+        return revisionValue
+    }
+
+    Int productChecksum() {
+        return productChecksumValue
+    }
+
+    Int checksum() {
+        if (!validate()) {
+            return -1
+        }
+        return checksumValue
+    }
+}
+
+class BoundedCreatorPublication {
+    BoundedContentCompatibility activeCompatibilityValue
+    BoundedContentCompatibility stagedCompatibilityValue
+    Int expectedGenerationValue
+    Int stagedRevisionValue
+    Int stagedEngineVersionValue
+    Int stagedApiVersionValue
+    Int stagedNetworkSchemaChecksumValue
+    Int stagedPackageChecksumValue
+    Int stagedExtensionChecksumValue
+    Int stagedModuleChecksumValue
+    Int stagedDefinitionChecksumValue
+    Int stagedGeometryChecksumValue
+    Int stagedCollisionChecksumValue
+    Int stagedNavigationChecksumValue
+    Int stagedReplicationChecksumValue
+    Bool packageStagedValue
+    Bool extensionsStagedValue
+    Bool definitionsStagedValue
+    Bool productsStagedValue
+    Int statusValue
+    Int diagnosticValue
+
+    public constructor() {
+        activeCompatibilityValue = BoundedContentCompatibility()
+        stagedCompatibilityValue = BoundedContentCompatibility()
+        expectedGenerationValue = 0
+        stagedRevisionValue = 0
+        stagedEngineVersionValue = 0
+        stagedApiVersionValue = 0
+        stagedNetworkSchemaChecksumValue = 0
+        stagedPackageChecksumValue = 0
+        stagedExtensionChecksumValue = 0
+        stagedModuleChecksumValue = 0
+        stagedDefinitionChecksumValue = 0
+        stagedGeometryChecksumValue = 0
+        stagedCollisionChecksumValue = 0
+        stagedNavigationChecksumValue = 0
+        stagedReplicationChecksumValue = 0
+        packageStagedValue = false
+        extensionsStagedValue = false
+        definitionsStagedValue = false
+        productsStagedValue = false
+        statusValue = creatorPublicationIdleStatus()
+        diagnosticValue = creatorDiagnosticNone()
+    }
+
+    Bool reject(Int diagnostic) {
+        statusValue = creatorPublicationRejectedStatus()
+        diagnosticValue = diagnostic
+        return false
+    }
+
+    Bool begin(Int expectedGeneration, Int revision) {
+        if (statusValue == creatorPublicationStagedStatus() ||
+            statusValue == creatorPublicationValidatedStatus() ||
+            expectedGeneration < 0 || expectedGeneration > 999999 ||
+            revision <= 0 || revision > 1000000) {
+            return reject(creatorDiagnosticState())
+        }
+        stagedCompatibilityValue.clear()
+        expectedGenerationValue = expectedGeneration
+        stagedRevisionValue = revision
+        stagedEngineVersionValue = 0
+        stagedApiVersionValue = 0
+        stagedNetworkSchemaChecksumValue = 0
+        stagedPackageChecksumValue = 0
+        stagedExtensionChecksumValue = 0
+        stagedModuleChecksumValue = 0
+        stagedDefinitionChecksumValue = 0
+        stagedGeometryChecksumValue = 0
+        stagedCollisionChecksumValue = 0
+        stagedNavigationChecksumValue = 0
+        stagedReplicationChecksumValue = 0
+        packageStagedValue = false
+        extensionsStagedValue = false
+        definitionsStagedValue = false
+        productsStagedValue = false
+        statusValue = creatorPublicationStagedStatus()
+        diagnosticValue = creatorDiagnosticNone()
+        return true
+    }
+
+    Bool stagePackage(
+        BoundedContentPackage packageValue, Int requiredEngineVersion
+    ) {
+        if (statusValue != creatorPublicationStagedStatus() ||
+            packageStagedValue) {
+            return reject(creatorDiagnosticState())
+        }
+        if (!packageValue.validate() || requiredEngineVersion <= 0 ||
+            packageValue.identity().engineVersion() != requiredEngineVersion ||
+            packageValue.identity().contentVersion() != stagedRevisionValue) {
+            return reject(creatorDiagnosticPackage())
+        }
+        stagedEngineVersionValue = requiredEngineVersion
+        stagedPackageChecksumValue = packageValue.checksum()
+        packageStagedValue = true
+        return true
+    }
+
+    Bool stageExtensions(
+        BoundedExtensionRegistry extensions,
+        BoundedTrustedModuleRegistry modules,
+        Int requiredApiVersion
+    ) {
+        if (statusValue != creatorPublicationStagedStatus() ||
+            extensionsStagedValue) {
+            return reject(creatorDiagnosticState())
+        }
+        if (!extensions.validate()) {
+            return reject(creatorDiagnosticManifest())
+        }
+        if (!modules.validate(extensions)) {
+            return reject(creatorDiagnosticModule())
+        }
+        if (!extensions.apiCompatible(requiredApiVersion)) {
+            return reject(creatorDiagnosticApi())
+        }
+        var networkChecksum = extensions.networkSchemaChecksum()
+        if (networkChecksum <= 0) {
+            return reject(creatorDiagnosticNetwork())
+        }
+        stagedApiVersionValue = requiredApiVersion
+        stagedNetworkSchemaChecksumValue = networkChecksum
+        stagedExtensionChecksumValue = extensions.checksum()
+        stagedModuleChecksumValue = modules.checksum()
+        extensionsStagedValue = true
+        return true
+    }
+
+    Bool stageDefinitions(BoundedEnemyDefinitionRegistry definitions) {
+        if (statusValue != creatorPublicationStagedStatus() ||
+            definitionsStagedValue) {
+            return reject(creatorDiagnosticState())
+        }
+        if (!definitions.validate() || definitions.count() <= 0) {
+            return reject(creatorDiagnosticDefinition())
+        }
+        stagedDefinitionChecksumValue = definitions.checksum()
+        definitionsStagedValue = true
+        return true
+    }
+
+    Bool stageProducts(
+        Int geometryChecksum, Int collisionChecksum,
+        Int navigationChecksum, Int replicationChecksum
+    ) {
+        if (statusValue != creatorPublicationStagedStatus() ||
+            productsStagedValue) {
+            return reject(creatorDiagnosticState())
+        }
+        if (geometryChecksum <= 0 || collisionChecksum <= 0 ||
+            navigationChecksum <= 0 || replicationChecksum <= 0) {
+            return reject(creatorDiagnosticProduct())
+        }
+        stagedGeometryChecksumValue = geometryChecksum
+        stagedCollisionChecksumValue = collisionChecksum
+        stagedNavigationChecksumValue = navigationChecksum
+        stagedReplicationChecksumValue = replicationChecksum
+        productsStagedValue = true
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) {
+            normalized = normalized + 1000003
+        }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int stagedProductChecksum() {
+        if (!productsStagedValue) {
+            return -1
+        }
+        var result = 47
+        result = mix(result, stagedRevisionValue)
+        result = mix(result, stagedGeometryChecksumValue)
+        result = mix(result, stagedCollisionChecksumValue)
+        result = mix(result, stagedNavigationChecksumValue)
+        result = mix(result, stagedReplicationChecksumValue)
+        return result
+    }
+
+    Int activeGeneration() {
+        if (!activeCompatibilityValue.validate()) {
+            return 0
+        }
+        return activeCompatibilityValue.generation()
+    }
+
+    Bool validate(BoundedGenerationCache cache) {
+        if (statusValue != creatorPublicationStagedStatus() ||
+            !packageStagedValue || !extensionsStagedValue ||
+            !definitionsStagedValue || !productsStagedValue) {
+            return reject(creatorDiagnosticState())
+        }
+        if (expectedGenerationValue != activeGeneration() ||
+            cache.activeGeneration() != expectedGenerationValue) {
+            return reject(creatorDiagnosticStale())
+        }
+        if (stagedReplicationChecksumValue != stagedPackageChecksumValue) {
+            return reject(creatorDiagnosticProduct())
+        }
+        var generation = expectedGenerationValue + 1
+        var productChecksum = stagedProductChecksum()
+        if (generation <= 0 || generation > 1000000 || productChecksum <= 0 ||
+            !cache.canActivate(
+                generation, stagedRevisionValue,
+                stagedGeometryChecksumValue, stagedCollisionChecksumValue,
+                stagedNavigationChecksumValue, stagedReplicationChecksumValue)) {
+            return reject(creatorDiagnosticProduct())
+        }
+        stagedCompatibilityValue.clear()
+        if (!stagedCompatibilityValue.configureVersions(
+                stagedEngineVersionValue, stagedApiVersionValue,
+                stagedNetworkSchemaChecksumValue) ||
+            !stagedCompatibilityValue.configureContent(
+                stagedPackageChecksumValue, stagedExtensionChecksumValue,
+                stagedModuleChecksumValue, stagedDefinitionChecksumValue) ||
+            !stagedCompatibilityValue.configurePublication(
+                generation, stagedRevisionValue, productChecksum) ||
+            !stagedCompatibilityValue.seal()) {
+            return reject(creatorDiagnosticInvalid())
+        }
+        statusValue = creatorPublicationValidatedStatus()
+        diagnosticValue = creatorDiagnosticNone()
+        return true
+    }
+
+    Bool publish(BoundedGenerationCache cache) {
+        if (statusValue != creatorPublicationValidatedStatus()) {
+            return reject(creatorDiagnosticState())
+        }
+        var generation = stagedCompatibilityValue.generation()
+        if (cache.activeGeneration() != expectedGenerationValue ||
+            !cache.canActivate(
+                generation, stagedRevisionValue,
+                stagedGeometryChecksumValue, stagedCollisionChecksumValue,
+                stagedNavigationChecksumValue, stagedReplicationChecksumValue)) {
+            return reject(creatorDiagnosticStale())
+        }
+        var identity = ProductGenerationIdentity(
+            generation, stagedRevisionValue,
+            stagedGeometryChecksumValue, stagedCollisionChecksumValue,
+            stagedNavigationChecksumValue, stagedReplicationChecksumValue)
+        if (!cache.activate(identity) ||
+            !activeCompatibilityValue.copyFrom(stagedCompatibilityValue)) {
+            return reject(creatorDiagnosticProduct())
+        }
+        packageStagedValue = false
+        extensionsStagedValue = false
+        definitionsStagedValue = false
+        productsStagedValue = false
+        statusValue = creatorPublicationPublishedStatus()
+        diagnosticValue = creatorDiagnosticNone()
+        return true
+    }
+
+    Bool admit(BoundedContentCompatibility offered) {
+        if (!activeCompatibilityValue.validate()) {
+            diagnosticValue = creatorDiagnosticState()
+            return false
+        }
+        diagnosticValue = activeCompatibilityValue.mismatch(offered)
+        return diagnosticValue == creatorDiagnosticNone()
+    }
+
+    BoundedContentCompatibility activeCompatibility() {
+        return activeCompatibilityValue
+    }
+
+    Int status() {
+        return statusValue
+    }
+
+    Int diagnostic() {
+        return diagnosticValue
+    }
+
+    Int revision() {
+        if (!activeCompatibilityValue.validate()) {
+            return 0
+        }
+        return activeCompatibilityValue.revision()
+    }
+}

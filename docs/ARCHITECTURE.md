@@ -1,6 +1,6 @@
 # KOOKIE project architecture
 
-Status: **living target architecture; G0/G1/G2/G3 are implemented and G4 is next**.
+Status: **living target architecture; G0/G1/G2/G3 are implemented and G4 has its first transactional vertical slice**.
 
 
 This document is the project-level architecture authority. Detailed acceptance
@@ -130,12 +130,13 @@ The implemented bounded slice follows this boundary: authoritative combat
 resolutions emit monotonic `ImpactPresentationEvent` records; ordered feedback
 batches carry every confirmed event into bounded client HUD/audio queues.
 The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
-connection, encounter, elite/boss threat/defeat and G3
-inventory/equipment/skill/world-loot status. Presentation overflow is diagnosed
-and never rolls back authoritative state. Authored 3D doors add a 36-vertex
-cuboid between the 78-vertex arena and 312-vertex HUD; the current fixed scene
-is 426 vertices. Kof derives distance attenuation and stereo pan before the
-native adapter submits left/right PCM channels.
+connection, encounter, elite/boss threat/defeat, G3
+inventory/equipment/skill/world-loot status and G4 creator-publication status.
+Presentation overflow is diagnosed and never rolls back authoritative state.
+Authored 3D doors add a 36-vertex cuboid between the 78-vertex arena and
+372-vertex HUD; the current fixed scene is 486 vertices. Kof derives distance
+attenuation and stereo pan before the native adapter submits left/right PCM
+channels.
 
 
 ### Native adapter
@@ -278,6 +279,12 @@ Public extension operations are:
 
 Systems execute in dependency order, then declared priority, then namespaced
 ID. Conflicts and capacity failures fail closed with diagnostics.
+
+The first implemented G4 slice makes these declarations executable metadata,
+not arbitrary callbacks: `BoundedTrustedModuleRegistry` binds at most 32
+statically compiled hook IDs to declared manifest contributions, phase and
+command/event budgets. It seals them in dependency/load/priority order. Hook
+execution and mutable core access are not implied.
 
 ## 6. Content and asset pipeline
 
@@ -545,8 +552,13 @@ the actor and every reward contract atomically from those definitions.
 
 ### G4 — Creator and extension pipeline
 
-Add package cooker, data mods, trusted Kof modules, registries, manifests,
-editor transactions and staged multiplayer content publication.
+In progress: the first slice binds packages, extension manifests, trusted-hook
+declarations, enemy definitions and aligned geometry/collision/navigation/
+replication products into one revision-checked compatibility identity.
+Stale or invalid transactions preserve the active generation; exact client
+identity admission and a second definition-driven multiplayer sample execute.
+Authoring-file intake, hook execution, inspector/editors and live staged reload
+remain open.
 
 ### G5 — Scale and release
 

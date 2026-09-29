@@ -34,6 +34,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_spatial_clip(
 
 class G1NativePresentation {
     G1Demo scenario
+    G4CreatorDemo creatorScenario
     G1Arena arena
     LoopbackSession interactionSession
     ShooterHud hud
@@ -48,6 +49,7 @@ class G1NativePresentation {
 
     public constructor() {
         scenario = G1Demo()
+        creatorScenario = G4CreatorDemo()
         arena = scenario.authoredArena()
         hud = scenario.shooterHud()
         camera = CameraState(-450, 450)
@@ -62,7 +64,13 @@ class G1NativePresentation {
     }
 
     Bool prepare() {
-        if (!scenario.run() || !camera.applyLook(20, -20) ||
+        if (!scenario.run() || !creatorScenario.run() ||
+            !hud.updateCreatorPublication(
+                creatorScenario.publicationStatus(),
+                creatorScenario.publishedGeneration(),
+                creatorScenario.publicationDiagnostic(),
+                creatorScenario.completed()) ||
+            !camera.applyLook(20, -20) ||
             !interactionSession.defineWorldKey(
                 1, 30, 0, 0, 0) ||
             !interactionSession.defineWorldDoor(

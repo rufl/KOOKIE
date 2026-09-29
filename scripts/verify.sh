@@ -40,21 +40,23 @@ transport_key_file="$adapter_build_dir/transport.key"
 printf '%s' '00000001000000020000000300000004' >"$transport_key_file"
 chmod 600 "$transport_key_file"
 probe_core_dir="$root_dir/probes/g0_native_adapter/core"
+probe_content_dir="$root_dir/probes/g0_native_adapter/content"
 probe_session_dir="$root_dir/probes/g0_native_adapter/session"
 probe_world_dir="$root_dir/probes/g0_native_adapter/world"
 probe_ui_dir="$root_dir/probes/g0_native_adapter/ui"
 probe_demo_dir="$root_dir/probes/g0_native_adapter/demo"
 presentation_probe_core_dir="$root_dir/probes/g0_native_presentation/core"
+presentation_probe_content_dir="$root_dir/probes/g0_native_presentation/content"
 presentation_probe_session_dir="$root_dir/probes/g0_native_presentation/session"
 presentation_probe_world_dir="$root_dir/probes/g0_native_presentation/world"
 presentation_probe_ui_dir="$root_dir/probes/g0_native_presentation/ui"
 presentation_probe_demo_dir="$root_dir/probes/g0_native_presentation/demo"
-rm -rf "$probe_core_dir" "$probe_session_dir" \
+rm -rf "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" \
   "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" \
-  "$presentation_probe_core_dir" "$presentation_probe_session_dir" \
-  "$presentation_probe_world_dir" "$presentation_probe_ui_dir" \
-  "$presentation_probe_demo_dir"
-trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_session_dir" "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" "$presentation_probe_core_dir" "$presentation_probe_session_dir" "$presentation_probe_world_dir" "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"' EXIT
+  "$presentation_probe_core_dir" "$presentation_probe_content_dir" \
+  "$presentation_probe_session_dir" "$presentation_probe_world_dir" \
+  "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"
+trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" "$presentation_probe_core_dir" "$presentation_probe_content_dir" "$presentation_probe_session_dir" "$presentation_probe_world_dir" "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"' EXIT
 render_node="${KOOKIE_RENDER_NODE:-}"
 if [[ -z "$render_node" ]]; then
   for candidate in /dev/dri/renderD*; do
@@ -74,14 +76,19 @@ isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
 if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-config >/dev/null &&
    [[ -n "$isolation_wrapper" ]] && command -v "$isolation_wrapper" >/dev/null &&
    pkg-config --exists sdl3 && [[ -f /usr/include/SDL3/SDL.h ]]; then
-  mkdir -p "$probe_core_dir" "$probe_session_dir" \
+  mkdir -p "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" \
     "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" \
-    "$presentation_probe_core_dir" "$presentation_probe_session_dir" \
-    "$presentation_probe_world_dir" "$presentation_probe_ui_dir" \
-    "$presentation_probe_demo_dir"
+    "$presentation_probe_core_dir" "$presentation_probe_content_dir" \
+    "$presentation_probe_session_dir" "$presentation_probe_world_dir" \
+    "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"
   for core_file in "$root_dir"/src/core/*.kf; do
     ln -s "$core_file" "$probe_core_dir/$(basename "$core_file")"
     ln -s "$core_file" "$presentation_probe_core_dir/$(basename "$core_file")"
+  done
+  for content_file in "$root_dir"/src/content/*.kf; do
+    ln -s "$content_file" "$probe_content_dir/$(basename "$content_file")"
+    ln -s "$content_file" \
+      "$presentation_probe_content_dir/$(basename "$content_file")"
   done
   for session_file in "$root_dir"/src/session/*.kf; do
     ln -s "$session_file" "$probe_session_dir/$(basename "$session_file")"

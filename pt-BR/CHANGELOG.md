@@ -4,6 +4,39 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-29
 
+### Primeiro slice transacional G4 de publicação do criador
+
+- Adicionamos `BoundedTrustedModuleRegistry` para no máximo 32 declarações de
+  hooks compilados estaticamente, vinculadas a contribuições do manifesto, fase
+  e orçamentos de comandos/eventos. A ordem de dependência/carga/prioridade é
+  determinística e o checksum selado vincula o registro exato de extensões.
+- Adicionamos `BoundedCreatorPublication`, verificada por revisão, e uma
+  identidade wire `BoundedContentCompatibility` de 13 palavras cobrindo
+  engine/API/rede, pacote, manifesto, módulo, definição, geração e produtos
+  alinhados de geometria/colisão/navegação/replicação. Transações obsoletas,
+  divergentes ou inválidas preservam a geração ativa anterior.
+- Adicionamos `G4CreatorDemo`, um encontro distinto com dois jogadores por APIs
+  públicas, elite orientada por dados e declaração de módulo confiável. A morte
+  determinística emite estado válido de encounter, autoridade por jogador e
+  loot no mundo.
+- Estendemos o HUD fixo de 312 para 372 vértices e a cena completa de 426 para
+  486 com um rail fonte→validação→publicação e marcas de sucesso/falha
+  distinguíveis pela forma. A coroa do chefe ficou mais compacta e continua
+  estruturalmente distinta do diamante de elite.
+- Uma captura isolada revelou corrupção de coordenadas apenas no nativo nos
+  antigos métodos de staging de criador/ameaças com muitas variáveis locais.
+  Helpers pequenos de coordenadas fixas agora mantêm exatos o cap de publicação,
+  o sinal de compatibilidade, o diamante de elite e a coroa de chefe; asserções
+  JVM/nativas vinculam seus vértices estruturais.
+- Todos os 77 cenários-fonte passam na JVM e no nativo; checks, lint e LSP do
+  Kof passam.
+- A apresentação SDL_GPU Wayland isolada passa em 320×240 com capability de
+  apresentação `11`, draw de 11.270 µs e checksum de frame `30.358.034`. A
+  revisão visual confirmou conteúdo limitado aos painéis, sinais legíveis e
+  distinguíveis pela forma para fonte/validação/publicação/sucesso e coroa de
+  chefe, sem clipping nem sobreposição nesses painéis.
+
+
 ### Encerramento G3: extensões limitadas, chefes por dados e HUD de ameaças
 
 - Adicionamos `BoundedExtensionRegistry` com manifests versionados, dependências

@@ -99,7 +99,7 @@ main() {
 }
 test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
-    assert(hud.renderVertexCount() == 312,
+    assert(hud.renderVertexCount() == 372,
         "HUD geometry must retain a fixed bounded budget")
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
@@ -145,6 +145,10 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         hud.enemies() == 3 && hud.encounterRemaining() == 2 &&
         !hud.remoteConnected() && hud.remoteGeneration() == 2 &&
         hud.remoteStateSequence() == 2 &&
+        frame.xAt(217) == 18 && frame.yAt(218) == 72 &&
+        frame.xAt(224) == 13 && frame.yAt(224) == 78 &&
+        frame.xAt(230) == 18 && frame.yAt(230) == 78 &&
+        frame.xAt(235) == -18 && frame.xAt(240) == 20 &&
         hud.eliteThreats() == 2 && hud.bossThreats() == 1 &&
         hud.defeatedThreatKind() == 0 &&
         hud.tick() == 21 && !hud.focused(),
@@ -165,6 +169,45 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         hud.remoteConnected() && hud.remoteGeneration() == 3,
         "connection status must change shape and reject duplicate state")
     assert(frame.retire(6))
+    assert(hud.updateCreatorPublication(1, 0, 0, false) &&
+        hud.stage(frame, 7, 9) &&
+        frame.xAt(150) == -91 && frame.yAt(150) == 70 &&
+        frame.yAt(162) == 73,
+        "creator source stage must expose source but not validation geometry")
+    var creatorStagedChecksum = frame.checksum()
+    assert(frame.retire(7))
+    assert(hud.updateCreatorPublication(2, 0, 0, false) &&
+        hud.stage(frame, 8, 9) &&
+        frame.checksum() != creatorStagedChecksum &&
+        frame.yAt(162) == 77,
+        "creator validation stage must expand the validation diamond")
+    assert(frame.retire(8))
+    assert(hud.updateCreatorPublication(3, 1, 0, true) &&
+        hud.stage(frame, 9, 9) &&
+        hud.creatorStatus() == 3 && hud.creatorGeneration() == 1 &&
+        hud.creatorDiagnostic() == 0 && hud.creatorCompatible() &&
+        frame.xAt(181) == -60 && frame.yAt(181) == 75 &&
+        frame.xAt(186) == -48 && frame.yAt(186) == 72 &&
+        frame.xAt(192) == -42 && frame.yAt(192) == 68 &&
+        frame.xAt(194) == -40 && frame.yAt(194) == 78,
+        "published creator content must stage a structural compatibility plus")
+    var creatorPublishedChecksum = frame.checksum()
+    assert(frame.retire(9))
+    assert(!hud.updateCreatorPublication(3, 1, 1, true) &&
+        hud.stage(frame, 10, 9) &&
+        frame.checksum() == creatorPublishedChecksum,
+        "invalid publication feedback must reject atomically")
+    assert(frame.retire(10))
+    assert(hud.updateCreatorPublication(4, 1, 10, false) &&
+        hud.stage(frame, 11, 9) &&
+        frame.checksum() != creatorPublishedChecksum &&
+        hud.creatorStatus() == 4 && hud.creatorDiagnostic() == 10 &&
+        !hud.creatorCompatible() &&
+        frame.xAt(186) == -42 && frame.yAt(186) == 70 &&
+        frame.yAt(192) == 67,
+        "rejected creator content must stage a structural exclamation marker")
+    assert(frame.retire(11))
+
 
 
     var undersized = FrameStaging(hud.renderVertexCount() - 1)
@@ -173,7 +216,7 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
     assert(hud.updateInventoryStatus(7, 8, true) &&
         hud.updateSkillStatus(2, 60, 100) &&
         hud.updateWorldLootStatus(2, 3) &&
-        hud.stage(frame, 7, 9) &&
+        hud.stage(frame, 12, 9) &&
         frame.stagedCount() == hud.renderVertexCount() &&
         hud.inventoryItems() == 7 && hud.inventoryCapacity() == 8 &&
         hud.equipmentReady() && hud.skillRank() == 2 &&
@@ -181,15 +224,15 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         hud.worldLootCount() == 2 && hud.worldLootRank() == 3,
         "G3 build status must stage inventory equipment skill and ranked loot")
     var buildChecksum = frame.checksum()
-    assert(frame.retire(7))
+    assert(frame.retire(12))
     assert(!hud.updateInventoryStatus(9, 8, false) &&
         !hud.updateSkillStatus(-1, 0, 100) &&
         !hud.updateWorldLootStatus(0, 3) &&
         !hud.updateThreatStatus(-1, 0, 0) &&
-        hud.stage(frame, 8, 9) &&
+        hud.stage(frame, 13, 9) &&
         frame.checksum() == buildChecksum,
         "invalid build status must reject without partially changing the HUD")
-    assert(frame.retire(8))
+    assert(frame.retire(13))
 }
 
 
@@ -385,6 +428,195 @@ test "bounded extensions resolve capabilities and enemy definitions" {
         definitions.kind(7, 1002) == enemyDefinitionBossKind() &&
         definitions.currency(7, 1002) == 50,
         "sealed enemy definitions must preserve deterministic spawn rules")
+}
+
+test "G4 creator publication is atomic and compatibility bound" {
+    var extensions = BoundedExtensionRegistry(2, 2, 4, 4)
+    assert(extensions.registerManifest(1, 1, 2, 1, 1) &&
+        extensions.setLoadOrder(1, 1, 10) &&
+        extensions.setProvenance(1, 1, 101) &&
+        extensions.setSchemas(1, 1, 1, 7) &&
+        extensions.grantCapability(
+            1, 1, extensionContributionTrustedHookKind()) &&
+        extensions.registerContribution(
+            1, 1, extensionContributionTrustedHookKind(), 110, 20) &&
+        extensions.registerManifest(8, 1, 2, 3, 4) &&
+        extensions.setLoadOrder(8, 1, 20) &&
+        extensions.setProvenance(8, 1, 801) &&
+        extensions.setSchemas(8, 1, 2, 9) &&
+        extensions.addDependency(8, 1, 1, 1) &&
+        extensions.grantCapability(
+            8, 1, extensionContributionEnemyDefinitionKind()) &&
+        extensions.grantCapability(
+            8, 1, extensionContributionTrustedHookKind()) &&
+        extensions.registerContribution(
+            8, 1, extensionContributionEnemyDefinitionKind(), 2001, 20) &&
+        extensions.registerContribution(
+            8, 1, extensionContributionTrustedHookKind(), 3001, 10),
+        "G4 manifests must declare data and statically compiled hook capabilities")
+
+    var hooks = BoundedTrustedModuleRegistry(2)
+    assert(hooks.defineHook(
+            extensions, 8, 1, 3001, trustedHookPostSimulationPhase()) &&
+        hooks.setBudget(8, 1, 3001, 8, 4) &&
+        hooks.defineHook(
+            extensions, 1, 1, 110, trustedHookPreSimulationPhase()) &&
+        hooks.setBudget(1, 1, 110, 4, 2) &&
+        extensions.seal() && extensions.apiCompatible(2) &&
+        extensions.networkSchemaChecksum() > 0 &&
+        hooks.seal(extensions) && hooks.validate(extensions) &&
+        hooks.orderedHookNamespace(extensions, 0) == 1 &&
+        hooks.orderedHookOwner(extensions, 0) == 1 &&
+        hooks.orderedHookId(extensions, 0) == 110 &&
+        hooks.orderedHookNamespace(extensions, 1) == 8 &&
+        hooks.orderedHookOwner(extensions, 1) == 1 &&
+        hooks.orderedHookId(extensions, 1) == 3001 &&
+        hooks.orderedHookCommandBudget(extensions, 1) == 8 &&
+        hooks.orderedHookEventBudget(extensions, 1) == 4,
+        "trusted hooks must resolve namespaced dependency-first budgets")
+
+    var definitions = BoundedEnemyDefinitionRegistry(1)
+    assert(definitions.define(
+            8, 2001, 1, enemyDefinitionEliteKind()) &&
+        definitions.setCombat(8, 2001, 12, 2, 51) &&
+        definitions.setBehavior(8, 2001, 2, 2, 3) &&
+        definitions.setCritical(8, 2001, 0) &&
+        definitions.setLoot(8, 2001, 4000, 91, 6) &&
+        definitions.setRankCurrency(
+            8, 2001, enemyDefinitionEliteKind(), 5) &&
+        definitions.seal(),
+        "creator data mod must seal a complete distinct enemy definition")
+
+    var firstPackage = BoundedContentPackage(1, 1, 1)
+    assert(firstPackage.configureHeader(7, 4, 1, 1, 100) &&
+        firstPackage.addAsset(8, 2001, 3, 1, 811, 812, 15) &&
+        firstPackage.addChunk(1, 9, 0, 64, 813, 814, 1) &&
+        firstPackage.seal(),
+        "creator cooker output must bind stable content and chunk identity")
+    var incompleteHooks = BoundedTrustedModuleRegistry(2)
+    var invalidModulePublication = BoundedCreatorPublication()
+    assert(invalidModulePublication.begin(0, 1) &&
+        invalidModulePublication.stagePackage(firstPackage, 7) &&
+        !invalidModulePublication.stageExtensions(
+            extensions, incompleteHooks, 2) &&
+        invalidModulePublication.diagnostic() == creatorDiagnosticModule(),
+        "creator publication must diagnose an incomplete trusted module registry")
+    var incompatibleApiPublication = BoundedCreatorPublication()
+    assert(incompatibleApiPublication.begin(0, 1) &&
+        incompatibleApiPublication.stagePackage(firstPackage, 7) &&
+        !incompatibleApiPublication.stageExtensions(extensions, hooks, 3) &&
+        incompatibleApiPublication.diagnostic() == creatorDiagnosticApi(),
+        "creator publication must diagnose an incompatible extension API")
+
+
+    var cache = BoundedGenerationCache(2)
+    var publication = BoundedCreatorPublication()
+    assert(publication.begin(0, 1) &&
+        publication.stagePackage(firstPackage, 7) &&
+        publication.stageExtensions(extensions, hooks, 2) &&
+        publication.stageDefinitions(definitions) &&
+        publication.stageProducts(
+            101, 201, 301, firstPackage.checksum()) &&
+        publication.status() == creatorPublicationStagedStatus() &&
+        publication.validate(cache) &&
+        publication.status() == creatorPublicationValidatedStatus() &&
+        publication.publish(cache) &&
+        publication.status() == creatorPublicationPublishedStatus() &&
+        publication.activeGeneration() == 1 &&
+        cache.activeGeneration() == 1 &&
+        cache.generationRevision(1) == 1,
+        "validated package manifests definitions and products must publish atomically")
+
+    var active = publication.activeCompatibility()
+    assert(active.encode() && active.encodedLength() == 13,
+        "published multiplayer compatibility must encode a bounded exact identity")
+    var compatibilityWire = new Int[active.encodedLength()]
+    for (var index = 0; index < compatibilityWire.length; index = index + 1) {
+        compatibilityWire[index] = active.encodedWord(index)
+    }
+    var clientCompatibility = BoundedContentCompatibility()
+    assert(clientCompatibility.decode(compatibilityWire) &&
+        publication.admit(clientCompatibility) &&
+        publication.diagnostic() == creatorDiagnosticNone(),
+        "matching server and client content identities must admit")
+    compatibilityWire[6] = compatibilityWire[6] + 1
+    var corruptCompatibility = BoundedContentCompatibility()
+    assert(!corruptCompatibility.decode(compatibilityWire),
+        "content compatibility wire must reject manifest checksum corruption")
+
+    var alternateExtensionChecksum = active.extensionChecksum() + 1
+    if (alternateExtensionChecksum > 1000002) {
+        alternateExtensionChecksum = 1
+    }
+    var incompatibleClient = BoundedContentCompatibility()
+    assert(incompatibleClient.configureVersions(
+            active.engineVersion(), active.apiVersion(),
+            active.networkSchemaChecksum()) &&
+        incompatibleClient.configureContent(
+            active.packageChecksum(), alternateExtensionChecksum,
+            active.moduleChecksum(), active.definitionChecksum()) &&
+        incompatibleClient.configurePublication(
+            active.generation(), active.revision(), active.productChecksum()) &&
+        incompatibleClient.seal() &&
+        !publication.admit(incompatibleClient) &&
+        publication.diagnostic() == creatorDiagnosticManifest() &&
+        cache.activeGeneration() == 1,
+        "server admission must reject an incompatible mod manifest without mutation")
+
+    var secondPackage = BoundedContentPackage(1, 1, 1)
+    assert(secondPackage.configureHeader(7, 4, 2, 1, 100) &&
+        secondPackage.addAsset(8, 2001, 3, 2, 821, 822, 15) &&
+        secondPackage.addChunk(1, 9, 0, 64, 823, 824, 2) &&
+        secondPackage.seal(),
+        "second creator revision must seal independently")
+    assert(publication.begin(0, 2) &&
+        publication.stagePackage(secondPackage, 7) &&
+        publication.stageExtensions(extensions, hooks, 2) &&
+        publication.stageDefinitions(definitions) &&
+        publication.stageProducts(
+            102, 202, 302, secondPackage.checksum()) &&
+        !publication.validate(cache) &&
+        publication.status() == creatorPublicationRejectedStatus() &&
+        publication.diagnostic() == creatorDiagnosticStale() &&
+        publication.activeGeneration() == 1 &&
+        cache.activeGeneration() == 1,
+        "stale editor transaction must retain the prior running generation")
+    assert(publication.begin(1, 2) &&
+        publication.stagePackage(secondPackage, 7) &&
+        publication.stageExtensions(extensions, hooks, 2) &&
+        publication.stageDefinitions(definitions) &&
+        publication.stageProducts(
+            102, 202, 302, secondPackage.checksum() + 1) &&
+        !publication.validate(cache) &&
+        publication.diagnostic() == creatorDiagnosticProduct() &&
+        cache.activeGeneration() == 1,
+        "invalid product bundle must leave the prior world active")
+    assert(publication.begin(1, 2) &&
+        publication.stagePackage(secondPackage, 7) &&
+        publication.stageExtensions(extensions, hooks, 2) &&
+        publication.stageDefinitions(definitions) &&
+        publication.stageProducts(
+            102, 202, 302, secondPackage.checksum()) &&
+        publication.validate(cache) && publication.publish(cache) &&
+        publication.activeGeneration() == 2 &&
+        publication.revision() == 2 &&
+        cache.activeGeneration() == 2 && cache.isResident(1),
+        "fresh complete editor transaction must replace all products together")
+}
+
+test "G4 creator definitions drive a distinct multiplayer sample" {
+    var creatorDemo = G4CreatorDemo()
+    var creatorRan = creatorDemo.run()
+    assert(creatorRan && creatorDemo.completed() &&
+        creatorDemo.failureStep() == 0 &&
+        creatorDemo.publishedGeneration() == 1 &&
+        creatorDemo.publicationStatus() ==
+            creatorPublicationPublishedStatus() &&
+        creatorDemo.publicationDiagnostic() == creatorDiagnosticNone() &&
+        creatorDemo.playerCount() == 2 &&
+        creatorDemo.worldLootCount() == 1 &&
+        creatorDemo.worldLootStableId() == 4100,
+        "trusted module and data definitions must build a second bounded multiplayer sample")
 }
 test "player fire input publishes weapon presentation" {
     var loopback = LoopbackSession(4, 2)

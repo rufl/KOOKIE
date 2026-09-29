@@ -1,0 +1,282 @@
+package core
+
+class BoundedTrustedModuleRegistry {
+    Int[] ownerNamespaces
+    Int[] ownerIds
+    Int[] hookIds
+    Int[] phases
+    Int[] commandBudgets
+    Int[] eventBudgets
+    Bool[] budgetsConfigured
+    Int countValue
+    Int extensionChecksumValue
+    Int checksumValue
+    Bool sealedValue
+
+    public constructor(Int capacity) {
+        var actual = capacity
+        if (actual <= 0) {
+            actual = 1
+        }
+        if (actual > 32) {
+            actual = 32
+        }
+        ownerNamespaces = new Int[actual]
+        ownerIds = new Int[actual]
+        hookIds = new Int[actual]
+        phases = new Int[actual]
+        commandBudgets = new Int[actual]
+        eventBudgets = new Int[actual]
+        budgetsConfigured = new Bool[actual]
+        countValue = 0
+        extensionChecksumValue = 0
+        checksumValue = 0
+        sealedValue = false
+        for (var index = 0; index < actual; index = index + 1) {
+            ownerNamespaces[index] = 0
+            ownerIds[index] = 0
+            hookIds[index] = 0
+            phases[index] = 0
+            commandBudgets[index] = 0
+            eventBudgets[index] = 0
+            budgetsConfigured[index] = false
+        }
+    }
+
+    Int find(Int ownerNamespace, Int ownerId, Int hookId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ownerNamespaces[index] == ownerNamespace &&
+                ownerIds[index] == ownerId && hookIds[index] == hookId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool defineHook(
+        BoundedExtensionRegistry extensions,
+        Int ownerNamespace, Int ownerId, Int hookId, Int phase
+    ) {
+        if (sealedValue || ownerNamespace <= 0 || ownerNamespace > 1000000 ||
+            ownerId <= 0 || ownerId > 1000000 ||
+            hookId <= 0 || hookId > 1000000 ||
+            phase < trustedHookPreSimulationPhase() ||
+            phase > trustedHookEditorPhase() ||
+            countValue >= hookIds.length ||
+            find(ownerNamespace, ownerId, hookId) >= 0 ||
+            !extensions.hasManifest(ownerNamespace, ownerId) ||
+            !extensions.hasCapability(
+                ownerNamespace, ownerId,
+                extensionContributionTrustedHookKind()) ||
+            !extensions.hasContribution(
+                ownerNamespace, ownerId,
+                extensionContributionTrustedHookKind(), hookId)) {
+            return false
+        }
+        var index = countValue
+        ownerNamespaces[index] = ownerNamespace
+        ownerIds[index] = ownerId
+        hookIds[index] = hookId
+        phases[index] = phase
+        commandBudgets[index] = 0
+        eventBudgets[index] = 0
+        budgetsConfigured[index] = false
+        countValue = countValue + 1
+        return true
+    }
+
+    Bool setBudget(
+        Int ownerNamespace, Int ownerId, Int hookId,
+        Int commandBudget, Int eventBudget
+    ) {
+        var index = find(ownerNamespace, ownerId, hookId)
+        if (sealedValue || index < 0 || budgetsConfigured[index] ||
+            commandBudget <= 0 || commandBudget > 256 ||
+            eventBudget < 0 || eventBudget > 256) {
+            return false
+        }
+        commandBudgets[index] = commandBudget
+        eventBudgets[index] = eventBudget
+        budgetsConfigured[index] = true
+        return true
+    }
+
+    Int hookContributionCount(BoundedExtensionRegistry extensions) {
+        var result = 0
+        for (var position = 0;
+            position < extensions.contributionCount();
+            position = position + 1) {
+            if (extensions.orderedContributionKind(position) ==
+                extensionContributionTrustedHookKind()) {
+                result = result + 1
+            }
+        }
+        return result
+    }
+
+    Bool structuralValid(BoundedExtensionRegistry extensions) {
+        if (!extensions.validate() ||
+            hookContributionCount(extensions) != countValue) {
+            return false
+        }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ownerNamespaces[index] <= 0 || ownerIds[index] <= 0 ||
+                hookIds[index] <= 0 ||
+                phases[index] < trustedHookPreSimulationPhase() ||
+                phases[index] > trustedHookEditorPhase() ||
+                !budgetsConfigured[index] || commandBudgets[index] <= 0 ||
+                eventBudgets[index] < 0 ||
+                !extensions.hasContribution(
+                    ownerNamespaces[index], ownerIds[index],
+                    extensionContributionTrustedHookKind(), hookIds[index])) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int orderedHookIndex(
+        BoundedExtensionRegistry extensions, Int hookPosition
+    ) {
+        if (hookPosition < 0 || hookPosition >= countValue) {
+            return -1
+        }
+        var current = 0
+        for (var position = 0;
+            position < extensions.contributionCount();
+            position = position + 1) {
+            if (extensions.orderedContributionKind(position) ==
+                extensionContributionTrustedHookKind()) {
+                if (current == hookPosition) {
+                    return find(
+                        extensions.orderedContributionNamespace(position),
+                        extensions.orderedContributionOwner(position),
+                        extensions.orderedContributionPublicId(position))
+                }
+                current = current + 1
+            }
+        }
+        return -1
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) {
+            normalized = normalized + 1000003
+        }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum(BoundedExtensionRegistry extensions) {
+        var result = 37
+        result = mix(result, 1)
+        result = mix(result, extensions.checksum())
+        result = mix(result, countValue)
+        for (var position = 0; position < countValue; position = position + 1) {
+            var index = orderedHookIndex(extensions, position)
+            if (index < 0) {
+                return -1
+            }
+            result = mix(result, ownerNamespaces[index])
+            result = mix(result, ownerIds[index])
+            result = mix(result, hookIds[index])
+            result = mix(result, phases[index])
+            result = mix(result, commandBudgets[index])
+            result = mix(result, eventBudgets[index])
+        }
+        return result
+    }
+
+    Bool seal(BoundedExtensionRegistry extensions) {
+        if (sealedValue) {
+            return validate(extensions)
+        }
+        if (!structuralValid(extensions)) {
+            return false
+        }
+        extensionChecksumValue = extensions.checksum()
+        checksumValue = calculateChecksum(extensions)
+        if (checksumValue <= 0) {
+            return false
+        }
+        sealedValue = true
+        return true
+    }
+
+    Bool validate(BoundedExtensionRegistry extensions) {
+        return sealedValue && structuralValid(extensions) &&
+            extensionChecksumValue == extensions.checksum() &&
+            checksumValue == calculateChecksum(extensions)
+    }
+
+    Int count() {
+        return countValue
+    }
+
+    Int checksum() {
+        if (!sealedValue) {
+            return -1
+        }
+        return checksumValue
+    }
+
+    Int orderedHookNamespace(
+        BoundedExtensionRegistry extensions, Int position
+    ) {
+        var index = orderedHookIndex(extensions, position)
+        if (index < 0) {
+            return 0
+        }
+        return ownerNamespaces[index]
+    }
+
+    Int orderedHookOwner(
+        BoundedExtensionRegistry extensions, Int position
+    ) {
+        var index = orderedHookIndex(extensions, position)
+        if (index < 0) {
+            return 0
+        }
+        return ownerIds[index]
+    }
+
+    Int orderedHookId(
+        BoundedExtensionRegistry extensions, Int position
+    ) {
+        var index = orderedHookIndex(extensions, position)
+        if (index < 0) {
+            return 0
+        }
+        return hookIds[index]
+    }
+
+    Int orderedHookPhase(
+        BoundedExtensionRegistry extensions, Int position
+    ) {
+        var index = orderedHookIndex(extensions, position)
+        if (index < 0) {
+            return 0
+        }
+        return phases[index]
+    }
+
+    Int orderedHookCommandBudget(
+        BoundedExtensionRegistry extensions, Int position
+    ) {
+        var index = orderedHookIndex(extensions, position)
+        if (index < 0) {
+            return 0
+        }
+        return commandBudgets[index]
+    }
+
+    Int orderedHookEventBudget(
+        BoundedExtensionRegistry extensions, Int position
+    ) {
+        var index = orderedHookIndex(extensions, position)
+        if (index < 0) {
+            return -1
+        }
+        return eventBudgets[index]
+    }
+}

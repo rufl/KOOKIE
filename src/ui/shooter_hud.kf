@@ -31,6 +31,10 @@ class ShooterHud {
     Int eliteThreatsValue
     Int bossThreatsValue
     Int defeatedThreatKindValue
+    Int creatorStatusValue
+    Int creatorGenerationValue
+    Int creatorDiagnosticValue
+    Bool creatorCompatibleValue
 
 
     public constructor(Int maxHealth, Int maxAmmunition) {
@@ -67,6 +71,10 @@ class ShooterHud {
         eliteThreatsValue = 0
         bossThreatsValue = 0
         defeatedThreatKindValue = 0
+        creatorStatusValue = 0
+        creatorGenerationValue = 0
+        creatorDiagnosticValue = 0
+        creatorCompatibleValue = false
 
 
     }
@@ -157,6 +165,28 @@ class ShooterHud {
         defeatedThreatKindValue = defeatedKind
         return true
     }
+    Bool updateCreatorPublication(
+        Int status, Int generation, Int diagnostic, Bool compatible
+    ) {
+        if (status < 0 || status > 4 ||
+            generation < 0 || generation > 1000000 ||
+            diagnostic < 0 || diagnostic > 10 ||
+            (status == 0 &&
+                (generation != 0 || diagnostic != 0 || compatible)) ||
+            ((status == 1 || status == 2) &&
+                (diagnostic != 0 || compatible)) ||
+            (status == 3 &&
+                (generation <= 0 || diagnostic != 0 || !compatible)) ||
+            (status == 4 && (diagnostic <= 0 || compatible))) {
+            return false
+        }
+        creatorStatusValue = status
+        creatorGenerationValue = generation
+        creatorDiagnosticValue = diagnostic
+        creatorCompatibleValue = compatible
+        return true
+    }
+
 
 
     Bool presentImpact(
@@ -183,7 +213,7 @@ class ShooterHud {
 
 
     Int renderVertexCount() {
-        return 312
+        return 372
     }
 
 
@@ -386,103 +416,187 @@ class ShooterHud {
                 target, reserveResource,
                 reserveLeft, reserveBottom, reserveRight, reserveTop)
     }
-    Bool pushThreatStatus(
+    Bool pushCreatorPublicationCap(
+        FrameStaging target, Int resource, Bool visible
+    ) {
+        if (!visible) {
+            return pushQuad(target, resource, 0, 0, 0, 0)
+        }
+        if (creatorGenerationValue >= 3) {
+            return pushQuad(target, resource, -64, 75, -58, 77)
+        }
+        if (creatorGenerationValue >= 2) {
+            return pushQuad(target, resource, -63, 75, -59, 77)
+        }
+        return pushQuad(target, resource, -62, 75, -60, 77)
+    }
+
+    Bool pushCreatorPublicationPanel(
         FrameStaging target, Int resourceBase
     ) {
-        var visible = eliteThreatsValue > 0 || bossThreatsValue > 0 ||
-            defeatedThreatKindValue > 0
-        var panelLeft = 0
-        var panelBottom = 0
-        var panelRight = 0
-        var panelTop = 0
-        var panelInset = 0
-        if (visible) {
-            panelLeft = -26
-            panelBottom = 66
-            panelRight = 26
-            panelTop = 80
-            panelInset = 2
+        if (creatorStatusValue <= 0) {
+            return pushQuad(target, resourceBase, 0, 0, 0, 0) &&
+                pushQuad(target, resourceBase + 1, 0, 0, 0, 0)
         }
+        return pushQuad(target, resourceBase, -96, 66, -26, 80) &&
+            pushQuad(target, resourceBase + 1, -94, 68, -28, 78)
+    }
 
-        var eliteRadius = 0
-        var eliteResource = resourceBase + 5
+    Bool pushCreatorPublicationSource(
+        FrameStaging target, Int resourceBase
+    ) {
+        if (creatorStatusValue < 1) {
+            return pushQuad(target, resourceBase + 5, 0, 0, 0, 0)
+        }
+        return pushQuad(target, resourceBase + 5, -91, 70, -87, 76)
+    }
+
+    Bool pushCreatorPublicationValidation(
+        FrameStaging target, Int resourceBase
+    ) {
+        var resource = resourceBase + 4
+        if (creatorStatusValue == 3) {
+            resource = resourceBase + 6
+        } else if (creatorStatusValue == 4) {
+            resource = resourceBase + 3
+        }
+        var reached = creatorStatusValue >= 2 && creatorStatusValue <= 3
+        if (creatorStatusValue == 4 && creatorDiagnosticValue >= 5) {
+            reached = true
+        }
+        if (!reached) {
+            return pushQuad(target, resource, 0, 0, 0, 0) &&
+                pushDiamond(target, resource, -79, 73, 0)
+        }
+        return pushQuad(target, resource, -87, 72, -80, 74) &&
+            pushDiamond(target, resource, -79, 73, 4)
+    }
+
+    Bool pushCreatorPublicationProduct(
+        FrameStaging target, Int resourceBase
+    ) {
+        var resource = resourceBase + 6
+        if (creatorStatusValue == 4) {
+            resource = resourceBase + 3
+        }
+        var reached = creatorStatusValue == 3
+        if (creatorStatusValue == 4 && creatorDiagnosticValue >= 9) {
+            reached = true
+        }
+        if (!reached) {
+            return pushQuad(target, resource, 0, 0, 0, 0) &&
+                pushQuad(target, resource, 0, 0, 0, 0) &&
+                pushCreatorPublicationCap(target, resource, false)
+        }
+        return pushQuad(target, resource, -72, 72, -67, 74) &&
+            pushQuad(target, resource, -66, 70, -56, 75) &&
+            pushCreatorPublicationCap(target, resource, true)
+    }
+
+    Bool pushCreatorPublicationResult(
+        FrameStaging target, Int resourceBase
+    ) {
+        if (creatorStatusValue == 3 && creatorCompatibleValue) {
+            return pushQuad(target, resourceBase + 6, -48, 72, -34, 74) &&
+                pushQuad(target, resourceBase + 6, -42, 68, -40, 78)
+        }
+        if (creatorStatusValue == 4) {
+            return pushQuad(target, resourceBase + 3, -42, 70, -40, 77) &&
+                pushQuad(target, resourceBase + 3, -42, 67, -40, 69)
+        }
+        return pushQuad(target, resourceBase + 6, 0, 0, 0, 0) &&
+            pushQuad(target, resourceBase + 6, 0, 0, 0, 0)
+    }
+
+    Bool pushCreatorPublicationStatus(
+        FrameStaging target, Int resourceBase
+    ) {
+        return pushCreatorPublicationPanel(target, resourceBase) &&
+            pushCreatorPublicationSource(target, resourceBase) &&
+            pushCreatorPublicationValidation(target, resourceBase) &&
+            pushCreatorPublicationProduct(target, resourceBase) &&
+            pushCreatorPublicationResult(target, resourceBase)
+    }
+
+    Bool threatVisible() {
+        return eliteThreatsValue > 0 || bossThreatsValue > 0 ||
+            defeatedThreatKindValue > 0
+    }
+
+    Bool pushThreatPanel(FrameStaging target, Int resourceBase) {
+        if (!threatVisible()) {
+            return pushQuad(target, resourceBase, 0, 0, 0, 0) &&
+                pushQuad(target, resourceBase + 1, 0, 0, 0, 0)
+        }
+        return pushQuad(target, resourceBase, -26, 66, 26, 80) &&
+            pushQuad(target, resourceBase + 1, -24, 68, 24, 78)
+    }
+
+    Bool pushEliteThreatShape(FrameStaging target, Int resourceBase) {
+        var resource = resourceBase + 5
+        if (defeatedThreatKindValue == enemyDefinitionEliteKind()) {
+            resource = resourceBase + 3
+        }
         if (eliteThreatsValue > 0 ||
             defeatedThreatKindValue == enemyDefinitionEliteKind()) {
-            eliteRadius = 4
+            return pushDiamond(target, resource, -14, 73, 4)
         }
+        return pushDiamond(target, resource, -14, 73, 0)
+    }
+
+    Bool pushBossThreatShape(FrameStaging target, Int resourceBase) {
+        var resource = resourceBase + 4
+        if (defeatedThreatKindValue == enemyDefinitionBossKind()) {
+            resource = resourceBase + 3
+        }
+        if (bossThreatsValue <= 0 &&
+            defeatedThreatKindValue != enemyDefinitionBossKind()) {
+            return pushQuad(target, resource, 0, 0, 0, 0) &&
+                pushQuad(target, resource, 0, 0, 0, 0) &&
+                pushQuad(target, resource, 0, 0, 0, 0)
+        }
+        return pushQuad(target, resource, 10, 69, 18, 72) &&
+            pushQuad(target, resource, 10, 72, 13, 78) &&
+            pushQuad(target, resource, 15, 72, 18, 78)
+    }
+
+    Bool pushThreatPips(FrameStaging target, Int resourceBase) {
+        var eliteRight = -22
+        if (eliteThreatsValue >= 3) {
+            eliteRight = -16
+        } else if (eliteThreatsValue == 2) {
+            eliteRight = -18
+        } else if (eliteThreatsValue == 1) {
+            eliteRight = -20
+        }
+        var bossLeft = 22
+        if (bossThreatsValue >= 3) {
+            bossLeft = 16
+        } else if (bossThreatsValue == 2) {
+            bossLeft = 18
+        } else if (bossThreatsValue == 1) {
+            bossLeft = 20
+        }
+        var eliteResource = resourceBase + 5
         if (defeatedThreatKindValue == enemyDefinitionEliteKind()) {
             eliteResource = resourceBase + 3
         }
-
-        var bossLeft = 0
-        var bossBottom = 0
-        var bossRight = 0
-        var bossTop = 0
-        var bossLeftPeakLeft = 0
-        var bossLeftPeakRight = 0
-        var bossRightPeakLeft = 0
-        var bossRightPeakRight = 0
-        var bossPeakTop = 0
         var bossResource = resourceBase + 4
-        if (bossThreatsValue > 0 ||
-            defeatedThreatKindValue == enemyDefinitionBossKind()) {
-            bossLeft = 8
-            bossBottom = 69
-            bossRight = 22
-            bossTop = 72
-            bossLeftPeakLeft = 9
-            bossLeftPeakRight = 13
-            bossRightPeakLeft = 17
-            bossRightPeakRight = 21
-            bossPeakTop = 78
-        }
         if (defeatedThreatKindValue == enemyDefinitionBossKind()) {
             bossResource = resourceBase + 3
         }
-
-        var elitePipRight = -22
-        var elitePips = eliteThreatsValue
-        if (elitePips > 3) {
-            elitePips = 3
-        }
-        if (visible) {
-            elitePipRight = -22 + elitePips * 2
-        }
-        var bossPipLeft = 22
-        var bossPips = bossThreatsValue
-        if (bossPips > 3) {
-            bossPips = 3
-        }
-        if (visible) {
-            bossPipLeft = 22 - bossPips * 2
-        }
-
         return pushQuad(
-                target, resourceBase,
-                panelLeft, panelBottom, panelRight, panelTop) &&
-            pushQuad(
-                target, resourceBase + 1,
-                panelLeft + panelInset, panelBottom + panelInset,
-                panelRight - panelInset, panelTop - panelInset) &&
-            pushDiamond(
-                target, eliteResource, -14, 73, eliteRadius) &&
-            pushQuad(
-                target, bossResource,
-                bossLeft, bossBottom, bossRight, bossTop) &&
-            pushQuad(
-                target, bossResource,
-                bossLeftPeakLeft, bossTop,
-                bossLeftPeakRight, bossPeakTop) &&
-            pushQuad(
-                target, bossResource,
-                bossRightPeakLeft, bossTop,
-                bossRightPeakRight, bossPeakTop) &&
-            pushQuad(
-                target, eliteResource,
-                -22, 68, elitePipRight, 70) &&
-            pushQuad(
-                target, bossResource,
-                bossPipLeft, 77, 22, 79)
+                target, eliteResource, -22, 68, eliteRight, 70) &&
+            pushQuad(target, bossResource, bossLeft, 77, 22, 79)
+    }
+
+    Bool pushThreatStatus(
+        FrameStaging target, Int resourceBase
+    ) {
+        return pushThreatPanel(target, resourceBase) &&
+            pushEliteThreatShape(target, resourceBase) &&
+            pushBossThreatShape(target, resourceBase) &&
+            pushThreatPips(target, resourceBase)
     }
 
     Bool pushCombatFeedback(FrameStaging target, Int resourceBase) {
@@ -554,6 +668,7 @@ class ShooterHud {
                 target, crosshairResource,
                 crosshairGap, crosshairReach, crosshairThickness) ||
             !pushEncounterStatus(target, resourceBase) ||
+            !pushCreatorPublicationStatus(target, resourceBase) ||
             !pushThreatStatus(target, resourceBase) ||
             !pushCombatFeedback(target, resourceBase) ||
             !pushBuildStatus(target, resourceBase)) {
@@ -659,4 +774,20 @@ class ShooterHud {
     Int defeatedThreatKind() {
         return defeatedThreatKindValue
     }
+    Int creatorStatus() {
+        return creatorStatusValue
+    }
+
+    Int creatorGeneration() {
+        return creatorGenerationValue
+    }
+
+    Int creatorDiagnostic() {
+        return creatorDiagnosticValue
+    }
+
+    Bool creatorCompatible() {
+        return creatorCompatibleValue
+    }
+
 }

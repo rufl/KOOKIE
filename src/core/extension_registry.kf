@@ -4,6 +4,26 @@ Int extensionContributionEnemyDefinitionKind() {
     return 1
 }
 
+Int extensionContributionTrustedHookKind() {
+    return 2
+}
+
+Int trustedHookPreSimulationPhase() {
+    return 1
+}
+
+Int trustedHookPostSimulationPhase() {
+    return 2
+}
+
+Int trustedHookPresentationPhase() {
+    return 3
+}
+
+Int trustedHookEditorPhase() {
+    return 4
+}
+
 Int extensionDiagnosticNone() {
     return 0
 }
@@ -630,6 +650,44 @@ class BoundedExtensionRegistry {
         }
         return contributionPublicIds[index]
     }
+    Bool hasManifest(Int namespaceId, Int extensionId) {
+        return manifestIndex(namespaceId, extensionId) >= 0
+    }
+
+    Bool hasCapability(
+        Int ownerNamespace, Int ownerId, Int capabilityId
+    ) {
+        return capabilityIndex(ownerNamespace, ownerId, capabilityId) >= 0
+    }
+
+
+    Bool apiCompatible(Int requiredApiVersion) {
+        if (!validate() || requiredApiVersion <= 0) {
+            return false
+        }
+        for (var index = 0; index < manifestCountValue; index = index + 1) {
+            if (manifestApiVersions[index] != requiredApiVersion) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int networkSchemaChecksum() {
+        if (!validate()) {
+            return -1
+        }
+        var result = 29
+        result = mix(result, manifestCountValue)
+        for (var index = 0; index < manifestCountValue; index = index + 1) {
+            result = mix(result, manifestNamespaces[index])
+            result = mix(result, manifestIds[index])
+            result = mix(result, manifestNetworkSchemas[index])
+        }
+        return result
+    }
+
+
 }
 
 class BoundedEnemyDefinitionRegistry {

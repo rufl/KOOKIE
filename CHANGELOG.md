@@ -4,6 +4,36 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-29
 
+### First G4 transactional creator-publication slice
+
+- Added `BoundedTrustedModuleRegistry` for at most 32 statically compiled hook
+  declarations tied to manifest contributions, phase and command/event budgets.
+  Dependency/load/priority order is deterministic and the sealed checksum binds
+  the exact extension registry.
+- Added revision-checked `BoundedCreatorPublication` and a 13-word
+  `BoundedContentCompatibility` wire identity covering engine/API/network,
+  package, manifest, module, definition, generation and aligned
+  geometry/collision/navigation/replication products. Stale, mismatched and
+  invalid transactions leave the prior active generation intact.
+- Added `G4CreatorDemo`, a distinct public-API two-player encounter driven by a
+  data-defined elite and trusted-module declaration. Deterministic death emits
+  valid encounter, per-player authority and world-loot state.
+- Extended the fixed HUD from 312 to 372 vertices, and the complete scene from
+  426 to 486, with a source→validation→publication rail and shape-distinct
+  success/failure marks. The boss crown is more compact and remains structurally
+  distinct from the elite diamond.
+- An isolated capture exposed native-only coordinate corruption in the former
+  high-local-count creator/threat staging methods. Small fixed-coordinate
+  helpers now keep the publication cap, compatibility plus, elite diamond and
+  boss crown exact; JVM/native assertions bind their structural vertices.
+- All 77 source scenarios pass on JVM and native; Kof checks, lint and LSP pass.
+- Isolated Wayland SDL_GPU presentation passes at 320×240 with present
+  capability `11`, an 11,270 µs draw and frame checksum `30,358,034`. Visual
+  review confirmed bounded panel contents, readable shape-distinct
+  source/validation/publication/success and boss-crown cues, and no clipping or
+  overlap in those panels.
+
+
 ### G3 closure: bounded extensions, data-defined bosses and threat HUD
 
 - Added `BoundedExtensionRegistry` with versioned manifests, declared
