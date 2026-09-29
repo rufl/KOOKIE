@@ -184,6 +184,34 @@ class BoundedSkillProgression {
         return countValue
     }
 
+    Int skillIdAt(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return ids[index]
+    }
+
+    Int rankAt(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return ranks[index]
+    }
+
+    Int experienceAt(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return experiences[index]
+    }
+
+    Int cooldownUntilAt(Int index) {
+        if (index < 0 || index >= countValue) {
+            return -1
+        }
+        return cooldownUntilTicks[index]
+    }
+
 
     Int find(Int skillId) {
         for (var index = 0; index < countValue; index = index + 1) {
@@ -225,17 +253,25 @@ class BoundedSkillProgression {
         countValue = countValue + 1
         return true
     }
-    Bool gainExperience(
+    Bool canGainExperience(
         Int skillId, Int amount, BoundedSkillDefinitionStore definitions
     ) {
         var index = find(skillId)
-        var maximumRank = definitions.maximumRank(skillId)
-        var experienceCost = definitions.experienceCost(skillId)
-        if (index < 0 || amount <= 0 || amount > 1000000 ||
-            maximumRank <= 0 || experienceCost <= 0 ||
-            experiences[index] > 1000000 - amount) {
+        return index >= 0 && amount > 0 && amount <= 1000000 &&
+            definitions.maximumRank(skillId) > 0 &&
+            definitions.experienceCost(skillId) > 0 &&
+            experiences[index] <= 1000000 - amount
+    }
+
+    Bool gainExperience(
+        Int skillId, Int amount, BoundedSkillDefinitionStore definitions
+    ) {
+        if (!canGainExperience(skillId, amount, definitions)) {
             return false
         }
+        var index = find(skillId)
+        var maximumRank = definitions.maximumRank(skillId)
+        var experienceCost = definitions.experienceCost(skillId)
         var nextRank = ranks[index]
         var nextExperience = experiences[index] + amount
         while (nextRank < maximumRank && nextExperience >= experienceCost) {

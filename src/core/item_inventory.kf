@@ -68,6 +68,14 @@ class BoundedItemInventory {
     Int revision() {
         return revisionValue
     }
+    Bool restoreRevision(Int revision) {
+        if (revision < 0 || revision > 1000000) {
+            return false
+        }
+        revisionValue = revision
+        return true
+    }
+
     Int currency() {
         return currencyValue
     }

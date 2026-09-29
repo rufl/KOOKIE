@@ -1,6 +1,6 @@
 # KOOKIE engine plan
 
-Status: **living architecture and acceptance gates; G0/G1/G2 are implemented and G3 is next**.
+Status: **living architecture and acceptance gates; G0/G1/G2 are implemented, and the first G3 authoritative gameplay slice is implemented while the milestone remains open**.
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Project architecture is
 [ARCHITECTURE.md](ARCHITECTURE.md). See [language/runtime evidence](KOF_LANGUAGE.md),
@@ -504,6 +504,7 @@ Targets such as viewmodel FOV, recoil/sway, muzzle flashes, hit feedback, readab
 - Skill definitions declare prerequisites/rank caps/resource costs/cooldowns/tags; `BoundedSkillDefinitionStore` and `BoundedSkillProgression` now provide bounded prerequisite-gated learn/rank/experience progression plus deterministic activation/resource/cooldown checks with skill v1 save section persistence, and `LoopbackSession` exposes authoritative per-player skill learning/ranking/activation APIs whose configured damage percentages feed player combat.
 - Status definitions specify refresh/replace/add-stack rules, duration caps and fixed-tick damage schedules. `BoundedStatusDefinitionStore` and `BoundedStatusEffects` now refresh duration, cap additive stacks, expire deterministically and persist status v1 state; `LoopbackSession` applies configured periodic damage before each fixed-step expiry/tick, plus flat/percentage damage and defensive flat/percentage protection modifiers after armor. Enemy combat accepts the same bounded modifier path. Death/reset/load clears or retains effects intentionally.
 - Save item rolls in the dedicated rolled-item v1 section; `BoundedItemInventory` now round-trips stable ID, definition, seed, level, rarity, affixes and condition, so balance/content migration cannot silently reroll equipment.
+- `BoundedWorldLoot` retains at most eight complete rolled drops with stable/source IDs, rank and integer 3D position. Death reward preflight reserves world-loot, XP and currency capacity before the alive→dead commit; pickup removes a drop only after inventory accepts its exact roll. Recipient-specific checksummed state kinds `7` and `8` replicate complete inventory/equipment/skill/status and world-loot state. Save section 12 persists world drops plus loot/currency reward claims, and `decodeG3Authority` restores the player/runtime pair atomically against configured content.
 
 Borrow ZYLVE's transaction/identity invariants, not its fixed weapon names, small inventory sizes or fixed tier-drop tables. These systems are part of the planned engine, not deferred out of scope after a shooting demo.
 
@@ -651,15 +652,15 @@ exposes prediction correction and reconciliation, resolves one weapon/enemy
 encounter, and clears held movement/fire across focus loss. Its authored
 78-vertex/26-triangle arena supplies a walkable slope, steps and stacked rooms;
 the server replicates its triangle data and explicit bounds to the client.
-Camera, world staging and a semantic combat HUD feed a fixed 252-vertex native
-SDL_GPU scene: 78 world vertices plus 174 HUD vertices for health/ammunition,
-a shape-distinct connection glyph, active/reserve encounter load, confirmed
-hit/kill markers and edge damage warnings. The confirmed local hitscan event
-also reaches bounded replay/audio queues and native SDL clip playback. An
-isolated GPU smoke rendered and read back the bounded scene, and 73/73 tests
-pass on JVM and native. G1's no-per-frame-growth evidence is 64 deterministic
-stages with unchanged Kof capacities plus persistent native scene buffers; the
-30-minute RSS/performance soak remains G5.
+Camera, world staging and a semantic combat HUD feed a fixed 288-vertex native
+SDL_GPU scene: 78 arena vertices, 36 door vertices and 174 HUD vertices for
+health/ammunition, a shape-distinct connection glyph, active/reserve encounter
+load, confirmed hit/kill markers and edge damage warnings. The confirmed local
+hitscan event also reaches bounded replay/audio queues and native SDL clip
+playback. An isolated GPU smoke rendered and read back the bounded scene, and
+74/74 tests pass on JVM and native. G1's no-per-frame-growth evidence is 64
+deterministic stages with unchanged Kof capacities plus persistent native scene
+buffers; the 30-minute RSS/performance soak remains G5.
 
 G2 is closed by the JVM/native three-process transport slice carrying the full
 arena, unified checksummed movement/fire/interaction/lifecycle commands,
@@ -679,6 +680,16 @@ Kof computes listener-relative distance attenuation and stereo panning, while
 the SDL adapter queues the resulting left/right PCM gains. OpenAL HRTF/EFX,
 streamed decoding and the G5 soak remain later expansion, not missing G2
 acceptance.
+
+The first G3 vertical slice now passes on JVM and native: server-owned enemy
+deaths produce deterministic full rolls, remote pickup/equip/progression
+commands cannot author outcomes, equipment/status modifiers change observed
+boss damage, and boss loot/XP/currency claims survive an atomic schema-file
+save/reload without duplication. Checksummed recipient authority and world-loot
+schemas apply to a client replica, while a full inventory preserves the drop,
+currency and RNG identity. G3 is not closed: transport of kinds `7`/`8` through
+the external host-plus-two-client process probe, bounded public extension
+registries, and complete data-driven elite/boss rule definitions remain.
 
 ### Initial performance hypotheses, not achieved numbers
 

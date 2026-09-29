@@ -11,6 +11,7 @@ class LoopbackSession {
     CombatWorld playerCombat
     Int[] playerCombatRewardTargets
     Int[] playerCombatRewardCurrencies
+    Bool[] playerCombatRewardClaimed
     Int playerCombatRewardCount
     BoundedRayTargetWorld playerSpatialTargets
     PlayerWeaponPresenter playerWeaponPresentations
@@ -74,7 +75,64 @@ class LoopbackSession {
     BoundedItemInventory playerOneInventory
     BoundedItemInventory playerTwoInventory
     BoundedEquipmentLoadout playerOneEquipment
+    Int[] playerEquipmentDamageBonuses
     BoundedEquipmentLoadout playerTwoEquipment
+    BoundedItemDefinitionStore lootItemDefinitions
+    BoundedLootTable lootTable
+    BoundedAffixPoolStore lootAffixPools
+    BoundedAffixStatStore lootAffixStats
+    BoundedItemStatComposer lootStatComposer
+    BoundedWorldLoot worldLoot
+    Int[] enemyLootStableIds
+    Int[] enemyLootSeeds
+    Int[] enemyLootLevels
+    Int[] enemyLootRanks
+    Int[] enemyLootSkillIds
+    Int[] enemyLootSkillExperiences
+    Bool[] enemyLootClaimed
+    Int[] playerAuthorityStateSequences
+    Int[] worldLootStateSequences
+    Int clientRemoteAuthorityStateSequenceValue
+    Int clientRemoteInventoryRevisionValue
+    Int clientRemoteItemCountValue
+    Int[] clientRemoteItemIds
+    Int[] clientRemoteItemQuantities
+    Int[] clientRemoteItemRolled
+    Int[] clientRemoteItemDefinitionIds
+    Int[] clientRemoteItemSeeds
+    Int[] clientRemoteItemLevels
+    Int[] clientRemoteItemRarities
+    Int[] clientRemoteItemAffixOnes
+    Int[] clientRemoteItemAffixTwos
+    Int[] clientRemoteItemConditions
+    Int clientRemoteEquipmentCountValue
+    Int[] clientRemoteEquipmentSlots
+    Int[] clientRemoteEquipmentItems
+    Int clientRemoteSkillCountValue
+    Int[] clientRemoteSkillIds
+    Int[] clientRemoteSkillRanks
+    Int[] clientRemoteSkillExperiences
+    Int[] clientRemoteSkillCooldowns
+    Int clientRemoteStatusCountValue
+    Int[] clientRemoteStatusIds
+    Int[] clientRemoteStatusDurations
+    Int[] clientRemoteStatusStacks
+    Int clientRemoteWorldLootSequenceValue
+    Int clientRemoteWorldLootRevisionValue
+    Int clientRemoteWorldLootCountValue
+    Int[] clientRemoteWorldLootStableIds
+    Int[] clientRemoteWorldLootSourceIds
+    Int[] clientRemoteWorldLootRanks
+    Int[] clientRemoteWorldLootPositionsX
+    Int[] clientRemoteWorldLootPositionsY
+    Int[] clientRemoteWorldLootPositionsZ
+    Int[] clientRemoteWorldLootDefinitionIds
+    Int[] clientRemoteWorldLootSeeds
+    Int[] clientRemoteWorldLootLevels
+    Int[] clientRemoteWorldLootRarities
+    Int[] clientRemoteWorldLootAffixOnes
+    Int[] clientRemoteWorldLootAffixTwos
+    Int[] clientRemoteWorldLootConditions
     InputReplayRecorder playerOneReplay
     InputReplayRecorder playerTwoReplay
     MovementComponent serverMovement
@@ -177,6 +235,7 @@ class LoopbackSession {
         playerCombat = CombatWorld(entityCapacity, entityCapacity)
         playerCombatRewardTargets = new Int[entityCapacity]
         playerCombatRewardCurrencies = new Int[entityCapacity]
+        playerCombatRewardClaimed = new Bool[entityCapacity]
         playerCombatRewardCount = 0
         playerSpatialTargets = BoundedRayTargetWorld(entityCapacity, 1000000)
         playerWeaponPresentations = PlayerWeaponPresenter(entityCapacity * 2)
@@ -187,6 +246,9 @@ class LoopbackSession {
         gameplayStateSequences = new Int[3]
         connectionGenerations = new Int[3]
         disconnectReasons = new Int[3]
+        playerAuthorityStateSequences = new Int[3]
+        worldLootStateSequences = new Int[3]
+        playerEquipmentDamageBonuses = new Int[3]
         lastRemoteGameplayAcceptedValue = false
         lastRemoteGameplayDiagnosticValue = gameplayRejectedDiagnostic()
         remoteImpactSequenceValue = 0
@@ -207,6 +269,38 @@ class LoopbackSession {
         clientRemoteEnemyPositionsX = new Int[entityCapacity]
         clientRemoteEnemyPositionsY = new Int[entityCapacity]
         clientRemoteEnemyPositionsZ = new Int[entityCapacity]
+        clientRemoteItemIds = new Int[8]
+        clientRemoteItemQuantities = new Int[8]
+        clientRemoteItemRolled = new Int[8]
+        clientRemoteItemDefinitionIds = new Int[8]
+        clientRemoteItemSeeds = new Int[8]
+        clientRemoteItemLevels = new Int[8]
+        clientRemoteItemRarities = new Int[8]
+        clientRemoteItemAffixOnes = new Int[8]
+        clientRemoteItemAffixTwos = new Int[8]
+        clientRemoteItemConditions = new Int[8]
+        clientRemoteEquipmentSlots = new Int[4]
+        clientRemoteEquipmentItems = new Int[4]
+        clientRemoteSkillIds = new Int[4]
+        clientRemoteSkillRanks = new Int[4]
+        clientRemoteSkillExperiences = new Int[4]
+        clientRemoteSkillCooldowns = new Int[4]
+        clientRemoteStatusIds = new Int[4]
+        clientRemoteStatusDurations = new Int[4]
+        clientRemoteStatusStacks = new Int[4]
+        clientRemoteWorldLootStableIds = new Int[8]
+        clientRemoteWorldLootSourceIds = new Int[8]
+        clientRemoteWorldLootRanks = new Int[8]
+        clientRemoteWorldLootPositionsX = new Int[8]
+        clientRemoteWorldLootPositionsY = new Int[8]
+        clientRemoteWorldLootPositionsZ = new Int[8]
+        clientRemoteWorldLootDefinitionIds = new Int[8]
+        clientRemoteWorldLootSeeds = new Int[8]
+        clientRemoteWorldLootLevels = new Int[8]
+        clientRemoteWorldLootRarities = new Int[8]
+        clientRemoteWorldLootAffixOnes = new Int[8]
+        clientRemoteWorldLootAffixTwos = new Int[8]
+        clientRemoteWorldLootConditions = new Int[8]
         // Native array storage may be reused; initialize every observable slot.
         for (var player = 0; player < 3; player = player + 1) {
             interactionSequences[player] = 0
@@ -219,6 +313,9 @@ class LoopbackSession {
             gameplayStateSequences[player] = 0
             connectionGenerations[player] = 0
             disconnectReasons[player] = 0
+            playerAuthorityStateSequences[player] = 0
+            worldLootStateSequences[player] = 0
+            playerEquipmentDamageBonuses[player] = 0
         }
         for (var index = 0; index < clientInteractionFlags.length; index = index + 1) {
             clientInteractionFlags[index] = false
@@ -246,6 +343,53 @@ class LoopbackSession {
         clientRemoteEncounterRemainingBudgetValue = 0
         clientRemoteEnemyCountValue = 0
         clientRemoteImpactSequenceValue = 0
+        clientRemoteAuthorityStateSequenceValue = 0
+        clientRemoteInventoryRevisionValue = 0
+        clientRemoteItemCountValue = 0
+        clientRemoteEquipmentCountValue = 0
+        clientRemoteSkillCountValue = 0
+        clientRemoteStatusCountValue = 0
+        clientRemoteWorldLootSequenceValue = 0
+        clientRemoteWorldLootRevisionValue = 0
+        clientRemoteWorldLootCountValue = 0
+        for (var clientItem = 0; clientItem < 8; clientItem = clientItem + 1) {
+            clientRemoteItemIds[clientItem] = 0
+            clientRemoteItemQuantities[clientItem] = 0
+            clientRemoteItemRolled[clientItem] = 0
+            clientRemoteItemDefinitionIds[clientItem] = 0
+            clientRemoteItemSeeds[clientItem] = 0
+            clientRemoteItemLevels[clientItem] = 0
+            clientRemoteItemRarities[clientItem] = 0
+            clientRemoteItemAffixOnes[clientItem] = 0
+            clientRemoteItemAffixTwos[clientItem] = 0
+            clientRemoteItemConditions[clientItem] = 0
+            clientRemoteWorldLootStableIds[clientItem] = 0
+            clientRemoteWorldLootSourceIds[clientItem] = 0
+            clientRemoteWorldLootRanks[clientItem] = 0
+            clientRemoteWorldLootPositionsX[clientItem] = 0
+            clientRemoteWorldLootPositionsY[clientItem] = 0
+            clientRemoteWorldLootPositionsZ[clientItem] = 0
+            clientRemoteWorldLootDefinitionIds[clientItem] = 0
+            clientRemoteWorldLootSeeds[clientItem] = 0
+            clientRemoteWorldLootLevels[clientItem] = 0
+            clientRemoteWorldLootRarities[clientItem] = 0
+            clientRemoteWorldLootAffixOnes[clientItem] = 0
+            clientRemoteWorldLootAffixTwos[clientItem] = 0
+            clientRemoteWorldLootConditions[clientItem] = 0
+        }
+        for (var clientProgression = 0;
+            clientProgression < 4;
+            clientProgression = clientProgression + 1) {
+            clientRemoteEquipmentSlots[clientProgression] = 0
+            clientRemoteEquipmentItems[clientProgression] = 0
+            clientRemoteSkillIds[clientProgression] = 0
+            clientRemoteSkillRanks[clientProgression] = 0
+            clientRemoteSkillExperiences[clientProgression] = 0
+            clientRemoteSkillCooldowns[clientProgression] = 0
+            clientRemoteStatusIds[clientProgression] = 0
+            clientRemoteStatusDurations[clientProgression] = 0
+            clientRemoteStatusStacks[clientProgression] = 0
+        }
         playerSkillDefinitions = BoundedSkillDefinitionStore(16)
         playerOneSkills = BoundedSkillProgression(4)
         playerTwoSkills = BoundedSkillProgression(4)
@@ -255,6 +399,19 @@ class LoopbackSession {
         playerOneEquipment = BoundedEquipmentLoadout(4)
         playerTwoEquipment = BoundedEquipmentLoadout(4)
         playerTwoSkillResource = 100
+        lootItemDefinitions = BoundedItemDefinitionStore(8)
+        lootTable = BoundedLootTable(8)
+        lootAffixPools = BoundedAffixPoolStore(8)
+        lootAffixStats = BoundedAffixStatStore(32)
+        lootStatComposer = BoundedItemStatComposer()
+        worldLoot = BoundedWorldLoot(8)
+        enemyLootStableIds = new Int[entityCapacity]
+        enemyLootSeeds = new Int[entityCapacity]
+        enemyLootLevels = new Int[entityCapacity]
+        enemyLootRanks = new Int[entityCapacity]
+        enemyLootSkillIds = new Int[entityCapacity]
+        enemyLootSkillExperiences = new Int[entityCapacity]
+        enemyLootClaimed = new Bool[entityCapacity]
         playerStatusDefinitions = BoundedStatusDefinitionStore(16)
         playerOneStatuses = BoundedStatusEffects(4)
         playerTwoStatuses = BoundedStatusEffects(4)
@@ -306,6 +463,14 @@ class LoopbackSession {
             enemyAutonomous[index] = false
             playerCombatRewardTargets[index] = 0
             playerCombatRewardCurrencies[index] = 0
+            playerCombatRewardClaimed[index] = false
+            enemyLootStableIds[index] = 0
+            enemyLootSeeds[index] = 0
+            enemyLootLevels[index] = 0
+            enemyLootRanks[index] = 0
+            enemyLootSkillIds[index] = 0
+            enemyLootSkillExperiences[index] = 0
+            enemyLootClaimed[index] = false
         }
         clientBroadPhaseCollection = BoundedTriangleCollection(32, 64)
         clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
@@ -615,6 +780,44 @@ class LoopbackSession {
             }
             return true
         }
+        if (action == gameplayPickupAction()) {
+            if (tick == serverTick + 1 && advance(16667) == 1) {
+                lastRemoteGameplayAcceptedValue = pickupPlayerLoot(
+                    player, gameplayCommandValue(words, 0))
+            }
+            if (lastRemoteGameplayAcceptedValue) {
+                lastRemoteGameplayDiagnosticValue = gameplayPickupDiagnostic()
+            }
+            return true
+        }
+        if (action == gameplayEquipAction()) {
+            if (tick == serverTick + 1 && advance(16667) == 1) {
+                lastRemoteGameplayAcceptedValue = equipPlayerItem(
+                    player, gameplayCommandValue(words, 0),
+                    gameplayCommandValue(words, 1))
+            }
+            if (lastRemoteGameplayAcceptedValue) {
+                lastRemoteGameplayDiagnosticValue = gameplayEquipDiagnostic()
+            }
+            return true
+        }
+        if (action == gameplayProgressionAction()) {
+            if (tick == serverTick + 1 && advance(16667) == 1) {
+                if (gameplayCommandValue(words, 1) == 1) {
+                    lastRemoteGameplayAcceptedValue = learnPlayerSkill(
+                        player, gameplayCommandValue(words, 0))
+                } else {
+                    var activation = activatePlayerSkill(
+                        player, gameplayCommandValue(words, 0), serverTick)
+                    lastRemoteGameplayAcceptedValue = activation.accepted()
+                }
+            }
+            if (lastRemoteGameplayAcceptedValue) {
+                lastRemoteGameplayDiagnosticValue =
+                    gameplayProgressionDiagnostic()
+            }
+            return true
+        }
         if (tick == serverTick + 1 &&
             receiveInteraction(
                 player, tick, sequence, gameplayCommandValue(words, 0)) &&
@@ -726,6 +929,13 @@ class LoopbackSession {
         if (newBaseline) {
             clientRemoteImpactSequenceValue = 0
             clientRemoteFeedbackStateSequenceValue = 0
+            clientRemoteAuthorityStateSequenceValue = 0
+            clientRemoteWorldLootSequenceValue = 0
+            clientRemoteItemCountValue = 0
+            clientRemoteEquipmentCountValue = 0
+            clientRemoteSkillCountValue = 0
+            clientRemoteStatusCountValue = 0
+            clientRemoteWorldLootCountValue = 0
             impactPresentations.reset()
             impactAudio.reset()
         }
@@ -754,6 +964,284 @@ class LoopbackSession {
         clientRemoteDisconnectReasonValue =
             gameplayStateDisconnectReason(words)
         clientRemoteDiagnosticValue = gameplayStateDiagnostic(words)
+        return true
+    }
+
+    Int[] playerAuthorityStateMessage(Int tick, Int player) {
+        if (!started || tick < 0 || tick > 1000000 ||
+            tick != serverTick || player < 1 || player > 2 ||
+            !playerConnected(player) ||
+            connectionGenerations[player] <= 0 ||
+            playerAuthorityStateSequences[player] >= 1000000) {
+            return new Int[0]
+        }
+        var inventory = playerInventory(player)
+        var equipment = playerEquipment(player)
+        var skills = playerOneSkills
+        var statuses = playerOneStatuses
+        if (player == 2) {
+            skills = playerTwoSkills
+            statuses = playerTwoStatuses
+        }
+        var equipmentCount = 0
+        for (var slot = 0; slot < equipment.slotCount(); slot = slot + 1) {
+            if (equipment.itemAt(slot) > 0) {
+                equipmentCount = equipmentCount + 1
+            }
+        }
+        playerAuthorityStateSequences[player] =
+            playerAuthorityStateSequences[player] + 1
+        var state = newPlayerAuthorityStateMessage(
+            inventory.itemCount(), equipmentCount,
+            skills.count(), statuses.count())
+        if (!setPlayerAuthorityConnection(
+                state, tick, playerAuthorityStateSequences[player],
+                player, connectionGenerations[player]) ||
+            !setPlayerAuthorityInventory(
+                state, inventory.revision(), inventory.currency())) {
+            return new Int[0]
+        }
+        for (var item = 0; item < inventory.itemCount(); item = item + 1) {
+            var roll = inventory.itemRoll(item)
+            var rolled = 0
+            var definitionId = 0
+            var seed = 0
+            var level = 0
+            var rarity = 0
+            var affixOne = 0
+            var affixTwo = 0
+            var condition = 0
+            if (roll.accepted()) {
+                rolled = 1
+                definitionId = roll.definitionId()
+                seed = roll.seed()
+                level = roll.level()
+                rarity = roll.rarity()
+                affixOne = roll.affixOne()
+                affixTwo = roll.affixTwo()
+                condition = roll.condition()
+            }
+            if (!setPlayerAuthorityItem(
+                    state, item, inventory.itemId(item),
+                    inventory.itemQuantity(item), rolled) ||
+                (rolled == 1 &&
+                    (!setPlayerAuthorityItemRoll(
+                        state, item, definitionId, seed, level) ||
+                    !setPlayerAuthorityItemAffixes(
+                        state, item, rarity,
+                        affixOne, affixTwo, condition)))) {
+                return new Int[0]
+            }
+        }
+        var equipmentIndex = 0
+        for (var slot = 0; slot < equipment.slotCount(); slot = slot + 1) {
+            var itemId = equipment.itemAt(slot)
+            if (itemId > 0) {
+                if (!setPlayerAuthorityEquipment(
+                        state, equipmentIndex, slot, itemId)) {
+                    return new Int[0]
+                }
+                equipmentIndex = equipmentIndex + 1
+            }
+        }
+        for (var skill = 0; skill < skills.count(); skill = skill + 1) {
+            if (!setPlayerAuthoritySkill(
+                    state, skill, skills.skillIdAt(skill),
+                    skills.rankAt(skill), skills.experienceAt(skill),
+                    skills.cooldownUntilAt(skill))) {
+                return new Int[0]
+            }
+        }
+        for (var status = 0; status < statuses.count(); status = status + 1) {
+            var statusId = statuses.statusIdAt(status)
+            if (!setPlayerAuthorityStatus(
+                    state, status, statusId,
+                    statuses.duration(statusId), statuses.stacks(statusId))) {
+                return new Int[0]
+            }
+        }
+        if (!sealPlayerAuthorityStateMessage(state)) {
+            return new Int[0]
+        }
+        return state
+    }
+
+    Bool applyRemotePlayerAuthorityState(Int[] words) {
+        if (!started || !clientRemoteBaselineReadyValue ||
+            !validPlayerAuthorityStateMessage(words) ||
+            playerAuthorityStatePlayer(words) != clientRemotePlayerValue ||
+            playerAuthorityStateGeneration(words) !=
+                clientRemoteConnectionGenerationValue ||
+            playerAuthorityStateSequence(words) <=
+                clientRemoteAuthorityStateSequenceValue ||
+            playerAuthorityStateInventoryRevision(words) <
+                clientRemoteInventoryRevisionValue) {
+            return false
+        }
+        var itemCount = playerAuthorityStateItemCount(words)
+        var equipmentCount = playerAuthorityStateEquipmentCount(words)
+        var skillCount = playerAuthorityStateSkillCount(words)
+        var statusCount = playerAuthorityStateStatusCount(words)
+        for (var index = 0; index < clientRemoteItemIds.length; index = index + 1) {
+            clientRemoteItemIds[index] = 0
+            clientRemoteItemQuantities[index] = 0
+            clientRemoteItemRolled[index] = 0
+            clientRemoteItemDefinitionIds[index] = 0
+            clientRemoteItemSeeds[index] = 0
+            clientRemoteItemLevels[index] = 0
+            clientRemoteItemRarities[index] = 0
+            clientRemoteItemAffixOnes[index] = 0
+            clientRemoteItemAffixTwos[index] = 0
+            clientRemoteItemConditions[index] = 0
+            if (index < itemCount) {
+                var offset = playerAuthorityItemEntriesOffset() +
+                    index * playerAuthorityItemEntryWidth()
+                clientRemoteItemIds[index] = words[offset]
+                clientRemoteItemQuantities[index] = words[offset + 1]
+                clientRemoteItemRolled[index] = words[offset + 2]
+                clientRemoteItemDefinitionIds[index] = words[offset + 3]
+                clientRemoteItemSeeds[index] = words[offset + 4]
+                clientRemoteItemLevels[index] = words[offset + 5]
+                clientRemoteItemRarities[index] = words[offset + 6]
+                clientRemoteItemAffixOnes[index] = words[offset + 7]
+                clientRemoteItemAffixTwos[index] = words[offset + 8]
+                clientRemoteItemConditions[index] = words[offset + 9]
+            }
+        }
+        var equipmentOffset = playerAuthorityEquipmentEntriesOffset(words)
+        for (var equipment = 0;
+            equipment < clientRemoteEquipmentSlots.length;
+            equipment = equipment + 1) {
+            clientRemoteEquipmentSlots[equipment] = 0
+            clientRemoteEquipmentItems[equipment] = 0
+            if (equipment < equipmentCount) {
+                var offset = equipmentOffset +
+                    equipment * playerAuthorityEquipmentEntryWidth()
+                clientRemoteEquipmentSlots[equipment] = words[offset]
+                clientRemoteEquipmentItems[equipment] = words[offset + 1]
+            }
+        }
+        var skillOffset = playerAuthoritySkillEntriesOffset(words)
+        for (var skill = 0;
+            skill < clientRemoteSkillIds.length;
+            skill = skill + 1) {
+            clientRemoteSkillIds[skill] = 0
+            clientRemoteSkillRanks[skill] = 0
+            clientRemoteSkillExperiences[skill] = 0
+            clientRemoteSkillCooldowns[skill] = 0
+            if (skill < skillCount) {
+                var offset = skillOffset +
+                    skill * playerAuthoritySkillEntryWidth()
+                clientRemoteSkillIds[skill] = words[offset]
+                clientRemoteSkillRanks[skill] = words[offset + 1]
+                clientRemoteSkillExperiences[skill] = words[offset + 2]
+                clientRemoteSkillCooldowns[skill] = words[offset + 3]
+            }
+        }
+        var statusOffset = playerAuthorityStatusEntriesOffset(words)
+        for (var status = 0;
+            status < clientRemoteStatusIds.length;
+            status = status + 1) {
+            clientRemoteStatusIds[status] = 0
+            clientRemoteStatusDurations[status] = 0
+            clientRemoteStatusStacks[status] = 0
+            if (status < statusCount) {
+                var offset = statusOffset +
+                    status * playerAuthorityStatusEntryWidth()
+                clientRemoteStatusIds[status] = words[offset]
+                clientRemoteStatusDurations[status] = words[offset + 1]
+                clientRemoteStatusStacks[status] = words[offset + 2]
+            }
+        }
+        clientRemoteAuthorityStateSequenceValue =
+            playerAuthorityStateSequence(words)
+        clientRemoteInventoryRevisionValue =
+            playerAuthorityStateInventoryRevision(words)
+        clientRemoteCurrencyValue = playerAuthorityStateCurrency(words)
+        clientRemoteItemCountValue = itemCount
+        clientRemoteEquipmentCountValue = equipmentCount
+        clientRemoteSkillCountValue = skillCount
+        clientRemoteStatusCountValue = statusCount
+        return true
+    }
+
+    Int[] worldLootStateMessage(Int tick, Int player) {
+        if (!started || tick < 0 || tick > 1000000 ||
+            tick != serverTick || player < 1 || player > 2 ||
+            !playerConnected(player) ||
+            connectionGenerations[player] <= 0 ||
+            worldLootStateSequences[player] >= 1000000) {
+            return new Int[0]
+        }
+        worldLootStateSequences[player] =
+            worldLootStateSequences[player] + 1
+        var state = newWorldLootStateMessage(
+            tick, worldLootStateSequences[player],
+            player, connectionGenerations[player],
+            worldLoot.revision(), worldLoot.count())
+        for (var index = 0; index < worldLoot.count(); index = index + 1) {
+            if (!setWorldLootStateEntry(state, index, worldLoot, index)) {
+                return new Int[0]
+            }
+        }
+        if (!sealWorldLootStateMessage(state)) {
+            return new Int[0]
+        }
+        return state
+    }
+
+    Bool applyRemoteWorldLootState(Int[] words) {
+        if (!started || !clientRemoteBaselineReadyValue ||
+            !validWorldLootStateMessage(words) ||
+            worldLootStatePlayer(words) != clientRemotePlayerValue ||
+            worldLootStateGeneration(words) !=
+                clientRemoteConnectionGenerationValue ||
+            worldLootStateSequence(words) <=
+                clientRemoteWorldLootSequenceValue ||
+            worldLootStateRevision(words) <
+                clientRemoteWorldLootRevisionValue) {
+            return false
+        }
+        var count = worldLootStateDropCount(words)
+        for (var index = 0;
+            index < clientRemoteWorldLootStableIds.length;
+            index = index + 1) {
+            clientRemoteWorldLootStableIds[index] = 0
+            clientRemoteWorldLootSourceIds[index] = 0
+            clientRemoteWorldLootRanks[index] = 0
+            clientRemoteWorldLootPositionsX[index] = 0
+            clientRemoteWorldLootPositionsY[index] = 0
+            clientRemoteWorldLootPositionsZ[index] = 0
+            clientRemoteWorldLootDefinitionIds[index] = 0
+            clientRemoteWorldLootSeeds[index] = 0
+            clientRemoteWorldLootLevels[index] = 0
+            clientRemoteWorldLootRarities[index] = 0
+            clientRemoteWorldLootAffixOnes[index] = 0
+            clientRemoteWorldLootAffixTwos[index] = 0
+            clientRemoteWorldLootConditions[index] = 0
+            if (index < count) {
+                var offset = worldLootStateEntriesOffset() +
+                    index * worldLootStateEntryWidth()
+                clientRemoteWorldLootStableIds[index] = words[offset]
+                clientRemoteWorldLootSourceIds[index] = words[offset + 1]
+                clientRemoteWorldLootRanks[index] = words[offset + 2]
+                clientRemoteWorldLootPositionsX[index] = words[offset + 3]
+                clientRemoteWorldLootPositionsY[index] = words[offset + 4]
+                clientRemoteWorldLootPositionsZ[index] = words[offset + 5]
+                clientRemoteWorldLootDefinitionIds[index] = words[offset + 6]
+                clientRemoteWorldLootSeeds[index] = words[offset + 7]
+                clientRemoteWorldLootLevels[index] = words[offset + 8]
+                clientRemoteWorldLootRarities[index] = words[offset + 9]
+                clientRemoteWorldLootAffixOnes[index] = words[offset + 10]
+                clientRemoteWorldLootAffixTwos[index] = words[offset + 11]
+                clientRemoteWorldLootConditions[index] = words[offset + 12]
+            }
+        }
+        clientRemoteWorldLootSequenceValue =
+            worldLootStateSequence(words)
+        clientRemoteWorldLootRevisionValue =
+            worldLootStateRevision(words)
+        clientRemoteWorldLootCountValue = count
         return true
     }
 
@@ -1179,6 +1667,110 @@ class LoopbackSession {
     Int clientRemoteDiagnostic() {
         return clientRemoteDiagnosticValue
     }
+    Int clientRemoteAuthorityStateSequence() {
+        return clientRemoteAuthorityStateSequenceValue
+    }
+
+    Int clientRemoteInventoryRevision() {
+        return clientRemoteInventoryRevisionValue
+    }
+
+    Int clientRemoteItemCount() {
+        return clientRemoteItemCountValue
+    }
+
+    Int clientRemoteItemId(Int index) {
+        if (index < 0 || index >= clientRemoteItemCountValue) {
+            return 0
+        }
+        return clientRemoteItemIds[index]
+    }
+
+    Int clientRemoteItemSeed(Int index) {
+        if (index < 0 || index >= clientRemoteItemCountValue ||
+            clientRemoteItemRolled[index] == 0) {
+            return -1
+        }
+        return clientRemoteItemSeeds[index]
+    }
+
+    Int clientRemoteEquipmentItem(Int slot) {
+        for (var index = 0;
+            index < clientRemoteEquipmentCountValue;
+            index = index + 1) {
+            if (clientRemoteEquipmentSlots[index] == slot) {
+                return clientRemoteEquipmentItems[index]
+            }
+        }
+        return 0
+    }
+
+    Int clientRemoteSkillRank(Int skillId) {
+        for (var index = 0;
+            index < clientRemoteSkillCountValue;
+            index = index + 1) {
+            if (clientRemoteSkillIds[index] == skillId) {
+                return clientRemoteSkillRanks[index]
+            }
+        }
+        return 0
+    }
+
+    Int clientRemoteSkillExperience(Int skillId) {
+        for (var index = 0;
+            index < clientRemoteSkillCountValue;
+            index = index + 1) {
+            if (clientRemoteSkillIds[index] == skillId) {
+                return clientRemoteSkillExperiences[index]
+            }
+        }
+        return 0
+    }
+
+    Int clientRemoteStatusStackCount(Int statusId) {
+        for (var index = 0;
+            index < clientRemoteStatusCountValue;
+            index = index + 1) {
+            if (clientRemoteStatusIds[index] == statusId) {
+                return clientRemoteStatusStacks[index]
+            }
+        }
+        return 0
+    }
+
+    Int clientRemoteWorldLootSequence() {
+        return clientRemoteWorldLootSequenceValue
+    }
+
+    Int clientRemoteWorldLootRevision() {
+        return clientRemoteWorldLootRevisionValue
+    }
+
+    Int clientRemoteWorldLootCount() {
+        return clientRemoteWorldLootCountValue
+    }
+
+    Int clientRemoteWorldLootStableId(Int index) {
+        if (index < 0 || index >= clientRemoteWorldLootCountValue) {
+            return 0
+        }
+        return clientRemoteWorldLootStableIds[index]
+    }
+
+    Int clientRemoteWorldLootSeed(Int index) {
+        if (index < 0 || index >= clientRemoteWorldLootCountValue) {
+            return -1
+        }
+        return clientRemoteWorldLootSeeds[index]
+    }
+
+    Int clientRemoteWorldLootRank(Int index) {
+        if (index < 0 || index >= clientRemoteWorldLootCountValue) {
+            return 0
+        }
+        return clientRemoteWorldLootRanks[index]
+    }
+
 
     Bool consumeWorldInteractions(Int tick) {
         for (var player = 1; player <= 2; player = player + 1) {
@@ -1547,11 +2139,18 @@ class LoopbackSession {
 
     Bool defineEnemyWeapon(
         Int id, Int magazineSize, Int reserveCapacity,
-        Int cooldownTicks, Int damage, Int channel, Int range
+        Int damage, Int channel
     ) {
         return enemyCombat.defineWeapon(
-            id, magazineSize, reserveCapacity,
-            cooldownTicks, damage, channel, range)
+            id, magazineSize, reserveCapacity, damage, channel)
+    }
+
+    Bool setEnemyWeaponRange(Int id, Int range) {
+        return enemyCombat.setWeaponRange(id, range)
+    }
+
+    Bool setEnemyWeaponCooldown(Int id, Int cooldownTicks) {
+        return enemyCombat.setWeaponCooldown(id, cooldownTicks)
     }
 
     Bool defineEnemyEncounter(Int id, Int maxActive, Int budget) {
@@ -1566,7 +2165,13 @@ class LoopbackSession {
 
 
     Bool addEnemyCombatActor(Int id, Int health, Int armor) {
-        return enemyCombat.addActor(id, health, armor)
+        if (!enemyCombat.addActor(id, health, armor)) {
+            return false
+        }
+        if ((id == 1 || id == 2) && playerConnected(id)) {
+            return refreshPlayerCombatModifiers(id)
+        }
+        return true
     }
 
     Bool equipEnemyCombatWeapon(Int actorId, Int weaponId) {
@@ -1610,6 +2215,26 @@ class LoopbackSession {
     Int enemyCombatHealth(Int actorId) {
         return enemyCombat.currentHealth(actorId)
     }
+    Int enemyCombatMagazine(Int actorId) {
+        return enemyCombat.combatMagazine(actorId)
+    }
+
+    Bool enemyCombatAlive(Int actorId) {
+        return enemyCombat.combatAlive(actorId)
+    }
+
+    Int pendingEnemyCombatEvents() {
+        return enemyCombat.pendingCombatEvents()
+    }
+    Int enemyCombatReadyTick(Int actorId) {
+        return enemyCombat.combatReadyTick(actorId)
+    }
+
+    Int enemyCombatWeaponRange(Int actorId) {
+        return enemyCombat.combatWeaponRange(actorId)
+    }
+
+
     Int enemyState(Int enemyId) {
         return enemyCombat.enemyState(enemyId)
     }
@@ -1642,19 +2267,99 @@ class LoopbackSession {
         return enemyCombat.encounterRemainingBudget(encounterId)
     }
 
+    Int enemySlot(Int enemyId) {
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyIds[index] == enemyId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    BoundedItemRoll configuredEnemyLootRoll(Int enemyId) {
+        var roll = BoundedItemRoll()
+        var slot = enemySlot(enemyId)
+        if (slot < 0 || enemyLootStableIds[slot] <= 0) {
+            return roll
+        }
+        lootTable.rollWithAffixPools(
+            enemyLootStableIds[slot], enemyLootSeeds[slot],
+            enemyLootLevels[slot], lootItemDefinitions,
+            lootAffixPools, roll)
+        return roll
+    }
+
+    Bool canGrantEnemyLootReward(Int player, Int enemyId) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0 || enemyLootStableIds[slot] <= 0 ||
+            enemyLootClaimed[slot]) {
+            return true
+        }
+        var roll = configuredEnemyLootRoll(enemyId)
+        if (!roll.accepted() || !worldLoot.canStage(roll)) {
+            return false
+        }
+        var skillId = enemyLootSkillIds[slot]
+        var experience = enemyLootSkillExperiences[slot]
+        if (experience == 0) {
+            return true
+        }
+        if (enemyLootRanks[slot] != 3 || skillId <= 0) {
+            return false
+        }
+        if (player == 1 && playerOneConnected) {
+            return playerOneSkills.canGainExperience(
+                skillId, experience, playerSkillDefinitions)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoSkills.canGainExperience(
+                skillId, experience, playerSkillDefinitions)
+        }
+        return false
+    }
+
+    Bool grantEnemyLootReward(Int player, Int enemyId) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0 || enemyLootStableIds[slot] <= 0 ||
+            enemyLootClaimed[slot]) {
+            return true
+        }
+        var roll = configuredEnemyLootRoll(enemyId)
+        if (!roll.accepted() ||
+            !worldLoot.stage(
+                roll, enemyId, enemyLootRanks[slot],
+                SpatialPoint(
+                    enemyCombat.enemySpatialPositionX(enemyId),
+                    enemyCombat.enemySpatialPositionY(enemyId),
+                    enemyCombat.enemySpatialPositionZ(enemyId)))) {
+            return false
+        }
+        var experience = enemyLootSkillExperiences[slot]
+        if (experience > 0 &&
+            !gainPlayerSkillExperience(
+                player, enemyLootSkillIds[slot], experience)) {
+            return false
+        }
+        enemyLootClaimed[slot] = true
+        return true
+    }
+
     ResolutionResult resolveEnemyHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
         var reward = combatRewardCurrency(targetId)
-        if (!canGrantCombatReward(sourceId, reward)) {
+        if (!canGrantCombatReward(sourceId, reward) ||
+            !canGrantEnemyLootReward(sourceId, targetId)) {
             return ResolutionResult(
                 false, 0, sourceId, targetId, 0,
                 enemyCombat.currentHealth(targetId), false, 0)
         }
         var result = enemyCombat.playerHitscan(
             sourceId, targetId, tick, distance, critical)
-        if (result.accepted() && result.died() && reward > 0 &&
-            !grantCombatReward(sourceId, reward)) {
+        if (result.accepted() && result.died() &&
+            ((!grantEnemyLootReward(sourceId, targetId)) ||
+                (reward > 0 &&
+                    !grantCombatReward(sourceId, targetId, reward)))) {
             return ResolutionResult(
                 false, result.actionId(), sourceId, targetId,
                 result.applied(), result.remainingHealth(),
@@ -1667,15 +2372,18 @@ class LoopbackSession {
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
         var reward = combatRewardCurrency(targetId)
-        if (!canGrantCombatReward(sourceId, reward)) {
+        if (!canGrantCombatReward(sourceId, reward) ||
+            !canGrantEnemyLootReward(sourceId, targetId)) {
             return ResolutionResult(
                 false, 0, sourceId, targetId, 0,
                 enemyCombat.currentHealth(targetId), false, 0)
         }
         var result = enemyCombat.playerShotgun(
             sourceId, targetId, tick, distance, critical)
-        if (result.accepted() && result.died() && reward > 0 &&
-            !grantCombatReward(sourceId, reward)) {
+        if (result.accepted() && result.died() &&
+            ((!grantEnemyLootReward(sourceId, targetId)) ||
+                (reward > 0 &&
+                    !grantCombatReward(sourceId, targetId, reward)))) {
             return ResolutionResult(
                 false, result.actionId(), sourceId, targetId,
                 result.applied(), result.remainingHealth(),
@@ -1709,12 +2417,12 @@ class LoopbackSession {
     }
 
     Bool admitEnemy(
-        Int encounterId, Int enemyId, Int tick,
-        Int health, Int armor, Int weaponId
+        Int encounterId, Int enemyId, Int health,
+        Int armor, Int weaponId
     ) {
         if (!started || enemyCount >= enemyIds.length ||
             !enemyCombat.admitEnemy(
-                encounterId, enemyId, tick, health, armor, weaponId)) {
+                encounterId, enemyId, health, armor, weaponId)) {
             return false
         }
         enemyIds[enemyCount] = enemyId
@@ -2142,6 +2850,97 @@ class LoopbackSession {
     Int enemySnapshotCount() {
         return enemyServerSnapshots.size()
     }
+    Bool defineLootItem(
+        Int definitionId, Int baseValue,
+        Int minimumLevel, Int maximumLevel, Int affixPool
+    ) {
+        return lootItemDefinitions.define(
+            definitionId, baseValue,
+            minimumLevel, maximumLevel, affixPool)
+    }
+
+    Bool defineLootAffixPool(Int poolId) {
+        return lootAffixPools.define(poolId)
+    }
+
+    Bool addLootAffix(Int poolId, Int affixId, Int weight) {
+        return lootAffixPools.add(poolId, affixId, weight)
+    }
+
+    Bool defineLootAffixStat(
+        Int affixId, Int flatValue,
+        Int additivePercent, Int multiplicativePercent
+    ) {
+        return lootAffixStats.define(
+            affixId, flatValue, additivePercent, multiplicativePercent)
+    }
+
+    Bool addLootTableEntry(Int definitionId, Int weight) {
+        return lootTable.add(definitionId, weight, lootItemDefinitions)
+    }
+    BoundedItemRoll previewLootRoll(
+        Int stableId, Int seed, Int level
+    ) {
+        var roll = BoundedItemRoll()
+        lootTable.rollWithAffixPools(
+            stableId, seed, level, lootItemDefinitions,
+            lootAffixPools, roll)
+        return roll
+    }
+
+
+    Bool defineEnemyLootReward(
+        Int enemyId, Int stableId, Int seed, Int level, Int rank
+    ) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0 || enemyLootStableIds[slot] != 0 ||
+            stableId <= 0 || stableId > 1000000 ||
+            seed < 0 || seed > 1000000 ||
+            level <= 0 || level > 1000000 ||
+            rank < 1 || rank > 3 ||
+            worldLoot.find(stableId) >= 0) {
+            return false
+        }
+        var configuredCount = 0
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyLootStableIds[index] != 0) {
+                configuredCount = configuredCount + 1
+            }
+            if (enemyLootStableIds[index] == stableId) {
+                return false
+            }
+        }
+        if (configuredCount >= 8 ||
+            !previewLootRoll(stableId, seed, level).accepted()) {
+            return false
+        }
+        enemyLootStableIds[slot] = stableId
+        enemyLootSeeds[slot] = seed
+        enemyLootLevels[slot] = level
+        enemyLootRanks[slot] = rank
+        enemyLootSkillIds[slot] = 0
+        enemyLootSkillExperiences[slot] = 0
+        enemyLootClaimed[slot] = false
+        return true
+    }
+
+    Bool defineEnemyLootProgressionReward(
+        Int enemyId, Int skillId, Int skillExperience
+    ) {
+        var slot = enemySlot(enemyId)
+        if (slot < 0 || enemyLootStableIds[slot] <= 0 ||
+            enemyLootRanks[slot] != 3 || enemyLootClaimed[slot] ||
+            enemyLootSkillIds[slot] != 0 ||
+            skillId <= 0 || skillId > 1000000 ||
+            skillExperience <= 0 || skillExperience > 1000000 ||
+            playerSkillDefinitions.find(skillId) < 0) {
+            return false
+        }
+        enemyLootSkillIds[slot] = skillId
+        enemyLootSkillExperiences[slot] = skillExperience
+        return true
+    }
+
     Bool definePlayerSkill(Int skillId, Int maximumRank, Int experienceCost) {
         return playerSkillDefinitions.define(
             skillId, maximumRank, experienceCost)
@@ -2216,31 +3015,44 @@ class LoopbackSession {
     }
 
     Bool learnPlayerSkill(Int player, Int skillId) {
-        var accepted = false
-        if (player == 1 && playerOneConnected) {
-            accepted = playerOneSkills.learn(skillId, playerSkillDefinitions)
-        } else if (player == 2 && playerTwoConnected) {
-            accepted = playerTwoSkills.learn(skillId, playerSkillDefinitions)
-        }
-        if (!accepted) {
+        var skills = playerOneSkills
+        if (player == 2 && playerTwoConnected) {
+            skills = playerTwoSkills
+        } else if (player != 1 || !playerOneConnected) {
             return false
         }
-        return refreshPlayerCombatModifiers(player)
+        var previous = new Int[skills.replayStateLength()]
+        if (!skills.encodeReplayState(previous) ||
+            !skills.learn(skillId, playerSkillDefinitions)) {
+            return false
+        }
+        if (refreshPlayerCombatModifiers(player)) {
+            return true
+        }
+        skills.restoreReplayState(previous, playerSkillDefinitions)
+        refreshPlayerCombatModifiers(player)
+        return false
     }
 
     Bool gainPlayerSkillExperience(Int player, Int skillId, Int amount) {
-        var accepted = false
-        if (player == 1 && playerOneConnected) {
-            accepted = playerOneSkills.gainExperience(
-                skillId, amount, playerSkillDefinitions)
-        } else if (player == 2 && playerTwoConnected) {
-            accepted = playerTwoSkills.gainExperience(
-                skillId, amount, playerSkillDefinitions)
-        }
-        if (!accepted) {
+        var skills = playerOneSkills
+        if (player == 2 && playerTwoConnected) {
+            skills = playerTwoSkills
+        } else if (player != 1 || !playerOneConnected) {
             return false
         }
-        return refreshPlayerCombatModifiers(player)
+        var previous = new Int[skills.replayStateLength()]
+        if (!skills.encodeReplayState(previous) ||
+            !skills.gainExperience(
+                skillId, amount, playerSkillDefinitions)) {
+            return false
+        }
+        if (refreshPlayerCombatModifiers(player)) {
+            return true
+        }
+        skills.restoreReplayState(previous, playerSkillDefinitions)
+        refreshPlayerCombatModifiers(player)
+        return false
     }
 
     Int playerSkillRank(Int player, Int skillId) {
@@ -2289,18 +3101,24 @@ class LoopbackSession {
     Bool applyPlayerStatus(
         Int player, Int statusId, Int duration, Int stacks
     ) {
-        var accepted = false
-        if (player == 1 && playerOneConnected) {
-            accepted = playerOneStatuses.apply(
-                statusId, duration, stacks, playerStatusDefinitions)
-        } else if (player == 2 && playerTwoConnected) {
-            accepted = playerTwoStatuses.apply(
-                statusId, duration, stacks, playerStatusDefinitions)
-        }
-        if (!accepted) {
+        var effects = playerOneStatuses
+        if (player == 2 && playerTwoConnected) {
+            effects = playerTwoStatuses
+        } else if (player != 1 || !playerOneConnected) {
             return false
         }
-        return refreshPlayerCombatModifiers(player)
+        var previous = new Int[effects.replayStateLength()]
+        if (!effects.encodeReplayState(previous) ||
+            !effects.apply(
+                statusId, duration, stacks, playerStatusDefinitions)) {
+            return false
+        }
+        if (refreshPlayerCombatModifiers(player)) {
+            return true
+        }
+        effects.restoreReplayState(previous, playerStatusDefinitions)
+        refreshPlayerCombatModifiers(player)
+        return false
     }
 
     Int playerStatusDuration(Int player, Int statusId) {
@@ -2354,6 +3172,424 @@ class LoopbackSession {
         }
         return false
     }
+    Bool encodePlayerAuthority(Int player, BoundedSaveSections target) {
+        if (player == 1 && playerOneConnected) {
+            return playerOneInventory.encodeInto(target) &&
+                playerOneEquipment.encodeInto(target) &&
+                playerOneSkills.encodeInto(target) &&
+                playerOneStatuses.encodeInto(target)
+        }
+        if (player == 2 && playerTwoConnected) {
+            return playerTwoInventory.encodeInto(target) &&
+                playerTwoEquipment.encodeInto(target) &&
+                playerTwoSkills.encodeInto(target) &&
+                playerTwoStatuses.encodeInto(target)
+        }
+        return false
+    }
+
+    Bool decodePlayerAuthority(
+        Int player, BoundedSaveSections source
+    ) {
+        if (!playerConnected(player)) {
+            return false
+        }
+        var decodedInventory = BoundedItemInventory(player, 8)
+        var decodedEquipment = BoundedEquipmentLoadout(4)
+        var decodedSkills = BoundedSkillProgression(4)
+        var decodedStatuses = BoundedStatusEffects(4)
+        if (!decodedInventory.decodeFrom(source) ||
+            !decodedEquipment.decodeFrom(source, decodedInventory) ||
+            !decodedSkills.decodeFrom(source, playerSkillDefinitions) ||
+            !decodedStatuses.decodeFrom(source, playerStatusDefinitions)) {
+            return false
+        }
+        var previousInventory = playerOneInventory
+        var previousEquipment = playerOneEquipment
+        var previousSkills = playerOneSkills
+        var previousStatuses = playerOneStatuses
+        if (player == 2) {
+            previousInventory = playerTwoInventory
+            previousEquipment = playerTwoEquipment
+            previousSkills = playerTwoSkills
+            previousStatuses = playerTwoStatuses
+            playerTwoInventory = decodedInventory
+            playerTwoEquipment = decodedEquipment
+            playerTwoSkills = decodedSkills
+            playerTwoStatuses = decodedStatuses
+        } else {
+            playerOneInventory = decodedInventory
+            playerOneEquipment = decodedEquipment
+            playerOneSkills = decodedSkills
+            playerOneStatuses = decodedStatuses
+        }
+        var previousBonus = playerEquipmentDamageBonuses[player]
+        var decodedBonus = computePlayerEquipmentDamageBonus(player)
+        if (decodedBonus >= 0) {
+            playerEquipmentDamageBonuses[player] = decodedBonus
+            if (refreshPlayerCombatModifiers(player)) {
+                return true
+            }
+        }
+        if (player == 2) {
+            playerTwoInventory = previousInventory
+            playerTwoEquipment = previousEquipment
+            playerTwoSkills = previousSkills
+            playerTwoStatuses = previousStatuses
+        } else {
+            playerOneInventory = previousInventory
+            playerOneEquipment = previousEquipment
+            playerOneSkills = previousSkills
+            playerOneStatuses = previousStatuses
+        }
+        playerEquipmentDamageBonuses[player] = previousBonus
+        refreshPlayerCombatModifiers(player)
+        return false
+    }
+
+    Bool sameLootRoll(BoundedItemRoll first, BoundedItemRoll second) {
+        return first.accepted() && second.accepted() &&
+            first.stableId() == second.stableId() &&
+            first.definitionId() == second.definitionId() &&
+            first.seed() == second.seed() &&
+            first.level() == second.level() &&
+            first.rarity() == second.rarity() &&
+            first.affixOne() == second.affixOne() &&
+            first.affixTwo() == second.affixTwo() &&
+            first.condition() == second.condition()
+    }
+
+    Bool encodeAuthorityRuntime(
+        Int player, BoundedSaveSections target
+    ) {
+        if (!playerConnected(player)) {
+            return false
+        }
+        var combatClaims = 0
+        for (var combat = 0;
+            combat < playerCombatRewardCount;
+            combat = combat + 1) {
+            if (playerCombatRewardClaimed[combat]) {
+                combatClaims = combatClaims + 1
+            }
+        }
+        var lootClaims = 0
+        for (var enemy = 0; enemy < enemyCount; enemy = enemy + 1) {
+            if (enemyLootClaimed[enemy]) {
+                lootClaims = lootClaims + 1
+            }
+        }
+        var payloadLength = 6 + worldLoot.count() * 16 +
+            combatClaims + lootClaims
+        if (payloadLength > 160) {
+            return false
+        }
+        var payload = new Int[payloadLength]
+        payload[0] = worldLoot.revision()
+        payload[1] = worldLoot.count()
+        payload[2] = combatClaims
+        payload[3] = lootClaims
+        payload[4] = player
+        if (player == 1) {
+            payload[5] = playerOneInventory.revision()
+        } else {
+            payload[5] = playerTwoInventory.revision()
+        }
+        var offset = 6
+        for (var drop = 0; drop < worldLoot.count(); drop = drop + 1) {
+            var x = worldLoot.positionX(drop)
+            var y = worldLoot.positionY(drop)
+            var z = worldLoot.positionZ(drop)
+            var xSign = 0
+            var ySign = 0
+            var zSign = 0
+            if (x < 0) {
+                xSign = 1
+                x = -x
+            }
+            if (y < 0) {
+                ySign = 1
+                y = -y
+            }
+            if (z < 0) {
+                zSign = 1
+                z = -z
+            }
+            var roll = worldLoot.rollAt(drop)
+            payload[offset] = worldLoot.stableId(drop)
+            payload[offset + 1] = worldLoot.sourceId(drop)
+            payload[offset + 2] = worldLoot.rank(drop)
+            payload[offset + 3] = xSign
+            payload[offset + 4] = x
+            payload[offset + 5] = ySign
+            payload[offset + 6] = y
+            payload[offset + 7] = zSign
+            payload[offset + 8] = z
+            payload[offset + 9] = roll.definitionId()
+            payload[offset + 10] = roll.seed()
+            payload[offset + 11] = roll.level()
+            payload[offset + 12] = roll.rarity()
+            payload[offset + 13] = roll.affixOne()
+            payload[offset + 14] = roll.affixTwo()
+            payload[offset + 15] = roll.condition()
+            offset = offset + 16
+        }
+        for (var reward = 0;
+            reward < playerCombatRewardCount;
+            reward = reward + 1) {
+            if (playerCombatRewardClaimed[reward]) {
+                payload[offset] = playerCombatRewardTargets[reward]
+                offset = offset + 1
+            }
+        }
+        for (var loot = 0; loot < enemyCount; loot = loot + 1) {
+            if (enemyLootClaimed[loot]) {
+                payload[offset] = enemyIds[loot]
+                offset = offset + 1
+            }
+        }
+        return offset == payload.length && target.put(12, 1, payload)
+    }
+
+    Bool encodeG3Authority(
+        Int player, BoundedSaveSections target
+    ) {
+        return encodePlayerAuthority(player, target) &&
+            encodeAuthorityRuntime(player, target)
+    }
+
+    Bool decodeAuthorityRuntime(
+        Int player, BoundedSaveSections source
+    ) {
+        var section = source.find(12)
+        if (!playerConnected(player) || section < 0 ||
+            source.sectionVersion(section) != 1 ||
+            source.sectionLength(section) < 6) {
+            return false
+        }
+        var savedWorldRevision = source.sectionValue(section, 0)
+        var dropCount = source.sectionValue(section, 1)
+        var combatClaims = source.sectionValue(section, 2)
+        var lootClaims = source.sectionValue(section, 3)
+        var savedPlayer = source.sectionValue(section, 4)
+        var savedInventoryRevision = source.sectionValue(section, 5)
+        if (dropCount < 0 || dropCount > 8 ||
+            combatClaims < 0 || combatClaims > 16 ||
+            lootClaims < 0 || lootClaims > 8 ||
+            savedPlayer != player ||
+            savedInventoryRevision < 0 ||
+            savedInventoryRevision > 1000000 ||
+            savedWorldRevision < dropCount ||
+            savedWorldRevision > 1000000 ||
+            source.sectionLength(section) !=
+                6 + dropCount * 16 + combatClaims + lootClaims) {
+            return false
+        }
+        var decodedWorld = BoundedWorldLoot(8)
+        var offset = 6
+        for (var drop = 0; drop < dropCount; drop = drop + 1) {
+            var xSign = source.sectionValue(section, offset + 3)
+            var ySign = source.sectionValue(section, offset + 5)
+            var zSign = source.sectionValue(section, offset + 7)
+            var x = source.sectionValue(section, offset + 4)
+            var y = source.sectionValue(section, offset + 6)
+            var z = source.sectionValue(section, offset + 8)
+            if (xSign < 0 || xSign > 1 ||
+                ySign < 0 || ySign > 1 ||
+                zSign < 0 || zSign > 1 ||
+                (xSign == 1 && x == 0) ||
+                (ySign == 1 && y == 0) ||
+                (zSign == 1 && z == 0)) {
+                return false
+            }
+            if (xSign == 1) {
+                x = -x
+            }
+            if (ySign == 1) {
+                y = -y
+            }
+            if (zSign == 1) {
+                z = -z
+            }
+            var roll = BoundedItemRoll()
+            if (!roll.stage(
+                    source.sectionValue(section, offset),
+                    source.sectionValue(section, offset + 9),
+                    source.sectionValue(section, offset + 10),
+                    source.sectionValue(section, offset + 11),
+                    source.sectionValue(section, offset + 12),
+                    source.sectionValue(section, offset + 13),
+                    source.sectionValue(section, offset + 14),
+                    source.sectionValue(section, offset + 15)) ||
+                !decodedWorld.stage(
+                    roll, source.sectionValue(section, offset + 1),
+                    source.sectionValue(section, offset + 2),
+                    SpatialPoint(x, y, z))) {
+                return false
+            }
+            offset = offset + 16
+        }
+        var decodedCombatClaims =
+            new Bool[playerCombatRewardClaimed.length]
+        for (var clearCombat = 0;
+            clearCombat < decodedCombatClaims.length;
+            clearCombat = clearCombat + 1) {
+            decodedCombatClaims[clearCombat] = false
+        }
+        for (var combat = 0; combat < combatClaims; combat = combat + 1) {
+            var combatSlot = combatRewardSlot(
+                source.sectionValue(section, offset))
+            if (combatSlot < 0 || decodedCombatClaims[combatSlot]) {
+                return false
+            }
+            decodedCombatClaims[combatSlot] = true
+            offset = offset + 1
+        }
+        var decodedLootClaims = new Bool[enemyLootClaimed.length]
+        for (var clearLoot = 0;
+            clearLoot < decodedLootClaims.length;
+            clearLoot = clearLoot + 1) {
+            decodedLootClaims[clearLoot] = false
+        }
+        for (var loot = 0; loot < lootClaims; loot = loot + 1) {
+            var lootSlot = enemySlot(source.sectionValue(section, offset))
+            if (lootSlot < 0 || enemyLootStableIds[lootSlot] <= 0 ||
+                decodedLootClaims[lootSlot]) {
+                return false
+            }
+            decodedLootClaims[lootSlot] = true
+            offset = offset + 1
+        }
+        if (offset != source.sectionLength(section) ||
+            !decodedWorld.restoreRevision(savedWorldRevision)) {
+            return false
+        }
+        for (var verify = 0;
+            verify < decodedWorld.count();
+            verify = verify + 1) {
+            var sourceId = decodedWorld.sourceId(verify)
+            var sourceSlot = enemySlot(sourceId)
+            if (sourceSlot < 0 || !decodedLootClaims[sourceSlot] ||
+                enemyLootStableIds[sourceSlot] !=
+                    decodedWorld.stableId(verify) ||
+                enemyLootRanks[sourceSlot] != decodedWorld.rank(verify) ||
+                !sameLootRoll(
+                    configuredEnemyLootRoll(sourceId),
+                    decodedWorld.rollAt(verify))) {
+                return false
+            }
+        }
+        var revisionRestored = false
+        if (player == 1) {
+            revisionRestored = playerOneInventory.restoreRevision(
+                savedInventoryRevision)
+        } else {
+            revisionRestored = playerTwoInventory.restoreRevision(
+                savedInventoryRevision)
+        }
+        if (!revisionRestored) {
+            return false
+        }
+        worldLoot = decodedWorld
+        for (var copyCombat = 0;
+            copyCombat < playerCombatRewardClaimed.length;
+            copyCombat = copyCombat + 1) {
+            playerCombatRewardClaimed[copyCombat] =
+                decodedCombatClaims[copyCombat]
+        }
+        for (var copyLoot = 0;
+            copyLoot < enemyLootClaimed.length;
+            copyLoot = copyLoot + 1) {
+            enemyLootClaimed[copyLoot] = decodedLootClaims[copyLoot]
+        }
+        return true
+    }
+
+    Bool decodeG3Authority(
+        Int player, BoundedSaveSections source
+    ) {
+        if (!playerConnected(player)) {
+            return false
+        }
+        var previousInventory = playerOneInventory
+        var previousEquipment = playerOneEquipment
+        var previousSkills = playerOneSkills
+        var previousStatuses = playerOneStatuses
+        if (player == 2) {
+            previousInventory = playerTwoInventory
+            previousEquipment = playerTwoEquipment
+            previousSkills = playerTwoSkills
+            previousStatuses = playerTwoStatuses
+        }
+        var previousBonus = playerEquipmentDamageBonuses[player]
+        if (decodePlayerAuthority(player, source) &&
+            decodeAuthorityRuntime(player, source)) {
+            return true
+        }
+        if (player == 2) {
+            playerTwoInventory = previousInventory
+            playerTwoEquipment = previousEquipment
+            playerTwoSkills = previousSkills
+            playerTwoStatuses = previousStatuses
+        } else {
+            playerOneInventory = previousInventory
+            playerOneEquipment = previousEquipment
+            playerOneSkills = previousSkills
+            playerOneStatuses = previousStatuses
+        }
+        playerEquipmentDamageBonuses[player] = previousBonus
+        refreshPlayerCombatModifiers(player)
+        return false
+    }
+
+    Int computePlayerEquipmentDamageBonus(Int player) {
+        var inventory = playerOneInventory
+        var equipment = playerOneEquipment
+        if (player == 2) {
+            inventory = playerTwoInventory
+            equipment = playerTwoEquipment
+        } else if (player != 1) {
+            return -1
+        }
+        var total = 0
+        for (var slot = 0; slot < equipment.slotCount(); slot = slot + 1) {
+            var itemId = equipment.itemAt(slot)
+            if (itemId != 0) {
+                var itemIndex = -1
+                for (var index = 0;
+                    index < inventory.itemCount();
+                    index = index + 1) {
+                    if (inventory.itemId(index) == itemId) {
+                        itemIndex = index
+                        break
+                    }
+                }
+                if (itemIndex < 0) {
+                    return -1
+                }
+                var roll = inventory.itemRoll(itemIndex)
+                if (roll.accepted()) {
+                    var stats = BoundedItemStatResult()
+                    if (!lootStatComposer.compose(
+                            roll, lootItemDefinitions,
+                            lootAffixStats, stats) ||
+                        total > 1000000 - stats.finalAmount()) {
+                        return -1
+                    }
+                    total = total + stats.finalAmount()
+                }
+            }
+        }
+        return total
+    }
+
+    Int playerEquipmentDamageBonus(Int player) {
+        if (player < 1 || player > 2) {
+            return -1
+        }
+        return playerEquipmentDamageBonuses[player]
+    }
+
 
     Bool refreshPlayerCombatModifiers(Int player) {
         var skillPercent = 0
@@ -2386,18 +3622,27 @@ class LoopbackSession {
         } else {
             return false
         }
-        if (skillPercent < 0 || statusFlat < 0 || statusPercent < 0 ||
-            defenseFlat < 0 || defensePercent < 0 ||
+        statusFlat = statusFlat + playerEquipmentDamageBonuses[player]
+        if (skillPercent < 0 || statusFlat < 0 || statusFlat > 1000000 ||
+            statusPercent < 0 || defenseFlat < 0 || defensePercent < 0 ||
             skillPercent > 1000000 - statusPercent) {
             return false
         }
-        if (!playerCombat.isAlive(player)) {
-            return true
+        if (playerCombat.isAlive(player) &&
+            (!playerCombat.setDamageModifier(
+                player, statusFlat, skillPercent + statusPercent) ||
+             !playerCombat.setDefenseModifier(
+                player, defenseFlat, defensePercent))) {
+            return false
         }
-        return playerCombat.setDamageModifier(
-                player, statusFlat, skillPercent + statusPercent) &&
-            playerCombat.setDefenseModifier(
-                player, defenseFlat, defensePercent)
+        if (enemyCombat.currentHealth(player) > 0 &&
+            (!enemyCombat.setDamageModifier(
+                player, statusFlat, skillPercent + statusPercent) ||
+             !enemyCombat.setDefenseModifier(
+                player, defenseFlat, defensePercent))) {
+            return false
+        }
+        return true
     }
 
     Bool applyPeriodicStatusDamage(
@@ -2465,11 +3710,18 @@ class LoopbackSession {
 
     Bool definePlayerWeapon(
         Int id, Int magazineSize, Int reserveCapacity,
-        Int cooldownTicks, Int damage, Int channel, Int range
+        Int damage, Int channel
     ) {
         return playerCombat.defineWeapon(
-            id, magazineSize, reserveCapacity,
-            cooldownTicks, damage, channel, range)
+            id, magazineSize, reserveCapacity, damage, channel)
+    }
+
+    Bool setPlayerWeaponRange(Int id, Int range) {
+        return playerCombat.setWeaponRange(id, range)
+    }
+
+    Bool setPlayerWeaponCooldown(Int id, Int cooldownTicks) {
+        return playerCombat.setWeaponCooldown(id, cooldownTicks)
     }
 
     Bool addPlayerCombatActor(Int actorId, Int startingHealth, Int startingArmor) {
@@ -2491,7 +3743,8 @@ class LoopbackSession {
         }
         if (actorId <= 0 || health <= 0 ||
             currency <= 0 || currency > 1000000 ||
-            playerCombatRewardCount >= playerCombatRewardTargets.length) {
+            playerCombatRewardCount >= playerCombatRewardTargets.length ||
+            playerCombatRewardCount >= 16) {
             return false
         }
         for (var index = 0;
@@ -2503,6 +3756,7 @@ class LoopbackSession {
         }
         playerCombatRewardTargets[playerCombatRewardCount] = actorId
         playerCombatRewardCurrencies[playerCombatRewardCount] = currency
+        playerCombatRewardClaimed[playerCombatRewardCount] = false
         playerCombatRewardCount = playerCombatRewardCount + 1
         return true
     }
@@ -2518,15 +3772,28 @@ class LoopbackSession {
         return defineCombatReward(actorId, currency, true)
     }
 
-    Int combatRewardCurrency(Int actorId) {
+    Int combatRewardSlot(Int actorId) {
         for (var index = 0;
             index < playerCombatRewardCount;
             index = index + 1) {
             if (playerCombatRewardTargets[index] == actorId) {
-                return playerCombatRewardCurrencies[index]
+                return index
             }
         }
-        return 0
+        return -1
+    }
+
+    Int combatRewardCurrency(Int actorId) {
+        var slot = combatRewardSlot(actorId)
+        if (slot < 0 || playerCombatRewardClaimed[slot]) {
+            return 0
+        }
+        return playerCombatRewardCurrencies[slot]
+    }
+
+    Bool combatRewardClaimed(Int actorId) {
+        var slot = combatRewardSlot(actorId)
+        return slot >= 0 && playerCombatRewardClaimed[slot]
     }
 
     Bool canGrantCombatReward(Int sourceId, Int reward) {
@@ -2535,17 +3802,26 @@ class LoopbackSession {
                 playerCurrency(sourceId) <= 1000000 - reward)
     }
 
-    Bool grantCombatReward(Int sourceId, Int reward) {
+    Bool grantCombatReward(Int sourceId, Int targetId, Int reward) {
         if (reward == 0) {
             return true
         }
+        var slot = combatRewardSlot(targetId)
+        if (slot < 0 || playerCombatRewardClaimed[slot] ||
+            playerCombatRewardCurrencies[slot] != reward) {
+            return false
+        }
+        var accepted = false
         if (sourceId == 1) {
-            return playerOneInventory.depositCurrency(reward)
+            accepted = playerOneInventory.depositCurrency(reward)
+        } else if (sourceId == 2) {
+            accepted = playerTwoInventory.depositCurrency(reward)
         }
-        if (sourceId == 2) {
-            return playerTwoInventory.depositCurrency(reward)
+        if (!accepted) {
+            return false
         }
-        return false
+        playerCombatRewardClaimed[slot] = true
+        return true
     }
 
     Bool setPlayerCombatShield(
@@ -2585,7 +3861,7 @@ class LoopbackSession {
         var result = playerCombat.resolveHitscan(
             sourceId, targetId, tick, distance, critical)
         if (result.accepted() && result.died() && reward > 0 &&
-            !grantCombatReward(sourceId, reward)) {
+            !grantCombatReward(sourceId, targetId, reward)) {
             return ResolutionResult(
                 false, result.actionId(), sourceId, targetId,
                 result.applied(), result.remainingHealth(),
@@ -2851,6 +4127,64 @@ class LoopbackSession {
         return playerTwoEquipment
     }
 
+    Int worldLootCount() {
+        return worldLoot.count()
+    }
+
+    Int worldLootRevision() {
+        return worldLoot.revision()
+    }
+
+    Int worldLootStableId(Int index) {
+        return worldLoot.stableId(index)
+    }
+
+    Int worldLootSourceId(Int index) {
+        return worldLoot.sourceId(index)
+    }
+
+    Int worldLootRank(Int index) {
+        return worldLoot.rank(index)
+    }
+
+    Int worldLootPositionX(Int index) {
+        return worldLoot.positionX(index)
+    }
+
+    BoundedItemRoll worldLootRoll(Int index) {
+        return worldLoot.rollAt(index)
+    }
+
+    Bool pickupPlayerLoot(Int player, Int stableId) {
+        if (!playerConnected(player)) {
+            return false
+        }
+        var index = worldLoot.find(stableId)
+        if (index < 0) {
+            return false
+        }
+        var distanceX = worldLoot.positionX(index) -
+            serverMovement.position(player)
+        var distanceY = worldLoot.positionY(index)
+        var distanceZ = worldLoot.positionZ(index)
+        if (distanceX < 0) {
+            distanceX = -distanceX
+        }
+        if (distanceY < 0) {
+            distanceY = -distanceY
+        }
+        if (distanceZ < 0) {
+            distanceZ = -distanceZ
+        }
+        if (distanceX > 4 || distanceY > 4 || distanceZ > 4) {
+            return false
+        }
+        if (player == 1) {
+            return worldLoot.pickup(stableId, playerOneInventory)
+        }
+        return worldLoot.pickup(stableId, playerTwoInventory)
+    }
+
     Bool setPlayerCurrency(Int player, Int amount) {
         if (player == 1) {
             return playerOneInventory.setCurrency(amount)
@@ -2907,13 +4241,41 @@ class LoopbackSession {
         }
         return 0
     }
+
     Bool equipPlayerItem(Int player, Int slot, Int itemId) {
-        if (player == 1) {
-            return playerOneEquipment.equip(playerOneInventory, slot, itemId)
-        }
+        var equipment = playerOneEquipment
+        var inventory = playerOneInventory
         if (player == 2) {
-            return playerTwoEquipment.equip(playerTwoInventory, slot, itemId)
+            equipment = playerTwoEquipment
+            inventory = playerTwoInventory
+        } else if (player != 1) {
+            return false
         }
+        var previousItem = equipment.itemAt(slot)
+        var previousBonus = playerEquipmentDamageBonuses[player]
+        if (!equipment.equip(inventory, slot, itemId)) {
+            return false
+        }
+        var nextBonus = computePlayerEquipmentDamageBonus(player)
+        if (nextBonus < 0) {
+            if (previousItem == 0) {
+                equipment.unequip(slot)
+            } else {
+                equipment.equip(inventory, slot, previousItem)
+            }
+            return false
+        }
+        playerEquipmentDamageBonuses[player] = nextBonus
+        if (refreshPlayerCombatModifiers(player)) {
+            return true
+        }
+        if (previousItem == 0) {
+            equipment.unequip(slot)
+        } else {
+            equipment.equip(inventory, slot, previousItem)
+        }
+        playerEquipmentDamageBonuses[player] = previousBonus
+        refreshPlayerCombatModifiers(player)
         return false
     }
 

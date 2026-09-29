@@ -48,20 +48,22 @@ class G1Demo {
             return failAt(2)
         }
         if (!loopback.configureEnemyRules(100, 20, 2) ||
-            !loopback.defineEnemyWeapon(7, 3, 0, 0, 3, 1, 20) ||
+            !loopback.defineEnemyWeapon(7, 3, 0, 3, 1) ||
+            !loopback.setEnemyWeaponRange(7, 20) ||
             !loopback.defineEnemyEncounter(4, 1, 2) ||
             !loopback.addEnemyCombatActor(1, 20, 0) ||
             !loopback.equipEnemyCombatWeapon(1, 7)) {
             return failAt(3)
         }
-        if (!loopback.definePlayerWeapon(7, 3, 0, 0, 3, 1, 20) ||
+        if (!loopback.definePlayerWeapon(7, 3, 0, 3, 1) ||
+            !loopback.setPlayerWeaponRange(7, 20) ||
             !loopback.start() || loopback.connectPlayer() != 1 ||
             loopback.connectPlayer() != 2 || loopback.playerCount() != 2) {
             return failAt(4)
         }
         if (!loopback.addPlayerCombatActor(1, 20, 0) ||
             !loopback.equipPlayerCombatWeapon(1, 7) ||
-            !loopback.admitEnemy(4, 3, 0, 5, 0, 7) ||
+            !loopback.admitEnemy(4, 3, 5, 0, 7) ||
             !loopback.configureEnemyPerception(3, 1, true, 40, 0)) {
             return failAt(5)
         }

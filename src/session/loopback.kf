@@ -115,6 +115,18 @@ Int gameplayReconnectAction() {
     return 5
 }
 
+Int gameplayPickupAction() {
+    return 6
+}
+
+Int gameplayEquipAction() {
+    return 7
+}
+
+Int gameplayProgressionAction() {
+    return 8
+}
+
 Int gameplayMoveDiagnostic() {
     return 1
 }
@@ -147,6 +159,18 @@ Int gameplayGenerationDiagnostic() {
     return 8
 }
 
+Int gameplayPickupDiagnostic() {
+    return 9
+}
+
+Int gameplayEquipDiagnostic() {
+    return 10
+}
+
+Int gameplayProgressionDiagnostic() {
+    return 11
+}
+
 Int gameplayMessageChecksum(Int[] words, Int length) {
     if (length < 1 || length > words.length) {
         return -1
@@ -176,6 +200,62 @@ Int[] newGameplayCommandMessage(
     words[10] = gameplayMessageChecksum(words, 10)
     return words
 }
+Int[] newGameplayPickupCommand(
+    Int player, Int tick, Int sequence, Int stableId, Int generation
+) {
+    var words = new Int[11]
+    words[0] = protocolVersion()
+    words[1] = gameplayCommandMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = player
+    words[5] = gameplayPickupAction()
+    words[6] = stableId
+    words[7] = 0
+    words[8] = 0
+    words[9] = generation
+    words[10] = gameplayMessageChecksum(words, 10)
+    return words
+}
+
+Int[] newGameplayEquipCommand(
+    Int player, Int tick, Int sequence,
+    Int slot, Int itemId, Int generation
+) {
+    var words = new Int[11]
+    words[0] = protocolVersion()
+    words[1] = gameplayCommandMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = player
+    words[5] = gameplayEquipAction()
+    words[6] = slot
+    words[7] = itemId
+    words[8] = 0
+    words[9] = generation
+    words[10] = gameplayMessageChecksum(words, 10)
+    return words
+}
+
+Int[] newGameplayProgressionCommand(
+    Int player, Int tick, Int sequence,
+    Int skillId, Int operation, Int generation
+) {
+    var words = new Int[11]
+    words[0] = protocolVersion()
+    words[1] = gameplayCommandMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = player
+    words[5] = gameplayProgressionAction()
+    words[6] = skillId
+    words[7] = operation
+    words[8] = 0
+    words[9] = generation
+    words[10] = gameplayMessageChecksum(words, 10)
+    return words
+}
+
 
 Bool validGameplayCommandMessage(Int[] words) {
     if (words.length != 11 ||
@@ -185,7 +265,7 @@ Bool validGameplayCommandMessage(Int[] words) {
         words[3] <= 0 || words[3] > 1000000 ||
         words[4] < 1 || words[4] > 2 ||
         words[5] < gameplayMoveAction() ||
-        words[5] > gameplayReconnectAction() ||
+        words[5] > gameplayProgressionAction() ||
         words[9] <= 0 || words[9] > 1000000 ||
         words[10] != gameplayMessageChecksum(words, 10)) {
         return false
@@ -208,7 +288,20 @@ Bool validGameplayCommandMessage(Int[] words) {
         return words[6] >= 1 && words[6] <= 4 &&
             words[7] == 0 && words[8] == 0
     }
-    return words[6] == 0 && words[7] == 0 && words[8] == 0
+    if (action == gameplayReconnectAction()) {
+        return words[6] == 0 && words[7] == 0 && words[8] == 0
+    }
+    if (action == gameplayPickupAction()) {
+        return words[6] > 0 && words[6] <= 1000000 &&
+            words[7] == 0 && words[8] == 0
+    }
+    if (action == gameplayEquipAction()) {
+        return words[6] >= 0 && words[6] < 8 &&
+            words[7] > 0 && words[7] <= 1000000 &&
+            words[8] == 0
+    }
+    return words[6] > 0 && words[6] <= 1000000 &&
+        words[7] >= 1 && words[7] <= 2 && words[8] == 0
 }
 
 Int gameplayCommandTick(Int[] words) {
@@ -315,7 +408,7 @@ Bool setGameplayStateConnection(
     if (words.length != 20 || generation <= 0 || generation > 1000000 ||
         disconnectReason < 0 || disconnectReason > 4 ||
         diagnostic < gameplayMoveDiagnostic() ||
-        diagnostic > gameplayGenerationDiagnostic() ||
+        diagnostic > gameplayProgressionDiagnostic() ||
         (connected && disconnectReason != 0) ||
         (!connected && disconnectReason == 0)) {
         return false
@@ -349,7 +442,7 @@ Bool validGameplayStateFields(Int[] words) {
         words[14] > 0 && words[14] <= 1000000 &&
         words[15] >= 0 && words[15] <= 4 &&
         words[16] >= gameplayMoveDiagnostic() &&
-        words[16] <= gameplayGenerationDiagnostic() &&
+        words[16] <= gameplayProgressionDiagnostic() &&
         words[17] >= 0 && words[17] <= 65535 &&
         words[18] >= 1 && words[18] <= 2 &&
         ((words[13] == 1 && words[15] == 0) ||
@@ -928,6 +1021,732 @@ ImpactPresentationEvent multiplayerFeedbackEventAt(
         words[offset + 4], words[offset + 5], words[offset + 6],
         words[offset + 7], words[offset + 8] == 1,
         words[offset + 9], words[offset + 10])
+}
+
+Int playerAuthorityStateMessageKind() {
+    return 7
+}
+
+Int maximumPlayerAuthorityItems() {
+    return 8
+}
+
+Int maximumPlayerAuthorityEquipment() {
+    return 4
+}
+
+Int maximumPlayerAuthoritySkills() {
+    return 4
+}
+
+Int maximumPlayerAuthorityStatuses() {
+    return 4
+}
+
+Int playerAuthorityItemEntryWidth() {
+    return 10
+}
+
+Int playerAuthorityEquipmentEntryWidth() {
+    return 2
+}
+
+Int playerAuthoritySkillEntryWidth() {
+    return 4
+}
+
+Int playerAuthorityStatusEntryWidth() {
+    return 3
+}
+
+Int playerAuthorityItemEntriesOffset() {
+    return 12
+}
+
+Int playerAuthorityEquipmentEntriesOffset(Int[] words) {
+    return playerAuthorityItemEntriesOffset() +
+        words[8] * playerAuthorityItemEntryWidth()
+}
+
+Int playerAuthoritySkillEntriesOffset(Int[] words) {
+    return playerAuthorityEquipmentEntriesOffset(words) +
+        words[9] * playerAuthorityEquipmentEntryWidth()
+}
+
+Int playerAuthorityStatusEntriesOffset(Int[] words) {
+    return playerAuthoritySkillEntriesOffset(words) +
+        words[10] * playerAuthoritySkillEntryWidth()
+}
+
+Int playerAuthorityStateLength(
+    Int itemCount, Int equipmentCount, Int skillCount, Int statusCount
+) {
+    return 13 +
+        itemCount * playerAuthorityItemEntryWidth() +
+        equipmentCount * playerAuthorityEquipmentEntryWidth() +
+        skillCount * playerAuthoritySkillEntryWidth() +
+        statusCount * playerAuthorityStatusEntryWidth()
+}
+
+Bool validPlayerAuthorityStateStorage(Int[] words) {
+    if (words.length < 13 ||
+        words[0] != protocolVersion() ||
+        words[1] != playerAuthorityStateMessageKind() ||
+        words[8] < 0 || words[8] > maximumPlayerAuthorityItems() ||
+        words[9] < 0 || words[9] > maximumPlayerAuthorityEquipment() ||
+        words[10] < 0 || words[10] > maximumPlayerAuthoritySkills() ||
+        words[11] < 0 || words[11] > maximumPlayerAuthorityStatuses()) {
+        return false
+    }
+    return words.length == playerAuthorityStateLength(
+        words[8], words[9], words[10], words[11])
+}
+
+Bool validPlayerAuthorityStateShape(Int[] words) {
+    return validPlayerAuthorityStateStorage(words) &&
+        words[2] >= 0 && words[2] <= 1000000 &&
+        words[3] > 0 && words[3] <= 1000000 &&
+        words[4] >= 1 && words[4] <= 2 &&
+        words[5] > 0 && words[5] <= 1000000 &&
+        words[6] >= 0 && words[6] <= 1000000 &&
+        words[7] >= 0 && words[7] <= 1000000
+}
+
+Int[] newPlayerAuthorityStateMessage(
+    Int itemCount, Int equipmentCount, Int skillCount, Int statusCount
+) {
+    if (itemCount < 0 || itemCount > maximumPlayerAuthorityItems() ||
+        equipmentCount < 0 ||
+        equipmentCount > maximumPlayerAuthorityEquipment() ||
+        skillCount < 0 || skillCount > maximumPlayerAuthoritySkills() ||
+        statusCount < 0 || statusCount > maximumPlayerAuthorityStatuses()) {
+        return new Int[0]
+    }
+    var words = new Int[playerAuthorityStateLength(
+        itemCount, equipmentCount, skillCount, statusCount)]
+    for (var index = 0; index < words.length; index = index + 1) {
+        words[index] = 0
+    }
+    words[0] = protocolVersion()
+    words[1] = playerAuthorityStateMessageKind()
+    words[8] = itemCount
+    words[9] = equipmentCount
+    words[10] = skillCount
+    words[11] = statusCount
+    return words
+}
+
+Bool setPlayerAuthorityConnection(
+    Int[] words, Int tick, Int sequence, Int player, Int generation
+) {
+    if (!validPlayerAuthorityStateStorage(words) ||
+        tick < 0 || tick > 1000000 ||
+        sequence <= 0 || sequence > 1000000 ||
+        player < 1 || player > 2 ||
+        generation <= 0 || generation > 1000000) {
+        return false
+    }
+    words[2] = tick
+    words[3] = sequence
+    words[4] = player
+    words[5] = generation
+    return true
+}
+
+Bool setPlayerAuthorityInventory(
+    Int[] words, Int inventoryRevision, Int currency
+) {
+    if (!validPlayerAuthorityStateStorage(words) ||
+        inventoryRevision < 0 || inventoryRevision > 1000000 ||
+        currency < 0 || currency > 1000000) {
+        return false
+    }
+    words[6] = inventoryRevision
+    words[7] = currency
+    return true
+}
+
+Bool setPlayerAuthorityItem(
+    Int[] words, Int index, Int itemId, Int quantity, Int rolled
+) {
+    if (!validPlayerAuthorityStateShape(words) ||
+        index < 0 || index >= words[8] ||
+        itemId <= 0 || itemId > 1000000 ||
+        quantity <= 0 || quantity > 1000000 ||
+        rolled < 0 || rolled > 1) {
+        return false
+    }
+    for (var prior = 0; prior < words[8]; prior = prior + 1) {
+        var priorOffset = playerAuthorityItemEntriesOffset() +
+            prior * playerAuthorityItemEntryWidth()
+        if (prior != index && words[priorOffset] == itemId) {
+            return false
+        }
+    }
+    var offset = playerAuthorityItemEntriesOffset() +
+        index * playerAuthorityItemEntryWidth()
+    words[offset] = itemId
+    words[offset + 1] = quantity
+    words[offset + 2] = rolled
+    return true
+}
+
+Bool setPlayerAuthorityItemRoll(
+    Int[] words, Int index, Int definitionId, Int seed, Int level
+) {
+    if (!validPlayerAuthorityStateShape(words) ||
+        index < 0 || index >= words[8] ||
+        definitionId <= 0 || definitionId > 1000000 ||
+        seed < 0 || seed > 1000000 ||
+        level <= 0 || level > 1000000) {
+        return false
+    }
+    var offset = playerAuthorityItemEntriesOffset() +
+        index * playerAuthorityItemEntryWidth()
+    if (words[offset] <= 0 || words[offset + 2] != 1) {
+        return false
+    }
+    words[offset + 3] = definitionId
+    words[offset + 4] = seed
+    words[offset + 5] = level
+    return true
+}
+
+Bool setPlayerAuthorityItemAffixes(
+    Int[] words, Int index, Int rarity,
+    Int affixOne, Int affixTwo, Int condition
+) {
+    if (!validPlayerAuthorityStateShape(words) ||
+        index < 0 || index >= words[8] ||
+        rarity < 1 || rarity > 3 ||
+        affixOne < 0 || affixOne > 64 ||
+        affixTwo < 0 || affixTwo > 64 ||
+        condition < 0 || condition > 100) {
+        return false
+    }
+    var offset = playerAuthorityItemEntriesOffset() +
+        index * playerAuthorityItemEntryWidth()
+    if (words[offset] <= 0 || words[offset + 2] != 1) {
+        return false
+    }
+    words[offset + 6] = rarity
+    words[offset + 7] = affixOne
+    words[offset + 8] = affixTwo
+    words[offset + 9] = condition
+    return true
+}
+
+Bool playerAuthorityContainsItem(Int[] words, Int itemId) {
+    for (var index = 0; index < words[8]; index = index + 1) {
+        var offset = playerAuthorityItemEntriesOffset() +
+            index * playerAuthorityItemEntryWidth()
+        if (words[offset] == itemId) {
+            return true
+        }
+    }
+    return false
+}
+
+Bool setPlayerAuthorityEquipment(
+    Int[] words, Int index, Int slot, Int itemId
+) {
+    if (!validPlayerAuthorityStateShape(words) ||
+        index < 0 || index >= words[9] ||
+        slot < 0 || slot >= maximumPlayerAuthorityEquipment() ||
+        itemId <= 0 || itemId > 1000000 ||
+        !playerAuthorityContainsItem(words, itemId)) {
+        return false
+    }
+    var entries = playerAuthorityEquipmentEntriesOffset(words)
+    for (var prior = 0; prior < words[9]; prior = prior + 1) {
+        var priorOffset = entries +
+            prior * playerAuthorityEquipmentEntryWidth()
+        if (prior != index &&
+            (words[priorOffset] == slot ||
+                words[priorOffset + 1] == itemId)) {
+            return false
+        }
+    }
+    var offset = entries + index * playerAuthorityEquipmentEntryWidth()
+    words[offset] = slot
+    words[offset + 1] = itemId
+    return true
+}
+
+Bool setPlayerAuthoritySkill(
+    Int[] words, Int index, Int skillId, Int rank,
+    Int experience, Int cooldownUntil
+) {
+    if (!validPlayerAuthorityStateShape(words) ||
+        index < 0 || index >= words[10] ||
+        skillId <= 0 || skillId > 1000000 ||
+        rank < 0 || rank > 1000000 ||
+        experience < 0 || experience > 1000000 ||
+        cooldownUntil < 0 || cooldownUntil > 1000000) {
+        return false
+    }
+    var entries = playerAuthoritySkillEntriesOffset(words)
+    for (var prior = 0; prior < words[10]; prior = prior + 1) {
+        var priorOffset = entries + prior * playerAuthoritySkillEntryWidth()
+        if (prior != index && words[priorOffset] == skillId) {
+            return false
+        }
+    }
+    var offset = entries + index * playerAuthoritySkillEntryWidth()
+    words[offset] = skillId
+    words[offset + 1] = rank
+    words[offset + 2] = experience
+    words[offset + 3] = cooldownUntil
+    return true
+}
+
+Bool setPlayerAuthorityStatus(
+    Int[] words, Int index, Int statusId, Int duration, Int stacks
+) {
+    if (!validPlayerAuthorityStateShape(words) ||
+        index < 0 || index >= words[11] ||
+        statusId <= 0 || statusId > 1000000 ||
+        duration <= 0 || duration > 1000000 ||
+        stacks <= 0 || stacks > 1000000) {
+        return false
+    }
+    var entries = playerAuthorityStatusEntriesOffset(words)
+    for (var prior = 0; prior < words[11]; prior = prior + 1) {
+        var priorOffset = entries + prior * playerAuthorityStatusEntryWidth()
+        if (prior != index && words[priorOffset] == statusId) {
+            return false
+        }
+    }
+    var offset = entries + index * playerAuthorityStatusEntryWidth()
+    words[offset] = statusId
+    words[offset + 1] = duration
+    words[offset + 2] = stacks
+    return true
+}
+
+Bool validPlayerAuthorityStateFields(Int[] words) {
+    if (!validPlayerAuthorityStateShape(words)) {
+        return false
+    }
+    for (var item = 0; item < words[8]; item = item + 1) {
+        var itemOffset = playerAuthorityItemEntriesOffset() +
+            item * playerAuthorityItemEntryWidth()
+        var rolled = words[itemOffset + 2]
+        if (words[itemOffset] <= 0 || words[itemOffset] > 1000000 ||
+            words[itemOffset + 1] <= 0 ||
+            words[itemOffset + 1] > 1000000 ||
+            rolled < 0 || rolled > 1 ||
+            (rolled == 0 && (words[itemOffset + 3] != 0 ||
+                words[itemOffset + 4] != 0 ||
+                words[itemOffset + 5] != 0 ||
+                words[itemOffset + 6] != 0 ||
+                words[itemOffset + 7] != 0 ||
+                words[itemOffset + 8] != 0 ||
+                words[itemOffset + 9] != 0)) ||
+            (rolled == 1 && (words[itemOffset + 3] <= 0 ||
+                words[itemOffset + 3] > 1000000 ||
+                words[itemOffset + 4] < 0 ||
+                words[itemOffset + 4] > 1000000 ||
+                words[itemOffset + 5] <= 0 ||
+                words[itemOffset + 5] > 1000000 ||
+                words[itemOffset + 6] < 1 ||
+                words[itemOffset + 6] > 3 ||
+                words[itemOffset + 7] < 0 ||
+                words[itemOffset + 7] > 64 ||
+                words[itemOffset + 8] < 0 ||
+                words[itemOffset + 8] > 64 ||
+                words[itemOffset + 9] < 0 ||
+                words[itemOffset + 9] > 100))) {
+            return false
+        }
+        for (var priorItem = 0; priorItem < item; priorItem = priorItem + 1) {
+            var priorItemOffset = playerAuthorityItemEntriesOffset() +
+                priorItem * playerAuthorityItemEntryWidth()
+            if (words[priorItemOffset] == words[itemOffset]) {
+                return false
+            }
+        }
+    }
+    var equipmentEntries = playerAuthorityEquipmentEntriesOffset(words)
+    for (var equipment = 0; equipment < words[9]; equipment = equipment + 1) {
+        var equipmentOffset = equipmentEntries +
+            equipment * playerAuthorityEquipmentEntryWidth()
+        if (words[equipmentOffset] < 0 ||
+            words[equipmentOffset] >= maximumPlayerAuthorityEquipment() ||
+            !playerAuthorityContainsItem(words, words[equipmentOffset + 1])) {
+            return false
+        }
+        for (var priorEquipment = 0;
+            priorEquipment < equipment;
+            priorEquipment = priorEquipment + 1) {
+            var priorEquipmentOffset = equipmentEntries +
+                priorEquipment * playerAuthorityEquipmentEntryWidth()
+            if (words[priorEquipmentOffset] == words[equipmentOffset] ||
+                words[priorEquipmentOffset + 1] ==
+                    words[equipmentOffset + 1]) {
+                return false
+            }
+        }
+    }
+    var skillEntries = playerAuthoritySkillEntriesOffset(words)
+    for (var skill = 0; skill < words[10]; skill = skill + 1) {
+        var skillOffset = skillEntries +
+            skill * playerAuthoritySkillEntryWidth()
+        if (words[skillOffset] <= 0 || words[skillOffset] > 1000000 ||
+            words[skillOffset + 1] < 0 ||
+            words[skillOffset + 1] > 1000000 ||
+            words[skillOffset + 2] < 0 ||
+            words[skillOffset + 2] > 1000000 ||
+            words[skillOffset + 3] < 0 ||
+            words[skillOffset + 3] > 1000000) {
+            return false
+        }
+        for (var priorSkill = 0; priorSkill < skill; priorSkill = priorSkill + 1) {
+            var priorSkillOffset = skillEntries +
+                priorSkill * playerAuthoritySkillEntryWidth()
+            if (words[priorSkillOffset] == words[skillOffset]) {
+                return false
+            }
+        }
+    }
+    var statusEntries = playerAuthorityStatusEntriesOffset(words)
+    for (var status = 0; status < words[11]; status = status + 1) {
+        var statusOffset = statusEntries +
+            status * playerAuthorityStatusEntryWidth()
+        if (words[statusOffset] <= 0 || words[statusOffset] > 1000000 ||
+            words[statusOffset + 1] <= 0 ||
+            words[statusOffset + 1] > 1000000 ||
+            words[statusOffset + 2] <= 0 ||
+            words[statusOffset + 2] > 1000000) {
+            return false
+        }
+        for (var priorStatus = 0;
+            priorStatus < status;
+            priorStatus = priorStatus + 1) {
+            var priorStatusOffset = statusEntries +
+                priorStatus * playerAuthorityStatusEntryWidth()
+            if (words[priorStatusOffset] == words[statusOffset]) {
+                return false
+            }
+        }
+    }
+    return true
+}
+
+Bool sealPlayerAuthorityStateMessage(Int[] words) {
+    if (!validPlayerAuthorityStateFields(words)) {
+        return false
+    }
+    words[words.length - 1] =
+        gameplayMessageChecksum(words, words.length - 1)
+    return true
+}
+
+Bool validPlayerAuthorityStateMessage(Int[] words) {
+    return validPlayerAuthorityStateFields(words) &&
+        words[words.length - 1] ==
+            gameplayMessageChecksum(words, words.length - 1)
+}
+
+Int playerAuthorityStateSequence(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return 0
+    }
+    return words[3]
+}
+
+Int playerAuthorityStatePlayer(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return 0
+    }
+    return words[4]
+}
+
+Int playerAuthorityStateGeneration(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return 0
+    }
+    return words[5]
+}
+
+Int playerAuthorityStateInventoryRevision(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return -1
+    }
+    return words[6]
+}
+
+Int playerAuthorityStateCurrency(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return -1
+    }
+    return words[7]
+}
+
+Int playerAuthorityStateItemCount(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return -1
+    }
+    return words[8]
+}
+
+Int playerAuthorityStateEquipmentCount(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return -1
+    }
+    return words[9]
+}
+
+Int playerAuthorityStateSkillCount(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return -1
+    }
+    return words[10]
+}
+
+Int playerAuthorityStateStatusCount(Int[] words) {
+    if (!validPlayerAuthorityStateMessage(words)) {
+        return -1
+    }
+    return words[11]
+}
+
+Int playerAuthorityStateItemValue(
+    Int[] words, Int index, Int component
+) {
+    if (!validPlayerAuthorityStateMessage(words) ||
+        index < 0 || index >= words[8] ||
+        component < 0 || component >= playerAuthorityItemEntryWidth()) {
+        return -1
+    }
+    return words[playerAuthorityItemEntriesOffset() +
+        index * playerAuthorityItemEntryWidth() + component]
+}
+
+Int playerAuthorityStateEquipmentValue(
+    Int[] words, Int index, Int component
+) {
+    if (!validPlayerAuthorityStateMessage(words) ||
+        index < 0 || index >= words[9] ||
+        component < 0 ||
+        component >= playerAuthorityEquipmentEntryWidth()) {
+        return -1
+    }
+    return words[playerAuthorityEquipmentEntriesOffset(words) +
+        index * playerAuthorityEquipmentEntryWidth() + component]
+}
+
+Int playerAuthorityStateSkillValue(
+    Int[] words, Int index, Int component
+) {
+    if (!validPlayerAuthorityStateMessage(words) ||
+        index < 0 || index >= words[10] ||
+        component < 0 || component >= playerAuthoritySkillEntryWidth()) {
+        return -1
+    }
+    return words[playerAuthoritySkillEntriesOffset(words) +
+        index * playerAuthoritySkillEntryWidth() + component]
+}
+
+Int playerAuthorityStateStatusValue(
+    Int[] words, Int index, Int component
+) {
+    if (!validPlayerAuthorityStateMessage(words) ||
+        index < 0 || index >= words[11] ||
+        component < 0 || component >= playerAuthorityStatusEntryWidth()) {
+        return -1
+    }
+    return words[playerAuthorityStatusEntriesOffset(words) +
+        index * playerAuthorityStatusEntryWidth() + component]
+}
+
+Int worldLootStateMessageKind() {
+    return 8
+}
+
+Int maximumWorldLootStateDrops() {
+    return 8
+}
+
+Int worldLootStateEntryWidth() {
+    return 13
+}
+
+Int worldLootStateEntriesOffset() {
+    return 8
+}
+
+Bool validWorldLootStateShape(Int[] words) {
+    return words.length >= 9 &&
+        words[0] == protocolVersion() &&
+        words[1] == worldLootStateMessageKind() &&
+        words[2] >= 0 && words[2] <= 1000000 &&
+        words[3] > 0 && words[3] <= 1000000 &&
+        words[4] >= 1 && words[4] <= 2 &&
+        words[5] > 0 && words[5] <= 1000000 &&
+        words[6] >= 0 && words[6] <= 1000000 &&
+        words[7] >= 0 && words[7] <= maximumWorldLootStateDrops() &&
+        words.length == 9 + words[7] * worldLootStateEntryWidth()
+}
+
+Int[] newWorldLootStateMessage(
+    Int tick, Int sequence, Int player, Int generation,
+    Int revision, Int dropCount
+) {
+    if (tick < 0 || tick > 1000000 ||
+        sequence <= 0 || sequence > 1000000 ||
+        player < 1 || player > 2 ||
+        generation <= 0 || generation > 1000000 ||
+        revision < 0 || revision > 1000000 ||
+        dropCount < 0 || dropCount > maximumWorldLootStateDrops()) {
+        return new Int[0]
+    }
+    var words = new Int[9 + dropCount * worldLootStateEntryWidth()]
+    for (var index = 0; index < words.length; index = index + 1) {
+        words[index] = 0
+    }
+    words[0] = protocolVersion()
+    words[1] = worldLootStateMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = player
+    words[5] = generation
+    words[6] = revision
+    words[7] = dropCount
+    return words
+}
+
+Bool setWorldLootStateEntry(
+    Int[] words, Int index, BoundedWorldLoot loot, Int sourceIndex
+) {
+    if (!validWorldLootStateShape(words) ||
+        index < 0 || index >= words[7] ||
+        sourceIndex < 0 || sourceIndex >= loot.count()) {
+        return false
+    }
+    var stableId = loot.stableId(sourceIndex)
+    for (var prior = 0; prior < words[7]; prior = prior + 1) {
+        var priorOffset = worldLootStateEntriesOffset() +
+            prior * worldLootStateEntryWidth()
+        if (prior != index && words[priorOffset] == stableId) {
+            return false
+        }
+    }
+    var offset = worldLootStateEntriesOffset() +
+        index * worldLootStateEntryWidth()
+    words[offset] = stableId
+    words[offset + 1] = loot.sourceId(sourceIndex)
+    words[offset + 2] = loot.rank(sourceIndex)
+    words[offset + 3] = loot.positionX(sourceIndex)
+    words[offset + 4] = loot.positionY(sourceIndex)
+    words[offset + 5] = loot.positionZ(sourceIndex)
+    words[offset + 6] = loot.definitionId(sourceIndex)
+    words[offset + 7] = loot.seed(sourceIndex)
+    words[offset + 8] = loot.level(sourceIndex)
+    words[offset + 9] = loot.rarity(sourceIndex)
+    words[offset + 10] = loot.affixOne(sourceIndex)
+    words[offset + 11] = loot.affixTwo(sourceIndex)
+    words[offset + 12] = loot.condition(sourceIndex)
+    return true
+}
+
+Bool validWorldLootStateFields(Int[] words) {
+    if (!validWorldLootStateShape(words)) {
+        return false
+    }
+    for (var index = 0; index < words[7]; index = index + 1) {
+        var offset = worldLootStateEntriesOffset() +
+            index * worldLootStateEntryWidth()
+        if (words[offset] <= 0 || words[offset] > 1000000 ||
+            words[offset + 1] <= 0 || words[offset + 1] > 1000000 ||
+            words[offset + 2] < 1 || words[offset + 2] > 3 ||
+            words[offset + 3] < -1000000 ||
+            words[offset + 3] > 1000000 ||
+            words[offset + 4] < -1000000 ||
+            words[offset + 4] > 1000000 ||
+            words[offset + 5] < -1000000 ||
+            words[offset + 5] > 1000000 ||
+            words[offset + 6] <= 0 ||
+            words[offset + 6] > 1000000 ||
+            words[offset + 7] < 0 ||
+            words[offset + 7] > 1000000 ||
+            words[offset + 8] <= 0 ||
+            words[offset + 8] > 1000000 ||
+            words[offset + 9] < 1 || words[offset + 9] > 3 ||
+            words[offset + 10] < 0 || words[offset + 10] > 64 ||
+            words[offset + 11] < 0 || words[offset + 11] > 64 ||
+            words[offset + 12] < 0 || words[offset + 12] > 100) {
+            return false
+        }
+        for (var prior = 0; prior < index; prior = prior + 1) {
+            var priorOffset = worldLootStateEntriesOffset() +
+                prior * worldLootStateEntryWidth()
+            if (words[priorOffset] == words[offset]) {
+                return false
+            }
+        }
+    }
+    return true
+}
+
+Bool sealWorldLootStateMessage(Int[] words) {
+    if (!validWorldLootStateFields(words)) {
+        return false
+    }
+    words[words.length - 1] =
+        gameplayMessageChecksum(words, words.length - 1)
+    return true
+}
+
+Bool validWorldLootStateMessage(Int[] words) {
+    return validWorldLootStateFields(words) &&
+        words[words.length - 1] ==
+            gameplayMessageChecksum(words, words.length - 1)
+}
+
+Int worldLootStateSequence(Int[] words) {
+    if (!validWorldLootStateMessage(words)) {
+        return 0
+    }
+    return words[3]
+}
+
+Int worldLootStatePlayer(Int[] words) {
+    if (!validWorldLootStateMessage(words)) {
+        return 0
+    }
+    return words[4]
+}
+
+Int worldLootStateGeneration(Int[] words) {
+    if (!validWorldLootStateMessage(words)) {
+        return 0
+    }
+    return words[5]
+}
+
+Int worldLootStateRevision(Int[] words) {
+    if (!validWorldLootStateMessage(words)) {
+        return -1
+    }
+    return words[6]
+}
+
+Int worldLootStateDropCount(Int[] words) {
+    if (!validWorldLootStateMessage(words)) {
+        return -1
+    }
+    return words[7]
+}
+
+Int worldLootStateValue(Int[] words, Int index, Int component) {
+    if (!validWorldLootStateMessage(words) ||
+        index < 0 || index >= words[7] ||
+        component < 0 || component >= worldLootStateEntryWidth()) {
+        return -1
+    }
+    return words[worldLootStateEntriesOffset() +
+        index * worldLootStateEntryWidth() + component]
 }
 
 Int envelopeSequence(Int[] words) {

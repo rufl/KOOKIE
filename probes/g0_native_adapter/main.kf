@@ -708,7 +708,8 @@ main() {
     var impactSession = LoopbackSession(4, 4)
     assert(impactSession.start() &&
         impactSession.configureEnemyRules(100, 20, 2) &&
-        impactSession.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        impactSession.defineEnemyWeapon(9, 4, 0, 3, 1) &&
+        impactSession.setEnemyWeaponRange(9, 20) &&
         impactSession.defineEnemyEncounter(4, 1, 1) &&
         impactSession.addEnemyCombatActor(1, 20, 0) &&
         impactSession.equipEnemyCombatWeapon(1, 9) &&

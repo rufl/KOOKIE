@@ -3,6 +3,30 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## 2026-09-29
+
+### First authoritative G3 loot/progression vertical slice
+
+- Connected the single alive→dead reward transition to deterministic complete
+  item rolls, bounded world drops, remote pickup/equip/progression admission,
+  equipment/status combat modifiers and atomic boss loot/XP/currency preflight.
+  A full inventory retains the drop, currency and RNG identity.
+- Added checksummed recipient-specific player-authority state kind `7` and
+  world-loot state kind `8`. Clients receive full inventory rolls, equipment,
+  skills, statuses and ranked 3D drops without authoring outcomes.
+- Added save section 12 for world drops and loot/currency claim identities.
+  `decodeG3Authority` restores player and runtime state atomically; re-resolving
+  a saved boss death cannot duplicate rewards.
+- Split newly touched wide native member calls for weapon definition, enemy
+  admission, reward configuration and world-drop position into bounded calls
+  or structured input after native forwarding corrupted trailing arguments.
+- All 74 source scenarios pass on JVM and native. The focused interaction probe
+  passes on both targets, and package smoke validates Linux native/JVM and
+  presentation archives, checksums, provenance, runtime and the fail-closed
+  Windows-native gate.
+- G3 remains open for external-process transport of state kinds `7`/`8`,
+  bounded public extension registries and complete data-driven elite/boss
+  rules.
+
 ### Completed G2 LAN boomer-shooter slice
 
 - Added continuous replicated hitscan, projectile and shotgun enemy roles.

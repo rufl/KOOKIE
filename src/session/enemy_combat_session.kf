@@ -454,11 +454,18 @@ class AuthoritativeEnemySession {
 
     Bool defineWeapon(
         Int id, Int magazineSize, Int reserveCapacity,
-        Int cooldownTicks, Int damage, Int channel, Int range
+        Int damage, Int channel
     ) {
         return combat.defineWeapon(
-            id, magazineSize, reserveCapacity,
-            cooldownTicks, damage, channel, range)
+            id, magazineSize, reserveCapacity, damage, channel)
+    }
+
+    Bool setWeaponRange(Int id, Int range) {
+        return combat.setWeaponRange(id, range)
+    }
+
+    Bool setWeaponCooldown(Int id, Int cooldownTicks) {
+        return combat.setWeaponCooldown(id, cooldownTicks)
     }
 
     Bool defineEncounter(Int id, Int maxActive, Int budget) {
@@ -683,6 +690,22 @@ class AuthoritativeEnemySession {
     Int currentHealth(Int actorId) {
         return combat.currentHealth(actorId)
     }
+    Int combatMagazine(Int actorId) {
+        return combat.magazine(actorId)
+    }
+
+    Bool combatAlive(Int actorId) {
+        return combat.isAlive(actorId)
+    }
+    Int combatReadyTick(Int actorId) {
+        return combat.nextReadyTick(actorId)
+    }
+
+    Int combatWeaponRange(Int actorId) {
+        return combat.equippedWeaponRange(actorId)
+    }
+
+
 
     Bool admitEnemyInternal(
         Int encounterId, Int enemyId, Int tick,
@@ -721,12 +744,32 @@ class AuthoritativeEnemySession {
     }
 
     Bool admitEnemy(
-        Int encounterId, Int enemyId, Int tick,
-        Int health, Int armor, Int weaponId
+        Int encounterId, Int enemyId, Int health,
+        Int armor, Int weaponId
     ) {
-        return admitEnemyInternal(
-            encounterId, enemyId, tick, health, armor, weaponId,
-            false, 0, 0, 0)
+        var linkIndex = freeEnemyLink()
+        if (linkIndex < 0) {
+            return false
+        }
+        var admission = encounters.admit(encounterId, enemyId)
+        if (!admission.accepted()) {
+            return false
+        }
+        if (!combat.addActor(enemyId, health, armor)) {
+            encounters.release(encounterId)
+            return false
+        }
+        if (!enemies.addEnemy(enemyId, 0) ||
+            !combat.equipWeapon(enemyId, weaponId)) {
+            enemies.removeEnemy(enemyId)
+            combat.removeActor(enemyId)
+            encounters.release(encounterId)
+            return false
+        }
+        linkedEnemyIds[linkIndex] = enemyId
+        linkedEncounterIds[linkIndex] = encounterId
+        linkedActive[linkIndex] = true
+        return true
     }
 
     Bool admitEnemyAt(

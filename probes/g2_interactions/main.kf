@@ -168,7 +168,9 @@ Bool verifySpatialCheckpointRows() {
 Bool verifyCatchupTicks() {
     var session = LoopbackSession(4, 2)
     assert(session.start() && session.connectPlayer() == 1)
-    assert(session.definePlayerWeapon(9, 2, 1, 1, 4, 1, 20))
+    assert(session.definePlayerWeapon(9, 2, 1, 4, 1) &&
+        session.setPlayerWeaponRange(9, 20) &&
+        session.setPlayerWeaponCooldown(9, 1))
     assert(session.addPlayerCombatActor(1, 20, 0) && session.equipPlayerCombatWeapon(1, 9))
     assert(session.receiveInput(1, 3, 1, 0, 0, 0, 0, 1, 0))
     assert(session.advance(66668) == 4 && session.dequeuePlayerWeaponPresentation())
@@ -281,7 +283,8 @@ Bool verifyConsumedInteractionReplay() {
     assert(session.defineWorldSecret(30, 2, 0, 0, 0))
     assert(session.defineWorldExit(40, 20, 1, 0, 0, 0, 2))
     assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
-    assert(session.definePlayerWeapon(9, 4, 0, 0, 4, 1, 20))
+    assert(session.definePlayerWeapon(9, 4, 0, 4, 1) &&
+        session.setPlayerWeaponRange(9, 20))
     assert(session.addPlayerCombatActor(1, 20, 0) && session.equipPlayerCombatWeapon(1, 9))
     var timeline = BoundedReplayTimeline(8, 2)
     assert(session.appendReplayCheckpointBundle(timeline, 0, 90))
@@ -327,7 +330,8 @@ Bool verifyConsumedInteractionReplay() {
 Bool verifyHeldInputReplay() {
     var session = LoopbackSession(4, 2)
     assert(session.start() && session.connectPlayer() == 1)
-    assert(session.definePlayerWeapon(9, 4, 0, 0, 4, 1, 20))
+    assert(session.definePlayerWeapon(9, 4, 0, 4, 1) &&
+        session.setPlayerWeaponRange(9, 20))
     assert(session.addPlayerCombatActor(1, 20, 0) && session.equipPlayerCombatWeapon(1, 9))
     assert(session.setInputReplayEnabled(true))
     assert(session.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0))
@@ -562,7 +566,8 @@ Bool verifyRemoteGameplayAuthority() {
         host.connectPlayer() == 2 && clientA.start() && clientB.start(),
         "remote gameplay sessions must share authored interaction identity")
     assert(host.configureEnemyRules(100, 20, 2) &&
-        host.defineEnemyWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.defineEnemyWeapon(9, 2, 0, 4, 1) &&
+        host.setEnemyWeaponRange(9, 20) &&
         host.defineEnemyEncounter(4, 1, 1) &&
         host.addEnemyCombatActor(1, 20, 0) &&
         host.equipEnemyCombatWeapon(1, 9) &&

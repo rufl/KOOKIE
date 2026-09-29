@@ -1,6 +1,6 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura viva e gates de aceitação; G0/G1/G2 estão implementados e G3 é o próximo marco**.
+Status: **arquitetura viva e gates de aceitação; G0/G1/G2 estão implementados, e o primeiro slice autoritativo de gameplay G3 está implementado enquanto o marco permanece aberto**.
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
@@ -528,7 +528,10 @@ Separe `WeaponDef` imutável do estado de runtime de carregador/recarga/recarga 
 - Inventário/equipamento/baú/crafting usam validação + reserva + confirmação atômica. Inventário cheio, IDs duplicados, moeda insuficiente e slots incompatíveis deixam itens, moeda e RNG inalterados.
 - As definições de habilidade declaram pré-requisitos/limites de rank/custos/recargas/tags; as instâncias de personagem possuem ranks/loadout/XP/recursos.
 - As definições de status especificam regras de atualização/substituição/adicionar acúmulo, limite de duração e programação de ticks. Morte/reset/carregamento limpam ou mantêm efeitos intencionalmente.
-- Salve as rolagens dos itens, não apenas o estado atual do RNG, para que a migração de balanceamento/conteúdo não role novamente o equipamento silenciosamente.Pegue emprestadas as invariantes de transação/identidade de ZYLVE, não seus nomes fixos de armas, tamanhos reduzidos de inventário ou tabelas fixas de drops por nível. Esses sistemas fazem parte da engine planejada, não foram adiados para fora do escopo após uma demonstração de tiro.
+- Salve as rolagens dos itens, não apenas o estado atual do RNG, para que a migração de balanceamento/conteúdo não role novamente o equipamento silenciosamente.
+- `BoundedWorldLoot` mantém no máximo oito drops completos, com IDs estável/de origem, rank e posição 3D inteira. O preflight da recompensa por morte reserva capacidade de loot no mundo, XP e moeda antes do commit vivo→morto; a coleta remove o drop somente após o inventário aceitar a rolagem exata. Os tipos de estado com checksum `7` e `8`, específicos por destinatário, replicam inventário/equipamento/skill/status e loot no mundo completos. A seção 12 do save persiste drops e reivindicações de recompensa de loot/moeda; `decodeG3Authority` restaura o par jogador/runtime atomicamente contra o conteúdo configurado.
+
+Pegue emprestadas as invariantes de transação/identidade de ZYLVE, não seus nomes fixos de armas, tamanhos reduzidos de inventário ou tabelas fixas de drops por nível. Esses sistemas fazem parte da engine planejada, não foram adiados para fora do escopo após uma demonstração de tiro.
 
 ### IA e encontros
 
@@ -689,12 +692,12 @@ uma arma/inimigo e limpa movimento/disparo mantidos na perda de foco. A arena
 criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degraus e
 salas empilhadas; o servidor replica triângulos e limites explícitos para o
 cliente. Câmera, staging do mundo e HUD semântico de combate alimentam uma cena
-nativa SDL_GPU fixa de 252 vértices: 78 do mundo mais 174 do HUD para
+nativa SDL_GPU fixa de 288 vértices: 78 da arena, 36 da porta e 174 do HUD para
 vida/munição, glifo de conexão distinguível pela forma, carga ativa/reserva do
 encounter, marcadores confirmados de acerto/eliminação e alertas laterais de
 dano. O evento confirmado de hitscan local também alcança filas limitadas de
 replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
-leu a cena limitada, e 73/73 testes passam na JVM e no nativo. A evidência de
+leu a cena limitada, e 74/74 testes passam na JVM e no nativo. A evidência de
 ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
 capacidades Kof inalteradas e buffers nativos persistentes; o soak de
 RSS/desempenho por 30 minutos permanece em G5.
@@ -719,6 +722,18 @@ atenuação por distância e pan estéreo relativos ao listener, enquanto o
 adaptador SDL enfileira os ganhos PCM esquerdo/direito resultantes. HRTF/EFX
 via OpenAL, decodificação em streaming e o soak de G5 continuam como expansão
 posterior, não como critérios faltantes da aceitação de G2.
+
+O primeiro slice vertical G3 agora passa na JVM e no nativo: mortes de inimigos
+sob autoridade do servidor produzem rolagens completas determinísticas;
+comandos remotos de coleta/equipamento/progressão não podem criar resultados;
+modificadores de equipamento/status alteram o dano observado no chefe; e as
+reivindicações de loot/XP/moeda do chefe sobrevivem a save/reload atômico em
+arquivo de schema sem duplicação. Schemas com checksum de autoridade por
+destinatário e loot no mundo são aplicados a uma réplica cliente, enquanto
+inventário cheio preserva o drop, a moeda e a identidade do RNG. G3 não está
+fechado: restam o transporte dos tipos `7`/`8` pela sonda externa com host mais
+dois clientes, registros públicos limitados de extensões e definições
+completas de regras orientadas por dados para elites/chefes.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

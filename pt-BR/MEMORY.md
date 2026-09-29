@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-As fundações limitadas executam; os gates de aceitação G0 e G1 estão completos.
+As fundações limitadas executam; os gates de aceitação G0, G1 e G2 estão completos.
 
 ## Lote atual de qualificação
 
@@ -13,9 +13,10 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
   plataforma superior, dois degraus e salas empilhadas. Snapshots do servidor
   incluem limites explícitos e todos os triângulos; consultas do cliente aos
   andares superior/inferior passam.
-- O staging de mundo mais HUD semântico usa 252 vértices fixos: 78 da arena e
-  174 do HUD para tracks emolduradas de vida/munição, ícones estruturais, glifo
-  de conexão distinguível pela forma, carga ativa/reserva do encounter, mira
+- O staging de mundo, porta e HUD semântico usa 288 vértices fixos: 78 da
+  arena, 36 da porta e 174 do HUD para tracks emolduradas de vida/munição,
+  ícones estruturais, glifo de conexão distinguível pela forma, carga
+  ativa/reserva do encounter, mira
   responsiva ao foco, marcadores de acerto/eliminação e alertas laterais de
   dano. O feedback expira por tick e rejeita sequências duplicadas. A ponte
   SDL_GPU mantém buffers persistentes e uma paleta semântica de 16 cores; a
@@ -23,7 +24,8 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- Checks JVM/nativo, marcadores G1 idênticos e 72/72 testes passam em cada alvo.
+- Checks e 74/74 cenários-fonte passam na JVM e no nativo; os marcadores
+  executáveis de runtime G1 permanecem idênticos.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
@@ -34,8 +36,31 @@ As fundações limitadas executam; os gates de aceitação G0 e G1 estão comple
   qualificado comprova estado terminal `7`, vida `0`, sequência de impacto `2`,
   25 moedas, revisão 4, geração 2 após reconexão e diagnóstico explícito de
   input obsoleto.
+- O primeiro slice vertical autoritativo G3 agora executa na JVM/no nativo. A
+  morte do inimigo controla loot determinístico gerado no mundo, admissão
+  remota de coleta/equipamento/progressão, modificadores de combate por
+  equipamento/status e loot/XP/moeda de chefe. Os tipos de estado 7/8 com
+  checksum replicam autoridade completa por jogador e drops no mundo; a seção
+  12 do save preserva drops e reivindicações de recompensa.
 
-## Lote mais recente
+## Lote de implementação mais recente
+
+- Adicionamos loot limitado no mundo com identidade exata do item gerado,
+  origem/rank e posição 3D; inventário cheio deixa drop, moeda e identidade do
+  RNG inalterados.
+- Conectamos morte do inimigo a preflight de loot/XP/moeda, comandos remotos de
+  coleta e equipamento, recomposição de atributos, progressão de skill e
+  recompensas de chefe sem duplicação.
+- Adicionamos schemas de autoridade do jogador/loot no mundo por destinatário e
+  save/reload G3 atômico pelo armazenamento real de arquivo de schema. Um 74º
+  cenário cobre seed/conteúdo determinísticos, rejeição de falsificação, dano
+  observado no chefe, réplica cliente e idempotência da reivindicação após
+  reload na JVM/no nativo.
+- Dividimos novas chamadas nativas largas de métodos em chamadas limitadas ou
+  entrada estruturada de posição após o encaminhamento nativo corromper
+  argumentos finais de arma/recompensa. Isso não declara correção do compilador.
+
+## Lotes anteriores
 
 - Comandos de interação consumidos agora persistem em bundles de replay v2 e são simulados entre checkpoints completos. A captura reserva 64 posições; a reprodução cobre até 4096 ticks, um stream explícito de movimento e interações dos dois jogadores. Desative a captura antes de reproduzir; exporte antes de desativar.
 - A progressão do nível usa seção 11/versão 1, identidade de nível/conteúdo e IDs estáveis exatos. O arquivo de schema v2 suporta capacidades configuradas até 12 seções × 160 palavras e cópias duplicadas com checksum; arquivos v1 genuínos continuam legíveis. Isso não equivale a publicação durável contra crash nem autenticação.
@@ -168,16 +193,20 @@ RSS/desempenho por 30 minutos.
 
 G2 está concluído: host mais dois clientes trocam baselines de gameplay por
 destinatário, lotes ordenados de feedback e estado contínuo de encounter com
-vários papéis. Os clientes predizem movimento local, reproduzem inputs ainda
-não confirmados na reconciliação e reiniciam as épocas de input/predição/
-feedback quando a reconexão avança a geração. Papéis
-hitscan/projétil/shotgun redirecionam para jogadores vivos; portas usam volumes
-3D completos por segmento/AABB e cuboides de 36 vértices; atenuação/pan estéreo
-do Kof alcançam o caminho PCM SDL sem alocação. A sonda focada de interação, os
-73 cenários JVM/nativos, os papéis com três processos na JVM/no nativo e o
-adaptador SDL_GPU/áudio headless isolado passam. G3 é o próximo marco. G5
-mantém a aceitação sustentada de carga, RSS e orçamento de frame; `FFI001`
-ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
+vários papéis. Os clientes predizem movimento, reproduzem inputs ainda não
+confirmados na reconciliação e reiniciam épocas após reconexão; as sondas de
+interação, processos e SDL isolado passam.
+
+O primeiro slice vertical de gameplay G3 está implementado e todos os 74
+cenários-fonte passam na JVM/no nativo. O caminho sob autoridade do servidor de
+eliminação→drop gerado→coleta/equipamento→mudança observável de dano/skill→
+recompensa de chefe→save/reload em arquivo de schema executa sem resultados
+criados pelo cliente ou recompensas duplicadas. G3 permanece aberto para
+transportar os tipos de estado 7/8 pela sonda externa de host mais dois
+clientes, registros públicos limitados de extensões e regras completas
+orientadas por dados para elites/chefes. G5 mantém a aceitação sustentada de
+carga, RSS e orçamento de frame; `FFI001` ainda bloqueia chamadas Kof com
+buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

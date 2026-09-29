@@ -226,7 +226,8 @@ Bool externalRoleHostQualification() {
         host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         host.broadPhaseTriangleCount() == arena.triangleCount() &&
         host.configureEnemyRules(100, 20, 2) &&
-        host.defineEnemyWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.defineEnemyWeapon(9, 2, 0, 4, 1) &&
+        host.setEnemyWeaponRange(9, 20) &&
         host.defineEnemyEncounter(4, 1, 1) &&
         host.addEnemyCombatActor(1, 20, 0) &&
         host.equipEnemyCombatWeapon(1, 9) &&
@@ -634,7 +635,8 @@ main() {
         receivePayload(host, reconnectPayloadB, true),
         "host must accept client B after reconnect")
     assert(host.configureEnemyRules(100, 20, 2) &&
-        host.defineEnemyWeapon(9, 2, 0, 0, 4, 1, 20) &&
+        host.defineEnemyWeapon(9, 2, 0, 4, 1) &&
+        host.setEnemyWeaponRange(9, 20) &&
         host.defineEnemyEncounter(4, 1, 1) &&
         host.addEnemyCombatActor(1, 20, 0) &&
         host.equipEnemyCombatWeapon(1, 9) &&

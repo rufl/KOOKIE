@@ -3,6 +3,34 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## 2026-09-29
+
+### Primeiro slice vertical autoritativo G3 de loot/progressão
+
+- Conectamos a única transição vivo→morto a rolagens completas determinísticas,
+  drops limitados no mundo, admissão remota de coleta/equipamento/progressão,
+  modificadores de combate por equipamento/status e preflight atômico de
+  loot/XP/moeda do chefe. Inventário cheio preserva drop, moeda e identidade do
+  RNG.
+- Adicionamos o tipo `7` de estado de autoridade por jogador/destinatário e o
+  tipo `8` de loot no mundo, ambos com checksum. Clientes recebem rolagens
+  completas do inventário, equipamento, skills, status e drops 3D ranqueados
+  sem criar resultados.
+- Adicionamos a seção 12 de save para drops no mundo e identidades de
+  reivindicações de loot/moeda. `decodeG3Authority` restaura jogador e runtime
+  atomicamente; resolver novamente a morte salva do chefe não duplica
+  recompensas.
+- Dividimos novas chamadas nativas largas de definição de arma, admissão de
+  inimigo, configuração de recompensa e posição do drop em chamadas limitadas
+  ou entrada estruturada após o encaminhamento nativo corromper argumentos
+  finais.
+- Todos os 74 cenários-fonte passam na JVM e no nativo. A sonda focada de
+  interação passa nos dois alvos, e o smoke de pacote valida arquivos Linux
+  nativo/JVM e de apresentação, checksums, procedência, runtime e o gate nativo
+  Windows que falha fechado.
+- G3 permanece aberto para o transporte entre processos dos tipos de estado
+  `7`/`8`, registros públicos limitados de extensões e regras completas
+  orientadas por dados para elites/chefes.
+
 ### Slice LAN boomer-shooter G2 concluído
 
 - Adicionamos papéis contínuos e replicados de inimigos hitscan, projétil e

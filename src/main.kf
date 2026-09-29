@@ -298,7 +298,9 @@ test "bounded content package schema and identity" {
 test "player fire input publishes weapon presentation" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
-    assert(loopback.definePlayerWeapon(9, 2, 1, 1, 4, 1, 20))
+    assert(loopback.definePlayerWeapon(9, 2, 1, 4, 1) &&
+        loopback.setPlayerWeaponRange(9, 20) &&
+        loopback.setPlayerWeaponCooldown(9, 1))
     assert(loopback.addPlayerCombatActor(1, 20, 0))
     assert(loopback.equipPlayerCombatWeapon(1, 9))
     assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0))
@@ -1071,7 +1073,8 @@ test "progression modifiers affect authoritative combat" {
     assert(loopback.definePlayerStatus(60, 5, 3) &&
         loopback.setPlayerStatusDamageModifier(60, 2, 25) &&
         loopback.applyPlayerStatus(1, 60, 5, 1) &&
-        loopback.definePlayerWeapon(9, 3, 0, 0, 10, 1, 20) &&
+        loopback.definePlayerWeapon(9, 3, 0, 10, 1) &&
+        loopback.setPlayerWeaponRange(9, 20) &&
         loopback.addPlayerCombatActor(1, 100, 0) &&
         loopback.addPlayerCombatActor(2, 100, 0) &&
         loopback.equipPlayerCombatWeapon(1, 9),
@@ -1095,7 +1098,8 @@ test "progression modifiers affect authoritative combat" {
     assert(expired.accepted() && expired.applied() == 15 &&
         loopback.playerCombatHealth(2) == 55,
         "expired status modifiers must stop affecting player damage")
-    assert(loopback.definePlayerWeapon(10, 3, 0, 0, 10, 1, 20),
+    assert(loopback.definePlayerWeapon(10, 3, 0, 10, 1) &&
+        loopback.setPlayerWeaponRange(10, 20),
         "loopback must define a second combat weapon")
     assert(loopback.equipPlayerCombatWeapon(1, 10),
         "loopback must equip the second combat weapon")
@@ -1108,7 +1112,8 @@ test "progression modifiers affect authoritative combat" {
         loopback.playerCombatHealth(2) == 55 &&
         loopback.playerCombatShield(2) == 0,
         "loopback player combat must expose resistance and shield authority")
-    assert(loopback.defineEnemyWeapon(19, 2, 0, 0, 10, 1, 20) &&
+    assert(loopback.defineEnemyWeapon(19, 2, 0, 10, 1) &&
+        loopback.setEnemyWeaponRange(19, 20) &&
         loopback.addEnemyCombatActor(10, 100, 0) &&
         loopback.addEnemyCombatActor(11, 100, 0) &&
         loopback.equipEnemyCombatWeapon(10, 19) &&
@@ -1169,7 +1174,8 @@ test "area damage resolves bounded target batches" {
 }
 test "bounded shotgun pellets share damage authority" {
     var combat = CombatWorld(2, 1)
-    assert(combat.defineWeapon(12, 2, 0, 0, 100, 1, 30) &&
+    assert(combat.defineWeapon(12, 2, 0, 100, 1) &&
+        combat.setWeaponRange(12, 30) &&
         combat.setWeaponSpread(12, 3, 20) &&
         combat.addActor(1, 1000, 0) &&
         combat.addActor(2, 1000, 0) &&
@@ -1203,7 +1209,8 @@ test "bounded shotgun pellets share damage authority" {
 }
 test "shotgun pellets target bounded spread list" {
     var combat = CombatWorld(3, 1)
-    assert(combat.defineWeapon(13, 2, 0, 0, 100, 1, 30) &&
+    assert(combat.defineWeapon(13, 2, 0, 100, 1) &&
+        combat.setWeaponRange(13, 30) &&
         combat.setWeaponSpread(13, 3, 0) &&
         combat.addActor(1, 1000, 0) &&
         combat.addActor(2, 1000, 0) &&
@@ -1222,7 +1229,8 @@ test "shotgun pellets target bounded spread list" {
 }
 test "shotgun pellet targets preserve spatial selection" {
     var combat = CombatWorld(3, 1)
-    assert(combat.defineWeapon(14, 2, 0, 0, 100, 1, 30) &&
+    assert(combat.defineWeapon(14, 2, 0, 100, 1) &&
+        combat.setWeaponRange(14, 30) &&
         combat.setWeaponSpread(14, 3, 0) &&
         combat.addActor(1, 1000, 0) &&
         combat.addActor(2, 1000, 0) &&
@@ -1261,7 +1269,9 @@ test "shotgun pellet targets preserve spatial selection" {
 test "focus loss clears held input and queued fire" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
-    assert(loopback.definePlayerWeapon(9, 3, 0, 1, 4, 1, 20) &&
+    assert(loopback.definePlayerWeapon(9, 3, 0, 4, 1) &&
+        loopback.setPlayerWeaponRange(9, 20) &&
+        loopback.setPlayerWeaponCooldown(9, 1) &&
         loopback.addPlayerCombatActor(1, 20, 0) &&
         loopback.equipPlayerCombatWeapon(1, 9))
     assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0) &&
@@ -1295,7 +1305,9 @@ test "pause reset discards debt and one-shot input" {
         clock.pendingMicros() == 0)
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1)
-    assert(loopback.definePlayerWeapon(9, 2, 0, 1, 4, 1, 20) &&
+    assert(loopback.definePlayerWeapon(9, 2, 0, 4, 1) &&
+        loopback.setPlayerWeaponRange(9, 20) &&
+        loopback.setPlayerWeaponCooldown(9, 1) &&
         loopback.addPlayerCombatActor(1, 20, 0) &&
         loopback.equipPlayerCombatWeapon(1, 9))
     assert(loopback.receiveInput(1, 1, 1, 0, 0, 0, 0, 1, 0) &&
@@ -1408,7 +1420,8 @@ test "loopback replay restores combat checkpoint state" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1 &&
         loopback.connectPlayer() == 2 &&
-        loopback.definePlayerWeapon(21, 3, 5, 0, 10, 0, 20) &&
+        loopback.definePlayerWeapon(21, 3, 5, 10, 0) &&
+        loopback.setPlayerWeaponRange(21, 20) &&
         loopback.addPlayerCombatActor(1, 100, 0) &&
         loopback.addPlayerCombatActor(2, 100, 0) &&
         loopback.equipPlayerCombatWeapon(1, 21) &&
@@ -1529,12 +1542,13 @@ test "loopback replay sidecar restores inventory and world state" {
 test "loopback replay restores enemy combat checkpoint state" {
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() &&
-        loopback.defineEnemyWeapon(31, 3, 0, 0, 10, 0, 20) &&
+        loopback.defineEnemyWeapon(31, 3, 0, 10, 0) &&
+        loopback.setEnemyWeaponRange(31, 20) &&
         loopback.defineEnemyEncounter(4, 2, 100) &&
         loopback.configureEnemyRules(50, 10, 2) &&
         loopback.addEnemyCombatActor(1, 1000, 0) &&
         loopback.equipEnemyCombatWeapon(1, 31) &&
-        loopback.admitEnemy(4, 100, 0, 100, 0, 31) &&
+        loopback.admitEnemy(4, 100, 100, 0, 31) &&
         loopback.setEnemySpatialPosition(100, 20, 0, 0) &&
         loopback.configureEnemyPerception(100, 1, true, 20, 0) &&
         loopback.advanceEnemyTick(0) &&
@@ -2972,9 +2986,11 @@ test "shared capsule and spatial admission" {
 
 test "authoritative weapon and damage transitions" {
     var combat = CombatWorld(2, 1)
-    assert(!combat.defineWeapon(0, 2, 3, 2, 5, 1, 100),
+    assert(!combat.defineWeapon(0, 2, 3, 5, 1),
         "weapon definitions must reject invalid identity")
-    assert(combat.defineWeapon(7, 2, 3, 2, 5, 1, 100),
+    assert(combat.defineWeapon(7, 2, 3, 5, 1) &&
+        combat.setWeaponRange(7, 100) &&
+        combat.setWeaponCooldown(7, 2),
         "weapon definition must accept bounded firing data")
     assert(combat.addActor(1, 20, 2) && combat.addActor(2, 9, 1),
         "combat actors must admit bounded health and armor")
@@ -3014,7 +3030,7 @@ test "authoritative weapon and damage transitions" {
 }
 test "combat resistance and shield mitigation" {
     var combat = CombatWorld(2, 1)
-    assert(!combat.defineWeapon(8, 1, 0, 0, 4, 4, 25) &&
+    assert(!combat.defineWeapon(8, 1, 0, 4, 4) &&
         combat.addActor(1, 30, 0) &&
         combat.addActor(2, 20, 0) &&
         combat.setResistance(2, 1, 50) &&
@@ -3038,7 +3054,8 @@ test "combat resistance and shield mitigation" {
 
 test "shared hitscan projectile and bounded combat events" {
     var combat = CombatWorld(2, 1)
-    assert(combat.defineWeapon(4, 3, 0, 0, 4, 2, 25))
+    assert(combat.defineWeapon(4, 3, 0, 4, 2) &&
+        combat.setWeaponRange(4, 25))
     assert(combat.addActor(1, 20, 0) && combat.addActor(2, 12, 0))
     assert(combat.equipWeapon(1, 4))
     var hitscan = combat.resolveHitscan(1, 2, 0, 25, 0)
@@ -3132,10 +3149,11 @@ test "deterministic enemy states and encounter admission" {
 test "authoritative enemy combat event bridge" {
     var session = AuthoritativeEnemySession(3, 1)
     assert(session.configureEnemyRules(100, 20, 2))
-    assert(session.defineWeapon(9, 2, 0, 0, 3, 1, 20))
+    assert(session.defineWeapon(9, 2, 0, 3, 1) &&
+        session.setWeaponRange(9, 20))
     assert(session.defineEncounter(4, 1, 2))
     assert(session.addActor(1, 20, 0) && session.equipWeapon(1, 9))
-    assert(session.admitEnemy(4, 2, 0, 5, 0, 9) &&
+    assert(session.admitEnemy(4, 2, 5, 0, 9) &&
         session.encounterActiveCount(4) == 1,
         "authoritative admission must link combat, AI and encounter state")
 
@@ -3154,7 +3172,7 @@ test "authoritative enemy combat event bridge" {
         session.encounterActiveCount(4) == 0 &&
         session.pendingCombatEvents() == 0,
         "enemy death events must transition AI state and release encounter slots")
-    assert(session.admitEnemy(4, 3, 2, 5, 0, 9),
+    assert(session.admitEnemy(4, 3, 5, 0, 9),
         "released encounter slots must admit remaining deterministic budget")
 }
 
@@ -3162,11 +3180,12 @@ test "loopback enemy tick and replicated snapshots" {
     var loopback = LoopbackSession(4, 4)
     assert(loopback.start())
     assert(loopback.configureEnemyRules(100, 20, 2))
-    assert(loopback.defineEnemyWeapon(9, 2, 0, 0, 3, 1, 20))
+    assert(loopback.defineEnemyWeapon(9, 2, 0, 3, 1) &&
+        loopback.setEnemyWeaponRange(9, 20))
     assert(loopback.defineEnemyEncounter(4, 1, 2))
     assert(loopback.addEnemyCombatActor(1, 20, 0) &&
         loopback.equipEnemyCombatWeapon(1, 9))
-    assert(loopback.admitEnemy(4, 2, 0, 5, 0, 9))
+    assert(loopback.admitEnemy(4, 2, 5, 0, 9))
     assert(loopback.configureEnemyPerception(2, 1, true, 10, 0))
     assert(loopback.advance(16667) == 1,
         "loopback must advance one authoritative enemy tick")
@@ -3207,12 +3226,13 @@ test "enemy spatial visibility movement and projectile targeting" {
 
     var session = AuthoritativeEnemySession(3, 1)
     assert(session.configureEnemyRules(100, 20, 2) &&
-        session.defineWeapon(9, 2, 0, 0, 3, 1, 20) &&
+        session.defineWeapon(9, 2, 0, 3, 1) &&
+        session.setWeaponRange(9, 20) &&
         session.defineEncounter(4, 1, 2),
         "spatial combat rules must configure")
     assert(session.addActor(1, 20, 0) &&
         session.equipWeapon(1, 9) &&
-        session.admitEnemy(4, 2, 0, 5, 0, 9),
+        session.admitEnemy(4, 2, 5, 0, 9),
         "spatial combat actors must admit")
     assert(session.setSpatialPosition(1, 0, 0, 0) &&
         session.setSpatialPosition(2, 0, 0, 10),
@@ -3223,10 +3243,11 @@ test "enemy spatial visibility movement and projectile targeting" {
 
     var blockedSession = AuthoritativeEnemySession(3, 1)
     assert(blockedSession.configureEnemyRules(100, 20, 2) &&
-        blockedSession.defineWeapon(9, 2, 0, 0, 3, 1, 20) &&
+        blockedSession.defineWeapon(9, 2, 0, 3, 1) &&
+        blockedSession.setWeaponRange(9, 20) &&
         blockedSession.defineEncounter(4, 1, 2) &&
         blockedSession.addActor(1, 20, 0) &&
-        blockedSession.admitEnemy(4, 2, 0, 5, 0, 9),
+        blockedSession.admitEnemy(4, 2, 5, 0, 9),
         "blocked spatial combat actors must admit")
     assert(blockedSession.setSpatialPosition(1, 2, 2, 0) &&
         blockedSession.setSpatialPosition(2, 2, 2, 10) &&
@@ -3269,7 +3290,8 @@ test "bounded spatial ray target selection" {
 }
 test "authoritative spatial shotgun uses shared aim contract" {
     var session = LoopbackSession(8, 8)
-    assert(session.definePlayerWeapon(14, 2, 0, 0, 100, 1, 30) &&
+    assert(session.definePlayerWeapon(14, 2, 0, 100, 1) &&
+        session.setPlayerWeaponRange(14, 30) &&
         session.setPlayerWeaponSpread(14, 3, 5) &&
         session.addPlayerCombatActor(10, 1000, 0) &&
         session.addPlayerCombatActor(11, 1000, 0) &&
@@ -3300,7 +3322,8 @@ test "authoritative spatial shotgun uses shared aim contract" {
 test "continuous projectiles and encounter zones" {
     var session = AuthoritativeEnemySession(4, 1)
     assert(session.configureEnemyRules(100, 20, 2) &&
-        session.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        session.defineWeapon(9, 4, 0, 3, 1) &&
+        session.setWeaponRange(9, 20) &&
         session.defineEncounter(4, 2, 2),
         "continuous projectile rules must configure")
     assert(session.addActor(1, 20, 0) &&
@@ -3324,7 +3347,8 @@ test "continuous projectiles and encounter zones" {
 
     var blocked = AuthoritativeEnemySession(4, 1)
     assert(blocked.configureEnemyRules(100, 20, 2) &&
-        blocked.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        blocked.defineWeapon(9, 4, 0, 3, 1) &&
+        blocked.setWeaponRange(9, 20) &&
         blocked.defineEncounter(4, 2, 2) &&
         blocked.addActor(1, 20, 0) &&
         blocked.equipWeapon(1, 9) &&
@@ -3342,7 +3366,8 @@ test "continuous projectiles and encounter zones" {
         "obstacle must terminate a continuous projectile without damage")
 
     var zones = AuthoritativeEnemySession(4, 1)
-    assert(zones.defineWeapon(9, 1, 0, 0, 1, 1, 5) &&
+    assert(zones.defineWeapon(9, 1, 0, 1, 1) &&
+        zones.setWeaponRange(9, 5) &&
         zones.defineEncounter(7, 2, 2) &&
         zones.configureEncounterZone(7, 0, 0, 0, 5),
         "encounter zone must configure")
@@ -3354,7 +3379,8 @@ test "continuous projectiles and encounter zones" {
     var loopback = LoopbackSession(4, 4)
     assert(loopback.start() &&
         loopback.configureEnemyRules(100, 20, 2) &&
-        loopback.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        loopback.defineEnemyWeapon(9, 4, 0, 3, 1) &&
+        loopback.setEnemyWeaponRange(9, 20) &&
         loopback.defineEnemyEncounter(4, 1, 1) &&
         loopback.addEnemyCombatActor(1, 20, 0) &&
         loopback.equipEnemyCombatWeapon(1, 9) &&
@@ -3392,7 +3418,8 @@ test "deterministic navigation and projectile impact events" {
 
     var impacts = AuthoritativeEnemySession(3, 1)
     assert(impacts.configureEnemyRules(100, 20, 2) &&
-        impacts.defineWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        impacts.defineWeapon(9, 4, 0, 3, 1) &&
+        impacts.setWeaponRange(9, 20) &&
         impacts.defineEncounter(4, 1, 1) &&
         impacts.addActor(1, 20, 0) &&
         impacts.equipWeapon(1, 9) &&
@@ -3416,7 +3443,8 @@ test "replicated projectile presentation queues" {
     var loopback = LoopbackSession(4, 4)
     assert(loopback.start() &&
         loopback.configureEnemyRules(100, 20, 2) &&
-        loopback.defineEnemyWeapon(9, 4, 0, 0, 3, 1, 20) &&
+        loopback.defineEnemyWeapon(9, 4, 0, 3, 1) &&
+        loopback.setEnemyWeaponRange(9, 20) &&
         loopback.defineEnemyEncounter(4, 1, 1) &&
         loopback.addEnemyCombatActor(1, 20, 0) &&
         loopback.equipEnemyCombatWeapon(1, 9) &&
@@ -3468,7 +3496,8 @@ test "continuous multi-role enemies retarget and replicate" {
     assert(host.configureEnemyRules(100, 5, 1) &&
         host.configureEnemySpatialBounds(
             -200, -20, -20, 200, 20, 20) &&
-        host.defineEnemyWeapon(41, 32, 0, 0, 3, 1, 20) &&
+        host.defineEnemyWeapon(41, 32, 0, 3, 1) &&
+        host.setEnemyWeaponRange(41, 20) &&
         host.defineEnemyEncounter(9, 3, 3) &&
         host.start() && host.connectPlayer() == 1 &&
         host.connectPlayer() == 2 &&
@@ -3513,4 +3542,246 @@ test "continuous multi-role enemies retarget and replicate" {
     assert(client.clientRemoteEnemyPositionX(12) ==
             host.enemySpatialPositionX(12),
         "encounter replication must preserve continuous position")
+}
+
+test "G3 authoritative loot progression replication and save reload" {
+    var host = LoopbackSession(16, 12)
+    assert(host.configureEnemyRules(100, 5, 1) &&
+        host.defineEnemyWeapon(41, 8, 0, 5, 0) &&
+        host.setEnemyWeaponRange(41, 20) &&
+        host.defineEnemyEncounter(9, 2, 2) &&
+        host.start() && host.connectPlayer() == 1,
+        "G3 authoritative session rules must configure")
+    assert(host.addPlayerCombatActor(1, 200, 0) &&
+        host.addEnemyCombatActor(1, 200, 0) &&
+        host.equipEnemyCombatWeapon(1, 41),
+        "G3 player combat authority must configure")
+    assert(host.admitEnemy(
+        9, 100, 7, 0, 41),
+        "G3 elite actor must configure")
+    assert(host.admitEnemy(
+        9, 101, 22, 0, 41),
+        "G3 boss actor must configure")
+    assert(host.enemyCombatHealth(101) == 22,
+        "G3 boss must enter combat at authored health")
+    assert(host.defineLootAffixPool(1) &&
+        host.addLootAffix(1, 11, 1) &&
+        host.defineLootAffixStat(11, 5, 0, 0) &&
+        host.defineLootItem(501, 10, 1, 10, 1) &&
+        host.addLootTableEntry(501, 1),
+        "G3 deterministic loot content must configure")
+    assert(host.definePlayerSkill(30, 2, 100) &&
+        host.setPlayerSkillDamagePercent(30, 20) &&
+        host.definePlayerStatus(40, 20, 3) &&
+        host.setPlayerStatusDamageModifier(40, 2, 0) &&
+        host.applyPlayerStatus(1, 40, 10, 2),
+        "G3 skill and status authority must configure")
+    assert(host.defineEnemyLootReward(
+        100, 900, 77, 4, 2),
+        "G3 elite loot contract must configure")
+    assert(host.defineEnemyLootReward(
+            101, 901, 88, 5, 3) &&
+        host.defineEnemyLootProgressionReward(101, 30, 100),
+        "G3 boss loot and experience contract must configure")
+    assert(host.defineEnemyCombatReward(101, 50),
+        "G3 boss currency contract must configure")
+
+    var learn = newGameplayProgressionCommand(
+        1, 1, 1, 30, 1, 1)
+    assert(validGameplayCommandMessage(learn),
+        "skill learn command must satisfy the gameplay wire schema")
+    assert(host.applyRemoteGameplayCommand(learn),
+        "host must consume the ordered skill learn command")
+    assert(host.lastRemoteGameplayAccepted() &&
+        host.playerSkillRank(1, 30) == 0,
+        "server must authorize skill learning without client-authored rank")
+    var eliteDeath = host.resolveEnemyHitscan(1, 100, 1, 1, 0)
+    assert(eliteDeath.accepted() && eliteDeath.died() &&
+        eliteDeath.applied() == 7 &&
+        host.worldLootCount() == 1 &&
+        host.worldLootStableId(0) == 900,
+        "elite death must deterministically stage its complete rolled item")
+    assert(host.enemyCombatHealth(101) == 22,
+        "elite death must not mutate boss health")
+    var eliteRoll = host.worldLootRoll(0)
+    assert(eliteRoll.accepted() && eliteRoll.seed() == 77 &&
+        eliteRoll.definitionId() == 501 && eliteRoll.affixOne() == 11,
+        "rolled item identity and affix must derive from server seed and content")
+
+    var pickup = newGameplayPickupCommand(
+        1, 2, 2, 900, 1)
+    var equip = newGameplayEquipCommand(
+        1, 3, 3, 0, 900, 1)
+    assert(host.applyRemoteGameplayCommand(pickup) &&
+        host.lastRemoteGameplayAccepted() &&
+        host.worldLootCount() == 0 &&
+        host.playerItemQuantity(1, 900) == 1 &&
+        host.applyRemoteGameplayCommand(equip) &&
+        host.lastRemoteGameplayAccepted() &&
+        host.playerEquipmentItem(1, 0) == 900 &&
+        host.playerEquipmentDamageBonus(1) == 15,
+        "server pickup and equip must consume world loot and compose item stats")
+
+    var currencyBeforeForgery = host.playerCurrency(1)
+    var itemsBeforeForgery = host.playerInventory(1).itemCount()
+    var forgedPickup = newGameplayPickupCommand(
+        1, 4, 4, 999999, 1)
+    var forgedEquip = newGameplayEquipCommand(
+        1, 5, 5, 1, 999998, 1)
+    var forgedProgression = newGameplayProgressionCommand(
+        1, 6, 6, 30, 1, 1)
+    assert(host.applyRemoteGameplayCommand(forgedPickup) &&
+        !host.lastRemoteGameplayAccepted() &&
+        host.applyRemoteGameplayCommand(forgedEquip) &&
+        !host.lastRemoteGameplayAccepted() &&
+        host.applyRemoteGameplayCommand(forgedProgression) &&
+        !host.lastRemoteGameplayAccepted() &&
+        host.playerCurrency(1) == currencyBeforeForgery &&
+        host.playerInventory(1).itemCount() == itemsBeforeForgery &&
+        host.playerSkillRank(1, 30) == 0,
+        "client commands cannot mint items, currency, equipment, or ranks")
+
+    assert(host.enemyCombatHealth(101) == 22,
+        "rejected client commands must not mutate boss health")
+    assert(host.canGrantCombatReward(
+            1, host.combatRewardCurrency(101)),
+        "boss currency reward must pass atomic preflight")
+    assert(host.canGrantEnemyLootReward(1, 101),
+        "boss loot and experience reward must pass atomic preflight")
+    assert(host.enemyCombatAlive(1) &&
+        host.enemyCombatAlive(101),
+        "boss combat actors must remain alive before resolution")
+    assert(host.enemyCombatMagazine(1) == 7 &&
+        host.pendingEnemyCombatEvents() == 0,
+        "boss shot must retain ammunition and event capacity")
+    assert(host.enemyCombatReadyTick(1) <= 6 &&
+        host.enemyCombatWeaponRange(1) >= 1,
+        "boss shot must satisfy weapon cooldown and range")
+    var bossDeath = host.resolveEnemyHitscan(1, 101, 6, 1, 0)
+    assert(bossDeath.accepted() && bossDeath.died() &&
+        bossDeath.applied() == 22,
+        "equipped item and status must alter authoritative boss damage")
+    assert(host.playerCurrency(1) == 50 &&
+        host.playerSkillRank(1, 30) == 1,
+        "boss death must commit currency and skill experience")
+    assert(host.worldLootCount() == 1 &&
+        host.worldLootStableId(0) == 901 &&
+        host.worldLootRank(0) == 3,
+        "boss death must stage its ranked rolled item")
+
+    var client = LoopbackSession(8, 12)
+    var gameplayState = host.gameplayStateMessage(
+        host.currentServerTick(), 1, 1)
+    var authorityState = host.playerAuthorityStateMessage(
+        host.currentServerTick(), 1)
+    var lootState = host.worldLootStateMessage(
+        host.currentServerTick(), 1)
+    assert(client.start() &&
+        client.applyRemoteGameplayState(gameplayState),
+        "client must accept the ordered gameplay baseline")
+    assert(validPlayerAuthorityStateMessage(authorityState) &&
+        client.applyRemotePlayerAuthorityState(authorityState),
+        "client must accept the ordered player authority baseline")
+    assert(validWorldLootStateMessage(lootState) &&
+        client.applyRemoteWorldLootState(lootState),
+        "client must accept the ordered world loot baseline")
+    assert(client.clientRemoteCurrency() == 50 &&
+        client.clientRemoteItemCount() == 1 &&
+        client.clientRemoteItemId(0) == 900 &&
+        client.clientRemoteItemSeed(0) == 77 &&
+        client.clientRemoteEquipmentItem(0) == 900 &&
+        client.clientRemoteSkillRank(30) == 1 &&
+        client.clientRemoteStatusStackCount(40) == 2 &&
+        client.clientRemoteWorldLootCount() == 1 &&
+        client.clientRemoteWorldLootStableId(0) == 901 &&
+        client.clientRemoteWorldLootSeed(0) == 88,
+        "G3 replication must expose inventory, equipment, progression, and drops")
+
+    var full = LoopbackSession(8, 4)
+    assert(full.configureEnemyRules(100, 5, 1) &&
+        full.defineEnemyWeapon(41, 2, 0, 5, 0) &&
+        full.setEnemyWeaponRange(41, 20) &&
+        full.defineEnemyEncounter(9, 1, 1) &&
+        full.start() && full.connectPlayer() == 1 &&
+        full.addEnemyCombatActor(1, 100, 0) &&
+        full.equipEnemyCombatWeapon(1, 41) &&
+        full.admitEnemy(9, 100, 5, 0, 41) &&
+        full.defineLootAffixPool(1) &&
+        full.addLootAffix(1, 11, 1) &&
+        full.defineLootAffixStat(11, 5, 0, 0) &&
+        full.defineLootItem(501, 10, 1, 10, 1) &&
+        full.addLootTableEntry(501, 1) &&
+        full.defineEnemyLootReward(100, 900, 77, 4, 2),
+        "full-inventory deterministic loot scenario must configure")
+    for (var fill = 0; fill < 8; fill = fill + 1) {
+        assert(full.addPlayerItem(1, 1000 + fill, 1))
+    }
+    var fullDeath = full.resolveEnemyHitscan(1, 100, 0, 1, 0)
+    var fullCurrency = full.playerCurrency(1)
+    var fullRevision = full.worldLootRevision()
+    assert(fullDeath.accepted() && fullDeath.died() &&
+        full.worldLootRoll(0).seed() == eliteRoll.seed() &&
+        !full.pickupPlayerLoot(1, 900) &&
+        full.worldLootCount() == 1 &&
+        full.worldLootRevision() == fullRevision &&
+        full.worldLootRoll(0).seed() == 77 &&
+        full.playerCurrency(1) == fullCurrency &&
+        full.playerInventory(1).itemCount() == 8,
+        "full inventory must preserve item identity, currency, and loot revision")
+
+    var sections = BoundedSaveSections(12, 160)
+    var store = BoundedSaveSchemaFileStore(12, 160)
+    var savePath = "/tmp/kookie-g3-authority-test.bin"
+    assert(sections.setRevision(host.currentServerTick()) &&
+        host.encodeG3Authority(1, sections) &&
+        store.write(savePath, sections),
+        "G3 authoritative state must persist through the schema file store")
+    var loaded = BoundedSaveSections(12, 160)
+    assert(store.read(savePath, loaded),
+        "G3 authoritative schema file must reload")
+
+    var restored = LoopbackSession(16, 12)
+    assert(restored.configureEnemyRules(100, 5, 1) &&
+        restored.defineEnemyWeapon(41, 8, 0, 5, 0) &&
+        restored.setEnemyWeaponRange(41, 20) &&
+        restored.defineEnemyEncounter(9, 2, 2) &&
+        restored.start() && restored.connectPlayer() == 1 &&
+        restored.addPlayerCombatActor(1, 200, 0) &&
+        restored.addEnemyCombatActor(1, 200, 0) &&
+        restored.equipEnemyCombatWeapon(1, 41) &&
+        restored.admitEnemy(9, 100, 7, 0, 41) &&
+        restored.admitEnemy(9, 101, 22, 0, 41) &&
+        restored.defineLootAffixPool(1) &&
+        restored.addLootAffix(1, 11, 1) &&
+        restored.defineLootAffixStat(11, 5, 0, 0) &&
+        restored.defineLootItem(501, 10, 1, 10, 1) &&
+        restored.addLootTableEntry(501, 1) &&
+        restored.definePlayerSkill(30, 2, 100) &&
+        restored.setPlayerSkillDamagePercent(30, 20) &&
+        restored.definePlayerStatus(40, 20, 3) &&
+        restored.setPlayerStatusDamageModifier(40, 2, 0) &&
+        restored.defineEnemyLootReward(100, 900, 77, 4, 2) &&
+        restored.defineEnemyLootReward(101, 901, 88, 5, 3) &&
+        restored.defineEnemyLootProgressionReward(101, 30, 100) &&
+        restored.defineEnemyCombatReward(101, 50) &&
+        restored.decodeG3Authority(1, loaded),
+        "G3 state must atomically reload against authoritative content")
+    assert(restored.playerCurrency(1) == 50 &&
+        restored.playerItemQuantity(1, 900) == 1 &&
+        restored.playerEquipmentItem(1, 0) == 900 &&
+        restored.playerEquipmentDamageBonus(1) == 15 &&
+        restored.playerSkillRank(1, 30) == 1 &&
+        restored.playerStatusStacks(1, 40) == 2 &&
+        restored.worldLootCount() == 1 &&
+        restored.worldLootStableId(0) == 901 &&
+        restored.combatRewardClaimed(101),
+        "save reload must preserve boss rewards and every player authority domain")
+    var currencyBeforeReplay = restored.playerCurrency(1)
+    var rankBeforeReplay = restored.playerSkillRank(1, 30)
+    var replayedBoss = restored.resolveEnemyHitscan(1, 101, 7, 1, 0)
+    assert(replayedBoss.accepted() && replayedBoss.died() &&
+        restored.playerCurrency(1) == currencyBeforeReplay &&
+        restored.playerSkillRank(1, 30) == rankBeforeReplay &&
+        restored.worldLootCount() == 1,
+        "reloaded reward claims must prevent boss reward duplication")
 }

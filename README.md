@@ -7,7 +7,7 @@ The doors have prerequisites. The network has prerequisites. Calling this finish
 
 ## The honest status
 
-G0 and G1 run on JVM and native Linux x86-64:
+G0, G1 and G2 run on JVM and native Linux x86-64:
 
 - authoritative 60 Hz loopback server/client sessions, two-client admission,
   snapshots and observable prediction/reconciliation;
@@ -25,6 +25,9 @@ G0 and G1 run on JVM and native Linux x86-64:
 - cooperative key, 3D door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
+- authoritative G3 kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward
+  flow, recipient-specific inventory/equipment/progression and world-loot
+  schemas, plus atomic save/reload of rolls and reward claims;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
   regressions carry the complete 26-triangle arena, unified checksummed
   movement/fire/interaction/lifecycle commands, recipient-specific gameplay
@@ -40,6 +43,9 @@ G0 and G1 run on JVM and native Linux x86-64:
 
 The important gaps are still real:
 
+- the G3 gameplay slice is source-qualified in loopback; external-process
+  transport of the new schemas, extension registries and full data-driven
+  elite/boss rules remain open;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, content cooking, full physics, streamed/compressed
@@ -161,9 +167,11 @@ initially with Vulkan/SPIR-V.
 
 ## Roadmap
 
-Next is G3: complete the authoritative multiplayer
-kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward→save/reload slice.
-G2 remains covered by the JVM/native source suite, focused interaction probe,
+The first G3 vertical slice now executes the authoritative multiplayer
+kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward→save/reload path on
+JVM and native. G3 remains open for external-process transport of the new
+schemas, extension registries and full data-driven elite/boss rules. G2 remains
+covered by the JVM/native source suite, focused interaction probe,
 host-plus-two-client process qualification and isolated headless SDL_GPU/audio
 probe.
 

@@ -191,11 +191,10 @@ class WeaponDefinitionStore {
 
     Bool define(
         Int id, Int magazineSize, Int reserveCapacity,
-        Int cooldownTicks, Int damage, Int channel, Int range
+        Int damage, Int channel
     ) {
         if (id <= 0 || magazineSize <= 0 || reserveCapacity < 0 ||
-            cooldownTicks < 0 || damage <= 0 ||
-            channel < 0 || channel >= 4 || range <= 0) {
+            damage <= 0 || channel < 0 || channel >= 4) {
             return false
         }
         var index = find(id)
@@ -209,12 +208,30 @@ class WeaponDefinitionStore {
         }
         magazineSizes[index] = magazineSize
         reserveCapacities[index] = reserveCapacity
-        cooldowns[index] = cooldownTicks
+        cooldowns[index] = 0
         damages[index] = damage
         channels[index] = channel
-        ranges[index] = range
+        ranges[index] = 1
         pelletCounts[index] = 1
         spreadPercents[index] = 0
+        return true
+    }
+
+    Bool setRange(Int id, Int range) {
+        var index = find(id)
+        if (index < 0 || range <= 0 || range > 1000000) {
+            return false
+        }
+        ranges[index] = range
+        return true
+    }
+
+    Bool setCooldown(Int id, Int cooldownTicks) {
+        var index = find(id)
+        if (index < 0 || cooldownTicks < 0 || cooldownTicks > 1000000) {
+            return false
+        }
+        cooldowns[index] = cooldownTicks
         return true
     }
 
@@ -420,11 +437,18 @@ class CombatWorld {
 
     Bool defineWeapon(
         Int id, Int magazineSize, Int reserveCapacity,
-        Int cooldownTicks, Int damage, Int channel, Int range
+        Int damage, Int channel
     ) {
         return weapons.define(
-            id, magazineSize, reserveCapacity,
-            cooldownTicks, damage, channel, range)
+            id, magazineSize, reserveCapacity, damage, channel)
+    }
+
+    Bool setWeaponRange(Int id, Int range) {
+        return weapons.setRange(id, range)
+    }
+
+    Bool setWeaponCooldown(Int id, Int cooldownTicks) {
+        return weapons.setCooldown(id, cooldownTicks)
     }
     Bool setWeaponSpread(Int id, Int pellets, Int spreadPercent) {
         return weapons.setSpread(id, pellets, spreadPercent)
@@ -1425,6 +1449,30 @@ class CombatWorld {
         }
         return magazines[index]
     }
+    Int equippedWeapon(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return 0
+        }
+        return weaponIds[index]
+    }
+
+    Int nextReadyTick(Int actorId) {
+        var index = findActor(actorId)
+        if (index < 0) {
+            return -1
+        }
+        return nextReadyTicks[index]
+    }
+
+    Int equippedWeaponRange(Int actorId) {
+        var weaponId = equippedWeapon(actorId)
+        if (weaponId <= 0) {
+            return -1
+        }
+        return weapons.range(weaponId)
+    }
+
 
     Int reserve(Int actorId) {
         var index = findActor(actorId)

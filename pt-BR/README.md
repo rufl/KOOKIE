@@ -8,7 +8,7 @@ As portas têm pré-requisitos. Chamar isto de pronto também.
 
 ## Estado honesto
 
-G0 e G1 executam na JVM e no Linux nativo x86-64:
+G0, G1 e G2 executam na JVM e no Linux nativo x86-64:
 
 - sessões autoritativas servidor/cliente em loopback a 60 Hz, admissão de dois
   clientes, snapshots e predição/reconciliação observável;
@@ -27,6 +27,10 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
 - progressão cooperativa de chave, porta 3D, segredo e saída, replay de comandos
   e saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
+- fluxo autoritativo G3 de eliminação→drop gerado→coleta/equipamento→mudança
+  de atributo/skill→recompensa de chefe, schemas por destinatário para
+  inventário/equipamento/progressão e loot no mundo, além de save/reload
+  atômico das rolagens e reivindicações de recompensa;
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
   na JVM e no nativo levam a arena completa de 26 triângulos, comandos
   unificados com checksum para movimento/disparo/interação/ciclo de vida,
@@ -42,6 +46,9 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
 
 As lacunas importantes continuam reais:
 
+- o slice de gameplay G3 está qualificado em loopback no código-fonte; o
+  transporte dos novos schemas entre processos, registros de extensões e
+  regras completas orientadas por dados para elites/chefes permanecem abertos;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
 - saves duráveis contra crash, content cooker, física completa, áudio
@@ -117,11 +124,14 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 ## Roadmap
 
-O próximo passo é G3: concluir o slice multiplayer autoritativo de
-eliminação→drop gerado→coleta/equipamento→mudança de atributo/skill→recompensa
-de chefe→salvar/recarregar. G2 continua coberto pela suíte de código-fonte na
-JVM/no nativo, pela sonda focada de interação, pela qualificação de processos
-host mais dois clientes e pela sonda SDL_GPU/áudio headless isolada.
+O primeiro slice vertical G3 agora executa na JVM e no nativo o caminho
+multiplayer autoritativo de eliminação→drop gerado→coleta/equipamento→mudança
+de atributo/skill→recompensa de chefe→salvar/recarregar. G3 permanece aberto
+para transportar os novos schemas entre processos, registrar extensões e
+completar regras orientadas por dados para elites/chefes. G2 continua coberto
+pela suíte de código-fonte na JVM/no nativo, pela sonda focada de interação,
+pela qualificação de processos host mais dois clientes e pela sonda
+SDL_GPU/áudio headless isolada.
 
 Adiado até os gates centrais estarem mais fortes:
 
