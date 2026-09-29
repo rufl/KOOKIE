@@ -117,8 +117,8 @@ mkdir -p "$PACKAGE_ROOT"
 
 bundle_linux_native() {
   local binary="$1"
-  shift
-  local loader dependency library
+  local presentation_package="$2"
+  shift 2
   cp -- "$binary" "$PACKAGE_ROOT/kookie.bin"
   chmod 755 "$PACKAGE_ROOT/kookie.bin"
   loader="$(readelf -l "$binary" | sed -n 's/.*Requesting program interpreter: \(.*\)]/\1/p')"
@@ -134,6 +134,7 @@ bundle_linux_native() {
     done < <(ldd "$dependency" | sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p; s/^[[:space:]]*(\/[^ ]+) .*/\1/p')
   done
   cc -static -O2 -s \
+    -DKOOKIE_PRESENTATION_PACKAGE="$presentation_package" \
     "$ROOT_DIR/scripts/kookie_linux_launcher.c" \
     -o "$PACKAGE_ROOT/kookie"
   chmod 755 "$PACKAGE_ROOT/kookie"
@@ -143,7 +144,7 @@ if [[ "$RUNTIME" == native ]]; then
   kof build "$ROOT_DIR/src" --target native --output "$WORK_DIR/build" >/dev/null
   BINARY="$WORK_DIR/build/Default/Main"
   test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
-  bundle_linux_native "$BINARY"
+  bundle_linux_native "$BINARY" 0
 elif [[ "$RUNTIME" == presentation ]]; then
   PRESENTATION_ROOT="$WORK_DIR/presentation"
   mkdir -p "$PRESENTATION_ROOT"/{core,session,world,ui,demo} "$PACKAGE_ROOT/build"
@@ -165,7 +166,16 @@ elif [[ "$RUNTIME" == presentation ]]; then
   (cd "$PACKAGE_ROOT" && kof build "$PRESENTATION_ROOT/main.kf" --target native --output "$WORK_DIR/build" >/dev/null)
   BINARY="$WORK_DIR/build/Default/Main"
   test -x "$BINARY" || { echo "package_kookie: presentation executable missing: $BINARY" >&2; exit 1; }
-  bundle_linux_native "$BINARY" "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so"
+  bundle_linux_native "$BINARY" 1 "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so"
+  kof build "$ROOT_DIR/src" --target native \
+    --output "$WORK_DIR/smoke-build" >/dev/null
+  SMOKE_BINARY="$WORK_DIR/smoke-build/Default/Main"
+  test -x "$SMOKE_BINARY" || {
+    echo "package_kookie: presentation smoke executable missing: $SMOKE_BINARY" >&2
+    exit 1
+  }
+  cp -- "$SMOKE_BINARY" "$PACKAGE_ROOT/kookie-smoke.bin"
+  chmod 755 "$PACKAGE_ROOT/kookie-smoke.bin"
 else
   kof build "$ROOT_DIR/src" --target jvm --output "$WORK_DIR/build" >/dev/null
   jar --create --file "$PACKAGE_ROOT/kookie.jar" --main-class Default.Main -C "$WORK_DIR/build" .

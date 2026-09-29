@@ -27,6 +27,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   interação passa nos dois alvos, e o smoke de pacote valida arquivos Linux
   nativo/JVM e de apresentação, checksums, procedência, runtime e o gate nativo
   Windows que falha fechado.
+- Pacotes de apresentação agora incluem um `kookie-smoke.bin` nativo separado;
+  `kookie --package-smoke` o seleciona sem abrir display. O ztash valida
+  dependências Kof/runtime empacotadas em modo headless, enquanto o lançamento
+  normal continua selecionando o executável SDL_GPU para display isolado.
 - G3 permanece aberto para o transporte entre processos dos tipos de estado
   `7`/`8`, registros públicos limitados de extensões e regras completas
   orientadas por dados para elites/chefes.

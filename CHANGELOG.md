@@ -23,6 +23,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   passes on both targets, and package smoke validates Linux native/JVM and
   presentation archives, checksums, provenance, runtime and the fail-closed
   Windows-native gate.
+- Presentation packages now include a separate native `kookie-smoke.bin`;
+  `kookie --package-smoke` selects it without opening a display. Ztash can
+  validate packaged Kof/runtime dependencies headlessly, while normal launch
+  still selects the isolated SDL_GPU presentation executable.
 - G3 remains open for external-process transport of state kinds `7`/`8`,
   bounded public extension registries and complete data-driven elite/boss
   rules.

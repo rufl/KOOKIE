@@ -65,9 +65,16 @@ if command -v glslc >/dev/null &&
   PRESENTATION_ROOT="$WORK_DIR/presentation-extracted/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64"
   test -x "$PRESENTATION_ROOT/kookie"
   test -x "$PRESENTATION_ROOT/kookie.bin"
+  test -x "$PRESENTATION_ROOT/kookie-smoke.bin"
   test -f "$PRESENTATION_ROOT/build/libkookie_sdl_adapter.so"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
+  PRESENTATION_OUTPUT="$("$PRESENTATION_ROOT/kookie" --package-smoke \
+    2>"$WORK_DIR/presentation-runtime.err")" || {
+      cat "$WORK_DIR/presentation-runtime.err" >&2
+      exit 1
+    }
+  grep -Fq 'KOOKIE G1 authoritative shooter verified' <<<"$PRESENTATION_OUTPUT"
   presentation_manifest_args=("$PRESENTATION_MANIFEST" presentation)
   presentation_status="archive"
 else
