@@ -1,6 +1,6 @@
 # Arquitetura do projeto KOOKIE
 
-Status: **arquitetura-alvo viva; G0/G1 estão implementados e slices de G2 estão em andamento**.
+Status: **arquitetura-alvo viva; G0/G1/G2 estão implementados e G3 é o próximo marco**.
 
 
 Este documento é a autoridade de arquitetura no nível do projeto. Os experimentos
@@ -126,12 +126,15 @@ checked native adapter
 A apresentação não pode gravar em arrays autoritativos nem conceder resultados de jogabilidade.
 
 O slice limitado implementado segue essa fronteira: resoluções autoritativas de
-combate emitem registros `ImpactPresentationEvent` monotônicos; o snapshot do
-encounter leva o evento confirmado mais recente às filas de HUD/áudio do
+combate emitem registros `ImpactPresentationEvent` monotônicos; lotes ordenados
+de feedback levam cada evento confirmado às filas limitadas de HUD/áudio do
 cliente. O HUD deriva geometria de acerto/eliminação/dano limitada por tick,
 além de estado de conexão e carga ativa/reserva distinguíveis pela forma.
 Overflow de apresentação é diagnosticado e nunca desfaz estado autoritativo.
-A cena criada atual é fixa em 252 vértices.
+Portas 3D criadas adicionam um cuboide de 36 vértices entre a arena de 78 e o
+HUD de 174; a cena fixa atual tem 288 vértices. O Kof deriva atenuação por
+distância e pan estéreo antes do envio de canais PCM esquerdo/direito pelo
+adaptador nativo.
 
 
 ### Adaptador nativo
@@ -203,14 +206,15 @@ O protocolo é independente do transporte:
 - Rejeição de comandos obsoletos, identificadores inválidos, conteúdo
   incompatível e capacidades não suportadas.
 
-O slice G2 implementado usa comandos fixos de 11 palavras e estado fixo de
-jogador/progressão com 19 palavras, seguido por uma mensagem dinâmica do
-encounter com checksum e `20 + 7N` palavras. `N` é limitado a 32; cada entrada
-contém ID estável, estado, alvo, vida e posição inteira do inimigo. O cabeçalho
-contém contagens ativa/reserva do encounter e o impacto confirmado mais
-recente. O decode valida a mensagem inteira antes da mutação, rejeita
-sequências não monotônicas e não trata apresentação descartada como falha do
-estado autoritativo.
+O protocolo G2 implementado usa comandos fixos de 11 palavras e estado de
+jogador/progressão com 20 palavras específico por destinatário. Uma mensagem
+dinâmica do encounter com checksum usa `20 + 8N` palavras para até 32 inimigos;
+cada entrada contém ID estável, papel, estado, alvo, vida e posição 3D inteira.
+Uma mensagem ordenada de feedback usa `6 + 11F` palavras para até 16 eventos de
+impacto. A entrada envia baselines válidos no tick zero de gameplay, feedback e
+encounter. O decode valida a mensagem inteira antes da mutação, admite geração
+antes da sequência, rejeita estado obsoleto ou com lacunas e não trata
+apresentação descartada como falha do estado autoritativo.
 
 
 A biblioteca de rede de terceiros é selecionada depois da validação do protocolo
@@ -528,12 +532,13 @@ escala/soak sustentado permanece em G5.
 
 ### G2 — Fatia de boomer-shooter em LAN
 
-Em andamento: o transporte autenticado limitado executa host mais dois clientes
-em movimento, morte/recompensa autoritativa de inimigo, um stream limitado de
-estado/impacto do encounter, ciclo de vida e progressão do nível. Restam
-simulação contínua e replicada de vários papéis de inimigos,
-predição/reconciliação completa, entrada/recuperação de produção, portas 3D
-completas e cobertura completa de apresentação/áudio multiplayer.
+Implementado: o transporte autenticado limitado executa host mais dois clientes
+com movimento, inimigos contínuos hitscan/projétil/shotgun, dano/morte/recompensa
+autoritativos, ciclo de vida e progressão do nível. Baselines de entrada por
+destinatário, recuperação de reconexão com geração primeiro,
+predição/reconciliação do cliente, colisão/geometria visual 3D das portas,
+recuperação ordenada de feedback e espacialização estéreo pertencente ao Kof
+completam o contrato G2.
 
 
 ### G3 — Fatia multiplayer de looter/ARPG

@@ -3,12 +3,34 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## 2026-09-29
+### Completed G2 LAN boomer-shooter slice
+
+- Added continuous replicated hitscan, projectile and shotgun enemy roles.
+  Enemies move, retarget the nearest live player and replicate role, target,
+  health and integer 3D position in bounded `20 + 8N` encounter messages.
+- Completed client movement prediction/reconciliation with ordered
+  unacknowledged-input replay. Join now publishes recipient-specific tick-zero
+  gameplay, feedback and encounter baselines; reconnect advances the
+  connection generation and resets input, prediction and feedback epochs
+  before sequence admission.
+- Replaced scalar door planes with authored 3D segment/AABB volumes and
+  36-vertex camera-projected cuboids. The fixed native scene is now 78 arena,
+  36 door and 174 HUD vertices.
+- Added ordered `6 + 11F` multiplayer feedback batches with whole-message
+  validation, duplicate/gap rejection and generation-baseline recovery.
+  Listener-relative attenuation and stereo panning are computed in Kof; the
+  native SDL adapter queues allocation-free left/right PCM gains.
+- All 73 source scenarios pass on JVM and native. The interaction probe,
+  JVM/native host-plus-two-client process qualification and isolated headless
+  SDL_GPU/audio adapter pass; the GPU capture included the 3D door and produced
+  checksum `29,811,635`.
+
 ### Authoritative enemy encounter replication
 
-- Added a checksummed encounter-state message of `20 + 7N` words for at most
+- Added a checksummed encounter-state message of `20 + 8N` words for at most
   32 enemies, below the authenticated transport's 300-word bound. It carries
-  encounter active/reserve counts, enemy ID/state/target/health/position and
-  the latest confirmed impact; clients reject malformed or stale state.
+  encounter active/reserve counts, enemy ID/role/state/target/health/position
+  and the latest confirmed impact; clients reject malformed or stale state.
 - Remote fire now resolves against the real enemy combat/encounter authority
   instead of a dummy player-combat actor. Terminal damage releases the
   encounter slot, grants the server-owned 25-currency reward and replicates
@@ -19,9 +41,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Polished the fixed 174-vertex HUD with a shape-distinct connection glyph and
   active/reserve encounter track. Connection and reserve status change geometry
   as well as color; the full scene remains within 252 vertices.
-- All 72 source scenarios pass on JVM/native; the interaction probe and local
+- All 73 source scenarios pass on JVM/native; the interaction probe and local
   JVM/native host-plus-two-client process regressions also pass. The LAN
-  evidence validator now requires terminal encounter/state/health and
+  evidence validator requires terminal encounter/state/health and
   confirmed-impact markers.
 - Built and deployed Linux presentation dogfood `0.1.0-dogfood.23` from
   `d89a16461e6d` to the local ztash catalog (SHA256

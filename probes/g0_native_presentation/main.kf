@@ -28,37 +28,59 @@ extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): 
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, Int frames): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_spatial_clip(
+    Int clipId, Int frames, Int leftGain, Int rightGain
+): Bool
 
 class G1NativePresentation {
     G1Demo scenario
     G1Arena arena
+    LoopbackSession interactionSession
     ShooterHud hud
     CameraState camera
     FrameStaging worldFrame
     FrameStaging hudFrame
+    FrameStaging doorFrame
     Int worldCapacity
     Int hudCapacity
     Int nativeCapacity
+    Int doorCapacity
 
     public constructor() {
         scenario = G1Demo()
         arena = scenario.authoredArena()
         hud = scenario.shooterHud()
         camera = CameraState(-450, 450)
+        interactionSession = LoopbackSession(1, 1)
         worldFrame = FrameStaging(arena.renderVertexCount())
+        doorFrame = FrameStaging(36)
         hudFrame = FrameStaging(hud.renderVertexCount())
         worldCapacity = worldFrame.vertexCapacity()
+        doorCapacity = doorFrame.vertexCapacity()
         hudCapacity = hudFrame.vertexCapacity()
         nativeCapacity = 0
     }
 
     Bool prepare() {
-        if (!scenario.run() || !camera.applyLook(20, -20)) {
+        if (!scenario.run() || !camera.applyLook(20, -20) ||
+            !interactionSession.defineWorldKey(
+                1, 30, 0, 0, 0) ||
+            !interactionSession.defineWorldDoor(
+                2, 1, 0, 5, 5, 3, 5, 1, 8) ||
+            !interactionSession.start()) {
+            return false
+        }
+        var blocked = interactionSession.queryWorldDoorPath(
+            SpatialPoint(-5, 5, 5), SpatialPoint(5, 5, 5))
+        var above = interactionSession.queryWorldDoorPath(
+            SpatialPoint(-5, 12, 5), SpatialPoint(5, 12, 5))
+        if (!blocked.accepted() || !blocked.collided() ||
+            !above.accepted() || above.collided()) {
             return false
         }
         nativeCapacity = kookie_gpu_scene_capacity()
-        return nativeCapacity >= worldCapacity + hudCapacity
+        return nativeCapacity >=
+            worldCapacity + doorCapacity + hudCapacity
     }
 
     Bool upload(FrameStaging frame) {
@@ -74,21 +96,28 @@ class G1NativePresentation {
     }
 
     Bool drawFrame(Int frame) {
-        var vertexCount = worldCapacity + hudCapacity
+        var vertexCount =
+            worldCapacity + doorCapacity + hudCapacity
         if (!arena.stage(worldFrame, frame, 1, camera) ||
+            !interactionSession.stageWorldInteractionGeometry(
+                doorFrame, frame, 7, camera) ||
             !hud.stage(hudFrame, frame, 9) ||
             !kookie_gpu_scene_begin(vertexCount) ||
-            !upload(worldFrame) || !upload(hudFrame) ||
+            !upload(worldFrame) || !upload(doorFrame) ||
+            !upload(hudFrame) ||
             !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != vertexCount ||
             !kookie_gpu_draw_scene()) {
             return false
         }
-        return worldFrame.retire(frame) && hudFrame.retire(frame)
+        return worldFrame.retire(frame) &&
+            doorFrame.retire(frame) &&
+            hudFrame.retire(frame)
     }
 
     Bool capacitiesStable() {
         return worldFrame.vertexCapacity() == worldCapacity &&
+            doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&
             kookie_gpu_scene_capacity() == nativeCapacity
     }
@@ -103,6 +132,14 @@ class G1NativePresentation {
 
     Int combatFeedbackGain() {
         return scenario.combatFeedbackGain()
+    }
+
+    Int combatFeedbackLeftGain() {
+        return scenario.combatFeedbackLeftGain()
+    }
+
+    Int combatFeedbackRightGain() {
+        return scenario.combatFeedbackRightGain()
     }
 
 }
@@ -144,8 +181,9 @@ main() {
     assert(presentation.capacitiesStable(),
         "scene staging capacities must remain fixed")
     assert(kookie_gpu_capture_window(),
-        "G1 arena and HUD screenshot capture must succeed")
+        "G1 arena, G2 door and HUD screenshot capture must succeed")
     println("KOOKIE G1 native arena HUD verified")
+    println("KOOKIE G2 native 3D door verified")
     assert(kookie_gpu_report_window_present_capabilities(),
         "window must expose a present capability")
     assert(kookie_gpu_report_window_draw(),
@@ -154,11 +192,15 @@ main() {
     assert(audio > 0, "dummy SDL audio device must open")
     assert(presentation.dequeueCombatFeedbackAudio() &&
         presentation.combatFeedbackClip() == 201 &&
-        presentation.combatFeedbackGain() == 100,
-        "authoritative kill must expose bounded combat feedback audio")
-    assert(kookie_audio_queue_clip(
-            presentation.combatFeedbackClip(), 240),
-        "authoritative combat feedback must reach native SDL audio")
+        presentation.combatFeedbackGain() == 100 &&
+        presentation.combatFeedbackLeftGain() == 100 &&
+        presentation.combatFeedbackRightGain() == 100,
+        "authoritative kill must expose bounded stereo feedback audio")
+    assert(kookie_audio_queue_spatial_clip(
+            presentation.combatFeedbackClip(), 240,
+            presentation.combatFeedbackLeftGain(),
+            presentation.combatFeedbackRightGain()),
+        "authoritative combat feedback must reach native SDL channels")
     assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")
     assert(kookie_audio_close(audio), "live audio token must close")
     println("combat-feedback-audio-open")

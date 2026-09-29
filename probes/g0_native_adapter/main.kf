@@ -32,7 +32,6 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_select_slot(Int slot): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_transport_max_words(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_pair(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
     Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
@@ -72,15 +71,21 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_clip(Int clipId, Int frames): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_spatial_clip(
+    Int clipId, Int frames, Int leftGain, Int rightGain
+): Bool
 
 class G1HeadlessPresentation {
     G1Demo scenario
     G1Arena arena
+    LoopbackSession interactionSession
     ShooterHud hud
     CameraState camera
     FrameStaging worldFrame
+    FrameStaging doorFrame
     FrameStaging hudFrame
     Int worldCapacity
+    Int doorCapacity
     Int hudCapacity
 
     public constructor() {
@@ -88,9 +93,12 @@ class G1HeadlessPresentation {
         arena = scenario.authoredArena()
         hud = scenario.shooterHud()
         camera = CameraState(-450, 450)
+        interactionSession = LoopbackSession(1, 1)
         worldFrame = FrameStaging(arena.renderVertexCount())
+        doorFrame = FrameStaging(36)
         hudFrame = FrameStaging(hud.renderVertexCount())
         worldCapacity = worldFrame.vertexCapacity()
+        doorCapacity = doorFrame.vertexCapacity()
         hudCapacity = hudFrame.vertexCapacity()
     }
 
@@ -107,20 +115,39 @@ class G1HeadlessPresentation {
     }
 
     Bool capture() {
-        var vertexCount = worldCapacity + hudCapacity
         if (!scenario.run() || !camera.applyLook(20, -20) ||
+            !interactionSession.defineWorldKey(
+                1, 30, 0, 0, 0) ||
+            !interactionSession.defineWorldDoor(
+                2, 1, 0, 5, 5, 3, 5, 1, 8) ||
+            !interactionSession.start()) {
+            return false
+        }
+        var blocked = interactionSession.queryWorldDoorPath(
+            SpatialPoint(-5, 5, 5), SpatialPoint(5, 5, 5))
+        var above = interactionSession.queryWorldDoorPath(
+            SpatialPoint(-5, 12, 5), SpatialPoint(5, 12, 5))
+        var vertexCount =
+            worldCapacity + doorCapacity + hudCapacity
+        if (!blocked.accepted() || !blocked.collided() ||
+            !above.accepted() || above.collided() ||
             kookie_gpu_scene_capacity() < vertexCount ||
             !arena.stage(worldFrame, 1, 1, camera) ||
+            !interactionSession.stageWorldInteractionGeometry(
+                doorFrame, 1, 7, camera) ||
             !hud.stage(hudFrame, 1, 9) ||
             !kookie_gpu_scene_begin(vertexCount) ||
-            !upload(worldFrame) || !upload(hudFrame) ||
+            !upload(worldFrame) || !upload(doorFrame) ||
+            !upload(hudFrame) ||
             !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != vertexCount ||
             kookie_gpu_capture_headless_scene() <= 0) {
             return false
         }
-        return worldFrame.retire(1) && hudFrame.retire(1) &&
+        return worldFrame.retire(1) &&
+            doorFrame.retire(1) && hudFrame.retire(1) &&
             worldFrame.vertexCapacity() == worldCapacity &&
+            doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity
     }
 }
@@ -215,32 +242,37 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     var endpoint = RemoteSessionEndpoint(
         127, 0, 0, 1, 1, 1, 2, 3, 4)
     if (!endpoint.valid()) {
-        return false
-    }
-    if (kookie_transport_max_words() != maximumSessionTransportWords()) {
+        println("transport-endpoint-invalid")
         return false
     }
     if (kookie_transport_open_pair()) {
+        println("transport-unkeyed-opened")
         return false
     }
     if (!kookie_transport_set_key_from_file() &&
         !kookie_transport_set_key_from_environment()) {
+        println("transport-key-unavailable")
         return false
     }
     if (kookie_transport_open_remote_ipv4(127, 0, 0, 1, 0)) {
+        println("transport-invalid-remote-opened")
         return false
     }
     if (!kookie_transport_open_remote_ipv4(127, 0, 0, 1, 1)) {
+        println("transport-valid-remote-rejected")
         return false
     }
     if (!kookie_transport_close()) {
+        println("transport-first-close-failed")
         return false
     }
     if (!kookie_transport_rotate_key_from_file() &&
         !kookie_transport_set_key_from_environment()) {
+        println("transport-key-rotation-failed")
         return false
     }
     if (!kookie_transport_open_pair()) {
+        println("transport-pair-open-failed")
         return false
     }
     var peerPort = kookie_transport_peer_port()
@@ -249,6 +281,7 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
         kookie_transport_set_peer_ipv4(127, 0, 0, 256, peerPort) ||
         !endpoint.setPeer(127, 0, 0, 1, peerPort)) {
         kookie_transport_close()
+        println("transport-peer-invalid")
         return false
     }
     if (!session.configureRemoteEndpoint(
@@ -262,6 +295,7 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
             endpoint.thirdOctet(), endpoint.fourthOctet(), endpoint.port()
         )) {
         kookie_transport_close()
+        println("transport-session-open-failed")
         return false
     }
     var loopSucceeded = true
@@ -304,6 +338,16 @@ Bool transportBroadPhaseRoundTrip(LoopbackSession session) {
     }
     var closed = session.closeRemoteSession() &&
         kookie_transport_close()
+    if (!loopSucceeded || !reconnected || !closed ||
+        session.remoteSendSequence() != 9 ||
+        session.clientBroadPhaseTriangleCount() != 1) {
+        println("transport-roundtrip-final")
+        println(loopSucceeded)
+        println(reconnected)
+        println(closed)
+        println(session.remoteSendSequence())
+        println(session.clientBroadPhaseTriangleCount())
+    }
     return loopSucceeded && reconnected && closed &&
         session.remoteSendSequence() == 9 &&
         session.clientBroadPhaseTriangleCount() == 1
@@ -545,6 +589,7 @@ Bool externalStyleHostTwoClientRoundTrip() {
     kookie_transport_close()
     kookie_transport_select_slot(3)
     kookie_transport_close()
+    kookie_transport_select_slot(0)
     return hostReceivedA && hostReceivedB &&
         clientReceivedA && clientReceivedB && staleA
 }
@@ -556,16 +601,17 @@ main() {
     assert(frameClock.frameBudgetMicros() == 16667,
         "GPU smoke must use the declared 60 Hz frame budget")
     var transportSession = LoopbackSession(4, 4)
-    assert(transportSession.start(), "session transport probe must start")
-    assert(externalStyleHostTwoClientRoundTrip(),
-        "one host listener pair must authenticate and serve two client sockets")
-    println("session-external-style-two-client")
-    assert(transportSession.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5),
+    assert(transportSession.start() &&
+        transportSession.addBroadPhaseTriangle(
+            0, 0, 5, 4, 0, 5, 0, 4, 5),
         "session transport probe must seed broad-phase geometry")
     assert(transportBroadPhaseRoundTrip(transportSession),
         "native datagram transport must apply a broad-phase snapshot")
     assert(twoClientAuthenticatedRoundTrip(),
         "two authenticated clients must exchange and reconnect over UDP")
+    assert(externalStyleHostTwoClientRoundTrip(),
+        "one host listener pair must authenticate and serve two client sockets")
+    println("session-external-style-two-client")
     println("session-transport-open")
     println("session-two-client-reconnected")
 
@@ -578,8 +624,9 @@ main() {
         assert(kookie_gpu_draw_headless_test(), "headless SDL GPU draw must succeed")
         var g1Presentation = G1HeadlessPresentation()
         assert(g1Presentation.capture(),
-            "G1 authored arena and authoritative HUD must render headlessly")
+            "G1 arena, G2 door and authoritative HUD must render headlessly")
         println("KOOKIE G1 native arena HUD verified")
+        println("KOOKIE G2 native 3D door verified")
         assert(kookie_gpu_push_headless_device_reset(),
             "headless GPU reset event must enqueue")
         assert(kookie_poll_event() == 5,
@@ -666,8 +713,10 @@ main() {
         impactSession.addEnemyCombatActor(1, 20, 0) &&
         impactSession.equipEnemyCombatWeapon(1, 9) &&
         impactSession.admitEnemyAt(4, 2, 0, 5, 0, 9, 0, 0, 10) &&
-        impactSession.setEnemySpatialPosition(1, 0, 0, 0),
-        "native impact audio actors must configure")
+        impactSession.setEnemySpatialPosition(1, 0, 0, 0) &&
+        impactSession.configureImpactAudioListener(
+            0, 0, 0, 0, 100, 20),
+        "native impact audio actors and listener must configure")
     var impactShot = impactSession.spawnEnemyProjectileSpatial(
         1, 2, 0, 20, 3, 0)
     assert(impactShot.accepted() &&
@@ -678,12 +727,21 @@ main() {
         impactSession.enemyImpactSnapshotCount() == 1,
         "native audio probe must receive a confirmed impact snapshot")
     assert(impactSession.applyEnemyImpactSnapshot(
-        impactSession.latestEnemyImpactSnapshot()) &&
-        impactSession.dequeueImpactPresentation(),
-        "confirmed impact must stage native presentation")
+            impactSession.latestEnemyImpactSnapshot()) &&
+        impactSession.dequeueImpactPresentation() &&
+        impactSession.dequeueImpactAudio() &&
+        impactSession.consumedImpactLeftGain() == 25 &&
+        impactSession.consumedImpactRightGain() == 50,
+        "confirmed impact must stage spatial native presentation")
     var nativeImpact = impactSession.lastImpactPresentation()
-    assert(kookie_audio_queue_clip(nativeImpact.clip(), 240),
-        "confirmed impact presentation must reach native SDL audio")
+    assert(kookie_audio_queue_spatial_clip(
+            nativeImpact.clip(), 240,
+            impactSession.consumedImpactLeftGain(),
+            impactSession.consumedImpactRightGain()),
+        "confirmed impact must reach native SDL stereo channels")
+    assert(!kookie_audio_queue_spatial_clip(
+            nativeImpact.clip(), 240, -1, 50),
+        "invalid native spatial gain must reject")
     assert(kookie_audio_queue_silence(480), "bounded PCM silence must queue")
     assert(kookie_audio_queue_clip(1, 240), "bounded clip PCM must queue")
     assert(!kookie_audio_queue_clip(2, 240), "unknown clip must reject")

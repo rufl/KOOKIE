@@ -111,21 +111,25 @@ chave SipHash de teste e um peer IPv4 antes de trocar frames autenticados, e
 limpa o material da chave ao fechar; gestão de chaves de produção ainda não foi
 implementada.
 23. O relatório de capacidades de recuperação GPU é sensível ao estado: ready expõe reopen limpo e o marcador explícito de perda, lost expõe apenas reopen, e unavailable/failed não expõem capacidades; a SDL3 instalada não expõe callback de perda de dispositivo.
-24. `RemoteSessionEndpoint` valida IPv4/porta e chaves SipHash não nulas, congela alterações de peer/chave enquanto ativo, permite troca de chave apenas inativo e está ligado à fronteira de chave via ambiente e a um smoke de peer UDP externo real; orquestração de sessão e armazenamento de segredos de produção ainda não foram implementados.
-25. `RemoteSessionLink` bloqueia snapshots broad-phase até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes; a sonda nativa isolada envia e aplica um snapshot através do link, enquanto a orquestração em loop de sessão real ainda não foi implementada.
+24. `RemoteSessionEndpoint` valida IPv4/porta e chaves SipHash não nulas, congela alterações de peer/chave enquanto ativo, permite troca de chave apenas inativo e é usado pela orquestração real dos papéis host/cliente; a distribuição de segredos de produção permanece externa.
+25. `RemoteSessionLink` bloqueia snapshots até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes. A qualificação com três processos na JVM/no nativo leva gameplay, feedback e estado do encounter pelo loop real da sessão.
 26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável, exclusão da origem via `SpatialAimContract` e remoção de alvos. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo por pellet, inclusive impactos repetidos e misses limitados. `LoopbackSession.resolvePlayerSpatialShotgun` conecta essa seleção ao combate autoritativo dos jogadores.
 
 27. O despacho SIMD nativo agora seleciona AVX2/SSE2 no x86, possui caminho de origem NEON no AArch64 e mantém um fallback escalar verificado. `FFI001` ainda impede a integração de buffers do Kof, então isso não é um ganho de velocidade medido da engine.
-28. O gate focado atual tem 72 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
-29. Resoluções aceitas de hitscan/shotgun de alvo único contra inimigos agora
-    emitem eventos monotônicos e limitados de apresentação e áudio de impacto.
-    A geometria do HUD distingue acerto, eliminação e dano recebido sem depender
-    somente de cor; backpressure é contabilizado e não desfaz dano autoritativo.
+28. O gate focado atual tem 73 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
+29. Impactos autoritativos aceitos entram no histórico monotônico e limitado de
+    apresentação/áudio e em lotes ordenados de feedback `6 + 11F`. A validação
+    da mensagem inteira, a rejeição de duplicatas/lacunas e os baselines por
+    geração impedem apresentação parcial ou obsoleta sem desfazer dano.
 30. O estado do encounter usa mensagem dinâmica com checksum de
-    `20 + 7N` palavras, limitada a 32 inimigos e ao transporte compartilhado de
-    300 palavras. O decode valida antes de mutar e protege a sequência.
-    Backpressure pode descartar feedback, mas não rejeita nem desfaz estado
-    autoritativo mais recente.
+    `20 + 8N` palavras, limitada a 32 inimigos e ao transporte compartilhado de
+    300 palavras. Cada entrada replica ID estável, papel, estado, alvo, vida e
+    posição 3D.
+31. G2 está concluído: papéis contínuos hitscan/projétil/shotgun, replay de
+    inputs de predição ainda não confirmados, entrada/recuperação segura por
+    geração, colisão de portas por segmento/AABB 3D mais renderização de 36
+    vértices, recuperação completa de feedback e atenuação/pan estéreo
+    pertencentes ao Kof enviados pelo SDL.
 
 
 ## Cuidados do editor
@@ -149,7 +153,7 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 - **Não** herdar “sweep” somente de endpoint, colisão do jogador por raio na cintura, pools de loot pequenos fixos/descartes silenciosos, autoridades de armas duplicadas, IDs ECS brutos nos salvamentos, reprodução de eventos rotulada incorretamente como replay determinístico ou inspetores de corpus rotulados incorretamente como cozinheiros de mapas.
 - DINX MIT; aviso privado/interno para o jogo completo do ZYLVE; a alegação MIT do README do CUBSHIP não conta com um empacotamento completo dos avisos inspecionados. A permissão do usuário não libera ativos de terceiros. Registre a revisão/hash do código-fonte e as licenças no momento da portabilidade.
 - Minecraft: não é um ECS arquetípico convencional. Reutilizar a separação entre definição/instância, patches de substituição de itens, codecs validados, snapshots de extração e ciclos de vida de vozes de áudio. Priorizar subconjuntos MIT de JOML/Brigadier, contratos de armazenamento de Artemis/Ashley, layout do owo e ciclos de vida de instâncias do Flywheel; consulte [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- Conjunto de bibliotecas recomendado: SDL3/SDL_GPU; SDL_shadercross/DXC offline; OpenAL Soft para áudio FPS de produção (SDL3_mixer é a alternativa básico-espacial); SDL3_image para decodificação de imagens; FreeType/HarfBuzz para serviços de texto; zstd para pacotes preparados. G0 continua sendo somente SDL, com áudio enfileirado. Os limites completos, a disponibilidade local, as licenças e os gates de adoção estão em [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
+- Conjunto de expansão recomendado: SDL3/SDL_GPU; SDL_shadercross/DXC offline; OpenAL Soft opcional quando requisitos posteriores de HRTF/Doppler/EFX excederem o caminho estéreo SDL implementado em G2; SDL3_image para imagens; FreeType/HarfBuzz para texto; zstd para pacotes preparados. Limites, disponibilidade, licenças e gates estão no [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
 - A física do Jolt, a navegação Recast/Detour e as UIs RmlUi/ImGui continuam sendo alternativas condicionais de subsistemas estrangeiros que exigem aprovação explícita de propriedade, não dependências adotadas. Nenhuma portabilidade integral de mods. Sodium PolyForm Shield, Physics Mod All Rights Reserved e os componentes fechados do VSCore/Krunch não são fontes permissivas para reutilização.
 
 ## Próxima ação e limite de comprovação
@@ -162,21 +166,18 @@ por frame limita-se a capacidades de staging inalteradas em 64 frames
 determinísticos e buffers nativos persistentes; não é um resultado de
 RSS/desempenho por 30 minutos.
 
-G2 agora possui um slice qualificado de replicação de encounter: host mais dois
-clientes trocam a arena G1 completa, comandos unificados com checksum, estado
-fixo do jogador/progressão e estado limitado dos inimigos. A aplicação no
-cliente alcança estado/vida terminais, impacto confirmado mais recente,
-recompensa controlada pelo servidor, movimento autoritativo, geração 2 após
-reconexão e conclusão de chave/porta/segredo/saída. As mesmas contagens
-replicadas alimentam o HUD de conexão/carga ativa-reserva distinguível pela
-forma; impactos confirmados entram nas filas limitadas de apresentação/áudio.
-
-Concluir G2 ainda exige simulação contínua e replicada de vários papéis de
-inimigos, predição/reconciliação completa, entrada/recuperação em produção,
-geometria/colisão 3D completa das portas, cobertura completa de feedback
-multiplayer e mixagem/espacialização de áudio de produção. G5 mantém aceitação
-sustentada de carga, RSS e orçamento de frame. `FFI001` ainda bloqueia chamadas
-Kof com buffers em massa para o kernel SIMD opcional.
+G2 está concluído: host mais dois clientes trocam baselines de gameplay por
+destinatário, lotes ordenados de feedback e estado contínuo de encounter com
+vários papéis. Os clientes predizem movimento local, reproduzem inputs ainda
+não confirmados na reconciliação e reiniciam as épocas de input/predição/
+feedback quando a reconexão avança a geração. Papéis
+hitscan/projétil/shotgun redirecionam para jogadores vivos; portas usam volumes
+3D completos por segmento/AABB e cuboides de 36 vértices; atenuação/pan estéreo
+do Kof alcançam o caminho PCM SDL sem alocação. A sonda focada de interação, os
+73 cenários JVM/nativos, os papéis com três processos na JVM/no nativo e o
+adaptador SDL_GPU/áudio headless isolado passam. G3 é o próximo marco. G5
+mantém a aceitação sustentada de carga, RSS e orçamento de frame; `FFI001`
+ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

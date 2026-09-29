@@ -1,6 +1,6 @@
 # KOOKIE engine plan
 
-Status: **living architecture and acceptance gates; G0/G1 are implemented and G2 is in progress**.
+Status: **living architecture and acceptance gates; G0/G1/G2 are implemented and G3 is next**.
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Project architecture is
 [ARCHITECTURE.md](ARCHITECTURE.md). See [language/runtime evidence](KOF_LANGUAGE.md),
@@ -75,7 +75,7 @@ Sources: [SDL GPU contract](https://wiki.libsdl.org/SDL3/CategoryGPU), [relative
 
 Prioritize bounded `.kf` math/command ports from JOML/Brigadier, Artemis/Ashley-inspired typed storage, Minecraft-style definition/item-patch/codec contracts, owo-inspired layout and Flywheel-inspired instance lifecycles. JOML1.10.9 was measured on Kof JVM; native rejected its Java imports. Do not import JARs or entire mod runtimes as native engine libraries.
 
-Keep queued SDL audio for G0. For the production FPS stack, **recommend OpenAL Soft** for positional sound, HRTF and EFX; SDL3_mixer is the simpler/basic-spatial alternative, not a second mandatory backend. This is a library-selection recommendation, not an implemented audio backend or an adopted redistribution license. Jolt physics and RmlUi/ImGui UI still require explicit foreign-subsystem ownership approval.
+Keep queued SDL audio through G2: Kof now owns bounded listener-relative attenuation and stereo panning, and the native adapter submits distinct left/right PCM channels without per-call allocation. For later HRTF, Doppler and EFX expansion, **recommend OpenAL Soft**; SDL3_mixer remains the simpler alternative, not a second mandatory backend. OpenAL is a library-selection recommendation, not an adopted redistribution license. Jolt physics and RmlUi/ImGui UI still require explicit foreign-subsystem ownership approval.
 
 ### Recommended library set (2026-09-22)
 
@@ -87,7 +87,7 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 |---|---|---|
 | Platform and graphics | **SDL3 + SDL_GPU** | One window/input/gamepad/GPU stack; 3D and compute. Kof owns extraction, culling, batching and passes. zlib license. Keep Sokol as an alternative only if the GPU/ABI spike fails |
 | Shader build | **SDL_shadercross + DXC**, SPIRV-Cross and SPIRV-Tools as required by the build | HLSL → offline SPIR-V for Linux; reflect resource layouts. Build-time tools, not mandatory shipped runtime shader compilers. Installed ShaderC alone is not the selected HLSL pipeline |
-| Production audio | **OpenAL Soft** | 3D sources/listener, attenuation/Doppler, HRTF and EFX. Kof retains cues, voice admission/priority, world occlusion queries and configured effect policy. Library performs mixing/spatial DSP; this is an explicit audio-mechanism delegation |
+| Rich spatial-audio expansion | **OpenAL Soft** | Optional post-G2 sources/listener DSP, Doppler, HRTF and EFX. The implemented G2 SDL path already provides bounded Kof-owned attenuation/panning and stereo submission. Adopt OpenAL only when richer acceptance requires it; Kof retains cues, voice admission/priority, world occlusion queries and effect policy |
 | Image decoding | **SDL3_image** | Decode authored PNG initially into bounded pixel buffers. Keep format admission, color-space/material decisions, cooking and GPU uploads under Kof policy. zlib library; optional codec dependencies have their own notices |
 | Text rendering | **FreeType**, then **HarfBuzz** when implementing shaped text | Rasterization and shaping services only. Kof owns widgets, layout, focus and glyph-cache policy. Font fallback, bidi/line breaking, IME and accessibility are not solved merely by linking these libraries |
 | Package compression | **Zstandard (`libzstd`)** | Add at the cooked-package stage, not per frame. Use bounded independently addressable chunks, declared decoded lengths and decoder limits; compression is not integrity/authentication. BSD license option |
@@ -140,12 +140,13 @@ database and pkg-config modules. This inventory does not prove native Kof
 integration, device compatibility or completed binding work. No libraries were
 installed or devices opened during this selection.
 
-**Adoption order:** resolve the native compiler correctness gate → prove
-SDL_GPU/input/queued-audio and checked token/buffer transfer → add image/text
-services → integrate the chosen production audio backend → add package
-compression when the format is established. Pin artifact hashes, build options,
-transitive notices and adapter ABI at each adoption. There is no separate
-backend/plugin framework or performance promise implied by this shortlist.
+**Adoption status/order:** native compiler correctness, SDL_GPU/input/queued
+audio, checked token/buffer transfer and bounded stereo spatialization are
+proven through G2. Next add image/text services; integrate OpenAL Soft only if
+HRTF/Doppler/EFX requirements justify a new audio authority, then add package
+compression when its format is established. Pin artifact hashes, build options,
+transitive notices and adapter ABI at each adoption. This shortlist implies no
+separate backend/plugin framework or performance promise.
 
 Primary sources: [SDL GPU](https://wiki.libsdl.org/SDL3/CategoryGPU),
 [shadercross](https://github.com/libsdl-org/SDL_shadercross) and its
@@ -193,14 +194,14 @@ Rules:
 
 The first cube can use scalar staging calls. A matrix/instance is written as a fixed tuple per call, not sixteen individual FFI calls. Static vertex/index payloads upload once; dynamic data uses bounded reusable staging buffers. Kof owns packing policy and resource layout; the C side only copies the specified tuple into checked buffer positions.
 
-For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/cooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 252-vertex scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
+For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/cooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 288-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
 
 
 Scalar staging overhead is a **go/no-go measurement**. If representative draw/instance/animation uploads miss budget, prefer a properly specified upstream buffer-FFI addition (element format, length, borrow/copy lifetime, ownership and GC rules). Do not encode binary frames as JSON/Base64 strings or assume a pointer cast solves bulk transfer. Do not grow the shim into a C renderer to pass a benchmark.
 
 ### Native startup and GC gates
 
-Real SDL video/GPU/audio initialization now runs from the emitted native ELF in the isolated presentation probe. That proves the exact window, fixed scene, synthesized clip and teardown path; it does not prove retained callbacks, foreign threads, production mixing or arbitrary driver/platform support.
+Real SDL video/GPU/audio initialization now runs from the emitted native ELF in the isolated presentation probe. That proves the exact window, fixed scene, synthesized clips, stereo channel gains and teardown path; it does not prove retained callbacks, foreign threads, streamed decoding, HRTF/EFX or arbitrary driver/platform support.
 
 
 Begin with **one Kof thread**. Source shows native auto-GC disabled after any Kof `spawn`; do not use worker threads or manual collection as a workaround. Preallocate hot arrays/scratch, then measure memory behavior including unavoidable runtime allocations. If native cannot satisfy the gates, document the failure and repair the compiler/ABI or explicitly revisit the target choice. Never silently change the shipping target to JVM.
@@ -380,14 +381,15 @@ The first transport contract is transport-independent:
 - Bounded packet sizes, decode work, queues and entity counts.
 - No native pointers, runtime slots or raw Kof object memory on the wire.
 
-The implemented protocol slice keeps commands at 11 words and
-player/progression state at 19 words. A second checksummed message uses
-`20 + 7N` words for at most 32 encounter enemies; each entry carries stable ID,
-state, target, health and integer position, while the header carries
-active/reserve counts and the latest confirmed impact. The message fits the
-shared 300-word native/JVM transport bound. Clients validate before mutation,
-reject stale sequences and apply authoritative state even when bounded
-presentation queues drop feedback.
+The implemented protocol keeps commands at 11 words and recipient-specific
+player/progression state at 20 words. A checksummed encounter message uses
+`20 + 8N` words for at most 32 enemies; each entry carries stable ID, role,
+state, target, health and integer 3D position. A checksummed feedback message
+uses `6 + 11F` words for at most 16 ordered impact events. Both variable
+messages fit the shared 300-word native/JVM transport bound. Clients validate
+before mutation, admit connection generation before sequence, reject stale or
+gapped messages and apply authoritative state even when bounded presentation
+queues drop feedback.
 
 The loopback path must serialize and decode messages instead of passing
 references directly. This proves the real client/server boundary in
@@ -654,20 +656,29 @@ SDL_GPU scene: 78 world vertices plus 174 HUD vertices for health/ammunition,
 a shape-distinct connection glyph, active/reserve encounter load, confirmed
 hit/kill markers and edge damage warnings. The confirmed local hitscan event
 also reaches bounded replay/audio queues and native SDL clip playback. An
-isolated GPU smoke rendered and read back the bounded scene, and 72/72 tests
+isolated GPU smoke rendered and read back the bounded scene, and 73/73 tests
 pass on JVM and native. G1's no-per-frame-growth evidence is 64 deterministic
 stages with unchanged Kof capacities plus persistent native scene buffers; the
 30-minute RSS/performance soak remains G5.
 
-G2 has a JVM/native three-process transport slice carrying the full arena,
-unified checksummed movement/fire/interaction/lifecycle commands, fixed
-player/progression state and bounded encounter state. Client application proves
-authoritative position, terminal enemy state and health, latest confirmed
-impact, 25-currency reward, revision-4 progression, reconnect generation and
-stale diagnosis. G2 remains open for continuous replicated multi-role enemy
-simulation, full player prediction/reconciliation, production join/recovery,
-complete 3D door collision/render geometry, complete multiplayer feedback
-coverage and production audio mixing/spatialization.
+G2 is closed by the JVM/native three-process transport slice carrying the full
+arena, unified checksummed movement/fire/interaction/lifecycle commands,
+recipient-specific player/progression baselines, ordered feedback batches and
+bounded encounter state. Three continuous hitscan/projectile/shotgun enemy
+roles move, retarget the nearest live player and replicate role, target, health
+and 3D position. Clients predict ordered local movement, replay unacknowledged
+inputs during reconciliation and reset input, prediction and feedback epochs
+when a reconnect advances the connection generation. Initial join publishes
+tick-zero gameplay, feedback and encounter baselines; stale generations reject
+before sequence admission. Doors use authored half-extents for full 3D
+segment/AABB collision and stage a 36-vertex camera-projected cuboid; the native
+headless GPU probe draws the resulting 288-vertex arena/door/HUD scene.
+Feedback transport preserves multi-event order, rejects duplicates and gaps
+without partial presentation, and resumes from the new-generation baseline.
+Kof computes listener-relative distance attenuation and stereo panning, while
+the SDL adapter queues the resulting left/right PCM gains. OpenAL HRTF/EFX,
+streamed decoding and the G5 soak remain later expansion, not missing G2
+acceptance.
 
 ### Initial performance hypotheses, not achieved numbers
 

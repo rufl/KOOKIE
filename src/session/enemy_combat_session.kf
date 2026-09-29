@@ -371,6 +371,28 @@ class AuthoritativeEnemySession {
     Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
         return enemies.configure(perceptionRange, attackRange, cooldown)
     }
+    Bool configureEnemyRole(
+        Int enemyId, Int role, Int moveStep, Int projectileStep
+    ) {
+        return enemies.configureRole(
+            enemyId, role, moveStep, projectileStep)
+    }
+
+    Int enemyRole(Int enemyId) {
+        return enemies.role(enemyId)
+    }
+
+    Int enemyMoveStep(Int enemyId) {
+        return enemies.moveStep(enemyId)
+    }
+
+    Int enemyProjectileStep(Int enemyId) {
+        return enemies.projectileStep(enemyId)
+    }
+
+    Int enemyPerceptionRange() {
+        return enemies.perceptionRangeValue()
+    }
     Bool configureSpatialBounds(
         Int minX, Int minY, Int minZ,
         Int maxX, Int maxY, Int maxZ
@@ -389,6 +411,24 @@ class AuthoritativeEnemySession {
 
     Bool setSpatialPosition(Int id, Int x, Int y, Int z) {
         return spatial.setPosition(id, x, y, z)
+    }
+
+    Bool hasSpatialPosition(Int id) {
+        return spatial.hasPosition(id)
+    }
+
+    Int spatialDistance(Int firstId, Int secondId) {
+        if (!spatial.hasPosition(firstId) ||
+            !spatial.hasPosition(secondId)) {
+            return -1
+        }
+        return spatial.distanceBetween(
+            spatial.positionX(firstId),
+            spatial.positionY(firstId),
+            spatial.positionZ(firstId),
+            spatial.positionX(secondId),
+            spatial.positionY(secondId),
+            spatial.positionZ(secondId))
     }
 
     SpatialVisibilityResult spatialVisibility(
@@ -723,26 +763,99 @@ class AuthoritativeEnemySession {
         return lastEnemySteering
     }
 
-    EnemyAttackDecision stepEnemySpatial(
+    EnemyStepResult prepareEnemySpatial(
         Int enemyId, Int tick, Int targetId, Int critical
     ) {
         var visibility = spatial.visibility(
             enemyId, targetId, enemies.perceptionRangeValue())
         if (!visibility.accepted()) {
-            return EnemyAttackDecision(false, enemyId, targetId, tick, false, 0, 0, false)
+            return EnemyStepResult(
+                false, enemyId, 0, targetId, false, false)
         }
         if (!visibility.visible() ||
             visibility.distance() > enemies.attackRangeValue()) {
-            lastEnemySteering = spatial.steerToward(enemyId, targetId, 1)
+            lastEnemySteering = spatial.steerToward(
+                enemyId, targetId, enemies.moveStep(enemyId))
         } else {
             lastEnemySteering = EnemySteeringResult(
                 true, true, false, enemyId, 0, 0,
                 spatial.positionX(enemyId), spatial.positionY(enemyId),
                 spatial.positionZ(enemyId))
         }
-        return stepEnemy(
+        return enemies.step(
             enemyId, tick, targetId,
-            visibility.visible(), visibility.distance(), critical)
+            visibility.visible(), visibility.distance())
+    }
+
+    EnemyAttackDecision stepEnemySpatial(
+        Int enemyId, Int tick, Int targetId, Int critical
+    ) {
+        var step = prepareEnemySpatial(
+            enemyId, tick, targetId, critical)
+        if (!step.accepted()) {
+            return EnemyAttackDecision(
+                false, enemyId, targetId, tick, false, 0, 0, false)
+        }
+        if (!step.attackReady()) {
+            return EnemyAttackDecision(
+                true, enemyId, step.targetId(), tick,
+                false, 0, 0, false)
+        }
+        var distance = spatial.distanceBetween(
+            spatial.positionX(enemyId), spatial.positionY(enemyId),
+            spatial.positionZ(enemyId), spatial.positionX(targetId),
+            spatial.positionY(targetId), spatial.positionZ(targetId))
+        var resolution = combat.resolveHitscan(
+            enemyId, step.targetId(), tick, distance, critical)
+        return EnemyAttackDecision(
+            true, enemyId, step.targetId(), tick,
+            resolution.accepted(), resolution.actionId(),
+            resolution.applied(), resolution.died())
+    }
+
+    EnemyAttackDecision stepEnemyRoleSpatial(
+        Int enemyId, Int tick, Int targetId, Int critical
+    ) {
+        var step = prepareEnemySpatial(
+            enemyId, tick, targetId, critical)
+        if (!step.accepted()) {
+            return EnemyAttackDecision(
+                false, enemyId, targetId, tick, false, 0, 0, false)
+        }
+        if (!step.attackReady()) {
+            return EnemyAttackDecision(
+                true, enemyId, step.targetId(), tick,
+                false, 0, 0, false)
+        }
+        var role = enemies.role(enemyId)
+        if (role == enemies.projectileRole()) {
+            var projectile = spawnSpatialProjectile(
+                enemyId, step.targetId(), tick,
+                enemies.perceptionRangeValue(),
+                enemies.projectileStep(enemyId), critical)
+            return EnemyAttackDecision(
+                true, enemyId, step.targetId(), tick,
+                projectile.accepted(), projectile.projectileId(),
+                0, false)
+        }
+        var distance = spatial.distanceBetween(
+            spatial.positionX(enemyId), spatial.positionY(enemyId),
+            spatial.positionZ(enemyId), spatial.positionX(targetId),
+            spatial.positionY(targetId), spatial.positionZ(targetId))
+        var resolution = ResolutionResult(
+            false, 0, enemyId, step.targetId(), 0,
+            combat.currentHealth(step.targetId()), false, 0)
+        if (role == enemies.shotgunRole()) {
+            resolution = combat.resolveShotgun(
+                enemyId, step.targetId(), tick, distance, critical)
+        } else {
+            resolution = combat.resolveHitscan(
+                enemyId, step.targetId(), tick, distance, critical)
+        }
+        return EnemyAttackDecision(
+            true, enemyId, step.targetId(), tick,
+            resolution.accepted(), resolution.actionId(),
+            resolution.applied(), resolution.died())
     }
 
 

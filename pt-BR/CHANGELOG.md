@@ -3,13 +3,37 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## 2026-09-29
+### Slice LAN boomer-shooter G2 concluído
+
+- Adicionamos papéis contínuos e replicados de inimigos hitscan, projétil e
+  shotgun. Eles se movem, redirecionam para o jogador vivo mais próximo e
+  replicam papel, alvo, vida e posição 3D inteira em mensagens limitadas de
+  encounter `20 + 8N`.
+- Concluímos predição/reconciliação do movimento do cliente com replay ordenado
+  de inputs ainda não confirmados. A entrada agora publica baselines por
+  destinatário no tick zero de gameplay, feedback e encounter; a reconexão
+  avança a geração da conexão e reinicia as épocas de input, predição e
+  feedback antes da admissão de sequência.
+- Substituímos planos escalares de portas por volumes 3D criados de
+  segmento/AABB e cuboides de 36 vértices projetados pela câmera. A cena nativa
+  fixa agora usa 78 vértices da arena, 36 da porta e 174 do HUD.
+- Adicionamos lotes ordenados de feedback multiplayer `6 + 11F` com validação da
+  mensagem inteira, rejeição de duplicatas/lacunas e recuperação pelo baseline
+  da geração. Atenuação e pan estéreo relativos ao listener são calculados no
+  Kof; o adaptador SDL nativo enfileira ganhos PCM esquerdo/direito sem
+  alocação.
+- Todos os 73 cenários-fonte passam na JVM e no nativo. A sonda de interação, a
+  qualificação com host mais dois clientes na JVM/no nativo e o adaptador
+  SDL_GPU/áudio headless isolado passam; a captura GPU incluiu a porta 3D e
+  produziu checksum `29.811.635`.
+
 ### Replicação autoritativa de encounter de inimigos
 
 - Adicionamos uma mensagem de estado do encounter com checksum e
-  `20 + 7N` palavras para até 32 inimigos, abaixo do limite autenticado de 300
-  palavras. Ela carrega contagens ativa/reserva, ID/estado/alvo/vida/posição de
-  cada inimigo e o impacto confirmado mais recente; o cliente rejeita estado
-  malformado ou obsoleto.
+  `20 + 8N` palavras para até 32 inimigos, abaixo do limite autenticado de 300
+  palavras. Ela carrega contagens ativa/reserva, ID/papel/estado/alvo/vida/
+  posição de cada inimigo e o impacto confirmado mais recente; o cliente
+  rejeita estado malformado ou obsoleto.
 - O disparo remoto agora resolve pela autoridade real de combate/encounter dos
   inimigos, não por um ator fictício de combate entre jogadores. O dano
   terminal libera o slot, concede a recompensa de 25 moedas no servidor e
@@ -20,10 +44,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Polimos o HUD fixo de 174 vértices com glifo de conexão distinguível pela
   forma e track de carga ativa/reserva. Conexão e reserva mudam geometria além
   da cor; a cena completa continua com 252 vértices.
-- Todos os 72 cenários-fonte passam em JVM/nativo; a sonda de interação e as
+- Todos os 73 cenários-fonte passam em JVM/nativo; a sonda de interação e as
   regressões locais com host mais dois clientes também passam em JVM/nativo.
-  O validador LAN agora exige marcadores terminais de encounter/estado/vida e
-  impacto confirmado.
+  O validador LAN exige marcadores terminais de encounter/estado/vida e impacto
+  confirmado.
 - Construímos e implantamos o dogfood Linux de apresentação
   `0.1.0-dogfood.23` do commit `d89a16461e6d` no catálogo ztash local (SHA256
   `43250c6763d9ef98d81e9ed3541a1c335139636e8852cbe2501a008cd5b30d7c`,

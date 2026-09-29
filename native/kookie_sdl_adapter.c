@@ -16,7 +16,7 @@
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 300
-#define KOOKIE_GPU_SCENE_MAX_VERTICES 256
+#define KOOKIE_GPU_SCENE_MAX_VERTICES 512
 #define KOOKIE_GPU_PALETTE_WIDTH 4
 #define KOOKIE_GPU_PALETTE_COLORS 16
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
@@ -2273,8 +2273,14 @@ bool kookie_audio_queue_silence(int frames) {
     return SDL_PutAudioStreamData(audio_slot.stream, silence, bytes);
 }
 
-bool kookie_audio_queue_clip(int clip_id, int frames) {
-    static float clips[4][480 * 2];
+bool kookie_audio_queue_spatial_clip(
+    int clip_id,
+    int frames,
+    int left_gain,
+    int right_gain
+) {
+    static float clips[4][480];
+    static float stereo[480 * 2];
     static bool initialized[4];
     int variant = 0;
     if (clip_id == 201) {
@@ -2286,22 +2292,37 @@ bool kookie_audio_queue_clip(int clip_id, int frames) {
     } else if (clip_id != 1) {
         return false;
     }
-    if (audio_slot.stream == NULL || frames <= 0 || frames > 480) {
+    if (audio_slot.stream == NULL || frames <= 0 || frames > 480 ||
+        left_gain < 0 || left_gain > 100 ||
+        right_gain < 0 || right_gain > 100) {
         return false;
     }
     if (!initialized[variant]) {
         for (int frame = 0; frame < 480; frame += 1) {
             int phase = frame % 24;
-            float sample = ((float)phase / 23.0f) * (0.25f + variant * 0.05f) - 0.125f;
-            clips[variant][frame * 2] = sample;
-            clips[variant][frame * 2 + 1] = sample;
+            clips[variant][frame] =
+                ((float)phase / 23.0f) *
+                    (0.25f + (float)variant * 0.05f) -
+                0.125f;
         }
         initialized[variant] = true;
     }
+    float left_scale = (float)left_gain / 100.0f;
+    float right_scale = (float)right_gain / 100.0f;
+    for (int frame = 0; frame < frames; frame += 1) {
+        stereo[frame * 2] = clips[variant][frame] * left_scale;
+        stereo[frame * 2 + 1] =
+            clips[variant][frame] * right_scale;
+    }
     return SDL_PutAudioStreamData(
         audio_slot.stream,
-        clips[variant],
+        stereo,
         frames * audio_slot.spec.channels * (int)sizeof(float));
+}
+
+bool kookie_audio_queue_clip(int clip_id, int frames) {
+    return kookie_audio_queue_spatial_clip(
+        clip_id, frames, 100, 100);
 }
 
 bool kookie_audio_close(int token) {

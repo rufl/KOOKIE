@@ -32,6 +32,9 @@ class LoopbackSession {
     Int remoteImpactSequenceValue
     ImpactPresentationEvent lastRemoteImpactValue
     Int clientRemoteStateSequenceValue
+    Int clientRemotePlayerValue
+    Bool clientRemoteBaselineReadyValue
+    Int clientRemoteFeedbackStateSequenceValue
     Int clientRemoteCombatActorValue
     Int clientRemoteCombatHealthValue
     Int clientRemotePlayerOnePositionValue
@@ -53,6 +56,7 @@ class LoopbackSession {
     Int clientRemoteEnemyCountValue
     Int clientRemoteImpactSequenceValue
     Int[] clientRemoteEnemyIds
+    Int[] clientRemoteEnemyRoles
     Int[] clientRemoteEnemyStates
     Int[] clientRemoteEnemyTargets
     Int[] clientRemoteEnemyHealthValues
@@ -105,11 +109,20 @@ class LoopbackSession {
     EnemyImpactSnapshotHistory enemyServerImpactSnapshots
     EnemyImpactSnapshotHistory enemyClientImpactSnapshots
     ImpactPresentationQueue impactPresentations
+    ImpactPresentationHistory feedbackHistory
     QueuedAudio impactAudio
     Int enemyImpactSnapshotSequence
     Int clientEnemyImpactSnapshotSequence
     Int impactPresentationSequence
     Int impactPresentationDropCountValue
+    Int feedbackSequenceValue
+    Int feedbackStateSequenceValue
+    Int audioListenerX
+    Int audioListenerY
+    Int audioListenerZ
+    Int audioListenerRightX
+    Int audioListenerRightZ
+    Int audioListenerMaxDistance
 
     Int[] enemyIds
     Int[] enemyEncounterIds
@@ -119,6 +132,7 @@ class LoopbackSession {
     Bool[] enemyPerceptionVisible
     Bool[] enemyPerceptionActive
     Bool[] enemySpatialPerceptionActive
+    Bool[] enemyAutonomous
     Int enemyCount
     Int enemySnapshotSequence
     Int clientEnemySnapshotSequence
@@ -156,8 +170,9 @@ class LoopbackSession {
         enemyClientSnapshots = EnemySnapshotHistory(entityCapacity * 8)
         enemyServerImpactSnapshots = EnemyImpactSnapshotHistory(entityCapacity * 8)
         enemyClientImpactSnapshots = EnemyImpactSnapshotHistory(entityCapacity * 8)
-        impactPresentations = ImpactPresentationQueue(entityCapacity * 2)
-        impactAudio = QueuedAudio(entityCapacity * 2)
+        impactPresentations = ImpactPresentationQueue(entityCapacity * 4)
+        feedbackHistory = ImpactPresentationHistory(entityCapacity * 8)
+        impactAudio = QueuedAudio(entityCapacity * 4)
 
         playerCombat = CombatWorld(entityCapacity, entityCapacity)
         playerCombatRewardTargets = new Int[entityCapacity]
@@ -185,6 +200,7 @@ class LoopbackSession {
         interactionResults = new Bool[3]
         clientInteractionFlags = new Bool[16]
         clientRemoteEnemyIds = new Int[entityCapacity]
+        clientRemoteEnemyRoles = new Int[entityCapacity]
         clientRemoteEnemyStates = new Int[entityCapacity]
         clientRemoteEnemyTargets = new Int[entityCapacity]
         clientRemoteEnemyHealthValues = new Int[entityCapacity]
@@ -211,6 +227,9 @@ class LoopbackSession {
         clientSecretCountValue = 0
         clientLevelCompletedValue = false
         clientRemoteStateSequenceValue = 0
+        clientRemotePlayerValue = 0
+        clientRemoteBaselineReadyValue = false
+        clientRemoteFeedbackStateSequenceValue = 0
         clientRemoteCombatActorValue = 0
         clientRemoteCombatHealthValue = 0
         clientRemotePlayerOnePositionValue = 0
@@ -244,6 +263,14 @@ class LoopbackSession {
         clientEnemyImpactSnapshotSequence = 0
         impactPresentationSequence = 0
         impactPresentationDropCountValue = 0
+        feedbackSequenceValue = 0
+        feedbackStateSequenceValue = 0
+        audioListenerX = 0
+        audioListenerY = 0
+        audioListenerZ = 0
+        audioListenerRightX = 100
+        audioListenerRightZ = 0
+        audioListenerMaxDistance = 100
 
         enemyIds = new Int[entityCapacity]
         enemyEncounterIds = new Int[entityCapacity]
@@ -253,6 +280,7 @@ class LoopbackSession {
         enemyPerceptionVisible = new Bool[entityCapacity]
         enemyPerceptionActive = new Bool[entityCapacity]
         enemySpatialPerceptionActive = new Bool[entityCapacity]
+        enemyAutonomous = new Bool[entityCapacity]
         enemyCount = 0
         enemySnapshotSequence = 0
         clientEnemySnapshotSequence = 0
@@ -262,6 +290,7 @@ class LoopbackSession {
             enemyIds[index] = 0
             enemyEncounterIds[index] = 0
             clientRemoteEnemyIds[index] = 0
+            clientRemoteEnemyRoles[index] = 0
             clientRemoteEnemyStates[index] = 0
             clientRemoteEnemyTargets[index] = 0
             clientRemoteEnemyHealthValues[index] = 0
@@ -274,6 +303,7 @@ class LoopbackSession {
             enemyPerceptionVisible[index] = false
             enemyPerceptionActive[index] = false
             enemySpatialPerceptionActive[index] = false
+            enemyAutonomous[index] = false
             playerCombatRewardTargets[index] = 0
             playerCombatRewardCurrencies[index] = 0
         }
@@ -302,6 +332,7 @@ class LoopbackSession {
         if (!started || (player != 1 && player != 2)) {
             return false
         }
+        var recovering = connectionGenerations[player] > 0
         if (player == 1) {
             if (playerOneConnected) {
                 return false
@@ -310,7 +341,8 @@ class LoopbackSession {
             if (!serverMovement.setPosition(1, positionOne) ||
                 !clientMovement.setPosition(1, positionOne) ||
                 !playerOnePrediction.restore(positionOne, serverTick) ||
-                !playerOneSnapshots.reset()) {
+                !playerOneSnapshots.reset() ||
+                (recovering && !playerOneInputs.resetForReplay())) {
                 return false
             }
             playerOneConnected = true
@@ -323,11 +355,18 @@ class LoopbackSession {
             if (!serverMovement.setPosition(2, positionTwo) ||
                 !clientMovement.setPosition(2, positionTwo) ||
                 !playerTwoPrediction.restore(positionTwo, serverTick) ||
-                !playerTwoSnapshots.reset()) {
+                !playerTwoSnapshots.reset() ||
+                (recovering && !playerTwoInputs.resetForReplay())) {
                 return false
             }
             playerTwoConnected = true
             playerTwoFocused = true
+        }
+        if (recovering) {
+            interactionSequences[player] = 0
+            interactionTicks[player] = 0
+            interactionTargets[player] = 0
+            remoteGameplaySequences[player] = 0
         }
         connectionGenerations[player] = connectionGenerations[player] + 1
         disconnectReasons[player] = 0
@@ -402,8 +441,21 @@ class LoopbackSession {
         return !started && worldInteractions.defineKey(id, x, y, z, range)
     }
 
-    Bool defineWorldDoor(Int id, Int keyId, Int x, Int y, Int z, Int range) {
-        return !started && worldInteractions.defineDoor(id, keyId, x, y, z, range)
+    Bool defineWorldDoor(
+        Int id, Int keyId, Int x, Int y, Int z,
+        Int halfWidth, Int halfHeight, Int halfDepth, Int range
+    ) {
+        return !started && worldInteractions.defineDoor(
+            id, keyId, x, y, z,
+            halfWidth, halfHeight, halfDepth, range)
+    }
+
+    SegmentCollisionResult queryWorldDoorPath(
+        SpatialPoint start, SpatialPoint end
+    ) {
+        return worldInteractions.queryDoorSegment(
+            start.x(), start.y(), start.z(),
+            end.x(), end.y(), end.z())
     }
 
     Bool defineWorldSecret(Int id, Int x, Int y, Int z, Int range) {
@@ -442,24 +494,41 @@ class LoopbackSession {
         return true
     }
 
+    Bool recordFeedbackEvent(
+        Int kind, Int sourceId, Int targetId,
+        Int x, Int y, Int z, Int applied, Bool died,
+        Int clip, Int gain
+    ) {
+        if (feedbackSequenceValue >= 1000000) {
+            return false
+        }
+        var event = ImpactPresentationEvent(
+            feedbackSequenceValue + 1, kind,
+            sourceId, targetId, x, y, z,
+            applied, died, clip, gain)
+        if (!feedbackHistory.append(event)) {
+            return false
+        }
+        feedbackSequenceValue = event.sequence()
+        remoteImpactSequenceValue = event.sequence()
+        lastRemoteImpactValue = event
+        return true
+    }
+
     Bool recordRemoteImpact(
         ResolutionResult result, Int x, Int y, Int z
     ) {
-        if (!result.accepted() || result.applied() <= 0 ||
-            remoteImpactSequenceValue >= 1000000) {
+        if (!result.accepted() || result.applied() <= 0) {
             return false
         }
-        remoteImpactSequenceValue = remoteImpactSequenceValue + 1
         var gain = 70
         if (result.died()) {
             gain = 100
         }
-        lastRemoteImpactValue = ImpactPresentationEvent(
-            remoteImpactSequenceValue, 1,
-            result.sourceId(), result.targetId(),
+        return recordFeedbackEvent(
+            1, result.sourceId(), result.targetId(),
             x, y, z, result.applied(), result.died(),
             impactClip(1), gain)
-        return true
     }
 
     Bool applyRemoteGameplayCommand(Int[] words) {
@@ -472,6 +541,12 @@ class LoopbackSession {
         var tick = gameplayCommandTick(words)
         var sequence = gameplayCommandSequence(words)
         var action = gameplayCommandAction(words)
+        var generation = gameplayCommandGeneration(words)
+        if (generation != connectionGenerations[player]) {
+            lastRemoteGameplayDiagnosticValue =
+                gameplayGenerationDiagnostic()
+            return true
+        }
         if (sequence <= remoteGameplaySequences[player]) {
             lastRemoteGameplayDiagnosticValue = gameplayStaleDiagnostic()
             return true
@@ -565,7 +640,8 @@ class LoopbackSession {
         if (enemyCombat.enemyState(combatActorId) >= 0) {
             health = enemyCombat.currentHealth(combatActorId)
         }
-        if (!started || tick <= 0 || tick > 1000000 ||
+        if (!started || tick < 0 || tick > 1000000 ||
+            tick != serverTick ||
             health < 0 || player < 1 || player > 2 ||
             connectionGenerations[player] <= 0 ||
             gameplayStateSequences[player] >= 1000000) {
@@ -575,7 +651,7 @@ class LoopbackSession {
         var state = newGameplayStateMessage(
             tick, gameplayStateSequences[player],
             lastRemoteGameplayAcceptedValue,
-            worldInteractions.revision(), combatActorId, health)
+            worldInteractions.revision(), combatActorId, health, player)
         if (!setGameplayStateProgression(
                 state, worldInteractions.secretCount(),
                 worldInteractions.completed(), worldInteractions.activeMask()) ||
@@ -598,6 +674,61 @@ class LoopbackSession {
                 clientInteractionRevisionValue) {
             return false
         }
+        var player = gameplayStatePlayer(words)
+        var generation = gameplayStateConnectionGeneration(words)
+        if ((clientRemoteBaselineReadyValue &&
+                player != clientRemotePlayerValue) ||
+            (clientRemoteBaselineReadyValue &&
+                generation < clientRemoteConnectionGenerationValue)) {
+            return false
+        }
+        var newBaseline = !clientRemoteBaselineReadyValue ||
+            generation > clientRemoteConnectionGenerationValue
+        var positionOne = gameplayStatePlayerPosition(words, 1)
+        var positionTwo = gameplayStatePlayerPosition(words, 2)
+        var authoritativePosition = positionOne
+        if (player == 2) {
+            authoritativePosition = positionTwo
+        }
+        var predictionAccepted = false
+        if (player == 1) {
+            if (newBaseline) {
+                predictionAccepted = playerOnePrediction.restore(
+                    authoritativePosition, words[2])
+            } else {
+                predictionAccepted = playerOnePrediction.reconcile(
+                    authoritativePosition, words[2])
+            }
+        } else {
+            if (newBaseline) {
+                predictionAccepted = playerTwoPrediction.restore(
+                    authoritativePosition, words[2])
+            } else {
+                predictionAccepted = playerTwoPrediction.reconcile(
+                    authoritativePosition, words[2])
+            }
+        }
+        if (!predictionAccepted ||
+            !clientMovement.setPosition(1, positionOne) ||
+            !clientMovement.setPosition(2, positionTwo)) {
+            return false
+        }
+        if (player == 1 &&
+            !clientMovement.setPosition(
+                1, playerOnePrediction.predicted())) {
+            return false
+        }
+        if (player == 2 &&
+            !clientMovement.setPosition(
+                2, playerTwoPrediction.predicted())) {
+            return false
+        }
+        if (newBaseline) {
+            clientRemoteImpactSequenceValue = 0
+            clientRemoteFeedbackStateSequenceValue = 0
+            impactPresentations.reset()
+            impactAudio.reset()
+        }
         var mask = gameplayStateInteractionMask(words)
         var divisor = 1
         for (var index = 0;
@@ -611,16 +742,15 @@ class LoopbackSession {
         clientSecretCountValue = gameplayStateSecretCount(words)
         clientLevelCompletedValue = gameplayStateLevelCompleted(words)
         clientRemoteStateSequenceValue = words[3]
+        clientRemotePlayerValue = player
+        clientRemoteBaselineReadyValue = true
         clientRemoteCombatActorValue = gameplayStateCombatActor(words)
         clientRemoteCombatHealthValue = gameplayStateCombatHealth(words)
-        clientRemotePlayerOnePositionValue =
-            gameplayStatePlayerPosition(words, 1)
-        clientRemotePlayerTwoPositionValue =
-            gameplayStatePlayerPosition(words, 2)
+        clientRemotePlayerOnePositionValue = positionOne
+        clientRemotePlayerTwoPositionValue = positionTwo
         clientRemoteCurrencyValue = gameplayStateCurrency(words)
         clientRemoteConnectedValue = gameplayStateConnected(words)
-        clientRemoteConnectionGenerationValue =
-            gameplayStateConnectionGeneration(words)
+        clientRemoteConnectionGenerationValue = generation
         clientRemoteDisconnectReasonValue =
             gameplayStateDisconnectReason(words)
         clientRemoteDiagnosticValue = gameplayStateDiagnostic(words)
@@ -628,7 +758,8 @@ class LoopbackSession {
     }
 
     Int[] enemyEncounterStateMessage(Int tick, Int encounterId) {
-        if (!started || tick <= 0 || tick > 1000000 ||
+        if (!started || tick < 0 || tick > 1000000 ||
+            tick != serverTick ||
             encounterId <= 0 || encounterId > 1000000 ||
             enemyEncounterStateSequenceValue >= 1000000) {
             return new Int[0]
@@ -681,6 +812,7 @@ class LoopbackSession {
                 var enemyId = enemyIds[index]
                 if (!setEnemyEncounterStateEntry(
                         state, entry, enemyId,
+                        enemyCombat.enemyRole(enemyId),
                         enemyCombat.enemyState(enemyId),
                         enemyCombat.enemyTarget(enemyId),
                         enemyCombat.currentHealth(enemyId),
@@ -720,6 +852,7 @@ class LoopbackSession {
             index < clientRemoteEnemyIds.length;
             index = index + 1) {
             clientRemoteEnemyIds[index] = 0
+            clientRemoteEnemyRoles[index] = 0
             clientRemoteEnemyStates[index] = 0
             clientRemoteEnemyTargets[index] = 0
             clientRemoteEnemyHealthValues[index] = 0
@@ -730,12 +863,13 @@ class LoopbackSession {
                 var offset = enemyEncounterStateEntriesOffset() +
                     index * enemyEncounterStateEntryWidth()
                 clientRemoteEnemyIds[index] = words[offset]
-                clientRemoteEnemyStates[index] = words[offset + 1]
-                clientRemoteEnemyTargets[index] = words[offset + 2]
-                clientRemoteEnemyHealthValues[index] = words[offset + 3]
-                clientRemoteEnemyPositionsX[index] = words[offset + 4]
-                clientRemoteEnemyPositionsY[index] = words[offset + 5]
-                clientRemoteEnemyPositionsZ[index] = words[offset + 6]
+                clientRemoteEnemyRoles[index] = words[offset + 1]
+                clientRemoteEnemyStates[index] = words[offset + 2]
+                clientRemoteEnemyTargets[index] = words[offset + 3]
+                clientRemoteEnemyHealthValues[index] = words[offset + 4]
+                clientRemoteEnemyPositionsX[index] = words[offset + 5]
+                clientRemoteEnemyPositionsY[index] = words[offset + 6]
+                clientRemoteEnemyPositionsZ[index] = words[offset + 7]
             }
         }
         var impact = enemyEncounterStateImpact(words)
@@ -755,6 +889,83 @@ class LoopbackSession {
                     impact.sourceId(), impact.targetId(),
                     impact.x(), impact.y(), impact.z(),
                     impact.applied(), impact.clip(), impact.gain(), died)
+            }
+        }
+        return true
+    }
+
+    Int[] multiplayerFeedbackStateMessage(Int tick) {
+        if (!started || tick < 0 || tick > 1000000 ||
+            tick != serverTick ||
+            feedbackStateSequenceValue >= 1000000) {
+            return new Int[0]
+        }
+        var count = feedbackHistory.size()
+        if (count > maximumMultiplayerFeedbackEvents()) {
+            count = maximumMultiplayerFeedbackEvents()
+        }
+        feedbackStateSequenceValue = feedbackStateSequenceValue + 1
+        var message = newMultiplayerFeedbackMessage(
+            tick, feedbackStateSequenceValue, count)
+        var start = feedbackHistory.size() - count
+        for (var index = 0; index < count; index = index + 1) {
+            if (!setMultiplayerFeedbackEvent(
+                    message, index,
+                    feedbackHistory.at(start + index))) {
+                return new Int[0]
+            }
+        }
+        if (!sealMultiplayerFeedbackMessage(message)) {
+            return new Int[0]
+        }
+        return message
+    }
+
+    Bool applyRemoteMultiplayerFeedback(Int[] words) {
+        if (!started || !clientRemoteBaselineReadyValue ||
+            !validMultiplayerFeedbackMessage(words) ||
+            multiplayerFeedbackStateSequence(words) <=
+                clientRemoteFeedbackStateSequenceValue) {
+            return false
+        }
+        var expected = clientRemoteImpactSequenceValue
+        for (var index = 0;
+            index < multiplayerFeedbackEventCount(words);
+            index = index + 1) {
+            var event = multiplayerFeedbackEventAt(words, index)
+            if (event.sequence() > expected) {
+                if (expected > 0 &&
+                    event.sequence() != expected + 1) {
+                    return false
+                }
+                expected = event.sequence()
+            }
+        }
+        clientRemoteFeedbackStateSequenceValue =
+            multiplayerFeedbackStateSequence(words)
+        for (var index = 0;
+            index < multiplayerFeedbackEventCount(words);
+            index = index + 1) {
+            var event = multiplayerFeedbackEventAt(words, index)
+            if (event.sequence() <=
+                clientRemoteImpactSequenceValue) {
+                continue
+            }
+            clientRemoteImpactSequenceValue = event.sequence()
+            if (pushImpactPresentation(
+                    event.kind(), event.sourceId(), event.targetId(),
+                    event.x(), event.y(), event.z(),
+                    event.applied(), event.died(),
+                    event.clip(), event.gain())) {
+                var died = 0
+                if (event.died()) {
+                    died = 1
+                }
+                recordReplayPresentation(
+                    words[2], 3, event.sequence(),
+                    event.sourceId(), event.targetId(),
+                    event.x(), event.y(), event.z(),
+                    event.applied(), event.clip(), event.gain(), died)
             }
         }
         return true
@@ -797,6 +1008,14 @@ class LoopbackSession {
             return -1
         }
         return clientRemoteEnemyStates[index]
+    }
+
+    Int clientRemoteEnemyRole(Int enemyId) {
+        var index = clientRemoteEnemyIndex(enemyId)
+        if (index < 0) {
+            return 0
+        }
+        return clientRemoteEnemyRoles[index]
     }
 
     Int clientRemoteEnemyTarget(Int enemyId) {
@@ -863,6 +1082,82 @@ class LoopbackSession {
             return clientRemotePlayerTwoPositionValue
         }
         return -1000001
+    }
+
+    Bool predictRemoteGameplayInput(
+        Int player, Int tick, Int requestedStep, Int generation
+    ) {
+        if (!started || !clientRemoteBaselineReadyValue ||
+            !clientRemoteConnectedValue ||
+            player != clientRemotePlayerValue ||
+            generation != clientRemoteConnectionGenerationValue) {
+            return false
+        }
+        var accepted = false
+        if (player == 1) {
+            accepted = playerOnePrediction.predictAt(
+                tick, requestedStep)
+            if (accepted) {
+                accepted = clientMovement.setPosition(
+                    1, playerOnePrediction.predicted())
+            }
+        } else if (player == 2) {
+            accepted = playerTwoPrediction.predictAt(
+                tick, requestedStep)
+            if (accepted) {
+                accepted = clientMovement.setPosition(
+                    2, playerTwoPrediction.predicted())
+            }
+        }
+        return accepted
+    }
+
+    Int clientRemotePlayer() {
+        return clientRemotePlayerValue
+    }
+
+    Bool clientRemoteBaselineReady() {
+        return clientRemoteBaselineReadyValue
+    }
+
+    Int clientRemotePredictedPosition() {
+        if (!clientRemoteBaselineReadyValue) {
+            return -1000001
+        }
+        if (clientRemotePlayerValue == 1) {
+            return playerOnePrediction.predicted()
+        }
+        return playerTwoPrediction.predicted()
+    }
+
+    Int clientRemoteAuthoritativePosition() {
+        if (!clientRemoteBaselineReadyValue) {
+            return -1000001
+        }
+        if (clientRemotePlayerValue == 1) {
+            return playerOnePrediction.authoritative()
+        }
+        return playerTwoPrediction.authoritative()
+    }
+
+    Int clientRemotePredictionCorrection() {
+        if (!clientRemoteBaselineReadyValue) {
+            return 0
+        }
+        if (clientRemotePlayerValue == 1) {
+            return playerOnePrediction.correction()
+        }
+        return playerTwoPrediction.correction()
+    }
+
+    Int clientRemotePendingPredictionInputs() {
+        if (!clientRemoteBaselineReadyValue) {
+            return 0
+        }
+        if (clientRemotePlayerValue == 1) {
+            return playerOnePrediction.pendingInputs()
+        }
+        return playerTwoPrediction.pendingInputs()
     }
 
     Int clientRemoteCurrency() {
@@ -954,10 +1249,55 @@ class LoopbackSession {
     }
 
 
-    Bool stageWorldInteractionGeometry(
-        FrameStaging target, Int frame, Int resource
+    Int clampDoorScreen(Int value) {
+        if (value < -98) {
+            return -98
+        }
+        if (value > 98) {
+            return 98
+        }
+        return value
+    }
+
+    Int projectDoorX(Int x, Int z, CameraState camera) {
+        return clampDoorScreen(
+            (x - z) * 3 + camera.currentYaw() / 10)
+    }
+
+    Int projectDoorY(
+        Int x, Int y, Int z, CameraState camera
     ) {
-        if (!started || resource <= 0 || !target.begin(frame)) {
+        return clampDoorScreen(
+            (x + z) * 2 - y * 6 - 55 -
+            camera.currentPitch() / 10)
+    }
+
+    Bool pushDoorTriangle(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int stateV, CameraState camera
+    ) {
+        return target.pushVertex(
+                resource, projectDoorX(ax, az, camera),
+                projectDoorY(ax, ay, az, camera), 0, stateV) &&
+            target.pushVertex(
+                resource, projectDoorX(bx, bz, camera),
+                projectDoorY(bx, by, bz, camera), 50, stateV) &&
+            target.pushVertex(
+                resource, projectDoorX(cx, cz, camera),
+                projectDoorY(cx, cy, cz, camera), 100, stateV)
+    }
+
+    Bool stageWorldInteractionGeometry(
+        FrameStaging target, Int frame, Int resource,
+        CameraState camera
+    ) {
+        if (!started || resource <= 0 ||
+            target.vertexCapacity() <
+                worldInteractions.doorRenderVertexCount() ||
+            !target.begin(frame)) {
             return false
         }
         for (var index = 0; index < worldInteractions.size(); index = index + 1) {
@@ -965,18 +1305,73 @@ class LoopbackSession {
             if (worldInteractions.kind(id) != 2) {
                 continue
             }
-            var x = worldInteractions.positionX(id)
-            var y = worldInteractions.positionY(id)
-            var active = 0
+            var x0 = worldInteractions.positionX(id) -
+                worldInteractions.doorHalfWidth(id)
+            var x1 = worldInteractions.positionX(id) +
+                worldInteractions.doorHalfWidth(id)
+            var y0 = worldInteractions.positionY(id) -
+                worldInteractions.doorHalfHeight(id)
+            var y1 = worldInteractions.positionY(id) +
+                worldInteractions.doorHalfHeight(id)
+            var z0 = worldInteractions.positionZ(id) -
+                worldInteractions.doorHalfDepth(id)
+            var z1 = worldInteractions.positionZ(id) +
+                worldInteractions.doorHalfDepth(id)
+            var stateV = 0
             if (clientInteractionFlags[index]) {
-                active = 100
+                var lift = worldInteractions.doorHalfHeight(id) * 2 + 1
+                y0 = y0 + lift
+                y1 = y1 + lift
+                stateV = 100
             }
-            if (!target.pushVertex(resource, x - 1, y - 1, active, 0) ||
-                !target.pushVertex(resource, x + 1, y - 1, active, 100) ||
-                !target.pushVertex(resource, x + 1, y + 1, active, 100) ||
-                !target.pushVertex(resource, x - 1, y - 1, active, 0) ||
-                !target.pushVertex(resource, x + 1, y + 1, active, 100) ||
-                !target.pushVertex(resource, x - 1, y + 1, active, 0)) {
+            if (!pushDoorTriangle(
+                    target, resource,
+                    x0, y0, z0, x1, y0, z0, x1, y1, z0,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x0, y0, z0, x1, y1, z0, x0, y1, z0,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x1, y0, z1, x0, y0, z1, x0, y1, z1,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x1, y0, z1, x0, y1, z1, x1, y1, z1,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x0, y0, z0, x0, y1, z0,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x0, y1, z0, x0, y1, z1,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x1, y0, z0, x1, y0, z1, x1, y1, z1,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x1, y0, z0, x1, y1, z1, x1, y1, z0,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x1, y0, z1, x1, y0, z0,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x1, y0, z0, x0, y0, z0,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x0, y1, z0, x1, y1, z0, x1, y1, z1,
+                    stateV, camera) ||
+                !pushDoorTriangle(
+                    target, resource,
+                    x0, y1, z0, x1, y1, z1, x0, y1, z1,
+                    stateV, camera)) {
                 target.discard()
                 return false
             }
@@ -1060,7 +1455,20 @@ class LoopbackSession {
     }
 
     Bool setEnemySpatialPosition(Int id, Int x, Int y, Int z) {
-        return enemyCombat.setSpatialPosition(id, x, y, z)
+        if (!enemyCombat.setSpatialPosition(id, x, y, z)) {
+            return false
+        }
+        if (id == 1 && playerOneConnected) {
+            return serverMovement.setPosition(1, x) &&
+                clientMovement.setPosition(1, x) &&
+                playerOnePrediction.restore(x, serverTick)
+        }
+        if (id == 2 && playerTwoConnected) {
+            return serverMovement.setPosition(2, x) &&
+                clientMovement.setPosition(2, x) &&
+                playerTwoPrediction.restore(x, serverTick)
+        }
+        return true
     }
 
     SpatialVisibilityResult enemySpatialVisibility(
@@ -1206,6 +1614,10 @@ class LoopbackSession {
         return enemyCombat.enemyState(enemyId)
     }
 
+    Int enemyRole(Int enemyId) {
+        return enemyCombat.enemyRole(enemyId)
+    }
+
     Int enemyTarget(Int enemyId) {
         return enemyCombat.enemyTarget(enemyId)
     }
@@ -1328,6 +1740,53 @@ class LoopbackSession {
         return true
     }
 
+    Bool configureEnemyRole(
+        Int enemyId, Int role, Int moveStep,
+        Int projectileStep, Int critical
+    ) {
+        if (critical < 0 || critical > 1 ||
+            !enemyCombat.configureEnemyRole(
+                enemyId, role, moveStep, projectileStep)) {
+            return false
+        }
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            if (enemyIds[index] == enemyId) {
+                enemyPerceptionCriticals[index] = critical
+                enemyPerceptionActive[index] = true
+                enemySpatialPerceptionActive[index] = true
+                enemyAutonomous[index] = true
+                return true
+            }
+        }
+        return false
+    }
+
+    Bool enemyTargetEligible(Int player) {
+        return playerConnected(player) &&
+            playerCombat.isAlive(player) &&
+            enemyCombat.currentHealth(player) > 0 &&
+            enemyCombat.hasSpatialPosition(player)
+    }
+
+    Int nearestLiveEnemyTarget(Int enemyId) {
+        var targetId = 0
+        var targetDistance = 1000001
+        for (var player = 1; player <= 2; player = player + 1) {
+            if (enemyTargetEligible(player)) {
+                var distance = enemyCombat.spatialDistance(
+                    enemyId, player)
+                if (distance >= 0 &&
+                    (distance < targetDistance ||
+                        (distance == targetDistance &&
+                            (targetId == 0 || player < targetId)))) {
+                    targetId = player
+                    targetDistance = distance
+                }
+            }
+        }
+        return targetId
+    }
+
     Bool configureEnemyPerception(
         Int enemyId, Int targetId, Bool targetVisible,
         Int distance, Int critical
@@ -1373,7 +1832,40 @@ class LoopbackSession {
         }
         var accepted = true
         for (var index = 0; index < enemyCount && accepted; index = index + 1) {
-            if (enemyPerceptionActive[index]) {
+            if (enemyAutonomous[index]) {
+                var targetId = nearestLiveEnemyTarget(enemyIds[index])
+                if (targetId > 0) {
+                    lastEnemyDecision = enemyCombat.stepEnemyRoleSpatial(
+                        enemyIds[index], tick, targetId,
+                        enemyPerceptionCriticals[index])
+                    accepted = lastEnemyDecision.accepted()
+                    if (accepted && lastEnemyDecision.fired() &&
+                        lastEnemyDecision.applied() > 0) {
+                        var gain = 70
+                        if (lastEnemyDecision.died()) {
+                            gain = 100
+                        }
+                        accepted = recordFeedbackEvent(
+                            1, enemyIds[index], targetId,
+                            enemyCombat.enemySpatialPositionX(targetId),
+                            enemyCombat.enemySpatialPositionY(targetId),
+                            enemyCombat.enemySpatialPositionZ(targetId),
+                            lastEnemyDecision.applied(),
+                            lastEnemyDecision.died(),
+                            impactClip(1), gain)
+                        if (accepted) {
+                            pushImpactPresentation(
+                                1, enemyIds[index], targetId,
+                                enemyCombat.enemySpatialPositionX(targetId),
+                                enemyCombat.enemySpatialPositionY(targetId),
+                                enemyCombat.enemySpatialPositionZ(targetId),
+                                lastEnemyDecision.applied(),
+                                lastEnemyDecision.died(),
+                                impactClip(1), gain)
+                        }
+                    }
+                }
+            } else if (enemyPerceptionActive[index]) {
                 if (enemySpatialPerceptionActive[index]) {
                     lastEnemyDecision = enemyCombat.stepEnemySpatial(
                         enemyIds[index], tick,
@@ -1390,25 +1882,41 @@ class LoopbackSession {
                 accepted = lastEnemyDecision.accepted()
             }
         }
+        enemyCombat.consumeCombatEvents(tick)
         enemyCombat.advanceSpatialProjectiles(tick)
         return accepted && publishEnemyImpactSnapshots(tick)
     }
 
     Bool publishEnemyImpactSnapshots(Int tick) {
         while (enemyCombat.pendingSpatialImpacts() > 0) {
-            if (!enemyCombat.dequeueSpatialImpact()) {
+            if (!enemyCombat.dequeueSpatialImpact() ||
+                enemyImpactSnapshotSequence >= 1000000) {
                 return false
             }
             var impact = enemyCombat.lastSpatialImpact()
+            enemyImpactSnapshotSequence =
+                enemyImpactSnapshotSequence + 1
             var snapshot = EnemyImpactSnapshot(
-                impact.sequence(), tick, impact.kind(), impact.projectileId(),
+                enemyImpactSnapshotSequence, tick,
+                impact.kind(), impact.projectileId(),
                 impact.sourceId(), impact.targetId(),
                 impact.x(), impact.y(), impact.z(),
                 impact.applied(), impact.died())
-            if (!enemyServerImpactSnapshots.push(snapshot)) {
+            if (!enemyServerImpactSnapshots.push(snapshot) ||
+                !recordFeedbackEvent(
+                    impact.kind(), impact.sourceId(), impact.targetId(),
+                    impact.x(), impact.y(), impact.z(),
+                    impact.applied(), impact.died(),
+                    impactClip(impact.kind()),
+                    impactGain(impact.kind()))) {
                 return false
             }
-            enemyImpactSnapshotSequence = snapshot.sequence()
+            pushImpactPresentation(
+                impact.kind(), impact.sourceId(), impact.targetId(),
+                impact.x(), impact.y(), impact.z(),
+                impact.applied(), impact.died(),
+                impactClip(impact.kind()),
+                impactGain(impact.kind()))
         }
         return true
     }
@@ -1464,9 +1972,29 @@ class LoopbackSession {
     }
 
     Bool impactPresentationAvailable() {
-        return impactPresentations.canPush() && impactAudio.canQueue() &&
-            replayPresentationHistory.count() <
-                replayPresentationHistory.capacity()
+        return impactPresentations.canPush()
+    }
+
+    Bool configureImpactAudioListener(
+        Int x, Int y, Int z,
+        Int rightX, Int rightZ, Int maxDistance
+    ) {
+        if (x < -1000000 || x > 1000000 ||
+            y < -1000000 || y > 1000000 ||
+            z < -1000000 || z > 1000000 ||
+            rightX < -100 || rightX > 100 ||
+            rightZ < -100 || rightZ > 100 ||
+            (rightX == 0 && rightZ == 0) ||
+            maxDistance <= 0 || maxDistance > 1000000) {
+            return false
+        }
+        audioListenerX = x
+        audioListenerY = y
+        audioListenerZ = z
+        audioListenerRightX = rightX
+        audioListenerRightZ = rightZ
+        audioListenerMaxDistance = maxDistance
+        return true
     }
 
     Bool pushImpactPresentation(
@@ -1474,16 +2002,25 @@ class LoopbackSession {
         Int x, Int y, Int z, Int applied, Bool died,
         Int clip, Int gain
     ) {
-        if (!impactPresentationAvailable()) {
+        var presented = false
+        if (impactPresentations.canPush()) {
+            impactPresentationSequence = impactPresentationSequence + 1
+            presented = impactPresentations.push(
+                impactPresentationSequence, kind, sourceId, targetId,
+                x, y, z, applied, died, clip, gain)
+        }
+        if (!presented) {
             impactPresentationDropCountValue =
                 impactPresentationDropCountValue + 1
-            return false
         }
-        impactPresentationSequence = impactPresentationSequence + 1
-        return impactPresentations.push(
-                impactPresentationSequence, kind, sourceId, targetId,
-                x, y, z, applied, died, clip, gain) &&
-            impactAudio.queue(clip, gain)
+        if (impactAudio.canQueue()) {
+            impactAudio.queueSpatial(
+                clip, gain, x, y, z,
+                audioListenerX, audioListenerY,
+                audioListenerZ, audioListenerRightX,
+                audioListenerRightZ, audioListenerMaxDistance)
+        }
+        return presented
     }
 
     Bool presentEnemyResolution(ResolutionResult result, Int tick) {
@@ -1496,43 +2033,41 @@ class LoopbackSession {
         }
         var targetId = result.targetId()
         var clip = impactClip(1)
-        if (!pushImpactPresentation(
-                1, result.sourceId(), targetId,
-                enemyCombat.enemySpatialPositionX(targetId),
-                enemyCombat.enemySpatialPositionY(targetId),
-                enemyCombat.enemySpatialPositionZ(targetId),
-                result.applied(), result.died(), clip, gain)) {
-            return false
-        }
+        pushImpactPresentation(
+            1, result.sourceId(), targetId,
+            enemyCombat.enemySpatialPositionX(targetId),
+            enemyCombat.enemySpatialPositionY(targetId),
+            enemyCombat.enemySpatialPositionZ(targetId),
+            result.applied(), result.died(), clip, gain)
         var died = 0
         if (result.died()) {
             died = 1
         }
-        return recordReplayPresentation(
+        recordReplayPresentation(
             tick, 3, result.eventSequence(), result.sourceId(), targetId,
             enemyCombat.enemySpatialPositionX(targetId),
             enemyCombat.enemySpatialPositionY(targetId),
             enemyCombat.enemySpatialPositionZ(targetId),
             result.applied(), clip, gain, died)
+        return true
     }
 
     Bool presentEnemyImpactSnapshot(EnemyImpactSnapshot snapshot) {
         var clip = impactClip(snapshot.kind())
         var gain = impactGain(snapshot.kind())
-        if (!pushImpactPresentation(
-                snapshot.kind(), snapshot.sourceId(), snapshot.targetId(),
-                snapshot.x(), snapshot.y(), snapshot.z(),
-                snapshot.applied(), snapshot.died(), clip, gain)) {
-            return false
-        }
+        pushImpactPresentation(
+            snapshot.kind(), snapshot.sourceId(), snapshot.targetId(),
+            snapshot.x(), snapshot.y(), snapshot.z(),
+            snapshot.applied(), snapshot.died(), clip, gain)
         var died = 0
         if (snapshot.died()) {
             died = 1
         }
-        return recordReplayPresentation(
+        recordReplayPresentation(
             snapshot.tick(), 3, snapshot.sequence(), snapshot.sourceId(),
             snapshot.targetId(), snapshot.x(), snapshot.y(), snapshot.z(),
             snapshot.applied(), clip, gain, died)
+        return true
     }
 
     EnemyImpactSnapshot latestEnemyImpactSnapshot() {
@@ -1543,12 +2078,11 @@ class LoopbackSession {
         if (!started ||
             snapshot.sequence() <= clientEnemyImpactSnapshotSequence ||
             snapshot.tick() < clientTick ||
-            !impactPresentationAvailable() ||
-            !enemyClientImpactSnapshots.push(snapshot) ||
-            !presentEnemyImpactSnapshot(snapshot)) {
+            !enemyClientImpactSnapshots.push(snapshot)) {
             return false
         }
         clientEnemyImpactSnapshotSequence = snapshot.sequence()
+        presentEnemyImpactSnapshot(snapshot)
         return true
     }
 
@@ -1590,6 +2124,14 @@ class LoopbackSession {
 
     Int consumedImpactGain() {
         return impactAudio.consumedGain()
+    }
+
+    Int consumedImpactLeftGain() {
+        return impactAudio.consumedLeftGain()
+    }
+
+    Int consumedImpactRightGain() {
+        return impactAudio.consumedRightGain()
     }
 
     Int impactPresentationDrops() {
@@ -2534,6 +3076,10 @@ class LoopbackSession {
         return 120 + enemyCombat.replayStateLength() + worldInteractions.replayStateLength() + 16
     }
 
+    Int worldInteractionReplayStateLength() {
+        return worldInteractions.replayStateLength()
+    }
+
     Bool encodeReplayCheckpoint(Int[] target) {
         if (target.length != replayCheckpointLength() || !started) {
             return false
@@ -2686,14 +3232,47 @@ class LoopbackSession {
         if (hasWorldState) {
             var currentWorldState = new Int[worldLength]
             var decodedWorldState = new Int[worldLength]
-            if (!worldInteractions.encodeReplayState(currentWorldState) ||
-                !decodedInteractions.restoreReplayState(currentWorldState)) {
+            if (!worldInteractions.encodeReplayState(currentWorldState)) {
                 return false
             }
             for (var index = 0; index < worldLength; index = index + 1) {
-                decodedWorldState[index] = timeline.seekSnapshotValue(worldOffset + index)
+                decodedWorldState[index] =
+                    timeline.seekSnapshotValue(worldOffset + index)
             }
-            if (!decodedInteractions.restoreReplayState(decodedWorldState)) {
+            if (decodedWorldState[0] != currentWorldState[0] ||
+                decodedWorldState[1] != currentWorldState[1] ||
+                decodedWorldState[2] != currentWorldState[2]) {
+                return false
+            }
+            for (var index = 0; index < 16; index = index + 1) {
+                var offset = 3 + index * 12
+                if (decodedWorldState[offset] !=
+                        currentWorldState[offset] ||
+                    decodedWorldState[offset + 1] !=
+                        currentWorldState[offset + 1] ||
+                    decodedWorldState[offset + 2] !=
+                        currentWorldState[offset + 2] ||
+                    decodedWorldState[offset + 3] !=
+                        currentWorldState[offset + 3] ||
+                    decodedWorldState[offset + 4] !=
+                        currentWorldState[offset + 4] ||
+                    decodedWorldState[offset + 5] !=
+                        currentWorldState[offset + 5] ||
+                    decodedWorldState[offset + 6] !=
+                        currentWorldState[offset + 6] ||
+                    decodedWorldState[offset + 7] !=
+                        currentWorldState[offset + 7] ||
+                    decodedWorldState[offset + 9] !=
+                        currentWorldState[offset + 9] ||
+                    decodedWorldState[offset + 10] !=
+                        currentWorldState[offset + 10] ||
+                    decodedWorldState[offset + 11] !=
+                        currentWorldState[offset + 11]) {
+                    return false
+                }
+            }
+            if (!decodedInteractions.restoreReplayState(
+                    decodedWorldState)) {
                 return false
             }
             for (var player = 1; player <= 2; player = player + 1) {
@@ -3065,7 +3644,16 @@ class LoopbackSession {
         if (worldInteractions.blocksScalarMove(current, movement.resolvedPosition())) {
             return true
         }
-        return serverMovement.applyInput(player, requestedStep)
+        if (!serverMovement.applyInput(player, requestedStep)) {
+            return false
+        }
+        if (enemyCombat.hasSpatialPosition(player)) {
+            return enemyCombat.setSpatialPosition(
+                player, serverMovement.position(player),
+                enemyCombat.enemySpatialPositionY(player),
+                enemyCombat.enemySpatialPositionZ(player))
+        }
+        return true
     }
     Bool applySnapshot(Int sequence, Int tick, Int player, Int position) {
         if (!started || sequence <= snapshotSequence || tick < clientTick) {

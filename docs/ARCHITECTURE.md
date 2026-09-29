@@ -1,6 +1,6 @@
 # KOOKIE project architecture
 
-Status: **living target architecture; G0/G1 are implemented and G2 slices are in progress**.
+Status: **living target architecture; G0/G1/G2 are implemented and G3 is next**.
 
 
 This document is the project-level architecture authority. Detailed acceptance
@@ -127,12 +127,14 @@ checked native adapter
 Presentation cannot write authoritative arrays or award gameplay results.
 
 The implemented bounded slice follows this boundary: authoritative combat
-resolutions emit monotonic `ImpactPresentationEvent` records; the encounter
-snapshot carries the latest confirmed event into client HUD/audio queues.
+resolutions emit monotonic `ImpactPresentationEvent` records; ordered feedback
+batches carry every confirmed event into bounded client HUD/audio queues.
 The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
 connection and active/reserve encounter status. Presentation overflow is
-diagnosed and never rolls back authoritative state. The current authored scene
-is fixed at 252 vertices.
+diagnosed and never rolls back authoritative state. Authored 3D doors add a
+36-vertex cuboid between the 78-vertex arena and 174-vertex HUD; the current
+fixed scene is 288 vertices. Kof derives distance attenuation and stereo pan
+before the native adapter submits left/right PCM channels.
 
 
 ### Native adapter
@@ -204,13 +206,14 @@ The protocol is transport-independent:
   unsupported capabilities.
 
 
-The implemented G2 slice uses fixed 11-word commands and a fixed 19-word
-player/progression state, followed by a dynamic checksummed encounter message
-of `20 + 7N` words. `N` is bounded to 32 and each entry contains stable enemy
-ID, state, target, health and integer position. The header contains encounter
-active/reserve counts and the latest confirmed impact. Decode validates the
-entire message before mutation, rejects non-monotonic sequence numbers and
-never treats dropped presentation as failed authoritative state.
+The implemented G2 protocol uses fixed 11-word commands and recipient-specific
+20-word player/progression state. A dynamic checksummed encounter message uses
+`20 + 8N` words for at most 32 enemies; each entry contains stable ID, role,
+state, target, health and integer 3D position. An ordered feedback message uses
+`6 + 11F` words for at most 16 impact events. Join sends valid tick-zero
+gameplay, feedback and encounter baselines. Decode validates a whole message
+before mutation, admits generation before sequence, rejects stale or gapped
+state and never treats dropped presentation as failed authoritative state.
 
 The third-party networking library is selected after the protocol and loopback
 proof, not before.
@@ -520,12 +523,12 @@ scale/soak remains G5.
 
 ### G2 — LAN boomer-shooter slice
 
-In progress: bounded authenticated transport runs a host plus two clients
-through movement, authoritative enemy death/reward, one bounded encounter
-state/impact stream, lifecycle and level progression. Remaining work is
-continuous replicated multi-role enemy simulation, full
-prediction/reconciliation, production join/recovery, complete 3D doors and
-complete multiplayer presentation/audio coverage.
+Implemented: bounded authenticated transport runs a host plus two clients
+through movement, continuous hitscan/projectile/shotgun enemies, authoritative
+damage/death/reward, lifecycle and level progression. Recipient-specific join
+baselines, generation-first reconnect recovery, client prediction/reconciliation,
+3D door collision/render geometry, ordered feedback recovery and Kof-owned
+stereo spatialization complete the G2 contract.
 
 
 ### G3 — Looter/ARPG multiplayer slice

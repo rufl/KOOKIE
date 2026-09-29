@@ -176,19 +176,20 @@ test "G2 gameplay wire validates commands and authoritative state" {
             maximumSessionTransportWords(),
         "transport capacity must fit arena and encounter snapshots")
     var command = newGameplayCommandMessage(
-        2, 3, 4, gameplayFireAction(), 5, 20, 0, 0)
+        2, 3, 4, gameplayFireAction(), 5, 20, 0, 2)
     assert(validGameplayCommandMessage(command) &&
         gameplayCommandPlayer(command) == 2 &&
         gameplayCommandTick(command) == 3 &&
         gameplayCommandSequence(command) == 4 &&
         gameplayCommandAction(command) == gameplayFireAction() &&
-        gameplayCommandValue(command, 0) == 5,
+        gameplayCommandValue(command, 0) == 5 &&
+        gameplayCommandGeneration(command) == 2,
         "gameplay commands must round-trip bounded identity and action data")
     command[6] = 6
     assert(!validGameplayCommandMessage(command),
         "gameplay commands must reject checksum-breaking mutation")
 
-    var state = newGameplayStateMessage(3, 4, true, 2, 5, 0)
+    var state = newGameplayStateMessage(3, 4, true, 2, 5, 0, 2)
     assert(setGameplayStateProgression(state, 1, true, 7) &&
         setGameplayStateReplication(state, 4, 8, 25) &&
         setGameplayStateConnection(
@@ -208,9 +209,10 @@ test "G2 gameplay wire validates commands and authoritative state" {
         gameplayStateConnectionGeneration(state) == 2 &&
         gameplayStateDisconnectReason(state) == 0 &&
         gameplayStateDiagnostic(state) == gameplayFireDiagnostic() &&
+        gameplayStatePlayer(state) == 2 &&
         gameplayStateInteractionMask(state) == 7,
         "gameplay state must expose authoritative progression combat and lifecycle")
-    state[18] = state[18] + 1
+    state[19] = state[19] + 1
     assert(!validGameplayStateMessage(state),
         "gameplay state must reject checksum corruption")
 
@@ -220,9 +222,9 @@ test "G2 gameplay wire validates commands and authoritative state" {
             encounter, 12, 1, 1, 4,
             30, 2, -7, 6, true, 201, 100) &&
         setEnemyEncounterStateEntry(
-            encounter, 0, 3, 4, 1, 8, 10, 0, 4) &&
+            encounter, 0, 3, 1, 4, 1, 8, 10, 0, 4) &&
         setEnemyEncounterStateEntry(
-            encounter, 1, 4, 7, 1, 0, 30, 2, -7) &&
+            encounter, 1, 4, 2, 7, 1, 0, 30, 2, -7) &&
         sealEnemyEncounterStateMessage(encounter) &&
         validEnemyEncounterStateMessage(encounter) &&
         enemyEncounterStateSequence(encounter) == 9 &&
@@ -1756,12 +1758,36 @@ test "platform state and audio queue lifecycle" {
     var state = window.snapshot()
     assert(state.width() == 1024 && state.height() == 768 && state.focused() && state.closeRequested())
 
-    var audio = QueuedAudio(1)
+    var audio = QueuedAudio(3)
     assert(audio.open())
-    assert(audio.queue(3, 100))
-    assert(!audio.queue(4, 100))
-    assert(audio.dequeue())
-    assert(audio.consumedClip() == 3 && audio.consumedGain() == 100)
+    assert(audio.queue(3, 100) && audio.dequeue())
+    assert(audio.consumedClip() == 3 &&
+        audio.consumedGain() == 100 &&
+        audio.consumedLeftGain() == 100 &&
+        audio.consumedRightGain() == 100)
+    assert(audio.queueSpatial(
+            4, 100, 10, 0, 0, 0, 0, 0, 100, 0, 20) &&
+        audio.dequeue() &&
+        audio.consumedGain() == 50 &&
+        audio.consumedLeftGain() == 25 &&
+        audio.consumedRightGain() == 50,
+        "right-side audio must attenuate and pan right")
+    assert(audio.queueSpatial(
+            5, 100, -10, 0, 0, 0, 0, 0, 100, 0, 20) &&
+        audio.dequeue() &&
+        audio.consumedGain() == 50 &&
+        audio.consumedLeftGain() == 50 &&
+        audio.consumedRightGain() == 25,
+        "left-side audio must attenuate and pan left")
+    assert(audio.queueSpatial(
+            6, 100, 0, 20, 0, 0, 0, 0, 100, 0, 20) &&
+        audio.dequeue() &&
+        audio.consumedGain() == 0 &&
+        audio.consumedLeftGain() == 0 &&
+        audio.consumedRightGain() == 0,
+        "maximum-distance audio must attenuate to silence")
+    assert(!audio.queueSpatial(
+        7, 100, 0, 0, 0, 0, 0, 0, 0, 0, 20))
     assert(audio.close())
 }
 test "remote endpoint and key lifecycle" {
@@ -3406,6 +3432,11 @@ test "replicated projectile presentation queues" {
         loopback.enemyImpactSnapshotCount() == 1,
         "loopback must publish the terminal impact snapshot")
     var snapshot = loopback.latestEnemyImpactSnapshot()
+    assert(loopback.pendingImpactPresentations() == 1 &&
+        loopback.pendingImpactAudio() == 1 &&
+        loopback.dequeueImpactPresentation() &&
+        loopback.dequeueImpactAudio(),
+        "authoritative projectile impact must stage host feedback")
     assert(snapshot.kind() == 1 && snapshot.sourceId() == 1 &&
         snapshot.targetId() == 2 && snapshot.applied() == 3 &&
         loopback.applyEnemyImpactSnapshot(snapshot) &&
@@ -3418,13 +3449,68 @@ test "replicated projectile presentation queues" {
         "client admission must stage impact and capture replay presentation")
     assert(loopback.dequeueImpactPresentation())
     var presentation = loopback.lastImpactPresentation()
-    assert(presentation.sequence() == snapshot.sequence() &&
-        presentation.clip() == 201 && presentation.gain() == 100 &&
+    assert(presentation.clip() == 201 &&
+        presentation.gain() == 100 &&
         presentation.x() == snapshot.x(),
         "presentation event must preserve replicated impact identity")
     assert(loopback.dequeueImpactAudio() &&
         loopback.consumedImpactClip() == 201 &&
-        loopback.consumedImpactGain() == 100 &&
+        loopback.consumedImpactGain() == 90 &&
+        loopback.consumedImpactLeftGain() == 90 &&
+        loopback.consumedImpactRightGain() == 90 &&
         !loopback.applyEnemyImpactSnapshot(snapshot),
-        "audio consumption and duplicate snapshot rejection must be bounded")
+        "audio consumption must attenuate by distance and reject duplicates")
+}
+
+test "continuous multi-role enemies retarget and replicate" {
+    var host = LoopbackSession(16, 12)
+    var client = LoopbackSession(8, 12)
+    assert(host.configureEnemyRules(100, 5, 1) &&
+        host.configureEnemySpatialBounds(
+            -200, -20, -20, 200, 20, 20) &&
+        host.defineEnemyWeapon(41, 32, 0, 0, 3, 1, 20) &&
+        host.defineEnemyEncounter(9, 3, 3) &&
+        host.start() && host.connectPlayer() == 1 &&
+        host.connectPlayer() == 2 &&
+        host.addPlayerCombatActor(1, 200, 0) &&
+        host.addPlayerCombatActor(2, 200, 0) &&
+        host.addEnemyCombatActor(1, 200, 0) &&
+        host.addEnemyCombatActor(2, 200, 0) &&
+        host.equipEnemyCombatWeapon(1, 41) &&
+        host.equipEnemyCombatWeapon(2, 41) &&
+        host.setEnemySpatialPosition(1, -10, 0, 0) &&
+        host.setEnemySpatialPosition(2, 10, 0, 0) &&
+        host.admitEnemyAt(9, 10, 0, 60, 0, 41, -8, 0, 0) &&
+        host.admitEnemyAt(9, 11, 0, 60, 0, 41, 8, 0, 0) &&
+        host.admitEnemyAt(9, 12, 0, 60, 0, 41, 0, 0, 0) &&
+        host.configureEnemyRole(10, 1, 2, 2, 0) &&
+        host.configureEnemyRole(11, 2, 2, 1, 0) &&
+        host.configureEnemyRole(12, 3, 2, 2, 0),
+        "three autonomous combat roles must configure")
+    assert(host.advance(66668) == 4 &&
+        host.enemyRole(10) == 1 &&
+        host.enemyRole(11) == 2 &&
+        host.enemyRole(12) == 3 &&
+        host.enemyTarget(10) == 1 &&
+        host.enemyTarget(11) == 2 &&
+        host.enemySpatialPositionX(12) < 0 &&
+        host.remoteImpactSequence() >= 3 &&
+        host.enemyProjectileHits() > 0,
+        "roles must continuously move, fire, and target nearest live players")
+    assert(host.setEnemySpatialPosition(1, 100, 0, 0) &&
+        host.advance(16667) == 1 &&
+        host.enemyTarget(10) == 2,
+        "autonomous enemies must retarget when nearest live player changes")
+    var encounter = host.enemyEncounterStateMessage(
+        host.currentServerTick(), 9)
+    assert(client.start() &&
+        client.applyRemoteEnemyEncounterState(encounter),
+        "client must accept replicated encounter state")
+    assert(client.clientRemoteEnemyRole(10) == 1 &&
+        client.clientRemoteEnemyRole(11) == 2 &&
+        client.clientRemoteEnemyRole(12) == 3,
+        "encounter replication must preserve every enemy role")
+    assert(client.clientRemoteEnemyPositionX(12) ==
+            host.enemySpatialPositionX(12),
+        "encounter replication must preserve continuous position")
 }

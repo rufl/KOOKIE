@@ -272,4 +272,12 @@ class G1Demo {
     Int combatFeedbackGain() {
         return loopback.consumedImpactGain()
     }
+
+    Int combatFeedbackLeftGain() {
+        return loopback.consumedImpactLeftGain()
+    }
+
+    Int combatFeedbackRightGain() {
+        return loopback.consumedImpactRightGain()
+    }
 }

@@ -73,23 +73,25 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - O replay de interações agora registra até 64 comandos consumidos, reserva capacidade antes da admissão, persiste os comandos em bundles v2 e simula novamente a partir de checkpoints completos. Movimento usa o tick consumido; input mantido e sequência de apresentação sobrevivem a buscas repetidas.
 - A progressão do nível agora usa seção 11/versão 1 com identidade de nível/conteúdo e correspondência exata de IDs estáveis. Arquivos de save usam cópias v2 limitadas e com checksum; arquivos v1 genuínos continuam legíveis e o reparo os atualiza. Dezesseis cenários focados e 20 regressões existentes afetadas passam em cada alvo.
 - Corrigimos a serialização nativa de campos de rolagem de itens e registros de triângulos não usados; regressões com buffers contaminados impedem memória residual em arquivos de replay.
-- A integração de portas agora faz portas criadas fechadas bloquearem o movimento escalar autoritativo através do plano X; portas abertas deixam de bloquear. A geometria visível ao cliente é preparada por `FrameStaging` com estado aberto/fechado; o contrato continua sendo uma arena escalar `(x, 0, 0)`, não uma malha 3D completa.
+- A integração de portas agora usa centro/semieixos 3D criados para bloqueio autoritativo por segmento/AABB. Portas abertas deixam de bloquear; portas fechadas geram um cuboide de 36 vértices projetado pela câmera por `FrameStaging`, incluindo caminhos acima e ao lado do volume.
 - Substituímos o wire exclusivo de interação por comandos unificados,
   versionados e com checksum para movimento, disparo, interação, desconexão e
   reconexão, além de estado autoritativo com posições, vida, moeda, progressão
   e diagnóstico de conexão.
-- Os três processos na JVM e no nativo agora comprovam movimento emitido pelo
-  cliente, morte hitscan de inimigo mais 25 moedas, estado e vida terminais do
-  encounter, sequência do impacto confirmado mais recente, revisão 4 de
+- Execuções com três processos na JVM e no nativo comprovam movimento emitido
+  pelo cliente, morte hitscan autoritativa do inimigo mais 25 moedas, estado e
+  vida terminais do encounter, feedback confirmado mais recente, revisão 4 de
   chave/porta/segredo/saída, geração 2 após reconexão e diagnóstico explícito
-  de comando obsoleto. A resposta do host combina estado fixo do
-  jogador/progressão com mensagem de encounter `20 + 7N`, limitada a 32
+  de geração obsoleta. O host envia estado de gameplay com 20 palavras
+  específico por destinatário, lotes ordenados de feedback `6 + 11F` e uma
+  mensagem de encounter `20 + 8N` com checksum, papel e posição 3D para até 32
   inimigos.
-- Isso avança G2, mas não comprova o protocolo evoluído entre hosts separados
-  nem conclui simulação contínua e replicada de vários papéis de inimigos,
-  predição/reconciliação completa, recuperação de entrada em produção, portas
-  3D, cobertura completa de feedback multiplayer ou mixagem/espacialização de
-  áudio de produção.
+- As qualificações combinadas de código-fonte e interação encerram os contratos
+  G2 de papéis contínuos hitscan/projétil/shotgun,
+  predição/reconciliação, entrada/recuperação segura por geração, volume 3D das
+  portas, recuperação de feedback e espacialização estéreo Kof→SDL. A execução
+  local dos papéis não é evidência WAN nem substitui o gate de release entre
+  hosts distintos.
 
 - O contrato de transporte da sonda G0 agora é neutro ao alvo, com backend UDP
   nativo e backend UDP JVM direto em Kof por meio das APIs JDK `java.net`.

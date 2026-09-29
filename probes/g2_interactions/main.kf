@@ -3,10 +3,10 @@ import session
 
 Bool verifyWorldProgression() {
     var world = BoundedInteractionWorld(6, 100)
-    assert(!world.defineDoor(2, 1, 0, 0, 0, 1))
+    assert(!world.defineDoor(2, 1, 0, 0, 0, 1, 2, 1, 1))
     assert(world.defineKey(1, 0, 0, 0, 1))
     assert(!world.defineSecret(1, 0, 0, 0, 1) && !world.defineKey(9, 101, 0, 0, 1))
-    assert(world.defineDoor(2, 1, 0, 0, 0, 1))
+    assert(world.defineDoor(2, 1, 0, 0, 0, 1, 2, 1, 1))
     assert(world.defineSecret(3, 0, 0, 0, 1) && world.defineSecret(4, 0, 0, 0, 1))
     assert(!world.defineExit(5, 1, 2, 0, 0, 0, 1))
     assert(!world.defineExit(5, 2, 3, 0, 0, 0, 1))
@@ -25,7 +25,7 @@ Bool verifyWorldProgression() {
 
 Bool verifyWorldRestore() {
     var world = BoundedInteractionWorld(4, 100)
-    assert(world.defineKey(10, 0, 0, 0, 0) && world.defineDoor(20, 10, 0, 0, 0, 0))
+    assert(world.defineKey(10, 0, 0, 0, 0) && world.defineDoor(20, 10, 0, 0, 0, 1, 2, 1, 0))
     assert(world.defineSecret(30, 0, 0, 0, 0) && world.defineExit(40, 20, 1, 0, 0, 0, 0))
     assert(world.seal() && world.interact(10, 0, 0, 0) && world.interact(20, 0, 0, 0))
     var state = new Int[world.replayStateLength()]
@@ -49,7 +49,7 @@ Bool verifyWorldRestore() {
 Bool verifyCooperativeSession() {
     var session = LoopbackSession(4, 2)
     assert(session.defineWorldKey(1, 0, 0, 0, 0))
-    assert(session.defineWorldDoor(2, 1, 0, 0, 0, 0))
+    assert(session.defineWorldDoor(2, 1, 0, 0, 0, 1, 2, 1, 0))
     assert(session.defineWorldSecret(3, 0, 0, 0, 0))
     assert(session.defineWorldExit(4, 2, 1, 0, 0, 0, 0))
     assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
@@ -98,38 +98,53 @@ Bool verifyInteractionAdmission() {
 Bool verifyInteractionCheckpoint() {
     var session = LoopbackSession(4, 2)
     assert(session.defineWorldKey(1, 0, 0, 0, 0))
-    assert(session.defineWorldDoor(2, 1, 0, 0, 0, 0))
+    assert(session.defineWorldDoor(2, 1, 0, 0, 0, 1, 2, 1, 0))
     assert(session.defineWorldSecret(3, 0, 0, 0, 0))
     assert(session.start() && session.connectPlayer() == 1)
-    assert(session.receiveInteraction(1, 1, 1, 1) && session.advance(16667) == 1)
+    assert(session.receiveInteraction(1, 1, 1, 1) &&
+        session.advance(16667) == 1)
     assert(session.receiveInteraction(1, 2, 2, 2))
     var timeline = BoundedReplayTimeline(4, 2)
     assert(session.appendReplayCheckpointBundle(timeline, 1, 71))
-    assert(session.advance(16667) == 1 && session.worldInteractionActive(2))
-    assert(session.receiveInteraction(1, 3, 3, 3) && session.advance(16667) == 1)
+    assert(session.advance(16667) == 1 &&
+        session.worldInteractionActive(2))
+    assert(session.receiveInteraction(1, 3, 3, 3) &&
+        session.advance(16667) == 1)
     assert(session.appendReplayCheckpointBundle(timeline, 3, 73))
     var store = BoundedReplayBundleFileStore(4)
-    assert(store.writeTimeline("interaction-replay.dat", timeline, 1, 1, 99))
+    assert(store.writeTimeline(
+        "interaction-replay.dat", timeline, 1, 1, 99))
     var loaded = BoundedReplayTimeline(4, 2)
     assert(store.readTimeline("interaction-replay.dat", loaded))
     assert(session.applyReplayCheckpointBundle(loaded, 1))
-    assert(session.currentServerTick() == 1 && session.worldInteractionActive(1))
-    assert(!session.worldInteractionActive(2) && !session.clientWorldInteractionActive(2))
-    assert(session.worldSecretCount() == 0 && session.clientWorldSecretCount() == 0)
-    assert(!session.receiveInteraction(1, 2, 3, 3), "restored pending command must retain its queue slot")
-    assert(session.advance(16667) == 1 && session.worldInteractionActive(2))
-    assert(session.lastInteractionTarget(1) == 2 && session.lastInteractionTick(1) == 2)
-    assert(!session.receiveInteraction(1, 3, 2, 3), "restored sequence watermark must reject duplicates")
-    assert(session.applyReplayCheckpointBundle(loaded, 3) && session.worldSecretCount() == 1,
+    assert(session.currentServerTick() == 1 &&
+        session.worldInteractionActive(1))
+    assert(!session.worldInteractionActive(2) &&
+        !session.clientWorldInteractionActive(2))
+    assert(session.worldSecretCount() == 0 &&
+        session.clientWorldSecretCount() == 0)
+    assert(!session.receiveInteraction(1, 2, 3, 3),
+        "restored pending command must retain its queue slot")
+    assert(session.advance(16667) == 1 &&
+        session.worldInteractionActive(2))
+    assert(session.lastInteractionTarget(1) == 2 &&
+        session.lastInteractionTick(1) == 2)
+    assert(!session.receiveInteraction(1, 3, 2, 3),
+        "restored sequence watermark must reject duplicates")
+    assert(session.applyReplayCheckpointBundle(loaded, 3) &&
+        session.worldSecretCount() == 1,
         "second checkpoint must use independent primary and sidecar strides")
     var state = new Int[session.replayCheckpointLength()]
     assert(session.encodeReplayCheckpoint(state))
-    var worldOffset = state.length - 163
+    var worldOffset = state.length -
+        session.worldInteractionReplayStateLength() - 16
     state[worldOffset + 11] = 0
     var invalid = BoundedReplayTimeline(1, 1)
     assert(invalid.appendCheckpointSnapshot(3, 73, state))
-    assert(!session.applyReplayCheckpoint(invalid, 3) && session.worldSecretCount() == 1)
-    assert(session.worldInteractionActive(1) && session.worldInteractionActive(2))
+    assert(!session.applyReplayCheckpoint(invalid, 3) &&
+        session.worldSecretCount() == 1)
+    assert(session.worldInteractionActive(1) &&
+        session.worldInteractionActive(2))
     return true
 }
 
@@ -167,12 +182,25 @@ Bool verifyCatchupTicks() {
 Bool verifyDoorArenaIntegration() {
     var session = LoopbackSession(4, 2)
     assert(session.defineWorldKey(1, 0, 0, 0, 0))
-    assert(session.defineWorldDoor(2, 1, 2, 0, 0, 2))
+    assert(session.defineWorldDoor(2, 1, 2, 0, 0, 1, 2, 1, 2))
     assert(session.start() && session.connectPlayer() == 1)
-    assert(session.worldInteractionRenderVertexCount() == 6)
-    var closedGeometry = FrameStaging(6)
-    assert(session.stageWorldInteractionGeometry(closedGeometry, 1, 7))
-    assert(closedGeometry.stagedCount() == 6 && closedGeometry.scalarWrites() == 30)
+    var blocked = session.queryWorldDoorPath(
+        SpatialPoint(0, 0, 0), SpatialPoint(4, 0, 0))
+    var above = session.queryWorldDoorPath(
+        SpatialPoint(0, 4, 0), SpatialPoint(4, 4, 0))
+    var around = session.queryWorldDoorPath(
+        SpatialPoint(0, 0, 3), SpatialPoint(4, 0, 3))
+    assert(blocked.accepted() && blocked.collided() &&
+        above.accepted() && !above.collided() &&
+        around.accepted() && !around.collided(),
+        "closed door collision must use its complete authored 3D volume")
+    assert(session.worldInteractionRenderVertexCount() == 36)
+    var camera = CameraState(-450, 450)
+    var closedGeometry = FrameStaging(36)
+    assert(session.stageWorldInteractionGeometry(
+        closedGeometry, 1, 7, camera))
+    assert(closedGeometry.stagedCount() == 36 &&
+        closedGeometry.scalarWrites() == 180)
     var closedChecksum = closedGeometry.checksum()
     assert(session.receiveInteraction(1, 1, 1, 1))
     assert(session.receiveInput(1, 1, 1, 4, 0, 0, 0, 0, 0))
@@ -180,15 +208,20 @@ Bool verifyDoorArenaIntegration() {
         "closed authored doors must block authoritative movement across their plane")
     assert(session.receiveInteraction(1, 2, 2, 2) && session.advance(16667) == 1)
     assert(session.worldInteractionActive(2))
+    var opened = session.queryWorldDoorPath(
+        SpatialPoint(0, 0, 0), SpatialPoint(4, 0, 0))
+    assert(opened.accepted() && !opened.collided(),
+        "open doors must leave their complete collision volume")
     assert(session.receiveInput(1, 3, 2, 4, 0, 0, 0, 0, 0))
     assert(session.advance(16667) == 1 && session.serverPosition(1) == 4,
         "opening the door must update the authoritative collision path")
-    var openGeometry = FrameStaging(6)
-    assert(session.stageWorldInteractionGeometry(openGeometry, 2, 7))
-    assert(openGeometry.checksum() != closedChecksum &&
-        openGeometry.checksum() > closedChecksum,
-        "client door geometry must publish open state through frame staging")
-    assert(!session.stageWorldInteractionGeometry(openGeometry, 2, 7),
+    var openGeometry = FrameStaging(36)
+    assert(session.stageWorldInteractionGeometry(
+        openGeometry, 2, 7, camera))
+    assert(openGeometry.checksum() != closedChecksum,
+        "client door cuboid must visibly move when opened")
+    assert(!session.stageWorldInteractionGeometry(
+            openGeometry, 2, 7, camera),
         "published frame ownership must prevent duplicate staging")
     return true
 }
@@ -205,15 +238,14 @@ Bool verifyClientReconnectAndStaleInput() {
     assert(session.connectPlayer() == 2 && session.playerConnected(2) &&
         session.serverPosition(2) == 2 && session.clientPosition(2) == 2,
         "reconnect must preserve authoritative position")
-    assert(!session.receiveInput(2, 2, 1, 2, 0, 0, 0, 0, 0),
-        "reconnect must retain the sequence watermark")
-    assert(session.receiveInput(2, 2, 2, 1, 0, 0, 0, 0, 0))
+    assert(session.receiveInput(2, 2, 1, 1, 0, 0, 0, 0, 0),
+        "reconnect must start a fresh input sequence epoch")
     assert(session.advance(16667) == 1 && session.serverPosition(2) == 3)
-    assert(session.receiveInput(2, 3, 3, 1, 0, 0, 0, 0, 0))
+    assert(session.receiveInput(2, 3, 2, 1, 0, 0, 0, 0, 0))
     assert(session.disconnectPlayer(2, 2) && session.connectPlayer() == 2)
     assert(session.advance(16667) == 1 && session.serverPosition(2) == 3,
         "disconnect must discard pending stale movement")
-    assert(session.receiveInput(2, 4, 4, -1, 0, 0, 0, 0, 0) &&
+    assert(session.receiveInput(2, 4, 1, -1, 0, 0, 0, 0, 0) &&
         session.advance(16667) == 1 && session.serverPosition(2) == 2)
     return true
 }
@@ -245,7 +277,7 @@ Bool verifyCheckpointInitialization() {
 Bool verifyConsumedInteractionReplay() {
     var session = LoopbackSession(4, 2)
     assert(session.defineWorldKey(10, 2, 0, 0, 0))
-    assert(session.defineWorldDoor(20, 10, 0, 0, 0, 2))
+    assert(session.defineWorldDoor(20, 10, 4, 0, 0, 1, 2, 1, 4))
     assert(session.defineWorldSecret(30, 2, 0, 0, 0))
     assert(session.defineWorldExit(40, 20, 1, 0, 0, 0, 2))
     assert(session.start() && session.connectPlayer() == 1 && session.connectPlayer() == 2)
@@ -397,14 +429,14 @@ Bool verifyReplayFileBoundaries() {
 
 Bool verifyLevelSaveIdentity() {
     var source = BoundedInteractionWorld(4, 100)
-    assert(source.defineKey(10, 0, 0, 0, 0) && source.defineDoor(20, 10, 0, 0, 0, 0))
+    assert(source.defineKey(10, 0, 0, 0, 0) && source.defineDoor(20, 10, 0, 0, 0, 1, 2, 1, 0))
     assert(source.defineSecret(30, 0, 0, 0, 0) && source.defineExit(40, 20, 1, 0, 0, 0, 0))
     assert(source.seal() && source.interact(10, 0, 0, 0) && source.interact(20, 0, 0, 0))
     var sections = BoundedSaveSections(12, 160)
     assert(sections.setRevision(7) && source.encodeLevelProgression(sections, 100, 3))
     var target = BoundedInteractionWorld(4, 100)
     assert(target.defineSecret(30, 0, 0, 0, 0) && target.defineKey(10, 0, 0, 0, 0))
-    assert(target.defineDoor(20, 10, 0, 0, 0, 0) && target.defineExit(40, 20, 1, 0, 0, 0, 0))
+    assert(target.defineDoor(20, 10, 0, 0, 0, 1, 2, 1, 0) && target.defineExit(40, 20, 1, 0, 0, 0, 0))
     assert(target.seal() && target.restoreLevelProgression(sections, 100, 3))
     assert(target.activated(10) && target.activated(20) && !target.activated(30),
         "stable IDs, not authoring order, identify persisted interactions")
@@ -495,7 +527,7 @@ Bool verifyLegacyLevelSaveFile() {
 
 Bool verifySessionLevelSaveRestore() {
     var session = LoopbackSession(2, 2)
-    assert(session.defineWorldKey(1, 0, 0, 0, 0) && session.defineWorldDoor(2, 1, 0, 0, 0, 0))
+    assert(session.defineWorldKey(1, 0, 0, 0, 0) && session.defineWorldDoor(2, 1, 0, 0, 0, 1, 2, 1, 0))
     assert(session.start() && session.connectPlayer() == 1)
     var initial = BoundedSaveSections(12, 160)
     assert(initial.setRevision(1) && session.encodeLevelProgression(initial, 7, 2))
@@ -515,15 +547,15 @@ Bool verifyRemoteGameplayAuthority() {
     var clientA = LoopbackSession(4, 4)
     var clientB = LoopbackSession(4, 4)
     assert(host.defineWorldKey(1, 2, 0, 0, 0) &&
-        host.defineWorldDoor(2, 1, 3, 0, 0, 3) &&
+        host.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         host.defineWorldSecret(3, 2, 0, 0, 0) &&
         host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
         clientA.defineWorldKey(1, 2, 0, 0, 0) &&
-        clientA.defineWorldDoor(2, 1, 3, 0, 0, 3) &&
+        clientA.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         clientA.defineWorldSecret(3, 2, 0, 0, 0) &&
         clientA.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
         clientB.defineWorldKey(1, 2, 0, 0, 0) &&
-        clientB.defineWorldDoor(2, 1, 3, 0, 0, 3) &&
+        clientB.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         clientB.defineWorldSecret(3, 2, 0, 0, 0) &&
         clientB.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
         host.start() && host.connectPlayer() == 1 &&
@@ -539,11 +571,13 @@ Bool verifyRemoteGameplayAuthority() {
         "host must own enemy encounter combat and reward configuration")
 
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 1, 1, gameplayFireAction(), 3, 10, 0, 0)) &&
+        1, 1, 1, gameplayFireAction(), 3, 10, 0, 1)) &&
         host.lastRemoteGameplayAccepted())
     var state = host.gameplayStateMessage(1, 3, 1)
+    var feedback = host.multiplayerFeedbackStateMessage(1)
     var encounter = host.enemyEncounterStateMessage(1, 4)
     assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.applyRemoteMultiplayerFeedback(feedback) &&
         clientA.applyRemoteEnemyEncounterState(encounter) &&
         clientA.clientRemoteCombatActor() == 3 &&
         clientA.clientRemoteCombatHealth() == 4 &&
@@ -559,11 +593,13 @@ Bool verifyRemoteGameplayAuthority() {
     assert(firstImpact.targetId() == 3 &&
         firstImpact.applied() == 4 && !firstImpact.died())
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 2, 2, gameplayFireAction(), 3, 10, 0, 0)) &&
+        1, 2, 2, gameplayFireAction(), 3, 10, 0, 1)) &&
         host.lastRemoteGameplayAccepted())
     state = host.gameplayStateMessage(2, 3, 1)
+    feedback = host.multiplayerFeedbackStateMessage(2)
     encounter = host.enemyEncounterStateMessage(2, 4)
     assert(clientA.applyRemoteGameplayState(state) &&
+        clientA.applyRemoteMultiplayerFeedback(feedback) &&
         clientA.applyRemoteEnemyEncounterState(encounter) &&
         clientA.clientRemoteCombatHealth() == 0 &&
         clientA.clientRemoteEnemyHealth(3) == 0 &&
@@ -579,8 +615,13 @@ Bool verifyRemoteGameplayAuthority() {
     assert(terminalImpact.targetId() == 3 &&
         terminalImpact.applied() == 4 && terminalImpact.died())
 
+    assert(clientA.predictRemoteGameplayInput(1, 3, 2, 1) &&
+        clientA.predictRemoteGameplayInput(1, 4, 1, 1) &&
+        clientA.clientRemotePredictedPosition() == 3 &&
+        clientA.clientRemotePendingPredictionInputs() == 2,
+        "remote client must predict ordered local movement inputs")
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 3, 3, gameplayMoveAction(), 2, 0, 0, 0)),
+        1, 3, 3, gameplayMoveAction(), 2, 0, 0, 1)),
         "remote movement command must pass wire validation")
     assert(host.lastRemoteGameplayAccepted(),
         "remote movement command must enter the authoritative tick")
@@ -588,28 +629,37 @@ Bool verifyRemoteGameplayAuthority() {
         "remote movement must change the authoritative position")
     state = host.gameplayStateMessage(3, 3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
-        clientA.clientRemotePlayerPosition(1) == 2,
-        "remote movement must publish authoritative position")
+        clientA.clientRemotePlayerPosition(1) == 2 &&
+        clientA.clientRemoteAuthoritativePosition() == 2 &&
+        clientA.clientRemotePredictedPosition() == 3 &&
+        clientA.clientRemotePredictionCorrection() == 1 &&
+        clientA.clientRemotePendingPredictionInputs() == 1,
+        "reconciliation must replay inputs newer than the server tick")
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 4, 4, gameplayInteractAction(), 1, 0, 0, 0)) &&
+        1, 4, 4, gameplayInteractAction(), 1, 0, 0, 1)) &&
         host.lastRemoteGameplayAccepted())
     state = host.gameplayStateMessage(4, 3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
-        clientA.clientWorldInteractionActive(1),
-        "remote interaction mask must activate matching client content")
+        clientA.clientWorldInteractionActive(1) &&
+        clientA.clientRemotePredictedPosition() == 2 &&
+        clientA.clientRemotePredictionCorrection() == 0 &&
+        clientA.clientRemotePendingPredictionInputs() == 0,
+        "later authority must correct an unacknowledged prediction")
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 5, 4, gameplayInteractAction(), 3, 0, 0, 0)) &&
+        1, 5, 4, gameplayInteractAction(), 3, 0, 0, 1)) &&
         !host.lastRemoteGameplayAccepted() &&
         host.lastRemoteGameplayDiagnostic() == gameplayStaleDiagnostic())
-    state = host.gameplayStateMessage(5, 3, 1)
+    state = host.gameplayStateMessage(
+        host.currentServerTick(), 3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientRemoteDiagnostic() == gameplayStaleDiagnostic(),
         "stale remote command must return an explicit client diagnostic")
 
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        2, 1, 1, gameplayDisconnectAction(), 2, 0, 0, 0)) &&
+        2, 1, 1, gameplayDisconnectAction(), 2, 0, 0, 1)) &&
         host.lastRemoteGameplayAccepted())
-    var lifecycle = host.gameplayStateMessage(1, 3, 2)
+    var lifecycle = host.gameplayStateMessage(
+        host.currentServerTick(), 3, 2)
     assert(clientB.applyRemoteGameplayState(lifecycle) &&
         !clientB.clientRemoteConnected() &&
         clientB.clientRemoteDisconnectReason() == 2 &&
@@ -617,15 +667,95 @@ Bool verifyRemoteGameplayAuthority() {
         clientB.clientRemoteDiagnostic() == gameplayDisconnectDiagnostic(),
         "disconnect must publish bounded reason and generation")
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        2, 1, 2, gameplayReconnectAction(), 0, 0, 0, 0)) &&
+        2, 1, 2, gameplayReconnectAction(), 0, 0, 0, 1)) &&
         host.lastRemoteGameplayAccepted())
-    lifecycle = host.gameplayStateMessage(1, 3, 2)
+    lifecycle = host.gameplayStateMessage(
+        host.currentServerTick(), 3, 2)
     assert(clientB.applyRemoteGameplayState(lifecycle) &&
         clientB.clientRemoteConnected() &&
         clientB.clientRemoteDisconnectReason() == 0 &&
         clientB.clientRemoteConnectionGeneration() == 2 &&
         clientB.clientRemoteDiagnostic() == gameplayReconnectDiagnostic(),
         "reconnect must preserve identity and advance its generation")
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+            2, 5, 999, gameplayMoveAction(), 3, 0, 0, 1)) &&
+        !host.lastRemoteGameplayAccepted() &&
+        host.lastRemoteGameplayDiagnostic() ==
+            gameplayGenerationDiagnostic(),
+        "old connection generation must reject before sequence admission")
+    assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
+            2, 5, 1, gameplayMoveAction(), 2, 0, 0, 2)) &&
+        host.lastRemoteGameplayAccepted(),
+        "new connection epoch must accept a reset sequence watermark")
+    lifecycle = host.gameplayStateMessage(
+        host.currentServerTick(), 3, 2)
+    assert(clientB.applyRemoteGameplayState(lifecycle) &&
+        clientB.clientRemotePlayerPosition(2) == 2 &&
+        clientB.clientRemoteConnectionGeneration() == 2,
+        "recovered identity must resume authoritative movement")
+    return true
+}
+
+Bool verifyMultiplayerFeedbackRecovery() {
+    var host = LoopbackSession(4, 2)
+    var client = LoopbackSession(4, 2)
+    assert(host.start() && host.connectPlayer() == 1 &&
+        host.addPlayerCombatActor(1, 20, 0) &&
+        client.start() &&
+        client.applyRemoteGameplayState(
+            host.gameplayStateMessage(0, 1, 1)),
+        "feedback client must establish a generation baseline")
+
+    var batch = newMultiplayerFeedbackMessage(0, 1, 2)
+    var first = ImpactPresentationEvent(
+        1, 1, 1, 3, 8, 0, 0, 4, false, 201, 70)
+    var second = ImpactPresentationEvent(
+        2, 2, 3, 1, 2, 0, 0, 6, true, 202, 100)
+    assert(setMultiplayerFeedbackEvent(batch, 0, first) &&
+        setMultiplayerFeedbackEvent(batch, 1, second) &&
+        sealMultiplayerFeedbackMessage(batch) &&
+        client.applyRemoteMultiplayerFeedback(batch) &&
+        client.clientRemoteImpactSequence() == 2 &&
+        client.pendingImpactPresentations() == 2 &&
+        client.pendingImpactAudio() == 2,
+        "ordered feedback batches must preserve every presentation")
+    assert(!client.applyRemoteMultiplayerFeedback(batch),
+        "duplicate feedback state must reject")
+
+    var gap = newMultiplayerFeedbackMessage(0, 2, 1)
+    var skipped = ImpactPresentationEvent(
+        4, 1, 1, 3, 9, 0, 0, 1, false, 201, 70)
+    assert(setMultiplayerFeedbackEvent(gap, 0, skipped) &&
+        sealMultiplayerFeedbackMessage(gap) &&
+        !client.applyRemoteMultiplayerFeedback(gap) &&
+        client.clientRemoteImpactSequence() == 2 &&
+        client.pendingImpactPresentations() == 2,
+        "feedback gaps must reject without partial presentation")
+    assert(client.dequeueImpactPresentation() &&
+        client.lastImpactPresentation().targetId() == 3 &&
+        client.dequeueImpactPresentation() &&
+        client.lastImpactPresentation().targetId() == 1,
+        "batched feedback must retain presentation order")
+
+    assert(host.disconnectPlayer(1, 2) &&
+        host.reconnectPlayer(1) &&
+        client.applyRemoteGameplayState(
+            host.gameplayStateMessage(0, 1, 1)) &&
+        client.clientRemoteConnectionGeneration() == 2 &&
+        client.clientRemoteImpactSequence() == 0 &&
+        client.pendingImpactPresentations() == 0 &&
+        client.pendingImpactAudio() == 0,
+        "reconnect baseline must discard stale feedback")
+    var recovered = newMultiplayerFeedbackMessage(0, 3, 1)
+    var resumed = ImpactPresentationEvent(
+        10, 3, 1, 0, 0, 0, 0, 1, false, 203, 80)
+    assert(setMultiplayerFeedbackEvent(recovered, 0, resumed) &&
+        sealMultiplayerFeedbackMessage(recovered) &&
+        client.applyRemoteMultiplayerFeedback(recovered) &&
+        client.clientRemoteImpactSequence() == 10 &&
+        client.pendingImpactPresentations() == 1 &&
+        client.pendingImpactAudio() == 1,
+        "new generation must accept a recovered feedback sequence baseline")
     return true
 }
 
@@ -634,6 +764,7 @@ main() {
     assert(verifyDoorArenaIntegration())
     assert(verifyClientReconnectAndStaleInput())
     assert(verifyRemoteGameplayAuthority())
+    assert(verifyMultiplayerFeedbackRecovery())
     assert(verifyCooperativeSession())
     assert(verifyInteractionAdmission())
     assert(verifyInteractionCheckpoint())

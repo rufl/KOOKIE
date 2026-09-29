@@ -106,21 +106,22 @@ open a configured IPv4 peer, requires a test SipHash key before exchanging
 authenticated frames, then clears key material on close; production key
 management remains unimplemented.
 23. GPU recovery capability reporting is state-aware: ready exposes clean reopen plus the explicit loss marker, lost exposes reopen only, and unavailable/failed expose no capabilities; SDL3 exposes no device-loss callback in the installed GPU API.
-24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is bound to both the environment key boundary and a live external UDP peer smoke; session orchestration and production secret storage remain unimplemented.
-25. `RemoteSessionLink` gates broad-phase snapshots on endpoint activation and strictly increasing send/receive sequences; the native isolated probe sends and applies a snapshot through the link, while live session-loop orchestration remains unimplemented.
+24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is used by live host/client role orchestration; production secret distribution remains external.
+25. `RemoteSessionLink` gates snapshots on endpoint activation and strictly increasing send/receive sequences. JVM/native three-process qualification carries gameplay, feedback and encounter state through the real session loop.
 26. `BoundedRayTargetWorld` now performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering, source exclusion through `SpatialAimContract`, and target removal. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits and bounded misses. `LoopbackSession.resolvePlayerSpatialShotgun` now connects that selection to authoritative player combat.
 27. Native SIMD dispatch now selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps a checked scalar fallback. `FFI001` still prevents Kof bulk-buffer integration, so this is not a measured engine speedup.
-28. The current focused source gate is 72 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
-29. Accepted direct enemy hitscan/single-target shotgun resolutions now emit
-    bounded monotonic impact presentation and audio events. HUD geometry
-    distinguishes hit, kill and incoming damage without relying on color alone;
-    presentation backpressure is counted and cannot roll back authoritative
-    damage.
-30. Host encounter state uses a dynamic checksummed `20 + 7N`-word message,
-    bounded to 32 enemies and the shared 300-word transport capacity. Decode is
-    validate-before-mutate and sequence-guarded. Presentation queue backpressure
-    may drop feedback but cannot reject or roll back newer authoritative enemy
-    state.
+28. The current focused source gate is 73 JVM/native tests, plus Kof lint/LSP and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for the short human-readable history.
+29. Accepted authoritative impacts enter bounded monotonic presentation/audio
+    history and ordered `6 + 11F` feedback batches. Whole-message validation,
+    duplicate/gap rejection and generation baselines prevent partial or stale
+    presentation without rolling back authoritative damage.
+30. Host encounter state uses a dynamic checksummed `20 + 8N`-word message,
+    bounded to 32 enemies and the shared 300-word transport capacity. Each
+    entry replicates stable ID, role, state, target, health and 3D position.
+31. G2 is complete: continuous hitscan/projectile/shotgun roles,
+    unacknowledged-input prediction replay, generation-safe join/recovery, 3D
+    door segment/AABB collision plus 36-vertex rendering, full feedback
+    recovery and Kof-owned attenuation/stereo pan submitted through SDL.
 
 
 ## Editor cautions
@@ -145,7 +146,7 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 - Do **not** inherit endpoint-only “sweep,” waist-ray player collision, fixed tiny loot pools/silent drops, duplicate weapon authorities, raw ECS IDs in saves, event playback mislabeled deterministic replay, or corpus inspectors mislabeled map cookers.
 - DINX MIT; ZYLVE whole-game private/internal notice; CUBSHIP README MIT claim lacks complete inspected notice packaging. User permission does not clear third-party assets. Capture source revision/hash and licenses at port time.
 - Minecraft: not a conventional archetype ECS. Borrow definition/instance separation, item override patches, validated codecs, extraction snapshots and audio voice lifecycles. Prioritize JOML/Brigadier MIT subsets, Artemis/Ashley storage contracts, owo layout and Flywheel instance lifecycles; see [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- Recommended library set: SDL3/SDL_GPU; offline SDL_shadercross/DXC; OpenAL Soft for production FPS audio (SDL3_mixer is the basic-spatial alternative); SDL3_image for image decoding; FreeType/HarfBuzz for text services; zstd for cooked packages. G0 remains SDL-only with queued audio. Full boundaries, local availability, licenses and adoption gates are in [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
+- Recommended expansion set: SDL3/SDL_GPU; offline SDL_shadercross/DXC; optional OpenAL Soft when later HRTF/Doppler/EFX requirements exceed the implemented G2 SDL stereo path; SDL3_image for image decoding; FreeType/HarfBuzz for text services; zstd for cooked packages. Full boundaries, local availability, licenses and adoption gates are in [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
 ## Next action and proof boundary
 
 G1 proves the bounded authoritative shooter path, not a finished game:
@@ -155,20 +156,16 @@ render/readback all execute. The no-per-frame-growth claim is limited to
 unchanged staging capacities across 64 deterministic frames and persistent
 native scene buffers; it is not a 30-minute RSS/performance result.
 
-G2 now has a qualified encounter replication slice: host plus two clients
-exchange the complete G1 arena, unified checksummed gameplay commands, fixed
-player/progression state and bounded enemy encounter state. Client application
-reaches terminal enemy state/health, the latest confirmed impact, a
-server-owned reward, authoritative movement, reconnect generation two and
-key/door/secret/exit completion. The same replicated counts feed a
-shape-distinct connection/active-reserve HUD; confirmed impacts enter bounded
-presentation/audio queues.
-
-Closing G2 still requires continuous replicated multi-role enemy simulation,
-full player prediction/reconciliation, production join/recovery, complete 3D
-door collision/render geometry, complete multiplayer feedback coverage and
-production audio mixing/spatialization. G5 retains sustained workload, RSS and
-frame-budget acceptance. `FFI001` still blocks Kof bulk-buffer calls into the
+G2 is complete: host plus two clients exchange recipient-specific gameplay
+baselines, ordered feedback batches and continuous multi-role encounter state.
+Clients predict local movement, replay unacknowledged inputs on reconciliation
+and reset input/prediction/feedback epochs when reconnect advances generation.
+Hitscan/projectile/shotgun roles retarget live players; doors use full 3D
+segment/AABB volumes and 36-vertex cuboids; Kof attenuation/stereo pan reaches
+the allocation-free SDL PCM path. The focused interaction probe, 73 JVM/native
+source scenarios, JVM/native three-process roles and isolated headless
+SDL_GPU/audio adapter pass. G3 is next. G5 retains sustained workload, RSS and
+frame-budget acceptance; `FFI001` still blocks Kof bulk-buffer calls into the
 optional SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18

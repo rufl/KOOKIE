@@ -1,6 +1,6 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura viva e gates de aceitação; G0/G1 estão implementados e G2 está em andamento**.
+Status: **arquitetura viva e gates de aceitação; G0/G1/G2 estão implementados e G3 é o próximo marco**.
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
@@ -73,7 +73,7 @@ SDL_GPU também tem limitações: piso de recursos de GPU moderno, layouts rigor
 
 Priorize ports de matemática/comandos `.kf` limitados de JOML/Brigadier, armazenamento tipado inspirado em Artemis/Ashley, contratos de definição/patch de item/codec no estilo Minecraft, layout inspirado em owo e ciclos de vida de instâncias inspirados em Flywheel. JOML1.10.9 foi medido na JVM Kof; o nativo rejeitou suas importações Java. Não importe JARs nem runtimes completos de mods como bibliotecas do motor nativo.
 
-Mantenha o áudio SDL enfileirado para G0. Para a stack de FPS de produção, **recomende OpenAL Soft** para som posicional, HRTF e EFX; SDL3_mixer é a alternativa mais simples/básica para espacialização, não um segundo backend obrigatório. Esta é uma recomendação de seleção de biblioteca, não um backend de áudio implementado nem uma licença de redistribuição adotada. A física Jolt e as UIs RmlUi/ImGui ainda exigem aprovação explícita da propriedade dos subsistemas estrangeiros.
+Mantenha o áudio SDL enfileirado até G2: o Kof agora controla atenuação relativa ao listener e pan estéreo limitados, e o adaptador nativo envia canais PCM esquerdo/direito distintos sem alocação por chamada. Para expansão posterior com HRTF, Doppler e EFX, **recomende OpenAL Soft**; SDL3_mixer continua sendo a alternativa mais simples, não um segundo backend obrigatório. OpenAL é uma recomendação de biblioteca, não uma licença de redistribuição adotada. A física Jolt e as UIs RmlUi/ImGui ainda exigem aprovação explícita da propriedade dos subsistemas estrangeiros.
 
 ### Conjunto de bibliotecas recomendado (2026-09-22)
 
@@ -86,7 +86,7 @@ todos os candidatos ao G0.
 |---|---|---|
 | Plataforma e gráficos | **SDL3 + SDL_GPU** | Uma única stack de janela/entrada/gamepad/GPU; 3D e compute. Kof possui a extração, o culling, o agrupamento e os passes. Licença zlib. Mantenha Sokol como alternativa somente se o spike de GPU/ABI falhar |
 | Compilação de shaders | **SDL_shadercross + DXC**, SPIRV-Cross e SPIRV-Tools conforme exigido pelo build | HLSL → SPIR-V offline para Linux; refletir layouts de recursos. Ferramentas de build, não compiladores de shaders obrigatórios no runtime distribuído. O ShaderC instalado sozinho não é o pipeline HLSL selecionado |
-| Áudio de produção | **OpenAL Soft** | Fontes/listener 3D, atenuação/Doppler, HRTF e EFX. Kof mantém cues, admissão/prioridade de vozes, consultas de oclusão do mundo e política de efeitos configurada. A biblioteca realiza a mixagem/DSP espacial; esta é uma delegação explícita do mecanismo de áudio |
+| Expansão de áudio espacial avançado | **OpenAL Soft** | DSP opcional após G2 para fontes/listener, Doppler, HRTF e EFX. O caminho SDL implementado em G2 já fornece atenuação/pan limitados pertencentes ao Kof e envio estéreo. Adote OpenAL somente quando uma aceitação mais rica exigir; o Kof mantém cues, admissão/prioridade de vozes, consultas de oclusão e política de efeitos |
 | Decodificação de imagens | **SDL3_image** | Decodificar inicialmente PNGs produzidos em buffers de pixels limitados. Mantenha a admissão de formatos, decisões de espaço de cor/material, o cooking e os uploads para a GPU sob a política do Kof. Biblioteca zlib; dependências opcionais de codecs têm seus próprios avisos |
 | Renderização de texto | **FreeType**, depois **HarfBuzz** ao implementar texto com shaping | Apenas serviços de rasterização e shaping. Kof possui os widgets, o layout, o foco e a política de cache de glifos. Fallback de fontes, bidi/quebra de linhas, IME e acessibilidade não são resolvidos simplesmente vinculando essas bibliotecas |
 | Compressão de pacotes | **Zstandard (`libzstd`)** | Adicionar no estágio de pacote cozido, não por frame. Use blocos limitados e endereçáveis independentemente, comprimentos decodificados declarados e limites do decodificador; compressão não é integridade/autenticação. Opção de licença BSD |
@@ -142,13 +142,15 @@ nativa com Kof, a compatibilidade dos dispositivos ou a conclusão do trabalho d
 binding. Nenhuma biblioteca foi instalada nem dispositivo foi aberto durante esta
 seleção.
 
-**Ordem de adoção:** resolver o gate de correção do compilador nativo → comprovar
-SDL_GPU/entrada/áudio enfileirado e transferência verificada de tokens/buffers →
-adicionar serviços de imagem/texto → integrar o backend de áudio de produção escolhido
-→ adicionar compressão de pacotes quando o formato estiver estabelecido. Fixe hashes
-de artefatos, opções de build, avisos transitivos e ABI do adaptador a cada adoção.
-Não há um framework separado de backend/plugin nem uma promessa de desempenho
-implícita nesta lista curta.
+**Status/ordem de adoção:** correção do compilador nativo,
+SDL_GPU/entrada/áudio enfileirado, transferência verificada de tokens/buffers e
+espacialização estéreo limitada estão comprovados até G2. Em seguida, adicione
+serviços de imagem/texto; integre OpenAL Soft somente se requisitos de
+HRTF/Doppler/EFX justificarem uma nova autoridade de áudio, depois adicione
+compressão de pacotes quando o formato estiver estabelecido. Fixe hashes de
+artefatos, opções de build, avisos transitivos e ABI do adaptador em cada
+adoção. Esta lista curta não implica framework separado de backend/plugin nem
+promessa de desempenho.
 
 Fontes primárias: [SDL GPU](https://wiki.libsdl.org/SDL3/CategoryGPU),
 [shadercross](https://github.com/libsdl-org/SDL_shadercross) e sua
@@ -208,9 +210,9 @@ staging pode evitar FFI por byte **somente** quando Kof validou/preparou o
 formato, offset e tamanho; o adaptador não pode se tornar um parser/cooker de
 assets. Pequenas sondas de `File.writeBytes/readBytes/readRange` preservaram
 bytes zero/de bit alto na JVM/nativo. O renderer implementado agora envia uma
-cena fixa de 252 vértices por chamadas escalares verificadas e buffers nativos
-persistentes. Casos grandes/de erro por intervalo e um adaptador real de buffer
-em massa ainda não foram comprovados.
+cena fixa de 288 vértices de arena/porta/HUD por chamadas escalares verificadas
+e buffers nativos persistentes. Casos grandes/de erro por intervalo e um
+adaptador real de buffer em massa ainda não foram comprovados.
 
 A sobrecarga do staging escalar é uma **medição de aprovação/reprovação**. Se
 uploads representativos de draw/instância/animação não atingirem o orçamento,
@@ -224,9 +226,9 @@ massa. Não transforme o shim em um renderer C para passar em um benchmark.
 
 A inicialização real de vídeo/GPU/áudio SDL agora executa a partir do ELF nativo
 emitido na sonda isolada de apresentação. Isso comprova o caminho exato de
-janela, cena fixa, clip sintetizado e teardown; não comprova callbacks retidos,
-threads estrangeiras, mixagem de produção nem suporte arbitrário de
-drivers/plataformas.
+janela, cena fixa, clips sintetizados, ganhos dos canais estéreo e teardown; não
+comprova callbacks retidos, threads estrangeiras, decodificação em streaming,
+HRTF/EFX nem suporte arbitrário de drivers/plataformas.
 
 Comece com **uma thread Kof**. O código-fonte mostra que a auto-GC nativa é
 desabilitada após qualquer `spawn` do Kof; não use threads de trabalho nem
@@ -393,14 +395,16 @@ O primeiro contrato de transporte é independente do transporte:
 - Nenhum ponteiro nativo, slot de runtime ou memória bruta de objetos Kof na
   rede.
 
-O slice implementado mantém comandos em 11 palavras e estado de
-jogador/progressão em 19. Uma segunda mensagem com checksum usa
-`20 + 7N` palavras para até 32 inimigos do encounter; cada entrada carrega ID
-estável, estado, alvo, vida e posição inteira, enquanto o cabeçalho carrega
-contagens ativa/reserva e o impacto confirmado mais recente. A mensagem cabe no
-limite compartilhado de 300 palavras do transporte nativo/JVM. Os clientes
-validam antes da mutação, rejeitam sequências obsoletas e aplicam o estado
-autoritativo mesmo quando filas limitadas de apresentação descartam feedback.
+O protocolo implementado mantém comandos em 11 palavras e estado de
+jogador/progressão com 20 palavras específico por destinatário. Uma mensagem
+de encounter com checksum usa `20 + 8N` palavras para até 32 inimigos; cada
+entrada carrega ID estável, papel, estado, alvo, vida e posição 3D inteira. Uma
+mensagem de feedback com checksum usa `6 + 11F` palavras para até 16 eventos de
+impacto ordenados. As duas mensagens variáveis cabem no limite compartilhado de
+300 palavras do transporte nativo/JVM. Os clientes validam antes da mutação,
+admitem a geração da conexão antes da sequência, rejeitam mensagens obsoletas
+ou com lacunas e aplicam o estado autoritativo mesmo quando filas limitadas de
+apresentação descartam feedback.
 
 O caminho de loopback deve serializar e decodificar mensagens em vez de passar
 referências diretamente. Isso comprova a fronteira real entre cliente e
@@ -690,22 +694,31 @@ vida/munição, glifo de conexão distinguível pela forma, carga ativa/reserva 
 encounter, marcadores confirmados de acerto/eliminação e alertas laterais de
 dano. O evento confirmado de hitscan local também alcança filas limitadas de
 replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
-leu a cena limitada, e 72/72 testes passam na JVM e no nativo. A evidência de
+leu a cena limitada, e 73/73 testes passam na JVM e no nativo. A evidência de
 ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
 capacidades Kof inalteradas e buffers nativos persistentes; o soak de
 RSS/desempenho por 30 minutos permanece em G5.
 
-G2 possui um slice de transporte com três processos na JVM e no nativo que leva
-a arena completa, comandos unificados com checksum para
-movimento/disparo/interação/ciclo de vida, estado fixo do jogador/progressão e
-estado limitado do encounter. A aplicação pelo cliente comprova posição
-autoritativa, estado e vida terminais do inimigo, impacto confirmado mais
-recente, recompensa de 25 moedas, progressão até a revisão 4, geração de
-reconexão e diagnóstico de input obsoleto. G2 continua aberto para simulação
-contínua e replicada de vários papéis de inimigos, predição/reconciliação
-completa, entrada/recuperação em produção, geometria/colisão 3D completa das
-portas, cobertura completa de feedback multiplayer e mixagem/espacialização de
-áudio de produção.
+G2 está fechado pelo slice de transporte com três processos na JVM e no nativo,
+que leva a arena completa, comandos unificados com checksum para
+movimento/disparo/interação/ciclo de vida, baselines de jogador/progressão por
+destinatário, lotes ordenados de feedback e estado limitado do encounter. Três
+papéis contínuos de inimigos — hitscan, projétil e shotgun — se movem,
+redirecionam para o jogador vivo mais próximo e replicam papel, alvo, vida e
+posição 3D. Os clientes predizem movimento local ordenado, reproduzem inputs
+ainda não confirmados durante a reconciliação e reiniciam as épocas de input,
+predição e feedback quando a reconexão avança a geração da conexão. A entrada
+inicial publica baselines no tick zero de gameplay, feedback e encounter;
+gerações obsoletas são rejeitadas antes da admissão da sequência. As portas
+usam semieixos criados para colisão 3D completa por segmento/AABB e geram um
+cuboide de 36 vértices projetado pela câmera; a sonda GPU nativa headless
+desenha a cena resultante de arena/porta/HUD com 288 vértices. O transporte de
+feedback preserva a ordem de vários eventos, rejeita duplicatas e lacunas sem
+apresentação parcial e retoma pelo baseline da nova geração. O Kof calcula
+atenuação por distância e pan estéreo relativos ao listener, enquanto o
+adaptador SDL enfileira os ganhos PCM esquerdo/direito resultantes. HRTF/EFX
+via OpenAL, decodificação em streaming e o soak de G5 continuam como expansão
+posterior, não como critérios faltantes da aceitação de G2.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

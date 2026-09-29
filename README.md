@@ -20,28 +20,31 @@ G0 and G1 run on JVM and native Linux x86-64:
 - camera, bounded world staging and a semantic combat HUD with framed
   health/ammo indicators, a connection glyph, active/reserve encounter load,
   a focus-responsive crosshair, hit/kill markers and edge damage warnings;
-  SDL_GPU uploads the fixed 252-vertex scene without per-frame buffer growth;
-- cooperative key, door, secret and exit progression, command replay and
+  SDL_GPU uploads the fixed 288-vertex arena/door/HUD scene without per-frame
+  buffer growth;
+- cooperative key, 3D door, secret and exit progression, command replay and
   versioned level saves;
 - saves, replays, inventory, equipment, skills and status effects;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
   regressions carry the complete 26-triangle arena, unified checksummed
-  movement/fire/interaction/lifecycle commands, and a bounded authoritative
-  enemy-encounter message. Clients apply positions, terminal enemy state and
-  health, the latest confirmed impact, one 25-currency reward, revision-4
-  progression and explicit lifecycle/stale-command diagnostics.
+  movement/fire/interaction/lifecycle commands, recipient-specific gameplay
+  baselines, ordered multiplayer feedback and bounded authoritative encounter
+  state;
+- continuous hitscan/projectile/shotgun enemy roles, client movement
+  prediction with unacknowledged-input replay, generation-safe reconnect
+  recovery, full 3D door collision/render geometry and feedback batch
+  gap/duplicate recovery;
+- listener-relative distance attenuation and stereo panning computed in Kof,
+  with allocation-free left/right PCM submission through the native SDL audio
+  adapter.
 
 The important gaps are still real:
 
-- G2 still needs continuous replicated multi-role enemy simulation beyond the
-  qualified one-encounter state/impact slice, full player
-  prediction/reconciliation, production join/admission recovery, complete 3D
-  door collision/render geometry, complete multiplayer feedback coverage and
-  production audio mixing/spatialization;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
-- crash-durable saves, content cooking, full physics, production audio,
-  sustained G5 soak/performance proof and the creator pipeline are unfinished.
+- crash-durable saves, content cooking, full physics, streamed/compressed
+  audio and HRTF/EFX, sustained G5 soak/performance proof and the creator
+  pipeline are unfinished.
 
 If a claim is not backed by a focused test or probe, it is not presented as
 done.
@@ -158,17 +161,17 @@ initially with Vulkan/SPIR-V.
 
 ## Roadmap
 
-Next is the rest of G2: extend the qualified host-plus-two-client movement,
-enemy death/reward, encounter-state/impact, lifecycle and
-key/door/secret/exit transport slice into continuous multi-role enemy
-simulation, full player prediction/reconciliation, production join recovery,
-complete 3D doors, complete multiplayer combat feedback and production audio.
+Next is G3: complete the authoritative multiplayer
+kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward→save/reload slice.
+G2 remains covered by the JVM/native source suite, focused interaction probe,
+host-plus-two-client process qualification and isolated headless SDL_GPU/audio
+probe.
 
 Deferred until the core gates are stronger:
 
 - full physics and content cooking;
-- production save schema and multiplayer transport;
-- production audio/image/text services;
+- production save schema and dedicated/WAN transport hardening;
+- streamed audio/HRTF, image and text services;
 - package compression and foreign physics/UI libraries.
 
 ## Documentation

@@ -17,6 +17,9 @@ class BoundedInteractionWorld {
     Int[] ranges
     Int[] prerequisites
     Int[] secretRequirements
+    Int[] doorHalfWidths
+    Int[] doorHalfHeights
+    Int[] doorHalfDepths
     Bool[] active
 
     public constructor(Int capacity, Int maxCoordinate) {
@@ -48,6 +51,9 @@ class BoundedInteractionWorld {
         ranges = new Int[capacityValue]
         prerequisites = new Int[capacityValue]
         secretRequirements = new Int[capacityValue]
+        doorHalfWidths = new Int[capacityValue]
+        doorHalfHeights = new Int[capacityValue]
+        doorHalfDepths = new Int[capacityValue]
         active = new Bool[capacityValue]
     }
 
@@ -110,6 +116,9 @@ class BoundedInteractionWorld {
         ranges[sizeValue] = range
         prerequisites[sizeValue] = prerequisiteSlot
         secretRequirements[sizeValue] = requiredSecrets
+        doorHalfWidths[sizeValue] = 0
+        doorHalfHeights[sizeValue] = 0
+        doorHalfDepths[sizeValue] = 0
         active[sizeValue] = false
         sizeValue = sizeValue + 1
         if (interactionKind == 3) {
@@ -122,8 +131,26 @@ class BoundedInteractionWorld {
         return defineInteraction(id, 1, 0, 0, x, y, z, range)
     }
 
-    Bool defineDoor(Int id, Int keyId, Int x, Int y, Int z, Int range) {
-        return defineInteraction(id, 2, keyId, 0, x, y, z, range)
+    Bool defineDoor(
+        Int id, Int keyId, Int x, Int y, Int z,
+        Int halfWidth, Int halfHeight, Int halfDepth, Int range
+    ) {
+        if (halfWidth <= 0 || halfHeight <= 0 || halfDepth <= 0 ||
+            halfWidth > maxCoordinateValue ||
+            halfHeight > maxCoordinateValue ||
+            halfDepth > maxCoordinateValue ||
+            !validPoint(
+                x - halfWidth, y - halfHeight, z - halfDepth) ||
+            !validPoint(
+                x + halfWidth, y + halfHeight, z + halfDepth) ||
+            !defineInteraction(id, 2, keyId, 0, x, y, z, range)) {
+            return false
+        }
+        var index = slotFor(id) - 1
+        doorHalfWidths[index] = halfWidth
+        doorHalfHeights[index] = halfHeight
+        doorHalfDepths[index] = halfDepth
+        return true
     }
 
     Bool defineSecret(Int id, Int x, Int y, Int z, Int range) {
@@ -239,27 +266,112 @@ class BoundedInteractionWorld {
         return positionsZ[slot - 1]
     }
 
+    Int doorHalfWidth(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0 || kinds[slot - 1] != 2) {
+            return 0
+        }
+        return doorHalfWidths[slot - 1]
+    }
+
+    Int doorHalfHeight(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0 || kinds[slot - 1] != 2) {
+            return 0
+        }
+        return doorHalfHeights[slot - 1]
+    }
+
+    Int doorHalfDepth(Int id) {
+        var slot = slotFor(id)
+        if (slot == 0 || kinds[slot - 1] != 2) {
+            return 0
+        }
+        return doorHalfDepths[slot - 1]
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Bool insideClosedDoor(Int index, Int x, Int y, Int z) {
+        return kinds[index] == 2 && !active[index] &&
+            x >= positionsX[index] - doorHalfWidths[index] &&
+            x <= positionsX[index] + doorHalfWidths[index] &&
+            y >= positionsY[index] - doorHalfHeights[index] &&
+            y <= positionsY[index] + doorHalfHeights[index] &&
+            z >= positionsZ[index] - doorHalfDepths[index] &&
+            z <= positionsZ[index] + doorHalfDepths[index]
+    }
+
+    SegmentCollisionResult queryDoorSegment(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (!validPoint(startX, startY, startZ) ||
+            !validPoint(endX, endY, endZ)) {
+            return SegmentCollisionResult(
+                false, false, -1,
+                startX, startY, startZ, endX, endY, endZ,
+                startX, startY, startZ)
+        }
+        for (var index = 0; index < sizeValue; index = index + 1) {
+            if (insideClosedDoor(index, startX, startY, startZ)) {
+                return SegmentCollisionResult(
+                    true, true, 0,
+                    startX, startY, startZ, endX, endY, endZ,
+                    startX, startY, startZ)
+            }
+        }
+        var deltaX = endX - startX
+        var deltaY = endY - startY
+        var deltaZ = endZ - startZ
+        var steps = absolute(deltaX)
+        if (absolute(deltaY) > steps) {
+            steps = absolute(deltaY)
+        }
+        if (absolute(deltaZ) > steps) {
+            steps = absolute(deltaZ)
+        }
+        for (var step = 1; step <= steps; step = step + 1) {
+            var sampleX = startX + deltaX * step / steps
+            var sampleY = startY + deltaY * step / steps
+            var sampleZ = startZ + deltaZ * step / steps
+            for (var index = 0; index < sizeValue; index = index + 1) {
+                if (insideClosedDoor(index, sampleX, sampleY, sampleZ)) {
+                    var resolvedX = startX + deltaX * (step - 1) / steps
+                    var resolvedY = startY + deltaY * (step - 1) / steps
+                    var resolvedZ = startZ + deltaZ * (step - 1) / steps
+                    return SegmentCollisionResult(
+                        true, true, step,
+                        startX, startY, startZ, endX, endY, endZ,
+                        resolvedX, resolvedY, resolvedZ)
+                }
+            }
+        }
+        return SegmentCollisionResult(
+            true, false, -1,
+            startX, startY, startZ, endX, endY, endZ,
+            endX, endY, endZ)
+    }
+
     Bool blocksScalarMove(Int fromPosition, Int toPosition) {
         if (fromPosition == toPosition) {
             return false
         }
-        for (var index = 0; index < sizeValue; index = index + 1) {
-            if (kinds[index] == 2 && !active[index]) {
-                var doorPosition = positionsX[index]
-                if ((fromPosition < doorPosition && toPosition >= doorPosition) ||
-                    (fromPosition > doorPosition && toPosition <= doorPosition)) {
-                    return true
-                }
-            }
-        }
-        return false
+        var result = queryDoorSegment(
+            fromPosition, 0, 0, toPosition, 0, 0)
+        return result.accepted() && result.collided()
     }
 
     Int doorRenderVertexCount() {
         var count = 0
         for (var index = 0; index < sizeValue; index = index + 1) {
             if (kinds[index] == 2) {
-                count = count + 6
+                count = count + 36
             }
         }
         return count
@@ -342,20 +454,20 @@ class BoundedInteractionWorld {
                 return false
             }
             seen[slot - 1] = true
-            staged[3 + (slot - 1) * 9 + 8] = flag
+            staged[3 + (slot - 1) * 12 + 8] = flag
         }
         return restoreReplayState(staged)
     }
 
     Int replayStateLength() {
-        return 3 + capacityValue * 9
+        return 3 + capacityValue * 12
     }
 
     Bool encodeReplayState(Int[] target) {
         if (target.length != replayStateLength()) {
             return false
         }
-        target[0] = 1
+        target[0] = 2
         target[1] = sizeValue
         target[2] = 0
         if (sealedValue) {
@@ -363,7 +475,7 @@ class BoundedInteractionWorld {
         }
         var offset = 3
         for (var index = 0; index < capacityValue; index = index + 1) {
-            for (var field = 0; field < 9; field = field + 1) {
+            for (var field = 0; field < 12; field = field + 1) {
                 target[offset + field] = 0
             }
             if (index < sizeValue) {
@@ -380,8 +492,11 @@ class BoundedInteractionWorld {
                 if (active[index]) {
                     target[offset + 8] = 1
                 }
+                target[offset + 9] = doorHalfWidths[index]
+                target[offset + 10] = doorHalfHeights[index]
+                target[offset + 11] = doorHalfDepths[index]
             }
-            offset = offset + 9
+            offset = offset + 12
         }
         return true
     }
@@ -390,7 +505,8 @@ class BoundedInteractionWorld {
         if (source.length != replayStateLength()) {
             return false
         }
-        if (source[0] != 1 || source[1] < 0 || source[1] > capacityValue ||
+        if (source[0] != 2 || source[1] < 0 ||
+            source[1] > capacityValue ||
             source[2] < 0 || source[2] > 1) {
             return false
         }
@@ -414,6 +530,20 @@ class BoundedInteractionWorld {
                     source[offset + 6], source[offset + 7])) {
                     return false
                 }
+                if (source[offset + 1] == 2) {
+                    if (source[offset + 9] <= 0 ||
+                        source[offset + 10] <= 0 ||
+                        source[offset + 11] <= 0) {
+                        return false
+                    }
+                    staged.doorHalfWidths[index] = source[offset + 9]
+                    staged.doorHalfHeights[index] = source[offset + 10]
+                    staged.doorHalfDepths[index] = source[offset + 11]
+                } else if (source[offset + 9] != 0 ||
+                    source[offset + 10] != 0 ||
+                    source[offset + 11] != 0) {
+                    return false
+                }
                 if (sealedValue) {
                     if (staged.ids[index] != ids[index] ||
                         staged.kinds[index] != kinds[index] ||
@@ -422,7 +552,10 @@ class BoundedInteractionWorld {
                         staged.positionsX[index] != positionsX[index] ||
                         staged.positionsY[index] != positionsY[index] ||
                         staged.positionsZ[index] != positionsZ[index] ||
-                        staged.ranges[index] != ranges[index]) {
+                        staged.ranges[index] != ranges[index] ||
+                        staged.doorHalfWidths[index] != doorHalfWidths[index] ||
+                        staged.doorHalfHeights[index] != doorHalfHeights[index] ||
+                        staged.doorHalfDepths[index] != doorHalfDepths[index]) {
                         return false
                     }
                 }
@@ -437,13 +570,13 @@ class BoundedInteractionWorld {
                     }
                 }
             } else {
-                for (var field = 0; field < 9; field = field + 1) {
+                for (var field = 0; field < 12; field = field + 1) {
                     if (source[offset + field] != 0) {
                         return false
                     }
                 }
             }
-            offset = offset + 9
+            offset = offset + 12
         }
         if (activeExitCount > 1) {
             return false
@@ -477,6 +610,9 @@ class BoundedInteractionWorld {
         ranges = staged.ranges
         prerequisites = staged.prerequisites
         secretRequirements = staged.secretRequirements
+        doorHalfWidths = staged.doorHalfWidths
+        doorHalfHeights = staged.doorHalfHeights
+        doorHalfDepths = staged.doorHalfDepths
         active = staged.active
         return true
     }

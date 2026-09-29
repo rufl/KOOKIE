@@ -143,6 +143,10 @@ Int gameplayRejectedDiagnostic() {
     return 7
 }
 
+Int gameplayGenerationDiagnostic() {
+    return 8
+}
+
 Int gameplayMessageChecksum(Int[] words, Int length) {
     if (length < 1 || length > words.length) {
         return -1
@@ -182,29 +186,29 @@ Bool validGameplayCommandMessage(Int[] words) {
         words[4] < 1 || words[4] > 2 ||
         words[5] < gameplayMoveAction() ||
         words[5] > gameplayReconnectAction() ||
+        words[9] <= 0 || words[9] > 1000000 ||
         words[10] != gameplayMessageChecksum(words, 10)) {
         return false
     }
     var action = words[5]
     if (action == gameplayMoveAction()) {
         return words[6] >= -4 && words[6] <= 4 &&
-            words[7] == 0 && words[8] == 0 && words[9] == 0
+            words[7] == 0 && words[8] == 0
     }
     if (action == gameplayFireAction()) {
         return words[6] > 0 && words[6] <= 1000000 &&
             words[7] >= 0 && words[7] <= 1000000 &&
-            words[8] >= 0 && words[8] <= 1 && words[9] == 0
+            words[8] >= 0 && words[8] <= 1
     }
     if (action == gameplayInteractAction()) {
         return words[6] > 0 && words[6] <= 1000000 &&
-            words[7] == 0 && words[8] == 0 && words[9] == 0
+            words[7] == 0 && words[8] == 0
     }
     if (action == gameplayDisconnectAction()) {
         return words[6] >= 1 && words[6] <= 4 &&
-            words[7] == 0 && words[8] == 0 && words[9] == 0
+            words[7] == 0 && words[8] == 0
     }
-    return words[6] == 0 && words[7] == 0 &&
-        words[8] == 0 && words[9] == 0
+    return words[6] == 0 && words[7] == 0 && words[8] == 0
 }
 
 Int gameplayCommandTick(Int[] words) {
@@ -242,11 +246,22 @@ Int gameplayCommandValue(Int[] words, Int index) {
     return words[6 + index]
 }
 
+Int gameplayCommandGeneration(Int[] words) {
+    if (!validGameplayCommandMessage(words)) {
+        return 0
+    }
+    return words[9]
+}
+
 Int[] newGameplayStateMessage(
     Int tick, Int sequence, Bool accepted,
-    Int interactionRevision, Int combatActorId, Int combatHealth
+    Int interactionRevision, Int combatActorId, Int combatHealth,
+    Int player
 ) {
-    var words = new Int[19]
+    if (player < 1 || player > 2) {
+        return new Int[0]
+    }
+    var words = new Int[20]
     words[0] = protocolVersion()
     words[1] = gameplayStateMessageKind()
     words[2] = tick
@@ -258,13 +273,14 @@ Int[] newGameplayStateMessage(
     words[5] = interactionRevision
     words[6] = combatActorId
     words[7] = combatHealth
+    words[18] = player
     return words
 }
 
 Bool setGameplayStateProgression(
     Int[] words, Int secretCount, Bool levelCompleted, Int interactionMask
 ) {
-    if (words.length != 19 || secretCount < 0 || secretCount > 64 ||
+    if (words.length != 20 || secretCount < 0 || secretCount > 64 ||
         interactionMask < 0 || interactionMask > 65535) {
         return false
     }
@@ -280,7 +296,7 @@ Bool setGameplayStateProgression(
 Bool setGameplayStateReplication(
     Int[] words, Int playerOnePosition, Int playerTwoPosition, Int currency
 ) {
-    if (words.length != 19 ||
+    if (words.length != 20 ||
         playerOnePosition < -1000000 || playerOnePosition > 1000000 ||
         playerTwoPosition < -1000000 || playerTwoPosition > 1000000 ||
         currency < 0 || currency > 1000000) {
@@ -296,10 +312,10 @@ Bool setGameplayStateConnection(
     Int[] words, Bool connected, Int generation,
     Int disconnectReason, Int diagnostic
 ) {
-    if (words.length != 19 || generation <= 0 || generation > 1000000 ||
+    if (words.length != 20 || generation <= 0 || generation > 1000000 ||
         disconnectReason < 0 || disconnectReason > 4 ||
         diagnostic < gameplayMoveDiagnostic() ||
-        diagnostic > gameplayRejectedDiagnostic() ||
+        diagnostic > gameplayGenerationDiagnostic() ||
         (connected && disconnectReason != 0) ||
         (!connected && disconnectReason == 0)) {
         return false
@@ -315,10 +331,10 @@ Bool setGameplayStateConnection(
 }
 
 Bool validGameplayStateFields(Int[] words) {
-    return words.length == 19 &&
+    return words.length == 20 &&
         words[0] == protocolVersion() &&
         words[1] == gameplayStateMessageKind() &&
-        words[2] > 0 && words[2] <= 1000000 &&
+        words[2] >= 0 && words[2] <= 1000000 &&
         words[3] > 0 && words[3] <= 1000000 &&
         words[4] >= 0 && words[4] <= 1 &&
         words[5] >= 0 && words[5] <= 1000000 &&
@@ -333,8 +349,9 @@ Bool validGameplayStateFields(Int[] words) {
         words[14] > 0 && words[14] <= 1000000 &&
         words[15] >= 0 && words[15] <= 4 &&
         words[16] >= gameplayMoveDiagnostic() &&
-        words[16] <= gameplayRejectedDiagnostic() &&
+        words[16] <= gameplayGenerationDiagnostic() &&
         words[17] >= 0 && words[17] <= 65535 &&
+        words[18] >= 1 && words[18] <= 2 &&
         ((words[13] == 1 && words[15] == 0) ||
             (words[13] == 0 && words[15] > 0))
 }
@@ -343,13 +360,13 @@ Bool sealGameplayStateMessage(Int[] words) {
     if (!validGameplayStateFields(words)) {
         return false
     }
-    words[18] = gameplayMessageChecksum(words, 18)
+    words[19] = gameplayMessageChecksum(words, 19)
     return true
 }
 
 Bool validGameplayStateMessage(Int[] words) {
     return validGameplayStateFields(words) &&
-        words[18] == gameplayMessageChecksum(words, 18)
+        words[19] == gameplayMessageChecksum(words, 19)
 }
 
 Bool gameplayStateAccepted(Int[] words) {
@@ -434,6 +451,13 @@ Int gameplayStateInteractionMask(Int[] words) {
     return words[17]
 }
 
+Int gameplayStatePlayer(Int[] words) {
+    if (!validGameplayStateMessage(words)) {
+        return 0
+    }
+    return words[18]
+}
+
 Int enemyEncounterStateMessageKind() {
     return 5
 }
@@ -443,7 +467,7 @@ Int maximumEnemyEncounterStateEnemies() {
 }
 
 Int enemyEncounterStateEntryWidth() {
-    return 7
+    return 8
 }
 
 Int enemyEncounterStateEntriesOffset() {
@@ -454,7 +478,7 @@ Bool validEnemyEncounterStateShape(Int[] words) {
     if (words.length < 20 ||
         words[0] != protocolVersion() ||
         words[1] != enemyEncounterStateMessageKind() ||
-        words[2] <= 0 || words[2] > 1000000 ||
+        words[2] < 0 || words[2] > 1000000 ||
         words[3] <= 0 || words[3] > 1000000 ||
         words[4] <= 0 || words[4] > 1000000 ||
         words[5] < 0 ||
@@ -472,7 +496,7 @@ Int[] newEnemyEncounterStateMessage(
     Int tick, Int sequence, Int encounterId,
     Int activeCount, Int remainingBudget, Int enemyCount
 ) {
-    if (tick <= 0 || tick > 1000000 ||
+    if (tick < 0 || tick > 1000000 ||
         sequence <= 0 || sequence > 1000000 ||
         encounterId <= 0 || encounterId > 1000000 ||
         enemyCount < 0 ||
@@ -491,6 +515,9 @@ Int[] newEnemyEncounterStateMessage(
     words[5] = activeCount
     words[6] = remainingBudget
     words[7] = enemyCount
+    for (var index = 8; index < words.length; index = index + 1) {
+        words[index] = 0
+    }
     return words
 }
 
@@ -532,12 +559,13 @@ Bool setEnemyEncounterStateImpact(
 
 Bool setEnemyEncounterStateEntry(
     Int[] words, Int index,
-    Int enemyId, Int state, Int targetId, Int health,
+    Int enemyId, Int role, Int state, Int targetId, Int health,
     Int x, Int y, Int z
 ) {
     if (!validEnemyEncounterStateShape(words) ||
         index < 0 || index >= words[7] ||
         enemyId <= 0 || enemyId > 1000000 ||
+        role < 1 || role > 3 ||
         state < 0 || state > 7 ||
         targetId < 0 || targetId > 1000000 ||
         health < 0 || health > 1000000 ||
@@ -558,12 +586,13 @@ Bool setEnemyEncounterStateEntry(
         }
     }
     words[offset] = enemyId
-    words[offset + 1] = state
-    words[offset + 2] = targetId
-    words[offset + 3] = health
-    words[offset + 4] = x
-    words[offset + 5] = y
-    words[offset + 6] = z
+    words[offset + 1] = role
+    words[offset + 2] = state
+    words[offset + 3] = targetId
+    words[offset + 4] = health
+    words[offset + 5] = x
+    words[offset + 6] = y
+    words[offset + 7] = z
     return true
 }
 
@@ -595,21 +624,23 @@ Bool validEnemyEncounterStateFields(Int[] words) {
         var offset = enemyEncounterStateEntriesOffset() +
             index * enemyEncounterStateEntryWidth()
         var enemyId = words[offset]
-        var state = words[offset + 1]
-        var health = words[offset + 3]
+        var role = words[offset + 1]
+        var state = words[offset + 2]
+        var health = words[offset + 4]
         if (enemyId <= 0 || enemyId > 1000000 ||
+            role < 1 || role > 3 ||
             state < 0 || state > 7 ||
-            words[offset + 2] < 0 ||
-            words[offset + 2] > 1000000 ||
+            words[offset + 3] < 0 ||
+            words[offset + 3] > 1000000 ||
             health < 0 || health > 1000000 ||
             ((state == 7 && health != 0) ||
                 (state != 7 && health == 0)) ||
-            words[offset + 4] < -1000000 ||
-            words[offset + 4] > 1000000 ||
             words[offset + 5] < -1000000 ||
             words[offset + 5] > 1000000 ||
             words[offset + 6] < -1000000 ||
-            words[offset + 6] > 1000000) {
+            words[offset + 6] > 1000000 ||
+            words[offset + 7] < -1000000 ||
+            words[offset + 7] > 1000000) {
             return false
         }
         if (state != 7) {
@@ -706,28 +737,197 @@ Int enemyEncounterStateEnemyId(Int[] words, Int index) {
     return enemyEncounterStateEnemyValue(words, index, 0)
 }
 
-Int enemyEncounterStateEnemyState(Int[] words, Int index) {
+Int enemyEncounterStateEnemyRole(Int[] words, Int index) {
     return enemyEncounterStateEnemyValue(words, index, 1)
 }
 
-Int enemyEncounterStateEnemyTarget(Int[] words, Int index) {
+Int enemyEncounterStateEnemyState(Int[] words, Int index) {
     return enemyEncounterStateEnemyValue(words, index, 2)
 }
 
-Int enemyEncounterStateEnemyHealth(Int[] words, Int index) {
+Int enemyEncounterStateEnemyTarget(Int[] words, Int index) {
     return enemyEncounterStateEnemyValue(words, index, 3)
 }
 
-Int enemyEncounterStateEnemyPositionX(Int[] words, Int index) {
+Int enemyEncounterStateEnemyHealth(Int[] words, Int index) {
     return enemyEncounterStateEnemyValue(words, index, 4)
 }
 
-Int enemyEncounterStateEnemyPositionY(Int[] words, Int index) {
+Int enemyEncounterStateEnemyPositionX(Int[] words, Int index) {
     return enemyEncounterStateEnemyValue(words, index, 5)
 }
 
-Int enemyEncounterStateEnemyPositionZ(Int[] words, Int index) {
+Int enemyEncounterStateEnemyPositionY(Int[] words, Int index) {
     return enemyEncounterStateEnemyValue(words, index, 6)
+}
+
+Int enemyEncounterStateEnemyPositionZ(Int[] words, Int index) {
+    return enemyEncounterStateEnemyValue(words, index, 7)
+}
+
+Int multiplayerFeedbackMessageKind() {
+    return 6
+}
+
+Int maximumMultiplayerFeedbackEvents() {
+    return 16
+}
+
+Int multiplayerFeedbackEntryWidth() {
+    return 11
+}
+
+Int multiplayerFeedbackEntriesOffset() {
+    return 5
+}
+
+Bool validMultiplayerFeedbackShape(Int[] words) {
+    return words.length >= 6 &&
+        words[0] == protocolVersion() &&
+        words[1] == multiplayerFeedbackMessageKind() &&
+        words[2] >= 0 && words[2] <= 1000000 &&
+        words[3] > 0 && words[3] <= 1000000 &&
+        words[4] >= 0 &&
+        words[4] <= maximumMultiplayerFeedbackEvents() &&
+        words.length == 6 +
+            words[4] * multiplayerFeedbackEntryWidth()
+}
+
+Int[] newMultiplayerFeedbackMessage(
+    Int tick, Int sequence, Int eventCount
+) {
+    if (tick < 0 || tick > 1000000 ||
+        sequence <= 0 || sequence > 1000000 ||
+        eventCount < 0 ||
+        eventCount > maximumMultiplayerFeedbackEvents()) {
+        return new Int[0]
+    }
+    var words = new Int[
+        6 + eventCount * multiplayerFeedbackEntryWidth()]
+    words[0] = protocolVersion()
+    words[1] = multiplayerFeedbackMessageKind()
+    words[2] = tick
+    words[3] = sequence
+    words[4] = eventCount
+    return words
+}
+
+Bool setMultiplayerFeedbackEvent(
+    Int[] words, Int index, ImpactPresentationEvent event
+) {
+    if (!validMultiplayerFeedbackShape(words) ||
+        index < 0 || index >= words[4] ||
+        event.sequence() <= 0 || event.sequence() > 1000000 ||
+        event.kind() <= 0 || event.kind() > 3 ||
+        event.sourceId() <= 0 || event.sourceId() > 1000000 ||
+        event.targetId() < 0 || event.targetId() > 1000000 ||
+        event.x() < -1000000 || event.x() > 1000000 ||
+        event.y() < -1000000 || event.y() > 1000000 ||
+        event.z() < -1000000 || event.z() > 1000000 ||
+        event.applied() < 0 || event.applied() > 1000000 ||
+        event.clip() <= 0 || event.clip() > 1000000 ||
+        event.gain() < 0 || event.gain() > 100) {
+        return false
+    }
+    var offset = multiplayerFeedbackEntriesOffset() +
+        index * multiplayerFeedbackEntryWidth()
+    words[offset] = event.sequence()
+    words[offset + 1] = event.kind()
+    words[offset + 2] = event.sourceId()
+    words[offset + 3] = event.targetId()
+    words[offset + 4] = event.x()
+    words[offset + 5] = event.y()
+    words[offset + 6] = event.z()
+    words[offset + 7] = event.applied()
+    words[offset + 8] = 0
+    if (event.died()) {
+        words[offset + 8] = 1
+    }
+    words[offset + 9] = event.clip()
+    words[offset + 10] = event.gain()
+    return true
+}
+
+Bool validMultiplayerFeedbackFields(Int[] words) {
+    if (!validMultiplayerFeedbackShape(words)) {
+        return false
+    }
+    var previousSequence = 0
+    for (var index = 0; index < words[4]; index = index + 1) {
+        var offset = multiplayerFeedbackEntriesOffset() +
+            index * multiplayerFeedbackEntryWidth()
+        if (words[offset] <= previousSequence ||
+            words[offset] > 1000000 ||
+            words[offset + 1] <= 0 || words[offset + 1] > 3 ||
+            words[offset + 2] <= 0 ||
+            words[offset + 2] > 1000000 ||
+            words[offset + 3] < 0 ||
+            words[offset + 3] > 1000000 ||
+            words[offset + 4] < -1000000 ||
+            words[offset + 4] > 1000000 ||
+            words[offset + 5] < -1000000 ||
+            words[offset + 5] > 1000000 ||
+            words[offset + 6] < -1000000 ||
+            words[offset + 6] > 1000000 ||
+            words[offset + 7] < 0 ||
+            words[offset + 7] > 1000000 ||
+            words[offset + 8] < 0 || words[offset + 8] > 1 ||
+            words[offset + 9] <= 0 ||
+            words[offset + 9] > 1000000 ||
+            words[offset + 10] < 0 ||
+            words[offset + 10] > 100) {
+            return false
+        }
+        previousSequence = words[offset]
+    }
+    return true
+}
+
+Bool sealMultiplayerFeedbackMessage(Int[] words) {
+    if (!validMultiplayerFeedbackFields(words)) {
+        return false
+    }
+    words[words.length - 1] =
+        gameplayMessageChecksum(words, words.length - 1)
+    return true
+}
+
+Bool validMultiplayerFeedbackMessage(Int[] words) {
+    return validMultiplayerFeedbackFields(words) &&
+        words[words.length - 1] ==
+            gameplayMessageChecksum(words, words.length - 1)
+}
+
+Int multiplayerFeedbackStateSequence(Int[] words) {
+    if (!validMultiplayerFeedbackMessage(words)) {
+        return 0
+    }
+    return words[3]
+}
+
+Int multiplayerFeedbackEventCount(Int[] words) {
+    if (!validMultiplayerFeedbackMessage(words)) {
+        return -1
+    }
+    return words[4]
+}
+
+ImpactPresentationEvent multiplayerFeedbackEventAt(
+    Int[] words, Int index
+) {
+    if (!validMultiplayerFeedbackMessage(words) ||
+        index < 0 || index >= words[4]) {
+        return ImpactPresentationEvent(
+            0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0)
+    }
+    var offset = multiplayerFeedbackEntriesOffset() +
+        index * multiplayerFeedbackEntryWidth()
+    return ImpactPresentationEvent(
+        words[offset], words[offset + 1],
+        words[offset + 2], words[offset + 3],
+        words[offset + 4], words[offset + 5], words[offset + 6],
+        words[offset + 7], words[offset + 8] == 1,
+        words[offset + 9], words[offset + 10])
 }
 
 Int envelopeSequence(Int[] words) {

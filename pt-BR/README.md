@@ -19,34 +19,34 @@ G0 e G1 executam na JVM e no Linux nativo x86-64:
   de inimigos e o impacto confirmado mais recente chegando ao HUD/áudio;
 - arena criada com 78 vértices e 26 triângulos, inclinação caminhável, degraus e
   salas empilhadas, replicada com limites explícitos do broad-phase;
-- câmera, staging limitado do mundo e um HUD semântico de combate com painéis
-  de vida/munição, glifo de conexão, carga ativa/reserva do encounter, mira
+- câmera, staging limitado do mundo e HUD semântico de combate com painéis de
+  vida/munição, glifo de conexão, carga ativa/reserva do encounter, mira
   responsiva ao foco, marcadores de acerto/eliminação e alertas laterais de
-  dano; o SDL_GPU envia a cena fixa de 252 vértices sem crescer por frame;
-- progressão cooperativa de chave, porta, segredo e saída, replay de comandos e
-  saves versionados do nível;
+  dano; o SDL_GPU envia a cena fixa de 288 vértices de arena/porta/HUD sem
+  crescer buffers por frame;
+- progressão cooperativa de chave, porta 3D, segredo e saída, replay de comandos
+  e saves versionados do nível;
 - saves, replays, inventário, equipamento, skills e efeitos de status;
 - um adaptador pequeno SDL3/SDL_GPU; regressões de transporte com três processos
   na JVM e no nativo levam a arena completa de 26 triângulos, comandos
-  unificados com checksum para movimento/disparo/interação/ciclo de vida e uma
-  mensagem limitada do encounter autoritativo. Os clientes aplicam posições,
-  estado e vida terminais do inimigo, impacto confirmado mais recente,
-  recompensa de 25 moedas, progressão até a revisão 4 e diagnósticos explícitos
-  de ciclo de vida/input obsoleto.
+  unificados com checksum para movimento/disparo/interação/ciclo de vida,
+  baselines de gameplay por destinatário, feedback multiplayer ordenado e
+  estado autoritativo limitado do encounter;
+- papéis contínuos de inimigos hitscan/projétil/shotgun, predição de movimento
+  no cliente com replay de inputs ainda não confirmados, recuperação de
+  reconexão segura por geração, colisão/geometria visual 3D completa das portas
+  e recuperação de lacunas/duplicatas em lotes de feedback;
+- atenuação por distância e pan estéreo relativos ao listener calculados no
+  Kof, com envio PCM esquerdo/direito sem alocação pelo adaptador de áudio SDL
+  nativo.
 
 As lacunas importantes continuam reais:
 
-- G2 ainda precisa de simulação contínua e replicada de vários papéis de
-  inimigos além do slice qualificado de um encounter/impacto,
-  predição/reconciliação completa dos jogadores, recuperação de
-  entrada/admissão em produção, geometria/colisão 3D completa das portas,
-  cobertura completa de feedback multiplayer e mixagem/espacialização de áudio
-  de produção;
 - a FFI de buffers do Kof está bloqueada por `FFI001`, então o kernel SIMD
   nativo ainda não está ligado aos hot loops pertencentes ao Kof;
-- saves duráveis contra crash, content cooker, física completa, áudio de
-  produção, soak/desempenho sustentado de G5 e o pipeline de criação continuam
-  incompletos.
+- saves duráveis contra crash, content cooker, física completa, áudio
+  comprimido/em streaming e HRTF/EFX, soak/desempenho sustentado de G5 e o
+  pipeline de criação continuam incompletos.
 
 Se uma afirmação não tem um teste ou uma sonda focada por trás, ela não é
 apresentada como concluída.
@@ -117,18 +117,17 @@ SDL_GPU, inicialmente com Vulkan/SPIR-V.
 
 ## Roadmap
 
-O próximo passo é concluir G2: ampliar o slice qualificado de arena, morte e
-recompensa de inimigo, estado/impacto do encounter e
-chave/porta/segredo/saída com host mais dois clientes para simulação contínua
-de vários papéis de inimigos, predição/reconciliação completa, recuperação de
-entrada em produção, portas 3D completas, feedback multiplayer completo e
-áudio de produção.
+O próximo passo é G3: concluir o slice multiplayer autoritativo de
+eliminação→drop gerado→coleta/equipamento→mudança de atributo/skill→recompensa
+de chefe→salvar/recarregar. G2 continua coberto pela suíte de código-fonte na
+JVM/no nativo, pela sonda focada de interação, pela qualificação de processos
+host mais dois clientes e pela sonda SDL_GPU/áudio headless isolada.
 
 Adiado até os gates centrais estarem mais fortes:
 
 - física completa e content cooker;
-- schema de save de produção e transporte multiplayer;
-- serviços de áudio/imagem/texto de produção;
+- schema de save de produção e reforço de transporte dedicado/WAN;
+- serviços de áudio em streaming/HRTF, imagem e texto;
 - compressão de pacotes e bibliotecas estrangeiras de física/UI.
 
 ## Documentação

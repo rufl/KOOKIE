@@ -110,3 +110,106 @@ class ImpactPresentationQueue {
         return consumed
     }
 }
+
+class ImpactPresentationHistory {
+    Int[] sequences
+    Int[] kinds
+    Int[] sourceIds
+    Int[] targetIds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] appliedAmounts
+    Bool[] died
+    Int[] clips
+    Int[] gains
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        sequences = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        sourceIds = new Int[actualCapacity]
+        targetIds = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        appliedAmounts = new Int[actualCapacity]
+        died = new Bool[actualCapacity]
+        clips = new Int[actualCapacity]
+        gains = new Int[actualCapacity]
+        countValue = 0
+    }
+
+    Bool append(ImpactPresentationEvent event) {
+        if (event.sequence() <= 0 ||
+            event.kind() <= 0 || event.kind() > 3 ||
+            event.sourceId() <= 0 || event.targetId() < 0 ||
+            event.applied() < 0 || event.clip() <= 0 ||
+            event.gain() < 0 || event.gain() > 100 ||
+            (countValue > 0 &&
+                event.sequence() <= sequences[countValue - 1])) {
+            return false
+        }
+        if (countValue == sequences.length) {
+            for (var index = 1; index < countValue; index = index + 1) {
+                sequences[index - 1] = sequences[index]
+                kinds[index - 1] = kinds[index]
+                sourceIds[index - 1] = sourceIds[index]
+                targetIds[index - 1] = targetIds[index]
+                positionsX[index - 1] = positionsX[index]
+                positionsY[index - 1] = positionsY[index]
+                positionsZ[index - 1] = positionsZ[index]
+                appliedAmounts[index - 1] = appliedAmounts[index]
+                died[index - 1] = died[index]
+                clips[index - 1] = clips[index]
+                gains[index - 1] = gains[index]
+            }
+            countValue = countValue - 1
+        }
+        sequences[countValue] = event.sequence()
+        kinds[countValue] = event.kind()
+        sourceIds[countValue] = event.sourceId()
+        targetIds[countValue] = event.targetId()
+        positionsX[countValue] = event.x()
+        positionsY[countValue] = event.y()
+        positionsZ[countValue] = event.z()
+        appliedAmounts[countValue] = event.applied()
+        died[countValue] = event.died()
+        clips[countValue] = event.clip()
+        gains[countValue] = event.gain()
+        countValue = countValue + 1
+        return true
+    }
+
+    Int size() {
+        return countValue
+    }
+
+    Int capacity() {
+        return sequences.length
+    }
+
+    Int latestSequence() {
+        if (countValue == 0) {
+            return 0
+        }
+        return sequences[countValue - 1]
+    }
+
+    ImpactPresentationEvent at(Int index) {
+        if (index < 0 || index >= countValue) {
+            return ImpactPresentationEvent(
+                0, 0, 0, 0, 0, 0, 0, 0, false, 0, 0)
+        }
+        return ImpactPresentationEvent(
+            sequences[index], kinds[index],
+            sourceIds[index], targetIds[index],
+            positionsX[index], positionsY[index], positionsZ[index],
+            appliedAmounts[index], died[index],
+            clips[index], gains[index])
+    }
+}

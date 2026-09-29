@@ -3,20 +3,28 @@ package core
 class QueuedAudio {
     Int[] clips
     Int[] gains
+    Int[] leftGains
+    Int[] rightGains
     Int head
     Int count
     Bool opened
     Int lastClip
     Int lastGain
+    Int lastLeftGain
+    Int lastRightGain
 
     public constructor(Int capacity) {
         this.clips = new Int[capacity]
         this.gains = new Int[capacity]
+        this.leftGains = new Int[capacity]
+        this.rightGains = new Int[capacity]
         this.head = 0
         this.count = 0
         this.opened = false
         this.lastClip = 0
         this.lastGain = 0
+        this.lastLeftGain = 0
+        this.lastRightGain = 0
     }
 
     Bool open() {
@@ -43,11 +51,18 @@ class QueuedAudio {
         count = 0
         lastClip = 0
         lastGain = 0
+        lastLeftGain = 0
+        lastRightGain = 0
         return true
     }
 
-    Bool queue(Int clip, Int gain) {
-        if (!opened || clip <= 0 || gain < 0 || gain > 100 || count >= clips.length) {
+    Bool queueChannels(
+        Int clip, Int gain, Int leftGain, Int rightGain
+    ) {
+        if (!opened || clip <= 0 || gain < 0 || gain > 100 ||
+            leftGain < 0 || leftGain > 100 ||
+            rightGain < 0 || rightGain > 100 ||
+            count >= clips.length) {
             return false
         }
         var index = head + count
@@ -56,8 +71,72 @@ class QueuedAudio {
         }
         clips[index] = clip
         gains[index] = gain
+        leftGains[index] = leftGain
+        rightGains[index] = rightGain
         count = count + 1
         return true
+    }
+
+    Bool queue(Int clip, Int gain) {
+        return queueChannels(clip, gain, gain, gain)
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Bool queueSpatial(
+        Int clip, Int gain,
+        Int sourceX, Int sourceY, Int sourceZ,
+        Int listenerX, Int listenerY, Int listenerZ,
+        Int rightX, Int rightZ, Int maxDistance
+    ) {
+        if (clip <= 0 || gain < 0 || gain > 100 ||
+            sourceX < -1000000 || sourceX > 1000000 ||
+            sourceY < -1000000 || sourceY > 1000000 ||
+            sourceZ < -1000000 || sourceZ > 1000000 ||
+            listenerX < -1000000 || listenerX > 1000000 ||
+            listenerY < -1000000 || listenerY > 1000000 ||
+            listenerZ < -1000000 || listenerZ > 1000000 ||
+            rightX < -100 || rightX > 100 ||
+            rightZ < -100 || rightZ > 100 ||
+            (rightX == 0 && rightZ == 0) ||
+            maxDistance <= 0 || maxDistance > 1000000) {
+            return false
+        }
+        var deltaX = sourceX - listenerX
+        var deltaY = sourceY - listenerY
+        var deltaZ = sourceZ - listenerZ
+        var distance = absolute(deltaX)
+        if (absolute(deltaY) > distance) {
+            distance = absolute(deltaY)
+        }
+        if (absolute(deltaZ) > distance) {
+            distance = absolute(deltaZ)
+        }
+        if (distance > maxDistance) {
+            distance = maxDistance
+        }
+        var effectiveGain = gain * (maxDistance - distance) / maxDistance
+        var pan = (deltaX * rightX + deltaZ * rightZ) / maxDistance
+        if (pan < -100) {
+            pan = -100
+        }
+        if (pan > 100) {
+            pan = 100
+        }
+        var leftGain = effectiveGain
+        var rightGain = effectiveGain
+        if (pan > 0) {
+            leftGain = effectiveGain * (100 - pan) / 100
+        } else if (pan < 0) {
+            rightGain = effectiveGain * (100 + pan) / 100
+        }
+        return queueChannels(
+            clip, effectiveGain, leftGain, rightGain)
     }
 
     Bool dequeue() {
@@ -66,6 +145,8 @@ class QueuedAudio {
         }
         lastClip = clips[head]
         lastGain = gains[head]
+        lastLeftGain = leftGains[head]
+        lastRightGain = rightGains[head]
         head = head + 1
         if (head >= clips.length) {
             head = 0
@@ -80,6 +161,14 @@ class QueuedAudio {
 
     Int consumedGain() {
         return lastGain
+    }
+
+    Int consumedLeftGain() {
+        return lastLeftGain
+    }
+
+    Int consumedRightGain() {
+        return lastRightGain
     }
 
     Bool close() {

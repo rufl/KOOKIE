@@ -87,12 +87,12 @@ This is the active bounded implementation sequence after the initial research an
 - Interaction replay now records up to 64 consumed commands, reserves capacity before admission, persists them in v2 bundles and re-simulates from full checkpoints. Movement uses consumed ticks; held input and presentation sequence survive repeated seeks.
 - Level progression now uses section 11/version 1 with level/content identity and exact stable-ID matching. Save files use bounded, checksummed v2 copies; genuine v1 files remain readable and repair upgrades them. Sixteen focused scenarios and 20 affected existing regressions pass on each target.
 - Fixed native checkpoint serialization of unused inventory roll fields and triangle rows; poisoned-buffer regressions prevent stale memory from entering replay files.
-- Door integration now makes closed authored doors block authoritative scalar movement across their X plane, while opened doors stop blocking. Client-visible door geometry stages through `FrameStaging` with open/closed state; this remains a scalar `(x, 0, 0)` arena contract, not a completed 3D collision mesh.
-- The external transport qualification now has a target-neutral Kof contract
-  with a native UDP backend and a direct Kof JVM UDP backend implemented in
-  `transport_jvm.kf` through JDK `java.net` APIs. Both use the authenticated
-  framing, key, replay and sequence contract; separate host/LAN evidence
-  remains open.
+- Door integration now uses authored 3D center/half-extents for authoritative segment/AABB blocking. Open doors stop blocking; closed doors stage a camera-projected 36-vertex cuboid through `FrameStaging`, including paths above and beside the volume.
+- The external transport qualification has a target-neutral Kof contract with
+  native UDP and direct JVM/JDK `java.net` backends. Both use the authenticated
+  framing, key, replay and sequence contract. Separate-host qualification later
+  passed with two independently identified clients; operational identities and
+  raw evidence remain outside the repository.
 - The Kof JVM boundary was measured directly with JDK
   `DatagramSocket`, `DatagramPacket` and `InetAddress` imports and runtime
   send/receive. The same imports remain rejected on the native target, so
@@ -141,15 +141,16 @@ This is the active bounded implementation sequence after the initial research an
   fire, movement and interactions advance exact server ticks.
 - JVM/native three-process role runs now prove client-issued movement,
   authoritative enemy hitscan death plus 25 currency, terminal encounter state
-  and health, latest confirmed impact sequence, revision-4
-  key/door/secret/exit completion, disconnect/reconnect generation two and
-  explicit stale-command diagnosis. Host responses pair fixed
-  player/progression state with a checksummed `20 + 7N` encounter message for
-  at most 32 enemies.
-- This advances G2 but does not prove the evolved protocol on separate hosts or
-  close continuous replicated multi-role enemy simulation, full player
-  prediction/reconciliation, production join recovery, 3D doors, complete
-  multiplayer feedback coverage or production audio mixing/spatialization.
+  and health, latest confirmed feedback, revision-4 key/door/secret/exit
+  completion, disconnect/reconnect generation two and explicit stale-generation
+  diagnosis. Host responses send recipient-specific 20-word gameplay state,
+  ordered `6 + 11F` feedback batches and a checksummed `20 + 8N` encounter
+  message containing role and 3D position for at most 32 enemies.
+- Combined source and interaction qualifications close G2's continuous
+  hitscan/projectile/shotgun roles, prediction/reconciliation, generation-safe
+  join/recovery, 3D door volume, feedback recovery and Kof-to-SDL stereo
+  spatialization contracts. The local role run is not WAN evidence and does not
+  replace the separate-host release gate.
 
 
 - `scripts/package_external_lan_roles.sh` builds Windows JVM host/client
