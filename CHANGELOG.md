@@ -19,9 +19,17 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Polished the fixed 174-vertex HUD with a shape-distinct connection glyph and
   active/reserve encounter track. Connection and reserve status change geometry
   as well as color; the full scene remains within 252 vertices.
-- The 72 JVM source scenarios, JVM/native interaction probe and local JVM
-  host-plus-two-client process regression pass. The LAN evidence validator now
-  requires terminal encounter/state/health and confirmed-impact markers.
+- All 72 source scenarios pass on JVM/native; the interaction probe and local
+  JVM/native host-plus-two-client process regressions also pass. The LAN
+  evidence validator now requires terminal encounter/state/health and
+  confirmed-impact markers.
+- Built and deployed Linux presentation dogfood `0.1.0-dogfood.23` from
+  `d89a16461e6d` to the local ztash catalog (SHA256
+  `43250c6763d9ef98d81e9ed3541a1c335139636e8852cbe2501a008cd5b30d7c`,
+  3,808,495 bytes). The exact archive exited `0` inside
+  `overzeer-isolated-display` plus a nested Wayland compositor, reported
+  present capability `11`, drew in 23,844 µs and produced a validated 320×240
+  frame with checksum `29,309,607`.
 
 ### Confirmed combat feedback slice
 

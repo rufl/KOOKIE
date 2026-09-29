@@ -20,9 +20,17 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Polimos o HUD fixo de 174 vértices com glifo de conexão distinguível pela
   forma e track de carga ativa/reserva. Conexão e reserva mudam geometria além
   da cor; a cena completa continua com 252 vértices.
-- Os 72 cenários JVM, a sonda de interação JVM/nativo e a regressão local JVM
-  com host mais dois clientes passam. O validador LAN agora exige marcadores
-  terminais de encounter/estado/vida e impacto confirmado.
+- Todos os 72 cenários-fonte passam em JVM/nativo; a sonda de interação e as
+  regressões locais com host mais dois clientes também passam em JVM/nativo.
+  O validador LAN agora exige marcadores terminais de encounter/estado/vida e
+  impacto confirmado.
+- Construímos e implantamos o dogfood Linux de apresentação
+  `0.1.0-dogfood.23` do commit `d89a16461e6d` no catálogo ztash local (SHA256
+  `43250c6763d9ef98d81e9ed3541a1c335139636e8852cbe2501a008cd5b30d7c`,
+  3.808.495 bytes). O arquivo exato encerrou com código `0` dentro de
+  `overzeer-isolated-display` mais um compositor Wayland aninhado, reportou
+  capacidade de apresentação `11`, desenhou em 23.844 µs e produziu um frame
+  320×240 validado com checksum `29.309.607`.
 
 ### Slice de feedback de combate confirmado
 
