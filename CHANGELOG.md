@@ -24,6 +24,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   pass. The 320×240 capture reported present capability `11`, drew in
   10,789 µs and produced checksum `30,593,757`; visual review found no clipping,
   panel overlap or ambiguous color-only threat state.
+- Built and deployed Linux presentation dogfood `0.1.0-dogfood.26` from
+  `2abfeb172b61` through the verified 30-package ztash catalog (SHA256
+  `325c4f9cf82ff42ed6e72898012d6e56afdb09f75a078a99f033a0519f50d3ac`,
+  4,232,726 bytes). The active ZEER marker and deployed smoke bind that exact
+  version, build and archive. The archive also exited `0` inside
+  `overzeer-isolated-display` plus nested niri, reported capability `11`, drew
+  in 5,104 µs and reproduced frame checksum `30,593,757`.
 
 ### G3 process replication and semantic HUD polish
 

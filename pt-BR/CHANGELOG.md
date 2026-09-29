@@ -27,6 +27,15 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   apresentação `11`, desenhou em 10.789 µs e produziu checksum `30.593.757`; a
   revisão visual não encontrou clipping, sobreposição de painéis nem estado de
   ameaça ambíguo dependente apenas de cor.
+- Geramos e implantamos o dogfood Linux de apresentação
+  `0.1.0-dogfood.26` a partir de `2abfeb172b61` pelo catálogo ztash verificado
+  de 30 pacotes (SHA256
+  `325c4f9cf82ff42ed6e72898012d6e56afdb09f75a078a99f033a0519f50d3ac`,
+  4.232.726 bytes). O marcador ZEER ativo e o smoke implantado vinculam essa
+  versão, build e arquivo exatos. O arquivo também encerrou com código `0`
+  dentro de `overzeer-isolated-display` mais niri aninhado, informou
+  capability `11`, desenhou em 5.104 µs e reproduziu o checksum de frame
+  `30.593.757`.
 
 ### Replicação G3 entre processos e polimento do HUD semântico
 
