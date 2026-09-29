@@ -1,6 +1,6 @@
 # KOOKIE working memory
 
-Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, and G4 has its first transactional vertical slice.
+Bounded foundations execute; the G0–G4 implementation gates are complete within the qualification limits below.
 
 ## Current qualification batch
 
@@ -23,9 +23,8 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
   no-per-frame-growth proof remains bounded to unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- The prior 77-scenario JVM/native source gate passed. The new GameShell
-  end-to-end scenario and both target checks pass; the full source matrix was
-  not rerun locally without the pre-commit permit.
+- All 84 focused source scenarios pass on JVM and native. The full repository
+  matrix was not run without the pre-commit permit.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
@@ -42,15 +41,18 @@ Bounded foundations execute; G0, G1, G2 and G3 acceptance gates are complete, an
   state kinds 7/8 replicate complete per-player authority and world drops
   through loopback and same-host JVM/native external processes; save section 12
   preserves drops and reward claims. Separate-host execution remains unproven.
-- G4 is in progress. Its published compatibility identity now binds a sealed
-  package, extension manifest, trusted-hook implementation/version, enemy
-  definitions and aligned geometry/collision/navigation/replication products.
-  A generation/checksum-bound runtime executes the compiled elite-bounty hook
-  after authoritative death, preflights budgets/capacity and applies its
-  currency command exactly once. Stale or invalid state retains prior output.
-  Remaining source formats, the broader hook/event surface, external package
-  loading, editor tooling, live staged reload and transport qualification are
-  open.
+- G4 is complete for its bounded contract. Typed hook subscriptions cover
+  session/player/enemy/loot/editor publication; the cooker and JVM file CLI
+  admit the documented GLB, Dust3D, Aseprite, VOX and convex brush subsets;
+  `.kpkg` reload validates candidate package/registry state before swap; the
+  Creator workspace provides inspection, edits, play-in-editor and bounded
+  undo/redo; and GPU products activate at a frame boundary only after their
+  upload fence. An 18-word offer and 7-word response transport the exact
+  13-word compatibility identity through authenticated remote-role transport
+  before gameplay. That handshake passed with host and clients in three
+  isolated Linux network namespaces and distinct IPv4 stacks. General format
+  compatibility, arbitrary code/shader reload, a production editor and fresh
+  qualification on three physical machines are outside this claim.
 
 ## Latest implementation batch
 
@@ -212,8 +214,8 @@ management remains unimplemented.
 32. G3's public content boundary is a bounded immutable registry, not a plugin
     ABI: manifests declare versions, dependencies, capabilities, load order,
     migrations, network schema and provenance; contributions and elite/boss
-    definitions fail closed before session start. Trusted module hooks, cooker
-    output and staged reload remain G4.
+    definitions fail closed before session start. G4 adds generation-bound
+    trusted hooks, deterministic cooker products and staged package/GPU reload.
 
 
 ## Editor cautions
@@ -254,18 +256,19 @@ Clients predict movement, replay unacknowledged inputs on reconciliation and
 reset epochs after reconnect; the interaction, process and isolated SDL probes
 pass.
 
-G3 remains complete at its current gate, and all 78 source scenarios now pass
-on JVM/native. Server-owned kill→rolled drop→pickup/equip→observable damage/skill
-change→boss reward→schema-file save/reload executes without client-authored
-outcomes or duplicate rewards. State kinds 7/8 traverse authenticated same-host
+G3 remains complete at its current gate. Server-owned
+kill→rolled drop→pickup/equip→observable damage/skill change→boss
+reward→schema-file save/reload executes without client-authored outcomes or
+duplicate rewards. State kinds 7/8 traverse authenticated same-host
 host-plus-two-client processes on both targets. Bounded public manifests,
-capabilities and deterministic contributions now instantiate complete sealed
-elite/boss rules atomically. Separate-host execution is unproven; G4 remains
-the complete cooker/source intake, broader trusted-hook/domain-event surface,
-external package loading, editor transactions, GPU-safe staged reload and
-compatibility-handshake transport. G5 retains sustained workload, RSS and
-frame-budget acceptance; `FFI001` still blocks Kof bulk-buffer calls into the
-optional SIMD kernel.
+capabilities and deterministic contributions instantiate complete sealed
+elite/boss rules atomically.
+
+G4 is complete for the bounded implementation summarized above. Its
+compatibility exchange uses production role transport and separate processes,
+but the retained qualification is not a fresh three-machine run. G5 retains
+sustained workload, RSS and frame-budget acceptance; `FFI001` still blocks Kof
+bulk-buffer calls into the optional SIMD kernel.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

@@ -1,0 +1,407 @@
+package content
+
+class BoundedZlibInflater {
+    Int[] output
+    Int[] literalCounts
+    Int[] literalSymbols
+    Int[] distanceCounts
+    Int[] distanceSymbols
+    Int[] codeCounts
+    Int[] codeSymbols
+    Int[] literalLengths
+    Int[] distanceLengths
+    Int[] codeLengths
+    Int[] tableOffsets
+    Int[] sourceValue
+    Int outputCountValue
+    Int bitPositionValue
+    Int bitLimitValue
+    Int sourceStartValue
+    Bool acceptedValue
+
+    public constructor(Int outputCapacity) {
+        var capacity = outputCapacity
+        if (capacity <= 0) { capacity = 1 }
+        if (capacity > 1048576) { capacity = 1048576 }
+        output = new Int[capacity]
+        literalCounts = new Int[16]
+        literalSymbols = new Int[288]
+        distanceCounts = new Int[16]
+        distanceSymbols = new Int[32]
+        codeCounts = new Int[16]
+        codeSymbols = new Int[19]
+        literalLengths = new Int[288]
+        distanceLengths = new Int[32]
+        codeLengths = new Int[19]
+        tableOffsets = new Int[16]
+        sourceValue = new Int[0]
+        clear()
+    }
+
+    Bool clear() {
+        outputCountValue = 0
+        bitPositionValue = 0
+        bitLimitValue = 0
+        sourceStartValue = 0
+        acceptedValue = false
+        return true
+    }
+
+    Int readBits(Int count) {
+        if (count < 0 || count > 16 || bitPositionValue + count > bitLimitValue) {
+            return -1
+        }
+        var result = 0
+        for (var bit = 0; bit < count; bit = bit + 1) {
+            var absolute = sourceStartValue * 8 + bitPositionValue
+            var value = (sourceValue[absolute / 8] >>> (absolute % 8)) & 1
+            result = result | (value << bit)
+            bitPositionValue = bitPositionValue + 1
+        }
+        return result
+    }
+
+    Bool buildTable(Int[] lengths, Int symbolCount, Int table) {
+        var counts = codeCounts
+        var symbols = codeSymbols
+        if (table == 0) {
+            counts = literalCounts
+            symbols = literalSymbols
+        } else if (table == 1) {
+            counts = distanceCounts
+            symbols = distanceSymbols
+        }
+        for (var index = 0; index < counts.length; index = index + 1) {
+            counts[index] = 0
+        }
+        for (var symbol = 0; symbol < symbolCount; symbol = symbol + 1) {
+            var length = lengths[symbol]
+            if (length < 0 || length > 15) { return false }
+            counts[length] = counts[length] + 1
+        }
+        if (counts[0] == symbolCount) { return false }
+        var remaining = 1
+        for (var length = 1; length <= 15; length = length + 1) {
+            remaining = remaining * 2 - counts[length]
+            if (remaining < 0) { return false }
+        }
+        for (var index = 0; index < tableOffsets.length; index = index + 1) {
+            tableOffsets[index] = 0
+        }
+        tableOffsets[1] = 0
+        for (var length = 1; length < 15; length = length + 1) {
+            tableOffsets[length + 1] =
+                tableOffsets[length] + counts[length]
+        }
+        for (var symbol = 0; symbol < symbolCount; symbol = symbol + 1) {
+            var length = lengths[symbol]
+            if (length > 0) {
+                symbols[tableOffsets[length]] = symbol
+                tableOffsets[length] = tableOffsets[length] + 1
+            }
+        }
+        return true
+    }
+
+    Int decodeSymbol(Int table) {
+        var counts = codeCounts
+        var symbols = codeSymbols
+        if (table == 0) {
+            counts = literalCounts
+            symbols = literalSymbols
+        } else if (table == 1) {
+            counts = distanceCounts
+            symbols = distanceSymbols
+        }
+        var code = 0
+        var first = 0
+        var index = 0
+        for (var length = 1; length <= 15; length = length + 1) {
+            var bit = readBits(1)
+            if (bit < 0) { return -1 }
+            code = code | bit
+            var count = counts[length]
+            if (code < first + count) {
+                return symbols[index + code - first]
+            }
+            index = index + count
+            first = first + count
+            first = first << 1
+            code = code << 1
+        }
+        return -1
+    }
+
+    Bool fixedTables() {
+        for (var symbol = 0; symbol <= 143; symbol = symbol + 1) {
+            literalLengths[symbol] = 8
+        }
+        for (var symbol = 144; symbol <= 255; symbol = symbol + 1) {
+            literalLengths[symbol] = 9
+        }
+        for (var symbol = 256; symbol <= 279; symbol = symbol + 1) {
+            literalLengths[symbol] = 7
+        }
+        for (var symbol = 280; symbol < 288; symbol = symbol + 1) {
+            literalLengths[symbol] = 8
+        }
+        for (var symbol = 0; symbol < 32; symbol = symbol + 1) {
+            distanceLengths[symbol] = 5
+        }
+        return buildTable(literalLengths, 288, 0) &&
+            buildTable(distanceLengths, 32, 1)
+    }
+
+    Int codeLengthOrder(Int index) {
+        if (index == 0) { return 16 }
+        if (index == 1) { return 17 }
+        if (index == 2) { return 18 }
+        if (index == 3) { return 0 }
+        if (index == 4) { return 8 }
+        if (index == 5) { return 7 }
+        if (index == 6) { return 9 }
+        if (index == 7) { return 6 }
+        if (index == 8) { return 10 }
+        if (index == 9) { return 5 }
+        if (index == 10) { return 11 }
+        if (index == 11) { return 4 }
+        if (index == 12) { return 12 }
+        if (index == 13) { return 3 }
+        if (index == 14) { return 13 }
+        if (index == 15) { return 2 }
+        if (index == 16) { return 14 }
+        if (index == 17) { return 1 }
+        return 15
+    }
+
+    Bool dynamicTables() {
+        var literalCount = readBits(5)
+        var distanceCount = readBits(5)
+        var codeCount = readBits(4)
+        if (literalCount < 0 || distanceCount < 0 || codeCount < 0) {
+            return false
+        }
+        literalCount = literalCount + 257
+        distanceCount = distanceCount + 1
+        codeCount = codeCount + 4
+        for (var index = 0; index < 19; index = index + 1) {
+            codeLengths[index] = 0
+        }
+        for (var index = 0; index < codeCount; index = index + 1) {
+            var length = readBits(3)
+            if (length < 0) { return false }
+            codeLengths[codeLengthOrder(index)] = length
+        }
+        if (!buildTable(codeLengths, 19, 2)) { return false }
+        var total = literalCount + distanceCount
+        var cursor = 0
+        var previous = 0
+        while (cursor < total) {
+            var symbol = decodeSymbol(2)
+            if (symbol < 0) { return false }
+            if (symbol <= 15) {
+                previous = symbol
+                if (cursor < literalCount) {
+                    literalLengths[cursor] = symbol
+                } else {
+                    distanceLengths[cursor - literalCount] = symbol
+                }
+                cursor = cursor + 1
+            } else {
+                var repeat = 0
+                var value = 0
+                if (symbol == 16) {
+                    if (cursor == 0) { return false }
+                    repeat = readBits(2)
+                    if (repeat < 0) { return false }
+                    repeat = repeat + 3
+                    value = previous
+                } else if (symbol == 17) {
+                    repeat = readBits(3)
+                    if (repeat < 0) { return false }
+                    repeat = repeat + 3
+                    value = 0
+                    previous = 0
+                } else if (symbol == 18) {
+                    repeat = readBits(7)
+                    if (repeat < 0) { return false }
+                    repeat = repeat + 11
+                    value = 0
+                    previous = 0
+                } else {
+                    return false
+                }
+                if (cursor + repeat > total) { return false }
+                for (var index = 0; index < repeat; index = index + 1) {
+                    if (cursor < literalCount) {
+                        literalLengths[cursor] = value
+                    } else {
+                        distanceLengths[cursor - literalCount] = value
+                    }
+                    cursor = cursor + 1
+                }
+            }
+        }
+        for (var index = literalCount; index < literalLengths.length; index = index + 1) {
+            literalLengths[index] = 0
+        }
+        for (var index = distanceCount; index < distanceLengths.length; index = index + 1) {
+            distanceLengths[index] = 0
+        }
+        return literalLengths[256] > 0 &&
+            buildTable(literalLengths, literalCount, 0) &&
+            buildTable(distanceLengths, distanceCount, 1)
+    }
+
+    Int lengthBase(Int symbol) {
+        if (symbol <= 264) { return symbol - 254 }
+        if (symbol <= 268) { return 11 + (symbol - 265) * 2 }
+        if (symbol <= 272) { return 19 + (symbol - 269) * 4 }
+        if (symbol <= 276) { return 35 + (symbol - 273) * 8 }
+        if (symbol <= 280) { return 67 + (symbol - 277) * 16 }
+        if (symbol <= 284) { return 131 + (symbol - 281) * 32 }
+        if (symbol == 285) { return 258 }
+        return -1
+    }
+
+    Int lengthExtra(Int symbol) {
+        if (symbol <= 264) { return 0 }
+        if (symbol <= 268) { return 1 }
+        if (symbol <= 272) { return 2 }
+        if (symbol <= 276) { return 3 }
+        if (symbol <= 280) { return 4 }
+        if (symbol <= 284) { return 5 }
+        if (symbol == 285) { return 0 }
+        return -1
+    }
+
+    Int distanceBase(Int symbol) {
+        if (symbol <= 3) { return symbol + 1 }
+        if (symbol <= 5) { return 5 + (symbol - 4) * 2 }
+        if (symbol <= 7) { return 9 + (symbol - 6) * 4 }
+        if (symbol <= 9) { return 17 + (symbol - 8) * 8 }
+        if (symbol <= 11) { return 33 + (symbol - 10) * 16 }
+        if (symbol <= 13) { return 65 + (symbol - 12) * 32 }
+        if (symbol <= 15) { return 129 + (symbol - 14) * 64 }
+        if (symbol <= 17) { return 257 + (symbol - 16) * 128 }
+        if (symbol <= 19) { return 513 + (symbol - 18) * 256 }
+        if (symbol <= 21) { return 1025 + (symbol - 20) * 512 }
+        if (symbol <= 23) { return 2049 + (symbol - 22) * 1024 }
+        if (symbol <= 25) { return 4097 + (symbol - 24) * 2048 }
+        if (symbol <= 27) { return 8193 + (symbol - 26) * 4096 }
+        if (symbol <= 29) { return 16385 + (symbol - 28) * 8192 }
+        return -1
+    }
+
+    Int distanceExtra(Int symbol) {
+        if (symbol <= 3) { return 0 }
+        if (symbol <= 29) { return symbol / 2 - 1 }
+        return -1
+    }
+
+    Bool decodeCompressed() {
+        while (true) {
+            var symbol = decodeSymbol(0)
+            if (symbol < 0) { return false }
+            if (symbol < 256) {
+                if (outputCountValue >= output.length) { return false }
+                output[outputCountValue] = symbol
+                outputCountValue = outputCountValue + 1
+            } else if (symbol == 256) {
+                return true
+            } else {
+                var base = lengthBase(symbol)
+                var extraCount = lengthExtra(symbol)
+                if (base < 0 || extraCount < 0) { return false }
+                var extra = readBits(extraCount)
+                if (extra < 0) { return false }
+                var length = base + extra
+                var distanceSymbol = decodeSymbol(1)
+                var distance = distanceBase(distanceSymbol)
+                var distanceBits = distanceExtra(distanceSymbol)
+                if (distance < 0 || distanceBits < 0) { return false }
+                extra = readBits(distanceBits)
+                if (extra < 0) { return false }
+                distance = distance + extra
+                if (distance <= 0 || distance > outputCountValue ||
+                    outputCountValue + length > output.length) { return false }
+                for (var index = 0; index < length; index = index + 1) {
+                    output[outputCountValue] = output[outputCountValue - distance]
+                    outputCountValue = outputCountValue + 1
+                }
+            }
+        }
+        return false
+    }
+
+    Bool decodeStored() {
+        bitPositionValue = ((bitPositionValue + 7) / 8) * 8
+        var length = readBits(16)
+        var inverse = readBits(16)
+        if (length < 0 || inverse < 0 || inverse != (65535 - length) ||
+            outputCountValue + length > output.length) { return false }
+        for (var index = 0; index < length; index = index + 1) {
+            var value = readBits(8)
+            if (value < 0) { return false }
+            output[outputCountValue] = value
+            outputCountValue = outputCountValue + 1
+        }
+        return true
+    }
+
+    Bool verifyAdler(Int[] source, Int end) {
+        var a = 1
+        var b = 0
+        for (var index = 0; index < outputCountValue; index = index + 1) {
+            a = (a + output[index]) % 65521
+            b = (b + a) % 65521
+        }
+        return source[end - 4] == ((b >>> 8) & 255) &&
+            source[end - 3] == (b & 255) &&
+            source[end - 2] == ((a >>> 8) & 255) &&
+            source[end - 1] == (a & 255)
+    }
+
+    Bool inflate(Int[] source, Int start, Int length, Int expectedLength) {
+        clear()
+        if (start < 0 || length < 6 || length > source.length ||
+            start > source.length - length ||
+            expectedLength < 0 || expectedLength > output.length) { return false }
+        var cmf = source[start]
+        var flags = source[start + 1]
+        if ((cmf & 15) != 8 || (cmf >>> 4) > 7 ||
+            ((cmf * 256 + flags) % 31) != 0 || (flags & 32) != 0) {
+            return false
+        }
+        sourceValue = source
+        sourceStartValue = start + 2
+        bitPositionValue = 0
+        bitLimitValue = (length - 6) * 8
+        var finalBlock = false
+        while (!finalBlock) {
+            var finalFlag = readBits(1)
+            var blockType = readBits(2)
+            if (finalFlag < 0 || blockType < 0 || blockType == 3) { return false }
+            finalBlock = finalFlag == 1
+            if (blockType == 0) {
+                if (!decodeStored()) { return false }
+            } else {
+                if ((blockType == 1 && !fixedTables()) ||
+                    (blockType == 2 && !dynamicTables()) ||
+                    !decodeCompressed()) { return false }
+            }
+        }
+        var consumedBytes = (bitPositionValue + 7) / 8
+        if (consumedBytes != length - 6 || outputCountValue != expectedLength ||
+            !verifyAdler(source, start + length)) { return false }
+        acceptedValue = true
+        return true
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int outputLength() { return outputCountValue }
+    Int outputByte(Int index) {
+        if (index < 0 || index >= outputCountValue) { return -1 }
+        return output[index]
+    }
+}

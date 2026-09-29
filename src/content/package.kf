@@ -364,6 +364,66 @@ class BoundedContentPackage {
     Int chunkCount() {
         return chunkCountValue
     }
+
+    Int assetNamespace(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetNamespaces[index]
+    }
+
+    Int assetId(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetIds[index]
+    }
+
+    Int assetKind(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetKinds[index]
+    }
+
+    Int assetRevision(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetRevisions[index]
+    }
+
+    Int assetProductMask(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetProducts[index]
+    }
+
+    Int chunkId(Int index) {
+        if (index < 0 || index >= chunkCountValue) { return 0 }
+        return chunkIds[index]
+    }
+
+    Int chunkKind(Int index) {
+        if (index < 0 || index >= chunkCountValue) { return 0 }
+        return chunkKinds[index]
+    }
+
+    Int chunkOffset(Int index) {
+        if (index < 0 || index >= chunkCountValue) { return -1 }
+        return chunkOffsets[index]
+    }
+
+    Int chunkLength(Int index) {
+        if (index < 0 || index >= chunkCountValue) { return 0 }
+        return chunkLengths[index]
+    }
+
+    Int chunkHashLow(Int index) {
+        if (index < 0 || index >= chunkCountValue) { return -1 }
+        return chunkHashesLow[index]
+    }
+
+    Int chunkHashHigh(Int index) {
+        if (index < 0 || index >= chunkCountValue) { return -1 }
+        return chunkHashesHigh[index]
+    }
+
+    Int chunkRevision(Int index) {
+        if (index < 0 || index >= chunkCountValue) { return 0 }
+        return chunkRevisions[index]
+    }
     Bool containsAsset(Int namespaceId, Int assetId, Int revision) {
         for (var index = 0; index < assetCountValue; index = index + 1) {
             if (assetNamespaces[index] == namespaceId &&

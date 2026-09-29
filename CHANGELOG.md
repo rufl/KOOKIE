@@ -4,6 +4,39 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-29
 
+### Bounded G4 creator pipeline completion
+
+- Expanded trusted modules from the elite-death path to typed
+  session-started, player-connected, enemy-defeated, loot-picked-up and
+  editor-published subscriptions. Static implementation/version pairs remain
+  generation-bound, phase-ordered and capacity-budgeted.
+- Added bounded offline intake for Dust3D projects plus validated textured GLB,
+  raw/zlib 32-bit RGBA Aseprite files, MagicaVoxel models/palette/scene chunks
+  and integer-grid convex Quake-style brushes. Canonical geometry, collision,
+  PNG atlas, metadata, material, entity and visibility identities are produced
+  deterministically; unsupported constructs fail with format diagnostics.
+- Added `scripts/kookie_cooker.sh` with file `cook`, one-chunk `package`,
+  `inspect-package` and `validate-package` commands.
+- Added a little-endian `.kpkg` envelope and external loader with bounded
+  logical paths, chunk ranges/hashes and extension/definition/hook records.
+  Reload validates candidate state first; rejection preserves the active
+  package, registries and generation.
+- Added the Creator screen and `BoundedCreatorWorkspace` for revision-checked
+  world/entity/weapon/loot mutations, collision/AI inspection, play-in-editor
+  and bounded undo/redo. Geometry, collision, navigation and render identities
+  publish as one transaction.
+- Added coordinated Kof and SDL-adapter reload state machines. The adapter
+  builds a separate candidate scene, waits for synchronous upload-fence
+  completion before reusing the persistent GPU buffer, then activates at a
+  frame boundary. Kof references gate retirement of the old generation.
+- Added the compatibility control handshake to remote role transport. An
+  18-word offer carries the exact 13-word identity; a 7-word response admits or
+  rejects it with a diagnostic before snapshots or gameplay.
+- All 84 focused source scenarios pass on JVM and native. The authenticated
+  role probe also passed with the host and two clients in separate Linux
+  network namespaces and distinct IPv4 stacks, including reconnect and the
+  compatibility handshake. This is not evidence from three physical machines.
+
 ### Persistent native game shell, menus and permissive packaging
 
 - Replaced the Windows auto-closing color-matrix executable and embedded-JDK

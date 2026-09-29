@@ -1,0 +1,235 @@
+package core
+
+Int gpuReloadDiagnosticNone() { return 0 }
+Int gpuReloadDiagnosticState() { return 1 }
+Int gpuReloadDiagnosticGeneration() { return 2 }
+Int gpuReloadDiagnosticProduct() { return 3 }
+Int gpuReloadDiagnosticFence() { return 4 }
+Int gpuReloadDiagnosticReference() { return 5 }
+
+class BoundedGpuReloadCoordinator {
+    Int activeGenerationValue
+    Int activeGeometryValue
+    Int activeMaterialValue
+    Int activeRenderValue
+    Int activeVertexCountValue
+    Int activeFrameValue
+    Int activeReferenceCountValue
+    Int pendingGenerationValue
+    Int pendingGeometryValue
+    Int pendingMaterialValue
+    Int pendingRenderValue
+    Int pendingVertexCountValue
+    Int pendingFenceValue
+    Int retiringGenerationValue
+    Int retiringReferenceCountValue
+    Int retiringFenceValue
+    Int retiredGenerationValue
+    Int completedFenceValue
+    Int diagnosticValue
+
+    public constructor() {
+        activeGenerationValue = 0
+        activeGeometryValue = 0
+        activeMaterialValue = 0
+        activeRenderValue = 0
+        activeVertexCountValue = 0
+        activeFrameValue = 0
+        activeReferenceCountValue = 0
+        pendingGenerationValue = 0
+        pendingGeometryValue = 0
+        pendingMaterialValue = 0
+        pendingRenderValue = 0
+        pendingVertexCountValue = 0
+        pendingFenceValue = 0
+        retiringGenerationValue = 0
+        retiringReferenceCountValue = 0
+        retiringFenceValue = 0
+        retiredGenerationValue = 0
+        completedFenceValue = 0
+        diagnosticValue = gpuReloadDiagnosticNone()
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        return false
+    }
+
+    Bool validProducts(
+        Int geometryChecksum, Int materialChecksum,
+        Int renderChecksum, Int vertexCount
+    ) {
+        return geometryChecksum > 0 && geometryChecksum <= 1000002 &&
+            materialChecksum > 0 && materialChecksum <= 1000002 &&
+            renderChecksum > 0 && renderChecksum <= 1000002 &&
+            vertexCount > 0 && vertexCount <= 1048576
+    }
+
+    Bool bindInitial(
+        Int generation, Int geometryChecksum, Int materialChecksum,
+        Int renderChecksum, Int vertexCount, Int frame
+    ) {
+        if (activeGenerationValue != 0 || pendingGenerationValue != 0 ||
+            retiringGenerationValue != 0) {
+            return reject(gpuReloadDiagnosticState())
+        }
+        if (generation <= 0 || generation > 1000000 || frame < 0) {
+            return reject(gpuReloadDiagnosticGeneration())
+        }
+        if (!validProducts(
+                geometryChecksum, materialChecksum, renderChecksum, vertexCount)) {
+            return reject(gpuReloadDiagnosticProduct())
+        }
+        activeGenerationValue = generation
+        activeGeometryValue = geometryChecksum
+        activeMaterialValue = materialChecksum
+        activeRenderValue = renderChecksum
+        activeVertexCountValue = vertexCount
+        activeFrameValue = frame
+        diagnosticValue = gpuReloadDiagnosticNone()
+        return true
+    }
+
+    Bool stage(
+        Int expectedGeneration, Int nextGeneration,
+        Int geometryChecksum, Int materialChecksum,
+        Int renderChecksum, Int vertexCount
+    ) {
+        if (activeGenerationValue <= 0 || pendingGenerationValue != 0 ||
+            retiringGenerationValue != 0) {
+            return reject(gpuReloadDiagnosticState())
+        }
+        if (expectedGeneration != activeGenerationValue ||
+            nextGeneration <= activeGenerationValue || nextGeneration > 1000000) {
+            return reject(gpuReloadDiagnosticGeneration())
+        }
+        if (!validProducts(
+                geometryChecksum, materialChecksum, renderChecksum, vertexCount)) {
+            return reject(gpuReloadDiagnosticProduct())
+        }
+        pendingGenerationValue = nextGeneration
+        pendingGeometryValue = geometryChecksum
+        pendingMaterialValue = materialChecksum
+        pendingRenderValue = renderChecksum
+        pendingVertexCountValue = vertexCount
+        pendingFenceValue = 0
+        diagnosticValue = gpuReloadDiagnosticNone()
+        return true
+    }
+
+    Bool cancel(Int generation) {
+        if (pendingGenerationValue != generation || pendingFenceValue != 0) {
+            return reject(gpuReloadDiagnosticState())
+        }
+        pendingGenerationValue = 0
+        pendingGeometryValue = 0
+        pendingMaterialValue = 0
+        pendingRenderValue = 0
+        pendingVertexCountValue = 0
+        diagnosticValue = gpuReloadDiagnosticNone()
+        return true
+    }
+
+    Bool markUploaded(Int generation, Int fence) {
+        if (pendingGenerationValue != generation || pendingFenceValue != 0) {
+            return reject(gpuReloadDiagnosticState())
+        }
+        if (fence <= completedFenceValue || fence <= 0 || fence > 1000000) {
+            return reject(gpuReloadDiagnosticFence())
+        }
+        pendingFenceValue = fence
+        diagnosticValue = gpuReloadDiagnosticNone()
+        return true
+    }
+
+    Bool activateAtFrame(Int generation, Int frame, Int completedFence) {
+        if (pendingGenerationValue != generation || pendingFenceValue <= 0 ||
+            retiringGenerationValue != 0) {
+            return reject(gpuReloadDiagnosticState())
+        }
+        if (frame <= activeFrameValue || frame > 1000000) {
+            return reject(gpuReloadDiagnosticGeneration())
+        }
+        if (completedFence < pendingFenceValue ||
+            completedFence < completedFenceValue || completedFence > 1000000) {
+            return reject(gpuReloadDiagnosticFence())
+        }
+        retiringGenerationValue = activeGenerationValue
+        retiringReferenceCountValue = activeReferenceCountValue
+        retiringFenceValue = pendingFenceValue
+        activeGenerationValue = pendingGenerationValue
+        activeGeometryValue = pendingGeometryValue
+        activeMaterialValue = pendingMaterialValue
+        activeRenderValue = pendingRenderValue
+        activeVertexCountValue = pendingVertexCountValue
+        activeFrameValue = frame
+        activeReferenceCountValue = 0
+        pendingGenerationValue = 0
+        pendingGeometryValue = 0
+        pendingMaterialValue = 0
+        pendingRenderValue = 0
+        pendingVertexCountValue = 0
+        pendingFenceValue = 0
+        completedFenceValue = completedFence
+        diagnosticValue = gpuReloadDiagnosticNone()
+        return true
+    }
+
+    Int acquireActive() {
+        if (activeGenerationValue <= 0 || activeReferenceCountValue >= 64) {
+            diagnosticValue = gpuReloadDiagnosticReference()
+            return 0
+        }
+        activeReferenceCountValue = activeReferenceCountValue + 1
+        diagnosticValue = gpuReloadDiagnosticNone()
+        return activeGenerationValue
+    }
+
+    Bool release(Int generation) {
+        if (generation == activeGenerationValue && activeReferenceCountValue > 0) {
+            activeReferenceCountValue = activeReferenceCountValue - 1
+            diagnosticValue = gpuReloadDiagnosticNone()
+            return true
+        }
+        if (generation == retiringGenerationValue &&
+            retiringReferenceCountValue > 0) {
+            retiringReferenceCountValue = retiringReferenceCountValue - 1
+            diagnosticValue = gpuReloadDiagnosticNone()
+            return true
+        }
+        return reject(gpuReloadDiagnosticReference())
+    }
+
+    Bool retire(Int completedFence) {
+        if (retiringGenerationValue <= 0) {
+            return reject(gpuReloadDiagnosticState())
+        }
+        if (retiringReferenceCountValue != 0) {
+            return reject(gpuReloadDiagnosticReference())
+        }
+        if (completedFence < retiringFenceValue ||
+            completedFence < completedFenceValue || completedFence > 1000000) {
+            return reject(gpuReloadDiagnosticFence())
+        }
+        retiredGenerationValue = retiringGenerationValue
+        retiringGenerationValue = 0
+        retiringFenceValue = 0
+        completedFenceValue = completedFence
+        diagnosticValue = gpuReloadDiagnosticNone()
+        return true
+    }
+
+    Int activeGeneration() { return activeGenerationValue }
+    Int pendingGeneration() { return pendingGenerationValue }
+    Int retiringGeneration() { return retiringGenerationValue }
+    Int retiredGeneration() { return retiredGenerationValue }
+    Int activeGeometryChecksum() { return activeGeometryValue }
+    Int activeMaterialChecksum() { return activeMaterialValue }
+    Int activeRenderChecksum() { return activeRenderValue }
+    Int activeVertexCount() { return activeVertexCountValue }
+    Int activeFrame() { return activeFrameValue }
+    Int activeReferenceCount() { return activeReferenceCountValue }
+    Int retiringReferenceCount() { return retiringReferenceCountValue }
+    Int completedFence() { return completedFenceValue }
+    Int diagnostic() { return diagnosticValue }
+}

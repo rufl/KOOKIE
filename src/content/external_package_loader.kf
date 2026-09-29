@@ -1,0 +1,497 @@
+package content
+
+import core
+
+Int creatorDescriptorChunkKind() { return 33 }
+Int externalPackageDiagnosticNone() { return 0 }
+Int externalPackageDiagnosticFile() { return 1 }
+Int externalPackageDiagnosticDescriptor() { return 2 }
+Int externalPackageDiagnosticManifest() { return 3 }
+Int externalPackageDiagnosticDefinition() { return 4 }
+Int externalPackageDiagnosticHook() { return 5 }
+Int externalPackageDiagnosticPublication() { return 6 }
+
+class BoundedExternalCreatorDescriptor {
+    Int[] words
+    Int wordCountValue
+    Int extensionCountValue
+    Int dependencyCountValue
+    Int enemyCountValue
+    Int hookCountValue
+    Int requiredEngineValue
+    Int requiredApiValue
+    Int geometryChecksumValue
+    Int collisionChecksumValue
+    Int navigationChecksumValue
+    Bool configuredValue
+    Bool sealedValue
+
+    public constructor() {
+        words = new Int[1024]
+        clear()
+    }
+
+    Bool clear() {
+        wordCountValue = 13
+        extensionCountValue = 0
+        dependencyCountValue = 0
+        enemyCountValue = 0
+        hookCountValue = 0
+        requiredEngineValue = 0
+        requiredApiValue = 0
+        geometryChecksumValue = 0
+        collisionChecksumValue = 0
+        navigationChecksumValue = 0
+        configuredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool configureProducts(
+        Int requiredEngine, Int requiredApi,
+        Int geometryChecksum, Int collisionChecksum,
+        Int navigationChecksum
+    ) {
+        if (sealedValue || configuredValue ||
+            requiredEngine <= 0 || requiredEngine > 1000000 ||
+            requiredApi <= 0 || requiredApi > 1000000 ||
+            geometryChecksum <= 0 || collisionChecksum <= 0 ||
+            navigationChecksum <= 0) { return false }
+        requiredEngineValue = requiredEngine
+        requiredApiValue = requiredApi
+        geometryChecksumValue = geometryChecksum
+        collisionChecksumValue = collisionChecksum
+        navigationChecksumValue = navigationChecksum
+        configuredValue = true
+        return true
+    }
+
+    Bool append(Int value) {
+        if (sealedValue || wordCountValue >= words.length ||
+            value < 0 || value > 1000000) { return false }
+        words[wordCountValue] = value
+        wordCountValue = wordCountValue + 1
+        return true
+    }
+
+    Bool addExtension(
+        Int namespaceId, Int extensionId,
+        Int apiVersion, Int schemaVersion, Int role,
+        Int loadOrder, Int provenanceHash,
+        Int migrationVersion, Int networkSchema
+    ) {
+        if (!configuredValue || sealedValue || extensionCountValue >= 16 ||
+            dependencyCountValue > 0 || enemyCountValue > 0 || hookCountValue > 0 ||
+            !append(namespaceId) || !append(extensionId) ||
+            !append(apiVersion) || !append(schemaVersion) || !append(role) ||
+            !append(loadOrder) || !append(provenanceHash) ||
+            !append(migrationVersion) || !append(networkSchema)) { return false }
+        extensionCountValue = extensionCountValue + 1
+        return true
+    }
+
+    Bool addDependency(
+        Int ownerNamespace, Int ownerId,
+        Int dependencyNamespace, Int dependencyId
+    ) {
+        if (sealedValue || extensionCountValue <= 0 || dependencyCountValue >= 32 ||
+            enemyCountValue > 0 || hookCountValue > 0 ||
+            !append(ownerNamespace) || !append(ownerId) ||
+            !append(dependencyNamespace) || !append(dependencyId)) { return false }
+        dependencyCountValue = dependencyCountValue + 1
+        return true
+    }
+
+    Bool addEnemy(
+        Int namespaceId, Int ownerId, Int definitionId, Int priority,
+        Int revision, Int kind, Int health, Int armor, Int weaponId,
+        Int role, Int moveStep, Int projectileStep, Int critical,
+        Int stableBase, Int seedSalt, Int level, Int currency,
+        Int skillId, Int experience
+    ) {
+        if (sealedValue || extensionCountValue <= 0 || enemyCountValue >= 64 ||
+            hookCountValue > 0 || enemyCountValue + hookCountValue >= 64 ||
+            !append(namespaceId) || !append(ownerId) || !append(definitionId) ||
+            !append(priority) || !append(revision) || !append(kind) ||
+            !append(health) || !append(armor) || !append(weaponId) ||
+            !append(role) || !append(moveStep) || !append(projectileStep) ||
+            !append(critical) || !append(stableBase) || !append(seedSalt) ||
+            !append(level) || !append(currency) || !append(skillId) ||
+            !append(experience)) { return false }
+        enemyCountValue = enemyCountValue + 1
+        return true
+    }
+
+    Bool addHook(
+        Int namespaceId, Int ownerId, Int hookId, Int priority,
+        Int phase, Int commandBudget, Int eventBudget,
+        Int eventKind, Int implementationId, Int implementationVersion
+    ) {
+        if (sealedValue || extensionCountValue <= 0 || hookCountValue >= 64 ||
+            enemyCountValue + hookCountValue >= 64 ||
+            !append(namespaceId) || !append(ownerId) || !append(hookId) ||
+            !append(priority) || !append(phase) || !append(commandBudget) ||
+            !append(eventBudget) || !append(eventKind) ||
+            !append(implementationId) || !append(implementationVersion)) {
+            return false
+        }
+        hookCountValue = hookCountValue + 1
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        return (state * 31 + value) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 83
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            var value = words[index]
+            if (index == 3) { value = 0 }
+            result = mix(result, value)
+        }
+        return result
+    }
+
+    Bool seal() {
+        if (!configuredValue || sealedValue || extensionCountValue <= 0 ||
+            enemyCountValue <= 0 || hookCountValue <= 0 ||
+            enemyCountValue + hookCountValue > 64) { return false }
+        words[0] = 126276197
+        words[1] = 1
+        words[2] = wordCountValue
+        words[3] = 0
+        words[4] = requiredEngineValue
+        words[5] = requiredApiValue
+        words[6] = geometryChecksumValue
+        words[7] = collisionChecksumValue
+        words[8] = navigationChecksumValue
+        words[9] = extensionCountValue
+        words[10] = dependencyCountValue
+        words[11] = enemyCountValue
+        words[12] = hookCountValue
+        words[3] = calculateChecksum()
+        sealedValue = words[3] > 0
+        return sealedValue
+    }
+
+    Int encodedLength() {
+        if (!sealedValue) { return 0 }
+        return wordCountValue * 4
+    }
+
+    Int[] encodedBytes() {
+        if (!sealedValue) { return new Int[0] }
+        var result = new Int[wordCountValue * 4]
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            var value = words[index]
+            var offset = index * 4
+            result[offset] = value & 255
+            result[offset + 1] = (value >>> 8) & 255
+            result[offset + 2] = (value >>> 16) & 255
+            result[offset + 3] = (value >>> 24) & 255
+        }
+        return result
+    }
+}
+
+class BoundedExternalPackageRuntime {
+    BoundedContentPackage packageValue
+    BoundedContentPackageFileStore filesValue
+    BoundedExtensionRegistry extensionsValue
+    BoundedTrustedModuleRegistry hooksValue
+    BoundedEnemyDefinitionRegistry definitionsValue
+    BoundedCreatorPublication publicationValue
+    BoundedGenerationCache generationsValue
+    Int payloadCapacityValue
+    Int[] descriptorWords
+    Int descriptorWordCountValue
+    Int diagnosticValue
+    Bool loadedValue
+
+    public constructor(Int payloadCapacity) {
+        payloadCapacityValue = payloadCapacity
+        if (payloadCapacityValue <= 0) { payloadCapacityValue = 1 }
+        if (payloadCapacityValue > 16777216) {
+            payloadCapacityValue = 16777216
+        }
+        packageValue = BoundedContentPackage(32, 32, 64)
+        filesValue = BoundedContentPackageFileStore(
+            32, 32, 64, payloadCapacityValue)
+        extensionsValue = BoundedExtensionRegistry(16, 32, 64, 64)
+        hooksValue = BoundedTrustedModuleRegistry(64)
+        definitionsValue = BoundedEnemyDefinitionRegistry(64)
+        publicationValue = BoundedCreatorPublication()
+        generationsValue = BoundedGenerationCache(4)
+        descriptorWords = new Int[1024]
+        descriptorWordCountValue = 0
+        diagnosticValue = externalPackageDiagnosticNone()
+        loadedValue = false
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        return false
+    }
+
+    Int mix(Int state, Int value) {
+        return (state * 31 + value) % 1000003
+    }
+
+    Int descriptorChecksum() {
+        var result = 83
+        for (var index = 0; index < descriptorWordCountValue; index = index + 1) {
+            var value = descriptorWords[index]
+            if (index == 3) { value = 0 }
+            result = mix(result, value)
+        }
+        return result
+    }
+
+    Bool decodeDescriptor(Int[] bytes) {
+        descriptorWordCountValue = 0
+        if (bytes.length < 52 || bytes.length % 4 != 0 ||
+            bytes.length / 4 > descriptorWords.length) { return false }
+        descriptorWordCountValue = bytes.length / 4
+        for (var index = 0; index < descriptorWordCountValue; index = index + 1) {
+            var offset = index * 4
+            if (bytes[offset + 3] >= 128) { return false }
+            descriptorWords[index] = bytes[offset] + bytes[offset + 1] * 256 +
+                bytes[offset + 2] * 65536 + bytes[offset + 3] * 16777216
+        }
+        if (descriptorWords[0] != 126276197 || descriptorWords[1] != 1 ||
+            descriptorWords[2] != descriptorWordCountValue ||
+            descriptorWords[3] != descriptorChecksum() ||
+            descriptorWords[4] <= 0 || descriptorWords[5] <= 0 ||
+            descriptorWords[6] <= 0 || descriptorWords[7] <= 0 ||
+            descriptorWords[8] <= 0 || descriptorWords[9] <= 0 ||
+            descriptorWords[9] > 16 || descriptorWords[10] < 0 ||
+            descriptorWords[10] > 32 || descriptorWords[11] <= 0 ||
+            descriptorWords[11] > 64 || descriptorWords[12] <= 0 ||
+            descriptorWords[12] > 64 ||
+            descriptorWords[11] + descriptorWords[12] > 64) { return false }
+        var expected = 13 + descriptorWords[9] * 9 +
+            descriptorWords[10] * 4 + descriptorWords[11] * 19 +
+            descriptorWords[12] * 10
+        return expected == descriptorWordCountValue
+    }
+
+    Int extensionOffset() { return 13 }
+    Int dependencyOffset() { return extensionOffset() + descriptorWords[9] * 9 }
+    Int enemyOffset() { return dependencyOffset() + descriptorWords[10] * 4 }
+    Int hookOffset() { return enemyOffset() + descriptorWords[11] * 19 }
+
+    Bool extensionOwnsKind(Int namespaceId, Int ownerId, Int kind) {
+        if (kind == extensionContributionEnemyDefinitionKind()) {
+            var offset = enemyOffset()
+            for (var index = 0; index < descriptorWords[11]; index = index + 1) {
+                if (descriptorWords[offset] == namespaceId &&
+                    descriptorWords[offset + 1] == ownerId) { return true }
+                offset = offset + 19
+            }
+        } else if (kind == extensionContributionTrustedHookKind()) {
+            var offset = hookOffset()
+            for (var index = 0; index < descriptorWords[12]; index = index + 1) {
+                if (descriptorWords[offset] == namespaceId &&
+                    descriptorWords[offset + 1] == ownerId) { return true }
+                offset = offset + 10
+            }
+        }
+        return false
+    }
+
+    Bool buildRegistries() {
+        extensionsValue = BoundedExtensionRegistry(16, 32, 64, 64)
+        hooksValue = BoundedTrustedModuleRegistry(64)
+        definitionsValue = BoundedEnemyDefinitionRegistry(64)
+        var offset = extensionOffset()
+        for (var index = 0; index < descriptorWords[9]; index = index + 1) {
+            var namespaceId = descriptorWords[offset]
+            var ownerId = descriptorWords[offset + 1]
+            if (!extensionsValue.registerManifest(
+                    namespaceId, ownerId, descriptorWords[offset + 2],
+                    descriptorWords[offset + 3], descriptorWords[offset + 4]) ||
+                !extensionsValue.setLoadOrder(
+                    namespaceId, ownerId, descriptorWords[offset + 5]) ||
+                !extensionsValue.setProvenance(
+                    namespaceId, ownerId, descriptorWords[offset + 6]) ||
+                !extensionsValue.setSchemas(
+                    namespaceId, ownerId, descriptorWords[offset + 7],
+                    descriptorWords[offset + 8])) {
+                return reject(externalPackageDiagnosticManifest())
+            }
+            if (extensionOwnsKind(
+                    namespaceId, ownerId,
+                    extensionContributionEnemyDefinitionKind()) &&
+                !extensionsValue.grantCapability(
+                    namespaceId, ownerId,
+                    extensionContributionEnemyDefinitionKind())) {
+                return reject(externalPackageDiagnosticManifest())
+            }
+            if (extensionOwnsKind(
+                    namespaceId, ownerId,
+                    extensionContributionTrustedHookKind()) &&
+                !extensionsValue.grantCapability(
+                    namespaceId, ownerId,
+                    extensionContributionTrustedHookKind())) {
+                return reject(externalPackageDiagnosticManifest())
+            }
+            offset = offset + 9
+        }
+        offset = dependencyOffset()
+        for (var index = 0; index < descriptorWords[10]; index = index + 1) {
+            if (!extensionsValue.addDependency(
+                    descriptorWords[offset], descriptorWords[offset + 1],
+                    descriptorWords[offset + 2], descriptorWords[offset + 3])) {
+                return reject(externalPackageDiagnosticManifest())
+            }
+            offset = offset + 4
+        }
+        offset = enemyOffset()
+        for (var index = 0; index < descriptorWords[11]; index = index + 1) {
+            var namespaceId = descriptorWords[offset]
+            var ownerId = descriptorWords[offset + 1]
+            var definitionId = descriptorWords[offset + 2]
+            var kind = descriptorWords[offset + 5]
+            if (!extensionsValue.registerContribution(
+                    namespaceId, ownerId,
+                    extensionContributionEnemyDefinitionKind(),
+                    definitionId, descriptorWords[offset + 3]) ||
+                !definitionsValue.define(
+                    namespaceId, definitionId,
+                    descriptorWords[offset + 4], kind) ||
+                !definitionsValue.setCombat(
+                    namespaceId, definitionId,
+                    descriptorWords[offset + 6], descriptorWords[offset + 7],
+                    descriptorWords[offset + 8]) ||
+                !definitionsValue.setBehavior(
+                    namespaceId, definitionId,
+                    descriptorWords[offset + 9], descriptorWords[offset + 10],
+                    descriptorWords[offset + 11]) ||
+                !definitionsValue.setCritical(
+                    namespaceId, definitionId, descriptorWords[offset + 12]) ||
+                !definitionsValue.setLoot(
+                    namespaceId, definitionId,
+                    descriptorWords[offset + 13], descriptorWords[offset + 14],
+                    descriptorWords[offset + 15]) ||
+                !definitionsValue.setRankCurrency(
+                    namespaceId, definitionId, kind,
+                    descriptorWords[offset + 16]) ||
+                !definitionsValue.setProgression(
+                    namespaceId, definitionId,
+                    descriptorWords[offset + 17], descriptorWords[offset + 18])) {
+                return reject(externalPackageDiagnosticDefinition())
+            }
+            offset = offset + 19
+        }
+        offset = hookOffset()
+        for (var index = 0; index < descriptorWords[12]; index = index + 1) {
+            var namespaceId = descriptorWords[offset]
+            var ownerId = descriptorWords[offset + 1]
+            var hookId = descriptorWords[offset + 2]
+            if (!extensionsValue.registerContribution(
+                    namespaceId, ownerId,
+                    extensionContributionTrustedHookKind(),
+                    hookId, descriptorWords[offset + 3]) ||
+                !hooksValue.defineHook(
+                    extensionsValue, namespaceId, ownerId,
+                    hookId, descriptorWords[offset + 4]) ||
+                !hooksValue.setBudget(
+                    namespaceId, ownerId, hookId,
+                    descriptorWords[offset + 5], descriptorWords[offset + 6]) ||
+                !hooksValue.subscribeEvent(
+                    namespaceId, ownerId, hookId,
+                    descriptorWords[offset + 7]) ||
+                !hooksValue.bindImplementation(
+                    namespaceId, ownerId, hookId,
+                    descriptorWords[offset + 8], descriptorWords[offset + 9])) {
+                return reject(externalPackageDiagnosticHook())
+            }
+            offset = offset + 10
+        }
+        if (!extensionsValue.seal()) {
+            return reject(externalPackageDiagnosticManifest())
+        }
+        if (!definitionsValue.seal()) {
+            return reject(externalPackageDiagnosticDefinition())
+        }
+        if (!hooksValue.seal(extensionsValue)) {
+            return reject(externalPackageDiagnosticHook())
+        }
+        return true
+    }
+
+    Bool load(String path) {
+        diagnosticValue = externalPackageDiagnosticNone()
+        var stagedPackage = BoundedContentPackage(32, 32, 64)
+        var stagedFiles =
+            BoundedContentPackageFileStore(
+                32, 32, 64, payloadCapacityValue)
+        if (!stagedFiles.read(path, stagedPackage)) {
+            return reject(externalPackageDiagnosticFile())
+        }
+        var descriptorIndex = -1
+        for (var index = 0; index < stagedPackage.chunkCount(); index = index + 1) {
+            if (stagedPackage.chunkKind(index) == creatorDescriptorChunkKind()) {
+                if (descriptorIndex >= 0) {
+                    return reject(externalPackageDiagnosticDescriptor())
+                }
+                descriptorIndex = index
+            }
+        }
+        if (descriptorIndex < 0 ||
+            !decodeDescriptor(stagedFiles.chunkCopy(
+                stagedPackage, descriptorIndex))) {
+            return reject(externalPackageDiagnosticDescriptor())
+        }
+        var activeExtensions = extensionsValue
+        var activeHooks = hooksValue
+        var activeDefinitions = definitionsValue
+        if (!buildRegistries()) {
+            extensionsValue = activeExtensions
+            hooksValue = activeHooks
+            definitionsValue = activeDefinitions
+            return false
+        }
+        var stagedExtensions = extensionsValue
+        var stagedHooks = hooksValue
+        var stagedDefinitions = definitionsValue
+        extensionsValue = activeExtensions
+        hooksValue = activeHooks
+        definitionsValue = activeDefinitions
+        var expectedGeneration = publicationValue.activeGeneration()
+        var revision = stagedPackage.identity().contentVersion()
+        if (!publicationValue.begin(expectedGeneration, revision) ||
+            !publicationValue.stagePackage(
+                stagedPackage, descriptorWords[4]) ||
+            !publicationValue.stageExtensions(
+                stagedExtensions, stagedHooks, descriptorWords[5]) ||
+            !publicationValue.stageDefinitions(stagedDefinitions) ||
+            !publicationValue.stageProducts(
+                descriptorWords[6], descriptorWords[7], descriptorWords[8],
+                stagedPackage.checksum()) ||
+            !publicationValue.validate(generationsValue) ||
+            !publicationValue.publish(generationsValue)) {
+            return reject(externalPackageDiagnosticPublication())
+        }
+        packageValue = stagedPackage
+        filesValue = stagedFiles
+        extensionsValue = stagedExtensions
+        hooksValue = stagedHooks
+        definitionsValue = stagedDefinitions
+        loadedValue = true
+        diagnosticValue = externalPackageDiagnosticNone()
+        return true
+    }
+
+    Bool loaded() { return loadedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int generation() { return publicationValue.activeGeneration() }
+    Int packageChecksum() { return packageValue.checksum() }
+    BoundedContentPackage packageData() { return packageValue }
+    BoundedExtensionRegistry extensions() { return extensionsValue }
+    BoundedTrustedModuleRegistry hooks() { return hooksValue }
+    BoundedEnemyDefinitionRegistry definitions() { return definitionsValue }
+    BoundedCreatorPublication publication() { return publicationValue }
+    BoundedGenerationCache generations() { return generationsValue }
+}

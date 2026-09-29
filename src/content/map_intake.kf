@@ -1,0 +1,592 @@
+package content
+
+Int mapDiagnosticNone() { return 0 }
+Int mapDiagnosticSyntax() { return 1 }
+Int mapDiagnosticProperty() { return 2 }
+Int mapDiagnosticPlane() { return 3 }
+Int mapDiagnosticConvex() { return 4 }
+Int mapDiagnosticCapacity() { return 5 }
+
+class BoundedQuakeMapIntake {
+    Int[] tokenKinds
+    Int[] tokenStarts
+    Int[] tokenLengths
+    Int[] planeX
+    Int[] planeY
+    Int[] planeZ
+    Int[] planeD
+    Int[] planeMaterials
+    Int[] vertexX
+    Int[] vertexY
+    Int[] vertexZ
+    Int[] triangleA
+    Int[] triangleB
+    Int[] triangleC
+    Int[] triangleSurface
+    Int[] faceVertices
+    Int[] firstPoint
+    Int[] secondPoint
+    Int[] thirdPoint
+    Int tokenCountValue
+    Int parseCursorValue
+    Int planeCountValue
+    Int vertexCountValue
+    Int triangleCountValue
+    Int entityCountValue
+    Int brushCountValue
+    Int propertyCountValue
+    Int sourceChecksumValue
+    Int entityChecksumValue
+    Int materialChecksumValue
+    Int visibilityChecksumValue
+    Int diagnosticValue
+    Int minXValue
+    Int minYValue
+    Int minZValue
+    Int maxXValue
+    Int maxYValue
+    Int maxZValue
+    Bool boundsSetValue
+    Bool acceptedValue
+    BoundedCanonicalGlb geometryValue
+    BoundedAuthoredCollision collisionValue
+
+    public constructor(Int tokenCapacity) {
+        var capacity = tokenCapacity
+        if (capacity <= 0) { capacity = 1 }
+        if (capacity > 8192) { capacity = 8192 }
+        tokenKinds = new Int[capacity]
+        tokenStarts = new Int[capacity]
+        tokenLengths = new Int[capacity]
+        planeX = new Int[16]
+        planeY = new Int[16]
+        planeZ = new Int[16]
+        planeD = new Int[16]
+        planeMaterials = new Int[16]
+        vertexX = new Int[256]
+        vertexY = new Int[256]
+        vertexZ = new Int[256]
+        triangleA = new Int[256]
+        triangleB = new Int[256]
+        triangleC = new Int[256]
+        triangleSurface = new Int[256]
+        faceVertices = new Int[64]
+        firstPoint = new Int[3]
+        secondPoint = new Int[3]
+        thirdPoint = new Int[3]
+        geometryValue = BoundedCanonicalGlb(256, 256)
+        collisionValue = BoundedAuthoredCollision(256, 256)
+        clear()
+    }
+
+    Bool clear() {
+        tokenCountValue = 0
+        parseCursorValue = 0
+        planeCountValue = 0
+        vertexCountValue = 0
+        triangleCountValue = 0
+        entityCountValue = 0
+        brushCountValue = 0
+        propertyCountValue = 0
+        sourceChecksumValue = 0
+        entityChecksumValue = 17
+        materialChecksumValue = 17
+        visibilityChecksumValue = 17
+        diagnosticValue = mapDiagnosticNone()
+        minXValue = 0
+        minYValue = 0
+        minZValue = 0
+        maxXValue = 0
+        maxYValue = 0
+        maxZValue = 0
+        boundsSetValue = false
+        acceptedValue = false
+        geometryValue.clear()
+        collisionValue.clear()
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = mix(result, source[index])
+        }
+        return result
+    }
+
+    Bool addToken(Int kind, Int start, Int length) {
+        if (tokenCountValue >= tokenKinds.length || length <= 0) { return false }
+        tokenKinds[tokenCountValue] = kind
+        tokenStarts[tokenCountValue] = start
+        tokenLengths[tokenCountValue] = length
+        tokenCountValue = tokenCountValue + 1
+        return true
+    }
+
+    Bool tokenize(Int[] source) {
+        var cursor = 0
+        while (cursor < source.length) {
+            var value = source[cursor]
+            if (value <= 32) {
+                cursor = cursor + 1
+            } else if (value == 47 && cursor + 1 < source.length &&
+                source[cursor + 1] == 47) {
+                cursor = cursor + 2
+                while (cursor < source.length && source[cursor] != 10 &&
+                    source[cursor] != 13) { cursor = cursor + 1 }
+            } else if (value == 123 || value == 125 ||
+                value == 40 || value == 41) {
+                var kind = 1
+                if (value == 125) { kind = 2 }
+                if (value == 40) { kind = 3 }
+                if (value == 41) { kind = 4 }
+                if (!addToken(kind, cursor, 1)) { return false }
+                cursor = cursor + 1
+            } else if (value == 34) {
+                var start = cursor + 1
+                cursor = start
+                var escaped = false
+                while (cursor < source.length &&
+                    (source[cursor] != 34 || escaped)) {
+                    escaped = source[cursor] == 92 && !escaped
+                    if (source[cursor] != 92) { escaped = false }
+                    cursor = cursor + 1
+                }
+                if (cursor >= source.length || cursor - start > 256 ||
+                    !addToken(5, start, cursor - start + 1)) { return false }
+                cursor = cursor + 1
+            } else {
+                var start = cursor
+                while (cursor < source.length && source[cursor] > 32 &&
+                    source[cursor] != 123 && source[cursor] != 125 &&
+                    source[cursor] != 40 && source[cursor] != 41 &&
+                    source[cursor] != 34) { cursor = cursor + 1 }
+                if (cursor - start > 128 ||
+                    !addToken(6, start, cursor - start)) { return false }
+            }
+        }
+        return tokenCountValue > 0
+    }
+
+    Int tokenHash(Int[] source, Int token) {
+        if (token < 0 || token >= tokenCountValue) { return 0 }
+        var result = 17
+        var length = tokenLengths[token]
+        if (tokenKinds[token] == 5) { length = length - 1 }
+        for (var index = 0; index < length; index = index + 1) {
+            result = mix(result, source[tokenStarts[token] + index])
+        }
+        return result
+    }
+
+    Int tokenInteger(Int[] source, Int token) {
+        if (token < 0 || token >= tokenCountValue || tokenKinds[token] != 6) {
+            return 1000000001
+        }
+        var start = tokenStarts[token]
+        var length = tokenLengths[token]
+        var sign = 1
+        var cursor = 0
+        if (source[start] == 45) {
+            sign = -1
+            cursor = 1
+        } else if (source[start] == 43) {
+            cursor = 1
+        }
+        if (cursor >= length) { return 1000000001 }
+        var value = 0
+        while (cursor < length) {
+            var digit = source[start + cursor] - 48
+            if (digit < 0 || digit > 9 || value > 100000) {
+                return 1000000001
+            }
+            value = value * 10 + digit
+            cursor = cursor + 1
+        }
+        value = value * sign
+        if (value < -4096 || value > 4096) { return 1000000001 }
+        return value
+    }
+
+    Bool expect(Int kind) {
+        if (parseCursorValue >= tokenCountValue ||
+            tokenKinds[parseCursorValue] != kind) { return false }
+        parseCursorValue = parseCursorValue + 1
+        return true
+    }
+
+    Bool parsePoint(Int[] source, Int[] point) {
+        if (!expect(3)) { return false }
+        for (var axis = 0; axis < 3; axis = axis + 1) {
+            if (parseCursorValue >= tokenCountValue) { return false }
+            var value = tokenInteger(source, parseCursorValue)
+            if (value == 1000000001) { return false }
+            point[axis] = value
+            parseCursorValue = parseCursorValue + 1
+        }
+        return expect(4)
+    }
+
+    Int greatestCommonDivisor(Int left, Int right) {
+        left = absolute(left)
+        right = absolute(right)
+        while (right != 0) {
+            var remainder = left % right
+            left = right
+            right = remainder
+        }
+        return left
+    }
+
+    Bool addPlane(Int[] first, Int[] second, Int[] third, Int material) {
+        if (planeCountValue >= planeX.length) { return false }
+        var ux = second[0] - first[0]
+        var uy = second[1] - first[1]
+        var uz = second[2] - first[2]
+        var vx = third[0] - first[0]
+        var vy = third[1] - first[1]
+        var vz = third[2] - first[2]
+        var nx = uy * vz - uz * vy
+        var ny = uz * vx - ux * vz
+        var nz = ux * vy - uy * vx
+        if (nx == 0 && ny == 0 && nz == 0) { return false }
+        var divisor = greatestCommonDivisor(
+            greatestCommonDivisor(nx, ny), nz)
+        if (divisor <= 0) { return false }
+        nx = nx / divisor
+        ny = ny / divisor
+        nz = nz / divisor
+        if (absolute(nx) > 20000 || absolute(ny) > 20000 ||
+            absolute(nz) > 20000) { return false }
+        var d: Long = nx
+        d = d * first[0] + ny * first[1] + nz * first[2]
+        if (d < -2000000000L || d > 2000000000L) { return false }
+        var intD = d.toInt()
+        for (var index = 0; index < planeCountValue; index = index + 1) {
+            if (planeX[index] == nx && planeY[index] == ny &&
+                planeZ[index] == nz && planeD[index] == intD) { return false }
+        }
+        planeX[planeCountValue] = nx
+        planeY[planeCountValue] = ny
+        planeZ[planeCountValue] = nz
+        planeD[planeCountValue] = intD
+        planeMaterials[planeCountValue] = material
+        planeCountValue = planeCountValue + 1
+        return true
+    }
+
+    Bool insideBrush(Int x, Int y, Int z) {
+        for (var plane = 0; plane < planeCountValue; plane = plane + 1) {
+            var side: Long = planeX[plane]
+            side = side * x + planeY[plane] * y + planeZ[plane] * z
+            if (side > planeD[plane]) { return false }
+        }
+        return true
+    }
+
+    Bool addBrushVertex(Int x, Int y, Int z, Int base) {
+        for (var index = base; index < vertexCountValue; index = index + 1) {
+            if (vertexX[index] == x && vertexY[index] == y && vertexZ[index] == z) {
+                return true
+            }
+        }
+        if (vertexCountValue >= vertexX.length) { return false }
+        vertexX[vertexCountValue] = x
+        vertexY[vertexCountValue] = y
+        vertexZ[vertexCountValue] = z
+        vertexCountValue = vertexCountValue + 1
+        if (!boundsSetValue) {
+            minXValue = x; maxXValue = x
+            minYValue = y; maxYValue = y
+            minZValue = z; maxZValue = z
+            boundsSetValue = true
+        } else {
+            if (x < minXValue) { minXValue = x }
+            if (x > maxXValue) { maxXValue = x }
+            if (y < minYValue) { minYValue = y }
+            if (y > maxYValue) { maxYValue = y }
+            if (z < minZValue) { minZValue = z }
+            if (z > maxZValue) { maxZValue = z }
+        }
+        return true
+    }
+
+    Bool intersectPlanes(Int first, Int second, Int third, Int base) {
+        var ax: Long = planeX[first]
+        var ay: Long = planeY[first]
+        var az: Long = planeZ[first]
+        var bx: Long = planeX[second]
+        var by: Long = planeY[second]
+        var bz: Long = planeZ[second]
+        var cx: Long = planeX[third]
+        var cy: Long = planeY[third]
+        var cz: Long = planeZ[third]
+        var crossX = by * cz - bz * cy
+        var crossY = bz * cx - bx * cz
+        var crossZ = bx * cy - by * cx
+        var denominator = ax * crossX + ay * crossY + az * crossZ
+        if (denominator == 0L) { return true }
+        var da: Long = planeD[first]
+        var db: Long = planeD[second]
+        var dc: Long = planeD[third]
+        var numeratorX = da * crossX +
+            db * (cy * az - cz * ay) + dc * (ay * bz - az * by)
+        var numeratorY = da * crossY +
+            db * (cz * ax - cx * az) + dc * (az * bx - ax * bz)
+        var numeratorZ = da * crossZ +
+            db * (cx * ay - cy * ax) + dc * (ax * by - ay * bx)
+        if (numeratorX % denominator != 0L || numeratorY % denominator != 0L ||
+            numeratorZ % denominator != 0L) { return true }
+        var x: Long = numeratorX / denominator
+        var y: Long = numeratorY / denominator
+        var z: Long = numeratorZ / denominator
+        if (x < -1000000L || x > 1000000L || y < -1000000L || y > 1000000L ||
+            z < -1000000L || z > 1000000L) { return false }
+        var intX: Int = x.toInt()
+        var intY: Int = y.toInt()
+        var intZ: Int = z.toInt()
+        if (!insideBrush(intX, intY, intZ)) { return true }
+        return addBrushVertex(intX, intY, intZ, base)
+    }
+
+    Int projectedU(Int vertex, Int axis) {
+        if (axis == 0) { return vertexY[vertex] }
+        return vertexX[vertex]
+    }
+
+    Int projectedV(Int vertex, Int axis) {
+        if (axis == 2) { return vertexY[vertex] }
+        return vertexZ[vertex]
+    }
+
+    Bool angularBefore(
+        Int first, Int second, Int axis, Long sumU, Long sumV, Int count
+    ) {
+        var firstU: Long = projectedU(first, axis) * count - sumU
+        var firstV: Long = projectedV(first, axis) * count - sumV
+        var secondU: Long = projectedU(second, axis) * count - sumU
+        var secondV: Long = projectedV(second, axis) * count - sumV
+        var firstHalf = firstV > 0L || (firstV == 0L && firstU >= 0L)
+        var secondHalf = secondV > 0L || (secondV == 0L && secondU >= 0L)
+        if (firstHalf != secondHalf) { return firstHalf }
+        return firstU * secondV - firstV * secondU > 0L
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) { return -value }
+        return value
+    }
+
+    Bool triangulateFace(Int plane, Int base) {
+        var count = 0
+        var sumU: Long = 0L
+        var sumV: Long = 0L
+        var axis = 0
+        var nx = absolute(planeX[plane])
+        var ny = absolute(planeY[plane])
+        var nz = absolute(planeZ[plane])
+        if (ny > nx && ny >= nz) { axis = 1 }
+        if (nz > nx && nz > ny) { axis = 2 }
+        for (var vertex = base; vertex < vertexCountValue; vertex = vertex + 1) {
+            var side: Long = planeX[plane]
+            side = side * vertexX[vertex] +
+                planeY[plane] * vertexY[vertex] + planeZ[plane] * vertexZ[vertex]
+            if (side == planeD[plane]) {
+                if (count >= faceVertices.length) { return false }
+                faceVertices[count] = vertex
+                sumU = sumU + projectedU(vertex, axis)
+                sumV = sumV + projectedV(vertex, axis)
+                count = count + 1
+            }
+        }
+        if (count < 3) { return false }
+        for (var index = 1; index < count; index = index + 1) {
+            var candidate = faceVertices[index]
+            var position = index
+            while (position > 0 && angularBefore(
+                candidate, faceVertices[position - 1], axis, sumU, sumV, count)) {
+                faceVertices[position] = faceVertices[position - 1]
+                position = position - 1
+            }
+            faceVertices[position] = candidate
+        }
+        var surface = (planeMaterials[plane] % 16) + 1
+        for (var index = 1; index + 1 < count; index = index + 1) {
+            if (triangleCountValue >= triangleA.length) { return false }
+            triangleA[triangleCountValue] = faceVertices[0]
+            triangleB[triangleCountValue] = faceVertices[index]
+            triangleC[triangleCountValue] = faceVertices[index + 1]
+            triangleSurface[triangleCountValue] = surface
+            triangleCountValue = triangleCountValue + 1
+        }
+        return true
+    }
+
+    Bool cookBrush() {
+        if (planeCountValue < 4) { return false }
+        var base = vertexCountValue
+        for (var first = 0; first < planeCountValue; first = first + 1) {
+            for (var second = first + 1; second < planeCountValue; second = second + 1) {
+                for (var third = second + 1; third < planeCountValue; third = third + 1) {
+                    if (!intersectPlanes(first, second, third, base)) { return false }
+                }
+            }
+        }
+        if (vertexCountValue - base < 4) { return false }
+        for (var plane = 0; plane < planeCountValue; plane = plane + 1) {
+            if (!triangulateFace(plane, base)) { return false }
+        }
+        brushCountValue = brushCountValue + 1
+        visibilityChecksumValue = mix(visibilityChecksumValue, vertexCountValue - base)
+        visibilityChecksumValue = mix(visibilityChecksumValue, triangleCountValueValue())
+        return true
+    }
+
+    Int triangleCountValueValue() { return triangleCountValue }
+
+    Bool parseBrush(Int[] source) {
+        planeCountValue = 0
+        while (parseCursorValue < tokenCountValue &&
+            tokenKinds[parseCursorValue] != 2) {
+            if (!parsePoint(source, firstPoint) ||
+                !parsePoint(source, secondPoint) ||
+                !parsePoint(source, thirdPoint) ||
+                parseCursorValue >= tokenCountValue ||
+                (tokenKinds[parseCursorValue] != 5 &&
+                    tokenKinds[parseCursorValue] != 6)) { return false }
+            var material = tokenHash(source, parseCursorValue)
+            parseCursorValue = parseCursorValue + 1
+            for (var field = 0; field < 5; field = field + 1) {
+                if (parseCursorValue >= tokenCountValue ||
+                    tokenInteger(source, parseCursorValue) == 1000000001) {
+                    return false
+                }
+                parseCursorValue = parseCursorValue + 1
+            }
+            materialChecksumValue = mix(materialChecksumValue, material)
+            if (!addPlane(
+                    firstPoint, secondPoint, thirdPoint, material)) {
+                return false
+            }
+        }
+        if (!expect(2)) { return false }
+        return cookBrush()
+    }
+
+    Bool parseEntity(Int[] source) {
+        if (!expect(1)) { return false }
+        entityCountValue = entityCountValue + 1
+        if (entityCountValue > 64) { return false }
+        while (parseCursorValue < tokenCountValue &&
+            tokenKinds[parseCursorValue] != 2) {
+            if (tokenKinds[parseCursorValue] == 5) {
+                if (parseCursorValue + 1 >= tokenCountValue ||
+                    tokenKinds[parseCursorValue + 1] != 5) { return false }
+                entityChecksumValue = mix(
+                    entityChecksumValue, tokenHash(source, parseCursorValue))
+                entityChecksumValue = mix(
+                    entityChecksumValue, tokenHash(source, parseCursorValue + 1))
+                propertyCountValue = propertyCountValue + 1
+                if (propertyCountValue > 512) { return false }
+                parseCursorValue = parseCursorValue + 2
+            } else if (tokenKinds[parseCursorValue] == 1) {
+                parseCursorValue = parseCursorValue + 1
+                if (!parseBrush(source)) { return false }
+            } else {
+                return false
+            }
+        }
+        return expect(2)
+    }
+
+    Bool buildProducts(
+        Int sourceNamespaceId, Int sourceAssetId, Int sourceRevision,
+        Int coordinateScale
+    ) {
+        if (!boundsSetValue || vertexCountValue <= 0 || triangleCountValue <= 0 ||
+            !geometryValue.configure(
+                sourceNamespaceId, sourceAssetId, sourceRevision,
+                1, coordinateScale,
+                minXValue * coordinateScale, minZValue * coordinateScale,
+                minYValue * coordinateScale,
+                maxXValue * coordinateScale, maxZValue * coordinateScale,
+                maxYValue * coordinateScale)) { return false }
+        for (var index = 0; index < vertexCountValue; index = index + 1) {
+            if (!geometryValue.addVertex(
+                vertexX[index] * coordinateScale,
+                vertexZ[index] * coordinateScale,
+                vertexY[index] * coordinateScale)) { return false }
+        }
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            if (!geometryValue.addTriangle(
+                triangleA[index], triangleB[index], triangleC[index],
+                triangleSurface[index])) { return false }
+        }
+        return geometryValue.seal() && geometryValue.encode() &&
+            geometryValue.emitCollision(collisionValue) &&
+            collisionValue.validate() && collisionValue.encode()
+    }
+
+    Bool read(
+        Int[] source, Int sourceNamespaceId, Int sourceAssetId,
+        Int sourceRevision, Int coordinateScale
+    ) {
+        clear()
+        if (source.length <= 0 || source.length > 1048576 ||
+            sourceNamespaceId <= 0 || sourceAssetId <= 0 ||
+            sourceRevision <= 0 || coordinateScale <= 0 || coordinateScale > 1000) {
+            diagnosticValue = mapDiagnosticCapacity()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 127) {
+                diagnosticValue = mapDiagnosticSyntax()
+                return false
+            }
+        }
+        if (!tokenize(source)) {
+            diagnosticValue = mapDiagnosticSyntax()
+            return false
+        }
+        parseCursorValue = 0
+        while (parseCursorValue < tokenCountValue) {
+            if (!parseEntity(source)) {
+                diagnosticValue = mapDiagnosticConvex()
+                return false
+            }
+        }
+        if (entityCountValue <= 0 || brushCountValue <= 0 ||
+            !buildProducts(
+                sourceNamespaceId, sourceAssetId, sourceRevision,
+                coordinateScale)) {
+            diagnosticValue = mapDiagnosticConvex()
+            return false
+        }
+        sourceChecksumValue = checksum(source)
+        acceptedValue = sourceChecksumValue > 0 && entityChecksumValue > 0 &&
+            materialChecksumValue > 0 && visibilityChecksumValue > 0
+        return acceptedValue
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int entityCount() { return entityCountValue }
+    Int brushCount() { return brushCountValue }
+    Int propertyCount() { return propertyCountValue }
+    Int vertexCount() { return vertexCountValue }
+    Int triangleCount() { return triangleCountValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int entityChecksum() { return entityChecksumValue }
+    Int materialChecksum() { return materialChecksumValue }
+    Int visibilityChecksum() { return visibilityChecksumValue }
+    Int geometryChecksum() { return geometryValue.checksum() }
+    Int collisionChecksum() { return collisionValue.checksum() }
+    BoundedCanonicalGlb geometry() { return geometryValue }
+    BoundedAuthoredCollision collision() { return collisionValue }
+}

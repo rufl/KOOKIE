@@ -1,0 +1,289 @@
+package content
+
+Int dust3dDiagnosticNone() { return 0 }
+Int dust3dDiagnosticSource() { return 1 }
+Int dust3dDiagnosticExport() { return 2 }
+Int dust3dDiagnosticUv() { return 3 }
+Int dust3dDiagnosticSkeleton() { return 4 }
+Int dust3dDiagnosticCapacity() { return 5 }
+
+class BoundedDust3dIntake {
+    BoundedExternalGlbSceneReader readerValue
+    BoundedAuthoredCollision collisionValue
+    Int sourceChecksumValue
+    Int materialChecksumValue
+    Int diagnosticValue
+    Bool acceptedValue
+    Int[] zipDataStarts
+    Int[] zipDataEnds
+
+    Int entryFlagsValue
+    Int entryMethodValue
+    Int entryCompressedValue
+    Int entryDecodedValue
+    Int entryNameLengthValue
+    Int entryExtraLengthValue
+    Int entryCommentLengthValue
+    Int entryLocalOffsetValue
+    Int entryNextValue
+    Int entryDataStartValue
+    Int entryDataEndValue
+    Bool entryModelValue
+    public constructor(Int vertexCapacity, Int triangleCapacity) {
+        readerValue = BoundedExternalGlbSceneReader(
+            vertexCapacity, triangleCapacity)
+        collisionValue = BoundedAuthoredCollision(
+            vertexCapacity, triangleCapacity)
+        zipDataStarts = new Int[64]
+        zipDataEnds = new Int[64]
+        sourceChecksumValue = 0
+        materialChecksumValue = 0
+        diagnosticValue = dust3dDiagnosticNone()
+        acceptedValue = false
+    }
+
+    Int checksumBytes(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = (result * 31 + source[index]) % 1000003
+        }
+        return result
+    }
+
+    Bool containsAscii(Int[] source, String needle) {
+        if (needle.length() == 0 || source.length < needle.length()) {
+            return false
+        }
+        for (var start = 0;
+            start <= source.length - needle.length();
+            start = start + 1) {
+            var matches = true
+            for (var index = 0; index < needle.length(); index = index + 1) {
+                if (source[start + index] != (needle.charAt(index) as Int)) {
+                    matches = false
+                }
+            }
+            if (matches) { return true }
+        }
+        return false
+    }
+
+    Int u16(Int[] source, Int offset) {
+        if (offset < 0 || offset + 2 > source.length) { return -1 }
+        return source[offset] + source[offset + 1] * 256
+    }
+
+    Int u32(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length ||
+            source[offset + 3] >= 128) { return -1 }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + source[offset + 3] * 16777216
+    }
+
+    Bool signature(
+        Int[] source, Int offset, Int first, Int second, Int third, Int fourth
+    ) {
+        return offset >= 0 && offset + 4 <= source.length &&
+            source[offset] == first && source[offset + 1] == second &&
+            source[offset + 2] == third && source[offset + 3] == fourth
+    }
+
+    Bool validArchivePath(Int[] source, Int offset, Int length) {
+        if (length <= 0 || length > 128 || offset < 0 ||
+            offset + length > source.length ||
+            source[offset] == 47 || source[offset] == 92 ||
+            source[offset + length - 1] == 47 ||
+            source[offset + length - 1] == 92) { return false }
+        var segmentStart = 0
+        for (var index = 0; index <= length; index = index + 1) {
+            var separator = index == length
+            if (!separator) {
+                var value = source[offset + index]
+                if (value < 33 || value > 126 || value == 58) { return false }
+                separator = value == 47 || value == 92
+            }
+            if (separator) {
+                var segmentLength = index - segmentStart
+                if (segmentLength <= 0 ||
+                    (segmentLength == 1 &&
+                        source[offset + segmentStart] == 46) ||
+                    (segmentLength == 2 &&
+                        source[offset + segmentStart] == 46 &&
+                        source[offset + segmentStart + 1] == 46)) {
+                    return false
+                }
+                segmentStart = index + 1
+            }
+        }
+        return true
+    }
+
+    Bool modelEntry(Int[] source, Int offset, Int length) {
+        return length == 10 && offset >= 0 && offset + length <= source.length &&
+            source[offset] == 109 && source[offset + 1] == 111 &&
+            source[offset + 2] == 100 && source[offset + 3] == 101 &&
+            source[offset + 4] == 108 && source[offset + 5] == 46 &&
+            source[offset + 6] == 106 && source[offset + 7] == 115 &&
+            source[offset + 8] == 111 && source[offset + 9] == 110
+    }
+
+    Int findEocd(Int[] source) {
+        var minimum = source.length - 65557
+        if (minimum < 0) { minimum = 0 }
+        for (var offset = source.length - 22;
+            offset >= minimum; offset = offset - 1) {
+            if (signature(source, offset, 80, 75, 5, 6) &&
+                offset + 22 + u16(source, offset + 20) == source.length) {
+                return offset
+            }
+        }
+        return -1
+    }
+
+    Bool readArchiveEntry(
+        Int[] source, Int cursor, Int eocd, Int centralOffset, Int entry
+    ) {
+        if (!signature(source, cursor, 80, 75, 1, 2) ||
+            cursor + 46 > eocd) { return false }
+        entryFlagsValue = u16(source, cursor + 8)
+        entryMethodValue = u16(source, cursor + 10)
+        entryCompressedValue = u32(source, cursor + 20)
+        entryDecodedValue = u32(source, cursor + 24)
+        entryNameLengthValue = u16(source, cursor + 28)
+        entryExtraLengthValue = u16(source, cursor + 30)
+        entryCommentLengthValue = u16(source, cursor + 32)
+        entryLocalOffsetValue = u32(source, cursor + 42)
+        entryNextValue = cursor + 46 + entryNameLengthValue +
+            entryExtraLengthValue + entryCommentLengthValue
+        if ((entryFlagsValue & -2057) != 0 ||
+            (entryMethodValue != 0 && entryMethodValue != 8) ||
+            u16(source, cursor + 34) != 0 ||
+            entryCompressedValue < 0 || entryDecodedValue < 0 ||
+            entryDecodedValue > 16777216 ||
+            !validArchivePath(source, cursor + 46, entryNameLengthValue) ||
+            entryNextValue > eocd || entryLocalOffsetValue < 0 ||
+            entryLocalOffsetValue + 30 > centralOffset ||
+            !signature(source, entryLocalOffsetValue, 80, 75, 3, 4) ||
+            u16(source, entryLocalOffsetValue + 6) != entryFlagsValue ||
+            u16(source, entryLocalOffsetValue + 8) != entryMethodValue) {
+            return false
+        }
+        var localNameLength = u16(source, entryLocalOffsetValue + 26)
+        var localExtraLength = u16(source, entryLocalOffsetValue + 28)
+        entryDataStartValue = entryLocalOffsetValue + 30 +
+            localNameLength + localExtraLength
+        entryDataEndValue = entryDataStartValue + entryCompressedValue
+        if (localNameLength != entryNameLengthValue ||
+            entryDataStartValue < entryLocalOffsetValue ||
+            entryDataEndValue < entryDataStartValue ||
+            entryDataEndValue > centralOffset) { return false }
+        for (var index = 0; index < entryNameLengthValue; index = index + 1) {
+            if (source[entryLocalOffsetValue + 30 + index] !=
+                source[cursor + 46 + index]) { return false }
+        }
+        for (var other = 0; other < entry; other = other + 1) {
+            if (entryLocalOffsetValue < zipDataEnds[other] &&
+                zipDataStarts[other] < entryDataEndValue) { return false }
+        }
+        zipDataStarts[entry] = entryLocalOffsetValue
+        zipDataEnds[entry] = entryDataEndValue
+        entryModelValue =
+            modelEntry(source, cursor + 46, entryNameLengthValue)
+        return !entryModelValue ||
+            (entryCompressedValue > 0 && entryDecodedValue > 0)
+    }
+
+    Bool validArchive(Int[] source) {
+        if (source.length < 98 || source.length > 1048576) { return false }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) { return false }
+        }
+        var eocd = findEocd(source)
+        if (eocd < 0 || u16(source, eocd + 4) != 0 ||
+            u16(source, eocd + 6) != 0 ||
+            u16(source, eocd + 8) != u16(source, eocd + 10)) {
+            return false
+        }
+        var entries = u16(source, eocd + 10)
+        var centralLength = u32(source, eocd + 12)
+        var centralOffset = u32(source, eocd + 16)
+        if (entries <= 0 || entries > zipDataStarts.length ||
+            centralLength <= 0 || centralOffset < 0 ||
+            centralOffset + centralLength != eocd) { return false }
+        var cursor = centralOffset
+        var hasModel = false
+        for (var entry = 0; entry < entries; entry = entry + 1) {
+            if (!readArchiveEntry(
+                    source, cursor, eocd, centralOffset, entry) ||
+                (entryModelValue && hasModel)) {
+                return false
+            }
+            if (entryModelValue) { hasModel = true }
+            cursor = entryNextValue
+        }
+        return cursor == eocd && hasModel
+    }
+
+
+    Bool read(
+        Int[] ds3Source, Int[] exportedGlb,
+        Int sourceNamespaceId, Int sourceAssetId, Int sourceRevision,
+        Int toolVersion, Int optionsChecksum, Int coordinateScale
+    ) {
+        acceptedValue = false
+        diagnosticValue = dust3dDiagnosticNone()
+        collisionValue.clear()
+        if (!validArchive(ds3Source)) {
+            diagnosticValue = dust3dDiagnosticSource()
+            return false
+        }
+        if (!containsAscii(exportedGlb, "TEXCOORD_0")) {
+            diagnosticValue = dust3dDiagnosticUv()
+            return false
+        }
+        var hasSkin = containsAscii(exportedGlb, "skins")
+        var hasAnimation = containsAscii(exportedGlb, "animations")
+        if ((hasSkin && (!containsAscii(exportedGlb, "JOINTS_0") ||
+                !containsAscii(exportedGlb, "WEIGHTS_0"))) ||
+            (hasAnimation && !hasSkin)) {
+            diagnosticValue = dust3dDiagnosticSkeleton()
+            return false
+        }
+        if (!readerValue.read(
+                exportedGlb, sourceNamespaceId, sourceAssetId,
+                sourceRevision, toolVersion, optionsChecksum,
+                coordinateScale) || !readerValue.reopenCanonical() ||
+            !readerValue.emitCollision(collisionValue) ||
+            !collisionValue.validate() || !collisionValue.encode()) {
+            diagnosticValue = dust3dDiagnosticExport()
+            return false
+        }
+        if (!readerValue.validTextureCoordinates()) {
+            diagnosticValue = dust3dDiagnosticUv()
+            return false
+        }
+        if (hasSkin && !readerValue.validSkinAttributes()) {
+            diagnosticValue = dust3dDiagnosticSkeleton()
+            return false
+        }
+        sourceChecksumValue = checksumBytes(ds3Source)
+        materialChecksumValue = checksumBytes(exportedGlb)
+        if (sourceChecksumValue <= 0 || materialChecksumValue <= 0) {
+            diagnosticValue = dust3dDiagnosticCapacity()
+            return false
+        }
+        acceptedValue = true
+        return true
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int materialChecksum() { return materialChecksumValue }
+    Int geometryChecksum() { return readerValue.geometryChecksum() }
+    Int collisionChecksum() { return collisionValue.checksum() }
+    Int vertexCount() { return readerValue.vertexCount() }
+    Int triangleCount() { return readerValue.triangleCount() }
+    BoundedAuthoredCollision collision() { return collisionValue }
+    BoundedExternalGlbSceneReader reader() { return readerValue }
+}

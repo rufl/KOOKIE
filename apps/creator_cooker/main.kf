@@ -1,0 +1,143 @@
+import content
+import kof.process
+
+Bool printUsage() {
+    println("Usage:")
+    println("  kookie-cooker cook <glb|aseprite|vox|map> <input> <output>")
+    println("  kookie-cooker cook dust3d <input.ds3> <export.glb> <output>")
+    println("  kookie-cooker package <chunk-kind> <input> <logical-path> <output.kpkg>")
+    println("  kookie-cooker inspect-package <input.kpkg>")
+    println("  kookie-cooker validate-package <input.kpkg>")
+    return false
+}
+
+Bool cookCommand(List<String> args) {
+    if (args.size() < 4) { return printUsage() }
+    var kind = args.get(1)
+    var input = args.get(2)
+    var paired = ""
+    var output = args.get(3)
+    if (kind == "dust3d") {
+        if (args.size() != 5) { return printUsage() }
+        paired = args.get(3)
+        output = args.get(4)
+    } else if (args.size() != 4) {
+        return printUsage()
+    }
+    var cooker = BoundedSourceFileCooker(16777216)
+    if (!cooker.cook(kind, input, paired, output, 1, 1, 1, 1, 1, 1000)) {
+        println("cook-rejected diagnostic=" + cooker.diagnostic() +
+            " source=" + cooker.result().diagnostic())
+        return false
+    }
+    var result = cooker.result()
+    println("cooked kind=" + result.sourceKind() +
+        " source=" + result.sourceChecksum() +
+        " geometry=" + result.geometryChecksum() +
+        " collision=" + result.collisionChecksum() +
+        " metadata=" + result.metadataChecksum() +
+        " primary=" + result.primaryCount() +
+        " secondary=" + result.secondaryCount() +
+        " bytes=" + cooker.outputLength())
+    return true
+}
+
+Int parseChunkKind(String value) {
+    if (value.length() <= 0 || value.length() > 2) { return 0 }
+    var result = 0
+    for (var index = 0; index < value.length(); index = index + 1) {
+        var digit = (value.charAt(index) as Int) - 48
+        if (digit < 0 || digit > 9) { return 0 }
+        result = result * 10 + digit
+    }
+    if (result <= 0 || result > 64) { return 0 }
+    return result
+}
+
+Bool packageCommand(List<String> args) {
+    if (args.size() != 5) { return printUsage() }
+    var chunkKind = parseChunkKind(args.get(1))
+    var payload = File(args.get(2)).readRange(0, 10000001)
+    if (chunkKind <= 0 || payload.length <= 0 || payload.length > 10000000) {
+        println("package-rejected diagnostic=input")
+        return false
+    }
+    var files = BoundedContentPackageFileStore(1, 1, 1, 10000000)
+    var packageValue = BoundedContentPackage(1, 1, 1)
+    var assetKind = chunkKind
+    if (assetKind > 32) { assetKind = 32 }
+    var paths = new String[1]
+    paths[0] = args.get(3)
+    if (!packageValue.configureHeader(7, 1, 1, 1, 1000) ||
+        !packageValue.addAsset(
+            1, 1, assetKind, 1,
+            files.chunkHashLow(payload, 0, payload.length),
+            files.chunkHashHigh(payload, 0, payload.length), 1) ||
+        !packageValue.addChunk(
+            1, chunkKind, 0, payload.length,
+            files.chunkHashLow(payload, 0, payload.length),
+            files.chunkHashHigh(payload, 0, payload.length), 1) ||
+        !packageValue.seal() ||
+        !files.write(args.get(4), packageValue, payload, paths)) {
+        println("package-rejected diagnostic=" + files.diagnostic())
+        return false
+    }
+    println("packaged checksum=" + packageValue.checksum() +
+        " kind=" + chunkKind + " payload-bytes=" + payload.length)
+    return true
+}
+
+Bool inspectPackage(String path) {
+    var files = BoundedContentPackageFileStore(32, 32, 64, 16777216)
+    var packageValue = BoundedContentPackage(32, 32, 64)
+    if (!files.read(path, packageValue)) {
+        println("package-rejected diagnostic=" + files.diagnostic())
+        return false
+    }
+    var identity = packageValue.identity()
+    println("package checksum=" + packageValue.checksum() +
+        " engine=" + identity.engineVersion() +
+        " tool=" + identity.toolVersion() +
+        " content=" + identity.contentVersion() +
+        " assets=" + packageValue.assetCount() +
+        " dependencies=" + packageValue.dependencyCount() +
+        " chunks=" + packageValue.chunkCount() +
+        " payload-bytes=" + files.payloadLength())
+    for (var index = 0; index < packageValue.chunkCount(); index = index + 1) {
+        println("chunk id=" + packageValue.chunkId(index) +
+            " kind=" + packageValue.chunkKind(index) +
+            " offset=" + packageValue.chunkOffset(index) +
+            " length=" + packageValue.chunkLength(index))
+    }
+    return true
+}
+
+Bool validatePackage(String path) {
+    var runtime = BoundedExternalPackageRuntime(16777216)
+    if (!runtime.load(path)) {
+        println("external-package-rejected diagnostic=" + runtime.diagnostic())
+        return false
+    }
+    println("external-package-valid generation=" + runtime.generation() +
+        " checksum=" + runtime.packageChecksum() +
+        " extensions=" + runtime.extensions().manifestCount() +
+        " enemies=" + runtime.definitions().count() +
+        " hooks=" + runtime.hooks().count())
+    return true
+}
+
+main(List<String> args) {
+    var accepted = false
+    if (args.size() > 0 && args.get(0) == "cook") {
+        accepted = cookCommand(args)
+    } else if (args.size() > 0 && args.get(0) == "package") {
+        accepted = packageCommand(args)
+    } else if (args.size() == 2 && args.get(0) == "inspect-package") {
+        accepted = inspectPackage(args.get(1))
+    } else if (args.size() == 2 && args.get(0) == "validate-package") {
+        accepted = validatePackage(args.get(1))
+    } else {
+        printUsage()
+    }
+    if (!accepted) { process.exit(2) }
+}

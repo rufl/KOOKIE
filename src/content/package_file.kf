@@ -1,0 +1,426 @@
+package content
+
+Int packageFileDiagnosticNone() { return 0 }
+Int packageFileDiagnosticHeader() { return 1 }
+Int packageFileDiagnosticBounds() { return 2 }
+Int packageFileDiagnosticPath() { return 3 }
+Int packageFileDiagnosticPackage() { return 4 }
+Int packageFileDiagnosticChunk() { return 5 }
+Int packageFileDiagnosticChecksum() { return 6 }
+
+class BoundedContentPackageFileStore {
+    Int assetCapacityValue
+    Int dependencyCapacityValue
+    Int chunkCapacityValue
+    Int payloadCapacityValue
+    Int[] payloadValue
+    Int[] pathBytes
+    Int[] pathLengths
+    Int payloadLengthValue
+    Int pathCountValue
+    Int diagnosticValue
+    Bool acceptedValue
+
+    public constructor(
+        Int assetCapacity, Int dependencyCapacity,
+        Int chunkCapacity, Int payloadCapacity
+    ) {
+        assetCapacityValue = assetCapacity
+        dependencyCapacityValue = dependencyCapacity
+        chunkCapacityValue = chunkCapacity
+        payloadCapacityValue = payloadCapacity
+        if (assetCapacityValue <= 0) { assetCapacityValue = 1 }
+        if (assetCapacityValue > 32) { assetCapacityValue = 32 }
+        if (dependencyCapacityValue <= 0) { dependencyCapacityValue = 1 }
+        if (dependencyCapacityValue > 32) { dependencyCapacityValue = 32 }
+        if (chunkCapacityValue <= 0) { chunkCapacityValue = 1 }
+        if (chunkCapacityValue > 64) { chunkCapacityValue = 64 }
+        if (payloadCapacityValue <= 0) { payloadCapacityValue = 1 }
+        if (payloadCapacityValue > 16777216) { payloadCapacityValue = 16777216 }
+        payloadValue = new Int[payloadCapacityValue]
+        pathBytes = new Int[chunkCapacityValue * 128]
+        pathLengths = new Int[chunkCapacityValue]
+        clear()
+    }
+
+    Bool clear() {
+        payloadLengthValue = 0
+        pathCountValue = 0
+        diagnosticValue = packageFileDiagnosticNone()
+        acceptedValue = false
+        for (var index = 0; index < pathLengths.length; index = index + 1) {
+            pathLengths[index] = 0
+        }
+        return true
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        acceptedValue = false
+        return false
+    }
+
+    Int readLe16(Int[] source, Int offset) {
+        if (offset < 0 || offset + 2 > source.length) { return -1 }
+        return source[offset] + source[offset + 1] * 256
+    }
+
+    Int readLe32(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length || source[offset + 3] >= 128) {
+            return -1
+        }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + source[offset + 3] * 16777216
+    }
+
+    Bool putLe16(Int[] target, Int offset, Int value) {
+        if (offset < 0 || offset + 2 > target.length || value < 0 || value > 65535) {
+            return false
+        }
+        target[offset] = value & 255
+        target[offset + 1] = (value >>> 8) & 255
+        return true
+    }
+
+    Bool putLe32(Int[] target, Int offset, Int value) {
+        if (offset < 0 || offset + 4 > target.length || value < 0) { return false }
+        target[offset] = value & 255
+        target[offset + 1] = (value >>> 8) & 255
+        target[offset + 2] = (value >>> 16) & 255
+        target[offset + 3] = (value >>> 24) & 255
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        return (state * 31 + value) % 1000003
+    }
+
+    Int byteChecksum(Int[] source, Int offset, Int length, Int seed, Bool reverse) {
+        var result = seed
+        if (!reverse) {
+            for (var index = 0; index < length; index = index + 1) {
+                result = mix(result, source[offset + index])
+            }
+        } else {
+            for (var index = length - 1; index >= 0; index = index - 1) {
+                result = mix(result, source[offset + index])
+            }
+        }
+        return result
+    }
+
+    Int envelopeChecksum(Int[] source) {
+        var result = 97
+        for (var index = 0; index < source.length; index = index + 1) {
+            var value = source[index]
+            if (index >= 32 && index < 36) { value = 0 }
+            result = mix(result, value)
+        }
+        return result
+    }
+
+    Bool validPathBytes(Int[] source, Int offset, Int length) {
+        if (length <= 0 || length > 128 || offset < 0 ||
+            offset + length > source.length || source[offset] == 47 ||
+            source[offset] == 92 || source[length + offset - 1] == 47 ||
+            source[length + offset - 1] == 92) { return false }
+        var segmentStart = 0
+        for (var index = 0; index <= length; index = index + 1) {
+            var separator = index == length
+            if (!separator) {
+                var value = source[offset + index]
+                if (value < 33 || value > 126 || value == 58) { return false }
+                separator = value == 47 || value == 92
+            }
+            if (separator) {
+                var segmentLength = index - segmentStart
+                if (segmentLength <= 0 ||
+                    (segmentLength == 1 &&
+                        source[offset + segmentStart] == 46) ||
+                    (segmentLength == 2 &&
+                        source[offset + segmentStart] == 46 &&
+                        source[offset + segmentStart + 1] == 46)) {
+                    return false
+                }
+                segmentStart = index + 1
+            }
+        }
+        return true
+    }
+
+    Bool storePath(Int pathIndex, Int[] source, Int offset, Int length) {
+        if (pathIndex < 0 || pathIndex >= pathLengths.length ||
+            !validPathBytes(source, offset, length)) { return false }
+        for (var existing = 0; existing < pathIndex; existing = existing + 1) {
+            if (pathLengths[existing] == length) {
+                var equal = true
+                for (var index = 0; index < length; index = index + 1) {
+                    if (pathBytes[existing * 128 + index] != source[offset + index]) {
+                        equal = false
+                    }
+                }
+                if (equal) { return false }
+            }
+        }
+        pathLengths[pathIndex] = length
+        for (var index = 0; index < length; index = index + 1) {
+            pathBytes[pathIndex * 128 + index] = source[offset + index]
+        }
+        return true
+    }
+
+    Bool storeStringPath(Int pathIndex, String path) {
+        if (path.length() <= 0 || path.length() > 128) { return false }
+        var bytes = new Int[path.length()]
+        for (var index = 0; index < bytes.length; index = index + 1) {
+            bytes[index] = path.charAt(index) as Int
+        }
+        return storePath(pathIndex, bytes, 0, bytes.length)
+    }
+
+    Bool validChunkRanges(BoundedContentPackage packageValue, Int payloadLength) {
+        for (var index = 0; index < packageValue.chunkCount(); index = index + 1) {
+            var offset = packageValue.chunkOffset(index)
+            var length = packageValue.chunkLength(index)
+            if (offset < 0 || length <= 0 || offset > payloadLength - length) {
+                return false
+            }
+            for (var other = index + 1;
+                other < packageValue.chunkCount(); other = other + 1) {
+                var otherOffset = packageValue.chunkOffset(other)
+                var otherLength = packageValue.chunkLength(other)
+                if (offset < otherOffset + otherLength &&
+                    otherOffset < offset + length) { return false }
+            }
+        }
+        return true
+    }
+
+    Bool validChunkHashes(BoundedContentPackage packageValue, Int[] payload) {
+        for (var index = 0; index < packageValue.chunkCount(); index = index + 1) {
+            var offset = packageValue.chunkOffset(index)
+            var length = packageValue.chunkLength(index)
+            if (byteChecksum(payload, offset, length, 17, false) !=
+                    packageValue.chunkHashLow(index) ||
+                byteChecksum(payload, offset, length, 37, true) !=
+                    packageValue.chunkHashHigh(index)) { return false }
+        }
+        return true
+    }
+
+    Int chunkHashLow(Int[] payload, Int offset, Int length) {
+        if (offset < 0 || length <= 0 || offset > payload.length - length) {
+            return -1
+        }
+        return byteChecksum(payload, offset, length, 17, false)
+    }
+
+    Int chunkHashHigh(Int[] payload, Int offset, Int length) {
+        if (offset < 0 || length <= 0 || offset > payload.length - length) {
+            return -1
+        }
+        return byteChecksum(payload, offset, length, 37, true)
+    }
+
+    Bool write(
+        String filePath,
+        BoundedContentPackage packageValue,
+        Int[] payload,
+        String[] logicalPaths
+    ) {
+        clear()
+        for (var index = 0; index < payload.length; index = index + 1) {
+            if (payload[index] < 0 || payload[index] > 255) {
+                return reject(packageFileDiagnosticChunk())
+            }
+        }
+        if (!packageValue.validate() || !packageValue.encode() ||
+            payload.length <= 0 || payload.length > payloadCapacityValue ||
+            logicalPaths.length != packageValue.chunkCount() ||
+            packageValue.chunkCount() > chunkCapacityValue ||
+            !validChunkRanges(packageValue, payload.length) ||
+            !validChunkHashes(packageValue, payload)) {
+            return reject(packageFileDiagnosticChunk())
+        }
+        var pathTableLength = 0
+        for (var index = 0; index < logicalPaths.length; index = index + 1) {
+            if (!storeStringPath(index, logicalPaths[index])) {
+                return reject(packageFileDiagnosticPath())
+            }
+            pathTableLength = pathTableLength + 6 + pathLengths[index]
+        }
+        var wordBytes = packageValue.encodedLength() * 4
+        var totalLength = 40 + wordBytes + pathTableLength + payload.length
+        var output = new Int[totalLength]
+        output[0] = 75
+        output[1] = 80
+        output[2] = 75
+        output[3] = 71
+        output[4] = 1
+        output[5] = 0
+        putLe16(output, 6, 40)
+        putLe32(output, 8, 16909060)
+        putLe32(output, 12, packageValue.encodedLength())
+        putLe32(output, 16, pathTableLength)
+        putLe32(output, 20, payload.length)
+        putLe32(output, 24, packageValue.checksum())
+        putLe32(output, 28, byteChecksum(payload, 0, payload.length, 53, false))
+        putLe32(output, 36, packageValue.chunkCount())
+        var cursor = 40
+        for (var index = 0; index < packageValue.encodedLength(); index = index + 1) {
+            putLe32(output, cursor, packageValue.encodedWord(index))
+            cursor = cursor + 4
+        }
+        for (var path = 0; path < logicalPaths.length; path = path + 1) {
+            putLe32(output, cursor, packageValue.chunkId(path))
+            putLe16(output, cursor + 4, pathLengths[path])
+            cursor = cursor + 6
+            for (var index = 0; index < pathLengths[path]; index = index + 1) {
+                output[cursor] = pathBytes[path * 128 + index]
+                cursor = cursor + 1
+            }
+        }
+        for (var index = 0; index < payload.length; index = index + 1) {
+            output[cursor + index] = payload[index]
+        }
+        putLe32(output, 32, envelopeChecksum(output))
+        var file = File(filePath)
+        if (!file.writeBytes(output)) { return reject(packageFileDiagnosticBounds()) }
+        payloadLengthValue = payload.length
+        pathCountValue = logicalPaths.length
+        for (var index = 0; index < payload.length; index = index + 1) {
+            payloadValue[index] = payload[index]
+        }
+        acceptedValue = true
+        return true
+    }
+
+    Bool read(String filePath, BoundedContentPackage target) {
+        clear()
+        var maximumWords = 11 + assetCapacityValue * 7 +
+            dependencyCapacityValue * 5 + chunkCapacityValue * 7
+        var maximumPathBytes = chunkCapacityValue * 134
+        var maximumBytes = 40 + maximumWords * 4 +
+            maximumPathBytes + payloadCapacityValue
+        var file = File(filePath)
+        var input = file.readRange(0, maximumBytes + 1)
+        if (input.length < 44 || input.length > maximumBytes) {
+            return reject(packageFileDiagnosticBounds())
+        }
+        for (var index = 0; index < input.length; index = index + 1) {
+            if (input[index] < 0 || input[index] > 255) {
+                return reject(packageFileDiagnosticHeader())
+            }
+        }
+        if (input[0] != 75 || input[1] != 80 || input[2] != 75 ||
+            input[3] != 71 || input[4] != 1 || input[5] != 0 ||
+            readLe16(input, 6) != 40 || readLe32(input, 8) != 16909060) {
+            return reject(packageFileDiagnosticHeader())
+        }
+        var wordCount = readLe32(input, 12)
+        var pathTableLength = readLe32(input, 16)
+        var payloadLength = readLe32(input, 20)
+        var packageChecksum = readLe32(input, 24)
+        var payloadChecksum = readLe32(input, 28)
+        var expectedEnvelopeChecksum = readLe32(input, 32)
+        var chunkCount = readLe32(input, 36)
+        if (wordCount < 11 || wordCount > maximumWords ||
+            pathTableLength < 0 || pathTableLength > maximumPathBytes ||
+            payloadLength <= 0 || payloadLength > payloadCapacityValue ||
+            chunkCount <= 0 || chunkCount > chunkCapacityValue ||
+            input.length != 40 + wordCount * 4 + pathTableLength + payloadLength) {
+            return reject(packageFileDiagnosticBounds())
+        }
+        if (expectedEnvelopeChecksum != envelopeChecksum(input)) {
+            return reject(packageFileDiagnosticChecksum())
+        }
+        var words = new Int[wordCount]
+        var cursor = 40
+        for (var index = 0; index < wordCount; index = index + 1) {
+            words[index] = readLe32(input, cursor)
+            if (words[index] < 0) { return reject(packageFileDiagnosticPackage()) }
+            cursor = cursor + 4
+        }
+        if (!target.decode(words) || !target.validate() ||
+            target.checksum() != packageChecksum ||
+            target.chunkCount() != chunkCount) {
+            return reject(packageFileDiagnosticPackage())
+        }
+        var pathLimit = cursor + pathTableLength
+        for (var path = 0; path < chunkCount; path = path + 1) {
+            if (cursor + 6 > pathLimit ||
+                readLe32(input, cursor) != target.chunkId(path)) {
+                return reject(packageFileDiagnosticPath())
+            }
+            var length = readLe16(input, cursor + 4)
+            cursor = cursor + 6
+            if (length <= 0 || cursor + length > pathLimit ||
+                !storePath(path, input, cursor, length)) {
+                return reject(packageFileDiagnosticPath())
+            }
+            cursor = cursor + length
+        }
+        if (cursor != pathLimit) { return reject(packageFileDiagnosticPath()) }
+        var payloadStart = cursor
+        if (byteChecksum(input, payloadStart, payloadLength, 53, false) !=
+                payloadChecksum ||
+            !validChunkRanges(target, payloadLength)) {
+            return reject(packageFileDiagnosticChecksum())
+        }
+        for (var index = 0; index < payloadLength; index = index + 1) {
+            payloadValue[index] = input[payloadStart + index]
+        }
+        var exactPayload = new Int[payloadLength]
+        for (var index = 0; index < payloadLength; index = index + 1) {
+            exactPayload[index] = payloadValue[index]
+        }
+        if (!validChunkHashes(target, exactPayload)) {
+            return reject(packageFileDiagnosticChunk())
+        }
+        payloadLengthValue = payloadLength
+        pathCountValue = chunkCount
+        acceptedValue = true
+        diagnosticValue = packageFileDiagnosticNone()
+        return true
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int payloadLength() { return payloadLengthValue }
+    Int pathCount() { return pathCountValue }
+    Int payloadByte(Int index) {
+        if (index < 0 || index >= payloadLengthValue) { return -1 }
+        return payloadValue[index]
+    }
+    Int pathLength(Int index) {
+        if (index < 0 || index >= pathCountValue) { return 0 }
+        return pathLengths[index]
+    }
+    Int pathByte(Int index, Int position) {
+        if (index < 0 || index >= pathCountValue ||
+            position < 0 || position >= pathLengths[index]) { return -1 }
+        return pathBytes[index * 128 + position]
+    }
+    Int[] payloadCopy() {
+        var result = new Int[payloadLengthValue]
+        for (var index = 0; index < payloadLengthValue; index = index + 1) {
+            result[index] = payloadValue[index]
+        }
+        return result
+    }
+    Int[] chunkCopy(BoundedContentPackage packageValue, Int index) {
+        if (!acceptedValue || index < 0 || index >= packageValue.chunkCount()) {
+            return new Int[0]
+        }
+        var length = packageValue.chunkLength(index)
+        var offset = packageValue.chunkOffset(index)
+        if (offset < 0 || length <= 0 || offset > payloadLengthValue - length) {
+            return new Int[0]
+        }
+        var result = new Int[length]
+        for (var cursor = 0; cursor < length; cursor = cursor + 1) {
+            result[cursor] = payloadValue[offset + cursor]
+        }
+        return result
+    }
+}

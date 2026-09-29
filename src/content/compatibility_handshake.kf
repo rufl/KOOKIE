@@ -1,0 +1,114 @@
+package content
+
+Int compatibilityHandshakeMagic() { return 126276131 }
+Int compatibilityHandshakeVersion() { return 1 }
+Int compatibilityHandshakeOfferKind() { return 1 }
+Int compatibilityHandshakeAcceptKind() { return 2 }
+Int compatibilityHandshakeRejectKind() { return 3 }
+Int compatibilityHandshakeOfferLength() { return 18 }
+Int compatibilityHandshakeResponseLength() { return 7 }
+
+Int compatibilityHandshakeChecksum(Int[] words, Int length) {
+    if (length <= 0 || length > words.length) { return -1 }
+    var result = 59
+    for (var index = 0; index < length; index = index + 1) {
+        var value = words[index] % 1000003
+        if (value < 0) { value = value + 1000003 }
+        result = (result * 31 + value) % 1000003
+    }
+    return result
+}
+
+Int[] newCompatibilityHandshakeOffer(
+    BoundedContentCompatibility identity, Int sequence
+) {
+    if (!identity.validate() || !identity.encode() ||
+        sequence <= 0 || sequence > 1000000) {
+        return new Int[0]
+    }
+    var words = new Int[compatibilityHandshakeOfferLength()]
+    words[0] = compatibilityHandshakeMagic()
+    words[1] = compatibilityHandshakeVersion()
+    words[2] = compatibilityHandshakeOfferKind()
+    words[3] = sequence
+    for (var index = 0; index < identity.encodedLength(); index = index + 1) {
+        words[4 + index] = identity.encodedWord(index)
+    }
+    words[17] = compatibilityHandshakeChecksum(words, 17)
+    return words
+}
+
+Bool decodeCompatibilityHandshakeOffer(
+    Int[] words, BoundedContentCompatibility target
+) {
+    if (words.length != compatibilityHandshakeOfferLength() ||
+        words[0] != compatibilityHandshakeMagic() ||
+        words[1] != compatibilityHandshakeVersion() ||
+        words[2] != compatibilityHandshakeOfferKind() ||
+        words[3] <= 0 || words[3] > 1000000 ||
+        words[17] != compatibilityHandshakeChecksum(words, 17)) {
+        return false
+    }
+    var identityWords = new Int[13]
+    for (var index = 0; index < identityWords.length; index = index + 1) {
+        identityWords[index] = words[4 + index]
+    }
+    return target.decode(identityWords)
+}
+
+Int[] newCompatibilityHandshakeResponse(
+    BoundedContentCompatibility local,
+    BoundedContentCompatibility offered,
+    Int sequence
+) {
+    if (!local.validate() || !offered.validate() ||
+        sequence <= 0 || sequence > 1000000) {
+        return new Int[0]
+    }
+    var diagnostic = local.mismatch(offered)
+    var words = new Int[compatibilityHandshakeResponseLength()]
+    words[0] = compatibilityHandshakeMagic()
+    words[1] = compatibilityHandshakeVersion()
+    words[2] = if (diagnostic == creatorDiagnosticNone())
+        compatibilityHandshakeAcceptKind() else compatibilityHandshakeRejectKind()
+    words[3] = sequence
+    words[4] = diagnostic
+    words[5] = local.checksum()
+    words[6] = compatibilityHandshakeChecksum(words, 6)
+    return words
+}
+
+Bool validCompatibilityHandshakeResponse(
+    Int[] words, Int expectedSequence, Int expectedIdentityChecksum
+) {
+    if (words.length != compatibilityHandshakeResponseLength() ||
+        words[0] != compatibilityHandshakeMagic() ||
+        words[1] != compatibilityHandshakeVersion() ||
+        (words[2] != compatibilityHandshakeAcceptKind() &&
+            words[2] != compatibilityHandshakeRejectKind()) ||
+        words[3] != expectedSequence ||
+        words[4] < creatorDiagnosticNone() ||
+        words[4] > creatorDiagnosticNetwork() ||
+        words[5] <= 0 || words[5] > 1000002 ||
+        words[6] != compatibilityHandshakeChecksum(words, 6)) {
+        return false
+    }
+    if (words[2] == compatibilityHandshakeAcceptKind()) {
+        return words[4] == creatorDiagnosticNone() &&
+            words[5] == expectedIdentityChecksum
+    }
+    return words[4] != creatorDiagnosticNone()
+}
+
+Bool compatibilityHandshakeAccepted(Int[] words) {
+    return words.length == compatibilityHandshakeResponseLength() &&
+        words[2] == compatibilityHandshakeAcceptKind() &&
+        words[4] == creatorDiagnosticNone()
+}
+
+Int compatibilityHandshakeDiagnostic(Int[] words) {
+    if (words.length != compatibilityHandshakeResponseLength()) {
+        return creatorDiagnosticInvalid()
+    }
+    return words[4]
+}

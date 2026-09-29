@@ -1,33 +1,72 @@
 package core
 
-Int trustedHookImplementationSessionAudit() {
-    return 1
+Int trustedDomainEventSessionStarted() { return 1 }
+Int trustedDomainEventPlayerConnected() { return 2 }
+Int trustedDomainEventEnemyDefeated() { return 3 }
+Int trustedDomainEventLootPickedUp() { return 4 }
+Int trustedDomainEventEditorPublished() { return 5 }
+
+Int trustedDomainEventPhase(Int eventKind) {
+    if (eventKind == trustedDomainEventSessionStarted() ||
+        eventKind == trustedDomainEventPlayerConnected()) {
+        return trustedHookPreSimulationPhase()
+    }
+    if (eventKind == trustedDomainEventEnemyDefeated() ||
+        eventKind == trustedDomainEventLootPickedUp()) {
+        return trustedHookPostSimulationPhase()
+    }
+    if (eventKind == trustedDomainEventEditorPublished()) {
+        return trustedHookEditorPhase()
+    }
+    return 0
 }
 
-Int trustedHookImplementationEliteBounty() {
-    return 2
-}
+Int trustedHookImplementationSessionAudit() { return 1 }
+Int trustedHookImplementationEliteBounty() { return 2 }
+Int trustedHookImplementationPlayerWelcome() { return 3 }
+Int trustedHookImplementationPublicationAudit() { return 4 }
 
 Int trustedHookImplementationVersion(Int implementationId) {
-    if (implementationId == trustedHookImplementationSessionAudit() ||
-        implementationId == trustedHookImplementationEliteBounty()) {
+    if (implementationId >= trustedHookImplementationSessionAudit() &&
+        implementationId <= trustedHookImplementationPublicationAudit()) {
         return 1
     }
     return 0
 }
 
 Int trustedHookImplementationPhase(Int implementationId) {
-    if (implementationId == trustedHookImplementationSessionAudit()) {
+    if (implementationId == trustedHookImplementationSessionAudit() ||
+        implementationId == trustedHookImplementationPlayerWelcome()) {
         return trustedHookPreSimulationPhase()
     }
     if (implementationId == trustedHookImplementationEliteBounty()) {
         return trustedHookPostSimulationPhase()
     }
+    if (implementationId == trustedHookImplementationPublicationAudit()) {
+        return trustedHookEditorPhase()
+    }
+    return 0
+}
+
+Int trustedHookImplementationEvent(Int implementationId) {
+    if (implementationId == trustedHookImplementationSessionAudit()) {
+        return trustedDomainEventSessionStarted()
+    }
+    if (implementationId == trustedHookImplementationEliteBounty()) {
+        return trustedDomainEventEnemyDefeated()
+    }
+    if (implementationId == trustedHookImplementationPlayerWelcome()) {
+        return trustedDomainEventPlayerConnected()
+    }
+    if (implementationId == trustedHookImplementationPublicationAudit()) {
+        return trustedDomainEventEditorPublished()
+    }
     return 0
 }
 
 Bool trustedHookImplementationSupported(Int implementationId) {
-    return trustedHookImplementationVersion(implementationId) > 0
+    return trustedHookImplementationVersion(implementationId) > 0 &&
+        trustedHookImplementationEvent(implementationId) > 0
 }
 
 class BoundedTrustedModuleRegistry {
@@ -41,6 +80,8 @@ class BoundedTrustedModuleRegistry {
     Int[] implementationIds
     Int[] implementationVersions
     Bool[] implementationsConfigured
+    Int[] subscribedEventKinds
+    Bool[] subscriptionsConfigured
     Int countValue
     Int extensionChecksumValue
     Int checksumValue
@@ -64,6 +105,8 @@ class BoundedTrustedModuleRegistry {
         implementationIds = new Int[actual]
         implementationVersions = new Int[actual]
         implementationsConfigured = new Bool[actual]
+        subscribedEventKinds = new Int[actual]
+        subscriptionsConfigured = new Bool[actual]
         countValue = 0
         extensionChecksumValue = 0
         checksumValue = 0
@@ -79,6 +122,8 @@ class BoundedTrustedModuleRegistry {
             implementationIds[index] = 0
             implementationVersions[index] = 0
             implementationsConfigured[index] = false
+            subscribedEventKinds[index] = 0
+            subscriptionsConfigured[index] = false
         }
     }
 
@@ -123,6 +168,8 @@ class BoundedTrustedModuleRegistry {
         implementationIds[index] = 0
         implementationVersions[index] = 0
         implementationsConfigured[index] = false
+        subscribedEventKinds[index] = 0
+        subscriptionsConfigured[index] = false
         countValue = countValue + 1
         return true
     }
@@ -142,16 +189,32 @@ class BoundedTrustedModuleRegistry {
         budgetsConfigured[index] = true
         return true
     }
+    Bool subscribeEvent(
+        Int ownerNamespace, Int ownerId, Int hookId, Int eventKind
+    ) {
+        var index = find(ownerNamespace, ownerId, hookId)
+        if (sealedValue || index < 0 || subscriptionsConfigured[index] ||
+            trustedDomainEventPhase(eventKind) != phases[index]) {
+            return false
+        }
+        subscribedEventKinds[index] = eventKind
+        subscriptionsConfigured[index] = true
+        return true
+    }
+
     Bool bindImplementation(
         Int ownerNamespace, Int ownerId, Int hookId,
         Int implementationId, Int implementationVersion
     ) {
         var index = find(ownerNamespace, ownerId, hookId)
         if (sealedValue || index < 0 || implementationsConfigured[index] ||
+            !subscriptionsConfigured[index] ||
             !trustedHookImplementationSupported(implementationId) ||
             implementationVersion !=
                 trustedHookImplementationVersion(implementationId) ||
-            phases[index] != trustedHookImplementationPhase(implementationId)) {
+            phases[index] != trustedHookImplementationPhase(implementationId) ||
+            subscribedEventKinds[index] !=
+                trustedHookImplementationEvent(implementationId)) {
             return false
         }
         implementationIds[index] = implementationId
@@ -185,12 +248,17 @@ class BoundedTrustedModuleRegistry {
                 phases[index] < trustedHookPreSimulationPhase() ||
                 phases[index] > trustedHookEditorPhase() ||
                 !budgetsConfigured[index] || commandBudgets[index] <= 0 ||
-                eventBudgets[index] < 0 || !implementationsConfigured[index] ||
+                eventBudgets[index] < 0 || !subscriptionsConfigured[index] ||
+                trustedDomainEventPhase(subscribedEventKinds[index]) !=
+                    phases[index] ||
+                !implementationsConfigured[index] ||
                 !trustedHookImplementationSupported(implementationIds[index]) ||
                 implementationVersions[index] !=
                     trustedHookImplementationVersion(implementationIds[index]) ||
                 phases[index] !=
                     trustedHookImplementationPhase(implementationIds[index]) ||
+                subscribedEventKinds[index] !=
+                    trustedHookImplementationEvent(implementationIds[index]) ||
                 !extensions.hasContribution(
                     ownerNamespaces[index], ownerIds[index],
                     extensionContributionTrustedHookKind(), hookIds[index])) {
@@ -248,6 +316,7 @@ class BoundedTrustedModuleRegistry {
             result = mix(result, phases[index])
             result = mix(result, commandBudgets[index])
             result = mix(result, eventBudgets[index])
+            result = mix(result, subscribedEventKinds[index])
             result = mix(result, implementationIds[index])
             result = mix(result, implementationVersions[index])
         }
@@ -346,6 +415,16 @@ class BoundedTrustedModuleRegistry {
         }
         return eventBudgets[index]
     }
+    Int orderedHookEventKind(
+        BoundedExtensionRegistry extensions, Int position
+    ) {
+        var index = orderedHookIndex(extensions, position)
+        if (index < 0) {
+            return 0
+        }
+        return subscribedEventKinds[index]
+    }
+
 
     Int orderedHookImplementation(
         BoundedExtensionRegistry extensions, Int position

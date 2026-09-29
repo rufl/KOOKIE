@@ -1,0 +1,484 @@
+package content
+
+Int voxDiagnosticNone() { return 0 }
+Int voxDiagnosticHeader() { return 1 }
+Int voxDiagnosticChunk() { return 2 }
+Int voxDiagnosticModel() { return 3 }
+Int voxDiagnosticPalette() { return 4 }
+Int voxDiagnosticScene() { return 5 }
+Int voxDiagnosticCapacity() { return 6 }
+
+class BoundedVoxIntake {
+    Int[] voxelX
+    Int[] voxelY
+    Int[] voxelZ
+    Int[] voxelPalette
+    Int[] paletteAlpha
+    BoundedCanonicalGlb geometryValue
+    BoundedAuthoredCollision collisionValue
+    Int voxelCountValue
+    Int modelCountValue
+    Int sceneNodeCountValue
+    Int sourceChecksumValue
+    Int materialChecksumValue
+    Int diagnosticValue
+    Int parseCursorValue
+    Bool palettePresentValue
+    Bool acceptedValue
+    Int[] cubeTriangles
+    Int chunkCursorValue
+    Int sizeXValue
+    Int sizeYValue
+    Int sizeZValue
+    Int largestXValue
+    Int largestYValue
+    Int largestZValue
+    Int declaredModelsValue
+    Bool pendingSizeValue
+
+    public constructor(Int voxelCapacity) {
+        var capacity = voxelCapacity
+        if (capacity <= 0) { capacity = 1 }
+        if (capacity > 20) { capacity = 20 }
+        voxelX = new Int[capacity]
+        voxelY = new Int[capacity]
+        voxelZ = new Int[capacity]
+        voxelPalette = new Int[capacity]
+        paletteAlpha = new Int[256]
+        geometryValue = BoundedCanonicalGlb(256, 256)
+        collisionValue = BoundedAuthoredCollision(256, 256)
+        cubeTriangles = new Int[36]
+        configureCubeTriangles()
+        clear()
+    }
+
+    Bool clear() {
+        voxelCountValue = 0
+        modelCountValue = 0
+        sceneNodeCountValue = 0
+        sourceChecksumValue = 0
+        materialChecksumValue = 0
+        diagnosticValue = voxDiagnosticNone()
+        parseCursorValue = 0
+        palettePresentValue = false
+        acceptedValue = false
+        chunkCursorValue = 0
+        sizeXValue = 0
+        sizeYValue = 0
+        sizeZValue = 0
+        largestXValue = 0
+        largestYValue = 0
+        largestZValue = 0
+        declaredModelsValue = 0
+        pendingSizeValue = false
+        geometryValue.clear()
+        collisionValue.clear()
+        for (var index = 0; index < paletteAlpha.length; index = index + 1) {
+            paletteAlpha[index] = 255
+        }
+        return true
+    }
+
+    Int u32(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length ||
+            source[offset + 3] >= 128) { return -1 }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + source[offset + 3] * 16777216
+    }
+
+    Int i32(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length) { return 2000000000 }
+        var high = source[offset + 3]
+        if (high >= 128) {
+            return -2147483647 - 1 + (high - 128) * 16777216 +
+                source[offset + 2] * 65536 + source[offset + 1] * 256 +
+                source[offset]
+        }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + high * 16777216
+    }
+
+    Bool chunkIs(Int[] source, Int offset, Int a, Int b, Int c, Int d) {
+        return offset >= 0 && offset + 4 <= source.length &&
+            source[offset] == a && source[offset + 1] == b &&
+            source[offset + 2] == c && source[offset + 3] == d
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = (result * 31 + source[index]) % 1000003
+        }
+        return result
+    }
+
+    Bool skipString(Int[] source, Int limit) {
+        if (parseCursorValue + 4 > limit) { return false }
+        var length = u32(source, parseCursorValue)
+        if (length < 0 || length > 256 ||
+            parseCursorValue + 4 + length > limit) { return false }
+        parseCursorValue = parseCursorValue + 4 + length
+        return true
+    }
+
+    Bool skipDictionary(Int[] source, Int limit) {
+        if (parseCursorValue + 4 > limit) { return false }
+        var count = u32(source, parseCursorValue)
+        parseCursorValue = parseCursorValue + 4
+        if (count < 0 || count > 64) { return false }
+        for (var index = 0; index < count; index = index + 1) {
+            if (!skipString(source, limit) || !skipString(source, limit)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool parseTransform(Int[] source, Int start, Int limit) {
+        parseCursorValue = start
+        if (parseCursorValue + 4 > limit ||
+            i32(source, parseCursorValue) < 0) { return false }
+        parseCursorValue = parseCursorValue + 4
+        if (!skipDictionary(source, limit) || parseCursorValue + 16 > limit) {
+            return false
+        }
+        var child = i32(source, parseCursorValue)
+        var reserved = i32(source, parseCursorValue + 4)
+        var layer = i32(source, parseCursorValue + 8)
+        var frames = i32(source, parseCursorValue + 12)
+        parseCursorValue = parseCursorValue + 16
+        if (child < 0 || reserved != -1 || layer < -1 ||
+            frames <= 0 || frames > 32) { return false }
+        for (var frame = 0; frame < frames; frame = frame + 1) {
+            if (!skipDictionary(source, limit)) { return false }
+        }
+        return parseCursorValue == limit
+    }
+
+    Bool parseGroup(Int[] source, Int start, Int limit) {
+        parseCursorValue = start
+        if (parseCursorValue + 4 > limit ||
+            i32(source, parseCursorValue) < 0) { return false }
+        parseCursorValue = parseCursorValue + 4
+        if (!skipDictionary(source, limit) || parseCursorValue + 4 > limit) {
+            return false
+        }
+        var children = i32(source, parseCursorValue)
+        parseCursorValue = parseCursorValue + 4
+        if (children < 0 || children > 64 ||
+            parseCursorValue + children * 4 != limit) { return false }
+        for (var index = 0; index < children; index = index + 1) {
+            if (i32(source, parseCursorValue) < 0) { return false }
+            parseCursorValue = parseCursorValue + 4
+        }
+        return true
+    }
+
+    Bool parseShape(Int[] source, Int start, Int limit) {
+        parseCursorValue = start
+        if (parseCursorValue + 4 > limit ||
+            i32(source, parseCursorValue) < 0) { return false }
+        parseCursorValue = parseCursorValue + 4
+        if (!skipDictionary(source, limit) || parseCursorValue + 4 > limit) {
+            return false
+        }
+        var models = i32(source, parseCursorValue)
+        parseCursorValue = parseCursorValue + 4
+        if (models <= 0 || models > 8) { return false }
+        for (var index = 0; index < models; index = index + 1) {
+            if (parseCursorValue + 4 > limit ||
+                i32(source, parseCursorValue) < 0) { return false }
+            parseCursorValue = parseCursorValue + 4
+            if (!skipDictionary(source, limit)) { return false }
+        }
+        return parseCursorValue == limit
+    }
+
+    Bool parseLayer(Int[] source, Int start, Int limit) {
+        parseCursorValue = start
+        if (parseCursorValue + 4 > limit ||
+            i32(source, parseCursorValue) < 0) { return false }
+        parseCursorValue = parseCursorValue + 4
+        if (!skipDictionary(source, limit) || parseCursorValue + 4 != limit) {
+            return false
+        }
+        parseCursorValue = parseCursorValue + 4
+        return true
+    }
+
+    void configureCubeTriangles() {
+        cubeTriangles[0] = 0; cubeTriangles[1] = 2; cubeTriangles[2] = 1
+        cubeTriangles[3] = 0; cubeTriangles[4] = 3; cubeTriangles[5] = 2
+        cubeTriangles[6] = 4; cubeTriangles[7] = 5; cubeTriangles[8] = 6
+        cubeTriangles[9] = 4; cubeTriangles[10] = 6; cubeTriangles[11] = 7
+        cubeTriangles[12] = 0; cubeTriangles[13] = 1; cubeTriangles[14] = 5
+        cubeTriangles[15] = 0; cubeTriangles[16] = 5; cubeTriangles[17] = 4
+        cubeTriangles[18] = 3; cubeTriangles[19] = 7; cubeTriangles[20] = 6
+        cubeTriangles[21] = 3; cubeTriangles[22] = 6; cubeTriangles[23] = 2
+        cubeTriangles[24] = 0; cubeTriangles[25] = 4; cubeTriangles[26] = 7
+        cubeTriangles[27] = 0; cubeTriangles[28] = 7; cubeTriangles[29] = 3
+        cubeTriangles[30] = 1; cubeTriangles[31] = 2; cubeTriangles[32] = 6
+        cubeTriangles[33] = 1; cubeTriangles[34] = 6; cubeTriangles[35] = 5
+    }
+
+    Bool readPackChunk(Int[] source, Int start, Int contentLength) {
+        if (contentLength != 4 || declaredModelsValue != 0) {
+            diagnosticValue = voxDiagnosticChunk()
+            return false
+        }
+        declaredModelsValue = u32(source, start)
+        if (declaredModelsValue <= 0 || declaredModelsValue > 8) {
+            diagnosticValue = voxDiagnosticCapacity()
+            return false
+        }
+        return true
+    }
+
+    Bool readSizeChunk(Int[] source, Int start, Int contentLength) {
+        if (contentLength != 12 || pendingSizeValue) {
+            diagnosticValue = voxDiagnosticModel()
+            return false
+        }
+        sizeXValue = u32(source, start)
+        sizeYValue = u32(source, start + 4)
+        sizeZValue = u32(source, start + 8)
+        if (sizeXValue <= 0 || sizeXValue > 256 ||
+            sizeYValue <= 0 || sizeYValue > 256 ||
+            sizeZValue <= 0 || sizeZValue > 256) {
+            diagnosticValue = voxDiagnosticCapacity()
+            return false
+        }
+        pendingSizeValue = true
+        if (sizeXValue > largestXValue) { largestXValue = sizeXValue }
+        if (sizeYValue > largestYValue) { largestYValue = sizeYValue }
+        if (sizeZValue > largestZValue) { largestZValue = sizeZValue }
+        return true
+    }
+
+    Bool readVoxelsChunk(Int[] source, Int start, Int contentLength) {
+        if (!pendingSizeValue || contentLength < 4) {
+            diagnosticValue = voxDiagnosticModel()
+            return false
+        }
+        var count = u32(source, start)
+        if (count <= 0 || count > voxelX.length - voxelCountValue ||
+            contentLength != 4 + count * 4) {
+            diagnosticValue = voxDiagnosticCapacity()
+            return false
+        }
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = start + 4 + index * 4
+            var x = source[offset]
+            var y = source[offset + 1]
+            var z = source[offset + 2]
+            var palette = source[offset + 3]
+            if (x >= sizeXValue || y >= sizeYValue ||
+                z >= sizeZValue || palette == 0) {
+                diagnosticValue = voxDiagnosticModel()
+                return false
+            }
+            var target = voxelCountValue
+            voxelX[target] = x
+            voxelY[target] = y
+            voxelZ[target] = z
+            voxelPalette[target] = palette
+            voxelCountValue = voxelCountValue + 1
+        }
+        modelCountValue = modelCountValue + 1
+        pendingSizeValue = false
+        return true
+    }
+
+    Bool readPaletteChunk(Int[] source, Int start, Int contentLength) {
+        if (contentLength != 1024 || palettePresentValue) {
+            diagnosticValue = voxDiagnosticPalette()
+            return false
+        }
+        palettePresentValue = true
+        materialChecksumValue = 17
+        for (var index = 0; index < 256; index = index + 1) {
+            var offset = start + index * 4
+            paletteAlpha[index] = source[offset + 3]
+            materialChecksumValue =
+                (materialChecksumValue * 31 + source[offset]) % 1000003
+            materialChecksumValue =
+                (materialChecksumValue * 31 + source[offset + 1]) % 1000003
+            materialChecksumValue =
+                (materialChecksumValue * 31 + source[offset + 2]) % 1000003
+            materialChecksumValue =
+                (materialChecksumValue * 31 + source[offset + 3]) % 1000003
+        }
+        return true
+    }
+
+    Bool readChunk(Int[] source) {
+        if (chunkCursorValue + 12 > source.length) {
+            diagnosticValue = voxDiagnosticChunk()
+            return false
+        }
+        var contentLength = u32(source, chunkCursorValue + 4)
+        var childLength = u32(source, chunkCursorValue + 8)
+        var start = chunkCursorValue + 12
+        if (contentLength < 0 || childLength != 0 ||
+            start + contentLength > source.length) {
+            diagnosticValue = voxDiagnosticChunk()
+            return false
+        }
+        var limit = start + contentLength
+        if (chunkIs(source, chunkCursorValue, 80, 65, 67, 75)) {
+            if (!readPackChunk(source, start, contentLength)) { return false }
+        } else if (chunkIs(source, chunkCursorValue, 83, 73, 90, 69)) {
+            if (!readSizeChunk(source, start, contentLength)) { return false }
+        } else if (chunkIs(source, chunkCursorValue, 88, 89, 90, 73)) {
+            if (!readVoxelsChunk(source, start, contentLength)) { return false }
+        } else if (chunkIs(source, chunkCursorValue, 82, 71, 66, 65)) {
+            if (!readPaletteChunk(source, start, contentLength)) { return false }
+        } else if (chunkIs(source, chunkCursorValue, 110, 84, 82, 78)) {
+            if (!parseTransform(source, start, limit)) {
+                diagnosticValue = voxDiagnosticScene()
+                return false
+            }
+            sceneNodeCountValue = sceneNodeCountValue + 1
+        } else if (chunkIs(source, chunkCursorValue, 110, 71, 82, 80)) {
+            if (!parseGroup(source, start, limit)) {
+                diagnosticValue = voxDiagnosticScene()
+                return false
+            }
+            sceneNodeCountValue = sceneNodeCountValue + 1
+        } else if (chunkIs(source, chunkCursorValue, 110, 83, 72, 80)) {
+            if (!parseShape(source, start, limit)) {
+                diagnosticValue = voxDiagnosticScene()
+                return false
+            }
+            sceneNodeCountValue = sceneNodeCountValue + 1
+        } else if (chunkIs(source, chunkCursorValue, 76, 65, 89, 82)) {
+            if (!parseLayer(source, start, limit)) {
+                diagnosticValue = voxDiagnosticScene()
+                return false
+            }
+            sceneNodeCountValue = sceneNodeCountValue + 1
+        } else {
+            diagnosticValue = voxDiagnosticChunk()
+            return false
+        }
+        chunkCursorValue = limit
+        return true
+    }
+
+    Bool addCube(Int x, Int y, Int z, Int scale, Int surface) {
+        var base = geometryValue.vertexCount()
+        var x0 = x * scale
+        var y0 = z * scale
+        var z0 = y * scale
+        var x1 = x0 + scale
+        var y1 = y0 + scale
+        var z1 = z0 + scale
+        if (!geometryValue.addVertex(x0, y0, z0) ||
+            !geometryValue.addVertex(x1, y0, z0) ||
+            !geometryValue.addVertex(x1, y1, z0) ||
+            !geometryValue.addVertex(x0, y1, z0) ||
+            !geometryValue.addVertex(x0, y0, z1) ||
+            !geometryValue.addVertex(x1, y0, z1) ||
+            !geometryValue.addVertex(x1, y1, z1) ||
+            !geometryValue.addVertex(x0, y1, z1)) { return false }
+        for (var index = 0; index < cubeTriangles.length; index = index + 3) {
+            if (!geometryValue.addTriangle(
+                    base + cubeTriangles[index],
+                    base + cubeTriangles[index + 1],
+                    base + cubeTriangles[index + 2], surface)) { return false }
+        }
+        return true
+    }
+
+    Bool buildProducts(
+        Int sourceNamespaceId, Int sourceAssetId,
+        Int sourceRevision, Int scale,
+        Int maxX, Int maxY, Int maxZ
+    ) {
+        if (voxelCountValue <= 0 || maxX <= 0 || maxY <= 0 || maxZ <= 0 ||
+            maxX * scale > 1000000 || maxY * scale > 1000000 ||
+            maxZ * scale > 1000000 ||
+            !geometryValue.configure(
+                sourceNamespaceId, sourceAssetId, sourceRevision,
+                1, scale, 0, 0, 0,
+                maxX * scale, maxZ * scale, maxY * scale)) {
+            return false
+        }
+        for (var index = 0; index < voxelCountValue; index = index + 1) {
+            var palette = voxelPalette[index]
+            if (palette <= 0 || palette > 255 ||
+                paletteAlpha[palette - 1] == 0 ||
+                !addCube(
+                    voxelX[index], voxelY[index], voxelZ[index], scale,
+                    ((palette - 1) % 16) + 1)) { return false }
+        }
+        return geometryValue.seal() && geometryValue.encode() &&
+            geometryValue.emitCollision(collisionValue) &&
+            collisionValue.validate() && collisionValue.encode()
+    }
+
+    Bool read(
+        Int[] source, Int sourceNamespaceId, Int sourceAssetId,
+        Int sourceRevision, Int coordinateScale
+    ) {
+        clear()
+        if (source.length < 32 || source.length > 1048576 ||
+            sourceNamespaceId <= 0 || sourceAssetId <= 0 ||
+            sourceRevision <= 0 || coordinateScale <= 0 ||
+            coordinateScale > 10000) {
+            diagnosticValue = voxDiagnosticHeader()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) {
+                diagnosticValue = voxDiagnosticHeader()
+                return false
+            }
+        }
+        if (!chunkIs(source, 0, 86, 79, 88, 32) ||
+            u32(source, 4) < 150 || u32(source, 4) > 200 ||
+            !chunkIs(source, 8, 77, 65, 73, 78) ||
+            u32(source, 12) != 0 || u32(source, 16) != source.length - 20) {
+            diagnosticValue = voxDiagnosticHeader()
+            return false
+        }
+        chunkCursorValue = 20
+        while (chunkCursorValue < source.length) {
+            if (!readChunk(source)) { return false }
+        }
+        if (pendingSizeValue || modelCountValue <= 0 ||
+            (declaredModelsValue > 0 &&
+                declaredModelsValue != modelCountValue) ||
+            !buildProducts(
+                sourceNamespaceId, sourceAssetId, sourceRevision,
+                coordinateScale,
+                largestXValue, largestYValue, largestZValue)) {
+            diagnosticValue = voxDiagnosticModel()
+            return false
+        }
+        sourceChecksumValue = checksum(source)
+        if (!palettePresentValue) {
+            materialChecksumValue = 1
+            for (var index = 0; index < voxelCountValue; index = index + 1) {
+                materialChecksumValue =
+                    (materialChecksumValue * 31 +
+                        voxelPalette[index]) % 1000003
+            }
+        }
+        acceptedValue = sourceChecksumValue > 0 && materialChecksumValue > 0
+        if (!acceptedValue) { diagnosticValue = voxDiagnosticPalette() }
+        return acceptedValue
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int voxelCount() { return voxelCountValue }
+    Int modelCount() { return modelCountValue }
+    Int sceneNodeCount() { return sceneNodeCountValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int materialChecksum() { return materialChecksumValue }
+    Int geometryChecksum() { return geometryValue.checksum() }
+    Int collisionChecksum() { return collisionValue.checksum() }
+    BoundedCanonicalGlb geometry() { return geometryValue }
+    BoundedAuthoredCollision collision() { return collisionValue }
+}

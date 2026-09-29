@@ -1,55 +1,61 @@
 package core
 
-Int trustedHookOutcomeNone() {
-    return 0
-}
+Int trustedHookCommandGrantCurrency() { return 1 }
 
-Int trustedHookOutcomeSessionStarted() {
-    return 1
-}
+Int trustedHookEventSessionAudit() { return 1 }
+Int trustedHookEventEliteBounty() { return 2 }
+Int trustedHookEventPlayerWelcome() { return 3 }
+Int trustedHookEventPublicationAudit() { return 4 }
 
-Int trustedHookOutcomeEnemyDefeated() {
-    return 2
-}
+Int trustedHookRuntimeDiagnosticNone() { return 0 }
+Int trustedHookRuntimeDiagnosticInvalid() { return 1 }
+Int trustedHookRuntimeDiagnosticState() { return 2 }
+Int trustedHookRuntimeDiagnosticRegistry() { return 3 }
+Int trustedHookRuntimeDiagnosticPhase() { return 4 }
+Int trustedHookRuntimeDiagnosticBudget() { return 5 }
+Int trustedHookRuntimeDiagnosticCapacity() { return 6 }
 
-Int trustedHookCommandGrantCurrency() {
-    return 1
-}
+record TrustedDomainEvent(
+    Int sequence,
+    Int kind,
+    Int playerId,
+    Int subjectId,
+    Int subjectKind,
+    Int value
+)
 
-Int trustedHookEventSessionAudit() {
-    return 1
-}
-
-Int trustedHookEventEliteBounty() {
-    return 2
-}
-
-Int trustedHookRuntimeDiagnosticNone() {
-    return 0
-}
-
-Int trustedHookRuntimeDiagnosticInvalid() {
-    return 1
-}
-
-Int trustedHookRuntimeDiagnosticState() {
-    return 2
-}
-
-Int trustedHookRuntimeDiagnosticRegistry() {
-    return 3
-}
-
-Int trustedHookRuntimeDiagnosticPhase() {
-    return 4
-}
-
-Int trustedHookRuntimeDiagnosticBudget() {
-    return 5
-}
-
-Int trustedHookRuntimeDiagnosticCapacity() {
-    return 6
+Bool validTrustedDomainEvent(TrustedDomainEvent event) {
+    if (event.sequence <= 0 || event.sequence > 1000000 ||
+        trustedDomainEventPhase(event.kind) == 0) {
+        return false
+    }
+    if (event.kind == trustedDomainEventSessionStarted()) {
+        return event.playerId == 0 && event.subjectId == 0 &&
+            event.subjectKind == 0 && event.value == 0
+    }
+    if (event.kind == trustedDomainEventPlayerConnected()) {
+        return event.playerId >= 1 && event.playerId <= 2 &&
+            event.subjectId == 0 && event.subjectKind == 0 && event.value == 0
+    }
+    if (event.kind == trustedDomainEventEnemyDefeated()) {
+        return event.playerId >= 1 && event.playerId <= 2 &&
+            event.subjectId > 0 && event.subjectId <= 1000000 &&
+            (event.subjectKind == enemyDefinitionEliteKind() ||
+                event.subjectKind == enemyDefinitionBossKind()) &&
+            event.value >= 0 && event.value <= 1000
+    }
+    if (event.kind == trustedDomainEventLootPickedUp()) {
+        return event.playerId >= 1 && event.playerId <= 2 &&
+            event.subjectId > 0 && event.subjectId <= 1000000 &&
+            event.subjectKind >= enemyDefinitionNormalKind() &&
+            event.subjectKind <= enemyDefinitionBossKind() &&
+            event.value > 0 && event.value <= 1000000
+    }
+    return event.kind == trustedDomainEventEditorPublished() &&
+        event.playerId == 0 &&
+        event.subjectId > 0 && event.subjectId <= 1000000 &&
+        event.subjectKind > 0 && event.subjectKind <= 1000000 &&
+        event.value > 0 && event.value <= 1000002
 }
 
 class BoundedTrustedHookRuntime {
@@ -61,6 +67,8 @@ class BoundedTrustedHookRuntime {
     Int[] eventHookIds
     Int[] eventSubjects
     Int[] eventValues
+    Int[] hookCommandCounts
+    Int[] hookEventCounts
     Int boundExtensionChecksumValue
     Int boundModuleChecksumValue
     Int boundGenerationValue
@@ -69,6 +77,7 @@ class BoundedTrustedHookRuntime {
     Int tickValue
     Int lastCompletedTickValue
     Int lastPhaseValue
+    Int lastDomainSequenceValue
     Int diagnosticValue
     Int executionChecksumValue
     Bool activeValue
@@ -76,35 +85,34 @@ class BoundedTrustedHookRuntime {
 
     public constructor(Int commandCapacity, Int eventCapacity) {
         var commands = commandCapacity
-        if (commands <= 0) {
-            commands = 1
-        }
-        if (commands > 256) {
-            commands = 256
-        }
+        if (commands <= 0) { commands = 1 }
+        if (commands > 256) { commands = 256 }
         var events = eventCapacity
-        if (events <= 0) {
-            events = 1
-        }
-        if (events > 256) {
-            events = 256
-        }
+        if (events <= 0) { events = 1 }
+        if (events > 256) { events = 256 }
         commandKinds = new Int[commands]
         commandPlayers = new Int[commands]
         commandValues = new Int[commands]
         commandHookIds = new Int[commands]
         eventKinds = new Int[events]
-        boundExtensionChecksumValue = 0
-        boundModuleChecksumValue = 0
-        boundGenerationValue = 0
         eventHookIds = new Int[events]
         eventSubjects = new Int[events]
         eventValues = new Int[events]
+        hookCommandCounts = new Int[32]
+        hookEventCounts = new Int[32]
+        for (var index = 0; index < hookCommandCounts.length; index = index + 1) {
+            hookCommandCounts[index] = 0
+            hookEventCounts[index] = 0
+        }
+        boundExtensionChecksumValue = 0
+        boundModuleChecksumValue = 0
+        boundGenerationValue = 0
         commandCountValue = 0
         eventCountValue = 0
         tickValue = 0
         lastCompletedTickValue = 0
         lastPhaseValue = 0
+        lastDomainSequenceValue = 0
         diagnosticValue = trustedHookRuntimeDiagnosticNone()
         executionChecksumValue = 0
         activeValue = false
@@ -121,24 +129,15 @@ class BoundedTrustedHookRuntime {
         BoundedTrustedModuleRegistry hooks,
         Int generation, Int moduleChecksum
     ) {
-        if (activeValue) {
+        if (activeValue || generation <= boundGenerationValue) {
             return reject(trustedHookRuntimeDiagnosticState())
         }
-        if (generation <= boundGenerationValue) {
-            return reject(trustedHookRuntimeDiagnosticState())
-        }
-        if (!extensions.validate()) {
-            return reject(trustedHookRuntimeDiagnosticRegistry())
-        }
-        if (!hooks.validate(extensions)) {
-            return reject(trustedHookRuntimeDiagnosticRegistry())
-        }
-        var actualModuleChecksum = hooks.checksum()
-        if (moduleChecksum <= 0 || actualModuleChecksum != moduleChecksum) {
+        if (!extensions.validate() || !hooks.validate(extensions) ||
+            moduleChecksum <= 0 || hooks.checksum() != moduleChecksum) {
             return reject(trustedHookRuntimeDiagnosticRegistry())
         }
         boundExtensionChecksumValue = extensions.checksum()
-        boundModuleChecksumValue = actualModuleChecksum
+        boundModuleChecksumValue = hooks.checksum()
         boundGenerationValue = generation
         diagnosticValue = trustedHookRuntimeDiagnosticNone()
         return true
@@ -148,23 +147,14 @@ class BoundedTrustedHookRuntime {
         BoundedExtensionRegistry extensions,
         BoundedTrustedModuleRegistry hooks
     ) {
-        if (!extensions.validate()) {
-            return false
-        }
-        if (!hooks.validate(extensions)) {
-            return false
-        }
-        if (extensions.checksum() != boundExtensionChecksumValue) {
-            return false
-        }
-        return hooks.checksum() == boundModuleChecksumValue
+        return extensions.validate() && hooks.validate(extensions) &&
+            extensions.checksum() == boundExtensionChecksumValue &&
+            hooks.checksum() == boundModuleChecksumValue
     }
 
     Int mix(Int state, Int value) {
         var normalized = value % 1000003
-        if (normalized < 0) {
-            normalized = normalized + 1000003
-        }
+        if (normalized < 0) { normalized = normalized + 1000003 }
         return (state * 31 + normalized) % 1000003
     }
 
@@ -175,8 +165,13 @@ class BoundedTrustedHookRuntime {
         }
         commandCountValue = 0
         eventCountValue = 0
+        for (var index = 0; index < hookCommandCounts.length; index = index + 1) {
+            hookCommandCounts[index] = 0
+            hookEventCounts[index] = 0
+        }
         tickValue = tick
         lastPhaseValue = 0
+        lastDomainSequenceValue = 0
         diagnosticValue = trustedHookRuntimeDiagnosticNone()
         executionChecksumValue = mix(47, boundGenerationValue)
         executionChecksumValue =
@@ -189,51 +184,23 @@ class BoundedTrustedHookRuntime {
         return true
     }
 
-    Bool validContext(
-        Int phase, Int playerId, Int subjectId,
-        Int subjectKind, Int outcome
-    ) {
-        if (outcome == trustedHookOutcomeNone()) {
-            return playerId == 0 && subjectId == 0 && subjectKind == 0
-        }
-        if (outcome == trustedHookOutcomeSessionStarted()) {
-            return phase == trustedHookPreSimulationPhase() &&
-                playerId == 0 && subjectId == 0 && subjectKind == 0
-        }
-        if (outcome == trustedHookOutcomeEnemyDefeated()) {
-            return phase == trustedHookPostSimulationPhase() &&
-                playerId >= 1 && playerId <= 2 &&
-                subjectId > 0 && subjectId <= 1000000 &&
-                (subjectKind == enemyDefinitionEliteKind() ||
-                    subjectKind == enemyDefinitionBossKind())
-        }
-        return false
-    }
-
-    Int requiredCommands(Int implementationId, Int outcome) {
-        if (implementationId == trustedHookImplementationEliteBounty() &&
-            outcome == trustedHookOutcomeEnemyDefeated()) {
+    Int requiredCommands(Int implementationId) {
+        if (implementationId == trustedHookImplementationEliteBounty() ||
+            implementationId == trustedHookImplementationPlayerWelcome()) {
             return 1
         }
         return 0
     }
 
-    Int requiredEvents(Int implementationId, Int outcome) {
-        if (implementationId == trustedHookImplementationSessionAudit() &&
-            outcome == trustedHookOutcomeSessionStarted()) {
-            return 1
-        }
-        if (implementationId == trustedHookImplementationEliteBounty() &&
-            outcome == trustedHookOutcomeEnemyDefeated()) {
+    Int requiredEvents(Int implementationId) {
+        if (trustedHookImplementationSupported(implementationId)) {
             return 1
         }
         return 0
     }
 
     Bool appendCommand(Int kind, Int playerId, Int value, Int hookId) {
-        if (commandCountValue >= commandKinds.length) {
-            return false
-        }
+        if (commandCountValue >= commandKinds.length) { return false }
         var index = commandCountValue
         commandKinds[index] = kind
         commandPlayers[index] = playerId
@@ -248,9 +215,7 @@ class BoundedTrustedHookRuntime {
     }
 
     Bool appendEvent(Int kind, Int hookId, Int subjectId, Int value) {
-        if (eventCountValue >= eventKinds.length) {
-            return false
-        }
+        if (eventCountValue >= eventKinds.length) { return false }
         var index = eventCountValue
         eventKinds[index] = kind
         eventHookIds[index] = hookId
@@ -264,11 +229,10 @@ class BoundedTrustedHookRuntime {
         return true
     }
 
-    Bool executePhase(
+    Bool dispatchEvent(
         BoundedExtensionRegistry extensions,
         BoundedTrustedModuleRegistry hooks,
-        Int phase, Int playerId, Int subjectId,
-        Int subjectKind, Int outcome
+        TrustedDomainEvent event
     ) {
         if (!activeValue || commandsAppliedValue) {
             return reject(trustedHookRuntimeDiagnosticState())
@@ -276,25 +240,28 @@ class BoundedTrustedHookRuntime {
         if (!matchesPublishedGeneration(extensions, hooks)) {
             return reject(trustedHookRuntimeDiagnosticRegistry())
         }
-        if (phase < trustedHookPreSimulationPhase() ||
-            phase > trustedHookEditorPhase() || phase <= lastPhaseValue) {
-            return reject(trustedHookRuntimeDiagnosticPhase())
-        }
-        if (!validContext(phase, playerId, subjectId, subjectKind, outcome)) {
+        if (!validTrustedDomainEvent(event)) {
             return reject(trustedHookRuntimeDiagnosticInvalid())
+        }
+        var phase = trustedDomainEventPhase(event.kind)
+        if (phase < lastPhaseValue ||
+            event.sequence <= lastDomainSequenceValue) {
+            return reject(trustedHookRuntimeDiagnosticPhase())
         }
         var neededCommands = 0
         var neededEvents = 0
         for (var position = 0; position < hooks.count(); position = position + 1) {
-            if (hooks.orderedHookPhase(extensions, position) == phase) {
+            if (hooks.orderedHookEventKind(extensions, position) == event.kind) {
                 var implementation =
                     hooks.orderedHookImplementation(extensions, position)
-                var commandNeed = requiredCommands(implementation, outcome)
-                var eventNeed = requiredEvents(implementation, outcome)
+                var commandNeed = requiredCommands(implementation)
+                var eventNeed = requiredEvents(implementation)
                 if (commandNeed >
-                        hooks.orderedHookCommandBudget(extensions, position) ||
+                        hooks.orderedHookCommandBudget(extensions, position) -
+                            hookCommandCounts[position] ||
                     eventNeed >
-                        hooks.orderedHookEventBudget(extensions, position)) {
+                        hooks.orderedHookEventBudget(extensions, position) -
+                            hookEventCounts[position]) {
                     return reject(trustedHookRuntimeDiagnosticBudget())
                 }
                 neededCommands = neededCommands + commandNeed
@@ -305,36 +272,64 @@ class BoundedTrustedHookRuntime {
             neededEvents > eventKinds.length - eventCountValue) {
             return reject(trustedHookRuntimeDiagnosticCapacity())
         }
+        executionChecksumValue = mix(executionChecksumValue, event.sequence)
+        executionChecksumValue = mix(executionChecksumValue, event.kind)
+        executionChecksumValue = mix(executionChecksumValue, event.playerId)
+        executionChecksumValue = mix(executionChecksumValue, event.subjectId)
+        executionChecksumValue = mix(executionChecksumValue, event.subjectKind)
+        executionChecksumValue = mix(executionChecksumValue, event.value)
         for (var position = 0; position < hooks.count(); position = position + 1) {
-            if (hooks.orderedHookPhase(extensions, position) == phase) {
+            if (hooks.orderedHookEventKind(extensions, position) == event.kind) {
                 var implementation =
                     hooks.orderedHookImplementation(extensions, position)
                 var hookId = hooks.orderedHookId(extensions, position)
-                if (implementation == trustedHookImplementationSessionAudit() &&
-                    outcome == trustedHookOutcomeSessionStarted()) {
+                if (implementation == trustedHookImplementationSessionAudit()) {
                     if (!appendEvent(
                             trustedHookEventSessionAudit(), hookId, 0, tickValue)) {
                         return reject(trustedHookRuntimeDiagnosticCapacity())
                     }
                 } else if (
-                    implementation == trustedHookImplementationEliteBounty() &&
-                    outcome == trustedHookOutcomeEnemyDefeated()
+                    implementation == trustedHookImplementationEliteBounty()
                 ) {
-                    var bounty = subjectKind * 2
+                    var bounty = event.subjectKind * 2 + event.value
                     if (!appendCommand(
                             trustedHookCommandGrantCurrency(),
-                            playerId, bounty, hookId) ||
+                            event.playerId, bounty, hookId) ||
                         !appendEvent(
                             trustedHookEventEliteBounty(), hookId,
-                            subjectId, bounty)) {
+                            event.subjectId, bounty)) {
+                        return reject(trustedHookRuntimeDiagnosticCapacity())
+                    }
+                } else if (
+                    implementation == trustedHookImplementationPlayerWelcome()
+                ) {
+                    if (!appendCommand(
+                            trustedHookCommandGrantCurrency(),
+                            event.playerId, 1, hookId) ||
+                        !appendEvent(
+                            trustedHookEventPlayerWelcome(), hookId,
+                            event.playerId, 1)) {
+                        return reject(trustedHookRuntimeDiagnosticCapacity())
+                    }
+                } else if (
+                    implementation == trustedHookImplementationPublicationAudit()
+                ) {
+                    if (!appendEvent(
+                            trustedHookEventPublicationAudit(), hookId,
+                            event.subjectId, event.value)) {
                         return reject(trustedHookRuntimeDiagnosticCapacity())
                     }
                 }
+                hookCommandCounts[position] =
+                    hookCommandCounts[position] +
+                        requiredCommands(implementation)
+                hookEventCounts[position] =
+                    hookEventCounts[position] +
+                        requiredEvents(implementation)
             }
         }
         lastPhaseValue = phase
-        executionChecksumValue = mix(executionChecksumValue, phase)
-        executionChecksumValue = mix(executionChecksumValue, outcome) + 1
+        lastDomainSequenceValue = event.sequence
         diagnosticValue = trustedHookRuntimeDiagnosticNone()
         return true
     }
@@ -362,86 +357,58 @@ class BoundedTrustedHookRuntime {
         return true
     }
 
-    Int commandCount() {
-        return commandCountValue
-    }
+    Int commandCount() { return commandCountValue }
 
     Int commandKind(Int index) {
-        if (index < 0 || index >= commandCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= commandCountValue) { return 0 }
         return commandKinds[index]
     }
 
     Int commandPlayer(Int index) {
-        if (index < 0 || index >= commandCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= commandCountValue) { return 0 }
         return commandPlayers[index]
     }
 
     Int commandValue(Int index) {
-        if (index < 0 || index >= commandCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= commandCountValue) { return 0 }
         return commandValues[index]
     }
 
     Int commandHookId(Int index) {
-        if (index < 0 || index >= commandCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= commandCountValue) { return 0 }
         return commandHookIds[index]
     }
 
-    Int eventCount() {
-        return eventCountValue
-    }
+    Int eventCount() { return eventCountValue }
 
     Int eventKind(Int index) {
-        if (index < 0 || index >= eventCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= eventCountValue) { return 0 }
         return eventKinds[index]
     }
 
     Int eventHookId(Int index) {
-        if (index < 0 || index >= eventCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= eventCountValue) { return 0 }
         return eventHookIds[index]
     }
 
     Int eventSubject(Int index) {
-        if (index < 0 || index >= eventCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= eventCountValue) { return 0 }
         return eventSubjects[index]
     }
 
     Int eventValue(Int index) {
-        if (index < 0 || index >= eventCountValue) {
-            return 0
-        }
+        if (index < 0 || index >= eventCountValue) { return 0 }
         return eventValues[index]
     }
 
-    Int diagnostic() {
-        return diagnosticValue
-    }
+    Int diagnostic() { return diagnosticValue }
 
     Int executionChecksum() {
-        if (executionChecksumValue <= 0) {
-            return -1
-        }
+        if (executionChecksumValue <= 0) { return -1 }
         return executionChecksumValue
     }
 
-    Int boundGeneration() {
-        return boundGenerationValue
-    }
-
-    Int lastCompletedTick() {
-        return lastCompletedTickValue
-    }
+    Int boundGeneration() { return boundGenerationValue }
+    Int lastCompletedTick() { return lastCompletedTickValue }
+    Int lastDomainSequence() { return lastDomainSequenceValue }
 }

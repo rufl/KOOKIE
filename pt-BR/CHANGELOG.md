@@ -4,6 +4,42 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-29
 
+### Conclusão do pipeline limitado G4 do criador
+
+- Expandimos módulos confiáveis do caminho de morte da elite para assinaturas
+  tipadas de início de sessão, conexão de jogador, derrota de inimigo, coleta
+  de loot e publicação do editor. Pares estáticos de implementação/versão
+  continuam vinculados à geração, ordenados por fase e limitados por capacidade.
+- Adicionamos entrada offline limitada de projetos Dust3D com GLB texturizado
+  validado, arquivos Aseprite RGBA de 32 bits raw/zlib, modelos/paleta/chunks de
+  cena MagicaVoxel e brushes convexos em grade inteira no estilo Quake.
+  Identidades canônicas de geometria, colisão, atlas PNG, metadados, material,
+  entidade e visibilidade são produzidas deterministicamente; construções
+  incompatíveis falham com diagnóstico do formato.
+- Adicionamos `scripts/kookie_cooker.sh` com comandos de arquivo `cook`,
+  `package` de um chunk, `inspect-package` e `validate-package`.
+- Adicionamos envelope `.kpkg` little-endian e loader externo com caminhos
+  lógicos, intervalos/hashes de chunks e registros de
+  extensão/definição/hooks limitados. O reload valida o estado candidato
+  primeiro; rejeição preserva pacote, registros e geração ativos.
+- Adicionamos a tela Creator e `BoundedCreatorWorkspace` para mutações de
+  mundo/entidade/arma/loot verificadas por revisão, inspeção de colisão/IA,
+  play-in-editor e undo/redo limitado. Identidades de geometria, colisão,
+  navegação e render são publicadas em uma transação.
+- Adicionamos máquinas de estado coordenadas no Kof e no adaptador SDL. O
+  adaptador monta uma cena candidata separada, aguarda a conclusão síncrona da
+  fence de upload antes de reutilizar o buffer GPU persistente e então ativa no
+  limite de frame. Referências no Kof controlam a aposentadoria da geração
+  antiga.
+- Adicionamos o handshake de controle de compatibilidade ao transporte de
+  papéis remotos. Uma oferta de 18 palavras leva a identidade exata de 13
+  palavras; uma resposta de 7 palavras aceita ou rejeita com diagnóstico antes
+  de snapshots ou gameplay.
+- Todos os 84 cenários-fonte focados passam na JVM e no nativo. A sonda de
+  papéis autenticada também passou com host e dois clientes em namespaces de
+  rede Linux separados e pilhas IPv4 distintas, incluindo reconexão e o
+  handshake de compatibilidade. Isso não é evidência de três máquinas físicas.
+
 ### Shell nativo persistente, menus e pacotes permissivos
 
 - Substituímos o teste Windows de matriz de cores que fechava sozinho e o

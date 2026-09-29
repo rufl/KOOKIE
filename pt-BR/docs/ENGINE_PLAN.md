@@ -1,6 +1,6 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura e gates de aceitação vivos; G0/G1/G2/G3 estão implementados, e G4 possui seu primeiro slice vertical transacional**.
+Status: **arquitetura e gates de aceitação vivos; a implementação limitada de G0–G4 está completa, com limites explícitos de qualificação abaixo**.
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
@@ -554,8 +554,10 @@ cena/loot/colisão.
 
 ### Compatibilidade de entrada de assets externos
 
-O Kof cooker preserva a fonte original e o registro da ferramenta/versão, então
-normaliza o resultado para o contrato de pacote canônico:
+Os cookers limitados calculam checksum de cada fonte admitida e normalizam os
+dados aceitos para o contrato canônico de produtos/pacotes. Reter o arquivo
+original e um recibo completo de ferramenta/versão continua sendo reforço
+obrigatório de proveniência do pacote:
 
 | Fonte | Resultado de entrada obrigatório |
 |---|---|
@@ -592,36 +594,59 @@ explícito, limites e verificações de corrupção. Rejeite traversal, IDs dupl
 payloads sobrepostos/fora do intervalo e overrun de descompressão. Não serialize a
 memória de objetos do Kof nem cabeçalhos de arrays internos.
 
-O primeiro slice vertical G4 implementado consome o `BoundedContentPackage`
-selado e os produtos existentes do cooker GLB canônico. Ele prepara checksums
-do pacote, extensão, declaração de hook confiável, definição de inimigo e
+O pipeline G4 limitado implementado consome `BoundedContentPackage` selado e
+produtos de geometria canônicos. Ele prepara checksums de pacote, extensão,
+hook confiável, definição de inimigo e
 geometria/colisão/navegação/replicação, verifica a revisão da geração ativa e
-então publica os quatro produtos atomicamente. Sua identidade de compatibilidade
-de 13 palavras vincula engine/API/schema de rede e todos os checksums de
-conteúdo para admissão exata no mesmo processo. Transações obsoletas,
-incompletas, divergentes ou inválidas preservam a geração anterior. Isso não
-comprova os leitores restantes de formatos-fonte, uma CLI de cooker orientada a
-arquivos nem substituição ao vivo de recursos da GPU.
+publica todos os produtos atomicamente. Sua identidade de compatibilidade de 13
+palavras vincula engine/API/schema de rede e todo checksum de conteúdo.
+Transações obsoletas, incompletas, divergentes ou inválidas preservam a geração
+anterior.
 
-A camada seguinte implementada vincula cada declaração a um ID/versão de
-implementação estática compatível dentro do checksum do módulo.
-`BoundedTrustedHookRuntime` vincula esse módulo e o checksum da extensão a uma
-geração publicada, exige ticks monotônicos e fases crescentes, e verifica
+`BoundedSourceCooker` admite os subconjuntos documentados de GLB indexado,
+Dust3D/Aseprite/VOX e mapas de brushes convexos sob limites explícitos de
+tamanho/quantidade/chunks. `scripts/kookie_cooker.sh`, exclusivo da JVM, expõe
+comandos de arquivo `cook`, `package`, `inspect-package` e `validate-package`.
+O leitor de pacotes valida campos little-endian explícitos, caminhos,
+limites/sobreposição/hashes de chunks e registros. O
+`BoundedExternalPackageRuntime` constrói candidatos e só troca pacote e
+registros de extensões/definições/hooks após validação completa; reload inválido
+preserva todo o estado ativo.
+
+Declarações confiáveis vinculam IDs/versões de implementações estáticas aceitas
+e assinaturas tipadas de início de sessão, conexão de jogador, derrota de
+inimigo, coleta de loot ou publicação do editor.
+`BoundedTrustedHookRuntime` vincula os checksums do módulo e extensão a uma
+geração publicada, exige sequência/fases monotônicas dos eventos e verifica
 orçamentos por hook e capacidade global antes de emitir comandos/eventos
-limitados. `LoopbackSession` aceita o comando atual de concessão de moeda
-exatamente uma vez após validar destinatário/overflow agregado.
-`G4CreatorDemo` exercita esse caminho depois da morte autoritativa da elite.
-Isso comprova um caminho de execução de hook confiável compilado, não callbacks
-arbitrários de extensões nem sandbox.
+limitados. `LoopbackSession` aplica cada comando aceito de concessão de moeda
+exatamente uma vez após validar destinatário e overflow agregado.
+`G4CreatorDemo` exercita a recompensa após a morte autoritativa da elite; isso é
+execução estática confiável, não callback arbitrário nem sandbox.
+
+`BoundedCreatorWorkspace` fornece transações verificadas por revisão para
+mundo/entidade/arma/loot, inspeção de colisão/IA, edições pelo console,
+play-in-editor e undo/redo limitado, publicando juntos
+geometria/colisão/navegação/render. O adaptador nativo prepara uma cena candidata
+separada, aguarda a conclusão síncrona da fence de upload SDL_GPU antes de
+reutilizar o buffer persistente e então ativa no limite de frame. O coordenador
+Kof condiciona a aposentadoria da geração antiga às referências e à conclusão
+da fence. Ele não recarrega código Kof nem shaders arbitrários.
+
+Endpoints remotos trocam uma oferta de 18 palavras e resposta de 7 palavras com
+a identidade exata de compatibilidade e checksums antes de snapshots/gameplay.
+Divergências e ofertas malformadas recebem rejeição diagnóstica. O caminho UDP
+autenticado e processos separados de papéis exercitam essa troca; um bundle G4
+recente com três máquinas continua sendo limite de qualificação, não uma lacuna
+de protocolo restrito ao mesmo processo.
 
 O JSON nativo de registros mistos Int/Double/String falhou no round-trip medido,
-incluindo valores numéricos/string corrompidos; getters diretos de registros foram
-aprovados. Antes de adotar JSON nativo para definições, glTF ou saves, exija um
-reparo do compilador/runtime e uma prova específica do schema de round-trip, entrada
-malformada e limites. Não trunque floats, não troque silenciosamente o cooker para
-JVM nem mova a semântica de conteúdo para o adaptador. A IO de arquivos binários
-passou por uma pequena sondagem, mas não é um formato/codec alternativo
-implementado.
+incluindo valores numéricos/string corrompidos; getters diretos de registros
+passaram. O `.kpkg`, a geometria canônica e as saídas do cooker implementadas
+usam, portanto, layouts binários/inteiros explícitos e limitados. Antes de
+adotar JSON nativo para definições, glTF ou saves, exija reparo do
+compilador/runtime e prova por schema de round-trip, entrada malformada e
+limites. Não trunque floats nem mova semântica de conteúdo para o adaptador.
 
 O código-fonte atual rejeita `process.run`/`process.spawn` nativos com `PROC001`.
 Portanto, ferramentas externas de shaders/conversão precisam da orquestração mínima
@@ -717,7 +742,7 @@ dano, estado estrutural de inventário/equipamento/skill/loot, sinais de
 ameaça/derrota de elite/chefe e um rail estrutural de publicação do criador. O
 evento confirmado de hitscan local também alcança filas limitadas de
 replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
-leu a cena limitada, e 77/77 testes passam na JVM e no nativo. A evidência de
+leu a cena limitada, e 84/84 testes-fonte focados passam na JVM e no nativo. A
 ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
 capacidades Kof inalteradas e buffers nativos persistentes; o soak de
 RSS/desempenho por 30 minutos permanece em G5.
@@ -756,18 +781,22 @@ controlam combate, comportamento, loot, progressão e moeda;
 `LoopbackSession.admitDefinedEnemy` confirma atomicamente o ator e seus
 contratos de recompensa. Schemas com checksum preservam inventário completo e
 identidade do RNG; os tipos `7`/`8` atravessam processos autenticados na mesma
-máquina com host mais dois clientes na JVM e no nativo. Execução entre máquinas
-continua não comprovada. O caminho limitado G4 agora sela implementações
-estáticas determinísticas de hooks e versões binárias com fases e orçamentos de
-comandos/eventos; vincula checksums de pacote, manifesto, módulo, definição e
-produtos alinhados numa identidade de compatibilidade versionada; rejeita
-gerações obsoletas/divergentes sem substituir estado; e executa o hook compilado
-de recompensa de elite após uma morte autoritativa no segundo exemplo com dois
-jogadores. Capacidade de saída e overflow de recompensa falham atomicamente, e
-a sessão aplica cada comando aceito uma vez. Contratos adicionais de
-hooks/eventos, formatos-fonte do cooker, carregamento externo de pacotes,
-inspector/editores, reload ao vivo em etapas seguro para GPU e transporte do
-handshake de compatibilidade continuam abertos; portanto G4 não está encerrado.
+máquina com host mais dois clientes na JVM e no nativo; essa qualificação dos
+tipos G3 continua na mesma máquina. G4 agora adiciona assinaturas tipadas de
+eventos de domínio; cooker limitado de GLB/Dust3D/Aseprite/VOX/brush e CLI de
+arquivos; carga validada de pacotes/registros externos; inspeção/edição
+transacional no Creator com undo/redo e play-in-editor; reload GPU no limite de
+frame protegido por fence; e transporte de oferta/resposta de compatibilidade
+antes do gameplay. Checksums de pacote, manifesto, módulo, definição e produtos
+alinhados formam uma identidade versionada; atualizações obsoletas, malformadas
+ou incompatíveis preservam a geração ativa. O segundo exemplo com dois
+jogadores executa o hook compilado de recompensa de elite após morte
+autoritativa, e overflow de saída/recompensa permanece atômico. O handshake
+passou com host e clientes em três namespaces de rede Linux isolados e pilhas
+IPv4 distintas. G4 está completo para esse contrato limitado. Compatibilidade
+geral de formatos, reload arbitrário de código/shader, editor de produção e
+qualificação recente em três máquinas físicas ficam explicitamente fora dessa
+afirmação.
 
 ### Hipóteses iniciais de desempenho, não números alcançados
 

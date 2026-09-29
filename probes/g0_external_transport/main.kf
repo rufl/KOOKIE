@@ -1,6 +1,7 @@
 import core
 import session
 import world
+import content
 
 
 Bool sendPayload(Int[] payload) {
@@ -41,6 +42,98 @@ Bool receivePayload(LoopbackSession session, Int[] payload, Bool host) {
         return session.applyBroadPhaseSnapshot(payload)
     }
     return session.applyRemoteBroadPhaseSnapshot(payload)
+}
+
+BoundedContentCompatibility externalRoleCompatibility(G1Arena arena) {
+    var identity = BoundedContentCompatibility()
+    var collisionChecksum = arena.authoredCollision().checksum()
+    var networkChecksum = (
+        protocolVersion() * 31 + maximumSessionTransportWords() * 17 +
+        11 * 13 + multiplayerFeedbackEntryWidth() * 7) % 1000003
+    assert(collisionChecksum > 0 && networkChecksum > 0 &&
+        identity.configureVersions(7, 4, networkChecksum) &&
+        identity.configureContent(
+            collisionChecksum, 772001, 772002, 772003) &&
+        identity.configurePublication(1, 1, collisionChecksum) &&
+        identity.seal() && identity.encode(),
+        "external role compatibility identity must seal")
+    return identity
+}
+
+Bool externalRoleHostCompatibility(
+    BoundedContentCompatibility local, Int expectedSequence
+) {
+    var received = kookie_transport_receive()
+    if (received != compatibilityHandshakeOfferLength() ||
+        kookie_transport_last_status() != 1) {
+        return false
+    }
+    var offer = new Int[compatibilityHandshakeOfferLength()]
+    for (var index = 0; index < offer.length; index = index + 1) {
+        offer[index] = kookie_transport_receive_word(index)
+    }
+    var remote = BoundedContentCompatibility()
+    if (offer[3] != expectedSequence ||
+        !decodeCompatibilityHandshakeOffer(offer, remote)) {
+        return false
+    }
+    var response = newCompatibilityHandshakeResponse(
+        local, remote, expectedSequence)
+    if (response.length != compatibilityHandshakeResponseLength() ||
+        !kookie_transport_set_peer_last_sender() ||
+        !sendPayload(response)) {
+        return false
+    }
+    return compatibilityHandshakeAccepted(response)
+}
+
+Bool externalRoleClientCompatibility(
+    LoopbackSession client,
+    BoundedContentCompatibility local,
+    Int sequence
+) {
+    var offer = client.remoteCompatibilityOffer(sequence)
+    if (offer.length != compatibilityHandshakeOfferLength() ||
+        !sendPayload(offer)) {
+        return false
+    }
+    var received = kookie_transport_receive()
+    if (received != compatibilityHandshakeResponseLength() ||
+        kookie_transport_last_status() != 1) {
+        return false
+    }
+    var response = new Int[compatibilityHandshakeResponseLength()]
+    for (var index = 0; index < response.length; index = index + 1) {
+        response[index] = kookie_transport_receive_word(index)
+    }
+    return client.acceptRemoteCompatibilityResponse(response, sequence) &&
+        client.remoteSessionReady() && client.remoteCompatible() &&
+        client.remoteCompatibilityDiagnostic() == creatorDiagnosticNone() &&
+        local.checksum() == response[5]
+}
+
+Bool externalRoleLocalCompatibility(
+    LoopbackSession client,
+    BoundedContentCompatibility local,
+    Int clientSlot, Int hostSlot, Int sequence
+) {
+    var offer = client.remoteCompatibilityOffer(sequence)
+    if (offer.length != compatibilityHandshakeOfferLength() ||
+        !kookie_transport_select_slot(clientSlot) ||
+        !sendPayload(offer) ||
+        !kookie_transport_select_slot(hostSlot) ||
+        !externalRoleHostCompatibility(local, sequence) ||
+        !kookie_transport_select_slot(clientSlot) ||
+        kookie_transport_receive() != compatibilityHandshakeResponseLength() ||
+        kookie_transport_last_status() != 1) {
+        return false
+    }
+    var response = new Int[compatibilityHandshakeResponseLength()]
+    for (var index = 0; index < response.length; index = index + 1) {
+        response[index] = kookie_transport_receive_word(index)
+    }
+    return client.acceptRemoteCompatibilityResponse(response, sequence) &&
+        client.remoteSessionReady() && client.remoteCompatible()
 }
 
 Bool openRemoteSlot(Int slot, Int hostPort) {
@@ -313,6 +406,7 @@ Bool externalRoleHostReceiveCommand(
 
 Bool externalRoleHostQualification() {
     var arena = G1Arena()
+    var compatibility = externalRoleCompatibility(arena)
     var host = LoopbackSession(8, 4)
     assert(arena.ready() &&
         kookie_transport_max_words() == maximumSessionTransportWords() &&
@@ -365,6 +459,11 @@ Bool externalRoleHostQualification() {
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_listen_ipv4(47102),
         "external host must bind two authenticated listeners")
+    assert(kookie_transport_select_slot(0) &&
+        externalRoleHostCompatibility(compatibility, 1) &&
+        kookie_transport_select_slot(1) &&
+        externalRoleHostCompatibility(compatibility, 1),
+        "external host must admit matching content before gameplay")
     var expectedA = host.broadPhaseSnapshot(6, 6)
     var expectedB = host.broadPhaseSnapshot(7, 7)
     assert(kookie_transport_select_slot(0) &&
@@ -405,8 +504,12 @@ Bool externalRoleHostQualification() {
             host, 1, 2, 1, gameplayDisconnectAction()) &&
         host.lastRemoteGameplayAccepted() &&
         !host.playerConnected(2) &&
-        host.playerDisconnectReason(2) == 2 &&
-        externalRoleHostReceiveCommand(
+        host.playerDisconnectReason(2) == 2,
+        "external client disconnect must preserve its player identity")
+    assert(kookie_transport_select_slot(1) &&
+        externalRoleHostCompatibility(compatibility, 2),
+        "external reconnect must repeat compatibility admission")
+    assert(externalRoleHostReceiveCommand(
             host, 1, 2, 2, gameplayReconnectAction()) &&
         host.lastRemoteGameplayAccepted() &&
         host.playerConnected(2) &&
@@ -488,6 +591,8 @@ Bool externalRoleHostQualification() {
     println(gameplayStaleDiagnostic())
     println("external-authentication-status")
     println(1)
+    println("external-compatibility-handshake")
+    println(compatibility.checksum())
     assert(kookie_transport_select_slot(0) &&
         kookie_transport_received_sequence_at_least(10),
         "external host must inspect client A sequence")
@@ -508,6 +613,7 @@ Bool externalRoleHostQualification() {
 
 Bool externalRoleClientQualification(Int clientId) {
     var arena = G1Arena()
+    var compatibility = externalRoleCompatibility(arena)
     var client = LoopbackSession(8, 4)
     var hostFirstOctet = kookie_transport_external_host_octet(0)
     var hostSecondOctet = kookie_transport_external_host_octet(1)
@@ -538,7 +644,9 @@ Bool externalRoleClientQualification(Int clientId) {
             hostPort,
             endpoint.keyWord(0), endpoint.keyWord(1),
             endpoint.keyWord(2), endpoint.keyWord(3)) &&
+        client.requireRemoteCompatibility(compatibility) &&
         client.openRemoteSession() &&
+        externalRoleClientCompatibility(client, compatibility, 1) &&
         client.pumpRemoteBroadPhaseSnapshot(snapshotTick),
         "external client must authenticate and stage the authored arena")
     var snapshot = client.broadPhaseSnapshot(
@@ -672,6 +780,8 @@ Bool externalRoleClientQualification(Int clientId) {
             client.clientRemoteConnectionGeneration() == 1 &&
             client.clientRemoteDiagnostic() == gameplayDisconnectDiagnostic(),
             "client two must receive bounded disconnect diagnostics")
+        assert(externalRoleClientCompatibility(client, compatibility, 2),
+            "client reconnect must repeat compatibility admission")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
                 2, 1, 2, gameplayReconnectAction(), 0, 0, 0, 1)) &&
             client.clientRemoteConnected() &&
@@ -721,6 +831,7 @@ main() {
             "external client B role must qualify")
     } else {
     var arena = G1Arena()
+    var compatibility = externalRoleCompatibility(arena)
     var host = LoopbackSession(8, 4)
     var clientA = LoopbackSession(8, 4)
     var clientB = LoopbackSession(8, 4)
@@ -787,13 +898,18 @@ main() {
             127, 0, 0, 1, hostPortA,
             endpointA.keyWord(0), endpointA.keyWord(1),
             endpointA.keyWord(2), endpointA.keyWord(3)) &&
+        clientA.requireRemoteCompatibility(compatibility) &&
         clientA.openRemoteSession() &&
         clientB.configureRemoteEndpoint(
             127, 0, 0, 1, hostPortB,
             endpointB.keyWord(0), endpointB.keyWord(1),
             endpointB.keyWord(2), endpointB.keyWord(3)) &&
+        clientB.requireRemoteCompatibility(compatibility) &&
         clientB.openRemoteSession(),
         "two clients must authenticate against host endpoints")
+    assert(externalRoleLocalCompatibility(clientA, compatibility, 2, 0, 1) &&
+        externalRoleLocalCompatibility(clientB, compatibility, 3, 1, 1),
+        "two clients must complete compatibility admission")
     assert(clientA.pumpRemoteBroadPhaseSnapshot(6) &&
         clientB.pumpRemoteBroadPhaseSnapshot(7),
         "clients must stage authoritative snapshots")
@@ -819,9 +935,13 @@ main() {
             127, 0, 0, 1, hostPortB,
             endpointB.keyWord(0), endpointB.keyWord(1),
             endpointB.keyWord(2), endpointB.keyWord(3)) &&
-        clientB.openRemoteSession() &&
-        clientB.pumpRemoteBroadPhaseSnapshot(8),
-        "client B must reconnect the production session link")
+        clientB.openRemoteSession(),
+        "client B must reopen the production session link")
+    assert(externalRoleLocalCompatibility(
+            clientB, compatibility, 3, 1, 2),
+        "client B reconnect must repeat compatibility admission")
+    assert(clientB.pumpRemoteBroadPhaseSnapshot(8),
+        "client B must stage its reconnect snapshot")
     var reconnectPayloadB = clientB.broadPhaseSnapshot(
         8, clientB.remoteSendSequence())
     assert(kookie_transport_select_slot(3) &&
@@ -1065,6 +1185,8 @@ main() {
         "host must reject a replayed client datagram")
     println("external-authentication-status")
     println(1)
+    println("external-compatibility-handshake")
+    println(compatibility.checksum())
     assert(kookie_transport_select_slot(0) &&
         kookie_transport_received_sequence_at_least(1),
         "host must inspect integrated client A sequence")

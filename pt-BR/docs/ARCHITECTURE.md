@@ -1,6 +1,6 @@
 # Arquitetura do projeto KOOKIE
 
-Status: **arquitetura-alvo viva; G0/G1/G2/G3 estão implementados e G4 possui seu primeiro slice vertical transacional**.
+Status: **arquitetura-alvo viva; a implementação limitada de G0–G4 está completa dentro dos limites de qualificação documentados**.
 
 
 Este documento é a autoridade de arquitetura no nível do projeto. Os experimentos
@@ -186,8 +186,10 @@ latência física de soquetes, mas não pode passar referências do mundo direta
 ### Host LAN
 
 O host contém um servidor autoritativo e um cliente local. Os pares remotos usam
-o mesmo protocolo de cliente. O host não é confiável apenas porque também renderiza
-um cliente local; a autoridade permanece na sessão do servidor.### Servidor dedicado
+o mesmo protocolo de cliente. O host não é confiável apenas porque também
+renderiza um cliente local; a autoridade permanece na sessão do servidor.
+
+### Servidor dedicado
 
 O servidor dedicado não exige recursos gráficos e executa os mesmos módulos de
 servidor, admissão de conteúdo, funções de extensão, sistema de salvamento e
@@ -216,6 +218,20 @@ impacto. A entrada envia baselines válidos no tick zero de gameplay, feedback e
 encounter. O decode valida a mensagem inteira antes da mutação, admite geração
 antes da sequência, rejeita estado obsoleto ou com lacunas e não trata
 apresentação descartada como falha do estado autoritativo.
+
+Antes de snapshots ou comandos de gameplay, cada endpoint remoto troca um
+handshake limitado de controle de compatibilidade. A oferta do cliente tem 18
+palavras: framing, sequência, a identidade exata
+`BoundedContentCompatibility` de 13 palavras e checksum. A resposta do servidor
+tem 7 palavras com estado aceito/rejeitado, diagnóstico, sequência e checksum da
+identidade do servidor. Decode, checksum, sequência e comparação exata da
+identidade terminam antes de o endpoint ficar pronto; divergências e ofertas
+malformadas recebem resposta de rejeição e não podem avançar o gameplay. O
+framing SipHash do transporte fornece autenticação e integridade dos pacotes. O
+checksum de compatibilidade identifica conteúdo e detecta erros; ele não é um
+autenticador criptográfico. Processos de papéis JVM e nativos usam o mesmo
+caminho wire; a evidência G4 atual não retém uma execução recente em três
+máquinas.
 
 
 A biblioteca de rede de terceiros é selecionada depois da validação do protocolo
@@ -287,13 +303,16 @@ fazem o sistema falhar de forma segura, com diagnósticos.
 O caminho G4 de módulos confiáveis não expõe callbacks arbitrários.
 `BoundedTrustedModuleRegistry` vincula no máximo 32 IDs de hooks compilados
 estaticamente e suas versões binárias a contribuições declaradas no manifesto,
-fases e orçamentos de comandos/eventos. `BoundedTrustedHookRuntime` aceita
-somente módulo selado cujos checksums de extensão/módulo correspondam a uma
-geração publicada, executa fases crescentes em ticks monotônicos e verifica
-todas as capacidades por hook/globais antes da emissão. A sessão autoritativa
-consome atualmente apenas um comando limitado de concessão de moeda, exatamente
-uma vez e após validar overflow agregado. Hooks nunca recebem acesso mutável ao
-núcleo.
+tipos de eventos, fases e orçamentos de comandos/eventos.
+`BoundedTrustedHookRuntime` aceita somente módulo selado cujos checksums de
+extensão/módulo correspondam a uma geração publicada, despacha eventos tipados
+de início de sessão, conexão de jogador, derrota de inimigo, coleta de loot e
+publicação do editor em ordem monotônica de sequência/fase, e verifica toda
+capacidade por hook/global antes da emissão. Implementações estáticas
+registradas produzem eventos limitados de auditoria/boas-vindas/recompensa/
+publicação; a sessão autoritativa consome o comando de concessão de moeda
+exatamente uma vez após validar overflow agregado. Hooks nunca recebem acesso
+mutável ao núcleo.
 
 ## 6. Pipeline de conteúdo e assets
 
@@ -325,14 +344,16 @@ Os pacotes contêm:
 
 ### Fontes de autoria aceitas
 
-O cooker aceita estas fontes de autoria, além do subconjunto canônico de glTF.
-Elas são **formatos de entrada offline**, não formatos de runtime:
+O cooker de arquivos aceita estas fontes de autoria, além do subconjunto
+canônico de glTF indexado. Elas são **formatos de entrada offline**, não
+formatos de runtime:
 
-| Fonte | Contrato de entrada | Resultado canônico |
+| Fonte | Contrato limitado implementado | Resultado canônico |
 |---|---|---|
-| Dust3D `.ds3` | Preservar o projeto editável como proveniência; validar a geometria exportada, UVs, metadados de esqueleto/animação e transformações finitas | GLB estático ou esquelético, registros de materiais/texturas e fonte de colisão opcional |
-| LibreSprite `.ase` / `.aseprite` | Ler quadros, camadas, tags, fatias, paleta e limites dos pixels; rejeitar modos de cor/profundidade não suportados ou normalizá-los explicitamente | Atlas PNG, mais JSON versionado de quadros/tags e definições de animação do Kof |
-| MagicaVoxel `.vox` | Ler modelos voxel limitados, dimensões, paleta e chunks de cena suportados; preservar a semântica de paleta/índice e rejeitar chunks não suportados com diagnósticos | Malha/GLB determinístico, registros de paleta/materiais e colisão derivada de voxel opcional |
+| Dust3D `.ds3` + `.glb` exportado | Validar estruturalmente um arquivo sem ZIP64/criptografia de até 1 MiB com `model.json` limitado; validar uma primitiva indexada de triângulos, accessor UV float VEC2 e atributos pareados de skin com pesos float quando houver skin | Wire canônico de geometria, colisão criada e checksums de fonte/material |
+| LibreSprite `.ase` / `.aseprite` | Até 8 MiB, 64 frames/layers, frames RGBA 256×256 e 262.144 pixels de atlas; cels raw/zlib, layers normais, tags, slices, paleta, user data e perfil de cor; rejeitar chunks/modos desconhecidos | Atlas PNG RGBA determinístico, durações dos frames e checksum de metadados |
+| MagicaVoxel `.vox` | Versões 150–200, até oito modelos e 20 voxels; `PACK`, `SIZE`, `XYZI`, `RGBA`, `nTRN`, `nGRP`, `nSHP` e `LAYR`; rejeitar qualquer outro chunk | Geometria/colisão determinística de cubos, checksum da paleta e contagem de nós da cena |
+| `.map` no estilo Quake | Subconjunto ASCII em grade inteira de entidade/propriedade e planos de brushes convexos; até 8.192 tokens, 64 entidades, 512 propriedades, 16 planos por brush e 256 vértices/triângulos de saída | Geometria/colisão canônica triangulada, mais checksums de entidade, material e visibilidade |
 
 Regras canônicas de entrada:
 
@@ -366,11 +387,32 @@ A publicação é transacional: preparar, validar, publicar ou manter o pacote
 válido anterior. As revisões de geometria, colisão, navegação e replicação devem
 ser publicadas juntas.
 
-### Detalhes da entrada derivados do corpus a definir
+`scripts/kookie_cooker.sh` expõe `cook`, `package`, `inspect-package` e
+`validate-package` por uma CLI de desenvolvimento exclusiva da JVM. O envelope
+`.kpkg` armazena cabeçalhos little-endian explícitos, caminhos lógicos limitados
+e payloads de chunks. Seu leitor rejeita traversal, caminhos/IDs duplicados,
+sobreposição, bytes fora de alcance, hash divergente e registros corrompidos.
+`BoundedExternalPackageRuntime` monta candidatos de pacote e registros de
+extensões/definições/hooks e só os troca após validação completa; reload com
+falha preserva pacote, registros e geração ativos.
 
+`BoundedCreatorWorkspace` aplica transações verificadas por revisão de
+mundo/entidade/arma/loot a um conjunto atômico de produtos de
+geometria/colisão/navegação/render. A tela Creator expõe toggles de inspeção,
+mutações pelo console, play-in-editor e histórico limitado de 16 operações de
+undo/redo. O adaptador nativo mantém a cena CPU ativa separada enquanto prepara
+uma candidata, aguarda a conclusão síncrona da fence de upload antes de
+reutilizar o buffer GPU persistente e então ativa no limite de frame. O
+coordenador Kof mantém identidades de gerações referenciadas e só permite
+aposentadoria depois que referências e fence são liberadas. Esse contrato cobre
+produtos validados de cena; não é hot reload arbitrário de código, shader ou
+plugin.
 
-Os projetos do monorepo sugerem vários contratos que vale a pena fixar antes da
-implementação dos parsers:
+### Reforço adicional da entrada
+
+Os parsers implementados já fornecem checksums limitados de fonte/resultado,
+produtos canônicos, validação de reabertura do GLB, diagnósticos determinísticos
+e publicação atômica. Alvos restantes para robustez de produção incluem:
 
 1. **Recibos de origem:** registrar caminho da fonte, SHA-256, ferramenta/versão, opções,
    hashes das dependências, convenção de coordenadas e hashes das saídas geradas.
@@ -567,17 +609,21 @@ partir dessas definições.
 
 ### G4 — Pipeline de criação e extensões
 
-Em andamento: pacotes, manifestos de extensão, implementações estáticas de hooks
-confiáveis, definições de inimigos e produtos alinhados de
-geometria/colisão/navegação/replicação compartilham uma identidade de
-compatibilidade verificada por revisão. Transações obsoletas ou inválidas
-preservam a geração ativa. Admissão exata da identidade do cliente e um segundo
-exemplo multiplayer orientado por definições executam; seu hook publicado de
-recompensa de elite emite evento/comando limitado após a morte autoritativa, e
-a sessão aplica o comando de moeda exatamente uma vez. A superfície mais ampla
-de hooks/eventos, entrada de arquivos de autoria, carregamento externo de
-pacotes, inspector/editores e reload ao vivo em etapas seguro para GPU
-continuam abertos.
+Gate limitado implementado: arquivos externos de pacote, manifestos de
+extensão, implementações estáticas de hooks confiáveis, definições de inimigos
+e produtos alinhados de geometria/colisão/navegação/replicação compartilham uma
+identidade de compatibilidade verificada por revisão. Eventos tipados de
+domínio, a entrada documentada de GLB/Dust3D/Aseprite/VOX/brush, a CLI de
+arquivos, reload de pacote externo, workspace Creator transacional, reload GPU
+no limite de frame protegido por fence e transporte de oferta/resposta de
+compatibilidade executam nos caminhos JVM/nativo aceitos. O handshake passou
+com host e dois clientes em namespaces de rede Linux separados e pilhas IPv4
+distintas. Transações obsoletas, inválidas ou incompatíveis preservam a geração
+ativa. O exemplo multiplayer orientado por definições executa o hook publicado
+de recompensa de elite após a morte autoritativa e aplica seu comando
+exatamente uma vez. Compatibilidade geral de formatos, reload arbitrário de
+código, editor de produção e qualificação recente em três máquinas físicas
+ficam fora deste gate.
 
 ### G5 — Escala e lançamento
 

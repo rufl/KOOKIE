@@ -1,5 +1,7 @@
 package session
 
+import content
+
 class RemoteSessionEndpoint {
     Int firstOctetValue
     Int secondOctetValue
@@ -138,12 +140,31 @@ class RemoteSessionLink {
     Bool connectedValue
     Int sentSequenceValue
     Int receivedSequenceValue
+    BoundedContentCompatibility localCompatibilityValue
+    BoundedContentCompatibility remoteCompatibilityValue
+    Int[] compatibilityResponseValue
+    Bool compatibilityRequiredValue
+    Bool compatibilityAcceptedValue
+    Int compatibilitySequenceValue
+    Int compatibilityDiagnosticValue
 
     public constructor(RemoteSessionEndpoint endpoint) {
         endpointValue = endpoint
         connectedValue = false
         sentSequenceValue = 0
         receivedSequenceValue = 0
+        localCompatibilityValue = BoundedContentCompatibility()
+        remoteCompatibilityValue = BoundedContentCompatibility()
+        compatibilityResponseValue =
+            new Int[compatibilityHandshakeResponseLength()]
+        for (var index = 0;
+            index < compatibilityResponseValue.length; index = index + 1) {
+            compatibilityResponseValue[index] = 0
+        }
+        compatibilityRequiredValue = false
+        compatibilityAcceptedValue = false
+        compatibilitySequenceValue = 0
+        compatibilityDiagnosticValue = creatorDiagnosticNone()
     }
 
     Bool connect() {
@@ -159,6 +180,14 @@ class RemoteSessionLink {
             return false
         }
         connectedValue = false
+        compatibilityAcceptedValue = false
+        compatibilitySequenceValue = 0
+        compatibilityDiagnosticValue = creatorDiagnosticNone()
+        remoteCompatibilityValue.clear()
+        for (var index = 0;
+            index < compatibilityResponseValue.length; index = index + 1) {
+            compatibilityResponseValue[index] = 0
+        }
         return true
     }
     Bool reconnect() {
@@ -173,8 +202,96 @@ class RemoteSessionLink {
         return connectedValue
     }
 
+    Bool requireCompatibility(BoundedContentCompatibility local) {
+        if (connectedValue || compatibilityRequiredValue ||
+            !localCompatibilityValue.copyFrom(local)) {
+            return false
+        }
+        compatibilityRequiredValue = true
+        compatibilityAcceptedValue = false
+        compatibilityDiagnosticValue = creatorDiagnosticNone()
+        return true
+    }
+
+    Int[] compatibilityOffer(Int sequence) {
+        if (!connectedValue || !compatibilityRequiredValue ||
+            compatibilityAcceptedValue ||
+            sequence <= compatibilitySequenceValue) {
+            return new Int[0]
+        }
+        var offer = newCompatibilityHandshakeOffer(
+            localCompatibilityValue, sequence)
+        if (offer.length == compatibilityHandshakeOfferLength()) {
+            compatibilitySequenceValue = sequence
+        }
+        return offer
+    }
+
+    Bool receiveCompatibilityOffer(
+        Int[] offer, BoundedContentCompatibility local
+    ) {
+        if (!connectedValue || !compatibilityRequiredValue ||
+            offer.length != compatibilityHandshakeOfferLength() ||
+            offer[3] <= compatibilitySequenceValue ||
+            !localCompatibilityValue.matches(local)) {
+            return false
+        }
+        var offered = BoundedContentCompatibility()
+        if (!decodeCompatibilityHandshakeOffer(offer, offered)) {
+            return false
+        }
+        var response = newCompatibilityHandshakeResponse(
+            localCompatibilityValue, offered, offer[3])
+        if (response.length != compatibilityResponseValue.length ||
+            !remoteCompatibilityValue.copyFrom(offered)) {
+            return false
+        }
+        for (var index = 0; index < response.length; index = index + 1) {
+            compatibilityResponseValue[index] = response[index]
+        }
+        compatibilitySequenceValue = offer[3]
+        compatibilityDiagnosticValue =
+            compatibilityHandshakeDiagnostic(response)
+        compatibilityAcceptedValue =
+            compatibilityHandshakeAccepted(response)
+        return true
+    }
+
+    Int[] compatibilityResponse() {
+        var response = new Int[compatibilityResponseValue.length]
+        for (var index = 0; index < response.length; index = index + 1) {
+            response[index] = compatibilityResponseValue[index]
+        }
+        return response
+    }
+
+    Bool acceptCompatibilityResponse(Int[] response, Int expectedSequence) {
+        if (!connectedValue || !compatibilityRequiredValue ||
+            expectedSequence != compatibilitySequenceValue ||
+            !validCompatibilityHandshakeResponse(
+                response, expectedSequence,
+                localCompatibilityValue.checksum())) {
+            return false
+        }
+        compatibilityDiagnosticValue =
+            compatibilityHandshakeDiagnostic(response)
+        compatibilityAcceptedValue =
+            compatibilityHandshakeAccepted(response)
+        return true
+    }
+
+    Bool ready() {
+        return connectedValue &&
+            (!compatibilityRequiredValue || compatibilityAcceptedValue)
+    }
+
+    Bool compatibilityRequired() { return compatibilityRequiredValue }
+    Bool compatible() { return compatibilityAcceptedValue }
+    Int compatibilityDiagnostic() { return compatibilityDiagnosticValue }
+    Int compatibilitySequence() { return compatibilitySequenceValue }
+
     Bool sendSnapshot(Int[] words) {
-        if (!connectedValue || !validBroadPhaseSnapshot(words) ||
+        if (!ready() || !validBroadPhaseSnapshot(words) ||
             words[3] <= sentSequenceValue) {
             return false
         }
@@ -183,7 +300,7 @@ class RemoteSessionLink {
     }
 
     Bool canReceiveSnapshot(Int[] words) {
-        return connectedValue && validBroadPhaseSnapshot(words) &&
+        return ready() && validBroadPhaseSnapshot(words) &&
             words[3] > receivedSequenceValue
     }
 

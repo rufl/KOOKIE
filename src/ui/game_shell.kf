@@ -6,6 +6,7 @@ Int gameShellScreenMain() { return 1 }
 Int gameShellScreenOptions() { return 2 }
 Int gameShellScreenMultiplayer() { return 3 }
 Int gameShellScreenGame() { return 4 }
+Int gameShellScreenCreator() { return 5 }
 
 Int gameShellActionUp() { return 1 }
 Int gameShellActionDown() { return 2 }
@@ -47,6 +48,7 @@ class GameShell {
     Int addressThreeValue
     Int addressFourValue
     Int portValue
+    BoundedCreatorWorkspace creatorValue
 
     public constructor() {
         screenValue = gameShellScreenMain()
@@ -69,13 +71,15 @@ class GameShell {
         addressThreeValue = 0
         addressFourValue = 1
         portValue = 47101
+        creatorValue = BoundedCreatorWorkspace()
     }
 
     Int screen() { return screenValue }
     Int selection() { return selectionValue }
     Bool quitRequested() { return quitRequestedValue }
     Bool gameplayVisible() { return screenValue == gameShellScreenGame() }
-    Int renderVertexCapacity() { return 1024 }
+    Int renderVertexCapacity() { return 2048 }
+    BoundedCreatorWorkspace creator() { return creatorValue }
 
     Int resolutionIndex() { return resolutionValue }
     Int displayMode() { return displayModeValue }
@@ -168,9 +172,10 @@ class GameShell {
     }
 
     Int optionCount() {
-        if (screenValue == gameShellScreenMain()) { return 4 }
+        if (screenValue == gameShellScreenMain()) { return 5 }
         if (screenValue == gameShellScreenOptions()) { return 7 }
         if (screenValue == gameShellScreenMultiplayer()) { return 6 }
+        if (screenValue == gameShellScreenCreator()) { return 10 }
         return 0
     }
 
@@ -281,6 +286,9 @@ class GameShell {
         } else if (selectionValue == 2) {
             screenValue = gameShellScreenOptions()
             selectionValue = 0
+        } else if (selectionValue == 3) {
+            screenValue = gameShellScreenCreator()
+            selectionValue = 0
         } else {
             quitRequestedValue = true
         }
@@ -328,6 +336,47 @@ class GameShell {
         return true
     }
 
+    Bool activateCreator() {
+        if (selectionValue == 9) {
+            screenValue = gameShellScreenMain()
+            selectionValue = 3
+            return true
+        }
+        if (!creatorValue.begin(creatorValue.revision())) { return false }
+        var staged = false
+        if (selectionValue == 0) {
+            staged = creatorValue.stageCollisionVisible(
+                !creatorValue.collisionVisible())
+        } else if (selectionValue == 1) {
+            staged = creatorValue.stageAiVisible(!creatorValue.aiVisible())
+        } else if (selectionValue == 2) {
+            staged = creatorValue.stageEntity(
+                1, creatorValue.revision() * 10, 0, 0)
+        } else if (selectionValue == 3) {
+            staged = creatorValue.stageSpawn(2001)
+        } else if (selectionValue == 4) {
+            staged = creatorValue.stageAsset(1001)
+        } else if (selectionValue == 5) {
+            staged = creatorValue.stageEncounter(
+                3001, 10 + creatorValue.revision())
+        } else if (selectionValue == 6) {
+            staged = creatorValue.stageItem(
+                    4001, 20 + creatorValue.revision()) &&
+                creatorValue.stageWeapon(5001) &&
+                creatorValue.stageLoot(6001)
+        } else if (selectionValue == 7) {
+            staged = creatorValue.stageSkill(
+                7001, 1 + creatorValue.skillRank())
+        } else if (selectionValue == 8) {
+            staged = creatorValue.stagePlayActive(!creatorValue.playActive())
+        }
+        if (!staged) {
+            creatorValue.discard()
+            return false
+        }
+        return creatorValue.publish()
+    }
+
     Bool handleAction(Int action) {
         if (action < gameShellActionUp() || action > gameShellActionBack()) {
             return false
@@ -349,8 +398,9 @@ class GameShell {
             if (screenValue == gameShellScreenMain()) {
                 quitRequestedValue = true
             } else {
+                var previous = screenValue
                 screenValue = gameShellScreenMain()
-                selectionValue = 0
+                selectionValue = if (previous == gameShellScreenCreator()) 3 else 0
             }
             return true
         }
@@ -358,10 +408,15 @@ class GameShell {
             if (screenValue == gameShellScreenOptions()) {
                 return adjustOption(if (action == gameShellActionLeft()) -1 else 1)
             }
+            if (screenValue == gameShellScreenCreator()) {
+                return if (action == gameShellActionLeft())
+                    creatorValue.undo() else creatorValue.redo()
+            }
             return false
         }
         if (screenValue == gameShellScreenMain()) { return activateMain() }
         if (screenValue == gameShellScreenOptions()) { return activateOptions() }
+        if (screenValue == gameShellScreenCreator()) { return activateCreator() }
         return activateMultiplayer()
     }
 
@@ -369,10 +424,11 @@ class GameShell {
         if (x < -100 || x > 100 || y < -100 || y > 100 ||
             screenValue == gameShellScreenGame()) { return false }
         if (screenValue == gameShellScreenMain()) {
-            if (y >= 18 && y <= 42) { selectionValue = 0 }
-            else if (y >= -10 && y <= 14) { selectionValue = 1 }
-            else if (y >= -38 && y <= -14) { selectionValue = 2 }
-            else if (y >= -66 && y <= -42) { selectionValue = 3 }
+            if (y >= 25 && y <= 45) { selectionValue = 0 }
+            else if (y >= 3 && y <= 23) { selectionValue = 1 }
+            else if (y >= -19 && y <= 1) { selectionValue = 2 }
+            else if (y >= -41 && y <= -21) { selectionValue = 3 }
+            else if (y >= -63 && y <= -43) { selectionValue = 4 }
             else { return false }
             return activateMain()
         }
@@ -386,6 +442,20 @@ class GameShell {
             else if (y >= -82 && y <= -70) { selectionValue = 6 }
             else { return false }
             return activateOptions()
+        }
+        if (screenValue == gameShellScreenCreator()) {
+            if (y >= 54 && y <= 66) { selectionValue = 0 }
+            else if (y >= 38 && y <= 50) { selectionValue = 1 }
+            else if (y >= 22 && y <= 34) { selectionValue = 2 }
+            else if (y >= 6 && y <= 18) { selectionValue = 3 }
+            else if (y >= -10 && y <= 2) { selectionValue = 4 }
+            else if (y >= -26 && y <= -14) { selectionValue = 5 }
+            else if (y >= -42 && y <= -30) { selectionValue = 6 }
+            else if (y >= -58 && y <= -46) { selectionValue = 7 }
+            else if (y >= -74 && y <= -62) { selectionValue = 8 }
+            else if (y >= -90 && y <= -78) { selectionValue = 9 }
+            else { return false }
+            return activateCreator()
         }
         if (y >= 31 && y <= 43) { selectionValue = 0 }
         else if (y >= 13 && y <= 25) { selectionValue = 1 }
@@ -503,20 +573,23 @@ class GameShell {
         return pushQuad(target, 10, -100, -100, 100, 100) &&
             pushQuad(target, 11, -96, -96, 96, 96) &&
             pushQuad(target, 10, -94, -94, 94, 94) &&
-            pushCenteredText(target, "KOOKIE", 66, 3, 1) &&
-            pushCenteredText(target, "OLD SCHOOL COOP", 51, 1, 2) &&
-            pushSelectionPanel(target, 0, 18, 43) &&
-            pushCenteredText(target, "PLAY", 22, scale,
+            pushCenteredText(target, "KOOKIE", 70, 3, 1) &&
+            pushCenteredText(target, "OLD SCHOOL COOP", 55, 1, 2) &&
+            pushSelectionPanel(target, 0, 25, 45) &&
+            pushCenteredText(target, "PLAY", 29, scale,
                 if (selectionValue == 0) 2 else itemColor) &&
-            pushSelectionPanel(target, 1, -10, 15) &&
-            pushCenteredText(target, "MULTIPLAYER", -6, scale,
+            pushSelectionPanel(target, 1, 3, 23) &&
+            pushCenteredText(target, "MULTIPLAYER", 7, scale,
                 if (selectionValue == 1) 2 else itemColor) &&
-            pushSelectionPanel(target, 2, -38, -13) &&
-            pushCenteredText(target, "OPTIONS", -34, scale,
+            pushSelectionPanel(target, 2, -19, 1) &&
+            pushCenteredText(target, "OPTIONS", -15, scale,
                 if (selectionValue == 2) 2 else itemColor) &&
-            pushSelectionPanel(target, 3, -66, -41) &&
-            pushCenteredText(target, "QUIT", -62, scale,
-                if (selectionValue == 3) 3 else itemColor) &&
+            pushSelectionPanel(target, 3, -41, -21) &&
+            pushCenteredText(target, "CREATOR", -37, scale,
+                if (selectionValue == 3) 2 else itemColor) &&
+            pushSelectionPanel(target, 4, -63, -43) &&
+            pushCenteredText(target, "QUIT", -59, scale,
+                if (selectionValue == 4) 3 else itemColor) &&
             pushCenteredText(target, "ARROWS ENTER ESC", -89, 1, 0)
     }
 
@@ -674,6 +747,51 @@ class GameShell {
                 -93, 1, 0)
     }
 
+    Bool stageCreator(FrameStaging target) {
+        var normal = 0
+        return pushQuad(target, 10, -100, -100, 100, 100) &&
+            pushQuad(target, 11, -96, -96, 96, 96) &&
+            pushQuad(target, 10, -94, -94, 94, 94) &&
+            pushCenteredText(target, "CREATOR", 80, 2, 1) &&
+            pushText(target, "GEN", -84, 70, 1, normal) &&
+            pushNumber(target, creatorValue.generation(), -62, 70, 1, 2) &&
+            pushSelectionPanel(target, 0, 54, 66) &&
+            pushCenteredText(target,
+                if (creatorValue.collisionVisible())
+                    "COLLISION ON" else "COLLISION OFF",
+                57, 1, if (selectionValue == 0) 2 else normal) &&
+            pushSelectionPanel(target, 1, 38, 50) &&
+            pushCenteredText(target,
+                if (creatorValue.aiVisible()) "AI VISIBLE" else "AI HIDDEN",
+                41, 1, if (selectionValue == 1) 2 else normal) &&
+            pushSelectionPanel(target, 2, 22, 34) &&
+            pushCenteredText(target, "WORLD EDITOR", 25, 1,
+                if (selectionValue == 2) 2 else normal) &&
+            pushSelectionPanel(target, 3, 6, 18) &&
+            pushCenteredText(target, "ENTITY SPAWN", 9, 1,
+                if (selectionValue == 3) 2 else normal) &&
+            pushSelectionPanel(target, 4, -10, 2) &&
+            pushCenteredText(target, "ASSET BROWSER", -7, 1,
+                if (selectionValue == 4) 2 else normal) &&
+            pushSelectionPanel(target, 5, -26, -14) &&
+            pushCenteredText(target, "ENCOUNTER EDITOR", -23, 1,
+                if (selectionValue == 5) 2 else normal) &&
+            pushSelectionPanel(target, 6, -42, -30) &&
+            pushCenteredText(target, "ITEM WEAPON LOOT", -39, 1,
+                if (selectionValue == 6) 2 else normal) &&
+            pushSelectionPanel(target, 7, -58, -46) &&
+            pushCenteredText(target, "SKILL EDITOR", -55, 1,
+                if (selectionValue == 7) 2 else normal) &&
+            pushSelectionPanel(target, 8, -74, -62) &&
+            pushCenteredText(target,
+                if (creatorValue.playActive())
+                    "STOP PLAY" else "PLAY IN EDITOR",
+                -71, 1, if (selectionValue == 8) 2 else normal) &&
+            pushSelectionPanel(target, 9, -90, -78) &&
+            pushCenteredText(target, "BACK", -87, 1,
+                if (selectionValue == 9) 2 else normal)
+    }
+
     Bool stage(FrameStaging target, Int frame) {
         if (target.vertexCapacity() < renderVertexCapacity() ||
             frame <= 0 || !target.begin(frame)) { return false }
@@ -684,6 +802,8 @@ class GameShell {
             staged = stageOptions(target)
         } else if (screenValue == gameShellScreenMultiplayer()) {
             staged = stageMultiplayer(target)
+        } else if (screenValue == gameShellScreenCreator()) {
+            staged = stageCreator(target)
         }
         if (!staged) {
             target.discard()

@@ -1,6 +1,6 @@
 # KOOKIE project architecture
 
-Status: **living target architecture; G0/G1/G2/G3 are implemented and G4 has its first transactional vertical slice**.
+Status: **living target architecture; the bounded G0–G4 implementation is complete within the documented qualification limits**.
 
 
 This document is the project-level architecture authority. Detailed acceptance
@@ -217,6 +217,18 @@ gameplay, feedback and encounter baselines. Decode validates a whole message
 before mutation, admits generation before sequence, rejects stale or gapped
 state and never treats dropped presentation as failed authoritative state.
 
+Before snapshots or gameplay commands, each remote endpoint exchanges a bounded
+compatibility control handshake. The client offer is 18 words: framing,
+sequence, the exact 13-word `BoundedContentCompatibility` identity and a
+checksum. The server response is 7 words with accepted/rejected status,
+diagnostic, sequence and server-identity checksum. Decode, checksum, sequence
+and exact identity comparison complete before the endpoint becomes ready;
+mismatch and malformed offers receive a rejection response and cannot advance
+gameplay state. SipHash transport framing supplies packet authentication and
+integrity. The compatibility checksum is an identity/error-detection field, not
+a cryptographic authenticator. JVM and native role processes use this same
+wire path; current G4 evidence does not retain a fresh three-machine run.
+
 The third-party networking library is selected after the protocol and loopback
 proof, not before.
 
@@ -282,13 +294,15 @@ ID. Conflicts and capacity failures fail closed with diagnostics.
 
 The G4 trusted-module path does not expose arbitrary callbacks.
 `BoundedTrustedModuleRegistry` binds at most 32 statically compiled hook IDs
-and binary versions to declared manifest contributions, phases and
+and binary versions to declared manifest contributions, event kinds, phases and
 command/event budgets. `BoundedTrustedHookRuntime` accepts only a sealed module
-whose extension/module checksums match a published generation, executes
-increasing phases on monotonic ticks, and preflights every per-hook/global
-capacity before emission. The authoritative session currently consumes only a
-bounded grant-currency command, exactly once and after aggregate overflow
-validation. Hooks never receive mutable core access.
+whose extension/module checksums match a published generation, dispatches
+typed session-started, player-connected, enemy-defeated, loot-picked-up and
+editor-published events in monotonic sequence/phase order, and preflights every
+per-hook/global capacity before emission. Registered static implementations
+produce bounded audit/welcome/bounty/publication events; the authoritative
+session consumes the grant-currency command exactly once after aggregate
+overflow validation. Hooks never receive mutable core access.
 
 ## 6. Content and asset pipeline
 
@@ -320,14 +334,15 @@ Packages contain:
 
 ### Supported authoring intake
 
-The cooker accepts these authoring sources in addition to the canonical glTF
-subset. They are **offline intake formats**, not runtime formats:
+The file cooker accepts these authoring sources in addition to the canonical
+indexed glTF subset. They are **offline intake formats**, not runtime formats:
 
-| Source | Intake contract | Canonical result |
+| Source | Implemented bounded contract | Canonical result |
 |---|---|---|
-| Dust3D `.ds3` | Preserve the editable project as provenance; validate exported geometry, UVs, skeleton/animation metadata and finite transforms | Static or skeletal GLB, material/texture records and optional collision source |
-| LibreSprite `.ase` / `.aseprite` | Read frames, layers, tags, slices, palette and pixel bounds; reject unsupported color/depth modes or normalize them explicitly | PNG atlas plus versioned frame/tag JSON and Kof animation definitions |
-| MagicaVoxel `.vox` | Read bounded voxel models, dimensions, palette and supported scene chunks; preserve palette/index semantics and reject unsupported chunks with diagnostics | Deterministic mesh/GLB, palette/material records and optional voxel-derived collision |
+| Dust3D `.ds3` + exported `.glb` | Structurally validate a non-ZIP64, non-encrypted archive up to 1 MiB with a bounded `model.json`; validate one indexed triangle primitive, VEC2 float UV accessor and paired float-weight skin attributes when a skin is declared | Canonical geometry wire, authored collision and source/material checksums |
+| LibreSprite `.ase` / `.aseprite` | Up to 8 MiB, 64 frames/layers, 256×256 RGBA frames and 262,144 atlas pixels; raw/zlib cels, normal layers, tags, slices, palette, user data and color profile; reject unknown chunks/modes | Deterministic RGBA PNG atlas, frame durations and metadata checksum |
+| MagicaVoxel `.vox` | Versions 150–200, up to eight models and 20 voxels; `PACK`, `SIZE`, `XYZI`, `RGBA`, `nTRN`, `nGRP`, `nSHP` and `LAYR`; reject every other chunk | Deterministic cube geometry/collision plus palette checksum and scene-node count |
+| Quake-style `.map` | ASCII integer-grid entity/property and convex brush-plane subset; up to 8,192 tokens, 64 entities, 512 properties, 16 planes per brush and 256 output vertices/triangles | Triangulated canonical geometry/collision plus entity, material and visibility checksums |
 
 Canonical intake rules:
 
@@ -358,11 +373,31 @@ Publication is transactional: stage, validate, publish or retain the previous
 valid package. Geometry, collision, navigation and replication revisions must
 be published together.
 
-### Corpus-derived intake details to settle
+`scripts/kookie_cooker.sh` exposes `cook`, `package`, `inspect-package` and
+`validate-package` through a JVM-only developer CLI. The `.kpkg` envelope
+stores explicit little-endian headers, bounded logical paths and chunk payloads.
+Its reader rejects traversal, duplicate paths/IDs, overlap, out-of-range bytes,
+hash mismatch and corrupt registry records. `BoundedExternalPackageRuntime`
+builds candidate package/extension/definition/hook registries and swaps them
+only after complete validation; failed reload preserves the active package,
+registries and generation.
 
+`BoundedCreatorWorkspace` applies revision-checked world/entity/weapon/loot
+transactions to one atomic geometry/collision/navigation/render product set.
+The Creator screen exposes inspection toggles, console mutations,
+play-in-editor and a bounded 16-entry undo/redo history. The native adapter
+keeps the active CPU scene separate while staging a candidate, waits for
+synchronous upload-fence completion before reusing its persistent GPU buffer,
+then activates at a frame boundary. The Kof coordinator retains referenced
+generation identities and permits retirement only after references and the
+fence clear. This reload contract covers validated scene products; it is not
+arbitrary code, shader or plugin hot reload.
 
-The monorepo projects suggest several contracts worth fixing before parser
-implementation:
+### Additional intake hardening
+
+The implemented parsers already provide bounded source/result checksums,
+canonical products, GLB reopen validation, deterministic diagnostics and
+atomic publication. Remaining production hardening targets include:
 
 1. **Source receipts:** record source path, SHA-256, tool/version, options,
    dependency hashes, coordinate convention and generated-output hashes.
@@ -556,15 +591,20 @@ the actor and every reward contract atomically from those definitions.
 
 ### G4 — Creator and extension pipeline
 
-In progress: packages, extension manifests, static trusted-hook
-implementations, enemy definitions and aligned geometry/collision/navigation/
-replication products share one revision-checked compatibility identity. Stale
-or invalid transactions preserve the active generation. Exact client identity
-admission and a second definition-driven multiplayer sample execute; its
-published elite-bounty hook emits a bounded event/command after authoritative
-death, and the session applies the currency command exactly once. The broader
-hook/event surface, authoring-file intake, external package loading,
-inspector/editors and live GPU-safe staged reload remain open.
+Implemented bounded gate: external package files, extension manifests, static
+trusted-hook implementations, enemy definitions and aligned
+geometry/collision/navigation/replication products share one revision-checked
+compatibility identity. Typed domain events, documented GLB/Dust3D/Aseprite/
+VOX/brush intake, the file CLI, external package reload, transactional Creator
+workspace, fence-gated frame-boundary GPU reload and compatibility
+offer/response transport execute on the supported JVM/native paths. The
+handshake passed with the host and two clients in separate Linux network
+namespaces and distinct IPv4 stacks. Stale, invalid or incompatible
+transactions preserve the active generation. The definition-driven multiplayer
+sample executes the published elite-bounty hook after authoritative death and
+applies its command exactly once. General format compatibility, arbitrary
+live-code reload, a production-grade editor and fresh qualification on three
+physical machines remain outside this gate.
 
 ### G5 — Scale and release
 

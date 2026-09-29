@@ -28,6 +28,9 @@ class BoundedExternalGlbSceneReader {
     Int accessorCountValue
     Int positionAccessorValue
     Int indexAccessorValue
+    Int texcoordAccessorValue
+    Int jointsAccessorValue
+    Int weightsAccessorValue
     Int vertexCountValue
     Int triangleCountValue
     Int modeValue
@@ -42,6 +45,8 @@ class BoundedExternalGlbSceneReader {
     Int toolVersionValue
     Int optionsChecksumValue
     Bool readValue
+    Bool textureCoordinatesValidValue
+    Bool skinAttributesValidValue
 
     public constructor(Int vertexCapacity, Int triangleCapacity) {
         var actualVertices = vertexCapacity
@@ -53,15 +58,15 @@ class BoundedExternalGlbSceneReader {
             actualTriangles = 1
         }
         json = new Int[16384]
-        viewOffsets = new Int[8]
-        viewStrides = new Int[8]
-        viewLengths = new Int[8]
-        viewTargets = new Int[8]
-        accessorViews = new Int[8]
-        accessorOffsets = new Int[8]
-        accessorComponents = new Int[8]
-        accessorCounts = new Int[8]
-        accessorKinds = new Int[8]
+        viewOffsets = new Int[64]
+        viewStrides = new Int[64]
+        viewLengths = new Int[64]
+        viewTargets = new Int[64]
+        accessorViews = new Int[64]
+        accessorOffsets = new Int[64]
+        accessorComponents = new Int[64]
+        accessorCounts = new Int[64]
+        accessorKinds = new Int[64]
         mesh = BoundedCanonicalGlb(actualVertices, actualTriangles)
         canonicalWire = new Int[16 + actualVertices * 3 + actualTriangles * 4]
         jsonLengthValue = 0
@@ -71,6 +76,9 @@ class BoundedExternalGlbSceneReader {
         accessorCountValue = 0
         positionAccessorValue = -1
         indexAccessorValue = -1
+        texcoordAccessorValue = -1
+        jointsAccessorValue = -1
+        weightsAccessorValue = -1
         modeValue = 4
         vertexCountValue = 0
         triangleCountValue = 0
@@ -83,6 +91,8 @@ class BoundedExternalGlbSceneReader {
         toolVersionValue = 0
         optionsChecksumValue = 0
         readValue = false
+        textureCoordinatesValidValue = false
+        skinAttributesValidValue = false
     }
 
     Int u32(Int[] source, Int offset) {
@@ -228,10 +238,34 @@ class BoundedExternalGlbSceneReader {
                 json[position + 3] == 102 && json[position + 4] == 101 &&
                 json[position + 5] == 114
         }
+        if (field == 16) {
+            return position + 9 < jsonLengthValue && json[position] == 84 &&
+                json[position + 1] == 69 && json[position + 2] == 88 &&
+                json[position + 3] == 67 && json[position + 4] == 79 &&
+                json[position + 5] == 79 && json[position + 6] == 82 &&
+                json[position + 7] == 68 && json[position + 8] == 95 &&
+                json[position + 9] == 48
+        }
+        if (field == 17) {
+            return position + 7 < jsonLengthValue && json[position] == 74 &&
+                json[position + 1] == 79 && json[position + 2] == 73 &&
+                json[position + 3] == 78 && json[position + 4] == 84 &&
+                json[position + 5] == 83 && json[position + 6] == 95 &&
+                json[position + 7] == 48
+        }
+        if (field == 18) {
+            return position + 8 < jsonLengthValue && json[position] == 87 &&
+                json[position + 1] == 69 && json[position + 2] == 73 &&
+                json[position + 3] == 71 && json[position + 4] == 72 &&
+                json[position + 5] == 84 && json[position + 6] == 83 &&
+                json[position + 7] == 95 && json[position + 8] == 48
+        }
         return false
     }
 
     Int valueStart(Int start, Int limit, Int field) {
+        if (start < 0 || limit < 0 || start >= limit ||
+            limit > jsonLengthValue) { return -1 }
         var cursor = start
         while (cursor < limit) {
             if (json[cursor] == 34 && keyMatches(cursor + 1, field)) {
@@ -288,6 +322,8 @@ class BoundedExternalGlbSceneReader {
     }
 
     Int objectEnd(Int start, Int limit) {
+        if (start < 0 || limit < 0 || start >= limit ||
+            limit > jsonLengthValue) { return -1 }
         var depth = 0
         var inString = false
         var escaped = false
@@ -322,7 +358,8 @@ class BoundedExternalGlbSceneReader {
         }
         while (cursor < jsonLengthValue && json[cursor] != 93) {
             cursor = skipWhitespace(cursor, jsonLengthValue)
-            if (cursor >= jsonLengthValue || json[cursor] != 123 || viewCountValue >= 8) {
+            if (cursor >= jsonLengthValue || json[cursor] != 123 ||
+                viewCountValue >= viewOffsets.length) {
                 return false
             }
             var end = objectEnd(cursor, jsonLengthValue)
@@ -339,7 +376,9 @@ class BoundedExternalGlbSceneReader {
             if (stride < 0) {
                 stride = 0
             }
-            if (buffer != 0 || length <= 0 || offset + length > binLengthValue) {
+            if (buffer != 0 || length <= 0 || offset < 0 ||
+                length > binLengthValue ||
+                offset > binLengthValue - length) {
                 return false
             }
             viewOffsets[viewCountValue] = offset
@@ -347,17 +386,34 @@ class BoundedExternalGlbSceneReader {
             viewTargets[viewCountValue] = numberInObject(cursor, end, 8)
             viewStrides[viewCountValue] = stride
             viewCountValue = viewCountValue + 1
-            cursor = end + 1
+            cursor = skipWhitespace(end + 1, jsonLengthValue)
             if (cursor < jsonLengthValue && json[cursor] == 44) {
                 cursor = cursor + 1
             }
         }
-        return viewCountValue >= 2
+        cursor = skipWhitespace(cursor, jsonLengthValue)
+        return cursor < jsonLengthValue && json[cursor] == 93 &&
+            viewCountValue >= 2
     }
 
     Int kindForType(Int start, Int limit) {
+        if (stringIs(start, limit, 7, 86, 69, 67, 50)) {
+            return 2
+        }
         if (stringIs(start, limit, 7, 86, 69, 67, 51)) {
             return 3
+        }
+        if (stringIs(start, limit, 7, 86, 69, 67, 52)) {
+            return 4
+        }
+        if (stringIs(start, limit, 7, 77, 65, 84, 50)) {
+            return 22
+        }
+        if (stringIs(start, limit, 7, 77, 65, 84, 51)) {
+            return 33
+        }
+        if (stringIs(start, limit, 7, 77, 65, 84, 52)) {
+            return 44
         }
         var cursor = valueStart(start, limit, 7)
         if (cursor >= 0 && cursor + 7 < limit && json[cursor] == 34 &&
@@ -377,7 +433,8 @@ class BoundedExternalGlbSceneReader {
         }
         while (cursor < jsonLengthValue && json[cursor] != 93) {
             cursor = skipWhitespace(cursor, jsonLengthValue)
-            if (cursor >= jsonLengthValue || json[cursor] != 123 || accessorCountValue >= 8) {
+            if (cursor >= jsonLengthValue || json[cursor] != 123 ||
+                accessorCountValue >= accessorViews.length) {
                 return false
             }
             var end = objectEnd(cursor, jsonLengthValue)
@@ -398,12 +455,14 @@ class BoundedExternalGlbSceneReader {
                 return false
             }
             accessorCountValue = accessorCountValue + 1
-            cursor = end + 1
+            cursor = skipWhitespace(end + 1, jsonLengthValue)
             if (cursor < jsonLengthValue && json[cursor] == 44) {
                 cursor = cursor + 1
             }
         }
-        return accessorCountValue >= 2
+        cursor = skipWhitespace(cursor, jsonLengthValue)
+        return cursor < jsonLengthValue && json[cursor] == 93 &&
+            accessorCountValue >= 2
     }
 
     Bool parseMesh() {
@@ -417,6 +476,9 @@ class BoundedExternalGlbSceneReader {
         }
         positionAccessorValue = numberInObject(meshStart, jsonLengthValue, 10)
         indexAccessorValue = numberInObject(meshStart, jsonLengthValue, 9)
+        texcoordAccessorValue = numberInObject(meshStart, jsonLengthValue, 16)
+        jointsAccessorValue = numberInObject(meshStart, jsonLengthValue, 17)
+        weightsAccessorValue = numberInObject(meshStart, jsonLengthValue, 18)
         modeValue = numberInObject(meshStart, jsonLengthValue, 8)
         if (modeValue < 0) {
             modeValue = 4
@@ -434,31 +496,27 @@ class BoundedExternalGlbSceneReader {
         var b3 = source[offset + 3]
         var exponent = (b3 % 128) * 2 + b2 / 128
         var fraction = b0 + b1 * 256 + (b2 % 128) * 65536
-        if (exponent == 255) {
-            return 2000000000
-        }
-        if (exponent == 0) {
-            return 0
-        }
+        if (exponent == 255) { return 2000000000 }
+        if (exponent == 0) { return 0 }
         var mantissa = 8388608 + fraction
-        var result = mantissa * scale
+        var result: Long = mantissa
+        result = result * scale
         var shift = exponent - 150
         if (shift >= 0) {
             for (var index = 0; index < shift; index = index + 1) {
-                if (result > 1000000) {
-                    return 2000000000
-                }
-                result = result * 2
+                if (result > 1000000L) { return 2000000000 }
+                result = result * 2L
             }
         } else {
             for (var index = 0; index < -shift; index = index + 1) {
-                result = result / 2
+                result = result / 2L
             }
         }
-        if (b3 >= 128) {
-            result = -result
+        if (b3 >= 128) { result = -result }
+        if (result < -1000000L || result > 1000000L) {
+            return 2000000000
         }
-        return result
+        return result.toInt()
     }
 
     Int readIndex(Int[] source, Int offset, Int component) {
@@ -495,28 +553,32 @@ class BoundedExternalGlbSceneReader {
             return false
         }
         var positionStride = viewStrides[positionView]
-        if (positionStride < 12) {
-            positionStride = 12
+        if (positionStride <= 0) { positionStride = 12 }
+        var indexElementBytes = 2
+        if (accessorComponents[indexAccessorValue] == 5125) {
+            indexElementBytes = 4
         }
         var indexStride = viewStrides[indexView]
-        if (indexStride <= 0) {
-            indexStride = 2
-        }
-        if (accessorComponents[indexAccessorValue] == 5125) {
-            if (indexStride < 4) {
-                indexStride = 4
-            }
-        } else if (indexStride < 2) {
-            indexStride = 2
-        }
-        var positionBase = viewOffsets[positionView] + accessorOffsets[positionAccessorValue]
-        var indexBase = viewOffsets[indexView] + accessorOffsets[indexAccessorValue]
-        if (positionBase + (vertexCountValue - 1) * positionStride + 12 >
-                viewOffsets[positionView] + viewLengths[positionView] ||
-            indexBase + (indexCount - 1) * indexStride + indexStride >
-                viewOffsets[indexView] + viewLengths[indexView]) {
+        if (indexStride <= 0) { indexStride = indexElementBytes }
+        var positionOffset = accessorOffsets[positionAccessorValue]
+        var indexOffset = accessorOffsets[indexAccessorValue]
+        if (positionStride < 12 || indexStride < indexElementBytes ||
+            positionOffset < 0 ||
+            positionOffset > viewLengths[positionView] - 12 ||
+            indexOffset < 0 ||
+            indexOffset > viewLengths[indexView] - indexElementBytes ||
+            (viewOffsets[positionView] + positionOffset) % 4 != 0 ||
+            (viewOffsets[indexView] + indexOffset) % indexElementBytes != 0 ||
+            vertexCountValue - 1 >
+                (viewLengths[positionView] - positionOffset - 12) /
+                    positionStride ||
+            indexCount - 1 >
+                (viewLengths[indexView] - indexOffset - indexElementBytes) /
+                    indexStride) {
             return false
         }
+        var positionBase = viewOffsets[positionView] + positionOffset
+        var indexBase = viewOffsets[indexView] + indexOffset
         if (!mesh.configure(
                 namespaceValue, assetValue, revisionValue, 1, coordinateScaleValue,
                 -1000000, -1000000, -1000000, 1000000, 1000000, 1000000)) {
@@ -555,9 +617,15 @@ class BoundedExternalGlbSceneReader {
         accessorCountValue = 0
         positionAccessorValue = -1
         indexAccessorValue = -1
+        texcoordAccessorValue = -1
+        jointsAccessorValue = -1
+        weightsAccessorValue = -1
+        textureCoordinatesValidValue = false
+        skinAttributesValidValue = false
         if (source.length < 20 || source.length > 1048576 ||
             sourceNamespaceId <= 0 || sourceAssetId <= 0 || sourceRevision <= 0 ||
-            toolVersion <= 0 || optionsChecksum < 0 || coordinateScale <= 0) {
+            toolVersion <= 0 || optionsChecksum < 0 || coordinateScale <= 0 ||
+            coordinateScale > 10000) {
             return false
         }
         for (var index = 0; index < source.length; index = index + 1) {
@@ -625,6 +693,17 @@ class BoundedExternalGlbSceneReader {
         if (!parseViews() || !parseAccessors() || !parseMesh() || !readMesh(source)) {
             return false
         }
+        if (texcoordAccessorValue >= 0) {
+            textureCoordinatesValidValue = floatAccessorValuesValid(
+                source, texcoordAccessorValue, 2, 2)
+        }
+        if (jointsAccessorValue >= 0 || weightsAccessorValue >= 0) {
+            var jointsValid =
+                accessorPayloadFits(jointsAccessorValue, 4, 5121, 4) ||
+                accessorPayloadFits(jointsAccessorValue, 4, 5123, 8)
+            skinAttributesValidValue = jointsValid &&
+                floatAccessorValuesValid(source, weightsAccessorValue, 4, 4)
+        }
         for (var index = 0; index < mesh.encodedLength(); index = index + 1) {
             canonicalWire[index] = mesh.encodedWord(index)
         }
@@ -644,6 +723,91 @@ class BoundedExternalGlbSceneReader {
             wire[index] = canonicalWire[index]
         }
         return reopened.reopen(wire) && reopened.checksum() == mesh.checksum()
+    }
+
+    Int canonicalLength() {
+        if (!readValue) { return 0 }
+        return canonicalLengthValue
+    }
+
+    Int canonicalWord(Int index) {
+        if (!readValue || index < 0 || index >= canonicalLengthValue) {
+            return -1
+        }
+        return canonicalWire[index]
+    }
+
+    Int[] canonicalBytes() {
+        if (!readValue) { return new Int[0] }
+        var result = new Int[canonicalLengthValue * 4]
+        for (var index = 0; index < canonicalLengthValue; index = index + 1) {
+            var value = canonicalWire[index]
+            result[index * 4] = value & 255
+            result[index * 4 + 1] = (value >>> 8) & 255
+            result[index * 4 + 2] = (value >>> 16) & 255
+            result[index * 4 + 3] = (value >>> 24) & 255
+        }
+        return result
+    }
+
+    Bool accessorPayloadFits(
+        Int accessor, Int kind, Int component,
+        Int elementBytes
+    ) {
+        if (accessor < 0 || accessor >= accessorCountValue ||
+            accessorKinds[accessor] != kind ||
+            accessorComponents[accessor] != component ||
+            accessorCounts[accessor] != vertexCountValue ||
+            elementBytes <= 0 || vertexCountValue <= 0) {
+            return false
+        }
+        var view = accessorViews[accessor]
+        if (view < 0 || view >= viewCountValue) { return false }
+        var stride = viewStrides[view]
+        if (stride <= 0) { stride = elementBytes }
+        var offset = accessorOffsets[accessor]
+        var componentBytes = 1
+        if (component == 5123) { componentBytes = 2 }
+        if (component == 5125 || component == 5126) { componentBytes = 4 }
+        if (stride < elementBytes || offset < 0 ||
+            offset > viewLengths[view] - elementBytes ||
+            (viewOffsets[view] + offset) % componentBytes != 0) {
+            return false
+        }
+        return vertexCountValue - 1 <=
+            (viewLengths[view] - offset - elementBytes) / stride
+    }
+
+    Bool floatAccessorValuesValid(
+        Int[] source, Int accessor, Int kind, Int components
+    ) {
+        var elementBytes = components * 4
+        if (!accessorPayloadFits(accessor, kind, 5126, elementBytes)) {
+            return false
+        }
+        var view = accessorViews[accessor]
+        var stride = viewStrides[view]
+        if (stride <= 0) { stride = elementBytes }
+        var base = binOffsetValue + viewOffsets[view] + accessorOffsets[accessor]
+        for (var index = 0; index < vertexCountValue; index = index + 1) {
+            for (var component = 0;
+                component < components; component = component + 1) {
+                if (readFloatFixed(
+                        source, base + index * stride + component * 4, 1) ==
+                    2000000000) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Bool validTextureCoordinates() {
+        return readValue && textureCoordinatesValidValue
+    }
+
+    Bool validSkinAttributes() {
+        return readValue && skinAttributesValidValue
     }
 
     Bool emitCollision(BoundedAuthoredCollision target) {

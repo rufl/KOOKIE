@@ -1,0 +1,295 @@
+package ui
+
+Int creatorModeInspector() { return 1 }
+Int creatorModeWorld() { return 2 }
+Int creatorModeEntity() { return 3 }
+Int creatorModeAssets() { return 4 }
+Int creatorModeEncounter() { return 5 }
+Int creatorModeItems() { return 6 }
+Int creatorModeSkills() { return 7 }
+
+Int creatorWorkspaceDiagnosticNone() { return 0 }
+Int creatorWorkspaceDiagnosticRevision() { return 1 }
+Int creatorWorkspaceDiagnosticState() { return 2 }
+Int creatorWorkspaceDiagnosticValue() { return 3 }
+Int creatorWorkspaceDiagnosticEmpty() { return 4 }
+
+class BoundedCreatorWorkspace {
+    Int[] live
+    Int[] staged
+    Int[] undoValues
+    Int[] redoValues
+    Int revisionValue
+    Int generationValue
+    Int transactionRevisionValue
+    Int mutationCountValue
+    Int undoCountValue
+    Int redoCountValue
+    Int diagnosticValue
+    Int worldChecksumValue
+    Int collisionChecksumValue
+    Int navigationChecksumValue
+    Int renderChecksumValue
+    Bool transactionActiveValue
+
+    public constructor() {
+        live = new Int[21]
+        staged = new Int[21]
+        undoValues = new Int[336]
+        redoValues = new Int[336]
+        for (var index = 0; index < live.length; index = index + 1) {
+            live[index] = 0
+            staged[index] = 0
+        }
+        for (var index = 0; index < undoValues.length; index = index + 1) {
+            undoValues[index] = 0
+            redoValues[index] = 0
+        }
+        revisionValue = 1
+        generationValue = 1
+        transactionRevisionValue = 0
+        mutationCountValue = 0
+        undoCountValue = 0
+        redoCountValue = 0
+        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        transactionActiveValue = false
+        recomputeProducts()
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        return false
+    }
+
+    void copyState(Int[] source, Int sourceOffset, Int[] target, Int targetOffset) {
+        for (var index = 0; index < live.length; index = index + 1) {
+            target[targetOffset + index] = source[sourceOffset + index]
+        }
+    }
+
+    void pushHistory(Int[] history, Int count) {
+        if (count >= 16) {
+            for (var slot = 1; slot < 16; slot = slot + 1) {
+                copyState(history, slot * live.length,
+                    history, (slot - 1) * live.length)
+            }
+            copyState(live, 0, history, 15 * live.length)
+        } else {
+            copyState(live, 0, history, count * live.length)
+        }
+    }
+
+    Int stateChecksum(Int seed) {
+        var result = seed
+        for (var index = 0; index < live.length; index = index + 1) {
+            result = (result * 31 + live[index]) % 1000003
+        }
+        return result
+    }
+
+    void recomputeProducts() {
+        worldChecksumValue = stateChecksum(101)
+        collisionChecksumValue = stateChecksum(211)
+        navigationChecksumValue = stateChecksum(307)
+        renderChecksumValue = stateChecksum(401)
+    }
+
+    Bool begin(Int expectedRevision) {
+        if (transactionActiveValue) {
+            return reject(creatorWorkspaceDiagnosticState())
+        }
+        if (expectedRevision != revisionValue) {
+            return reject(creatorWorkspaceDiagnosticRevision())
+        }
+        copyState(live, 0, staged, 0)
+        transactionRevisionValue = expectedRevision
+        mutationCountValue = 0
+        transactionActiveValue = true
+        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        return true
+    }
+
+    Bool setStaged(Int index, Int value) {
+        if (!transactionActiveValue || index < 0 || index >= staged.length) {
+            return reject(creatorWorkspaceDiagnosticState())
+        }
+        if (staged[index] != value) {
+            staged[index] = value
+            mutationCountValue = mutationCountValue + 1
+        }
+        return true
+    }
+
+    Bool stageEntity(Int entityId, Int x, Int y, Int z) {
+        if (entityId <= 0 || entityId > 1000000 ||
+            x < -1000000 || x > 1000000 ||
+            y < -1000000 || y > 1000000 ||
+            z < -1000000 || z > 1000000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(0, entityId) && setStaged(1, x) &&
+            setStaged(2, y) && setStaged(3, z) &&
+            setStaged(20, staged[20] + 1)
+    }
+
+    Bool stageAsset(Int assetId) {
+        if (assetId <= 0 || assetId > 1000000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(4, assetId)
+    }
+
+    Bool stageEncounter(Int encounterId, Int budget) {
+        if (encounterId <= 0 || encounterId > 1000000 ||
+            budget <= 0 || budget > 1000000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(5, encounterId) && setStaged(6, budget)
+    }
+
+    Bool stageItem(Int itemId, Int power) {
+        if (itemId <= 0 || itemId > 1000000 || power <= 0 || power > 1000000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(7, itemId) && setStaged(8, power)
+    }
+
+    Bool stageSkill(Int skillId, Int rank) {
+        if (skillId <= 0 || skillId > 1000000 || rank <= 0 || rank > 1000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(9, skillId) && setStaged(10, rank)
+    }
+
+    Bool stageSpawn(Int enemyId) {
+        if (enemyId <= 0 || enemyId > 1000000 || staged[11] >= 1000000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(11, staged[11] + 1) && setStaged(12, enemyId)
+    }
+
+    Bool stageWeapon(Int weaponId) {
+        if (weaponId <= 0 || weaponId > 1000000 || staged[13] >= 1000000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(13, staged[13] + 1) && setStaged(14, weaponId)
+    }
+
+    Bool stageLoot(Int tableId) {
+        if (tableId <= 0 || tableId > 1000000 || staged[15] >= 1000000) {
+            return reject(creatorWorkspaceDiagnosticValue())
+        }
+        return setStaged(15, staged[15] + 1) && setStaged(16, tableId)
+    }
+
+    Bool stageCollisionVisible(Bool visible) {
+        return setStaged(17, if (visible) 1 else 0)
+    }
+
+    Bool stageAiVisible(Bool visible) {
+        return setStaged(18, if (visible) 1 else 0)
+    }
+
+    Bool stagePlayActive(Bool active) {
+        return setStaged(19, if (active) 1 else 0)
+    }
+
+    Bool publish() {
+        if (!transactionActiveValue) {
+            return reject(creatorWorkspaceDiagnosticState())
+        }
+        if (transactionRevisionValue != revisionValue) {
+            transactionActiveValue = false
+            return reject(creatorWorkspaceDiagnosticRevision())
+        }
+        if (mutationCountValue <= 0) {
+            transactionActiveValue = false
+            return reject(creatorWorkspaceDiagnosticEmpty())
+        }
+        pushHistory(undoValues, undoCountValue)
+        if (undoCountValue < 16) { undoCountValue = undoCountValue + 1 }
+        copyState(staged, 0, live, 0)
+        redoCountValue = 0
+        revisionValue = revisionValue + 1
+        generationValue = generationValue + 1
+        transactionActiveValue = false
+        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        recomputeProducts()
+        return true
+    }
+
+    Bool discard() {
+        if (!transactionActiveValue) {
+            return reject(creatorWorkspaceDiagnosticState())
+        }
+        transactionActiveValue = false
+        mutationCountValue = 0
+        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        return true
+    }
+
+    Bool undo() {
+        if (transactionActiveValue || undoCountValue <= 0) {
+            return reject(if (transactionActiveValue)
+                creatorWorkspaceDiagnosticState() else creatorWorkspaceDiagnosticEmpty())
+        }
+        pushHistory(redoValues, redoCountValue)
+        if (redoCountValue < 16) { redoCountValue = redoCountValue + 1 }
+        undoCountValue = undoCountValue - 1
+        copyState(undoValues, undoCountValue * live.length, live, 0)
+        revisionValue = revisionValue + 1
+        generationValue = generationValue + 1
+        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        recomputeProducts()
+        return true
+    }
+
+    Bool redo() {
+        if (transactionActiveValue || redoCountValue <= 0) {
+            return reject(if (transactionActiveValue)
+                creatorWorkspaceDiagnosticState() else creatorWorkspaceDiagnosticEmpty())
+        }
+        pushHistory(undoValues, undoCountValue)
+        if (undoCountValue < 16) { undoCountValue = undoCountValue + 1 }
+        redoCountValue = redoCountValue - 1
+        copyState(redoValues, redoCountValue * live.length, live, 0)
+        revisionValue = revisionValue + 1
+        generationValue = generationValue + 1
+        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        recomputeProducts()
+        return true
+    }
+
+    Int revision() { return revisionValue }
+    Int generation() { return generationValue }
+    Bool transactionActive() { return transactionActiveValue }
+    Int mutationCount() { return mutationCountValue }
+    Int undoCount() { return undoCountValue }
+    Int redoCount() { return redoCountValue }
+    Int diagnostic() { return diagnosticValue }
+    Int worldChecksum() { return worldChecksumValue }
+    Int collisionChecksum() { return collisionChecksumValue }
+    Int navigationChecksum() { return navigationChecksumValue }
+    Int renderChecksum() { return renderChecksumValue }
+    Int entityId() { return live[0] }
+    Int entityX() { return live[1] }
+    Int entityY() { return live[2] }
+    Int entityZ() { return live[3] }
+    Int assetId() { return live[4] }
+    Int encounterId() { return live[5] }
+    Int encounterBudget() { return live[6] }
+    Int itemId() { return live[7] }
+    Int itemPower() { return live[8] }
+    Int skillId() { return live[9] }
+    Int skillRank() { return live[10] }
+    Int spawnCount() { return live[11] }
+    Int lastSpawnEnemy() { return live[12] }
+    Int weaponGrantCount() { return live[13] }
+    Int lastWeapon() { return live[14] }
+    Int lootRollCount() { return live[15] }
+    Int lastLootTable() { return live[16] }
+    Bool collisionVisible() { return live[17] == 1 }
+    Bool aiVisible() { return live[18] == 1 }
+    Bool playActive() { return live[19] == 1 }
+    Int worldEditCount() { return live[20] }
+}

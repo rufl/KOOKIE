@@ -22,6 +22,17 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resou
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_scene(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_stage(
+    Int generation, Int productChecksum
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_cancel(
+    Int generation
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_active_generation(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_active_checksum(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_pending_generation(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_retired_generation(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_completed_fence(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
@@ -256,6 +267,14 @@ main() {
     var shellFrame = FrameStaging(shell.renderVertexCapacity())
     assert(kookie_gpu_scene_capacity() >= shell.renderVertexCapacity(),
         "native scene must hold menu geometry")
+    var reload = BoundedGpuReloadCoordinator()
+    assert(reload.bindInitial(
+            1, shell.creator().worldChecksum(),
+            shell.creator().collisionChecksum(),
+            shell.creator().renderChecksum(),
+            shell.renderVertexCapacity(), 0) &&
+        kookie_gpu_reload_active_generation() == 1,
+        "native GPU and creator reload generations must start aligned")
 
     var audio = kookie_audio_open()
     var appliedSettingsRevision = 0
@@ -272,8 +291,27 @@ main() {
         assert(presentation.drawGameFrame(frame),
             "authored arena and authoritative HUD must draw")
         frame = frame + 1
+        assert(kookie_gpu_reload_stage(
+                2, shell.creator().renderChecksum()) &&
+            kookie_gpu_scene_begin(3) &&
+            kookie_gpu_scene_push_vertex(1, 0, 0, 0, 0) &&
+            !kookie_gpu_scene_push_vertex(0, 0, 0, 0, 0) &&
+            kookie_gpu_reload_cancel(2) &&
+            kookie_gpu_reload_pending_generation() == 0 &&
+            kookie_gpu_reload_active_generation() == 1 &&
+            kookie_gpu_scene_count() > 0 &&
+            kookie_gpu_draw_scene(),
+            "failed staged reload must preserve the active GPU scene")
         println("KOOKIE G1 native arena HUD verified")
         println("KOOKIE G2 native 3D door verified")
+        assert(shell.handleAction(gameShellActionDown()) &&
+            shell.handleAction(gameShellActionDown()) &&
+            shell.handleAction(gameShellActionDown()) &&
+            shell.handleAction(gameShellActionActivate()) &&
+            shell.screen() == gameShellScreenCreator() &&
+            shell.handleAction(gameShellActionActivate()) &&
+            shell.creator().generation() == 2,
+            "presentation smoke must enter creator and stage an inspector edit")
     }
 
     var running = true
@@ -318,6 +356,20 @@ main() {
                 "display transaction must complete")
         }
 
+        if (shell.creator().generation() > reload.activeGeneration() &&
+            reload.pendingGeneration() == 0) {
+            assert(reload.stage(
+                    reload.activeGeneration(), shell.creator().generation(),
+                    shell.creator().worldChecksum(),
+                    shell.creator().collisionChecksum(),
+                    shell.creator().renderChecksum(),
+                    shell.renderVertexCapacity()) &&
+                kookie_gpu_reload_stage(
+                    shell.creator().generation(),
+                    shell.creator().renderChecksum()),
+                "validated creator products must stage before GPU upload")
+        }
+
         if (running && !shell.quitRequested()) {
             if (shell.gameplayVisible()) {
                 assert(presentation.drawGameFrame(frame),
@@ -326,6 +378,22 @@ main() {
                 assert(presentation.drawShellFrame(shell, shellFrame, frame),
                     "menu screen must draw")
                 menuFrames = menuFrames + 1
+            }
+            if (reload.pendingGeneration() != 0) {
+                var activatedGeneration = reload.pendingGeneration()
+                var completedFence = kookie_gpu_reload_completed_fence()
+                assert(kookie_gpu_reload_pending_generation() == 0 &&
+                    kookie_gpu_reload_active_generation() == activatedGeneration &&
+                    kookie_gpu_reload_active_checksum() ==
+                        shell.creator().renderChecksum() &&
+                    reload.markUploaded(activatedGeneration, completedFence) &&
+                    reload.activateAtFrame(
+                        activatedGeneration, frame, completedFence) &&
+                    kookie_gpu_reload_retired_generation() ==
+                        reload.retiringGeneration() &&
+                    reload.retire(completedFence),
+                    "GPU fence completion must activate and retire whole generations")
+                println("KOOKIE G4 GPU-safe creator reload verified")
             }
             frame = frame + 1
         }
@@ -353,7 +421,7 @@ main() {
                     "bounded PCM silence must queue")
                 println("audio-open")
             }
-            println("KOOKIE native main menu verified")
+            println("KOOKIE native creator screen verified")
             println("gpu-open")
             running = false
         }

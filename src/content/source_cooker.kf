@@ -1,0 +1,155 @@
+package content
+
+Int sourceKindGlb() { return 1 }
+Int sourceKindDust3d() { return 2 }
+Int sourceKindAseprite() { return 3 }
+Int sourceKindVox() { return 4 }
+Int sourceKindQuakeMap() { return 5 }
+
+record SourceCookResult(
+    Bool accepted,
+    Int sourceKind,
+    Int diagnostic,
+    Int sourceChecksum,
+    Int geometryChecksum,
+    Int collisionChecksum,
+    Int materialChecksum,
+    Int metadataChecksum,
+    Int entityChecksum,
+    Int visibilityChecksum,
+    Int primaryCount,
+    Int secondaryCount
+)
+
+class BoundedSourceCooker {
+    BoundedExternalGlbSceneReader glbValue
+    BoundedAuthoredCollision glbCollisionValue
+    BoundedDust3dIntake dust3dValue
+    BoundedAsepriteIntake spriteValue
+    BoundedVoxIntake voxValue
+    BoundedQuakeMapIntake mapValue
+    SourceCookResult resultValue
+
+    public constructor() {
+        glbValue = BoundedExternalGlbSceneReader(256, 256)
+        glbCollisionValue = BoundedAuthoredCollision(256, 256)
+        dust3dValue = BoundedDust3dIntake(256, 256)
+        spriteValue = BoundedAsepriteIntake(262144)
+        voxValue = BoundedVoxIntake(20)
+        mapValue = BoundedQuakeMapIntake(8192)
+        resultValue = rejected(sourceKindGlb(), 0)
+    }
+
+    SourceCookResult rejected(Int kind, Int diagnostic) {
+        return SourceCookResult(
+            false, kind, diagnostic, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = (result * 31 + source[index]) % 1000003
+        }
+        return result
+    }
+
+    Bool cookGlb(
+        Int[] source, Int namespaceId, Int assetId, Int revision,
+        Int toolVersion, Int optionsChecksum, Int coordinateScale
+    ) {
+        resultValue = rejected(sourceKindGlb(), 1)
+        glbCollisionValue.clear()
+        if (!glbValue.read(
+                source, namespaceId, assetId, revision,
+                toolVersion, optionsChecksum, coordinateScale) ||
+            !glbValue.reopenCanonical() ||
+            !glbValue.emitCollision(glbCollisionValue) ||
+            !glbCollisionValue.validate() || !glbCollisionValue.encode()) {
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindGlb(), 0, checksum(source),
+            glbValue.geometryChecksum(), glbCollisionValue.checksum(),
+            optionsChecksum, 0, 0, 0,
+            glbValue.vertexCount(), glbValue.triangleCount())
+        return true
+    }
+
+    Bool cookDust3d(
+        Int[] source, Int[] exportedGlb,
+        Int namespaceId, Int assetId, Int revision,
+        Int toolVersion, Int optionsChecksum, Int coordinateScale
+    ) {
+        resultValue = rejected(sourceKindDust3d(), dust3dDiagnosticSource())
+        if (!dust3dValue.read(
+                source, exportedGlb, namespaceId, assetId, revision,
+                toolVersion, optionsChecksum, coordinateScale)) {
+            resultValue = rejected(sourceKindDust3d(), dust3dValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindDust3d(), 0, dust3dValue.sourceChecksum(),
+            dust3dValue.geometryChecksum(), dust3dValue.collisionChecksum(),
+            dust3dValue.materialChecksum(), 0, 0, 0,
+            dust3dValue.vertexCount(), dust3dValue.triangleCount())
+        return true
+    }
+
+    Bool cookAseprite(Int[] source) {
+        resultValue = rejected(sourceKindAseprite(), spriteDiagnosticHeader())
+        if (!spriteValue.read(source)) {
+            resultValue = rejected(sourceKindAseprite(), spriteValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindAseprite(), 0, spriteValue.sourceChecksum(),
+            0, 0, 0, spriteValue.metadataChecksum(), 0, 0,
+            spriteValue.frameCount(), spriteValue.pngLength())
+        return true
+    }
+
+    Bool cookVox(
+        Int[] source, Int namespaceId, Int assetId,
+        Int revision, Int coordinateScale
+    ) {
+        resultValue = rejected(sourceKindVox(), voxDiagnosticHeader())
+        if (!voxValue.read(
+                source, namespaceId, assetId, revision, coordinateScale)) {
+            resultValue = rejected(sourceKindVox(), voxValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindVox(), 0, voxValue.sourceChecksum(),
+            voxValue.geometryChecksum(), voxValue.collisionChecksum(),
+            voxValue.materialChecksum(), voxValue.sceneNodeCount(), 0, 0,
+            voxValue.voxelCount(), voxValue.modelCount())
+        return true
+    }
+
+    Bool cookQuakeMap(
+        Int[] source, Int namespaceId, Int assetId,
+        Int revision, Int coordinateScale
+    ) {
+        resultValue = rejected(sourceKindQuakeMap(), mapDiagnosticSyntax())
+        if (!mapValue.read(
+                source, namespaceId, assetId, revision, coordinateScale)) {
+            resultValue = rejected(sourceKindQuakeMap(), mapValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindQuakeMap(), 0, mapValue.sourceChecksum(),
+            mapValue.geometryChecksum(), mapValue.collisionChecksum(),
+            mapValue.materialChecksum(), 0, mapValue.entityChecksum(),
+            mapValue.visibilityChecksum(),
+            mapValue.brushCount(), mapValue.triangleCount())
+        return true
+    }
+
+    SourceCookResult result() { return resultValue }
+    BoundedExternalGlbSceneReader glb() { return glbValue }
+    BoundedAuthoredCollision glbCollision() { return glbCollisionValue }
+    BoundedDust3dIntake dust3d() { return dust3dValue }
+    BoundedAsepriteIntake sprite() { return spriteValue }
+    BoundedVoxIntake vox() { return voxValue }
+    BoundedQuakeMapIntake quakeMap() { return mapValue }
+}

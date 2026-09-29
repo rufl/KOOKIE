@@ -7,7 +7,7 @@ The doors have prerequisites. The network has prerequisites. Calling this finish
 
 ## The honest status
 
-G0, G1, G2, G3 and the first bounded G4 vertical slice run on JVM and native Linux x86-64:
+G0, G1, G2, G3 and the bounded G4 implementation run on JVM and native Linux x86-64:
 
 - authoritative 60 Hz loopback server/client sessions, two-client admission,
   snapshots and observable prediction/reconciliation;
@@ -38,6 +38,26 @@ G0, G1, G2, G3 and the first bounded G4 vertical slice run on JVM and native Lin
   a 13-word compatibility identity; stale edits retain the active generation,
   while a generation-bound runtime executes the compiled elite-bounty hook
   after a confirmed kill and applies its bounded currency command exactly once;
+- trusted hooks subscribe to typed session-started, player-connected,
+  enemy-defeated, loot-picked-up and editor-published events; only registered
+  static implementation/version pairs execute under phase and output budgets;
+- the file cooker admits a bounded indexed GLB subset, Dust3D `.ds3` plus its
+  exported textured GLB, 32-bit RGBA `.ase`/`.aseprite`, `.vox` models and
+  scene chunks, and integer-grid convex Quake-style `.map` brushes; it emits
+  canonical geometry/collision, PNG atlas/metadata and package-ready checksums;
+- `.kpkg` files validate headers, logical paths, chunk ranges/hashes and
+  registry payloads before an external generation replaces the active one;
+  malformed reloads leave the prior package and registries active;
+- the Creator screen exposes bounded world/entity/weapon/loot edits, collision
+  and AI inspection, play-in-editor, and revision-checked undo/redo. Publication
+  swaps geometry/collision/navigation/render products atomically;
+- staged native scene reload keeps the active scene intact while building a
+  candidate, waits for synchronous upload-fence completion before reusing the
+  persistent GPU buffer, and activates at a frame boundary; Kof generation
+  references gate retirement;
+- an 18-word compatibility offer and 7-word response transport the exact
+  13-word content identity before snapshots or gameplay commands. Mismatch and
+  corrupt frames fail closed with a diagnostic response;
 - a small SDL3/SDL_GPU adapter; JVM and native three-process transport
   regressions carry the complete 26-triangle arena, unified checksummed
   movement/fire/interaction/lifecycle commands, recipient-specific gameplay
@@ -56,16 +76,21 @@ G0, G1, G2, G3 and the first bounded G4 vertical slice run on JVM and native Lin
 
 The important gaps are still real:
 
-- G3 process qualification remains same-host, G4 content-identity admission is
-  currently in-process, and separate-host execution remains unproven;
-- G4 remains open for the broader trusted-hook/domain-event surface, the
-  complete supported mesh/brush/source cooker intake, external package loading,
-  inspector/editors and GPU-safe staged reload;
+- G3 process qualification remains same-host. The G4 compatibility handshake
+  passed with a host and two clients in three isolated Linux network namespaces
+  with distinct IPv4 stacks; no fresh three-physical-machine G4 evidence bundle
+  is retained;
+- authoring support is intentionally bounded rather than general format
+  compatibility: one indexed GLB primitive and canonical products are capped
+  at 256 vertices/triangles, VOX intake at 20 voxels, and the documented
+  Aseprite, Dust3D and brush subsets reject unsupported constructs;
+- live reload covers validated scene/render products, not arbitrary Kof code,
+  shaders, editor plugins or unbounded resource streaming;
 - Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
   wired into Kof-owned hot loops;
 - crash-durable saves, full physics, streamed/compressed audio and HRTF/EFX,
-  sustained G5 soak/performance proof and the complete creator pipeline are
-  unfinished.
+  sustained G5 soak/performance proof, richer G6 authoring and sandboxed
+  runtime extensions remain unfinished.
 - the native Windows shell is interactive and persistent, but Kof cannot yet
   emit Windows PE gameplay code; its Play screen is not proof of authoritative
   Kof execution on Windows;
@@ -97,6 +122,20 @@ The builder emits a target-bound `.tar.gz`, `SHA256SUMS` and provenance JSON.
 Distributable JVM packages are intentionally unsupported because a Java
 runtime would violate KOOKIE's permissive-only distributed dependency policy.
 The JVM target remains available for local differential verification.
+
+Cook authoring files and build or inspect one-chunk external packages with the
+JVM-only developer CLI:
+
+```bash
+scripts/kookie_cooker.sh cook map level.map level.kmesh
+scripts/kookie_cooker.sh cook dust3d model.ds3 model.glb model.kmesh
+scripts/kookie_cooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
+scripts/kookie_cooker.sh inspect-package level.kpkg
+scripts/kookie_cooker.sh validate-package creator.kpkg
+```
+
+The cooker rejects oversized, malformed or unsupported input without writing a
+successful result. Source formats are not runtime package formats.
 
 Build the persistent Linux SDL_GPU presentation package used for isolated
 visual qualification and ZEER dogfood deployment:
@@ -204,20 +243,23 @@ graphics boundary and SDL_mixer owns effects/music buses.
 G3 is closed at its current acceptance gate: the authoritative multiplayer
 kill→rolled-drop→pickup/equip→stat/skill-change→boss-reward→save/reload path
 runs on JVM and native; state kinds `7`/`8` traverse authenticated same-host
-host-plus-two-client processes; and bounded manifest/capability/contribution
-registries instantiate complete sealed elite/boss definitions. This does not
-claim separate-host qualification or the complete G4 cooker, broader
-trusted-module surface, editor transactions and staged content publication. G2
-remains covered by the
-source suite, focused interaction probe, process qualification and isolated
-SDL_GPU/audio probe.
+processes; and bounded manifest/capability/contribution registries instantiate
+complete sealed elite/boss definitions. The bounded G4 gate now includes typed
+hook events, the documented source subsets and file CLI, fail-closed external
+package loading, transactional Creator tools, fence-gated frame-boundary reload,
+and compatibility offer/response transport. The handshake passed across three
+isolated Linux network namespaces with distinct IPv4 stacks. This does not
+claim general source-format compatibility, arbitrary live-code reload, a
+production-grade editor or fresh qualification on three physical machines.
+G2 remains covered by the source suite, focused interaction probe, process
+qualification and isolated SDL_GPU/audio probe.
 
 Deferred until the core gates are stronger:
 
-- full physics and content cooking;
+- full physics and broader source-format/cooker profiles;
 - production save schema and dedicated/WAN transport hardening;
 - streamed audio/HRTF, image and text services;
-- package compression and foreign physics/UI libraries.
+- package compression, richer authoring and foreign physics/UI libraries.
 
 ## Documentation
 

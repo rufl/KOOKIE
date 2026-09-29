@@ -1,0 +1,122 @@
+package content
+
+Int sourceFileDiagnosticNone() { return 0 }
+Int sourceFileDiagnosticInput() { return 1 }
+Int sourceFileDiagnosticKind() { return 2 }
+Int sourceFileDiagnosticSource() { return 3 }
+Int sourceFileDiagnosticOutput() { return 4 }
+
+class BoundedSourceFileCooker {
+    Int inputCapacityValue
+    BoundedSourceCooker cookerValue
+    SourceCookResult resultValue
+    Int diagnosticValue
+    Int outputLengthValue
+
+    public constructor(Int inputCapacity) {
+        inputCapacityValue = inputCapacity
+        if (inputCapacityValue <= 0) { inputCapacityValue = 1 }
+        if (inputCapacityValue > 16777216) { inputCapacityValue = 16777216 }
+        cookerValue = BoundedSourceCooker()
+        resultValue = SourceCookResult(false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        diagnosticValue = sourceFileDiagnosticNone()
+        outputLengthValue = 0
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        outputLengthValue = 0
+        return false
+    }
+
+    Int[] readBounded(String path) {
+        var source = File(path).readRange(0, inputCapacityValue + 1)
+        if (source.length <= 0 || source.length > inputCapacityValue) {
+            return new Int[0]
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) {
+                return new Int[0]
+            }
+        }
+        return source
+    }
+
+    Int[] encodedGeometry(BoundedCanonicalGlb geometry) {
+        if (!geometry.validate() || !geometry.encode() || geometry.encodedLength() <= 0) {
+            return new Int[0]
+        }
+        var output = new Int[geometry.encodedLength() * 4]
+        for (var index = 0; index < geometry.encodedLength(); index = index + 1) {
+            var value = geometry.encodedWord(index)
+            output[index * 4] = value & 255
+            output[index * 4 + 1] = (value >>> 8) & 255
+            output[index * 4 + 2] = (value >>> 16) & 255
+            output[index * 4 + 3] = (value >>> 24) & 255
+        }
+        return output
+    }
+
+    Bool cook(
+        String kind, String inputPath, String pairedInputPath, String outputPath,
+        Int namespaceId, Int assetId, Int revision,
+        Int toolVersion, Int optionsChecksum, Int coordinateScale
+    ) {
+        diagnosticValue = sourceFileDiagnosticNone()
+        outputLengthValue = 0
+        var source = readBounded(inputPath)
+        if (source.length <= 0) { return reject(sourceFileDiagnosticInput()) }
+        var output = new Int[0]
+        if (kind == "glb") {
+            if (!cookerValue.cookGlb(
+                    source, namespaceId, assetId, revision,
+                    toolVersion, optionsChecksum, coordinateScale)) {
+                resultValue = cookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = cookerValue.glb().canonicalBytes()
+        } else if (kind == "dust3d") {
+            var paired = readBounded(pairedInputPath)
+            if (paired.length <= 0) { return reject(sourceFileDiagnosticInput()) }
+            if (!cookerValue.cookDust3d(
+                    source, paired, namespaceId, assetId, revision,
+                    toolVersion, optionsChecksum, coordinateScale)) {
+                resultValue = cookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = cookerValue.dust3d().reader().canonicalBytes()
+        } else if (kind == "aseprite") {
+            if (!cookerValue.cookAseprite(source)) {
+                resultValue = cookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = cookerValue.sprite().pngBytes()
+        } else if (kind == "vox") {
+            if (!cookerValue.cookVox(
+                    source, namespaceId, assetId, revision, coordinateScale)) {
+                resultValue = cookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = encodedGeometry(cookerValue.vox().geometry())
+        } else if (kind == "map") {
+            if (!cookerValue.cookQuakeMap(
+                    source, namespaceId, assetId, revision, coordinateScale)) {
+                resultValue = cookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = encodedGeometry(cookerValue.quakeMap().geometry())
+        } else {
+            return reject(sourceFileDiagnosticKind())
+        }
+        resultValue = cookerValue.result()
+        if (output.length <= 0 || !File(outputPath).writeBytes(output)) {
+            return reject(sourceFileDiagnosticOutput())
+        }
+        outputLengthValue = output.length
+        return true
+    }
+
+    SourceCookResult result() { return resultValue }
+    Int diagnostic() { return diagnosticValue }
+    Int outputLength() { return outputLengthValue }
+}

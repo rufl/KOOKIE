@@ -1,6 +1,7 @@
 package session
 
 import core
+import content
 
 class LoopbackSession {
     FixedStepClock clock
@@ -5476,6 +5477,28 @@ class LoopbackSession {
         }
         remoteConfigured = remoteEndpoint.valid()
         return remoteConfigured
+    }
+
+    Bool requireRemoteCompatibility(BoundedContentCompatibility local) {
+        return started && remoteConfigured &&
+            remoteLink.requireCompatibility(local)
+    }
+
+    Int[] remoteCompatibilityOffer(Int sequence) {
+        return remoteLink.compatibilityOffer(sequence)
+    }
+
+    Bool acceptRemoteCompatibilityResponse(
+        Int[] response, Int expectedSequence
+    ) {
+        return remoteLink.acceptCompatibilityResponse(
+            response, expectedSequence)
+    }
+
+    Bool remoteSessionReady() { return remoteLink.ready() }
+    Bool remoteCompatible() { return remoteLink.compatible() }
+    Int remoteCompatibilityDiagnostic() {
+        return remoteLink.compatibilityDiagnostic()
     }
 
     Bool openRemoteSession() {

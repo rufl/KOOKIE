@@ -1,0 +1,593 @@
+package content
+
+Int spriteDiagnosticNone() { return 0 }
+Int spriteDiagnosticHeader() { return 1 }
+Int spriteDiagnosticFrame() { return 2 }
+Int spriteDiagnosticChunk() { return 3 }
+Int spriteDiagnosticLayer() { return 4 }
+Int spriteDiagnosticCel() { return 5 }
+Int spriteDiagnosticMetadata() { return 6 }
+Int spriteDiagnosticCapacity() { return 7 }
+
+class BoundedAsepriteIntake {
+    Int[] atlasRgba
+    Int[] layerOpacities
+    Bool[] layerVisible
+    Int[] frameDurations
+    Int[] pngWire
+    BoundedZlibInflater inflater
+    Int pixelCapacity
+    Int headerFlagsValue
+    Int pngCountValue
+    Int widthValue
+    Int heightValue
+    Int frameCountValue
+    Int layerCountValue
+    Int tagCountValue
+    Int sliceCountValue
+    Int paletteEntryCountValue
+    Int sourceChecksumValue
+    Int metadataChecksumValue
+    Int diagnosticValue
+    Bool acceptedValue
+
+    public constructor(Int maxAtlasPixels) {
+        pixelCapacity = maxAtlasPixels
+        if (pixelCapacity <= 0) { pixelCapacity = 1 }
+        if (pixelCapacity > 262144) { pixelCapacity = 262144 }
+        atlasRgba = new Int[pixelCapacity * 4]
+        layerOpacities = new Int[64]
+        layerVisible = new Bool[64]
+        frameDurations = new Int[64]
+        pngWire = new Int[pixelCapacity * 4 + 65536]
+        inflater = BoundedZlibInflater(pixelCapacity * 4)
+        clear()
+    }
+
+    Bool clear() {
+        widthValue = 0
+        heightValue = 0
+        frameCountValue = 0
+        headerFlagsValue = 0
+        layerCountValue = 0
+        tagCountValue = 0
+        sliceCountValue = 0
+        paletteEntryCountValue = 0
+        sourceChecksumValue = 0
+        metadataChecksumValue = 0
+        diagnosticValue = spriteDiagnosticNone()
+        pngCountValue = 0
+        acceptedValue = false
+        for (var index = 0; index < atlasRgba.length; index = index + 1) {
+            atlasRgba[index] = 0
+        }
+        for (var index = 0; index < layerOpacities.length; index = index + 1) {
+            layerOpacities[index] = 255
+            layerVisible[index] = true
+        }
+        return true
+    }
+
+    Int u16(Int[] source, Int offset) {
+        if (offset < 0 || offset + 2 > source.length) { return -1 }
+        return source[offset] + source[offset + 1] * 256
+    }
+
+    Int i16(Int[] source, Int offset) {
+        var value = u16(source, offset)
+        if (value < 0) { return -1000000 }
+        if (value >= 32768) { return value - 65536 }
+        return value
+    }
+
+    Int u32(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length || source[offset + 3] >= 128) {
+            return -1
+        }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + source[offset + 3] * 16777216
+    }
+
+    Int i32(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length) { return 2000000000 }
+        var high = source[offset + 3]
+        if (high >= 128) {
+            return -2147483647 - 1 + (high - 128) * 16777216 +
+                source[offset + 2] * 65536 + source[offset + 1] * 256 +
+                source[offset]
+        }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + high * 16777216
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = mix(result, source[index])
+        }
+        return result
+    }
+
+    Bool validString(Int[] source, Int offset, Int limit) {
+        if (offset + 2 > limit) { return false }
+        var length = u16(source, offset)
+        if (length < 0 || length > 256 || offset + 2 + length > limit) {
+            return false
+        }
+        for (var index = 0; index < length; index = index + 1) {
+            var value = source[offset + 2 + index]
+            if (value == 0) { return false }
+        }
+        return true
+    }
+
+    Bool parseLayer(Int[] source, Int start, Int limit) {
+        if (limit - start < 18 || layerCountValue >= layerOpacities.length) {
+            return false
+        }
+        var flags = u16(source, start)
+        var layerType = u16(source, start + 2)
+        var childLevel = u16(source, start + 4)
+        var blendMode = u16(source, start + 10)
+        var opacity = source[start + 12]
+        var layerEnd = start + 18 + u16(source, start + 16)
+        if ((headerFlagsValue & 4) != 0) { layerEnd = layerEnd + 16 }
+        if (layerType != 0 || childLevel > 31 || blendMode != 0 ||
+            !validString(source, start + 16, limit) || layerEnd != limit) {
+            return false
+        }
+        layerVisible[layerCountValue] = (flags & 1) != 0
+        layerOpacities[layerCountValue] = opacity
+        layerCountValue = layerCountValue + 1
+        metadataChecksumValue = mix(metadataChecksumValue, flags)
+        metadataChecksumValue = mix(metadataChecksumValue, opacity)
+        return true
+    }
+
+    Bool compositePixel(
+        Int target, Int red, Int green, Int blue, Int alpha,
+        Int layerOpacity, Int celOpacity
+    ) {
+        var sourceAlpha = (alpha * layerOpacity * celOpacity) / 65025
+        if (sourceAlpha <= 0) { return true }
+        var destinationAlpha = atlasRgba[target + 3]
+        var remaining = 255 - sourceAlpha
+        var outputAlpha = sourceAlpha + (destinationAlpha * remaining) / 255
+        if (outputAlpha <= 0) { return true }
+        atlasRgba[target] =
+            (red * sourceAlpha +
+                (atlasRgba[target] * destinationAlpha * remaining) / 255) /
+            outputAlpha
+        atlasRgba[target + 1] =
+            (green * sourceAlpha +
+                (atlasRgba[target + 1] * destinationAlpha * remaining) / 255) /
+            outputAlpha
+        atlasRgba[target + 2] =
+            (blue * sourceAlpha +
+                (atlasRgba[target + 2] * destinationAlpha * remaining) / 255) /
+            outputAlpha
+        atlasRgba[target + 3] = outputAlpha
+        return true
+    }
+
+    Bool parseCel(Int[] source, Int start, Int limit, Int frame) {
+        if (limit - start < 20) { return false }
+        var layer = u16(source, start)
+        var celX = i16(source, start + 2)
+        var celY = i16(source, start + 4)
+        var celOpacity = source[start + 6]
+        var celType = u16(source, start + 7)
+        if (layer < 0 || layer >= layerCountValue ||
+            (celType != 0 && celType != 2)) { return false }
+        var celWidth = u16(source, start + 16)
+        var celHeight = u16(source, start + 18)
+        var pixelLength = celWidth * celHeight * 4
+        if (celWidth <= 0 || celHeight <= 0 || celWidth > 256 || celHeight > 256 ||
+            pixelLength > pixelCapacity * 4) { return false }
+        if (celType == 0 && start + 20 + pixelLength != limit) { return false }
+        if (celType == 2 && (start + 26 > limit ||
+            !inflater.inflate(source, start + 20, limit - start - 20, pixelLength))) {
+            return false
+        }
+        if (!layerVisible[layer]) { return true }
+        var atlasWidth = widthValue * frameCountValue
+        for (var y = 0; y < celHeight; y = y + 1) {
+            for (var x = 0; x < celWidth; x = x + 1) {
+                var targetX = celX + x
+                var targetY = celY + y
+                if (targetX >= 0 && targetX < widthValue &&
+                    targetY >= 0 && targetY < heightValue) {
+                    var pixel = (y * celWidth + x) * 4
+                    var red = 0
+                    var green = 0
+                    var blue = 0
+                    var alpha = 0
+                    if (celType == 2) {
+                        red = inflater.outputByte(pixel)
+                        green = inflater.outputByte(pixel + 1)
+                        blue = inflater.outputByte(pixel + 2)
+                        alpha = inflater.outputByte(pixel + 3)
+                    } else {
+                        red = source[start + 20 + pixel]
+                        green = source[start + 21 + pixel]
+                        blue = source[start + 22 + pixel]
+                        alpha = source[start + 23 + pixel]
+                    }
+                    var atlasX = frame * widthValue + targetX
+                    var targetOffset = (targetY * atlasWidth + atlasX) * 4
+                    compositePixel(
+                        targetOffset, red, green, blue, alpha,
+                        layerOpacities[layer], celOpacity)
+                }
+            }
+        }
+        return true
+    }
+
+    Bool parseTags(Int[] source, Int start, Int limit) {
+        if (limit - start < 10) { return false }
+        var count = u16(source, start)
+        if (count <= 0 || count > 64) { return false }
+        var cursor = start + 10
+        for (var index = 0; index < count; index = index + 1) {
+            if (cursor + 19 > limit) { return false }
+            var from = u16(source, cursor)
+            var to = u16(source, cursor + 2)
+            var direction = source[cursor + 4]
+            var repeat = u16(source, cursor + 5)
+            if (from < 0 || to < from || to >= frameCountValue ||
+                direction > 2 || repeat > 65535 ||
+                !validString(source, cursor + 17, limit)) { return false }
+            var nameLength = u16(source, cursor + 17)
+            metadataChecksumValue = mix(metadataChecksumValue, from)
+            metadataChecksumValue = mix(metadataChecksumValue, to)
+            metadataChecksumValue = mix(metadataChecksumValue, direction)
+            metadataChecksumValue = mix(metadataChecksumValue, repeat)
+            cursor = cursor + 19 + nameLength
+        }
+        if (cursor != limit) { return false }
+        tagCountValue = tagCountValue + count
+        return tagCountValue <= 64
+    }
+
+    Bool parsePalette(Int[] source, Int start, Int limit) {
+        if (limit - start < 20) { return false }
+        var size = u32(source, start)
+        var first = u32(source, start + 4)
+        var last = u32(source, start + 8)
+        if (size <= 0 || size > 256 || first < 0 || last < first ||
+            last >= size || last - first + 1 > 256) { return false }
+        var cursor = start + 20
+        for (var entry = first; entry <= last; entry = entry + 1) {
+            if (cursor + 6 > limit) { return false }
+            var flags = u16(source, cursor)
+            metadataChecksumValue = mix(metadataChecksumValue, entry)
+            metadataChecksumValue = mix(metadataChecksumValue, source[cursor + 2])
+            metadataChecksumValue = mix(metadataChecksumValue, source[cursor + 3])
+            metadataChecksumValue = mix(metadataChecksumValue, source[cursor + 4])
+            metadataChecksumValue = mix(metadataChecksumValue, source[cursor + 5])
+            cursor = cursor + 6
+            if ((flags & 1) != 0) {
+                if (!validString(source, cursor, limit)) { return false }
+                cursor = cursor + 2 + u16(source, cursor)
+            }
+        }
+        if (cursor != limit) { return false }
+        paletteEntryCountValue = last - first + 1
+        return true
+    }
+
+    Bool parseSlices(Int[] source, Int start, Int limit) {
+        if (limit - start < 14 || !validString(source, start + 12, limit)) {
+            return false
+        }
+        var count = u32(source, start)
+        var flags = u32(source, start + 4)
+        if (count <= 0 || count > 64 || (flags & -4) != 0) { return false }
+        var cursor = start + 14 + u16(source, start + 12)
+        for (var index = 0; index < count; index = index + 1) {
+            if (cursor + 20 > limit) { return false }
+            var frame = u32(source, cursor)
+            var x = i32(source, cursor + 4)
+            var y = i32(source, cursor + 8)
+            var width = u32(source, cursor + 12)
+            var height = u32(source, cursor + 16)
+            if (frame < 0 || frame >= frameCountValue ||
+                width < 0 || width > 1000000 ||
+                height < 0 || height > 1000000 ||
+                x < -1000000 || x > 1000000 ||
+                y < -1000000 || y > 1000000) {
+                return false
+            }
+            cursor = cursor + 20
+            if ((flags & 1) != 0) {
+                if (cursor + 16 > limit) { return false }
+                cursor = cursor + 16
+            }
+            if ((flags & 2) != 0) {
+                if (cursor + 8 > limit) { return false }
+                cursor = cursor + 8
+            }
+            metadataChecksumValue = mix(metadataChecksumValue, frame)
+            metadataChecksumValue = mix(metadataChecksumValue, width)
+            metadataChecksumValue = mix(metadataChecksumValue, height)
+        }
+        if (cursor != limit) { return false }
+        sliceCountValue = sliceCountValue + count
+        return sliceCountValue <= 64
+    }
+
+    Bool parseUserData(Int[] source, Int start, Int limit) {
+        if (start + 4 > limit) { return false }
+        var flags = u32(source, start)
+        if ((flags & -4) != 0) { return false }
+        var cursor = start + 4
+        if ((flags & 1) != 0) {
+            if (!validString(source, cursor, limit)) { return false }
+            cursor = cursor + 2 + u16(source, cursor)
+        }
+        if ((flags & 2) != 0) {
+            if (cursor + 4 > limit) { return false }
+            cursor = cursor + 4
+        }
+        return cursor == limit
+    }
+
+    Bool parseColorProfile(Int[] source, Int start, Int limit) {
+        if (limit - start < 16) { return false }
+        var profileType = u16(source, start)
+        var flags = u16(source, start + 2)
+        if (profileType < 0 || profileType > 2 || (flags & -2) != 0) { return false }
+        if (profileType == 2) {
+            if (start + 20 > limit) { return false }
+            var profileLength = u32(source, start + 16)
+            return profileLength >= 0 && profileLength <= 65536 &&
+                start + 20 + profileLength == limit
+        }
+        return start + 16 == limit
+    }
+
+    Bool append(Int value) {
+        if (pngCountValue >= pngWire.length || value < 0 || value > 255) {
+            return false
+        }
+        pngWire[pngCountValue] = value
+        pngCountValue = pngCountValue + 1
+        return true
+    }
+
+    Bool appendBigEndian(Int value) {
+        return append((value >>> 24) & 255) && append((value >>> 16) & 255) &&
+            append((value >>> 8) & 255) && append(value & 255)
+    }
+
+    Int crc32(Int start, Int limit) {
+        var crc = -1
+        for (var index = start; index < limit; index = index + 1) {
+            crc = crc ^ pngWire[index]
+            for (var bit = 0; bit < 8; bit = bit + 1) {
+                if ((crc & 1) != 0) {
+                    crc = (crc >>> 1) ^ -306674912
+                } else {
+                    crc = crc >>> 1
+                }
+            }
+        }
+        return crc ^ -1
+    }
+
+    Bool finishChunk(Int typeStart) {
+        return appendBigEndian(crc32(typeStart, pngCountValue))
+    }
+
+    Int rawByte(Int rawIndex, Int atlasWidth) {
+        var stride = atlasWidth * 4 + 1
+        var column = rawIndex % stride
+        if (column == 0) { return 0 }
+        var row = rawIndex / stride
+        return atlasRgba[(row * atlasWidth * 4) + column - 1]
+    }
+
+    Bool encodePng() {
+        pngCountValue = 0
+        var atlasWidth = widthValue * frameCountValue
+        var rawLength = heightValue * (atlasWidth * 4 + 1)
+        var blockCount = (rawLength + 65534) / 65535
+        var idatLength = 2 + rawLength + blockCount * 5 + 4
+        if (atlasWidth <= 0 || rawLength <= 0 ||
+            idatLength + 70 > pngWire.length) { return false }
+        if (!append(137) || !append(80) || !append(78) || !append(71) ||
+            !append(13) || !append(10) || !append(26) || !append(10) ||
+            !appendBigEndian(13)) { return false }
+        var typeStart = pngCountValue
+        if (!append(73) || !append(72) || !append(68) || !append(82) ||
+            !appendBigEndian(atlasWidth) || !appendBigEndian(heightValue) ||
+            !append(8) || !append(6) || !append(0) || !append(0) || !append(0) ||
+            !finishChunk(typeStart) || !appendBigEndian(idatLength)) { return false }
+        typeStart = pngCountValue
+        if (!append(73) || !append(68) || !append(65) || !append(84) ||
+            !append(120) || !append(1)) { return false }
+        var adlerA = 1
+        var adlerB = 0
+        var rawCursor = 0
+        while (rawCursor < rawLength) {
+            var blockLength = rawLength - rawCursor
+            if (blockLength > 65535) { blockLength = 65535 }
+            var finalBlock = 0
+            if (rawCursor + blockLength == rawLength) { finalBlock = 1 }
+            if (!append(finalBlock) || !append(blockLength & 255) ||
+                !append((blockLength >>> 8) & 255) ||
+                !append((65535 - blockLength) & 255) ||
+                !append(((65535 - blockLength) >>> 8) & 255)) { return false }
+            for (var index = 0; index < blockLength; index = index + 1) {
+                var value = rawByte(rawCursor, atlasWidth)
+                if (!append(value)) { return false }
+                adlerA = (adlerA + value) % 65521
+                adlerB = (adlerB + adlerA) % 65521
+                rawCursor = rawCursor + 1
+            }
+        }
+        var adler = (adlerB << 16) | adlerA
+        if (!appendBigEndian(adler) || !finishChunk(typeStart) ||
+            !appendBigEndian(0)) { return false }
+        typeStart = pngCountValue
+        return append(73) && append(69) && append(78) && append(68) &&
+            finishChunk(typeStart)
+    }
+
+    Bool read(Int[] source) {
+        clear()
+        if (source.length < 144 || source.length > 8388608) {
+            diagnosticValue = spriteDiagnosticHeader()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) {
+                diagnosticValue = spriteDiagnosticHeader()
+                return false
+            }
+        }
+        var declaredSize = u32(source, 0)
+        frameCountValue = u16(source, 6)
+        widthValue = u16(source, 8)
+        heightValue = u16(source, 10)
+        var depth = u16(source, 12)
+        headerFlagsValue = u32(source, 14)
+        if (declaredSize != source.length || u16(source, 4) != 42464 ||
+            frameCountValue <= 0 || frameCountValue > frameDurations.length ||
+            widthValue <= 0 || widthValue > 256 ||
+            heightValue <= 0 || heightValue > 256 || depth != 32 ||
+            headerFlagsValue < 0 || (headerFlagsValue & -8) != 0 ||
+            widthValue * heightValue * frameCountValue > pixelCapacity ||
+            source[34] == 0 || source[35] == 0) {
+            diagnosticValue = spriteDiagnosticHeader()
+            return false
+        }
+        metadataChecksumValue = 17
+        var cursor = 128
+        var celCount = 0
+        for (var frame = 0; frame < frameCountValue; frame = frame + 1) {
+            if (cursor + 16 > source.length) {
+                diagnosticValue = spriteDiagnosticFrame()
+                return false
+            }
+            var frameLength = u32(source, cursor)
+            var oldChunkCount = u16(source, cursor + 6)
+            var duration = u16(source, cursor + 8)
+            var newChunkCount = u32(source, cursor + 12)
+            var chunkCount = oldChunkCount
+            if (newChunkCount > 0) { chunkCount = newChunkCount }
+            var frameLimit = cursor + frameLength
+            if (frameLength < 16 || frameLimit > source.length ||
+                u16(source, cursor + 4) != 61946 || chunkCount < 0 ||
+                chunkCount > 4096 || duration <= 0) {
+                diagnosticValue = spriteDiagnosticFrame()
+                return false
+            }
+            frameDurations[frame] = duration
+            metadataChecksumValue = mix(metadataChecksumValue, duration)
+            var chunkCursor = cursor + 16
+            for (var chunk = 0; chunk < chunkCount; chunk = chunk + 1) {
+                if (chunkCursor + 6 > frameLimit) {
+                    diagnosticValue = spriteDiagnosticChunk()
+                    return false
+                }
+                var chunkLength = u32(source, chunkCursor)
+                var chunkType = u16(source, chunkCursor + 4)
+                var chunkStart = chunkCursor + 6
+                var chunkLimit = chunkCursor + chunkLength
+                if (chunkLength < 6 || chunkLimit > frameLimit) {
+                    diagnosticValue = spriteDiagnosticChunk()
+                    return false
+                }
+                if (chunkType == 8196) {
+                    if (!parseLayer(source, chunkStart, chunkLimit)) {
+                        diagnosticValue = spriteDiagnosticLayer()
+                        return false
+                    }
+                } else if (chunkType == 8197) {
+                    if (!parseCel(source, chunkStart, chunkLimit, frame)) {
+                        diagnosticValue = spriteDiagnosticCel()
+                        return false
+                    }
+                    celCount = celCount + 1
+                } else if (chunkType == 8199) {
+                    if (!parseColorProfile(source, chunkStart, chunkLimit)) {
+                        diagnosticValue = spriteDiagnosticMetadata()
+                        return false
+                    }
+                } else if (chunkType == 8216) {
+                    if (!parseTags(source, chunkStart, chunkLimit)) {
+                        diagnosticValue = spriteDiagnosticMetadata()
+                        return false
+                    }
+                } else if (chunkType == 8217) {
+                    if (!parsePalette(source, chunkStart, chunkLimit)) {
+                        diagnosticValue = spriteDiagnosticMetadata()
+                        return false
+                    }
+                } else if (chunkType == 8224) {
+                    if (!parseUserData(source, chunkStart, chunkLimit)) {
+                        diagnosticValue = spriteDiagnosticMetadata()
+                        return false
+                    }
+                } else if (chunkType == 8226) {
+                    if (!parseSlices(source, chunkStart, chunkLimit)) {
+                        diagnosticValue = spriteDiagnosticMetadata()
+                        return false
+                    }
+                } else {
+                    diagnosticValue = spriteDiagnosticChunk()
+                    return false
+                }
+                chunkCursor = chunkLimit
+            }
+            if (chunkCursor != frameLimit) {
+                diagnosticValue = spriteDiagnosticFrame()
+                return false
+            }
+            cursor = frameLimit
+        }
+        if (cursor != source.length || layerCountValue <= 0 || celCount <= 0 ||
+            !encodePng()) {
+            diagnosticValue = spriteDiagnosticCapacity()
+            return false
+        }
+        sourceChecksumValue = checksum(source)
+        acceptedValue = sourceChecksumValue > 0 && metadataChecksumValue > 0 &&
+            pngCountValue > 0
+        return acceptedValue
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int width() { return widthValue }
+    Int height() { return heightValue }
+    Int atlasWidth() { return widthValue * frameCountValue }
+    Int atlasHeight() { return heightValue }
+    Int frameCount() { return frameCountValue }
+    Int layerCount() { return layerCountValue }
+    Int tagCount() { return tagCountValue }
+    Int sliceCount() { return sliceCountValue }
+    Int paletteEntryCount() { return paletteEntryCountValue }
+    Int frameDuration(Int index) {
+        if (index < 0 || index >= frameCountValue) { return 0 }
+        return frameDurations[index]
+    }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int metadataChecksum() { return metadataChecksumValue }
+    Int pngLength() { return pngCountValue }
+    Int[] pngBytes() {
+        var result = new Int[pngCountValue]
+        for (var index = 0; index < pngCountValue; index = index + 1) {
+            result[index] = pngWire[index]
+        }
+        return result
+    }
+}

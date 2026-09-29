@@ -49,6 +49,8 @@ class G4CreatorDemo {
                 extensions, 8, 1, 3001,
                 trustedHookPostSimulationPhase()) ||
             !hooks.setBudget(8, 1, 3001, 8, 4) ||
+            !hooks.subscribeEvent(
+                8, 1, 3001, trustedDomainEventEnemyDefeated()) ||
             !hooks.bindImplementation(
                 8, 1, 3001, trustedHookImplementationEliteBounty(), 1) ||
             !extensions.seal() || !hooks.seal(extensions)) {
@@ -172,10 +174,11 @@ class G4CreatorDemo {
             return failAt(14)
         }
         if (!hookRuntime.beginTick(1) ||
-            !hookRuntime.executePhase(
-                extensions, hooks, trustedHookPostSimulationPhase(),
-                1, 100, enemyDefinitionEliteKind(),
-                trustedHookOutcomeEnemyDefeated()) ||
+            !hookRuntime.dispatchEvent(
+                extensions, hooks,
+                TrustedDomainEvent(
+                    1, trustedDomainEventEnemyDefeated(),
+                    1, 100, enemyDefinitionEliteKind(), 0)) ||
             !multiplayer.applyTrustedHookCommands(hookRuntime) ||
             !hookRuntime.finishTick() ||
             hookRuntime.eventCount() != 1 ||

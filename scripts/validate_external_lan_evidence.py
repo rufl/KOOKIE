@@ -114,6 +114,7 @@ def main() -> int:
         "external-authenticated-two-clients",
         "external-stale-rejection",
         "external-authentication-status",
+        "external-compatibility-handshake",
         "external-transport-sequence-a",
         "external-transport-sequence-b",
         "external-player-authority-kind",
@@ -154,6 +155,8 @@ def main() -> int:
     interaction_revision = marker_value(lines, "external-interaction-revision")
     authentication_status = marker_value(
         lines, "external-authentication-status")
+    compatibility_checksum = marker_value(
+        lines, "external-compatibility-handshake")
     transport_sequence_a = marker_value(
         lines, "external-transport-sequence-a")
     transport_sequence_b = marker_value(
@@ -198,6 +201,8 @@ def main() -> int:
         return fail("key-door-secret-exit revision was not 4")
     if authentication_status != 1:
         return fail("authenticated transport status was not passed")
+    if compatibility_checksum is None or compatibility_checksum <= 0:
+        return fail("content compatibility handshake was not accepted")
     if transport_sequence_a is None or transport_sequence_a <= 0:
         return fail("missing positive transport sequence for client A")
     if transport_sequence_b is None or transport_sequence_b <= 0:
@@ -362,6 +367,10 @@ def main() -> int:
         "machine": platform.machine(),
         "authenticatedClientCount": 2,
         "authenticationStatus": "passed",
+        "compatibilityHandshake": {
+            "status": "accepted",
+            "identityChecksum": compatibility_checksum,
+        },
         "hostListenerPorts": [host_port_a, host_port_b],
         "transportSequences": {
             "clientA": transport_sequence_a,

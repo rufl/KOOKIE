@@ -64,7 +64,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$root_dir/build" "$source_dir/core" "$source_dir/session" "$source_dir/world"
+mkdir -p "$root_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
+for content_file in "$root_dir"/src/content/*.kf; do
+  ln -s "$content_file" "$source_dir/content/$(basename "$content_file")"
+done
 for core_file in "$root_dir"/src/core/*.kf; do
   ln -s "$core_file" "$source_dir/core/$(basename "$core_file")"
 done
@@ -75,9 +78,9 @@ for world_file in "$root_dir"/src/world/*.kf; do
   ln -s "$world_file" "$source_dir/world/$(basename "$world_file")"
 done
 {
-  sed -n '1,3p' "$root_dir/probes/g0_external_transport/main.kf"
+  sed -n '1,4p' "$root_dir/probes/g0_external_transport/main.kf"
   cat "$root_dir/probes/g0_external_transport_backends/transport_${target}.kf"
-  sed -n '4,$p' "$root_dir/probes/g0_external_transport/main.kf"
+  sed -n '5,$p' "$root_dir/probes/g0_external_transport/main.kf"
 } > "$source_dir/main.kf"
 if [[ "$target" == native ]]; then
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \

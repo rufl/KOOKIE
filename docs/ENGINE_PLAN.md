@@ -1,6 +1,6 @@
 # KOOKIE engine plan
 
-Status: **living architecture and acceptance gates; G0/G1/G2/G3 are implemented, and G4 has its first transactional vertical slice**.
+Status: **living architecture and acceptance gates; the bounded G0–G4 implementation is complete, with explicit qualification limits below**.
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Project architecture is
 [ARCHITECTURE.md](ARCHITECTURE.md). See [language/runtime evidence](KOF_LANGUAGE.md),
@@ -533,8 +533,9 @@ semantics.
 
 ### External asset intake compatibility
 
-The Kof cooker preserves the original source and tool/version receipt, then
-normalizes the result into the canonical package contract:
+The bounded cookers checksum each admitted source and normalize accepted data
+into the canonical product/package contract. Retaining the original file and a
+full tool/version receipt remains required package-provenance hardening:
 
 | Source | Required intake result |
 |---|---|
@@ -559,28 +560,51 @@ For boomer-shooter authoring add a Quake-style textual brush `.map` subset: conv
 
 Cooked package contract: magic, schema/tool/content versions, stable IDs, chunk offsets/lengths, dependency hashes, explicit endianness, bounds and corruption checks. Reject traversal, duplicate IDs, overlapping/out-of-range payloads and decompression overrun. Do not serialize Kof object memory or internal array headers.
 
-The first implemented G4 vertical slice consumes the existing sealed
-`BoundedContentPackage` and canonical GLB cooker products. It stages package,
-extension, trusted-hook declaration, enemy-definition and
-geometry/collision/navigation/replication checksums, revision-checks the active
-generation, then publishes all four products atomically. Its 13-word
-compatibility identity binds engine/API/network schema and every content
-checksum for exact in-process admission. Stale, incomplete, mismatched or
-invalid transactions retain the prior generation. This is not evidence for
-the remaining source-format readers, a file-oriented cooker CLI or live GPU
-resource replacement.
+The implemented bounded G4 pipeline consumes sealed `BoundedContentPackage`
+and canonical geometry products. It stages package, extension, trusted-hook,
+enemy-definition and geometry/collision/navigation/replication checksums,
+revision-checks the active generation, then publishes all products atomically.
+Its 13-word compatibility identity binds engine/API/network schema and every
+content checksum. Stale, incomplete, mismatched or invalid transactions retain
+the prior generation.
 
-The next implemented layer binds each declaration to a supported static
-implementation ID/version inside the module checksum.
-`BoundedTrustedHookRuntime` binds that module and extension checksum to a
-published generation, requires monotonic ticks and increasing phases, and
-preflights per-hook budgets plus global output capacity before emitting bounded
-commands/events. `LoopbackSession` accepts the current grant-currency command
-exactly once after aggregate overflow/recipient validation. `G4CreatorDemo`
-exercises this path after authoritative elite death. This proves one compiled
-trusted-hook execution path, not arbitrary extension callbacks or sandboxing.
+`BoundedSourceCooker` admits the documented indexed GLB, Dust3D/Aseprite/VOX
+and convex brush-map subsets under explicit size/count/chunk limits. The
+JVM-only `scripts/kookie_cooker.sh` provides file `cook`, `package`,
+`inspect-package` and `validate-package` commands. The package reader validates
+explicit little-endian fields, paths, chunk bounds/overlap/hashes and registry
+records. `BoundedExternalPackageRuntime` constructs candidates and swaps the
+package plus extension/definition/hook registries only after complete
+validation, so a bad reload preserves all active state.
 
-Native mixed Int/Double/String record JSON failed the measured round-trip, including corrupt numeric/string values; direct record getters passed. Before adopting native JSON for definitions, glTF or saves, require a compiler/runtime repair and schema-specific round-trip, malformed-input and bounds proof. Do not truncate floats, silently switch the cooker to JVM or move content semantics into the adapter. Binary file IO passed a small probe but is not an implemented alternative format/codec.
+Trusted declarations bind supported static implementation IDs/versions and
+typed session-started, player-connected, enemy-defeated, loot-picked-up or
+editor-published subscriptions. `BoundedTrustedHookRuntime` binds the module
+and extension checksums to a published generation, requires monotonic event
+sequence/phases, and preflights per-hook budgets plus global output capacity
+before emitting bounded commands/events. `LoopbackSession` applies each
+accepted grant-currency command exactly once after aggregate
+overflow/recipient validation. `G4CreatorDemo` exercises the bounty path after
+authoritative elite death; this is static trusted execution, not arbitrary
+callbacks or sandboxing.
+
+`BoundedCreatorWorkspace` provides revision-checked world/entity/weapon/loot
+transactions, collision/AI inspection, console edits, play-in-editor and
+bounded undo/redo while publishing geometry/collision/navigation/render
+together. The native adapter stages a separate candidate scene, waits for
+synchronous SDL_GPU upload-fence completion before reusing the persistent
+buffer, then activates at a frame boundary. The Kof coordinator gates old
+generation retirement on references and fence completion. It does not reload
+arbitrary Kof code or shaders.
+
+Remote endpoints exchange an 18-word offer and 7-word response containing the
+exact compatibility identity and checksums before snapshots/gameplay. Mismatch
+and malformed offers receive a diagnostic rejection. The authenticated UDP
+role path and separate processes exercise this exchange; a fresh
+three-machine G4 evidence bundle remains a qualification limit, not an
+in-process protocol gap.
+
+Native mixed Int/Double/String record JSON failed the measured round-trip, including corrupt numeric/string values; direct record getters passed. The implemented `.kpkg`, canonical geometry and cooker outputs therefore use explicit bounded integer/binary layouts. Before adopting native JSON for definitions, glTF or saves, require a compiler/runtime repair plus schema-specific round-trip, malformed-input and bounds proof. Do not truncate floats or move content semantics into the adapter.
 
 Current source rejects native `process.run`/`process.spawn` with `PROC001`. External shader/conversion tools therefore need the permitted minimal build orchestration or a separately proven platform capability; the native `.kf` cooker cannot assume the course's process examples work. It still owns content validation and cooking decisions.
 
@@ -682,7 +706,7 @@ inventory/equipment/skill/world-loot status, shape-distinct elite/boss
 threat/defeat cues and a structural creator-publication rail. The confirmed
 local hitscan event also reaches bounded replay/audio queues and native SDL clip
 playback. An isolated GPU smoke rendered and read back the bounded scene, and
-77/77 tests pass on JVM and native. G1's no-per-frame-growth
+84/84 focused source tests pass on JVM and native. G1's no-per-frame-growth
 evidence is 64 deterministic stages with unchanged Kof capacities plus
 persistent native scene buffers; the 30-minute RSS/performance soak remains G5.
 
@@ -716,17 +740,22 @@ definitions drive combat, behavior, loot, progression and currency, and
 `LoopbackSession.admitDefinedEnemy` commits the actor plus reward contracts
 atomically. Checksummed recipient authority/world-loot schemas preserve full
 inventory and RNG identity; state kinds `7`/`8` traverse authenticated
-same-host host-plus-two-client processes on JVM and native. Separate-host
-execution remains unproven. The bounded G4 path now seals deterministic static
-hook implementations and binary versions with phase and command/event budgets;
-binds package, manifest, module, definition and aligned product checksums into
-one revisioned compatibility identity; rejects stale/mismatched generations
-without replacing state; and runs the compiled elite-bounty hook after an
-authoritative death in the second two-player sample. Output capacity and reward
-overflow fail atomically, and the session applies each accepted command once.
-Additional hook/event contracts, source cooker formats, external package
-loading, inspector/editors, live GPU-safe staged reload and transport of the
-compatibility handshake remain open, so G4 is not closed.
+same-host host-plus-two-client processes on JVM and native; that G3 state-kind
+qualification remains same-host. G4 now adds typed domain-event subscriptions;
+the bounded
+GLB/Dust3D/Aseprite/VOX/brush cooker and file CLI; validated external
+package/registry loading; transactional Creator inspection/editing with
+undo/redo and play-in-editor; fence-gated frame-boundary GPU reload; and
+compatibility offer/response transport before gameplay. Package, manifest,
+module, definition and aligned product checksums form one revisioned identity;
+stale, malformed and incompatible updates preserve the active generation. The
+second two-player sample runs the compiled elite-bounty hook after
+authoritative death, and output/reward overflow remains atomic. The handshake
+passed with host and clients in three isolated Linux network namespaces and
+distinct IPv4 stacks. G4 is complete for this bounded contract. General format
+compatibility, arbitrary code/shader reload, a production-grade editor, and
+fresh qualification on three physical machines are explicitly outside that
+claim.
 
 ### Initial performance hypotheses, not achieved numbers
 

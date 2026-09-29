@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estão completos, e G4 possui seu primeiro slice vertical transacional.
+As fundações limitadas executam; os gates de implementação G0–G4 estão completos dentro dos limites de qualificação abaixo.
 
 ## Lote atual de qualificação
 
@@ -26,8 +26,8 @@ As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estã
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- Checks e 77/77 cenários-fonte passam na JVM e no nativo; os marcadores
-  executáveis de runtime G1 permanecem idênticos.
+- Todos os 84 cenários-fonte focados passam na JVM e no nativo. A matriz
+  completa do repositório não foi executada sem a permissão de pre-commit.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
@@ -46,15 +46,19 @@ As fundações limitadas executam; os gates de aceitação G0, G1, G2 e G3 estã
   processos externos na mesma máquina na JVM/no nativo; a seção 12 do save
   preserva drops e reivindicações de recompensa. Execução entre máquinas
   continua não comprovada.
-- G4 está em andamento. Sua identidade publicada agora vincula pacote selado,
-  manifesto de extensão, implementação/versão de hook confiável, definições de
-  inimigos e produtos alinhados de geometria/colisão/navegação/replicação. Um
-  runtime vinculado à geração/checksums executa o hook compilado de recompensa
-  de elite após a morte autoritativa, verifica orçamentos/capacidade antes da
-  emissão e aplica seu comando de moeda exatamente uma vez. Estado obsoleto ou
-  inválido preserva a saída anterior. Formatos-fonte restantes, a superfície
-  mais ampla de hooks/eventos, carregamento externo de pacotes, ferramentas de
-  edição, reload ao vivo em etapas e qualificação do transporte estão abertos.
+- G4 está completo para seu contrato limitado. Assinaturas de hooks tipadas
+  cobrem sessão/jogador/inimigo/loot/publicação do editor; o cooker e a CLI JVM
+  de arquivos admitem os subconjuntos documentados de GLB, Dust3D, Aseprite,
+  VOX e brushes convexos; o reload de `.kpkg` valida estado candidato de
+  pacote/registros antes da troca; o workspace Creator fornece inspeção,
+  edição, play-in-editor e undo/redo limitado; e produtos GPU só ativam no
+  limite de frame após a fence de upload. Uma oferta de 18 palavras e uma
+  resposta de 7 transportam a identidade exata de compatibilidade de 13
+  palavras pelo transporte autenticado de papéis remotos antes do gameplay.
+  Esse handshake passou com host e clientes em três namespaces de rede Linux
+  isolados e pilhas IPv4 distintas. Compatibilidade geral de formatos, reload
+  arbitrário de código/shader, editor de produção e qualificação recente em
+  três máquinas físicas ficam fora desta afirmação.
 
 ## Lote mais recente de execução de hooks confiáveis
 
@@ -196,9 +200,9 @@ implementada.
 32. O limite público de conteúdo do G3 é um registro limitado e imutável, não
     uma ABI de plugins: manifests declaram versões, dependências, capabilities,
     ordem de carga, migrações, schema de rede e procedência; contribuições e
-    definições de elite/chefe falham fechado antes do início da sessão. Hooks
-    de módulos confiáveis, saída do cooker e reload em estágios continuam no
-    G4.
+    definições de elite/chefe falham fechado antes do início da sessão. G4
+    adiciona hooks confiáveis vinculados à geração, produtos determinísticos do
+    cooker e reload em estágios de pacote/GPU.
 
 
 
@@ -242,18 +246,18 @@ vários papéis. Os clientes predizem movimento, reproduzem inputs ainda não
 confirmados na reconciliação e reiniciam épocas após reconexão; as sondas de
 interação, processos e SDL isolado passam.
 
-G3 continua concluído no gate atual, e todos os 78 cenários-fonte agora passam
-na JVM/no nativo. O caminho sob autoridade do servidor de eliminação→drop
-gerado→coleta/equipamento→mudança observável de dano/skill→recompensa de
-chefe→save/reload em arquivo de schema executa sem resultados criados pelo
-cliente ou recompensas duplicadas. Os tipos de estado 7/8 atravessam processos
-autenticados na mesma máquina com host mais dois clientes nos dois alvos.
-Manifests públicos limitados, capabilities e contribuições determinísticas
-agora instanciam regras completas e seladas de elite/chefe de forma atômica.
-Execução entre máquinas continua não comprovada; G4 mantém a entrada
-completa do cooker/fontes, a superfície mais ampla de hooks confiáveis/eventos
-de domínio, carregamento externo de pacotes, transações do editor, reload em
-etapas seguro para a GPU e transporte do handshake de compatibilidade. G5
+G3 continua concluído no gate atual. O caminho sob autoridade do servidor de
+eliminação→drop gerado→coleta/equipamento→mudança observável de dano/skill→
+recompensa de chefe→save/reload em arquivo de schema executa sem resultados
+criados pelo cliente ou recompensas duplicadas. Os tipos de estado 7/8
+atravessam processos autenticados na mesma máquina com host mais dois clientes
+nos dois alvos. Manifests públicos limitados, capabilities e contribuições
+determinísticas instanciam regras completas e seladas de elite/chefe de forma
+atômica.
+
+G4 está completo para a implementação limitada resumida acima. Sua troca de
+compatibilidade usa o transporte de papéis de produção e processos separados,
+mas a qualificação retida não é uma execução recente em três máquinas. G5
 mantém a aceitação sustentada de carga, RSS e orçamento de frame; `FFI001`
 ainda bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
 

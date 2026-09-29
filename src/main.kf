@@ -545,11 +545,15 @@ test "G4 creator publication and trusted execution are bounded" {
     assert(hooks.defineHook(
             extensions, 8, 1, 3001, trustedHookPostSimulationPhase()) &&
         hooks.setBudget(8, 1, 3001, 8, 4) &&
+        hooks.subscribeEvent(
+            8, 1, 3001, trustedDomainEventEnemyDefeated()) &&
         hooks.bindImplementation(
             8, 1, 3001, trustedHookImplementationEliteBounty(), 1) &&
         hooks.defineHook(
             extensions, 1, 1, 110, trustedHookPreSimulationPhase()) &&
         hooks.setBudget(1, 1, 110, 4, 2) &&
+        hooks.subscribeEvent(
+            1, 1, 110, trustedDomainEventSessionStarted()) &&
         hooks.bindImplementation(
             1, 1, 110, trustedHookImplementationSessionAudit(), 1) &&
         extensions.seal() && extensions.apiCompatible(2) &&
@@ -574,11 +578,15 @@ test "G4 creator publication and trusted execution are bounded" {
     assert(lowBudgetHooks.defineHook(
             extensions, 8, 1, 3001, trustedHookPostSimulationPhase()) &&
         lowBudgetHooks.setBudget(8, 1, 3001, 1, 1) &&
+        lowBudgetHooks.subscribeEvent(
+            8, 1, 3001, trustedDomainEventEnemyDefeated()) &&
         lowBudgetHooks.bindImplementation(
             8, 1, 3001, trustedHookImplementationEliteBounty(), 1) &&
         lowBudgetHooks.defineHook(
             extensions, 1, 1, 110, trustedHookPreSimulationPhase()) &&
         lowBudgetHooks.setBudget(1, 1, 110, 1, 0) &&
+        lowBudgetHooks.subscribeEvent(
+            1, 1, 110, trustedDomainEventSessionStarted()) &&
         !lowBudgetHooks.bindImplementation(
             1, 1, 110, trustedHookImplementationEliteBounty(), 1) &&
         !lowBudgetHooks.bindImplementation(
@@ -592,9 +600,10 @@ test "G4 creator publication and trusted execution are bounded" {
     assert(budgetRuntime.bindPublishedGeneration(
             extensions, lowBudgetHooks, 1, lowBudgetModuleChecksum) &&
         budgetRuntime.beginTick(1) &&
-        !budgetRuntime.executePhase(
-            extensions, lowBudgetHooks, trustedHookPreSimulationPhase(),
-            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
+        !budgetRuntime.dispatchEvent(
+            extensions, lowBudgetHooks,
+            TrustedDomainEvent(
+                1, trustedDomainEventSessionStarted(), 0, 0, 0, 0)) &&
         budgetRuntime.diagnostic() == trustedHookRuntimeDiagnosticBudget() &&
         budgetRuntime.commandCount() == 0 &&
         budgetRuntime.eventCount() == 0 &&
@@ -605,13 +614,15 @@ test "G4 creator publication and trusted execution are bounded" {
     assert(capacityRuntime.bindPublishedGeneration(
             extensions, hooks, 1, hookModuleChecksum) &&
         capacityRuntime.beginTick(1) &&
-        capacityRuntime.executePhase(
-            extensions, hooks, trustedHookPreSimulationPhase(),
-            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
-        !capacityRuntime.executePhase(
-            extensions, hooks, trustedHookPostSimulationPhase(),
-            1, 100, enemyDefinitionEliteKind(),
-            trustedHookOutcomeEnemyDefeated()) &&
+        capacityRuntime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                1, trustedDomainEventSessionStarted(), 0, 0, 0, 0)) &&
+        !capacityRuntime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                2, trustedDomainEventEnemyDefeated(), 1, 100,
+                enemyDefinitionEliteKind(), 0)) &&
         capacityRuntime.diagnostic() ==
             trustedHookRuntimeDiagnosticCapacity() &&
         capacityRuntime.commandCount() == 0 &&
@@ -629,20 +640,23 @@ test "G4 creator publication and trusted execution are bounded" {
             extensions, hooks, 1, hookModuleChecksum) &&
         executionRuntime.boundGeneration() == 1 &&
         executionRuntime.beginTick(1) &&
-        !executionRuntime.executePhase(
-            extensions, lowBudgetHooks, trustedHookPreSimulationPhase(),
-            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
+        !executionRuntime.dispatchEvent(
+            extensions, lowBudgetHooks,
+            TrustedDomainEvent(
+                1, trustedDomainEventSessionStarted(), 0, 0, 0, 0)) &&
         executionRuntime.diagnostic() ==
             trustedHookRuntimeDiagnosticRegistry() &&
         executionRuntime.commandCount() == 0 &&
         executionRuntime.eventCount() == 0 &&
-        executionRuntime.executePhase(
-            extensions, hooks, trustedHookPreSimulationPhase(),
-            0, 0, 0, trustedHookOutcomeSessionStarted()) &&
-        executionRuntime.executePhase(
-            extensions, hooks, trustedHookPostSimulationPhase(),
-            1, 100, enemyDefinitionEliteKind(),
-            trustedHookOutcomeEnemyDefeated()) &&
+        executionRuntime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                1, trustedDomainEventSessionStarted(), 0, 0, 0, 0)) &&
+        executionRuntime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                2, trustedDomainEventEnemyDefeated(), 1, 100,
+                enemyDefinitionEliteKind(), 0)) &&
         executionRuntime.commandCount() == 1 &&
         executionRuntime.commandKind(0) ==
             trustedHookCommandGrantCurrency() &&
@@ -3347,6 +3361,28 @@ test "external GLB JSON BIN provenance and reopen" {
         cooker.navigationProduct().findRoute(1, 1).found(),
         "GLB cooker must atomically publish geometry collision navigation and replication")
 
+    var texturedGlb = g4TexturedGlbFixture()
+    var ds3 = g4DustArchiveFixture()
+    var dust = BoundedDust3dIntake(4, 2)
+    assert(dust.read(ds3, texturedGlb, 10, 78, 4, 9, 3, 100) &&
+        dust.accepted() && dust.vertexCount() == 3 &&
+        dust.triangleCount() == 1 && dust.collisionChecksum() > 0,
+        "Dust3D intake must preserve its source and validate the exported textured GLB")
+    var invalidUv = g4TexturedGlbFixture()
+    var changedUv = false
+    for (var index = 0; index + 3 < invalidUv.length; index = index + 1) {
+        if (!changedUv && invalidUv[index] == 86 &&
+            invalidUv[index + 1] == 69 && invalidUv[index + 2] == 67 &&
+            invalidUv[index + 3] == 50) {
+            invalidUv[index + 3] = 51
+            changedUv = true
+        }
+    }
+    assert(changedUv &&
+        !dust.read(ds3, invalidUv, 10, 78, 4, 9, 3, 100) &&
+        dust.diagnostic() == dust3dDiagnosticUv(),
+        "Dust3D intake must reject a TEXCOORD accessor without VEC2 UV data")
+
     glb[8] = glb[8] - 1
     assert(!reader.read(glb, 10, 77, 4, 9, 3, 100),
         "external GLB intake must reject a malformed total-length header")
@@ -4385,4 +4421,600 @@ test "G3 authoritative loot progression replication and save reload" {
         restored.playerSkillRank(1, 30) == rankBeforeReplay &&
         restored.worldLootCount() == 1,
         "reloaded reward claims must prevent boss reward duplication")
+}
+
+Bool g4PutLe16(Int[] target, Int offset, Int value) {
+    target[offset] = value & 255
+    target[offset + 1] = (value >>> 8) & 255
+    return true
+}
+
+Bool g4PutLe32(Int[] target, Int offset, Int value) {
+    target[offset] = value & 255
+    target[offset + 1] = (value >>> 8) & 255
+    target[offset + 2] = (value >>> 16) & 255
+    target[offset + 3] = (value >>> 24) & 255
+    return true
+}
+
+Bool g4Zero(Int[] target) {
+    for (var index = 0; index < target.length; index = index + 1) {
+        target[index] = 0
+    }
+    return true
+}
+
+Int[] g4CompressedSpriteFixture() {
+    var source = new Int[248]
+    g4Zero(source)
+    g4PutLe32(source, 0, source.length)
+    g4PutLe16(source, 4, 42464)
+    g4PutLe16(source, 6, 1)
+    g4PutLe16(source, 8, 1)
+    g4PutLe16(source, 10, 1)
+    g4PutLe16(source, 12, 32)
+    g4PutLe32(source, 14, 1)
+    source[34] = 1
+    source[35] = 1
+    g4PutLe32(source, 128, 120)
+    g4PutLe16(source, 132, 61946)
+    g4PutLe16(source, 134, 3)
+    g4PutLe16(source, 136, 100)
+    g4PutLe32(source, 140, 3)
+    g4PutLe32(source, 144, 25)
+    g4PutLe16(source, 148, 8196)
+    g4PutLe16(source, 150, 1)
+    source[162] = 255
+    g4PutLe16(source, 166, 1)
+    source[168] = 65
+    g4PutLe32(source, 169, 38)
+    g4PutLe16(source, 173, 8197)
+    source[181] = 255
+    g4PutLe16(source, 182, 2)
+    g4PutLe16(source, 191, 1)
+    g4PutLe16(source, 193, 1)
+    var compressed = new Int[12]
+    compressed[0] = 120
+    compressed[1] = 218
+    compressed[2] = 251
+    compressed[3] = 207
+    compressed[4] = 192
+    compressed[5] = 240
+    compressed[6] = 31
+    compressed[7] = 0
+    compressed[8] = 4
+    compressed[9] = 255
+    compressed[10] = 1
+    compressed[11] = 255
+    for (var index = 0; index < compressed.length; index = index + 1) {
+        source[195 + index] = compressed[index]
+    }
+    g4PutLe32(source, 207, 41)
+    g4PutLe16(source, 211, 8226)
+    g4PutLe32(source, 213, 1)
+    g4PutLe16(source, 225, 1)
+    source[227] = 83
+    g4PutLe32(source, 240, 1)
+    g4PutLe32(source, 244, 1)
+    return source
+}
+
+Int[] g4SingleVoxelFixture() {
+    var source = new Int[64]
+    g4Zero(source)
+    source[0] = 86
+    source[1] = 79
+    source[2] = 88
+    source[3] = 32
+    g4PutLe32(source, 4, 150)
+    source[8] = 77
+    source[9] = 65
+    source[10] = 73
+    source[11] = 78
+    g4PutLe32(source, 16, 44)
+    source[20] = 83
+    source[21] = 73
+    source[22] = 90
+    source[23] = 69
+    g4PutLe32(source, 24, 12)
+    g4PutLe32(source, 32, 1)
+    g4PutLe32(source, 36, 1)
+    g4PutLe32(source, 40, 1)
+    source[44] = 88
+    source[45] = 89
+    source[46] = 90
+    source[47] = 73
+    g4PutLe32(source, 48, 8)
+    g4PutLe32(source, 56, 1)
+    source[63] = 1
+    return source
+}
+
+Int[] g4AsciiSource(String text) {
+    var result = new Int[text.length()]
+    for (var index = 0; index < result.length; index = index + 1) {
+        result[index] = text.charAt(index) as Int
+    }
+    return result
+}
+
+Int[] g4TexturedGlbFixture() {
+    var jsonText =
+        "{\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"byteLength\":68}]," +
+        "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}," +
+        "{\"buffer\":0,\"byteOffset\":36,\"byteLength\":24}," +
+        "{\"buffer\":0,\"byteOffset\":60,\"byteLength\":6}]," +
+        "\"accessors\":[{\"bufferView\":0,\"componentType\":5126," +
+        "\"count\":3,\"type\":\"VEC3\"},{\"bufferView\":1," +
+        "\"componentType\":5126,\"count\":3,\"type\":\"VEC2\"}," +
+        "{\"bufferView\":2,\"componentType\":5123,\"count\":3," +
+        "\"type\":\"SCALAR\"}],\"meshes\":[{\"primitives\":[{" +
+        "\"attributes\":{\"POSITION\":0,\"TEXCOORD_0\":1}," +
+        "\"indices\":2,\"mode\":4}]}]}"
+    var json = g4AsciiSource(jsonText)
+    var jsonLength = ((json.length + 3) / 4) * 4
+    var binaryLength = 68
+    var source = new Int[12 + 8 + jsonLength + 8 + binaryLength]
+    g4Zero(source)
+    source[0] = 103; source[1] = 108; source[2] = 84; source[3] = 70
+    g4PutLe32(source, 4, 2)
+    g4PutLe32(source, 8, source.length)
+    g4PutLe32(source, 12, jsonLength)
+    source[16] = 74; source[17] = 83; source[18] = 79; source[19] = 78
+    for (var index = 0; index < json.length; index = index + 1) {
+        source[20 + index] = json[index]
+    }
+    for (var index = json.length; index < jsonLength; index = index + 1) {
+        source[20 + index] = 32
+    }
+    var binaryHeader = 20 + jsonLength
+    g4PutLe32(source, binaryHeader, binaryLength)
+    source[binaryHeader + 4] = 66
+    source[binaryHeader + 5] = 73
+    source[binaryHeader + 6] = 78
+    source[binaryHeader + 7] = 0
+    var binary = binaryHeader + 8
+    source[binary + 15] = 63
+    source[binary + 31] = 63
+    source[binary + 47] = 63
+    source[binary + 59] = 63
+    source[binary + 62] = 1
+    source[binary + 64] = 2
+    return source
+}
+
+Int[] g4DustArchiveFixture() {
+    var source = new Int[120]
+    g4Zero(source)
+    source[0] = 80; source[1] = 75; source[2] = 3; source[3] = 4
+    g4PutLe16(source, 4, 20)
+    g4PutLe32(source, 18, 2)
+    g4PutLe32(source, 22, 2)
+    g4PutLe16(source, 26, 10)
+    var name = "model.json"
+    for (var index = 0; index < name.length(); index = index + 1) {
+        source[30 + index] = name.charAt(index) as Int
+    }
+    source[40] = 123
+    source[41] = 125
+    source[42] = 80; source[43] = 75; source[44] = 1; source[45] = 2
+    g4PutLe16(source, 46, 20)
+    g4PutLe16(source, 48, 20)
+    g4PutLe32(source, 62, 2)
+    g4PutLe32(source, 66, 2)
+    g4PutLe16(source, 70, 10)
+    for (var index = 0; index < name.length(); index = index + 1) {
+        source[88 + index] = name.charAt(index) as Int
+    }
+    source[98] = 80; source[99] = 75; source[100] = 5; source[101] = 6
+    g4PutLe16(source, 106, 1)
+    g4PutLe16(source, 108, 1)
+    g4PutLe32(source, 110, 56)
+    g4PutLe32(source, 114, 42)
+    return source
+}
+
+test "G4 source cooker admits sprites voxels and convex brushes" {
+    var cooker = BoundedSourceCooker()
+    var dust = g4DustArchiveFixture()
+    assert(!cooker.cookDust3d(dust, new Int[0], 10, 19, 1, 1, 1, 100) &&
+        cooker.result().diagnostic() == dust3dDiagnosticUv(),
+        "Dust3D intake must admit a bounded model archive before export checks")
+    dust[30] = 46; dust[31] = 46; dust[32] = 47
+    dust[88] = 46; dust[89] = 46; dust[90] = 47
+    assert(!cooker.cookDust3d(dust, new Int[0], 10, 19, 1, 1, 1, 100) &&
+        cooker.result().diagnostic() == dust3dDiagnosticSource(),
+        "Dust3D intake must reject traversal entries before export")
+    var sprite = g4CompressedSpriteFixture()
+    assert(cooker.cookAseprite(sprite))
+    var spriteResult = cooker.result()
+    var png = cooker.sprite().pngBytes()
+    assert(spriteResult.accepted() && spriteResult.primaryCount() == 1 &&
+        cooker.sprite().frameDuration(0) == 100 &&
+        cooker.sprite().sliceCount() == 1 && png.length > 60 &&
+        png[0] == 137 && png[1] == 80 && png[2] == 78 && png[3] == 71,
+        "Aseprite intake must inflate RGBA cels, parse slices, and emit PNG")
+    sprite[206] = sprite[206] + 1
+    assert(!cooker.cookAseprite(sprite),
+        "Aseprite intake must reject a corrupted zlib checksum")
+
+    var vox = g4SingleVoxelFixture()
+    assert(cooker.cookVox(vox, 10, 20, 1, 100))
+    var voxResult = cooker.result()
+    assert(voxResult.accepted() && voxResult.primaryCount() == 1 &&
+        cooker.vox().geometry().vertexCount() == 8 &&
+        cooker.vox().geometry().triangleCount() == 12 &&
+        voxResult.collisionChecksum() > 0,
+        "MagicaVoxel intake must emit canonical geometry and collision")
+    vox[63] = 0
+    assert(!cooker.cookVox(vox, 10, 20, 1, 100),
+        "MagicaVoxel palette index zero must reject")
+
+    var mapText = "{\n\"classname\" \"worldspawn\"\n{\n" +
+        "( 0 0 0 ) ( 0 0 1 ) ( 0 1 1 ) stone 0 0 0 1 1\n" +
+        "( 64 0 0 ) ( 64 1 0 ) ( 64 1 1 ) stone 0 0 0 1 1\n" +
+        "( 0 0 0 ) ( 1 0 0 ) ( 1 0 1 ) stone 0 0 0 1 1\n" +
+        "( 0 64 0 ) ( 0 64 1 ) ( 1 64 1 ) stone 0 0 0 1 1\n" +
+        "( 0 0 0 ) ( 0 1 0 ) ( 1 1 0 ) stone 0 0 0 1 1\n" +
+        "( 0 0 64 ) ( 1 0 64 ) ( 1 1 64 ) stone 0 0 0 1 1\n" +
+        "}\n}\n"
+    assert(cooker.cookQuakeMap(g4AsciiSource(mapText), 10, 30, 1, 1))
+    var mapResult = cooker.result()
+    assert(mapResult.accepted() && cooker.quakeMap().entityCount() == 1 &&
+        cooker.quakeMap().brushCount() == 1 &&
+        cooker.quakeMap().vertexCount() == 8 &&
+        cooker.quakeMap().triangleCount() == 12 &&
+        mapResult.visibilityChecksum() > 0,
+        "Quake map intake must clip and triangulate one convex brush")
+    var unsupported = g4AsciiSource("{ { ( 0.5 0 0 ) } }")
+    assert(!cooker.cookQuakeMap(unsupported, 10, 31, 1, 1),
+        "Quake map subset must reject unsupported decimal planes")
+}
+
+test "trusted hooks subscribe to broader typed domain events" {
+    var extensions = BoundedExtensionRegistry(1, 1, 2, 2)
+    assert(extensions.registerManifest(7, 1, 2, 1, 1) &&
+        extensions.setLoadOrder(7, 1, 1) &&
+        extensions.setProvenance(7, 1, 701) &&
+        extensions.setSchemas(7, 1, 1, 7) &&
+        extensions.grantCapability(
+            7, 1, extensionContributionTrustedHookKind()) &&
+        extensions.registerContribution(
+            7, 1, extensionContributionTrustedHookKind(), 1, 1) &&
+        extensions.registerContribution(
+            7, 1, extensionContributionTrustedHookKind(), 2, 2),
+        "typed hook manifest must declare both static subscriptions")
+    var hooks = BoundedTrustedModuleRegistry(2)
+    assert(hooks.defineHook(
+            extensions, 7, 1, 1, trustedHookPreSimulationPhase()) &&
+        hooks.setBudget(7, 1, 1, 1, 1) &&
+        hooks.subscribeEvent(
+            7, 1, 1, trustedDomainEventPlayerConnected()) &&
+        hooks.bindImplementation(
+            7, 1, 1, trustedHookImplementationPlayerWelcome(), 1) &&
+        hooks.defineHook(
+            extensions, 7, 1, 2, trustedHookEditorPhase()) &&
+        hooks.setBudget(7, 1, 2, 1, 1) &&
+        hooks.subscribeEvent(
+            7, 1, 2, trustedDomainEventEditorPublished()) &&
+        !hooks.subscribeEvent(
+            7, 1, 2, trustedDomainEventLootPickedUp()) &&
+        hooks.bindImplementation(
+            7, 1, 2, trustedHookImplementationPublicationAudit(), 1) &&
+        extensions.seal() && hooks.seal(extensions),
+        "hook phase must match each typed domain subscription")
+    var runtime = BoundedTrustedHookRuntime(4, 4)
+    assert(runtime.bindPublishedGeneration(
+            extensions, hooks, 1, hooks.checksum()) &&
+        runtime.beginTick(1) &&
+        runtime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                1, trustedDomainEventPlayerConnected(), 1, 0, 0, 0)) &&
+        runtime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                2, trustedDomainEventLootPickedUp(), 1, 900, 2, 1)) &&
+        !runtime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                2, trustedDomainEventEditorPublished(), 0, 2, 1, 3)) &&
+        runtime.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                3, trustedDomainEventEditorPublished(), 0, 2, 1, 3)) &&
+        runtime.commandCount() == 1 &&
+        runtime.commandKind(0) == trustedHookCommandGrantCurrency() &&
+        runtime.commandValue(0) == 1 &&
+        runtime.eventCount() == 2 &&
+        runtime.eventKind(0) == trustedHookEventPlayerWelcome() &&
+        runtime.eventKind(1) == trustedHookEventPublicationAudit() &&
+        runtime.markCommandsApplied() && runtime.finishTick(),
+        "typed dispatch must execute matching hooks and ignore unsubscribed events")
+    var cumulativeBudget = BoundedTrustedHookRuntime(4, 4)
+    assert(cumulativeBudget.bindPublishedGeneration(
+            extensions, hooks, 1, hooks.checksum()) &&
+        cumulativeBudget.beginTick(1) &&
+        cumulativeBudget.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                1, trustedDomainEventPlayerConnected(), 1, 0, 0, 0)) &&
+        !cumulativeBudget.dispatchEvent(
+            extensions, hooks,
+            TrustedDomainEvent(
+                2, trustedDomainEventPlayerConnected(), 2, 0, 0, 0)) &&
+        cumulativeBudget.diagnostic() == trustedHookRuntimeDiagnosticBudget() &&
+        cumulativeBudget.commandCount() == 1 &&
+        cumulativeBudget.eventCount() == 1 &&
+        cumulativeBudget.markCommandsApplied() &&
+        cumulativeBudget.finishTick(),
+        "trusted hook budgets must apply cumulatively within one tick")
+}
+
+test "external creator packages load through bounded file envelopes" {
+    var descriptor = BoundedExternalCreatorDescriptor()
+    assert(descriptor.configureProducts(7, 2, 101, 202, 303) &&
+        descriptor.addExtension(8, 1, 2, 3, 4, 10, 801, 2, 9) &&
+        descriptor.addEnemy(
+            8, 1, 2001, 20, 1, enemyDefinitionEliteKind(),
+            12, 2, 51, 2, 2, 3, 0, 4000, 91, 6, 5, 0, 0) &&
+        descriptor.addHook(
+            8, 1, 3001, 10, trustedHookPostSimulationPhase(),
+            8, 4, trustedDomainEventEnemyDefeated(),
+            trustedHookImplementationEliteBounty(), 1) &&
+        descriptor.seal(),
+        "external descriptor must seal complete data and hook contracts")
+    var payload = descriptor.encodedBytes()
+    var files = BoundedContentPackageFileStore(2, 1, 2, 65536)
+    var packageValue = BoundedContentPackage(2, 1, 2)
+    assert(packageValue.configureHeader(7, 4, 1, 1, 100) &&
+        packageValue.addAsset(8, 2001, 3, 1, 811, 812, 15) &&
+        packageValue.addChunk(
+            1, creatorDescriptorChunkKind(), 0, payload.length,
+            files.chunkHashLow(payload, 0, payload.length),
+            files.chunkHashHigh(payload, 0, payload.length), 1) &&
+        packageValue.seal(),
+        "external package must bind its descriptor payload")
+    var paths = new String[1]
+    paths[0] = "mods/sample.creator"
+    var path = "/tmp/kookie-external-creator.kpkg"
+    assert(files.write(path, packageValue, payload, paths),
+        "package file must write bounded words paths and payload")
+    var runtime = BoundedExternalPackageRuntime(65536)
+    assert(runtime.load(path) && runtime.loaded() && runtime.generation() == 1 &&
+        runtime.packageChecksum() == packageValue.checksum() &&
+        runtime.extensions().validate() &&
+        runtime.definitions().kind(8, 2001) == enemyDefinitionEliteKind() &&
+        runtime.hooks().validate(runtime.extensions()),
+        "runtime must reconstruct and publish external package registries")
+    var hookRuntime = BoundedTrustedHookRuntime(2, 2)
+    assert(hookRuntime.bindPublishedGeneration(
+            runtime.extensions(), runtime.hooks(),
+            runtime.generation(), runtime.hooks().checksum()) &&
+        hookRuntime.beginTick(1) &&
+        hookRuntime.dispatchEvent(
+            runtime.extensions(), runtime.hooks(),
+            TrustedDomainEvent(
+                1, trustedDomainEventEnemyDefeated(), 1, 2001,
+                enemyDefinitionEliteKind(), 1)) &&
+        hookRuntime.commandCount() == 1 &&
+        hookRuntime.commandValue(0) == 5,
+        "externally loaded trusted hooks must execute against published generation")
+
+    var badPaths = new String[1]
+    badPaths[0] = "../escape.creator"
+    assert(!files.write(
+            "/tmp/kookie-external-traversal.kpkg",
+            packageValue, payload, badPaths) &&
+        files.diagnostic() == packageFileDiagnosticPath(),
+        "package file must reject traversal paths")
+    var encodedFile = File(path).readBytes()
+    encodedFile[encodedFile.length - 1] =
+        encodedFile[encodedFile.length - 1] + 1
+    var corruptPath = "/tmp/kookie-external-corrupt.kpkg"
+    assert(File(corruptPath).writeBytes(encodedFile) &&
+        !runtime.load(corruptPath) && runtime.loaded() &&
+        runtime.generation() == 1 &&
+        runtime.packageChecksum() == packageValue.checksum() &&
+        runtime.definitions().kind(8, 2001) == enemyDefinitionEliteKind() &&
+        runtime.hooks().validate(runtime.extensions()),
+        "invalid external reload must preserve the active published package")
+
+    var overlapPayload = new Int[payload.length + 4]
+    g4Zero(overlapPayload)
+    for (var index = 0; index < payload.length; index = index + 1) {
+        overlapPayload[index] = payload[index]
+    }
+    var overlap = BoundedContentPackage(1, 1, 2)
+    assert(overlap.configureHeader(7, 4, 1, 1, 100) &&
+        overlap.addAsset(8, 2001, 3, 1, 811, 812, 15) &&
+        overlap.addChunk(
+            1, creatorDescriptorChunkKind(), 0, payload.length,
+            files.chunkHashLow(overlapPayload, 0, payload.length),
+            files.chunkHashHigh(overlapPayload, 0, payload.length), 1) &&
+        overlap.addChunk(
+            2, 4, payload.length - 1, 5,
+            files.chunkHashLow(overlapPayload, payload.length - 1, 5),
+            files.chunkHashHigh(overlapPayload, payload.length - 1, 5), 1) &&
+        overlap.seal(),
+        "overlap fixture must remain schema-valid before file admission")
+    var overlapPaths = new String[2]
+    overlapPaths[0] = "mods/sample.creator"
+    overlapPaths[1] = "data/overlap.bin"
+    assert(!files.write(
+            "/tmp/kookie-external-overlap.kpkg",
+            overlap, overlapPayload, overlapPaths) &&
+        files.diagnostic() == packageFileDiagnosticChunk(),
+        "package file must reject overlapping chunk ranges")
+}
+
+test "creator inspector editors publish atomic undoable products" {
+    var workspace = BoundedCreatorWorkspace()
+    var initialWorld = workspace.worldChecksum()
+    var initialCollision = workspace.collisionChecksum()
+    var initialNavigation = workspace.navigationChecksum()
+    var initialRender = workspace.renderChecksum()
+    assert(!workspace.begin(2) &&
+        workspace.diagnostic() == creatorWorkspaceDiagnosticRevision() &&
+        workspace.revision() == 1 && workspace.generation() == 1,
+        "stale editor revisions must leave the published generation unchanged")
+    assert(workspace.begin(1) &&
+        workspace.stageEntity(101, 20, 30, 40) &&
+        workspace.stageAsset(201) &&
+        workspace.stageEncounter(301, 12) &&
+        workspace.stageItem(401, 55) &&
+        workspace.stageSkill(501, 3) &&
+        workspace.stageSpawn(601) &&
+        workspace.stageWeapon(701) &&
+        workspace.stageLoot(801) &&
+        workspace.stageCollisionVisible(true) &&
+        workspace.stageAiVisible(true) &&
+        workspace.stagePlayActive(true) &&
+        workspace.publish(),
+        "all creator editor and console mutations must publish in one transaction")
+    assert(workspace.revision() == 2 && workspace.generation() == 2 &&
+        workspace.entityId() == 101 && workspace.entityX() == 20 &&
+        workspace.assetId() == 201 && workspace.encounterBudget() == 12,
+        "creator inspectors must publish their staged entity and asset state")
+    assert(workspace.itemPower() == 55 && workspace.skillRank() == 3 &&
+        workspace.spawnCount() == 1 && workspace.lastSpawnEnemy() == 601,
+        "creator data editors and spawn console must publish together")
+    assert(workspace.weaponGrantCount() == 1 && workspace.lastWeapon() == 701 &&
+        workspace.lootRollCount() == 1 && workspace.lastLootTable() == 801,
+        "creator weapon and loot console actions must publish together")
+    assert(workspace.collisionVisible() && workspace.aiVisible() &&
+        workspace.playActive() && workspace.worldChecksum() != initialWorld &&
+        workspace.collisionChecksum() != initialCollision,
+        "creator toggles and world products must advance together")
+    assert(workspace.navigationChecksum() != initialNavigation &&
+        workspace.renderChecksum() != initialRender,
+        "navigation and render products must advance with world products")
+    var publishedWorld = workspace.worldChecksum()
+    assert(workspace.undo() && workspace.entityId() == 0 &&
+        !workspace.playActive() && workspace.generation() == 3 &&
+        workspace.redo() && workspace.entityId() == 101 &&
+        workspace.playActive() && workspace.worldChecksum() == publishedWorld &&
+        workspace.generation() == 4,
+        "undo and redo must republish complete creator snapshots")
+    assert(workspace.begin(workspace.revision()) &&
+        !workspace.stageItem(0, 1) && workspace.discard() &&
+        workspace.entityId() == 101 && workspace.worldChecksum() == publishedWorld,
+        "invalid staged edits must preserve the current published snapshot")
+
+    var shell = GameShell()
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenCreator() &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.creator().collisionVisible(),
+        "main menu must expose the in-engine creator inspector")
+    var frame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(frame, 1) && frame.stagedCount() > 0 &&
+        frame.stagedCount() <= shell.renderVertexCapacity() &&
+        shell.handleAction(gameShellActionLeft()) &&
+        !shell.creator().collisionVisible() &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.creator().collisionVisible(),
+        "creator surface must render and expose undo redo controls")
+}
+
+test "GPU reload waits for upload fences and retained generations" {
+    var reload = BoundedGpuReloadCoordinator()
+    assert(reload.bindInitial(1, 101, 102, 103, 600, 1) &&
+        reload.acquireActive() == 1 && reload.acquireActive() == 1,
+        "initial GPU generation must support bounded frame references")
+    assert(!reload.stage(0, 2, 201, 202, 203, 700) &&
+        reload.diagnostic() == gpuReloadDiagnosticGeneration() &&
+        reload.activeGeneration() == 1,
+        "reload must revision-check the active GPU generation")
+    assert(reload.stage(1, 2, 201, 202, 203, 700) &&
+        reload.pendingGeneration() == 2 &&
+        reload.markUploaded(2, 5) &&
+        !reload.activateAtFrame(2, 2, 4) &&
+        reload.diagnostic() == gpuReloadDiagnosticFence() &&
+        reload.activeGeneration() == 1,
+        "new products must remain pending before their upload fence completes")
+    assert(reload.activateAtFrame(2, 2, 5) &&
+        reload.activeGeneration() == 2 &&
+        reload.retiringGeneration() == 1 &&
+        reload.activeGeometryChecksum() == 201 &&
+        reload.activeMaterialChecksum() == 202 &&
+        reload.activeRenderChecksum() == 203 &&
+        reload.activeVertexCount() == 700 &&
+        !reload.retire(5) &&
+        reload.diagnostic() == gpuReloadDiagnosticReference(),
+        "activation must preserve retained old resources until readers release")
+    assert(reload.release(1) && reload.release(1) && reload.retire(5) &&
+        reload.retiredGeneration() == 1 &&
+        reload.retiringGeneration() == 0,
+        "completed fences and zero references must permit old GPU retirement")
+    assert(reload.stage(2, 3, 301, 302, 303, 800) &&
+        reload.cancel(3) && reload.pendingGeneration() == 0 &&
+        reload.activeGeneration() == 2,
+        "fallible reload preparation must be cancellable before upload")
+}
+
+BoundedContentCompatibility g4TransportCompatibility(Int extensionChecksum) {
+    var identity = BoundedContentCompatibility()
+    assert(identity.configureVersions(7, 4, 901) &&
+        identity.configureContent(
+            902, extensionChecksum, 904, 905) &&
+        identity.configurePublication(1, 1, 906) &&
+        identity.seal() && identity.encode(),
+        "transport compatibility fixture must seal")
+    return identity
+}
+
+test "compatibility handshake gates remote gameplay transport" {
+    var local = g4TransportCompatibility(903)
+    var endpoint = RemoteSessionEndpoint(
+        127, 0, 0, 1, 47101, 1, 2, 3, 4)
+    var client = RemoteSessionLink(endpoint)
+    var host = RemoteSessionLink(RemoteSessionEndpoint(
+        127, 0, 0, 1, 47102, 5, 6, 7, 8))
+    var session = LoopbackSession(1, 1)
+    assert(session.start() &&
+        session.addBroadPhaseTriangle(0, 0, 5, 4, 0, 5, 0, 4, 5))
+    var snapshot = session.broadPhaseSnapshot(1, 1)
+    assert(client.requireCompatibility(local) &&
+        host.requireCompatibility(local) &&
+        client.connect() && host.connect() &&
+        !client.sendSnapshot(snapshot),
+        "transport must not admit gameplay before compatibility response")
+    var offer = client.compatibilityOffer(1)
+    assert(offer.length == compatibilityHandshakeOfferLength() &&
+        host.receiveCompatibilityOffer(offer, local),
+        "host must decode the exact thirteen-word content identity")
+    var response = host.compatibilityResponse()
+    assert(response.length == compatibilityHandshakeResponseLength() &&
+        client.acceptCompatibilityResponse(response, 1) &&
+        client.ready() && client.compatible() &&
+        client.compatibilityDiagnostic() == creatorDiagnosticNone() &&
+        client.sendSnapshot(snapshot),
+        "matching response must open gameplay transport")
+
+    var incompatible = g4TransportCompatibility(999)
+    var rejectedClient = RemoteSessionLink(RemoteSessionEndpoint(
+        127, 0, 0, 1, 47103, 9, 10, 11, 12))
+    var rejectingHost = RemoteSessionLink(RemoteSessionEndpoint(
+        127, 0, 0, 1, 47104, 13, 14, 15, 16))
+    assert(rejectedClient.requireCompatibility(local) &&
+        rejectingHost.requireCompatibility(incompatible) &&
+        rejectedClient.connect() && rejectingHost.connect())
+    var rejectedOffer = rejectedClient.compatibilityOffer(4)
+    assert(rejectingHost.receiveCompatibilityOffer(
+            rejectedOffer, incompatible) &&
+        rejectedClient.acceptCompatibilityResponse(
+            rejectingHost.compatibilityResponse(), 4) &&
+        !rejectedClient.ready() && !rejectedClient.compatible() &&
+        rejectedClient.compatibilityDiagnostic() ==
+            creatorDiagnosticManifest() &&
+        !rejectedClient.sendSnapshot(snapshot),
+        "mismatched external packages must remain outside gameplay")
+    rejectedOffer[17] = rejectedOffer[17] + 1
+    var corrupt = BoundedContentCompatibility()
+    assert(!decodeCompatibilityHandshakeOffer(rejectedOffer, corrupt),
+        "handshake corruption must reject before identity comparison")
 }
