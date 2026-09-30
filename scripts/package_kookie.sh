@@ -2,7 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-https://github.com/rufl/KOOKIE/releases/download}"
+BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="linux-x86_64"
 RUNTIME="${KOOKIE_RUNTIME:-native}"
@@ -64,6 +64,13 @@ esac
 
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || {
   echo 'package_kookie: version must be SemVer without a leading v' >&2
+  exit 2
+}
+if [[ -z "$BASE_URL" ]]; then
+  BASE_URL="https://github.com/rufl/KOOKIE/releases/download/$VERSION"
+fi
+[[ "$BASE_URL" == https://* ]] || {
+  echo 'package_kookie: KOOKIE_PACKAGE_BASE_URL must be an HTTPS artifact directory' >&2
   exit 2
 }
 [[ "$BUILD_ID" =~ ^[A-Za-z0-9._-]+$ ]] || {
@@ -524,7 +531,7 @@ manifest_path = pathlib.Path(sys.argv[2])
 (target, version, build_id, base_url, schema, runtime, source_commit,
  source_tree_state, kof_version, kof_archive_sha256, kof_source_commit,
  kof_compiler_sha256, public_key_sha256, public_key_name) = sys.argv[3:17]
-encoded = f"{base_url.rstrip('/')}/dogfood/{version}/{target}/{build_id}"
+encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
     "application": "kookie",

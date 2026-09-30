@@ -21,6 +21,8 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Corrigimos o ciclo de vida do launcher JVM de desenvolvimento para remover
   sua árvore temporária de módulos após comandos aceitos e rejeitados, em vez
   de deixá-la em `/tmp`.
+- Corrigimos as URLs padrão do manifesto de pacote para o diretório real do
+  release GitHub versionado e rejeitamos diretórios customizados sem HTTPS.
 
 ### Entrada limitada de imagens PNG independentes
 

@@ -307,6 +307,11 @@ for index in range(0, len(arguments), 2):
     assert manifest["dedicated_server"] is True
     assert manifest["simd_benchmark"] is True
     assert manifest["content_cooker"] is True
+    release_root = (
+        "https://github.com/rufl/KOOKIE/releases/download/"
+        + manifest["version"])
+    assert manifest["url"] == release_root + "/" + manifest["archive"]
+    assert manifest["manifest_url"] == release_root + "/" + pathlib.Path(raw_path).name
 PY
 if env -u KOOKIE_WINDOWS_SDL_PREFIX -u KOOKIE_WINDOWS_SDL_MIXER_PREFIX \
    "$ROOT_DIR/scripts/package_kookie.sh" --target windows-x86_64 \

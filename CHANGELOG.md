@@ -20,6 +20,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Fixed the JVM developer launcher's lifecycle so its temporary module tree is
   removed after both successful and rejected commands instead of leaking under
   `/tmp`.
+- Corrected default package-manifest URLs to the actual version-tagged GitHub
+  release directory and reject non-HTTPS custom artifact directories.
 
 ### Bounded standalone PNG image intake
 
