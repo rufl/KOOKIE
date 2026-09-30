@@ -1,0 +1,74 @@
+name: Relato de bug (Português)
+description: Relate uma falha reproduzível do KOOKIE
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reduzir a falha. Relatos sensíveis de segurança pertencem ao canal privado de vulnerabilidades do GitHub, não aqui.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Fronteira afetada
+      options:
+        - Engine ou gameplay em Kof
+        - Sessão ou transporte
+        - Cooker de conteúdo ou pacote
+        - Apresentação nativa Linux
+        - Shell Windows
+        - Save ou replay
+        - Build, release ou CI
+        - Documentação
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revisão
+      description: SHA do commit ou tag de release.
+      placeholder: 4fdc25d ou 0.1.0-dogfood.34
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Ambiente
+      description: SO, arquitetura, versão do Kof e detalhes relevantes de SDL/GPU.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reprodução mínima
+      description: Comandos exatos, entrada limitada e passos.
+      placeholder: |
+        1. Execute …
+        2. Forneça …
+        3. Observe …
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Comportamento observado e esperado
+      description: Inclua diagnósticos exatos. Explique o contrato esperado.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidência focada
+      description: Logs ou artefatos pequenos, sem segredos nem dados privados da máquina.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Verificações do relato
+      options:
+        - label: Procurei esta falha nas issues existentes.
+          required: true
+        - label: Removi credenciais, chaves de transporte, chaves de assinatura e dados privados da máquina.
+          required: true
+        - label: Não descrevi uma capacidade não verificada como implementada.
+          required: true

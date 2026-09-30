@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report / Relato de segurança
+    url: https://github.com/rufl/KOOKIE/security/advisories/new
+    about: Report exploitable findings privately / Relate falhas exploráveis de forma privada
+  - name: Documentation / Documentação
+    url: https://github.com/rufl/KOOKIE/blob/main/docs/DOCUMENTATION.md
+    about: Find architecture, evidence and build guides / Encontre arquitetura, evidências e guias de build

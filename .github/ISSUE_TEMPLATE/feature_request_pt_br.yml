@@ -1,0 +1,51 @@
+name: Proposta limitada (Português)
+description: Proponha uma capacidade com fronteira de autoridade e prova
+title: "[Proposta]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        O KOOKIE prefere um contrato executável a um scaffold grande. Descreva o problema, o owner e a fronteira de prova.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: Qual problema concreto de engine, jogo, ferramenta ou contribuição existe hoje?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Menor capacidade útil
+      description: Defina o comportamento limitado. Separe pré-requisitos implementados de suposições.
+    validations:
+      required: true
+  - type: dropdown
+    id: authority
+    attributes:
+      label: Owner pretendido
+      options:
+        - Servidor autoritativo ou estado do mundo
+        - Predição ou apresentação do cliente
+        - Contrato determinístico compartilhado
+        - Cooker de conteúdo ou ferramentas Creator
+        - Adaptador nativo de plataforma
+        - Build, release ou documentação
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Contrato observável de aceitação
+      description: Qual execução, saída ou invariante focado provaria isto sem afirmar mais?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas e não objetivos explícitos
+      description: Qual abordagem mais simples foi considerada e o que fica fora do escopo?
+    validations:
+      required: true

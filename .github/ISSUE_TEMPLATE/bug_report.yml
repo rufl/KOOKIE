@@ -1,0 +1,74 @@
+name: Bug report
+description: Report a reproducible KOOKIE failure
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reducing the failure. Security-sensitive reports belong in GitHub private vulnerability reporting, not here.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected boundary
+      options:
+        - Kof engine or gameplay
+        - Session or transport
+        - Content cooker or package
+        - Native Linux presentation
+        - Windows shell
+        - Save or replay
+        - Build, release or CI
+        - Documentation
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision
+      description: Commit SHA or release tag.
+      placeholder: 4fdc25d or 0.1.0-dogfood.34
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture, Kof version and relevant SDL/GPU details.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Exact commands, bounded input and steps.
+      placeholder: |
+        1. Run …
+        2. Provide …
+        3. Observe …
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed and expected behavior
+      description: Include exact diagnostics. Explain the expected contract.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Focused evidence
+      description: Small logs or artifacts with secrets and private machine data removed.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues for this failure.
+          required: true
+        - label: I removed credentials, transport keys, signing keys and private machine data.
+          required: true
+        - label: I have not described an unverified capability as implemented.
+          required: true

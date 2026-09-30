@@ -4,6 +4,19 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-30
 
+### GitHub project homepage and contributor surface
+
+- Rebuilt the root README as a progressive project homepage with a
+  runtime-palette hero, five meaningful badges, quick routes, one architecture
+  diagram, bounded feature/evidence tables and explicit limitations.
+- Added a reproducible 1280×640 social preview, moved detailed run/package
+  commands into a paired guide, and added paired security reporting guidance.
+- Added English and Brazilian Portuguese bug/proposal forms plus a concise
+  bilingual pull-request template. Repository description, discovery topics
+  and private vulnerability reporting complete the automatable GitHub surface;
+  the source-controlled social preview is ready for GitHub's browser-only
+  upload.
+
 ### Bounded PCM WAVE intake and packaged native cooker
 
 - Added a strict RIFF/WAVE reader for mono/stereo PCM tag `0x0001`, 8- or

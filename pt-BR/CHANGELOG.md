@@ -4,6 +4,21 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-30
 
+### Página inicial GitHub e superfície de contribuição
+
+- Refizemos o README da raiz como página progressiva do projeto, com hero
+  baseado na paleta do runtime, cinco badges úteis, rotas rápidas, um diagrama
+  de arquitetura, tabelas limitadas de capacidades/evidências e limitações
+  explícitas.
+- Adicionamos uma imagem social reproduzível de 1280×640, movemos os comandos
+  detalhados de execução/pacote para um guia pareado e adicionamos orientações
+  pareadas de relato de segurança.
+- Adicionamos formulários de bug/proposta em inglês e português brasileiro,
+  além de um template bilíngue e conciso de pull request. Descrição do
+  repositório, tópicos de descoberta e relato privado de vulnerabilidades
+  completam a superfície automatizável do GitHub; a imagem social versionada
+  está pronta para o upload que o GitHub oferece somente pelo navegador.
+
 ### Entrada WAVE PCM limitada e cooker nativo empacotado
 
 - Adicionamos um leitor RIFF/WAVE estrito para tag PCM `0x0001` mono/estéreo,

@@ -1,0 +1,51 @@
+name: Bounded proposal
+description: Propose a capability with an authority boundary and proof
+title: "[Proposal]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        KOOKIE prefers one executable contract over a large scaffold. Describe the problem, owner and proof boundary.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete engine, game, tool or contributor problem exists today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Smallest useful capability
+      description: Define the bounded behavior. Separate implemented prerequisites from assumptions.
+    validations:
+      required: true
+  - type: dropdown
+    id: authority
+    attributes:
+      label: Intended owner
+      options:
+        - Authoritative server or world state
+        - Client prediction or presentation
+        - Shared deterministic contract
+        - Content cooker or Creator tooling
+        - Native platform adapter
+        - Build, release or documentation
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Observable acceptance contract
+      description: What focused run, output or invariant would prove this without claiming more?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and explicit non-goals
+      description: What simpler approach was considered, and what stays out of scope?
+    validations:
+      required: true
