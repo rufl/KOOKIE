@@ -15,9 +15,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   512 pickups, 24 dynamic lights and 64 effects. The server loads every
   authored triangle and retains per-tick AI/projectile/pickup work ceilings of
   16/64/128.
-- Corrected the dedicated workload's omitted collision load, removed a
-  native-backend argument-spill hazard from the projectile segment query and
-  changed its broad phase from root-only rejection to bounded BVH-leaf
+- Corrected the dedicated workload's omitted collision load, removed
+  native-backend argument-spill hazards from projectile distance, segment and
+  impact paths and changed its broad phase from root-only rejection to bounded
   traversal without per-query allocation.
 - Replicated the complete reference state on every tick to two authenticated
   same-host client processes. Four-chunk client updates are transactional:

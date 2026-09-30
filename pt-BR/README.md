@@ -152,7 +152,7 @@ bash scripts/verify_interactions.sh
 Gere um pacote Linux nativo assinado:
 
 ```bash
-KOOKIE_VERSION=0.1.0-dogfood.28 \
+KOOKIE_VERSION=0.1.0-dogfood.32 \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```
@@ -193,7 +193,7 @@ qualificação visual isolada e no deploy dogfood do ZEER:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
-KOOKIE_VERSION=0.1.0-dogfood.28 \
+KOOKIE_VERSION=0.1.0-dogfood.32 \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```

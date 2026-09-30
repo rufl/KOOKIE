@@ -53,12 +53,10 @@ class SpatialImpactQueue {
         consumed = SpatialImpactEvent(0, 0, 0, 0, 0, 0, 0, 0, 0, false)
     }
 
-    Bool push(
-        Int kind, Int projectileId, Int sourceId, Int targetId,
-        Int x, Int y, Int z, Int applied, Bool targetDied
-    ) {
-        if (kind <= 0 || kind > 3 || projectileId <= 0 || sourceId <= 0 ||
-            targetId < 0 || applied < 0 || count == sequences.length) {
+    Bool push(Int[] impact, Bool targetDied) {
+        if (impact.length != 8 || impact[0] <= 0 || impact[0] > 3 ||
+            impact[1] <= 0 || impact[2] <= 0 || impact[3] < 0 ||
+            impact[7] < 0 || count == sequences.length) {
             return false
         }
         var index = head + count
@@ -66,14 +64,14 @@ class SpatialImpactQueue {
             index = index - sequences.length
         }
         sequences[index] = nextSequence
-        kinds[index] = kind
-        projectileIds[index] = projectileId
-        sourceIds[index] = sourceId
-        targetIds[index] = targetId
-        positionsX[index] = x
-        positionsY[index] = y
-        positionsZ[index] = z
-        appliedAmounts[index] = applied
+        kinds[index] = impact[0]
+        projectileIds[index] = impact[1]
+        sourceIds[index] = impact[2]
+        targetIds[index] = impact[3]
+        positionsX[index] = impact[4]
+        positionsY[index] = impact[5]
+        positionsZ[index] = impact[6]
+        appliedAmounts[index] = impact[7]
         died[index] = targetDied
         count = count + 1
         nextSequence = nextSequence + 1
@@ -307,6 +305,7 @@ class AuthoritativeEnemySession {
     Int spatialProjectileBlockedValue
     Int spatialProjectileRecycleDistance
     SpatialImpactQueue spatialImpacts
+    Int[] spatialImpactScratch
     EnemySteeringResult lastEnemySteering
 
     public constructor(Int actorCapacity, Int encounterCapacity) {
@@ -332,6 +331,7 @@ class AuthoritativeEnemySession {
         spatialProjectileBlockedValue = 0
         spatialProjectileRecycleDistance = 0
         spatialImpacts = SpatialImpactQueue(actorCapacity * 2)
+        spatialImpactScratch = new Int[8]
         lastEnemySteering = EnemySteeringResult(
             false, false, false, 0, 0, 0, 0, 0, 0)
         for (var index = 0; index < actorCapacity; index = index + 1) {
@@ -1017,10 +1017,11 @@ class AuthoritativeEnemySession {
             projectile.projectileId(), targetId, visibility.distance(), critical)
         if (result.accepted()) {
             var target = spatial.position(targetId)
-            publishSpatialImpact(
-                1, projectile.projectileId(), sourceId, targetId,
-                target.x(), target.y(), target.z(),
-                result.applied(), result.died())
+            stageSpatialImpact(
+                1, projectile.projectileId(), sourceId, targetId)
+            stageSpatialImpactPosition(
+                target.x(), target.y(), target.z(), result.applied())
+            publishSpatialImpact(result.died())
             consumeCombatEvents(tick)
         }
         return result
@@ -1033,13 +1034,26 @@ class AuthoritativeEnemySession {
         }
         return -1
     }
-    Bool publishSpatialImpact(
-        Int kind, Int projectileId, Int sourceId, Int targetId,
-        Int x, Int y, Int z, Int applied, Bool died
+    Bool stageSpatialImpact(
+        Int kind, Int projectileId, Int sourceId, Int targetId
     ) {
-        return spatialImpacts.push(
-            kind, projectileId, sourceId, targetId,
-            x, y, z, applied, died)
+        spatialImpactScratch[0] = kind
+        spatialImpactScratch[1] = projectileId
+        spatialImpactScratch[2] = sourceId
+        spatialImpactScratch[3] = targetId
+        return true
+    }
+
+    Bool stageSpatialImpactPosition(Int x, Int y, Int z, Int applied) {
+        spatialImpactScratch[4] = x
+        spatialImpactScratch[5] = y
+        spatialImpactScratch[6] = z
+        spatialImpactScratch[7] = applied
+        return true
+    }
+
+    Bool publishSpatialImpact(Bool targetDied) {
+        return spatialImpacts.push(spatialImpactScratch, targetDied)
     }
 
     SpatialProjectileResult spawnSpatialProjectile(
@@ -1097,10 +1111,12 @@ class AuthoritativeEnemySession {
             var projectileId = spatialProjectileIds[index]
             var targetId = spatialProjectileTargets[index]
             if (!spatial.hasPosition(targetId)) {
-                publishSpatialImpact(
-                    3, projectileId, spatialProjectileSources[index],
-                    targetId, spatialProjectileX[index],
-                    spatialProjectileY[index], spatialProjectileZ[index], 0, false)
+                stageSpatialImpact(
+                    3, projectileId, spatialProjectileSources[index], targetId)
+                stageSpatialImpactPosition(
+                    spatialProjectileX[index], spatialProjectileY[index],
+                    spatialProjectileZ[index], 0)
+                publishSpatialImpact(false)
                 combat.cancelProjectile(projectileId)
                 spatialProjectileActive[index] = false
                 continue
@@ -1111,8 +1127,8 @@ class AuthoritativeEnemySession {
             var targetX = spatial.positionX(targetId)
             var targetY = spatial.positionY(targetId)
             var targetZ = spatial.positionZ(targetId)
-            var distance = spatial.distanceBetween(
-                startX, startY, startZ, targetX, targetY, targetZ)
+            var distance = spatial.distanceFromPointToActor(
+                startX, startY, startZ, targetId)
             if (spatialProjectileRecycleDistance > 0 &&
                 distance <= spatialProjectileRecycleDistance) {
                 var sourceId = spatialProjectileSources[index]
@@ -1124,8 +1140,8 @@ class AuthoritativeEnemySession {
                 spatialProjectileY[index] = startY
                 spatialProjectileZ[index] = startZ
                 spatialProjectileTravelled[index] = 0
-                distance = spatial.distanceBetween(
-                    startX, startY, startZ, targetX, targetY, targetZ)
+                distance = spatial.distanceFromPointToActor(
+                    startX, startY, startZ, targetId)
             }
             var remaining = spatialProjectileRanges[index] -
                 spatialProjectileTravelled[index]
@@ -1171,18 +1187,21 @@ class AuthoritativeEnemySession {
                 var trace = spatial.traceSegment(
                     startX, startY, startZ, nextX, nextY, nextZ)
                 if (!trace.accepted()) {
-                    publishSpatialImpact(
-                        3, projectileId, spatialProjectileSources[index],
-                        targetId, startX, startY, startZ, 0, false)
+                    stageSpatialImpact(
+                        3, projectileId, spatialProjectileSources[index], targetId)
+                    stageSpatialImpactPosition(startX, startY, startZ, 0)
+                    publishSpatialImpact(false)
                     combat.cancelProjectile(projectileId)
                     spatialProjectileActive[index] = false
                     continue
                 }
                 if (trace.collided()) {
-                    publishSpatialImpact(
-                        2, projectileId, spatialProjectileSources[index],
-                        targetId, trace.resolvedX(), trace.resolvedY(),
-                        trace.resolvedZ(), 0, false)
+                    stageSpatialImpact(
+                        2, projectileId, spatialProjectileSources[index], targetId)
+                    stageSpatialImpactPosition(
+                        trace.resolvedX(), trace.resolvedY(),
+                        trace.resolvedZ(), 0)
+                    publishSpatialImpact(false)
                     combat.cancelProjectile(projectileId)
                     spatialProjectileActive[index] = false
                     spatialProjectileBlockedValue =
@@ -1202,24 +1221,27 @@ class AuthoritativeEnemySession {
                     spatialProjectileTravelled[index],
                     spatialProjectileCriticals[index])
                 if (result.accepted()) {
-                    publishSpatialImpact(
-                        1, projectileId, spatialProjectileSources[index],
-                        targetId, nextX, nextY, nextZ,
-                        result.applied(), result.died())
+                    stageSpatialImpact(
+                        1, projectileId, spatialProjectileSources[index], targetId)
+                    stageSpatialImpactPosition(
+                        nextX, nextY, nextZ, result.applied())
+                    publishSpatialImpact(result.died())
                     spatialProjectileHitsValue = spatialProjectileHitsValue + 1
                     consumeCombatEvents(tick)
                 } else {
-                    publishSpatialImpact(
-                        3, projectileId, spatialProjectileSources[index],
-                        targetId, nextX, nextY, nextZ, 0, false)
+                    stageSpatialImpact(
+                        3, projectileId, spatialProjectileSources[index], targetId)
+                    stageSpatialImpactPosition(nextX, nextY, nextZ, 0)
+                    publishSpatialImpact(false)
                     combat.cancelProjectile(projectileId)
                 }
                 spatialProjectileActive[index] = false
             } else if (spatialProjectileTravelled[index] >=
                 spatialProjectileRanges[index]) {
-                publishSpatialImpact(
-                    3, projectileId, spatialProjectileSources[index],
-                    targetId, nextX, nextY, nextZ, 0, false)
+                stageSpatialImpact(
+                    3, projectileId, spatialProjectileSources[index], targetId)
+                stageSpatialImpactPosition(nextX, nextY, nextZ, 0)
+                publishSpatialImpact(false)
                 combat.cancelProjectile(projectileId)
                 spatialProjectileActive[index] = false
             }

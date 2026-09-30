@@ -1381,6 +1381,7 @@ test "deterministic item definitions and loot rolls" {
         restored.itemRoll(0).affixOne() == first.affixOne() &&
         restored.itemRoll(0).condition() == first.condition(),
         "rolled item fields must survive schema persistence")
+    assert(decoded.clear())
     wire[21] = 0
     assert(codec.decode(wire, decoded) && !restored.decodeFrom(decoded),
         "typed inventory load must reject malformed rolled item fields")

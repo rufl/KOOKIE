@@ -140,7 +140,7 @@ bash scripts/verify_interactions.sh
 Build a signed native Linux package:
 
 ```bash
-KOOKIE_VERSION=0.1.0-dogfood.28 \
+KOOKIE_VERSION=0.1.0-dogfood.32 \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```
@@ -179,7 +179,7 @@ visual qualification and ZEER dogfood deployment:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
-KOOKIE_VERSION=0.1.0-dogfood.28 \
+KOOKIE_VERSION=0.1.0-dogfood.32 \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```

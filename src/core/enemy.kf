@@ -209,6 +209,23 @@ class EnemySpatialWorld {
         return segmentDistance(
             firstX, firstY, firstZ, secondX, secondY, secondZ)
     }
+    Int distanceFromPointToActor(Int x, Int y, Int z, Int actorId) {
+        var actorIndex = find(actorId)
+        if (actorIndex < 0) {
+            return -1
+        }
+        var distance = absolute(positionsX[actorIndex] - x)
+        var distanceY = absolute(positionsY[actorIndex] - y)
+        if (distanceY > distance) {
+            distance = distanceY
+        }
+        var distanceZ = absolute(positionsZ[actorIndex] - z)
+        if (distanceZ > distance) {
+            distance = distanceZ
+        }
+        return distance
+    }
+
 
 
     SpatialVisibilityResult visibility(Int sourceId, Int targetId, Int range) {

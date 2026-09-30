@@ -15,9 +15,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   512 itens, 24 luzes dinâmicas e 64 efeitos. O servidor carrega todos os
   triângulos e mantém tetos por tick de 16/64/128 para
   IA/projéteis/itens.
-- Corrigimos a carga de colisão omitida pela carga dedicada, removemos um risco
-  de spill de argumentos do backend nativo na consulta de segmento dos
-  projéteis e mudamos seu broad phase da rejeição somente pela raiz para
+- Corrigimos a carga de colisão omitida pela carga dedicada, removemos riscos
+  de spill de argumentos do backend nativo nos caminhos de distância, segmento
+  e impacto dos projéteis e mudamos seu broad phase da rejeição somente pela
   travessia limitada das folhas da BVH sem alocação por consulta.
 - Replicamos o estado de referência completo a cada tick para dois processos
   clientes autenticados na mesma máquina. As atualizações em quatro chunks são
