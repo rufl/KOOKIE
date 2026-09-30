@@ -1,6 +1,6 @@
 # KOOKIE working memory
 
-Bounded foundations execute; the G0–G4 implementation gates are complete within the qualification limits below.
+Bounded foundations execute; the G0–G5 implementation gates are complete within the qualification limits below.
 
 ## Current qualification batch
 
@@ -23,8 +23,9 @@ Bounded foundations execute; the G0–G4 implementation gates are complete withi
   no-per-frame-growth proof remains bounded to unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- All 84 focused source scenarios pass on JVM and native. The full repository
-  matrix was not run without the pre-commit permit.
+- The retained 84-scenario qualification baseline passed on JVM and native.
+  Three later focused Blockbench, PNG and WAV intake scenarios each pass on both
+  targets. The full repository matrix was not run without the pre-commit permit.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
@@ -42,8 +43,9 @@ Bounded foundations execute; the G0–G4 implementation gates are complete withi
   through loopback and same-host JVM/native external processes; save section 12
   preserves drops and reward claims. Separate-host execution remains unproven.
 - G4 is complete for its bounded contract. Typed hook subscriptions cover
-  session/player/enemy/loot/editor publication; the cooker and JVM file CLI
-  admit the documented GLB, Dust3D, Aseprite, VOX and convex brush subsets;
+  session/player/enemy/loot/editor publication; the cooker admits the documented
+  GLB, Dust3D, Aseprite, VOX, convex brush, Blockbench 5.0, PNG and PCM WAVE
+  subsets through the developer JVM CLI and packaged Linux native intake CLI;
   `.kpkg` reload validates candidate package/registry state before swap; the
   Creator workspace provides inspection, edits, play-in-editor and bounded
   undo/redo; and GPU products activate at a frame boundary only after their
@@ -75,6 +77,10 @@ Bounded foundations execute; the G0–G4 implementation gates are complete withi
 - Crash-durable save publication, multi-step migrations, checksummed
   identity-bound replay v3 and clean-tree Ed25519 release signing close bounded
   G5. Multi-machine/WAN and other hardware/OS performance remain unclaimed.
+- Linux archives now build the same Kof content-cooker entry point natively.
+  Package smoke exercises PCM WAVE canonicalization, idempotent reopen,
+  malformed-input rejection and a graphics-dependency denylist outside the
+  checkout.
 
 ## Earlier platform-release batch
 

@@ -103,8 +103,8 @@ The important gaps are still real:
 - authoring support is intentionally bounded rather than general format
   compatibility: one indexed GLB primitive and canonical products are capped
   at 256 vertices/triangles, VOX intake at 20 voxels, PNG intake at 256×256,
-  and the documented Aseprite, Dust3D, brush, Blockbench and PNG subsets reject
-  unsupported constructs;
+  WAV intake at 30 seconds/1 MiB of canonical PCM, and the documented Aseprite,
+  Dust3D, brush, Blockbench, PNG and WAV subsets reject unsupported constructs;
 - live reload covers validated scene/render products, not arbitrary Kof code,
   shaders, editor plugins or unbounded resource streaming;
 - Kof 0.5.0-beta source commit `bf17ac7e7364` exposes the verified
@@ -145,7 +145,7 @@ bash scripts/verify_interactions.sh
 Build a signed native Linux package:
 
 ```bash
-KOOKIE_VERSION=0.1.0-dogfood.33 \
+KOOKIE_VERSION=0.1.0-dogfood.34 \
 KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -172,14 +172,17 @@ SSE2 or NEON reduction parity across vector tails, then times 64 reductions of
 a 1 MiB Kof-owned `Buffer(U8)`. Its route decision is measurement output, not a
 promise that unrelated engine work is faster.
 
-Cook authoring files and build or inspect one-chunk external packages with the
-JVM-only developer CLI:
+Every Linux archive also includes the native `kookie-cooker`; package smoke
+exercises its WAV normalization outside the checkout. It accepts the `cook`
+commands shown below. Package assembly/inspection remains in the JVM developer
+launcher:
 
 ```bash
 scripts/kookie_cooker.sh cook map level.map level.kmesh
 scripts/kookie_cooker.sh cook dust3d model.ds3 model.glb model.kmesh
 scripts/kookie_cooker.sh cook blockbench character.bbmodel character.kchar
 scripts/kookie_cooker.sh cook png texture.png texture.rgba.png
+scripts/kookie_cooker.sh cook wav effect.wav effect.pcm16.wav
 scripts/kookie_cooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
 scripts/kookie_cooker.sh inspect-package level.kpkg
 scripts/kookie_cooker.sh validate-package creator.kpkg
@@ -193,7 +196,7 @@ visual qualification and ZEER dogfood deployment:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
-KOOKIE_VERSION=0.1.0-dogfood.33 \
+KOOKIE_VERSION=0.1.0-dogfood.34 \
 KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \

@@ -4,6 +4,21 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-30
 
+### Entrada WAVE PCM limitada e cooker nativo empacotado
+
+- Adicionamos um leitor RIFF/WAVE estrito para tag PCM `0x0001` mono/estéreo,
+  amostras de 8 ou 16 bits em 8–96 kHz, limitado a 2 MiB, 32 chunks,
+  30 segundos e 1 MiB de PCM canônico. Ele valida comprimentos RIFF/chunks,
+  taxa de bytes, alinhamento de bloco e padding zero; remove `JUNK`, `PAD ` e
+  `LIST/INFO` limitados; e rejeita semântica comprimida, float, extensível,
+  RF64, cues/loops e desconhecida.
+- Adicionamos saída PCM16 determinística e reaberta, com checksums de fonte,
+  amostras normalizadas, metadados e canônico, por
+  `kookie-cooker cook wav`. Os arquivos Linux agora incluem o cooker Kof
+  nativo; o smoke do pacote verifica normalização, reabertura idempotente,
+  rejeição de entrada malformada e ausência de dependências gráficas fora do
+  checkout.
+
 ### Entrada limitada de imagens PNG independentes
 
 - Adicionamos um leitor PNG independente de até 1 MiB, 64 chunks e 256×256 para

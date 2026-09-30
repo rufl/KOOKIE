@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-As fundações limitadas executam; os gates de implementação G0–G4 estão completos dentro dos limites de qualificação abaixo.
+As fundações limitadas executam; os gates de implementação G0–G5 estão completos dentro dos limites de qualificação abaixo.
 
 ## Lote atual de qualificação
 
@@ -26,8 +26,9 @@ As fundações limitadas executam; os gates de implementação G0–G4 estão co
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- Todos os 84 cenários-fonte focados passam na JVM e no nativo. A matriz
-  completa do repositório não foi executada sem a permissão de pre-commit.
+- A linha de base retida de 84 cenários passou na JVM e no nativo. Três
+  cenários focados posteriores de entrada Blockbench, PNG e WAV passam nos dois
+  alvos. A matriz completa não foi executada sem a permissão de pre-commit.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
@@ -47,10 +48,11 @@ As fundações limitadas executam; os gates de implementação G0–G4 estão co
   preserva drops e reivindicações de recompensa. Execução entre máquinas
   continua não comprovada.
 - G4 está completo para seu contrato limitado. Assinaturas de hooks tipadas
-  cobrem sessão/jogador/inimigo/loot/publicação do editor; o cooker e a CLI JVM
-  de arquivos admitem os subconjuntos documentados de GLB, Dust3D, Aseprite,
-  VOX e brushes convexos; o reload de `.kpkg` valida estado candidato de
-  pacote/registros antes da troca; o workspace Creator fornece inspeção,
+  cobrem sessão/jogador/inimigo/loot/publicação do editor; o cooker admite os
+  subconjuntos documentados de GLB, Dust3D, Aseprite, VOX, brushes convexos,
+  Blockbench 5.0, PNG e WAVE PCM pela CLI JVM de desenvolvimento e pela CLI
+  nativa de entrada Linux empacotada; o reload de `.kpkg` valida estado
+  candidato de pacote/registros antes da troca; o workspace Creator fornece
   edição, play-in-editor e undo/redo limitado; e produtos GPU só ativam no
   limite de frame após a fence de upload. Uma oferta de 18 palavras e uma
   resposta de 7 transportam a identidade exata de compatibilidade de 13
@@ -84,6 +86,10 @@ As fundações limitadas executam; os gates de implementação G0–G4 estão co
   v3 vinculado à identidade e pacotes de árvore limpa assinados com Ed25519
   encerram o G5 limitado. Desempenho em várias máquinas/WAN e outros
   hardwares/SOs não é afirmado.
+- Os arquivos Linux agora constroem nativamente o mesmo ponto de entrada Kof do
+  cooker de conteúdo. O smoke do pacote exercita canonicalização WAVE PCM,
+  reabertura idempotente, rejeição de entrada malformada e denylist de
+  dependências gráficas fora do checkout.
 
 ## Lote anterior de execução de hooks confiáveis
 

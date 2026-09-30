@@ -4643,6 +4643,57 @@ Int[] g4MinimalPngFixture(
     return source
 }
 
+Int[] g4PcmWavFixture(
+    Int bits, Int channels, Int sampleRate, Int[] data, Bool includeMetadata
+) {
+    var bytesPerSample = bits / 8
+    if ((bits != 8 && bits != 16) ||
+        (channels != 1 && channels != 2) || bytesPerSample <= 0) {
+        return new Int[0]
+    }
+    var metadataLength = 0
+    if (includeMetadata) { metadataLength = 24 }
+    var paddedDataLength = data.length + (data.length % 2)
+    var source = new Int[44 + metadataLength + paddedDataLength]
+    g4Zero(source)
+    g4PutBe32(source, 0, 1380533830)
+    g4PutLe32(source, 4, source.length - 8)
+    g4PutBe32(source, 8, 1463899717)
+    var cursor = 12
+    if (includeMetadata) {
+        g4PutBe32(source, cursor, 1247104587)
+        g4PutLe32(source, cursor + 4, 3)
+        source[cursor + 8] = 1
+        source[cursor + 9] = 2
+        source[cursor + 10] = 3
+        cursor = cursor + 12
+    }
+    g4PutBe32(source, cursor, 1718449184)
+    g4PutLe32(source, cursor + 4, 16)
+    g4PutLe16(source, cursor + 8, 1)
+    g4PutLe16(source, cursor + 10, channels)
+    g4PutLe32(source, cursor + 12, sampleRate)
+    var blockAlign = channels * bytesPerSample
+    g4PutLe32(source, cursor + 16, sampleRate * blockAlign)
+    g4PutLe16(source, cursor + 20, blockAlign)
+    g4PutLe16(source, cursor + 22, bits)
+    cursor = cursor + 24
+    if (includeMetadata) {
+        g4PutBe32(source, cursor, 1279873876)
+        g4PutLe32(source, cursor + 4, 4)
+        g4PutBe32(source, cursor + 8, 1229866575)
+        cursor = cursor + 12
+    }
+    g4PutBe32(source, cursor, 1684108385)
+    g4PutLe32(source, cursor + 4, data.length)
+    for (var index = 0; index < data.length; index = index + 1) {
+        source[cursor + 8 + index] = data[index]
+    }
+    cursor = cursor + 8 + paddedDataLength
+    if (cursor != source.length) { return new Int[0] }
+    return source
+}
+
 Int[] g4CompressedSpriteFixture() {
     var source = new Int[248]
     g4Zero(source)
@@ -5148,6 +5199,96 @@ test "G4 PNG intake normalizes filtered indexed images", "png" {
         cooker.cookPng(cooker.sprite().pngBytes()) &&
         cooker.png().width() == 1 && cooker.png().height() == 1,
         "Aseprite atlas output must use the shared canonical PNG encoder")
+}
+
+test "G4 WAV intake normalizes bounded PCM audio", "wav" {
+    var monoData = new Int[3]
+    monoData[0] = 0
+    monoData[1] = 128
+    monoData[2] = 255
+    var source = g4PcmWavFixture(8, 1, 8000, monoData, true)
+    assert(source.length == 72,
+        "independent WAV fixture must retain metadata and odd padding")
+    var cooker = BoundedSourceCooker()
+    assert(cooker.cookWav(source),
+        "bounded WAV must accept PCM8 mono with inert metadata chunks")
+    var result = cooker.result()
+    var audio = cooker.wav()
+    var canonical = audio.canonicalBytes()
+    assert(result.accepted() && result.sourceKind() == sourceKindWav() &&
+        result.materialChecksum() == audio.sampleChecksum() &&
+        result.metadataChecksum() == audio.metadataChecksum() &&
+        result.visibilityChecksum() == audio.canonicalChecksum() &&
+        result.primaryCount() == 3 && result.secondaryCount() == 1 &&
+        audio.sampleRate() == 8000 && audio.channelCount() == 1 &&
+        audio.sourceBits() == 8 && audio.canonicalBits() == 16 &&
+        audio.frameCount() == 3 && audio.chunkCount() == 4 &&
+        audio.metadataChunkCount() == 2 &&
+        audio.sample(0) == -32768 && audio.sample(1) == 0 &&
+        audio.sample(2) == 32512 && canonical.length == 50 &&
+        canonical[0] == 82 && canonical[1] == 73 &&
+        canonical[2] == 70 && canonical[3] == 70 &&
+        canonical[20] == 1 && canonical[22] == 1 &&
+        canonical[34] == 16 && canonical[40] == 6 &&
+        audio.reopenCanonical(),
+        "WAV cooking must strip metadata and emit reopenable PCM16")
+
+    var sampleChecksum = audio.sampleChecksum()
+    var canonicalChecksum = audio.canonicalChecksum()
+    assert(cooker.cookWav(canonical) &&
+        cooker.wav().sourceBits() == 16 &&
+        cooker.wav().chunkCount() == 2 &&
+        cooker.wav().metadataChunkCount() == 0 &&
+        cooker.wav().sampleChecksum() == sampleChecksum &&
+        cooker.wav().canonicalChecksum() == canonicalChecksum &&
+        cooker.wav().canonicalLength() == 50,
+        "canonical WAV normalization must be idempotent")
+
+    var stereoData = new Int[8]
+    stereoData[0] = 0
+    stereoData[1] = 128
+    stereoData[2] = 255
+    stereoData[3] = 255
+    stereoData[4] = 0
+    stereoData[5] = 0
+    stereoData[6] = 255
+    stereoData[7] = 127
+    assert(cooker.cookWav(
+            g4PcmWavFixture(16, 2, 48000, stereoData, false)) &&
+        cooker.wav().sampleRate() == 48000 &&
+        cooker.wav().channelCount() == 2 &&
+        cooker.wav().frameCount() == 2 &&
+        cooker.wav().sample(0) == -32768 &&
+        cooker.wav().sample(1) == -1 &&
+        cooker.wav().sample(2) == 0 &&
+        cooker.wav().sample(3) == 32767 &&
+        cooker.wav().canonicalLength() == 52,
+        "PCM16 stereo samples must survive canonical cooking exactly")
+
+    var badHeader = g4PcmWavFixture(8, 1, 8000, monoData, false)
+    badHeader[4] = badHeader[4] + 1
+    assert(!cooker.cookWav(badHeader) &&
+        cooker.result().diagnostic() == wavDiagnosticHeader(),
+        "RIFF size mismatches must reject at the header boundary")
+
+    var floatSource = g4PcmWavFixture(8, 1, 8000, monoData, false)
+    floatSource[20] = 3
+    assert(!cooker.cookWav(floatSource) &&
+        cooker.result().diagnostic() == wavDiagnosticFormat(),
+        "floating-point WAV must not enter the bounded PCM contract")
+
+    var unknownChunk = g4PcmWavFixture(8, 1, 8000, monoData, false)
+    unknownChunk[12] = 115
+    assert(!cooker.cookWav(unknownChunk) &&
+        cooker.result().diagnostic() == wavDiagnosticChunk(),
+        "unknown semantic WAV chunks must reject rather than be ignored")
+
+    var misaligned = g4PcmWavFixture(16, 2, 48000, stereoData, false)
+    g4PutLe32(misaligned, 40, 7)
+    misaligned[51] = 0
+    assert(!cooker.cookWav(misaligned) &&
+        cooker.result().diagnostic() == wavDiagnosticData(),
+        "PCM data must contain complete interleaved frames")
 }
 
 test "trusted hooks subscribe to broader typed domain events" {

@@ -4,6 +4,20 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-30
 
+### Bounded PCM WAVE intake and packaged native cooker
+
+- Added a strict RIFF/WAVE reader for mono/stereo PCM tag `0x0001`, 8- or
+  16-bit samples at 8–96 kHz, bounded to 2 MiB, 32 chunks, 30 seconds and
+  1 MiB of canonical PCM. It validates RIFF/chunk lengths, byte rate, block
+  alignment and zero padding; strips bounded `JUNK`, `PAD ` and `LIST/INFO`;
+  and rejects compressed, float, extensible, RF64, cue/loop and unknown
+  semantics.
+- Added reopened deterministic PCM16 output with source, normalized-sample,
+  metadata and canonical checksums through `kookie-cooker cook wav`. Linux
+  archives now include the native Kof cooker; package smoke checks
+  canonicalization, idempotent reopen, malformed-input rejection and absence
+  of graphics dependencies outside the checkout.
+
 ### Bounded standalone PNG image intake
 
 - Added a 1 MiB, 64-chunk, 256×256 standalone PNG reader for non-interlaced

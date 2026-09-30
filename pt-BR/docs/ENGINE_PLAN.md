@@ -97,10 +97,11 @@ todos os candidatos ao G0.
 | Compressão de pacotes | **Zstandard (`libzstd`)** | Adicionar no estágio de pacote cozido, não por frame. Use blocos limitados e endereçáveis independentemente, comprimentos decodificados declarados e limites do decodificador; compressão não é integridade/autenticação. Opção de licença BSD |
 
 **Detalhes da escolha de áudio.** SDL_mixer é a autoridade adotada de
-dispositivo/mixagem. O KOOKIE envia streams PCM gerados, então os pacotes não
-precisam de decodificadores opcionais de áudio comprimido. Qualquer codec
-futuro deve passar pelo gate de licença permissiva e fechamento de dependências
-antes do empacotamento. OpenAL Soft não é alternativa sob a política atual
+dispositivo/mixagem. O KOOKIE envia streams PCM gerados e clips PCM16 cozidos
+de forma limitada, portanto os pacotes não precisam de decodificadores
+opcionais de áudio comprimido. Qualquer codec futuro deve passar pelo gate de
+licença permissiva e fechamento de dependências antes do empacotamento.
+OpenAL Soft não é alternativa sob a política atual
 somente permissiva porque a implementação inspecionada usa
 LGPL-2.0-or-later. Não execute uma segunda biblioteca como autoridade
 concorrente de mixer.
@@ -569,6 +570,7 @@ obrigatório de proveniência do pacote:
 | MagicaVoxel `.vox` | Analisar modelos voxel/paleta limitada e chunks de cena compatíveis, e produzir malha/GLB determinística, além de materiais e colisão voxel opcional |
 | Blockbench `.bbmodel` | Analisar o outliner 5.0 exato de cubos/ossos e clips numéricos limitados de posição/rotação/escala em dados de rig `KCHR` v1 reabertos; pixels de textura e saída UV/material por face exigem um produto separado |
 | PNG `.png` | Verificar um subconjunto estático de 8 bits limitado a 1 MiB/64 chunks/256×256, decodificar tipos de cor 0/2/3/4/6 com paleta/transparência e filtros 0–4 e então reabrir a saída PNG RGBA8 determinística; rejeitar Adam7, APNG, chunks auxiliares incompatíveis e perfis de cor ambíguos |
+| WAVE PCM `.wav` | Admitir RIFF/WAVE exato com tag PCM `0x0001`, amostras mono/estéreo de 8 ou 16 bits em 8–96 kHz sob 2 MiB/32 chunks/30 segundos/1 MiB de PCM canônico; remover metadados inertes limitados e reabrir PCM16 determinístico; rejeitar RF64, extensível, float, comprimido, cues/loops e semântica desconhecida |
 
 Use GLB para intercâmbio de runtime 3D e PNG mais metadados versionados para
 intercâmbio de runtime de sprites. OBJ/FBX são alternativas de conversão, não
@@ -594,6 +596,11 @@ subconjunto explícito. Ele preserva os valores das amostras; a interpretação
 sRGB/linear no runtime pertence à política de materiais, e perfis de cor
 incorporados são rejeitados em vez de alterar silenciosamente essa política.
 
+O leitor de áudio segue o registro PCM da
+[RFC 2361](https://www.rfc-editor.org/rfc/rfc2361) e o modelo RIFF/WAVE
+documentado por [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV).
+Áudio comprimido ou em streaming continua sendo um pipeline futuro separado.
+
 Para autoria de boomer-shooter, adicione um subconjunto textual de brushes no estilo
 Quake, `.map`: recorte/triangulação de planos de brushes convexos, tradução de
 entidades/propriedades, mapeamento de materiais e colisão/visibilidade derivadas.
@@ -618,11 +625,13 @@ Transações obsoletas, incompletas, divergentes ou inválidas preservam a gera�
 anterior.
 
 `BoundedSourceCooker` admite os subconjuntos documentados de GLB indexado,
-Dust3D/Aseprite/VOX, mapas de brushes convexos e personagens Blockbench 5.0 sob
-limites explícitos de tamanho/quantidade/chunks/profundidade.
-`scripts/kookie_cooker.sh`, exclusivo da JVM, expõe comandos de arquivo `cook`,
-`package`, `inspect-package` e `validate-package`.
-O leitor de pacotes valida campos little-endian explícitos, caminhos,
+Dust3D/Aseprite/VOX, mapas de brushes convexos, personagens Blockbench 5.0, PNG
+e WAVE PCM sob limites explícitos de tamanho/quantidade/chunks/profundidade/
+duração. `scripts/kookie_cooker.sh` fornece comandos JVM de desenvolvimento
+`cook`, `package`, `inspect-package` e `validate-package`. Os arquivos Linux
+também contêm um runner nativo para o mesmo caminho Kof de `cook`; operações de
+pacote continuam exclusivas da JVM. O leitor de pacotes valida campos
+little-endian explícitos, caminhos,
 limites/sobreposição/hashes de chunks e registros. O
 `BoundedExternalPackageRuntime` constrói candidatos e só troca pacote e
 registros de extensões/definições/hooks após validação completa; reload inválido

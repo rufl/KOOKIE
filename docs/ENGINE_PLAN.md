@@ -99,10 +99,11 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 | Package compression | **Zstandard (`libzstd`)** | Add at the cooked-package stage, not per frame. Use bounded independently addressable chunks, declared decoded lengths and decoder limits; compression is not integrity/authentication. BSD license option |
 
 **Audio choice details.** SDL_mixer is the adopted device/mixer authority.
-KOOKIE currently submits generated PCM streams, so packages do not need
-optional compressed-audio decoders. Any future codec must pass the
-permissive-license and dependency-closure gate before packaging. OpenAL Soft is
-not an alternative under the current permissive-only distributed dependency
+KOOKIE submits generated PCM streams and bounded cooked PCM16 clips, so
+packages do not need optional compressed-audio decoders. Any future codec must
+pass the permissive-license and dependency-closure gate before packaging.
+OpenAL Soft is not an alternative under the current permissive-only distributed
+dependency
 policy because the inspected implementation is LGPL-2.0-or-later. Do not run a
 second library as a competing mixer authority.
 
@@ -547,6 +548,7 @@ full tool/version receipt remains required package-provenance hardening:
 | MagicaVoxel `.vox` | Parse bounded voxel models/palette/supported scene chunks and produce deterministic mesh/GLB plus materials and optional voxel collision |
 | Blockbench `.bbmodel` | Parse the exact 5.0 cube/bone outliner and bounded numeric position/rotation/scale clips into reopened `KCHR` v1 rig data; texture pixels and per-face UV/material output require a separate product |
 | PNG `.png` | Verify a 1 MiB/64-chunk/256×256 static 8-bit subset, decode color types 0/2/3/4/6 with palette/transparency and filters 0–4, then reopen deterministic RGBA8 PNG output; reject Adam7, APNG, unsupported ancillary chunks and ambiguous color profiles |
+| PCM WAVE `.wav` | Admit exact RIFF/WAVE PCM tag `0x0001` with mono/stereo 8- or 16-bit samples at 8–96 kHz under 2 MiB/32 chunks/30 seconds/1 MiB canonical PCM; strip bounded inert metadata and reopen deterministic PCM16; reject RF64, extensible, float, compressed, cue/loop and unknown semantics |
 
 Use GLB for 3D runtime interchange and PNG plus versioned metadata for sprite
 runtime interchange. OBJ/FBX are conversion fallbacks, not runtime contracts.
@@ -569,6 +571,11 @@ explicit subset. It preserves sample values; runtime sRGB/linear interpretation
 belongs to material policy, and embedded color profiles reject rather than
 silently changing that policy.
 
+The audio reader follows the PCM registration in
+[RFC 2361](https://www.rfc-editor.org/rfc/rfc2361) and the RIFF/WAVE model
+documented by [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV).
+Compressed or streamed audio remains a separate future pipeline.
+
 For boomer-shooter authoring add a Quake-style textual brush `.map` subset: convex brush plane clipping/triangulation, entity/property translation, material mapping and derived collision/visibility. TrenchBroom can be an external authoring tool; our `.kf` cooker remains the import authority. This does **not** promise WAD/BSP/QuakeC/source-port compatibility. Source maps are not shipped original-game assets.
 
 Cooked package contract: magic, schema/tool/content versions, stable IDs, chunk offsets/lengths, dependency hashes, explicit endianness, bounds and corruption checks. Reject traversal, duplicate IDs, overlapping/out-of-range payloads and decompression overrun. Do not serialize Kof object memory or internal array headers.
@@ -582,10 +589,12 @@ content checksum. Stale, incomplete, mismatched or invalid transactions retain
 the prior generation.
 
 `BoundedSourceCooker` admits the documented indexed GLB,
-Dust3D/Aseprite/VOX, convex brush-map and Blockbench 5.0 character subsets
-under explicit size/count/chunk/depth limits. The JVM-only
-`scripts/kookie_cooker.sh` provides file `cook`, `package`, `inspect-package`
-and `validate-package` commands. The package reader validates
+Dust3D/Aseprite/VOX, convex brush-map, Blockbench 5.0 character, PNG and PCM
+WAVE subsets under explicit size/count/chunk/depth/duration limits.
+`scripts/kookie_cooker.sh` provides developer JVM file `cook`, `package`,
+`inspect-package` and `validate-package` commands. Linux archives also carry a
+native runner for the same Kof `cook` path; package operations remain JVM-only.
+The package reader validates
 explicit little-endian fields, paths, chunk bounds/overlap/hashes and registry
 records. `BoundedExternalPackageRuntime` constructs candidates and swaps the
 package plus extension/definition/hook registries only after complete

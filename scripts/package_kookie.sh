@@ -24,10 +24,10 @@ Builds a signed immutable KOOKIE archive, provenance manifest, public key,
 signature set, and SHA256SUMS. Native Linux packages contain the Kof executable
 and use the host's system runtime. Presentation packages contain the persistent
 native Kof SDL_GPU application, SDL3, SDL_mixer, the adapter, and shaders.
-Every Linux package also contains a graphics-free Kof dedicated workload server
-and a Kof `Buffer(U8)` SIMD benchmark with native timing. Windows packages
-contain the native SDL3 and SDL_mixer game shell. Java runtimes are deliberately
-excluded.
+Every Linux package also contains a graphics-free Kof dedicated workload server,
+a native bounded content cooker, and a Kof `Buffer(U8)` SIMD benchmark with
+native timing. Windows packages contain the native SDL3 and SDL_mixer game shell.
+Java runtimes are deliberately excluded.
 Set `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to the
 verified distribution used for the build.
 EOF
@@ -286,6 +286,83 @@ EOF
   chmod 755 "$PACKAGE_ROOT/kookie-server"
 }
 
+bundle_linux_cooker() {
+  local cooker_root="$WORK_DIR/cooker-source"
+  local cooker_build="$WORK_DIR/cooker-build"
+  mkdir -p "$cooker_root"/{core,content}
+  cp -- "$ROOT_DIR/apps/creator_cooker/main.kf" "$cooker_root/main.kf"
+  for module in core content; do
+    for source in "$ROOT_DIR/src/$module/"*.kf; do
+      ln -s -- "$source" "$cooker_root/$module/$(basename "$source")"
+    done
+  done
+  (cd "$cooker_root" && kof build main.kf --target native \
+    --output "$cooker_build" >/dev/null)
+  local cooker_binary="$cooker_build/Default/Main"
+  test -x "$cooker_binary" || {
+    echo "package_kookie: content cooker executable missing: $cooker_binary" >&2
+    exit 1
+  }
+  cp -- "$cooker_binary" "$PACKAGE_ROOT/kookie-cooker.bin"
+  chmod 755 "$PACKAGE_ROOT/kookie-cooker.bin"
+  cat > "$PACKAGE_ROOT/kookie-cooker" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+usage() {
+  echo "Usage: kookie-cooker cook <glb|aseprite|vox|map|blockbench|png|wav> <input> <output>" >&2
+  echo "       kookie-cooker cook dust3d <input.ds3> <export.glb> <output>" >&2
+  exit 2
+}
+[ "${1:-}" = "cook" ] || usage
+kind="${2:-}"
+case "$kind" in
+  glb) code=1 ;;
+  dust3d) code=2 ;;
+  aseprite) code=3 ;;
+  vox) code=4 ;;
+  map) code=5 ;;
+  blockbench) code=6 ;;
+  png) code=7 ;;
+  wav) code=8 ;;
+  *) usage ;;
+esac
+if [ "$kind" = "dust3d" ]; then
+  [ "$#" -eq 5 ] || usage
+  input=$3
+  paired=$4
+  output=$5
+else
+  [ "$#" -eq 4 ] || usage
+  input=$3
+  paired=
+  output=$4
+fi
+work=$(mktemp -d "${TMPDIR:-/tmp}/kookie-cooker.XXXXXX")
+output_tmp=
+cleanup() {
+  rm -rf -- "$work"
+  if [ -n "$output_tmp" ]; then rm -f -- "$output_tmp"; fi
+}
+trap cleanup EXIT INT TERM
+cp -- "$input" "$work/source.input"
+if [ -n "$paired" ]; then cp -- "$paired" "$work/paired.input"; fi
+printf '%s' "$code" >"$work/.kookie-cooker-native-kind"
+(cd "$work" && "$root/kookie-cooker.bin")
+[ -s "$work/product.output" ] || {
+  echo "kookie-cooker: native worker produced no output" >&2
+  exit 1
+}
+output_dir=$(dirname -- "$output")
+output_base=$(basename -- "$output")
+output_tmp=$(mktemp "$output_dir/.${output_base}.tmp.XXXXXX")
+cp -- "$work/product.output" "$output_tmp"
+mv -f -- "$output_tmp" "$output"
+output_tmp=
+EOF
+  chmod 755 "$PACKAGE_ROOT/kookie-cooker"
+}
+
 bundle_linux_simd_benchmark() {
   local benchmark_root="$WORK_DIR/simd-benchmark-source"
   local benchmark_build="$WORK_DIR/simd-benchmark-build"
@@ -383,6 +460,7 @@ else
 fi
 if [[ "$TARGET" == linux-x86_64 ]]; then
   bundle_linux_server
+  bundle_linux_cooker
   bundle_linux_simd_benchmark
 fi
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
@@ -417,6 +495,7 @@ sdl_mixer_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64
 runtime_dependencies=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo SDL3+SDL_mixer || echo system-only)
 dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
 simd_benchmark=$([[ "$TARGET" == linux-x86_64 ]] && echo kof-buffer-u8-runtime-dispatch || echo unavailable)
+content_cooker=$([[ "$TARGET" == linux-x86_64 ]] && echo native-bounded-intake-cli || echo unavailable)
 crash_durable_save=staged-validated-fsync-rename-directory-fsync
 replay_admission=identity-bound-checksummed-v3
 EOF
@@ -465,6 +544,7 @@ manifest = {
     "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
     "dedicated_server": target == "linux-x86_64",
     "simd_benchmark": target == "linux-x86_64",
+    "content_cooker": target == "linux-x86_64",
     "signing": "ed25519",
     "proof": "ed25519-signature-set",
     "signature_encoding": "binary",

@@ -356,6 +356,7 @@ formatos de runtime:
 | `.map` no estilo Quake | Subconjunto ASCII em grade inteira de entidade/propriedade e planos de brushes convexos; até 8.192 tokens, 64 entidades, 512 propriedades, 16 planos por brush e 256 vértices/triângulos de saída | Geometria/colisão canônica triangulada, mais checksums de entidade, material e visibilidade |
 | Blockbench `.bbmodel` | JSON do formato 5.0 exato, de até 1 MiB; outliner de personagem somente com cubos, com no máximo 64 ossos UUID, 128 cuboides, 32 clips, 512 keyframes e profundidade 16; valores de posição/rotação/escala limitados a ±100.000 e normalizados em milésimos, clips de até 600 segundos e interpolação `linear`/`step`; rejeitar UUIDs duplicados/desconhecidos, Molang, efeitos e interpolação incompatível | `KCHR` v1 little-endian reaberto, com cuboides em ponto fixo, hierarquia/clips vinculados por UUID e checksums de fonte/personagem/ossos/animação/canônico; pixels de textura e dados UV/material por face ficam fora do `KCHR` v1 |
 | PNG `.png` | Até 1 MiB, 64 chunks e 256×256 pixels; tipos de cor 0/2/3/4/6 de 8 bits sem entrelaçamento, `IDAT` consecutivo, zlib, filtros 0–4, `PLTE`, `tRNS` e `tEXt` validado; verificar CRC/Adler e rejeitar Adam7, APNG, outras profundidades e qualquer outro chunk auxiliar/desconhecido | PNG RGBA8 determinístico, sem entrelaçamento e reaberto, mais checksums de fonte, pixels decodificados, metadados e canônico |
+| WAVE PCM `.wav` | RIFF/WAVE de até 2 MiB e 32 chunks; `fmt ` PCM exato de 16 bytes com tag `0x0001`, mono/estéreo, 8–96 kHz, amostras unsigned de 8 bits ou signed little-endian de 16 bits, no máximo 30 segundos e 1 MiB de PCM canônico; admitir e remover `JUNK`, `PAD ` e `LIST/INFO`, exigir padding ímpar zero e rejeitar RF64, extensível/float/comprimido, cues, loops e qualquer outro chunk | WAVE PCM16 determinístico e reaberto, com checksums de fonte, amostras normalizadas, metadados removidos e canônico |
 
 Regras canônicas de entrada:
 
@@ -393,6 +394,12 @@ conversão de gamma; perfis de cor e outros chunks auxiliares semânticos são
 rejeitados, portanto a política de materiais deve declarar explicitamente a
 interpretação do espaço de cor no runtime.
 
+O leitor WAVE implementa de forma independente a tag PCM limitada `0x0001`
+registrada pela [RFC 2361](https://www.rfc-editor.org/rfc/rfc2361) e o modelo de
+carregamento RIFF/WAVE documentado por
+[SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV). Ele emite PCM16
+estático; streaming e decodificação comprimida ficam fora deste contrato.
+
 O cooker é responsável pela semântica de cenas, colisões, gameplay e pacotes.
 Bibliotecas nativas de imagem, fontes e áudio fornecem apenas mecanismos
 restritos de decodificação.
@@ -402,10 +409,13 @@ válido anterior. As revisões de geometria, colisão, navegação e replicaçã
 ser publicadas juntas.
 
 `scripts/kookie_cooker.sh` expõe `cook`, `package`, `inspect-package` e
-`validate-package` por uma CLI de desenvolvimento exclusiva da JVM. O envelope
-`.kpkg` armazena cabeçalhos little-endian explícitos, caminhos lógicos limitados
-e payloads de chunks. Seu leitor rejeita traversal, caminhos/IDs duplicados,
-sobreposição, bytes fora de alcance, hash divergente e registros corrompidos.
+`validate-package` por uma CLI JVM de desenvolvimento. Os arquivos Linux também
+contêm um runner `kookie-cooker` nativo para o mesmo caminho Kof de `cook`; as
+operações de pacote continuam exclusivas da JVM. O envelope `.kpkg` armazena
+cabeçalhos little-endian explícitos, caminhos lógicos limitados e payloads de
+chunks.
+Seu leitor rejeita traversal, caminhos/IDs duplicados, sobreposição, bytes fora
+de alcance, hash divergente e registros corrompidos.
 `BoundedExternalPackageRuntime` monta candidatos de pacote e registros de
 extensões/definições/hooks e só os troca após validação completa; reload com
 falha preserva pacote, registros e geração ativos.
@@ -425,8 +435,9 @@ plugin.
 ### Reforço adicional da entrada
 
 Os parsers implementados já fornecem checksums limitados de fonte/resultado,
-produtos canônicos, validação de reabertura do GLB, diagnósticos determinísticos
-e publicação atômica. Alvos restantes para robustez de produção incluem:
+produtos canônicos, validação de reabertura de GLB/PNG/WAV, diagnósticos
+determinísticos e publicação atômica. Alvos restantes para robustez de produção
+incluem:
 
 1. **Recibos de origem:** registrar caminho da fonte, SHA-256, ferramenta/versão, opções,
    hashes das dependências, convenção de coordenadas e hashes das saídas geradas.
@@ -439,10 +450,9 @@ e publicação atômica. Alvos restantes para robustez de produção incluem:
    nós/materiais e mapeamentos da fonte para a saída entre renomeações,
    reordenações e reexportações. Nunca vincular gameplay ou animação à posição
    em um array.
-4. **Validação de reabertura:** após o cooking, reabrir o GLB, o `KCHR`, o
-   atlas, os metadados e os produtos de colisão gerados pelos leitores de
-   runtime. Um processo de exportação concluído com sucesso não é prova
-   suficiente.
+4. **Validação de reabertura:** após o cooking, reabrir GLB, `KCHR`, PNG/WAV,
+   metadados de atlas e produtos de colisão gerados pelos leitores de runtime.
+   Um processo de exportação concluído com sucesso não é prova suficiente.
 5. **Conjuntos atômicos de produtos:** malha, materiais, texturas, animação,
    colisão, navegação e metadados de replicação são publicados como uma única
    revisão. Rejeitar a combinação de produtos antigos e novos.
