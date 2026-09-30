@@ -6,11 +6,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ### GitHub project homepage and contributor surface
 
-- Rebuilt the root README as a progressive project homepage with a
-  runtime-palette hero, five meaningful badges, quick routes, one architecture
-  diagram, bounded feature/evidence tables and explicit limitations.
-- Added a reproducible 1280×640 social preview, moved detailed run/package
-  commands into a paired guide, and added paired security reporting guidance.
+- Rebuilt the root README as a progressive project homepage with the supplied
+  KOOKIE logo, five meaningful badges, quick routes, one architecture diagram,
+  bounded feature/evidence tables and explicit limitations.
+- Added a restrained 1280×640 social preview built from the supplied logo,
+  moved detailed run/package commands into a paired guide, and added paired
+  security reporting guidance.
 - Added English and Brazilian Portuguese bug/proposal forms plus a concise
   bilingual pull-request template. Repository description, discovery topics
   and private vulnerability reporting complete the automatable GitHub surface;
@@ -211,9 +212,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   dependencies to permissive components. Packages now include MIT and
   third-party notices; Linux packages no longer bundle the dynamic loader or
   libc, and distributable JVM packages are rejected.
-- Updated ZEER to launch `kookie.exe`. Focused isolated Wine checks exercised
-  main, options and multiplayer screens plus real resize, maximize and restore;
-  package smoke loaded SDL 3.4.16 and SDL_mixer 3.2.4 without opening a window.
+- The native Windows artifact now launches `kookie.exe`. Focused isolated Wine
+  checks exercised main, options and multiplayer screens plus real resize,
+  maximize and restore; package smoke loaded SDL 3.4.16 and SDL_mixer 3.2.4
+  without opening a window.
 
 ### Generation-bound trusted-hook execution
 
@@ -264,14 +266,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   review confirmed bounded panel contents, readable shape-distinct
   source/validation/publication/success and boss-crown cues, and no clipping or
   overlap in those panels.
-- Built and deployed Linux presentation dogfood `0.1.0-dogfood.27` from
-  `82bf57d69083` through ZEER into the ztash state (SHA256
+- Qualified Linux presentation dogfood `0.1.0-dogfood.27` from
+  `82bf57d69083` (SHA256
   `ad4a57ee4f92cf8da93d7d29b8002d95656327d35438c54f29a2b8e8d056abce`,
-  4,281,751 bytes). The active marker and deployed package smoke bind that exact
-  version, build and archive. The extracted archive also exited `0` inside
-  `overzeer-isolated-display` plus nested niri, reported capability `11`, drew
-  in 9,087 µs and reproduced frame checksum `30,358,034`; its persisted capture
-  was byte-identical to the source verification capture.
+  4,281,751 bytes). Outside-checkout package smoke bound the exact version,
+  build and archive. The extracted archive also exited `0` inside a reviewed
+  isolated display with a nested compositor, reported capability `11`, drew
+  in 9,087 µs and reproduced frame checksum `30,358,034`; its persisted
+  capture was byte-identical to the source verification capture.
 
 
 ### G3 closure: bounded extensions, data-defined bosses and threat HUD
@@ -294,13 +296,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   pass. The 320×240 capture reported present capability `11`, drew in
   10,789 µs and produced checksum `30,593,757`; visual review found no clipping,
   panel overlap or ambiguous color-only threat state.
-- Built and deployed Linux presentation dogfood `0.1.0-dogfood.26` from
-  `2abfeb172b61` through the verified 30-package ztash catalog (SHA256
+- Qualified Linux presentation dogfood `0.1.0-dogfood.26` from
+  `2abfeb172b61` (SHA256
   `325c4f9cf82ff42ed6e72898012d6e56afdb09f75a078a99f033a0519f50d3ac`,
-  4,232,726 bytes). The active ZEER marker and deployed smoke bind that exact
-  version, build and archive. The archive also exited `0` inside
-  `overzeer-isolated-display` plus nested niri, reported capability `11`, drew
-  in 5,104 µs and reproduced frame checksum `30,593,757`.
+  4,232,726 bytes). Outside-checkout package smoke bound the exact version,
+  build and archive. The archive also exited `0` inside a reviewed isolated
+  display with a nested compositor, reported capability `11`, drew in
+  5,104 µs and reproduced frame checksum `30,593,757`.
 
 ### G3 process replication and semantic HUD polish
 
@@ -316,15 +318,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   world drops after pickup; separate-host execution remains unproven.
 - All 74 source scenarios pass on JVM and native. Kof lint/LSP, the focused
   interaction probe and JVM/native external-process transport regressions pass.
-- Built and deployed Linux presentation dogfood `0.1.0-dogfood.25` from
-  `a02c7c1edd58` through the verified 30-package ztash catalog (SHA256
+- Qualified Linux presentation dogfood `0.1.0-dogfood.25` from
+  `a02c7c1edd58` (SHA256
   `15f74f040f02a6faadea161057f8b8184323b9b5ccf9b1c3fe10d8dbf0bbab6a`,
-  4,207,580 bytes). The active ZEER marker and deployed package smoke both
-  identify the exact version, build and archive. The exact presentation
-  package also exited `0` inside `overzeer-isolated-display` plus nested niri,
-  reported present capability `11`, drew in 83,543 µs and produced a validated
-  320×240 frame with checksum `29,772,824`; visual review found no clipping or
-  HUD overlap.
+  4,207,580 bytes). Outside-checkout package smoke bound the exact version,
+  build and archive. The presentation package also exited `0` inside a
+  reviewed isolated display with a nested compositor, reported present
+  capability `11`, drew in 83,543 µs and produced a validated 320×240 frame
+  with checksum `29,772,824`; visual review found no clipping or HUD overlap.
 
 ### First authoritative G3 loot/progression vertical slice
 
@@ -346,9 +347,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   presentation archives, checksums, provenance, runtime and the fail-closed
   Windows-native gate.
 - Presentation packages now include a separate native `kookie-smoke.bin`;
-  `kookie --package-smoke` selects it without opening a display. Ztash can
-  validate packaged Kof/runtime dependencies headlessly, while normal launch
-  still selects the isolated SDL_GPU presentation executable.
+  `kookie --package-smoke` selects it without opening a display. Deployment
+  automation can validate packaged Kof/runtime dependencies headlessly, while
+  normal launch still selects the isolated SDL_GPU presentation executable.
 - G3 remains open for external-process transport of state kinds `7`/`8`,
   bounded public extension registries and complete data-driven elite/boss
   rules.
@@ -395,13 +396,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   JVM/native host-plus-two-client process regressions also pass. The LAN
   evidence validator requires terminal encounter/state/health and
   confirmed-impact markers.
-- Built and deployed Linux presentation dogfood `0.1.0-dogfood.23` from
-  `d89a16461e6d` to the local ztash catalog (SHA256
+- Qualified Linux presentation dogfood `0.1.0-dogfood.23` from
+  `d89a16461e6d` (SHA256
   `43250c6763d9ef98d81e9ed3541a1c335139636e8852cbe2501a008cd5b30d7c`,
-  3,808,495 bytes). The exact archive exited `0` inside
-  `overzeer-isolated-display` plus a nested Wayland compositor, reported
-  present capability `11`, drew in 23,844 µs and produced a validated 320×240
-  frame with checksum `29,309,607`.
+  3,808,495 bytes). The archive exited `0` inside a reviewed isolated display
+  with a nested Wayland compositor, reported present capability `11`, drew in
+  23,844 µs and produced a validated 320×240 frame with checksum `29,309,607`.
 
 ### Confirmed combat feedback slice
 
@@ -417,13 +417,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Routed `G1Demo`'s real authoritative kill through the HUD and native
   presentation probe. SDL audio now receives that event's clip `201` at gain
   `100` instead of an unrelated sample clip.
-- Built and deployed Linux presentation dogfood `0.1.0-dogfood.22` from
-  `82ccdd5` to the local ztash catalog (SHA256
+- Qualified Linux presentation dogfood `0.1.0-dogfood.22` from
+  `82ccdd5` (SHA256
   `3fa7b256ccec83104c33799dd2ac723381135f60ab6aecc5551d013c0280a474`,
-  3,802,863 bytes). The exact archive exited `0` inside
-  `overzeer-isolated-display` plus a nested Wayland compositor, reported
-  present capability `11`, drew in 8,399 µs and produced a validated 320×240
-  frame with checksum `29,150,337`.
+  3,802,863 bytes). The archive exited `0` inside a reviewed isolated display
+  with a nested Wayland compositor, reported present capability `11`, drew in
+  8,399 µs and produced a validated 320×240 frame with checksum `29,150,337`.
 
 ### Semantic HUD and visual dogfood
 
@@ -440,7 +439,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added observable HUD-state regression coverage. All 72 source tests pass on
   JVM and native; native, JVM and presentation archive/checksum/provenance
   package smokes pass.
-- The packaged presentation ran inside `overzeer-isolated-display` with a
+- The packaged presentation ran inside a reviewed isolated display with a
   nested compositor, reported present capability `11`, rendered in 11,257 µs,
   captured a validated 320×240 frame and exited cleanly. Machine-specific
   evidence remains outside the repository.

@@ -84,7 +84,7 @@ output for its exact reduction workload, not a general speedup claim.
 ## Linux SDL presentation package
 
 Build the persistent SDL3/SDL_GPU presentation used for isolated visual
-qualification and ZEER dogfood deployment:
+qualification and signed dogfood releases:
 
 ```bash
 KOOKIE_RUNTIME=presentation \

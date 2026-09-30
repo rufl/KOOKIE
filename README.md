@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/media/kookie-hero.svg" alt="KOOKIE — an authoritative shooter engine built around Kof. Doors have prerequisites; multiplayer has paperwork." width="1200">
+  <img src="docs/media/kookie-logo.png" alt="KOOKIE" width="700">
 </p>
 
 <p align="center">

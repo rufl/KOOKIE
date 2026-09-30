@@ -347,4 +347,8 @@ games/editor/server or graphics launched. Later installation verification
 exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did
 not verify the engine graphics stack or run a full suite.
 
-All graphical checks use a reviewed wrapper configured through `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, with private sockets, timeout and process cleanup; never the developer desktop. Full matrix only final pre-commit with user permit. Sibling source changes are limited to ZEER's KOOKIE deployment descriptor; no sibling engine/game source or assets were copied.
+All graphical checks use a reviewed wrapper configured through
+`KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, with private sockets, timeout and
+process cleanup; never the developer desktop. Full matrix only final
+pre-commit with user permit. No sibling engine/game source or assets were
+copied.

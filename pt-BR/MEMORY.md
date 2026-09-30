@@ -149,7 +149,7 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
   `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`;
   nenhum alvo Kof PE para Windows foi estabelecido.
 - O pacote Linux executa o servidor sem gráficos e o smoke fora do checkout.
-  O deployment ZEER mantém a procedência e o histórico operacional fora deste
+  A procedência dos pacotes e o histórico operacional permanecem fora deste
   repositório.
 
 ## Intenção do usuário

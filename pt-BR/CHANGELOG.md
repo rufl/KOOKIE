@@ -6,13 +6,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ### Página inicial GitHub e superfície de contribuição
 
-- Refizemos o README da raiz como página progressiva do projeto, com hero
-  baseado na paleta do runtime, cinco badges úteis, rotas rápidas, um diagrama
-  de arquitetura, tabelas limitadas de capacidades/evidências e limitações
+- Refizemos o README da raiz como página progressiva do projeto, com o logo
+  KOOKIE fornecido, cinco badges úteis, rotas rápidas, um diagrama de
+  arquitetura, tabelas limitadas de capacidades/evidências e limitações
   explícitas.
-- Adicionamos uma imagem social reproduzível de 1280×640, movemos os comandos
-  detalhados de execução/pacote para um guia pareado e adicionamos orientações
-  pareadas de relato de segurança.
+- Adicionamos uma imagem social discreta de 1280×640 construída com o logo
+  fornecido, movemos os comandos detalhados de execução/pacote para um guia
+  pareado e adicionamos orientações pareadas de relato de segurança.
 - Adicionamos formulários de bug/proposta em inglês e português brasileiro,
   além de um template bilíngue e conciso de pull request. Descrição do
   repositório, tópicos de descoberta e relato privado de vulnerabilidades
@@ -226,9 +226,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Licenciamos o KOOKIE sob MIT e limitamos componentes distribuídos de
   fonte/runtime a licenças permissivas. Os pacotes incluem MIT e avisos de
   terceiros, não empacotam loader/libc no Linux e rejeitam runtime JVM.
-- O ZEER agora inicia `kookie.exe`. Verificações Wine isoladas exercitaram
-  telas principal, opções e multiplayer, redimensionar, maximizar e restaurar;
-  o smoke de pacote carregou SDL 3.4.16 e SDL_mixer 3.2.4 sem abrir janela.
+- O artefato Windows nativo agora inicia `kookie.exe`. Verificações Wine
+  isoladas exercitaram telas principal, opções e multiplayer, redimensionar,
+  maximizar e restaurar; o smoke de pacote carregou SDL 3.4.16 e SDL_mixer
+  3.2.4 sem abrir janela.
 
 ### Execução de hooks confiáveis vinculada à geração
 
@@ -286,16 +287,14 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   revisão visual confirmou conteúdo limitado aos painéis, sinais legíveis e
   distinguíveis pela forma para fonte/validação/publicação/sucesso e coroa de
   chefe, sem clipping nem sobreposição nesses painéis.
-- Geramos e implantamos o dogfood Linux de apresentação
-  `0.1.0-dogfood.27` a partir de `82bf57d69083` pelo ZEER no estado ztash
-  (SHA256
+- Qualificamos o dogfood Linux de apresentação `0.1.0-dogfood.27` a partir de
+  `82bf57d69083` (SHA256
   `ad4a57ee4f92cf8da93d7d29b8002d95656327d35438c54f29a2b8e8d056abce`,
-  4.281.751 bytes). O marcador ativo e o smoke do pacote implantado vinculam a
-  versão, o build e o arquivo exatos. O arquivo extraído também encerrou com
-  código `0` dentro de `overzeer-isolated-display` mais niri aninhado, informou
-  capability `11`, desenhou em 9.087 µs e reproduziu o checksum de frame
-  `30.358.034`; sua captura persistida foi idêntica byte a byte à captura da
-  verificação da fonte.
+  4.281.751 bytes). O smoke fora do checkout vinculou versão, build e arquivo
+  exatos. O arquivo extraído também encerrou com código `0` num display isolado
+  revisado com compositor aninhado, informou capability `11`, desenhou em
+  9.087 µs e reproduziu o checksum de frame `30.358.034`; sua captura
+  persistida foi idêntica byte a byte à captura da verificação da fonte.
 
 
 ### Encerramento G3: extensões limitadas, chefes por dados e HUD de ameaças
@@ -321,15 +320,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   apresentação `11`, desenhou em 10.789 µs e produziu checksum `30.593.757`; a
   revisão visual não encontrou clipping, sobreposição de painéis nem estado de
   ameaça ambíguo dependente apenas de cor.
-- Geramos e implantamos o dogfood Linux de apresentação
-  `0.1.0-dogfood.26` a partir de `2abfeb172b61` pelo catálogo ztash verificado
-  de 30 pacotes (SHA256
+- Qualificamos o dogfood Linux de apresentação `0.1.0-dogfood.26` a partir de
+  `2abfeb172b61` (SHA256
   `325c4f9cf82ff42ed6e72898012d6e56afdb09f75a078a99f033a0519f50d3ac`,
-  4.232.726 bytes). O marcador ZEER ativo e o smoke implantado vinculam essa
-  versão, build e arquivo exatos. O arquivo também encerrou com código `0`
-  dentro de `overzeer-isolated-display` mais niri aninhado, informou
-  capability `11`, desenhou em 5.104 µs e reproduziu o checksum de frame
-  `30.593.757`.
+  4.232.726 bytes). O smoke fora do checkout vinculou versão, build e arquivo
+  exatos. O arquivo também encerrou com código `0` num display isolado revisado
+  com compositor aninhado, informou capability `11`, desenhou em 5.104 µs e
+  reproduziu o checksum de frame `30.593.757`.
 
 ### Replicação G3 entre processos e polimento do HUD semântico
 
@@ -346,16 +343,14 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Todos os 74 cenários-fonte passam na JVM e no nativo. Lint/LSP de Kof, a sonda
   focada de interação e as regressões de transporte entre processos na JVM/no
   nativo passam.
-- Geramos e implantamos o dogfood Linux de apresentação
-  `0.1.0-dogfood.25` a partir de `a02c7c1edd58` pelo catálogo ztash verificado
-  de 30 pacotes (SHA256
+- Qualificamos o dogfood Linux de apresentação `0.1.0-dogfood.25` a partir de
+  `a02c7c1edd58` (SHA256
   `15f74f040f02a6faadea161057f8b8184323b9b5ccf9b1c3fe10d8dbf0bbab6a`,
-  4.207.580 bytes). O marcador ZEER ativo e o smoke do pacote implantado
-  identificam a versão, o build e o arquivo exatos. O pacote de apresentação
-  exato também encerrou com código `0` dentro de `overzeer-isolated-display`
-  mais niri aninhado, informou capacidade de apresentação `11`, desenhou em
-  83.543 µs e produziu um frame 320×240 validado com checksum `29.772.824`; a
-  revisão visual não encontrou clipping nem sobreposição do HUD.
+  4.207.580 bytes). O smoke fora do checkout vinculou versão, build e arquivo
+  exatos. O pacote de apresentação também encerrou com código `0` num display
+  isolado revisado com compositor aninhado, informou capacidade de apresentação
+  `11`, desenhou em 83.543 µs e produziu um frame 320×240 validado com checksum
+  `29.772.824`; a revisão visual não encontrou clipping nem sobreposição do HUD.
 
 ### Primeiro slice vertical autoritativo G3 de loot/progressão
 
@@ -381,9 +376,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   nativo/JVM e de apresentação, checksums, procedência, runtime e o gate nativo
   Windows que falha fechado.
 - Pacotes de apresentação agora incluem um `kookie-smoke.bin` nativo separado;
-  `kookie --package-smoke` o seleciona sem abrir display. O ztash valida
-  dependências Kof/runtime empacotadas em modo headless, enquanto o lançamento
-  normal continua selecionando o executável SDL_GPU para display isolado.
+  `kookie --package-smoke` o seleciona sem abrir display. A automação de deploy
+  valida dependências Kof/runtime empacotadas em modo headless, enquanto o
+  lançamento normal continua selecionando o executável SDL_GPU para display
+  isolado.
 - G3 permanece aberto para o transporte entre processos dos tipos de estado
   `7`/`8`, registros públicos limitados de extensões e regras completas
   orientadas por dados para elites/chefes.
@@ -433,13 +429,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   regressões locais com host mais dois clientes também passam em JVM/nativo.
   O validador LAN exige marcadores terminais de encounter/estado/vida e impacto
   confirmado.
-- Construímos e implantamos o dogfood Linux de apresentação
-  `0.1.0-dogfood.23` do commit `d89a16461e6d` no catálogo ztash local (SHA256
+- Qualificamos o dogfood Linux de apresentação `0.1.0-dogfood.23` do commit
+  `d89a16461e6d` (SHA256
   `43250c6763d9ef98d81e9ed3541a1c335139636e8852cbe2501a008cd5b30d7c`,
-  3.808.495 bytes). O arquivo exato encerrou com código `0` dentro de
-  `overzeer-isolated-display` mais um compositor Wayland aninhado, reportou
-  capacidade de apresentação `11`, desenhou em 23.844 µs e produziu um frame
-  320×240 validado com checksum `29.309.607`.
+  3.808.495 bytes). O arquivo encerrou com código `0` num display isolado
+  revisado com compositor Wayland aninhado, reportou capacidade de apresentação
+  `11`, desenhou em 23.844 µs e produziu um frame 320×240 validado com checksum
+  `29.309.607`.
 
 ### Slice de feedback de combate confirmado
 
@@ -456,13 +452,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Encaminhamos a eliminação autoritativa real de `G1Demo` pelo HUD e pela sonda
   de apresentação nativa. O áudio SDL agora recebe o clip `201` desse evento
   com ganho `100`, em vez de um clip de amostra sem relação.
-- Construímos e implantamos o dogfood Linux de apresentação
-  `0.1.0-dogfood.22` do commit `82ccdd5` no catálogo ztash local (SHA256
+- Qualificamos o dogfood Linux de apresentação `0.1.0-dogfood.22` do commit
+  `82ccdd5` (SHA256
   `3fa7b256ccec83104c33799dd2ac723381135f60ab6aecc5551d013c0280a474`,
-  3.802.863 bytes). O arquivo exato saiu com `0` dentro do
-  `overzeer-isolated-display` mais um compositor Wayland aninhado, reportou
-  capacidade de apresentação `11`, desenhou em 8.399 µs e produziu um frame
-  320×240 validado com checksum `29.150.337`.
+  3.802.863 bytes). O arquivo saiu com `0` num display isolado revisado com
+  compositor Wayland aninhado, reportou capacidade de apresentação `11`,
+  desenhou em 8.399 µs e produziu um frame 320×240 validado com checksum
+  `29.150.337`.
 
 ### HUD semântico e dogfood visual
 

@@ -87,7 +87,7 @@ de redução exata, não uma afirmação de ganho geral.
 ## Pacote de apresentação SDL para Linux
 
 Gere a apresentação persistente SDL3/SDL_GPU usada para qualificação visual
-isolada e deploy dogfood pelo ZEER:
+isolada e releases dogfood assinados:
 
 ```bash
 KOOKIE_RUNTIME=presentation \

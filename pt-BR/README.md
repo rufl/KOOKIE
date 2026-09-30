@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../docs/media/kookie-hero.svg" alt="KOOKIE — uma engine autoritativa de tiro construída em torno de Kof. As portas têm pré-requisitos; o multiplayer tem burocracia." width="1200">
+  <img src="../docs/media/kookie-logo.png" alt="KOOKIE" width="700">
 </p>
 
 <p align="center">
