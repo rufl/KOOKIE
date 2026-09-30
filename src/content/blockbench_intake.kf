@@ -1,0 +1,1584 @@
+package content
+
+Int blockbenchDiagnosticNone() { return 0 }
+Int blockbenchDiagnosticJson() { return 1 }
+Int blockbenchDiagnosticVersion() { return 2 }
+Int blockbenchDiagnosticElement() { return 3 }
+Int blockbenchDiagnosticBone() { return 4 }
+Int blockbenchDiagnosticHierarchy() { return 5 }
+Int blockbenchDiagnosticAnimation() { return 6 }
+Int blockbenchDiagnosticCapacity() { return 7 }
+Int blockbenchDiagnosticCanonical() { return 8 }
+Int blockbenchCanonicalMagic() { return 1380467531 }
+Int blockbenchCanonicalVersion() { return 1 }
+Int blockbenchCanonicalHeaderWords() { return 20 }
+
+class BoundedBlockbenchIntake {
+    Int[] sourceValue
+    Int sourceChecksumValue
+    Int modelFormatChecksumValue
+    Int diagnosticValue
+    Bool acceptedValue
+
+    Int[] tokenKinds
+    Int[] tokenStarts
+    Int[] tokenEnds
+    Int[] tokenFirstChildren
+    Int[] tokenLastChildren
+    Int[] tokenNextSiblings
+    Int[] tokenKeyStarts
+    Int[] tokenKeyEnds
+    Int tokenCountValue
+    Bool parseCapacityExceededValue
+    Int parseCursorValue
+    Int stringStartValue
+    Int stringEndValue
+
+    Int[] boneUuidA
+    Int[] boneUuidB
+    Int[] boneUuidLength
+    Int[] boneUuidStarts
+    Int[] boneUuidEnds
+    Int[] boneNameHashes
+    Int[] boneParentA
+    Int[] boneParentB
+    Int[] boneParentLength
+    Int[] boneOriginX
+    Int[] boneOriginY
+    Int[] boneOriginZ
+    Int[] boneRotationX
+    Int[] boneRotationY
+    Int[] boneRotationZ
+    Int[] boneFlags
+    Int[] boneDepths
+    Bool[] boneSeen
+    Int boneCountValue
+    Int rootBoneCountValue
+    Int maxBoneDepthValue
+
+    Int[] cubeUuidA
+    Int[] cubeUuidB
+    Int[] cubeUuidLength
+    Int[] cubeUuidStarts
+    Int[] cubeUuidEnds
+    Int[] cubeNameHashes
+    Int[] cubeBoneA
+    Int[] cubeBoneB
+    Int[] cubeBoneLength
+    Int[] cubeFromX
+    Int[] cubeFromY
+    Int[] cubeFromZ
+    Int[] cubeToX
+    Int[] cubeToY
+    Int[] cubeToZ
+    Int[] cubeOriginX
+    Int[] cubeOriginY
+    Int[] cubeOriginZ
+    Int[] cubeRotationX
+    Int[] cubeRotationY
+    Int[] cubeRotationZ
+    Int[] cubeInflate
+    Int[] cubeStretchX
+    Int[] cubeStretchY
+    Int[] cubeStretchZ
+    Int[] cubeFlags
+    Bool[] cubeSeen
+    Int cubeCountValue
+
+    Int[] animationUuidA
+    Int[] animationUuidB
+    Int[] animationUuidLength
+    Int[] animationNameHashes
+    Int[] animationLoops
+    Int[] animationLengths
+    Int animationCountValue
+
+    Int[] keyframeUuidA
+    Int[] keyframeUuidB
+    Int[] keyframeUuidLength
+    Int[] keyframeAnimationA
+    Int[] keyframeAnimationB
+    Int[] keyframeAnimationLength
+    Int[] keyframeBoneA
+    Int[] keyframeBoneB
+    Int[] keyframeBoneLength
+    Int[] keyframeChannels
+    Int[] keyframeInterpolations
+    Int[] keyframeTimes
+    Int[] keyframeX
+    Int[] keyframeY
+    Int[] keyframeZ
+    Int keyframeCountValue
+
+    Int characterChecksumValue
+    Int boneChecksumValue
+    Int animationChecksumValue
+    Int canonicalChecksumValue
+    Int[] wireWords
+    Int wireLengthValue
+
+    public constructor() {
+        sourceValue = new Int[0]
+        tokenKinds = new Int[32768]
+        tokenStarts = new Int[32768]
+        tokenEnds = new Int[32768]
+        tokenFirstChildren = new Int[32768]
+        tokenLastChildren = new Int[32768]
+        tokenNextSiblings = new Int[32768]
+        tokenKeyStarts = new Int[32768]
+        tokenKeyEnds = new Int[32768]
+
+        boneUuidA = new Int[64]
+        boneUuidB = new Int[64]
+        boneUuidLength = new Int[64]
+        boneUuidStarts = new Int[64]
+        boneUuidEnds = new Int[64]
+        boneNameHashes = new Int[64]
+        boneParentA = new Int[64]
+        boneParentB = new Int[64]
+        boneParentLength = new Int[64]
+        boneOriginX = new Int[64]
+        boneOriginY = new Int[64]
+        boneOriginZ = new Int[64]
+        boneRotationX = new Int[64]
+        boneRotationY = new Int[64]
+        boneRotationZ = new Int[64]
+        boneFlags = new Int[64]
+        boneDepths = new Int[64]
+        boneSeen = new Bool[64]
+
+        cubeUuidA = new Int[128]
+        cubeUuidB = new Int[128]
+        cubeUuidLength = new Int[128]
+        cubeUuidStarts = new Int[128]
+        cubeUuidEnds = new Int[128]
+        cubeNameHashes = new Int[128]
+        cubeBoneA = new Int[128]
+        cubeBoneB = new Int[128]
+        cubeBoneLength = new Int[128]
+        cubeFromX = new Int[128]
+        cubeFromY = new Int[128]
+        cubeFromZ = new Int[128]
+        cubeToX = new Int[128]
+        cubeToY = new Int[128]
+        cubeToZ = new Int[128]
+        cubeOriginX = new Int[128]
+        cubeOriginY = new Int[128]
+        cubeOriginZ = new Int[128]
+        cubeRotationX = new Int[128]
+        cubeRotationY = new Int[128]
+        cubeRotationZ = new Int[128]
+        cubeInflate = new Int[128]
+        cubeStretchX = new Int[128]
+        cubeStretchY = new Int[128]
+        cubeStretchZ = new Int[128]
+        cubeFlags = new Int[128]
+        cubeSeen = new Bool[128]
+
+        animationUuidA = new Int[32]
+        animationUuidB = new Int[32]
+        animationUuidLength = new Int[32]
+        animationNameHashes = new Int[32]
+        animationLoops = new Int[32]
+        animationLengths = new Int[32]
+
+        keyframeUuidA = new Int[512]
+        keyframeUuidB = new Int[512]
+        keyframeUuidLength = new Int[512]
+        keyframeAnimationA = new Int[512]
+        keyframeAnimationB = new Int[512]
+        keyframeAnimationLength = new Int[512]
+        keyframeBoneA = new Int[512]
+        keyframeBoneB = new Int[512]
+        keyframeBoneLength = new Int[512]
+        keyframeChannels = new Int[512]
+        keyframeInterpolations = new Int[512]
+        keyframeTimes = new Int[512]
+        keyframeX = new Int[512]
+        keyframeY = new Int[512]
+        keyframeZ = new Int[512]
+
+        wireWords = new Int[12000]
+        clear()
+    }
+
+    Bool clear() {
+        sourceValue = new Int[0]
+        sourceChecksumValue = 0
+        modelFormatChecksumValue = 0
+        diagnosticValue = blockbenchDiagnosticNone()
+        acceptedValue = false
+        tokenCountValue = 0
+        parseCapacityExceededValue = false
+        parseCursorValue = 0
+        stringStartValue = 0
+        stringEndValue = 0
+        boneCountValue = 0
+        rootBoneCountValue = 0
+        maxBoneDepthValue = 0
+        cubeCountValue = 0
+        animationCountValue = 0
+        keyframeCountValue = 0
+        characterChecksumValue = 0
+        boneChecksumValue = 0
+        animationChecksumValue = 0
+        canonicalChecksumValue = 0
+        wireLengthValue = 0
+        for (var index = 0; index < boneSeen.length; index = index + 1) {
+            boneSeen[index] = false
+        }
+        for (var index = 0; index < cubeSeen.length; index = index + 1) {
+            cubeSeen[index] = false
+        }
+        return true
+    }
+
+    Int positiveMod(Int value) {
+        var result = value % 1000003
+        if (result < 0) { result = result + 1000003 }
+        return result
+    }
+
+    Int mix(Int state, Int value) {
+        return (state * 31 + positiveMod(value)) % 1000003
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = mix(result, source[index])
+        }
+        return result
+    }
+
+    Bool isWhitespace(Int value) {
+        return value == 32 || value == 9 || value == 10 || value == 13
+    }
+
+    void skipWhitespace() {
+        while (parseCursorValue < sourceValue.length &&
+            isWhitespace(sourceValue[parseCursorValue])) {
+            parseCursorValue = parseCursorValue + 1
+        }
+    }
+
+    Bool isHex(Int value) {
+        return (value >= 48 && value <= 57) ||
+            (value >= 65 && value <= 70) ||
+            (value >= 97 && value <= 102)
+    }
+
+    Bool validUtf8(Int[] source) {
+        var cursor = 0
+        while (cursor < source.length) {
+            var first = source[cursor]
+            if (first < 128) {
+                cursor = cursor + 1
+            } else if (first >= 194 && first <= 223) {
+                if (cursor + 1 >= source.length || source[cursor + 1] < 128 ||
+                    source[cursor + 1] > 191) { return false }
+                cursor = cursor + 2
+            } else if (first >= 224 && first <= 239) {
+                if (cursor + 2 >= source.length || source[cursor + 1] < 128 ||
+                    source[cursor + 1] > 191 || source[cursor + 2] < 128 ||
+                    source[cursor + 2] > 191) { return false }
+                if (first == 224 && source[cursor + 1] < 160) { return false }
+                if (first == 237 && source[cursor + 1] >= 160) { return false }
+                cursor = cursor + 3
+            } else if (first >= 240 && first <= 244) {
+                if (cursor + 3 >= source.length || source[cursor + 1] < 128 ||
+                    source[cursor + 1] > 191 || source[cursor + 2] < 128 ||
+                    source[cursor + 2] > 191 || source[cursor + 3] < 128 ||
+                    source[cursor + 3] > 191) { return false }
+                if (first == 240 && source[cursor + 1] < 144) { return false }
+                if (first == 244 && source[cursor + 1] > 143) { return false }
+                cursor = cursor + 4
+            } else {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool scanString() {
+        if (parseCursorValue >= sourceValue.length ||
+            sourceValue[parseCursorValue] != 34) { return false }
+        parseCursorValue = parseCursorValue + 1
+        stringStartValue = parseCursorValue
+        while (parseCursorValue < sourceValue.length) {
+            var value = sourceValue[parseCursorValue]
+            if (value == 34) {
+                stringEndValue = parseCursorValue
+                parseCursorValue = parseCursorValue + 1
+                return true
+            }
+            if (value < 32) { return false }
+            if (value == 92) {
+                parseCursorValue = parseCursorValue + 1
+                if (parseCursorValue >= sourceValue.length) { return false }
+                var escaped = sourceValue[parseCursorValue]
+                if (escaped == 117) {
+                    if (parseCursorValue + 4 >= sourceValue.length) { return false }
+                    for (var digit = 1; digit <= 4; digit = digit + 1) {
+                        if (!isHex(sourceValue[parseCursorValue + digit])) {
+                            return false
+                        }
+                    }
+                    parseCursorValue = parseCursorValue + 5
+                } else {
+                    if (escaped != 34 && escaped != 92 && escaped != 47 &&
+                        escaped != 98 && escaped != 102 && escaped != 110 &&
+                        escaped != 114 && escaped != 116) { return false }
+                    parseCursorValue = parseCursorValue + 1
+                }
+            } else {
+                parseCursorValue = parseCursorValue + 1
+            }
+        }
+        return false
+    }
+
+    Bool rangeHasEscape(Int start, Int end) {
+        for (var cursor = start; cursor < end; cursor = cursor + 1) {
+            if (sourceValue[cursor] == 92) { return true }
+        }
+        return false
+    }
+
+    Bool sameRange(Int leftStart, Int leftEnd, Int rightStart, Int rightEnd) {
+        if (leftEnd - leftStart != rightEnd - rightStart) { return false }
+        for (var index = 0; index < leftEnd - leftStart; index = index + 1) {
+            if (sourceValue[leftStart + index] != sourceValue[rightStart + index]) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int addToken(
+        Int kind, Int parent, Int keyStart, Int keyEnd, Int start, Int end
+    ) {
+        if (tokenCountValue >= tokenKinds.length) {
+            parseCapacityExceededValue = true
+            return -1
+        }
+        var token = tokenCountValue
+        tokenCountValue = tokenCountValue + 1
+        tokenKinds[token] = kind
+        tokenStarts[token] = start
+        tokenEnds[token] = end
+        tokenFirstChildren[token] = -1
+        tokenLastChildren[token] = -1
+        tokenNextSiblings[token] = -1
+        tokenKeyStarts[token] = keyStart
+        tokenKeyEnds[token] = keyEnd
+        if (parent >= 0) {
+            if (tokenFirstChildren[parent] < 0) {
+                tokenFirstChildren[parent] = token
+            } else {
+                tokenNextSiblings[tokenLastChildren[parent]] = token
+            }
+            tokenLastChildren[parent] = token
+        }
+        return token
+    }
+
+    Bool duplicateObjectKey(Int object, Int start, Int end) {
+        var child = tokenFirstChildren[object]
+        while (child >= 0) {
+            if (sameRange(start, end, tokenKeyStarts[child], tokenKeyEnds[child])) {
+                return true
+            }
+            child = tokenNextSiblings[child]
+        }
+        return false
+    }
+
+    Bool scanNumber() {
+        var cursor = parseCursorValue
+        if (cursor < sourceValue.length && sourceValue[cursor] == 45) {
+            cursor = cursor + 1
+        }
+        if (cursor >= sourceValue.length) { return false }
+        if (sourceValue[cursor] == 48) {
+            cursor = cursor + 1
+            if (cursor < sourceValue.length && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) { return false }
+        } else {
+            if (sourceValue[cursor] < 49 || sourceValue[cursor] > 57) {
+                return false
+            }
+            while (cursor < sourceValue.length && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) { cursor = cursor + 1 }
+        }
+        if (cursor < sourceValue.length && sourceValue[cursor] == 46) {
+            cursor = cursor + 1
+            if (cursor >= sourceValue.length || sourceValue[cursor] < 48 ||
+                sourceValue[cursor] > 57) { return false }
+            while (cursor < sourceValue.length && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) { cursor = cursor + 1 }
+        }
+        if (cursor < sourceValue.length &&
+            (sourceValue[cursor] == 101 || sourceValue[cursor] == 69)) {
+            cursor = cursor + 1
+            if (cursor < sourceValue.length &&
+                (sourceValue[cursor] == 43 || sourceValue[cursor] == 45)) {
+                cursor = cursor + 1
+            }
+            if (cursor >= sourceValue.length || sourceValue[cursor] < 48 ||
+                sourceValue[cursor] > 57) { return false }
+            while (cursor < sourceValue.length && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) { cursor = cursor + 1 }
+        }
+        parseCursorValue = cursor
+        return true
+    }
+
+    Bool literalAt(String literal) {
+        if (parseCursorValue + literal.length() > sourceValue.length) {
+            return false
+        }
+        for (var index = 0; index < literal.length(); index = index + 1) {
+            if (sourceValue[parseCursorValue + index] !=
+                (literal.charAt(index) as Int)) { return false }
+        }
+        parseCursorValue = parseCursorValue + literal.length()
+        return true
+    }
+
+    Int parseValue(Int parent, Int keyStart, Int keyEnd, Int depth) {
+        if (depth > 64) {
+            parseCapacityExceededValue = true
+            return -1
+        }
+        skipWhitespace()
+        if (parseCursorValue >= sourceValue.length) { return -1 }
+        var start = parseCursorValue
+        var value = sourceValue[parseCursorValue]
+        if (value == 123) {
+            var object = addToken(1, parent, keyStart, keyEnd, start, 0)
+            if (object < 0) { return -1 }
+            parseCursorValue = parseCursorValue + 1
+            skipWhitespace()
+            if (parseCursorValue < sourceValue.length &&
+                sourceValue[parseCursorValue] == 125) {
+                parseCursorValue = parseCursorValue + 1
+                tokenEnds[object] = parseCursorValue
+                return object
+            }
+            var memberCount = 0
+            while (parseCursorValue < sourceValue.length) {
+                if (memberCount >= 256) {
+                    parseCapacityExceededValue = true
+                    return -1
+                }
+                if (!scanString()) { return -1 }
+                var memberStart = stringStartValue
+                var memberEnd = stringEndValue
+                if (memberEnd - memberStart > 128) {
+                    parseCapacityExceededValue = true
+                    return -1
+                }
+                if (rangeHasEscape(memberStart, memberEnd) ||
+                    duplicateObjectKey(object, memberStart, memberEnd)) { return -1 }
+                skipWhitespace()
+                if (parseCursorValue >= sourceValue.length ||
+                    sourceValue[parseCursorValue] != 58) { return -1 }
+                parseCursorValue = parseCursorValue + 1
+                if (parseValue(object, memberStart, memberEnd, depth + 1) < 0) {
+                    return -1
+                }
+                memberCount = memberCount + 1
+                skipWhitespace()
+                if (parseCursorValue >= sourceValue.length) { return -1 }
+                if (sourceValue[parseCursorValue] == 125) {
+                    parseCursorValue = parseCursorValue + 1
+                    tokenEnds[object] = parseCursorValue
+                    return object
+                }
+                if (sourceValue[parseCursorValue] != 44) { return -1 }
+                parseCursorValue = parseCursorValue + 1
+                skipWhitespace()
+            }
+            return -1
+        }
+        if (value == 91) {
+            var array = addToken(2, parent, keyStart, keyEnd, start, 0)
+            if (array < 0) { return -1 }
+            parseCursorValue = parseCursorValue + 1
+            skipWhitespace()
+            if (parseCursorValue < sourceValue.length &&
+                sourceValue[parseCursorValue] == 93) {
+                parseCursorValue = parseCursorValue + 1
+                tokenEnds[array] = parseCursorValue
+                return array
+            }
+            while (parseCursorValue < sourceValue.length) {
+                if (parseValue(array, -1, -1, depth + 1) < 0) { return -1 }
+                skipWhitespace()
+                if (parseCursorValue >= sourceValue.length) { return -1 }
+                if (sourceValue[parseCursorValue] == 93) {
+                    parseCursorValue = parseCursorValue + 1
+                    tokenEnds[array] = parseCursorValue
+                    return array
+                }
+                if (sourceValue[parseCursorValue] != 44) { return -1 }
+                parseCursorValue = parseCursorValue + 1
+                skipWhitespace()
+            }
+            return -1
+        }
+        if (value == 34) {
+            if (!scanString()) { return -1 }
+            return addToken(3, parent, keyStart, keyEnd,
+                stringStartValue, stringEndValue)
+        }
+        if (value == 45 || (value >= 48 && value <= 57)) {
+            if (!scanNumber()) { return -1 }
+            return addToken(4, parent, keyStart, keyEnd, start, parseCursorValue)
+        }
+        if (literalAt("true")) {
+            return addToken(5, parent, keyStart, keyEnd, start, parseCursorValue)
+        }
+        parseCursorValue = start
+        if (literalAt("false")) {
+            return addToken(6, parent, keyStart, keyEnd, start, parseCursorValue)
+        }
+        parseCursorValue = start
+        if (literalAt("null")) {
+            return addToken(7, parent, keyStart, keyEnd, start, parseCursorValue)
+        }
+        return -1
+    }
+
+    Bool rangeEqualsString(Int start, Int end, String value) {
+        if (start < 0 || end - start != value.length()) { return false }
+        for (var index = 0; index < value.length(); index = index + 1) {
+            if (sourceValue[start + index] != (value.charAt(index) as Int)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool tokenEquals(Int token, String value) {
+        return token >= 0 && token < tokenCountValue && tokenKinds[token] == 3 &&
+            rangeEqualsString(tokenStarts[token], tokenEnds[token], value)
+    }
+
+    Int objectField(Int object, String name) {
+        if (object < 0 || tokenKinds[object] != 1) { return -1 }
+        var child = tokenFirstChildren[object]
+        while (child >= 0) {
+            if (rangeEqualsString(tokenKeyStarts[child], tokenKeyEnds[child], name)) {
+                return child
+            }
+            child = tokenNextSiblings[child]
+        }
+        return -1
+    }
+
+    Int arrayCount(Int array) {
+        if (array < 0 || tokenKinds[array] != 2) { return -1 }
+        var count = 0
+        var child = tokenFirstChildren[array]
+        while (child >= 0) {
+            count = count + 1
+            child = tokenNextSiblings[child]
+        }
+        return count
+    }
+
+    Int decodedStringLength(Int token) {
+        if (token < 0 || tokenKinds[token] != 3) { return -1 }
+        var length = 0
+        var cursor = tokenStarts[token]
+        while (cursor < tokenEnds[token]) {
+            if (sourceValue[cursor] == 92) {
+                cursor = cursor + 2
+                if (sourceValue[cursor - 1] == 117) { cursor = cursor + 4 }
+            } else {
+                cursor = cursor + 1
+            }
+            length = length + 1
+        }
+        return length
+    }
+
+    Int stringHash(Int token, Int multiplier, Int modulus) {
+        if (token < 0 || tokenKinds[token] != 3) { return 0 }
+        var result = 17
+        var cursor = tokenStarts[token]
+        while (cursor < tokenEnds[token]) {
+            var value = sourceValue[cursor]
+            cursor = cursor + 1
+            if (value == 92) {
+                value = sourceValue[cursor]
+                cursor = cursor + 1
+                if (value == 117) {
+                    value = 0
+                    for (var index = 0; index < 4; index = index + 1) {
+                        var digit = sourceValue[cursor + index]
+                        if (digit >= 48 && digit <= 57) { digit = digit - 48 }
+                        else if (digit >= 65 && digit <= 70) { digit = digit - 55 }
+                        else { digit = digit - 87 }
+                        value = value * 16 + digit
+                    }
+                    cursor = cursor + 4
+                } else if (value == 98) { value = 8 }
+                else if (value == 102) { value = 12 }
+                else if (value == 110) { value = 10 }
+                else if (value == 114) { value = 13 }
+                else if (value == 116) { value = 9 }
+            }
+            result = (result * multiplier + value) % modulus
+        }
+        return result
+    }
+
+    Bool validUuidRange(Int start, Int end) {
+        if (end - start != 36 || rangeHasEscape(start, end)) { return false }
+        for (var index = 0; index < 36; index = index + 1) {
+            var hyphen = index == 8 || index == 13 || index == 18 || index == 23
+            if (hyphen) {
+                if (sourceValue[start + index] != 45) { return false }
+            } else if (!isHex(sourceValue[start + index])) { return false }
+        }
+        return true
+    }
+
+    Bool validUuid(Int token) {
+        return token >= 0 && tokenKinds[token] == 3 &&
+            validUuidRange(tokenStarts[token], tokenEnds[token])
+    }
+
+    Int identityA(Int token) { return stringHash(token, 31, 1000003) }
+    Int identityB(Int token) { return stringHash(token, 131, 1000033) }
+
+    Bool sameIdentity(Int a1, Int b1, Int length1, Int a2, Int b2, Int length2) {
+        return a1 == a2 && b1 == b2 && length1 == length2
+    }
+
+    Int parseFixedRange(Int start, Int end, Bool allowPlus) {
+        if (start < 0 || start >= end) { return 2000000001 }
+        var cursor = start
+        var sign = 1
+        if (sourceValue[cursor] == 45) {
+            sign = -1
+            cursor = cursor + 1
+        } else if (sourceValue[cursor] == 43 && allowPlus) {
+            cursor = cursor + 1
+        }
+        if (cursor >= end) { return 2000000001 }
+        var numberStart = cursor
+        var integerDigits = 0
+        if (sourceValue[cursor] == 48) {
+            integerDigits = 1
+            cursor = cursor + 1
+            if (cursor < end && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) { return 2000000001 }
+        } else {
+            if (sourceValue[cursor] < 49 || sourceValue[cursor] > 57) {
+                return 2000000001
+            }
+            while (cursor < end && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) {
+                integerDigits = integerDigits + 1
+                cursor = cursor + 1
+            }
+        }
+        var fractionalDigits = 0
+        if (cursor < end && sourceValue[cursor] == 46) {
+            cursor = cursor + 1
+            while (cursor < end && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) {
+                fractionalDigits = fractionalDigits + 1
+                cursor = cursor + 1
+            }
+            if (fractionalDigits <= 0) { return 2000000001 }
+        }
+        var mantissaEnd = cursor
+        var exponent = 0
+        if (cursor < end &&
+            (sourceValue[cursor] == 101 || sourceValue[cursor] == 69)) {
+            cursor = cursor + 1
+            var exponentSign = 1
+            if (cursor < end && sourceValue[cursor] == 45) {
+                exponentSign = -1
+                cursor = cursor + 1
+            } else if (cursor < end && sourceValue[cursor] == 43) {
+                cursor = cursor + 1
+            }
+            var exponentDigits = 0
+            while (cursor < end && sourceValue[cursor] >= 48 &&
+                sourceValue[cursor] <= 57) {
+                exponent = exponent * 10 + sourceValue[cursor] - 48
+                exponentDigits = exponentDigits + 1
+                if (exponent > 12) { return 2000000001 }
+                cursor = cursor + 1
+            }
+            if (exponentDigits <= 0) { return 2000000001 }
+            exponent = exponent * exponentSign
+        }
+        if (cursor != end) { return 2000000001 }
+        var decimalPosition = integerDigits + exponent
+        var digitIndex = 0
+        var scaled: Long = 0L
+        cursor = numberStart
+        while (cursor < mantissaEnd) {
+            if (sourceValue[cursor] == 46) {
+                cursor = cursor + 1
+            } else {
+                var digit = sourceValue[cursor] - 48
+                var power = decimalPosition - digitIndex + 2
+                if (power > 9 && digit != 0) { return 2000000001 }
+                if (power >= 0 && power <= 9) {
+                    var factor: Long = 1L
+                    for (var index = 0; index < power; index = index + 1) {
+                        factor = factor * 10L
+                    }
+                    var contribution: Long = digit
+                    scaled = scaled + contribution * factor
+                    if (scaled > 100000000L) { return 2000000001 }
+                }
+                digitIndex = digitIndex + 1
+                cursor = cursor + 1
+            }
+        }
+        scaled = scaled * sign
+        return scaled.toInt()
+    }
+
+    Int fixedValue(Int token) {
+        if (token < 0 || token >= tokenCountValue) { return 2000000001 }
+        if (tokenKinds[token] == 4) {
+            return parseFixedRange(tokenStarts[token], tokenEnds[token], false)
+        }
+        if (tokenKinds[token] == 3 &&
+            !rangeHasEscape(tokenStarts[token], tokenEnds[token])) {
+            return parseFixedRange(tokenStarts[token], tokenEnds[token], true)
+        }
+        return 2000000001
+    }
+
+    Int optionalFlag(Int object, String name, Int defaultValue) {
+        var token = objectField(object, name)
+        if (token < 0) { return defaultValue }
+        if (tokenKinds[token] == 5) { return 1 }
+        if (tokenKinds[token] == 6) { return 0 }
+        return -1
+    }
+
+    Bool emptyStringField(Int object, String name) {
+        var token = objectField(object, name)
+        return token < 0 || (tokenKinds[token] == 3 &&
+            decodedStringLength(token) == 0)
+    }
+
+    Bool readVector(
+        Int object, String name, Bool required, Int defaultValue,
+        Int[] x, Int[] y, Int[] z, Int index
+    ) {
+        var token = objectField(object, name)
+        if (token < 0) {
+            if (required) { return false }
+            x[index] = defaultValue
+            y[index] = defaultValue
+            z[index] = defaultValue
+            return true
+        }
+        if (tokenKinds[token] != 2 || arrayCount(token) != 3) { return false }
+        var child = tokenFirstChildren[token]
+        var first = fixedValue(child)
+        child = tokenNextSiblings[child]
+        var second = fixedValue(child)
+        child = tokenNextSiblings[child]
+        var third = fixedValue(child)
+        if (first == 2000000001 || second == 2000000001 ||
+            third == 2000000001) { return false }
+        x[index] = first
+        y[index] = second
+        z[index] = third
+        return true
+    }
+
+    Int findBone(Int a, Int b, Int length) {
+        for (var index = 0; index < boneCountValue; index = index + 1) {
+            if (sameIdentity(a, b, length, boneUuidA[index], boneUuidB[index],
+                    boneUuidLength[index])) { return index }
+        }
+        return -1
+    }
+
+    Int findCube(Int a, Int b, Int length) {
+        for (var index = 0; index < cubeCountValue; index = index + 1) {
+            if (sameIdentity(a, b, length, cubeUuidA[index], cubeUuidB[index],
+                    cubeUuidLength[index])) { return index }
+        }
+        return -1
+    }
+
+    Int findBoneRange(Int start, Int end) {
+        for (var index = 0; index < boneCountValue; index = index + 1) {
+            if (sameRange(start, end, boneUuidStarts[index], boneUuidEnds[index])) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int findCubeRange(Int start, Int end) {
+        for (var index = 0; index < cubeCountValue; index = index + 1) {
+            if (sameRange(start, end, cubeUuidStarts[index], cubeUuidEnds[index])) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool identityUsed(Int a, Int b, Int length) {
+        if (findBone(a, b, length) >= 0 || findCube(a, b, length) >= 0) {
+            return true
+        }
+        for (var index = 0; index < animationCountValue; index = index + 1) {
+            if (sameIdentity(a, b, length, animationUuidA[index],
+                    animationUuidB[index], animationUuidLength[index])) {
+                return true
+            }
+        }
+        for (var index = 0; index < keyframeCountValue; index = index + 1) {
+            if (sameIdentity(a, b, length, keyframeUuidA[index],
+                    keyframeUuidB[index], keyframeUuidLength[index])) {
+                return true
+            }
+        }
+        return false
+    }
+
+    Bool readIdentity(Int object, String field, Int[] a, Int[] b, Int[] length,
+        Int index) {
+        var token = objectField(object, field)
+        if (!validUuid(token)) { return false }
+        var first = identityA(token)
+        var second = identityB(token)
+        var size = decodedStringLength(token)
+        if (identityUsed(first, second, size)) { return false }
+        a[index] = first
+        b[index] = second
+        length[index] = size
+        return true
+    }
+
+    Bool parseMeta(Int root) {
+        var meta = objectField(root, "meta")
+        if (meta < 0 || tokenKinds[meta] != 1 ||
+            !tokenEquals(objectField(meta, "format_version"), "5.0")) {
+            diagnosticValue = blockbenchDiagnosticVersion()
+            return false
+        }
+        var format = objectField(meta, "model_format")
+        var length = decodedStringLength(format)
+        if (length <= 0 || length > 64) {
+            diagnosticValue = blockbenchDiagnosticVersion()
+            return false
+        }
+        modelFormatChecksumValue = stringHash(format, 31, 1000003)
+        return true
+    }
+
+    Bool parseBones(Int root) {
+        var groups = objectField(root, "groups")
+        var count = arrayCount(groups)
+        if (count <= 0 || count > boneUuidA.length) {
+            diagnosticValue = blockbenchDiagnosticCapacity()
+            return false
+        }
+        var group = tokenFirstChildren[groups]
+        while (group >= 0) {
+            if (tokenKinds[group] != 1) {
+                diagnosticValue = blockbenchDiagnosticBone()
+                return false
+            }
+            var index = boneCountValue
+            var uuid = objectField(group, "uuid")
+            var name = objectField(group, "name")
+            var nameLength = decodedStringLength(name)
+            if (nameLength <= 0 || nameLength > 64 ||
+                !readIdentity(group, "uuid", boneUuidA, boneUuidB,
+                    boneUuidLength, index) ||
+                !readVector(group, "origin", true, 0, boneOriginX,
+                    boneOriginY, boneOriginZ, index) ||
+                !readVector(group, "rotation", false, 0, boneRotationX,
+                    boneRotationY, boneRotationZ, index)) {
+                diagnosticValue = blockbenchDiagnosticBone()
+                return false
+            }
+            boneUuidStarts[index] = tokenStarts[uuid]
+            boneUuidEnds[index] = tokenEnds[uuid]
+            var exported = optionalFlag(group, "export", 1)
+            var visible = optionalFlag(group, "visibility", 1)
+            if (exported < 0 || visible < 0) {
+                diagnosticValue = blockbenchDiagnosticBone()
+                return false
+            }
+            boneNameHashes[index] = stringHash(name, 31, 1000003)
+            boneFlags[index] = exported + visible * 2
+            boneParentA[index] = 0
+            boneParentB[index] = 0
+            boneParentLength[index] = 0
+            boneCountValue = boneCountValue + 1
+            group = tokenNextSiblings[group]
+        }
+        return true
+    }
+
+    Bool parseCubes(Int root) {
+        var elements = objectField(root, "elements")
+        var count = arrayCount(elements)
+        if (count <= 0 || count > cubeUuidA.length) {
+            diagnosticValue = blockbenchDiagnosticCapacity()
+            return false
+        }
+        var element = tokenFirstChildren[elements]
+        while (element >= 0) {
+            if (tokenKinds[element] != 1 ||
+                !tokenEquals(objectField(element, "type"), "cube")) {
+                diagnosticValue = blockbenchDiagnosticElement()
+                return false
+            }
+            var index = cubeCountValue
+            var uuid = objectField(element, "uuid")
+            var name = objectField(element, "name")
+            var nameLength = decodedStringLength(name)
+            if (nameLength <= 0 || nameLength > 64 ||
+                !readIdentity(element, "uuid", cubeUuidA, cubeUuidB,
+                    cubeUuidLength, index) ||
+                !readVector(element, "from", true, 0, cubeFromX, cubeFromY,
+                    cubeFromZ, index) ||
+                !readVector(element, "to", true, 0, cubeToX, cubeToY,
+                    cubeToZ, index) ||
+                !readVector(element, "origin", true, 0, cubeOriginX,
+                    cubeOriginY, cubeOriginZ, index) ||
+                !readVector(element, "rotation", false, 0, cubeRotationX,
+                    cubeRotationY, cubeRotationZ, index) ||
+                !readVector(element, "stretch", false, 1000, cubeStretchX,
+                    cubeStretchY, cubeStretchZ, index)) {
+                diagnosticValue = blockbenchDiagnosticElement()
+                return false
+            }
+            cubeUuidStarts[index] = tokenStarts[uuid]
+            cubeUuidEnds[index] = tokenEnds[uuid]
+            var inflateToken = objectField(element, "inflate")
+            var inflate = 0
+            if (inflateToken >= 0) { inflate = fixedValue(inflateToken) }
+            var exported = optionalFlag(element, "export", 1)
+            var visible = optionalFlag(element, "visibility", 1)
+            var shade = optionalFlag(element, "shade", 1)
+            var mirror = optionalFlag(element, "mirror_uv", 0)
+            var rescale = optionalFlag(element, "rescale", 0)
+            if (inflate == 2000000001 || exported < 0 || visible < 0 ||
+                shade < 0 || mirror < 0 || rescale < 0 ||
+                cubeStretchX[index] == 0 || cubeStretchY[index] == 0 ||
+                cubeStretchZ[index] == 0 ||
+                cubeFromX[index] > cubeToX[index] ||
+                cubeFromY[index] > cubeToY[index] ||
+                cubeFromZ[index] > cubeToZ[index]) {
+                diagnosticValue = blockbenchDiagnosticElement()
+                return false
+            }
+            cubeNameHashes[index] = stringHash(name, 31, 1000003)
+            cubeInflate[index] = inflate
+            cubeFlags[index] = exported + visible * 2 + shade * 4 +
+                mirror * 8 + rescale * 16
+            cubeBoneA[index] = 0
+            cubeBoneB[index] = 0
+            cubeBoneLength[index] = 0
+            cubeCountValue = cubeCountValue + 1
+            element = tokenNextSiblings[element]
+        }
+        return true
+    }
+
+    Bool walkOutliner(Int array, Int parentBone, Int depth) {
+        if (array < 0 || tokenKinds[array] != 2 || depth > 16) { return false }
+        if (depth > maxBoneDepthValue) { maxBoneDepthValue = depth }
+        var node = tokenFirstChildren[array]
+        while (node >= 0) {
+            if (tokenKinds[node] == 3) {
+                if (!validUuid(node) || parentBone < 0) { return false }
+                var cube = findCubeRange(tokenStarts[node], tokenEnds[node])
+                if (cube < 0 || cubeSeen[cube]) { return false }
+                cubeSeen[cube] = true
+                cubeBoneA[cube] = boneUuidA[parentBone]
+                cubeBoneB[cube] = boneUuidB[parentBone]
+                cubeBoneLength[cube] = boneUuidLength[parentBone]
+            } else if (tokenKinds[node] == 1) {
+                var uuid = objectField(node, "uuid")
+                var children = objectField(node, "children")
+                if (!validUuid(uuid) || children < 0) { return false }
+                var bone = findBoneRange(tokenStarts[uuid], tokenEnds[uuid])
+                if (bone < 0 || boneSeen[bone]) { return false }
+                boneSeen[bone] = true
+                boneDepths[bone] = depth + 1
+                if (parentBone < 0) {
+                    rootBoneCountValue = rootBoneCountValue + 1
+                } else {
+                    boneParentA[bone] = boneUuidA[parentBone]
+                    boneParentB[bone] = boneUuidB[parentBone]
+                    boneParentLength[bone] = boneUuidLength[parentBone]
+                }
+                if (!walkOutliner(children, bone, depth + 1)) { return false }
+            } else {
+                return false
+            }
+            node = tokenNextSiblings[node]
+        }
+        return true
+    }
+
+    Bool parseHierarchy(Int root) {
+        if (!walkOutliner(objectField(root, "outliner"), -1, 0) ||
+            rootBoneCountValue <= 0) {
+            diagnosticValue = blockbenchDiagnosticHierarchy()
+            return false
+        }
+        for (var index = 0; index < boneCountValue; index = index + 1) {
+            if (!boneSeen[index]) {
+                diagnosticValue = blockbenchDiagnosticHierarchy()
+                return false
+            }
+        }
+        for (var index = 0; index < cubeCountValue; index = index + 1) {
+            if (!cubeSeen[index]) {
+                diagnosticValue = blockbenchDiagnosticHierarchy()
+                return false
+            }
+        }
+        return true
+    }
+
+    Int loopKind(Int token) {
+        if (tokenEquals(token, "once")) { return 1 }
+        if (tokenEquals(token, "loop")) { return 2 }
+        if (tokenEquals(token, "hold")) { return 3 }
+        return 0
+    }
+
+    Int channelKind(Int token) {
+        if (tokenEquals(token, "position")) { return 1 }
+        if (tokenEquals(token, "rotation")) { return 2 }
+        if (tokenEquals(token, "scale")) { return 3 }
+        return 0
+    }
+
+    Int interpolationKind(Int token) {
+        if (token < 0 || tokenEquals(token, "linear")) { return 1 }
+        if (tokenEquals(token, "step")) { return 2 }
+        return 0
+    }
+
+    Bool parseKeyframe(Int keyframe, Int animation, Int bone) {
+        if (keyframeCountValue >= keyframeUuidA.length ||
+            tokenKinds[keyframe] != 1) { return false }
+        var index = keyframeCountValue
+        if (!readIdentity(keyframe, "uuid", keyframeUuidA, keyframeUuidB,
+                keyframeUuidLength, index)) { return false }
+        var channel = channelKind(objectField(keyframe, "channel"))
+        var interpolation = interpolationKind(objectField(keyframe, "interpolation"))
+        var time = fixedValue(objectField(keyframe, "time"))
+        var points = objectField(keyframe, "data_points")
+        if (channel <= 0 || interpolation <= 0 || time < 0 ||
+            time > animationLengths[animation] || arrayCount(points) != 1) {
+            return false
+        }
+        var point = tokenFirstChildren[points]
+        if (point < 0 || tokenKinds[point] != 1) { return false }
+        var defaultValue = 0
+        if (channel == 3) { defaultValue = 1000 }
+        var x = defaultValue
+        var y = defaultValue
+        var z = defaultValue
+        var value = objectField(point, "x")
+        if (value >= 0) { x = fixedValue(value) }
+        value = objectField(point, "y")
+        if (value >= 0) { y = fixedValue(value) }
+        value = objectField(point, "z")
+        if (value >= 0) { z = fixedValue(value) }
+        if (x == 2000000001 || y == 2000000001 || z == 2000000001) {
+            return false
+        }
+        keyframeAnimationA[index] = animationUuidA[animation]
+        keyframeAnimationB[index] = animationUuidB[animation]
+        keyframeAnimationLength[index] = animationUuidLength[animation]
+        keyframeBoneA[index] = boneUuidA[bone]
+        keyframeBoneB[index] = boneUuidB[bone]
+        keyframeBoneLength[index] = boneUuidLength[bone]
+        keyframeChannels[index] = channel
+        keyframeInterpolations[index] = interpolation
+        keyframeTimes[index] = time
+        keyframeX[index] = x
+        keyframeY[index] = y
+        keyframeZ[index] = z
+        for (var prior = 0; prior < index; prior = prior + 1) {
+            if (sameIdentity(keyframeAnimationA[prior], keyframeAnimationB[prior],
+                    keyframeAnimationLength[prior], keyframeAnimationA[index],
+                    keyframeAnimationB[index], keyframeAnimationLength[index]) &&
+                sameIdentity(keyframeBoneA[prior], keyframeBoneB[prior],
+                    keyframeBoneLength[prior], keyframeBoneA[index],
+                    keyframeBoneB[index], keyframeBoneLength[index]) &&
+                keyframeChannels[prior] == channel && keyframeTimes[prior] == time) {
+                return false
+            }
+        }
+        keyframeCountValue = keyframeCountValue + 1
+        return true
+    }
+
+    Bool parseAnimator(Int animator, Int animation) {
+        if (!validUuidRange(tokenKeyStarts[animator], tokenKeyEnds[animator]) ||
+            tokenKinds[animator] != 1) { return false }
+        var bone = findBoneRange(
+            tokenKeyStarts[animator], tokenKeyEnds[animator])
+        if (bone < 0) { return false }
+        var type = objectField(animator, "type")
+        if (type >= 0 && !tokenEquals(type, "bone")) { return false }
+        var keyframes = objectField(animator, "keyframes")
+        if (keyframes < 0 || tokenKinds[keyframes] != 2) { return false }
+        var keyframe = tokenFirstChildren[keyframes]
+        while (keyframe >= 0) {
+            if (!parseKeyframe(keyframe, animation, bone)) { return false }
+            keyframe = tokenNextSiblings[keyframe]
+        }
+        return true
+    }
+
+    Bool parseAnimations(Int root) {
+        var animations = objectField(root, "animations")
+        if (animations < 0) { return true }
+        var count = arrayCount(animations)
+        if (count < 0 || count > animationUuidA.length) {
+            diagnosticValue = blockbenchDiagnosticCapacity()
+            return false
+        }
+        var animation = tokenFirstChildren[animations]
+        while (animation >= 0) {
+            if (tokenKinds[animation] != 1) {
+                diagnosticValue = blockbenchDiagnosticAnimation()
+                return false
+            }
+            var index = animationCountValue
+            var name = objectField(animation, "name")
+            var nameLength = decodedStringLength(name)
+            var length = fixedValue(objectField(animation, "length"))
+            var loop = loopKind(objectField(animation, "loop"))
+            var overrideFlag = optionalFlag(animation, "override", 0)
+            if (nameLength <= 0 || nameLength > 64 || length <= 0 ||
+                length > 600000 || loop <= 0 || overrideFlag != 0 ||
+                !emptyStringField(animation, "anim_time_update") ||
+                !emptyStringField(animation, "blend_weight") ||
+                !emptyStringField(animation, "start_delay") ||
+                !emptyStringField(animation, "loop_delay") ||
+                !readIdentity(animation, "uuid", animationUuidA, animationUuidB,
+                    animationUuidLength, index)) {
+                diagnosticValue = blockbenchDiagnosticAnimation()
+                return false
+            }
+            animationNameHashes[index] = stringHash(name, 31, 1000003)
+            animationLengths[index] = length
+            animationLoops[index] = loop
+            animationCountValue = animationCountValue + 1
+            var animators = objectField(animation, "animators")
+            if (animators < 0 || tokenKinds[animators] != 1) {
+                diagnosticValue = blockbenchDiagnosticAnimation()
+                return false
+            }
+            var animator = tokenFirstChildren[animators]
+            while (animator >= 0) {
+                if (!parseAnimator(animator, index)) {
+                    diagnosticValue = blockbenchDiagnosticAnimation()
+                    return false
+                }
+                animator = tokenNextSiblings[animator]
+            }
+            animation = tokenNextSiblings[animation]
+        }
+        return true
+    }
+
+    Bool pushWord(Int value) {
+        if (wireLengthValue >= wireWords.length) { return false }
+        wireWords[wireLengthValue] = value
+        wireLengthValue = wireLengthValue + 1
+        return true
+    }
+
+    Int wireChecksum(Int excluded) {
+        var result = 17
+        for (var index = 0; index < wireLengthValue; index = index + 1) {
+            if (index != excluded) { result = mix(result, wireWords[index]) }
+        }
+        return result
+    }
+
+    Bool buildCanonical() {
+        wireLengthValue = 0
+        characterChecksumValue = 17
+        boneChecksumValue = 17
+        animationChecksumValue = 17
+        if (!pushWord(blockbenchCanonicalMagic()) ||
+            !pushWord(blockbenchCanonicalVersion()) ||
+            !pushWord(sourceChecksumValue) || !pushWord(boneCountValue) ||
+            !pushWord(cubeCountValue) || !pushWord(animationCountValue) ||
+            !pushWord(keyframeCountValue) || !pushWord(rootBoneCountValue) ||
+            !pushWord(maxBoneDepthValue) || !pushWord(15) || !pushWord(24) ||
+            !pushWord(7) || !pushWord(15) || !pushWord(0) || !pushWord(1000) ||
+            !pushWord(0) || !pushWord(0) || !pushWord(0) || !pushWord(0) ||
+            !pushWord(0)) {
+            return false
+        }
+        for (var index = 0; index < boneCountValue; index = index + 1) {
+            if (!pushWord(boneUuidA[index]) || !pushWord(boneUuidB[index]) ||
+                !pushWord(boneUuidLength[index]) || !pushWord(boneNameHashes[index]) ||
+                !pushWord(boneParentA[index]) || !pushWord(boneParentB[index]) ||
+                !pushWord(boneParentLength[index]) || !pushWord(boneOriginX[index]) ||
+                !pushWord(boneOriginY[index]) || !pushWord(boneOriginZ[index]) ||
+                !pushWord(boneRotationX[index]) || !pushWord(boneRotationY[index]) ||
+                !pushWord(boneRotationZ[index]) || !pushWord(boneFlags[index]) ||
+                !pushWord(boneDepths[index])) { return false }
+            boneChecksumValue = mix(boneChecksumValue, boneUuidA[index])
+            boneChecksumValue = mix(boneChecksumValue, boneUuidB[index])
+            boneChecksumValue = mix(boneChecksumValue, boneNameHashes[index])
+            boneChecksumValue = mix(boneChecksumValue, boneParentA[index])
+            boneChecksumValue = mix(boneChecksumValue, boneParentB[index])
+            boneChecksumValue = mix(boneChecksumValue, boneOriginX[index])
+            boneChecksumValue = mix(boneChecksumValue, boneOriginY[index])
+            boneChecksumValue = mix(boneChecksumValue, boneOriginZ[index])
+            boneChecksumValue = mix(boneChecksumValue, boneRotationX[index])
+            boneChecksumValue = mix(boneChecksumValue, boneRotationY[index])
+            boneChecksumValue = mix(boneChecksumValue, boneRotationZ[index])
+            boneChecksumValue = mix(boneChecksumValue, boneFlags[index])
+            boneChecksumValue = mix(boneChecksumValue, boneDepths[index])
+        }
+        for (var index = 0; index < cubeCountValue; index = index + 1) {
+            if (!pushWord(cubeUuidA[index]) || !pushWord(cubeUuidB[index]) ||
+                !pushWord(cubeUuidLength[index]) || !pushWord(cubeNameHashes[index]) ||
+                !pushWord(cubeBoneA[index]) || !pushWord(cubeBoneB[index]) ||
+                !pushWord(cubeBoneLength[index]) || !pushWord(cubeFromX[index]) ||
+                !pushWord(cubeFromY[index]) || !pushWord(cubeFromZ[index]) ||
+                !pushWord(cubeToX[index]) || !pushWord(cubeToY[index]) ||
+                !pushWord(cubeToZ[index]) || !pushWord(cubeOriginX[index]) ||
+                !pushWord(cubeOriginY[index]) || !pushWord(cubeOriginZ[index]) ||
+                !pushWord(cubeRotationX[index]) || !pushWord(cubeRotationY[index]) ||
+                !pushWord(cubeRotationZ[index]) || !pushWord(cubeInflate[index]) ||
+                !pushWord(cubeStretchX[index]) || !pushWord(cubeStretchY[index]) ||
+                !pushWord(cubeStretchZ[index]) || !pushWord(cubeFlags[index])) {
+                return false
+            }
+            characterChecksumValue = mix(characterChecksumValue, cubeUuidA[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeUuidB[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeNameHashes[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeBoneA[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeBoneB[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeFromX[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeFromY[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeFromZ[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeToX[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeToY[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeToZ[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeOriginX[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeOriginY[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeOriginZ[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeRotationX[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeRotationY[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeRotationZ[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeInflate[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeStretchX[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeStretchY[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeStretchZ[index])
+            characterChecksumValue = mix(characterChecksumValue, cubeFlags[index])
+        }
+        for (var index = 0; index < animationCountValue; index = index + 1) {
+            var count = 0
+            for (var keyframe = 0; keyframe < keyframeCountValue;
+                keyframe = keyframe + 1) {
+                if (sameIdentity(animationUuidA[index], animationUuidB[index],
+                        animationUuidLength[index], keyframeAnimationA[keyframe],
+                        keyframeAnimationB[keyframe],
+                        keyframeAnimationLength[keyframe])) { count = count + 1 }
+            }
+            if (!pushWord(animationUuidA[index]) || !pushWord(animationUuidB[index]) ||
+                !pushWord(animationUuidLength[index]) ||
+                !pushWord(animationNameHashes[index]) ||
+                !pushWord(animationLoops[index]) ||
+                !pushWord(animationLengths[index]) || !pushWord(count)) { return false }
+            animationChecksumValue = mix(animationChecksumValue, animationUuidA[index])
+            animationChecksumValue = mix(animationChecksumValue, animationUuidB[index])
+            animationChecksumValue = mix(animationChecksumValue,
+                animationNameHashes[index])
+            animationChecksumValue = mix(animationChecksumValue,
+                animationLoops[index])
+            animationChecksumValue = mix(animationChecksumValue,
+                animationLengths[index])
+        }
+        for (var index = 0; index < keyframeCountValue; index = index + 1) {
+            if (!pushWord(keyframeUuidA[index]) || !pushWord(keyframeUuidB[index]) ||
+                !pushWord(keyframeUuidLength[index]) ||
+                !pushWord(keyframeAnimationA[index]) ||
+                !pushWord(keyframeAnimationB[index]) ||
+                !pushWord(keyframeAnimationLength[index]) ||
+                !pushWord(keyframeBoneA[index]) || !pushWord(keyframeBoneB[index]) ||
+                !pushWord(keyframeBoneLength[index]) ||
+                !pushWord(keyframeChannels[index]) ||
+                !pushWord(keyframeInterpolations[index]) ||
+                !pushWord(keyframeTimes[index]) || !pushWord(keyframeX[index]) ||
+                !pushWord(keyframeY[index]) || !pushWord(keyframeZ[index])) {
+                return false
+            }
+            animationChecksumValue = mix(animationChecksumValue, keyframeUuidA[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeUuidB[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeAnimationA[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeBoneA[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeBoneB[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeChannels[index])
+            animationChecksumValue = mix(animationChecksumValue,
+                keyframeInterpolations[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeTimes[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeX[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeY[index])
+            animationChecksumValue = mix(animationChecksumValue, keyframeZ[index])
+        }
+        wireWords[13] = wireLengthValue
+        wireWords[16] = modelFormatChecksumValue
+        wireWords[17] = characterChecksumValue
+        wireWords[18] = boneChecksumValue
+        wireWords[19] = animationChecksumValue
+        canonicalChecksumValue = wireChecksum(15)
+        wireWords[15] = canonicalChecksumValue
+        return true
+    }
+
+    Int byteWord(Int[] source, Int word) {
+        var offset = word * 4
+        if (offset < 0 || offset + 4 > source.length) { return 0 }
+        return source[offset] | (source[offset + 1] << 8) |
+            (source[offset + 2] << 16) | (source[offset + 3] << 24)
+    }
+
+    Int wireIdentityOffset(
+        Int[] bytes, Int base, Int count, Int width, Int a, Int b, Int length
+    ) {
+        for (var index = 0; index < count; index = index + 1) {
+            var offset = base + index * width
+            if (byteWord(bytes, offset) == a &&
+                byteWord(bytes, offset + 1) == b &&
+                byteWord(bytes, offset + 2) == length) { return offset }
+        }
+        return -1
+    }
+
+    Bool wireIdentityExists(
+        Int[] bytes, Int base, Int count, Int width, Int a, Int b, Int length
+    ) {
+        return wireIdentityOffset(
+            bytes, base, count, width, a, b, length) >= 0
+    }
+
+    Bool reopenCanonical() {
+        var bytes = encodedCanonicalBytes()
+        if (bytes.length != wireLengthValue * 4 ||
+            wireLengthValue < blockbenchCanonicalHeaderWords() ||
+            byteWord(bytes, 0) != blockbenchCanonicalMagic() ||
+            byteWord(bytes, 1) != blockbenchCanonicalVersion() ||
+            byteWord(bytes, 2) != sourceChecksumValue ||
+            byteWord(bytes, 3) != boneCountValue ||
+            byteWord(bytes, 4) != cubeCountValue ||
+            byteWord(bytes, 5) != animationCountValue ||
+            byteWord(bytes, 6) != keyframeCountValue ||
+            byteWord(bytes, 7) != rootBoneCountValue ||
+            byteWord(bytes, 8) != maxBoneDepthValue ||
+            byteWord(bytes, 9) != 15 || byteWord(bytes, 10) != 24 ||
+            byteWord(bytes, 11) != 7 || byteWord(bytes, 12) != 15 ||
+            byteWord(bytes, 13) != wireLengthValue ||
+            byteWord(bytes, 14) != 1000 ||
+            byteWord(bytes, 15) != canonicalChecksumValue ||
+            byteWord(bytes, 16) != modelFormatChecksumValue ||
+            byteWord(bytes, 17) != characterChecksumValue ||
+            byteWord(bytes, 18) != boneChecksumValue ||
+            byteWord(bytes, 19) != animationChecksumValue) { return false }
+        var boneBase = blockbenchCanonicalHeaderWords()
+        var cubeBase = boneBase + boneCountValue * 15
+        var animationBase = cubeBase + cubeCountValue * 24
+        var keyframeBase = animationBase + animationCountValue * 7
+        if (keyframeBase + keyframeCountValue * 15 != wireLengthValue) {
+            return false
+        }
+        var reopenedRoots = 0
+        var reopenedDepth = 0
+        for (var index = 0; index < boneCountValue; index = index + 1) {
+            var offset = boneBase + index * 15
+            var parentLength = byteWord(bytes, offset + 6)
+            var depth = byteWord(bytes, offset + 14)
+            if (byteWord(bytes, offset + 2) != 36 || depth <= 0 ||
+                depth > 16 || (parentLength != 0 && parentLength != 36)) {
+                return false
+            }
+            if (parentLength == 0) {
+                if (depth != 1) { return false }
+                reopenedRoots = reopenedRoots + 1
+            } else if (depth <= 1 ||
+                !wireIdentityExists(bytes, boneBase, boneCountValue, 15,
+                    byteWord(bytes, offset + 4),
+                    byteWord(bytes, offset + 5), parentLength)) {
+                return false
+            }
+            if (depth > reopenedDepth) { reopenedDepth = depth }
+        }
+        if (reopenedRoots != rootBoneCountValue ||
+            reopenedDepth != maxBoneDepthValue) { return false }
+        for (var index = 0; index < cubeCountValue; index = index + 1) {
+            var offset = cubeBase + index * 24
+            if (byteWord(bytes, offset + 2) != 36 ||
+                byteWord(bytes, offset + 6) != 36 ||
+                !wireIdentityExists(bytes, boneBase, boneCountValue, 15,
+                    byteWord(bytes, offset + 4), byteWord(bytes, offset + 5),
+                    byteWord(bytes, offset + 6))) { return false }
+        }
+        var reopenedKeyframes = 0
+        for (var index = 0; index < animationCountValue; index = index + 1) {
+            var offset = animationBase + index * 7
+            var loop = byteWord(bytes, offset + 4)
+            var count = byteWord(bytes, offset + 6)
+            if (byteWord(bytes, offset + 2) != 36 ||
+                loop < 1 || loop > 3 || byteWord(bytes, offset + 5) <= 0 ||
+                count < 0 || count > keyframeCountValue - reopenedKeyframes) {
+                return false
+            }
+            reopenedKeyframes = reopenedKeyframes + count
+        }
+        if (reopenedKeyframes != keyframeCountValue) { return false }
+        for (var index = 0; index < keyframeCountValue; index = index + 1) {
+            var offset = keyframeBase + index * 15
+            var animationOffset = wireIdentityOffset(
+                bytes, animationBase, animationCountValue, 7,
+                byteWord(bytes, offset + 3), byteWord(bytes, offset + 4),
+                byteWord(bytes, offset + 5))
+            if (byteWord(bytes, offset + 2) != 36 ||
+                byteWord(bytes, offset + 5) != 36 ||
+                byteWord(bytes, offset + 8) != 36 ||
+                animationOffset < 0 ||
+                !wireIdentityExists(bytes, boneBase, boneCountValue, 15,
+                    byteWord(bytes, offset + 6), byteWord(bytes, offset + 7),
+                    byteWord(bytes, offset + 8)) ||
+                byteWord(bytes, offset + 9) < 1 ||
+                byteWord(bytes, offset + 9) > 3 ||
+                byteWord(bytes, offset + 10) < 1 ||
+                byteWord(bytes, offset + 10) > 2 ||
+                byteWord(bytes, offset + 11) < 0 ||
+                byteWord(bytes, offset + 11) >
+                    byteWord(bytes, animationOffset + 5)) { return false }
+        }
+        var check = 17
+        for (var index = 0; index < wireLengthValue; index = index + 1) {
+            if (index != 15) { check = mix(check, byteWord(bytes, index)) }
+        }
+        return check == canonicalChecksumValue
+    }
+
+    Bool read(Int[] source) {
+        clear()
+        if (source.length <= 0 || source.length > 1048576) {
+            diagnosticValue = blockbenchDiagnosticCapacity()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) {
+                diagnosticValue = blockbenchDiagnosticJson()
+                return false
+            }
+        }
+        if (!validUtf8(source)) {
+            diagnosticValue = blockbenchDiagnosticJson()
+            return false
+        }
+        sourceValue = source
+        sourceChecksumValue = checksum(source)
+        parseCursorValue = 0
+        var root = parseValue(-1, -1, -1, 0)
+        skipWhitespace()
+        if (root < 0 || tokenKinds[root] != 1 ||
+            parseCursorValue != source.length || !parseMeta(root)) {
+            if (diagnosticValue == blockbenchDiagnosticNone()) {
+                if (parseCapacityExceededValue) {
+                    diagnosticValue = blockbenchDiagnosticCapacity()
+                } else {
+                    diagnosticValue = blockbenchDiagnosticJson()
+                }
+            }
+            sourceValue = new Int[0]
+            return false
+        }
+        if (!parseBones(root) || !parseCubes(root) || !parseHierarchy(root) ||
+            !parseAnimations(root)) {
+            sourceValue = new Int[0]
+            return false
+        }
+        if (!buildCanonical() || !reopenCanonical()) {
+            diagnosticValue = blockbenchDiagnosticCanonical()
+            sourceValue = new Int[0]
+            return false
+        }
+        sourceValue = new Int[0]
+        acceptedValue = true
+        diagnosticValue = blockbenchDiagnosticNone()
+        return true
+    }
+
+    Int[] encodedCanonicalBytes() {
+        if (wireLengthValue <= 0) { return new Int[0] }
+        var result = new Int[wireLengthValue * 4]
+        for (var index = 0; index < wireLengthValue; index = index + 1) {
+            var value = wireWords[index]
+            result[index * 4] = value & 255
+            result[index * 4 + 1] = (value >>> 8) & 255
+            result[index * 4 + 2] = (value >>> 16) & 255
+            result[index * 4 + 3] = (value >>> 24) & 255
+        }
+        return result
+    }
+
+    Int[] canonicalBytes() {
+        if (!acceptedValue) { return new Int[0] }
+        return encodedCanonicalBytes()
+    }
+
+    Int canonicalLength() {
+        if (!acceptedValue) { return 0 }
+        return wireLengthValue
+    }
+
+    Int canonicalWord(Int index) {
+        if (!acceptedValue || index < 0 || index >= wireLengthValue) { return -1 }
+        return wireWords[index]
+    }
+
+    Int canonicalByteLength() {
+        if (!acceptedValue) { return 0 }
+        return wireLengthValue * 4
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int modelFormatChecksum() { return modelFormatChecksumValue }
+    Int characterChecksum() { return characterChecksumValue }
+    Int boneChecksum() { return boneChecksumValue }
+    Int animationChecksum() { return animationChecksumValue }
+    Int canonicalChecksum() { return canonicalChecksumValue }
+    Int canonicalHeaderWords() { return blockbenchCanonicalHeaderWords() }
+    Int boneCount() { return boneCountValue }
+    Int cubeCount() { return cubeCountValue }
+    Int animationCount() { return animationCountValue }
+    Int keyframeCount() { return keyframeCountValue }
+    Int rootBoneCount() { return rootBoneCountValue }
+    Int maxBoneDepth() { return maxBoneDepthValue }
+}

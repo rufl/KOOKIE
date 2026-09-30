@@ -4,6 +4,21 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-30
 
+### Entrada limitada de personagens do Blockbench
+
+- Adicionamos um leitor de Blockbench `.bbmodel` 5.0 implementado de forma
+  independente para personagens somente com cubos, hierarquias limitadas de
+  ossos UUID e clips numéricos de posição/rotação/escala. Ele limita bytes da
+  fonte, tokens, ossos, cuboides, profundidade da hierarquia, clips e keyframes;
+  UUIDs duplicados/desconhecidos, Molang, efeitos e interpolação incompatível
+  são rejeitados deterministicamente.
+- Adicionamos saída `KCHR` v1 little-endian reaberta, com registros em ponto
+  fixo de cuboides, hierarquia e keyframes, além de checksums de
+  fonte/personagem/ossos/animação/produto. `kookie-cooker cook blockbench`
+  grava o produto pronto para pacote; uma entrada rejeitada não grava saída.
+  Pixels de textura e dados UV/material por face não fazem parte deste primeiro
+  contrato `KCHR`.
+
 ### Integração SIMD com Buffer do Kof
 
 - Fixamos builds de CI e release no commit de fonte

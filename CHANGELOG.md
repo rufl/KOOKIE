@@ -4,6 +4,19 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-30
 
+### Bounded Blockbench character intake
+
+- Added an independently implemented Blockbench `.bbmodel` 5.0 reader for
+  cube-only characters with bounded UUID bone hierarchies and numeric
+  position/rotation/scale clips. It caps source bytes, tokens, bones, cuboids,
+  hierarchy depth, clips and keyframes; duplicate/unknown UUIDs, Molang,
+  effects and unsupported interpolation reject deterministically.
+- Added reopened little-endian `KCHR` v1 output with fixed-point cuboid,
+  hierarchy and keyframe records plus source/character/bone/animation/product
+  checksums. `kookie-cooker cook blockbench` writes the package-ready product;
+  failed intake writes none. Texture pixels and per-face UV/material data are
+  not part of this first `KCHR` contract.
+
 ### Kof Buffer SIMD integration
 
 - Pinned CI and release builds to Kof 0.5.0-beta source commit

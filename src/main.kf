@@ -4652,6 +4652,78 @@ Int[] g4DustArchiveFixture() {
     return source
 }
 
+String g4BlockbenchFixture(
+    String animatedBone, String interpolation, String xValue,
+    String animationExtra
+) {
+    var root = "11111111-1111-4111-8111-111111111111"
+    var arm = "22222222-2222-4222-8222-222222222222"
+    var bodyCube = "33333333-3333-4333-8333-333333333333"
+    var armCube = "44444444-4444-4444-8444-444444444444"
+    return "{\"meta\":{\"format_version\":\"5.0\"," +
+        "\"model_format\":\"free\"}," +
+        "\"elements\":[" +
+        "{\"type\":\"cube\",\"uuid\":\"" + bodyCube + "\"," +
+        "\"name\":\"body\",\"from\":[-4,0,-2],\"to\":[4,12,2]," +
+        "\"origin\":[0,0,0],\"rotation\":[0,0,0]}," +
+        "{\"type\":\"cube\",\"uuid\":\"" + armCube + "\"," +
+        "\"name\":\"arm\",\"from\":[4,7,-1],\"to\":[10,9,1]," +
+        "\"origin\":[4,8,0],\"rotation\":[0,0,0],\"inflate\":0.25," +
+        "\"stretch\":[1.25,1,1]}]," +
+        "\"groups\":[" +
+        "{\"uuid\":\"" + root + "\",\"name\":\"root\",\"origin\":[0,0,0]}," +
+        "{\"uuid\":\"" + arm + "\",\"name\":\"arm\",\"origin\":[4,8,0]}]," +
+        "\"outliner\":[{\"uuid\":\"" + root + "\",\"children\":[\"" +
+        bodyCube + "\",{\"uuid\":\"" + arm + "\",\"children\":[\"" +
+        armCube + "\"]}]}]," +
+        "\"animations\":[{\"uuid\":\"55555555-5555-4555-8555-555555555555\"," +
+        "\"name\":\"walk\",\"loop\":\"loop\",\"length\":1," +
+        animationExtra + "\"animators\":{\"" + animatedBone +
+        "\":{\"type\":\"bone\",\"keyframes\":[" +
+        "{\"uuid\":\"66666666-6666-4666-8666-666666666666\"," +
+        "\"channel\":\"position\",\"time\":0,\"interpolation\":\"linear\"," +
+        "\"data_points\":[{\"x\":\"0\",\"y\":\"0\",\"z\":\"0\"}]}," +
+        "{\"uuid\":\"77777777-7777-4777-8777-777777777777\"," +
+        "\"channel\":\"position\",\"time\":1,\"interpolation\":\"" +
+        interpolation + "\",\"data_points\":[{\"x\":" + xValue +
+        ",\"y\":\"0\",\"z\":\"0\"}]}]}," +
+        "\"" + arm + "\":{\"type\":\"bone\",\"keyframes\":[" +
+        "{\"uuid\":\"88888888-8888-4888-8888-888888888888\"," +
+        "\"channel\":\"rotation\",\"time\":0,\"data_points\":[{" +
+        "\"x\":0,\"y\":0,\"z\":0}]}," +
+        "{\"uuid\":\"99999999-9999-4999-8999-999999999999\"," +
+        "\"channel\":\"rotation\",\"time\":1,\"interpolation\":\"step\"," +
+        "\"data_points\":[{\"x\":0,\"y\":0,\"z\":30}]}]}}}]}"
+}
+
+String g4BlockbenchDepthUuid(Int index) {
+    var suffix = "" + index
+    if (index < 10) { suffix = "0" + suffix }
+    return "00000000-0000-0000-0000-0000000000" + suffix
+}
+
+String g4BlockbenchDepthFixture(Int depth) {
+    var cube = "ffffffff-ffff-4fff-8fff-ffffffffffff"
+    var groups = ""
+    var outliner = ""
+    for (var index = 1; index <= depth; index = index + 1) {
+        if (index > 1) { groups = groups + "," }
+        var uuid = g4BlockbenchDepthUuid(index)
+        groups = groups + "{\"uuid\":\"" + uuid +
+            "\",\"name\":\"bone\",\"origin\":[0,0,0]}"
+        outliner = outliner + "{\"uuid\":\"" + uuid + "\",\"children\":["
+    }
+    outliner = outliner + "\"" + cube + "\""
+    for (var index = 0; index < depth; index = index + 1) {
+        outliner = outliner + "]}"
+    }
+    return "{\"meta\":{\"format_version\":\"5.0\",\"model_format\":\"free\"}," +
+        "\"elements\":[{\"type\":\"cube\",\"uuid\":\"" + cube +
+        "\",\"name\":\"body\",\"from\":[0,0,0],\"to\":[1,1,1]," +
+        "\"origin\":[0,0,0]}],\"groups\":[" + groups + "]," +
+        "\"outliner\":[" + outliner + "]}"
+}
+
 test "G4 source cooker admits sprites voxels and convex brushes" {
     var cooker = BoundedSourceCooker()
     var dust = g4DustArchiveFixture()
@@ -4707,6 +4779,74 @@ test "G4 source cooker admits sprites voxels and convex brushes" {
     var unsupported = g4AsciiSource("{ { ( 0.5 0 0 ) } }")
     assert(!cooker.cookQuakeMap(unsupported, 10, 31, 1, 1),
         "Quake map subset must reject unsupported decimal planes")
+}
+
+test "G4 Blockbench intake preserves character bones and animation", "blockbench" {
+    var root = "11111111-1111-4111-8111-111111111111"
+    var cooker = BoundedSourceCooker()
+    var source = g4AsciiSource(
+        g4BlockbenchFixture(
+            root, "linear", "\"1.2500000000000002\"", ""))
+    assert(cooker.cookBlockbench(source),
+        "bounded Blockbench 5.0 character must cook")
+    var result = cooker.result()
+    var character = cooker.blockbench()
+    var bytes = character.canonicalBytes()
+    var cubeBase = character.canonicalHeaderWords() +
+        character.boneCount() * character.canonicalWord(9)
+    var animationBase = cubeBase +
+        character.cubeCount() * character.canonicalWord(10)
+    var keyframeBase = animationBase +
+        character.animationCount() * character.canonicalWord(11)
+    assert(result.accepted() &&
+        result.sourceKind() == sourceKindBlockbench() &&
+        result.primaryCount() == 2 && result.secondaryCount() == 1 &&
+        character.boneCount() == 2 && character.cubeCount() == 2 &&
+        character.animationCount() == 1 && character.keyframeCount() == 4 &&
+        character.rootBoneCount() == 1 && character.maxBoneDepth() == 2 &&
+        result.geometryChecksum() > 0 && result.metadataChecksum() > 0 &&
+        result.entityChecksum() > 0 && result.visibilityChecksum() > 0 &&
+        character.modelFormatChecksum() > 0 &&
+        bytes.length == character.canonicalByteLength() &&
+        character.canonicalLength() * 4 == bytes.length &&
+        character.canonicalHeaderWords() == 20 &&
+        character.canonicalWord(0) == blockbenchCanonicalMagic() &&
+        bytes[0] == 75 && bytes[1] == 67 && bytes[2] == 72 && bytes[3] == 82 &&
+        character.canonicalWord(
+            cubeBase + character.canonicalWord(10) + 20) == 1250 &&
+        character.canonicalWord(
+            keyframeBase + character.canonicalWord(12) + 12) == 1250 &&
+        character.reopenCanonical(),
+        "cooked KCHR must retain UUID-bound cuboids, hierarchy, and keyframes")
+
+    var unknown = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    assert(!cooker.cookBlockbench(g4AsciiSource(
+            g4BlockbenchFixture(unknown, "linear", "\"1.25\"", ""))) &&
+        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        "animation tracks must reference admitted bone UUIDs")
+    assert(!cooker.cookBlockbench(g4AsciiSource(
+            g4BlockbenchFixture(root, "bezier", "\"1.25\"", ""))) &&
+        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        "unsupported interpolation must reject instead of changing semantics")
+    assert(!cooker.cookBlockbench(g4AsciiSource(
+            g4BlockbenchFixture(
+                root, "linear", "\"query.life_time\"", ""))) &&
+        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        "Molang expressions must reject from the numeric animation subset")
+    assert(!cooker.cookBlockbench(g4AsciiSource(
+            g4BlockbenchFixture(root, "linear", "\"1.25\"",
+                "\"start_delay\":\"query.time\","))) &&
+        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        "Molang clip timing must reject instead of being discarded")
+    assert(cooker.cookBlockbench(g4AsciiSource(
+            g4BlockbenchDepthFixture(16))) &&
+        cooker.blockbench().boneCount() == 16 &&
+        cooker.blockbench().maxBoneDepth() == 16,
+        "the declared hierarchy-depth boundary must remain admissible")
+    assert(!cooker.cookBlockbench(g4AsciiSource(
+            g4BlockbenchDepthFixture(17))) &&
+        cooker.result().diagnostic() == blockbenchDiagnosticHierarchy(),
+        "a hierarchy beyond the bounded depth must reject")
 }
 
 test "trusted hooks subscribe to broader typed domain events" {

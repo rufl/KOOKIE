@@ -542,10 +542,12 @@ Primeiro, navegação com waypoints/portais criados manualmente; depois, um pipe
 
 Fontes editáveis → **Kof cooker** → pacote versionado da engine → carregamento validado em tempo de execução.
 
-Formatos de fonte iniciais: manifesto do projeto e definições de entidades/encontros/itens
-em dados estruturados legíveis; malhas estáticas/materiais em um subconjunto
-documentado de glTF; Dust3D `.ds3`; LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`;
-imagens/áudio em um conjunto de formatos deliberadamente pequeno e compatível. Esses
+Formatos de fonte iniciais: manifesto do projeto e definições de
+entidades/encontros/itens em dados estruturados legíveis; malhas
+estáticas/materiais em um subconjunto documentado de glTF; Dust3D `.ds3`;
+LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`; rigs de personagem
+Blockbench `.bbmodel`; imagens/áudio em um conjunto deliberadamente pequeno
+e compatível. Esses
 são formatos de entrada offline, não formatos de pacote em tempo de execução. Valide
 geometria finita, índices de triângulos, dimensões de voxels/referências de paleta,
 limites de quadros de sprites, metadados de animação, limites de tamanho/quantidade,
@@ -565,6 +567,7 @@ obrigatório de proveniência do pacote:
 | Dust3D `.ds3` | Validar os dados de malha/UV/esqueleto exportados e produzir GLB, além de materiais e colisão opcional |
 | LibreSprite `.ase`/`.aseprite` | Extrair quadros/camadas/tags/slices limitados e produzir atlas PNG, metadados versionados e definições de animação |
 | MagicaVoxel `.vox` | Analisar modelos voxel/paleta limitada e chunks de cena compatíveis, e produzir malha/GLB determinística, além de materiais e colisão voxel opcional |
+| Blockbench `.bbmodel` | Analisar o outliner 5.0 exato de cubos/ossos e clips numéricos limitados de posição/rotação/escala em dados de rig `KCHR` v1 reabertos; pixels de textura e saída UV/material por face exigem um produto separado |
 
 Use GLB para intercâmbio de runtime 3D e PNG mais metadados versionados para
 intercâmbio de runtime de sprites. OBJ/FBX são alternativas de conversão, não
@@ -574,12 +577,15 @@ regra de normalização explícita; eles nunca passam adiante como dados ambígu
 Publique somente depois que os limites de tamanho decodificado, índice, paleta,
 quadro, transformação e números finitos forem aprovados.
 
-Dust3D é uma ferramenta externa de autoria com licença MIT. LibreSprite é GPLv2 e
-não pode ser incorporado ao KOOKIE; use exportação externa ou um leitor de formato
-implementado de forma independente, com avisos separados. MagicaVoxel é freeware
-proprietário; não inclua sua aplicação. Aceitar arquivos `.vox` fornecidos pelo
-usuário e ler o formato documentado não concede direitos de redistribuição da
-ferramenta.
+Dust3D é uma ferramenta externa de autoria com licença MIT. LibreSprite é GPLv2
+e não pode ser incorporado ao KOOKIE; use exportação externa ou um leitor de
+formato implementado de forma independente, com avisos separados. MagicaVoxel
+é freeware proprietário; não inclua sua aplicação. Aceitar arquivos `.vox`
+fornecidos pelo usuário e ler o formato documentado não concede direitos de
+redistribuição da ferramenta. Blockbench é uma aplicação externa
+GPL-3.0-or-later; o
+leitor `.bbmodel` implementado de forma independente pelo KOOKIE não incorpora
+a aplicação nem copia sua implementação.
 
 Para autoria de boomer-shooter, adicione um subconjunto textual de brushes no estilo
 Quake, `.map`: recorte/triangulação de planos de brushes convexos, tradução de
@@ -605,9 +611,10 @@ Transações obsoletas, incompletas, divergentes ou inválidas preservam a gera�
 anterior.
 
 `BoundedSourceCooker` admite os subconjuntos documentados de GLB indexado,
-Dust3D/Aseprite/VOX e mapas de brushes convexos sob limites explícitos de
-tamanho/quantidade/chunks. `scripts/kookie_cooker.sh`, exclusivo da JVM, expõe
-comandos de arquivo `cook`, `package`, `inspect-package` e `validate-package`.
+Dust3D/Aseprite/VOX, mapas de brushes convexos e personagens Blockbench 5.0 sob
+limites explícitos de tamanho/quantidade/chunks/profundidade.
+`scripts/kookie_cooker.sh`, exclusivo da JVM, expõe comandos de arquivo `cook`,
+`package`, `inspect-package` e `validate-package`.
 O leitor de pacotes valida campos little-endian explícitos, caminhos,
 limites/sobreposição/hashes de chunks e registros. O
 `BoundedExternalPackageRuntime` constrói candidatos e só troca pacote e

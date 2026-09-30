@@ -525,8 +525,9 @@ Editable sources → **Kof cooker** → versioned engine package → validated r
 Initial source formats: project manifest and entity/encounter/item definitions
 in readable structured data; static meshes/materials in a documented glTF
 subset; Dust3D `.ds3`; LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`;
-images/audio in a deliberately small supported set. These are offline intake
-formats, not runtime package formats. Validate finite geometry, triangle
+Blockbench `.bbmodel` character rigs; images/audio in a deliberately small
+supported set. These are offline intake formats, not runtime package formats.
+Validate finite geometry, triangle
 indices, voxel dimensions/palette references, sprite frame bounds, animation
 metadata, size/count limits, resource references, transforms and collision
 flags. Native decoder libraries may provide pixels/PCM, not scene/loot/collision
@@ -543,6 +544,7 @@ full tool/version receipt remains required package-provenance hardening:
 | Dust3D `.ds3` | Validate exported mesh/UV/skeleton data and produce GLB plus materials and optional collision |
 | LibreSprite `.ase`/`.aseprite` | Extract bounded frames/layers/tags/slices and produce PNG atlas, versioned metadata and animation definitions |
 | MagicaVoxel `.vox` | Parse bounded voxel models/palette/supported scene chunks and produce deterministic mesh/GLB plus materials and optional voxel collision |
+| Blockbench `.bbmodel` | Parse the exact 5.0 cube/bone outliner and bounded numeric position/rotation/scale clips into reopened `KCHR` v1 rig data; texture pixels and per-face UV/material output require a separate product |
 
 Use GLB for 3D runtime interchange and PNG plus versioned metadata for sprite
 runtime interchange. OBJ/FBX are conversion fallbacks, not runtime contracts.
@@ -555,7 +557,9 @@ Dust3D is an external MIT authoring tool. LibreSprite is GPLv2 and cannot be
 embedded in KOOKIE; use external export or an independently implemented format
 reader with separate notices. MagicaVoxel is proprietary freeware; do not
 bundle its application. Accepting user-provided `.vox` files and reading the
-documented format does not grant redistribution rights to the tool.
+documented format does not grant redistribution rights to the tool. Blockbench
+is an external GPL-3.0-or-later application; KOOKIE's independently implemented
+`.bbmodel` reader neither embeds the application nor copies its implementation.
 
 For boomer-shooter authoring add a Quake-style textual brush `.map` subset: convex brush plane clipping/triangulation, entity/property translation, material mapping and derived collision/visibility. TrenchBroom can be an external authoring tool; our `.kf` cooker remains the import authority. This does **not** promise WAD/BSP/QuakeC/source-port compatibility. Source maps are not shipped original-game assets.
 
@@ -569,10 +573,11 @@ Its 13-word compatibility identity binds engine/API/network schema and every
 content checksum. Stale, incomplete, mismatched or invalid transactions retain
 the prior generation.
 
-`BoundedSourceCooker` admits the documented indexed GLB, Dust3D/Aseprite/VOX
-and convex brush-map subsets under explicit size/count/chunk limits. The
-JVM-only `scripts/kookie_cooker.sh` provides file `cook`, `package`,
-`inspect-package` and `validate-package` commands. The package reader validates
+`BoundedSourceCooker` admits the documented indexed GLB,
+Dust3D/Aseprite/VOX, convex brush-map and Blockbench 5.0 character subsets
+under explicit size/count/chunk/depth limits. The JVM-only
+`scripts/kookie_cooker.sh` provides file `cook`, `package`, `inspect-package`
+and `validate-package` commands. The package reader validates
 explicit little-endian fields, paths, chunk bounds/overlap/hashes and registry
 records. `BoundedExternalPackageRuntime` constructs candidates and swaps the
 package plus extension/definition/hook registries only after complete

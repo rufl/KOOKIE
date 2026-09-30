@@ -5,6 +5,7 @@ Int sourceKindDust3d() { return 2 }
 Int sourceKindAseprite() { return 3 }
 Int sourceKindVox() { return 4 }
 Int sourceKindQuakeMap() { return 5 }
+Int sourceKindBlockbench() { return 6 }
 
 record SourceCookResult(
     Bool accepted,
@@ -28,6 +29,7 @@ class BoundedSourceCooker {
     BoundedAsepriteIntake spriteValue
     BoundedVoxIntake voxValue
     BoundedQuakeMapIntake mapValue
+    BoundedBlockbenchIntake blockbenchValue
     SourceCookResult resultValue
 
     public constructor() {
@@ -37,6 +39,7 @@ class BoundedSourceCooker {
         spriteValue = BoundedAsepriteIntake(262144)
         voxValue = BoundedVoxIntake(20)
         mapValue = BoundedQuakeMapIntake(8192)
+        blockbenchValue = BoundedBlockbenchIntake()
         resultValue = rejected(sourceKindGlb(), 0)
     }
 
@@ -145,6 +148,26 @@ class BoundedSourceCooker {
         return true
     }
 
+    Bool cookBlockbench(Int[] source) {
+        resultValue = rejected(
+            sourceKindBlockbench(), blockbenchDiagnosticJson())
+        if (!blockbenchValue.read(source)) {
+            resultValue = rejected(
+                sourceKindBlockbench(), blockbenchValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindBlockbench(), 0,
+            blockbenchValue.sourceChecksum(),
+            blockbenchValue.characterChecksum(), 0, 0,
+            blockbenchValue.boneChecksum(),
+            blockbenchValue.animationChecksum(),
+            blockbenchValue.canonicalChecksum(),
+            blockbenchValue.boneCount(),
+            blockbenchValue.animationCount())
+        return true
+    }
+
     SourceCookResult result() { return resultValue }
     BoundedExternalGlbSceneReader glb() { return glbValue }
     BoundedAuthoredCollision glbCollision() { return glbCollisionValue }
@@ -152,4 +175,5 @@ class BoundedSourceCooker {
     BoundedAsepriteIntake sprite() { return spriteValue }
     BoundedVoxIntake vox() { return voxValue }
     BoundedQuakeMapIntake quakeMap() { return mapValue }
+    BoundedBlockbenchIntake blockbench() { return blockbenchValue }
 }

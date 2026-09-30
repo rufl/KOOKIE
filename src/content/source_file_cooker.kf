@@ -105,6 +105,12 @@ class BoundedSourceFileCooker {
                 return reject(sourceFileDiagnosticSource())
             }
             output = encodedGeometry(cookerValue.quakeMap().geometry())
+        } else if (kind == "blockbench") {
+            if (!cookerValue.cookBlockbench(source)) {
+                resultValue = cookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = cookerValue.blockbench().canonicalBytes()
         } else {
             return reject(sourceFileDiagnosticKind())
         }
@@ -119,4 +125,5 @@ class BoundedSourceFileCooker {
     SourceCookResult result() { return resultValue }
     Int diagnostic() { return diagnosticValue }
     Int outputLength() { return outputLengthValue }
+    BoundedBlockbenchIntake blockbench() { return cookerValue.blockbench() }
 }

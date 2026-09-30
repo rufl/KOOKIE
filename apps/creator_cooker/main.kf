@@ -3,7 +3,7 @@ import kof.process
 
 Bool printUsage() {
     println("Usage:")
-    println("  kookie-cooker cook <glb|aseprite|vox|map> <input> <output>")
+    println("  kookie-cooker cook <glb|aseprite|vox|map|blockbench> <input> <output>")
     println("  kookie-cooker cook dust3d <input.ds3> <export.glb> <output>")
     println("  kookie-cooker package <chunk-kind> <input> <logical-path> <output.kpkg>")
     println("  kookie-cooker inspect-package <input.kpkg>")
@@ -31,11 +31,29 @@ Bool cookCommand(List<String> args) {
         return false
     }
     var result = cooker.result()
+    if (kind == "blockbench") {
+        var character = cooker.blockbench()
+        println("cooked kind=" + result.sourceKind() +
+            " source=" + result.sourceChecksum() +
+            " model=" + character.modelFormatChecksum() +
+            " character=" + result.geometryChecksum() +
+            " bones=" + result.metadataChecksum() +
+            " animation=" + result.entityChecksum() +
+            " canonical=" + result.visibilityChecksum() +
+            " bone-count=" + character.boneCount() +
+            " cube-count=" + character.cubeCount() +
+            " clip-count=" + character.animationCount() +
+            " keyframe-count=" + character.keyframeCount() +
+            " bytes=" + cooker.outputLength())
+        return true
+    }
     println("cooked kind=" + result.sourceKind() +
         " source=" + result.sourceChecksum() +
         " geometry=" + result.geometryChecksum() +
         " collision=" + result.collisionChecksum() +
         " metadata=" + result.metadataChecksum() +
+        " entity=" + result.entityChecksum() +
+        " visibility=" + result.visibilityChecksum() +
         " primary=" + result.primaryCount() +
         " secondary=" + result.secondaryCount() +
         " bytes=" + cooker.outputLength())

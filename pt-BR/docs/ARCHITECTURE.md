@@ -354,6 +354,7 @@ formatos de runtime:
 | LibreSprite `.ase` / `.aseprite` | Até 8 MiB, 64 frames/layers, frames RGBA 256×256 e 262.144 pixels de atlas; cels raw/zlib, layers normais, tags, slices, paleta, user data e perfil de cor; rejeitar chunks/modos desconhecidos | Atlas PNG RGBA determinístico, durações dos frames e checksum de metadados |
 | MagicaVoxel `.vox` | Versões 150–200, até oito modelos e 20 voxels; `PACK`, `SIZE`, `XYZI`, `RGBA`, `nTRN`, `nGRP`, `nSHP` e `LAYR`; rejeitar qualquer outro chunk | Geometria/colisão determinística de cubos, checksum da paleta e contagem de nós da cena |
 | `.map` no estilo Quake | Subconjunto ASCII em grade inteira de entidade/propriedade e planos de brushes convexos; até 8.192 tokens, 64 entidades, 512 propriedades, 16 planos por brush e 256 vértices/triângulos de saída | Geometria/colisão canônica triangulada, mais checksums de entidade, material e visibilidade |
+| Blockbench `.bbmodel` | JSON do formato 5.0 exato, de até 1 MiB; outliner de personagem somente com cubos, com no máximo 64 ossos UUID, 128 cuboides, 32 clips, 512 keyframes e profundidade 16; valores de posição/rotação/escala limitados a ±100.000 e normalizados em milésimos, clips de até 600 segundos e interpolação `linear`/`step`; rejeitar UUIDs duplicados/desconhecidos, Molang, efeitos e interpolação incompatível | `KCHR` v1 little-endian reaberto, com cuboides em ponto fixo, hierarquia/clips vinculados por UUID e checksums de fonte/personagem/ossos/animação/canônico; pixels de textura e dados UV/material por face ficam fora do `KCHR` v1 |
 
 Regras canônicas de entrada:
 
@@ -372,12 +373,17 @@ Regras canônicas de entrada:
 - Uma conversão malsucedida ou não suportada mantém o pacote válido anterior.
 
 Dust3D é um projeto externo de autoria licenciado sob MIT. LibreSprite é GPLv2 e
-deve permanecer uma ferramenta externa ou uma entrada de formato implementada de
-forma independente; não incorpore código do LibreSprite ao KOOKIE. MagicaVoxel é
-freeware proprietário; não empacote nem redistribua seu aplicativo. Ler o formato
-`.vox` documentado e aceitar arquivos `.vox` fornecidos pelo usuário é algo
-separado de empacotar a ferramenta. Registre todos os avisos de origem das
-fontes/ferramentas na proveniência do pacote.
+deve permanecer uma ferramenta externa ou uma entrada de formato implementada
+de forma independente; não incorpore código do LibreSprite ao KOOKIE.
+MagicaVoxel é freeware proprietário; não empacote nem redistribua seu
+aplicativo. Ler o formato `.vox` documentado e aceitar arquivos `.vox`
+fornecidos pelo usuário é algo separado de empacotar a ferramenta. [O
+aplicativo Blockbench é GPL-3.0-or-later](https://github.com/JannisX11/blockbench/blob/e2ede0809ee6bc91f374ac7e00d34cffbdf86a14/LICENSE.MD);
+o KOOKIE não o inclui nem copia sua implementação. O leitor independente tem
+como alvo o
+[codec de projeto 5.0 upstream](https://github.com/JannisX11/blockbench/blob/e2ede0809ee6bc91f374ac7e00d34cffbdf86a14/js/formats/bbmodel.js)
+e aceita somente arquivos-fonte fornecidos pelo usuário. Registre todos os
+avisos de fonte/ferramenta na proveniência do pacote.
 
 O cooker é responsável pela semântica de cenas, colisões, gameplay e pacotes.
 Bibliotecas nativas de imagem, fontes e áudio fornecem apenas mecanismos
@@ -425,9 +431,10 @@ e publicação atômica. Alvos restantes para robustez de produção incluem:
    nós/materiais e mapeamentos da fonte para a saída entre renomeações,
    reordenações e reexportações. Nunca vincular gameplay ou animação à posição
    em um array.
-4. **Validação de reabertura:** após o cooking, reabrir o GLB gerado, o atlas,
-   os metadados e os produtos de colisão por meio dos leitores de runtime. Um
-   processo de exportação concluído com sucesso não é prova suficiente.
+4. **Validação de reabertura:** após o cooking, reabrir o GLB, o `KCHR`, o
+   atlas, os metadados e os produtos de colisão gerados pelos leitores de
+   runtime. Um processo de exportação concluído com sucesso não é prova
+   suficiente.
 5. **Conjuntos atômicos de produtos:** malha, materiais, texturas, animação,
    colisão, navegação e metadados de replicação são publicados como uma única
    revisão. Rejeitar a combinação de produtos antigos e novos.

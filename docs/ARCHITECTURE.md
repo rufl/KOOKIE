@@ -343,6 +343,7 @@ indexed glTF subset. They are **offline intake formats**, not runtime formats:
 | LibreSprite `.ase` / `.aseprite` | Up to 8 MiB, 64 frames/layers, 256×256 RGBA frames and 262,144 atlas pixels; raw/zlib cels, normal layers, tags, slices, palette, user data and color profile; reject unknown chunks/modes | Deterministic RGBA PNG atlas, frame durations and metadata checksum |
 | MagicaVoxel `.vox` | Versions 150–200, up to eight models and 20 voxels; `PACK`, `SIZE`, `XYZI`, `RGBA`, `nTRN`, `nGRP`, `nSHP` and `LAYR`; reject every other chunk | Deterministic cube geometry/collision plus palette checksum and scene-node count |
 | Quake-style `.map` | ASCII integer-grid entity/property and convex brush-plane subset; up to 8,192 tokens, 64 entities, 512 properties, 16 planes per brush and 256 output vertices/triangles | Triangulated canonical geometry/collision plus entity, material and visibility checksums |
+| Blockbench `.bbmodel` | Exact format 5.0 JSON up to 1 MiB; cube-only character outliner with at most 64 UUID bones, 128 cuboids, 32 clips, 512 keyframes and depth 16; position/rotation/scale values bounded to ±100,000 and normalized to thousandths, clips up to 600 seconds, and `linear`/`step` interpolation; reject duplicate/unknown UUIDs, Molang, effects and unsupported interpolation | Reopened little-endian `KCHR` v1 with fixed-point cuboids, UUID-bound hierarchy/clips and source/character/bone/animation/canonical checksums; texture pixels and per-face UV/material data are outside `KCHR` v1 |
 
 Canonical intake rules:
 
@@ -363,8 +364,12 @@ must remain an external tool or independently implemented format intake; do not
 embed LibreSprite code in KOOKIE. MagicaVoxel is proprietary freeware; do not
 bundle or redistribute its application. Reading the documented `.vox` format
 and accepting user-provided `.vox` files is separate from bundling the tool.
-Record all source/tool notices in package provenance.
-
+[Blockbench's application is GPL-3.0-or-later](https://github.com/JannisX11/blockbench/blob/e2ede0809ee6bc91f374ac7e00d34cffbdf86a14/LICENSE.MD);
+KOOKIE does not bundle it or copy its implementation. The independent reader
+targets the upstream
+[5.0 project codec](https://github.com/JannisX11/blockbench/blob/e2ede0809ee6bc91f374ac7e00d34cffbdf86a14/js/formats/bbmodel.js)
+and accepts only user-provided source files. Record all source/tool notices in
+package provenance.
 
 The cooker owns scene, collision, gameplay and package semantics. Native image,
 font and audio libraries only provide narrow decoding mechanisms.
@@ -409,7 +414,7 @@ atomic publication. Remaining production hardening targets include:
 3. **Stable bindings:** preserve frame IDs, layer/tag IDs, node/material IDs and
    source-to-output mappings across rename, reorder and re-export. Never bind
    gameplay or animation to array position.
-4. **Reopen validation:** after cooking, reopen the generated GLB, atlas,
+4. **Reopen validation:** after cooking, reopen generated GLB, `KCHR`, atlas,
    metadata and collision products through the runtime readers. A successful
    exporter process is not sufficient proof.
 5. **Atomic product sets:** mesh, materials, textures, animation, collision,
