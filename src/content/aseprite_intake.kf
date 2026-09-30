@@ -14,11 +14,10 @@ class BoundedAsepriteIntake {
     Int[] layerOpacities
     Bool[] layerVisible
     Int[] frameDurations
-    Int[] pngWire
+    BoundedRgbaPngEncoder pngEncoder
     BoundedZlibInflater inflater
     Int pixelCapacity
     Int headerFlagsValue
-    Int pngCountValue
     Int widthValue
     Int heightValue
     Int frameCountValue
@@ -39,7 +38,7 @@ class BoundedAsepriteIntake {
         layerOpacities = new Int[64]
         layerVisible = new Bool[64]
         frameDurations = new Int[64]
-        pngWire = new Int[pixelCapacity * 4 + 65536]
+        pngEncoder = BoundedRgbaPngEncoder(pixelCapacity)
         inflater = BoundedZlibInflater(pixelCapacity * 4)
         clear()
     }
@@ -56,7 +55,7 @@ class BoundedAsepriteIntake {
         sourceChecksumValue = 0
         metadataChecksumValue = 0
         diagnosticValue = spriteDiagnosticNone()
-        pngCountValue = 0
+        pngEncoder.clear()
         acceptedValue = false
         for (var index = 0; index < atlasRgba.length; index = index + 1) {
             atlasRgba[index] = 0
@@ -353,92 +352,9 @@ class BoundedAsepriteIntake {
         return start + 16 == limit
     }
 
-    Bool append(Int value) {
-        if (pngCountValue >= pngWire.length || value < 0 || value > 255) {
-            return false
-        }
-        pngWire[pngCountValue] = value
-        pngCountValue = pngCountValue + 1
-        return true
-    }
-
-    Bool appendBigEndian(Int value) {
-        return append((value >>> 24) & 255) && append((value >>> 16) & 255) &&
-            append((value >>> 8) & 255) && append(value & 255)
-    }
-
-    Int crc32(Int start, Int limit) {
-        var crc = -1
-        for (var index = start; index < limit; index = index + 1) {
-            crc = crc ^ pngWire[index]
-            for (var bit = 0; bit < 8; bit = bit + 1) {
-                if ((crc & 1) != 0) {
-                    crc = (crc >>> 1) ^ -306674912
-                } else {
-                    crc = crc >>> 1
-                }
-            }
-        }
-        return crc ^ -1
-    }
-
-    Bool finishChunk(Int typeStart) {
-        return appendBigEndian(crc32(typeStart, pngCountValue))
-    }
-
-    Int rawByte(Int rawIndex, Int atlasWidth) {
-        var stride = atlasWidth * 4 + 1
-        var column = rawIndex % stride
-        if (column == 0) { return 0 }
-        var row = rawIndex / stride
-        return atlasRgba[(row * atlasWidth * 4) + column - 1]
-    }
-
     Bool encodePng() {
-        pngCountValue = 0
-        var atlasWidth = widthValue * frameCountValue
-        var rawLength = heightValue * (atlasWidth * 4 + 1)
-        var blockCount = (rawLength + 65534) / 65535
-        var idatLength = 2 + rawLength + blockCount * 5 + 4
-        if (atlasWidth <= 0 || rawLength <= 0 ||
-            idatLength + 70 > pngWire.length) { return false }
-        if (!append(137) || !append(80) || !append(78) || !append(71) ||
-            !append(13) || !append(10) || !append(26) || !append(10) ||
-            !appendBigEndian(13)) { return false }
-        var typeStart = pngCountValue
-        if (!append(73) || !append(72) || !append(68) || !append(82) ||
-            !appendBigEndian(atlasWidth) || !appendBigEndian(heightValue) ||
-            !append(8) || !append(6) || !append(0) || !append(0) || !append(0) ||
-            !finishChunk(typeStart) || !appendBigEndian(idatLength)) { return false }
-        typeStart = pngCountValue
-        if (!append(73) || !append(68) || !append(65) || !append(84) ||
-            !append(120) || !append(1)) { return false }
-        var adlerA = 1
-        var adlerB = 0
-        var rawCursor = 0
-        while (rawCursor < rawLength) {
-            var blockLength = rawLength - rawCursor
-            if (blockLength > 65535) { blockLength = 65535 }
-            var finalBlock = 0
-            if (rawCursor + blockLength == rawLength) { finalBlock = 1 }
-            if (!append(finalBlock) || !append(blockLength & 255) ||
-                !append((blockLength >>> 8) & 255) ||
-                !append((65535 - blockLength) & 255) ||
-                !append(((65535 - blockLength) >>> 8) & 255)) { return false }
-            for (var index = 0; index < blockLength; index = index + 1) {
-                var value = rawByte(rawCursor, atlasWidth)
-                if (!append(value)) { return false }
-                adlerA = (adlerA + value) % 65521
-                adlerB = (adlerB + adlerA) % 65521
-                rawCursor = rawCursor + 1
-            }
-        }
-        var adler = (adlerB << 16) | adlerA
-        if (!appendBigEndian(adler) || !finishChunk(typeStart) ||
-            !appendBigEndian(0)) { return false }
-        typeStart = pngCountValue
-        return append(73) && append(69) && append(78) && append(68) &&
-            finishChunk(typeStart)
+        return pngEncoder.encode(
+            atlasRgba, widthValue * frameCountValue, heightValue)
     }
 
     Bool read(Int[] source) {
@@ -561,7 +477,7 @@ class BoundedAsepriteIntake {
         }
         sourceChecksumValue = checksum(source)
         acceptedValue = sourceChecksumValue > 0 && metadataChecksumValue > 0 &&
-            pngCountValue > 0
+            pngEncoder.length() > 0
         return acceptedValue
     }
 
@@ -582,12 +498,6 @@ class BoundedAsepriteIntake {
     }
     Int sourceChecksum() { return sourceChecksumValue }
     Int metadataChecksum() { return metadataChecksumValue }
-    Int pngLength() { return pngCountValue }
-    Int[] pngBytes() {
-        var result = new Int[pngCountValue]
-        for (var index = 0; index < pngCountValue; index = index + 1) {
-            result[index] = pngWire[index]
-        }
-        return result
-    }
+    Int pngLength() { return pngEncoder.length() }
+    Int[] pngBytes() { return pngEncoder.bytes() }
 }

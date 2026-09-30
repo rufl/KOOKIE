@@ -1,0 +1,779 @@
+package content
+
+Int pngImageDiagnosticNone() { return 0 }
+Int pngImageDiagnosticHeader() { return 1 }
+Int pngImageDiagnosticChunk() { return 2 }
+Int pngImageDiagnosticCrc() { return 3 }
+Int pngImageDiagnosticPalette() { return 4 }
+Int pngImageDiagnosticData() { return 5 }
+Int pngImageDiagnosticFilter() { return 6 }
+Int pngImageDiagnosticCapacity() { return 7 }
+Int pngImageDiagnosticCanonical() { return 8 }
+
+class BoundedRgbaPngEncoder {
+    Int[] wire
+    Int pixelCapacity
+    Int countValue
+    Bool acceptedValue
+
+    public constructor(Int maxPixels) {
+        pixelCapacity = maxPixels
+        if (pixelCapacity <= 0) { pixelCapacity = 1 }
+        if (pixelCapacity > 262144) { pixelCapacity = 262144 }
+        wire = new Int[pixelCapacity * 4 + 65536]
+        clear()
+    }
+
+    Bool clear() {
+        countValue = 0
+        acceptedValue = false
+        return true
+    }
+
+    Bool append(Int value) {
+        if (countValue >= wire.length || value < 0 || value > 255) {
+            return false
+        }
+        wire[countValue] = value
+        countValue = countValue + 1
+        return true
+    }
+
+    Bool appendBigEndian(Int value) {
+        return append((value >>> 24) & 255) &&
+            append((value >>> 16) & 255) &&
+            append((value >>> 8) & 255) && append(value & 255)
+    }
+
+    Int crc32(Int start, Int limit) {
+        var crc = -1
+        for (var index = start; index < limit; index = index + 1) {
+            crc = crc ^ wire[index]
+            for (var bit = 0; bit < 8; bit = bit + 1) {
+                if ((crc & 1) != 0) {
+                    crc = (crc >>> 1) ^ -306674912
+                } else {
+                    crc = crc >>> 1
+                }
+            }
+        }
+        return crc ^ -1
+    }
+
+    Bool finishChunk(Int typeStart) {
+        return appendBigEndian(crc32(typeStart, countValue))
+    }
+
+    Int rawByte(Int[] rgba, Int rawIndex, Int width) {
+        var stride = width * 4 + 1
+        var column = rawIndex % stride
+        if (column == 0) { return 0 }
+        var row = rawIndex / stride
+        return rgba[row * width * 4 + column - 1]
+    }
+
+    Bool encode(Int[] rgba, Int width, Int height) {
+        clear()
+        if (width <= 0 || height <= 0 || width > 262144 ||
+            height > 262144 || width > pixelCapacity / height ||
+            width * height * 4 > rgba.length) { return false }
+        var rawLength = height * (width * 4 + 1)
+        var blockCount = (rawLength + 65534) / 65535
+        var idatLength = 2 + rawLength + blockCount * 5 + 4
+        if (rawLength <= 0 || idatLength + 70 > wire.length) { return false }
+        if (!append(137) || !append(80) || !append(78) || !append(71) ||
+            !append(13) || !append(10) || !append(26) || !append(10) ||
+            !appendBigEndian(13)) { return false }
+        var typeStart = countValue
+        if (!append(73) || !append(72) || !append(68) || !append(82) ||
+            !appendBigEndian(width) || !appendBigEndian(height) ||
+            !append(8) || !append(6) || !append(0) || !append(0) || !append(0) ||
+            !finishChunk(typeStart) || !appendBigEndian(idatLength)) {
+            return false
+        }
+        typeStart = countValue
+        if (!append(73) || !append(68) || !append(65) || !append(84) ||
+            !append(120) || !append(1)) { return false }
+        var adlerA = 1
+        var adlerB = 0
+        var rawCursor = 0
+        while (rawCursor < rawLength) {
+            var blockLength = rawLength - rawCursor
+            if (blockLength > 65535) { blockLength = 65535 }
+            var finalBlock = 0
+            if (rawCursor + blockLength == rawLength) { finalBlock = 1 }
+            if (!append(finalBlock) || !append(blockLength & 255) ||
+                !append((blockLength >>> 8) & 255) ||
+                !append((65535 - blockLength) & 255) ||
+                !append(((65535 - blockLength) >>> 8) & 255)) {
+                return false
+            }
+            for (var index = 0; index < blockLength; index = index + 1) {
+                var value = rawByte(rgba, rawCursor, width)
+                if (!append(value)) { return false }
+                adlerA = (adlerA + value) % 65521
+                adlerB = (adlerB + adlerA) % 65521
+                rawCursor = rawCursor + 1
+            }
+        }
+        var adler = (adlerB << 16) | adlerA
+        if (!appendBigEndian(adler) || !finishChunk(typeStart) ||
+            !appendBigEndian(0)) { return false }
+        typeStart = countValue
+        acceptedValue = append(73) && append(69) && append(78) && append(68) &&
+            finishChunk(typeStart)
+        return acceptedValue
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int length() { return countValue }
+    Int byteAt(Int index) {
+        if (!acceptedValue || index < 0 || index >= countValue) { return -1 }
+        return wire[index]
+    }
+    Int[] bytes() {
+        if (!acceptedValue) { return new Int[0] }
+        var result = new Int[countValue]
+        for (var index = 0; index < countValue; index = index + 1) {
+            result[index] = wire[index]
+        }
+        return result
+    }
+}
+
+class BoundedPngDecoder {
+    Int[] rgba
+    Int[] paletteRed
+    Int[] paletteGreen
+    Int[] paletteBlue
+    Int[] paletteAlpha
+    Int[] idat
+    Int[] previousRow
+    Int[] currentRow
+    BoundedZlibInflater inflater
+    Int pixelCapacity
+    Int widthValue
+    Int heightValue
+    Int colorTypeValue
+    Int chunkCountValue
+    Int idatCountValue
+    Int paletteCountValue
+    Int sourceChecksumValue
+    Int pixelChecksumValue
+    Int metadataChecksumValue
+    Int diagnosticValue
+    Int idatLengthValue
+    Int transparentGrayValue
+    Int transparentRedValue
+    Int transparentGreenValue
+    Int transparentBlueValue
+    Bool transparencyValue
+    Bool sourceAlphaValue
+    Bool acceptedValue
+
+    public constructor(Int maxPixels) {
+        pixelCapacity = maxPixels
+        if (pixelCapacity <= 0) { pixelCapacity = 1 }
+        if (pixelCapacity > 65536) { pixelCapacity = 65536 }
+        rgba = new Int[pixelCapacity * 4]
+        paletteRed = new Int[256]
+        paletteGreen = new Int[256]
+        paletteBlue = new Int[256]
+        paletteAlpha = new Int[256]
+        idat = new Int[1048576]
+        previousRow = new Int[1024]
+        currentRow = new Int[1024]
+        inflater = BoundedZlibInflater(pixelCapacity * 4 + 256)
+        clear()
+    }
+
+    Bool clear() {
+        widthValue = 0
+        heightValue = 0
+        colorTypeValue = -1
+        chunkCountValue = 0
+        idatCountValue = 0
+        paletteCountValue = 0
+        sourceChecksumValue = 0
+        pixelChecksumValue = 0
+        metadataChecksumValue = 0
+        diagnosticValue = pngImageDiagnosticNone()
+        idatLengthValue = 0
+        transparentGrayValue = -1
+        transparentRedValue = -1
+        transparentGreenValue = -1
+        transparentBlueValue = -1
+        transparencyValue = false
+        sourceAlphaValue = false
+        acceptedValue = false
+        for (var index = 0; index < paletteAlpha.length; index = index + 1) {
+            paletteRed[index] = 0
+            paletteGreen[index] = 0
+            paletteBlue[index] = 0
+            paletteAlpha[index] = 255
+        }
+        return true
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        acceptedValue = false
+        return false
+    }
+
+    Int u16be(Int[] source, Int offset) {
+        if (offset < 0 || offset + 2 > source.length) { return -1 }
+        return source[offset] * 256 + source[offset + 1]
+    }
+
+    Int u32be(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length || source[offset] >= 128) {
+            return -1
+        }
+        return source[offset] * 16777216 + source[offset + 1] * 65536 +
+            source[offset + 2] * 256 + source[offset + 3]
+    }
+
+    Int i32be(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length) { return 0 }
+        var high = source[offset]
+        if (high >= 128) {
+            return -2147483647 - 1 + (high - 128) * 16777216 +
+                source[offset + 1] * 65536 + source[offset + 2] * 256 +
+                source[offset + 3]
+        }
+        return high * 16777216 + source[offset + 1] * 65536 +
+            source[offset + 2] * 256 + source[offset + 3]
+    }
+
+    Bool isType(
+        Int[] source, Int offset, Int a, Int b, Int c, Int d
+    ) {
+        return source[offset] == a && source[offset + 1] == b &&
+            source[offset + 2] == c && source[offset + 3] == d
+    }
+
+    Bool validType(Int[] source, Int offset) {
+        for (var index = 0; index < 4; index = index + 1) {
+            var value = source[offset + index]
+            if (!((value >= 65 && value <= 90) ||
+                (value >= 97 && value <= 122))) { return false }
+        }
+        return source[offset + 2] >= 65 && source[offset + 2] <= 90
+    }
+
+    Int crc32(Int[] source, Int start, Int limit) {
+        var crc = -1
+        for (var index = start; index < limit; index = index + 1) {
+            crc = crc ^ source[index]
+            for (var bit = 0; bit < 8; bit = bit + 1) {
+                if ((crc & 1) != 0) {
+                    crc = (crc >>> 1) ^ -306674912
+                } else {
+                    crc = crc >>> 1
+                }
+            }
+        }
+        return crc ^ -1
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = mix(result, source[index])
+        }
+        return result
+    }
+
+    Bool parseHeader(Int[] source, Int start, Int length) {
+        if (length != 13) { return false }
+        widthValue = u32be(source, start)
+        heightValue = u32be(source, start + 4)
+        var depth = source[start + 8]
+        colorTypeValue = source[start + 9]
+        var validColor = colorTypeValue == 0 || colorTypeValue == 2 ||
+            colorTypeValue == 3 || colorTypeValue == 4 || colorTypeValue == 6
+        if (widthValue <= 0 || widthValue > 256 || heightValue <= 0 ||
+            heightValue > 256 || widthValue > pixelCapacity / heightValue ||
+            depth != 8 || !validColor || source[start + 10] != 0 ||
+            source[start + 11] != 0 || source[start + 12] != 0) {
+            return false
+        }
+        sourceAlphaValue = colorTypeValue == 4 || colorTypeValue == 6
+        return true
+    }
+
+    Bool parsePalette(Int[] source, Int start, Int length) {
+        if (length < 3 || length > 768 || length % 3 != 0 ||
+            colorTypeValue == 0 || colorTypeValue == 4) { return false }
+        paletteCountValue = length / 3
+        for (var index = 0; index < paletteCountValue; index = index + 1) {
+            paletteRed[index] = source[start + index * 3]
+            paletteGreen[index] = source[start + index * 3 + 1]
+            paletteBlue[index] = source[start + index * 3 + 2]
+        }
+        return true
+    }
+
+    Bool parseTransparency(Int[] source, Int start, Int length) {
+        if (colorTypeValue == 0) {
+            if (length != 2) { return false }
+            transparentGrayValue = u16be(source, start)
+            if (transparentGrayValue > 255) { return false }
+        } else if (colorTypeValue == 2) {
+            if (length != 6) { return false }
+            transparentRedValue = u16be(source, start)
+            transparentGreenValue = u16be(source, start + 2)
+            transparentBlueValue = u16be(source, start + 4)
+            if (transparentRedValue > 255 || transparentGreenValue > 255 ||
+                transparentBlueValue > 255) { return false }
+        } else if (colorTypeValue == 3) {
+            if (paletteCountValue <= 0 || length <= 0 ||
+                length > paletteCountValue) { return false }
+            for (var index = 0; index < length; index = index + 1) {
+                paletteAlpha[index] = source[start + index]
+            }
+        } else {
+            return false
+        }
+        transparencyValue = true
+        sourceAlphaValue = true
+        return true
+    }
+
+    Bool parseText(Int[] source, Int start, Int length) {
+        if (length < 2) { return false }
+        var separator = -1
+        var previousSpace = false
+        for (var index = 0; index < length; index = index + 1) {
+            var value = source[start + index]
+            if (value == 0) {
+                separator = index
+                break
+            }
+            if (index >= 79 ||
+                !((value >= 32 && value <= 126) ||
+                    (value >= 161 && value <= 255)) ||
+                (value == 32 && (index == 0 || previousSpace))) {
+                return false
+            }
+            previousSpace = value == 32
+        }
+        if (separator <= 0 || previousSpace) { return false }
+        for (var index = separator + 1; index < length; index = index + 1) {
+            if (source[start + index] == 0) { return false }
+        }
+        return true
+    }
+
+    Int channels() {
+        if (colorTypeValue == 0 || colorTypeValue == 3) { return 1 }
+        if (colorTypeValue == 2) { return 3 }
+        if (colorTypeValue == 4) { return 2 }
+        return 4
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) { return -value }
+        return value
+    }
+
+    Int paeth(Int left, Int up, Int upperLeft) {
+        var prediction = left + up - upperLeft
+        var leftDistance = absolute(prediction - left)
+        var upDistance = absolute(prediction - up)
+        var upperLeftDistance = absolute(prediction - upperLeft)
+        if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) {
+            return left
+        }
+        if (upDistance <= upperLeftDistance) { return up }
+        return upperLeft
+    }
+
+    Bool writePixel(Int pixel, Int sample) {
+        var target = pixel * 4
+        if (colorTypeValue == 0) {
+            var gray = currentRow[sample]
+            rgba[target] = gray
+            rgba[target + 1] = gray
+            rgba[target + 2] = gray
+            rgba[target + 3] = 255
+            if (transparencyValue && gray == transparentGrayValue) {
+                rgba[target + 3] = 0
+            }
+        } else if (colorTypeValue == 2) {
+            var red = currentRow[sample]
+            var green = currentRow[sample + 1]
+            var blue = currentRow[sample + 2]
+            rgba[target] = red
+            rgba[target + 1] = green
+            rgba[target + 2] = blue
+            rgba[target + 3] = 255
+            if (transparencyValue && red == transparentRedValue &&
+                green == transparentGreenValue && blue == transparentBlueValue) {
+                rgba[target + 3] = 0
+            }
+        } else if (colorTypeValue == 3) {
+            var palette = currentRow[sample]
+            if (palette < 0 || palette >= paletteCountValue) { return false }
+            rgba[target] = paletteRed[palette]
+            rgba[target + 1] = paletteGreen[palette]
+            rgba[target + 2] = paletteBlue[palette]
+            rgba[target + 3] = paletteAlpha[palette]
+        } else if (colorTypeValue == 4) {
+            var gray = currentRow[sample]
+            rgba[target] = gray
+            rgba[target + 1] = gray
+            rgba[target + 2] = gray
+            rgba[target + 3] = currentRow[sample + 1]
+        } else {
+            rgba[target] = currentRow[sample]
+            rgba[target + 1] = currentRow[sample + 1]
+            rgba[target + 2] = currentRow[sample + 2]
+            rgba[target + 3] = currentRow[sample + 3]
+        }
+        return true
+    }
+
+    Bool decodeRows() {
+        var channelCount = channels()
+        var rowBytes = widthValue * channelCount
+        var expected = heightValue * (rowBytes + 1)
+        if (rowBytes <= 0 || rowBytes > currentRow.length ||
+            !inflater.inflate(idat, 0, idatLengthValue, expected)) {
+            diagnosticValue = pngImageDiagnosticData()
+            return false
+        }
+        for (var index = 0; index < rowBytes; index = index + 1) {
+            previousRow[index] = 0
+        }
+        var sourceCursor = 0
+        for (var y = 0; y < heightValue; y = y + 1) {
+            var filter = inflater.outputByte(sourceCursor)
+            sourceCursor = sourceCursor + 1
+            if (filter < 0 || filter > 4) {
+                diagnosticValue = pngImageDiagnosticFilter()
+                return false
+            }
+            for (var x = 0; x < rowBytes; x = x + 1) {
+                var encoded = inflater.outputByte(sourceCursor)
+                sourceCursor = sourceCursor + 1
+                var left = 0
+                var upperLeft = 0
+                if (x >= channelCount) {
+                    left = currentRow[x - channelCount]
+                    upperLeft = previousRow[x - channelCount]
+                }
+                var up = previousRow[x]
+                var predictor = 0
+                if (filter == 1) {
+                    predictor = left
+                } else if (filter == 2) {
+                    predictor = up
+                } else if (filter == 3) {
+                    predictor = (left + up) / 2
+                } else if (filter == 4) {
+                    predictor = paeth(left, up, upperLeft)
+                }
+                currentRow[x] = (encoded + predictor) % 256
+            }
+            for (var x = 0; x < widthValue; x = x + 1) {
+                if (!writePixel(y * widthValue + x, x * channelCount)) {
+                    diagnosticValue = pngImageDiagnosticPalette()
+                    return false
+                }
+            }
+            for (var x = 0; x < rowBytes; x = x + 1) {
+                previousRow[x] = currentRow[x]
+            }
+        }
+        pixelChecksumValue = 17
+        for (var index = 0; index < widthValue * heightValue * 4; index = index + 1) {
+            pixelChecksumValue = mix(pixelChecksumValue, rgba[index])
+        }
+        return true
+    }
+
+    Bool read(Int[] source) {
+        clear()
+        if (source.length < 57 || source.length > 1048576) {
+            return reject(pngImageDiagnosticHeader())
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) {
+                return reject(pngImageDiagnosticHeader())
+            }
+        }
+        if (source[0] != 137 || source[1] != 80 || source[2] != 78 ||
+            source[3] != 71 || source[4] != 13 || source[5] != 10 ||
+            source[6] != 26 || source[7] != 10) {
+            return reject(pngImageDiagnosticHeader())
+        }
+        var cursor = 8
+        var seenHeader = false
+        var seenPalette = false
+        var seenTransparency = false
+        var seenData = false
+        var dataEnded = false
+        var seenEnd = false
+        while (cursor < source.length) {
+            if (cursor + 12 > source.length || chunkCountValue >= 64) {
+                return reject(pngImageDiagnosticChunk())
+            }
+            var length = u32be(source, cursor)
+            if (length < 0 || length > source.length - cursor - 12) {
+                return reject(pngImageDiagnosticChunk())
+            }
+            var typeStart = cursor + 4
+            var dataStart = cursor + 8
+            var crcStart = dataStart + length
+            var next = crcStart + 4
+            if (!validType(source, typeStart)) {
+                return reject(pngImageDiagnosticChunk())
+            }
+            if (crc32(source, typeStart, crcStart) != i32be(source, crcStart)) {
+                return reject(pngImageDiagnosticCrc())
+            }
+            chunkCountValue = chunkCountValue + 1
+            var headerChunk = isType(source, typeStart, 73, 72, 68, 82)
+            var paletteChunk = isType(source, typeStart, 80, 76, 84, 69)
+            var dataChunk = isType(source, typeStart, 73, 68, 65, 84)
+            var endChunk = isType(source, typeStart, 73, 69, 78, 68)
+            var transparencyChunk = isType(source, typeStart, 116, 82, 78, 83)
+            var animationChunk = isType(source, typeStart, 97, 99, 84, 76) ||
+                isType(source, typeStart, 102, 99, 84, 76) ||
+                isType(source, typeStart, 102, 100, 65, 84)
+            var textChunk = isType(source, typeStart, 116, 69, 88, 116)
+            if (!seenHeader) {
+                if (!headerChunk || cursor != 8 ||
+                    !parseHeader(source, dataStart, length)) {
+                    return reject(pngImageDiagnosticHeader())
+                }
+                seenHeader = true
+            } else if (headerChunk || animationChunk) {
+                return reject(pngImageDiagnosticChunk())
+            } else {
+                if (seenData && !dataChunk) { dataEnded = true }
+                if (paletteChunk) {
+                    if (seenPalette || seenTransparency || seenData ||
+                        !parsePalette(source, dataStart, length)) {
+                        return reject(pngImageDiagnosticPalette())
+                    }
+                    seenPalette = true
+                } else if (transparencyChunk) {
+                    if (seenTransparency || seenData ||
+                        (colorTypeValue == 3 && !seenPalette) ||
+                        !parseTransparency(source, dataStart, length)) {
+                        return reject(pngImageDiagnosticPalette())
+                    }
+                    seenTransparency = true
+                } else if (dataChunk) {
+                    if (dataEnded || (colorTypeValue == 3 && !seenPalette) ||
+                        length > idat.length - idatLengthValue) {
+                        return reject(pngImageDiagnosticData())
+                    }
+                    for (var index = 0; index < length; index = index + 1) {
+                        idat[idatLengthValue + index] = source[dataStart + index]
+                    }
+                    idatLengthValue = idatLengthValue + length
+                    idatCountValue = idatCountValue + 1
+                    seenData = true
+                } else if (endChunk) {
+                    if (length != 0 || !seenData || next != source.length) {
+                        return reject(pngImageDiagnosticChunk())
+                    }
+                    seenEnd = true
+                } else if (textChunk) {
+                    if (!parseText(source, dataStart, length)) {
+                        return reject(pngImageDiagnosticChunk())
+                    }
+                } else {
+                    return reject(pngImageDiagnosticChunk())
+                }
+            }
+            cursor = next
+            if (seenEnd) { break }
+        }
+        if (!seenHeader || !seenData || !seenEnd || cursor != source.length ||
+            idatLengthValue < 6 || (colorTypeValue == 3 && !seenPalette)) {
+            return reject(pngImageDiagnosticChunk())
+        }
+        if (!decodeRows()) { return false }
+        sourceChecksumValue = checksum(source)
+        metadataChecksumValue = 17
+        metadataChecksumValue = mix(metadataChecksumValue, widthValue)
+        metadataChecksumValue = mix(metadataChecksumValue, heightValue)
+        metadataChecksumValue = mix(metadataChecksumValue, colorTypeValue)
+        metadataChecksumValue = mix(metadataChecksumValue, chunkCountValue)
+        metadataChecksumValue = mix(metadataChecksumValue, idatCountValue)
+        metadataChecksumValue = mix(metadataChecksumValue, paletteCountValue)
+        metadataChecksumValue = mix(
+            metadataChecksumValue, if (sourceAlphaValue) 1 else 0)
+        for (var index = 0; index < paletteCountValue; index = index + 1) {
+            metadataChecksumValue = mix(metadataChecksumValue, paletteRed[index])
+            metadataChecksumValue = mix(metadataChecksumValue, paletteGreen[index])
+            metadataChecksumValue = mix(metadataChecksumValue, paletteBlue[index])
+            metadataChecksumValue = mix(metadataChecksumValue, paletteAlpha[index])
+        }
+        acceptedValue = true
+        diagnosticValue = pngImageDiagnosticNone()
+        return true
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int width() { return widthValue }
+    Int height() { return heightValue }
+    Int colorType() { return colorTypeValue }
+    Int chunkCount() { return chunkCountValue }
+    Int idatCount() { return idatCountValue }
+    Int paletteCount() { return paletteCountValue }
+    Bool hasSourceAlpha() { return sourceAlphaValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int pixelChecksum() { return pixelChecksumValue }
+    Int metadataChecksum() { return metadataChecksumValue }
+    Int rgbaLength() {
+        if (!acceptedValue) { return 0 }
+        return widthValue * heightValue * 4
+    }
+    Int rgbaByte(Int index) {
+        if (!acceptedValue || index < 0 || index >= rgbaLength()) { return -1 }
+        return rgba[index]
+    }
+    Int[] rgbaBuffer() { return rgba }
+}
+
+class BoundedPngIntake {
+    BoundedPngDecoder decoder
+    BoundedRgbaPngEncoder encoder
+    Int widthValue
+    Int heightValue
+    Int sourceColorTypeValue
+    Int sourceChunkCountValue
+    Int sourceIdatCountValue
+    Int sourcePaletteCountValue
+    Int sourceChecksumValue
+    Int pixelChecksumValue
+    Int metadataChecksumValue
+    Int canonicalChecksumValue
+    Int diagnosticValue
+    Bool sourceAlphaValue
+    Bool acceptedValue
+
+    public constructor(Int maxPixels) {
+        var capacity = maxPixels
+        if (capacity <= 0) { capacity = 1 }
+        if (capacity > 65536) { capacity = 65536 }
+        decoder = BoundedPngDecoder(capacity)
+        encoder = BoundedRgbaPngEncoder(capacity)
+        clear()
+    }
+
+    Bool clear() {
+        widthValue = 0
+        heightValue = 0
+        sourceColorTypeValue = -1
+        sourceChunkCountValue = 0
+        sourceIdatCountValue = 0
+        sourcePaletteCountValue = 0
+        sourceChecksumValue = 0
+        pixelChecksumValue = 0
+        metadataChecksumValue = 0
+        canonicalChecksumValue = 0
+        diagnosticValue = pngImageDiagnosticNone()
+        sourceAlphaValue = false
+        acceptedValue = false
+        encoder.clear()
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int checksum(Int[] source) {
+        var result = 17
+        for (var index = 0; index < source.length; index = index + 1) {
+            result = mix(result, source[index])
+        }
+        return result
+    }
+
+    Bool reopenCanonical() {
+        if (!acceptedValue || !encoder.accepted()) { return false }
+        var canonical = encoder.bytes()
+        if (!decoder.read(canonical) || decoder.width() != widthValue ||
+            decoder.height() != heightValue || decoder.colorType() != 6 ||
+            decoder.pixelChecksum() != pixelChecksumValue) {
+            diagnosticValue = pngImageDiagnosticCanonical()
+            acceptedValue = false
+            return false
+        }
+        return true
+    }
+
+    Bool read(Int[] source) {
+        clear()
+        if (!decoder.read(source)) {
+            diagnosticValue = decoder.diagnostic()
+            return false
+        }
+        widthValue = decoder.width()
+        heightValue = decoder.height()
+        sourceColorTypeValue = decoder.colorType()
+        sourceChunkCountValue = decoder.chunkCount()
+        sourceIdatCountValue = decoder.idatCount()
+        sourcePaletteCountValue = decoder.paletteCount()
+        sourceChecksumValue = decoder.sourceChecksum()
+        pixelChecksumValue = decoder.pixelChecksum()
+        metadataChecksumValue = decoder.metadataChecksum()
+        sourceAlphaValue = decoder.hasSourceAlpha()
+        if (!encoder.encode(decoder.rgbaBuffer(), widthValue, heightValue)) {
+            diagnosticValue = pngImageDiagnosticCapacity()
+            return false
+        }
+        canonicalChecksumValue = checksum(encoder.bytes())
+        acceptedValue = true
+        if (!reopenCanonical()) { return false }
+        diagnosticValue = pngImageDiagnosticNone()
+        return true
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int width() { return widthValue }
+    Int height() { return heightValue }
+    Int sourceColorType() { return sourceColorTypeValue }
+    Int chunkCount() { return sourceChunkCountValue }
+    Int idatCount() { return sourceIdatCountValue }
+    Int paletteCount() { return sourcePaletteCountValue }
+    Bool hasSourceAlpha() { return sourceAlphaValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int pixelChecksum() { return pixelChecksumValue }
+    Int metadataChecksum() { return metadataChecksumValue }
+    Int canonicalChecksum() { return canonicalChecksumValue }
+    Int rgbaLength() {
+        if (!acceptedValue) { return 0 }
+        return widthValue * heightValue * 4
+    }
+    Int rgbaByte(Int index) {
+        if (!acceptedValue) { return -1 }
+        return decoder.rgbaByte(index)
+    }
+    Int canonicalLength() {
+        if (!acceptedValue) { return 0 }
+        return encoder.length()
+    }
+    Int[] canonicalBytes() {
+        if (!acceptedValue) { return new Int[0] }
+        return encoder.bytes()
+    }
+}

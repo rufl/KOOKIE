@@ -4,6 +4,19 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-30
 
+### Entrada limitada de imagens PNG independentes
+
+- Adicionamos um leitor PNG independente de até 1 MiB, 64 chunks e 256×256 para
+  imagens não entrelaçadas de 8 bits em escala de cinza, truecolor, indexadas,
+  escala de cinza com alpha e RGBA. Ele verifica o CRC de cada chunk e o Adler
+  do zlib, reúne chunks `IDAT` consecutivos, reverte filtros 0–4 e resolve
+  `PLTE`/`tRNS` em RGBA exato.
+- Adicionamos saída PNG RGBA8 determinística e reaberta, com checksums de fonte,
+  pixels, metadados e canônico por `kookie-cooker cook png`. `tEXt` validado é
+  removido; Adam7, APNG, outras profundidades e outros chunks auxiliares ou
+  desconhecidos são rejeitados em vez de perder semântica da imagem. A saída
+  de atlas do Aseprite agora usa o mesmo encoder canônico.
+
 ### Entrada limitada de personagens do Blockbench
 
 - Adicionamos um leitor de Blockbench `.bbmodel` 5.0 implementado de forma

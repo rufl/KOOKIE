@@ -4482,6 +4482,167 @@ Bool g4Zero(Int[] target) {
     return true
 }
 
+Int[] g4DecimalBytes(String source, Int count) {
+    var result = new Int[count]
+    var output = 0
+    var value = 0
+    var digits = 0
+    for (var index = 0; index <= source.length(); index = index + 1) {
+        var character = 44
+        if (index < source.length()) {
+            character = source.charAt(index) as Int
+        }
+        if (character >= 48 && character <= 57) {
+            value = value * 10 + character - 48
+            digits = digits + 1
+            if (value > 255) { return new Int[0] }
+        } else if (character == 44 && digits > 0) {
+            if (output >= result.length) { return new Int[0] }
+            result[output] = value
+            output = output + 1
+            value = 0
+            digits = 0
+        } else {
+            return new Int[0]
+        }
+    }
+    if (output != result.length) { return new Int[0] }
+    return result
+}
+
+Bool g4PutBe32(Int[] target, Int offset, Int value) {
+    target[offset] = (value >>> 24) & 255
+    target[offset + 1] = (value >>> 16) & 255
+    target[offset + 2] = (value >>> 8) & 255
+    target[offset + 3] = value & 255
+    return true
+}
+
+Int g4PngCrc(Int[] source, Int start, Int limit) {
+    var crc = -1
+    for (var index = start; index < limit; index = index + 1) {
+        crc = crc ^ source[index]
+        for (var bit = 0; bit < 8; bit = bit + 1) {
+            if ((crc & 1) != 0) {
+                crc = (crc >>> 1) ^ -306674912
+            } else {
+                crc = crc >>> 1
+            }
+        }
+    }
+    return crc ^ -1
+}
+
+Bool g4RefreshPngChunkCrc(Int[] source, Int typeStart, Int length) {
+    return g4PutBe32(
+        source, typeStart + 4 + length,
+        g4PngCrc(source, typeStart, typeStart + 4 + length))
+}
+
+Int[] g4FilteredPngFixture() {
+    return g4DecimalBytes(
+        "137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,3," +
+        "0,0,0,5,8,3,0,0,0,183,175,166,144,0,0,0,9,80,76,84,69," +
+        "255,0,0,0,255,0,0,0,255,45,74,205,138,0,0,0,3,116,82,78," +
+        "83,255,128,0,127,109,104,120,0,0,0,15,116,69,88,116,67,111," +
+        "109,109,101,110,116,0,102,105,108,116,101,114,115,234,157,225,59," +
+        "0,0,0,14,73,68,65,84,120,156,99,96,96,100,98,100,250,255,159," +
+        "233,63,35,45,74,27,204,0,0,0,14,73,68,65,84,3,51,211,63," +
+        "70,150,127,76,255,1,48,158,6,14,106,90,74,249,0,0,0,0,73," +
+        "69,78,68,174,66,96,130",
+        160)
+}
+
+Int g4WritePngChunk(
+    Int[] target, Int offset, Int kind, Int[] data
+) {
+    g4PutBe32(target, offset, data.length)
+    target[offset + 4] = (kind >>> 24) & 255
+    target[offset + 5] = (kind >>> 16) & 255
+    target[offset + 6] = (kind >>> 8) & 255
+    target[offset + 7] = kind & 255
+    for (var index = 0; index < data.length; index = index + 1) {
+        target[offset + 8 + index] = data[index]
+    }
+    g4PutBe32(
+        target, offset + 8 + data.length,
+        g4PngCrc(target, offset + 4, offset + 8 + data.length))
+    return offset + 12 + data.length
+}
+
+Int[] g4MinimalPngFixture(
+    Int colorType, Int[] samples, Int[] palette, Int[] transparency
+) {
+    var channelCount = 0
+    if (colorType == 0 || colorType == 3) {
+        channelCount = 1
+    } else if (colorType == 2) {
+        channelCount = 3
+    } else if (colorType == 4) {
+        channelCount = 2
+    } else if (colorType == 6) {
+        channelCount = 4
+    }
+    if (channelCount <= 0 || samples.length != channelCount * 2) {
+        return new Int[0]
+    }
+    var rawLength = samples.length + 1
+    var compressed = new Int[rawLength + 11]
+    compressed[0] = 120
+    compressed[1] = 1
+    compressed[2] = 1
+    compressed[3] = rawLength & 255
+    compressed[4] = (rawLength >>> 8) & 255
+    compressed[5] = (65535 - rawLength) & 255
+    compressed[6] = ((65535 - rawLength) >>> 8) & 255
+    compressed[7] = 0
+    for (var index = 0; index < samples.length; index = index + 1) {
+        compressed[8 + index] = samples[index]
+    }
+    var adlerA = 1
+    var adlerB = 0
+    for (var index = 7; index < 7 + rawLength; index = index + 1) {
+        adlerA = (adlerA + compressed[index]) % 65521
+        adlerB = (adlerB + adlerA) % 65521
+    }
+    var adler = (adlerB << 16) | adlerA
+    g4PutBe32(compressed, compressed.length - 4, adler)
+
+    var total = 8 + 25 + 12 + compressed.length + 12
+    if (palette.length > 0) { total = total + 12 + palette.length }
+    if (transparency.length > 0) {
+        total = total + 12 + transparency.length
+    }
+    var source = new Int[total]
+    source[0] = 137
+    source[1] = 80
+    source[2] = 78
+    source[3] = 71
+    source[4] = 13
+    source[5] = 10
+    source[6] = 26
+    source[7] = 10
+    var header = new Int[13]
+    g4PutBe32(header, 0, 2)
+    g4PutBe32(header, 4, 1)
+    header[8] = 8
+    header[9] = colorType
+    header[10] = 0
+    header[11] = 0
+    header[12] = 0
+    var cursor = g4WritePngChunk(source, 8, 1229472850, header)
+    if (palette.length > 0) {
+        cursor = g4WritePngChunk(source, cursor, 1347179589, palette)
+    }
+    if (transparency.length > 0) {
+        cursor = g4WritePngChunk(source, cursor, 1951551059, transparency)
+    }
+    cursor = g4WritePngChunk(source, cursor, 1229209940, compressed)
+    cursor = g4WritePngChunk(source, cursor, 1229278788, new Int[0])
+    if (cursor != source.length) { return new Int[0] }
+    return source
+}
+
 Int[] g4CompressedSpriteFixture() {
     var source = new Int[248]
     g4Zero(source)
@@ -4847,6 +5008,146 @@ test "G4 Blockbench intake preserves character bones and animation", "blockbench
             g4BlockbenchDepthFixture(17))) &&
         cooker.result().diagnostic() == blockbenchDiagnosticHierarchy(),
         "a hierarchy beyond the bounded depth must reject")
+}
+
+test "G4 PNG intake normalizes filtered indexed images", "png" {
+    var source = g4FilteredPngFixture()
+    assert(source.length == 160,
+        "independent PNG fixture must retain its complete chunk stream")
+    var cooker = BoundedSourceCooker()
+    assert(cooker.cookPng(source),
+        "bounded PNG must decode indexed color, transparency, and all filters")
+    var result = cooker.result()
+    var image = cooker.png()
+    var canonical = image.canonicalBytes()
+    assert(result.accepted() && result.sourceKind() == sourceKindPng() &&
+        result.primaryCount() == 3 && result.secondaryCount() == 5 &&
+        result.materialChecksum() == image.pixelChecksum() &&
+        result.metadataChecksum() == image.metadataChecksum() &&
+        result.visibilityChecksum() == image.canonicalChecksum() &&
+        image.sourceColorType() == 3 && image.paletteCount() == 3 &&
+        image.chunkCount() == 7 && image.idatCount() == 2 &&
+        image.hasSourceAlpha() && image.pixelChecksum() == 639837 &&
+        image.rgbaByte(0) == 255 && image.rgbaByte(3) == 255 &&
+        image.rgbaByte(4) == 0 && image.rgbaByte(5) == 255 &&
+        image.rgbaByte(7) == 128 &&
+        image.rgbaByte(8) == 0 && image.rgbaByte(10) == 255 &&
+        image.rgbaByte(11) == 0 &&
+        image.rgbaByte(24) == 0 && image.rgbaByte(25) == 255 &&
+        image.rgbaByte(40) == 255 && image.rgbaByte(43) == 255 &&
+        image.rgbaByte(52) == 0 && image.rgbaByte(54) == 255 &&
+        image.rgbaByte(55) == 0 &&
+        canonical.length == image.canonicalLength() &&
+        canonical[0] == 137 && canonical[1] == 80 &&
+        canonical[2] == 78 && canonical[3] == 71 &&
+        canonical[24] == 8 && canonical[25] == 6 &&
+        image.reopenCanonical(),
+        "PNG cooking must preserve exact RGBA pixels and reopen canonical RGBA8")
+
+    var pixelChecksum = image.pixelChecksum()
+    var canonicalChecksum = image.canonicalChecksum()
+    var canonicalLength = image.canonicalLength()
+    assert(cooker.cookPng(canonical) &&
+        cooker.png().sourceColorType() == 6 &&
+        cooker.png().pixelChecksum() == pixelChecksum &&
+        cooker.png().canonicalChecksum() == canonicalChecksum &&
+        cooker.png().canonicalLength() == canonicalLength,
+        "canonical PNG normalization must be idempotent")
+
+    var graySamples = new Int[2]
+    graySamples[0] = 17
+    graySamples[1] = 34
+    var grayTransparency = new Int[2]
+    grayTransparency[0] = 0
+    grayTransparency[1] = 34
+    var graySource = g4MinimalPngFixture(
+        0, graySamples, new Int[0], grayTransparency)
+    var grayAccepted = cooker.cookPng(graySource)
+    assert(grayAccepted,
+        "grayscale tRNS fixture must pass bounded PNG intake")
+    assert(cooker.png().sourceColorType() == 0,
+        "grayscale source color type must survive intake metadata")
+    assert(cooker.png().rgbaByte(0) == 17 &&
+        cooker.png().rgbaByte(1) == 17 &&
+        cooker.png().rgbaByte(2) == 17 &&
+        cooker.png().rgbaByte(3) == 255,
+        "opaque grayscale sample must expand to RGBA")
+    assert(cooker.png().rgbaByte(4) == 34 &&
+        cooker.png().rgbaByte(7) == 0,
+        "matching grayscale tRNS sample must become transparent")
+
+    var rgbSamples = new Int[6]
+    rgbSamples[0] = 1
+    rgbSamples[1] = 2
+    rgbSamples[2] = 3
+    rgbSamples[3] = 4
+    rgbSamples[4] = 5
+    rgbSamples[5] = 6
+    var rgbTransparency = new Int[6]
+    rgbTransparency[0] = 0
+    rgbTransparency[1] = 4
+    rgbTransparency[2] = 0
+    rgbTransparency[3] = 5
+    rgbTransparency[4] = 0
+    rgbTransparency[5] = 6
+    assert(cooker.cookPng(g4MinimalPngFixture(
+            2, rgbSamples, new Int[0], rgbTransparency)) &&
+        cooker.png().sourceColorType() == 2 &&
+        cooker.png().rgbaByte(0) == 1 &&
+        cooker.png().rgbaByte(1) == 2 &&
+        cooker.png().rgbaByte(2) == 3 &&
+        cooker.png().rgbaByte(3) == 255 &&
+        cooker.png().rgbaByte(4) == 4 &&
+        cooker.png().rgbaByte(5) == 5 &&
+        cooker.png().rgbaByte(6) == 6 &&
+        cooker.png().rgbaByte(7) == 0,
+        "truecolor tRNS samples must normalize to exact RGBA alpha")
+
+    var grayAlphaSamples = new Int[4]
+    grayAlphaSamples[0] = 10
+    grayAlphaSamples[1] = 20
+    grayAlphaSamples[2] = 30
+    grayAlphaSamples[3] = 40
+    assert(cooker.cookPng(g4MinimalPngFixture(
+            4, grayAlphaSamples, new Int[0], new Int[0])) &&
+        cooker.png().sourceColorType() == 4 &&
+        cooker.png().rgbaByte(0) == 10 &&
+        cooker.png().rgbaByte(1) == 10 &&
+        cooker.png().rgbaByte(2) == 10 &&
+        cooker.png().rgbaByte(3) == 20 &&
+        cooker.png().rgbaByte(4) == 30 &&
+        cooker.png().rgbaByte(5) == 30 &&
+        cooker.png().rgbaByte(6) == 30 &&
+        cooker.png().rgbaByte(7) == 40,
+        "grayscale-alpha samples must normalize without premultiplication")
+
+    var corrupt = g4FilteredPngFixture()
+    corrupt[50] = (corrupt[50] + 1) % 256
+    assert(!cooker.cookPng(corrupt) &&
+        cooker.result().diagnostic() == pngImageDiagnosticCrc(),
+        "PNG intake must reject a corrupted chunk CRC")
+
+    var interlaced = g4FilteredPngFixture()
+    interlaced[28] = 1
+    g4RefreshPngChunkCrc(interlaced, 12, 13)
+    assert(!cooker.cookPng(interlaced) &&
+        cooker.result().diagnostic() == pngImageDiagnosticHeader(),
+        "unsupported Adam7 PNG data must reject at the header boundary")
+
+    var animated = g4FilteredPngFixture()
+    animated[73] = 97
+    animated[74] = 99
+    animated[75] = 84
+    animated[76] = 76
+    g4RefreshPngChunkCrc(animated, 73, 15)
+    assert(!cooker.cookPng(animated) &&
+        cooker.result().diagnostic() == pngImageDiagnosticChunk(),
+        "APNG control chunks must not silently collapse to a static image")
+
+    assert(cooker.cookAseprite(g4CompressedSpriteFixture()) &&
+        cooker.cookPng(cooker.sprite().pngBytes()) &&
+        cooker.png().width() == 1 && cooker.png().height() == 1,
+        "Aseprite atlas output must use the shared canonical PNG encoder")
 }
 
 test "trusted hooks subscribe to broader typed domain events" {

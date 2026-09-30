@@ -43,10 +43,10 @@ G0 through the bounded G5 implementation run on JVM and native Linux x86-64:
   static implementation/version pairs execute under phase and output budgets;
 - the file cooker admits a bounded indexed GLB subset, Dust3D `.ds3` plus its
   exported textured GLB, 32-bit RGBA `.ase`/`.aseprite`, `.vox` models and
-  scene chunks, integer-grid convex Quake-style `.map` brushes, and Blockbench
-  5.0 `.bbmodel` cuboid characters with UUID-bound bones and clips; it emits
-  canonical geometry/collision, PNG atlas/metadata, `KCHR` character data and
-  package-ready checksums;
+  scene chunks, integer-grid convex Quake-style `.map` brushes, Blockbench 5.0
+  `.bbmodel` cuboid characters with UUID-bound bones and clips, and standalone
+  8-bit `.png` images; it emits canonical geometry/collision, normalized RGBA8
+  PNG atlas/images, `KCHR` character data and package-ready checksums;
 - `.kpkg` files validate headers, logical paths, chunk ranges/hashes and
   registry payloads before an external generation replaces the active one;
   malformed reloads leave the prior package and registries active;
@@ -102,8 +102,9 @@ The important gaps are still real:
   is retained;
 - authoring support is intentionally bounded rather than general format
   compatibility: one indexed GLB primitive and canonical products are capped
-  at 256 vertices/triangles, VOX intake at 20 voxels, and the documented
-  Aseprite, Dust3D, brush and Blockbench subsets reject unsupported constructs;
+  at 256 vertices/triangles, VOX intake at 20 voxels, PNG intake at 256×256,
+  and the documented Aseprite, Dust3D, brush, Blockbench and PNG subsets reject
+  unsupported constructs;
 - live reload covers validated scene/render products, not arbitrary Kof code,
   shaders, editor plugins or unbounded resource streaming;
 - Kof 0.5.0-beta source commit `bf17ac7e7364` exposes the verified
@@ -178,6 +179,7 @@ JVM-only developer CLI:
 scripts/kookie_cooker.sh cook map level.map level.kmesh
 scripts/kookie_cooker.sh cook dust3d model.ds3 model.glb model.kmesh
 scripts/kookie_cooker.sh cook blockbench character.bbmodel character.kchar
+scripts/kookie_cooker.sh cook png texture.png texture.rgba.png
 scripts/kookie_cooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
 scripts/kookie_cooker.sh inspect-package level.kpkg
 scripts/kookie_cooker.sh validate-package creator.kpkg

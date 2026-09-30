@@ -34,7 +34,7 @@ class BoundedZlibInflater {
         distanceLengths = new Int[32]
         codeLengths = new Int[19]
         tableOffsets = new Int[16]
-        sourceValue = new Int[0]
+        sourceValue = output
         clear()
     }
 
@@ -43,8 +43,15 @@ class BoundedZlibInflater {
         bitPositionValue = 0
         bitLimitValue = 0
         sourceStartValue = 0
+        sourceValue = output
         acceptedValue = false
         return true
+    }
+
+    Bool finish(Bool accepted) {
+        sourceValue = output
+        acceptedValue = accepted
+        return accepted
     }
 
     Int readBits(Int count) {
@@ -381,21 +388,22 @@ class BoundedZlibInflater {
         while (!finalBlock) {
             var finalFlag = readBits(1)
             var blockType = readBits(2)
-            if (finalFlag < 0 || blockType < 0 || blockType == 3) { return false }
+            if (finalFlag < 0 || blockType < 0 || blockType == 3) {
+                return finish(false)
+            }
             finalBlock = finalFlag == 1
             if (blockType == 0) {
-                if (!decodeStored()) { return false }
+                if (!decodeStored()) { return finish(false) }
             } else {
                 if ((blockType == 1 && !fixedTables()) ||
                     (blockType == 2 && !dynamicTables()) ||
-                    !decodeCompressed()) { return false }
+                    !decodeCompressed()) { return finish(false) }
             }
         }
         var consumedBytes = (bitPositionValue + 7) / 8
         if (consumedBytes != length - 6 || outputCountValue != expectedLength ||
-            !verifyAdler(source, start + length)) { return false }
-        acceptedValue = true
-        return true
+            !verifyAdler(source, start + length)) { return finish(false) }
+        return finish(true)
     }
 
     Bool accepted() { return acceptedValue }

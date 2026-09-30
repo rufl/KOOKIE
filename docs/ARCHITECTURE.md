@@ -344,6 +344,7 @@ indexed glTF subset. They are **offline intake formats**, not runtime formats:
 | MagicaVoxel `.vox` | Versions 150–200, up to eight models and 20 voxels; `PACK`, `SIZE`, `XYZI`, `RGBA`, `nTRN`, `nGRP`, `nSHP` and `LAYR`; reject every other chunk | Deterministic cube geometry/collision plus palette checksum and scene-node count |
 | Quake-style `.map` | ASCII integer-grid entity/property and convex brush-plane subset; up to 8,192 tokens, 64 entities, 512 properties, 16 planes per brush and 256 output vertices/triangles | Triangulated canonical geometry/collision plus entity, material and visibility checksums |
 | Blockbench `.bbmodel` | Exact format 5.0 JSON up to 1 MiB; cube-only character outliner with at most 64 UUID bones, 128 cuboids, 32 clips, 512 keyframes and depth 16; position/rotation/scale values bounded to ±100,000 and normalized to thousandths, clips up to 600 seconds, and `linear`/`step` interpolation; reject duplicate/unknown UUIDs, Molang, effects and unsupported interpolation | Reopened little-endian `KCHR` v1 with fixed-point cuboids, UUID-bound hierarchy/clips and source/character/bone/animation/canonical checksums; texture pixels and per-face UV/material data are outside `KCHR` v1 |
+| PNG `.png` | Up to 1 MiB, 64 chunks and 256×256 pixels; non-interlaced 8-bit color types 0/2/3/4/6, consecutive `IDAT`, zlib, filters 0–4, `PLTE`, `tRNS` and validated `tEXt`; verify CRC/Adler and reject Adam7, APNG, other depths and every other ancillary/unknown chunk | Reopened deterministic non-interlaced RGBA8 PNG plus source, decoded-pixel, metadata and canonical checksums |
 
 Canonical intake rules:
 
@@ -370,6 +371,12 @@ targets the upstream
 [5.0 project codec](https://github.com/JannisX11/blockbench/blob/e2ede0809ee6bc91f374ac7e00d34cffbdf86a14/js/formats/bbmodel.js)
 and accepts only user-provided source files. Record all source/tool notices in
 package provenance.
+
+The standalone reader follows the
+[W3C PNG Third Edition Recommendation](https://www.w3.org/TR/png-3/) for the
+admitted static subset. It preserves sample values without gamma conversion;
+color-profile and other semantic ancillary chunks reject, so material policy
+must declare the runtime color-space interpretation explicitly.
 
 The cooker owns scene, collision, gameplay and package semantics. Native image,
 font and audio libraries only provide narrow decoding mechanisms.

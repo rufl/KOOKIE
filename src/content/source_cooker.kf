@@ -6,6 +6,7 @@ Int sourceKindAseprite() { return 3 }
 Int sourceKindVox() { return 4 }
 Int sourceKindQuakeMap() { return 5 }
 Int sourceKindBlockbench() { return 6 }
+Int sourceKindPng() { return 7 }
 
 record SourceCookResult(
     Bool accepted,
@@ -30,6 +31,7 @@ class BoundedSourceCooker {
     BoundedVoxIntake voxValue
     BoundedQuakeMapIntake mapValue
     BoundedBlockbenchIntake blockbenchValue
+    BoundedPngIntake pngValue
     SourceCookResult resultValue
 
     public constructor() {
@@ -40,6 +42,7 @@ class BoundedSourceCooker {
         voxValue = BoundedVoxIntake(20)
         mapValue = BoundedQuakeMapIntake(8192)
         blockbenchValue = BoundedBlockbenchIntake()
+        pngValue = BoundedPngIntake(65536)
         resultValue = rejected(sourceKindGlb(), 0)
     }
 
@@ -168,6 +171,20 @@ class BoundedSourceCooker {
         return true
     }
 
+    Bool cookPng(Int[] source) {
+        resultValue = rejected(sourceKindPng(), pngImageDiagnosticHeader())
+        if (!pngValue.read(source)) {
+            resultValue = rejected(sourceKindPng(), pngValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindPng(), 0, pngValue.sourceChecksum(),
+            0, 0, pngValue.pixelChecksum(), pngValue.metadataChecksum(),
+            0, pngValue.canonicalChecksum(),
+            pngValue.width(), pngValue.height())
+        return true
+    }
+
     SourceCookResult result() { return resultValue }
     BoundedExternalGlbSceneReader glb() { return glbValue }
     BoundedAuthoredCollision glbCollision() { return glbCollisionValue }
@@ -176,4 +193,5 @@ class BoundedSourceCooker {
     BoundedVoxIntake vox() { return voxValue }
     BoundedQuakeMapIntake quakeMap() { return mapValue }
     BoundedBlockbenchIntake blockbench() { return blockbenchValue }
+    BoundedPngIntake png() { return pngValue }
 }

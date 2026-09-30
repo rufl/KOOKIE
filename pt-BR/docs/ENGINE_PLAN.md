@@ -92,7 +92,7 @@ todos os candidatos ao G0.
 | Plataforma e gráficos | **SDL3 + SDL_GPU** | Uma única stack de janela/entrada/gamepad/GPU; 3D e compute. Kof possui a extração, o culling, o agrupamento e os passes. Licença zlib. Mantenha Sokol como alternativa somente se o spike de GPU/ABI falhar |
 | Compilação de shaders | **SDL_shadercross + DXC**, SPIRV-Cross e SPIRV-Tools conforme exigido pelo build | HLSL → SPIR-V offline para Linux; refletir layouts de recursos. Ferramentas de build, não compiladores de shaders obrigatórios no runtime distribuído. O ShaderC instalado sozinho não é o pipeline HLSL selecionado |
 | Áudio | **SDL_mixer 3.2.4** | Uma única autoridade zlib de mixagem, com streams separados de efeitos/música e política Kof de cues, ganho e espacialização. Backends opcionais de codecs ficam desabilitados/não empacotados; streams PCM não exigem decoder |
-| Decodificação de imagens | **SDL3_image** | Decodificar inicialmente PNGs produzidos em buffers de pixels limitados. Mantenha a admissão de formatos, decisões de espaço de cor/material, o cooking e os uploads para a GPU sob a política do Kof. Biblioteca zlib; dependências opcionais de codecs têm seus próprios avisos |
+| Decodificação de imagens | **Cooker PNG pertencente ao Kof**, depois **SDL3_image** somente para um serviço de pixels no runtime | O cooker atual valida, decodifica e torna canônico o subconjunto PNG limitado por conta própria. Uma futura fronteira SDL3_image pode decodificar PNG canônico admitido para upload; ela não controla admissão da fonte, decisões de espaço de cor/material nem cooking. Biblioteca zlib; dependências opcionais de codecs têm avisos separados |
 | Renderização de texto | **FreeType**, depois **HarfBuzz** ao implementar texto com shaping | Apenas serviços de rasterização e shaping. Kof possui os widgets, o layout, o foco e a política de cache de glifos. Fallback de fontes, bidi/quebra de linhas, IME e acessibilidade não são resolvidos simplesmente vinculando essas bibliotecas |
 | Compressão de pacotes | **Zstandard (`libzstd`)** | Adicionar no estágio de pacote cozido, não por frame. Use blocos limitados e endereçáveis independentemente, comprimentos decodificados declarados e limites do decodificador; compressão não é integridade/autenticação. Opção de licença BSD |
 
@@ -546,9 +546,9 @@ Formatos de fonte iniciais: manifesto do projeto e definições de
 entidades/encontros/itens em dados estruturados legíveis; malhas
 estáticas/materiais em um subconjunto documentado de glTF; Dust3D `.ds3`;
 LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`; rigs de personagem
-Blockbench `.bbmodel`; imagens/áudio em um conjunto deliberadamente pequeno
-e compatível. Esses
-são formatos de entrada offline, não formatos de pacote em tempo de execução. Valide
+Blockbench `.bbmodel`; imagens PNG independentes; e áudio em um conjunto
+deliberadamente pequeno e compatível. Esses são formatos de entrada offline,
+não formatos de pacote em tempo de execução. Valide
 geometria finita, índices de triângulos, dimensões de voxels/referências de paleta,
 limites de quadros de sprites, metadados de animação, limites de tamanho/quantidade,
 referências de recursos, transformações e sinalizadores de colisão. Bibliotecas
@@ -568,6 +568,7 @@ obrigatório de proveniência do pacote:
 | LibreSprite `.ase`/`.aseprite` | Extrair quadros/camadas/tags/slices limitados e produzir atlas PNG, metadados versionados e definições de animação |
 | MagicaVoxel `.vox` | Analisar modelos voxel/paleta limitada e chunks de cena compatíveis, e produzir malha/GLB determinística, além de materiais e colisão voxel opcional |
 | Blockbench `.bbmodel` | Analisar o outliner 5.0 exato de cubos/ossos e clips numéricos limitados de posição/rotação/escala em dados de rig `KCHR` v1 reabertos; pixels de textura e saída UV/material por face exigem um produto separado |
+| PNG `.png` | Verificar um subconjunto estático de 8 bits limitado a 1 MiB/64 chunks/256×256, decodificar tipos de cor 0/2/3/4/6 com paleta/transparência e filtros 0–4 e então reabrir a saída PNG RGBA8 determinística; rejeitar Adam7, APNG, chunks auxiliares incompatíveis e perfis de cor ambíguos |
 
 Use GLB para intercâmbio de runtime 3D e PNG mais metadados versionados para
 intercâmbio de runtime de sprites. OBJ/FBX são alternativas de conversão, não
@@ -586,6 +587,12 @@ redistribuição da ferramenta. Blockbench é uma aplicação externa
 GPL-3.0-or-later; o
 leitor `.bbmodel` implementado de forma independente pelo KOOKIE não incorpora
 a aplicação nem copia sua implementação.
+
+O leitor independente de imagens segue a
+[Recomendação PNG Terceira Edição do W3C](https://www.w3.org/TR/png-3/) para seu
+subconjunto explícito. Ele preserva os valores das amostras; a interpretação
+sRGB/linear no runtime pertence à política de materiais, e perfis de cor
+incorporados são rejeitados em vez de alterar silenciosamente essa política.
 
 Para autoria de boomer-shooter, adicione um subconjunto textual de brushes no estilo
 Quake, `.map`: recorte/triangulação de planos de brushes convexos, tradução de

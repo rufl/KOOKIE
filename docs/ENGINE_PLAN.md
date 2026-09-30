@@ -94,7 +94,7 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 | Platform and graphics | **SDL3 + SDL_GPU** | One window/input/gamepad/GPU stack; 3D and compute. Kof owns extraction, culling, batching and passes. zlib license. Keep Sokol as an alternative only if the GPU/ABI spike fails |
 | Shader build | **SDL_shadercross + DXC**, SPIRV-Cross and SPIRV-Tools as required by the build | HLSL → offline SPIR-V for Linux; reflect resource layouts. Build-time tools, not mandatory shipped runtime shader compilers. Installed ShaderC alone is not the selected HLSL pipeline |
 | Audio | **SDL_mixer 3.2.4** | One zlib-licensed mixer authority with separate effects/music streams and Kof-owned cue, gain and spatial policy. Optional codec backends are disabled/not bundled; PCM streams require no decoder dependency |
-| Image decoding | **SDL3_image** | Decode authored PNG initially into bounded pixel buffers. Keep format admission, color-space/material decisions, cooking and GPU uploads under Kof policy. zlib library; optional codec dependencies have their own notices |
+| Image decoding | **Kof-owned PNG cooker**, then **SDL3_image** only for a runtime pixel service | The current cooker validates, decodes and canonicalizes the bounded PNG subset itself. A future SDL3_image boundary may decode admitted canonical PNG for upload; it does not own source admission, color-space/material decisions or cooking. zlib library; optional codec dependencies have separate notices |
 | Text rendering | **FreeType**, then **HarfBuzz** when implementing shaped text | Rasterization and shaping services only. Kof owns widgets, layout, focus and glyph-cache policy. Font fallback, bidi/line breaking, IME and accessibility are not solved merely by linking these libraries |
 | Package compression | **Zstandard (`libzstd`)** | Add at the cooked-package stage, not per frame. Use bounded independently addressable chunks, declared decoded lengths and decoder limits; compression is not integrity/authentication. BSD license option |
 
@@ -525,8 +525,9 @@ Editable sources → **Kof cooker** → versioned engine package → validated r
 Initial source formats: project manifest and entity/encounter/item definitions
 in readable structured data; static meshes/materials in a documented glTF
 subset; Dust3D `.ds3`; LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`;
-Blockbench `.bbmodel` character rigs; images/audio in a deliberately small
-supported set. These are offline intake formats, not runtime package formats.
+Blockbench `.bbmodel` character rigs; standalone PNG images; and audio in a
+deliberately small supported set. These are offline intake formats, not runtime
+package formats.
 Validate finite geometry, triangle
 indices, voxel dimensions/palette references, sprite frame bounds, animation
 metadata, size/count limits, resource references, transforms and collision
@@ -545,6 +546,7 @@ full tool/version receipt remains required package-provenance hardening:
 | LibreSprite `.ase`/`.aseprite` | Extract bounded frames/layers/tags/slices and produce PNG atlas, versioned metadata and animation definitions |
 | MagicaVoxel `.vox` | Parse bounded voxel models/palette/supported scene chunks and produce deterministic mesh/GLB plus materials and optional voxel collision |
 | Blockbench `.bbmodel` | Parse the exact 5.0 cube/bone outliner and bounded numeric position/rotation/scale clips into reopened `KCHR` v1 rig data; texture pixels and per-face UV/material output require a separate product |
+| PNG `.png` | Verify a 1 MiB/64-chunk/256×256 static 8-bit subset, decode color types 0/2/3/4/6 with palette/transparency and filters 0–4, then reopen deterministic RGBA8 PNG output; reject Adam7, APNG, unsupported ancillary chunks and ambiguous color profiles |
 
 Use GLB for 3D runtime interchange and PNG plus versioned metadata for sprite
 runtime interchange. OBJ/FBX are conversion fallbacks, not runtime contracts.
@@ -560,6 +562,12 @@ bundle its application. Accepting user-provided `.vox` files and reading the
 documented format does not grant redistribution rights to the tool. Blockbench
 is an external GPL-3.0-or-later application; KOOKIE's independently implemented
 `.bbmodel` reader neither embeds the application nor copies its implementation.
+
+The standalone image reader follows the
+[W3C PNG Third Edition Recommendation](https://www.w3.org/TR/png-3/) for its
+explicit subset. It preserves sample values; runtime sRGB/linear interpretation
+belongs to material policy, and embedded color profiles reject rather than
+silently changing that policy.
 
 For boomer-shooter authoring add a Quake-style textual brush `.map` subset: convex brush plane clipping/triangulation, entity/property translation, material mapping and derived collision/visibility. TrenchBroom can be an external authoring tool; our `.kf` cooker remains the import authority. This does **not** promise WAD/BSP/QuakeC/source-port compatibility. Source maps are not shipped original-game assets.
 

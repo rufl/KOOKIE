@@ -355,6 +355,7 @@ formatos de runtime:
 | MagicaVoxel `.vox` | Versões 150–200, até oito modelos e 20 voxels; `PACK`, `SIZE`, `XYZI`, `RGBA`, `nTRN`, `nGRP`, `nSHP` e `LAYR`; rejeitar qualquer outro chunk | Geometria/colisão determinística de cubos, checksum da paleta e contagem de nós da cena |
 | `.map` no estilo Quake | Subconjunto ASCII em grade inteira de entidade/propriedade e planos de brushes convexos; até 8.192 tokens, 64 entidades, 512 propriedades, 16 planos por brush e 256 vértices/triângulos de saída | Geometria/colisão canônica triangulada, mais checksums de entidade, material e visibilidade |
 | Blockbench `.bbmodel` | JSON do formato 5.0 exato, de até 1 MiB; outliner de personagem somente com cubos, com no máximo 64 ossos UUID, 128 cuboides, 32 clips, 512 keyframes e profundidade 16; valores de posição/rotação/escala limitados a ±100.000 e normalizados em milésimos, clips de até 600 segundos e interpolação `linear`/`step`; rejeitar UUIDs duplicados/desconhecidos, Molang, efeitos e interpolação incompatível | `KCHR` v1 little-endian reaberto, com cuboides em ponto fixo, hierarquia/clips vinculados por UUID e checksums de fonte/personagem/ossos/animação/canônico; pixels de textura e dados UV/material por face ficam fora do `KCHR` v1 |
+| PNG `.png` | Até 1 MiB, 64 chunks e 256×256 pixels; tipos de cor 0/2/3/4/6 de 8 bits sem entrelaçamento, `IDAT` consecutivo, zlib, filtros 0–4, `PLTE`, `tRNS` e `tEXt` validado; verificar CRC/Adler e rejeitar Adam7, APNG, outras profundidades e qualquer outro chunk auxiliar/desconhecido | PNG RGBA8 determinístico, sem entrelaçamento e reaberto, mais checksums de fonte, pixels decodificados, metadados e canônico |
 
 Regras canônicas de entrada:
 
@@ -384,6 +385,13 @@ como alvo o
 [codec de projeto 5.0 upstream](https://github.com/JannisX11/blockbench/blob/e2ede0809ee6bc91f374ac7e00d34cffbdf86a14/js/formats/bbmodel.js)
 e aceita somente arquivos-fonte fornecidos pelo usuário. Registre todos os
 avisos de fonte/ferramenta na proveniência do pacote.
+
+O leitor independente segue a
+[Recomendação PNG Terceira Edição do W3C](https://www.w3.org/TR/png-3/) para o
+subconjunto estático admitido. Ele preserva os valores das amostras sem
+conversão de gamma; perfis de cor e outros chunks auxiliares semânticos são
+rejeitados, portanto a política de materiais deve declarar explicitamente a
+interpretação do espaço de cor no runtime.
 
 O cooker é responsável pela semântica de cenas, colisões, gameplay e pacotes.
 Bibliotecas nativas de imagem, fontes e áudio fornecem apenas mecanismos

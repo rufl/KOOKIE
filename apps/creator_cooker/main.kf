@@ -3,7 +3,7 @@ import kof.process
 
 Bool printUsage() {
     println("Usage:")
-    println("  kookie-cooker cook <glb|aseprite|vox|map|blockbench> <input> <output>")
+    println("  kookie-cooker cook <glb|aseprite|vox|map|blockbench|png> <input> <output>")
     println("  kookie-cooker cook dust3d <input.ds3> <export.glb> <output>")
     println("  kookie-cooker package <chunk-kind> <input> <logical-path> <output.kpkg>")
     println("  kookie-cooker inspect-package <input.kpkg>")
@@ -44,6 +44,21 @@ Bool cookCommand(List<String> args) {
             " cube-count=" + character.cubeCount() +
             " clip-count=" + character.animationCount() +
             " keyframe-count=" + character.keyframeCount() +
+            " bytes=" + cooker.outputLength())
+        return true
+    }
+    if (kind == "png") {
+        var image = cooker.png()
+        println("cooked kind=" + result.sourceKind() +
+            " source=" + result.sourceChecksum() +
+            " pixels=" + result.materialChecksum() +
+            " metadata=" + result.metadataChecksum() +
+            " canonical=" + result.visibilityChecksum() +
+            " width=" + image.width() +
+            " height=" + image.height() +
+            " color-type=" + image.sourceColorType() +
+            " palette=" + image.paletteCount() +
+            " idat-count=" + image.idatCount() +
             " bytes=" + cooker.outputLength())
         return true
     }

@@ -111,6 +111,12 @@ class BoundedSourceFileCooker {
                 return reject(sourceFileDiagnosticSource())
             }
             output = cookerValue.blockbench().canonicalBytes()
+        } else if (kind == "png") {
+            if (!cookerValue.cookPng(source)) {
+                resultValue = cookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = cookerValue.png().canonicalBytes()
         } else {
             return reject(sourceFileDiagnosticKind())
         }
@@ -126,4 +132,5 @@ class BoundedSourceFileCooker {
     Int diagnostic() { return diagnosticValue }
     Int outputLength() { return outputLengthValue }
     BoundedBlockbenchIntake blockbench() { return cookerValue.blockbench() }
+    BoundedPngIntake png() { return cookerValue.png() }
 }

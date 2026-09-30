@@ -4,6 +4,18 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-09-30
 
+### Bounded standalone PNG image intake
+
+- Added a 1 MiB, 64-chunk, 256×256 standalone PNG reader for non-interlaced
+  8-bit grayscale, truecolor, indexed, grayscale-alpha and RGBA images. It
+  verifies every chunk CRC and zlib Adler checksum, joins consecutive `IDAT`
+  chunks, reverses filters 0–4 and resolves `PLTE`/`tRNS` into exact RGBA.
+- Added reopened deterministic RGBA8 PNG output with source, pixel, metadata
+  and canonical checksums through `kookie-cooker cook png`. Validated `tEXt`
+  is stripped; Adam7, APNG, other bit depths and other ancillary or unknown
+  chunks reject instead of losing image semantics. Aseprite atlas output now
+  uses the same canonical encoder.
+
 ### Bounded Blockbench character intake
 
 - Added an independently implemented Blockbench `.bbmodel` 5.0 reader for
