@@ -40,6 +40,19 @@ static int scalar_sum(const int32_t *values, size_t count, int64_t *result) {
     return finish_sum(total, result);
 }
 
+static int scalar_sum_u8(const uint8_t *values, size_t count, int64_t *result) {
+    size_t i;
+    __int128 total = 0;
+
+    if ((values == NULL && count != 0) || result == NULL) {
+        return -1;
+    }
+    for (i = 0; i < count; ++i) {
+        total += values[i];
+    }
+    return finish_sum(total, result);
+}
+
 #if defined(KOOKIE_SIMD_X86)
 static KOOKIE_TARGET("sse2") int sse2_sum(const int32_t *values, size_t count, int64_t *result) {
     size_t i = 0;
@@ -57,6 +70,29 @@ static KOOKIE_TARGET("sse2") int sse2_sum(const int32_t *values, size_t count, i
         _mm_storeu_si128((__m128i *)lanes, low);
         total += lanes[0] + lanes[1];
         _mm_storeu_si128((__m128i *)lanes, high);
+        total += lanes[0] + lanes[1];
+    }
+    for (; i < count; ++i) {
+        total += values[i];
+    }
+    return finish_sum(total, result);
+}
+
+static KOOKIE_TARGET("sse2") int sse2_sum_u8(
+    const uint8_t *values, size_t count, int64_t *result
+) {
+    size_t i = 0;
+    __int128 total = 0;
+    uint64_t lanes[2];
+    const __m128i zero = _mm_setzero_si128();
+
+    if ((values == NULL && count != 0) || result == NULL) {
+        return -1;
+    }
+    for (; i + 16 <= count; i += 16) {
+        __m128i value = _mm_loadu_si128((const __m128i *)(values + i));
+        __m128i sums = _mm_sad_epu8(value, zero);
+        _mm_storeu_si128((__m128i *)lanes, sums);
         total += lanes[0] + lanes[1];
     }
     for (; i < count; ++i) {
@@ -89,6 +125,29 @@ static KOOKIE_TARGET("avx2") int avx2_sum(const int32_t *values, size_t count, i
     }
     return finish_sum(total, result);
 }
+
+static KOOKIE_TARGET("avx2") int avx2_sum_u8(
+    const uint8_t *values, size_t count, int64_t *result
+) {
+    size_t i = 0;
+    __int128 total = 0;
+    uint64_t lanes[4];
+    const __m256i zero = _mm256_setzero_si256();
+
+    if ((values == NULL && count != 0) || result == NULL) {
+        return -1;
+    }
+    for (; i + 32 <= count; i += 32) {
+        __m256i value = _mm256_loadu_si256((const __m256i *)(values + i));
+        __m256i sums = _mm256_sad_epu8(value, zero);
+        _mm256_storeu_si256((__m256i *)lanes, sums);
+        total += lanes[0] + lanes[1] + lanes[2] + lanes[3];
+    }
+    for (; i < count; ++i) {
+        total += values[i];
+    }
+    return finish_sum(total, result);
+}
 #endif
 
 #if defined(KOOKIE_SIMD_ARM) && defined(__aarch64__)
@@ -105,6 +164,22 @@ static int neon_sum(const int32_t *values, size_t count, int64_t *result) {
         int64x2_t high = vmovl_s32(vget_high_s32(value));
         total += (int64_t)vgetq_lane_s64(low, 0) + (int64_t)vgetq_lane_s64(low, 1);
         total += (int64_t)vgetq_lane_s64(high, 0) + (int64_t)vgetq_lane_s64(high, 1);
+    }
+    for (; i < count; ++i) {
+        total += values[i];
+    }
+    return finish_sum(total, result);
+}
+
+static int neon_sum_u8(const uint8_t *values, size_t count, int64_t *result) {
+    size_t i = 0;
+    __int128 total = 0;
+
+    if ((values == NULL && count != 0) || result == NULL) {
+        return -1;
+    }
+    for (; i + 16 <= count; i += 16) {
+        total += vaddlvq_u8(vld1q_u8(values + i));
     }
     for (; i < count; ++i) {
         total += values[i];
@@ -162,4 +237,33 @@ int kookie_simd_sum_i32(const int32_t *values, size_t count, int64_t *result) {
     default:
         return scalar_sum(values, count, result);
     }
+}
+
+int kookie_simd_sum_u8(const uint8_t *values, size_t count, int64_t *result) {
+    kookie_simd_initialize();
+    switch (selected_path) {
+#if defined(KOOKIE_SIMD_X86)
+    case KOOKIE_SIMD_AVX2:
+        return avx2_sum_u8(values, count, result);
+    case KOOKIE_SIMD_SSE2:
+        return sse2_sum_u8(values, count, result);
+#endif
+#if defined(KOOKIE_SIMD_ARM) && defined(__aarch64__)
+    case KOOKIE_SIMD_NEON:
+        return neon_sum_u8(values, count, result);
+#endif
+    case KOOKIE_SIMD_SCALAR:
+    default:
+        return scalar_sum_u8(values, count, result);
+    }
+}
+
+int64_t kookie_simd_sum_u8_buffer(const uint8_t *values, int32_t count) {
+    int64_t result;
+
+    if (count < 0 ||
+        kookie_simd_sum_u8(values, (size_t)count, &result) != 0) {
+        return -1;
+    }
+    return result;
 }

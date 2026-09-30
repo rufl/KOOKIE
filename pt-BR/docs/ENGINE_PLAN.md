@@ -855,22 +855,32 @@ Esses limites são metas de projeto. A correção pode ser testada sob renderiza
 ### Evidência de dispatch SIMD DXPERF-051
 
 `native/kookie_simd_dispatch.c` é um mecanismo nativo estreito, não uma
-implementação de gameplay. Ele seleciona AVX2 ou SSE2 em x86, NEON em AArch64 e
-sempre retém uma implementação escalar verificada. A inicialização é thread-safe;
-builds sem suporte ou com escalar forçado continuam válidos.
-`scripts/verify_simd_dispatch.sh` executa o mesmo contrato de soma inteira pelo
-caminho selecionado no host e pelo escalar, depois compila o caminho AArch64
-com o cross target do Clang. Isso prova dispatch e fonte cross-architecture,
-não ganho de frame ou velocidade do engine.
+implementação de gameplay. Ele seleciona AVX2 ou SSE2 em x86, NEON em AArch64
+e sempre retém reduções `i32` e `u8` escalares verificadas. A inicialização do
+dispatch é thread-safe; builds sem suporte ou com escalar forçado continuam
+válidos. O ponto de entrada `kookie_simd_sum_u8_buffer` mapeia um
+`Buffer(U8)` do Kof mais sua extensão validada pelo Kof para a redução
+selecionada.
 
-O Kof 0.5.0-beta fornece o contrato `Buffer(U8, INOUT)` mais token necessário
-para FFI nativa em lote. A verificação adversarial independente fornecida em
-2026-09-30 aprovou os caminhos x86-64 nativo e cross suportados nos commits
-`b4c2b734a`, `381f6fab0` e `bf17ac7e7` (evidência `c73556f5a`); Script,
-JavaScript, Android, riscv32 e MCU ainda informam `FFI001`. O KOOKIE não
-repetiu essa matriz upstream. Nenhum hot loop pertencente ao Kof usa esse
-mecanismo antes de medir ABI e carga representativa; nenhum ganho SIMD é
-afirmado.
+O commit de fonte `bf17ac7e736471c8a04b4153e5b0f607be75e70c` do Kof
+0.5.0-beta fornece o contrato nativo `Buffer(U8, INOUT)`. A CI constrói essa
+fonte exata em vez do arquivo de release anterior da mesma versão. A
+verificação adversarial independente fornecida em 2026-09-30 aprovou os
+caminhos x86-64 nativo e cross suportados nos commits `b4c2b734a`,
+`381f6fab0` e `bf17ac7e7` (evidência `c73556f5a`); Script, JavaScript,
+Android, riscv32 e MCU ainda informam `FFI001`. O KOOKIE não repetiu essa
+matriz upstream.
+
+`scripts/verify_simd_dispatch.sh` verifica a paridade `i32` e `u8` das caudas
+de vetor pelos caminhos C selecionado no host e escalar forçado, executa o
+mesmo benchmark de `Buffer(U8)` do Kof na JVM/no nativo e verifica a sintaxe
+da fonte NEON AArch64. Uma execução nativa de 2026-09-30 no host Intel Arrow
+Lake-P registrado reduziu 64 MiB em 233.350.224 ns no loop escalar Kof e
+1.073.834 ns pela rota de buffer AVX2 (217,3x para essa redução exata). O
+`kookie-simd-bench` empacotado informa sua própria decisão de rota medida. Isso
+é evidência da ABI e de uma redução representativa, não uma afirmação de tempo
+de frame, gameplay ou velocidade geral da engine; o gameplay de produção
+continua pertencente ao Kof e escalar.
 
 ## 11. Riscos de verificação e decisão
 
@@ -891,7 +901,7 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 
 | Risco | Evidência atual | Ação / estágio de liberação |
 |---|---|---|
-| FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | `Buffer(U8, INOUT)` + token no 0.5.0-beta passou na verificação fornecida para x86-64 nativo/cross; Script/JS/Android/riscv32/MCU continuam `FFI001` | Integrar apenas alvos medidos; manter caminho escalar; medir antes de alegar ganho |
+| FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | O `Buffer(U8, INOUT)` fixado do 0.5.0-beta passa no benchmark empacotado de redução `u8` na JVM/no nativo; a verificação cross fornecida passa, enquanto Script/JS/Android/riscv32/MCU continuam em `FFI001` | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
 | Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; Windows é um shell de plataforma | Manter gates por plataforma; não inferir gameplay de um backend SDL |
 | Coletor nativo após spawn | Estágio de spawn cumulativo na fonte do alocador | Uma única thread Kof; soak prolongado; nenhum bypass inseguro de GC manual |
 | Desempenho da geração de código nativo | Pipeline mínimo de otimização | Medir arrays/matemática/FFI representativos; usar batching/pré-alocação; não reescrever a jogabilidade em C |

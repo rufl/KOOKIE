@@ -814,16 +814,30 @@ These thresholds are design goals. Correctness may be tested under software rend
 
 ### DXPERF-051 SIMD dispatch evidence
 
-`native/kookie_simd_dispatch.c` is a narrow native mechanism, not a gameplay implementation. It selects AVX2 or SSE2 at runtime on x86, NEON on AArch64, and always retains a checked scalar implementation. Dispatch initialization is thread-safe; unsupported or forced-scalar builds remain valid. `scripts/verify_simd_dispatch.sh` runs the same integer-sum contract through the host-selected path and scalar path, then compiles the AArch64 source path with Clang's cross target. This is dispatch and cross-architecture source evidence, not a frame-time or engine-speed measurement.
+`native/kookie_simd_dispatch.c` is a narrow native mechanism, not a gameplay
+implementation. It selects AVX2 or SSE2 at runtime on x86, NEON on AArch64,
+and always retains checked scalar `i32` and `u8` reductions. Dispatch
+initialization is thread-safe; unsupported or forced-scalar builds remain
+valid. The `kookie_simd_sum_u8_buffer` entry point maps one Kof
+`Buffer(U8)` plus its Kof-validated extent to the selected reduction.
 
-Kof 0.5.0-beta provides the `Buffer(U8, INOUT)` plus token contract needed for
-bulk native FFI. Independent adversarial verification supplied on 2026-09-30
-passed native x86-64 and supported cross paths at upstream commits `b4c2b734a`,
-`381f6fab0` and `bf17ac7e7` (evidence `c73556f5a`); Script, JavaScript,
-Android, riscv32 and MCU paths still report `FFI001`. KOOKIE has not rerun that
-upstream matrix. No Kof-owned hot loop is routed through this mechanism until
-its ABI and representative workload are benchmarked, so no SIMD speedup is
-claimed.
+Kof 0.5.0-beta source commit `bf17ac7e736471c8a04b4153e5b0f607be75e70c`
+provides the native `Buffer(U8, INOUT)` contract. CI builds that exact source
+instead of the older same-version release archive. Independent adversarial
+verification supplied on 2026-09-30 passed native x86-64 and supported cross
+paths at upstream commits `b4c2b734a`, `381f6fab0` and `bf17ac7e7` (evidence
+`c73556f5a`); Script, JavaScript, Android, riscv32 and MCU paths still report
+`FFI001`. KOOKIE did not rerun that upstream matrix.
+
+`scripts/verify_simd_dispatch.sh` verifies `i32` and `u8` vector-tail parity
+through host-selected and forced-scalar C paths, runs the same Kof
+`Buffer(U8)` benchmark on JVM and native, and syntax-checks the AArch64 NEON
+source. A 2026-09-30 native run on the recorded Intel Arrow Lake-P host reduced
+64 MiB in 233,350,224 ns through the Kof scalar loop and 1,073,834 ns through
+the AVX2 buffer route (217.3x for this exact reduction). The packaged
+`kookie-simd-bench` reports its own measured route decision. This is ABI and
+representative reduction evidence, not a frame-time, gameplay or general
+engine-speed claim; production gameplay remains Kof-owned and scalar.
 
 
 ## 11. Verification and decision risks
@@ -845,7 +859,7 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 
 | Risk | Current evidence | Action / release gate |
 |---|---|---|
-| Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | 0.5.0-beta `Buffer(U8, INOUT)` + token passed supplied native x86-64/cross verification; Script/JS/Android/riscv32/MCU still `FFI001` | Integrate only measured targets; retain scalar path; benchmark before speed claims |
+| Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | Pinned 0.5.0-beta `Buffer(U8, INOUT)` passes the packaged JVM/native `u8` reduction benchmark; supplied cross verification passes, while Script/JS/Android/riscv32/MCU remain `FFI001` | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
 | Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows is a platform shell | Keep separate platform gates; do not infer gameplay support from an SDL backend |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
 | Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |

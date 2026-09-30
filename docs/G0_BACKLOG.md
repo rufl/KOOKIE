@@ -296,9 +296,11 @@ indefinitely.
 
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
-- Installed `kof info --json` reports 0.5.0-beta on Linux x86-64. Release
-  qualification pins archive SHA-256
-  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`.
+- Installed `kof info --json` reports 0.5.0-beta on Linux x86-64. Current
+  release qualification builds source commit `bf17ac7e7364`; the locally built
+  distribution and compiler JAR SHA-256 values are respectively
+  `f6fd41ed59c461dd968376e8e2dd3f0dc24ee712578d318a7fb3f707bc761bdc`
+  and `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`.
   Its native assembler emits Linux ELF; the native Windows SDL shell does not
   change that compiler limit.
 - Release archives cover native Linux and the native Windows SDL3 + SDL_mixer

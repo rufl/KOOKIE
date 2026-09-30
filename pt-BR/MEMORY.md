@@ -62,10 +62,13 @@ As fundações limitadas executam; os gates de implementação G0–G4 estão co
 
 ## Lote de conclusão G5
 
-- Atualizamos os contratos de release/CI/fonte para o Kof 0.5.0-beta exato e
-  fixamos o SHA-256 do arquivo Linux. A evidência upstream independente
-  fornecida aprova `Buffer(U8, INOUT)` mais token FFI no x86-64 e cross paths
-  suportados; o KOOKIE não repetiu essa matriz nem afirma ganho SIMD.
+- Release e CI agora constroem o commit de fonte exato `bf17ac7e7364` do Kof
+  0.5.0-beta. A evidência upstream fornecida cobre `Buffer(U8, INOUT)` no
+  x86-64 nativo e nos cross paths suportados; o KOOKIE não repete essa matriz.
+  O benchmark JVM/nativo empacotado do KOOKIE agora valida a ABI exata de
+  buffer e a redução `u8`. Um lote nativo registrado reduziu 64 MiB em
+  233.350.224 ns no código escalar Kof e 1.073.834 ns via AVX2; isso não é uma
+  afirmação de ganho no gameplay.
 - A cena limitada completa tem 192 vértices criados, 64 triângulos de colisão
   carregados, 64 inimigos, 256 projéteis, 512 itens, 24 luzes e 64 efeitos. O
   soak de 30 minutos a 60 Hz manteve p95 de simulação em 3,202 ms e RSS dentro
@@ -149,9 +152,16 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 
 ## Identidades de pesquisa fixadas
 
-- Toolchain atual de release: Kof `0.5.0-beta`; SHA-256 do arquivo Linux x86-64
-  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`.
-  As identidades 0.4.9 abaixo permanecem como baseline histórico da pesquisa.
+- Toolchain atual de build do KOOKIE: fonte Kof `0.5.0-beta`
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; SHA-256 da distribuição Linux
+  x86-64 construída localmente
+  `f6fd41ed59c461dd968376e8e2dd3f0dc24ee712578d318a7fb3f707bc761bdc`
+  e SHA-256 do JAR do compilador
+  `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`.
+  A identidade anterior do arquivo oficial
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`
+  antecede o contrato nativo de Buffer e não é mais a entrada de build do
+  KOOKIE.
 - Kof4j: `22a186b9bf9df37c03809ba6ef4af85085386f63`, VERSION `0.4.9-beta`.
 - Release executado: `kof-0.4.9-beta-linux-x86_64`, publicado em 2026-09-20; SHA-256 do jar independente `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`.
 - Kof Editor: `bed6ae7d567b090497a447583a10b8522acaf66a`, VERSION `0.1.4-beta`; agora instalado com um launcher restrito ao projeto e isolado da rede, e verificado visualmente em X11 privado.
@@ -159,17 +169,21 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 - Curso completo: [`lunalully/curso-completo-de-kof@d6fc8318e77f30ab0d6be87055d86a7eb63960d3`](https://github.com/lunalully/curso-completo-de-kof/tree/d6fc8318e77f30ab0d6be87055d86a7eb63960d3), baseline 0.3.7-beta. O snapshot do [portal oficial](https://koflang.github.io/docs) foi gerado em 2026-09-17; várias páginas diferem do código-fonte fixado do compilador. Consulte [KOF_COURSE](docs/KOF_COURSE.md).
 - Minecraft Java26.3, lançado em 2026-09-15; SHA-1 exato dos metadados de versão `96c00d95a31328714d3811cfade2804bb050e455`. Usa SDL3/LWJGL3.4.3 e JOML1.10.9; matriz de código-fonte/versão/licença em [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Clones/jars temporários de pesquisa ficaram em `/tmp/kookie-*`; não são dependências do projeto. As evidências duráveis e todas as fontes das sondas estão em [RESEARCH_PROBES](docs/RESEARCH_PROBES.md), [COURSE_PROBES](docs/COURSE_PROBES.md) e [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- A CLI ativa é o release empacotado Kof 0.5.0-beta em
-  `~/.local/share/kof4j/0.5.0-beta`, com Eclipse Adoptium 25.0.4.1 embutido e
-  SHA-256 do JAR
-  `78e5ab9b65994889b8e593378aeabfbb6d5d71862e28a96f186085cabe404334`.
-  Os reparos históricos das ferramentas 0.4.9 continuam como evidência de
-  pesquisa, não como compilador ativo.
+- A CLI ativa é a distribuição Kof 0.5.0-beta fixada por fonte em
+  `~/.local/share/kof4j/0.5.0-beta-bf17ac7e`, usando o runtime Java do host e
+  o SHA-256 do JAR do compilador
+  `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`.
+  A distribuição oficial anterior continua instalada lado a lado, mas não
+  consegue compilar o benchmark nativo `Buffer(U8)` do KOOKIE.
 
 ## Decisões propostas
 
 - Linux x86-64 nativo primeiro; oráculo diferencial JVM. Outros SOs/arquiteturas não são prometidos.
-- SDL3 3.4.16 + SDL_GPU Vulkan/SPIR-V é a fronteira gráfica; SDL_mixer 3.2.4 controla os buses. O Kof 0.5.0-beta expõe FFI de buffer nos alvos verificados, mas o caminho ABI escalar permanece até uma integração representativa ser medida.
+- SDL3 3.4.16 + SDL_GPU Vulkan/SPIR-V é a fronteira gráfica; SDL_mixer 3.2.4
+  controla os buses. O benchmark Kof empacotado valida a ABI de buffer em lote
+  e escolhe entre as rotas medidas de redução SIMD e escalar. O gameplay
+  permanece no caminho escalar Kof até que o profiling identifique uma carga
+  de produção em lote com a mesma propriedade e amortização.
 - Uma thread de simulação Kof; tick de 60 Hz, renderização interpolada independentemente, proposta de recuperação em quatro etapas.
 - Arrays de componentes tipados + IDs de geração, colisão cápsula/BVH 3D real, uma única autoridade de dano/morte/recompensa.
 - Política de renderização, content cooker, UI do jogo e ferramentas para criadores pertencentes ao Kof; exceção explícita para shaders HLSL/GPU.
@@ -212,7 +226,7 @@ implementada.
 25. `RemoteSessionLink` bloqueia snapshots até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes. A qualificação com três processos na JVM/no nativo leva gameplay, feedback e estado do encounter pelo loop real da sessão.
 26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável, exclusão da origem via `SpatialAimContract` e remoção de alvos. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo por pellet, inclusive impactos repetidos e misses limitados. `LoopbackSession.resolvePlayerSpatialShotgun` conecta essa seleção ao combate autoritativo dos jogadores.
 
-27. O dispatch SIMD nativo seleciona AVX2/SSE2 no x86, possui caminho NEON AArch64 e mantém fallback escalar verificado. A FFI em lote existe nos alvos Kof 0.5.0-beta verificados, mas o KOOKIE não mediu nem direcionou um hot loop próprio a ela; isso não é ganho de velocidade medido da engine.
+27. O dispatch SIMD nativo seleciona AVX2/SSE2 no x86, possui caminho NEON AArch64 e mantém fallbacks escalares verificados. O benchmark Kof empacotado direciona um `Buffer(U8)` de 1 MiB pelo dispatcher por 64 rodadas e preserva a paridade escalar nas caudas de vetor. O lote AVX2 nativo registrado foi 217,3x mais rápido que a redução escalar Kof nativa para essa carga exata; nenhum ganho de gameplay ou geral da engine é inferido.
 28. O gate focado atual tem 75 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
 29. Impactos autoritativos aceitos entram no histórico monotônico e limitado de
     apresentação/áudio e em lotes ordenados de feedback `6 + 11F`. A validação

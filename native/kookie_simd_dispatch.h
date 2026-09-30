@@ -19,8 +19,15 @@ typedef enum KookieSimdPath {
 void kookie_simd_initialize(void);
 KookieSimdPath kookie_simd_path(void);
 
-/* Returns 0 on success, -1 for invalid pointers or output. */
+/* Returns 0 on success, -1 for invalid pointers or output overflow. */
 int kookie_simd_sum_i32(const int32_t *values, size_t count, int64_t *result);
+int kookie_simd_sum_u8(const uint8_t *values, size_t count, int64_t *result);
+
+/*
+ * Buffer(U8) FFI entry point. The Kof caller owns and validates the buffer
+ * extent; negative counts return -1. Valid sums are always non-negative.
+ */
+int64_t kookie_simd_sum_u8_buffer(const uint8_t *values, int32_t count);
 
 #ifdef __cplusplus
 }

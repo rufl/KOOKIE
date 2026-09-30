@@ -104,10 +104,12 @@ The important gaps are still real:
   Aseprite, Dust3D and brush subsets reject unsupported constructs;
 - live reload covers validated scene/render products, not arbitrary Kof code,
   shaders, editor plugins or unbounded resource streaming;
-- Kof 0.5.0-beta now exposes the verified `Buffer(U8, INOUT)` plus token FFI
-  contract on native x86-64 and supported cross targets. KOOKIE has not routed a
-  Kof-owned hot loop through the SIMD kernel yet; benchmark and ABI integration
-  must precede any speedup claim;
+- Kof 0.5.0-beta source commit `bf17ac7e7364` exposes the verified
+  `Buffer(U8, INOUT)` contract used by the packaged SIMD benchmark. On the
+  recorded Linux x86-64 host, one native 64 MiB reduction batch took
+  233.350 ms in Kof scalar code and 1.074 ms through AVX2. This qualifies that
+  exact ABI/workload only; no production gameplay hot loop or general engine
+  speedup is claimed;
 - scale transport qualification remains same-host loopback. It exercises full
   per-tick state replication, reconnect and stale/tampered-state rejection, not
   fresh multi-machine operation;
@@ -140,18 +142,20 @@ bash scripts/verify_interactions.sh
 Build a signed native Linux package:
 
 ```bash
-KOOKIE_VERSION=0.1.0-dogfood.32 \
+KOOKIE_VERSION=0.1.0-dogfood.33 \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```
 
 The Ed25519 private key must be a regular mode-`0600` file. The builder emits a
 target-bound `.tar.gz`, detached signatures, `SHA256SUMS`, a public key and
-provenance JSON binding the clean source commit, exact Kof 0.5.0-beta toolchain
-and archive checksum. Distributable JVM packages are intentionally unsupported
-because a Java runtime would violate KOOKIE's permissive-only distributed
-dependency policy. The JVM target remains available for local differential
-verification.
+provenance JSON binding the clean source commit, pinned Kof source commit,
+compiler JAR hash and distribution archive hash. Distributable JVM packages
+are intentionally unsupported because a Java runtime would violate KOOKIE's
+permissive-only distributed dependency policy. The JVM target remains
+available for local differential verification.
 
 Every Linux archive also includes `kookie-server` and its graphics-independent
 native timing/RSS adapter. Running it executes a runtime-configurable bounded
@@ -159,6 +163,11 @@ headless workload and reports counts, budgets, p50/p95/p99/max tick time, RSS
 range/growth, checksum and logical resource plateau. The focused authenticated
 host-plus-two-client qualification remains a probe, not a packaged production
 dedicated-server service.
+
+The archive also includes `kookie-simd-bench`. It validates scalar/AVX2,
+SSE2 or NEON reduction parity across vector tails, then times 64 reductions of
+a 1 MiB Kof-owned `Buffer(U8)`. Its route decision is measurement output, not a
+promise that unrelated engine work is faster.
 
 Cook authoring files and build or inspect one-chunk external packages with the
 JVM-only developer CLI:
@@ -179,7 +188,9 @@ visual qualification and ZEER dogfood deployment:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
-KOOKIE_VERSION=0.1.0-dogfood.32 \
+KOOKIE_VERSION=0.1.0-dogfood.33 \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```

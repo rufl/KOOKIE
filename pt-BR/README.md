@@ -115,11 +115,12 @@ As lacunas importantes continuam reais:
   documentados de Aseprite, Dust3D e brushes rejeitam construções incompatíveis;
 - reload ao vivo cobre produtos validados de cena/render, não código Kof,
   shaders, plugins de editor ou streaming ilimitado de recursos;
-- o Kof 0.5.0-beta agora expõe o contrato verificado de
-  `Buffer(U8, INOUT)` mais token FFI no x86-64 nativo e nos cross targets
-  suportados. O KOOKIE ainda não direcionou hot loops pertencentes ao Kof ao
-  kernel SIMD; o benchmark e a integração de ABI devem preceder qualquer
-  afirmação de ganho;
+- o commit de fonte `bf17ac7e7364` do Kof 0.5.0-beta expõe o contrato
+  verificado de `Buffer(U8, INOUT)` usado pelo benchmark SIMD empacotado. No
+  host Linux x86-64 registrado, um lote nativo de redução de 64 MiB levou
+  233,350 ms no código escalar Kof e 1,074 ms via AVX2. Isso qualifica somente
+  essa ABI e carga exatas; nenhum hot loop de gameplay em produção nem ganho
+  geral de velocidade da engine é afirmado;
 - a qualificação do transporte de escala continua em loopback na mesma máquina.
   Ela exercita replicação completa de estado por tick, reconexão e rejeição de
   estado obsoleto/adulterado, não operação recente em várias máquinas;
@@ -152,18 +153,20 @@ bash scripts/verify_interactions.sh
 Gere um pacote Linux nativo assinado:
 
 ```bash
-KOOKIE_VERSION=0.1.0-dogfood.32 \
+KOOKIE_VERSION=0.1.0-dogfood.33 \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```
 
 A chave Ed25519 privada deve ser um arquivo regular com modo `0600`. O builder
 emite `.tar.gz` vinculado ao alvo, assinaturas destacadas, `SHA256SUMS`, chave
-pública e JSON de procedência que vincula o commit limpo, o toolchain exato
-Kof 0.5.0-beta e o checksum do arquivo do compilador. Pacotes JVM
-distribuíveis são rejeitados porque um runtime Java violaria a política de
-dependências distribuídas somente permissivas do KOOKIE. A JVM fica restrita à
-qualificação diferencial local.
+pública e JSON de procedência que vincula o commit limpo, o commit fixado do
+código-fonte Kof, o hash do JAR do compilador e o hash do arquivo da
+distribuição. Pacotes JVM distribuíveis são rejeitados porque um runtime Java
+violaria a política de dependências distribuídas somente permissivas do
+KOOKIE. A JVM fica restrita à qualificação diferencial local.
 
 Todo arquivo Linux também contém `kookie-server` e seu adaptador nativo de
 tempo/RSS independente de gráficos. Sua execução roda uma carga headless
@@ -172,6 +175,12 @@ p50/p95/p99/máximo por tick, faixa/crescimento de RSS, checksum e estabilidade
 lógica de recursos. A qualificação autenticada focada com host mais dois
 clientes continua sendo uma sonda, não um serviço de servidor dedicado de
 produção empacotado.
+
+O arquivo também contém `kookie-simd-bench`. Ele valida a paridade das reduções
+escalares/AVX2, SSE2 ou NEON nas caudas de vetores e mede 64 reduções de um
+`Buffer(U8)` de 1 MiB pertencente ao Kof. A decisão de rota é uma saída da
+medição, não uma promessa de que trabalho não relacionado da engine seja mais
+rápido.
 
 Cozinhe arquivos de autoria e monte ou inspecione pacotes externos de um chunk
 com a CLI de desenvolvimento exclusiva da JVM:
@@ -193,7 +202,9 @@ qualificação visual isolada e no deploy dogfood do ZEER:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
-KOOKIE_VERSION=0.1.0-dogfood.32 \
+KOOKIE_VERSION=0.1.0-dogfood.33 \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```

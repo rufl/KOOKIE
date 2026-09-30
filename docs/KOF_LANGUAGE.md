@@ -6,18 +6,23 @@ Research date: 2026-09-22. This is a working reference, not a claim of complete 
 
 ### Current release toolchain
 
-- KOOKIE's release gate is Kof `0.5.0-beta`; the pinned Linux x86-64 release
-  archive SHA-256 is
-  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`.
+- KOOKIE's release/CI gate is Kof `0.5.0-beta` source commit
+  [`bf17ac7e736471c8a04b4153e5b0f607be75e70c`](https://github.com/KofLang/Kof4j/tree/bf17ac7e736471c8a04b4153e5b0f607be75e70c).
+  The locally built Linux x86-64 distribution SHA-256 is
+  `f6fd41ed59c461dd968376e8e2dd3f0dc24ee712578d318a7fb3f707bc761bdc`;
+  its compiler JAR SHA-256 is
+  `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`.
+  The older same-version official archive predates native `Buffer(U8)`.
 - Independent adversarial verification supplied on 2026-09-30 passed
   `Buffer(U8, INOUT)` plus the FFI token contract on native x86-64 and cross
   targets for upstream commits `b4c2b734a` (A1), `381f6fab0` (A2) and
   `bf17ac7e7` (B), with evidence commit `c73556f5a`. Script, JavaScript,
   Android, riscv32 and MCU paths still reject that contract with `FFI001`.
-  KOOKIE did not rerun that upstream matrix; these are supplied results, not
-  local measurements.
+  KOOKIE did not rerun that upstream matrix. It separately executes its own
+  JVM/native buffer-reduction ABI benchmark; that local probe does not stand in
+  for upstream cross-target conformance.
 - The 0.4.9 material below is retained as the historical language-research
-  baseline. Current package and CI gates require the exact 0.5.0-beta identity.
+  baseline. Current package and CI gates require the exact source commit above.
 
 
 - Compiler source: [`KofLang/Kof4j@22a186b9bf9df37c03809ba6ef4af85085386f63`](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), `VERSION` = `0.4.9-beta`.

@@ -20,7 +20,7 @@ concurrency:
 
 env:
   KOF_VERSION: 0.5.0-beta
-  KOF_ARCHIVE_SHA256: f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9
+  KOF_SOURCE_COMMIT: bf17ac7e736471c8a04b4153e5b0f607be75e70c
 
 jobs:
   verify:
@@ -32,27 +32,35 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - name: Install Java runtime for Kof JVM artifacts
+      - name: Checkout pinned Kof source
+        uses: actions/checkout@v5
+        with:
+          repository: KofLang/Kof4j
+          ref: ${{ env.KOF_SOURCE_COMMIT }}
+          path: _kof
+          persist-credentials: false
+      - name: Install Java runtime for Kof build and JVM artifacts
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "25"
 
 
-      - name: Install pinned Kof toolchain
+      - name: Build pinned Kof toolchain
         run: |
           set -euo pipefail
-          archive="kof-${KOF_VERSION}-linux-x86_64.tar.gz"
-          url="https://github.com/KofLang/Kof4j/releases/download/kof-${KOF_VERSION}-linux-x86_64/${archive}"
-          curl --fail --location --retry 3 --retry-all-errors \
-            --connect-timeout 15 --max-time 180 \
-            --output "$RUNNER_TEMP/$archive" "$url"
-          echo "${KOF_ARCHIVE_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
-          kof_bin="$RUNNER_TEMP/kof-${KOF_VERSION}-linux-x86_64/bin"
+          mvn -q -f _kof/pom.xml package -DskipTests
+          bash _kof/scripts/package.sh \
+            --output "$RUNNER_TEMP/kof-dist" --skip-build
+          archive="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          archive_sha256="$(sha256sum "$archive" | cut -d ' ' -f 1)"
+          echo "KOOKIE_KOF_ARCHIVE_SHA256=$archive_sha256" >> "$GITHUB_ENV"
+          echo "KOOKIE_KOF_SOURCE_COMMIT=$KOF_SOURCE_COMMIT" >> "$GITHUB_ENV"
+          kof_bin="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64/bin"
           echo "$kof_bin" >> "$GITHUB_PATH"
           export PATH="$kof_bin:$PATH"
           kof version
+          rm -rf _kof
 
       - name: Run repository verification gate
         run: bash scripts/verify.sh

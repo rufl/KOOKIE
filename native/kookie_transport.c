@@ -770,6 +770,17 @@ bool kookie_transport_close(void) {
 static struct timespec kookie_measurement_start;
 static bool kookie_measurement_started;
 
+int64_t kookie_headless_monotonic_nanoseconds(void) {
+    struct timespec now;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &now) != 0 ||
+        now.tv_sec < 0 ||
+        (uint64_t)now.tv_sec > (uint64_t)INT64_MAX / UINT64_C(1000000000)) {
+        return -1;
+    }
+    return (int64_t)now.tv_sec * INT64_C(1000000000) + (int64_t)now.tv_nsec;
+}
+
 static int kookie_headless_environment_int(
     const char *name, int fallback, int minimum, int maximum
 ) {

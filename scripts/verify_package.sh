@@ -69,8 +69,13 @@ SERVER="$PACKAGE_ROOT/kookie-server"
 SERVER_BINARY="$PACKAGE_ROOT/kookie-server.bin"
 HEADLESS_ADAPTER="$PACKAGE_ROOT/lib/libkookie_headless_adapter.so"
 PERSISTENCE_ADAPTER="$PACKAGE_ROOT/lib/libkookie_persistence_adapter.so"
+SIMD_BENCHMARK="$PACKAGE_ROOT/kookie-simd-bench"
+SIMD_BINARY="$PACKAGE_ROOT/kookie-simd-bench.bin"
+SIMD_LIBRARY="$PACKAGE_ROOT/lib/libkookie_simd_dispatch.so"
 test -x "$SERVER" -a -x "$SERVER_BINARY"
-test -f "$HEADLESS_ADAPTER" -a -f "$PERSISTENCE_ADAPTER"
+test -x "$SIMD_BENCHMARK" -a -x "$SIMD_BINARY"
+test -f "$HEADLESS_ADAPTER" -a -f "$PERSISTENCE_ADAPTER" -a \
+  -f "$SIMD_LIBRARY"
 test -f "$PACKAGE_ROOT/LICENSE"
 test -f "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 test -f "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
@@ -80,10 +85,16 @@ grep -Fq 'license_status=MIT' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dependency_policy=permissive-distributed-only' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dedicated_server=bounded-headless-workload-with-runtime-telemetry' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'kof_source_commit=bf17ac7e736471c8a04b4153e5b0f607be75e70c' \
+  "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Eq '^kof_compiler_sha256=[0-9a-f]{64}$' \
+  "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'release_signing=ed25519' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'crash_durable_save=staged-validated-fsync-rename-directory-fsync' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'replay_admission=identity-bound-checksummed-v3' \
+  "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'simd_benchmark=kof-buffer-u8-runtime-dispatch' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 SERVER_LOG="$WORK_DIR/server.log"
 KOOKIE_SERVER_WARMUP_TICKS=64 \
@@ -111,7 +122,18 @@ assert paired("rss-samples") == "5"
 assert paired("rss-plateau") == "true"
 assert paired("realtime") == "false"
 PY
-for headless_binary in "$SERVER_BINARY" "$HEADLESS_ADAPTER" "$PERSISTENCE_ADAPTER"; do
+SIMD_LOG="$WORK_DIR/simd.log"
+"$SIMD_BENCHMARK" >"$SIMD_LOG"
+grep -Fqx 'KOOKIE G6 Kof Buffer SIMD benchmark' "$SIMD_LOG"
+grep -Fqx 'scalar-total=16844324864' "$SIMD_LOG"
+grep -Fqx 'simd-total=16844324864' "$SIMD_LOG"
+grep -Eq '^simd-path=[1-4]$' "$SIMD_LOG"
+grep -Eq '^scalar-ns=[1-9][0-9]*$' "$SIMD_LOG"
+grep -Eq '^simd-ns=[1-9][0-9]*$' "$SIMD_LOG"
+grep -Eq '^selected-route=(scalar|simd)$' "$SIMD_LOG"
+for headless_binary in \
+  "$SERVER_BINARY" "$HEADLESS_ADAPTER" "$PERSISTENCE_ADAPTER" \
+  "$SIMD_BINARY" "$SIMD_LIBRARY"; do
   if ldd "$headless_binary" 2>/dev/null | grep -Eq 'SDL|Vulkan|X11|Wayland'; then
     echo 'package smoke: dedicated server acquired a graphics dependency' >&2
     exit 1
@@ -160,6 +182,9 @@ if command -v glslc >/dev/null &&
   test -x "$PRESENTATION_ROOT/kookie-server.bin"
   test -f "$PRESENTATION_ROOT/build/libkookie_sdl_adapter.so"
   test -f "$PRESENTATION_ROOT/lib/libkookie_headless_adapter.so"
+  test -x "$PRESENTATION_ROOT/kookie-simd-bench"
+  test -x "$PRESENTATION_ROOT/kookie-simd-bench.bin"
+  test -f "$PRESENTATION_ROOT/lib/libkookie_simd_dispatch.so"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g5_triangle_instance.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
@@ -211,10 +236,13 @@ for index in range(0, len(arguments), 2):
     assert manifest["source_tree_state"] in {"clean", "dirty-allowed"}
     assert manifest["kof_version"] == "kof 0.5.0-beta"
     assert len(manifest["kof_archive_sha256"]) == 64
+    assert manifest["kof_source_commit"] == "bf17ac7e736471c8a04b4153e5b0f607be75e70c"
+    assert len(manifest["kof_compiler_sha256"]) == 64
     assert len(manifest["public_key_sha256"]) == 64
     assert manifest["archive_signature"] == manifest["archive"] + ".sig"
     assert manifest["checksums_signature"] == "SHA256SUMS.sig"
     assert manifest["dedicated_server"] is True
+    assert manifest["simd_benchmark"] is True
 PY
 if env -u KOOKIE_WINDOWS_SDL_PREFIX -u KOOKIE_WINDOWS_SDL_MIXER_PREFIX \
    "$ROOT_DIR/scripts/package_kookie.sh" --target windows-x86_64 \

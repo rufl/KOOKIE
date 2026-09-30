@@ -1,0 +1,79 @@
+extern "./lib/libkookie_simd_dispatch.so" kookie_simd_path(): Int
+extern "./lib/libkookie_simd_dispatch.so" kookie_simd_sum_u8_buffer(
+    Buffer(U8) values, Int count
+): Long
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_monotonic_nanoseconds(): Long
+extern "libc.so.6" memset(Buffer(U8) values, Int value, Long count)
+
+Int unsignedByte(Byte value) {
+    if (value < 0) { return value + 256 }
+    return value
+}
+
+Long scalarByteSum(Byte[] values) {
+    var result: Long = 0L
+    for (var index = 0; index < values.length; index = index + 1) {
+        result = result + unsignedByte(values[index])
+    }
+    return result
+}
+
+main() {
+    var boundary = buffer.alloc(33)
+    memset(boundary, 255, 33L)
+    var boundaryBytes = boundary.bytes()
+    assert(boundaryBytes.length == 33 && scalarByteSum(boundaryBytes) == 8415L,
+        "Buffer(U8) copy-back must preserve unsigned byte values")
+    assert(kookie_simd_sum_u8_buffer(boundary, -1) == -1L &&
+        kookie_simd_sum_u8_buffer(boundary, 0) == 0L &&
+        kookie_simd_sum_u8_buffer(boundary, 1) == 255L &&
+        kookie_simd_sum_u8_buffer(boundary, 15) == 3825L &&
+        kookie_simd_sum_u8_buffer(boundary, 16) == 4080L &&
+        kookie_simd_sum_u8_buffer(boundary, 17) == 4335L &&
+        kookie_simd_sum_u8_buffer(boundary, 31) == 7905L &&
+        kookie_simd_sum_u8_buffer(boundary, 32) == 8160L &&
+        kookie_simd_sum_u8_buffer(boundary, 33) == 8415L,
+        "SIMD Buffer(U8) reduction must preserve scalar results across vector tails")
+
+    var byteCount = 1048576
+    var rounds = 64
+    var values = buffer.alloc(byteCount)
+    memset(values, 251, 1048576L)
+    var scalarValues = values.bytes()
+    var expected: Long = 263192576L
+    assert(scalarValues.length == byteCount &&
+        scalarByteSum(scalarValues) == expected &&
+        kookie_simd_sum_u8_buffer(values, byteCount) == expected,
+        "Kof scalar and SIMD reductions must agree before measurement")
+
+    var scalarTotal: Long = 0L
+    var scalarStart = kookie_headless_monotonic_nanoseconds()
+    for (var round = 0; round < rounds; round = round + 1) {
+        scalarTotal = scalarTotal + scalarByteSum(scalarValues)
+    }
+    var scalarNanos = kookie_headless_monotonic_nanoseconds() - scalarStart
+
+    var simdTotal: Long = 0L
+    var simdStart = kookie_headless_monotonic_nanoseconds()
+    for (var round = 0; round < rounds; round = round + 1) {
+        simdTotal = simdTotal + kookie_simd_sum_u8_buffer(values, byteCount)
+    }
+    var simdNanos = kookie_headless_monotonic_nanoseconds() - simdStart
+    var expectedTotal: Long = expected * 64L
+    var selectedRoute = "scalar"
+    if (simdNanos < scalarNanos) { selectedRoute = "simd" }
+    println("KOOKIE G6 Kof Buffer SIMD benchmark")
+    println("simd-path=" + kookie_simd_path())
+    println("bytes=" + byteCount)
+    println("rounds=" + rounds)
+    println("sum=" + expected)
+    println("scalar-total=" + scalarTotal)
+    println("simd-total=" + simdTotal)
+    println("expected-total=" + expectedTotal)
+    println("scalar-ns=" + scalarNanos)
+    println("simd-ns=" + simdNanos)
+    println("selected-route=" + selectedRoute)
+    assert(scalarTotal == expectedTotal && simdTotal == expectedTotal &&
+        scalarNanos > 0L && simdNanos > 0L,
+        "measured reductions must retain their observable result")
+}

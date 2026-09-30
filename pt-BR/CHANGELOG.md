@@ -4,6 +4,27 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-09-30
 
+### Integração SIMD com Buffer do Kof
+
+- Fixamos builds de CI e release no commit de fonte
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c` do Kof 0.5.0-beta; o arquivo de
+  release anterior da mesma versão antecede o suporte nativo a `Buffer(U8)`.
+  A procedência do pacote agora registra o commit de fonte do Kof, o SHA-256 da
+  distribuição e o SHA-256 do JAR do compilador.
+- Adicionamos reduções verificadas de bytes sem sinal aos caminhos AVX2, SSE2,
+  NEON e escalar, além da entrada FFI Kof limitada
+  `kookie_simd_sum_u8_buffer`. A sonda C cobre entrada vazia e limites de cauda
+  de vetor pelas rotas selecionada e escalar forçada.
+- Adicionamos um benchmark de `Buffer(U8)` de 1 MiB pertencente ao Kof, com
+  paridade JVM/nativo e medição de rota por 64 rodadas. No host Intel Arrow
+  Lake-P registrado, a redução escalar Kof nativa levou 233.350.224 ns e a rota
+  AVX2 levou 1.073.834 ns (217,3x somente para essa carga).
+- Arquivos Linux nativos e de apresentação agora incluem
+  `kookie-simd-bench`, sua biblioteca de dispatch independente de gráficos e
+  cobertura no smoke do pacote. Isso encerra o pré-requisito de
+  ABI/benchmark representativo, não a integração no gameplay de produção nem
+  uma afirmação geral de velocidade da engine.
+
 ### Conclusão limitada de G5 e robustez de release
 
 - Atualizamos todos os gates de release e CI para o Kof `0.5.0-beta` exato,

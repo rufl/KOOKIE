@@ -2,6 +2,7 @@
 #define KOOKIE_TRANSPORT_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 bool kookie_transport_select_slot(int slot);
 bool kookie_transport_set_key(
@@ -43,6 +44,7 @@ bool kookie_transport_close(void);
 
 bool kookie_headless_measure_begin(void);
 int kookie_headless_measure_elapsed_microseconds(void);
+int64_t kookie_headless_monotonic_nanoseconds(void);
 int kookie_headless_rss_kib(void);
 bool kookie_headless_sleep_microseconds(int microseconds);
 int kookie_headless_requested_ticks(void);

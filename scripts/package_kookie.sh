@@ -11,8 +11,10 @@ BUILD_ID="${KOOKIE_BUILD_ID:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}"
 OUTPUT_DIR="${KOOKIE_OUTPUT_DIR:-$ROOT_DIR/release}"
 PROVENANCE_SCHEMA="${KOOKIE_PACKAGE_PROVENANCE_SCHEMA:-kookie.package-provenance/v2}"
 SIGNING_KEY="${KOOKIE_SIGNING_KEY:-}"
-KOF_ARCHIVE_SHA256="${KOOKIE_KOF_ARCHIVE_SHA256:-f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9}"
+KOF_ARCHIVE_SHA256="${KOOKIE_KOF_ARCHIVE_SHA256:-}"
+KOF_SOURCE_COMMIT="${KOOKIE_KOF_SOURCE_COMMIT:-}"
 EXPECTED_KOF_VERSION="${KOOKIE_EXPECTED_KOF_VERSION:-kof 0.5.0-beta}"
+EXPECTED_KOF_SOURCE_COMMIT="${KOOKIE_EXPECTED_KOF_SOURCE_COMMIT:-bf17ac7e736471c8a04b4153e5b0f607be75e70c}"
 
 usage() {
   cat <<'EOF'
@@ -23,8 +25,11 @@ signature set, and SHA256SUMS. Native Linux packages contain the Kof executable
 and use the host's system runtime. Presentation packages contain the persistent
 native Kof SDL_GPU application, SDL3, SDL_mixer, the adapter, and shaders.
 Every Linux package also contains a graphics-free Kof dedicated workload server
-with native timing and RSS telemetry. Windows packages contain the native SDL3
-and SDL_mixer game shell. Java runtimes are deliberately excluded.
+and a Kof `Buffer(U8)` SIMD benchmark with native timing. Windows packages
+contain the native SDL3 and SDL_mixer game shell. Java runtimes are deliberately
+excluded.
+Set `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to the
+verified distribution used for the build.
 EOF
 }
 
@@ -69,6 +74,7 @@ command -v sha256sum >/dev/null || { echo 'package_kookie: sha256sum is required
 command -v openssl >/dev/null || { echo 'package_kookie: openssl is required' >&2; exit 2; }
 command -v stat >/dev/null || { echo 'package_kookie: stat is required' >&2; exit 2; }
 command -v git >/dev/null || { echo 'package_kookie: git is required' >&2; exit 2; }
+command -v readlink >/dev/null || { echo 'package_kookie: readlink is required' >&2; exit 2; }
 command -v kof >/dev/null || { echo 'package_kookie: kof is required' >&2; exit 2; }
 ACTUAL_KOF_VERSION="$(kof version 2>/dev/null)" || {
   echo 'package_kookie: unable to read the Kof toolchain version' >&2
@@ -79,6 +85,23 @@ ACTUAL_KOF_VERSION="$(kof version 2>/dev/null)" || {
     "$EXPECTED_KOF_VERSION" "$ACTUAL_KOF_VERSION" >&2
   exit 2
 }
+[[ "$KOF_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || {
+  echo 'package_kookie: KOOKIE_KOF_ARCHIVE_SHA256 must identify the verified Kof distribution' >&2
+  exit 2
+}
+[[ "$KOF_SOURCE_COMMIT" == "$EXPECTED_KOF_SOURCE_COMMIT" ]] || {
+  printf 'package_kookie: expected Kof source commit %s; found %s\n' \
+    "$EXPECTED_KOF_SOURCE_COMMIT" "${KOF_SOURCE_COMMIT:-unset}" >&2
+  exit 2
+}
+KOF_LAUNCHER="$(readlink -f "$(command -v kof)")"
+KOF_HOME="$(dirname "$(dirname "$KOF_LAUNCHER")")"
+KOF_COMPILER_JAR="$KOF_HOME/lib/kof.jar"
+[[ -f "$KOF_COMPILER_JAR" ]] || {
+  echo "package_kookie: installed compiler jar missing: $KOF_COMPILER_JAR" >&2
+  exit 2
+}
+KOF_COMPILER_SHA256="$(sha256sum "$KOF_COMPILER_JAR" | cut -d ' ' -f 1)"
 [[ -n "$SIGNING_KEY" && -f "$SIGNING_KEY" && ! -L "$SIGNING_KEY" ]] || {
   echo 'package_kookie: KOOKIE_SIGNING_KEY must name a regular Ed25519 private key' >&2
   exit 2
@@ -263,6 +286,41 @@ EOF
   chmod 755 "$PACKAGE_ROOT/kookie-server"
 }
 
+bundle_linux_simd_benchmark() {
+  local benchmark_root="$WORK_DIR/simd-benchmark-source"
+  local benchmark_build="$WORK_DIR/simd-benchmark-build"
+  mkdir -p "$benchmark_root/lib"
+  cp -- "$ROOT_DIR/apps/simd_benchmark/main.kf" "$benchmark_root/main.kf"
+  cc -std=c11 -Wall -Wextra -Werror -O3 -fPIC -shared \
+    -I"$ROOT_DIR/native" "$ROOT_DIR/native/kookie_simd_dispatch.c" \
+    -o "$benchmark_root/lib/libkookie_simd_dispatch.so"
+  cp -- "$PACKAGE_ROOT/lib/libkookie_headless_adapter.so" \
+    "$benchmark_root/lib/libkookie_headless_adapter.so"
+  (cd "$benchmark_root" && kof build main.kf --target native \
+    --output "$benchmark_build" >/dev/null)
+  local benchmark_binary="$benchmark_build/Default/Main"
+  test -x "$benchmark_binary" || {
+    echo "package_kookie: SIMD benchmark executable missing: $benchmark_binary" >&2
+    exit 1
+  }
+  cp -- "$benchmark_binary" "$PACKAGE_ROOT/kookie-simd-bench.bin"
+  cp -- "$benchmark_root/lib/libkookie_simd_dispatch.so" \
+    "$PACKAGE_ROOT/lib/libkookie_simd_dispatch.so"
+  chmod 755 "$PACKAGE_ROOT/kookie-simd-bench.bin"
+  cat > "$PACKAGE_ROOT/kookie-simd-bench" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ "$#" -ne 0 ]; then
+  echo "Usage: kookie-simd-bench" >&2
+  exit 2
+fi
+cd "$root"
+exec ./kookie-simd-bench.bin
+EOF
+  chmod 755 "$PACKAGE_ROOT/kookie-simd-bench"
+}
+
 if [[ "$TARGET" == windows-x86_64 ]]; then
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -s -Wl,/subsystem:windows \
@@ -325,6 +383,7 @@ else
 fi
 if [[ "$TARGET" == linux-x86_64 ]]; then
   bundle_linux_server
+  bundle_linux_simd_benchmark
 fi
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
 if [[ "$TARGET" == windows-x86_64 ]]; then
@@ -346,6 +405,8 @@ source_commit=$SOURCE_COMMIT
 source_tree_state=$SOURCE_TREE_STATE
 kof_version=$KOF_TOOLCHAIN_VERSION
 kof_archive_sha256=$KOF_ARCHIVE_SHA256
+kof_source_commit=$KOF_SOURCE_COMMIT
+kof_compiler_sha256=$KOF_COMPILER_SHA256
 release_signing=ed25519
 release_public_key_sha256=$PUBLIC_KEY_SHA256
 license_status=MIT
@@ -355,6 +416,7 @@ sdl_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] &&
 sdl_mixer_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.2.4 || echo not-bundled)
 runtime_dependencies=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo SDL3+SDL_mixer || echo system-only)
 dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
+simd_benchmark=$([[ "$TARGET" == linux-x86_64 ]] && echo kof-buffer-u8-runtime-dispatch || echo unavailable)
 crash_durable_save=staged-validated-fsync-rename-directory-fsync
 replay_admission=identity-bound-checksummed-v3
 EOF
@@ -375,13 +437,14 @@ cp -- "$PUBLIC_KEY_WORK" "$PUBLIC_KEY"
 python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$BASE_URL" "$PROVENANCE_SCHEMA" "$RUNTIME" "$SOURCE_COMMIT" \
   "$SOURCE_TREE_STATE" "$KOF_TOOLCHAIN_VERSION" "$KOF_ARCHIVE_SHA256" \
+  "$KOF_SOURCE_COMMIT" "$KOF_COMPILER_SHA256" \
   "$PUBLIC_KEY_SHA256" "$(basename "$PUBLIC_KEY")" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
 (target, version, build_id, base_url, schema, runtime, source_commit,
- source_tree_state, kof_version, kof_archive_sha256, public_key_sha256,
- public_key_name) = sys.argv[3:15]
+ source_tree_state, kof_version, kof_archive_sha256, kof_source_commit,
+ kof_compiler_sha256, public_key_sha256, public_key_name) = sys.argv[3:17]
 encoded = f"{base_url.rstrip('/')}/dogfood/{version}/{target}/{build_id}"
 manifest = {
     "schema": schema,
@@ -395,10 +458,13 @@ manifest = {
     "source_tree_state": source_tree_state,
     "kof_version": kof_version,
     "kof_archive_sha256": kof_archive_sha256,
+    "kof_source_commit": kof_source_commit,
+    "kof_compiler_sha256": kof_compiler_sha256,
     "archive": archive.name,
     "size": archive.stat().st_size,
     "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
     "dedicated_server": target == "linux-x86_64",
+    "simd_benchmark": target == "linux-x86_64",
     "signing": "ed25519",
     "proof": "ed25519-signature-set",
     "signature_encoding": "binary",
