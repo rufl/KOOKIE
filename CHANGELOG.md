@@ -17,6 +17,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   archives now include the native Kof cooker; package smoke checks
   canonicalization, idempotent reopen, malformed-input rejection and absence
   of graphics dependencies outside the checkout.
+- Fixed the JVM developer launcher's lifecycle so its temporary module tree is
+  removed after both successful and rejected commands instead of leaking under
+  `/tmp`.
 
 ### Bounded standalone PNG image intake
 

@@ -18,6 +18,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   nativo; o smoke do pacote verifica normalização, reabertura idempotente,
   rejeição de entrada malformada e ausência de dependências gráficas fora do
   checkout.
+- Corrigimos o ciclo de vida do launcher JVM de desenvolvimento para remover
+  sua árvore temporária de módulos após comandos aceitos e rejeitados, em vez
+  de deixá-la em `/tmp`.
 
 ### Entrada limitada de imagens PNG independentes
 

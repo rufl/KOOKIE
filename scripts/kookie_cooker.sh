@@ -21,4 +21,4 @@ for source_file in "$ROOT_DIR"/src/content/*.kf; do
 done
 ln -s "$ROOT_DIR/apps/creator_cooker/main.kf" "$WORK_DIR/main.kf"
 
-exec kof run "$WORK_DIR/main.kf" --target jvm "$@"
+kof run "$WORK_DIR/main.kf" --target jvm "$@"
