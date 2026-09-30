@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 command -v cc >/dev/null || { echo "cc is required" >&2; exit 1; }
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 
-WORK_DIR="$(mktemp -d "$ROOT_DIR/build/g5-durable-save.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-durable-save.XXXXXX")"
 cleanup() {
   rm -rf "$WORK_DIR"
 }
