@@ -627,24 +627,34 @@ ficam fora deste gate.
 
 ### G5 — Escala e lançamento
 
-O slice limitado no Linux agora usa os mesmos módulos de passo fixo, inimigos,
-projéteis e loot em um servidor sem gráficos. Ele pré-aloca 64 inimigos,
-256 projéteis e 512 itens; os orçamentos móveis de IA/projéteis/itens continuam
-16/64/128. Tempo nativo e RSS vêm do adaptador independente de
-transporte/headless autenticado, não do SDL. Um contrato dedicado de mensagens
-admite gerações de clientes com conteúdo compatível, rejeita solicitações e
-snapshots obsoletos, publica contagens/orçamentos/checksum/assinatura de recursos
-e exige nova troca de compatibilidade antes da reconexão. O gate nativo focado
-executa um host e dois clientes por desconexão/reconexão em UDP na mesma
-máquina.
+O gate Linux limitado concluído usa os mesmos módulos de passo fixo, colisão
+criada por autoria, inimigos, projéteis e loot no servidor sem gráficos. A cena
+de referência contém 192 vértices, 64 triângulos, 64 inimigos,
+256 projéteis móveis, 512 itens, 24 luzes dinâmicas e 64 efeitos. Os orçamentos
+móveis de IA/projéteis/itens continuam 16/64/128.
 
-O subconjunto headless sem colisão atende à meta p95 de simulação de 4 ms tanto
-na execução curta quanto em uma execução ritmada por 30 minutos; nessa execução,
-o RSS ficou em uma faixa de 128 KiB e a assinatura lógica de recursos
-permaneceu estável. G5 ainda exige a cena média criada manualmente e a carga
-remota completa por tick, repetir ali a qualificação de desempenho/recursos,
-renderização/batching/instancing em 1080p, robustez de migração/replay e
-qualificação de release de reconexão/sessão em produção.
+A amostra nativa focada mediu p50/p95/p99/máximo de simulação em
+1,518/1,623/1,717/1,757 ms. Uma execução ritmada de 30 minutos mediu
+108.000 ticks após 600 de aquecimento em 2,489/3,202/3,721/23,645 ms; o RSS
+ficou em uma faixa de 128 KiB em 181 amostras e a assinatura de recursos
+`520690` permaneceu estável. Um host autenticado na mesma máquina mais dois
+clientes replicam o estado completo a cada tick, montam quatro chunks de forma
+transacional, rejeitam estado obsoleto/adulterado e recuperam o cliente B na
+geração 2.
+
+A fronteira SDL_GPU prepara 2.952 atributos de vértice como 984 instâncias de
+triângulo em hardware em um draw. No dispositivo Vulkan 26.2.3 Intel Arrow
+Lake registrado, 600 frames em 1920×1080 mediram p50/p95/p99/máximo de envio em
+0,304/0,645/0,845/1,089 ms. O readback 320×240 retido tem SHA-256
+`20b37c94927b04689071200346f1e98f3498ce6408697bae697535773f15f5d4`.
+
+Publicação de save staged durável contra crash, migrações em várias etapas,
+replay v3 vinculado à identidade e com checksum, guardas contra rollback na
+reconexão e pacotes de árvore limpa assinados com Ed25519 encerram o contrato
+de robustez de release. G5 está completo para essa carga Linux x86-64 limitada.
+Transporte na mesma máquina, um alvo de hardware registrado e populações fixas
+não comprovam desempenho WAN/em várias máquinas, multiplataforma ou em escala
+arbitrária.
 
 ### G6 — Expansão
 

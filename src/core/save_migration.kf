@@ -47,7 +47,8 @@ class BoundedSaveMigrationGate {
     }
 
     Bool migrate(BoundedSaveSections source, BoundedSaveSections target) {
-        if (!accepts(source) || source.revision() < 0) {
+        if (!accepts(source) || source.revision() < 0 ||
+            (target.revision() >= 0 && source.revision() <= target.revision())) {
             return false
         }
         var staged = BoundedSaveSections(12, 160)
@@ -59,16 +60,21 @@ class BoundedSaveMigrationGate {
             var sourceVersion = source.sectionVersion(index)
             var targetVersion = currentVersionFor(sectionId)
             var sourceLength = source.sectionLength(index)
-            var targetLength = sourceLength
-            if (sourceVersion < targetVersion) {
-                targetLength = sourceLength + 1
+            var migrationSteps = targetVersion - sourceVersion
+            if (sectionId != 2 && sectionId != 3) {
+                migrationSteps = 0
+            }
+            var targetLength = sourceLength + migrationSteps
+            if (migrationSteps < 0 || targetLength > 160) {
+                return false
             }
             var payload = new Int[targetLength]
             for (var valueIndex = 0; valueIndex < sourceLength; valueIndex = valueIndex + 1) {
                 payload[valueIndex] = source.sectionValue(index, valueIndex)
             }
-            if (targetLength > sourceLength) {
-                payload[targetLength - 1] = 0
+            for (var valueIndex = sourceLength; valueIndex < targetLength;
+                valueIndex = valueIndex + 1) {
+                payload[valueIndex] = 0
             }
             if (!staged.put(sectionId, targetVersion, payload)) {
                 return false

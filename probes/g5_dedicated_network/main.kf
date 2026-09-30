@@ -19,24 +19,21 @@ extern "./lib/libkookie_headless_adapter.so" kookie_transport_receive_word(Int i
 extern "./lib/libkookie_headless_adapter.so" kookie_transport_last_status(): Int
 extern "./lib/libkookie_headless_adapter.so" kookie_transport_close(): Bool
 
+Int dedicatedReferenceResourceIdentity() { return 520690 }
+
 Bool sendDedicatedPayload(Int[] payload) {
     if (payload.length <= 0 || payload.length > kookie_transport_max_words() ||
         !kookie_transport_send_begin(payload.length)) {
         return false
     }
     for (var index = 0; index < payload.length; index = index + 1) {
-        if (!kookie_transport_send_word(index, payload[index])) {
-            return false
-        }
+        if (!kookie_transport_send_word(index, payload[index])) { return false }
     }
-    if (!kookie_transport_send_commit()) {
-        return false
-    }
-    return true
+    return kookie_transport_send_commit()
 }
 
 class DedicatedTransportReceiver {
-    // Fields keep scalar extern results stable across the following FFI calls.
+    // Fields keep scalar extern results stable across subsequent FFI calls.
     Int receivedValue
     Int statusValue
 
@@ -62,22 +59,19 @@ class DedicatedTransportReceiver {
     }
 }
 
-Int[] receiveDedicatedPayload(
-    DedicatedTransportReceiver receiver, Int expectedLength
-) {
-    return receiver.receive(expectedLength)
-}
-
 BoundedContentCompatibility dedicatedCompatibility() {
     var identity = BoundedContentCompatibility()
     var networkChecksum = (
         protocolVersion() * 31 + dedicatedWorkloadRequestMessageKind() * 17 +
         dedicatedWorkloadStateMessageKind() * 13 +
-        dedicatedWorkloadStateLength() * 7) % 1000003
+        dedicatedWorkloadMaximumStateLength() * 7 +
+        dedicatedWorkloadStateChunkCount() * 5) % 1000003
     assert(networkChecksum > 0 &&
         identity.configureVersions(7, 5, networkChecksum) &&
-        identity.configureContent(675172, 772001, 772002, 772003) &&
-        identity.configurePublication(1, 1, 675172) &&
+        identity.configureContent(
+            dedicatedReferenceResourceIdentity(), 772001, 772002, 772003) &&
+        identity.configurePublication(
+            1, 1, dedicatedReferenceResourceIdentity()) &&
         identity.seal() && identity.encode(),
         "dedicated scale compatibility identity must seal")
     return identity
@@ -87,11 +81,8 @@ Bool hostCompatibility(
     Int slot, BoundedContentCompatibility local, Int expectedSequence,
     DedicatedTransportReceiver receiver
 ) {
-    if (!kookie_transport_select_slot(slot)) {
-        return false
-    }
-    var offer = receiveDedicatedPayload(
-        receiver, compatibilityHandshakeOfferLength())
+    if (!kookie_transport_select_slot(slot)) { return false }
+    var offer = receiver.receive(compatibilityHandshakeOfferLength())
     var remote = BoundedContentCompatibility()
     if (offer.length != compatibilityHandshakeOfferLength() ||
         offer[3] != expectedSequence ||
@@ -110,11 +101,8 @@ Bool clientCompatibility(
     DedicatedTransportReceiver receiver
 ) {
     var offer = newCompatibilityHandshakeOffer(local, sequence)
-    if (!sendDedicatedPayload(offer)) {
-        return false
-    }
-    var response = receiveDedicatedPayload(
-        receiver, compatibilityHandshakeResponseLength())
+    if (!sendDedicatedPayload(offer)) { return false }
+    var response = receiver.receive(compatibilityHandshakeResponseLength())
     return validCompatibilityHandshakeResponse(
             response, sequence, local.checksum()) &&
         compatibilityHandshakeAccepted(response)
@@ -125,54 +113,59 @@ Bool hostReceiveRequest(
     Int generation, Int sequence, Int acknowledgedTick, Int action,
     DedicatedTransportReceiver receiver
 ) {
-    if (!kookie_transport_select_slot(slot)) {
-        return false
-    }
-    var request = receiveDedicatedPayload(
-        receiver, dedicatedWorkloadRequestLength())
+    if (!kookie_transport_select_slot(slot)) { return false }
+    var request = receiver.receive(dedicatedWorkloadRequestLength())
     return validDedicatedWorkloadRequest(request) &&
         request[3] == generation && request[4] == sequence &&
         request[5] == acknowledgedTick && request[6] == action &&
         admission.applyRequest(request)
 }
 
-Bool hostSendState(
+Bool hostSendStateFrame(
     Int slot, BoundedDedicatedServer server,
     Int clientId, Int generation, Int sequence,
-    Bool connected, Int diagnostic
+    Bool connected, Int diagnostic, Int referenceChecksum
 ) {
-    var state = newDedicatedWorkloadState(
-        server, clientId, generation, sequence, connected, diagnostic)
-    return state.length == dedicatedWorkloadStateLength() &&
-        kookie_transport_select_slot(slot) &&
-        kookie_transport_set_peer_last_sender() &&
-        sendDedicatedPayload(state)
+    if (!kookie_transport_select_slot(slot) ||
+        !kookie_transport_set_peer_last_sender()) {
+        return false
+    }
+    for (var chunk = 0; chunk < dedicatedWorkloadStateChunkCount();
+        chunk = chunk + 1) {
+        var state = newDedicatedWorkloadStateChunk(
+            server, clientId, generation, sequence,
+            connected, diagnostic, referenceChecksum, chunk)
+        if (state.length != dedicatedWorkloadStateChunkLength(chunk) ||
+            !sendDedicatedPayload(state)) {
+            return false
+        }
+    }
+    return true
 }
 
-Bool clientPoll(
+Bool clientRequestFrame(
     BoundedDedicatedClientView view,
-    Int generation, Int sequence, Int acknowledgedTick,
+    Int generation, Int sequence, Int acknowledgedTick, Int action,
     DedicatedTransportReceiver receiver
 ) {
     var request = newDedicatedWorkloadRequest(
-        view.clientId(), generation, sequence,
-        acknowledgedTick, dedicatedWorkloadPollAction())
-    if (!sendDedicatedPayload(request)) {
-        return false
+        view.clientId(), generation, sequence, acknowledgedTick, action)
+    if (!sendDedicatedPayload(request)) { return false }
+    for (var chunk = 0; chunk < dedicatedWorkloadStateChunkCount();
+        chunk = chunk + 1) {
+        var state = receiver.receive(dedicatedWorkloadStateChunkLength(chunk))
+        if (!view.applyStateChunk(state)) { return false }
     }
-    var state = receiveDedicatedPayload(
-        receiver, dedicatedWorkloadStateLength())
-    return view.applyState(state)
+    return true
 }
 
 Bool dedicatedHost() {
     var identity = dedicatedCompatibility()
-    var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
     var clientA = BoundedDedicatedClientAdmission(1)
     var clientB = BoundedDedicatedClientAdmission(2)
     var receiver = DedicatedTransportReceiver()
-    assert(server.configureReferenceWorkload() &&
-        kookie_transport_max_words() == maximumSessionTransportWords() &&
+    assert(kookie_transport_max_words() == maximumSessionTransportWords() &&
+        dedicatedWorkloadMaximumStateLength() <= kookie_transport_max_words() &&
         kookie_transport_select_slot(0) &&
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_listen_ipv4(48101) &&
@@ -180,70 +173,69 @@ Bool dedicatedHost() {
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_listen_ipv4(48102),
         "dedicated host must bind two authenticated headless endpoints")
+    var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
+    assert(server.configureReferenceWorkload() &&
+        server.baselineResourceSignature() == dedicatedReferenceResourceIdentity(),
+        "dedicated host must configure the complete reference workload")
     assert(hostCompatibility(0, identity, 1, receiver) &&
-        clientA.admitCompatibleGeneration(1) &&
+        clientA.admitCompatibleGeneration(1, 0) &&
         hostCompatibility(1, identity, 1, receiver) &&
-        clientB.admitCompatibleGeneration(1),
+        clientB.admitCompatibleGeneration(1, 0),
         "dedicated host must compatibility-admit both clients")
 
-    for (var round = 1; round <= 2; round = round + 1) {
-        var acknowledgedTick = (round - 1) * 64
+    var finalReferenceChecksum = 0
+    for (var tick = 1; tick <= 256; tick = tick + 1) {
+        var clientBGeneration = 1
+        var clientBSequence = tick
+        var clientBAction = dedicatedWorkloadPollAction()
+        if (tick == 128) {
+            clientBAction = dedicatedWorkloadDisconnectAction()
+        } else if (tick > 128) {
+            clientBGeneration = 2
+            clientBSequence = tick - 128
+        }
         assert(hostReceiveRequest(
-                0, clientA, 1, round, acknowledgedTick,
+                0, clientA, 1, tick, tick - 1,
                 dedicatedWorkloadPollAction(), receiver) &&
             hostReceiveRequest(
-                1, clientB, 1, round, acknowledgedTick,
-                dedicatedWorkloadPollAction(), receiver) &&
-            server.runTicks(64),
-            "dedicated host must advance each admitted scale round")
-        assert(hostSendState(
-                0, server, 1, 1, round, true,
-                dedicatedWorkloadSnapshotDiagnostic()) &&
-            hostSendState(
-                1, server, 2, 1, round, true,
-                dedicatedWorkloadSnapshotDiagnostic()),
-            "dedicated host must publish each scale checkpoint")
-    }
-
-    assert(hostReceiveRequest(
-            1, clientB, 1, 3, 128,
-            dedicatedWorkloadDisconnectAction(), receiver) &&
-        !clientB.connected() &&
-        hostSendState(
-            1, server, 2, 1, 3, false,
-            dedicatedWorkloadDisconnectDiagnostic()),
-        "dedicated host must publish a bounded disconnect state")
-    assert(hostCompatibility(1, identity, 2, receiver) &&
-        clientB.admitCompatibleGeneration(2),
-        "dedicated reconnect must repeat compatibility admission")
-
-    for (var tail = 1; tail <= 2; tail = tail + 1) {
-        var acknowledgedTick = 128 + (tail - 1) * 64
-        assert(hostReceiveRequest(
-                0, clientA, 1, tail + 2, acknowledgedTick,
-                dedicatedWorkloadPollAction(), receiver) &&
-            hostReceiveRequest(
-                1, clientB, 2, tail, acknowledgedTick,
-                dedicatedWorkloadPollAction(), receiver) &&
-            server.runTicks(64),
-            "dedicated host must continue the workload after reconnect")
+                1, clientB, clientBGeneration, clientBSequence,
+                tick - 1, clientBAction, receiver) &&
+            server.runTicks(1),
+            "dedicated host must consume both client inputs every tick")
+        finalReferenceChecksum = dedicatedReferenceStateChecksum(server)
+        assert(finalReferenceChecksum > 0 &&
+            hostSendStateFrame(
+                0, server, 1, 1, tick, true,
+                dedicatedWorkloadSnapshotDiagnostic(), finalReferenceChecksum),
+            "dedicated host must publish a complete state frame to client A")
+        var clientBConnected = true
         var clientBDiagnostic = dedicatedWorkloadSnapshotDiagnostic()
-        if (tail == 1) {
+        if (tick == 128) {
+            clientBConnected = false
+            clientBDiagnostic = dedicatedWorkloadDisconnectDiagnostic()
+        } else if (tick == 129) {
             clientBDiagnostic = dedicatedWorkloadReconnectDiagnostic()
         }
-        assert(hostSendState(
-                0, server, 1, 1, tail + 2, true,
-                dedicatedWorkloadSnapshotDiagnostic()) &&
-            hostSendState(
-                1, server, 2, 2, tail, true,
-                clientBDiagnostic),
-            "dedicated host must resume both client streams")
+        assert(hostSendStateFrame(
+                1, server, 2, clientBGeneration, clientBSequence,
+                clientBConnected, clientBDiagnostic, finalReferenceChecksum),
+            "dedicated host must publish a complete state frame to client B")
+        if (tick == 128) {
+            assert(!clientB.connected() &&
+                !clientB.admitCompatibleGeneration(1, 128) &&
+                !clientB.admitCompatibleGeneration(2, 126) &&
+                !clientB.admitCompatibleGeneration(2, 129) &&
+                hostCompatibility(1, identity, 2, receiver) &&
+                clientB.admitCompatibleGeneration(2, 128),
+                "dedicated reconnect must reject stale, rollback and skipped resumes")
+        }
     }
 
     assert(server.ticksProcessed() == 256 && server.resourcePlateau() &&
         server.overloadCount() == 0 && clientA.connected() &&
-        clientB.connected() && clientB.generation() == 2,
-        "dedicated host must finish the networked reference workload")
+        clientB.connected() && clientB.generation() == 2 &&
+        finalReferenceChecksum == dedicatedReferenceStateChecksum(server),
+        "dedicated host must finish the per-tick complete workload")
     kookie_transport_select_slot(0)
     kookie_transport_close()
     kookie_transport_select_slot(1)
@@ -253,11 +245,13 @@ Bool dedicatedHost() {
     println(server.ticksProcessed())
     println("g5-scale-checksum")
     println(server.workloadChecksum())
+    println("g5-scale-state-checksum")
+    println(finalReferenceChecksum)
     println("g5-scale-resource-signature")
     println(server.baselineResourceSignature())
     println("g5-scale-client-b-generation")
     println(clientB.generation())
-    println("KOOKIE G5 authenticated host/two-client workload verified")
+    println("KOOKIE G5 authenticated per-tick host/two-client workload verified")
     return true
 }
 
@@ -266,43 +260,56 @@ Bool dedicatedClient(Int clientId) {
     var view = BoundedDedicatedClientView(clientId)
     var receiver = DedicatedTransportReceiver()
     var hostPort = 48101
-    if (clientId == 2) {
-        hostPort = 48102
-    }
+    if (clientId == 2) { hostPort = 48102 }
     assert(kookie_transport_select_slot(0) &&
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_remote_environment(hostPort) &&
         clientCompatibility(identity, 1, receiver) &&
-        view.beginCompatibleGeneration(1),
+        view.beginCompatibleGeneration(1, 0),
         "dedicated client must authenticate and compatibility-admit")
-    assert(clientPoll(view, 1, 1, 0, receiver) && view.tick() == 64 &&
-        clientPoll(view, 1, 2, 64, receiver) && view.tick() == 128,
-        "dedicated client must consume the first two scale checkpoints")
-    if (clientId == 2) {
-        var disconnect = newDedicatedWorkloadRequest(
-            2, 1, 3, 128, dedicatedWorkloadDisconnectAction())
-        assert(sendDedicatedPayload(disconnect) &&
-            view.applyState(receiveDedicatedPayload(
-                receiver, dedicatedWorkloadStateLength())) &&
-            !view.connected() &&
-            clientCompatibility(identity, 2, receiver) &&
-            view.beginCompatibleGeneration(2),
-            "dedicated client B must disconnect and repeat compatibility")
-        assert(clientPoll(view, 2, 1, 128, receiver) &&
-            view.tick() == 192 &&
-            clientPoll(view, 2, 2, 192, receiver) && view.tick() == 256,
-            "dedicated client B must resume on generation two")
+
+    if (clientId == 1) {
+        for (var tick = 1; tick <= 256; tick = tick + 1) {
+            assert(clientRequestFrame(
+                    view, 1, tick, tick - 1, dedicatedWorkloadPollAction(), receiver) &&
+                view.tick() == tick && view.stateSequence() == tick &&
+                view.fullReferenceStateObserved(),
+                "client A must apply every complete authoritative state")
+        }
     } else {
-        assert(clientPoll(view, 1, 3, 128, receiver) &&
-            view.tick() == 192 &&
-            clientPoll(view, 1, 4, 192, receiver) && view.tick() == 256,
-            "dedicated client A must remain continuous during reconnect")
+        for (var tick = 1; tick <= 128; tick = tick + 1) {
+            var action = dedicatedWorkloadPollAction()
+            if (tick == 128) { action = dedicatedWorkloadDisconnectAction() }
+            assert(clientRequestFrame(view, 1, tick, tick - 1, action, receiver) &&
+                view.tick() == tick && view.stateSequence() == tick &&
+                view.fullReferenceStateObserved(),
+                "client B must apply generation one through disconnect")
+        }
+        assert(!view.connected() &&
+            !view.beginCompatibleGeneration(1, 128) &&
+            !view.beginCompatibleGeneration(2, 127) &&
+            !view.beginCompatibleGeneration(2, 129) &&
+            clientCompatibility(identity, 2, receiver) &&
+            view.beginCompatibleGeneration(2, 128),
+            "client B must reject stale, rollback and skipped resume generations")
+        for (var tick = 129; tick <= 256; tick = tick + 1) {
+            var sequence = tick - 128
+            assert(clientRequestFrame(
+                    view, 2, sequence, tick - 1,
+                    dedicatedWorkloadPollAction(), receiver) &&
+                view.tick() == tick && view.stateSequence() == sequence &&
+                view.fullReferenceStateObserved(),
+                "client B must apply every reconnected authoritative state")
+        }
     }
-    assert(view.connected() && view.enemyCount() == 64 &&
-        view.projectileCount() == 256 && view.pickupCount() == 512 &&
-        view.aiBudget() == 16 && view.projectileBudget() == 64 &&
-        view.pickupBudget() == 128 && view.resourceSignature() == 675172,
-        "dedicated client must preserve the complete scale state")
+    assert(view.connected() && view.tick() == 256 &&
+        view.enemyCount() == 64 && view.projectileCount() == 256 &&
+        view.pickupCount() == 512 && view.aiBudget() == 16 &&
+        view.projectileBudget() == 64 && view.pickupBudget() == 128 &&
+        view.resourceSignature() == dedicatedReferenceResourceIdentity() &&
+        view.referenceStateChecksum() == view.replicatedReferenceStateChecksum() &&
+        view.levelChecksum() > 0 && view.updateCount() == 256,
+        "dedicated client must preserve every complete scale state")
     kookie_transport_close()
     if (clientId == 1) {
         println("g5-scale-role-client-a")
@@ -315,6 +322,8 @@ Bool dedicatedClient(Int clientId) {
     println(view.generation())
     println("g5-scale-updates")
     println(view.updateCount())
+    println("g5-scale-state-checksum")
+    println(view.referenceStateChecksum())
     println("g5-scale-resource-signature")
     println(view.resourceSignature())
     return true

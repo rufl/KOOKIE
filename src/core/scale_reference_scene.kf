@@ -1,0 +1,228 @@
+package core
+
+class BoundedScaleReferenceScene {
+    BoundedAuthoredCollision authored
+    BoundedTriangleCollection collision
+    Int[] lightXs
+    Int[] lightYs
+    Int[] lightZs
+    Int[] lightIntensities
+    Int[] effectXs
+    Int[] effectYs
+    Int[] effectZs
+    Int[] effectFrames
+    Int lightCursor
+    Int effectCursor
+    Int dynamicChecksumValue
+    Bool readyValue
+
+    public constructor() {
+        authored = BoundedAuthoredCollision(192, 64)
+        collision = BoundedTriangleCollection(64, 256)
+        lightXs = new Int[24]
+        lightYs = new Int[24]
+        lightZs = new Int[24]
+        lightIntensities = new Int[24]
+        effectXs = new Int[64]
+        effectYs = new Int[64]
+        effectZs = new Int[64]
+        effectFrames = new Int[64]
+        lightCursor = 0
+        effectCursor = 0
+        dynamicChecksumValue = 0
+        readyValue = build()
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Bool appendTriangle(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int surface
+    ) {
+        var base = authored.vertexCount()
+        return authored.addVertex(ax, ay, az) &&
+            authored.addVertex(bx, by, bz) &&
+            authored.addVertex(cx, cy, cz) &&
+            authored.addTriangle(base, base + 1, base + 2, surface)
+    }
+
+    Bool appendQuad(
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int dx, Int dy, Int dz,
+        Int surface
+    ) {
+        return appendTriangle(
+                ax, ay, az, bx, by, bz, cx, cy, cz, surface) &&
+            appendTriangle(
+                ax, ay, az, cx, cy, cz, dx, dy, dz, surface)
+    }
+
+    Bool build() {
+        if (!authored.configure(
+                505, 5005, 1, 1, 100,
+                0, 0, 0, 128, 24, 128)) {
+            return false
+        }
+        for (var row = 0; row < 4; row = row + 1) {
+            for (var column = 0; column < 4; column = column + 1) {
+                var x = column * 32
+                var z = row * 32
+                if (!appendQuad(
+                        x, 0, z, x + 32, 0, z,
+                        x + 32, 0, z + 32, x, 0, z + 32,
+                        1 + ((row + column) % 2))) {
+                    return false
+                }
+            }
+        }
+        if (!appendQuad(0, 0, 0, 64, 0, 0, 64, 24, 0, 0, 24, 0, 3) ||
+            !appendQuad(64, 0, 0, 128, 0, 0, 128, 24, 0, 64, 24, 0, 3) ||
+            !appendQuad(128, 0, 0, 128, 0, 64, 128, 24, 64, 128, 24, 0, 4) ||
+            !appendQuad(128, 0, 64, 128, 0, 128, 128, 24, 128, 128, 24, 64, 4) ||
+            !appendQuad(128, 0, 128, 64, 0, 128, 64, 24, 128, 128, 24, 128, 5) ||
+            !appendQuad(64, 0, 128, 0, 0, 128, 0, 24, 128, 64, 24, 128, 5) ||
+            !appendQuad(0, 0, 128, 0, 0, 64, 0, 24, 64, 0, 24, 128, 6) ||
+            !appendQuad(0, 0, 64, 0, 0, 0, 0, 24, 0, 0, 24, 64, 6)) {
+            return false
+        }
+        if (!appendQuad(48, 8, 48, 64, 8, 48, 64, 8, 64, 48, 8, 64, 7) ||
+            !appendQuad(64, 8, 48, 80, 8, 48, 80, 8, 64, 64, 8, 64, 7) ||
+            !appendQuad(48, 8, 64, 64, 8, 64, 64, 8, 80, 48, 8, 80, 8) ||
+            !appendQuad(64, 8, 64, 80, 8, 64, 80, 8, 80, 64, 8, 80, 8) ||
+            !appendQuad(32, 0, 48, 48, 8, 48, 48, 8, 64, 32, 0, 64, 9) ||
+            !appendQuad(32, 0, 64, 48, 8, 64, 48, 8, 80, 32, 0, 80, 9) ||
+            !appendQuad(80, 0, 48, 80, 0, 64, 80, 8, 64, 80, 8, 48, 10) ||
+            !appendQuad(80, 0, 64, 80, 0, 80, 80, 8, 80, 80, 8, 64, 10)) {
+            return false
+        }
+        if (authored.vertexCount() != 192 || authored.triangleCount() != 64 ||
+            !authored.seal() || !authored.validate() ||
+            !collision.replaceWithAuthored(authored)) {
+            return false
+        }
+        for (var index = 0; index < lightXs.length; index = index + 1) {
+            lightXs[index] = 8 + (index % 6) * 22
+            lightYs[index] = 10 + (index % 3) * 4
+            lightZs[index] = 8 + (index / 6) * 34
+            lightIntensities[index] = 60 + (index % 5) * 8
+        }
+        for (var index = 0; index < effectXs.length; index = index + 1) {
+            effectXs[index] = 4 + (index % 8) * 16
+            effectYs[index] = 2 + (index % 4)
+            effectZs[index] = 4 + (index / 8) * 16
+            effectFrames[index] = index % 12
+        }
+        dynamicChecksumValue = calculateDynamicChecksum()
+        return true
+    }
+
+    Int calculateDynamicChecksum() {
+        var result = 193
+        for (var index = 0; index < lightXs.length; index = index + 1) {
+            result = mix(result, lightIntensities[index])
+        }
+        for (var index = 0; index < effectXs.length; index = index + 1) {
+            result = mix(result, effectFrames[index])
+        }
+        return result
+    }
+
+    Bool step(Int tick, Int lightBudget, Int effectBudget) {
+        if (!readyValue || tick < 0 || lightBudget <= 0 ||
+            lightBudget > lightXs.length || effectBudget <= 0 ||
+            effectBudget > effectXs.length) {
+            return false
+        }
+        for (var work = 0; work < lightBudget; work = work + 1) {
+            lightIntensities[lightCursor] =
+                55 + ((tick + lightCursor * 7) % 46)
+            lightCursor = lightCursor + 1
+            if (lightCursor == lightXs.length) { lightCursor = 0 }
+        }
+        for (var work = 0; work < effectBudget; work = work + 1) {
+            effectFrames[effectCursor] =
+                (effectFrames[effectCursor] + 1 + (tick % 2)) % 16
+            effectCursor = effectCursor + 1
+            if (effectCursor == effectXs.length) { effectCursor = 0 }
+        }
+        dynamicChecksumValue = calculateDynamicChecksum()
+        return true
+    }
+
+    Bool ready() { return readyValue }
+    Int vertexCount() { return authored.vertexCount() }
+    Int triangleCount() { return authored.triangleCount() }
+    Int authoredChecksum() { return authored.checksum() }
+    Int lightCount() { return lightXs.length }
+    Int effectCount() { return effectXs.length }
+    Int dynamicChecksum() { return dynamicChecksumValue }
+
+    Int triangleCoordinate(Int triangle, Int coordinate) {
+        if (triangle < 0 || triangle >= authored.triangleCount() ||
+            coordinate < 0 || coordinate >= 9) {
+            return 0
+        }
+        var corner = coordinate / 3
+        var component = coordinate % 3
+        var vertex = authored.triangleVertex(triangle, corner)
+        return authored.vertexCoordinate(vertex, component)
+    }
+
+    SegmentCollisionResult query(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return collision.query(startX, startY, startZ, endX, endY, endZ)
+    }
+
+    Int lightX(Int index) {
+        if (index < 0 || index >= lightXs.length) { return 0 }
+        return lightXs[index]
+    }
+    Int lightY(Int index) {
+        if (index < 0 || index >= lightYs.length) { return 0 }
+        return lightYs[index]
+    }
+    Int lightZ(Int index) {
+        if (index < 0 || index >= lightZs.length) { return 0 }
+        return lightZs[index]
+    }
+    Int lightIntensity(Int index) {
+        if (index < 0 || index >= lightIntensities.length) { return 0 }
+        return lightIntensities[index]
+    }
+    Int effectX(Int index) {
+        if (index < 0 || index >= effectXs.length) { return 0 }
+        return effectXs[index]
+    }
+    Int effectY(Int index) {
+        if (index < 0 || index >= effectYs.length) { return 0 }
+        return effectYs[index]
+    }
+    Int effectZ(Int index) {
+        if (index < 0 || index >= effectZs.length) { return 0 }
+        return effectZs[index]
+    }
+    Int effectFrame(Int index) {
+        if (index < 0 || index >= effectFrames.length) { return 0 }
+        return effectFrames[index]
+    }
+
+    Int resourceSignature() {
+        var result = 211
+        result = mix(result, authoredChecksum())
+        result = mix(result, vertexCount())
+        result = mix(result, triangleCount())
+        result = mix(result, lightCount())
+        result = mix(result, effectCount())
+        return result
+    }
+}

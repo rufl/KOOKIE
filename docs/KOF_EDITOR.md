@@ -144,11 +144,11 @@ background editor service or global IDE settings change was made.
 
 | Component | Installed location / version |
 |---|---|
-| Kof CLI | `~/.local/bin/kof` → `~/.local/share/kof4j/0.4.9-beta/bin/kof` |
-| Compiler source | Persistent checkout at `~/.local/share/kof4j/0.4.9-beta/source`, pinned SHA above plus local tooling patch |
-| Compiler JAR | SHA-256 `9a4c133d773058a0ea3b3bf503511439e67bbb8efb80a2d5ab848dbc8274b548`; **not** the unmodified release JAR |
-| Maven | `~/.local/bin/mvn`, Apache Maven 3.9.16; official archive SHA-512 verified |
-| Java | Existing system OpenJDK 27; compiler source requires Java 25 or newer |
+| Kof CLI | `~/.local/bin/kof` → `~/.local/share/kof4j/0.5.0-beta/bin/kof` |
+| Compiler source | Historical 0.4.9 research checkout remains separately retained; the active 0.5.0-beta installation is the packaged release |
+| Compiler JAR | SHA-256 `78e5ab9b65994889b8e593378aeabfbb6d5d71862e28a96f186085cabe404334` |
+| Maven | `~/.local/bin/mvn`, Apache Maven 3.9.16; retained for historical source/tooling work |
+| Java | Embedded Eclipse Adoptium 25.0.4.1 reported by `kof info --json` |
 | Kof Editor | `~/.local/bin/kof-editor`, source 0.1.4-beta at `~/.local/share/kof-editor/source` |
 | Native WebView | Built from the pinned Kof4j C source, using existing WebKitGTK 4.1 / GTK 3 |
 | LSP / DAP client | Any compatible editor client using `vscode-languageclient` 9.0.1 |
@@ -243,12 +243,16 @@ upstream event; strict consumers may require further protocol work.
 Native runtime pruning still warns when its source-relative lookup fails and
 emits the full runtime; the cwd-preserving native run passed with that warning.
 The native handler-lifetime, fractional-record JSON and cumulative `spawn`/GC
-risks recorded in the research remain engine G0 blockers, not installation fixes.
+behaviors recorded in the research remain language/runtime risks, not
+installation fixes. Release paths validate expected input before throw and use
+externally bounded exit/output gates.
 
-For maintenance, retain the installation JSON, original upstream JAR and
-`artifacts/tooling-fixes.patch` under `~/.local/share/kof4j/0.4.9-beta/`.
-An upstream reinstall can overwrite the repaired JAR: reapply/review the patch,
-run the focused LSP/DAP tests, then repeat the installed workflows before
-switching versions. Editor source, launcher and provenance are retained under
+For maintenance, retain the historical 0.4.9 installation JSON, original
+upstream JAR and `artifacts/tooling-fixes.patch` under
+`~/.local/share/kof4j/0.4.9-beta/`; they are not the active compiler. The
+active packaged release is under `~/.local/share/kof4j/0.5.0-beta/`. Replace it
+only through a digest-checked upgrade, then repeat focused CLI/LSP/DAP and
+engine contract probes before changing the release gate. Editor source,
+launcher and provenance are retained under
 `~/.local/share/kof-editor/`; client source, lockfile and installable VSIX under
 `~/.local/share/kof-lsp-client/`.

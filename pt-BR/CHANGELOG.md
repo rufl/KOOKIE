@@ -2,6 +2,54 @@
 
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
+## 2026-09-30
+
+### Conclusão limitada de G5 e robustez de release
+
+- Atualizamos todos os gates de release e CI para o Kof `0.5.0-beta` exato,
+  fixamos o SHA-256 do arquivo Linux x86-64 em
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9` e
+  migramos os contratos de fonte exercitados nos builds JVM e nativo.
+- Adicionamos a cena de referência limitada completa: 192 vértices criados,
+  64 triângulos de colisão, 64 inimigos ativos, 256 projéteis móveis,
+  512 itens, 24 luzes dinâmicas e 64 efeitos. O servidor carrega todos os
+  triângulos e mantém tetos por tick de 16/64/128 para
+  IA/projéteis/itens.
+- Corrigimos a carga de colisão omitida pela carga dedicada, removemos um risco
+  de spill de argumentos do backend nativo na consulta de segmento dos
+  projéteis e mudamos seu broad phase da rejeição somente pela raiz para
+  travessia limitada das folhas da BVH sem alocação por consulta.
+- Replicamos o estado de referência completo a cada tick para dois processos
+  clientes autenticados na mesma máquina. As atualizações em quatro chunks são
+  transacionais: entrada inconsistente, repetida ou com checksum global
+  inválido não substitui parcialmente a view ativa. O cliente B desconecta e
+  retorna na geração 2.
+- Substituímos o desenho expandido na CPU por um draw real de triângulos
+  instanciados na GPU: 2.952 atributos staged tornam-se 984 instâncias. O gate
+  isolado em hardware renderizou 600 frames em 1920×1080 no Vulkan 26.2.3,
+  `Intel(R) Graphics (ARL)`, com p50/p95/p99/máximo de envio de
+  0,304/0,645/0,845/1,089 ms. O readback revisado visualmente reteve SHA-256
+  `20b37c94927b04689071200346f1e98f3498ce6408697bae697535773f15f5d4`.
+- A execução nativa focada da simulação registrou p50/p95/p99/máximo de
+  1,518/1,623/1,717/1,757 ms. Uma execução ritmada de 30 minutos mediu
+  108.000 ticks após 600 de aquecimento em 2,489/3,202/3,721/23,645 ms, com
+  assinatura de recursos estável e 128 KiB de crescimento/faixa de RSS em
+  181 amostras.
+- Adicionamos publicação de save staged e validada com fsync do
+  arquivo/rename/fsync do diretório e recuperação de escrita interrompida;
+  migração de save em várias etapas; identidade e checksum global no replay v3;
+  e guardas contra rollback em save, replay e reconexão.
+- O empacotamento de release agora exige árvore limpa, identidade exata do Kof
+  e chave Ed25519 privada do owner. Ele assina o arquivo, manifesto de
+  procedência e conjunto de checksums, incorpora a chave pública e registra o
+  commit, toolchain/digest, save durável e contratos de replay.
+- A verificação adversarial upstream independente fornecida em 2026-09-30
+  aprovou `Buffer(U8, INOUT)` mais token FFI no x86-64 nativo e nos cross paths
+  suportados nos commits `b4c2b734a`, `381f6fab0` e `bf17ac7e7` (evidência
+  `c73556f5a`). O KOOKIE não repetiu essa matriz; Script, JavaScript, Android,
+  riscv32 e MCU continuam em `FFI001`, e nenhum ganho SIMD é afirmado.
+
+
 ## 2026-09-29
 
 ### Tempo headless e transporte de escala G5 limitados

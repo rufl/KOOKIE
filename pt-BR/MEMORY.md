@@ -60,7 +60,29 @@ As fundações limitadas executam; os gates de implementação G0–G4 estão co
   arbitrário de código/shader, editor de produção e qualificação recente em
   três máquinas físicas ficam fora desta afirmação.
 
-## Lote mais recente de execução de hooks confiáveis
+## Lote de conclusão G5
+
+- Atualizamos os contratos de release/CI/fonte para o Kof 0.5.0-beta exato e
+  fixamos o SHA-256 do arquivo Linux. A evidência upstream independente
+  fornecida aprova `Buffer(U8, INOUT)` mais token FFI no x86-64 e cross paths
+  suportados; o KOOKIE não repetiu essa matriz nem afirma ganho SIMD.
+- A cena limitada completa tem 192 vértices criados, 64 triângulos de colisão
+  carregados, 64 inimigos, 256 projéteis, 512 itens, 24 luzes e 64 efeitos. O
+  soak de 30 minutos a 60 Hz manteve p95 de simulação em 3,202 ms e RSS dentro
+  de 128 KiB após aquecimento.
+- Dois clientes autenticados na mesma máquina recebem estado completo a cada
+  tick. A montagem em quatro chunks é transacional e protegida por checksum; o
+  cliente B reconecta na geração 2 sem aceitar rollback.
+- O SDL_GPU envia 984 instâncias de triângulo em hardware em um draw. No
+  dispositivo Intel Arrow Lake Vulkan 26.2.3 registrado, 600 frames
+  1920×1080 mediram p50/p95/p99/máximo de 0,304/0,645/0,845/1,089 ms; o
+  readback visual passou.
+- Publicação de save durável contra crash, migrações em várias etapas, replay
+  v3 vinculado à identidade e pacotes de árvore limpa assinados com Ed25519
+  encerram o G5 limitado. Desempenho em várias máquinas/WAN e outros
+  hardwares/SOs não é afirmado.
+
+## Lote anterior de execução de hooks confiáveis
 
 - Estendemos `BoundedTrustedModuleRegistry`: toda declaração precisa vincular
   um ID de implementação estática compatível e sua versão binária antes do
@@ -75,7 +97,7 @@ As fundações limitadas executam; os gates de implementação G0–G4 estão co
   elite executa o hook de recompensa, emite evento tipado e concede quatro
   moedas acima da recompensa pertencente à definição.
 
-## Lote de implementação mais recente
+## Lote anterior de publicação do criador
 
 - Adicionamos `BoundedTrustedModuleRegistry`: no máximo 32 declarações de hooks
   estáticos, cada uma vinculada à capability/contribuição do manifesto, fase e
@@ -110,16 +132,16 @@ As fundações limitadas executam; os gates de implementação G0–G4 estão co
 - Uma chamada nativa com muitos argumentos encaminhados por getters perdeu o argumento de disparo em uma reprodução focada. O replay agora enfileira o `InputCommand` existente em vez de reconstruir a chamada longa; não declaramos reparo do compilador.
 - O ciclo de vida do host loopback preserva posição e marcas d'água de sequência na reconexão, limpa comandos pendentes e rejeita input obsoleto; a regressão LAN autenticada agora cobre esse pré-requisito com dois clientes.
 - A reconexão da sessão remota preserva as marcas d'água de envio/recebimento do broad-phase ao fechar e reabrir; a sonda UDP nativa retoma na sequência 9 e rejeita snapshots antigos, e o slice LAN de três processos passa na JVM e no nativo.
-- Linux x86-64 agora possui um construtor reproduzível de arquivo dogfood
-  interno com `SHA256SUMS` e JSON de procedência. O empacotamento Windows
-  nativo continua fechado: não há alvo Kof Windows, prova PE/runtime nem
-  entradas de assinatura. KOOKIE não possui licença pública.
-- `kof info --json` atual reporta 0.4.9-beta em
-  `~/.local/share/kof4j/0.4.9-beta`; nenhum alvo nativo Windows foi
-  estabelecido.
-- Pacotes reproduzíveis usam metadados de procedência do próprio projeto. A
-  compatibilidade com endpoints de deployment permanece fora deste
-  repositório. KOOKIE não possui licença pública.
+- Linux x86-64 possui arquivos nativos e de apresentação assinados com
+  Ed25519, procedência vinculada ao commit/toolchain, `SHA256SUMS` e licença MIT.
+  O pacote Windows continua um shell SDL nativo, não gameplay Kof.
+- `kof info --json` atual reporta 0.5.0-beta. O gate fixa o arquivo Linux
+  x86-64 em
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`;
+  nenhum alvo Kof PE para Windows foi estabelecido.
+- O pacote Linux executa o servidor sem gráficos e o smoke fora do checkout.
+  O deployment ZEER mantém a procedência e o histórico operacional fora deste
+  repositório.
 
 ## Intenção do usuário
 
@@ -127,6 +149,9 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 
 ## Identidades de pesquisa fixadas
 
+- Toolchain atual de release: Kof `0.5.0-beta`; SHA-256 do arquivo Linux x86-64
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`.
+  As identidades 0.4.9 abaixo permanecem como baseline histórico da pesquisa.
 - Kof4j: `22a186b9bf9df37c03809ba6ef4af85085386f63`, VERSION `0.4.9-beta`.
 - Release executado: `kof-0.4.9-beta-linux-x86_64`, publicado em 2026-09-20; SHA-256 do jar independente `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`.
 - Kof Editor: `bed6ae7d567b090497a447583a10b8522acaf66a`, VERSION `0.1.4-beta`; agora instalado com um launcher restrito ao projeto e isolado da rede, e verificado visualmente em X11 privado.
@@ -134,12 +159,17 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 - Curso completo: [`lunalully/curso-completo-de-kof@d6fc8318e77f30ab0d6be87055d86a7eb63960d3`](https://github.com/lunalully/curso-completo-de-kof/tree/d6fc8318e77f30ab0d6be87055d86a7eb63960d3), baseline 0.3.7-beta. O snapshot do [portal oficial](https://koflang.github.io/docs) foi gerado em 2026-09-17; várias páginas diferem do código-fonte fixado do compilador. Consulte [KOF_COURSE](docs/KOF_COURSE.md).
 - Minecraft Java26.3, lançado em 2026-09-15; SHA-1 exato dos metadados de versão `96c00d95a31328714d3811cfade2804bb050e455`. Usa SDL3/LWJGL3.4.3 e JOML1.10.9; matriz de código-fonte/versão/licença em [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Clones/jars temporários de pesquisa ficaram em `/tmp/kookie-*`; não são dependências do projeto. As evidências duráveis e todas as fontes das sondas estão em [RESEARCH_PROBES](docs/RESEARCH_PROBES.md), [COURSE_PROBES](docs/COURSE_PROBES.md) e [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- A CLI ativa agora é um reparo local das ferramentas compilado a partir do código-fonte, não o release original de pesquisa: SHA-256 do JAR `9a4c133d773058a0ea3b3bf503511439e67bbb8efb80a2d5ab848dbc8274b548`. As fontes persistentes do compilador/editor/cliente, Maven 3.9.16, caminhos de instalação, correções de protocolo e limites de verificação estão documentados em [KOF_EDITOR](docs/KOF_EDITOR.md#local-installation). O OpenJDK 27 existente e os pré-requisitos nativos foram reutilizados. Nenhum reparo do runtime nativo/engine está implícito.
+- A CLI ativa é o release empacotado Kof 0.5.0-beta em
+  `~/.local/share/kof4j/0.5.0-beta`, com Eclipse Adoptium 25.0.4.1 embutido e
+  SHA-256 do JAR
+  `78e5ab9b65994889b8e593378aeabfbb6d5d71862e28a96f186085cabe404334`.
+  Os reparos históricos das ferramentas 0.4.9 continuam como evidência de
+  pesquisa, não como compilador ativo.
 
 ## Decisões propostas
 
 - Linux x86-64 nativo primeiro; oráculo diferencial JVM. Outros SOs/arquiteturas não são prometidos.
-- SDL3 + SDL_GPU, primeiro Vulkan/SPIR-V; adaptador ABI escalar verificado e fino até que exista FFI de buffer Kof. SDL3 3.4.16 foi instalado para a sonda de consulta de versão; os gráficos não foram testados.
+- SDL3 3.4.16 + SDL_GPU Vulkan/SPIR-V é a fronteira gráfica; SDL_mixer 3.2.4 controla os buses. O Kof 0.5.0-beta expõe FFI de buffer nos alvos verificados, mas o caminho ABI escalar permanece até uma integração representativa ser medida.
 - Uma thread de simulação Kof; tick de 60 Hz, renderização interpolada independentemente, proposta de recuperação em quatro etapas.
 - Arrays de componentes tipados + IDs de geração, colisão cápsula/BVH 3D real, uma única autoridade de dano/morte/recompensa.
 - Política de renderização, content cooker, UI do jogo e ferramentas para criadores pertencentes ao Kof; exceção explícita para shaders HLSL/GPU.
@@ -151,10 +181,10 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 1. As funções usam `Int f(Int x)` / `f(Int x): Int`, **não fun/fn**. `record` e `class X(...)` são imutáveis/no estilo de records; classes mutáveis usam campos + construtor explícito. Não há variáveis ordinárias no nível superior, literais de array nem pressupostos de safe-call/coalesce do Kotlin.
 2. Módulos/imports `.kf` funcionam. A importação de diretórios foi medida na JVM/nativo; `run` coleta irmãos e rejeita várias funções `main()` (`PKG002`). Escopos de entrada de aplicações são separados.
 3. O `extern` nativo **escalar** funciona agora; as antigas afirmações gerais de que “FFI nativo não é suportado” estão desatualizadas. sqrt → `3.0`, SDL_GetVersion → `3004016` foram medidos em ambos os alvos.
-4. `extern upload(Float[])` → `FFI001` em ambos os alvos medidos. Structs/ponteiros/out-buffers/variádicos e callbacks nativos estão fora do gate escalar suportado. IDs inteiros de recursos devem ser tokens reais de registro do adaptador, não conversões de ponteiros.
+4. O `Buffer(U8, INOUT)` mais token FFI do Kof 0.5.0-beta passou na verificação independente fornecida para x86-64 nativo/cross. Script/JS/Android/riscv32/MCU ainda retornam `FFI001`; structs/ponteiros/variádicos e callbacks nativos continuam fora do contrato geral. IDs de recursos devem ser tokens reais do adaptador, não casts de ponteiros.
 5. O caminho automático do coletor x86 nativo é controlado por `kof_spawn_count == 0` **cumulativo**. Aguardar uma tarefa não o reabre. Não contornar usando GC manual inseguro. Threads de bibliotecas nunca devem manter/chamar estado do heap Kof.
 6. A execução nativa empacotada avisou que o pruning do runtime não consegue encontrar `NativeRuntime.java` fora do módulo do compilador; o fallback de runtime completo foi executado. As pequenas alegações de tamanho binário do upstream não foram verificadas para este caminho de release.
-7. A otimização do compilador nativo é limitada; o JIT da JVM pode superá-la. Nenhuma preparação de FPS/memória/gráficos do engine foi medida.
+7. A otimização do compilador nativo continua limitada; o JIT da JVM pode superá-la. Tempos representativos da simulação limitada e renderização em hardware agora estão registrados para G5, sem generalização para outras cargas ou plataformas.
 8. `kof.gpu` é computação matricial especializada, não um engine de gráficos 3D. O Kof Canvas é orientado a navegador; janelas nativas WebKitGTK/Jaylib não implicam execução em ELF nativo.
 9. O teste FFI `InitWindow` com formato raylib do upstream usa um fixture C que imprime, não uma janela real. Nossa consulta de versão SDL igualmente prova apenas sua chamada exata.
 10. As sondas orientadas pelo curso passaram nos exemplos de overload/default/captura aninhada, arrays 2D de Int, getters diretos de records de ponto flutuante, matemática com Double, ambas as ordens de argumentos de reduce e valores zero versus ausentes de mapas na JVM/nativo.
@@ -182,7 +212,7 @@ implementada.
 25. `RemoteSessionLink` bloqueia snapshots até a ativação do endpoint e exige sequências de envio/recebimento estritamente crescentes. A qualificação com três processos na JVM/no nativo leva gameplay, feedback e estado do encounter pelo loop real da sessão.
 26. `BoundedRayTargetWorld` faz seleção limitada de alvos por raio/pellet com inteiros, impacto mais próximo e desempate por ID estável, exclusão da origem via `SpatialAimContract` e remoção de alvos. `CombatWorld.resolveShotgunPelletTargets` e os wrappers de sessão preservam um alvo por pellet, inclusive impactos repetidos e misses limitados. `LoopbackSession.resolvePlayerSpatialShotgun` conecta essa seleção ao combate autoritativo dos jogadores.
 
-27. O despacho SIMD nativo agora seleciona AVX2/SSE2 no x86, possui caminho de origem NEON no AArch64 e mantém um fallback escalar verificado. `FFI001` ainda impede a integração de buffers do Kof, então isso não é um ganho de velocidade medido da engine.
+27. O dispatch SIMD nativo seleciona AVX2/SSE2 no x86, possui caminho NEON AArch64 e mantém fallback escalar verificado. A FFI em lote existe nos alvos Kof 0.5.0-beta verificados, mas o KOOKIE não mediu nem direcionou um hot loop próprio a ela; isso não é ganho de velocidade medido da engine.
 28. O gate focado atual tem 75 testes JVM/nativos, além de lint/LSP do Kof e da prova SIMD host/escalar/AArch64. Consulte o [CHANGELOG](CHANGELOG.md) para o histórico curto e humano.
 29. Impactos autoritativos aceitos entram no histórico monotônico e limitado de
     apresentação/áudio e em lotes ordenados de feedback `6 + 11F`. A validação
@@ -270,23 +300,24 @@ atômica.
 
 G4 está completo para a implementação limitada resumida acima. Sua troca de
 compatibilidade usa o transporte de papéis de produção e processos separados,
-mas a qualificação retida não é uma execução recente em três máquinas. O
-caminho G5 headless limitado agora executa 64 inimigos, 256 projéteis móveis e
-512 itens sob orçamentos móveis de 16/64/128. JVM/nativo produzem checksum
-`797255`; a assinatura de recursos `675172` fica inalterada após 256 ticks. Uma
-amostra nativa com 128 ticks de aquecimento e 512 medidos registrou
-p50/p95/p99/máximo de 1,186/1,245/1,269/2,195 ms e 64 KiB de
-crescimento/faixa de RSS. Outra execução em tempo real, com 600 ticks de
-aquecimento e 108.000 medidos, registrou 1,216/1,891/2,182/4,110 ms e faixa de
-RSS de 128 KiB em 181 amostras, preservando a assinatura de recursos. Um host
-nativo autenticado e dois processos clientes replicaram quatro checkpoints; o
-cliente B desconectou, repetiu a compatibilidade de conteúdo e retomou na
-geração 2. O pacote executa o servidor com telemetria fora do checkout sem
-dependência gráfica. Essa evidência é na mesma máquina e sem colisão. G5 ainda
-exige a cena média criada manualmente com colisão/render, carga remota completa
-por tick, repetição da qualificação de desempenho/recursos nesse caminho,
-orçamentos de frame em 1080p e o reforço restante de release; `FFI001` ainda
-bloqueia chamadas Kof com buffers em massa para o kernel SIMD opcional.
+mas a qualificação retida não é uma execução recente em três máquinas.
+
+G5 está completo para o contrato Linux x86-64 limitado. A carga de referência
+carrega 64 triângulos de colisão criados e executa 64 inimigos,
+256 projéteis móveis, 512 itens, 24 luzes e 64 efeitos sob orçamentos móveis
+16/64/128. A amostra nativa registrou p50/p95/p99/máximo de
+1,518/1,623/1,717/1,757 ms. A execução ritmada com 600 de aquecimento e
+108.000 ticks registrou 2,489/3,202/3,721/23,645 ms e faixa de RSS de
+128 KiB, preservando a assinatura `520690`.
+
+Um host autenticado replica estado completo a cada tick para dois processos
+clientes; a montagem transacional em quatro chunks rejeita replay/adulteração
+e o cliente B retorna na geração 2. O SDL_GPU desenha 984 instâncias em
+hardware numa chamada; a execução Vulkan 1920×1080 registrou p95 de envio de
+0,645 ms. Saves duráveis, replay v3, migrações e pacotes assinados de árvore
+limpa encerram a robustez de release. A evidência permanece na mesma máquina,
+com população fixa e uma estação; várias máquinas/WAN, outros OSs/GPUs e escala
+arbitrária pertencem a G6.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

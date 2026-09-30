@@ -6,6 +6,27 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-package-smoke.XXXXXX")"
 cleanup() { rm -rf -- "$WORK_DIR"; }
 trap cleanup EXIT INT TERM
+command -v openssl >/dev/null || { echo "openssl is required" >&2; exit 1; }
+SIGNING_KEY="$WORK_DIR/release-signing.pem"
+openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
+chmod 600 "$SIGNING_KEY"
+export KOOKIE_SIGNING_KEY="$SIGNING_KEY"
+export KOOKIE_ALLOW_DIRTY_PACKAGE=1
+verify_signature_set() {
+  local archive="$1"
+  local manifest="$2"
+  local release_dir
+  release_dir="$(dirname "$manifest")"
+  local public_key="${manifest%.json}.pub.pem"
+  openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
+    -in "$archive" -sigfile "$archive.sig" >/dev/null
+  openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
+    -in "$manifest" -sigfile "$manifest.sig" >/dev/null
+  openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
+    -in "$release_dir/SHA256SUMS" \
+    -sigfile "$release_dir/SHA256SUMS.sig" >/dev/null
+}
+
 
 KOOKIE_VERSION=0.1.0-dogfood.smoke \
 KOOKIE_BUILD_ID=package-smoke \
@@ -18,6 +39,27 @@ KOOKIE_BUILD_ID=package-smoke \
 ARCHIVE="$WORK_DIR/release/kookie-0.1.0-dogfood.smoke-linux-x86_64.tar.gz"
 MANIFEST="$WORK_DIR/release/kookie-0.1.0-dogfood.smoke-linux-x86_64.json"
 test -f "$ARCHIVE" -a -f "$MANIFEST"
+PUBLIC_KEY="$WORK_DIR/release/kookie-0.1.0-dogfood.smoke-linux-x86_64.pub.pem"
+ARCHIVE_SIGNATURE="$ARCHIVE.sig"
+MANIFEST_SIGNATURE="$MANIFEST.sig"
+CHECKSUMS_SIGNATURE="$WORK_DIR/release/SHA256SUMS.sig"
+test -f "$PUBLIC_KEY" -a -f "$ARCHIVE_SIGNATURE" -a \
+  -f "$MANIFEST_SIGNATURE" -a -f "$CHECKSUMS_SIGNATURE"
+openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
+  -in "$ARCHIVE" -sigfile "$ARCHIVE_SIGNATURE" >/dev/null
+openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
+  -in "$MANIFEST" -sigfile "$MANIFEST_SIGNATURE" >/dev/null
+openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
+  -in "$WORK_DIR/release/SHA256SUMS" -sigfile "$CHECKSUMS_SIGNATURE" >/dev/null
+WRONG_KEY="$WORK_DIR/wrong-signing.pem"
+WRONG_PUBLIC_KEY="$WORK_DIR/wrong-signing.pub.pem"
+openssl genpkey -algorithm ED25519 -out "$WRONG_KEY" 2>/dev/null
+openssl pkey -in "$WRONG_KEY" -pubout -out "$WRONG_PUBLIC_KEY" 2>/dev/null
+if openssl pkeyutl -verify -rawin -pubin -inkey "$WRONG_PUBLIC_KEY" \
+   -in "$ARCHIVE" -sigfile "$ARCHIVE_SIGNATURE" >/dev/null 2>&1; then
+  echo 'package smoke: archive signature accepted an unrelated key' >&2
+  exit 1
+fi
 mkdir "$WORK_DIR/extracted"
 tar -xzf "$ARCHIVE" -C "$WORK_DIR/extracted"
 BINARY="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/kookie"
@@ -26,15 +68,22 @@ PACKAGE_ROOT="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64"
 SERVER="$PACKAGE_ROOT/kookie-server"
 SERVER_BINARY="$PACKAGE_ROOT/kookie-server.bin"
 HEADLESS_ADAPTER="$PACKAGE_ROOT/lib/libkookie_headless_adapter.so"
+PERSISTENCE_ADAPTER="$PACKAGE_ROOT/lib/libkookie_persistence_adapter.so"
 test -x "$SERVER" -a -x "$SERVER_BINARY"
-test -f "$HEADLESS_ADAPTER"
+test -f "$HEADLESS_ADAPTER" -a -f "$PERSISTENCE_ADAPTER"
 test -f "$PACKAGE_ROOT/LICENSE"
 test -f "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
+test -f "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
 grep -Fq 'MIT License' "$PACKAGE_ROOT/LICENSE"
 grep -Fq 'SDL_mixer 3.2.4' "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 grep -Fq 'license_status=MIT' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dependency_policy=permissive-distributed-only' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dedicated_server=bounded-headless-workload-with-runtime-telemetry' \
+  "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'release_signing=ed25519' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'crash_durable_save=staged-validated-fsync-rename-directory-fsync' \
+  "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'replay_admission=identity-bound-checksummed-v3' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 SERVER_LOG="$WORK_DIR/server.log"
 KOOKIE_SERVER_WARMUP_TICKS=64 \
@@ -62,7 +111,7 @@ assert paired("rss-samples") == "5"
 assert paired("rss-plateau") == "true"
 assert paired("realtime") == "false"
 PY
-for headless_binary in "$SERVER_BINARY" "$HEADLESS_ADAPTER"; do
+for headless_binary in "$SERVER_BINARY" "$HEADLESS_ADAPTER" "$PERSISTENCE_ADAPTER"; do
   if ldd "$headless_binary" 2>/dev/null | grep -Eq 'SDL|Vulkan|X11|Wayland'; then
     echo 'package smoke: dedicated server acquired a graphics dependency' >&2
     exit 1
@@ -76,6 +125,13 @@ if "$ROOT_DIR/scripts/package_kookie.sh" --runtime jvm \
   exit 1
 fi
 grep -Fq 'unsupported distributable runtime: jvm' "$WORK_DIR/jvm.out"
+if env -u KOOKIE_SIGNING_KEY "$ROOT_DIR/scripts/package_kookie.sh" \
+   --output "$WORK_DIR/unsigned-release" >"$WORK_DIR/unsigned.out" 2>&1; then
+  echo 'package smoke: unsigned release was accepted' >&2
+  exit 1
+fi
+grep -Fq 'KOOKIE_SIGNING_KEY must name a regular Ed25519 private key' \
+  "$WORK_DIR/unsigned.out"
 
 presentation_manifest_args=()
 presentation_status="dependency fail-closed gate"
@@ -93,6 +149,7 @@ if command -v glslc >/dev/null &&
   PRESENTATION_ARCHIVE="$WORK_DIR/presentation-release/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64.tar.gz"
   PRESENTATION_MANIFEST="$WORK_DIR/presentation-release/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64.json"
   test -f "$PRESENTATION_ARCHIVE" -a -f "$PRESENTATION_MANIFEST"
+  verify_signature_set "$PRESENTATION_ARCHIVE" "$PRESENTATION_MANIFEST"
   mkdir "$WORK_DIR/presentation-extracted"
   tar -xzf "$PRESENTATION_ARCHIVE" -C "$WORK_DIR/presentation-extracted"
   PRESENTATION_ROOT="$WORK_DIR/presentation-extracted/kookie-0.1.0-dogfood.presentation-smoke-linux-x86_64"
@@ -104,6 +161,7 @@ if command -v glslc >/dev/null &&
   test -f "$PRESENTATION_ROOT/build/libkookie_sdl_adapter.so"
   test -f "$PRESENTATION_ROOT/lib/libkookie_headless_adapter.so"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
+  test -f "$PRESENTATION_ROOT/build/g5_triangle_instance.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
   test -f "$PRESENTATION_ROOT/THIRD_PARTY_NOTICES.txt"
   test -n "$(find "$PRESENTATION_ROOT/lib" -maxdepth 1 -name 'libSDL3.so*' -print -quit)"
@@ -141,13 +199,21 @@ assert len(arguments) >= 2 and len(arguments) % 2 == 0
 for index in range(0, len(arguments), 2):
     raw_path, runtime = arguments[index:index + 2]
     manifest = json.loads(pathlib.Path(raw_path).read_text(encoding="utf-8"))
-    assert manifest["schema"] == "kookie.package-provenance/v1"
+    assert manifest["schema"] == "kookie.package-provenance/v2"
     assert manifest["application"] == "kookie"
     assert manifest["target"] == "linux-x86_64"
     assert manifest["channel"] == "dogfood"
     assert manifest["runtime"] == runtime
-    assert manifest["signing"] == "unavailable"
-    assert manifest["proof"] == "unavailable"
+    assert manifest["signing"] == "ed25519"
+    assert manifest["proof"] == "ed25519-signature-set"
+    assert manifest["signature_encoding"] == "binary"
+    assert len(manifest["source_commit"]) == 40
+    assert manifest["source_tree_state"] in {"clean", "dirty-allowed"}
+    assert manifest["kof_version"] == "kof 0.5.0-beta"
+    assert len(manifest["kof_archive_sha256"]) == 64
+    assert len(manifest["public_key_sha256"]) == 64
+    assert manifest["archive_signature"] == manifest["archive"] + ".sig"
+    assert manifest["checksums_signature"] == "SHA256SUMS.sig"
     assert manifest["dedicated_server"] is True
 PY
 if env -u KOOKIE_WINDOWS_SDL_PREFIX -u KOOKIE_WINDOWS_SDL_MIXER_PREFIX \
@@ -175,6 +241,7 @@ if [[ -n "${KOOKIE_WINDOWS_SDL_PREFIX:-}" &&
   WINDOWS_ARCHIVE="$WORK_DIR/windows-release/kookie-0.1.0-dogfood.windows-smoke-windows-x86_64.zip"
   WINDOWS_MANIFEST="$WORK_DIR/windows-release/kookie-0.1.0-dogfood.windows-smoke-windows-x86_64.json"
   test -f "$WINDOWS_ARCHIVE" -a -f "$WINDOWS_MANIFEST"
+  verify_signature_set "$WINDOWS_ARCHIVE" "$WINDOWS_MANIFEST"
   mkdir "$WORK_DIR/windows-extracted"
   unzip -q "$WINDOWS_ARCHIVE" -d "$WORK_DIR/windows-extracted"
   WINDOWS_ROOT="$WORK_DIR/windows-extracted/kookie-0.1.0-dogfood.windows-smoke-windows-x86_64"
@@ -187,12 +254,12 @@ if [[ -n "${KOOKIE_WINDOWS_SDL_PREFIX:-}" &&
   python3 - "$WINDOWS_MANIFEST" <<'PY'
 import json, pathlib, sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
-assert manifest["schema"] == "kookie.package-provenance/v1"
+assert manifest["schema"] == "kookie.package-provenance/v2"
 assert manifest["application"] == "kookie"
 assert manifest["target"] == "windows-x86_64"
 assert manifest["runtime"] == "native"
-assert manifest["signing"] == "unavailable"
-assert manifest["proof"] == "unavailable"
+assert manifest["signing"] == "ed25519"
+assert manifest["proof"] == "ed25519-signature-set"
 PY
   windows_status="archive"
 fi

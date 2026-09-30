@@ -1,0 +1,141 @@
+package core
+
+class BoundedDurableSavePublication {
+    BoundedSaveSchemaFileStore store
+    BoundedSaveSections expected
+    Int sectionCapacity
+    Int payloadCapacity
+    String stagingPathValue
+    String targetPathValue
+    Bool prepared
+
+    public constructor(Int nextSectionCapacity, Int nextPayloadCapacity) {
+        sectionCapacity = nextSectionCapacity
+        if (sectionCapacity < 1) {
+            sectionCapacity = 1
+        }
+        if (sectionCapacity > 12) {
+            sectionCapacity = 12
+        }
+        payloadCapacity = nextPayloadCapacity
+        if (payloadCapacity < 1) {
+            payloadCapacity = 1
+        }
+        if (payloadCapacity > 160) {
+            payloadCapacity = 160
+        }
+        store = BoundedSaveSchemaFileStore(sectionCapacity, payloadCapacity)
+        expected = BoundedSaveSections(sectionCapacity, payloadCapacity)
+        stagingPathValue = ""
+        targetPathValue = ""
+        prepared = false
+    }
+
+    Bool sameSections(BoundedSaveSections first, BoundedSaveSections second) {
+        if (first.revision() != second.revision() ||
+            first.sectionCount() != second.sectionCount()) {
+            return false
+        }
+        for (var section = 0; section < first.sectionCount(); section = section + 1) {
+            if (first.sectionId(section) != second.sectionId(section) ||
+                first.sectionVersion(section) != second.sectionVersion(section) ||
+                first.sectionLength(section) != second.sectionLength(section)) {
+                return false
+            }
+            for (var value = 0; value < first.sectionLength(section); value = value + 1) {
+                if (first.sectionValue(section, value) != second.sectionValue(section, value)) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Bool stage(String path, BoundedSaveSections sections) {
+        if (prepared || path.length() == 0 || sections.revision() < 0) {
+            return false
+        }
+        var target = File(path)
+        if (target.exists()) {
+            var current = BoundedSaveSections(sectionCapacity, payloadCapacity)
+            if (!store.read(path, current) || sections.revision() <= current.revision()) {
+                return false
+            }
+        }
+        var nextStagingPath = path + ".kookie-stage"
+        var staging = File(nextStagingPath)
+        if (staging.exists() && !staging.delete()) {
+            return false
+        }
+        if (!store.write(nextStagingPath, sections)) {
+            return false
+        }
+        var verified = BoundedSaveSections(sectionCapacity, payloadCapacity)
+        if (!store.read(nextStagingPath, verified) ||
+            !sameSections(sections, verified) ||
+            !expected.replaceFrom(sections)) {
+            staging.delete()
+            return false
+        }
+        stagingPathValue = nextStagingPath
+        targetPathValue = path
+        prepared = true
+        return true
+    }
+
+    Bool confirmPublished() {
+        if (!prepared || File(stagingPathValue).exists()) {
+            return false
+        }
+        var verified = BoundedSaveSections(sectionCapacity, payloadCapacity)
+        if (!store.read(targetPathValue, verified) ||
+            !sameSections(expected, verified)) {
+            return false
+        }
+        prepared = false
+        stagingPathValue = ""
+        targetPathValue = ""
+        return true
+    }
+
+    Bool cancelStaged() {
+        if (!prepared) {
+            return false
+        }
+        var staging = File(stagingPathValue)
+        if (staging.exists() && !staging.delete()) {
+            return false
+        }
+        prepared = false
+        stagingPathValue = ""
+        targetPathValue = ""
+        return true
+    }
+
+    Bool read(String path, BoundedSaveSections target) {
+        return store.read(path, target)
+    }
+
+    Bool discardInterruptedStage(String path) {
+        if (prepared) {
+            return false
+        }
+        var staging = File(path + ".kookie-stage")
+        if (!staging.exists()) {
+            return true
+        }
+        return staging.delete()
+    }
+
+    Bool isPrepared() {
+        return prepared
+    }
+
+    String stagingPath() {
+        return stagingPathValue
+    }
+
+    String targetPath() {
+        return targetPathValue
+    }
+}

@@ -1172,13 +1172,14 @@ test "multi-section save migration" {
     legacyWire[15] = 1
     legacyWire[16] = 1
     legacyWire[17] = 99
-    assert(codec.decode(legacyWire, decoded) &&
-        decoded.sectionVersion(1) == 2 &&
-        decoded.sectionLength(1) == 3 &&
-        decoded.sectionValue(1, 2) == 0 &&
-        decoded.sectionVersion(2) == 2 &&
-        decoded.sectionLength(2) == 2 &&
-        decoded.sectionValue(2, 1) == 0,
+    var legacyDecoded = BoundedSaveSections(6, 3)
+    assert(codec.decode(legacyWire, legacyDecoded) &&
+        legacyDecoded.sectionVersion(1) == 2 &&
+        legacyDecoded.sectionLength(1) == 3 &&
+        legacyDecoded.sectionValue(1, 2) == 0 &&
+        legacyDecoded.sectionVersion(2) == 2 &&
+        legacyDecoded.sectionLength(2) == 2 &&
+        legacyDecoded.sectionValue(2, 1) == 0,
         "migration must transform prior world and RNG versions")
     var store = BoundedSaveSchemaFileStore(6, 3)
     var path = "/tmp/kookie-save-multi-test.bin"
@@ -1190,6 +1191,42 @@ test "multi-section save migration" {
         loaded.sectionId(4) == 5 &&
         loaded.sectionValue(4, 0) == 2,
         "schema file store must persist all known sections")
+    var versionZero = BoundedSaveSections(2, 4)
+    var versionZeroWorld = new Int[1]
+    versionZeroWorld[0] = 77
+    var twoStep = BoundedSaveSections(2, 4)
+    assert(versionZero.setRevision(20) &&
+        versionZero.put(2, 0, versionZeroWorld) &&
+        gate.migrate(versionZero, twoStep) &&
+        twoStep.sectionVersion(0) == 2 &&
+        twoStep.sectionLength(0) == 3 &&
+        twoStep.sectionValue(0, 0) == 77 &&
+        twoStep.sectionValue(0, 1) == 0 &&
+        twoStep.sectionValue(0, 2) == 0,
+        "version-zero sections must execute every explicit migration step")
+    var rollbackTarget = BoundedSaveSections(2, 4)
+    var currentWorld = new Int[3]
+    currentWorld[0] = 88
+    currentWorld[1] = 1
+    currentWorld[2] = 2
+    assert(rollbackTarget.setRevision(21) &&
+        rollbackTarget.put(2, 2, currentWorld) &&
+        !gate.migrate(versionZero, rollbackTarget) &&
+        rollbackTarget.revision() == 21 &&
+        rollbackTarget.sectionValue(0, 0) == 88,
+        "migration admission must reject revision rollback without mutation")
+    var older = BoundedSaveSections(6, 3)
+    assert(older.setRevision(18) && older.put(1, 1, progression) &&
+        store.write(path, older) && !store.read(path, loaded) &&
+        loaded.revision() == 19 && loaded.sectionCount() == 5,
+        "save admission must retain a newer loaded revision")
+    var fork = BoundedSaveSections(6, 3)
+    var forkPayload = new Int[1]
+    forkPayload[0] = 999
+    assert(fork.setRevision(19) && fork.put(1, 1, forkPayload) &&
+        store.write(path, fork) && !store.read(path, loaded) &&
+        loaded.revision() == 19 && loaded.sectionCount() == 5,
+        "save admission must reject a divergent equal-revision fork")
 }
 
 test "typed item and quest save sections" {
@@ -2247,7 +2284,7 @@ test "bounded replay bundle file codec" {
     var path = "/tmp/kookie-replay-bundle-test.bin"
     var restored = BoundedReplayTimeline(2, 2)
     assert(files.writeTimeline(path, timeline, 7, 11, 99) &&
-        files.readTimeline(path, restored) &&
+        files.readTimeline(path, restored, 7, 11, 99) &&
         files.engineVersion() == 7 &&
         files.contentVersion() == 11 &&
         files.seed() == 99 &&

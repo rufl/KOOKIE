@@ -108,10 +108,17 @@ class BoundedSaveSchemaFileStore {
             (firstStatus == 0 && secondStatus == 0)) {
             return false
         }
-        if (firstStatus == 1 && (secondStatus == 0 || second.revision() <= first.revision())) {
-            return target.replaceFrom(first)
+        var selected = second
+        if (firstStatus == 1 &&
+            (secondStatus == 0 || second.revision() <= first.revision())) {
+            selected = first
         }
-        return target.replaceFrom(second)
+        if (target.revision() > selected.revision() ||
+            (target.revision() == selected.revision() &&
+                !sameSections(target, selected))) {
+            return false
+        }
+        return target.replaceFrom(selected)
     }
 
     Bool readLegacy(String path, BoundedSaveState target) {
@@ -125,6 +132,26 @@ class BoundedSaveSchemaFileStore {
             return false
         }
         return write(path, restored)
+    }
+
+    Bool sameSections(BoundedSaveSections first, BoundedSaveSections second) {
+        if (first.revision() != second.revision() ||
+            first.sectionCount() != second.sectionCount()) {
+            return false
+        }
+        for (var section = 0; section < first.sectionCount(); section = section + 1) {
+            if (first.sectionId(section) != second.sectionId(section) ||
+                first.sectionVersion(section) != second.sectionVersion(section) ||
+                first.sectionLength(section) != second.sectionLength(section)) {
+                return false
+            }
+            for (var value = 0; value < first.sectionLength(section); value = value + 1) {
+                if (first.sectionValue(section, value) != second.sectionValue(section, value)) {
+                    return false
+                }
+            }
+        }
+        return true
     }
 
     // 1 is decoded, 0 is corrupt, -1 is an unsupported schema.

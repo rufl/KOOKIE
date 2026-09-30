@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  KOF_VERSION: 0.4.10-beta
-  KOF_ARCHIVE_SHA256: 9dd917bd18f35a6c396a3bd45d28b83bd97afeb179f302dda4f475979cb13698
+  KOF_VERSION: 0.5.0-beta
+  KOF_ARCHIVE_SHA256: f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9
 
 jobs:
   verify:

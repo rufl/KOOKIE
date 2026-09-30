@@ -1,8 +1,9 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura e gates de aceitação vivos; a implementação limitada de G0–G4 está completa, com limites explícitos de qualificação abaixo**.
+Status: **arquitetura e gates de aceitação vivos; a implementação limitada de G0–G5 está completa, com limites explícitos de qualificação abaixo**.
 
-Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. A arquitetura do projeto está em
+Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de release:
+Kof 0.5.0-beta. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md),
 [sondagens orientadas pelo curso](COURSE_PROBES.md), [precedentes de jogos](GAME_ECOSYSTEM.md),
@@ -745,8 +746,9 @@ replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
 leu a cena limitada, e 84/84 testes-fonte focados passam na JVM e no nativo. A
 ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
 capacidades Kof inalteradas e buffers nativos persistentes. A evidência G5
-abaixo adiciona um soak headless sem colisão de 30 minutos; ela não amplia a
-afirmação gráfica de G1.
+concluída abaixo adiciona a carga completa com colisão criada por autoria, um
+soak de 30 minutos e renderização instanciada em hardware; ela não amplia G1
+além das plataformas e limites qualificados explicitamente.
 
 G2 está fechado pelo slice de transporte com três processos na JVM e no nativo,
 que leva a arena completa, comandos unificados com checksum para
@@ -767,8 +769,8 @@ apresentação parcial e retoma pelo baseline da nova geração. O Kof calcula
 atenuação por distância e pan estéreo relativos ao listener, enquanto o
 adaptador SDL_mixer enfileira os ganhos PCM esquerdo/direito resultantes.
 HRTF/EFX aguardam uma solução permissiva comprovada; decodificação em streaming
-e o soak de G5 continuam como expansão posterior, não critérios faltantes da
-aceitação de G2.
+continua como expansão posterior, enquanto o soak G5 concluído está registrado
+abaixo. Nenhum é critério faltante da aceitação G2.
 
 G3 está fechado no gate de aceitação atual. Mortes de inimigos sob autoridade
 do servidor produzem rolagens completas determinísticas; comandos remotos de
@@ -799,40 +801,76 @@ geral de formatos, reload arbitrário de código/shader, editor de produção e
 qualificação recente em três máquinas físicas ficam explicitamente fora dessa
 afirmação.
 
-O slice G5 limitado atual executa a população exata de 64 inimigos,
-256 projéteis móveis e 512 itens coletáveis em um servidor Kof sem gráficos.
-Os limites móveis admitem 16 estados de IA, 64 slots de projéteis e 128 slots
-de itens por tick. `scripts/verify_dedicated_server.sh` comprova checksum
-`797255` igual na JVM/nativo e assinatura de recursos `675172` inalterada,
-depois mede o binário nativo por 512 ticks após 128 ticks de aquecimento. Em
-Linux 6.18.54-1-lts/x86_64, CPU Genuine Intel família 6 modelo 197 com 16
-cores e 48.848.828 KiB de RAM, a carga sem colisão registrou
-p50/p95/p99/máximo de 1,186/1,245/1,269/2,195 ms e 64 KiB de
-crescimento/faixa de RSS em 17 amostras.
-`scripts/verify_dedicated_soak.sh` então ritmou 108.000 ticks medidos a 60 Hz
-após 600 ticks de aquecimento: p50/p95/p99/máximo foram
-1,216/1,891/2,182/4,110 ms, o RSS inicial/final foi 3.884/4.012 KiB, o
-crescimento/faixa de RSS foi 128 KiB em 181 amostras e a assinatura lógica de
-recursos permaneceu `675172`.
-`scripts/verify_dedicated_network.sh` também executa um host autenticado e dois
-processos clientes com admissão de conteúdo, quatro checkpoints limitados,
-desconexão do cliente B e reconexão na geração 2; todos terminam no tick 256
-com assinatura de recursos `675172`. O arquivo Linux executa o servidor com
-telemetria fora do checkout, sem dependência de SDL/X11/Wayland/Vulkan no
-binário/adaptador do servidor.
+O slice G5 limitado concluído executa uma cena com 192 vértices/64 triângulos de
+colisão criada por autoria, 64 inimigos, 256 projéteis móveis, 512 itens,
+24 luzes dinâmicas e 64 efeitos no servidor Kof sem gráficos. Os limites móveis
+admitem 16 estados de IA, 64 slots de projéteis e 128 slots de itens por tick.
+`scripts/verify_dedicated_server.sh` comprova comportamento JVM/nativo igual,
+assinatura de recursos `520690` inalterada e os 64 triângulos carregados. Em
+Linux 6.18.54-1-lts/x86_64, CPU Genuine Intel família 6 modelo 197 com
+16 cores, a amostra nativa registrou p50/p95/p99/máximo de
+1,518/1,623/1,717/1,757 ms e 64 KiB de crescimento/faixa de RSS.
 
-Essa evidência qualifica apenas a carga headless sem colisão e o protocolo de
-checkpoint na mesma máquina. Ela não qualifica a cena média com colisão criada
-manualmente, gameplay remoto por tick, renderização nem operação em várias
-máquinas.
+`scripts/verify_dedicated_soak.sh` ritmou 108.000 ticks medidos a 60 Hz após
+600 de aquecimento. p50/p95/p99/máximo foram 2,489/3,202/3,721/23,645 ms; o
+RSS inicial/final foi 3.620/3.748 KiB, com 128 KiB de crescimento/faixa em
+181 amostras. A assinatura lógica permaneceu `520690`; o checksum final da
+carga foi `884139`. O p95 da simulação fica abaixo do orçamento de 4 ms.
 
-### Evidência limitada medida e metas de desempenho restantes
+`scripts/verify_dedicated_network.sh` executa um host autenticado e dois
+processos clientes com admissão de conteúdo e uma atualização completa em
+quatro chunks em cada um dos 256 ticks. Ambos terminam com checksum de estado
+`569221` e assinatura `520690`; o cliente B desconecta e retorna na geração 2.
+O estado do cliente só é confirmado após todos os chunks e o checksum global,
+então transações obsoletas, repetidas ou adulteradas preservam o estado anterior.
+
+`scripts/verify_g5_renderer.sh` prepara 2.952 atributos de vértice como
+984 instâncias de triângulo em hardware — 64 triângulos do ambiente,
+832 marcadores de entidades e 88 de luzes/efeitos — em um draw. Dentro do
+wrapper de display isolado, Vulkan 26.2.3 em `Intel(R) Graphics (ARL)` mediu
+600 frames em 1920×1080: p50/p95/p99/máximo de envio foram
+0,304/0,645/0,845/1,089 ms, incluindo o upload por frame. O checksum do
+readback 320×240 revisado visualmente foi `39710142`; seu SHA-256 PPM é
+`20b37c94927b04689071200346f1e98f3498ce6408697bae697535773f15f5d4`.
+
+Saves duráveis contra crash validam um arquivo staged, executam fsync dos
+dados, rename atômico e fsync do diretório pai. Migrações cobrem schemas antigos
+em várias etapas; replay v3 vincula identidade de engine/conteúdo/seed e um
+checksum global. O pacote exige Kof 0.5.0-beta exato, árvore limpa e chave
+Ed25519 privada do owner, então assina arquivo, manifesto e conjunto de
+checksums. O servidor empacotado continua independente de gráficos.
+
+G5 está completo para esse contrato Linux x86-64 declarado. A evidência não
+afirma operação em várias máquinas/WAN, desempenho em outro OS/GPU,
+escalabilidade arbitrária de população, conteúdo em streaming ou sandbox G6.
+
+### Evidência limitada medida e metas de desempenho mantidas
 
 Cena de referência para o primeiro estágio de escala: 64 inimigos ativos, 256 projéteis em movimento, 512 itens coletáveis, luzes/efeitos dinâmicos limitados e um nível médio criado manualmente. Mantenha uma variante de estresse mais pesada após a correção da linha de base; não alegue escalabilidade arbitrária da população.
 
 Metas a medir em CPU/GPU/driver/resolução/build explicitamente registrados: simulação a 60 Hz, trabalho de simulação p95 ≤4 ms/tick, quadro p95 ≤8.33 ms para uma meta de renderização de 120 Hz a 1080p e nenhum crescimento monotônico de recursos/RSS em um soak limitado de 30 minutos após o aquecimento. Registre p99/máximo e os custos de GC/upload, não apenas o FPS médio. Um resultado abaixo da meta altera capacidade/conteúdo/implementação com base nos perfis; não justifica mover a jogabilidade para fora do Kof.
 
 Esses limites são metas de projeto. A correção pode ser testada sob renderização por software, mas os tempos do renderizador de software não podem certificar as metas de hardware. As provas de gráficos/entrada devem ser serializadas dentro de um ambiente de exibição isolado e descartável.
+
+### Evidência de dispatch SIMD DXPERF-051
+
+`native/kookie_simd_dispatch.c` é um mecanismo nativo estreito, não uma
+implementação de gameplay. Ele seleciona AVX2 ou SSE2 em x86, NEON em AArch64 e
+sempre retém uma implementação escalar verificada. A inicialização é thread-safe;
+builds sem suporte ou com escalar forçado continuam válidos.
+`scripts/verify_simd_dispatch.sh` executa o mesmo contrato de soma inteira pelo
+caminho selecionado no host e pelo escalar, depois compila o caminho AArch64
+com o cross target do Clang. Isso prova dispatch e fonte cross-architecture,
+não ganho de frame ou velocidade do engine.
+
+O Kof 0.5.0-beta fornece o contrato `Buffer(U8, INOUT)` mais token necessário
+para FFI nativa em lote. A verificação adversarial independente fornecida em
+2026-09-30 aprovou os caminhos x86-64 nativo e cross suportados nos commits
+`b4c2b734a`, `381f6fab0` e `bf17ac7e7` (evidência `c73556f5a`); Script,
+JavaScript, Android, riscv32 e MCU ainda informam `FFI001`. O KOOKIE não
+repetiu essa matriz upstream. Nenhum hot loop pertencente ao Kof usa esse
+mecanismo antes de medir ABI e carga representativa; nenhum ganho SIMD é
+afirmado.
 
 ## 11. Riscos de verificação e decisão
 
@@ -853,34 +891,25 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 
 | Risco | Evidência atual | Ação / estágio de liberação |
 |---|---|---|
-| FFI não possui buffers/estruturas/ponteiros/callbacks nativos em lote | Rejeição de fonte + array medida | Adaptador escalar mínimo; medir overhead de upload; propor contrato de buffer upstream se necessário |
-| Inicialização do runtime C nativo/driver | Apenas chamadas de versão/libm medidas | Prova G0 de GPU/áudio/entrada SDL real; não inferir a partir de fixtures de ABI simulados |
+| FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | `Buffer(U8, INOUT)` + token no 0.5.0-beta passou na verificação fornecida para x86-64 nativo/cross; Script/JS/Android/riscv32/MCU continuam `FFI001` | Integrar apenas alvos medidos; manter caminho escalar; medir antes de alegar ganho |
+| Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; Windows é um shell de plataforma | Manter gates por plataforma; não inferir gameplay de um backend SDL |
 | Coletor nativo após spawn | Estágio de spawn cumulativo na fonte do alocador | Uma única thread Kof; soak prolongado; nenhum bypass inseguro de GC manual |
 | Desempenho da geração de código nativo | Pipeline mínimo de otimização | Medir arrays/matemática/FFI representativos; usar batching/pré-alocação; não reescrever a jogabilidade em C |
 | Redução do runtime de distribuição | Aviso reproduzido fora do checkout do compilador | Corrigir upstream ou medir/aceitar explicitamente a dependência/tamanho do runtime completo antes da liberação |
-| Manipulador nativo de exceção obsoleto | A asserção posterior reentrou em um try/catch concluído e saiu com 0; o lowering ignora a remoção do manipulador | Resolver/revalidar antes de confiar na limpeza de exceções G0 ou nos resultados dos testes; nenhum shim de fluxo de controle |
+| Manipulador nativo de exceção obsoleto | A asserção posterior reentrou em um try/catch concluído e saiu com 0; hangs de caminhos de falha continuam limitados externamente | Validar falhas esperadas antes de throw; usar gates externos de timeout/saída/output; nenhum shim de fluxo de controle |
 | Paridade de JSON/split nativo | JSON de registros mistos fracionários corrompeu valores; split com pipe escapado diferiu da JVM | Reparar/provar esquemas exatos de conteúdo/salvamento e contratos do parser antes de depender de G3/G4 |
-| Linguagem/documentação divergem rapidamente | Curso 0.3.7 / páginas mais antigas do portal / versão 0.4.9 | SHA da fonte + digest executável; atualizar por meio de sondas de comportamento focadas, não alegações baseadas apenas em compilação |
+| Linguagem/documentação divergem rapidamente | Curso 0.3.7 / páginas mais antigas do portal / gate de release 0.5.0-beta | Fixar identidade exata do toolchain e digest do arquivo; atualizar por sondas focadas de comportamento, não somente compilação |
 | Confiabilidade/segurança do editor | Execução de arquivo único, UI em JS, manipuladores privilegiados não autenticados | CLI + editor separado com capacidade de LSP; nenhuma dependência de fork do editor |
 | Pipeline de criação torna-se um segundo engine | Monólitos irmãos/múltiplas autoridades | Contratos compartilhados de runtime/query/conteúdo `.kf`; publicação em estágios no limite do quadro |
 | Suposições sobre licenças/recursos | Direitos mistos entre projetos irmãos; fonte DoomKof sem licença | Preservar a proveniência, resolver concessões, possuir/testar os recursos inicialmente |
 | Portabilidade nativa alegada em excesso | A saída nativa examinada é um ELF Linux | Estágios de plataforma separados; a lista de backends SDL não equivale ao suporte de executáveis Kof |
 
-## 12. Primeiro incremento de implementação
+## 12. Primeiro incremento histórico
 
-**G0 está em andamento.** A fundação modular/de sessão inicial agora existe:
-
-- `src/core/foundation.kf`: contratos de protocolo/tick do núcleo escalar.
-- `src/session/loopback.kf`: codec de verificação do envelope limitado de cinco palavras.
-- `src/main.kf`: um único ponto de entrada Kof modular.
-- `probes/g0_platform/main.kf`: sonda de plataforma SDL3 escalar isolada.
-
-As execuções focadas em JVM/nativo passam para o smoke da sessão e para a sonda escalar direta de
-`SDL_GetVersion()`. O backend nativo ainda emite o aviso conhecido de redução do runtime completo. A primeira tentativa expôs um defeito de boxing de registro/array entre pacotes do Kof e um defeito de verificador de extern escalar encapsulado; a implementação agora mantém o limite do módulo público inicial baseado em contratos escalares/de arrays e isola a FFI direta em sua própria sonda. Esses defeitos do compilador continuam sendo estágios upstream, não soluções alternativas do engine a serem generalizadas.
-
-Próximas ações de G0:
-
-1. Preservar essas sondas como regressões focadas e estabelecer o contrato verificado de tokens/recursos sem casts de ponteiros.
-2. Provar a inicialização real de janela/GPU/áudio do SDL a partir do ELF nativo sob o wrapper de exibição isolado.
-3. Medir o staging de tuplas escalares e o comportamento de memória limitado em uma única thread.
-4. Corrigir ou colocar explicitamente em estágio os defeitos do compilador nativo antes de adicionar a implementação completa de sessão/mundo.
+G0 começou com contratos escalares de núcleo/tick, codec de sessão limitado,
+um ponto de entrada Kof modular e uma sonda SDL3 isolada. As primeiras
+execuções JVM/nativo expuseram defeitos de boxing de registro/array entre
+pacotes e de verificação de extern escalar encapsulado, por isso a FFI direta
+permaneceu isolada até o contrato do compilador amadurecer. As sondas retidas
+agora protegem essas fronteiras; a implementação limitada G0–G5 concluída e a
+evidência de aceitação acima substituem o checklist original do incremento.

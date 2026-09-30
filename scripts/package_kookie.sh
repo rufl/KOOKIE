@@ -9,19 +9,22 @@ RUNTIME="${KOOKIE_RUNTIME:-native}"
 VERSION="${KOOKIE_VERSION:-0.1.0-dogfood.1}"
 BUILD_ID="${KOOKIE_BUILD_ID:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}"
 OUTPUT_DIR="${KOOKIE_OUTPUT_DIR:-$ROOT_DIR/release}"
-PROVENANCE_SCHEMA="${KOOKIE_PACKAGE_PROVENANCE_SCHEMA:-kookie.package-provenance/v1}"
+PROVENANCE_SCHEMA="${KOOKIE_PACKAGE_PROVENANCE_SCHEMA:-kookie.package-provenance/v2}"
+SIGNING_KEY="${KOOKIE_SIGNING_KEY:-}"
+KOF_ARCHIVE_SHA256="${KOOKIE_KOF_ARCHIVE_SHA256:-f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9}"
+EXPECTED_KOF_VERSION="${KOOKIE_EXPECTED_KOF_VERSION:-kof 0.5.0-beta}"
 
 usage() {
   cat <<'EOF'
 Usage: scripts/package_kookie.sh [--runtime native|presentation] [--target linux-x86_64|windows-x86_64]
 
-Builds an immutable KOOKIE archive and SHA256SUMS. Native Linux packages
-contain the Kof executable and use the host's system runtime. Presentation
-packages contain the persistent native Kof SDL_GPU application, SDL3,
-SDL_mixer, the adapter, and shaders. Every Linux package also contains a
-graphics-free Kof dedicated workload server with native timing and RSS
-telemetry. Windows packages contain the native SDL3 and SDL_mixer game shell.
-Java runtimes are deliberately excluded from distributable packages.
+Builds a signed immutable KOOKIE archive, provenance manifest, public key,
+signature set, and SHA256SUMS. Native Linux packages contain the Kof executable
+and use the host's system runtime. Presentation packages contain the persistent
+native Kof SDL_GPU application, SDL3, SDL_mixer, the adapter, and shaders.
+Every Linux package also contains a graphics-free Kof dedicated workload server
+with native timing and RSS telemetry. Windows packages contain the native SDL3
+and SDL_mixer game shell. Java runtimes are deliberately excluded.
 EOF
 }
 
@@ -32,6 +35,7 @@ while (($#)); do
     --version) VERSION="${2:?missing version}"; shift 2 ;;
     --build-id) BUILD_ID="${2:?missing build id}"; shift 2 ;;
     --output) OUTPUT_DIR="${2:?missing output directory}"; shift 2 ;;
+    --signing-key) SIGNING_KEY="${2:?missing signing key}"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) echo "package_kookie: unknown argument: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -62,6 +66,36 @@ esac
   exit 2
 }
 command -v sha256sum >/dev/null || { echo 'package_kookie: sha256sum is required' >&2; exit 2; }
+command -v openssl >/dev/null || { echo 'package_kookie: openssl is required' >&2; exit 2; }
+command -v stat >/dev/null || { echo 'package_kookie: stat is required' >&2; exit 2; }
+command -v git >/dev/null || { echo 'package_kookie: git is required' >&2; exit 2; }
+command -v kof >/dev/null || { echo 'package_kookie: kof is required' >&2; exit 2; }
+ACTUAL_KOF_VERSION="$(kof version 2>/dev/null)" || {
+  echo 'package_kookie: unable to read the Kof toolchain version' >&2
+  exit 2
+}
+[[ "$ACTUAL_KOF_VERSION" == "$EXPECTED_KOF_VERSION" ]] || {
+  printf 'package_kookie: expected %s; found %s\n' \
+    "$EXPECTED_KOF_VERSION" "$ACTUAL_KOF_VERSION" >&2
+  exit 2
+}
+[[ -n "$SIGNING_KEY" && -f "$SIGNING_KEY" && ! -L "$SIGNING_KEY" ]] || {
+  echo 'package_kookie: KOOKIE_SIGNING_KEY must name a regular Ed25519 private key' >&2
+  exit 2
+}
+signing_key_mode="$(stat -c '%a' "$SIGNING_KEY")"
+if (( (8#$signing_key_mode & 077) != 0 )); then
+  echo 'package_kookie: signing key must not be group/world accessible' >&2
+  exit 2
+fi
+signing_key_description="$(openssl pkey -in "$SIGNING_KEY" -text -noout 2>/dev/null)" || {
+  echo 'package_kookie: signing key is unreadable' >&2
+  exit 2
+}
+[[ "$signing_key_description" == *ED25519* ]] || {
+  echo 'package_kookie: signing key must use Ed25519' >&2
+  exit 2
+}
 if [[ "$TARGET" == linux-x86_64 ]]; then
   command -v cc >/dev/null || {
     echo 'package_kookie: cc is required for the headless server adapter' >&2
@@ -96,6 +130,14 @@ if [[ "$TARGET" == windows-x86_64 ]]; then
   command -v zip >/dev/null || { echo 'package_kookie: zip is required for Windows packaging' >&2; exit 2; }
   command -v zig >/dev/null || { echo 'package_kookie: zig is required for Windows packaging' >&2; exit 2; }
 fi
+SOURCE_TREE_STATE=clean
+if [[ -n "$(git -C "$ROOT_DIR" status --porcelain --untracked-files=normal)" ]]; then
+  if [[ "${KOOKIE_ALLOW_DIRTY_PACKAGE:-0}" != 1 ]]; then
+    echo 'package_kookie: source tree is dirty; commit or set KOOKIE_ALLOW_DIRTY_PACKAGE=1 for a non-release smoke package' >&2
+    exit 2
+  fi
+  SOURCE_TREE_STATE=dirty-allowed
+fi
 
 if [[ -e "$OUTPUT_DIR" && ! -d "$OUTPUT_DIR" ]]; then
   echo 'package_kookie: output path exists and is not a directory' >&2
@@ -115,6 +157,13 @@ PACKAGE_NAME="kookie-$VERSION-$TARGET"
 PACKAGE_ROOT="$WORK_DIR/$PACKAGE_NAME"
 ARCHIVE="$OUTPUT_DIR/$PACKAGE_NAME.$([[ "$TARGET" == windows-x86_64 ]] && echo zip || echo tar.gz)"
 mkdir -p "$PACKAGE_ROOT"
+PUBLIC_KEY_WORK="$WORK_DIR/RELEASE_PUBLIC_KEY.pem"
+PUBLIC_KEY_DER="$WORK_DIR/release-public-key.der"
+openssl pkey -in "$SIGNING_KEY" -pubout -out "$PUBLIC_KEY_WORK" 2>/dev/null
+openssl pkey -in "$SIGNING_KEY" -pubout -outform DER \
+  -out "$PUBLIC_KEY_DER" 2>/dev/null
+PUBLIC_KEY_SHA256="$(sha256sum "$PUBLIC_KEY_DER" | cut -d ' ' -f 1)"
+cp -- "$PUBLIC_KEY_WORK" "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
 
 bundle_linux_native() {
   local binary="$1"
@@ -125,6 +174,7 @@ bundle_linux_native() {
   if [[ "$presentation_package" == 1 ]]; then
     mkdir "$PACKAGE_ROOT/lib"
     local found_sdl=0
+    local found_mixer=0
     for dependency in "$binary" "$@"; do
       while IFS= read -r library; do
         case "$(basename "$library")" in
@@ -183,6 +233,9 @@ bundle_linux_server() {
   cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
     "$ROOT_DIR/native/kookie_transport.c" \
     -o "$server_root/lib/libkookie_headless_adapter.so"
+  cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
+    "$ROOT_DIR/native/kookie_persistence_adapter.c" \
+    -o "$server_root/lib/libkookie_persistence_adapter.so"
   (cd "$server_root" && kof build main.kf --target native \
     --output "$server_build" >/dev/null)
   local server_binary="$server_build/Default/Main"
@@ -194,6 +247,8 @@ bundle_linux_server() {
   chmod 755 "$PACKAGE_ROOT/kookie-server.bin"
   cp -- "$server_root/lib/libkookie_headless_adapter.so" \
     "$PACKAGE_ROOT/lib/libkookie_headless_adapter.so"
+  cp -- "$server_root/lib/libkookie_persistence_adapter.so" \
+    "$PACKAGE_ROOT/lib/libkookie_persistence_adapter.so"
   cat > "$PACKAGE_ROOT/kookie-server" <<'EOF'
 #!/usr/bin/env sh
 set -eu
@@ -249,6 +304,9 @@ else
     "${SDL_FLAGS[@]}"
   glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
     -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
+  glslc -fshader-stage=vert \
+    "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
+    -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
   glslc -fshader-stage=frag "$ROOT_DIR/native/shaders/g0_triangle.frag" \
     -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
   (cd "$PACKAGE_ROOT" && kof build "$PRESENTATION_ROOT/main.kf" --target native --output "$WORK_DIR/build" >/dev/null)
@@ -274,6 +332,8 @@ if [[ "$TARGET" == windows-x86_64 ]]; then
 fi
 cp -- "$ROOT_DIR/LICENSE" "$PACKAGE_ROOT/LICENSE"
 cp -- "$ROOT_DIR/THIRD_PARTY_NOTICES.txt" "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
+SOURCE_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+KOF_TOOLCHAIN_VERSION="$ACTUAL_KOF_VERSION"
 cat > "$PACKAGE_ROOT/PROVENANCE.txt" <<EOF
 application=kookie
 channel=dogfood
@@ -282,8 +342,12 @@ runtime=$RUNTIME
 native_linux_launcher=$([[ "$TARGET" == linux-x86_64 ]] && echo system-loader || echo direct)
 version=$VERSION
 build_id=$BUILD_ID
-source_commit=$(git -C "$ROOT_DIR" rev-parse HEAD)
-kof_version=$(kof version 2>/dev/null | tr '\n' ' ')
+source_commit=$SOURCE_COMMIT
+source_tree_state=$SOURCE_TREE_STATE
+kof_version=$KOF_TOOLCHAIN_VERSION
+kof_archive_sha256=$KOF_ARCHIVE_SHA256
+release_signing=ed25519
+release_public_key_sha256=$PUBLIC_KEY_SHA256
 license_status=MIT
 windows_status=$([[ "$TARGET" == windows-x86_64 ]] && echo native-sdl-shell || echo not-applicable)
 dependency_policy=permissive-distributed-only
@@ -291,21 +355,33 @@ sdl_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] &&
 sdl_mixer_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.2.4 || echo not-bundled)
 runtime_dependencies=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo SDL3+SDL_mixer || echo system-only)
 dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
+crash_durable_save=staged-validated-fsync-rename-directory-fsync
+replay_admission=identity-bound-checksummed-v3
 EOF
-rm -f -- "$ARCHIVE"
+MANIFEST="$OUTPUT_DIR/$PACKAGE_NAME.json"
+PUBLIC_KEY="$OUTPUT_DIR/$PACKAGE_NAME.pub.pem"
+ARCHIVE_SIGNATURE="$ARCHIVE.sig"
+MANIFEST_SIGNATURE="$MANIFEST.sig"
+CHECKSUMS="$OUTPUT_DIR/SHA256SUMS"
+CHECKSUMS_SIGNATURE="$OUTPUT_DIR/SHA256SUMS.sig"
+rm -f -- "$ARCHIVE" "$MANIFEST" "$PUBLIC_KEY" "$ARCHIVE_SIGNATURE" \
+  "$MANIFEST_SIGNATURE" "$CHECKSUMS" "$CHECKSUMS_SIGNATURE"
 if [[ "$TARGET" == windows-x86_64 ]]; then
   (cd "$WORK_DIR" && zip -qr "$ARCHIVE" "$PACKAGE_NAME")
 else
   tar -C "$WORK_DIR" -czf "$ARCHIVE" "$PACKAGE_NAME"
 fi
-(
-  cd "$OUTPUT_DIR"
-  sha256sum "$(basename "$ARCHIVE")" > SHA256SUMS
-)
-python3 - "$ARCHIVE" "$OUTPUT_DIR/$PACKAGE_NAME.json" "$TARGET" "$VERSION" "$BUILD_ID" "$BASE_URL" "$PROVENANCE_SCHEMA" "$RUNTIME" <<'PY'
+cp -- "$PUBLIC_KEY_WORK" "$PUBLIC_KEY"
+python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
+  "$BASE_URL" "$PROVENANCE_SCHEMA" "$RUNTIME" "$SOURCE_COMMIT" \
+  "$SOURCE_TREE_STATE" "$KOF_TOOLCHAIN_VERSION" "$KOF_ARCHIVE_SHA256" \
+  "$PUBLIC_KEY_SHA256" "$(basename "$PUBLIC_KEY")" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
-target, version, build_id, base_url, schema, runtime = sys.argv[3:9]
+manifest_path = pathlib.Path(sys.argv[2])
+(target, version, build_id, base_url, schema, runtime, source_commit,
+ source_tree_state, kof_version, kof_archive_sha256, public_key_sha256,
+ public_key_name) = sys.argv[3:15]
 encoded = f"{base_url.rstrip('/')}/dogfood/{version}/{target}/{build_id}"
 manifest = {
     "schema": schema,
@@ -315,16 +391,47 @@ manifest = {
     "target": target,
     "runtime": runtime,
     "build_id": build_id,
+    "source_commit": source_commit,
+    "source_tree_state": source_tree_state,
+    "kof_version": kof_version,
+    "kof_archive_sha256": kof_archive_sha256,
     "archive": archive.name,
     "size": archive.stat().st_size,
     "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
     "dedicated_server": target == "linux-x86_64",
-    "signing": "unavailable",
-    "proof": "unavailable",
+    "signing": "ed25519",
+    "proof": "ed25519-signature-set",
+    "signature_encoding": "binary",
+    "public_key": public_key_name,
+    "public_key_sha256": public_key_sha256,
+    "archive_signature": archive.name + ".sig",
+    "manifest_signature": manifest_path.name + ".sig",
+    "checksums": "SHA256SUMS",
+    "checksums_signature": "SHA256SUMS.sig",
     "url": f"{encoded}/{archive.name}",
-    "manifest_url": f"{encoded}/metadata.json",
+    "manifest_url": f"{encoded}/{manifest_path.name}",
 }
-pathlib.Path(sys.argv[2]).write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+manifest_path.write_text(
+    json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+    encoding="utf-8")
 PY
+openssl pkeyutl -sign -rawin -inkey "$SIGNING_KEY" \
+  -in "$ARCHIVE" -out "$ARCHIVE_SIGNATURE"
+openssl pkeyutl -sign -rawin -inkey "$SIGNING_KEY" \
+  -in "$MANIFEST" -out "$MANIFEST_SIGNATURE"
+(
+  cd "$OUTPUT_DIR"
+  sha256sum "$(basename "$ARCHIVE")" "$(basename "$MANIFEST")" \
+    "$(basename "$PUBLIC_KEY")" "$(basename "$ARCHIVE_SIGNATURE")" \
+    "$(basename "$MANIFEST_SIGNATURE")" > SHA256SUMS
+)
+openssl pkeyutl -sign -rawin -inkey "$SIGNING_KEY" \
+  -in "$CHECKSUMS" -out "$CHECKSUMS_SIGNATURE"
+for signed_file in "$ARCHIVE" "$MANIFEST" "$CHECKSUMS"; do
+  signature="$signed_file.sig"
+  openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
+    -in "$signed_file" -sigfile "$signature" >/dev/null
+done
 
-printf 'package_kookie: wrote %s, %s, and %s\n' "$ARCHIVE" "$OUTPUT_DIR/SHA256SUMS" "$OUTPUT_DIR/$PACKAGE_NAME.json"
+printf 'package_kookie: wrote signed %s, %s, %s, and signature set\n' \
+  "$ARCHIVE" "$CHECKSUMS" "$MANIFEST"

@@ -227,6 +227,7 @@ class G1HeadlessPresentation {
     }
 }
 
+
 Bool transportSnapshot(
     LoopbackSession session, Int[] payload
 ) {

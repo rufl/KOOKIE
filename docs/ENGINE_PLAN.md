@@ -1,9 +1,10 @@
 # KOOKIE engine plan
 
-Status: **living architecture and acceptance gates; the bounded G0–G4 implementation is complete, with explicit qualification limits below**.
+Status: **living architecture and acceptance gates; the bounded G0–G5 implementation is complete, with explicit qualification limits below**.
 
-Research baseline: 2026-09-22, Kof 0.4.9-beta. Project architecture is
-[ARCHITECTURE.md](ARCHITECTURE.md). See [language/runtime evidence](KOF_LANGUAGE.md),
+Research baseline: 2026-09-22, Kof 0.4.9-beta. Current release gate:
+Kof 0.5.0-beta. Project architecture is [ARCHITECTURE.md](ARCHITECTURE.md). See
+[language/runtime evidence](KOF_LANGUAGE.md),
 [initial probes](RESEARCH_PROBES.md), [course deep dive](KOF_COURSE.md),
 [course-driven probes](COURSE_PROBES.md), [game precedents](GAME_ECOSYSTEM.md),
 [editor findings](KOF_EDITOR.md), and [monorepo port map](MONOREPO_REUSE.md).
@@ -708,8 +709,9 @@ local hitscan event also reaches bounded replay/audio queues and native SDL clip
 playback. An isolated GPU smoke rendered and read back the bounded scene, and
 84/84 focused source tests pass on JVM and native. G1's no-per-frame-growth
 evidence is 64 deterministic stages with unchanged Kof capacities plus
-persistent native scene buffers. The G5 evidence below adds a 30-minute
-collision-free headless soak; it does not extend G1's graphical claim.
+persistent native scene buffers. The completed G5 evidence below adds the full
+authored collision workload, a 30-minute soak and hardware-instanced rendering;
+it does not broaden G1 beyond the explicitly qualified platforms and bounds.
 
 G2 is closed by the JVM/native three-process transport slice carrying the full
 arena, unified checksummed movement/fire/interaction/lifecycle commands,
@@ -725,10 +727,11 @@ segment/AABB collision and stage a 36-vertex camera-projected cuboid; the native
 headless GPU probe draws the resulting 486-vertex arena/door/HUD scene.
 Feedback transport preserves multi-event order, rejects duplicates and gaps
 without partial presentation, and resumes from the new-generation baseline.
-Kof computes listener-relative distance attenuation and stereo panning, while
-SDL_mixer queues the resulting left/right PCM gains. HRTF/EFX waits for a
-proven permissive solution; streamed decoding and the G5 soak remain later
-expansion, not missing G2 acceptance.
+The Kof layer computes listener-relative distance attenuation and stereo
+panning; SDL_mixer queues the resulting left/right PCM gains. HRTF/EFX waits
+for a proven permissive solution; streamed decoding remains later expansion,
+while the completed G5 soak is recorded below. Neither is missing G2
+acceptance.
 
 G3 is closed at its current acceptance gate. Server-owned enemy deaths produce
 deterministic full rolls; remote pickup/equip/progression commands cannot
@@ -758,32 +761,50 @@ compatibility, arbitrary code/shader reload, a production-grade editor, and
 fresh qualification on three physical machines are explicitly outside that
 claim.
 
-The current bounded G5 slice executes the exact 64-enemy,
-256-moving-projectile and 512-pickup population in a graphics-free Kof server.
-Rolling work limits admit 16 AI states, 64 projectile slots and 128 pickup
-slots per tick. `scripts/verify_dedicated_server.sh` proves matching JVM/native
-checksum `797255` and unchanged resource signature `675172`, then measures the
-native binary after 128 warm-up ticks for 512 ticks. On Linux
-6.18.54-1-lts/x86_64, a 16-core Genuine Intel family 6 model 197 CPU and
-48,848,828 KiB RAM, the collision-free workload recorded p50/p95/p99/max
-1.186/1.245/1.269/2.195 ms and 64 KiB RSS growth/range across 17 samples.
-`scripts/verify_dedicated_soak.sh` then paced 108,000 measured ticks at 60 Hz
-after 600 warm-up ticks: p50/p95/p99/max were
-1.216/1.891/2.182/4.110 ms, RSS first/last was 3,884/4,012 KiB, RSS
-growth/range was 128 KiB across 181 samples, and the logical resource signature
-remained `675172`.
-`scripts/verify_dedicated_network.sh` additionally runs one authenticated host
-and two client processes through content admission, four bounded checkpoints,
-client-B disconnect and generation-2 reconnect; every process ends at tick 256
-with resource signature `675172`. The Linux archive runs the telemetry-enabled
-server outside the checkout and its server binary/adapter have no
-SDL/X11/Wayland/Vulkan dependency.
+The completed bounded G5 slice executes a 192-vertex/64-triangle authored
+collision scene with 64 enemies, 256 moving projectiles, 512 pickups,
+24 dynamic lights and 64 effects in the graphics-free Kof server. Rolling work
+limits admit 16 AI states, 64 projectile slots and 128 pickup slots per tick.
+`scripts/verify_dedicated_server.sh` proves matching JVM/native behavior,
+unchanged resource signature `520690` and all 64 collision triangles loaded.
+On Linux 6.18.54-1-lts/x86_64, a 16-core Genuine Intel family 6 model 197 CPU,
+the focused native sample recorded p50/p95/p99/max
+1.518/1.623/1.717/1.757 ms and a 64 KiB RSS growth/range.
 
-This evidence qualifies the collision-free headless workload and same-host
-checkpoint protocol only. It does not qualify the medium authored collision
-scene, per-tick remote gameplay, rendering, or multi-machine operation.
+`scripts/verify_dedicated_soak.sh` paced 108,000 measured ticks at 60 Hz after
+600 warm-up ticks. p50/p95/p99/max were 2.489/3.202/3.721/23.645 ms; RSS
+first/last was 3,620/3,748 KiB with 128 KiB growth/range across 181 samples.
+The logical resource signature stayed `520690`; the final workload checksum was
+`884139`. Simulation p95 therefore remains below the declared 4 ms budget.
 
-### Measured bounded evidence and remaining performance targets
+`scripts/verify_dedicated_network.sh` runs one authenticated host and two client
+processes through content admission and a complete four-chunk state update on
+every one of 256 ticks. Both clients finish with state checksum `569221` and
+resource signature `520690`; client B disconnects and resumes at generation 2.
+Client state is committed only after all chunks and the whole-state checksum
+pass, so stale, replayed or tampered transactions preserve the prior state.
+
+`scripts/verify_g5_renderer.sh` stages 2,952 vertex attributes as 984 hardware
+triangle instances—64 environment triangles, 832 entity markers and 88
+light/effect markers—in one draw. Inside the isolated display wrapper, Vulkan
+26.2.3 on `Intel(R) Graphics (ARL)` measured 600 frames at 1920×1080:
+p50/p95/p99/max submission time was 0.304/0.645/0.845/1.089 ms, including the
+per-frame upload. The visually reviewed 320×240 readback checksum was
+`39710142`; its PPM SHA-256 is
+`20b37c94927b04689071200346f1e98f3498ce6408697bae697535773f15f5d4`.
+
+Crash-durable saves validate a staged file, fsync file data, rename atomically
+and fsync the parent directory. Save migrations cover multi-step old schemas;
+replay v3 binds engine/content/seed identity and a whole-payload checksum.
+Release packaging requires an exact Kof 0.5.0-beta toolchain, clean source
+tree and owner-private Ed25519 key, then signs the archive, provenance manifest
+and checksum set. The packaged headless server remains graphics-independent.
+
+G5 is complete for this declared Linux x86-64 contract. The evidence does not
+claim multi-machine/WAN behavior, other OS or GPU performance, arbitrary
+population scalability, streamed content, or G6 sandboxing.
+
+### Measured bounded evidence and retained performance targets
 
 Reference scene for first scale gate: 64 active enemies, 256 moving projectiles, 512 pickups, bounded dynamic lights/effects and one medium authored level. Maintain a heavier stress variant after the baseline is correct; do not claim arbitrary population scalability.
 
@@ -795,7 +816,14 @@ These thresholds are design goals. Correctness may be tested under software rend
 
 `native/kookie_simd_dispatch.c` is a narrow native mechanism, not a gameplay implementation. It selects AVX2 or SSE2 at runtime on x86, NEON on AArch64, and always retains a checked scalar implementation. Dispatch initialization is thread-safe; unsupported or forced-scalar builds remain valid. `scripts/verify_simd_dispatch.sh` runs the same integer-sum contract through the host-selected path and scalar path, then compiles the AArch64 source path with Clang's cross target. This is dispatch and cross-architecture source evidence, not a frame-time or engine-speed measurement.
 
-Kof cannot currently call the bulk kernel: array/buffer FFI is rejected by the compiler (`FFI001`). Until that ABI exists, no Kof-owned hot loop is routed through this mechanism and no SIMD speedup is claimed. The scalar fallback is the production-safe behavior at the current language boundary.
+Kof 0.5.0-beta provides the `Buffer(U8, INOUT)` plus token contract needed for
+bulk native FFI. Independent adversarial verification supplied on 2026-09-30
+passed native x86-64 and supported cross paths at upstream commits `b4c2b734a`,
+`381f6fab0` and `bf17ac7e7` (evidence `c73556f5a`); Script, JavaScript,
+Android, riscv32 and MCU paths still report `FFI001`. KOOKIE has not rerun that
+upstream matrix. No Kof-owned hot loop is routed through this mechanism until
+its ABI and representative workload are benchmarked, so no SIMD speedup is
+claimed.
 
 
 ## 11. Verification and decision risks
@@ -817,42 +845,25 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 
 | Risk | Current evidence | Action / release gate |
 |---|---|---|
-| FFI has no bulk buffers/structs/pointers/native callbacks | Source + array rejection measured | Minimal scalar adapter; measure upload overhead; upstream buffer contract if needed |
-| Native C-runtime/driver initialization | Only version/libm calls measured | G0 real SDL GPU/audio/input proof; do not infer from mock ABI fixtures |
+| Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | 0.5.0-beta `Buffer(U8, INOUT)` + token passed supplied native x86-64/cross verification; Script/JS/Android/riscv32/MCU still `FFI001` | Integrate only measured targets; retain scalar path; benchmark before speed claims |
+| Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows is a platform shell | Keep separate platform gates; do not infer gameplay support from an SDL backend |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
 | Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |
 | Distribution runtime pruning | Warning reproduced outside compiler checkout | Fix upstream or explicitly measure/accept full-runtime dependency/size before release |
-| Native stale exception handler | Later assertion re-entered a completed try/catch and exited 0; lowering skips handler removal | Resolve/revalidate before trusting G0 exception cleanup or test results; no control-flow shim |
+| Native stale exception handler | Later assertion re-entered a completed try/catch and exited 0; failure-path hangs remain externally bounded | Validate expected failures before throw; use external timeout/exit/output gates; no control-flow shim |
 | Native JSON/split parity | Fractional mixed-record JSON corrupted values; escaped-pipe split differed from JVM | Repair/prove exact content/save schemas and parser contracts before G3/G4 reliance |
-| Language/docs rapidly diverge | 0.3.7 course / older portal pages / 0.4.9 release | Source SHA + executable digest; upgrade through focused behavior probes, not compile-only claims |
+| Language/docs rapidly diverge | 0.3.7 course / older portal pages / 0.5.0-beta release gate | Pin exact toolchain identity and archive digest; upgrade through focused behavior probes, not compile-only claims |
 | Editor reliability/security | Single-file run, JS UI, privileged unauthenticated handlers | CLI + separate LSP-capable editor; no dependency on editor fork |
 | Creator pipeline becomes second engine | Sibling monoliths/multiple authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
 | License/asset assumptions | Mixed sibling rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |
 | Native portability overclaimed | Examined native output is Linux ELF | Separate platform gates; SDL backend list is not Kof executable support |
 
-## 12. First implementation increment
+## 12. Historical first implementation increment
 
-**G0 is in progress.** The initial modular/session foundation now exists:
-
-- `src/core/foundation.kf`: scalar core protocol/tick contracts.
-- `src/session/loopback.kf`: bounded five-word envelope smoke codec.
-- `src/main.kf`: one modular Kof entrypoint.
-- `probes/g0_platform/main.kf`: isolated scalar SDL3 platform probe.
-
-Focused JVM/native runs pass for the session smoke and direct scalar
-`SDL_GetVersion()` probe. The native backend still emits the known full-runtime
-pruning warning. The first attempt exposed a Kof cross-package record/array
-boxing defect and a wrapped-scalar-extern verifier defect; the implementation
-now keeps the initial public module boundary scalar/array-contract based and
-isolates direct FFI in its own probe. These compiler defects remain upstream
-gates, not engine workarounds to generalize.
-
-Next G0 actions:
-
-1. Preserve these probes as focused regressions and establish the checked
-   token/resource contract without pointer casts.
-2. Prove actual SDL window/GPU/audio initialization from native ELF under the
-   isolated display wrapper.
-3. Measure scalar tuple staging and bounded single-thread memory behavior.
-4. Repair or explicitly gate the native compiler defects before adding the
-   full session/world implementation.
+G0 began with scalar core/tick contracts, a bounded session codec, one modular
+Kof entrypoint and an isolated SDL3 platform probe. Early JVM/native runs
+exposed cross-package record/array boxing and wrapped-scalar-extern verifier
+defects, so direct FFI remained isolated until the compiler contract matured.
+The retained probes now guard those boundaries; the completed bounded G0–G5
+implementation and the acceptance evidence above supersede the original
+increment checklist.

@@ -181,9 +181,11 @@ O bundle e os logs operacionais não devem ser commitados.
 
 O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos concluídos continuam registrados aqui.
 
-- O `kof info --json` instalado reporta 0.4.9-beta no Linux x86-64. O assembler
-  nativo emite ELF Linux; o shell SDL nativo Windows não muda esse limite do
-  compilador.
+- O `kof info --json` instalado reporta 0.5.0-beta no Linux x86-64. A
+  qualificação de release fixa o SHA-256 do arquivo em
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`.
+  O assembler nativo emite ELF Linux; o shell SDL nativo Windows não muda esse
+  limite do compilador.
 - Arquivos de release cobrem Linux nativo e o shell de plataforma Windows
   SDL3 + SDL_mixer. Gameplay Kof autoritativo no Windows continua não
   comprovado.

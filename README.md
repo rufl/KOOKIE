@@ -7,7 +7,7 @@ The doors have prerequisites. The network has prerequisites. Calling this finish
 
 ## The honest status
 
-G0, G1, G2, G3 and the bounded G4 implementation run on JVM and native Linux x86-64:
+G0 through the bounded G5 implementation run on JVM and native Linux x86-64:
 
 - authoritative 60 Hz loopback server/client sessions, two-client admission,
   snapshots and observable prediction/reconciliation;
@@ -73,13 +73,24 @@ G0, G1, G2, G3 and the bounded G4 implementation run on JVM and native Linux x86
 - listener-relative distance attenuation and stereo panning computed in Kof,
   with allocation-free PCM submission to independent SDL_mixer effects and
   music buses.
-- a graphics-free Linux `kookie-server` workload runner preallocates 64 enemies,
-  256 moving projectiles and 512 pickups, enforces per-tick
-  AI/projectile/pickup work budgets of 16/64/128, and reports native tick-time
-  percentiles plus RSS samples;
-- an authenticated same-host scale gate runs that exact workload with one host,
-  two client processes, content admission, bounded checkpoints, disconnect and
-  generation-safe reconnect.
+- the bounded G5 reference workload combines a 192-vertex/64-triangle authored
+  collision scene, 64 enemies, 256 moving projectiles, 512 pickups, 24 dynamic
+  lights and 64 effects under per-tick AI/projectile/pickup budgets of
+  16/64/128. Its 30-minute paced native soak kept p95 simulation work at
+  3.202 ms/tick and RSS within a 128 KiB range after warm-up;
+- an authenticated same-host scale gate replicates the complete workload every
+  tick to two client processes, with transactional four-chunk state assembly,
+  tamper/replay rejection, disconnect and generation-safe reconnect;
+- SDL_GPU renders the reference scene as 984 hardware triangle instances in
+  one draw. A 600-frame 1920×1080 Vulkan run on Intel Arrow Lake graphics
+  recorded p50/p95/p99/max frame submission time of
+  0.304/0.645/0.845/1.089 ms;
+- bounded save publication validates a staged file, fsyncs it, renames
+  atomically and fsyncs the parent directory. Replay v3 binds engine/content
+  identity and payload checksum; migrations and reconnect reject rollback;
+- Linux packages fail closed unless the source tree is clean, Kof is exactly
+  0.5.0-beta and an owner-private Ed25519 release key is supplied. Archive,
+  manifest and checksum-set signatures bind source/toolchain provenance.
 
 The important gaps are still real:
 
@@ -93,17 +104,18 @@ The important gaps are still real:
   Aseprite, Dust3D and brush subsets reject unsupported constructs;
 - live reload covers validated scene/render products, not arbitrary Kof code,
   shaders, editor plugins or unbounded resource streaming;
-- Kof bulk-buffer FFI is blocked by `FFI001`, so the native SIMD kernel is not
-  wired into Kof-owned hot loops;
-- the collision-free headless workload reached native simulation p95
-  1.245 ms/tick over 512 measured ticks, then passed a 30-minute real-time soak
-  at p95 1.891 ms/tick with 128 KiB RSS growth/range after warm-up on the
-  recorded Linux workstation; the medium authored collision scene, dynamic
-  lights/effects and 1080p render-frame target remain unqualified;
-- the scale transport proof is same-host loopback with checkpoint replication,
-  not full per-tick remote gameplay or fresh multi-machine evidence;
-- crash-durable saves, full physics, streamed/compressed audio and HRTF/EFX,
-  richer G6 authoring and sandboxed runtime extensions remain unfinished.
+- Kof 0.5.0-beta now exposes the verified `Buffer(U8, INOUT)` plus token FFI
+  contract on native x86-64 and supported cross targets. KOOKIE has not routed a
+  Kof-owned hot loop through the SIMD kernel yet; benchmark and ABI integration
+  must precede any speedup claim;
+- scale transport qualification remains same-host loopback. It exercises full
+  per-tick state replication, reconnect and stale/tampered-state rejection, not
+  fresh multi-machine operation;
+- G5 timing is qualified only on the recorded Linux x86-64 CPU/GPU/driver
+  workstation and bounded populations; it is not a claim of arbitrary
+  scalability or cross-platform performance;
+- full physics, streamed/compressed audio and HRTF/EFX, richer G6 authoring and
+  sandboxed runtime extensions remain unfinished.
 - the native Windows shell is interactive and persistent, but Kof cannot yet
   emit Windows PE gameplay code; its Play screen is not proof of authoritative
   Kof execution on Windows;
@@ -125,16 +137,21 @@ Run the focused gameplay/replay probe:
 bash scripts/verify_interactions.sh
 ```
 
-Build a native Linux package:
+Build a signed native Linux package:
 
 ```bash
-KOOKIE_VERSION=0.1.0-dogfood.1 scripts/package_kookie.sh
+KOOKIE_VERSION=0.1.0-dogfood.28 \
+KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
+scripts/package_kookie.sh
 ```
 
-The builder emits a target-bound `.tar.gz`, `SHA256SUMS` and provenance JSON.
-Distributable JVM packages are intentionally unsupported because a Java
-runtime would violate KOOKIE's permissive-only distributed dependency policy.
-The JVM target remains available for local differential verification.
+The Ed25519 private key must be a regular mode-`0600` file. The builder emits a
+target-bound `.tar.gz`, detached signatures, `SHA256SUMS`, a public key and
+provenance JSON binding the clean source commit, exact Kof 0.5.0-beta toolchain
+and archive checksum. Distributable JVM packages are intentionally unsupported
+because a Java runtime would violate KOOKIE's permissive-only distributed
+dependency policy. The JVM target remains available for local differential
+verification.
 
 Every Linux archive also includes `kookie-server` and its graphics-independent
 native timing/RSS adapter. Running it executes a runtime-configurable bounded
@@ -162,7 +179,8 @@ visual qualification and ZEER dogfood deployment:
 
 ```bash
 KOOKIE_RUNTIME=presentation \
-KOOKIE_VERSION=0.1.0-dogfood.presentation.1 \
+KOOKIE_VERSION=0.1.0-dogfood.28 \
+KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh
 ```
 
@@ -176,6 +194,7 @@ packages for SDL 3.4.16 and SDL_mixer 3.2.4:
 ```bash
 KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
+KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
 
@@ -271,26 +290,25 @@ and compatibility offer/response transport. The handshake passed across three
 isolated Linux network namespaces with distinct IPv4 stacks. This does not
 claim general source-format compatibility, arbitrary live-code reload, a
 production-grade editor or fresh qualification on three physical machines.
-The bounded G5 work now includes the graphics-free packaged workload runner,
-rolling spatial work, native timing/RSS telemetry and an authenticated
-host-plus-two-client checkpoint/reconnect protocol at the declared
-64-enemy/256-projectile/512-pickup load with 16/64/128 work-unit ceilings. JVM
-and native produce checksum `797255` and resource signature `675172` after 256
-ticks. A 512-tick native sample reached simulation p95 1.245 ms/tick with
-64 KiB RSS growth/range. A separate 30-minute real-time run measured
-108,000 ticks after 600 warm-up ticks at p50/p95/p99/max
-1.216/1.891/2.182/4.110 ms, with 128 KiB RSS growth/range across 181 samples.
-This qualifies only the collision-free headless subset. G5 remains open for
-the medium authored scene, full remote gameplay load, 1080p render
-timing/batching/instancing and remaining persistence/recovery hardening.
+The bounded G5 gate is complete: the graphics-free packaged server runs the
+full authored 64-triangle collision scene plus 64 enemies, 256 projectiles,
+512 pickups, 24 lights and 64 effects within 16/64/128 work ceilings. The
+30-minute 60 Hz soak held simulation p95 to 3.202 ms and RSS to a 128 KiB
+range. Two authenticated same-host clients consume complete per-tick state and
+generation-safe reconnect. One hardware-instanced SDL_GPU draw renders all 984
+triangles at 1920×1080 with measured p95 submission time 0.645 ms. Durable
+saves, checksummed identity-bound replay, migrations, signed clean-tree
+packages and outside-checkout smoke complete the bounded release contract.
+The evidence remains limited to same-host transport, fixed populations and the
+recorded Linux x86-64 hardware.
 
 G2 remains covered by the source suite, focused interaction probe, process
 qualification and isolated SDL_GPU/audio probe.
 
-Deferred until the core gates are stronger:
+Explicitly deferred beyond bounded G5:
 
 - full physics and broader source-format/cooker profiles;
-- production save schema and dedicated/WAN transport hardening;
+- WAN/multi-machine transport and additional OS/GPU qualification;
 - streamed audio/HRTF, image and text services;
 - package compression, richer authoring and foreign physics/UI libraries.
 

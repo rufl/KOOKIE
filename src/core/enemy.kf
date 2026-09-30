@@ -42,7 +42,7 @@ class EnemySpatialWorld {
         if (maxDistance <= 0) {
             maxDistance = 1
         }
-        obstacles = BoundedTriangleCollection(8, maxDistance)
+        obstacles = BoundedTriangleCollection(64, maxDistance)
         navigator = EnemyNavigator(obstacles, 128, 64)
         navigationProduct = BoundedNavigationProduct(1)
         navigationProductLoaded = false
@@ -84,6 +84,19 @@ class EnemySpatialWorld {
 
     Bool hasObstacles() {
         return obstacles.triangleCount() > 0
+    }
+
+    Int obstacleCount() {
+        return obstacles.triangleCount()
+    }
+
+    Bool segmentMightHitObstacle(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        return obstacles.triangleCount() > 0 &&
+            obstacles.mayIntersectSegment(
+                startX, startY, startZ, endX, endY, endZ)
     }
 
     Int find(Int id) {
@@ -210,7 +223,11 @@ class EnemySpatialWorld {
         if (distance > range || distance > maxDistance) {
             return SpatialVisibilityResult(false, false, distance, -1)
         }
-        if (obstacles.triangleCount() == 0) {
+        if (obstacles.triangleCount() == 0 ||
+            !obstacles.mayIntersectSegment(
+                positionsX[sourceIndex], positionsY[sourceIndex],
+                positionsZ[sourceIndex], positionsX[targetIndex],
+                positionsY[targetIndex], positionsZ[targetIndex])) {
             return SpatialVisibilityResult(true, true, distance, -1)
         }
         var result = obstacles.query(
@@ -224,26 +241,33 @@ class EnemySpatialWorld {
     }
     SpatialSweepResult traceSegment(
         Int startX, Int startY, Int startZ,
-        Int endX, Int endY, Int endZ, Int range
+        Int endX, Int endY, Int endZ
     ) {
-        var distance = segmentDistance(startX, startY, startZ, endX, endY, endZ)
-        if (range < 0 || distance > range || distance > maxDistance) {
-            return SpatialSweepResult(false, false, false, distance, startX, startY, startZ)
+        var distance = segmentDistance(
+            startX, startY, startZ, endX, endY, endZ)
+        if (distance > maxDistance) {
+            return SpatialSweepResult(
+                false, false, false, distance, startX, startY, startZ)
         }
-        if (obstacles.triangleCount() == 0) {
+        if (obstacles.triangleCount() == 0 ||
+            !obstacles.mayIntersectSegment(
+                startX, startY, startZ, endX, endY, endZ)) {
             return SpatialSweepResult(
                 true, false, true, distance, endX, endY, endZ)
         }
-        var result = obstacles.query(startX, startY, startZ, endX, endY, endZ)
+        var result = obstacles.query(
+            startX, startY, startZ, endX, endY, endZ)
         if (!result.accepted()) {
-            return SpatialSweepResult(false, false, false, distance, startX, startY, startZ)
+            return SpatialSweepResult(
+                false, false, false, distance, startX, startY, startZ)
         }
         if (result.collided()) {
             return SpatialSweepResult(
                 true, true, false, result.hitStep(),
                 result.resolvedX(), result.resolvedY(), result.resolvedZ())
         }
-        return SpatialSweepResult(true, false, true, distance, endX, endY, endZ)
+        return SpatialSweepResult(
+            true, false, true, distance, endX, endY, endZ)
     }
 
     EnemyMoveResult moveToward(Int enemyId, Int targetId, Int step) {

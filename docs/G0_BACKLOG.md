@@ -296,9 +296,11 @@ indefinitely.
 
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
-- Installed `kof info --json` reports 0.4.9-beta on Linux x86-64. Its native
-  assembler emits Linux ELF; the native Windows SDL shell does not change that
-  compiler limit.
+- Installed `kof info --json` reports 0.5.0-beta on Linux x86-64. Release
+  qualification pins archive SHA-256
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`.
+  Its native assembler emits Linux ELF; the native Windows SDL shell does not
+  change that compiler limit.
 - Release archives cover native Linux and the native Windows SDL3 + SDL_mixer
   platform shell. Authoritative Kof gameplay on Windows remains unproven.
 - Operational deployment records and cross-host evidence are intentionally

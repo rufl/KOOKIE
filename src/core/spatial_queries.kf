@@ -747,6 +747,45 @@ class BoundedTriangleCollection {
             segmentMaxZ >= boundMinZ && segmentMinZ <= boundMaxZ
     }
 
+    Bool mayIntersectSegment(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ
+    ) {
+        if (!nodeActive[1]) {
+            return false
+        }
+        var stackCount = 1
+        traversalStack[0] = 1
+        while (stackCount > 0) {
+            stackCount = stackCount - 1
+            var node = traversalStack[stackCount]
+            if (nodeActive[node] &&
+                segmentOverlapsBounds(
+                    startX, startY, startZ, endX, endY, endZ,
+                    nodeMinX[node], nodeMinY[node], nodeMinZ[node],
+                    nodeMaxX[node], nodeMaxY[node], nodeMaxZ[node])) {
+                if (node >= leafBase) {
+                    var index = node - leafBase
+                    if (index < triangleCountValue && active[index]) {
+                        return true
+                    }
+                } else {
+                    var left = node * 2
+                    var right = left + 1
+                    if (nodeActive[right]) {
+                        traversalStack[stackCount] = right
+                        stackCount = stackCount + 1
+                    }
+                    if (nodeActive[left]) {
+                        traversalStack[stackCount] = left
+                        stackCount = stackCount + 1
+                    }
+                }
+            }
+        }
+        return false
+    }
+
     SegmentCollisionResult rejected(
         Int startX, Int startY, Int startZ,
         Int endX, Int endY, Int endZ

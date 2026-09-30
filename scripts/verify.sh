@@ -7,17 +7,26 @@ cd "$root_dir"
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
 
+expected_kof_version="kof 0.5.0-beta"
+actual_kof_version="$(kof version)"
+if [[ "$actual_kof_version" != "$expected_kof_version" ]]; then
+  printf 'KOOKIE requires %s; found %s\n' \
+    "$expected_kof_version" "$actual_kof_version" >&2
+  exit 1
+fi
+
 python3 scripts/lint_kf.py src probes apps
 python3 scripts/lsp_verify.py src
 python3 scripts/lsp_verify.py probes
 
 kof check src --target jvm
 kof check src --target native
-kof test src --target jvm
-kof test src --target native
+kof test src/main.kf --target jvm
+kof test src/main.kf --target native
 bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_interactions.sh
+bash scripts/verify_durable_save.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh
 bash scripts/verify_package.sh
@@ -115,6 +124,8 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
     $(pkg-config --cflags --libs sdl3 sdl3-mixer)
   glslc -fshader-stage=vert native/shaders/g0_triangle.vert \
     -o "$adapter_build_dir/g0_triangle.vert.spv"
+  glslc -fshader-stage=vert native/shaders/g5_triangle_instance.vert \
+    -o "$adapter_build_dir/g5_triangle_instance.vert.spv"
   glslc -fshader-stage=frag native/shaders/g0_triangle.frag \
     -o "$adapter_build_dir/g0_triangle.frag.spv"
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
@@ -181,6 +192,10 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
   elif [[ "$adapter_status" -ne 0 ]]; then
     exit "$adapter_status"
   fi
+  if [[ "$adapter_status" -eq 0 ]]; then
+    KOOKIE_PRESENTATION_ISOLATION_WRAPPER="$isolation_wrapper" \
+      bash scripts/verify_g5_renderer.sh
+  fi
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
     KOOKIE_RENDER_NODE="$render_node" \
       python3 scripts/validate_presentation_evidence.py \
@@ -194,4 +209,4 @@ fi
 kof build src --target jvm --output "$build_dir/jvm"
 kof build src --target native --output "$build_dir/native"
 
-echo "KOOKIE verification passed: linter, LSP, JVM/native checks, tests, runtime smoke, adapter smoke when available, and JVM/native builds"
+echo "KOOKIE verification passed: linter, LSP, JVM/native checks, tests, runtime smoke, durable save, adapter/reference renderer smoke when available, packages, and JVM/native builds"

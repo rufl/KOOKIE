@@ -4,6 +4,23 @@ Data da pesquisa: 2026-09-22. Esta é uma referência de trabalho, não uma afir
 
 ## Base de evidências
 
+### Toolchain atual de release
+
+- O gate de release do KOOKIE é o Kof `0.5.0-beta`; o SHA-256 fixado do
+  arquivo Linux x86-64 é
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`.
+- A verificação adversarial independente fornecida em 2026-09-30 aprovou
+  `Buffer(U8, INOUT)` mais o contrato de token FFI no x86-64 nativo e nos
+  cross targets para os commits upstream `b4c2b734a` (A1), `381f6fab0` (A2) e
+  `bf17ac7e7` (B), com evidência `c73556f5a`. Script, JavaScript, Android,
+  riscv32 e MCU ainda rejeitam esse contrato com `FFI001`. O KOOKIE não repetiu
+  essa matriz upstream; esses resultados foram fornecidos, não medidos
+  localmente.
+- O material 0.4.9 abaixo permanece como baseline histórico da pesquisa da
+  linguagem. Os gates atuais de pacote e CI exigem a identidade 0.5.0-beta
+  exata.
+
+
 - Código-fonte do compilador: [`KofLang/Kof4j@22a186b9bf9df37c03809ba6ef4af85085386f63`](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), `VERSION` = `0.4.9-beta`.
 - Artefato executado: [versão Linux, 0.4.9-beta, publicada em 2026-09-20](https://github.com/KofLang/Kof4j/releases/tag/kof-0.4.9-beta-linux-x86_64), `kof-cli-0.4.9-beta.jar` independente.
 - SHA-256 do Jar: `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`, correspondente aos metadados do ativo da versão do GitHub antes da execução.

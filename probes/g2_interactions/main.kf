@@ -115,7 +115,7 @@ Bool verifyInteractionCheckpoint() {
     assert(store.writeTimeline(
         "interaction-replay.dat", timeline, 1, 1, 99))
     var loaded = BoundedReplayTimeline(4, 2)
-    assert(store.readTimeline("interaction-replay.dat", loaded))
+    assert(store.readTimeline("interaction-replay.dat", loaded, 1, 1, 99))
     assert(session.applyReplayCheckpointBundle(loaded, 1))
     assert(session.currentServerTick() == 1 &&
         session.worldInteractionActive(1))
@@ -308,7 +308,8 @@ Bool verifyConsumedInteractionReplay() {
     var store = BoundedReplayBundleFileStore(8)
     assert(store.writeTimeline("consumed-interactions.dat", timeline, 1, 7, 33))
     var loaded = BoundedReplayTimeline(8, 2)
-    assert(store.readTimeline("consumed-interactions.dat", loaded) && loaded.interactionCount() == 5)
+    assert(store.readTimeline("consumed-interactions.dat", loaded, 1, 7, 33) &&
+        loaded.interactionCount() == 5)
     assert(session.replayTimelineToTick(1, loaded, 1))
     assert(!session.worldInteractionActive(10) && !session.lastInteractionAccepted(1))
     assert(!session.receiveInteraction(1, 2, 3, 30), "checkpoint pending commands retain their queue slots")
@@ -397,24 +398,30 @@ Bool verifyReplayFileBoundaries() {
     var target = BoundedReplayTimeline(2, 1)
     initial[0] = 9
     assert(target.setInitialSnapshot(initial) && target.appendInteraction(1, 2, 1, 99))
-    words[18] = 3
+    assert(words[1] == 3 &&
+        !store.readTimeline("replay-boundaries.dat", target, 2, 1, 7) &&
+        target.initialSnapshotValue(0) == 9 &&
+        target.interactionAt(0).targetId() == 99,
+        "replay admission must reject incompatible engine identity without mutation")
+    words[words.length - 2] = words[words.length - 2] + 1
     assert(writeReplayFixture("replay-boundaries.dat", words))
-    assert(!store.readTimeline("replay-boundaries.dat", target))
+    assert(!store.readTimeline("replay-boundaries.dat", target, 1, 1, 7))
     assert(target.initialSnapshotValue(0) == 9 && target.interactionAt(0).targetId() == 99)
-    words[18] = 1
+    words[words.length - 2] = words[words.length - 2] - 1
     var truncated = new Int[words.length - 1]
     for (var index = 0; index < truncated.length; index = index + 1) {
         truncated[index] = words[index]
     }
     assert(writeReplayFixture("replay-boundaries.dat", truncated))
-    assert(!store.readTimeline("replay-boundaries.dat", target) && target.initialSnapshotValue(0) == 9)
+    assert(!store.readTimeline("replay-boundaries.dat", target, 1, 1, 7) &&
+        target.initialSnapshotValue(0) == 9)
     var trailing = new Int[words.length + 1]
     for (var index = 0; index < words.length; index = index + 1) {
         trailing[index] = words[index]
     }
     trailing[words.length] = 0
     assert(writeReplayFixture("replay-boundaries.dat", trailing))
-    assert(!store.readTimeline("replay-boundaries.dat", target))
+    assert(!store.readTimeline("replay-boundaries.dat", target, 1, 1, 7))
     var legacy = new Int[9]
     legacy[0] = 22557799
     legacy[1] = 1
@@ -425,7 +432,8 @@ Bool verifyReplayFileBoundaries() {
     legacy[6] = 0
     legacy[7] = 1
     legacy[8] = 42
-    assert(writeReplayFixture("replay-boundaries.dat", legacy) && store.readTimeline("replay-boundaries.dat", target))
+    assert(writeReplayFixture("replay-boundaries.dat", legacy) &&
+        store.readTimeline("replay-boundaries.dat", target, 1, 1, 7))
     assert(target.interactionCount() == 0 && target.initialSnapshotValue(0) == 42,
         "genuine v1 files must replace interaction history with an empty log")
     return true

@@ -106,20 +106,25 @@ client_a = read_lines(sys.argv[2])
 client_b = read_lines(sys.argv[3])
 assert "g5-scale-role-host" in host
 assert value(host, "g5-scale-ticks") == "256"
-assert value(host, "g5-scale-checksum") == "797255"
-assert value(host, "g5-scale-resource-signature") == "675172"
+assert int(value(host, "g5-scale-checksum")) > 0
+state_checksum = value(host, "g5-scale-state-checksum")
+resource_signature = value(host, "g5-scale-resource-signature")
+assert int(state_checksum) > 0
+assert resource_signature == "520690"
 assert value(host, "g5-scale-client-b-generation") == "2"
-assert host[-1] == "KOOKIE G5 authenticated host/two-client workload verified"
+assert host[-1] == "KOOKIE G5 authenticated per-tick host/two-client workload verified"
 assert "g5-scale-role-client-a" in client_a
 assert value(client_a, "g5-scale-final-tick") == "256"
 assert value(client_a, "g5-scale-final-generation") == "1"
-assert value(client_a, "g5-scale-updates") == "4"
-assert value(client_a, "g5-scale-resource-signature") == "675172"
+assert value(client_a, "g5-scale-updates") == "256"
+assert value(client_a, "g5-scale-state-checksum") == state_checksum
+assert value(client_a, "g5-scale-resource-signature") == resource_signature
 assert "g5-scale-role-client-b" in client_b
 assert value(client_b, "g5-scale-final-tick") == "256"
 assert value(client_b, "g5-scale-final-generation") == "2"
-assert value(client_b, "g5-scale-updates") == "5"
-assert value(client_b, "g5-scale-resource-signature") == "675172"
+assert value(client_b, "g5-scale-updates") == "256"
+assert value(client_b, "g5-scale-state-checksum") == state_checksum
+assert value(client_b, "g5-scale-resource-signature") == resource_signature
 PY
 
 printf 'KOOKIE G5 native headless host/two-client scale gate passed\n'

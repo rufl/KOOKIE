@@ -2,6 +2,52 @@
 
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
+## 2026-09-30
+
+### Bounded G5 completion and release hardening
+
+- Upgraded every release and CI gate to exact Kof `0.5.0-beta`, pinned the
+  Linux x86-64 release archive SHA-256 to
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`,
+  and migrated the source contracts exercised by both JVM and native builds.
+- Added the complete bounded reference scene: 192 authored vertices,
+  64 collision triangles, 64 active enemies, 256 moving projectiles,
+  512 pickups, 24 dynamic lights and 64 effects. The server loads every
+  authored triangle and retains per-tick AI/projectile/pickup work ceilings of
+  16/64/128.
+- Corrected the dedicated workload's omitted collision load, removed a
+  native-backend argument-spill hazard from the projectile segment query and
+  changed its broad phase from root-only rejection to bounded BVH-leaf
+  traversal without per-query allocation.
+- Replicated the complete reference state on every tick to two authenticated
+  same-host client processes. Four-chunk client updates are transactional:
+  inconsistent, replayed or whole-state-checksum-invalid input cannot partially
+  replace the active view. Client B disconnects and resumes at generation 2.
+- Replaced CPU-expanded scene drawing with one actual GPU-instanced triangle
+  draw: 2,952 staged vertex attributes become 984 instances. The isolated
+  hardware gate rendered 600 frames at 1920×1080 on Vulkan 26.2.3,
+  `Intel(R) Graphics (ARL)`, at p50/p95/p99/max submission time of
+  0.304/0.645/0.845/1.089 ms. The visually reviewed readback retained SHA-256
+  `20b37c94927b04689071200346f1e98f3498ce6408697bae697535773f15f5d4`.
+- The focused native simulation run recorded p50/p95/p99/max
+  1.518/1.623/1.717/1.757 ms. A paced 30-minute run measured 108,000 ticks
+  after 600 warm-up ticks at 2.489/3.202/3.721/23.645 ms, with a stable
+  resource signature and 128 KiB RSS growth/range across 181 samples.
+- Added staged, validated, file-fsync/rename/directory-fsync save publication
+  with interrupted-write recovery; multi-step save migration; replay v3
+  identity and whole-payload checksums; and rollback guards for save, replay
+  and reconnect state.
+- Release packaging now requires a clean source tree, exact Kof identity and an
+  owner-private Ed25519 key. It signs the archive, provenance manifest and
+  checksum set, embeds the public key, and records the source commit,
+  toolchain/archive digest, durable-save and replay contracts.
+- Independent adversarial upstream verification supplied on 2026-09-30 passed
+  `Buffer(U8, INOUT)` plus token FFI on native x86-64 and supported cross paths
+  at commits `b4c2b734a`, `381f6fab0` and `bf17ac7e7` (evidence
+  `c73556f5a`). KOOKIE did not rerun that matrix; Script, JavaScript, Android,
+  riscv32 and MCU remain `FFI001`, and no SIMD speedup is claimed.
+
+
 ## 2026-09-29
 
 ### Bounded G5 headless timing and scale transport

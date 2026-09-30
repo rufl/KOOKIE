@@ -1,0 +1,128 @@
+package session
+
+import core
+
+class BoundedScaleReferenceRenderer {
+    Int environmentVerticesValue
+    Int enemyInstancesValue
+    Int projectileInstancesValue
+    Int pickupInstancesValue
+    Int lightInstancesValue
+    Int effectInstancesValue
+    Int vertexCountValue
+
+    public constructor() {
+        environmentVerticesValue = 192
+        enemyInstancesValue = 64
+        projectileInstancesValue = 256
+        pickupInstancesValue = 512
+        lightInstancesValue = 24
+        effectInstancesValue = 64
+        vertexCountValue = environmentVerticesValue +
+            (enemyInstancesValue + projectileInstancesValue +
+                pickupInstancesValue + lightInstancesValue +
+                effectInstancesValue) * 3
+    }
+
+    Int screenX(Int worldX) { return -94 + (worldX * 188) / 128 }
+    Int screenY(Int worldY, Int worldZ) {
+        return -94 + (worldZ * 176) / 128 + worldY / 4
+    }
+
+    Bool pushMarker(
+        FrameStaging target, Int resource,
+        Int centerX, Int centerY, Int radius
+    ) {
+        return target.pushVertex(
+                resource, centerX, centerY + radius, 50, 0) &&
+            target.pushVertex(
+                resource, centerX - radius, centerY - radius, 0, 100) &&
+            target.pushVertex(
+                resource, centerX + radius, centerY - radius, 100, 100)
+    }
+
+    Bool stage(
+        BoundedDedicatedServer server, FrameStaging target, Int frame
+    ) {
+        if (!server.configured() || !server.healthy() || frame <= 0 ||
+            server.referenceTriangleCount() != 64 ||
+            server.enemyCount() != enemyInstancesValue ||
+            server.projectileCount() != projectileInstancesValue ||
+            server.pickupCount() != pickupInstancesValue ||
+            server.referenceLightCount() != lightInstancesValue ||
+            server.referenceEffectCount() != effectInstancesValue ||
+            target.vertexCapacity() < vertexCountValue ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var triangle = 0;
+            triangle < server.referenceTriangleCount(); triangle = triangle + 1) {
+            var resource = 1 + (triangle % 10)
+            for (var corner = 0; corner < 3; corner = corner + 1) {
+                var coordinate = corner * 3
+                var x = server.referenceTriangleCoordinate(triangle, coordinate)
+                var y = server.referenceTriangleCoordinate(triangle, coordinate + 1)
+                var z = server.referenceTriangleCoordinate(triangle, coordinate + 2)
+                if (!target.pushVertex(
+                        resource, screenX(x), screenY(y, z),
+                        (corner % 2) * 100, (corner / 2) * 100)) {
+                    return false
+                }
+            }
+        }
+        for (var index = 0; index < server.enemyCount(); index = index + 1) {
+            if (!pushMarker(
+                    target, 12, screenX(server.enemyXAt(index)),
+                    screenY(server.enemyYAt(index), server.enemyZAt(index)), 2)) {
+                return false
+            }
+        }
+        for (var index = 0;
+            index < server.projectileCount(); index = index + 1) {
+            if (!server.projectileActiveAt(index) ||
+                !pushMarker(
+                    target, 14, screenX(server.projectileXAt(index)),
+                    screenY(server.projectileYAt(index),
+                        server.projectileZAt(index)), 1)) {
+                return false
+            }
+        }
+        for (var index = 0; index < server.pickupCount(); index = index + 1) {
+            if (!pushMarker(
+                    target, 6 + server.pickupRankAt(index),
+                    screenX(server.pickupXAt(index)),
+                    screenY(server.pickupYAt(index), server.pickupZAt(index)), 1)) {
+                return false
+            }
+        }
+        for (var index = 0;
+            index < server.referenceLightCount(); index = index + 1) {
+            var radius = 1 + server.lightIntensityAt(index) / 50
+            if (!pushMarker(
+                    target, 15, screenX(server.lightXAt(index)),
+                    screenY(server.lightYAt(index), server.lightZAt(index)), radius)) {
+                return false
+            }
+        }
+        for (var index = 0;
+            index < server.referenceEffectCount(); index = index + 1) {
+            var radius = 1 + (server.effectFrameAt(index) % 3)
+            if (!pushMarker(
+                    target, 16, screenX(server.effectXAt(index)),
+                    screenY(server.effectYAt(index), server.effectZAt(index)), radius)) {
+                return false
+            }
+        }
+        return target.stagedCount() == vertexCountValue && target.publish()
+    }
+
+    Int vertexCount() { return vertexCountValue }
+    Int batchedDrawCalls() { return 1 }
+    Int environmentVertices() { return environmentVerticesValue }
+    Int entityInstances() {
+        return enemyInstancesValue + projectileInstancesValue + pickupInstancesValue
+    }
+    Int dynamicEffectInstances() {
+        return lightInstancesValue + effectInstancesValue
+    }
+}

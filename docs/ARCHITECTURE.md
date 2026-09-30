@@ -608,23 +608,32 @@ physical machines remain outside this gate.
 
 ### G5 — Scale and release
 
-The bounded Linux slice now uses the same fixed-step, enemy, projectile and
-loot modules in a graphics-free server. It preallocates 64 enemies,
-256 projectiles and 512 pickups; rolling AI/projectile/pickup budgets remain
-16/64/128. Native timing and RSS come from the standalone authenticated
-transport/headless adapter, not SDL. A dedicated message contract admits
-content-compatible client generations, rejects stale requests and snapshots,
-publishes counts/budgets/checksum/resource signature, and requires a fresh
-compatibility exchange before reconnect. The focused native gate runs one host
-and two clients through disconnect/reconnect on same-host UDP.
+The completed bounded Linux gate uses the same fixed-step, authored collision,
+enemy, projectile and loot modules in the graphics-free server. The reference
+scene contains 192 vertices, 64 triangles, 64 enemies, 256 moving projectiles,
+512 pickups, 24 dynamic lights and 64 effects. Rolling
+AI/projectile/pickup budgets remain 16/64/128.
 
-The collision-free headless subset meets the 4 ms simulation-p95 target in
-both the short sample and a 30-minute paced run; that run held RSS within a
-128 KiB range and kept the logical resource signature stable. G5 still requires
-the medium authored scene and full per-tick remote workload, repeating
-performance/resource qualification there, 1080p rendering/batching/instancing,
-migration/replay hardening and production reconnect/session release
-qualification.
+The focused native sample measured p50/p95/p99/max simulation work at
+1.518/1.623/1.717/1.757 ms. A paced 30-minute run measured 108,000 ticks after
+600 warm-up ticks at 2.489/3.202/3.721/23.645 ms; RSS stayed within a 128 KiB
+range across 181 samples and resource signature `520690` remained stable. An
+authenticated same-host host plus two clients replicate the complete state on
+every tick, assemble four chunks transactionally, reject stale/tampered state,
+and recover client B at generation 2.
+
+The SDL_GPU boundary stages 2,952 vertex attributes as 984 hardware triangle
+instances in one draw. On the recorded Intel Arrow Lake Vulkan 26.2.3 device,
+600 frames at 1920×1080 measured p50/p95/p99/max submission time at
+0.304/0.645/0.845/1.089 ms. The retained 320×240 readback has SHA-256
+`20b37c94927b04689071200346f1e98f3498ce6408697bae697535773f15f5d4`.
+
+Crash-durable staged save publication, multi-step migrations, identity-bound
+checksummed replay v3, reconnect rollback guards and Ed25519-signed clean-tree
+packages close the release-hardening contract. G5 is complete for this bounded
+Linux x86-64 workload. Same-host transport, one recorded hardware target and
+fixed populations do not establish WAN/multi-machine, cross-platform or
+arbitrary-scale performance.
 
 ### G6 — Expansion
 

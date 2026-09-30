@@ -166,6 +166,7 @@ class BoundedDedicatedServer {
     FixedStepClock clock
     AuthoritativeEnemySession authority
     BoundedWorldLoot pickups
+    BoundedScaleReferenceScene scene
     Int[] enemyIds
     Int enemyCapacityValue
     Int projectileCapacityValue
@@ -224,6 +225,7 @@ class BoundedDedicatedServer {
         clock = FixedStepClock(60, 4)
         authority = AuthoritativeEnemySession(runtimeCapacity, 1)
         pickups = BoundedWorldLoot(actualPickups)
+        scene = BoundedScaleReferenceScene()
         enemyIds = new Int[actualEnemies]
         for (var index = 0; index < enemyIds.length; index = index + 1) {
             enemyIds[index] = 0
@@ -254,9 +256,10 @@ class BoundedDedicatedServer {
     }
 
     Bool configureReferenceWorkload() {
-        if (!validConfigurationValue || configuredValue ||
+        if (!validConfigurationValue || configuredValue || !scene.ready() ||
             !authority.configureEnemyRules(128, 1, 30) ||
-            !authority.configureSpatialBounds(0, 0, 0, 1000000, 1000000, 1000000) ||
+            !authority.configureSpatialProjectileRecycling(8) ||
+            !authority.configureSpatialBounds(0, 0, 0, 128, 24, 128) ||
             !authority.defineWeapon(
                 1, projectileCapacityValue, 0, 1, 0) ||
             !authority.setWeaponRange(1, 1000000) ||
@@ -265,16 +268,34 @@ class BoundedDedicatedServer {
                 1, enemyCapacityValue, enemyCapacityValue) ||
             !authority.addActor(1, 1000000, 0) ||
             !authority.addActor(2, 1000000, 0) ||
-            !authority.setSpatialPosition(1, 900000, 0, 0) ||
-            !authority.setSpatialPosition(2, 0, 0, 0)) {
+            !authority.setSpatialPosition(1, 16, 20, 64) ||
+            !authority.setSpatialPosition(2, 112, 20, 64)) {
             healthyValue = false
             return false
         }
+        for (var triangle = 0; triangle < scene.triangleCount();
+            triangle = triangle + 1) {
+            if (!authority.addSpatialObstacle(
+                    scene.triangleCoordinate(triangle, 0),
+                    scene.triangleCoordinate(triangle, 1),
+                    scene.triangleCoordinate(triangle, 2),
+                    scene.triangleCoordinate(triangle, 3),
+                    scene.triangleCoordinate(triangle, 4),
+                    scene.triangleCoordinate(triangle, 5),
+                    scene.triangleCoordinate(triangle, 6),
+                    scene.triangleCoordinate(triangle, 7),
+                    scene.triangleCoordinate(triangle, 8))) {
+                healthyValue = false
+                return false
+            }
+        }
         for (var index = 0; index < enemyIds.length; index = index + 1) {
             var enemyId = 1001 + index
+            var enemyX = 8 + (index % 8) * 14
+            var enemyZ = 8 + (index / 8) * 14
             if (!authority.admitEnemyAt(
                     1, enemyId, 0, 100, 0, 1,
-                    900001 + index, 0, 0)) {
+                    enemyX, 20, enemyZ)) {
                 healthyValue = false
                 return false
             }
@@ -297,7 +318,10 @@ class BoundedDedicatedServer {
                 !pickups.stage(
                     roll, enemyIds[index % enemyIds.length],
                     (index % 3) + 1,
-                    SpatialPoint(index, 0, index % 64))) {
+                    SpatialPoint(
+                        4 + (index % 16) * 8,
+                        2,
+                        4 + ((index / 16) % 16) * 8))) {
                 healthyValue = false
                 return false
             }
@@ -325,10 +349,35 @@ class BoundedDedicatedServer {
         result = mix(result, pickupCapacityValue)
         result = mix(result, pickups.capacity())
         result = mix(result, pickups.count())
+        result = mix(result, scene.resourceSignature())
         return result
     }
 
+    Bool refillProjectiles(Int tick) {
+        for (var attempt = 0;
+            attempt < projectileCapacityValue; attempt = attempt + 1) {
+            if (authority.activeSpatialProjectiles() ==
+                projectileCapacityValue) {
+                return true
+            }
+            var sourceId = enemyIds[(tick + attempt) % enemyIds.length]
+            if (!authority.spawnSpatialProjectile(
+                    sourceId, 2, tick, 1000000, 1, 0).accepted()) {
+                return false
+            }
+        }
+        return authority.activeSpatialProjectiles() ==
+            projectileCapacityValue
+    }
+
     Bool runTick(Int tick) {
+        if (!scene.step(tick, 8, 16)) { return false }
+        var collisionSample = scene.query(64, 20, 64, 64, 0, 64)
+        if (!collisionSample.accepted() || !collisionSample.collided()) {
+            return false
+        }
+        workloadChecksumValue = mix(
+            workloadChecksumValue, collisionSample.hitStep())
         lastAiWorkValue = 0
         for (var work = 0; work < aiBudgetValue; work = work + 1) {
             var enemyId = enemyIds[enemyCursor]
@@ -346,7 +395,9 @@ class BoundedDedicatedServer {
         }
         lastProjectileMovedValue = authority.advanceSpatialProjectilesBudgeted(
             tick, projectileCursor, projectileBudgetValue)
-        if (lastProjectileMovedValue < 0) { return false }
+        if (lastProjectileMovedValue < 0 || !refillProjectiles(tick)) {
+            return false
+        }
         lastProjectileWorkValue = projectileBudgetValue
         projectileCursor = projectileCursor + projectileBudgetValue
         while (projectileCursor >= authority.spatialProjectileCapacity()) {
@@ -365,6 +416,10 @@ class BoundedDedicatedServer {
         workloadChecksumValue = mix(workloadChecksumValue, tick)
         workloadChecksumValue = mix(
             workloadChecksumValue, lastProjectileMovedValue)
+        workloadChecksumValue = mix(
+            workloadChecksumValue, authority.spatialProjectileBlocked())
+        workloadChecksumValue = mix(
+            workloadChecksumValue, scene.dynamicChecksum())
         if (lastAiWorkValue > peakAiWorkValue) {
             peakAiWorkValue = lastAiWorkValue
         }
@@ -377,7 +432,8 @@ class BoundedDedicatedServer {
         ticksProcessedValue = ticksProcessedValue + 1
         return lastAiWorkValue <= aiBudgetValue &&
             lastProjectileWorkValue <= projectileBudgetValue &&
-            lastPickupWorkValue <= pickupBudgetValue
+            lastPickupWorkValue <= pickupBudgetValue &&
+            authority.activeSpatialProjectiles() == projectileCapacityValue
     }
 
     Bool advance(Int elapsedMicros) {
@@ -434,4 +490,67 @@ class BoundedDedicatedServer {
     Int baselineResourceSignature() { return baselineResourceSignatureValue }
     Int droppedMicros() { return droppedMicrosValue }
     Int overloadCount() { return overloadCountValue }
+    Int referenceLevelChecksum() { return scene.authoredChecksum() }
+    Int referenceTriangleCount() { return scene.triangleCount() }
+    Int referenceLightCount() { return scene.lightCount() }
+    Int referenceEffectCount() { return scene.effectCount() }
+    Int loadedReferenceTriangleCount() {
+        return authority.spatialObstacleCount()
+    }
+    Int referenceDynamicChecksum() { return scene.dynamicChecksum() }
+    Int referenceTriangleCoordinate(Int triangle, Int coordinate) {
+        return scene.triangleCoordinate(triangle, coordinate)
+    }
+    Int enemyIdAt(Int index) {
+        if (index < 0 || index >= enemyIds.length) { return 0 }
+        return enemyIds[index]
+    }
+    Int enemyStateAt(Int index) {
+        var id = enemyIdAt(index)
+        if (id == 0) { return 0 }
+        return authority.enemyState(id)
+    }
+    Int enemyXAt(Int index) {
+        var id = enemyIdAt(index)
+        if (id == 0) { return 0 }
+        return authority.enemySpatialPositionX(id)
+    }
+    Int enemyYAt(Int index) {
+        var id = enemyIdAt(index)
+        if (id == 0) { return 0 }
+        return authority.enemySpatialPositionY(id)
+    }
+    Int enemyZAt(Int index) {
+        var id = enemyIdAt(index)
+        if (id == 0) { return 0 }
+        return authority.enemySpatialPositionZ(id)
+    }
+    Bool projectileActiveAt(Int index) {
+        return authority.spatialProjectileActiveAt(index)
+    }
+    Int projectileIdAt(Int index) {
+        return authority.spatialProjectileIdAt(index)
+    }
+    Int projectileXAt(Int index) {
+        return authority.spatialProjectileXAt(index)
+    }
+    Int projectileYAt(Int index) {
+        return authority.spatialProjectileYAt(index)
+    }
+    Int projectileZAt(Int index) {
+        return authority.spatialProjectileZAt(index)
+    }
+    Int pickupIdAt(Int index) { return pickups.stableId(index) }
+    Int pickupRankAt(Int index) { return pickups.rank(index) }
+    Int pickupXAt(Int index) { return pickups.positionX(index) }
+    Int pickupYAt(Int index) { return pickups.positionY(index) }
+    Int pickupZAt(Int index) { return pickups.positionZ(index) }
+    Int lightXAt(Int index) { return scene.lightX(index) }
+    Int lightYAt(Int index) { return scene.lightY(index) }
+    Int lightZAt(Int index) { return scene.lightZ(index) }
+    Int lightIntensityAt(Int index) { return scene.lightIntensity(index) }
+    Int effectXAt(Int index) { return scene.effectX(index) }
+    Int effectYAt(Int index) { return scene.effectY(index) }
+    Int effectZAt(Int index) { return scene.effectZ(index) }
+    Int effectFrameAt(Int index) { return scene.effectFrame(index) }
 }

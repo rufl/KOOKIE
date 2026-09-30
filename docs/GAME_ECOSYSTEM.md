@@ -51,7 +51,7 @@ The browser route therefore contains substantial handwritten JS presentation/inp
 
 ### Historical compatibility and reuse
 
-The project targets Kof 0.2.1-beta/JDK 21 and reports old compiler/classpath/constant/void-call workarounds. Treat these as dated project observations, not current 0.4.9 limitations. No license file was found in the inspected tree, and GitHub license metadata was null. Study architecture, but do not copy source without resolving permission.
+The project targets Kof 0.2.1-beta/JDK 21 and reports old compiler/classpath/constant/void-call workarounds. Treat these as dated project observations, not limitations of KOOKIE's current release toolchain. No license file was found in the inspected tree, and GitHub license metadata was null. Study architecture, but do not copy source without resolving permission.
 
 ## kofman / Byte Eater
 

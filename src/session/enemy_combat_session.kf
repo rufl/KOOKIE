@@ -305,6 +305,7 @@ class AuthoritativeEnemySession {
     Bool[] spatialProjectileActive
     Int spatialProjectileHitsValue
     Int spatialProjectileBlockedValue
+    Int spatialProjectileRecycleDistance
     SpatialImpactQueue spatialImpacts
     EnemySteeringResult lastEnemySteering
 
@@ -329,6 +330,7 @@ class AuthoritativeEnemySession {
         spatialProjectileActive = new Bool[actorCapacity]
         spatialProjectileHitsValue = 0
         spatialProjectileBlockedValue = 0
+        spatialProjectileRecycleDistance = 0
         spatialImpacts = SpatialImpactQueue(actorCapacity * 2)
         lastEnemySteering = EnemySteeringResult(
             false, false, false, 0, 0, 0, 0, 0, 0)
@@ -371,6 +373,12 @@ class AuthoritativeEnemySession {
     Bool configureEnemyRules(Int perceptionRange, Int attackRange, Int cooldown) {
         return enemies.configure(perceptionRange, attackRange, cooldown)
     }
+
+    Bool configureSpatialProjectileRecycling(Int minimumDistance) {
+        if (minimumDistance < 0) { return false }
+        spatialProjectileRecycleDistance = minimumDistance
+        return true
+    }
     Bool configureEnemyRole(
         Int enemyId, Int role, Int moveStep, Int projectileStep
     ) {
@@ -407,6 +415,10 @@ class AuthoritativeEnemySession {
     ) {
         return spatial.addObstacle(
             ax, ay, az, bx, by, bz, cx, cy, cz)
+    }
+
+    Int spatialObstacleCount() {
+        return spatial.obstacleCount()
     }
 
     Bool setSpatialPosition(Int id, Int x, Int y, Int z) {
@@ -1101,6 +1113,20 @@ class AuthoritativeEnemySession {
             var targetZ = spatial.positionZ(targetId)
             var distance = spatial.distanceBetween(
                 startX, startY, startZ, targetX, targetY, targetZ)
+            if (spatialProjectileRecycleDistance > 0 &&
+                distance <= spatialProjectileRecycleDistance) {
+                var sourceId = spatialProjectileSources[index]
+                if (!spatial.hasPosition(sourceId)) { return -1 }
+                startX = spatial.positionX(sourceId)
+                startY = spatial.positionY(sourceId)
+                startZ = spatial.positionZ(sourceId)
+                spatialProjectileX[index] = startX
+                spatialProjectileY[index] = startY
+                spatialProjectileZ[index] = startZ
+                spatialProjectileTravelled[index] = 0
+                distance = spatial.distanceBetween(
+                    startX, startY, startZ, targetX, targetY, targetZ)
+            }
             var remaining = spatialProjectileRanges[index] -
                 spatialProjectileTravelled[index]
             if (remaining < 0) {
@@ -1140,9 +1166,10 @@ class AuthoritativeEnemySession {
                     }
                 }
             }
-            if (spatial.hasObstacles()) {
+            if (spatial.segmentMightHitObstacle(
+                    startX, startY, startZ, nextX, nextY, nextZ)) {
                 var trace = spatial.traceSegment(
-                    startX, startY, startZ, nextX, nextY, nextZ, travel)
+                    startX, startY, startZ, nextX, nextY, nextZ)
                 if (!trace.accepted()) {
                     publishSpatialImpact(
                         3, projectileId, spatialProjectileSources[index],
@@ -1217,6 +1244,31 @@ class AuthoritativeEnemySession {
 
     Int spatialProjectileCapacity() {
         return spatialProjectileActive.length
+    }
+
+    Bool spatialProjectileActiveAt(Int index) {
+        return index >= 0 && index < spatialProjectileActive.length &&
+            spatialProjectileActive[index]
+    }
+
+    Int spatialProjectileIdAt(Int index) {
+        if (!spatialProjectileActiveAt(index)) { return 0 }
+        return spatialProjectileIds[index]
+    }
+
+    Int spatialProjectileXAt(Int index) {
+        if (!spatialProjectileActiveAt(index)) { return 0 }
+        return spatialProjectileX[index]
+    }
+
+    Int spatialProjectileYAt(Int index) {
+        if (!spatialProjectileActiveAt(index)) { return 0 }
+        return spatialProjectileY[index]
+    }
+
+    Int spatialProjectileZAt(Int index) {
+        if (!spatialProjectileActiveAt(index)) { return 0 }
+        return spatialProjectileZ[index]
     }
 
     Int spatialProjectileHits() {

@@ -10,19 +10,78 @@ Int dedicatedWorkloadSnapshotDiagnostic() { return 1 }
 Int dedicatedWorkloadDisconnectDiagnostic() { return 2 }
 Int dedicatedWorkloadReconnectDiagnostic() { return 3 }
 Int dedicatedWorkloadRequestLength() { return 8 }
-Int dedicatedWorkloadStateLength() { return 18 }
+Int dedicatedWorkloadStateChunkCount() { return 4 }
+Int dedicatedWorkloadStateHeaderLength() { return 20 }
+Int dedicatedWorkloadMaximumStateLength() { return 277 }
+
+Int dedicatedWorkloadStateChunkPayloadLength(Int chunk) {
+    if (chunk == 0) { return 152 }
+    if (chunk >= 1 && chunk < dedicatedWorkloadStateChunkCount()) { return 256 }
+    return 0
+}
+
+Int dedicatedWorkloadStateChunkLength(Int chunk) {
+    var payload = dedicatedWorkloadStateChunkPayloadLength(chunk)
+    if (payload <= 0) { return 0 }
+    return dedicatedWorkloadStateHeaderLength() + payload + 1
+}
+
+Int dedicatedWorkloadChecksumMix(Int state, Int value) {
+    var normalized = value % 1000003
+    if (normalized < 0) { normalized = normalized + 1000003 }
+    return (state * 31 + normalized) % 1000003
+}
 
 Int dedicatedWorkloadMessageChecksum(Int[] words, Int length) {
-    if (length <= 0 || length > words.length) {
-        return -1
-    }
+    if (length <= 0 || length > words.length) { return -1 }
     var result = 83
     for (var index = 0; index < length; index = index + 1) {
-        var value = words[index] % 1000003
-        if (value < 0) {
-            value = value + 1000003
-        }
-        result = (result * 31 + value) % 1000003
+        result = dedicatedWorkloadChecksumMix(result, words[index])
+    }
+    return result
+}
+
+Int packDedicatedSpatialWord(Int x, Int y, Int z, Int value) {
+    if (x < 0 || x > 255 || y < 0 || y > 63 ||
+        z < 0 || z > 255 || value < 0 || value > 255) {
+        return -1
+    }
+    return x + y * 256 + z * 16384 + value * 4194304
+}
+
+Int unpackDedicatedSpatialX(Int packed) { return packed % 256 }
+Int unpackDedicatedSpatialY(Int packed) { return (packed / 256) % 64 }
+Int unpackDedicatedSpatialZ(Int packed) { return (packed / 16384) % 256 }
+Int unpackDedicatedSpatialValue(Int packed) { return (packed / 4194304) % 256 }
+
+Int dedicatedReferenceStateChecksum(BoundedDedicatedServer server) {
+    if (!server.configured() || !server.healthy()) { return -1 }
+    var result = 97
+    for (var index = 0; index < server.enemyCount(); index = index + 1) {
+        result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+            server.enemyXAt(index), server.enemyYAt(index), server.enemyZAt(index),
+            server.enemyStateAt(index)))
+    }
+    for (var index = 0; index < server.projectileCount(); index = index + 1) {
+        if (!server.projectileActiveAt(index)) { return -1 }
+        result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+            server.projectileXAt(index), server.projectileYAt(index),
+            server.projectileZAt(index), 1))
+    }
+    for (var index = 0; index < server.pickupCount(); index = index + 1) {
+        result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+            server.pickupXAt(index), server.pickupYAt(index), server.pickupZAt(index),
+            server.pickupRankAt(index)))
+    }
+    for (var index = 0; index < server.referenceLightCount(); index = index + 1) {
+        result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+            server.lightXAt(index), server.lightYAt(index), server.lightZAt(index),
+            server.lightIntensityAt(index)))
+    }
+    for (var index = 0; index < server.referenceEffectCount(); index = index + 1) {
+        result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+            server.effectXAt(index), server.effectYAt(index), server.effectZAt(index),
+            server.effectFrameAt(index)))
     }
     return result
 }
@@ -64,8 +123,8 @@ Bool validDedicatedWorkloadRequest(Int[] words) {
         words[7] == dedicatedWorkloadMessageChecksum(words, 7)
 }
 
-Bool validDedicatedWorkloadState(Int[] words) {
-    if (words.length != dedicatedWorkloadStateLength() ||
+Bool validDedicatedWorkloadStateChunk(Int[] words) {
+    if (words.length < dedicatedWorkloadStateHeaderLength() + 1 ||
         words[0] != protocolVersion() ||
         words[1] != dedicatedWorkloadStateMessageKind() ||
         words[2] < 0 || words[2] > 10000000 ||
@@ -73,42 +132,51 @@ Bool validDedicatedWorkloadState(Int[] words) {
         words[4] < 1 || words[4] > 2 ||
         words[5] <= 0 || words[5] > 1000000 ||
         words[6] < 0 || words[6] > 1 ||
-        words[7] <= 0 || words[7] > 64 ||
-        words[8] <= 0 || words[8] > 256 ||
-        words[9] <= 0 || words[9] > 512 ||
-        words[10] <= 0 || words[10] > words[7] ||
-        words[11] <= 0 || words[11] > words[8] ||
-        words[12] <= 0 || words[12] > words[9] ||
-        words[13] < 0 || words[13] > 1000002 ||
-        words[14] <= 0 || words[14] > 1000002 ||
-        words[15] < 0 || words[15] > 1000000 ||
-        words[16] < dedicatedWorkloadSnapshotDiagnostic() ||
-        words[16] > dedicatedWorkloadReconnectDiagnostic() ||
-        words[17] != dedicatedWorkloadMessageChecksum(words, 17)) {
+        words[7] < 0 || words[7] >= dedicatedWorkloadStateChunkCount() ||
+        words[8] != dedicatedWorkloadStateChunkCount() ||
+        words[9] != 64 || words[10] != 256 || words[11] != 512 ||
+        words[12] != 16 || words[13] != 64 || words[14] != 128 ||
+        words[15] <= 0 || words[15] > 1000002 ||
+        words[16] <= 0 || words[16] > 1000002 ||
+        words[17] < dedicatedWorkloadSnapshotDiagnostic() ||
+        words[17] > dedicatedWorkloadReconnectDiagnostic() ||
+        words[18] <= 0 || words[18] > 1000002 ||
+        words[19] != 64024064 ||
+        words.length != dedicatedWorkloadStateChunkLength(words[7]) ||
+        words[words.length - 1] !=
+            dedicatedWorkloadMessageChecksum(words, words.length - 1)) {
         return false
     }
-    if (words[16] == dedicatedWorkloadDisconnectDiagnostic()) {
-        return words[6] == 0
+    if ((words[17] == dedicatedWorkloadDisconnectDiagnostic() && words[6] != 0) ||
+        (words[17] != dedicatedWorkloadDisconnectDiagnostic() && words[6] != 1)) {
+        return false
     }
-    return words[6] == 1
+    for (var index = dedicatedWorkloadStateHeaderLength();
+        index < words.length - 1; index = index + 1) {
+        if (words[index] < 0 || words[index] > 1073741823) { return false }
+    }
+    return true
 }
 
-Int[] newDedicatedWorkloadState(
+Int[] newDedicatedWorkloadStateChunk(
     BoundedDedicatedServer server,
     Int clientId, Int generation, Int sequence,
-    Bool connected, Int diagnostic
+    Bool connected, Int diagnostic, Int referenceChecksum, Int chunk
 ) {
+    var length = dedicatedWorkloadStateChunkLength(chunk)
     if (!server.configured() || !server.healthy() ||
-        !server.resourcePlateau() || clientId < 1 || clientId > 2 ||
+        !server.resourcePlateau() || length <= 0 ||
+        clientId < 1 || clientId > 2 ||
         generation <= 0 || generation > 1000000 ||
         sequence <= 0 || sequence > 1000000 ||
+        referenceChecksum <= 0 || referenceChecksum > 1000002 ||
         diagnostic < dedicatedWorkloadSnapshotDiagnostic() ||
         diagnostic > dedicatedWorkloadReconnectDiagnostic() ||
         (diagnostic == dedicatedWorkloadDisconnectDiagnostic() && connected) ||
         (diagnostic != dedicatedWorkloadDisconnectDiagnostic() && !connected)) {
         return new Int[0]
     }
-    var words = new Int[dedicatedWorkloadStateLength()]
+    var words = new Int[length]
     words[0] = protocolVersion()
     words[1] = dedicatedWorkloadStateMessageKind()
     words[2] = server.ticksProcessed()
@@ -116,20 +184,62 @@ Int[] newDedicatedWorkloadState(
     words[4] = clientId
     words[5] = generation
     words[6] = if (connected) 1 else 0
-    words[7] = server.enemyCount()
-    words[8] = server.projectileCount()
-    words[9] = server.pickupCount()
-    words[10] = server.aiBudget()
-    words[11] = server.projectileBudget()
-    words[12] = server.pickupBudget()
-    words[13] = server.workloadChecksum()
-    words[14] = server.baselineResourceSignature()
-    words[15] = server.overloadCount()
-    words[16] = diagnostic
-    words[17] = dedicatedWorkloadMessageChecksum(words, 17)
-    if (!validDedicatedWorkloadState(words)) {
-        return new Int[0]
+    words[7] = chunk
+    words[8] = dedicatedWorkloadStateChunkCount()
+    words[9] = server.enemyCount()
+    words[10] = server.projectileCount()
+    words[11] = server.pickupCount()
+    words[12] = server.aiBudget()
+    words[13] = server.projectileBudget()
+    words[14] = server.pickupBudget()
+    words[15] = referenceChecksum
+    words[16] = server.baselineResourceSignature()
+    words[17] = diagnostic
+    words[18] = server.referenceLevelChecksum()
+    words[19] = server.referenceTriangleCount() * 1000000 +
+        server.referenceLightCount() * 1000 + server.referenceEffectCount()
+    var writeIndex = dedicatedWorkloadStateHeaderLength()
+    if (chunk == 0) {
+        for (var index = 0; index < server.enemyCount(); index = index + 1) {
+            words[writeIndex] = packDedicatedSpatialWord(
+                server.enemyXAt(index), server.enemyYAt(index),
+                server.enemyZAt(index), server.enemyStateAt(index))
+            writeIndex = writeIndex + 1
+        }
+        for (var index = 0; index < server.referenceLightCount(); index = index + 1) {
+            words[writeIndex] = packDedicatedSpatialWord(
+                server.lightXAt(index), server.lightYAt(index),
+                server.lightZAt(index), server.lightIntensityAt(index))
+            writeIndex = writeIndex + 1
+        }
+        for (var index = 0; index < server.referenceEffectCount(); index = index + 1) {
+            words[writeIndex] = packDedicatedSpatialWord(
+                server.effectXAt(index), server.effectYAt(index),
+                server.effectZAt(index), server.effectFrameAt(index))
+            writeIndex = writeIndex + 1
+        }
+    } else if (chunk == 1) {
+        for (var index = 0; index < server.projectileCount(); index = index + 1) {
+            if (!server.projectileActiveAt(index)) { return new Int[0] }
+            words[writeIndex] = packDedicatedSpatialWord(
+                server.projectileXAt(index), server.projectileYAt(index),
+                server.projectileZAt(index), 1)
+            writeIndex = writeIndex + 1
+        }
+    } else {
+        var firstPickup = (chunk - 2) * 256
+        for (var offset = 0; offset < 256; offset = offset + 1) {
+            var index = firstPickup + offset
+            words[writeIndex] = packDedicatedSpatialWord(
+                server.pickupXAt(index), server.pickupYAt(index),
+                server.pickupZAt(index), server.pickupRankAt(index))
+            writeIndex = writeIndex + 1
+        }
     }
+    if (writeIndex != words.length - 1) { return new Int[0] }
+    words[words.length - 1] =
+        dedicatedWorkloadMessageChecksum(words, words.length - 1)
+    if (!validDedicatedWorkloadStateChunk(words)) { return new Int[0] }
     return words
 }
 
@@ -150,16 +260,19 @@ class BoundedDedicatedClientAdmission {
         validValue = clientId >= 1 && clientId <= 2
     }
 
-    Bool admitCompatibleGeneration(Int generation) {
+    Bool admitCompatibleGeneration(Int generation, Int resumeTick) {
         if (!validValue || connectedValue || generation <= 0 ||
-            generation > 1000000 ||
-            ((generationValue == 0 && generation != 1) ||
-                (generationValue > 0 && generation != generationValue + 1))) {
+            generation > 1000000 || resumeTick < 0 ||
+            ((generationValue == 0 && (generation != 1 || resumeTick != 0)) ||
+                (generationValue > 0 &&
+                    (generation != generationValue + 1 ||
+                        resumeTick < lastAcknowledgedTickValue ||
+                        resumeTick > lastAcknowledgedTickValue + 1)))) {
             return false
         }
         generationValue = generation
         lastRequestSequenceValue = 0
-        lastAcknowledgedTickValue = 0
+        lastAcknowledgedTickValue = resumeTick
         connectedValue = true
         return true
     }
@@ -198,11 +311,40 @@ class BoundedDedicatedClientView {
     Int aiBudgetValue
     Int projectileBudgetValue
     Int pickupBudgetValue
-    Int workloadChecksumValue
+    Int referenceStateChecksumValue
     Int resourceSignatureValue
+    Int levelChecksumValue
     Int updateCountValue
+    Int pendingSequenceValue
+    Int pendingTickValue
+    Int pendingChunkValue
+    Int pendingReferenceChecksumValue
+    Int pendingConnectedValue
+    Int pendingResourceSignatureValue
+    Int pendingDiagnosticValue
+    Int pendingLevelChecksumValue
     Bool connectedValue
     Bool validValue
+    Int[] enemyXs
+    Int[] enemyYs
+    Int[] enemyZs
+    Int[] enemyStates
+    Int[] projectileXs
+    Int[] projectileYs
+    Int[] projectileZs
+    Int[] pickupXs
+    Int[] pickupYs
+    Int[] pickupZs
+    Int[] pickupRanks
+    Int[] lightXs
+    Int[] lightYs
+    Int[] lightZs
+    Int[] lightIntensities
+    Int[] effectXs
+    Int[] effectYs
+    Int[] effectZs
+    Int[] effectFrames
+    Int[] pendingPacked
 
     public constructor(Int clientId) {
         clientIdValue = clientId
@@ -215,50 +357,237 @@ class BoundedDedicatedClientView {
         aiBudgetValue = 0
         projectileBudgetValue = 0
         pickupBudgetValue = 0
-        workloadChecksumValue = 0
+        referenceStateChecksumValue = 0
         resourceSignatureValue = 0
+        levelChecksumValue = 0
         updateCountValue = 0
+        pendingSequenceValue = 0
+        pendingTickValue = 0
+        pendingChunkValue = 0
+        pendingReferenceChecksumValue = 0
+        pendingConnectedValue = 0
+        pendingResourceSignatureValue = 0
+        pendingDiagnosticValue = 0
+        pendingLevelChecksumValue = 0
         connectedValue = false
         validValue = clientId >= 1 && clientId <= 2
+        enemyXs = new Int[64]
+        enemyYs = new Int[64]
+        enemyZs = new Int[64]
+        enemyStates = new Int[64]
+        projectileXs = new Int[256]
+        projectileYs = new Int[256]
+        projectileZs = new Int[256]
+        pickupXs = new Int[512]
+        pickupYs = new Int[512]
+        pickupZs = new Int[512]
+        pickupRanks = new Int[512]
+        lightXs = new Int[24]
+        lightYs = new Int[24]
+        lightZs = new Int[24]
+        lightIntensities = new Int[24]
+        effectXs = new Int[64]
+        effectYs = new Int[64]
+        effectZs = new Int[64]
+        effectFrames = new Int[64]
+        pendingPacked = new Int[920]
     }
 
-    Bool beginCompatibleGeneration(Int generation) {
+    Bool beginCompatibleGeneration(Int generation, Int resumeTick) {
         if (!validValue || connectedValue || generation <= 0 ||
-            generation > 1000000 ||
-            ((generationValue == 0 && generation != 1) ||
-                (generationValue > 0 && generation != generationValue + 1))) {
+            generation > 1000000 || resumeTick != tickValue ||
+            ((generationValue == 0 && (generation != 1 || resumeTick != 0)) ||
+                (generationValue > 0 && generation != generationValue + 1)) ||
+            pendingChunkValue != 0) {
             return false
         }
         generationValue = generation
         stateSequenceValue = 0
-        tickValue = 0
         connectedValue = true
         return true
     }
 
-    Bool applyState(Int[] words) {
-        if (!validDedicatedWorkloadState(words) ||
+    Bool decodeStatePayload(Int[] words) {
+        var chunk = words[7]
+        var readIndex = dedicatedWorkloadStateHeaderLength()
+        if (chunk == 0) {
+            for (var index = 0; index < 64; index = index + 1) {
+                pendingPacked[index] = words[readIndex]
+                readIndex = readIndex + 1
+            }
+            for (var index = 0; index < 24; index = index + 1) {
+                pendingPacked[832 + index] = words[readIndex]
+                readIndex = readIndex + 1
+            }
+            for (var index = 0; index < 64; index = index + 1) {
+                pendingPacked[856 + index] = words[readIndex]
+                readIndex = readIndex + 1
+            }
+        } else if (chunk == 1) {
+            for (var index = 0; index < 256; index = index + 1) {
+                var packed = words[readIndex]
+                if (unpackDedicatedSpatialValue(packed) != 1) {
+                    return false
+                }
+                pendingPacked[64 + index] = packed
+                readIndex = readIndex + 1
+            }
+        } else {
+            var firstPickup = (chunk - 2) * 256
+            for (var offset = 0; offset < 256; offset = offset + 1) {
+                var packed = words[readIndex]
+                var rank = unpackDedicatedSpatialValue(packed)
+                if (rank < 1 || rank > 3) {
+                    return false
+                }
+                pendingPacked[320 + firstPickup + offset] = packed
+                readIndex = readIndex + 1
+            }
+        }
+        return readIndex == words.length - 1
+    }
+
+    Int pendingReferenceStateChecksum() {
+        var result = 97
+        for (var index = 0; index < pendingPacked.length; index = index + 1) {
+            result = dedicatedWorkloadChecksumMix(result, pendingPacked[index])
+        }
+        return result
+    }
+
+    void commitPendingState() {
+        for (var index = 0; index < enemyXs.length; index = index + 1) {
+            var packed = pendingPacked[index]
+            enemyXs[index] = unpackDedicatedSpatialX(packed)
+            enemyYs[index] = unpackDedicatedSpatialY(packed)
+            enemyZs[index] = unpackDedicatedSpatialZ(packed)
+            enemyStates[index] = unpackDedicatedSpatialValue(packed)
+        }
+        for (var index = 0; index < projectileXs.length; index = index + 1) {
+            var packed = pendingPacked[64 + index]
+            projectileXs[index] = unpackDedicatedSpatialX(packed)
+            projectileYs[index] = unpackDedicatedSpatialY(packed)
+            projectileZs[index] = unpackDedicatedSpatialZ(packed)
+        }
+        for (var index = 0; index < pickupXs.length; index = index + 1) {
+            var packed = pendingPacked[320 + index]
+            pickupXs[index] = unpackDedicatedSpatialX(packed)
+            pickupYs[index] = unpackDedicatedSpatialY(packed)
+            pickupZs[index] = unpackDedicatedSpatialZ(packed)
+            pickupRanks[index] = unpackDedicatedSpatialValue(packed)
+        }
+        for (var index = 0; index < lightXs.length; index = index + 1) {
+            var packed = pendingPacked[832 + index]
+            lightXs[index] = unpackDedicatedSpatialX(packed)
+            lightYs[index] = unpackDedicatedSpatialY(packed)
+            lightZs[index] = unpackDedicatedSpatialZ(packed)
+            lightIntensities[index] = unpackDedicatedSpatialValue(packed)
+        }
+        for (var index = 0; index < effectXs.length; index = index + 1) {
+            var packed = pendingPacked[856 + index]
+            effectXs[index] = unpackDedicatedSpatialX(packed)
+            effectYs[index] = unpackDedicatedSpatialY(packed)
+            effectZs[index] = unpackDedicatedSpatialZ(packed)
+            effectFrames[index] = unpackDedicatedSpatialValue(packed)
+        }
+    }
+
+    void resetPendingTransaction() {
+        pendingSequenceValue = 0
+        pendingTickValue = 0
+        pendingChunkValue = 0
+        pendingReferenceChecksumValue = 0
+        pendingConnectedValue = 0
+        pendingResourceSignatureValue = 0
+        pendingDiagnosticValue = 0
+        pendingLevelChecksumValue = 0
+    }
+
+    Int replicatedReferenceStateChecksum() {
+        var result = 97
+        for (var index = 0; index < enemyXs.length; index = index + 1) {
+            result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+                enemyXs[index], enemyYs[index], enemyZs[index], enemyStates[index]))
+        }
+        for (var index = 0; index < projectileXs.length; index = index + 1) {
+            result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+                projectileXs[index], projectileYs[index], projectileZs[index], 1))
+        }
+        for (var index = 0; index < pickupXs.length; index = index + 1) {
+            result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+                pickupXs[index], pickupYs[index], pickupZs[index], pickupRanks[index]))
+        }
+        for (var index = 0; index < lightXs.length; index = index + 1) {
+            result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+                lightXs[index], lightYs[index], lightZs[index], lightIntensities[index]))
+        }
+        for (var index = 0; index < effectXs.length; index = index + 1) {
+            result = dedicatedWorkloadChecksumMix(result, packDedicatedSpatialWord(
+                effectXs[index], effectYs[index], effectZs[index], effectFrames[index]))
+        }
+        return result
+    }
+
+    Bool applyStateChunk(Int[] words) {
+        if (!validDedicatedWorkloadStateChunk(words) ||
             words[4] != clientIdValue || words[5] != generationValue ||
-            words[3] <= stateSequenceValue || words[2] < tickValue) {
+            words[2] < tickValue || words[7] != pendingChunkValue ||
+            (resourceSignatureValue > 0 &&
+                words[16] != resourceSignatureValue)) {
             return false
         }
-        if (resourceSignatureValue > 0 &&
-            words[14] != resourceSignatureValue) {
+        if (words[7] == 0) {
+            if (words[3] <= stateSequenceValue) { return false }
+            pendingSequenceValue = words[3]
+            pendingTickValue = words[2]
+            pendingReferenceChecksumValue = words[15]
+            pendingConnectedValue = words[6]
+            pendingResourceSignatureValue = words[16]
+            pendingDiagnosticValue = words[17]
+            pendingLevelChecksumValue = words[18]
+        } else if (words[3] != pendingSequenceValue ||
+            words[2] != pendingTickValue ||
+            words[6] != pendingConnectedValue ||
+            words[15] != pendingReferenceChecksumValue ||
+            words[16] != pendingResourceSignatureValue ||
+            words[17] != pendingDiagnosticValue ||
+            words[18] != pendingLevelChecksumValue) {
             return false
         }
-        stateSequenceValue = words[3]
-        tickValue = words[2]
-        connectedValue = words[6] == 1
-        enemyCountValue = words[7]
-        projectileCountValue = words[8]
-        pickupCountValue = words[9]
-        aiBudgetValue = words[10]
-        projectileBudgetValue = words[11]
-        pickupBudgetValue = words[12]
-        workloadChecksumValue = words[13]
-        resourceSignatureValue = words[14]
+        if (!decodeStatePayload(words)) { return false }
+        pendingChunkValue = pendingChunkValue + 1
+        if (pendingChunkValue < dedicatedWorkloadStateChunkCount()) {
+            return true
+        }
+        if (pendingReferenceStateChecksum() !=
+            pendingReferenceChecksumValue) {
+            resetPendingTransaction()
+            return false
+        }
+        commitPendingState()
+        stateSequenceValue = pendingSequenceValue
+        tickValue = pendingTickValue
+        connectedValue = pendingConnectedValue == 1
+        enemyCountValue = words[9]
+        projectileCountValue = words[10]
+        pickupCountValue = words[11]
+        aiBudgetValue = words[12]
+        projectileBudgetValue = words[13]
+        pickupBudgetValue = words[14]
+        referenceStateChecksumValue = pendingReferenceChecksumValue
+        resourceSignatureValue = pendingResourceSignatureValue
+        levelChecksumValue = pendingLevelChecksumValue
         updateCountValue = updateCountValue + 1
+        resetPendingTransaction()
         return true
+    }
+
+    Bool fullReferenceStateObserved() {
+        return updateCountValue > 0 && enemyCountValue == 64 &&
+            projectileCountValue == 256 && pickupCountValue == 512 &&
+            aiBudgetValue == 16 && projectileBudgetValue == 64 &&
+            pickupBudgetValue == 128 && referenceStateChecksumValue > 0 &&
+            resourceSignatureValue > 0 && levelChecksumValue > 0
     }
 
     Bool valid() { return validValue }
@@ -273,7 +602,8 @@ class BoundedDedicatedClientView {
     Int aiBudget() { return aiBudgetValue }
     Int projectileBudget() { return projectileBudgetValue }
     Int pickupBudget() { return pickupBudgetValue }
-    Int workloadChecksum() { return workloadChecksumValue }
+    Int referenceStateChecksum() { return referenceStateChecksumValue }
     Int resourceSignature() { return resourceSignatureValue }
+    Int levelChecksum() { return levelChecksumValue }
     Int updateCount() { return updateCountValue }
 }

@@ -1,0 +1,81 @@
+import core
+import session
+
+extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open_headless_ready(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(
+    Int resource, Int x, Int y, Int u, Int v
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_draw_calls(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_instances(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_reference_scene(
+    Int warmupFrames, Int measuredFrames, Int width, Int height
+): Int
+
+Bool uploadReferenceFrame(FrameStaging frame) {
+    for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+        if (!kookie_gpu_scene_push_vertex(
+                frame.resourceAt(index), frame.xAt(index), frame.yAt(index),
+                frame.uAt(index), frame.vAt(index))) {
+            return false
+        }
+    }
+    return true
+}
+
+main() {
+    assert(kookie_sdl_init(32), "SDL video adapter must initialize")
+    assert(kookie_gpu_open_headless_ready(),
+        "isolated SDL GPU device must open headlessly")
+    var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
+    var renderer = BoundedScaleReferenceRenderer()
+    var frame = FrameStaging(renderer.vertexCount())
+    assert(server.configureReferenceWorkload(),
+        "reference server must configure authored collision")
+    assert(server.runTicks(8), "reference server must advance")
+    assert(renderer.vertexCount() == 2952 &&
+        renderer.environmentVertices() == 192 &&
+        renderer.entityInstances() == 832 &&
+        renderer.dynamicEffectInstances() == 88 &&
+        renderer.batchedDrawCalls() == 1,
+        "reference renderer counts must match the bounded scene")
+    assert(kookie_gpu_scene_capacity() >= renderer.vertexCount(),
+        "GPU scene buffer must fit the reference batch")
+    assert(renderer.stage(server, frame, 1),
+        "Kof renderer must stage the reference batch")
+    assert(kookie_gpu_scene_begin(frame.stagedCount()) &&
+        uploadReferenceFrame(frame) &&
+        kookie_gpu_scene_commit(),
+        "native adapter must accept the complete staged batch")
+    var instanceCount = kookie_gpu_scene_instances()
+    assert(kookie_gpu_scene_count() == renderer.vertexCount() &&
+        instanceCount == 984,
+        "GPU instance count must match staged triangles")
+    assert(kookie_gpu_capture_headless_scene() > 0,
+        "hardware renderer must capture the reference scene")
+    assert(kookie_gpu_scene_draw_calls() == 1,
+        "reference scene must use one GPU draw call")
+    var p95Micros = kookie_gpu_measure_reference_scene(
+        60, 600, 1920, 1080)
+    assert(p95Micros > 0 && p95Micros <= 8333 &&
+        kookie_gpu_scene_draw_calls() == 1 && frame.retire(1),
+        "G5 reference batch must fit the 1920x1080 120 Hz frame budget")
+    assert(kookie_gpu_close_headless(), "headless GPU device must close")
+    kookie_sdl_shutdown()
+    println("KOOKIE G5 native reference renderer verified")
+    println("g5-renderer-vertices")
+    println(renderer.vertexCount())
+    println("g5-renderer-draw-calls")
+    println(renderer.batchedDrawCalls())
+    println("g5-renderer-instances")
+    println(instanceCount)
+    println("g5-renderer-p95-us")
+    println(p95Micros)
+}

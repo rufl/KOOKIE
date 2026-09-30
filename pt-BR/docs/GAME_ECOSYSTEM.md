@@ -51,7 +51,7 @@ A rota do navegador, portanto, contém uma quantidade substancial de apresentaç
 
 ### Compatibilidade histórica e reutilização
 
-O projeto tem como alvo Kof 0.2.1-beta/JDK 21 e relata soluções alternativas antigas para problemas do compilador/classpath/constantes/chamadas `void`. Trate-as como observações datadas do projeto, não como limitações atuais do 0.4.9. Nenhum arquivo de licença foi encontrado na árvore inspecionada, e os metadados de licença do GitHub eram nulos. Estude a arquitetura, mas não copie o código-fonte sem resolver a questão da permissão.
+O projeto tem como alvo Kof 0.2.1-beta/JDK 21 e relata soluções alternativas antigas para problemas do compilador/classpath/constantes/chamadas `void`. Trate-as como observações datadas do projeto, não como limitações do toolchain atual de release do KOOKIE. Nenhum arquivo de licença foi encontrado na árvore inspecionada, e os metadados de licença do GitHub eram nulos. Estude a arquitetura, mas não copie o código-fonte sem resolver a questão da permissão.
 
 ## kofman / Byte Eater
 

@@ -13,6 +13,13 @@ main() {
     assert(baseline > 0 && server.enemyCount() == 64 &&
         server.projectileCount() == 256 && server.pickupCount() == 512,
         "reference workload must own 64 enemies 256 projectiles and 512 pickups")
+    assert(server.referenceTriangleCount() == 64 &&
+        server.loadedReferenceTriangleCount() == 64 &&
+        server.referenceLevelChecksum() > 0 &&
+        server.referenceLightCount() == 24 &&
+        server.referenceEffectCount() == 64 &&
+        server.referenceDynamicChecksum() > 0,
+        "reference scene must retain authored collision lights and effects")
     assert(!server.advance(-1) && server.ticksProcessed() == 0,
         "dedicated server must reject invalid elapsed time without advancing")
     assert(server.runTicks(256),
@@ -62,44 +69,91 @@ main() {
     var admission = BoundedDedicatedClientAdmission(1)
     var client = BoundedDedicatedClientView(1)
     assert(admission.valid() && client.valid() &&
-        admission.admitCompatibleGeneration(1) &&
-        client.beginCompatibleGeneration(1),
+        admission.admitCompatibleGeneration(1, 0) &&
+        client.beginCompatibleGeneration(1, 0),
         "dedicated client generation one must require compatibility admission")
     var request = newDedicatedWorkloadRequest(
         1, 1, 1, 0, dedicatedWorkloadPollAction())
     assert(admission.applyRequest(request) &&
         admission.lastRequestSequence() == 1,
         "dedicated admission must accept the first monotonic poll")
-    var state = newDedicatedWorkloadState(
-        server, 1, 1, 1, true, dedicatedWorkloadSnapshotDiagnostic())
-    assert(validDedicatedWorkloadState(state) && client.applyState(state) &&
-        client.connected() && client.tick() == 256 &&
-        client.enemyCount() == 64 && client.projectileCount() == 256 &&
-        client.pickupCount() == 512 &&
-        client.aiBudget() == 16 && client.projectileBudget() == 64 &&
-        client.pickupBudget() == 128 &&
+    var stateChecksum = dedicatedReferenceStateChecksum(server)
+    var replay = newDedicatedWorkloadStateChunk(
+        server, 1, 1, 1, true,
+        dedicatedWorkloadSnapshotDiagnostic(), stateChecksum, 0)
+    for (var chunk = 0; chunk < dedicatedWorkloadStateChunkCount();
+        chunk = chunk + 1) {
+        var state = newDedicatedWorkloadStateChunk(
+            server, 1, 1, 1, true,
+            dedicatedWorkloadSnapshotDiagnostic(), stateChecksum, chunk)
+        assert(validDedicatedWorkloadStateChunk(state) &&
+            client.applyStateChunk(state),
+            "dedicated client must apply every complete-state chunk")
+    }
+    assert(client.connected() && client.tick() == 256 &&
+        client.fullReferenceStateObserved() &&
+        client.referenceStateChecksum() ==
+            client.replicatedReferenceStateChecksum() &&
         client.resourceSignature() == baseline &&
-        !client.applyState(state),
-        "dedicated state must preserve scale budgets and reject replay")
+        !client.applyStateChunk(replay),
+        "dedicated state must preserve the full workload and reject replay")
+    var tampered = newDedicatedWorkloadStateChunk(
+        server, 1, 1, 2, true,
+        dedicatedWorkloadSnapshotDiagnostic(), stateChecksum, 0)
+    tampered[dedicatedWorkloadStateHeaderLength()] =
+        tampered[dedicatedWorkloadStateHeaderLength()] + 1
+    tampered[tampered.length - 1] =
+        dedicatedWorkloadMessageChecksum(tampered, tampered.length - 1)
+    assert(validDedicatedWorkloadStateChunk(tampered) &&
+        client.applyStateChunk(tampered))
+    for (var chunk = 1; chunk < dedicatedWorkloadStateChunkCount();
+        chunk = chunk + 1) {
+        var candidate = newDedicatedWorkloadStateChunk(
+            server, 1, 1, 2, true,
+            dedicatedWorkloadSnapshotDiagnostic(), stateChecksum, chunk)
+        if (chunk + 1 < dedicatedWorkloadStateChunkCount()) {
+            assert(client.applyStateChunk(candidate))
+        } else {
+            assert(!client.applyStateChunk(candidate))
+        }
+    }
+    assert(client.stateSequence() == 1 && client.tick() == 256 &&
+        client.updateCount() == 1 &&
+        client.referenceStateChecksum() ==
+            client.replicatedReferenceStateChecksum(),
+        "checksum rejection must preserve the prior complete client state")
     var disconnect = newDedicatedWorkloadRequest(
         1, 1, 2, 256, dedicatedWorkloadDisconnectAction())
-    var disconnectedState = newDedicatedWorkloadState(
-        server, 1, 1, 2, false, dedicatedWorkloadDisconnectDiagnostic())
-    assert(admission.applyRequest(disconnect) && !admission.connected() &&
-        client.applyState(disconnectedState) && !client.connected() &&
+    assert(admission.applyRequest(disconnect) && !admission.connected(),
+        "dedicated disconnect request must close admission")
+    for (var chunk = 0; chunk < dedicatedWorkloadStateChunkCount();
+        chunk = chunk + 1) {
+        var state = newDedicatedWorkloadStateChunk(
+            server, 1, 1, 2, false,
+            dedicatedWorkloadDisconnectDiagnostic(), stateChecksum, chunk)
+        assert(client.applyStateChunk(state),
+            "dedicated client must consume complete disconnect state")
+    }
+    assert(!client.connected() &&
         !admission.applyRequest(newDedicatedWorkloadRequest(
-            1, 1, 3, 256, dedicatedWorkloadPollAction())),
-        "dedicated disconnect must close admission and reject later polls")
-    assert(admission.admitCompatibleGeneration(2) &&
-        client.beginCompatibleGeneration(2) &&
+            1, 1, 3, 256, dedicatedWorkloadPollAction())) &&
+        !admission.admitCompatibleGeneration(2, 255) &&
+        admission.admitCompatibleGeneration(2, 256) &&
+        !client.beginCompatibleGeneration(2, 255) &&
+        client.beginCompatibleGeneration(2, 256) &&
         admission.applyRequest(newDedicatedWorkloadRequest(
             1, 2, 1, 256, dedicatedWorkloadPollAction())),
-        "dedicated reconnect must repeat compatibility and reset sequence")
-    var reconnectedState = newDedicatedWorkloadState(
-        server, 1, 2, 1, true, dedicatedWorkloadReconnectDiagnostic())
-    assert(client.applyState(reconnectedState) && client.connected() &&
-        client.generation() == 2 && client.stateSequence() == 1 &&
-        client.updateCount() == 3 &&
+        "dedicated reconnect must reject rollback and bind the resume tick")
+    for (var chunk = 0; chunk < dedicatedWorkloadStateChunkCount();
+        chunk = chunk + 1) {
+        var state = newDedicatedWorkloadStateChunk(
+            server, 1, 2, 1, true,
+            dedicatedWorkloadReconnectDiagnostic(), stateChecksum, chunk)
+        assert(client.applyStateChunk(state),
+            "dedicated client must consume complete reconnect state")
+    }
+    assert(client.connected() && client.generation() == 2 &&
+        client.stateSequence() == 1 && client.updateCount() == 3 &&
         client.resourceSignature() == baseline,
         "dedicated reconnect state must preserve resource identity")
     println("KOOKIE G5 dedicated headless workload verified")
