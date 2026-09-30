@@ -154,7 +154,7 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
 
 ## Intenção do usuário
 
-Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código-fonte nativo Kof `.kf` para a lógica portátil da engine, do jogo e das ferramentas**. Bibliotecas externas de gráficos/plataforma e código estreito de ABI/shader são permitidos quando necessários. Aproveitar ideias de ZYLVE, DINX e CUBSHIP sem dependências ocultas. Preferir lotes maiores e coerentes com provas focadas; manter milestones incompletos explícitos.
+Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código-fonte nativo Kof `.kf` para a lógica portátil da engine, do jogo e das ferramentas**. Bibliotecas externas de gráficos/plataforma e código estreito de ABI/shader são permitidos quando necessários. Preferir lotes maiores e coerentes com provas focadas; manter milestones incompletos explícitos.
 
 ## Identidades de pesquisa fixadas
 
@@ -282,15 +282,15 @@ Com o compilador inspecionado, o código-fonte `web.sh` omite o host, e o handle
 - O Tetris integrado é um jogo de terminal em runtime Java; a lista de jogos do KofOS contém planos não portados.
 - A pesquisa não estabeleceu a existência de um shooter Kof nativo distribuído nem de um pacote de binding SDL/Sokol pronto. Esta é uma evidência negativa delimitada, não uma prova de que nada exista.
 
-## Mapa de reutilização
+## Restrições de design adotadas
 
-- DINX: intenção/política de salto do controlador, handles seguros para geração, identidades/ordem exatas dos lotes de renderização, admissão por revisão/presença de vizinhos.
-- ZYLVE: identidade de itens, transações atômicas de item/moeda/RNG, semântica de habilidades/status, bordas de entrada em passo fixo, fila de renderização/hash espacial, publicação em estágios de edição ao vivo.
-- CUBSHIP: geometria SAT isolada, contratos de transição de arma/dano, busca de IA limitada e salvamentos seccionados.
+- Intenção/política de salto do controlador, handles seguros para geração, identidades/ordem exatas dos lotes de renderização e admissão por revisão/presença de vizinhos permanecem contratos explícitos.
+- Identidade de itens, transações atômicas de item/moeda/RNG, semântica de habilidades/status, bordas de entrada em passo fixo, fila de renderização/hash espacial e publicação em estágios de edição ao vivo permanecem contratos explícitos.
+- Geometria SAT isolada, contratos de transição de arma/dano, busca de IA limitada e salvamentos seccionados permanecem contratos explícitos.
 - **Não** herdar “sweep” somente de endpoint, colisão do jogador por raio na cintura, pools de loot pequenos fixos/descartes silenciosos, autoridades de armas duplicadas, IDs ECS brutos nos salvamentos, reprodução de eventos rotulada incorretamente como replay determinístico ou inspetores de corpus rotulados incorretamente como cozinheiros de mapas.
-- DINX MIT; aviso privado/interno para o jogo completo do ZYLVE; a alegação MIT do README do CUBSHIP não conta com um empacotamento completo dos avisos inspecionados. A permissão do usuário não libera ativos de terceiros. Registre a revisão/hash do código-fonte e as licenças no momento da portabilidade.
+- Todo código ou asset de terceiros copiado ou traduzido exige proveniência rastreável, revisão de origem fixada e análise de licença/avisos antes da distribuição.
 - Minecraft: não é um ECS arquetípico convencional. Reutilizar a separação entre definição/instância, patches de substituição de itens, codecs validados, snapshots de extração e ciclos de vida de vozes de áudio. Priorizar subconjuntos MIT de JOML/Brigadier, contratos de armazenamento de Artemis/Ashley, layout do owo e ciclos de vida de instâncias do Flywheel; consulte [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- Conjunto de expansão recomendado: SDL3/SDL_GPU; SDL_shadercross/DXC offline; OpenAL Soft opcional quando requisitos posteriores de HRTF/Doppler/EFX excederem o caminho estéreo SDL implementado em G2; SDL3_image para imagens; FreeType/HarfBuzz para texto; zstd para pacotes preparados. Limites, disponibilidade, licenças e gates estão no [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
+- Conjunto de expansão recomendado: SDL3/SDL_GPU; SDL_shadercross/DXC offline; OpenAL Soft opcional quando requisitos posteriores de HRTF/Doppler/EFX excederem o caminho estéreo SDL implementado em G2; SDL3_image para imagens; FreeType/HarfBuzz para texto; zstd para pacotes preparados. Limites, disponibilidade, licenças e gates estão no [ENGINE_PLAN](docs/ENGINE_PLAN.md#conjunto-de-bibliotecas-recomendado-2026-09-22).
 - A física do Jolt, a navegação Recast/Detour e as UIs RmlUi/ImGui continuam sendo alternativas condicionais de subsistemas estrangeiros que exigem aprovação explícita de propriedade, não dependências adotadas. Nenhuma portabilidade integral de mods. Sodium PolyForm Shield, Physics Mod All Rights Reserved e os componentes fechados do VSCore/Krunch não são fontes permissivas para reutilização.
 
 ## Próxima ação e limite de comprovação
@@ -348,4 +348,4 @@ gráficos iniciados. A verificação de instalação posterior exercitou a CLI d
 compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha
 gráfica do engine nem executou uma suíte completa.
 
-Todas as verificações gráficas usam um wrapper revisado configurado por `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, com sockets privados, timeout e limpeza de processos; nunca o desktop do desenvolvedor. A matriz completa somente na etapa final anterior ao commit, com permissão do usuário. Os documentos de pesquisa e as ferramentas/configurações locais foram entregues; nenhum código-fonte/ativo de engine/jogo irmão foi modificado ou copiado.
+Todas as verificações gráficas usam um wrapper revisado configurado por `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, com sockets privados, timeout e limpeza de processos; nunca o desktop do desenvolvedor. A matriz completa somente na etapa final anterior ao commit, com permissão do usuário.

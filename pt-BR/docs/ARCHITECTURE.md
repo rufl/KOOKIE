@@ -3,9 +3,9 @@
 Status: **arquitetura-alvo viva; a implementação limitada de G0–G4 está completa dentro dos limites de qualificação documentados**.
 
 
-Este documento é a autoridade de arquitetura no nível do projeto. Os experimentos
-detalhados de aceitação permanecem em [ENGINE_PLAN.md](ENGINE_PLAN.md). As decisões
-de reutilização permanecem em [MONOREPO_REUSE.md](MONOREPO_REUSE.md).
+Este documento é a autoridade de arquitetura no nível do projeto. Os
+experimentos detalhados de aceitação permanecem em
+[ENGINE_PLAN.md](ENGINE_PLAN.md).
 
 ## 1. Limite do produto
 
@@ -472,9 +472,10 @@ incluem:
 10. **Conjunto de fixtures do corpus:** manter fixtures válidos, malformados,
     grandes demais, não suportados e de ida e volta, pequenos, para cada formato
     de entrada. Testar o comportamento semântico, os limites e a rejeição de
-    publicações obsoletas, não apenas a aceitação pelo parser.Esses contratos incorporam comportamentos de CHARAMELD, SPRITEFORM, CARVER, ZYLVE,
-DINX, ZNAP, ARCGEN, ZFONT e ZWAVE sem importar seus runtimes ou
-modelos de propriedade estrangeiros.
+    publicações obsoletas, não apenas a aceitação pelo parser.
+
+Esses contratos são expressos como comportamento pertencente ao KOOKIE, com
+limites explícitos e testáveis, sem outro modelo de responsabilidade de runtime.
 
 
 ## 7. Persistência e replay
@@ -514,7 +515,6 @@ engines/KOOKIE/
   docs/
     ARCHITECTURE.md
     ENGINE_PLAN.md
-    MONOREPO_REUSE.md
     KOF_LANGUAGE.md
     KOF_EDITOR.md
     ...
@@ -696,4 +696,4 @@ camada de extensões de runtime em sandbox.
 - Alegações de lockstep de ponto flutuante entre plataformas.
 - Serialização de memória bruta.
 - Callbacks de mods ilimitados ou service locators.
-- Reutilização de engines ou assets irmãos sem liberação de licença/proveniência.
+- Importação de código ou assets sem liberação de licença e proveniência.

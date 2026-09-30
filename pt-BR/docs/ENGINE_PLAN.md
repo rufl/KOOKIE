@@ -7,7 +7,7 @@ Kof 0.5.0-beta. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md),
 [sondagens orientadas pelo curso](COURSE_PROBES.md), [precedentes de jogos](GAME_ECOSYSTEM.md),
-[descobertas sobre o editor](KOF_EDITOR.md) e [mapa de portabilidade do monorepo](MONOREPO_REUSE.md).
+e [descobertas sobre o editor](KOF_EDITOR.md).
 
 ## 1. Produto e responsabilidade não negociável
 
@@ -36,7 +36,7 @@ O compilador/runtime existente do Kof é uma dependência de ferramenta upstream
 
 **Atalhos proibidos:** um engine Java/Bevy/Zig controlado por scripts `.kf`; lógica de jogo JS escrita manualmente e armazenada em strings Kof; uma implementação C de `engine_tick`/`render_world`; converter inteiros em ponteiros nativos arbitrários; duplicar o gameplay em uma segunda linguagem para fazer a demo funcionar.
 
-Este plano não escolhe uma licença pública nem autoriza a redistribuição de assets de projetos irmãos. Resolva a titularidade/notificações antes de publicar ports.
+Este plano não escolhe uma licença pública nem autoriza a redistribuição de assets de terceiros. Resolva a titularidade/notificações antes de publicar ports.
 
 ## 2. Decisão de plataforma e gráficos
 
@@ -49,20 +49,20 @@ Este plano não escolhe uma licença pública nem autoriza a redistribuição de
 - SDL_GPU gerencia recursos do dispositivo, command buffers, sincronização de uploads, pipelines, submissão de draw/compute e apresentação. Kof decide o que submeter e em que ordem.
 - Use uma única implementação de renderizador inicialmente. Não construa backends SDL, Sokol, raylib, OpenGL e Vulkan simultaneamente.
 
-**Por quê:** capacidade para 3D completo/instancing/compute para multidões de projéteis e efeitos de ARPG, modelo moderno de backend para desktop, superfície robusta de entrada para shooters, uma dependência de plataforma e experiência existente com SDL_GPU no ZYLVE. Este é um julgamento de design, **não uma evidência medida de que SDL_GPU seja mais rápido para Kof**.
+**Por quê:** capacidade para 3D completo/instancing/compute para multidões de projéteis e efeitos de ARPG, modelo moderno de backend para desktop, superfície robusta de entrada para shooters, uma dependência de plataforma e uma única fronteira inspecionável de plataforma/gráficos. Este é um julgamento de design, **não uma evidência medida de que SDL_GPU seja mais rápido para Kof**.
 
 ### Alternativas consideradas
 
 | Candidato | Adequação | Decisão |
 |---|---|---|
-| SDL3 + SDL_GPU | Abstração de Vulkan/D3D12/Metal; entrada por polling/loop principal; recursos de GPU/compute; precedente do ZYLVE | Spike nativo preferido |
-| SDL3 + `sokol_gfx` | API de GPU compacta; reutilização dos conceitos de batching do DINX; pode manter o loop de plataforma SDL | Alternativa viável se as restrições de hardware/shaders do SDL_GPU falharem; adiciona integração entre duas bibliotecas |
-| `sokol_app` + `sokol_gfx` | Baixa sobrecarga, gráficos portáveis, familiaridade com o DINX | O Kof nativo atualmente não consegue fornecer callbacks persistentes; o ciclo de vida do app exigiria responsabilidade adicional da ponte. Não é o primeiro caminho |
+| SDL3 + SDL_GPU | Abstração de Vulkan/D3D12/Metal; entrada por polling/loop principal; recursos de GPU/compute; uma fronteira de API de plataforma/GPU | Spike nativo preferido |
+| SDL3 + `sokol_gfx` | API de GPU compacta; extração/batching de renderização explícitos; pode manter o loop de plataforma SDL | Alternativa viável se as restrições de hardware/shaders do SDL_GPU falharem; adiciona integração entre duas bibliotecas |
+| `sokol_app` + `sokol_gfx` | Baixa sobrecarga, gráficos portáveis, API retida compacta | O Kof nativo atualmente não consegue fornecer callbacks persistentes; o ciclo de vida do app exigiria responsabilidade adicional da ponte. Não é o primeiro caminho |
 | raylib / Jaylib | Rota mais curta para exemplos; precedente real do DoomKof; matemática/modelos/áudio incluídos | Boa opção de comparação/prototipagem, mas Jaylib significa JVM e muitas structs do raylib ainda exigem trabalho de ABI nativa. Não substitui o plano de renderizador pertencente ao engine |
 | Vulkan direto | Controle máximo | Trabalho excessivo de driver/sincronização/shaders antes do comportamento do shooter; nenhuma necessidade demonstrada |
 | LWJGL | Bindings maduros para JVM | Alternativa específica do destino, não evidência de interoperabilidade com Kof nativo |
 | Kof Canvas / WebKitGTK | Ecossistema 2D/navegador existente | Fronteira inicial de runtime/3D em tempo real incorreta; o navegador não é o destino nativo |
-| Bevy/wgpu por meio de shim Rust | Stack CUBSHIP existente | Viola a responsabilidade do engine se a arquitetura de simulação/renderização permanecer em Rust |
+| Bevy/wgpu por meio de shim Rust | Grande stack Rust responsável pelo runtime e pela renderização | Viola a responsabilidade do engine se a arquitetura de simulação/renderização permanecer em Rust |
 
 Sokol continua sendo uma opção plausível; não foi rejeitado como incapaz de lidar com shooters. Sua lista de backends evolui, portanto fixe os headers/ferramentas de shaders se for selecionado, em vez de depender de tabelas de capacidades desatualizadas.
 
@@ -486,7 +486,7 @@ Módulos de colisão pertencentes ao Kof:
 - Movimento de comprimento zero, início em penetração, tangência de arestas, contatos opostos e passagem em alta velocidade são casos explícitos. Nunca use apenas a sobreposição no destino.
 - Plataformas de portas estáticas/móveis modeladas com transformações próprias e dados de consulta consistentes. O jogador, a LOS da IA, as balas e a seleção do editor consultam o mesmo mundo cozido autoritativo.
 
-Os perfis de movimento definem atrito/aceleração no chão, aceleração no ar, limites de velocidade, buffer de salto/tempo de coyote, política de bunnyhop/dash e agachamento. Tome emprestados os contratos de intenção/salto do DINX; implemente a aceleração semelhante à de Quake baseada em projeção como um perfil deliberado, em vez de rotular incorretamente a aceleração de aproximação vetorial.
+Os perfis de movimento definem atrito/aceleração no chão, aceleração no ar, limites de velocidade, buffer de salto/tempo de coyote, política de bunnyhop/dash e agachamento. Mantenha explícitos os contratos de intenção e salto; implemente a aceleração semelhante à de Quake baseada em projeção como um perfil deliberado, em vez de rotular incorretamente a aceleração de aproximação vetorial.
 
 Uma biblioteca de corpos rígidos não é inicialmente necessária. Se posteriormente for exigida para pilhas/veículos/destruição, avalie-a como uma exceção explícita de biblioteca externa; nunca mova a autoridade do jogador/combate para ela por padrão.
 
@@ -514,7 +514,7 @@ Separe `WeaponDef` imutável do estado de runtime de carregador/recarga/recarga 
 - Uma máquina de estados de gatilho; nenhum sistema de disparo antigo/novo concorrente.
 - ID estável por disparo e fluxo de RNG explícito; o consumo de munição e a criação do disparo aceito são confirmados juntos.
 - Um único caminho de resolução de `DamageRequest` aplica escalonamento da fonte, crítico, armadura/resistência, escudo/vida, aplicação de status e transição de morte em uma ordem documentada.
-- Canais de dano e fórmulas de mitigação são orientados por dados, mas versionados. Não combine silenciosamente as suposições incompatíveis de armadura antes da resistência do CUBSHIP e de fórmula do ZYLVE.
+- Canais de dano e fórmulas de mitigação são orientados por dados, mas versionados. Defina e teste uma única ordem de aplicação de armadura, resistência, escudo e vida; não combine fórmulas incompatíveis silenciosamente.
 - Exatamente uma transição vivo→morto é responsável por XP, saque e crédito de missão; a apresentação consome eventos e nunca concede recompensas.
 - Afixos de inimigos/chefes podem modificar hooks definidos sem loops arbitrários de procs recursivos no mesmo quadro. Limites de profundidade/taxa de proc são explícitos.
 
@@ -529,7 +529,7 @@ Separe `WeaponDef` imutável do estado de runtime de carregador/recarga/recarga 
 - Salve as rolagens dos itens, não apenas o estado atual do RNG, para que a migração de balanceamento/conteúdo não role novamente o equipamento silenciosamente.
 - `BoundedWorldLoot` mantém no máximo oito drops completos, com IDs estável/de origem, rank e posição 3D inteira. O preflight da recompensa por morte reserva capacidade de loot no mundo, XP e moeda antes do commit vivo→morto; a coleta remove o drop somente após o inventário aceitar a rolagem exata. Os tipos de estado com checksum `7` e `8`, específicos por destinatário, replicam inventário/equipamento/skill/status e loot no mundo completos. A seção 12 do save persiste drops e reivindicações de recompensa de loot/moeda; `decodeG3Authority` restaura o par jogador/runtime atomicamente contra o conteúdo configurado.
 
-Pegue emprestadas as invariantes de transação/identidade de ZYLVE, não seus nomes fixos de armas, tamanhos reduzidos de inventário ou tabelas fixas de drops por nível. Esses sistemas fazem parte da engine planejada, não foram adiados para fora do escopo após uma demonstração de tiro.
+Preserve as invariantes de transação atômica e identidade estável; não herde nomes fixos de armas, tamanhos reduzidos de inventário ou tabelas fixas de drops por nível. Esses sistemas fazem parte da engine planejada, não foram adiados para fora do escopo após uma demonstração de tiro.
 
 ### IA e encontros
 
@@ -933,8 +933,8 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 | Paridade de JSON/split nativo | JSON de registros mistos fracionários corrompeu valores; split com pipe escapado diferiu da JVM | Reparar/provar esquemas exatos de conteúdo/salvamento e contratos do parser antes de depender de G3/G4 |
 | Linguagem/documentação divergem rapidamente | Curso 0.3.7 / páginas mais antigas do portal / gate de release 0.5.0-beta | Fixar identidade exata do toolchain e digest do arquivo; atualizar por sondas focadas de comportamento, não somente compilação |
 | Confiabilidade/segurança do editor | Execução de arquivo único, UI em JS, manipuladores privilegiados não autenticados | CLI + editor separado com capacidade de LSP; nenhuma dependência de fork do editor |
-| Pipeline de criação torna-se um segundo engine | Monólitos irmãos/múltiplas autoridades | Contratos compartilhados de runtime/query/conteúdo `.kf`; publicação em estágios no limite do quadro |
-| Suposições sobre licenças/recursos | Direitos mistos entre projetos irmãos; fonte DoomKof sem licença | Preservar a proveniência, resolver concessões, possuir/testar os recursos inicialmente |
+| Pipeline de criação torna-se um segundo engine | Vários runtimes monolíticos ou autoridades | Contratos compartilhados de runtime/query/conteúdo `.kf`; publicação em estágios no limite do quadro |
+| Suposições sobre licenças/recursos | Direitos de código/assets indefinidos; fonte DoomKof sem licença | Preservar a proveniência, resolver concessões, possuir/testar os recursos inicialmente |
 | Portabilidade nativa alegada em excesso | A saída nativa examinada é um ELF Linux | Estágios de plataforma separados; a lista de backends SDL não equivale ao suporte de executáveis Kof |
 
 ## 12. Primeiro incremento histórico

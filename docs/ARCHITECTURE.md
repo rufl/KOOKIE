@@ -4,8 +4,7 @@ Status: **living target architecture; the bounded G0–G4 implementation is comp
 
 
 This document is the project-level architecture authority. Detailed acceptance
-experiments remain in [ENGINE_PLAN.md](ENGINE_PLAN.md). Reuse decisions remain
-in [MONOREPO_REUSE.md](MONOREPO_REUSE.md).
+experiments remain in [ENGINE_PLAN.md](ENGINE_PLAN.md).
 
 ## 1. Product boundary
 
@@ -452,9 +451,8 @@ and atomic publication. Remaining production hardening targets include:
     and round-trip fixtures for each intake format. Test semantic behavior,
     bounds and stale-publication rejection, not just parser acceptance.
 
-These contracts borrow behavior from CHARAMELD, SPRITEFORM, CARVER, ZYLVE,
-DINX, ZNAP, ARCGEN, ZFONT and ZWAVE without importing their runtimes or
-foreign ownership models.
+These contracts are expressed as KOOKIE-owned behavior with explicit,
+testable boundaries and no additional runtime ownership model.
 
 
 ## 7. Persistence and replay
@@ -494,7 +492,6 @@ engines/KOOKIE/
   docs/
     ARCHITECTURE.md
     ENGINE_PLAN.md
-    MONOREPO_REUSE.md
     KOF_LANGUAGE.md
     KOF_EDITOR.md
     ...
@@ -671,4 +668,4 @@ sandboxed runtime extension tier.
 - Cross-platform float lockstep claims.
 - Raw memory serialization.
 - Unbounded mod callbacks or service locators.
-- Reusing sibling engines or assets without license/provenance clearance.
+- Importing code or assets without license and provenance clearance.

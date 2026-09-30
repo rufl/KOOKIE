@@ -161,7 +161,7 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
 
 ## User intent
 
-Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf` source for portable engine, game and tool logic**. External graphics/platform libraries and narrow ABI/shader code are allowed where genuinely needed. Borrow useful ideas from ZYLVE, DINX and CUBSHIP without hidden dependencies. Prefer larger coherent development batches with focused proofs; keep incomplete milestones explicit.
+Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf` source for portable engine, game and tool logic**. External graphics/platform libraries and narrow ABI/shader code are allowed where genuinely needed. Prefer larger coherent development batches with focused proofs; keep incomplete milestones explicit.
 
 ## Pinned research identities
 
@@ -287,13 +287,13 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 - Builtin Tetris is Java-runtime terminal game; KofOS game list is unported plans.
 - Search did not establish a shipped native Kof shooter or ready SDL/Sokol binding package. This is bounded negative evidence, not proof none exists.
 
-## Borrowing map
+## Adopted design constraints
 
-- DINX: controller intent/jump policy, generation-safe handles, exact render-batch identities/order barriers, revision/neighbor-presence admission.
-- ZYLVE: item identity, atomic item/currency/RNG transactions, skill/status semantics, fixed-step input edges, render queue/spatial hash, staged live-edit publication.
-- CUBSHIP: isolated SAT geometry, weapon/damage transition contracts, bounded AI search and sectioned saves.
+- Controller intent/jump policy, generation-safe handles, exact render-batch identities/order barriers and revision/neighbor-presence admission remain explicit contracts.
+- Item identity, atomic item/currency/RNG transactions, skill/status semantics, fixed-step input edges, render queue/spatial hash and staged live-edit publication remain explicit contracts.
+- Isolated SAT geometry, weapon/damage transition contracts, bounded AI search and sectioned saves remain explicit contracts.
 - Do **not** inherit endpoint-only “sweep,” waist-ray player collision, fixed tiny loot pools/silent drops, duplicate weapon authorities, raw ECS IDs in saves, event playback mislabeled deterministic replay, or corpus inspectors mislabeled map cookers.
-- DINX MIT; ZYLVE whole-game private/internal notice; CUBSHIP README MIT claim lacks complete inspected notice packaging. User permission does not clear third-party assets. Capture source revision/hash and licenses at port time.
+- Any copied or translated third-party code or assets require traceable provenance, a pinned source revision and license/notice review before distribution.
 - Minecraft: not a conventional archetype ECS. Borrow definition/instance separation, item override patches, validated codecs, extraction snapshots and audio voice lifecycles. Prioritize JOML/Brigadier MIT subsets, Artemis/Ashley storage contracts, owo layout and Flywheel instance lifecycles; see [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Recommended expansion set: SDL3/SDL_GPU; offline SDL_shadercross/DXC; optional OpenAL Soft when later HRTF/Doppler/EFX requirements exceed the implemented G2 SDL stereo path; SDL3_image for image decoding; FreeType/HarfBuzz for text services; zstd for cooked packages. Full boundaries, local availability, licenses and adoption gates are in [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).
 ## Next action and proof boundary
@@ -350,5 +350,4 @@ not verify the engine graphics stack or run a full suite.
 All graphical checks use a reviewed wrapper configured through
 `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, with private sockets, timeout and
 process cleanup; never the developer desktop. Full matrix only final
-pre-commit with user permit. No sibling engine/game source or assets were
-copied.
+pre-commit with user permit.

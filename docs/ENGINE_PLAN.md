@@ -7,7 +7,7 @@ Kof 0.5.0-beta. Project architecture is [ARCHITECTURE.md](ARCHITECTURE.md). See
 [language/runtime evidence](KOF_LANGUAGE.md),
 [initial probes](RESEARCH_PROBES.md), [course deep dive](KOF_COURSE.md),
 [course-driven probes](COURSE_PROBES.md), [game precedents](GAME_ECOSYSTEM.md),
-[editor findings](KOF_EDITOR.md), and [monorepo port map](MONOREPO_REUSE.md).
+and [editor findings](KOF_EDITOR.md).
 
 ## 1. Product and non-negotiable ownership
 
@@ -36,7 +36,7 @@ The existing Kof compiler/runtime is an upstream tool dependency written partly 
 
 **Forbidden shortcuts:** a Java/Bevy/Zig engine driven by `.kf` scripts; handwritten JS game logic stored in Kof strings; a C `engine_tick`/`render_world` implementation; casting integers into arbitrary native pointers; duplicating gameplay in a second language to make the demo work.
 
-This plan does not choose a public license or authorize redistribution of sibling assets. Resolve ownership/notices before publishing ports.
+This plan does not choose a public license or authorize redistribution of third-party assets. Resolve ownership/notices before publishing ports.
 
 ## 2. Platform and graphics decision
 
@@ -49,20 +49,20 @@ This plan does not choose a public license or authorize redistribution of siblin
 - SDL_GPU handles device resources, command buffers, upload synchronization, pipelines, draw/compute submission and presentation. Kof decides what to submit and in what order.
 - Use one renderer implementation initially. Do not build SDL, Sokol, raylib, OpenGL and Vulkan backends simultaneously.
 
-**Why:** full 3D/instancing/compute headroom for projectile crowds and ARPG effects, modern desktop backend model, robust shooter input surface, one platform dependency, and existing ZYLVE SDL_GPU experience. This is a design judgment, **not measured evidence that SDL_GPU is fastest for Kof**.
+**Why:** full 3D/instancing/compute headroom for projectile crowds and ARPG effects, modern desktop backend model, robust shooter input surface, one platform dependency and a single inspectable platform/graphics boundary. This is a design judgment, **not measured evidence that SDL_GPU is fastest for Kof**.
 
 ### Alternatives considered
 
 | Candidate | Fit | Decision |
 |---|---|---|
-| SDL3 + SDL_GPU | Vulkan/D3D12/Metal abstraction; polling input/main loop; GPU resources/compute; ZYLVE precedent | Preferred native spike |
-| SDL3 + `sokol_gfx` | Compact GPU API; reuse DINX batching concepts; can retain SDL platform loop | Viable alternative if SDL_GPU hardware/shader constraints fail; adds integration between two libraries |
-| `sokol_app` + `sokol_gfx` | Small footprint, portable graphics, DINX familiarity | Native Kof cannot currently supply retained callbacks; app lifecycle would need extra bridge ownership. Not the first path |
+| SDL3 + SDL_GPU | Vulkan/D3D12/Metal abstraction; polling input/main loop; GPU resources/compute; one platform/GPU API boundary | Preferred native spike |
+| SDL3 + `sokol_gfx` | Compact GPU API; explicit render extraction/batching; can retain SDL platform loop | Viable alternative if SDL_GPU hardware/shader constraints fail; adds integration between two libraries |
+| `sokol_app` + `sokol_gfx` | Small footprint, portable graphics, compact retained API | Native Kof cannot currently supply retained callbacks; app lifecycle would need extra bridge ownership. Not the first path |
 | raylib / Jaylib | Shortest route to examples; actual DoomKof precedent; math/models/audio included | Good comparison/prototyping option, but Jaylib means JVM and many raylib structs still need native ABI work. Not a substitute for the engine-owned renderer plan |
 | Direct Vulkan | Maximum control | Too much driver/synchronization/shader work before shooter behavior; no demonstrated need |
 | LWJGL | Mature JVM bindings | Target-specific alternative, not evidence of native Kof interoperability |
 | Kof Canvas / WebKitGTK | Existing 2D/browser ecosystem | Wrong initial real-time 3D/runtime boundary; browser is not the native target |
-| Bevy/wgpu through Rust shim | Existing CUBSHIP stack | Violates engine ownership if simulation/render architecture remains Rust |
+| Bevy/wgpu through Rust shim | Large Rust runtime and rendering ownership stack | Violates engine ownership if simulation/render architecture remains Rust |
 
 Sokol remains credible; it is not rejected as incapable of shooters. Its backend list evolves, so pin headers/shader tools if selected rather than relying on stale capability tables.
 
@@ -466,7 +466,7 @@ Kof-owned collision modules:
 - Zero-length movement, starting penetration, grazing edges, opposing contacts and high-speed pass-through are explicit cases. Never use only destination overlap.
 - Static/moving door platforms modeled with owned transforms and consistent query data. Player, AI LOS, bullets and editor picking query the same authoritative cooked world.
 
-Movement profiles define ground friction/acceleration, air acceleration, speed caps, jump buffering/coyote time, bunnyhop/dash policy and crouch. Borrow DINX intent/jump contracts; implement projection-based Quake-like acceleration as a deliberate profile rather than mislabeling vector-approach acceleration.
+Movement profiles define ground friction/acceleration, air acceleration, speed caps, jump buffering/coyote time, bunnyhop/dash policy and crouch. Keep intent and jump contracts explicit; implement projection-based Quake-like acceleration as a deliberate profile rather than mislabeling vector-approach acceleration.
 
 A rigidbody library is not initially required. If later demanded for piles/vehicles/destruction, assess it as an explicit external-library exception; never move player/combat authority into it by default.
 
@@ -509,7 +509,7 @@ Targets such as viewmodel FOV, recoil/sway, muzzle flashes, hit feedback, readab
 - Save item rolls in the dedicated rolled-item v1 section; `BoundedItemInventory` now round-trips stable ID, definition, seed, level, rarity, affixes and condition, so balance/content migration cannot silently reroll equipment.
 - `BoundedWorldLoot` retains at most eight complete rolled drops with stable/source IDs, rank and integer 3D position. Death reward preflight reserves world-loot, XP and currency capacity before the alive→dead commit; pickup removes a drop only after inventory accepts its exact roll. Recipient-specific checksummed state kinds `7` and `8` replicate complete inventory/equipment/skill/status and world-loot state. Save section 12 persists world drops plus loot/currency reward claims, and `decodeG3Authority` restores the player/runtime pair atomically against configured content.
 
-Borrow ZYLVE's transaction/identity invariants, not its fixed weapon names, small inventory sizes or fixed tier-drop tables. These systems are part of the planned engine, not deferred out of scope after a shooting demo.
+Preserve atomic transaction and stable identity invariants; do not inherit fixed weapon names, small inventory sizes or fixed tier-drop tables. These systems are part of the planned engine, not deferred out of scope after a shooting demo.
 
 ### AI and encounters
 
@@ -890,8 +890,8 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 | Native JSON/split parity | Fractional mixed-record JSON corrupted values; escaped-pipe split differed from JVM | Repair/prove exact content/save schemas and parser contracts before G3/G4 reliance |
 | Language/docs rapidly diverge | 0.3.7 course / older portal pages / 0.5.0-beta release gate | Pin exact toolchain identity and archive digest; upgrade through focused behavior probes, not compile-only claims |
 | Editor reliability/security | Single-file run, JS UI, privileged unauthenticated handlers | CLI + separate LSP-capable editor; no dependency on editor fork |
-| Creator pipeline becomes second engine | Sibling monoliths/multiple authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
-| License/asset assumptions | Mixed sibling rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |
+| Creator pipeline becomes second engine | Multiple monolithic runtimes or authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
+| License/asset assumptions | Unclear code/asset rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |
 | Native portability overclaimed | Examined native output is Linux ELF | Separate platform gates; SDL backend list is not Kof executable support |
 
 ## 12. Historical first implementation increment
