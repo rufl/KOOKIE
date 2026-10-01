@@ -36,6 +36,10 @@ The gate runs:
 6. the optional native SDL adapter build and isolated-display smoke when its system dependencies and pressure gate permit it;
 7. JVM and native compiler builds.
 
+Hosted GitHub runners are shared virtual machines, so the workflow sets
+`KOOKIE_SERVER_P95_BUDGET_US=8000` for a scheduling-tolerant headless-server
+gate. The default local and soak budget remains 4000 microseconds; a hosted
+CI pass does not replace recorded performance evidence.
 The current Kof LSP analyzes each open document as a temporary single-file
 module, so the gate records its known `PKG004`/`PKG006` package diagnostics and
 fails on every other LSP error. Full package/import correctness is covered by

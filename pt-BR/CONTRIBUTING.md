@@ -37,6 +37,10 @@ O gate executa:
 6. build opcional do adaptador SDL nativo e smoke em display isolado quando as dependências de sistema e o gate de pressão permitirem;
 7. builds do compilador para JVM e nativo.
 
+A CI hospedada usa máquinas virtuais compartilhadas, então o workflow define
+`KOOKIE_SERVER_P95_BUDGET_US=8000` para um gate tolerante ao escalonamento do
+servidor headless. O orçamento local e de soak continua em 4000 microssegundos;
+um sucesso na CI hospedada não substitui evidência de desempenho registrada.
 O LSP Kof atual analisa cada documento aberto como um módulo temporário de
 arquivo único. Por isso o gate registra os diagnósticos conhecidos de pacote
 `PKG004`/`PKG006` e falha para qualquer outro erro de LSP. A correção completa

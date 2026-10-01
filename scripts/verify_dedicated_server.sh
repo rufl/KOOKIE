@@ -41,11 +41,13 @@ SERVER_BUILD="$WORK_DIR/server-build"
 (cd "$SERVER_ROOT" && kof build main.kf --target native \
   --output "$SERVER_BUILD" >/dev/null)
 server_status=0
+p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 server_output="$(
   cd "$SERVER_ROOT"
   KOOKIE_SERVER_WARMUP_TICKS=128 \
   KOOKIE_SERVER_TICKS=512 \
   KOOKIE_SERVER_RSS_SAMPLE_TICKS=32 \
+  KOOKIE_SERVER_P95_BUDGET_US="$p95_budget_us" \
     "$SERVER_BUILD/Default/Main"
 )" || server_status=$?
 if [[ "$server_status" -ne 0 ]]; then
@@ -54,16 +56,17 @@ if [[ "$server_status" -ne 0 ]]; then
 fi
 server_log="$WORK_DIR/server.log"
 printf '%s\n' "$server_output" >"$server_log"
-python3 - "$server_log" <<'PY'
+python3 - "$server_log" "$p95_budget_us" <<'PY'
 import pathlib
 import sys
 
 lines = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
 fields = {}
+p95_budget = int(sys.argv[2])
 paired = {
     "warmup-ticks", "measured-ticks",
     "simulation-p50-us", "simulation-p95-us", "simulation-p99-us",
-    "simulation-max-us", "simulation-budget-pass",
+    "simulation-max-us", "simulation-budget-us", "simulation-budget-pass",
     "rss-first-kib", "rss-last-kib", "rss-growth-kib",
     "rss-range-kib", "rss-samples", "rss-plateau", "realtime",
 }
@@ -93,7 +96,9 @@ p95 = int(fields["simulation-p95-us"])
 p99 = int(fields["simulation-p99-us"])
 maximum = int(fields["simulation-max-us"])
 assert 0 <= p50 <= p95 <= p99 <= maximum
-assert p95 <= 4000
+assert p95 <= p95_budget, (
+    f"simulation p95 {p95}us exceeds budget {p95_budget}us")
+assert int(fields["simulation-budget-us"]) == p95_budget
 assert fields["simulation-budget-pass"] == "true"
 assert int(fields["rss-growth-kib"]) <= 1024
 assert int(fields["rss-range-kib"]) <= 4096

@@ -21,6 +21,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   is not presentation evidence.
 
 
+### CI headless performance gate
+
+- Made the dedicated-server P95 budget explicit and configurable through
+  `KOOKIE_SERVER_P95_BUDGET_US`. Local and soak verification retain the
+  4000-microsecond default; hosted CI uses an 8000-microsecond ceiling to
+  absorb shared-runner scheduling noise without changing the recorded target.
+
+
 ## 2026-09-30
 
 ### Kof-first artifacts, sandbox and Windows compiler paths

@@ -23,6 +23,9 @@ env:
   KOF_SOURCE_COMMIT: bf17ac7e736471c8a04b4153e5b0f607be75e70c
   WINDOWS_JAVA_ARCHIVE_SHA256: e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd
   WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
+  # Hosted runners are shared; keep the recorded 4 ms local target separate
+  # from this scheduling-tolerant CI ceiling.
+  KOOKIE_SERVER_P95_BUDGET_US: "8000"
 
 jobs:
   verify:

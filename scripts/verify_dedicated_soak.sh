@@ -31,6 +31,7 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
 warmup_ticks="${KOOKIE_SOAK_WARMUP_TICKS:-600}"
 measured_ticks="${KOOKIE_SOAK_TICKS:-108000}"
 sample_ticks="${KOOKIE_SOAK_RSS_SAMPLE_TICKS:-600}"
+p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 server_log="$WORK_DIR/server.log"
 server_status=0
 (
@@ -38,6 +39,7 @@ server_status=0
   KOOKIE_SERVER_WARMUP_TICKS="$warmup_ticks" \
   KOOKIE_SERVER_TICKS="$measured_ticks" \
   KOOKIE_SERVER_RSS_SAMPLE_TICKS="$sample_ticks" \
+  KOOKIE_SERVER_P95_BUDGET_US="$p95_budget_us" \
   KOOKIE_SERVER_REALTIME=1 \
     "$BUILD_DIR/Default/Main"
 ) >"$server_log" 2>&1 || server_status=$?
@@ -47,7 +49,7 @@ if [[ "$server_status" -ne 0 ]]; then
   exit "$server_status"
 fi
 
-python3 - "$server_log" "$warmup_ticks" "$measured_ticks" "$sample_ticks" <<'PY'
+python3 - "$server_log" "$warmup_ticks" "$measured_ticks" "$sample_ticks" "$p95_budget_us" <<'PY'
 import pathlib
 import sys
 
@@ -55,11 +57,12 @@ lines = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
 warmup = int(sys.argv[2])
 measured = int(sys.argv[3])
 sample_interval = int(sys.argv[4])
+p95_budget = int(sys.argv[5])
 fields = {}
 paired = {
     "warmup-ticks", "measured-ticks",
     "simulation-p50-us", "simulation-p95-us", "simulation-p99-us",
-    "simulation-max-us", "simulation-budget-pass",
+    "simulation-max-us", "simulation-budget-us", "simulation-budget-pass",
     "rss-first-kib", "rss-last-kib", "rss-growth-kib",
     "rss-range-kib", "rss-samples", "rss-plateau", "realtime",
 }
@@ -88,7 +91,9 @@ p95 = int(fields["simulation-p95-us"])
 p99 = int(fields["simulation-p99-us"])
 maximum = int(fields["simulation-max-us"])
 assert 0 <= p50 <= p95 <= p99 <= maximum
-assert p95 <= 4000
+assert p95 <= p95_budget, (
+    f"simulation p95 {p95}us exceeds budget {p95_budget}us")
+assert int(fields["simulation-budget-us"]) == p95_budget
 assert fields["simulation-budget-pass"] == "true"
 assert int(fields["rss-growth-kib"]) <= 1024
 assert int(fields["rss-range-kib"]) <= 4096

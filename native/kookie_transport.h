@@ -50,6 +50,7 @@ bool kookie_headless_sleep_microseconds(int microseconds);
 int kookie_headless_requested_ticks(void);
 int kookie_headless_warmup_ticks(void);
 int kookie_headless_sample_interval(void);
+int kookie_headless_p95_budget_microseconds(void);
 bool kookie_headless_realtime(void);
 
 #endif

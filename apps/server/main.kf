@@ -9,10 +9,12 @@ extern "./lib/libkookie_headless_adapter.so" kookie_headless_requested_ticks(): 
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_warmup_ticks(): Int
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_sample_interval(): Int
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_realtime(): Bool
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_p95_budget_microseconds(): Int
 
 main() {
     // Persist each extern result before a later call; native local liveness is
     // not reliable across this scalar FFI boundary.
+    var p95BudgetMicros = kookie_headless_p95_budget_microseconds()
     var configuration = BoundedDedicatedRunConfiguration()
     if (!configuration.setMeasuredTicks(
             kookie_headless_requested_ticks()) ||
@@ -67,7 +69,7 @@ main() {
             }
         }
     }
-    var simulationBudgetPass = telemetry.p95Micros() <= 4000
+    var simulationBudgetPass = telemetry.p95Micros() <= p95BudgetMicros
     var rssPlateau =
         telemetry.rssGrowthKib() <= 1024 &&
         telemetry.rssRangeKib() <= 4096
@@ -106,6 +108,8 @@ main() {
     println(telemetry.p99Micros())
     println("simulation-max-us")
     println(telemetry.maximumTickMicros())
+    println("simulation-budget-us")
+    println(p95BudgetMicros)
     println("simulation-budget-pass")
     println(simulationBudgetPass)
     println("rss-first-kib")

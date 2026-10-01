@@ -18,6 +18,14 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   outro objetivo.
 
 
+### Estabilidade do gate de desempenho headless na CI
+
+- Tornamos explícito e configurável o orçamento P95 do servidor dedicado por
+  `KOOKIE_SERVER_P95_BUDGET_US`. As verificações locais e de soak mantêm o
+  padrão de 4000 microssegundos; a CI hospedada usa teto de 8000 microssegundos
+  para absorver ruído de escalonamento sem alterar a meta registrada.
+
+
 ## 2026-09-30
 
 ### Artefatos Kof-first, sandbox e caminhos do compilador Windows

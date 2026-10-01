@@ -101,21 +101,24 @@ grep -Fq 'simd_benchmark=kof-buffer-u8-runtime-dispatch' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'content_kooker=native-bounded-intake-cli' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
+p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 SERVER_LOG="$WORK_DIR/server.log"
 KOOKIE_SERVER_WARMUP_TICKS=64 \
 KOOKIE_SERVER_TICKS=128 \
 KOOKIE_SERVER_RSS_SAMPLE_TICKS=32 \
+KOOKIE_SERVER_P95_BUDGET_US="$p95_budget_us" \
   "$SERVER" >"$SERVER_LOG"
 grep -Fq 'KOOKIE G5 dedicated headless server' "$SERVER_LOG"
 grep -Fq 'graphics=none' "$SERVER_LOG"
 grep -Fq 'simulation-budget-pass' "$SERVER_LOG"
 grep -Fq 'rss-plateau' "$SERVER_LOG"
 grep -Fq 'resource-plateau=true' "$SERVER_LOG"
-python3 - "$SERVER_LOG" <<'PY'
+python3 - "$SERVER_LOG" "$p95_budget_us" <<'PY'
 import pathlib
 import sys
 
 lines = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8").splitlines()
+p95_budget_us = int(sys.argv[2])
 def paired(label):
     index = lines.index(label)
     return lines[index + 1]
@@ -123,6 +126,8 @@ def paired(label):
 assert paired("warmup-ticks") == "64"
 assert paired("measured-ticks") == "128"
 assert paired("simulation-budget-pass") == "true"
+assert int(paired("simulation-budget-us")) == p95_budget_us
+assert int(paired("simulation-p95-us")) <= p95_budget_us
 assert paired("rss-samples") == "5"
 assert paired("rss-plateau") == "true"
 assert paired("realtime") == "false"

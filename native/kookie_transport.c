@@ -1084,6 +1084,10 @@ int kookie_headless_sample_interval(void) {
     return kookie_headless_environment_int(
         "KOOKIE_SERVER_RSS_SAMPLE_TICKS", 64, 1, 1000000);
 }
+int kookie_headless_p95_budget_microseconds(void) {
+    return kookie_headless_environment_int(
+        "KOOKIE_SERVER_P95_BUDGET_US", 4000, 1, 1000000);
+}
 
 bool kookie_headless_realtime(void) {
     const char *encoded = getenv("KOOKIE_SERVER_REALTIME");
