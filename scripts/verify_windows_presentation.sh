@@ -19,6 +19,7 @@ openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
 chmod 600 "$SIGNING_KEY"
 export KOOKIE_SIGNING_KEY="$SIGNING_KEY"
 export KOOKIE_ALLOW_DIRTY_PACKAGE=1
+export KOOKIE_CONTENT_PROFILE=none
 export KOOKIE_VERSION="${KOOKIE_VERSION:-0.1.0-windows-presentation-smoke}"
 export KOOKIE_BUILD_ID="${KOOKIE_BUILD_ID:-windows-presentation-smoke}"
 export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1704067200}"
@@ -77,6 +78,7 @@ assert manifest["runtime"] == "presentation"
 assert manifest["windows_presentation"] is True
 assert manifest["windows_java_runtime"] is False
 assert manifest["windows_java_version"] == "not-bundled"
+assert manifest["content_profile"] == "none"
 assert manifest["windows_dxc_version"] != "not-bundled"
 assert manifest["source_date_epoch"] == expected_epoch
 assert manifest["sha256"] == hashlib.sha256(archive_path.read_bytes()).hexdigest()
@@ -94,6 +96,7 @@ for relative in (
     "build/g0_triangle.vert.dxil",
     "build/g5_triangle_instance.vert.dxil",
     "build/g0_triangle.frag.dxil",
+    "DEMO_CONTROLS.txt",
 ):
     assert (root / relative).is_file(), relative
 assert (root / "kookie.exe").read_bytes()[:2] == b"MZ"

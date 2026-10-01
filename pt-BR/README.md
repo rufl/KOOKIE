@@ -128,6 +128,10 @@ A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
   exige `READY` dos dois peers conectados e publica o placar determinístico por
   `Tab`, com jogador, status, score, vida, K/D e ping.
 
+A árvore limpa determinística e o workflow aprovado de release pareada estão
+implementados; ainda falta atualizar o pacote público e reter a evidência
+específica de cada alvo.
+
 | Alvo | Estado atual da fonte/evidência | Evidência restante para release |
 |---|---|---|
 | Linux x86-64 | A apresentação nativa contém gameplay local, host/join de dois jogadores, gate explícito de prontidão, estado autoritativo de bots/jogadores, nomes, corações e lobby/placar limitados. As sondas focadas JVM/nativas passam. | Gerar arquivo de apresentação assinado a partir de árvore limpa, verificar fora do checkout e executar smoke isolado em GPU suportada: iniciar/jogar/reiniciar/sair. |

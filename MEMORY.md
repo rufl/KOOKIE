@@ -120,10 +120,17 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   outside-checkout repeated play/restart/quit smoke, fresh-host verification
   and native hardware presentation evidence. Package-linkage or PE-marker
   success alone is not a playable-demo release.
-- The current Linux development environment lacks the SDL3_mixer development
-  header, so current native SDL package/visual evidence is not retained here.
-  This does not invalidate the focused Kof model, source build or transport
-  checks; it blocks only local presentation packaging/visual qualification.
+- The default Linux system image lacks the SDL3_mixer development header;
+  a temporary pinned SDL_mixer 3.2.4 prefix allowed the signed package and
+  package-smoke gates to pass. The isolated Xvfb/DRM visual smoke then reported
+  `No DRI3 support detected` and `No supported SDL_GPU backend`, so no native
+  Linux presentation evidence is retained.
+- The current host has no MinGW SDL3/SDL_mixer prefixes or `dxc`, so the
+  Windows presentation gate fails closed before compilation; no Windows
+  artifact or native hardware evidence is claimed.
+- `scripts/build_demo_release.sh` now produces two identical clean-tree
+  presentation artifacts per target, and the approved paired workflow publishes
+  them only after environment approval; the public release is still unchanged.
 
 ## Earlier platform-release batch
 

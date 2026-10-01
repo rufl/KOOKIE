@@ -130,11 +130,17 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
   árvore limpa, smoke repetido fora do checkout de jogar/reiniciar/sair,
   verificação em hosts novos e evidência de apresentação em hardware nativo.
   Ligação de pacote ou marcador PE isolado não é release de demo jogável.
-- O ambiente Linux de desenvolvimento atual não possui o header de
-  desenvolvimento SDL3_mixer; portanto a evidência atual de empacotamento SDL
-  nativo/apresentação visual não foi retida aqui. Isso não invalida modelo Kof,
-  build de fonte ou checks de transporte; bloqueia apenas empacotamento e
-  qualificação visual local.
+- A imagem de sistema Linux padrão não possui o header de desenvolvimento
+  SDL3_mixer; um prefixo temporário fixado de SDL_mixer 3.2.4 permitiu os gates
+  de pacote assinado e package-smoke. O smoke visual Xvfb/DRM isolado reportou
+  `No DRI3 support detected` e `No supported SDL_GPU backend`, então nenhuma
+  evidência de apresentação Linux nativa foi retida.
+- O host atual não tem prefixos MinGW SDL3/SDL_mixer nem `dxc`; o gate de
+  apresentação Windows falha fechado antes da compilação, e não reivindicamos
+  artefato Windows nem evidência de hardware nativo.
+- `scripts/build_demo_release.sh` agora gera dois artefatos de apresentação
+  idênticos por alvo a partir de árvore limpa, e o workflow pareado aprovado
+  só os publica após aprovação do ambiente; a release pública permanece igual.
 
 ## Lote anterior de execução de hooks confiáveis
 

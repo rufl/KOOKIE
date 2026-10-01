@@ -1,0 +1,252 @@
+name: Build KOOKIE demo release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SemVer release version without a leading v"
+        required: true
+        type: string
+      publish:
+        description: "Publish the verified Linux/Windows pair after environment approval"
+        required: true
+        default: false
+        type: boolean
+      run_linux_presentation_smoke:
+        description: "Run isolated Linux package presentation smoke on the release runner"
+        required: true
+        default: false
+        type: boolean
+      run_windows_wine_smoke:
+        description: "Run optional isolated Wine package smoke on the release runner"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  KOOKIE_KOF_SOURCE_COMMIT: bf17ac7e736471c8a04b4153e5b0f607be75e70c
+
+jobs:
+  linux:
+    name: Linux x86-64 presentation package
+    runs-on: [self-hosted, linux, x64, kookie-demo-release]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout requested source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Prepare release identity
+        shell: bash
+        env:
+          KOOKIE_SIGNING_KEY_PEM: ${{ secrets.KOOKIE_SIGNING_KEY_PEM }}
+          KOOKIE_KOF_ARCHIVE_SHA256: ${{ secrets.KOOKIE_KOF_ARCHIVE_SHA256 }}
+        run: |
+          set -euo pipefail
+          : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
+          : "${KOOKIE_KOF_ARCHIVE_SHA256:?KOOKIE_KOF_ARCHIVE_SHA256 is required}"
+          : "${KOOKIE_KOF_SOURCE_COMMIT:?Kof source commit is required}"
+          printf '%s\n' "$KOOKIE_SIGNING_KEY_PEM" >"$RUNNER_TEMP/kookie-signing.pem"
+          chmod 600 "$RUNNER_TEMP/kookie-signing.pem"
+          printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
+          printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
+          kof version
+
+      - name: Build deterministic Linux artifact
+        shell: bash
+        env:
+          DEMO_VERSION: ${{ inputs.version }}
+          KOOKIE_CONTENT_PROFILE: none
+        run: |
+          set -euo pipefail
+          scripts/build_demo_release.sh \
+            --target linux-x86_64 \
+            --version "$DEMO_VERSION" \
+            --output "$RUNNER_TEMP/kookie-demo-linux"
+
+      - name: Run isolated Linux package presentation smoke
+        if: ${{ inputs.run_linux_presentation_smoke }}
+        shell: bash
+        env:
+          DEMO_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          : "${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:?configure an isolated presentation wrapper on this runner}"
+          KOOKIE_PACKAGE_DIR="$RUNNER_TEMP/kookie-demo-linux" \
+          KOOKIE_PACKAGE_NAME="kookie-${DEMO_VERSION}-linux-x86_64" \
+          KOOKIE_RUN_PRESENTATION=1 \
+            scripts/verify_linux_presentation_package.sh
+
+      - name: Upload Linux artifact set
+        uses: actions/upload-artifact@v4
+        with:
+          name: kookie-demo-linux-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-demo-linux
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Windows x86-64 presentation package
+    runs-on: [self-hosted, windows, x64, kookie-demo-release]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout requested source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Prepare release identity
+        shell: bash
+        env:
+          KOOKIE_SIGNING_KEY_PEM: ${{ secrets.KOOKIE_SIGNING_KEY_PEM }}
+          KOOKIE_KOF_ARCHIVE_SHA256: ${{ secrets.KOOKIE_KOF_ARCHIVE_SHA256 }}
+        run: |
+          set -euo pipefail
+          : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
+          : "${KOOKIE_KOF_ARCHIVE_SHA256:?KOOKIE_KOF_ARCHIVE_SHA256 is required}"
+          : "${KOOKIE_KOF_SOURCE_COMMIT:?Kof source commit is required}"
+          : "${KOOKIE_WINDOWS_SDL_PREFIX:?configure KOOKIE_WINDOWS_SDL_PREFIX on this runner}"
+          : "${KOOKIE_WINDOWS_SDL_MIXER_PREFIX:?configure KOOKIE_WINDOWS_SDL_MIXER_PREFIX on this runner}"
+          : "${KOOKIE_DXC:?configure KOOKIE_DXC on this runner}"
+          printf '%s\n' "$KOOKIE_SIGNING_KEY_PEM" >"$RUNNER_TEMP/kookie-signing.pem"
+          chmod 600 "$RUNNER_TEMP/kookie-signing.pem"
+          printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
+          printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
+          kof version
+          zig version
+          "$KOOKIE_DXC" --version
+
+      - name: Build deterministic Windows artifact
+        shell: bash
+        env:
+          DEMO_VERSION: ${{ inputs.version }}
+          KOOKIE_CONTENT_PROFILE: none
+        run: |
+          set -euo pipefail
+          scripts/build_demo_release.sh \
+            --target windows-x86_64 \
+            --version "$DEMO_VERSION" \
+            --output "$RUNNER_TEMP/kookie-demo-windows"
+
+      - name: Run Windows artifact gate
+        shell: bash
+        env:
+          KOOKIE_RUN_WINE: ${{ inputs.run_windows_wine_smoke && '1' || '0' }}
+        run: |
+          set -euo pipefail
+          scripts/verify_windows_presentation.sh
+
+      - name: Upload Windows artifact set
+        uses: actions/upload-artifact@v4
+        with:
+          name: kookie-demo-windows-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-demo-windows
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish approved Linux/Windows pair
+    if: ${{ inputs.publish }}
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: kookie-demo-release
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download Linux artifact set
+        uses: actions/download-artifact@v4
+        with:
+          name: kookie-demo-linux-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-demo-linux
+
+      - name: Download Windows artifact set
+        uses: actions/download-artifact@v4
+        with:
+          name: kookie-demo-windows-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-demo-windows
+
+      - name: Assemble paired checksums and notes
+        shell: bash
+        env:
+          KOOKIE_SIGNING_KEY_PEM: ${{ secrets.KOOKIE_SIGNING_KEY_PEM }}
+          DEMO_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
+          command -v gh >/dev/null
+          publish_dir="$RUNNER_TEMP/kookie-demo-publish"
+          mkdir -p "$publish_dir"
+          for target in linux windows; do
+            source_dir="$RUNNER_TEMP/kookie-demo-$target"
+            find "$source_dir" -maxdepth 1 -type f \
+              ! -name 'SHA256SUMS' ! -name 'SHA256SUMS.sig' \
+              ! -name 'BUILD_SUMMARY.txt' -exec cp -- {} "$publish_dir/" \;
+            cp -- "$source_dir/BUILD_SUMMARY.txt" \
+              "$publish_dir/BUILD_SUMMARY-$target.txt"
+          done
+          signing_key="$RUNNER_TEMP/kookie-signing.pem"
+          printf '%s\n' "$KOOKIE_SIGNING_KEY_PEM" >"$signing_key"
+          chmod 600 "$signing_key"
+          mapfile -t assets < <(
+            cd "$publish_dir"
+            printf '%s\n' kookie-* | sort
+          )
+          (cd "$publish_dir" && sha256sum "${assets[@]}" > SHA256SUMS)
+          openssl pkeyutl -sign -rawin -inkey "$signing_key" \
+            -in "$publish_dir/SHA256SUMS" -out "$publish_dir/SHA256SUMS.sig"
+          public_key="$publish_dir/kookie-${DEMO_VERSION}-linux-x86_64.pub.pem"
+          openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
+            -in "$publish_dir/SHA256SUMS" \
+            -sigfile "$publish_dir/SHA256SUMS.sig" >/dev/null
+          source_commit="$(git rev-parse HEAD)"
+          cat >"$RUNNER_TEMP/release-notes.md" <<EOF
+          # KOOKIE $DEMO_VERSION
+
+          Signed native presentation packages built from source commit
+          \`$source_commit\` with Kof source commit
+          \`${KOOKIE_KOF_SOURCE_COMMIT:-bf17ac7e736471c8a04b4153e5b0f607be75e70c}\`.
+
+          This bounded first demo contains local \`Play\`, fixed two-player
+          \`Host/Join\`, explicit \`READY\` gating and the host-authoritative
+          \`Tab\` player screen. Networking remains direct-IPv4 dogfood with no
+          relay, public identity service or production DDoS protection.
+
+          Verify \`SHA256SUMS\` and \`SHA256SUMS.sig\` before extraction. Native
+          GPU/input/audio evidence is target-specific and retained with the
+          release qualification record.
+          EOF
+          printf 'KOOKIE paired release assets prepared in %s\n' "$publish_dir"
+
+      - name: Create GitHub pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEMO_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "$DEMO_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "KOOKIE $DEMO_VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md"
+          gh release upload "$DEMO_VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            "$RUNNER_TEMP/kookie-demo-publish"/* \
+            --clobber

@@ -174,9 +174,36 @@ KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime presentation --target linux-x86_64
 ```
 
+Para smoke de extração e assinaturas de um pacote em árvore limpa:
+
+```bash
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
+scripts/verify_linux_presentation_package.sh
+```
+
+Para um artefato de release, gere dois pacotes byte-a-byte idênticos e escreva
+o conjunto verificado em um diretório de saída vazio:
+
+```bash
+KOOKIE_VERSION=0.1.0-demo.N \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
+scripts/build_demo_release.sh \
+  --target linux-x86_64 \
+  --version 0.1.0-demo.N \
+  --output /tmp/kookie-demo-linux
+```
+
+O builder exige árvore limpa e não afirma evidência de GPU nativa do alvo.
+
 Esse perfil exige SDL 3.4.16, SDL_mixer 3.2.4, `glslc`, compilador C e
 `pkg-config`. O arquivo contém a aplicação Kof de menu/jogo, adaptador SDL,
 shaders SPIR-V, SDL3 e SDL_mixer. Ele usa o loader dinâmico e a libc do host.
+Arquivos de apresentação também incluem `DEMO_CONTROLS.txt`; a primeira demo
+usa o perfil de conteúdo `none` e não redistribui assets do protótipo.
 
 ### Controles
 
@@ -369,11 +396,51 @@ seguros e licenças e verifica o PE nativo, as import libraries SDL e as
 entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1` adiciona o smoke completo opcional,
 exigindo `wine` e `overzeer-isolated-display`.
 
+Para o artefato Windows publicável, use o builder determinístico de árvore
+limpa:
+
+```bash
+KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
+KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer-3.2.4/x86_64-w64-mingw32 \
+KOOKIE_DXC=/caminho/para/dxc \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
+KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
+scripts/build_demo_release.sh \
+  --target windows-x86_64 \
+  --version 0.1.0-demo.N \
+  --output /tmp/kookie-demo-windows
+```
+
+O comando escreve arquivo assinado, manifesto, chave pública, assinaturas
+destacadas, `SHA256SUMS` e `BUILD_SUMMARY.txt`. Evidência nativa de
+inicialização/input/áudio/GPU Windows continua sendo gate separado de hardware.
+
 Em um host isolado capaz de DRI3, o smoke executa a mesma entrada Kof PE nativa
 que possui a janela SDL, staging de cena GPU, fila de áudio, reload do kutter
 e os marcadores de gameplay. O pacote não tem dependência JVM. Esta é evidência
 específica do alvo; não deve ser generalizada para outras combinações de
 SO/GPU ou para qualificação de WAN/segurança.
+
+### Workflow de release demo pareada
+
+`.github/workflows/release_demo.yml` é um workflow disparado manualmente e
+aprovado manualmente. Ele gera os pacotes Linux e Windows de forma
+independente e só publica uma pré-release pareada depois da aprovação do
+ambiente `kookie-demo-release`.
+
+O workflow exige runners self-hosted com labels `kookie-demo-release`,
+`linux`/`windows` e `x64`. Ambos precisam de Kof `0.5.0-beta` no commit de
+fonte fixado, Python 3, OpenSSL, `glslc`, Zig 0.16.0 e o digest fixado da
+distribuição Kof. O runner Linux também precisa dos arquivos de
+desenvolvimento SDL3/SDL_mixer e de um wrapper de display isolado para o smoke
+opcional. O runner Windows também precisa dos prefixes MinGW SDL3/SDL_mixer e
+de `KOOKIE_DXC`.
+
+Configure os secrets de ambiente `KOOKIE_SIGNING_KEY_PEM` e
+`KOOKIE_KOF_ARCHIVE_SHA256`. Use `publish=false` para qualificação somente de
+artefatos. Use `publish=true` apenas depois de reter evidência nativa Linux e
+Windows de inicialização/input/áudio/GPU no registro da release.
 
 ### Sondas runtime G6
 

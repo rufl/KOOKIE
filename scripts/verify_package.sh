@@ -267,13 +267,17 @@ if command -v glslc >/dev/null &&
   test -f "$PRESENTATION_ROOT/build/g5_triangle_instance.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
   test -f "$PRESENTATION_ROOT/THIRD_PARTY_NOTICES.txt"
+  test -f "$PRESENTATION_ROOT/DEMO_CONTROLS.txt"
   test -n "$(find "$PRESENTATION_ROOT/lib" -maxdepth 1 -name 'libSDL3.so*' -print -quit)"
   test -n "$(find "$PRESENTATION_ROOT/lib" -maxdepth 1 -name 'libSDL3_mixer.so*' -print -quit)"
-  PRESENTATION_OUTPUT="$("$PRESENTATION_ROOT/kookie" --package-smoke \
-    2>"$WORK_DIR/presentation-runtime.err")" || {
-      cat "$WORK_DIR/presentation-runtime.err" >&2
-      exit 1
-    }
+  PRESENTATION_OUTPUT="$(
+    cd "$WORK_DIR"
+    "$PRESENTATION_ROOT/kookie" --package-smoke \
+      2>"$WORK_DIR/presentation-runtime.err"
+  )" || {
+    cat "$WORK_DIR/presentation-runtime.err" >&2
+    exit 1
+  }
   grep -Fq 'KOOKIE G1 authoritative shooter verified' <<<"$PRESENTATION_OUTPUT"
   KOOKIE_SERVER_WARMUP_TICKS=16 \
   KOOKIE_SERVER_TICKS=32 \

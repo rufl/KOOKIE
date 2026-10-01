@@ -87,11 +87,20 @@ uma release pública.
   assinatura/checksum, extração, inicialização, `Play`, movimento/olhar/disparo,
   dano, reinício, saída e relançamento repetido.
 - Executar o smoke de GPU isolado com capacidade de apresentação e reter
-  máquina, driver, wrapper, screenshot e saída. O ambiente atual não possui o
-  header de desenvolvimento SDL3_mixer, então essa evidência não é reproduzida
-  aqui.
+  máquina, driver, wrapper, screenshot e saída. A imagem de sistema padrão não
+  possui os arquivos de desenvolvimento SDL3_mixer; configure um prefixo
+  SDL_mixer 3.2.4 fixado antes de invocar o gate do pacote.
+- O Xvfb/DRM isolado desta workstation reportou `No DRI3 support detected` e
+  `No supported SDL_GPU backend`; isso não é evidência de apresentação em
+  hardware Linux.
 - Documentar o piso de loader/libc/GPU testado. SDL3 e SDL_mixer são
   empacotados, mas compatibilidade com qualquer distribuição não é implícita.
+
+- `scripts/verify_linux_presentation_package.sh` verifica o arquivo assinado
+  extraído e pode executar a apresentação empacotada pelo wrapper isolado.
+- `scripts/build_demo_release.sh` é o builder de release em árvore limpa: gera
+  dois pacotes byte-a-byte idênticos, verifica assinaturas/procedência, extrai
+  fora do checkout e executa o smoke do pacote.
 
 ### P0 — qualificação da release Windows
 
@@ -102,6 +111,12 @@ uma release pública.
 - Executar `scripts/verify_windows_presentation.sh`; seus checks de
   reprodutibilidade e PE/SDL/SPIR-V/DXIL são evidência de artefato, não de
   hardware nativo.
+- `scripts/build_demo_release.sh` escreve o ZIP Windows final em árvore limpa,
+  manifesto, assinaturas, `SHA256SUMS` e resumo de build após a verificação de
+  dois builds determinísticos.
+- Esta workstation não tem prefixos MinGW SDL3/SDL_mixer nem `dxc`
+  configurados; o gate Windows falha fechado antes da compilação, então não
+  reivindicamos artefato Windows nem evidência de hardware nativo.
 - Reter evidência nativa Windows de GPU/input/áudio. Wine prova o caminho do
   pacote; o smoke visual opcional exige GPU isolada capaz de DRI3.
 - Decidir se a distribuição para usuários comuns exige assinatura Authenticode;
@@ -112,20 +127,22 @@ uma release pública.
 - Publicar arquivos Linux e Windows correspondentes com a mesma identidade de
   fonte/toolchain limpa, manifestos, chave pública, assinaturas destacadas e
   `SHA256SUMS`.
-- Adicionar workflow de release aprovado manualmente ou checklist operacional
-  que gere, verifique e publique os dois arquivos como par. A CI atual verifica
-  componentes, mas não publica o par atual de demos.
+- Execute `.github/workflows/release_demo.yml` com `publish=false` para
+  qualificar artefatos; o caminho aprovado `publish=true` gera e publica o par
+  Linux/Windows somente após aprovação do ambiente `kookie-demo-release`.
+- O workflow não substitui evidência nativa do hardware-alvo; anexe essa
+  evidência ao registro da release antes de aprovar a publicação.
 - Adicionar notas de release com controles, pisos suportados, limitações,
   identidades exatas de fonte/toolchain e o limite de networking multiplayer
   best-effort.
 
 ### P1 — conteúdo e limite do produto
 
-- Decidir se a primeira demo envia apenas a arena autoral fixa ou um pacote de
-  conteúdo separado. O perfil de assets protótipo continua opt-in.
-- Resolver termos de redistribuição de cada asset empacotado. O asset goose do
-  protótipo continua restrito pelos termos upstream e não pode ser rotulado CC0
-  nem incluído silenciosamente.
+- A primeira demo envia a arena autoral fixa com `content_profile=none`; o
+  pacote separado de conteúdo protótipo continua opt-in e não faz parte do
+  artefato da release.
+- Resolver os termos de redistribuição de cada asset empacotado. O asset goose
+  do protótipo continua restrito pelos termos upstream e não é incluído aqui.
 - Se o multiplayer for anunciado publicamente, executar evidência LAN/WAN entre
   hosts novos. O rendezvous e o hole punch UDP continuam networking dogfood
   best-effort: sem relay, recuperação de NAT simétrico, segurança WAN de

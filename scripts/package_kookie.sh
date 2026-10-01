@@ -374,6 +374,7 @@ bundle_linux_native() {
 #!/usr/bin/env sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$root"
 export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 if [ "${1:-}" = "--package-smoke" ]; then
   exec "$root/kookie-smoke.bin"
@@ -844,6 +845,34 @@ cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
 if [[ "$TARGET" == windows-x86_64 ]]; then
   cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.txt"
 fi
+if [[ "$RUNTIME" == presentation ]]; then
+  cat > "$PACKAGE_ROOT/DEMO_CONTROLS.txt" <<'EOF'
+KOOKIE bounded first demo
+
+Launch:
+  Linux:   ./kookie
+  Windows: kookie.cmd
+
+Menu:
+  Arrow keys or WASD  navigate
+  Enter, Space, click  select
+  Escape               back
+
+Local playable slice:
+  Select Play to start the authoritative goose encounter.
+  Keyboard and mouse control movement, look and fire.
+  Escape returns to the menu; select Play again for a fresh encounter.
+
+Two-player dogfood:
+  Select Multiplayer > Host on one client and Join on the other.
+  After both peers connect, select READY on both clients.
+  Press Tab during gameplay for the player screen.
+
+The multiplayer path is direct-IPv4 dogfood networking. It has no relay,
+public identity service, encryption or production DDoS protection.
+This package contains no prototype content profile.
+EOF
+fi
 cp -- "$ROOT_DIR/LICENSE" "$PACKAGE_ROOT/LICENSE"
 cp -- "$ROOT_DIR/THIRD_PARTY_NOTICES.txt" "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 SOURCE_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD)"
@@ -958,7 +987,8 @@ with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED,
             raise SystemExit(f"package_kookie: package contains a special file: {path}")
 PY
 else
-  tar -C "$WORK_DIR" -czf "$ARCHIVE" "$PACKAGE_NAME"
+  tar -C "$WORK_DIR" --sort=name --mtime="@${PACKAGE_EPOCH}" \
+    --owner=0 --group=0 --numeric-owner -czf "$ARCHIVE" "$PACKAGE_NAME"
 fi
 cp -- "$PUBLIC_KEY_WORK" "$PUBLIC_KEY"
 python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \

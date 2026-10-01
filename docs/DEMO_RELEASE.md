@@ -87,10 +87,20 @@ required before calling it a public release.
   signature/checksum, extraction, launch, `Play`, movement/look/fire, damage,
   restart, quit and repeated relaunch.
 - Run the isolated present-capable GPU smoke and retain machine, driver,
-  wrapper, screenshot and exit evidence. The current environment lacks the
-  SDL3_mixer development header, so this evidence is not reproduced here.
+  wrapper, screenshot and exit evidence. The default system image lacks
+  SDL3_mixer development files; configure a pinned SDL_mixer 3.2.4 prefix
+  before invoking the package gate.
+- This workstation's isolated Xvfb/DRM run reported `No DRI3 support
+  detected` and `No supported SDL_GPU backend`; it is not Linux hardware
+  presentation evidence.
 - Document the tested loader/libc/GPU floor. SDL3 and SDL_mixer are bundled,
   but arbitrary distribution compatibility is not implied.
+
+- `scripts/verify_linux_presentation_package.sh` verifies the extracted signed
+  archive and can run the packaged presentation through the isolated wrapper.
+- `scripts/build_demo_release.sh` is the clean-tree release builder: it creates
+  two byte-identical packages, verifies signatures and provenance, extracts the
+  archive outside the checkout and runs package smoke.
 
 ### P0 — Windows release qualification
 
@@ -100,6 +110,12 @@ required before calling it a public release.
   checkout on supported Windows hardware and drivers.
 - Run `scripts/verify_windows_presentation.sh`; its reproducibility and PE/
   SDL/SPIR-V/DXIL checks are artifact evidence, not native hardware evidence.
+- `scripts/build_demo_release.sh` writes the final clean-tree Windows archive,
+  manifest, signatures, `SHA256SUMS` and build summary after deterministic
+  double-build verification.
+- This workstation has no configured MinGW SDL3/SDL_mixer prefixes or `dxc`;
+  the Windows gate fails closed before package compilation, so no Windows
+  artifact or native hardware evidence is claimed.
 - Retain native Windows GPU/input/audio evidence. Wine proves the package path
   only; the optional visual Wine smoke requires an isolated DRI3-capable GPU.
 - Decide whether ordinary-user distribution requires Authenticode signing;
@@ -109,19 +125,21 @@ required before calling it a public release.
 
 - Publish matching Linux and Windows archives from one clean source/toolchain
   identity with manifests, public key, detached signatures and `SHA256SUMS`.
-- Add a manually approved release workflow or operator checklist that builds,
-  verifies and publishes both demo archives as a pair. The current CI verifies
-  components but does not publish the current pair.
+- Run `.github/workflows/release_demo.yml` with `publish=false` for artifact
+  qualification; its approved `publish=true` path builds and publishes the
+  Linux/Windows pair only after the `kookie-demo-release` environment approves.
+- The workflow does not replace native target-hardware evidence; attach that
+  evidence to the release record before approving publication.
 - Add release notes containing controls, supported floors, known limitations,
   exact source/toolchain identities and the multiplayer best-effort boundary.
 
 ### P1 — content and product boundary
 
-- Decide whether the first demo ships the fixed authored arena only or a
-  separate content package. The prototype asset profile remains opt-in.
+- The first demo ships the fixed authored arena with `content_profile=none`;
+  the separate prototype content package remains opt-in and is not part of
+  the release artifact.
 - Resolve redistribution terms for every bundled asset. The prototype goose
-  asset remains restricted by its upstream terms and must not be relabeled CC0
-  or included silently.
+  asset remains restricted by its upstream terms and is not included here.
 - If multiplayer is advertised publicly, run fresh cross-host LAN/WAN evidence.
   The rendezvous and direct UDP hole punch remain best-effort dogfood networking:
   no relay, symmetric-NAT recovery, production WAN security or DDoS protection.

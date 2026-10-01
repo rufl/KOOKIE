@@ -90,3 +90,10 @@ jobs:
         run: bash scripts/verify_windows_jvm_package.sh
       - name: Verify G6 runtime probes
         run: bash scripts/verify_g6_runtime.sh
+      - name: Check demo release scripts
+        run: |
+          bash -n scripts/build_demo_release.sh \
+            scripts/verify_linux_presentation_package.sh \
+            scripts/verify_windows_presentation.sh \
+            scripts/package_kookie.sh \
+            scripts/verify_package.sh

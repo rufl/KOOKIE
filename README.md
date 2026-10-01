@@ -137,8 +137,9 @@ The current source tree has a bounded player-facing slice:
   lobby, requires both connected players to select `READY`, and publishes the
   deterministic `Tab` scoreboard with player, status, score, HP, K/D and ping.
 
-The source path is implemented; the public package and target-specific release
-evidence still need to be refreshed.
+The deterministic clean-tree builder and approved paired-release workflow are
+implemented; the public package and target-specific release evidence still
+need to be refreshed.
 
 | Target | Current source/evidence state | Remaining release evidence |
 |---|---|---|

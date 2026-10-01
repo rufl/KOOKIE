@@ -35,6 +35,23 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Adicionamos `scripts/verify_multiplayer_ui.sh` e integramos o probe focado ao
   caminho de verificação do repositório.
 
+### Automação do pacote da primeira demo
+
+- Adicionamos `scripts/verify_linux_presentation_package.sh` para extração
+  assinada, smoke do pacote e smoke de apresentação isolado opcional.
+- Adicionamos `scripts/build_demo_release.sh` para dois builds determinísticos
+  em árvore limpa, validação de procedência/assinaturas e smoke por alvo.
+- Adicionamos o `.github/workflows/release_demo.yml`, com builder/publicador
+  pareado Linux/Windows aprovado manualmente.
+- Corrigimos o launcher de apresentação Linux para entrar na raiz do pacote
+  antes de resolver o adaptador SDL incluído; o smoke agora roda fora do
+  diretório extraído.
+- Normalizamos ordem, ownership e timestamps do tar Linux para que builds
+  repetidos de apresentação sejam byte-a-byte idênticos; o smoke roda fora da
+  raiz extraída.
+- Os arquivos de apresentação agora incluem `DEMO_CONTROLS.txt` e impõem o
+  limite `content_profile=none` da primeira demo.
+
 ### Prontidão da release de demo jogável
 
 - O artefato público mais recente `0.1.0-dogfood.34` continua sendo um dogfood

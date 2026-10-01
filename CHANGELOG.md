@@ -34,6 +34,23 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added `scripts/verify_multiplayer_ui.sh` and integrated the focused probe into
   the repository verification path.
 
+### First demo package automation
+
+- Added `scripts/verify_linux_presentation_package.sh` for signed extraction,
+  package smoke and optional isolated presentation smoke.
+- Added `scripts/build_demo_release.sh` for clean-tree deterministic double
+  builds, provenance/signature validation and target package smoke.
+- Added the manually approved `.github/workflows/release_demo.yml` pair
+  builder/publisher for Linux and Windows presentation artifacts.
+- Fixed the Linux presentation launcher to change into its package root before
+  resolving the bundled SDL adapter path; package smoke now runs from outside
+  the extracted directory.
+- Normalized Linux tar ordering, ownership and timestamps so repeated
+  presentation builds are byte-identical; package smoke executes outside the
+  extracted root.
+- Presentation archives now include `DEMO_CONTROLS.txt` and enforce the
+  first-demo `content_profile=none` boundary.
+
 ### Playable demo release readiness
 
 - The latest public `0.1.0-dogfood.34` artifact remains a signed Linux x86-64
