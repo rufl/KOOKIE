@@ -4,6 +4,10 @@
 
 O KOOKIE mantém em código-fonte Kof `.kf` todo comportamento portátil de CPU da engine, do jogo e das ferramentas. Bibliotecas externas de plataforma/GPU/áudio e glue estreito de ABI/shaders são exceções explícitas. Leia `README.md`, `MEMORY.md` e o documento relevante em `docs/` antes de alterar o código.
 
+Se a mudança afetar o limite da release voltada ao jogador, leia também
+[Prontidão da release demo](docs/DEMO_RELEASE.md); a qualificação da engine ou
+do pacote, sozinha, não significa que a demo Windows/Linux seja jogável.
+
 ## Idioma
 
 As páginas e a documentação pública são mantidas em inglês e português brasileiro. Mantenha o arquivo correspondente em `pt-BR/` sincronizado sempre que uma página ou documento mudar.

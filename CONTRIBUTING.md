@@ -4,6 +4,10 @@
 
 KOOKIE keeps portable engine, game, and tool CPU behavior in Kof `.kf` source. External platform/GPU/audio libraries and narrow ABI/shader glue are explicit exceptions. Read `README.md`, `MEMORY.md`, and the relevant document under `docs/` before changing code.
 
+If the change affects the player-facing release boundary, also read
+[Demo release readiness](docs/DEMO_RELEASE.md); engine/package qualification
+does not by itself mean that the Windows/Linux demo is playable.
+
 ## Language
 
 Public pages and documentation are maintained in English and Brazilian Portuguese. Keep the matching file under `pt-BR/` synchronized whenever a page or document changes.

@@ -4,19 +4,32 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## 2026-10-01
 
-### Qualificação de apresentação Windows G6
+### Qualificação Windows PE/SDL G6
 
 - Corrigimos o ciclo de vida do módulo do adaptador SDL Windows: chamadas FFI
-  do Kof JVM podem fechar a arena nativa de cada chamada sem descarregar o
-  estado fixado do adaptador.
-- O pacote de apresentação Windows assinado agora passa um smoke completo em
-  Wine isolado sobre host com DRI3, incluindo HUD/cena/criador do Kof,
-  aquisição da janela pelo SDL GPU, capacidades de apresentação e captura.
-- O smoke produziu os cinco marcadores esperados e um frame de 1280×720. Isso
-  qualifica a rota limitada de gameplay Kof JVM mais apresentação SDL nativa no
-  host registrado; lowering nativo PE/Kof completo para Windows continua sendo
-  outro objetivo.
+  do Kof podem fechar a arena nativa de cada chamada sem descarregar o estado
+  fixado do adaptador.
+- Expandimos o subconjunto alcançável de lowering Kof PE/COFF para os grafos
+  atuais de gameplay e apresentação: classes, campos, objetos, arrays, valores
+  integral/Boolean/String, controle, impressão, indexação de String e FFI
+  integral.
+- Adicionamos pacotes nativos Windows reproduzíveis: o shell SDL liga o objeto
+  Kof PE alcançável de `src/`, e o perfil de apresentação liga gameplay Kof PE
+  nativo ao adaptador SDL3/SDL_mixer GPU com produtos SPIR-V/DXIL.
+- O smoke isolado do shell nativo em Wine passou os marcadores de gameplay e
+  `KOOKIE native Kof PE gameplay verified`. O smoke visual de apresentação
+  continua opcional e exige GPU isolada capaz de DRI3; o wrapper Xvfb padrão não
+  é evidência de apresentação.
+### Prontidão da release de demo jogável
 
+- Documentamos que o artefato público mais recente `0.1.0-dogfood.34` é um
+  dogfood de apresentação Linux x86-64 assinado do commit
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; nenhum arquivo atual de demo
+  Windows foi publicado.
+- Registramos os bloqueios D1: a superfície `Play` ainda renderiza uma cena de
+  qualificação em vez de encaminhar input da plataforma pelo loop autoritativo
+  de sessão/tick, e os dois alvos ainda precisam de um ciclo completo
+  encontro/resultado/reinício mais evidência em hosts novos.
 
 ### Estabilidade do gate de desempenho headless na CI
 
@@ -47,8 +60,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   um subconjunto limitado de topo com inteiros/String/fluxo de controle. Ela
   emite C11 determinístico, COFF AMD64 e PE de console por Zig fixado, verifica
   paridade semântica contra Kof JVM e rejeita classes, heap/arrays, exceções,
-  FFI e IR SDL com `PE001`. Gameplay Windows completo permanece fora dessa
-  alegação.
+  FFI e IR SDL com `PE001`. Neste registro histórico, o caminho nativo de
+  gameplay Windows ainda não estava qualificado; a entrada de 2026-10-01 acima
+  registra a qualificação PE/SDL limitada posterior.
 
 ### Caminhos limitados de expansão G6
 

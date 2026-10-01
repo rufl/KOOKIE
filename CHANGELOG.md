@@ -20,6 +20,18 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   optional and requires a DRI3-capable isolated GPU; the default Xvfb wrapper
   is not presentation evidence.
 
+### Playable demo release readiness
+
+- Documented that the latest public `0.1.0-dogfood.34` artifact is signed
+  Linux x86-64 presentation dogfood from source commit
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; no current Windows demo archive
+  is published.
+- Recorded the remaining D1 blockers: the presentation `Play` surface still
+  renders a qualification scene instead of routing platform input through the
+  authoritative session/tick loop, and both targets still need a complete
+  encounter/result/restart path plus fresh-host release evidence.
+
+
 
 ### CI headless performance gate
 
@@ -43,11 +55,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added a reproducible Windows JVM package with a SHA-256-pinned OpenJDK x64
   runtime, retained legal tree, canonical executable JAR and signed deterministic
   ZIP; the focused gate rebuilds and compares every signed artifact.
-- Added a strict Kof optimized-IR compiler bridge for a bounded top-level
+- Added a strict optimized-IR compiler bridge for a bounded top-level
   integral/String/control-flow subset. It emits deterministic C11, AMD64 COFF
   and console PE artifacts through pinned Zig, verifies semantic parity against
-  Kof JVM, and rejects classes, heap/arrays, exceptions, FFI and SDL IR with
-  `PE001`. Full Windows gameplay remains outside this claim.
+  the Kof JVM, and rejects unsupported classes, heap/arrays, exceptions, FFI
+  and SDL IR with `PE001`. At this historical entry the native Windows
+  gameplay path was not yet qualified; the 2026-10-01 entry above records the
+  later bounded PE/SDL qualification.
 
 ### G6 bounded expansion paths
 

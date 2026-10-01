@@ -1,6 +1,6 @@
 # KOOKIE working memory
 
-Bounded foundations execute; the G0–G5 implementation gates are complete within the qualification limits below.
+Bounded foundations execute; the G0–G6 implementation gates are complete within the qualification limits below. The D1 player-facing demo release is still open.
 
 ## Current qualification batch
 
@@ -99,6 +99,22 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
   fallback for native PE gameplay. Native PE remains AMD64/Windows-specific;
   floating-point IR, catchable exceptions and concurrency still fail closed
   with `PE001`.
+
+## Public dogfood and playable-demo status
+
+- The latest public artifact is
+  [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34),
+  a signed Linux x86-64 presentation archive from source commit
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. It predates the current native
+  Windows PE/SDL qualification and no current Windows demo archive is public.
+- The packaged presentation `Play` surface currently renders the bounded
+  qualification scene. `GameShell` does not route gameplay-screen actions into
+  the authoritative `InputCommand`/tick loop, and the Windows SDL shell draws
+  its static game surface after the PE marker smoke.
+- D1 therefore still requires the shared input/session/render loop, one
+  documented start→encounter→result→restart slice, current signed Linux and
+  Windows packages, fresh-host verification and native hardware presentation
+  evidence. See [Demo release readiness](docs/DEMO_RELEASE.md).
 
 ## Earlier platform-release batch
 
@@ -355,8 +371,15 @@ processes; transactional four-chunk assembly rejects replay/tamper and client B
 resumes at generation 2. SDL_GPU draws 984 hardware instances in one call; the
 recorded 1920×1080 Vulkan run measured p95 submission time 0.645 ms. Durable
 saves, replay v3, migrations and signed clean-tree packages close the release
-hardening. Evidence remains same-host, fixed-population and single-workstation;
-multi-machine/WAN, other OS/GPU targets and arbitrary scale belong to G6.
+hardening. Evidence remains same-host, fixed-population and single-workstation.
+G6 now has bounded expansion probes and native Windows PE/SDL package gates;
+broad multi-machine/WAN, other OS/GPU targets and arbitrary scale remain
+unclaimed.
+
+G6 is qualified for its declared bounded contract: native Windows PE gameplay
+linkage, SDL shell/presentation package gates, KofScript/Kutter/WAN probes and
+CI evidence are retained. This does not make the static presentation shell a
+playable demo; D1 remains the player-facing release gate.
 
 Earlier research evidence: original core/import/scalar-FFI probes, 18
 course-driven programs (36 runs, two checks), and the JOML JVM success/native

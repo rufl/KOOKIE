@@ -33,8 +33,9 @@
 
 | Se você quer… | Vá para |
 |---|---|
-| Executar a demo autoritativa atual | [Início rápido](#início-rápido) |
-| Baixar um build dogfood Linux assinado | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Executar a verificação autoritativa atual | [Início rápido](#início-rápido) |
+| Baixar o artefato Linux público mais recente | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Avaliar a prontidão da demo jogável Windows/Linux | [Prontidão da release demo](docs/DEMO_RELEASE.md) |
 | Entender as fronteiras | [Arquitetura](docs/ARCHITECTURE.md) |
 | Gerar builds, pacotes ou papéis de qualificação | [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md) |
 | Ver as evidências e o trabalho aberto | [Plano da engine](docs/ENGINE_PLAN.md) e [backlog G0](docs/G0_BACKLOG.md) |
@@ -65,6 +66,9 @@ O resultado é intencionalmente opinativo:
 
 Pré-requisitos: [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) e Python 3.
 
+O comando abaixo executa o entrypoint não gráfico de qualificação autoritativa.
+Ele não é o jogo interativo empacotado.
+
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
 cd KOOKIE
@@ -88,6 +92,23 @@ compatibilidade Windows explícito e sem gráficos; ele nunca é fallback
 silencioso. Pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
 e `glslc`. Os comandos exatos de pacote, kooker, Windows e qualificação entre
 hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
+
+## Estado atual da demo e da release
+
+O artefato público mais recente é
+[`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34):
+uma apresentação SDL assinada para Linux x86-64, construída a partir do commit
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede as mudanças atuais
+de PE/SDL Windows e do gate da CI; é um artefato dogfood de apresentação, não
+uma release de jogo jogável.
+
+| Alvo | Estado verificado | Falta para uma demo jogável |
+|---|---|---|
+| Linux x86-64 | Menu persistente, opções, lobby, tela Kutter, áudio e cena autoral de qualificação podem ser empacotados e renderizados. | Ligar input de teclado/mouse/gamepad ao loop autoritativo do jogador e entregar um ciclo completo iniciar→lutar→vencer/sair→reiniciar. |
+| Windows x86-64 | Gates de pacote de gameplay/apresentação Kof PE nativo, shell SDL3/SDL_mixer e shaders estão implementados; o smoke do shell nativo passa. | Substituir o shell Play estático pelo mesmo caminho real de gameplay autoritativo, qualificar hardware Windows novo e publicar um ZIP assinado. |
+
+O checklist detalhado de aceitação, os bloqueios e o escopo futuro não bloqueante
+estão em [Prontidão da release demo](docs/DEMO_RELEASE.md).
 
 ## O que funciona hoje
 

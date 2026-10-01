@@ -1,6 +1,6 @@
 # Memória de trabalho do KOOKIE
 
-As fundações limitadas executam; os gates de implementação G0–G5 estão completos dentro dos limites de qualificação abaixo.
+As fundações limitadas executam; os gates de implementação G0–G6 estão completos dentro dos limites de qualificação abaixo. A release de demo voltada ao jogador D1 continua aberta.
 
 ## Lote atual de qualificação
 
@@ -90,6 +90,42 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
   kooker de conteúdo. O smoke do pacote exercita canonicalização WAVE PCM,
   reabertura idempotente, rejeição de entrada malformada e denylist de
   dependências gráficas fora do checkout.
+
+## Lote de qualificação Windows PE/SDL
+
+- O backend Windows PE agora reduz o grafo atual alcançável de gameplay/
+  apresentação: classes/campos, objetos, arrays, valores
+  integral/Boolean/String, controle, impressão, indexação de String e FFI
+  integral. A saída standalone é PE de console; a saída de biblioteca exporta
+  `kookie_kof_gameplay_main`.
+- O pacote nativo Windows reproduzível liga o objeto Kof completo de `src/` ao
+  shell SDL3/SDL_mixer sem Java. O smoke isolado em Wine passa os marcadores de
+  gameplay e `KOOKIE native Kof PE gameplay verified`.
+- O pacote de apresentação reproduzível liga gameplay Kof PE nativo ao
+  adaptador SDL3/SDL_mixer GPU e preserva produtos SPIR-V/DXIL. O gate do
+  artefato passa; o smoke visual opcional em Wine exige GPU isolada capaz de
+  DRI3 e não é inferido do ambiente Xvfb padrão.
+- O pacote Windows JVM separado continua sendo perfil de compatibilidade, não
+  fallback do gameplay PE nativo. PE nativo permanece AMD64/Windows; IR de
+  ponto flutuante, exceções capturáveis e concorrência continuam falhando com
+  `PE001`.
+
+## Estado público do dogfood e da demo jogável
+
+- O artefato público mais recente é
+  [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34),
+  um arquivo de apresentação Linux x86-64 assinado do commit
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede a qualificação
+  atual de PE/SDL nativo Windows e nenhum arquivo atual de demo Windows é
+  público.
+- A superfície `Play` da apresentação empacotada atualmente renderiza a cena
+  limitada de qualificação. `GameShell` não encaminha ações da tela de gameplay
+  ao loop autoritativo de `InputCommand`/tick, e o shell SDL Windows desenha
+  sua superfície estática após o smoke do marcador PE.
+- D1 ainda exige o loop compartilhado de input/sessão/renderização, uma fatia
+  documentada iniciar→encontro→resultado→reiniciar, pacotes Linux e Windows
+  atuais assinados, verificação em hosts novos e evidência de apresentação em
+  hardware nativo. Veja [Prontidão da release demo](docs/DEMO_RELEASE.md).
 
 ## Lote anterior de execução de hooks confiáveis
 
@@ -342,10 +378,16 @@ Um host autenticado replica estado completo a cada tick para dois processos
 clientes; a montagem transacional em quatro chunks rejeita replay/adulteração
 e o cliente B retorna na geração 2. O SDL_GPU desenha 984 instâncias em
 hardware numa chamada; a execução Vulkan 1920×1080 registrou p95 de envio de
-0,645 ms. Saves duráveis, replay v3, migrações e pacotes assinados de árvore
 limpa encerram a robustez de release. A evidência permanece na mesma máquina,
-com população fixa e uma estação; várias máquinas/WAN, outros OSs/GPUs e escala
-arbitrária pertencem a G6.
+com população fixa e uma estação. G6 agora possui probes de expansão limitada e
+gates de pacote Windows PE/SDL nativos; várias máquinas/WAN, outros OSs/GPUs e
+escala arbitrária continuam sem alegação.
+
+G6 está qualificado para seu contrato limitado declarado: ligação de gameplay
+Windows PE nativo, gates de pacote shell/apresentação SDL, probes de
+KofScript/Kutter/WAN e evidência de CI estão retidos. Isso não transforma o
+shell de apresentação estático em uma demo jogável; D1 continua sendo o gate
+de release voltado ao jogador.
 
 Evidências de pesquisa anteriores: sondas originais de core/import/FFI escalar,
 18 programas orientados pelo curso (36 execuções, duas verificações) e o par

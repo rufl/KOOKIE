@@ -32,8 +32,9 @@
 
 | If you want to… | Go here |
 |---|---|
-| Run the current authoritative demo | [Quick start](#quick-start) |
-| Download a signed Linux dogfood build | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Run the current authoritative check | [Quick start](#quick-start) |
+| Download the latest public Linux artifact | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Assess Windows/Linux playable-demo readiness | [Demo release readiness](docs/DEMO_RELEASE.md) |
 | Understand the boundaries | [Architecture](docs/ARCHITECTURE.md) |
 | Build, package or run qualification roles | [Running and packaging](docs/RUNNING_AND_PACKAGING.md) |
 | See the evidence and open work | [Engine plan](docs/ENGINE_PLAN.md) and [G0 backlog](docs/G0_BACKLOG.md) |
@@ -61,6 +62,9 @@ The result is intentionally opinionated:
 
 Prerequisites: [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) and Python 3.
 
+The command below runs the non-graphical authoritative qualification entrypoint.
+It is not the interactive packaged game.
+
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
 cd KOOKIE
@@ -82,6 +86,23 @@ bash scripts/verify_g6_runtime.sh
 Presentation packages additionally require SDL 3.4.16, SDL_mixer 3.2.4 and
 `glslc`. Exact package, kooker, Windows and cross-host qualification commands
 live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
+
+## Current demo and release status
+
+The latest public artifact is
+[`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34):
+signed Linux x86-64 SDL presentation, built from source commit
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. It predates the current Windows
+PE/SDL and CI-gate changes; it is a dogfood presentation artifact, not a
+playable game release.
+
+| Target | Current verified state | Missing for a playable demo |
+|---|---|---|
+| Linux x86-64 | Persistent menu, options, lobby, Kutter screen, audio and the authored qualification scene can be packaged and rendered. | Route keyboard/mouse/gamepad input into the authoritative player loop, then ship one complete start→fight→win/exit→restart loop. |
+| Windows x86-64 | Native Kof PE gameplay/presentation package gates, SDL3/SDL_mixer shell and shader products are implemented; native-shell smoke passes. | Replace the static Play shell with the same real authoritative gameplay path, run fresh Windows hardware qualification, and publish a signed ZIP. |
+
+The detailed acceptance checklist, release blockers and non-blocking future
+scope are in [Demo release readiness](docs/DEMO_RELEASE.md).
 
 ## What works today
 

@@ -15,6 +15,10 @@ a demo autoritativa na raiz do repositório:
 kof run src/main.kf --target native
 ```
 
+Este comando é um caminho de qualificação em console, não uma janela jogável.
+Para o estado voltado ao jogador e o loop de gameplay que ainda falta, veja
+[Prontidão da release demo](DEMO_RELEASE.md).
+
 O alvo JVM é usado para qualificação diferencial local e para o pacote de
 compatibilidade Windows explícito:
 
@@ -169,6 +173,38 @@ Mudanças de vídeo só são efetivadas em Apply. Os pacotes do lobby usam tags
 SipHash e sequências contra replay. Uma chave compartilhada configurada de 128
 bits autentica peers; o fallback local apenas detecta corrupção acidental. O
 lobby não fornece criptografia nem identidade pública.
+
+### Executar o dogfood Linux publicado atualmente
+
+O pacote público mais recente é
+[`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
+É um build dogfood de apresentação Linux x86-64 assinado, da fonte no commit
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; ele antecede a qualificação atual
+de PE/SDL nativo Windows. Baixe os sete assets da release e valide o conjunto
+de checksums e as assinaturas destacadas:
+
+```bash
+sha256sum --check SHA256SUMS
+openssl pkeyutl -verify -rawin -pubin \
+  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
+  -in SHA256SUMS -sigfile SHA256SUMS.sig
+openssl pkeyutl -verify -rawin -pubin \
+  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
+  -in kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz \
+  -sigfile kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz.sig
+tar -xzf kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz
+cd kookie-0.1.0-dogfood.34-linux-x86_64
+./kookie
+```
+
+O arquivo inclui SDL3, SDL_mixer e os adaptadores nativos, mas usa o
+loader/libc dinâmico do host e exige uma GPU Linux suportada para apresentação.
+Ele abre o menu persistente e a cena de qualificação; a tela `Play` ainda não é
+o loop completo de gameplay orientado a input exigido por uma demo jogável.
+
+Os controles acima cobrem navegação de menu/opções/lobby. Não os descreva como
+controles de gameplay entregues até conectar a ponte de `InputCommand` e o loop
+de vitória/reinício.
 
 ## Pacotes Windows x86-64
 

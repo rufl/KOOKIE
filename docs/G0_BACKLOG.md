@@ -4,6 +4,10 @@
 
 This is the active bounded implementation sequence after the initial research and contract commits.
 
+This historical G0 exit records engine and package qualification, not a
+player-facing demo release. The open D1 gate is tracked in
+[Demo release readiness](DEMO_RELEASE.md).
+
 ## Completed
 
 - Modular `core`/`session` Kof source and scalar SDL3 probe.
@@ -303,10 +307,11 @@ The roadmap is not complete; completed work remains recorded here rather than ar
   Its native assembler emits Linux ELF; the Windows Kof PE bridge separately
   emits deterministic AMD64 PE/COFF for the qualified reachable gameplay and
   presentation graphs.
-- Release archives cover native Linux and the native Windows SDL3 + SDL_mixer
-  platform shell. The Windows presentation package links native Kof PE to the
-  SDL_GPU adapter and bundles SPIR-V/DXIL products; the native-shell Wine
-  smoke verifies gameplay markers and the native PE marker.
+- Local release qualification covers native Linux and the native Windows SDL3 +
+  SDL_mixer platform shell. The Windows presentation package links native Kof
+  PE to the SDL_GPU adapter and bundles SPIR-V/DXIL products; the native-shell
+  Wine smoke verifies gameplay markers and the native PE marker. The latest
+  public tag, however, remains Linux-only `0.1.0-dogfood.34`.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

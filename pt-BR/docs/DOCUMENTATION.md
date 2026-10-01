@@ -9,9 +9,10 @@
 
 O README da raiz é a página inicial.
 [Execução e empacotamento](RUNNING_AND_PACKAGING.md) reúne comandos de
-desenvolvimento, release, kooker e qualificação. O
-[CHANGELOG](../../pt-BR/CHANGELOG.md) é o histórico curto e humano;
-[MEMORY](../../pt-BR/MEMORY.md) é a nota para retomar o trabalho;
+desenvolvimento, release, kooker e qualificação. [Prontidão da release demo](DEMO_RELEASE.md)
+é a autoridade para a diferença entre qualificação da engine e uma demo jogável
+Windows/Linux. O [CHANGELOG](../../pt-BR/CHANGELOG.md) é o histórico curto e
+humano; [MEMORY](../../pt-BR/MEMORY.md) é a nota para retomar o trabalho;
 `CONTRIBUTING.md` define o gate de verificação. A sequência G0 limitada e ativa
 está em [G0_BACKLOG](G0_BACKLOG.md), com detalhes de tokens de recursos e
 adaptador escalar em [G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md) e

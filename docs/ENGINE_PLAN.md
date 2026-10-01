@@ -1,6 +1,6 @@
 # KOOKIE engine plan
 
-Status: **living architecture and acceptance gates; the bounded G0–G5 implementation is complete, with explicit qualification limits below**.
+Status: **living architecture and acceptance gates; the bounded G0–G6 implementation is complete within explicit qualification limits, while the D1 playable-demo release remains open**.
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Current release gate:
 Kof 0.5.0-beta. Project architecture is [ARCHITECTURE.md](ARCHITECTURE.md). See
@@ -8,6 +8,8 @@ Kof 0.5.0-beta. Project architecture is [ARCHITECTURE.md](ARCHITECTURE.md). See
 [initial probes](RESEARCH_PROBES.md), [course deep dive](KOF_COURSE.md),
 [course-driven probes](COURSE_PROBES.md), [game precedents](GAME_ECOSYSTEM.md),
 and [editor findings](KOF_EDITOR.md).
+
+The current release gap is tracked in [Demo release readiness](DEMO_RELEASE.md).
 
 ## 1. Product and non-negotiable ownership
 
@@ -718,6 +720,7 @@ No calendar promise; each gate has runnable evidence. A successful gate authoriz
 | **G4 — Kutter and extension pipeline** | Kof kooker, supported mesh/brush formats, package validation, data-mod manifests, trusted Kof extension modules, inspector/editors, staged reload | A second distinct multiplayer sample game is built from definitions/extensions without editing core engine code. Server/client reject incompatible package/API/mod manifests. Invalid content leaves the prior running world intact; geometry/collision/nav/replication revisions stay aligned |
 | **G5 — Scale and release** | AI budgets, batching/instancing, animation, streaming only as needed, dedicated headless server, migrations/replay, reconnect/admission hardening, packaging/notices | Reference LAN workload meets declared budgets; dedicated server runs without graphics; memory/resource counts plateau; package runs outside source checkout; reconnect/session recovery and extension compatibility are proven |
 | **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Bounded jobs, package-bound KofScript/session activation, persistent Kutter, limited WAN and native Windows PE/SDL shell/presentation packages have focused probes; no general portability, WAN security, sandbox or DRI3-capable visual presentation claim is inferred |
+| **D1 — Playable demo release** | Connect platform input to the authoritative local session, deliver one complete bounded encounter, integrate the native Windows gameplay surface, and publish current Linux/Windows packages | Clean extracted Linux and Windows packages launch outside the checkout, map documented controls to real gameplay, complete encounter→result→restart, pass fresh-host and native-hardware presentation checks, and publish signed provenance. A qualification scene or PE marker alone does not pass D1 |
 
 G0 evidence is tracked in [G0_BACKLOG](G0_BACKLOG.md): native/session
 feasibility, isolated window presentation and authenticated external-LAN
@@ -848,6 +851,12 @@ recorded host. It does not claim NAT traversal, relay service, confidentiality,
 DDoS resistance, arbitrary editor extensibility, a general-purpose runtime
 sandbox, or other OS/GPU coverage.
 
+G6 qualification is not D1 release completion. The current presentation `Play`
+surface still renders a bounded qualification scene without routing gameplay
+input into the authoritative session/tick loop. D1 is tracked in
+[Demo release readiness](DEMO_RELEASE.md); its first scope may remain a single
+local-player vertical slice.
+
 ### Measured bounded evidence and retained performance targets
 
 Reference scene for first scale gate: 64 active enemies, 256 moving projectiles, 512 pickups, bounded dynamic lights/effects and one medium authored level. Maintain a heavier stress variant after the baseline is correct; do not claim arbitrary population scalability.
@@ -922,6 +931,7 @@ G0 began with scalar core/tick contracts, a bounded session codec, one modular
 Kof entrypoint and an isolated SDL3 platform probe. Early JVM/native runs
 exposed cross-package record/array boxing and wrapped-scalar-extern verifier
 defects, so direct FFI remained isolated until the compiler contract matured.
-The retained probes now guard those boundaries; the completed bounded G0–G5
+The retained probes now guard those boundaries; the completed bounded G0–G6
 implementation and the acceptance evidence above supersede the original
-increment checklist.
+increment checklist. D1 remains an open player-facing release gate; see
+[Demo release readiness](DEMO_RELEASE.md).

@@ -15,6 +15,10 @@ run the authoritative demo from the repository root:
 kof run src/main.kf --target native
 ```
 
+This command is a console qualification path, not a playable window. For the
+current player-facing release status and missing gameplay loop, see
+[Demo release readiness](DEMO_RELEASE.md).
+
 The JVM target is used for local differential qualification and for the
 explicit Windows compatibility package:
 
@@ -166,9 +170,42 @@ sequences. A configured 128-bit shared key authenticates peers; the local
 fallback only detects accidental corruption. The lobby provides neither
 encryption nor public identity.
 
+### Run the currently published Linux dogfood
+
+The latest public package is
+[`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
+It is a signed Linux x86-64 presentation dogfood build from source commit
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; it predates the current native
+Windows PE/SDL qualification. Download the seven release assets, then verify
+the checksum set and detached signatures:
+
+```bash
+sha256sum --check SHA256SUMS
+openssl pkeyutl -verify -rawin -pubin \
+  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
+  -in SHA256SUMS -sigfile SHA256SUMS.sig
+openssl pkeyutl -verify -rawin -pubin \
+  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
+  -in kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz \
+  -sigfile kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz.sig
+tar -xzf kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz
+cd kookie-0.1.0-dogfood.34-linux-x86_64
+./kookie
+```
+
+The archive bundles SDL3, SDL_mixer and the native adapters, but uses the host
+dynamic loader/libc and requires a supported presentation-capable Linux GPU.
+It opens the persistent menu and qualification scene; its `Play` screen is not
+yet the complete input-driven gameplay loop required for a playable demo.
+
+The shell controls listed above cover menu/options/lobby navigation. Do not
+describe them as shipped gameplay controls until the `InputCommand` bridge and
+the win/restart loop are connected.
+
 ## Windows x86-64 packages
 
 ### Reachable Kof PE/COFF compiler
+
 
 The pinned compiler bridge lowers the reachable optimized Kof IR graph to
 deterministic C11, then uses Zig 0.16.0 to emit an AMD64 COFF object and
@@ -213,6 +250,10 @@ The package links the complete reachable `src/` Kof gameplay PE object into
 `kookie.exe`, `SDL3.dll`, `SDL3_mixer.dll`, licenses and provenance; it contains
 no JDK. The package smoke prints
 `KOOKIE native Kof PE gameplay verified` after SDL initialization.
+
+The marker proves PE linkage and SDL initialization, not a playable gameplay
+loop. The current native shell's `Play` screen is a static qualification scene;
+the shared input/session/tick bridge remains a D1 release blocker.
 
 ### Bundled Kof JVM runtime
 
@@ -263,6 +304,7 @@ PE entry that owns the SDL window, GPU scene staging, audio queue, kutter
 reload and gameplay markers. The package has no JVM dependency. This remains
 target-specific evidence; it does not generalize to other OS/GPU combinations
 or WAN/security qualification.
+
 ### G6 bounded runtime probes
 
 Run the non-graphical expansion qualification as one focused command:

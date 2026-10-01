@@ -9,9 +9,11 @@
 
 The root README is the landing page.
 [Running and packaging](RUNNING_AND_PACKAGING.md) holds developer, release,
-kooker and qualification commands. [CHANGELOG](../CHANGELOG.md) is the short
-human-readable history; [MEMORY](../MEMORY.md) is the re-entry note;
-`CONTRIBUTING.md` defines the verification gate. The active bounded G0 sequence
-is tracked in [G0_BACKLOG](G0_BACKLOG.md), with resource-token and
-scalar-adapter details in [G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md) and
+kooker and qualification commands. [Demo release readiness](DEMO_RELEASE.md)
+is the authority for the gap between engine qualification and a playable
+Windows/Linux demo. [CHANGELOG](../CHANGELOG.md) is the short human-readable
+history; [MEMORY](../MEMORY.md) is the re-entry note; `CONTRIBUTING.md` defines
+the verification gate. The active bounded G0 sequence is tracked in
+[G0_BACKLOG](G0_BACKLOG.md), with resource-token and scalar-adapter details in
+[G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md) and
 [G0_SCALAR_ADAPTER](G0_SCALAR_ADAPTER.md).

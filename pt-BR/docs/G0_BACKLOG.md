@@ -4,6 +4,10 @@
 
 Esta é a sequência ativa e limitada de implementação após os commits iniciais de pesquisa e contratos.
 
+Este backlog histórico G0 registra a qualificação da engine e dos pacotes, não
+uma release de demo voltada ao jogador. O gate D1 aberto está em
+[Prontidão da release demo](DEMO_RELEASE.md).
+
 ## Concluído
 
 - Fontes Kof modulares `core`/`session` e sonda escalar de SDL3.
@@ -190,10 +194,12 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   O assembler nativo upstream emite ELF Linux; a ponte Kof PE Windows emite
   PE/COFF AMD64 determinístico para os grafos alcançáveis qualificados de
   gameplay/apresentação.
-- Arquivos de release cobrem Linux nativo e o shell de plataforma Windows
-  SDL3 + SDL_mixer. O pacote de apresentação Windows liga Kof PE nativo ao
-  adaptador SDL_GPU e inclui produtos SPIR-V/DXIL; o smoke do shell nativo em
-  Wine isolado verifica gameplay e o marcador PE nativo.
+- A qualificação local de release cobre Linux nativo e o shell de plataforma
+  Windows SDL3 + SDL_mixer. O pacote de apresentação Windows liga Kof PE
+  nativo ao adaptador SDL_GPU e inclui produtos SPIR-V/DXIL; o smoke do shell
+  nativo em Wine verifica marcadores de gameplay e o marcador PE nativo. A tag
+  pública mais recente, porém, continua somente Linux:
+  `0.1.0-dogfood.34`.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 

@@ -1,6 +1,6 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura e gates de aceitação vivos; a implementação limitada de G0–G5 está completa, com limites explícitos de qualificação abaixo**.
+Status: **arquitetura viva e gates de aceitação; a implementação limitada de G0–G6 está completa dentro dos limites explícitos de qualificação, enquanto a release de demo jogável D1 continua aberta**.
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de release:
 Kof 0.5.0-beta. A arquitetura do projeto está em
@@ -8,6 +8,8 @@ Kof 0.5.0-beta. A arquitetura do projeto está em
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md),
 [sondagens orientadas pelo curso](COURSE_PROBES.md), [precedentes de jogos](GAME_ECOSYSTEM.md),
 e [descobertas sobre o editor](KOF_EDITOR.md).
+
+A lacuna atual de release é acompanhada em [Prontidão da release demo](DEMO_RELEASE.md).
 
 ## 1. Produto e responsabilidade não negociável
 
@@ -753,7 +755,8 @@ Nenhuma promessa de calendário; cada marco possui evidências executáveis. Um 
 | **G3 — Fatia de looter / ARPG** | Itens/afixos gerados, inventário/equipamento, XP/habilidades/efeitos de status, elites/chefes, salvamentos autoritativos, registros de extensões e esquemas replicados | Multiplayer conclui eliminação→drop gerado→coleta/equipamento→mudança observável de atributo/habilidade→recompensa de chefe→salvar/recarregar. O inventário cheio não pode perder item/moeda/RNG. A mesma seed/conteúdo produz o mesmo resultado no servidor. Os clientes não podem criar dano, itens, moeda ou progressão |
 | **G4 — Pipeline de criação e extensão** | Kof kooker, formatos de malha/brush compatíveis, validação de pacotes, manifestos de modificação de dados, módulos de extensão Kof confiáveis, inspetor/editores, recarregamento em etapas | Um segundo jogo multiplayer distinto é construído a partir de definições/extensões sem editar o código do núcleo do mecanismo. Servidor/cliente rejeitam manifestos incompatíveis de pacote/API/mod. Conteúdo inválido deixa o mundo em execução anterior intacto; as revisões de geometria/colisão/navegação/replicação permanecem alinhadas |
 | **G5 — Escala e lançamento** | Orçamentos de IA, batching/instancing, animação, streaming apenas quando necessário, servidor dedicado headless, migrações/reprodução, reforço de reconexão/admissão, empacotamento/avisos | A carga de trabalho de referência em LAN atende aos orçamentos declarados; o servidor dedicado é executado sem gráficos; as contagens de memória/recursos estabilizam; o pacote é executado fora do checkout do código-fonte; a recuperação de reconexão/sessão e a compatibilidade de extensões são comprovadas |
-| **G6 — Expansão** | SO/backend/arquitetura adicionais, jobs seguros, transporte WAN, editor mais completo, extensões em runtime isoladas | Jobs limitados, ativação de KofScript em pacote/sessão, Kutter persistente, WAN limitado e pacote Windows SDL têm probes focados; nenhuma alegação geral de portabilidade, segurança WAN, gameplay PE ou sandbox é inferida |
+| **G6 — Expansão** | SO/backend/arquitetura adicionais, jobs seguros, transporte WAN, editor mais completo, extensões em runtime isoladas | Jobs limitados, ativação de KofScript em pacote/sessão, Kutter persistente, WAN limitado e pacotes Windows PE/SDL nativos têm probes focados; nenhuma alegação geral de portabilidade, segurança WAN, sandbox, DRI3 ou cobertura ampla de apresentação é inferida |
+| **D1 — Release de demo jogável** | Ligar input da plataforma à sessão local autoritativa, entregar um encontro limitado completo, integrar a superfície nativa Windows e publicar pacotes atuais Linux/Windows | Pacotes Linux e Windows extraídos de forma limpa iniciam fora do checkout, controles documentados produzem gameplay real, encontro→resultado→reinício completa, verificações de host novo e hardware nativo passam e a procedência assinada é publicada. Cena de qualificação ou marcador PE isolado não passa D1 |
 
 A evidência de G0 está em [G0_BACKLOG](G0_BACKLOG.md): viabilidade
 nativa/de sessão, apresentação isolada em janela e execução LAN externa
@@ -887,6 +890,12 @@ afirma NAT traversal, serviço relay, confidencialidade, resistência a DDoS,
 extensibilidade arbitrária do editor, sandbox geral nem cobertura de outros
 SO/GPUs.
 
+A qualificação G6 não encerra a release D1. A superfície `Play` atual ainda
+renderiza uma cena limitada de qualificação sem encaminhar input de gameplay ao
+loop autoritativo de sessão/tick. D1 está acompanhado em
+[Prontidão da release demo](DEMO_RELEASE.md); o primeiro escopo pode continuar
+sendo uma fatia vertical single-player local.
+
 ### Evidência limitada medida e metas de desempenho mantidas
 
 Cena de referência para o primeiro estágio de escala: 64 inimigos ativos, 256 projéteis em movimento, 512 itens coletáveis, luzes/efeitos dinâmicos limitados e um nível médio criado manualmente. Mantenha uma variante de estresse mais pesada após a correção da linha de base; não alegue escalabilidade arbitrária da população.
@@ -964,5 +973,7 @@ um ponto de entrada Kof modular e uma sonda SDL3 isolada. As primeiras
 execuções JVM/nativo expuseram defeitos de boxing de registro/array entre
 pacotes e de verificação de extern escalar encapsulado, por isso a FFI direta
 permaneceu isolada até o contrato do compilador amadurecer. As sondas retidas
-agora protegem essas fronteiras; a implementação limitada G0–G5 concluída e a
-evidência de aceitação acima substituem o checklist original do incremento.
+agora protegem essas fronteiras; a implementação limitada G0–G6 concluída e a
+evidência de aceitação acima substituem o checklist original do incremento. D1
+continua sendo um gate de release voltado ao jogador; veja
+[Prontidão da release demo](DEMO_RELEASE.md).
