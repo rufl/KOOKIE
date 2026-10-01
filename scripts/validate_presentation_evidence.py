@@ -80,8 +80,8 @@ def main() -> int:
         "KOOKIE G0 native SDL adapter verified",
         "KOOKIE G1 native arena HUD verified",
         "KOOKIE G2 native 3D door verified",
-        "KOOKIE G4 GPU-safe creator reload verified",
-        "KOOKIE native creator screen verified",
+        "KOOKIE G4 GPU-safe kutter reload verified",
+        "KOOKIE native kutter screen verified",
         "KOOKIE native main menu verified",
     )
     for marker in required:
@@ -133,8 +133,8 @@ def main() -> int:
             log, "gpu-present-capabilities"
         ),
         "gpuDrawUs": marker_value(log, "gpu-draw-us"),
-        "gpuSafeCreatorReload": True,
-        "creatorScreen": True,
+        "gpuSafeKutterReload": True,
+        "kutterScreen": True,
     }
     if evidence_path is not None:
         evidence_path.parent.mkdir(parents=True, exist_ok=True)

@@ -24,7 +24,7 @@ record SourceCookResult(
     Int secondaryCount
 )
 
-class BoundedSourceCooker {
+class BoundedSourceKooker {
     BoundedExternalGlbSceneReader glbValue
     BoundedAuthoredCollision glbCollisionValue
     BoundedDust3dIntake dust3dValue

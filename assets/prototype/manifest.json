@@ -3,7 +3,7 @@
   "content_id": "kookie-prototype-assets-1",
   "package_role": "prototype-content-staging",
   "generated_from": {
-    "tool": "Blender 5.2.2 + ImageMagick 7 + KOOKIE bounded PNG cooker",
+    "tool": "Blender 5.2.2 + ImageMagick 7 + KOOKIE bounded PNG kooker",
     "coordinate_convention": "glTF Y-up; source GLBs retain exported transforms",
     "notes": "FBX/BLEND sources were converted to GLB; TGA flipbooks were converted to PNG; runtime PNGs are bounded 128x128 or 256x256 derivatives and cooked through the existing PNG intake."
   },

@@ -47,7 +47,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   publication and deterministic completion folding.
 - Added package-bound KofScript descriptors/artifacts, staged activation that
   preserves the prior program on failure, and authoritative-session execution.
-- Added persistent Creator Studio hierarchy/transforms/assets with canonical
+- Added persistent Kutter hierarchy/transforms/assets with canonical
   binary save/open and rollback on invalid files.
 - Added a fixed-window WAN channel with bounded retransmission, deterministic
   loss/latency pressure, ordered delivery, replay rejection and backpressure.
@@ -72,7 +72,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   the source-controlled social preview is ready for GitHub's browser-only
   upload.
 
-### Bounded PCM WAVE intake and packaged native cooker
+### Bounded PCM WAVE intake and packaged native kooker
 
 - Added a strict RIFF/WAVE reader for mono/stereo PCM tag `0x0001`, 8- or
   16-bit samples at 8–96 kHz, bounded to 2 MiB, 32 chunks, 30 seconds and
@@ -81,8 +81,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   and rejects compressed, float, extensible, RF64, cue/loop and unknown
   semantics.
 - Added reopened deterministic PCM16 output with source, normalized-sample,
-  metadata and canonical checksums through `kookie-cooker cook wav`. Linux
-  archives now include the native Kof cooker; package smoke checks
+  metadata and canonical checksums through `kooker cook wav`. Linux
+  archives now include the native Kof kooker; package smoke checks
   canonicalization, idempotent reopen, malformed-input rejection and absence
   of graphics dependencies outside the checkout.
 - Fixed the JVM developer launcher's lifecycle so its temporary module tree is
@@ -98,7 +98,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   verifies every chunk CRC and zlib Adler checksum, joins consecutive `IDAT`
   chunks, reverses filters 0–4 and resolves `PLTE`/`tRNS` into exact RGBA.
 - Added reopened deterministic RGBA8 PNG output with source, pixel, metadata
-  and canonical checksums through `kookie-cooker cook png`. Validated `tEXt`
+  and canonical checksums through `kooker cook png`. Validated `tEXt`
   is stripped; Adam7, APNG, other bit depths and other ancillary or unknown
   chunks reject instead of losing image semantics. Aseprite atlas output now
   uses the same canonical encoder.
@@ -112,7 +112,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   effects and unsupported interpolation reject deterministically.
 - Added reopened little-endian `KCHR` v1 output with fixed-point cuboid,
   hierarchy and keyframe records plus source/character/bone/animation/product
-  checksums. `kookie-cooker cook blockbench` writes the package-ready product;
+  checksums. `kooker cook blockbench` writes the package-ready product;
   failed intake writes none. Texture pixels and per-face UV/material data are
   not part of this first `KCHR` contract.
 
@@ -209,24 +209,24 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   smoke checks telemetry outside the checkout and rejects graphics-linked
   server dependencies.
 
-### Bounded G4 creator pipeline completion
+### Bounded G4 kutter pipeline completion
 
 - Expanded trusted modules from the elite-death path to typed
   session-started, player-connected, enemy-defeated, loot-picked-up and
-  editor-published subscriptions. Static implementation/version pairs remain
+  kutter-published subscriptions. Static implementation/version pairs remain
   generation-bound, phase-ordered and capacity-budgeted.
 - Added bounded offline intake for Dust3D projects plus validated textured GLB,
   raw/zlib 32-bit RGBA Aseprite files, MagicaVoxel models/palette/scene chunks
   and integer-grid convex Quake-style brushes. Canonical geometry, collision,
   PNG atlas, metadata, material, entity and visibility identities are produced
   deterministically; unsupported constructs fail with format diagnostics.
-- Added `scripts/kookie_cooker.sh` with file `cook`, one-chunk `package`,
+- Added `scripts/kooker.sh` with file `cook`, one-chunk `package`,
   `inspect-package` and `validate-package` commands.
 - Added a little-endian `.kpkg` envelope and external loader with bounded
   logical paths, chunk ranges/hashes and extension/definition/hook records.
   Reload validates candidate state first; rejection preserves the active
   package, registries and generation.
-- Added the Creator screen and `BoundedCreatorWorkspace` for revision-checked
+- Added the Kutter screen and `BoundedKutterWorkspace` for revision-checked
   world/entity/weapon/loot mutations, collision/AI inspection, play-in-editor
   and bounded undo/redo. Geometry, collision, navigation and render identities
   publish as one transaction.
@@ -241,7 +241,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   role probe also passed with the host and two clients in separate Linux
   network namespaces and distinct IPv4 stacks, including reconnect and the
   compatibility handshake. This is not evidence from three physical machines.
-- The Creator candidate-preservation and activation path also rendered through
+- The Kutter candidate-preservation and activation path also rendered through
   isolated headless SDL_GPU at 320×240. The final frame checksum was
   `28,585,778` (PPM SHA-256
   `c9c17e6de93dfd13ac04ee70896a2739be0ba5cf70c9c65b06e924b430064a6d`);
@@ -292,18 +292,18 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - All 78 source scenarios pass on JVM and native; Kof checks, lint and LSP pass.
 
 
-### First G4 transactional creator-publication slice
+### First G4 transactional kutter-publication slice
 
 - Added `BoundedTrustedModuleRegistry` for at most 32 statically compiled hook
   declarations tied to manifest contributions, phase and command/event budgets.
   Dependency/load/priority order is deterministic and the sealed checksum binds
   the exact extension registry.
-- Added revision-checked `BoundedCreatorPublication` and a 13-word
+- Added revision-checked `BoundedKutterPublication` and a 13-word
   `BoundedContentCompatibility` wire identity covering engine/API/network,
   package, manifest, module, definition, generation and aligned
   geometry/collision/navigation/replication products. Stale, mismatched and
   invalid transactions leave the prior active generation intact.
-- Added `G4CreatorDemo`, a distinct public-API two-player encounter driven by a
+- Added `G4KutterDemo`, a distinct public-API two-player encounter driven by a
   data-defined elite and trusted-module declaration. Deterministic death emits
   valid encounter, per-player authority and world-loot state.
 - Extended the fixed HUD from 312 to 372 vertices, and the complete scene from
@@ -311,7 +311,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   success/failure marks. The boss crown is more compact and remains structurally
   distinct from the elite diamond.
 - An isolated capture exposed native-only coordinate corruption in the former
-  high-local-count creator/threat staging methods. Small fixed-coordinate
+  high-local-count kutter/threat staging methods. Small fixed-coordinate
   helpers now keep the publication cap, compatibility plus, elite diamond and
   boss crown exact; JVM/native assertions bind their structural vertices.
 - All 77 source scenarios pass on JVM and native; Kof checks, lint and LSP pass.
@@ -689,7 +689,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added sampled triangle capsule contact with slope/ground/step policy,
   expanded dynamic AABB narrow-phase sweeps, static/dynamic projectile sweeps,
   and authoritative enemy-session navigation-product routing.
-- Added a bounded GLB cooker that admits package/collision identity,
+- Added a bounded GLB kooker that admits package/collision identity,
   encodes canonical collision data, derives deterministic triangle-centroid
   navigation, and atomically publishes geometry, collision, navigation and
   replication generations.

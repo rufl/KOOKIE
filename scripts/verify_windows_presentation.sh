@@ -145,8 +145,8 @@ text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
 for marker in (
     "KOOKIE G1 native arena HUD verified",
     "KOOKIE G2 native 3D door verified",
-    "KOOKIE G4 GPU-safe creator reload verified",
-    "KOOKIE native creator screen verified",
+    "KOOKIE G4 GPU-safe kutter reload verified",
+    "KOOKIE native kutter screen verified",
     "KOOKIE native SDL adapter verified",
 ):
     assert marker in text, marker

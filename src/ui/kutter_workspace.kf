@@ -1,20 +1,20 @@
 package ui
 
-Int creatorModeInspector() { return 1 }
-Int creatorModeWorld() { return 2 }
-Int creatorModeEntity() { return 3 }
-Int creatorModeAssets() { return 4 }
-Int creatorModeEncounter() { return 5 }
-Int creatorModeItems() { return 6 }
-Int creatorModeSkills() { return 7 }
+Int kutterModeInspector() { return 1 }
+Int kutterModeWorld() { return 2 }
+Int kutterModeEntity() { return 3 }
+Int kutterModeAssets() { return 4 }
+Int kutterModeEncounter() { return 5 }
+Int kutterModeItems() { return 6 }
+Int kutterModeSkills() { return 7 }
 
-Int creatorWorkspaceDiagnosticNone() { return 0 }
-Int creatorWorkspaceDiagnosticRevision() { return 1 }
-Int creatorWorkspaceDiagnosticState() { return 2 }
-Int creatorWorkspaceDiagnosticValue() { return 3 }
-Int creatorWorkspaceDiagnosticEmpty() { return 4 }
+Int kutterWorkspaceDiagnosticNone() { return 0 }
+Int kutterWorkspaceDiagnosticRevision() { return 1 }
+Int kutterWorkspaceDiagnosticState() { return 2 }
+Int kutterWorkspaceDiagnosticValue() { return 3 }
+Int kutterWorkspaceDiagnosticEmpty() { return 4 }
 
-class BoundedCreatorWorkspace {
+class BoundedKutterWorkspace {
     Int[] live
     Int[] staged
     Int[] undoValues
@@ -51,7 +51,7 @@ class BoundedCreatorWorkspace {
         mutationCountValue = 0
         undoCountValue = 0
         redoCountValue = 0
-        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        diagnosticValue = kutterWorkspaceDiagnosticNone()
         transactionActiveValue = false
         recomputeProducts()
     }
@@ -96,22 +96,22 @@ class BoundedCreatorWorkspace {
 
     Bool begin(Int expectedRevision) {
         if (transactionActiveValue) {
-            return reject(creatorWorkspaceDiagnosticState())
+            return reject(kutterWorkspaceDiagnosticState())
         }
         if (expectedRevision != revisionValue) {
-            return reject(creatorWorkspaceDiagnosticRevision())
+            return reject(kutterWorkspaceDiagnosticRevision())
         }
         copyState(live, 0, staged, 0)
         transactionRevisionValue = expectedRevision
         mutationCountValue = 0
         transactionActiveValue = true
-        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        diagnosticValue = kutterWorkspaceDiagnosticNone()
         return true
     }
 
     Bool setStaged(Int index, Int value) {
         if (!transactionActiveValue || index < 0 || index >= staged.length) {
-            return reject(creatorWorkspaceDiagnosticState())
+            return reject(kutterWorkspaceDiagnosticState())
         }
         if (staged[index] != value) {
             staged[index] = value
@@ -125,7 +125,7 @@ class BoundedCreatorWorkspace {
             x < -1000000 || x > 1000000 ||
             y < -1000000 || y > 1000000 ||
             z < -1000000 || z > 1000000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(0, entityId) && setStaged(1, x) &&
             setStaged(2, y) && setStaged(3, z) &&
@@ -134,7 +134,7 @@ class BoundedCreatorWorkspace {
 
     Bool stageAsset(Int assetId) {
         if (assetId <= 0 || assetId > 1000000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(4, assetId)
     }
@@ -142,42 +142,42 @@ class BoundedCreatorWorkspace {
     Bool stageEncounter(Int encounterId, Int budget) {
         if (encounterId <= 0 || encounterId > 1000000 ||
             budget <= 0 || budget > 1000000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(5, encounterId) && setStaged(6, budget)
     }
 
     Bool stageItem(Int itemId, Int power) {
         if (itemId <= 0 || itemId > 1000000 || power <= 0 || power > 1000000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(7, itemId) && setStaged(8, power)
     }
 
     Bool stageSkill(Int skillId, Int rank) {
         if (skillId <= 0 || skillId > 1000000 || rank <= 0 || rank > 1000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(9, skillId) && setStaged(10, rank)
     }
 
     Bool stageSpawn(Int enemyId) {
         if (enemyId <= 0 || enemyId > 1000000 || staged[11] >= 1000000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(11, staged[11] + 1) && setStaged(12, enemyId)
     }
 
     Bool stageWeapon(Int weaponId) {
         if (weaponId <= 0 || weaponId > 1000000 || staged[13] >= 1000000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(13, staged[13] + 1) && setStaged(14, weaponId)
     }
 
     Bool stageLoot(Int tableId) {
         if (tableId <= 0 || tableId > 1000000 || staged[15] >= 1000000) {
-            return reject(creatorWorkspaceDiagnosticValue())
+            return reject(kutterWorkspaceDiagnosticValue())
         }
         return setStaged(15, staged[15] + 1) && setStaged(16, tableId)
     }
@@ -196,15 +196,15 @@ class BoundedCreatorWorkspace {
 
     Bool publish() {
         if (!transactionActiveValue) {
-            return reject(creatorWorkspaceDiagnosticState())
+            return reject(kutterWorkspaceDiagnosticState())
         }
         if (transactionRevisionValue != revisionValue) {
             transactionActiveValue = false
-            return reject(creatorWorkspaceDiagnosticRevision())
+            return reject(kutterWorkspaceDiagnosticRevision())
         }
         if (mutationCountValue <= 0) {
             transactionActiveValue = false
-            return reject(creatorWorkspaceDiagnosticEmpty())
+            return reject(kutterWorkspaceDiagnosticEmpty())
         }
         pushHistory(undoValues, undoCountValue)
         if (undoCountValue < 16) { undoCountValue = undoCountValue + 1 }
@@ -213,25 +213,25 @@ class BoundedCreatorWorkspace {
         revisionValue = revisionValue + 1
         generationValue = generationValue + 1
         transactionActiveValue = false
-        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        diagnosticValue = kutterWorkspaceDiagnosticNone()
         recomputeProducts()
         return true
     }
 
     Bool discard() {
         if (!transactionActiveValue) {
-            return reject(creatorWorkspaceDiagnosticState())
+            return reject(kutterWorkspaceDiagnosticState())
         }
         transactionActiveValue = false
         mutationCountValue = 0
-        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        diagnosticValue = kutterWorkspaceDiagnosticNone()
         return true
     }
 
     Bool undo() {
         if (transactionActiveValue || undoCountValue <= 0) {
             return reject(if (transactionActiveValue)
-                creatorWorkspaceDiagnosticState() else creatorWorkspaceDiagnosticEmpty())
+                kutterWorkspaceDiagnosticState() else kutterWorkspaceDiagnosticEmpty())
         }
         pushHistory(redoValues, redoCountValue)
         if (redoCountValue < 16) { redoCountValue = redoCountValue + 1 }
@@ -239,7 +239,7 @@ class BoundedCreatorWorkspace {
         copyState(undoValues, undoCountValue * live.length, live, 0)
         revisionValue = revisionValue + 1
         generationValue = generationValue + 1
-        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        diagnosticValue = kutterWorkspaceDiagnosticNone()
         recomputeProducts()
         return true
     }
@@ -247,7 +247,7 @@ class BoundedCreatorWorkspace {
     Bool redo() {
         if (transactionActiveValue || redoCountValue <= 0) {
             return reject(if (transactionActiveValue)
-                creatorWorkspaceDiagnosticState() else creatorWorkspaceDiagnosticEmpty())
+                kutterWorkspaceDiagnosticState() else kutterWorkspaceDiagnosticEmpty())
         }
         pushHistory(undoValues, undoCountValue)
         if (undoCountValue < 16) { undoCountValue = undoCountValue + 1 }
@@ -255,7 +255,7 @@ class BoundedCreatorWorkspace {
         copyState(redoValues, redoCountValue * live.length, live, 0)
         revisionValue = revisionValue + 1
         generationValue = generationValue + 1
-        diagnosticValue = creatorWorkspaceDiagnosticNone()
+        diagnosticValue = kutterWorkspaceDiagnosticNone()
         recomputeProducts()
         return true
     }

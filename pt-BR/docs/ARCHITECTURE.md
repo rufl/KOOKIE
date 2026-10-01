@@ -41,7 +41,7 @@ Não existe um caminho privilegiado de simulação offline.
 
 ```mermaid
 flowchart TB
-    Tools[Authoring and build tools\nBlender / TrenchBroom / cooker / studio]
+    Tools[Authoring and build tools\nBlender / TrenchBroom / kooker / kutter]
     Packages[Validated versioned packages\ncontent identity and manifests]
     Extensions[Extension API\ndata / Kof modules / future sandbox]
     Server[Authoritative server session\nfixed tick and world state]
@@ -339,7 +339,7 @@ mutável ao núcleo.
 ```text
 editable sources
       ↓
-Kof cooker and validators
+Kof kooker and validators
       ↓
 staged package
       ↓
@@ -364,7 +364,7 @@ Os pacotes contêm:
 
 ### Fontes de autoria aceitas
 
-O cooker de arquivos aceita estas fontes de autoria, além do subconjunto
+O kooker de arquivos aceita estas fontes de autoria, além do subconjunto
 canônico de glTF indexado. Elas são **formatos de entrada offline**, não
 formatos de runtime:
 
@@ -420,7 +420,7 @@ carregamento RIFF/WAVE documentado por
 [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV). Ele emite PCM16
 estático; streaming e decodificação comprimida ficam fora deste contrato.
 
-O cooker é responsável pela semântica de cenas, colisões, gameplay e pacotes.
+O kooker é responsável pela semântica de cenas, colisões, gameplay e pacotes.
 Bibliotecas nativas de imagem, fontes e áudio fornecem apenas mecanismos
 restritos de decodificação.
 
@@ -428,9 +428,9 @@ A publicação é transacional: preparar, validar, publicar ou manter o pacote
 válido anterior. As revisões de geometria, colisão, navegação e replicação devem
 ser publicadas juntas.
 
-`scripts/kookie_cooker.sh` expõe `cook`, `package`, `inspect-package` e
+`scripts/kooker.sh` expõe `cook`, `package`, `inspect-package` e
 `validate-package` por uma CLI JVM de desenvolvimento. Os arquivos Linux também
-contêm um runner `kookie-cooker` nativo para o mesmo caminho Kof de `cook`; as
+contêm um runner `kooker` nativo para o mesmo caminho Kof de `cook`; as
 operações de pacote continuam exclusivas da JVM. O envelope `.kpkg` armazena
 cabeçalhos little-endian explícitos, caminhos lógicos limitados e payloads de
 chunks.
@@ -440,9 +440,9 @@ de alcance, hash divergente e registros corrompidos.
 extensões/definições/hooks e só os troca após validação completa; reload com
 falha preserva pacote, registros e geração ativos.
 
-`BoundedCreatorWorkspace` aplica transações verificadas por revisão de
+`BoundedKutterWorkspace` aplica transações verificadas por revisão de
 mundo/entidade/arma/loot a um conjunto atômico de produtos de
-geometria/colisão/navegação/render. A tela Creator expõe toggles de inspeção,
+geometria/colisão/navegação/render. A tela Kutter expõe toggles de inspeção,
 mutações pelo console, play-in-editor e histórico limitado de 16 operações de
 undo/redo. O adaptador nativo mantém a cena CPU ativa separada enquanto prepara
 uma candidata, aguarda a conclusão síncrona da fence de upload antes de
@@ -557,8 +557,8 @@ engines/KOOKIE/
   apps/
     player/        integrated server + client or LAN client
     server/        headless dedicated server
-    cooker/        package validation and cooking
-    studio/        editor and authoring tools
+    kooker/        package validation and cooking
+    kutter/        Kutter authoring tools
   probes/          focused compiler, ABI and session probes
 
 
@@ -592,8 +592,8 @@ core + read-only snapshots/events
   └── ui
 
 content + world queries
-  ├── cooker
-  ├── editor/studio
+  ├── kooker
+  ├── editor/kutter
   └── extensions
 
 platform/native
@@ -659,7 +659,7 @@ extensão, implementações estáticas de hooks confiáveis, definições de ini
 e produtos alinhados de geometria/colisão/navegação/replicação compartilham uma
 identidade de compatibilidade verificada por revisão. Eventos tipados de
 domínio, a entrada documentada de GLB/Dust3D/Aseprite/VOX/brush, a CLI de
-arquivos, reload de pacote externo, workspace Creator transacional, reload GPU
+arquivos, reload de pacote externo, workspace Kutter transacional, reload GPU
 no limite de frame protegido por fence e transporte de oferta/resposta de
 compatibilidade executam nos caminhos JVM/nativo aceitos. O handshake passou
 com host e dois clientes em namespaces de rede Linux separados e pilhas IPv4

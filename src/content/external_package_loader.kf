@@ -2,7 +2,7 @@ package content
 
 import core
 
-Int creatorDescriptorChunkKind() { return 33 }
+Int kutterDescriptorChunkKind() { return 33 }
 Int externalPackageDiagnosticNone() { return 0 }
 Int externalPackageDiagnosticFile() { return 1 }
 Int externalPackageDiagnosticDescriptor() { return 2 }
@@ -11,7 +11,7 @@ Int externalPackageDiagnosticDefinition() { return 4 }
 Int externalPackageDiagnosticHook() { return 5 }
 Int externalPackageDiagnosticPublication() { return 6 }
 
-class BoundedExternalCreatorDescriptor {
+class BoundedExternalKutterDescriptor {
     Int[] words
     Int wordCountValue
     Int extensionCountValue
@@ -201,7 +201,7 @@ class BoundedExternalPackageRuntime {
     BoundedExtensionRegistry extensionsValue
     BoundedTrustedModuleRegistry hooksValue
     BoundedEnemyDefinitionRegistry definitionsValue
-    BoundedCreatorPublication publicationValue
+    BoundedKutterPublication publicationValue
     BoundedGenerationCache generationsValue
     Int payloadCapacityValue
     Int[] descriptorWords
@@ -221,7 +221,7 @@ class BoundedExternalPackageRuntime {
         extensionsValue = BoundedExtensionRegistry(16, 32, 64, 64)
         hooksValue = BoundedTrustedModuleRegistry(64)
         definitionsValue = BoundedEnemyDefinitionRegistry(64)
-        publicationValue = BoundedCreatorPublication()
+        publicationValue = BoundedKutterPublication()
         generationsValue = BoundedGenerationCache(4)
         descriptorWords = new Int[1024]
         descriptorWordCountValue = 0
@@ -432,7 +432,7 @@ class BoundedExternalPackageRuntime {
         }
         var descriptorIndex = -1
         for (var index = 0; index < stagedPackage.chunkCount(); index = index + 1) {
-            if (stagedPackage.chunkKind(index) == creatorDescriptorChunkKind()) {
+            if (stagedPackage.chunkKind(index) == kutterDescriptorChunkKind()) {
                 if (descriptorIndex >= 0) {
                     return reject(externalPackageDiagnosticDescriptor())
                 }
@@ -492,6 +492,6 @@ class BoundedExternalPackageRuntime {
     BoundedExtensionRegistry extensions() { return extensionsValue }
     BoundedTrustedModuleRegistry hooks() { return hooksValue }
     BoundedEnemyDefinitionRegistry definitions() { return definitionsValue }
-    BoundedCreatorPublication publication() { return publicationValue }
+    BoundedKutterPublication publication() { return publicationValue }
     BoundedGenerationCache generations() { return generationsValue }
 }

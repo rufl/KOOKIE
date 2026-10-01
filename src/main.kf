@@ -255,43 +255,43 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         hud.remoteConnected() && hud.remoteGeneration() == 3,
         "connection status must change shape and reject duplicate state")
     assert(frame.retire(6))
-    assert(hud.updateCreatorPublication(1, 0, 0, false) &&
+    assert(hud.updateKutterPublication(1, 0, 0, false) &&
         hud.stage(frame, 7, 9) &&
         frame.xAt(150) == -91 && frame.yAt(150) == 70 &&
         frame.yAt(162) == 73,
-        "creator source stage must expose source but not validation geometry")
-    var creatorStagedChecksum = frame.checksum()
+        "kutter source stage must expose source but not validation geometry")
+    var kutterStagedChecksum = frame.checksum()
     assert(frame.retire(7))
-    assert(hud.updateCreatorPublication(2, 0, 0, false) &&
+    assert(hud.updateKutterPublication(2, 0, 0, false) &&
         hud.stage(frame, 8, 9) &&
-        frame.checksum() != creatorStagedChecksum &&
+        frame.checksum() != kutterStagedChecksum &&
         frame.yAt(162) == 77,
-        "creator validation stage must expand the validation diamond")
+        "kutter validation stage must expand the validation diamond")
     assert(frame.retire(8))
-    assert(hud.updateCreatorPublication(3, 1, 0, true) &&
+    assert(hud.updateKutterPublication(3, 1, 0, true) &&
         hud.stage(frame, 9, 9) &&
-        hud.creatorStatus() == 3 && hud.creatorGeneration() == 1 &&
-        hud.creatorDiagnostic() == 0 && hud.creatorCompatible() &&
+        hud.kutterStatus() == 3 && hud.kutterGeneration() == 1 &&
+        hud.kutterDiagnostic() == 0 && hud.kutterCompatible() &&
         frame.xAt(181) == -60 && frame.yAt(181) == 75 &&
         frame.xAt(186) == -48 && frame.yAt(186) == 72 &&
         frame.xAt(192) == -42 && frame.yAt(192) == 68 &&
         frame.xAt(194) == -40 && frame.yAt(194) == 78,
-        "published creator content must stage a structural compatibility plus")
-    var creatorPublishedChecksum = frame.checksum()
+        "published kutter content must stage a structural compatibility plus")
+    var kutterPublishedChecksum = frame.checksum()
     assert(frame.retire(9))
-    assert(!hud.updateCreatorPublication(3, 1, 1, true) &&
+    assert(!hud.updateKutterPublication(3, 1, 1, true) &&
         hud.stage(frame, 10, 9) &&
-        frame.checksum() == creatorPublishedChecksum,
+        frame.checksum() == kutterPublishedChecksum,
         "invalid publication feedback must reject atomically")
     assert(frame.retire(10))
-    assert(hud.updateCreatorPublication(4, 1, 10, false) &&
+    assert(hud.updateKutterPublication(4, 1, 10, false) &&
         hud.stage(frame, 11, 9) &&
-        frame.checksum() != creatorPublishedChecksum &&
-        hud.creatorStatus() == 4 && hud.creatorDiagnostic() == 10 &&
-        !hud.creatorCompatible() &&
+        frame.checksum() != kutterPublishedChecksum &&
+        hud.kutterStatus() == 4 && hud.kutterDiagnostic() == 10 &&
+        !hud.kutterCompatible() &&
         frame.xAt(186) == -42 && frame.yAt(186) == 70 &&
         frame.yAt(192) == 67,
-        "rejected creator content must stage a structural exclamation marker")
+        "rejected kutter content must stage a structural exclamation marker")
     assert(frame.retire(11))
 
 
@@ -516,7 +516,7 @@ test "bounded extensions resolve capabilities and enemy definitions" {
         "sealed enemy definitions must preserve deterministic spawn rules")
 }
 
-test "G4 creator publication and trusted execution are bounded" {
+test "G4 kutter publication and trusted execution are bounded" {
     var extensions = BoundedExtensionRegistry(2, 2, 4, 4)
     assert(extensions.registerManifest(1, 1, 2, 1, 1) &&
         extensions.setLoadOrder(1, 1, 10) &&
@@ -689,43 +689,43 @@ test "G4 creator publication and trusted execution are bounded" {
         definitions.setRankCurrency(
             8, 2001, enemyDefinitionEliteKind(), 5) &&
         definitions.seal(),
-        "creator data mod must seal a complete distinct enemy definition")
+        "kutter data mod must seal a complete distinct enemy definition")
 
     var firstPackage = BoundedContentPackage(1, 1, 1)
     assert(firstPackage.configureHeader(7, 4, 1, 1, 100) &&
         firstPackage.addAsset(8, 2001, 3, 1, 811, 812, 15) &&
         firstPackage.addChunk(1, 9, 0, 64, 813, 814, 1) &&
         firstPackage.seal(),
-        "creator cooker output must bind stable content and chunk identity")
+        "kooker output must bind stable content and chunk identity")
     var incompleteHooks = BoundedTrustedModuleRegistry(2)
-    var invalidModulePublication = BoundedCreatorPublication()
+    var invalidModulePublication = BoundedKutterPublication()
     assert(invalidModulePublication.begin(0, 1) &&
         invalidModulePublication.stagePackage(firstPackage, 7) &&
         !invalidModulePublication.stageExtensions(
             extensions, incompleteHooks, 2) &&
-        invalidModulePublication.diagnostic() == creatorDiagnosticModule(),
-        "creator publication must diagnose an incomplete trusted module registry")
-    var incompatibleApiPublication = BoundedCreatorPublication()
+        invalidModulePublication.diagnostic() == kutterDiagnosticModule(),
+        "kutter publication must diagnose an incomplete trusted module registry")
+    var incompatibleApiPublication = BoundedKutterPublication()
     assert(incompatibleApiPublication.begin(0, 1) &&
         incompatibleApiPublication.stagePackage(firstPackage, 7) &&
         !incompatibleApiPublication.stageExtensions(extensions, hooks, 3) &&
-        incompatibleApiPublication.diagnostic() == creatorDiagnosticApi(),
-        "creator publication must diagnose an incompatible extension API")
+        incompatibleApiPublication.diagnostic() == kutterDiagnosticApi(),
+        "kutter publication must diagnose an incompatible extension API")
 
 
     var cache = BoundedGenerationCache(2)
-    var publication = BoundedCreatorPublication()
+    var publication = BoundedKutterPublication()
     assert(publication.begin(0, 1) &&
         publication.stagePackage(firstPackage, 7) &&
         publication.stageExtensions(extensions, hooks, 2) &&
         publication.stageDefinitions(definitions) &&
         publication.stageProducts(
             101, 201, 301, firstPackage.checksum()) &&
-        publication.status() == creatorPublicationStagedStatus() &&
+        publication.status() == kutterPublicationStagedStatus() &&
         publication.validate(cache) &&
-        publication.status() == creatorPublicationValidatedStatus() &&
+        publication.status() == kutterPublicationValidatedStatus() &&
         publication.publish(cache) &&
-        publication.status() == creatorPublicationPublishedStatus() &&
+        publication.status() == kutterPublicationPublishedStatus() &&
         publication.activeGeneration() == 1 &&
         cache.activeGeneration() == 1 &&
         cache.generationRevision(1) == 1,
@@ -741,7 +741,7 @@ test "G4 creator publication and trusted execution are bounded" {
     var clientCompatibility = BoundedContentCompatibility()
     assert(clientCompatibility.decode(compatibilityWire) &&
         publication.admit(clientCompatibility) &&
-        publication.diagnostic() == creatorDiagnosticNone(),
+        publication.diagnostic() == kutterDiagnosticNone(),
         "matching server and client content identities must admit")
     compatibilityWire[6] = compatibilityWire[6] + 1
     var corruptCompatibility = BoundedContentCompatibility()
@@ -763,7 +763,7 @@ test "G4 creator publication and trusted execution are bounded" {
             active.generation(), active.revision(), active.productChecksum()) &&
         incompatibleClient.seal() &&
         !publication.admit(incompatibleClient) &&
-        publication.diagnostic() == creatorDiagnosticManifest() &&
+        publication.diagnostic() == kutterDiagnosticManifest() &&
         cache.activeGeneration() == 1,
         "server admission must reject an incompatible mod manifest without mutation")
 
@@ -772,7 +772,7 @@ test "G4 creator publication and trusted execution are bounded" {
         secondPackage.addAsset(8, 2001, 3, 2, 821, 822, 15) &&
         secondPackage.addChunk(1, 9, 0, 64, 823, 824, 2) &&
         secondPackage.seal(),
-        "second creator revision must seal independently")
+        "second kutter revision must seal independently")
     assert(publication.begin(0, 2) &&
         publication.stagePackage(secondPackage, 7) &&
         publication.stageExtensions(extensions, hooks, 2) &&
@@ -780,8 +780,8 @@ test "G4 creator publication and trusted execution are bounded" {
         publication.stageProducts(
             102, 202, 302, secondPackage.checksum()) &&
         !publication.validate(cache) &&
-        publication.status() == creatorPublicationRejectedStatus() &&
-        publication.diagnostic() == creatorDiagnosticStale() &&
+        publication.status() == kutterPublicationRejectedStatus() &&
+        publication.diagnostic() == kutterDiagnosticStale() &&
         publication.activeGeneration() == 1 &&
         cache.activeGeneration() == 1,
         "stale editor transaction must retain the prior running generation")
@@ -792,7 +792,7 @@ test "G4 creator publication and trusted execution are bounded" {
         publication.stageProducts(
             102, 202, 302, secondPackage.checksum() + 1) &&
         !publication.validate(cache) &&
-        publication.diagnostic() == creatorDiagnosticProduct() &&
+        publication.diagnostic() == kutterDiagnosticProduct() &&
         cache.activeGeneration() == 1,
         "invalid product bundle must leave the prior world active")
     assert(publication.begin(1, 2) &&
@@ -808,22 +808,22 @@ test "G4 creator publication and trusted execution are bounded" {
         "fresh complete editor transaction must replace all products together")
 }
 
-test "G4 creator definitions drive a distinct multiplayer sample" {
-    var creatorDemo = G4CreatorDemo()
-    var creatorRan = creatorDemo.run()
-    assert(creatorRan && creatorDemo.completed() &&
-        creatorDemo.failureStep() == 0 &&
-        creatorDemo.publishedGeneration() == 1 &&
-        creatorDemo.publicationStatus() ==
-            creatorPublicationPublishedStatus() &&
-        creatorDemo.publicationDiagnostic() == creatorDiagnosticNone() &&
-        creatorDemo.playerCount() == 2 &&
-        creatorDemo.worldLootCount() == 1 &&
-        creatorDemo.worldLootStableId() == 4100 &&
-        creatorDemo.playerCurrency() == 9 &&
-        creatorDemo.hookEventCount() == 1 &&
-        creatorDemo.hookEventKind() == trustedHookEventEliteBounty() &&
-        creatorDemo.hookExecutionChecksum() > 0,
+test "G4 kutter definitions drive a distinct multiplayer sample" {
+    var kutterDemo = G4KutterDemo()
+    var kutterRan = kutterDemo.run()
+    assert(kutterRan && kutterDemo.completed() &&
+        kutterDemo.failureStep() == 0 &&
+        kutterDemo.publishedGeneration() == 1 &&
+        kutterDemo.publicationStatus() ==
+            kutterPublicationPublishedStatus() &&
+        kutterDemo.publicationDiagnostic() == kutterDiagnosticNone() &&
+        kutterDemo.playerCount() == 2 &&
+        kutterDemo.worldLootCount() == 1 &&
+        kutterDemo.worldLootStableId() == 4100 &&
+        kutterDemo.playerCurrency() == 9 &&
+        kutterDemo.hookEventCount() == 1 &&
+        kutterDemo.hookEventKind() == trustedHookEventEliteBounty() &&
+        kutterDemo.hookExecutionChecksum() > 0,
         "trusted hook execution and definitions must drive the second sample")
 }
 test "player fire input publishes weapon presentation" {
@@ -3829,11 +3829,11 @@ test "external GLB JSON BIN provenance and reopen", "glb" {
             collision.checksum(), collision.triangleCount(), 4) &&
         cookedPackage.seal(),
         "external GLB output must fit the bounded package contract")
-    var cooker = BoundedGlbCooker(4, 2, 2)
+    var kooker = BoundedGlbKooker(4, 2, 2)
     var cookCache = BoundedGenerationCache(2)
-    var cookAccepted = cooker.cook(cookedPackage, reader, 99, 6, cookCache)
-    var cookResult = cooker.result()
-    assert(cookAccepted && cooker.accepted() &&
+    var cookAccepted = kooker.cook(cookedPackage, reader, 99, 6, cookCache)
+    var cookResult = kooker.result()
+    assert(cookAccepted && kooker.accepted() &&
         cookResult.packageChecksum() == cookedPackage.checksum() &&
         cookResult.geometryChecksum() == reader.geometryChecksum() &&
         cookResult.sceneChecksum() == reader.sceneChecksum() &&
@@ -3845,11 +3845,11 @@ test "external GLB JSON BIN provenance and reopen", "glb" {
         cookResult.skinCount() == 0 &&
         cookResult.navigationNodeCount() == 1 &&
         cookCache.activeGeneration() == 1 &&
-        cooker.sceneProduct().checksum() == reader.sceneChecksum() &&
-        cooker.transformHierarchy().sourceSceneChecksum() ==
+        kooker.sceneProduct().checksum() == reader.sceneChecksum() &&
+        kooker.transformHierarchy().sourceSceneChecksum() ==
             reader.sceneChecksum() &&
-        cooker.navigationProduct().findRoute(1, 1).found(),
-        "GLB cooker must atomically publish scene geometry collision navigation and replication")
+        kooker.navigationProduct().findRoute(1, 1).found(),
+        "GLB kooker must atomically publish scene geometry collision navigation and replication")
 
     var skinnedGlb = g4SkinnedSceneGlbFixture()
     var skinnedReader = BoundedExternalGlbSceneReader(4, 2)
@@ -3906,22 +3906,22 @@ test "external GLB JSON BIN provenance and reopen", "glb" {
             100, 6, 0, skinnedCollision.encodedLength(),
             skinnedCollision.checksum(), skinnedCollision.triangleCount(), 5) &&
         skinnedPackage.seal())
-    var skinnedCooker = BoundedGlbCooker(4, 2, 2)
+    var skinnedKooker = BoundedGlbKooker(4, 2, 2)
     var skinnedCache = BoundedGenerationCache(2)
-    assert(skinnedCooker.cook(
+    assert(skinnedKooker.cook(
             skinnedPackage, skinnedReader, 100, 6, skinnedCache) &&
-        skinnedCooker.result().sceneChecksum() ==
+        skinnedKooker.result().sceneChecksum() ==
             skinnedReader.sceneChecksum() &&
-        skinnedCooker.result().skeletonChecksum() ==
+        skinnedKooker.result().skeletonChecksum() ==
             skinnedReader.skeletonChecksum() &&
-        skinnedCooker.result().sceneNodeCount() == 4 &&
-        skinnedCooker.result().skinCount() == 1 &&
-        skinnedCooker.sceneProduct().skinId(1) == 1 &&
-        skinnedCooker.skeletonProduct().checksum() ==
+        skinnedKooker.result().sceneNodeCount() == 4 &&
+        skinnedKooker.result().skinCount() == 1 &&
+        skinnedKooker.sceneProduct().skinId(1) == 1 &&
+        skinnedKooker.skeletonProduct().checksum() ==
             skinnedReader.skeletonChecksum() &&
-        skinnedCooker.skeletonRuntime().paletteElement(1, 7) == 300 &&
-        skinnedCooker.transformHierarchy().worldMatrixElement(4, 7) == 300,
-        "GLB cooker must retain canonical scene and skin products")
+        skinnedKooker.skeletonRuntime().paletteElement(1, 7) == 300 &&
+        skinnedKooker.transformHierarchy().worldMatrixElement(4, 7) == 300,
+        "GLB kooker must retain canonical scene and skin products")
 
     var texturedGlb = g4TexturedGlbFixture()
     var ds3 = g4DustArchiveFixture()
@@ -5527,40 +5527,40 @@ String g4BlockbenchDepthFixture(Int depth) {
         "\"outliner\":[" + outliner + "]}"
 }
 
-test "G4 source cooker admits sprites voxels and convex brushes" {
-    var cooker = BoundedSourceCooker()
+test "G4 source kooker admits sprites voxels and convex brushes" {
+    var kooker = BoundedSourceKooker()
     var dust = g4DustArchiveFixture()
-    assert(!cooker.cookDust3d(dust, new Int[0], 10, 19, 1, 1, 1, 100) &&
-        cooker.result().diagnostic() == dust3dDiagnosticUv(),
+    assert(!kooker.cookDust3d(dust, new Int[0], 10, 19, 1, 1, 1, 100) &&
+        kooker.result().diagnostic() == dust3dDiagnosticUv(),
         "Dust3D intake must admit a bounded model archive before export checks")
     dust[30] = 46; dust[31] = 46; dust[32] = 47
     dust[88] = 46; dust[89] = 46; dust[90] = 47
-    assert(!cooker.cookDust3d(dust, new Int[0], 10, 19, 1, 1, 1, 100) &&
-        cooker.result().diagnostic() == dust3dDiagnosticSource(),
+    assert(!kooker.cookDust3d(dust, new Int[0], 10, 19, 1, 1, 1, 100) &&
+        kooker.result().diagnostic() == dust3dDiagnosticSource(),
         "Dust3D intake must reject traversal entries before export")
     var sprite = g4CompressedSpriteFixture()
-    assert(cooker.cookAseprite(sprite))
-    var spriteResult = cooker.result()
-    var png = cooker.sprite().pngBytes()
+    assert(kooker.cookAseprite(sprite))
+    var spriteResult = kooker.result()
+    var png = kooker.sprite().pngBytes()
     assert(spriteResult.accepted() && spriteResult.primaryCount() == 1 &&
-        cooker.sprite().frameDuration(0) == 100 &&
-        cooker.sprite().sliceCount() == 1 && png.length > 60 &&
+        kooker.sprite().frameDuration(0) == 100 &&
+        kooker.sprite().sliceCount() == 1 && png.length > 60 &&
         png[0] == 137 && png[1] == 80 && png[2] == 78 && png[3] == 71,
         "Aseprite intake must inflate RGBA cels, parse slices, and emit PNG")
     sprite[206] = sprite[206] + 1
-    assert(!cooker.cookAseprite(sprite),
+    assert(!kooker.cookAseprite(sprite),
         "Aseprite intake must reject a corrupted zlib checksum")
 
     var vox = g4SingleVoxelFixture()
-    assert(cooker.cookVox(vox, 10, 20, 1, 100))
-    var voxResult = cooker.result()
+    assert(kooker.cookVox(vox, 10, 20, 1, 100))
+    var voxResult = kooker.result()
     assert(voxResult.accepted() && voxResult.primaryCount() == 1 &&
-        cooker.vox().geometry().vertexCount() == 8 &&
-        cooker.vox().geometry().triangleCount() == 12 &&
+        kooker.vox().geometry().vertexCount() == 8 &&
+        kooker.vox().geometry().triangleCount() == 12 &&
         voxResult.collisionChecksum() > 0,
         "MagicaVoxel intake must emit canonical geometry and collision")
     vox[63] = 0
-    assert(!cooker.cookVox(vox, 10, 20, 1, 100),
+    assert(!kooker.cookVox(vox, 10, 20, 1, 100),
         "MagicaVoxel palette index zero must reject")
 
     var mapText = "{\n\"classname\" \"worldspawn\"\n{\n" +
@@ -5571,29 +5571,29 @@ test "G4 source cooker admits sprites voxels and convex brushes" {
         "( 0 0 0 ) ( 0 1 0 ) ( 1 1 0 ) stone 0 0 0 1 1\n" +
         "( 0 0 64 ) ( 1 0 64 ) ( 1 1 64 ) stone 0 0 0 1 1\n" +
         "}\n}\n"
-    assert(cooker.cookQuakeMap(g4AsciiSource(mapText), 10, 30, 1, 1))
-    var mapResult = cooker.result()
-    assert(mapResult.accepted() && cooker.quakeMap().entityCount() == 1 &&
-        cooker.quakeMap().brushCount() == 1 &&
-        cooker.quakeMap().vertexCount() == 8 &&
-        cooker.quakeMap().triangleCount() == 12 &&
+    assert(kooker.cookQuakeMap(g4AsciiSource(mapText), 10, 30, 1, 1))
+    var mapResult = kooker.result()
+    assert(mapResult.accepted() && kooker.quakeMap().entityCount() == 1 &&
+        kooker.quakeMap().brushCount() == 1 &&
+        kooker.quakeMap().vertexCount() == 8 &&
+        kooker.quakeMap().triangleCount() == 12 &&
         mapResult.visibilityChecksum() > 0,
         "Quake map intake must clip and triangulate one convex brush")
     var unsupported = g4AsciiSource("{ { ( 0.5 0 0 ) } }")
-    assert(!cooker.cookQuakeMap(unsupported, 10, 31, 1, 1),
+    assert(!kooker.cookQuakeMap(unsupported, 10, 31, 1, 1),
         "Quake map subset must reject unsupported decimal planes")
 }
 
 test "G4 Blockbench intake preserves character bones and animation", "blockbench" {
     var root = "11111111-1111-4111-8111-111111111111"
-    var cooker = BoundedSourceCooker()
+    var kooker = BoundedSourceKooker()
     var source = g4AsciiSource(
         g4BlockbenchFixture(
             root, "linear", "\"1.2500000000000002\"", ""))
-    assert(cooker.cookBlockbench(source),
+    assert(kooker.cookBlockbench(source),
         "bounded Blockbench 5.0 character must cook")
-    var result = cooker.result()
-    var character = cooker.blockbench()
+    var result = kooker.result()
+    var character = kooker.blockbench()
     var bytes = character.canonicalBytes()
     var cubeBase = character.canonicalHeaderWords() +
         character.boneCount() * character.canonicalWord(9)
@@ -5623,32 +5623,32 @@ test "G4 Blockbench intake preserves character bones and animation", "blockbench
         "cooked KCHR must retain UUID-bound cuboids, hierarchy, and keyframes")
 
     var unknown = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-    assert(!cooker.cookBlockbench(g4AsciiSource(
+    assert(!kooker.cookBlockbench(g4AsciiSource(
             g4BlockbenchFixture(unknown, "linear", "\"1.25\"", ""))) &&
-        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        kooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
         "animation tracks must reference admitted bone UUIDs")
-    assert(!cooker.cookBlockbench(g4AsciiSource(
+    assert(!kooker.cookBlockbench(g4AsciiSource(
             g4BlockbenchFixture(root, "bezier", "\"1.25\"", ""))) &&
-        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        kooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
         "unsupported interpolation must reject instead of changing semantics")
-    assert(!cooker.cookBlockbench(g4AsciiSource(
+    assert(!kooker.cookBlockbench(g4AsciiSource(
             g4BlockbenchFixture(
                 root, "linear", "\"query.life_time\"", ""))) &&
-        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        kooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
         "Molang expressions must reject from the numeric animation subset")
-    assert(!cooker.cookBlockbench(g4AsciiSource(
+    assert(!kooker.cookBlockbench(g4AsciiSource(
             g4BlockbenchFixture(root, "linear", "\"1.25\"",
                 "\"start_delay\":\"query.time\","))) &&
-        cooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
+        kooker.result().diagnostic() == blockbenchDiagnosticAnimation(),
         "Molang clip timing must reject instead of being discarded")
-    assert(cooker.cookBlockbench(g4AsciiSource(
+    assert(kooker.cookBlockbench(g4AsciiSource(
             g4BlockbenchDepthFixture(16))) &&
-        cooker.blockbench().boneCount() == 16 &&
-        cooker.blockbench().maxBoneDepth() == 16,
+        kooker.blockbench().boneCount() == 16 &&
+        kooker.blockbench().maxBoneDepth() == 16,
         "the declared hierarchy-depth boundary must remain admissible")
-    assert(!cooker.cookBlockbench(g4AsciiSource(
+    assert(!kooker.cookBlockbench(g4AsciiSource(
             g4BlockbenchDepthFixture(17))) &&
-        cooker.result().diagnostic() == blockbenchDiagnosticHierarchy(),
+        kooker.result().diagnostic() == blockbenchDiagnosticHierarchy(),
         "a hierarchy beyond the bounded depth must reject")
 }
 
@@ -5656,11 +5656,11 @@ test "G4 PNG intake normalizes filtered indexed images", "png" {
     var source = g4FilteredPngFixture()
     assert(source.length == 160,
         "independent PNG fixture must retain its complete chunk stream")
-    var cooker = BoundedSourceCooker()
-    assert(cooker.cookPng(source),
+    var kooker = BoundedSourceKooker()
+    assert(kooker.cookPng(source),
         "bounded PNG must decode indexed color, transparency, and all filters")
-    var result = cooker.result()
-    var image = cooker.png()
+    var result = kooker.result()
+    var image = kooker.png()
     var canonical = image.canonicalBytes()
     assert(result.accepted() && result.sourceKind() == sourceKindPng() &&
         result.primaryCount() == 3 && result.secondaryCount() == 5 &&
@@ -5689,11 +5689,11 @@ test "G4 PNG intake normalizes filtered indexed images", "png" {
     var pixelChecksum = image.pixelChecksum()
     var canonicalChecksum = image.canonicalChecksum()
     var canonicalLength = image.canonicalLength()
-    assert(cooker.cookPng(canonical) &&
-        cooker.png().sourceColorType() == 6 &&
-        cooker.png().pixelChecksum() == pixelChecksum &&
-        cooker.png().canonicalChecksum() == canonicalChecksum &&
-        cooker.png().canonicalLength() == canonicalLength,
+    assert(kooker.cookPng(canonical) &&
+        kooker.png().sourceColorType() == 6 &&
+        kooker.png().pixelChecksum() == pixelChecksum &&
+        kooker.png().canonicalChecksum() == canonicalChecksum &&
+        kooker.png().canonicalLength() == canonicalLength,
         "canonical PNG normalization must be idempotent")
 
     var graySamples = new Int[2]
@@ -5704,18 +5704,18 @@ test "G4 PNG intake normalizes filtered indexed images", "png" {
     grayTransparency[1] = 34
     var graySource = g4MinimalPngFixture(
         0, graySamples, new Int[0], grayTransparency)
-    var grayAccepted = cooker.cookPng(graySource)
+    var grayAccepted = kooker.cookPng(graySource)
     assert(grayAccepted,
         "grayscale tRNS fixture must pass bounded PNG intake")
-    assert(cooker.png().sourceColorType() == 0,
+    assert(kooker.png().sourceColorType() == 0,
         "grayscale source color type must survive intake metadata")
-    assert(cooker.png().rgbaByte(0) == 17 &&
-        cooker.png().rgbaByte(1) == 17 &&
-        cooker.png().rgbaByte(2) == 17 &&
-        cooker.png().rgbaByte(3) == 255,
+    assert(kooker.png().rgbaByte(0) == 17 &&
+        kooker.png().rgbaByte(1) == 17 &&
+        kooker.png().rgbaByte(2) == 17 &&
+        kooker.png().rgbaByte(3) == 255,
         "opaque grayscale sample must expand to RGBA")
-    assert(cooker.png().rgbaByte(4) == 34 &&
-        cooker.png().rgbaByte(7) == 0,
+    assert(kooker.png().rgbaByte(4) == 34 &&
+        kooker.png().rgbaByte(7) == 0,
         "matching grayscale tRNS sample must become transparent")
 
     var rgbSamples = new Int[6]
@@ -5732,17 +5732,17 @@ test "G4 PNG intake normalizes filtered indexed images", "png" {
     rgbTransparency[3] = 5
     rgbTransparency[4] = 0
     rgbTransparency[5] = 6
-    assert(cooker.cookPng(g4MinimalPngFixture(
+    assert(kooker.cookPng(g4MinimalPngFixture(
             2, rgbSamples, new Int[0], rgbTransparency)) &&
-        cooker.png().sourceColorType() == 2 &&
-        cooker.png().rgbaByte(0) == 1 &&
-        cooker.png().rgbaByte(1) == 2 &&
-        cooker.png().rgbaByte(2) == 3 &&
-        cooker.png().rgbaByte(3) == 255 &&
-        cooker.png().rgbaByte(4) == 4 &&
-        cooker.png().rgbaByte(5) == 5 &&
-        cooker.png().rgbaByte(6) == 6 &&
-        cooker.png().rgbaByte(7) == 0,
+        kooker.png().sourceColorType() == 2 &&
+        kooker.png().rgbaByte(0) == 1 &&
+        kooker.png().rgbaByte(1) == 2 &&
+        kooker.png().rgbaByte(2) == 3 &&
+        kooker.png().rgbaByte(3) == 255 &&
+        kooker.png().rgbaByte(4) == 4 &&
+        kooker.png().rgbaByte(5) == 5 &&
+        kooker.png().rgbaByte(6) == 6 &&
+        kooker.png().rgbaByte(7) == 0,
         "truecolor tRNS samples must normalize to exact RGBA alpha")
 
     var grayAlphaSamples = new Int[4]
@@ -5750,30 +5750,30 @@ test "G4 PNG intake normalizes filtered indexed images", "png" {
     grayAlphaSamples[1] = 20
     grayAlphaSamples[2] = 30
     grayAlphaSamples[3] = 40
-    assert(cooker.cookPng(g4MinimalPngFixture(
+    assert(kooker.cookPng(g4MinimalPngFixture(
             4, grayAlphaSamples, new Int[0], new Int[0])) &&
-        cooker.png().sourceColorType() == 4 &&
-        cooker.png().rgbaByte(0) == 10 &&
-        cooker.png().rgbaByte(1) == 10 &&
-        cooker.png().rgbaByte(2) == 10 &&
-        cooker.png().rgbaByte(3) == 20 &&
-        cooker.png().rgbaByte(4) == 30 &&
-        cooker.png().rgbaByte(5) == 30 &&
-        cooker.png().rgbaByte(6) == 30 &&
-        cooker.png().rgbaByte(7) == 40,
+        kooker.png().sourceColorType() == 4 &&
+        kooker.png().rgbaByte(0) == 10 &&
+        kooker.png().rgbaByte(1) == 10 &&
+        kooker.png().rgbaByte(2) == 10 &&
+        kooker.png().rgbaByte(3) == 20 &&
+        kooker.png().rgbaByte(4) == 30 &&
+        kooker.png().rgbaByte(5) == 30 &&
+        kooker.png().rgbaByte(6) == 30 &&
+        kooker.png().rgbaByte(7) == 40,
         "grayscale-alpha samples must normalize without premultiplication")
 
     var corrupt = g4FilteredPngFixture()
     corrupt[50] = (corrupt[50] + 1) % 256
-    assert(!cooker.cookPng(corrupt) &&
-        cooker.result().diagnostic() == pngImageDiagnosticCrc(),
+    assert(!kooker.cookPng(corrupt) &&
+        kooker.result().diagnostic() == pngImageDiagnosticCrc(),
         "PNG intake must reject a corrupted chunk CRC")
 
     var interlaced = g4FilteredPngFixture()
     interlaced[28] = 1
     g4RefreshPngChunkCrc(interlaced, 12, 13)
-    assert(!cooker.cookPng(interlaced) &&
-        cooker.result().diagnostic() == pngImageDiagnosticHeader(),
+    assert(!kooker.cookPng(interlaced) &&
+        kooker.result().diagnostic() == pngImageDiagnosticHeader(),
         "unsupported Adam7 PNG data must reject at the header boundary")
 
     var animated = g4FilteredPngFixture()
@@ -5782,13 +5782,13 @@ test "G4 PNG intake normalizes filtered indexed images", "png" {
     animated[75] = 84
     animated[76] = 76
     g4RefreshPngChunkCrc(animated, 73, 15)
-    assert(!cooker.cookPng(animated) &&
-        cooker.result().diagnostic() == pngImageDiagnosticChunk(),
+    assert(!kooker.cookPng(animated) &&
+        kooker.result().diagnostic() == pngImageDiagnosticChunk(),
         "APNG control chunks must not silently collapse to a static image")
 
-    assert(cooker.cookAseprite(g4CompressedSpriteFixture()) &&
-        cooker.cookPng(cooker.sprite().pngBytes()) &&
-        cooker.png().width() == 1 && cooker.png().height() == 1,
+    assert(kooker.cookAseprite(g4CompressedSpriteFixture()) &&
+        kooker.cookPng(kooker.sprite().pngBytes()) &&
+        kooker.png().width() == 1 && kooker.png().height() == 1,
         "Aseprite atlas output must use the shared canonical PNG encoder")
 }
 
@@ -5800,11 +5800,11 @@ test "G4 WAV intake normalizes bounded PCM audio", "wav" {
     var source = g4PcmWavFixture(8, 1, 8000, monoData, true)
     assert(source.length == 72,
         "independent WAV fixture must retain metadata and odd padding")
-    var cooker = BoundedSourceCooker()
-    assert(cooker.cookWav(source),
+    var kooker = BoundedSourceKooker()
+    assert(kooker.cookWav(source),
         "bounded WAV must accept PCM8 mono with inert metadata chunks")
-    var result = cooker.result()
-    var audio = cooker.wav()
+    var result = kooker.result()
+    var audio = kooker.wav()
     var canonical = audio.canonicalBytes()
     assert(result.accepted() && result.sourceKind() == sourceKindWav() &&
         result.materialChecksum() == audio.sampleChecksum() &&
@@ -5826,13 +5826,13 @@ test "G4 WAV intake normalizes bounded PCM audio", "wav" {
 
     var sampleChecksum = audio.sampleChecksum()
     var canonicalChecksum = audio.canonicalChecksum()
-    assert(cooker.cookWav(canonical) &&
-        cooker.wav().sourceBits() == 16 &&
-        cooker.wav().chunkCount() == 2 &&
-        cooker.wav().metadataChunkCount() == 0 &&
-        cooker.wav().sampleChecksum() == sampleChecksum &&
-        cooker.wav().canonicalChecksum() == canonicalChecksum &&
-        cooker.wav().canonicalLength() == 50,
+    assert(kooker.cookWav(canonical) &&
+        kooker.wav().sourceBits() == 16 &&
+        kooker.wav().chunkCount() == 2 &&
+        kooker.wav().metadataChunkCount() == 0 &&
+        kooker.wav().sampleChecksum() == sampleChecksum &&
+        kooker.wav().canonicalChecksum() == canonicalChecksum &&
+        kooker.wav().canonicalLength() == 50,
         "canonical WAV normalization must be idempotent")
 
     var stereoData = new Int[8]
@@ -5844,41 +5844,41 @@ test "G4 WAV intake normalizes bounded PCM audio", "wav" {
     stereoData[5] = 0
     stereoData[6] = 255
     stereoData[7] = 127
-    assert(cooker.cookWav(
+    assert(kooker.cookWav(
             g4PcmWavFixture(16, 2, 48000, stereoData, false)) &&
-        cooker.wav().sampleRate() == 48000 &&
-        cooker.wav().channelCount() == 2 &&
-        cooker.wav().frameCount() == 2 &&
-        cooker.wav().sample(0) == -32768 &&
-        cooker.wav().sample(1) == -1 &&
-        cooker.wav().sample(2) == 0 &&
-        cooker.wav().sample(3) == 32767 &&
-        cooker.wav().canonicalLength() == 52,
+        kooker.wav().sampleRate() == 48000 &&
+        kooker.wav().channelCount() == 2 &&
+        kooker.wav().frameCount() == 2 &&
+        kooker.wav().sample(0) == -32768 &&
+        kooker.wav().sample(1) == -1 &&
+        kooker.wav().sample(2) == 0 &&
+        kooker.wav().sample(3) == 32767 &&
+        kooker.wav().canonicalLength() == 52,
         "PCM16 stereo samples must survive canonical cooking exactly")
 
     var badHeader = g4PcmWavFixture(8, 1, 8000, monoData, false)
     badHeader[4] = badHeader[4] + 1
-    assert(!cooker.cookWav(badHeader) &&
-        cooker.result().diagnostic() == wavDiagnosticHeader(),
+    assert(!kooker.cookWav(badHeader) &&
+        kooker.result().diagnostic() == wavDiagnosticHeader(),
         "RIFF size mismatches must reject at the header boundary")
 
     var floatSource = g4PcmWavFixture(8, 1, 8000, monoData, false)
     floatSource[20] = 3
-    assert(!cooker.cookWav(floatSource) &&
-        cooker.result().diagnostic() == wavDiagnosticFormat(),
+    assert(!kooker.cookWav(floatSource) &&
+        kooker.result().diagnostic() == wavDiagnosticFormat(),
         "floating-point WAV must not enter the bounded PCM contract")
 
     var unknownChunk = g4PcmWavFixture(8, 1, 8000, monoData, false)
     unknownChunk[12] = 115
-    assert(!cooker.cookWav(unknownChunk) &&
-        cooker.result().diagnostic() == wavDiagnosticChunk(),
+    assert(!kooker.cookWav(unknownChunk) &&
+        kooker.result().diagnostic() == wavDiagnosticChunk(),
         "unknown semantic WAV chunks must reject rather than be ignored")
 
     var misaligned = g4PcmWavFixture(16, 2, 48000, stereoData, false)
     g4PutLe32(misaligned, 40, 7)
     misaligned[51] = 0
-    assert(!cooker.cookWav(misaligned) &&
-        cooker.result().diagnostic() == wavDiagnosticData(),
+    assert(!kooker.cookWav(misaligned) &&
+        kooker.result().diagnostic() == wavDiagnosticData(),
         "PCM data must contain complete interleaved frames")
 }
 
@@ -5962,8 +5962,8 @@ test "trusted hooks subscribe to broader typed domain events" {
         "trusted hook budgets must apply cumulatively within one tick")
 }
 
-test "external creator packages load through bounded file envelopes" {
-    var descriptor = BoundedExternalCreatorDescriptor()
+test "external kutter packages load through bounded file envelopes" {
+    var descriptor = BoundedExternalKutterDescriptor()
     assert(descriptor.configureProducts(7, 2, 101, 202, 303) &&
         descriptor.addExtension(8, 1, 2, 3, 4, 10, 801, 2, 9) &&
         descriptor.addEnemy(
@@ -5981,14 +5981,14 @@ test "external creator packages load through bounded file envelopes" {
     assert(packageValue.configureHeader(7, 4, 1, 1, 100) &&
         packageValue.addAsset(8, 2001, 3, 1, 811, 812, 15) &&
         packageValue.addChunk(
-            1, creatorDescriptorChunkKind(), 0, payload.length,
+            1, kutterDescriptorChunkKind(), 0, payload.length,
             files.chunkHashLow(payload, 0, payload.length),
             files.chunkHashHigh(payload, 0, payload.length), 1) &&
         packageValue.seal(),
         "external package must bind its descriptor payload")
     var paths = new String[1]
-    paths[0] = "mods/sample.creator"
-    var path = "/tmp/kookie-external-creator.kpkg"
+    paths[0] = "mods/sample.kutter"
+    var path = "/tmp/kookie-external-kutter.kpkg"
     assert(files.write(path, packageValue, payload, paths),
         "package file must write bounded words paths and payload")
     var runtime = BoundedExternalPackageRuntime(65536)
@@ -6013,7 +6013,7 @@ test "external creator packages load through bounded file envelopes" {
         "externally loaded trusted hooks must execute against published generation")
 
     var badPaths = new String[1]
-    badPaths[0] = "../escape.creator"
+    badPaths[0] = "../escape.kutter"
     assert(!files.write(
             "/tmp/kookie-external-traversal.kpkg",
             packageValue, payload, badPaths) &&
@@ -6040,7 +6040,7 @@ test "external creator packages load through bounded file envelopes" {
     assert(overlap.configureHeader(7, 4, 1, 1, 100) &&
         overlap.addAsset(8, 2001, 3, 1, 811, 812, 15) &&
         overlap.addChunk(
-            1, creatorDescriptorChunkKind(), 0, payload.length,
+            1, kutterDescriptorChunkKind(), 0, payload.length,
             files.chunkHashLow(overlapPayload, 0, payload.length),
             files.chunkHashHigh(overlapPayload, 0, payload.length), 1) &&
         overlap.addChunk(
@@ -6050,7 +6050,7 @@ test "external creator packages load through bounded file envelopes" {
         overlap.seal(),
         "overlap fixture must remain schema-valid before file admission")
     var overlapPaths = new String[2]
-    overlapPaths[0] = "mods/sample.creator"
+    overlapPaths[0] = "mods/sample.kutter"
     overlapPaths[1] = "data/overlap.bin"
     assert(!files.write(
             "/tmp/kookie-external-overlap.kpkg",
@@ -6059,14 +6059,14 @@ test "external creator packages load through bounded file envelopes" {
         "package file must reject overlapping chunk ranges")
 }
 
-test "creator inspector editors publish atomic undoable products" {
-    var workspace = BoundedCreatorWorkspace()
+test "kutter inspector editors publish atomic undoable products" {
+    var workspace = BoundedKutterWorkspace()
     var initialWorld = workspace.worldChecksum()
     var initialCollision = workspace.collisionChecksum()
     var initialNavigation = workspace.navigationChecksum()
     var initialRender = workspace.renderChecksum()
     assert(!workspace.begin(2) &&
-        workspace.diagnostic() == creatorWorkspaceDiagnosticRevision() &&
+        workspace.diagnostic() == kutterWorkspaceDiagnosticRevision() &&
         workspace.revision() == 1 && workspace.generation() == 1,
         "stale editor revisions must leave the published generation unchanged")
     assert(workspace.begin(1) &&
@@ -6082,21 +6082,21 @@ test "creator inspector editors publish atomic undoable products" {
         workspace.stageAiVisible(true) &&
         workspace.stagePlayActive(true) &&
         workspace.publish(),
-        "all creator editor and console mutations must publish in one transaction")
+        "all kutter editor and console mutations must publish in one transaction")
     assert(workspace.revision() == 2 && workspace.generation() == 2 &&
         workspace.entityId() == 101 && workspace.entityX() == 20 &&
         workspace.assetId() == 201 && workspace.encounterBudget() == 12,
-        "creator inspectors must publish their staged entity and asset state")
+        "kutter inspectors must publish their staged entity and asset state")
     assert(workspace.itemPower() == 55 && workspace.skillRank() == 3 &&
         workspace.spawnCount() == 1 && workspace.lastSpawnEnemy() == 601,
-        "creator data editors and spawn console must publish together")
+        "kutter data editors and spawn console must publish together")
     assert(workspace.weaponGrantCount() == 1 && workspace.lastWeapon() == 701 &&
         workspace.lootRollCount() == 1 && workspace.lastLootTable() == 801,
-        "creator weapon and loot console actions must publish together")
+        "kutter weapon and loot console actions must publish together")
     assert(workspace.collisionVisible() && workspace.aiVisible() &&
         workspace.playActive() && workspace.worldChecksum() != initialWorld &&
         workspace.collisionChecksum() != initialCollision,
-        "creator toggles and world products must advance together")
+        "kutter toggles and world products must advance together")
     assert(workspace.navigationChecksum() != initialNavigation &&
         workspace.renderChecksum() != initialRender,
         "navigation and render products must advance with world products")
@@ -6106,7 +6106,7 @@ test "creator inspector editors publish atomic undoable products" {
         workspace.redo() && workspace.entityId() == 101 &&
         workspace.playActive() && workspace.worldChecksum() == publishedWorld &&
         workspace.generation() == 4,
-        "undo and redo must republish complete creator snapshots")
+        "undo and redo must republish complete kutter snapshots")
     assert(workspace.begin(workspace.revision()) &&
         !workspace.stageItem(0, 1) && workspace.discard() &&
         workspace.entityId() == 101 && workspace.worldChecksum() == publishedWorld,
@@ -6117,18 +6117,18 @@ test "creator inspector editors publish atomic undoable products" {
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionActivate()) &&
-        shell.screen() == gameShellScreenCreator() &&
+        shell.screen() == gameShellScreenKutter() &&
         shell.handleAction(gameShellActionActivate()) &&
-        shell.creator().collisionVisible(),
-        "main menu must expose the in-engine creator inspector")
+        shell.kutter().collisionVisible(),
+        "main menu must expose the in-engine kutter inspector")
     var frame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(frame, 1) && frame.stagedCount() > 0 &&
         frame.stagedCount() <= shell.renderVertexCapacity() &&
         shell.handleAction(gameShellActionLeft()) &&
-        !shell.creator().collisionVisible() &&
+        !shell.kutter().collisionVisible() &&
         shell.handleAction(gameShellActionRight()) &&
-        shell.creator().collisionVisible(),
-        "creator surface must render and expose undo redo controls")
+        shell.kutter().collisionVisible(),
+        "kutter surface must render and expose undo redo controls")
 }
 
 test "GPU reload waits for upload fences and retained generations" {
@@ -6202,7 +6202,7 @@ test "compatibility handshake gates remote gameplay transport" {
     assert(response.length == compatibilityHandshakeResponseLength() &&
         client.acceptCompatibilityResponse(response, 1) &&
         client.ready() && client.compatible() &&
-        client.compatibilityDiagnostic() == creatorDiagnosticNone() &&
+        client.compatibilityDiagnostic() == kutterDiagnosticNone() &&
         client.sendSnapshot(snapshot),
         "matching response must open gameplay transport")
 
@@ -6221,7 +6221,7 @@ test "compatibility handshake gates remote gameplay transport" {
             rejectingHost.compatibilityResponse(), 4) &&
         !rejectedClient.ready() && !rejectedClient.compatible() &&
         rejectedClient.compatibilityDiagnostic() ==
-            creatorDiagnosticManifest() &&
+            kutterDiagnosticManifest() &&
         !rejectedClient.sendSnapshot(snapshot),
         "mismatched external packages must remain outside gameplay")
     rejectedOffer[17] = rejectedOffer[17] + 1

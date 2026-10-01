@@ -30,7 +30,7 @@ body:
         - Servidor autoritativo ou estado do mundo
         - Predição ou apresentação do cliente
         - Contrato determinístico compartilhado
-        - Cooker de conteúdo ou ferramentas Creator
+        - Kooker de conteúdo ou ferramentas Kutter
         - Adaptador nativo de plataforma
         - Build, release ou documentação
     validations:

@@ -4,11 +4,11 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 command -v kof >/dev/null || {
-  echo 'kookie_cooker: kof is required' >&2
+  echo 'kooker: kof is required' >&2
   exit 2
 }
 
-WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-cooker.XXXXXX")"
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kooker.XXXXXX")"
 cleanup() { rm -rf -- "$WORK_DIR"; }
 trap cleanup EXIT INT TERM
 
@@ -19,6 +19,6 @@ done
 for source_file in "$ROOT_DIR"/src/content/*.kf; do
   ln -s "$source_file" "$WORK_DIR/content/$(basename "$source_file")"
 done
-ln -s "$ROOT_DIR/apps/creator_cooker/main.kf" "$WORK_DIR/main.kf"
+ln -s "$ROOT_DIR/apps/kooker/main.kf" "$WORK_DIR/main.kf"
 
 kof run "$WORK_DIR/main.kf" --target jvm "$@"

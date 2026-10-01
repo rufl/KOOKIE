@@ -21,7 +21,7 @@ state or execute untrusted input.
 Include, when available:
 
 - the affected commit or release tag and target platform;
-- the boundary involved: transport, parser/cooker, package, save/replay,
+- the boundary involved: transport, parser/kooker, package, save/replay,
   signature/provenance or bundled dependency;
 - impact and the smallest reproducible input or sequence;
 - focused logs with credentials, transport keys and private machine data

@@ -40,7 +40,7 @@ run_probe() {
 }
 
 stage_package g6_kofscript_package core content session
-stage_package g6_studio core content session ui
+stage_package g6_kutter core content session ui
 stage_package g6_wan core content session
 stage_package g6_jobs core
 mkdir -p "$WORK_DIR/g6_jobs/build"
@@ -50,7 +50,7 @@ cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
 
 run_probe g6_jobs 'KOOKIE G6 safe jobs verified'
 run_probe g6_kofscript_package 'KOOKIE G6 KofScript package verified'
-run_probe g6_studio 'KOOKIE G6 persistent Studio verified'
+run_probe g6_kutter 'KOOKIE G6 persistent Kutter verified'
 run_probe g6_wan 'KOOKIE G6 limited WAN verified'
 
-printf 'KOOKIE G6 runtime probes passed: jobs, KofScript package/session, persistent Studio, and limited WAN\n'
+printf 'KOOKIE G6 runtime probes passed: jobs, KofScript package/session, persistent Kutter, and limited WAN\n'

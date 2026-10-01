@@ -165,7 +165,7 @@ class RemoteSessionLink {
         compatibilityRequiredValue = false
         compatibilityAcceptedValue = false
         compatibilitySequenceValue = 0
-        compatibilityDiagnosticValue = creatorDiagnosticNone()
+        compatibilityDiagnosticValue = kutterDiagnosticNone()
         wanChannelValue = BoundedWanReliableChannel()
     }
 
@@ -184,7 +184,7 @@ class RemoteSessionLink {
         connectedValue = false
         compatibilityAcceptedValue = false
         compatibilitySequenceValue = 0
-        compatibilityDiagnosticValue = creatorDiagnosticNone()
+        compatibilityDiagnosticValue = kutterDiagnosticNone()
         remoteCompatibilityValue.clear()
         for (var index = 0;
             index < compatibilityResponseValue.length; index = index + 1) {
@@ -211,7 +211,7 @@ class RemoteSessionLink {
         }
         compatibilityRequiredValue = true
         compatibilityAcceptedValue = false
-        compatibilityDiagnosticValue = creatorDiagnosticNone()
+        compatibilityDiagnosticValue = kutterDiagnosticNone()
         return true
     }
 

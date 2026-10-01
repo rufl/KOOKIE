@@ -86,7 +86,7 @@ bash scripts/verify_g6_runtime.sh
 O alvo JVM serve à qualificação diferencial local e a um pacote de
 compatibilidade Windows explícito e sem gráficos; ele nunca é fallback
 silencioso. Pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
-e `glslc`. Os comandos exatos de pacote, cooker, Windows e qualificação entre
+e `glslc`. Os comandos exatos de pacote, kooker, Windows e qualificação entre
 hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
 
 ## O que funciona hoje
@@ -96,7 +96,7 @@ hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
 | **Autoridade e rede** | Sessões servidor/cliente a 60 Hz, admissão de dois clientes, handshake autenticado de compatibilidade, comandos sequenciados, snapshots, predição/reconciliação, reconexão e rejeição de replay/adulteração; janela WAN limitada por IPv4 direto com retry/backpressure |
 | **Sistemas de tiro e ARPG** | Combate hitscan/projétil/shotgun, papéis de inimigos, loot determinístico, inventário, equipamento, skills, status, chefes, recompensas e progressão exatamente uma vez |
 | **Mundo e apresentação** | Arena 3D criada com inclinações, degraus e salas empilhadas; colisão cápsula/triângulo; portas, segredos e saídas; HUD semântico; instancing por SDL_GPU; ganho/pan posicional por SDL_mixer |
-| **Conteúdo e ferramentas de criação** | Entrada limitada de GLB, Dust3D, Aseprite, VOX, brushes estilo Quake, Blockbench, PNG e WAV; produtos canônicos; validação `.kpkg`; edições transacionais no Creator; hierarquia, transformações e registro de assets persistentes no Studio |
+| **Conteúdo e ferramentas de criação** | Entrada limitada de GLB, Dust3D, Aseprite, VOX, brushes estilo Quake, Blockbench, PNG e WAV; produtos canônicos; validação `.kpkg`; edições transacionais no Kutter; hierarquia, transformações e registro de assets persistentes no Kutter |
 | **Persistência e release** | Replay com checksum, migrações de schema, publicação de save durável contra crash, pacotes assinados de árvore limpa, fechamento de dependências e smoke fora do checkout |
 | **Alvos de runtime** | Linux x86-64 nativo autoritativo; gameplay Kof PE nativo no Windows ligado ao shell SDL3/SDL_mixer; apresentação Kof PE nativa com SDL_GPU e produtos SPIR-V/DXIL; pacote separado de compatibilidade Kof JVM para Windows; compilador Kof determinístico e alcançável para PE/COFF AMD64 |
 
@@ -111,8 +111,8 @@ flowchart LR
         WORLD --> SAVE["Save + replay"]
         SERVER -->|"snapshots + feedback ordenado"| CLIENT
 
-        SOURCE["Fontes de autoria"] --> COOKER["Validar + processar com limites"]
-        COOKER --> GENERATION["Geração canônica de pacote"]
+        SOURCE["Fontes de autoria"] --> KOOKER["Validar + processar com limites"]
+        KOOKER --> GENERATION["Geração canônica de pacote"]
         GENERATION --> WORLD
         CLIENT --> VIEW["Estado de render · áudio · UI"]
     end
@@ -149,7 +149,7 @@ gerais de desempenho.
 
 ## Conteúdo que atravessa a fronteira
 
-O cooker aceita subconjuntos documentados em vez de alegar compatibilidade
+O kooker aceita subconjuntos documentados em vez de alegar compatibilidade
 geral com os formatos:
 
 `GLB` · `Dust3D` · `Aseprite` · `VOX` · `MAP` · `Blockbench` · `PNG` · `WAV`
@@ -160,9 +160,9 @@ e validados antes da publicação atômica; imports que falham mantêm a geraç�
 anterior ativa.
 
 ```bash
-scripts/kookie_cooker.sh cook blockbench character.bbmodel character.kchar
-scripts/kookie_cooker.sh cook png texture.png texture.rgba.png
-scripts/kookie_cooker.sh cook wav effect.wav effect.pcm16.wav
+scripts/kooker.sh cook blockbench character.bbmodel character.kchar
+scripts/kooker.sh cook png texture.png texture.rgba.png
+scripts/kooker.sh cook wav effect.wav effect.pcm16.wav
 ```
 
 Os limites fazem parte do contrato, não são omissões temporárias da
@@ -184,7 +184,7 @@ para o trabalho de produção ainda aberto.
   de cada formato nomeado.
 - Reload ao vivo cobre produtos validados de cena/render, não código Kof,
   shaders, plugins de editor ou streaming ilimitado.
-- Autoria além do Studio persistente limitado, cobertura adicional de SO/GPU,
+- Autoria além do Kutter persistente limitado, cobertura adicional de SO/GPU,
   áudio comprimido/em streaming, HRTF/EFX e uma API geral de extensões em
   sandbox continuam incompletos.
 
@@ -197,7 +197,7 @@ concluída.
 |---|---|
 | [`src/`](../src/) | Lógica de engine, jogo, sessão, conteúdo e UI em Kof |
 | [`native/`](../native/) | Adaptadores estreitos de SDL, transporte, persistência e SIMD |
-| [`apps/`](../apps/) | Servidor, cooker, benchmark SIMD e ferramentas de plataforma empacotados |
+| [`apps/`](../apps/) | Servidor, kooker, benchmark SIMD e ferramentas de plataforma empacotados |
 | [`probes/`](../probes/) | Evidência executável focada nas fronteiras de risco |
 | [`scripts/`](../scripts/) | Automação de verificação, pacote e qualificação |
 | [`docs/`](docs/) | Arquitetura, planos, notas da linguagem e evidência de pesquisa |
@@ -209,7 +209,7 @@ concluída.
 - [Plano da engine](docs/ENGINE_PLAN.md) — definições de gates, medições e
   escopo adiado.
 - [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md) — comandos de
-  desenvolvimento, release, cooker e qualificação.
+  desenvolvimento, release, kooker e qualificação.
 - [Notas da linguagem Kof](docs/KOF_LANGUAGE.md) — sintaxe, alvos, FFI e
   descobertas do runtime.
 - [Sondas executadas](docs/RESEARCH_PROBES.md) — comandos, resultados e limites

@@ -48,11 +48,11 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
   preserva drops e reivindicações de recompensa. Execução entre máquinas
   continua não comprovada.
 - G4 está completo para seu contrato limitado. Assinaturas de hooks tipadas
-  cobrem sessão/jogador/inimigo/loot/publicação do editor; o cooker admite os
+  cobrem sessão/jogador/inimigo/loot/publicação do editor; o kooker admite os
   subconjuntos documentados de GLB, Dust3D, Aseprite, VOX, brushes convexos,
   Blockbench 5.0, PNG e WAVE PCM pela CLI JVM de desenvolvimento e pela CLI
   nativa de entrada Linux empacotada; o reload de `.kpkg` valida estado
-  candidato de pacote/registros antes da troca; o workspace Creator fornece
+  candidato de pacote/registros antes da troca; o workspace Kutter fornece
   edição, play-in-editor e undo/redo limitado; e produtos GPU só ativam no
   limite de frame após a fence de upload. Uma oferta de 18 palavras e uma
   resposta de 7 transportam a identidade exata de compatibilidade de 13
@@ -87,7 +87,7 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
   encerram o G5 limitado. Desempenho em várias máquinas/WAN e outros
   hardwares/SOs não é afirmado.
 - Os arquivos Linux agora constroem nativamente o mesmo ponto de entrada Kof do
-  cooker de conteúdo. O smoke do pacote exercita canonicalização WAVE PCM,
+  kooker de conteúdo. O smoke do pacote exercita canonicalização WAVE PCM,
   reabertura idempotente, rejeição de entrada malformada e denylist de
   dependências gráficas fora do checkout.
 
@@ -102,7 +102,7 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
 - Adicionamos aplicação autoritativa exatamente uma vez dos comandos de hook em
   `LoopbackSession`; destinatários inválidos, comandos incompatíveis e overflow
   agregado de moeda preservam o estado da sessão.
-- `G4CreatorDemo` agora consome seu módulo publicado: a morte confirmada da
+- `G4KutterDemo` agora consome seu módulo publicado: a morte confirmada da
   elite executa o hook de recompensa, emite evento tipado e concede quatro
   moedas acima da recompensa pertencente à definição.
 
@@ -112,11 +112,11 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
   estáticos, cada uma vinculada à capability/contribuição do manifesto, fase e
   orçamentos limitados de comandos/eventos, seladas na ordem de
   dependência/carga/prioridade.
-- Adicionamos `BoundedCreatorPublication` e `BoundedContentCompatibility`: uma
+- Adicionamos `BoundedKutterPublication` e `BoundedContentCompatibility`: uma
   transação verificada por revisão vincula checksums de pacote, extensão, hook,
   definição e quatro produtos; uma identidade wire de 13 palavras rejeita
   divergências de API/rede/conteúdo, e falhas preservam a geração ativa.
-- Adicionamos `G4CreatorDemo`, um encontro distinto com dois jogadores, elite
+- Adicionamos `G4KutterDemo`, um encontro distinto com dois jogadores, elite
   orientada por extensão/definição e somente APIs públicas do engine. A morte
   determinística publica estado de encounter, autoridade do jogador e loot.
 - Estendemos o HUD para 372 vértices fixos com um rail estrutural
@@ -200,7 +200,7 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
   de produção em lote com a mesma propriedade e amortização.
 - Uma thread de simulação Kof; tick de 60 Hz, renderização interpolada independentemente, proposta de recuperação em quatro etapas.
 - Arrays de componentes tipados + IDs de geração, colisão cápsula/BVH 3D real, uma única autoridade de dano/morte/recompensa.
-- Política de renderização, content cooker, UI do jogo e ferramentas para criadores pertencentes ao Kof; exceção explícita para shaders HLSL/GPU.
+- Política de renderização, content kooker, UI do jogo e ferramentas para criadores pertencentes ao Kof; exceção explícita para shaders HLSL/GPU.
 - Os sistemas completos de looter/ARPG são o marco G3, não serão abandonados após uma demonstração de boomer-shooter. O fluxo de criação é o G4. Consulte o plano para o escopo/aceitação exatos.
 - Nenhum fallback automático para JVM, nenhum engine C oculto, nenhum fork do editor como pré-requisito.
 
@@ -260,7 +260,7 @@ implementada.
     ordem de carga, migrações, schema de rede e procedência; contribuições e
     definições de elite/chefe falham fechado antes do início da sessão. G4
     adiciona hooks confiáveis vinculados à geração, produtos determinísticos do
-    cooker e reload em estágios de pacote/GPU.
+    kooker e reload em estágios de pacote/GPU.
 33. A redução nativa atual pode corromper um resultado escalar de `extern`
     retido em variável local entre chamadas posteriores; retornar diretamente
     um Bool de `extern` também chegou a `kof_unbox_bool` com valor inválido. Por

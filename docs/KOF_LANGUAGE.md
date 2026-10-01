@@ -103,7 +103,7 @@ Sources: [types](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6e
 
 A source unit may declare `package sim`; `import sim` can expand the matching module-root directory. Specific type imports and directory/package imports have different qualification rules. Do not assume Java wildcard semantics or alias imports.
 
-**Measured:** an entry file importing `sim/combat.kf` ran on both targets and printed `20`. **Also measured:** `kof run file.kf` collected sibling entry files and rejected three `main()` functions (`PKG002`). Put game, cooker, tests and demos in separate entry roots; source-combining scripts are not the default modular architecture.
+**Measured:** an entry file importing `sim/combat.kf` ran on both targets and printed `20`. **Also measured:** `kof run file.kf` collected sibling entry files and rejected three `main()` functions (`PKG002`). Put game, kooker, tests and demos in separate entry roots; source-combining scripts are not the default modular architecture.
 
 Commands from the release CLI:
 

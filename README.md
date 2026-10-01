@@ -80,7 +80,7 @@ bash scripts/verify_g6_runtime.sh
 ```
 
 Presentation packages additionally require SDL 3.4.16, SDL_mixer 3.2.4 and
-`glslc`. Exact package, cooker, Windows and cross-host qualification commands
+`glslc`. Exact package, kooker, Windows and cross-host qualification commands
 live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
 
 ## What works today
@@ -90,7 +90,7 @@ live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
 | **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, sequenced commands, snapshots, prediction/reconciliation, reconnect and replay/tamper rejection; bounded direct-IPv4 WAN window with retries/backpressure |
 | **Shooter and ARPG systems** | Hitscan/projectile/shotgun combat, enemy roles, deterministic loot, inventory, equipment, skills, status effects, bosses, rewards and exactly-once progression |
 | **World and presentation** | True 3D authored arena with slopes, steps and stacked rooms; capsule/triangle collision; doors, secrets and exits; semantic HUD; SDL_GPU instancing; positional gain/pan through SDL_mixer |
-| **Content and creator tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Creator edits; persistent Studio hierarchy/transform/asset registry |
+| **Content and kutter tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Kutter edits; persistent Kutter hierarchy/transform/asset registry |
 | **Persistence and release** | Checksummed replay, schema migrations, crash-durable save publication, signed clean-tree packages, dependency closure and outside-checkout smoke |
 | **Runtime targets** | Authoritative native Linux x86-64; native Windows Kof PE gameplay linked to SDL3/SDL_mixer shell; native Windows Kof PE SDL_GPU presentation with SPIR-V/DXIL products; separate reproducible Windows Kof JVM compatibility package; deterministic reachable Kof-to-AMD64 PE/COFF compiler |
 
@@ -105,8 +105,8 @@ flowchart LR
         WORLD --> SAVE["Save + replay"]
         SERVER -->|"snapshots + ordered feedback"| CLIENT
 
-        SOURCE["Authoring sources"] --> COOKER["Bounded validate + cook"]
-        COOKER --> GENERATION["Canonical package generation"]
+        SOURCE["Authoring sources"] --> KOOKER["Bounded validate + cook"]
+        KOOKER --> GENERATION["Canonical package generation"]
         GENERATION --> WORLD
         CLIENT --> VIEW["Render · audio · UI state"]
     end
@@ -142,7 +142,7 @@ performance claims.
 
 ## Content that crosses the boundary
 
-The cooker accepts documented subsets rather than claiming general format
+The kooker accepts documented subsets rather than claiming general format
 compatibility:
 
 `GLB` · `Dust3D` · `Aseprite` · `VOX` · `MAP` · `Blockbench` · `PNG` · `WAV`
@@ -153,9 +153,9 @@ validated before atomic publication; failed imports keep the prior generation
 active.
 
 ```bash
-scripts/kookie_cooker.sh cook blockbench character.bbmodel character.kchar
-scripts/kookie_cooker.sh cook png texture.png texture.rgba.png
-scripts/kookie_cooker.sh cook wav effect.wav effect.pcm16.wav
+scripts/kooker.sh cook blockbench character.bbmodel character.kchar
+scripts/kooker.sh cook png texture.png texture.rgba.png
+scripts/kooker.sh cook wav effect.wav effect.pcm16.wav
 ```
 
 Limits are part of the contract, not temporary documentation omissions. See
@@ -177,7 +177,7 @@ for the production work still open.
   named format.
 - Live reload covers validated scene/render products, not arbitrary Kof code,
   shaders, editor plugins or unbounded streaming.
-- Rich authoring beyond the bounded persistent Studio, broader OS/GPU coverage,
+- Rich authoring beyond the bounded persistent Kutter, broader OS/GPU coverage,
   streamed/compressed audio, HRTF/EFX and a general-purpose sandboxed extension
   API remain unfinished.
 
@@ -189,7 +189,7 @@ If a claim lacks a focused test or probe, it is not presented as complete.
 |---|---|
 | [`src/`](src/) | Kof-owned engine, game, session, content and UI logic |
 | [`native/`](native/) | Narrow SDL, transport, persistence and SIMD adapters |
-| [`apps/`](apps/) | Packaged server, cooker, SIMD benchmark and platform tools |
+| [`apps/`](apps/) | Packaged server, kooker, SIMD benchmark and platform tools |
 | [`probes/`](probes/) | Focused executable evidence at risky boundaries |
 | [`scripts/`](scripts/) | Verification, packaging and qualification automation |
 | [`docs/`](docs/) | Architecture, plans, language notes and research evidence |
@@ -201,7 +201,7 @@ If a claim lacks a focused test or probe, it is not presented as complete.
 - [Engine plan](docs/ENGINE_PLAN.md) — gate definitions, measurements and
   deferred scope.
 - [Running and packaging](docs/RUNNING_AND_PACKAGING.md) — developer,
-  release, cooker and qualification commands.
+  release, kooker and qualification commands.
 - [Kof language notes](docs/KOF_LANGUAGE.md) — syntax, targets, FFI and runtime
   findings.
 - [Executed probes](docs/RESEARCH_PROBES.md) — commands, results and proof

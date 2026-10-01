@@ -43,7 +43,7 @@ There is no privileged offline simulation path.
 
 ```mermaid
 flowchart TB
-    Tools[Authoring and build tools\nBlender / TrenchBroom / cooker / studio]
+    Tools[Authoring and build tools\nBlender / TrenchBroom / kooker / kutter]
     Packages[Validated versioned packages\ncontent identity and manifests]
     Extensions[Extension API\ndata / Kof modules / future sandbox]
     Server[Authoritative server session\nfixed tick and world state]
@@ -130,7 +130,7 @@ resolutions emit monotonic `ImpactPresentationEvent` records; ordered feedback
 batches carry every confirmed event into bounded client HUD/audio queues.
 The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
 connection, encounter, elite/boss threat/defeat, G3
-inventory/equipment/skill/world-loot status and G4 creator-publication status.
+inventory/equipment/skill/world-loot status and G4 kutter-publication status.
 Presentation overflow is diagnosed and never rolls back authoritative state.
 Authored 3D doors add a 36-vertex cuboid between the 78-vertex arena and
 372-vertex HUD; the current fixed scene is 486 vertices. Kof derives distance
@@ -316,7 +316,7 @@ and binary versions to declared manifest contributions, event kinds, phases and
 command/event budgets. `BoundedTrustedHookRuntime` accepts only a sealed module
 whose extension/module checksums match a published generation, dispatches
 typed session-started, player-connected, enemy-defeated, loot-picked-up and
-editor-published events in monotonic sequence/phase order, and preflights every
+kutter-published events in monotonic sequence/phase order, and preflights every
 per-hook/global capacity before emission. Registered static implementations
 produce bounded audit/welcome/bounty/publication events; the authoritative
 session consumes the grant-currency command exactly once after aggregate
@@ -327,7 +327,7 @@ overflow validation. Hooks never receive mutable core access.
 ```text
 editable sources
       ↓
-Kof cooker and validators
+Kof kooker and validators
       ↓
 staged package
       ↓
@@ -352,7 +352,7 @@ Packages contain:
 
 ### Supported authoring intake
 
-The file cooker accepts these authoring sources in addition to the canonical
+The file kooker accepts these authoring sources in addition to the canonical
 indexed glTF subset. They are **offline intake formats**, not runtime formats:
 
 | Source | Implemented bounded contract | Canonical result |
@@ -403,16 +403,16 @@ RIFF/WAVE loading model documented by
 [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV). It emits static PCM16;
 streaming and compressed decoding remain outside this intake contract.
 
-The cooker owns scene, collision, gameplay and package semantics. Native image,
+The kooker owns scene, collision, gameplay and package semantics. Native image,
 font and audio libraries only provide narrow decoding mechanisms.
 
 Publication is transactional: stage, validate, publish or retain the previous
 valid package. Geometry, collision, navigation and replication revisions must
 be published together.
 
-`scripts/kookie_cooker.sh` exposes `cook`, `package`, `inspect-package` and
+`scripts/kooker.sh` exposes `cook`, `package`, `inspect-package` and
 `validate-package` through a JVM developer CLI. Linux archives also contain a
-native `kookie-cooker` runner for the same Kof `cook` path; package operations
+native `kooker` runner for the same Kof `cook` path; package operations
 remain JVM-only. The `.kpkg` envelope stores explicit little-endian headers,
 bounded logical paths and chunk payloads.
 Its reader rejects traversal, duplicate paths/IDs, overlap, out-of-range bytes,
@@ -421,9 +421,9 @@ builds candidate package/extension/definition/hook registries and swaps them
 only after complete validation; failed reload preserves the active package,
 registries and generation.
 
-`BoundedCreatorWorkspace` applies revision-checked world/entity/weapon/loot
+`BoundedKutterWorkspace` applies revision-checked world/entity/weapon/loot
 transactions to one atomic geometry/collision/navigation/render product set.
-The Creator screen exposes inspection toggles, console mutations,
+The Kutter screen exposes inspection toggles, console mutations,
 play-in-editor and a bounded 16-entry undo/redo history. The native adapter
 keeps the active CPU scene separate while staging a candidate, waits for
 synchronous upload-fence completion before reusing its persistent GPU buffer,
@@ -533,8 +533,8 @@ engines/KOOKIE/
   apps/
     player/        integrated server + client or LAN client
     server/        headless dedicated server
-    cooker/        package validation and cooking
-    studio/        editor and authoring tools
+    kooker/        package validation and cooking
+    kutter/        Kutter authoring tools
   probes/          focused compiler, ABI and session probes
 
 
@@ -568,8 +568,8 @@ core + read-only snapshots/events
   └── ui
 
 content + world queries
-  ├── cooker
-  ├── editor/studio
+  ├── kooker
+  ├── editor/kutter
   └── extensions
 
 platform/native
@@ -626,13 +626,13 @@ ordering, capacity/conflict diagnostics and immutable checksums.
 loot, progression and currency rules; the authoritative session instantiates
 the actor and every reward contract atomically from those definitions.
 
-### G4 — Creator and extension pipeline
+### G4 — Kutter and extension pipeline
 
 Implemented bounded gate: external package files, extension manifests, static
 trusted-hook implementations, enemy definitions and aligned
 geometry/collision/navigation/replication products share one revision-checked
 compatibility identity. Typed domain events, documented GLB/Dust3D/Aseprite/
-VOX/brush intake, the file CLI, external package reload, transactional Creator
+VOX/brush intake, the file CLI, external package reload, transactional Kutter
 workspace, fence-gated frame-boundary GPU reload and compatibility
 offer/response transport execute on the supported JVM/native paths. The
 handshake passed with the host and two clients in separate Linux network
@@ -682,7 +682,7 @@ The retained bounded evidence now covers four expansion slices:
 - Packaged KofScript carries a descriptor-bound offline artifact. Load stages
   file/package/identity validation before swapping the active program, and the
   authoritative session applies its capability command exactly once.
-- Creator Studio persists a canonical bounded hierarchy, transforms and asset
+- Kutter persists a canonical bounded hierarchy, transforms and asset
   registry. Invalid opens leave the active project and generation unchanged.
 - The WAN channel wraps the authenticated direct endpoint with a fixed send
   window, bounded retries/deadlines, deterministic loss/latency pressure,

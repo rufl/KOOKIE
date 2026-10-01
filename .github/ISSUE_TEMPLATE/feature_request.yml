@@ -30,7 +30,7 @@ body:
         - Authoritative server or world state
         - Client prediction or presentation
         - Shared deterministic contract
-        - Content cooker or Creator tooling
+        - Content kooker or Kutter tooling
         - Native platform adapter
         - Build, release or documentation
     validations:

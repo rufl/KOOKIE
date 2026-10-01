@@ -31,25 +31,25 @@ Execute a sonda focada de gameplay e replay com:
 bash scripts/verify_interactions.sh
 ```
 
-## Cooker de conteúdo
+## Kooker de conteúdo
 
 O launcher de desenvolvimento admite somente os subconjuntos de fonte
 limitados e documentados. Ele rejeita entradas inválidas, grandes demais ou
 incompatíveis sem publicar um produto bem-sucedido.
 
 ```bash
-scripts/kookie_cooker.sh cook map level.map level.kmesh
-scripts/kookie_cooker.sh cook dust3d model.ds3 model.glb model.kmesh
-scripts/kookie_cooker.sh cook blockbench character.bbmodel character.kchar
-scripts/kookie_cooker.sh cook png texture.png texture.rgba.png
-scripts/kookie_cooker.sh cook wav effect.wav effect.pcm16.wav
-scripts/kookie_cooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
-scripts/kookie_cooker.sh inspect-package level.kpkg
-scripts/kookie_cooker.sh validate-package creator.kpkg
+scripts/kooker.sh cook map level.map level.kmesh
+scripts/kooker.sh cook dust3d model.ds3 model.glb model.kmesh
+scripts/kooker.sh cook blockbench character.bbmodel character.kchar
+scripts/kooker.sh cook png texture.png texture.rgba.png
+scripts/kooker.sh cook wav effect.wav effect.pcm16.wav
+scripts/kooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
+scripts/kooker.sh inspect-package level.kpkg
+scripts/kooker.sh validate-package kutter.kpkg
 ```
 
 Os formatos de fonte são entradas de autoria, não formatos de pacote do
-runtime. Os arquivos Linux incluem um `kookie-cooker` nativo para os comandos
+runtime. Os arquivos Linux incluem um `kooker` nativo para os comandos
 `cook` acima; a montagem e a inspeção de pacotes continuam no launcher de
 desenvolvimento JVM.
 
@@ -101,7 +101,7 @@ compilador e o hash do arquivo da distribuição.
 Todo arquivo Linux também contém:
 
 - `kookie-server`, servidor de carga limitada independente de gráficos;
-- `kookie-cooker`, cooker nativo e limitado de fontes;
+- `kooker`, kooker nativo e limitado de fontes;
 - `kookie-simd-bench`, sonda de paridade e tempo escalar/SIMD.
 
 O servidor informa contagens, orçamentos de trabalho, tempos
@@ -115,7 +115,7 @@ de redução exata, não uma afirmação de ganho geral.
 O primeiro perfil de conteúdo adiciona um catálogo de assets limitado e
 assinado em `content/prototype`. Ele inclui modelos GLB convertidos dos pacotes
 modular e Classic64, o goose animado solicitado, PNGs VFX autorais, derivados
-PNG limitados para runtime, saídas RGBA8 do cooker e os avisos de licença
+PNG limitados para runtime, saídas RGBA8 do kooker e os avisos de licença
 originais. A opção é explícita para manter os pacotes existentes sem conteúdo:
 
 ```bash
@@ -271,7 +271,7 @@ entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1` adiciona o smoke completo opcional,
 exigindo `wine` e `overzeer-isolated-display`.
 
 Em um host isolado capaz de DRI3, o smoke executa a mesma entrada Kof PE nativa
-que possui a janela SDL, staging de cena GPU, fila de áudio, reload do creator
+que possui a janela SDL, staging de cena GPU, fila de áudio, reload do kutter
 e os marcadores de gameplay. O pacote não tem dependência JVM. Esta é evidência
 específica do alvo; não deve ser generalizada para outras combinações de
 SO/GPU ou para qualificação de WAN/segurança.
@@ -283,7 +283,7 @@ bash scripts/verify_g6_runtime.sh
 ```
 
 O comando qualifica jobs seguros, ativação de KofScript em pacote/sessão,
-reabertura persistente do Studio e o canal WAN de janela fixa. WAN significa
+reabertura persistente do Kutter e o canal WAN de janela fixa. WAN significa
 endpoint IPv4/UDP direto autenticado, retry e backpressure limitados; não há
 alegação de NAT traversal, relay, confidencialidade ou resistência a DDoS.
 

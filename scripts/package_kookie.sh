@@ -34,7 +34,7 @@ Native Linux packages contain the Kof executable and use the host's system
 runtime. Presentation packages contain the persistent native Kof SDL_GPU
 application, SDL3, SDL_mixer, the adapter, and shaders.
 Every Linux package also contains a graphics-free Kof dedicated workload server,
-a native bounded content cooker, and a Kof `Buffer(U8)` SIMD benchmark with
+a native bounded content kooker, and a Kof `Buffer(U8)` SIMD benchmark with
 native timing.
 Windows native packages contain the native Kof PE gameplay linked to the SDL3/
 SDL_mixer shell.
@@ -434,32 +434,32 @@ EOF
   chmod 755 "$PACKAGE_ROOT/kookie-server"
 }
 
-bundle_linux_cooker() {
-  local cooker_root="$WORK_DIR/cooker-source"
-  local cooker_build="$WORK_DIR/cooker-build"
-  mkdir -p "$cooker_root"/{core,content}
-  cp -- "$ROOT_DIR/apps/creator_cooker/main.kf" "$cooker_root/main.kf"
+bundle_linux_kooker() {
+  local kooker_root="$WORK_DIR/kooker-source"
+  local kooker_build="$WORK_DIR/kooker-build"
+  mkdir -p "$kooker_root"/{core,content}
+  cp -- "$ROOT_DIR/apps/kooker/main.kf" "$kooker_root/main.kf"
   for module in core content; do
     for source in "$ROOT_DIR/src/$module/"*.kf; do
-      ln -s -- "$source" "$cooker_root/$module/$(basename "$source")"
+      ln -s -- "$source" "$kooker_root/$module/$(basename "$source")"
     done
   done
-  (cd "$cooker_root" && kof build main.kf --target native \
-    --output "$cooker_build" >/dev/null)
-  local cooker_binary="$cooker_build/Default/Main"
-  test -x "$cooker_binary" || {
-    echo "package_kookie: content cooker executable missing: $cooker_binary" >&2
+  (cd "$kooker_root" && kof build main.kf --target native \
+    --output "$kooker_build" >/dev/null)
+  local kooker_binary="$kooker_build/Default/Main"
+  test -x "$kooker_binary" || {
+    echo "package_kookie: content kooker executable missing: $kooker_binary" >&2
     exit 1
   }
-  cp -- "$cooker_binary" "$PACKAGE_ROOT/kookie-cooker.bin"
-  chmod 755 "$PACKAGE_ROOT/kookie-cooker.bin"
-  cat > "$PACKAGE_ROOT/kookie-cooker" <<'EOF'
+  cp -- "$kooker_binary" "$PACKAGE_ROOT/kooker.bin"
+  chmod 755 "$PACKAGE_ROOT/kooker.bin"
+  cat > "$PACKAGE_ROOT/kooker" <<'EOF'
 #!/usr/bin/env sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 usage() {
-  echo "Usage: kookie-cooker cook <glb|aseprite|vox|map|blockbench|png|wav> <input> <output>" >&2
-  echo "       kookie-cooker cook dust3d <input.ds3> <export.glb> <output>" >&2
+  echo "Usage: kooker cook <glb|aseprite|vox|map|blockbench|png|wav> <input> <output>" >&2
+  echo "       kooker cook dust3d <input.ds3> <export.glb> <output>" >&2
   exit 2
 }
 [ "${1:-}" = "cook" ] || usage
@@ -486,7 +486,7 @@ else
   paired=
   output=$4
 fi
-work=$(mktemp -d "${TMPDIR:-/tmp}/kookie-cooker.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/kooker.XXXXXX")
 output_tmp=
 cleanup() {
   rm -rf -- "$work"
@@ -495,10 +495,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 cp -- "$input" "$work/source.input"
 if [ -n "$paired" ]; then cp -- "$paired" "$work/paired.input"; fi
-printf '%s' "$code" >"$work/.kookie-cooker-native-kind"
-(cd "$work" && "$root/kookie-cooker.bin")
+printf '%s' "$code" >"$work/.kooker-native-kind"
+(cd "$work" && "$root/kooker.bin")
 [ -s "$work/product.output" ] || {
-  echo "kookie-cooker: native worker produced no output" >&2
+  echo "kooker: native worker produced no output" >&2
   exit 1
 }
 output_dir=$(dirname -- "$output")
@@ -508,7 +508,7 @@ cp -- "$work/product.output" "$output_tmp"
 mv -f -- "$output_tmp" "$output"
 output_tmp=
 EOF
-  chmod 755 "$PACKAGE_ROOT/kookie-cooker"
+  chmod 755 "$PACKAGE_ROOT/kooker"
 }
 
 bundle_linux_simd_benchmark() {
@@ -834,7 +834,7 @@ else
 fi
 if [[ "$TARGET" == linux-x86_64 ]]; then
   bundle_linux_server
-  bundle_linux_cooker
+  bundle_linux_kooker
   bundle_linux_simd_benchmark
 fi
 cp -- "$ROOT_DIR/README.md" "$PACKAGE_ROOT/README.md"
@@ -902,7 +902,7 @@ source_date_epoch=$PACKAGE_EPOCH
 archive_builder=$PYTHON_VERSION-zipfile
 dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
 simd_benchmark=$([[ "$TARGET" == linux-x86_64 ]] && echo kof-buffer-u8-runtime-dispatch || echo unavailable)
-content_cooker=$([[ "$TARGET" == linux-x86_64 ]] && echo native-bounded-intake-cli || echo unavailable)
+content_kooker=$([[ "$TARGET" == linux-x86_64 ]] && echo native-bounded-intake-cli || echo unavailable)
 prototype_content_profile=$CONTENT_PROFILE
 prototype_content_sha256=$PROTOTYPE_CONTENT_TREE_SHA256
 prototype_content_asset_count=$PROTOTYPE_CONTENT_ASSET_COUNT
@@ -1004,7 +1004,7 @@ manifest = {
     "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
     "dedicated_server": target == "linux-x86_64",
     "simd_benchmark": target == "linux-x86_64",
-    "content_cooker": target == "linux-x86_64",
+    "content_kooker": target == "linux-x86_64",
     "content_profile": content_profile,
     "prototype_content_sha256": prototype_content_sha256,
     "prototype_content_asset_count": int(prototype_content_asset_count),

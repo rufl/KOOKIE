@@ -50,7 +50,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   encenada que preserva o programa anterior em falhas e execução autoritativa
   na sessão.
 - Adicionamos hierarquia, transformações e registro de assets persistentes no
-  Creator Studio, com save/open binário canônico e rollback em arquivo inválido.
+  Kutter, com save/open binário canônico e rollback em arquivo inválido.
 - Adicionamos canal WAN de janela fixa com retransmissão limitada, pressão
   determinística de perda/latência, entrega ordenada, rejeição de replay e
   backpressure.
@@ -77,7 +77,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   completam a superfície automatizável do GitHub; a imagem social versionada
   está pronta para o upload que o GitHub oferece somente pelo navegador.
 
-### Entrada WAVE PCM limitada e cooker nativo empacotado
+### Entrada WAVE PCM limitada e kooker nativo empacotado
 
 - Adicionamos um leitor RIFF/WAVE estrito para tag PCM `0x0001` mono/estéreo,
   amostras de 8 ou 16 bits em 8–96 kHz, limitado a 2 MiB, 32 chunks,
@@ -87,7 +87,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   RF64, cues/loops e desconhecida.
 - Adicionamos saída PCM16 determinística e reaberta, com checksums de fonte,
   amostras normalizadas, metadados e canônico, por
-  `kookie-cooker cook wav`. Os arquivos Linux agora incluem o cooker Kof
+  `kooker cook wav`. Os arquivos Linux agora incluem o kooker Kof
   nativo; o smoke do pacote verifica normalização, reabertura idempotente,
   rejeição de entrada malformada e ausência de dependências gráficas fora do
   checkout.
@@ -105,7 +105,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   do zlib, reúne chunks `IDAT` consecutivos, reverte filtros 0–4 e resolve
   `PLTE`/`tRNS` em RGBA exato.
 - Adicionamos saída PNG RGBA8 determinística e reaberta, com checksums de fonte,
-  pixels, metadados e canônico por `kookie-cooker cook png`. `tEXt` validado é
+  pixels, metadados e canônico por `kooker cook png`. `tEXt` validado é
   removido; Adam7, APNG, outras profundidades e outros chunks auxiliares ou
   desconhecidos são rejeitados em vez de perder semântica da imagem. A saída
   de atlas do Aseprite agora usa o mesmo encoder canônico.
@@ -120,7 +120,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   são rejeitados deterministicamente.
 - Adicionamos saída `KCHR` v1 little-endian reaberta, com registros em ponto
   fixo de cuboides, hierarquia e keyframes, além de checksums de
-  fonte/personagem/ossos/animação/produto. `kookie-cooker cook blockbench`
+  fonte/personagem/ossos/animação/produto. `kooker cook blockbench`
   grava o produto pronto para pacote; uma entrada rejeitada não grava saída.
   Pixels de textura e dados UV/material por face não fazem parte deste primeiro
   contrato `KCHR`.
@@ -236,13 +236,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   Identidades canônicas de geometria, colisão, atlas PNG, metadados, material,
   entidade e visibilidade são produzidas deterministicamente; construções
   incompatíveis falham com diagnóstico do formato.
-- Adicionamos `scripts/kookie_cooker.sh` com comandos de arquivo `cook`,
+- Adicionamos `scripts/kooker.sh` com comandos de arquivo `cook`,
   `package` de um chunk, `inspect-package` e `validate-package`.
 - Adicionamos envelope `.kpkg` little-endian e loader externo com caminhos
   lógicos, intervalos/hashes de chunks e registros de
   extensão/definição/hooks limitados. O reload valida o estado candidato
   primeiro; rejeição preserva pacote, registros e geração ativos.
-- Adicionamos a tela Creator e `BoundedCreatorWorkspace` para mutações de
+- Adicionamos a tela Kutter e `BoundedKutterWorkspace` para mutações de
   mundo/entidade/arma/loot verificadas por revisão, inspeção de colisão/IA,
   play-in-editor e undo/redo limitado. Identidades de geometria, colisão,
   navegação e render são publicadas em uma transação.
@@ -259,7 +259,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   papéis autenticada também passou com host e dois clientes em namespaces de
   rede Linux separados e pilhas IPv4 distintas, incluindo reconexão e o
   handshake de compatibilidade. Isso não é evidência de três máquinas físicas.
-- O caminho de preservação e ativação de candidata do Creator também renderizou
+- O caminho de preservação e ativação de candidata do Kutter também renderizou
   por SDL_GPU headless isolado em 320×240. O checksum do frame final foi
   `28.585.778` (SHA-256 do PPM
   `c9c17e6de93dfd13ac04ee70896a2739be0ba5cf70c9c65b06e924b430064a6d`);
@@ -320,12 +320,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   hooks compilados estaticamente, vinculadas a contribuições do manifesto, fase
   e orçamentos de comandos/eventos. A ordem de dependência/carga/prioridade é
   determinística e o checksum selado vincula o registro exato de extensões.
-- Adicionamos `BoundedCreatorPublication`, verificada por revisão, e uma
+- Adicionamos `BoundedKutterPublication`, verificada por revisão, e uma
   identidade wire `BoundedContentCompatibility` de 13 palavras cobrindo
   engine/API/rede, pacote, manifesto, módulo, definição, geração e produtos
   alinhados de geometria/colisão/navegação/replicação. Transações obsoletas,
   divergentes ou inválidas preservam a geração ativa anterior.
-- Adicionamos `G4CreatorDemo`, um encontro distinto com dois jogadores por APIs
+- Adicionamos `G4KutterDemo`, um encontro distinto com dois jogadores por APIs
   públicas, elite orientada por dados e declaração de módulo confiável. A morte
   determinística emite estado válido de encounter, autoridade por jogador e
   loot no mundo.

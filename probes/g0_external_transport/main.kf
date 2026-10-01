@@ -108,7 +108,7 @@ Bool externalRoleClientCompatibility(
     }
     return client.acceptRemoteCompatibilityResponse(response, sequence) &&
         client.remoteSessionReady() && client.remoteCompatible() &&
-        client.remoteCompatibilityDiagnostic() == creatorDiagnosticNone() &&
+        client.remoteCompatibilityDiagnostic() == kutterDiagnosticNone() &&
         local.checksum() == response[5]
 }
 

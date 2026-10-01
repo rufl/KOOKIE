@@ -6,9 +6,9 @@ Int sourceFileDiagnosticKind() { return 2 }
 Int sourceFileDiagnosticSource() { return 3 }
 Int sourceFileDiagnosticOutput() { return 4 }
 
-class BoundedSourceFileCooker {
+class BoundedSourceFileKooker {
     Int inputCapacityValue
-    BoundedSourceCooker cookerValue
+    BoundedSourceKooker kookerValue
     SourceCookResult resultValue
     Int diagnosticValue
     Int outputLengthValue
@@ -17,7 +17,7 @@ class BoundedSourceFileCooker {
         inputCapacityValue = inputCapacity
         if (inputCapacityValue <= 0) { inputCapacityValue = 1 }
         if (inputCapacityValue > 16777216) { inputCapacityValue = 16777216 }
-        cookerValue = BoundedSourceCooker()
+        kookerValue = BoundedSourceKooker()
         resultValue = SourceCookResult(false, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
         diagnosticValue = sourceFileDiagnosticNone()
         outputLengthValue = 0
@@ -68,65 +68,65 @@ class BoundedSourceFileCooker {
         if (source.length <= 0) { return reject(sourceFileDiagnosticInput()) }
         var output = new Int[0]
         if (kind == "glb") {
-            if (!cookerValue.cookGlb(
+            if (!kookerValue.cookGlb(
                     source, namespaceId, assetId, revision,
                     toolVersion, optionsChecksum, coordinateScale)) {
-                resultValue = cookerValue.result()
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = cookerValue.glb().canonicalBytes()
+            output = kookerValue.glb().canonicalBytes()
         } else if (kind == "dust3d") {
             var paired = readBounded(pairedInputPath)
             if (paired.length <= 0) { return reject(sourceFileDiagnosticInput()) }
-            if (!cookerValue.cookDust3d(
+            if (!kookerValue.cookDust3d(
                     source, paired, namespaceId, assetId, revision,
                     toolVersion, optionsChecksum, coordinateScale)) {
-                resultValue = cookerValue.result()
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = cookerValue.dust3d().reader().canonicalBytes()
+            output = kookerValue.dust3d().reader().canonicalBytes()
         } else if (kind == "aseprite") {
-            if (!cookerValue.cookAseprite(source)) {
-                resultValue = cookerValue.result()
+            if (!kookerValue.cookAseprite(source)) {
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = cookerValue.sprite().pngBytes()
+            output = kookerValue.sprite().pngBytes()
         } else if (kind == "vox") {
-            if (!cookerValue.cookVox(
+            if (!kookerValue.cookVox(
                     source, namespaceId, assetId, revision, coordinateScale)) {
-                resultValue = cookerValue.result()
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = encodedGeometry(cookerValue.vox().geometry())
+            output = encodedGeometry(kookerValue.vox().geometry())
         } else if (kind == "map") {
-            if (!cookerValue.cookQuakeMap(
+            if (!kookerValue.cookQuakeMap(
                     source, namespaceId, assetId, revision, coordinateScale)) {
-                resultValue = cookerValue.result()
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = encodedGeometry(cookerValue.quakeMap().geometry())
+            output = encodedGeometry(kookerValue.quakeMap().geometry())
         } else if (kind == "blockbench") {
-            if (!cookerValue.cookBlockbench(source)) {
-                resultValue = cookerValue.result()
+            if (!kookerValue.cookBlockbench(source)) {
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = cookerValue.blockbench().canonicalBytes()
+            output = kookerValue.blockbench().canonicalBytes()
         } else if (kind == "png") {
-            if (!cookerValue.cookPng(source)) {
-                resultValue = cookerValue.result()
+            if (!kookerValue.cookPng(source)) {
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = cookerValue.png().canonicalBytes()
+            output = kookerValue.png().canonicalBytes()
         } else if (kind == "wav") {
-            if (!cookerValue.cookWav(source)) {
-                resultValue = cookerValue.result()
+            if (!kookerValue.cookWav(source)) {
+                resultValue = kookerValue.result()
                 return reject(sourceFileDiagnosticSource())
             }
-            output = cookerValue.wav().canonicalBytes()
+            output = kookerValue.wav().canonicalBytes()
         } else {
             return reject(sourceFileDiagnosticKind())
         }
-        resultValue = cookerValue.result()
+        resultValue = kookerValue.result()
         if (output.length <= 0 || !File(outputPath).writeBytes(output)) {
             return reject(sourceFileDiagnosticOutput())
         }
@@ -137,7 +137,7 @@ class BoundedSourceFileCooker {
     SourceCookResult result() { return resultValue }
     Int diagnostic() { return diagnosticValue }
     Int outputLength() { return outputLengthValue }
-    BoundedBlockbenchIntake blockbench() { return cookerValue.blockbench() }
-    BoundedPngIntake png() { return cookerValue.png() }
-    BoundedWavIntake wav() { return cookerValue.wav() }
+    BoundedBlockbenchIntake blockbench() { return kookerValue.blockbench() }
+    BoundedPngIntake png() { return kookerValue.png() }
+    BoundedWavIntake wav() { return kookerValue.wav() }
 }

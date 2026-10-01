@@ -2,67 +2,67 @@ package content
 
 import core
 
-Int creatorPublicationIdleStatus() {
+Int kutterPublicationIdleStatus() {
     return 0
 }
 
-Int creatorPublicationStagedStatus() {
+Int kutterPublicationStagedStatus() {
     return 1
 }
 
-Int creatorPublicationValidatedStatus() {
+Int kutterPublicationValidatedStatus() {
     return 2
 }
 
-Int creatorPublicationPublishedStatus() {
+Int kutterPublicationPublishedStatus() {
     return 3
 }
 
-Int creatorPublicationRejectedStatus() {
+Int kutterPublicationRejectedStatus() {
     return 4
 }
 
-Int creatorDiagnosticNone() {
+Int kutterDiagnosticNone() {
     return 0
 }
 
-Int creatorDiagnosticInvalid() {
+Int kutterDiagnosticInvalid() {
     return 1
 }
 
-Int creatorDiagnosticState() {
+Int kutterDiagnosticState() {
     return 2
 }
 
-Int creatorDiagnosticStale() {
+Int kutterDiagnosticStale() {
     return 3
 }
 
-Int creatorDiagnosticPackage() {
+Int kutterDiagnosticPackage() {
     return 4
 }
 
-Int creatorDiagnosticApi() {
+Int kutterDiagnosticApi() {
     return 5
 }
 
-Int creatorDiagnosticManifest() {
+Int kutterDiagnosticManifest() {
     return 6
 }
 
-Int creatorDiagnosticModule() {
+Int kutterDiagnosticModule() {
     return 7
 }
 
-Int creatorDiagnosticDefinition() {
+Int kutterDiagnosticDefinition() {
     return 8
 }
 
-Int creatorDiagnosticProduct() {
+Int kutterDiagnosticProduct() {
     return 9
 }
 
-Int creatorDiagnosticNetwork() {
+Int kutterDiagnosticNetwork() {
     return 10
 }
 
@@ -231,37 +231,37 @@ class BoundedContentCompatibility {
 
     Int mismatch(BoundedContentCompatibility other) {
         if (!validate() || !other.validate()) {
-            return creatorDiagnosticInvalid()
+            return kutterDiagnosticInvalid()
         }
         if (engineVersionValue != other.engineVersion() ||
             apiVersionValue != other.apiVersion()) {
-            return creatorDiagnosticApi()
+            return kutterDiagnosticApi()
         }
         if (networkSchemaChecksumValue != other.networkSchemaChecksum()) {
-            return creatorDiagnosticNetwork()
+            return kutterDiagnosticNetwork()
         }
         if (packageChecksumValue != other.packageChecksum()) {
-            return creatorDiagnosticPackage()
+            return kutterDiagnosticPackage()
         }
         if (extensionChecksumValue != other.extensionChecksum()) {
-            return creatorDiagnosticManifest()
+            return kutterDiagnosticManifest()
         }
         if (moduleChecksumValue != other.moduleChecksum()) {
-            return creatorDiagnosticModule()
+            return kutterDiagnosticModule()
         }
         if (definitionChecksumValue != other.definitionChecksum()) {
-            return creatorDiagnosticDefinition()
+            return kutterDiagnosticDefinition()
         }
         if (generationValue != other.generation() ||
             revisionValue != other.revision() ||
             productChecksumValue != other.productChecksum()) {
-            return creatorDiagnosticProduct()
+            return kutterDiagnosticProduct()
         }
-        return creatorDiagnosticNone()
+        return kutterDiagnosticNone()
     }
 
     Bool matches(BoundedContentCompatibility other) {
-        return mismatch(other) == creatorDiagnosticNone()
+        return mismatch(other) == kutterDiagnosticNone()
     }
 
     Bool encode() {
@@ -361,7 +361,7 @@ class BoundedContentCompatibility {
     }
 }
 
-class BoundedCreatorPublication {
+class BoundedKutterPublication {
     BoundedContentCompatibility activeCompatibilityValue
     BoundedContentCompatibility stagedCompatibilityValue
     Int expectedGenerationValue
@@ -404,22 +404,22 @@ class BoundedCreatorPublication {
         extensionsStagedValue = false
         definitionsStagedValue = false
         productsStagedValue = false
-        statusValue = creatorPublicationIdleStatus()
-        diagnosticValue = creatorDiagnosticNone()
+        statusValue = kutterPublicationIdleStatus()
+        diagnosticValue = kutterDiagnosticNone()
     }
 
     Bool reject(Int diagnostic) {
-        statusValue = creatorPublicationRejectedStatus()
+        statusValue = kutterPublicationRejectedStatus()
         diagnosticValue = diagnostic
         return false
     }
 
     Bool begin(Int expectedGeneration, Int revision) {
-        if (statusValue == creatorPublicationStagedStatus() ||
-            statusValue == creatorPublicationValidatedStatus() ||
+        if (statusValue == kutterPublicationStagedStatus() ||
+            statusValue == kutterPublicationValidatedStatus() ||
             expectedGeneration < 0 || expectedGeneration > 999999 ||
             revision <= 0 || revision > 1000000) {
-            return reject(creatorDiagnosticState())
+            return reject(kutterDiagnosticState())
         }
         stagedCompatibilityValue.clear()
         expectedGenerationValue = expectedGeneration
@@ -439,22 +439,22 @@ class BoundedCreatorPublication {
         extensionsStagedValue = false
         definitionsStagedValue = false
         productsStagedValue = false
-        statusValue = creatorPublicationStagedStatus()
-        diagnosticValue = creatorDiagnosticNone()
+        statusValue = kutterPublicationStagedStatus()
+        diagnosticValue = kutterDiagnosticNone()
         return true
     }
 
     Bool stagePackage(
         BoundedContentPackage packageValue, Int requiredEngineVersion
     ) {
-        if (statusValue != creatorPublicationStagedStatus() ||
+        if (statusValue != kutterPublicationStagedStatus() ||
             packageStagedValue) {
-            return reject(creatorDiagnosticState())
+            return reject(kutterDiagnosticState())
         }
         if (!packageValue.validate() || requiredEngineVersion <= 0 ||
             packageValue.identity().engineVersion() != requiredEngineVersion ||
             packageValue.identity().contentVersion() != stagedRevisionValue) {
-            return reject(creatorDiagnosticPackage())
+            return reject(kutterDiagnosticPackage())
         }
         stagedEngineVersionValue = requiredEngineVersion
         stagedPackageChecksumValue = packageValue.checksum()
@@ -467,22 +467,22 @@ class BoundedCreatorPublication {
         BoundedTrustedModuleRegistry modules,
         Int requiredApiVersion
     ) {
-        if (statusValue != creatorPublicationStagedStatus() ||
+        if (statusValue != kutterPublicationStagedStatus() ||
             extensionsStagedValue) {
-            return reject(creatorDiagnosticState())
+            return reject(kutterDiagnosticState())
         }
         if (!extensions.validate()) {
-            return reject(creatorDiagnosticManifest())
+            return reject(kutterDiagnosticManifest())
         }
         if (!modules.validate(extensions)) {
-            return reject(creatorDiagnosticModule())
+            return reject(kutterDiagnosticModule())
         }
         if (!extensions.apiCompatible(requiredApiVersion)) {
-            return reject(creatorDiagnosticApi())
+            return reject(kutterDiagnosticApi())
         }
         var networkChecksum = extensions.networkSchemaChecksum()
         if (networkChecksum <= 0) {
-            return reject(creatorDiagnosticNetwork())
+            return reject(kutterDiagnosticNetwork())
         }
         stagedApiVersionValue = requiredApiVersion
         stagedNetworkSchemaChecksumValue = networkChecksum
@@ -493,12 +493,12 @@ class BoundedCreatorPublication {
     }
 
     Bool stageDefinitions(BoundedEnemyDefinitionRegistry definitions) {
-        if (statusValue != creatorPublicationStagedStatus() ||
+        if (statusValue != kutterPublicationStagedStatus() ||
             definitionsStagedValue) {
-            return reject(creatorDiagnosticState())
+            return reject(kutterDiagnosticState())
         }
         if (!definitions.validate() || definitions.count() <= 0) {
-            return reject(creatorDiagnosticDefinition())
+            return reject(kutterDiagnosticDefinition())
         }
         stagedDefinitionChecksumValue = definitions.checksum()
         definitionsStagedValue = true
@@ -509,13 +509,13 @@ class BoundedCreatorPublication {
         Int geometryChecksum, Int collisionChecksum,
         Int navigationChecksum, Int replicationChecksum
     ) {
-        if (statusValue != creatorPublicationStagedStatus() ||
+        if (statusValue != kutterPublicationStagedStatus() ||
             productsStagedValue) {
-            return reject(creatorDiagnosticState())
+            return reject(kutterDiagnosticState())
         }
         if (geometryChecksum <= 0 || collisionChecksum <= 0 ||
             navigationChecksum <= 0 || replicationChecksum <= 0) {
-            return reject(creatorDiagnosticProduct())
+            return reject(kutterDiagnosticProduct())
         }
         stagedGeometryChecksumValue = geometryChecksum
         stagedCollisionChecksumValue = collisionChecksum
@@ -554,17 +554,17 @@ class BoundedCreatorPublication {
     }
 
     Bool validate(BoundedGenerationCache cache) {
-        if (statusValue != creatorPublicationStagedStatus() ||
+        if (statusValue != kutterPublicationStagedStatus() ||
             !packageStagedValue || !extensionsStagedValue ||
             !definitionsStagedValue || !productsStagedValue) {
-            return reject(creatorDiagnosticState())
+            return reject(kutterDiagnosticState())
         }
         if (expectedGenerationValue != activeGeneration() ||
             cache.activeGeneration() != expectedGenerationValue) {
-            return reject(creatorDiagnosticStale())
+            return reject(kutterDiagnosticStale())
         }
         if (stagedReplicationChecksumValue != stagedPackageChecksumValue) {
-            return reject(creatorDiagnosticProduct())
+            return reject(kutterDiagnosticProduct())
         }
         var generation = expectedGenerationValue + 1
         var productChecksum = stagedProductChecksum()
@@ -573,7 +573,7 @@ class BoundedCreatorPublication {
                 generation, stagedRevisionValue,
                 stagedGeometryChecksumValue, stagedCollisionChecksumValue,
                 stagedNavigationChecksumValue, stagedReplicationChecksumValue)) {
-            return reject(creatorDiagnosticProduct())
+            return reject(kutterDiagnosticProduct())
         }
         stagedCompatibilityValue.clear()
         if (!stagedCompatibilityValue.configureVersions(
@@ -585,16 +585,16 @@ class BoundedCreatorPublication {
             !stagedCompatibilityValue.configurePublication(
                 generation, stagedRevisionValue, productChecksum) ||
             !stagedCompatibilityValue.seal()) {
-            return reject(creatorDiagnosticInvalid())
+            return reject(kutterDiagnosticInvalid())
         }
-        statusValue = creatorPublicationValidatedStatus()
-        diagnosticValue = creatorDiagnosticNone()
+        statusValue = kutterPublicationValidatedStatus()
+        diagnosticValue = kutterDiagnosticNone()
         return true
     }
 
     Bool publish(BoundedGenerationCache cache) {
-        if (statusValue != creatorPublicationValidatedStatus()) {
-            return reject(creatorDiagnosticState())
+        if (statusValue != kutterPublicationValidatedStatus()) {
+            return reject(kutterDiagnosticState())
         }
         var generation = stagedCompatibilityValue.generation()
         if (cache.activeGeneration() != expectedGenerationValue ||
@@ -602,7 +602,7 @@ class BoundedCreatorPublication {
                 generation, stagedRevisionValue,
                 stagedGeometryChecksumValue, stagedCollisionChecksumValue,
                 stagedNavigationChecksumValue, stagedReplicationChecksumValue)) {
-            return reject(creatorDiagnosticStale())
+            return reject(kutterDiagnosticStale())
         }
         var identity = ProductGenerationIdentity(
             generation, stagedRevisionValue,
@@ -610,24 +610,24 @@ class BoundedCreatorPublication {
             stagedNavigationChecksumValue, stagedReplicationChecksumValue)
         if (!cache.activate(identity) ||
             !activeCompatibilityValue.copyFrom(stagedCompatibilityValue)) {
-            return reject(creatorDiagnosticProduct())
+            return reject(kutterDiagnosticProduct())
         }
         packageStagedValue = false
         extensionsStagedValue = false
         definitionsStagedValue = false
         productsStagedValue = false
-        statusValue = creatorPublicationPublishedStatus()
-        diagnosticValue = creatorDiagnosticNone()
+        statusValue = kutterPublicationPublishedStatus()
+        diagnosticValue = kutterDiagnosticNone()
         return true
     }
 
     Bool admit(BoundedContentCompatibility offered) {
         if (!activeCompatibilityValue.validate()) {
-            diagnosticValue = creatorDiagnosticState()
+            diagnosticValue = kutterDiagnosticState()
             return false
         }
         diagnosticValue = activeCompatibilityValue.mismatch(offered)
-        return diagnosticValue == creatorDiagnosticNone()
+        return diagnosticValue == kutterDiagnosticNone()
     }
 
     BoundedContentCompatibility activeCompatibility() {

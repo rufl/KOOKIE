@@ -9,7 +9,7 @@
 
 The root README is the landing page.
 [Running and packaging](RUNNING_AND_PACKAGING.md) holds developer, release,
-cooker and qualification commands. [CHANGELOG](../CHANGELOG.md) is the short
+kooker and qualification commands. [CHANGELOG](../CHANGELOG.md) is the short
 human-readable history; [MEMORY](../MEMORY.md) is the re-entry note;
 `CONTRIBUTING.md` defines the verification gate. The active bounded G0 sequence
 is tracked in [G0_BACKLOG](G0_BACKLOG.md), with resource-token and

@@ -3,26 +3,26 @@ import kof.process
 
 Bool printUsage() {
     println("Usage:")
-    println("  kookie-cooker cook <glb|aseprite|vox|map|blockbench|png|wav> <input> <output>")
-    println("  kookie-cooker cook dust3d <input.ds3> <export.glb> <output>")
-    println("  kookie-cooker package <chunk-kind> <input> <logical-path> <output.kpkg>")
-    println("  kookie-cooker inspect-package <input.kpkg>")
-    println("  kookie-cooker validate-package <input.kpkg>")
+    println("  kooker cook <glb|aseprite|vox|map|blockbench|png|wav> <input> <output>")
+    println("  kooker cook dust3d <input.ds3> <export.glb> <output>")
+    println("  kooker package <chunk-kind> <input> <logical-path> <output.kpkg>")
+    println("  kooker inspect-package <input.kpkg>")
+    println("  kooker validate-package <input.kpkg>")
     return false
 }
 
 Bool cookPaths(
     String kind, String input, String paired, String output
 ) {
-    var cooker = BoundedSourceFileCooker(16777216)
-    if (!cooker.cook(kind, input, paired, output, 1, 1, 1, 1, 1, 1000)) {
-        println("cook-rejected diagnostic=" + cooker.diagnostic() +
-            " source=" + cooker.result().diagnostic())
+    var kooker = BoundedSourceFileKooker(16777216)
+    if (!kooker.cook(kind, input, paired, output, 1, 1, 1, 1, 1, 1000)) {
+        println("cook-rejected diagnostic=" + kooker.diagnostic() +
+            " source=" + kooker.result().diagnostic())
         return false
     }
-    var result = cooker.result()
+    var result = kooker.result()
     if (kind == "blockbench") {
-        var character = cooker.blockbench()
+        var character = kooker.blockbench()
         println("cooked kind=" + result.sourceKind() +
             " source=" + result.sourceChecksum() +
             " model=" + character.modelFormatChecksum() +
@@ -34,11 +34,11 @@ Bool cookPaths(
             " cube-count=" + character.cubeCount() +
             " clip-count=" + character.animationCount() +
             " keyframe-count=" + character.keyframeCount() +
-            " bytes=" + cooker.outputLength())
+            " bytes=" + kooker.outputLength())
         return true
     }
     if (kind == "png") {
-        var image = cooker.png()
+        var image = kooker.png()
         println("cooked kind=" + result.sourceKind() +
             " source=" + result.sourceChecksum() +
             " pixels=" + result.materialChecksum() +
@@ -49,11 +49,11 @@ Bool cookPaths(
             " color-type=" + image.sourceColorType() +
             " palette=" + image.paletteCount() +
             " idat-count=" + image.idatCount() +
-            " bytes=" + cooker.outputLength())
+            " bytes=" + kooker.outputLength())
         return true
     }
     if (kind == "wav") {
-        var audio = cooker.wav()
+        var audio = kooker.wav()
         println("cooked kind=" + result.sourceKind() +
             " source=" + result.sourceChecksum() +
             " samples=" + result.materialChecksum() +
@@ -64,7 +64,7 @@ Bool cookPaths(
             " source-bits=" + audio.sourceBits() +
             " frames=" + audio.frameCount() +
             " duration-ms=" + audio.durationMillis() +
-            " bytes=" + cooker.outputLength())
+            " bytes=" + kooker.outputLength())
         return true
     }
     println("cooked kind=" + result.sourceKind() +
@@ -76,7 +76,7 @@ Bool cookPaths(
         " visibility=" + result.visibilityChecksum() +
         " primary=" + result.primaryCount() +
         " secondary=" + result.secondaryCount() +
-        " bytes=" + cooker.outputLength())
+        " bytes=" + kooker.outputLength())
     return true
 }
 
@@ -97,7 +97,7 @@ Bool cookCommand(List<String> args, Int offset) {
 }
 
 Bool nativeCookCommand() {
-    var marker = File(".kookie-cooker-native-kind").readRange(0, 2)
+    var marker = File(".kooker-native-kind").readRange(0, 2)
     if (marker.length != 1) { return printUsage() }
     var kind = ""
     if (marker[0] == 49) {

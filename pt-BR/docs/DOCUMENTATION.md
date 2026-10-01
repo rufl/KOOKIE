@@ -9,7 +9,7 @@
 
 O README da raiz é a página inicial.
 [Execução e empacotamento](RUNNING_AND_PACKAGING.md) reúne comandos de
-desenvolvimento, release, cooker e qualificação. O
+desenvolvimento, release, kooker e qualificação. O
 [CHANGELOG](../../pt-BR/CHANGELOG.md) é o histórico curto e humano;
 [MEMORY](../../pt-BR/MEMORY.md) é a nota para retomar o trabalho;
 `CONTRIBUTING.md` define o gate de verificação. A sequência G0 limitada e ativa

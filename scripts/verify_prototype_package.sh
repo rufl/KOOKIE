@@ -93,9 +93,9 @@ assert "KOOKIE G1 authoritative shooter verified" in text
 print("prototype package runtime=ok")
 PY
 
-"$PACKAGE_ROOT/kookie-cooker" cook png \
+"$PACKAGE_ROOT/kooker" cook png \
   "$PACKAGE_ROOT/content/prototype/runtime/vfx/particles/circle_01_a.png" \
   "$WORK_DIR/cooked-circle.rgba.png" >/dev/null
 cmp -- "$WORK_DIR/cooked-circle.rgba.png" \
   "$PACKAGE_ROOT/content/prototype/cooked/vfx/particles/circle_01_a.rgba.png"
-printf 'prototype package: signed archive, content provenance, runtime launch, and packaged cooker passed\n'
+printf 'prototype package: signed archive, content provenance, runtime launch, and packaged kooker passed\n'

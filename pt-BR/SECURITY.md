@@ -22,7 +22,7 @@ corromper estado durável ou executar entrada não confiável.
 Inclua, quando disponível:
 
 - o commit ou tag de release afetado e a plataforma alvo;
-- a fronteira envolvida: transporte, parser/cooker, pacote, save/replay,
+- a fronteira envolvida: transporte, parser/kooker, pacote, save/replay,
   assinatura/procedência ou dependência incluída;
 - o impacto e a menor entrada ou sequência reproduzível;
 - logs focados sem credenciais, chaves de transporte nem dados privados da

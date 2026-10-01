@@ -39,7 +39,7 @@ org.bytedeco.javacpp.BytePointer
 
 It calls `InitWindow`, `SetTargetFPS(24)`, input/cursor polling, `DrawRectangle`, `DrawText`, `BeginDrawing`, `EndDrawing`, `CloseWindow`. The column renderer is implemented through those drawing primitives.
 
-[`scripts/run-raylib.sh`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/scripts/run-raylib.sh) pins `uk.co.electronstudio.jaylib:jaylib:5.5.0-2`, builds with `--target=jvm --classpath`, then invokes Java with compiled classes and Jaylib on the classpath. [`DEPENDENCIES.md`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/DEPENDENCIES.md) identifies JNI Jaylib, not Jaylib-FFM.
+[`scripts/run-raylib.sh`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/scripts/run-raylib.sh) pins `uk.co.electronkutter.jaylib:jaylib:5.5.0-2`, builds with `--target=jvm --classpath`, then invokes Java with compiled classes and Jaylib on the classpath. [`DEPENDENCIES.md`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/DEPENDENCIES.md) identifies JNI Jaylib, not Jaylib-FFM.
 
 **Conclusion:** a native OS window backed by raylib, but the Kof code executes on the JVM. This is not `--target native` evidence.
 

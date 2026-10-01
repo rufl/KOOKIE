@@ -17,7 +17,7 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
   shape-distinct connection glyph, active/reserve encounter load, a
   focus-responsive crosshair, hit/kill markers, edge damage warnings,
   inventory/equipment/skill/world-loot state, shape-distinct elite/boss cues
-  and a creator source→validation→publication rail. Feedback expires by
+  and a kutter source→validation→publication rail. Feedback expires by
   simulation tick and rejects duplicate event sequences. The native SDL_GPU
   bridge owns persistent scene buffers and a 16-color semantic palette;
   no-per-frame-growth proof remains bounded to unchanged staging capacities.
@@ -43,11 +43,11 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
   through loopback and same-host JVM/native external processes; save section 12
   preserves drops and reward claims. Separate-host execution remains unproven.
 - G4 is complete for its bounded contract. Typed hook subscriptions cover
-  session/player/enemy/loot/editor publication; the cooker admits the documented
+  session/player/enemy/loot/editor publication; the kooker admits the documented
   GLB, Dust3D, Aseprite, VOX, convex brush, Blockbench 5.0, PNG and PCM WAVE
   subsets through the developer JVM CLI and packaged Linux native intake CLI;
   `.kpkg` reload validates candidate package/registry state before swap; the
-  Creator workspace provides inspection, edits, play-in-editor and bounded
+  Kutter workspace provides inspection, edits, play-in-editor and bounded
   undo/redo; and GPU products activate at a frame boundary only after their
   upload fence. An 18-word offer and 7-word response transport the exact
   13-word compatibility identity through authenticated remote-role transport
@@ -77,7 +77,7 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
 - Crash-durable save publication, multi-step migrations, checksummed
   identity-bound replay v3 and clean-tree Ed25519 release signing close bounded
   G5. Multi-machine/WAN and other hardware/OS performance remain unclaimed.
-- Linux archives now build the same Kof content-cooker entry point natively.
+- Linux archives now build the same Kof content-kooker entry point natively.
   Package smoke exercises PCM WAVE canonicalization, idempotent reopen,
   malformed-input rejection and a graphics-dependency denylist outside the
   checkout.
@@ -131,35 +131,35 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
 - Added exactly-once authoritative hook-command application to
   `LoopbackSession`; invalid recipients, unsupported commands and aggregate
   currency overflow preserve session state.
-- `G4CreatorDemo` now consumes its published module: a confirmed elite death
+- `G4KutterDemo` now consumes its published module: a confirmed elite death
   executes the bounty hook, emits a typed event and grants four currency above
   the definition-owned reward.
 
-### Prior creator-publication batch
+### Prior kutter-publication batch
 
 - Added `BoundedTrustedModuleRegistry`: at most 32 static hook declarations,
   each tied to a manifest capability/contribution, phase and bounded
   command/event budgets, sealed in dependency/load/priority order.
-- Added `BoundedCreatorPublication` and `BoundedContentCompatibility`: a
+- Added `BoundedKutterPublication` and `BoundedContentCompatibility`: a
   revision-checked transaction binds package, extension, hook, definition and
   four product checksums; a 13-word wire identity rejects API/network/content
   mismatches, and failed publication leaves the active generation intact.
-- Added `G4CreatorDemo`, a distinct two-player extension/definition-driven
+- Added `G4KutterDemo`, a distinct two-player extension/definition-driven
   elite encounter using public engine APIs. Its deterministic death publishes
   encounter, player-authority and world-loot state.
 - Extended the HUD to 372 fixed vertices with a structural
   source→validation→publication rail and separate success/failure marks.
-  Creator/threat staging now uses small fixed-coordinate helpers so native and
+  Kutter/threat staging now uses small fixed-coordinate helpers so native and
   JVM structural vertices remain exact. The full scene remains below the native
   512-vertex capacity at 486 vertices.
 - Existing `BoundedExtensionRegistry` and `BoundedEnemyDefinitionRegistry`
   remain the manifest and data-definition foundations used by G1, G3, the
-  external transport probe and the new creator transaction.
+  external transport probe and the new kutter transaction.
 - That batch's focused source gate was 77 JVM/native scenarios; Kof checks,
   lint and LSP passed. Isolated Wayland SDL_GPU presentation passed at 320×240
   with present capability `11`, an 11,270 µs draw and frame checksum
   `30,358,034`; visual review found no clipping or overlap in the
-  creator/threat panels. The full
+  kutter/threat panels. The full
   repository matrix was not run locally.
 
 ## Earlier batches
@@ -219,8 +219,8 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
   production bulk workload with the same ownership and amortization.
 - One Kof simulation thread; 60 Hz tick, independently interpolated rendering, four-step catch-up proposal.
 - Typed component arrays + generation IDs, true-3D capsule/BVH collision, one damage/death/reward authority.
-- Kof-owned renderer policy, content cooker, game UI and creator tooling; HLSL/GPU shader exception explicit.
-- Full looter/ARPG systems are milestone G3, not dropped after a boomer-shooter demonstration. Creator workflow is G4. See plan for exact scope/acceptance.
+- Kof-owned renderer policy, content kooker, game UI and kutter tooling; HLSL/GPU shader exception explicit.
+- Full looter/ARPG systems are milestone G3, not dropped after a boomer-shooter demonstration. Kutter workflow is G4. See plan for exact scope/acceptance.
 - No automatic JVM fallback, no hidden C gameplay engine, no editor fork prerequisite.
 
 ## Facts not to forget
@@ -278,7 +278,7 @@ management remains unimplemented.
     ABI: manifests declare versions, dependencies, capabilities, load order,
     migrations, network schema and provenance; contributions and elite/boss
     definitions fail closed before session start. G4 adds generation-bound
-    trusted hooks, deterministic cooker products and staged package/GPU reload.
+    trusted hooks, deterministic kooker products and staged package/GPU reload.
 33. Current native lowering can clobber a scalar `extern` result retained in a
     local across later calls; returning an `extern` Bool directly also reached
     `kof_unbox_bool` with an invalid value. Headless configuration and transport
@@ -311,7 +311,7 @@ With inspected compiler, source `web.sh` omits host and legacy handler serves on
 - Controller intent/jump policy, generation-safe handles, exact render-batch identities/order barriers and revision/neighbor-presence admission remain explicit contracts.
 - Item identity, atomic item/currency/RNG transactions, skill/status semantics, fixed-step input edges, render queue/spatial hash and staged live-edit publication remain explicit contracts.
 - Isolated SAT geometry, weapon/damage transition contracts, bounded AI search and sectioned saves remain explicit contracts.
-- Do **not** inherit endpoint-only “sweep,” waist-ray player collision, fixed tiny loot pools/silent drops, duplicate weapon authorities, raw ECS IDs in saves, event playback mislabeled deterministic replay, or corpus inspectors mislabeled map cookers.
+- Do **not** inherit endpoint-only “sweep,” waist-ray player collision, fixed tiny loot pools/silent drops, duplicate weapon authorities, raw ECS IDs in saves, event playback mislabeled deterministic replay, or corpus inspectors mislabeled map kookers.
 - Any copied or translated third-party code or assets require traceable provenance, a pinned source revision and license/notice review before distribution.
 - Minecraft: not a conventional archetype ECS. Borrow definition/instance separation, item override patches, validated codecs, extraction snapshots and audio voice lifecycles. Prioritize JOML/Brigadier MIT subsets, Artemis/Ashley storage contracts, owo layout and Flywheel instance lifecycles; see [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Recommended expansion set: SDL3/SDL_GPU; offline SDL_shadercross/DXC; optional OpenAL Soft when later HRTF/Doppler/EFX requirements exceed the implemented G2 SDL stereo path; SDL3_image for image decoding; FreeType/HarfBuzz for text services; zstd for cooked packages. Full boundaries, local availability, licenses and adoption gates are in [ENGINE_PLAN](docs/ENGINE_PLAN.md#recommended-library-set-2026-09-22).

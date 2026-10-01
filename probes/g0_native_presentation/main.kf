@@ -138,7 +138,7 @@ Bool serviceNetworkHandshake(GameShell shell) {
 
 class G1NativePresentation {
     G1Demo scenario
-    G4CreatorDemo creatorScenario
+    G4KutterDemo kutterScenario
     G1Arena arena
     LoopbackSession interactionSession
     ShooterHud hud
@@ -153,7 +153,7 @@ class G1NativePresentation {
 
     public constructor() {
         scenario = G1Demo()
-        creatorScenario = G4CreatorDemo()
+        kutterScenario = G4KutterDemo()
         arena = scenario.authoredArena()
         hud = scenario.shooterHud()
         camera = CameraState(-450, 450)
@@ -168,12 +168,12 @@ class G1NativePresentation {
     }
 
     Bool prepare() {
-        if (!scenario.run() || !creatorScenario.run() ||
-            !hud.updateCreatorPublication(
-                creatorScenario.publicationStatus(),
-                creatorScenario.publishedGeneration(),
-                creatorScenario.publicationDiagnostic(),
-                creatorScenario.completed()) ||
+        if (!scenario.run() || !kutterScenario.run() ||
+            !hud.updateKutterPublication(
+                kutterScenario.publicationStatus(),
+                kutterScenario.publishedGeneration(),
+                kutterScenario.publicationDiagnostic(),
+                kutterScenario.completed()) ||
             !camera.applyLook(20, -20) ||
             !interactionSession.defineWorldKey(1, 30, 0, 0, 0) ||
             !interactionSession.defineWorldDoor(
@@ -269,12 +269,12 @@ main() {
         "native scene must hold menu geometry")
     var reload = BoundedGpuReloadCoordinator()
     assert(reload.bindInitial(
-            1, shell.creator().worldChecksum(),
-            shell.creator().collisionChecksum(),
-            shell.creator().renderChecksum(),
+            1, shell.kutter().worldChecksum(),
+            shell.kutter().collisionChecksum(),
+            shell.kutter().renderChecksum(),
             shell.renderVertexCapacity(), 0) &&
         kookie_gpu_reload_active_generation() == 1,
-        "native GPU and creator reload generations must start aligned")
+        "native GPU and kutter reload generations must start aligned")
 
     var audio = kookie_audio_open()
     var appliedSettingsRevision = 0
@@ -292,7 +292,7 @@ main() {
             "authored arena and authoritative HUD must draw")
         frame = frame + 1
         assert(kookie_gpu_reload_stage(
-                2, shell.creator().renderChecksum()) &&
+                2, shell.kutter().renderChecksum()) &&
             kookie_gpu_scene_begin(3) &&
             kookie_gpu_scene_push_vertex(1, 0, 0, 0, 0) &&
             !kookie_gpu_scene_push_vertex(0, 0, 0, 0, 0) &&
@@ -308,10 +308,10 @@ main() {
             shell.handleAction(gameShellActionDown()) &&
             shell.handleAction(gameShellActionDown()) &&
             shell.handleAction(gameShellActionActivate()) &&
-            shell.screen() == gameShellScreenCreator() &&
+            shell.screen() == gameShellScreenKutter() &&
             shell.handleAction(gameShellActionActivate()) &&
-            shell.creator().generation() == 2,
-            "presentation smoke must enter creator and stage an inspector edit")
+            shell.kutter().generation() == 2,
+            "presentation smoke must enter kutter and stage an inspector edit")
     }
 
     var running = true
@@ -356,18 +356,18 @@ main() {
                 "display transaction must complete")
         }
 
-        if (shell.creator().generation() > reload.activeGeneration() &&
+        if (shell.kutter().generation() > reload.activeGeneration() &&
             reload.pendingGeneration() == 0) {
             assert(reload.stage(
-                    reload.activeGeneration(), shell.creator().generation(),
-                    shell.creator().worldChecksum(),
-                    shell.creator().collisionChecksum(),
-                    shell.creator().renderChecksum(),
+                    reload.activeGeneration(), shell.kutter().generation(),
+                    shell.kutter().worldChecksum(),
+                    shell.kutter().collisionChecksum(),
+                    shell.kutter().renderChecksum(),
                     shell.renderVertexCapacity()) &&
                 kookie_gpu_reload_stage(
-                    shell.creator().generation(),
-                    shell.creator().renderChecksum()),
-                "validated creator products must stage before GPU upload")
+                    shell.kutter().generation(),
+                    shell.kutter().renderChecksum()),
+                "validated kutter products must stage before GPU upload")
         }
 
         if (running && !shell.quitRequested()) {
@@ -385,7 +385,7 @@ main() {
                 assert(kookie_gpu_reload_pending_generation() == 0 &&
                     kookie_gpu_reload_active_generation() == activatedGeneration &&
                     kookie_gpu_reload_active_checksum() ==
-                        shell.creator().renderChecksum() &&
+                        shell.kutter().renderChecksum() &&
                     reload.markUploaded(activatedGeneration, completedFence) &&
                     reload.activateAtFrame(
                         activatedGeneration, frame, completedFence) &&
@@ -393,7 +393,7 @@ main() {
                         reload.retiringGeneration() &&
                     reload.retire(completedFence),
                     "GPU fence completion must activate and retire whole generations")
-                println("KOOKIE G4 GPU-safe creator reload verified")
+                println("KOOKIE G4 GPU-safe kutter reload verified")
             }
             frame = frame + 1
         }
@@ -421,7 +421,7 @@ main() {
                     "bounded PCM silence must queue")
                 println("audio-open")
             }
-            println("KOOKIE native creator screen verified")
+            println("KOOKIE native kutter screen verified")
             println("gpu-open")
             running = false
         }

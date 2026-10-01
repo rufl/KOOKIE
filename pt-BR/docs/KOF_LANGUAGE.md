@@ -103,7 +103,7 @@ Fontes: [tipos](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef
 
 Uma unidade de código-fonte pode declarar `package sim`; `import sim` pode expandir o diretório correspondente à raiz do módulo. Importações de tipos específicos e importações de diretórios/pacotes têm regras de qualificação diferentes. Não presuma a semântica de curingas do Java nem importações com alias.
 
-**Medido:** um arquivo de entrada que importava `sim/combat.kf` foi executado em ambos os alvos e imprimiu `20`. **Também medido:** `kof run file.kf` coletou arquivos de entrada irmãos e rejeitou três funções `main()` (`PKG002`). Coloque jogo, cooker, testes e demos em raízes de entrada separadas; scripts que combinam fontes não são a arquitetura modular padrão.
+**Medido:** um arquivo de entrada que importava `sim/combat.kf` foi executado em ambos os alvos e imprimiu `20`. **Também medido:** `kof run file.kf` coletou arquivos de entrada irmãos e rejeitou três funções `main()` (`PKG002`). Coloque jogo, kooker, testes e demos em raízes de entrada separadas; scripts que combinam fontes não são a arquitetura modular padrão.
 
 Comandos da CLI de lançamento:
 

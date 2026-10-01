@@ -72,10 +72,10 @@ PERSISTENCE_ADAPTER="$PACKAGE_ROOT/lib/libkookie_persistence_adapter.so"
 SIMD_BENCHMARK="$PACKAGE_ROOT/kookie-simd-bench"
 SIMD_BINARY="$PACKAGE_ROOT/kookie-simd-bench.bin"
 SIMD_LIBRARY="$PACKAGE_ROOT/lib/libkookie_simd_dispatch.so"
-COOKER="$PACKAGE_ROOT/kookie-cooker"
-COOKER_BINARY="$PACKAGE_ROOT/kookie-cooker.bin"
+KOOKER="$PACKAGE_ROOT/kooker"
+KOOKER_BINARY="$PACKAGE_ROOT/kooker.bin"
 test -x "$SERVER" -a -x "$SERVER_BINARY"
-test -x "$COOKER" -a -x "$COOKER_BINARY"
+test -x "$KOOKER" -a -x "$KOOKER_BINARY"
 test -x "$SIMD_BENCHMARK" -a -x "$SIMD_BINARY"
 test -f "$HEADLESS_ADAPTER" -a -f "$PERSISTENCE_ADAPTER" -a \
   -f "$SIMD_LIBRARY"
@@ -99,7 +99,7 @@ grep -Fq 'replay_admission=identity-bound-checksummed-v3' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'simd_benchmark=kof-buffer-u8-runtime-dispatch' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
-grep -Fq 'content_cooker=native-bounded-intake-cli' \
+grep -Fq 'content_kooker=native-bounded-intake-cli' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 SERVER_LOG="$WORK_DIR/server.log"
 KOOKIE_SERVER_WARMUP_TICKS=64 \
@@ -156,20 +156,20 @@ body = b"WAVE" + chunks
 pathlib.Path(sys.argv[1]).write_bytes(
     b"RIFF" + struct.pack("<I", len(body)) + body)
 PY
-COOKER_LOG="$WORK_DIR/cooker.log"
-if ! "$COOKER" cook wav "$WAV_SOURCE" "$WAV_COOKED" \
-   >"$COOKER_LOG" 2>&1; then
-  cat "$COOKER_LOG" >&2
-  echo 'package smoke: native cooker rejected valid PCM WAVE' >&2
+KOOKER_LOG="$WORK_DIR/kooker.log"
+if ! "$KOOKER" cook wav "$WAV_SOURCE" "$WAV_COOKED" \
+   >"$KOOKER_LOG" 2>&1; then
+  cat "$KOOKER_LOG" >&2
+  echo 'package smoke: native kooker rejected valid PCM WAVE' >&2
   exit 1
 fi
-grep -Fq 'cooked kind=8' "$COOKER_LOG"
+grep -Fq 'cooked kind=8' "$KOOKER_LOG"
 grep -Fq 'sample-rate=48000 channels=2 source-bits=16 frames=2' \
-  "$COOKER_LOG"
-if ! "$COOKER" cook wav "$WAV_COOKED" "$WAV_REOPENED" \
-   >"$WORK_DIR/cooker-reopen.log" 2>&1; then
-  cat "$WORK_DIR/cooker-reopen.log" >&2
-  echo 'package smoke: native cooker rejected its canonical PCM WAVE' >&2
+  "$KOOKER_LOG"
+if ! "$KOOKER" cook wav "$WAV_COOKED" "$WAV_REOPENED" \
+   >"$WORK_DIR/kooker-reopen.log" 2>&1; then
+  cat "$WORK_DIR/kooker-reopen.log" >&2
+  echo 'package smoke: native kooker rejected its canonical PCM WAVE' >&2
   exit 1
 fi
 cmp "$WAV_COOKED" "$WAV_REOPENED"
@@ -187,15 +187,15 @@ assert struct.unpack_from("<HHIIHH", payload, 20) == (
 assert struct.unpack_from("<hhhh", payload, 44) == (-32768, -1, 0, 32767)
 PY
 printf 'RIFF' >"$WORK_DIR/invalid.wav"
-if "$COOKER" cook wav "$WORK_DIR/invalid.wav" "$WORK_DIR/rejected.wav" \
-   >"$WORK_DIR/cooker-invalid.log" 2>&1; then
-  echo 'package smoke: native cooker accepted a truncated WAV' >&2
+if "$KOOKER" cook wav "$WORK_DIR/invalid.wav" "$WORK_DIR/rejected.wav" \
+   >"$WORK_DIR/kooker-invalid.log" 2>&1; then
+  echo 'package smoke: native kooker accepted a truncated WAV' >&2
   exit 1
 fi
 grep -Fq 'cook-rejected diagnostic=3 source=1' \
-  "$WORK_DIR/cooker-invalid.log"
+  "$WORK_DIR/kooker-invalid.log"
 for headless_binary in \
-  "$SERVER_BINARY" "$HEADLESS_ADAPTER" "$PERSISTENCE_ADAPTER" "$COOKER_BINARY" \
+  "$SERVER_BINARY" "$HEADLESS_ADAPTER" "$PERSISTENCE_ADAPTER" "$KOOKER_BINARY" \
   "$SIMD_BINARY" "$SIMD_LIBRARY"; do
   if ldd "$headless_binary" 2>/dev/null | grep -Eq 'SDL|Vulkan|X11|Wayland'; then
     echo 'package smoke: headless component acquired a graphics dependency' >&2
@@ -319,7 +319,7 @@ for index in range(0, len(arguments), 2):
     assert manifest["checksums_signature"] == "SHA256SUMS.sig"
     assert manifest["dedicated_server"] is True
     assert manifest["simd_benchmark"] is True
-    assert manifest["content_cooker"] is True
+    assert manifest["content_kooker"] is True
     release_root = (
         "https://github.com/rufl/KOOKIE/releases/download/"
         + manifest["version"])

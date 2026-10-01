@@ -1,0 +1,46 @@
+import ui
+
+main() {
+    var kutter = BoundedKutter(16, 8)
+    assert(kutter.configure(4, 1001, 7) &&
+        kutter.addNode(10, 0, kutterModeWorld(), 100, 200, 300, 45, 1000) &&
+        kutter.addNode(20, 10, kutterModeEntity(), -5, 6, 7, 90, 1250) &&
+        kutter.addAsset(501, 1, 2, 712345, 3) &&
+        kutter.seal(),
+        "Kutter must seal bounded hierarchy, transforms, and assets")
+    var checksum = kutter.checksum()
+    var path = "build/kutter.kkutter"
+    assert(kutter.save(path), "Kutter must persist canonical binary state")
+
+    var reopened = BoundedKutter(16, 8)
+    assert(reopened.load(path) && reopened.checksum() == checksum &&
+        reopened.nodeCount() == 2 && reopened.nodeParent(1) == 10 &&
+        reopened.nodeXValue(1) == -5 && reopened.nodeScaleValue(1) == 1250 &&
+        reopened.assetCount() == 1 && reopened.assetStatus(0) == 2,
+        "Kutter must reopen hierarchy and asset registry deterministically")
+
+    var badBytes = File(path).readRange(0, 100000)
+    assert(badBytes.length > 0, "Kutter package bytes must be readable")
+    badBytes[badBytes.length - 1] = (badBytes[badBytes.length - 1] ^ 1) as Int
+    var badPath = "build/kutter_bad.kkutter"
+    assert(File(badPath).writeBytes(badBytes),
+        "Kutter tamper fixture must be writable")
+    assert(!reopened.load(badPath) && reopened.checksum() == checksum &&
+        reopened.nodeCount() == 2,
+        "failed Kutter open must preserve active project")
+
+    var workspace = BoundedKutterWorkspace()
+    assert(workspace.begin(1) && workspace.stageEntity(7, 11, 22, 33) &&
+        workspace.stageAsset(501) && workspace.publish(),
+        "workspace transaction must publish before Kutter capture")
+    var captured = BoundedKutter(16, 8)
+    assert(captured.captureWorkspace(workspace) && captured.nodeCount() == 1 &&
+        captured.nodeXValue(0) == 11 && captured.assetId(0) == 501,
+        "Kutter must capture the existing bounded kutter workspace")
+
+    println("KOOKIE G6 persistent Kutter verified")
+    println("kutter-checksum=" + checksum)
+    println("kutter-nodes=" + reopened.nodeCount())
+    println("kutter-assets=" + reopened.assetCount())
+    println("kutter-capture-generation=" + captured.generation())
+}

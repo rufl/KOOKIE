@@ -30,7 +30,7 @@ Fronteira não-Kof permitida, mantida pequena e passível de revisão:
 1. Bibliotecas externas de plataforma/GPU/áudio/codec não modificadas, inicialmente SDL3.
 2. Marshalling da ABI C que Kof atualmente não consegue expressar: handles nativos, uniões de structs/eventos, ponteiros, transferência de buffers e configuração/desmontagem de bibliotecas. Nenhum algoritmo de gameplay ou de cena.
 3. Código-fonte/binários de shaders de GPU: Kof atualmente não fornece um destino geral de shaders gráficos com suporte. HLSL/SPIR-V e variantes de backend geradas são uma exceção gráfica explícita, não código de engine de CPU oculto em outro lugar.
-4. Ferramentas externas de compilação/linkedição/shaders e glue declarativo mínimo de build/bootstrap. O comportamento do cooker/editor pertencente ao KOOKIE continua sendo Kof, não aplicações em Python/JS/Zig/Rust.
+4. Ferramentas externas de compilação/linkedição/shaders e glue declarativo mínimo de build/bootstrap. O comportamento do kooker/editor pertencente ao KOOKIE continua sendo Kof, não aplicações em Python/JS/Zig/Rust.
 
 O compilador/runtime existente do Kof é uma dependência de ferramenta upstream escrita parcialmente em Java/assembly. Corrigir um defeito do compilador upstream é diferente de mover o gameplay do KOOKIE para Java. Qualquer alteração mantida no compilador deve ser fixada, documentada e enviada ao upstream quando for prático.
 
@@ -92,7 +92,7 @@ todos os candidatos ao G0.
 | Plataforma e gráficos | **SDL3 + SDL_GPU** | Uma única stack de janela/entrada/gamepad/GPU; 3D e compute. Kof possui a extração, o culling, o agrupamento e os passes. Licença zlib. Mantenha Sokol como alternativa somente se o spike de GPU/ABI falhar |
 | Compilação de shaders | **SDL_shadercross + DXC**, SPIRV-Cross e SPIRV-Tools conforme exigido pelo build | HLSL → SPIR-V offline para Linux; refletir layouts de recursos. Ferramentas de build, não compiladores de shaders obrigatórios no runtime distribuído. O ShaderC instalado sozinho não é o pipeline HLSL selecionado |
 | Áudio | **SDL_mixer 3.2.4** | Uma única autoridade zlib de mixagem, com streams separados de efeitos/música e política Kof de cues, ganho e espacialização. Backends opcionais de codecs ficam desabilitados/não empacotados; streams PCM não exigem decoder |
-| Decodificação de imagens | **Cooker PNG pertencente ao Kof**, depois **SDL3_image** somente para um serviço de pixels no runtime | O cooker atual valida, decodifica e torna canônico o subconjunto PNG limitado por conta própria. Uma futura fronteira SDL3_image pode decodificar PNG canônico admitido para upload; ela não controla admissão da fonte, decisões de espaço de cor/material nem cooking. Biblioteca zlib; dependências opcionais de codecs têm avisos separados |
+| Decodificação de imagens | **Kooker PNG pertencente ao Kof**, depois **SDL3_image** somente para um serviço de pixels no runtime | O kooker atual valida, decodifica e torna canônico o subconjunto PNG limitado por conta própria. Uma futura fronteira SDL3_image pode decodificar PNG canônico admitido para upload; ela não controla admissão da fonte, decisões de espaço de cor/material nem cooking. Biblioteca zlib; dependências opcionais de codecs têm avisos separados |
 | Renderização de texto | **FreeType**, depois **HarfBuzz** ao implementar texto com shaping | Apenas serviços de rasterização e shaping. Kof possui os widgets, o layout, o foco e a política de cache de glifos. Fallback de fontes, bidi/quebra de linhas, IME e acessibilidade não são resolvidos simplesmente vinculando essas bibliotecas |
 | Compressão de pacotes | **Zstandard (`libzstd`)** | Adicionar no estágio de pacote cozido, não por frame. Use blocos limitados e endereçáveis independentemente, comprimentos decodificados declarados e limites do decodificador; compressão não é integridade/autenticação. Opção de licença BSD |
 
@@ -115,7 +115,7 @@ glTF/mapas de brush, Dust3D, LibreSprite e MagicaVoxel; UI do jogador e lógica
 de autoria. Não adicione um ECS estrangeiro nem chame uma biblioteca C de
 matemática uma vez por operação vetorial. GLB é o resultado canônico de
 intercâmbio 3D, enquanto a entrada de formatos-fonte continua sendo uma
-preocupação do cooker validado; o gate nativo de JSON permanece.
+preocupação do kooker validado; o gate nativo de JSON permanece.
 
 **Alternativas de alto valor que exigem uma decisão de propriedade:**
 
@@ -209,7 +209,7 @@ buffer.
 
 Para payloads de assets em massa, uma cópia de intervalo de arquivo para
 staging pode evitar FFI por byte **somente** quando Kof validou/preparou o
-formato, offset e tamanho; o adaptador não pode se tornar um parser/cooker de
+formato, offset e tamanho; o adaptador não pode se tornar um parser/kooker de
 assets. Pequenas sondas de `File.writeBytes/readBytes/readRange` preservaram
 bytes zero/de bit alto na JVM/nativo. O renderer implementado agora envia uma
 cena fixa de 486 vértices de arena/porta/HUD por chamadas escalares verificadas
@@ -290,9 +290,9 @@ core
  └─ UI snapshots ── ui
 ```
 
-Os módulos `render`, `audio` e `ui` consomem snapshots somente leitura do mundo e eventos. Eles nunca mutam o estado autoritativo da simulação. `editor` e `cooker` usam os mesmos contratos de consulta de conteúdo/mundo, mas publicam alterações por meio de transações verificadas por revisão. `platform` é um módulo adaptador, não um módulo de simulação.
+Os módulos `render`, `audio` e `ui` consomem snapshots somente leitura do mundo e eventos. Eles nunca mutam o estado autoritativo da simulação. `editor` e `kooker` usam os mesmos contratos de consulta de conteúdo/mundo, mas publicam alterações por meio de transações verificadas por revisão. `platform` é um módulo adaptador, não um módulo de simulação.
 
-Os módulos são, antes de tudo, limites de código-fonte/build, não binários carregados independentemente. Cada módulo expõe contratos pequenos e orientados a dados e mantém os auxiliares de implementação privados por convenção. A raiz da aplicação compõe módulos para os pontos de entrada do jogador, do cooker e do studio. Carregamento dinâmico, callbacks arbitrários, service locators e uma ABI pública de plugin ficam adiados até que dois consumidores reais comprovem uma necessidade.
+Os módulos são, antes de tudo, limites de código-fonte/build, não binários carregados independentemente. Cada módulo expõe contratos pequenos e orientados a dados e mantém os auxiliares de implementação privados por convenção. A raiz da aplicação compõe módulos para os pontos de entrada do jogador, do kooker e do kutter. Carregamento dinâmico, callbacks arbitrários, service locators e uma ABI pública de plugin ficam adiados até que dois consumidores reais comprovem uma necessidade.
 
 Isso é preferível aos dois extremos:
 
@@ -342,7 +342,7 @@ capacidade, conteúdo inválido e capacidades ausentes falham de modo seguro,
 com um diagnóstico acionável.
 
 O primeiro SDK de extensão distribuído deve usar módulos `.kf` confiáveis
-compilados estaticamente no player/cooker/studio. Esse continua sendo o caminho
+compilados estaticamente no player/kooker/kutter. Esse continua sendo o caminho
 amplo mais seguro diante das limitações nativas atuais do Kof. A camada sem
 recompilação `BoundedKofScriptProgram` implementada é deliberadamente mais
 estreita: bytecode somente para a frente recebe campos copiados de eventos de
@@ -505,7 +505,7 @@ Renderizador inicial: renderização forward opaca/mascarada, buffer de profundi
 - Estilos de baixa resolução/pixelados, de paleta/iluminação limitada e modernos mais limpos são perfis de material/pós-processamento, não simuladores de mundo alternativos.
 - Convenção única de coordenadas: metros, Y para cima, mundo destro, câmera apontando para -Z. Construa conversão explícita de projeção/clipping para a convenção documentada de clipping/profundidade do SDL_GPU; não transponha/inverta de forma ad hoc. Valide juntos a orientação de culling, normais, orientação, intervalo de profundidade e origem das texturas.
 - Fontes de shader em HLSL, SPIR-V offline para a primeira plataforma; fixe o SDL_shadercross e faça reflexão/validação das ligações de vértice/uniformes. Produtos adicionais de shader para backends somente quando o alvo correspondente for exercitado.
-- Primeiro caminho de animação: sprite/billboard ou malha rígida; depois avaliação do estado/interpolação de animação do Kof e da pose esquelética, shader de skinning na GPU. A admissão de pose de referência/índice/peso permanece no cooker. Nenhum parsing de assets por quadro.
+- Primeiro caminho de animação: sprite/billboard ou malha rígida; depois avaliação do estado/interpolação de animação do Kof e da pose esquelética, shader de skinning na GPU. A admissão de pose de referência/índice/peso permanece no kooker. Nenhum parsing de assets por quadro.
 - A lógica e o layout de HUD/menu/inventário/sobreposição de depuração são `.kf`, renderizados pelo engine. A rasterização externa de texto/fontes pode ser uma dependência estreita de biblioteca; não comece com um editor/runtime de UI completo baseado em webview.
 
 Alvos como FOV do viewmodel, recuo/balanço, clarões de boca do cano, feedback de acerto, cores de raridade legíveis e ícones de status são recursos do engine, não motivos para colocar a lógica de apresentação no adaptador C.
@@ -546,7 +546,7 @@ Primeiro, navegação com waypoints/portais criados manualmente; depois, um pipe
 
 ### Pipeline de conteúdo
 
-Fontes editáveis → **Kof cooker** → pacote versionado da engine → carregamento validado em tempo de execução.
+Fontes editáveis → **Kof kooker** → pacote versionado da engine → carregamento validado em tempo de execução.
 
 Formatos de fonte iniciais: manifesto do projeto e definições de
 entidades/encontros/itens em dados estruturados legíveis; malhas
@@ -563,7 +563,7 @@ cena/loot/colisão.
 
 ### Compatibilidade de entrada de assets externos
 
-Os cookers limitados calculam checksum de cada fonte admitida e normalizam os
+Os kookers limitados calculam checksum de cada fonte admitida e normalizam os
 dados aceitos para o contrato canônico de produtos/pacotes. Reter o arquivo
 original e um recibo completo de ferramenta/versão continua sendo reforço
 obrigatório de proveniência do pacote:
@@ -609,7 +609,7 @@ documentado por [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV).
 Para autoria de boomer-shooter, adicione um subconjunto textual de brushes no estilo
 Quake, `.map`: recorte/triangulação de planos de brushes convexos, tradução de
 entidades/propriedades, mapeamento de materiais e colisão/visibilidade derivadas.
-TrenchBroom pode ser uma ferramenta externa de autoria; nosso cooker `.kf` continua
+TrenchBroom pode ser uma ferramenta externa de autoria; nosso kooker `.kf` continua
 sendo a autoridade de importação. Isso **não** promete compatibilidade com
 WAD/BSP/QuakeC/source ports. Mapas-fonte não são assets dos jogos originais
 distribuídos.
@@ -629,10 +629,10 @@ palavras vincula engine/API/schema de rede e todo checksum de conteúdo.
 Transações obsoletas, incompletas, divergentes ou inválidas preservam a geração
 anterior.
 
-`BoundedSourceCooker` admite os subconjuntos documentados de GLB indexado,
+`BoundedSourceKooker` admite os subconjuntos documentados de GLB indexado,
 Dust3D/Aseprite/VOX, mapas de brushes convexos, personagens Blockbench 5.0, PNG
 e WAVE PCM sob limites explícitos de tamanho/quantidade/chunks/profundidade/
-duração. `scripts/kookie_cooker.sh` fornece comandos JVM de desenvolvimento
+duração. `scripts/kooker.sh` fornece comandos JVM de desenvolvimento
 `cook`, `package`, `inspect-package` e `validate-package`. Os arquivos Linux
 também contêm um runner nativo para o mesmo caminho Kof de `cook`; operações de
 pacote continuam exclusivas da JVM. O leitor de pacotes valida campos
@@ -650,10 +650,10 @@ geração publicada, exige sequência/fases monotônicas dos eventos e verifica
 orçamentos por hook e capacidade global antes de emitir comandos/eventos
 limitados. `LoopbackSession` aplica cada comando aceito de concessão de moeda
 exatamente uma vez após validar destinatário e overflow agregado.
-`G4CreatorDemo` exercita a recompensa após a morte autoritativa da elite; isso é
+`G4KutterDemo` exercita a recompensa após a morte autoritativa da elite; isso é
 execução estática confiável, não callback arbitrário nem sandbox.
 
-`BoundedCreatorWorkspace` fornece transações verificadas por revisão para
+`BoundedKutterWorkspace` fornece transações verificadas por revisão para
 mundo/entidade/arma/loot, inspeção de colisão/IA, edições pelo console,
 play-in-editor e undo/redo limitado, publicando juntos
 geometria/colisão/navegação/render. O adaptador nativo prepara uma cena candidata
@@ -671,7 +671,7 @@ de protocolo restrito ao mesmo processo.
 
 O JSON nativo de registros mistos Int/Double/String falhou no round-trip medido,
 incluindo valores numéricos/string corrompidos; getters diretos de registros
-passaram. O `.kpkg`, a geometria canônica e as saídas do cooker implementadas
+passaram. O `.kpkg`, a geometria canônica e as saídas do kooker implementadas
 usam, portanto, layouts binários/inteiros explícitos e limitados. Antes de
 adotar JSON nativo para definições, glTF ou saves, exija reparo do
 compilador/runtime e prova por schema de round-trip, entrada malformada e
@@ -680,7 +680,7 @@ limites. Não trunque floats nem mova semântica de conteúdo para o adaptador.
 O código-fonte atual rejeita `process.run`/`process.spawn` nativos com `PROC001`.
 Portanto, ferramentas externas de shaders/conversão precisam da orquestração mínima
 de build permitida ou de uma capacidade de plataforma comprovada separadamente; o
-cooker `.kf` nativo não pode presumir que os exemplos de processos do curso
+kooker `.kf` nativo não pode presumir que os exemplos de processos do curso
 funcionem. Ele ainda é responsável pelas decisões de validação e compilação de
 conteúdo.
 
@@ -730,7 +730,7 @@ src/
   content/       schemas, validation, package readers, migrations
   extensions/    manifests, registries, capabilities, public API adapters
   ui/            HUD, menus, inventory, debug/authoring views
-apps/            player host/client, dedicated server, cooker, studio
+apps/            player host/client, dedicated server, kooker, kutter
 samples/         boomer arena and looter/ARPG encounter projects
 native/          only indispensable ABI/library adaptation
 shaders/         GPU-only source and generated backend products
@@ -751,9 +751,9 @@ Nenhuma promessa de calendário; cada marco possui evidências executáveis. Um 
 | **G1 — Base do shooter autoritativo** | IDs/arrays de componentes, tick do servidor a 60 Hz, comandos de entrada do cliente, mundos de servidor/cliente em loopback, baseline de snapshot, cápsula/BVH, câmera, renderizador/HUD, uma arma/inimigo | O modo para um jogador conclui uma sessão real servidor→loopback→cliente. A predição/reconciliação do cliente é observável. Um segundo cliente pode ser admitido pelo mesmo harness de protocolo. A arena 3D real criada suporta inclinações/escadas/salas empilhadas; a perda de foco não pode manter o disparo/movimento preso. Nenhum crescimento de pool por frame |
 | **G2 — Fatia de boomer-shooter em LAN** | Adaptador de transporte LAN, hitscan/projétil/escopeta, várias funções de inimigos, portas/chaves/segredos, feedback/áudio, definições de encontros, tratamento de entrada/saída | O host e pelo menos dois clientes concluem início→luta→chave/porta→segredo→saída pela LAN. O servidor controla dano/morte/recompensas. Desconexão/reconexão e entrada obsoleta são limitadas e diagnosticadas. Os perfis de movimento continuam ajustáveis sem alterações no renderizador |
 | **G3 — Fatia de looter / ARPG** | Itens/afixos gerados, inventário/equipamento, XP/habilidades/efeitos de status, elites/chefes, salvamentos autoritativos, registros de extensões e esquemas replicados | Multiplayer conclui eliminação→drop gerado→coleta/equipamento→mudança observável de atributo/habilidade→recompensa de chefe→salvar/recarregar. O inventário cheio não pode perder item/moeda/RNG. A mesma seed/conteúdo produz o mesmo resultado no servidor. Os clientes não podem criar dano, itens, moeda ou progressão |
-| **G4 — Pipeline de criação e extensão** | Kof cooker, formatos de malha/brush compatíveis, validação de pacotes, manifestos de modificação de dados, módulos de extensão Kof confiáveis, inspetor/editores, recarregamento em etapas | Um segundo jogo multiplayer distinto é construído a partir de definições/extensões sem editar o código do núcleo do mecanismo. Servidor/cliente rejeitam manifestos incompatíveis de pacote/API/mod. Conteúdo inválido deixa o mundo em execução anterior intacto; as revisões de geometria/colisão/navegação/replicação permanecem alinhadas |
+| **G4 — Pipeline de criação e extensão** | Kof kooker, formatos de malha/brush compatíveis, validação de pacotes, manifestos de modificação de dados, módulos de extensão Kof confiáveis, inspetor/editores, recarregamento em etapas | Um segundo jogo multiplayer distinto é construído a partir de definições/extensões sem editar o código do núcleo do mecanismo. Servidor/cliente rejeitam manifestos incompatíveis de pacote/API/mod. Conteúdo inválido deixa o mundo em execução anterior intacto; as revisões de geometria/colisão/navegação/replicação permanecem alinhadas |
 | **G5 — Escala e lançamento** | Orçamentos de IA, batching/instancing, animação, streaming apenas quando necessário, servidor dedicado headless, migrações/reprodução, reforço de reconexão/admissão, empacotamento/avisos | A carga de trabalho de referência em LAN atende aos orçamentos declarados; o servidor dedicado é executado sem gráficos; as contagens de memória/recursos estabilizam; o pacote é executado fora do checkout do código-fonte; a recuperação de reconexão/sessão e a compatibilidade de extensões são comprovadas |
-| **G6 — Expansão** | SO/backend/arquitetura adicionais, jobs seguros, transporte WAN, editor mais completo, extensões em runtime isoladas | Jobs limitados, ativação de KofScript em pacote/sessão, Studio persistente, WAN limitado e pacote Windows SDL têm probes focados; nenhuma alegação geral de portabilidade, segurança WAN, gameplay PE ou sandbox é inferida |
+| **G6 — Expansão** | SO/backend/arquitetura adicionais, jobs seguros, transporte WAN, editor mais completo, extensões em runtime isoladas | Jobs limitados, ativação de KofScript em pacote/sessão, Kutter persistente, WAN limitado e pacote Windows SDL têm probes focados; nenhuma alegação geral de portabilidade, segurança WAN, gameplay PE ou sandbox é inferida |
 
 A evidência de G0 está em [G0_BACKLOG](G0_BACKLOG.md): viabilidade
 nativa/de sessão, apresentação isolada em janela e execução LAN externa
@@ -814,9 +814,9 @@ contratos de recompensa. Schemas com checksum preservam inventário completo e
 identidade do RNG; os tipos `7`/`8` atravessam processos autenticados na mesma
 máquina com host mais dois clientes na JVM e no nativo; essa qualificação dos
 tipos G3 continua na mesma máquina. G4 agora adiciona assinaturas tipadas de
-eventos de domínio; cooker limitado de GLB/Dust3D/Aseprite/VOX/brush e CLI de
+eventos de domínio; kooker limitado de GLB/Dust3D/Aseprite/VOX/brush e CLI de
 arquivos; carga validada de pacotes/registros externos; inspeção/edição
-transacional no Creator com undo/redo e play-in-editor; reload GPU no limite de
+transacional no Kutter com undo/redo e play-in-editor; reload GPU no limite de
 frame protegido por fence; e transporte de oferta/resposta de compatibilidade
 antes do gameplay. Checksums de pacote, manifesto, módulo, definição e produtos
 alinhados formam uma identidade versionada; atualizações obsoletas, malformadas

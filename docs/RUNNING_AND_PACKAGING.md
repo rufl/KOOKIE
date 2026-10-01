@@ -31,25 +31,25 @@ Run the focused gameplay and replay probe with:
 bash scripts/verify_interactions.sh
 ```
 
-## Content cooker
+## Content kooker
 
 The developer launcher admits only documented, bounded source subsets. It
 rejects malformed, oversized or unsupported input without publishing a
 successful product.
 
 ```bash
-scripts/kookie_cooker.sh cook map level.map level.kmesh
-scripts/kookie_cooker.sh cook dust3d model.ds3 model.glb model.kmesh
-scripts/kookie_cooker.sh cook blockbench character.bbmodel character.kchar
-scripts/kookie_cooker.sh cook png texture.png texture.rgba.png
-scripts/kookie_cooker.sh cook wav effect.wav effect.pcm16.wav
-scripts/kookie_cooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
-scripts/kookie_cooker.sh inspect-package level.kpkg
-scripts/kookie_cooker.sh validate-package creator.kpkg
+scripts/kooker.sh cook map level.map level.kmesh
+scripts/kooker.sh cook dust3d model.ds3 model.glb model.kmesh
+scripts/kooker.sh cook blockbench character.bbmodel character.kchar
+scripts/kooker.sh cook png texture.png texture.rgba.png
+scripts/kooker.sh cook wav effect.wav effect.pcm16.wav
+scripts/kooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
+scripts/kooker.sh inspect-package level.kpkg
+scripts/kooker.sh validate-package kutter.kpkg
 ```
 
 Source formats are authoring inputs, not runtime package formats. Linux
-archives include a native `kookie-cooker` for the `cook` commands above;
+archives include a native `kooker` for the `cook` commands above;
 package assembly and inspection remain in the JVM developer launcher.
 
 ## Offline KofScript products and sandbox
@@ -98,7 +98,7 @@ archive hash.
 Every Linux archive also contains:
 
 - `kookie-server`, a graphics-independent bounded workload server;
-- `kookie-cooker`, the native bounded source cooker;
+- `kooker`, the native bounded source kooker;
 - `kookie-simd-bench`, the scalar/SIMD parity and timing probe.
 
 The server reports counts, work budgets, p50/p95/p99/max tick time, RSS range,
@@ -259,7 +259,7 @@ and SPIR-V/DXIL entries. `KOOKIE_RUN_WINE=1` adds the optional full smoke; it
 requires `wine` and `overzeer-isolated-display`.
 
 On a DRI3-capable isolated host, the full smoke executes the same native Kof
-PE entry that owns the SDL window, GPU scene staging, audio queue, creator
+PE entry that owns the SDL window, GPU scene staging, audio queue, kutter
 reload and gameplay markers. The package has no JVM dependency. This remains
 target-specific evidence; it does not generalize to other OS/GPU combinations
 or WAN/security qualification.
@@ -272,7 +272,7 @@ bash scripts/verify_g6_runtime.sh
 ```
 
 It compiles and executes safe worker publication, packaged KofScript/session
-activation, persistent Studio reopen/rollback and the fixed-window WAN channel.
+activation, persistent Kutter reopen/rollback and the fixed-window WAN channel.
 The WAN result is limited to direct IPv4/UDP endpoints with a pre-shared key,
 bounded retransmission and backpressure; it does not claim NAT traversal,
 relay service, confidentiality or DDoS resistance.

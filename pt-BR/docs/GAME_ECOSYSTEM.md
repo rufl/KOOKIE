@@ -39,7 +39,7 @@ org.bytedeco.javacpp.BytePointer
 
 Ele chama `InitWindow`, `SetTargetFPS(24)`, leitura de entrada/cursor, `DrawRectangle`, `DrawText`, `BeginDrawing`, `EndDrawing`, `CloseWindow`. O renderizador de colunas é implementado por meio dessas primitivas de desenho.
 
-[`scripts/run-raylib.sh`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/scripts/run-raylib.sh) fixa `uk.co.electronstudio.jaylib:jaylib:5.5.0-2`, compila com `--target=jvm --classpath` e, em seguida, invoca o Java com as classes compiladas e o Jaylib no classpath. [`DEPENDENCIES.md`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/DEPENDENCIES.md) identifica o JNI Jaylib, não o Jaylib-FFM.
+[`scripts/run-raylib.sh`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/scripts/run-raylib.sh) fixa `uk.co.electronkutter.jaylib:jaylib:5.5.0-2`, compila com `--target=jvm --classpath` e, em seguida, invoca o Java com as classes compiladas e o Jaylib no classpath. [`DEPENDENCIES.md`](https://github.com/M-Tesla/DoomKof/blob/d5ab99fec4a96e3cd43a91a9ccafc79a6c7865eb/DEPENDENCIES.md) identifica o JNI Jaylib, não o Jaylib-FFM.
 
 **Conclusão:** uma janela nativa do sistema operacional apoiada pelo raylib, mas o código Kof é executado na JVM. Isso não é evidência de `--target native`.
 

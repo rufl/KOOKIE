@@ -55,7 +55,7 @@ Relevant primary lessons: [course functions](https://github.com/lunalully/curso-
 
 `record Save(Int version, Double speed, String name)` with `(1,1.25,"hero")` round-tripped correctly on JVM. Native encoded speed as `0.0`, decoded a wrong tiny Double and an empty name. Decoding a literal JSON string independently also produced a wrong Double. A separate direct-record probe passed, narrowing the problem to the serialization path rather than blanket record failure.
 
-The course is internally inconsistent: its README says JSN001/JSN002 closed, while the JSON lesson retains an older float restriction. Neither proves current correctness. **Decision:** gate native save/content schemas on an upstream/compiler fix and value-preserving round-trip/error tests. Do not silently move the cooker to another language, truncate floats or call a green compile a working serializer. Binary IO success is not yet an implemented replacement codec.
+The course is internally inconsistent: its README says JSN001/JSN002 closed, while the JSON lesson retains an older float restriction. Neither proves current correctness. **Decision:** gate native save/content schemas on an upstream/compiler fix and value-preserving round-trip/error tests. Do not silently move the kooker to another language, truncate floats or call a green compile a working serializer. Binary IO success is not yet an implemented replacement codec.
 
 ### String split differs by target
 
@@ -98,7 +98,7 @@ Primary course chapters: [sorting](https://github.com/lunalully/curso-completo-d
 |---|---|---|
 | Database | Native SQLite exists (`sqlite:` DSN). Zero-bind execute returns SQLite status; bound execute does not consistently check prepare/step failures. Transaction rollback responds to Kof throws, not automatically every SQL error | No assumption of JDBC-equivalent errors or reliable save atomicity; database path remains unproven |
 | Task concurrency | Kof `spawn`/`await` differs from starting an OS process. Cancellation is cooperative; completion can represent failure | Existing no-native-Kof-workers GC decision remains; no course-based worker shortcut |
-| External process | Both native `process.run` and `process.spawn` are rejected with `PROC001`. Result fields elsewhere are `.stdout`, `.stderr`, `.exitCode`, not course `.output` | Native cooker cannot assume it can launch shader/asset tools through these APIs; use allowed minimal external build orchestration or prove a proper platform extension |
+| External process | Both native `process.run` and `process.spawn` are rejected with `PROC001`. Result fields elsewhere are `.stdout`, `.stderr`, `.exitCode`, not course `.output` | Native kooker cannot assume it can launch shader/asset tools through these APIs; use allowed minimal external build orchestration or prove a proper platform extension |
 | UI | Native Window show/close and Canvas rendering contain explicit no-ops | Retain SDL_GPU/native input plan; compiling widgets is not visual proof |
 | HTTP | Native HTTPS explicitly unsupported; JVM HTTPS client uses a trust-all certificate manager | Not an authenticated download/multiplayer stack; do not send credentials or trust remote assets on the strength of the URL scheme |
 | Configuration | Typed API parses deployment text at runtime; malformed values can use fallback. Selected profile replaces, rather than layers over, the default file in lookup | Validate required engine ranges/paths at startup; compilation does not validate configuration |

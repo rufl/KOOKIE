@@ -15,7 +15,7 @@ record GlbCookResult(
     Int navigationNodeCount
 )
 
-class BoundedGlbCooker {
+class BoundedGlbKooker {
     BoundedAuthoredCollision collisionValue
     BoundedNavigationProduct navigationValue
     BoundedSceneProduct sceneValue

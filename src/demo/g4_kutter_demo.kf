@@ -4,9 +4,9 @@ import core
 import content
 import session
 
-class G4CreatorDemo {
+class G4KutterDemo {
     LoopbackSession multiplayer
-    BoundedCreatorPublication publication
+    BoundedKutterPublication publication
     BoundedGenerationCache generations
     BoundedExtensionRegistry extensions
     BoundedTrustedModuleRegistry hooks
@@ -16,7 +16,7 @@ class G4CreatorDemo {
 
     public constructor() {
         multiplayer = LoopbackSession(12, 8)
-        publication = BoundedCreatorPublication()
+        publication = BoundedKutterPublication()
         generations = BoundedGenerationCache(2)
         extensions = BoundedExtensionRegistry(1, 1, 2, 2)
         hooks = BoundedTrustedModuleRegistry(1)
@@ -30,7 +30,7 @@ class G4CreatorDemo {
         return false
     }
 
-    Bool publishCreatorContent() {
+    Bool publishKutterContent() {
         if (!extensions.registerManifest(8, 1, 2, 3, 4) ||
             !extensions.setLoadOrder(8, 1, 10) ||
             !extensions.setProvenance(8, 1, 801) ||
@@ -163,7 +163,7 @@ class G4CreatorDemo {
     Bool run() {
         completedValue = false
         failureStepValue = 0
-        if (!publishCreatorContent() || !configureMultiplayerSample()) {
+        if (!publishKutterContent() || !configureMultiplayerSample()) {
             return false
         }
         var death = multiplayer.resolveEnemyHitscan(1, 100, 1, 1, 0)

@@ -75,7 +75,7 @@ PY
 
 while IFS=$'\t' read -r runtime_path cooked_path; do
   cooked_output="$WORK_DIR/$(basename -- "$cooked_path")"
-  "$ROOT_DIR/scripts/kookie_cooker.sh" cook png \
+  "$ROOT_DIR/scripts/kooker.sh" cook png \
     "$CONTENT_ROOT/$runtime_path" "$cooked_output" >/dev/null
 done < <(
   python3 - "$CONTENT_ROOT/manifest.json" <<'PY'
@@ -106,4 +106,4 @@ for path in sorted(root.rglob("*")):
         count += 1
 print(f"tree-sha256={digest.hexdigest()} files={count}")
 PY
-printf 'prototype content: verified GLB headers, bounded PNGs, cooker outputs, notices, and tree integrity\n'
+printf 'prototype content: verified GLB headers, bounded PNGs, kooker outputs, notices, and tree integrity\n'

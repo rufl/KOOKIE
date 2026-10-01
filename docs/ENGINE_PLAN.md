@@ -30,7 +30,7 @@ Allowed non-Kof boundary, kept small and reviewable:
 1. Unmodified external platform/GPU/audio/codec libraries, initially SDL3.
 2. C ABI marshaling that Kof cannot currently express: native handles, struct/event unions, pointers, buffer transfer and library setup/teardown. No gameplay or scene algorithms.
 3. GPU shader source/binaries: Kof does not currently provide a supported general graphics-shader target. HLSL/SPIR-V and generated backend variants are an explicit graphics exception, not CPU engine code hidden elsewhere.
-4. External compiler/linker/shader tools and minimal declarative build/bootstrap glue. KOOKIE-owned cooker/editor behavior remains Kof, not Python/JS/Zig/Rust applications.
+4. External compiler/linker/shader tools and minimal declarative build/bootstrap glue. KOOKIE-owned kooker/editor behavior remains Kof, not Python/JS/Zig/Rust applications.
 
 The existing Kof compiler/runtime is an upstream tool dependency written partly in Java/assembly. Fixing an upstream compiler defect is distinct from moving KOOKIE gameplay into Java. Any maintained compiler delta must be pinned, documented and upstreamed where practical.
 
@@ -94,7 +94,7 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 | Platform and graphics | **SDL3 + SDL_GPU** | One window/input/gamepad/GPU stack; 3D and compute. Kof owns extraction, culling, batching and passes. zlib license. Keep Sokol as an alternative only if the GPU/ABI spike fails |
 | Shader build | **SDL_shadercross + DXC**, SPIRV-Cross and SPIRV-Tools as required by the build | HLSL → offline SPIR-V for Linux; reflect resource layouts. Build-time tools, not mandatory shipped runtime shader compilers. Installed ShaderC alone is not the selected HLSL pipeline |
 | Audio | **SDL_mixer 3.2.4** | One zlib-licensed mixer authority with separate effects/music streams and Kof-owned cue, gain and spatial policy. Optional codec backends are disabled/not bundled; PCM streams require no decoder dependency |
-| Image decoding | **Kof-owned PNG cooker**, then **SDL3_image** only for a runtime pixel service | The current cooker validates, decodes and canonicalizes the bounded PNG subset itself. A future SDL3_image boundary may decode admitted canonical PNG for upload; it does not own source admission, color-space/material decisions or cooking. zlib library; optional codec dependencies have separate notices |
+| Image decoding | **Kof-owned PNG kooker**, then **SDL3_image** only for a runtime pixel service | The current kooker validates, decodes and canonicalizes the bounded PNG subset itself. A future SDL3_image boundary may decode admitted canonical PNG for upload; it does not own source admission, color-space/material decisions or cooking. zlib library; optional codec dependencies have separate notices |
 | Text rendering | **FreeType**, then **HarfBuzz** when implementing shaped text | Rasterization and shaping services only. Kof owns widgets, layout, focus and glyph-cache policy. Font fallback, bidi/line breaking, IME and accessibility are not solved merely by linking these libraries |
 | Package compression | **Zstandard (`libzstd`)** | Add at the cooked-package stage, not per frame. Use bounded independently addressable chunks, declared decoded lengths and decoder limits; compression is not integrity/authentication. BSD license option |
 
@@ -114,7 +114,7 @@ AI/navigation under the current rule; combat/loot/statuses; content schemas and
 source admission for glTF/brush maps, Dust3D, LibreSprite and MagicaVoxel;
 player UI and authoring logic. Do not add a foreign ECS or call a C math
 library once per vector operation. GLB is the canonical 3D interchange result,
-while source-format intake remains a validated cooker concern; the native JSON
+while source-format intake remains a validated kooker concern; the native JSON
 gate remains.
 
 **High-value alternatives requiring an ownership decision:**
@@ -202,7 +202,7 @@ Rules:
 
 The first cube can use scalar staging calls. A matrix/instance is written as a fixed tuple per call, not sixteen individual FFI calls. Static vertex/index payloads upload once; dynamic data uses bounded reusable staging buffers. Kof owns packing policy and resource layout; the C side only copies the specified tuple into checked buffer positions.
 
-For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/cooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 486-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
+For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/kooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 486-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
 
 
 Scalar staging overhead is a **go/no-go measurement**. If representative draw/instance/animation uploads miss budget, prefer a properly specified upstream buffer-FFI addition (element format, length, borrow/copy lifetime, ownership and GC rules). Do not encode binary frames as JSON/Base64 strings or assume a pointer cast solves bulk transfer. Do not grow the shim into a C renderer to pass a benchmark.
@@ -269,14 +269,14 @@ core
 ```
 
 The `render`, `audio` and `ui` modules consume read-only world snapshots and
-events. They never mutate authoritative simulation state. `editor` and `cooker`
+events. They never mutate authoritative simulation state. `editor` and `kooker`
 use the same content/world query contracts but publish changes through revision-
 checked transactions. `platform` is an adapter module, not a simulation module.
 
 Modules are source/build boundaries first, not independently loaded binaries.
 Each module exposes small data-oriented contracts and keeps implementation
 helpers private by convention. The application root composes modules for the
-player, cooker and studio entry points. Dynamic loading, arbitrary callbacks,
+player, kooker and kutter entry points. Dynamic loading, arbitrary callbacks,
 service locators and a public plugin ABI are deferred until two real consumers
 prove a need.
 
@@ -340,7 +340,7 @@ namespaced ID. Conflicts, capacity exhaustion, invalid content and missing
 capabilities fail closed with an actionable diagnostic.
 
 The first shipping extension SDK should use trusted `.kf` modules statically
-compiled into the player/cooker/studio. This remains the broadest safe path
+compiled into the player/kooker/kutter. This remains the broadest safe path
 through current native Kof limitations. The implemented no-rebuild
 `BoundedKofScriptProgram` tier is deliberately narrower: forward-only bytecode
 receives copied domain-event fields and emits capability-masked public
@@ -486,7 +486,7 @@ Initial renderer: opaque/masked forward rendering, depth buffer, static lightmap
 - Low-resolution/pixelated, palette/limited-light and cleaner modern styles are material/postprocess profiles, not alternate world simulators.
 - Single coordinate convention: meters, Y up, right-handed world, camera forward -Z. Build explicit projection/clip conversion for SDL_GPU's documented clip/depth convention; do not transpose/flip ad hoc. Validate culling winding, normals, handedness, depth range and texture origin together.
 - Shader sources in HLSL, offline SPIR-V for first platform; pin SDL_shadercross and reflect/validate vertex/uniform bindings. Additional backend shader products only when their target is exercised.
-- First animation path: sprite/billboard or rigid mesh; then Kof animation state/interpolation and skeletal pose evaluation, GPU skinning shader. Bind pose/index/weight admission stays in the cooker. No per-frame asset parsing.
+- First animation path: sprite/billboard or rigid mesh; then Kof animation state/interpolation and skeletal pose evaluation, GPU skinning shader. Bind pose/index/weight admission stays in the kooker. No per-frame asset parsing.
 - HUD/menu/inventory/debug overlay CPU logic and layout are `.kf`, rendered through the engine. External text/font rasterization may be a narrow library dependency; do not begin with an entire webview editor/runtime UI.
 
 Targets such as viewmodel FOV, recoil/sway, muzzle flashes, hit feedback, readable rarity colors and status icons are engine features, not reasons to put presentation logic in the C adapter.
@@ -523,11 +523,11 @@ Begin with deterministic state machines: idle/patrol/investigate/chase/attack/re
 
 Authored waypoint/portal navigation first, then a real cooked navmesh/A* pipeline with bounded expansions and explicit `pending/success/failure`. Spread expensive perception/path updates over ticks; fixed scheduling and owned scratch arrays, no Kof worker threads until GC-safe. Encounter volumes, wave budgets, boss phases, spawn admission, key/door/secret triggers are data-driven.
 
-## 8. Content, creator workflow and persistence
+## 8. Content, kutter workflow and persistence
 
 ### Content pipeline
 
-Editable sources → **Kof cooker** → versioned engine package → validated runtime load.
+Editable sources → **Kof kooker** → versioned engine package → validated runtime load.
 
 Initial source formats: project manifest and entity/encounter/item definitions
 in readable structured data; static meshes/materials in a documented glTF
@@ -543,7 +543,7 @@ semantics.
 
 ### External asset intake compatibility
 
-The bounded cookers checksum each admitted source and normalize accepted data
+The bounded kookers checksum each admitted source and normalize accepted data
 into the canonical product/package contract. Retaining the original file and a
 full tool/version receipt remains required package-provenance hardening:
 
@@ -582,7 +582,7 @@ The audio reader follows the PCM registration in
 documented by [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV).
 Compressed or streamed audio remains a separate future pipeline.
 
-For boomer-shooter authoring add a Quake-style textual brush `.map` subset: convex brush plane clipping/triangulation, entity/property translation, material mapping and derived collision/visibility. TrenchBroom can be an external authoring tool; our `.kf` cooker remains the import authority. This does **not** promise WAD/BSP/QuakeC/source-port compatibility. Source maps are not shipped original-game assets.
+For boomer-shooter authoring add a Quake-style textual brush `.map` subset: convex brush plane clipping/triangulation, entity/property translation, material mapping and derived collision/visibility. TrenchBroom can be an external authoring tool; our `.kf` kooker remains the import authority. This does **not** promise WAD/BSP/QuakeC/source-port compatibility. Source maps are not shipped original-game assets.
 
 Cooked package contract: magic, schema/tool/content versions, stable IDs, chunk offsets/lengths, dependency hashes, explicit endianness, bounds and corruption checks. Reject traversal, duplicate IDs, overlapping/out-of-range payloads and decompression overrun. Do not serialize Kof object memory or internal array headers.
 
@@ -594,10 +594,10 @@ Its 13-word compatibility identity binds engine/API/network schema and every
 content checksum. Stale, incomplete, mismatched or invalid transactions retain
 the prior generation.
 
-`BoundedSourceCooker` admits the documented indexed GLB,
+`BoundedSourceKooker` admits the documented indexed GLB,
 Dust3D/Aseprite/VOX, convex brush-map, Blockbench 5.0 character, PNG and PCM
 WAVE subsets under explicit size/count/chunk/depth/duration limits.
-`scripts/kookie_cooker.sh` provides developer JVM file `cook`, `package`,
+`scripts/kooker.sh` provides developer JVM file `cook`, `package`,
 `inspect-package` and `validate-package` commands. Linux archives also carry a
 native runner for the same Kof `cook` path; package operations remain JVM-only.
 The package reader validates
@@ -608,16 +608,16 @@ validation, so a bad reload preserves all active state.
 
 Trusted declarations bind supported static implementation IDs/versions and
 typed session-started, player-connected, enemy-defeated, loot-picked-up or
-editor-published subscriptions. `BoundedTrustedHookRuntime` binds the module
+kutter-published subscriptions. `BoundedTrustedHookRuntime` binds the module
 and extension checksums to a published generation, requires monotonic event
 sequence/phases, and preflights per-hook budgets plus global output capacity
 before emitting bounded commands/events. `LoopbackSession` applies each
 accepted grant-currency command exactly once after aggregate
-overflow/recipient validation. `G4CreatorDemo` exercises the bounty path after
+overflow/recipient validation. `G4KutterDemo` exercises the bounty path after
 authoritative elite death; this is static trusted execution, not arbitrary
 callbacks or sandboxing.
 
-`BoundedCreatorWorkspace` provides revision-checked world/entity/weapon/loot
+`BoundedKutterWorkspace` provides revision-checked world/entity/weapon/loot
 transactions, collision/AI inspection, console edits, play-in-editor and
 bounded undo/redo while publishing geometry/collision/navigation/render
 together. The native adapter stages a separate candidate scene, waits for
@@ -633,9 +633,9 @@ role path and separate processes exercise this exchange; a fresh
 three-machine G4 evidence bundle remains a qualification limit, not an
 in-process protocol gap.
 
-Native mixed Int/Double/String record JSON failed the measured round-trip, including corrupt numeric/string values; direct record getters passed. The implemented `.kpkg`, canonical geometry and cooker outputs therefore use explicit bounded integer/binary layouts. Before adopting native JSON for definitions, glTF or saves, require a compiler/runtime repair plus schema-specific round-trip, malformed-input and bounds proof. Do not truncate floats or move content semantics into the adapter.
+Native mixed Int/Double/String record JSON failed the measured round-trip, including corrupt numeric/string values; direct record getters passed. The implemented `.kpkg`, canonical geometry and kooker outputs therefore use explicit bounded integer/binary layouts. Before adopting native JSON for definitions, glTF or saves, require a compiler/runtime repair plus schema-specific round-trip, malformed-input and bounds proof. Do not truncate floats or move content semantics into the adapter.
 
-Current source rejects native `process.run`/`process.spawn` with `PROC001`. External shader/conversion tools therefore need the permitted minimal build orchestration or a separately proven platform capability; the native `.kf` cooker cannot assume the course's process examples work. It still owns content validation and cooking decisions.
+Current source rejects native `process.run`/`process.spawn` with `PROC001`. External shader/conversion tools therefore need the permitted minimal build orchestration or a separately proven platform capability; the native `.kf` kooker cannot assume the course's process examples work. It still owns content validation and cooking decisions.
 
 ### Engine authoring tools
 
@@ -690,7 +690,7 @@ src/
   content/       schemas, validation, package readers, migrations
   extensions/    manifests, registries, capabilities, public API adapters
   ui/            HUD, menus, inventory, debug/authoring views
-apps/            player host/client, dedicated server, cooker, studio
+apps/            player host/client, dedicated server, kooker, kutter
 samples/         boomer arena and looter/ARPG encounter projects
 native/          only indispensable ABI/library adaptation
 shaders/         GPU-only source and generated backend products
@@ -715,9 +715,9 @@ No calendar promise; each gate has runnable evidence. A successful gate authoriz
 | **G1 — Authoritative shooter foundation** | IDs/component arrays, 60 Hz server tick, client input commands, loopback server/client worlds, snapshot baseline, capsule/BVH, camera, renderer/HUD, one weapon/enemy | Single-player completes a real server→loopback→client session. Client prediction/reconciliation is observable. A second client can be admitted by the same protocol harness. Authored true-3D arena supports slopes/stairs/stacked rooms; focus loss cannot stick fire/movement. No per-frame pool growth |
 | **G2 — LAN boomer-shooter slice** | LAN transport adapter, hitscan/projectile/shotgun, several enemy roles, doors/keys/secrets, feedback/audio, encounter definitions, join/leave handling | Host and at least two clients complete start→fight→key/door→secret→exit over LAN. Server owns damage/death/rewards. Disconnect/reconnect and stale input are bounded and diagnosed. Movement profiles remain tunable without renderer changes |
 | **G3 — Looter / ARPG slice** | Rolled items/affixes, inventory/equipment, XP/skills/statuses, elites/bosses, authoritative saves, extension registries and replicated schemas | Multiplayer kill→rolled drop→pickup/equip→observable stat/skill change→boss reward→save/reload. Full inventory cannot lose item/currency/RNG. Same seed/content yields same server result. Clients cannot mint damage, items, currency or progression |
-| **G4 — Creator and extension pipeline** | Kof cooker, supported mesh/brush formats, package validation, data-mod manifests, trusted Kof extension modules, inspector/editors, staged reload | A second distinct multiplayer sample game is built from definitions/extensions without editing core engine code. Server/client reject incompatible package/API/mod manifests. Invalid content leaves the prior running world intact; geometry/collision/nav/replication revisions stay aligned |
+| **G4 — Kutter and extension pipeline** | Kof kooker, supported mesh/brush formats, package validation, data-mod manifests, trusted Kof extension modules, inspector/editors, staged reload | A second distinct multiplayer sample game is built from definitions/extensions without editing core engine code. Server/client reject incompatible package/API/mod manifests. Invalid content leaves the prior running world intact; geometry/collision/nav/replication revisions stay aligned |
 | **G5 — Scale and release** | AI budgets, batching/instancing, animation, streaming only as needed, dedicated headless server, migrations/replay, reconnect/admission hardening, packaging/notices | Reference LAN workload meets declared budgets; dedicated server runs without graphics; memory/resource counts plateau; package runs outside source checkout; reconnect/session recovery and extension compatibility are proven |
-| **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Bounded jobs, package-bound KofScript/session activation, persistent Studio, limited WAN and native Windows PE/SDL shell/presentation packages have focused probes; no general portability, WAN security, sandbox or DRI3-capable visual presentation claim is inferred |
+| **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Bounded jobs, package-bound KofScript/session activation, persistent Kutter, limited WAN and native Windows PE/SDL shell/presentation packages have focused probes; no general portability, WAN security, sandbox or DRI3-capable visual presentation claim is inferred |
 
 G0 evidence is tracked in [G0_BACKLOG](G0_BACKLOG.md): native/session
 feasibility, isolated window presentation and authenticated external-LAN
@@ -732,7 +732,7 @@ SDL_GPU scene: 78 arena vertices, 36 door vertices and 372 HUD vertices for
 health/ammunition, a shape-distinct connection glyph, active/reserve encounter
 load, confirmed hit/kill markers, edge damage warnings, structural
 inventory/equipment/skill/world-loot status, shape-distinct elite/boss
-threat/defeat cues and a structural creator-publication rail. The confirmed
+threat/defeat cues and a structural kutter-publication rail. The confirmed
 local hitscan event also reaches bounded replay/audio queues and native SDL clip
 playback. An isolated GPU smoke rendered and read back the bounded scene, and
 84/84 focused source tests pass on JVM and native. G1's no-per-frame-growth
@@ -775,8 +775,8 @@ inventory and RNG identity; state kinds `7`/`8` traverse authenticated
 same-host host-plus-two-client processes on JVM and native; that G3 state-kind
 qualification remains same-host. G4 now adds typed domain-event subscriptions;
 the bounded
-GLB/Dust3D/Aseprite/VOX/brush cooker and file CLI; validated external
-package/registry loading; transactional Creator inspection/editing with
+GLB/Dust3D/Aseprite/VOX/brush kooker and file CLI; validated external
+package/registry loading; transactional Kutter inspection/editing with
 undo/redo and play-in-editor; fence-gated frame-boundary GPU reload; and
 compatibility offer/response transport before gameplay. Package, manifest,
 module, definition and aligned product checksums form one revisioned identity;
@@ -912,7 +912,7 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 | Native JSON/split parity | Fractional mixed-record JSON corrupted values; escaped-pipe split differed from JVM | Repair/prove exact content/save schemas and parser contracts before G3/G4 reliance |
 | Language/docs rapidly diverge | 0.3.7 course / older portal pages / 0.5.0-beta release gate | Pin exact toolchain identity and archive digest; upgrade through focused behavior probes, not compile-only claims |
 | Editor reliability/security | Single-file run, JS UI, privileged unauthenticated handlers | CLI + separate LSP-capable editor; no dependency on editor fork |
-| Creator pipeline becomes second engine | Multiple monolithic runtimes or authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
+| Kutter pipeline becomes second engine | Multiple monolithic runtimes or authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
 | License/asset assumptions | Unclear code/asset rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |
 | Native portability overclaimed | Upstream native output remains Linux ELF; the KOOKIE bridge emits deterministic AMD64 PE/COFF for the qualified reachable gameplay/presentation graphs and rejects floating-point IR, catchable exceptions and concurrency with `PE001` | Keep separate platform gates; retain actual Windows shell smoke and artifact checks, and require DRI3-capable visual evidence before claiming presentation execution |
 
