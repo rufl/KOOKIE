@@ -585,7 +585,7 @@ class GameShell {
             pushCenteredText(target, "OPTIONS", -15, scale,
                 if (selectionValue == 2) 2 else itemColor) &&
             pushSelectionPanel(target, 3, -41, -21) &&
-            pushCenteredText(target, "CREATOR", -37, scale,
+            pushCenteredText(target, "KUTTER", -37, scale,
                 if (selectionValue == 3) 2 else itemColor) &&
             pushSelectionPanel(target, 4, -63, -43) &&
             pushCenteredText(target, "QUIT", -59, scale,
@@ -752,7 +752,7 @@ class GameShell {
         return pushQuad(target, 10, -100, -100, 100, 100) &&
             pushQuad(target, 11, -96, -96, 96, 96) &&
             pushQuad(target, 10, -94, -94, 94, 94) &&
-            pushCenteredText(target, "CREATOR", 80, 2, 1) &&
+            pushCenteredText(target, "KUTTER", 80, 2, 1) &&
             pushText(target, "GEN", -84, 70, 1, normal) &&
             pushNumber(target, kutterValue.generation(), -62, 70, 1, 2) &&
             pushSelectionPanel(target, 0, 54, 66) &&

@@ -1,7 +1,7 @@
 import ui
 
 main() {
-    var kutter = BoundedKutter(16, 8)
+    var kutter = BoundedKutterStudio(16, 8)
     assert(kutter.configure(4, 1001, 7) &&
         kutter.addNode(10, 0, kutterModeWorld(), 100, 200, 300, 45, 1000) &&
         kutter.addNode(20, 10, kutterModeEntity(), -5, 6, 7, 90, 1250) &&
@@ -9,10 +9,10 @@ main() {
         kutter.seal(),
         "Kutter must seal bounded hierarchy, transforms, and assets")
     var checksum = kutter.checksum()
-    var path = "build/kutter.kkutter"
+    var path = "build/kutter.kutter"
     assert(kutter.save(path), "Kutter must persist canonical binary state")
 
-    var reopened = BoundedKutter(16, 8)
+    var reopened = BoundedKutterStudio(16, 8)
     assert(reopened.load(path) && reopened.checksum() == checksum &&
         reopened.nodeCount() == 2 && reopened.nodeParent(1) == 10 &&
         reopened.nodeXValue(1) == -5 && reopened.nodeScaleValue(1) == 1250 &&
@@ -22,7 +22,7 @@ main() {
     var badBytes = File(path).readRange(0, 100000)
     assert(badBytes.length > 0, "Kutter package bytes must be readable")
     badBytes[badBytes.length - 1] = (badBytes[badBytes.length - 1] ^ 1) as Int
-    var badPath = "build/kutter_bad.kkutter"
+    var badPath = "build/kutter_bad.kutter"
     assert(File(badPath).writeBytes(badBytes),
         "Kutter tamper fixture must be writable")
     assert(!reopened.load(badPath) && reopened.checksum() == checksum &&
@@ -33,7 +33,7 @@ main() {
     assert(workspace.begin(1) && workspace.stageEntity(7, 11, 22, 33) &&
         workspace.stageAsset(501) && workspace.publish(),
         "workspace transaction must publish before Kutter capture")
-    var captured = BoundedKutter(16, 8)
+    var captured = BoundedKutterStudio(16, 8)
     assert(captured.captureWorkspace(workspace) && captured.nodeCount() == 1 &&
         captured.nodeXValue(0) == 11 && captured.assetId(0) == 501,
         "Kutter must capture the existing bounded kutter workspace")

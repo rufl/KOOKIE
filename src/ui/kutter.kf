@@ -1,19 +1,19 @@
 package ui
 
-Int kutterMagic() { return 126375140 }
-Int kutterSchemaVersion() { return 1 }
-Int kutterNodeCapacity() { return 64 }
-Int kutterAssetCapacity() { return 32 }
-Int kutterDiagnosticNone() { return 0 }
-Int kutterDiagnosticState() { return 1 }
-Int kutterDiagnosticBounds() { return 2 }
-Int kutterDiagnosticIdentity() { return 3 }
-Int kutterDiagnosticHierarchy() { return 4 }
-Int kutterDiagnosticAsset() { return 5 }
-Int kutterDiagnosticChecksum() { return 6 }
-Int kutterDiagnosticFile() { return 7 }
+Int kutterStudioMagic() { return 126375140 }
+Int kutterStudioSchemaVersion() { return 1 }
+Int kutterStudioNodeCapacity() { return 64 }
+Int kutterStudioAssetCapacity() { return 32 }
+Int kutterStudioDiagnosticNone() { return 0 }
+Int kutterStudioDiagnosticState() { return 1 }
+Int kutterStudioDiagnosticBounds() { return 2 }
+Int kutterStudioDiagnosticIdentity() { return 3 }
+Int kutterStudioDiagnosticHierarchy() { return 4 }
+Int kutterStudioDiagnosticAsset() { return 5 }
+Int kutterStudioDiagnosticChecksum() { return 6 }
+Int kutterStudioDiagnosticFile() { return 7 }
 
-class BoundedKutter {
+class BoundedKutterStudio {
     Int nodeCapacityValue
     Int assetCapacityValue
     Int[] nodeIds
@@ -46,12 +46,12 @@ class BoundedKutter {
         nodeCapacityValue = nodeCapacity
         assetCapacityValue = assetCapacity
         if (nodeCapacityValue <= 0) { nodeCapacityValue = 1 }
-        if (nodeCapacityValue > kutterNodeCapacity()) {
-            nodeCapacityValue = kutterNodeCapacity()
+        if (nodeCapacityValue > kutterStudioNodeCapacity()) {
+            nodeCapacityValue = kutterStudioNodeCapacity()
         }
         if (assetCapacityValue <= 0) { assetCapacityValue = 1 }
-        if (assetCapacityValue > kutterAssetCapacity()) {
-            assetCapacityValue = kutterAssetCapacity()
+        if (assetCapacityValue > kutterStudioAssetCapacity()) {
+            assetCapacityValue = kutterStudioAssetCapacity()
         }
         nodeIds = new Int[nodeCapacityValue]
         nodeParents = new Int[nodeCapacityValue]
@@ -79,7 +79,7 @@ class BoundedKutter {
         assetCountValue = 0
         checksumValue = 0
         wordCountValue = 0
-        diagnosticValue = kutterDiagnosticNone()
+        diagnosticValue = kutterStudioDiagnosticNone()
         configuredValue = false
         sealedValue = false
         return true
@@ -93,7 +93,7 @@ class BoundedKutter {
 
     Int calculateChecksum() {
         var result = 137
-        result = mix(result, kutterSchemaVersion())
+        result = mix(result, kutterStudioSchemaVersion())
         result = mix(result, projectNamespaceValue)
         result = mix(result, projectIdValue)
         result = mix(result, projectRevisionValue)
@@ -149,13 +149,13 @@ class BoundedKutter {
             projectNamespace <= 0 || projectNamespace > 1000000 ||
             projectId <= 0 || projectId > 1000000 ||
             projectRevision <= 0 || projectRevision > 1000000) {
-            return reject(kutterDiagnosticIdentity())
+            return reject(kutterStudioDiagnosticIdentity())
         }
         projectNamespaceValue = projectNamespace
         projectIdValue = projectId
         projectRevisionValue = projectRevision
         configuredValue = true
-        diagnosticValue = kutterDiagnosticNone()
+        diagnosticValue = kutterStudioDiagnosticNone()
         return true
     }
 
@@ -168,13 +168,13 @@ class BoundedKutter {
             x < -1000000 || x > 1000000 || y < -1000000 || y > 1000000 ||
             z < -1000000 || z > 1000000 || rotation < -360000 || rotation > 360000 ||
             scale <= 0 || scale > 1000000 || nodeIndex(nodeId) >= 0) {
-            return reject(kutterDiagnosticBounds())
+            return reject(kutterStudioDiagnosticBounds())
         }
         if (nodeCountValue > 0 && nodeId <= nodeIds[nodeCountValue - 1]) {
-            return reject(kutterDiagnosticHierarchy())
+            return reject(kutterStudioDiagnosticHierarchy())
         }
         if (parentId < 0 || (parentId > 0 && nodeIndex(parentId) < 0)) {
-            return reject(kutterDiagnosticHierarchy())
+            return reject(kutterStudioDiagnosticHierarchy())
         }
         var index = nodeCountValue
         nodeIds[index] = nodeId
@@ -196,10 +196,10 @@ class BoundedKutter {
             assetId <= 0 || assetId > 1000000 || assetKind <= 0 || assetKind > 1000000 ||
             status <= 0 || status > 4 || assetChecksum <= 0 || assetChecksum > 1000002 ||
             revision <= 0 || revision > 1000000) {
-            return reject(kutterDiagnosticAsset())
+            return reject(kutterStudioDiagnosticAsset())
         }
         if (assetCountValue > 0 && assetId <= assetIds[assetCountValue - 1]) {
-            return reject(kutterDiagnosticAsset())
+            return reject(kutterStudioDiagnosticAsset())
         }
         var index = assetCountValue
         assetIds[index] = assetId
@@ -241,8 +241,8 @@ class BoundedKutter {
             return false
         }
         wordCountValue = 11 + nodeCountValue * 8 + assetCountValue * 5
-        wire[0] = kutterMagic()
-        wire[1] = kutterSchemaVersion()
+        wire[0] = kutterStudioMagic()
+        wire[1] = kutterStudioSchemaVersion()
         wire[2] = wordCountValue
         wire[3] = checksumValue
         wire[4] = projectNamespaceValue
@@ -277,15 +277,15 @@ class BoundedKutter {
 
     Bool seal() {
         if (sealedValue || !structuralValid()) {
-            return reject(kutterDiagnosticState())
+            return reject(kutterStudioDiagnosticState())
         }
         checksumValue = calculateChecksum()
         sealedValue = checksumValue > 0
         if (!sealedValue || !encode()) {
             sealedValue = false
-            return reject(kutterDiagnosticChecksum())
+            return reject(kutterStudioDiagnosticChecksum())
         }
-        diagnosticValue = kutterDiagnosticNone()
+        diagnosticValue = kutterStudioDiagnosticNone()
         return true
     }
 
@@ -293,7 +293,7 @@ class BoundedKutter {
         return sealedValue && structuralValid() && checksumValue == calculateChecksum()
     }
 
-    Bool copyFrom(BoundedKutter source) {
+    Bool copyFrom(BoundedKutterStudio source) {
         if (!source.validate()) { return false }
         projectNamespaceValue = source.projectNamespaceValue
         projectIdValue = source.projectIdValue
@@ -325,13 +325,13 @@ class BoundedKutter {
         for (var index = 0; index < wordCountValue; index = index + 1) {
             wire[index] = source.wire[index]
         }
-        diagnosticValue = kutterDiagnosticNone()
+        diagnosticValue = kutterStudioDiagnosticNone()
         return true
     }
 
     Bool decode(Int[] source) {
-        if (source.length < 11 || source[0] != kutterMagic() ||
-            source[1] != kutterSchemaVersion() || source[2] < 11 ||
+        if (source.length < 11 || source[0] != kutterStudioMagic() ||
+            source[1] != kutterStudioSchemaVersion() || source[2] < 11 ||
             source[2] > wire.length || source[3] <= 0 || source[4] <= 0 ||
             source[5] <= 0 || source[6] <= 0 || source[7] <= 0 ||
             source[7] > nodeCapacityValue || source[8] < 0 ||
@@ -340,7 +340,7 @@ class BoundedKutter {
             source[2] != 11 + source[7] * 8 + source[8] * 5) {
             return false
         }
-        var candidate = BoundedKutter(nodeCapacityValue, assetCapacityValue)
+        var candidate = BoundedKutterStudio(nodeCapacityValue, assetCapacityValue)
         if (!candidate.configure(source[4], source[5], source[6])) { return false }
         candidate.generationValue = source[9]
         var cursor = 11
@@ -371,7 +371,7 @@ class BoundedKutter {
 
     Bool save(String path) {
         if (!validate() || !encode() || path.length() <= 0) {
-            return reject(kutterDiagnosticState())
+            return reject(kutterStudioDiagnosticState())
         }
         var bytes = new Int[wordCountValue * 4]
         for (var index = 0; index < wordCountValue; index = index + 1) {
@@ -383,7 +383,7 @@ class BoundedKutter {
             bytes[offset + 3] = (value >>> 24) & 255
         }
         if (!File(path).writeBytes(bytes)) {
-            return reject(kutterDiagnosticFile())
+            return reject(kutterStudioDiagnosticFile())
         }
         return true
     }
@@ -391,7 +391,7 @@ class BoundedKutter {
     Bool load(String path) {
         var bytes = File(path).readRange(0, wire.length * 4 + 1)
         if (bytes.length <= 0 || bytes.length % 4 != 0 || bytes.length > wire.length * 4) {
-            return reject(kutterDiagnosticFile())
+            return reject(kutterStudioDiagnosticFile())
         }
         var words = new Int[bytes.length / 4]
         for (var index = 0; index < words.length; index = index + 1) {
@@ -400,31 +400,31 @@ class BoundedKutter {
                 bytes[offset + 1] < 0 || bytes[offset + 1] > 255 ||
                 bytes[offset + 2] < 0 || bytes[offset + 2] > 255 ||
                 bytes[offset + 3] < 0 || bytes[offset + 3] >= 128) {
-                return reject(kutterDiagnosticFile())
+                return reject(kutterStudioDiagnosticFile())
             }
             words[index] = bytes[offset] + bytes[offset + 1] * 256 +
                 bytes[offset + 2] * 65536 + bytes[offset + 3] * 16777216
         }
         if (!decode(words)) {
-            return reject(kutterDiagnosticChecksum())
+            return reject(kutterStudioDiagnosticChecksum())
         }
         return true
     }
 
     Bool captureWorkspace(BoundedKutterWorkspace workspace) {
-        var candidate = BoundedKutter(nodeCapacityValue, assetCapacityValue)
+        var candidate = BoundedKutterStudio(nodeCapacityValue, assetCapacityValue)
         if (!candidate.configure(1, workspace.entityId(), workspace.revision()) ||
             !candidate.addNode(
                 1, 0, kutterModeEntity(), workspace.entityX(), workspace.entityY(),
                 workspace.entityZ(), 0, 1000)) {
-            return reject(kutterDiagnosticState())
+            return reject(kutterStudioDiagnosticState())
         }
         if (workspace.assetId() > 0 && !candidate.addAsset(
                 workspace.assetId(), 1, 1, workspace.renderChecksum(), workspace.revision())) {
-            return reject(kutterDiagnosticAsset())
+            return reject(kutterStudioDiagnosticAsset())
         }
         if (!candidate.seal() || !copyFrom(candidate)) {
-            return reject(kutterDiagnosticChecksum())
+            return reject(kutterStudioDiagnosticChecksum())
         }
         return true
     }
