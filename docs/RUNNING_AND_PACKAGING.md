@@ -106,6 +106,34 @@ checksum and logical resource plateau. It is qualification tooling, not a
 packaged production hosting service. The SIMD route decision is measurement
 output for its exact reduction workload, not a general speedup claim.
 
+## Prototype content package
+
+The first content profile stages a bounded, signed asset catalog under
+`content/prototype`. It includes converted GLB models from the modular and
+Classic64 packs, the requested animated goose, authored VFX PNGs, bounded
+runtime PNG derivatives, cooked RGBA8 PNG outputs, and retained source notices.
+It is opt-in so existing runtime packages remain content-free:
+
+```bash
+KOOKIE_VERSION=0.1.0-dogfood.prototype \
+KOOKIE_BUILD_ID=prototype-content \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
+KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
+scripts/package_kookie.sh --runtime native --target linux-x86_64 \
+  --content prototype
+```
+
+`assets/prototype/manifest.json` binds the selected source paths, archive
+SHA-256 values, converted output paths, frame grids, and license notices.
+Package `PROVENANCE.txt` and the signed JSON manifest record the deterministic
+prototype-content tree digest and file/asset counts.
+
+The modular, Brackeys VFX and Classic64 notices identify CC0 sources. The
+goose page is not CC0: it permits commercial use and editing but prohibits
+reselling or redistributing the model file. It remains prototype-only by
+explicit request; do not redistribute that asset as CC0.
+
 ## Linux SDL presentation package
 
 Build the persistent SDL3/SDL_GPU presentation used for isolated visual

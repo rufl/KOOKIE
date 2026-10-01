@@ -9,6 +9,7 @@ RUNTIME="${KOOKIE_RUNTIME:-native}"
 VERSION="${KOOKIE_VERSION:-0.1.0-dogfood.1}"
 BUILD_ID="${KOOKIE_BUILD_ID:-$(git -C "$ROOT_DIR" rev-parse --short=12 HEAD)}"
 OUTPUT_DIR="${KOOKIE_OUTPUT_DIR:-$ROOT_DIR/release}"
+CONTENT_PROFILE="${KOOKIE_CONTENT_PROFILE:-none}"
 PROVENANCE_SCHEMA="${KOOKIE_PACKAGE_PROVENANCE_SCHEMA:-kookie.package-provenance/v2}"
 SIGNING_KEY="${KOOKIE_SIGNING_KEY:-}"
 KOF_ARCHIVE_SHA256="${KOOKIE_KOF_ARCHIVE_SHA256:-}"
@@ -25,7 +26,7 @@ WINDOWS_DXC_VERSION="not-bundled"
 
 usage() {
   cat <<'EOF'
-Usage: scripts/package_kookie.sh [--runtime native|presentation|jvm] [--target linux-x86_64|windows-x86_64]
+Usage: scripts/package_kookie.sh [--runtime native|presentation|jvm] [--target linux-x86_64|windows-x86_64] [--content none|prototype]
 
 Builds a signed immutable KOOKIE archive, provenance manifest, public key,
 signature set, and SHA256SUMS.
@@ -50,6 +51,7 @@ while (($#)); do
   case "$1" in
     --runtime) RUNTIME="${2:?missing runtime}"; shift 2 ;;
     --target) TARGET="${2:?missing target}"; shift 2 ;;
+    --content|--content-profile) CONTENT_PROFILE="${2:?missing content profile}"; shift 2 ;;
     --version) VERSION="${2:?missing version}"; shift 2 ;;
     --build-id) BUILD_ID="${2:?missing build id}"; shift 2 ;;
     --output) OUTPUT_DIR="${2:?missing output directory}"; shift 2 ;;
@@ -62,6 +64,11 @@ done
 case "$RUNTIME" in
   native|presentation|jvm) ;;
   *) echo "package_kookie: unsupported distributable runtime: $RUNTIME" >&2; exit 2 ;;
+esac
+
+case "$CONTENT_PROFILE" in
+  none|prototype) ;;
+  *) echo "package_kookie: unsupported content profile: $CONTENT_PROFILE" >&2; exit 2 ;;
 esac
 
 case "$TARGET" in
@@ -249,6 +256,85 @@ openssl pkey -in "$SIGNING_KEY" -pubout -outform DER \
   -out "$PUBLIC_KEY_DER" 2>/dev/null
 PUBLIC_KEY_SHA256="$(sha256sum "$PUBLIC_KEY_DER" | cut -d ' ' -f 1)"
 cp -- "$PUBLIC_KEY_WORK" "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
+PROTOTYPE_CONTENT_TREE_SHA256=not-included
+PROTOTYPE_CONTENT_ASSET_COUNT=0
+PROTOTYPE_CONTENT_FILE_COUNT=0
+
+bundle_prototype_content() {
+  [[ "$CONTENT_PROFILE" == prototype ]] || return 0
+  local source_root="$ROOT_DIR/assets/prototype"
+  local destination_root="$PACKAGE_ROOT/content/prototype"
+  [[ -f "$source_root/manifest.json" ]] || {
+    echo "package_kookie: prototype content manifest missing: $source_root/manifest.json" >&2
+    exit 1
+  }
+  read -r PROTOTYPE_CONTENT_TREE_SHA256 \
+    PROTOTYPE_CONTENT_ASSET_COUNT PROTOTYPE_CONTENT_FILE_COUNT < <(
+    python3 - "$source_root" "$destination_root" <<'PY'
+import hashlib
+import json
+import pathlib
+import shutil
+import sys
+
+source = pathlib.Path(sys.argv[1]).resolve()
+destination = pathlib.Path(sys.argv[2]).resolve()
+manifest_path = source / "manifest.json"
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+if manifest.get("schema") != "kookie.prototype-content/v1":
+    raise SystemExit("package_kookie: unsupported prototype content manifest schema")
+assets = manifest.get("assets")
+if not isinstance(assets, list) or not assets:
+    raise SystemExit("package_kookie: prototype content manifest has no assets")
+declared_paths = []
+for asset in assets:
+    if not isinstance(asset, dict) or not asset.get("id"):
+        raise SystemExit("package_kookie: prototype content asset entry is malformed")
+    for field in ("authored_path", "runtime_path", "cooked_path"):
+        value = asset.get(field)
+        if value is None:
+            continue
+        relative = pathlib.PurePosixPath(value)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise SystemExit(f"package_kookie: unsafe prototype content path: {value}")
+        declared_paths.append(value)
+declared_paths = sorted(set(declared_paths))
+for relative_name in declared_paths:
+    path = source.joinpath(*pathlib.PurePosixPath(relative_name).parts)
+    if not path.is_file() or path.is_symlink():
+        raise SystemExit(f"package_kookie: declared prototype content file missing: {relative_name}")
+for path in source.rglob("*"):
+    if path.is_symlink() or (not path.is_file() and not path.is_dir()):
+        raise SystemExit(f"package_kookie: prototype content contains unsafe entry: {path}")
+if destination.exists():
+    shutil.rmtree(destination)
+for path in sorted(source.rglob("*")):
+    relative = path.relative_to(source)
+    target = destination / relative
+    if path.is_dir():
+        target.mkdir(parents=True, exist_ok=True)
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+
+digest = hashlib.sha256()
+file_count = 0
+for path in sorted(destination.rglob("*")):
+    if path.is_symlink() or (not path.is_file() and not path.is_dir()):
+        raise SystemExit(f"package_kookie: copied prototype content contains unsafe entry: {path}")
+    if path.is_file():
+        relative = path.relative_to(destination).as_posix().encode("utf-8")
+        digest.update(relative)
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+        file_count += 1
+print(digest.hexdigest(), len(assets), file_count, sep="\t")
+PY
+  )
+}
+
+bundle_prototype_content
+
 
 bundle_linux_native() {
   local binary="$1"
@@ -817,6 +903,10 @@ archive_builder=$PYTHON_VERSION-zipfile
 dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
 simd_benchmark=$([[ "$TARGET" == linux-x86_64 ]] && echo kof-buffer-u8-runtime-dispatch || echo unavailable)
 content_cooker=$([[ "$TARGET" == linux-x86_64 ]] && echo native-bounded-intake-cli || echo unavailable)
+prototype_content_profile=$CONTENT_PROFILE
+prototype_content_sha256=$PROTOTYPE_CONTENT_TREE_SHA256
+prototype_content_asset_count=$PROTOTYPE_CONTENT_ASSET_COUNT
+prototype_content_file_count=$PROTOTYPE_CONTENT_FILE_COUNT
 crash_durable_save=staged-validated-fsync-rename-directory-fsync
 replay_admission=identity-bound-checksummed-v3
 EOF
@@ -874,7 +964,9 @@ python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$KOF_SOURCE_COMMIT" "$KOF_COMPILER_SHA256" \
   "$PUBLIC_KEY_SHA256" "$(basename "$PUBLIC_KEY")" \
   "$WINDOWS_JAVA_ACTUAL_SHA256" "$WINDOWS_JAVA_VERSION" \
-  "$WINDOWS_JAVA_VENDOR" "$WINDOWS_DXC_VERSION" "$PACKAGE_EPOCH" <<'PY'
+  "$WINDOWS_JAVA_VENDOR" "$WINDOWS_DXC_VERSION" "$PACKAGE_EPOCH" \
+  "$CONTENT_PROFILE" "$PROTOTYPE_CONTENT_TREE_SHA256" \
+  "$PROTOTYPE_CONTENT_ASSET_COUNT" "$PROTOTYPE_CONTENT_FILE_COUNT" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
@@ -882,7 +974,9 @@ manifest_path = pathlib.Path(sys.argv[2])
  source_tree_state, kof_version, kof_archive_sha256, kof_source_commit,
  kof_compiler_sha256, public_key_sha256, public_key_name,
  windows_java_archive_sha256, windows_java_version, windows_java_vendor,
- windows_dxc_version, source_date_epoch) = sys.argv[3:22]
+ windows_dxc_version, source_date_epoch, content_profile,
+ prototype_content_sha256, prototype_content_asset_count,
+ prototype_content_file_count) = sys.argv[3:26]
 encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
@@ -911,6 +1005,10 @@ manifest = {
     "dedicated_server": target == "linux-x86_64",
     "simd_benchmark": target == "linux-x86_64",
     "content_cooker": target == "linux-x86_64",
+    "content_profile": content_profile,
+    "prototype_content_sha256": prototype_content_sha256,
+    "prototype_content_asset_count": int(prototype_content_asset_count),
+    "prototype_content_file_count": int(prototype_content_file_count),
     "signing": "ed25519",
     "proof": "ed25519-signature-set",
     "signature_encoding": "binary",

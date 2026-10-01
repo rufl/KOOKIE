@@ -110,6 +110,34 @@ recursos. Ele é ferramenta de qualificação, não um serviço de hospedagem de
 produção empacotado. A decisão de rota SIMD é saída de medição para sua carga
 de redução exata, não uma afirmação de ganho geral.
 
+## Pacote de conteúdo protótipo
+
+O primeiro perfil de conteúdo adiciona um catálogo de assets limitado e
+assinado em `content/prototype`. Ele inclui modelos GLB convertidos dos pacotes
+modular e Classic64, o goose animado solicitado, PNGs VFX autorais, derivados
+PNG limitados para runtime, saídas RGBA8 do cooker e os avisos de licença
+originais. A opção é explícita para manter os pacotes existentes sem conteúdo:
+
+```bash
+KOOKIE_VERSION=0.1.0-dogfood.prototype \
+KOOKIE_BUILD_ID=prototype-content \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
+KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
+scripts/package_kookie.sh --runtime native --target linux-x86_64 \
+  --content prototype
+```
+
+`assets/prototype/manifest.json` vincula caminhos de origem, SHA-256 dos
+arquivos de origem, saídas convertidas, grades de frames e avisos de licença.
+`PROVENANCE.txt` e o JSON assinado registram o digest determinístico da árvore
+de conteúdo protótipo e as contagens de assets/arquivos.
+
+Os avisos modular, Brackeys VFX e Classic64 identificam fontes CC0. A página do
+goose não é CC0: permite uso comercial e edição, mas proíbe revender ou
+redistribuir o arquivo do modelo. Ele permanece limitado ao protótipo por
+solicitação explícita; não redistribua esse asset como CC0.
+
 ## Pacote de apresentação SDL para Linux
 
 Gere a apresentação persistente SDL3/SDL_GPU usada para qualificação visual

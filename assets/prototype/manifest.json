@@ -1,0 +1,360 @@
+{
+  "schema": "kookie.prototype-content/v1",
+  "content_id": "kookie-prototype-assets-1",
+  "package_role": "prototype-content-staging",
+  "generated_from": {
+    "tool": "Blender 5.2.2 + ImageMagick 7 + KOOKIE bounded PNG cooker",
+    "coordinate_convention": "glTF Y-up; source GLBs retain exported transforms",
+    "notes": "FBX/BLEND sources were converted to GLB; TGA flipbooks were converted to PNG; runtime PNGs are bounded 128x128 or 256x256 derivatives and cooked through the existing PNG intake."
+  },
+  "source_archives": [
+    {
+      "id": "modular-prototyping",
+      "archive_name": "C__Users_rafael_Downloads_Free 3D Modular Game Assets For Prototyping.zip",
+      "archive_sha256": "fc22015d5ec0860955c0e4969bed4c57c1b0912690f16a563c7413b1fd4bcbde",
+      "license": "CC0",
+      "license_file": "licenses/modular-cc0.txt",
+      "creator": "Raphael Gonçalves / Rgsdev"
+    },
+    {
+      "id": "brackeys-vfx",
+      "archive_name": "C__Users_rafael_Desktop_assets_brackeys_vfx_bundle.zip",
+      "archive_sha256": "ac0fbf5d5a07688a5d4d35fd0bbae783597d819a3d8a92893b05eb69ddb144c5",
+      "license": "CC0",
+      "license_file": "licenses/brackeys-vfx-cc0-credits.txt",
+      "creator": "Brackeys repackaging; original credits retained in the license file"
+    },
+    {
+      "id": "classic64",
+      "archive_name": "C__Users_rafael_Desktop_assets_- Classic 64 Asset Pack 0.6.zip",
+      "archive_sha256": "30366f08993abe89477f6453db789d6bae37a13de6cc89f9453621f8e8d17e5e",
+      "license": "CC0",
+      "license_file": "licenses/classic64-cc0-readme.txt",
+      "creator": "Craig Snedeker"
+    }
+  ],
+  "direct_sources": [
+    {
+      "id": "ps1-animated-goose",
+      "source_url": "https://pupan3.itch.io/ps1-animated-goose",
+      "source_name": "C__Users_rafael_Downloads_goose.fbx",
+      "source_sha256": "f39b59b40a3027b39bf8a6972df35fe8bf30c9d491e2cfadd1e5504a74f2df66",
+      "license": "upstream-commercial-use-with-no-model-redistribution",
+      "license_file": "licenses/goose-upstream-terms.txt",
+      "redistribution": "restricted; included only by explicit prototype request"
+    }
+  ],
+  "asset_policy": {
+    "all_sources_claimed_cc0": false,
+    "cc0_assets": "The modular, Brackeys VFX and Classic64 source notices are retained verbatim.",
+    "restricted_assets": ["model.goose"],
+    "goose_warning": "The source page permits commercial use and editing but prohibits reselling or redistributing the model file. The converted GLB remains prototype-only and must not be treated as CC0.",
+    "credits_required": false,
+    "credits_retained": true
+  },
+  "assets": [
+    {
+      "id": "model.goose",
+      "kind": "model",
+      "source": "direct_sources.ps1-animated-goose",
+      "authored_path": "models/goose/goose.glb",
+      "runtime_path": "models/goose/goose.glb",
+      "format": "glb",
+      "animations": ["Idle", "Walk", "Run", "Attack", "Damage", "Death", "Eat"],
+      "license": "upstream-commercial-use-with-no-model-redistribution",
+      "cook_status": "standard-glb-preserved; bounded GLB intake requires a stricter canonical subset"
+    },
+    {
+      "id": "model.modular-character",
+      "kind": "model",
+      "source": "modular-prototyping/Character/Character.fbx",
+      "authored_path": "models/modular/character.glb",
+      "runtime_path": "models/modular/character.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.modular-ground",
+      "kind": "model",
+      "source": "modular-prototyping/Pieces/ground.fbx",
+      "authored_path": "models/modular/ground.glb",
+      "runtime_path": "models/modular/ground.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.modular-wall",
+      "kind": "model",
+      "source": "modular-prototyping/Pieces/wall.fbx",
+      "authored_path": "models/modular/wall.glb",
+      "runtime_path": "models/modular/wall.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.modular-door",
+      "kind": "model",
+      "source": "modular-prototyping/Pieces/door.fbx",
+      "authored_path": "models/modular/door.glb",
+      "runtime_path": "models/modular/door.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.modular-stairs",
+      "kind": "model",
+      "source": "modular-prototyping/Pieces/stairs.fbx",
+      "authored_path": "models/modular/stairs.glb",
+      "runtime_path": "models/modular/stairs.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.modular-ramp",
+      "kind": "model",
+      "source": "modular-prototyping/Pieces/ramp.fbx",
+      "authored_path": "models/modular/ramp.glb",
+      "runtime_path": "models/modular/ramp.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.modular-key",
+      "kind": "model",
+      "source": "modular-prototyping/Pieces/key.fbx",
+      "authored_path": "models/modular/key.glb",
+      "runtime_path": "models/modular/key.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.modular-coin",
+      "kind": "model",
+      "source": "modular-prototyping/Pieces/coin.fbx",
+      "authored_path": "models/modular/coin.glb",
+      "runtime_path": "models/modular/coin.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.classic64-shed",
+      "kind": "model",
+      "source": "classic64/Buildings/shed_01.blend",
+      "authored_path": "models/classic/shed_01.glb",
+      "runtime_path": "models/classic/shed_01.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.classic64-door",
+      "kind": "model",
+      "source": "classic64/Doors/door_brown_a.blend",
+      "authored_path": "models/classic/door_brown_a.glb",
+      "runtime_path": "models/classic/door_brown_a.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.classic64-tree",
+      "kind": "model",
+      "source": "classic64/Nature/tree_trunk.blend",
+      "authored_path": "models/classic/tree_trunk.glb",
+      "runtime_path": "models/classic/tree_trunk.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "model.classic64-pump-station",
+      "kind": "model",
+      "source": "classic64/Industrial/pump_station.blend",
+      "authored_path": "models/classic/pump_station.glb",
+      "runtime_path": "models/classic/pump_station.glb",
+      "format": "glb",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-circle",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/circle_01_a.png",
+      "authored_path": "vfx/particles/circle_01_a.png",
+      "runtime_path": "runtime/vfx/particles/circle_01_a.png",
+      "cooked_path": "cooked/vfx/particles/circle_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-fire",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/fire_01_a.png",
+      "authored_path": "vfx/particles/fire_01_a.png",
+      "runtime_path": "runtime/vfx/particles/fire_01_a.png",
+      "cooked_path": "cooked/vfx/particles/fire_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-smoke",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/smoke_01_a.png",
+      "authored_path": "vfx/particles/smoke_01_a.png",
+      "runtime_path": "runtime/vfx/particles/smoke_01_a.png",
+      "cooked_path": "cooked/vfx/particles/smoke_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-spark",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/spark_01_a.png",
+      "authored_path": "vfx/particles/spark_01_a.png",
+      "runtime_path": "runtime/vfx/particles/spark_01_a.png",
+      "cooked_path": "cooked/vfx/particles/spark_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-magic",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/magic_01_a.png",
+      "authored_path": "vfx/particles/magic_01_a.png",
+      "runtime_path": "runtime/vfx/particles/magic_01_a.png",
+      "cooked_path": "cooked/vfx/particles/magic_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-slash",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/slash_01_a.png",
+      "authored_path": "vfx/particles/slash_01_a.png",
+      "runtime_path": "runtime/vfx/particles/slash_01_a.png",
+      "cooked_path": "cooked/vfx/particles/slash_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-flare",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/flare_01_a.png",
+      "authored_path": "vfx/particles/flare_01_a.png",
+      "runtime_path": "runtime/vfx/particles/flare_01_a.png",
+      "cooked_path": "cooked/vfx/particles/flare_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.particle-scorch",
+      "kind": "particle-texture",
+      "source": "brackeys-vfx/particles/alpha/scorch_01_a.png",
+      "authored_path": "vfx/particles/scorch_01_a.png",
+      "runtime_path": "runtime/vfx/particles/scorch_01_a.png",
+      "cooked_path": "cooked/vfx/particles/scorch_01_a.rgba.png",
+      "format": "png",
+      "runtime_dimensions": "128x128",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.flipbook-explosion",
+      "kind": "flipbook",
+      "source": "brackeys-vfx/flipbooks/explosion_01_8x8.tga",
+      "authored_path": "vfx/flipbooks/explosion_01_8x8.png",
+      "runtime_path": "runtime/vfx/flipbooks/explosion_01_8x8.png",
+      "cooked_path": "cooked/vfx/flipbooks/explosion_01_8x8.rgba.png",
+      "format": "png",
+      "grid": "8x8",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.flipbook-explosion-smoke",
+      "kind": "flipbook",
+      "source": "brackeys-vfx/flipbooks/explosion_smoke_01_8x8.tga",
+      "authored_path": "vfx/flipbooks/explosion_smoke_01_8x8.png",
+      "runtime_path": "runtime/vfx/flipbooks/explosion_smoke_01_8x8.png",
+      "cooked_path": "cooked/vfx/flipbooks/explosion_smoke_01_8x8.rgba.png",
+      "format": "png",
+      "grid": "8x8",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.flipbook-fire",
+      "kind": "flipbook",
+      "source": "brackeys-vfx/flipbooks/fire_01_8x8.tga",
+      "authored_path": "vfx/flipbooks/fire_01_8x8.png",
+      "runtime_path": "runtime/vfx/flipbooks/fire_01_8x8.png",
+      "cooked_path": "cooked/vfx/flipbooks/fire_01_8x8.rgba.png",
+      "format": "png",
+      "grid": "8x8",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.flipbook-wispy-smoke",
+      "kind": "flipbook",
+      "source": "brackeys-vfx/flipbooks/wispy_smoke_01_8x8.tga",
+      "authored_path": "vfx/flipbooks/wispy_smoke_01_8x8.png",
+      "runtime_path": "runtime/vfx/flipbooks/wispy_smoke_01_8x8.png",
+      "cooked_path": "cooked/vfx/flipbooks/wispy_smoke_01_8x8.rgba.png",
+      "format": "png",
+      "grid": "8x8",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.predrawn-explosion",
+      "kind": "predrawn-spritesheet",
+      "source": "brackeys-vfx/predrawn/explosion_6x5.png",
+      "authored_path": "vfx/predrawn/explosion_6x5.png",
+      "runtime_path": "runtime/vfx/predrawn/explosion_6x5.png",
+      "cooked_path": "cooked/vfx/predrawn/explosion_6x5.rgba.png",
+      "format": "png",
+      "grid": "6x5",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.predrawn-electric-ring",
+      "kind": "predrawn-spritesheet",
+      "source": "brackeys-vfx/predrawn/electric_ring_6x5.png",
+      "authored_path": "vfx/predrawn/electric_ring_6x5.png",
+      "runtime_path": "runtime/vfx/predrawn/electric_ring_6x5.png",
+      "cooked_path": "cooked/vfx/predrawn/electric_ring_6x5.rgba.png",
+      "format": "png",
+      "grid": "6x5",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.predrawn-fire-point",
+      "kind": "predrawn-spritesheet",
+      "source": "brackeys-vfx/predrawn/fire_point_6x5.png",
+      "authored_path": "vfx/predrawn/fire_point_6x5.png",
+      "runtime_path": "runtime/vfx/predrawn/fire_point_6x5.png",
+      "cooked_path": "cooked/vfx/predrawn/fire_point_6x5.rgba.png",
+      "format": "png",
+      "grid": "6x5",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    },
+    {
+      "id": "vfx.predrawn-impact",
+      "kind": "predrawn-spritesheet",
+      "source": "brackeys-vfx/predrawn/impact_white_6x4.png",
+      "authored_path": "vfx/predrawn/impact_white_6x4.png",
+      "runtime_path": "runtime/vfx/predrawn/impact_white_6x4.png",
+      "cooked_path": "cooked/vfx/predrawn/impact_white_6x4.rgba.png",
+      "format": "png",
+      "grid": "6x4",
+      "runtime_dimensions": "256x256",
+      "license": "CC0"
+    }
+  ]
+}

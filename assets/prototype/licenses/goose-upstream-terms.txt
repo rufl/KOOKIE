@@ -1,0 +1,13 @@
+PS1 Animated Goose by PUPAN3
+Source: https://pupan3.itch.io/ps1-animated-goose
+
+The source page states:
+- Use it for commercial or free games.
+- Edit it as needed.
+- Do not resell or re-distribute the model file itself.
+- Credits are not required.
+
+This is not a CC0 declaration. KOOKIE retains this asset only because the
+prototype request explicitly requested the goose. Do not treat goose.fbx or
+its converted derivatives as a generally redistributable CC0 asset without
+permission from the author.

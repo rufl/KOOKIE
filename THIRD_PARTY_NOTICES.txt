@@ -54,6 +54,25 @@ unchanged from the supplied archive. OpenJDK distributions commonly include
 code under GPLv2 with the Classpath Exception and separately licensed
 components; consult those bundled files for the exact runtime.
 
+Prototype content profile
+The opt-in `content/prototype` profile includes selected converted assets and
+their retained source notices under `content/prototype/licenses`:
+
+- The modular prototyping pack identifies Raphael Gonçalves / Rgsdev and
+  declares CC0.
+- The Brackeys VFX bundle declares CC0 and retains credits for Picster, Kenney,
+  Thomas Iché and CodeManu.
+- Classic64 identifies Craig Snedeker and links CC0; its request not to sell the
+  library or individual items is retained in the packaged readme.
+- PUPAN3's PS1 Animated Goose page permits commercial use and editing but says
+  not to resell or redistribute the model file. This asset is not CC0 and is
+  prototype-only by explicit request. Its terms are retained in
+  `content/prototype/licenses/goose-upstream-terms.txt`.
+
+The package manifest records the source archive SHA-256 values, conversion
+paths, content tree digest and the restricted goose policy. No source archive
+is silently relabeled as CC0.
+
 Kof compiler note
 The Kof compiler is a build tool and is not distributed in KOOKIE packages.
 Upstream permits programs produced by Kof to use their own license. KOOKIE's
