@@ -51,8 +51,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Presentation archives now include `DEMO_CONTROLS.txt` and enforce the
   first-demo `content_profile=none` boundary.
 - Fixed native presentation qualification: the shooter HUD now accepts the
-  authored 100-health goose actors, and GPU scene submission counts staged
-  vertices instead of reserved frame capacity.
+  authored 100-health goose actors, GPU scene submission counts staged vertices
+  instead of reserved frame capacity, and the strict evidence marker is emitted
+  only after the rendered main-menu capture checks pass.
 - Rejected synthetic all-zero Kof distribution digests; prototype package smoke
   now uses the recorded verified pinned distribution identity.
 

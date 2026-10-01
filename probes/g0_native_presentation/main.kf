@@ -1114,6 +1114,7 @@ main() {
                 "GPU draw timing must be positive")
             assert(presentation.capacitiesStable(),
                 "scene staging capacities must remain fixed")
+            println("KOOKIE native main menu verified")
             if (audio > 0) {
                 assert(presentation.dequeueCombatFeedbackAudio() &&
                     presentation.combatFeedbackClip() == 201 &&
