@@ -53,6 +53,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Fixed native presentation qualification: the shooter HUD now accepts the
   authored 100-health goose actors, and GPU scene submission counts staged
   vertices instead of reserved frame capacity.
+- Rejected synthetic all-zero Kof distribution digests; prototype package smoke
+  now uses the recorded verified pinned distribution identity.
 
 ### Playable demo release readiness
 

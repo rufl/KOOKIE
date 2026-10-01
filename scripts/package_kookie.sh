@@ -114,10 +114,11 @@ ACTUAL_KOF_VERSION="$(kof version 2>/dev/null)" || {
     "$EXPECTED_KOF_VERSION" "$ACTUAL_KOF_VERSION" >&2
   exit 2
 }
-[[ "$KOF_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || {
-  echo 'package_kookie: KOOKIE_KOF_ARCHIVE_SHA256 must identify the verified Kof distribution' >&2
+if [[ ! "$KOF_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ||
+      "$KOF_ARCHIVE_SHA256" =~ ^0{64}$ ]]; then
+  echo 'package_kookie: KOOKIE_KOF_ARCHIVE_SHA256 must identify a nonzero verified Kof distribution' >&2
   exit 2
-}
+fi
 [[ "$KOF_SOURCE_COMMIT" == "$EXPECTED_KOF_SOURCE_COMMIT" ]] || {
   printf 'package_kookie: expected Kof source commit %s; found %s\n' \
     "$EXPECTED_KOF_SOURCE_COMMIT" "${KOF_SOURCE_COMMIT:-unset}" >&2

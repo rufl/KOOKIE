@@ -54,6 +54,8 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Corrigimos a qualificação de apresentação nativa: o HUD do shooter agora
   aceita os atores ganso com 100 de vida, e o envio da cena GPU conta os
   vértices staged em vez da capacidade reservada do frame.
+- Rejeitamos digest de distribuição Kof sintético composto só de zeros; o smoke
+  do pacote protótipo agora usa a identidade registrada da distribuição fixada.
 
 ### Prontidão da release de demo jogável
 
