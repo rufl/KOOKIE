@@ -28,16 +28,19 @@ usage() {
 Usage: scripts/package_kookie.sh [--runtime native|presentation|jvm] [--target linux-x86_64|windows-x86_64]
 
 Builds a signed immutable KOOKIE archive, provenance manifest, public key,
-signature set, and SHA256SUMS. Native Linux packages contain the Kof executable
-and use the host's system runtime. Presentation packages contain the persistent
-native Kof SDL_GPU application, SDL3, SDL_mixer, the adapter, and shaders.
+signature set, and SHA256SUMS.
+Native Linux packages contain the Kof executable and use the host's system
+runtime. Presentation packages contain the persistent native Kof SDL_GPU
+application, SDL3, SDL_mixer, the adapter, and shaders.
 Every Linux package also contains a graphics-free Kof dedicated workload server,
 a native bounded content cooker, and a Kof `Buffer(U8)` SIMD benchmark with
-native timing. Windows native packages contain the SDL3/SDL_mixer shell.
+native timing.
+Windows native packages contain the native Kof PE gameplay linked to the SDL3/
+SDL_mixer shell.
 Windows JVM packages contain canonical Kof JVM classes and the exact
 SHA-256-pinned OpenJDK runtime supplied through KOOKIE_WINDOWS_JAVA_ARCHIVE.
-Windows presentation packages contain the Kof JVM gameplay and a native
-SDL_GPU/SDL_mixer adapter DLL plus SPIR-V and DXIL shader binaries.
+Windows presentation packages contain native Kof PE gameplay, SDL3, SDL_mixer,
+the native adapter, and SPIR-V/DXIL shader binaries.
 Set `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to the
 verified distribution used for the build.
 EOF
@@ -172,8 +175,7 @@ if [[ "$TARGET" == windows-x86_64 &&
   }
   command -v zig >/dev/null || { echo 'package_kookie: zig is required for Windows packaging' >&2; exit 2; }
 fi
-if [[ "$TARGET" == windows-x86_64 &&
-      ( "$RUNTIME" == jvm || "$RUNTIME" == presentation ) ]]; then
+if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
   command -v java >/dev/null || {
     echo 'package_kookie: host java is required to smoke the Windows JVM artifact' >&2
     exit 2
@@ -457,11 +459,103 @@ exec ./kookie-simd-bench.bin
 EOF
   chmod 755 "$PACKAGE_ROOT/kookie-simd-bench"
 }
+bundle_windows_native_shell() {
+  local pe_build="$WORK_DIR/kof-pe-shell"
+  KOOKIE_KOF_SOURCE_COMMIT="$KOF_SOURCE_COMMIT" \
+    "$ROOT_DIR/scripts/kof_pe_build.sh" "$ROOT_DIR/src" \
+    --output "$pe_build" --library >/dev/null
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -s -fno-ident \
+    -Wl,/subsystem:console -Wl,/Brepro \
+    -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
+    -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
+    "$ROOT_DIR/scripts/kookie_windows_shell.c" \
+    "$pe_build/kof-module.obj" \
+    "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
+    "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
+    -lws2_32 -o "$PACKAGE_ROOT/kookie.exe"
+  cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
+  cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
+    "$PACKAGE_ROOT/SDL3_mixer.dll"
+  cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
+@echo off
+setlocal
+set "ROOT=%~dp0"
+"%ROOT%kookie.exe" %*
+exit /b %ERRORLEVEL%
+EOF
+}
+
+bundle_windows_native_presentation() {
+  local presentation_root="$WORK_DIR/presentation-source"
+  local pe_build="$WORK_DIR/kof-pe-presentation"
+  local adapter_obj="$WORK_DIR/kookie-sdl-adapter.obj"
+  local transport_obj="$WORK_DIR/kookie-transport.obj"
+  mkdir -p "$presentation_root"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
+  cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" \
+    "$presentation_root/main.kf"
+  for module in core content session world ui demo; do
+    for source in "$ROOT_DIR/src/$module/"*.kf; do
+      ln -s -- "$source" "$presentation_root/$module/$(basename "$source")"
+    done
+  done
+  KOOKIE_KOF_SOURCE_COMMIT="$KOF_SOURCE_COMMIT" \
+    "$ROOT_DIR/scripts/kof_pe_build.sh" "$presentation_root" \
+    --output "$pe_build" --library >/dev/null
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -fno-ident \
+    -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
+    -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
+    -I "$ROOT_DIR/native" \
+    -c "$ROOT_DIR/native/kookie_sdl_adapter.c" -o "$adapter_obj"
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -fno-ident \
+    -I "$ROOT_DIR/native" \
+    -c "$ROOT_DIR/native/kookie_transport.c" -o "$transport_obj"
+  zig cc -target x86_64-windows-gnu -s -fno-ident \
+    -Wl,/subsystem:console -Wl,/Brepro \
+    "$ROOT_DIR/native/kookie_pe_entry.c" \
+    "$pe_build/kof-module.obj" "$adapter_obj" "$transport_obj" \
+    "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
+    "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
+    -lws2_32 -lpsapi -o "$PACKAGE_ROOT/kookie.exe"
+  cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
+  cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
+    "$PACKAGE_ROOT/SDL3_mixer.dll"
+  cp -- "$PACKAGE_ROOT/SDL3.dll" "$PACKAGE_ROOT/build/SDL3.dll"
+  cp -- "$PACKAGE_ROOT/SDL3_mixer.dll" "$PACKAGE_ROOT/build/SDL3_mixer.dll"
+  glslc -fshader-stage=vert \
+    "$ROOT_DIR/native/shaders/g0_triangle.vert" \
+    -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
+  glslc -fshader-stage=vert \
+    "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
+    -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
+  glslc -fshader-stage=frag \
+    "$ROOT_DIR/native/shaders/g0_triangle.frag" \
+    -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
+  "$KOOKIE_DXC" -T vs_6_0 -E main \
+    -Fo "$PACKAGE_ROOT/build/g0_triangle.vert.dxil" \
+    "$ROOT_DIR/native/shaders/g0_triangle.vert.hlsl"
+  "$KOOKIE_DXC" -T vs_6_0 -E main \
+    -Fo "$PACKAGE_ROOT/build/g5_triangle_instance.vert.dxil" \
+    "$ROOT_DIR/native/shaders/g5_triangle_instance.vert.hlsl"
+  "$KOOKIE_DXC" -T ps_6_0 -E main \
+    -Fo "$PACKAGE_ROOT/build/g0_triangle.frag.dxil" \
+    "$ROOT_DIR/native/shaders/g0_triangle.frag.hlsl"
+  cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
+@echo off
+setlocal
+set "ROOT=%~dp0"
+cd /d "%ROOT%"
+"%ROOT%kookie.exe" %*
+exit /b %ERRORLEVEL%
+EOF
+}
+
 bundle_windows_jvm() {
   local extract_root="$WORK_DIR/windows-java"
   local jvm_build="$WORK_DIR/jvm-build"
   local runtime_root
-  local presentation_root=
   mkdir -p "$extract_root" "$jvm_build"
   python3 - "$WINDOWS_JAVA_ARCHIVE" "$extract_root" <<'PY'
 import pathlib
@@ -553,20 +647,7 @@ PY
   mkdir "$PACKAGE_ROOT/runtime"
   cp -a -- "$runtime_root/." "$PACKAGE_ROOT/runtime/"
 
-  if [[ "$RUNTIME" == presentation ]]; then
-    presentation_root="$WORK_DIR/presentation"
-    mkdir -p "$presentation_root"/{core,content,session,world,ui,demo}
-    cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" \
-      "$presentation_root/main.kf"
-    for module in core content session world ui demo; do
-      for source in "$ROOT_DIR/src/$module/"*.kf; do
-        ln -s -- "$source" "$presentation_root/$module/$(basename "$source")"
-      done
-    done
-    kof build "$presentation_root/main.kf" --target jvm --output "$jvm_build" >/dev/null
-  else
-    kof build "$ROOT_DIR/src" --target jvm --output "$jvm_build" >/dev/null
-  fi
+  kof build "$ROOT_DIR/src" --target jvm --output "$jvm_build" >/dev/null
   test -f "$jvm_build/Default/Main.class" || {
     echo 'package_kookie: Kof JVM main class is missing' >&2
     exit 1
@@ -599,52 +680,8 @@ with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED,
             continue
         jar.writestr(entry(name), path.read_bytes())
 PY
-  if [[ "$RUNTIME" == presentation ]]; then
-    mkdir -p "$PACKAGE_ROOT/build"
-    zig cc -target x86_64-windows-gnu -std=c11 \
-      -Wall -Wextra -Werror -O2 -s -shared -Wl,/Brepro \
-      -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
-      -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
-      -I "$ROOT_DIR/native" \
-      "$ROOT_DIR/native/kookie_sdl_adapter.c" \
-      "$ROOT_DIR/native/kookie_transport.c" \
-      "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
-      "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
-      -lws2_32 -lpsapi \
-      -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so"
-    cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" \
-      "$PACKAGE_ROOT/SDL3.dll"
-    cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
-      "$PACKAGE_ROOT/SDL3_mixer.dll"
-    cp -- "$PACKAGE_ROOT/SDL3.dll" "$PACKAGE_ROOT/build/SDL3.dll"
-    cp -- "$PACKAGE_ROOT/SDL3_mixer.dll" \
-      "$PACKAGE_ROOT/build/SDL3_mixer.dll"
-    glslc -fshader-stage=vert \
-      "$ROOT_DIR/native/shaders/g0_triangle.vert" \
-      -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
-    glslc -fshader-stage=vert \
-      "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
-      -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
-    glslc -fshader-stage=frag \
-      "$ROOT_DIR/native/shaders/g0_triangle.frag" \
-      -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
-    "$KOOKIE_DXC" -T vs_6_0 -E main \
-      -Fo "$PACKAGE_ROOT/build/g0_triangle.vert.dxil" \
-      "$ROOT_DIR/native/shaders/g0_triangle.vert.hlsl"
-    "$KOOKIE_DXC" -T vs_6_0 -E main \
-      -Fo "$PACKAGE_ROOT/build/g5_triangle_instance.vert.dxil" \
-      "$ROOT_DIR/native/shaders/g5_triangle_instance.vert.hlsl"
-    "$KOOKIE_DXC" -T ps_6_0 -E main \
-      -Fo "$PACKAGE_ROOT/build/g0_triangle.frag.dxil" \
-      "$ROOT_DIR/native/shaders/g0_triangle.frag.hlsl"
-    rm -f -- \
-      "$PACKAGE_ROOT/build/libkookie_sdl_adapter.lib" \
-      "$PACKAGE_ROOT/build/libkookie_sdl_adapter.pdb"
-  fi
-  if [[ "$RUNTIME" != presentation ]]; then
-    java --enable-native-access=ALL-UNNAMED \
-      -jar "$PACKAGE_ROOT/kookie.jar" > "$WORK_DIR/jvm-smoke.log"
-  fi
+  java --enable-native-access=ALL-UNNAMED \
+    -jar "$PACKAGE_ROOT/kookie.jar" > "$WORK_DIR/jvm-smoke.log"
   cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
 @echo off
 setlocal
@@ -663,24 +700,9 @@ EOF
 
 
 if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == native ]]; then
-  zig cc -target x86_64-windows-gnu -std=c11 \
-    -Wall -Wextra -Werror -O2 -s -Wl,/subsystem:windows \
-    -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
-    -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
-    "$ROOT_DIR/scripts/kookie_windows_shell.c" \
-    "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
-    "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
-    -lws2_32 -o "$PACKAGE_ROOT/kookie.exe"
-  cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
-  cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
-    "$PACKAGE_ROOT/SDL3_mixer.dll"
-  cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
-@echo off
-setlocal
-set "ROOT=%~dp0"
-"%ROOT%kookie.exe" %*
-exit /b %ERRORLEVEL%
-EOF
+  bundle_windows_native_shell
+elif [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
+  bundle_windows_native_presentation
 elif [[ "$TARGET" == windows-x86_64 ]]; then
   bundle_windows_jvm
 elif [[ "$RUNTIME" == native ]]; then
@@ -747,16 +769,17 @@ if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
   DEPENDENCY_POLICY=bundled-runtime-license-files-retained
   RUNTIME_DEPENDENCIES=OpenJDK-runtime
 elif [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
-  WINDOWS_STATUS=kof-jvm-sdl-gpu-bundled-runtime
-  DEPENDENCY_POLICY=bundled-runtime-and-sdl-license-files-retained
+  WINDOWS_STATUS=kof-native-pe-sdl-gpu-bundled-runtime
+  DEPENDENCY_POLICY=bundled-sdl-and-shader-assets-license-files-retained
   SDL_VERSION=3.4.16
   SDL_MIXER_VERSION=3.2.4
-  RUNTIME_DEPENDENCIES=OpenJDK-runtime+SDL3+SDL_mixer+SPIR-V+DXIL
+  RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL
 elif [[ "$TARGET" == windows-x86_64 ]]; then
-  WINDOWS_STATUS=native-sdl-shell
+  WINDOWS_STATUS=kof-native-pe-sdl-shell-runtime
+  DEPENDENCY_POLICY=bundled-sdl-license-files-retained
   SDL_VERSION=3.4.16
   SDL_MIXER_VERSION=3.2.4
-  RUNTIME_DEPENDENCIES=SDL3+SDL_mixer
+  RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer
 elif [[ "$RUNTIME" == presentation ]]; then
   SDL_VERSION=3.4.16
   SDL_MIXER_VERSION=3.2.4
@@ -816,7 +839,6 @@ root = pathlib.Path(sys.argv[1])
 output = pathlib.Path(sys.argv[2])
 epoch = min(max(int(sys.argv[3]), 315_532_800), 4_354_819_199)
 stamp = time.gmtime(epoch)[:6]
-
 def info(name, directory):
     entry = zipfile.ZipInfo(name + ("/" if directory else ""), stamp)
     entry.compress_type = zipfile.ZIP_DEFLATED
@@ -877,7 +899,7 @@ manifest = {
     "kof_source_commit": kof_source_commit,
     "kof_compiler_sha256": kof_compiler_sha256,
     "source_date_epoch": int(source_date_epoch),
-    "windows_java_runtime": target == "windows-x86_64" and runtime in {"jvm", "presentation"},
+    "windows_java_runtime": target == "windows-x86_64" and runtime == "jvm",
     "windows_java_archive_sha256": windows_java_archive_sha256,
     "windows_java_version": windows_java_version,
     "windows_java_vendor": windows_java_vendor,

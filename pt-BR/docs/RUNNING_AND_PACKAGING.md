@@ -144,27 +144,31 @@ lobby não fornece criptografia nem identidade pública.
 
 ## Pacotes Windows x86-64
 
-### Compilador Kof PE/COFF limitado
+### Compilador Kof PE/COFF alcançável
 
-A ponte fixada do compilador reduz a IR Kof otimizada para C11 determinístico e
-usa Zig 0.16.0 para emitir um objeto COFF AMD64 e um PE de console Windows:
+A ponte fixada do compilador reduz o grafo alcançável da IR Kof otimizada para
+C11 determinístico e usa Zig 0.16.0 para emitir um objeto COFF AMD64 e um PE
+de console Windows:
 
 ```bash
 scripts/kof_pe_build.sh caminho/para/main.kf --output build/kof-pe
 scripts/verify_kof_pe_backend.sh
 ```
 
-A saída contém `kof-module.c`, `kof-module.obj` e `kof-module.exe`. O gate
-retido gera duas vezes, verifica reprodutibilidade byte a byte e cabeçalhos
-PE/COFF, compara a saída do código gerado com o oráculo Kof JVM e comprova que
-IR incompatível é rejeitada com `PE001`.
+A saída standalone contém `kof-module.c`, `kof-module.obj` e `kof-module.exe`.
+Com `--library`, a saída contém o módulo C/objeto e a entrada exportada
+`kookie_kof_gameplay_main` para um host nativo. O gate retido gera duas vezes,
+verifica reprodutibilidade byte a byte e cabeçalhos PE/COFF, compara a saída
+gerada com o oráculo Kof JVM e comprova a rejeição de IR de ponto flutuante com
+`PE001`.
 
-Este alvo do compilador é intencionalmente limitado: funções de topo, valores
-inteiros/Boolean/String, locais, aritmética, desvios, loops e `print`/`println`.
-Classes, objetos no heap, arrays, exceções, concorrência, FFI e chamadas SDL
-são rejeitados em vez de receber stubs. Portanto ele qualifica a rota do
-compilador; ainda não compila o módulo completo de gameplay ou apresentação do
-KOOKIE.
+O alvo alcançável cobre o grafo atual de gameplay/apresentação do KOOKIE:
+classes e campos, alocação de objetos e arrays, valores
+inteiros/Boolean/String, locais, aritmética, desvios, loops,
+`print`/`println`, `length`/`charAt` de String e FFI integral. Ele continua
+fail-closed para IR de ponto flutuante, exceções capturáveis/concorrência e FFI
+não integral. As alocações geradas duram até o processo terminar; o alvo é
+para a carga de gameplay limitada, não para um serviço sem limite.
 
 ### Shell SDL nativo
 
@@ -173,16 +177,17 @@ SDL 3.4.16 e SDL_mixer 3.2.4:
 
 ```bash
 KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
-KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer/x86_64-w64-mingw32 \
+KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer-3.2.4/x86_64-w64-mingw32 \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
 
-O ZIP contém `kookie.exe`, `SDL3.dll`, `SDL3_mixer.dll`, licenças e procedência.
-Ele não contém JDK. O shell de menu/opções/lobby é interativo e persistente. O
-compilador limitado acima gera PE de console Windows, mas ainda não reduz toda
-a IR de gameplay/SDL do KOOKIE. Linux continua como alvo nativo autoritativo de
-gameplay.
+O pacote liga o objeto PE do gameplay Kof completo de `src/` ao
+`kookie.exe`, junto ao shell nativo SDL3/SDL_mixer de menu/lobby. Ele contém
+`kookie.exe`, as DLLs SDL, licenças e procedência; não contém JDK. O smoke do
+pacote imprime `KOOKIE native Kof PE gameplay verified` após inicializar SDL.
 
 ### Runtime Kof JVM incluído
 
@@ -214,16 +219,15 @@ Windows. `scripts/verify_windows_jvm_package.sh` gera o pacote duas vezes,
 compara todos os artefatos assinados, verifica as assinaturas e executa o JAR
 empacotado.
 
-### Pacote de compatibilidade de apresentação SDL
+### Pacote de apresentação PE/SDL_GPU nativo
 
-O perfil de apresentação combina o gameplay JVM do Kof com o adaptador
-Windows SDL3/SDL_mixer e produtos de shader SPIR-V e DXIL:
+O perfil de apresentação reduz o probe nativo de apresentação SDL e seu grafo
+de gameplay alcançável para PE, liga estaticamente o adaptador SDL3/SDL_mixer e
+inclui os produtos de shader SPIR-V e DXIL:
 
 ```bash
-KOOKIE_WINDOWS_JAVA_ARCHIVE=/caminho/para/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip \
-KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd \
 KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
-KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer/x86_64-w64-mingw32 \
+KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer-3.2.4/x86_64-w64-mingw32 \
 KOOKIE_DXC=/caminho/para/dxc \
 KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
@@ -233,16 +237,16 @@ scripts/package_kookie.sh --runtime presentation --target windows-x86_64
 ```
 
 `glslc` deve estar no `PATH`. `scripts/verify_windows_presentation.sh` gera o
-pacote duas vezes, compara os artefatos assinados, valida caminhos ZIP seguros,
-licenças, a import library SDL e as entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1`
-adiciona o smoke opcional de gameplay, exigindo `wine` e
-`overzeer-isolated-display`. É uma rota limitada de gameplay JVM e apresentação
-nativa; não faz o compilador PE limitado emitir o programa Kof/SDL completo.
+pacote duas vezes, compara todos os artefatos assinados, valida caminhos ZIP
+seguros e licenças e verifica o PE nativo, as import libraries SDL e as
+entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1` adiciona o smoke completo opcional,
+exigindo `wine` e `overzeer-isolated-display`.
 
-Em um host isolado capaz de DRI3, o smoke completo em Wine verifica o caminho de
-gameplay Kof JVM junto com a apresentação nativa SDL3/SDL_mixer. Isso não deve
-ser generalizado para gameplay PE nativo, outras combinações de SO/GPU ou
-qualificação de WAN/segurança.
+Em um host isolado capaz de DRI3, o smoke executa a mesma entrada Kof PE nativa
+que possui a janela SDL, staging de cena GPU, fila de áudio, reload do creator
+e os marcadores de gameplay. O pacote não tem dependência JVM. Esta é evidência
+específica do alvo; não deve ser generalizada para outras combinações de
+SO/GPU ou para qualificação de WAN/segurança.
 
 ### Sondas runtime G6
 

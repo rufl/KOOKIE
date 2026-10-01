@@ -140,27 +140,31 @@ encryption nor public identity.
 
 ## Windows x86-64 packages
 
-### Bounded Kof PE/COFF compiler
+### Reachable Kof PE/COFF compiler
 
-The pinned compiler bridge lowers optimized Kof IR to deterministic C11, then
-uses Zig 0.16.0 to emit an AMD64 COFF object and Windows console PE:
+The pinned compiler bridge lowers the reachable optimized Kof IR graph to
+deterministic C11, then uses Zig 0.16.0 to emit an AMD64 COFF object and
+Windows PE:
 
 ```bash
 scripts/kof_pe_build.sh path/to/main.kf --output build/kof-pe
 scripts/verify_kof_pe_backend.sh
 ```
 
-The output is `kof-module.c`, `kof-module.obj` and `kof-module.exe`. The retained
-gate builds twice, checks byte-for-byte reproducibility and PE/COFF headers,
+The standalone output is `kof-module.c`, `kof-module.obj` and
+`kof-module.exe`. Add `--library` to emit the C/object module with the
+exported `kookie_kof_gameplay_main` entry for a native host. The retained gate
+builds twice, checks byte-for-byte reproducibility and PE/COFF headers,
 compares generated-code output with the Kof JVM oracle, and proves unsupported
-IR rejects with `PE001`.
+floating-point IR rejects with `PE001`.
 
-This is an intentionally bounded compiler target: top-level functions,
-integral/Boolean/String values, locals, arithmetic, branches, loops and
-`print`/`println`. Classes, heap objects, arrays, exceptions, concurrency, FFI
-and SDL calls reject instead of producing stubs. It therefore qualifies the
-compiler route; it does not compile the full KOOKIE gameplay or presentation
-module yet.
+The reachable target covers the current KOOKIE gameplay/presentation graph:
+classes and fields, object and array allocation, integral/Boolean/String values,
+locals, arithmetic, branches, loops, `print`/`println`, String `length` and
+`charAt`, and integral FFI calls. It remains fail-closed for unsupported
+floating-point IR, caught exceptions/concurrency, and non-integral FFI.
+Generated allocations are process-lifetime; this target is for the bounded
+gameplay workload, not an unbounded service.
 
 ### Native SDL shell
 
@@ -170,15 +174,17 @@ Build the native shell from the official MinGW development packages for SDL
 ```bash
 KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
 
-The ZIP contains `kookie.exe`, `SDL3.dll`, `SDL3_mixer.dll`, licenses and
-provenance. It contains no JDK. The menu/options/lobby shell is interactive and
-persistent. The bounded compiler above can emit Windows console PE code, but
-cannot yet lower the full KOOKIE gameplay/SDL IR. Linux remains the authoritative
-native gameplay target.
+The package links the complete reachable `src/` Kof gameplay PE object into
+`kookie.exe`, alongside the native SDL3/SDL_mixer menu/lobby shell. It contains
+`kookie.exe`, `SDL3.dll`, `SDL3_mixer.dll`, licenses and provenance; it contains
+no JDK. The package smoke prints
+`KOOKIE native Kof PE gameplay verified` after SDL initialization.
 
 ### Bundled Kof JVM runtime
 
@@ -196,25 +202,18 @@ scripts/package_kookie.sh --runtime jvm --target windows-x86_64
 ```
 
 The builder verifies the archive digest, safe ZIP paths, Windows x86-64 release
-metadata, PE `java.exe` and retained runtime legal files. It builds and smokes a
-canonical executable `kookie.jar`, then writes a timestamp-normalized,
-deterministically ordered signed ZIP. The package contains `kookie.cmd`,
-`kookie.jar`, `runtime/`, `JAVA_RUNTIME.txt`, licenses and provenance; the
-target machine needs no separately installed Java. `runtime/legal` and
-`runtime/NOTICE` remain authoritative for the bundled OpenJDK licenses.
+metadata, PE `java.exe` and retained runtime legal files. It builds and smokes
+the canonical `kookie.jar`, then writes a timestamp-normalized,
+deterministically ordered signed ZIP. This remains a compatibility profile;
+the native PE/SDL profiles do not depend on it.
 
-This profile runs the graphics-free Kof core. It does not replace the native
-Windows SDL shell or claim a Windows SDL gameplay/presentation backend.
-`scripts/verify_windows_jvm_package.sh` builds the package twice, compares every
-signed artifact, verifies the signature set and runs the packaged JAR.
-### SDL presentation compatibility package
+### Native PE/SDL_GPU presentation package
 
-The presentation profile combines the Kof JVM gameplay artifact with the
-Windows SDL3/SDL_mixer adapter and both SPIR-V and DXIL shader products:
+The presentation profile lowers the native SDL presentation probe and its
+reachable gameplay graph to PE, statically links the SDL3/SDL_mixer adapter,
+and bundles both SPIR-V and DXIL shader products:
 
 ```bash
-KOOKIE_WINDOWS_JAVA_ARCHIVE=/path/to/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip \
-KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd \
 KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
 KOOKIE_DXC=/path/to/dxc \
@@ -227,16 +226,15 @@ scripts/package_kookie.sh --runtime presentation --target windows-x86_64
 
 `glslc` must be on `PATH`. `scripts/verify_windows_presentation.sh` rebuilds
 the signed package twice, compares every archive/signature, validates safe ZIP
-paths and retained licenses, and checks the SDL import library plus SPIR-V/DXIL
-entries. `KOOKIE_RUN_WINE=1` adds the optional gameplay smoke; it requires
-`wine` and `overzeer-isolated-display`. This profile is a bounded JVM gameplay
-plus native presentation route; it does not make the bounded PE compiler emit
-the full Kof/SDL program.
+paths and retained licenses, and checks the native PE, SDL import libraries
+and SPIR-V/DXIL entries. `KOOKIE_RUN_WINE=1` adds the optional full smoke; it
+requires `wine` and `overzeer-isolated-display`.
 
-On a DRI3-capable isolated host, the full Wine smoke verifies the Kof JVM
-gameplay path together with the native SDL3/SDL_mixer presentation path. It
-must not be generalized to native PE gameplay, other OS/GPU combinations or
-WAN/security qualification.
+On a DRI3-capable isolated host, the full smoke executes the same native Kof
+PE entry that owns the SDL window, GPU scene staging, audio queue, creator
+reload and gameplay markers. The package has no JVM dependency. This remains
+target-specific evidence; it does not generalize to other OS/GPU combinations
+or WAN/security qualification.
 ### G6 bounded runtime probes
 
 Run the non-graphical expansion qualification as one focused command:

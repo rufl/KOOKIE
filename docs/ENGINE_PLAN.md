@@ -66,7 +66,7 @@ This plan does not choose a public license or authorize redistribution of third-
 
 Sokol remains credible; it is not rejected as incapable of shooters. Its backend list evolves, so pin headers/shader tools if selected rather than relying on stale capability tables.
 
-SDL_GPU also has limitations: modern GPU feature floor, strict shader resource layouts, no general browser backend in the proposed route, no promise of cutting-edge ray tracing/mesh shaders. SDL portability does not imply full Kof native PE/Mach-O output. KOOKIE now retains a separately gated bounded AMD64 console PE/COFF compiler path; Windows gameplay, macOS, ARM and browser support remain independent expansion gates, not implied deliverables.
+SDL_GPU also has limitations: modern GPU feature floor, strict shader resource layouts, no general browser backend in the proposed route, no promise of cutting-edge ray tracing/mesh shaders. SDL portability does not imply full Kof native PE/Mach-O output. KOOKIE now retains a separately gated reachable AMD64 console PE/COFF compiler path with qualified native Windows Kof PE gameplay and native PE/SDL_GPU presentation packaging; Windows presentation smoke remains target/GPU-gated, while macOS, ARM and browser support remain independent expansion gates.
 
 Sources: [SDL GPU contract](https://wiki.libsdl.org/SDL3/CategoryGPU), [relative mouse mode](https://wiki.libsdl.org/SDL3/SDL_SetWindowRelativeMouseMode), [SDL_shadercross](https://github.com/libsdl-org/SDL_shadercross), [Sokol](https://github.com/floooh/sokol), [raylib](https://github.com/raysan5/raylib), [SDL license](https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt).
 
@@ -168,7 +168,11 @@ Versioned UI sources and additional license boundaries are in
 
 ## 3. The FFI boundary must be proven first
 
-Current native Kof accepts scalar `extern` calls; arrays/structs/pointers/out-buffers and native callbacks are blocked. We measured actual SDL version and libm calls, **not graphics initialization**.
+The upstream native Kof runtime currently accepts scalar `extern` calls;
+arrays/structs/pointers/out-buffers and native callbacks remain blocked there.
+The KOOKIE PE bridge separately lowers bounded heap/array values and integral
+FFI for the qualified Windows graphs. The original measurements covered actual
+SDL version and libm calls, **not graphics initialization**.
 
 ### Adapter contract
 
@@ -713,7 +717,7 @@ No calendar promise; each gate has runnable evidence. A successful gate authoriz
 | **G3 — Looter / ARPG slice** | Rolled items/affixes, inventory/equipment, XP/skills/statuses, elites/bosses, authoritative saves, extension registries and replicated schemas | Multiplayer kill→rolled drop→pickup/equip→observable stat/skill change→boss reward→save/reload. Full inventory cannot lose item/currency/RNG. Same seed/content yields same server result. Clients cannot mint damage, items, currency or progression |
 | **G4 — Creator and extension pipeline** | Kof cooker, supported mesh/brush formats, package validation, data-mod manifests, trusted Kof extension modules, inspector/editors, staged reload | A second distinct multiplayer sample game is built from definitions/extensions without editing core engine code. Server/client reject incompatible package/API/mod manifests. Invalid content leaves the prior running world intact; geometry/collision/nav/replication revisions stay aligned |
 | **G5 — Scale and release** | AI budgets, batching/instancing, animation, streaming only as needed, dedicated headless server, migrations/replay, reconnect/admission hardening, packaging/notices | Reference LAN workload meets declared budgets; dedicated server runs without graphics; memory/resource counts plateau; package runs outside source checkout; reconnect/session recovery and extension compatibility are proven |
-| **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Bounded jobs, package-bound KofScript/session activation, persistent Studio, limited WAN and Windows SDL presentation package have focused probes; no general portability, WAN security, PE gameplay or sandbox claim is inferred |
+| **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Bounded jobs, package-bound KofScript/session activation, persistent Studio, limited WAN and native Windows PE/SDL shell/presentation packages have focused probes; no general portability, WAN security, sandbox or DRI3-capable visual presentation claim is inferred |
 
 G0 evidence is tracked in [G0_BACKLOG](G0_BACKLOG.md): native/session
 feasibility, isolated window presentation and authenticated external-LAN
@@ -829,17 +833,20 @@ claim multi-machine/WAN behavior, other OS or GPU performance, arbitrary
 population scalability, streamed content, or G6 sandboxing.
 
 G6 is qualified for the declared bounded contract by
-`scripts/verify_g6_runtime.sh`, the reproducible Windows presentation package
-gate and a separate full isolated Wine smoke. The smoke used private
-Weston/Xwayland display/session sockets with a DRI3-capable Intel render node
-and verified the Kof HUD, 3D scene, creator reload, SDL GPU claim/present path
-and screenshot capture. The five expected qualification markers passed and the
-captured frame was 1280×720.
+`scripts/verify_g6_runtime.sh`, the reproducible native Windows PE/SDL package
+gates, and the native shell's isolated Wine smoke. The native shell smoke
+linked the complete reachable `src/` Kof object, launched through the SDL3
+shell, and passed the expected gameplay markers plus the native PE marker.
+The presentation package gate additionally verifies native Kof PE linkage to
+the SDL3/SDL_mixer adapter and retained SPIR-V/DXIL products. Its optional Wine
+visual smoke requires an isolated DRI3-capable GPU; the default isolated Xvfb
+environment is intentionally not treated as presentation evidence.
 
-This qualifies Kof JVM gameplay plus native SDL presentation on the recorded
-host. It does not claim native PE/full-Kof Windows lowering, NAT traversal,
-relay service, confidentiality, DDoS resistance, arbitrary editor
-extensibility, a general-purpose runtime sandbox, or other OS/GPU coverage.
+This qualifies native Kof PE gameplay on Windows, native PE/SDL_GPU
+presentation packaging, and the separate JVM compatibility package on the
+recorded host. It does not claim NAT traversal, relay service, confidentiality,
+DDoS resistance, arbitrary editor extensibility, a general-purpose runtime
+sandbox, or other OS/GPU coverage.
 
 ### Measured bounded evidence and retained performance targets
 
@@ -897,7 +904,7 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 | Risk | Current evidence | Action / release gate |
 |---|---|---|
 | Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | Pinned 0.5.0-beta `Buffer(U8, INOUT)` passes the packaged JVM/native `u8` reduction benchmark; supplied cross verification passes, while Script/JS/Android/riscv32/MCU remain `FFI001` | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
-| Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows has a native platform shell, a deterministic bounded Kof console PE/COFF compiler and an explicit graphics-free Kof JVM core package | Keep separate platform gates; do not infer Windows SDL gameplay support from the compiler probe, shell or JVM package |
+| Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows native Kof PE gameplay passes through the SDL shell smoke, and the presentation package gate verifies native PE/SDL_GPU linkage and shader products | Keep separate platform/GPU gates; do not infer DRI3-capable Windows presentation from package linkage or graphics-free smoke |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
 | Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |
 | Distribution runtime closure | The Windows JVM profile retains a digest-pinned full OpenJDK runtime and legal tree; native compiler pruning still emits its known warning | Keep the JVM choice explicit, record runtime identity/size, compare reproducible archives and never treat it as silent native fallback |
@@ -907,7 +914,7 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 | Editor reliability/security | Single-file run, JS UI, privileged unauthenticated handlers | CLI + separate LSP-capable editor; no dependency on editor fork |
 | Creator pipeline becomes second engine | Multiple monolithic runtimes or authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
 | License/asset assumptions | Unclear code/asset rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |
-| Native portability overclaimed | Upstream native output remains Linux ELF; the KOOKIE bridge emits deterministic AMD64 PE/COFF only for top-level integral/String control-flow programs and rejects all other IR with `PE001` | Keep separate platform gates; require full arrays/objects/exceptions/FFI/SDL lowering and actual Windows gameplay qualification before changing the authoritative target |
+| Native portability overclaimed | Upstream native output remains Linux ELF; the KOOKIE bridge emits deterministic AMD64 PE/COFF for the qualified reachable gameplay/presentation graphs and rejects floating-point IR, catchable exceptions and concurrency with `PE001` | Keep separate platform gates; retain actual Windows shell smoke and artifact checks, and require DRI3-capable visual evidence before claiming presentation execution |
 
 ## 12. Historical first implementation increment
 

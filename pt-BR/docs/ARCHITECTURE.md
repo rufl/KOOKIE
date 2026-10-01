@@ -159,13 +159,14 @@ usa escalares verificados, tokens e buffers limitados; nenhum ponteiro Kof bruto
 ou callback é retido.
 
 A fronteira do compilador Windows consome IR otimizada do frontend Kof exato e
-fixado e emite C11 determinístico, COFF AMD64 e PE de console. Seu subconjunto
-admitido contém funções de topo com inteiros/Boolean/String, locais, aritmética,
-fluxo de controle e impressão. Classes, operações de heap/array, exceções,
-concorrência, FFI e IR SDL falham de forma fechada com `PE001`. O C gerado é um
-intermediário do compilador, não uma segunda autoridade de engine escrita à
-mão. Esse caminho qualifica apenas o formato executável e a mecânica de
-lowering; Linux continua sendo o alvo nativo completo de gameplay.
+fixado e emite C11 determinístico e COFF AMD64. Builds standalone emitem PE de
+console; builds de biblioteca exportam `kookie_kof_gameplay_main` para um host
+nativo. O subconjunto alcançável admitido cobre as classes do gameplay/
+apresentação atual, objetos heap, arrays, valores integral/Boolean/String,
+fluxo de controle, impressão, indexação de String e FFI SDL integral. IR de
+ponto flutuante, exceções capturáveis e concorrência ainda falham de forma
+fechada com `PE001`. O C gerado é um intermediário do compilador, não uma
+segunda autoridade de engine escrita à mão.
 
 ## 4. Modos de runtime
 
@@ -702,8 +703,11 @@ arbitrária.
 
 ### G6 — Expansão
 
-Avaliar plataformas adicionais, jobs seguros, transporte WAN, editor mais completo e uma
-camada de extensões de runtime em sandbox.
+A qualificação Windows atual inclui pacotes PE/SDL reproduzíveis e assinados:
+o shell nativo liga o gameplay Kof alcançável ao SDL3/SDL_mixer, e o perfil de
+apresentação liga Kof PE nativo ao adaptador SDL_GPU e empacota produtos
+SPIR-V/DXIL. O smoke Wine isolado do shell verifica gameplay; o smoke visual da
+apresentação permanece dependente de GPU isolada capaz de DRI3.
 
 ## 11. Não objetivos explícitos
 

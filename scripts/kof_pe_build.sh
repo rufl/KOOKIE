@@ -14,13 +14,25 @@ SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-0}"
 export SOURCE_DATE_EPOCH
 
 usage() {
-  echo 'Usage: scripts/kof_pe_build.sh <source.kf|directory> --output <directory>' >&2
+  echo 'Usage: scripts/kof_pe_build.sh <source.kf|directory> --output <directory> [--library]' >&2
 }
 
-[[ "$#" == 3 && "$2" == '--output' ]] || {
+[[ "$#" == 3 || "$#" == 4 ]] || {
   usage
   exit 2
 }
+[[ "$2" == '--output' ]] || {
+  usage
+  exit 2
+}
+LIBRARY=0
+if [[ "$#" == 4 ]]; then
+  [[ "$4" == '--library' ]] || {
+    usage
+    exit 2
+  }
+  LIBRARY=1
+fi
 SOURCE="$1"
 OUTPUT_DIR="$3"
 [[ -f "$SOURCE" || -d "$SOURCE" ]] || {
@@ -73,19 +85,30 @@ mkdir -p "$classes"
 
 javac --release 21 -Xlint:all -Werror -cp "$kof_jar" -d "$classes" \
   "$ROOT_DIR/tooling/kof-pe-backend/src/dev/kof/compiler/KofPeBackendMain.java"
+backend_args=("$SOURCE" "$generated_c")
+if [[ "$LIBRARY" == 1 ]]; then
+  backend_args+=(--library)
+fi
 java -cp "$classes:$kof_jar" dev.kof.compiler.KofPeBackendMain \
-  "$SOURCE" "$generated_c"
+  "${backend_args[@]}"
 (
   cd "$work_dir"
   zig cc -target x86_64-windows-gnu -std=c11 -O2 \
     -Wall -Wextra -Werror -fno-ident -c kof-module.c -o kof-module.obj
-  zig cc -target x86_64-windows-gnu -s -fno-ident \
-    -Wl,--build-id=none kof-module.obj -o kof-module.exe
+  if [[ "$LIBRARY" == 0 ]]; then
+    zig cc -target x86_64-windows-gnu -s -fno-ident \
+      -Wl,--build-id=none kof-module.obj -o kof-module.exe
+  fi
 )
 
 mkdir -p "$OUTPUT_DIR"
 cp -- "$generated_c" "$OUTPUT_DIR/kof-module.c"
 cp -- "$generated_obj" "$OUTPUT_DIR/kof-module.obj"
-cp -- "$generated_exe" "$OUTPUT_DIR/kof-module.exe"
-printf 'kof-pe-built source=%s object=%s executable=%s\n' \
-  "$SOURCE" "$OUTPUT_DIR/kof-module.obj" "$OUTPUT_DIR/kof-module.exe"
+if [[ "$LIBRARY" == 0 ]]; then
+  cp -- "$generated_exe" "$OUTPUT_DIR/kof-module.exe"
+  printf 'kof-pe-built source=%s object=%s executable=%s\n' \
+    "$SOURCE" "$OUTPUT_DIR/kof-module.obj" "$OUTPUT_DIR/kof-module.exe"
+else
+  printf 'kof-pe-built source=%s object=%s library=1\n' \
+    "$SOURCE" "$OUTPUT_DIR/kof-module.obj"
+fi

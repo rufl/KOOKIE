@@ -5,12 +5,9 @@ IFS=$'\n\t'
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 : "${KOOKIE_KOF_ARCHIVE_SHA256:?set KOOKIE_KOF_ARCHIVE_SHA256 to the pinned Kof distribution digest}"
 : "${KOOKIE_KOF_SOURCE_COMMIT:?set KOOKIE_KOF_SOURCE_COMMIT to the pinned Kof source commit}"
-: "${KOOKIE_WINDOWS_JAVA_ARCHIVE:?set KOOKIE_WINDOWS_JAVA_ARCHIVE to a pinned Windows x64 OpenJDK ZIP}"
-: "${KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256:?set KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256 to its digest}"
 : "${KOOKIE_WINDOWS_SDL_PREFIX:?set KOOKIE_WINDOWS_SDL_PREFIX to the SDL3 MinGW prefix}"
 : "${KOOKIE_WINDOWS_SDL_MIXER_PREFIX:?set KOOKIE_WINDOWS_SDL_MIXER_PREFIX to the SDL_mixer MinGW prefix}"
 : "${KOOKIE_DXC:?set KOOKIE_DXC to the pinned dxc executable}"
-command -v java >/dev/null || { echo 'verify_windows_presentation: java is required' >&2; exit 2; }
 command -v openssl >/dev/null || { echo 'verify_windows_presentation: openssl is required' >&2; exit 2; }
 command -v python3 >/dev/null || { echo 'verify_windows_presentation: python3 is required' >&2; exit 2; }
 
@@ -54,8 +51,7 @@ openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
   -sigfile "$WORK_DIR/release-a/SHA256SUMS.sig" >/dev/null
 
 EXTRACTED="$WORK_DIR/extracted"
-python3 - "$ARCHIVE" "$MANIFEST" "$EXTRACTED" \
-  "$KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256" "$SOURCE_DATE_EPOCH" <<'PY'
+python3 - "$ARCHIVE" "$MANIFEST" "$EXTRACTED" "$SOURCE_DATE_EPOCH" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -66,8 +62,7 @@ import zipfile
 archive_path = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
 destination = pathlib.Path(sys.argv[3])
-expected_java_sha256 = sys.argv[4].lower()
-expected_epoch = int(sys.argv[5])
+expected_epoch = int(sys.argv[4])
 with zipfile.ZipFile(archive_path) as archive:
     for entry in archive.infolist():
         relative = pathlib.PurePosixPath(entry.filename)
@@ -80,23 +75,19 @@ assert manifest["schema"] == "kookie.package-provenance/v2"
 assert manifest["target"] == "windows-x86_64"
 assert manifest["runtime"] == "presentation"
 assert manifest["windows_presentation"] is True
-assert manifest["windows_java_runtime"] is True
-assert manifest["windows_java_archive_sha256"].lower() == expected_java_sha256
-assert manifest["windows_java_version"] != "not-bundled"
+assert manifest["windows_java_runtime"] is False
+assert manifest["windows_java_version"] == "not-bundled"
 assert manifest["windows_dxc_version"] != "not-bundled"
 assert manifest["source_date_epoch"] == expected_epoch
 assert manifest["sha256"] == hashlib.sha256(archive_path.read_bytes()).hexdigest()
 root = destination / archive_path.stem
 for relative in (
     "kookie.cmd",
-    "kookie.jar",
-    "build/libkookie_sdl_adapter.so",
+    "kookie.exe",
     "build/SDL3.dll",
     "build/SDL3_mixer.dll",
     "SDL3.dll",
     "SDL3_mixer.dll",
-    "runtime/bin/java.exe",
-    "runtime/release",
     "build/g0_triangle.vert.spv",
     "build/g5_triangle_instance.vert.spv",
     "build/g0_triangle.frag.spv",
@@ -105,25 +96,20 @@ for relative in (
     "build/g0_triangle.frag.dxil",
 ):
     assert (root / relative).is_file(), relative
-assert not (root / "build/libkookie_sdl_adapter.pdb").exists()
-assert not (root / "build/libkookie_sdl_adapter.lib").exists()
-assert (root / "runtime/bin/java.exe").read_bytes()[:2] == b"MZ"
-legal = root / "runtime/legal"
-assert legal.is_dir() and any(path.is_file() for path in legal.rglob("*"))
+assert (root / "kookie.exe").read_bytes()[:2] == b"MZ"
+assert not (root / "kookie.jar").exists()
+assert not (root / "runtime").exists()
 launcher = (root / "kookie.cmd").read_text(encoding="utf-8")
-assert "--enable-native-access=ALL-UNNAMED" in launcher
+assert '"%ROOT%kookie.exe" %*' in launcher
 assert "cd /d \"%ROOT%\"" in launcher
 provenance = dict(
     line.split("=", 1)
     for line in (root / "PROVENANCE.txt").read_text(encoding="utf-8").splitlines()
     if "=" in line
 )
-assert provenance["windows_status"] == "kof-jvm-sdl-gpu-bundled-runtime"
-assert provenance["dependency_policy"] == "bundled-runtime-and-sdl-license-files-retained"
-assert provenance["runtime_dependencies"] == "OpenJDK-runtime+SDL3+SDL_mixer+SPIR-V+DXIL"
-with zipfile.ZipFile(root / "kookie.jar") as jar:
-    assert "Default/Main.class" in jar.namelist()
-    assert b"Main-Class: Default.Main\r\n" in jar.read("META-INF/MANIFEST.MF")
+assert provenance["windows_status"] == "kof-native-pe-sdl-gpu-bundled-runtime"
+assert provenance["dependency_policy"] == "bundled-sdl-and-shader-assets-license-files-retained"
+assert provenance["runtime_dependencies"] == "Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL"
 PY
 
 if [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]]; then
@@ -142,14 +128,15 @@ if [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]]; then
   mkdir -p "$WINE_ROOT"
   cp -a -- "$EXTRACTED/$PACKAGE_NAME" "$WINE_PACKAGE"
   export WINEPREFIX="$WINE_PREFIX"
+  export WINEARCH=win64
+  export WINEDLLOVERRIDES='mscoree,mshtml='
   export WINEDEBUG=-all
   export SDL_AUDIODRIVER=dummy
   export KOOKIE_PRESENTATION_SMOKE=1
-  export KOOKIE_SCREENSHOT_PATH="$WINE_PACKAGE/smoke.bmp"
+  export KOOKIE_SCREENSHOT_PATH="$WINE_PACKAGE/smoke.ppm"
   overzeer-isolated-display --timeout 240 -- bash -c '
     cd "$1"
-    wineboot -u
-    exec wine runtime/bin/java.exe --enable-native-access=ALL-UNNAMED -jar kookie.jar --package-smoke
+    exec wine kookie.exe
   ' verify_windows_presentation "$WINE_PACKAGE" >"$WORK_DIR/wine.log" 2>&1
   python3 - "$WORK_DIR/wine.log" <<'PY'
 import pathlib
@@ -166,5 +153,5 @@ for marker in (
 PY
 fi
 
-printf 'KOOKIE Windows presentation package passed: reproducible signed artifact, Kof JVM gameplay, SDL3/SDL_mixer adapter, SPIR-V/DXIL shaders%s\n' \
+printf 'KOOKIE Windows presentation package passed: reproducible signed artifact, native Kof PE gameplay, native SDL3/SDL_mixer adapter, SPIR-V/DXIL shaders%s\n' \
   "$( [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]] && printf ', isolated Wine smoke' )"

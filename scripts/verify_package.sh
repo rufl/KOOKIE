@@ -360,7 +360,7 @@ if [[ -n "${KOOKIE_WINDOWS_SDL_PREFIX:-}" &&
   test -f "$WINDOWS_ROOT/SDL3_mixer.dll"
   test -f "$WINDOWS_ROOT/LICENSE"
   test -f "$WINDOWS_ROOT/THIRD_PARTY_NOTICES.txt"
-  grep -Fq 'windows_status=native-sdl-shell' "$WINDOWS_ROOT/PROVENANCE.txt"
+  grep -Fq 'windows_status=kof-native-pe-sdl-shell-runtime' "$WINDOWS_ROOT/PROVENANCE.txt"
   python3 - "$WINDOWS_MANIFEST" <<'PY'
 import json, pathlib, sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))

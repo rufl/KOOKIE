@@ -102,24 +102,19 @@ cmp "$WORK_DIR/expected.txt" "$WORK_DIR/host-output.txt"
 cmp "$WORK_DIR/expected.txt" "$WORK_DIR/jvm-output.txt"
 
 cat >"$WORK_DIR/unsupported.kf" <<'KOF_UNSUPPORTED'
-class Box {
-    Int value() {
-        return 1
-    }
-}
-
 main() {
-    println("unsupported")
+    var value = 1.5
+    println(value)
 }
 KOF_UNSUPPORTED
 if "$ROOT_DIR/scripts/kof_pe_build.sh" "$WORK_DIR/unsupported.kf" \
     --output "$WORK_DIR/unsupported" >"$WORK_DIR/unsupported.out" \
     2>"$WORK_DIR/unsupported.err"; then
-  echo 'verify-kof-pe: unsupported class unexpectedly produced PE output' >&2
+  echo 'verify-kof-pe: unsupported floating-point IR unexpectedly produced PE output' >&2
   exit 1
 fi
 unsupported_error="$(<"$WORK_DIR/unsupported.err")"
-[[ "$unsupported_error" == *'PE001: bounded target accepts only the generated top-level Main class'* ]] || {
+[[ "$unsupported_error" == *'PE001: main local value has unsupported type Double'* ]] || {
   echo "verify-kof-pe: missing fail-closed PE001 diagnostic: $unsupported_error" >&2
   exit 1
 }

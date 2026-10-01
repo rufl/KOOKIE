@@ -31,6 +31,7 @@
 #define KOOKIE_LOBBY_HELLO UINT32_C(1)
 #define KOOKIE_LOBBY_ACCEPT UINT32_C(2)
 #define KOOKIE_LOBBY_LEAVE UINT32_C(3)
+int kookie_kof_gameplay_main(void);
 
 typedef enum {
     SCREEN_MAIN,
@@ -956,6 +957,14 @@ int main(int argc, char **argv) {
         SDL_Quit();
         return 12;
     }
+    if (kookie_kof_gameplay_main() != 0) {
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        if (winsock_ready) WSACleanup();
+        SDL_Quit();
+        return 16;
+    }
+    printf("KOOKIE native Kof PE gameplay verified\n");
     SDL_SetRenderVSync(renderer, 1);
 
     AppState app = {

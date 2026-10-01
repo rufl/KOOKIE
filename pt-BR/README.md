@@ -98,7 +98,7 @@ hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
 | **Mundo e apresentação** | Arena 3D criada com inclinações, degraus e salas empilhadas; colisão cápsula/triângulo; portas, segredos e saídas; HUD semântico; instancing por SDL_GPU; ganho/pan posicional por SDL_mixer |
 | **Conteúdo e ferramentas de criação** | Entrada limitada de GLB, Dust3D, Aseprite, VOX, brushes estilo Quake, Blockbench, PNG e WAV; produtos canônicos; validação `.kpkg`; edições transacionais no Creator; hierarquia, transformações e registro de assets persistentes no Studio |
 | **Persistência e release** | Replay com checksum, migrações de schema, publicação de save durável contra crash, pacotes assinados de árvore limpa, fechamento de dependências e smoke fora do checkout |
-| **Alvos de runtime** | Linux x86-64 nativo autoritativo; shell nativo persistente de menu/opções/lobby para Windows; gameplay Kof JVM reproduzível com pacote de apresentação SDL3/SDL_mixer e produtos SPIR-V/DXIL; compilador Kof determinístico e limitado para console PE/COFF AMD64 |
+| **Alvos de runtime** | Linux x86-64 nativo autoritativo; gameplay Kof PE nativo no Windows ligado ao shell SDL3/SDL_mixer; apresentação Kof PE nativa com SDL_GPU e produtos SPIR-V/DXIL; pacote separado de compatibilidade Kof JVM para Windows; compilador Kof determinístico e alcançável para PE/COFF AMD64 |
 
 ## A forma da engine
 
@@ -177,9 +177,9 @@ para o trabalho de produção ainda aberto.
   qualificação em três máquinas físicas, nem alegação de NAT traversal, relay,
   confidencialidade ou resistência a DDoS.
 - Linux x86-64 continua sendo o alvo autoritativo de gameplay Kof nativo. O
-  Windows tem pacote reproduzível de gameplay JVM e apresentação SDL com
-  evidência estática SPIR-V/DXIL; o smoke opcional em Wine isolado depende do
-  ambiente, e o compilador PE limitado ainda não emite o gameplay completo.
+  Windows agora tem gameplay Kof PE nativo qualificado no shell SDL e no pacote
+  de apresentação SDL_GPU; o pacote JVM separado é somente de compatibilidade.
+  O smoke opcional em Wine isolado depende do ambiente e do alvo/GPU.
 - Importadores suportam perfis pequenos e explícitos, não arquivos arbitrários
   de cada formato nomeado.
 - Reload ao vivo cobre produtos validados de cena/render, não código Kof,

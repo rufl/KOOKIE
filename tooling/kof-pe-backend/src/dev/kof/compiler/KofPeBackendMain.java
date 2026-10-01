@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Strict Kof IR to C11 lowering for the bounded Windows PE/COFF target.
@@ -24,24 +25,26 @@ import java.util.Set;
  * PE001 build error; it is never replaced with a stub.
  */
 public final class KofPeBackendMain {
-    private static final int MAX_METHODS = 256;
-    private static final int MAX_OPERATIONS = 16_384;
-    private static final int MAX_LOCALS = 256;
-    private static final int MAX_STACK = 256;
+    private static final int MAX_METHODS = 8_192;
+    private static final int MAX_OPERATIONS = 1_000_000;
+    private static final int MAX_LOCALS = 1_024;
+    private static final int MAX_STACK = 2_048;
 
     private KofPeBackendMain() {}
 
     public static void main(String[] args) {
-        if (args.length != 2) {
-            System.err.println("Usage: KofPeBackendMain <source.kf|directory> <generated.c>");
+        if (args.length < 2 || args.length > 3
+                || (args.length == 3 && !args[2].equals("--library"))) {
+            System.err.println("Usage: KofPeBackendMain <source.kf|directory> <generated.c> [--library]");
             System.exit(2);
         }
         try {
             Path source = Path.of(args[0]).toAbsolutePath().normalize();
             Path output = Path.of(args[1]).toAbsolutePath().normalize();
+            boolean library = args.length == 3;
             List<Path> sources = collectSources(source);
             IRModule module = lower(sources);
-            String generated = new CEmitter(module).emit();
+            String generated = new CEmitter(module, library).emit();
             Path parent = output.getParent();
             if (parent != null) Files.createDirectories(parent);
             Files.writeString(output, generated, StandardCharsets.UTF_8);
@@ -114,19 +117,25 @@ public final class KofPeBackendMain {
 
     private static final class CEmitter {
         private final IRModule module;
+        private final boolean library;
         private final List<MethodPlan> methods = new ArrayList<>();
         private final Map<MethodKey, MethodPlan> methodsByKey = new LinkedHashMap<>();
+        private final Map<String, ClassPlan> classesByName = new LinkedHashMap<>();
+        private final Map<String, Integer> fieldIndexes = new HashMap<>();
         private final Map<String, Integer> strings = new LinkedHashMap<>();
+        private final Map<String, KofCall> ffiCalls = new TreeMap<>();
         private MethodPlan main;
 
-        CEmitter(IRModule module) {
+        CEmitter(IRModule module, boolean library) {
             this.module = module;
+            this.library = library;
         }
 
         String emit() {
             planModule();
             StringBuilder out = new StringBuilder(32_768);
             emitPreamble(out);
+            emitFfiDeclarations(out);
             emitStrings(out);
             for (MethodPlan method : methods) {
                 out.append("static KofValue ").append(method.cName())
@@ -140,34 +149,66 @@ public final class KofPeBackendMain {
 
         private void planModule() {
             if (module.classes().isEmpty()) throw fail("module contains no classes");
-            if (module.classes().size() != 1) {
-                throw fail("bounded target accepts only the generated top-level Main class; found "
-                        + module.classes().size() + " classes");
+            Map<MethodKey, IRMethod> available = new LinkedHashMap<>();
+            for (IRClass owner : module.classes()) {
+                for (IRMethod method : owner.methods()) {
+                    MethodKey key = new MethodKey(owner.name(), method.name(), method.parameterTypes());
+                    if (available.put(key, method) != null) {
+                        throw fail("duplicate method signature " + display(key));
+                    }
+                }
             }
-            IRClass owner = module.classes().get(0);
             String expectedOwner = module.name().isEmpty() ? "Main" : module.name() + "/Main";
-            if (!owner.name().equals(expectedOwner)) {
-                throw fail("expected top-level class " + expectedOwner + "; found " + owner.name());
+            MethodKey entryKey = available.keySet().stream()
+                    .filter(key -> key.owner().equals(expectedOwner) && key.name().equals("main"))
+                    .findFirst()
+                    .orElseThrow(() -> fail("module has no main method"));
+            LinkedHashSet<MethodKey> reachable = new LinkedHashSet<>();
+            ArrayDeque<MethodKey> pending = new ArrayDeque<>();
+            pending.add(entryKey);
+            while (!pending.isEmpty()) {
+                MethodKey key = pending.removeFirst();
+                if (!reachable.add(key)) continue;
+                IRMethod method = available.get(key);
+                if (method == null) throw fail("missing reachable method " + display(key));
+                for (KofOperation operation : flatten(method)) {
+                    if (!(operation instanceof KofCall call)) continue;
+                    if (isSupportedExternal(call)) {
+                        if (isFfiCall(call)) registerFfi(call);
+                        continue;
+                    }
+                    MethodKey target = callKey(call);
+                    if (!available.containsKey(target)) {
+                        throw fail(method.name() + " calls unavailable method " + display(target));
+                    }
+                    pending.add(target);
+                }
             }
-            if (!owner.fields().isEmpty()) throw fail("fields are outside the bounded PE subset");
-            if (owner.methods().size() > MAX_METHODS) {
-                throw fail("method count exceeds " + MAX_METHODS);
+            if (reachable.size() > MAX_METHODS) {
+                throw fail("reachable method count exceeds " + MAX_METHODS);
             }
+            for (IRClass owner : module.classes()) {
+                if (reachable.stream().noneMatch(key -> key.owner().equals(owner.name()))) continue;
+                ClassPlan classPlan = new ClassPlan(owner.name(), owner.fields());
+                classesByName.put(owner.name(), classPlan);
+                for (int index = 0; index < owner.fields().size(); index++) {
+                    IRField field = owner.fields().get(index);
+                    String key = fieldKey(owner.name(), field.name(), field.type());
+                    if (fieldIndexes.put(key, index) != null) {
+                        throw fail("duplicate field " + key);
+                    }
+                }
+            }
+            List<MethodKey> ordered = new ArrayList<>(reachable);
+            ordered.sort(Comparator.comparing(this::display));
             int ordinal = 0;
-            for (IRMethod method : owner.methods()) {
-                if (method.name().startsWith("<")) {
-                    throw fail("constructors and class initializers are outside the bounded PE subset");
-                }
-                MethodKey key = new MethodKey(owner.name(), method.name(), method.parameterTypes());
-                MethodPlan plan = new MethodPlan(owner.name(), method, "kof_method_" + ordinal++, flatten(method));
-                if (methodsByKey.put(key, plan) != null) {
-                    throw fail("duplicate method signature " + display(key));
-                }
+            for (MethodKey key : ordered) {
+                IRMethod method = available.get(key);
+                MethodPlan plan = new MethodPlan(key.owner(), method, "kof_method_" + ordinal++,
+                        flatten(method), hasReceiver(method));
+                methodsByKey.put(key, plan);
                 methods.add(plan);
-                if (method.name().equals("main")) {
-                    if (main != null) throw fail("multiple main methods are unsupported");
-                    main = plan;
-                }
+                if (key.equals(entryKey)) main = plan;
             }
             if (main == null) throw fail("module has no main method");
             validateMain(main.method());
@@ -243,15 +284,44 @@ public final class KofPeBackendMain {
                     validateLocal(plan, local.index(), local.type());
                 } else if (operation instanceof KofStoreLocal local) {
                     validateLocal(plan, local.index(), local.type());
+                } else if (operation instanceof KofNewObject object) {
+                    if (!(object.type() instanceof Type.ClassType cls)
+                            || !classesByName.containsKey(cls.internalName())) {
+                        throw unsupported(plan, index, operation, "object class is not reachable");
+                    }
+                    for (Type type : object.argumentTypes()) {
+                        if (!supportedValueType(type, false)) {
+                            throw unsupported(plan, index, operation,
+                                    "constructor argument type is unsupported");
+                        }
+                    }
+                } else if (operation instanceof KofNewArray array) {
+                    if (!supportedValueType(array.elementType(), false)) {
+                        throw unsupported(plan, index, operation, "array element type is unsupported");
+                    }
+                } else if (operation instanceof KofArrayLoad array) {
+                    if (!supportedValueType(array.elementType(), false)) {
+                        throw unsupported(plan, index, operation, "array element type is unsupported");
+                    }
+                } else if (operation instanceof KofArrayStore array) {
+                    if (!supportedValueType(array.elementType(), false)) {
+                        throw unsupported(plan, index, operation, "array element type is unsupported");
+                    }
+                } else if (operation instanceof KofArrayLength) {
+                    // Runtime checks the array tag and bounds.
+                } else if (operation instanceof KofLoadField field) {
+                    requireField(plan, index, field.ownerType(), field.name(), field.fieldType());
+                } else if (operation instanceof KofStoreField field) {
+                    requireField(plan, index, field.ownerType(), field.name(), field.fieldType());
                 } else if (operation instanceof KofBinary binary) {
-                    if (!isIntegral(binary.operandType())) {
-                        throw unsupported(plan, index, operation, "only integral binary operations are supported");
+                    if (!supportedValueType(binary.operandType(), false)) {
+                        throw unsupported(plan, index, operation, "binary operand type is unsupported");
                     }
                 } else if (operation instanceof KofUnary unary) {
                     validateUnary(plan, index, unary);
                 } else if (operation instanceof KofConditionalJump jump) {
-                    if (!isIntegral(jump.operandType())) {
-                        throw unsupported(plan, index, operation, "only integral comparisons are supported");
+                    if (!supportedValueType(jump.operandType(), false)) {
+                        throw unsupported(plan, index, operation, "comparison operand type is unsupported");
                     }
                     requireLabel(plan, labels, jump.trueLabel().id());
                     requireLabel(plan, labels, jump.falseLabel().id());
@@ -267,19 +337,23 @@ public final class KofPeBackendMain {
                     if (!supportedValueType(returned.returnType(), false)) {
                         throw unsupported(plan, index, operation, "unsupported return type");
                     }
+                } else if (operation instanceof KofThrow) {
+                    // Uncaught Kof throws terminate the native process with a diagnostic.
                 } else if (operation instanceof KofReturnVoid
                         || operation instanceof KofLabel
+                        || operation instanceof KofContinueLabel
                         || operation instanceof KofStatementIf
                         || operation instanceof KofPop
                         || operation instanceof KofDup) {
                     // Supported structural or stack operation.
                 } else {
-                    throw unsupported(plan, index, operation, "operation is outside the bounded PE subset");
+                    throw unsupported(plan, index, operation, "operation is outside the PE target");
                 }
             }
         }
 
         private void validateLiteral(MethodPlan plan, KofLoadLiteral literal) {
+            if (literal.value() == null && supportedValueType(literal.type(), false)) return;
             if (Type.isString(literal.type()) && literal.value() instanceof String) return;
             if (isIntegral(literal.type()) && literal.value() instanceof Number) return;
             throw fail(plan.method().name() + " has unsupported literal type " + Type.display(literal.type()));
@@ -306,6 +380,11 @@ public final class KofPeBackendMain {
 
         private void validateCall(MethodPlan plan, int index, KofCall call,
                                   List<KofOperation> operations) {
+            if (isFfiCall(call)) {
+                validateFfiCall(plan, index, call);
+                return;
+            }
+            if (isStringLength(call) || isStringCharAt(call)) return;
             if (isPrintCall(call)) return;
             if (isWrapperValueOf(call)) {
                 if (index + 1 >= operations.size()
@@ -327,11 +406,33 @@ public final class KofPeBackendMain {
             }
             MethodKey key = callKey(call);
             MethodPlan target = methodsByKey.get(key);
-            if (target == null || (call.kind() != KofCallKind.FUNCTION && call.kind() != KofCallKind.STATIC)) {
-                throw unsupported(plan, index, call, "only top-level static Kof function calls are supported");
+            if (target == null) {
+                throw unsupported(plan, index, call, "call target is outside the reachable PE module");
+            }
+            boolean receiverCall = switch (call.kind()) {
+                case INSTANCE, INTERFACE, SUPER, CONSTRUCTOR -> true;
+                case FUNCTION, STATIC -> false;
+            };
+            if (receiverCall != target.hasReceiver()) {
+                throw unsupported(plan, index, call, "call receiver convention does not match its target");
             }
             if (!target.method().returnType().equals(call.returnType())) {
                 throw unsupported(plan, index, call, "call return type does not match its target");
+            }
+        }
+        private void validateFfiCall(MethodPlan plan, int index, KofCall call) {
+            try {
+                validateFfiSignature(call);
+                ffiSymbol(call);
+            } catch (PeFailure failure) {
+                throw unsupported(plan, index, call, failure.getMessage());
+            }
+        }
+
+        private void requireField(MethodPlan plan, int index, Type owner, String name, Type type) {
+            if (!fieldIndexes.containsKey(fieldKey(internalName(owner), name, type))) {
+                throw unsupported(plan, index,
+                        new KofLoadField(owner, name, type), "field is outside the reachable PE module");
             }
         }
 
@@ -340,7 +441,10 @@ public final class KofPeBackendMain {
             if (operations.isEmpty()) throw fail(plan.method().name() + " has no operations");
             Map<Integer, Integer> labelIndexes = new HashMap<>();
             for (int index = 0; index < operations.size(); index++) {
-                if (operations.get(index) instanceof KofLabel label) {
+                KofOperation operation = operations.get(index);
+                if (operation instanceof KofLabel label) {
+                    labelIndexes.put(label.label().id(), index);
+                } else if (operation instanceof KofContinueLabel label) {
                     labelIndexes.put(label.label().id(), index);
                 }
             }
@@ -397,10 +501,15 @@ public final class KofPeBackendMain {
 
         private int stackEffect(KofOperation operation) {
             if (operation instanceof KofLoadLiteral || operation instanceof KofLoadLocal
-                    || operation instanceof KofGetStatic || operation instanceof KofDup) return 1;
+                    || operation instanceof KofGetStatic || operation instanceof KofNewObject
+                    || operation instanceof KofDup) return 1;
             if (operation instanceof KofStoreLocal || operation instanceof KofPop
-                    || operation instanceof KofReturn) return -1;
-            if (operation instanceof KofBinary) return -1;
+                    || operation instanceof KofReturn || operation instanceof KofThrow) return -1;
+            if (operation instanceof KofNewArray || operation instanceof KofArrayLength
+                    || operation instanceof KofLoadField) return 0;
+            if (operation instanceof KofArrayLoad || operation instanceof KofBinary) return -1;
+            if (operation instanceof KofArrayStore) return -3;
+            if (operation instanceof KofStoreField) return -2;
             if (operation instanceof KofConditionalJump) return -2;
             if (operation instanceof KofCall call) {
                 int consumed = call.parameterTypes().size();
@@ -417,7 +526,12 @@ public final class KofPeBackendMain {
             if (operation instanceof KofBinary || operation instanceof KofConditionalJump) return 2;
             if (operation instanceof KofStoreLocal || operation instanceof KofPop
                     || operation instanceof KofReturn || operation instanceof KofUnary
-                    || operation instanceof KofDup) return 1;
+                    || operation instanceof KofDup || operation instanceof KofThrow
+                    || operation instanceof KofArrayLength || operation instanceof KofLoadField) return 1;
+            if (operation instanceof KofNewArray) return 1;
+            if (operation instanceof KofArrayLoad) return 2;
+            if (operation instanceof KofArrayStore) return 3;
+            if (operation instanceof KofStoreField) return 2;
             if (operation instanceof KofCall call) {
                 int required = call.parameterTypes().size();
                 if (call.kind() == KofCallKind.INSTANCE || call.kind() == KofCallKind.INTERFACE
@@ -438,64 +552,357 @@ public final class KofPeBackendMain {
         }
 
         private void emitPreamble(StringBuilder out) {
-            out.append("/* Generated from optimized Kof IR by the pinned bounded PE/COFF backend. */\n")
-                    .append("#include <stdint.h>\n#include <stddef.h>\n#include <stdio.h>\n#include <stdlib.h>\n\n")
-                    .append("#if defined(__GNUC__)\n#define KOF_UNUSED __attribute__((unused))\n#else\n#define KOF_UNUSED\n#endif\n\n")
-                    .append("typedef enum { KOF_NIL = 0, KOF_INT = 1, KOF_BOOL = 2, KOF_STRING = 3, KOF_OUT = 4 } KofTag;\n")
-                    .append("typedef struct { KofTag tag; uint64_t bits; const unsigned char *bytes; size_t length; } KofValue;\n\n")
-                    .append("static KOF_UNUSED void kof_fail(const char *message) {\n")
-                    .append("    fputs(\"kof-pe runtime: \", stderr); fputs(message, stderr); fputc('\\n', stderr); exit(70);\n}\n")
-                    .append("static KOF_UNUSED KofValue kof_nil(void) { return (KofValue){KOF_NIL, 0, NULL, 0}; }\n")
-                    .append("static KOF_UNUSED KofValue kof_int(int64_t value) { return (KofValue){KOF_INT, (uint64_t)value, NULL, 0}; }\n")
-                    .append("static KOF_UNUSED KofValue kof_bool(int value) { return (KofValue){KOF_BOOL, value ? 1u : 0u, NULL, 0}; }\n")
-                    .append("static KOF_UNUSED KofValue kof_string(const unsigned char *bytes, size_t length) { return (KofValue){KOF_STRING, 0, bytes, length}; }\n")
-                    .append("static KOF_UNUSED KofValue kof_out(void) { return (KofValue){KOF_OUT, 0, NULL, 0}; }\n")
-                    .append("static KOF_UNUSED void kof_push(KofValue *stack, size_t *sp, size_t limit, KofValue value) {\n")
-                    .append("    if (*sp >= limit) kof_fail(\"value stack overflow\");\n")
-                    .append("    stack[(*sp)++] = value;\n}\n")
-                    .append("static KOF_UNUSED KofValue kof_pop(KofValue *stack, size_t *sp) {\n")
-                    .append("    if (*sp == 0) kof_fail(\"value stack underflow\");\n")
-                    .append("    return stack[--(*sp)];\n}\n")
-                    .append("static KOF_UNUSED int64_t kof_integral(KofValue value) {\n")
-                    .append("    if (value.tag != KOF_INT && value.tag != KOF_BOOL) kof_fail(\"expected integral value\");\n")
-                    .append("    return (int64_t)value.bits;\n}\n")
-                    .append("static KOF_UNUSED int32_t kof_i32(int64_t value) { return (int32_t)(uint32_t)value; }\n")
-                    .append("static KOF_UNUSED int64_t kof_add32(int64_t a, int64_t b) { return kof_i32((uint32_t)a + (uint32_t)b); }\n")
-                    .append("static KOF_UNUSED int64_t kof_sub32(int64_t a, int64_t b) { return kof_i32((uint32_t)a - (uint32_t)b); }\n")
-                    .append("static KOF_UNUSED int64_t kof_mul32(int64_t a, int64_t b) { return kof_i32((uint32_t)a * (uint32_t)b); }\n")
-                    .append("static KOF_UNUSED int64_t kof_div32(int64_t a, int64_t b) {\n")
-                    .append("    int32_t x = kof_i32(a), y = kof_i32(b);\n")
-                    .append("    if (y == 0) kof_fail(\"division by zero\");\n")
-                    .append("    if (x == INT32_MIN && y == -1) return INT32_MIN;\n")
-                    .append("    return x / y;\n}\n")
-                    .append("static KOF_UNUSED int64_t kof_mod32(int64_t a, int64_t b) {\n")
-                    .append("    int32_t x = kof_i32(a), y = kof_i32(b);\n")
-                    .append("    if (y == 0) kof_fail(\"division by zero\");\n")
-                    .append("    if (x == INT32_MIN && y == -1) return 0;\n")
-                    .append("    return x % y;\n}\n")
-                    .append("static KOF_UNUSED int64_t kof_div64(int64_t a, int64_t b) {\n")
-                    .append("    if (b == 0) kof_fail(\"division by zero\");\n")
-                    .append("    if (a == INT64_MIN && b == -1) return INT64_MIN;\n")
-                    .append("    return a / b;\n}\n")
-                    .append("static KOF_UNUSED int64_t kof_mod64(int64_t a, int64_t b) {\n")
-                    .append("    if (b == 0) kof_fail(\"division by zero\");\n")
-                    .append("    if (a == INT64_MIN && b == -1) return 0;\n")
-                    .append("    return a % b;\n}\n")
-                    .append("static KOF_UNUSED int64_t kof_shr32(int64_t a, int64_t b) {\n")
-                    .append("    uint32_t x = (uint32_t)a, n = (uint32_t)b & 31u;\n")
-                    .append("    if (n == 0) return kof_i32(x);\n")
-                    .append("    return kof_i32((x >> n) | ((x & 0x80000000u) ? (~UINT32_C(0) << (32u - n)) : 0u));\n}\n")
-                    .append("static KOF_UNUSED int64_t kof_shr64(int64_t a, int64_t b) {\n")
-                    .append("    uint64_t x = (uint64_t)a, n = (uint64_t)b & 63u;\n")
-                    .append("    if (n == 0) return (int64_t)x;\n")
-                    .append("    return (int64_t)((x >> n) | ((x & UINT64_C(0x8000000000000000)) ? (~UINT64_C(0) << (64u - n)) : 0u));\n}\n")
-                    .append("static KOF_UNUSED void kof_print(KofValue out, KofValue value, int newline) {\n")
-                    .append("    if (out.tag != KOF_OUT) kof_fail(\"invalid print receiver\");\n")
-                    .append("    if (value.tag == KOF_STRING) { if (value.length && fwrite(value.bytes, 1, value.length, stdout) != value.length) kof_fail(\"stdout write failed\"); }\n")
-                    .append("    else if (value.tag == KOF_BOOL) { if (fputs(value.bits ? \"true\" : \"false\", stdout) < 0) kof_fail(\"stdout write failed\"); }\n")
-                    .append("    else if (value.tag == KOF_INT) { if (fprintf(stdout, \"%lld\", (long long)(int64_t)value.bits) < 0) kof_fail(\"stdout write failed\"); }\n")
-                    .append("    else kof_fail(\"unsupported printable value\");\n")
-                    .append("    if (newline && fputc('\\n', stdout) == EOF) kof_fail(\"stdout write failed\");\n}\n\n");
+            out.append("""
+                    /* Generated from Kof IR by the native Windows PE/COFF backend. */
+                    #include <stdint.h>
+                    #include <stdbool.h>
+                    #include <stddef.h>
+                    #include <stdio.h>
+                    #include <stdlib.h>
+                    #include <string.h>
+                    #include <limits.h>
+
+                    #if defined(__GNUC__)
+                    #define KOF_UNUSED __attribute__((unused))
+                    #else
+                    #define KOF_UNUSED
+                    #endif
+
+                    typedef enum {
+                        KOF_NIL = 0,
+                        KOF_INT = 1,
+                        KOF_BOOL = 2,
+                        KOF_STRING = 3,
+                        KOF_OBJECT = 4,
+                        KOF_ARRAY = 5,
+                        KOF_OUT = 6
+                    } KofTag;
+
+                    typedef struct KofValue KofValue;
+                    typedef struct KofString KofString;
+                    typedef struct KofObject KofObject;
+                    typedef struct KofArray KofArray;
+
+                    struct KofValue {
+                        KofTag tag;
+                        uint64_t bits;
+                        void *ref;
+                    };
+
+                    struct KofString {
+                        const unsigned char *bytes;
+                        size_t length;
+                    };
+
+                    struct KofObject {
+                        const char *class_name;
+                        size_t field_count;
+                        KofValue *fields;
+                    };
+
+                    struct KofArray {
+                        KofTag element_tag;
+                        size_t length;
+                        KofValue *values;
+                    };
+
+                    static KOF_UNUSED void kof_fail(const char *message) {
+                        fputs("kof-pe runtime: ", stderr);
+                        fputs(message, stderr);
+                        fputc(10, stderr);
+                        exit(70);
+                    }
+
+                    static KOF_UNUSED KofValue kof_nil(void) {
+                        return (KofValue){KOF_NIL, 0, NULL};
+                    }
+
+                    static KOF_UNUSED KofValue kof_int(int64_t value) {
+                        return (KofValue){KOF_INT, (uint64_t)value, NULL};
+                    }
+
+                    static KOF_UNUSED KofValue kof_bool(int value) {
+                        return (KofValue){KOF_BOOL, value ? 1u : 0u, NULL};
+                    }
+
+                    static KOF_UNUSED KofValue kof_out(void) {
+                        return (KofValue){KOF_OUT, 0, NULL};
+                    }
+
+                    static KOF_UNUSED KofValue kof_default(KofTag tag) {
+                        return tag == KOF_BOOL ? kof_bool(0) :
+                               tag == KOF_INT ? kof_int(0) : kof_nil();
+                    }
+
+                    static KOF_UNUSED void kof_push(
+                            KofValue *stack, size_t *sp, size_t limit, KofValue value) {
+                        if (*sp >= limit) kof_fail("value stack overflow");
+                        stack[(*sp)++] = value;
+                    }
+
+                    static KOF_UNUSED KofValue kof_pop(KofValue *stack, size_t *sp) {
+                        if (*sp == 0) kof_fail("value stack underflow");
+                        return stack[--(*sp)];
+                    }
+
+                    static KOF_UNUSED int64_t kof_integral(KofValue value) {
+                        if (value.tag != KOF_INT && value.tag != KOF_BOOL) {
+                            kof_fail("expected integral value");
+                        }
+                        return (int64_t)value.bits;
+                    }
+
+                    static KOF_UNUSED int32_t kof_i32(int64_t value) {
+                        return (int32_t)(uint32_t)value;
+                    }
+
+                    static KOF_UNUSED int64_t kof_add32(int64_t a, int64_t b) {
+                        return kof_i32((uint32_t)a + (uint32_t)b);
+                    }
+
+                    static KOF_UNUSED int64_t kof_sub32(int64_t a, int64_t b) {
+                        return kof_i32((uint32_t)a - (uint32_t)b);
+                    }
+
+                    static KOF_UNUSED int64_t kof_mul32(int64_t a, int64_t b) {
+                        return kof_i32((uint32_t)a * (uint32_t)b);
+                    }
+
+                    static KOF_UNUSED int64_t kof_div32(int64_t a, int64_t b) {
+                        int32_t x = kof_i32(a);
+                        int32_t y = kof_i32(b);
+                        if (y == 0) kof_fail("division by zero");
+                        if (x == INT32_MIN && y == -1) return INT32_MIN;
+                        return x / y;
+                    }
+
+                    static KOF_UNUSED int64_t kof_mod32(int64_t a, int64_t b) {
+                        int32_t x = kof_i32(a);
+                        int32_t y = kof_i32(b);
+                        if (y == 0) kof_fail("division by zero");
+                        if (x == INT32_MIN && y == -1) return 0;
+                        return x % y;
+                    }
+
+                    static KOF_UNUSED int64_t kof_div64(int64_t a, int64_t b) {
+                        if (b == 0) kof_fail("division by zero");
+                        if (a == INT64_MIN && b == -1) return INT64_MIN;
+                        return a / b;
+                    }
+
+                    static KOF_UNUSED int64_t kof_mod64(int64_t a, int64_t b) {
+                        if (b == 0) kof_fail("division by zero");
+                        if (a == INT64_MIN && b == -1) return 0;
+                        return a % b;
+                    }
+
+                    static KOF_UNUSED int64_t kof_shr32(int64_t a, int64_t b) {
+                        uint32_t x = (uint32_t)a;
+                        uint32_t n = (uint32_t)b & 31u;
+                        if (n == 0) return kof_i32(x);
+                        return kof_i32((x >> n) |
+                            ((x & 0x80000000u) ? (~UINT32_C(0) << (32u - n)) : 0u));
+                    }
+
+                    static KOF_UNUSED int64_t kof_shr64(int64_t a, int64_t b) {
+                        uint64_t x = (uint64_t)a;
+                        uint64_t n = (uint64_t)b & 63u;
+                        if (n == 0) return (int64_t)x;
+                        return (int64_t)((x >> n) |
+                            ((x & UINT64_C(0x8000000000000000)) ?
+                                (~UINT64_C(0) << (64u - n)) : 0u));
+                    }
+
+                    static KOF_UNUSED KofString *kof_string_new(
+                            const unsigned char *bytes, size_t length, int copy) {
+                        KofString *string = (KofString *)malloc(sizeof(*string));
+                        if (string == NULL) kof_fail("string allocation failed");
+                        unsigned char *owned = NULL;
+                        if (copy) {
+                            owned = (unsigned char *)malloc(length == 0 ? 1 : length);
+                            if (owned == NULL) kof_fail("string allocation failed");
+                            if (length != 0) memcpy(owned, bytes, length);
+                        }
+                        string->bytes = copy ? owned : bytes;
+                        string->length = length;
+                        return string;
+                    }
+
+                    static KOF_UNUSED KofValue kof_string(
+                            const unsigned char *bytes, size_t length) {
+                        return (KofValue){KOF_STRING, 0, kof_string_new(bytes, length, 0)};
+                    }
+
+                    static KOF_UNUSED KofValue kof_string_value_of(KofValue value) {
+                        if (value.tag == KOF_STRING) return value;
+                        char buffer[64];
+                        int length;
+                        if (value.tag == KOF_BOOL) {
+                            const char *text = value.bits ? "true" : "false";
+                            KofString *string = kof_string_new(
+                                (const unsigned char *)text, strlen(text), 1);
+                            return (KofValue){KOF_STRING, 0, string};
+                        }
+                        if (value.tag == KOF_INT) {
+                            length = snprintf(buffer, sizeof(buffer), "%lld",
+                                (long long)(int64_t)value.bits);
+                        } else if (value.tag == KOF_NIL) {
+                            return (KofValue){KOF_STRING, 0,
+                                kof_string_new((const unsigned char *)"null", 4, 1)};
+                        } else {
+                            return (KofValue){KOF_STRING, 0,
+                                kof_string_new((const unsigned char *)"object", 6, 1)};
+                        }
+                        if (length < 0) kof_fail("string conversion failed");
+                        return (KofValue){KOF_STRING, 0,
+                            kof_string_new((const unsigned char *)buffer, (size_t)length, 1)};
+                    }
+
+                    static KOF_UNUSED int kof_string_equal(KofValue left, KofValue right) {
+                        if (left.tag != KOF_STRING || right.tag != KOF_STRING) return 0;
+                        KofString *a = (KofString *)left.ref;
+                        KofString *b = (KofString *)right.ref;
+                        return a->length == b->length &&
+                            (a->length == 0 || memcmp(a->bytes, b->bytes, a->length) == 0);
+                    }
+
+                    static KOF_UNUSED KofValue kof_string_length(KofValue value) {
+                        if (value.tag != KOF_STRING) kof_fail("expected string");
+                        return kof_int((int64_t)((KofString *)value.ref)->length);
+                    }
+
+                    static KOF_UNUSED KofValue kof_string_char_at(
+                            KofValue value, int64_t index) {
+                        if (value.tag != KOF_STRING) kof_fail("expected string");
+                        KofString *string = (KofString *)value.ref;
+                        if (index < 0 || (uint64_t)index >= string->length) {
+                            kof_fail("string index out of bounds");
+                        }
+                        return kof_int((unsigned char)string->bytes[index]);
+                    }
+
+                    static KOF_UNUSED KofValue kof_object_new(
+                            const char *class_name, size_t field_count) {
+                        KofObject *object = (KofObject *)calloc(1, sizeof(*object));
+                        if (object == NULL) kof_fail("object allocation failed");
+                        object->class_name = class_name;
+                        object->field_count = field_count;
+                        object->fields = (KofValue *)calloc(
+                            field_count == 0 ? 1 : field_count, sizeof(*object->fields));
+                        if (object->fields == NULL) kof_fail("field allocation failed");
+                        return (KofValue){KOF_OBJECT, 0, object};
+                    }
+
+                    static KOF_UNUSED KofValue kof_object_load(
+                            KofValue value, size_t index) {
+                        if (value.tag != KOF_OBJECT) kof_fail("expected object receiver");
+                        KofObject *object = (KofObject *)value.ref;
+                        if (index >= object->field_count) kof_fail("field index out of bounds");
+                        return object->fields[index];
+                    }
+
+                    static KOF_UNUSED void kof_object_store(
+                            KofValue value, size_t index, KofValue field) {
+                        if (value.tag != KOF_OBJECT) kof_fail("expected object receiver");
+                        KofObject *object = (KofObject *)value.ref;
+                        if (index >= object->field_count) kof_fail("field index out of bounds");
+                        object->fields[index] = field;
+                    }
+
+                    static KOF_UNUSED KofValue kof_array_new(
+                            size_t length, KofTag element_tag) {
+                        KofArray *array = (KofArray *)calloc(1, sizeof(*array));
+                        if (array == NULL) kof_fail("array allocation failed");
+                        array->element_tag = element_tag;
+                        array->length = length;
+                        array->values = (KofValue *)calloc(
+                            length == 0 ? 1 : length, sizeof(*array->values));
+                        if (array->values == NULL) kof_fail("array allocation failed");
+                        for (size_t index = 0; index < length; ++index) {
+                            array->values[index] = kof_default(element_tag);
+                        }
+                        return (KofValue){KOF_ARRAY, 0, array};
+                    }
+
+                    static KOF_UNUSED KofValue kof_array_load(
+                            KofValue value, int64_t index) {
+                        if (value.tag != KOF_ARRAY) kof_fail("expected array");
+                        KofArray *array = (KofArray *)value.ref;
+                        if (index < 0 || (uint64_t)index >= array->length) {
+                            kof_fail("array index out of bounds");
+                        }
+                        return array->values[index];
+                    }
+
+                    static KOF_UNUSED void kof_array_store(
+                            KofValue value, int64_t index, KofValue element) {
+                        if (value.tag != KOF_ARRAY) kof_fail("expected array");
+                        KofArray *array = (KofArray *)value.ref;
+                        if (index < 0 || (uint64_t)index >= array->length) {
+                            kof_fail("array index out of bounds");
+                        }
+                        array->values[index] = element;
+                    }
+
+                    static KOF_UNUSED size_t kof_array_length(KofValue value) {
+                        if (value.tag != KOF_ARRAY) kof_fail("expected array");
+                        return ((KofArray *)value.ref)->length;
+                    }
+
+                    static KOF_UNUSED void kof_print(
+                            KofValue out, KofValue value, int newline) {
+                        if (out.tag != KOF_OUT) kof_fail("invalid print receiver");
+                        if (value.tag == KOF_STRING) {
+                            KofString *string = (KofString *)value.ref;
+                            if (string->length != 0 &&
+                                fwrite(string->bytes, 1, string->length, stdout) != string->length) {
+                                kof_fail("stdout write failed");
+                            }
+                        } else if (value.tag == KOF_BOOL) {
+                            if (fputs(value.bits ? "true" : "false", stdout) < 0) {
+                                kof_fail("stdout write failed");
+                            }
+                        } else if (value.tag == KOF_INT) {
+                            if (fprintf(stdout, "%lld", (long long)(int64_t)value.bits) < 0) {
+                                kof_fail("stdout write failed");
+                            }
+                        } else if (value.tag == KOF_NIL) {
+                            if (fputs("null", stdout) < 0) kof_fail("stdout write failed");
+                        } else if (value.tag == KOF_OBJECT) {
+                            if (fputs("<object>", stdout) < 0) kof_fail("stdout write failed");
+                        } else if (value.tag == KOF_ARRAY) {
+                            if (fputs("<array>", stdout) < 0) kof_fail("stdout write failed");
+                        } else {
+                            kof_fail("unsupported printable value");
+                        }
+                        if (newline && fputc(10, stdout) == EOF) {
+                            kof_fail("stdout write failed");
+                        }
+                    }
+                    """);
+        }
+
+        private void emitFfiDeclarations(StringBuilder out) {
+            for (KofCall call : ffiCalls.values()) {
+                out.append("extern ").append(cAbiType(call.returnType())).append(' ')
+                        .append(ffiSymbol(call)).append('(');
+                if (call.parameterTypes().isEmpty()) {
+                    out.append("void");
+                } else {
+                    for (int index = 0; index < call.parameterTypes().size(); index++) {
+                        if (index != 0) out.append(", ");
+                        out.append(cAbiType(call.parameterTypes().get(index)));
+                    }
+                }
+                out.append(");\n");
+            }
+            if (!ffiCalls.isEmpty()) out.append('\n');
+        }
+
+        private String cAbiType(Type type) {
+            if (Type.isVoid(type)) return "void";
+            if (isBool(type)) return "bool";
+            return isLong(type) ? "int64_t" : "int32_t";
         }
 
         private void emitStrings(StringBuilder out) {
@@ -519,20 +926,25 @@ public final class KofPeBackendMain {
                     .append("    KofValue stack[").append(plan.maxStack()).append("];\n")
                     .append("    KofValue locals[").append(plan.localCount()).append("];\n")
                     .append("    size_t sp = 0;\n")
-                    .append("    for (size_t i = 0; i < ").append(plan.localCount()).append("; ++i) locals[i] = kof_nil();\n")
+                    .append("    for (size_t i = 0; i < ").append(plan.localCount())
+                    .append("; ++i) locals[i] = kof_nil();\n")
                     .append("    (void)locals;\n")
                     .append("    (void)args;\n");
-            if (plan != main) {
-                for (int index = 0; index < method.parameterTypes().size(); index++) {
-                    out.append("    locals[").append(index).append("] = args[").append(index).append("];\n");
-                }
+            int offset = plan.hasReceiver() ? 1 : 0;
+            if (plan.hasReceiver()) {
+                out.append("    locals[0] = args[0];\n");
+            }
+            for (int index = 0; index < method.parameterTypes().size(); index++) {
+                out.append("    locals[").append(index + offset).append("] = args[")
+                        .append(index + offset).append("];\n");
             }
             List<KofOperation> operations = plan.operations();
             Set<Integer> referencedLabels = referencedLabels(operations);
+            Set<Integer> emittedLabels = new HashSet<>();
             for (int index = 0; index < operations.size(); index++) {
-                emitOperation(out, plan, index, operations.get(index), referencedLabels);
+                emitOperation(out, plan, index, operations.get(index), referencedLabels, emittedLabels);
             }
-            out.append("}\n\n");
+            out.append("    return kof_nil();\n}\n\n");
         }
 
         private Set<Integer> referencedLabels(List<KofOperation> operations) {
@@ -548,22 +960,26 @@ public final class KofPeBackendMain {
         }
 
         private void emitOperation(StringBuilder out, MethodPlan plan, int index,
-                                   KofOperation operation, Set<Integer> referencedLabels) {
+                                   KofOperation operation, Set<Integer> referencedLabels,
+                                   Set<Integer> emittedLabels) {
             String limit = Integer.toString(plan.maxStack());
             if (operation instanceof KofLoadLiteral literal) {
-                if (literal.value() instanceof String value) {
+                if (literal.value() == null) {
+                    out.append("    kof_push(stack, &sp, ").append(limit).append(", kof_nil());\n");
+                } else if (literal.value() instanceof String value) {
                     int id = strings.get(value);
                     int length = value.getBytes(StandardCharsets.UTF_8).length;
-                    out.append("    kof_push(stack, &sp, ").append(limit).append(", kof_string(kof_string_")
-                            .append(id).append(", ").append(length).append("));\n");
+                    out.append("    kof_push(stack, &sp, ").append(limit)
+                            .append(", kof_string(kof_string_").append(id).append(", ")
+                            .append(length).append("));\n");
                 } else {
                     long value = ((Number) literal.value()).longValue();
                     if (isBool(literal.type())) {
                         out.append("    kof_push(stack, &sp, ").append(limit).append(", kof_bool(")
                                 .append(value == 0 ? 0 : 1).append("));\n");
                     } else {
-                        out.append("    kof_push(stack, &sp, ").append(limit).append(", kof_int(INT64_C(")
-                                .append(value).append(")));\n");
+                        out.append("    kof_push(stack, &sp, ").append(limit)
+                                .append(", kof_int(INT64_C(").append(value).append(")));\n");
                     }
                 }
             } else if (operation instanceof KofLoadLocal local) {
@@ -571,19 +987,71 @@ public final class KofPeBackendMain {
                         .append(local.index()).append("]);\n");
             } else if (operation instanceof KofStoreLocal local) {
                 out.append("    locals[").append(local.index()).append("] = kof_pop(stack, &sp);\n");
+            } else if (operation instanceof KofNewObject object) {
+                String owner = internalName(object.type());
+                ClassPlan classPlan = classesByName.get(owner);
+                out.append("    { KofValue object_").append(index).append(" = kof_object_new(\"")
+                        .append(owner).append("\", ").append(classPlan.fields().size()).append(");\n");
+                for (int field = 0; field < classPlan.fields().size(); field++) {
+                    out.append("      ((KofObject *)object_").append(index).append(".ref)->fields[")
+                            .append(field).append("] = kof_default(")
+                            .append(tagFor(classPlan.fields().get(field).type())).append(");\n");
+                }
+                out.append("      kof_push(stack, &sp, ").append(limit).append(", object_")
+                        .append(index).append("); }\n");
+            } else if (operation instanceof KofNewArray array) {
+                out.append("    { KofValue length_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_array_new((size_t)kof_integral(length_").append(index)
+                        .append("), ").append(tagFor(array.elementType())).append(")); }\n");
+            } else if (operation instanceof KofArrayLoad) {
+                out.append("    { KofValue index_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue array_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_array_load(array_").append(index).append(", kof_integral(index_")
+                        .append(index).append("))); }\n");
+            } else if (operation instanceof KofArrayStore) {
+                out.append("    { KofValue value_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue index_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue array_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_array_store(array_").append(index)
+                        .append(", kof_integral(index_").append(index).append("), value_")
+                        .append(index).append("); }\n");
+            } else if (operation instanceof KofArrayLength) {
+                out.append("    { KofValue array_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_int((int64_t)kof_array_length(array_").append(index)
+                        .append("))); }\n");
+            } else if (operation instanceof KofLoadField field) {
+                out.append("    { KofValue receiver_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_object_load(receiver_").append(index).append(", ")
+                        .append(fieldIndex(field.ownerType(), field.name(), field.fieldType())).append(")); }\n");
+            } else if (operation instanceof KofStoreField field) {
+                out.append("    { KofValue value_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue receiver_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_object_store(receiver_").append(index)
+                        .append(", ").append(fieldIndex(field.ownerType(), field.name(), field.fieldType()))
+                        .append(", value_").append(index).append("); }\n");
             } else if (operation instanceof KofBinary binary) {
                 emitBinary(out, binary, limit, index);
             } else if (operation instanceof KofUnary unary) {
                 emitUnary(out, unary, limit, index);
             } else if (operation instanceof KofConditionalJump jump) {
-                out.append("    { int64_t right = kof_integral(kof_pop(stack, &sp)); int64_t left = kof_integral(kof_pop(stack, &sp));\n")
-                        .append("      if (").append(comparisonExpression(jump.comparison(), jump.operandType(), "left", "right"))
+                out.append("    { KofValue right_").append(index).append(" = kof_pop(stack, &sp); KofValue left_")
+                        .append(index).append(" = kof_pop(stack, &sp); if (")
+                        .append(comparisonExpression(jump.comparison(), jump.operandType(),
+                                "left_" + index, "right_" + index))
                         .append(") goto kof_label_").append(jump.trueLabel().id())
                         .append("; else goto kof_label_").append(jump.falseLabel().id()).append("; }\n");
             } else if (operation instanceof KofJump jump) {
                 out.append("    goto kof_label_").append(jump.target().id()).append(";\n");
             } else if (operation instanceof KofLabel label) {
-                if (referencedLabels.contains(label.label().id())) {
+                if (referencedLabels.contains(label.label().id()) && emittedLabels.add(label.label().id())) {
+                    out.append("kof_label_").append(label.label().id()).append(":\n");
+                }
+            } else if (operation instanceof KofContinueLabel label) {
+                if (referencedLabels.contains(label.label().id()) && emittedLabels.add(label.label().id())) {
                     out.append("kof_label_").append(label.label().id()).append(":\n");
                 }
             } else if (operation instanceof KofCall call) {
@@ -597,9 +1065,12 @@ public final class KofPeBackendMain {
             } else if (operation instanceof KofPop) {
                 out.append("    (void)kof_pop(stack, &sp);\n");
             } else if (operation instanceof KofDup) {
-                out.append("    { KofValue value = kof_pop(stack, &sp); kof_push(stack, &sp, ")
-                        .append(limit).append(", value); kof_push(stack, &sp, ").append(limit)
-                        .append(", value); }\n");
+                out.append("    { KofValue value_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", value_").append(index).append("); kof_push(stack, &sp, ")
+                        .append(limit).append(", value_").append(index).append("); }\n");
+            } else if (operation instanceof KofThrow) {
+                out.append("    (void)kof_pop(stack, &sp); kof_fail(\"uncaught Kof throw\");\n");
             } else if (operation instanceof KofStatementIf) {
                 out.append("    /* Kof statement-if marker */\n");
             } else {
@@ -618,7 +1089,8 @@ public final class KofPeBackendMain {
                 case DIV -> out.append("kof_int(").append(wide ? "kof_div64(left, right)" : "kof_div32(left, right)").append(')');
                 case MOD -> out.append("kof_int(").append(wide ? "kof_mod64(left, right)" : "kof_mod32(left, right)").append(')');
                 case EQ, NE, LT, LE, GT, GE -> out.append("kof_bool(")
-                        .append(comparisonExpression(toComparison(binary.op()), binary.operandType(), "left", "right")).append(')');
+                        .append(comparisonExpression(toComparison(binary.op()), binary.operandType(),
+                                "kof_int(left)", "kof_int(right)")).append(')');
                 case AND -> out.append("kof_int(").append(wide ? "(int64_t)((uint64_t)left & (uint64_t)right)" : "kof_i32((uint32_t)left & (uint32_t)right)").append(')');
                 case OR -> out.append("kof_int(").append(wide ? "(int64_t)((uint64_t)left | (uint64_t)right)" : "kof_i32((uint32_t)left | (uint32_t)right)").append(')');
                 case XOR -> out.append("kof_int(").append(wide ? "(int64_t)((uint64_t)left ^ (uint64_t)right)" : "kof_i32((uint32_t)left ^ (uint32_t)right)").append(')');
@@ -653,21 +1125,58 @@ public final class KofPeBackendMain {
         }
 
         private void emitCall(StringBuilder out, KofCall call, String limit, int index) {
-            if (isWrapperValueOf(call) || isStringValueOf(call)) {
-                out.append("    /* compiler print coercion; KofValue retains its exact runtime tag */\n");
+            if (isFfiCall(call)) {
+                emitFfiCall(out, call, limit, index);
+                return;
+            }
+            if (isStringLength(call)) {
+                out.append("    { KofValue receiver_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_string_length(receiver_").append(index).append(")); }\n");
+                return;
+            }
+            if (isStringCharAt(call)) {
+                out.append("    { KofValue index_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue receiver_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_string_char_at(receiver_").append(index)
+                        .append(", kof_integral(index_").append(index).append("))); }\n");
+                return;
+            }
+            if (isWrapperValueOf(call)) {
+                out.append("    /* primitive boxing is erased by the native value representation */\n");
+                return;
+            }
+            if (isStringValueOf(call)) {
+                out.append("    { KofValue value_").append(index).append(" = kof_pop(stack, &sp);")
+                        .append(" kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_string_value_of(value_").append(index).append(")); }\n");
                 return;
             }
             if (isPrintCall(call)) {
-                out.append("    { KofValue value = kof_pop(stack, &sp); KofValue receiver = kof_pop(stack, &sp); kof_print(receiver, value, ")
+                out.append("    { KofValue value_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue receiver_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_print(receiver_").append(index)
+                        .append(", value_").append(index).append(", ")
                         .append(call.methodName().equals("println") ? 1 : 0).append("); }\n");
                 return;
             }
             MethodPlan target = methodsByKey.get(callKey(call));
+            boolean receiverCall = switch (call.kind()) {
+                case INSTANCE, INTERFACE, SUPER, CONSTRUCTOR -> true;
+                case FUNCTION, STATIC -> false;
+            };
             int count = call.parameterTypes().size();
-            out.append("    { KofValue call_args_").append(index).append('[').append(Math.max(1, count)).append("];\n");
+            int offset = receiverCall ? 1 : 0;
+            out.append("    { KofValue call_args_").append(index).append('[')
+                    .append(Math.max(1, count + offset)).append("];\n");
             for (int parameter = count - 1; parameter >= 0; parameter--) {
-                out.append("      call_args_").append(index).append('[').append(parameter)
+                out.append("      call_args_").append(index).append('[').append(parameter + offset)
                         .append("] = kof_pop(stack, &sp);\n");
+            }
+            if (receiverCall) {
+                out.append("      call_args_").append(index)
+                        .append("[0] = kof_pop(stack, &sp);\n");
             }
             out.append("      KofValue call_result_").append(index).append(" = ")
                     .append(target.cName()).append("(call_args_").append(index).append(");\n");
@@ -679,18 +1188,64 @@ public final class KofPeBackendMain {
             }
             out.append("    }\n");
         }
+        private void emitFfiCall(StringBuilder out, KofCall call, String limit, int index) {
+            String symbol = ffiSymbol(call);
+            int count = call.parameterTypes().size();
+            out.append("    {");
+            for (int parameter = count - 1; parameter >= 0; parameter--) {
+                out.append(" KofValue ffi_arg_").append(index).append('_').append(parameter)
+                        .append(" = kof_pop(stack, &sp);");
+            }
+            out.append('\n');
+            out.append("      ");
+            if (!Type.isVoid(call.returnType())) {
+                out.append(cAbiType(call.returnType())).append(" ffi_result_").append(index)
+                        .append(" = ");
+            }
+            out.append(symbol).append('(');
+            for (int parameter = 0; parameter < count; parameter++) {
+                if (parameter != 0) out.append(", ");
+                out.append('(').append(cAbiType(call.parameterTypes().get(parameter))).append(")")
+                        .append("kof_integral(ffi_arg_").append(index).append('_').append(parameter)
+                        .append(')');
+            }
+            out.append(");\n");
+            if (!Type.isVoid(call.returnType())) {
+                out.append("      kof_push(stack, &sp, ").append(limit).append(", ");
+                if (isBool(call.returnType())) {
+                    out.append("kof_bool(ffi_result_").append(index).append(')');
+                } else {
+                    out.append("kof_int((int64_t)ffi_result_").append(index).append(')');
+                }
+                out.append(");\n");
+            }
+            out.append("    }\n");
+        }
 
         private void emitEntry(StringBuilder out) {
-            out.append("int main(void) {\n")
-                    .append("    KofValue args[1] = { kof_nil() };\n")
+            out.append("int kookie_kof_gameplay_main(void) {\n")
+                    .append("    KofValue args[1] = { kof_array_new(0, KOF_STRING) };\n")
                     .append("    (void)").append(main.cName()).append("(args);\n")
                     .append("    if (fflush(stdout) == EOF) return 74;\n")
                     .append("    return 0;\n}\n");
+            if (!library) {
+                out.append("\nint main(void) {\n")
+                        .append("    return kookie_kof_gameplay_main();\n}\n");
+            }
         }
 
         private String comparisonExpression(KofComparison comparison, Type type, String left, String right) {
-            String lhs = isLong(type) ? left : "kof_i32(" + left + ")";
-            String rhs = isLong(type) ? right : "kof_i32(" + right + ")";
+            if (Type.isString(type)) {
+                return "kof_string_equal(" + left + ", " + right + ")" + switch (comparison) {
+                    case EQ -> "";
+                    case NE -> " == 0";
+                    default -> throw fail("ordered String comparison is outside the PE target");
+                };
+            }
+            String lhs = isLong(type) ? "kof_integral(" + left + ")"
+                    : "kof_i32(kof_integral(" + left + "))";
+            String rhs = isLong(type) ? "kof_integral(" + right + ")"
+                    : "kof_i32(kof_integral(" + right + "))";
             return lhs + " " + switch (comparison) {
                 case EQ -> "==";
                 case NE -> "!=";
@@ -713,9 +1268,6 @@ public final class KofPeBackendMain {
             };
         }
 
-        private boolean supportedValueType(Type type, boolean allowVoid) {
-            return (allowVoid && Type.isVoid(type)) || isIntegral(type) || Type.isString(type);
-        }
 
         private boolean isIntegral(Type type) {
             return type instanceof Type.PrimitiveType primitive && switch (Type.canonicalPrimitiveName(primitive.name())) {
@@ -755,12 +1307,106 @@ public final class KofPeBackendMain {
                     && Set.of("java/lang/Integer", "java/lang/Long", "java/lang/Boolean",
                             "java/lang/Byte", "java/lang/Short", "java/lang/Character").contains(owner);
         }
-
         private boolean isStringValueOf(KofCall call) {
             return call.kind() == KofCallKind.STATIC
                     && internalName(call.ownerType()).equals("java/lang/String")
                     && call.methodName().equals("valueOf")
                     && call.parameterTypes().size() == 1;
+        }
+        private boolean isStringLength(KofCall call) {
+            return call.kind() == KofCallKind.INSTANCE
+                    && internalName(call.ownerType()).equals("java/lang/String")
+                    && call.methodName().equals("length")
+                    && call.parameterTypes().isEmpty()
+                    && isIntegral(call.returnType());
+        }
+
+        private boolean isStringCharAt(KofCall call) {
+            return call.kind() == KofCallKind.INSTANCE
+                    && internalName(call.ownerType()).equals("java/lang/String")
+                    && call.methodName().equals("charAt")
+                    && call.parameterTypes().size() == 1
+                    && isIntegral(call.parameterTypes().get(0))
+                    && isIntegral(call.returnType());
+        }
+
+        private boolean isFfiCall(KofCall call) {
+            return call.kind() == KofCallKind.FUNCTION
+                    && internalName(call.ownerType()).equals("kof/ffi")
+                    && call.methodName().contains("::");
+        }
+
+        private String ffiSymbol(KofCall call) {
+            String method = call.methodName();
+            int separator = method.lastIndexOf("::");
+            if (separator < 0 || separator + 2 >= method.length()) {
+                throw fail("FFI call has no symbol name: " + method);
+            }
+            String symbol = method.substring(separator + 2);
+            if (!symbol.matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                throw fail("FFI symbol is not a C identifier: " + symbol);
+            }
+            return symbol;
+        }
+
+        private void registerFfi(KofCall call) {
+            validateFfiSignature(call);
+            String symbol = ffiSymbol(call);
+            KofCall previous = ffiCalls.putIfAbsent(symbol, call);
+            if (previous != null && (!previous.parameterTypes().equals(call.parameterTypes())
+                    || !previous.returnType().equals(call.returnType()))) {
+                throw fail("FFI symbol has incompatible signatures: " + symbol);
+            }
+        }
+
+        private void validateFfiSignature(KofCall call) {
+            if (call.kind() != KofCallKind.FUNCTION) {
+                throw fail("FFI calls must use the function call convention");
+            }
+            for (Type parameter : call.parameterTypes()) {
+                if (!isIntegral(parameter)) {
+                    throw fail("FFI parameter type is outside the integral ABI: "
+                            + Type.display(parameter));
+                }
+            }
+            if (!Type.isVoid(call.returnType()) && !isIntegral(call.returnType())) {
+                throw fail("FFI return type is outside the integral ABI: "
+                        + Type.display(call.returnType()));
+            }
+        }
+
+        private boolean supportedValueType(Type type, boolean allowVoid) {
+            return (allowVoid && Type.isVoid(type))
+                    || isIntegral(type)
+                    || Type.isString(type)
+                    || type instanceof Type.ClassType
+                    || type instanceof Type.ArrayType;
+        }
+        private boolean isSupportedExternal(KofCall call) {
+            return isPrintCall(call) || isWrapperValueOf(call) || isStringValueOf(call)
+                    || isStringLength(call) || isStringCharAt(call) || isFfiCall(call);
+        }
+
+        private boolean hasReceiver(IRMethod method) {
+            return method.name().equals("<init>") || (method.accessFlags() & 0x0008) == 0;
+        }
+
+        private String fieldKey(String owner, String name, Type type) {
+            return owner + "|" + name + "|" + type;
+        }
+        private int fieldIndex(Type owner, String name, Type type) {
+            Integer index = fieldIndexes.get(fieldKey(internalName(owner), name, type));
+            if (index == null) throw fail("field is outside the reachable PE module");
+            return index;
+        }
+
+        private String tagFor(Type type) {
+            if (isBool(type)) return "KOF_BOOL";
+            if (isIntegral(type)) return "KOF_INT";
+            if (Type.isString(type)) return "KOF_STRING";
+            if (type instanceof Type.ArrayType) return "KOF_ARRAY";
+            if (type instanceof Type.ClassType) return "KOF_OBJECT";
+            return "KOF_NIL";
         }
 
         private MethodKey callKey(KofCall call) {
@@ -795,25 +1441,42 @@ public final class KofPeBackendMain {
         }
     }
 
+    private static final class ClassPlan {
+        private final String owner;
+        private final List<IRField> fields;
+
+        ClassPlan(String owner, List<IRField> fields) {
+            this.owner = owner;
+            this.fields = List.copyOf(fields);
+        }
+
+        String owner() { return owner; }
+        List<IRField> fields() { return fields; }
+    }
+
     private static final class MethodPlan {
         private final String owner;
         private final IRMethod method;
         private final String cName;
         private final List<KofOperation> operations;
+        private final boolean hasReceiver;
         private int localCount;
         private int maxStack;
 
-        MethodPlan(String owner, IRMethod method, String cName, List<KofOperation> operations) {
+        MethodPlan(String owner, IRMethod method, String cName,
+                   List<KofOperation> operations, boolean hasReceiver) {
             this.owner = owner;
             this.method = method;
             this.cName = cName;
             this.operations = operations;
+            this.hasReceiver = hasReceiver;
         }
 
         String owner() { return owner; }
         IRMethod method() { return method; }
         String cName() { return cName; }
         List<KofOperation> operations() { return operations; }
+        boolean hasReceiver() { return hasReceiver; }
         int localCount() { return localCount; }
         void localCount(int value) { localCount = value; }
         int maxStack() { return maxStack; }

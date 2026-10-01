@@ -4,17 +4,21 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## 2026-10-01
 
-### G6 Windows presentation qualification
+### G6 Windows PE/SDL qualification
 
-- Fixed the Windows SDL adapter module lifetime: Kof JVM FFI calls can close
-  their per-call native arena without unloading the pinned adapter state.
-- The signed Windows presentation package now passes a full isolated Wine smoke
-  on a DRI3-capable host, including Kof HUD/scene/creator checks, SDL GPU
-  device/window claim, present capabilities and screenshot capture.
-- The smoke produced the five expected qualification markers and a 1280×720
-  frame. This qualifies the bounded Kof JVM gameplay plus native SDL
-  presentation route on the recorded host; native PE/full-Kof Windows lowering
-  remains a separate non-goal.
+- Fixed the Windows SDL adapter module lifetime: Kof FFI calls can close their
+  per-call native arena without unloading the pinned adapter state.
+- Expanded the reachable Kof PE/COFF lowering subset to cover the current
+  gameplay and presentation graphs: classes, fields, objects, arrays,
+  integral/Boolean/String values, control flow, printing, String indexing and
+  integral FFI.
+- Added reproducible native Windows packages: the SDL shell links the complete
+  reachable `src/` Kof PE object, and the presentation profile links native
+  Kof PE gameplay to the SDL3/SDL_mixer GPU adapter with SPIR-V/DXIL products.
+- The isolated native-shell Wine smoke passed the gameplay markers and
+  `KOOKIE native Kof PE gameplay verified`. Presentation Wine smoke remains
+  optional and requires a DRI3-capable isolated GPU; the default Xvfb wrapper
+  is not presentation evidence.
 
 
 ## 2026-09-30

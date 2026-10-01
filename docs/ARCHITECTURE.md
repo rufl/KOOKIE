@@ -158,13 +158,13 @@ render policy or save logic. Native crossing uses checked scalars, tokens and
 bounded buffers; no raw Kof pointers or callbacks are retained.
 
 The Windows compiler boundary consumes optimized IR from the exact pinned Kof
-frontend and emits deterministic C11, AMD64 COFF and console PE artifacts. Its
-admitted subset is top-level integral/Boolean/String functions, locals,
-arithmetic, control flow and printing. Classes, heap/array operations,
-exceptions, concurrency, FFI and SDL IR fail closed with `PE001`. Generated C is
-a compiler intermediate, not a second hand-written engine authority. This path
-qualifies executable format and lowering mechanics only; Linux remains the
-full native gameplay target.
+frontend and emits deterministic C11 and AMD64 COFF. Standalone builds emit a
+console PE; library builds export `kookie_kof_gameplay_main` for a native host.
+The admitted reachable subset covers current gameplay/presentation classes,
+heap objects, arrays, integral/Boolean/String values, control flow, printing,
+String indexing and integral FFI/SDL calls. Floating-point IR,
+catchable exceptions and concurrency still fail closed with `PE001`. Generated
+C is a compiler intermediate, not a second hand-written engine authority.
 
 ## 4. Runtime modes
 
@@ -688,12 +688,14 @@ The retained bounded evidence now covers four expansion slices:
   window, bounded retries/deadlines, deterministic loss/latency pressure,
   ordered delivery, replay rejection and backpressure.
 
-The Windows presentation package is reproducible and signed with SDL3,
-SDL_mixer, SPIR-V/DXIL and a pinned OpenJDK 27 runtime. The optional isolated
-Wine gameplay smoke remains environment-gated; static package evidence is not
-promoted to a claim of cross-host Windows presentation success. The WAN profile
-does not claim NAT traversal, relay service, confidentiality or DDoS
-resistance.
+The Windows PE profiles are reproducible and signed: the native shell links
+complete reachable Kof gameplay to SDL3/SDL_mixer, while the presentation
+profile links native Kof PE to SDL3/SDL_mixer and bundles SPIR-V/DXIL products.
+The separate Windows JVM package retains its pinned OpenJDK runtime for
+compatibility only. The native-shell isolated Wine smoke verifies gameplay;
+presentation visual smoke remains environment-gated on a DRI3-capable GPU.
+The WAN profile does not claim NAT traversal, relay service, confidentiality or
+DDoS resistance.
 
 ## 11. Explicit non-goals
 

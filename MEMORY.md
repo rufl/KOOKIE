@@ -82,14 +82,30 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
   malformed-input rejection and a graphics-dependency denylist outside the
   checkout.
 
+## Windows PE/SDL qualification batch
+
+- The Windows PE backend now lowers the reachable current gameplay/presentation
+  graph: classes/fields, objects, arrays, integral/Boolean/String values,
+  control flow, printing, String indexing and integral FFI. Standalone output
+  is console PE; library output exports `kookie_kof_gameplay_main`.
+- The reproducible Windows native shell package links the complete reachable
+  `src/` Kof object to the SDL3/SDL_mixer shell without Java. Its isolated Wine
+  smoke passed the gameplay markers and `KOOKIE native Kof PE gameplay verified`.
+- The reproducible presentation package links native Kof PE gameplay to the
+  SDL3/SDL_mixer GPU adapter and retains SPIR-V/DXIL products. Its artifact gate
+  passes; optional visual Wine smoke requires an isolated DRI3-capable GPU and
+  is not inferred from the default Xvfb environment.
+- The separate Windows JVM package remains a compatibility profile, not a
+  fallback for native PE gameplay. Native PE remains AMD64/Windows-specific;
+  floating-point IR, catchable exceptions and concurrency still fail closed
+  with `PE001`.
+
 ## Earlier platform-release batch
 
-- The Windows presentation compatibility profile now passes the reproducible
-  signed package gate and a full isolated Wine smoke on a DRI3-capable host.
-  Kof JVM gameplay reached the HUD, 3D scene and creator reload checks while
-  the native SDL adapter claimed the window, reported present capabilities and
-  captured a 1280×720 frame. Native PE/full-Kof Windows lowering remains
-  separate from this compatibility qualification.
+- The Windows presentation compatibility profile passed its prior reproducible
+  signed package gate and isolated Wine smoke on a DRI3-capable host. The
+  current presentation profile supersedes that JVM gameplay path with native
+  Kof PE while retaining the separate JVM compatibility package.
 - The Linux presentation now starts at a persistent Kof main menu and keeps
   the bounded G1 scene behind Play. SDL_mixer owns distinct effects/music
   streams; the adapter remains scalar, token-checked and allocation-free on
@@ -151,11 +167,11 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
 - A native high-arity call forwarding record getters dropped the fire argument in a focused reproduction. Replay now queues the existing `InputCommand` instead of reconstructing a wide call; no compiler repair is claimed.
 - Loopback host lifecycle preserved player position and input sequence watermarks across reconnect, cleared pending commands and rejected stale input; this was local prerequisite coverage before the external bundle above closed the gate.
 - Remote session reconnect preserved broad-phase send/receive watermarks across close/reopen; the native authenticated UDP probe resumed at sequence 9 and rejected older snapshots. The current qualification batch now supplies the formerly missing two-client external proof.
-- Linux x86-64 has reproducible native Kof and SDL presentation archives. The
-  Windows x86-64 archive is a native SDL shell with no Java runtime; the
-  Windows JVM external-LAN role bundle remains qualification tooling only.
-  Kof-authored Windows PE gameplay remains blocked by the absent compiler
-  target, not hidden behind the platform shell.
+- Linux x86-64 has reproducible native Kof and SDL presentation archives.
+  Windows x86-64 now has native Kof PE gameplay in the SDL3/SDL_mixer shell and
+  native PE/SDL_GPU presentation package; the separate JVM external-LAN role
+  bundle remains compatibility tooling only. The native-shell Wine smoke passed
+  gameplay markers and the native PE marker.
 - Reproducible packages use project-owned provenance metadata, include MIT and
   zlib notices and reject unreviewed distributed runtime libraries. Deployment
   endpoint compatibility remains outside this repository.
@@ -191,9 +207,11 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 
 ## Proposed decisions
 
-- Native Linux x86-64 is the authoritative Kof gameplay target; JVM is a local
-  differential oracle. The native Windows platform shell is supported, but
-  Windows Kof gameplay waits for a compiler PE target.
+- Native Linux x86-64 remains the authoritative Kof gameplay target; the JVM is
+  a differential oracle and a separate Windows compatibility profile. The
+  Windows PE bridge is qualified for the reachable gameplay/presentation graphs,
+  with native shell Wine evidence and presentation artifact evidence; visual
+  presentation smoke remains DRI3/GPU-gated.
 - SDL 3.4.16 + SDL_GPU with Vulkan/SPIR-V is the graphics boundary; SDL_mixer
   3.2.4 owns effects/music buses. The packaged Kof benchmark validates the
   bulk-buffer ABI and chooses between the measured SIMD and scalar reduction

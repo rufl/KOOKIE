@@ -143,11 +143,11 @@ Esta é a sequência ativa e limitada de implementação após os commits inicia
 - O validador fail-closed aceita somente janela real com capacidade positiva,
   marcador de draw, screenshot P6 válido e saída limpa.
 - Arquivos reproduzíveis cobrem Kof nativo e a apresentação SDL persistente no
-  Linux. O Windows x86-64 agora recebe um shell nativo SDL3 + SDL_mixer com
-  janela redimensionável/maximizável, menus/opções/lobby e sem JDK embutido.
-  Gameplay Kof PE continua bloqueado pela ausência do alvo no compilador; o
-  pacote JVM de roles LAN é somente ferramenta de qualificação. Pacotes do
-  produto incluem avisos MIT/zlib e rejeitam bibliotecas não revisadas.
+  Linux. O Windows x86-64 agora recebe gameplay Kof PE nativo no shell SDL3 +
+  SDL_mixer e no pacote SDL_GPU, sem JDK embutido nos perfis nativos. O pacote
+  JVM de roles LAN é somente ferramenta de qualificação/compatibilidade.
+  Pacotes do produto incluem avisos MIT/zlib e rejeitam bibliotecas não
+  revisadas.
 
 ## Evidência externa reproduzível
 
@@ -187,12 +187,13 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   são, respectivamente,
   `f6fd41ed59c461dd968376e8e2dd3f0dc24ee712578d318a7fb3f707bc761bdc`
   e `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`.
-  O assembler nativo emite ELF Linux; o shell SDL nativo Windows não muda esse
-  limite do compilador.
+  O assembler nativo upstream emite ELF Linux; a ponte Kof PE Windows emite
+  PE/COFF AMD64 determinístico para os grafos alcançáveis qualificados de
+  gameplay/apresentação.
 - Arquivos de release cobrem Linux nativo e o shell de plataforma Windows
-  SDL3 + SDL_mixer. O perfil limitado de apresentação Windows também passou um
-  smoke completo Kof JVM/SDL em Wine isolado; gameplay Kof nativo autoritativo
-  no Windows continua não comprovado.
+  SDL3 + SDL_mixer. O pacote de apresentação Windows liga Kof PE nativo ao
+  adaptador SDL_GPU e inclui produtos SPIR-V/DXIL; o smoke do shell nativo em
+  Wine isolado verifica gameplay e o marcador PE nativo.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 

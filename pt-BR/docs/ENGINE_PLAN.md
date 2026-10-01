@@ -66,7 +66,7 @@ Este plano não escolhe uma licença pública nem autoriza a redistribuição de
 
 Sokol continua sendo uma opção plausível; não foi rejeitado como incapaz de lidar com shooters. Sua lista de backends evolui, portanto fixe os headers/ferramentas de shaders se for selecionado, em vez de depender de tabelas de capacidades desatualizadas.
 
-SDL_GPU também tem limitações: piso de recursos de GPU moderno, layouts rigorosos de recursos de shaders, nenhum backend geral para navegador na rota proposta e nenhuma promessa de ray tracing/mesh shaders de ponta. A portabilidade do SDL não implica saída PE/Mach-O nativa completa do Kof. O KOOKIE agora mantém uma rota separada e limitada do compilador para console PE/COFF AMD64; gameplay Windows, macOS, ARM e navegador continuam sendo gates independentes de expansão, não entregas implícitas. Fontes: [contrato de GPU do SDL](https://wiki.libsdl.org/SDL3/CategoryGPU), [modo de mouse relativo](https://wiki.libsdl.org/SDL3/SDL_SetWindowRelativeMouseMode), [SDL_shadercross](https://github.com/libsdl-org/SDL_shadercross), [Sokol](https://github.com/floooh/sokol), [raylib](https://github.com/raysan5/raylib), [licença do SDL](https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt).
+SDL_GPU também tem limitações: piso de recursos de GPU moderno, layouts rigorosos de recursos de shaders, nenhum backend geral para navegador na rota proposta e nenhuma promessa de ray tracing/mesh shaders de ponta. A portabilidade do SDL não implica saída PE/Mach-O nativa completa do Kof. O KOOKIE agora mantém uma rota alcançável e limitada do compilador AMD64 PE/COFF com gameplay Kof PE nativo Windows e pacotes nativos PE/SDL_GPU qualificados; o smoke de apresentação Windows continua dependente do alvo/GPU, enquanto macOS, ARM e navegador permanecem gates independentes de expansão.
 
 ### Avaliação do reaproveitamento do Minecraft moderno
 
@@ -167,9 +167,12 @@ As fontes versionadas da UI e os limites adicionais de licenciamento estão em
 
 ## 3. A fronteira FFI deve ser comprovada primeiro
 
-O Kof nativo atual aceita chamadas `extern` escalares; arrays/estruturas/ponteiros/buffers
-de saída e callbacks nativos estão bloqueados. Medimos a versão real do SDL e as
-chamadas de libm, **não a inicialização gráfica**.
+O runtime nativo upstream atual aceita chamadas `extern` escalares;
+arrays/estruturas/ponteiros/buffers de saída e callbacks nativos continuam
+bloqueados nele. A ponte PE do KOOKIE baixa separadamente valores limitados de
+heap/arrays e FFI integral para os grafos Windows qualificados. As medições
+originais cobriram a versão real do SDL e chamadas de libm, **não a
+inicialização gráfica**.
 
 ### Contrato do adaptador
 
@@ -870,17 +873,19 @@ afirma operação em várias máquinas/WAN, desempenho em outro OS/GPU,
 escalabilidade arbitrária de população, conteúdo em streaming ou sandbox G6.
 
 G6 está qualificado para o contrato limitado declarado por
-`scripts/verify_g6_runtime.sh`, pelo gate reproduzível do pacote de apresentação
-Windows e por um smoke completo separado em Wine isolado. O smoke usou sockets
-privados de display/sessão Weston/Xwayland com render node Intel capaz de DRI3 e
-verificou HUD Kof, cena 3D, reload do criador, aquisição/capacidades do SDL GPU
-e captura de screenshot. Os cinco marcadores esperados passaram e o frame
-capturado foi 1280×720.
+`scripts/verify_g6_runtime.sh`, pelos gates reproduzíveis dos pacotes nativos PE/SDL
+Windows e pelo smoke completo do shell nativo em Wine isolado. O compilador baixa
+o grafo alcançável atual de gameplay/apresentação para PE/COFF AMD64; o shell
+nativo liga o objeto Kof completo de `src/` ao SDL3/SDL_mixer e o smoke verifica
+os marcadores de gameplay e `KOOKIE native Kof PE gameplay verified`. O pacote
+de apresentação liga o Kof PE ao adaptador SDL_GPU, preserva SPIR-V/DXIL e
+passa no gate de artefato reproduzível.
 
-Isso qualifica gameplay Kof JVM mais apresentação SDL nativa no host registrado.
-Não afirma lowering nativo PE/Kof completo para Windows, NAT traversal, serviço
-relay, confidencialidade, resistência a DDoS, extensibilidade arbitrária do
-editor, sandbox geral nem cobertura de outros SOs/GPUs.
+O smoke visual Wine da apresentação é opcional e exige GPU isolada capaz de DRI3;
+Xvfb isolado sem backend SDL_GPU não é evidência de apresentação. Isso não
+afirma NAT traversal, serviço relay, confidencialidade, resistência a DDoS,
+extensibilidade arbitrária do editor, sandbox geral nem cobertura de outros
+SO/GPUs.
 
 ### Evidência limitada medida e metas de desempenho mantidas
 
@@ -940,7 +945,7 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 | Risco | Evidência atual | Ação / estágio de liberação |
 |---|---|---|
 | FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | O `Buffer(U8, INOUT)` fixado do 0.5.0-beta passa no benchmark empacotado de redução `u8` na JVM/no nativo; a verificação cross fornecida passa, enquanto Script/JS/Android/riscv32/MCU continuam em `FFI001` | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
-| Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; Windows tem um shell de plataforma nativo, um compilador Kof determinístico e limitado para console PE/COFF e um pacote explícito do núcleo Kof JVM sem gráficos | Manter gates por plataforma; não inferir suporte a gameplay SDL no Windows da sonda do compilador, do shell nem do pacote JVM |
+| Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; o shell Windows nativo baixa e executa gameplay Kof PE no Wine isolado, e o pacote de apresentação verifica ligação nativa a SDL3/SDL_mixer/SDL_GPU e produtos SPIR-V/DXIL | Manter gates por plataforma/GPU; não inferir smoke visual de apresentação Windows a partir de linkage, smoke sem gráficos ou Xvfb padrão |
 | Coletor nativo após spawn | Estágio de spawn cumulativo na fonte do alocador | Uma única thread Kof; soak prolongado; nenhum bypass inseguro de GC manual |
 | Desempenho da geração de código nativo | Pipeline mínimo de otimização | Medir arrays/matemática/FFI representativos; usar batching/pré-alocação; não reescrever a jogabilidade em C |
 | Fechamento do runtime distribuído | O perfil JVM para Windows preserva um runtime OpenJDK completo fixado por digest e sua árvore legal; a poda do compilador nativo ainda emite o aviso conhecido | Manter a escolha JVM explícita, registrar identidade/tamanho do runtime, comparar arquivos reproduzíveis e nunca tratá-la como fallback nativo silencioso |
@@ -950,7 +955,7 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 | Confiabilidade/segurança do editor | Execução de arquivo único, UI em JS, manipuladores privilegiados não autenticados | CLI + editor separado com capacidade de LSP; nenhuma dependência de fork do editor |
 | Pipeline de criação torna-se um segundo engine | Vários runtimes monolíticos ou autoridades | Contratos compartilhados de runtime/query/conteúdo `.kf`; publicação em estágios no limite do quadro |
 | Suposições sobre licenças/recursos | Direitos de código/assets indefinidos; fonte DoomKof sem licença | Preservar a proveniência, resolver concessões, possuir/testar os recursos inicialmente |
-| Portabilidade nativa alegada em excesso | A saída nativa upstream continua sendo ELF Linux; a ponte do KOOKIE emite PE/COFF AMD64 determinístico apenas para programas de topo com inteiros/String e fluxo de controle e rejeita toda outra IR com `PE001` | Manter gates separados; exigir lowering completo de arrays/objetos/exceções/FFI/SDL e qualificação real de gameplay no Windows antes de mudar o alvo autoritativo |
+| Portabilidade nativa alegada em excesso | A saída nativa upstream continua sendo ELF Linux; a ponte do KOOKIE emite PE/COFF AMD64 determinístico para os grafos alcançáveis qualificados de gameplay/apresentação e rejeita IR de ponto flutuante, exceções capturáveis e concorrência com `PE001` | Manter gates separados; conservar o smoke real do shell Windows e os checks de artefato, exigindo GPU isolada com DRI3 antes de alegar execução visual da apresentação |
 
 ## 12. Primeiro incremento histórico
 

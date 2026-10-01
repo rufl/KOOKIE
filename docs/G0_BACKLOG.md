@@ -98,12 +98,11 @@ This is the active bounded implementation sequence after the initial research an
   send/receive. The same imports remain rejected on the native target, so
   this backend is intentionally JVM-only; see `docs/KOF_LANGUAGE.md`.
 - Reproducible Linux x86-64 archives support native Kof and the persistent SDL
-  presentation. Windows x86-64 now ships a native SDL3 + SDL_mixer shell with
-  a resizable/maximizable window, menu/options/lobby and no embedded JDK.
-  Kof-authored Windows gameplay remains blocked because the compiler exposes no
-  PE target. JVM host/client role archives remain qualification tooling, not
-  distributable KOOKIE runtimes. Product packages include MIT/zlib notices and
-  reject unreviewed distributed runtime libraries.
+  presentation. Windows x86-64 now ships native Kof PE gameplay in both the
+  SDL3 + SDL_mixer shell and the SDL_GPU presentation package, with no
+  embedded JDK in either native profile. The separate JVM package remains a
+  compatibility profile. Product packages include MIT/zlib notices and reject
+  unreviewed distributed runtime libraries.
 - Added the first bounded content package schema under `src/content`: versioned engine/tool/content identities, coordinate/unit metadata, sorted namespaced asset and dependency IDs, bounded chunk ranges, product masks, deterministic package checksums, canonical integer-wire encoding, decode validation and tamper rejection. JVM/native coverage adds the 64th passing scenario. Full source importers beyond the bounded GLB path remain open.
 - Added Kof-owned authored collision representation in `src/core`: bounded indexed vertices and triangles, coordinate/unit metadata, stable source/revision identity, surface kinds, deterministic checksums, sealing/validation, and atomic replacement into the authoritative BVH collection. Collision admission and nearest-hit queries are covered on JVM/native.
 - Collision package admission now binds a sealed indexed collision codec to the package's namespaced asset, geometry revision, chunk kind, checksum and triangle count; JVM/native coverage rejects tampered wire data and mismatched package identities.
@@ -301,12 +300,13 @@ The roadmap is not complete; completed work remains recorded here rather than ar
   distribution and compiler JAR SHA-256 values are respectively
   `f6fd41ed59c461dd968376e8e2dd3f0dc24ee712578d318a7fb3f707bc761bdc`
   and `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`.
-  Its native assembler emits Linux ELF; the native Windows SDL shell does not
-  change that compiler limit.
+  Its native assembler emits Linux ELF; the Windows Kof PE bridge separately
+  emits deterministic AMD64 PE/COFF for the qualified reachable gameplay and
+  presentation graphs.
 - Release archives cover native Linux and the native Windows SDL3 + SDL_mixer
-  platform shell. The bounded Windows presentation compatibility profile also
-  passed a full isolated Wine Kof JVM/SDL smoke; authoritative native Kof
-  Windows gameplay remains unproven.
+  platform shell. The Windows presentation package links native Kof PE to the
+  SDL_GPU adapter and bundles SPIR-V/DXIL products; the native-shell Wine
+  smoke verifies gameplay markers and the native PE marker.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

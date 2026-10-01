@@ -147,7 +147,7 @@ These repairs do not change the native runtime findings below.
 | Android | JVM-derived packaging path; not a native desktop port and not an initial target |
 | Script | Useful tooling exploration; not the real-time game runtime |
 
-A compiler distribution for Windows/macOS does **not** prove native PE/Mach-O output. The examined native targets are Linux ELF architectures. Cross-platform game shipping requires separate proof; do not promise it from SDL portability alone.
+A distribution of the upstream compiler for Windows/macOS does **not** prove native PE/Mach-O output. The examined upstream native targets are Linux ELF architectures; the KOOKIE build now adds a separately verified, bounded AMD64 PE/COFF bridge for its reachable Windows gameplay/presentation graphs. Cross-platform game shipping beyond those packages still requires separate proof; do not promise it from SDL portability alone.
 
 ## FFI: usable now, incomplete for graphics
 

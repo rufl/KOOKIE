@@ -92,7 +92,7 @@ live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
 | **World and presentation** | True 3D authored arena with slopes, steps and stacked rooms; capsule/triangle collision; doors, secrets and exits; semantic HUD; SDL_GPU instancing; positional gain/pan through SDL_mixer |
 | **Content and creator tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Creator edits; persistent Studio hierarchy/transform/asset registry |
 | **Persistence and release** | Checksummed replay, schema migrations, crash-durable save publication, signed clean-tree packages, dependency closure and outside-checkout smoke |
-| **Runtime targets** | Authoritative native Linux x86-64; persistent native Windows menu/options/lobby shell; reproducible Windows Kof JVM gameplay plus SDL3/SDL_mixer presentation package with SPIR-V/DXIL products; deterministic bounded Kof-to-AMD64 PE/COFF console compiler |
+| **Runtime targets** | Authoritative native Linux x86-64; native Windows Kof PE gameplay linked to SDL3/SDL_mixer shell; native Windows Kof PE SDL_GPU presentation with SPIR-V/DXIL products; separate reproducible Windows Kof JVM compatibility package; deterministic reachable Kof-to-AMD64 PE/COFF compiler |
 
 ## The shape of the engine
 
@@ -168,11 +168,11 @@ for the production work still open.
   and a deterministic fixed-window/retry channel; it is not a fresh
   three-physical-machine qualification bundle and does not claim NAT traversal,
   relay service, confidentiality or DDoS resistance.
-- Linux x86-64 remains the authoritative native Kof gameplay target. Windows
-  has a reproducible JVM gameplay plus SDL presentation package with static
-  SPIR-V/DXIL and provenance evidence; optional isolated Wine smoke remains
-  environment-gated, and the bounded PE compiler still does not emit full
-  gameplay.
+- Linux x86-64 remains the authoritative native Kof gameplay target. Windows now
+  has qualified native Kof PE gameplay in both the SDL shell and SDL_GPU
+  presentation package; the separate JVM package is compatibility-only.
+  Optional isolated Wine smoke remains environment-gated and target/GPU
+  specific.
 - Importers support small, explicit profiles—not arbitrary files from each
   named format.
 - Live reload covers validated scene/render products, not arbitrary Kof code,
