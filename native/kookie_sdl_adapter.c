@@ -16,14 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 300
@@ -286,14 +281,34 @@ static bool decode_token(int token, int expected_kind, int *slot, unsigned int *
     return true;
 }
 
+#if defined(_WIN32)
+/*
+ * Kof's JVM FFI closes its per-call library arena after every extern call.
+ * Pinning this module keeps SDL state alive between those calls on Windows.
+ */
+static bool kookie_pin_module(void) {
+    HMODULE module = NULL;
+    return GetModuleHandleExA(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+            GET_MODULE_HANDLE_EX_FLAG_PIN,
+        (LPCSTR)(uintptr_t)&kookie_pin_module, &module) != 0;
+}
+#endif
 bool kookie_sdl_init(int flags) {
+
     if (flags < 0 || SDL_GetVersion() != SDL_VERSION ||
         MIX_Version() != SDL_MIXER_VERSION) {
         return false;
     }
+#if defined(_WIN32)
+    if (!kookie_pin_module()) {
+        return false;
+    }
+#endif
     memset(&gpu_scene, 0, sizeof(gpu_scene));
     kookie_gpu_reload_reset(0);
-    return SDL_Init((SDL_InitFlags)flags);
+    bool initialized = SDL_Init((SDL_InitFlags)flags);
+    return initialized;
 }
 
 void kookie_sdl_shutdown(void) {
@@ -347,8 +362,9 @@ int kookie_window_create(int width, int height, int hidden) {
         flags |= SDL_WINDOW_HIDDEN;
     }
     SDL_Window *window = SDL_CreateWindow("KOOKIE", width, height, flags);
-    if (window == NULL ||
-        !SDL_SetWindowMinimumSize(window, 320, 180)) {
+    bool minimum_size = window != NULL &&
+        SDL_SetWindowMinimumSize(window, 320, 180);
+    if (window == NULL || !minimum_size) {
         if (window != NULL) {
             SDL_DestroyWindow(window);
         }
@@ -444,7 +460,9 @@ int kookie_gpu_open(int window_token) {
     }
 
     SDL_GPUDevice *device = SDL_CreateGPUDevice(
-        SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
+        SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL,
+        false,
+        NULL);
     if (device == NULL) {
         fprintf(stderr, "kookie_gpu_open: %s\n", SDL_GetError());
         return 0;
@@ -498,7 +516,9 @@ int kookie_gpu_open_headless(void) {
     }
 
     SDL_GPUDevice *device = SDL_CreateGPUDevice(
-        SDL_GPU_SHADERFORMAT_SPIRV, false, NULL);
+        SDL_GPU_SHADERFORMAT_SPIRV | SDL_GPU_SHADERFORMAT_DXIL,
+        false,
+        NULL);
     if (device == NULL) {
         gpu_recovery_state = KOOKIE_GPU_RECOVERY_FAILED;
         return 0;
@@ -615,13 +635,35 @@ bool kookie_gpu_close(int token) {
     kookie_gpu_reload_reset(0);
     return true;
 }
-static bool read_shader_binary(const char *name, Uint8 **bytes, size_t *size) {
+static SDL_GPUShaderFormat kookie_gpu_shader_format(
+    SDL_GPUDevice *device
+) {
+    SDL_GPUShaderFormat formats = SDL_GetGPUShaderFormats(device);
+    if ((formats & SDL_GPU_SHADERFORMAT_DXIL) != 0) {
+        return SDL_GPU_SHADERFORMAT_DXIL;
+    }
+    if ((formats & SDL_GPU_SHADERFORMAT_SPIRV) != 0) {
+        return SDL_GPU_SHADERFORMAT_SPIRV;
+    }
+    return SDL_GPU_SHADERFORMAT_INVALID;
+}
+
+static bool read_shader_binary(
+    const char *name,
+    SDL_GPUShaderFormat format,
+    Uint8 **bytes,
+    size_t *size
+) {
     const char *directory = getenv("KOOKIE_SHADER_DIR");
+    const char *extension =
+        format == SDL_GPU_SHADERFORMAT_DXIL ? "dxil" : "spv";
     char path[512];
     if (directory == NULL) {
         directory = "build";
     }
-    if (snprintf(path, sizeof(path), "%s/%s.spv", directory, name) < 0) {
+    if (snprintf(
+            path, sizeof(path), "%s/%s.%s",
+            directory, name, extension) < 0) {
         return false;
     }
 
@@ -639,7 +681,8 @@ static bool read_shader_binary(const char *name, Uint8 **bytes, size_t *size) {
     }
 
     Uint8 *data = (Uint8 *)malloc((size_t)length);
-    if (data == NULL || fread(data, 1, (size_t)length, file) != (size_t)length) {
+    if (data == NULL ||
+        fread(data, 1, (size_t)length, file) != (size_t)length) {
         free(data);
         fclose(file);
         return false;
@@ -730,11 +773,24 @@ static bool kookie_gpu_prepare_resources(
     SDL_GPUCommandBuffer *command_buffer = NULL;
     bool success = false;
 
-    if (!read_shader_binary("g0_triangle.vert", &vertex_code, &vertex_size) ||
+    SDL_GPUShaderFormat shader_format =
+        kookie_gpu_shader_format(device);
+    if (shader_format == SDL_GPU_SHADERFORMAT_INVALID ||
+        !read_shader_binary(
+            "g0_triangle.vert",
+            shader_format,
+            &vertex_code,
+            &vertex_size) ||
         !read_shader_binary(
             "g5_triangle_instance.vert",
-            &scene_vertex_code, &scene_vertex_size) ||
-        !read_shader_binary("g0_triangle.frag", &fragment_code, &fragment_size)) {
+            shader_format,
+            &scene_vertex_code,
+            &scene_vertex_size) ||
+        !read_shader_binary(
+            "g0_triangle.frag",
+            shader_format,
+            &fragment_code,
+            &fragment_size)) {
         goto cleanup;
     }
 
@@ -742,7 +798,7 @@ static bool kookie_gpu_prepare_resources(
     vertex_info.code_size = vertex_size;
     vertex_info.code = vertex_code;
     vertex_info.entrypoint = "main";
-    vertex_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    vertex_info.format = shader_format;
     vertex_info.stage = SDL_GPU_SHADERSTAGE_VERTEX;
     gpu_resources.vertex_shader = SDL_CreateGPUShader(device, &vertex_info);
     if (gpu_resources.vertex_shader == NULL) {
@@ -761,7 +817,7 @@ static bool kookie_gpu_prepare_resources(
     fragment_info.code_size = fragment_size;
     fragment_info.code = fragment_code;
     fragment_info.entrypoint = "main";
-    fragment_info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+    fragment_info.format = shader_format;
     fragment_info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
     fragment_info.num_samplers = 1;
     gpu_resources.fragment_shader = SDL_CreateGPUShader(device, &fragment_info);

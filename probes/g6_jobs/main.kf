@@ -1,0 +1,77 @@
+import core
+
+extern "./build/libkookie_jobs.so" kookie_jobs_open(Int workers): Bool
+extern "./build/libkookie_jobs.so" kookie_jobs_submit(
+    Int generation, Int ordinal, Int kind, Int left, Int right,
+    Int delayMicros
+): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_poll(): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_generation(Int token): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_ordinal(Int token): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_kind(Int token): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_result(Int token): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_checksum(Int token): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_status(Int token): Int
+extern "./build/libkookie_jobs.so" kookie_jobs_release(Int token): Bool
+extern "./build/libkookie_jobs.so" kookie_jobs_close(): Bool
+extern "./build/libkookie_jobs.so" kookie_jobs_wait_microseconds(
+    Int microseconds
+): Bool
+
+main() {
+    assert(kookie_jobs_open(2), "bounded native job workers must open")
+    var graph = BoundedJobGraph(8)
+    assert(graph.begin(17), "job graph generation must begin")
+    for (var ordinal = 0; ordinal < 6; ordinal = ordinal + 1) {
+        var kind = 1
+        var left = ordinal + 2
+        var right = ordinal + 5
+        if (ordinal % 2 == 1) { kind = 2 }
+        assert(graph.add(ordinal, kind, left, right),
+            "job descriptor must be accepted")
+        var delay = 0
+        if (ordinal == 0) { delay = 100000 }
+        var token = kookie_jobs_submit(
+            graph.generation(), ordinal, kind, left, right, delay)
+        assert(token > 0 && graph.attachNativeToken(ordinal, token),
+            "copied scalar job must be queued")
+    }
+
+    var polls = 0
+    while (!graph.allCommitted() && polls < 1000000) {
+        var token = kookie_jobs_poll()
+        if (token > 0) {
+            var ordinal = kookie_jobs_ordinal(token)
+            assert(kookie_jobs_generation(token) == graph.generation() &&
+                kookie_jobs_kind(token) >= 1 &&
+                graph.accept(
+                    kookie_jobs_generation(token), ordinal,
+                    kookie_jobs_result(token),
+                    kookie_jobs_checksum(token),
+                    kookie_jobs_status(token)) &&
+                kookie_jobs_release(token),
+                "worker completion must pass graph admission")
+            graph.commitAvailable()
+        } else {
+            assert(kookie_jobs_wait_microseconds(1000),
+                "job poll wait must be bounded")
+        }
+        polls = polls + 1
+    }
+
+    assert(graph.allCommitted() && graph.committedCount() == 6,
+        "all jobs must publish")
+    assert(graph.receivedOutOfOrder(),
+        "workers must complete at least one ordinal out of order")
+    assert(graph.committedSum() == 20551,
+        "owner thread must commit the canonical ordinal fold")
+    assert(!graph.accept(18, 0, 10, 1, 1) &&
+        graph.invalidAcceptCount() == 1,
+        "stale generation completion must be rejected")
+    assert(kookie_jobs_close(), "job workers must close cleanly")
+    println("KOOKIE G6 safe jobs verified")
+    println("jobs-workers=2")
+    println("jobs-committed=" + graph.committedCount())
+    println("jobs-out-of-order=" + graph.receivedOutOfOrder())
+    println("jobs-deterministic-sum=" + graph.committedSum())
+}

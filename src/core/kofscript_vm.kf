@@ -1,0 +1,934 @@
+package core
+
+Int kofScriptMagic() { return 1263752019 }
+Int kofScriptSchemaVersion() { return 1 }
+Int kofScriptMaximumValue() { return 1000000 }
+
+Int kofScriptOpcodeHalt() { return 1 }
+Int kofScriptOpcodePushConstant() { return 2 }
+Int kofScriptOpcodeLoadInput() { return 3 }
+Int kofScriptOpcodeAdd() { return 4 }
+Int kofScriptOpcodeSubtract() { return 5 }
+Int kofScriptOpcodeMultiply() { return 6 }
+Int kofScriptOpcodeEqual() { return 7 }
+Int kofScriptOpcodeLess() { return 8 }
+Int kofScriptOpcodeGreater() { return 9 }
+Int kofScriptOpcodeNot() { return 10 }
+Int kofScriptOpcodeDuplicate() { return 11 }
+Int kofScriptOpcodeDrop() { return 12 }
+Int kofScriptOpcodeJump() { return 13 }
+Int kofScriptOpcodeJumpIfZero() { return 14 }
+Int kofScriptOpcodeEmitCommand() { return 15 }
+Int kofScriptOpcodeEmitEvent() { return 16 }
+
+Int kofScriptInputTick() { return 1 }
+Int kofScriptInputSequence() { return 2 }
+Int kofScriptInputEventKind() { return 3 }
+Int kofScriptInputPlayerId() { return 4 }
+Int kofScriptInputSubjectId() { return 5 }
+Int kofScriptInputSubjectKind() { return 6 }
+Int kofScriptInputValue() { return 7 }
+
+Int kofScriptCommandGrantCurrencyBit() { return 1 }
+Int kofScriptEventSessionAuditBit() { return 1 }
+Int kofScriptEventEliteBountyBit() { return 2 }
+Int kofScriptEventPlayerWelcomeBit() { return 4 }
+Int kofScriptEventPublicationAuditBit() { return 8 }
+
+Int kofScriptDiagnosticNone() { return 0 }
+Int kofScriptDiagnosticProgram() { return 1 }
+Int kofScriptDiagnosticEvent() { return 2 }
+Int kofScriptDiagnosticBudget() { return 3 }
+Int kofScriptDiagnosticStack() { return 4 }
+Int kofScriptDiagnosticArithmetic() { return 5 }
+Int kofScriptDiagnosticOpcode() { return 6 }
+Int kofScriptDiagnosticCapability() { return 7 }
+Int kofScriptDiagnosticOutput() { return 8 }
+Int kofScriptDiagnosticState() { return 9 }
+
+record KofScriptIdentity(
+    Int ownerNamespace,
+    Int ownerId,
+    Int scriptId,
+    Int revision,
+    Int subscribedEventKind,
+    Int checksum
+)
+
+class BoundedKofScriptProgram {
+    Int[] constants
+    Int[] opcodes
+    Int[] operands
+    Int[] entryDepths
+    Bool[] reachable
+    Int[] pathCosts
+    Int[] pathCommandCounts
+    Int[] pathEventCounts
+    Int[] wire
+    Int ownerNamespaceValue
+    Int ownerIdValue
+    Int scriptIdValue
+    Int revisionValue
+    Int subscribedEventKindValue
+    Int phaseValue
+    Int instructionBudgetValue
+    Int stackLimitValue
+    Int commandBudgetValue
+    Int eventBudgetValue
+    Int commandCapabilitiesValue
+    Int eventCapabilitiesValue
+    Int constantCountValue
+    Int instructionCountValue
+    Int checksumValue
+    Int wordCountValue
+    Bool sealedValue
+
+    public constructor(Int constantCapacity, Int instructionCapacity) {
+        var actualConstants = constantCapacity
+        if (actualConstants <= 0) { actualConstants = 1 }
+        if (actualConstants > 64) { actualConstants = 64 }
+        var actualInstructions = instructionCapacity
+        if (actualInstructions <= 0) { actualInstructions = 1 }
+        if (actualInstructions > 256) { actualInstructions = 256 }
+        constants = new Int[actualConstants]
+        opcodes = new Int[actualInstructions]
+        operands = new Int[actualInstructions]
+        entryDepths = new Int[actualInstructions]
+        reachable = new Bool[actualInstructions]
+        pathCosts = new Int[actualInstructions]
+        pathCommandCounts = new Int[actualInstructions]
+        pathEventCounts = new Int[actualInstructions]
+        wire = new Int[17 + actualConstants + actualInstructions * 2]
+        clear()
+    }
+
+    Bool clear() {
+        ownerNamespaceValue = 0
+        ownerIdValue = 0
+        scriptIdValue = 0
+        revisionValue = 0
+        subscribedEventKindValue = 0
+        phaseValue = 0
+        instructionBudgetValue = 0
+        stackLimitValue = 0
+        commandBudgetValue = 0
+        eventBudgetValue = 0
+        commandCapabilitiesValue = 0
+        eventCapabilitiesValue = 0
+        constantCountValue = 0
+        instructionCountValue = 0
+        checksumValue = 0
+        wordCountValue = 0
+        sealedValue = false
+        return true
+    }
+
+    Bool configure(
+        Int ownerNamespace,
+        Int ownerId,
+        Int scriptId,
+        Int revision,
+        Int subscribedEventKind,
+        Int instructionBudget,
+        Int stackLimit,
+        Int commandBudget,
+        Int eventBudget,
+        Int commandCapabilities,
+        Int eventCapabilities
+    ) {
+        clear()
+        var phase = trustedDomainEventPhase(subscribedEventKind)
+        if (ownerNamespace <= 0 || ownerNamespace > kofScriptMaximumValue() ||
+            ownerId <= 0 || ownerId > kofScriptMaximumValue() ||
+            scriptId <= 0 || scriptId > kofScriptMaximumValue() ||
+            revision <= 0 || revision > kofScriptMaximumValue() ||
+            phase == 0 || instructionBudget <= 0 || instructionBudget > 512 ||
+            stackLimit <= 0 || stackLimit > 64 ||
+            commandBudget < 0 || commandBudget > 32 ||
+            eventBudget < 0 || eventBudget > 32 ||
+            commandCapabilities < 0 || commandCapabilities > 1 ||
+            eventCapabilities < 0 || eventCapabilities > 15 ||
+            ((commandBudget == 0) != (commandCapabilities == 0)) ||
+            ((eventBudget == 0) != (eventCapabilities == 0))) {
+            return false
+        }
+        ownerNamespaceValue = ownerNamespace
+        ownerIdValue = ownerId
+        scriptIdValue = scriptId
+        revisionValue = revision
+        subscribedEventKindValue = subscribedEventKind
+        phaseValue = phase
+        instructionBudgetValue = instructionBudget
+        stackLimitValue = stackLimit
+        commandBudgetValue = commandBudget
+        eventBudgetValue = eventBudget
+        commandCapabilitiesValue = commandCapabilities
+        eventCapabilitiesValue = eventCapabilities
+        return true
+    }
+
+    Bool addConstant(Int value) {
+        if (sealedValue || ownerNamespaceValue == 0 ||
+            value < -kofScriptMaximumValue() ||
+            value > kofScriptMaximumValue() ||
+            constantCountValue >= constants.length) {
+            return false
+        }
+        constants[constantCountValue] = value
+        constantCountValue = constantCountValue + 1
+        return true
+    }
+
+    Bool validOpcode(Int opcode) {
+        return opcode >= kofScriptOpcodeHalt() &&
+            opcode <= kofScriptOpcodeEmitEvent()
+    }
+
+    Bool addInstruction(Int opcode, Int operand) {
+        if (sealedValue || ownerNamespaceValue == 0 || !validOpcode(opcode) ||
+            operand < 0 || operand > kofScriptMaximumValue() ||
+            instructionCountValue >= opcodes.length) {
+            return false
+        }
+        opcodes[instructionCountValue] = opcode
+        operands[instructionCountValue] = operand
+        instructionCountValue = instructionCountValue + 1
+        return true
+    }
+
+    Int commandCapabilityBit(Int kind) {
+        if (kind == trustedHookCommandGrantCurrency()) {
+            return kofScriptCommandGrantCurrencyBit()
+        }
+        return 0
+    }
+
+    Int eventCapabilityBit(Int kind) {
+        if (kind == trustedHookEventSessionAudit()) {
+            return kofScriptEventSessionAuditBit()
+        }
+        if (kind == trustedHookEventEliteBounty()) {
+            return kofScriptEventEliteBountyBit()
+        }
+        if (kind == trustedHookEventPlayerWelcome()) {
+            return kofScriptEventPlayerWelcomeBit()
+        }
+        if (kind == trustedHookEventPublicationAudit()) {
+            return kofScriptEventPublicationAuditBit()
+        }
+        return 0
+    }
+
+    Bool hasCommandCapability(Int kind) {
+        var bit = commandCapabilityBit(kind)
+        return bit > 0 && (commandCapabilitiesValue & bit) != 0
+    }
+
+    Bool hasEventCapability(Int kind) {
+        var bit = eventCapabilityBit(kind)
+        return bit > 0 && (eventCapabilitiesValue & bit) != 0
+    }
+
+    Bool validOperand(Int index) {
+        var opcode = opcodes[index]
+        var operand = operands[index]
+        if (opcode == kofScriptOpcodePushConstant()) {
+            return operand < constantCountValue
+        }
+        if (opcode == kofScriptOpcodeLoadInput()) {
+            return operand >= kofScriptInputTick() &&
+                operand <= kofScriptInputValue()
+        }
+        if (opcode == kofScriptOpcodeJump() ||
+            opcode == kofScriptOpcodeJumpIfZero()) {
+            return operand > index && operand < instructionCountValue
+        }
+        if (opcode == kofScriptOpcodeEmitCommand()) {
+            return hasCommandCapability(operand)
+        }
+        if (opcode == kofScriptOpcodeEmitEvent()) {
+            return hasEventCapability(operand)
+        }
+        return operand == 0
+    }
+
+    Int requiredDepth(Int opcode) {
+        if (opcode == kofScriptOpcodeAdd() ||
+            opcode == kofScriptOpcodeSubtract() ||
+            opcode == kofScriptOpcodeMultiply() ||
+            opcode == kofScriptOpcodeEqual() ||
+            opcode == kofScriptOpcodeLess() ||
+            opcode == kofScriptOpcodeGreater() ||
+            opcode == kofScriptOpcodeEmitCommand() ||
+            opcode == kofScriptOpcodeEmitEvent()) {
+            return 2
+        }
+        if (opcode == kofScriptOpcodeNot() ||
+            opcode == kofScriptOpcodeDuplicate() ||
+            opcode == kofScriptOpcodeDrop() ||
+            opcode == kofScriptOpcodeJumpIfZero()) {
+            return 1
+        }
+        return 0
+    }
+
+    Int depthDelta(Int opcode) {
+        if (opcode == kofScriptOpcodePushConstant() ||
+            opcode == kofScriptOpcodeLoadInput() ||
+            opcode == kofScriptOpcodeDuplicate()) {
+            return 1
+        }
+        if (opcode == kofScriptOpcodeAdd() ||
+            opcode == kofScriptOpcodeSubtract() ||
+            opcode == kofScriptOpcodeMultiply() ||
+            opcode == kofScriptOpcodeEqual() ||
+            opcode == kofScriptOpcodeLess() ||
+            opcode == kofScriptOpcodeGreater() ||
+            opcode == kofScriptOpcodeDrop() ||
+            opcode == kofScriptOpcodeJumpIfZero()) {
+            return -1
+        }
+        if (opcode == kofScriptOpcodeEmitCommand() ||
+            opcode == kofScriptOpcodeEmitEvent()) {
+            return -2
+        }
+        return 0
+    }
+
+    Bool admitDepth(Int index, Int depth) {
+        if (index < 0 || index >= instructionCountValue ||
+            depth < 0 || depth > stackLimitValue) {
+            return false
+        }
+        if (reachable[index]) { return entryDepths[index] == depth }
+        reachable[index] = true
+        entryDepths[index] = depth
+        return true
+    }
+
+    Bool validateControlFlow() {
+        if (instructionCountValue <= 0) { return false }
+        for (var index = 0; index < instructionCountValue; index = index + 1) {
+            reachable[index] = false
+            entryDepths[index] = 0
+            pathCosts[index] = 0
+            pathCommandCounts[index] = 0
+            pathEventCounts[index] = 0
+            if (!validOperand(index)) { return false }
+        }
+        reachable[0] = true
+        entryDepths[0] = 0
+        for (var index = 0; index < instructionCountValue; index = index + 1) {
+            if (!reachable[index]) { return false }
+            var opcode = opcodes[index]
+            var depth = entryDepths[index]
+            if (depth < requiredDepth(opcode)) { return false }
+            var nextDepth = depth + depthDelta(opcode)
+            if (nextDepth < 0 || nextDepth > stackLimitValue) { return false }
+            if (opcode == kofScriptOpcodeHalt()) {
+                if (depth != 0) { return false }
+            } else if (opcode == kofScriptOpcodeJump()) {
+                if (!admitDepth(operands[index], nextDepth)) { return false }
+            } else if (opcode == kofScriptOpcodeJumpIfZero()) {
+                if (index + 1 >= instructionCountValue ||
+                    !admitDepth(index + 1, nextDepth) ||
+                    !admitDepth(operands[index], nextDepth)) {
+                    return false
+                }
+            } else {
+                if (index + 1 >= instructionCountValue ||
+                    !admitDepth(index + 1, nextDepth)) {
+                    return false
+                }
+            }
+        }
+        for (var index = instructionCountValue - 1; index >= 0; index = index - 1) {
+            var opcode = opcodes[index]
+            var successorCost = 0
+            var successorCommands = 0
+            var successorEvents = 0
+            if (opcode == kofScriptOpcodeJump()) {
+                successorCost = pathCosts[operands[index]]
+                successorCommands = pathCommandCounts[operands[index]]
+                successorEvents = pathEventCounts[operands[index]]
+            } else if (opcode == kofScriptOpcodeJumpIfZero()) {
+                var target = operands[index]
+                successorCost = pathCosts[index + 1]
+                if (pathCosts[target] > successorCost) {
+                    successorCost = pathCosts[target]
+                }
+                successorCommands = pathCommandCounts[index + 1]
+                if (pathCommandCounts[target] > successorCommands) {
+                    successorCommands = pathCommandCounts[target]
+                }
+                successorEvents = pathEventCounts[index + 1]
+                if (pathEventCounts[target] > successorEvents) {
+                    successorEvents = pathEventCounts[target]
+                }
+            } else if (opcode != kofScriptOpcodeHalt()) {
+                successorCost = pathCosts[index + 1]
+                successorCommands = pathCommandCounts[index + 1]
+                successorEvents = pathEventCounts[index + 1]
+            }
+            pathCosts[index] = 1 + successorCost
+            pathCommandCounts[index] = successorCommands
+            pathEventCounts[index] = successorEvents
+            if (opcode == kofScriptOpcodeEmitCommand()) {
+                pathCommandCounts[index] = pathCommandCounts[index] + 1
+            }
+            if (opcode == kofScriptOpcodeEmitEvent()) {
+                pathEventCounts[index] = pathEventCounts[index] + 1
+            }
+        }
+        return pathCosts[0] <= instructionBudgetValue &&
+            pathCommandCounts[0] <= commandBudgetValue &&
+            pathEventCounts[0] <= eventBudgetValue
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 73
+        result = mix(result, kofScriptMagic())
+        result = mix(result, kofScriptSchemaVersion())
+        result = mix(result, ownerNamespaceValue)
+        result = mix(result, ownerIdValue)
+        result = mix(result, scriptIdValue)
+        result = mix(result, revisionValue)
+        result = mix(result, subscribedEventKindValue)
+        result = mix(result, phaseValue)
+        result = mix(result, instructionBudgetValue)
+        result = mix(result, stackLimitValue)
+        result = mix(result, commandBudgetValue)
+        result = mix(result, eventBudgetValue)
+        result = mix(result, commandCapabilitiesValue)
+        result = mix(result, eventCapabilitiesValue)
+        result = mix(result, constantCountValue)
+        result = mix(result, instructionCountValue)
+        for (var index = 0; index < constantCountValue; index = index + 1) {
+            result = mix(result, constants[index])
+        }
+        for (var index = 0; index < instructionCountValue; index = index + 1) {
+            result = mix(result, opcodes[index])
+            result = mix(result, operands[index])
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool structuralValid() {
+        if (ownerNamespaceValue <= 0 || ownerIdValue <= 0 ||
+            scriptIdValue <= 0 || revisionValue <= 0 ||
+            trustedDomainEventPhase(subscribedEventKindValue) != phaseValue ||
+            instructionBudgetValue <= 0 || stackLimitValue <= 0 ||
+            commandBudgetValue < 0 || eventBudgetValue < 0 ||
+            ((commandBudgetValue == 0) != (commandCapabilitiesValue == 0)) ||
+            ((eventBudgetValue == 0) != (eventCapabilitiesValue == 0)) ||
+            constantCountValue < 0 || constantCountValue > constants.length ||
+            instructionCountValue <= 0 || instructionCountValue > opcodes.length) {
+            return false
+        }
+        for (var index = 0; index < constantCountValue; index = index + 1) {
+            if (constants[index] < -kofScriptMaximumValue() ||
+                constants[index] > kofScriptMaximumValue()) {
+                return false
+            }
+        }
+        return validateControlFlow()
+    }
+
+    Bool seal() {
+        if (sealedValue || !structuralValid()) { return false }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && structuralValid() && checksumValue > 0 &&
+            checksumValue == calculateChecksum()
+    }
+
+    Bool encode() {
+        if (!validate()) { return false }
+        wordCountValue = 17 + constantCountValue + instructionCountValue * 2
+        wire[0] = kofScriptMagic()
+        wire[1] = kofScriptSchemaVersion()
+        wire[2] = ownerNamespaceValue
+        wire[3] = ownerIdValue
+        wire[4] = scriptIdValue
+        wire[5] = revisionValue
+        wire[6] = subscribedEventKindValue
+        wire[7] = phaseValue
+        wire[8] = instructionBudgetValue
+        wire[9] = stackLimitValue
+        wire[10] = commandBudgetValue
+        wire[11] = eventBudgetValue
+        wire[12] = commandCapabilitiesValue
+        wire[13] = eventCapabilitiesValue
+        wire[14] = constantCountValue
+        wire[15] = instructionCountValue
+        wire[16] = checksumValue
+        var offset = 17
+        for (var index = 0; index < constantCountValue; index = index + 1) {
+            wire[offset] = constants[index]
+            offset = offset + 1
+        }
+        for (var index = 0; index < instructionCountValue; index = index + 1) {
+            wire[offset] = opcodes[index]
+            wire[offset + 1] = operands[index]
+            offset = offset + 2
+        }
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        clear()
+        if (source.length < 19 || source.length > wire.length ||
+            source[0] != kofScriptMagic() ||
+            source[1] != kofScriptSchemaVersion()) {
+            return false
+        }
+        var constantsCount = source[14]
+        var instructionsCount = source[15]
+        var expectedChecksum = source[16]
+        if (constantsCount < 0 || constantsCount > constants.length ||
+            instructionsCount <= 0 || instructionsCount > opcodes.length ||
+            source.length != 17 + constantsCount + instructionsCount * 2 ||
+            expectedChecksum <= 0 ||
+            !configure(
+                source[2], source[3], source[4], source[5], source[6],
+                source[8], source[9], source[10], source[11],
+                source[12], source[13]) || phaseValue != source[7]) {
+            clear()
+            return false
+        }
+        var offset = 17
+        for (var index = 0; index < constantsCount; index = index + 1) {
+            if (!addConstant(source[offset])) {
+                clear()
+                return false
+            }
+            offset = offset + 1
+        }
+        for (var index = 0; index < instructionsCount; index = index + 1) {
+            if (!addInstruction(source[offset], source[offset + 1])) {
+                clear()
+                return false
+            }
+            offset = offset + 2
+        }
+        if (!seal() || checksumValue != expectedChecksum || !encode()) {
+            clear()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (wire[index] != source[index]) {
+                clear()
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool reopen(Int[] source) { return decode(source) }
+
+    KofScriptIdentity identity() {
+        return KofScriptIdentity(
+            ownerNamespaceValue, ownerIdValue, scriptIdValue, revisionValue,
+            subscribedEventKindValue, checksumValue)
+    }
+
+    Int subscribedEventKind() { return subscribedEventKindValue }
+    Int phase() { return phaseValue }
+    Int instructionBudget() { return instructionBudgetValue }
+    Int stackLimit() { return stackLimitValue }
+    Int commandBudget() { return commandBudgetValue }
+    Int eventBudget() { return eventBudgetValue }
+    Int commandCapabilities() { return commandCapabilitiesValue }
+    Int eventCapabilities() { return eventCapabilitiesValue }
+    Int constantCount() { return constantCountValue }
+    Int constantAt(Int index) {
+        if (index < 0 || index >= constantCountValue) { return 0 }
+        return constants[index]
+    }
+    Int instructionCount() { return instructionCountValue }
+    Int opcodeAt(Int index) {
+        if (index < 0 || index >= instructionCountValue) { return 0 }
+        return opcodes[index]
+    }
+    Int operandAt(Int index) {
+        if (index < 0 || index >= instructionCountValue) { return 0 }
+        return operands[index]
+    }
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+    Int encodedLength() { return wordCountValue }
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) { return 0 }
+        return wire[index]
+    }
+}
+
+class BoundedKofScriptVm {
+    Int[] stack
+    Int[] commandKinds
+    Int[] commandPlayers
+    Int[] commandValues
+    Int[] eventKinds
+    Int[] eventSubjects
+    Int[] eventValues
+    Int stackCountValue
+    Int commandCountValue
+    Int eventCountValue
+    Int diagnosticValue
+    Int stepsValue
+    Int executionChecksumValue
+    Bool acceptedValue
+    Bool commandsAppliedValue
+
+    public constructor(
+        Int stackCapacity,
+        Int commandCapacity,
+        Int eventCapacity
+    ) {
+        var actualStack = stackCapacity
+        if (actualStack <= 0) { actualStack = 1 }
+        if (actualStack > 64) { actualStack = 64 }
+        var actualCommands = commandCapacity
+        if (actualCommands <= 0) { actualCommands = 1 }
+        if (actualCommands > 32) { actualCommands = 32 }
+        var actualEvents = eventCapacity
+        if (actualEvents <= 0) { actualEvents = 1 }
+        if (actualEvents > 32) { actualEvents = 32 }
+        stack = new Int[actualStack]
+        commandKinds = new Int[actualCommands]
+        commandPlayers = new Int[actualCommands]
+        commandValues = new Int[actualCommands]
+        eventKinds = new Int[actualEvents]
+        eventSubjects = new Int[actualEvents]
+        eventValues = new Int[actualEvents]
+        reset()
+    }
+
+    Bool reset() {
+        stackCountValue = 0
+        commandCountValue = 0
+        eventCountValue = 0
+        diagnosticValue = kofScriptDiagnosticNone()
+        stepsValue = 0
+        executionChecksumValue = 0
+        acceptedValue = false
+        commandsAppliedValue = false
+        return true
+    }
+
+    Bool fail(Int diagnostic) {
+        stackCountValue = 0
+        commandCountValue = 0
+        eventCountValue = 0
+        diagnosticValue = diagnostic
+        acceptedValue = false
+        commandsAppliedValue = false
+        return false
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Bool push(Int value) {
+        if (value < -kofScriptMaximumValue() ||
+            value > kofScriptMaximumValue() ||
+            stackCountValue >= stack.length) {
+            return false
+        }
+        stack[stackCountValue] = value
+        stackCountValue = stackCountValue + 1
+        return true
+    }
+
+    Int inputValue(TrustedDomainEvent event, Int tick, Int selector) {
+        if (selector == kofScriptInputTick()) { return tick }
+        if (selector == kofScriptInputSequence()) { return event.sequence }
+        if (selector == kofScriptInputEventKind()) { return event.kind }
+        if (selector == kofScriptInputPlayerId()) { return event.playerId }
+        if (selector == kofScriptInputSubjectId()) { return event.subjectId }
+        if (selector == kofScriptInputSubjectKind()) { return event.subjectKind }
+        if (selector == kofScriptInputValue()) { return event.value }
+        return -kofScriptMaximumValue() - 1
+    }
+
+    Bool safeMultiply(Int left, Int right) {
+        var leftMagnitude = left
+        if (leftMagnitude < 0) { leftMagnitude = -leftMagnitude }
+        var rightMagnitude = right
+        if (rightMagnitude < 0) { rightMagnitude = -rightMagnitude }
+        return leftMagnitude == 0 || rightMagnitude == 0 ||
+            leftMagnitude <= kofScriptMaximumValue() / rightMagnitude
+    }
+
+    Bool appendCommand(Int kind, Int player, Int value) {
+        if (kind != trustedHookCommandGrantCurrency() ||
+            player < 1 || player > 2 || value <= 0 ||
+            value > kofScriptMaximumValue() ||
+            commandCountValue >= commandKinds.length) {
+            return false
+        }
+        commandKinds[commandCountValue] = kind
+        commandPlayers[commandCountValue] = player
+        commandValues[commandCountValue] = value
+        commandCountValue = commandCountValue + 1
+        return true
+    }
+
+    Bool appendEvent(Int kind, Int subject, Int value) {
+        if (kind < trustedHookEventSessionAudit() ||
+            kind > trustedHookEventPublicationAudit() ||
+            subject < 0 || subject > kofScriptMaximumValue() ||
+            value < 0 || value > kofScriptMaximumValue() ||
+            eventCountValue >= eventKinds.length) {
+            return false
+        }
+        eventKinds[eventCountValue] = kind
+        eventSubjects[eventCountValue] = subject
+        eventValues[eventCountValue] = value
+        eventCountValue = eventCountValue + 1
+        return true
+    }
+
+    Bool execute(
+        BoundedKofScriptProgram program,
+        TrustedDomainEvent event,
+        Int tick
+    ) {
+        reset()
+        if (!program.validate() || program.stackLimit() > stack.length ||
+            program.commandBudget() > commandKinds.length ||
+            program.eventBudget() > eventKinds.length) {
+            return fail(kofScriptDiagnosticProgram())
+        }
+        if (!validTrustedDomainEvent(event) || tick <= 0 ||
+            tick > kofScriptMaximumValue() ||
+            event.kind != program.subscribedEventKind() ||
+            trustedDomainEventPhase(event.kind) != program.phase()) {
+            return fail(kofScriptDiagnosticEvent())
+        }
+        executionChecksumValue = mix(83, program.checksum())
+        executionChecksumValue = mix(executionChecksumValue, tick)
+        executionChecksumValue = mix(executionChecksumValue, event.sequence)
+        executionChecksumValue = mix(executionChecksumValue, event.kind)
+        executionChecksumValue = mix(executionChecksumValue, event.playerId)
+        executionChecksumValue = mix(executionChecksumValue, event.subjectId)
+        executionChecksumValue = mix(executionChecksumValue, event.subjectKind)
+        executionChecksumValue = mix(executionChecksumValue, event.value)
+        var counter = 0
+        while (counter >= 0 && counter < program.instructionCount()) {
+            if (stepsValue >= program.instructionBudget()) {
+                return fail(kofScriptDiagnosticBudget())
+            }
+            var opcode = program.opcodeAt(counter)
+            var operand = program.operandAt(counter)
+            stepsValue = stepsValue + 1
+            executionChecksumValue = mix(executionChecksumValue, opcode)
+            executionChecksumValue = mix(executionChecksumValue, operand)
+            if (opcode == kofScriptOpcodeHalt()) {
+                if (stackCountValue != 0 ||
+                    commandCountValue > program.commandBudget() ||
+                    eventCountValue > program.eventBudget()) {
+                    return fail(kofScriptDiagnosticStack())
+                }
+                acceptedValue = true
+                diagnosticValue = kofScriptDiagnosticNone()
+                executionChecksumValue = mix(executionChecksumValue, stepsValue)
+                executionChecksumValue = mix(
+                    executionChecksumValue, commandCountValue)
+                executionChecksumValue = mix(
+                    executionChecksumValue, eventCountValue)
+                return true
+            }
+            if (opcode == kofScriptOpcodePushConstant()) {
+                if (!push(program.constantAt(operand))) {
+                    return fail(kofScriptDiagnosticStack())
+                }
+                counter = counter + 1
+            } else if (opcode == kofScriptOpcodeLoadInput()) {
+                var value = inputValue(event, tick, operand)
+                if (!push(value)) { return fail(kofScriptDiagnosticStack()) }
+                counter = counter + 1
+            } else if (opcode == kofScriptOpcodeAdd() ||
+                opcode == kofScriptOpcodeSubtract() ||
+                opcode == kofScriptOpcodeMultiply() ||
+                opcode == kofScriptOpcodeEqual() ||
+                opcode == kofScriptOpcodeLess() ||
+                opcode == kofScriptOpcodeGreater()) {
+                if (stackCountValue < 2) {
+                    return fail(kofScriptDiagnosticStack())
+                }
+                var right = stack[stackCountValue - 1]
+                var left = stack[stackCountValue - 2]
+                var result = 0
+                if (opcode == kofScriptOpcodeAdd()) {
+                    result = left + right
+                } else if (opcode == kofScriptOpcodeSubtract()) {
+                    result = left - right
+                } else if (opcode == kofScriptOpcodeMultiply()) {
+                    if (!safeMultiply(left, right)) {
+                        return fail(kofScriptDiagnosticArithmetic())
+                    }
+                    result = left * right
+                } else if (opcode == kofScriptOpcodeEqual()) {
+                    if (left == right) { result = 1 }
+                } else if (opcode == kofScriptOpcodeLess()) {
+                    if (left < right) { result = 1 }
+                } else if (left > right) {
+                    result = 1
+                }
+                if (result < -kofScriptMaximumValue() ||
+                    result > kofScriptMaximumValue()) {
+                    return fail(kofScriptDiagnosticArithmetic())
+                }
+                stack[stackCountValue - 2] = result
+                stackCountValue = stackCountValue - 1
+                executionChecksumValue = mix(executionChecksumValue, result)
+                counter = counter + 1
+            } else if (opcode == kofScriptOpcodeNot()) {
+                if (stackCountValue < 1) {
+                    return fail(kofScriptDiagnosticStack())
+                }
+                if (stack[stackCountValue - 1] == 0) {
+                    stack[stackCountValue - 1] = 1
+                } else {
+                    stack[stackCountValue - 1] = 0
+                }
+                counter = counter + 1
+            } else if (opcode == kofScriptOpcodeDuplicate()) {
+                if (stackCountValue < 1 ||
+                    !push(stack[stackCountValue - 1])) {
+                    return fail(kofScriptDiagnosticStack())
+                }
+                counter = counter + 1
+            } else if (opcode == kofScriptOpcodeDrop()) {
+                if (stackCountValue < 1) {
+                    return fail(kofScriptDiagnosticStack())
+                }
+                stackCountValue = stackCountValue - 1
+                counter = counter + 1
+            } else if (opcode == kofScriptOpcodeJump()) {
+                counter = operand
+            } else if (opcode == kofScriptOpcodeJumpIfZero()) {
+                if (stackCountValue < 1) {
+                    return fail(kofScriptDiagnosticStack())
+                }
+                var condition = stack[stackCountValue - 1]
+                stackCountValue = stackCountValue - 1
+                if (condition == 0) {
+                    counter = operand
+                } else {
+                    counter = counter + 1
+                }
+            } else if (opcode == kofScriptOpcodeEmitCommand()) {
+                if (stackCountValue < 2 ||
+                    (program.commandCapabilities() &
+                        kofScriptCommandGrantCurrencyBit()) == 0) {
+                    return fail(kofScriptDiagnosticCapability())
+                }
+                var commandValue = stack[stackCountValue - 1]
+                var commandPlayer = stack[stackCountValue - 2]
+                stackCountValue = stackCountValue - 2
+                if (commandCountValue >= program.commandBudget() ||
+                    !appendCommand(operand, commandPlayer, commandValue)) {
+                    return fail(kofScriptDiagnosticOutput())
+                }
+                executionChecksumValue = mix(
+                    executionChecksumValue, commandPlayer)
+                executionChecksumValue = mix(
+                    executionChecksumValue, commandValue)
+                counter = counter + 1
+            } else if (opcode == kofScriptOpcodeEmitEvent()) {
+                var eventBit = 0
+                if (operand == trustedHookEventSessionAudit()) {
+                    eventBit = kofScriptEventSessionAuditBit()
+                } else if (operand == trustedHookEventEliteBounty()) {
+                    eventBit = kofScriptEventEliteBountyBit()
+                } else if (operand == trustedHookEventPlayerWelcome()) {
+                    eventBit = kofScriptEventPlayerWelcomeBit()
+                } else if (operand == trustedHookEventPublicationAudit()) {
+                    eventBit = kofScriptEventPublicationAuditBit()
+                }
+                if (stackCountValue < 2 || eventBit == 0 ||
+                    (program.eventCapabilities() & eventBit) == 0) {
+                    return fail(kofScriptDiagnosticCapability())
+                }
+                var emittedValue = stack[stackCountValue - 1]
+                var emittedSubject = stack[stackCountValue - 2]
+                stackCountValue = stackCountValue - 2
+                if (eventCountValue >= program.eventBudget() ||
+                    !appendEvent(operand, emittedSubject, emittedValue)) {
+                    return fail(kofScriptDiagnosticOutput())
+                }
+                executionChecksumValue = mix(
+                    executionChecksumValue, emittedSubject)
+                executionChecksumValue = mix(
+                    executionChecksumValue, emittedValue)
+                counter = counter + 1
+            } else {
+                return fail(kofScriptDiagnosticOpcode())
+            }
+        }
+        return fail(kofScriptDiagnosticOpcode())
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int steps() { return stepsValue }
+    Int executionChecksum() {
+        if (!acceptedValue) { return -1 }
+        return executionChecksumValue
+    }
+    Int commandCount() { return commandCountValue }
+    Int commandKind(Int index) {
+        if (index < 0 || index >= commandCountValue) { return 0 }
+        return commandKinds[index]
+    }
+    Int commandPlayer(Int index) {
+        if (index < 0 || index >= commandCountValue) { return 0 }
+        return commandPlayers[index]
+    }
+    Int commandValue(Int index) {
+        if (index < 0 || index >= commandCountValue) { return 0 }
+        return commandValues[index]
+    }
+    Int eventCount() { return eventCountValue }
+    Int eventKind(Int index) {
+        if (index < 0 || index >= eventCountValue) { return 0 }
+        return eventKinds[index]
+    }
+    Int eventSubject(Int index) {
+        if (index < 0 || index >= eventCountValue) { return 0 }
+        return eventSubjects[index]
+    }
+    Int eventValue(Int index) {
+        if (index < 0 || index >= eventCountValue) { return 0 }
+        return eventValues[index]
+    }
+    Bool readyForApplication() {
+        return acceptedValue && !commandsAppliedValue && commandCountValue > 0
+    }
+    Bool markCommandsApplied() {
+        if (!readyForApplication()) {
+            diagnosticValue = kofScriptDiagnosticState()
+            return false
+        }
+        commandsAppliedValue = true
+        return true
+    }
+}

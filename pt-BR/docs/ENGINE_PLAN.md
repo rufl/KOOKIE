@@ -66,7 +66,7 @@ Este plano não escolhe uma licença pública nem autoriza a redistribuição de
 
 Sokol continua sendo uma opção plausível; não foi rejeitado como incapaz de lidar com shooters. Sua lista de backends evolui, portanto fixe os headers/ferramentas de shaders se for selecionado, em vez de depender de tabelas de capacidades desatualizadas.
 
-SDL_GPU também tem limitações: piso de recursos de GPU moderno, layouts rigorosos de recursos de shaders, nenhum backend geral para navegador na rota proposta, nenhuma promessa de ray tracing/mesh shaders de ponta. A portabilidade do SDL não implica saída PE/Mach-O nativa do Kof. O suporte a Windows/macOS/ARM/navegador continua sendo uma expansão com gates separados, não uma alegação de entrega inicial.Fontes: [contrato de GPU do SDL](https://wiki.libsdl.org/SDL3/CategoryGPU), [modo de mouse relativo](https://wiki.libsdl.org/SDL3/SDL_SetWindowRelativeMouseMode), [SDL_shadercross](https://github.com/libsdl-org/SDL_shadercross), [Sokol](https://github.com/floooh/sokol), [raylib](https://github.com/raysan5/raylib), [licença do SDL](https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt).
+SDL_GPU também tem limitações: piso de recursos de GPU moderno, layouts rigorosos de recursos de shaders, nenhum backend geral para navegador na rota proposta e nenhuma promessa de ray tracing/mesh shaders de ponta. A portabilidade do SDL não implica saída PE/Mach-O nativa completa do Kof. O KOOKIE agora mantém uma rota separada e limitada do compilador para console PE/COFF AMD64; gameplay Windows, macOS, ARM e navegador continuam sendo gates independentes de expansão, não entregas implícitas. Fontes: [contrato de GPU do SDL](https://wiki.libsdl.org/SDL3/CategoryGPU), [modo de mouse relativo](https://wiki.libsdl.org/SDL3/SDL_SetWindowRelativeMouseMode), [SDL_shadercross](https://github.com/libsdl-org/SDL_shadercross), [Sokol](https://github.com/floooh/sokol), [raylib](https://github.com/raysan5/raylib), [licença do SDL](https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt).
 
 ### Avaliação do reaproveitamento do Minecraft moderno
 
@@ -76,8 +76,8 @@ Priorize ports de matemática/comandos `.kf` limitados de JOML/Brigadier, armaze
 
 O Kof controla atenuação/pan limitados e envia PCM sem alocação por chamada.
 SDL_mixer 3.2.4 agora é a única autoridade de dispositivo/mixagem, com buses
-separados de efeitos e música. OpenAL Soft não é candidato distribuível sob a
-política atual de dependências somente permissivas. Física Jolt e UIs
+separados de efeitos e música. OpenAL Soft não é distribuível sob a política de
+bibliotecas permissivas do perfil de apresentação nativo. Física Jolt e UIs
 RmlUi/ImGui ainda exigem aprovação explícita da propriedade dos subsistemas.
 
 ### Conjunto de bibliotecas recomendado (2026-09-22)
@@ -99,12 +99,13 @@ todos os candidatos ao G0.
 **Detalhes da escolha de áudio.** SDL_mixer é a autoridade adotada de
 dispositivo/mixagem. O KOOKIE envia streams PCM gerados e clips PCM16 cozidos
 de forma limitada, portanto os pacotes não precisam de decodificadores
-opcionais de áudio comprimido. Qualquer codec futuro deve passar pelo gate de
-licença permissiva e fechamento de dependências antes do empacotamento.
-OpenAL Soft não é alternativa sob a política atual
-somente permissiva porque a implementação inspecionada usa
-LGPL-2.0-or-later. Não execute uma segunda biblioteca como autoridade
-concorrente de mixer.
+opcionais de áudio comprimido. Qualquer codec nativo futuro deve passar pelo
+gate de licença permissiva e fechamento de dependências antes do empacotamento.
+OpenAL Soft não é alternativa sob essa política da apresentação nativa porque
+a implementação inspecionada usa LGPL-2.0-or-later. O perfil JVM separado para
+Windows preserva a árvore de licenças do OpenJDK; ele não relaxa o gate de
+bibliotecas de mídia nativas. Não execute uma segunda biblioteca como
+autoridade concorrente de mixer.
 
 **Mantenha estas bibliotecas do motor no Kof:** armazenamento tipado de
 entidades/componentes; uma pequena biblioteca de matemática usando ports MIT
@@ -338,12 +339,13 @@ capacidade, conteúdo inválido e capacidades ausentes falham de modo seguro,
 com um diagnóstico acionável.
 
 O primeiro SDK de extensão distribuído deve usar módulos `.kf` confiáveis
-compilados estaticamente no player/cooker/studio. Esse é o caminho mais seguro
-diante das limitações nativas atuais do Kof, preservando ao mesmo tempo uma API
-estável voltada a mods. Uma camada posterior de scripts ou bytecode em runtime
-pode oferecer mods sem recompilação, mas deve usar os mesmos contratos públicos,
-limites de capacidade, declarações de salvamento/rede e orçamentos
-determinísticos. Ela não deve se tornar uma segunda autoridade de gameplay.
+compilados estaticamente no player/cooker/studio. Esse continua sendo o caminho
+amplo mais seguro diante das limitações nativas atuais do Kof. A camada sem
+recompilação `BoundedKofScriptProgram` implementada é deliberadamente mais
+estreita: bytecode somente para a frente recebe campos copiados de eventos de
+domínio e emite comandos/eventos públicos sob máscaras de capacidade e
+orçamentos fixos. Ela não tem autoridade sobre save/rede/filesystem/nativo e
+não deve se tornar uma segunda autoridade de gameplay.
 
 Módulos internos podem acessar arrays otimizados diretamente. Extensões
 públicas só podem usar handles, consultas, comandos, eventos e snapshots
@@ -748,7 +750,7 @@ Nenhuma promessa de calendário; cada marco possui evidências executáveis. Um 
 | **G3 — Fatia de looter / ARPG** | Itens/afixos gerados, inventário/equipamento, XP/habilidades/efeitos de status, elites/chefes, salvamentos autoritativos, registros de extensões e esquemas replicados | Multiplayer conclui eliminação→drop gerado→coleta/equipamento→mudança observável de atributo/habilidade→recompensa de chefe→salvar/recarregar. O inventário cheio não pode perder item/moeda/RNG. A mesma seed/conteúdo produz o mesmo resultado no servidor. Os clientes não podem criar dano, itens, moeda ou progressão |
 | **G4 — Pipeline de criação e extensão** | Kof cooker, formatos de malha/brush compatíveis, validação de pacotes, manifestos de modificação de dados, módulos de extensão Kof confiáveis, inspetor/editores, recarregamento em etapas | Um segundo jogo multiplayer distinto é construído a partir de definições/extensões sem editar o código do núcleo do mecanismo. Servidor/cliente rejeitam manifestos incompatíveis de pacote/API/mod. Conteúdo inválido deixa o mundo em execução anterior intacto; as revisões de geometria/colisão/navegação/replicação permanecem alinhadas |
 | **G5 — Escala e lançamento** | Orçamentos de IA, batching/instancing, animação, streaming apenas quando necessário, servidor dedicado headless, migrações/reprodução, reforço de reconexão/admissão, empacotamento/avisos | A carga de trabalho de referência em LAN atende aos orçamentos declarados; o servidor dedicado é executado sem gráficos; as contagens de memória/recursos estabilizam; o pacote é executado fora do checkout do código-fonte; a recuperação de reconexão/sessão e a compatibilidade de extensões são comprovadas |
-| **G6 — Expansão** | SO/backend/arquitetura adicionais, jobs seguros, transporte WAN, editor mais completo, extensões em runtime isoladas | Cada extensão comprova compatibilidade real de runtime/ABI/conteúdo; nenhuma alegação de portabilidade, WAN, sandbox ou plataforma é inferida do suporte da dependência |
+| **G6 — Expansão** | SO/backend/arquitetura adicionais, jobs seguros, transporte WAN, editor mais completo, extensões em runtime isoladas | Jobs limitados, ativação de KofScript em pacote/sessão, Studio persistente, WAN limitado e pacote Windows SDL têm probes focados; nenhuma alegação geral de portabilidade, segurança WAN, gameplay PE ou sandbox é inferida |
 
 A evidência de G0 está em [G0_BACKLOG](G0_BACKLOG.md): viabilidade
 nativa/de sessão, apresentação isolada em janela e execução LAN externa
@@ -867,6 +869,19 @@ G5 está completo para esse contrato Linux x86-64 declarado. A evidência não
 afirma operação em várias máquinas/WAN, desempenho em outro OS/GPU,
 escalabilidade arbitrária de população, conteúdo em streaming ou sandbox G6.
 
+G6 está qualificado para o contrato limitado declarado por
+`scripts/verify_g6_runtime.sh`, pelo gate reproduzível do pacote de apresentação
+Windows e por um smoke completo separado em Wine isolado. O smoke usou sockets
+privados de display/sessão Weston/Xwayland com render node Intel capaz de DRI3 e
+verificou HUD Kof, cena 3D, reload do criador, aquisição/capacidades do SDL GPU
+e captura de screenshot. Os cinco marcadores esperados passaram e o frame
+capturado foi 1280×720.
+
+Isso qualifica gameplay Kof JVM mais apresentação SDL nativa no host registrado.
+Não afirma lowering nativo PE/Kof completo para Windows, NAT traversal, serviço
+relay, confidencialidade, resistência a DDoS, extensibilidade arbitrária do
+editor, sandbox geral nem cobertura de outros SOs/GPUs.
+
 ### Evidência limitada medida e metas de desempenho mantidas
 
 Cena de referência para o primeiro estágio de escala: 64 inimigos ativos, 256 projéteis em movimento, 512 itens coletáveis, luzes/efeitos dinâmicos limitados e um nível médio criado manualmente. Mantenha uma variante de estresse mais pesada após a correção da linha de base; não alegue escalabilidade arbitrária da população.
@@ -925,17 +940,17 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 | Risco | Evidência atual | Ação / estágio de liberação |
 |---|---|---|
 | FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | O `Buffer(U8, INOUT)` fixado do 0.5.0-beta passa no benchmark empacotado de redução `u8` na JVM/no nativo; a verificação cross fornecida passa, enquanto Script/JS/Android/riscv32/MCU continuam em `FFI001` | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
-| Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; Windows é um shell de plataforma | Manter gates por plataforma; não inferir gameplay de um backend SDL |
+| Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; Windows tem um shell de plataforma nativo, um compilador Kof determinístico e limitado para console PE/COFF e um pacote explícito do núcleo Kof JVM sem gráficos | Manter gates por plataforma; não inferir suporte a gameplay SDL no Windows da sonda do compilador, do shell nem do pacote JVM |
 | Coletor nativo após spawn | Estágio de spawn cumulativo na fonte do alocador | Uma única thread Kof; soak prolongado; nenhum bypass inseguro de GC manual |
 | Desempenho da geração de código nativo | Pipeline mínimo de otimização | Medir arrays/matemática/FFI representativos; usar batching/pré-alocação; não reescrever a jogabilidade em C |
-| Redução do runtime de distribuição | Aviso reproduzido fora do checkout do compilador | Corrigir upstream ou medir/aceitar explicitamente a dependência/tamanho do runtime completo antes da liberação |
+| Fechamento do runtime distribuído | O perfil JVM para Windows preserva um runtime OpenJDK completo fixado por digest e sua árvore legal; a poda do compilador nativo ainda emite o aviso conhecido | Manter a escolha JVM explícita, registrar identidade/tamanho do runtime, comparar arquivos reproduzíveis e nunca tratá-la como fallback nativo silencioso |
 | Manipulador nativo de exceção obsoleto | A asserção posterior reentrou em um try/catch concluído e saiu com 0; hangs de caminhos de falha continuam limitados externamente | Validar falhas esperadas antes de throw; usar gates externos de timeout/saída/output; nenhum shim de fluxo de controle |
 | Paridade de JSON/split nativo | JSON de registros mistos fracionários corrompeu valores; split com pipe escapado diferiu da JVM | Reparar/provar esquemas exatos de conteúdo/salvamento e contratos do parser antes de depender de G3/G4 |
 | Linguagem/documentação divergem rapidamente | Curso 0.3.7 / páginas mais antigas do portal / gate de release 0.5.0-beta | Fixar identidade exata do toolchain e digest do arquivo; atualizar por sondas focadas de comportamento, não somente compilação |
 | Confiabilidade/segurança do editor | Execução de arquivo único, UI em JS, manipuladores privilegiados não autenticados | CLI + editor separado com capacidade de LSP; nenhuma dependência de fork do editor |
 | Pipeline de criação torna-se um segundo engine | Vários runtimes monolíticos ou autoridades | Contratos compartilhados de runtime/query/conteúdo `.kf`; publicação em estágios no limite do quadro |
 | Suposições sobre licenças/recursos | Direitos de código/assets indefinidos; fonte DoomKof sem licença | Preservar a proveniência, resolver concessões, possuir/testar os recursos inicialmente |
-| Portabilidade nativa alegada em excesso | A saída nativa examinada é um ELF Linux | Estágios de plataforma separados; a lista de backends SDL não equivale ao suporte de executáveis Kof |
+| Portabilidade nativa alegada em excesso | A saída nativa upstream continua sendo ELF Linux; a ponte do KOOKIE emite PE/COFF AMD64 determinístico apenas para programas de topo com inteiros/String e fluxo de controle e rejeita toda outra IR com `PE001` | Manter gates separados; exigir lowering completo de arrays/objetos/exceções/FFI/SDL e qualificação real de gameplay no Windows antes de mudar o alvo autoritativo |
 
 ## 12. Primeiro incremento histórico
 

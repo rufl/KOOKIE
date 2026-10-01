@@ -84,11 +84,12 @@ Bounded foundations execute; the G0–G5 implementation gates are complete withi
 
 ## Earlier platform-release batch
 
-- Replaced the Windows color-matrix/JVM launch split with one persistent native
-  SDL3 + SDL_mixer shell. Its resizable high-DPI window, old-school main menu,
-  display/audio/text options and SipHash-tagged host/join/leave lobby match the
-  Kof-owned Linux shell contract. Windows remains a platform shell rather than
-  proof of Kof gameplay because the compiler has no PE target.
+- The Windows presentation compatibility profile now passes the reproducible
+  signed package gate and a full isolated Wine smoke on a DRI3-capable host.
+  Kof JVM gameplay reached the HUD, 3D scene and creator reload checks while
+  the native SDL adapter claimed the window, reported present capabilities and
+  captured a 1280×720 frame. Native PE/full-Kof Windows lowering remains
+  separate from this compatibility qualification.
 - The Linux presentation now starts at a persistent Kof main menu and keeps
   the bounded G1 scene behind Play. SDL_mixer owns distinct effects/music
   streams; the adapter remains scalar, token-checked and allocation-free on

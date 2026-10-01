@@ -304,7 +304,9 @@ The roadmap is not complete; completed work remains recorded here rather than ar
   Its native assembler emits Linux ELF; the native Windows SDL shell does not
   change that compiler limit.
 - Release archives cover native Linux and the native Windows SDL3 + SDL_mixer
-  platform shell. Authoritative Kof gameplay on Windows remains unproven.
+  platform shell. The bounded Windows presentation compatibility profile also
+  passed a full isolated Wine Kof JVM/SDL smoke; authoritative native Kof
+  Windows gameplay remains unproven.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

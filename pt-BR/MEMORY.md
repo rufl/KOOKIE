@@ -143,7 +143,15 @@ As fundações limitadas executam; os gates de implementação G0–G5 estão co
 - A reconexão da sessão remota preserva as marcas d'água de envio/recebimento do broad-phase ao fechar e reabrir; a sonda UDP nativa retoma na sequência 9 e rejeita snapshots antigos, e o slice LAN de três processos passa na JVM e no nativo.
 - Linux x86-64 possui arquivos nativos e de apresentação assinados com
   Ed25519, procedência vinculada ao commit/toolchain, `SHA256SUMS` e licença MIT.
-  O pacote Windows continua um shell SDL nativo, não gameplay Kof.
+  O shell SDL nativo Windows continua separado da qualificação de gameplay Kof
+  JVM descrita abaixo; nenhum alvo PE Kof completo foi estabelecido.
+
+- O perfil de compatibilidade de apresentação Windows agora passa o gate de
+  pacote assinado reproduzível e um smoke completo em Wine isolado sobre host
+  capaz de DRI3. O gameplay Kof JVM alcançou HUD, cena 3D e reload do criador;
+  o adaptador SDL nativo adquiriu a janela, reportou capacidades de
+  apresentação e capturou um frame de 1280×720. Lowering nativo PE/Kof completo
+  para Windows continua separado desta qualificação.
 - `kof info --json` atual reporta 0.5.0-beta. O gate fixa o arquivo Linux
   x86-64 em
   `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9`;

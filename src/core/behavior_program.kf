@@ -1,0 +1,597 @@
+package core
+
+Int behaviorGraphKind() { return 1 }
+Int behaviorProgramMagic() { return 1111839304 }
+Int behaviorProgramSchemaVersion() { return 1 }
+
+
+Int behaviorNodeSelector() { return 1 }
+Int behaviorNodeSequence() { return 2 }
+Int behaviorNodeConditionVisible() { return 3 }
+Int behaviorNodeConditionPerceptionRange() { return 4 }
+Int behaviorNodeConditionAttackRange() { return 5 }
+Int behaviorNodeActionAttack() { return 6 }
+Int behaviorNodeActionChase() { return 7 }
+Int behaviorNodeActionInvestigate() { return 8 }
+Int behaviorNodeActionIdle() { return 9 }
+
+Int behaviorIntentIdle() { return 1 }
+Int behaviorIntentInvestigate() { return 2 }
+Int behaviorIntentChase() { return 3 }
+Int behaviorIntentAttack() { return 4 }
+
+Int behaviorConditionVisibleBit() { return 1 }
+Int behaviorConditionPerceptionRangeBit() { return 2 }
+Int behaviorConditionAttackRangeBit() { return 4 }
+
+record BehaviorDecision(
+    Bool accepted,
+    Int intent,
+    Int targetId,
+    Int work,
+    Int ruleNodeId
+)
+
+class BoundedBehaviorProgram {
+    BoundedGraphProduct topology
+    Int[] ruleNodeIds
+    Int[] ruleConditionMasks
+    Int[] ruleActionKinds
+    Int ruleCountValue
+    Int workBudgetValue
+    Int checksumValue
+    Bool configuredValue
+    Bool sealedValue
+    Int[] wire
+    Int wordCountValue
+
+    public constructor(
+        Int nodeCapacity,
+        Int edgeCapacity,
+        Int ruleCapacity
+    ) {
+        var actualRules = ruleCapacity
+        if (actualRules <= 0) { actualRules = 1 }
+        if (actualRules > 256) { actualRules = 256 }
+        topology = BoundedGraphProduct(nodeCapacity, edgeCapacity)
+        ruleNodeIds = new Int[actualRules]
+        ruleConditionMasks = new Int[actualRules]
+        ruleActionKinds = new Int[actualRules]
+        wire = new Int[
+            10 + topology.nodeCapacity() * 2 +
+            topology.edgeCapacity() * 3 + actualRules * 3]
+        clear()
+    }
+
+    Bool clear() {
+        topology.clear()
+        ruleCountValue = 0
+        workBudgetValue = 0
+        checksumValue = 0
+        wordCountValue = 0
+        configuredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool configure(Int formatVersion, Int revision, Int workBudget) {
+        if (workBudget <= 0 || workBudget > 4096) { return false }
+        clear()
+        if (!topology.configure(
+                formatVersion, revision, behaviorGraphKind(), false)) {
+            return false
+        }
+        workBudgetValue = workBudget
+        configuredValue = true
+        return true
+    }
+
+    Bool supportedNodeKind(Int nodeKind) {
+        return nodeKind >= behaviorNodeSelector() &&
+            nodeKind <= behaviorNodeActionIdle()
+    }
+
+    Bool conditionNodeKind(Int nodeKind) {
+        return nodeKind == behaviorNodeConditionVisible() ||
+            nodeKind == behaviorNodeConditionPerceptionRange() ||
+            nodeKind == behaviorNodeConditionAttackRange()
+    }
+
+    Bool actionNodeKind(Int nodeKind) {
+        return nodeKind == behaviorNodeActionAttack() ||
+            nodeKind == behaviorNodeActionChase() ||
+            nodeKind == behaviorNodeActionInvestigate() ||
+            nodeKind == behaviorNodeActionIdle()
+    }
+
+    Bool addNode(Int nodeId, Int nodeKind) {
+        return configuredValue && !sealedValue &&
+            supportedNodeKind(nodeKind) && topology.addNode(nodeId, nodeKind)
+    }
+
+    Bool addChild(Int parentNodeId, Int childNodeId, Int order) {
+        return configuredValue && !sealedValue && order > 0 &&
+            order <= 1000000 &&
+            topology.addEdge(parentNodeId, childNodeId, order)
+    }
+
+    Int nodeIndex(Int nodeId) {
+        for (var index = 0; index < topology.nodeCount(); index = index + 1) {
+            if (topology.nodeId(index) == nodeId) { return index }
+        }
+        return -1
+    }
+
+    Int nodeKindFor(Int nodeId) {
+        var index = nodeIndex(nodeId)
+        if (index < 0) { return 0 }
+        return topology.nodeKind(index)
+    }
+
+    Int incomingCount(Int nodeId) {
+        var count = 0
+        for (var edge = 0; edge < topology.edgeCount(); edge = edge + 1) {
+            if (topology.edgeToId(edge) == nodeId) { count = count + 1 }
+        }
+        return count
+    }
+
+    Int childCount(Int nodeId) {
+        var count = 0
+        for (var edge = 0; edge < topology.edgeCount(); edge = edge + 1) {
+            if (topology.edgeFromId(edge) == nodeId) { count = count + 1 }
+        }
+        return count
+    }
+
+    Int childAt(Int nodeId, Int order) {
+        var child = 0
+        for (var edge = 0; edge < topology.edgeCount(); edge = edge + 1) {
+            if (topology.edgeFromId(edge) == nodeId &&
+                topology.edgeKind(edge) == order) {
+                if (child != 0) { return 0 }
+                child = topology.edgeToId(edge)
+            }
+        }
+        return child
+    }
+
+    Bool childOrdersValid(Int nodeId) {
+        var count = childCount(nodeId)
+        for (var order = 1; order <= count; order = order + 1) {
+            if (childAt(nodeId, order) <= 0) { return false }
+        }
+        return true
+    }
+
+    Int conditionBit(Int nodeKind) {
+        if (nodeKind == behaviorNodeConditionVisible()) {
+            return behaviorConditionVisibleBit()
+        }
+        if (nodeKind == behaviorNodeConditionPerceptionRange()) {
+            return behaviorConditionPerceptionRangeBit()
+        }
+        if (nodeKind == behaviorNodeConditionAttackRange()) {
+            return behaviorConditionAttackRangeBit()
+        }
+        return 0
+    }
+
+    Int intentForAction(Int nodeKind) {
+        if (nodeKind == behaviorNodeActionIdle()) {
+            return behaviorIntentIdle()
+        }
+        if (nodeKind == behaviorNodeActionInvestigate()) {
+            return behaviorIntentInvestigate()
+        }
+        if (nodeKind == behaviorNodeActionChase()) {
+            return behaviorIntentChase()
+        }
+        if (nodeKind == behaviorNodeActionAttack()) {
+            return behaviorIntentAttack()
+        }
+        return 0
+    }
+
+    Bool maskHas(Int mask, Int bit) {
+        return (mask & bit) != 0
+    }
+
+    Int conditionCount(Int mask) {
+        var count = 0
+        if (maskHas(mask, behaviorConditionVisibleBit())) { count = count + 1 }
+        if (maskHas(mask, behaviorConditionPerceptionRangeBit())) {
+            count = count + 1
+        }
+        if (maskHas(mask, behaviorConditionAttackRangeBit())) {
+            count = count + 1
+        }
+        return count
+    }
+
+    Bool validRule(Int conditionMask, Int actionKind) {
+        if (conditionMask < 0 || conditionMask > 7 ||
+            !actionNodeKind(actionKind)) {
+            return false
+        }
+        if (actionKind == behaviorNodeActionAttack()) {
+            return maskHas(conditionMask, behaviorConditionVisibleBit()) &&
+                maskHas(conditionMask, behaviorConditionAttackRangeBit())
+        }
+        if (actionKind == behaviorNodeActionChase()) {
+            return maskHas(conditionMask, behaviorConditionVisibleBit()) &&
+                maskHas(conditionMask, behaviorConditionPerceptionRangeBit())
+        }
+        return conditionMask == 0
+    }
+
+    Bool addCompiledRule(Int actionNodeId, Int conditionMask, Int actionKind) {
+        if (ruleCountValue >= ruleNodeIds.length ||
+            !validRule(conditionMask, actionKind)) {
+            return false
+        }
+        ruleNodeIds[ruleCountValue] = actionNodeId
+        ruleConditionMasks[ruleCountValue] = conditionMask
+        ruleActionKinds[ruleCountValue] = actionKind
+        ruleCountValue = ruleCountValue + 1
+        return true
+    }
+
+    Bool compileBranch(Int branchNodeId) {
+        var branchKind = nodeKindFor(branchNodeId)
+        if (actionNodeKind(branchKind)) {
+            return addCompiledRule(branchNodeId, 0, branchKind)
+        }
+        if (branchKind != behaviorNodeSequence() ||
+            childCount(branchNodeId) < 2 ||
+            !childOrdersValid(branchNodeId)) {
+            return false
+        }
+        var conditions = 0
+        var count = childCount(branchNodeId)
+        for (var order = 1; order <= count; order = order + 1) {
+            var child = childAt(branchNodeId, order)
+            var childKind = nodeKindFor(child)
+            if (order < count) {
+                var bit = conditionBit(childKind)
+                if (bit == 0 || maskHas(conditions, bit)) { return false }
+                conditions = conditions | bit
+            } else {
+                if (!actionNodeKind(childKind)) { return false }
+                return addCompiledRule(child, conditions, childKind)
+            }
+        }
+        return false
+    }
+
+    Bool compileRules() {
+        ruleCountValue = 0
+        var rootNodeId = 0
+        var roots = 0
+        for (var node = 0; node < topology.nodeCount(); node = node + 1) {
+            var nodeId = topology.nodeId(node)
+            var nodeKind = topology.nodeKind(node)
+            var incoming = incomingCount(nodeId)
+            var children = childCount(nodeId)
+            if (incoming == 0) {
+                rootNodeId = nodeId
+                roots = roots + 1
+            } else if (incoming != 1) {
+                return false
+            }
+            if (!childOrdersValid(nodeId)) { return false }
+            if (nodeKind == behaviorNodeSelector()) {
+                if (incoming != 0 || children <= 0) { return false }
+            } else if (nodeKind == behaviorNodeSequence()) {
+                if (children < 2) { return false }
+            } else if (children != 0) {
+                return false
+            }
+        }
+        if (roots != 1 || nodeKindFor(rootNodeId) != behaviorNodeSelector() ||
+            !childOrdersValid(rootNodeId)) {
+            return false
+        }
+        var branches = childCount(rootNodeId)
+        for (var order = 1; order <= branches; order = order + 1) {
+            if (!compileBranch(childAt(rootNodeId, order))) { return false }
+        }
+        if (ruleCountValue <= 0 ||
+            ruleConditionMasks[ruleCountValue - 1] != 0) {
+            return false
+        }
+        var worstWork = 0
+        for (var rule = 0; rule < ruleCountValue; rule = rule + 1) {
+            worstWork = worstWork + 1 +
+                conditionCount(ruleConditionMasks[rule])
+        }
+        return worstWork <= workBudgetValue
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 17
+        result = mix(result, 1)
+        result = mix(result, topology.checksum())
+        result = mix(result, workBudgetValue)
+        result = mix(result, ruleCountValue)
+        for (var rule = 0; rule < ruleCountValue; rule = rule + 1) {
+            result = mix(result, ruleNodeIds[rule])
+            result = mix(result, ruleConditionMasks[rule])
+            result = mix(result, ruleActionKinds[rule])
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool compiledRulesValid() {
+        if (ruleCountValue <= 0 || ruleCountValue > ruleNodeIds.length ||
+            ruleConditionMasks[ruleCountValue - 1] != 0) {
+            return false
+        }
+        var worstWork = 0
+        for (var rule = 0; rule < ruleCountValue; rule = rule + 1) {
+            if (nodeKindFor(ruleNodeIds[rule]) != ruleActionKinds[rule] ||
+                !validRule(
+                    ruleConditionMasks[rule], ruleActionKinds[rule])) {
+                return false
+            }
+            worstWork = worstWork + 1 +
+                conditionCount(ruleConditionMasks[rule])
+        }
+        return worstWork <= workBudgetValue
+    }
+
+    Bool seal() {
+        if (sealedValue || !configuredValue || !topology.seal() ||
+            !compileRules() || !compiledRulesValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && configuredValue && topology.validate() &&
+            topology.graphKind() == behaviorGraphKind() &&
+            !topology.hasCycle() && compiledRulesValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    Bool configureDefaultEnemyProgram(Int revision) {
+        return configure(1, revision, 8) &&
+            addNode(1, behaviorNodeSelector()) &&
+            addNode(10, behaviorNodeSequence()) &&
+            addNode(11, behaviorNodeConditionVisible()) &&
+            addNode(12, behaviorNodeConditionAttackRange()) &&
+            addNode(13, behaviorNodeActionAttack()) &&
+            addNode(20, behaviorNodeSequence()) &&
+            addNode(21, behaviorNodeConditionVisible()) &&
+            addNode(22, behaviorNodeConditionPerceptionRange()) &&
+            addNode(23, behaviorNodeActionChase()) &&
+            addNode(30, behaviorNodeActionInvestigate()) &&
+            addChild(1, 10, 1) &&
+            addChild(1, 20, 2) &&
+            addChild(1, 30, 3) &&
+            addChild(10, 11, 1) &&
+            addChild(10, 12, 2) &&
+            addChild(10, 13, 3) &&
+            addChild(20, 21, 1) &&
+            addChild(20, 22, 2) &&
+            addChild(20, 23, 3) && seal()
+    }
+
+    Bool copyFrom(BoundedBehaviorProgram source) {
+        if (!source.validate() ||
+            source.nodeCount() > topology.nodeCapacity() ||
+            source.edgeCount() > topology.edgeCapacity() ||
+            source.ruleCount() > ruleNodeIds.length ||
+            !configure(
+                source.formatVersion(), source.revision(),
+                source.workBudget())) {
+            return false
+        }
+        for (var node = 0; node < source.nodeCount(); node = node + 1) {
+            if (!addNode(source.nodeId(node), source.nodeKind(node))) {
+                return false
+            }
+        }
+        for (var edge = 0; edge < source.edgeCount(); edge = edge + 1) {
+            if (!addChild(
+                    source.edgeParentId(edge), source.edgeChildId(edge),
+                    source.edgeOrder(edge))) {
+                return false
+            }
+        }
+        return seal() && checksumValue == source.checksum()
+    }
+
+    Bool encode() {
+        if (!validate()) {
+            wordCountValue = 0
+            return false
+        }
+        wordCountValue = 10 + nodeCount() * 2 + edgeCount() * 3 +
+            ruleCountValue * 3
+        wire[0] = behaviorProgramMagic()
+        wire[1] = behaviorProgramSchemaVersion()
+        wire[2] = formatVersion()
+        wire[3] = revision()
+        wire[4] = workBudgetValue
+        wire[5] = nodeCount()
+        wire[6] = edgeCount()
+        wire[7] = ruleCountValue
+        wire[8] = checksumValue
+        wire[9] = wordCountValue
+        var offset = 10
+        for (var node = 0; node < nodeCount(); node = node + 1) {
+            wire[offset] = nodeId(node)
+            wire[offset + 1] = nodeKind(node)
+            offset = offset + 2
+        }
+        for (var edge = 0; edge < edgeCount(); edge = edge + 1) {
+            wire[offset] = edgeParentId(edge)
+            wire[offset + 1] = edgeChildId(edge)
+            wire[offset + 2] = edgeOrder(edge)
+            offset = offset + 3
+        }
+        for (var rule = 0; rule < ruleCountValue; rule = rule + 1) {
+            wire[offset] = ruleNodeIds[rule]
+            wire[offset + 1] = ruleConditionMasks[rule]
+            wire[offset + 2] = ruleActionKinds[rule]
+            offset = offset + 3
+        }
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length < 18 || source.length > wire.length ||
+            source[0] != behaviorProgramMagic() ||
+            source[1] != behaviorProgramSchemaVersion() ||
+            source[2] <= 0 || source[3] <= 0 ||
+            source[4] <= 0 || source[4] > 4096 ||
+            source[5] <= 0 || source[5] > nodeCapacity() ||
+            source[6] <= 0 || source[6] > edgeCapacity() ||
+            source[7] <= 0 || source[7] > ruleNodeIds.length ||
+            source[8] <= 0 || source[9] != source.length ||
+            source.length != 10 + source[5] * 2 + source[6] * 3 +
+                source[7] * 3 ||
+            !configure(source[2], source[3], source[4])) {
+            return false
+        }
+        var offset = 10
+        for (var node = 0; node < source[5]; node = node + 1) {
+            if (!addNode(source[offset], source[offset + 1])) {
+                clear()
+                return false
+            }
+            offset = offset + 2
+        }
+        for (var edge = 0; edge < source[6]; edge = edge + 1) {
+            if (!addChild(
+                    source[offset], source[offset + 1], source[offset + 2])) {
+                clear()
+                return false
+            }
+            offset = offset + 3
+        }
+        if (!seal() || ruleCountValue != source[7] ||
+            checksumValue != source[8]) {
+            clear()
+            return false
+        }
+        for (var rule = 0; rule < ruleCountValue; rule = rule + 1) {
+            if (source[offset] != ruleNodeIds[rule] ||
+                source[offset + 1] != ruleConditionMasks[rule] ||
+                source[offset + 2] != ruleActionKinds[rule]) {
+                clear()
+                return false
+            }
+            offset = offset + 3
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            wire[index] = source[index]
+        }
+        wordCountValue = source.length
+        return true
+    }
+
+    Bool reopen(Int[] source) {
+        if (!decode(source) || !encode() || source.length != wordCountValue) {
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (wire[index] != source[index]) { return false }
+        }
+        return true
+    }
+
+    Bool conditionsPass(
+        Int mask,
+        Int targetId,
+        Bool targetVisible,
+        Int distance,
+        Int perceptionRange,
+        Int attackRange
+    ) {
+        if (maskHas(mask, behaviorConditionVisibleBit()) &&
+            (!targetVisible || targetId <= 0)) {
+            return false
+        }
+        if (maskHas(mask, behaviorConditionPerceptionRangeBit()) &&
+            (!targetVisible || targetId <= 0 || distance > perceptionRange)) {
+            return false
+        }
+        if (maskHas(mask, behaviorConditionAttackRangeBit()) &&
+            (!targetVisible || targetId <= 0 || distance > attackRange)) {
+            return false
+        }
+        return true
+    }
+
+    BehaviorDecision evaluate(
+        Int targetId,
+        Bool targetVisible,
+        Int distance,
+        Int perceptionRange,
+        Int attackRange
+    ) {
+        if (!validate() || targetId < 0 || distance < 0 ||
+            perceptionRange <= 0 || attackRange <= 0 ||
+            attackRange > perceptionRange ||
+            (targetVisible && targetId <= 0)) {
+            return BehaviorDecision(false, 0, 0, 0, 0)
+        }
+        var work = 0
+        for (var rule = 0; rule < ruleCountValue; rule = rule + 1) {
+            work = work + 1 + conditionCount(ruleConditionMasks[rule])
+            if (work > workBudgetValue) {
+                return BehaviorDecision(false, 0, 0, work, 0)
+            }
+            if (conditionsPass(
+                    ruleConditionMasks[rule], targetId, targetVisible,
+                    distance, perceptionRange, attackRange)) {
+                var intent = intentForAction(ruleActionKinds[rule])
+                var decidedTarget = 0
+                if (intent == behaviorIntentAttack() ||
+                    intent == behaviorIntentChase()) {
+                    decidedTarget = targetId
+                }
+                return BehaviorDecision(
+                    true, intent, decidedTarget, work, ruleNodeIds[rule])
+            }
+        }
+        return BehaviorDecision(false, 0, 0, work, 0)
+    }
+
+    Int formatVersion() { return topology.formatVersion() }
+    Int revision() { return topology.revision() }
+    Int workBudget() { return workBudgetValue }
+    Int ruleCount() { return ruleCountValue }
+    Int nodeCount() { return topology.nodeCount() }
+    Int edgeCount() { return topology.edgeCount() }
+    Int nodeCapacity() { return topology.nodeCapacity() }
+    Int edgeCapacity() { return topology.edgeCapacity() }
+    Int nodeId(Int index) { return topology.nodeId(index) }
+    Int nodeKind(Int index) { return topology.nodeKind(index) }
+    Int edgeParentId(Int index) { return topology.edgeFromId(index) }
+    Int edgeChildId(Int index) { return topology.edgeToId(index) }
+    Int edgeOrder(Int index) { return topology.edgeKind(index) }
+    Int encodedLength() { return wordCountValue }
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) { return -1 }
+        return wire[index]
+    }
+
+
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}

@@ -2808,6 +2808,7 @@ test "canonical GLB intake and reopen validation" {
 }
 
 test "atomic geometry collision navigation replication publication" {
+
     var publication = BoundedProductPublication()
     assert(publication.stageGeometry(4, 101) &&
         publication.stageCollision(4, 202) &&
@@ -2831,6 +2832,449 @@ test "atomic geometry collision navigation replication publication" {
         publication.revision() == 5 &&
         publication.collisionChecksum() == 502,
         "matching replacement products must advance atomically")
+}
+test "Kof graph products canonicalize topology and publish atomically", "graph" {
+    var first = BoundedGraphProduct(4, 4)
+    assert(first.configure(1, 7, 1, false) &&
+        first.addNode(30, 3) &&
+        first.addNode(10, 1) &&
+        first.addNode(20, 2) &&
+        first.addEdge(20, 30, 1) &&
+        first.addEdge(10, 20, 1) &&
+        first.seal() && first.validate() &&
+        !first.hasCycle() && first.topologicalCount() == 3 &&
+        first.topologicalNodeId(0) == 10 &&
+        first.topologicalNodeId(1) == 20 &&
+        first.topologicalNodeId(2) == 30,
+        "acyclic Kof graph products must expose deterministic topological order")
+
+    var reordered = BoundedGraphProduct(4, 4)
+    assert(reordered.configure(1, 7, 1, false) &&
+        reordered.addNode(20, 2) &&
+        reordered.addNode(30, 3) &&
+        reordered.addNode(10, 1) &&
+        reordered.addEdge(10, 20, 1) &&
+        reordered.addEdge(20, 30, 1) &&
+        reordered.seal() &&
+        reordered.checksum() == first.checksum(),
+        "equivalent graph products must have authoring-order independent identity")
+
+    var rejectedCycle = BoundedGraphProduct(2, 2)
+    assert(rejectedCycle.configure(1, 8, 2, false) &&
+        rejectedCycle.addNode(1, 1) &&
+        rejectedCycle.addNode(2, 1) &&
+        rejectedCycle.addEdge(1, 2, 1) &&
+        rejectedCycle.addEdge(2, 1, 1) &&
+        !rejectedCycle.seal(),
+        "DAG products must reject cycles")
+
+    var stateGraph = BoundedGraphProduct(2, 2)
+    assert(stateGraph.configure(1, 8, 3, true) &&
+        stateGraph.addNode(1, 1) &&
+        stateGraph.addNode(2, 1) &&
+        stateGraph.addEdge(1, 2, 1) &&
+        stateGraph.addEdge(2, 1, 1) &&
+        stateGraph.seal() && stateGraph.validate() &&
+        stateGraph.hasCycle() && stateGraph.topologicalCount() == 0,
+        "cycle-aware Kof graph products must preserve explicit state loops")
+
+    var publication = BoundedGraphPublication()
+    assert(publication.stage(first) && publication.publish() &&
+        publication.publishedValid() && publication.generation() == 1 &&
+        publication.revision() == 7 &&
+        publication.graphChecksum() == first.checksum(),
+        "a sealed graph must publish as one immutable generation")
+    assert(!publication.stage(reordered) &&
+        publication.generation() == 1 &&
+        publication.graphChecksum() == first.checksum(),
+        "same-revision staging must retain the active graph generation")
+    assert(publication.stage(stateGraph) && publication.publish() &&
+        publication.generation() == 2 && publication.revision() == 8 &&
+        publication.graphKind() == 3,
+        "a newer sealed graph must replace the active generation atomically")
+}
+
+test "Kof behavior program selects bounded enemy intents", "behavior" {
+    var program = BoundedBehaviorProgram(16, 16, 4)
+    assert(program.configureDefaultEnemyProgram(1) &&
+        program.validate() && program.encode() &&
+        program.ruleCount() == 3 && program.workBudget() == 8,
+        "default Kof behavior program must compile into bounded rules")
+
+    var attack = program.evaluate(7, true, 10, 100, 20)
+    assert(attack.accepted() &&
+        attack.intent() == behaviorIntentAttack() &&
+        attack.targetId() == 7 && attack.work() == 3,
+        "visible targets inside attack range must select attack")
+
+    var chase = program.evaluate(7, true, 60, 100, 20)
+    assert(chase.accepted() &&
+        chase.intent() == behaviorIntentChase() &&
+        chase.targetId() == 7 && chase.work() == 6,
+        "visible targets inside perception range must select chase")
+
+    var investigate = program.evaluate(7, false, 0, 100, 20)
+    assert(investigate.accepted() &&
+        investigate.intent() == behaviorIntentInvestigate() &&
+        investigate.targetId() == 0 && investigate.work() == 7,
+        "lost targets must select the explicit fallback intent")
+
+    var copied = BoundedBehaviorProgram(16, 16, 4)
+    assert(copied.copyFrom(program) &&
+        copied.checksum() == program.checksum() &&
+        copied.evaluate(7, true, 10, 100, 20).intent() ==
+            behaviorIntentAttack(),
+        "installed behavior programs must retain canonical identity")
+    var behaviorWire = new Int[program.encodedLength()]
+    for (var index = 0; index < behaviorWire.length; index = index + 1) {
+        behaviorWire[index] = program.encodedWord(index)
+    }
+    assert(BoundedBehaviorProgram(16, 16, 4).reopen(behaviorWire),
+        "offline behavior artifacts must reopen byte-for-byte")
+    behaviorWire[behaviorWire.length - 1] =
+        behaviorWire[behaviorWire.length - 1] + 1
+    assert(!BoundedBehaviorProgram(16, 16, 4).reopen(behaviorWire),
+        "behavior artifact reopen must reject compiled-rule corruption")
+
+    var chaseOnly = BoundedBehaviorProgram(8, 8, 2)
+    assert(chaseOnly.configure(1, 2, 4) &&
+        chaseOnly.addNode(1, behaviorNodeSelector()) &&
+        chaseOnly.addNode(10, behaviorNodeSequence()) &&
+        chaseOnly.addNode(11, behaviorNodeConditionVisible()) &&
+        chaseOnly.addNode(12, behaviorNodeConditionPerceptionRange()) &&
+        chaseOnly.addNode(13, behaviorNodeActionChase()) &&
+        chaseOnly.addNode(20, behaviorNodeActionIdle()) &&
+        chaseOnly.addChild(1, 10, 1) &&
+        chaseOnly.addChild(1, 20, 2) &&
+        chaseOnly.addChild(10, 11, 1) &&
+        chaseOnly.addChild(10, 12, 2) &&
+        chaseOnly.addChild(10, 13, 3) &&
+        chaseOnly.seal(),
+        "Kof must compile an alternate authoritative behavior product")
+    var behaviorEnemies = EnemyStateWorld(1)
+    assert(behaviorEnemies.installBehaviorProgram(chaseOnly) &&
+        behaviorEnemies.behaviorProgramRevision() == 2 &&
+        behaviorEnemies.behaviorProgramChecksum() == chaseOnly.checksum() &&
+        behaviorEnemies.configure(100, 20, 4) &&
+        behaviorEnemies.addEnemy(9, 0),
+        "enemy FSM must atomically install a newer Kof behavior product")
+    var behaviorStep = behaviorEnemies.step(9, 1, 7, true, 10)
+    assert(behaviorStep.accepted() &&
+        behaviorStep.state() == behaviorEnemies.chaseState() &&
+        !behaviorStep.attackReady() &&
+        !behaviorEnemies.installBehaviorProgram(copied),
+        "behavior intent must drive the existing bounded FSM and reject rollback")
+
+    var unsafe = BoundedBehaviorProgram(2, 1, 1)
+    assert(unsafe.configure(1, 2, 2) &&
+        unsafe.addNode(1, behaviorNodeSelector()) &&
+        unsafe.addNode(2, behaviorNodeActionAttack()) &&
+        unsafe.addChild(1, 2, 1) &&
+        !unsafe.seal(),
+        "unguarded attack actions must not enter the authoritative runtime")
+}
+
+test "Kof scene products compose canonical transform hierarchies", "scene" {
+    var scene = BoundedSceneProduct(4)
+    assert(scene.configure(7, 77, 3, 1, 100, 1000) &&
+        scene.addNodeMatrix(
+            20, 10, sceneNodeMeshKind(), 900,
+            1000, 0, 0, 10,
+            0, 1000, 0, 50,
+            0, 0, 1000, 0) &&
+        scene.addNodeMatrix(
+            10, 0, sceneNodeGroupKind(), 0,
+            2000, 0, 0, 100,
+            0, 1000, 0, 0,
+            0, 0, 1000, 0) &&
+        scene.seal() && scene.validate() && scene.encode() &&
+        scene.nodeId(0) == 10 && scene.nodeId(1) == 20 &&
+        scene.topologicalNodeId(0) == 10 &&
+        scene.topologicalNodeId(1) == 20,
+        "scene product must canonicalize author order and parent topology")
+
+    var hierarchy = BoundedTransformHierarchy(4)
+    assert(hierarchy.load(scene) && hierarchy.validate() &&
+        hierarchy.nodeCount() == 2 &&
+        hierarchy.worldMatrixElement(20, 0) == 2000 &&
+        hierarchy.worldMatrixElement(20, 3) == 120 &&
+        hierarchy.worldMatrixElement(20, 7) == 50,
+        "Kof hierarchy must compose fixed-point parent scale and translation")
+
+    var encoded = new Int[scene.encodedLength()]
+    for (var index = 0; index < encoded.length; index = index + 1) {
+        encoded[index] = scene.encodedWord(index)
+    }
+    var reopened = BoundedSceneProduct(4)
+    assert(reopened.reopen(encoded) &&
+        reopened.checksum() == scene.checksum() &&
+        reopened.graphChecksum() == scene.graphChecksum(),
+        "canonical scene product must reopen with identical identity")
+    encoded[10] = encoded[10] + 1
+    assert(!BoundedSceneProduct(4).reopen(encoded),
+        "scene product reopen must reject checksum corruption")
+
+    var cycle = BoundedSceneProduct(2)
+    assert(cycle.configure(7, 78, 1, 1, 100, 1000) &&
+        cycle.addNodeTranslation(1, 2, sceneNodeGroupKind(), 0, 0, 0, 0) &&
+        cycle.addNodeTranslation(2, 1, sceneNodeGroupKind(), 0, 0, 0, 0) &&
+        !cycle.seal(),
+        "scene product must reject cyclic transform parents")
+}
+
+test "Kof skeleton palettes and cyclic animation graph runtime", "animation" {
+    var scene = BoundedSceneProduct(4)
+    assert(scene.configure(7, 78, 1, 1, 100, 1000) &&
+        scene.addNodeTranslation(
+            1, 0, sceneNodeGroupKind(), 0, 100, 200, 300) &&
+        scene.addNodeTranslation(
+            2, 1, sceneNodeGroupKind(), 0, 0, 100, 0) &&
+        scene.seal(),
+        "skeleton fixture scene must seal a canonical joint hierarchy")
+    var hierarchy = BoundedTransformHierarchy(4)
+    assert(hierarchy.load(scene) && hierarchy.validate(),
+        "skeleton runtime requires a valid world transform hierarchy")
+
+    var skeleton = BoundedSkeletonProduct(2, 4)
+    assert(skeleton.configure(7, 78, 1, 1000) &&
+        skeleton.addSkin(1, 1) &&
+        skeleton.addJoint(
+            1, 2, 2, 1,
+            1000, 0, 0, 0,
+            0, 1000, 0, 0,
+            0, 0, 1000, 0) &&
+        skeleton.addJoint(
+            1, 1, 1, 0,
+            1000, 0, 0, 0,
+            0, 1000, 0, 0,
+            0, 0, 1000, 0) &&
+        skeleton.seal() && skeleton.validate() && skeleton.encode() &&
+        skeleton.jointId(1, 0) == 1 &&
+        skeleton.jointId(1, 1) == 2 &&
+        skeleton.jointParentId(1, 1) == 1,
+        "skeleton products must canonicalize joints and retain parent topology")
+    var palette = BoundedSkeletonRuntime(4)
+    assert(palette.load(skeleton, hierarchy, 1) &&
+        palette.validate() && palette.jointCount() == 2 &&
+        palette.paletteElement(0, 3) == 100 &&
+        palette.paletteElement(0, 7) == 200 &&
+        palette.paletteElement(1, 3) == 100 &&
+        palette.paletteElement(1, 7) == 300 &&
+        palette.paletteElement(1, 11) == 300,
+        "skeleton runtime must compose world transforms with inverse bind matrices")
+    var skeletonWire = new Int[skeleton.encodedLength()]
+    for (var index = 0; index < skeletonWire.length; index = index + 1) {
+        skeletonWire[index] = skeleton.encodedWord(index)
+    }
+    assert(BoundedSkeletonProduct(2, 4).reopen(skeletonWire),
+        "canonical skeleton products must reopen byte-for-byte")
+    skeletonWire[skeletonWire.length - 1] =
+        skeletonWire[skeletonWire.length - 1] + 1
+    assert(!BoundedSkeletonProduct(2, 4).reopen(skeletonWire),
+        "skeleton reopen must reject inverse bind corruption")
+
+    var graph = BoundedAnimationGraphProduct(4, 6)
+    assert(graph.configure(7, 90, 3, 10) &&
+        graph.addState(20, 200, 2, true) &&
+        graph.addState(10, 100, 4, true) &&
+        graph.addState(30, 300, 3, false) &&
+        graph.addTransition(1, 10, 20, 1, 5, 3) &&
+        graph.addTransition(3, 10, 30, 1, 10, 0) &&
+        graph.addTransition(2, 20, 10, 2, 5, 1) &&
+        graph.addTransition(4, 30, 10, 2, 5, 1) &&
+        graph.seal() && graph.validate() && graph.hasCycle() &&
+        graph.encode(),
+        "animation graph must seal explicit cyclic state transitions")
+    var graphWire = new Int[graph.encodedLength()]
+    for (var index = 0; index < graphWire.length; index = index + 1) {
+        graphWire[index] = graph.encodedWord(index)
+    }
+    assert(BoundedAnimationGraphProduct(4, 6).reopen(graphWire),
+        "canonical animation graphs must reopen byte-for-byte")
+
+    var runtime = BoundedAnimationGraphRuntime(4, 6)
+    assert(runtime.start(graph, 0) && runtime.stateId() == 10 &&
+        runtime.clipId() == 100 && runtime.clipTick() == 0 &&
+        runtime.step(0) && runtime.clipTick() == 1 &&
+        runtime.step(1) && runtime.stateId() == 30 &&
+        runtime.transitionId() == 3 && runtime.clipId() == 300 &&
+        runtime.clipTick() == 1 && runtime.blendTicksRemaining() == 0,
+        "animation runtime must choose the highest-priority matching transition")
+    assert(runtime.step(2) && runtime.stateId() == 10 &&
+        runtime.previousStateId() == 30 && runtime.transitionId() == 4 &&
+        runtime.clipTick() == 1 && runtime.blendTicksRemaining() == 1 &&
+        runtime.validate(),
+        "animation runtime must transition back with deterministic blend state")
+}
+
+test "KofScript offline artifacts reopen canonical products", "offline-builder" {
+    var behavior = BoundedBehaviorProgram(16, 16, 4)
+    assert(behavior.configureDefaultEnemyProgram(7) && behavior.encode(),
+        "offline behavior source must seal before artifact emission")
+    var behaviorWords = new Int[behavior.encodedLength()]
+    for (var index = 0; index < behaviorWords.length; index = index + 1) {
+        behaviorWords[index] = behavior.encodedWord(index)
+    }
+    var behaviorArtifact = BoundedOfflineProductArtifact(128)
+    assert(behaviorArtifact.build(
+            offlineArtifactBehaviorKind(), behavior.checksum(),
+            behaviorWords) &&
+        behaviorArtifact.validate(),
+        "offline builder must envelope canonical behavior words")
+    var behaviorText = behaviorArtifact.encodeText()
+    var reopenedBehaviorArtifact = BoundedOfflineProductArtifact(128)
+    assert(reopenedBehaviorArtifact.decodeText(behaviorText) &&
+        reopenedBehaviorArtifact.checksum() == behaviorArtifact.checksum() &&
+        BoundedBehaviorProgram(16, 16, 4).reopen(
+            reopenedBehaviorArtifact.wordsCopy()),
+        "behavior artifact text must decode and reopen the runtime product")
+
+    var animation = BoundedAnimationGraphProduct(3, 4)
+    assert(animation.configure(7, 91, 2, 10) &&
+        animation.addState(10, 100, 60, true) &&
+        animation.addState(20, 200, 30, true) &&
+        animation.addTransition(1, 10, 20, 1, 10, 6) &&
+        animation.addTransition(2, 20, 10, 2, 10, 6) &&
+        animation.seal() && animation.encode(),
+        "offline animation source must seal before artifact emission")
+    var animationWords = new Int[animation.encodedLength()]
+    for (var index = 0; index < animationWords.length; index = index + 1) {
+        animationWords[index] = animation.encodedWord(index)
+    }
+    var animationArtifact = BoundedOfflineProductArtifact(128)
+    assert(animationArtifact.build(
+            offlineArtifactAnimationKind(), animation.checksum(),
+            animationWords),
+        "offline builder must envelope canonical animation words")
+    var reopenedAnimationArtifact = BoundedOfflineProductArtifact(128)
+    assert(reopenedAnimationArtifact.decodeText(
+            animationArtifact.encodeText()) &&
+        BoundedAnimationGraphProduct(3, 4).reopen(
+            reopenedAnimationArtifact.wordsCopy()),
+        "animation artifact text must decode and reopen the runtime product")
+    assert(!BoundedOfflineProductArtifact(128).decodeText(
+            behaviorText + "7"),
+        "offline artifact parser must reject trailing ambiguous content")
+}
+
+test "bounded KofScript VM validates and executes capability programs", "kofscript-vm" {
+    var program = BoundedKofScriptProgram(4, 32)
+    assert(program.configure(
+            8, 1, 3002, 1, trustedDomainEventEnemyDefeated(),
+            19, 3, 1, 1,
+            kofScriptCommandGrantCurrencyBit(),
+            kofScriptEventEliteBountyBit()) &&
+        program.addConstant(10) &&
+        program.addConstant(2) &&
+        program.addInstruction(kofScriptOpcodeLoadInput(), kofScriptInputValue()) &&
+        program.addInstruction(kofScriptOpcodePushConstant(), 0) &&
+        program.addInstruction(kofScriptOpcodeGreater(), 0) &&
+        program.addInstruction(kofScriptOpcodeJumpIfZero(), 18) &&
+        program.addInstruction(kofScriptOpcodeLoadInput(), kofScriptInputPlayerId()) &&
+        program.addInstruction(kofScriptOpcodeLoadInput(), kofScriptInputSubjectKind()) &&
+        program.addInstruction(kofScriptOpcodePushConstant(), 1) &&
+        program.addInstruction(kofScriptOpcodeMultiply(), 0) &&
+        program.addInstruction(kofScriptOpcodeLoadInput(), kofScriptInputValue()) &&
+        program.addInstruction(kofScriptOpcodeAdd(), 0) &&
+        program.addInstruction(
+            kofScriptOpcodeEmitCommand(), trustedHookCommandGrantCurrency()) &&
+        program.addInstruction(kofScriptOpcodeLoadInput(), kofScriptInputSubjectId()) &&
+        program.addInstruction(kofScriptOpcodeLoadInput(), kofScriptInputSubjectKind()) &&
+        program.addInstruction(kofScriptOpcodePushConstant(), 1) &&
+        program.addInstruction(kofScriptOpcodeMultiply(), 0) &&
+        program.addInstruction(kofScriptOpcodeLoadInput(), kofScriptInputValue()) &&
+        program.addInstruction(kofScriptOpcodeAdd(), 0) &&
+        program.addInstruction(
+            kofScriptOpcodeEmitEvent(), trustedHookEventEliteBounty()) &&
+        program.addInstruction(kofScriptOpcodeHalt(), 0) &&
+        program.seal() && program.encode(),
+        "sandbox program must seal only after bounded forward control flow")
+    var words = new Int[program.encodedLength()]
+    for (var index = 0; index < words.length; index = index + 1) {
+        words[index] = program.encodedWord(index)
+    }
+    var reopened = BoundedKofScriptProgram(4, 32)
+    assert(reopened.reopen(words) &&
+        reopened.checksum() == program.checksum() &&
+        reopened.identity().scriptId() == 3002,
+        "canonical sandbox bytecode must reopen with stable identity")
+    var artifact = BoundedOfflineProductArtifact(128)
+    assert(artifact.build(
+            offlineArtifactKofScriptKind(), reopened.checksum(), words),
+        "offline artifacts must carry canonical KofScript bytecode")
+    var reopenedArtifact = BoundedOfflineProductArtifact(128)
+    assert(reopenedArtifact.decodeText(artifact.encodeText()) &&
+        BoundedKofScriptProgram(4, 32).reopen(
+            reopenedArtifact.wordsCopy()),
+        "text artifacts must reopen sandbox programs")
+
+    var vm = BoundedKofScriptVm(3, 1, 1)
+    var accepted = TrustedDomainEvent(
+        1, trustedDomainEventEnemyDefeated(),
+        1, 42, enemyDefinitionEliteKind(), 20)
+    assert(vm.execute(reopened, accepted, 7) && vm.accepted() &&
+        vm.steps() == 19 && vm.commandCount() == 1 &&
+        vm.commandKind(0) == trustedHookCommandGrantCurrency() &&
+        vm.commandPlayer(0) == 1 && vm.commandValue(0) == 24 &&
+        vm.eventCount() == 1 &&
+        vm.eventKind(0) == trustedHookEventEliteBounty() &&
+        vm.eventSubject(0) == 42 && vm.eventValue(0) == 24 &&
+        vm.executionChecksum() > 0,
+        "sandbox VM must expose only bounded public command and event outputs")
+    var scriptSession = LoopbackSession(2, 2)
+    assert(scriptSession.start() &&
+        scriptSession.connectPlayer() == 1 &&
+        scriptSession.connectPlayer() == 2 &&
+        scriptSession.applyKofScriptCommands(vm) &&
+        scriptSession.playerCurrency(1) == 24 &&
+        !scriptSession.applyKofScriptCommands(vm),
+        "sandbox commands must cross the existing authoritative application gate once")
+    var quiet = TrustedDomainEvent(
+        2, trustedDomainEventEnemyDefeated(),
+        1, 43, enemyDefinitionEliteKind(), 5)
+    assert(vm.execute(reopened, quiet, 8) && vm.steps() == 5 &&
+        vm.commandCount() == 0 && vm.eventCount() == 0,
+        "forward branch must terminate without hidden output")
+    assert(!vm.execute(
+            reopened,
+            TrustedDomainEvent(
+                3, trustedDomainEventLootPickedUp(),
+                1, 43, enemyDefinitionEliteKind(), 5),
+            9) &&
+        vm.diagnostic() == kofScriptDiagnosticEvent() &&
+        vm.commandCount() == 0 && vm.eventCount() == 0,
+        "sandbox VM must reject events outside the declared subscription")
+
+    var backward = BoundedKofScriptProgram(1, 2)
+    assert(backward.configure(
+            8, 1, 3003, 1, trustedDomainEventSessionStarted(),
+            2, 1, 0, 0, 0, 0) &&
+        backward.addInstruction(kofScriptOpcodeJump(), 0) &&
+        backward.addInstruction(kofScriptOpcodeHalt(), 0) &&
+        !backward.seal(),
+        "sandbox verifier must reject backward and self jumps")
+    var overflow = BoundedKofScriptProgram(1, 5)
+    assert(overflow.configure(
+            8, 1, 3004, 1, trustedDomainEventSessionStarted(),
+            5, 2, 0, 0, 0, 0) &&
+        overflow.addConstant(kofScriptMaximumValue()) &&
+        overflow.addInstruction(kofScriptOpcodePushConstant(), 0) &&
+        overflow.addInstruction(kofScriptOpcodePushConstant(), 0) &&
+        overflow.addInstruction(kofScriptOpcodeMultiply(), 0) &&
+        overflow.addInstruction(kofScriptOpcodeDrop(), 0) &&
+        overflow.addInstruction(kofScriptOpcodeHalt(), 0) &&
+        overflow.seal() &&
+        !vm.execute(
+            overflow,
+            TrustedDomainEvent(
+                1, trustedDomainEventSessionStarted(), 0, 0, 0, 0),
+            1) &&
+        vm.diagnostic() == kofScriptDiagnosticArithmetic() &&
+        vm.commandCount() == 0 && vm.eventCount() == 0,
+        "sandbox arithmetic failure must discard all staged output")
+    words[16] = words[16] + 1
+    assert(!BoundedKofScriptProgram(4, 32).reopen(words),
+        "sandbox product must reject checksum tampering")
 }
 
 test "swept convex dynamic broadphase and navigation products" {
@@ -2881,7 +3325,7 @@ test "swept convex dynamic broadphase and navigation products" {
 }
 
 
-test "external GLB JSON BIN provenance and reopen" {
+test "external GLB JSON BIN provenance and reopen", "glb" {
     var glb = new Int[476]
     glb[0] = 103
     glb[1] = 108
@@ -3360,7 +3804,8 @@ test "external GLB JSON BIN provenance and reopen" {
     glb[474] = 0
     glb[475] = 0
     var reader = BoundedExternalGlbSceneReader(4, 2)
-    var admitted = reader.read(glb, 10, 77, 4, 9, 3, 100)
+    var admitted = reader.read(
+        glb, ExternalGlbReadRequest(10, 77, 4, 9, 3, 100))
     assert(admitted && reader.valid() &&
         reader.vertexCount() == 3 && reader.triangleCount() == 1 &&
         reader.geometryChecksum() > 0,
@@ -3391,13 +3836,92 @@ test "external GLB JSON BIN provenance and reopen" {
     assert(cookAccepted && cooker.accepted() &&
         cookResult.packageChecksum() == cookedPackage.checksum() &&
         cookResult.geometryChecksum() == reader.geometryChecksum() &&
+        cookResult.sceneChecksum() == reader.sceneChecksum() &&
+        cookResult.skeletonChecksum() == 0 &&
         cookResult.collisionChecksum() == collision.checksum() &&
         cookResult.navigationChecksum() > 0 &&
         cookResult.generation() == 1 &&
+        cookResult.sceneNodeCount() == 1 &&
+        cookResult.skinCount() == 0 &&
         cookResult.navigationNodeCount() == 1 &&
         cookCache.activeGeneration() == 1 &&
+        cooker.sceneProduct().checksum() == reader.sceneChecksum() &&
+        cooker.transformHierarchy().sourceSceneChecksum() ==
+            reader.sceneChecksum() &&
         cooker.navigationProduct().findRoute(1, 1).found(),
-        "GLB cooker must atomically publish geometry collision navigation and replication")
+        "GLB cooker must atomically publish scene geometry collision navigation and replication")
+
+    var skinnedGlb = g4SkinnedSceneGlbFixture()
+    var skinnedReader = BoundedExternalGlbSceneReader(4, 2)
+    assert(skinnedReader.read(
+            skinnedGlb, ExternalGlbReadRequest(10, 79, 5, 9, 3, 100)) &&
+        skinnedReader.valid() && skinnedReader.validSkinAttributes() &&
+        skinnedReader.sceneNodeCount() == 4 &&
+        skinnedReader.skinCount() == 1 &&
+        skinnedReader.skinJointCount(0) == 2 &&
+        skinnedReader.skinJointNodeId(0, 0) == 3 &&
+        skinnedReader.skinJointNodeId(0, 1) == 4 &&
+        skinnedReader.skinSkeletonNodeId(0) == 3 &&
+        skinnedReader.skinInverseBindAccessor(0) == 4 &&
+        skinnedReader.skeletonChecksum() > 0 &&
+        skinnedReader.reopenSceneCanonical() &&
+        skinnedReader.reopenSkeletonCanonical(),
+        "GLB intake must preserve active nodes hierarchy and skin metadata")
+    var skinnedScene = skinnedReader.sceneProduct()
+    assert(skinnedScene.validate() && skinnedScene.nodeId(1) == 2 &&
+        skinnedScene.parentId(1) == 1 &&
+        skinnedScene.resourceId(1) == 1 &&
+        skinnedScene.skinId(1) == 1,
+        "skinned mesh node must bind canonical mesh and skin identities")
+    var skinnedSkeleton = skinnedReader.skeletonProduct()
+    assert(skinnedSkeleton.validate() &&
+        skinnedSkeleton.skinCount() == 1 &&
+        skinnedSkeleton.jointCount() == 2 &&
+        skinnedSkeleton.skeletonNodeId(1) == 3 &&
+        skinnedSkeleton.jointNodeId(1, 0) == 3 &&
+        skinnedSkeleton.jointNodeId(1, 1) == 4 &&
+        skinnedSkeleton.jointParentId(1, 1) == 1,
+        "GLB skins must cook into canonical Kof skeleton topology")
+    var skinnedHierarchy = BoundedTransformHierarchy(4)
+    assert(skinnedHierarchy.load(skinnedScene) &&
+        skinnedHierarchy.worldMatrixElement(4, 3) == 100 &&
+        skinnedHierarchy.worldMatrixElement(4, 7) == 300 &&
+        skinnedHierarchy.worldMatrixElement(4, 11) == 300,
+        "cooked GLB TRS must compose through the Kof transform hierarchy")
+    var skinnedPalette = BoundedSkeletonRuntime(4)
+    assert(skinnedPalette.load(skinnedSkeleton, skinnedHierarchy, 1) &&
+        skinnedPalette.paletteElement(0, 3) == 100 &&
+        skinnedPalette.paletteElement(0, 7) == 200 &&
+        skinnedPalette.paletteElement(1, 3) == 100 &&
+        skinnedPalette.paletteElement(1, 7) == 300 &&
+        skinnedPalette.paletteElement(1, 11) == 300,
+        "GLB inverse bind matrices must produce deterministic skin palettes")
+    var skinnedCollision = BoundedAuthoredCollision(4, 2)
+    assert(skinnedReader.emitCollision(skinnedCollision) &&
+        skinnedCollision.validate() && skinnedCollision.encode())
+    var skinnedPackage = BoundedContentPackage(1, 1, 1)
+    assert(skinnedPackage.configureHeader(7, 9, 12, 1, 100) &&
+        skinnedPackage.addAsset(10, 79, 3, 5, 333, 444, 15) &&
+        skinnedPackage.addChunk(
+            100, 6, 0, skinnedCollision.encodedLength(),
+            skinnedCollision.checksum(), skinnedCollision.triangleCount(), 5) &&
+        skinnedPackage.seal())
+    var skinnedCooker = BoundedGlbCooker(4, 2, 2)
+    var skinnedCache = BoundedGenerationCache(2)
+    assert(skinnedCooker.cook(
+            skinnedPackage, skinnedReader, 100, 6, skinnedCache) &&
+        skinnedCooker.result().sceneChecksum() ==
+            skinnedReader.sceneChecksum() &&
+        skinnedCooker.result().skeletonChecksum() ==
+            skinnedReader.skeletonChecksum() &&
+        skinnedCooker.result().sceneNodeCount() == 4 &&
+        skinnedCooker.result().skinCount() == 1 &&
+        skinnedCooker.sceneProduct().skinId(1) == 1 &&
+        skinnedCooker.skeletonProduct().checksum() ==
+            skinnedReader.skeletonChecksum() &&
+        skinnedCooker.skeletonRuntime().paletteElement(1, 7) == 300 &&
+        skinnedCooker.transformHierarchy().worldMatrixElement(4, 7) == 300,
+        "GLB cooker must retain canonical scene and skin products")
 
     var texturedGlb = g4TexturedGlbFixture()
     var ds3 = g4DustArchiveFixture()
@@ -3422,7 +3946,8 @@ test "external GLB JSON BIN provenance and reopen" {
         "Dust3D intake must reject a TEXCOORD accessor without VEC2 UV data")
 
     glb[8] = glb[8] - 1
-    assert(!reader.read(glb, 10, 77, 4, 9, 3, 100),
+    assert(!reader.read(
+            glb, ExternalGlbReadRequest(10, 77, 4, 9, 3, 100)),
         "external GLB intake must reject a malformed total-length header")
 }
 
@@ -4830,6 +5355,72 @@ Int[] g4TexturedGlbFixture() {
     source[binary + 59] = 63
     source[binary + 62] = 1
     source[binary + 64] = 2
+    return source
+}
+
+Int[] g4SkinnedSceneGlbFixture() {
+    var jsonText =
+        "{\"asset\":{\"version\":\"2.0\"},\"buffers\":[{\"byteLength\":232}]," +
+        "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":36}," +
+        "{\"buffer\":0,\"byteOffset\":36,\"byteLength\":6}," +
+        "{\"buffer\":0,\"byteOffset\":44,\"byteLength\":12}," +
+        "{\"buffer\":0,\"byteOffset\":56,\"byteLength\":48}," +
+        "{\"buffer\":0,\"byteOffset\":104,\"byteLength\":128}]," +
+        "\"accessors\":[{\"bufferView\":0,\"componentType\":5126," +
+        "\"count\":3,\"type\":\"VEC3\"},{\"bufferView\":1," +
+        "\"componentType\":5123,\"count\":3,\"type\":\"SCALAR\"}," +
+        "{\"bufferView\":2,\"componentType\":5121,\"count\":3," +
+        "\"type\":\"VEC4\"},{\"bufferView\":3,\"componentType\":5126," +
+        "\"count\":3,\"type\":\"VEC4\"},{\"bufferView\":4," +
+        "\"componentType\":5126,\"count\":2,\"type\":\"MAT4\"}]," +
+        "\"meshes\":[{\"primitives\":[{\"attributes\":{\"POSITION\":0," +
+        "\"JOINTS_0\":2,\"WEIGHTS_0\":3},\"indices\":1,\"mode\":4}]}]," +
+        "\"nodes\":[{\"children\":[1],\"translation\":[1,2,3]}," +
+        "{\"mesh\":0,\"skin\":0,\"children\":[2]," +
+        "\"rotation\":[0,0,0,1]},{\"children\":[3]}," +
+        "{\"translation\":[0,1,0]}]," +
+        "\"skins\":[{\"joints\":[2,3],\"skeleton\":2," +
+        "\"inverseBindMatrices\":4}],\"scenes\":[{\"nodes\":[0]}]," +
+        "\"scene\":0}"
+    var json = g4AsciiSource(jsonText)
+    var jsonLength = ((json.length + 3) / 4) * 4
+    var binaryLength = 232
+    var source = new Int[12 + 8 + jsonLength + 8 + binaryLength]
+    g4Zero(source)
+    source[0] = 103; source[1] = 108; source[2] = 84; source[3] = 70
+    g4PutLe32(source, 4, 2)
+    g4PutLe32(source, 8, source.length)
+    g4PutLe32(source, 12, jsonLength)
+    source[16] = 74; source[17] = 83; source[18] = 79; source[19] = 78
+    for (var index = 0; index < json.length; index = index + 1) {
+        source[20 + index] = json[index]
+    }
+    for (var index = json.length; index < jsonLength; index = index + 1) {
+        source[20 + index] = 32
+    }
+    var binaryHeader = 20 + jsonLength
+    g4PutLe32(source, binaryHeader, binaryLength)
+    source[binaryHeader + 4] = 66
+    source[binaryHeader + 5] = 73
+    source[binaryHeader + 6] = 78
+    source[binaryHeader + 7] = 0
+    var binary = binaryHeader + 8
+    source[binary + 15] = 63
+    source[binary + 31] = 63
+    source[binary + 38] = 1
+    source[binary + 40] = 2
+    for (var vertex = 0; vertex < 3; vertex = vertex + 1) {
+        var weight = binary + 56 + vertex * 16
+        source[weight + 2] = 128
+        source[weight + 3] = 63
+    }
+    for (var matrix = 0; matrix < 2; matrix = matrix + 1) {
+        for (var diagonal = 0; diagonal < 4; diagonal = diagonal + 1) {
+            var value = binary + 104 + matrix * 64 + diagonal * 20
+            source[value + 2] = 128
+            source[value + 3] = 63
+        }
+    }
     return source
 }
 

@@ -1,0 +1,729 @@
+package core
+
+Int sceneGraphKind() { return 2 }
+Int sceneNodeGroupKind() { return 1 }
+Int sceneNodeMeshKind() { return 2 }
+Int sceneProductMagic() { return 1396919877 }
+Int sceneProductSchemaVersion() { return 1 }
+
+record SceneProductIdentity(
+    Int sourceNamespaceId,
+    Int assetId,
+    Int revision,
+    Int coordinateConvention,
+    Int unitScale,
+    Int transformScale,
+    Int nodeCount,
+    Int graphChecksum,
+    Int checksum
+)
+
+class BoundedSceneProduct {
+    BoundedGraphProduct topology
+    Int[] nodeIds
+    Int[] parentIds
+    Int[] nodeKinds
+    Int[] resourceIds
+    Int[] skinIds
+    Int[] localMatrices
+    Int[] wire
+    Int nodeCountValue
+    Int sourceNamespaceIdValue
+    Int assetIdValue
+    Int revisionValue
+    Int coordinateConventionValue
+    Int unitScaleValue
+    Int transformScaleValue
+    Int graphChecksumValue
+    Int checksumValue
+    Int wordCountValue
+    Bool configuredValue
+    Bool sealedValue
+
+    public constructor(Int nodeCapacity) {
+        var actual = nodeCapacity
+        if (actual <= 0) { actual = 1 }
+        if (actual > 512) { actual = 512 }
+        topology = BoundedGraphProduct(actual, actual)
+        nodeIds = new Int[actual]
+        parentIds = new Int[actual]
+        nodeKinds = new Int[actual]
+        resourceIds = new Int[actual]
+        skinIds = new Int[actual]
+        localMatrices = new Int[actual * 12]
+        wire = new Int[12 + actual * 17]
+        clear()
+    }
+
+    Bool clear() {
+        topology.clear()
+        nodeCountValue = 0
+        sourceNamespaceIdValue = 0
+        assetIdValue = 0
+        revisionValue = 0
+        coordinateConventionValue = 0
+        unitScaleValue = 0
+        transformScaleValue = 0
+        graphChecksumValue = 0
+        checksumValue = 0
+        wordCountValue = 0
+        configuredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool configure(
+        Int sourceNamespaceId,
+        Int assetId,
+        Int revision,
+        Int coordinateConvention,
+        Int unitScale,
+        Int transformScale
+    ) {
+        if (sourceNamespaceId <= 0 || sourceNamespaceId > 1000000 ||
+            assetId <= 0 || assetId > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            coordinateConvention <= 0 || coordinateConvention > 8 ||
+            unitScale <= 0 || unitScale > 1000000 ||
+            transformScale <= 0 || transformScale > 1000000) {
+            return false
+        }
+        clear()
+        if (!topology.configure(
+                sceneProductSchemaVersion(), revision,
+                sceneGraphKind(), false)) {
+            return false
+        }
+        sourceNamespaceIdValue = sourceNamespaceId
+        assetIdValue = assetId
+        revisionValue = revision
+        coordinateConventionValue = coordinateConvention
+        unitScaleValue = unitScale
+        transformScaleValue = transformScale
+        configuredValue = true
+        return true
+    }
+
+    Bool validMatrixElement(Int value) {
+        return value >= -1000000000 && value <= 1000000000
+    }
+
+    Bool validNodeKind(Int nodeKind, Int resourceId) {
+        if (nodeKind == sceneNodeGroupKind()) { return resourceId == 0 }
+        if (nodeKind == sceneNodeMeshKind()) { return resourceId > 0 }
+        return nodeKind > sceneNodeMeshKind() && nodeKind <= 16 &&
+            resourceId >= 0
+    }
+
+    Int findNode(Int nodeId) {
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            if (nodeIds[index] == nodeId) { return index }
+        }
+        return -1
+    }
+
+    Bool addNodeMatrix(
+        Int nodeId,
+        Int parentId,
+        Int nodeKind,
+        Int resourceId,
+        Int m00, Int m01, Int m02, Int m03,
+        Int m10, Int m11, Int m12, Int m13,
+        Int m20, Int m21, Int m22, Int m23
+    ) {
+        return addNodeSkinMatrix(
+            nodeId, parentId, nodeKind, resourceId, 0,
+            m00, m01, m02, m03, m10, m11, m12, m13,
+            m20, m21, m22, m23)
+    }
+
+    Bool addNodeSkinMatrix(
+        Int nodeId,
+        Int parentId,
+        Int nodeKind,
+        Int resourceId,
+        Int skinId,
+        Int m00, Int m01, Int m02, Int m03,
+        Int m10, Int m11, Int m12, Int m13,
+        Int m20, Int m21, Int m22, Int m23
+    ) {
+        if (!configuredValue || sealedValue ||
+            nodeId <= 0 || nodeId > 1000000 ||
+            parentId < 0 || parentId > 1000000 || parentId == nodeId ||
+            resourceId < 0 || resourceId > 1000000 ||
+            skinId < 0 || skinId > 1000000 ||
+            (nodeKind == sceneNodeGroupKind() && skinId != 0) ||
+            !validNodeKind(nodeKind, resourceId) ||
+            nodeCountValue >= nodeIds.length || findNode(nodeId) >= 0 ||
+            !validMatrixElement(m00) || !validMatrixElement(m01) ||
+            !validMatrixElement(m02) || !validMatrixElement(m03) ||
+            !validMatrixElement(m10) || !validMatrixElement(m11) ||
+            !validMatrixElement(m12) || !validMatrixElement(m13) ||
+            !validMatrixElement(m20) || !validMatrixElement(m21) ||
+            !validMatrixElement(m22) || !validMatrixElement(m23)) {
+            return false
+        }
+        var index = nodeCountValue
+        nodeIds[index] = nodeId
+        parentIds[index] = parentId
+        nodeKinds[index] = nodeKind
+        resourceIds[index] = resourceId
+        skinIds[index] = skinId
+        var offset = index * 12
+        localMatrices[offset] = m00
+        localMatrices[offset + 1] = m01
+        localMatrices[offset + 2] = m02
+        localMatrices[offset + 3] = m03
+        localMatrices[offset + 4] = m10
+        localMatrices[offset + 5] = m11
+        localMatrices[offset + 6] = m12
+        localMatrices[offset + 7] = m13
+        localMatrices[offset + 8] = m20
+        localMatrices[offset + 9] = m21
+        localMatrices[offset + 10] = m22
+        localMatrices[offset + 11] = m23
+        nodeCountValue = nodeCountValue + 1
+        return true
+    }
+
+    Bool addNodeTranslation(
+        Int nodeId,
+        Int parentId,
+        Int nodeKind,
+        Int resourceId,
+        Int x,
+        Int y,
+        Int z
+    ) {
+        return addNodeMatrix(
+            nodeId, parentId, nodeKind, resourceId,
+            transformScaleValue, 0, 0, x,
+            0, transformScaleValue, 0, y,
+            0, 0, transformScaleValue, z)
+    }
+
+    Bool swapNodes(Int first, Int second) {
+        if (first == second) { return true }
+        var temporary = nodeIds[first]
+        nodeIds[first] = nodeIds[second]
+        nodeIds[second] = temporary
+        temporary = parentIds[first]
+        parentIds[first] = parentIds[second]
+        parentIds[second] = temporary
+        temporary = nodeKinds[first]
+        nodeKinds[first] = nodeKinds[second]
+        nodeKinds[second] = temporary
+        temporary = resourceIds[first]
+        resourceIds[first] = resourceIds[second]
+        resourceIds[second] = temporary
+        temporary = skinIds[first]
+        skinIds[first] = skinIds[second]
+        skinIds[second] = temporary
+        for (var element = 0; element < 12; element = element + 1) {
+            temporary = localMatrices[first * 12 + element]
+            localMatrices[first * 12 + element] =
+                localMatrices[second * 12 + element]
+            localMatrices[second * 12 + element] = temporary
+        }
+        return true
+    }
+
+    Bool sortCanonical() {
+        for (var first = 0; first < nodeCountValue; first = first + 1) {
+            var smallest = first
+            for (var candidate = first + 1;
+                candidate < nodeCountValue; candidate = candidate + 1) {
+                if (nodeIds[candidate] < nodeIds[smallest]) {
+                    smallest = candidate
+                }
+            }
+            swapNodes(first, smallest)
+        }
+        return true
+    }
+
+    Bool buildTopology() {
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (!topology.addNode(nodeIds[node], nodeKinds[node])) {
+                return false
+            }
+        }
+        var roots = 0
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (parentIds[node] == 0) {
+                roots = roots + 1
+            } else if (findNode(parentIds[node]) < 0 ||
+                !topology.addEdge(parentIds[node], nodeIds[node], 1)) {
+                return false
+            }
+        }
+        return roots > 0 && topology.seal() && !topology.hasCycle()
+    }
+
+    Bool canonicalStructureValid() {
+        if (!configuredValue || nodeCountValue <= 0 ||
+            nodeCountValue > nodeIds.length || !topology.validate() ||
+            topology.graphKind() != sceneGraphKind() ||
+            topology.nodeCount() != nodeCountValue ||
+            graphChecksumValue != topology.checksum()) {
+            return false
+        }
+        var roots = 0
+        var expectedEdges = 0
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (nodeIds[node] <= 0 ||
+                (node > 0 && nodeIds[node] <= nodeIds[node - 1]) ||
+                skinIds[node] < 0 || skinIds[node] > 1000000 ||
+                (nodeKinds[node] == sceneNodeGroupKind() &&
+                    skinIds[node] != 0) ||
+                !validNodeKind(nodeKinds[node], resourceIds[node]) ||
+                topology.nodeId(node) != nodeIds[node] ||
+                topology.nodeKind(node) != nodeKinds[node]) {
+                return false
+            }
+            if (parentIds[node] == 0) {
+                roots = roots + 1
+            } else {
+                if (findNode(parentIds[node]) < 0) { return false }
+                expectedEdges = expectedEdges + 1
+            }
+            for (var element = 0; element < 12; element = element + 1) {
+                if (!validMatrixElement(localMatrices[node * 12 + element])) {
+                    return false
+                }
+            }
+        }
+        if (roots <= 0 || topology.edgeCount() != expectedEdges) { return false }
+        for (var edge = 0; edge < topology.edgeCount(); edge = edge + 1) {
+            var child = findNode(topology.edgeToId(edge))
+            if (child < 0 || parentIds[child] != topology.edgeFromId(edge)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 17
+        result = mix(result, sceneProductMagic())
+        result = mix(result, sceneProductSchemaVersion())
+        result = mix(result, sourceNamespaceIdValue)
+        result = mix(result, assetIdValue)
+        result = mix(result, revisionValue)
+        result = mix(result, coordinateConventionValue)
+        result = mix(result, unitScaleValue)
+        result = mix(result, transformScaleValue)
+        result = mix(result, nodeCountValue)
+        result = mix(result, graphChecksumValue)
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            result = mix(result, nodeIds[node])
+            result = mix(result, parentIds[node])
+            result = mix(result, nodeKinds[node])
+            result = mix(result, resourceIds[node])
+            result = mix(result, skinIds[node])
+            for (var element = 0; element < 12; element = element + 1) {
+                result = mix(result, localMatrices[node * 12 + element])
+            }
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool seal() {
+        if (sealedValue || !configuredValue || nodeCountValue <= 0 ||
+            !sortCanonical() || !buildTopology()) {
+            return false
+        }
+        graphChecksumValue = topology.checksum()
+        if (graphChecksumValue <= 0 || !canonicalStructureValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && canonicalStructureValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    Bool encode() {
+        if (!validate()) {
+            wordCountValue = 0
+            return false
+        }
+        wordCountValue = 12 + nodeCountValue * 17
+        wire[0] = sceneProductMagic()
+        wire[1] = sceneProductSchemaVersion()
+        wire[2] = sourceNamespaceIdValue
+        wire[3] = assetIdValue
+        wire[4] = revisionValue
+        wire[5] = coordinateConventionValue
+        wire[6] = unitScaleValue
+        wire[7] = transformScaleValue
+        wire[8] = nodeCountValue
+        wire[9] = graphChecksumValue
+        wire[10] = checksumValue
+        wire[11] = wordCountValue
+        var offset = 12
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            wire[offset] = nodeIds[node]
+            wire[offset + 1] = parentIds[node]
+            wire[offset + 2] = nodeKinds[node]
+            wire[offset + 3] = resourceIds[node]
+            wire[offset + 4] = skinIds[node]
+            for (var element = 0; element < 12; element = element + 1) {
+                wire[offset + 5 + element] =
+                    localMatrices[node * 12 + element]
+            }
+            offset = offset + 17
+        }
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length < 29 || source.length > wire.length ||
+            source[0] != sceneProductMagic() ||
+            source[1] != sceneProductSchemaVersion() ||
+            source[2] <= 0 || source[2] > 1000000 ||
+            source[3] <= 0 || source[3] > 1000000 ||
+            source[4] <= 0 || source[4] > 1000000 ||
+            source[5] <= 0 || source[5] > 8 ||
+            source[6] <= 0 || source[6] > 1000000 ||
+            source[7] <= 0 || source[7] > 1000000 ||
+            source[8] <= 0 || source[8] > nodeIds.length ||
+            source[9] <= 0 || source[10] <= 0 ||
+            source[11] != source.length ||
+            source.length != 12 + source[8] * 17 ||
+            !configure(
+                source[2], source[3], source[4], source[5],
+                source[6], source[7])) {
+            return false
+        }
+        var offset = 12
+        for (var node = 0; node < source[8]; node = node + 1) {
+            if (!addNodeSkinMatrix(
+                    source[offset], source[offset + 1],
+                    source[offset + 2], source[offset + 3],
+                    source[offset + 4],
+                    source[offset + 5], source[offset + 6],
+                    source[offset + 7], source[offset + 8],
+                    source[offset + 9], source[offset + 10],
+                    source[offset + 11], source[offset + 12],
+                    source[offset + 13], source[offset + 14],
+                    source[offset + 15], source[offset + 16])) {
+                clear()
+                return false
+            }
+            offset = offset + 17
+        }
+        if (!seal() || graphChecksumValue != source[9] ||
+            checksumValue != source[10]) {
+            clear()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            wire[index] = source[index]
+        }
+        wordCountValue = source.length
+        return true
+    }
+
+    Bool reopen(Int[] source) {
+        if (!decode(source) || !encode() || encodedLength() != source.length) {
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (wire[index] != source[index]) { return false }
+        }
+        return true
+    }
+
+    Bool copyFrom(BoundedSceneProduct source) {
+        if (!source.validate() || source.nodeCount() > nodeIds.length ||
+            !configure(
+                source.sourceNamespaceId(), source.assetId(),
+                source.revision(), source.coordinateConvention(),
+                source.unitScale(), source.transformScale())) {
+            return false
+        }
+        for (var node = 0; node < source.nodeCount(); node = node + 1) {
+            if (!addNodeSkinMatrix(
+                    source.nodeId(node), source.parentId(node),
+                    source.nodeKind(node), source.resourceId(node),
+                    source.skinId(node),
+                    source.localMatrixElement(node, 0),
+                    source.localMatrixElement(node, 1),
+                    source.localMatrixElement(node, 2),
+                    source.localMatrixElement(node, 3),
+                    source.localMatrixElement(node, 4),
+                    source.localMatrixElement(node, 5),
+                    source.localMatrixElement(node, 6),
+                    source.localMatrixElement(node, 7),
+                    source.localMatrixElement(node, 8),
+                    source.localMatrixElement(node, 9),
+                    source.localMatrixElement(node, 10),
+                    source.localMatrixElement(node, 11))) {
+                return false
+            }
+        }
+        return seal() && checksumValue == source.checksum()
+    }
+
+    SceneProductIdentity identity() {
+        return SceneProductIdentity(
+            sourceNamespaceIdValue, assetIdValue, revisionValue,
+            coordinateConventionValue, unitScaleValue, transformScaleValue,
+            nodeCountValue, graphChecksumValue, checksumValue)
+    }
+
+    Int sourceNamespaceId() { return sourceNamespaceIdValue }
+    Int assetId() { return assetIdValue }
+    Int revision() { return revisionValue }
+    Int coordinateConvention() { return coordinateConventionValue }
+    Int unitScale() { return unitScaleValue }
+    Int transformScale() { return transformScaleValue }
+    Int nodeCount() { return nodeCountValue }
+    Int nodeCapacity() { return nodeIds.length }
+    Int graphChecksum() { return graphChecksumValue }
+    Int topologicalNodeId(Int index) {
+        return topology.topologicalNodeId(index)
+    }
+
+    Int nodeId(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeIds[index]
+    }
+
+    Int parentId(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return -1 }
+        return parentIds[index]
+    }
+
+    Int nodeKind(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeKinds[index]
+    }
+
+    Int resourceId(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return resourceIds[index]
+    }
+
+    Int skinId(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return skinIds[index]
+    }
+
+    Int localMatrixElement(Int index, Int element) {
+        if (index < 0 || index >= nodeCountValue ||
+            element < 0 || element >= 12) {
+            return 0
+        }
+        return localMatrices[index * 12 + element]
+    }
+
+    Int encodedLength() { return wordCountValue }
+
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) { return -1 }
+        return wire[index]
+    }
+
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}
+
+class BoundedTransformHierarchy {
+    Int[] nodeIds
+    Int[] worldMatrices
+    Int nodeCountValue
+    Int transformScaleValue
+    Int sceneChecksumValue
+    Int checksumValue
+    Bool loadedValue
+
+    public constructor(Int nodeCapacity) {
+        var actual = nodeCapacity
+        if (actual <= 0) { actual = 1 }
+        if (actual > 512) { actual = 512 }
+        nodeIds = new Int[actual]
+        worldMatrices = new Int[actual * 12]
+        clear()
+    }
+
+    Bool clear() {
+        nodeCountValue = 0
+        transformScaleValue = 0
+        sceneChecksumValue = 0
+        checksumValue = 0
+        loadedValue = false
+        return true
+    }
+
+    Int findNode(Int nodeId) {
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            if (nodeIds[index] == nodeId) { return index }
+        }
+        return -1
+    }
+
+    Int scaledThree(
+        Int a0, Int b0, Int a1, Int b1, Int a2, Int b2,
+        Int divisor
+    ) {
+        var total: Long = a0
+        total = total * b0
+        var term: Long = a1
+        term = term * b1
+        total = total + term
+        term = a2
+        term = term * b2
+        total = total + term
+        total = total / divisor
+        if (total < -1000000000L || total > 1000000000L) {
+            return 2000000000
+        }
+        return total.toInt()
+    }
+
+    Bool composeNode(
+        BoundedSceneProduct scene,
+        Int sceneNode,
+        Int worldNode,
+        Int parentWorld
+    ) {
+        for (var row = 0; row < 3; row = row + 1) {
+            for (var column = 0; column < 3; column = column + 1) {
+                var value = scaledThree(
+                    worldMatrices[parentWorld * 12 + row * 4],
+                    scene.localMatrixElement(sceneNode, column),
+                    worldMatrices[parentWorld * 12 + row * 4 + 1],
+                    scene.localMatrixElement(sceneNode, 4 + column),
+                    worldMatrices[parentWorld * 12 + row * 4 + 2],
+                    scene.localMatrixElement(sceneNode, 8 + column),
+                    transformScaleValue)
+                if (value == 2000000000) { return false }
+                worldMatrices[worldNode * 12 + row * 4 + column] = value
+            }
+            var translated = scaledThree(
+                worldMatrices[parentWorld * 12 + row * 4],
+                scene.localMatrixElement(sceneNode, 3),
+                worldMatrices[parentWorld * 12 + row * 4 + 1],
+                scene.localMatrixElement(sceneNode, 7),
+                worldMatrices[parentWorld * 12 + row * 4 + 2],
+                scene.localMatrixElement(sceneNode, 11),
+                transformScaleValue)
+            if (translated == 2000000000) { return false }
+            var worldTranslation: Long = translated
+            worldTranslation = worldTranslation +
+                worldMatrices[parentWorld * 12 + row * 4 + 3]
+            if (worldTranslation < -1000000000L ||
+                worldTranslation > 1000000000L) {
+                return false
+            }
+            worldMatrices[worldNode * 12 + row * 4 + 3] =
+                worldTranslation.toInt()
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 29
+        result = mix(result, 1)
+        result = mix(result, sceneChecksumValue)
+        result = mix(result, transformScaleValue)
+        result = mix(result, nodeCountValue)
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            result = mix(result, nodeIds[node])
+            for (var element = 0; element < 12; element = element + 1) {
+                result = mix(result, worldMatrices[node * 12 + element])
+            }
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool load(BoundedSceneProduct scene) {
+        clear()
+        if (!scene.validate() || scene.nodeCount() > nodeIds.length) {
+            return false
+        }
+        transformScaleValue = scene.transformScale()
+        sceneChecksumValue = scene.checksum()
+        for (var position = 0; position < scene.nodeCount();
+            position = position + 1) {
+            var nodeId = scene.topologicalNodeId(position)
+            var sceneNode = -1
+            for (var index = 0; index < scene.nodeCount(); index = index + 1) {
+                if (scene.nodeId(index) == nodeId) { sceneNode = index }
+            }
+            if (sceneNode < 0) {
+                clear()
+                return false
+            }
+            nodeIds[position] = nodeId
+            var parentId = scene.parentId(sceneNode)
+            if (parentId == 0) {
+                for (var element = 0; element < 12; element = element + 1) {
+                    worldMatrices[position * 12 + element] =
+                        scene.localMatrixElement(sceneNode, element)
+                }
+            } else {
+                var parentWorld = findNode(parentId)
+                if (parentWorld < 0 ||
+                    !composeNode(scene, sceneNode, position, parentWorld)) {
+                    clear()
+                    return false
+                }
+            }
+            nodeCountValue = nodeCountValue + 1
+        }
+        checksumValue = calculateChecksum()
+        loadedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return loadedValue && nodeCountValue > 0 &&
+            sceneChecksumValue > 0 && transformScaleValue > 0 &&
+            checksumValue == calculateChecksum()
+    }
+
+    Int nodeCount() { return nodeCountValue }
+    Int sourceSceneChecksum() { return sceneChecksumValue }
+    Int transformScale() { return transformScaleValue }
+    Bool hasNode(Int nodeId) { return findNode(nodeId) >= 0 }
+
+
+    Int nodeId(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeIds[index]
+    }
+
+    Int worldMatrixElement(Int nodeId, Int element) {
+        var index = findNode(nodeId)
+        if (index < 0 || element < 0 || element >= 12) { return 0 }
+        return worldMatrices[index * 12 + element]
+    }
+
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}

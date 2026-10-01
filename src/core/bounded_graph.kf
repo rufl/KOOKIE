@@ -1,0 +1,481 @@
+package core
+
+record GraphProductIdentity(
+    Int formatVersion,
+    Int revision,
+    Int graphKind,
+    Bool cyclesAllowed,
+    Bool hasCycle,
+    Int nodeCount,
+    Int edgeCount,
+    Int checksum
+)
+
+record GraphGenerationIdentity(
+    Int generation,
+    Int revision,
+    Int graphKind,
+    Int graphChecksum,
+    Int nodeCount,
+    Int edgeCount
+)
+
+class BoundedGraphProduct {
+    Int[] nodeIds
+    Int[] nodeKinds
+    Int[] edgeFromIds
+    Int[] edgeToIds
+    Int[] edgeKinds
+    Int[] indegrees
+    Int[] topologicalIds
+    Bool[] emitted
+    Int nodeCountValue
+    Int edgeCountValue
+    Int topologicalCountValue
+    Int formatVersionValue
+    Int revisionValue
+    Int graphKindValue
+    Int checksumValue
+    Bool configuredValue
+    Bool cyclesAllowedValue
+    Bool cycleValue
+    Bool sealedValue
+
+    public constructor(Int nodeCapacity, Int edgeCapacity) {
+        var actualNodes = nodeCapacity
+        var actualEdges = edgeCapacity
+        if (actualNodes <= 0) { actualNodes = 1 }
+        if (actualNodes > 1024) { actualNodes = 1024 }
+        if (actualEdges <= 0) { actualEdges = 1 }
+        if (actualEdges > 4096) { actualEdges = 4096 }
+        nodeIds = new Int[actualNodes]
+        nodeKinds = new Int[actualNodes]
+        edgeFromIds = new Int[actualEdges]
+        edgeToIds = new Int[actualEdges]
+        edgeKinds = new Int[actualEdges]
+        indegrees = new Int[actualNodes]
+        topologicalIds = new Int[actualNodes]
+        emitted = new Bool[actualNodes]
+        clear()
+    }
+
+    Bool clear() {
+        nodeCountValue = 0
+        edgeCountValue = 0
+        topologicalCountValue = 0
+        formatVersionValue = 0
+        revisionValue = 0
+        graphKindValue = 0
+        checksumValue = 0
+        configuredValue = false
+        cyclesAllowedValue = false
+        cycleValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool configure(
+        Int formatVersion,
+        Int revision,
+        Int graphKind,
+        Bool cyclesAllowed
+    ) {
+        if (formatVersion <= 0 || formatVersion > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            graphKind <= 0 || graphKind > 1000000) {
+            return false
+        }
+        clear()
+        formatVersionValue = formatVersion
+        revisionValue = revision
+        graphKindValue = graphKind
+        cyclesAllowedValue = cyclesAllowed
+        configuredValue = true
+        return true
+    }
+
+    Int findNode(Int nodeId) {
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            if (nodeIds[index] == nodeId) { return index }
+        }
+        return -1
+    }
+
+    Bool addNode(Int nodeId, Int nodeKind) {
+        if (!configuredValue || sealedValue ||
+            nodeId <= 0 || nodeId > 1000000 ||
+            nodeKind <= 0 || nodeKind > 1000000 ||
+            nodeCountValue >= nodeIds.length || findNode(nodeId) >= 0) {
+            return false
+        }
+        nodeIds[nodeCountValue] = nodeId
+        nodeKinds[nodeCountValue] = nodeKind
+        nodeCountValue = nodeCountValue + 1
+        return true
+    }
+
+    Bool duplicateEdge(Int fromId, Int toId, Int edgeKind) {
+        for (var index = 0; index < edgeCountValue; index = index + 1) {
+            if (edgeFromIds[index] == fromId && edgeToIds[index] == toId &&
+                edgeKinds[index] == edgeKind) {
+                return true
+            }
+        }
+        return false
+    }
+
+    Bool addEdge(Int fromId, Int toId, Int edgeKind) {
+        if (!configuredValue || sealedValue || fromId == toId ||
+            edgeKind <= 0 || edgeKind > 1000000 ||
+            edgeCountValue >= edgeFromIds.length ||
+            findNode(fromId) < 0 || findNode(toId) < 0 ||
+            duplicateEdge(fromId, toId, edgeKind)) {
+            return false
+        }
+        edgeFromIds[edgeCountValue] = fromId
+        edgeToIds[edgeCountValue] = toId
+        edgeKinds[edgeCountValue] = edgeKind
+        edgeCountValue = edgeCountValue + 1
+        return true
+    }
+
+    Bool edgeAfter(
+        Int leftFrom, Int leftTo, Int leftKind,
+        Int rightFrom, Int rightTo, Int rightKind
+    ) {
+        if (leftFrom != rightFrom) { return leftFrom > rightFrom }
+        if (leftTo != rightTo) { return leftTo > rightTo }
+        return leftKind > rightKind
+    }
+
+    Bool sortCanonical() {
+        for (var node = 1; node < nodeCountValue; node = node + 1) {
+            var id = nodeIds[node]
+            var kind = nodeKinds[node]
+            var cursor = node - 1
+            while (cursor >= 0 && nodeIds[cursor] > id) {
+                nodeIds[cursor + 1] = nodeIds[cursor]
+                nodeKinds[cursor + 1] = nodeKinds[cursor]
+                cursor = cursor - 1
+            }
+            nodeIds[cursor + 1] = id
+            nodeKinds[cursor + 1] = kind
+        }
+        for (var edge = 1; edge < edgeCountValue; edge = edge + 1) {
+            var fromId = edgeFromIds[edge]
+            var toId = edgeToIds[edge]
+            var kind = edgeKinds[edge]
+            var cursor = edge - 1
+            while (cursor >= 0 && edgeAfter(
+                    edgeFromIds[cursor], edgeToIds[cursor], edgeKinds[cursor],
+                    fromId, toId, kind)) {
+                edgeFromIds[cursor + 1] = edgeFromIds[cursor]
+                edgeToIds[cursor + 1] = edgeToIds[cursor]
+                edgeKinds[cursor + 1] = edgeKinds[cursor]
+                cursor = cursor - 1
+            }
+            edgeFromIds[cursor + 1] = fromId
+            edgeToIds[cursor + 1] = toId
+            edgeKinds[cursor + 1] = kind
+        }
+        return true
+    }
+
+    Bool calculateTopology() {
+        topologicalCountValue = 0
+        cycleValue = false
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            indegrees[index] = 0
+            topologicalIds[index] = 0
+            emitted[index] = false
+        }
+        for (var edge = 0; edge < edgeCountValue; edge = edge + 1) {
+            var target = findNode(edgeToIds[edge])
+            if (target < 0) { return false }
+            indegrees[target] = indegrees[target] + 1
+        }
+        while (topologicalCountValue < nodeCountValue) {
+            var candidate = -1
+            for (var index = 0; index < nodeCountValue; index = index + 1) {
+                if (!emitted[index] && indegrees[index] == 0 &&
+                    (candidate < 0 || nodeIds[index] < nodeIds[candidate])) {
+                    candidate = index
+                }
+            }
+            if (candidate < 0) {
+                cycleValue = true
+                return true
+            }
+            emitted[candidate] = true
+            topologicalIds[topologicalCountValue] = nodeIds[candidate]
+            topologicalCountValue = topologicalCountValue + 1
+            for (var edge = 0; edge < edgeCountValue; edge = edge + 1) {
+                if (edgeFromIds[edge] == nodeIds[candidate]) {
+                    var target = findNode(edgeToIds[edge])
+                    if (target < 0 || indegrees[target] <= 0) { return false }
+                    indegrees[target] = indegrees[target] - 1
+                }
+            }
+        }
+        return true
+    }
+
+    Bool canonicalStructureValid() {
+        if (!configuredValue || nodeCountValue <= 0 ||
+            nodeCountValue > nodeIds.length || edgeCountValue < 0 ||
+            edgeCountValue > edgeFromIds.length) {
+            return false
+        }
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (nodeIds[node] <= 0 || nodeKinds[node] <= 0 ||
+                (node > 0 && nodeIds[node] <= nodeIds[node - 1])) {
+                return false
+            }
+        }
+        for (var edge = 0; edge < edgeCountValue; edge = edge + 1) {
+            if (edgeFromIds[edge] == edgeToIds[edge] ||
+                edgeKinds[edge] <= 0 || findNode(edgeFromIds[edge]) < 0 ||
+                findNode(edgeToIds[edge]) < 0) {
+                return false
+            }
+            if (edge > 0 && !edgeAfter(
+                    edgeFromIds[edge], edgeToIds[edge], edgeKinds[edge],
+                    edgeFromIds[edge - 1], edgeToIds[edge - 1],
+                    edgeKinds[edge - 1])) {
+                return false
+            }
+        }
+        if (cycleValue) {
+            return cyclesAllowedValue && topologicalCountValue < nodeCountValue
+        }
+        if (topologicalCountValue != nodeCountValue) { return false }
+        for (var position = 0; position < topologicalCountValue; position = position + 1) {
+            if (findNode(topologicalIds[position]) < 0) { return false }
+            for (var earlier = 0; earlier < position; earlier = earlier + 1) {
+                if (topologicalIds[earlier] == topologicalIds[position]) {
+                    return false
+                }
+            }
+        }
+        for (var edge = 0; edge < edgeCountValue; edge = edge + 1) {
+            var fromPosition = -1
+            var toPosition = -1
+            for (var position = 0; position < topologicalCountValue;
+                position = position + 1) {
+                if (topologicalIds[position] == edgeFromIds[edge]) {
+                    fromPosition = position
+                }
+                if (topologicalIds[position] == edgeToIds[edge]) {
+                    toPosition = position
+                }
+            }
+            if (fromPosition < 0 || toPosition < 0 || fromPosition >= toPosition) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 17
+        result = mix(result, 1)
+        result = mix(result, formatVersionValue)
+        result = mix(result, revisionValue)
+        result = mix(result, graphKindValue)
+        if (cyclesAllowedValue) { result = mix(result, 1) }
+        else { result = mix(result, 0) }
+        if (cycleValue) { result = mix(result, 1) }
+        else { result = mix(result, 0) }
+        result = mix(result, nodeCountValue)
+        result = mix(result, edgeCountValue)
+        result = mix(result, topologicalCountValue)
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            result = mix(result, nodeIds[node])
+            result = mix(result, nodeKinds[node])
+        }
+        for (var edge = 0; edge < edgeCountValue; edge = edge + 1) {
+            result = mix(result, edgeFromIds[edge])
+            result = mix(result, edgeToIds[edge])
+            result = mix(result, edgeKinds[edge])
+        }
+        for (var position = 0; position < topologicalCountValue;
+            position = position + 1) {
+            result = mix(result, topologicalIds[position])
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool seal() {
+        if (sealedValue || !configuredValue || nodeCountValue <= 0 ||
+            !sortCanonical() || !calculateTopology() ||
+            (cycleValue && !cyclesAllowedValue) ||
+            !canonicalStructureValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && canonicalStructureValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    GraphProductIdentity identity() {
+        return GraphProductIdentity(
+            formatVersionValue, revisionValue, graphKindValue,
+            cyclesAllowedValue, cycleValue, nodeCountValue, edgeCountValue,
+            checksumValue)
+    }
+
+    Int formatVersion() { return formatVersionValue }
+    Int revision() { return revisionValue }
+    Int graphKind() { return graphKindValue }
+    Bool cyclesAllowed() { return cyclesAllowedValue }
+    Bool hasCycle() { return cycleValue }
+    Int nodeCount() { return nodeCountValue }
+    Int edgeCount() { return edgeCountValue }
+    Int nodeCapacity() { return nodeIds.length }
+    Int edgeCapacity() { return edgeFromIds.length }
+    Int topologicalCount() { return topologicalCountValue }
+
+    Int nodeId(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeIds[index]
+    }
+
+    Int nodeKind(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeKinds[index]
+    }
+
+    Int edgeFromId(Int index) {
+        if (index < 0 || index >= edgeCountValue) { return 0 }
+        return edgeFromIds[index]
+    }
+
+    Int edgeToId(Int index) {
+        if (index < 0 || index >= edgeCountValue) { return 0 }
+        return edgeToIds[index]
+    }
+
+    Int edgeKind(Int index) {
+        if (index < 0 || index >= edgeCountValue) { return 0 }
+        return edgeKinds[index]
+    }
+
+    Int topologicalNodeId(Int index) {
+        if (cycleValue || index < 0 || index >= topologicalCountValue) { return 0 }
+        return topologicalIds[index]
+    }
+
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}
+
+class BoundedGraphPublication {
+    Bool stagedValue
+    Int stagedRevisionValue
+    Int stagedGraphKindValue
+    Int stagedGraphChecksumValue
+    Int stagedNodeCountValue
+    Int stagedEdgeCountValue
+    Int publishedGenerationValue
+    Int publishedRevisionValue
+    Int publishedGraphKindValue
+    Int publishedGraphChecksumValue
+    Int publishedNodeCountValue
+    Int publishedEdgeCountValue
+
+    public constructor() {
+        clear()
+    }
+
+    Bool clear() {
+        stagedValue = false
+        stagedRevisionValue = 0
+        stagedGraphKindValue = 0
+        stagedGraphChecksumValue = 0
+        stagedNodeCountValue = 0
+        stagedEdgeCountValue = 0
+        publishedGenerationValue = 0
+        publishedRevisionValue = 0
+        publishedGraphKindValue = 0
+        publishedGraphChecksumValue = 0
+        publishedNodeCountValue = 0
+        publishedEdgeCountValue = 0
+        return true
+    }
+
+    Bool stage(BoundedGraphProduct graph) {
+        if (!graph.validate() || graph.checksum() <= 0 ||
+            (publishedGenerationValue > 0 &&
+                graph.revision() <= publishedRevisionValue)) {
+            return false
+        }
+        stagedRevisionValue = graph.revision()
+        stagedGraphKindValue = graph.graphKind()
+        stagedGraphChecksumValue = graph.checksum()
+        stagedNodeCountValue = graph.nodeCount()
+        stagedEdgeCountValue = graph.edgeCount()
+        stagedValue = true
+        return true
+    }
+
+    Bool discardStaged() {
+        if (!stagedValue) { return false }
+        stagedValue = false
+        stagedRevisionValue = 0
+        stagedGraphKindValue = 0
+        stagedGraphChecksumValue = 0
+        stagedNodeCountValue = 0
+        stagedEdgeCountValue = 0
+        return true
+    }
+
+    Bool publish() {
+        if (!stagedValue) { return false }
+        if (publishedGenerationValue >= 1000000) {
+            publishedGenerationValue = 1
+        } else {
+            publishedGenerationValue = publishedGenerationValue + 1
+        }
+        publishedRevisionValue = stagedRevisionValue
+        publishedGraphKindValue = stagedGraphKindValue
+        publishedGraphChecksumValue = stagedGraphChecksumValue
+        publishedNodeCountValue = stagedNodeCountValue
+        publishedEdgeCountValue = stagedEdgeCountValue
+        stagedValue = false
+        return true
+    }
+
+    Bool publishedValid() {
+        return publishedGenerationValue > 0 && publishedRevisionValue > 0 &&
+            publishedGraphKindValue > 0 && publishedGraphChecksumValue > 0 &&
+            publishedNodeCountValue > 0 && publishedEdgeCountValue >= 0
+    }
+
+    GraphGenerationIdentity identity() {
+        return GraphGenerationIdentity(
+            publishedGenerationValue, publishedRevisionValue,
+            publishedGraphKindValue, publishedGraphChecksumValue,
+            publishedNodeCountValue, publishedEdgeCountValue)
+    }
+
+    Int generation() { return publishedGenerationValue }
+    Int revision() { return publishedRevisionValue }
+    Int graphKind() { return publishedGraphKindValue }
+    Int graphChecksum() { return publishedGraphChecksumValue }
+    Int nodeCount() { return publishedNodeCountValue }
+    Int edgeCount() { return publishedEdgeCountValue }
+}

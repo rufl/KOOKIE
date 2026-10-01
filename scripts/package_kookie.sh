@@ -15,10 +15,17 @@ KOF_ARCHIVE_SHA256="${KOOKIE_KOF_ARCHIVE_SHA256:-}"
 KOF_SOURCE_COMMIT="${KOOKIE_KOF_SOURCE_COMMIT:-}"
 EXPECTED_KOF_VERSION="${KOOKIE_EXPECTED_KOF_VERSION:-kof 0.5.0-beta}"
 EXPECTED_KOF_SOURCE_COMMIT="${KOOKIE_EXPECTED_KOF_SOURCE_COMMIT:-bf17ac7e736471c8a04b4153e5b0f607be75e70c}"
+WINDOWS_JAVA_ARCHIVE="${KOOKIE_WINDOWS_JAVA_ARCHIVE:-}"
+WINDOWS_JAVA_ARCHIVE_SHA256="${KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256:-}"
+WINDOWS_JAVA_VERSION="not-bundled"
+WINDOWS_JAVA_VENDOR="not-bundled"
+WINDOWS_JAVA_ACTUAL_SHA256="not-bundled"
+KOOKIE_DXC="${KOOKIE_DXC:-}"
+WINDOWS_DXC_VERSION="not-bundled"
 
 usage() {
   cat <<'EOF'
-Usage: scripts/package_kookie.sh [--runtime native|presentation] [--target linux-x86_64|windows-x86_64]
+Usage: scripts/package_kookie.sh [--runtime native|presentation|jvm] [--target linux-x86_64|windows-x86_64]
 
 Builds a signed immutable KOOKIE archive, provenance manifest, public key,
 signature set, and SHA256SUMS. Native Linux packages contain the Kof executable
@@ -26,8 +33,11 @@ and use the host's system runtime. Presentation packages contain the persistent
 native Kof SDL_GPU application, SDL3, SDL_mixer, the adapter, and shaders.
 Every Linux package also contains a graphics-free Kof dedicated workload server,
 a native bounded content cooker, and a Kof `Buffer(U8)` SIMD benchmark with
-native timing. Windows packages contain the native SDL3 and SDL_mixer game shell.
-Java runtimes are deliberately excluded.
+native timing. Windows native packages contain the SDL3/SDL_mixer shell.
+Windows JVM packages contain canonical Kof JVM classes and the exact
+SHA-256-pinned OpenJDK runtime supplied through KOOKIE_WINDOWS_JAVA_ARCHIVE.
+Windows presentation packages contain the Kof JVM gameplay and a native
+SDL_GPU/SDL_mixer adapter DLL plus SPIR-V and DXIL shader binaries.
 Set `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to the
 verified distribution used for the build.
 EOF
@@ -47,17 +57,18 @@ while (($#)); do
 done
 
 case "$RUNTIME" in
-  native|presentation) ;;
+  native|presentation|jvm) ;;
   *) echo "package_kookie: unsupported distributable runtime: $RUNTIME" >&2; exit 2 ;;
 esac
 
 case "$TARGET" in
-  linux-x86_64) ;;
-  windows-x86_64)
-    if [[ "$RUNTIME" != native ]]; then
-      echo 'package_kookie: Windows packaging requires --runtime native' >&2
+  linux-x86_64)
+    if [[ "$RUNTIME" == jvm ]]; then
+      echo 'package_kookie: JVM distribution is supported only for windows-x86_64' >&2
       exit 2
     fi
+    ;;
+  windows-x86_64)
     ;;
   *) echo "package_kookie: unsupported target: $TARGET" >&2; exit 2 ;;
 esac
@@ -83,6 +94,7 @@ command -v stat >/dev/null || { echo 'package_kookie: stat is required' >&2; exi
 command -v git >/dev/null || { echo 'package_kookie: git is required' >&2; exit 2; }
 command -v readlink >/dev/null || { echo 'package_kookie: readlink is required' >&2; exit 2; }
 command -v kof >/dev/null || { echo 'package_kookie: kof is required' >&2; exit 2; }
+command -v python3 >/dev/null || { echo 'package_kookie: python3 is required' >&2; exit 2; }
 ACTUAL_KOF_VERSION="$(kof version 2>/dev/null)" || {
   echo 'package_kookie: unable to read the Kof toolchain version' >&2
   exit 2
@@ -142,7 +154,8 @@ if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
     exit 2
   }
 fi
-if [[ "$TARGET" == windows-x86_64 ]]; then
+if [[ "$TARGET" == windows-x86_64 &&
+      ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
   [[ -n "${KOOKIE_WINDOWS_SDL_PREFIX:-}" &&
     -f "$KOOKIE_WINDOWS_SDL_PREFIX/include/SDL3/SDL.h" &&
     -f "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" &&
@@ -157,8 +170,43 @@ if [[ "$TARGET" == windows-x86_64 ]]; then
     echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_SDL_MIXER_PREFIX containing the SDL_mixer MinGW package' >&2
     exit 2
   }
-  command -v zip >/dev/null || { echo 'package_kookie: zip is required for Windows packaging' >&2; exit 2; }
   command -v zig >/dev/null || { echo 'package_kookie: zig is required for Windows packaging' >&2; exit 2; }
+fi
+if [[ "$TARGET" == windows-x86_64 &&
+      ( "$RUNTIME" == jvm || "$RUNTIME" == presentation ) ]]; then
+  command -v java >/dev/null || {
+    echo 'package_kookie: host java is required to smoke the Windows JVM artifact' >&2
+    exit 2
+  }
+  [[ -n "$WINDOWS_JAVA_ARCHIVE" && -f "$WINDOWS_JAVA_ARCHIVE" &&
+    ! -L "$WINDOWS_JAVA_ARCHIVE" ]] || {
+    echo 'package_kookie: KOOKIE_WINDOWS_JAVA_ARCHIVE must name a regular OpenJDK Windows ZIP' >&2
+    exit 2
+  }
+  [[ "$WINDOWS_JAVA_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || {
+    echo 'package_kookie: KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256 must be a SHA-256 digest' >&2
+    exit 2
+  }
+  WINDOWS_JAVA_ACTUAL_SHA256="$(sha256sum "$WINDOWS_JAVA_ARCHIVE" | cut -d ' ' -f 1)"
+  [[ "${WINDOWS_JAVA_ACTUAL_SHA256,,}" == "${WINDOWS_JAVA_ARCHIVE_SHA256,,}" ]] || {
+    echo 'package_kookie: Windows Java archive SHA-256 mismatch' >&2
+    exit 2
+  }
+fi
+if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
+  if [[ -z "$KOOKIE_DXC" ]]; then
+    KOOKIE_DXC="$(command -v dxc || true)"
+  fi
+  [[ -n "$KOOKIE_DXC" && -x "$KOOKIE_DXC" ]] || {
+    echo 'package_kookie: Windows presentation packaging requires KOOKIE_DXC pointing to dxc' >&2
+    exit 2
+  }
+  WINDOWS_DXC_VERSION="$("$KOOKIE_DXC" --version 2>/dev/null | tr '\n' ' ' || true)"
+  [[ -n "$WINDOWS_DXC_VERSION" ]] || WINDOWS_DXC_VERSION=unreported
+  command -v glslc >/dev/null || {
+    echo 'package_kookie: glslc is required for Windows presentation packaging' >&2
+    exit 2
+  }
 fi
 SOURCE_TREE_STATE=clean
 if [[ -n "$(git -C "$ROOT_DIR" status --porcelain --untracked-files=normal)" ]]; then
@@ -168,6 +216,11 @@ if [[ -n "$(git -C "$ROOT_DIR" status --porcelain --untracked-files=normal)" ]];
   fi
   SOURCE_TREE_STATE=dirty-allowed
 fi
+PACKAGE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT_DIR" show -s --format=%ct HEAD)}"
+[[ "$PACKAGE_EPOCH" =~ ^[0-9]+$ ]] || {
+  echo 'package_kookie: SOURCE_DATE_EPOCH must be a non-negative integer' >&2
+  exit 2
+}
 
 if [[ -e "$OUTPUT_DIR" && ! -d "$OUTPUT_DIR" ]]; then
   echo 'package_kookie: output path exists and is not a directory' >&2
@@ -404,8 +457,212 @@ exec ./kookie-simd-bench.bin
 EOF
   chmod 755 "$PACKAGE_ROOT/kookie-simd-bench"
 }
+bundle_windows_jvm() {
+  local extract_root="$WORK_DIR/windows-java"
+  local jvm_build="$WORK_DIR/jvm-build"
+  local runtime_root
+  local presentation_root=
+  mkdir -p "$extract_root" "$jvm_build"
+  python3 - "$WINDOWS_JAVA_ARCHIVE" "$extract_root" <<'PY'
+import pathlib
+import shutil
+import stat
+import sys
+import zipfile
 
-if [[ "$TARGET" == windows-x86_64 ]]; then
+archive = pathlib.Path(sys.argv[1])
+destination = pathlib.Path(sys.argv[2]).resolve()
+with zipfile.ZipFile(archive) as source:
+    entries = source.infolist()
+    if len(entries) > 100_000:
+        raise SystemExit("package_kookie: Windows Java archive has too many entries")
+    if sum(entry.file_size for entry in entries) > 1_073_741_824:
+        raise SystemExit("package_kookie: Windows Java archive exceeds the 1 GiB extraction limit")
+    for entry in entries:
+        name = entry.filename.replace("\\", "/")
+        relative = pathlib.PurePosixPath(name)
+        mode = entry.external_attr >> 16
+        if (not name or relative.is_absolute() or ".." in relative.parts
+                or stat.S_ISLNK(mode)
+                or (mode and not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)))):
+            raise SystemExit(f"package_kookie: unsafe Windows Java archive entry: {entry.filename!r}")
+        target = destination.joinpath(*relative.parts)
+        if entry.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with source.open(entry) as incoming, target.open("wb") as outgoing:
+            shutil.copyfileobj(incoming, outgoing)
+PY
+  mapfile -t java_roots < <(python3 - "$extract_root" <<'PY'
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+candidates = sorted({
+    executable.parent.parent.resolve()
+    for executable in root.rglob("java.exe")
+    if executable.parent.name.lower() == "bin"
+       and (executable.parent.parent / "release").is_file()
+})
+for candidate in candidates:
+    print(candidate)
+PY
+)
+  [[ "${#java_roots[@]}" == 1 ]] || {
+    echo 'package_kookie: Windows Java archive must contain exactly one runtime root with bin/java.exe and release' >&2
+    exit 1
+  }
+  runtime_root="${java_roots[0]}"
+  python3 - "$runtime_root" <<'PY' > "$WORK_DIR/windows-java-metadata"
+import pathlib
+import sys
+
+root = pathlib.Path(sys.argv[1])
+java = root / "bin" / "java.exe"
+if java.read_bytes()[:2] != b"MZ":
+    raise SystemExit("package_kookie: bundled bin/java.exe is not a Windows PE executable")
+legal = root / "legal"
+if not legal.is_dir() or not any(path.is_file() for path in legal.rglob("*")):
+    raise SystemExit("package_kookie: Windows Java runtime must retain its legal directory")
+values = {}
+for line in (root / "release").read_text(encoding="utf-8").splitlines():
+    if "=" not in line:
+        continue
+    key, value = line.split("=", 1)
+    values[key] = value.strip().strip('"')
+os_name = values.get("OS_NAME", "")
+os_arch = values.get("OS_ARCH", "")
+if "windows" not in os_name.lower():
+    raise SystemExit("package_kookie: Java runtime release metadata is not Windows")
+if os_arch.lower() not in {"amd64", "x86_64"}:
+    raise SystemExit("package_kookie: Java runtime release metadata is not x86_64")
+for key in ("JAVA_VERSION", "IMPLEMENTOR"):
+    value = values.get(key, "")
+    if not value or "\n" in value or "\r" in value:
+        raise SystemExit(f"package_kookie: Java runtime release metadata lacks {key}")
+    print(value)
+PY
+  mapfile -t java_metadata < "$WORK_DIR/windows-java-metadata"
+  [[ "${#java_metadata[@]}" == 2 ]] || {
+    echo 'package_kookie: invalid Windows Java runtime metadata' >&2
+    exit 1
+  }
+  WINDOWS_JAVA_VERSION="${java_metadata[0]}"
+  WINDOWS_JAVA_VENDOR="${java_metadata[1]}"
+  mkdir "$PACKAGE_ROOT/runtime"
+  cp -a -- "$runtime_root/." "$PACKAGE_ROOT/runtime/"
+
+  if [[ "$RUNTIME" == presentation ]]; then
+    presentation_root="$WORK_DIR/presentation"
+    mkdir -p "$presentation_root"/{core,content,session,world,ui,demo}
+    cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" \
+      "$presentation_root/main.kf"
+    for module in core content session world ui demo; do
+      for source in "$ROOT_DIR/src/$module/"*.kf; do
+        ln -s -- "$source" "$presentation_root/$module/$(basename "$source")"
+      done
+    done
+    kof build "$presentation_root/main.kf" --target jvm --output "$jvm_build" >/dev/null
+  else
+    kof build "$ROOT_DIR/src" --target jvm --output "$jvm_build" >/dev/null
+  fi
+  test -f "$jvm_build/Default/Main.class" || {
+    echo 'package_kookie: Kof JVM main class is missing' >&2
+    exit 1
+  }
+  python3 - "$jvm_build" "$PACKAGE_ROOT/kookie.jar" "$PACKAGE_EPOCH" <<'PY'
+import pathlib
+import sys
+import time
+import zipfile
+
+source = pathlib.Path(sys.argv[1])
+output = pathlib.Path(sys.argv[2])
+epoch = min(max(int(sys.argv[3]), 315_532_800), 4_354_819_199)
+stamp = time.gmtime(epoch)[:6]
+
+def entry(name):
+    info = zipfile.ZipInfo(name, stamp)
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.create_system = 3
+    info.external_attr = 0o100644 << 16
+    return info
+
+with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED,
+                     compresslevel=9, strict_timestamps=True) as jar:
+    jar.writestr(entry("META-INF/MANIFEST.MF"),
+                 b"Manifest-Version: 1.0\r\nMain-Class: Default.Main\r\n\r\n")
+    for path in sorted(item for item in source.rglob("*") if item.is_file()):
+        name = path.relative_to(source).as_posix()
+        if name.upper() == "META-INF/MANIFEST.MF":
+            continue
+        jar.writestr(entry(name), path.read_bytes())
+PY
+  if [[ "$RUNTIME" == presentation ]]; then
+    mkdir -p "$PACKAGE_ROOT/build"
+    zig cc -target x86_64-windows-gnu -std=c11 \
+      -Wall -Wextra -Werror -O2 -s -shared -Wl,/Brepro \
+      -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
+      -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
+      -I "$ROOT_DIR/native" \
+      "$ROOT_DIR/native/kookie_sdl_adapter.c" \
+      "$ROOT_DIR/native/kookie_transport.c" \
+      "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
+      "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
+      -lws2_32 -lpsapi \
+      -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so"
+    cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" \
+      "$PACKAGE_ROOT/SDL3.dll"
+    cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
+      "$PACKAGE_ROOT/SDL3_mixer.dll"
+    cp -- "$PACKAGE_ROOT/SDL3.dll" "$PACKAGE_ROOT/build/SDL3.dll"
+    cp -- "$PACKAGE_ROOT/SDL3_mixer.dll" \
+      "$PACKAGE_ROOT/build/SDL3_mixer.dll"
+    glslc -fshader-stage=vert \
+      "$ROOT_DIR/native/shaders/g0_triangle.vert" \
+      -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
+    glslc -fshader-stage=vert \
+      "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
+      -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
+    glslc -fshader-stage=frag \
+      "$ROOT_DIR/native/shaders/g0_triangle.frag" \
+      -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
+    "$KOOKIE_DXC" -T vs_6_0 -E main \
+      -Fo "$PACKAGE_ROOT/build/g0_triangle.vert.dxil" \
+      "$ROOT_DIR/native/shaders/g0_triangle.vert.hlsl"
+    "$KOOKIE_DXC" -T vs_6_0 -E main \
+      -Fo "$PACKAGE_ROOT/build/g5_triangle_instance.vert.dxil" \
+      "$ROOT_DIR/native/shaders/g5_triangle_instance.vert.hlsl"
+    "$KOOKIE_DXC" -T ps_6_0 -E main \
+      -Fo "$PACKAGE_ROOT/build/g0_triangle.frag.dxil" \
+      "$ROOT_DIR/native/shaders/g0_triangle.frag.hlsl"
+    rm -f -- \
+      "$PACKAGE_ROOT/build/libkookie_sdl_adapter.lib" \
+      "$PACKAGE_ROOT/build/libkookie_sdl_adapter.pdb"
+  fi
+  if [[ "$RUNTIME" != presentation ]]; then
+    java --enable-native-access=ALL-UNNAMED \
+      -jar "$PACKAGE_ROOT/kookie.jar" > "$WORK_DIR/jvm-smoke.log"
+  fi
+  cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
+@echo off
+setlocal
+set "ROOT=%~dp0"
+cd /d "%ROOT%"
+"%ROOT%runtime\bin\java.exe" --enable-native-access=ALL-UNNAMED -jar "%ROOT%kookie.jar" %*
+exit /b %ERRORLEVEL%
+EOF
+  cat > "$PACKAGE_ROOT/JAVA_RUNTIME.txt" <<EOF
+vendor=$WINDOWS_JAVA_VENDOR
+version=$WINDOWS_JAVA_VERSION
+archive_sha256=$WINDOWS_JAVA_ACTUAL_SHA256
+license_files=runtime/legal
+EOF
+}
+
+
+if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == native ]]; then
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -s -Wl,/subsystem:windows \
     -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
@@ -424,6 +681,8 @@ set "ROOT=%~dp0"
 "%ROOT%kookie.exe" %*
 exit /b %ERRORLEVEL%
 EOF
+elif [[ "$TARGET" == windows-x86_64 ]]; then
+  bundle_windows_jvm
 elif [[ "$RUNTIME" == native ]]; then
   kof build "$ROOT_DIR/src" --target native --output "$WORK_DIR/build" >/dev/null
   BINARY="$WORK_DIR/build/Default/Main"
@@ -478,6 +737,32 @@ cp -- "$ROOT_DIR/LICENSE" "$PACKAGE_ROOT/LICENSE"
 cp -- "$ROOT_DIR/THIRD_PARTY_NOTICES.txt" "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 SOURCE_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD)"
 KOF_TOOLCHAIN_VERSION="$ACTUAL_KOF_VERSION"
+WINDOWS_STATUS=not-applicable
+DEPENDENCY_POLICY=permissive-distributed-only
+SDL_VERSION=not-bundled
+SDL_MIXER_VERSION=not-bundled
+RUNTIME_DEPENDENCIES=system-only
+if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
+  WINDOWS_STATUS=kof-jvm-bundled-runtime
+  DEPENDENCY_POLICY=bundled-runtime-license-files-retained
+  RUNTIME_DEPENDENCIES=OpenJDK-runtime
+elif [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
+  WINDOWS_STATUS=kof-jvm-sdl-gpu-bundled-runtime
+  DEPENDENCY_POLICY=bundled-runtime-and-sdl-license-files-retained
+  SDL_VERSION=3.4.16
+  SDL_MIXER_VERSION=3.2.4
+  RUNTIME_DEPENDENCIES=OpenJDK-runtime+SDL3+SDL_mixer+SPIR-V+DXIL
+elif [[ "$TARGET" == windows-x86_64 ]]; then
+  WINDOWS_STATUS=native-sdl-shell
+  SDL_VERSION=3.4.16
+  SDL_MIXER_VERSION=3.2.4
+  RUNTIME_DEPENDENCIES=SDL3+SDL_mixer
+elif [[ "$RUNTIME" == presentation ]]; then
+  SDL_VERSION=3.4.16
+  SDL_MIXER_VERSION=3.2.4
+  RUNTIME_DEPENDENCIES=SDL3+SDL_mixer
+fi
+PYTHON_VERSION="$(python3 --version 2>&1)"
 cat > "$PACKAGE_ROOT/PROVENANCE.txt" <<EOF
 application=kookie
 channel=dogfood
@@ -494,12 +779,18 @@ kof_source_commit=$KOF_SOURCE_COMMIT
 kof_compiler_sha256=$KOF_COMPILER_SHA256
 release_signing=ed25519
 release_public_key_sha256=$PUBLIC_KEY_SHA256
-license_status=MIT
-windows_status=$([[ "$TARGET" == windows-x86_64 ]] && echo native-sdl-shell || echo not-applicable)
-dependency_policy=permissive-distributed-only
-sdl_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.4.16 || echo not-bundled)
-sdl_mixer_version=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo 3.2.4 || echo not-bundled)
-runtime_dependencies=$([[ "$RUNTIME" == presentation || "$TARGET" == windows-x86_64 ]] && echo SDL3+SDL_mixer || echo system-only)
+license_status=MIT-application
+windows_status=$WINDOWS_STATUS
+dependency_policy=$DEPENDENCY_POLICY
+sdl_version=$SDL_VERSION
+sdl_mixer_version=$SDL_MIXER_VERSION
+runtime_dependencies=$RUNTIME_DEPENDENCIES
+windows_java_archive_sha256=$WINDOWS_JAVA_ACTUAL_SHA256
+windows_java_version=$WINDOWS_JAVA_VERSION
+windows_java_vendor=$WINDOWS_JAVA_VENDOR
+windows_dxc_version=$WINDOWS_DXC_VERSION
+source_date_epoch=$PACKAGE_EPOCH
+archive_builder=$PYTHON_VERSION-zipfile
 dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
 simd_benchmark=$([[ "$TARGET" == linux-x86_64 ]] && echo kof-buffer-u8-runtime-dispatch || echo unavailable)
 content_cooker=$([[ "$TARGET" == linux-x86_64 ]] && echo native-bounded-intake-cli || echo unavailable)
@@ -515,7 +806,42 @@ CHECKSUMS_SIGNATURE="$OUTPUT_DIR/SHA256SUMS.sig"
 rm -f -- "$ARCHIVE" "$MANIFEST" "$PUBLIC_KEY" "$ARCHIVE_SIGNATURE" \
   "$MANIFEST_SIGNATURE" "$CHECKSUMS" "$CHECKSUMS_SIGNATURE"
 if [[ "$TARGET" == windows-x86_64 ]]; then
-  (cd "$WORK_DIR" && zip -qr "$ARCHIVE" "$PACKAGE_NAME")
+  python3 - "$PACKAGE_ROOT" "$ARCHIVE" "$PACKAGE_EPOCH" <<'PY'
+import pathlib
+import sys
+import time
+import zipfile
+
+root = pathlib.Path(sys.argv[1])
+output = pathlib.Path(sys.argv[2])
+epoch = min(max(int(sys.argv[3]), 315_532_800), 4_354_819_199)
+stamp = time.gmtime(epoch)[:6]
+
+def info(name, directory):
+    entry = zipfile.ZipInfo(name + ("/" if directory else ""), stamp)
+    entry.compress_type = zipfile.ZIP_DEFLATED
+    entry.create_system = 3
+    entry.external_attr = ((0o40755 if directory else 0o100644) << 16)
+    if directory:
+        entry.external_attr |= 0x10
+    return entry
+
+with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED,
+                     compresslevel=9, strict_timestamps=True) as archive:
+    archive.writestr(info(root.name, True), b"")
+    paths = sorted(root.rglob("*"),
+                   key=lambda path: path.relative_to(root).as_posix())
+    for path in paths:
+        if path.is_symlink():
+            raise SystemExit(f"package_kookie: package contains a symlink: {path}")
+        name = f"{root.name}/{path.relative_to(root).as_posix()}"
+        if path.is_dir():
+            archive.writestr(info(name, True), b"")
+        elif path.is_file():
+            archive.writestr(info(name, False), path.read_bytes())
+        else:
+            raise SystemExit(f"package_kookie: package contains a special file: {path}")
+PY
 else
   tar -C "$WORK_DIR" -czf "$ARCHIVE" "$PACKAGE_NAME"
 fi
@@ -524,13 +850,17 @@ python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$BASE_URL" "$PROVENANCE_SCHEMA" "$RUNTIME" "$SOURCE_COMMIT" \
   "$SOURCE_TREE_STATE" "$KOF_TOOLCHAIN_VERSION" "$KOF_ARCHIVE_SHA256" \
   "$KOF_SOURCE_COMMIT" "$KOF_COMPILER_SHA256" \
-  "$PUBLIC_KEY_SHA256" "$(basename "$PUBLIC_KEY")" <<'PY'
+  "$PUBLIC_KEY_SHA256" "$(basename "$PUBLIC_KEY")" \
+  "$WINDOWS_JAVA_ACTUAL_SHA256" "$WINDOWS_JAVA_VERSION" \
+  "$WINDOWS_JAVA_VENDOR" "$WINDOWS_DXC_VERSION" "$PACKAGE_EPOCH" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
 (target, version, build_id, base_url, schema, runtime, source_commit,
  source_tree_state, kof_version, kof_archive_sha256, kof_source_commit,
- kof_compiler_sha256, public_key_sha256, public_key_name) = sys.argv[3:17]
+ kof_compiler_sha256, public_key_sha256, public_key_name,
+ windows_java_archive_sha256, windows_java_version, windows_java_vendor,
+ windows_dxc_version, source_date_epoch) = sys.argv[3:22]
 encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
@@ -546,6 +876,13 @@ manifest = {
     "kof_archive_sha256": kof_archive_sha256,
     "kof_source_commit": kof_source_commit,
     "kof_compiler_sha256": kof_compiler_sha256,
+    "source_date_epoch": int(source_date_epoch),
+    "windows_java_runtime": target == "windows-x86_64" and runtime in {"jvm", "presentation"},
+    "windows_java_archive_sha256": windows_java_archive_sha256,
+    "windows_java_version": windows_java_version,
+    "windows_java_vendor": windows_java_vendor,
+    "windows_dxc_version": windows_dxc_version,
+    "windows_presentation": target == "windows-x86_64" and runtime == "presentation",
     "archive": archive.name,
     "size": archive.stat().st_size,
     "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),

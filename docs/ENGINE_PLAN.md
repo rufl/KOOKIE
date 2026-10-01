@@ -66,7 +66,7 @@ This plan does not choose a public license or authorize redistribution of third-
 
 Sokol remains credible; it is not rejected as incapable of shooters. Its backend list evolves, so pin headers/shader tools if selected rather than relying on stale capability tables.
 
-SDL_GPU also has limitations: modern GPU feature floor, strict shader resource layouts, no general browser backend in the proposed route, no promise of cutting-edge ray tracing/mesh shaders. SDL portability does not imply Kof native PE/Mach-O output. Windows/macOS/ARM/browser support remains a separately gated expansion, not an initial deliverable claim.
+SDL_GPU also has limitations: modern GPU feature floor, strict shader resource layouts, no general browser backend in the proposed route, no promise of cutting-edge ray tracing/mesh shaders. SDL portability does not imply full Kof native PE/Mach-O output. KOOKIE now retains a separately gated bounded AMD64 console PE/COFF compiler path; Windows gameplay, macOS, ARM and browser support remain independent expansion gates, not implied deliverables.
 
 Sources: [SDL GPU contract](https://wiki.libsdl.org/SDL3/CategoryGPU), [relative mouse mode](https://wiki.libsdl.org/SDL3/SDL_SetWindowRelativeMouseMode), [SDL_shadercross](https://github.com/libsdl-org/SDL_shadercross), [Sokol](https://github.com/floooh/sokol), [raylib](https://github.com/raysan5/raylib), [SDL license](https://github.com/libsdl-org/SDL/blob/main/LICENSE.txt).
 
@@ -79,9 +79,9 @@ Prioritize bounded `.kf` math/command ports from JOML/Brigadier, Artemis/Ashley-
 Kof owns bounded listener-relative attenuation and stereo panning and submits
 PCM without per-call allocation. SDL_mixer 3.2.4 is now the sole
 device/mixing authority with separate effects and music buses. OpenAL Soft is
-not distributable under the current permissive-only dependency policy. Jolt
-physics and RmlUi/ImGui UI still require explicit foreign-subsystem ownership
-approval.
+not distributable under the native presentation profile's permissive-library
+policy. Jolt physics and RmlUi/ImGui UI still require explicit
+foreign-subsystem ownership approval.
 
 ### Recommended library set (2026-09-22)
 
@@ -100,12 +100,13 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 
 **Audio choice details.** SDL_mixer is the adopted device/mixer authority.
 KOOKIE submits generated PCM streams and bounded cooked PCM16 clips, so
-packages do not need optional compressed-audio decoders. Any future codec must
-pass the permissive-license and dependency-closure gate before packaging.
-OpenAL Soft is not an alternative under the current permissive-only distributed
-dependency
-policy because the inspected implementation is LGPL-2.0-or-later. Do not run a
-second library as a competing mixer authority.
+packages do not need optional compressed-audio decoders. Any future native
+codec must pass the permissive-license and dependency-closure gate before
+packaging. OpenAL Soft is not an alternative under that native presentation
+policy because the inspected implementation is LGPL-2.0-or-later. The separate
+Windows JVM profile retains its OpenJDK license tree; it does not relax the
+native media-library gate. Do not run a second library as a competing mixer
+authority.
 
 **Keep these engine libraries in Kof:** typed entity/component storage; a small
 math library using selective MIT JOML ports; shooter movement/collision;
@@ -335,11 +336,12 @@ namespaced ID. Conflicts, capacity exhaustion, invalid content and missing
 capabilities fail closed with an actionable diagnostic.
 
 The first shipping extension SDK should use trusted `.kf` modules statically
-compiled into the player/cooker/studio. This is the safest path through current
-native Kof limitations while preserving a stable mod-facing API. A later
-runtime script or bytecode tier may provide no-rebuild mods, but it must use
-the same public contracts, capability limits, save/network declarations and
-deterministic budgets. It must not become a second gameplay authority.
+compiled into the player/cooker/studio. This remains the broadest safe path
+through current native Kof limitations. The implemented no-rebuild
+`BoundedKofScriptProgram` tier is deliberately narrower: forward-only bytecode
+receives copied domain-event fields and emits capability-masked public
+commands/events under fixed budgets. It has no save/network/filesystem/native
+authority and must not become a second gameplay authority.
 
 Internal modules may access optimized arrays directly. Public extensions may
 only use stable handles, queries, commands, events and snapshots. This keeps
@@ -711,7 +713,7 @@ No calendar promise; each gate has runnable evidence. A successful gate authoriz
 | **G3 — Looter / ARPG slice** | Rolled items/affixes, inventory/equipment, XP/skills/statuses, elites/bosses, authoritative saves, extension registries and replicated schemas | Multiplayer kill→rolled drop→pickup/equip→observable stat/skill change→boss reward→save/reload. Full inventory cannot lose item/currency/RNG. Same seed/content yields same server result. Clients cannot mint damage, items, currency or progression |
 | **G4 — Creator and extension pipeline** | Kof cooker, supported mesh/brush formats, package validation, data-mod manifests, trusted Kof extension modules, inspector/editors, staged reload | A second distinct multiplayer sample game is built from definitions/extensions without editing core engine code. Server/client reject incompatible package/API/mod manifests. Invalid content leaves the prior running world intact; geometry/collision/nav/replication revisions stay aligned |
 | **G5 — Scale and release** | AI budgets, batching/instancing, animation, streaming only as needed, dedicated headless server, migrations/replay, reconnect/admission hardening, packaging/notices | Reference LAN workload meets declared budgets; dedicated server runs without graphics; memory/resource counts plateau; package runs outside source checkout; reconnect/session recovery and extension compatibility are proven |
-| **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Each extension proves actual runtime/ABI/content compatibility; no portability, WAN, sandbox or platform claim is inferred from dependency support |
+| **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Bounded jobs, package-bound KofScript/session activation, persistent Studio, limited WAN and Windows SDL presentation package have focused probes; no general portability, WAN security, PE gameplay or sandbox claim is inferred |
 
 G0 evidence is tracked in [G0_BACKLOG](G0_BACKLOG.md): native/session
 feasibility, isolated window presentation and authenticated external-LAN
@@ -826,6 +828,19 @@ G5 is complete for this declared Linux x86-64 contract. The evidence does not
 claim multi-machine/WAN behavior, other OS or GPU performance, arbitrary
 population scalability, streamed content, or G6 sandboxing.
 
+G6 is qualified for the declared bounded contract by
+`scripts/verify_g6_runtime.sh`, the reproducible Windows presentation package
+gate and a separate full isolated Wine smoke. The smoke used private
+Weston/Xwayland display/session sockets with a DRI3-capable Intel render node
+and verified the Kof HUD, 3D scene, creator reload, SDL GPU claim/present path
+and screenshot capture. The five expected qualification markers passed and the
+captured frame was 1280×720.
+
+This qualifies Kof JVM gameplay plus native SDL presentation on the recorded
+host. It does not claim native PE/full-Kof Windows lowering, NAT traversal,
+relay service, confidentiality, DDoS resistance, arbitrary editor
+extensibility, a general-purpose runtime sandbox, or other OS/GPU coverage.
+
 ### Measured bounded evidence and retained performance targets
 
 Reference scene for first scale gate: 64 active enemies, 256 moving projectiles, 512 pickups, bounded dynamic lights/effects and one medium authored level. Maintain a heavier stress variant after the baseline is correct; do not claim arbitrary population scalability.
@@ -882,17 +897,17 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 | Risk | Current evidence | Action / release gate |
 |---|---|---|
 | Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | Pinned 0.5.0-beta `Buffer(U8, INOUT)` passes the packaged JVM/native `u8` reduction benchmark; supplied cross verification passes, while Script/JS/Android/riscv32/MCU remain `FFI001` | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
-| Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows is a platform shell | Keep separate platform gates; do not infer gameplay support from an SDL backend |
+| Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows has a native platform shell, a deterministic bounded Kof console PE/COFF compiler and an explicit graphics-free Kof JVM core package | Keep separate platform gates; do not infer Windows SDL gameplay support from the compiler probe, shell or JVM package |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
 | Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |
-| Distribution runtime pruning | Warning reproduced outside compiler checkout | Fix upstream or explicitly measure/accept full-runtime dependency/size before release |
+| Distribution runtime closure | The Windows JVM profile retains a digest-pinned full OpenJDK runtime and legal tree; native compiler pruning still emits its known warning | Keep the JVM choice explicit, record runtime identity/size, compare reproducible archives and never treat it as silent native fallback |
 | Native stale exception handler | Later assertion re-entered a completed try/catch and exited 0; failure-path hangs remain externally bounded | Validate expected failures before throw; use external timeout/exit/output gates; no control-flow shim |
 | Native JSON/split parity | Fractional mixed-record JSON corrupted values; escaped-pipe split differed from JVM | Repair/prove exact content/save schemas and parser contracts before G3/G4 reliance |
 | Language/docs rapidly diverge | 0.3.7 course / older portal pages / 0.5.0-beta release gate | Pin exact toolchain identity and archive digest; upgrade through focused behavior probes, not compile-only claims |
 | Editor reliability/security | Single-file run, JS UI, privileged unauthenticated handlers | CLI + separate LSP-capable editor; no dependency on editor fork |
 | Creator pipeline becomes second engine | Multiple monolithic runtimes or authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
 | License/asset assumptions | Unclear code/asset rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |
-| Native portability overclaimed | Examined native output is Linux ELF | Separate platform gates; SDL backend list is not Kof executable support |
+| Native portability overclaimed | Upstream native output remains Linux ELF; the KOOKIE bridge emits deterministic AMD64 PE/COFF only for top-level integral/String control-flow programs and rejects all other IR with `PE001` | Keep separate platform gates; require full arrays/objects/exceptions/FFI/SDL lowering and actual Windows gameplay qualification before changing the authoritative target |
 
 ## 12. Historical first implementation increment
 

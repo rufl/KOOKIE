@@ -2177,6 +2177,18 @@ class LoopbackSession {
             perceptionRange, attackRange, cooldown)
     }
 
+    Bool installEnemyBehaviorProgram(BoundedBehaviorProgram program) {
+        return enemyCombat.installEnemyBehaviorProgram(program)
+    }
+
+    Int enemyBehaviorProgramRevision() {
+        return enemyCombat.enemyBehaviorProgramRevision()
+    }
+
+    Int enemyBehaviorProgramChecksum() {
+        return enemyCombat.enemyBehaviorProgramChecksum()
+    }
+
     Bool configureEnemySpatialBounds(
         Int minX, Int minY, Int minZ,
         Int maxX, Int maxY, Int maxZ
@@ -4557,6 +4569,56 @@ class LoopbackSession {
         }
         return runtime.markCommandsApplied()
     }
+    Bool applyKofScriptCommands(BoundedKofScriptVm runtime) {
+        if (!runtime.readyForApplication()) { return false }
+        var playerOneBonus = 0
+        var playerTwoBonus = 0
+        for (var index = 0; index < runtime.commandCount(); index = index + 1) {
+            if (runtime.commandKind(index) != trustedHookCommandGrantCurrency()) {
+                return false
+            }
+            var player = runtime.commandPlayer(index)
+            var amount = runtime.commandValue(index)
+            if (!playerConnected(player) || amount <= 0 || amount > 1000000) {
+                return false
+            }
+            if (player == 1) {
+                if (playerOneBonus > 1000000 - amount) { return false }
+                playerOneBonus = playerOneBonus + amount
+            } else if (player == 2) {
+                if (playerTwoBonus > 1000000 - amount) { return false }
+                playerTwoBonus = playerTwoBonus + amount
+            } else {
+                return false
+            }
+        }
+        if (playerCurrency(1) > 1000000 - playerOneBonus ||
+            playerCurrency(2) > 1000000 - playerTwoBonus) {
+            return false
+        }
+        if (playerOneBonus > 0 &&
+            !setPlayerCurrency(1, playerCurrency(1) + playerOneBonus)) {
+            return false
+        }
+        if (playerTwoBonus > 0 &&
+            !setPlayerCurrency(2, playerCurrency(2) + playerTwoBonus)) {
+            return false
+        }
+        return runtime.markCommandsApplied()
+    }
+    Bool applyPackagedKofScript(
+        BoundedKofScriptPackageRuntime packageRuntime,
+        TrustedDomainEvent event,
+        Int tick
+    ) {
+        if (!packageRuntime.loaded()) { return false }
+        var runtime = BoundedKofScriptVm(64, 32, 32)
+        if (!packageRuntime.execute(runtime, event, tick)) {
+            return false
+        }
+        return applyKofScriptCommands(runtime)
+    }
+
 
     Bool addPlayerItem(Int player, Int itemId, Int quantity) {
         if (player == 1) {

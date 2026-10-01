@@ -250,9 +250,10 @@ class BoundedDust3dIntake {
             return false
         }
         if (!readerValue.read(
-                exportedGlb, sourceNamespaceId, sourceAssetId,
-                sourceRevision, toolVersion, optionsChecksum,
-                coordinateScale) || !readerValue.reopenCanonical() ||
+                exportedGlb, ExternalGlbReadRequest(
+                    sourceNamespaceId, sourceAssetId, sourceRevision,
+                    toolVersion, optionsChecksum, coordinateScale)) ||
+            !readerValue.reopenCanonical() ||
             !readerValue.emitCollision(collisionValue) ||
             !collisionValue.validate() || !collisionValue.encode()) {
             diagnosticValue = dust3dDiagnosticExport()

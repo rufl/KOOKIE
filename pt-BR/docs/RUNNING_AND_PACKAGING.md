@@ -15,14 +15,15 @@ a demo autoritativa na raiz do repositório:
 kof run src/main.kf --target native
 ```
 
-O alvo JVM existe para qualificação diferencial local:
+O alvo JVM é usado para qualificação diferencial local e para o pacote de
+compatibilidade Windows explícito:
 
 ```bash
 kof run src/main.kf --target jvm
 ```
 
-Ele não é um fallback distribuível. Os arquivos de release do KOOKIE não
-incluem nem exigem uma JVM.
+Ele não é fallback silencioso do Linux nem do perfil de apresentação SDL
+nativo. Somente `--runtime jvm --target windows-x86_64` distribui uma JVM.
 
 Execute a sonda focada de gameplay e replay com:
 
@@ -51,6 +52,31 @@ Os formatos de fonte são entradas de autoria, não formatos de pacote do
 runtime. Os arquivos Linux incluem um `kookie-cooker` nativo para os comandos
 `cook` acima; a montagem e a inspeção de pacotes continuam no launcher de
 desenvolvimento JVM.
+
+## Produtos KofScript offline e sandbox
+
+O wrapper KofScript emite artefatos canônicos de comportamento, animação e
+bytecode de sandbox sem duplicar seus schemas de runtime:
+
+```bash
+scripts/kookie_kofscript_builder.sh behavior build/enemy.kofart
+scripts/kookie_kofscript_builder.sh animation build/player-animation.kofart
+scripts/kookie_kofscript_builder.sh script build/bounty.kofart
+```
+
+Execute um artefato de sandbox contra um evento de domínio admitido em qualquer
+alvo Kof:
+
+```bash
+scripts/kookie_kofscript_runtime.sh build/bounty.kofart 7 1 3 1 42 2 20
+KOOKIE_KOFSCRIPT_RUNTIME_TARGET=native \
+  scripts/kookie_kofscript_runtime.sh build/bounty.kofart 7 1 3 1 42 2 20
+```
+
+A VM tem fluxo somente para a frente, orçamentos fixos de
+pilha/instruções/saídas e saídas protegidas por máscaras de capacidade. Ela não
+tem opcode de filesystem, rede, handle nativo nem array bruto; a carga do
+artefato ocorre fora da sandbox.
 
 ## Pacote Linux assinado
 
@@ -116,7 +142,31 @@ SipHash e sequências contra replay. Uma chave compartilhada configurada de 128
 bits autentica peers; o fallback local apenas detecta corrupção acidental. O
 lobby não fornece criptografia nem identidade pública.
 
-## Shell Windows x86-64
+## Pacotes Windows x86-64
+
+### Compilador Kof PE/COFF limitado
+
+A ponte fixada do compilador reduz a IR Kof otimizada para C11 determinístico e
+usa Zig 0.16.0 para emitir um objeto COFF AMD64 e um PE de console Windows:
+
+```bash
+scripts/kof_pe_build.sh caminho/para/main.kf --output build/kof-pe
+scripts/verify_kof_pe_backend.sh
+```
+
+A saída contém `kof-module.c`, `kof-module.obj` e `kof-module.exe`. O gate
+retido gera duas vezes, verifica reprodutibilidade byte a byte e cabeçalhos
+PE/COFF, compara a saída do código gerado com o oráculo Kof JVM e comprova que
+IR incompatível é rejeitada com `PE001`.
+
+Este alvo do compilador é intencionalmente limitado: funções de topo, valores
+inteiros/Boolean/String, locais, aritmética, desvios, loops e `print`/`println`.
+Classes, objetos no heap, arrays, exceções, concorrência, FFI e chamadas SDL
+são rejeitados em vez de receber stubs. Portanto ele qualifica a rota do
+compilador; ainda não compila o módulo completo de gameplay ou apresentação do
+KOOKIE.
+
+### Shell SDL nativo
 
 Gere o shell nativo a partir dos pacotes oficiais de desenvolvimento MinGW do
 SDL 3.4.16 e SDL_mixer 3.2.4:
@@ -129,9 +179,81 @@ scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
 
 O ZIP contém `kookie.exe`, `SDL3.dll`, `SDL3_mixer.dll`, licenças e procedência.
-Ele não contém JDK. O shell de menu/opções/lobby é interativo e persistente,
-mas Kof ainda não gera código de gameplay PE para Windows. Linux continua como
-o alvo nativo autoritativo de gameplay.
+Ele não contém JDK. O shell de menu/opções/lobby é interativo e persistente. O
+compilador limitado acima gera PE de console Windows, mas ainda não reduz toda
+a IR de gameplay/SDL do KOOKIE. Linux continua como alvo nativo autoritativo de
+gameplay.
+
+### Runtime Kof JVM incluído
+
+O perfil de compatibilidade empacota o artefato JVM do Kof com um runtime
+OpenJDK Windows x64 exato:
+
+```bash
+KOOKIE_WINDOWS_JAVA_ARCHIVE=/caminho/para/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip \
+KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
+KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
+SOURCE_DATE_EPOCH=<timestamp-unix> \
+scripts/package_kookie.sh --runtime jvm --target windows-x86_64
+```
+
+O builder verifica o digest do arquivo, caminhos ZIP seguros, metadados de
+release Windows x86-64, o PE `java.exe` e os arquivos legais preservados do
+runtime. Ele gera e executa o smoke de um `kookie.jar` executável canônico e
+escreve um ZIP assinado, ordenado deterministicamente e com timestamps
+normalizados. O pacote contém `kookie.cmd`, `kookie.jar`, `runtime/`,
+`JAVA_RUNTIME.txt`, licenças e procedência; a máquina de destino não precisa de
+Java instalado separadamente. `runtime/legal` e `runtime/NOTICE` são a
+autoridade para as licenças do OpenJDK incluído.
+
+Esse perfil executa o núcleo Kof sem gráficos. Ele não substitui o shell SDL
+nativo do Windows nem afirma ter backend de gameplay/apresentação SDL no
+Windows. `scripts/verify_windows_jvm_package.sh` gera o pacote duas vezes,
+compara todos os artefatos assinados, verifica as assinaturas e executa o JAR
+empacotado.
+
+### Pacote de compatibilidade de apresentação SDL
+
+O perfil de apresentação combina o gameplay JVM do Kof com o adaptador
+Windows SDL3/SDL_mixer e produtos de shader SPIR-V e DXIL:
+
+```bash
+KOOKIE_WINDOWS_JAVA_ARCHIVE=/caminho/para/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip \
+KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd \
+KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
+KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer/x86_64-w64-mingw32 \
+KOOKIE_DXC=/caminho/para/dxc \
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
+KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
+SOURCE_DATE_EPOCH=<timestamp-unix> \
+scripts/package_kookie.sh --runtime presentation --target windows-x86_64
+```
+
+`glslc` deve estar no `PATH`. `scripts/verify_windows_presentation.sh` gera o
+pacote duas vezes, compara os artefatos assinados, valida caminhos ZIP seguros,
+licenças, a import library SDL e as entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1`
+adiciona o smoke opcional de gameplay, exigindo `wine` e
+`overzeer-isolated-display`. É uma rota limitada de gameplay JVM e apresentação
+nativa; não faz o compilador PE limitado emitir o programa Kof/SDL completo.
+
+Em um host isolado capaz de DRI3, o smoke completo em Wine verifica o caminho de
+gameplay Kof JVM junto com a apresentação nativa SDL3/SDL_mixer. Isso não deve
+ser generalizado para gameplay PE nativo, outras combinações de SO/GPU ou
+qualificação de WAN/segurança.
+
+### Sondas runtime G6
+
+```bash
+bash scripts/verify_g6_runtime.sh
+```
+
+O comando qualifica jobs seguros, ativação de KofScript em pacote/sessão,
+reabertura persistente do Studio e o canal WAN de janela fixa. WAN significa
+endpoint IPv4/UDP direto autenticado, retry e backpressure limitados; não há
+alegação de NAT traversal, relay, confidencialidade ou resistência a DDoS.
 
 ## Papéis para qualificação em LAN externa
 

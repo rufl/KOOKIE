@@ -21,6 +21,8 @@ concurrency:
 env:
   KOF_VERSION: 0.5.0-beta
   KOF_SOURCE_COMMIT: bf17ac7e736471c8a04b4153e5b0f607be75e70c
+  WINDOWS_JAVA_ARCHIVE_SHA256: e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd
+  WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
 
 jobs:
   verify:
@@ -44,6 +46,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
+      - name: Install pinned Zig cross-toolchain
+        uses: mlugg/setup-zig@v2
+        with:
+          version: "0.16.0"
 
 
       - name: Build pinned Kof toolchain
@@ -61,6 +67,23 @@ jobs:
           export PATH="$kof_bin:$PATH"
           kof version
           rm -rf _kof
+      - name: Download pinned Windows JVM runtime
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip"
+          curl --fail --location --retry 3 --output "$archive" \
+            "$WINDOWS_JAVA_ARCHIVE_URL"
+          echo "$WINDOWS_JAVA_ARCHIVE_SHA256  $archive" | sha256sum --check -
+          echo "KOOKIE_WINDOWS_JAVA_ARCHIVE=$archive" >> "$GITHUB_ENV"
+          echo "KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=$WINDOWS_JAVA_ARCHIVE_SHA256" \
+            >> "$GITHUB_ENV"
+
 
       - name: Run repository verification gate
         run: bash scripts/verify.sh
+      - name: Verify bounded Kof PE/COFF backend
+        run: bash scripts/verify_kof_pe_backend.sh
+      - name: Verify reproducible Windows JVM package
+        run: bash scripts/verify_windows_jvm_package.sh
+      - name: Verify G6 runtime probes
+        run: bash scripts/verify_g6_runtime.sh

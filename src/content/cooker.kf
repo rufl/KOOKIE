@@ -4,25 +4,37 @@ record GlbCookResult(
     Bool accepted,
     Int packageChecksum,
     Int geometryChecksum,
+    Int sceneChecksum,
+    Int skeletonChecksum,
     Int collisionChecksum,
     Int navigationChecksum,
     Int generation,
     Int triangleCount,
+    Int sceneNodeCount,
+    Int skinCount,
     Int navigationNodeCount
 )
 
 class BoundedGlbCooker {
     BoundedAuthoredCollision collisionValue
     BoundedNavigationProduct navigationValue
+    BoundedSceneProduct sceneValue
+    BoundedTransformHierarchy transformHierarchyValue
+    BoundedSkeletonProduct skeletonValue
+    BoundedSkeletonRuntime skeletonRuntimeValue
     BoundedProductPublication publicationValue
     BoundedCollisionPackageAdmission admissionValue
     Bool acceptedValue
     Int packageChecksumValue
     Int geometryChecksumValue
+    Int sceneChecksumValue
+    Int skeletonChecksumValue
     Int collisionChecksumValue
     Int navigationChecksumValue
     Int generationValue
     Int triangleCountValue
+    Int sceneNodeCountValue
+    Int skinCountValue
     Int navigationNodeCountValue
 
     public constructor(
@@ -44,6 +56,10 @@ class BoundedGlbCooker {
         }
         collisionValue = BoundedAuthoredCollision(actualVertices, actualTriangles)
         navigationValue = BoundedNavigationProduct(actualNavigation)
+        sceneValue = BoundedSceneProduct(256)
+        transformHierarchyValue = BoundedTransformHierarchy(256)
+        skeletonValue = BoundedSkeletonProduct(64, 512)
+        skeletonRuntimeValue = BoundedSkeletonRuntime(512)
         publicationValue = BoundedProductPublication()
         admissionValue = BoundedCollisionPackageAdmission()
         clear()
@@ -52,15 +68,23 @@ class BoundedGlbCooker {
     Bool clear() {
         collisionValue.clear()
         navigationValue.clear()
+        sceneValue.clear()
+        transformHierarchyValue.clear()
+        skeletonValue.clear()
+        skeletonRuntimeValue.clear()
         publicationValue.clear()
         admissionValue.clear()
         acceptedValue = false
         packageChecksumValue = 0
         geometryChecksumValue = 0
+        sceneChecksumValue = 0
+        skeletonChecksumValue = 0
         collisionChecksumValue = 0
         navigationChecksumValue = 0
         generationValue = 0
         triangleCountValue = 0
+        sceneNodeCountValue = 0
+        skinCountValue = 0
         navigationNodeCountValue = 0
         return true
     }
@@ -115,12 +139,22 @@ class BoundedGlbCooker {
         }
         return navigationValue.seal() && navigationValue.validate()
     }
+    Bool buildSkeleton(BoundedExternalGlbSceneReader reader) {
+        if (reader.skinCount() == 0) { return true }
+        return reader.reopenSkeletonCanonical() &&
+            skeletonValue.copyFrom(reader.skeletonProduct()) &&
+            skeletonRuntimeValue.load(
+                skeletonValue, transformHierarchyValue, 1)
+    }
+
 
     GlbCookResult failure() {
         return GlbCookResult(
             false, packageChecksumValue, geometryChecksumValue,
+            sceneChecksumValue, skeletonChecksumValue,
             collisionChecksumValue, navigationChecksumValue, generationValue,
-            triangleCountValue, navigationNodeCountValue)
+            triangleCountValue, sceneNodeCountValue, skinCountValue,
+            navigationNodeCountValue)
     }
 
     Bool cook(
@@ -131,17 +165,26 @@ class BoundedGlbCooker {
         BoundedGenerationCache cache
     ) {
         clear()
-        if (!reader.valid() || !packageValue.validate() ||
+        if (!reader.valid() || !reader.reopenSceneCanonical() ||
+            !packageValue.validate() ||
             chunkId <= 0 || chunkKind <= 0 ||
             !reader.emitCollision(collisionValue) ||
             !collisionValue.validate() || !collisionValue.encode() ||
             !admissionValue.admit(
                 packageValue, collisionValue, chunkId, chunkKind) ||
-            !buildNavigation(reader)) {
+            !buildNavigation(reader) ||
+            !sceneValue.copyFrom(reader.sceneProduct()) ||
+            !transformHierarchyValue.load(sceneValue) ||
+            !buildSkeleton(reader)) {
             return false
         }
+        var combinedGeometryChecksum =
+            (reader.geometryChecksum() * 31 + reader.sceneChecksum()) % 1000003
+        combinedGeometryChecksum =
+            (combinedGeometryChecksum * 31 + reader.skeletonChecksum()) % 1000003
+        if (combinedGeometryChecksum <= 0) { combinedGeometryChecksum = 1 }
         if (!publicationValue.stageGeometry(
-                reader.sourceRevision(), reader.geometryChecksum()) ||
+                reader.sourceRevision(), combinedGeometryChecksum) ||
             !publicationValue.stageCollision(
                 reader.sourceRevision(), collisionValue.checksum()) ||
             !publicationValue.stageNavigation(
@@ -154,10 +197,14 @@ class BoundedGlbCooker {
         acceptedValue = true
         packageChecksumValue = packageValue.checksum()
         geometryChecksumValue = reader.geometryChecksum()
+        sceneChecksumValue = reader.sceneChecksum()
+        skeletonChecksumValue = reader.skeletonChecksum()
         collisionChecksumValue = collisionValue.checksum()
         navigationChecksumValue = navigationValue.checksum()
         generationValue = publicationValue.generation()
         triangleCountValue = reader.triangleCount()
+        sceneNodeCountValue = reader.sceneNodeCount()
+        skinCountValue = reader.skinCount()
         navigationNodeCountValue = navigationValue.nodeCount()
         return true
     }
@@ -168,8 +215,10 @@ class BoundedGlbCooker {
         }
         return GlbCookResult(
             true, packageChecksumValue, geometryChecksumValue,
+            sceneChecksumValue, skeletonChecksumValue,
             collisionChecksumValue, navigationChecksumValue, generationValue,
-            triangleCountValue, navigationNodeCountValue)
+            triangleCountValue, sceneNodeCountValue, skinCountValue,
+            navigationNodeCountValue)
     }
 
     Bool accepted() {
@@ -183,6 +232,28 @@ class BoundedGlbCooker {
     BoundedNavigationProduct navigationProduct() {
         return navigationValue
     }
+
+    BoundedSceneProduct sceneProduct() {
+        return sceneValue
+    }
+
+    BoundedTransformHierarchy transformHierarchy() {
+        return transformHierarchyValue
+    }
+    BoundedSkeletonProduct skeletonProduct() {
+        return skeletonValue
+    }
+
+    BoundedSkeletonRuntime skeletonRuntime() {
+        return skeletonRuntimeValue
+    }
+
+    Bool loadSkeletonRuntime(Int skinId) {
+        return acceptedValue && skinCountValue > 0 &&
+            skeletonRuntimeValue.load(
+                skeletonValue, transformHierarchyValue, skinId)
+    }
+
 
     BoundedProductPublication publication() {
         return publicationValue

@@ -1,0 +1,306 @@
+package session
+
+Int wanTransportMagic() { return 126375171 }
+Int wanTransportDataKind() { return 1 }
+Int wanTransportMaximumWindow() { return 4 }
+Int wanTransportMaximumPayloadWords() { return 32 }
+Int wanTransportDiagnosticNone() { return 0 }
+Int wanTransportDiagnosticConfiguration() { return 1 }
+Int wanTransportDiagnosticBackpressure() { return 2 }
+Int wanTransportDiagnosticFrame() { return 3 }
+Int wanTransportDiagnosticOrder() { return 4 }
+Int wanTransportDiagnosticRetryLimit() { return 5 }
+
+class BoundedWanFaultProfile {
+    Int latencyTicksValue
+    Int dropModuloValue
+    Int reorderModuloValue
+    Bool configuredValue
+
+    public constructor() {
+        latencyTicksValue = 0
+        dropModuloValue = 0
+        reorderModuloValue = 0
+        configuredValue = false
+    }
+
+    Bool configure(Int latencyTicks, Int dropModulo, Int reorderModulo) {
+        if (latencyTicks < 0 || latencyTicks > 60 ||
+            dropModulo < 0 || dropModulo > 32 ||
+            reorderModulo < 0 || reorderModulo > 32) {
+            return false
+        }
+        latencyTicksValue = latencyTicks
+        dropModuloValue = dropModulo
+        reorderModuloValue = reorderModulo
+        configuredValue = true
+        return true
+    }
+
+    Bool configured() { return configuredValue }
+    Int latencyTicks() { return latencyTicksValue }
+    Int dropModulo() { return dropModuloValue }
+    Int reorderModulo() { return reorderModuloValue }
+    Bool drops(Int sequence, Int attempt) {
+        return configuredValue && dropModuloValue > 0 &&
+            (sequence + attempt) % dropModuloValue == 0
+    }
+    Bool reorders(Int sequence, Int attempt) {
+        return configuredValue && reorderModuloValue > 0 &&
+            (sequence + attempt) % reorderModuloValue == 0
+    }
+    Int arrivalTick(Int tick) { return tick + latencyTicksValue }
+}
+
+class BoundedWanReliableChannel {
+    Int windowCapacityValue
+    Int payloadCapacityValue
+    Int retryLimitValue
+    Int timeoutTicksValue
+    Int nextSequenceValue
+    Int receiveSequenceValue
+    Int inFlightValue
+    Int lastAckedValue
+    Int lastAttemptValue
+    Int lastTransmitSequenceValue
+    Int lastTransmitArrivalTickValue
+    Int droppedCountValue
+    Int rejectedOrderCountValue
+    Int diagnosticValue
+    Bool failedValue
+    Bool configuredValue
+    Bool[] active
+    Int[] sequences
+    Int[] lengths
+    Int[] retries
+    Int[] deadlines
+    Int[] payloads
+    Int[] receivedPayloadValue
+    Int receivedLengthValue
+
+    public constructor() {
+        windowCapacityValue = 0
+        payloadCapacityValue = 0
+        retryLimitValue = 0
+        timeoutTicksValue = 0
+        nextSequenceValue = 1
+        receiveSequenceValue = 1
+        inFlightValue = 0
+        lastAckedValue = 0
+        lastAttemptValue = 0
+        lastTransmitSequenceValue = 0
+        lastTransmitArrivalTickValue = 0
+        droppedCountValue = 0
+        rejectedOrderCountValue = 0
+        diagnosticValue = wanTransportDiagnosticNone()
+        failedValue = false
+        configuredValue = false
+        active = new Bool[wanTransportMaximumWindow()]
+        sequences = new Int[wanTransportMaximumWindow()]
+        lengths = new Int[wanTransportMaximumWindow()]
+        retries = new Int[wanTransportMaximumWindow()]
+        deadlines = new Int[wanTransportMaximumWindow()]
+        payloads = new Int[
+            wanTransportMaximumWindow() * wanTransportMaximumPayloadWords()]
+        receivedPayloadValue = new Int[wanTransportMaximumPayloadWords()]
+        receivedLengthValue = 0
+    }
+
+    Bool configure(Int windowCapacity, Int payloadCapacity, Int retryLimit, Int timeoutTicks) {
+        if (configuredValue || windowCapacity <= 0 ||
+            windowCapacity > wanTransportMaximumWindow() || payloadCapacity <= 0 ||
+            payloadCapacity > wanTransportMaximumPayloadWords() || retryLimit <= 0 ||
+            retryLimit > 8 || timeoutTicks <= 0 || timeoutTicks > 600) {
+            diagnosticValue = wanTransportDiagnosticConfiguration()
+            return false
+        }
+        windowCapacityValue = windowCapacity
+        payloadCapacityValue = payloadCapacity
+        retryLimitValue = retryLimit
+        timeoutTicksValue = timeoutTicks
+        for (var index = 0; index < active.length; index = index + 1) {
+            active[index] = false
+            sequences[index] = 0
+            lengths[index] = 0
+            retries[index] = 0
+            deadlines[index] = 0
+        }
+        for (var index = 0; index < payloads.length; index = index + 1) {
+            payloads[index] = 0
+        }
+        for (var index = 0; index < receivedPayloadValue.length; index = index + 1) {
+            receivedPayloadValue[index] = 0
+        }
+        configuredValue = true
+        diagnosticValue = wanTransportDiagnosticNone()
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        return (state * 31 + value) % 1000003
+    }
+
+    Int frameChecksum(Int[] frame) {
+        if (frame.length < 6 || frame[0] != wanTransportMagic() ||
+            frame[1] != wanTransportDataKind() || frame[3] <= 0 ||
+            frame[3] > payloadCapacityValue || frame.length != 6 + frame[3]) {
+            return -1
+        }
+        var result = 73
+        for (var index = 0; index < frame.length; index = index + 1) {
+            if (index != 5) { result = mix(result, frame[index]) }
+        }
+        if (result <= 0) { return 1 }
+        return result
+    }
+
+    Int slotForSequence(Int sequence) {
+        return sequence % windowCapacityValue
+    }
+
+
+    Int[] emptyFrame() { return new Int[0] }
+
+    Int submit(Int[] payload, Int tick) {
+        if (!configuredValue || failedValue || payload.length <= 0 ||
+            payload.length > payloadCapacityValue) {
+            diagnosticValue = wanTransportDiagnosticConfiguration()
+            return 0
+        }
+        if (inFlightValue >= windowCapacityValue) {
+            diagnosticValue = wanTransportDiagnosticBackpressure()
+            return 0
+        }
+        var sequence = nextSequenceValue
+        var slot = slotForSequence(sequence)
+        if (active[slot]) {
+            diagnosticValue = wanTransportDiagnosticBackpressure()
+            return 0
+        }
+        active[slot] = true
+        sequences[slot] = sequence
+        lengths[slot] = payload.length
+        retries[slot] = 0
+        deadlines[slot] = tick
+        for (var index = 0; index < payloadCapacityValue; index = index + 1) {
+            if (index < payload.length) {
+                payloads[slot * wanTransportMaximumPayloadWords() + index] =
+                    payload[index]
+            } else {
+                payloads[slot * wanTransportMaximumPayloadWords() + index] = 0
+            }
+        }
+        nextSequenceValue = nextSequenceValue + 1
+        inFlightValue = inFlightValue + 1
+        diagnosticValue = wanTransportDiagnosticNone()
+        return sequence
+    }
+
+    Int[] pollTransmit(Int tick, BoundedWanFaultProfile profile) {
+        if (!configuredValue || failedValue || inFlightValue <= 0) {
+            return emptyFrame()
+        }
+        var selected = -1
+        var selectedSequence = 2147483647
+        for (var index = 0; index < windowCapacityValue; index = index + 1) {
+            if (active[index] && sequences[index] < selectedSequence) {
+                selected = index
+                selectedSequence = sequences[index]
+            }
+        }
+        if (selected < 0 || deadlines[selected] > tick) { return emptyFrame() }
+        if (retries[selected] >= retryLimitValue) {
+            failedValue = true
+            diagnosticValue = wanTransportDiagnosticRetryLimit()
+            return emptyFrame()
+        }
+        retries[selected] = retries[selected] + 1
+        lastAttemptValue = retries[selected]
+        deadlines[selected] = tick + timeoutTicksValue
+        lastTransmitSequenceValue = selectedSequence
+        lastTransmitArrivalTickValue = tick
+        if (profile.configured()) {
+            lastTransmitArrivalTickValue = profile.arrivalTick(tick)
+            if (profile.drops(selectedSequence, retries[selected])) {
+                droppedCountValue = droppedCountValue + 1
+                return emptyFrame()
+            }
+        }
+        var frame = new Int[6 + lengths[selected]]
+        frame[0] = wanTransportMagic()
+        frame[1] = wanTransportDataKind()
+        frame[2] = selectedSequence
+        frame[3] = lengths[selected]
+        frame[4] = retries[selected]
+        frame[5] = 0
+        for (var index = 0; index < lengths[selected]; index = index + 1) {
+            frame[6 + index] = payloads[
+                selected * wanTransportMaximumPayloadWords() + index]
+        }
+        frame[5] = frameChecksum(frame)
+        diagnosticValue = wanTransportDiagnosticNone()
+        return frame
+    }
+
+    Bool receiveFrame(Int[] frame) {
+        if (!configuredValue || frame.length < 6 ||
+            frame[0] != wanTransportMagic() || frame[1] != wanTransportDataKind() ||
+            frame[2] <= 0 || frame[3] <= 0 || frame[3] > payloadCapacityValue ||
+            frame.length != 6 + frame[3] || frame[5] != frameChecksum(frame)) {
+            diagnosticValue = wanTransportDiagnosticFrame()
+            return false
+        }
+        if (frame[2] != receiveSequenceValue) {
+            rejectedOrderCountValue = rejectedOrderCountValue + 1
+            diagnosticValue = wanTransportDiagnosticOrder()
+            return false
+        }
+        receivedLengthValue = frame[3]
+        for (var index = 0; index < payloadCapacityValue; index = index + 1) {
+            if (index < frame[3]) {
+                receivedPayloadValue[index] = frame[6 + index]
+            } else {
+                receivedPayloadValue[index] = 0
+            }
+        }
+        receiveSequenceValue = receiveSequenceValue + 1
+        diagnosticValue = wanTransportDiagnosticNone()
+        return true
+    }
+
+    Bool acknowledge(Int sequence) {
+        if (!configuredValue || sequence < lastAckedValue ||
+            sequence >= nextSequenceValue) {
+            diagnosticValue = wanTransportDiagnosticFrame()
+            return false
+        }
+        for (var index = 0; index < windowCapacityValue; index = index + 1) {
+            if (active[index] && sequences[index] <= sequence) {
+                active[index] = false
+                lengths[index] = 0
+                retries[index] = 0
+                inFlightValue = inFlightValue - 1
+            }
+        }
+        lastAckedValue = sequence
+        diagnosticValue = wanTransportDiagnosticNone()
+        return true
+    }
+
+    Bool failed() { return failedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int inFlight() { return inFlightValue }
+    Int nextSequence() { return nextSequenceValue }
+    Int receiveSequence() { return receiveSequenceValue }
+    Int lastAcked() { return lastAckedValue }
+    Int lastAttempt() { return lastAttemptValue }
+    Int lastTransmitSequence() { return lastTransmitSequenceValue }
+    Int lastTransmitArrivalTick() { return lastTransmitArrivalTickValue }
+    Int droppedCount() { return droppedCountValue }
+    Int rejectedOrderCount() { return rejectedOrderCountValue }
+    Int receivedLength() { return receivedLengthValue }
+    Int receivedWord(Int index) {
+        if (index < 0 || index >= payloadCapacityValue) { return 0 }
+        return receivedPayloadValue[index]
+    }
+}

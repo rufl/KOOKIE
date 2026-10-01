@@ -1,0 +1,487 @@
+package ui
+
+Int creatorStudioMagic() { return 126375140 }
+Int creatorStudioSchemaVersion() { return 1 }
+Int creatorStudioNodeCapacity() { return 64 }
+Int creatorStudioAssetCapacity() { return 32 }
+Int creatorStudioDiagnosticNone() { return 0 }
+Int creatorStudioDiagnosticState() { return 1 }
+Int creatorStudioDiagnosticBounds() { return 2 }
+Int creatorStudioDiagnosticIdentity() { return 3 }
+Int creatorStudioDiagnosticHierarchy() { return 4 }
+Int creatorStudioDiagnosticAsset() { return 5 }
+Int creatorStudioDiagnosticChecksum() { return 6 }
+Int creatorStudioDiagnosticFile() { return 7 }
+
+class BoundedCreatorStudio {
+    Int nodeCapacityValue
+    Int assetCapacityValue
+    Int[] nodeIds
+    Int[] nodeParents
+    Int[] nodeKinds
+    Int[] nodeX
+    Int[] nodeY
+    Int[] nodeZ
+    Int[] nodeRotation
+    Int[] nodeScale
+    Int[] assetIds
+    Int[] assetKinds
+    Int[] assetStatuses
+    Int[] assetChecksums
+    Int[] assetRevisions
+    Int projectNamespaceValue
+    Int projectIdValue
+    Int projectRevisionValue
+    Int generationValue
+    Int nodeCountValue
+    Int assetCountValue
+    Int checksumValue
+    Int wordCountValue
+    Int diagnosticValue
+    Bool configuredValue
+    Bool sealedValue
+    Int[] wire
+
+    public constructor(Int nodeCapacity, Int assetCapacity) {
+        nodeCapacityValue = nodeCapacity
+        assetCapacityValue = assetCapacity
+        if (nodeCapacityValue <= 0) { nodeCapacityValue = 1 }
+        if (nodeCapacityValue > creatorStudioNodeCapacity()) {
+            nodeCapacityValue = creatorStudioNodeCapacity()
+        }
+        if (assetCapacityValue <= 0) { assetCapacityValue = 1 }
+        if (assetCapacityValue > creatorStudioAssetCapacity()) {
+            assetCapacityValue = creatorStudioAssetCapacity()
+        }
+        nodeIds = new Int[nodeCapacityValue]
+        nodeParents = new Int[nodeCapacityValue]
+        nodeKinds = new Int[nodeCapacityValue]
+        nodeX = new Int[nodeCapacityValue]
+        nodeY = new Int[nodeCapacityValue]
+        nodeZ = new Int[nodeCapacityValue]
+        nodeRotation = new Int[nodeCapacityValue]
+        nodeScale = new Int[nodeCapacityValue]
+        assetIds = new Int[assetCapacityValue]
+        assetKinds = new Int[assetCapacityValue]
+        assetStatuses = new Int[assetCapacityValue]
+        assetChecksums = new Int[assetCapacityValue]
+        assetRevisions = new Int[assetCapacityValue]
+        wire = new Int[11 + nodeCapacityValue * 8 + assetCapacityValue * 5]
+        clear()
+    }
+
+    Bool clear() {
+        projectNamespaceValue = 0
+        projectIdValue = 0
+        projectRevisionValue = 0
+        generationValue = 1
+        nodeCountValue = 0
+        assetCountValue = 0
+        checksumValue = 0
+        wordCountValue = 0
+        diagnosticValue = creatorStudioDiagnosticNone()
+        configuredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 137
+        result = mix(result, creatorStudioSchemaVersion())
+        result = mix(result, projectNamespaceValue)
+        result = mix(result, projectIdValue)
+        result = mix(result, projectRevisionValue)
+        result = mix(result, generationValue)
+        result = mix(result, nodeCountValue)
+
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            result = mix(result, nodeIds[index])
+            result = mix(result, nodeParents[index])
+            result = mix(result, nodeKinds[index])
+            result = mix(result, nodeX[index])
+            result = mix(result, nodeY[index])
+            result = mix(result, nodeZ[index])
+            result = mix(result, nodeRotation[index])
+            result = mix(result, nodeScale[index])
+        }
+        result = mix(result, assetCountValue)
+        for (var index = 0; index < assetCountValue; index = index + 1) {
+            result = mix(result, assetIds[index])
+            result = mix(result, assetKinds[index])
+            result = mix(result, assetStatuses[index])
+            result = mix(result, assetChecksums[index])
+            result = mix(result, assetRevisions[index])
+        }
+        if (result <= 0) { return 1 }
+        return result
+    }
+    Int encodeSigned(Int value) {
+        if (value < 0) { return -value * 2 - 1 }
+        return value * 2
+    }
+
+    Int decodeSigned(Int value) {
+        if (value < 0 || value % 2 == 0) { return value / 2 }
+        return -(value / 2) - 1
+    }
+
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        return false
+    }
+
+    Int nodeIndex(Int nodeId) {
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            if (nodeIds[index] == nodeId) { return index }
+        }
+        return -1
+    }
+
+    Bool configure(Int projectNamespace, Int projectId, Int projectRevision) {
+        if (sealedValue || configuredValue ||
+            projectNamespace <= 0 || projectNamespace > 1000000 ||
+            projectId <= 0 || projectId > 1000000 ||
+            projectRevision <= 0 || projectRevision > 1000000) {
+            return reject(creatorStudioDiagnosticIdentity())
+        }
+        projectNamespaceValue = projectNamespace
+        projectIdValue = projectId
+        projectRevisionValue = projectRevision
+        configuredValue = true
+        diagnosticValue = creatorStudioDiagnosticNone()
+        return true
+    }
+
+    Bool addNode(
+        Int nodeId, Int parentId, Int nodeKind,
+        Int x, Int y, Int z, Int rotation, Int scale
+    ) {
+        if (!configuredValue || sealedValue || nodeCountValue >= nodeCapacityValue ||
+            nodeId <= 0 || nodeId > 1000000 || nodeKind <= 0 || nodeKind > 1000000 ||
+            x < -1000000 || x > 1000000 || y < -1000000 || y > 1000000 ||
+            z < -1000000 || z > 1000000 || rotation < -360000 || rotation > 360000 ||
+            scale <= 0 || scale > 1000000 || nodeIndex(nodeId) >= 0) {
+            return reject(creatorStudioDiagnosticBounds())
+        }
+        if (nodeCountValue > 0 && nodeId <= nodeIds[nodeCountValue - 1]) {
+            return reject(creatorStudioDiagnosticHierarchy())
+        }
+        if (parentId < 0 || (parentId > 0 && nodeIndex(parentId) < 0)) {
+            return reject(creatorStudioDiagnosticHierarchy())
+        }
+        var index = nodeCountValue
+        nodeIds[index] = nodeId
+        nodeParents[index] = parentId
+        nodeKinds[index] = nodeKind
+        nodeX[index] = x
+        nodeY[index] = y
+        nodeZ[index] = z
+        nodeRotation[index] = rotation
+        nodeScale[index] = scale
+        nodeCountValue = nodeCountValue + 1
+        return true
+    }
+
+    Bool addAsset(
+        Int assetId, Int assetKind, Int status, Int assetChecksum, Int revision
+    ) {
+        if (!configuredValue || sealedValue || assetCountValue >= assetCapacityValue ||
+            assetId <= 0 || assetId > 1000000 || assetKind <= 0 || assetKind > 1000000 ||
+            status <= 0 || status > 4 || assetChecksum <= 0 || assetChecksum > 1000002 ||
+            revision <= 0 || revision > 1000000) {
+            return reject(creatorStudioDiagnosticAsset())
+        }
+        if (assetCountValue > 0 && assetId <= assetIds[assetCountValue - 1]) {
+            return reject(creatorStudioDiagnosticAsset())
+        }
+        var index = assetCountValue
+        assetIds[index] = assetId
+        assetKinds[index] = assetKind
+        assetStatuses[index] = status
+        assetChecksums[index] = assetChecksum
+        assetRevisions[index] = revision
+        assetCountValue = assetCountValue + 1
+        return true
+    }
+
+    Bool structuralValid() {
+        if (!configuredValue || projectNamespaceValue <= 0 || projectIdValue <= 0 ||
+            projectRevisionValue <= 0 || generationValue <= 0 || nodeCountValue <= 0) {
+            return false
+        }
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            if (nodeIds[index] <= 0 || nodeKinds[index] <= 0 || nodeScale[index] <= 0 ||
+                (nodeParents[index] > 0 && nodeIndex(nodeParents[index]) < 0)) {
+                return false
+            }
+            if (index > 0 && nodeIds[index] <= nodeIds[index - 1]) {
+                return false
+            }
+        }
+        for (var index = 0; index < assetCountValue; index = index + 1) {
+            if (assetIds[index] <= 0 || assetKinds[index] <= 0 ||
+                assetStatuses[index] <= 0 || assetStatuses[index] > 4 ||
+                assetChecksums[index] <= 0 || assetRevisions[index] <= 0 ||
+                (index > 0 && assetIds[index] <= assetIds[index - 1])) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool encode() {
+        if (!sealedValue || !structuralValid() || checksumValue != calculateChecksum()) {
+            return false
+        }
+        wordCountValue = 11 + nodeCountValue * 8 + assetCountValue * 5
+        wire[0] = creatorStudioMagic()
+        wire[1] = creatorStudioSchemaVersion()
+        wire[2] = wordCountValue
+        wire[3] = checksumValue
+        wire[4] = projectNamespaceValue
+        wire[5] = projectIdValue
+        wire[6] = projectRevisionValue
+        wire[7] = nodeCountValue
+        wire[8] = assetCountValue
+        wire[9] = generationValue
+        wire[10] = 0
+        var cursor = 11
+        for (var index = 0; index < nodeCountValue; index = index + 1) {
+            wire[cursor] = nodeIds[index]
+            wire[cursor + 1] = nodeParents[index]
+            wire[cursor + 2] = nodeKinds[index]
+            wire[cursor + 3] = encodeSigned(nodeX[index])
+            wire[cursor + 4] = encodeSigned(nodeY[index])
+            wire[cursor + 5] = encodeSigned(nodeZ[index])
+            wire[cursor + 6] = encodeSigned(nodeRotation[index])
+            wire[cursor + 7] = nodeScale[index]
+            cursor = cursor + 8
+        }
+        for (var index = 0; index < assetCountValue; index = index + 1) {
+            wire[cursor] = assetIds[index]
+            wire[cursor + 1] = assetKinds[index]
+            wire[cursor + 2] = assetStatuses[index]
+            wire[cursor + 3] = assetChecksums[index]
+            wire[cursor + 4] = assetRevisions[index]
+            cursor = cursor + 5
+        }
+        return true
+    }
+
+    Bool seal() {
+        if (sealedValue || !structuralValid()) {
+            return reject(creatorStudioDiagnosticState())
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = checksumValue > 0
+        if (!sealedValue || !encode()) {
+            sealedValue = false
+            return reject(creatorStudioDiagnosticChecksum())
+        }
+        diagnosticValue = creatorStudioDiagnosticNone()
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && structuralValid() && checksumValue == calculateChecksum()
+    }
+
+    Bool copyFrom(BoundedCreatorStudio source) {
+        if (!source.validate()) { return false }
+        projectNamespaceValue = source.projectNamespaceValue
+        projectIdValue = source.projectIdValue
+        projectRevisionValue = source.projectRevisionValue
+        generationValue = source.generationValue
+        nodeCountValue = source.nodeCountValue
+        assetCountValue = source.assetCountValue
+        checksumValue = source.checksumValue
+        wordCountValue = source.wordCountValue
+        configuredValue = source.configuredValue
+        sealedValue = source.sealedValue
+        for (var index = 0; index < nodeCapacityValue; index = index + 1) {
+            nodeIds[index] = source.nodeIds[index]
+            nodeParents[index] = source.nodeParents[index]
+            nodeKinds[index] = source.nodeKinds[index]
+            nodeX[index] = source.nodeX[index]
+            nodeY[index] = source.nodeY[index]
+            nodeZ[index] = source.nodeZ[index]
+            nodeRotation[index] = source.nodeRotation[index]
+            nodeScale[index] = source.nodeScale[index]
+        }
+        for (var index = 0; index < assetCapacityValue; index = index + 1) {
+            assetIds[index] = source.assetIds[index]
+            assetKinds[index] = source.assetKinds[index]
+            assetStatuses[index] = source.assetStatuses[index]
+            assetChecksums[index] = source.assetChecksums[index]
+            assetRevisions[index] = source.assetRevisions[index]
+        }
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            wire[index] = source.wire[index]
+        }
+        diagnosticValue = creatorStudioDiagnosticNone()
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length < 11 || source[0] != creatorStudioMagic() ||
+            source[1] != creatorStudioSchemaVersion() || source[2] < 11 ||
+            source[2] > wire.length || source[3] <= 0 || source[4] <= 0 ||
+            source[5] <= 0 || source[6] <= 0 || source[7] <= 0 ||
+            source[7] > nodeCapacityValue || source[8] < 0 ||
+            source[8] > assetCapacityValue || source[9] <= 0 || source[10] != 0 ||
+            source.length != source[2] ||
+            source[2] != 11 + source[7] * 8 + source[8] * 5) {
+            return false
+        }
+        var candidate = BoundedCreatorStudio(nodeCapacityValue, assetCapacityValue)
+        if (!candidate.configure(source[4], source[5], source[6])) { return false }
+        candidate.generationValue = source[9]
+        var cursor = 11
+        for (var index = 0; index < source[7]; index = index + 1) {
+            if (!candidate.addNode(
+                    source[cursor], source[cursor + 1], source[cursor + 2],
+                    decodeSigned(source[cursor + 3]),
+                    decodeSigned(source[cursor + 4]),
+                    decodeSigned(source[cursor + 5]),
+                    decodeSigned(source[cursor + 6]), source[cursor + 7])) {
+                return false
+            }
+            cursor = cursor + 8
+        }
+        for (var index = 0; index < source[8]; index = index + 1) {
+            if (!candidate.addAsset(
+                    source[cursor], source[cursor + 1], source[cursor + 2],
+                    source[cursor + 3], source[cursor + 4])) {
+                return false
+            }
+            cursor = cursor + 5
+        }
+        if (!candidate.seal() || candidate.checksumValue != source[3]) {
+            return false
+        }
+        return copyFrom(candidate)
+    }
+
+    Bool save(String path) {
+        if (!validate() || !encode() || path.length() <= 0) {
+            return reject(creatorStudioDiagnosticState())
+        }
+        var bytes = new Int[wordCountValue * 4]
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            var value = wire[index]
+            var offset = index * 4
+            bytes[offset] = value & 255
+            bytes[offset + 1] = (value >>> 8) & 255
+            bytes[offset + 2] = (value >>> 16) & 255
+            bytes[offset + 3] = (value >>> 24) & 255
+        }
+        if (!File(path).writeBytes(bytes)) {
+            return reject(creatorStudioDiagnosticFile())
+        }
+        return true
+    }
+
+    Bool load(String path) {
+        var bytes = File(path).readRange(0, wire.length * 4 + 1)
+        if (bytes.length <= 0 || bytes.length % 4 != 0 || bytes.length > wire.length * 4) {
+            return reject(creatorStudioDiagnosticFile())
+        }
+        var words = new Int[bytes.length / 4]
+        for (var index = 0; index < words.length; index = index + 1) {
+            var offset = index * 4
+            if (bytes[offset] < 0 || bytes[offset] > 255 ||
+                bytes[offset + 1] < 0 || bytes[offset + 1] > 255 ||
+                bytes[offset + 2] < 0 || bytes[offset + 2] > 255 ||
+                bytes[offset + 3] < 0 || bytes[offset + 3] >= 128) {
+                return reject(creatorStudioDiagnosticFile())
+            }
+            words[index] = bytes[offset] + bytes[offset + 1] * 256 +
+                bytes[offset + 2] * 65536 + bytes[offset + 3] * 16777216
+        }
+        if (!decode(words)) {
+            return reject(creatorStudioDiagnosticChecksum())
+        }
+        return true
+    }
+
+    Bool captureWorkspace(BoundedCreatorWorkspace workspace) {
+        var candidate = BoundedCreatorStudio(nodeCapacityValue, assetCapacityValue)
+        if (!candidate.configure(1, workspace.entityId(), workspace.revision()) ||
+            !candidate.addNode(
+                1, 0, creatorModeEntity(), workspace.entityX(), workspace.entityY(),
+                workspace.entityZ(), 0, 1000)) {
+            return reject(creatorStudioDiagnosticState())
+        }
+        if (workspace.assetId() > 0 && !candidate.addAsset(
+                workspace.assetId(), 1, 1, workspace.renderChecksum(), workspace.revision())) {
+            return reject(creatorStudioDiagnosticAsset())
+        }
+        if (!candidate.seal() || !copyFrom(candidate)) {
+            return reject(creatorStudioDiagnosticChecksum())
+        }
+        return true
+    }
+
+    Int diagnostic() { return diagnosticValue }
+    Int generation() { return generationValue }
+    Int projectNamespace() { return projectNamespaceValue }
+    Int projectId() { return projectIdValue }
+    Int projectRevision() { return projectRevisionValue }
+    Int nodeCount() { return nodeCountValue }
+    Int assetCount() { return assetCountValue }
+    Int nodeId(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeIds[index]
+    }
+    Int nodeParent(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return -1 }
+        return nodeParents[index]
+    }
+    Int nodeXValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeX[index]
+    }
+    Int nodeYValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeY[index]
+    }
+    Int nodeZValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeZ[index]
+    }
+    Int nodeScaleValue(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeScale[index]
+    }
+    Int assetId(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetIds[index]
+    }
+    Int assetStatus(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetStatuses[index]
+    }
+    Int assetChecksum(Int index) {
+        if (index < 0 || index >= assetCountValue) { return 0 }
+        return assetChecksums[index]
+    }
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+    Int encodedLength() {
+        if (!validate()) { return 0 }
+        return wordCountValue
+    }
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) { return -1 }
+        return wire[index]
+    }
+}

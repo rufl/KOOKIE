@@ -147,6 +147,7 @@ class RemoteSessionLink {
     Bool compatibilityAcceptedValue
     Int compatibilitySequenceValue
     Int compatibilityDiagnosticValue
+    BoundedWanReliableChannel wanChannelValue
 
     public constructor(RemoteSessionEndpoint endpoint) {
         endpointValue = endpoint
@@ -165,6 +166,7 @@ class RemoteSessionLink {
         compatibilityAcceptedValue = false
         compatibilitySequenceValue = 0
         compatibilityDiagnosticValue = creatorDiagnosticNone()
+        wanChannelValue = BoundedWanReliableChannel()
     }
 
     Bool connect() {
@@ -318,5 +320,37 @@ class RemoteSessionLink {
 
     Int receivedSequence() {
         return receivedSequenceValue
+    }
+    Bool configureWan(
+        Int windowCapacity, Int payloadCapacity,
+        Int retryLimit, Int timeoutTicks
+    ) {
+        if (!ready()) { return false }
+        return wanChannelValue.configure(
+            windowCapacity, payloadCapacity, retryLimit, timeoutTicks)
+    }
+
+    Int queueWan(Int[] payload, Int tick) {
+        if (!ready()) { return 0 }
+        return wanChannelValue.submit(payload, tick)
+    }
+
+    Int[] pollWan(Int tick, BoundedWanFaultProfile profile) {
+        if (!ready()) { return new Int[0] }
+        return wanChannelValue.pollTransmit(tick, profile)
+    }
+
+    Bool receiveWan(Int[] frame) {
+        if (!ready()) { return false }
+        return wanChannelValue.receiveFrame(frame)
+    }
+
+    Bool acknowledgeWan(Int sequence) {
+        if (!ready()) { return false }
+        return wanChannelValue.acknowledge(sequence)
+    }
+
+    BoundedWanReliableChannel wanChannel() {
+        return wanChannelValue
     }
 }

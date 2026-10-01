@@ -73,22 +73,26 @@ Run the focused gameplay/replay path:
 bash scripts/verify_interactions.sh
 ```
 
-The JVM target is retained for local differential qualification, not as a
-distributed fallback. Presentation packages additionally require SDL 3.4.16,
-SDL_mixer 3.2.4 and `glslc`. Exact package, cooker, Windows-shell and
-cross-host qualification commands live in
-[Running and packaging](docs/RUNNING_AND_PACKAGING.md).
+Run the non-graphical G6 expansion probes:
+
+```bash
+bash scripts/verify_g6_runtime.sh
+```
+
+Presentation packages additionally require SDL 3.4.16, SDL_mixer 3.2.4 and
+`glslc`. Exact package, cooker, Windows and cross-host qualification commands
+live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
 
 ## What works today
 
 | Area | Implemented bounded path |
 |---|---|
-| **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, sequenced commands, snapshots, prediction/reconciliation, reconnect and replay/tamper rejection |
+| **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, sequenced commands, snapshots, prediction/reconciliation, reconnect and replay/tamper rejection; bounded direct-IPv4 WAN window with retries/backpressure |
 | **Shooter and ARPG systems** | Hitscan/projectile/shotgun combat, enemy roles, deterministic loot, inventory, equipment, skills, status effects, bosses, rewards and exactly-once progression |
 | **World and presentation** | True 3D authored arena with slopes, steps and stacked rooms; capsule/triangle collision; doors, secrets and exits; semantic HUD; SDL_GPU instancing; positional gain/pan through SDL_mixer |
-| **Content and creator tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Creator edits and frame-boundary reload |
+| **Content and creator tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Creator edits; persistent Studio hierarchy/transform/asset registry |
 | **Persistence and release** | Checksummed replay, schema migrations, crash-durable save publication, signed clean-tree packages, dependency closure and outside-checkout smoke |
-| **Runtime targets** | Authoritative native Linux x86-64; JVM comparison target; persistent native Windows menu/options/lobby shell while Kof PE gameplay remains unavailable |
+| **Runtime targets** | Authoritative native Linux x86-64; persistent native Windows menu/options/lobby shell; reproducible Windows Kof JVM gameplay plus SDL3/SDL_mixer presentation package with SPIR-V/DXIL products; deterministic bounded Kof-to-AMD64 PE/COFF console compiler |
 
 ## The shape of the engine
 
@@ -160,17 +164,22 @@ for the production work still open.
 
 ## Honest boundaries
 
-- Transport and timing evidence is still same-host and Linux-focused; there is
-  no retained fresh three-physical-machine qualification bundle.
-- Linux x86-64 is the authoritative Kof gameplay target. The Windows build is
-  an interactive native shell, not proof of Windows Kof gameplay.
+- Transport evidence now includes the bounded direct-IPv4 authenticated endpoint
+  and a deterministic fixed-window/retry channel; it is not a fresh
+  three-physical-machine qualification bundle and does not claim NAT traversal,
+  relay service, confidentiality or DDoS resistance.
+- Linux x86-64 remains the authoritative native Kof gameplay target. Windows
+  has a reproducible JVM gameplay plus SDL presentation package with static
+  SPIR-V/DXIL and provenance evidence; optional isolated Wine smoke remains
+  environment-gated, and the bounded PE compiler still does not emit full
+  gameplay.
 - Importers support small, explicit profiles—not arbitrary files from each
   named format.
 - Live reload covers validated scene/render products, not arbitrary Kof code,
   shaders, editor plugins or unbounded streaming.
-- Full physics, WAN qualification, broader OS/GPU coverage, streamed/compressed
-  audio, HRTF/EFX, richer G6 authoring and sandboxed runtime extensions remain
-  unfinished.
+- Rich authoring beyond the bounded persistent Studio, broader OS/GPU coverage,
+  streamed/compressed audio, HRTF/EFX and a general-purpose sandboxed extension
+  API remain unfinished.
 
 If a claim lacks a focused test or probe, it is not presented as complete.
 
@@ -219,10 +228,12 @@ belong in the [private reporting path](SECURITY.md), not a public issue.
 
 ## License and provenance
 
-KOOKIE is [MIT licensed](LICENSE). Distributed runtime dependencies are
-permissive: SDL 3.4.16 and SDL_mixer 3.2.4 use the zlib License. Exact versions,
-sources and notices are recorded in
-[THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+KOOKIE is [MIT licensed](LICENSE). Native distributed runtime dependencies are
+SDL 3.4.16 and SDL_mixer 3.2.4 under the zlib License. The optional Windows JVM
+profile bundles one SHA-256-pinned OpenJDK runtime under its own licenses and
+preserves `runtime/legal` and `runtime/NOTICE`. Exact sources and boundaries are
+recorded in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
 
-The Kof compiler is an external build tool and is not distributed with KOOKIE.
-Java remains local qualification-only and is excluded from product archives.
+The Kof compiler remains an external build tool and is not distributed. Only
+the explicit Windows JVM profile bundles Java; its provenance records the
+runtime vendor, version and archive digest.

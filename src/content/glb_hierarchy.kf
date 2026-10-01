@@ -1,0 +1,1004 @@
+package content
+
+class BoundedExternalGlbHierarchyReader {
+    Int[] json
+    Int jsonLengthValue
+    Int[] nodeParents
+    Int[] nodeMeshes
+    Int[] nodeSkins
+    Int[] nodeMatrices
+    Bool[] nodeReachable
+    Int nodeCountValue
+    Int[] skinJointOffsets
+    Int[] skinJointCounts
+    Int[] skinSkeletonNodes
+    Int[] skinInverseBindAccessors
+    Int[] skinJoints
+    Int skinCountValue
+    Int skinJointCountValue
+    Int[] numberScratch
+    BoundedSceneProduct sceneValue
+    BoundedSkeletonProduct skeletonValue
+    Bool acceptedValue
+
+    public constructor(Int nodeCapacity, Int skinCapacity, Int jointCapacity) {
+        var actualNodes = nodeCapacity
+        var actualSkins = skinCapacity
+        var actualJoints = jointCapacity
+        if (actualNodes <= 0) { actualNodes = 1 }
+        if (actualNodes > 512) { actualNodes = 512 }
+        if (actualSkins <= 0) { actualSkins = 1 }
+        if (actualSkins > 64) { actualSkins = 64 }
+        if (actualJoints <= 0) { actualJoints = 1 }
+        if (actualJoints > 2048) { actualJoints = 2048 }
+        json = new Int[16384]
+        nodeParents = new Int[actualNodes]
+        nodeMeshes = new Int[actualNodes]
+        nodeSkins = new Int[actualNodes]
+        nodeMatrices = new Int[actualNodes * 12]
+        nodeReachable = new Bool[actualNodes]
+        skinJointOffsets = new Int[actualSkins]
+        skinJointCounts = new Int[actualSkins]
+        skinSkeletonNodes = new Int[actualSkins]
+        skinInverseBindAccessors = new Int[actualSkins]
+        skinJoints = new Int[actualJoints]
+        numberScratch = new Int[16]
+        sceneValue = BoundedSceneProduct(actualNodes)
+        skeletonValue = BoundedSkeletonProduct(actualSkins, actualJoints)
+        clear()
+    }
+
+    Bool clear() {
+        jsonLengthValue = 0
+        nodeCountValue = 0
+        skinCountValue = 0
+        skinJointCountValue = 0
+        acceptedValue = false
+        sceneValue.clear()
+        skeletonValue.clear()
+        for (var index = 0; index < nodeParents.length; index = index + 1) {
+            nodeParents[index] = -1
+            nodeMeshes[index] = -1
+            nodeSkins[index] = -1
+            nodeReachable[index] = false
+        }
+        for (var index = 0; index < skinJointOffsets.length; index = index + 1) {
+            skinJointOffsets[index] = 0
+            skinJointCounts[index] = 0
+            skinSkeletonNodes[index] = -1
+            skinInverseBindAccessors[index] = -1
+        }
+        return true
+    }
+
+    Int u32(Int[] source, Int offset) {
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + source[offset + 3] * 16777216
+    }
+
+    Int skipWhitespace(Int position, Int limit) {
+        var cursor = position
+        while (cursor < limit &&
+            (json[cursor] == 32 || json[cursor] == 9 ||
+                json[cursor] == 10 || json[cursor] == 13)) {
+            cursor = cursor + 1
+        }
+        return cursor
+    }
+
+    Bool loadJson(Int[] source) {
+        if (source.length < 20 || u32(source, 0) != 1179937895 ||
+            u32(source, 4) != 2 || u32(source, 8) != source.length) {
+            return false
+        }
+        var offset = 12
+        var found = false
+        while (offset + 8 <= source.length) {
+            var length = u32(source, offset)
+            var kind = u32(source, offset + 4)
+            offset = offset + 8
+            if (length < 0 || length > source.length - offset) { return false }
+            if (kind == 1313821514) {
+                if (found || length > json.length) { return false }
+                found = true
+                jsonLengthValue = length
+                for (var index = 0; index < length; index = index + 1) {
+                    json[index] = source[offset + index]
+                }
+            }
+            offset = offset + length
+        }
+        return offset == source.length && found
+    }
+
+    Int stringEnd(Int start, Int limit) {
+        var escaped = false
+        for (var cursor = start + 1; cursor < limit; cursor = cursor + 1) {
+            if (escaped) {
+                escaped = false
+            } else if (json[cursor] == 92) {
+                escaped = true
+            } else if (json[cursor] == 34) {
+                return cursor
+            }
+        }
+        return -1
+    }
+
+    Int objectEnd(Int start, Int limit) {
+        if (start < 0 || start >= limit || json[start] != 123) { return -1 }
+        var objects = 0
+        var arrays = 0
+        var cursor = start
+        while (cursor < limit) {
+            if (json[cursor] == 34) {
+                cursor = stringEnd(cursor, limit)
+                if (cursor < 0) { return -1 }
+            } else if (json[cursor] == 123) {
+                objects = objects + 1
+            } else if (json[cursor] == 125) {
+                objects = objects - 1
+                if (objects == 0 && arrays == 0) { return cursor }
+            } else if (json[cursor] == 91) {
+                arrays = arrays + 1
+            } else if (json[cursor] == 93) {
+                arrays = arrays - 1
+            }
+            if (objects < 0 || arrays < 0) { return -1 }
+            cursor = cursor + 1
+        }
+        return -1
+    }
+
+    Int arrayEnd(Int start, Int limit) {
+        if (start < 0 || start >= limit || json[start] != 91) { return -1 }
+        var objects = 0
+        var arrays = 0
+        var cursor = start
+        while (cursor < limit) {
+            if (json[cursor] == 34) {
+                cursor = stringEnd(cursor, limit)
+                if (cursor < 0) { return -1 }
+            } else if (json[cursor] == 123) {
+                objects = objects + 1
+            } else if (json[cursor] == 125) {
+                objects = objects - 1
+            } else if (json[cursor] == 91) {
+                arrays = arrays + 1
+            } else if (json[cursor] == 93) {
+                arrays = arrays - 1
+                if (objects == 0 && arrays == 0) { return cursor }
+            }
+            if (objects < 0 || arrays < 0) { return -1 }
+            cursor = cursor + 1
+        }
+        return -1
+    }
+
+    Bool keyEquals(Int start, Int end, String name) {
+        if (end - start - 1 != name.length()) { return false }
+        for (var index = 0; index < name.length(); index = index + 1) {
+            if (json[start + 1 + index] != (name.charAt(index) as Int)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int fieldValueStart(Int objectStart, Int objectLimit, String name) {
+        if (objectStart < 0 || objectLimit <= objectStart ||
+            json[objectStart] != 123) {
+            return -1
+        }
+        var objectDepth = 1
+        var arrayDepth = 0
+        var cursor = objectStart + 1
+        while (cursor < objectLimit) {
+            if (json[cursor] == 34) {
+                var end = stringEnd(cursor, objectLimit)
+                if (end < 0) { return -1 }
+                if (objectDepth == 1 && arrayDepth == 0 &&
+                    keyEquals(cursor, end, name)) {
+                    var colon = skipWhitespace(end + 1, objectLimit)
+                    if (colon < objectLimit && json[colon] == 58) {
+                        return skipWhitespace(colon + 1, objectLimit)
+                    }
+                }
+                cursor = end
+            } else if (json[cursor] == 123) {
+                objectDepth = objectDepth + 1
+            } else if (json[cursor] == 125) {
+                objectDepth = objectDepth - 1
+            } else if (json[cursor] == 91) {
+                arrayDepth = arrayDepth + 1
+            } else if (json[cursor] == 93) {
+                arrayDepth = arrayDepth - 1
+            }
+            cursor = cursor + 1
+        }
+        return -1
+    }
+
+    Int numberEnd(Int start, Int limit) {
+        if (start < 0 || start >= limit) { return -1 }
+        var cursor = start
+        if (json[cursor] == 45) { cursor = cursor + 1 }
+        var digits = 0
+        while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
+            digits = digits + 1
+            cursor = cursor + 1
+        }
+        if (digits == 0) { return -1 }
+        if (cursor < limit && json[cursor] == 46) {
+            cursor = cursor + 1
+            var fractions = 0
+            while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
+                fractions = fractions + 1
+                cursor = cursor + 1
+            }
+            if (fractions == 0) { return -1 }
+        }
+        if (cursor < limit && (json[cursor] == 101 || json[cursor] == 69)) {
+            cursor = cursor + 1
+            if (cursor < limit && (json[cursor] == 43 || json[cursor] == 45)) {
+                cursor = cursor + 1
+            }
+            var exponents = 0
+            while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
+                exponents = exponents + 1
+                cursor = cursor + 1
+            }
+            if (exponents == 0) { return -1 }
+        }
+        return cursor
+    }
+
+    Int fixedNumber(Int start, Int end, Int scale) {
+        if (start < 0 || end <= start || scale <= 0) { return 2000000000 }
+        var cursor = start
+        var negative = false
+        if (json[cursor] == 45) {
+            negative = true
+            cursor = cursor + 1
+        }
+        var whole: Long = 0L
+        while (cursor < end && json[cursor] >= 48 && json[cursor] <= 57) {
+            whole = whole * 10L + (json[cursor] - 48)
+            if (whole > 1000000000L) { return 2000000000 }
+            cursor = cursor + 1
+        }
+        var fraction: Long = 0L
+        var divisor: Long = 1L
+        if (cursor < end && json[cursor] == 46) {
+            cursor = cursor + 1
+            while (cursor < end && json[cursor] >= 48 && json[cursor] <= 57) {
+                if (divisor < 1000000000L) {
+                    fraction = fraction * 10L + (json[cursor] - 48)
+                    divisor = divisor * 10L
+                }
+                cursor = cursor + 1
+            }
+        }
+        var scaled = whole * divisor + fraction
+        scaled = scaled * scale / divisor
+        if (cursor < end && (json[cursor] == 101 || json[cursor] == 69)) {
+            cursor = cursor + 1
+            var exponentNegative = false
+            if (cursor < end && json[cursor] == 45) {
+                exponentNegative = true
+                cursor = cursor + 1
+            } else if (cursor < end && json[cursor] == 43) {
+                cursor = cursor + 1
+            }
+            var exponent = 0
+            while (cursor < end && json[cursor] >= 48 && json[cursor] <= 57) {
+                exponent = exponent * 10 + json[cursor] - 48
+                if (exponent > 18) { return 2000000000 }
+                cursor = cursor + 1
+            }
+            for (var power = 0; power < exponent; power = power + 1) {
+                if (exponentNegative) {
+                    scaled = scaled / 10L
+                } else {
+                    if (scaled > 100000000L) { return 2000000000 }
+                    scaled = scaled * 10L
+                }
+            }
+        }
+        if (negative) { scaled = -scaled }
+        if (scaled < -1000000000L || scaled > 1000000000L) {
+            return 2000000000
+        }
+        return scaled.toInt()
+    }
+
+    Int integerAt(Int start, Int limit) {
+        var end = numberEnd(start, limit)
+        if (end < 0) { return -1 }
+        for (var cursor = start; cursor < end; cursor = cursor + 1) {
+            if (json[cursor] < 48 || json[cursor] > 57) { return -1 }
+        }
+        var value = fixedNumber(start, end, 1)
+        if (value < 0 || value > 1000000) { return -1 }
+        return value
+    }
+
+    Int integerField(Int objectStart, Int objectLimit, String name) {
+        var start = fieldValueStart(objectStart, objectLimit, name)
+        if (start < 0) { return -1 }
+        return integerAt(start, objectLimit)
+    }
+
+    Bool parseFixedArray(
+        Int start, Int limit, Int count, Int scale, Int scratchOffset
+    ) {
+        if (start < 0 || start >= limit || json[start] != 91 ||
+            count <= 0 || scratchOffset < 0 ||
+            scratchOffset + count > numberScratch.length) {
+            return false
+        }
+        var end = arrayEnd(start, limit)
+        if (end < 0) { return false }
+        var cursor = start + 1
+        for (var index = 0; index < count; index = index + 1) {
+            cursor = skipWhitespace(cursor, end)
+            var valueEnd = numberEnd(cursor, end)
+            if (valueEnd < 0) { return false }
+            var value = fixedNumber(cursor, valueEnd, scale)
+            if (value == 2000000000) { return false }
+            numberScratch[scratchOffset + index] = value
+            cursor = skipWhitespace(valueEnd, end)
+            if (index + 1 < count) {
+                if (cursor >= end || json[cursor] != 44) { return false }
+                cursor = cursor + 1
+            }
+        }
+        return skipWhitespace(cursor, end) == end
+    }
+
+    Int scaled(Int first, Int second, Int divisor) {
+        var result: Long = first
+        result = result * second / divisor
+        if (result < -1000000000L || result > 1000000000L) {
+            return 2000000000
+        }
+        return result.toInt()
+    }
+
+    Bool buildTrsMatrix(
+        Int objectStart, Int objectLimit, Int coordinateScale, Int transformScale,
+        Int nodeIndex
+    ) {
+        var tx = 0
+        var ty = 0
+        var tz = 0
+        var sx = transformScale
+        var sy = transformScale
+        var sz = transformScale
+        var qx = 0
+        var qy = 0
+        var qz = 0
+        var qw = transformScale
+        var translation = fieldValueStart(objectStart, objectLimit, "translation")
+        var rotation = fieldValueStart(objectStart, objectLimit, "rotation")
+        var scale = fieldValueStart(objectStart, objectLimit, "scale")
+        if (translation >= 0) {
+            if (!parseFixedArray(
+                    translation, objectLimit, 3, coordinateScale, 0)) {
+                return false
+            }
+            tx = numberScratch[0]
+            ty = numberScratch[1]
+            tz = numberScratch[2]
+        }
+        if (rotation >= 0) {
+            if (!parseFixedArray(rotation, objectLimit, 4, transformScale, 0)) {
+                return false
+            }
+            qx = numberScratch[0]
+            qy = numberScratch[1]
+            qz = numberScratch[2]
+            qw = numberScratch[3]
+        }
+        if (scale >= 0) {
+            if (!parseFixedArray(scale, objectLimit, 3, transformScale, 0)) {
+                return false
+            }
+            sx = numberScratch[0]
+            sy = numberScratch[1]
+            sz = numberScratch[2]
+        }
+        var norm: Long = qx
+        norm = norm * qx
+        var term: Long = qy
+        term = term * qy
+        norm = norm + term
+        term = qz
+        term = term * qz
+        norm = norm + term
+        term = qw
+        term = term * qw
+        norm = norm + term
+        var expected: Long = transformScale
+        expected = expected * transformScale
+        var difference = norm - expected
+        if (difference < 0L) { difference = -difference }
+        if (difference > expected / 50L + transformScale) { return false }
+
+        var xx = scaled(qx, qx, transformScale)
+        var yy = scaled(qy, qy, transformScale)
+        var zz = scaled(qz, qz, transformScale)
+        var xy = scaled(qx, qy, transformScale)
+        var xz = scaled(qx, qz, transformScale)
+        var yz = scaled(qy, qz, transformScale)
+        var xw = scaled(qx, qw, transformScale)
+        var yw = scaled(qy, qw, transformScale)
+        var zw = scaled(qz, qw, transformScale)
+        if (xx == 2000000000 || yy == 2000000000 || zz == 2000000000 ||
+            xy == 2000000000 || xz == 2000000000 || yz == 2000000000 ||
+            xw == 2000000000 || yw == 2000000000 || zw == 2000000000) {
+            return false
+        }
+        var r00 = transformScale - 2 * (yy + zz)
+        var r01 = 2 * (xy - zw)
+        var r02 = 2 * (xz + yw)
+        var r10 = 2 * (xy + zw)
+        var r11 = transformScale - 2 * (xx + zz)
+        var r12 = 2 * (yz - xw)
+        var r20 = 2 * (xz - yw)
+        var r21 = 2 * (yz + xw)
+        var r22 = transformScale - 2 * (xx + yy)
+        var valuesOffset = nodeIndex * 12
+        nodeMatrices[valuesOffset] = scaled(r00, sx, transformScale)
+        nodeMatrices[valuesOffset + 1] = scaled(r01, sy, transformScale)
+        nodeMatrices[valuesOffset + 2] = scaled(r02, sz, transformScale)
+        nodeMatrices[valuesOffset + 3] = tx
+        nodeMatrices[valuesOffset + 4] = scaled(r10, sx, transformScale)
+        nodeMatrices[valuesOffset + 5] = scaled(r11, sy, transformScale)
+        nodeMatrices[valuesOffset + 6] = scaled(r12, sz, transformScale)
+        nodeMatrices[valuesOffset + 7] = ty
+        nodeMatrices[valuesOffset + 8] = scaled(r20, sx, transformScale)
+        nodeMatrices[valuesOffset + 9] = scaled(r21, sy, transformScale)
+        nodeMatrices[valuesOffset + 10] = scaled(r22, sz, transformScale)
+        nodeMatrices[valuesOffset + 11] = tz
+        for (var element = 0; element < 12; element = element + 1) {
+            if (nodeMatrices[valuesOffset + element] == 2000000000) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool parseNodeMatrix(
+        Int objectStart, Int objectLimit, Int coordinateScale,
+        Int transformScale, Int nodeIndex
+    ) {
+        var matrix = fieldValueStart(objectStart, objectLimit, "matrix")
+        var hasTrs = fieldValueStart(objectStart, objectLimit, "translation") >= 0 ||
+            fieldValueStart(objectStart, objectLimit, "rotation") >= 0 ||
+            fieldValueStart(objectStart, objectLimit, "scale") >= 0
+        if (matrix < 0) {
+            return buildTrsMatrix(
+                objectStart, objectLimit, coordinateScale,
+                transformScale, nodeIndex)
+        }
+        if (hasTrs) { return false }
+        if (!parseMatrixValues(
+                matrix, objectLimit, coordinateScale, transformScale)) {
+            return false
+        }
+        if (numberScratch[3] != 0 || numberScratch[7] != 0 ||
+            numberScratch[11] != 0 || numberScratch[15] != transformScale) {
+            return false
+        }
+        var offset = nodeIndex * 12
+        nodeMatrices[offset] = numberScratch[0]
+        nodeMatrices[offset + 1] = numberScratch[4]
+        nodeMatrices[offset + 2] = numberScratch[8]
+        nodeMatrices[offset + 3] = numberScratch[12]
+        nodeMatrices[offset + 4] = numberScratch[1]
+        nodeMatrices[offset + 5] = numberScratch[5]
+        nodeMatrices[offset + 6] = numberScratch[9]
+        nodeMatrices[offset + 7] = numberScratch[13]
+        nodeMatrices[offset + 8] = numberScratch[2]
+        nodeMatrices[offset + 9] = numberScratch[6]
+        nodeMatrices[offset + 10] = numberScratch[10]
+        nodeMatrices[offset + 11] = numberScratch[14]
+        return true
+    }
+
+
+    Bool parseMatrixValues(
+        Int start, Int limit, Int coordinateScale, Int transformScale
+    ) {
+        if (start < 0 || start >= limit || json[start] != 91) { return false }
+        var end = arrayEnd(start, limit)
+        if (end < 0) { return false }
+        var cursor = start + 1
+        for (var index = 0; index < 16; index = index + 1) {
+            cursor = skipWhitespace(cursor, end)
+            var valueEnd = numberEnd(cursor, end)
+            if (valueEnd < 0) { return false }
+            var valueScale = transformScale
+            if (index == 12 || index == 13 || index == 14) {
+                valueScale = coordinateScale
+            }
+            numberScratch[index] = fixedNumber(cursor, valueEnd, valueScale)
+            if (numberScratch[index] == 2000000000) { return false }
+            cursor = skipWhitespace(valueEnd, end)
+            if (index < 15) {
+                if (cursor >= end || json[cursor] != 44) { return false }
+                cursor = cursor + 1
+            }
+        }
+        return skipWhitespace(cursor, end) == end
+    }
+
+    Bool parseChildren(Int objectStart, Int objectLimit, Int parentIndex) {
+        var start = fieldValueStart(objectStart, objectLimit, "children")
+        if (start < 0) { return true }
+        if (json[start] != 91) { return false }
+        var end = arrayEnd(start, objectLimit)
+        if (end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        if (cursor == end) { return true }
+        while (cursor < end) {
+            var child = integerAt(cursor, end)
+            var valueEnd = numberEnd(cursor, end)
+            if (child < 0 || child >= nodeParents.length ||
+                child == parentIndex || nodeParents[child] >= 0 ||
+                valueEnd < 0) {
+                return false
+            }
+            nodeParents[child] = parentIndex
+            cursor = skipWhitespace(valueEnd, end)
+            if (cursor == end) { return true }
+            if (json[cursor] != 44) { return false }
+            cursor = skipWhitespace(cursor + 1, end)
+        }
+        return false
+    }
+
+    Bool parseNodes(
+        Int rootStart, Int rootEnd, Int coordinateScale, Int transformScale
+    ) {
+        var start = fieldValueStart(rootStart, rootEnd, "nodes")
+        if (start < 0) { return true }
+        if (json[start] != 91) { return false }
+        var end = arrayEnd(start, rootEnd)
+        if (end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123 || nodeCountValue >= nodeParents.length) {
+                return false
+            }
+            var objectLimit = objectEnd(cursor, end)
+            if (objectLimit < 0) { return false }
+            nodeMeshes[nodeCountValue] = integerField(cursor, objectLimit, "mesh")
+            nodeSkins[nodeCountValue] = integerField(cursor, objectLimit, "skin")
+            if (nodeMeshes[nodeCountValue] > 0 ||
+                !parseNodeMatrix(
+                    cursor, objectLimit, coordinateScale,
+                    transformScale, nodeCountValue) ||
+                !parseChildren(cursor, objectLimit, nodeCountValue)) {
+                return false
+            }
+            nodeCountValue = nodeCountValue + 1
+            cursor = skipWhitespace(objectLimit + 1, end)
+            if (cursor == end) { break }
+            if (json[cursor] != 44) { return false }
+            cursor = skipWhitespace(cursor + 1, end)
+        }
+        for (var node = 0; node < nodeParents.length; node = node + 1) {
+            if (nodeParents[node] >= nodeCountValue) { return false }
+        }
+        return nodeCountValue > 0
+    }
+
+    Bool parseIntegerArrayToJoints(Int start, Int limit, Int skinIndex) {
+        if (start < 0 || start >= limit || json[start] != 91) { return false }
+        var end = arrayEnd(start, limit)
+        if (end < 0) { return false }
+        skinJointOffsets[skinIndex] = skinJointCountValue
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (skinJointCountValue >= skinJoints.length) { return false }
+            var joint = integerAt(cursor, end)
+            var valueEnd = numberEnd(cursor, end)
+            if (joint < 0 || valueEnd < 0) { return false }
+            for (var prior = skinJointOffsets[skinIndex];
+                prior < skinJointCountValue; prior = prior + 1) {
+                if (skinJoints[prior] == joint) { return false }
+            }
+            skinJoints[skinJointCountValue] = joint
+            skinJointCountValue = skinJointCountValue + 1
+            skinJointCounts[skinIndex] = skinJointCounts[skinIndex] + 1
+            cursor = skipWhitespace(valueEnd, end)
+            if (cursor == end) { break }
+            if (json[cursor] != 44) { return false }
+            cursor = skipWhitespace(cursor + 1, end)
+        }
+        return skinJointCounts[skinIndex] > 0
+    }
+
+    Bool parseSkins(
+        Int rootStart, Int rootEnd, BoundedExternalGlbSceneReader geometry
+    ) {
+        var start = fieldValueStart(rootStart, rootEnd, "skins")
+        if (start < 0) { return true }
+        if (json[start] != 91) { return false }
+        var end = arrayEnd(start, rootEnd)
+        if (end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123 || skinCountValue >= skinJointOffsets.length) {
+                return false
+            }
+            var objectLimit = objectEnd(cursor, end)
+            if (objectLimit < 0) { return false }
+            var joints = fieldValueStart(cursor, objectLimit, "joints")
+            skinSkeletonNodes[skinCountValue] =
+                integerField(cursor, objectLimit, "skeleton")
+            skinInverseBindAccessors[skinCountValue] =
+                integerField(cursor, objectLimit, "inverseBindMatrices")
+            if (!parseIntegerArrayToJoints(joints, objectLimit, skinCountValue)) {
+                return false
+            }
+            var inverse = skinInverseBindAccessors[skinCountValue]
+            if (inverse >= 0 &&
+                (inverse >= geometry.accessorMetadataCount() ||
+                    geometry.accessorMetadataKind(inverse) != 44 ||
+                    geometry.accessorMetadataComponent(inverse) != 5126 ||
+                    geometry.accessorMetadataElementCount(inverse) !=
+                        skinJointCounts[skinCountValue])) {
+                return false
+            }
+            skinCountValue = skinCountValue + 1
+            cursor = skipWhitespace(objectLimit + 1, end)
+            if (cursor == end) { break }
+            if (json[cursor] != 44) { return false }
+            cursor = skipWhitespace(cursor + 1, end)
+        }
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            var skeleton = skinSkeletonNodes[skin]
+            if (skeleton >= nodeCountValue) { return false }
+            for (var joint = 0; joint < skinJointCounts[skin]; joint = joint + 1) {
+                if (skinJoints[skinJointOffsets[skin] + joint] >= nodeCountValue) {
+                    return false
+                }
+            }
+        }
+        return skinCountValue > 0
+    }
+
+    Bool markSceneRoots(Int rootStart, Int rootEnd) {
+        var scenes = fieldValueStart(rootStart, rootEnd, "scenes")
+        if (scenes < 0) {
+            for (var node = 0; node < nodeCountValue; node = node + 1) {
+                if (nodeParents[node] < 0) { nodeReachable[node] = true }
+            }
+        } else {
+            if (json[scenes] != 91) { return false }
+            var scenesEnd = arrayEnd(scenes, rootEnd)
+            if (scenesEnd < 0) { return false }
+            var selected = integerField(rootStart, rootEnd, "scene")
+            if (selected < 0) { selected = 0 }
+            var sceneIndex = 0
+            var cursor = skipWhitespace(scenes + 1, scenesEnd)
+            var found = false
+            while (cursor < scenesEnd) {
+                if (json[cursor] != 123) { return false }
+                var objectLimit = objectEnd(cursor, scenesEnd)
+                if (objectLimit < 0) { return false }
+                if (sceneIndex == selected) {
+                    var roots = fieldValueStart(cursor, objectLimit, "nodes")
+                    if (roots < 0 || json[roots] != 91) { return false }
+                    var rootsEnd = arrayEnd(roots, objectLimit)
+                    if (rootsEnd < 0) { return false }
+                    var rootCursor = skipWhitespace(roots + 1, rootsEnd)
+                    while (rootCursor < rootsEnd) {
+                        var node = integerAt(rootCursor, rootsEnd)
+                        var valueEnd = numberEnd(rootCursor, rootsEnd)
+                        if (node < 0 || node >= nodeCountValue ||
+                            nodeParents[node] >= 0 || valueEnd < 0) {
+                            return false
+                        }
+                        nodeReachable[node] = true
+                        rootCursor = skipWhitespace(valueEnd, rootsEnd)
+                        if (rootCursor == rootsEnd) { break }
+                        if (json[rootCursor] != 44) { return false }
+                        rootCursor = skipWhitespace(rootCursor + 1, rootsEnd)
+                    }
+                    found = true
+                }
+                sceneIndex = sceneIndex + 1
+                cursor = skipWhitespace(objectLimit + 1, scenesEnd)
+                if (cursor == scenesEnd) { break }
+                if (json[cursor] != 44) { return false }
+                cursor = skipWhitespace(cursor + 1, scenesEnd)
+            }
+            if (!found) { return false }
+        }
+        for (var pass = 0; pass < nodeCountValue; pass = pass + 1) {
+            for (var node = 0; node < nodeCountValue; node = node + 1) {
+                if (nodeParents[node] >= 0 &&
+                    nodeReachable[nodeParents[node]]) {
+                    nodeReachable[node] = true
+                }
+            }
+        }
+        var reachable = 0
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (nodeReachable[node]) { reachable = reachable + 1 }
+        }
+        return reachable > 0
+    }
+
+    Bool validateSkinReachability(BoundedExternalGlbSceneReader geometry) {
+        var skinUsed = false
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (!nodeReachable[node]) { continue }
+            var skin = nodeSkins[node]
+            if (skin >= 0) {
+                if (skin >= skinCountValue || nodeMeshes[node] < 0) { return false }
+                skinUsed = true
+            }
+        }
+        if (skinUsed && !geometry.skinAttributesAccepted()) { return false }
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            if (skinSkeletonNodes[skin] >= 0 &&
+                !nodeReachable[skinSkeletonNodes[skin]]) {
+                return false
+            }
+            for (var joint = 0; joint < skinJointCounts[skin]; joint = joint + 1) {
+                if (!nodeReachable[skinJoints[skinJointOffsets[skin] + joint]]) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Bool buildScene(
+        Int sourceNamespaceId, Int sourceAssetId, Int sourceRevision,
+        Int coordinateScale, Int transformScale
+    ) {
+        if (!sceneValue.configure(
+                sourceNamespaceId, sourceAssetId, sourceRevision,
+                1, coordinateScale, transformScale)) {
+            return false
+        }
+        if (nodeCountValue == 0) {
+            return sceneValue.addNodeTranslation(
+                    1, 0, sceneNodeMeshKind(), 1, 0, 0, 0) &&
+                sceneValue.seal() && sceneValue.encode()
+        }
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (!nodeReachable[node]) { continue }
+            var parentId = 0
+            if (nodeParents[node] >= 0) {
+                if (!nodeReachable[nodeParents[node]]) { return false }
+                parentId = nodeParents[node] + 1
+            }
+            var nodeKind = sceneNodeGroupKind()
+            var resourceId = 0
+            if (nodeMeshes[node] >= 0) {
+                nodeKind = sceneNodeMeshKind()
+                resourceId = nodeMeshes[node] + 1
+            }
+            var skinId = 0
+            if (nodeSkins[node] >= 0) { skinId = nodeSkins[node] + 1 }
+            var offset = node * 12
+            if (!sceneValue.addNodeSkinMatrix(
+                    node + 1, parentId, nodeKind, resourceId, skinId,
+                    nodeMatrices[offset], nodeMatrices[offset + 1],
+                    nodeMatrices[offset + 2], nodeMatrices[offset + 3],
+                    nodeMatrices[offset + 4], nodeMatrices[offset + 5],
+                    nodeMatrices[offset + 6], nodeMatrices[offset + 7],
+                    nodeMatrices[offset + 8], nodeMatrices[offset + 9],
+                    nodeMatrices[offset + 10], nodeMatrices[offset + 11])) {
+                return false
+            }
+        }
+        return sceneValue.seal() && sceneValue.encode()
+    }
+    Int parentJointId(Int skin, Int node) {
+        var parent = nodeParents[node]
+        while (parent >= 0) {
+            for (var ordinal = 0; ordinal < skinJointCounts[skin];
+                ordinal = ordinal + 1) {
+                if (skinJoints[skinJointOffsets[skin] + ordinal] == parent) {
+                    return ordinal + 1
+                }
+            }
+            parent = nodeParents[parent]
+        }
+        return 0
+    }
+
+    Bool loadInverseBindMatrix(
+        Int[] source,
+        BoundedExternalGlbSceneReader geometry,
+        Int accessor,
+        Int ordinal,
+        ExternalGlbReadRequest request
+    ) {
+        var coordinateScale = request.coordinateScale()
+        var transformScale = 1000
+        if (accessor < 0) {
+            for (var index = 0; index < 16; index = index + 1) {
+                numberScratch[index] = 0
+            }
+            numberScratch[0] = transformScale
+            numberScratch[5] = transformScale
+            numberScratch[10] = transformScale
+            numberScratch[15] = transformScale
+            return true
+        }
+        for (var component = 0; component < 16;
+            component = component + 1) {
+            var scale = transformScale
+            if (component == 12 || component == 13 || component == 14) {
+                scale = coordinateScale
+            }
+            numberScratch[component] = geometry.accessorFloatFixedValue(
+                source, accessor, ordinal, component, scale)
+            if (numberScratch[component] == 2000000000) { return false }
+        }
+        return numberScratch[3] == 0 && numberScratch[7] == 0 &&
+            numberScratch[11] == 0 &&
+            numberScratch[15] == transformScale
+    }
+
+    Bool buildSkeleton(
+        Int[] source,
+        BoundedExternalGlbSceneReader geometry,
+        ExternalGlbReadRequest request,
+        Int transformScale
+    ) {
+        var sourceNamespaceId = request.sourceNamespaceId()
+        var sourceAssetId = request.sourceAssetId()
+        var sourceRevision = request.sourceRevision()
+        skeletonValue.clear()
+        if (skinCountValue == 0) { return true }
+        if (!skeletonValue.configure(
+                sourceNamespaceId, sourceAssetId, sourceRevision,
+                transformScale)) {
+            return false
+        }
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            var skeletonNodeId = 0
+            if (skinSkeletonNodes[skin] >= 0) {
+                skeletonNodeId = skinSkeletonNodes[skin] + 1
+            }
+            if (!skeletonValue.addSkin(skin + 1, skeletonNodeId)) {
+                return false
+            }
+        }
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            var accessor = skinInverseBindAccessors[skin]
+            for (var ordinal = 0; ordinal < skinJointCounts[skin];
+                ordinal = ordinal + 1) {
+                var node = skinJoints[skinJointOffsets[skin] + ordinal]
+                if (!loadInverseBindMatrix(
+                        source, geometry, accessor, ordinal, request) ||
+                    !skeletonValue.addJoint(
+                        skin + 1, ordinal + 1, node + 1,
+                        parentJointId(skin, node),
+                        numberScratch[0], numberScratch[4],
+                        numberScratch[8], numberScratch[12],
+                        numberScratch[1], numberScratch[5],
+                        numberScratch[9], numberScratch[13],
+                        numberScratch[2], numberScratch[6],
+                        numberScratch[10], numberScratch[14])) {
+                    return false
+                }
+            }
+        }
+        return skeletonValue.seal() && skeletonValue.encode()
+    }
+
+
+    Bool read(
+        Int[] source,
+        BoundedExternalGlbSceneReader geometry,
+        ExternalGlbReadRequest request
+    ) {
+        var sourceNamespaceId = request.sourceNamespaceId()
+        var sourceAssetId = request.sourceAssetId()
+        var sourceRevision = request.sourceRevision()
+        var coordinateScale = request.coordinateScale()
+        clear()
+        var transformScale = 1000
+        if (!loadJson(source)) { return false }
+        var rootStart = skipWhitespace(0, jsonLengthValue)
+        if (rootStart >= jsonLengthValue || json[rootStart] != 123) { return false }
+        var rootEnd = objectEnd(rootStart, jsonLengthValue)
+        if (rootEnd < 0 ||
+            !parseNodes(rootStart, rootEnd, coordinateScale, transformScale)) {
+            return false
+        }
+        if (nodeCountValue == 0 &&
+            (fieldValueStart(rootStart, rootEnd, "skins") >= 0 ||
+                fieldValueStart(rootStart, rootEnd, "scenes") >= 0)) {
+            return false
+        }
+        if (nodeCountValue > 0 &&
+            (!parseSkins(rootStart, rootEnd, geometry) ||
+                !markSceneRoots(rootStart, rootEnd) ||
+                !validateSkinReachability(geometry))) {
+            return false
+        }
+        if (!buildScene(
+                sourceNamespaceId, sourceAssetId, sourceRevision,
+                coordinateScale, transformScale) ||
+            !buildSkeleton(
+                source, geometry, request, transformScale)) {
+            return false
+        }
+        acceptedValue = true
+        return true
+    }
+
+    Bool valid() {
+        return acceptedValue && sceneValue.validate() &&
+            (skinCountValue == 0 || skeletonValue.validate())
+    }
+
+    Bool reopenCanonical() {
+        if (!valid() || !sceneValue.encode()) { return false }
+        var words = new Int[sceneValue.encodedLength()]
+        for (var index = 0; index < words.length; index = index + 1) {
+            words[index] = sceneValue.encodedWord(index)
+        }
+        return BoundedSceneProduct(nodeParents.length).reopen(words)
+    }
+    Bool reopenSkeletonCanonical() {
+        if (!valid() || skinCountValue == 0 || !skeletonValue.encode()) {
+            return false
+        }
+        var words = new Int[skeletonValue.encodedLength()]
+        for (var index = 0; index < words.length; index = index + 1) {
+            words[index] = skeletonValue.encodedWord(index)
+        }
+        return BoundedSkeletonProduct(
+            skinJointOffsets.length, skinJoints.length).reopen(words)
+    }
+
+
+    BoundedSceneProduct sceneProduct() { return sceneValue }
+    Int sceneChecksum() { return sceneValue.checksum() }
+    BoundedSkeletonProduct skeletonProduct() { return skeletonValue }
+    Int skeletonChecksum() {
+        if (skinCountValue == 0) { return 0 }
+        return skeletonValue.checksum()
+    }
+    Int sceneNodeCount() { return sceneValue.nodeCount() }
+    Int skinCount() { return skinCountValue }
+
+    Int skinJointCount(Int skin) {
+        if (skin < 0 || skin >= skinCountValue) { return 0 }
+        return skinJointCounts[skin]
+    }
+
+    Int skinJointNodeId(Int skin, Int joint) {
+        if (skin < 0 || skin >= skinCountValue ||
+            joint < 0 || joint >= skinJointCounts[skin]) {
+            return 0
+        }
+        return skinJoints[skinJointOffsets[skin] + joint] + 1
+    }
+
+    Int skinSkeletonNodeId(Int skin) {
+        if (skin < 0 || skin >= skinCountValue ||
+            skinSkeletonNodes[skin] < 0) {
+            return 0
+        }
+        return skinSkeletonNodes[skin] + 1
+    }
+
+    Int skinInverseBindAccessor(Int skin) {
+        if (skin < 0 || skin >= skinCountValue) { return -1 }
+        return skinInverseBindAccessors[skin]
+    }
+}

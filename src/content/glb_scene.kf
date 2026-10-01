@@ -10,6 +10,15 @@ record ExternalGlbProvenanceReceipt(
     Int geometryChecksum
 )
 
+record ExternalGlbReadRequest(
+    Int sourceNamespaceId,
+    Int sourceAssetId,
+    Int sourceRevision,
+    Int toolVersion,
+    Int optionsChecksum,
+    Int coordinateScale
+)
+
 class BoundedExternalGlbSceneReader {
     Int[] json
     Int jsonLengthValue
@@ -36,6 +45,7 @@ class BoundedExternalGlbSceneReader {
     Int modeValue
     Int coordinateScaleValue
     BoundedCanonicalGlb mesh
+    BoundedExternalGlbHierarchyReader hierarchyValue
     Int[] canonicalWire
     Int canonicalLengthValue
     Int sourceChecksumValue
@@ -68,6 +78,7 @@ class BoundedExternalGlbSceneReader {
         accessorCounts = new Int[64]
         accessorKinds = new Int[64]
         mesh = BoundedCanonicalGlb(actualVertices, actualTriangles)
+        hierarchyValue = BoundedExternalGlbHierarchyReader(256, 64, 2048)
         canonicalWire = new Int[16 + actualVertices * 3 + actualTriangles * 4]
         jsonLengthValue = 0
         binOffsetValue = 0
@@ -607,12 +618,15 @@ class BoundedExternalGlbSceneReader {
         return mesh.seal() && mesh.encode()
     }
 
-    Bool read(
-        Int[] source, Int sourceNamespaceId, Int sourceAssetId,
-        Int sourceRevision, Int toolVersion, Int optionsChecksum,
-        Int coordinateScale
-    ) {
+    Bool read(Int[] source, ExternalGlbReadRequest request) {
+        var sourceNamespaceId = request.sourceNamespaceId()
+        var sourceAssetId = request.sourceAssetId()
+        var sourceRevision = request.sourceRevision()
+        var toolVersion = request.toolVersion()
+        var optionsChecksum = request.optionsChecksum()
+        var coordinateScale = request.coordinateScale()
         readValue = false
+        hierarchyValue.clear()
         viewCountValue = 0
         accessorCountValue = 0
         positionAccessorValue = -1
@@ -703,6 +717,9 @@ class BoundedExternalGlbSceneReader {
                 accessorPayloadFits(jointsAccessorValue, 4, 5123, 8)
             skinAttributesValidValue = jointsValid &&
                 floatAccessorValuesValid(source, weightsAccessorValue, 4, 4)
+        }
+        if (!hierarchyValue.read(source, this, request)) {
+            return false
         }
         for (var index = 0; index < mesh.encodedLength(); index = index + 1) {
             canonicalWire[index] = mesh.encodedWord(index)
@@ -810,6 +827,130 @@ class BoundedExternalGlbSceneReader {
         return readValue && skinAttributesValidValue
     }
 
+    Bool skinAttributesAccepted() {
+        return skinAttributesValidValue
+    }
+
+    Int accessorMetadataCount() {
+        return accessorCountValue
+    }
+
+    Int accessorMetadataKind(Int accessor) {
+        if (accessor < 0 || accessor >= accessorCountValue) { return 0 }
+        return accessorKinds[accessor]
+    }
+
+    Int accessorMetadataComponent(Int accessor) {
+        if (accessor < 0 || accessor >= accessorCountValue) { return 0 }
+        return accessorComponents[accessor]
+    }
+
+    Int accessorMetadataElementCount(Int accessor) {
+        if (accessor < 0 || accessor >= accessorCountValue) { return 0 }
+        return accessorCounts[accessor]
+    }
+    Int accessorComponentCount(Int accessor) {
+        if (accessor < 0 || accessor >= accessorCountValue) { return 0 }
+        var kind = accessorKinds[accessor]
+        if (kind == 1) { return 1 }
+        if (kind == 2) { return 2 }
+        if (kind == 3) { return 3 }
+        if (kind == 4) { return 4 }
+        if (kind == 22) { return 4 }
+        if (kind == 33) { return 9 }
+        if (kind == 44) { return 16 }
+        return 0
+    }
+
+    Int accessorFloatFixedValue(
+        Int[] source, Int accessor, Int element, Int component, Int scale
+    ) {
+        var components = accessorComponentCount(accessor)
+        if (accessor < 0 || accessor >= accessorCountValue ||
+            accessorComponents[accessor] != 5126 || components <= 0 ||
+            element < 0 || element >= accessorCounts[accessor] ||
+            component < 0 || component >= components ||
+            scale <= 0 || scale > 1000000) {
+            return 2000000000
+        }
+        var view = accessorViews[accessor]
+        if (view < 0 || view >= viewCountValue) { return 2000000000 }
+        var elementBytes = components * 4
+        var stride = viewStrides[view]
+        if (stride <= 0) { stride = elementBytes }
+        var accessorOffset = accessorOffsets[accessor]
+        if (stride < elementBytes || accessorOffset < 0 ||
+            accessorOffset > viewLengths[view] - elementBytes ||
+            element > (viewLengths[view] - accessorOffset - elementBytes) /
+                stride) {
+            return 2000000000
+        }
+        var offset = binOffsetValue + viewOffsets[view] + accessorOffset +
+            element * stride + component * 4
+        if (offset < binOffsetValue || offset + 4 > binOffsetValue + binLengthValue ||
+            offset + 4 > source.length) {
+            return 2000000000
+        }
+        return readFloatFixed(source, offset, scale)
+    }
+
+
+    Bool reopenSceneCanonical() {
+        return readValue && hierarchyValue.reopenCanonical()
+    }
+    Bool reopenSkeletonCanonical() {
+        return readValue && hierarchyValue.reopenSkeletonCanonical()
+    }
+
+
+    BoundedSceneProduct sceneProduct() {
+        return hierarchyValue.sceneProduct()
+    }
+    BoundedSkeletonProduct skeletonProduct() {
+        return hierarchyValue.skeletonProduct()
+    }
+
+
+    Int sceneChecksum() {
+        if (!readValue) { return -1 }
+        return hierarchyValue.sceneChecksum()
+    }
+    Int skeletonChecksum() {
+        if (!readValue) { return -1 }
+        return hierarchyValue.skeletonChecksum()
+    }
+
+
+    Int sceneNodeCount() {
+        if (!readValue) { return 0 }
+        return hierarchyValue.sceneNodeCount()
+    }
+
+    Int skinCount() {
+        if (!readValue) { return 0 }
+        return hierarchyValue.skinCount()
+    }
+
+    Int skinJointCount(Int skin) {
+        if (!readValue) { return 0 }
+        return hierarchyValue.skinJointCount(skin)
+    }
+
+    Int skinJointNodeId(Int skin, Int joint) {
+        if (!readValue) { return 0 }
+        return hierarchyValue.skinJointNodeId(skin, joint)
+    }
+
+    Int skinSkeletonNodeId(Int skin) {
+        if (!readValue) { return 0 }
+        return hierarchyValue.skinSkeletonNodeId(skin)
+    }
+
+    Int skinInverseBindAccessor(Int skin) {
+        if (!readValue) { return -1 }
+        return hierarchyValue.skinInverseBindAccessor(skin)
+    }
+
     Bool emitCollision(BoundedAuthoredCollision target) {
         return readValue && mesh.emitCollision(target)
     }
@@ -821,7 +962,7 @@ class BoundedExternalGlbSceneReader {
     }
 
     Bool valid() {
-        return readValue && mesh.validate()
+        return readValue && mesh.validate() && hierarchyValue.valid()
     }
 
     Int vertexCount() {
@@ -860,4 +1001,5 @@ class BoundedExternalGlbSceneReader {
     Int sourceRevision() {
         return revisionValue
     }
+
 }

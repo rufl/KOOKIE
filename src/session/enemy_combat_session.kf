@@ -374,6 +374,18 @@ class AuthoritativeEnemySession {
         return enemies.configure(perceptionRange, attackRange, cooldown)
     }
 
+    Bool installEnemyBehaviorProgram(BoundedBehaviorProgram program) {
+        return enemies.installBehaviorProgram(program)
+    }
+
+    Int enemyBehaviorProgramRevision() {
+        return enemies.behaviorProgramRevision()
+    }
+
+    Int enemyBehaviorProgramChecksum() {
+        return enemies.behaviorProgramChecksum()
+    }
+
     Bool configureSpatialProjectileRecycling(Int minimumDistance) {
         if (minimumDistance < 0) { return false }
         spatialProjectileRecycleDistance = minimumDistance

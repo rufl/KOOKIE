@@ -2,7 +2,65 @@
 
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
+## 2026-10-01
+
+### Qualificação de apresentação Windows G6
+
+- Corrigimos o ciclo de vida do módulo do adaptador SDL Windows: chamadas FFI
+  do Kof JVM podem fechar a arena nativa de cada chamada sem descarregar o
+  estado fixado do adaptador.
+- O pacote de apresentação Windows assinado agora passa um smoke completo em
+  Wine isolado sobre host com DRI3, incluindo HUD/cena/criador do Kof,
+  aquisição da janela pelo SDL GPU, capacidades de apresentação e captura.
+- O smoke produziu os cinco marcadores esperados e um frame de 1280×720. Isso
+  qualifica a rota limitada de gameplay Kof JVM mais apresentação SDL nativa no
+  host registrado; lowering nativo PE/Kof completo para Windows continua sendo
+  outro objetivo.
+
+
 ## 2026-09-30
+
+### Artefatos Kof-first, sandbox e caminhos do compilador Windows
+
+- Adicionamos produtos canônicos limitados de grafos, comportamento, hierarquia
+  de cena, esqueleto e grafo de animação, incluindo codecs determinísticos,
+  validação de reabertura, publicação por revisão e entrada de hierarquia/skin
+  GLB.
+- Adicionamos envelopes de artefatos offline e uma VM KofScript de pilha
+  limitada, com prova estática de fluxo/pilha/recursos, capacidades explícitas
+  de comandos/eventos e aplicação atômica na sessão autoritativa. O builder
+  KofScript emite um artefato que os runtimes Kof JVM e nativo reabrem e
+  executam de forma idêntica.
+- Adicionamos um pacote JVM reproduzível para Windows com runtime OpenJDK x64
+  fixado por SHA-256, árvore legal preservada, JAR executável canônico e ZIP
+  determinístico assinado; o gate focado recompila e compara todos os artefatos
+  assinados.
+- Adicionamos uma ponte estrita do compilador a partir da IR Kof otimizada para
+  um subconjunto limitado de topo com inteiros/String/fluxo de controle. Ela
+  emite C11 determinístico, COFF AMD64 e PE de console por Zig fixado, verifica
+  paridade semântica contra Kof JVM e rejeita classes, heap/arrays, exceções,
+  FFI e IR SDL com `PE001`. Gameplay Windows completo permanece fora dessa
+  alegação.
+
+### Caminhos limitados de expansão G6
+
+- Adicionamos jobs nativos com cópia de escalares, quantidade limitada de
+  workers, publicação por ordinal e dobra determinística de conclusões.
+- Adicionamos descritores/artefatos KofScript vinculados ao pacote, ativação
+  encenada que preserva o programa anterior em falhas e execução autoritativa
+  na sessão.
+- Adicionamos hierarquia, transformações e registro de assets persistentes no
+  Creator Studio, com save/open binário canônico e rollback em arquivo inválido.
+- Adicionamos canal WAN de janela fixa com retransmissão limitada, pressão
+  determinística de perda/latência, entrega ordenada, rejeição de replay e
+  backpressure.
+- Adicionamos `scripts/verify_g6_runtime.sh` e probes focados para os quatro
+  caminhos.
+- Adicionamos pacote reproduzível de apresentação SDL Windows com SDL3,
+  SDL_mixer, SPIR-V/DXIL e OpenJDK 27 fixado. A evidência estática do pacote é
+  retida; a qualificação completa de gameplay em Wine isolado está registrada
+  na entrada de 2026-10-01 acima.
+
 
 ### Página inicial GitHub e superfície de contribuição
 

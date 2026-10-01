@@ -1,0 +1,301 @@
+package content
+
+import core
+
+Int kofScriptPackageArtifactChunkKind() { return 34 }
+Int kofScriptPackageDescriptorChunkKind() { return 35 }
+Int kofScriptPackageMagic() { return 1263752019 }
+Int kofScriptPackageSchemaVersion() { return 1 }
+Int kofScriptPackageDiagnosticNone() { return 0 }
+Int kofScriptPackageDiagnosticFile() { return 1 }
+Int kofScriptPackageDiagnosticDescriptor() { return 2 }
+Int kofScriptPackageDiagnosticArtifact() { return 3 }
+Int kofScriptPackageDiagnosticProgram() { return 4 }
+Int kofScriptPackageDiagnosticIdentity() { return 5 }
+
+class BoundedKofScriptPackageDescriptor {
+    Int[] words
+    Int wordCountValue
+    Int ownerNamespaceValue
+    Int ownerIdValue
+    Int scriptIdValue
+    Int revisionValue
+    Int productChecksumValue
+    Int chunkIdValue
+    Int chunkRevisionValue
+    Int artifactChecksumValue
+    Int subscribedEventKindValue
+    Int checksumValue
+    Bool sealedValue
+
+    public constructor() {
+        words = new Int[14]
+        clear()
+    }
+
+    Bool clear() {
+        wordCountValue = 14
+        ownerNamespaceValue = 0
+        ownerIdValue = 0
+        scriptIdValue = 0
+        revisionValue = 0
+        productChecksumValue = 0
+        chunkIdValue = 0
+        chunkRevisionValue = 0
+        artifactChecksumValue = 0
+        subscribedEventKindValue = 0
+        checksumValue = 0
+        sealedValue = false
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 89
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            var value = words[index]
+            if (index == 3) { value = 0 }
+            result = mix(result, value)
+        }
+        if (result <= 0) { return 1 }
+        return result
+    }
+
+    Bool configure(
+        Int ownerNamespace, Int ownerId, Int scriptId, Int revision,
+        Int productChecksum, Int chunkId, Int chunkRevision,
+        Int artifactChecksum, Int subscribedEventKind
+    ) {
+        clear()
+        if (ownerNamespace <= 0 || ownerNamespace > 1000000 ||
+            ownerId <= 0 || ownerId > 1000000 ||
+            scriptId <= 0 || scriptId > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            productChecksum <= 0 || productChecksum > 1000000 ||
+            chunkId <= 0 || chunkId > 1000000 ||
+            chunkRevision <= 0 || chunkRevision > 1000000 ||
+            artifactChecksum <= 0 || artifactChecksum > 1000000 ||
+            trustedDomainEventPhase(subscribedEventKind) == 0) {
+            return false
+        }
+        ownerNamespaceValue = ownerNamespace
+        ownerIdValue = ownerId
+        scriptIdValue = scriptId
+        revisionValue = revision
+        productChecksumValue = productChecksum
+        chunkIdValue = chunkId
+        chunkRevisionValue = chunkRevision
+        artifactChecksumValue = artifactChecksum
+        subscribedEventKindValue = subscribedEventKind
+        return true
+    }
+
+    Bool seal() {
+        if (sealedValue || ownerNamespaceValue <= 0) { return false }
+        words[0] = kofScriptPackageMagic()
+        words[1] = kofScriptPackageSchemaVersion()
+        words[2] = wordCountValue
+        words[3] = 0
+        words[4] = ownerNamespaceValue
+        words[5] = ownerIdValue
+        words[6] = scriptIdValue
+        words[7] = revisionValue
+        words[8] = productChecksumValue
+        words[9] = chunkIdValue
+        words[10] = chunkRevisionValue
+        words[11] = artifactChecksumValue
+        words[12] = subscribedEventKindValue
+        words[13] = 0
+        checksumValue = calculateChecksum()
+        words[3] = checksumValue
+        sealedValue = checksumValue > 0
+        return sealedValue
+    }
+
+    Bool decodeBytes(Int[] bytes) {
+        clear()
+        if (bytes.length != wordCountValue * 4) { return false }
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            var offset = index * 4
+            if (bytes[offset] < 0 || bytes[offset] > 255 ||
+                bytes[offset + 1] < 0 || bytes[offset + 1] > 255 ||
+                bytes[offset + 2] < 0 || bytes[offset + 2] > 255 ||
+                bytes[offset + 3] < 0 || bytes[offset + 3] >= 128) {
+                clear()
+                return false
+            }
+            words[index] = bytes[offset] + bytes[offset + 1] * 256 +
+                bytes[offset + 2] * 65536 + bytes[offset + 3] * 16777216
+        }
+        if (words[0] != kofScriptPackageMagic() ||
+            words[1] != kofScriptPackageSchemaVersion() ||
+            words[2] != wordCountValue || words[3] <= 0 ||
+            words[3] != calculateChecksum() || words[13] != 0 ||
+            !configure(
+                words[4], words[5], words[6], words[7], words[8], words[9],
+                words[10], words[11], words[12]) || !seal() ||
+            checksumValue != words[3]) {
+            clear()
+            return false
+        }
+        return true
+    }
+
+    Int[] encodedBytes() {
+        if (!sealedValue) { return new Int[0] }
+        var result = new Int[wordCountValue * 4]
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            var offset = index * 4
+            result[offset] = words[index] & 255
+            result[offset + 1] = (words[index] >>> 8) & 255
+            result[offset + 2] = (words[index] >>> 16) & 255
+            result[offset + 3] = (words[index] >>> 24) & 255
+        }
+        return result
+    }
+
+    Int ownerNamespace() { return ownerNamespaceValue }
+    Int ownerId() { return ownerIdValue }
+    Int scriptId() { return scriptIdValue }
+    Int revision() { return revisionValue }
+    Int productChecksum() { return productChecksumValue }
+    Int chunkId() { return chunkIdValue }
+    Int chunkRevision() { return chunkRevisionValue }
+    Int artifactChecksum() { return artifactChecksumValue }
+    Int subscribedEventKind() { return subscribedEventKindValue }
+    Int checksum() {
+        if (!sealedValue) { return -1 }
+        return checksumValue
+    }
+}
+
+class BoundedKofScriptPackageRuntime {
+    BoundedContentPackage packageValue
+    BoundedContentPackageFileStore filesValue
+    BoundedKofScriptProgram programValue
+    BoundedKofScriptPackageDescriptor descriptorValue
+    Int diagnosticValue
+    Int generationValue
+    Bool loadedValue
+
+    public constructor(Int payloadCapacity) {
+        var actualCapacity = payloadCapacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > 16777216) { actualCapacity = 16777216 }
+        packageValue = BoundedContentPackage(32, 32, 64)
+        filesValue = BoundedContentPackageFileStore(32, 32, 64, actualCapacity)
+        programValue = BoundedKofScriptProgram(64, 256)
+        descriptorValue = BoundedKofScriptPackageDescriptor()
+        diagnosticValue = kofScriptPackageDiagnosticNone()
+        generationValue = 0
+        loadedValue = false
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        return false
+    }
+
+    Int findChunk(BoundedContentPackage packageData, Int kind) {
+        var found = -1
+        for (var index = 0; index < packageData.chunkCount(); index = index + 1) {
+            if (packageData.chunkKind(index) == kind) {
+                if (found >= 0) { return -2 }
+                found = index
+            }
+        }
+        return found
+    }
+
+    Int[] bytesToWords(Int[] bytes) {
+        if (bytes.length <= 0 || bytes.length % 4 != 0) {
+            return new Int[0]
+        }
+        var result = new Int[bytes.length / 4]
+        for (var index = 0; index < result.length; index = index + 1) {
+            var offset = index * 4
+            if (bytes[offset] < 0 || bytes[offset] > 255 ||
+                bytes[offset + 1] < 0 || bytes[offset + 1] > 255 ||
+                bytes[offset + 2] < 0 || bytes[offset + 2] > 255 ||
+                bytes[offset + 3] < 0 || bytes[offset + 3] >= 128) {
+                return new Int[0]
+            }
+            result[index] = bytes[offset] + bytes[offset + 1] * 256 +
+                bytes[offset + 2] * 65536 + bytes[offset + 3] * 16777216
+        }
+        return result
+    }
+
+    Bool load(String path) {
+        diagnosticValue = kofScriptPackageDiagnosticNone()
+        var stagedPackage = BoundedContentPackage(32, 32, 64)
+        var stagedFiles = BoundedContentPackageFileStore(
+            32, 32, 64, filesValue.payloadCapacity())
+        if (!stagedFiles.read(path, stagedPackage)) {
+            return reject(kofScriptPackageDiagnosticFile())
+        }
+        var descriptorIndex = findChunk(
+            stagedPackage, kofScriptPackageDescriptorChunkKind())
+        var artifactIndex = findChunk(
+            stagedPackage, kofScriptPackageArtifactChunkKind())
+        if (descriptorIndex < 0 || artifactIndex < 0) {
+            return reject(kofScriptPackageDiagnosticDescriptor())
+        }
+        var stagedDescriptor = BoundedKofScriptPackageDescriptor()
+        if (!stagedDescriptor.decodeBytes(
+                stagedFiles.chunkCopy(stagedPackage, descriptorIndex))) {
+            return reject(kofScriptPackageDiagnosticDescriptor())
+        }
+        var stagedArtifact = BoundedOfflineProductArtifact(8192)
+        if (!stagedArtifact.decodeBytes(
+                stagedFiles.chunkCopy(stagedPackage, artifactIndex)) ||
+            stagedArtifact.kind() != offlineArtifactKofScriptKind()) {
+            return reject(kofScriptPackageDiagnosticArtifact())
+        }
+        var stagedProgram = BoundedKofScriptProgram(64, 256)
+        if (!stagedProgram.decode(stagedArtifact.wordsCopy())) {
+            return reject(kofScriptPackageDiagnosticProgram())
+        }
+        var programIdentity = stagedProgram.identity()
+        if (programIdentity.ownerNamespace != stagedDescriptor.ownerNamespace() ||
+            programIdentity.ownerId != stagedDescriptor.ownerId() ||
+            programIdentity.scriptId != stagedDescriptor.scriptId() ||
+            programIdentity.revision != stagedDescriptor.revision() ||
+            stagedProgram.subscribedEventKind() !=
+                stagedDescriptor.subscribedEventKind() ||
+            stagedProgram.checksum() != stagedDescriptor.productChecksum() ||
+            stagedArtifact.productChecksum() != stagedDescriptor.productChecksum() ||
+            stagedArtifact.checksum() != stagedDescriptor.artifactChecksum() ||
+            stagedPackage.chunkId(artifactIndex) != stagedDescriptor.chunkId() ||
+            stagedPackage.chunkRevision(artifactIndex) != stagedDescriptor.chunkRevision()) {
+            return reject(kofScriptPackageDiagnosticIdentity())
+        }
+        packageValue = stagedPackage
+        filesValue = stagedFiles
+        programValue = stagedProgram
+        descriptorValue = stagedDescriptor
+        generationValue = generationValue + 1
+        if (generationValue <= 0) { generationValue = 1 }
+        loadedValue = true
+        diagnosticValue = kofScriptPackageDiagnosticNone()
+        return true
+    }
+
+    Bool execute(BoundedKofScriptVm vm, TrustedDomainEvent event, Int tick) {
+        if (!loadedValue) { return false }
+        return vm.execute(programValue, event, tick)
+    }
+
+    Bool loaded() { return loadedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int generation() { return generationValue }
+    Int packageChecksum() { return packageValue.checksum() }
+    BoundedKofScriptProgram program() { return programValue }
+    BoundedKofScriptPackageDescriptor descriptor() { return descriptorValue }
+    BoundedContentPackage packageData() { return packageValue }
+}

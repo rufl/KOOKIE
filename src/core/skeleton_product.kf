@@ -1,0 +1,790 @@
+package core
+
+Int skeletonGraphKind() { return 3 }
+Int skeletonProductMagic() { return 1397443653 }
+Int skeletonProductSchemaVersion() { return 1 }
+
+record SkeletonProductIdentity(
+    Int sourceNamespaceId,
+    Int assetId,
+    Int revision,
+    Int transformScale,
+    Int skinCount,
+    Int jointCount,
+    Int graphChecksum,
+    Int checksum
+)
+
+class BoundedSkeletonProduct {
+    BoundedGraphProduct topology
+    Int[] skinIds
+    Int[] skeletonNodeIds
+    Int[] skinJointOffsets
+    Int[] skinJointCounts
+    Int[] jointSkinIds
+    Int[] jointIds
+    Int[] jointNodeIds
+    Int[] jointParentIds
+    Int[] inverseMatrices
+    Int[] wire
+    Int skinCountValue
+    Int jointCountValue
+    Int sourceNamespaceIdValue
+    Int assetIdValue
+    Int revisionValue
+    Int transformScaleValue
+    Int graphChecksumValue
+    Int checksumValue
+    Int wordCountValue
+    Bool configuredValue
+    Bool sealedValue
+
+    public constructor(Int skinCapacity, Int jointCapacity) {
+        var actualSkins = skinCapacity
+        var actualJoints = jointCapacity
+        if (actualSkins <= 0) { actualSkins = 1 }
+        if (actualSkins > 64) { actualSkins = 64 }
+        if (actualJoints <= 0) { actualJoints = 1 }
+        if (actualJoints > 512) { actualJoints = 512 }
+        topology = BoundedGraphProduct(actualJoints, actualJoints)
+        skinIds = new Int[actualSkins]
+        skeletonNodeIds = new Int[actualSkins]
+        skinJointOffsets = new Int[actualSkins]
+        skinJointCounts = new Int[actualSkins]
+        jointSkinIds = new Int[actualJoints]
+        jointIds = new Int[actualJoints]
+        jointNodeIds = new Int[actualJoints]
+        jointParentIds = new Int[actualJoints]
+        inverseMatrices = new Int[actualJoints * 12]
+        wire = new Int[11 + actualSkins * 3 + actualJoints * 16]
+        clear()
+    }
+
+    Bool clear() {
+        topology.clear()
+        skinCountValue = 0
+        jointCountValue = 0
+        sourceNamespaceIdValue = 0
+        assetIdValue = 0
+        revisionValue = 0
+        transformScaleValue = 0
+        graphChecksumValue = 0
+        checksumValue = 0
+        wordCountValue = 0
+        configuredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool configure(
+        Int sourceNamespaceId,
+        Int assetId,
+        Int revision,
+        Int transformScale
+    ) {
+        if (sourceNamespaceId <= 0 || sourceNamespaceId > 1000000 ||
+            assetId <= 0 || assetId > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            transformScale <= 0 || transformScale > 1000000) {
+            return false
+        }
+        clear()
+        if (!topology.configure(
+                skeletonProductSchemaVersion(), revision,
+                skeletonGraphKind(), false)) {
+            return false
+        }
+        sourceNamespaceIdValue = sourceNamespaceId
+        assetIdValue = assetId
+        revisionValue = revision
+        transformScaleValue = transformScale
+        configuredValue = true
+        return true
+    }
+
+    Int findSkin(Int skinId) {
+        for (var index = 0; index < skinCountValue; index = index + 1) {
+            if (skinIds[index] == skinId) { return index }
+        }
+        return -1
+    }
+
+    Int findJoint(Int skinId, Int jointId) {
+        for (var index = 0; index < jointCountValue; index = index + 1) {
+            if (jointSkinIds[index] == skinId && jointIds[index] == jointId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool addSkin(Int skinId, Int skeletonNodeId) {
+        if (!configuredValue || sealedValue ||
+            skinId <= 0 || skinId > 64 ||
+            skeletonNodeId < 0 || skeletonNodeId > 1000000 ||
+            skinCountValue >= skinIds.length || findSkin(skinId) >= 0) {
+            return false
+        }
+        skinIds[skinCountValue] = skinId
+        skeletonNodeIds[skinCountValue] = skeletonNodeId
+        skinJointOffsets[skinCountValue] = 0
+        skinJointCounts[skinCountValue] = 0
+        skinCountValue = skinCountValue + 1
+        return true
+    }
+
+    Bool validMatrixElement(Int value) {
+        return value >= -1000000000 && value <= 1000000000
+    }
+
+    Bool addJoint(
+        Int skinId,
+        Int jointId,
+        Int nodeId,
+        Int parentJointId,
+        Int m00, Int m01, Int m02, Int m03,
+        Int m10, Int m11, Int m12, Int m13,
+        Int m20, Int m21, Int m22, Int m23
+    ) {
+        if (!configuredValue || sealedValue || findSkin(skinId) < 0 ||
+            jointId <= 0 || jointId > 1000000 ||
+            nodeId <= 0 || nodeId > 1000000 ||
+            parentJointId < 0 || parentJointId > 1000000 ||
+            parentJointId == jointId ||
+            jointCountValue >= jointIds.length ||
+            findJoint(skinId, jointId) >= 0 ||
+            !validMatrixElement(m00) || !validMatrixElement(m01) ||
+            !validMatrixElement(m02) || !validMatrixElement(m03) ||
+            !validMatrixElement(m10) || !validMatrixElement(m11) ||
+            !validMatrixElement(m12) || !validMatrixElement(m13) ||
+            !validMatrixElement(m20) || !validMatrixElement(m21) ||
+            !validMatrixElement(m22) || !validMatrixElement(m23)) {
+            return false
+        }
+        var index = jointCountValue
+        jointSkinIds[index] = skinId
+        jointIds[index] = jointId
+        jointNodeIds[index] = nodeId
+        jointParentIds[index] = parentJointId
+        var offset = index * 12
+        inverseMatrices[offset] = m00
+        inverseMatrices[offset + 1] = m01
+        inverseMatrices[offset + 2] = m02
+        inverseMatrices[offset + 3] = m03
+        inverseMatrices[offset + 4] = m10
+        inverseMatrices[offset + 5] = m11
+        inverseMatrices[offset + 6] = m12
+        inverseMatrices[offset + 7] = m13
+        inverseMatrices[offset + 8] = m20
+        inverseMatrices[offset + 9] = m21
+        inverseMatrices[offset + 10] = m22
+        inverseMatrices[offset + 11] = m23
+        jointCountValue = jointCountValue + 1
+        return true
+    }
+
+    Bool swapSkins(Int first, Int second) {
+        if (first == second) { return true }
+        var temporary = skinIds[first]
+        skinIds[first] = skinIds[second]
+        skinIds[second] = temporary
+        temporary = skeletonNodeIds[first]
+        skeletonNodeIds[first] = skeletonNodeIds[second]
+        skeletonNodeIds[second] = temporary
+        return true
+    }
+
+    Bool jointAfter(Int first, Int second) {
+        return jointSkinIds[first] > jointSkinIds[second] ||
+            (jointSkinIds[first] == jointSkinIds[second] &&
+                jointIds[first] > jointIds[second])
+    }
+
+    Bool swapJoints(Int first, Int second) {
+        if (first == second) { return true }
+        var temporary = jointSkinIds[first]
+        jointSkinIds[first] = jointSkinIds[second]
+        jointSkinIds[second] = temporary
+        temporary = jointIds[first]
+        jointIds[first] = jointIds[second]
+        jointIds[second] = temporary
+        temporary = jointNodeIds[first]
+        jointNodeIds[first] = jointNodeIds[second]
+        jointNodeIds[second] = temporary
+        temporary = jointParentIds[first]
+        jointParentIds[first] = jointParentIds[second]
+        jointParentIds[second] = temporary
+        for (var element = 0; element < 12; element = element + 1) {
+            temporary = inverseMatrices[first * 12 + element]
+            inverseMatrices[first * 12 + element] =
+                inverseMatrices[second * 12 + element]
+            inverseMatrices[second * 12 + element] = temporary
+        }
+        return true
+    }
+
+    Bool sortCanonical() {
+        for (var first = 0; first < skinCountValue; first = first + 1) {
+            var smallest = first
+            for (var candidate = first + 1;
+                candidate < skinCountValue; candidate = candidate + 1) {
+                if (skinIds[candidate] < skinIds[smallest]) {
+                    smallest = candidate
+                }
+            }
+            swapSkins(first, smallest)
+        }
+        for (var first = 0; first < jointCountValue; first = first + 1) {
+            var smallest = first
+            for (var candidate = first + 1;
+                candidate < jointCountValue; candidate = candidate + 1) {
+                if (jointAfter(smallest, candidate)) { smallest = candidate }
+            }
+            swapJoints(first, smallest)
+        }
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            skinJointOffsets[skin] = 0
+            skinJointCounts[skin] = 0
+        }
+        for (var joint = 0; joint < jointCountValue; joint = joint + 1) {
+            var skin = findSkin(jointSkinIds[joint])
+            if (skin < 0) { return false }
+            if (skinJointCounts[skin] == 0) {
+                skinJointOffsets[skin] = joint
+            }
+            skinJointCounts[skin] = skinJointCounts[skin] + 1
+        }
+        return true
+    }
+
+    Bool buildTopology() {
+        for (var joint = 0; joint < jointCountValue; joint = joint + 1) {
+            if (!topology.addNode(joint + 1, jointSkinIds[joint])) {
+                return false
+            }
+        }
+        for (var joint = 0; joint < jointCountValue; joint = joint + 1) {
+            if (jointParentIds[joint] > 0) {
+                var parent = findJoint(
+                    jointSkinIds[joint], jointParentIds[joint])
+                if (parent < 0 ||
+                    !topology.addEdge(parent + 1, joint + 1, 1)) {
+                    return false
+                }
+            }
+        }
+        return topology.seal() && !topology.hasCycle()
+    }
+
+    Bool canonicalStructureValid() {
+        if (!configuredValue || skinCountValue <= 0 || jointCountValue <= 0 ||
+            skinCountValue > skinIds.length || jointCountValue > jointIds.length ||
+            !topology.validate() || topology.graphKind() != skeletonGraphKind() ||
+            topology.nodeCount() != jointCountValue ||
+            graphChecksumValue != topology.checksum()) {
+            return false
+        }
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            if (skinIds[skin] <= 0 || skinJointCounts[skin] <= 0 ||
+                (skin > 0 && skinIds[skin] <= skinIds[skin - 1])) {
+                return false
+            }
+        }
+        for (var joint = 0; joint < jointCountValue; joint = joint + 1) {
+            if (jointIds[joint] <= 0 || jointNodeIds[joint] <= 0 ||
+                findSkin(jointSkinIds[joint]) < 0 ||
+                (joint > 0 &&
+                    (jointSkinIds[joint] < jointSkinIds[joint - 1] ||
+                        (jointSkinIds[joint] == jointSkinIds[joint - 1] &&
+                            jointIds[joint] <= jointIds[joint - 1]))) ||
+                (jointParentIds[joint] > 0 &&
+                    findJoint(
+                        jointSkinIds[joint], jointParentIds[joint]) < 0)) {
+                return false
+            }
+            for (var prior = 0; prior < joint; prior = prior + 1) {
+                if (jointSkinIds[prior] == jointSkinIds[joint] &&
+                    jointNodeIds[prior] == jointNodeIds[joint]) {
+                    return false
+                }
+            }
+            for (var element = 0; element < 12; element = element + 1) {
+                if (!validMatrixElement(inverseMatrices[joint * 12 + element])) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 43
+        result = mix(result, skeletonProductMagic())
+        result = mix(result, skeletonProductSchemaVersion())
+        result = mix(result, sourceNamespaceIdValue)
+        result = mix(result, assetIdValue)
+        result = mix(result, revisionValue)
+        result = mix(result, transformScaleValue)
+        result = mix(result, skinCountValue)
+        result = mix(result, jointCountValue)
+        result = mix(result, graphChecksumValue)
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            result = mix(result, skinIds[skin])
+            result = mix(result, skeletonNodeIds[skin])
+            result = mix(result, skinJointCounts[skin])
+        }
+        for (var joint = 0; joint < jointCountValue; joint = joint + 1) {
+            result = mix(result, jointSkinIds[joint])
+            result = mix(result, jointIds[joint])
+            result = mix(result, jointNodeIds[joint])
+            result = mix(result, jointParentIds[joint])
+            for (var element = 0; element < 12; element = element + 1) {
+                result = mix(result, inverseMatrices[joint * 12 + element])
+            }
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool seal() {
+        if (sealedValue || !configuredValue || skinCountValue <= 0 ||
+            jointCountValue <= 0 || !sortCanonical() || !buildTopology()) {
+            return false
+        }
+        graphChecksumValue = topology.checksum()
+        if (graphChecksumValue <= 0 || !canonicalStructureValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && canonicalStructureValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    Bool encode() {
+        if (!validate()) {
+            wordCountValue = 0
+            return false
+        }
+        wordCountValue = 11 + skinCountValue * 3 + jointCountValue * 16
+        wire[0] = skeletonProductMagic()
+        wire[1] = skeletonProductSchemaVersion()
+        wire[2] = sourceNamespaceIdValue
+        wire[3] = assetIdValue
+        wire[4] = revisionValue
+        wire[5] = transformScaleValue
+        wire[6] = skinCountValue
+        wire[7] = jointCountValue
+        wire[8] = graphChecksumValue
+        wire[9] = checksumValue
+        wire[10] = wordCountValue
+        var offset = 11
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            wire[offset] = skinIds[skin]
+            wire[offset + 1] = skeletonNodeIds[skin]
+            wire[offset + 2] = skinJointCounts[skin]
+            offset = offset + 3
+        }
+        for (var joint = 0; joint < jointCountValue; joint = joint + 1) {
+            wire[offset] = jointSkinIds[joint]
+            wire[offset + 1] = jointIds[joint]
+            wire[offset + 2] = jointNodeIds[joint]
+            wire[offset + 3] = jointParentIds[joint]
+            for (var element = 0; element < 12; element = element + 1) {
+                wire[offset + 4 + element] =
+                    inverseMatrices[joint * 12 + element]
+            }
+            offset = offset + 16
+        }
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length < 30 || source.length > wire.length ||
+            source[0] != skeletonProductMagic() ||
+            source[1] != skeletonProductSchemaVersion() ||
+            source[2] <= 0 || source[3] <= 0 || source[4] <= 0 ||
+            source[5] <= 0 || source[5] > 1000000 ||
+            source[6] <= 0 || source[6] > skinIds.length ||
+            source[7] <= 0 || source[7] > jointIds.length ||
+            source[8] <= 0 || source[9] <= 0 ||
+            source[10] != source.length ||
+            source.length != 11 + source[6] * 3 + source[7] * 16 ||
+            !configure(source[2], source[3], source[4], source[5])) {
+            return false
+        }
+        var offset = 11
+        for (var skin = 0; skin < source[6]; skin = skin + 1) {
+            if (!addSkin(source[offset], source[offset + 1]) ||
+                source[offset + 2] <= 0) {
+                clear()
+                return false
+            }
+            offset = offset + 3
+        }
+        for (var joint = 0; joint < source[7]; joint = joint + 1) {
+            if (!addJoint(
+                    source[offset], source[offset + 1],
+                    source[offset + 2], source[offset + 3],
+                    source[offset + 4], source[offset + 5],
+                    source[offset + 6], source[offset + 7],
+                    source[offset + 8], source[offset + 9],
+                    source[offset + 10], source[offset + 11],
+                    source[offset + 12], source[offset + 13],
+                    source[offset + 14], source[offset + 15])) {
+                clear()
+                return false
+            }
+            offset = offset + 16
+        }
+        if (!seal() || graphChecksumValue != source[8] ||
+            checksumValue != source[9]) {
+            clear()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            wire[index] = source[index]
+        }
+        wordCountValue = source.length
+        return true
+    }
+
+    Bool reopen(Int[] source) {
+        if (!decode(source) || !encode() || source.length != wordCountValue) {
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (wire[index] != source[index]) { return false }
+        }
+        return true
+    }
+
+    Bool copyFrom(BoundedSkeletonProduct source) {
+        if (!source.validate() || source.skinCount() > skinIds.length ||
+            source.jointCount() > jointIds.length ||
+            !configure(
+                source.sourceNamespaceId(), source.assetId(),
+                source.revision(), source.transformScale())) {
+            return false
+        }
+        for (var skin = 0; skin < source.skinCount(); skin = skin + 1) {
+            var skinId = source.skinIdAt(skin)
+            if (!addSkin(skinId, source.skeletonNodeId(skinId))) {
+                return false
+            }
+        }
+        for (var joint = 0; joint < source.jointCount(); joint = joint + 1) {
+            if (!addJoint(
+                    source.jointSkinIdAt(joint), source.jointIdAt(joint),
+                    source.jointNodeIdAt(joint), source.jointParentIdAt(joint),
+                    source.jointInverseElementAt(joint, 0),
+                    source.jointInverseElementAt(joint, 1),
+                    source.jointInverseElementAt(joint, 2),
+                    source.jointInverseElementAt(joint, 3),
+                    source.jointInverseElementAt(joint, 4),
+                    source.jointInverseElementAt(joint, 5),
+                    source.jointInverseElementAt(joint, 6),
+                    source.jointInverseElementAt(joint, 7),
+                    source.jointInverseElementAt(joint, 8),
+                    source.jointInverseElementAt(joint, 9),
+                    source.jointInverseElementAt(joint, 10),
+                    source.jointInverseElementAt(joint, 11))) {
+                return false
+            }
+        }
+        return seal() && checksumValue == source.checksum()
+    }
+
+    SkeletonProductIdentity identity() {
+        return SkeletonProductIdentity(
+            sourceNamespaceIdValue, assetIdValue, revisionValue,
+            transformScaleValue, skinCountValue, jointCountValue,
+            graphChecksumValue, checksumValue)
+    }
+
+    Int sourceNamespaceId() { return sourceNamespaceIdValue }
+    Int assetId() { return assetIdValue }
+    Int revision() { return revisionValue }
+    Int transformScale() { return transformScaleValue }
+    Int skinCount() { return skinCountValue }
+    Int jointCount() { return jointCountValue }
+    Int skinIdAt(Int index) {
+        if (index < 0 || index >= skinCountValue) { return 0 }
+        return skinIds[index]
+    }
+
+    Int skeletonNodeId(Int skinId) {
+        var skin = findSkin(skinId)
+        if (skin < 0) { return 0 }
+        return skeletonNodeIds[skin]
+    }
+
+    Int skinJointCount(Int skinId) {
+        var skin = findSkin(skinId)
+        if (skin < 0) { return 0 }
+        return skinJointCounts[skin]
+    }
+
+    Int jointIndexForOrdinal(Int skinId, Int ordinal) {
+        var skin = findSkin(skinId)
+        if (skin < 0 || ordinal < 0 || ordinal >= skinJointCounts[skin]) {
+            return -1
+        }
+        return skinJointOffsets[skin] + ordinal
+    }
+
+    Int jointId(Int skinId, Int ordinal) {
+        var joint = jointIndexForOrdinal(skinId, ordinal)
+        if (joint < 0) { return 0 }
+        return jointIds[joint]
+    }
+
+    Int jointNodeId(Int skinId, Int ordinal) {
+        var joint = jointIndexForOrdinal(skinId, ordinal)
+        if (joint < 0) { return 0 }
+        return jointNodeIds[joint]
+    }
+
+    Int jointParentId(Int skinId, Int ordinal) {
+        var joint = jointIndexForOrdinal(skinId, ordinal)
+        if (joint < 0) { return 0 }
+        return jointParentIds[joint]
+    }
+
+    Int jointInverseElement(Int skinId, Int ordinal, Int element) {
+        var joint = jointIndexForOrdinal(skinId, ordinal)
+        return jointInverseElementAt(joint, element)
+    }
+
+    Int jointSkinIdAt(Int index) {
+        if (index < 0 || index >= jointCountValue) { return 0 }
+        return jointSkinIds[index]
+    }
+
+    Int jointIdAt(Int index) {
+        if (index < 0 || index >= jointCountValue) { return 0 }
+        return jointIds[index]
+    }
+
+    Int jointNodeIdAt(Int index) {
+        if (index < 0 || index >= jointCountValue) { return 0 }
+        return jointNodeIds[index]
+    }
+
+    Int jointParentIdAt(Int index) {
+        if (index < 0 || index >= jointCountValue) { return 0 }
+        return jointParentIds[index]
+    }
+
+    Int jointInverseElementAt(Int index, Int element) {
+        if (index < 0 || index >= jointCountValue ||
+            element < 0 || element >= 12) {
+            return 0
+        }
+        return inverseMatrices[index * 12 + element]
+    }
+
+    Int encodedLength() { return wordCountValue }
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) { return -1 }
+        return wire[index]
+    }
+
+    Int graphChecksum() { return graphChecksumValue }
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}
+
+class BoundedSkeletonRuntime {
+    Int[] jointIds
+    Int[] jointNodeIds
+    Int[] paletteMatrices
+    Int jointCountValue
+    Int skinIdValue
+    Int transformScaleValue
+    Int skeletonChecksumValue
+    Int hierarchyChecksumValue
+    Int checksumValue
+    Bool loadedValue
+
+    public constructor(Int jointCapacity) {
+        var actual = jointCapacity
+        if (actual <= 0) { actual = 1 }
+        if (actual > 512) { actual = 512 }
+        jointIds = new Int[actual]
+        jointNodeIds = new Int[actual]
+        paletteMatrices = new Int[actual * 12]
+        clear()
+    }
+
+    Bool clear() {
+        jointCountValue = 0
+        skinIdValue = 0
+        transformScaleValue = 0
+        skeletonChecksumValue = 0
+        hierarchyChecksumValue = 0
+        checksumValue = 0
+        loadedValue = false
+        return true
+    }
+
+    Int scaledThree(
+        Int a0, Int b0, Int a1, Int b1, Int a2, Int b2,
+        Int divisor
+    ) {
+        var total: Long = a0
+        total = total * b0
+        var term: Long = a1
+        term = term * b1
+        total = total + term
+        term = a2
+        term = term * b2
+        total = total + term
+        total = total / divisor
+        if (total < -1000000000L || total > 1000000000L) {
+            return 2000000000
+        }
+        return total.toInt()
+    }
+
+    Bool composeJoint(
+        BoundedSkeletonProduct skeleton,
+        BoundedTransformHierarchy hierarchy,
+        Int skinId,
+        Int ordinal,
+        Int output
+    ) {
+        var nodeId = skeleton.jointNodeId(skinId, ordinal)
+        for (var row = 0; row < 3; row = row + 1) {
+            for (var column = 0; column < 3; column = column + 1) {
+                var value = scaledThree(
+                    hierarchy.worldMatrixElement(nodeId, row * 4),
+                    skeleton.jointInverseElement(skinId, ordinal, column),
+                    hierarchy.worldMatrixElement(nodeId, row * 4 + 1),
+                    skeleton.jointInverseElement(skinId, ordinal, 4 + column),
+                    hierarchy.worldMatrixElement(nodeId, row * 4 + 2),
+                    skeleton.jointInverseElement(skinId, ordinal, 8 + column),
+                    transformScaleValue)
+                if (value == 2000000000) { return false }
+                paletteMatrices[output * 12 + row * 4 + column] = value
+            }
+            var translated = scaledThree(
+                hierarchy.worldMatrixElement(nodeId, row * 4),
+                skeleton.jointInverseElement(skinId, ordinal, 3),
+                hierarchy.worldMatrixElement(nodeId, row * 4 + 1),
+                skeleton.jointInverseElement(skinId, ordinal, 7),
+                hierarchy.worldMatrixElement(nodeId, row * 4 + 2),
+                skeleton.jointInverseElement(skinId, ordinal, 11),
+                transformScaleValue)
+            if (translated == 2000000000) { return false }
+            var result: Long = translated
+            result = result + hierarchy.worldMatrixElement(nodeId, row * 4 + 3)
+            if (result < -1000000000L || result > 1000000000L) {
+                return false
+            }
+            paletteMatrices[output * 12 + row * 4 + 3] = result.toInt()
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 47
+        result = mix(result, 1)
+        result = mix(result, skeletonChecksumValue)
+        result = mix(result, hierarchyChecksumValue)
+        result = mix(result, skinIdValue)
+        result = mix(result, transformScaleValue)
+        result = mix(result, jointCountValue)
+        for (var joint = 0; joint < jointCountValue; joint = joint + 1) {
+            result = mix(result, jointIds[joint])
+            result = mix(result, jointNodeIds[joint])
+            for (var element = 0; element < 12; element = element + 1) {
+                result = mix(result, paletteMatrices[joint * 12 + element])
+            }
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool load(
+        BoundedSkeletonProduct skeleton,
+        BoundedTransformHierarchy hierarchy,
+        Int skinId
+    ) {
+        clear()
+        var count = skeleton.skinJointCount(skinId)
+        if (!skeleton.validate() || !hierarchy.validate() ||
+            skeleton.transformScale() != hierarchy.transformScale() ||
+            count <= 0 || count > jointIds.length) {
+            return false
+        }
+        skinIdValue = skinId
+        transformScaleValue = skeleton.transformScale()
+        skeletonChecksumValue = skeleton.checksum()
+        hierarchyChecksumValue = hierarchy.checksum()
+        for (var ordinal = 0; ordinal < count; ordinal = ordinal + 1) {
+            var nodeId = skeleton.jointNodeId(skinId, ordinal)
+            if (!hierarchy.hasNode(nodeId) ||
+                !composeJoint(skeleton, hierarchy, skinId, ordinal, ordinal)) {
+                clear()
+                return false
+            }
+            jointIds[ordinal] = skeleton.jointId(skinId, ordinal)
+            jointNodeIds[ordinal] = nodeId
+            jointCountValue = jointCountValue + 1
+        }
+        checksumValue = calculateChecksum()
+        loadedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return loadedValue && skinIdValue > 0 && jointCountValue > 0 &&
+            skeletonChecksumValue > 0 && hierarchyChecksumValue > 0 &&
+            checksumValue == calculateChecksum()
+    }
+
+    Int skinId() { return skinIdValue }
+    Int jointCount() { return jointCountValue }
+
+    Int jointId(Int ordinal) {
+        if (ordinal < 0 || ordinal >= jointCountValue) { return 0 }
+        return jointIds[ordinal]
+    }
+
+    Int jointNodeId(Int ordinal) {
+        if (ordinal < 0 || ordinal >= jointCountValue) { return 0 }
+        return jointNodeIds[ordinal]
+    }
+
+    Int paletteElement(Int ordinal, Int element) {
+        if (ordinal < 0 || ordinal >= jointCountValue ||
+            element < 0 || element >= 12) {
+            return 0
+        }
+        return paletteMatrices[ordinal * 12 + element]
+    }
+
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}

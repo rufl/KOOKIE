@@ -1,0 +1,207 @@
+package core
+
+class BoundedJobGraph {
+    Int[] generations
+    Int[] ordinals
+    Int[] kinds
+    Int[] leftValues
+    Int[] rightValues
+    Int[] nativeTokens
+    Int[] results
+    Int[] checksums
+    Int[] states
+    Int capacityValue
+    Int generationValue
+    Int submittedCountValue
+    Int committedCountValue
+    Int nextCommitOrdinalValue
+    Int committedSumValue
+    Int invalidAcceptCountValue
+    Bool activeValue
+    Bool outOfOrderValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > 32) { actualCapacity = 32 }
+        capacityValue = actualCapacity
+        generations = new Int[actualCapacity]
+        ordinals = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        leftValues = new Int[actualCapacity]
+        rightValues = new Int[actualCapacity]
+        nativeTokens = new Int[actualCapacity]
+        results = new Int[actualCapacity]
+        checksums = new Int[actualCapacity]
+        states = new Int[actualCapacity]
+        clear()
+    }
+
+    Bool clear() {
+        generationValue = 0
+        submittedCountValue = 0
+        committedCountValue = 0
+        nextCommitOrdinalValue = 0
+        committedSumValue = 0
+        invalidAcceptCountValue = 0
+        activeValue = false
+        outOfOrderValue = false
+        for (var index = 0; index < capacityValue; index = index + 1) {
+            generations[index] = 0
+            ordinals[index] = -1
+            kinds[index] = 0
+            leftValues[index] = 0
+            rightValues[index] = 0
+            nativeTokens[index] = 0
+            results[index] = 0
+            checksums[index] = 0
+            states[index] = 0
+        }
+        return true
+    }
+
+    Bool begin(Int nextGeneration) {
+        if (nextGeneration <= 0 || nextGeneration > 1000000) {
+            return false
+        }
+        clear()
+        generationValue = nextGeneration
+        activeValue = true
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int descriptorChecksum(
+        Int generation, Int ordinal, Int kind, Int left, Int right
+    ) {
+        var result = 73
+        result = mix(result, generation)
+        result = mix(result, ordinal)
+        result = mix(result, kind)
+        result = mix(result, left)
+        result = mix(result, right)
+        if (result <= 0) { return 1 }
+        return result
+    }
+
+    Int expectedResult(Int ordinal, Int kind, Int left, Int right) {
+        if (kind == 1) {
+            return left * right
+        }
+        if (kind == 2) {
+            var sum = left + right
+            return sum * sum + ordinal
+        }
+        return -1
+    }
+
+    Bool validDescriptor(Int ordinal, Int kind, Int left, Int right) {
+        return ordinal == submittedCountValue &&
+            kind >= 1 && kind <= 2 &&
+            left >= -1000000 && left <= 1000000 &&
+            right >= -1000000 && right <= 1000000
+    }
+
+    Bool add(
+        Int ordinal, Int kind, Int left, Int right
+    ) {
+        if (!activeValue || submittedCountValue >= capacityValue ||
+            !validDescriptor(ordinal, kind, left, right)) {
+            return false
+        }
+        var index = submittedCountValue
+        generations[index] = generationValue
+        ordinals[index] = ordinal
+        kinds[index] = kind
+        leftValues[index] = left
+        rightValues[index] = right
+        nativeTokens[index] = 0
+        results[index] = 0
+        checksums[index] = descriptorChecksum(
+            generationValue, ordinal, kind, left, right)
+        states[index] = 1
+        submittedCountValue = submittedCountValue + 1
+        return true
+    }
+
+    Int findOrdinal(Int ordinal) {
+        for (var index = 0; index < submittedCountValue; index = index + 1) {
+            if (ordinals[index] == ordinal) { return index }
+        }
+        return -1
+    }
+
+    Bool attachNativeToken(Int ordinal, Int token) {
+        var index = findOrdinal(ordinal)
+        if (index < 0 || states[index] != 1 || token <= 0) {
+            return false
+        }
+        nativeTokens[index] = token
+        return true
+    }
+
+    Int nativeToken(Int ordinal) {
+        var index = findOrdinal(ordinal)
+        if (index < 0) { return -1 }
+        return nativeTokens[index]
+    }
+
+    Bool accept(
+        Int generation, Int ordinal, Int result, Int checksum, Int status
+    ) {
+        var index = findOrdinal(ordinal)
+        if (index < 0 || states[index] != 1 ||
+            generation != generationValue ||
+            generations[index] != generation ||
+            status != 1 || checksums[index] != checksum ||
+            result != expectedResult(
+                ordinal, kinds[index], leftValues[index], rightValues[index])) {
+            invalidAcceptCountValue = invalidAcceptCountValue + 1
+            return false
+        }
+        if (ordinal != nextCommitOrdinalValue) {
+            outOfOrderValue = true
+        }
+        results[index] = result
+        states[index] = 2
+        return true
+    }
+
+    Bool commitAvailable() {
+        var committed = false
+        while (nextCommitOrdinalValue < submittedCountValue) {
+            var index = findOrdinal(nextCommitOrdinalValue)
+            if (index < 0 || states[index] != 2) { break }
+            committedSumValue = mix(committedSumValue, results[index])
+            states[index] = 3
+            committedCountValue = committedCountValue + 1
+            nextCommitOrdinalValue = nextCommitOrdinalValue + 1
+            committed = true
+        }
+        return committed
+    }
+
+    Bool allCommitted() {
+        return submittedCountValue > 0 &&
+            committedCountValue == submittedCountValue
+    }
+
+    Int capacity() { return capacityValue }
+    Int generation() { return generationValue }
+    Int submittedCount() { return submittedCountValue }
+    Int committedCount() { return committedCountValue }
+    Int committedSum() { return committedSumValue }
+    Int invalidAcceptCount() { return invalidAcceptCountValue }
+    Bool receivedOutOfOrder() { return outOfOrderValue }
+
+    Int resultAt(Int ordinal) {
+        var index = findOrdinal(ordinal)
+        if (index < 0 || states[index] != 3) { return -1 }
+        return results[index]
+    }
+}

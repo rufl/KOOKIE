@@ -84,7 +84,7 @@ test -f "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 test -f "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
 grep -Fq 'MIT License' "$PACKAGE_ROOT/LICENSE"
 grep -Fq 'SDL_mixer 3.2.4' "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
-grep -Fq 'license_status=MIT' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fxq 'license_status=MIT-application' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dependency_policy=permissive-distributed-only' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dedicated_server=bounded-headless-workload-with-runtime-telemetry' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
@@ -205,11 +205,21 @@ done
 "$BINARY" --package-smoke 2>"$WORK_DIR/runtime.err" | grep -Fq 'KOOKIE G1 authoritative shooter verified'
 
 if "$ROOT_DIR/scripts/package_kookie.sh" --runtime jvm \
-   --output "$WORK_DIR/jvm-release" >"$WORK_DIR/jvm.out" 2>&1; then
-  echo 'package smoke: non-permissive JVM runtime was accepted for distribution' >&2
+   --output "$WORK_DIR/jvm-linux-release" >"$WORK_DIR/jvm-linux.out" 2>&1; then
+  echo 'package smoke: Windows-only JVM runtime was accepted for Linux' >&2
   exit 1
 fi
-grep -Fq 'unsupported distributable runtime: jvm' "$WORK_DIR/jvm.out"
+grep -Fq 'JVM distribution is supported only for windows-x86_64' \
+  "$WORK_DIR/jvm-linux.out"
+if env -u KOOKIE_WINDOWS_JAVA_ARCHIVE -u KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256 \
+   "$ROOT_DIR/scripts/package_kookie.sh" --runtime jvm \
+   --target windows-x86_64 --output "$WORK_DIR/jvm-windows-release" \
+   >"$WORK_DIR/jvm-windows.out" 2>&1; then
+  echo 'package smoke: Windows JVM packaging ignored its pinned runtime input' >&2
+  exit 1
+fi
+grep -Fq 'KOOKIE_WINDOWS_JAVA_ARCHIVE must name a regular OpenJDK Windows ZIP' \
+  "$WORK_DIR/jvm-windows.out"
 if env -u KOOKIE_SIGNING_KEY "$ROOT_DIR/scripts/package_kookie.sh" \
    --output "$WORK_DIR/unsigned-release" >"$WORK_DIR/unsigned.out" 2>&1; then
   echo 'package smoke: unsigned release was accepted' >&2
@@ -301,6 +311,9 @@ for index in range(0, len(arguments), 2):
     assert len(manifest["kof_archive_sha256"]) == 64
     assert manifest["kof_source_commit"] == "bf17ac7e736471c8a04b4153e5b0f607be75e70c"
     assert len(manifest["kof_compiler_sha256"]) == 64
+    assert isinstance(manifest["source_date_epoch"], int)
+    assert manifest["windows_java_runtime"] is False
+    assert manifest["windows_java_archive_sha256"] == "not-bundled"
     assert len(manifest["public_key_sha256"]) == 64
     assert manifest["archive_signature"] == manifest["archive"] + ".sig"
     assert manifest["checksums_signature"] == "SHA256SUMS.sig"
@@ -357,7 +370,9 @@ assert manifest["target"] == "windows-x86_64"
 assert manifest["runtime"] == "native"
 assert manifest["signing"] == "ed25519"
 assert manifest["proof"] == "ed25519-signature-set"
+assert manifest["windows_java_runtime"] is False
+assert manifest["windows_java_archive_sha256"] == "not-bundled"
 PY
   windows_status="archive"
 fi
-printf 'KOOKIE package smoke passed: Linux native archive, presentation %s, Windows %s, permissive-license policy, checksums, provenance, and runtime\n' "$presentation_status" "$windows_status"
+printf 'KOOKIE package smoke passed: Linux native archive, presentation %s, Windows native %s, license boundaries, checksums, provenance, and runtime\n' "$presentation_status" "$windows_status"

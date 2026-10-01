@@ -77,22 +77,28 @@ Execute o caminho focado de gameplay/replay:
 bash scripts/verify_interactions.sh
 ```
 
-O alvo JVM é mantido para qualificação diferencial local, não como fallback
-distribuído. Pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
-e `glslc`. Os comandos exatos de pacote, cooker, shell Windows e qualificação
-entre hosts estão em
-[Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
+Execute as sondas não gráficas de expansão G6:
+
+```bash
+bash scripts/verify_g6_runtime.sh
+```
+
+O alvo JVM serve à qualificação diferencial local e a um pacote de
+compatibilidade Windows explícito e sem gráficos; ele nunca é fallback
+silencioso. Pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
+e `glslc`. Os comandos exatos de pacote, cooker, Windows e qualificação entre
+hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
 
 ## O que funciona hoje
 
 | Área | Caminho limitado implementado |
 |---|---|
-| **Autoridade e rede** | Sessões servidor/cliente a 60 Hz, admissão de dois clientes, handshake autenticado de compatibilidade, comandos sequenciados, snapshots, predição/reconciliação, reconexão e rejeição de replay/adulteração |
+| **Autoridade e rede** | Sessões servidor/cliente a 60 Hz, admissão de dois clientes, handshake autenticado de compatibilidade, comandos sequenciados, snapshots, predição/reconciliação, reconexão e rejeição de replay/adulteração; janela WAN limitada por IPv4 direto com retry/backpressure |
 | **Sistemas de tiro e ARPG** | Combate hitscan/projétil/shotgun, papéis de inimigos, loot determinístico, inventário, equipamento, skills, status, chefes, recompensas e progressão exatamente uma vez |
 | **Mundo e apresentação** | Arena 3D criada com inclinações, degraus e salas empilhadas; colisão cápsula/triângulo; portas, segredos e saídas; HUD semântico; instancing por SDL_GPU; ganho/pan posicional por SDL_mixer |
-| **Conteúdo e ferramentas de criação** | Entrada limitada de GLB, Dust3D, Aseprite, VOX, brushes estilo Quake, Blockbench, PNG e WAV; produtos canônicos; validação `.kpkg`; edições transacionais no Creator e reload no limite de frame |
+| **Conteúdo e ferramentas de criação** | Entrada limitada de GLB, Dust3D, Aseprite, VOX, brushes estilo Quake, Blockbench, PNG e WAV; produtos canônicos; validação `.kpkg`; edições transacionais no Creator; hierarquia, transformações e registro de assets persistentes no Studio |
 | **Persistência e release** | Replay com checksum, migrações de schema, publicação de save durável contra crash, pacotes assinados de árvore limpa, fechamento de dependências e smoke fora do checkout |
-| **Alvos de runtime** | Linux x86-64 nativo autoritativo; alvo JVM de comparação; shell nativo persistente de menu/opções/lobby para Windows enquanto gameplay PE em Kof continua indisponível |
+| **Alvos de runtime** | Linux x86-64 nativo autoritativo; shell nativo persistente de menu/opções/lobby para Windows; gameplay Kof JVM reproduzível com pacote de apresentação SDL3/SDL_mixer e produtos SPIR-V/DXIL; compilador Kof determinístico e limitado para console PE/COFF AMD64 |
 
 ## A forma da engine
 
@@ -166,18 +172,21 @@ para o trabalho de produção ainda aberto.
 
 ## Limites honestos
 
-- A evidência de transporte e tempo continua focada em Linux e na mesma
-  máquina; não há um bundle recente retido de qualificação em três máquinas
-  físicas.
-- Linux x86-64 é o alvo autoritativo de gameplay Kof. O build Windows é um
-  shell nativo interativo, não prova de gameplay Kof no Windows.
+- A evidência de transporte inclui o endpoint autenticado limitado por IPv4 direto
+  e um canal determinístico de janela/retry; não há bundle recente retido de
+  qualificação em três máquinas físicas, nem alegação de NAT traversal, relay,
+  confidencialidade ou resistência a DDoS.
+- Linux x86-64 continua sendo o alvo autoritativo de gameplay Kof nativo. O
+  Windows tem pacote reproduzível de gameplay JVM e apresentação SDL com
+  evidência estática SPIR-V/DXIL; o smoke opcional em Wine isolado depende do
+  ambiente, e o compilador PE limitado ainda não emite o gameplay completo.
 - Importadores suportam perfis pequenos e explícitos, não arquivos arbitrários
   de cada formato nomeado.
 - Reload ao vivo cobre produtos validados de cena/render, não código Kof,
   shaders, plugins de editor ou streaming ilimitado.
-- Física completa, qualificação WAN, cobertura adicional de SO/GPU, áudio
-  comprimido/em streaming, HRTF/EFX, autoria G6 mais rica e extensões de
-  runtime em sandbox continuam incompletos.
+- Autoria além do Studio persistente limitado, cobertura adicional de SO/GPU,
+  áudio comprimido/em streaming, HRTF/EFX e uma API geral de extensões em
+  sandbox continuam incompletos.
 
 Se uma afirmação não tem teste ou sonda focada, ela não é apresentada como
 concluída.
@@ -228,11 +237,12 @@ sensíveis de segurança pertencem ao
 
 ## Licença e procedência
 
-O KOOKIE usa a [licença MIT](../LICENSE). As dependências distribuídas de
-runtime são permissivas: SDL 3.4.16 e SDL_mixer 3.2.4 usam a licença zlib.
-Versões exatas, fontes e avisos estão em
+O KOOKIE usa a [licença MIT](../LICENSE). As dependências nativas distribuídas
+são SDL 3.4.16 e SDL_mixer 3.2.4 sob a licença zlib. O perfil JVM opcional para
+Windows inclui um runtime OpenJDK fixado por SHA-256 sob licenças próprias e
+preserva `runtime/legal` e `runtime/NOTICE`. Fontes e fronteiras exatas estão em
 [THIRD_PARTY_NOTICES.txt](../THIRD_PARTY_NOTICES.txt).
 
-O compilador Kof é uma ferramenta externa de build e não é distribuído com o
-KOOKIE. Java continua restrito à qualificação local e não entra nos arquivos
-do produto.
+O compilador Kof continua como ferramenta externa de build e não é distribuído.
+Somente o perfil JVM explícito para Windows inclui Java; sua procedência registra
+fornecedor, versão e digest do arquivo do runtime.

@@ -158,6 +158,15 @@ conteúdo, política de renderização ou lógica de salvamento. A travessia nat
 usa escalares verificados, tokens e buffers limitados; nenhum ponteiro Kof bruto
 ou callback é retido.
 
+A fronteira do compilador Windows consome IR otimizada do frontend Kof exato e
+fixado e emite C11 determinístico, COFF AMD64 e PE de console. Seu subconjunto
+admitido contém funções de topo com inteiros/Boolean/String, locais, aritmética,
+fluxo de controle e impressão. Classes, operações de heap/array, exceções,
+concorrência, FFI e IR SDL falham de forma fechada com `PE001`. O C gerado é um
+intermediário do compilador, não uma segunda autoridade de engine escrita à
+mão. Esse caminho qualifica apenas o formato executável e a mecânica de
+lowering; Linux continua sendo o alvo nativo completo de gameplay.
+
 ## 4. Modos de runtime
 
 ```mermaid
@@ -259,13 +268,23 @@ Extensões `.kf` compiladas estaticamente podem registrar componentes, sistemas,
 IA, geração de mundo, comandos, serializadores, ferramentas de editor,
 migrações de salvamento e codecs de rede.
 
-### Comportamento futuro em sandbox
+### Comportamento KofScript em sandbox
 
-Uma camada posterior de script/bytecode poderá fornecer comportamento sem
-recompilação. Ela deve usar os mesmos contratos públicos e orçamentos explícitos
-de capacidade. Não deve receber ponteiros brutos, identificadores nativos,
-arrays centrais mutáveis, acesso arbitrário ao sistema de arquivos/rede ou
-iteração ilimitada.
+`BoundedKofScriptProgram` é a camada de bytecode sem recompilação. Seu artefato
+canônico declara uma assinatura de evento de domínio, fluxo somente para a
+frente, orçamentos de pilha/instruções/saídas e máscaras explícitas de
+capacidade para comandos/eventos. O verificador rejeita loops, código
+inalcançável, profundidades de pilha inconsistentes em branches, saídas não
+declaradas e corrupção de checksum antes da execução. A VM pré-alocada rejeita
+overflow aritmético e descarta toda saída preparada quando há falha.
+
+Os programas recebem apenas campos inteiros copiados do evento e só podem
+emitir registros públicos versionados admitidos por suas máscaras. Comandos de
+moeda atravessam o mesmo gate atômico da sessão autoritativa usado pelos hooks
+confiáveis. Não há opcodes para ponteiros brutos, handles nativos, arrays
+centrais mutáveis, filesystem/rede nem iteração ilimitada. O builder KofScript
+offline emite o artefato; runtimes Kof JVM e nativo reabrem e executam palavras
+idênticas.
 
 ### Manifesto da extensão
 

@@ -1,0 +1,332 @@
+package core
+
+Int offlineArtifactMagic() { return 1263421510 }
+Int offlineArtifactSchemaVersion() { return 1 }
+Int offlineArtifactBehaviorKind() { return 1 }
+Int offlineArtifactAnimationKind() { return 2 }
+Int offlineArtifactKofScriptKind() { return 3 }
+
+record OfflineArtifactIdentity(
+    Int kind,
+    Int productChecksum,
+    Int wordCount,
+    Int checksum
+)
+
+class BoundedOfflineProductArtifact {
+    Int[] words
+    Int kindValue
+    Int productChecksumValue
+    Int wordCountValue
+    Int checksumValue
+    Int parseCursorValue
+    Bool parseValidValue
+    Bool sealedValue
+
+    public constructor(Int wordCapacity) {
+        var actual = wordCapacity
+        if (actual <= 0) { actual = 1 }
+        if (actual > 8192) { actual = 8192 }
+        words = new Int[actual]
+        clear()
+    }
+
+    Bool clear() {
+        kindValue = 0
+        productChecksumValue = 0
+        wordCountValue = 0
+        checksumValue = 0
+        parseCursorValue = 0
+        parseValidValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool supportedKind(Int kind) {
+        return kind == offlineArtifactBehaviorKind() ||
+            kind == offlineArtifactAnimationKind() ||
+            kind == offlineArtifactKofScriptKind()
+    }
+
+    Bool validWord(Int value) {
+        return value >= -2000000000 && value <= 2000000000
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 61
+        result = mix(result, offlineArtifactMagic())
+        result = mix(result, offlineArtifactSchemaVersion())
+        result = mix(result, kindValue)
+        result = mix(result, productChecksumValue)
+        result = mix(result, wordCountValue)
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            result = mix(result, words[index])
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool build(Int kind, Int productChecksum, Int[] source) {
+        clear()
+        if (!supportedKind(kind) || productChecksum <= 0 ||
+            productChecksum > 1000000 || source.length <= 0 ||
+            source.length > words.length) {
+            return false
+        }
+        kindValue = kind
+        productChecksumValue = productChecksum
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (!validWord(source[index])) {
+                clear()
+                return false
+            }
+            words[index] = source[index]
+        }
+        wordCountValue = source.length
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        if (!sealedValue || !supportedKind(kindValue) ||
+            productChecksumValue <= 0 || wordCountValue <= 0 ||
+            wordCountValue > words.length) {
+            return false
+        }
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            if (!validWord(words[index])) { return false }
+        }
+        return checksumValue == calculateChecksum()
+    }
+
+    String encodeText() {
+        if (!validate()) { return "" }
+        var result = "" + offlineArtifactMagic() + "\n" +
+            offlineArtifactSchemaVersion() + "\n" + kindValue + "\n" +
+            productChecksumValue + "\n" + wordCountValue + "\n" +
+            checksumValue + "\n"
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            result = result + words[index] + "\n"
+        }
+        return result
+    }
+
+    Bool whitespace(Int value) {
+        return value == 32 || value == 9 || value == 10 || value == 13
+    }
+
+    Int nextInteger(String source) {
+        while (parseCursorValue < source.length() &&
+            whitespace(source.charAt(parseCursorValue) as Int)) {
+            parseCursorValue = parseCursorValue + 1
+        }
+        if (parseCursorValue >= source.length()) {
+            parseValidValue = false
+            return 2000000001
+        }
+        var negative = false
+        if ((source.charAt(parseCursorValue) as Int) == 45) {
+            negative = true
+            parseCursorValue = parseCursorValue + 1
+        }
+        var digits = 0
+        var value: Long = 0L
+        while (parseCursorValue < source.length()) {
+            var character = source.charAt(parseCursorValue) as Int
+            if (character < 48 || character > 57) { break }
+            value = value * 10L + (character - 48)
+            if (value > 2000000000L) {
+                parseValidValue = false
+                return 2000000001
+            }
+            digits = digits + 1
+            parseCursorValue = parseCursorValue + 1
+        }
+        if (digits == 0 ||
+            (parseCursorValue < source.length() &&
+                !whitespace(source.charAt(parseCursorValue) as Int))) {
+            parseValidValue = false
+            return 2000000001
+        }
+        if (negative) { value = -value }
+        return value.toInt()
+    }
+
+    Bool onlyTrailingWhitespace(String source) {
+        while (parseCursorValue < source.length()) {
+            if (!whitespace(source.charAt(parseCursorValue) as Int)) {
+                return false
+            }
+            parseCursorValue = parseCursorValue + 1
+        }
+        return true
+    }
+
+    Bool decodeText(String source) {
+        clear()
+        if (source.length() <= 0 || source.length() > 131072) { return false }
+        parseCursorValue = 0
+        parseValidValue = true
+        var magic = nextInteger(source)
+        var schema = nextInteger(source)
+        var kind = nextInteger(source)
+        var productChecksum = nextInteger(source)
+        var count = nextInteger(source)
+        var expectedChecksum = nextInteger(source)
+        if (!parseValidValue || magic != offlineArtifactMagic() ||
+            schema != offlineArtifactSchemaVersion() ||
+            !supportedKind(kind) || productChecksum <= 0 ||
+            productChecksum > 1000000 || count <= 0 || count > words.length ||
+            expectedChecksum <= 0) {
+            clear()
+            return false
+        }
+        kindValue = kind
+        productChecksumValue = productChecksum
+        for (var index = 0; index < count; index = index + 1) {
+            var value = nextInteger(source)
+            if (!parseValidValue || !validWord(value)) {
+                clear()
+                return false
+            }
+            words[index] = value
+            wordCountValue = wordCountValue + 1
+        }
+        if (!onlyTrailingWhitespace(source)) {
+            clear()
+            return false
+        }
+        checksumValue = expectedChecksum
+        sealedValue = true
+        if (!validate()) {
+            clear()
+            return false
+        }
+        return true
+    }
+    Int nextByteInteger(Int[] source) {
+        while (parseCursorValue < source.length &&
+            whitespace(source[parseCursorValue])) {
+            parseCursorValue = parseCursorValue + 1
+        }
+        if (parseCursorValue >= source.length) {
+            parseValidValue = false
+            return 2000000001
+        }
+        var negative = false
+        if (source[parseCursorValue] == 45) {
+            negative = true
+            parseCursorValue = parseCursorValue + 1
+        }
+        var digits = 0
+        var value: Long = 0L
+        while (parseCursorValue < source.length) {
+            var character = source[parseCursorValue]
+            if (character < 48 || character > 57) { break }
+            value = value * 10L + (character - 48)
+            if (value > 2000000000L) {
+                parseValidValue = false
+                return 2000000001
+            }
+            digits = digits + 1
+            parseCursorValue = parseCursorValue + 1
+        }
+        if (digits == 0 ||
+            (parseCursorValue < source.length &&
+                !whitespace(source[parseCursorValue]))) {
+            parseValidValue = false
+            return 2000000001
+        }
+        if (negative) { value = -value }
+        return value.toInt()
+    }
+
+    Bool onlyTrailingByteWhitespace(Int[] source) {
+        while (parseCursorValue < source.length) {
+            if (!whitespace(source[parseCursorValue])) { return false }
+            parseCursorValue = parseCursorValue + 1
+        }
+        return true
+    }
+
+    Bool decodeBytes(Int[] source) {
+        clear()
+        if (source.length <= 0 || source.length > 131072) { return false }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 127) { return false }
+        }
+        parseCursorValue = 0
+        parseValidValue = true
+        var magic = nextByteInteger(source)
+        var schema = nextByteInteger(source)
+        var kind = nextByteInteger(source)
+        var productChecksum = nextByteInteger(source)
+        var count = nextByteInteger(source)
+        var expectedChecksum = nextByteInteger(source)
+        if (!parseValidValue || magic != offlineArtifactMagic() ||
+            schema != offlineArtifactSchemaVersion() ||
+            !supportedKind(kind) || productChecksum <= 0 ||
+            productChecksum > 1000000 || count <= 0 || count > words.length ||
+            expectedChecksum <= 0) {
+            clear()
+            return false
+        }
+        kindValue = kind
+        productChecksumValue = productChecksum
+        for (var index = 0; index < count; index = index + 1) {
+            var value = nextByteInteger(source)
+            if (!parseValidValue || !validWord(value)) {
+                clear()
+                return false
+            }
+            words[index] = value
+            wordCountValue = wordCountValue + 1
+        }
+        if (!onlyTrailingByteWhitespace(source)) {
+            clear()
+            return false
+        }
+        checksumValue = expectedChecksum
+        sealedValue = true
+        if (!validate()) {
+            clear()
+            return false
+        }
+        return true
+    }
+
+
+    Int[] wordsCopy() {
+        if (!validate()) { return new Int[0] }
+        var result = new Int[wordCountValue]
+        for (var index = 0; index < wordCountValue; index = index + 1) {
+            result[index] = words[index]
+        }
+        return result
+    }
+
+    OfflineArtifactIdentity identity() {
+        return OfflineArtifactIdentity(
+            kindValue, productChecksumValue, wordCountValue, checksumValue)
+    }
+
+    Int kind() { return kindValue }
+    Int productChecksum() { return productChecksumValue }
+    Int wordCount() { return wordCountValue }
+    Int word(Int index) {
+        if (index < 0 || index >= wordCountValue) { return 2000000001 }
+        return words[index]
+    }
+
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}

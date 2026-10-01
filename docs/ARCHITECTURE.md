@@ -157,6 +157,15 @@ The adapter does not own entities, collision, gameplay, content semantics,
 render policy or save logic. Native crossing uses checked scalars, tokens and
 bounded buffers; no raw Kof pointers or callbacks are retained.
 
+The Windows compiler boundary consumes optimized IR from the exact pinned Kof
+frontend and emits deterministic C11, AMD64 COFF and console PE artifacts. Its
+admitted subset is top-level integral/Boolean/String functions, locals,
+arithmetic, control flow and printing. Classes, heap/array operations,
+exceptions, concurrency, FFI and SDL IR fail closed with `PE001`. Generated C is
+a compiler intermediate, not a second hand-written engine authority. This path
+qualifies executable format and lowering mechanics only; Linux remains the
+full native gameplay target.
+
 ## 4. Runtime modes
 
 ```mermaid
@@ -252,12 +261,22 @@ Statically compiled `.kf` extensions can register components, systems, AI,
 world generation, commands, serializers, editor tools, save migrations and
 network codecs.
 
-### Future sandboxed behavior
+### Sandboxed KofScript behavior
 
-A later script/bytecode tier may provide no-rebuild behavior. It must use the
-same public contracts and explicit capability budgets. It must not receive raw
-pointers, native handles, mutable core arrays, arbitrary filesystem/network
-access or unbounded iteration.
+`BoundedKofScriptProgram` is the no-rebuild bytecode tier. Its canonical
+artifact declares one domain-event subscription, forward-only control flow,
+stack/instruction/output budgets and explicit command/event capability masks.
+The verifier rejects loops, unreachable code, inconsistent branch stack depth,
+undeclared outputs and checksum corruption before execution. The preallocated
+VM rejects arithmetic overflow and discards all staged output on failure.
+
+Programs receive only copied integer event fields and can emit only the
+versioned public command/event records admitted by their masks. Currency
+commands cross the same atomic authoritative-session application gate as
+trusted hooks. There are no raw pointers, native handles, mutable core arrays,
+filesystem/network opcodes or unbounded iteration. The offline KofScript builder
+emits the artifact; JVM and native Kof runtimes reopen and execute identical
+words.
 
 ### Extension manifest
 
@@ -655,8 +674,26 @@ arbitrary-scale performance.
 
 ### G6 — Expansion
 
-Evaluate additional platforms, safe jobs, WAN transport, richer editor and a
-sandboxed runtime extension tier.
+The retained bounded evidence now covers four expansion slices:
+
+- Safe jobs copy scalar descriptors into four native workers and publish
+  completions through a strict ordinal owner fold; six jobs complete out of
+  order with deterministic sum `20551`.
+- Packaged KofScript carries a descriptor-bound offline artifact. Load stages
+  file/package/identity validation before swapping the active program, and the
+  authoritative session applies its capability command exactly once.
+- Creator Studio persists a canonical bounded hierarchy, transforms and asset
+  registry. Invalid opens leave the active project and generation unchanged.
+- The WAN channel wraps the authenticated direct endpoint with a fixed send
+  window, bounded retries/deadlines, deterministic loss/latency pressure,
+  ordered delivery, replay rejection and backpressure.
+
+The Windows presentation package is reproducible and signed with SDL3,
+SDL_mixer, SPIR-V/DXIL and a pinned OpenJDK 27 runtime. The optional isolated
+Wine gameplay smoke remains environment-gated; static package evidence is not
+promoted to a claim of cross-host Windows presentation success. The WAN profile
+does not claim NAT traversal, relay service, confidentiality or DDoS
+resistance.
 
 ## 11. Explicit non-goals
 

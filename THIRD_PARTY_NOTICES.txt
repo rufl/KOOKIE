@@ -1,7 +1,9 @@
 KOOKIE third-party notices
 
-Distributed runtime and source dependencies are restricted to permissive
-licenses.
+KOOKIE application code is distributed under MIT. Native presentation packages
+also distribute the permissively licensed SDL dependencies below. The optional
+Windows JVM package has a separate bundled-runtime license boundary described
+after the SDL notices.
 
 SDL 3.4.16
 Source: https://github.com/libsdl-org/SDL/releases/tag/release-3.4.16
@@ -38,10 +40,19 @@ freely, subject to the following restrictions:
    misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 
-The Windows package links only SDL and SDL_mixer; its mixer DLL imports no
-optional codec library. Linux release packaging rejects unreviewed non-system
-runtime libraries and copies only SDL and SDL_mixer. Host operating-system
-libraries are not redistributed.
+The Windows native package links only SDL and SDL_mixer; its mixer DLL imports
+no optional codec library. Linux presentation packaging rejects unreviewed
+non-system runtime libraries and copies only SDL and SDL_mixer. Host
+operating-system libraries are not redistributed.
+
+Windows JVM runtime
+The Windows JVM profile bundles the exact SHA-256-pinned OpenJDK runtime named
+in JAVA_RUNTIME.txt and PROVENANCE.txt. That runtime is not licensed under
+KOOKIE's MIT License or SDL's zlib License. Its authoritative license and
+third-party notices remain in runtime/legal and runtime/NOTICE, copied
+unchanged from the supplied archive. OpenJDK distributions commonly include
+code under GPLv2 with the Classpath Exception and separately licensed
+components; consult those bundled files for the exact runtime.
 
 Kof compiler note
 The Kof compiler is a build tool and is not distributed in KOOKIE packages.

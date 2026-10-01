@@ -1,0 +1,164 @@
+import core
+import kof.process
+
+Int parseKofScriptArgument(String encoded) {
+    if (encoded.length() <= 0 || encoded.length() > 7) { return -1 }
+    var value = 0
+    for (var index = 0; index < encoded.length(); index = index + 1) {
+        var character = encoded.charAt(index) as Int
+        if (character < 48 || character > 57) { return -1 }
+        value = value * 10 + character - 48
+        if (value > kofScriptMaximumValue()) { return -1 }
+    }
+    return value
+}
+class BoundedKofScriptRequest {
+    Int[] source
+    Int cursor
+    Bool validValue
+
+    public constructor(Int[] encoded) {
+        source = encoded
+        cursor = 0
+        validValue = encoded.length > 0 && encoded.length <= 128
+    }
+
+    Bool whitespace(Int value) {
+        return value == 9 || value == 10 || value == 13 || value == 32
+    }
+
+    Int next() {
+        while (cursor < source.length && whitespace(source[cursor])) {
+            cursor = cursor + 1
+        }
+        if (!validValue || cursor >= source.length) {
+            validValue = false
+            return -1
+        }
+        var value = 0
+        var digits = 0
+        while (cursor < source.length) {
+            var character = source[cursor]
+            if (character < 48 || character > 57) { break }
+            value = value * 10 + character - 48
+            if (value > kofScriptMaximumValue()) {
+                validValue = false
+                return -1
+            }
+            cursor = cursor + 1
+            digits = digits + 1
+        }
+        if (digits == 0 ||
+            (cursor < source.length && !whitespace(source[cursor]))) {
+            validValue = false
+            return -1
+        }
+        return value
+    }
+
+    Bool complete() {
+        while (cursor < source.length && whitespace(source[cursor])) {
+            cursor = cursor + 1
+        }
+        return validValue && cursor == source.length
+    }
+}
+
+
+Bool executeKofScriptArtifact(
+    String path,
+    Int tick,
+    Int sequence,
+    Int eventKind,
+    Int playerId,
+    Int subjectId,
+    Int subjectKind,
+    Int value
+) {
+    var encoded = File(path).readBytes()
+    var artifact = BoundedOfflineProductArtifact(8192)
+    if (!artifact.decodeBytes(encoded) ||
+        artifact.kind() != offlineArtifactKofScriptKind()) {
+        println("kofscript-rejected stage=artifact")
+        return false
+    }
+    var program = BoundedKofScriptProgram(64, 256)
+    if (!program.reopen(artifact.wordsCopy()) ||
+        program.checksum() != artifact.productChecksum()) {
+        println("kofscript-rejected stage=program")
+        return false
+    }
+    var vm = BoundedKofScriptVm(64, 32, 32)
+    if (!vm.execute(
+            program,
+            TrustedDomainEvent(
+                sequence, eventKind, playerId,
+                subjectId, subjectKind, value),
+            tick)) {
+        println("kofscript-rejected stage=runtime diagnostic=" + vm.diagnostic())
+        return false
+    }
+    println("kofscript-accepted checksum=" + vm.executionChecksum() +
+        " steps=" + vm.steps() +
+        " commands=" + vm.commandCount() +
+        " events=" + vm.eventCount())
+    for (var index = 0; index < vm.commandCount(); index = index + 1) {
+        println("command kind=" + vm.commandKind(index) +
+            " player=" + vm.commandPlayer(index) +
+            " value=" + vm.commandValue(index))
+    }
+    for (var index = 0; index < vm.eventCount(); index = index + 1) {
+        println("event kind=" + vm.eventKind(index) +
+            " subject=" + vm.eventSubject(index) +
+            " value=" + vm.eventValue(index))
+    }
+    return true
+}
+Bool executeNativeKofScriptRequest() {
+    var requestPath = ".kookie-kofscript-request"
+    if (!File(requestPath).exists() || !File("artifact.kofart").exists()) {
+        return false
+    }
+    var request = BoundedKofScriptRequest(File(requestPath).readBytes())
+    var tick = request.next()
+    var sequence = request.next()
+    var eventKind = request.next()
+    var playerId = request.next()
+    var subjectId = request.next()
+    var subjectKind = request.next()
+    var value = request.next()
+    return request.complete() &&
+        executeKofScriptArtifact(
+            "artifact.kofart", tick, sequence, eventKind,
+            playerId, subjectId, subjectKind, value)
+}
+
+
+main(List<String> args) {
+    if (File(".kookie-kofscript-request").exists()) {
+        if (!executeNativeKofScriptRequest()) { process.exit(2) }
+        return
+    }
+    var offset = 0
+    if (args.size() == 9) { offset = 1 }
+    if (args.size() - offset != 8) {
+        println(
+            "Usage: kookie-kofscript-runtime <artifact> <tick> <sequence> " +
+            "<event-kind> <player> <subject> <subject-kind> <value>")
+        process.exit(2)
+    }
+    var tick = parseKofScriptArgument(args.get(offset + 1))
+    var sequence = parseKofScriptArgument(args.get(offset + 2))
+    var eventKind = parseKofScriptArgument(args.get(offset + 3))
+    var playerId = parseKofScriptArgument(args.get(offset + 4))
+    var subjectId = parseKofScriptArgument(args.get(offset + 5))
+    var subjectKind = parseKofScriptArgument(args.get(offset + 6))
+    var value = parseKofScriptArgument(args.get(offset + 7))
+    if (tick < 0 || sequence < 0 || eventKind < 0 || playerId < 0 ||
+        subjectId < 0 || subjectKind < 0 || value < 0 ||
+        !executeKofScriptArtifact(
+            args.get(offset), tick, sequence, eventKind,
+            playerId, subjectId, subjectKind, value)) {
+        process.exit(2)
+    }
+}

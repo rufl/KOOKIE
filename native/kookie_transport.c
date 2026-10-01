@@ -1,21 +1,42 @@
+#ifndef _WIN32
 #define _POSIX_C_SOURCE 200809L
+#endif
 
 #include "kookie_transport.h"
 
-#include <arpa/inet.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
-#include <netinet/in.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600
+#endif
+#include <winsock2.h>
+#include <psapi.h>
+#include <windows.h>
+typedef SOCKET kookie_socket_t;
+typedef int kookie_socklen_t;
+typedef int kookie_io_size_t;
+#define KOOKIE_INVALID_SOCKET INVALID_SOCKET
+#else
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <time.h>
 #include <unistd.h>
+typedef int kookie_socket_t;
+typedef socklen_t kookie_socklen_t;
+typedef ssize_t kookie_io_size_t;
+#define KOOKIE_INVALID_SOCKET (-1)
+#endif
 
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 300
@@ -25,8 +46,8 @@
 #define KOOKIE_TRANSPORT_TIMEOUT_MILLISECONDS 1000
 
 typedef struct {
-    int socket_fd;
-    int receive_socket_fd;
+    kookie_socket_t socket_fd;
+    kookie_socket_t receive_socket_fd;
     struct sockaddr_in peer;
     struct sockaddr_in last_sender;
     bool last_sender_valid;
@@ -47,24 +68,130 @@ typedef struct {
 } KookieTransport;
 static KookieTransport transport_slots[KOOKIE_TRANSPORT_MAX_SLOTS] = {
     {
-        .socket_fd = -1,
-        .receive_socket_fd = -1
+        .socket_fd = KOOKIE_INVALID_SOCKET,
+        .receive_socket_fd = KOOKIE_INVALID_SOCKET
     },
     {
-        .socket_fd = -1,
-        .receive_socket_fd = -1
+        .socket_fd = KOOKIE_INVALID_SOCKET,
+        .receive_socket_fd = KOOKIE_INVALID_SOCKET
     },
     {
-        .socket_fd = -1,
-        .receive_socket_fd = -1
+        .socket_fd = KOOKIE_INVALID_SOCKET,
+        .receive_socket_fd = KOOKIE_INVALID_SOCKET
     },
     {
-        .socket_fd = -1,
-        .receive_socket_fd = -1
+        .socket_fd = KOOKIE_INVALID_SOCKET,
+        .receive_socket_fd = KOOKIE_INVALID_SOCKET
     }
 };
 static KookieTransport *active_transport = &transport_slots[0];
 #define transport (*active_transport)
+
+static bool kookie_socket_valid(kookie_socket_t socket_fd) {
+    return socket_fd != KOOKIE_INVALID_SOCKET;
+}
+
+#ifdef _WIN32
+static bool kookie_winsock_started;
+
+static void kookie_winsock_cleanup(void) {
+    if (kookie_winsock_started) {
+        WSACleanup();
+        kookie_winsock_started = false;
+    }
+}
+
+static bool kookie_socket_runtime_open(void) {
+    if (kookie_winsock_started) {
+        return true;
+    }
+    WSADATA data;
+    if (WSAStartup(MAKEWORD(2, 2), &data) != 0) {
+        return false;
+    }
+    kookie_winsock_started = true;
+    if (atexit(kookie_winsock_cleanup) != 0) {
+        WSACleanup();
+        kookie_winsock_started = false;
+        return false;
+    }
+    return true;
+}
+
+static void kookie_socket_close(kookie_socket_t socket_fd) {
+    if (kookie_socket_valid(socket_fd)) {
+        closesocket(socket_fd);
+    }
+}
+
+static bool kookie_socket_would_block(void) {
+    int error = WSAGetLastError();
+    return error == WSAEWOULDBLOCK || error == WSAETIMEDOUT;
+}
+
+static bool kookie_socket_set_nonblocking(
+    kookie_socket_t socket_fd, bool enabled
+) {
+    u_long mode = enabled ? 1UL : 0UL;
+    return ioctlsocket(socket_fd, FIONBIO, &mode) == 0;
+}
+#else
+static bool kookie_socket_runtime_open(void) {
+    return true;
+}
+
+static void kookie_socket_close(kookie_socket_t socket_fd) {
+    if (kookie_socket_valid(socket_fd)) {
+        close(socket_fd);
+    }
+}
+
+static bool kookie_socket_would_block(void) {
+    return errno == EAGAIN || errno == EWOULDBLOCK;
+}
+#endif
+
+static kookie_io_size_t kookie_socket_send(
+    kookie_socket_t socket_fd,
+    const void *bytes,
+    size_t length,
+    const struct sockaddr_in *peer
+) {
+    if (length > INT_MAX) {
+        return -1;
+    }
+#ifdef _WIN32
+    return sendto(
+        socket_fd, (const char *)bytes, (int)length, 0,
+        (const struct sockaddr *)peer, sizeof(*peer));
+#else
+    return sendto(
+        socket_fd, bytes, length, 0,
+        (const struct sockaddr *)peer, sizeof(*peer));
+#endif
+}
+
+static kookie_io_size_t kookie_socket_receive(
+    kookie_socket_t socket_fd,
+    void *bytes,
+    size_t capacity,
+    int flags,
+    struct sockaddr_in *sender,
+    kookie_socklen_t *sender_length
+) {
+    if (capacity > INT_MAX) {
+        return -1;
+    }
+#ifdef _WIN32
+    return recvfrom(
+        socket_fd, (char *)bytes, (int)capacity, flags,
+        (struct sockaddr *)sender, sender_length);
+#else
+    return recvfrom(
+        socket_fd, bytes, capacity, flags,
+        (struct sockaddr *)sender, sender_length);
+#endif
+}
 static uint64_t kookie_rotate_left(uint64_t value, unsigned int shift) {
     return (value << shift) | (value >> (64u - shift));
 }
@@ -141,16 +268,16 @@ static int kookie_transport_receive_timeout_milliseconds(void) {
 }
 
 static bool kookie_transport_bind_socket_configured(
-    int *socket_fd,
+    kookie_socket_t *socket_fd,
     uint32_t bind_address,
     int port,
     struct sockaddr_in *address
 ) {
-    if (port < 0 || port > 65535) {
+    if (port < 0 || port > 65535 || !kookie_socket_runtime_open()) {
         return false;
     }
-    int next_socket = socket(AF_INET, SOCK_DGRAM, 0);
-    if (next_socket < 0) {
+    kookie_socket_t next_socket = socket(AF_INET, SOCK_DGRAM, 0);
+    if (!kookie_socket_valid(next_socket)) {
         return false;
     }
     memset(address, 0, sizeof(*address));
@@ -161,46 +288,52 @@ static bool kookie_transport_bind_socket_configured(
             next_socket,
             (struct sockaddr *)address,
             sizeof(*address)) != 0) {
-        close(next_socket);
+        kookie_socket_close(next_socket);
         return false;
     }
-    socklen_t address_length = sizeof(*address);
+    kookie_socklen_t address_length = sizeof(*address);
     if (getsockname(
             next_socket, (struct sockaddr *)address, &address_length) != 0) {
-        close(next_socket);
+        kookie_socket_close(next_socket);
         return false;
     }
     int timeout_milliseconds =
         kookie_transport_receive_timeout_milliseconds();
+#ifdef _WIN32
+    DWORD receive_timeout = (DWORD)timeout_milliseconds;
+    const char *receive_timeout_bytes = (const char *)&receive_timeout;
+#else
     struct timeval receive_timeout = {
         .tv_sec = timeout_milliseconds / 1000,
         .tv_usec = (timeout_milliseconds % 1000) * 1000
     };
+    const void *receive_timeout_bytes = &receive_timeout;
+#endif
     if (setsockopt(
             next_socket, SOL_SOCKET, SO_RCVTIMEO,
-            &receive_timeout, sizeof(receive_timeout)) != 0) {
-        close(next_socket);
+            receive_timeout_bytes, sizeof(receive_timeout)) != 0) {
+        kookie_socket_close(next_socket);
         return false;
     }
     *socket_fd = next_socket;
     return true;
 }
 static bool kookie_transport_bind_socket(
-    int *socket_fd,
+    kookie_socket_t *socket_fd,
     struct sockaddr_in *address
 ) {
     return kookie_transport_bind_socket_configured(
         socket_fd, INADDR_LOOPBACK, 0, address);
 }
 static bool kookie_transport_bind_socket_any(
-    int *socket_fd,
+    kookie_socket_t *socket_fd,
     struct sockaddr_in *address
 ) {
     return kookie_transport_bind_socket_configured(
         socket_fd, INADDR_ANY, 0, address);
 }
 static bool kookie_transport_bind_socket_at(
-    int *socket_fd,
+    kookie_socket_t *socket_fd,
     int port,
     struct sockaddr_in *address
 ) {
@@ -211,7 +344,7 @@ static bool kookie_transport_bind_socket_at(
         socket_fd, INADDR_LOOPBACK, port, address);
 }
 static bool kookie_transport_bind_socket_any_at(
-    int *socket_fd,
+    kookie_socket_t *socket_fd,
     int port,
     struct sockaddr_in *address
 ) {
@@ -245,7 +378,7 @@ static void kookie_transport_reset_counters(void) {
 bool kookie_transport_set_key(
     int key0_low, int key0_high, int key1_low, int key1_high
 ) {
-    if (transport.socket_fd >= 0) {
+    if (kookie_socket_valid(transport.socket_fd)) {
         return false;
     }
     uint64_t next_key0 =
@@ -301,7 +434,7 @@ static bool kookie_transport_set_key_from_encoded(const char *encoded) {
 }
 
 bool kookie_transport_set_key_from_environment(void) {
-    if (transport.socket_fd >= 0) {
+    if (kookie_socket_valid(transport.socket_fd)) {
         return false;
     }
     return kookie_transport_set_key_from_encoded(
@@ -309,9 +442,12 @@ bool kookie_transport_set_key_from_environment(void) {
 }
 
 bool kookie_transport_set_key_from_file(void) {
-    if (transport.socket_fd >= 0) {
+    if (kookie_socket_valid(transport.socket_fd)) {
         return false;
     }
+#ifdef _WIN32
+    return false;
+#else
     const char *path = getenv("KOOKIE_TRANSPORT_KEY_FILE");
     if (path == NULL || path[0] == '\0') {
         return false;
@@ -333,6 +469,7 @@ bool kookie_transport_set_key_from_file(void) {
     }
     encoded[32] = '\0';
     return kookie_transport_set_key_from_encoded(encoded);
+#endif
 }
 
 bool kookie_transport_rotate_key_from_file(void) {
@@ -341,10 +478,10 @@ bool kookie_transport_rotate_key_from_file(void) {
 
 
 bool kookie_transport_open(void) {
-    if (transport.socket_fd >= 0 || !transport.key_configured) {
+    if (kookie_socket_valid(transport.socket_fd) || !transport.key_configured) {
         return false;
     }
-    int socket_fd = -1;
+    kookie_socket_t socket_fd = KOOKIE_INVALID_SOCKET;
     struct sockaddr_in peer;
     if (!kookie_transport_bind_socket(&socket_fd, &peer)) {
         return false;
@@ -358,20 +495,20 @@ bool kookie_transport_open(void) {
 }
 
 bool kookie_transport_open_pair(void) {
-    if (transport.socket_fd >= 0 || !transport.key_configured) {
+    if (kookie_socket_valid(transport.socket_fd) || !transport.key_configured) {
         return false;
     }
-    int socket_fd = -1;
-    int receive_socket_fd = -1;
+    kookie_socket_t socket_fd = KOOKIE_INVALID_SOCKET;
+    kookie_socket_t receive_socket_fd = KOOKIE_INVALID_SOCKET;
     struct sockaddr_in peer;
     struct sockaddr_in receive_address;
     if (!kookie_transport_bind_socket(&socket_fd, &peer) ||
         !kookie_transport_bind_socket(&receive_socket_fd, &receive_address)) {
-        if (socket_fd >= 0) {
-            close(socket_fd);
+        if (kookie_socket_valid(socket_fd)) {
+            kookie_socket_close(socket_fd);
         }
-        if (receive_socket_fd >= 0) {
-            close(receive_socket_fd);
+        if (kookie_socket_valid(receive_socket_fd)) {
+            kookie_socket_close(receive_socket_fd);
         }
         return false;
     }
@@ -386,7 +523,7 @@ bool kookie_transport_open_remote_ipv4(
     int first_octet, int second_octet, int third_octet,
     int fourth_octet, int port
 ) {
-    if (transport.socket_fd >= 0 || !transport.key_configured ||
+    if (kookie_socket_valid(transport.socket_fd) || !transport.key_configured ||
         first_octet < 0 || first_octet > 255 ||
         second_octet < 0 || second_octet > 255 ||
         third_octet < 0 || third_octet > 255 ||
@@ -394,7 +531,7 @@ bool kookie_transport_open_remote_ipv4(
         port <= 0 || port > 65535) {
         return false;
     }
-    int socket_fd = -1;
+    kookie_socket_t socket_fd = KOOKIE_INVALID_SOCKET;
     struct sockaddr_in local;
     if (!kookie_transport_bind_socket_any(&socket_fd, &local)) {
         return false;
@@ -419,7 +556,20 @@ static bool kookie_transport_external_host_address(
     if (encoded == NULL || encoded[0] == '\0') {
         encoded = "127.0.0.1";
     }
-    return inet_pton(AF_INET, encoded, address) == 1;
+    unsigned int first = 0;
+    unsigned int second = 0;
+    unsigned int third = 0;
+    unsigned int fourth = 0;
+    char trailing = '\0';
+    if (sscanf(
+            encoded, "%u.%u.%u.%u%c",
+            &first, &second, &third, &fourth, &trailing) != 4 ||
+        first > 255 || second > 255 || third > 255 || fourth > 255) {
+        return false;
+    }
+    address->s_addr = htonl(
+        (first << 24) | (second << 16) | (third << 8) | fourth);
+    return true;
 }
 
 bool kookie_transport_open_remote_environment(int port) {
@@ -476,10 +626,10 @@ bool kookie_transport_external_is_client_b(void) {
     return kookie_transport_external_role() == 3;
 }
 bool kookie_transport_open_local_ipv4(int port) {
-    if (transport.socket_fd >= 0 || !transport.key_configured) {
+    if (kookie_socket_valid(transport.socket_fd) || !transport.key_configured) {
         return false;
     }
-    int socket_fd = -1;
+    kookie_socket_t socket_fd = KOOKIE_INVALID_SOCKET;
     struct sockaddr_in local;
     if (!kookie_transport_bind_socket_at(&socket_fd, port, &local)) {
         return false;
@@ -491,10 +641,10 @@ bool kookie_transport_open_local_ipv4(int port) {
     return true;
 }
 bool kookie_transport_open_listen_ipv4(int port) {
-    if (transport.socket_fd >= 0 || !transport.key_configured) {
+    if (kookie_socket_valid(transport.socket_fd) || !transport.key_configured) {
         return false;
     }
-    int socket_fd = -1;
+    kookie_socket_t socket_fd = KOOKIE_INVALID_SOCKET;
     struct sockaddr_in local;
     if (!kookie_transport_bind_socket_any_at(&socket_fd, port, &local)) {
         return false;
@@ -511,7 +661,7 @@ bool kookie_transport_set_peer_ipv4(
     int first_octet, int second_octet, int third_octet,
     int fourth_octet, int port
 ) {
-    if (transport.socket_fd < 0 ||
+    if (!kookie_socket_valid(transport.socket_fd) ||
         first_octet < 0 || first_octet > 255 ||
         second_octet < 0 || second_octet > 255 ||
         third_octet < 0 || third_octet > 255 ||
@@ -530,7 +680,7 @@ bool kookie_transport_set_peer_ipv4(
     return true;
 }
 bool kookie_transport_set_peer_last_sender(void) {
-    if (transport.socket_fd < 0 || !transport.last_sender_valid) {
+    if (!kookie_socket_valid(transport.socket_fd) || !transport.last_sender_valid) {
         return false;
     }
     transport.peer = transport.last_sender;
@@ -544,18 +694,18 @@ bool kookie_transport_received_sequence_at_least(int minimum) {
 
 
 int kookie_transport_peer_port(void) {
-    if (transport.socket_fd < 0) {
+    if (!kookie_socket_valid(transport.socket_fd)) {
         return 0;
     }
     return (int)ntohs(transport.peer.sin_port);
 }
 
 int kookie_transport_local_port(void) {
-    if (transport.socket_fd < 0) {
+    if (!kookie_socket_valid(transport.socket_fd)) {
         return 0;
     }
     struct sockaddr_in local;
-    socklen_t address_length = sizeof(local);
+    kookie_socklen_t address_length = sizeof(local);
     if (getsockname(
             transport.socket_fd,
             (struct sockaddr *)&local,
@@ -571,7 +721,7 @@ int kookie_transport_max_words(void) {
 
 
 bool kookie_transport_send_begin(int word_count) {
-    if (transport.socket_fd < 0 ||
+    if (!kookie_socket_valid(transport.socket_fd) ||
         word_count <= 0 ||
         word_count > KOOKIE_TRANSPORT_MAX_WORDS) {
         return false;
@@ -581,7 +731,7 @@ bool kookie_transport_send_begin(int word_count) {
 }
 
 bool kookie_transport_send_word(int index, int word) {
-    if (transport.socket_fd < 0 ||
+    if (!kookie_socket_valid(transport.socket_fd) ||
         index < 0 ||
         index >= transport.send_count) {
         return false;
@@ -591,7 +741,7 @@ bool kookie_transport_send_word(int index, int word) {
 }
 
 bool kookie_transport_send_commit(void) {
-    if (transport.socket_fd < 0 ||
+    if (!kookie_socket_valid(transport.socket_fd) ||
         transport.send_count <= 0 ||
         transport.send_sequence == UINT32_MAX) {
         return false;
@@ -613,15 +763,10 @@ bool kookie_transport_send_commit(void) {
     uint64_t mac = kookie_transport_mac((const uint8_t *)wire, bytes);
     wire[4] = htonl((uint32_t)mac);
     wire[5] = htonl((uint32_t)(mac >> 32));
-    ssize_t sent = sendto(
-        transport.socket_fd,
-        wire,
-        bytes,
-        0,
-        (struct sockaddr *)&transport.peer,
-        sizeof(transport.peer));
+    kookie_io_size_t sent = kookie_socket_send(
+        transport.socket_fd, wire, bytes, &transport.peer);
     transport.send_count = 0;
-    if (sent != (ssize_t)bytes) {
+    if (sent != (kookie_io_size_t)bytes) {
         return false;
     }
     memcpy(transport.last_send_wire, wire, bytes);
@@ -631,54 +776,51 @@ bool kookie_transport_send_commit(void) {
     return true;
 }
 bool kookie_transport_replay_last_datagram(void) {
-    if (transport.socket_fd < 0 ||
+    if (!kookie_socket_valid(transport.socket_fd) ||
         !transport.last_send_valid ||
         transport.last_send_bytes <= 0) {
         return false;
     }
-    ssize_t sent = sendto(
+    kookie_io_size_t sent = kookie_socket_send(
         transport.socket_fd,
         transport.last_send_wire,
         (size_t)transport.last_send_bytes,
-        0,
-        (struct sockaddr *)&transport.peer,
-        sizeof(transport.peer));
-    return sent == (ssize_t)transport.last_send_bytes;
+        &transport.peer);
+    return sent == (kookie_io_size_t)transport.last_send_bytes;
 }
 
 static int kookie_transport_receive_with_flags(int flags) {
-    if (transport.socket_fd < 0) {
+    if (!kookie_socket_valid(transport.socket_fd)) {
         return 0;
     }
     uint32_t wire[
         KOOKIE_TRANSPORT_HEADER_WORDS + KOOKIE_TRANSPORT_MAX_WORDS];
     struct sockaddr_in sender;
     memset(&sender, 0, sizeof(sender));
-    socklen_t sender_length = sizeof(sender);
-    ssize_t bytes = recvfrom(
+    kookie_socklen_t sender_length = sizeof(sender);
+    kookie_io_size_t bytes = kookie_socket_receive(
         transport.receive_socket_fd,
         wire,
         sizeof(wire),
         flags,
-        (struct sockaddr *)&sender,
+        &sender,
         &sender_length);
     if (bytes < 0) {
         transport.receive_count = 0;
         transport.last_sender_valid = false;
-        transport.last_status =
-            errno == EAGAIN || errno == EWOULDBLOCK ? 2 : 3;
+        transport.last_status = kookie_socket_would_block() ? 2 : 3;
         return 0;
     }
     transport.last_sender = sender;
     transport.last_sender_valid = true;
     if (bytes <= 0 ||
-        bytes % (ssize_t)sizeof(uint32_t) != 0 ||
-        bytes > (ssize_t)sizeof(wire)) {
+        bytes % (kookie_io_size_t)sizeof(uint32_t) != 0 ||
+        bytes > (kookie_io_size_t)sizeof(wire)) {
         transport.receive_count = 0;
         transport.last_status = 3;
         return 0;
     }
-    int frame_words = (int)(bytes / (ssize_t)sizeof(uint32_t));
+    int frame_words = (int)(bytes / (kookie_io_size_t)sizeof(uint32_t));
     uint32_t payload_count = ntohl(wire[2]);
     uint32_t sequence = ntohl(wire[3]);
     if (ntohl(wire[0]) != KOOKIE_TRANSPORT_MAGIC ||
@@ -723,7 +865,23 @@ int kookie_transport_receive(void) {
 }
 
 int kookie_transport_receive_available(void) {
+#ifdef _WIN32
+    if (!kookie_socket_valid(transport.receive_socket_fd) ||
+        !kookie_socket_set_nonblocking(transport.receive_socket_fd, true)) {
+        transport.last_status = 3;
+        return 0;
+    }
+    int received = kookie_transport_receive_with_flags(0);
+    if (!kookie_socket_set_nonblocking(
+            transport.receive_socket_fd, false)) {
+        transport.receive_count = 0;
+        transport.last_status = 3;
+        return 0;
+    }
+    return received;
+#else
     return kookie_transport_receive_with_flags(MSG_DONTWAIT);
+#endif
 }
 
 int kookie_transport_receive_word(int index) {
@@ -750,35 +908,57 @@ int kookie_transport_timeout_milliseconds(void) {
 }
 
 bool kookie_transport_close(void) {
-    if (transport.socket_fd < 0) {
+    if (!kookie_socket_valid(transport.socket_fd)) {
         return false;
     }
-    close(transport.socket_fd);
-    if (transport.receive_socket_fd >= 0 &&
+    kookie_socket_close(transport.socket_fd);
+    if (kookie_socket_valid(transport.receive_socket_fd) &&
         transport.receive_socket_fd != transport.socket_fd) {
-        close(transport.receive_socket_fd);
+        kookie_socket_close(transport.receive_socket_fd);
     }
     memset(&transport, 0, sizeof(transport));
-    transport.socket_fd = -1;
-    transport.receive_socket_fd = -1;
+    transport.socket_fd = KOOKIE_INVALID_SOCKET;
+    transport.receive_socket_fd = KOOKIE_INVALID_SOCKET;
     transport.key0 = 0;
     transport.key1 = 0;
     transport.key_configured = false;
     return true;
 }
 
-static struct timespec kookie_measurement_start;
+static int64_t kookie_measurement_start_nanoseconds;
 static bool kookie_measurement_started;
 
 int64_t kookie_headless_monotonic_nanoseconds(void) {
+#ifdef _WIN32
+    LARGE_INTEGER counter;
+    LARGE_INTEGER frequency;
+    if (!QueryPerformanceCounter(&counter) ||
+        !QueryPerformanceFrequency(&frequency) ||
+        counter.QuadPart < 0 ||
+        frequency.QuadPart <= 0) {
+        return -1;
+    }
+    uint64_t ticks = (uint64_t)counter.QuadPart;
+    uint64_t ticks_per_second = (uint64_t)frequency.QuadPart;
+    uint64_t seconds = ticks / ticks_per_second;
+    uint64_t remainder = ticks % ticks_per_second;
+    if (seconds > (uint64_t)INT64_MAX / UINT64_C(1000000000) ||
+        remainder > UINT64_MAX / UINT64_C(1000000000)) {
+        return -1;
+    }
+    return (int64_t)(
+        seconds * UINT64_C(1000000000) +
+        remainder * UINT64_C(1000000000) / ticks_per_second);
+#else
     struct timespec now;
-
     if (clock_gettime(CLOCK_MONOTONIC, &now) != 0 ||
         now.tv_sec < 0 ||
         (uint64_t)now.tv_sec > (uint64_t)INT64_MAX / UINT64_C(1000000000)) {
         return -1;
     }
-    return (int64_t)now.tv_sec * INT64_C(1000000000) + (int64_t)now.tv_nsec;
+    return (int64_t)now.tv_sec * INT64_C(1000000000) +
+        (int64_t)now.tv_nsec;
+#endif
 }
 
 static int kookie_headless_environment_int(
@@ -797,10 +977,12 @@ static int kookie_headless_environment_int(
 }
 
 bool kookie_headless_measure_begin(void) {
-    if (clock_gettime(CLOCK_MONOTONIC, &kookie_measurement_start) != 0) {
+    int64_t now = kookie_headless_monotonic_nanoseconds();
+    if (now < 0) {
         kookie_measurement_started = false;
         return false;
     }
+    kookie_measurement_start_nanoseconds = now;
     kookie_measurement_started = true;
     return true;
 }
@@ -809,20 +991,12 @@ int kookie_headless_measure_elapsed_microseconds(void) {
     if (!kookie_measurement_started) {
         return -1;
     }
-    struct timespec end;
-    if (clock_gettime(CLOCK_MONOTONIC, &end) != 0) {
+    int64_t now = kookie_headless_monotonic_nanoseconds();
+    if (now < kookie_measurement_start_nanoseconds) {
         return -1;
     }
-    int64_t seconds = (int64_t)end.tv_sec - (int64_t)kookie_measurement_start.tv_sec;
-    int64_t nanoseconds = (int64_t)end.tv_nsec - (int64_t)kookie_measurement_start.tv_nsec;
-    if (nanoseconds < 0) {
-        seconds -= 1;
-        nanoseconds += INT64_C(1000000000);
-    }
-    int64_t microseconds = seconds * INT64_C(1000000) + nanoseconds / 1000;
-    if (microseconds < 0) {
-        return -1;
-    }
+    int64_t microseconds =
+        (now - kookie_measurement_start_nanoseconds) / INT64_C(1000);
     if (microseconds > INT_MAX) {
         return INT_MAX;
     }
@@ -830,6 +1004,14 @@ int kookie_headless_measure_elapsed_microseconds(void) {
 }
 
 int kookie_headless_rss_kib(void) {
+#ifdef _WIN32
+    PROCESS_MEMORY_COUNTERS counters;
+    if (!GetProcessMemoryInfo(
+            GetCurrentProcess(), &counters, sizeof(counters))) {
+        return -1;
+    }
+    uint64_t kib = (uint64_t)counters.WorkingSetSize / 1024U;
+#else
     FILE *status = fopen("/proc/self/statm", "r");
     if (status == NULL) {
         return -1;
@@ -845,7 +1027,9 @@ int kookie_headless_rss_kib(void) {
     if (page_size <= 0) {
         return -1;
     }
-    uint64_t kib = ((uint64_t)resident_pages * (uint64_t)page_size) / 1024U;
+    uint64_t kib =
+        ((uint64_t)resident_pages * (uint64_t)page_size) / 1024U;
+#endif
     if (kib > INT_MAX) {
         return INT_MAX;
     }
@@ -856,6 +1040,23 @@ bool kookie_headless_sleep_microseconds(int microseconds) {
     if (microseconds < 0 || microseconds > 1000000) {
         return false;
     }
+#ifdef _WIN32
+    if (microseconds == 0) {
+        return true;
+    }
+    HANDLE timer = CreateWaitableTimerW(NULL, TRUE, NULL);
+    if (timer == NULL) {
+        return false;
+    }
+    LARGE_INTEGER due_time;
+    due_time.QuadPart = -(LONGLONG)microseconds * 10;
+    bool scheduled = SetWaitableTimer(
+        timer, &due_time, 0, NULL, NULL, FALSE) != 0;
+    bool completed = scheduled &&
+        WaitForSingleObject(timer, INFINITE) == WAIT_OBJECT_0;
+    CloseHandle(timer);
+    return completed;
+#else
     struct timespec remaining = {
         .tv_sec = microseconds / 1000000,
         .tv_nsec = (long)(microseconds % 1000000) * 1000L
@@ -866,6 +1067,7 @@ bool kookie_headless_sleep_microseconds(int microseconds) {
         }
     }
     return true;
+#endif
 }
 
 int kookie_headless_requested_ticks(void) {

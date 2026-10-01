@@ -549,6 +549,7 @@ class EnemyStateWorld {
     Int perceptionRange
     Int attackRange
     Int attackCooldown
+    BoundedBehaviorProgram behaviorProgram
     public constructor(Int capacity) {
         ids = new Int[capacity]
         states = new Int[capacity]
@@ -562,6 +563,8 @@ class EnemyStateWorld {
         perceptionRange = 0
         attackRange = 0
         attackCooldown = 0
+        behaviorProgram = BoundedBehaviorProgram(64, 128, 32)
+        behaviorProgram.configureDefaultEnemyProgram(1)
         for (var index = 0; index < capacity; index = index + 1) {
             ids[index] = 0
             states[index] = 0
@@ -576,7 +579,8 @@ class EnemyStateWorld {
     }
 
     Bool configure(Int nextPerceptionRange, Int nextAttackRange, Int nextCooldown) {
-        if (nextPerceptionRange <= 0 || nextAttackRange <= 0 ||
+        if (!behaviorProgram.validate() ||
+            nextPerceptionRange <= 0 || nextAttackRange <= 0 ||
             nextAttackRange > nextPerceptionRange || nextCooldown < 0) {
             return false
         }
@@ -584,6 +588,22 @@ class EnemyStateWorld {
         attackRange = nextAttackRange
         attackCooldown = nextCooldown
         return true
+    }
+
+    Bool installBehaviorProgram(BoundedBehaviorProgram program) {
+        if (!program.validate() ||
+            program.revision() <= behaviorProgram.revision()) {
+            return false
+        }
+        return behaviorProgram.copyFrom(program)
+    }
+
+    Int behaviorProgramRevision() {
+        return behaviorProgram.revision()
+    }
+
+    Int behaviorProgramChecksum() {
+        return behaviorProgram.checksum()
     }
 
     Int idleState() {
@@ -717,27 +737,37 @@ class EnemyStateWorld {
         if (states[index] == deadState()) {
             return EnemyStepResult(true, id, deadState(), 0, false, false)
         }
+        var decision = behaviorProgram.evaluate(
+            targetId, targetVisible, distance, perceptionRange, attackRange)
+        if (!decision.accepted()) {
+            return EnemyStepResult(false, id, 0, 0, false, false)
+        }
         var priorState = states[index]
         var attackReady = false
-        if (targetVisible && distance <= perceptionRange) {
-            targets[index] = targetId
-            if (distance <= attackRange) {
-                if (tick >= attackReadyTicks[index]) {
-                    states[index] = attackState()
-                    stateSinceTicks[index] = tick
-                    attackReadyTicks[index] = tick + attackCooldown
-                    attackReady = true
-                } else {
-                    states[index] = attackState()
-                }
-            } else {
-                states[index] = chaseState()
+        if (decision.intent() == behaviorIntentAttack()) {
+            targets[index] = decision.targetId()
+            if (tick >= attackReadyTicks[index]) {
+                states[index] = attackState()
                 stateSinceTicks[index] = tick
+                attackReadyTicks[index] = tick + attackCooldown
+                attackReady = true
+            } else {
+                states[index] = attackState()
             }
-        } else {
+        } else if (decision.intent() == behaviorIntentChase()) {
+            targets[index] = decision.targetId()
+            states[index] = chaseState()
+            stateSinceTicks[index] = tick
+        } else if (decision.intent() == behaviorIntentInvestigate()) {
             targets[index] = 0
             states[index] = investigateState()
             stateSinceTicks[index] = tick
+        } else if (decision.intent() == behaviorIntentIdle()) {
+            targets[index] = 0
+            states[index] = idleState()
+            stateSinceTicks[index] = tick
+        } else {
+            return EnemyStepResult(false, id, 0, 0, false, false)
         }
         return EnemyStepResult(
             true, id, states[index], targets[index], attackReady,

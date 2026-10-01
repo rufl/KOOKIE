@@ -190,8 +190,9 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   O assembler nativo emite ELF Linux; o shell SDL nativo Windows não muda esse
   limite do compilador.
 - Arquivos de release cobrem Linux nativo e o shell de plataforma Windows
-  SDL3 + SDL_mixer. Gameplay Kof autoritativo no Windows continua não
-  comprovado.
+  SDL3 + SDL_mixer. O perfil limitado de apresentação Windows também passou um
+  smoke completo Kof JVM/SDL em Wine isolado; gameplay Kof nativo autoritativo
+  no Windows continua não comprovado.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 

@@ -1,0 +1,103 @@
+import core
+import content
+import session
+
+Int[] bytesFromString(String value) {
+    var result = new Int[value.length()]
+    for (var index = 0; index < result.length; index = index + 1) {
+        result[index] = value.charAt(index) as Int
+    }
+    return result
+}
+
+main() {
+    var program = BoundedKofScriptProgram(4, 8)
+    var eventKind = trustedDomainEventEnemyDefeated()
+    assert(program.configure(
+            8, 1, 9001, 1, eventKind,
+            4, 2, 1, 0,
+            kofScriptCommandGrantCurrencyBit(), 0) &&
+        program.addConstant(1) &&
+        program.addConstant(25) &&
+        program.addInstruction(kofScriptOpcodePushConstant(), 0) &&
+        program.addInstruction(kofScriptOpcodePushConstant(), 1) &&
+        program.addInstruction(
+            kofScriptOpcodeEmitCommand(), trustedHookCommandGrantCurrency()) &&
+        program.addInstruction(kofScriptOpcodeHalt(), 0) &&
+        program.seal() && program.encode(),
+        "packaged KofScript must seal and encode")
+
+    var sourceWords = new Int[program.encodedLength()]
+    for (var index = 0; index < sourceWords.length; index = index + 1) {
+        sourceWords[index] = program.encodedWord(index)
+    }
+    var artifact = BoundedOfflineProductArtifact(128)
+    assert(artifact.build(
+            offlineArtifactKofScriptKind(), program.checksum(), sourceWords),
+        "packaged KofScript must emit an offline product artifact")
+
+    var descriptor = BoundedKofScriptPackageDescriptor()
+    assert(descriptor.configure(
+            8, 1, 9001, 1, program.checksum(), 2, 1,
+            artifact.checksum(), eventKind) && descriptor.seal(),
+        "package descriptor must bind identity and artifact checksums")
+    var descriptorBytes = descriptor.encodedBytes()
+    var artifactBytes = bytesFromString(artifact.encodeText())
+    var payload = new Int[descriptorBytes.length + artifactBytes.length]
+    for (var index = 0; index < descriptorBytes.length; index = index + 1) {
+        payload[index] = descriptorBytes[index]
+    }
+    for (var index = 0; index < artifactBytes.length; index = index + 1) {
+        payload[descriptorBytes.length + index] = artifactBytes[index]
+    }
+
+    var packageData = BoundedContentPackage(1, 1, 2)
+    var files = BoundedContentPackageFileStore(1, 1, 2, 65536)
+    assert(packageData.configureHeader(1, 1, 1, 1, 1000) &&
+        packageData.addAsset(8, 9001, 1, 1, 101, 202, 1) &&
+        packageData.addChunk(
+            1, kofScriptPackageDescriptorChunkKind(), 0,
+            descriptorBytes.length,
+            files.chunkHashLow(payload, 0, descriptorBytes.length),
+            files.chunkHashHigh(payload, 0, descriptorBytes.length), 1) &&
+        packageData.addChunk(
+            2, kofScriptPackageArtifactChunkKind(), descriptorBytes.length,
+            artifactBytes.length,
+            files.chunkHashLow(
+                payload, descriptorBytes.length, artifactBytes.length),
+            files.chunkHashHigh(
+                payload, descriptorBytes.length, artifactBytes.length), 1) &&
+        packageData.seal(),
+        "content package must bind descriptor and artifact chunks")
+    var paths = new String[2]
+    paths[0] = "kofscript.descriptor"
+    paths[1] = "kofscript.artifact"
+    var path = "build/kofscript_package.kpkg"
+    assert(files.write(path, packageData, payload, paths),
+        "content package file must be written with verified chunk hashes")
+
+    var runtime = BoundedKofScriptPackageRuntime(65536)
+    assert(runtime.load(path) && runtime.generation() == 1,
+        "runtime must stage and activate a verified KofScript package")
+    var event = TrustedDomainEvent(
+        1, eventKind, 1, 42, enemyDefinitionEliteKind(), 20)
+    var session = LoopbackSession(2, 2)
+    assert(session.start() && session.connectPlayer() == 1 &&
+        session.applyPackagedKofScript(runtime, event, 7) &&
+        session.playerCurrency(1) == 25,
+        "packaged KofScript must cross the authoritative session gate")
+
+    var badBytes = File(path).readRange(0, 100000)
+    assert(badBytes.length > 0, "valid package bytes must be readable")
+    badBytes[badBytes.length - 1] = (badBytes[badBytes.length - 1] ^ 1) as Int
+    var badPath = "build/kofscript_package_bad.kpkg"
+    assert(File(badPath).writeBytes(badBytes),
+        "tampered package fixture must be writable")
+    assert(!runtime.load(badPath) && runtime.loaded() && runtime.generation() == 1,
+        "failed package activation must preserve the previous active program")
+
+    println("KOOKIE G6 KofScript package verified")
+    println("kofscript-generation=" + runtime.generation())
+    println("kofscript-session-currency=" + session.playerCurrency(1))
+    println("kofscript-reject-diagnostic=" + runtime.diagnostic())
+}

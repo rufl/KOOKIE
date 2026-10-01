@@ -1,0 +1,84 @@
+import session
+
+main() {
+    var endpoint = RemoteSessionEndpoint(127, 0, 0, 1, 49001, 11, 22, 33, 44)
+    var sender = RemoteSessionLink(endpoint)
+    var receiver = BoundedWanReliableChannel()
+    var profile = BoundedWanFaultProfile()
+    assert(profile.configure(2, 2, 3),
+        "WAN fault profile must be bounded and deterministic")
+    assert(sender.connect() && sender.configureWan(2, 8, 3, 3) &&
+        receiver.configure(2, 8, 3, 3),
+        "WAN link must require an active authenticated endpoint")
+
+    var first = new Int[3]
+    first[0] = 11
+    first[1] = 22
+    first[2] = 33
+    var second = new Int[2]
+    second[0] = 44
+    second[1] = 55
+    assert(sender.queueWan(first, 0) == 1 && sender.queueWan(second, 0) == 2 &&
+        sender.queueWan(first, 0) == 0 &&
+        sender.wanChannel().diagnostic() == wanTransportDiagnosticBackpressure(),
+        "WAN channel must apply fixed-window backpressure")
+    assert(profile.reorders(1, 2),
+        "WAN profile must expose deterministic reorder pressure")
+
+    var pending = new Int[0]
+    var pendingArrival = 0
+    var replay = new Int[0]
+    var forgedRejected = false
+    for (var tick = 0; tick < 30; tick = tick + 1) {
+        if (pending.length > 0 && pendingArrival <= tick) {
+            if (pending[2] == 2 && !forgedRejected) {
+                var future = new Int[pending.length]
+                for (var index = 0; index < future.length; index = index + 1) {
+                    future[index] = pending[index]
+                }
+                future[2] = 4
+                future[5] = receiver.frameChecksum(future)
+                assert(!receiver.receiveFrame(future) &&
+                    receiver.diagnostic() == wanTransportDiagnosticOrder(),
+                    "WAN receiver must reject authenticated future sequence")
+                forgedRejected = true
+            }
+            var acceptedFrame = receiver.receiveFrame(pending)
+            assert(acceptedFrame,
+                "WAN receiver must publish only the next ordered frame")
+            assert(sender.acknowledgeWan(pending[2]),
+                "WAN sender must accept ordered acknowledgement")
+            if (replay.length == 0) {
+                replay = new Int[pending.length]
+                for (var index = 0; index < replay.length; index = index + 1) {
+                    replay[index] = pending[index]
+                }
+            }
+            assert(receiver.receivedLength() == pending[3],
+                "WAN receiver must expose bounded payload length")
+            pending = new Int[0]
+        }
+        if (pending.length == 0) {
+            var frame = sender.pollWan(tick, profile)
+            if (frame.length > 0) {
+                pending = frame
+                pendingArrival = sender.wanChannel().lastTransmitArrivalTick()
+            }
+        }
+    }
+    var replayRejected = !receiver.receiveFrame(replay)
+    assert(replayRejected, "WAN receiver must reject replayed frame")
+    assert(receiver.rejectedOrderCount() >= 2 && forgedRejected,
+        "WAN receiver must count future and replay order rejects")
+    assert(sender.wanChannel().droppedCount() == 1 &&
+        sender.wanChannel().inFlight() == 0 &&
+        sender.wanChannel().lastAcked() == 2,
+        "WAN sender must retransmit and retire acknowledged frames")
+    assert(receiver.receivedWord(0) == 44 && receiver.receivedWord(1) == 55,
+        "WAN receiver must retain the last ordered payload")
+    println("KOOKIE G6 limited WAN verified")
+    println("wan-acked=" + sender.wanChannel().lastAcked())
+    println("wan-drops=" + sender.wanChannel().droppedCount())
+    println("wan-order-rejects=" + receiver.rejectedOrderCount())
+    println("wan-arrival-latency=" + profile.latencyTicks())
+}

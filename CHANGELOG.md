@@ -2,7 +2,57 @@
 
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
+## 2026-10-01
+
+### G6 Windows presentation qualification
+
+- Fixed the Windows SDL adapter module lifetime: Kof JVM FFI calls can close
+  their per-call native arena without unloading the pinned adapter state.
+- The signed Windows presentation package now passes a full isolated Wine smoke
+  on a DRI3-capable host, including Kof HUD/scene/creator checks, SDL GPU
+  device/window claim, present capabilities and screenshot capture.
+- The smoke produced the five expected qualification markers and a 1280×720
+  frame. This qualifies the bounded Kof JVM gameplay plus native SDL
+  presentation route on the recorded host; native PE/full-Kof Windows lowering
+  remains a separate non-goal.
+
+
 ## 2026-09-30
+
+### Kof-first artifacts, sandbox and Windows compiler paths
+
+- Added canonical bounded graph, behavior, scene hierarchy, skeleton and
+  animation-graph products, including deterministic codecs, reopen validation,
+  revisioned publication and GLB hierarchy/skin intake.
+- Added offline artifact envelopes plus a bounded KofScript stack VM with static
+  control-flow/stack/resource proof, explicit command/event capabilities and
+  atomic authoritative-session application. The KofScript builder emits one
+  artifact that the JVM and native Kof runtimes reopen and execute identically.
+- Added a reproducible Windows JVM package with a SHA-256-pinned OpenJDK x64
+  runtime, retained legal tree, canonical executable JAR and signed deterministic
+  ZIP; the focused gate rebuilds and compares every signed artifact.
+- Added a strict Kof optimized-IR compiler bridge for a bounded top-level
+  integral/String/control-flow subset. It emits deterministic C11, AMD64 COFF
+  and console PE artifacts through pinned Zig, verifies semantic parity against
+  Kof JVM, and rejects classes, heap/arrays, exceptions, FFI and SDL IR with
+  `PE001`. Full Windows gameplay remains outside this claim.
+
+### G6 bounded expansion paths
+
+- Added scalar-copy native jobs with bounded worker count, strict ordinal
+  publication and deterministic completion folding.
+- Added package-bound KofScript descriptors/artifacts, staged activation that
+  preserves the prior program on failure, and authoritative-session execution.
+- Added persistent Creator Studio hierarchy/transforms/assets with canonical
+  binary save/open and rollback on invalid files.
+- Added a fixed-window WAN channel with bounded retransmission, deterministic
+  loss/latency pressure, ordered delivery, replay rejection and backpressure.
+- Added `scripts/verify_g6_runtime.sh` and focused probes for all four paths.
+- Added a reproducible Windows SDL presentation package with SDL3/SDL_mixer,
+  SPIR-V/DXIL, and pinned OpenJDK 27. Static package evidence is retained;
+  the full isolated Wine gameplay qualification is recorded in the
+  2026-10-01 entry above.
+
 
 ### GitHub project homepage and contributor surface
 

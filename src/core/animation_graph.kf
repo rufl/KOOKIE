@@ -1,0 +1,706 @@
+package core
+
+Int animationGraphKind() { return 4 }
+Int animationGraphMagic() { return 1095649095 }
+Int animationGraphSchemaVersion() { return 1 }
+Int animationConditionMovingBit() { return 1 }
+Int animationConditionStoppedBit() { return 2 }
+Int animationConditionAttackBit() { return 4 }
+Int animationConditionFinishedBit() { return 8 }
+
+
+record AnimationGraphIdentity(
+    Int sourceNamespaceId,
+    Int assetId,
+    Int revision,
+    Int entryStateId,
+    Int stateCount,
+    Int transitionCount,
+    Int graphChecksum,
+    Int checksum
+)
+
+record AnimationRuntimeSnapshot(
+    Int stateId,
+    Int clipId,
+    Int clipTick,
+    Int previousStateId,
+    Int transitionId,
+    Int blendTicksRemaining,
+    Int checksum
+)
+
+class BoundedAnimationGraphProduct {
+    BoundedGraphProduct topology
+    Int[] stateIds
+    Int[] clipIds
+    Int[] durationTicks
+    Bool[] loopValues
+    Int[] transitionIds
+    Int[] transitionFromIds
+    Int[] transitionToIds
+    Int[] transitionConditionMasks
+    Int[] transitionPriorities
+    Int[] transitionBlendTicks
+    Int[] wire
+    Int stateCountValue
+    Int transitionCountValue
+    Int sourceNamespaceIdValue
+    Int assetIdValue
+    Int revisionValue
+    Int entryStateIdValue
+    Int graphChecksumValue
+    Int checksumValue
+    Int wordCountValue
+    Bool configuredValue
+    Bool sealedValue
+
+    public constructor(Int stateCapacity, Int transitionCapacity) {
+        var actualStates = stateCapacity
+        var actualTransitions = transitionCapacity
+        if (actualStates <= 0) { actualStates = 1 }
+        if (actualStates > 128) { actualStates = 128 }
+        if (actualTransitions <= 0) { actualTransitions = 1 }
+        if (actualTransitions > 1024) { actualTransitions = 1024 }
+        topology = BoundedGraphProduct(actualStates, actualTransitions)
+        stateIds = new Int[actualStates]
+        clipIds = new Int[actualStates]
+        durationTicks = new Int[actualStates]
+        loopValues = new Bool[actualStates]
+        transitionIds = new Int[actualTransitions]
+        transitionFromIds = new Int[actualTransitions]
+        transitionToIds = new Int[actualTransitions]
+        transitionConditionMasks = new Int[actualTransitions]
+        transitionPriorities = new Int[actualTransitions]
+        transitionBlendTicks = new Int[actualTransitions]
+        wire = new Int[11 + actualStates * 4 + actualTransitions * 6]
+        clear()
+    }
+
+    Bool clear() {
+        topology.clear()
+        stateCountValue = 0
+        transitionCountValue = 0
+        sourceNamespaceIdValue = 0
+        assetIdValue = 0
+        revisionValue = 0
+        entryStateIdValue = 0
+        graphChecksumValue = 0
+        checksumValue = 0
+        wordCountValue = 0
+        configuredValue = false
+        sealedValue = false
+        return true
+    }
+
+    Bool configure(
+        Int sourceNamespaceId,
+        Int assetId,
+        Int revision,
+        Int entryStateId
+    ) {
+        if (sourceNamespaceId <= 0 || sourceNamespaceId > 1000000 ||
+            assetId <= 0 || assetId > 1000000 ||
+            revision <= 0 || revision > 1000000 ||
+            entryStateId <= 0 || entryStateId > 1000000) {
+            return false
+        }
+        clear()
+        if (!topology.configure(
+                animationGraphSchemaVersion(), revision,
+                animationGraphKind(), true)) {
+            return false
+        }
+        sourceNamespaceIdValue = sourceNamespaceId
+        assetIdValue = assetId
+        revisionValue = revision
+        entryStateIdValue = entryStateId
+        configuredValue = true
+        return true
+    }
+
+    Int findState(Int stateId) {
+        for (var index = 0; index < stateCountValue; index = index + 1) {
+            if (stateIds[index] == stateId) { return index }
+        }
+        return -1
+    }
+
+    Int findTransition(Int transitionId) {
+        for (var index = 0; index < transitionCountValue; index = index + 1) {
+            if (transitionIds[index] == transitionId) { return index }
+        }
+        return -1
+    }
+
+    Bool addState(Int stateId, Int clipId, Int ticks, Bool loop) {
+        if (!configuredValue || sealedValue ||
+            stateId <= 0 || stateId > 1000000 ||
+            clipId <= 0 || clipId > 1000000 ||
+            ticks <= 0 || ticks > 1000000 ||
+            stateCountValue >= stateIds.length || findState(stateId) >= 0) {
+            return false
+        }
+        stateIds[stateCountValue] = stateId
+        clipIds[stateCountValue] = clipId
+        durationTicks[stateCountValue] = ticks
+        loopValues[stateCountValue] = loop
+        stateCountValue = stateCountValue + 1
+        return true
+    }
+
+    Bool addTransition(
+        Int transitionId,
+        Int fromStateId,
+        Int toStateId,
+        Int requiredConditionMask,
+        Int priority,
+        Int blendTicks
+    ) {
+        if (!configuredValue || sealedValue ||
+            transitionId <= 0 || transitionId > 1000000 ||
+            fromStateId <= 0 || fromStateId > 1000000 ||
+            toStateId <= 0 || toStateId > 1000000 ||
+            fromStateId == toStateId ||
+            requiredConditionMask < 0 || requiredConditionMask > 1000000000 ||
+            priority <= 0 || priority > 1000000 ||
+            blendTicks < 0 || blendTicks > 1000000 ||
+            transitionCountValue >= transitionIds.length ||
+            findTransition(transitionId) >= 0) {
+            return false
+        }
+        transitionIds[transitionCountValue] = transitionId
+        transitionFromIds[transitionCountValue] = fromStateId
+        transitionToIds[transitionCountValue] = toStateId
+        transitionConditionMasks[transitionCountValue] = requiredConditionMask
+        transitionPriorities[transitionCountValue] = priority
+        transitionBlendTicks[transitionCountValue] = blendTicks
+        transitionCountValue = transitionCountValue + 1
+        return true
+    }
+
+    Bool swapStates(Int first, Int second) {
+        if (first == second) { return true }
+        var temporary = stateIds[first]
+        stateIds[first] = stateIds[second]
+        stateIds[second] = temporary
+        temporary = clipIds[first]
+        clipIds[first] = clipIds[second]
+        clipIds[second] = temporary
+        temporary = durationTicks[first]
+        durationTicks[first] = durationTicks[second]
+        durationTicks[second] = temporary
+        var temporaryLoop = loopValues[first]
+        loopValues[first] = loopValues[second]
+        loopValues[second] = temporaryLoop
+        return true
+    }
+
+    Bool transitionAfter(Int first, Int second) {
+        if (transitionFromIds[first] != transitionFromIds[second]) {
+            return transitionFromIds[first] > transitionFromIds[second]
+        }
+        if (transitionPriorities[first] != transitionPriorities[second]) {
+            return transitionPriorities[first] < transitionPriorities[second]
+        }
+        return transitionIds[first] > transitionIds[second]
+    }
+
+    Bool swapTransitions(Int first, Int second) {
+        if (first == second) { return true }
+        var temporary = transitionIds[first]
+        transitionIds[first] = transitionIds[second]
+        transitionIds[second] = temporary
+        temporary = transitionFromIds[first]
+        transitionFromIds[first] = transitionFromIds[second]
+        transitionFromIds[second] = temporary
+        temporary = transitionToIds[first]
+        transitionToIds[first] = transitionToIds[second]
+        transitionToIds[second] = temporary
+        temporary = transitionConditionMasks[first]
+        transitionConditionMasks[first] = transitionConditionMasks[second]
+        transitionConditionMasks[second] = temporary
+        temporary = transitionPriorities[first]
+        transitionPriorities[first] = transitionPriorities[second]
+        transitionPriorities[second] = temporary
+        temporary = transitionBlendTicks[first]
+        transitionBlendTicks[first] = transitionBlendTicks[second]
+        transitionBlendTicks[second] = temporary
+        return true
+    }
+
+    Bool sortCanonical() {
+        for (var first = 0; first < stateCountValue; first = first + 1) {
+            var smallest = first
+            for (var candidate = first + 1;
+                candidate < stateCountValue; candidate = candidate + 1) {
+                if (stateIds[candidate] < stateIds[smallest]) {
+                    smallest = candidate
+                }
+            }
+            swapStates(first, smallest)
+        }
+        for (var first = 0; first < transitionCountValue; first = first + 1) {
+            var smallest = first
+            for (var candidate = first + 1;
+                candidate < transitionCountValue; candidate = candidate + 1) {
+                if (transitionAfter(smallest, candidate)) {
+                    smallest = candidate
+                }
+            }
+            swapTransitions(first, smallest)
+        }
+        return true
+    }
+
+    Bool buildTopology() {
+        for (var state = 0; state < stateCountValue; state = state + 1) {
+            if (!topology.addNode(stateIds[state], 1)) { return false }
+        }
+        for (var transition = 0; transition < transitionCountValue;
+            transition = transition + 1) {
+            if (!topology.addEdge(
+                    transitionFromIds[transition], transitionToIds[transition],
+                    transitionIds[transition])) {
+                return false
+            }
+        }
+        return topology.seal()
+    }
+
+    Bool canonicalStructureValid() {
+        if (!configuredValue || stateCountValue <= 0 ||
+            stateCountValue > stateIds.length ||
+            transitionCountValue > transitionIds.length ||
+            findState(entryStateIdValue) < 0 || !topology.validate() ||
+            topology.graphKind() != animationGraphKind() ||
+            !topology.cyclesAllowed() ||
+            topology.nodeCount() != stateCountValue ||
+            topology.edgeCount() != transitionCountValue ||
+            graphChecksumValue != topology.checksum()) {
+            return false
+        }
+        for (var state = 0; state < stateCountValue; state = state + 1) {
+            if (stateIds[state] <= 0 || clipIds[state] <= 0 ||
+                durationTicks[state] <= 0 ||
+                (state > 0 && stateIds[state] <= stateIds[state - 1])) {
+                return false
+            }
+        }
+        for (var transition = 0; transition < transitionCountValue;
+            transition = transition + 1) {
+            if (transitionIds[transition] <= 0 ||
+                findState(transitionFromIds[transition]) < 0 ||
+                findState(transitionToIds[transition]) < 0 ||
+                transitionFromIds[transition] == transitionToIds[transition] ||
+                transitionConditionMasks[transition] < 0 ||
+                transitionPriorities[transition] <= 0 ||
+                transitionBlendTicks[transition] < 0 ||
+                (transition > 0 && transitionAfter(
+                    transition - 1, transition))) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 53
+        result = mix(result, animationGraphMagic())
+        result = mix(result, animationGraphSchemaVersion())
+        result = mix(result, sourceNamespaceIdValue)
+        result = mix(result, assetIdValue)
+        result = mix(result, revisionValue)
+        result = mix(result, entryStateIdValue)
+        result = mix(result, stateCountValue)
+        result = mix(result, transitionCountValue)
+        result = mix(result, graphChecksumValue)
+        for (var state = 0; state < stateCountValue; state = state + 1) {
+            result = mix(result, stateIds[state])
+            result = mix(result, clipIds[state])
+            result = mix(result, durationTicks[state])
+            if (loopValues[state]) { result = mix(result, 1) }
+            else { result = mix(result, 0) }
+        }
+        for (var transition = 0; transition < transitionCountValue;
+            transition = transition + 1) {
+            result = mix(result, transitionIds[transition])
+            result = mix(result, transitionFromIds[transition])
+            result = mix(result, transitionToIds[transition])
+            result = mix(result, transitionConditionMasks[transition])
+            result = mix(result, transitionPriorities[transition])
+            result = mix(result, transitionBlendTicks[transition])
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool seal() {
+        if (sealedValue || !configuredValue || stateCountValue <= 0 ||
+            !sortCanonical() || findState(entryStateIdValue) < 0 ||
+            !buildTopology()) {
+            return false
+        }
+        graphChecksumValue = topology.checksum()
+        if (graphChecksumValue <= 0 || !canonicalStructureValid()) {
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sealedValue = true
+        return true
+    }
+
+    Bool validate() {
+        return sealedValue && canonicalStructureValid() &&
+            checksumValue == calculateChecksum()
+    }
+
+    Bool encode() {
+        if (!validate()) {
+            wordCountValue = 0
+            return false
+        }
+        wordCountValue = 11 + stateCountValue * 4 + transitionCountValue * 6
+        wire[0] = animationGraphMagic()
+        wire[1] = animationGraphSchemaVersion()
+        wire[2] = sourceNamespaceIdValue
+        wire[3] = assetIdValue
+        wire[4] = revisionValue
+        wire[5] = entryStateIdValue
+        wire[6] = stateCountValue
+        wire[7] = transitionCountValue
+        wire[8] = graphChecksumValue
+        wire[9] = checksumValue
+        wire[10] = wordCountValue
+        var offset = 11
+        for (var state = 0; state < stateCountValue; state = state + 1) {
+            wire[offset] = stateIds[state]
+            wire[offset + 1] = clipIds[state]
+            wire[offset + 2] = durationTicks[state]
+            if (loopValues[state]) { wire[offset + 3] = 1 }
+            else { wire[offset + 3] = 0 }
+            offset = offset + 4
+        }
+        for (var transition = 0; transition < transitionCountValue;
+            transition = transition + 1) {
+            wire[offset] = transitionIds[transition]
+            wire[offset + 1] = transitionFromIds[transition]
+            wire[offset + 2] = transitionToIds[transition]
+            wire[offset + 3] = transitionConditionMasks[transition]
+            wire[offset + 4] = transitionPriorities[transition]
+            wire[offset + 5] = transitionBlendTicks[transition]
+            offset = offset + 6
+        }
+        return true
+    }
+
+    Bool decode(Int[] source) {
+        if (source.length < 15 || source.length > wire.length ||
+            source[0] != animationGraphMagic() ||
+            source[1] != animationGraphSchemaVersion() ||
+            source[2] <= 0 || source[3] <= 0 || source[4] <= 0 ||
+            source[5] <= 0 || source[6] <= 0 ||
+            source[6] > stateIds.length || source[7] < 0 ||
+            source[7] > transitionIds.length || source[8] <= 0 ||
+            source[9] <= 0 || source[10] != source.length ||
+            source.length != 11 + source[6] * 4 + source[7] * 6 ||
+            !configure(source[2], source[3], source[4], source[5])) {
+            return false
+        }
+        var offset = 11
+        for (var state = 0; state < source[6]; state = state + 1) {
+            if ((source[offset + 3] != 0 && source[offset + 3] != 1) ||
+                !addState(
+                    source[offset], source[offset + 1], source[offset + 2],
+                    source[offset + 3] == 1)) {
+                clear()
+                return false
+            }
+            offset = offset + 4
+        }
+        for (var transition = 0; transition < source[7];
+            transition = transition + 1) {
+            if (!addTransition(
+                    source[offset], source[offset + 1], source[offset + 2],
+                    source[offset + 3], source[offset + 4],
+                    source[offset + 5])) {
+                clear()
+                return false
+            }
+            offset = offset + 6
+        }
+        if (!seal() || graphChecksumValue != source[8] ||
+            checksumValue != source[9]) {
+            clear()
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            wire[index] = source[index]
+        }
+        wordCountValue = source.length
+        return true
+    }
+
+    Bool reopen(Int[] source) {
+        if (!decode(source) || !encode() || wordCountValue != source.length) {
+            return false
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (wire[index] != source[index]) { return false }
+        }
+        return true
+    }
+
+    AnimationGraphIdentity identity() {
+        return AnimationGraphIdentity(
+            sourceNamespaceIdValue, assetIdValue, revisionValue,
+            entryStateIdValue, stateCountValue, transitionCountValue,
+            graphChecksumValue, checksumValue)
+    }
+
+    Int stateIndex(Int stateId) { return findState(stateId) }
+    Int entryStateId() { return entryStateIdValue }
+    Int stateCount() { return stateCountValue }
+    Int transitionCount() { return transitionCountValue }
+
+    Int stateIdAt(Int index) {
+        if (index < 0 || index >= stateCountValue) { return 0 }
+        return stateIds[index]
+    }
+
+    Int clipId(Int stateId) {
+        var state = findState(stateId)
+        if (state < 0) { return 0 }
+        return clipIds[state]
+    }
+
+    Int duration(Int stateId) {
+        var state = findState(stateId)
+        if (state < 0) { return 0 }
+        return durationTicks[state]
+    }
+
+    Bool loops(Int stateId) {
+        var state = findState(stateId)
+        if (state < 0) { return false }
+        return loopValues[state]
+    }
+
+    Int transitionIdAt(Int index) {
+        if (index < 0 || index >= transitionCountValue) { return 0 }
+        return transitionIds[index]
+    }
+
+    Int transitionFromIdAt(Int index) {
+        if (index < 0 || index >= transitionCountValue) { return 0 }
+        return transitionFromIds[index]
+    }
+
+    Int transitionToIdAt(Int index) {
+        if (index < 0 || index >= transitionCountValue) { return 0 }
+        return transitionToIds[index]
+    }
+
+    Int transitionConditionMaskAt(Int index) {
+        if (index < 0 || index >= transitionCountValue) { return -1 }
+        return transitionConditionMasks[index]
+    }
+
+    Int transitionPriorityAt(Int index) {
+        if (index < 0 || index >= transitionCountValue) { return 0 }
+        return transitionPriorities[index]
+    }
+
+    Int transitionBlendTicksAt(Int index) {
+        if (index < 0 || index >= transitionCountValue) { return -1 }
+        return transitionBlendTicks[index]
+    }
+
+    Int encodedLength() { return wordCountValue }
+    Int encodedWord(Int index) {
+        if (index < 0 || index >= wordCountValue) { return -1 }
+        return wire[index]
+    }
+
+    Int graphChecksum() { return graphChecksumValue }
+    Bool hasCycle() { return topology.hasCycle() }
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}
+
+class BoundedAnimationGraphRuntime {
+    BoundedAnimationGraphProduct graphValue
+    Int activeStateIdValue
+    Int previousStateIdValue
+    Int transitionIdValue
+    Int clipTickValue
+    Int blendTicksRemainingValue
+    Int graphChecksumValue
+    Int checksumValue
+    Bool startedValue
+
+    public constructor(Int stateCapacity, Int transitionCapacity) {
+        graphValue = BoundedAnimationGraphProduct(
+            stateCapacity, transitionCapacity)
+        clear()
+    }
+
+    Bool clear() {
+        graphValue.clear()
+        activeStateIdValue = 0
+        previousStateIdValue = 0
+        transitionIdValue = 0
+        clipTickValue = 0
+        blendTicksRemainingValue = 0
+        graphChecksumValue = 0
+        checksumValue = 0
+        startedValue = false
+        return true
+    }
+
+    Bool copyGraph(BoundedAnimationGraphProduct source) {
+        if (!source.validate() || !graphValue.configure(
+                source.identity().sourceNamespaceId(),
+                source.identity().assetId(),
+                source.identity().revision(),
+                source.entryStateId())) {
+            return false
+        }
+        for (var state = 0; state < source.stateCount(); state = state + 1) {
+            var stateId = source.stateIdAt(state)
+            if (!graphValue.addState(
+                    stateId, source.clipId(stateId), source.duration(stateId),
+                    source.loops(stateId))) {
+                return false
+            }
+        }
+        for (var transition = 0; transition < source.transitionCount();
+            transition = transition + 1) {
+            if (!graphValue.addTransition(
+                    source.transitionIdAt(transition),
+                    source.transitionFromIdAt(transition),
+                    source.transitionToIdAt(transition),
+                    source.transitionConditionMaskAt(transition),
+                    source.transitionPriorityAt(transition),
+                    source.transitionBlendTicksAt(transition))) {
+                return false
+            }
+        }
+        return graphValue.seal() &&
+            graphValue.checksum() == source.checksum()
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 59
+        result = mix(result, graphChecksumValue)
+        result = mix(result, activeStateIdValue)
+        result = mix(result, previousStateIdValue)
+        result = mix(result, transitionIdValue)
+        result = mix(result, clipTickValue)
+        result = mix(result, blendTicksRemainingValue)
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool start(BoundedAnimationGraphProduct graph, Int stateId) {
+        clear()
+        var actualState = stateId
+        if (actualState == 0) { actualState = graph.entryStateId() }
+        if (!graph.validate() || graph.stateIndex(actualState) < 0 ||
+            !copyGraph(graph)) {
+            clear()
+            return false
+        }
+        activeStateIdValue = actualState
+        previousStateIdValue = 0
+        transitionIdValue = 0
+        clipTickValue = 0
+        blendTicksRemainingValue = 0
+        graphChecksumValue = graphValue.checksum()
+        checksumValue = calculateChecksum()
+        startedValue = true
+        return true
+    }
+
+    Int matchingTransition(Int conditionMask) {
+        for (var index = 0; index < graphValue.transitionCount();
+            index = index + 1) {
+            var required = graphValue.transitionConditionMaskAt(index)
+            if (graphValue.transitionFromIdAt(index) == activeStateIdValue &&
+                (required == 0 || (conditionMask & required) == required)) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Bool step(Int conditionMask) {
+        if (!validate() || conditionMask < 0 ||
+            conditionMask > 1000000000) {
+            return false
+        }
+        if (blendTicksRemainingValue > 0) {
+            blendTicksRemainingValue = blendTicksRemainingValue - 1
+        }
+        var transition = matchingTransition(conditionMask)
+        if (transition >= 0) {
+            previousStateIdValue = activeStateIdValue
+            activeStateIdValue = graphValue.transitionToIdAt(transition)
+            transitionIdValue = graphValue.transitionIdAt(transition)
+            blendTicksRemainingValue =
+                graphValue.transitionBlendTicksAt(transition)
+            clipTickValue = 0
+        }
+        var duration = graphValue.duration(activeStateIdValue)
+        if (duration <= 0) { return false }
+        if (graphValue.loops(activeStateIdValue)) {
+            clipTickValue = (clipTickValue + 1) % duration
+        } else if (clipTickValue < duration - 1) {
+            clipTickValue = clipTickValue + 1
+        }
+        checksumValue = calculateChecksum()
+        return true
+    }
+
+    Bool validate() {
+        return startedValue && graphValue.validate() &&
+            graphChecksumValue == graphValue.checksum() &&
+            graphValue.stateIndex(activeStateIdValue) >= 0 &&
+            clipTickValue >= 0 &&
+            clipTickValue < graphValue.duration(activeStateIdValue) &&
+            blendTicksRemainingValue >= 0 &&
+            checksumValue == calculateChecksum()
+    }
+
+    AnimationRuntimeSnapshot snapshot() {
+        return AnimationRuntimeSnapshot(
+            activeStateIdValue, graphValue.clipId(activeStateIdValue),
+            clipTickValue, previousStateIdValue, transitionIdValue,
+            blendTicksRemainingValue, checksumValue)
+    }
+
+    Int stateId() { return activeStateIdValue }
+    Int clipId() { return graphValue.clipId(activeStateIdValue) }
+    Int clipTick() { return clipTickValue }
+    Int previousStateId() { return previousStateIdValue }
+    Int transitionId() { return transitionIdValue }
+    Int blendTicksRemaining() { return blendTicksRemainingValue }
+    Int checksum() {
+        if (!validate()) { return -1 }
+        return checksumValue
+    }
+}
