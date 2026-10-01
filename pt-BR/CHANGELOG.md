@@ -51,6 +51,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   raiz extraída.
 - Os arquivos de apresentação agora incluem `DEMO_CONTROLS.txt` e impõem o
   limite `content_profile=none` da primeira demo.
+- Corrigimos a qualificação de apresentação nativa: o HUD do shooter agora
+  aceita os atores ganso com 100 de vida, e o envio da cena GPU conta os
+  vértices staged em vez da capacidade reservada do frame.
 
 ### Prontidão da release de demo jogável
 

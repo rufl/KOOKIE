@@ -463,7 +463,7 @@ class G1NativePresentation {
         scenario = G1Demo()
         kutterScenario = G4KutterDemo()
         arena = scenario.authoredArena()
-        hud = scenario.shooterHud()
+        hud = ShooterHud(100, 3)
         gooseOverlay = GooseStatusOverlay(6)
         scoreboardUi = MultiplayerScoreboard()
         scoreboardState = MatchScoreboardState(2)
@@ -806,15 +806,18 @@ class G1NativePresentation {
             }
             scoreboardCount = scoreboardFrame.stagedCount()
         }
-        var vertexCount =
-            worldCapacity + actorCapacity + doorCapacity + hudCapacity +
-            scoreboardCount
         if (!arena.stage(worldFrame, frame, 1, camera) ||
             !stageGooseActors(frame, network) ||
             !interactionSession.stageWorldInteractionGeometry(
                 doorFrame, frame, 7, camera) ||
-            !hud.stage(hudFrame, frame, 9) ||
-            !kookie_gpu_scene_begin(vertexCount) ||
+            !hud.stage(hudFrame, frame, 9)) {
+            return false
+        }
+        var vertexCount =
+            worldFrame.stagedCount() + actorFrame.stagedCount() +
+            doorFrame.stagedCount() + hudFrame.stagedCount() +
+            scoreboardCount
+        if (!kookie_gpu_scene_begin(vertexCount) ||
             !upload(worldFrame) || !upload(actorFrame) ||
             !upload(doorFrame) || !upload(hudFrame) ||
             (scoreboardVisible && !upload(scoreboardFrame)) ||
@@ -913,11 +916,14 @@ main() {
     assert(kookie_gpu_scene_capacity() >= shell.renderVertexCapacity(),
         "native scene must hold menu geometry")
     var reload = BoundedGpuReloadCoordinator()
-    assert(reload.bindInitial(
-            1, shell.kutter().worldChecksum(),
-            shell.kutter().collisionChecksum(),
-            shell.kutter().renderChecksum(),
-            shell.renderVertexCapacity(), 0) &&
+    var shellWorldChecksum = shell.kutter().worldChecksum()
+    var shellCollisionChecksum = shell.kutter().collisionChecksum()
+    var shellRenderChecksum = shell.kutter().renderChecksum()
+    var shellVertexCount = shell.renderVertexCapacity()
+    var reloadBound = reload.bindInitial(
+        1, shellWorldChecksum, shellCollisionChecksum,
+        shellRenderChecksum, shellVertexCount, 0)
+    assert(reloadBound &&
         kookie_gpu_reload_active_generation() == 1,
         "native GPU and kutter reload generations must start aligned")
 

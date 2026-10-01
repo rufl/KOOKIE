@@ -50,6 +50,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   extracted root.
 - Presentation archives now include `DEMO_CONTROLS.txt` and enforce the
   first-demo `content_profile=none` boundary.
+- Fixed native presentation qualification: the shooter HUD now accepts the
+  authored 100-health goose actors, and GPU scene submission counts staged
+  vertices instead of reserved frame capacity.
 
 ### Playable demo release readiness
 
