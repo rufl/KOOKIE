@@ -16,11 +16,12 @@ kof run src/main.kf --target native
 ```
 
 This command is a console qualification path. The player-facing native SDL
-presentation is built with the presentation profile below; it now contains the
-bounded local bot encounter and the two-peer UDP session.
+presentation is built with the current bounded local goose encounter, the
+KOF-owned two-peer lobby and the deterministic player screen; source-tree
+implementation and release-package qualification remain separate.
 
-[Demo release readiness](DEMO_RELEASE.md) still describes publication and
-hardware evidence, which are separate from source-tree implementation.
+[Demo release readiness](DEMO_RELEASE.md) describes publication and hardware
+evidence, which are separate from source-tree implementation.
 
 
 
@@ -44,6 +45,12 @@ Run the focused goose-versus-bots/session/overlay probe with:
 
 ```bash
 bash scripts/verify_goose_game.sh
+```
+
+Run the focused multiplayer lobby and scoreboard probe with:
+
+```bash
+bash scripts/verify_multiplayer_ui.sh
 ```
 
 ## Content kooker
@@ -172,12 +179,16 @@ SPIR-V shaders, SDL3 and SDL_mixer. It uses the host dynamic loader and libc.
 - Main menu: arrow keys or WASD.
 - Select: Enter, Space or mouse click.
 - Back: Escape.
+- `Play`: local authoritative listen-server/client encounter; re-enter `Play`
+  after Escape to reset the bounded encounter.
 - Options: 1280×720 through 2560×1440, windowed/borderless/exclusive
   fullscreen, separate effects/music volume and three text sizes.
 - Multiplayer: Host, Join and Leave with editable IPv4 and port fields.
-  After the peer connects, select Ready on both clients before gameplay opens;
+  After the peer connects, select `READY` on both clients before gameplay opens;
   the lobby shows the bounded peer identity, player count and honest ping
   placeholder until an RTT exists.
+- During gameplay, `Tab` toggles the player screen; it shows player, status,
+  score, HP, K/D and ping. `--` means RTT is not available yet.
 
 Display changes commit only on Apply. Lobby packets use SipHash tags and replay
 sequences. A configured 128-bit shared key authenticates peers; the local
@@ -204,11 +215,9 @@ export KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff
 ```
 
 Use `Multiplayer > Host` on one client and `Multiplayer > Join` on the other.
-Set `KOOKIE_PLAYER_NAME_ID` to `1..4`; the selected goose name appears above the
-player and bot nameplates read `BOT GOOSE`. Hearts show each actor's
-authoritative energy in 20-point segments. `WASD`/arrows move, mouse or `F`
-fires, and mouse motion turns the camera. `Escape` returns to the menu;
-selecting `Play` starts a fresh encounter.
+After both clients show the peer as connected, select `READY` on both clients
+to open gameplay. `Tab` opens the deterministic player screen; Escape returns
+to the menu, and selecting `Play` starts a fresh local encounter.
 
 The rendezvous authenticates the fixed UDP envelope, records each public UDP
 endpoint, sends the peer endpoint, and stops relaying. Both clients then send
@@ -251,8 +260,9 @@ rendezvous described above; rebuild the presentation profile for the playable
 goose path.
 
 The current source presentation maps input to the authoritative session, shows
-the bot encounter and supports the direct/WAN transport. The published archive
-does not contain this source-tree change.
+the bot encounter, and supports the direct/WAN transport, fixed Host/Join lobby,
+explicit ready gate and player screen. The published archive does not contain
+these source-tree changes.
 
 
 ## Windows x86-64 packages

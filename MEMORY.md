@@ -105,16 +105,25 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
 - The latest public artifact is
   [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34),
   a signed Linux x86-64 presentation archive from source commit
-  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. It predates the current native
-  Windows PE/SDL qualification and no current Windows demo archive is public.
-- The packaged presentation `Play` surface currently renders the bounded
-  qualification scene. `GameShell` does not route gameplay-screen actions into
-  the authoritative `InputCommand`/tick loop, and the Windows SDL shell draws
-  its static game surface after the PE marker smoke.
-- D1 therefore still requires the shared input/session/render loop, one
-  documented start→encounter→result→restart slice, current signed Linux and
-  Windows packages, fresh-host verification and native hardware presentation
-  evidence. See [Demo release readiness](docs/DEMO_RELEASE.md).
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. It predates the current
+  presentation, lobby/scoreboard and Windows PE/SDL source path; no current
+  Windows demo archive is public.
+- The current presentation source now runs local `Play` through the bounded
+  authoritative session: SDL keyboard/mouse input, three goose bots, damage,
+  nameplates, 20-point hearts, HUD state and reset by leaving/re-entering
+  `Play`.
+- `Host/Join` now owns fixed two-player admission, explicit ready/unready
+  gating and the host-authoritative `Tab` player screen. The lobby/scoreboard
+  probe validates identity, lifecycle, capacity, checksum, stale/duplicate
+  rejection, tamper rejection and deterministic ranking on JVM and native.
+- D1 remains open for current clean-tree Linux/Windows presentation packages,
+  outside-checkout repeated play/restart/quit smoke, fresh-host verification
+  and native hardware presentation evidence. Package-linkage or PE-marker
+  success alone is not a playable-demo release.
+- The current Linux development environment lacks the SDL3_mixer development
+  header, so current native SDL package/visual evidence is not retained here.
+  This does not invalidate the focused Kof model, source build or transport
+  checks; it blocks only local presentation packaging/visual qualification.
 
 ## Earlier platform-release batch
 

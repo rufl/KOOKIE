@@ -20,16 +20,30 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   optional and requires a DRI3-capable isolated GPU; the default Xvfb wrapper
   is not presentation evidence.
 
+### KOF-first multiplayer lobby and score screen
+
+- Added the bounded `MatchLobbyState` lifecycle for fixed two-player Host/Join,
+  room/name identity, peer count, ping, transport errors and explicit
+  ready/unready state.
+- Added a bounded host-authoritative `MatchScoreboardState` with deterministic
+  ranking, versioned/checksummed snapshots, stale/duplicate/tamper rejection
+  and capacity-safe decode.
+- Added the Kof-owned lobby card and `Tab` player screen with player, status,
+  score, HP, K/D and honest ping display. Gameplay now waits for both connected
+  players to select `READY`.
+- Added `scripts/verify_multiplayer_ui.sh` and integrated the focused probe into
+  the repository verification path.
+
 ### Playable demo release readiness
 
-- Documented that the latest public `0.1.0-dogfood.34` artifact is signed
-  Linux x86-64 presentation dogfood from source commit
-  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; no current Windows demo archive
-  is published.
-- Recorded the remaining D1 blockers: the presentation `Play` surface still
-  renders a qualification scene instead of routing platform input through the
-  authoritative session/tick loop, and both targets still need a complete
-  encounter/result/restart path plus fresh-host release evidence.
+- The latest public `0.1.0-dogfood.34` artifact remains a signed Linux x86-64
+  presentation dogfood build from source commit
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; it predates the current source
+  presentation/lobby/score path and no current Windows demo archive is public.
+- The current source path now covers local `Play`, fixed two-player `Host/Join`,
+  explicit readiness and the deterministic player screen. Remaining D1 work is
+  clean-tree Linux/Windows presentation packaging, outside-checkout repeated
+  play/restart/quit smoke, fresh-host verification and native hardware evidence.
 
 
 

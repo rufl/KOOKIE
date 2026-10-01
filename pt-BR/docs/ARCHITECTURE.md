@@ -244,6 +244,23 @@ caminho wire; a evidência G4 atual não retém uma execução recente em três
 máquinas.
 
 
+O lobby de apresentação e a tela de jogadores permanecem na mesma fronteira
+Kof-first. `Play` local usa o caminho autoritativo servidor listen/cliente;
+partidas remotas usam `Host/Join` e nunca ignoram a admissão da sessão.
+`MatchLobbyState` possui ciclo fixo de dois jogadores, identidade de sala/nome,
+flags ready/unready, contagem de peers, ping e erros de transporte explícitos.
+O gameplay não pode entrar até que os jogadores local e remoto conectados
+definam seus flags de prontidão.
+`MatchScoreboardState` possui linhas fixas e ordenação determinística; seu wire
+limitado carrega schema, tick, sequência, identidade, flags, vida, estatísticas
+de score, ping e tick de último avistamento antes de aceitar um checksum da
+mensagem inteira. Somente o host publica o score de gameplay; o cliente rejeita
+snapshots obsoletos, duplicados, malformados, acima da capacidade ou adulterados
+antes de substituir suas linhas. `Tab` é apenas um evento de borda nativo;
+visibilidade e geometria da tela continuam sendo estado Kof. Ping `--` é medida
+desconhecida, nunca latência inventada. Esta fatia não promete master server,
+relay ou RTT medido.
+
 A biblioteca de rede de terceiros é selecionada depois da validação do protocolo
 e da prova de loopback, não antes.
 

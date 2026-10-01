@@ -720,7 +720,7 @@ No calendar promise; each gate has runnable evidence. A successful gate authoriz
 | **G4 — Kutter and extension pipeline** | Kof kooker, supported mesh/brush formats, package validation, data-mod manifests, trusted Kof extension modules, inspector/editors, staged reload | A second distinct multiplayer sample game is built from definitions/extensions without editing core engine code. Server/client reject incompatible package/API/mod manifests. Invalid content leaves the prior running world intact; geometry/collision/nav/replication revisions stay aligned |
 | **G5 — Scale and release** | AI budgets, batching/instancing, animation, streaming only as needed, dedicated headless server, migrations/replay, reconnect/admission hardening, packaging/notices | Reference LAN workload meets declared budgets; dedicated server runs without graphics; memory/resource counts plateau; package runs outside source checkout; reconnect/session recovery and extension compatibility are proven |
 | **G6 — Expansion** | Extra OS/backend/architecture, safe jobs, WAN transport, richer editor, runtime sandboxed extensions | Bounded jobs, package-bound KofScript/session activation, persistent Kutter, limited WAN and native Windows PE/SDL shell/presentation packages have focused probes; no general portability, WAN security, sandbox or DRI3-capable visual presentation claim is inferred |
-| **D1 — Playable demo release** | Connect platform input to the authoritative local session, deliver one complete bounded encounter, integrate the native Windows gameplay surface, and publish current Linux/Windows packages | Clean extracted Linux and Windows packages launch outside the checkout, map documented controls to real gameplay, complete encounter→result→restart, pass fresh-host and native-hardware presentation checks, and publish signed provenance. A qualification scene or PE marker alone does not pass D1 |
+| **D1 — Playable demo release** | Qualify the current local authoritative presentation loop on both targets, retain the bounded Host/Join lobby and player screen, and publish current Linux/Windows packages | Clean extracted Linux and Windows packages launch outside the checkout, map documented controls to real gameplay, complete encounter→exit/restart, pass fresh-host and native-hardware presentation checks, and publish signed provenance. A source probe or PE marker alone does not pass D1 |
 
 G0 evidence is tracked in [G0_BACKLOG](G0_BACKLOG.md): native/session
 feasibility, isolated window presentation and authenticated external-LAN
@@ -851,11 +851,13 @@ recorded host. It does not claim NAT traversal, relay service, confidentiality,
 DDoS resistance, arbitrary editor extensibility, a general-purpose runtime
 sandbox, or other OS/GPU coverage.
 
-G6 qualification is not D1 release completion. The current presentation `Play`
-surface still renders a bounded qualification scene without routing gameplay
-input into the authoritative session/tick loop. D1 is tracked in
-[Demo release readiness](DEMO_RELEASE.md); its first scope may remain a single
-local-player vertical slice.
+G6 qualification is not D1 release completion. The current presentation source now
+implements the bounded local `Play` encounter, the explicit two-player
+`Host/Join` ready lobby and the host-authoritative `Tab` player screen. Focused
+source probes prove those contracts, but the public artifact predates them.
+D1 remains open for current clean-tree Linux/Windows packages, outside-checkout
+play/restart/quit smoke, fresh-host verification and native hardware
+presentation evidence. D1 is tracked in [Demo release readiness](DEMO_RELEASE.md).
 
 ### Measured bounded evidence and retained performance targets
 

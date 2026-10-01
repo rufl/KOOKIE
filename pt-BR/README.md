@@ -35,6 +35,7 @@
 |---|---|
 | Executar a verificação autoritativa atual | [Início rápido](#início-rápido) |
 | Baixar o artefato Linux público mais recente | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Experimentar o lobby e a tela de jogadores atuais | [Lobby multiplayer e tela de placar](#lobby-multiplayer-e-tela-de-placar) |
 | Avaliar a prontidão da demo jogável Windows/Linux | [Prontidão da release demo](docs/DEMO_RELEASE.md) |
 | Entender as fronteiras | [Arquitetura](docs/ARCHITECTURE.md) |
 | Gerar builds, pacotes ou papéis de qualificação | [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md) |
@@ -81,10 +82,12 @@ Execute o caminho focado de gameplay/replay:
 bash scripts/verify_interactions.sh
 ```
 
-Execute as sondas não gráficas de expansão G6:
+Execute as sondas focadas do gameplay local, lobby multiplayer e tela de
+placar:
 
 ```bash
-bash scripts/verify_g6_runtime.sh
+bash scripts/verify_goose_game.sh
+bash scripts/verify_multiplayer_ui.sh
 ```
 
 O alvo JVM serve à qualificação diferencial local e a um pacote de
@@ -92,20 +95,43 @@ compatibilidade Windows explícito e sem gráficos; ele nunca é fallback
 silencioso. Pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
 e `glslc`. Os comandos exatos de pacote, kooker, Windows e qualificação entre
 hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
+## Lobby multiplayer e tela de placar
+
+A tela de multiplayer mantida pelo Kof usa um contrato pequeno e inspecionável:
+admissão fixa de dois jogadores, fases host/join/waiting/connected/ready/failed,
+identidade de sala/nome, contagem de peers, ping e erros de transporte visíveis.
+Não é um navegador de master server. O gameplay só abre quando os dois peers
+conectados selecionam `READY`.
+
+Durante o gameplay, `Tab` alterna uma tela determinística de jogadores com nome,
+status, score, vida, eliminações/mortes e ping. O host publica um snapshot com
+checksum; clientes validam a mensagem inteira, rejeitam sequência obsoleta ou
+duplicada e ordenam empates por score, eliminações, mortes e ID estável. `--`
+significa que o RTT ainda não foi medido.
 
 ## Estado atual da demo e da release
 
 O artefato público mais recente é
 [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34):
 uma apresentação SDL assinada para Linux x86-64, construída a partir do commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede as mudanças atuais
-de PE/SDL Windows e do gate da CI; é um artefato dogfood de apresentação, não
-uma release de jogo jogável.
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede o caminho atual de
+apresentação, o lobby/tela de placar multiplayer, a qualificação PE/SDL Windows
+e os gates atuais da CI. É dogfood de apresentação, não o pacote atual de demo
+jogável.
 
-| Alvo | Estado verificado | Falta para uma demo jogável |
+A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
+
+- `Play` inicia o encounter autoritativo local servidor listen/cliente, aceita
+  teclado/mouse, executa três bots gansos e reinicia ao sair e entrar novamente
+  em `Play`.
+- `Multiplayer > Host/Join` admite o segundo jogador pelo lobby Kof-first,
+  exige `READY` dos dois peers conectados e publica o placar determinístico por
+  `Tab`, com jogador, status, score, vida, K/D e ping.
+
+| Alvo | Estado atual da fonte/evidência | Evidência restante para release |
 |---|---|---|
-| Linux x86-64 | Menu persistente, opções, lobby, tela Kutter, áudio e cena autoral de qualificação podem ser empacotados e renderizados. | Ligar input de teclado/mouse/gamepad ao loop autoritativo do jogador e entregar um ciclo completo iniciar→lutar→vencer/sair→reiniciar. |
-| Windows x86-64 | Gates de pacote de gameplay/apresentação Kof PE nativo, shell SDL3/SDL_mixer e shaders estão implementados; o smoke do shell nativo passa. | Substituir o shell Play estático pelo mesmo caminho real de gameplay autoritativo, qualificar hardware Windows novo e publicar um ZIP assinado. |
+| Linux x86-64 | A apresentação nativa contém gameplay local, host/join de dois jogadores, gate explícito de prontidão, estado autoritativo de bots/jogadores, nomes, corações e lobby/placar limitados. As sondas focadas JVM/nativas passam. | Gerar arquivo de apresentação assinado a partir de árvore limpa, verificar fora do checkout e executar smoke isolado em GPU suportada: iniciar/jogar/reiniciar/sair. |
+| Windows x86-64 | Os gates de empacotamento PE/SDL nativo e reprodutibilidade incluem o mesmo probe Kof de apresentação atual, SDL3/SDL_mixer e produtos SPIR-V/DXIL. | Gerar ZIP assinado a partir da árvore atual, executar fora do checkout e concluir smoke de apresentação em hardware/driver Windows nativo. |
 
 O checklist detalhado de aceitação, os bloqueios e o escopo futuro não bloqueante
 estão em [Prontidão da release demo](docs/DEMO_RELEASE.md).
@@ -114,7 +140,8 @@ estão em [Prontidão da release demo](docs/DEMO_RELEASE.md).
 
 | Área | Caminho limitado implementado |
 |---|---|
-| **Autoridade e rede** | Sessões servidor/cliente a 60 Hz, admissão de dois clientes, handshake autenticado de compatibilidade, comandos sequenciados, snapshots, predição/reconciliação, reconexão e rejeição de replay/adulteração; janela WAN limitada por IPv4 direto com retry/backpressure |
+| **Autoridade e rede** | Sessões servidor/cliente a 60 Hz, admissão de dois clientes, handshake autenticado de compatibilidade, comandos sequenciados, snapshots, predição/reconciliação, reconexão e rejeição de replay/adulteração; janela WAN limitada por IPv4 direto com retry/backpressure; lobby Kof-first e placar de dois jogadores com checksum |
+| **Fatia voltada ao jogador** | `Play` executa o encounter autoritativo limitado; Host/Join adiciona gate explícito de dois jogadores; `Tab` mostra a tela de jogadores autoritativa do host. Smoke de pacote novo e evidência de hardware nativo continuam gates de release. |
 | **Sistemas de tiro e ARPG** | Combate hitscan/projétil/shotgun, papéis de inimigos, loot determinístico, inventário, equipamento, skills, status, chefes, recompensas e progressão exatamente uma vez |
 | **Mundo e apresentação** | Arena 3D criada com inclinações, degraus e salas empilhadas; colisão cápsula/triângulo; portas, segredos e saídas; HUD semântico; instancing por SDL_GPU; ganho/pan posicional por SDL_mixer |
 | **Conteúdo e ferramentas de criação** | Entrada limitada de GLB, Dust3D, Aseprite, VOX, brushes estilo Quake, Blockbench, PNG e WAV; produtos canônicos; validação `.kpkg`; edições transacionais no Kutter; hierarquia, transformações e registro de assets persistentes no Kutter |

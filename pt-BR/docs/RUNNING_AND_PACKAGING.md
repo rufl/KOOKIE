@@ -16,8 +16,9 @@ kof run src/main.kf --target native
 ```
 
 Este comando é um caminho de qualificação em console. A apresentação SDL nativa
-voltada ao jogador é gerada pelo perfil de apresentação abaixo e agora contém
-o encontro local de bots e a sessão UDP de dois peers.
+voltada ao jogador contém o encounter local limitado, o lobby Kof-first de dois
+peers e a tela determinística de jogadores; implementação na fonte e
+qualificação do pacote de release continuam separadas.
 
 O estado de publicação e a evidência de hardware continuam em
 [Prontidão da release demo](DEMO_RELEASE.md), separados da implementação na
@@ -44,6 +45,12 @@ Execute a sonda focada de gansos contra bots, sessão e overlay com:
 
 ```bash
 bash scripts/verify_goose_game.sh
+```
+
+Execute a sonda focada do lobby multiplayer e do placar com:
+
+```bash
+bash scripts/verify_multiplayer_ui.sh
 ```
 
 ## Kooker de conteúdo
@@ -176,12 +183,16 @@ shaders SPIR-V, SDL3 e SDL_mixer. Ele usa o loader dinâmico e a libc do host.
 - Menu principal: setas ou WASD.
 - Selecionar: Enter, Espaço ou clique do mouse.
 - Voltar: Escape.
+- `Play`: encounter autoritativo local servidor listen/cliente; voltar com
+  Escape e entrar novamente em `Play` redefine o encounter limitado.
 - Opções: 1280×720 até 2560×1440, janela/sem borda/tela cheia exclusiva,
   volumes separados para efeitos e música e três tamanhos de texto.
 - Multiplayer: Host, Join e Leave com campos editáveis de IPv4 e porta.
-  Depois que o peer conectar, selecione Ready nos dois clientes antes de
+  Depois que o peer conectar, selecione `READY` nos dois clientes antes de
   abrir o gameplay; o lobby mostra a identidade limitada do peer, a contagem
   de jogadores e o placeholder honesto de ping até existir RTT.
+- Durante o gameplay, `Tab` alterna a tela de jogadores com nome, status, score,
+  vida, K/D e ping. `--` significa que o RTT ainda não está disponível.
 
 Mudanças de vídeo só são efetivadas em Apply. Os pacotes do lobby usam tags
 SipHash e sequências contra replay. Uma chave compartilhada configurada de 128
@@ -208,11 +219,9 @@ export KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff
 ```
 
 Use `Multiplayer > Host` em um cliente e `Multiplayer > Join` no outro.
-`KOOKIE_PLAYER_NAME_ID` aceita `1..4`; o nome escolhido aparece acima do ganso
-e os bots aparecem como `BOT GOOSE`. Os corações mostram a energia
-autoritativa em segmentos de 20 pontos. `WASD`/setas movem, mouse ou `F`
-disparam e o movimento do mouse gira a câmera. `Escape` volta ao menu;
-selecionar `Play` inicia um encontro novo.
+Depois que ambos mostrarem o peer conectado, selecione `READY` nos dois
+clientes para abrir o gameplay. `Tab` abre a tela determinística de jogadores;
+Escape volta ao menu e selecionar `Play` inicia um encounter local novo.
 
 O rendezvous autentica o envelope UDP fixo, registra cada endpoint público,
 envia o endpoint do peer e não retransmite tráfego. Depois disso os clientes
@@ -256,8 +265,9 @@ Esse commit publicado antecede a ponte de input/sessão e o rendezvous WAN da
 jogável de gansos.
 
 A apresentação atual na árvore de fontes mapeia input para a sessão autoritativa,
-mostra o encontro de bots e suporta o transporte direto/WAN. O arquivo público
-não contém essa mudança.
+mostra o encontro de bots e suporta o transporte direto/WAN, o lobby fixo
+Host/Join, o gate explícito de pronto e a tela de jogadores. O arquivo público
+não contém essas mudanças da árvore de fontes.
 
 ## Pacotes Windows x86-64
 

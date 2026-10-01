@@ -115,17 +115,26 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
 - O artefato público mais recente é
   [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34),
   um arquivo de apresentação Linux x86-64 assinado do commit
-  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede a qualificação
-  atual de PE/SDL nativo Windows e nenhum arquivo atual de demo Windows é
-  público.
-- A superfície `Play` da apresentação empacotada atualmente renderiza a cena
-  limitada de qualificação. `GameShell` não encaminha ações da tela de gameplay
-  ao loop autoritativo de `InputCommand`/tick, e o shell SDL Windows desenha
-  sua superfície estática após o smoke do marcador PE.
-- D1 ainda exige o loop compartilhado de input/sessão/renderização, uma fatia
-  documentada iniciar→encontro→resultado→reiniciar, pacotes Linux e Windows
-  atuais assinados, verificação em hosts novos e evidência de apresentação em
-  hardware nativo. Veja [Prontidão da release demo](docs/DEMO_RELEASE.md).
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede o caminho atual
+  de apresentação, lobby/placar e fonte PE/SDL Windows; nenhum arquivo atual
+  de demo Windows é público.
+- A fonte atual de apresentação executa `Play` local pela sessão autoritativa
+  limitada: input SDL de teclado/mouse, três bots gansos, dano, nomes,
+  corações de 20 pontos, HUD e reset ao sair/entrar novamente em `Play`.
+- `Host/Join` agora possui admissão fixa de dois jogadores, gate explícito
+  ready/unready e tela de jogadores autoritativa do host por `Tab`. O probe de
+  lobby/placar valida identidade, ciclo de vida, capacidade, checksum, rejeição
+  de estado obsoleto/duplicado, adulteração e ordenação determinística na JVM e
+  no nativo.
+- D1 continua aberto para pacotes atuais de apresentação Linux/Windows de
+  árvore limpa, smoke repetido fora do checkout de jogar/reiniciar/sair,
+  verificação em hosts novos e evidência de apresentação em hardware nativo.
+  Ligação de pacote ou marcador PE isolado não é release de demo jogável.
+- O ambiente Linux de desenvolvimento atual não possui o header de
+  desenvolvimento SDL3_mixer; portanto a evidência atual de empacotamento SDL
+  nativo/apresentação visual não foi retida aqui. Isso não invalida modelo Kof,
+  build de fonte ou checks de transporte; bloqueia apenas empacotamento e
+  qualificação visual local.
 
 ## Lote anterior de execução de hooks confiáveis
 

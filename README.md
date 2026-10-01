@@ -34,6 +34,7 @@
 |---|---|
 | Run the current authoritative check | [Quick start](#quick-start) |
 | Download the latest public Linux artifact | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Try the current lobby and player screen | [Multiplayer lobby and score screen](#multiplayer-lobby-and-score-screen) |
 | Assess Windows/Linux playable-demo readiness | [Demo release readiness](docs/DEMO_RELEASE.md) |
 | Understand the boundaries | [Architecture](docs/ARCHITECTURE.md) |
 | Build, package or run qualification roles | [Running and packaging](docs/RUNNING_AND_PACKAGING.md) |
@@ -71,12 +72,18 @@ cd KOOKIE
 kof run src/main.kf --target native
 ```
 
-Run the focused gameplay/replay path:
+Run the focused gameplay and replay path:
 
 ```bash
 bash scripts/verify_interactions.sh
 ```
 
+Run the focused local goose gameplay and multiplayer lobby/score probes:
+
+```bash
+bash scripts/verify_goose_game.sh
+bash scripts/verify_multiplayer_ui.sh
+```
 Run the non-graphical G6 expansion probes:
 
 ```bash
@@ -116,14 +123,27 @@ bash scripts/verify_multiplayer_ui.sh
 The latest public artifact is
 [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34):
 signed Linux x86-64 SDL presentation, built from source commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. It predates the current Windows
-PE/SDL and CI-gate changes; it is a dogfood presentation artifact, not a
-playable game release.
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. It predates the current source
+presentation path, multiplayer lobby/score screen, native Windows PE/SDL
+qualification and CI-gate changes. It is dogfood presentation, not the current
+playable-demo package.
 
-| Target | Current verified state | Remaining release evidence |
+The current source tree has a bounded player-facing slice:
+
+- `Play` starts the local authoritative listen-server/client encounter,
+  accepts keyboard and mouse input, runs three goose bots and resets when
+  leaving and entering `Play` again.
+- `Multiplayer > Host/Join` admits the second player through the KOF-owned
+  lobby, requires both connected players to select `READY`, and publishes the
+  deterministic `Tab` scoreboard with player, status, score, HP, K/D and ping.
+
+The source path is implemented; the public package and target-specific release
+evidence still need to be refreshed.
+
+| Target | Current source/evidence state | Remaining release evidence |
 |---|---|---|
-| Linux x86-64 | The source presentation path now starts a fresh authoritative two-player goose encounter, maps keyboard/mouse input, runs three bot geese, replicates host/player state, renders names plus 20-point heart segments, and stages the bounded lobby/player screen. | Build a fresh signed archive and verify launch, restart, quit, Tab scoreboard interaction and hardware rendering outside the checkout. |
-| Windows x86-64 | The same Kof presentation path is wired into the native PE/SDL profile, including input, bots, nameplates, hearts and direct/WAN transport. | Build a signed ZIP and run fresh native Windows hardware/driver qualification. |
+| Linux x86-64 | Native presentation source contains local gameplay, two-player host/join, explicit ready gating, authoritative bot/player state, names, heart segments and the bounded lobby/score screen. Focused JVM/native probes pass. | Build a fresh clean-tree signed presentation archive, verify it outside the checkout, and run isolated supported-GPU start/play/restart/quit smoke. |
+| Windows x86-64 | Native PE/SDL presentation packaging and reproducibility gates include the same current Kof presentation probe, with SDL3/SDL_mixer and SPIR-V/DXIL products. | Build a fresh signed ZIP from the current tree, run it outside the checkout, and complete native Windows hardware/driver presentation smoke. |
 
 The detailed acceptance checklist, release blockers and non-blocking future
 scope are in [Demo release readiness](docs/DEMO_RELEASE.md).
@@ -133,6 +153,7 @@ scope are in [Demo release readiness](docs/DEMO_RELEASE.md).
 | Area | Implemented bounded path |
 |---|---|
 | **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, sequenced commands, snapshots, prediction/reconciliation, reconnect and replay/tamper rejection; bounded direct-IPv4 WAN rendezvous with best-effort UDP hole punching; Kof-owned lobby and checksummed two-player scoreboard state |
+| **Player-facing slice** | Local `Play` runs the bounded authoritative goose encounter; Host/Join adds explicit two-player ready gating; `Tab` exposes the host-authoritative player screen. Fresh clean-tree package smoke and native hardware evidence remain release gates. |
 | **Shooter and ARPG systems** | Hitscan/projectile/shotgun combat, enemy roles, deterministic loot, inventory, equipment, skills, status effects, bosses, rewards and exactly-once progression |
 | **World and presentation** | True 3D authored arena with slopes, steps and stacked rooms; capsule/triangle collision; doors, secrets and exits; semantic HUD; SDL_GPU instancing; positional gain/pan through SDL_mixer |
 | **Content and kutter tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Kutter edits; persistent Kutter hierarchy/transform/asset registry |

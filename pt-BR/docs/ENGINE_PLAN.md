@@ -756,7 +756,7 @@ Nenhuma promessa de calendário; cada marco possui evidências executáveis. Um 
 | **G4 — Pipeline de criação e extensão** | Kof kooker, formatos de malha/brush compatíveis, validação de pacotes, manifestos de modificação de dados, módulos de extensão Kof confiáveis, inspetor/editores, recarregamento em etapas | Um segundo jogo multiplayer distinto é construído a partir de definições/extensões sem editar o código do núcleo do mecanismo. Servidor/cliente rejeitam manifestos incompatíveis de pacote/API/mod. Conteúdo inválido deixa o mundo em execução anterior intacto; as revisões de geometria/colisão/navegação/replicação permanecem alinhadas |
 | **G5 — Escala e lançamento** | Orçamentos de IA, batching/instancing, animação, streaming apenas quando necessário, servidor dedicado headless, migrações/reprodução, reforço de reconexão/admissão, empacotamento/avisos | A carga de trabalho de referência em LAN atende aos orçamentos declarados; o servidor dedicado é executado sem gráficos; as contagens de memória/recursos estabilizam; o pacote é executado fora do checkout do código-fonte; a recuperação de reconexão/sessão e a compatibilidade de extensões são comprovadas |
 | **G6 — Expansão** | SO/backend/arquitetura adicionais, jobs seguros, transporte WAN, editor mais completo, extensões em runtime isoladas | Jobs limitados, ativação de KofScript em pacote/sessão, Kutter persistente, WAN limitado e pacotes Windows PE/SDL nativos têm probes focados; nenhuma alegação geral de portabilidade, segurança WAN, sandbox, DRI3 ou cobertura ampla de apresentação é inferida |
-| **D1 — Release de demo jogável** | Ligar input da plataforma à sessão local autoritativa, entregar um encontro limitado completo, integrar a superfície nativa Windows e publicar pacotes atuais Linux/Windows | Pacotes Linux e Windows extraídos de forma limpa iniciam fora do checkout, controles documentados produzem gameplay real, encontro→resultado→reinício completa, verificações de host novo e hardware nativo passam e a procedência assinada é publicada. Cena de qualificação ou marcador PE isolado não passa D1 |
+| **D1 — Release de demo jogável** | Qualificar o loop atual de apresentação autoritativa local nos dois alvos, manter o lobby Host/Join e a tela de jogadores limitados e publicar os pacotes Linux/Windows atuais | Pacotes Linux e Windows extraídos de forma limpa iniciam fora do checkout, controles documentados produzem gameplay real, encounter→saída/reinício completa, verificações de host novo e hardware nativo passam e a procedência assinada é publicada. Um probe de fonte ou marcador PE isolado não passa D1 |
 
 A evidência de G0 está em [G0_BACKLOG](G0_BACKLOG.md): viabilidade
 nativa/de sessão, apresentação isolada em janela e execução LAN externa
@@ -890,11 +890,14 @@ afirma NAT traversal, serviço relay, confidencialidade, resistência a DDoS,
 extensibilidade arbitrária do editor, sandbox geral nem cobertura de outros
 SO/GPUs.
 
-A qualificação G6 não encerra a release D1. A superfície `Play` atual ainda
-renderiza uma cena limitada de qualificação sem encaminhar input de gameplay ao
-loop autoritativo de sessão/tick. D1 está acompanhado em
-[Prontidão da release demo](DEMO_RELEASE.md); o primeiro escopo pode continuar
-sendo uma fatia vertical single-player local.
+Qualificação G6 não encerra a release D1. A fonte atual de apresentação
+implementa o encounter local limitado de `Play`, o lobby explícito de dois
+jogadores `Host/Join` com ready e a tela de jogadores autoritativa do host por
+`Tab`. Probes focados comprovam esses contratos, mas o artefato público
+antecede todos eles. D1 continua aberto para pacotes Linux/Windows atuais de
+árvore limpa, smoke fora do checkout de jogar/reiniciar/sair, verificação em
+hosts novos e evidência de apresentação em hardware nativo. D1 está acompanhado
+em [Prontidão da release demo](DEMO_RELEASE.md).
 
 ### Evidência limitada medida e metas de desempenho mantidas
 

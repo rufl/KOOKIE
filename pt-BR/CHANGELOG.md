@@ -20,16 +20,32 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   `KOOKIE native Kof PE gameplay verified`. O smoke visual de apresentação
   continua opcional e exige GPU isolada capaz de DRI3; o wrapper Xvfb padrão não
   é evidência de apresentação.
+
+### Lobby multiplayer Kof-first e tela de placar
+
+- Adicionamos o ciclo limitado de `MatchLobbyState` para Host/Join fixo de dois
+  jogadores, identidade de sala/nome, contagem de peers, ping, erros de
+  transporte e estado explícito ready/unready.
+- Adicionamos `MatchScoreboardState` limitado e autoritativo pelo host, com
+  ordenação determinística, snapshots versionados/com checksum, rejeição de
+  estado obsoleto/duplicado/adulterado e decode seguro contra capacidade.
+- Adicionamos o card de lobby Kof e a tela de jogadores por `Tab`, com jogador,
+  status, score, vida, K/D e ping honesto. O gameplay agora espera os dois
+  jogadores conectados selecionarem `READY`.
+- Adicionamos `scripts/verify_multiplayer_ui.sh` e integramos o probe focado ao
+  caminho de verificação do repositório.
+
 ### Prontidão da release de demo jogável
 
-- Documentamos que o artefato público mais recente `0.1.0-dogfood.34` é um
-  dogfood de apresentação Linux x86-64 assinado do commit
-  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; nenhum arquivo atual de demo
-  Windows foi publicado.
-- Registramos os bloqueios D1: a superfície `Play` ainda renderiza uma cena de
-  qualificação em vez de encaminhar input da plataforma pelo loop autoritativo
-  de sessão/tick, e os dois alvos ainda precisam de um ciclo completo
-  encontro/resultado/reinício mais evidência em hosts novos.
+- O artefato público mais recente `0.1.0-dogfood.34` continua sendo um dogfood
+  de apresentação Linux x86-64 assinado do commit
+  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; ele antecede o caminho atual de
+  apresentação/lobby/placar e nenhum arquivo atual de demo Windows é público.
+- A fonte atual cobre `Play` local, `Host/Join` fixo de dois jogadores,
+  prontidão explícita e tela determinística de jogadores. O trabalho D1 restante
+  é empacotamento de apresentação Linux/Windows em árvore limpa, smoke repetido
+  fora do checkout de jogar/reiniciar/sair, verificação em hosts novos e
+  evidência de apresentação em hardware nativo.
 
 ### Estabilidade do gate de desempenho headless na CI
 

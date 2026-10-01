@@ -238,17 +238,20 @@ a cryptographic authenticator. JVM and native role processes use this same
 wire path; current G4 evidence does not retain a fresh three-machine run.
 
 The presentation lobby and player screen stay on the same Kof-first boundary.
-`MatchLobbyState` owns fixed two-player lifecycle, room/name identity, ready
-flags, peer count, ping and explicit transport errors. Gameplay cannot enter
-until the connected local and remote players both set their ready flag.
+Local `Play` uses the local authoritative listen-server/client path; remote
+play uses `Host/Join` and never bypasses session admission. `MatchLobbyState`
+owns fixed two-player lifecycle, room/name identity, ready/unready flags, peer
+count, ping and explicit transport errors. Gameplay cannot enter until the
+connected local and remote players both set their ready flag.
 `MatchScoreboardState` owns fixed player rows and deterministic ranking; its
 bounded wire carries schema, tick, sequence, identity, flags, health, score
 statistics, ping and last-seen tick before one whole-message checksum is
 accepted. The host is the only publisher of gameplay score state, and the
-client rejects stale, duplicate, malformed or tampered snapshots before
-replacing its rows. `Tab` is only a native edge event; visibility and all
-player-screen geometry remain Kof state. This slice intentionally does not
-claim a master-server browser, relay service or measured RTT.
+client rejects stale, duplicate, malformed, capacity-invalid or tampered
+snapshots before replacing its rows. `Tab` is only a native edge event;
+visibility and all player-screen geometry remain Kof state. A `--` ping is an
+unknown measurement, never a fabricated latency. This slice intentionally does
+not claim a master-server browser, relay service or measured RTT.
 
 The third-party networking library is selected after the protocol and loopback
 proof, not before.
