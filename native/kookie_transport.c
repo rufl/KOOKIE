@@ -549,10 +549,9 @@ bool kookie_transport_open_remote_ipv4(
     kookie_transport_reset_counters();
     return true;
 }
-static bool kookie_transport_external_host_address(
-    struct in_addr *address
+static bool kookie_transport_parse_host_address(
+    const char *encoded, struct in_addr *address
 ) {
-    const char *encoded = getenv("KOOKIE_EXTERNAL_LAN_HOST_IPV4");
     if (encoded == NULL || encoded[0] == '\0') {
         encoded = "127.0.0.1";
     }
@@ -572,9 +571,41 @@ static bool kookie_transport_external_host_address(
     return true;
 }
 
-bool kookie_transport_open_remote_environment(int port) {
+static bool kookie_transport_external_host_address(
+    struct in_addr *address
+) {
+    return kookie_transport_parse_host_address(
+        getenv("KOOKIE_EXTERNAL_LAN_HOST_IPV4"), address);
+}
+
+static bool kookie_transport_open_environment_host(
+    const char *variable, int port
+) {
     struct in_addr address;
-    if (!kookie_transport_external_host_address(&address)) {
+    if (!kookie_transport_parse_host_address(getenv(variable), &address)) {
+        return false;
+    }
+    uint32_t host_order = ntohl(address.s_addr);
+    return kookie_transport_open_remote_ipv4(
+        (int)((host_order >> 24) & 0xffU),
+        (int)((host_order >> 16) & 0xffU),
+        (int)((host_order >> 8) & 0xffU),
+        (int)(host_order & 0xffU),
+        port);
+}
+
+bool kookie_transport_open_remote_environment(int port) {
+    return kookie_transport_open_environment_host(
+        "KOOKIE_EXTERNAL_LAN_HOST_IPV4", port);
+}
+
+bool kookie_transport_open_rendezvous_environment(int port) {
+    const char *rendezvous = getenv("KOOKIE_RENDEZVOUS_HOST_IPV4");
+    if (rendezvous == NULL || rendezvous[0] == '\0') {
+        rendezvous = "127.0.0.1";
+    }
+    struct in_addr address;
+    if (!kookie_transport_parse_host_address(rendezvous, &address)) {
         return false;
     }
     uint32_t host_order = ntohl(address.s_addr);
@@ -686,6 +717,16 @@ bool kookie_transport_set_peer_last_sender(void) {
     transport.peer = transport.last_sender;
     return true;
 }
+bool kookie_transport_reset_session(void) {
+    if (!kookie_socket_valid(transport.socket_fd)) {
+        return false;
+    }
+    kookie_transport_reset_counters();
+    transport.last_send_bytes = 0;
+    transport.last_send_valid = false;
+    return true;
+}
+
 
 bool kookie_transport_received_sequence_at_least(int minimum) {
     return minimum >= 0 &&
@@ -974,6 +1015,22 @@ static int kookie_headless_environment_int(
         return fallback;
     }
     return (int)value;
+}
+
+bool kookie_transport_wan_rendezvous_enabled(void) {
+    const char *value = getenv("KOOKIE_WAN_RENDEZVOUS");
+    return value != NULL &&
+        (strcmp(value, "1") == 0 || strcmp(value, "true") == 0);
+}
+
+int kookie_transport_room_code(void) {
+    return kookie_headless_environment_int(
+        "KOOKIE_ROOM_CODE", 1, 1, 1000000);
+}
+
+int kookie_transport_player_name_id(void) {
+    return kookie_headless_environment_int(
+        "KOOKIE_PLAYER_NAME_ID", 1, 1, 4);
 }
 
 bool kookie_headless_measure_begin(void) {

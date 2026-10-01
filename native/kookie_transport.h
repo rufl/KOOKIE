@@ -16,6 +16,11 @@ bool kookie_transport_open_remote_ipv4(
     int first_octet, int second_octet, int third_octet,
     int fourth_octet, int port);
 bool kookie_transport_open_remote_environment(int port);
+bool kookie_transport_open_rendezvous_environment(int port);
+bool kookie_transport_reset_session(void);
+bool kookie_transport_wan_rendezvous_enabled(void);
+int kookie_transport_room_code(void);
+int kookie_transport_player_name_id(void);
 int kookie_transport_external_host_octet(int index);
 bool kookie_transport_external_is_host(void);
 bool kookie_transport_external_is_client_a(void);

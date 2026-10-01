@@ -15,9 +15,14 @@ a demo autoritativa na raiz do repositório:
 kof run src/main.kf --target native
 ```
 
-Este comando é um caminho de qualificação em console, não uma janela jogável.
-Para o estado voltado ao jogador e o loop de gameplay que ainda falta, veja
-[Prontidão da release demo](DEMO_RELEASE.md).
+Este comando é um caminho de qualificação em console. A apresentação SDL nativa
+voltada ao jogador é gerada pelo perfil de apresentação abaixo e agora contém
+o encontro local de bots e a sessão UDP de dois peers.
+
+O estado de publicação e a evidência de hardware continuam em
+[Prontidão da release demo](DEMO_RELEASE.md), separados da implementação na
+árvore de fontes.
+
 
 O alvo JVM é usado para qualificação diferencial local e para o pacote de
 compatibilidade Windows explícito:
@@ -33,6 +38,12 @@ Execute a sonda focada de gameplay e replay com:
 
 ```bash
 bash scripts/verify_interactions.sh
+```
+
+Execute a sonda focada de gansos contra bots, sessão e overlay com:
+
+```bash
+bash scripts/verify_goose_game.sh
 ```
 
 ## Kooker de conteúdo
@@ -168,11 +179,52 @@ shaders SPIR-V, SDL3 e SDL_mixer. Ele usa o loader dinâmico e a libc do host.
 - Opções: 1280×720 até 2560×1440, janela/sem borda/tela cheia exclusiva,
   volumes separados para efeitos e música e três tamanhos de texto.
 - Multiplayer: Host, Join e Leave com campos editáveis de IPv4 e porta.
+  Depois que o peer conectar, selecione Ready nos dois clientes antes de
+  abrir o gameplay; o lobby mostra a identidade limitada do peer, a contagem
+  de jogadores e o placeholder honesto de ping até existir RTT.
 
 Mudanças de vídeo só são efetivadas em Apply. Os pacotes do lobby usam tags
 SipHash e sequências contra replay. Uma chave compartilhada configurada de 128
 bits autentica peers; o fallback local apenas detecta corrupção acidental. O
 lobby não fornece criptografia nem identidade pública.
+### Sessão WAN simples de gansos
+
+Execute o rendezvous UDP autenticado em um host Linux alcançável:
+
+```bash
+KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff \
+python3 scripts/kookie_rendezvous.py --bind 0.0.0.0 --port 47101
+```
+
+Inicie o cliente Linux ou Windows `presentation` com a mesma chave:
+
+```bash
+export KOOKIE_WAN_RENDEZVOUS=1
+export KOOKIE_RENDEZVOUS_HOST_IPV4=203.0.113.20
+export KOOKIE_ROOM_CODE=4107
+export KOOKIE_PLAYER_NAME_ID=1
+export KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff
+./kookie
+```
+
+Use `Multiplayer > Host` em um cliente e `Multiplayer > Join` no outro.
+`KOOKIE_PLAYER_NAME_ID` aceita `1..4`; o nome escolhido aparece acima do ganso
+e os bots aparecem como `BOT GOOSE`. Os corações mostram a energia
+autoritativa em segmentos de 20 pontos. `WASD`/setas movem, mouse ou `F`
+disparam e o movimento do mouse gira a câmera. `Escape` volta ao menu;
+selecionar `Play` inicia um encontro novo.
+
+O rendezvous autentica o envelope UDP fixo, registra cada endpoint público,
+envia o endpoint do peer e não retransmite tráfego. Depois disso os clientes
+enviam datagramas autenticados diretamente para um hole punch UDP simples.
+É best-effort: NAT simétrico, UDP bloqueado ou algumas topologias CGNAT exigem
+encaminhamento de porta ou endereço LAN direto. Não há relay, criptografia,
+serviço de identidade ou proteção DDoS de produção. Deixe
+`KOOKIE_WAN_RENDEZVOUS` ausente para o modo LAN direto.
+
+O pacote Linux também contém `kookie-rendezvous.py`; o rendezvous roda em Linux
+enquanto os dois clientes podem rodar em Linux ou Windows.
+
 
 ### Executar o dogfood Linux publicado atualmente
 
@@ -199,12 +251,13 @@ cd kookie-0.1.0-dogfood.34-linux-x86_64
 
 O arquivo inclui SDL3, SDL_mixer e os adaptadores nativos, mas usa o
 loader/libc dinâmico do host e exige uma GPU Linux suportada para apresentação.
-Ele abre o menu persistente e a cena de qualificação; a tela `Play` ainda não é
-o loop completo de gameplay orientado a input exigido por uma demo jogável.
+Esse commit publicado antecede a ponte de input/sessão e o rendezvous WAN da
+árvore de fontes; gere novamente o perfil de apresentação para obter o caminho
+jogável de gansos.
 
-Os controles acima cobrem navegação de menu/opções/lobby. Não os descreva como
-controles de gameplay entregues até conectar a ponte de `InputCommand` e o loop
-de vitória/reinício.
+A apresentação atual na árvore de fontes mapeia input para a sessão autoritativa,
+mostra o encontro de bots e suporta o transporte direto/WAN. O arquivo público
+não contém essa mudança.
 
 ## Pacotes Windows x86-64
 

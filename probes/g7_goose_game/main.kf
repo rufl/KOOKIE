@@ -1,0 +1,80 @@
+import core
+import session
+import ui
+
+main() {
+    var game = LoopbackSession(16, 8)
+    assert(game.configureEnemyRules(50, 35, 15),
+        "bot rules must configure")
+    assert(game.defineEnemyWeapon(7, 10, 0, 3, 1) &&
+        game.setEnemyWeaponRange(7, 40) &&
+        game.setEnemyWeaponCooldown(7, 15) &&
+        game.defineEnemyEncounter(4, 4, 12) &&
+        game.configureEnemyEncounterZone(4, 16, 1, 12, 28) &&
+        game.configureEnemySpatialBounds(-16, -4, -4, 40, 16, 32),
+        "bot encounter must configure spatial bounds")
+    assert(game.definePlayerWeapon(7, 10, 0, 3, 1) &&
+        game.setPlayerWeaponRange(7, 40) &&
+        game.addEnemyCombatActor(1, 100, 0) &&
+        game.addEnemyCombatActor(2, 100, 0) &&
+        game.equipEnemyCombatWeapon(1, 7) &&
+        game.equipEnemyCombatWeapon(2, 7) &&
+        game.defineWorldKey(1, 30, 0, 0, 0) &&
+        game.defineWorldDoor(2, 1, 0, 5, 5, 3, 5, 1, 8) &&
+        game.start(),
+        "goose players must start with combat actors")
+    assert(game.connectPlayer() == 1 && game.connectPlayer() == 2,
+        "goose players must connect")
+    assert(game.addPlayerCombatActor(1, 100, 0) &&
+        game.addPlayerCombatActor(2, 100, 0) &&
+        game.equipPlayerCombatWeapon(1, 7) &&
+        game.equipPlayerCombatWeapon(2, 7),
+        "connected player combat actors must equip")
+    assert(game.setEnemySpatialPosition(1, -6, 1, 6) &&
+        game.setEnemySpatialPosition(2, 6, 1, 6) &&
+        game.admitEnemyAt(4, 3, 0, 80, 0, 7, 8, 1, 12) &&
+        game.admitEnemyAt(4, 4, 0, 80, 0, 7, 18, 1, 18) &&
+        game.admitEnemyAt(4, 5, 0, 80, 0, 7, 28, 1, 24) &&
+        game.configureEnemyRole(3, 1, 1, 1, 0) &&
+        game.configureEnemyRole(4, 1, 1, 1, 0) &&
+        game.configureEnemyRole(5, 2, 1, 2, 0),
+        "three bot geese must join the encounter")
+
+    var playerOneHealthBefore = game.enemyCombatHealth(1)
+    var playerTwoHealthBefore = game.enemyCombatHealth(2)
+    var sequenceOne = 1
+    var sequenceTwo = 1
+    var nextTick = game.currentServerTick() + 1
+    assert(game.receiveInput(
+            1, nextTick, sequenceOne, 0, 0, 0, 0, 0, 0) &&
+        game.receiveInput(
+            2, nextTick, sequenceTwo, 0, 0, 0, 0, 0, 0) &&
+        game.advance(16667) == 1,
+        "goose server must advance fixed ticks")
+
+    var botHealthBefore = game.enemyCombatHealth(3)
+    game.resolveEnemyHitscan(1, 3, game.currentServerTick(), 14, 0)
+    assert(game.enemyCombatHealth(3) < botHealthBefore,
+        "player fire must damage the nearest bot")
+    assert(game.enemyCombatHealth(1) < playerOneHealthBefore ||
+        game.enemyCombatHealth(2) < playerTwoHealthBefore,
+        "bot AI must damage a player")
+
+    var overlay = GooseStatusOverlay(6)
+    var frame = FrameStaging(1440)
+    assert(overlay.add(
+            1, -20, 20, game.enemyCombatHealth(1), 100, 1, false) &&
+        overlay.add(
+            2, 20, 20, game.enemyCombatHealth(2), 100, 2, false) &&
+        overlay.add(
+            3, 60, 20, game.enemyCombatHealth(3), 80, 3, true) &&
+        overlay.add(
+            4, 100, 20, game.enemyCombatHealth(4), 80, 4, true) &&
+        overlay.add(
+            5, 140, 20, game.enemyCombatHealth(5), 80, 1, true) &&
+        overlay.actorCount() == 5 &&
+        overlay.stage(frame, 1, 9) &&
+        frame.stagedCount() > 0,
+        "goose names, hearts and bodies must stage together")
+    println("KOOKIE G7 goose WAN gameplay verified")
+}

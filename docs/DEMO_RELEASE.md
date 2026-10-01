@@ -42,40 +42,39 @@ It must, on both supported targets:
 6. expose a deterministic win/exit or restart path; and
 7. quit cleanly after repeated start/play/restart cycles.
 
-The current presentation `Play` screen does not satisfy that definition. The Kof
-shell currently renders the prepared arena/HUD scene and handles the surrounding
-menu, options, lobby and Kutter flows; gameplay-screen actions are not mapped to
-an input/session tick loop. The Windows SDL shell likewise draws a static game
-screen after its native PE marker smoke. These are qualification surfaces, not a
-finished playable loop.
+The published presentation archive remains a qualification artifact because it
+predates the current source tree. The source presentation now has a bounded
+playable path: `Play` starts an authoritative two-player session, each side
+maps SDL keyboard/mouse input, three goose bots attack players, and host/join
+snapshots replicate player/bot state. Nameplates and 20-point heart segments
+show the selected player names and authoritative energy. The same path is
+available to the Linux and Windows `presentation` profiles; fresh package and
+hardware evidence is still required before calling it a public release.
+
 
 ## Missing work, ordered by release impact
 
-### P0 — shared playable loop
+### P0 — scoped playable loop implemented in source
 
-- Add a player-facing runtime loop that polls platform input, builds validated
-  `InputCommand` records, advances the authoritative local listen server and
-  applies client prediction/reconciliation to the rendered state.
-- Bind keyboard, relative mouse and at least one documented fallback control set
-  to movement, look, fire, jump, interaction, pause and restart. Preserve focus
-  loss and held-button release behavior already covered by the engine contracts.
-- Connect the existing combat/session/HUD/audio contracts to the presentation
-  frame. The first demo can use one authored arena, one weapon and one enemy
-  role, but it must be an actual state transition rather than a static draw.
-- Define the demo end condition and reset path: for example, clear one encounter,
-  reach the exit, show the result, and restart without relaunching the process.
+- The native SDL presentation now polls held keyboard/mouse input, builds
+  bounded `InputCommand` values, advances the authoritative session and
+  reconciles the joined client from host snapshots.
+- `Play` starts a fresh authored encounter with two goose players and three
+  bot geese. Bots target both players; firing damages the nearest live bot,
+  and hearts/nameplates render the resulting state.
+- `Escape` returns to the menu and entering `Play` resets the encounter. The
+  gameplay path is intentionally small: one arena, one weapon and a bounded
+  encounter rather than the full ARPG roadmap.
 
-### P0 — native Windows gameplay integration
 
-- Replace the static Windows `draw_game` shell path with the same real Kof
-  authoritative gameplay path used by Linux. `kookie_kof_gameplay_main` currently
-  proves the linked PE entry and returns the smoke marker; it is not a complete
-  interactive game loop.
-- Map Windows SDL keyboard, mouse and window events into the shared gameplay
-  contract, then prove the native PE package outside the source checkout.
-- Run the presentation smoke on real supported Windows hardware/driver coverage.
-  Wine artifact and gameplay-marker evidence is useful, but it does not replace a
-  native Windows presentation claim.
+### P0 — native Windows gameplay evidence
+
+- The Windows `presentation` profile now reaches the same Kof SDL gameplay path
+  as Linux, including input, bots, nameplates, hearts and direct/WAN transport.
+- Build and smoke the PE package outside the checkout, then run the presentation
+  smoke on supported Windows hardware/driver coverage. Wine artifact evidence
+  does not replace native presentation evidence.
+
 
 ### P1 — release packaging and distribution
 
@@ -105,9 +104,11 @@ finished playable loop.
 - Bundle only assets with cleared redistribution terms. The prototype goose
   asset remains restricted by its upstream terms and cannot be relabeled CC0 or
   silently included in a public demo.
-- State explicitly that LAN/WAN, Kutter editing, KofScript, save/replay and full
-  ARPG progression are qualification or engine features unless the demo exposes
-  and supports them end to end.
+- State explicitly that the simple authenticated rendezvous and direct UDP
+  hole-punch path are best-effort dogfood networking. Relay service, symmetric
+  NAT recovery, production WAN security, Kutter editing, KofScript, save/replay
+  and full ARPG progression remain separate product boundaries.
+
 
 ## Acceptance matrix before publishing
 
@@ -120,15 +121,16 @@ finished playable loop.
 | Enemy damage/death/HUD/result/restart | Required | Required |
 | Outside-checkout repeated-run smoke | Required | Required |
 | Native hardware presentation evidence | Required on supported Linux GPU | Required on supported Windows GPU |
-| Cross-host multiplayer | Optional for the first single-player demo | Optional for the first single-player demo |
+| Cross-host multiplayer | Required for the simple WAN dogfood path | Required for the simple WAN dogfood path |
+
 
 ## Explicitly not blocking this demo
 
-Full ARPG breadth, arbitrary authoring-format support, production WAN security,
-relay/NAT traversal, HRTF/EFX, streamed/compressed audio, a general extension
-sandbox, macOS/ARM support and broad GPU coverage remain separate milestones.
-They must not be used to claim that the current static presentation surface is
-playable, but they also do not need to block a clearly scoped G1 demo.
+Full ARPG breadth, arbitrary authoring-format support, relay service, symmetric
+NAT recovery, production WAN security, HRTF/EFX, streamed/compressed audio, a
+general extension sandbox, macOS/ARM support and broad GPU coverage remain
+separate milestones. They must not be used to expand this bounded goose game
+claim, but they also do not block the scoped source implementation.
 
 The implementation plan tracks this work as **D1 — Playable demo release** in
 [ENGINE_PLAN.md](../docs/ENGINE_PLAN.md). Build and qualification commands remain

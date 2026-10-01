@@ -1,0 +1,196 @@
+package ui
+
+import core
+
+class GooseStatusOverlay {
+    Int[] actorIds
+    Int[] actorXs
+    Int[] actorYs
+    Int[] actorHealths
+    Int[] actorMaxHealths
+    Int[] actorNameIds
+    Bool[] actorBots
+    Int actorCountValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) {
+            actualCapacity = 1
+        }
+        actorIds = new Int[actualCapacity]
+        actorXs = new Int[actualCapacity]
+        actorYs = new Int[actualCapacity]
+        actorHealths = new Int[actualCapacity]
+        actorMaxHealths = new Int[actualCapacity]
+        actorNameIds = new Int[actualCapacity]
+        actorBots = new Bool[actualCapacity]
+        actorCountValue = 0
+    }
+
+    Bool clear() {
+        actorCountValue = 0
+        return true
+    }
+
+    Bool add(
+        Int actorId, Int x, Int y, Int health, Int maxHealth,
+        Int nameId, Bool bot
+    ) {
+        if (actorCountValue >= actorIds.length || actorId <= 0 ||
+            health < 0 || maxHealth <= 0 || health > maxHealth ||
+            nameId < 1 || nameId > 4) {
+            return false
+        }
+        actorIds[actorCountValue] = actorId
+        actorXs[actorCountValue] = x
+        actorYs[actorCountValue] = y
+        actorHealths[actorCountValue] = health
+        actorMaxHealths[actorCountValue] = maxHealth
+        actorNameIds[actorCountValue] = nameId
+        actorBots[actorCountValue] = bot
+        actorCountValue = actorCountValue + 1
+        return true
+    }
+
+    Int actorCount() { return actorCountValue }
+
+    Int renderVertexCapacity() { return actorIds.length * 240 }
+
+    Int glyph(Char value) {
+        if (value >= 'A' && value <= 'Z') {
+            return (value as Int) - ('A' as Int) + 1
+        }
+        if (value >= '0' && value <= '9') {
+            return (value as Int) - ('0' as Int) + 27
+        }
+        if (value == '.') { return 37 }
+        if (value == ':') { return 38 }
+        if (value == '-') { return 39 }
+        if (value == '/') { return 40 }
+        if (value == '%') { return 41 }
+        if (value == '>') { return 42 }
+        if (value == '+') { return 43 }
+        if (value == '?') { return 44 }
+        return 0
+    }
+
+    Int textResource(Int color, Int glyphValue) {
+        return 100 + color * 48 + glyphValue
+    }
+
+    Bool pushQuad(
+        FrameStaging target, Int resource,
+        Int left, Int bottom, Int right, Int top
+    ) {
+        return target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, bottom, 100, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, top, 0, 0)
+    }
+
+    Int textWidth(String text, Int scale) {
+        if (text.length() == 0) { return 0 }
+        return text.length() * 6 * scale - scale
+    }
+
+    Bool pushText(
+        FrameStaging target, String text,
+        Int left, Int bottom, Int scale, Int color
+    ) {
+        if (scale <= 0 || color < 0 || color > 4) { return false }
+        var x = left
+        for (var index = 0; index < text.length(); index = index + 1) {
+            var glyphValue = glyph(text.charAt(index))
+            if (glyphValue > 0 &&
+                !pushQuad(target, textResource(color, glyphValue),
+                    x, bottom, x + 5 * scale, bottom + 7 * scale)) {
+                return false
+            }
+            x = x + 6 * scale
+        }
+        return true
+    }
+
+    String playerName(Int nameId) {
+        if (nameId == 2) { return "WADDLE" }
+        if (nameId == 3) { return "HONK" }
+        if (nameId == 4) { return "POND" }
+        return "GOOSE"
+    }
+
+    Bool pushName(
+        FrameStaging target, Int actorId, Int nameId, Bool bot,
+        Int centerX, Int bottom
+    ) {
+        var name = playerName(nameId)
+        if (bot) {
+            name = "BOT GOOSE"
+        }
+        return pushText(target, name,
+            centerX - textWidth(name, 1) / 2, bottom, 1,
+            if (bot) 2 else 1)
+    }
+
+    Bool pushHeart(
+        FrameStaging target, Int left, Int bottom, Bool filled, Int resource
+    ) {
+        var colorResource = resource
+        if (!filled) {
+            colorResource = resource - 3
+        }
+        return pushQuad(target, colorResource,
+                left + 1, bottom + 1, left + 3, bottom + 3) &&
+            pushQuad(target, colorResource,
+                left, bottom + 2, left + 2, bottom + 4) &&
+            pushQuad(target, colorResource,
+                left + 2, bottom + 2, left + 4, bottom + 4) &&
+            pushQuad(target, colorResource,
+                left + 1, bottom, left + 3, bottom + 2)
+    }
+
+    Bool pushActor(
+        FrameStaging target, Int actorId, Int x, Int y,
+        Int health, Int maxHealth, Int nameId, Bool bot
+    ) {
+        var bodyResource = if (bot) 14 else 13
+        var beakResource = if (bot) 15 else 12
+        if (!pushQuad(target, bodyResource, x - 5, y - 5, x + 5, y + 4) ||
+            !pushQuad(target, bodyResource, x - 3, y + 4, x + 3, y + 9) ||
+            !pushQuad(target, beakResource, x + 3, y + 5, x + 7, y + 7) ||
+            !pushName(target, actorId, nameId, bot, x, y + 13)) {
+            return false
+        }
+        var maximumHearts = (maxHealth + 19) / 20
+        if (maximumHearts > 5) { maximumHearts = 5 }
+        var filledHearts = (health + 19) / 20
+        if (filledHearts > maximumHearts) { filledHearts = maximumHearts }
+        if (filledHearts < 0) { filledHearts = 0 }
+        for (var heart = 0; heart < maximumHearts; heart = heart + 1) {
+            if (!pushHeart(target, x - maximumHearts * 2 + heart * 4,
+                    y + 22, heart < filledHearts, 18)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool stage(FrameStaging target, Int frame, Int resourceBase) {
+        if (resourceBase <= 0 || actorCountValue <= 0 ||
+            target.vertexCapacity() < renderVertexCapacity() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < actorCountValue; index = index + 1) {
+            if (!pushActor(target,
+                    actorIds[index], actorXs[index], actorYs[index],
+                    actorHealths[index], actorMaxHealths[index],
+                    actorNameIds[index], actorBots[index])) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+}

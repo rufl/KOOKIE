@@ -1,4 +1,5 @@
 import core
+import session
 import demo
 import world
 import ui
@@ -50,6 +51,21 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_listen_ipv4(Int 
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_remote_ipv4(
     Int firstOctet, Int secondOctet, Int thirdOctet, Int fourthOctet, Int port
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_open_rendezvous_environment(
+    Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_peer_ipv4(
+    Int firstOctet, Int secondOctet, Int thirdOctet,
+    Int fourthOctet, Int port
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_reset_session(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_wan_rendezvous_enabled(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_room_code(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_transport_player_name_id(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_input_state(Int input): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_consume_scoreboard_toggle(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_delta_x(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_delta_y(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
     Int key0Low, Int key0High, Int key1Low, Int key1High
 ): Bool
@@ -66,72 +82,351 @@ Int lobbyProtocolMagic() { return 1263488843 }
 Int lobbyMessageHello() { return 1 }
 Int lobbyMessageAccept() { return 2 }
 Int lobbyMessageLeave() { return 3 }
+Int lobbyMessageWait() { return 4 }
+Int lobbyMessagePeer() { return 5 }
+Int lobbyMessageReady() { return 6 }
+Int lobbyMessageUnready() { return 7 }
+
+class NativeLobbyState {
+    Bool wanRendezvousValue
+    Bool wanPeerReadyValue
+    Bool hostValue
+    Int remoteNameIdValue
+
+    public constructor() {
+        wanRendezvousValue = false
+        wanPeerReadyValue = false
+        hostValue = true
+        remoteNameIdValue = 2
+    }
+
+    Bool wanRendezvous() { return wanRendezvousValue }
+    Bool peerReady() { return wanPeerReadyValue }
+    Bool host() { return hostValue }
+    Int remoteNameId() { return remoteNameIdValue }
+    void setWanRendezvous(Bool value) { wanRendezvousValue = value }
+    void setPeerReady(Bool value) { wanPeerReadyValue = value }
+    void setHost(Bool value) { hostValue = value }
+    void setRemoteNameId(Int value) { remoteNameIdValue = value }
+}
 
 Bool configureLobbyKey() {
     if (kookie_transport_set_key_from_environment()) { return true }
     return kookie_transport_set_key(1263488843, 1330332754, 1229737803, 1162760019)
 }
 
-Bool sendLobbyMessage(Int operation, Int port) {
-    return kookie_transport_send_begin(4) &&
+Bool sendLobbyMessage(Int operation, Int role) {
+    var room = kookie_transport_room_code()
+    var name = kookie_transport_player_name_id()
+    return kookie_transport_send_begin(6) &&
         kookie_transport_send_word(0, lobbyProtocolMagic()) &&
         kookie_transport_send_word(1, 1) &&
         kookie_transport_send_word(2, operation) &&
-        kookie_transport_send_word(3, port) &&
+        kookie_transport_send_word(3, room) &&
+        kookie_transport_send_word(4, role) &&
+        kookie_transport_send_word(5, name) &&
         kookie_transport_send_commit()
 }
 
-Bool serviceNetworkRequest(GameShell shell) {
+Int lobbyRole(Int operation) {
+    if (operation == gameShellNetworkHostRequest()) { return 1 }
+    return 2
+}
+
+Bool serviceNetworkRequest(GameShell shell, NativeLobbyState state) {
     var operation = shell.networkRequest()
     if (operation == 0) { return true }
     if (operation == gameShellNetworkLeaveRequest()) {
         if (shell.networkStatus() == gameShellNetworkConnected()) {
-            sendLobbyMessage(lobbyMessageLeave(), shell.port())
+            sendLobbyMessage(
+                lobbyMessageLeave(),
+                if (state.host()) 1 else 2)
         }
+        state.setWanRendezvous(false)
+        state.setPeerReady(false)
+        state.setHost(true)
         kookie_transport_close()
         return shell.completeNetworkRequest(operation, true)
     }
     kookie_transport_close()
+    state.setWanRendezvous(kookie_transport_wan_rendezvous_enabled())
+    state.setPeerReady(false)
+    state.setHost(operation == gameShellNetworkHostRequest())
+    state.setRemoteNameId(
+        if (operation == gameShellNetworkHostRequest()) 2 else 1)
     var success = kookie_transport_select_slot(0) && configureLobbyKey()
-    if (success && operation == gameShellNetworkHostRequest()) {
+    if (success && state.wanRendezvous() &&
+        (operation == gameShellNetworkHostRequest() ||
+            operation == gameShellNetworkJoinRequest())) {
+        success = kookie_transport_open_rendezvous_environment(shell.port()) &&
+            sendLobbyMessage(lobbyMessageHello(), lobbyRole(operation))
+    } else if (success && operation == gameShellNetworkHostRequest()) {
         success = kookie_transport_open_listen_ipv4(shell.port())
     } else if (success && operation == gameShellNetworkJoinRequest()) {
         success = kookie_transport_open_remote_ipv4(
             shell.addressOne(), shell.addressTwo(),
             shell.addressThree(), shell.addressFour(), shell.port()) &&
-            sendLobbyMessage(lobbyMessageHello(), shell.port())
+            sendLobbyMessage(lobbyMessageHello(), lobbyRole(operation))
     }
     if (!success) { kookie_transport_close() }
     return shell.completeNetworkRequest(operation, success)
 }
 
-Bool serviceNetworkHandshake(GameShell shell) {
-    if (shell.networkStatus() != gameShellNetworkHosting() &&
-        shell.networkStatus() != gameShellNetworkJoining() &&
-        shell.networkStatus() != gameShellNetworkConnected()) {
+Bool validLobbyEnvelope(Int received) {
+    return received >= 4 &&
+        kookie_transport_receive_word(0) == lobbyProtocolMagic() &&
+        kookie_transport_receive_word(1) == 1 &&
+        kookie_transport_receive_word(3) == kookie_transport_room_code()
+}
+
+Bool serviceNetworkHandshake(
+    GameShell shell, NativeLobbyState state
+) {
+    var status = shell.networkStatus()
+    if (status != gameShellNetworkHosting() &&
+        status != gameShellNetworkJoining() &&
+        status != gameShellNetworkConnected()) {
         return true
+    }
+    if (state.wanRendezvous() &&
+        status != gameShellNetworkConnected() &&
+        !sendLobbyMessage(
+            lobbyMessageHello(),
+            if (status == gameShellNetworkHosting()) 1 else 2)) {
+        return false
+    }
+    if (status == gameShellNetworkConnected() &&
+        !sendLobbyMessage(
+            if (shell.lobby().localReady())
+                lobbyMessageReady() else lobbyMessageUnready(),
+            if (state.host()) 1 else 2)) {
+        return false
     }
     var received = kookie_transport_receive_available()
-    if (received == 0) { return true }
-    if (received != 4 ||
-        kookie_transport_receive_word(0) != lobbyProtocolMagic() ||
-        kookie_transport_receive_word(1) != 1) {
-        return true
-    }
+    if (received == 0 || !validLobbyEnvelope(received)) { return true }
     var operation = kookie_transport_receive_word(2)
+    if (operation == lobbyMessageWait()) { return true }
+    if (operation == lobbyMessagePeer() && state.wanRendezvous() &&
+        received == 9 &&
+        kookie_transport_receive_word(8) > 0) {
+        if (!kookie_transport_set_peer_ipv4(
+                kookie_transport_receive_word(4),
+                kookie_transport_receive_word(5),
+                kookie_transport_receive_word(6),
+                kookie_transport_receive_word(7),
+                kookie_transport_receive_word(8)) ||
+            !kookie_transport_reset_session()) {
+            return false
+        }
+        state.setPeerReady(true)
+        return sendLobbyMessage(
+            lobbyMessageHello(),
+            if (status == gameShellNetworkHosting()) 1 else 2)
+    }
     if (operation == lobbyMessageLeave()) {
         kookie_transport_close()
+        state.setPeerReady(false)
         return shell.markNetworkDisconnected()
     }
-    if (shell.networkStatus() == gameShellNetworkHosting() &&
-        operation == lobbyMessageHello()) {
+    if (received < 6) { return true }
+    var remoteNameId = kookie_transport_receive_word(5)
+    if (remoteNameId < 1 || remoteNameId > 4) { return false }
+    state.setRemoteNameId(remoteNameId)
+    if (operation == lobbyMessageHello()) {
         return kookie_transport_set_peer_last_sender() &&
-            sendLobbyMessage(lobbyMessageAccept(), shell.port()) &&
+            sendLobbyMessage(lobbyMessageAccept(),
+                if (status == gameShellNetworkHosting()) 1 else 2) &&
             shell.markNetworkConnected()
     }
-    if (shell.networkStatus() == gameShellNetworkJoining() &&
-        operation == lobbyMessageAccept()) {
+    if (operation == lobbyMessageAccept()) {
         return shell.markNetworkConnected()
+    }
+    if ((operation == lobbyMessageReady() ||
+            operation == lobbyMessageUnready()) &&
+        status == gameShellNetworkConnected()) {
+        return shell.lobby().setRemoteReady(
+            operation == lobbyMessageReady())
+    }
+    return true
+}
+
+class NativeGameNetworkState {
+    Int[] receiveValues
+    Int receiveCountValue
+    Int localSequenceValue
+    Int remoteSequenceValue
+    Int remoteMoveValue
+    Bool remoteFireValue
+    Int remotePlayerOneHealthValue
+    Int remotePlayerTwoHealthValue
+    Bool remoteStatusReadyValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        receiveValues = new Int[actualCapacity]
+        receiveCountValue = 0
+        localSequenceValue = 0
+        remoteSequenceValue = 0
+        remoteMoveValue = 0
+        remoteFireValue = false
+        remotePlayerOneHealthValue = 100
+        remotePlayerTwoHealthValue = 100
+        remoteStatusReadyValue = false
+    }
+
+    void reset() {
+        receiveCountValue = 0
+        localSequenceValue = 0
+        remoteSequenceValue = 0
+        remoteMoveValue = 0
+        remoteFireValue = false
+        remotePlayerOneHealthValue = 100
+        remotePlayerTwoHealthValue = 100
+        remoteStatusReadyValue = false
+    }
+
+    Int nextLocalSequence() {
+        localSequenceValue = localSequenceValue + 1
+        if (localSequenceValue > 1000000) { localSequenceValue = 1 }
+        return localSequenceValue
+    }
+
+    Int nextRemoteSequence() {
+        remoteSequenceValue = remoteSequenceValue + 1
+        if (remoteSequenceValue > 1000000) { remoteSequenceValue = 1 }
+        return remoteSequenceValue
+    }
+
+    void setRemoteMove(Int value) {
+        remoteMoveValue = value
+        if (remoteMoveValue < -4) { remoteMoveValue = -4 }
+        if (remoteMoveValue > 4) { remoteMoveValue = 4 }
+    }
+
+    Int remoteMove() { return remoteMoveValue }
+    void setRemoteFire() { remoteFireValue = true }
+    Bool consumeRemoteFire() {
+        var result = remoteFireValue
+        remoteFireValue = false
+        return result
+    }
+    void setRemotePlayerHealth(Int playerOne, Int playerTwo) {
+        remotePlayerOneHealthValue = playerOne
+        remotePlayerTwoHealthValue = playerTwo
+        if (remotePlayerOneHealthValue < 0) { remotePlayerOneHealthValue = 0 }
+        if (remotePlayerOneHealthValue > 100) { remotePlayerOneHealthValue = 100 }
+        if (remotePlayerTwoHealthValue < 0) { remotePlayerTwoHealthValue = 0 }
+        if (remotePlayerTwoHealthValue > 100) { remotePlayerTwoHealthValue = 100 }
+        remoteStatusReadyValue = true
+    }
+    Bool remoteStatusReady() { return remoteStatusReadyValue }
+    Int remotePlayerOneHealth() { return remotePlayerOneHealthValue }
+    Int remotePlayerTwoHealth() { return remotePlayerTwoHealthValue }
+
+    Bool capturePacket() {
+        receiveCountValue = kookie_transport_receive_available()
+        if (receiveCountValue <= 0 || receiveCountValue > receiveValues.length) {
+            receiveCountValue = 0
+            return false
+        }
+        for (var index = 0;
+            index < receiveCountValue; index = index + 1) {
+            receiveValues[index] = kookie_transport_receive_word(index)
+        }
+        return true
+    }
+
+    Int received() { return receiveCountValue }
+    Int word(Int index) {
+        if (index < 0 || index >= receiveCountValue) { return 0 }
+        return receiveValues[index]
+    }
+
+    Int[] packet() {
+        var result = new Int[receiveCountValue]
+        for (var index = 0; index < receiveCountValue; index = index + 1) {
+            result[index] = receiveValues[index]
+        }
+        return result
+    }
+}
+
+Bool sendGamePayload(Int[] payload) {
+    if (payload.length <= 0 || payload.length > 300 ||
+        !kookie_transport_send_begin(payload.length)) {
+        return false
+    }
+    for (var index = 0; index < payload.length; index = index + 1) {
+        if (!kookie_transport_send_word(index, payload[index])) {
+            return false
+        }
+    }
+    return kookie_transport_send_commit()
+}
+
+Int localMoveAxis() {
+    var value = 0
+    if (kookie_input_state(1) != 0) { value = value + 1 }
+    if (kookie_input_state(2) != 0) { value = value - 1 }
+    if (kookie_input_state(3) != 0) { value = value - 1 }
+    if (kookie_input_state(4) != 0) { value = value + 1 }
+    if (value < -4) { return -4 }
+    if (value > 4) { return 4 }
+    return value
+}
+
+Int gooseStatusMagic() { return 1196384339 }
+
+Bool validGooseStatusMessage(Int[] words) {
+    return words.length == 5 &&
+        words[0] == gooseStatusMagic() &&
+        words[1] == 1 &&
+        words[2] >= 0 && words[2] <= 1000000 &&
+        words[3] >= 0 && words[3] <= 100 &&
+        words[4] >= 0 && words[4] <= 100
+}
+Bool processGamePackets(
+    LoopbackSession session, NativeGameNetworkState state,
+    MatchScoreboardState scoreboard, Bool host
+) {
+    for (var packet = 0; packet < 8; packet = packet + 1) {
+        if (!state.capturePacket()) { return true }
+        var words = state.packet()
+        if (host && validGameplayCommandMessage(words) &&
+            gameplayCommandPlayer(words) == 2) {
+            if (gameplayCommandAction(words) == gameplayMoveAction()) {
+                state.setRemoteMove(gameplayCommandValue(words, 0))
+            } else if (gameplayCommandAction(words) == gameplayFireAction()) {
+                state.setRemoteFire()
+            }
+        } else if (!host && validGameplayStateMessage(words)) {
+            session.applyRemoteGameplayState(words)
+        } else if (!host && validEnemyEncounterStateMessage(words)) {
+            session.applyRemoteEnemyEncounterState(words)
+        } else if (!host && validMultiplayerScoreboardMessage(words)) {
+            scoreboard.apply(words)
+        } else if (!host && validGooseStatusMessage(words)) {
+            state.setRemotePlayerHealth(words[3], words[4])
+        }
+    }
+    return true
+}
+
+Bool sendLocalGameInput(
+    LoopbackSession session, NativeGameNetworkState state,
+    Int player, Int move, Int fire
+) {
+    var tick = session.currentServerTick() + 1
+    var sequence = state.nextLocalSequence()
+    var movement = newGameplayCommandMessage(
+        player, tick, sequence, gameplayMoveAction(), move, 0, 0, 1)
+    if (!sendGamePayload(movement)) { return false }
+    if (fire != 0) {
+        var shot = newGameplayCommandMessage(
+            player, tick, state.nextLocalSequence(), gameplayFireAction(),
+            3, 20, 0, 1)
+        if (!sendGamePayload(shot)) { return false }
     }
     return true
 }
@@ -142,29 +437,119 @@ class G1NativePresentation {
     G1Arena arena
     LoopbackSession interactionSession
     ShooterHud hud
+    GooseStatusOverlay gooseOverlay
+    MultiplayerScoreboard scoreboardUi
+    MatchScoreboardState scoreboardState
     CameraState camera
     FrameStaging worldFrame
     FrameStaging hudFrame
     FrameStaging doorFrame
+    FrameStaging actorFrame
+    FrameStaging scoreboardFrame
     Int worldCapacity
     Int hudCapacity
     Int nativeCapacity
     Int doorCapacity
-
+    Int actorCapacity
+    Int scoreboardCapacity
+    Bool mirrorRemoteValue
+    Int localNameIdValue
+    Int remoteNameIdValue
+    Int playerKillsOneValue
+    Int playerKillsTwoValue
+    Int playerDeathsOneValue
+    Int playerDeathsTwoValue
     public constructor() {
         scenario = G1Demo()
         kutterScenario = G4KutterDemo()
         arena = scenario.authoredArena()
         hud = scenario.shooterHud()
+        gooseOverlay = GooseStatusOverlay(6)
+        scoreboardUi = MultiplayerScoreboard()
+        scoreboardState = MatchScoreboardState(2)
         camera = CameraState(-450, 450)
-        interactionSession = LoopbackSession(1, 1)
+        interactionSession = LoopbackSession(16, 8)
         worldFrame = FrameStaging(arena.renderVertexCount())
         doorFrame = FrameStaging(36)
         hudFrame = FrameStaging(hud.renderVertexCount())
+        actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
+        scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
         worldCapacity = worldFrame.vertexCapacity()
         doorCapacity = doorFrame.vertexCapacity()
         hudCapacity = hudFrame.vertexCapacity()
+        actorCapacity = actorFrame.vertexCapacity()
+        scoreboardCapacity = scoreboardFrame.vertexCapacity()
         nativeCapacity = 0
+        mirrorRemoteValue = false
+        localNameIdValue = 1
+        remoteNameIdValue = 2
+        playerKillsOneValue = 0
+        playerKillsTwoValue = 0
+        playerDeathsOneValue = 0
+        playerDeathsTwoValue = 0
+    }
+
+    Bool prepareGooseSession() {
+        if (!interactionSession.loadAuthoredBroadPhase(
+                arena.authoredCollision()) ||
+            !interactionSession.configureEnemyRules(50, 35, 15) ||
+            !interactionSession.defineEnemyWeapon(7, 10, 0, 3, 1) ||
+            !interactionSession.setEnemyWeaponRange(7, 40) ||
+            !interactionSession.setEnemyWeaponCooldown(7, 15) ||
+            !interactionSession.defineEnemyEncounter(4, 4, 12) ||
+            !interactionSession.configureEnemyEncounterZone(
+                4, 16, 1, 12, 28) ||
+            !interactionSession.configureEnemySpatialBounds(
+                -16, -4, -4, 40, 16, 32) ||
+            !interactionSession.definePlayerWeapon(7, 10, 0, 3, 1) ||
+            !interactionSession.setPlayerWeaponRange(7, 40) ||
+            !interactionSession.addEnemyCombatActor(1, 100, 0) ||
+            !interactionSession.addEnemyCombatActor(2, 100, 0) ||
+            !interactionSession.equipEnemyCombatWeapon(1, 7) ||
+            !interactionSession.equipEnemyCombatWeapon(2, 7) ||
+            !interactionSession.defineWorldKey(1, 30, 0, 0, 0) ||
+            !interactionSession.defineWorldDoor(
+                2, 1, 0, 5, 5, 3, 5, 1, 8) ||
+            !interactionSession.start()) {
+            return false
+        }
+        if (interactionSession.connectPlayer() != 1 ||
+            interactionSession.connectPlayer() != 2) {
+            return false
+        }
+        if (!interactionSession.addPlayerCombatActor(1, 100, 0) ||
+            !interactionSession.addPlayerCombatActor(2, 100, 0) ||
+            !interactionSession.equipPlayerCombatWeapon(1, 7) ||
+            !interactionSession.equipPlayerCombatWeapon(2, 7)) {
+            return false
+        }
+        if (!interactionSession.setEnemySpatialPosition(1, -6, 1, 6) ||
+            !interactionSession.setEnemySpatialPosition(2, 6, 1, 6) ||
+            !interactionSession.admitEnemyAt(
+                4, 3, 0, 80, 0, 7, 8, 1, 12) ||
+            !interactionSession.admitEnemyAt(
+                4, 4, 0, 80, 0, 7, 18, 1, 18) ||
+            !interactionSession.admitEnemyAt(
+                4, 5, 0, 80, 0, 7, 28, 1, 24) ||
+            !interactionSession.configureEnemyRole(3, 1, 1, 1, 0) ||
+            !interactionSession.configureEnemyRole(4, 1, 1, 1, 0) ||
+            !interactionSession.configureEnemyRole(5, 2, 1, 2, 0) ||
+            !hud.update(100, 3, 3, 0, true) ||
+            !hud.updateEncounterReplication(3, 9, true, 1, 1)) {
+            return false
+        }
+        return true
+    }
+
+    Bool resetGooseSession() {
+        interactionSession = LoopbackSession(16, 8)
+        scoreboardState = MatchScoreboardState(2)
+        scoreboardUi.setVisible(false)
+        playerKillsOneValue = 0
+        playerKillsTwoValue = 0
+        playerDeathsOneValue = 0
+        playerDeathsTwoValue = 0
+        return prepareGooseSession()
     }
 
     Bool prepare() {
@@ -175,10 +560,7 @@ class G1NativePresentation {
                 kutterScenario.publicationDiagnostic(),
                 kutterScenario.completed()) ||
             !camera.applyLook(20, -20) ||
-            !interactionSession.defineWorldKey(1, 30, 0, 0, 0) ||
-            !interactionSession.defineWorldDoor(
-                2, 1, 0, 5, 5, 3, 5, 1, 8) ||
-            !interactionSession.start()) {
+            !prepareGooseSession()) {
             return false
         }
         var blocked = interactionSession.queryWorldDoorPath(
@@ -190,7 +572,9 @@ class G1NativePresentation {
             return false
         }
         nativeCapacity = kookie_gpu_scene_capacity()
-        return nativeCapacity >= worldCapacity + doorCapacity + hudCapacity
+        return nativeCapacity >=
+            worldCapacity + doorCapacity + hudCapacity +
+            actorCapacity + scoreboardCapacity
     }
 
     Bool upload(FrameStaging frame) {
@@ -205,21 +589,247 @@ class G1NativePresentation {
         return true
     }
 
-    Bool drawGameFrame(Int frame) {
-        var vertexCount = worldCapacity + doorCapacity + hudCapacity
+    Bool configureIdentity(
+        Bool mirrorRemote, Int localNameId, Int remoteNameId
+    ) {
+        if (localNameId < 1 || localNameId > 4 ||
+            remoteNameId < 1 || remoteNameId > 4) {
+            return false
+        }
+        mirrorRemoteValue = mirrorRemote
+        localNameIdValue = localNameId
+        remoteNameIdValue = remoteNameId
+        return true
+    }
+    LoopbackSession gameplaySession() {
+        return interactionSession
+    }
+
+    MatchScoreboardState scoreboard() {
+        return scoreboardState
+    }
+    Bool toggleScoreboard() {
+        return scoreboardUi.toggle()
+    }
+
+    Bool refreshScoreboard(GameShell shell, Bool host) {
+        if (!host || !scoreboardState.clear()) { return !host }
+        var playerOneHealth = interactionSession.enemyCombatHealth(1)
+        var playerTwoHealth = interactionSession.enemyCombatHealth(2)
+        var playerOneFlags =
+            multiplayerScoreboardFlagConnected() +
+            multiplayerScoreboardFlagAlive() +
+            multiplayerScoreboardFlagHost()
+        var playerTwoFlags =
+            multiplayerScoreboardFlagConnected() +
+            multiplayerScoreboardFlagAlive()
+        if (playerOneHealth <= 0) {
+            playerOneFlags = playerOneFlags -
+                multiplayerScoreboardFlagAlive()
+        }
+        if (playerTwoHealth <= 0) {
+            playerTwoFlags = playerTwoFlags -
+                multiplayerScoreboardFlagAlive()
+        }
+        if (shell.lobby().localReady()) {
+            playerOneFlags = playerOneFlags + multiplayerScoreboardFlagReady()
+        }
+        if (shell.lobby().remoteReady()) {
+            playerTwoFlags = playerTwoFlags + multiplayerScoreboardFlagReady()
+        }
+        return scoreboardState.setPlayer(
+                1, localNameIdValue, 0, playerOneFlags,
+                playerOneHealth, 100, playerKillsOneValue,
+                playerDeathsOneValue, playerKillsOneValue * 100, 0,
+                interactionSession.currentServerTick()) &&
+            scoreboardState.setPlayer(
+                2, remoteNameIdValue, 0, playerTwoFlags,
+                playerTwoHealth, 100, playerKillsTwoValue,
+                playerDeathsTwoValue, playerKillsTwoValue * 100, 0,
+                interactionSession.currentServerTick())
+    }
+
+    Bool stageGooseActors(Int frame, NativeGameNetworkState network) {
+        if (!gooseOverlay.clear()) { return false }
+        var playerOneX = interactionSession.serverPosition(1)
+        var playerTwoX = interactionSession.serverPosition(2)
+        var playerOneHealth = interactionSession.enemyCombatHealth(1)
+        var playerTwoHealth = interactionSession.enemyCombatHealth(2)
+        if (mirrorRemoteValue &&
+            interactionSession.clientRemoteBaselineReady()) {
+            playerOneX = interactionSession.clientRemotePlayerPosition(1)
+            playerTwoX = interactionSession.clientRemotePlayerPosition(2)
+            if (interactionSession.clientRemotePlayer() == 1) {
+                playerOneHealth = interactionSession.clientRemoteCombatHealth()
+            }
+        }
+        if (mirrorRemoteValue && network.remoteStatusReady()) {
+            playerOneHealth = network.remotePlayerOneHealth()
+            playerTwoHealth = network.remotePlayerTwoHealth()
+        }
+        if (playerOneHealth < 0) { playerOneHealth = 0 }
+        if (playerTwoHealth < 0) { playerTwoHealth = 0 }
+        if (playerOneHealth > 100) { playerOneHealth = 100 }
+        if (playerTwoHealth > 100) { playerTwoHealth = 100 }
+        var playerOneName = remoteNameIdValue
+        var playerTwoName = localNameIdValue
+        if (!mirrorRemoteValue) {
+            playerOneName = localNameIdValue
+            playerTwoName = remoteNameIdValue
+        }
+        if (!gooseOverlay.add(
+                1, arena.projectX(playerOneX, 6, camera),
+                arena.projectY(playerOneX, 1, 6, camera),
+                playerOneHealth, 100, playerOneName, false) ||
+            !gooseOverlay.add(
+                2, arena.projectX(playerTwoX, 6, camera),
+                arena.projectY(playerTwoX, 1, 6, camera),
+                playerTwoHealth, 100, playerTwoName, false)) {
+            return false
+        }
+        for (var bot = 3; bot <= 5; bot = bot + 1) {
+            var botX = interactionSession.enemySpatialPositionX(bot)
+            var botY = interactionSession.enemySpatialPositionY(bot)
+            var botZ = interactionSession.enemySpatialPositionZ(bot)
+            var botHealth = interactionSession.enemyCombatHealth(bot)
+            if (mirrorRemoteValue &&
+                interactionSession.clientRemoteEnemyIndex(bot) >= 0) {
+                botX = interactionSession.clientRemoteEnemyPositionX(bot)
+                botY = interactionSession.clientRemoteEnemyPositionY(bot)
+                botZ = interactionSession.clientRemoteEnemyPositionZ(bot)
+                botHealth = interactionSession.clientRemoteEnemyHealth(bot)
+            }
+            if (botHealth < 0) { botHealth = 0 }
+            if (botHealth > 80) { botHealth = 80 }
+            if (!gooseOverlay.add(
+                    bot,
+                    arena.projectX(botX, botZ, camera),
+                    arena.projectY(botX, botY, botZ, camera),
+                    botHealth, 80, bot - 2, true)) {
+                return false
+            }
+        }
+        return gooseOverlay.stage(actorFrame, frame, 9)
+    }
+
+    Bool applyMouseLook() {
+        return camera.applyLook(
+            kookie_consume_mouse_delta_x() / 2,
+            -kookie_consume_mouse_delta_y() / 2)
+    }
+
+    Bool fireNearestBot(Int player) {
+        if (player != 1 && player != 2) { return false }
+        var playerX = interactionSession.serverPosition(player)
+        var target = 0
+        var distance = 1000001
+        for (var bot = 3; bot <= 5; bot = bot + 1) {
+            if (interactionSession.enemyState(bot) != 7 &&
+                interactionSession.enemyCombatHealth(bot) > 0) {
+                var botX = interactionSession.enemySpatialPositionX(bot)
+                var delta = botX - playerX
+                if (delta < 0) { delta = -delta }
+                if (delta < distance) {
+                    distance = delta
+                    target = bot
+                }
+            }
+        }
+        if (target > 0) {
+            var result = interactionSession.resolveEnemyHitscan(
+                player, target, interactionSession.currentServerTick(),
+                distance, 0)
+            if (result.accepted() && result.died()) {
+                if (player == 1) {
+                    playerKillsOneValue = playerKillsOneValue + 1
+                } else {
+                    playerKillsTwoValue = playerKillsTwoValue + 1
+                }
+            }
+        }
+        return true
+    }
+
+    Bool advanceGameplay(
+        Bool host, NativeGameNetworkState state
+    ) {
+        var player = if (host) 1 else 2
+        var tick = interactionSession.currentServerTick() + 1
+        var fire = kookie_input_state(5)
+        var playerOneHealthBefore = interactionSession.enemyCombatHealth(1)
+        var playerTwoHealthBefore = interactionSession.enemyCombatHealth(2)
+        if (!host &&
+            !sendLocalGameInput(
+                interactionSession, state, player, localMoveAxis(), fire)) {
+            return false
+        }
+        if (!interactionSession.receiveInput(
+                player, tick, state.nextLocalSequence(),
+                localMoveAxis(), 0, 0, 0, fire,
+                kookie_input_state(6))) {
+            return false
+        }
+        if (host &&
+            !interactionSession.receiveInput(
+                2, tick, state.nextRemoteSequence(),
+                state.remoteMove(), 0, 0, 0, 0, 0)) {
+            return false
+        }
+        if (interactionSession.advance(16667) != 1) {
+            return false
+        }
+        var playerOneHealthAfter = interactionSession.enemyCombatHealth(1)
+        var playerTwoHealthAfter = interactionSession.enemyCombatHealth(2)
+        if (playerOneHealthBefore > 0 && playerOneHealthAfter <= 0) {
+            playerDeathsOneValue = playerDeathsOneValue + 1
+        }
+        if (playerTwoHealthBefore > 0 && playerTwoHealthAfter <= 0) {
+            playerDeathsTwoValue = playerDeathsTwoValue + 1
+        }
+        if (interactionSession.lastInputEdges(player).firePressed() != 0 &&
+            !fireNearestBot(player)) {
+            return false
+        }
+        if (host && state.consumeRemoteFire() &&
+            !fireNearestBot(2)) {
+            return false
+        }
+        return true
+    }
+
+    Bool drawGameFrame(Int frame, NativeGameNetworkState network) {
+        var scoreboardVisible = scoreboardUi.visible()
+        var scoreboardCount = 0
+        if (scoreboardVisible) {
+            if (!scoreboardUi.stage(scoreboardFrame, frame, scoreboardState)) {
+                return false
+            }
+            scoreboardCount = scoreboardFrame.stagedCount()
+        }
+        var vertexCount =
+            worldCapacity + actorCapacity + doorCapacity + hudCapacity +
+            scoreboardCount
         if (!arena.stage(worldFrame, frame, 1, camera) ||
+            !stageGooseActors(frame, network) ||
             !interactionSession.stageWorldInteractionGeometry(
                 doorFrame, frame, 7, camera) ||
             !hud.stage(hudFrame, frame, 9) ||
             !kookie_gpu_scene_begin(vertexCount) ||
-            !upload(worldFrame) || !upload(doorFrame) || !upload(hudFrame) ||
+            !upload(worldFrame) || !upload(actorFrame) ||
+            !upload(doorFrame) || !upload(hudFrame) ||
+            (scoreboardVisible && !upload(scoreboardFrame)) ||
             !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != vertexCount ||
             !kookie_gpu_draw_scene()) {
             return false
         }
-        return worldFrame.retire(frame) &&
+        var retired = worldFrame.retire(frame) &&
+            actorFrame.retire(frame) &&
             doorFrame.retire(frame) && hudFrame.retire(frame)
+        if (scoreboardVisible) {
+            retired = retired && scoreboardFrame.retire(frame)
+        }
+        return retired
     }
 
     Bool drawShellFrame(GameShell shell, FrameStaging shellFrame, Int frame) {
@@ -236,8 +846,10 @@ class G1NativePresentation {
 
     Bool capacitiesStable() {
         return worldFrame.vertexCapacity() == worldCapacity &&
+            actorFrame.vertexCapacity() == actorCapacity &&
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&
+            scoreboardFrame.vertexCapacity() == scoreboardCapacity &&
             kookie_gpu_scene_capacity() == nativeCapacity
     }
 
@@ -249,6 +861,29 @@ class G1NativePresentation {
     Int combatFeedbackGain() { return scenario.combatFeedbackGain() }
     Int combatFeedbackLeftGain() { return scenario.combatFeedbackLeftGain() }
     Int combatFeedbackRightGain() { return scenario.combatFeedbackRightGain() }
+}
+
+Bool sendHostGameState(
+    LoopbackSession session, MatchScoreboardState scoreboard
+) {
+    var tick = session.currentServerTick()
+    var playerState = session.gameplayStateMessage(tick, 1, 1)
+    if (playerState.length == 0 || !sendGamePayload(playerState)) {
+        return false
+    }
+    var enemyState = session.enemyEncounterStateMessage(tick, 4)
+    if (enemyState.length == 0 || !sendGamePayload(enemyState)) {
+        return false
+    }
+    var status = new Int[5]
+    status[0] = gooseStatusMagic()
+    status[1] = 1
+    status[2] = tick
+    status[3] = session.enemyCombatHealth(1)
+    status[4] = session.enemyCombatHealth(2)
+    if (!sendGamePayload(status)) { return false }
+    var scoreboardMessage = scoreboard.publish(tick)
+    return scoreboardMessage.length > 0 && sendGamePayload(scoreboardMessage)
 }
 
 main() {
@@ -264,6 +899,16 @@ main() {
     var presentation = G1NativePresentation()
     assert(presentation.prepare(), "authored bounded game scene must prepare")
     var shell = GameShell()
+    var lobby = NativeLobbyState()
+    var network = NativeGameNetworkState(300)
+    var localNameId = kookie_transport_player_name_id()
+    var defaultRemoteNameId = if (localNameId == 1) 2 else 1
+    assert(presentation.configureIdentity(
+            false, localNameId, defaultRemoteNameId),
+        "goose identity must have bounded local and remote names")
+    assert(shell.configureLobbyIdentity(
+            localNameId, defaultRemoteNameId, kookie_transport_room_code()),
+        "lobby identity must remain bounded")
     var shellFrame = FrameStaging(shell.renderVertexCapacity())
     assert(kookie_gpu_scene_capacity() >= shell.renderVertexCapacity(),
         "native scene must hold menu geometry")
@@ -288,7 +933,7 @@ main() {
     var smoke = kookie_presentation_smoke_requested()
     var frame = 1
     if (smoke) {
-        assert(presentation.drawGameFrame(frame),
+        assert(presentation.drawGameFrame(frame, network),
             "authored arena and authoritative HUD must draw")
         frame = frame + 1
         assert(kookie_gpu_reload_stage(
@@ -316,6 +961,7 @@ main() {
 
     var running = true
     var menuFrames = 0
+    var wasGameplay = false
     while (running && !shell.quitRequested()) {
         var eventKind = kookie_poll_event()
         while (eventKind != 0) {
@@ -335,11 +981,36 @@ main() {
             }
             eventKind = kookie_poll_event()
         }
+        if (kookie_consume_scoreboard_toggle() != 0 &&
+            shell.gameplayVisible()) {
+            presentation.toggleScoreboard()
+        }
 
-        assert(serviceNetworkRequest(shell),
+        if (shell.networkRequest() != 0) {
+            network.reset()
+        }
+        assert(serviceNetworkRequest(shell, lobby),
             "lobby request must reach the authenticated UDP transport")
-        assert(serviceNetworkHandshake(shell),
+        assert(serviceNetworkHandshake(shell, lobby),
             "lobby handshake must remain valid")
+        assert(shell.configureLobbyIdentity(
+                localNameId, lobby.remoteNameId(),
+                kookie_transport_room_code()),
+            "lobby screen must expose the current bounded peer identity")
+        if (shell.networkStatus() == gameShellNetworkConnected() &&
+            shell.lobby().phase() == multiplayerLobbyPhaseReady() &&
+            !shell.gameplayVisible()) {
+            assert(shell.enterGameplay(),
+                "ready lobby must enter the playable goose scene")
+        }
+        var gameplayVisibleNow = shell.gameplayVisible()
+        if (gameplayVisibleNow && !wasGameplay) {
+            network.reset()
+            assert(presentation.resetGooseSession(),
+                "entering gameplay must create a fresh bot encounter")
+        }
+        wasGameplay = gameplayVisibleNow
+
 
         if (audio > 0 &&
             shell.settingsRevision() != appliedSettingsRevision) {
@@ -370,9 +1041,39 @@ main() {
                 "validated kutter products must stage before GPU upload")
         }
 
+        if (shell.gameplayVisible()) {
+            var hostGameplay = true
+            if (shell.networkStatus() == gameShellNetworkConnected()) {
+                hostGameplay = lobby.host()
+            }
+            assert(processGamePackets(
+                    presentation.gameplaySession(), network,
+                    presentation.scoreboard(), hostGameplay),
+                "gameplay packets must remain bounded and authenticated")
+            assert(presentation.applyMouseLook(),
+                "mouse look input must update the deterministic camera")
+            assert(presentation.advanceGameplay(hostGameplay, network),
+                "goose gameplay must advance one fixed tick")
+            assert(presentation.refreshScoreboard(
+                    shell, hostGameplay),
+                "authoritative scoreboard must remain bounded")
+            if (hostGameplay &&
+                shell.networkStatus() == gameShellNetworkConnected()) {
+                assert(sendHostGameState(
+                        presentation.gameplaySession(),
+                        presentation.scoreboard()),
+                    "host must publish player, bot and scoreboard snapshots")
+            }
+            assert(presentation.configureIdentity(
+                    !hostGameplay &&
+                        shell.networkStatus() == gameShellNetworkConnected(),
+                    localNameId, lobby.remoteNameId()),
+                "network identity must drive goose nameplates")
+        }
+
         if (running && !shell.quitRequested()) {
             if (shell.gameplayVisible()) {
-                assert(presentation.drawGameFrame(frame),
+                assert(presentation.drawGameFrame(frame, network),
                     "gameplay scene must draw")
             } else {
                 assert(presentation.drawShellFrame(shell, shellFrame, frame),

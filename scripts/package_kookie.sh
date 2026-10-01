@@ -432,6 +432,9 @@ cd "$root"
 exec ./kookie-server.bin
 EOF
   chmod 755 "$PACKAGE_ROOT/kookie-server"
+  cp -- "$ROOT_DIR/scripts/kookie_rendezvous.py" \
+    "$PACKAGE_ROOT/kookie-rendezvous.py"
+  chmod 755 "$PACKAGE_ROOT/kookie-rendezvous.py"
 }
 
 bundle_linux_kooker() {

@@ -1,0 +1,131 @@
+import core
+import session
+import ui
+
+main() {
+    var lobby = MatchLobbyState()
+    assert(lobby.valid(), "fresh lobby state must be valid")
+    assert(lobby.beginHost(4242, 1) &&
+        lobby.phase() == multiplayerLobbyPhaseHosting(),
+        "host admission must enter hosting")
+    assert(lobby.markWaiting(4242) &&
+        lobby.phase() == multiplayerLobbyPhaseWaiting() &&
+        lobby.playerCount() == 1,
+        "host must expose a bounded waiting state")
+    assert(lobby.markConnected(2, 38) &&
+        lobby.phase() == multiplayerLobbyPhaseConnected() &&
+        lobby.remoteConnected() && lobby.playerCount() == 2,
+        "peer admission must become connected with ping")
+    assert(lobby.setLocalReady(true) && lobby.setRemoteReady(true) &&
+        lobby.phase() == multiplayerLobbyPhaseReady(),
+        "ready state must require both players")
+    assert(lobby.setLocalReady(false) &&
+        lobby.phase() == multiplayerLobbyPhaseConnected() &&
+        lobby.setLocalReady(true) &&
+        lobby.phase() == multiplayerLobbyPhaseReady(),
+        "unready transition must revoke the ready phase")
+    assert(lobby.valid() && lobby.ping() == 38,
+        "ready lobby state must preserve validated identity and ping")
+    assert(!lobby.beginJoin(4242, 1),
+        "connected lobby must reject a second admission transaction")
+    assert(lobby.fail(multiplayerLobbyErrorProtocol()) &&
+        lobby.phase() == multiplayerLobbyPhaseFailed() &&
+        lobby.error() == multiplayerLobbyErrorProtocol(),
+        "protocol failure must remain visible")
+    assert(lobby.leave() && lobby.phase() == multiplayerLobbyPhaseOffline(),
+        "leave must return the lobby to offline")
+    var shell = GameShell()
+    var lobbyFrame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.configureLobbyIdentity(1, 2, 4242) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenMultiplayer() &&
+        shell.stage(lobbyFrame, 1) &&
+        lobbyFrame.stagedCount() > 0 &&
+        lobbyFrame.retire(1),
+        "multiplayer shell must render the lobby player card")
+    var readyShell = GameShell()
+    assert(readyShell.configureLobbyIdentity(1, 2, 4242),
+        "readiness shell identity must be valid")
+    assert(readyShell.handleAction(gameShellActionDown()),
+        "readiness shell must enter multiplayer selection")
+    assert(readyShell.handleAction(gameShellActionActivate()),
+        "readiness shell must enter multiplayer selection")
+    assert(readyShell.handleAction(gameShellActionActivate()),
+        "readiness shell must activate host")
+    assert(readyShell.completeNetworkRequest(
+            gameShellNetworkHostRequest(), true),
+        "readiness shell host request must complete")
+    assert(readyShell.markNetworkConnected(),
+        "readiness shell must accept peer connection")
+    assert(!readyShell.enterGameplay(),
+        "connected lobby must wait for explicit readiness")
+    for (var move = 0; move < 5; move = move + 1) {
+        assert(readyShell.handleAction(gameShellActionDown()),
+            "ready action must remain reachable after network controls")
+    }
+    assert(readyShell.handleAction(gameShellActionActivate()) &&
+        readyShell.lobby().localReady(),
+        "local ready action must set the local flag")
+    assert(!readyShell.enterGameplay(),
+        "one ready player must not unlock gameplay")
+    assert(readyShell.lobby().setRemoteReady(true) &&
+        readyShell.enterGameplay(),
+        "gameplay must unlock only after both players are ready")
+
+
+    var host = MatchScoreboardState(2)
+    assert(host.setPlayer(
+            1, 1, 0,
+            multiplayerScoreboardFlagConnected() +
+                multiplayerScoreboardFlagAlive() +
+                multiplayerScoreboardFlagHost(),
+            90, 100, 3, 1, 300, 38, 10) &&
+        host.setPlayer(
+            2, 2, 0,
+            multiplayerScoreboardFlagConnected() +
+                multiplayerScoreboardFlagAlive() +
+                multiplayerScoreboardFlagReady(),
+            75, 100, 4, 0, 400, 42, 10),
+        "scoreboard must accept bounded player rows")
+    var packet = host.publish(10)
+    assert(packet.length == multiplayerScoreboardMessageLength(2) &&
+        validMultiplayerScoreboardMessage(packet),
+        "scoreboard publish must seal the bounded wire")
+
+    var client = MatchScoreboardState(2)
+    assert(client.apply(packet) && client.count() == 2 &&
+        client.playerIdAt(0) == 2 && client.playerIdAt(1) == 1 &&
+        client.scoreAt(0) == 400 && client.pingAt(1) == 38,
+        "client scoreboard must validate and rank deterministically")
+    assert(!client.apply(packet),
+        "duplicate scoreboard sequence must be rejected")
+    var foreign = new Int[packet.length]
+    for (var index = 0; index < packet.length; index = index + 1) {
+        foreign[index] = packet[index]
+    }
+    foreign[5] = 3
+    foreign[foreign.length - 1] =
+        multiplayerScoreboardChecksum(foreign, foreign.length - 1)
+    assert(validMultiplayerScoreboardMessage(foreign) &&
+        !client.apply(foreign) && client.sequence() == 1 && client.count() == 2,
+        "client capacity rejection must not mutate the scoreboard")
+
+    var tampered = new Int[packet.length]
+    for (var index = 0; index < packet.length; index = index + 1) {
+        tampered[index] = packet[index]
+    }
+    tampered[13] = tampered[13] + 1
+    assert(!validMultiplayerScoreboardMessage(tampered),
+        "tampered player statistics must fail the checksum")
+
+    var scoreboard = MultiplayerScoreboard()
+    var frame = FrameStaging(scoreboard.renderVertexCapacity())
+    assert(scoreboard.setVisible(true) &&
+        scoreboard.stage(frame, 1, client) &&
+        frame.stagedCount() > 0 &&
+        frame.stagedCount() <= scoreboard.renderVertexCapacity() &&
+        frame.retire(1),
+        "visible scoreboard must stage a bounded player screen")
+    println("KOOKIE G8 multiplayer lobby scoreboard verified")
+}

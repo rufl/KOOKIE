@@ -1,0 +1,593 @@
+package session
+
+Int multiplayerLobbyPhaseOffline() { return 0 }
+Int multiplayerLobbyPhaseHosting() { return 1 }
+Int multiplayerLobbyPhaseJoining() { return 2 }
+Int multiplayerLobbyPhaseWaiting() { return 3 }
+Int multiplayerLobbyPhaseReady() { return 4 }
+Int multiplayerLobbyPhaseConnected() { return 5 }
+Int multiplayerLobbyPhaseFailed() { return 6 }
+
+Int multiplayerLobbyErrorNone() { return 0 }
+Int multiplayerLobbyErrorTransport() { return 1 }
+Int multiplayerLobbyErrorTimeout() { return 2 }
+Int multiplayerLobbyErrorProtocol() { return 3 }
+Int multiplayerLobbyErrorFull() { return 4 }
+Int multiplayerLobbyErrorRejected() { return 5 }
+
+Int multiplayerScoreboardFlagConnected() { return 1 }
+Int multiplayerScoreboardFlagReady() { return 2 }
+Int multiplayerScoreboardFlagAlive() { return 4 }
+Int multiplayerScoreboardFlagHost() { return 8 }
+Int multiplayerScoreboardFlagBot() { return 16 }
+
+Int multiplayerScoreboardMagic() { return 1279867143 }
+Int multiplayerScoreboardVersion() { return 1 }
+Int multiplayerScoreboardMaximumPlayers() { return 8 }
+Int multiplayerScoreboardHeaderLength() { return 5 }
+Int multiplayerScoreboardEntryWidth() { return 11 }
+
+class MatchLobbyState {
+    Int phaseValue
+    Int errorValue
+    Int roomValue
+    Int localNameIdValue
+    Int remoteNameIdValue
+    Bool localReadyValue
+    Bool remoteReadyValue
+    Bool remoteConnectedValue
+    Int playerCountValue
+    Int pingValue
+    Int changeSequenceValue
+
+    public constructor() {
+        phaseValue = multiplayerLobbyPhaseOffline()
+        errorValue = multiplayerLobbyErrorNone()
+        roomValue = 0
+        localNameIdValue = 1
+        remoteNameIdValue = 2
+        localReadyValue = false
+        remoteReadyValue = false
+        remoteConnectedValue = false
+        playerCountValue = 1
+        pingValue = 0
+        changeSequenceValue = 0
+    }
+
+    void changed() {
+        changeSequenceValue = changeSequenceValue + 1
+        if (changeSequenceValue > 1000000) { changeSequenceValue = 1 }
+    }
+
+    Bool validName(Int nameId) {
+        return nameId >= 1 && nameId <= 4
+    }
+
+    Bool setIdentity(Int localNameId, Int remoteNameId, Int room) {
+        if (!validName(localNameId) || !validName(remoteNameId) ||
+            room < 0 || room > 1000000) {
+            return false
+        }
+        localNameIdValue = localNameId
+        remoteNameIdValue = remoteNameId
+        roomValue = room
+        changed()
+        return true
+    }
+
+    Bool beginHost(Int room, Int localNameId) {
+        if ((phaseValue != multiplayerLobbyPhaseOffline() &&
+                phaseValue != multiplayerLobbyPhaseFailed()) ||
+            !validName(localNameId) || room < 0 || room > 1000000) {
+            return false
+        }
+        phaseValue = multiplayerLobbyPhaseHosting()
+        errorValue = multiplayerLobbyErrorNone()
+        roomValue = room
+        localNameIdValue = localNameId
+        localReadyValue = false
+        remoteReadyValue = false
+        remoteConnectedValue = false
+        playerCountValue = 1
+        pingValue = 0
+        changed()
+        return true
+    }
+
+    Bool beginJoin(Int room, Int localNameId) {
+        if ((phaseValue != multiplayerLobbyPhaseOffline() &&
+                phaseValue != multiplayerLobbyPhaseFailed()) ||
+            !validName(localNameId) || room < 0 || room > 1000000) {
+            return false
+        }
+        phaseValue = multiplayerLobbyPhaseJoining()
+        errorValue = multiplayerLobbyErrorNone()
+        roomValue = room
+        localNameIdValue = localNameId
+        localReadyValue = false
+        remoteReadyValue = false
+        remoteConnectedValue = false
+        playerCountValue = 1
+        pingValue = 0
+        changed()
+        return true
+    }
+
+    Bool markWaiting(Int room) {
+        if ((phaseValue != multiplayerLobbyPhaseHosting() &&
+                phaseValue != multiplayerLobbyPhaseJoining()) ||
+            room < 0 || room > 1000000) {
+            return false
+        }
+        phaseValue = multiplayerLobbyPhaseWaiting()
+        roomValue = room
+        errorValue = multiplayerLobbyErrorNone()
+        remoteConnectedValue = false
+        playerCountValue = 1
+        changed()
+        return true
+    }
+
+    Bool markConnected(Int remoteNameId, Int ping) {
+        if ((phaseValue != multiplayerLobbyPhaseHosting() &&
+                phaseValue != multiplayerLobbyPhaseJoining() &&
+                phaseValue != multiplayerLobbyPhaseWaiting() &&
+                phaseValue != multiplayerLobbyPhaseReady() &&
+                phaseValue != multiplayerLobbyPhaseConnected()) ||
+            !validName(remoteNameId) || ping < 0 || ping > 10000) {
+            return false
+        }
+        phaseValue = multiplayerLobbyPhaseConnected()
+        remoteNameIdValue = remoteNameId
+        remoteConnectedValue = true
+        playerCountValue = 2
+        pingValue = ping
+        errorValue = multiplayerLobbyErrorNone()
+        if (localReadyValue && remoteReadyValue) {
+            phaseValue = multiplayerLobbyPhaseReady()
+        }
+        changed()
+        return true
+    }
+
+    Bool setLocalReady(Bool ready) {
+        if (phaseValue != multiplayerLobbyPhaseConnected() &&
+            phaseValue != multiplayerLobbyPhaseReady()) {
+            return false
+        }
+        localReadyValue = ready
+        phaseValue = if (localReadyValue && remoteReadyValue)
+            multiplayerLobbyPhaseReady() else multiplayerLobbyPhaseConnected()
+        changed()
+        return true
+    }
+
+    Bool setRemoteReady(Bool ready) {
+        if (!remoteConnectedValue ||
+            (phaseValue != multiplayerLobbyPhaseConnected() &&
+                phaseValue != multiplayerLobbyPhaseReady())) {
+            return false
+        }
+        remoteReadyValue = ready
+        phaseValue = if (localReadyValue && remoteReadyValue)
+            multiplayerLobbyPhaseReady() else multiplayerLobbyPhaseConnected()
+        changed()
+        return true
+    }
+
+    Bool setPing(Int ping) {
+        if (ping < 0 || ping > 10000) { return false }
+        pingValue = ping
+        changed()
+        return true
+    }
+
+    Bool fail(Int error) {
+        if (error < multiplayerLobbyErrorTransport() ||
+            error > multiplayerLobbyErrorRejected()) {
+            return false
+        }
+        phaseValue = multiplayerLobbyPhaseFailed()
+        errorValue = error
+        remoteConnectedValue = false
+        playerCountValue = 1
+        localReadyValue = false
+        remoteReadyValue = false
+        changed()
+        return true
+    }
+
+    Bool leave() {
+        if (phaseValue == multiplayerLobbyPhaseOffline()) { return false }
+        phaseValue = multiplayerLobbyPhaseOffline()
+        errorValue = multiplayerLobbyErrorNone()
+        remoteConnectedValue = false
+        playerCountValue = 1
+        localReadyValue = false
+        remoteReadyValue = false
+        pingValue = 0
+        changed()
+        return true
+    }
+
+    Bool valid() {
+        return phaseValue >= multiplayerLobbyPhaseOffline() &&
+            phaseValue <= multiplayerLobbyPhaseFailed() &&
+            errorValue >= multiplayerLobbyErrorNone() &&
+            errorValue <= multiplayerLobbyErrorRejected() &&
+            roomValue >= 0 && roomValue <= 1000000 &&
+            validName(localNameIdValue) && validName(remoteNameIdValue) &&
+            playerCountValue >= 1 && playerCountValue <= 2 &&
+            pingValue >= 0 && pingValue <= 10000 &&
+            ((remoteConnectedValue && playerCountValue == 2) ||
+                (!remoteConnectedValue && playerCountValue == 1))
+    }
+
+    Int phase() { return phaseValue }
+    Int error() { return errorValue }
+    Int room() { return roomValue }
+    Int localNameId() { return localNameIdValue }
+    Int remoteNameId() { return remoteNameIdValue }
+    Bool localReady() { return localReadyValue }
+    Bool remoteReady() { return remoteReadyValue }
+    Bool remoteConnected() { return remoteConnectedValue }
+    Int playerCount() { return playerCountValue }
+    Int ping() { return pingValue }
+    Int changeSequence() { return changeSequenceValue }
+}
+
+Int multiplayerScoreboardMessageLength(Int playerCount) {
+    if (playerCount < 0 || playerCount > multiplayerScoreboardMaximumPlayers()) {
+        return 0
+    }
+    return multiplayerScoreboardHeaderLength() +
+        playerCount * multiplayerScoreboardEntryWidth() + 1
+}
+
+Int multiplayerScoreboardChecksum(Int[] words, Int length) {
+    if (length < multiplayerScoreboardHeaderLength() || length > words.length) {
+        return -1
+    }
+    var checksum = 73
+    for (var index = 0; index < length; index = index + 1) {
+        checksum = (checksum + words[index] * (index + 1)) % 1000003
+    }
+    if (checksum < 0) { checksum = checksum + 1000003 }
+    return checksum
+}
+
+Bool validMultiplayerScoreboardMessage(Int[] words) {
+    if (words.length < multiplayerScoreboardHeaderLength() + 1 ||
+        words[0] != multiplayerScoreboardMagic() ||
+        words[1] != multiplayerScoreboardVersion() ||
+        words[2] < 0 || words[2] > 1000000 ||
+        words[3] <= 0 || words[3] > 1000000 ||
+        words[4] < 0 || words[4] > multiplayerScoreboardMaximumPlayers() ||
+        words.length != multiplayerScoreboardMessageLength(words[4]) ||
+        words[words.length - 1] !=
+            multiplayerScoreboardChecksum(words, words.length - 1)) {
+        return false
+    }
+    var count = words[4]
+    for (var index = 0; index < count; index = index + 1) {
+        var base = multiplayerScoreboardHeaderLength() +
+            index * multiplayerScoreboardEntryWidth()
+        var playerId = words[base]
+        var nameId = words[base + 1]
+        var teamId = words[base + 2]
+        var flags = words[base + 3]
+        var health = words[base + 4]
+        var maximumHealth = words[base + 5]
+        var kills = words[base + 6]
+        var deaths = words[base + 7]
+        var score = words[base + 8]
+        var ping = words[base + 9]
+        var lastSeen = words[base + 10]
+        if (playerId <= 0 || playerId > multiplayerScoreboardMaximumPlayers() ||
+            nameId < 1 || nameId > 4 || teamId < 0 || teamId > 4 ||
+            flags < 0 || flags > 31 || health < 0 ||
+            maximumHealth <= 0 || maximumHealth > 1000000 ||
+            health > maximumHealth || kills < 0 || kills > 1000000 ||
+            deaths < 0 || deaths > 1000000 || score < 0 || score > 1000000 ||
+            ping < 0 || ping > 10000 || lastSeen < 0 || lastSeen > 1000000) {
+            return false
+        }
+        for (var prior = 0; prior < index; prior = prior + 1) {
+            var priorBase = multiplayerScoreboardHeaderLength() +
+                prior * multiplayerScoreboardEntryWidth()
+            if (words[priorBase] == playerId) { return false }
+        }
+    }
+    return true
+}
+
+class MatchScoreboardState {
+    Int[] playerIds
+    Int[] nameIds
+    Int[] teamIds
+    Int[] flagValues
+    Int[] healthValues
+    Int[] maximumHealthValues
+    Int[] killValues
+    Int[] deathValues
+    Int[] scoreValues
+    Int[] pingValues
+    Int[] lastSeenValues
+    Int countValue
+    Int tickValue
+    Int sequenceValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > multiplayerScoreboardMaximumPlayers()) {
+            actualCapacity = multiplayerScoreboardMaximumPlayers()
+        }
+        playerIds = new Int[actualCapacity]
+        nameIds = new Int[actualCapacity]
+        teamIds = new Int[actualCapacity]
+        flagValues = new Int[actualCapacity]
+        healthValues = new Int[actualCapacity]
+        maximumHealthValues = new Int[actualCapacity]
+        killValues = new Int[actualCapacity]
+        deathValues = new Int[actualCapacity]
+        scoreValues = new Int[actualCapacity]
+        pingValues = new Int[actualCapacity]
+        lastSeenValues = new Int[actualCapacity]
+        countValue = 0
+        tickValue = 0
+        sequenceValue = 0
+    }
+
+    Bool clear() {
+        countValue = 0
+        return true
+    }
+
+    Int findPlayer(Int playerId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (playerIds[index] == playerId) { return index }
+        }
+        return -1
+    }
+
+    Bool validEntry(
+        Int playerId, Int nameId, Int teamId, Int flags,
+        Int health, Int maximumHealth, Int kills, Int deaths,
+        Int score, Int ping, Int lastSeen
+    ) {
+        return playerId > 0 && playerId <= playerIds.length &&
+            nameId >= 1 && nameId <= 4 && teamId >= 0 && teamId <= 4 &&
+            flags >= 0 && flags <= 31 && health >= 0 &&
+            maximumHealth > 0 && maximumHealth <= 1000000 &&
+            health <= maximumHealth && kills >= 0 && kills <= 1000000 &&
+            deaths >= 0 && deaths <= 1000000 && score >= 0 && score <= 1000000 &&
+            ping >= 0 && ping <= 10000 && lastSeen >= 0 && lastSeen <= 1000000
+    }
+
+    Bool setPlayer(
+        Int playerId, Int nameId, Int teamId, Int flags,
+        Int health, Int maximumHealth, Int kills, Int deaths,
+        Int score, Int ping, Int lastSeen
+    ) {
+        if (!validEntry(playerId, nameId, teamId, flags,
+                health, maximumHealth, kills, deaths, score, ping, lastSeen)) {
+            return false
+        }
+        var index = findPlayer(playerId)
+        if (index < 0) {
+            if (countValue >= playerIds.length) { return false }
+            index = countValue
+            countValue = countValue + 1
+        }
+        playerIds[index] = playerId
+        nameIds[index] = nameId
+        teamIds[index] = teamId
+        flagValues[index] = flags
+        healthValues[index] = health
+        maximumHealthValues[index] = maximumHealth
+        killValues[index] = kills
+        deathValues[index] = deaths
+        scoreValues[index] = score
+        pingValues[index] = ping
+        lastSeenValues[index] = lastSeen
+        sortEntries()
+        return true
+    }
+
+    Bool better(Int left, Int right) {
+        if (scoreValues[left] != scoreValues[right]) {
+            return scoreValues[left] > scoreValues[right]
+        }
+        if (killValues[left] != killValues[right]) {
+            return killValues[left] > killValues[right]
+        }
+        if (deathValues[left] != deathValues[right]) {
+            return deathValues[left] < deathValues[right]
+        }
+        return playerIds[left] < playerIds[right]
+    }
+
+    void swapEntries(Int left, Int right) {
+        var intValue = playerIds[left]
+        playerIds[left] = playerIds[right]
+        playerIds[right] = intValue
+        intValue = nameIds[left]
+        nameIds[left] = nameIds[right]
+        nameIds[right] = intValue
+        intValue = teamIds[left]
+        teamIds[left] = teamIds[right]
+        teamIds[right] = intValue
+        intValue = flagValues[left]
+        flagValues[left] = flagValues[right]
+        flagValues[right] = intValue
+        intValue = healthValues[left]
+        healthValues[left] = healthValues[right]
+        healthValues[right] = intValue
+        intValue = maximumHealthValues[left]
+        maximumHealthValues[left] = maximumHealthValues[right]
+        maximumHealthValues[right] = intValue
+        intValue = killValues[left]
+        killValues[left] = killValues[right]
+        killValues[right] = intValue
+        intValue = deathValues[left]
+        deathValues[left] = deathValues[right]
+        deathValues[right] = intValue
+        intValue = scoreValues[left]
+        scoreValues[left] = scoreValues[right]
+        scoreValues[right] = intValue
+        intValue = pingValues[left]
+        pingValues[left] = pingValues[right]
+        pingValues[right] = intValue
+        intValue = lastSeenValues[left]
+        lastSeenValues[left] = lastSeenValues[right]
+        lastSeenValues[right] = intValue
+    }
+
+    void sortEntries() {
+        for (var pass = 0; pass < countValue; pass = pass + 1) {
+            for (var index = 0; index + 1 < countValue; index = index + 1) {
+                if (better(index + 1, index)) {
+                    swapEntries(index, index + 1)
+                }
+            }
+        }
+    }
+
+    Bool valid() {
+        if (countValue < 0 || countValue > playerIds.length ||
+            tickValue < 0 || tickValue > 1000000 ||
+            sequenceValue < 0 || sequenceValue > 1000000) {
+            return false
+        }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (!validEntry(
+                    playerIds[index], nameIds[index], teamIds[index], flagValues[index],
+                    healthValues[index], maximumHealthValues[index],
+                    killValues[index], deathValues[index], scoreValues[index],
+                    pingValues[index], lastSeenValues[index])) {
+                return false
+            }
+            for (var prior = 0; prior < index; prior = prior + 1) {
+                if (playerIds[prior] == playerIds[index]) { return false }
+            }
+        }
+        return true
+    }
+
+    Int[] publish(Int tick) {
+        if (tick < 0 || tick > 1000000 || !valid() ||
+            sequenceValue >= 1000000) {
+            return new Int[0]
+        }
+        sequenceValue = sequenceValue + 1
+        tickValue = tick
+        var words = new Int[multiplayerScoreboardMessageLength(countValue)]
+        words[0] = multiplayerScoreboardMagic()
+        words[1] = multiplayerScoreboardVersion()
+        words[2] = tickValue
+        words[3] = sequenceValue
+        words[4] = countValue
+        for (var index = 0; index < countValue; index = index + 1) {
+            var base = multiplayerScoreboardHeaderLength() +
+                index * multiplayerScoreboardEntryWidth()
+            words[base] = playerIds[index]
+            words[base + 1] = nameIds[index]
+            words[base + 2] = teamIds[index]
+            words[base + 3] = flagValues[index]
+            words[base + 4] = healthValues[index]
+            words[base + 5] = maximumHealthValues[index]
+            words[base + 6] = killValues[index]
+            words[base + 7] = deathValues[index]
+            words[base + 8] = scoreValues[index]
+            words[base + 9] = pingValues[index]
+            words[base + 10] = lastSeenValues[index]
+        }
+        words[words.length - 1] =
+            multiplayerScoreboardChecksum(words, words.length - 1)
+        return words
+    }
+
+    Bool apply(Int[] words) {
+        if (!validMultiplayerScoreboardMessage(words) ||
+            words[4] > playerIds.length || words[3] <= sequenceValue ||
+            words[2] < tickValue) {
+            return false
+        }
+        var nextCount = words[4]
+        for (var index = 0; index < nextCount; index = index + 1) {
+            var base = multiplayerScoreboardHeaderLength() +
+                index * multiplayerScoreboardEntryWidth()
+            if (words[base] > playerIds.length) { return false }
+        }
+        for (var index = 0; index < nextCount; index = index + 1) {
+            var base = multiplayerScoreboardHeaderLength() +
+                index * multiplayerScoreboardEntryWidth()
+            playerIds[index] = words[base]
+            nameIds[index] = words[base + 1]
+            teamIds[index] = words[base + 2]
+            flagValues[index] = words[base + 3]
+            healthValues[index] = words[base + 4]
+            maximumHealthValues[index] = words[base + 5]
+            killValues[index] = words[base + 6]
+            deathValues[index] = words[base + 7]
+            scoreValues[index] = words[base + 8]
+            pingValues[index] = words[base + 9]
+            lastSeenValues[index] = words[base + 10]
+        }
+        countValue = nextCount
+        tickValue = words[2]
+        sequenceValue = words[3]
+        sortEntries()
+        return valid()
+    }
+
+    Int capacity() { return playerIds.length }
+    Int count() { return countValue }
+    Int tick() { return tickValue }
+    Int sequence() { return sequenceValue }
+    Int playerIdAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return playerIds[index]
+    }
+    Int nameIdAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return nameIds[index]
+    }
+    Int teamAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return teamIds[index]
+    }
+    Int flagsAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return flagValues[index]
+    }
+    Int healthAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return healthValues[index]
+    }
+    Int maximumHealthAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return maximumHealthValues[index]
+    }
+    Int killsAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return killValues[index]
+    }
+    Int deathsAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return deathValues[index]
+    }
+    Int scoreAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return scoreValues[index]
+    }
+    Int pingAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return pingValues[index]
+    }
+    Int lastSeenAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return lastSeenValues[index]
+    }
+}

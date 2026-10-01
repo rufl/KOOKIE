@@ -87,6 +87,30 @@ Presentation packages additionally require SDL 3.4.16, SDL_mixer 3.2.4 and
 `glslc`. Exact package, kooker, Windows and cross-host qualification commands
 live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
 
+## Multiplayer lobby and score screen
+
+The Kof-owned multiplayer screen keeps the session contract small and
+inspectable: fixed two-player admission, host/join/waiting/connected/ready/
+failed phases, room identity, bounded player names, peer count, ping display
+and visible transport errors. It is a session card, not an unbounded
+master-server browser. Gameplay remains locked while either player is not
+ready; the `READY` action is explicit and the session opens only after both
+connected players confirm.
+
+During gameplay, `Tab` toggles a deterministic player screen with player name,
+score, health, kills/deaths, ping and live/ready/disconnected status. The host
+publishes a checksummed bounded scoreboard snapshot; clients validate the
+whole message, reject stale sequences and rank ties by score, kills, deaths
+and stable player ID. A displayed `--` ping means RTT measurement is not yet
+available; it is not a fabricated latency value.
+
+The focused model and staging proof is:
+
+```bash
+bash scripts/verify_multiplayer_ui.sh
+```
+
+
 ## Current demo and release status
 
 The latest public artifact is
@@ -96,10 +120,10 @@ signed Linux x86-64 SDL presentation, built from source commit
 PE/SDL and CI-gate changes; it is a dogfood presentation artifact, not a
 playable game release.
 
-| Target | Current verified state | Missing for a playable demo |
+| Target | Current verified state | Remaining release evidence |
 |---|---|---|
-| Linux x86-64 | Persistent menu, options, lobby, Kutter screen, audio and the authored qualification scene can be packaged and rendered. | Route keyboard/mouse/gamepad input into the authoritative player loop, then ship one complete start→fight→win/exit→restart loop. |
-| Windows x86-64 | Native Kof PE gameplay/presentation package gates, SDL3/SDL_mixer shell and shader products are implemented; native-shell smoke passes. | Replace the static Play shell with the same real authoritative gameplay path, run fresh Windows hardware qualification, and publish a signed ZIP. |
+| Linux x86-64 | The source presentation path now starts a fresh authoritative two-player goose encounter, maps keyboard/mouse input, runs three bot geese, replicates host/player state, renders names plus 20-point heart segments, and stages the bounded lobby/player screen. | Build a fresh signed archive and verify launch, restart, quit, Tab scoreboard interaction and hardware rendering outside the checkout. |
+| Windows x86-64 | The same Kof presentation path is wired into the native PE/SDL profile, including input, bots, nameplates, hearts and direct/WAN transport. | Build a signed ZIP and run fresh native Windows hardware/driver qualification. |
 
 The detailed acceptance checklist, release blockers and non-blocking future
 scope are in [Demo release readiness](docs/DEMO_RELEASE.md).
@@ -108,7 +132,7 @@ scope are in [Demo release readiness](docs/DEMO_RELEASE.md).
 
 | Area | Implemented bounded path |
 |---|---|
-| **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, sequenced commands, snapshots, prediction/reconciliation, reconnect and replay/tamper rejection; bounded direct-IPv4 WAN window with retries/backpressure |
+| **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, sequenced commands, snapshots, prediction/reconciliation, reconnect and replay/tamper rejection; bounded direct-IPv4 WAN rendezvous with best-effort UDP hole punching; Kof-owned lobby and checksummed two-player scoreboard state |
 | **Shooter and ARPG systems** | Hitscan/projectile/shotgun combat, enemy roles, deterministic loot, inventory, equipment, skills, status effects, bosses, rewards and exactly-once progression |
 | **World and presentation** | True 3D authored arena with slopes, steps and stacked rooms; capsule/triangle collision; doors, secrets and exits; semantic HUD; SDL_GPU instancing; positional gain/pan through SDL_mixer |
 | **Content and kutter tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Kutter edits; persistent Kutter hierarchy/transform/asset registry |

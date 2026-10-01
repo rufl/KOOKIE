@@ -988,7 +988,9 @@ class LoopbackSession {
 
     Int[] gameplayStateMessage(Int tick, Int combatActorId, Int player) {
         var health = playerCombatHealth(combatActorId)
-        if (enemyCombat.enemyState(combatActorId) >= 0) {
+        if (enemyCombat.hasSpatialPosition(combatActorId)) {
+            health = enemyCombat.currentHealth(combatActorId)
+        } else if (enemyCombat.enemyState(combatActorId) >= 0) {
             health = enemyCombat.currentHealth(combatActorId)
         }
         if (!started || tick < 0 || tick > 1000000 ||

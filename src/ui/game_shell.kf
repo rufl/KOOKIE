@@ -1,6 +1,6 @@
 package ui
 
-import core
+import session
 
 Int gameShellScreenMain() { return 1 }
 Int gameShellScreenOptions() { return 2 }
@@ -48,6 +48,7 @@ class GameShell {
     Int addressThreeValue
     Int addressFourValue
     Int portValue
+    MatchLobbyState lobbyValue
     BoundedKutterWorkspace kutterValue
 
     public constructor() {
@@ -71,6 +72,7 @@ class GameShell {
         addressThreeValue = 0
         addressFourValue = 1
         portValue = 47101
+        lobbyValue = MatchLobbyState()
         kutterValue = BoundedKutterWorkspace()
     }
 
@@ -78,6 +80,15 @@ class GameShell {
     Int selection() { return selectionValue }
     Bool quitRequested() { return quitRequestedValue }
     Bool gameplayVisible() { return screenValue == gameShellScreenGame() }
+    Bool enterGameplay() {
+        if (networkStatusValue != gameShellNetworkConnected() ||
+            lobbyValue.phase() != multiplayerLobbyPhaseReady()) {
+            return false
+        }
+        screenValue = gameShellScreenGame()
+        selectionValue = 0
+        return true
+    }
     Int renderVertexCapacity() { return 2048 }
     BoundedKutterWorkspace kutter() { return kutterValue }
 
@@ -113,6 +124,18 @@ class GameShell {
     Int addressThree() { return addressThreeValue }
     Int addressFour() { return addressFourValue }
     Int port() { return portValue }
+    MatchLobbyState lobby() { return lobbyValue }
+
+    Bool configureLobbyIdentity(Int localNameId, Int remoteNameId, Int room) {
+        return lobbyValue.setIdentity(localNameId, remoteNameId, room)
+    }
+
+    String lobbyNameLabel(Int nameId) {
+        if (nameId == 2) { return "WADDLE" }
+        if (nameId == 3) { return "HONK" }
+        if (nameId == 4) { return "POND" }
+        return "GOOSE"
+    }
 
     Bool acknowledgeDisplayApply(Bool success) {
         if (!displayApplyPendingValue) { return false }
@@ -126,14 +149,18 @@ class GameShell {
         networkRequestValue = 0
         if (!success) {
             networkStatusValue = gameShellNetworkFailed()
+            lobbyValue.fail(multiplayerLobbyErrorTransport())
             return true
         }
         if (operation == gameShellNetworkHostRequest()) {
             networkStatusValue = gameShellNetworkHosting()
+            lobbyValue.markWaiting(lobbyValue.room())
         } else if (operation == gameShellNetworkJoinRequest()) {
             networkStatusValue = gameShellNetworkJoining()
+            lobbyValue.markWaiting(lobbyValue.room())
         } else {
             networkStatusValue = gameShellNetworkIdle()
+            lobbyValue.leave()
         }
         return true
     }
@@ -144,13 +171,15 @@ class GameShell {
             return false
         }
         networkStatusValue = gameShellNetworkConnected()
-        return true
+        return lobbyValue.markConnected(
+            lobbyValue.remoteNameId(), lobbyValue.ping())
     }
 
     Bool markNetworkDisconnected() {
         if (networkStatusValue == gameShellNetworkIdle()) { return false }
         networkRequestValue = 0
         networkStatusValue = gameShellNetworkIdle()
+        lobbyValue.leave()
         return true
     }
 
@@ -174,7 +203,7 @@ class GameShell {
     Int optionCount() {
         if (screenValue == gameShellScreenMain()) { return 5 }
         if (screenValue == gameShellScreenOptions()) { return 7 }
-        if (screenValue == gameShellScreenMultiplayer()) { return 6 }
+        if (screenValue == gameShellScreenMultiplayer()) { return 7 }
         if (screenValue == gameShellScreenKutter()) { return 10 }
         return 0
     }
@@ -314,6 +343,13 @@ class GameShell {
             return true
         }
         if (selectionValue == 5) {
+            if (networkStatusValue != gameShellNetworkConnected() ||
+                !lobbyValue.remoteConnected()) {
+                return false
+            }
+            return lobbyValue.setLocalReady(!lobbyValue.localReady())
+        }
+        if (selectionValue == 6) {
             screenValue = gameShellScreenMain()
             selectionValue = 1
             return true
@@ -322,12 +358,20 @@ class GameShell {
         if (selectionValue == 0) {
             if (networkStatusValue != gameShellNetworkIdle() &&
                 networkStatusValue != gameShellNetworkFailed()) { return false }
+            if (!lobbyValue.beginHost(
+                    lobbyValue.room(), lobbyValue.localNameId())) {
+                return false
+            }
             networkRequestValue = gameShellNetworkHostRequest()
             return true
         }
         if (selectionValue == 1) {
             if (networkStatusValue != gameShellNetworkIdle() &&
                 networkStatusValue != gameShellNetworkFailed()) { return false }
+            if (!lobbyValue.beginJoin(
+                    lobbyValue.room(), lobbyValue.localNameId())) {
+                return false
+            }
             networkRequestValue = gameShellNetworkJoinRequest()
             return true
         }
@@ -457,12 +501,13 @@ class GameShell {
             else { return false }
             return activateKutter()
         }
-        if (y >= 31 && y <= 43) { selectionValue = 0 }
-        else if (y >= 13 && y <= 25) { selectionValue = 1 }
-        else if (y >= -5 && y <= 7) { selectionValue = 2 }
-        else if (y >= -33 && y <= -21) { selectionValue = 3 }
-        else if (y >= -51 && y <= -39) { selectionValue = 4 }
-        else if (y >= -72 && y <= -60) { selectionValue = 5 }
+        if (y >= 20 && y <= 32) { selectionValue = 0 }
+        else if (y >= 4 && y <= 16) { selectionValue = 1 }
+        else if (y >= -12 && y <= 0) { selectionValue = 2 }
+        else if (y >= -28 && y <= -16) { selectionValue = 3 }
+        else if (y >= -44 && y <= -32) { selectionValue = 4 }
+        else if (y >= -60 && y <= -48) { selectionValue = 5 }
+        else if (y >= -76 && y <= -64) { selectionValue = 6 }
         else { return false }
         return activateMultiplayer()
     }
@@ -687,6 +732,57 @@ class GameShell {
         return 0
     }
 
+    String lobbyPhaseLabel() {
+        if (lobbyValue.phase() == multiplayerLobbyPhaseHosting()) {
+            return "HOSTING"
+        }
+        if (lobbyValue.phase() == multiplayerLobbyPhaseJoining()) {
+            return "CONNECTING"
+        }
+        if (lobbyValue.phase() == multiplayerLobbyPhaseWaiting()) {
+            return "WAITING FOR PEER"
+        }
+        if (lobbyValue.phase() == multiplayerLobbyPhaseReady()) {
+            return "READY"
+        }
+        if (lobbyValue.phase() == multiplayerLobbyPhaseConnected()) {
+            return "CONNECTED"
+        }
+        if (lobbyValue.phase() == multiplayerLobbyPhaseFailed()) {
+            return "FAILED"
+        }
+        return "OFFLINE"
+    }
+
+    Int lobbyPhaseColor() {
+        if (lobbyValue.phase() == multiplayerLobbyPhaseFailed()) { return 3 }
+        if (lobbyValue.phase() == multiplayerLobbyPhaseConnected() ||
+            lobbyValue.phase() == multiplayerLobbyPhaseReady()) { return 4 }
+        if (lobbyValue.phase() == multiplayerLobbyPhaseHosting() ||
+            lobbyValue.phase() == multiplayerLobbyPhaseJoining() ||
+            lobbyValue.phase() == multiplayerLobbyPhaseWaiting()) { return 2 }
+        return 0
+    }
+
+    String lobbyErrorLabel() {
+        if (lobbyValue.error() == multiplayerLobbyErrorTransport()) {
+            return "TRANSPORT ERROR"
+        }
+        if (lobbyValue.error() == multiplayerLobbyErrorTimeout()) {
+            return "TIMEOUT"
+        }
+        if (lobbyValue.error() == multiplayerLobbyErrorProtocol()) {
+            return "PROTOCOL ERROR"
+        }
+        if (lobbyValue.error() == multiplayerLobbyErrorFull()) {
+            return "SESSION FULL"
+        }
+        if (lobbyValue.error() == multiplayerLobbyErrorRejected()) {
+            return "REJECTED"
+        }
+        return ""
+    }
+
     Bool pushAddress(FrameStaging target, Int bottom) {
         var cursor = 12
         var color = 1
@@ -717,34 +813,58 @@ class GameShell {
 
     Bool stageMultiplayer(FrameStaging target) {
         var normal = 0
+        var pingColor = if (lobbyValue.ping() > 0) 1 else 0
+        var errorColor = if (lobbyValue.error() == multiplayerLobbyErrorNone()) 0 else 3
+        var pingVisible = lobbyValue.ping() > 0
         return pushQuad(target, 10, -100, -100, 100, 100) &&
             pushQuad(target, 11, -96, -96, 96, 96) &&
             pushQuad(target, 10, -94, -94, 94, 94) &&
             pushCenteredText(target, "MULTIPLAYER", 77, 2, 1) &&
-            pushCenteredText(target, networkStatusLabel(), 61, 1,
-                networkStatusColor()) &&
-            pushSelectionPanel(target, 0, 31, 43) &&
-            pushCenteredText(target, "HOST GAME", 34, 1,
+            pushCenteredText(target, lobbyPhaseLabel(), 61, 1,
+                lobbyPhaseColor()) &&
+            pushText(target, "LOCAL", -84, 51, 1, normal) &&
+            pushText(target, lobbyNameLabel(lobbyValue.localNameId()),
+                20, 51, 1, 1) &&
+            pushText(target, "PEER", -84, 42, 1, normal) &&
+            pushText(target, lobbyNameLabel(lobbyValue.remoteNameId()),
+                20, 42, 1, if (lobbyValue.remoteConnected()) 1 else 0) &&
+            pushText(target, "ROOM", -84, 33, 1, normal) &&
+            pushNumber(target, lobbyValue.room(), -48, 33, 1, 1) &&
+            pushText(target, "PLAYERS", 8, 33, 1, normal) &&
+            pushNumber(target, lobbyValue.playerCount(), 56, 33, 1, 1) &&
+            pushText(target, "/2", 68, 33, 1, normal) &&
+            pushText(target, "PING", 8, 42, 1, normal) &&
+            (if (pingVisible)
+                pushNumber(target, lobbyValue.ping(), 38, 42, 1, pingColor)
+            else
+                pushText(target, "--", 38, 42, 1, pingColor)) &&
+            pushSelectionPanel(target, 0, 20, 32) &&
+            pushCenteredText(target, "HOST GAME", 23, 1,
                 if (selectionValue == 0) 2 else normal) &&
-            pushSelectionPanel(target, 1, 13, 25) &&
-            pushCenteredText(target, "JOIN GAME", 16, 1,
+            pushSelectionPanel(target, 1, 4, 16) &&
+            pushCenteredText(target, "JOIN GAME", 7, 1,
                 if (selectionValue == 1) 2 else normal) &&
-            pushSelectionPanel(target, 2, -5, 7) &&
-            pushCenteredText(target, "LEAVE GAME", -2, 1,
+            pushSelectionPanel(target, 2, -12, 0) &&
+            pushCenteredText(target, "LEAVE GAME", -9, 1,
                 if (selectionValue == 2) 3 else normal) &&
-            pushSelectionPanel(target, 3, -33, -21) &&
-            pushText(target, "ADDRESS", -84, -30, 1, normal) &&
-            pushAddress(target, -30) &&
-            pushSelectionPanel(target, 4, -51, -39) &&
-            pushText(target, "PORT", -84, -48, 1, normal) &&
-            pushNumber(target, portValue, 20, -48, 1,
+            pushSelectionPanel(target, 3, -28, -16) &&
+            pushText(target, "ADDRESS", -84, -25, 1, normal) &&
+            pushAddress(target, -25) &&
+            pushSelectionPanel(target, 4, -44, -32) &&
+            pushText(target, "PORT", -84, -41, 1, normal) &&
+            pushNumber(target, portValue, 20, -41, 1,
                 if (networkEditingValue && selectionValue == 4) 2 else 1) &&
-            pushSelectionPanel(target, 5, -72, -60) &&
-            pushCenteredText(target, "BACK", -69, 1,
-                if (selectionValue == 5) 2 else normal) &&
+            pushSelectionPanel(target, 5, -60, -48) &&
+            pushCenteredText(target,
+                if (lobbyValue.localReady()) "UNREADY" else "READY",
+                -57, 1, if (selectionValue == 5) 2 else normal) &&
+            pushSelectionPanel(target, 6, -76, -64) &&
+            pushCenteredText(target, "BACK", -73, 1,
+                if (selectionValue == 6) 2 else normal) &&
+            pushCenteredText(target, lobbyErrorLabel(), -84, 1, errorColor) &&
             pushCenteredText(target,
                 if (networkEditingValue) "ARROWS CHANGE ENTER DONE" else "ENTER SELECT ESC BACK",
-                -93, 1, 0)
+                -96, 1, 0)
     }
 
     Bool stageKutter(FrameStaging target) {

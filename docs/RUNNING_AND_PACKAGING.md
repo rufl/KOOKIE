@@ -15,9 +15,14 @@ run the authoritative demo from the repository root:
 kof run src/main.kf --target native
 ```
 
-This command is a console qualification path, not a playable window. For the
-current player-facing release status and missing gameplay loop, see
-[Demo release readiness](DEMO_RELEASE.md).
+This command is a console qualification path. The player-facing native SDL
+presentation is built with the presentation profile below; it now contains the
+bounded local bot encounter and the two-peer UDP session.
+
+[Demo release readiness](DEMO_RELEASE.md) still describes publication and
+hardware evidence, which are separate from source-tree implementation.
+
+
 
 The JVM target is used for local differential qualification and for the
 explicit Windows compatibility package:
@@ -33,6 +38,12 @@ Run the focused gameplay and replay probe with:
 
 ```bash
 bash scripts/verify_interactions.sh
+```
+
+Run the focused goose-versus-bots/session/overlay probe with:
+
+```bash
+bash scripts/verify_goose_game.sh
 ```
 
 ## Content kooker
@@ -164,11 +175,51 @@ SPIR-V shaders, SDL3 and SDL_mixer. It uses the host dynamic loader and libc.
 - Options: 1280×720 through 2560×1440, windowed/borderless/exclusive
   fullscreen, separate effects/music volume and three text sizes.
 - Multiplayer: Host, Join and Leave with editable IPv4 and port fields.
+  After the peer connects, select Ready on both clients before gameplay opens;
+  the lobby shows the bounded peer identity, player count and honest ping
+  placeholder until an RTT exists.
 
 Display changes commit only on Apply. Lobby packets use SipHash tags and replay
 sequences. A configured 128-bit shared key authenticates peers; the local
 fallback only detects accidental corruption. The lobby provides neither
 encryption nor public identity.
+### Simple WAN goose session
+
+Run the small authenticated rendezvous on a reachable Linux host:
+
+```bash
+KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff \
+python3 scripts/kookie_rendezvous.py --bind 0.0.0.0 --port 47101
+```
+
+Start the Linux or Windows `presentation` client with the same key and:
+
+```bash
+export KOOKIE_WAN_RENDEZVOUS=1
+export KOOKIE_RENDEZVOUS_HOST_IPV4=203.0.113.20
+export KOOKIE_ROOM_CODE=4107
+export KOOKIE_PLAYER_NAME_ID=1
+export KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff
+./kookie
+```
+
+Use `Multiplayer > Host` on one client and `Multiplayer > Join` on the other.
+Set `KOOKIE_PLAYER_NAME_ID` to `1..4`; the selected goose name appears above the
+player and bot nameplates read `BOT GOOSE`. Hearts show each actor's
+authoritative energy in 20-point segments. `WASD`/arrows move, mouse or `F`
+fires, and mouse motion turns the camera. `Escape` returns to the menu;
+selecting `Play` starts a fresh encounter.
+
+The rendezvous authenticates the fixed UDP envelope, records each public UDP
+endpoint, sends the peer endpoint, and stops relaying. Both clients then send
+direct authenticated datagrams repeatedly for simple UDP hole punching. This is
+best-effort: symmetric NAT, blocked UDP, or some CGNAT topologies require a
+forwarded game port or a direct LAN address. It provides no relay, encryption,
+identity service, or production DDoS protection. Leave
+`KOOKIE_WAN_RENDEZVOUS` unset for direct LAN mode.
+
+The Linux package also contains `kookie-rendezvous.py`. The rendezvous can run
+on Linux while both game clients run Linux or Windows.
 
 ### Run the currently published Linux dogfood
 
@@ -195,12 +246,14 @@ cd kookie-0.1.0-dogfood.34-linux-x86_64
 
 The archive bundles SDL3, SDL_mixer and the native adapters, but uses the host
 dynamic loader/libc and requires a supported presentation-capable Linux GPU.
-It opens the persistent menu and qualification scene; its `Play` screen is not
-yet the complete input-driven gameplay loop required for a playable demo.
+That published commit predates the source-tree input/session bridge and WAN
+rendezvous described above; rebuild the presentation profile for the playable
+goose path.
 
-The shell controls listed above cover menu/options/lobby navigation. Do not
-describe them as shipped gameplay controls until the `InputCommand` bridge and
-the win/restart loop are connected.
+The current source presentation maps input to the authoritative session, shows
+the bot encounter and supports the direct/WAN transport. The published archive
+does not contain this source-tree change.
+
 
 ## Windows x86-64 packages
 
@@ -251,9 +304,11 @@ The package links the complete reachable `src/` Kof gameplay PE object into
 no JDK. The package smoke prints
 `KOOKIE native Kof PE gameplay verified` after SDL initialization.
 
-The marker proves PE linkage and SDL initialization, not a playable gameplay
-loop. The current native shell's `Play` screen is a static qualification scene;
-the shared input/session/tick bridge remains a D1 release blocker.
+The `native` profile's marker proves PE linkage and SDL initialization only.
+Use `--runtime presentation` for the shared Kof SDL loop: it renders the
+three-bot encounter, maps input, and supports the same direct/WAN transport as
+Linux. A fresh Windows package still needs native hardware presentation smoke
+before public release.
 
 ### Bundled Kof JVM runtime
 

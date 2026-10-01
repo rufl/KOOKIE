@@ -43,40 +43,39 @@ importadores de fonte. Nos dois alvos suportados, ela precisa:
 6. oferecer um fim/reinício determinístico; e
 7. fechar corretamente após vários ciclos de iniciar/jogar/reiniciar.
 
-A tela `Play` atual não satisfaz essa definição. O shell Kof renderiza a cena
-preparada de arena/HUD e trata menu, opções, lobby e Kutter; as ações na tela de
-gameplay não são mapeadas para um loop de input/tick da sessão. O shell SDL
-Windows também desenha uma tela de jogo estática depois do smoke do marcador PE.
-São superfícies de qualificação, não um loop jogável completo.
+A release pública de apresentação continua sendo um artefato de qualificação
+porque antecede a árvore de fontes atual. A apresentação na fonte agora possui
+um caminho jogável limitado: `Play` inicia uma sessão autoritativa de dois
+jogadores, cada lado mapeia input SDL, três bots gansos atacam os jogadores e
+snapshots do host replicam jogadores/bots. Placas de nome e corações em
+segmentos de 20 pontos mostram nomes escolhidos e energia autoritativa. O
+mesmo caminho existe nos perfis `presentation` Linux e Windows; ainda faltam
+pacote novo e evidência de hardware antes de uma release pública.
+
 
 ## Trabalho faltante, ordenado por impacto na release
 
-### P0 — loop jogável compartilhado
+### P0 — loop jogável limitado implementado na fonte
 
-- Adicionar um loop voltado ao jogador que leia input da plataforma, gere
-  `InputCommand` validado, avance o servidor local autoritativo e aplique
-  predição/reconciliação no estado renderizado.
-- Ligar teclado, mouse relativo e ao menos um conjunto de controles alternativo
-  documentado a movimento, olhar, disparo, salto, interação, pausa e reinício.
-  Preservar a perda de foco e a liberação de botões mantidos já cobertas pelos
-  contratos da engine.
-- Conectar os contratos existentes de combate/sessão/HUD/áudio ao frame de
-  apresentação. A primeira demo pode usar uma arena, uma arma e um papel de
-  inimigo, mas precisa mostrar transições reais, não apenas um draw estático.
-- Definir fim e reset da demo: por exemplo, limpar um encontro, alcançar a saída,
-  mostrar o resultado e reiniciar sem relançar o processo.
+- A apresentação SDL nativa lê input mantido de teclado/mouse, gera valores
+  limitados de `InputCommand`, avança a sessão autoritativa e reconcilia o
+  cliente conectado a partir dos snapshots do host.
+- `Play` inicia um encontro autoral novo com dois jogadores gansos e três bots
+  gansos. Bots perseguem os jogadores; disparar causa dano no bot vivo mais
+  próximo; corações e nomes mostram o estado.
+- `Escape` volta ao menu e entrar novamente em `Play` reinicia o encontro. O
+  caminho é intencionalmente pequeno: uma arena, uma arma e um encontro
+  limitado, não todo o roadmap de ARPG.
 
-### P0 — integração de gameplay nativo Windows
 
-- Substituir o caminho estático `draw_game` do Windows pelo mesmo gameplay Kof
-  autoritativo usado no Linux. `kookie_kof_gameplay_main` atualmente comprova a
-  entrada PE ligada e retorna o marcador do smoke; não é um loop interativo
-  completo.
-- Mapear eventos de teclado, mouse e janela SDL do Windows para o contrato de
-  gameplay compartilhado e provar o pacote PE nativo fora do checkout.
-- Executar o smoke de apresentação em hardware/driver Windows suportado. A
-  evidência de artefato e marcador em Wine é útil, mas não substitui uma
-  afirmação de apresentação nativa Windows.
+### P0 — evidência de gameplay nativo Windows
+
+- O perfil Windows `presentation` agora alcança o mesmo caminho de gameplay Kof
+  SDL do Linux, incluindo input, bots, nomes, corações e transporte direto/WAN.
+- Gere e execute o smoke do pacote PE fora do checkout e rode a apresentação em
+  hardware/driver Windows suportado. Evidência de artefato no Wine não substitui
+  evidência de apresentação nativa.
+
 
 ### P1 — empacotamento e distribuição
 
@@ -106,9 +105,11 @@ São superfícies de qualificação, não um loop jogável completo.
 - Empacotar somente assets com termos de redistribuição resolvidos. O asset goose
   do protótipo continua restrito pelos termos upstream e não pode ser rotulado
   como CC0 nem incluído silenciosamente em uma demo pública.
-- Declarar explicitamente que LAN/WAN, edição Kutter, KofScript, save/replay e
-  progressão ARPG completa são recursos de qualificação/engine, salvo se a demo
-  os expuser e suportar de ponta a ponta.
+- Declarar explicitamente que o rendezvous autenticado simples e o hole punch
+  UDP direto são networking dogfood best-effort. Relay, recuperação de NAT
+  simétrico, segurança WAN de produção, Kutter, KofScript, save/replay e
+  progressão ARPG completa continuam limites separados do produto.
+
 
 ## Matriz de aceitação antes da publicação
 
@@ -121,16 +122,17 @@ São superfícies de qualificação, não um loop jogável completo.
 | Dano/morte/HUD/resultado/reinício | Obrigatório | Obrigatório |
 | Smoke repetido fora do checkout | Obrigatório | Obrigatório |
 | Evidência de apresentação em hardware nativo | GPU Linux suportada | GPU Windows suportada |
-| Multiplayer entre hosts | Opcional na primeira demo single-player | Opcional na primeira demo single-player |
+| Multiplayer entre hosts | Obrigatório para o dogfood WAN simples | Obrigatório para o dogfood WAN simples |
+
 
 ## Explicitamente não bloqueia esta demo
 
-Amplitude completa de ARPG, suporte geral a formatos de autoria, segurança WAN
-de produção, NAT traversal/relay, HRTF/EFX, áudio em streaming/comprimido,
-sandbox geral de extensões, macOS/ARM e cobertura ampla de GPUs continuam sendo
-milestones separados. Eles não devem ser usados para chamar a superfície atual
-estática de jogável, mas também não precisam bloquear uma demo G1 claramente
-limitada.
+Amplitude completa de ARPG, suporte geral a formatos de autoria, relay,
+recuperação de NAT simétrico, segurança WAN de produção, HRTF/EFX, áudio em
+streaming/comprimido, sandbox geral de extensões, macOS/ARM e cobertura ampla
+de GPUs continuam milestones separados. Eles não devem ampliar a afirmação
+deste jogo de gansos limitado, mas não bloqueiam a implementação delimitada na
+fonte.
 
 O plano de implementação acompanha este trabalho como **D1 — Release de demo
 jogável** em [ENGINE_PLAN.md](ENGINE_PLAN.md). Os comandos de build e

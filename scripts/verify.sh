@@ -26,6 +26,7 @@ kof test src/main.kf --target native
 bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_interactions.sh
+bash scripts/verify_multiplayer_ui.sh
 bash scripts/verify_durable_save.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh

@@ -260,6 +260,65 @@ static int last_event_a;
 static int last_event_b;
 static int pending_focus_event = -1;
 
+#define KOOKIE_INPUT_FORWARD 1u
+#define KOOKIE_INPUT_BACKWARD 2u
+#define KOOKIE_INPUT_LEFT 4u
+#define KOOKIE_INPUT_RIGHT 8u
+#define KOOKIE_INPUT_FIRE 16u
+#define KOOKIE_INPUT_JUMP 32u
+
+static unsigned int gameplay_input_state;
+static int scoreboard_toggle_pending;
+static int gameplay_mouse_delta_x;
+static int gameplay_mouse_delta_y;
+
+static unsigned int kookie_input_bit(SDL_Keycode key) {
+    switch (key) {
+        case SDLK_W:
+        case SDLK_UP:
+            return KOOKIE_INPUT_FORWARD;
+        case SDLK_S:
+        case SDLK_DOWN:
+            return KOOKIE_INPUT_BACKWARD;
+        case SDLK_A:
+        case SDLK_LEFT:
+            return KOOKIE_INPUT_LEFT;
+        case SDLK_D:
+        case SDLK_RIGHT:
+            return KOOKIE_INPUT_RIGHT;
+        case SDLK_F:
+        case SDLK_SPACE:
+            return KOOKIE_INPUT_FIRE;
+        case SDLK_LCTRL:
+        case SDLK_RCTRL:
+            return KOOKIE_INPUT_JUMP;
+        default:
+            return 0;
+    }
+}
+
+static void kookie_update_input_key(SDL_Keycode key, bool pressed) {
+    unsigned int bit = kookie_input_bit(key);
+    if (bit == 0) {
+        return;
+    }
+    if (pressed) {
+        gameplay_input_state |= bit;
+    } else {
+        gameplay_input_state &= ~bit;
+    }
+}
+
+static int kookie_clamp_mouse_delta(int value) {
+    if (value < -100) {
+        return -100;
+    }
+    if (value > 100) {
+        return 100;
+    }
+    return value;
+}
+
 static int make_token(int slot, unsigned int generation, int kind) {
     return (((int)generation * 100) + slot + 1) * 10 + kind;
 }
@@ -2141,12 +2200,21 @@ int kookie_poll_event(void) {
                 case SDL_EVENT_WINDOW_FOCUS_LOST:
                     last_event_a = 0;
                     last_event_b = 0;
+                    gameplay_input_state = 0;
+                    scoreboard_toggle_pending = 0;
+                    gameplay_mouse_delta_x = 0;
+                    gameplay_mouse_delta_y = 0;
                     return 3;
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                     last_event_a = 0;
                     last_event_b = 0;
                     return 4;
                 case SDL_EVENT_KEY_DOWN:
+                    kookie_update_input_key(event.key.key, true);
+                    if (!event.key.repeat && event.key.key == SDLK_TAB) {
+                        scoreboard_toggle_pending = 1;
+                        break;
+                    }
                     if (event.key.repeat) {
                         break;
                     }
@@ -2183,10 +2251,14 @@ int kookie_poll_event(void) {
                         return 7;
                     }
                     break;
+                case SDL_EVENT_KEY_UP:
+                    kookie_update_input_key(event.key.key, false);
+                    break;
                 case SDL_EVENT_MOUSE_BUTTON_DOWN: {
                     if (event.button.button != SDL_BUTTON_LEFT) {
                         break;
                     }
+                    gameplay_input_state |= KOOKIE_INPUT_FIRE;
                     SDL_Window *event_window =
                         SDL_GetWindowFromID(event.button.windowID);
                     int width = 0;
@@ -2202,6 +2274,17 @@ int kookie_poll_event(void) {
                         100 - (int)(event.button.y * 200.0f / (float)height);
                     return 8;
                 }
+                case SDL_EVENT_MOUSE_BUTTON_UP:
+                    if (event.button.button == SDL_BUTTON_LEFT) {
+                        gameplay_input_state &= ~KOOKIE_INPUT_FIRE;
+                    }
+                    break;
+                case SDL_EVENT_MOUSE_MOTION:
+                    gameplay_mouse_delta_x = kookie_clamp_mouse_delta(
+                        gameplay_mouse_delta_x + (int)event.motion.xrel);
+                    gameplay_mouse_delta_y = kookie_clamp_mouse_delta(
+                        gameplay_mouse_delta_y + (int)event.motion.yrel);
+                    break;
                 case SDL_EVENT_RENDER_DEVICE_RESET:
                     if (kookie_gpu_handle_device_event(event.type)) {
                         last_event_a = 0;
@@ -2241,6 +2324,41 @@ int kookie_last_event_a(void) {
 
 int kookie_last_event_b(void) {
     return last_event_b;
+}
+
+int kookie_input_state(int input) {
+    unsigned int bit = 0;
+    if (input == 1) {
+        bit = KOOKIE_INPUT_FORWARD;
+    } else if (input == 2) {
+        bit = KOOKIE_INPUT_BACKWARD;
+    } else if (input == 3) {
+        bit = KOOKIE_INPUT_LEFT;
+    } else if (input == 4) {
+        bit = KOOKIE_INPUT_RIGHT;
+    } else if (input == 5) {
+        bit = KOOKIE_INPUT_FIRE;
+    } else if (input == 6) {
+        bit = KOOKIE_INPUT_JUMP;
+    }
+    return bit != 0 && (gameplay_input_state & bit) != 0;
+}
+int kookie_consume_scoreboard_toggle(void) {
+    int value = scoreboard_toggle_pending;
+    scoreboard_toggle_pending = 0;
+    return value;
+}
+
+int kookie_consume_mouse_delta_x(void) {
+    int value = gameplay_mouse_delta_x;
+    gameplay_mouse_delta_x = 0;
+    return value;
+}
+
+int kookie_consume_mouse_delta_y(void) {
+    int value = gameplay_mouse_delta_y;
+    gameplay_mouse_delta_y = 0;
+    return value;
 }
 
 int kookie_audio_open(void) {
