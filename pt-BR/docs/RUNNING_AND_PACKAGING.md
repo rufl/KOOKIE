@@ -284,6 +284,11 @@ do p95 da simulação (`4153us > 4000us`). O pacote local `0.1.0-gui.1` passou
 extração assinada e package-smoke, mas a evidência nativa de apresentação GPU
 continua aberta.
 
+O gate focado do servidor dedicado agora passa 512 ticks medidos com p95 de
+`3624us`, p99 de `3689us` e máximo de `3899us` sob o orçamento declarado de
+`4000us`. O excesso anterior do orquestrador completo foi sensível à pressão e
+continua registrado separadamente do bloqueio de apresentação na GPU-alvo.
+
 ### Sessão WAN simples de gansos
 
 Execute o rendezvous UDP autenticado em um host Linux alcançável:

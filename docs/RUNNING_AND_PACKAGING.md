@@ -281,6 +281,11 @@ pressure-sensitive simulation p95 budget (`4153us > 4000us`). The local
 `0.1.0-gui.1` package passed signed extraction and package smoke, but native
 GPU presentation evidence remains open.
 
+The focused dedicated-server gate now passes 512 measured ticks at p95
+`3624us`, p99 `3689us` and maximum `3899us` under the declared `4000us`
+simulation budget. The earlier full orchestration overrun was pressure-sensitive
+and remains recorded separately from the target-GPU presentation blocker.
+
 ### Simple WAN goose session
 
 Run the small authenticated rendezvous on a reachable Linux host:

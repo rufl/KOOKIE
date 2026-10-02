@@ -19,6 +19,15 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - A tentativa de apresentação via overzeer continuou bloqueada por pressão
   total de I/O (`62.54%` bloqueado); não há afirmação de apresentação em
   hardware-alvo.
+### Recuperação do orçamento do servidor dedicado
+
+- Armazenamos em cache a contagem de projéteis ativos e atualizamos o checksum
+  dinâmico da cena de referência incrementalmente sem alterar o checksum
+  determinístico da carga.
+- `bash scripts/verify_dedicated_server.sh` agora passa 512 ticks medidos com
+  p95 de `3624us`, p99 de `3689us` e máximo de `3899us` sob o orçamento de
+  `4000us`.
+
 
 ### Atualização da qualificação da release demo
 

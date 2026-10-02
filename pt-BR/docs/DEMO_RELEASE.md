@@ -118,6 +118,11 @@ antes de uma release pública.
   também parou no orçamento sensível à pressão do p95 da simulação
   (`4153us > 4000us`).
 
+- O gate focado do servidor dedicado agora passa 512 ticks medidos com p95 de
+  `3624us`, p99 de `3689us` e máximo de `3899us` sob o orçamento de simulação
+  de `4000us`; o excesso anterior do orquestrador completo foi sensível à
+  pressão.
+
 - Os helpers de input/ACK em passo fixo, fixação do peer, rewind e interpolação
   remota têm cobertura nos checks G6 focados; isso não substitui gameplay no
   host-alvo.

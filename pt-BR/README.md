@@ -174,6 +174,9 @@ explícitas de teclado nas telas principal, opções, multiplayer e Kutter. O
 probe focado `bash scripts/verify_multiplayer_ui.sh` agora faz staging das
 quatro telas nos caminhos JVM e nativo; `bash scripts/verify_goose_game.sh`
 também passa.
+O gate focado do servidor dedicado também passa 512 ticks medidos com p95 de
+`3,624ms` (p99 de `3,689ms`, máximo de `3,899ms`) sob o orçamento declarado
+de simulação de 4ms.
 
 
 Revisões autoritativas no mesmo tick são ordenadas pela sequência de estado:

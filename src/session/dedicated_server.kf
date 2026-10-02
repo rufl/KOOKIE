@@ -250,9 +250,7 @@ class BoundedDedicatedServer {
     }
 
     Int mix(Int state, Int value) {
-        var normalized = value % 1000003
-        if (normalized < 0) { normalized = normalized + 1000003 }
-        return (state * 31 + normalized) % 1000003
+        return (state * 31 + value) % 1000003
     }
 
     Bool configureReferenceWorkload() {

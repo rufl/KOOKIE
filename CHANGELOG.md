@@ -18,6 +18,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The overzeer presentation attempt remained blocked by full I/O pressure
   (`62.54%` blocked); no target-hardware presentation claim is made.
 
+### Dedicated server budget recovery
+
+- Cached active projectile counts and updated the reference-scene dynamic
+  checksum incrementally without changing the deterministic workload checksum.
+- `bash scripts/verify_dedicated_server.sh` now passes 512 measured ticks with
+  p95 `3624us`, p99 `3689us` and maximum `3899us` under the `4000us` budget.
+
 ### Demo release qualification refresh
 
 - Recorded the current qualification result: the signed Linux presentation

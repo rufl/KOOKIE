@@ -151,6 +151,10 @@ before calling it a public release.
   evidence; a separate full verification attempt also stopped at the
   pressure-sensitive simulation p95 budget (`4153us > 4000us`).
 
+- The focused dedicated-server gate now passes 512 measured ticks with p95
+  `3624us`, p99 `3689us` and maximum `3899us` under the `4000us` simulation
+  budget; the earlier full orchestration overrun was pressure-sensitive.
+
 - The fixed-tick input/ACK, peer-pinning, rewind and remote-interpolation
   helpers are covered by focused G6 checks; they do not replace target-host
   gameplay evidence.

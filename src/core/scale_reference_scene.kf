@@ -13,6 +13,8 @@ class BoundedScaleReferenceScene {
     Int[] effectFrames
     Int lightCursor
     Int effectCursor
+    Long[] lightChecksumWeights
+    Long[] effectChecksumWeights
     Int dynamicChecksumValue
     Bool readyValue
 
@@ -27,6 +29,8 @@ class BoundedScaleReferenceScene {
         effectYs = new Int[64]
         effectZs = new Int[64]
         effectFrames = new Int[64]
+        lightChecksumWeights = new Long[24]
+        effectChecksumWeights = new Long[64]
         lightCursor = 0
         effectCursor = 0
         dynamicChecksumValue = 0
@@ -120,6 +124,7 @@ class BoundedScaleReferenceScene {
             effectZs[index] = 4 + (index / 8) * 16
             effectFrames[index] = index % 12
         }
+        if (!configureChecksumWeights()) { return false }
         dynamicChecksumValue = calculateDynamicChecksum()
         return true
     }
@@ -135,6 +140,33 @@ class BoundedScaleReferenceScene {
         return result
     }
 
+    Bool configureChecksumWeights() {
+        var weight: Long = 1L
+        for (var index = effectChecksumWeights.length - 1;
+            index >= 0; index = index - 1) {
+            effectChecksumWeights[index] = weight
+            weight = (weight * 31L) % 1000003L
+        }
+        for (var index = lightChecksumWeights.length - 1;
+            index >= 0; index = index - 1) {
+            lightChecksumWeights[index] = weight
+            weight = (weight * 31L) % 1000003L
+        }
+        return true
+    }
+
+    Int applyChecksumDelta(
+        Int current, Int prior, Int updated, Long weight
+    ) {
+        var delta: Long = updated - prior
+        delta = delta % 1000003L
+        if (delta < 0L) { delta = delta + 1000003L }
+        var result: Long = current
+        result = result + (delta * weight) % 1000003L
+        result = result % 1000003L
+        return result.toInt()
+    }
+
     Bool step(Int tick, Int lightBudget, Int effectBudget) {
         if (!readyValue || tick < 0 || lightBudget <= 0 ||
             lightBudget > lightXs.length || effectBudget <= 0 ||
@@ -142,18 +174,28 @@ class BoundedScaleReferenceScene {
             return false
         }
         for (var work = 0; work < lightBudget; work = work + 1) {
-            lightIntensities[lightCursor] =
-                55 + ((tick + lightCursor * 7) % 46)
+            var lightIndex = lightCursor
+            var priorIntensity = lightIntensities[lightIndex]
+            var updatedIntensity = 55 + ((tick + lightIndex * 7) % 46)
+            lightIntensities[lightIndex] = updatedIntensity
+            dynamicChecksumValue = applyChecksumDelta(
+                dynamicChecksumValue, priorIntensity, updatedIntensity,
+                lightChecksumWeights[lightIndex])
             lightCursor = lightCursor + 1
             if (lightCursor == lightXs.length) { lightCursor = 0 }
         }
         for (var work = 0; work < effectBudget; work = work + 1) {
-            effectFrames[effectCursor] =
-                (effectFrames[effectCursor] + 1 + (tick % 2)) % 16
+            var effectIndex = effectCursor
+            var priorFrame = effectFrames[effectIndex]
+            var updatedFrame =
+                (priorFrame + 1 + (tick % 2)) % 16
+            effectFrames[effectIndex] = updatedFrame
+            dynamicChecksumValue = applyChecksumDelta(
+                dynamicChecksumValue, priorFrame, updatedFrame,
+                effectChecksumWeights[effectIndex])
             effectCursor = effectCursor + 1
-            if (effectCursor == effectXs.length) { effectCursor = 0 }
+            if (effectCursor == effectFrames.length) { effectCursor = 0 }
         }
-        dynamicChecksumValue = calculateDynamicChecksum()
         return true
     }
 

@@ -176,6 +176,9 @@ screen-specific subtitles, bounded text clipping and explicit keyboard hints
 across the main, options, multiplayer and Kutter screens. The focused
 `bash scripts/verify_multiplayer_ui.sh` probe now stages all four screens in
 both JVM and native paths; `bash scripts/verify_goose_game.sh` also passes.
+The focused dedicated-server gate also passes 512 measured ticks at p95
+`3.624ms` (p99 `3.689ms`, maximum `3.899ms`) under the declared 4ms
+simulation budget.
 
 
 Same-tick authoritative revisions are ordered by state sequence: a newer
