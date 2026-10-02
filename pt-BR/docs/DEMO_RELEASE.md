@@ -99,6 +99,25 @@ antes de uma release pública.
   explícito ready/unready, identidade/ping/erro limitados e snapshots de placar
   determinísticos. `bash scripts/verify_multiplayer_ui.sh` prova modelo,
   codec, limites da sobreposição e probe JVM/nativo.
+- A shell de GUI agora possui hierarquia em moldura consistente, trilhos nas
+  linhas selecionadas, subtítulos por tela, clipping limitado de texto e dicas
+  explícitas de teclado nas telas principal, opções, multiplayer e Kutter. O
+  probe expandido `scripts/verify_multiplayer_ui.sh` faz staging dos quatro
+  frames de tela nos caminhos JVM e nativo.
+
+- O build atual de qualificação da GUI produziu
+  `0.1.0-gui.1` a partir do commit de fonte
+  `b1d4db92bf3adf166d503ca0eb44d8569498950c`; o SHA-256 do arquivo Linux é
+  `d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
+  Builds duplicados determinísticos, assinaturas, extração e package-smoke
+  passaram. Usou o prefixo temporário fixado de SDL_mixer 3.2.4 e uma chave
+  efêmera, portanto é um artefato local de qualificação, não uma release
+  pública. A tentativa isolada de apresentação via overzeer foi bloqueada de
+  forma fail-closed por PSI de I/O cheio (`62.54%` bloqueado) e não retém
+  evidência de apresentação em hardware; uma tentativa completa separada
+  também parou no orçamento sensível à pressão do p95 da simulação
+  (`4153us > 4000us`).
+
 - Os helpers de input/ACK em passo fixo, fixação do peer, rewind e interpolação
   remota têm cobertura nos checks G6 focados; isso não substitui gameplay no
   host-alvo.
@@ -192,6 +211,9 @@ antes de uma release pública.
   artefato da release.
 - Resolver os termos de redistribuição de cada asset empacotado. O asset goose
   do protótipo continua restrito pelos termos upstream e não é incluído aqui.
+- Omitir o gato Prildarill do pacote de release até haver confirmação explícita
+  de redistribuição independente do arquivo bruto; ele permanece restrito ao
+  protótipo.
 - Se o multiplayer for anunciado publicamente, executar evidência LAN/WAN entre
   hosts novos. O rendezvous e o hole punch UDP continuam networking dogfood
   best-effort: sem relay, recuperação de NAT simétrico, segurança WAN de

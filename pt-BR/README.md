@@ -168,6 +168,13 @@ A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
   interpolação remota de seis ticks e métricas de correção da predição. O
   caminho WAN continua sendo IPv4/UDP direto best-effort, não um protocolo
   compatível com QUIC nem um relay de produção.
+A revisão de GUI de 2026-10-02 adiciona uma moldura consistente, trilhos nas
+linhas selecionadas, subtítulos por tela, clipping limitado de texto e dicas
+explícitas de teclado nas telas principal, opções, multiplayer e Kutter. O
+probe focado `bash scripts/verify_multiplayer_ui.sh` agora faz staging das
+quatro telas nos caminhos JVM e nativo; `bash scripts/verify_goose_game.sh`
+também passa.
+
 
 Revisões autoritativas no mesmo tick são ordenadas pela sequência de estado:
 uma sequência nova substitui a amostra mais recente para diagnósticos de ciclo
@@ -199,6 +206,15 @@ um artefato de release público. Um smoke de apresentação em Wine isolado
 chegou ao SDL nativo, mas saiu com código 70 e
 `kookie_gpu_open: No supported SDL_GPU backend found!`; a evidência de hardware
 Windows nativo continua aberta.
+O artefato atual de qualificação da GUI é
+`0.1.0-gui.1`, construído a partir do commit de fonte
+`b1d4db92bf3adf166d503ca0eb44d8569498950c`, com SHA-256 do arquivo
+`d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
+Assinaturas determinísticas, extração e package-smoke passaram. Ele usa uma
+chave efêmera e não é uma release pública; a apresentação via overzeer
+continua bloqueada por pressão total de I/O, portanto não há afirmação de GPU
+em hardware-alvo.
+
 
 O builder determinístico de árvore limpa agora passa localmente para Linux e
 Windows; ainda falta atualizar o pacote público, reter evidência de

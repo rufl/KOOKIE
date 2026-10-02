@@ -3,6 +3,23 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## 2026-10-02
+### Polimento da shell de GUI e qualificação Linux atual
+
+- Adicionamos uma shell em moldura consistente, trilhos nas linhas
+  selecionadas, subtítulos por tela, clipping limitado de texto e dicas
+  explícitas de teclado nas telas principal, opções, multiplayer e Kutter.
+- Expandimos `scripts/verify_multiplayer_ui.sh` para fazer staging das quatro
+  telas nos caminhos JVM e nativo; `scripts/verify_goose_game.sh` passa.
+- Construímos o artefato local de qualificação `0.1.0-gui.1` a partir do
+  commit de fonte `b1d4db92bf3adf166d503ca0eb44d8569498950c`; o SHA-256 do
+  arquivo Linux é
+  `d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
+  Assinatura determinística, extração e package-smoke passaram. O artefato usa
+  uma chave efêmera e não é uma release pública.
+- A tentativa de apresentação via overzeer continuou bloqueada por pressão
+  total de I/O (`62.54%` bloqueado); não há afirmação de apresentação em
+  hardware-alvo.
+
 ### Atualização da qualificação da release demo
 
 - Registramos o resultado atual da qualificação: o gate de pacote de

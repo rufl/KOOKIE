@@ -3,6 +3,21 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## 2026-10-02
+### GUI shell polish and current Linux qualification
+
+- Added a consistent framed shell, selected-row rails, screen-specific
+  subtitles, bounded text clipping and explicit keyboard hints across the
+  main, options, multiplayer and Kutter screens.
+- Expanded `scripts/verify_multiplayer_ui.sh` to stage all four screen frames
+  in both JVM and native paths; `scripts/verify_goose_game.sh` passes.
+- Built local qualification artifact `0.1.0-gui.1` from source commit
+  `b1d4db92bf3adf166d503ca0eb44d8569498950c`; the Linux archive SHA-256 is
+  `d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
+  Deterministic signing, extraction and package smoke passed. The artifact
+  uses an ephemeral key and is not a public release.
+- The overzeer presentation attempt remained blocked by full I/O pressure
+  (`62.54%` blocked); no target-hardware presentation claim is made.
+
 ### Demo release qualification refresh
 
 - Recorded the current qualification result: the signed Linux presentation

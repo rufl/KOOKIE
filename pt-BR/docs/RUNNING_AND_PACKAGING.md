@@ -188,6 +188,13 @@ goose não é CC0: permite uso comercial e edição, mas proíbe revender ou
 redistribuir o arquivo do modelo. Ele permanece limitado ao protótipo por
 solicitação explícita; não redistribua esse asset como CC0.
 
+O catálogo protótipo também contém a fonte e o GLB do gato low-poly atribuído a
+Prildarill. A página de origem permite uso e edição e diz que crédito não é
+obrigatório; o KOOKIE mantém a atribuição voluntariamente. Não há licença SPDX
+nem concessão explícita de redistribuição do arquivo bruto, portanto a fonte e
+o GLB do gato permanecem apenas protótipo e não devem ser anunciados como CC0
+ou como um pacote de assets independente.
+
 ## Pacote de apresentação SDL para Linux
 
 Gere a apresentação persistente SDL3/SDL_GPU usada para qualificação visual
@@ -258,6 +265,25 @@ Mudanças de vídeo só são efetivadas em Apply. Os pacotes do lobby usam tags
 SipHash e sequências contra replay. Uma chave compartilhada configurada de 128
 bits autentica peers; o fallback local apenas detecta corrupção acidental. O
 lobby não fornece criptografia nem identidade pública.
+### Qualificação da GUI
+
+O polimento da shell é coberto pelo probe limitado de modelo/staging:
+
+```bash
+bash scripts/verify_multiplayer_ui.sh
+bash scripts/verify_goose_game.sh
+```
+
+O probe faz staging das telas principal, opções, multiplayer e Kutter nos
+caminhos JVM e nativo. A validação gráfica deve usar
+`overzeer-isolated-display`; Xvfb simples ou o desktop ativo não são
+evidência. Na workstation atual, a tentativa isolada de 2026-10-02 foi
+bloqueada de forma fail-closed por pressão total de I/O (`62.54%` bloqueado), e
+o orquestrador completo excedeu separadamente o orçamento sensível à pressão
+do p95 da simulação (`4153us > 4000us`). O pacote local `0.1.0-gui.1` passou
+extração assinada e package-smoke, mas a evidência nativa de apresentação GPU
+continua aberta.
+
 ### Sessão WAN simples de gansos
 
 Execute o rendezvous UDP autenticado em um host Linux alcançável:

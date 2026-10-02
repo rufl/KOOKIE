@@ -171,6 +171,12 @@ The current source tree has a bounded player-facing slice:
   remote interpolation and prediction-correction metrics. The WAN path remains
   best-effort direct IPv4/UDP rather than a QUIC-compatible or production
   relay service.
+The 2026-10-02 GUI pass adds a consistent framed shell, selected-row rails,
+screen-specific subtitles, bounded text clipping and explicit keyboard hints
+across the main, options, multiplayer and Kutter screens. The focused
+`bash scripts/verify_multiplayer_ui.sh` probe now stages all four screens in
+both JVM and native paths; `bash scripts/verify_goose_game.sh` also passes.
+
 
 Same-tick authoritative revisions are ordered by state sequence: a newer
 sequence replaces the latest sample for lifecycle or stale-command diagnostics,
@@ -200,6 +206,14 @@ SPIR-V/DXIL package entries. The qualification key was temporary, so it is not
 a public release artifact. An isolated Wine presentation smoke reached native
 SDL but exited 70 with `kookie_gpu_open: No supported SDL_GPU backend found!`;
 native Windows hardware evidence remains open.
+The current GUI qualification artifact is
+`0.1.0-gui.1`, built from source commit
+`b1d4db92bf3adf166d503ca0eb44d8569498950c`, with archive SHA-256
+`d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
+Deterministic signing, extraction and package smoke passed. It uses an
+ephemeral key and is not a public release; overzeer presentation remains
+blocked by full I/O pressure, so no target-hardware GPU claim is made.
+
 
 The deterministic clean-tree builder now passes locally for both Linux and
 Windows; the public package, target-specific presentation evidence and paired

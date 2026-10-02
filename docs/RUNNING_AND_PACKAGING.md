@@ -185,6 +185,13 @@ goose page is not CC0: it permits commercial use and editing but prohibits
 reselling or redistributing the model file. It remains prototype-only by
 explicit request; do not redistribute that asset as CC0.
 
+The prototype catalog also contains the attributed Prildarill low-poly cat
+source and GLB. Its source page permits use and editing and says credit is not
+required; KOOKIE retains attribution voluntarily. No SPDX license or
+standalone raw-file redistribution grant is stated, so the cat source and GLB
+remain prototype-only and must not be advertised as CC0 or an independent
+asset pack.
+
 ## Linux SDL presentation package
 
 Build the persistent SDL3/SDL_GPU presentation used for isolated visual
@@ -256,6 +263,24 @@ Display changes commit only on Apply. Lobby packets use SipHash tags and replay
 sequences. A configured 128-bit shared key authenticates peers; the local
 fallback only detects accidental corruption. The lobby provides neither
 encryption nor public identity.
+### GUI qualification
+
+The shell polish is covered by the bounded model/staging probe:
+
+```bash
+bash scripts/verify_multiplayer_ui.sh
+bash scripts/verify_goose_game.sh
+```
+
+The probe stages the main, options, multiplayer and Kutter frames in JVM and
+native paths. Graphical validation must use `overzeer-isolated-display`; plain
+Xvfb or the active desktop is not evidence. On the current workstation, the
+2026-10-02 isolated attempt was fail-closed by full I/O pressure
+(`62.54%` blocked), and the full orchestrator separately exceeded the
+pressure-sensitive simulation p95 budget (`4153us > 4000us`). The local
+`0.1.0-gui.1` package passed signed extraction and package smoke, but native
+GPU presentation evidence remains open.
+
 ### Simple WAN goose session
 
 Run the small authenticated rendezvous on a reachable Linux host:

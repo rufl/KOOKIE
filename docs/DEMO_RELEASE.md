@@ -133,6 +133,24 @@ before calling it a public release.
   unready state, bounded identity/ping/error display and deterministic
   scoreboard snapshots. `bash scripts/verify_multiplayer_ui.sh` proves the
   model, codec, overlay bounds and JVM/native probe path.
+- The GUI shell now has a consistent framed hierarchy, selected-row rails,
+  screen-specific subtitles, bounded text clipping and explicit keyboard hints
+  across main, options, multiplayer and Kutter. The expanded
+  `scripts/verify_multiplayer_ui.sh` probe stages all four screen frames in
+  JVM and native paths.
+
+- The current GUI qualification build produced
+  `0.1.0-gui.1` from source commit
+  `b1d4db92bf3adf166d503ca0eb44d8569498950c`; its Linux archive SHA-256 is
+  `d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
+  Deterministic duplicate builds, signatures, extraction and package smoke
+  passed. This uses the temporary pinned SDL_mixer 3.2.4 prefix and an
+  ephemeral key, so it is a local qualification artifact, not a public
+  release. The isolated overzeer presentation attempt was fail-closed by
+  full I/O PSI (`62.54%` blocked) and retains no hardware presentation
+  evidence; a separate full verification attempt also stopped at the
+  pressure-sensitive simulation p95 budget (`4153us > 4000us`).
+
 - The fixed-tick input/ACK, peer-pinning, rewind and remote-interpolation
   helpers are covered by focused G6 checks; they do not replace target-host
   gameplay evidence.
@@ -223,6 +241,8 @@ before calling it a public release.
   release artifact.
 - Resolve redistribution terms for every bundled asset. The prototype goose
   asset remains restricted by its upstream terms and is not included here.
+- Keep the Prildarill cat out of the release package until standalone raw-file
+  redistribution is explicitly confirmed; it remains prototype-only.
 - If multiplayer is advertised publicly, run fresh cross-host LAN/WAN evidence.
   The rendezvous and direct UDP hole punch remain best-effort dogfood networking:
   no relay, symmetric-NAT recovery, production WAN security or DDoS protection.
