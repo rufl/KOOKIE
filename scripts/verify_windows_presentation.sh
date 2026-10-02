@@ -86,8 +86,8 @@ root = destination / archive_path.stem
 for relative in (
     "kookie.cmd",
     "kookie.exe",
+    "kookie-visual.exe",
     "build/SDL3.dll",
-    "build/SDL3_mixer.dll",
     "SDL3.dll",
     "SDL3_mixer.dll",
     "build/g0_triangle.vert.spv",

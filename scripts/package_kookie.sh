@@ -616,6 +616,7 @@ bundle_windows_native_presentation() {
     "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
     "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
     -lws2_32 -lpsapi -o "$PACKAGE_ROOT/kookie.exe"
+  cp -- "$PACKAGE_ROOT/kookie.exe" "$PACKAGE_ROOT/kookie-visual.exe"
   cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
   cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
     "$PACKAGE_ROOT/SDL3_mixer.dll"
