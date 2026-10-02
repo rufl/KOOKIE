@@ -2,6 +2,11 @@
 
 Research date: 2026-09-22. Companion to [KOF_COURSE](KOF_COURSE.md).
 
+These probes intentionally preserve the historical artifact identity from
+[RESEARCH_PROBES](RESEARCH_PROBES.md). The active KOOKIE qualification gate
+uses Kof `0.5.0-beta`; these course observations are not current engine-gate
+results.
+
 ## Scope and reproduction
 
 These are 18 small source programs: one unchanged course solution and 17 focused probes, executed through 36 `run` and two `check` invocations. This is not a course-wide test run or a platform matrix. Only JVM and native Linux x86-64 were exercised. No server, process demo, database, GUI, network scanner or graphical surface was launched.

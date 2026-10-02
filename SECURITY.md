@@ -11,6 +11,11 @@ Security fixes target the current `main` branch and, when practical, the most
 recent signed dogfood release. Older tags and locally modified packages are not
 supported release lines.
 
+The session boundary also treats tick/sequence ordering as a security invariant:
+newer same-tick revisions are accepted only with a higher state sequence,
+older/replayed state is rejected, and checkpoint restore discards future rewind
+history before simulation resumes.
+
 ## Report a vulnerability privately
 
 Use [GitHub private vulnerability reporting](https://github.com/rufl/KOOKIE/security/advisories/new).

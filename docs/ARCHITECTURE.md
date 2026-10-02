@@ -1,6 +1,6 @@
 # KOOKIE project architecture
 
-Status: **living target architecture; the bounded G0–G4 implementation is complete within the documented qualification limits**.
+Status: **living target architecture; the bounded G0–G6 implementation is complete within the documented qualification limits**.
 
 
 This document is the project-level architecture authority. Detailed acceptance
@@ -210,7 +210,8 @@ The protocol is transport-independent:
   required commands and session metadata.
 - Fixed-tick input channel over authenticated UDP: up to three ordered inputs
   are repeated, the latest snapshot is acknowledged, and the host returns an
-  input acknowledgement; newer authoritative snapshots supersede older ones.
+  input acknowledgement; newer authoritative snapshots supersede older ticks,
+  while a higher state sequence may replace the latest sample at the same tick.
 - Explicit tick, sequence, acknowledgement, baseline and content-revision
   fields.
 - Bounded packet size, decode work, queue length and entity count.
@@ -521,6 +522,9 @@ periodic authoritative checkpoints/state hashes
 ```
 
 Replay re-simulates from checkpoints. Presentation timestamps are insufficient.
+
+Restoring an earlier checkpoint invalidates rewind samples from the discarded
+future; the next fixed tick starts a fresh rewind-history epoch.
 
 ## 8. Repository layout
 

@@ -2,6 +2,11 @@
 
 Data da pesquisa: 2026-09-22. Pesquisa somente na Internet/API/código-fonte; nenhum desses jogos foi compilado ou executado aqui.
 
+Este é um levantamento datado do ecossistema, não o registro de qualificação
+atual do KOOKIE. A baseline ativa de fonte/CI é Kof `0.5.0-beta`; os projetos
+abaixo continuam sendo referências de pesquisa e não foram usados como
+dependências da engine.
+
 ## Resposta
 
 **Sim: foram encontrados dois jogos concretos feitos com Kof e publicados com código-fonte**, incluindo um raycaster semelhante a um FPS. Um terceiro demo de Pong é relatado em uma issue upstream. Nenhum dos materiais inspecionados comprova um shooter lançado e com qualidade de produção usando o backend ELF nativo do Kof.

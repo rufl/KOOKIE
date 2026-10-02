@@ -5238,6 +5238,8 @@ class LoopbackSession {
         if (!clock.setState(restoredTick, 0)) {
             return false
         }
+        // Rewinding invalidates samples from the discarded future; restart the
+        // bounded history before the next authoritative tick.
         serverRewindHistory.clear()
         if (playerOneConnected) {
             if (!serverMovement.setPosition(1, positionOne) ||

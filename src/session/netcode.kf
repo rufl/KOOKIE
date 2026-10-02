@@ -223,6 +223,8 @@ class NetcodeSnapshotWindow {
             sequence > 1000000) {
             return false
         }
+        // A lifecycle or stale-command diagnostic may advance the state sequence
+        // without advancing the authoritative tick; replace that sample in place.
         if (countValue > 0 && sequence <= latestSequenceValue) {
             return false
         }

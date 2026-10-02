@@ -7,6 +7,13 @@
 - Preserve measured commands, source pins, hashes and proof limits. Do not translate code identifiers, paths, command names or upstream product names.
 - Write status like a teammate would: say what works, what was actually checked and what is still blocked. Avoid milestone language that sounds more complete than the evidence.
 
+The active source/CI baseline is Kof `0.5.0-beta` at
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. Current session documentation must
+describe strict tick ordering, newer same-tick state-sequence revisions and
+fresh rewind history after checkpoint restore. Research pages retain their
+dated toolchain snapshots intentionally; refresh their scope and evidence
+limits without rewriting historical measurements.
+
 The root README is the landing page.
 [Running and packaging](RUNNING_AND_PACKAGING.md) holds developer, release,
 kooker and qualification commands. [Demo release readiness](DEMO_RELEASE.md)

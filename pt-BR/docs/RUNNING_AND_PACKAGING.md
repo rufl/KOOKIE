@@ -297,15 +297,20 @@ serviço de identidade ou proteção DDoS de produção. Deixe
 
 O gameplay usa snapshots autoritativos tipados e bundles de input em passo
 fixo. Cada bundle repete até três inputs ordenados e carrega o último ACK de
-snapshot; o host retorna um ACK de input. Esta é a camada limitada de
-confiabilidade sobre o envelope UDP autenticado. O wire não é compatível com
-QUIC.
+snapshot; o host retorna um ACK de input. Ticks mais novos substituem snapshots
+antigos, enquanto uma sequência de estado maior pode substituir a amostra mais
+recente no mesmo tick para diagnósticos de ciclo de vida ou de comando obsoleto.
+Esta é a camada limitada de confiabilidade sobre o envelope UDP autenticado. O
+wire não é compatível com QUIC.
 
 O host retém um histórico limitado de posições de 12 ticks para compensação de
 latência do hitscan. Ele deriva o tick de rewind do atraso confirmado pelo
 snapshot e usa a distância histórica entre origem e alvo; clientes renderizam
 posições remotas seis ticks atrás do tick vivo. Esses limites são determinísticos
 e não fornecem semântica sub-tick de QUIC.
+
+Restaurar um checkpoint anterior de replay limpa as amostras de rewind do futuro
+descartado antes de retomar o avanço em passo fixo.
 
 O pacote Linux também contém `kookie-rendezvous.py`; o rendezvous roda em Linux
 enquanto os dois clientes podem rodar em Linux ou Windows.

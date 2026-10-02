@@ -23,7 +23,9 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
 - Reproduzível do lifetime de exceção nativa e controles negativos registrados no gate de verificação.
 - Adaptador nativo expõe timing decorrido de draw GPU após retirement com GPU ocioso.
 - Relógio de fixed-step G1, comandos de input limitados com transições de borda fire/jump, sincronização de snapshot servidor/cliente em loopback e storage limitado de componentes inteiros.
-- Admissão de dois clientes em loopback G1, sequência de input por cliente, rejeição de snapshot obsoleto, movimento autoritativo limitado e clamp de câmera/input.
+- Admissão de dois clientes em loopback G1, sequência de input por cliente,
+  rejeição de snapshots antigos ou duplicados, substituição de revisões novas no
+  mesmo tick, movimento autoritativo limitado e clamp de câmera/input.
 - Smoke nativo isolado aceitou ciclo de vida da janela oculta, flattening de resize/focus, áudio dummy, teardown de tokens obsoletos e limpeza de processos; a GPU ficou indisponível para apresentação em janela.
 - Histórico limitado de snapshots do cliente com interpolação inteira e limites explícitos de autoridade de predição/reconciliação.
 - Consultas escalares limitadas de colisão com resolução de movimento no limite e rejeição de posicionamento fora dos limites.

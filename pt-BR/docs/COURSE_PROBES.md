@@ -2,6 +2,11 @@
 
 Data da pesquisa: 2026-09-22. Complemento de [KOF_COURSE](KOF_COURSE.md).
 
+Estas sondas preservam intencionalmente a identidade histórica do artefato em
+[RESEARCH_PROBES](RESEARCH_PROBES.md). O gate ativo de qualificação do KOOKIE
+usa Kof `0.5.0-beta`; estas observações do curso não são resultados do gate
+atual da engine.
+
 ## Escopo e reprodução
 
 Estes são 18 pequenos programas-fonte: uma solução inalterada do curso e 17 sondas focadas, executados por meio de 36 invocações de `run` e duas de `check`. Isto não é uma execução de testes de todo o curso nem uma matriz de plataformas. Somente JVM e Linux nativo x86-64 foram exercitados. Nenhum servidor, demonstração de processo, banco de dados, GUI, scanner de rede ou superfície gráfica foi iniciado.

@@ -2,6 +2,10 @@
 
 Research date: 2026-09-22. This is a working reference, not a claim of complete language conformance.
 
+The active KOOKIE qualification baseline is the Kof `0.5.0-beta` source
+commit listed below. The older `0.4.9-beta` measurements later in this page
+remain historical research and do not describe the current build input.
+
 ## Evidence baseline
 
 ### Current release toolchain

@@ -70,6 +70,10 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
   ACK do snapshot mais recente e só aposenta o histórico após ACK autoritativo
   do input. Bundles/ACKs tipados validam checksums e rejeitam estado obsoleto
   ou fora de ordem.
+- A janela de snapshots aceita uma revisão com sequência maior no mesmo tick e
+  substitui a última amostra sem abrir uma lacuna de interpolação; ticks ou
+  sequências antigos continuam rejeitados. Restaurar checkpoint limpa amostras
+  de rewind do futuro descartado antes do próximo tick.
 - O transporte nativo autenticado fixa o endpoint do peer admitido após o
   handshake. Continua sendo um envelope UDP autenticado limitado, com semântica
   inspirada em QUIC, não QUIC/TLS nem relay de produção.

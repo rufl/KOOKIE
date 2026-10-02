@@ -50,4 +50,9 @@ arquivo único. Por isso o gate registra os diagnósticos conhecidos de pacote
 `PKG004`/`PKG006` e falha para qualquer outro erro de LSP. A correção completa
 de pacotes/imports é coberta pelas verificações do compilador JVM/nativo.
 
+Quando um contrato de sessão ou replay mudar, atualize juntas as páginas
+correspondentes em inglês e português e os comentários próximos no código-fonte.
+Documente explicitamente revisões de estado no mesmo tick e as regras de época de
+checkpoint/rewind; não deixe essas invariantes somente no teste de regressão.
+
 Não faça commit de artefatos de build, credenciais, dependências baixadas ou caches gerados. Verificações gráficas precisam usar um display isolado descartável e nunca o desktop ativo. Os limites das verificações nativas permanecem documentados em `docs/ENGINE_PLAN.md`.

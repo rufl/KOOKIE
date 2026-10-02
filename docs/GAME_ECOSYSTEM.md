@@ -2,6 +2,10 @@
 
 Research date: 2026-09-22. Internet/API/source research only; none of these games was built or launched here.
 
+This is a dated ecosystem survey, not the current KOOKIE qualification record.
+The active source/CI baseline is Kof `0.5.0-beta`; the projects below remain
+research references and were not used as engine dependencies.
+
 ## Answer
 
 **Yes: two concrete source-published Kof games were found**, including an FPS-like raycaster. A third Pong demo is reported in an upstream issue. None of the inspected material establishes a released, production-quality shooter using Kof's native ELF backend.

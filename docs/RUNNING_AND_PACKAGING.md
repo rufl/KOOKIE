@@ -294,15 +294,20 @@ identity service, or production DDoS protection. Leave
 
 The gameplay path uses typed authoritative snapshots and fixed-tick input
 bundles. Each bundle repeats up to three ordered inputs and carries the last
-snapshot ACK; the host returns an input ACK. This is the bounded reliability
-layer used over the authenticated UDP envelope. It is not a QUIC-compatible
-wire protocol.
+snapshot ACK; the host returns an input ACK. Newer ticks supersede older
+snapshots, while a higher state sequence may replace the latest sample at the
+same tick for lifecycle or stale-command diagnostics. This is the bounded
+reliability layer used over the authenticated UDP envelope. It is not a
+QUIC-compatible wire protocol.
 
 The host retains a 12-tick bounded position history for hitscan lag
 compensation. It derives a rewind tick from the acknowledged snapshot lag and
 uses the historical source/target distance; clients render remote player
 positions six ticks behind the live tick. These limits are deterministic and
 do not provide sub-tick QUIC semantics.
+
+Restoring an earlier replay checkpoint clears rewind samples from the discarded
+future before fixed-tick advancement resumes.
 
 The Linux package also contains `kookie-rendezvous.py`. The rendezvous can run
 on Linux while both game clients run Linux or Windows.

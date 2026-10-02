@@ -30,8 +30,10 @@ A árvore de fontes atual possui estes caminhos aptos a release:
 - A sessão usa bundles de input em passo fixo com ACKs de snapshot/input, fixa
   o endpoint do peer autenticado, faz rewind de hitscan por uma janela limitada
   de 12 ticks, interpola jogadores remotos seis ticks atrás e expõe métricas de
-  correção da predição. O caminho WAN IPv4/UDP direto continua best-effort e
-  não é compatível com QUIC.
+  correção da predição. Uma sequência de estado maior pode revisar a amostra
+  autoritativa mais recente no mesmo tick para diagnósticos de ciclo de vida ou
+  de comando obsoleto; ticks e sequências antigos continuam rejeitados. O
+  caminho WAN IPv4/UDP direto continua best-effort e não é compatível com QUIC.
 - Empacotamento de apresentação nativa SDL3/SDL_GPU para Linux x86-64 com
   SDL_mixer, procedência assinada e smoke fora do checkout. O gate de pacote
   assinado/package-smoke de 2026-10-02 passou com um prefixo temporário fixado

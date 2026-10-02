@@ -12,6 +12,11 @@ Correções de segurança têm como alvo o branch `main` atual e, quando viável
 release dogfood assinado mais recente. Tags antigos e pacotes modificados
 localmente não são linhas de release com suporte.
 
+A fronteira da sessão também trata a ordenação tick/sequência como uma
+invariante de segurança: revisões no mesmo tick só são aceitas com sequência de
+estado maior, estado antigo/repetido é rejeitado e a restauração de checkpoint
+descarta o histórico de rewind do futuro antes de retomar a simulação.
+
 ## Relate uma vulnerabilidade de forma privada
 
 Use o [relato privado de vulnerabilidades do GitHub](https://github.com/rufl/KOOKIE/security/advisories/new).

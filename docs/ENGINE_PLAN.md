@@ -390,7 +390,8 @@ The first transport contract is transport-independent:
 - Reliable ordered control channel for handshake, join/leave, commands that
   require delivery, content/session metadata and migration errors.
 - Unreliable sequenced channel for input and snapshots where newer state
-  supersedes older state.
+  supersedes older ticks; a higher state sequence may revise the latest sample
+  at the same tick.
 - Explicit tick, sequence, acknowledgement, baseline and content-revision
   fields.
 - Bounded packet sizes, decode work, queues and entity counts.
@@ -664,6 +665,9 @@ Data/shader reload can be supported after validation and GPU-safe retirement. In
 - `BoundedSaveSections` and schema codecs allow up to 12 sections and 160 words per section. Schema file v2 is `[magic, 2, slotWords]` plus two `[wireLength, checksum, wire...]` slots sized to the actual envelope. The fixed 316-word v1 format remains readable; repair writes v2. Corrupt/truncated/trailing files, insufficient destination capacity and valid newer schemas leave the destination intact.
 - Interaction capture records consumed `(tick, player, sequence, targetId)` commands, including failed gameplay checks, in strict tick/player order with increasing per-player sequences. Admission reserves the bounded 64-command log before mutating sequence state. Export through `exportInteractionReplay` before disabling capture. Replay bundle v2 carries this log; genuine v1 reads produce an empty log. The older plain replay wire codec rejects interaction-bearing timelines rather than dropping commands.
 - `replayTimelineToTick(movementPlayer, timeline, targetTick)` requires capture disabled, focused participants, a current full checkpoint/sidecar and at most 4096 intervening ticks. It re-simulates one explicitly selected movement stream plus both players' interaction commands; it is not a combined two-player movement recording. Checkpoints retain held fire/jump, pending interactions and sequence watermarks; movement capture uses consumed ticks. Older checkpoint payloads remain usable by checkpoint restoration, but full playback requires the current input-state snapshot. Level-save restoration requires capture disabled, cancels pending interactions, preserves live sequence watermarks and republishes client progress.
+- A newer state sequence may revise the most recent authoritative sample at the
+  same tick; older ticks/sequences remain rejected. Restoring an earlier
+  checkpoint clears discarded future rewind samples before the next fixed tick.
 - Mod policy: trusted `.kf` code requires rebuild and has host authority; data-only mods have bounded path/schema admission. Do not label trusted code a sandbox.
 
 Networking is a first-class requirement, not a later co-op feature. Preserve one

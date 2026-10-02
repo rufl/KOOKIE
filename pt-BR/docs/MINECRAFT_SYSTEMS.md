@@ -2,6 +2,10 @@
 
 Data da pesquisa: **2026-09-22**. Esta é uma avaliação de bibliotecas/arquitetura, não um engine implementado nem uma comparação de desempenho medida. Linux nativo x86-64 e comportamento de CPU pertencente ao Kof continuam sendo a baseline em [ENGINE_PLAN](ENGINE_PLAN.md). A propriedade estrangeira de ECS/GUI/física é uma alternativa possível que exige aprovação explícita; esta pesquisa não a aprova silenciosamente.
 
+A baseline ativa de fonte/CI do KOOKIE é o Kof `0.5.0-beta`; esta pesquisa
+mantém seu snapshot datado do Minecraft e não aprova dependências estrangeiras
+para a engine sem contrato e gate de qualificação separados.
+
 **Melhores candidatos imediatos:** ports seletivos sob MIT da matemática do JOML e do Brigadier; armazenamento Kof inspirado em Artemis/Ashley; definições/componentes/codecs de conteúdo no estilo Minecraft; layout inspirado em owo; ciclos de vida de instâncias inspirados em Flywheel; um único backend nativo de áudio. Jolt é o atalho mais forte avaliado se a propriedade da física estrangeira for aceita. RmlUi e Dear ImGui também reduzem trabalho de UI se a propriedade estrangeira de widgets/layout for aceita.
 
 ## 1. Baseline atual, não uma stack da era 1.21

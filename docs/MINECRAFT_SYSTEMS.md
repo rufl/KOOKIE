@@ -2,6 +2,10 @@
 
 Research date: **2026-09-22**. This is a library/architecture assessment, not an implemented engine or a measured performance comparison. Native Linux x86-64 and Kof-owned CPU behavior remain the baseline in [ENGINE_PLAN](ENGINE_PLAN.md). Foreign ECS/GUI/physics ownership is a possible explicit alternative, not silently approved by this research.
 
+The active KOOKIE source/CI baseline is Kof `0.5.0-beta`; this research keeps
+its dated Minecraft snapshot and does not approve foreign dependencies for the
+engine without a separate contract and qualification gate.
+
 **Best immediate candidates:** selective MIT JOML math and Brigadier ports; Artemis/Ashley-inspired Kof storage; Minecraft-style content definitions/components/codecs; owo-inspired UI layout; Flywheel-inspired instance lifecycles; one native audio backend. Jolt is the strongest assessed shortcut if foreign physics ownership is accepted. RmlUi and Dear ImGui similarly reduce UI work if foreign widget/layout ownership is accepted.
 
 ## 1. Current baseline, not a 1.21-era stack

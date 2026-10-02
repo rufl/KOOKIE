@@ -2,6 +2,10 @@
 
 Data da pesquisa: 2026-09-22. Isto estende [KOF_LANGUAGE](KOF_LANGUAGE.md), não é uma implementação de engine. As fontes/resultados completos executados estão em [COURSE_PROBES](COURSE_PROBES.md).
 
+O gate ativo de qualificação do KOOKIE usa Kof `0.5.0-beta`; a identidade do
+artefato `0.4.9-beta` abaixo é mantida intencionalmente como evidência histórica
+do curso, não como entrada de build atual da engine.
+
 ## Fontes, versões e evidências
 
 - [curso completo](https://github.com/lunalully/curso-completo-de-kof) fornecido, fixado em [`d6fc8318e77f30ab0d6be87055d86a7eb63960d3`](https://github.com/lunalully/curso-completo-de-kof/tree/d6fc8318e77f30ab0d6be87055d86a7eb63960d3). Seu README afirma que as soluções foram verificadas com **0.3.7-beta**. Essa é uma afirmação histórica do upstream, não uma certificação de todo o curso.

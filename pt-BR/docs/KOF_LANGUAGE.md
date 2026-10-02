@@ -2,6 +2,11 @@
 
 Data da pesquisa: 2026-09-22. Esta é uma referência de trabalho, não uma afirmação de conformidade completa com a linguagem.
 
+A baseline ativa de qualificação do KOOKIE é o commit de fonte do Kof
+`0.5.0-beta` listado abaixo. As medições mais antigas de `0.4.9-beta` nesta
+página continuam sendo pesquisa histórica e não descrevem a entrada de build
+atual.
+
 ## Base de evidências
 
 ### Toolchain atual de release

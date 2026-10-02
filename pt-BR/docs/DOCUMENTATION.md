@@ -7,6 +7,13 @@
 - Preserve comandos medidos, pins de origem, hashes e limites de comprovação. Não traduza identificadores de código, caminhos, nomes de comandos ou produtos upstream.
 - Escreva o status como um colega escreveria: diga o que funciona, o que foi realmente verificado e o que continua bloqueado. Evite linguagem de milestone que pareça mais completa do que a evidência.
 
+A baseline ativa de fonte/CI é o Kof `0.5.0-beta` no commit
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. A documentação atual da sessão deve
+descrever ordenação estrita por tick, revisões no mesmo tick com sequência de
+estado mais nova e histórico de rewind novo após restaurar checkpoint. As páginas
+de pesquisa mantêm intencionalmente seus snapshots datados de toolchain; atualize
+escopo e limites de evidência sem reescrever medições históricas.
+
 O README da raiz é a página inicial.
 [Execução e empacotamento](RUNNING_AND_PACKAGING.md) reúne comandos de
 desenvolvimento, release, kooker e qualificação. [Prontidão da release demo](DEMO_RELEASE.md)

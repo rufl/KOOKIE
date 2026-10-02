@@ -49,4 +49,9 @@ module, so the gate records its known `PKG004`/`PKG006` package diagnostics and
 fails on every other LSP error. Full package/import correctness is covered by
 the JVM/native compiler checks.
 
+When a session or replay contract changes, update the matching English and
+Portuguese pages and the nearby source comments together. Document same-tick
+state revisions and checkpoint/rewind epoch rules explicitly; do not leave those
+invariants only in a regression test.
+
 Do not commit build output, credentials, downloaded dependencies, or generated caches. Graphical checks must use a disposable isolated display and must not target the active desktop session. Native runtime findings remain bounded by the gates documented in `docs/ENGINE_PLAN.md`.

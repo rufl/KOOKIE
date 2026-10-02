@@ -1,6 +1,6 @@
 # Arquitetura do projeto KOOKIE
 
-Status: **arquitetura-alvo viva; a implementação limitada de G0–G4 está completa dentro dos limites de qualificação documentados**.
+Status: **arquitetura-alvo viva; a implementação limitada de G0–G6 está completa dentro dos limites de qualificação documentados**.
 
 
 Este documento é a autoridade de arquitetura no nível do projeto. Os
@@ -213,7 +213,8 @@ O protocolo é independente do transporte:
   comandos obrigatórios e metadados da sessão.
 - Canal de input em passo fixo sobre UDP autenticado: até três inputs ordenados
   são repetidos, o último snapshot é confirmado e o host retorna um ACK de
-  input; snapshots autoritativos novos substituem os antigos.
+  input; snapshots autoritativos mais novos substituem ticks antigos, enquanto
+  uma sequência de estado maior pode substituir a amostra mais recente no mesmo tick.
 - Campos explícitos de tick, sequência, confirmação, baseline e revisão de
   conteúdo.
 - Tamanho de pacote, trabalho de decodificação, comprimento de fila e quantidade
@@ -546,6 +547,9 @@ periodic authoritative checkpoints/state hashes
 ```
 
 O replay re-simula a partir dos checkpoints. Timestamps de apresentação são insuficientes.
+
+Restaurar um checkpoint anterior invalida as amostras de rewind do futuro
+descartado; o próximo tick fixo inicia uma nova época do histórico de rewind.
 
 ## 8. Estrutura do repositório
 

@@ -413,8 +413,9 @@ mensagem de feedback com checksum usa `6 + 11F` palavras para até 16 eventos de
 impacto ordenados. As duas mensagens variáveis cabem no limite compartilhado de
 300 palavras do transporte nativo/JVM. Os clientes validam antes da mutação,
 admitem a geração da conexão antes da sequência, rejeitam mensagens obsoletas
-ou com lacunas e aplicam o estado autoritativo mesmo quando filas limitadas de
-apresentação descartam feedback.
+ou com lacunas e aceitam uma revisão de sequência maior no mesmo tick; ticks e
+sequências antigos continuam rejeitados. O estado autoritativo é aplicado mesmo
+quando filas limitadas de apresentação descartam feedback.
 
 O caminho de loopback deve serializar e decodificar mensagens em vez de passar
 referências diretamente. Isso comprova a fronteira real entre cliente e
@@ -716,7 +717,14 @@ linguagem de script.
 - `BoundedSaveSections` e codecs de schema permitem até 12 seções e 160 palavras por seção. O arquivo v2 usa `[magic, 2, slotWords]` e duas cópias `[wireLength, checksum, wire...]` dimensionadas pelo envelope real. O formato v1 fixo de 316 palavras continua legível; o reparo grava v2. Arquivos corrompidos/truncados/com dados extras, capacidade insuficiente do destino e schemas mais novos válidos deixam o destino intacto.
 - A captura de interações registra comandos consumidos `(tick, player, sequence, targetId)`, incluindo verificações de gameplay rejeitadas, em ordem estrita de tick/jogador e sequência crescente por jogador. A admissão reserva o log limitado de 64 comandos antes de alterar sequências. Exporte por `exportInteractionReplay` antes de desativar a captura. Bundles v2 carregam o log; leituras de v1 genuíno produzem log vazio. O codec wire simples antigo rejeita timelines com interações em vez de descartar comandos.
 - `replayTimelineToTick(movementPlayer, timeline, targetTick)` exige captura desativada, participantes com foco, checkpoint/sidecar completo atual e no máximo 4096 ticks intermediários. Simula novamente um stream explícito de movimento e interações dos dois jogadores; não é uma gravação combinada de movimento de dois jogadores. Checkpoints preservam disparo/salto mantidos, interações pendentes e sequências; movimento é capturado no tick consumido. Payloads antigos continuam utilizáveis para restaurar checkpoints, mas reprodução completa exige o snapshot atual de input. Restaurar save do nível exige captura desativada, cancela interações pendentes, preserva sequências ao vivo e republica o progresso ao cliente.
-- Política de mods: código `.kf` confiável exige rebuild e tem autoridade sobre o host; mods somente de dados têm admissão limitada de caminho/schema. Não chame código confiável de sandbox.A rede é um requisito de primeira classe, não um recurso posterior de cooperação. Preserve uma simulação de servidor autoritativa, comandos de tick serializáveis, snapshots, predição/reconciliação e codecs independentes do transporte desde G0. O modo para um jogador usa a mesma sessão servidor/cliente por loopback; o host de LAN e o servidor dedicado são composições dos mesmos módulos de sessão. Não prometa lockstep de ponto flutuante entre alvos: replique comandos, estado autoritativo e esquemas de extensão declarados.
+
+- Uma sequência de estado mais nova pode revisar a amostra autoritativa mais
+  recente no mesmo tick; ticks e sequências antigos continuam rejeitados.
+  Restaurar um checkpoint anterior limpa as amostras de rewind do futuro
+  descartado antes do próximo tick fixo.
+- Política de mods: código `.kf` confiável exige rebuild e tem autoridade sobre o host; mods somente de dados têm admissão limitada de caminho/schema. Não chame código confiável de sandbox.
+
+A rede é um requisito de primeira classe, não um recurso posterior de cooperação. Preserve uma simulação de servidor autoritativa, comandos de tick serializáveis, snapshots, predição/reconciliação e codecs independentes do transporte desde G0. O modo para um jogador usa a mesma sessão servidor/cliente por loopback; o host de LAN e o servidor dedicado são composições dos mesmos módulos de sessão. Não prometa lockstep de ponto flutuante entre alvos: replique comandos, estado autoritativo e esquemas de extensão declarados.
 
 ## 9. Layout de origem proposto
 

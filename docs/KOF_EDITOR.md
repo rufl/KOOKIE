@@ -4,6 +4,10 @@ Research and installation date: 2026-09-22. The original source audit below prec
 
 Pinned source: [`KofLang/Kof-Editor@bed6ae7d567b090497a447583a10b8522acaf66a`](https://github.com/KofLang/Kof-Editor/tree/bed6ae7d567b090497a447583a10b8522acaf66a), `VERSION` = `0.1.4-beta`. Compiler cross-reference: [Kof4j 22a186b9](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), 0.4.9-beta. Upstream packaging may select older compilers. The locally installed pairing is verified only for the workflows listed below, not every upstream feature.
 
+The active KOOKIE source/CI gate uses Kof `0.5.0-beta`; editor/compiler
+findings tied to the `0.4.9-beta` pairing below remain historical unless a
+workflow explicitly identifies them as current.
+
 ## Actual architecture
 
 ```text

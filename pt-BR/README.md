@@ -169,6 +169,12 @@ A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
   caminho WAN continua sendo IPv4/UDP direto best-effort, não um protocolo
   compatível com QUIC nem um relay de produção.
 
+Revisões autoritativas no mesmo tick são ordenadas pela sequência de estado:
+uma sequência nova substitui a amostra mais recente para diagnósticos de ciclo
+de vida ou comando obsoleto, enquanto ticks e sequências antigos continuam
+rejeitados. Restaurar um checkpoint de replay inicia uma nova época do histórico
+de rewind antes de retomar o avanço em passo fixo.
+
 O lote de qualificação de 2026-10-02 passou o gate de pacote de apresentação
 Linux assinado/package-smoke com um prefixo temporário fixado de SDL_mixer 3.2.4
 e o gate de artefato de apresentação PE/SDL Windows assinado com MinGW

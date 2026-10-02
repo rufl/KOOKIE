@@ -29,8 +29,10 @@ The current source tree has these release-capable paths:
 - The session uses fixed-tick input bundles with snapshot/input ACKs, pins the
   authenticated peer endpoint, rewinds hitscan through a bounded 12-tick
   history, interpolates remote players six ticks behind and exposes prediction
-  correction metrics. The direct IPv4/UDP WAN path remains best effort and is
-  not QUIC-compatible.
+  correction metrics. A higher state sequence can revise the latest authoritative
+  sample at the same tick for lifecycle or stale-command diagnostics; older
+  ticks/sequences remain rejected. The direct IPv4/UDP WAN path remains best
+  effort and is not QUIC-compatible.
 - Linux x86-64 native SDL3/SDL_GPU presentation packaging with SDL_mixer,
   signed provenance and outside-checkout package smoke. The 2026-10-02
   signed package/package-smoke gate passed with a temporary pinned SDL_mixer

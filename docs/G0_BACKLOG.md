@@ -23,7 +23,9 @@ player-facing demo release. The open D1 gate is tracked in
 - Native exception lifetime reproducer and negative controls recorded in the verification gate.
 - Native adapter exposes elapsed GPU draw timing after GPU-idle retirement.
 - G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
-- G1 two-client loopback admission, per-client input sequencing, stale snapshot rejection, bounded authoritative movement, and camera/input clamping.
+- G1 two-client loopback admission, per-client input sequencing, rejection of
+  older or duplicate snapshots, replacement of newer same-tick state revisions,
+  bounded authoritative movement, and camera/input clamping.
 - Isolated native smoke accepted hidden-window lifecycle, resize/focus flattening, dummy audio, stale-token teardown, and clean process cleanup; GPU reported unavailable for window presentation.
 - Bounded client snapshot history with integer interpolation and explicit prediction/reconciliation authority boundaries.
 - Bounded scalar collision queries with clamped movement resolution and out-of-bounds placement rejection.

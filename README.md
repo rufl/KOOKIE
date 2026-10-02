@@ -172,6 +172,11 @@ The current source tree has a bounded player-facing slice:
   best-effort direct IPv4/UDP rather than a QUIC-compatible or production
   relay service.
 
+Same-tick authoritative revisions are ordered by state sequence: a newer
+sequence replaces the latest sample for lifecycle or stale-command diagnostics,
+while older ticks and sequences remain rejected. Restoring a replay checkpoint
+starts a fresh rewind-history epoch before fixed-tick advancement resumes.
+
 The 2026-10-02 qualification batch passed the signed Linux presentation-package
 gate/package smoke with a temporary pinned SDL_mixer 3.2.4 prefix and the
 signed Windows native PE/SDL presentation artifact gate with pinned MinGW

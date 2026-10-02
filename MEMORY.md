@@ -64,6 +64,10 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   carries the latest snapshot ACK and retires history only after an authoritative
   input ACK. Typed input bundles/ACKs validate checksums and reject stale or
   out-of-order state.
+- The snapshot window accepts a higher state sequence at the same tick and
+  replaces the latest sample without opening an interpolation gap; older ticks
+  or sequences remain rejected. Checkpoint restore clears rewind samples from
+  the discarded future before the next tick.
 - The authenticated native transport pins the admitted peer endpoint after the
   handshake. It remains a bounded authenticated UDP envelope with
   QUIC-inspired channel semantics, not QUIC/TLS or a production relay.

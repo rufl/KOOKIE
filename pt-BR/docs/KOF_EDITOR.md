@@ -4,6 +4,10 @@ Data da pesquisa e instalação: 2026-09-22. A auditoria da fonte original abaix
 
 Fonte fixada: [`KofLang/Kof-Editor@bed6ae7d567b090497a447583a10b8522acaf66a`](https://github.com/KofLang/Kof-Editor/tree/bed6ae7d567b090497a447583a10b8522acaf66a), `VERSION` = `0.1.4-beta`. Referência cruzada do compilador: [Kof4j 22a186b9](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), 0.4.9-beta. O empacotamento upstream pode selecionar compiladores mais antigos. A combinação instalada localmente foi verificada apenas para os fluxos de trabalho listados abaixo, não para todos os recursos upstream.
 
+O gate ativo de fonte/CI do KOOKIE usa Kof `0.5.0-beta`; descobertas do
+editor/compilador ligadas à combinação `0.4.9-beta` abaixo continuam históricas,
+a menos que um workflow as identifique explicitamente como atuais.
+
 ## Arquitetura real
 
 ```text
