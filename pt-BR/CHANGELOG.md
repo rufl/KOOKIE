@@ -58,6 +58,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   do menu principal passam.
 - Rejeitamos digest de distribuição Kof sintético composto só de zeros; o smoke
   do pacote protótipo agora usa a identidade registrada da distribuição fixada.
+- Endurecemos o caminho WAN simples: o rendezvous agora exige chave
+  compartilhada explícita e não nula, preserva salas existentes de dois
+  jogadores e possui smoke autenticado do punchthrough direto com framing UDP
+  compatível entre Linux e Windows.
 
 ### Prontidão da release de demo jogável
 

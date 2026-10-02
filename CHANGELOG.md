@@ -56,6 +56,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   only after the rendered main-menu capture checks pass.
 - Rejected synthetic all-zero Kof distribution digests; prototype package smoke
   now uses the recorded verified pinned distribution identity.
+- Hardened the simple WAN path: rendezvous now requires an explicit nonzero
+  shared key, preserves existing two-player rooms, and has an authenticated
+  direct-peer punchthrough smoke covering Linux/Windows-compatible UDP framing.
 
 ### Playable demo release readiness
 

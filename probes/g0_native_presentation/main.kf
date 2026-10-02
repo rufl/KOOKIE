@@ -112,7 +112,9 @@ class NativeLobbyState {
 
 Bool configureLobbyKey() {
     if (kookie_transport_set_key_from_environment()) { return true }
-    return kookie_transport_set_key(1263488843, 1330332754, 1229737803, 1162760019)
+    if (kookie_transport_wan_rendezvous_enabled()) { return false }
+    return kookie_transport_set_key(
+        1263488843, 1330332754, 1229737803, 1162760019)
 }
 
 Bool sendLobbyMessage(Int operation, Int role) {

@@ -602,7 +602,7 @@ bool kookie_transport_open_remote_environment(int port) {
 bool kookie_transport_open_rendezvous_environment(int port) {
     const char *rendezvous = getenv("KOOKIE_RENDEZVOUS_HOST_IPV4");
     if (rendezvous == NULL || rendezvous[0] == '\0') {
-        rendezvous = "127.0.0.1";
+        return false;
     }
     struct in_addr address;
     if (!kookie_transport_parse_host_address(rendezvous, &address)) {

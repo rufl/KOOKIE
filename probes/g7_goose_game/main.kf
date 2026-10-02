@@ -73,6 +73,16 @@ main() {
         overlay.add(
             5, 140, 20, game.enemyCombatHealth(5), 80, 1, true) &&
         overlay.actorCount() == 5 &&
+        overlay.actorNameAt(0) == "GOOSE" &&
+        overlay.actorNameAt(1) == "WADDLE" &&
+        overlay.actorNameAt(2) == "BOT GOOSE" &&
+        overlay.actorIsBotAt(2) && overlay.actorIsBotAt(4) &&
+        overlay.actorMaximumHeartCountAt(0) == 5 &&
+        overlay.actorMaximumHeartCountAt(2) == 4 &&
+        overlay.actorFilledHeartCountAt(0) ==
+            (game.enemyCombatHealth(1) + 19) / 20 &&
+        overlay.actorFilledHeartCountAt(2) ==
+            (game.enemyCombatHealth(3) + 19) / 20 &&
         overlay.stage(frame, 1, 9) &&
         frame.stagedCount() > 0,
         "goose names, hearts and bodies must stage together")

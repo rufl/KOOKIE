@@ -234,6 +234,10 @@ KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff \
 python3 scripts/kookie_rendezvous.py --bind 0.0.0.0 --port 47101
 ```
 
+O rendezvous recusa chave ausente, malformada ou composta só de zeros e nunca
+expulsa uma sala existente de dois jogadores quando um terceiro usa o mesmo
+código.
+
 Inicie o cliente Linux ou Windows `presentation` com a mesma chave:
 
 ```bash

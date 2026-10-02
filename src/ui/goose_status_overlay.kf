@@ -53,6 +53,31 @@ class GooseStatusOverlay {
     }
 
     Int actorCount() { return actorCountValue }
+    String actorNameAt(Int index) {
+        if (index < 0 || index >= actorCountValue) { return "" }
+        if (actorBots[index]) { return "BOT GOOSE" }
+        return playerName(actorNameIds[index])
+    }
+
+    Bool actorIsBotAt(Int index) {
+        return index >= 0 && index < actorCountValue && actorBots[index]
+    }
+
+    Int actorMaximumHeartCountAt(Int index) {
+        if (index < 0 || index >= actorCountValue) { return 0 }
+        var maximumHearts = (actorMaxHealths[index] + 19) / 20
+        if (maximumHearts > 5) { maximumHearts = 5 }
+        return maximumHearts
+    }
+
+    Int actorFilledHeartCountAt(Int index) {
+        if (index < 0 || index >= actorCountValue) { return 0 }
+        var maximumHearts = actorMaximumHeartCountAt(index)
+        var filledHearts = (actorHealths[index] + 19) / 20
+        if (filledHearts > maximumHearts) { filledHearts = maximumHearts }
+        if (filledHearts < 0) { filledHearts = 0 }
+        return filledHearts
+    }
 
     Int renderVertexCapacity() { return actorIds.length * 240 }
 

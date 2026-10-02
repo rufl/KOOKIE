@@ -77,17 +77,23 @@ def mac(data: bytes, key: tuple[int, int]) -> int:
 
 def parse_key() -> tuple[int, int]:
     encoded = os.environ.get("KOOKIE_TRANSPORT_KEY_HEX", "")
-    if len(encoded) == 32:
-        try:
-            words = [int(encoded[index : index + 8], 16) for index in range(0, 32, 8)]
-        except ValueError:
-            words = []
-        if len(words) == 4:
-            return words[0] | (words[1] << 32), words[2] | (words[3] << 32)
-    return (
-        1263488843 | (1330332754 << 32),
-        1229737803 | (1162760019 << 32),
-    )
+    if len(encoded) != 32:
+        raise ValueError(
+            "KOOKIE_TRANSPORT_KEY_HEX must be exactly 32 hexadecimal characters"
+        )
+    try:
+        words = [
+            int(encoded[index : index + 8], 16)
+            for index in range(0, 32, 8)
+        ]
+    except ValueError as error:
+        raise ValueError(
+            "KOOKIE_TRANSPORT_KEY_HEX must contain only hexadecimal characters"
+        ) from error
+    key = words[0] | (words[1] << 32), words[2] | (words[3] << 32)
+    if key == (0, 0):
+        raise ValueError("KOOKIE_TRANSPORT_KEY_HEX must not be all zero")
+    return key
 
 
 def unpack_frame(data: bytes, key: tuple[int, int]) -> tuple[int, list[int]] | None:
@@ -154,6 +160,14 @@ class Rendezvous:
         self.socket.bind((bind, port))
         self.key = key
         self.rooms: dict[int, list[Client]] = {}
+        self.running = True
+
+    def close(self) -> None:
+        self.running = False
+        self.socket.close()
+
+    def bound_port(self) -> int:
+        return int(self.socket.getsockname()[1])
 
     def send(self, client: Client, payload: list[int]) -> None:
         data = pack_frame(client.next_sequence(), payload, self.key)
@@ -203,13 +217,14 @@ class Rendezvous:
                 last_sequence=sequence,
                 last_seen=time.monotonic(),
             )
-            if room not in self.rooms and len(self.rooms) >= MAX_ROOMS:
+            clients = self.rooms.get(room)
+            if clients is None:
+                if len(self.rooms) >= MAX_ROOMS:
+                    return
+                clients = []
+                self.rooms[room] = clients
+            elif len(clients) >= 2:
                 return
-
-            clients = self.rooms.setdefault(room, [])
-            clients[:] = [candidate for candidate in clients if candidate.address != address]
-            if len(clients) >= 2:
-                clients.pop(0)
             clients.append(client)
         if operation == LEAVE:
             self.remove(client, room)
@@ -241,9 +256,13 @@ class Rendezvous:
 
 
     def run(self) -> None:
-        print(f"KOOKIE rendezvous UDP listening on {self.socket.getsockname()[0]}:{self.socket.getsockname()[1]}", flush=True)
+        print(
+            f"KOOKIE rendezvous UDP listening on "
+            f"{self.socket.getsockname()[0]}:{self.socket.getsockname()[1]}",
+            flush=True,
+        )
         try:
-            while True:
+            while self.running:
                 try:
                     data, address = self.socket.recvfrom(
                         (HEADER_WORDS + MAX_WORDS) * 4
@@ -251,11 +270,15 @@ class Rendezvous:
                 except socket.timeout:
                     self.expire()
                     continue
+                except OSError:
+                    if self.running:
+                        raise
+                    break
                 self.handle(data, address)
         except KeyboardInterrupt:
             pass
         finally:
-            self.socket.close()
+            self.close()
 
 
 def main() -> int:
@@ -265,8 +288,14 @@ def main() -> int:
     args = parser.parse_args()
     if args.port <= 0 or args.port > 65535:
         parser.error("--port must be in 1..65535")
-    Rendezvous(args.bind, args.port, parse_key()).run()
+    try:
+        key = parse_key()
+    except ValueError as error:
+        parser.error(str(error))
+    Rendezvous(args.bind, args.port, key).run()
     return 0
+
+
 
 
 if __name__ == "__main__":

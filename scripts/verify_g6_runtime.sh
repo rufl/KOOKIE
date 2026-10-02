@@ -52,5 +52,6 @@ run_probe g6_jobs 'KOOKIE G6 safe jobs verified'
 run_probe g6_kofscript_package 'KOOKIE G6 KofScript package verified'
 run_probe g6_kutter 'KOOKIE G6 persistent Kutter verified'
 run_probe g6_wan 'KOOKIE G6 limited WAN verified'
+python3 "$ROOT_DIR/scripts/verify_wan_rendezvous.py"
 
-printf 'KOOKIE G6 runtime probes passed: jobs, KofScript package/session, persistent Kutter, and limited WAN\n'
+printf 'KOOKIE G6 runtime probes passed: jobs, KofScript package/session, persistent Kutter, limited WAN, and rendezvous punchthrough\n'

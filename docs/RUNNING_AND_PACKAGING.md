@@ -230,6 +230,9 @@ KOOKIE_TRANSPORT_KEY_HEX=00112233445566778899aabbccddeeff \
 python3 scripts/kookie_rendezvous.py --bind 0.0.0.0 --port 47101
 ```
 
+The rendezvous refuses a missing, malformed or all-zero shared key, and never
+evicts an existing two-player room when a third client presents the same code.
+
 Start the Linux or Windows `presentation` client with the same key and:
 
 ```bash
