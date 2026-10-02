@@ -554,6 +554,17 @@ class GameShell {
             target.pushVertex(resource, right, top, 100, 0) &&
             target.pushVertex(resource, left, top, 0, 0)
     }
+    Bool pushScreenFrame(FrameStaging target) {
+        return pushQuad(target, 10, -100, -100, 100, 100) &&
+            pushQuad(target, 11, -96, -96, 96, 96) &&
+            pushQuad(target, 10, -94, -94, 94, 94) &&
+            pushQuad(target, 14, -94, 88, 94, 90) &&
+            pushQuad(target, 14, -94, -90, -92, 88) &&
+            pushQuad(target, 14, 92, -90, 94, 88)
+    }
+
+    Int selectedTextColor() { return 1 }
+
 
     Int textWidth(String text, Int scale) {
         if (text.length() == 0) { return 0 }
@@ -565,7 +576,14 @@ class GameShell {
         Int left, Int bottom, Int scale, Int color
     ) {
         if (scale <= 0 || color < 0 || color > 4) { return false }
-        var x = left
+        var safeLeft = left
+        var width = textWidth(text, scale)
+        if (safeLeft < -100) { safeLeft = -100 }
+        if (safeLeft + width > 100) {
+            safeLeft = 100 - width
+        }
+        var x = safeLeft
+
         for (var index = 0; index < text.length(); index = index + 1) {
             var glyphValue = glyph(text.charAt(index))
             if (glyphValue > 0 &&
@@ -622,29 +640,33 @@ class GameShell {
         var resource = 11
         if (selectionValue == row) { resource = 13 }
         return pushQuad(target, resource, -92, bottom, 92, top) &&
-            pushQuad(target, 10, -90, bottom + 1, 90, top - 1)
+            pushQuad(target, 10, -90, bottom + 1, 90, top - 1) &&
+            (if (selectionValue == row)
+                pushQuad(target, 14, -92, bottom, -90, top) &&
+                    pushQuad(target, 14, 90, bottom, 92, top)
+            else true)
     }
+
 
     Bool stageMain(FrameStaging target) {
         var scale = textSize()
         var itemColor = 0
-        return pushQuad(target, 10, -100, -100, 100, 100) &&
-            pushQuad(target, 11, -96, -96, 96, 96) &&
-            pushQuad(target, 10, -94, -94, 94, 94) &&
+        return pushScreenFrame(target) &&
             pushCenteredText(target, "KOOKIE", 70, 3, 1) &&
             pushCenteredText(target, "OLD SCHOOL COOP", 55, 1, 2) &&
+            pushCenteredText(target, "G1 READY", 47, 1, 4) &&
             pushSelectionPanel(target, 0, 25, 45) &&
             pushCenteredText(target, "PLAY", 29, scale,
-                if (selectionValue == 0) 2 else itemColor) &&
+                if (selectionValue == 0) selectedTextColor() else itemColor) &&
             pushSelectionPanel(target, 1, 3, 23) &&
             pushCenteredText(target, "MULTIPLAYER", 7, scale,
-                if (selectionValue == 1) 2 else itemColor) &&
+                if (selectionValue == 1) selectedTextColor() else itemColor) &&
             pushSelectionPanel(target, 2, -19, 1) &&
             pushCenteredText(target, "OPTIONS", -15, scale,
-                if (selectionValue == 2) 2 else itemColor) &&
+                if (selectionValue == 2) selectedTextColor() else itemColor) &&
             pushSelectionPanel(target, 3, -41, -21) &&
             pushCenteredText(target, "KUTTER", -37, scale,
-                if (selectionValue == 3) 2 else itemColor) &&
+                if (selectionValue == 3) selectedTextColor() else itemColor) &&
             pushSelectionPanel(target, 4, -63, -43) &&
             pushCenteredText(target, "QUIT", -59, scale,
                 if (selectionValue == 4) 3 else itemColor) &&
@@ -701,10 +723,9 @@ class GameShell {
             resultColor = 3
             resultText = "FAILED"
         }
-        return pushQuad(target, 10, -100, -100, 100, 100) &&
-            pushQuad(target, 11, -96, -96, 96, 96) &&
-            pushQuad(target, 10, -94, -94, 94, 94) &&
+        return pushScreenFrame(target) &&
             pushCenteredText(target, "OPTIONS", 77, 2, 1) &&
+            pushCenteredText(target, "TUNE THE RUN", 66, 1, 4) &&
             pushSelectionPanel(target, 0, 41, 53) &&
             pushText(target, "RESOLUTION", -84, 44, 1, rowColor) &&
             pushText(target, resolutionLabel(), 20, 44, 1, 2) &&
@@ -725,9 +746,10 @@ class GameShell {
                 if (selectionValue == 5) resultColor else rowColor) &&
             pushSelectionPanel(target, 6, -82, -70) &&
             pushCenteredText(target, "BACK", -79, 1,
-                if (selectionValue == 6) 2 else rowColor) &&
-            pushCenteredText(target, "LEFT RIGHT CHANGE", -93, 1, 0)
+                if (selectionValue == 6) selectedTextColor() else rowColor) &&
+            pushCenteredText(target, "ARROWS MOVE LEFT RIGHT", -93, 1, 0)
     }
+
 
     String networkStatusLabel() {
         if (networkStatusValue == gameShellNetworkHosting()) { return "HOSTING" }
@@ -829,10 +851,9 @@ class GameShell {
         var pingColor = if (lobbyValue.ping() > 0) 1 else 0
         var errorColor = if (lobbyValue.error() == multiplayerLobbyErrorNone()) 0 else 3
         var pingVisible = lobbyValue.ping() > 0
-        return pushQuad(target, 10, -100, -100, 100, 100) &&
-            pushQuad(target, 11, -96, -96, 96, 96) &&
-            pushQuad(target, 10, -94, -94, 94, 94) &&
+        return pushScreenFrame(target) &&
             pushCenteredText(target, "MULTIPLAYER", 77, 2, 1) &&
+            pushCenteredText(target, "TWO PLAYER SESSION", 68, 1, 4) &&
             pushCenteredText(target, lobbyPhaseLabel(), 61, 1,
                 lobbyPhaseColor()) &&
             pushText(target, "LOCAL", -84, 51, 1, normal) &&
@@ -853,10 +874,10 @@ class GameShell {
                 pushText(target, "--", 38, 42, 1, pingColor)) &&
             pushSelectionPanel(target, 0, 20, 32) &&
             pushCenteredText(target, "HOST GAME", 23, 1,
-                if (selectionValue == 0) 2 else normal) &&
+                if (selectionValue == 0) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 1, 4, 16) &&
             pushCenteredText(target, "JOIN GAME", 7, 1,
-                if (selectionValue == 1) 2 else normal) &&
+                if (selectionValue == 1) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 2, -12, 0) &&
             pushCenteredText(target, "LEAVE GAME", -9, 1,
                 if (selectionValue == 2) 3 else normal) &&
@@ -870,10 +891,10 @@ class GameShell {
             pushSelectionPanel(target, 5, -60, -48) &&
             pushCenteredText(target,
                 if (lobbyValue.localReady()) "UNREADY" else "READY",
-                -57, 1, if (selectionValue == 5) 2 else normal) &&
+                -57, 1, if (selectionValue == 5) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 6, -76, -64) &&
             pushCenteredText(target, "BACK", -73, 1,
-                if (selectionValue == 6) 2 else normal) &&
+                if (selectionValue == 6) selectedTextColor() else normal) &&
             pushCenteredText(target, lobbyErrorLabel(), -84, 1, errorColor) &&
             pushCenteredText(target,
                 if (networkEditingValue) "ARROWS CHANGE ENTER DONE" else "ENTER SELECT ESC BACK",
@@ -882,9 +903,7 @@ class GameShell {
 
     Bool stageKutter(FrameStaging target) {
         var normal = 0
-        return pushQuad(target, 10, -100, -100, 100, 100) &&
-            pushQuad(target, 11, -96, -96, 96, 96) &&
-            pushQuad(target, 10, -94, -94, 94, 94) &&
+        return pushScreenFrame(target) &&
             pushCenteredText(target, "KUTTER", 80, 2, 1) &&
             pushText(target, "GEN", -84, 70, 1, normal) &&
             pushNumber(target, kutterValue.generation(), -62, 70, 1, 2) &&
@@ -892,37 +911,38 @@ class GameShell {
             pushCenteredText(target,
                 if (kutterValue.collisionVisible())
                     "COLLISION ON" else "COLLISION OFF",
-                57, 1, if (selectionValue == 0) 2 else normal) &&
+                57, 1, if (selectionValue == 0) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 1, 38, 50) &&
             pushCenteredText(target,
                 if (kutterValue.aiVisible()) "AI VISIBLE" else "AI HIDDEN",
-                41, 1, if (selectionValue == 1) 2 else normal) &&
+                41, 1, if (selectionValue == 1) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 2, 22, 34) &&
             pushCenteredText(target, "WORLD EDITOR", 25, 1,
-                if (selectionValue == 2) 2 else normal) &&
+                if (selectionValue == 2) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 3, 6, 18) &&
             pushCenteredText(target, "ENTITY SPAWN", 9, 1,
-                if (selectionValue == 3) 2 else normal) &&
+                if (selectionValue == 3) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 4, -10, 2) &&
             pushCenteredText(target, "ASSET BROWSER", -7, 1,
-                if (selectionValue == 4) 2 else normal) &&
+                if (selectionValue == 4) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 5, -26, -14) &&
             pushCenteredText(target, "ENCOUNTER EDITOR", -23, 1,
-                if (selectionValue == 5) 2 else normal) &&
+                if (selectionValue == 5) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 6, -42, -30) &&
             pushCenteredText(target, "ITEM WEAPON LOOT", -39, 1,
-                if (selectionValue == 6) 2 else normal) &&
+                if (selectionValue == 6) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 7, -58, -46) &&
             pushCenteredText(target, "SKILL EDITOR", -55, 1,
-                if (selectionValue == 7) 2 else normal) &&
+                if (selectionValue == 7) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 8, -74, -62) &&
             pushCenteredText(target,
                 if (kutterValue.playActive())
                     "STOP PLAY" else "PLAY IN EDITOR",
-                -71, 1, if (selectionValue == 8) 2 else normal) &&
+                -71, 1, if (selectionValue == 8) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 9, -90, -78) &&
             pushCenteredText(target, "BACK", -87, 1,
-                if (selectionValue == 9) 2 else normal)
+                if (selectionValue == 9) selectedTextColor() else normal) &&
+            pushCenteredText(target, "LEFT UNDO RIGHT REDO", -97, 1, 0)
     }
 
     Bool stage(FrameStaging target, Int frame) {

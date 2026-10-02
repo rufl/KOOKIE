@@ -35,6 +35,35 @@ main() {
     assert(lobby.leave() && lobby.phase() == multiplayerLobbyPhaseOffline(),
         "leave must return the lobby to offline")
     var shell = GameShell()
+    var mainFrame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(mainFrame, 1) &&
+        mainFrame.stagedCount() > 0 &&
+        mainFrame.stagedCount() <= shell.renderVertexCapacity() &&
+        mainFrame.retire(1),
+        "main shell must render the polished menu frame")
+    var optionsShell = GameShell()
+    var optionsFrame = FrameStaging(optionsShell.renderVertexCapacity())
+    assert(optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionActivate()) &&
+        optionsShell.screen() == gameShellScreenOptions() &&
+        optionsShell.stage(optionsFrame, 2) &&
+        optionsFrame.stagedCount() > 0 &&
+        optionsFrame.stagedCount() <= optionsShell.renderVertexCapacity() &&
+        optionsFrame.retire(2),
+        "options shell must render the polished settings frame")
+    var kutterShell = GameShell()
+    var kutterFrame = FrameStaging(kutterShell.renderVertexCapacity())
+    assert(kutterShell.handleAction(gameShellActionDown()) &&
+        kutterShell.handleAction(gameShellActionDown()) &&
+        kutterShell.handleAction(gameShellActionDown()) &&
+        kutterShell.handleAction(gameShellActionActivate()) &&
+        kutterShell.screen() == gameShellScreenKutter() &&
+        kutterShell.stage(kutterFrame, 3) &&
+        kutterFrame.stagedCount() > 0 &&
+        kutterFrame.stagedCount() <= kutterShell.renderVertexCapacity() &&
+        kutterFrame.retire(3),
+        "Kutter shell must render the polished authoring frame")
     var playShell = GameShell()
     assert(playShell.handleAction(gameShellActionActivate()) &&
         playShell.gameplayVisible() &&
