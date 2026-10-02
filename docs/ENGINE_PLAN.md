@@ -736,24 +736,20 @@ execution pass their G0 contracts. G1 is also closed by the executable
 `G1Demo` path: a 60 Hz authoritative server admits two loopback clients,
 exposes prediction correction and reconciliation, resolves one weapon/enemy
 encounter, and clears held movement/fire across focus loss. Its authored
-78-vertex/26-triangle arena supplies a walkable slope, steps and stacked rooms;
-the server replicates its triangle data and explicit bounds to the client.
-Kof projects the authored world through a perspective camera and emits a fixed
-486-vertex native SDL_GPU scene with normalized per-vertex depth: 78 arena
-vertices, 36 door vertices and 372 HUD vertices for
-health/ammunition, a shape-distinct connection glyph, active/reserve encounter
-load, confirmed hit/kill markers, edge damage warnings, structural
-inventory/equipment/skill/world-loot status, shape-distinct elite/boss
-threat/defeat cues and a structural kutter-publication rail. The confirmed
-local hitscan event also reaches bounded replay/audio queues and native SDL clip
+90-vertex/30-triangle open-sky arena supplies interconnected rooms,
+central corridors and L-shaped cover pillars; the server replicates its
+triangle data and explicit bounds to the client. Kof projects the authored
+world through a perspective camera and emits bounded native SDL_GPU world,
+actor and HUD passes with normalized per-vertex depth. The confirmed local
+hitscan event also reaches bounded replay/audio queues and native SDL clip
 playback. An isolated GPU smoke rendered and read back the bounded scene, and
 the original G1 focused set passed 84/84 scenarios on JVM and native. The
-current bounded source qualification suite passes 94 scenarios on both targets.
-G1's no-per-frame-growth evidence is 64 deterministic stages with unchanged
-Kof capacities plus persistent native scene buffers. The completed G5 evidence
-below adds the full authored collision workload, a 30-minute soak and
-hardware-instanced rendering; it does not broaden G1 beyond the explicitly
-qualified platforms and bounds.
+current focused source qualification suite passes 102 scenarios on both
+targets. G1's no-per-frame-growth evidence is 64 deterministic stages with
+unchanged Kof capacities plus persistent native scene buffers. The completed
+G5 evidence below adds the full authored collision workload, a 30-minute soak
+and hardware-instanced rendering; it does not broaden G1 beyond the
+explicitly qualified platforms and bounds.
 
 G2 is closed by the JVM/native three-process transport slice carrying the full
 arena, unified checksummed movement/fire/interaction/lifecycle commands,
@@ -766,8 +762,8 @@ when a reconnect advances the connection generation. Initial join publishes
 tick-zero gameplay, feedback and encounter baselines; stale generations reject
 before sequence admission. Doors use authored half-extents for full 3D
 segment/AABB collision and stage a 36-vertex perspective/depth-tested cuboid;
-the native headless GPU probe draws the resulting 486-vertex arena/door/HUD
-scene.
+the native headless GPU probe draws the resulting expanded arena, door,
+actor and HUD scene.
 Feedback transport preserves multi-event order, rejects duplicates and gaps
 without partial presentation, and resumes from the new-generation baseline.
 The Kof layer computes listener-relative distance attenuation and stereo

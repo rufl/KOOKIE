@@ -358,7 +358,66 @@ test "arena staging emits perspective depth" {
     assert(frame.retire(1))
 }
 
+test "large arena links rooms, cover and open sky" {
+    var arena = G1Arena()
+    var wall = arena.query(70, 10, 20, 90, 10, 20)
+    var corridor = arena.query(70, 10, 60, 90, 10, 60)
+    var pillar = arena.query(50, 6, 59, 72, 6, 59)
+    var sky = arena.query(20, 5, 30, 20, 19, 30)
+    assert(arena.ready() &&
+        arena.vertexCount() == 90 &&
+        arena.triangleCount() == 30 &&
+        arena.authoredCollision().maxX() == 160 &&
+        arena.authoredCollision().maxZ() == 140 &&
+        wall.accepted() && wall.collided() &&
+        corridor.accepted() && !corridor.collided() &&
+        pillar.accepted() && pillar.collided() &&
+        sky.accepted() && !sky.collided(),
+        "large arena must connect rooms around cover under open sky")
+}
 
+test "WASD movement axes match gameplay controls" {
+    assert(movementForwardAxis(1, 0) == 1 &&
+        movementForwardAxis(0, 1) == -1 &&
+        movementForwardAxis(1, 1) == 0 &&
+        movementStrafeAxis(1, 0) == 1 &&
+        movementStrafeAxis(0, 1) == -1 &&
+        movementStrafeAxis(1, 1) == 0,
+        "WASD must map forward to the forward channel and strafe to the lateral channel")
+}
+
+
+
+test "third person camera eases animal follow and zoom" {
+    var camera = CameraState(-450, 450)
+    assert(camera.applyLook(20, -20) &&
+        camera.setFollowTarget(10, 1, 20) &&
+        camera.snapFollowTarget() &&
+        camera.currentFollowDistance() == 10 &&
+        camera.currentX() == 10 &&
+        camera.currentZ() == 10,
+        "third person camera must start behind the followed animal")
+    assert(camera.applyZoom(5) &&
+        camera.desiredFollowDistance() == 0 &&
+        camera.stepFollow() &&
+        camera.currentFollowDistance() > 0 &&
+        camera.currentFollowDistance() < 10,
+        "scroll zoom must ease toward first person")
+    for (var tick = 0; tick < 12; tick = tick + 1) {
+        assert(camera.stepFollow(),
+            "camera zoom easing must remain deterministic")
+    }
+    assert(camera.currentFollowDistance() == 0 &&
+        camera.currentX() == 10 &&
+        camera.currentY() == 5 &&
+        camera.currentZ() == 20,
+        "first person zoom must converge at the animal focus point")
+    assert(camera.setFollowTarget(20, 1, 20) &&
+        camera.stepFollow() &&
+        camera.currentX() > 10 &&
+        camera.currentX() < 20,
+        "camera follow must ease instead of teleporting")
+}
 
 test "G2 gameplay wire validates commands and authoritative state" {
     assert(maximumSessionTransportWords() ==
@@ -381,24 +440,26 @@ test "G2 gameplay wire validates commands and authoritative state" {
     assert(!validGameplayCommandMessage(command),
         "gameplay commands must reject checksum-breaking mutation")
     var inputHistory = NetcodeInputHistory(3)
-    assert(inputHistory.push(10, 1, 1, 0) &&
-        inputHistory.push(11, 2, 0, 1) &&
-        inputHistory.push(12, 3, -1, 0) &&
+    assert(inputHistory.push(10, 1, 1, 0, 0, 0) &&
+        inputHistory.push(11, 2, 0, 1, 1, 1) &&
+        inputHistory.push(12, 3, -1, 0, 0, 0) &&
         inputHistory.count() == 3 &&
         inputHistory.latestSequence() == 3,
         "input history must retain a bounded ordered command window")
     var inputWords = inputHistory.commandWords()
     var inputBundle = newGameplayInputBundleMessage(
         2, 1, 4, inputWords)
-    assert(inputWords.length == 12,
-        "input history must flatten three commands")
+    assert(inputWords.length == 18,
+        "input history must flatten 2D jump commands")
     assert(validGameplayInputBundleMessage(inputBundle),
         "input bundles must pass typed validation")
     assert(gameplayInputBundleCount(inputBundle) == 3 &&
         gameplayInputBundleValue(inputBundle, 1, 0) == 11 &&
         gameplayInputBundleValue(inputBundle, 1, 3) == 1 &&
+        gameplayInputBundleValue(inputBundle, 1, 4) == 1 &&
+        gameplayInputBundleValue(inputBundle, 1, 5) == 1 &&
         gameplayInputBundleSnapshotAck(inputBundle) == 4,
-        "input bundles must carry redundant fixed-tick commands and snapshot ACKs")
+        "input bundles must carry 2D jump commands and ACKs")
     inputBundle[10] = inputBundle[10] + 1
     assert(!validGameplayInputBundleMessage(inputBundle),
         "input bundles must reject checksum corruption")
@@ -428,6 +489,7 @@ test "G2 gameplay wire validates commands and authoritative state" {
     var state = newGameplayStateMessage(3, 4, true, 2, 5, 0, 2)
     assert(setGameplayStateProgression(state, 1, true, 7) &&
         setGameplayStateReplication(state, 4, 8, 25) &&
+        setGameplayStateMovement(state, 2, 6, 3, 7) &&
         setGameplayStateConnection(
             state, true, 2, 0, gameplayFireDiagnostic()) &&
         sealGameplayStateMessage(state) &&
@@ -440,6 +502,10 @@ test "G2 gameplay wire validates commands and authoritative state" {
         gameplayStateLevelCompleted(state) &&
         gameplayStatePlayerPosition(state, 1) == 4 &&
         gameplayStatePlayerPosition(state, 2) == 8 &&
+        gameplayStatePlayerY(state, 1) == 2 &&
+        gameplayStatePlayerZ(state, 1) == 6 &&
+        gameplayStatePlayerY(state, 2) == 3 &&
+        gameplayStatePlayerZ(state, 2) == 7 &&
         gameplayStateCurrency(state) == 25 &&
         gameplayStateConnected(state) &&
         gameplayStateConnectionGeneration(state) == 2 &&
@@ -447,8 +513,8 @@ test "G2 gameplay wire validates commands and authoritative state" {
         gameplayStateDiagnostic(state) == gameplayFireDiagnostic() &&
         gameplayStatePlayer(state) == 2 &&
         gameplayStateInteractionMask(state) == 7,
-        "gameplay state must expose authoritative progression combat and lifecycle")
-    state[19] = state[19] + 1
+        "gameplay state must expose authoritative progression combat and pose")
+    state[23] = state[23] + 1
     assert(!validGameplayStateMessage(state),
         "gameplay state must reject checksum corruption")
 
@@ -4239,6 +4305,148 @@ test "shared capsule and spatial admission" {
         "player admission must use capsule bounds")
     assert(projectile.collided() && lineOfSight.collided(),
         "projectile and line-of-sight must share segment admission")
+}
+
+test "tuned FPS movement preserves air control and jump assists" {
+    var arena = G1Arena()
+    var controller = FpsMovementController(2)
+    assert(arena.ready() && controller.configure(arena.authoredCollision()) &&
+        controller.addActor(1, 6, 1, 6),
+        "FPS controller must load authored arena collision")
+    var startingX = controller.positionX(1)
+    for (var tick = 0; tick < 6; tick = tick + 1) {
+        assert(controller.step(1, 4, 0, false, false),
+            "ground movement must accept bounded input")
+    }
+    assert(controller.positionX(1) > startingX &&
+        controller.velocityX(1) > 0,
+        "ground acceleration must move and build horizontal speed")
+    var movingVelocity = controller.velocityX(1)
+    assert(controller.step(1, 0, 0, false, false) &&
+        controller.velocityX(1) < movingVelocity,
+        "ground braking must ease horizontal speed")
+    assert(controller.step(1, 0, 0, true, true) &&
+        controller.lastJumped() && controller.velocityY(1) > 0 &&
+        !controller.grounded(1),
+        "ground jump must launch with held-state tracking")
+    var heldJumpVelocity = controller.velocityY(1)
+    assert(controller.step(1, 0, 0, false, false) &&
+        controller.velocityY(1) < heldJumpVelocity,
+        "released jump must apply a short-hop cut")
+    assert(controller.step(1, 0, 0, true, true) &&
+        controller.jumpBufferTicks(1) > 0,
+        "airborne jump input must remain buffered for landing")
+    var bunnyHopSeen = false
+    for (var tick = 0; tick < 24; tick = tick + 1) {
+        assert(controller.step(1, 0, 0, false, true),
+            "held jump simulation must remain deterministic")
+        if (controller.lastBunnyHop()) {
+            bunnyHopSeen = true
+        }
+    }
+    assert(bunnyHopSeen,
+        "held jump must chain a buffered bunny hop on landing")
+}
+
+test "FPS controller permits coyote jumps from a ledge" {
+    var ledge = BoundedAuthoredCollision(6, 2)
+    assert(ledge.configure(
+            102, 1002, 1, 1, 100, 0, -4, 0, 8, 16, 8) &&
+        ledge.addVertex(0, 0, 0) &&
+        ledge.addVertex(4, 0, 0) &&
+        ledge.addVertex(4, 0, 8) &&
+        ledge.addVertex(0, 0, 8) &&
+        ledge.addTriangle(0, 1, 2, 5) &&
+        ledge.addTriangle(0, 2, 3, 5) &&
+        ledge.seal() && ledge.validate(),
+        "coyote fixture must publish a bounded ledge")
+    var controller = FpsMovementController(1)
+    assert(controller.configure(ledge) &&
+        controller.addActor(1, 2, 1, 4),
+        "coyote controller must admit the ledge start")
+    for (var tick = 0; tick < 4; tick = tick + 1) {
+        assert(controller.step(1, 4, 0, false, false),
+            "ledge movement must remain deterministic")
+    }
+    assert(!controller.grounded(1) && controller.coyoteTicks(1) > 0,
+        "walking off a ledge must retain a coyote window")
+    assert(controller.step(1, 0, 0, true, true) &&
+        controller.lastCoyoteJump(),
+        "jump input inside coyote time must launch")
+}
+
+test "FPS session routes authored movement and pose" {
+    var arena = G1Arena()
+    var session = LoopbackSession(8, 2)
+    assert(arena.ready() &&
+        session.configureEnemySpatialBounds(
+            0, -4, 0, 160, 20, 140) &&
+        session.addEnemyCombatActor(1, 100, 0) &&
+        session.addEnemyCombatActor(2, 100, 0) &&
+        session.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        session.enableFpsMovement(true) &&
+        session.start() &&
+        session.connectPlayer() == 1 &&
+        session.connectPlayer() == 2 &&
+        session.setEnemySpatialPosition(1, 20, 1, 30) &&
+        session.setEnemySpatialPosition(2, 28, 1, 30),
+        "FPS session must admit authored player poses")
+    for (var tick = 1; tick <= 4; tick = tick + 1) {
+        assert(session.receiveInput(
+                1, tick, tick, 4, 0, 0, 0, 0, 0),
+            "FPS session must queue bounded movement commands")
+    }
+    assert(session.advance(4 * 16667) == 4 &&
+        session.fpsPositionX(1) > 20 &&
+        session.fpsVelocityX(1) > 0 &&
+        session.enemySpatialPositionX(1) == session.fpsPositionX(1),
+        "FPS session must publish authoritative accelerated pose")
+}
+test "FPS session accepts idle arena enemy tick" {
+    var arena = G1Arena()
+    var session = LoopbackSession(16, 8)
+    assert(arena.ready() &&
+        session.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        session.enableFpsMovement(true) &&
+        session.configureEnemyRules(160, 35, 15) &&
+        session.defineEnemyWeapon(7, 10, 0, 3, 1) &&
+        session.setEnemyWeaponRange(7, 40) &&
+        session.setEnemyWeaponCooldown(7, 15) &&
+        session.defineEnemyEncounter(4, 4, 12) &&
+        session.configureEnemyEncounterZone(4, 80, 1, 70, 70) &&
+        session.configureEnemySpatialBounds(
+            0, -4, 0, 160, 20, 140) &&
+        session.definePlayerWeapon(7, 10, 0, 3, 1) &&
+        session.setPlayerWeaponRange(7, 40) &&
+        session.addEnemyCombatActor(1, 100, 0) &&
+        session.addEnemyCombatActor(2, 100, 0) &&
+        session.equipEnemyCombatWeapon(1, 7) &&
+        session.equipEnemyCombatWeapon(2, 7) &&
+        session.start() &&
+        session.connectPlayer() == 1 &&
+        session.connectPlayer() == 2 &&
+        session.addPlayerCombatActor(1, 100, 0) &&
+        session.addPlayerCombatActor(2, 100, 0) &&
+        session.equipPlayerCombatWeapon(1, 7) &&
+        session.equipPlayerCombatWeapon(2, 7) &&
+        session.setEnemySpatialPosition(1, 20, 1, 30) &&
+        session.setEnemySpatialPosition(2, 28, 1, 30) &&
+        session.admitEnemyAt(
+            4, 3, 0, 7, 0, 7, 45, 1, 30) &&
+        session.admitEnemyAt(
+            4, 4, 0, 7, 0, 7, 120, 1, 28) &&
+        session.admitEnemyAt(
+            4, 5, 0, 7, 0, 7, 132, 1, 112) &&
+        session.configureEnemyRole(3, 1, 1, 1, 0) &&
+        session.configureEnemyRole(4, 1, 1, 1, 0) &&
+        session.configureEnemyRole(5, 2, 1, 2, 0),
+        "full arena gameplay session must configure")
+    assert(session.receiveInput(
+            1, 1, 1, 0, 0, 0, 0, 0, 0) &&
+        session.receiveInput(
+            2, 1, 1, 0, 0, 0, 0, 0, 0) &&
+        session.advance(16667) == 1,
+        "full arena gameplay session must accept an idle tick")
 }
 
 test "authoritative weapon and damage transitions" {

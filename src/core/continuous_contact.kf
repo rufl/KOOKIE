@@ -24,6 +24,7 @@ class BoundedTriangleContactController {
     Int maxDistanceValue
     Int slopeLimitValue
     Int stepHeightValue
+    Int groundProbeDistanceValue
     Int[] offsets
 
     public constructor(
@@ -51,6 +52,7 @@ class BoundedTriangleContactController {
             stepHeightValue = 0
         }
         offsets = new Int[10]
+        groundProbeDistanceValue = radiusValue + 1
         offsets[0] = 0
         offsets[1] = 0
         offsets[2] = radiusValue
@@ -190,7 +192,7 @@ class BoundedTriangleContactController {
         }
         var ground = sweep(
             movement.resolvedX(), movement.resolvedY(), movement.resolvedZ(),
-            movement.resolvedX(), movement.resolvedY() - probeDistance,
+            movement.resolvedX(), movement.resolvedY() - groundProbeDistanceValue,
             movement.resolvedZ())
         if (!ground.accepted() || !ground.collided()) {
             return movement
@@ -231,6 +233,18 @@ class BoundedTriangleContactController {
 
     Int radius() {
         return radiusValue
+    }
+
+    Bool setGroundProbeDistance(Int distance) {
+        if (distance <= 0) {
+            return false
+        }
+        groundProbeDistanceValue = distance
+        return true
+    }
+
+    Int groundProbeDistance() {
+        return groundProbeDistanceValue
     }
 
     Int slopeLimit() {

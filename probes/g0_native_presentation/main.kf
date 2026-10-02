@@ -81,6 +81,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_input_state(Int input): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_consume_scoreboard_toggle(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_delta_x(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_delta_y(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_wheel_y(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_set_key(
     Int key0Low, Int key0High, Int key1Low, Int key1High
 ): Bool
@@ -273,6 +274,8 @@ class NativeGameNetworkState {
     Int localSequenceValue
     Int remoteSequenceValue
     Int remoteMoveValue
+    Int remoteMoveZValue
+    Int remoteJumpValue
     Bool remoteFireValue
     Int remoteInputSequenceValue
     Int remoteSnapshotAckValue
@@ -288,10 +291,11 @@ class NativeGameNetworkState {
         var actualCapacity = capacity
         if (actualCapacity <= 0) { actualCapacity = 1 }
         receiveValues = new Int[actualCapacity]
-        receiveCountValue = 0
         localSequenceValue = 0
         remoteSequenceValue = 0
         remoteMoveValue = 0
+        remoteMoveZValue = 0
+        remoteJumpValue = 0
         remoteFireValue = false
         remoteInputSequenceValue = 0
         remoteSnapshotAckValue = 0
@@ -310,9 +314,9 @@ class NativeGameNetworkState {
         localSequenceValue = 0
         remoteSequenceValue = 0
         remoteMoveValue = 0
+        remoteMoveZValue = 0
+        remoteJumpValue = 0
         remoteFireValue = false
-        remoteInputSequenceValue = 0
-        remoteSnapshotAckValue = 0
         remoteFireTickValue = 0
         lastRemoteSnapshotSequenceValue = 0
         lastRemoteInputAckValue = 0
@@ -334,8 +338,12 @@ class NativeGameNetworkState {
         return remoteSequenceValue
     }
 
-    Bool recordLocalInput(Int tick, Int sequence, Int move, Int fire) {
-        return localInputHistoryValue.push(tick, sequence, move, fire)
+    Bool recordLocalInput(
+        Int tick, Int sequence, Int moveX, Int moveZ,
+        Int fire, Int jump
+    ) {
+        return localInputHistoryValue.push(
+            tick, sequence, moveX, moveZ, fire, jump)
     }
 
     Int[] localInputWords() {
@@ -358,6 +366,20 @@ class NativeGameNetworkState {
         if (remoteMoveValue < -4) { remoteMoveValue = -4 }
         if (remoteMoveValue > 4) { remoteMoveValue = 4 }
     }
+    void setRemoteMoveZ(Int value) {
+        remoteMoveZValue = value
+        if (remoteMoveZValue < -4) { remoteMoveZValue = -4 }
+        if (remoteMoveZValue > 4) { remoteMoveZValue = 4 }
+    }
+    void setRemoteJump(Int value) {
+        remoteJumpValue = value
+        if (remoteJumpValue < 0) { remoteJumpValue = 0 }
+        if (remoteJumpValue > 1) { remoteJumpValue = 1 }
+    }
+
+    Int remoteJump() { return remoteJumpValue }
+
+    Int remoteMoveZ() { return remoteMoveZValue }
 
     Int remoteMove() { return remoteMoveValue }
     void setRemoteFire() { setRemoteFireAt(0) }
@@ -461,15 +483,14 @@ Bool sendGamePayload(Int[] payload) {
     return kookie_transport_send_commit()
 }
 
-Int localMoveAxis() {
-    var value = 0
-    if (kookie_input_state(1) != 0) { value = value + 1 }
-    if (kookie_input_state(2) != 0) { value = value - 1 }
-    if (kookie_input_state(3) != 0) { value = value - 1 }
-    if (kookie_input_state(4) != 0) { value = value + 1 }
-    if (value < -4) { return -4 }
-    if (value > 4) { return 4 }
-    return value
+Int localMoveForwardAxis() {
+    return movementForwardAxis(
+        kookie_input_state(1), kookie_input_state(2))
+}
+
+Int localMoveStrafeAxis() {
+    return movementStrafeAxis(
+        kookie_input_state(3), kookie_input_state(4))
 }
 
 Int gooseStatusMagic() { return 1196384339 }
@@ -500,9 +521,13 @@ Bool processGamePackets(
                 if (tick == session.currentServerTick() + 1) {
                     state.setRemoteMove(
                         gameplayInputBundleValue(words, index, 2))
-                    if (gameplayInputBundleValue(words, index, 3) != 0) {
+                    state.setRemoteMoveZ(
+                        gameplayInputBundleValue(words, index, 3))
+                    if (gameplayInputBundleValue(words, index, 4) != 0) {
                         state.setRemoteFireAt(tick)
                     }
+                    state.setRemoteJump(
+                        gameplayInputBundleValue(words, index, 5))
                     state.setRemoteInputSequence(
                         gameplayInputBundleValue(words, index, 1))
                 }
@@ -535,11 +560,12 @@ Bool processGamePackets(
 
 Bool sendLocalGameInput(
     LoopbackSession session, NativeGameNetworkState state,
-    Int player, Int move, Int fire
+    Int player, Int moveX, Int moveZ, Int fire, Int jump
 ) {
     var tick = session.currentServerTick() + 1
     var sequence = state.nextLocalSequence()
-    if (!state.recordLocalInput(tick, sequence, move, fire)) {
+    if (!state.recordLocalInput(
+            tick, sequence, moveX, moveZ, fire, jump)) {
         return false
     }
     var bundle = newGameplayInputBundleMessage(
@@ -552,6 +578,7 @@ class G1NativePresentation {
     G4KutterDemo kutterScenario
     G1Arena arena
     LoopbackSession interactionSession
+    ArenaAnimalMeshes animalMeshes
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
     Int worldNativeCapacity
@@ -562,12 +589,14 @@ class G1NativePresentation {
     FrameStaging hudFrame
     FrameStaging doorFrame
     FrameStaging actorFrame
+    FrameStaging animalFrame
     FrameStaging scoreboardFrame
     Int worldCapacity
     Int hudCapacity
     Int nativeCapacity
     Int doorCapacity
     Int actorCapacity
+    Int animalCapacity
     Int scoreboardCapacity
     Bool mirrorRemoteValue
     Int localNameIdValue
@@ -582,6 +611,7 @@ class G1NativePresentation {
         arena = scenario.authoredArena()
         hud = ShooterHud(100, 3)
         gooseOverlay = GooseStatusOverlay(6)
+        animalMeshes = ArenaAnimalMeshes(6)
         scoreboardUi = MultiplayerScoreboard()
         scoreboardState = MatchScoreboardState(2)
         camera = CameraState(-450, 450)
@@ -591,12 +621,14 @@ class G1NativePresentation {
         doorFrame = FrameStaging(36)
         hudFrame = FrameStaging(hud.renderVertexCount())
         actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
+        animalFrame = FrameStaging(animalMeshes.renderVertexCapacity())
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
         worldCapacity = worldFrame.vertexCapacity()
         doorCapacity = doorFrame.vertexCapacity()
         hudCapacity = hudFrame.vertexCapacity()
         actorCapacity = actorFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
+        animalCapacity = animalFrame.vertexCapacity()
         nativeCapacity = 0
         mirrorRemoteValue = false
         localNameIdValue = 1
@@ -610,15 +642,16 @@ class G1NativePresentation {
     Bool prepareGooseSession() {
         if (!interactionSession.loadAuthoredBroadPhase(
                 arena.authoredCollision()) ||
-            !interactionSession.configureEnemyRules(50, 35, 15) ||
+            !interactionSession.enableFpsMovement(true) ||
+            !interactionSession.configureEnemyRules(160, 35, 15) ||
             !interactionSession.defineEnemyWeapon(7, 10, 0, 3, 1) ||
             !interactionSession.setEnemyWeaponRange(7, 40) ||
             !interactionSession.setEnemyWeaponCooldown(7, 15) ||
             !interactionSession.defineEnemyEncounter(4, 4, 12) ||
             !interactionSession.configureEnemyEncounterZone(
-                4, 16, 1, 12, 28) ||
+                4, 80, 1, 70, 70) ||
             !interactionSession.configureEnemySpatialBounds(
-                -16, -4, -4, 40, 16, 32) ||
+                0, -4, 0, 160, 20, 140) ||
             !interactionSession.definePlayerWeapon(7, 10, 0, 3, 1) ||
             !interactionSession.setPlayerWeaponRange(7, 40) ||
             !interactionSession.addEnemyCombatActor(1, 100, 0) ||
@@ -641,14 +674,14 @@ class G1NativePresentation {
             !interactionSession.equipPlayerCombatWeapon(2, 7)) {
             return false
         }
-        if (!interactionSession.setEnemySpatialPosition(1, -6, 1, 6) ||
-            !interactionSession.setEnemySpatialPosition(2, 6, 1, 6) ||
+        if (!interactionSession.setEnemySpatialPosition(1, 20, 1, 30) ||
+            !interactionSession.setEnemySpatialPosition(2, 28, 1, 30) ||
             !interactionSession.admitEnemyAt(
-                4, 3, 0, 80, 0, 7, 8, 1, 12) ||
+                4, 3, 0, 80, 0, 7, 45, 1, 30) ||
             !interactionSession.admitEnemyAt(
-                4, 4, 0, 80, 0, 7, 18, 1, 18) ||
+                4, 4, 0, 80, 0, 7, 120, 1, 28) ||
             !interactionSession.admitEnemyAt(
-                4, 5, 0, 80, 0, 7, 28, 1, 24) ||
+                4, 5, 0, 80, 0, 7, 132, 1, 112) ||
             !interactionSession.configureEnemyRole(3, 1, 1, 1, 0) ||
             !interactionSession.configureEnemyRole(4, 1, 1, 1, 0) ||
             !interactionSession.configureEnemyRole(5, 2, 1, 2, 0) ||
@@ -662,6 +695,10 @@ class G1NativePresentation {
     Bool resetGooseSession() {
         interactionSession = LoopbackSession(16, 8)
         hud = ShooterHud(100, 3)
+        if (!animalMeshes.clear() ||
+            !camera.clearFollowTarget()) {
+            return false
+        }
         scoreboardState = MatchScoreboardState(2)
         scoreboardUi.setVisible(false)
         playerKillsOneValue = 0
@@ -694,8 +731,9 @@ class G1NativePresentation {
         worldNativeCapacity = kookie_gpu_world_capacity()
         return nativeCapacity >=
             worldCapacity + doorCapacity + hudCapacity +
-            actorCapacity + scoreboardCapacity &&
-            worldNativeCapacity >= worldCapacity + doorCapacity
+            actorCapacity + animalCapacity + scoreboardCapacity &&
+            worldNativeCapacity >=
+            worldCapacity + doorCapacity + animalCapacity
     }
 
     Bool upload(FrameStaging frame) {
@@ -800,7 +838,19 @@ class G1NativePresentation {
             return false
         }
         var playerOneX = interactionSession.serverPosition(1)
+        var playerOneY = 1
+        var playerOneZ = 6
         var playerTwoX = interactionSession.serverPosition(2)
+        var playerTwoY = 1
+        var playerTwoZ = 6
+        if (interactionSession.fpsMovementEnabled()) {
+            playerOneX = interactionSession.fpsPositionX(1)
+            playerOneY = interactionSession.fpsPositionY(1)
+            playerOneZ = interactionSession.fpsPositionZ(1)
+            playerTwoX = interactionSession.fpsPositionX(2)
+            playerTwoY = interactionSession.fpsPositionY(2)
+            playerTwoZ = interactionSession.fpsPositionZ(2)
+        }
         var playerOneHealth = interactionSession.enemyCombatHealth(1)
         var playerTwoHealth = interactionSession.enemyCombatHealth(2)
         var renderTick = netcodeRemoteRenderTick(
@@ -811,8 +861,12 @@ class G1NativePresentation {
             interactionSession.remotePlayerSnapshotCount(2) > 0) {
             playerOneX = interactionSession.interpolatedRemotePlayerPosition(
                 1, renderTick)
+            playerOneY = interactionSession.clientRemotePlayerY(1)
+            playerOneZ = interactionSession.clientRemotePlayerZ(1)
             playerTwoX = interactionSession.interpolatedRemotePlayerPosition(
                 2, renderTick)
+            playerTwoY = interactionSession.clientRemotePlayerY(2)
+            playerTwoZ = interactionSession.clientRemotePlayerZ(2)
             if (interactionSession.clientRemotePlayer() == 1) {
                 playerOneHealth = interactionSession.clientRemoteCombatHealth()
             }
@@ -832,17 +886,17 @@ class G1NativePresentation {
             playerTwoName = remoteNameIdValue
         }
         if (!gooseOverlay.addDepth(
-                1, arena.projectX(playerOneX, 6, camera),
-                arena.projectY(playerOneX, 1, 6, camera),
-                arena.projectDepth(playerOneX, 1, 6),
+                1, arena.projectX(playerOneX, playerOneZ, camera),
+                arena.projectY(playerOneX, playerOneY, playerOneZ, camera),
+                arena.projectDepth(playerOneX, playerOneY, playerOneZ),
                 playerOneHealth, 100, playerOneName, false)) {
             println("KOOKIE gameplay local actor overlay failed")
             return false
         }
         if (!gooseOverlay.addDepth(
-                2, arena.projectX(playerTwoX, 6, camera),
-                arena.projectY(playerTwoX, 1, 6, camera),
-                arena.projectDepth(playerTwoX, 1, 6),
+                2, arena.projectX(playerTwoX, playerTwoZ, camera),
+                arena.projectY(playerTwoX, playerTwoY, playerTwoZ, camera),
+                arena.projectDepth(playerTwoX, playerTwoY, playerTwoZ),
                 playerTwoHealth, 100, playerTwoName, false)) {
             println("KOOKIE gameplay remote actor overlay failed")
             return false
@@ -870,6 +924,7 @@ class G1NativePresentation {
                 println("KOOKIE gameplay bot overlay failed")
                 println(bot)
                 return false
+
             }
         }
         if (!gooseOverlay.stage(actorFrame, frame, 9)) {
@@ -878,11 +933,113 @@ class G1NativePresentation {
         }
         return true
     }
+    Bool stageAnimalMeshes(
+        Int frame, NativeGameNetworkState network
+    ) {
+        if (!animalMeshes.beginFrame()) {
+            println("KOOKIE gameplay animal frame begin failed")
+            return false
+        }
+        var playerOneX = interactionSession.serverPosition(1)
+        var playerOneY = interactionSession.enemySpatialPositionY(1)
+        var playerOneZ = interactionSession.enemySpatialPositionZ(1)
+        var playerTwoX = interactionSession.serverPosition(2)
+        var playerTwoY = interactionSession.enemySpatialPositionY(2)
+        var playerTwoZ = interactionSession.enemySpatialPositionZ(2)
+        var playerOneMoving = false
+        var playerTwoMoving = false
+        if (interactionSession.fpsMovementEnabled()) {
+            playerOneX = interactionSession.fpsPositionX(1)
+            playerOneY = interactionSession.fpsPositionY(1)
+            playerOneZ = interactionSession.fpsPositionZ(1)
+            playerTwoX = interactionSession.fpsPositionX(2)
+            playerTwoY = interactionSession.fpsPositionY(2)
+            playerTwoZ = interactionSession.fpsPositionZ(2)
+            playerOneMoving =
+                interactionSession.fpsVelocityX(1) != 0 ||
+                interactionSession.fpsVelocityZ(1) != 0
+            playerTwoMoving =
+                interactionSession.fpsVelocityX(2) != 0 ||
+                interactionSession.fpsVelocityZ(2) != 0
+        }
+        var renderTick = netcodeRemoteRenderTick(
+            interactionSession.currentClientTick())
+        if (mirrorRemoteValue &&
+            interactionSession.clientRemoteBaselineReady() &&
+            interactionSession.remotePlayerSnapshotCount(1) > 0 &&
+            interactionSession.remotePlayerSnapshotCount(2) > 0) {
+            playerOneX = interactionSession.interpolatedRemotePlayerPosition(
+                1, renderTick)
+            playerOneY = interactionSession.clientRemotePlayerY(1)
+            playerOneZ = interactionSession.clientRemotePlayerZ(1)
+            playerTwoX = interactionSession.interpolatedRemotePlayerPosition(
+                2, renderTick)
+            playerTwoY = interactionSession.clientRemotePlayerY(2)
+            playerTwoZ = interactionSession.clientRemotePlayerZ(2)
+        }
+        var playerOneAttack =
+            interactionSession.lastInputEdges(1).firePressed() != 0
+        var playerTwoAttack =
+            interactionSession.lastInputEdges(2).firePressed() != 0
+        if (!animalMeshes.setActor(
+                1, 1, playerOneX, playerOneY, playerOneZ,
+                playerOneMoving, playerOneAttack) ||
+            !animalMeshes.setActor(
+                2, 2, playerTwoX, playerTwoY, playerTwoZ,
+                playerTwoMoving, playerTwoAttack)) {
+            println("KOOKIE gameplay player mesh staging failed")
+            return false
+        }
+        for (var bot = 3; bot <= 5; bot = bot + 1) {
+            var botX = interactionSession.enemySpatialPositionX(bot)
+            var botY = interactionSession.enemySpatialPositionY(bot)
+            var botZ = interactionSession.enemySpatialPositionZ(bot)
+            if (mirrorRemoteValue &&
+                interactionSession.clientRemoteEnemyIndex(bot) >= 0) {
+                botX = interactionSession.clientRemoteEnemyPositionX(bot)
+                botY = interactionSession.clientRemoteEnemyPositionY(bot)
+                botZ = interactionSession.clientRemoteEnemyPositionZ(bot)
+            }
+            var kind = if (bot % 2 == 0) 2 else 1
+            if (!animalMeshes.setActor(
+                    bot, kind, botX, botY, botZ, false, false)) {
+                println("KOOKIE gameplay bot mesh staging failed")
+                println(bot)
+                return false
+            }
+        }
+        if (!animalMeshes.stage(animalFrame, frame, 3)) {
+            println("KOOKIE gameplay animal mesh frame stage failed")
+            return false
+        }
+        return true
+    }
+
+    Bool updateFollowCamera(Int player) {
+        if (player != 1 && player != 2) { return false }
+        var targetX = interactionSession.serverPosition(player)
+        var targetY = 1
+        var targetZ = 6
+        if (interactionSession.fpsMovementEnabled()) {
+            targetX = interactionSession.fpsPositionX(player)
+            targetY = interactionSession.fpsPositionY(player)
+            targetZ = interactionSession.fpsPositionZ(player)
+        }
+        var hadTarget = camera.hasFollowTarget()
+        if (!camera.setFollowTarget(targetX, targetY, targetZ)) {
+            return false
+        }
+        if (!hadTarget) {
+            return camera.snapFollowTarget()
+        }
+        return camera.stepFollow()
+    }
 
     Bool applyMouseLook() {
-        return camera.applyLook(
-            kookie_consume_mouse_delta_x() / 2,
-            -kookie_consume_mouse_delta_y() / 2)
+        return camera.applyZoom(kookie_consume_mouse_wheel_y()) &&
+            camera.applyLook(
+                kookie_consume_mouse_delta_x() / 2,
+                -kookie_consume_mouse_delta_y() / 2)
     }
 
     Bool fireNearestBot(Int player, Int shotTick) {
@@ -922,24 +1079,27 @@ class G1NativePresentation {
         var player = if (host) 1 else 2
         var tick = interactionSession.currentServerTick() + 1
         var fire = kookie_input_state(5)
+        var jump = kookie_input_state(6)
         var playerOneHealthBefore = interactionSession.enemyCombatHealth(1)
         var playerTwoHealthBefore = interactionSession.enemyCombatHealth(2)
+        var moveX = localMoveForwardAxis()
+        var moveZ = localMoveStrafeAxis()
         if (!host &&
             !sendLocalGameInput(
-                interactionSession, state, player, localMoveAxis(), fire)) {
+                interactionSession, state, player, moveX, moveZ, fire, jump)) {
             return false
         }
         if (!interactionSession.receiveInput(
                 player, tick, state.nextLocalSequence(),
-                localMoveAxis(), 0, 0, 0, fire,
-                kookie_input_state(6))) {
+                moveX, moveZ, 0, 0, fire, jump)) {
             println("KOOKIE gameplay input admission failed")
             return false
         }
         if (host &&
             !interactionSession.receiveInput(
                 2, tick, state.nextRemoteSequence(),
-                state.remoteMove(), 0, 0, 0, 0, 0)) {
+                state.remoteMove(), state.remoteMoveZ(), 0, 0,
+                0, state.remoteJump())) {
             println("KOOKIE gameplay remote input admission failed")
             return false
         }
@@ -948,6 +1108,10 @@ class G1NativePresentation {
             println("KOOKIE gameplay step result")
             println(steps)
             println(interactionSession.currentServerTick())
+            return false
+        }
+        if (!updateFollowCamera(player)) {
+            println("KOOKIE follow camera update failed")
             return false
         }
         var playerOneHealthAfter = interactionSession.enemyCombatHealth(1)
@@ -994,8 +1158,9 @@ class G1NativePresentation {
             println("KOOKIE gameplay arena world stage failed")
             return false
         }
-        if (!stageGooseActors(frame, network)) {
-            println("KOOKIE gameplay actors stage failed")
+        if (!stageGooseActors(frame, network) ||
+            !stageAnimalMeshes(frame, network)) {
+            println("KOOKIE gameplay animal stage failed")
             return false
         }
         if (!interactionSession.stageWorldInteractionGeometry3d(
@@ -1008,15 +1173,17 @@ class G1NativePresentation {
             return false
         }
         var worldVertexCount =
-            worldFrame.stagedCount() + doorFrame.stagedCount()
+            worldFrame.stagedCount() + doorFrame.stagedCount() +
+            animalFrame.stagedCount()
         if (!kookie_gpu_world_set_camera(
-                16 + interactionSession.serverPosition(1),
-                4, -8, camera.currentYaw(), camera.currentPitch())) {
+                camera.currentX(), camera.currentY(), camera.currentZ(),
+                camera.currentYaw(), camera.currentPitch())) {
             println("KOOKIE gameplay world camera failed")
             return false
         }
         if (!kookie_gpu_world_begin(worldVertexCount) ||
             !uploadWorld(worldFrame) || !uploadWorld(doorFrame) ||
+            !uploadWorld(animalFrame) ||
             !kookie_gpu_world_commit() ||
             kookie_gpu_world_count() != worldVertexCount) {
             println("KOOKIE gameplay world GPU pass failed")
@@ -1051,20 +1218,12 @@ class G1NativePresentation {
             println("KOOKIE gameplay GPU scene draw failed")
             return false
         }
-        if (!worldFrame.retire(frame)) {
-            println("KOOKIE gameplay world retire failed")
-            return false
-        }
-        if (!actorFrame.retire(frame)) {
-            println("KOOKIE gameplay actor retire failed")
-            return false
-        }
-        if (!doorFrame.retire(frame)) {
-            println("KOOKIE gameplay door retire failed")
-            return false
-        }
-        if (!hudFrame.retire(frame)) {
-            println("KOOKIE gameplay HUD retire failed")
+        if (!worldFrame.retire(frame) ||
+            !animalFrame.retire(frame) ||
+            !actorFrame.retire(frame) ||
+            !doorFrame.retire(frame) ||
+            !hudFrame.retire(frame)) {
+            println("KOOKIE gameplay frame retire failed")
             return false
         }
         if (scoreboardVisible && !scoreboardFrame.retire(frame)) {
@@ -1073,6 +1232,7 @@ class G1NativePresentation {
         }
         return true
     }
+
 
     Bool drawShellFrame(GameShell shell, FrameStaging shellFrame, Int frame) {
         if (!shell.stage(shellFrame, frame)) { return false }
@@ -1089,6 +1249,7 @@ class G1NativePresentation {
     Bool capacitiesStable() {
         return worldFrame.vertexCapacity() == worldCapacity &&
             actorFrame.vertexCapacity() == actorCapacity &&
+            animalFrame.vertexCapacity() == animalCapacity &&
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&
             scoreboardFrame.vertexCapacity() == scoreboardCapacity &&

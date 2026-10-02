@@ -43,6 +43,10 @@ class LoopbackSession {
     Int clientRemoteCombatHealthValue
     Int clientRemotePlayerOnePositionValue
     Int clientRemotePlayerTwoPositionValue
+    Int clientRemotePlayerOneYValue
+    Int clientRemotePlayerOneZValue
+    Int clientRemotePlayerTwoYValue
+    Int clientRemotePlayerTwoZValue
     Int clientRemoteCurrencyValue
     Bool clientRemoteConnectedValue
     Int clientRemoteConnectionGenerationValue
@@ -140,6 +144,8 @@ class LoopbackSession {
     InputReplayRecorder playerTwoReplay
     MovementComponent serverMovement
     MovementComponent clientMovement
+    FpsMovementController fpsMovement
+    Bool fpsMovementEnabledValue
     Bool playerOneConnected
     Bool playerOneFocused
     Bool playerTwoFocused
@@ -216,6 +222,8 @@ class LoopbackSession {
         playerTwoEdges = InputEdgeState()
         serverMovement = MovementComponent(entityCapacity, 4)
         clientMovement = MovementComponent(entityCapacity, 4)
+        fpsMovement = FpsMovementController(entityCapacity)
+        fpsMovementEnabledValue = false
         playerOneConnected = false
         playerOneFocused = false
         playerTwoFocused = false
@@ -350,6 +358,10 @@ class LoopbackSession {
         clientRemoteCombatHealthValue = 0
         clientRemotePlayerOnePositionValue = 0
         clientRemotePlayerTwoPositionValue = 0
+        clientRemotePlayerOneYValue = 0
+        clientRemotePlayerOneZValue = 0
+        clientRemotePlayerTwoYValue = 0
+        clientRemotePlayerTwoZValue = 0
         clientRemoteCurrencyValue = 0
         clientRemoteConnectedValue = false
         clientRemoteConnectionGenerationValue = 0
@@ -656,6 +668,59 @@ class LoopbackSession {
         return true
     }
 
+    Bool enableFpsMovement(Bool enabled) {
+        if (started) {
+            return false
+        }
+        fpsMovementEnabledValue = enabled
+        return true
+    }
+
+    Bool fpsMovementEnabled() {
+        return fpsMovementEnabledValue
+    }
+
+    Int fpsPositionX(Int player) {
+        return fpsMovement.positionX(player)
+    }
+
+    Int fpsPositionY(Int player) {
+        return fpsMovement.positionY(player)
+    }
+
+    Int fpsPositionZ(Int player) {
+        return fpsMovement.positionZ(player)
+    }
+
+    Int fpsVelocityX(Int player) {
+        return fpsMovement.velocityX(player)
+    }
+
+    Int fpsVelocityY(Int player) {
+        return fpsMovement.velocityY(player)
+    }
+
+    Int fpsVelocityZ(Int player) {
+        return fpsMovement.velocityZ(player)
+    }
+
+    Bool fpsGrounded(Int player) {
+        return fpsMovement.grounded(player)
+    }
+
+    Bool fpsLastJumped() {
+        return fpsMovement.lastJumped()
+    }
+
+    Bool fpsLastCoyoteJump() {
+        return fpsMovement.lastCoyoteJump()
+    }
+
+    Bool fpsLastBunnyHop() {
+        return fpsMovement.lastBunnyHop()
+    }
+
+
     Bool connectSpecificPlayer(Int player) {
         if (!started || (player != 1 && player != 2)) {
             return false
@@ -666,8 +731,17 @@ class LoopbackSession {
                 return false
             }
             var positionOne = serverMovement.position(1)
+            var positionOneY = 0
+            var positionOneZ = 0
+            if (enemyCombat.hasSpatialPosition(1)) {
+                positionOneY = enemyCombat.enemySpatialPositionY(1)
+                positionOneZ = enemyCombat.enemySpatialPositionZ(1)
+            }
             if (!serverMovement.setPosition(1, positionOne) ||
                 !clientMovement.setPosition(1, positionOne) ||
+                (fpsMovementEnabledValue &&
+                    !fpsMovement.addActor(
+                        1, positionOne, positionOneY, positionOneZ)) ||
                 !playerOnePrediction.restore(positionOne, serverTick) ||
                 !playerOneSnapshots.reset() ||
                 (recovering && !playerOneInputs.resetForReplay())) {
@@ -680,8 +754,17 @@ class LoopbackSession {
                 return false
             }
             var positionTwo = serverMovement.position(2)
+            var positionTwoY = 0
+            var positionTwoZ = 0
+            if (enemyCombat.hasSpatialPosition(2)) {
+                positionTwoY = enemyCombat.enemySpatialPositionY(2)
+                positionTwoZ = enemyCombat.enemySpatialPositionZ(2)
+            }
             if (!serverMovement.setPosition(2, positionTwo) ||
                 !clientMovement.setPosition(2, positionTwo) ||
+                (fpsMovementEnabledValue &&
+                    !fpsMovement.addActor(
+                        2, positionTwo, positionTwoY, positionTwoZ)) ||
                 !playerTwoPrediction.restore(positionTwo, serverTick) ||
                 !playerTwoSnapshots.reset() ||
                 (recovering && !playerTwoInputs.resetForReplay())) {
@@ -1020,12 +1103,26 @@ class LoopbackSession {
             tick, gameplayStateSequences[player],
             lastRemoteGameplayAcceptedValue,
             worldInteractions.revision(), combatActorId, health, player)
+        var playerOneY = 0
+        var playerOneZ = 0
+        var playerTwoY = 0
+        var playerTwoZ = 0
+        if (enemyCombat.hasSpatialPosition(1)) {
+            playerOneY = enemyCombat.enemySpatialPositionY(1)
+            playerOneZ = enemyCombat.enemySpatialPositionZ(1)
+        }
+        if (enemyCombat.hasSpatialPosition(2)) {
+            playerTwoY = enemyCombat.enemySpatialPositionY(2)
+            playerTwoZ = enemyCombat.enemySpatialPositionZ(2)
+        }
         if (!setGameplayStateProgression(
                 state, worldInteractions.secretCount(),
                 worldInteractions.completed(), worldInteractions.activeMask()) ||
             !setGameplayStateReplication(
                 state, serverMovement.position(1), serverMovement.position(2),
                 playerCurrency(player)) ||
+            !setGameplayStateMovement(
+                state, playerOneY, playerOneZ, playerTwoY, playerTwoZ) ||
             !setGameplayStateConnection(
                 state, playerConnected(player), connectionGenerations[player],
                 disconnectReasons[player], lastRemoteGameplayDiagnosticValue) ||
@@ -1054,6 +1151,10 @@ class LoopbackSession {
             generation > clientRemoteConnectionGenerationValue
         var positionOne = gameplayStatePlayerPosition(words, 1)
         var positionTwo = gameplayStatePlayerPosition(words, 2)
+        var positionOneY = gameplayStatePlayerY(words, 1)
+        var positionOneZ = gameplayStatePlayerZ(words, 1)
+        var positionTwoY = gameplayStatePlayerY(words, 2)
+        var positionTwoZ = gameplayStatePlayerZ(words, 2)
         if (newBaseline) {
             clientRemotePlayerOneSnapshots.clear()
             clientRemotePlayerTwoSnapshots.clear()
@@ -1133,6 +1234,10 @@ class LoopbackSession {
         clientRemoteCombatHealthValue = gameplayStateCombatHealth(words)
         clientRemotePlayerOnePositionValue = positionOne
         clientRemotePlayerTwoPositionValue = positionTwo
+        clientRemotePlayerOneYValue = positionOneY
+        clientRemotePlayerOneZValue = positionOneZ
+        clientRemotePlayerTwoYValue = positionTwoY
+        clientRemotePlayerTwoZValue = positionTwoZ
         clientRemoteCurrencyValue = gameplayStateCurrency(words)
         clientRemoteConnectedValue = gameplayStateConnected(words)
         clientRemoteConnectionGenerationValue = generation
@@ -1770,6 +1875,26 @@ class LoopbackSession {
         return -1000001
     }
 
+    Int clientRemotePlayerY(Int player) {
+        if (player == 1) {
+            return clientRemotePlayerOneYValue
+        }
+        if (player == 2) {
+            return clientRemotePlayerTwoYValue
+        }
+        return -1000001
+    }
+
+    Int clientRemotePlayerZ(Int player) {
+        if (player == 1) {
+            return clientRemotePlayerOneZValue
+        }
+        if (player == 2) {
+            return clientRemotePlayerTwoZValue
+        }
+        return -1000001
+    }
+
     Bool predictRemoteGameplayInput(
         Int player, Int tick, Int requestedStep, Int generation
     ) {
@@ -2393,12 +2518,16 @@ class LoopbackSession {
             return false
         }
         if (id == 1 && playerOneConnected) {
-            return serverMovement.setPosition(1, x) &&
+            return (!fpsMovementEnabledValue ||
+                    fpsMovement.setPosition(1, x, y, z)) &&
+                serverMovement.setPosition(1, x) &&
                 clientMovement.setPosition(1, x) &&
                 playerOnePrediction.restore(x, serverTick)
         }
         if (id == 2 && playerTwoConnected) {
-            return serverMovement.setPosition(2, x) &&
+            return (!fpsMovementEnabledValue ||
+                    fpsMovement.setPosition(2, x, y, z)) &&
+                serverMovement.setPosition(2, x) &&
                 clientMovement.setPosition(2, x) &&
                 playerTwoPrediction.restore(x, serverTick)
         }
@@ -5614,7 +5743,8 @@ class LoopbackSession {
                         commandOne, simulationTick)) {
                     return -1
                 }
-                if (!applyDoorAwareMovement(1, commandOne.moveX())) {
+                if (!applyCommandMovement(
+                        1, commandOne, playerOneEdges.lastEdges())) {
                     return -1
                 }
                 if (playerCombat.isAlive(1) &&
@@ -5633,7 +5763,8 @@ class LoopbackSession {
                     return -1
                 }
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
-                if (!applyDoorAwareMovement(2, commandTwo.moveX())) {
+                if (!applyCommandMovement(
+                        2, commandTwo, playerTwoEdges.lastEdges())) {
                     return -1
                 }
                 if (playerCombat.isAlive(2) &&
@@ -5695,6 +5826,38 @@ class LoopbackSession {
             }
         }
         return steps
+    }
+
+    Bool applyCommandMovement(
+        Int player, InputCommand command, InputEdges edges
+    ) {
+        if (fpsMovementEnabledValue) {
+            return applyFpsMovement(
+                player, command.moveX(), command.moveY(),
+                edges.jumpPressed() != 0, command.jump() != 0)
+        }
+        return applyDoorAwareMovement(player, command.moveX())
+    }
+
+    Bool applyFpsMovement(
+        Int player, Int moveX, Int moveZ,
+        Bool jumpPressed, Bool jumpHeld
+    ) {
+        if (!fpsMovement.step(
+                player, moveX, moveZ, jumpPressed, jumpHeld)) {
+            return false
+        }
+        var x = fpsMovement.positionX(player)
+        var y = fpsMovement.positionY(player)
+        var z = fpsMovement.positionZ(player)
+        if (!serverMovement.setPosition(player, x)) {
+            return false
+        }
+        if (enemyCombat.hasSpatialPosition(player) &&
+            !enemyCombat.setSpatialPosition(player, x, y, z)) {
+            return false
+        }
+        return true
     }
 
     Bool applyDoorAwareMovement(Int player, Int requestedStep) {
@@ -5768,7 +5931,10 @@ class LoopbackSession {
         return true
     }
     Bool loadAuthoredBroadPhase(BoundedAuthoredCollision authored) {
-        if (!broadPhaseCollection.replaceWithAuthored(authored)) {
+        if (!broadPhaseCollection.replaceWithAuthored(authored) ||
+            !serverMovement.setBounds(authored.minX(), authored.maxX()) ||
+            !clientMovement.setBounds(authored.minX(), authored.maxX()) ||
+            !fpsMovement.configure(authored)) {
             return false
         }
         broadPhaseRevisionValue = broadPhaseCollection.geometryRevision()

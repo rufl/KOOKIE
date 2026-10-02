@@ -40,6 +40,27 @@ class InputMapper {
         return MappedInput(
             clamp(moveX), clamp(moveY), clamp(lookX), clamp(lookY), safeFire, safeJump)
     }
+
+}
+
+Int clampMovementAxis(Int value) {
+    if (value < -4) { return -4 }
+    if (value > 4) { return 4 }
+    return value
+}
+
+Int movementForwardAxis(Int forwardPressed, Int backwardPressed) {
+    var value = 0
+    if (forwardPressed != 0) { value = value + 1 }
+    if (backwardPressed != 0) { value = value - 1 }
+    return clampMovementAxis(value)
+}
+
+Int movementStrafeAxis(Int leftPressed, Int rightPressed) {
+    var value = 0
+    if (leftPressed != 0) { value = value + 1 }
+    if (rightPressed != 0) { value = value - 1 }
+    return clampMovementAxis(value)
 }
 
 class CameraState {
@@ -47,6 +68,15 @@ class CameraState {
     Int pitch
     Int minPitch
     Int maxPitch
+    Int followTargetXValue
+    Int followTargetYValue
+    Int followTargetZValue
+    Int followXValue
+    Int followYValue
+    Int followZValue
+    Int followDistanceValue
+    Int desiredFollowDistanceValue
+    Bool followReadyValue
 
     public constructor(Int nextMinPitch, Int nextMaxPitch) {
         yaw = 0
@@ -57,6 +87,15 @@ class CameraState {
             minPitch = -890
             maxPitch = 890
         }
+        followTargetXValue = 0
+        followTargetYValue = 0
+        followTargetZValue = 0
+        followXValue = 0
+        followYValue = 4
+        followZValue = -8
+        followDistanceValue = 10
+        desiredFollowDistanceValue = 10
+        followReadyValue = false
     }
 
     Bool applyLook(Int deltaYaw, Int deltaPitch) {
@@ -70,6 +109,118 @@ class CameraState {
         }
         return true
     }
+
+    Bool applyZoom(Int wheel) {
+        if (wheel < -8) { wheel = -8 }
+        if (wheel > 8) { wheel = 8 }
+        desiredFollowDistanceValue =
+            desiredFollowDistanceValue - wheel * 2
+        if (desiredFollowDistanceValue < 0) {
+            desiredFollowDistanceValue = 0
+        }
+        if (desiredFollowDistanceValue > 12) {
+            desiredFollowDistanceValue = 12
+        }
+        return true
+    }
+
+    Int approach(Int current, Int target, Int divisor) {
+        var delta = target - current
+        if (delta == 0) { return current }
+        var step = delta / divisor
+        if (step == 0) {
+            step = if (delta > 0) 1 else -1
+        }
+        return current + step
+    }
+
+    Int normalizedYaw() {
+        var value = yaw % 360
+        if (value < 0) { value = value + 360 }
+        return value
+    }
+
+    Int followDirectionX() {
+        var sector = (normalizedYaw() + 22) / 45
+        if (sector >= 8) { sector = sector - 8 }
+        if (sector == 2 || sector == 6) {
+            return if (sector == 2) 100 else -100
+        }
+        if (sector == 1 || sector == 3) { return 71 }
+        if (sector == 5 || sector == 7) { return -71 }
+        return 0
+    }
+
+    Int followDirectionZ() {
+        var sector = (normalizedYaw() + 22) / 45
+        if (sector >= 8) { sector = sector - 8 }
+        if (sector == 0) { return 100 }
+        if (sector == 4) { return -100 }
+        if (sector == 1 || sector == 7) { return 71 }
+        if (sector == 3 || sector == 5) { return -71 }
+        return 0
+    }
+
+    Int desiredFollowX() {
+        return followTargetXValue -
+            followDirectionX() * followDistanceValue / 100
+    }
+
+    Int desiredFollowY() {
+        return followTargetYValue + 4 + followDistanceValue / 4
+    }
+
+    Int desiredFollowZ() {
+        return followTargetZValue -
+            followDirectionZ() * followDistanceValue / 100
+    }
+
+    Bool setFollowTarget(Int x, Int y, Int z) {
+        if (x < -900 || x > 900 ||
+            y < -900 || y > 900 ||
+            z < -900 || z > 900) {
+            return false
+        }
+        followTargetXValue = x
+        followTargetYValue = y
+        followTargetZValue = z
+        followReadyValue = true
+        return true
+    }
+
+    Bool hasFollowTarget() {
+        return followReadyValue
+    }
+
+    Bool snapFollowTarget() {
+        if (!followReadyValue) { return false }
+        followXValue = desiredFollowX()
+        followYValue = desiredFollowY()
+        followZValue = desiredFollowZ()
+        followDistanceValue = desiredFollowDistanceValue
+        return true
+    }
+
+    Bool clearFollowTarget() {
+        followReadyValue = false
+        return true
+    }
+
+    Bool stepFollow() {
+        if (!followReadyValue) { return false }
+        followDistanceValue = approach(
+            followDistanceValue, desiredFollowDistanceValue, 3)
+        followXValue = approach(followXValue, desiredFollowX(), 4)
+        followYValue = approach(followYValue, desiredFollowY(), 4)
+        followZValue = approach(followZValue, desiredFollowZ(), 4)
+        return true
+    }
+
+    Int currentX() { return followXValue }
+    Int currentY() { return followYValue }
+    Int currentZ() { return followZValue }
+    Int currentFollowDistance() { return followDistanceValue }
+    Int desiredFollowDistance() { return desiredFollowDistanceValue }
 
     Int currentYaw() {
         return yaw

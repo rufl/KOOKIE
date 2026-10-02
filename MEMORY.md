@@ -9,18 +9,15 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   prediction correction/reconciliation, one player weapon/enemy kill,
   focus-loss recovery and confirmed kill feedback reaching HUD plus queued
   audio.
-- `G1Arena` owns 78 vertices/26 triangles for lower floor, ramp, upper
-  platform, two stair steps and stacked rooms. Server snapshots include
-  explicit bounds and all triangles; client upper/lower-floor queries pass.
-- World, door and semantic HUD staging uses 486 fixed vertices: 78 arena, 36
-  door and 372 HUD vertices for framed health/ammo tracks, structural icons, a
-  shape-distinct connection glyph, active/reserve encounter load, a
-  focus-responsive crosshair, hit/kill markers, edge damage warnings,
-  inventory/equipment/skill/world-loot state, shape-distinct elite/boss cues
-  and a kutter source→validation→publication rail. Feedback expires by
-  simulation tick and rejects duplicate event sequences. The native SDL_GPU
-  bridge owns persistent scene buffers and a 16-color semantic palette;
-  no-per-frame-growth proof remains bounded to unchanged staging capacities.
+- `G1Arena` owns 90 vertices/30 triangles across a 160 by 140 open-sky
+  footprint: interconnected rooms, central corridors and two L-shaped cover
+  pillars. Server snapshots include explicit bounds and all triangles; client
+  room/corridor/cover queries pass.
+- World, door and semantic HUD staging uses persistent bounded capacities for
+  the expanded arena, door cuboid, animated animals and HUD. The native
+  SDL_GPU bridge owns persistent scene buffers and a 16-color semantic
+  palette; no per-frame-growth proof remains bounded to unchanged staging
+  capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
 - The retained 84-scenario qualification baseline passed on JVM and native;

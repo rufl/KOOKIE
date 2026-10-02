@@ -179,7 +179,7 @@ def main() -> int:
         return fail("server-owned combat damage was not positive")
     if combat_death != 1:
         return fail("server-owned combat death was not terminal")
-    if arena_triangles != 26:
+    if arena_triangles != 30:
         return fail("complete authored arena did not traverse transport")
     if combat_reward != 25:
         return fail("server-owned combat reward was not replicated")

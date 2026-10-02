@@ -62,12 +62,15 @@ class NetcodeInputHistory {
     Int diagnosticValue
     Int[] ticks
     Int[] sequences
-    Int[] moves
+    Int[] moveXs
+    Int[] moveZs
     Int[] fires
+    Int[] jumps
 
     public constructor(Int capacity) {
         var actualCapacity = capacity
-        if (actualCapacity <= 0 || actualCapacity > netcodeMaximumInputHistory()) {
+        if (actualCapacity <= 0 ||
+            actualCapacity > netcodeMaximumInputHistory()) {
             actualCapacity = netcodeMaximumInputHistory()
         }
         capacityValue = actualCapacity
@@ -78,8 +81,10 @@ class NetcodeInputHistory {
         diagnosticValue = netcodeDiagnosticNone()
         ticks = new Int[actualCapacity]
         sequences = new Int[actualCapacity]
-        moves = new Int[actualCapacity]
+        moveXs = new Int[actualCapacity]
+        moveZs = new Int[actualCapacity]
         fires = new Int[actualCapacity]
+        jumps = new Int[actualCapacity]
     }
 
     void clear() {
@@ -91,15 +96,21 @@ class NetcodeInputHistory {
         for (var index = 0; index < capacityValue; index = index + 1) {
             ticks[index] = 0
             sequences[index] = 0
-            moves[index] = 0
+            moveXs[index] = 0
+            moveZs[index] = 0
             fires[index] = 0
+            jumps[index] = 0
         }
     }
 
-    Bool push(Int tick, Int sequence, Int move, Int fire) {
+    Bool push(
+        Int tick, Int sequence, Int moveX, Int moveZ,
+        Int fire, Int jump
+    ) {
         if (tick <= 0 || tick > 1000000 || sequence <= 0 ||
-            sequence > 1000000 || move < -4 || move > 4 ||
-            (fire != 0 && fire != 1)) {
+            sequence > 1000000 || moveX < -4 || moveX > 4 ||
+            moveZ < -4 || moveZ > 4 ||
+            (fire != 0 && fire != 1) || (jump != 0 && jump != 1)) {
             diagnosticValue = netcodeDiagnosticFrame()
             return false
         }
@@ -113,8 +124,10 @@ class NetcodeInputHistory {
             for (var index = 1; index < capacityValue; index = index + 1) {
                 ticks[index - 1] = ticks[index]
                 sequences[index - 1] = sequences[index]
-                moves[index - 1] = moves[index]
+                moveXs[index - 1] = moveXs[index]
+                moveZs[index - 1] = moveZs[index]
                 fires[index - 1] = fires[index]
+                jumps[index - 1] = jumps[index]
             }
             target = capacityValue - 1
         } else {
@@ -122,8 +135,10 @@ class NetcodeInputHistory {
         }
         ticks[target] = tick
         sequences[target] = sequence
-        moves[target] = move
+        moveXs[target] = moveX
+        moveZs[target] = moveZ
         fires[target] = fire
+        jumps[target] = jump
         latestTickValue = tick
         latestSequenceValue = sequence
         diagnosticValue = netcodeDiagnosticNone()
@@ -146,8 +161,10 @@ class NetcodeInputHistory {
             for (var index = 0; index < remaining; index = index + 1) {
                 ticks[index] = ticks[index + removed]
                 sequences[index] = sequences[index + removed]
-                moves[index] = moves[index + removed]
+                moveXs[index] = moveXs[index + removed]
+                moveZs[index] = moveZs[index + removed]
                 fires[index] = fires[index + removed]
+                jumps[index] = jumps[index + removed]
             }
             countValue = remaining
         }
@@ -172,9 +189,14 @@ class NetcodeInputHistory {
         return sequences[index]
     }
 
-    Int moveAt(Int index) {
+    Int moveXAt(Int index) {
         if (index < 0 || index >= countValue) { return 0 }
-        return moves[index]
+        return moveXs[index]
+    }
+
+    Int moveZAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return moveZs[index]
     }
 
     Int fireAt(Int index) {
@@ -182,14 +204,21 @@ class NetcodeInputHistory {
         return fires[index]
     }
 
+    Int jumpAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return jumps[index]
+    }
+
     Int[] commandWords() {
-        var words = new Int[countValue * 4]
+        var words = new Int[countValue * 6]
         for (var index = 0; index < countValue; index = index + 1) {
-            var offset = index * 4
+            var offset = index * 6
             words[offset] = ticks[index]
             words[offset + 1] = sequences[index]
-            words[offset + 2] = moves[index]
-            words[offset + 3] = fires[index]
+            words[offset + 2] = moveXs[index]
+            words[offset + 3] = moveZs[index]
+            words[offset + 4] = fires[index]
+            words[offset + 5] = jumps[index]
         }
         return words
     }

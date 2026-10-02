@@ -876,8 +876,13 @@ Menu:
   Escape               back
 
 Local playable slice:
+  W / S                move forward / backward
+  A / D                strafe left / right
+  Mouse                look
+  Mouse wheel          zoom camera
+  F / Left mouse       fire
+  Ctrl                 jump
   Select Play to start the authoritative goose encounter.
-  Keyboard and mouse control movement, look and fire.
   Escape returns to the menu; select Play again for a fresh encounter.
 
 Two-player dogfood:

@@ -9,8 +9,8 @@ class G1Arena {
     Bool readyValue
 
     public constructor() {
-        authoredValue = BoundedAuthoredCollision(78, 26)
-        collisionValue = BoundedTriangleCollection(32, 64)
+        authoredValue = BoundedAuthoredCollision(96, 32)
+        collisionValue = BoundedTriangleCollection(32, 256)
         contactValue = BoundedTriangleContactController(
             collisionValue, 1, 64, 60, 2)
         readyValue = buildArena()
@@ -44,43 +44,58 @@ class G1Arena {
 
     Bool buildArena() {
         if (!authoredValue.configure(
-                101, 1001, 1, 1, 100,
-                0, -4, 0, 32, 16, 28)) {
+                101, 1001, 2, 1, 100,
+                0, -4, 0, 160, 20, 140)) {
             return false
         }
 
+        // Large open-sky arena floor: 160 by 140 world units.
         if (!appendQuad(
-                0, 0, 0, 12, 0, 0, 12, 0, 12, 0, 0, 12, 1) ||
-            !appendQuad(
-                12, 0, 0, 20, 4, 0, 20, 4, 6, 12, 0, 6, 2) ||
-            !appendQuad(
-                20, 4, 0, 32, 4, 0, 32, 4, 12, 20, 4, 12, 3)) {
+                0, 0, 0, 160, 0, 0, 160, 0, 140, 0, 0, 140, 6)) {
             return false
         }
 
+        // Four perimeter walls leave the sky open while keeping combat inside.
         if (!appendQuad(
-                0, 0, 16, 12, 0, 16, 12, 0, 24, 0, 0, 24, 4) ||
+                0, 0, 0, 0, 20, 0, 0, 20, 140, 0, 0, 140, 8) ||
             !appendQuad(
-                4, 1, 16, 8, 1, 16, 8, 1, 24, 4, 1, 24, 5) ||
+                160, 0, 140, 160, 20, 140, 160, 20, 0, 160, 0, 0, 8) ||
             !appendQuad(
-                4, 0, 16, 4, 1, 16, 4, 1, 24, 4, 0, 24, 5) ||
+                0, 0, 0, 160, 0, 0, 160, 20, 0, 0, 20, 0, 8) ||
             !appendQuad(
-                8, 2, 16, 12, 2, 16, 12, 2, 24, 8, 2, 24, 5) ||
-            !appendQuad(
-                8, 1, 16, 8, 2, 16, 8, 2, 24, 8, 1, 24, 5)) {
+                160, 0, 140, 0, 0, 140, 0, 20, 140, 160, 20, 140, 8)) {
             return false
         }
 
+        // Central cross-corridor: four room mouths connect through a wide hub.
         if (!appendQuad(
-                20, 0, 16, 32, 0, 16, 32, 0, 28, 20, 0, 28, 6) ||
+                80, 0, 0, 80, 20, 0, 80, 20, 48, 80, 0, 48, 3) ||
             !appendQuad(
-                20, 8, 16, 32, 8, 16, 32, 8, 28, 20, 8, 28, 7) ||
+                80, 0, 92, 80, 20, 92, 80, 20, 140, 80, 0, 140, 3) ||
             !appendQuad(
-                20, 0, 16, 20, 16, 16, 20, 16, 28, 20, 0, 28, 8) ||
+                0, 0, 70, 0, 20, 70, 50, 20, 70, 50, 0, 70, 4) ||
             !appendQuad(
-                32, 0, 28, 32, 16, 28, 32, 16, 16, 32, 0, 16, 8) ||
+                110, 0, 70, 110, 20, 70, 160, 20, 70, 160, 0, 70, 4)) {
+            return false
+        }
+
+        // Offset partitions make six distinct rooms without dead ends.
+        if (!appendQuad(
+                40, 0, 100, 40, 20, 100, 40, 20, 140, 40, 0, 140, 5) ||
             !appendQuad(
-                20, 0, 28, 20, 16, 28, 32, 16, 28, 32, 0, 28, 8)) {
+                120, 0, 0, 120, 20, 0, 120, 20, 40, 120, 0, 40, 5)) {
+            return false
+        }
+
+        // Two L-shaped cover pillars sit in the central hub.
+        if (!appendQuad(
+                58, 0, 54, 58, 12, 54, 58, 12, 64, 58, 0, 64, 2) ||
+            !appendQuad(
+                58, 0, 54, 58, 12, 54, 68, 12, 54, 68, 0, 54, 7) ||
+            !appendQuad(
+                94, 0, 78, 94, 12, 78, 94, 12, 88, 94, 0, 88, 2) ||
+            !appendQuad(
+                94, 0, 88, 94, 12, 88, 104, 12, 88, 104, 0, 88, 7)) {
             return false
         }
 

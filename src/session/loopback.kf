@@ -108,11 +108,11 @@ Int[] newGameplayInputBundleMessage(
     if (player < 1 || player > 2 || generation <= 0 ||
         generation > 1000000 || snapshotAck < 0 || snapshotAck > 1000000 ||
         commandWords.length <= 0 ||
-        commandWords.length > netcodeMaximumInputHistory() * 4 ||
-        commandWords.length % 4 != 0) {
+        commandWords.length > netcodeMaximumInputHistory() * 6 ||
+        commandWords.length % 6 != 0) {
         return new Int[0]
     }
-    var commandCount = commandWords.length / 4
+    var commandCount = commandWords.length / 6
     var words = new Int[9 + commandWords.length]
     words[0] = protocolVersion()
     words[1] = gameplayInputBundleMessageKind()
@@ -131,7 +131,7 @@ Int[] newGameplayInputBundleMessage(
 }
 
 Bool validGameplayInputBundleMessage(Int[] words) {
-    if (words.length < 13 ||
+    if (words.length < 15 ||
         words.length > maximumSessionTransportWords() ||
         words[0] != protocolVersion() ||
         words[1] != gameplayInputBundleMessageKind() ||
@@ -139,7 +139,7 @@ Bool validGameplayInputBundleMessage(Int[] words) {
         words[3] <= 0 || words[3] > 1000000 ||
         words[4] < 0 || words[4] > 1000000 ||
         words[5] < 1 || words[5] > netcodeMaximumInputHistory() ||
-        words.length != 9 + words[5] * 4 ||
+        words.length != 9 + words[5] * 6 ||
         words[6] != words[8] || words[7] != words[9] ||
         words[words.length - 1] !=
             gameplayMessageChecksum(words, words.length - 1)) {
@@ -148,16 +148,21 @@ Bool validGameplayInputBundleMessage(Int[] words) {
     var previousTick = 0
     var previousSequence = 0
     for (var index = 0; index < words[5]; index = index + 1) {
-        var offset = 8 + index * 4
+        var offset = 8 + index * 6
         var tick = words[offset]
         var sequence = words[offset + 1]
-        var move = words[offset + 2]
-        var fire = words[offset + 3]
+        var moveX = words[offset + 2]
+        var moveZ = words[offset + 3]
+        var fire = words[offset + 4]
+        var jump = words[offset + 5]
         if (tick <= 0 || tick > 1000000 ||
             sequence <= 0 || sequence > 1000000 ||
             (index > 0 &&
                 (tick <= previousTick || sequence <= previousSequence)) ||
-            move < -4 || move > 4 || (fire != 0 && fire != 1)) {
+            moveX < -4 || moveX > 4 ||
+            moveZ < -4 || moveZ > 4 ||
+            (fire != 0 && fire != 1) ||
+            (jump != 0 && jump != 1)) {
             return false
         }
         previousTick = tick
@@ -188,11 +193,12 @@ Int gameplayInputBundleCount(Int[] words) {
 
 Int gameplayInputBundleValue(Int[] words, Int index, Int field) {
     if (!validGameplayInputBundleMessage(words) ||
-        index < 0 || index >= words[5] || field < 0 || field > 3) {
+        index < 0 || index >= words[5] || field < 0 || field > 5) {
         return 0
     }
-    return words[8 + index * 4 + field]
+    return words[8 + index * 6 + field]
 }
+
 
 Int[] newGameplayInputAckMessage(
     Int tick, Int inputSequence, Int snapshotSequence
@@ -492,7 +498,7 @@ Int[] newGameplayStateMessage(
     if (player < 1 || player > 2) {
         return new Int[0]
     }
-    var words = new Int[20]
+    var words = new Int[24]
     words[0] = protocolVersion()
     words[1] = gameplayStateMessageKind()
     words[2] = tick
@@ -511,7 +517,7 @@ Int[] newGameplayStateMessage(
 Bool setGameplayStateProgression(
     Int[] words, Int secretCount, Bool levelCompleted, Int interactionMask
 ) {
-    if (words.length != 20 || secretCount < 0 || secretCount > 64 ||
+    if (words.length != 24 || secretCount < 0 || secretCount > 64 ||
         interactionMask < 0 || interactionMask > 65535) {
         return false
     }
@@ -527,7 +533,7 @@ Bool setGameplayStateProgression(
 Bool setGameplayStateReplication(
     Int[] words, Int playerOnePosition, Int playerTwoPosition, Int currency
 ) {
-    if (words.length != 20 ||
+    if (words.length != 24 ||
         playerOnePosition < -1000000 || playerOnePosition > 1000000 ||
         playerTwoPosition < -1000000 || playerTwoPosition > 1000000 ||
         currency < 0 || currency > 1000000) {
@@ -539,11 +545,30 @@ Bool setGameplayStateReplication(
     return true
 }
 
+Bool setGameplayStateMovement(
+    Int[] words,
+    Int playerOneY, Int playerOneZ,
+    Int playerTwoY, Int playerTwoZ
+) {
+    if (words.length != 24 ||
+        playerOneY < -1000000 || playerOneY > 1000000 ||
+        playerOneZ < -1000000 || playerOneZ > 1000000 ||
+        playerTwoY < -1000000 || playerTwoY > 1000000 ||
+        playerTwoZ < -1000000 || playerTwoZ > 1000000) {
+        return false
+    }
+    words[19] = playerOneY
+    words[20] = playerOneZ
+    words[21] = playerTwoY
+    words[22] = playerTwoZ
+    return true
+}
+
 Bool setGameplayStateConnection(
     Int[] words, Bool connected, Int generation,
     Int disconnectReason, Int diagnostic
 ) {
-    if (words.length != 20 || generation <= 0 || generation > 1000000 ||
+    if (words.length != 24 || generation <= 0 || generation > 1000000 ||
         disconnectReason < 0 || disconnectReason > 4 ||
         diagnostic < gameplayMoveDiagnostic() ||
         diagnostic > gameplayProgressionDiagnostic() ||
@@ -562,7 +587,7 @@ Bool setGameplayStateConnection(
 }
 
 Bool validGameplayStateFields(Int[] words) {
-    return words.length == 20 &&
+    return words.length == 24 &&
         words[0] == protocolVersion() &&
         words[1] == gameplayStateMessageKind() &&
         words[2] >= 0 && words[2] <= 1000000 &&
@@ -583,6 +608,10 @@ Bool validGameplayStateFields(Int[] words) {
         words[16] <= gameplayProgressionDiagnostic() &&
         words[17] >= 0 && words[17] <= 65535 &&
         words[18] >= 1 && words[18] <= 2 &&
+        words[19] >= -1000000 && words[19] <= 1000000 &&
+        words[20] >= -1000000 && words[20] <= 1000000 &&
+        words[21] >= -1000000 && words[21] <= 1000000 &&
+        words[22] >= -1000000 && words[22] <= 1000000 &&
         ((words[13] == 1 && words[15] == 0) ||
             (words[13] == 0 && words[15] > 0))
 }
@@ -591,13 +620,13 @@ Bool sealGameplayStateMessage(Int[] words) {
     if (!validGameplayStateFields(words)) {
         return false
     }
-    words[19] = gameplayMessageChecksum(words, 19)
+    words[23] = gameplayMessageChecksum(words, 23)
     return true
 }
 
 Bool validGameplayStateMessage(Int[] words) {
     return validGameplayStateFields(words) &&
-        words[19] == gameplayMessageChecksum(words, 19)
+        words[23] == gameplayMessageChecksum(words, 23)
 }
 
 Bool gameplayStateAccepted(Int[] words) {
@@ -641,6 +670,26 @@ Int gameplayStatePlayerPosition(Int[] words, Int player) {
         return -1000001
     }
     return words[9 + player]
+}
+
+Int gameplayStatePlayerY(Int[] words, Int player) {
+    if (!validGameplayStateMessage(words) || player < 1 || player > 2) {
+        return -1000001
+    }
+    if (player == 1) {
+        return words[19]
+    }
+    return words[21]
+}
+
+Int gameplayStatePlayerZ(Int[] words, Int player) {
+    if (!validGameplayStateMessage(words) || player < 1 || player > 2) {
+        return -1000001
+    }
+    if (player == 1) {
+        return words[20]
+    }
+    return words[22]
 }
 
 Int gameplayStateCurrency(Int[] words) {

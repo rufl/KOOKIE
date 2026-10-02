@@ -317,6 +317,7 @@ static unsigned int gameplay_input_state;
 static int scoreboard_toggle_pending;
 static int gameplay_mouse_delta_x;
 static int gameplay_mouse_delta_y;
+static int gameplay_mouse_wheel_y;
 
 static unsigned int kookie_input_bit(SDL_Keycode key) {
     switch (key) {
@@ -1860,9 +1861,9 @@ static bool kookie_gpu_draw_test_internal(
     SDL_GPUColorTargetInfo target = {0};
 
     target.texture = render_target;
-    target.clear_color.r = 0.05f;
-    target.clear_color.g = 0.05f;
-    target.clear_color.b = 0.05f;
+    target.clear_color.r = 0.08f;
+    target.clear_color.g = 0.18f;
+    target.clear_color.b = 0.32f;
     target.clear_color.a = 1.0f;
     target.load_op = SDL_GPU_LOADOP_CLEAR;
     target.store_op = SDL_GPU_STOREOP_STORE;
@@ -2772,6 +2773,7 @@ int kookie_poll_event(void) {
                     scoreboard_toggle_pending = 0;
                     gameplay_mouse_delta_x = 0;
                     gameplay_mouse_delta_y = 0;
+                    gameplay_mouse_wheel_y = 0;
                     return 3;
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                     last_event_a = 0;
@@ -2853,6 +2855,15 @@ int kookie_poll_event(void) {
                     gameplay_mouse_delta_y = kookie_clamp_mouse_delta(
                         gameplay_mouse_delta_y + (int)event.motion.yrel);
                     break;
+                case SDL_EVENT_MOUSE_WHEEL: {
+                    int wheel = (int)event.wheel.y;
+                    if (wheel == 0 && event.wheel.y != 0.0f) {
+                        wheel = event.wheel.y > 0.0f ? 1 : -1;
+                    }
+                    gameplay_mouse_wheel_y = kookie_clamp_mouse_delta(
+                        gameplay_mouse_wheel_y + wheel);
+                    break;
+                }
                 case SDL_EVENT_RENDER_DEVICE_RESET:
                     if (kookie_gpu_handle_device_event(event.type)) {
                         last_event_a = 0;
@@ -2926,6 +2937,11 @@ int kookie_consume_mouse_delta_x(void) {
 int kookie_consume_mouse_delta_y(void) {
     int value = gameplay_mouse_delta_y;
     gameplay_mouse_delta_y = 0;
+    return value;
+}
+int kookie_consume_mouse_wheel_y(void) {
+    int value = gameplay_mouse_wheel_y;
+    gameplay_mouse_wheel_y = 0;
     return value;
 }
 

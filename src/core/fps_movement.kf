@@ -1,0 +1,445 @@
+package core
+
+Int fpsMovementCoordinateScale() { return 8 }
+Int fpsMovementCoyoteTicks() { return 8 }
+Int fpsMovementJumpBufferTicks() { return 8 }
+Int fpsMovementWalkSpeed() { return 8 }
+Int fpsMovementGroundAcceleration() { return 3 }
+Int fpsMovementAirAcceleration() { return 1 }
+Int fpsMovementGroundBraking() { return 2 }
+Int fpsMovementJumpVelocity() { return 12 }
+Int fpsMovementGravity() { return 2 }
+Int fpsMovementMaxFallSpeed() { return 16 }
+
+class FpsMovementController {
+    BoundedTriangleCollection collisionValue
+    BoundedTriangleContactController capsuleValue
+    Bool configuredValue
+    Int scaleValue
+    Int[] positionXValues
+    Int[] positionYValues
+    Int[] positionZValues
+    Int[] velocityXValues
+    Int[] velocityYValues
+    Int[] velocityZValues
+    Int[] coyoteTicksValues
+    Int[] jumpBufferTicksValues
+    Bool[] activeValues
+    Bool[] groundedValues
+    Bool[] jumpCutArmedValues
+    Int lastActorValue
+    Bool lastAcceptedValue
+    Bool lastCollidedValue
+    Bool lastGroundedValue
+    Bool lastJumpedValue
+    Bool lastCoyoteJumpValue
+    Bool lastBunnyHopValue
+    Bool lastLandedValue
+    Int actualCapacityValue
+
+    public constructor(Int capacity) {
+        actualCapacityValue = capacity
+        if (actualCapacityValue <= 0) {
+            actualCapacityValue = 1
+        }
+        if (actualCapacityValue > 8) {
+            actualCapacityValue = 8
+        }
+        scaleValue = fpsMovementCoordinateScale()
+        collisionValue = BoundedTriangleCollection(32, 256)
+        collisionValue.configureBounds(0, -32, 0, 256, 128, 224)
+        capsuleValue = BoundedTriangleContactController(
+            collisionValue, 2, 256, 60, 4)
+        capsuleValue.setGroundProbeDistance(scaleValue)
+        positionXValues = new Int[actualCapacityValue]
+        positionYValues = new Int[actualCapacityValue]
+        positionZValues = new Int[actualCapacityValue]
+        velocityXValues = new Int[actualCapacityValue]
+        velocityYValues = new Int[actualCapacityValue]
+        velocityZValues = new Int[actualCapacityValue]
+        coyoteTicksValues = new Int[actualCapacityValue]
+        jumpBufferTicksValues = new Int[actualCapacityValue]
+        activeValues = new Bool[actualCapacityValue]
+        groundedValues = new Bool[actualCapacityValue]
+        jumpCutArmedValues = new Bool[actualCapacityValue]
+        clearActors()
+        configuredValue = false
+        lastActorValue = 0
+        lastAcceptedValue = false
+        lastCollidedValue = false
+        lastGroundedValue = false
+        lastJumpedValue = false
+        lastCoyoteJumpValue = false
+        lastBunnyHopValue = false
+        lastLandedValue = false
+    }
+
+    void clearActors() {
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            positionXValues[index] = 0
+            positionYValues[index] = 0
+            positionZValues[index] = 0
+            velocityXValues[index] = 0
+            velocityYValues[index] = 0
+            velocityZValues[index] = 0
+            coyoteTicksValues[index] = 0
+            jumpBufferTicksValues[index] = 0
+            activeValues[index] = false
+            groundedValues[index] = false
+            jumpCutArmedValues[index] = false
+        }
+    }
+
+    Int slotFor(Int actorId) {
+        if (actorId <= 0 || actorId > actualCapacityValue) {
+            return -1
+        }
+        return actorId - 1
+    }
+
+    Int scaled(Int value) {
+        return value * scaleValue
+    }
+
+    Int worldCoordinate(Int value) {
+        if (value >= 0) {
+            return (value + scaleValue / 2) / scaleValue
+        }
+        return (value - scaleValue / 2) / scaleValue
+    }
+
+    Int clampAxis(Int value) {
+        if (value < -4) {
+            return -4
+        }
+        if (value > 4) {
+            return 4
+        }
+        return value
+    }
+
+    Int sign(Int value) {
+        if (value < 0) {
+            return -1
+        }
+        if (value > 0) {
+            return 1
+        }
+        return 0
+    }
+
+    Int approach(Int value, Int target, Int delta) {
+        if (value < target) {
+            value = value + delta
+            if (value > target) {
+                value = target
+            }
+            return value
+        }
+        if (value > target) {
+            value = value - delta
+            if (value < target) {
+                value = target
+            }
+        }
+        return value
+    }
+
+    Bool configure(BoundedAuthoredCollision authored) {
+        configuredValue = false
+        clearActors()
+        if (!authored.validate() || authored.triangleCount() > 32) {
+            return false
+        }
+        if (!collisionValue.configureBounds(
+                authored.minX() * scaleValue,
+                authored.minY() * scaleValue,
+                authored.minZ() * scaleValue,
+                authored.maxX() * scaleValue,
+                authored.maxY() * scaleValue,
+                authored.maxZ() * scaleValue) ||
+            !collisionValue.clearTriangles()) {
+            return false
+        }
+        for (var index = 0; index < authored.triangleCount(); index = index + 1) {
+            var first = authored.triangleVertex(index, 0)
+            var second = authored.triangleVertex(index, 1)
+            var third = authored.triangleVertex(index, 2)
+            if (first < 0 || second < 0 || third < 0 ||
+                !collisionValue.addTriangle(
+                    authored.vertexCoordinate(first, 0) * scaleValue,
+                    authored.vertexCoordinate(first, 1) * scaleValue,
+                    authored.vertexCoordinate(first, 2) * scaleValue,
+                    authored.vertexCoordinate(second, 0) * scaleValue,
+                    authored.vertexCoordinate(second, 1) * scaleValue,
+                    authored.vertexCoordinate(second, 2) * scaleValue,
+                    authored.vertexCoordinate(third, 0) * scaleValue,
+                    authored.vertexCoordinate(third, 1) * scaleValue,
+                    authored.vertexCoordinate(third, 2) * scaleValue)) {
+                return false
+            }
+        }
+        configuredValue = collisionValue.triangleCount() == authored.triangleCount()
+        return configuredValue
+    }
+
+    Bool configured() {
+        return configuredValue
+    }
+
+    Bool addActor(Int actorId, Int x, Int y, Int z) {
+        var slot = slotFor(actorId)
+        if (!configuredValue || slot < 0 ||
+            x < collisionValue.minimumX() / scaleValue ||
+            x > collisionValue.maximumX() / scaleValue ||
+            y < collisionValue.minimumY() / scaleValue ||
+            y > collisionValue.maximumY() / scaleValue ||
+            z < collisionValue.minimumZ() / scaleValue ||
+            z > collisionValue.maximumZ() / scaleValue) {
+            return false
+        }
+        positionXValues[slot] = scaled(x)
+        positionYValues[slot] = scaled(y)
+        positionZValues[slot] = scaled(z)
+        velocityXValues[slot] = 0
+        velocityYValues[slot] = 0
+        velocityZValues[slot] = 0
+        coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
+        jumpBufferTicksValues[slot] = 0
+        activeValues[slot] = true
+        groundedValues[slot] = true
+        jumpCutArmedValues[slot] = false
+        return true
+    }
+
+    Bool setPosition(Int actorId, Int x, Int y, Int z) {
+        var slot = slotFor(actorId)
+        if (!configuredValue || slot < 0 || !activeValues[slot]) {
+            return false
+        }
+        if (x < collisionValue.minimumX() / scaleValue ||
+            x > collisionValue.maximumX() / scaleValue ||
+            y < collisionValue.minimumY() / scaleValue ||
+            y > collisionValue.maximumY() / scaleValue ||
+            z < collisionValue.minimumZ() / scaleValue ||
+            z > collisionValue.maximumZ() / scaleValue) {
+            return false
+        }
+        positionXValues[slot] = scaled(x)
+        positionYValues[slot] = scaled(y)
+        positionZValues[slot] = scaled(z)
+        velocityXValues[slot] = 0
+        velocityYValues[slot] = 0
+        velocityZValues[slot] = 0
+        coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
+        jumpBufferTicksValues[slot] = 0
+        groundedValues[slot] = true
+        jumpCutArmedValues[slot] = false
+        return true
+    }
+
+    Bool setHorizontalPosition(Int actorId, Int x) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) {
+            return false
+        }
+        return setPosition(
+            actorId, x, worldCoordinate(positionYValues[slot]),
+            worldCoordinate(positionZValues[slot]))
+    }
+
+    Bool step(
+        Int actorId, Int moveX, Int moveZ,
+        Bool jumpPressed, Bool jumpHeld
+    ) {
+        var slot = slotFor(actorId)
+        if (!configuredValue || slot < 0 || !activeValues[slot]) {
+            return false
+        }
+        moveX = clampAxis(moveX)
+        moveZ = clampAxis(moveZ)
+        var wasGrounded = groundedValues[slot]
+        if (wasGrounded) {
+            coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
+        } else if (coyoteTicksValues[slot] > 0) {
+            coyoteTicksValues[slot] = coyoteTicksValues[slot] - 1
+        }
+        if (jumpBufferTicksValues[slot] > 0) {
+            jumpBufferTicksValues[slot] = jumpBufferTicksValues[slot] - 1
+        }
+        if (jumpPressed) {
+            jumpBufferTicksValues[slot] = fpsMovementJumpBufferTicks()
+        }
+
+        var targetX = sign(moveX) * fpsMovementWalkSpeed()
+        var targetZ = sign(moveZ) * fpsMovementWalkSpeed()
+        var acceleration = fpsMovementAirAcceleration()
+        if (wasGrounded) {
+            acceleration = fpsMovementGroundAcceleration()
+        }
+        if (moveX != 0) {
+            velocityXValues[slot] = approach(
+                velocityXValues[slot], targetX, acceleration)
+        } else if (wasGrounded) {
+            velocityXValues[slot] = approach(
+                velocityXValues[slot], 0, fpsMovementGroundBraking())
+        }
+        if (moveZ != 0) {
+            velocityZValues[slot] = approach(
+                velocityZValues[slot], targetZ, acceleration)
+        } else if (wasGrounded) {
+            velocityZValues[slot] = approach(
+                velocityZValues[slot], 0, fpsMovementGroundBraking())
+        }
+
+        var jumped = false
+        var coyoteJump = false
+        if (jumpBufferTicksValues[slot] > 0 &&
+            coyoteTicksValues[slot] > 0) {
+            jumped = true
+            coyoteJump = !wasGrounded
+            jumpBufferTicksValues[slot] = 0
+            coyoteTicksValues[slot] = 0
+            groundedValues[slot] = false
+            velocityYValues[slot] = fpsMovementJumpVelocity()
+            jumpCutArmedValues[slot] = true
+        }
+        if (jumpCutArmedValues[slot] && !jumpHeld &&
+            velocityYValues[slot] > 0) {
+            velocityYValues[slot] = velocityYValues[slot] * 3 / 5
+            jumpCutArmedValues[slot] = false
+        }
+        if (!wasGrounded || jumped) {
+            velocityYValues[slot] = velocityYValues[slot] - fpsMovementGravity()
+            if (velocityYValues[slot] < -fpsMovementMaxFallSpeed()) {
+                velocityYValues[slot] = -fpsMovementMaxFallSpeed()
+            }
+        } else {
+            velocityYValues[slot] = 0
+        }
+
+        var movement = capsuleValue.move(
+            positionXValues[slot], positionYValues[slot], positionZValues[slot],
+            positionXValues[slot] + velocityXValues[slot],
+            positionYValues[slot] + velocityYValues[slot],
+            positionZValues[slot] + velocityZValues[slot])
+        if (!movement.accepted()) {
+            lastActorValue = actorId
+            lastAcceptedValue = false
+            lastCollidedValue = false
+            lastGroundedValue = groundedValues[slot]
+            lastJumpedValue = jumped
+            lastCoyoteJumpValue = coyoteJump
+            lastBunnyHopValue = false
+            lastLandedValue = false
+            return false
+        }
+        positionXValues[slot] = movement.resolvedX()
+        positionYValues[slot] = movement.resolvedY()
+        positionZValues[slot] = movement.resolvedZ()
+        var groundedNow = movement.grounded()
+        var landed = !wasGrounded && groundedNow
+        var bunnyHop = false
+        if (groundedNow) {
+            coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
+            if (velocityYValues[slot] < 0) {
+                velocityYValues[slot] = 0
+            }
+            if (landed &&
+                (jumpHeld || jumpBufferTicksValues[slot] > 0)) {
+                groundedNow = false
+                bunnyHop = jumpHeld
+                jumped = true
+                jumpBufferTicksValues[slot] = 0
+                velocityYValues[slot] = fpsMovementJumpVelocity()
+                jumpCutArmedValues[slot] = true
+                coyoteTicksValues[slot] = 0
+            } else {
+                groundedValues[slot] = true
+                jumpCutArmedValues[slot] = false
+            }
+        } else {
+            groundedValues[slot] = false
+        }
+        lastActorValue = actorId
+        lastAcceptedValue = true
+        lastCollidedValue = movement.collided()
+        lastGroundedValue = groundedValues[slot]
+        lastJumpedValue = jumped
+        lastCoyoteJumpValue = coyoteJump
+        lastBunnyHopValue = bunnyHop
+        lastLandedValue = landed
+        return true
+    }
+
+    Int positionX(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return worldCoordinate(positionXValues[slot])
+    }
+
+    Int positionY(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return worldCoordinate(positionYValues[slot])
+    }
+
+    Int positionZ(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return worldCoordinate(positionZValues[slot])
+    }
+
+    Int velocityX(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return velocityXValues[slot]
+    }
+
+    Int velocityY(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return velocityYValues[slot]
+    }
+
+    Int velocityZ(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return velocityZValues[slot]
+    }
+
+    Bool grounded(Int actorId) {
+        var slot = slotFor(actorId)
+        return slot >= 0 && activeValues[slot] && groundedValues[slot]
+    }
+
+    Int coyoteTicks(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return coyoteTicksValues[slot]
+    }
+
+    Int jumpBufferTicks(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return jumpBufferTicksValues[slot]
+    }
+
+    Bool lastAccepted() { return lastAcceptedValue }
+    Bool lastCollided() { return lastCollidedValue }
+    Bool lastGrounded() { return lastGroundedValue }
+    Bool lastJumped() { return lastJumpedValue }
+    Bool lastCoyoteJump() { return lastCoyoteJumpValue }
+    Bool lastBunnyHop() { return lastBunnyHopValue }
+    Bool lastLanded() { return lastLandedValue }
+    Int lastActor() { return lastActorValue }
+    Int actorCount() {
+        var count = 0
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            if (activeValues[index]) {
+                count = count + 1
+            }
+        }
+        return count
+    }
+}

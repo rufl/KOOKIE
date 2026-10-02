@@ -1,0 +1,453 @@
+package world
+
+import core
+
+Int arenaAnimalAnimationWave(Int phase, Int period) {
+    var value = phase % period
+    if (value < 0) { value = value + period }
+    if (value < period / 2) { return -1 }
+    return 1
+}
+
+class ArenaAnimalMeshes {
+    Int[] actorIds
+    Int[] actorKinds
+    Int[] actorXs
+    Int[] actorYs
+    Int[] actorZs
+    Int[] actorPhases
+    Int[] actorFacings
+    Bool[] actorKnown
+    Bool[] actorCurrent
+    Bool[] actorMoving
+    Bool[] actorAttacking
+    Int actorCountValue
+    Bool gooseMovingValue
+    Bool gooseAttackingValue
+    Bool catMovingValue
+    Bool catAttackingValue
+    Bool animationReadyValue
+    Bool animationSteppedValue
+    BoundedAnimationGraphProduct gooseGraph
+    BoundedAnimationGraphProduct catGraph
+    BoundedAnimationGraphRuntime gooseRuntime
+    BoundedAnimationGraphRuntime catRuntime
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > 12) { actualCapacity = 12 }
+        actorIds = new Int[actualCapacity]
+        actorKinds = new Int[actualCapacity]
+        actorXs = new Int[actualCapacity]
+        actorYs = new Int[actualCapacity]
+        actorZs = new Int[actualCapacity]
+        actorPhases = new Int[actualCapacity]
+        actorFacings = new Int[actualCapacity]
+        actorKnown = new Bool[actualCapacity]
+        actorCurrent = new Bool[actualCapacity]
+        actorMoving = new Bool[actualCapacity]
+        actorAttacking = new Bool[actualCapacity]
+        gooseGraph = BoundedAnimationGraphProduct(3, 6)
+        catGraph = BoundedAnimationGraphProduct(3, 6)
+        gooseRuntime = BoundedAnimationGraphRuntime(3, 6)
+        catRuntime = BoundedAnimationGraphRuntime(3, 6)
+        animationReadyValue = buildAnimations()
+        clear()
+    }
+
+    Bool configureGraph(
+        BoundedAnimationGraphProduct graph, Int assetId
+    ) {
+        return graph.configure(101, assetId, 1, 1) &&
+            graph.addState(1, assetId * 10 + 1, 24, true) &&
+            graph.addState(2, assetId * 10 + 2, 16, true) &&
+            graph.addState(3, assetId * 10 + 3, 8, false) &&
+            graph.addTransition(
+                1, 1, 2, animationConditionMovingBit(), 1, 2) &&
+            graph.addTransition(
+                2, 1, 3, animationConditionAttackBit(), 2, 2) &&
+            graph.addTransition(
+                3, 2, 1, animationConditionStoppedBit(), 1, 2) &&
+            graph.addTransition(
+                4, 2, 3, animationConditionAttackBit(), 2, 2) &&
+            graph.addTransition(
+                5, 3, 2, animationConditionMovingBit(), 1, 2) &&
+            graph.addTransition(
+                6, 3, 1, animationConditionFinishedBit(), 1, 2) &&
+            graph.seal() && graph.validate()
+    }
+
+    Bool buildAnimations() {
+        return configureGraph(gooseGraph, 201) &&
+            configureGraph(catGraph, 202) &&
+            gooseRuntime.start(gooseGraph, 1) &&
+            catRuntime.start(catGraph, 1)
+    }
+
+    Bool clear() {
+        actorCountValue = 0
+        gooseMovingValue = false
+        gooseAttackingValue = false
+        catMovingValue = false
+        catAttackingValue = false
+        animationSteppedValue = false
+        for (var index = 0; index < actorIds.length; index = index + 1) {
+            actorIds[index] = 0
+            actorKinds[index] = 0
+            actorXs[index] = 0
+            actorYs[index] = 0
+            actorZs[index] = 0
+            actorPhases[index] = 0
+            actorFacings[index] = 1
+            actorKnown[index] = false
+            actorCurrent[index] = false
+            actorMoving[index] = false
+            actorAttacking[index] = false
+        }
+        if (!animationReadyValue ||
+            !gooseRuntime.start(gooseGraph, 1) ||
+            !catRuntime.start(catGraph, 1)) {
+            return false
+        }
+        return true
+    }
+
+    Bool beginFrame() {
+        actorCountValue = 0
+        gooseMovingValue = false
+        gooseAttackingValue = false
+        catMovingValue = false
+        catAttackingValue = false
+        animationSteppedValue = false
+        for (var index = 0; index < actorCurrent.length; index = index + 1) {
+            actorCurrent[index] = false
+        }
+        return animationReadyValue
+    }
+
+    Int slotFor(Int actorId) {
+        for (var index = 0; index < actorIds.length; index = index + 1) {
+            if (actorKnown[index] && actorIds[index] == actorId) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < actorKnown.length; index = index + 1) {
+            if (!actorKnown[index]) { return index }
+        }
+        return -1
+    }
+
+    Bool setActor(
+        Int actorId, Int kind, Int x, Int y, Int z,
+        Bool moving, Bool attacking
+    ) {
+        if (actorId <= 0 || (kind != 1 && kind != 2) ||
+            actorCountValue >= actorIds.length) {
+            return false
+        }
+        var slot = slotFor(actorId)
+        var known = slot >= 0
+        if (!known) {
+            slot = freeSlot()
+        }
+        if (slot < 0 || actorCurrent[slot]) { return false }
+        var priorX = actorXs[slot]
+        var priorZ = actorZs[slot]
+        if (!known) {
+            actorIds[slot] = actorId
+            actorKinds[slot] = kind
+            actorPhases[slot] = 0
+            actorFacings[slot] = 1
+            actorKnown[slot] = true
+        } else {
+            actorPhases[slot] = actorPhases[slot] + 1
+            if (actorPhases[slot] > 1000000) {
+                actorPhases[slot] = 0
+            }
+            if (x < priorX) { actorFacings[slot] = -1 }
+            if (x > priorX) { actorFacings[slot] = 1 }
+        }
+        actorKinds[slot] = kind
+        actorXs[slot] = x
+        actorYs[slot] = y
+        actorZs[slot] = z
+        actorMoving[slot] = moving || (known && (x != priorX || z != priorZ))
+        actorAttacking[slot] = attacking
+        actorCurrent[slot] = true
+        actorCountValue = actorCountValue + 1
+        if (kind == 1) {
+            gooseMovingValue = gooseMovingValue || actorMoving[slot]
+            gooseAttackingValue = gooseAttackingValue || attacking
+        } else {
+            catMovingValue = catMovingValue || actorMoving[slot]
+            catAttackingValue = catAttackingValue || attacking
+        }
+        return true
+    }
+
+
+    Bool advanceAnimations() {
+        if (animationSteppedValue) { return true }
+        var gooseConditions = animationConditionStoppedBit()
+        if (gooseMovingValue) {
+            gooseConditions = animationConditionMovingBit()
+        }
+        if (gooseAttackingValue) {
+            gooseConditions = gooseConditions + animationConditionAttackBit()
+        }
+        if (gooseRuntime.stateId() == 3 && gooseRuntime.clipTick() >= 7) {
+            gooseConditions = gooseConditions + animationConditionFinishedBit()
+        }
+        var catConditions = animationConditionStoppedBit()
+        if (catMovingValue) {
+            catConditions = animationConditionMovingBit()
+        }
+        if (catAttackingValue) {
+            catConditions = catConditions + animationConditionAttackBit()
+        }
+        if (catRuntime.stateId() == 3 && catRuntime.clipTick() >= 7) {
+            catConditions = catConditions + animationConditionFinishedBit()
+        }
+        if (!gooseRuntime.step(gooseConditions) ||
+            !catRuntime.step(catConditions)) {
+            return false
+        }
+        animationSteppedValue = true
+        return true
+    }
+
+    Int actorCount() { return actorCountValue }
+    Int renderVertexCapacity() { return actorIds.length * 120 }
+    Int gooseAnimationState() { return gooseRuntime.stateId() }
+    Int catAnimationState() { return catRuntime.stateId() }
+    Int gooseAnimationTick() { return gooseRuntime.clipTick() }
+    Int catAnimationTick() { return catRuntime.clipTick() }
+
+    Int actorPhase(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0) { return -1 }
+        return actorPhases[slot]
+    }
+
+    Bool pushTriangle(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return target.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            target.pushWorldVertex(resource, bx, by, bz, 100, 0) &&
+            target.pushWorldVertex(resource, cx, cy, cz, 100, 100)
+    }
+
+    Bool pushQuad(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int dx, Int dy, Int dz
+    ) {
+        return pushTriangle(
+                target, resource, ax, ay, az, bx, by, bz, cx, cy, cz) &&
+            pushTriangle(
+                target, resource, ax, ay, az, cx, cy, cz, dx, dy, dz)
+    }
+
+    Bool pushBox(
+        FrameStaging target, Int resource,
+        Int left, Int bottom, Int front,
+        Int right, Int top, Int back
+    ) {
+        return pushQuad(
+                target, resource,
+                left, bottom, front, right, bottom, front,
+                right, top, front, left, top, front) &&
+            pushQuad(
+                target, resource,
+                right, bottom, back, left, bottom, back,
+                left, top, back, right, top, back) &&
+            pushQuad(
+                target, resource,
+                left, bottom, back, left, bottom, front,
+                left, top, front, left, top, back) &&
+            pushQuad(
+                target, resource,
+                right, bottom, front, right, bottom, back,
+                right, top, back, right, top, front) &&
+            pushQuad(
+                target, resource,
+                left, top, front, right, top, front,
+                right, top, back, left, top, back) &&
+            pushQuad(
+                target, resource,
+                left, bottom, back, right, bottom, back,
+                right, bottom, front, left, bottom, front)
+    }
+
+    Bool stageGoose(
+        FrameStaging target, Int index, Int resourceBase
+    ) {
+        var phase = actorPhases[index]
+        var bob = if (arenaAnimalAnimationWave(phase, 8) > 0) 1 else 0
+        var swing = if (actorMoving[index])
+            arenaAnimalAnimationWave(phase, 4) else 0
+        var x = actorXs[index]
+        var y = actorYs[index]
+        var z = actorZs[index]
+        var bodyBottom = y + 1 + bob
+        var bodyTop = bodyBottom + 2
+        var facing = actorFacings[index]
+        var headX = x + facing * 3
+        if (!pushBox(
+                target, resourceBase,
+                x - 2, bodyBottom, z - 1,
+                x + 2, bodyTop, z + 1) ||
+            !pushBox(
+                target, resourceBase + 1,
+                headX - 1, bodyTop, z - 1,
+                headX + 1, bodyTop + 2, z + 1) ||
+            !pushTriangle(
+                target, resourceBase + 2,
+                headX, bodyTop + 1, z - 1,
+                headX + facing * 3, bodyTop + 1, z,
+                headX, bodyTop + 2, z - 1) ||
+            !pushTriangle(
+                target, resourceBase + 2,
+                headX, bodyTop + 1, z + 1,
+                headX + facing * 3, bodyTop + 1, z,
+                headX, bodyTop + 2, z + 1) ||
+            !pushQuad(
+                target, resourceBase + 1,
+                x - 1, bodyBottom + 1, z + 1,
+                x + 1, bodyBottom + 1 + swing, z + 2,
+                x + 1, bodyBottom - 1, z + 1,
+                x - 1, bodyBottom - 1, z + 1) ||
+            !pushQuad(
+                target, resourceBase + 1,
+                x - 1, bodyBottom + 1, z - 1,
+                x + 1, bodyBottom + 1 + swing, z - 2,
+                x + 1, bodyBottom - 1, z - 1,
+                x - 1, bodyBottom - 1, z - 1) ||
+            !pushQuad(
+                target, resourceBase + 2,
+                x - 1 + swing, y, z - 1,
+                x + swing, y, z - 1,
+                x + swing, bodyBottom, z - 1,
+                x - 1 + swing, bodyBottom, z - 1) ||
+            !pushQuad(
+                target, resourceBase + 2,
+                x + swing, y, z + 1,
+                x + 1 + swing, y, z + 1,
+                x + 1 + swing, bodyBottom, z + 1,
+                x + swing, bodyBottom, z + 1)) {
+            return false
+        }
+        return true
+    }
+
+    Bool stageCat(
+        FrameStaging target, Int index, Int resourceBase
+    ) {
+        var phase = actorPhases[index]
+        var bob = if (arenaAnimalAnimationWave(phase, 10) > 0) 1 else 0
+        var swing = if (actorMoving[index])
+            arenaAnimalAnimationWave(phase, 4) else 0
+        var x = actorXs[index]
+        var y = actorYs[index]
+        var z = actorZs[index]
+        var bodyBottom = y + 1 + bob
+        var bodyTop = bodyBottom + 2
+        var facing = actorFacings[index]
+        var headX = x + facing * 2
+        var tailX = x - facing * 3
+        if (!pushBox(
+                target, resourceBase + 3,
+                x - 2, bodyBottom, z - 1,
+                x + 2, bodyTop, z + 1) ||
+            !pushBox(
+                target, resourceBase + 4,
+                headX - 1, bodyTop, z - 1,
+                headX + 1, bodyTop + 2, z + 1) ||
+            !pushTriangle(
+                target, resourceBase + 5,
+                headX - 1, bodyTop + 2, z - 1,
+                headX, bodyTop + 4, z - 1,
+                headX, bodyTop + 2, z - 1) ||
+            !pushTriangle(
+                target, resourceBase + 5,
+                headX, bodyTop + 2, z - 1,
+                headX, bodyTop + 4, z - 1,
+                headX + 1, bodyTop + 2, z - 1) ||
+            !pushTriangle(
+                target, resourceBase + 5,
+                headX - 1, bodyTop + 2, z + 1,
+                headX, bodyTop + 4, z + 1,
+                headX, bodyTop + 2, z + 1) ||
+            !pushTriangle(
+                target, resourceBase + 5,
+                headX, bodyTop + 2, z + 1,
+                headX, bodyTop + 4, z + 1,
+                headX + 1, bodyTop + 2, z + 1) ||
+            !pushQuad(
+                target, resourceBase + 4,
+                tailX, bodyBottom + 1, z,
+                tailX - facing, bodyBottom + 2 + swing, z,
+                tailX - facing * 2, bodyBottom + 1, z + swing,
+                tailX - facing, bodyBottom, z + swing) ||
+            !pushQuad(
+                target, resourceBase + 5,
+                tailX - facing * 2, bodyBottom + 1, z + swing,
+                tailX - facing * 3, bodyBottom + 3, z + swing,
+                tailX - facing * 3, bodyBottom + 2, z + swing + 1,
+                tailX - facing * 2, bodyBottom, z + swing + 1) ||
+            !pushQuad(
+                target, resourceBase + 4,
+                x - 1 + swing, y, z - 1,
+                x + swing, y, z - 1,
+                x + swing, bodyBottom, z - 1,
+                x - 1 + swing, bodyBottom, z - 1) ||
+            !pushQuad(
+                target, resourceBase + 4,
+                x + swing, y, z + 1,
+                x + 1 + swing, y, z + 1,
+                x + 1 + swing, bodyBottom, z + 1,
+                x + swing, bodyBottom, z + 1)) {
+            return false
+        }
+        return true
+    }
+
+    Bool stage(
+        FrameStaging target, Int frame, Int resourceBase
+    ) {
+        if (!animationReadyValue || actorCountValue <= 0 ||
+            resourceBase < 3 || resourceBase + 5 > 8 ||
+            target.vertexCapacity() < renderVertexCapacity() ||
+            !target.begin(frame)) {
+            return false
+        }
+        if (!advanceAnimations()) {
+            target.discard()
+            return false
+        }
+        for (var index = 0; index < actorCurrent.length; index = index + 1) {
+            if (!actorCurrent[index]) { continue }
+            var staged = false
+            if (actorKinds[index] == 1) {
+                staged = stageGoose(target, index, resourceBase)
+            } else {
+                staged = stageCat(target, index, resourceBase)
+            }
+            if (!staged) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+}

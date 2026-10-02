@@ -38,8 +38,8 @@ class G1Demo {
     }
 
     Bool prepareSession() {
-        if (!arena.ready() || arena.vertexCount() != 78 ||
-            arena.triangleCount() != 26 || arena.authoredChecksum() <= 0) {
+        if (!arena.ready() || arena.vertexCount() != 90 ||
+            arena.triangleCount() != 30 || arena.authoredChecksum() <= 0) {
             return failAt(1)
         }
         if (!loopback.loadAuthoredBroadPhase(arena.authoredCollision()) ||
@@ -101,11 +101,11 @@ class G1Demo {
             loopback.clientBroadPhaseTriangleCount() != arena.triangleCount()) {
             return failAt(8)
         }
-        var upperStart = SpatialPoint(24, 12, 20)
-        var upperEnd = SpatialPoint(24, 6, 20)
-        var clientUpper = loopback.queryClientBroadPhasePath(
-            loopback.clientBroadPhaseRevision(), upperStart, upperEnd)
-        if (!clientUpper.accepted() || !clientUpper.collided()) {
+        var wallStart = SpatialPoint(70, 10, 20)
+        var wallEnd = SpatialPoint(90, 10, 20)
+        var clientWall = loopback.queryClientBroadPhasePath(
+            loopback.clientBroadPhaseRevision(), wallStart, wallEnd)
+        if (!clientWall.accepted() || !clientWall.collided()) {
             return failAt(9)
         }
         return true
@@ -202,33 +202,32 @@ class G1Demo {
     }
 
     Bool verifyArenaContact() {
-        var rampProbe = arena.queryPath(
-            SpatialPoint(16, 10, 3), SpatialPoint(16, -2, 3))
-        if (!rampProbe.accepted() || !rampProbe.collided() ||
-            arena.lastHitSurface() != 2) {
+        var floorProbe = arena.queryPath(
+            SpatialPoint(20, 5, 30), SpatialPoint(20, -2, 30))
+        if (!floorProbe.accepted() || !floorProbe.collided() ||
+            arena.lastHitSurface() != 6) {
             return failAt(18)
         }
-        var slopeMove = arena.movePath(
-            SpatialPoint(14, 3, 3), SpatialPoint(18, 5, 3))
-        if (!slopeMove.accepted() || !slopeMove.grounded() ||
-            !slopeMove.slopeAccepted()) {
+        var wallProbe = arena.queryPath(
+            SpatialPoint(70, 10, 20), SpatialPoint(90, 10, 20))
+        if (!wallProbe.accepted() || !wallProbe.collided() ||
+            arena.lastHitSurface() != 3) {
             return failAt(19)
         }
-        var stairMove = arena.movePath(
-            SpatialPoint(2, 1, 20), SpatialPoint(6, 1, 20))
-        if (!stairMove.accepted() || !stairMove.stepped()) {
+        var corridorProbe = arena.queryPath(
+            SpatialPoint(70, 10, 60), SpatialPoint(90, 10, 60))
+        if (!corridorProbe.accepted() || corridorProbe.collided()) {
             return failAt(20)
         }
-        var upperRoom = arena.queryPath(
-            SpatialPoint(24, 12, 20), SpatialPoint(24, 6, 20))
-        if (!upperRoom.accepted() || !upperRoom.collided() ||
-            arena.lastHitSurface() != 7) {
+        var pillarProbe = arena.queryPath(
+            SpatialPoint(50, 6, 59), SpatialPoint(72, 6, 59))
+        if (!pillarProbe.accepted() || !pillarProbe.collided() ||
+            arena.lastHitSurface() != 2) {
             return failAt(21)
         }
-        var lowerRoom = arena.queryPath(
-            SpatialPoint(24, 7, 20), SpatialPoint(24, -2, 20))
-        if (!lowerRoom.accepted() || !lowerRoom.collided() ||
-            arena.lastHitSurface() != 6) {
+        var skyProbe = arena.queryPath(
+            SpatialPoint(20, 5, 30), SpatialPoint(20, 19, 30))
+        if (!skyProbe.accepted() || skyProbe.collided()) {
             return failAt(22)
         }
         return true

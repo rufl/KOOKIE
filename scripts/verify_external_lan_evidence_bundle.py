@@ -152,7 +152,7 @@ def verify_bundle(bundle_path: Path) -> tuple[dict | None, str]:
             return None, "combat damage evidence is not positive"
         if evidence.get("combatDeath") is not True:
             return None, "combat death evidence is not terminal"
-        if evidence.get("arenaTriangleCount") != 26:
+        if evidence.get("arenaTriangleCount") != 30:
             return None, "authored arena evidence is incomplete"
         if evidence.get("combatReward") != 25:
             return None, "combat reward evidence is incomplete"
