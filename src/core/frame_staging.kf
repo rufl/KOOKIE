@@ -4,6 +4,8 @@ class FrameStaging {
     Int[] resources
     Int[] xs
     Int[] ys
+    Int[] zs
+    Int[] depths
     Int[] us
     Int[] vs
     Int frame
@@ -17,6 +19,8 @@ class FrameStaging {
         this.resources = new Int[capacity]
         this.xs = new Int[capacity]
         this.ys = new Int[capacity]
+        this.zs = new Int[capacity]
+        this.depths = new Int[capacity]
         this.us = new Int[capacity]
         this.vs = new Int[capacity]
         this.frame = 0
@@ -38,12 +42,38 @@ class FrameStaging {
     }
 
     Bool pushVertex(Int resource, Int x, Int y, Int u, Int v) {
+        return pushVertexDepth(resource, x, y, 0, u, v)
+    }
+
+    Bool pushVertexDepth(
+        Int resource, Int x, Int y, Int depth, Int u, Int v
+    ) {
+        if (!open || resource <= 0 || depth < 0 || depth > 100 ||
+            count >= resources.length) {
+            return false
+        }
+        resources[count] = resource
+        xs[count] = x
+        ys[count] = y
+        zs[count] = 0
+        depths[count] = depth
+        us[count] = u
+        vs[count] = v
+        count = count + 1
+        writes = writes + 5
+        return true
+    }
+    Bool pushWorldVertex(
+        Int resource, Int x, Int y, Int z, Int u, Int v
+    ) {
         if (!open || resource <= 0 || count >= resources.length) {
             return false
         }
         resources[count] = resource
         xs[count] = x
         ys[count] = y
+        zs[count] = z
+        depths[count] = 0
         us[count] = u
         vs[count] = v
         count = count + 1
@@ -127,6 +157,27 @@ class FrameStaging {
         }
         return ys[index]
     }
+    Int zAt(Int index) {
+        if (index < 0 || index >= count) {
+            return 0
+        }
+        return zs[index]
+    }
+
+    Int depthAt(Int index) {
+        if (index < 0 || index >= count) {
+            return 0
+        }
+        return depths[index]
+    }
+    Bool setDepthAt(Int index, Int depth) {
+        if (!open || index < 0 || index >= count ||
+            depth < 0 || depth > 100) {
+            return false
+        }
+        depths[index] = depth
+        return true
+    }
 
     Int uAt(Int index) {
         if (index < 0 || index >= count) {
@@ -146,7 +197,8 @@ class FrameStaging {
     Int checksum() {
         var total = 0
         for (var index = 0; index < count; index = index + 1) {
-            total = total + resources[index] + xs[index] + ys[index] + us[index] + vs[index]
+            total = total + resources[index] + xs[index] + ys[index] +
+                zs[index] + depths[index] + us[index] + vs[index]
         }
         return total
     }

@@ -55,7 +55,7 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_sdl_adapter.c" \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SOURCE_DIR/build/libkookie_sdl_adapter.so" \
-  "${SDL_FLAGS[@]}"
+  "${SDL_FLAGS[@]}" -lm
 while IFS= read -r library; do
   case "$(basename "$library")" in
     libSDL3.so*|libSDL3_mixer.so*)
@@ -68,6 +68,8 @@ glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
   -o "$SOURCE_DIR/build/g0_triangle.vert.spv"
 glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
   -o "$SOURCE_DIR/build/g5_triangle_instance.vert.spv"
+glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g6_world.vert" \
+  -o "$SOURCE_DIR/build/g6_world.vert.spv"
 glslc -fshader-stage=frag "$ROOT_DIR/native/shaders/g0_triangle.frag" \
   -o "$SOURCE_DIR/build/g0_triangle.frag.spv"
 (

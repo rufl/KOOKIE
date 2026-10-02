@@ -2049,17 +2049,45 @@ class LoopbackSession {
         return value
     }
 
+    Int clampDoorDepth(Int value) {
+        if (value < 1) {
+            return 1
+        }
+        if (value > 99) {
+            return 99
+        }
+        return value
+    }
+
+    Int doorViewDepth(Int x, Int y, Int z) {
+        var depth = 64 - (x + z) / 2 + y / 2
+        if (depth < 32) {
+            return 32
+        }
+        if (depth > 64) {
+            return 64
+        }
+        return depth
+    }
+
     Int projectDoorX(Int x, Int z, CameraState camera) {
-        return clampDoorScreen(
-            (x - z) * 3 + camera.currentYaw() / 10)
+        var depth = doorViewDepth(x, 0, z)
+        var centered = (x - z) * 3 - 6
+        return clampDoorScreen(centered * 51 / depth +
+            camera.currentYaw() / 10)
     }
 
     Int projectDoorY(
         Int x, Int y, Int z, CameraState camera
     ) {
-        return clampDoorScreen(
-            (x + z) * 2 - y * 6 - 55 -
+        var depth = doorViewDepth(x, y, z)
+        var centered = (x + z) * 2 - y * 6 - 36
+        return clampDoorScreen(centered * 51 / depth -
             camera.currentPitch() / 10)
+    }
+
+    Int projectDoorDepth(Int x, Int y, Int z) {
+        return clampDoorDepth(doorViewDepth(x, y, z) * 100 / 80)
     }
 
     Bool pushDoorTriangle(
@@ -2069,15 +2097,32 @@ class LoopbackSession {
         Int cx, Int cy, Int cz,
         Int stateV, CameraState camera
     ) {
-        return target.pushVertex(
+        return target.pushVertexDepth(
                 resource, projectDoorX(ax, az, camera),
-                projectDoorY(ax, ay, az, camera), 0, stateV) &&
-            target.pushVertex(
+                projectDoorY(ax, ay, az, camera),
+                projectDoorDepth(ax, ay, az), 0, stateV) &&
+            target.pushVertexDepth(
                 resource, projectDoorX(bx, bz, camera),
-                projectDoorY(bx, by, bz, camera), 50, stateV) &&
-            target.pushVertex(
+                projectDoorY(bx, by, bz, camera),
+                projectDoorDepth(bx, by, bz), 50, stateV) &&
+            target.pushVertexDepth(
                 resource, projectDoorX(cx, cz, camera),
-                projectDoorY(cx, cy, cz, camera), 100, stateV)
+                projectDoorY(cx, cy, cz, camera),
+                projectDoorDepth(cx, cy, cz), 100, stateV)
+    }
+    Bool pushWorldDoorTriangle(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int stateV
+    ) {
+        return target.pushWorldVertex(
+                resource, ax, ay, az, 0, stateV) &&
+            target.pushWorldVertex(
+                resource, bx, by, bz, 100, stateV) &&
+            target.pushWorldVertex(
+                resource, cx, cy, cz, 100, 0)
     }
 
     Bool stageWorldInteractionGeometry(
@@ -2162,6 +2207,93 @@ class LoopbackSession {
                     target, resource,
                     x0, y1, z0, x1, y1, z1, x0, y1, z1,
                     stateV, camera)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+    Bool stageWorldInteractionGeometry3d(
+        FrameStaging target, Int frame, Int resource
+    ) {
+        if (!started || resource <= 0 ||
+            target.vertexCapacity() <
+                worldInteractions.doorRenderVertexCount() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < worldInteractions.size(); index = index + 1) {
+            var id = worldInteractions.idAt(index)
+            if (worldInteractions.kind(id) != 2) {
+                continue
+            }
+            var x0 = worldInteractions.positionX(id) -
+                worldInteractions.doorHalfWidth(id)
+            var x1 = worldInteractions.positionX(id) +
+                worldInteractions.doorHalfWidth(id)
+            var y0 = worldInteractions.positionY(id) -
+                worldInteractions.doorHalfHeight(id)
+            var y1 = worldInteractions.positionY(id) +
+                worldInteractions.doorHalfHeight(id)
+            var z0 = worldInteractions.positionZ(id) -
+                worldInteractions.doorHalfDepth(id)
+            var z1 = worldInteractions.positionZ(id) +
+                worldInteractions.doorHalfDepth(id)
+            var stateV = 0
+            if (clientInteractionFlags[index]) {
+                var lift = worldInteractions.doorHalfHeight(id) * 2 + 1
+                y0 = y0 + lift
+                y1 = y1 + lift
+                stateV = 100
+            }
+            if (!pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y0, z0, x1, y0, z0, x1, y1, z0,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y0, z0, x1, y1, z0, x0, y1, z0,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x1, y0, z1, x0, y0, z1, x0, y1, z1,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x1, y0, z1, x0, y1, z1, x1, y1, z1,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x0, y0, z0, x0, y1, z0,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x0, y1, z0, x0, y1, z1,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x1, y0, z0, x1, y0, z1, x1, y1, z1,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x1, y0, z0, x1, y1, z1, x1, y1, z0,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x1, y0, z1, x1, y0, z0,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y0, z1, x1, y0, z0, x0, y0, z0,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y1, z0, x1, y1, z0, x1, y1, z1,
+                    stateV) ||
+                !pushWorldDoorTriangle(
+                    target, resource,
+                    x0, y1, z0, x1, y1, z1, x0, y1, z1,
+                    stateV)) {
                 target.discard()
                 return false
             }

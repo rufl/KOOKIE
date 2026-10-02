@@ -162,13 +162,72 @@ class G1Arena {
         return value
     }
 
+    Int clampDepth(Int value) {
+        if (value < 1) {
+            return 1
+        }
+        if (value > 99) {
+            return 99
+        }
+        return value
+    }
+
+    Int viewDepth(Int x, Int y, Int z) {
+        var depth = 64 - (x + z) / 2 + y / 2
+        if (depth < 32) {
+            return 32
+        }
+        if (depth > 64) {
+            return 64
+        }
+        return depth
+    }
+
     Int projectX(Int x, Int z, CameraState camera) {
-        return clampScreen((x - z) * 3 + camera.currentYaw() / 10)
+        var depth = viewDepth(x, 0, z)
+        var centered = (x - z) * 3 - 6
+        return clampScreen(centered * 51 / depth +
+            camera.currentYaw() / 10)
     }
 
     Int projectY(Int x, Int y, Int z, CameraState camera) {
-        return clampScreen(
-            (x + z) * 2 - y * 6 - 55 - camera.currentPitch() / 10)
+        var depth = viewDepth(x, y, z)
+        var centered = (x + z) * 2 - y * 6 - 36
+        return clampScreen(centered * 51 / depth -
+            camera.currentPitch() / 10)
+    }
+
+    Int projectDepth(Int x, Int y, Int z) {
+        return clampDepth(viewDepth(x, y, z) * 100 / 80)
+    }
+    Bool stageWorld(
+        FrameStaging target, Int frame, Int resourceBase
+    ) {
+        if (!readyValue || resourceBase <= 0 ||
+            target.vertexCapacity() < renderVertexCount() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var triangle = 0;
+            triangle < authoredValue.triangleCount();
+            triangle = triangle + 1) {
+            var surface = authoredValue.triangleSurface(triangle)
+            for (var corner = 0; corner < 3; corner = corner + 1) {
+                var vertex = authoredValue.triangleVertex(triangle, corner)
+                var x = authoredValue.vertexCoordinate(vertex, 0)
+                var y = authoredValue.vertexCoordinate(vertex, 1)
+                var z = authoredValue.vertexCoordinate(vertex, 2)
+                var u = if (corner == 1) 100 else 0
+                var v = if (corner == 2) 100 else 0
+                if (!target.pushWorldVertex(
+                        resourceBase + surface - 1,
+                        x, y, z, u, v)) {
+                    target.discard()
+                    return false
+                }
+            }
+        }
+        return target.publish()
     }
 
     Bool stage(
@@ -188,10 +247,11 @@ class G1Arena {
                 var x = authoredValue.vertexCoordinate(vertex, 0)
                 var y = authoredValue.vertexCoordinate(vertex, 1)
                 var z = authoredValue.vertexCoordinate(vertex, 2)
-                if (!target.pushVertex(
+                if (!target.pushVertexDepth(
                         resourceBase + surface - 1,
                         projectX(x, z, camera),
                         projectY(x, y, z, camera),
+                        projectDepth(x, y, z),
                         corner * 50, surface * 12)) {
                     target.discard()
                     return false

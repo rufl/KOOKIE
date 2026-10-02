@@ -3,6 +3,7 @@ import session
 import content
 import demo
 import ui
+import world
 
 main() {
     println("KOOKIE G0 session foundation")
@@ -320,6 +321,43 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
         "invalid build status must reject without partially changing the HUD")
     assert(frame.retire(13))
 }
+test "goose overlay clips native screen bounds" {
+    var overlay = GooseStatusOverlay(1)
+    var frame = FrameStaging(overlay.renderVertexCapacity())
+    assert(overlay.clear() &&
+        overlay.addDepth(1, 98, 98, 63, 100, 100, 1, false) &&
+        overlay.stage(frame, 1, 9),
+        "edge actors must stage without native coordinate overflow")
+    for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+        assert(frame.xAt(index) >= -100 && frame.xAt(index) <= 100 &&
+            frame.yAt(index) >= -100 && frame.yAt(index) <= 100,
+            "goose overlay vertices must remain inside native screen bounds")
+        assert(frame.depthAt(index) == 63,
+            "goose actor vertices must carry world depth")
+    }
+    assert(frame.retire(1))
+}
+test "arena staging emits perspective depth" {
+    var arena = G1Arena()
+    var camera = CameraState(-450, 450)
+    var frame = FrameStaging(arena.renderVertexCount())
+    assert(arena.ready() && camera.applyLook(20, -20) &&
+        arena.stage(frame, 1, 1, camera),
+        "3D arena must stage through the perspective camera")
+    var firstDepth = frame.depthAt(0)
+    var variedDepth = false
+    for (var index = 1; index < frame.stagedCount(); index = index + 1) {
+        assert(frame.depthAt(index) > 0 && frame.depthAt(index) < 100,
+            "arena vertices must carry normalized GPU depth")
+        if (frame.depthAt(index) != firstDepth) {
+            variedDepth = true
+        }
+    }
+    assert(firstDepth > 0 && firstDepth < 100 && variedDepth,
+        "arena depth must vary across authored 3D surfaces")
+    assert(frame.retire(1))
+}
+
 
 
 test "G2 gameplay wire validates commands and authoritative state" {

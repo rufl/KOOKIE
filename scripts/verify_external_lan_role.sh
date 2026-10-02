@@ -98,7 +98,7 @@ if [[ "$target" == native ]]; then
     native/kookie_sdl_adapter.c \
     native/kookie_transport.c \
     -o "$root_dir/build/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3 sdl3-mixer)
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
   kof build "$source_dir/main.kf" \
     --target native --output "$build_dir/native-$role"
 else

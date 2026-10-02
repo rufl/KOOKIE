@@ -29,6 +29,7 @@ class GameShell {
     Int screenValue
     Int selectionValue
     Bool quitRequestedValue
+    Bool gameplayEntryPendingValue
 
     Int resolutionValue
     Int displayModeValue
@@ -55,6 +56,7 @@ class GameShell {
         screenValue = gameShellScreenMain()
         selectionValue = 0
         quitRequestedValue = false
+        gameplayEntryPendingValue = false
         resolutionValue = 0
         displayModeValue = 0
         effectsVolumeValue = 80
@@ -80,6 +82,13 @@ class GameShell {
     Int selection() { return selectionValue }
     Bool quitRequested() { return quitRequestedValue }
     Bool gameplayVisible() { return screenValue == gameShellScreenGame() }
+    Bool gameplayEntryPending() { return gameplayEntryPendingValue }
+    Bool consumeGameplayEntry() {
+        if (!gameplayEntryPendingValue) { return false }
+        gameplayEntryPendingValue = false
+        return true
+    }
+
     Bool enterGameplay() {
         if (networkStatusValue != gameShellNetworkConnected() ||
             lobbyValue.phase() != multiplayerLobbyPhaseReady()) {
@@ -87,6 +96,7 @@ class GameShell {
         }
         screenValue = gameShellScreenGame()
         selectionValue = 0
+        gameplayEntryPendingValue = true
         return true
     }
     Int renderVertexCapacity() { return 2048 }
@@ -309,6 +319,8 @@ class GameShell {
     Bool activateMain() {
         if (selectionValue == 0) {
             screenValue = gameShellScreenGame()
+            selectionValue = 0
+            gameplayEntryPendingValue = true
         } else if (selectionValue == 1) {
             screenValue = gameShellScreenMultiplayer()
             selectionValue = 0
@@ -429,6 +441,7 @@ class GameShell {
             if (action == gameShellActionBack()) {
                 screenValue = gameShellScreenMain()
                 selectionValue = 0
+                gameplayEntryPendingValue = false
                 return true
             }
             return false

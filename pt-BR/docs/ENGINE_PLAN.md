@@ -151,7 +151,8 @@ necessária para a integração. FreeType 2.14.3, HarfBuzz 14.5.0 e zstd 1.5.7
 também estão disponíveis. SDL3_image e SDL_shadercross continuam fora do gate
 atual. Esse inventário não comprova integração futura automática.
 
-**Status/ordem de adoção:** SDL_GPU/entrada, transferência verificada de tokens,
+**Status/ordem de adoção:** SDL_GPU/entrada, transferência verificada de
+tokens, o passe mundial em perspectiva com materiais/profundidade,
 espacialização estéreo limitada e SDL_mixer com volumes de efeitos/música estão
 integrados. Em seguida, adicione serviços de imagem/texto e compressão somente
 quando cada contrato estiver estabelecido. Fixe hashes de artefatos, opções de
@@ -220,8 +221,10 @@ formato, offset e tamanho; o adaptador não pode se tornar um parser/kooker de
 assets. Pequenas sondas de `File.writeBytes/readBytes/readRange` preservaram
 bytes zero/de bit alto na JVM/nativo. O renderer implementado agora envia uma
 cena fixa de 486 vértices de arena/porta/HUD por chamadas escalares verificadas
-e buffers nativos persistentes. Casos grandes/de erro por intervalo e um
-adaptador real de buffer em massa ainda não foram comprovados.
+e buffers nativos persistentes; o Kof emite coordenadas clip em perspectiva e
+profundidade normalizada por vértice, e o SDL_GPU resolve a cena por um alvo
+D16. Casos grandes/de erro por intervalo e um adaptador real de buffer em massa
+ainda não foram comprovados.
 
 A sobrecarga do staging escalar é uma **medição de aprovação/reprovação**. Se
 uploads representativos de draw/instância/animação não atingirem o orçamento,
@@ -779,8 +782,9 @@ loopback, expõe correção de predição e reconciliação, resolve um encontro
 uma arma/inimigo e limpa movimento/disparo mantidos na perda de foco. A arena
 criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degraus e
 salas empilhadas; o servidor replica triângulos e limites explícitos para o
-cliente. Câmera, staging do mundo e HUD semântico de combate alimentam uma cena
-nativa SDL_GPU fixa de 486 vértices: 78 da arena, 36 da porta e 372 do HUD para
+cliente. O Kof aplica uma câmera em perspectiva e a profundidade por vértice à
+cena nativa SDL_GPU fixa de 486 vértices: 78 da arena, 36 da porta e 372 do HUD
+para
 vida/munição, glifo de conexão distinguível pela forma, carga ativa/reserva do
 encounter, marcadores confirmados de acerto/eliminação, alertas laterais de
 dano, estado estrutural de inventário/equipamento/skill/loot, sinais de
@@ -808,8 +812,9 @@ predição e feedback quando a reconexão avança a geração da conexão. A ent
 inicial publica baselines no tick zero de gameplay, feedback e encounter;
 gerações obsoletas são rejeitadas antes da admissão da sequência. As portas
 usam semieixos criados para colisão 3D completa por segmento/AABB e geram um
-cuboide de 36 vértices projetado pela câmera; a sonda GPU nativa headless
-desenha a cena resultante de arena/porta/HUD com 486 vértices. O transporte de
+cuboide de 36 vértices projetado em perspectiva e resolvido por depth testing;
+a sonda GPU nativa headless desenha a cena resultante de arena/porta/HUD com 486
+vértices. O transporte de
 feedback preserva a ordem de vários eventos, rejeita duplicatas e lacunas sem
 apresentação parcial e retoma pelo baseline da nova geração. O Kof calcula
 atenuação por distância e pan estéreo relativos ao listener, enquanto o

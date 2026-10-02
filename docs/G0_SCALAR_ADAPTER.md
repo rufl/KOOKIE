@@ -2,7 +2,7 @@
 
 [Português (Brasil)](../pt-BR/docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, bounded synthesized clips, SPIR-V scene upload/draw and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the 486-vertex authored scene, and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
+Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, bounded synthesized clips, SPIR-V scene upload/draw with perspective projection and D16 depth testing, and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the 486-vertex authored scene, and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
 
 The current source/CI gate uses Kof `0.5.0-beta` at the pinned source commit;
 this page records the bounded adapter contract, while machine-specific

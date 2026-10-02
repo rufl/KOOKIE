@@ -6,6 +6,7 @@ class GooseStatusOverlay {
     Int[] actorIds
     Int[] actorXs
     Int[] actorYs
+    Int[] actorDepths
     Int[] actorHealths
     Int[] actorMaxHealths
     Int[] actorNameIds
@@ -23,6 +24,7 @@ class GooseStatusOverlay {
         actorHealths = new Int[actualCapacity]
         actorMaxHealths = new Int[actualCapacity]
         actorNameIds = new Int[actualCapacity]
+        actorDepths = new Int[actualCapacity]
         actorBots = new Bool[actualCapacity]
         actorCountValue = 0
     }
@@ -36,7 +38,15 @@ class GooseStatusOverlay {
         Int actorId, Int x, Int y, Int health, Int maxHealth,
         Int nameId, Bool bot
     ) {
+        return addDepth(actorId, x, y, 0, health, maxHealth, nameId, bot)
+    }
+
+    Bool addDepth(
+        Int actorId, Int x, Int y, Int depth,
+        Int health, Int maxHealth, Int nameId, Bool bot
+    ) {
         if (actorCountValue >= actorIds.length || actorId <= 0 ||
+            depth < 0 || depth > 100 ||
             health < 0 || maxHealth <= 0 || health > maxHealth ||
             nameId < 1 || nameId > 4) {
             return false
@@ -44,6 +54,7 @@ class GooseStatusOverlay {
         actorIds[actorCountValue] = actorId
         actorXs[actorCountValue] = x
         actorYs[actorCountValue] = y
+        actorDepths[actorCountValue] = depth
         actorHealths[actorCountValue] = health
         actorMaxHealths[actorCountValue] = maxHealth
         actorNameIds[actorCountValue] = nameId
@@ -125,7 +136,13 @@ class GooseStatusOverlay {
         Int left, Int bottom, Int scale, Int color
     ) {
         if (scale <= 0 || color < 0 || color > 4) { return false }
-        var x = left
+        var safeLeft = left
+        var width = textWidth(text, scale)
+        if (safeLeft < -100) { safeLeft = -100 }
+        if (safeLeft + width > 100) {
+            safeLeft = 100 - width
+        }
+        var x = safeLeft
         for (var index = 0; index < text.length(); index = index + 1) {
             var glyphValue = glyph(text.charAt(index))
             if (glyphValue > 0 &&
@@ -179,12 +196,21 @@ class GooseStatusOverlay {
         FrameStaging target, Int actorId, Int x, Int y,
         Int health, Int maxHealth, Int nameId, Bool bot
     ) {
+        var safeX = x
+        var safeY = y
+        if (safeX < -90) { safeX = -90 }
+        if (safeX > 90) { safeX = 90 }
+        if (safeY < -95) { safeY = -95 }
+        if (safeY > 74) { safeY = 74 }
         var bodyResource = if (bot) 14 else 13
         var beakResource = if (bot) 15 else 12
-        if (!pushQuad(target, bodyResource, x - 5, y - 5, x + 5, y + 4) ||
-            !pushQuad(target, bodyResource, x - 3, y + 4, x + 3, y + 9) ||
-            !pushQuad(target, beakResource, x + 3, y + 5, x + 7, y + 7) ||
-            !pushName(target, actorId, nameId, bot, x, y + 13)) {
+        if (!pushQuad(target, bodyResource,
+                safeX - 5, safeY - 5, safeX + 5, safeY + 4) ||
+            !pushQuad(target, bodyResource,
+                safeX - 3, safeY + 4, safeX + 3, safeY + 9) ||
+            !pushQuad(target, beakResource,
+                safeX + 3, safeY + 5, safeX + 7, safeY + 7) ||
+            !pushName(target, actorId, nameId, bot, safeX, safeY + 13)) {
             return false
         }
         var maximumHearts = (maxHealth + 19) / 20
@@ -193,8 +219,8 @@ class GooseStatusOverlay {
         if (filledHearts > maximumHearts) { filledHearts = maximumHearts }
         if (filledHearts < 0) { filledHearts = 0 }
         for (var heart = 0; heart < maximumHearts; heart = heart + 1) {
-            if (!pushHeart(target, x - maximumHearts * 2 + heart * 4,
-                    y + 22, heart < filledHearts, 18)) {
+            if (!pushHeart(target, safeX - maximumHearts * 2 + heart * 4,
+                    safeY + 22, heart < filledHearts, 18)) {
                 return false
             }
         }
@@ -208,12 +234,20 @@ class GooseStatusOverlay {
             return false
         }
         for (var index = 0; index < actorCountValue; index = index + 1) {
+            var actorStart = target.stagedCount()
             if (!pushActor(target,
                     actorIds[index], actorXs[index], actorYs[index],
                     actorHealths[index], actorMaxHealths[index],
                     actorNameIds[index], actorBots[index])) {
                 target.discard()
                 return false
+            }
+            for (var vertex = actorStart;
+                vertex < target.stagedCount(); vertex = vertex + 1) {
+                if (!target.setDepthAt(vertex, actorDepths[index])) {
+                    target.discard()
+                    return false
+                }
             }
         }
         return target.publish()

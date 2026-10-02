@@ -5,8 +5,8 @@ struct VertexInput {
 };
 
 struct VertexOutput {
-    float4 position : SV_Position;
     float2 uv : TEXCOORD0;
+    float4 position : SV_Position;
 };
 
 VertexOutput main(VertexInput input, uint vertex_index : SV_VertexID) {
@@ -16,8 +16,10 @@ VertexOutput main(VertexInput input, uint vertex_index : SV_VertexID) {
     } else if (vertex_index == 2) {
         vertex = input.vertex_two;
     }
+    float encoded_v = floor(vertex.w / 256.0);
+    float encoded_u = vertex.w - encoded_v * 256.0;
     VertexOutput output;
-    output.position = float4(vertex.xy, 0.0, 1.0);
-    output.uv = vertex.zw;
+    output.uv = float2(encoded_u, encoded_v) / 255.0;
+    output.position = float4(vertex.xy, vertex.z, 1.0);
     return output;
 }

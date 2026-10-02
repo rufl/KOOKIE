@@ -87,7 +87,7 @@ if [[ "$target" == native ]]; then
     native/kookie_sdl_adapter.c \
     native/kookie_transport.c \
     -o "$root_dir/build/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3 sdl3-mixer)
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
 fi
 if [[ "$lan_mode" == "processes" ]]; then
   for role in host client-a client-b; do

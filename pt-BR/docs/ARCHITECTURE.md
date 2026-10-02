@@ -132,10 +132,16 @@ O HUD deriva geometria limitada por tick de acerto/eliminação/dano, além de
 estados de conexão, encounter, ameaça/derrota de elite/chefe,
 inventário/equipamento/skill/loot G3 e publicação de criador G4 distinguíveis
 pela forma. Overflow de apresentação é diagnosticado e nunca desfaz estado
-autoritativo. Portas 3D criadas adicionam um cuboide de 36 vértices entre a
-arena de 78 e o HUD de 372; a cena fixa atual tem 486 vértices. O Kof deriva
-atenuação por distância e pan estéreo antes do envio PCM para streams
-independentes de efeitos e música no SDL_mixer.
+autoritativo. Portas 3D criadas adicionam um cuboide de 36 vértices à malha
+mundial da arena de 78 vértices; a extração atual envia esses 114 vértices
+mundiais em um passe dedicado e depois envia billboards de atores e o HUD de
+372 vértices em um passe de overlay. O pipeline mundial SDL_GPU nativo recebe
+coordenadas autorais brutas, uma matriz view-projection, um atlas de materiais
+texturizado gerado e um alvo D16 de profundidade. Os níveis Y autorais incluem
+um piso inferior, plataformas elevadas e superfícies de sala superior, então a
+geometria room-over-room é resolvida pela câmera/profundidade da GPU, não por
+projeção inteira para a tela. Kof possui a entrada da câmera e a extração
+mundial; o adaptador nativo possui apenas recursos, uploads e submissão GPU.
 
 
 ### Adaptador nativo

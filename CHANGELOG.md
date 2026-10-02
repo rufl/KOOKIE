@@ -17,6 +17,40 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added `.github/actionlint.yaml` metadata for the custom
   `kookie-demo-release` self-hosted runner label.
 
+### Fresh local Play encounters
+
+- Made every main-menu `Play` transition emit a one-shot gameplay-entry
+  request. The presentation consumes it before the first gameplay tick and
+  constructs a fresh authoritative bot encounter; ready multiplayer entry uses
+  the same path.
+- The focused presentation smoke now processes and advances the first fixed
+  gameplay tick after that reset, separating input-admission failures from
+  authoritative tick failures in the native diagnostic.
+- Clipped Goose actor bodies, hearts and nameplates to the native screen
+  bounds so edge-of-view labels cannot reject gameplay GPU vertex uploads.
+
+### Full 3D world gameplay pass
+
+- Replaced the presentation's fake integer screen projection with a GPU
+  world-space pass. Kof stages authored `(x,y,z)` coordinates; the native
+  SDL_GPU vertex shader applies a perspective view-projection matrix and
+  D16 depth testing.
+- Added a generated textured material atlas and separate world vertex stream
+  for arena surfaces and interaction doors. The authored lower floor, raised
+  platforms and upper room surfaces now render as room-over-room geometry;
+  actors/HUD remain a separate overlay pass.
+
+### Windows D3D12 pipeline compatibility
+
+- Declared the SDL_GPU color-target count and fragment sampler count
+  explicitly when creating the menu and scene pipelines. D3D12 rejected the
+  previous incomplete resource metadata with `0x80070057`; the native HLSL
+  vertex output signatures remain ordered for SDL_GPU's D3D12 contract, and
+  backend/pipeline diagnostics remain available for hardware smoke runs.
+- Preserved string payloads for uncaught Kof throws in the PE runtime so
+  native presentation assertions report their actual failure message.
+
+
 ### Linux clean-tree qualification
 
 - A local 2026-10-02 run built `0.1.0-linux-e2e.1` from source commit

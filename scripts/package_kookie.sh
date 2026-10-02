@@ -621,6 +621,9 @@ bundle_windows_native_presentation() {
   glslc -fshader-stage=vert \
     "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
     -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
+  glslc -fshader-stage=vert \
+    "$ROOT_DIR/native/shaders/g6_world.vert" \
+    -o "$PACKAGE_ROOT/build/g6_world.vert.spv"
   glslc -fshader-stage=frag \
     "$ROOT_DIR/native/shaders/g0_triangle.frag" \
     -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
@@ -630,6 +633,9 @@ bundle_windows_native_presentation() {
   "$KOOKIE_DXC" -T vs_6_0 -E main \
     -Fo "$PACKAGE_ROOT/build/g5_triangle_instance.vert.dxil" \
     "$ROOT_DIR/native/shaders/g5_triangle_instance.vert.hlsl"
+  "$KOOKIE_DXC" -T vs_6_0 -E main \
+    -Fo "$PACKAGE_ROOT/build/g6_world.vert.dxil" \
+    "$ROOT_DIR/native/shaders/g6_world.vert.hlsl"
   "$KOOKIE_DXC" -T ps_6_0 -E main \
     -Fo "$PACKAGE_ROOT/build/g0_triangle.frag.dxil" \
     "$ROOT_DIR/native/shaders/g0_triangle.frag.hlsl"
@@ -815,12 +821,15 @@ else
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
     "$ROOT_DIR/native/kookie_transport.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
-    "${SDL_FLAGS[@]}"
+    "${SDL_FLAGS[@]}" -lm
   glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
     -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
   glslc -fshader-stage=vert \
     "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
     -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
+  glslc -fshader-stage=vert \
+    "$ROOT_DIR/native/shaders/g6_world.vert" \
+    -o "$PACKAGE_ROOT/build/g6_world.vert.spv"
   glslc -fshader-stage=frag "$ROOT_DIR/native/shaders/g0_triangle.frag" \
     -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
   (cd "$PACKAGE_ROOT" && kof build "$PRESENTATION_ROOT/main.kf" --target native --output "$WORK_DIR/build" >/dev/null)

@@ -265,6 +265,7 @@ if command -v glslc >/dev/null &&
   test -f "$PRESENTATION_ROOT/lib/libkookie_simd_dispatch.so"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g5_triangle_instance.vert.spv"
+  test -f "$PRESENTATION_ROOT/build/g6_world.vert.spv"
   test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
   test -f "$PRESENTATION_ROOT/THIRD_PARTY_NOTICES.txt"
   test -f "$PRESENTATION_ROOT/DEMO_CONTROLS.txt"

@@ -10,6 +10,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(
     Int resource, Int x, Int y, Int u, Int v
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
+    Int resource, Int x, Int y, Int depth, Int u, Int v
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_draw_calls(): Int
@@ -21,8 +24,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_reference_scene(
 
 Bool uploadReferenceFrame(FrameStaging frame) {
     for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-        if (!kookie_gpu_scene_push_vertex(
+        if (!kookie_gpu_scene_push_vertex_depth(
                 frame.resourceAt(index), frame.xAt(index), frame.yAt(index),
+                frame.depthAt(index),
                 frame.uAt(index), frame.vAt(index))) {
             return false
         }

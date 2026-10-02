@@ -122,11 +122,13 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-co
     native/kookie_sdl_adapter.c \
     native/kookie_transport.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3 sdl3-mixer)
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
   glslc -fshader-stage=vert native/shaders/g0_triangle.vert \
     -o "$adapter_build_dir/g0_triangle.vert.spv"
   glslc -fshader-stage=vert native/shaders/g5_triangle_instance.vert \
     -o "$adapter_build_dir/g5_triangle_instance.vert.spv"
+  glslc -fshader-stage=vert native/shaders/g6_world.vert \
+    -o "$adapter_build_dir/g6_world.vert.spv"
   glslc -fshader-stage=frag native/shaders/g0_triangle.frag \
     -o "$adapter_build_dir/g0_triangle.frag.spv"
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \

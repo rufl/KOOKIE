@@ -189,8 +189,9 @@ PY
   PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
   for required in kookie.cmd kookie.exe SDL3.dll SDL3_mixer.dll \
     build/SDL3.dll build/SDL3_mixer.dll build/g0_triangle.vert.spv \
-    build/g5_triangle_instance.vert.spv build/g0_triangle.frag.spv \
-    build/g0_triangle.vert.dxil build/g5_triangle_instance.vert.dxil \
+    build/g5_triangle_instance.vert.spv build/g6_world.vert.spv \
+    build/g0_triangle.frag.spv build/g0_triangle.vert.dxil \
+    build/g5_triangle_instance.vert.dxil build/g6_world.vert.dxil \
     build/g0_triangle.frag.dxil PROVENANCE.txt THIRD_PARTY_NOTICES.txt \
     DEMO_CONTROLS.txt; do
     [[ -f "$PACKAGE_ROOT/$required" ]] || {
@@ -207,9 +208,9 @@ else
   PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
   for required in kookie kookie.bin kookie-smoke.bin build/libkookie_sdl_adapter.so \
     build/g0_triangle.vert.spv build/g5_triangle_instance.vert.spv \
-    build/g0_triangle.frag.spv kookie-server kookie-server.bin \
-    LICENSE THIRD_PARTY_NOTICES.txt PROVENANCE.txt \
-    DEMO_CONTROLS.txt; do
+    build/g6_world.vert.spv build/g0_triangle.frag.spv kookie-server \
+    kookie-server.bin LICENSE \
+    THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt; do
     [[ -e "$PACKAGE_ROOT/$required" ]] || {
       echo "build_demo_release: missing Linux package entry $required" >&2
       exit 1

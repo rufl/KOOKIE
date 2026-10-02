@@ -92,9 +92,11 @@ for relative in (
     "SDL3_mixer.dll",
     "build/g0_triangle.vert.spv",
     "build/g5_triangle_instance.vert.spv",
+    "build/g6_world.vert.spv",
     "build/g0_triangle.frag.spv",
     "build/g0_triangle.vert.dxil",
     "build/g5_triangle_instance.vert.dxil",
+    "build/g6_world.vert.dxil",
     "build/g0_triangle.frag.dxil",
     "DEMO_CONTROLS.txt",
 ):

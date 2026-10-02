@@ -20,8 +20,23 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_report_window_draw(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resource, Int x, Int y, Int u, Int v): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
+    Int resource, Int x, Int y, Int depth, Int u, Int v
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_capacity(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_begin(
+    Int vertexCount
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_vertex(
+    Int resource, Int x, Int y, Int z, Int u, Int v
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_set_camera(
+    Int x, Int y, Int z, Int yaw, Int pitch
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_scene(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_stage(
     Int generation, Int productChecksum
@@ -539,6 +554,7 @@ class G1NativePresentation {
     LoopbackSession interactionSession
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
+    Int worldNativeCapacity
     MultiplayerScoreboard scoreboardUi
     MatchScoreboardState scoreboardState
     CameraState camera
@@ -570,6 +586,7 @@ class G1NativePresentation {
         scoreboardState = MatchScoreboardState(2)
         camera = CameraState(-450, 450)
         interactionSession = LoopbackSession(16, 8)
+        worldNativeCapacity = 0
         worldFrame = FrameStaging(arena.renderVertexCount())
         doorFrame = FrameStaging(36)
         hudFrame = FrameStaging(hud.renderVertexCount())
@@ -644,6 +661,7 @@ class G1NativePresentation {
 
     Bool resetGooseSession() {
         interactionSession = LoopbackSession(16, 8)
+        hud = ShooterHud(100, 3)
         scoreboardState = MatchScoreboardState(2)
         scoreboardUi.setVisible(false)
         playerKillsOneValue = 0
@@ -673,23 +691,48 @@ class G1NativePresentation {
             return false
         }
         nativeCapacity = kookie_gpu_scene_capacity()
+        worldNativeCapacity = kookie_gpu_world_capacity()
         return nativeCapacity >=
             worldCapacity + doorCapacity + hudCapacity +
-            actorCapacity + scoreboardCapacity
+            actorCapacity + scoreboardCapacity &&
+            worldNativeCapacity >= worldCapacity + doorCapacity
     }
 
     Bool upload(FrameStaging frame) {
         for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-            if (!kookie_gpu_scene_push_vertex(
+            if (!kookie_gpu_scene_push_vertex_depth(
                     frame.resourceAt(index),
                     frame.xAt(index), frame.yAt(index),
+                    frame.depthAt(index),
                     frame.uAt(index), frame.vAt(index))) {
+                println("KOOKIE gameplay vertex upload failed")
+                println(index)
+                println(frame.resourceAt(index))
+                println(frame.xAt(index))
+                println(frame.yAt(index))
                 return false
             }
         }
         return true
     }
 
+    Bool uploadWorld(FrameStaging frame) {
+        for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+            if (!kookie_gpu_world_push_vertex(
+                    frame.resourceAt(index),
+                    frame.xAt(index), frame.yAt(index), frame.zAt(index),
+                    frame.uAt(index), frame.vAt(index))) {
+                println("KOOKIE gameplay world vertex upload failed")
+                println(index)
+                println(frame.resourceAt(index))
+                println(frame.xAt(index))
+                println(frame.yAt(index))
+                println(frame.zAt(index))
+                return false
+            }
+        }
+        return true
+    }
     Bool configureIdentity(
         Bool mirrorRemote, Int localNameId, Int remoteNameId
     ) {
@@ -697,6 +740,7 @@ class G1NativePresentation {
             remoteNameId < 1 || remoteNameId > 4) {
             return false
         }
+
         mirrorRemoteValue = mirrorRemote
         localNameIdValue = localNameId
         remoteNameIdValue = remoteNameId
@@ -751,7 +795,10 @@ class G1NativePresentation {
     }
 
     Bool stageGooseActors(Int frame, NativeGameNetworkState network) {
-        if (!gooseOverlay.clear()) { return false }
+        if (!gooseOverlay.clear()) {
+            println("KOOKIE gameplay actor overlay clear failed")
+            return false
+        }
         var playerOneX = interactionSession.serverPosition(1)
         var playerTwoX = interactionSession.serverPosition(2)
         var playerOneHealth = interactionSession.enemyCombatHealth(1)
@@ -784,14 +831,20 @@ class G1NativePresentation {
             playerOneName = localNameIdValue
             playerTwoName = remoteNameIdValue
         }
-        if (!gooseOverlay.add(
+        if (!gooseOverlay.addDepth(
                 1, arena.projectX(playerOneX, 6, camera),
                 arena.projectY(playerOneX, 1, 6, camera),
-                playerOneHealth, 100, playerOneName, false) ||
-            !gooseOverlay.add(
+                arena.projectDepth(playerOneX, 1, 6),
+                playerOneHealth, 100, playerOneName, false)) {
+            println("KOOKIE gameplay local actor overlay failed")
+            return false
+        }
+        if (!gooseOverlay.addDepth(
                 2, arena.projectX(playerTwoX, 6, camera),
                 arena.projectY(playerTwoX, 1, 6, camera),
+                arena.projectDepth(playerTwoX, 1, 6),
                 playerTwoHealth, 100, playerTwoName, false)) {
+            println("KOOKIE gameplay remote actor overlay failed")
             return false
         }
         for (var bot = 3; bot <= 5; bot = bot + 1) {
@@ -808,15 +861,22 @@ class G1NativePresentation {
             }
             if (botHealth < 0) { botHealth = 0 }
             if (botHealth > 80) { botHealth = 80 }
-            if (!gooseOverlay.add(
+            if (!gooseOverlay.addDepth(
                     bot,
                     arena.projectX(botX, botZ, camera),
                     arena.projectY(botX, botY, botZ, camera),
+                    arena.projectDepth(botX, botY, botZ),
                     botHealth, 80, bot - 2, true)) {
+                println("KOOKIE gameplay bot overlay failed")
+                println(bot)
                 return false
             }
         }
-        return gooseOverlay.stage(actorFrame, frame, 9)
+        if (!gooseOverlay.stage(actorFrame, frame, 9)) {
+            println("KOOKIE gameplay actor frame stage failed")
+            return false
+        }
+        return true
     }
 
     Bool applyMouseLook() {
@@ -873,15 +933,21 @@ class G1NativePresentation {
                 player, tick, state.nextLocalSequence(),
                 localMoveAxis(), 0, 0, 0, fire,
                 kookie_input_state(6))) {
+            println("KOOKIE gameplay input admission failed")
             return false
         }
         if (host &&
             !interactionSession.receiveInput(
                 2, tick, state.nextRemoteSequence(),
                 state.remoteMove(), 0, 0, 0, 0, 0)) {
+            println("KOOKIE gameplay remote input admission failed")
             return false
         }
-        if (interactionSession.advance(16667) != 1) {
+        var steps = interactionSession.advance(16667)
+        if (steps != 1) {
+            println("KOOKIE gameplay step result")
+            println(steps)
+            println(interactionSession.currentServerTick())
             return false
         }
         var playerOneHealthAfter = interactionSession.enemyCombatHealth(1)
@@ -919,37 +985,93 @@ class G1NativePresentation {
         var scoreboardCount = 0
         if (scoreboardVisible) {
             if (!scoreboardUi.stage(scoreboardFrame, frame, scoreboardState)) {
+                println("KOOKIE gameplay scoreboard stage failed")
                 return false
             }
             scoreboardCount = scoreboardFrame.stagedCount()
         }
-        if (!arena.stage(worldFrame, frame, 1, camera) ||
-            !stageGooseActors(frame, network) ||
-            !interactionSession.stageWorldInteractionGeometry(
-                doorFrame, frame, 7, camera) ||
-            !hud.stage(hudFrame, frame, 9)) {
+        if (!arena.stageWorld(worldFrame, frame, 1)) {
+            println("KOOKIE gameplay arena world stage failed")
+            return false
+        }
+        if (!stageGooseActors(frame, network)) {
+            println("KOOKIE gameplay actors stage failed")
+            return false
+        }
+        if (!interactionSession.stageWorldInteractionGeometry3d(
+                doorFrame, frame, 7)) {
+            println("KOOKIE gameplay door world stage failed")
+            return false
+        }
+        if (!hud.stage(hudFrame, frame, 9)) {
+            println("KOOKIE gameplay HUD stage failed")
+            return false
+        }
+        var worldVertexCount =
+            worldFrame.stagedCount() + doorFrame.stagedCount()
+        if (!kookie_gpu_world_set_camera(
+                16 + interactionSession.serverPosition(1),
+                4, -8, camera.currentYaw(), camera.currentPitch())) {
+            println("KOOKIE gameplay world camera failed")
+            return false
+        }
+        if (!kookie_gpu_world_begin(worldVertexCount) ||
+            !uploadWorld(worldFrame) || !uploadWorld(doorFrame) ||
+            !kookie_gpu_world_commit() ||
+            kookie_gpu_world_count() != worldVertexCount) {
+            println("KOOKIE gameplay world GPU pass failed")
+            println(worldVertexCount)
+            println(kookie_gpu_world_count())
             return false
         }
         var vertexCount =
-            worldFrame.stagedCount() + actorFrame.stagedCount() +
-            doorFrame.stagedCount() + hudFrame.stagedCount() +
+            actorFrame.stagedCount() + hudFrame.stagedCount() +
             scoreboardCount
-        if (!kookie_gpu_scene_begin(vertexCount) ||
-            !upload(worldFrame) || !upload(actorFrame) ||
-            !upload(doorFrame) || !upload(hudFrame) ||
-            (scoreboardVisible && !upload(scoreboardFrame)) ||
-            !kookie_gpu_scene_commit() ||
-            kookie_gpu_scene_count() != vertexCount ||
-            !kookie_gpu_draw_scene()) {
+        if (!kookie_gpu_scene_begin(vertexCount)) {
+            println("KOOKIE gameplay GPU scene begin failed")
+            println(vertexCount)
             return false
         }
-        var retired = worldFrame.retire(frame) &&
-            actorFrame.retire(frame) &&
-            doorFrame.retire(frame) && hudFrame.retire(frame)
-        if (scoreboardVisible) {
-            retired = retired && scoreboardFrame.retire(frame)
+        if (!upload(actorFrame) || !upload(hudFrame) ||
+            (scoreboardVisible && !upload(scoreboardFrame))) {
+            println("KOOKIE gameplay GPU scene upload failed")
+            return false
         }
-        return retired
+        if (!kookie_gpu_scene_commit()) {
+            println("KOOKIE gameplay GPU scene commit failed")
+            return false
+        }
+        if (kookie_gpu_scene_count() != vertexCount) {
+            println("KOOKIE gameplay GPU scene count failed")
+            println(vertexCount)
+            println(kookie_gpu_scene_count())
+            return false
+        }
+        if (!kookie_gpu_draw_scene()) {
+            println("KOOKIE gameplay GPU scene draw failed")
+            return false
+        }
+        if (!worldFrame.retire(frame)) {
+            println("KOOKIE gameplay world retire failed")
+            return false
+        }
+        if (!actorFrame.retire(frame)) {
+            println("KOOKIE gameplay actor retire failed")
+            return false
+        }
+        if (!doorFrame.retire(frame)) {
+            println("KOOKIE gameplay door retire failed")
+            return false
+        }
+        if (!hudFrame.retire(frame)) {
+            println("KOOKIE gameplay HUD retire failed")
+            return false
+        }
+        if (scoreboardVisible && !scoreboardFrame.retire(frame)) {
+            println("KOOKIE gameplay scoreboard retire failed")
+            return false
+        }
+        return true
     }
 
     Bool drawShellFrame(GameShell shell, FrameStaging shellFrame, Int frame) {
@@ -970,7 +1092,8 @@ class G1NativePresentation {
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&
             scoreboardFrame.vertexCapacity() == scoreboardCapacity &&
-            kookie_gpu_scene_capacity() == nativeCapacity
+            kookie_gpu_scene_capacity() == nativeCapacity &&
+            kookie_gpu_world_capacity() == worldNativeCapacity
     }
 
     Bool dequeueCombatFeedbackAudio() {
@@ -1064,6 +1187,18 @@ main() {
     var smoke = kookie_presentation_smoke_requested()
     var frame = 1
     if (smoke) {
+        assert(shell.handleAction(gameShellActionActivate()) &&
+            shell.gameplayVisible() &&
+            shell.consumeGameplayEntry() &&
+            presentation.resetGooseSession() &&
+            shell.handleAction(gameShellActionBack()),
+            "main Play must reset the fresh bot encounter")
+        assert(processGamePackets(
+                presentation.gameplaySession(), network,
+                presentation.scoreboard(), true) &&
+            presentation.applyMouseLook() &&
+            presentation.advanceGameplay(true, network),
+            "fresh goose gameplay must process and advance one fixed tick")
         assert(presentation.drawGameFrame(frame, network),
             "authored arena and authoritative HUD must draw")
         frame = frame + 1
@@ -1092,7 +1227,6 @@ main() {
 
     var running = true
     var menuFrames = 0
-    var wasGameplay = false
     while (running && !shell.quitRequested()) {
         var eventKind = kookie_poll_event()
         while (eventKind != 0) {
@@ -1134,13 +1268,11 @@ main() {
             assert(shell.enterGameplay(),
                 "ready lobby must enter the playable goose scene")
         }
-        var gameplayVisibleNow = shell.gameplayVisible()
-        if (gameplayVisibleNow && !wasGameplay) {
+        if (shell.consumeGameplayEntry()) {
             network.reset()
             assert(presentation.resetGooseSession(),
                 "entering gameplay must create a fresh bot encounter")
         }
-        wasGameplay = gameplayVisibleNow
 
 
         if (audio > 0 &&

@@ -151,12 +151,12 @@ this integration. FreeType 2.14.3, HarfBuzz 14.5.0 and zstd 1.5.7 are also
 available. SDL3_image and SDL_shadercross remain outside the current gate.
 This inventory does not prove automatic future integration.
 
-**Adoption status/order:** SDL_GPU/input, checked token transfer, bounded stereo
-spatialization and SDL_mixer effects/music gain are integrated. Add image/text
-services and package compression only when each contract is established. Pin
-artifact hashes, build options, transitive notices and adapter ABI at each
-adoption. This shortlist implies no separate backend/plugin framework or
-performance promise.
+**Adoption status/order:** SDL_GPU/input, checked token transfer, the world-space
+perspective/material/depth pass, bounded stereo spatialization and SDL_mixer
+effects/music gain are integrated. Add image/text services and package
+compression only when each contract is established. Pin artifact hashes, build
+options, transitive notices and adapter ABI at each adoption. This shortlist
+implies no separate backend/plugin framework or performance promise.
 
 Primary sources: [SDL GPU](https://wiki.libsdl.org/SDL3/CategoryGPU),
 [shadercross](https://github.com/libsdl-org/SDL_shadercross) and its
@@ -208,7 +208,7 @@ Rules:
 
 The first cube can use scalar staging calls. A matrix/instance is written as a fixed tuple per call, not sixteen individual FFI calls. Static vertex/index payloads upload once; dynamic data uses bounded reusable staging buffers. Kof owns packing policy and resource layout; the C side only copies the specified tuple into checked buffer positions.
 
-For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/kooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer currently stages a fixed 486-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
+For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/kooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer stages a fixed 486-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers; Kof now emits perspective clip coordinates plus normalized per-vertex depth, and SDL_GPU resolves the scene through a D16 depth target. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
 
 
 Scalar staging overhead is a **go/no-go measurement**. If representative draw/instance/animation uploads miss budget, prefer a properly specified upstream buffer-FFI addition (element format, length, borrow/copy lifetime, ownership and GC rules). Do not encode binary frames as JSON/Base64 strings or assume a pointer cast solves bulk transfer. Do not grow the shim into a C renderer to pass a benchmark.
@@ -738,8 +738,9 @@ exposes prediction correction and reconciliation, resolves one weapon/enemy
 encounter, and clears held movement/fire across focus loss. Its authored
 78-vertex/26-triangle arena supplies a walkable slope, steps and stacked rooms;
 the server replicates its triangle data and explicit bounds to the client.
-Camera, world staging and a semantic combat HUD feed a fixed 486-vertex native
-SDL_GPU scene: 78 arena vertices, 36 door vertices and 372 HUD vertices for
+Kof projects the authored world through a perspective camera and emits a fixed
+486-vertex native SDL_GPU scene with normalized per-vertex depth: 78 arena
+vertices, 36 door vertices and 372 HUD vertices for
 health/ammunition, a shape-distinct connection glyph, active/reserve encounter
 load, confirmed hit/kill markers, edge damage warnings, structural
 inventory/equipment/skill/world-loot status, shape-distinct elite/boss
@@ -764,8 +765,9 @@ inputs during reconciliation and reset input, prediction and feedback epochs
 when a reconnect advances the connection generation. Initial join publishes
 tick-zero gameplay, feedback and encounter baselines; stale generations reject
 before sequence admission. Doors use authored half-extents for full 3D
-segment/AABB collision and stage a 36-vertex camera-projected cuboid; the native
-headless GPU probe draws the resulting 486-vertex arena/door/HUD scene.
+segment/AABB collision and stage a 36-vertex perspective/depth-tested cuboid;
+the native headless GPU probe draws the resulting 486-vertex arena/door/HUD
+scene.
 Feedback transport preserves multi-event order, rejects duplicates and gaps
 without partial presentation, and resumes from the new-generation baseline.
 The Kof layer computes listener-relative distance attenuation and stereo

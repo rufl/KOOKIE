@@ -12,6 +12,8 @@ void main() {
     } else if (gl_VertexIndex == 2) {
         vertex = vertex_two;
     }
-    gl_Position = vec4(vertex.xy, 0.0, 1.0);
-    uv = vertex.zw;
+    float encoded_v = floor(vertex.w / 256.0);
+    float encoded_u = vertex.w - encoded_v * 256.0;
+    gl_Position = vec4(vertex.xy, vertex.z, 1.0);
+    uv = vec2(encoded_u, encoded_v) / 255.0;
 }

@@ -28,6 +28,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_push_headless_device_lost()
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resource, Int x, Int y, Int u, Int v): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
+    Int resource, Int x, Int y, Int depth, Int u, Int v
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
@@ -122,9 +125,10 @@ class G1HeadlessPresentation {
 
     Bool upload(FrameStaging frame) {
         for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-            if (!kookie_gpu_scene_push_vertex(
+            if (!kookie_gpu_scene_push_vertex_depth(
                     frame.resourceAt(index),
                     frame.xAt(index), frame.yAt(index),
+                    frame.depthAt(index),
                     frame.uAt(index), frame.vAt(index))) {
                 return false
             }

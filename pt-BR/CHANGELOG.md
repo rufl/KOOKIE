@@ -17,6 +17,42 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Adicionamos `.github/actionlint.yaml` com metadados para o label customizado
   do runner self-hosted `kookie-demo-release`.
 
+### Encontros locais novos ao pressionar Play
+
+- Toda transição de `Play` no menu principal agora emite uma solicitação
+  única de entrada no gameplay. A apresentação a consome antes do primeiro
+  tick e cria um encontro autoritativo novo com bots; a entrada multiplayer
+  após `READY` usa o mesmo caminho.
+- O smoke focado da apresentação agora processa e avança o primeiro tick fixo
+  de gameplay depois desse reset, separando no diagnóstico nativo falhas de
+  admissão de input de falhas do tick autoritativo.
+- Limitamos corpos, corações e placas de nome dos gansos aos limites nativos da
+  tela para que rótulos na borda não rejeitem uploads de vértices da GPU.
+
+### Passe de gameplay mundial em 3D completo
+
+- Substituímos a projeção inteira falsa para a tela por um passe GPU em
+  world-space. Kof envia coordenadas autorais `(x,y,z)`; o vertex shader
+  SDL_GPU nativo aplica uma matriz view-projection em perspectiva e depth D16.
+- Adicionamos um atlas de materiais texturizado gerado e um stream de vértices
+  mundial separado para superfícies da arena e portas de interação. O piso
+  inferior, as plataformas elevadas e as salas superiores autorais agora são
+  renderizados como geometria room-over-room; atores/HUD continuam em um passe
+  de overlay separado.
+
+### Compatibilidade de pipeline Windows D3D12
+
+- Declaramos explicitamente a quantidade de targets de cor e de samplers
+  fragment SDL_GPU ao criar os pipelines do menu e da cena. O D3D12
+  rejeitava os metadados incompletos anteriores com `0x80070057`; as
+  assinaturas de saída dos vértices HLSL nativos continuam ordenadas conforme
+  o contrato SDL_GPU D3D12, e o diagnóstico de backend e pipeline permanece
+  disponível para o smoke no hardware.
+- Preservamos o payload textual de throws Kof não capturados no runtime PE,
+  para que as asserções da apresentação nativa mostrem a mensagem real da
+  falha.
+
+
 ### Qualificação Linux em árvore limpa
 
 - Uma execução local de 2026-10-02 produziu `0.1.0-linux-e2e.1` a partir do

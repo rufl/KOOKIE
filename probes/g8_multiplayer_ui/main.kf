@@ -35,6 +35,21 @@ main() {
     assert(lobby.leave() && lobby.phase() == multiplayerLobbyPhaseOffline(),
         "leave must return the lobby to offline")
     var shell = GameShell()
+    var playShell = GameShell()
+    assert(playShell.handleAction(gameShellActionActivate()) &&
+        playShell.gameplayVisible() &&
+        playShell.gameplayEntryPending(),
+        "main Play must request a fresh bot encounter")
+    assert(playShell.consumeGameplayEntry() &&
+        !playShell.gameplayEntryPending() &&
+        !playShell.consumeGameplayEntry(),
+        "gameplay entry must be consumed exactly once")
+    assert(playShell.handleAction(gameShellActionBack()) &&
+        playShell.handleAction(gameShellActionActivate()) &&
+        playShell.gameplayEntryPending() &&
+        playShell.consumeGameplayEntry(),
+        "each Play entry must request another fresh bot encounter")
+
     var lobbyFrame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.configureLobbyIdentity(1, 2, 4242) &&
         shell.handleAction(gameShellActionDown()) &&
@@ -70,8 +85,10 @@ main() {
     assert(!readyShell.enterGameplay(),
         "one ready player must not unlock gameplay")
     assert(readyShell.lobby().setRemoteReady(true) &&
-        readyShell.enterGameplay(),
-        "gameplay must unlock only after both players are ready")
+        readyShell.enterGameplay() &&
+        readyShell.gameplayEntryPending() &&
+        readyShell.consumeGameplayEntry(),
+        "gameplay must unlock only after both players are ready and request a fresh encounter")
 
 
     var host = MatchScoreboardState(2)

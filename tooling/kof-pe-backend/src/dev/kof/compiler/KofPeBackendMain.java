@@ -613,6 +613,17 @@ public final class KofPeBackendMain {
                         exit(70);
                     }
 
+                    static KOF_UNUSED void kof_fail_value(KofValue value) {
+                        if (value.tag == KOF_STRING && value.ref != NULL) {
+                            KofString *message = (KofString *)value.ref;
+                            fputs("kof-pe runtime: ", stderr);
+                            fwrite(message->bytes, 1, message->length, stderr);
+                            fputc(10, stderr);
+                            exit(70);
+                        }
+                        kof_fail("uncaught Kof throw");
+                    }
+
                     static KOF_UNUSED KofValue kof_nil(void) {
                         return (KofValue){KOF_NIL, 0, NULL};
                     }
@@ -1070,7 +1081,7 @@ public final class KofPeBackendMain {
                         .append(", value_").append(index).append("); kof_push(stack, &sp, ")
                         .append(limit).append(", value_").append(index).append("); }\n");
             } else if (operation instanceof KofThrow) {
-                out.append("    (void)kof_pop(stack, &sp); kof_fail(\"uncaught Kof throw\");\n");
+                out.append("    kof_fail_value(kof_pop(stack, &sp));\n");
             } else if (operation instanceof KofStatementIf) {
                 out.append("    /* Kof statement-if marker */\n");
             } else {

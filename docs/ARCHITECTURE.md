@@ -132,10 +132,16 @@ The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
 connection, encounter, elite/boss threat/defeat, G3
 inventory/equipment/skill/world-loot status and G4 kutter-publication status.
 Presentation overflow is diagnosed and never rolls back authoritative state.
-Authored 3D doors add a 36-vertex cuboid between the 78-vertex arena and
-372-vertex HUD; the current fixed scene is 486 vertices. Kof derives distance
-attenuation and stereo pan before the native adapter submits left/right PCM to
-independent SDL_mixer effects and music streams.
+Authored 3D doors add a 36-vertex cuboid to the 78-vertex arena world mesh;
+the current gameplay extraction submits those 114 world vertices in a
+dedicated pass, then submits actor billboards and the 372-vertex HUD as an
+overlay pass. The native SDL_GPU world pipeline consumes raw authored
+coordinates, a view-projection matrix, a generated material texture atlas and
+a D16 depth target. The authored y-levels include a lower floor, raised
+platforms and upper room surfaces, so room-over-room geometry is resolved by
+the GPU camera/depth path rather than by integer screen projection. Kof owns
+camera input and world extraction; the native adapter only owns GPU resources,
+uploads and draw submission.
 
 
 ### Native adapter

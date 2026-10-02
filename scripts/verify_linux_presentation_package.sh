@@ -103,7 +103,8 @@ PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
 }
 for required in kookie kookie.bin kookie-smoke.bin build/libkookie_sdl_adapter.so \
   build/g0_triangle.vert.spv build/g5_triangle_instance.vert.spv \
-  build/g0_triangle.frag.spv kookie-server kookie-server.bin LICENSE \
+  build/g6_world.vert.spv build/g0_triangle.frag.spv kookie-server \
+  kookie-server.bin LICENSE \
   THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt \
   RELEASE_PUBLIC_KEY.pem; do
   [[ -e "$PACKAGE_ROOT/$required" ]] || {
