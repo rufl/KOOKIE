@@ -6,22 +6,51 @@ This page keeps build, package and qualification detail out of the project
 homepage. KOOKIE is experimental: these commands exercise bounded evidence
 contracts, not a production support promise.
 
-## Developer run
+## Developer/source run
 
-Install [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) and Python 3, then
-run the authoritative demo from the repository root:
+Install [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) to run the
+authoritative source entrypoint from the repository root:
 
 ```bash
 kof run src/main.kf --target native
 ```
 
-This command is a console qualification path. The player-facing native SDL
-presentation is built with the current bounded local goose encounter, the
-KOF-owned two-peer lobby and the deterministic player screen; source-tree
-implementation and release-package qualification remain separate.
+This command is a console qualification path. It does not launch the
+interactive packaged game. `kof run` itself does not require Python 3; Python
+is currently used by repository lint, package/provenance validation, evidence
+validation and rendezvous tooling.
 
-[Demo release readiness](DEMO_RELEASE.md) describes publication and hardware
-evidence, which are separate from source-tree implementation.
+The published presentation package is self-contained: players launch its
+`kookie`/`kookie.exe` entrypoint without installing Kof or Python. An
+auto-installing, self-updating launcher with stable/beta/alpha/canary channels
+is not published yet; see [Demo release readiness](DEMO_RELEASE.md) for the
+current package and target-hardware gates.
+
+### Launcher boundary
+
+The launcher requested for the player workflow is not implemented or published
+yet. Keep two responsibilities separate:
+
+- **Player launcher:** downloads and launches only signed KOOKIE game packages.
+  It must not install the Kof compiler or require Python at runtime.
+- **Developer bootstrap:** optionally installs the exact pinned Kof toolchain
+  needed for source qualification, then runs developer commands.
+
+Stable, beta, alpha and canary are release channels, not arbitrary Git branch
+checkouts. Each channel needs a signed manifest containing target, version,
+artifact URL, SHA-256, signature, Kof identity and minimum runtime metadata.
+The launcher must embed the release public key, verify HTTPS plus the manifest
+signature and artifact hash, stage updates in a new directory, switch
+atomically, retain one rollback version and require explicit opt-in for
+non-stable channels. It must never execute an unsigned `latest` download or
+replace a running installation.
+
+The repository currently lacks the native launcher binaries, signed channel
+manifests, published Kof toolchain artifacts for those channels and the
+Windows Authenticode policy. Until those exist, direct source runs require Kof;
+full repository qualification and package/evidence gates additionally require
+Python, while the signed package remains the user path.
+
 
 
 
@@ -194,6 +223,12 @@ scripts/build_demo_release.sh \
 ```
 
 The builder requires a clean tree and does not claim native GPU evidence.
+The 2026-10-02 qualification batch passed
+`verify_linux_presentation_package.sh` with a temporary pinned SDL_mixer 3.2.4
+prefix. It verified the signed archive, safe extraction and package smoke on
+the current checkout; it did not prove a present-capable Linux GPU or the final
+clean-tree paired release.
+
 
 This profile requires SDL 3.4.16, SDL_mixer 3.2.4, `glslc`, a C compiler and
 `pkg-config`. The archive contains the Kof menu/game application, SDL adapter,
@@ -277,9 +312,10 @@ on Linux while both game clients run Linux or Windows.
 The latest public package is
 [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
 It is a signed Linux x86-64 presentation dogfood build from source commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; it predates the current native
-Windows PE/SDL qualification. Download the seven release assets, then verify
-the checksum set and detached signatures:
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; it predates the current input/
+session bridge, fixed-tick netcode, lobby/score screen and native Windows
+PE/SDL qualification. Download the seven release assets, then verify the
+checksum set and detached signatures:
 
 ```bash
 sha256sum --check SHA256SUMS
@@ -297,14 +333,11 @@ cd kookie-0.1.0-dogfood.34-linux-x86_64
 
 The archive bundles SDL3, SDL_mixer and the native adapters, but uses the host
 dynamic loader/libc and requires a supported presentation-capable Linux GPU.
-That published commit predates the source-tree input/session bridge and WAN
-rendezvous described above; rebuild the presentation profile for the playable
-goose path.
-
-The current source presentation maps input to the authoritative session, shows
-the bot encounter, and supports the direct/WAN transport, fixed Host/Join lobby,
-explicit ready gate and player screen. The published archive does not contain
-these source-tree changes.
+That published commit predates the source-tree input/session bridge, fixed-tick
+input/ACK path, lag-compensated rewind, remote interpolation, WAN rendezvous,
+fixed Host/Join lobby, explicit ready gate and player screen. Rebuild the
+presentation profile for the current playable goose path; the published
+archive does not contain these changes.
 
 
 ## Windows x86-64 packages
@@ -420,6 +453,12 @@ scripts/build_demo_release.sh \
   --version 0.1.0-demo.N \
   --output /tmp/kookie-demo-windows
 ```
+
+The 2026-10-02 qualification batch passed
+`verify_windows_presentation.sh` with pinned MinGW SDL3/SDL_mixer prefixes and
+DXC. This proves the reproducible signed PE/SDL/SPIR-V/DXIL artifact path only;
+native Windows input/audio/GPU/driver evidence and outside-checkout interactive
+smoke remain release gates.
 
 It writes the signed archive, manifest, public key, detached signatures,
 `SHA256SUMS` and `BUILD_SUMMARY.txt`. Native Windows launch/input/audio/GPU

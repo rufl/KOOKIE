@@ -65,16 +65,40 @@ O resultado é intencionalmente opinativo:
 
 ## Início rápido
 
-Pré-requisitos: [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) e Python 3.
+### Jogar o pacote publicado
 
-O comando abaixo executa o entrypoint não gráfico de qualificação autoritativa.
-Ele não é o jogo interativo empacotado.
+O arquivo dogfood Linux assinado já contém o jogo Kof nativo, SDL3, SDL_mixer
+e seu launcher. Executar o jogo empacotado não exige nem o toolchain Kof nem
+Python:
+
+1. Baixe [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
+2. Valide `SHA256SUMS` e as assinaturas destacadas conforme
+   [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md#executar-o-dogfood-linux-publicado-atualmente).
+3. Extraia o arquivo e execute:
+
+```bash
+./kookie
+```
+
+A release pública atual é somente Linux. Ainda não existe um arquivo de demo
+Windows atual publicado; o pacote Windows usará `kookie.exe` e também será
+autossuficiente.
+
+### Executar a qualificação a partir da fonte
+
+Instale [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) para o entrypoint
+de fonte:
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
 cd KOOKIE
 kof run src/main.kf --target native
 ```
+
+O próprio `kof run` não exige Python. Python 3 é exigido atualmente pelos
+scripts de verificação, empacotamento, validação de evidências e rendezvous,
+como `scripts/verify.sh`, `scripts/package_kookie.sh` e
+`scripts/kookie_rendezvous.py`.
 
 Execute o caminho focado de gameplay/replay:
 
@@ -90,11 +114,22 @@ bash scripts/verify_goose_game.sh
 bash scripts/verify_multiplayer_ui.sh
 ```
 
-O alvo JVM serve à qualificação diferencial local e a um pacote de
-compatibilidade Windows explícito e sem gráficos; ele nunca é fallback
-silencioso. Pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
+Execute as sondas não gráficas de expansão G6:
+
+```bash
+bash scripts/verify_g6_runtime.sh
+```
+
+Builds de pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
 e `glslc`. Os comandos exatos de pacote, kooker, Windows e qualificação entre
 hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
+
+Um launcher auto-instalável e autoatualizável ainda não foi publicado. Ele deve
+ser um produto separado de bootstrap de desenvolvedor/jogador: o pacote do
+jogo precisa permanecer autossuficiente, enquanto a instalação do Kof e as
+atualizações dos canais stable/beta/alpha/canary devem usar manifestos
+assinados, artefatos fixados e rollback atômico.
+
 ## Lobby multiplayer e tela de placar
 
 A tela de multiplayer mantida pelo Kof usa um contrato pequeno e inspecionável:
@@ -115,8 +150,9 @@ O artefato público mais recente é
 [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34):
 uma apresentação SDL assinada para Linux x86-64, construída a partir do commit
 `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede o caminho atual de
-apresentação, o lobby/tela de placar multiplayer, a qualificação PE/SDL Windows
-e os gates atuais da CI. É dogfood de apresentação, não o pacote atual de demo
+apresentação, netcode em passo fixo, lobby/tela de placar multiplayer, a
+qualificação PE/SDL Windows e os gates atuais da CI. É dogfood de apresentação,
+não o pacote atual de demo
 jogável.
 
 A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
@@ -127,6 +163,17 @@ A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
 - `Multiplayer > Host/Join` admite o segundo jogador pelo lobby Kof-first,
   exige `READY` dos dois peers conectados e publica o placar determinístico por
   `Tab`, com jogador, status, score, vida, K/D e ping.
+- A sessão usa bundles de input em passo fixo com ACKs de snapshot/input,
+  fixação do peer autenticado, janela limitada de rewind de hitscan de 12 ticks,
+  interpolação remota de seis ticks e métricas de correção da predição. O
+  caminho WAN continua sendo IPv4/UDP direto best-effort, não um protocolo
+  compatível com QUIC nem um relay de produção.
+
+O lote de qualificação de 2026-10-02 passou o gate de pacote de apresentação
+Linux assinado/package-smoke com um prefixo temporário fixado de SDL_mixer 3.2.4
+e o gate de artefato de apresentação PE/SDL Windows assinado com MinGW
+SDL3/SDL_mixer e DXC fixados. Essas verificações comprovam integridade e
+ligação do artefato, não gameplay interativo no hardware alvo.
 
 A árvore limpa determinística e o workflow aprovado de release pareada estão
 implementados; ainda falta atualizar o pacote público e reter a evidência
@@ -134,8 +181,8 @@ específica de cada alvo.
 
 | Alvo | Estado atual da fonte/evidência | Evidência restante para release |
 |---|---|---|
-| Linux x86-64 | A apresentação nativa contém gameplay local, host/join de dois jogadores, gate explícito de prontidão, estado autoritativo de bots/jogadores, nomes, corações e lobby/placar limitados. As sondas focadas JVM/nativas passam. | Gerar arquivo de apresentação assinado a partir de árvore limpa, verificar fora do checkout e executar smoke isolado em GPU suportada: iniciar/jogar/reiniciar/sair. |
-| Windows x86-64 | Os gates de empacotamento PE/SDL nativo e reprodutibilidade incluem o mesmo probe Kof de apresentação atual, SDL3/SDL_mixer e produtos SPIR-V/DXIL. | Gerar ZIP assinado a partir da árvore atual, executar fora do checkout e concluir smoke de apresentação em hardware/driver Windows nativo. |
+| Linux x86-64 | A apresentação nativa contém gameplay local, host/join de dois jogadores, gate explícito de prontidão, estado autoritativo de bots/jogadores, nomes, corações e lobby/placar limitados. As sondas JVM/nativas focadas e o gate de pacote assinado/package-smoke passam. | Executar o builder pareado de árvore limpa, verificar o arquivo extraído fora do checkout e executar smoke isolado de iniciar/jogar/reiniciar/sair em uma GPU suportada e host Linux novo. |
+| Windows x86-64 | Os gates de empacotamento PE/SDL nativo e reprodutibilidade incluem o probe Kof de apresentação atual, SDL3/SDL_mixer e produtos SPIR-V/DXIL. O gate de artefato assinado passa com dependências de build fixadas; não há evidência de hardware Windows nativo retida. | Executar o builder pareado de árvore limpa, verificar o ZIP extraído fora do checkout e concluir smoke nativo Windows de input/áudio/GPU/driver. |
 
 O checklist detalhado de aceitação, os bloqueios e o escopo futuro não bloqueante
 estão em [Prontidão da release demo](docs/DEMO_RELEASE.md).

@@ -2,14 +2,19 @@
 
 Status: **arquitetura viva e gates de aceitação; a implementação limitada de G0–G6 está completa dentro dos limites explícitos de qualificação, enquanto a release de demo jogável D1 continua aberta**.
 
-Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de release:
-Kof 0.5.0-beta. A arquitetura do projeto está em
+Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de
+qualificação: fonte Kof 0.5.0-beta no commit
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. A arquitetura do projeto está em
 [ARCHITECTURE.md](ARCHITECTURE.md). Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
-[sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md),
-[sondagens orientadas pelo curso](COURSE_PROBES.md), [precedentes de jogos](GAME_ECOSYSTEM.md),
-e [descobertas sobre o editor](KOF_EDITOR.md).
+[sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md)
+e [levantamento de sistemas de jogo](GAME_ECOSYSTEM.md) para os limites das
+evidências.
 
 A lacuna atual de release é acompanhada em [Prontidão da release demo](DEMO_RELEASE.md).
+Em 2026-10-02, os gates de pacote/package-smoke Linux assinado e de artefato de
+apresentação PE/SDL nativo Windows passaram com dependências de build
+temporariamente fixadas. Eles não substituem build pareado de árvore limpa,
+smoke interativo fora do checkout nem evidência de apresentação em hardware-alvo.
 
 ## 1. Produto e responsabilidade não negociável
 
@@ -774,12 +779,14 @@ dano, estado estrutural de inventário/equipamento/skill/loot, sinais de
 ameaça/derrota de elite/chefe e um rail estrutural de publicação do criador. O
 evento confirmado de hitscan local também alcança filas limitadas de
 replay/áudio e playback nativo do clip SDL. Um smoke GPU isolado renderizou e
-leu a cena limitada, e 84/84 testes-fonte focados passam na JVM e no nativo. A
-ausência de crescimento por frame em G1 cobre 64 stagings determinísticos com
-capacidades Kof inalteradas e buffers nativos persistentes. A evidência G5
-concluída abaixo adiciona a carga completa com colisão criada por autoria, um
-soak de 30 minutos e renderização instanciada em hardware; ela não amplia G1
-além das plataformas e limites qualificados explicitamente.
+leu a cena limitada, e o conjunto focado original de G1 passou 84/84 cenários
+na JVM e no nativo. A suíte atual de qualificação da fonte limitada passa 94
+cenários nos dois alvos. A ausência de crescimento por frame em G1 cobre 64
+stagings determinísticos com capacidades Kof inalteradas e buffers nativos
+persistentes. A evidência G5 concluída abaixo adiciona a carga completa com
+colisão criada por autoria, um soak de 30 minutos e renderização instanciada em
+hardware; ela não amplia G1 além das plataformas e limites qualificados
+explicitamente.
 
 G2 está fechado pelo slice de transporte com três processos na JVM e no nativo,
 que leva a arena completa, comandos unificados com checksum para
@@ -893,10 +900,18 @@ SO/GPUs.
 Qualificação G6 não encerra a release D1. A fonte atual de apresentação
 implementa o encounter local limitado de `Play`, o lobby explícito de dois
 jogadores `Host/Join` com ready e a tela de jogadores autoritativa do host por
-`Tab`. Probes focados comprovam esses contratos, mas o artefato público
-antecede todos eles. D1 continua aberto para pacotes Linux/Windows atuais de
-árvore limpa, smoke fora do checkout de jogar/reiniciar/sair, verificação em
-hosts novos e evidência de apresentação em hardware nativo. D1 está acompanhado
+`Tab`. O protocolo de input/ACK em passo fixo, a fixação de endpoint, o rewind
+de hitscan de 12 ticks, a interpolação remota de seis ticks e as métricas de
+correção da predição são comportamento limitado da fonte com checks focados;
+não tornam o artefato público atual.
+
+O lote de qualificação de 2026-10-02 passou package-smoke Linux assinado com
+prefixo temporário fixado de SDL_mixer e o gate de artefato de apresentação PE/
+SDL nativo Windows com MinGW/DXC fixados. D1 continua aberto para um par
+Linux/Windows de árvore limpa, smoke fora do checkout de jogar/reiniciar/sair,
+verificação em host novo/piso de runtime, evidência de apresentação em GPU
+Linux nativa, evidência de hardware Windows nativo, política/notas finais da
+release e evidência multiplayer entre hosts se anunciada. D1 está acompanhado
 em [Prontidão da release demo](DEMO_RELEASE.md).
 
 ### Evidência limitada medida e metas de desempenho mantidas

@@ -2,14 +2,18 @@
 
 Status: **living architecture and acceptance gates; the bounded G0–G6 implementation is complete within explicit qualification limits, while the D1 playable-demo release remains open**.
 
-Research baseline: 2026-09-22, Kof 0.4.9-beta. Current release gate:
-Kof 0.5.0-beta. Project architecture is [ARCHITECTURE.md](ARCHITECTURE.md). See
-[language/runtime evidence](KOF_LANGUAGE.md),
+Research baseline: 2026-09-22, Kof 0.4.9-beta. Current qualification gate:
+Kof 0.5.0-beta source commit
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. Project architecture is
+[ARCHITECTURE.md](ARCHITECTURE.md). See [language/runtime evidence](KOF_LANGUAGE.md),
 [initial probes](RESEARCH_PROBES.md), [course deep dive](KOF_COURSE.md),
-[course-driven probes](COURSE_PROBES.md), [game precedents](GAME_ECOSYSTEM.md),
-and [editor findings](KOF_EDITOR.md).
+and [game-system survey](GAME_ECOSYSTEM.md) for evidence boundaries.
 
 The current release gap is tracked in [Demo release readiness](DEMO_RELEASE.md).
+On 2026-10-02, signed Linux package/package smoke and Windows native PE/SDL
+presentation artifact gates passed with temporary pinned build dependencies.
+They do not replace a clean-tree paired build, outside-checkout interactive
+smoke or target-hardware presentation evidence.
 
 ## 1. Product and non-negotiable ownership
 
@@ -738,11 +742,13 @@ inventory/equipment/skill/world-loot status, shape-distinct elite/boss
 threat/defeat cues and a structural kutter-publication rail. The confirmed
 local hitscan event also reaches bounded replay/audio queues and native SDL clip
 playback. An isolated GPU smoke rendered and read back the bounded scene, and
-84/84 focused source tests pass on JVM and native. G1's no-per-frame-growth
-evidence is 64 deterministic stages with unchanged Kof capacities plus
-persistent native scene buffers. The completed G5 evidence below adds the full
-authored collision workload, a 30-minute soak and hardware-instanced rendering;
-it does not broaden G1 beyond the explicitly qualified platforms and bounds.
+the original G1 focused set passed 84/84 scenarios on JVM and native. The
+current bounded source qualification suite passes 94 scenarios on both targets.
+G1's no-per-frame-growth evidence is 64 deterministic stages with unchanged
+Kof capacities plus persistent native scene buffers. The completed G5 evidence
+below adds the full authored collision workload, a 30-minute soak and
+hardware-instanced rendering; it does not broaden G1 beyond the explicitly
+qualified platforms and bounds.
 
 G2 is closed by the JVM/native three-process transport slice carrying the full
 arena, unified checksummed movement/fire/interaction/lifecycle commands,
@@ -851,13 +857,22 @@ recorded host. It does not claim NAT traversal, relay service, confidentiality,
 DDoS resistance, arbitrary editor extensibility, a general-purpose runtime
 sandbox, or other OS/GPU coverage.
 
-G6 qualification is not D1 release completion. The current presentation source now
-implements the bounded local `Play` encounter, the explicit two-player
-`Host/Join` ready lobby and the host-authoritative `Tab` player screen. Focused
-source probes prove those contracts, but the public artifact predates them.
-D1 remains open for current clean-tree Linux/Windows packages, outside-checkout
-play/restart/quit smoke, fresh-host verification and native hardware
-presentation evidence. D1 is tracked in [Demo release readiness](DEMO_RELEASE.md).
+G6 qualification is not D1 release completion. The current presentation source
+now implements the bounded local `Play` encounter, the explicit two-player
+`Host/Join` ready lobby and the host-authoritative `Tab` player screen. The
+fixed-tick input/ACK protocol, endpoint pinning, 12-tick hitscan rewind,
+six-tick remote interpolation and prediction-correction metrics are bounded
+source behavior with focused checks; they do not make the public artifact
+current.
+
+The 2026-10-02 qualification batch passed signed Linux package/package smoke
+with a temporary pinned SDL_mixer prefix and the signed Windows native PE/SDL
+presentation artifact gate with pinned MinGW/DXC dependencies. D1 remains open
+for a clean-tree Linux/Windows pair, outside-checkout play/restart/quit smoke,
+fresh-host/runtime-floor verification, native Linux GPU presentation evidence,
+native Windows hardware presentation evidence, final release policy/notes and
+cross-host multiplayer evidence if advertised. D1 is tracked in
+[Demo release readiness](DEMO_RELEASE.md).
 
 ### Measured bounded evidence and retained performance targets
 

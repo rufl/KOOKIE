@@ -14,8 +14,9 @@ A release pública mais recente é [`0.1.0-dogfood.34`](https://github.com/rufl/
 publicada em 2026-09-30. Ela contém um único arquivo de apresentação SDL
 assinado para Linux x86-64, construído a partir do commit
 `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ela antecede o caminho atual de
-apresentação, o lobby/tela de placar Kof-first, a qualificação PE/SDL nativa
-Windows e a correção do gate P95 da CI hospedada. Nenhum arquivo atual de demo
+apresentação, o lobby/tela de placar Kof-first, o protocolo de input/ACK em
+passo fixo, compensação de lag e interpolação, a qualificação PE/SDL nativa
+Windows e a correção do gate PE da CI hospedada. Nenhum arquivo atual de demo
 Windows foi publicado.
 
 A árvore de fontes atual possui estes caminhos aptos a release:
@@ -26,15 +27,25 @@ A árvore de fontes atual possui estes caminhos aptos a release:
 - `Multiplayer > Host/Join` admite uma sessão fixa de dois jogadores, mostra
   sala/peer, exige `READY` explícito dos dois peers conectados e publica um
   placar `Tab` limitado e autoritativo pelo host.
+- A sessão usa bundles de input em passo fixo com ACKs de snapshot/input, fixa
+  o endpoint do peer autenticado, faz rewind de hitscan por uma janela limitada
+  de 12 ticks, interpola jogadores remotos seis ticks atrás e expõe métricas de
+  correção da predição. O caminho WAN IPv4/UDP direto continua best-effort e
+  não é compatível com QUIC.
 - Empacotamento de apresentação nativa SDL3/SDL_GPU para Linux x86-64 com
-  SDL_mixer, procedência assinada e smoke fora do checkout.
+  SDL_mixer, procedência assinada e smoke fora do checkout. O gate de pacote
+  assinado/package-smoke de 2026-10-02 passou com um prefixo temporário fixado
+  de SDL_mixer 3.2.4; a release pareada em árvore limpa ainda falta.
 - Ligação de gameplay Kof PE nativo Windows x86-64 ao shell SDL e ao pacote de
-  apresentação SDL_GPU, com produtos SPIR-V/DXIL e gates reproduzíveis.
+  apresentação SDL_GPU, com produtos SPIR-V/DXIL e gates reproduzíveis. O gate
+  de artefato assinado passou com MinGW SDL3/SDL_mixer e DXC fixados; não há
+  evidência de hardware Windows alvo retida.
 - Smoke em Wine do shell nativo Windows com marcadores de gameplay. O smoke
   visual de apresentação continua opcional e exige GPU isolada capaz de DRI3;
   ligação de pacote ou saída Xvfb não é evidência de apresentação visual.
 - Pipeline de pacote dogfood Linux assinado e pacote Windows JVM separado para
   compatibilidade/qualificação. O pacote JVM não é fallback do jogo nativo.
+
 
 ## O que “demo jogável” significa neste milestone
 
@@ -59,10 +70,11 @@ A apresentação pública continua sendo um artefato de qualificação porque
 antecede a árvore de fontes atual. O caminho da fonte agora está implementado:
 `Play` inicia um encounter autoritativo local; `Host/Join` admite um segundo
 jogador pelo lobby explícito; três bots gansos atacam; snapshots do host
-replicam jogadores/bots; e `Tab` mostra a tela limitada de jogadores
-autoritativa do host. Ainda faltam pacote novo e evidência de hardware antes de
-uma release pública.
-
+replicam jogadores/bots; `Tab` mostra a tela limitada de jogadores
+autoritativa do host; e os caminhos de input/ACK em passo fixo, rewind e
+interpolação são limitados na sessão e na apresentação. Ainda faltam pacote de
+árvore limpa, gameplay interativo fora do checkout e evidência de hardware
+antes de uma release pública.
 
 ## Trabalho restante, ordenado por impacto na release
 
@@ -76,6 +88,9 @@ uma release pública.
   explícito ready/unready, identidade/ping/erro limitados e snapshots de placar
   determinísticos. `bash scripts/verify_multiplayer_ui.sh` prova modelo,
   codec, limites da sobreposição e probe JVM/nativo.
+- Os helpers de input/ACK em passo fixo, fixação do peer, rewind e interpolação
+  remota têm cobertura nos checks G6 focados; isso não substitui gameplay no
+  host-alvo.
 - `bash scripts/verify_goose_game.sh` prova o caminho focado de gameplay dos
   gansos.
 
@@ -83,7 +98,12 @@ uma release pública.
 
 - Gerar um novo arquivo `presentation` Linux assinado a partir de árvore limpa,
   com o lobby/placar e gameplay local atuais.
-- Verificar o arquivo fora do checkout em um Linux suportado novo:
+- A qualificação de 2026-10-02 passou
+  `scripts/verify_linux_presentation_package.sh` no checkout atual:
+  artefato assinado, extração segura e package-smoke. Usou um prefixo
+  temporário fixado de SDL_mixer 3.2.4 e não substitui o builder de árvore limpa
+  nem a evidência de hardware-alvo.
+- Verificar o arquivo final fora do checkout em um Linux suportado novo:
   assinatura/checksum, extração, inicialização, `Play`, movimento/olhar/disparo,
   dano, reinício, saída e relançamento repetido.
 - Executar o smoke de GPU isolado com capacidade de apresentação e reter
@@ -106,17 +126,16 @@ uma release pública.
 
 - Gerar um ZIP `presentation` Windows x86-64 assinado a partir da árvore atual,
   incluindo Kof PE nativo, DLLs SDL3/SDL_mixer, shaders, avisos e procedência.
+- A qualificação de 2026-10-02 passou
+  `scripts/verify_windows_presentation.sh` com prefixos MinGW
+  SDL3/SDL_mixer e DXC fixados. Isso comprova apenas o artefato PE/SDL/
+  SPIR-V/DXIL assinado e reprodutível; as dependências temporárias e o gate do
+  artefato não comprovam apresentação em hardware Windows.
 - Verificar extração, inicialização e ciclos repetidos de `Play`/reinício/saída
   fora do checkout em hardware e drivers Windows suportados.
-- Executar `scripts/verify_windows_presentation.sh`; seus checks de
-  reprodutibilidade e PE/SDL/SPIR-V/DXIL são evidência de artefato, não de
-  hardware nativo.
 - `scripts/build_demo_release.sh` escreve o ZIP Windows final em árvore limpa,
   manifesto, assinaturas, `SHA256SUMS` e resumo de build após a verificação de
   dois builds determinísticos.
-- Esta workstation não tem prefixos MinGW SDL3/SDL_mixer nem `dxc`
-  configurados; o gate Windows falha fechado antes da compilação, então não
-  reivindicamos artefato Windows nem evidência de hardware nativo.
 - Reter evidência nativa Windows de GPU/input/áudio. Wine prova o caminho do
   pacote; o smoke visual opcional exige GPU isolada capaz de DRI3.
 - Decidir se a distribuição para usuários comuns exige assinatura Authenticode;
@@ -130,6 +149,8 @@ uma release pública.
 - Execute `.github/workflows/release_demo.yml` com `publish=false` para
   qualificar artefatos; o caminho aprovado `publish=true` gera e publica o par
   Linux/Windows somente após aprovação do ambiente `kookie-demo-release`.
+  Runners self-hosted precisam dos labels `kookie-demo-release`, `linux`/`windows`
+  e `x64`; `.github/actionlint.yaml` declara o label customizado para lint local.
 - O workflow não substitui evidência nativa do hardware-alvo; anexe essa
   evidência ao registro da release antes de aprovar a publicação.
 - Adicionar notas de release com controles, pisos suportados, limitações,
@@ -151,6 +172,25 @@ uma release pública.
   KofScript e progressão ARPG completa são polish ou escopo separado; não
   bloqueiam a demo local limitada quando saída/reinício estiver demonstrado.
 
+
+## Decisão atual de release — 2026-10-02
+
+Os gates de artefato/pacote Linux e Windows passam no lote atual de
+qualificação. D1 continua bloqueado por:
+
+- um build pareado de árvore limpa da fonte atual com assinaturas/procedência
+  publicáveis;
+- smoke interativo fora do checkout de `Play` → encounter → reinício/saída nos
+  dois alvos, repetido a partir de uma extração nova;
+- verificação em host novo/piso de runtime e evidência retida de máquina,
+  driver, input e áudio;
+- execução em GPU/driver Linux com capacidade de apresentação; o ambiente
+  isolado desta workstation não oferece DRI3 nem backend SDL_GPU suportado;
+- evidência de apresentação em hardware Windows nativo, incluindo input, áudio,
+  redimensionamento e comportamento de GPU/driver;
+- decisão de Authenticode/SmartScreen para Windows e notas finais da release;
+- evidência multiplayer entre hosts novos se Host/Join/WAN continuar sendo uma
+  afirmação pública.
 
 ## Matriz de aceitação antes da publicação
 

@@ -2,6 +2,29 @@
 
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
+## 2026-10-02
+### Atualização da qualificação da release demo
+
+- Registramos o resultado atual da qualificação: o gate de pacote de
+  apresentação Linux assinado/package-smoke passou com um prefixo temporário
+  fixado de SDL_mixer 3.2.4, e o gate de artefato de apresentação PE/SDL nativo
+  Windows assinado passou com MinGW SDL3/SDL_mixer e DXC fixados.
+- Esclarecemos que esses são checks de artefato/pacote apenas. D1 ainda exige um
+  par Linux/Windows de árvore limpa, smoke interativo fora do checkout de
+  jogar/reiniciar/sair, verificação em host novo/piso de runtime, evidência de
+  GPU Linux nativa, evidência de hardware Windows nativo, política/notas finais
+  da release e evidência multiplayer entre hosts se anunciada.
+- Adicionamos `.github/actionlint.yaml` com metadados para o label customizado
+  do runner self-hosted `kookie-demo-release`.
+
+### Revisões autoritativas de snapshot no mesmo tick
+
+- Corrigimos a admissão de snapshots autoritativos para substituir revisões
+  novas no mesmo tick do servidor, continuando a rejeitar ticks e sequências
+  antigos.
+- Resetamos os watermarks do histórico de rewind quando o replay restaura um
+  checkpoint anterior, preservando o avanço em passo fixo após o rollback.
+
 ## 2026-10-01
 ### Netcode híbrido em passo fixo
 

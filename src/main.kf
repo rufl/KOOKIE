@@ -378,8 +378,13 @@ test "G2 gameplay wire validates commands and authoritative state" {
     assert(snapshots.accept(10, 1, 100) &&
         snapshots.accept(12, 2, 140) &&
         snapshots.sample(11) == 120 &&
-        !snapshots.accept(11, 1, 110),
-        "snapshot window must interpolate ordered authoritative samples")
+        snapshots.accept(12, 3, 150) &&
+        snapshots.count() == 2 &&
+        snapshots.latestSequence() == 3 &&
+        snapshots.sample(12) == 150 &&
+        !snapshots.accept(12, 2, 140) &&
+        !snapshots.accept(11, 4, 110),
+        "snapshot window must interpolate ordered samples and replace same-tick revisions")
 
 
     var state = newGameplayStateMessage(3, 4, true, 2, 5, 0, 2)

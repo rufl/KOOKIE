@@ -5238,6 +5238,7 @@ class LoopbackSession {
         if (!clock.setState(restoredTick, 0)) {
             return false
         }
+        serverRewindHistory.clear()
         if (playerOneConnected) {
             if (!serverMovement.setPosition(1, positionOne) ||
                 !clientMovement.setPosition(1, positionOne) ||

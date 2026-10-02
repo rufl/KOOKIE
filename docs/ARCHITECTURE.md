@@ -750,6 +750,13 @@ package portability. This is QUIC-inspired channel separation, not QUIC
 interoperability. It still provides no confidentiality, relay, symmetric-NAT
 recovery or production DDoS protection.
 
+The 2026-10-02 qualification batch passed the signed Linux package/package
+smoke gate and the signed Windows native PE/SDL presentation artifact gate
+with temporary pinned build dependencies. These checks cover package
+integrity/linkage only. D1 still requires a clean-tree paired archive,
+outside-checkout interactive smoke and native Linux/Windows target-hardware
+presentation evidence; see [Demo release readiness](DEMO_RELEASE.md).
+
 ## 11. Explicit non-goals
 
 - A C/Zig/Rust gameplay engine hidden behind Kof.

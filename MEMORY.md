@@ -23,9 +23,11 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   no-per-frame-growth proof remains bounded to unchanged staging capacities.
 - Contact sweeps reuse their offset array. Replay sidecars now hold 1,296 words,
   covering the 32-triangle state plus bounded presentation history.
-- The retained 84-scenario qualification baseline passed on JVM and native.
-  Three later focused Blockbench, PNG and WAV intake scenarios each pass on both
-  targets. The full repository matrix was not run without the pre-commit permit.
+- The retained 84-scenario qualification baseline passed on JVM and native;
+  three later focused Blockbench, PNG and WAV intake scenarios also pass on
+  both targets. The current focused source qualification suite totals 94
+  scenarios on JVM and native. The full repository matrix was not run without
+  the pre-commit permit.
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
@@ -55,6 +57,20 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   isolated Linux network namespaces and distinct IPv4 stacks. General format
   compatibility, arbitrary code/shader reload, a production editor and fresh
   qualification on three physical machines are outside this claim.
+
+## Fixed-tick netcode batch
+
+- The current session protocol sends up to three ordered inputs per fixed tick,
+  carries the latest snapshot ACK and retires history only after an authoritative
+  input ACK. Typed input bundles/ACKs validate checksums and reject stale or
+  out-of-order state.
+- The authenticated native transport pins the admitted peer endpoint after the
+  handshake. It remains a bounded authenticated UDP envelope with
+  QUIC-inspired channel semantics, not QUIC/TLS or a production relay.
+- The host retains 12 ticks of authoritative position history and derives
+  hitscan rewind from acknowledged snapshot lag. Remote players render six
+  ticks behind the live tick; prediction exposes deterministic correction
+  count/average/maximum metrics.
 
 ## G5 completion batch
 
@@ -116,21 +132,25 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   gating and the host-authoritative `Tab` player screen. The lobby/scoreboard
   probe validates identity, lifecycle, capacity, checksum, stale/duplicate
   rejection, tamper rejection and deterministic ranking on JVM and native.
-- D1 remains open for current clean-tree Linux/Windows presentation packages,
-  outside-checkout repeated play/restart/quit smoke, fresh-host verification
-  and native hardware presentation evidence. Package-linkage or PE-marker
-  success alone is not a playable-demo release.
-- The default Linux system image lacks the SDL3_mixer development header;
-  a temporary pinned SDL_mixer 3.2.4 prefix allowed the signed package and
-  package-smoke gates to pass. The isolated Xvfb/DRM visual smoke then reported
-  `No DRI3 support detected` and `No supported SDL_GPU backend`, so no native
-  Linux presentation evidence is retained.
-- The current host has no MinGW SDL3/SDL_mixer prefixes or `dxc`, so the
-  Windows presentation gate fails closed before compilation; no Windows
-  artifact or native hardware evidence is claimed.
-- `scripts/build_demo_release.sh` now produces two identical clean-tree
-  presentation artifacts per target, and the approved paired workflow publishes
-  them only after environment approval; the public release is still unchanged.
+- D1 remains open for a current clean-tree Linux/Windows presentation pair,
+  outside-checkout repeated play/restart/quit smoke, fresh-host/runtime-floor
+  verification, native target-hardware presentation evidence and final release
+  operations. Package-linkage or PE-marker success alone is not a playable-demo
+  release.
+- The default Linux system image lacks the SDL3_mixer development header. A
+  temporary pinned SDL_mixer 3.2.4 prefix let
+  `verify_linux_presentation_package.sh` pass signed artifact, safe extraction
+  and package smoke on 2026-10-02. The isolated Xvfb/DRM visual smoke then
+  reported `No DRI3 support detected` and `No supported SDL_GPU backend`, so no
+  current Linux target-hardware presentation evidence is retained.
+- The 2026-10-02 Windows presentation artifact gate passed with temporary
+  pinned MinGW SDL3/SDL_mixer prefixes and DXC, including reproducible signed
+  PE/SDL/SPIR-V/DXIL outputs. No native Windows hardware/input/audio/GPU
+  evidence is retained.
+- `scripts/build_demo_release.sh` produces two identical clean-tree
+  presentation artifacts per target, and the approved paired workflow
+  publishes them only after environment approval; the public release is still
+  unchanged.
 
 ## Earlier platform-release batch
 

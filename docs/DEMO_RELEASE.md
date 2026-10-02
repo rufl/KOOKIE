@@ -14,8 +14,9 @@ The latest public release is [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE
 published on 2026-09-30. It contains one signed Linux x86-64 SDL presentation
 archive built from source commit `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`.
 It predates the current source presentation path, KOF-owned multiplayer
-lobby/score screen, native Windows PE/SDL qualification and the hosted-CI P95
-gate fix. No current Windows demo archive is published.
+lobby/score screen, fixed-tick input/ACK protocol, lag compensation and
+interpolation, native Windows PE/SDL qualification and the hosted-CI PE gate
+fix. No current Windows demo archive is published.
 
 The current source tree has these release-capable paths:
 
@@ -25,17 +26,55 @@ The current source tree has these release-capable paths:
 - `Multiplayer > Host/Join` admits a fixed two-player session, exposes room and
   peer identity, requires explicit `READY` from both connected players, and
   publishes a bounded host-authoritative `Tab` scoreboard.
+- The session uses fixed-tick input bundles with snapshot/input ACKs, pins the
+  authenticated peer endpoint, rewinds hitscan through a bounded 12-tick
+  history, interpolates remote players six ticks behind and exposes prediction
+  correction metrics. The direct IPv4/UDP WAN path remains best effort and is
+  not QUIC-compatible.
 - Linux x86-64 native SDL3/SDL_GPU presentation packaging with SDL_mixer,
-  signed provenance and outside-checkout package smoke.
+  signed provenance and outside-checkout package smoke. The 2026-10-02
+  signed package/package-smoke gate passed with a temporary pinned SDL_mixer
+  3.2.4 prefix; the clean-tree paired release is still outstanding.
 - Windows x86-64 native Kof PE gameplay linkage to the SDL shell and the
   SDL_GPU presentation package, with SPIR-V/DXIL products and reproducible
-  artifact gates.
+  artifact gates. The signed presentation artifact gate passed with pinned
+  MinGW SDL3/SDL_mixer and DXC; no target Windows hardware evidence is retained.
 - Native-shell Wine gameplay-marker smoke for Windows. Presentation visual Wine
   smoke remains optional and requires a DRI3-capable isolated GPU; package
   linkage or Xvfb output is not visual presentation evidence.
 - A signed Linux dogfood package pipeline and a separate Windows JVM package
   for compatibility/qualification. The JVM package is not a native-game
   fallback.
+
+The published presentation archive remains a qualification artifact because it
+predates the current source tree. The source path is now implemented: `Play`
+starts a local authoritative encounter; `Host/Join` admits a second player
+through the explicit ready lobby; three goose bots attack players; host
+snapshots replicate player/bot state; `Tab` shows the bounded host-authoritative
+player screen; and the fixed-tick input/ACK, rewind and interpolation paths are
+bounded in the session and presentation code. Fresh clean-tree package,
+outside-checkout interactive and target-hardware evidence are still required
+before calling it a public release.
+
+
+## Current release decision — 2026-10-02
+
+The Linux and Windows artifact/package gates pass in the current qualification
+batch. D1 is still blocked by:
+
+- one clean-tree paired build of the current source and its publishable
+  signatures/provenance;
+- outside-checkout interactive `Play` → encounter → restart/quit smoke on both
+  targets, repeated from a fresh extraction;
+- fresh-host/runtime-floor verification and retained machine/driver/input/audio
+  evidence;
+- a present-capable Linux GPU/driver run; this workstation's isolated
+  environment lacks DRI3 and a supported SDL_GPU backend;
+- native Windows hardware presentation evidence, including input, audio,
+  resize and GPU/driver behavior;
+- Authenticode/SmartScreen policy for Windows and final release notes;
+- fresh cross-host multiplayer evidence if Host/Join/WAN remains a public claim.
+
 
 ## What “playable demo” means for this milestone
 
@@ -59,10 +98,11 @@ The published presentation archive remains a qualification artifact because it
 predates the current source tree. The source path is now implemented: `Play`
 starts a local authoritative encounter; `Host/Join` admits a second player
 through the explicit ready lobby; three goose bots attack players; host
-snapshots replicate player/bot state; and `Tab` shows the bounded
-host-authoritative player screen. Fresh package and hardware evidence are still
-required before calling it a public release.
-
+snapshots replicate player/bot state; `Tab` shows the bounded host-authoritative
+player screen; and the fixed-tick input/ACK, rewind and interpolation paths are
+bounded in the session and presentation code. Fresh clean-tree package,
+outside-checkout interactive and target-hardware evidence are still required
+before calling it a public release.
 
 ## Remaining work, ordered by release impact
 
@@ -77,15 +117,23 @@ required before calling it a public release.
   unready state, bounded identity/ping/error display and deterministic
   scoreboard snapshots. `bash scripts/verify_multiplayer_ui.sh` proves the
   model, codec, overlay bounds and JVM/native probe path.
+- The fixed-tick input/ACK, peer-pinning, rewind and remote-interpolation
+  helpers are covered by focused G6 checks; they do not replace target-host
+  gameplay evidence.
 - `bash scripts/verify_goose_game.sh` proves the focused goose gameplay path.
 
 ### P0 — Linux release qualification
 
 - Build a new clean-tree signed Linux `presentation` archive from the current
   source, with the current lobby/score screen and local gameplay path.
-- Verify the archive outside the checkout on a fresh supported Linux system:
-  signature/checksum, extraction, launch, `Play`, movement/look/fire, damage,
-  restart, quit and repeated relaunch.
+- The 2026-10-02 qualification run passed
+  `scripts/verify_linux_presentation_package.sh` on the current checkout:
+  signed artifact, safe extraction and packaged smoke. It used a temporary
+  pinned SDL_mixer 3.2.4 prefix and does not replace the clean-tree release
+  builder or target-hardware evidence.
+- Verify the final archive outside the checkout on a fresh supported Linux
+  system: signature/checksum, extraction, launch, `Play`, movement/look/fire,
+  damage, restart, quit and repeated relaunch.
 - Run the isolated present-capable GPU smoke and retain machine, driver,
   wrapper, screenshot and exit evidence. The default system image lacks
   SDL3_mixer development files; configure a pinned SDL_mixer 3.2.4 prefix
@@ -106,16 +154,16 @@ required before calling it a public release.
 
 - Build a new signed Windows x86-64 `presentation` ZIP from the current tree,
   including native Kof PE, SDL3/SDL_mixer DLLs, shaders, notices and provenance.
+- The 2026-10-02 qualification run passed
+  `scripts/verify_windows_presentation.sh` with pinned MinGW SDL3/SDL_mixer
+  prefixes and DXC. This proves reproducible signed PE/SDL/SPIR-V/DXIL
+  artifact output only; the temporary build dependencies and artifact gate do
+  not prove Windows hardware presentation.
 - Verify extraction, launch and repeated `Play`/restart/quit outside the
   checkout on supported Windows hardware and drivers.
-- Run `scripts/verify_windows_presentation.sh`; its reproducibility and PE/
-  SDL/SPIR-V/DXIL checks are artifact evidence, not native hardware evidence.
 - `scripts/build_demo_release.sh` writes the final clean-tree Windows archive,
   manifest, signatures, `SHA256SUMS` and build summary after deterministic
   double-build verification.
-- This workstation has no configured MinGW SDL3/SDL_mixer prefixes or `dxc`;
-  the Windows gate fails closed before package compilation, so no Windows
-  artifact or native hardware evidence is claimed.
 - Retain native Windows GPU/input/audio evidence. Wine proves the package path
   only; the optional visual Wine smoke requires an isolated DRI3-capable GPU.
 - Decide whether ordinary-user distribution requires Authenticode signing;
@@ -128,6 +176,9 @@ required before calling it a public release.
 - Run `.github/workflows/release_demo.yml` with `publish=false` for artifact
   qualification; its approved `publish=true` path builds and publishes the
   Linux/Windows pair only after the `kookie-demo-release` environment approves.
+  Self-hosted runners must carry `kookie-demo-release`, `linux`/`windows` and
+  `x64` labels; `.github/actionlint.yaml` declares the custom label for local
+  workflow linting.
 - The workflow does not replace native target-hardware evidence; attach that
   evidence to the release record before approving publication.
 - Add release notes containing controls, supported floors, known limitations,
@@ -136,8 +187,8 @@ required before calling it a public release.
 ### P1 — content and product boundary
 
 - The first demo ships the fixed authored arena with `content_profile=none`;
-  the separate prototype content package remains opt-in and is not part of
-  the release artifact.
+  the separate prototype content package remains opt-in and is not part of the
+  release artifact.
 - Resolve redistribution terms for every bundled asset. The prototype goose
   asset remains restricted by its upstream terms and is not included here.
 - If multiplayer is advertised publicly, run fresh cross-host LAN/WAN evidence.

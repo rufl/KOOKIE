@@ -2,6 +2,28 @@
 
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
+## 2026-10-02
+### Demo release qualification refresh
+
+- Recorded the current qualification result: the signed Linux presentation
+  package gate/package smoke passed with a temporary pinned SDL_mixer 3.2.4
+  prefix, and the signed Windows native PE/SDL presentation artifact gate
+  passed with pinned MinGW SDL3/SDL_mixer and DXC.
+- Clarified that these are artifact/package checks only. D1 still requires one
+  clean-tree Linux/Windows pair, outside-checkout interactive
+  play/restart/quit smoke, fresh-host/runtime-floor verification, native Linux
+  GPU evidence, native Windows hardware evidence, final release policy/notes
+  and cross-host multiplayer evidence if advertised.
+- Added `.github/actionlint.yaml` metadata for the custom
+  `kookie-demo-release` self-hosted runner label.
+
+### Authoritative same-tick snapshot revisions
+
+- Fixed authoritative snapshot admission to replace newer revisions at the same
+  server tick while continuing to reject older ticks and sequence numbers.
+- Reset rewind-history watermarks when replay restores an earlier checkpoint,
+  preserving fixed-tick advancement after rollback.
+
 ## 2026-10-01
 ### Netcode fixed-tick híbrido
 

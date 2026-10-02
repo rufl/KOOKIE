@@ -61,16 +61,40 @@ The result is intentionally opinionated:
 
 ## Quick start
 
-Prerequisites: [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) and Python 3.
+### Play the published package
 
-The command below runs the non-graphical authoritative qualification entrypoint.
-It is not the interactive packaged game.
+The signed Linux dogfood archive already contains the native Kof game, SDL3,
+SDL_mixer and its launcher. Running the packaged game requires neither the Kof
+toolchain nor Python:
+
+1. Download [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
+2. Verify `SHA256SUMS` and the detached signatures as described in
+   [Running and packaging](docs/RUNNING_AND_PACKAGING.md#run-the-currently-published-linux-dogfood).
+3. Extract the archive and run:
+
+```bash
+./kookie
+```
+
+The current public release is Linux-only. A current Windows demo archive is
+not published yet; a Windows package will launch through `kookie.exe` and will
+also be self-contained.
+
+### Run qualification from source
+
+Install [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) for the source
+entrypoint:
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
 cd KOOKIE
 kof run src/main.kf --target native
 ```
+
+`kof run` itself does not require Python. Python 3 is currently required by
+repository verification, packaging, evidence-validation and rendezvous scripts
+such as `scripts/verify.sh`, `scripts/package_kookie.sh` and
+`scripts/kookie_rendezvous.py`.
 
 Run the focused gameplay and replay path:
 
@@ -84,15 +108,21 @@ Run the focused local goose gameplay and multiplayer lobby/score probes:
 bash scripts/verify_goose_game.sh
 bash scripts/verify_multiplayer_ui.sh
 ```
+
 Run the non-graphical G6 expansion probes:
 
 ```bash
 bash scripts/verify_g6_runtime.sh
 ```
 
-Presentation packages additionally require SDL 3.4.16, SDL_mixer 3.2.4 and
-`glslc`. Exact package, kooker, Windows and cross-host qualification commands
-live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
+Presentation package builds additionally require SDL 3.4.16, SDL_mixer 3.2.4
+and `glslc`. Exact package, kooker, Windows and cross-host qualification
+commands live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
+
+An auto-installing, self-updating launcher is not published yet. It should be
+a separate developer/player bootstrap product: the player package must remain
+self-contained, while Kof installation and stable/beta/alpha/canary channel
+updates must use signed manifests, pinned artifacts and atomic rollback.
 
 ## Multiplayer lobby and score screen
 
@@ -124,9 +154,9 @@ The latest public artifact is
 [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34):
 signed Linux x86-64 SDL presentation, built from source commit
 `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. It predates the current source
-presentation path, multiplayer lobby/score screen, native Windows PE/SDL
-qualification and CI-gate changes. It is dogfood presentation, not the current
-playable-demo package.
+presentation path, fixed-tick netcode, multiplayer lobby/score screen, native
+Windows PE/SDL qualification and CI-gate changes. It is dogfood presentation,
+not the current playable-demo package.
 
 The current source tree has a bounded player-facing slice:
 
@@ -136,6 +166,17 @@ The current source tree has a bounded player-facing slice:
 - `Multiplayer > Host/Join` admits the second player through the KOF-owned
   lobby, requires both connected players to select `READY`, and publishes the
   deterministic `Tab` scoreboard with player, status, score, HP, K/D and ping.
+- The session path uses fixed-tick input bundles with snapshot/input ACKs,
+  authenticated peer pinning, a bounded 12-tick hitscan rewind window, six-tick
+  remote interpolation and prediction-correction metrics. The WAN path remains
+  best-effort direct IPv4/UDP rather than a QUIC-compatible or production
+  relay service.
+
+The 2026-10-02 qualification batch passed the signed Linux presentation-package
+gate/package smoke with a temporary pinned SDL_mixer 3.2.4 prefix and the
+signed Windows native PE/SDL presentation artifact gate with pinned MinGW
+SDL3/SDL_mixer and DXC. These checks prove artifact integrity and linkage, not
+interactive play on target hardware.
 
 The deterministic clean-tree builder and approved paired-release workflow are
 implemented; the public package and target-specific release evidence still
@@ -143,8 +184,8 @@ need to be refreshed.
 
 | Target | Current source/evidence state | Remaining release evidence |
 |---|---|---|
-| Linux x86-64 | Native presentation source contains local gameplay, two-player host/join, explicit ready gating, authoritative bot/player state, names, heart segments and the bounded lobby/score screen. Focused JVM/native probes pass. | Build a fresh clean-tree signed presentation archive, verify it outside the checkout, and run isolated supported-GPU start/play/restart/quit smoke. |
-| Windows x86-64 | Native PE/SDL presentation packaging and reproducibility gates include the same current Kof presentation probe, with SDL3/SDL_mixer and SPIR-V/DXIL products. | Build a fresh signed ZIP from the current tree, run it outside the checkout, and complete native Windows hardware/driver presentation smoke. |
+| Linux x86-64 | Native presentation source contains local gameplay, two-player host/join, explicit ready gating, authoritative bot/player state, names, heart segments and the bounded lobby/score screen. Focused JVM/native probes and the signed package/package-smoke gate pass. | Run the clean-tree paired builder, verify the extracted archive outside the checkout, and run isolated supported-GPU start/play/restart/quit smoke on a fresh Linux host. |
+| Windows x86-64 | Native PE/SDL presentation packaging and reproducibility gates include the current Kof presentation probe, SDL3/SDL_mixer and SPIR-V/DXIL products. The signed artifact gate passes with pinned build dependencies; no native Windows hardware evidence is retained. | Run the clean-tree paired builder, verify the extracted ZIP outside the checkout, and complete native Windows input/audio/GPU/driver presentation smoke. |
 
 The detailed acceptance checklist, release blockers and non-blocking future
 scope are in [Demo release readiness](docs/DEMO_RELEASE.md).

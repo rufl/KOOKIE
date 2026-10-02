@@ -265,9 +265,26 @@ The completed bounded contracts already mapped to this definition are:
 - bounded authoritative enemy encounter state/impact replication and terminal
   reward evidence across the host-plus-two-client process path.
 
-These contracts are complete because JVM/native behavior coverage currently
-passes 72 scenarios and both external evidence gates pass. No G0 release
-blocker remains.
+These contracts are complete because the focused JVM/native source suite
+currently passes 94 scenarios and both external evidence gates pass. No G0
+release blocker remains; D1 remains a separate player-facing package gate.
+
+- Local release qualification covers native Linux and the native Windows SDL3 +
+  SDL_mixer platform shell. The Windows presentation package links native Kof
+  PE to the SDL_GPU adapter and bundles SPIR-V/DXIL products; the native-shell
+  Wine smoke verifies gameplay markers and the native PE marker. The
+  2026-10-02 signed Linux package/package-smoke gate and signed Windows native
+  PE/SDL presentation artifact gate passed with temporary pinned dependencies.
+- The fixed-tick session path now has bounded input/ACK redundancy, authenticated
+  endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
+  interpolation and prediction-correction metrics; these focused checks do not
+  prove a player-facing release.
+- The latest public tag remains Linux-only `0.1.0-dogfood.34`. D1 still needs a
+  clean-tree Linux/Windows pair, outside-checkout interactive smoke, fresh-host
+  verification, native Linux/Windows target-hardware evidence and release
+  policy/notes. Cross-host multiplayer evidence is required only if advertised.
+- Operational deployment records and cross-host evidence are intentionally
+  retained outside this repository.
 
 ### Explicit non-goals for this release
 
@@ -310,8 +327,17 @@ The roadmap is not complete; completed work remains recorded here rather than ar
 - Local release qualification covers native Linux and the native Windows SDL3 +
   SDL_mixer platform shell. The Windows presentation package links native Kof
   PE to the SDL_GPU adapter and bundles SPIR-V/DXIL products; the native-shell
-  Wine smoke verifies gameplay markers and the native PE marker. The latest
-  public tag, however, remains Linux-only `0.1.0-dogfood.34`.
+  Wine smoke verifies gameplay markers and the native PE marker. The
+  2026-10-02 signed Linux package/package-smoke gate and signed Windows native
+  PE/SDL presentation artifact gate passed with temporary pinned dependencies.
+- The fixed-tick session path now has bounded input/ACK redundancy, authenticated
+  endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
+  interpolation and prediction-correction metrics; these focused checks do not
+  prove a player-facing release.
+- The latest public tag remains Linux-only `0.1.0-dogfood.34`. D1 still needs a
+  clean-tree Linux/Windows pair, outside-checkout interactive smoke, fresh-host
+  verification, native Linux/Windows target-hardware evidence and release
+  policy/notes. Cross-host multiplayer evidence is required only if advertised.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

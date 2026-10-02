@@ -760,6 +760,13 @@ portabilidade dos pacotes. A separação de canais é inspirada em QUIC, não é
 interoperabilidade QUIC. Ainda não há confidencialidade, relay, recuperação de
 NAT simétrico ou proteção DDoS de produção.
 
+O lote de qualificação de 2026-10-02 passou o gate de pacote/package-smoke
+Linux assinado e o gate de artefato de apresentação PE/SDL nativo Windows
+assinado com dependências de build temporariamente fixadas. Esses checks cobrem
+somente integridade/ligação do pacote. D1 ainda exige arquivo pareado de árvore
+limpa, smoke interativo fora do checkout e evidência de apresentação em
+hardware-alvo Linux/Windows; consulte [Prontidão da release demo](DEMO_RELEASE.md).
+
 ## 11. Não objetivos explícitos
 
 - Um engine de gameplay em C/Zig/Rust oculto atrás do Kof.

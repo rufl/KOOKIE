@@ -197,9 +197,19 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
 - A qualificação local de release cobre Linux nativo e o shell de plataforma
   Windows SDL3 + SDL_mixer. O pacote de apresentação Windows liga Kof PE
   nativo ao adaptador SDL_GPU e inclui produtos SPIR-V/DXIL; o smoke do shell
-  nativo em Wine verifica marcadores de gameplay e o marcador PE nativo. A tag
-  pública mais recente, porém, continua somente Linux:
-  `0.1.0-dogfood.34`.
+  nativo em Wine verifica marcadores de gameplay e o marcador PE nativo. O
+  lote de 2026-10-02 passou o gate de pacote/package-smoke Linux assinado e o
+  gate de artefato de apresentação PE/SDL nativo Windows com dependências
+  temporariamente fixadas.
+- A sessão agora possui redundância limitada de input/ACK em passo fixo,
+  fixação de endpoint autenticado, histórico de rewind de hitscan de 12 ticks,
+  interpolação remota de seis ticks e métricas de correção da predição; esses
+  checks focados não comprovam uma release voltada ao jogador.
+- A tag pública mais recente continua somente Linux:
+  `0.1.0-dogfood.34`. D1 ainda exige par Linux/Windows de árvore limpa, smoke
+  interativo fora do checkout, verificação em host novo, evidência de hardware
+  Linux/Windows nativo e política/notas finais. Evidência entre hosts só é
+  necessária se o multiplayer for anunciado.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 

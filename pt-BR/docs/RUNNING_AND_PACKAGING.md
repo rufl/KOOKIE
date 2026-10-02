@@ -6,23 +6,51 @@ Esta página mantém os detalhes de build, pacote e qualificação fora da pági
 inicial do projeto. O KOOKIE é experimental: estes comandos exercitam contratos
 de evidência limitados, não uma promessa de suporte de produção.
 
-## Execução para desenvolvimento
+## Execução de fonte/desenvolvimento
 
-Instale [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) e Python 3 e execute
-a demo autoritativa na raiz do repositório:
+Instale [Kof 0.5.0-beta](https://github.com/KofLang/Kof4j) para executar o
+entrypoint autoritativo da fonte na raiz do repositório:
 
 ```bash
 kof run src/main.kf --target native
 ```
 
-Este comando é um caminho de qualificação em console. A apresentação SDL nativa
-voltada ao jogador contém o encounter local limitado, o lobby Kof-first de dois
-peers e a tela determinística de jogadores; implementação na fonte e
-qualificação do pacote de release continuam separadas.
+Este comando é um caminho de qualificação em console. Ele não inicia o jogo
+interativo empacotado. O próprio `kof run` não exige Python 3; Python é usado
+atualmente pelo lint do repositório, validação de pacote/procedência,
+validação de evidências e tooling de rendezvous.
 
-O estado de publicação e a evidência de hardware continuam em
-[Prontidão da release demo](DEMO_RELEASE.md), separados da implementação na
-árvore de fontes.
+O pacote de apresentação publicado é autossuficiente: jogadores iniciam seu
+entrypoint `kookie`/`kookie.exe` sem instalar Kof ou Python. Um launcher
+auto-instalável, autoatualizável e com canais stable/beta/alpha/canary ainda não
+foi publicado; consulte [Prontidão da release demo](DEMO_RELEASE.md) para os
+gates atuais de pacote e hardware-alvo.
+
+### Limite do launcher
+
+O launcher solicitado para o fluxo do jogador ainda não foi implementado nem
+publicado. Mantenha duas responsabilidades separadas:
+
+- **Launcher do jogador:** baixa e inicia somente pacotes KOOKIE assinados. Não
+  deve instalar o compilador Kof nem exigir Python em runtime.
+- **Bootstrap de desenvolvimento:** opcionalmente instala o toolchain Kof exato
+  e fixado necessário para qualificação da fonte e então executa os comandos de
+  desenvolvimento.
+
+Stable, beta, alpha e canary são canais de release, não checkouts arbitrários
+de branches Git. Cada canal precisa de um manifesto assinado contendo alvo,
+versão, URL do artefato, SHA-256, assinatura, identidade do Kof e metadados
+mínimos de runtime. O launcher deve embutir a chave pública de release, validar
+HTTPS junto com a assinatura do manifesto e o hash do artefato, preparar a
+atualização em um diretório novo, trocar atomicamente, manter uma versão para
+rollback e exigir opt-in explícito para canais não-stable. Nunca deve executar
+um download `latest` sem assinatura nem substituir uma instalação em execução.
+
+O repositório atualmente não possui binários nativos do launcher, manifestos de
+canal assinados, artefatos Kof publicados para esses canais nem política
+Authenticode para Windows. Até existirem, execuções diretas da fonte exigem
+Kof; os gates completos de qualificação, pacote e evidências exigem Python
+adicionalmente, enquanto o pacote assinado continua sendo o caminho do usuário.
 
 
 O alvo JVM é usado para qualificação diferencial local e para o pacote de
@@ -198,6 +226,11 @@ scripts/build_demo_release.sh \
 ```
 
 O builder exige árvore limpa e não afirma evidência de GPU nativa do alvo.
+O lote de qualificação de 2026-10-02 passou
+`verify_linux_presentation_package.sh` com um prefixo temporário fixado de
+SDL_mixer 3.2.4. Verificou arquivo assinado, extração segura e package-smoke no
+checkout atual; não comprovou GPU Linux com capacidade de apresentação nem a
+release pareada final em árvore limpa.
 
 Esse perfil exige SDL 3.4.16, SDL_mixer 3.2.4, `glslc`, compilador C e
 `pkg-config`. O arquivo contém a aplicação Kof de menu/jogo, adaptador SDL,
@@ -283,9 +316,9 @@ enquanto os dois clientes podem rodar em Linux ou Windows.
 O pacote público mais recente é
 [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
 É um build dogfood de apresentação Linux x86-64 assinado, da fonte no commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; ele antecede a qualificação atual
-de PE/SDL nativo Windows. Baixe os sete assets da release e valide o conjunto
-de checksums e as assinaturas destacadas:
+`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; ele antecede a ponte atual de
+input/sessão, o netcode em passo fixo, o lobby/placar e a qualificação PE/SDL
+nativa Windows. Baixe os sete assets da release e valide o conjunto de checksums
 
 ```bash
 sha256sum --check SHA256SUMS
@@ -303,14 +336,12 @@ cd kookie-0.1.0-dogfood.34-linux-x86_64
 
 O arquivo inclui SDL3, SDL_mixer e os adaptadores nativos, mas usa o
 loader/libc dinâmico do host e exige uma GPU Linux suportada para apresentação.
-Esse commit publicado antecede a ponte de input/sessão e o rendezvous WAN da
-árvore de fontes; gere novamente o perfil de apresentação para obter o caminho
-jogável de gansos.
-
-A apresentação atual na árvore de fontes mapeia input para a sessão autoritativa,
-mostra o encontro de bots e suporta o transporte direto/WAN, o lobby fixo
-Host/Join, o gate explícito de pronto e a tela de jogadores. O arquivo público
-não contém essas mudanças da árvore de fontes.
+Esse commit publicado antecede a ponte de input/sessão da árvore de fontes, o
+caminho de input/ACK em passo fixo, o rewind com compensação de lag, a
+interpolação remota, o rendezvous WAN, o lobby fixo Host/Join, o gate explícito
+de pronto e a tela de jogadores. Gere novamente o perfil de apresentação para
+obter o caminho jogável atual de gansos; o arquivo público não contém essas
+mudanças.
 
 ## Pacotes Windows x86-64
 
@@ -427,6 +458,12 @@ scripts/build_demo_release.sh \
   --version 0.1.0-demo.N \
   --output /tmp/kookie-demo-windows
 ```
+
+O lote de qualificação de 2026-10-02 passou
+`verify_windows_presentation.sh` com prefixes MinGW SDL3/SDL_mixer e DXC
+fixados. Isso comprova somente o caminho de artefato PE/SDL/SPIR-V/DXIL
+assinado e reprodutível; evidência nativa Windows de input/áudio/GPU/driver e
+smoke interativo fora do checkout continuam sendo gates de release.
 
 O comando escreve arquivo assinado, manifesto, chave pública, assinaturas
 destacadas, `SHA256SUMS` e `BUILD_SUMMARY.txt`. Evidência nativa de

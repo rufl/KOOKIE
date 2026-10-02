@@ -26,9 +26,11 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
 - Sweeps de contato reutilizam o array de offsets. Sidecars de replay agora
   comportam 1.296 palavras, cobrindo o estado de 32 triângulos e o histórico
   limitado de apresentação.
-- A linha de base retida de 84 cenários passou na JVM e no nativo. Três
-  cenários focados posteriores de entrada Blockbench, PNG e WAV passam nos dois
-  alvos. A matriz completa não foi executada sem a permissão de pre-commit.
+- A linha de base retida de 84 cenários passou na JVM e no nativo; três
+  cenários focados posteriores de entrada Blockbench, PNG e WAV também passam
+  nos dois alvos. A suíte atual de qualificação da fonte limitada totaliza 94
+  cenários na JVM e no nativo. A matriz completa não foi executada sem a
+  permissão de pre-commit.
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
@@ -61,6 +63,20 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
   isolados e pilhas IPv4 distintas. Compatibilidade geral de formatos, reload
   arbitrário de código/shader, editor de produção e qualificação recente em
   três máquinas físicas ficam fora desta afirmação.
+
+## Lote de netcode em passo fixo
+
+- O protocolo atual envia até três inputs ordenados por passo fixo, carrega o
+  ACK do snapshot mais recente e só aposenta o histórico após ACK autoritativo
+  do input. Bundles/ACKs tipados validam checksums e rejeitam estado obsoleto
+  ou fora de ordem.
+- O transporte nativo autenticado fixa o endpoint do peer admitido após o
+  handshake. Continua sendo um envelope UDP autenticado limitado, com semântica
+  inspirada em QUIC, não QUIC/TLS nem relay de produção.
+- O host retém 12 ticks de histórico de posição autoritativa e deriva o rewind
+  de hitscan do atraso confirmado pelo snapshot. Jogadores remotos renderizam
+  seis ticks atrás do tick vivo; a predição expõe métricas determinísticas de
+  contagem, média e maior correção.
 
 ## Lote de conclusão G5
 
@@ -126,19 +142,22 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
   lobby/placar valida identidade, ciclo de vida, capacidade, checksum, rejeição
   de estado obsoleto/duplicado, adulteração e ordenação determinística na JVM e
   no nativo.
-- D1 continua aberto para pacotes atuais de apresentação Linux/Windows de
-  árvore limpa, smoke repetido fora do checkout de jogar/reiniciar/sair,
-  verificação em hosts novos e evidência de apresentação em hardware nativo.
-  Ligação de pacote ou marcador PE isolado não é release de demo jogável.
+- D1 continua aberto para um par atual de apresentação Linux/Windows de árvore
+  limpa, smoke repetido fora do checkout de jogar/reiniciar/sair, verificação em
+  host novo/piso de runtime, evidência nativa de hardware-alvo e operação final
+  de release. Ligação de pacote ou marcador PE isolado não é release de demo
+  jogável.
 - A imagem de sistema Linux padrão não possui o header de desenvolvimento
-  SDL3_mixer; um prefixo temporário fixado de SDL_mixer 3.2.4 permitiu os gates
-  de pacote assinado e package-smoke. O smoke visual Xvfb/DRM isolado reportou
-  `No DRI3 support detected` e `No supported SDL_GPU backend`, então nenhuma
-  evidência de apresentação Linux nativa foi retida.
-- O host atual não tem prefixos MinGW SDL3/SDL_mixer nem `dxc`; o gate de
-  apresentação Windows falha fechado antes da compilação, e não reivindicamos
-  artefato Windows nem evidência de hardware nativo.
-- `scripts/build_demo_release.sh` agora gera dois artefatos de apresentação
+  SDL3_mixer. Um prefixo temporário fixado de SDL_mixer 3.2.4 permitiu que
+  `verify_linux_presentation_package.sh` passasse artefato assinado, extração
+  segura e package-smoke em 2026-10-02. O smoke visual Xvfb/DRM isolado
+  reportou `No DRI3 support detected` e `No supported SDL_GPU backend`, então
+  nenhuma evidência atual de hardware-alvo Linux foi retida.
+- O gate de artefato de apresentação Windows de 2026-10-02 passou com
+  prefixos temporários fixados de MinGW SDL3/SDL_mixer e DXC, incluindo saídas
+  PE/SDL/SPIR-V/DXIL assinadas e reprodutíveis. Nenhuma evidência nativa
+  Windows de hardware/input/áudio/GPU foi retida.
+- `scripts/build_demo_release.sh` gera dois artefatos de apresentação
   idênticos por alvo a partir de árvore limpa, e o workflow pareado aprovado
   só os publica após aprovação do ambiente; a release pública permanece igual.
 
