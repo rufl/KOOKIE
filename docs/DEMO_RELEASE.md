@@ -34,9 +34,18 @@ The current source tree has these release-capable paths:
   ticks/sequences remain rejected. The direct IPv4/UDP WAN path remains best
   effort and is not QUIC-compatible.
 - Linux x86-64 native SDL3/SDL_GPU presentation packaging with SDL_mixer,
-  signed provenance and outside-checkout package smoke. The 2026-10-02
-  signed package/package-smoke gate passed with a temporary pinned SDL_mixer
-  3.2.4 prefix; the clean-tree paired release is still outstanding.
+  signed provenance and outside-checkout package smoke. On 2026-10-02, the
+  clean-tree builder produced `0.1.0-linux-e2e.1` from source commit
+  `1678a7de671866d94080718c367ab05875a92c2d` with Kof source commit
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; it verified deterministic
+  duplicate builds, signatures/checksums, safe extraction and package smoke,
+  and `scripts/verify_goose_game.sh` passed. The archive SHA-256 was
+  `e3dddf0eab08b2d4ced71bc5c1b2e2f5e593bfe20af01b8e9c5594d2d9ed6536`.
+  This local qualification used an ephemeral Ed25519 key and a pinned
+  SDL_mixer 3.2.4 prefix, so it is not a public release identity. The
+  isolated presentation run reported `No DRI3 support detected` and `No
+  supported SDL_GPU backend found` before timeout 124; target-hardware
+  evidence remains required.
 - Windows x86-64 native Kof PE gameplay linkage to the SDL shell and the
   SDL_GPU presentation package, with SPIR-V/DXIL products and reproducible
   artifact gates. The signed presentation artifact gate passed with pinned
@@ -62,10 +71,12 @@ before calling it a public release.
 ## Current release decision — 2026-10-02
 
 The Linux and Windows artifact/package gates pass in the current qualification
-batch. D1 is still blocked by:
+batch. Local clean-tree artifact runs now exist for both targets, but D1 is
+still blocked by:
 
-- one clean-tree paired build of the current source and its publishable
-  signatures/provenance;
+- a publishable paired build of the current source with release signatures and
+  provenance; the local Linux and Windows qualification artifacts used
+  temporary keys and were built separately;
 - outside-checkout interactive `Play` → encounter → restart/quit smoke on both
   targets, repeated from a fresh extraction;
 - fresh-host/runtime-floor verification and retained machine/driver/input/audio
@@ -73,9 +84,12 @@ batch. D1 is still blocked by:
 - a present-capable Linux GPU/driver run; this workstation's isolated
   environment lacks DRI3 and a supported SDL_GPU backend;
 - native Windows hardware presentation evidence, including input, audio,
-  resize and GPU/driver behavior;
+  resize and GPU/driver behavior. The optional isolated Wine presentation smoke
+  reached native SDL but exited 70 with `No supported SDL_GPU backend found!`;
 - Authenticode/SmartScreen policy for Windows and final release notes;
 - fresh cross-host multiplayer evidence if Host/Join/WAN remains a public claim.
+
+
 
 
 ## What “playable demo” means for this milestone
@@ -161,6 +175,20 @@ before calling it a public release.
   prefixes and DXC. This proves reproducible signed PE/SDL/SPIR-V/DXIL
   artifact output only; the temporary build dependencies and artifact gate do
   not prove Windows hardware presentation.
+- A clean detached-worktree run of `scripts/build_demo_release.sh` produced
+  `0.1.0-windows-e2e.1` from source commit
+  `1678a7de671866d94080718c367ab05875a92c2d` with Kof source commit
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`. The archive SHA-256 is
+  `c8153ae34b2a1ea7f8c85411df95393c02573fc433a477c539153459975e80a4`.
+  Outside-checkout verification passed duplicate-build determinism,
+  detached signatures, `SHA256SUMS`, safe ZIP extraction, the `kookie.exe` PE
+  `MZ` header, clean-tree/Windows-presentation manifest fields and bundled
+  SPIR-V/DXIL entries. The qualification key was temporary, so this is not a
+  public release artifact.
+- An optional isolated Wine presentation smoke reached the native SDL shell but
+  exited with code 70 and `kookie_gpu_open: No supported SDL_GPU backend
+  found!`. This is environment evidence only and does not replace Windows
+  hardware presentation evidence.
 - Verify extraction, launch and repeated `Play`/restart/quit outside the
   checkout on supported Windows hardware and drivers.
 - `scripts/build_demo_release.sh` writes the final clean-tree Windows archive,
@@ -170,6 +198,8 @@ before calling it a public release.
   only; the optional visual Wine smoke requires an isolated DRI3-capable GPU.
 - Decide whether ordinary-user distribution requires Authenticode signing;
   SmartScreen-facing distribution still needs it.
+
+
 
 ### P1 — paired distribution and release operations
 

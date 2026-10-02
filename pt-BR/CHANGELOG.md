@@ -17,6 +17,33 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Adicionamos `.github/actionlint.yaml` com metadados para o label customizado
   do runner self-hosted `kookie-demo-release`.
 
+### Qualificação Linux em árvore limpa
+
+- Uma execução local de 2026-10-02 produziu `0.1.0-linux-e2e.1` a partir do
+  commit de fonte `1678a7de671866d94080718c367ab05875a92c2d`, verificou a saída
+  determinística do pacote assinado, o package smoke fora do checkout e o smoke
+  focado de gameplay goose. O arquivo usou uma chave temporária de
+  qualificação, portanto não é um artefato de release público.
+- A apresentação isolada chegou ao shell nativo, mas reportou ausência de DRI3
+  e de backend SDL_GPU suportado antes do timeout 124. A evidência de
+  apresentação Linux em hardware-alvo continua aberta.
+
+### Qualificação Windows em árvore limpa
+
+- Uma execução local de 2026-10-02 produziu `0.1.0-windows-e2e.1` do commit
+  de fonte `1678a7de671866d94080718c367ab05875a92c2d` com o commit de fonte Kof
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`. O SHA-256 do arquivo é
+  `c8153ae34b2a1ea7f8c85411df95393c02573fc433a477c539153459975e80a4`.
+- A verificação fora do checkout passou os builds duplicados determinísticos,
+  assinaturas destacadas, `SHA256SUMS`, extração segura do ZIP, o header PE `MZ`
+  de `kookie.exe`, os campos de árvore limpa/apresentação Windows no manifesto
+  e as entradas SPIR-V/DXIL empacotadas. A chave temporária de qualificação
+  significa que este não é um artefato de release público.
+- O smoke opcional de apresentação em Wine isolado chegou ao SDL nativo, mas
+  saiu com código 70 e
+  `kookie_gpu_open: No supported SDL_GPU backend found!`. A evidência de GPU,
+  input e áudio Windows alvo continua aberta.
+
 ### Revisões autoritativas de snapshot no mesmo tick
 
 - Corrigimos a admissão de snapshots autoritativos para substituir revisões

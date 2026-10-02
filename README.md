@@ -177,20 +177,39 @@ sequence replaces the latest sample for lifecycle or stale-command diagnostics,
 while older ticks and sequences remain rejected. Restoring a replay checkpoint
 starts a fresh rewind-history epoch before fixed-tick advancement resumes.
 
-The 2026-10-02 qualification batch passed the signed Linux presentation-package
-gate/package smoke with a temporary pinned SDL_mixer 3.2.4 prefix and the
-signed Windows native PE/SDL presentation artifact gate with pinned MinGW
-SDL3/SDL_mixer and DXC. These checks prove artifact integrity and linkage, not
-interactive play on target hardware.
+The 2026-10-02 local Linux clean-tree qualification built the deterministic
+signed `0.1.0-linux-e2e.1` package from source commit
+`1678a7de671866d94080718c367ab05875a92c2d`, verified signatures/checksums,
+safe extraction and package smoke outside the checkout, and passed
+`scripts/verify_goose_game.sh`. It used a temporary local Ed25519 key and a
+pinned SDL_mixer 3.2.4 prefix, so it is not a public release identity. The
+isolated presentation smoke reported `No DRI3 support detected` and
+`No supported SDL_GPU backend found` before timeout 124; supported Linux
+hardware evidence remains open.
 
-The deterministic clean-tree builder and approved paired-release workflow are
-implemented; the public package and target-specific release evidence still
-need to be refreshed.
+The 2026-10-02 qualification batch also passed the signed Windows native
+PE/SDL presentation artifact gate with pinned MinGW SDL3/SDL_mixer and DXC.
+A clean detached-worktree builder run produced
+`0.1.0-windows-e2e.1` from source commit
+`1678a7de671866d94080718c367ab05875a92c2d` with Kof source commit
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`; its archive SHA-256 is
+`c8153ae34b2a1ea7f8c85411df95393c02573fc433a477c539153459975e80a4`.
+Outside-checkout verification passed deterministic duplicate builds,
+signatures/checksums, safe ZIP extraction, PE `MZ` validation and the
+SPIR-V/DXIL package entries. The qualification key was temporary, so it is not
+a public release artifact. An isolated Wine presentation smoke reached native
+SDL but exited 70 with `kookie_gpu_open: No supported SDL_GPU backend found!`;
+native Windows hardware evidence remains open.
+
+The deterministic clean-tree builder now passes locally for both Linux and
+Windows; the public package, target-specific presentation evidence and paired
+release still need to be refreshed.
 
 | Target | Current source/evidence state | Remaining release evidence |
 |---|---|---|
-| Linux x86-64 | Native presentation source contains local gameplay, two-player host/join, explicit ready gating, authoritative bot/player state, names, heart segments and the bounded lobby/score screen. Focused JVM/native probes and the signed package/package-smoke gate pass. | Run the clean-tree paired builder, verify the extracted archive outside the checkout, and run isolated supported-GPU start/play/restart/quit smoke on a fresh Linux host. |
-| Windows x86-64 | Native PE/SDL presentation packaging and reproducibility gates include the current Kof presentation probe, SDL3/SDL_mixer and SPIR-V/DXIL products. The signed artifact gate passes with pinned build dependencies; no native Windows hardware evidence is retained. | Run the clean-tree paired builder, verify the extracted ZIP outside the checkout, and complete native Windows input/audio/GPU/driver presentation smoke. |
+| Linux x86-64 | Clean-tree deterministic package/signature/checksum verification, outside-checkout package smoke and focused goose gameplay smoke pass. | Run `Play`/movement/look/fire/damage/restart/quit smoke on a fresh supported Linux host with a present-capable GPU, then retain driver, screenshot and exit evidence. |
+| Windows x86-64 | Clean-tree deterministic `0.1.0-windows-e2e.1` package/signature/checksum verification, safe extraction, PE validation and SPIR-V/DXIL entries pass; isolated Wine presentation is blocked by the missing SDL_GPU backend. | Run the paired release workflow and complete native Windows input/audio/GPU/driver presentation smoke. |
+
 
 The detailed acceptance checklist, release blockers and non-blocking future
 scope are in [Demo release readiness](docs/DEMO_RELEASE.md).

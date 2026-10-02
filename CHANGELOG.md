@@ -17,6 +17,32 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Added `.github/actionlint.yaml` metadata for the custom
   `kookie-demo-release` self-hosted runner label.
 
+### Linux clean-tree qualification
+
+- A local 2026-10-02 run built `0.1.0-linux-e2e.1` from source commit
+  `1678a7de671866d94080718c367ab05875a92c2d`, verified deterministic signed
+  package output, outside-checkout package smoke and the focused goose gameplay
+  smoke. The archive used a temporary qualification key, so it is not a public
+  release artifact.
+- Isolated presentation reached the native shell but reported no DRI3 support
+  and no supported SDL_GPU backend before timeout 124. Linux target-hardware
+  presentation evidence remains open.
+
+### Windows clean-tree qualification
+
+- A local 2026-10-02 run built `0.1.0-windows-e2e.1` from source commit
+  `1678a7de671866d94080718c367ab05875a92c2d` with Kof source commit
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`. The archive SHA-256 is
+  `c8153ae34b2a1ea7f8c85411df95393c02573fc433a477c539153459975e80a4`.
+- Outside-checkout verification passed deterministic duplicate builds,
+  detached signatures, `SHA256SUMS`, safe ZIP extraction, the `kookie.exe` PE
+  `MZ` header, clean-tree/Windows-presentation manifest fields and bundled
+  SPIR-V/DXIL entries. The temporary qualification key means this is not a
+  public release artifact.
+- The optional isolated Wine presentation smoke reached native SDL but exited
+  with code 70 and `kookie_gpu_open: No supported SDL_GPU backend found!`.
+  Target Windows GPU/input/audio evidence remains open.
+
 ### Authoritative same-tick snapshot revisions
 
 - Fixed authoritative snapshot admission to replace newer revisions at the same

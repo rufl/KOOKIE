@@ -35,9 +35,18 @@ A árvore de fontes atual possui estes caminhos aptos a release:
   de comando obsoleto; ticks e sequências antigos continuam rejeitados. O
   caminho WAN IPv4/UDP direto continua best-effort e não é compatível com QUIC.
 - Empacotamento de apresentação nativa SDL3/SDL_GPU para Linux x86-64 com
-  SDL_mixer, procedência assinada e smoke fora do checkout. O gate de pacote
-  assinado/package-smoke de 2026-10-02 passou com um prefixo temporário fixado
-  de SDL_mixer 3.2.4; a release pareada em árvore limpa ainda falta.
+  SDL_mixer, procedência assinada e smoke fora do checkout. Em 2026-10-02, o
+  builder de árvore limpa produziu `0.1.0-linux-e2e.1` a partir do commit de
+  fonte `1678a7de671866d94080718c367ab05875a92c2d`, com o commit de fonte Kof
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; verificou builds determinísticos
+  duplicados, assinaturas/checksums, extração segura e package smoke, e
+  `scripts/verify_goose_game.sh` passou. O SHA-256 do arquivo foi
+  `e3dddf0eab08b2d4ced71bc5c1b2e2f5e593bfe20af01b8e9c5594d2d9ed6536`.
+  Esta qualificação local usou uma chave Ed25519 efêmera e um prefixo fixado de
+  SDL_mixer 3.2.4, portanto não é uma identidade de release pública. A
+  execução isolada de apresentação reportou `No DRI3 support detected` e `No
+  supported SDL_GPU backend found` antes do timeout 124; a evidência de
+  hardware-alvo continua necessária.
 - Ligação de gameplay Kof PE nativo Windows x86-64 ao shell SDL e ao pacote de
   apresentação SDL_GPU, com produtos SPIR-V/DXIL e gates reproduzíveis. O gate
   de artefato assinado passou com MinGW SDL3/SDL_mixer e DXC fixados; não há
@@ -129,10 +138,25 @@ antes de uma release pública.
 - Gerar um ZIP `presentation` Windows x86-64 assinado a partir da árvore atual,
   incluindo Kof PE nativo, DLLs SDL3/SDL_mixer, shaders, avisos e procedência.
 - A qualificação de 2026-10-02 passou
-  `scripts/verify_windows_presentation.sh` com prefixos MinGW
-  SDL3/SDL_mixer e DXC fixados. Isso comprova apenas o artefato PE/SDL/
-  SPIR-V/DXIL assinado e reprodutível; as dependências temporárias e o gate do
-  artefato não comprovam apresentação em hardware Windows.
+  `scripts/verify_windows_presentation.sh` com prefixos MinGW SDL3/SDL_mixer
+  e DXC fixados. Isso comprova apenas o artefato PE/SDL/SPIR-V/DXIL assinado e
+  reprodutível; as dependências temporárias e o gate do artefato não comprovam
+  apresentação em hardware Windows.
+- Uma execução de `scripts/build_demo_release.sh` em worktree destacado limpo
+  produziu `0.1.0-windows-e2e.1` do commit de fonte
+  `1678a7de671866d94080718c367ab05875a92c2d` com o commit de fonte Kof
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`. O SHA-256 do arquivo é
+  `c8153ae34b2a1ea7f8c85411df95393c02573fc433a477c539153459975e80a4`.
+  A verificação fora do checkout passou determinismo de builds duplicados,
+  assinaturas destacadas, `SHA256SUMS`, extração segura do ZIP, header PE `MZ`
+  de `kookie.exe`, campos de árvore limpa/apresentação Windows no manifesto e
+  entradas SPIR-V/DXIL empacotadas. A chave de qualificação era temporária;
+  portanto, este não é um artefato de release público.
+- Um smoke opcional de apresentação em Wine isolado chegou ao shell SDL nativo,
+  mas saiu com código 70 e
+  `kookie_gpu_open: No supported SDL_GPU backend found!`. Isso é evidência
+  apenas do ambiente e não substitui evidência de apresentação em hardware
+  Windows.
 - Verificar extração, inicialização e ciclos repetidos de `Play`/reinício/saída
   fora do checkout em hardware e drivers Windows suportados.
 - `scripts/build_demo_release.sh` escreve o ZIP Windows final em árvore limpa,
@@ -142,6 +166,8 @@ antes de uma release pública.
   pacote; o smoke visual opcional exige GPU isolada capaz de DRI3.
 - Decidir se a distribuição para usuários comuns exige assinatura Authenticode;
   distribuição sujeita ao SmartScreen ainda precisa dela.
+
+
 
 ### P1 — distribuição pareada e operação de release
 
@@ -178,10 +204,12 @@ antes de uma release pública.
 ## Decisão atual de release — 2026-10-02
 
 Os gates de artefato/pacote Linux e Windows passam no lote atual de
-qualificação. D1 continua bloqueado por:
+qualificação. Agora existem artefatos locais de árvore limpa para os dois
+alvos, mas D1 continua bloqueado por:
 
-- um build pareado de árvore limpa da fonte atual com assinaturas/procedência
-  publicáveis;
+- um build pareado publicável da fonte atual com assinaturas e procedência de
+  release; os artefatos locais de qualificação Linux e Windows usaram chaves
+  temporárias e foram construídos separadamente;
 - smoke interativo fora do checkout de `Play` → encounter → reinício/saída nos
   dois alvos, repetido a partir de uma extração nova;
 - verificação em host novo/piso de runtime e evidência retida de máquina,
@@ -189,10 +217,14 @@ qualificação. D1 continua bloqueado por:
 - execução em GPU/driver Linux com capacidade de apresentação; o ambiente
   isolado desta workstation não oferece DRI3 nem backend SDL_GPU suportado;
 - evidência de apresentação em hardware Windows nativo, incluindo input, áudio,
-  redimensionamento e comportamento de GPU/driver;
+  redimensionamento e comportamento de GPU/driver. O smoke opcional de
+  apresentação em Wine isolado chegou ao SDL nativo, mas saiu com código 70 e
+  `kookie_gpu_open: No supported SDL_GPU backend found!`;
 - decisão de Authenticode/SmartScreen para Windows e notas finais da release;
 - evidência multiplayer entre hosts novos se Host/Join/WAN continuar sendo uma
   afirmação pública.
+
+
 
 ## Matriz de aceitação antes da publicação
 

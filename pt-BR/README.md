@@ -175,20 +175,40 @@ de vida ou comando obsoleto, enquanto ticks e sequências antigos continuam
 rejeitados. Restaurar um checkpoint de replay inicia uma nova época do histórico
 de rewind antes de retomar o avanço em passo fixo.
 
-O lote de qualificação de 2026-10-02 passou o gate de pacote de apresentação
-Linux assinado/package-smoke com um prefixo temporário fixado de SDL_mixer 3.2.4
-e o gate de artefato de apresentação PE/SDL Windows assinado com MinGW
-SDL3/SDL_mixer e DXC fixados. Essas verificações comprovam integridade e
-ligação do artefato, não gameplay interativo no hardware alvo.
+A qualificação Linux local de 2026-10-02 em árvore limpa produziu o pacote
+determinístico assinado `0.1.0-linux-e2e.1` do commit
+`1678a7de671866d94080718c367ab05875a92c2d`, verificou assinaturas/checksums,
+extração segura e package smoke fora do checkout, e passou
+`scripts/verify_goose_game.sh`. Usou uma chave Ed25519 local temporária e um
+prefixo fixado de SDL_mixer 3.2.4, portanto não é uma identidade de release
+pública. O smoke isolado de apresentação reportou `No DRI3 support detected` e
+`No supported SDL_GPU backend found` antes do timeout 124; ainda falta
+evidência em hardware Linux suportado.
 
-A árvore limpa determinística e o workflow aprovado de release pareada estão
-implementados; ainda falta atualizar o pacote público e reter a evidência
-específica de cada alvo.
+A qualificação de 2026-10-02 também passou o gate de artefato de
+apresentação PE/SDL Windows assinado com MinGW SDL3/SDL_mixer e DXC fixados.
+Uma execução do builder em worktree destacado limpo produziu
+`0.1.0-windows-e2e.1` do commit de fonte
+`1678a7de671866d94080718c367ab05875a92c2d` com o commit de fonte Kof
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`; o SHA-256 do arquivo é
+`c8153ae34b2a1ea7f8c85411df95393c02573fc433a477c539153459975e80a4`.
+A verificação fora do checkout passou os builds duplicados determinísticos,
+assinaturas/checksums, extração segura do ZIP, validação PE `MZ` e as entradas
+SPIR-V/DXIL empacotadas. A chave de qualificação era temporária, portanto não é
+um artefato de release público. Um smoke de apresentação em Wine isolado
+chegou ao SDL nativo, mas saiu com código 70 e
+`kookie_gpu_open: No supported SDL_GPU backend found!`; a evidência de hardware
+Windows nativo continua aberta.
+
+O builder determinístico de árvore limpa agora passa localmente para Linux e
+Windows; ainda falta atualizar o pacote público, reter evidência de
+apresentação específica do alvo e concluir a release pareada.
 
 | Alvo | Estado atual da fonte/evidência | Evidência restante para release |
 |---|---|---|
-| Linux x86-64 | A apresentação nativa contém gameplay local, host/join de dois jogadores, gate explícito de prontidão, estado autoritativo de bots/jogadores, nomes, corações e lobby/placar limitados. As sondas JVM/nativas focadas e o gate de pacote assinado/package-smoke passam. | Executar o builder pareado de árvore limpa, verificar o arquivo extraído fora do checkout e executar smoke isolado de iniciar/jogar/reiniciar/sair em uma GPU suportada e host Linux novo. |
-| Windows x86-64 | Os gates de empacotamento PE/SDL nativo e reprodutibilidade incluem o probe Kof de apresentação atual, SDL3/SDL_mixer e produtos SPIR-V/DXIL. O gate de artefato assinado passa com dependências de build fixadas; não há evidência de hardware Windows nativo retida. | Executar o builder pareado de árvore limpa, verificar o ZIP extraído fora do checkout e concluir smoke nativo Windows de input/áudio/GPU/driver. |
+| Linux x86-64 | Verificação determinística de pacote/assinatura/checksum em árvore limpa, package smoke fora do checkout e smoke focado de gameplay goose passam. | Executar smoke de `Play`/movimento/mira/tiro/dano/restart/quit em um host Linux novo com GPU capaz de apresentação e reter evidência de driver, screenshot e saída. |
+| Windows x86-64 | Verificação determinística do pacote limpo `0.1.0-windows-e2e.1`, assinatura/checksum, extração segura, validação PE e entradas SPIR-V/DXIL passam; a apresentação em Wine isolado está bloqueada pela ausência de backend SDL_GPU. | Executar o workflow de release pareada e concluir smoke nativo Windows de input/áudio/GPU/driver. |
+
 
 O checklist detalhado de aceitação, os bloqueios e o escopo futuro não bloqueante
 estão em [Prontidão da release demo](docs/DEMO_RELEASE.md).
