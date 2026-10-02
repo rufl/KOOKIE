@@ -286,6 +286,12 @@ The focused dedicated-server gate now passes 512 measured ticks at p95
 simulation budget. The earlier full orchestration overrun was pressure-sensitive
 and remains recorded separately from the target-GPU presentation blocker.
 
+The current source commit also has a local native-only qualification package
+`0.1.0-perf.2`, with archive SHA-256
+`3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+Its extracted package smoke and packaged dedicated-server p95 gate passed; it
+is not a public release or a presentation artifact.
+
 ### Simple WAN goose session
 
 Run the small authenticated rendezvous on a reachable Linux host:

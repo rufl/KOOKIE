@@ -214,9 +214,19 @@ O artefato atual de qualificação da GUI é
 `b1d4db92bf3adf166d503ca0eb44d8569498950c`, com SHA-256 do arquivo
 `d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
 Assinaturas determinísticas, extração e package-smoke passaram. Ele usa uma
-chave efêmera e não é uma release pública; a apresentação via overzeer
-continua bloqueada por pressão total de I/O, portanto não há afirmação de GPU
-em hardware-alvo.
+chave efêmera e não é uma release pública. Uma tentativa anterior via overzeer
+foi bloqueada por pressão total de I/O; uma nova tentativa chegou ao SDL nativo,
+mas relatou `No DRI3 support detected` e `No supported SDL_GPU backend found`
+antes do timeout de 240 segundos, portanto não há afirmação de GPU em
+hardware-alvo.
+
+O commit de fonte atual
+`87d3bc63b3bbc66c23f796258f5b9ea5147fb0df` também produziu o pacote nativo
+local `0.1.0-perf.2`; o SHA-256 do arquivo é
+`3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+O package-smoke extraído passou, e o servidor dedicado empacotado passou o
+gate de p95 de 4ms (`3396us` na execução retida). Este é um pacote local de
+qualificação, não uma release pública.
 
 
 O builder determinístico de árvore limpa agora passa localmente para Linux e

@@ -214,8 +214,18 @@ The current GUI qualification artifact is
 `b1d4db92bf3adf166d503ca0eb44d8569498950c`, with archive SHA-256
 `d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
 Deterministic signing, extraction and package smoke passed. It uses an
-ephemeral key and is not a public release; overzeer presentation remains
-blocked by full I/O pressure, so no target-hardware GPU claim is made.
+ephemeral key and is not a public release. An earlier overzeer attempt was
+blocked by full I/O pressure; a retry reached native SDL but reported
+`No DRI3 support detected` and `No supported SDL_GPU backend found` before
+the 240-second timeout, so no target-hardware GPU claim is made.
+
+The current source commit
+`87d3bc63b3bbc66c23f796258f5b9ea5147fb0df` also produced local native package
+`0.1.0-perf.2`; its archive SHA-256 is
+`3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+Extracted package smoke passed, and the packaged dedicated server passed the
+4ms p95 gate (`3396us` in the retained run). This is a local qualification
+package, not a public release.
 
 
 The deterministic clean-tree builder now passes locally for both Linux and

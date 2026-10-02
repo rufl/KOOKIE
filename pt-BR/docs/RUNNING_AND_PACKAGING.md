@@ -289,6 +289,12 @@ O gate focado do servidor dedicado agora passa 512 ticks medidos com p95 de
 `4000us`. O excesso anterior do orquestrador completo foi sensível à pressão e
 continua registrado separadamente do bloqueio de apresentação na GPU-alvo.
 
+O commit de fonte atual também possui o pacote local de qualificação somente
+nativo `0.1.0-perf.2`, com SHA-256 do arquivo
+`3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+O package-smoke extraído e o gate de p95 do servidor dedicado empacotado
+passaram; ele não é uma release pública nem um artefato de apresentação.
+
 ### Sessão WAN simples de gansos
 
 Execute o rendezvous UDP autenticado em um host Linux alcançável:

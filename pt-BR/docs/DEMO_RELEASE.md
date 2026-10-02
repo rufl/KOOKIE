@@ -123,6 +123,14 @@ antes de uma release pública.
   de `4000us`; o excesso anterior do orquestrador completo foi sensível à
   pressão.
 
+- O commit de fonte atual
+  `87d3bc63b3bbc66c23f796258f5b9ea5147fb0df` também produziu o pacote nativo
+  local `0.1.0-perf.2`; o SHA-256 do arquivo é
+  `3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+  O package-smoke extraído passou, e o servidor dedicado empacotado passou o
+  gate de p95 de 4ms (`3396us` na execução retida). Este não é um artefato
+  de release público.
+
 - Os helpers de input/ACK em passo fixo, fixação do peer, rewind e interpolação
   remota têm cobertura nos checks G6 focados; isso não substitui gameplay no
   host-alvo.

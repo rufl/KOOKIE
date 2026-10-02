@@ -24,6 +24,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   checksum incrementally without changing the deterministic workload checksum.
 - `bash scripts/verify_dedicated_server.sh` now passes 512 measured ticks with
   p95 `3624us`, p99 `3689us` and maximum `3899us` under the `4000us` budget.
+- Produced local native qualification package `0.1.0-perf.2` from source
+  commit `87d3bc63b3bbc66c23f796258f5b9ea5147fb0df`; its archive SHA-256 is
+  `3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+  Extracted package smoke and packaged-server p95 qualification passed; it is
+  not a public release.
+
 
 ### Demo release qualification refresh
 

@@ -155,6 +155,13 @@ before calling it a public release.
   `3624us`, p99 `3689us` and maximum `3899us` under the `4000us` simulation
   budget; the earlier full orchestration overrun was pressure-sensitive.
 
+- The current source commit
+  `87d3bc63b3bbc66c23f796258f5b9ea5147fb0df` also produced local native
+  package `0.1.0-perf.2`; its archive SHA-256 is
+  `3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+  Extracted package smoke passed, and the packaged dedicated server passed the
+  4ms p95 gate (`3396us` in the retained run). This is not a public release.
+
 - The fixed-tick input/ACK, peer-pinning, rewind and remote-interpolation
   helpers are covered by focused G6 checks; they do not replace target-host
   gameplay evidence.

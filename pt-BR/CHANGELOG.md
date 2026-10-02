@@ -27,6 +27,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - `bash scripts/verify_dedicated_server.sh` agora passa 512 ticks medidos com
   p95 de `3624us`, p99 de `3689us` e máximo de `3899us` sob o orçamento de
   `4000us`.
+- Produzimos o pacote local de qualificação somente nativo `0.1.0-perf.2` do
+  commit de fonte `87d3bc63b3bbc66c23f796258f5b9ea5147fb0df`; o SHA-256 do
+  arquivo é
+  `3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
+  O package-smoke extraído e a qualificação de p95 do servidor empacotado
+  passaram; não é uma release pública.
 
 
 ### Atualização da qualificação da release demo
