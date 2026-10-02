@@ -1,0 +1,507 @@
+package session
+
+Int netcodeProtocolVersion() { return 2 }
+Int netcodeInputBundleKind() { return 9 }
+Int netcodeInputAckKind() { return 10 }
+Int netcodeMaximumInputHistory() { return 3 }
+Int netcodeMaximumSnapshotHistory() { return 8 }
+Int netcodeDiagnosticNone() { return 0 }
+Int netcodeDiagnosticConfiguration() { return 1 }
+Int netcodeDiagnosticStale() { return 2 }
+Int netcodeDiagnosticOrder() { return 3 }
+Int netcodeDiagnosticCapacity() { return 4 }
+Int netcodeDiagnosticFrame() { return 5 }
+
+Int netcodeMaximumRewindTicks() { return 12 }
+Int netcodeMaximumRewindActors() { return 128 }
+Int netcodeDefaultRenderDelayTicks() { return 6 }
+Int netcodeDiagnosticRewind() { return 6 }
+Int netcodeDiagnosticInterpolation() { return 7 }
+
+Int netcodeAbsolute(Int value) {
+    if (value < 0) { return -value }
+    return value
+}
+
+Int netcodeLagCompensationTick(
+    Int serverTick, Int serverSnapshotSequence,
+    Int snapshotAck, Int renderDelayTicks
+) {
+    if (serverTick < 0 || serverSnapshotSequence < 0 ||
+        snapshotAck < 0 || renderDelayTicks < 0) {
+        return -1
+    }
+    var snapshotLag = serverSnapshotSequence - snapshotAck
+    if (snapshotLag < 0) { snapshotLag = 0 }
+    var rewind = snapshotLag / 2 + renderDelayTicks
+    if (rewind > netcodeMaximumRewindTicks() - 1) {
+        rewind = netcodeMaximumRewindTicks() - 1
+    }
+    var targetTick = serverTick - rewind
+    if (targetTick < 0) { targetTick = 0 }
+    return targetTick
+}
+
+Int netcodeRemoteRenderTick(Int currentTick) {
+    if (currentTick < 0) { return -1 }
+    var renderTick = currentTick - netcodeDefaultRenderDelayTicks()
+    if (renderTick < 0) { renderTick = 0 }
+    return renderTick
+}
+
+record NetcodeHistoricalPosition(
+    Bool found, Int tick, Int x, Int y, Int z
+)
+
+class NetcodeInputHistory {
+    Int capacityValue
+    Int countValue
+    Int acknowledgedSequenceValue
+    Int latestTickValue
+    Int latestSequenceValue
+    Int diagnosticValue
+    Int[] ticks
+    Int[] sequences
+    Int[] moves
+    Int[] fires
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0 || actualCapacity > netcodeMaximumInputHistory()) {
+            actualCapacity = netcodeMaximumInputHistory()
+        }
+        capacityValue = actualCapacity
+        countValue = 0
+        acknowledgedSequenceValue = 0
+        latestTickValue = 0
+        latestSequenceValue = 0
+        diagnosticValue = netcodeDiagnosticNone()
+        ticks = new Int[actualCapacity]
+        sequences = new Int[actualCapacity]
+        moves = new Int[actualCapacity]
+        fires = new Int[actualCapacity]
+    }
+
+    void clear() {
+        countValue = 0
+        acknowledgedSequenceValue = 0
+        latestTickValue = 0
+        latestSequenceValue = 0
+        diagnosticValue = netcodeDiagnosticNone()
+        for (var index = 0; index < capacityValue; index = index + 1) {
+            ticks[index] = 0
+            sequences[index] = 0
+            moves[index] = 0
+            fires[index] = 0
+        }
+    }
+
+    Bool push(Int tick, Int sequence, Int move, Int fire) {
+        if (tick <= 0 || tick > 1000000 || sequence <= 0 ||
+            sequence > 1000000 || move < -4 || move > 4 ||
+            (fire != 0 && fire != 1)) {
+            diagnosticValue = netcodeDiagnosticFrame()
+            return false
+        }
+        if (countValue > 0 &&
+            (tick <= latestTickValue || sequence <= latestSequenceValue)) {
+            diagnosticValue = netcodeDiagnosticOrder()
+            return false
+        }
+        var target = countValue
+        if (target >= capacityValue) {
+            for (var index = 1; index < capacityValue; index = index + 1) {
+                ticks[index - 1] = ticks[index]
+                sequences[index - 1] = sequences[index]
+                moves[index - 1] = moves[index]
+                fires[index - 1] = fires[index]
+            }
+            target = capacityValue - 1
+        } else {
+            countValue = countValue + 1
+        }
+        ticks[target] = tick
+        sequences[target] = sequence
+        moves[target] = move
+        fires[target] = fire
+        latestTickValue = tick
+        latestSequenceValue = sequence
+        diagnosticValue = netcodeDiagnosticNone()
+        return true
+    }
+
+    Bool acknowledge(Int sequence) {
+        if (sequence < acknowledgedSequenceValue ||
+            sequence > latestSequenceValue) {
+            diagnosticValue = netcodeDiagnosticStale()
+            return false
+        }
+        acknowledgedSequenceValue = sequence
+        var removed = 0
+        while (removed < countValue && sequences[removed] <= sequence) {
+            removed = removed + 1
+        }
+        if (removed > 0) {
+            var remaining = countValue - removed
+            for (var index = 0; index < remaining; index = index + 1) {
+                ticks[index] = ticks[index + removed]
+                sequences[index] = sequences[index + removed]
+                moves[index] = moves[index + removed]
+                fires[index] = fires[index + removed]
+            }
+            countValue = remaining
+        }
+        diagnosticValue = netcodeDiagnosticNone()
+        return true
+    }
+
+    Int capacity() { return capacityValue }
+    Int count() { return countValue }
+    Int acknowledgedSequence() { return acknowledgedSequenceValue }
+    Int latestTick() { return latestTickValue }
+    Int latestSequence() { return latestSequenceValue }
+    Int diagnostic() { return diagnosticValue }
+
+    Int tickAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return ticks[index]
+    }
+
+    Int sequenceAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return sequences[index]
+    }
+
+    Int moveAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return moves[index]
+    }
+
+    Int fireAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return fires[index]
+    }
+
+    Int[] commandWords() {
+        var words = new Int[countValue * 4]
+        for (var index = 0; index < countValue; index = index + 1) {
+            var offset = index * 4
+            words[offset] = ticks[index]
+            words[offset + 1] = sequences[index]
+            words[offset + 2] = moves[index]
+            words[offset + 3] = fires[index]
+        }
+        return words
+    }
+}
+
+class NetcodeSnapshotWindow {
+    Int countValue
+    Int latestTickValue
+    Int latestSequenceValue
+    Int[] ticks
+    Int[] sequences
+    Int[] values
+
+    public constructor() {
+        countValue = 0
+        latestTickValue = 0
+        latestSequenceValue = 0
+        ticks = new Int[netcodeMaximumSnapshotHistory()]
+        sequences = new Int[netcodeMaximumSnapshotHistory()]
+        values = new Int[netcodeMaximumSnapshotHistory()]
+    }
+
+    void clear() {
+        countValue = 0
+        latestTickValue = 0
+        latestSequenceValue = 0
+    }
+
+    Bool accept(Int tick, Int sequence, Int value) {
+        if (tick < 0 || tick > 1000000 || sequence <= 0 ||
+            sequence > 1000000) {
+            return false
+        }
+        if (countValue > 0 &&
+            (tick <= latestTickValue || sequence <= latestSequenceValue)) {
+            return false
+        }
+        var target = countValue
+        if (target >= netcodeMaximumSnapshotHistory()) {
+            for (var index = 1;
+                index < netcodeMaximumSnapshotHistory(); index = index + 1) {
+                ticks[index - 1] = ticks[index]
+                sequences[index - 1] = sequences[index]
+                values[index - 1] = values[index]
+            }
+            target = netcodeMaximumSnapshotHistory() - 1
+        } else {
+            countValue = countValue + 1
+        }
+        ticks[target] = tick
+        sequences[target] = sequence
+        values[target] = value
+        latestTickValue = tick
+        latestSequenceValue = sequence
+        return true
+    }
+
+    Int count() { return countValue }
+    Int latestTick() { return latestTickValue }
+    Int latestSequence() { return latestSequenceValue }
+
+    Int sample(Int targetTick) {
+        if (countValue <= 0) { return 0 }
+        if (targetTick <= ticks[0]) { return values[0] }
+        if (targetTick >= ticks[countValue - 1]) {
+            return values[countValue - 1]
+        }
+        for (var index = 1; index < countValue; index = index + 1) {
+            if (targetTick <= ticks[index]) {
+                var beforeTick = ticks[index - 1]
+                var afterTick = ticks[index]
+                var span = afterTick - beforeTick
+                if (span <= 0) { return values[index] }
+                var distance = targetTick - beforeTick
+                var delta = values[index] - values[index - 1]
+                return values[index - 1] + delta * distance / span
+            }
+        }
+        return values[countValue - 1]
+    }
+}
+
+class NetcodeRewindHistory {
+    Int actorCapacityValue
+    Int tickCapacityValue
+    Int tickCountValue
+    Int oldestSlotValue
+    Int latestTickValue
+    Int diagnosticValue
+    Int[] tickValues
+    Int[] actorIds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+
+    public constructor(Int actorCapacity, Int tickCapacity) {
+        var safeActors = actorCapacity
+        if (safeActors <= 0 || safeActors > netcodeMaximumRewindActors()) {
+            safeActors = netcodeMaximumRewindActors()
+        }
+        var safeTicks = tickCapacity
+        if (safeTicks <= 0 || safeTicks > netcodeMaximumRewindTicks()) {
+            safeTicks = netcodeMaximumRewindTicks()
+        }
+        actorCapacityValue = safeActors
+        tickCapacityValue = safeTicks
+        tickCountValue = 0
+        oldestSlotValue = 0
+        latestTickValue = -1
+        diagnosticValue = netcodeDiagnosticNone()
+        tickValues = new Int[safeTicks]
+        actorIds = new Int[safeTicks * safeActors]
+        positionsX = new Int[safeTicks * safeActors]
+        positionsY = new Int[safeTicks * safeActors]
+        positionsZ = new Int[safeTicks * safeActors]
+        for (var tick = 0; tick < safeTicks; tick = tick + 1) {
+            tickValues[tick] = -1
+            for (var actor = 0; actor < safeActors; actor = actor + 1) {
+                var offset = tick * safeActors + actor
+                actorIds[offset] = 0
+                positionsX[offset] = 0
+                positionsY[offset] = 0
+                positionsZ[offset] = 0
+            }
+        }
+    }
+
+    void clearSlot(Int slot) {
+        tickValues[slot] = -1
+        for (var actor = 0; actor < actorCapacityValue; actor = actor + 1) {
+            var offset = slot * actorCapacityValue + actor
+            actorIds[offset] = 0
+            positionsX[offset] = 0
+            positionsY[offset] = 0
+            positionsZ[offset] = 0
+        }
+    }
+
+    void clear() {
+        tickCountValue = 0
+        oldestSlotValue = 0
+        latestTickValue = -1
+        diagnosticValue = netcodeDiagnosticNone()
+        for (var slot = 0; slot < tickCapacityValue; slot = slot + 1) {
+            clearSlot(slot)
+        }
+    }
+
+    Int findTickSlot(Int tick) {
+        for (var index = 0; index < tickCountValue; index = index + 1) {
+            var slot = (oldestSlotValue + index) % tickCapacityValue
+            if (tickValues[slot] == tick) { return slot }
+        }
+        return -1
+    }
+
+    Int findActorOffset(Int slot, Int actorId) {
+        var base = slot * actorCapacityValue
+        for (var actor = 0; actor < actorCapacityValue; actor = actor + 1) {
+            if (actorIds[base + actor] == actorId) {
+                return base + actor
+            }
+        }
+        return -1
+    }
+
+    Int findFreeOffset(Int slot) {
+        var base = slot * actorCapacityValue
+        for (var actor = 0; actor < actorCapacityValue; actor = actor + 1) {
+            if (actorIds[base + actor] == 0) {
+                return base + actor
+            }
+        }
+        return -1
+    }
+
+    Int findSampleSlot(Int targetTick) {
+        if (tickCountValue <= 0) { return -1 }
+        var selected = -1
+        var selectedTick = -1
+        for (var index = 0; index < tickCountValue; index = index + 1) {
+            var slot = (oldestSlotValue + index) % tickCapacityValue
+            var tick = tickValues[slot]
+            if (tick <= targetTick && tick >= selectedTick) {
+                selected = slot
+                selectedTick = tick
+            }
+        }
+        return selected
+    }
+
+    Bool push(Int tick, Int actorId, Int x, Int y, Int z) {
+        if (tick < 0 || tick > 1000000 ||
+            actorId <= 0 || actorId > actorCapacityValue) {
+            diagnosticValue = netcodeDiagnosticFrame()
+            return false
+        }
+        if (tickCountValue > 0 && tick < latestTickValue) {
+            diagnosticValue = netcodeDiagnosticStale()
+            return false
+        }
+        var slot = findTickSlot(tick)
+        if (slot < 0) {
+            if (tickCountValue < tickCapacityValue) {
+                slot = (oldestSlotValue + tickCountValue) % tickCapacityValue
+                tickCountValue = tickCountValue + 1
+            } else {
+                oldestSlotValue = (oldestSlotValue + 1) % tickCapacityValue
+                slot = (oldestSlotValue + tickCountValue - 1) %
+                    tickCapacityValue
+                clearSlot(slot)
+            }
+            tickValues[slot] = tick
+        }
+        var offset = findActorOffset(slot, actorId)
+        if (offset < 0) { offset = findFreeOffset(slot) }
+        if (offset < 0) {
+            diagnosticValue = netcodeDiagnosticCapacity()
+            return false
+        }
+        actorIds[offset] = actorId
+        positionsX[offset] = x
+        positionsY[offset] = y
+        positionsZ[offset] = z
+        if (tick > latestTickValue) { latestTickValue = tick }
+        diagnosticValue = netcodeDiagnosticNone()
+        return true
+    }
+
+    NetcodeHistoricalPosition sample(Int actorId, Int targetTick) {
+        if (actorId <= 0 || actorId > actorCapacityValue ||
+            targetTick < 0 || tickCountValue <= 0) {
+            return NetcodeHistoricalPosition(false, 0, 0, 0, 0)
+        }
+        var slot = findSampleSlot(targetTick)
+        if (slot < 0) {
+            diagnosticValue = netcodeDiagnosticRewind()
+            return NetcodeHistoricalPosition(false, 0, 0, 0, 0)
+        }
+        var offset = findActorOffset(slot, actorId)
+        if (offset < 0) {
+            diagnosticValue = netcodeDiagnosticRewind()
+            return NetcodeHistoricalPosition(false, 0, 0, 0, 0)
+        }
+        diagnosticValue = netcodeDiagnosticNone()
+        return NetcodeHistoricalPosition(
+            true, tickValues[slot], positionsX[offset],
+            positionsY[offset], positionsZ[offset])
+    }
+
+    Int distance(Int firstActorId, Int secondActorId, Int targetTick) {
+        var first = sample(firstActorId, targetTick)
+        var second = sample(secondActorId, targetTick)
+        if (!first.found() || !second.found()) { return -1 }
+        var distance = netcodeAbsolute(second.x() - first.x())
+        var distanceY = netcodeAbsolute(second.y() - first.y())
+        if (distanceY > distance) { distance = distanceY }
+        var distanceZ = netcodeAbsolute(second.z() - first.z())
+        if (distanceZ > distance) { distance = distanceZ }
+        return distance
+    }
+
+    Int actorCapacity() { return actorCapacityValue }
+    Int tickCapacity() { return tickCapacityValue }
+    Int tickCount() { return tickCountValue }
+    Int oldestTick() {
+        if (tickCountValue <= 0) { return -1 }
+        return tickValues[oldestSlotValue]
+    }
+    Int latestTick() { return latestTickValue }
+    Int diagnostic() { return diagnosticValue }
+}
+
+class NetcodeCorrectionMetrics {
+    Int correctionCountValue
+    Int totalAbsoluteCorrectionValue
+    Int maximumAbsoluteCorrectionValue
+    Int worstTickValue
+
+    public constructor() {
+        correctionCountValue = 0
+        totalAbsoluteCorrectionValue = 0
+        maximumAbsoluteCorrectionValue = 0
+        worstTickValue = 0
+    }
+
+    void clear() {
+        correctionCountValue = 0
+        totalAbsoluteCorrectionValue = 0
+        maximumAbsoluteCorrectionValue = 0
+        worstTickValue = 0
+    }
+
+    Bool measure(Int predicted, Int authoritative, Int tick) {
+        if (tick < 0) { return false }
+        var magnitude = netcodeAbsolute(predicted - authoritative)
+        correctionCountValue = correctionCountValue + 1
+        totalAbsoluteCorrectionValue =
+            totalAbsoluteCorrectionValue + magnitude
+        if (magnitude > maximumAbsoluteCorrectionValue) {
+            maximumAbsoluteCorrectionValue = magnitude
+            worstTickValue = tick
+        }
+        return true
+    }
+
+    Int count() { return correctionCountValue }
+    Int totalAbsoluteCorrection() { return totalAbsoluteCorrectionValue }
+    Int maximumAbsoluteCorrection() { return maximumAbsoluteCorrectionValue }
+    Int worstTick() { return worstTickValue }
+    Int averageAbsoluteCorrection() {
+        if (correctionCountValue <= 0) { return 0 }
+        return totalAbsoluteCorrectionValue / correctionCountValue
+    }
+}

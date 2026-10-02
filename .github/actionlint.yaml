@@ -1,0 +1,4 @@
+# Custom labels used by the manually approved demo-release runners.
+self-hosted-runner:
+  labels:
+    - kookie-demo-release

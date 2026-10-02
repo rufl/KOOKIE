@@ -208,7 +208,9 @@ The protocol is transport-independent:
 
 - Reliable ordered control channel for handshake, admission, join/leave,
   required commands and session metadata.
-- Unreliable sequenced channel for input and superseding snapshots.
+- Fixed-tick input channel over authenticated UDP: up to three ordered inputs
+  are repeated, the latest snapshot is acknowledged, and the host returns an
+  input acknowledgement; newer authoritative snapshots supersede older ones.
 - Explicit tick, sequence, acknowledgement, baseline and content-revision
   fields.
 - Bounded packet size, decode work, queue length and entity count.
@@ -712,6 +714,41 @@ compatibility only. The native-shell isolated Wine smoke verifies gameplay;
 presentation visual smoke remains environment-gated on a DRI3-capable GPU.
 The WAN profile does not claim NAT traversal, relay service, confidentiality or
 DDoS resistance.
+
+### G6 — Netcode evolution
+
+The session layer takes the strongest compatible parts of two current
+references:
+
+- [UZDoom's current `d_net.h`](https://raw.githubusercontent.com/UZDoom/UZDoom/trunk/src/d_net.h)
+  and [`d_net.cpp`](https://raw.githubusercontent.com/UZDoom/UZDoom/trunk/src/d_net.cpp)
+  use fixed-tic command streams, bounded backup history, sequence/consistency
+  acknowledgements, retransmission state, latency tracking and prediction
+  correction.
+- [Hytale's official server manual](https://support.hytale.com/hc/en-us/articles/45326769420827-Hytale-Server-Manual)
+  documents an authenticated, server-authoritative QUIC-over-UDP server model.
+  Its typed packet/adaptor surface is described in the
+  [packet listener guide](https://hytalemodding.dev/en/docs/guides/plugin/listening-to-packets).
+
+KOOKIE now applies the portable subset without importing a QUIC dependency:
+the host remains authoritative; clients send a fixed-tick bundle containing
+up to three ordered inputs plus the last snapshot acknowledgement; the host
+returns typed authoritative snapshots and an input acknowledgement; stale
+frames are rejected; and the native transport pins the authenticated peer
+address after admission. Snapshot interpolation and prediction helpers remain
+bounded and deterministic. Input redundancy handles ordinary UDP loss without
+turning snapshots into a head-of-line-blocking stream.
+
+The server also retains a bounded 12-tick historical position window. Hitscan
+range is evaluated against the acknowledged-latency rewind position, not an
+untrusted client distance. Remote player rendering uses a bounded six-tick
+interpolation delay, and prediction exposes count, average and maximum
+correction metrics.
+
+The wire remains the existing Linux/Windows authenticated UDP envelope for
+package portability. This is QUIC-inspired channel separation, not QUIC
+interoperability. It still provides no confidentiality, relay, symmetric-NAT
+recovery or production DDoS protection.
 
 ## 11. Explicit non-goals
 

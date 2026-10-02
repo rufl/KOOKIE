@@ -154,6 +154,10 @@ class LoopbackSession {
     ClientPredictionState playerTwoPrediction
     SnapshotHistory playerOneSnapshots
     SnapshotHistory playerTwoSnapshots
+    NetcodeSnapshotWindow clientRemotePlayerOneSnapshots
+    NetcodeSnapshotWindow clientRemotePlayerTwoSnapshots
+    NetcodeCorrectionMetrics playerOneCorrectionMetrics
+    NetcodeCorrectionMetrics playerTwoCorrectionMetrics
     BoundedTriangleCollection broadPhaseCollection
     BoundedTriangleCollection clientBroadPhaseCollection
     Int clientBroadPhaseSnapshotSequence
@@ -164,6 +168,7 @@ class LoopbackSession {
     RemoteSessionLink remoteLink
     Bool remoteConfigured
     Int remoteSendSequenceValue
+    NetcodeRewindHistory serverRewindHistory
     AuthoritativeEnemySession enemyCombat
     EnemySnapshotHistory enemyServerSnapshots
     EnemySnapshotHistory enemyClientSnapshots
@@ -227,8 +232,14 @@ class LoopbackSession {
         playerTwoPrediction = ClientPredictionState(4)
         playerOneSnapshots = SnapshotHistory(8)
         playerTwoSnapshots = SnapshotHistory(8)
+        clientRemotePlayerOneSnapshots = NetcodeSnapshotWindow()
+        clientRemotePlayerTwoSnapshots = NetcodeSnapshotWindow()
+        playerOneCorrectionMetrics = NetcodeCorrectionMetrics()
+        playerTwoCorrectionMetrics = NetcodeCorrectionMetrics()
         broadPhaseCollection = BoundedTriangleCollection(32, 64)
         broadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
+        serverRewindHistory = NetcodeRewindHistory(
+            netcodeMaximumRewindActors(), netcodeMaximumRewindTicks())
         enemyCombat = AuthoritativeEnemySession(entityCapacity, entityCapacity)
         enemyServerSnapshots = EnemySnapshotHistory(entityCapacity * 8)
         enemyClientSnapshots = EnemySnapshotHistory(entityCapacity * 8)
@@ -631,12 +642,16 @@ class LoopbackSession {
     Int enemyDefinitionCount() {
         return enemyDefinitions.count()
     }
-
     Bool start() {
         if (started || !extensionRegistry.seal() ||
             !enemyDefinitions.seal() || !worldInteractions.seal()) {
             return false
         }
+        serverRewindHistory.clear()
+        clientRemotePlayerOneSnapshots.clear()
+        clientRemotePlayerTwoSnapshots.clear()
+        playerOneCorrectionMetrics.clear()
+        playerTwoCorrectionMetrics.clear()
         started = true
         return true
     }
@@ -1039,6 +1054,16 @@ class LoopbackSession {
             generation > clientRemoteConnectionGenerationValue
         var positionOne = gameplayStatePlayerPosition(words, 1)
         var positionTwo = gameplayStatePlayerPosition(words, 2)
+        if (newBaseline) {
+            clientRemotePlayerOneSnapshots.clear()
+            clientRemotePlayerTwoSnapshots.clear()
+        }
+        if (!clientRemotePlayerOneSnapshots.accept(
+                words[2], words[3], positionOne) ||
+            !clientRemotePlayerTwoSnapshots.accept(
+                words[2], words[3], positionTwo)) {
+            return false
+        }
         var authoritativePosition = positionOne
         if (player == 2) {
             authoritativePosition = positionTwo
@@ -1696,6 +1721,29 @@ class LoopbackSession {
         return clientRemoteEnemyPositionsZ[index]
     }
 
+
+    Int interpolatedRemotePlayerPosition(Int player, Int renderTick) {
+        if (!clientRemoteBaselineReadyValue || renderTick < 0) {
+            return -1000001
+        }
+        if (player == 1) {
+            return clientRemotePlayerOneSnapshots.sample(renderTick)
+        }
+        if (player == 2) {
+            return clientRemotePlayerTwoSnapshots.sample(renderTick)
+        }
+        return -1000001
+    }
+
+    Int remotePlayerSnapshotCount(Int player) {
+        if (player == 1) {
+            return clientRemotePlayerOneSnapshots.count()
+        }
+        if (player == 2) {
+            return clientRemotePlayerTwoSnapshots.count()
+        }
+        return 0
+    }
     Int clientRemoteImpactSequence() {
         return clientRemoteImpactSequenceValue
     }
@@ -2421,6 +2469,15 @@ class LoopbackSession {
         return enemyCombat.enemySpatialPositionZ(enemyId)
     }
 
+    Int enemyDistanceAt(Int sourceId, Int targetId, Int shotTick) {
+        var historicalDistance =
+            serverRewindHistory.distance(sourceId, targetId, shotTick)
+        if (historicalDistance >= 0) {
+            return historicalDistance
+        }
+        return enemyCombat.spatialDistance(sourceId, targetId)
+    }
+
     Int enemyEncounterActiveCount(Int encounterId) {
         return enemyCombat.encounterActiveCount(encounterId)
     }
@@ -2504,6 +2561,27 @@ class LoopbackSession {
         }
         enemyLootClaimed[slot] = true
         return true
+    }
+
+    ResolutionResult resolveEnemyHitscanAt(
+        Int sourceId, Int targetId, Int serverTickValue,
+        Int shotTick, Int distance, Int critical
+    ) {
+        if (shotTick < 0 || serverTickValue < shotTick ||
+            serverTickValue - shotTick >= netcodeMaximumRewindTicks()) {
+            return ResolutionResult(
+                false, 0, sourceId, targetId, 0,
+                enemyCombat.currentHealth(targetId), false, 0)
+        }
+        var historicalDistance =
+            serverRewindHistory.distance(sourceId, targetId, shotTick)
+        var effectiveDistance = distance
+        if (historicalDistance >= 0) {
+            effectiveDistance = historicalDistance
+        }
+        return resolveEnemyHitscan(
+            sourceId, targetId, serverTickValue,
+            effectiveDistance, critical)
     }
 
     ResolutionResult resolveEnemyHitscan(
@@ -4172,6 +4250,27 @@ class LoopbackSession {
             sourceId, targetIds, amount, channel, critical)
     }
 
+    ResolutionResult resolvePlayerHitscanAt(
+        Int sourceId, Int targetId, Int serverTickValue,
+        Int shotTick, Int distance, Int critical
+    ) {
+        if (shotTick < 0 || serverTickValue < shotTick ||
+            serverTickValue - shotTick >= netcodeMaximumRewindTicks()) {
+            return ResolutionResult(
+                false, 0, sourceId, targetId, 0,
+                playerCombat.currentHealth(targetId), false, 0)
+        }
+        var historicalDistance =
+            serverRewindHistory.distance(sourceId, targetId, shotTick)
+        var effectiveDistance = distance
+        if (historicalDistance >= 0) {
+            effectiveDistance = historicalDistance
+        }
+        return resolvePlayerHitscan(
+            sourceId, targetId, serverTickValue,
+            effectiveDistance, critical)
+    }
+
     ResolutionResult resolvePlayerHitscan(
         Int sourceId, Int targetId, Int tick, Int distance, Int critical
     ) {
@@ -5328,6 +5427,35 @@ class LoopbackSession {
         return false
     }
 
+    Bool recordAuthoritativeRewindSnapshot(Int tick) {
+        if (playerOneConnected &&
+            !serverRewindHistory.push(
+                tick, 1, serverMovement.position(1),
+                enemyCombat.enemySpatialPositionY(1),
+                enemyCombat.enemySpatialPositionZ(1))) {
+            return false
+        }
+        if (playerTwoConnected &&
+            !serverRewindHistory.push(
+                tick, 2, serverMovement.position(2),
+                enemyCombat.enemySpatialPositionY(2),
+                enemyCombat.enemySpatialPositionZ(2))) {
+            return false
+        }
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            var enemyId = enemyIds[index]
+            if (enemyId > 0 && enemyCombat.hasSpatialPosition(enemyId) &&
+                !serverRewindHistory.push(
+                    tick, enemyId,
+                    enemyCombat.enemySpatialPositionX(enemyId),
+                    enemyCombat.enemySpatialPositionY(enemyId),
+                    enemyCombat.enemySpatialPositionZ(enemyId))) {
+                return false
+            }
+        }
+        return true
+    }
+
     Int advance(Int elapsedMicros) {
         if (!started) {
             return -1
@@ -5346,7 +5474,9 @@ class LoopbackSession {
                 playerOneInputs.dequeue()
                 var commandOne = playerOneInputs.lastConsumed()
                 playerOneEdges.apply(commandOne.fire(), commandOne.jump())
-                if (inputReplayEnabled && !playerOneReplay.appendAtTick(commandOne, simulationTick)) {
+                if (inputReplayEnabled &&
+                    !playerOneReplay.appendAtTick(
+                        commandOne, simulationTick)) {
                     return -1
                 }
                 if (!applyDoorAwareMovement(1, commandOne.moveX())) {
@@ -5362,7 +5492,9 @@ class LoopbackSession {
                 playerTwoInputs.nextTick() <= simulationTick) {
                 playerTwoInputs.dequeue()
                 var commandTwo = playerTwoInputs.lastConsumed()
-                if (inputReplayEnabled && !playerTwoReplay.appendAtTick(commandTwo, simulationTick)) {
+                if (inputReplayEnabled &&
+                    !playerTwoReplay.appendAtTick(
+                        commandTwo, simulationTick)) {
                     return -1
                 }
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
@@ -5384,21 +5516,40 @@ class LoopbackSession {
             if (!tickPlayerStatuses()) {
                 return -1
             }
+            if (!recordAuthoritativeRewindSnapshot(simulationTick)) {
+                return -1
+            }
         }
         serverTick = clock.tick()
         if (steps > 0) {
             snapshotSequence = snapshotSequence + 1
             if (playerOneConnected) {
                 var playerOnePosition = serverMovement.position(1)
-                playerOneSnapshots.push(snapshotSequence, serverTick, playerOnePosition)
-                playerOnePrediction.reconcile(playerOnePosition, serverTick)
-                clientMovement.setPosition(1, playerOnePrediction.predicted())
+                if (!playerOneSnapshots.push(
+                        snapshotSequence, serverTick, playerOnePosition) ||
+                    !playerOneCorrectionMetrics.measure(
+                        playerOnePrediction.predicted(),
+                        playerOnePosition, serverTick) ||
+                    !playerOnePrediction.reconcile(
+                        playerOnePosition, serverTick) ||
+                    !clientMovement.setPosition(
+                        1, playerOnePrediction.predicted())) {
+                    return -1
+                }
             }
             if (playerTwoConnected) {
                 var playerTwoPosition = serverMovement.position(2)
-                playerTwoSnapshots.push(snapshotSequence, serverTick, playerTwoPosition)
-                playerTwoPrediction.reconcile(playerTwoPosition, serverTick)
-                clientMovement.setPosition(2, playerTwoPrediction.predicted())
+                if (!playerTwoSnapshots.push(
+                        snapshotSequence, serverTick, playerTwoPosition) ||
+                    !playerTwoCorrectionMetrics.measure(
+                        playerTwoPrediction.predicted(),
+                        playerTwoPosition, serverTick) ||
+                    !playerTwoPrediction.reconcile(
+                        playerTwoPosition, serverTick) ||
+                    !clientMovement.setPosition(
+                        2, playerTwoPrediction.predicted())) {
+                    return -1
+                }
             }
             clientTick = serverTick
             if (clientInteractionRevisionValue != worldInteractions.revision()) {
@@ -5761,6 +5912,44 @@ class LoopbackSession {
             return playerOnePrediction.correction()
         }
         return playerTwoPrediction.correction()
+    }
+
+    Int predictionCorrectionCount(Int player) {
+        if (player == 1) {
+            return playerOneCorrectionMetrics.count()
+        }
+        if (player == 2) {
+            return playerTwoCorrectionMetrics.count()
+        }
+        return 0
+    }
+
+    Int maximumPredictionCorrection(Int player) {
+        if (player == 1) {
+            return playerOneCorrectionMetrics.maximumAbsoluteCorrection()
+        }
+        if (player == 2) {
+            return playerTwoCorrectionMetrics.maximumAbsoluteCorrection()
+        }
+        return 0
+    }
+
+    Int averagePredictionCorrection(Int player) {
+        if (player == 1) {
+            return playerOneCorrectionMetrics.averageAbsoluteCorrection()
+        }
+        if (player == 2) {
+            return playerTwoCorrectionMetrics.averageAbsoluteCorrection()
+        }
+        return 0
+    }
+
+    Int serverRewindOldestTick() {
+        return serverRewindHistory.oldestTick()
+    }
+
+    Int serverRewindLatestTick() {
+        return serverRewindHistory.latestTick()
     }
 
     Int pendingPredictionInputs(Int player) {

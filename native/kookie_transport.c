@@ -51,6 +51,7 @@ typedef struct {
     struct sockaddr_in peer;
     struct sockaddr_in last_sender;
     bool last_sender_valid;
+    bool peer_valid;
     uint64_t key0;
     uint64_t key1;
     bool key_configured;
@@ -66,6 +67,8 @@ typedef struct {
     int last_status;
     int receive_words[KOOKIE_TRANSPORT_MAX_WORDS];
 } KookieTransport;
+
+
 static KookieTransport transport_slots[KOOKIE_TRANSPORT_MAX_SLOTS] = {
     {
         .socket_fd = KOOKIE_INVALID_SOCKET,
@@ -150,6 +153,14 @@ static bool kookie_socket_would_block(void) {
     return errno == EAGAIN || errno == EWOULDBLOCK;
 }
 #endif
+static bool kookie_transport_peer_matches(
+    const struct sockaddr_in *sender
+) {
+    return transport.peer_valid &&
+        sender->sin_family == transport.peer.sin_family &&
+        sender->sin_addr.s_addr == transport.peer.sin_addr.s_addr &&
+        sender->sin_port == transport.peer.sin_port;
+}
 
 static kookie_io_size_t kookie_socket_send(
     kookie_socket_t socket_fd,
@@ -490,6 +501,7 @@ bool kookie_transport_open(void) {
     transport.socket_fd = socket_fd;
     transport.receive_socket_fd = socket_fd;
     transport.peer = peer;
+    transport.peer_valid = true;
     kookie_transport_reset_counters();
     return true;
 }
@@ -516,6 +528,7 @@ bool kookie_transport_open_pair(void) {
     transport.socket_fd = socket_fd;
     transport.receive_socket_fd = receive_socket_fd;
     transport.peer = receive_address;
+    transport.peer_valid = true;
     kookie_transport_reset_counters();
     return true;
 }
@@ -546,6 +559,7 @@ bool kookie_transport_open_remote_ipv4(
     transport.socket_fd = socket_fd;
     transport.receive_socket_fd = socket_fd;
     transport.peer = local;
+    transport.peer_valid = true;
     kookie_transport_reset_counters();
     return true;
 }
@@ -668,6 +682,7 @@ bool kookie_transport_open_local_ipv4(int port) {
     transport.socket_fd = socket_fd;
     transport.receive_socket_fd = socket_fd;
     transport.peer = local;
+    transport.peer_valid = true;
     kookie_transport_reset_counters();
     return true;
 }
@@ -683,6 +698,7 @@ bool kookie_transport_open_listen_ipv4(int port) {
     transport.socket_fd = socket_fd;
     transport.receive_socket_fd = socket_fd;
     transport.peer = local;
+    transport.peer_valid = false;
     kookie_transport_reset_counters();
     return true;
 }
@@ -715,6 +731,7 @@ bool kookie_transport_set_peer_last_sender(void) {
         return false;
     }
     transport.peer = transport.last_sender;
+    transport.peer_valid = true;
     return true;
 }
 bool kookie_transport_reset_session(void) {
@@ -850,6 +867,12 @@ static int kookie_transport_receive_with_flags(int flags) {
         transport.receive_count = 0;
         transport.last_sender_valid = false;
         transport.last_status = kookie_socket_would_block() ? 2 : 3;
+        return 0;
+    }
+    if (transport.peer_valid && !kookie_transport_peer_matches(&sender)) {
+        transport.receive_count = 0;
+        transport.last_sender_valid = false;
+        transport.last_status = 3;
         return 0;
     }
     transport.last_sender = sender;

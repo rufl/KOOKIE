@@ -153,7 +153,7 @@ scope are in [Demo release readiness](docs/DEMO_RELEASE.md).
 
 | Area | Implemented bounded path |
 |---|---|
-| **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, sequenced commands, snapshots, prediction/reconciliation, reconnect and replay/tamper rejection; bounded direct-IPv4 WAN rendezvous with best-effort UDP hole punching; Kof-owned lobby and checksummed two-player scoreboard state |
+| **Authority and networking** | 60 Hz server/client sessions, two-client admission, authenticated compatibility handshake, fixed-tick input bundles with bounded redundancy and ACKs, pinned peer endpoints, 12-tick hitscan rewind, six-tick remote interpolation, prediction/reconciliation metrics, reconnect and replay/tamper rejection; bounded direct-IPv4 WAN rendezvous with best-effort UDP hole punching; Kof-owned lobby and checksummed two-player scoreboard state |
 | **Player-facing slice** | Local `Play` runs the bounded authoritative goose encounter; Host/Join adds explicit two-player ready gating; `Tab` exposes the host-authoritative player screen. Fresh clean-tree package smoke and native hardware evidence remain release gates. |
 | **Shooter and ARPG systems** | Hitscan/projectile/shotgun combat, enemy roles, deterministic loot, inventory, equipment, skills, status effects, bosses, rewards and exactly-once progression |
 | **World and presentation** | True 3D authored arena with slopes, steps and stacked rooms; capsule/triangle collision; doors, secrets and exits; semantic HUD; SDL_GPU instancing; positional gain/pan through SDL_mixer |

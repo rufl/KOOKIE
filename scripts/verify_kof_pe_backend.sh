@@ -11,7 +11,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-for tool in cc cmp file kof python3 zig; do
+for tool in cc cmp kof python3 zig; do
   command -v "$tool" >/dev/null || {
     echo "verify-kof-pe: $tool is required" >&2
     exit 2
@@ -82,17 +82,6 @@ if struct.unpack_from("<H", exe, optional)[0] != 0x20B:
 if struct.unpack_from("<H", exe, optional + 68)[0] != 3:
     raise SystemExit("verify-kof-pe: executable is not a console subsystem image")
 PY
-
-obj_description="$(file "$WORK_DIR/build-a/kof-module.obj")"
-exe_description="$(file "$WORK_DIR/build-a/kof-module.exe")"
-[[ "$obj_description" == *'x86-64 COFF object'* ]] || {
-  echo "verify-kof-pe: unexpected object description: $obj_description" >&2
-  exit 1
-}
-[[ "$exe_description" == *'PE32+ executable'*'console'*'x86-64'* ]] || {
-  echo "verify-kof-pe: unexpected executable description: $exe_description" >&2
-  exit 1
-}
 
 cc -std=c11 -O2 -Wall -Wextra -Werror \
   "$WORK_DIR/build-a/kof-module.c" -o "$WORK_DIR/kof-module-host"

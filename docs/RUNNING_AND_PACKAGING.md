@@ -257,6 +257,18 @@ forwarded game port or a direct LAN address. It provides no relay, encryption,
 identity service, or production DDoS protection. Leave
 `KOOKIE_WAN_RENDEZVOUS` unset for direct LAN mode.
 
+The gameplay path uses typed authoritative snapshots and fixed-tick input
+bundles. Each bundle repeats up to three ordered inputs and carries the last
+snapshot ACK; the host returns an input ACK. This is the bounded reliability
+layer used over the authenticated UDP envelope. It is not a QUIC-compatible
+wire protocol.
+
+The host retains a 12-tick bounded position history for hitscan lag
+compensation. It derives a rewind tick from the acknowledged snapshot lag and
+uses the historical source/target distance; clients render remote player
+positions six ticks behind the live tick. These limits are deterministic and
+do not provide sub-tick QUIC semantics.
+
 The Linux package also contains `kookie-rendezvous.py`. The rendezvous can run
 on Linux while both game clients run Linux or Windows.
 
@@ -496,6 +508,10 @@ bash scripts/verify.sh
 
 During implementation, run only the smallest focused check that proves the
 changed behavior.
+
+The hosted GitHub Actions gate also runs `scripts/verify_kof_pe_backend.sh`.
+Its PE checks parse the COFF/PE headers directly; they do not depend on the
+platform-specific wording emitted by `file` for an AMD64 COFF object.
 
 ## Graphical qualification isolation
 

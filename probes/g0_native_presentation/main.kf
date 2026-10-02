@@ -259,9 +259,15 @@ class NativeGameNetworkState {
     Int remoteSequenceValue
     Int remoteMoveValue
     Bool remoteFireValue
+    Int remoteInputSequenceValue
+    Int remoteSnapshotAckValue
+    Int remoteFireTickValue
+    Int lastRemoteSnapshotSequenceValue
+    Int lastRemoteInputAckValue
     Int remotePlayerOneHealthValue
     Int remotePlayerTwoHealthValue
     Bool remoteStatusReadyValue
+    NetcodeInputHistory localInputHistoryValue
 
     public constructor(Int capacity) {
         var actualCapacity = capacity
@@ -272,9 +278,16 @@ class NativeGameNetworkState {
         remoteSequenceValue = 0
         remoteMoveValue = 0
         remoteFireValue = false
+        remoteInputSequenceValue = 0
+        remoteSnapshotAckValue = 0
+        remoteFireTickValue = 0
+        lastRemoteSnapshotSequenceValue = 0
+        lastRemoteInputAckValue = 0
         remotePlayerOneHealthValue = 100
         remotePlayerTwoHealthValue = 100
         remoteStatusReadyValue = false
+        localInputHistoryValue = NetcodeInputHistory(
+            netcodeMaximumInputHistory())
     }
 
     void reset() {
@@ -283,9 +296,15 @@ class NativeGameNetworkState {
         remoteSequenceValue = 0
         remoteMoveValue = 0
         remoteFireValue = false
+        remoteInputSequenceValue = 0
+        remoteSnapshotAckValue = 0
+        remoteFireTickValue = 0
+        lastRemoteSnapshotSequenceValue = 0
+        lastRemoteInputAckValue = 0
         remotePlayerOneHealthValue = 100
         remotePlayerTwoHealthValue = 100
         remoteStatusReadyValue = false
+        localInputHistoryValue.clear()
     }
 
     Int nextLocalSequence() {
@@ -300,6 +319,25 @@ class NativeGameNetworkState {
         return remoteSequenceValue
     }
 
+    Bool recordLocalInput(Int tick, Int sequence, Int move, Int fire) {
+        return localInputHistoryValue.push(tick, sequence, move, fire)
+    }
+
+    Int[] localInputWords() {
+        return localInputHistoryValue.commandWords()
+    }
+
+    Bool acknowledgeLocalInput(Int sequence) {
+        if (sequence <= 0) { return true }
+        if (sequence > localInputHistoryValue.latestSequence()) {
+            return false
+        }
+        return localInputHistoryValue.acknowledge(sequence)
+    }
+
+    Int localInputCount() { return localInputHistoryValue.count() }
+    Int localInputAck() { return localInputHistoryValue.acknowledgedSequence() }
+
     void setRemoteMove(Int value) {
         remoteMoveValue = value
         if (remoteMoveValue < -4) { remoteMoveValue = -4 }
@@ -307,12 +345,52 @@ class NativeGameNetworkState {
     }
 
     Int remoteMove() { return remoteMoveValue }
-    void setRemoteFire() { remoteFireValue = true }
+    void setRemoteFire() { setRemoteFireAt(0) }
+    void setRemoteFireAt(Int tick) {
+        remoteFireValue = true
+        remoteFireTickValue = tick
+    }
     Bool consumeRemoteFire() {
         var result = remoteFireValue
         remoteFireValue = false
         return result
     }
+
+    void setRemoteInputSequence(Int sequence) {
+        if (sequence > remoteInputSequenceValue) {
+            remoteInputSequenceValue = sequence
+        }
+    }
+
+
+    void setRemoteSnapshotAck(Int sequence) {
+        if (sequence > remoteSnapshotAckValue) {
+            remoteSnapshotAckValue = sequence
+        }
+    }
+
+    Int remoteSnapshotAck() { return remoteSnapshotAckValue }
+    Int remoteFireTick() { return remoteFireTickValue }
+    Int remoteInputSequence() { return remoteInputSequenceValue }
+
+    void setRemoteSnapshotSequence(Int sequence) {
+        if (sequence > lastRemoteSnapshotSequenceValue) {
+            lastRemoteSnapshotSequenceValue = sequence
+        }
+    }
+
+    Int lastRemoteSnapshotSequence() {
+        return lastRemoteSnapshotSequenceValue
+    }
+
+    void setRemoteInputAck(Int sequence) {
+        if (sequence > lastRemoteInputAckValue) {
+            lastRemoteInputAckValue = sequence
+        }
+    }
+
+    Int lastRemoteInputAck() { return lastRemoteInputAckValue }
+
     void setRemotePlayerHealth(Int playerOne, Int playerTwo) {
         remotePlayerOneHealthValue = playerOne
         remotePlayerTwoHealthValue = playerTwo
@@ -355,7 +433,8 @@ class NativeGameNetworkState {
 }
 
 Bool sendGamePayload(Int[] payload) {
-    if (payload.length <= 0 || payload.length > 300 ||
+    if (payload.length <= 0 ||
+        payload.length > maximumSessionTransportWords() ||
         !kookie_transport_send_begin(payload.length)) {
         return false
     }
@@ -388,6 +467,7 @@ Bool validGooseStatusMessage(Int[] words) {
         words[3] >= 0 && words[3] <= 100 &&
         words[4] >= 0 && words[4] <= 100
 }
+
 Bool processGamePackets(
     LoopbackSession session, NativeGameNetworkState state,
     MatchScoreboardState scoreboard, Bool host
@@ -395,7 +475,24 @@ Bool processGamePackets(
     for (var packet = 0; packet < 8; packet = packet + 1) {
         if (!state.capturePacket()) { return true }
         var words = state.packet()
-        if (host && validGameplayCommandMessage(words) &&
+        if (host && validGameplayInputBundleMessage(words) &&
+            gameplayInputBundlePlayer(words) == 2) {
+            var count = gameplayInputBundleCount(words)
+            state.setRemoteSnapshotAck(
+                gameplayInputBundleSnapshotAck(words))
+            for (var index = 0; index < count; index = index + 1) {
+                var tick = gameplayInputBundleValue(words, index, 0)
+                if (tick == session.currentServerTick() + 1) {
+                    state.setRemoteMove(
+                        gameplayInputBundleValue(words, index, 2))
+                    if (gameplayInputBundleValue(words, index, 3) != 0) {
+                        state.setRemoteFireAt(tick)
+                    }
+                    state.setRemoteInputSequence(
+                        gameplayInputBundleValue(words, index, 1))
+                }
+            }
+        } else if (host && validGameplayCommandMessage(words) &&
             gameplayCommandPlayer(words) == 2) {
             if (gameplayCommandAction(words) == gameplayMoveAction()) {
                 state.setRemoteMove(gameplayCommandValue(words, 0))
@@ -403,7 +500,13 @@ Bool processGamePackets(
                 state.setRemoteFire()
             }
         } else if (!host && validGameplayStateMessage(words)) {
-            session.applyRemoteGameplayState(words)
+            if (session.applyRemoteGameplayState(words)) {
+                state.setRemoteSnapshotSequence(words[3])
+            }
+        } else if (!host && validGameplayInputAckMessage(words)) {
+            var acknowledged = gameplayInputAckSequence(words)
+            state.setRemoteInputAck(acknowledged)
+            state.acknowledgeLocalInput(acknowledged)
         } else if (!host && validEnemyEncounterStateMessage(words)) {
             session.applyRemoteEnemyEncounterState(words)
         } else if (!host && validMultiplayerScoreboardMessage(words)) {
@@ -421,18 +524,14 @@ Bool sendLocalGameInput(
 ) {
     var tick = session.currentServerTick() + 1
     var sequence = state.nextLocalSequence()
-    var movement = newGameplayCommandMessage(
-        player, tick, sequence, gameplayMoveAction(), move, 0, 0, 1)
-    if (!sendGamePayload(movement)) { return false }
-    if (fire != 0) {
-        var shot = newGameplayCommandMessage(
-            player, tick, state.nextLocalSequence(), gameplayFireAction(),
-            3, 20, 0, 1)
-        if (!sendGamePayload(shot)) { return false }
+    if (!state.recordLocalInput(tick, sequence, move, fire)) {
+        return false
     }
-    return true
+    var bundle = newGameplayInputBundleMessage(
+        player, 1, state.lastRemoteSnapshotSequence(),
+        state.localInputWords())
+    return bundle.length > 0 && sendGamePayload(bundle)
 }
-
 class G1NativePresentation {
     G1Demo scenario
     G4KutterDemo kutterScenario
@@ -657,10 +756,16 @@ class G1NativePresentation {
         var playerTwoX = interactionSession.serverPosition(2)
         var playerOneHealth = interactionSession.enemyCombatHealth(1)
         var playerTwoHealth = interactionSession.enemyCombatHealth(2)
+        var renderTick = netcodeRemoteRenderTick(
+            interactionSession.currentClientTick())
         if (mirrorRemoteValue &&
-            interactionSession.clientRemoteBaselineReady()) {
-            playerOneX = interactionSession.clientRemotePlayerPosition(1)
-            playerTwoX = interactionSession.clientRemotePlayerPosition(2)
+            interactionSession.clientRemoteBaselineReady() &&
+            interactionSession.remotePlayerSnapshotCount(1) > 0 &&
+            interactionSession.remotePlayerSnapshotCount(2) > 0) {
+            playerOneX = interactionSession.interpolatedRemotePlayerPosition(
+                1, renderTick)
+            playerTwoX = interactionSession.interpolatedRemotePlayerPosition(
+                2, renderTick)
             if (interactionSession.clientRemotePlayer() == 1) {
                 playerOneHealth = interactionSession.clientRemoteCombatHealth()
             }
@@ -720,27 +825,26 @@ class G1NativePresentation {
             -kookie_consume_mouse_delta_y() / 2)
     }
 
-    Bool fireNearestBot(Int player) {
-        if (player != 1 && player != 2) { return false }
-        var playerX = interactionSession.serverPosition(player)
+    Bool fireNearestBot(Int player, Int shotTick) {
+        if ((player != 1 && player != 2) || shotTick < 0) { return false }
         var target = 0
         var distance = 1000001
         for (var bot = 3; bot <= 5; bot = bot + 1) {
             if (interactionSession.enemyState(bot) != 7 &&
                 interactionSession.enemyCombatHealth(bot) > 0) {
-                var botX = interactionSession.enemySpatialPositionX(bot)
-                var delta = botX - playerX
-                if (delta < 0) { delta = -delta }
-                if (delta < distance) {
-                    distance = delta
+                var candidateDistance = interactionSession.enemyDistanceAt(
+                    player, bot, shotTick)
+                if (candidateDistance >= 0 &&
+                    candidateDistance < distance) {
+                    distance = candidateDistance
                     target = bot
                 }
             }
         }
         if (target > 0) {
-            var result = interactionSession.resolveEnemyHitscan(
+            var result = interactionSession.resolveEnemyHitscanAt(
                 player, target, interactionSession.currentServerTick(),
-                distance, 0)
+                shotTick, distance, 0)
             if (result.accepted() && result.died()) {
                 if (player == 1) {
                     playerKillsOneValue = playerKillsOneValue + 1
@@ -788,13 +892,24 @@ class G1NativePresentation {
         if (playerTwoHealthBefore > 0 && playerTwoHealthAfter <= 0) {
             playerDeathsTwoValue = playerDeathsTwoValue + 1
         }
+        var localShotTick = interactionSession.currentServerTick()
         if (interactionSession.lastInputEdges(player).firePressed() != 0 &&
-            !fireNearestBot(player)) {
+            !fireNearestBot(player, localShotTick)) {
             return false
         }
-        if (host && state.consumeRemoteFire() &&
-            !fireNearestBot(2)) {
-            return false
+        if (host && state.consumeRemoteFire()) {
+            var remoteShotTick = netcodeLagCompensationTick(
+                interactionSession.currentServerTick(),
+                interactionSession.latestSnapshotSequence(),
+                state.remoteSnapshotAck(),
+                netcodeDefaultRenderDelayTicks())
+            if (state.remoteFireTick() > 0 &&
+                state.remoteFireTick() < remoteShotTick) {
+                remoteShotTick = state.remoteFireTick()
+            }
+            if (!fireNearestBot(2, remoteShotTick)) {
+                return false
+            }
         }
         return true
     }
@@ -869,7 +984,8 @@ class G1NativePresentation {
 }
 
 Bool sendHostGameState(
-    LoopbackSession session, MatchScoreboardState scoreboard
+    LoopbackSession session, MatchScoreboardState scoreboard,
+    NativeGameNetworkState state
 ) {
     var tick = session.currentServerTick()
     var playerState = session.gameplayStateMessage(tick, 1, 1)
@@ -888,7 +1004,14 @@ Bool sendHostGameState(
     status[4] = session.enemyCombatHealth(2)
     if (!sendGamePayload(status)) { return false }
     var scoreboardMessage = scoreboard.publish(tick)
-    return scoreboardMessage.length > 0 && sendGamePayload(scoreboardMessage)
+    if (scoreboardMessage.length == 0 ||
+        !sendGamePayload(scoreboardMessage)) {
+        return false
+    }
+    var acknowledgement = newGameplayInputAckMessage(
+        tick, state.remoteInputSequence(), playerState[3])
+    return acknowledgement.length > 0 &&
+        sendGamePayload(acknowledgement)
 }
 
 main() {
@@ -1069,7 +1192,7 @@ main() {
                 shell.networkStatus() == gameShellNetworkConnected()) {
                 assert(sendHostGameState(
                         presentation.gameplaySession(),
-                        presentation.scoreboard()),
+                        presentation.scoreboard(), network),
                     "host must publish player, bot and scoreboard snapshots")
             }
             assert(presentation.configureIdentity(

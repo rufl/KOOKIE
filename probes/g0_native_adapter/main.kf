@@ -494,6 +494,19 @@ Bool twoClientAuthenticatedRoundTrip() {
     if (!sentA || !receivedA || !staleRejected) {
         return false
     }
+    if (!kookie_transport_select_slot(2) ||
+        (!kookie_transport_set_key_from_file() &&
+            !kookie_transport_set_key_from_environment()) ||
+        !kookie_transport_open_local_ipv4(40005) ||
+        !kookie_transport_set_peer_ipv4(127, 0, 0, 1, portB) ||
+        !transportSend(payloadA) ||
+        !kookie_transport_select_slot(1) ||
+        kookie_transport_receive() != 0 ||
+        kookie_transport_last_status() != 3 ||
+        !kookie_transport_select_slot(2) ||
+        !kookie_transport_close()) {
+        return false
+    }
     if (!clientB.pumpRemoteBroadPhaseSnapshot(6)) {
         return false
     }

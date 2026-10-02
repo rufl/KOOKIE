@@ -342,6 +342,45 @@ test "G2 gameplay wire validates commands and authoritative state" {
     command[6] = 6
     assert(!validGameplayCommandMessage(command),
         "gameplay commands must reject checksum-breaking mutation")
+    var inputHistory = NetcodeInputHistory(3)
+    assert(inputHistory.push(10, 1, 1, 0) &&
+        inputHistory.push(11, 2, 0, 1) &&
+        inputHistory.push(12, 3, -1, 0) &&
+        inputHistory.count() == 3 &&
+        inputHistory.latestSequence() == 3,
+        "input history must retain a bounded ordered command window")
+    var inputWords = inputHistory.commandWords()
+    var inputBundle = newGameplayInputBundleMessage(
+        2, 1, 4, inputWords)
+    assert(inputWords.length == 12,
+        "input history must flatten three commands")
+    assert(validGameplayInputBundleMessage(inputBundle),
+        "input bundles must pass typed validation")
+    assert(gameplayInputBundleCount(inputBundle) == 3 &&
+        gameplayInputBundleValue(inputBundle, 1, 0) == 11 &&
+        gameplayInputBundleValue(inputBundle, 1, 3) == 1 &&
+        gameplayInputBundleSnapshotAck(inputBundle) == 4,
+        "input bundles must carry redundant fixed-tick commands and snapshot ACKs")
+    inputBundle[10] = inputBundle[10] + 1
+    assert(!validGameplayInputBundleMessage(inputBundle),
+        "input bundles must reject checksum corruption")
+    assert(inputHistory.acknowledge(2) &&
+        inputHistory.count() == 1 &&
+        inputHistory.sequenceAt(0) == 3 &&
+        !inputHistory.acknowledge(8),
+        "input history must retire acknowledged commands and reject future ACKs")
+    var inputAck = newGameplayInputAckMessage(12, 3, 7)
+    assert(validGameplayInputAckMessage(inputAck) &&
+        gameplayInputAckSequence(inputAck) == 3 &&
+        gameplayInputAckSnapshotSequence(inputAck) == 7,
+        "input ACKs must be typed and checksummed")
+    var snapshots = NetcodeSnapshotWindow()
+    assert(snapshots.accept(10, 1, 100) &&
+        snapshots.accept(12, 2, 140) &&
+        snapshots.sample(11) == 120 &&
+        !snapshots.accept(11, 1, 110),
+        "snapshot window must interpolate ordered authoritative samples")
+
 
     var state = newGameplayStateMessage(3, 4, true, 2, 5, 0, 2)
     assert(setGameplayStateProgression(state, 1, true, 7) &&
@@ -2483,7 +2522,11 @@ test "authoritative loopback foundation" {
     assert(loopback.serverPosition(1) == 2)
     assert(loopback.inSync())
     assert(loopback.lastInputEdges(1).firePressed() == 1)
-    assert(loopback.snapshotCount(1) == 1, "loopback must retain bounded snapshots")
+    assert(loopback.snapshotCount(1) == 1 &&
+        loopback.serverRewindLatestTick() == 1 &&
+        loopback.serverRewindOldestTick() == 1 &&
+        loopback.predictionCorrectionCount(1) == 1,
+        "authoritative ticks must feed rewind and correction histories")
     var rendered = loopback.interpolatedPosition(1, 1)
     assert(rendered.ready() && rendered.position() == 2,
         "loopback must expose an interpolated snapshot")
@@ -2592,6 +2635,61 @@ test "bounded snapshot interpolation and prediction" {
         "reconciliation must replay and expose correction")
     assert(prediction.pendingInputs() == 1, "unacknowledged input must remain pending")
     assert(!prediction.reconcile(3, 0), "older authority must reject")
+}
+
+test "bounded G6 lag compensation and correction metrics" {
+    assert(netcodeLagCompensationTick(60, 60, 54, 2) == 55 &&
+        netcodeLagCompensationTick(4, 4, 0, 6) == 0 &&
+        netcodeLagCompensationTick(-1, 4, 0, 2) == -1,
+        "lag compensation must derive a bounded server rewind tick")
+    assert(netcodeRemoteRenderTick(10) == 4 &&
+        netcodeRemoteRenderTick(2) == 0,
+        "remote rendering must stay behind the live tick by a bounded delay")
+
+    var rewind = NetcodeRewindHistory(4, 4)
+    assert(rewind.push(1, 1, 0, 0, 0) &&
+        rewind.push(1, 2, 10, 0, 0) &&
+        rewind.push(2, 1, 2, 0, 0) &&
+        rewind.push(2, 2, 14, 0, 0) &&
+        rewind.distance(1, 2, 1) == 10 &&
+        rewind.distance(1, 2, 2) == 12,
+        "rewind history must retain bounded actor positions per tick")
+    assert(rewind.push(3, 1, 4, 0, 0) &&
+        rewind.push(4, 1, 6, 0, 0) &&
+        rewind.push(5, 1, 8, 0, 0) &&
+        rewind.oldestTick() == 2 &&
+        rewind.distance(1, 2, 1) == -1 &&
+        rewind.diagnostic() == netcodeDiagnosticRewind(),
+        "rewind history must reject samples older than its window")
+
+    var corrections = NetcodeCorrectionMetrics()
+    assert(corrections.measure(20, 17, 4) &&
+        corrections.measure(17, 17, 5) &&
+        corrections.count() == 2 &&
+        corrections.totalAbsoluteCorrection() == 3 &&
+        corrections.maximumAbsoluteCorrection() == 3 &&
+        corrections.averageAbsoluteCorrection() == 1 &&
+        corrections.worstTick() == 4,
+        "prediction correction metrics must remain deterministic and bounded")
+    var session = LoopbackSession(8, 4)
+    assert(session.start() &&
+        session.connectPlayer() == 1 &&
+        session.connectPlayer() == 2 &&
+        session.addPlayerCombatActor(1, 100, 0) &&
+        session.addPlayerCombatActor(2, 100, 0) &&
+        session.definePlayerWeapon(77, 2, 0, 10, 1) &&
+        session.setPlayerWeaponRange(77, 20) &&
+        session.equipPlayerCombatWeapon(1, 77) &&
+        session.equipPlayerCombatWeapon(2, 77) &&
+        session.setEnemySpatialPosition(1, 0, 0, 0) &&
+        session.setEnemySpatialPosition(2, 10, 0, 0) &&
+        session.advance(16667) == 1 &&
+        session.setEnemySpatialPosition(2, 100, 0, 0),
+        "authoritative rewind fixture must capture both player positions")
+    var rewoundShot = session.resolvePlayerHitscanAt(
+        1, 2, 1, 1, 100, 0)
+    assert(rewoundShot.accepted(),
+        "lag compensation must validate range against the historical position")
 }
 
 test "bounded collision query and movement rejection" {
@@ -4819,8 +4917,12 @@ test "G3 authoritative loot progression replication and save reload" {
     var lootState = host.worldLootStateMessage(
         host.currentServerTick(), 1)
     assert(client.start() &&
-        client.applyRemoteGameplayState(gameplayState),
-        "client must accept the ordered gameplay baseline")
+        client.applyRemoteGameplayState(gameplayState) &&
+        client.remotePlayerSnapshotCount(1) == 1 &&
+        client.interpolatedRemotePlayerPosition(
+            1, host.currentServerTick()) ==
+            gameplayStatePlayerPosition(gameplayState, 1),
+        "client must accept and interpolate the ordered gameplay baseline")
     assert(validPlayerAuthorityStateMessage(authorityState) &&
         client.applyRemotePlayerAuthorityState(authorityState),
         "client must accept the ordered player authority baseline")

@@ -144,7 +144,7 @@ estão em [Prontidão da release demo](docs/DEMO_RELEASE.md).
 
 | Área | Caminho limitado implementado |
 |---|---|
-| **Autoridade e rede** | Sessões servidor/cliente a 60 Hz, admissão de dois clientes, handshake autenticado de compatibilidade, comandos sequenciados, snapshots, predição/reconciliação, reconexão e rejeição de replay/adulteração; janela WAN limitada por IPv4 direto com retry/backpressure; lobby Kof-first e placar de dois jogadores com checksum |
+| **Autoridade e rede** | Sessões servidor/cliente a 60 Hz, admissão de dois clientes, handshake autenticado de compatibilidade, bundles de input em passo fixo com redundância e ACK limitados, endpoints de peer fixados, rewind de hitscan de 12 ticks, interpolação remota de seis ticks, métricas de predição/reconciliação, reconexão e rejeição de replay/adulteração; rendezvous WAN limitado por IPv4 direto com hole punching UDP best-effort; lobby Kof-first e placar de dois jogadores com checksum |
 | **Fatia voltada ao jogador** | `Play` executa o encounter autoritativo limitado; Host/Join adiciona gate explícito de dois jogadores; `Tab` mostra a tela de jogadores autoritativa do host. Smoke de pacote novo e evidência de hardware nativo continuam gates de release. |
 | **Sistemas de tiro e ARPG** | Combate hitscan/projétil/shotgun, papéis de inimigos, loot determinístico, inventário, equipamento, skills, status, chefes, recompensas e progressão exatamente uma vez |
 | **Mundo e apresentação** | Arena 3D criada com inclinações, degraus e salas empilhadas; colisão cápsula/triângulo; portas, segredos e saídas; HUD semântico; instancing por SDL_GPU; ganho/pan posicional por SDL_mixer |

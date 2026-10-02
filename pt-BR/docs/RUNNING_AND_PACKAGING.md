@@ -262,6 +262,18 @@ encaminhamento de porta ou endereço LAN direto. Não há relay, criptografia,
 serviço de identidade ou proteção DDoS de produção. Deixe
 `KOOKIE_WAN_RENDEZVOUS` ausente para o modo LAN direto.
 
+O gameplay usa snapshots autoritativos tipados e bundles de input em passo
+fixo. Cada bundle repete até três inputs ordenados e carrega o último ACK de
+snapshot; o host retorna um ACK de input. Esta é a camada limitada de
+confiabilidade sobre o envelope UDP autenticado. O wire não é compatível com
+QUIC.
+
+O host retém um histórico limitado de posições de 12 ticks para compensação de
+latência do hitscan. Ele deriva o tick de rewind do atraso confirmado pelo
+snapshot e usa a distância histórica entre origem e alvo; clientes renderizam
+posições remotas seis ticks atrás do tick vivo. Esses limites são determinísticos
+e não fornecem semântica sub-tick de QUIC.
+
 O pacote Linux também contém `kookie-rendezvous.py`; o rendezvous roda em Linux
 enquanto os dois clientes podem rodar em Linux ou Windows.
 
@@ -500,6 +512,10 @@ bash scripts/verify.sh
 
 Durante a implementação, execute somente a menor verificação focada que
 comprove o comportamento alterado.
+
+O gate do GitHub Actions também executa `scripts/verify_kof_pe_backend.sh`.
+As verificações PE leem diretamente os headers COFF/PE; não dependem do texto
+específico que `file` emite para um objeto COFF AMD64.
 
 ## Isolamento da qualificação gráfica
 

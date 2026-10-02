@@ -3,6 +3,26 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## 2026-10-01
+### Netcode fixed-tick híbrido
+
+- Added the UZDoom-inspired fixed-tick input history: clients repeat up to
+  three ordered inputs, include the latest snapshot ACK and retire history only
+  after an authoritative input ACK.
+- Added typed input-bundle and input-ACK messages with bounded validation,
+  checksums, stale/order rejection and deterministic snapshot interpolation
+  helpers.
+- Pinned the native authenticated transport to the admitted peer address after
+  handshake, rejecting valid-key datagrams from unexpected endpoints.
+- Kept the portable authenticated UDP envelope instead of adding a QUIC
+  dependency; the channel semantics are QUIC-inspired, not QUIC-compatible.
+- Added a bounded 12-tick authoritative rewind history for hitscan range
+  validation, deriving the rewind point from acknowledged snapshot lag instead
+  of trusting client distance.
+- Wired six-tick remote-player interpolation into the native presentation path
+  and exposed deterministic prediction correction count/average/maximum metrics.
+- Added focused G6 tests for lag-compensation tick derivation, historical
+  distances, interpolation windows and correction accounting.
+
 
 ### G6 Windows PE/SDL qualification
 
@@ -19,6 +39,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   `KOOKIE native Kof PE gameplay verified`. Presentation Wine smoke remains
   optional and requires a DRI3-capable isolated GPU; the default Xvfb wrapper
   is not presentation evidence.
+- Hardened the GitHub-hosted PE gate against `file` version differences by
+  validating COFF/PE headers directly instead of matching platform-specific
+  object-description text.
 
 ### KOF-first multiplayer lobby and score screen
 

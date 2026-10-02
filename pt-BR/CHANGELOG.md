@@ -3,6 +3,27 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## 2026-10-01
+### Netcode híbrido em passo fixo
+
+- Adicionamos o histórico de input em passo fixo inspirado no UZDoom: clientes
+  repetem até três inputs ordenados, incluem o último ACK de snapshot e só
+  aposentam o histórico após ACK autoritativo de input.
+- Adicionamos mensagens tipadas de bundle/ACK com validação limitada, checksum,
+  rejeição de ordem/estado obsoleto e helpers determinísticos de interpolação.
+- Fixamos o transporte nativo autenticado ao endereço do peer admitido após o
+  handshake, rejeitando datagramas de chave válida vindos de endpoints
+  inesperados.
+- Mantivemos o envelope UDP autenticado portátil em vez de importar QUIC; a
+  semântica de canais é inspirada em QUIC, não é compatível com QUIC.
+- Adicionamos um histórico autoritativo limitado de 12 ticks para validar o
+  alcance de hitscan, derivando o rewind do atraso confirmado por snapshot em
+  vez de confiar na distância enviada pelo cliente.
+- Integramos interpolação de seis ticks do jogador remoto à apresentação nativa
+  e expusemos métricas determinísticas de contagem, média e maior correção da
+  predição.
+- Adicionamos testes G6 focados para derivação do tick de lag compensation,
+  distâncias históricas, janelas de interpolação e contagem de correções.
+
 
 ### Qualificação Windows PE/SDL G6
 
@@ -20,6 +41,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   `KOOKIE native Kof PE gameplay verified`. O smoke visual de apresentação
   continua opcional e exige GPU isolada capaz de DRI3; o wrapper Xvfb padrão não
   é evidência de apresentação.
+- Tornamos o gate PE hospedado no GitHub resistente a diferenças de versão do
+  `file`, validando diretamente headers COFF/PE em vez de comparar o texto
+  específico da descrição do objeto.
 
 ### Lobby multiplayer Kof-first e tela de placar
 

@@ -211,7 +211,9 @@ O protocolo é independente do transporte:
 
 - Canal de controle confiável e ordenado para handshake, admissão, entrada/saída,
   comandos obrigatórios e metadados da sessão.
-- Canal não confiável e sequenciado para entrada e snapshots substituíveis.
+- Canal de input em passo fixo sobre UDP autenticado: até três inputs ordenados
+  são repetidos, o último snapshot é confirmado e o host retorna um ACK de
+  input; snapshots autoritativos novos substituem os antigos.
 - Campos explícitos de tick, sequência, confirmação, baseline e revisão de
   conteúdo.
 - Tamanho de pacote, trabalho de decodificação, comprimento de fila e quantidade
@@ -725,6 +727,38 @@ o shell nativo liga o gameplay Kof alcançável ao SDL3/SDL_mixer, e o perfil de
 apresentação liga Kof PE nativo ao adaptador SDL_GPU e empacota produtos
 SPIR-V/DXIL. O smoke Wine isolado do shell verifica gameplay; o smoke visual da
 apresentação permanece dependente de GPU isolada capaz de DRI3.
+
+### G6 — Evolução do netcode
+
+A camada de sessão combina as partes compatíveis de duas referências atuais:
+
+- O [`d_net.h` atual do UZDoom](https://raw.githubusercontent.com/UZDoom/UZDoom/trunk/src/d_net.h)
+  e seu [`d_net.cpp`](https://raw.githubusercontent.com/UZDoom/UZDoom/trunk/src/d_net.cpp)
+  usam comandos em passo fixo, histórico limitado, ACKs de sequência e
+  consistência, retransmissão, medição de latência e correção de predição.
+- O [manual oficial de servidor do Hytale](https://support.hytale.com/hc/en-us/articles/45326769420827-Hytale-Server-Manual)
+  documenta um servidor autenticado e autoritativo sobre QUIC/UDP. A superfície
+  de pacotes tipados/adaptadores está descrita no
+  [guia de listeners de pacotes](https://hytalemodding.dev/en/docs/guides/plugin/listening-to-packets).
+
+O KOOKIE aplica o subconjunto portátil sem importar uma dependência QUIC:
+o host continua autoritativo; o cliente envia até três inputs ordenados por
+passo fixo e o último ACK de snapshot; o host retorna snapshots tipados e ACK
+de input; frames obsoletos são rejeitados; e o transporte nativo fixa o
+endereço autenticado do peer após a admissão. Interpolação de snapshots e
+predição permanecem limitadas e determinísticas. A redundância de input cobre
+perdas UDP comuns sem transformar snapshots em um stream bloqueante.
+
+O servidor também retém uma janela histórica limitada de 12 ticks. O alcance
+do hitscan é avaliado na posição do rewind derivada da latência confirmada, não
+na distância não confiável enviada pelo cliente. A renderização do jogador
+remoto usa atraso limitado de interpolação de seis ticks, e a predição expõe
+métricas de contagem, média e maior correção.
+
+O envelope UDP autenticado Linux/Windows permanece para preservar a
+portabilidade dos pacotes. A separação de canais é inspirada em QUIC, não é
+interoperabilidade QUIC. Ainda não há confidencialidade, relay, recuperação de
+NAT simétrico ou proteção DDoS de produção.
 
 ## 11. Não objetivos explícitos
 
