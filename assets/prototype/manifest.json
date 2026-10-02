@@ -42,13 +42,36 @@
       "license": "upstream-commercial-use-with-no-model-redistribution",
       "license_file": "licenses/goose-upstream-terms.txt",
       "redistribution": "restricted; included only by explicit prototype request"
+    },
+    {
+      "id": "prildarill-low-poly-cat",
+      "source_url": "https://prildarill.itch.io/meow",
+      "source_name": "cat.blend, cat.fbx, catskin.png",
+      "source_files": [
+        {
+          "path": "models/cat/source/cat.blend",
+          "sha256": "220b957369b79031bb5ba7a5a84e033c6e45506e1ee3aa2be696d1ae1ef5437a"
+        },
+        {
+          "path": "models/cat/source/cat.fbx",
+          "sha256": "27a2d601413239b21bebf4de7a6b09b3019a3a353818e41e12eeef7d77c66439"
+        },
+        {
+          "path": "models/cat/source/catskin.png",
+          "sha256": "e1eb386ce66091dac239b59fec9e884288d9938745ef91d0e9bcd72130b1d188"
+        }
+      ],
+      "license": "upstream-use-permission-no-credit-required",
+      "license_file": "licenses/prildarill-meow-terms.txt",
+      "redistribution": "prototype-only; raw source redistribution not explicitly granted"
     }
   ],
   "asset_policy": {
     "all_sources_claimed_cc0": false,
     "cc0_assets": "The modular, Brackeys VFX and Classic64 source notices are retained verbatim.",
-    "restricted_assets": ["model.goose"],
+    "restricted_assets": ["model.goose", "model.prildarill-cat"],
     "goose_warning": "The source page permits commercial use and editing but prohibits reselling or redistributing the model file. The converted GLB remains prototype-only and must not be treated as CC0.",
+    "cat_warning": "The source page permits use in own projects, editing and no-credit use. It does not name a standard license or separately grant standalone raw-file redistribution; keep the cat prototype-only until that boundary is confirmed.",
     "credits_required": false,
     "credits_retained": true
   },
@@ -355,6 +378,16 @@
       "grid": "6x4",
       "runtime_dimensions": "256x256",
       "license": "CC0"
+    },
+    {
+      "id": "model.prildarill-cat",
+      "kind": "model",
+      "source": "direct_sources.prildarill-low-poly-cat",
+      "authored_path": "models/cat/cat.glb",
+      "runtime_path": "models/cat/cat.glb",
+      "format": "glb",
+      "license": "upstream-use-permission-no-credit-required",
+      "cook_status": "Blender 5.2.2 GLB derivative; source blend, FBX and texture retained; prototype-only"
     }
   ]
 }

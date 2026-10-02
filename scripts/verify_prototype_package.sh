@@ -49,8 +49,8 @@ release_manifest = json.loads(pathlib.Path(sys.argv[2]).read_text(encoding="utf-
 content = package_root / "content" / "prototype"
 inner = json.loads((content / "manifest.json").read_text(encoding="utf-8"))
 assert release_manifest["content_profile"] == "prototype"
-assert release_manifest["prototype_content_asset_count"] == len(inner["assets"]) == 29
-assert release_manifest["prototype_content_file_count"] == 66
+assert release_manifest["prototype_content_asset_count"] == len(inner["assets"]) == 30
+assert release_manifest["prototype_content_file_count"] == 68
 assert (package_root / "PROVENANCE.txt").read_text(encoding="utf-8").count(
     "prototype_content_profile=prototype") == 1
 provenance = {}
@@ -59,8 +59,8 @@ for line in (package_root / "PROVENANCE.txt").read_text(encoding="utf-8").splitl
         key, value = line.split("=", 1)
         provenance[key] = value
 assert provenance["prototype_content_profile"] == "prototype"
-assert provenance["prototype_content_asset_count"] == "29"
-assert provenance["prototype_content_file_count"] == "66"
+assert provenance["prototype_content_asset_count"] == "30"
+assert provenance["prototype_content_file_count"] == "68"
 digest = hashlib.sha256()
 file_count = 0
 for path in sorted(content.rglob("*")):
@@ -70,16 +70,19 @@ for path in sorted(content.rglob("*")):
         digest.update(b"\0")
         digest.update(hashlib.sha256(path.read_bytes()).digest())
         file_count += 1
-assert file_count == 66
+assert file_count == 68
 assert digest.hexdigest() == release_manifest["prototype_content_sha256"]
 assert provenance["prototype_content_sha256"] == digest.hexdigest()
 for relative in (
     "models/goose/goose.glb",
+    "models/cat/cat.glb",
     "runtime/vfx/particles/circle_01_a.png",
     "cooked/vfx/particles/circle_01_a.rgba.png",
     "licenses/goose-upstream-terms.txt",
+    "licenses/prildarill-meow-terms.txt",
 ):
     assert (content / relative).is_file(), relative
+assert not (content / "models/cat/source").exists()
 print("prototype package manifest/provenance/content=ok")
 PY
 

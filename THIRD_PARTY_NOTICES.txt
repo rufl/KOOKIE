@@ -69,9 +69,20 @@ their retained source notices under `content/prototype/licenses`:
   prototype-only by explicit request. Its terms are retained in
   `content/prototype/licenses/goose-upstream-terms.txt`.
 
-The package manifest records the source archive SHA-256 values, conversion
-paths, content tree digest and the restricted goose policy. No source archive
-is silently relabeled as CC0.
+The package manifest records source archive and direct-source file SHA-256
+values, conversion paths, content tree digest and the restricted asset
+policies. No source archive or direct source is silently relabeled as CC0.
+
+Low-poly cat by Prildarill
+Source: https://prildarill.itch.io/meow
+Author: Prildarill (https://prildarill.itch.io)
+
+The source page permits use in own projects, editing of the blend file and
+texture, and says credit is not required. KOOKIE retains attribution
+voluntarily in `assets/prototype/licenses/prildarill-meow-terms.txt`.
+The page does not name a standard SPDX license or separately grant standalone
+raw-file redistribution, so the source files and converted GLB remain
+prototype-only until that boundary is confirmed.
 
 Kof compiler note
 The Kof compiler is a build tool and is not distributed in KOOKIE packages.

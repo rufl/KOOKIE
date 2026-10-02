@@ -24,8 +24,19 @@ manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 assert manifest["schema"] == "kookie.prototype-content/v1"
 assert manifest["asset_policy"]["all_sources_claimed_cc0"] is False
 assert "model.goose" in manifest["asset_policy"]["restricted_assets"]
+assert "model.prildarill-cat" in manifest["asset_policy"]["restricted_assets"]
 assets = manifest["assets"]
-assert len(assets) == 29
+assert len(assets) == 30
+cat_source = next(
+    source for source in manifest["direct_sources"]
+    if source["id"] == "prildarill-low-poly-cat"
+)
+for source_file in cat_source["source_files"]:
+    relative = pathlib.PurePosixPath(source_file["path"])
+    assert not relative.is_absolute() and ".." not in relative.parts
+    path = root.joinpath(*relative.parts)
+    assert path.is_file() and not path.is_symlink()
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == source_file["sha256"]
 seen = set()
 for asset in assets:
     assert asset["id"] and asset["kind"] and asset["license"]
@@ -70,6 +81,9 @@ for license_file in (
 goose_terms = (root / "licenses/goose-upstream-terms.txt").read_text(encoding="utf-8")
 assert "Do not resell" in goose_terms
 assert "prototype request" in goose_terms
+cat_terms = (root / "licenses/prildarill-meow-terms.txt").read_text(encoding="utf-8")
+assert "No credit" in cat_terms
+assert "prototype-only" in cat_terms
 print(f"manifest assets={len(assets)} declared-files={len(seen)}")
 PY
 

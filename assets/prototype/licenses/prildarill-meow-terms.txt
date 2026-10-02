@@ -1,0 +1,16 @@
+Low-poly cat by Prildarill
+Source: https://prildarill.itch.io/meow
+Author: Prildarill (https://prildarill.itch.io)
+
+The source page states:
+- Feel free to use this in your own projects.
+- No credit is necessary.
+- The blend file and texture may be modified.
+
+KOOKIE retains this attribution voluntarily even though the source page says
+credit is not required. The page does not name a standard SPDX license and
+does not separately state that the raw model files may be redistributed as
+standalone assets. The supplied source files and converted GLB therefore stay
+prototype-only in the opt-in prototype content profile; do not present them as
+CC0 or as an independently redistributable asset pack without confirming that
+boundary.

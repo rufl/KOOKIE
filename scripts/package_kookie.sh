@@ -304,6 +304,10 @@ for relative_name in declared_paths:
     path = source.joinpath(*pathlib.PurePosixPath(relative_name).parts)
     if not path.is_file() or path.is_symlink():
         raise SystemExit(f"package_kookie: declared prototype content file missing: {relative_name}")
+excluded_paths = {pathlib.PurePosixPath("models/cat/source")}
+def is_excluded(relative):
+    return any(relative == excluded or excluded in relative.parents
+               for excluded in excluded_paths)
 for path in source.rglob("*"):
     if path.is_symlink() or (not path.is_file() and not path.is_dir()):
         raise SystemExit(f"package_kookie: prototype content contains unsafe entry: {path}")
@@ -311,6 +315,8 @@ if destination.exists():
     shutil.rmtree(destination)
 for path in sorted(source.rglob("*")):
     relative = path.relative_to(source)
+    if is_excluded(relative):
+        continue
     target = destination / relative
     if path.is_dir():
         target.mkdir(parents=True, exist_ok=True)
