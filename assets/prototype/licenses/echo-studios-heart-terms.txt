@@ -1,0 +1,9 @@
+Heart Assets by Echo Studios
+
+Source page: https://echo-studios-2026.itch.io/heart-assetsv2
+Downloaded source name: hearts_0001.png
+Source SHA-256: f3e1913e5454307e400bb702cad560442458af12baa0314b50383a138a0a0437
+
+The source page identifies Echo Studios as the author and offers a name-your-own-price download. No SPDX license or explicit standalone redistribution terms were visible on the source page when this prototype asset was recorded. This copy is therefore prototype-only; do not advertise it as CC0, sell it as a standalone asset pack, or redistribute it outside the KOOKIE prototype without confirming terms with Echo Studios.
+
+The authored copy preserves the supplied 320x64 five-state sheet. The bounded runtime derivative is 160x32 and the native presentation samples the five states into its 8x8 UI atlas tiles.

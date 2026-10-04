@@ -25,8 +25,33 @@ assert manifest["schema"] == "kookie.prototype-content/v1"
 assert manifest["asset_policy"]["all_sources_claimed_cc0"] is False
 assert "model.goose" in manifest["asset_policy"]["restricted_assets"]
 assert "model.prildarill-cat" in manifest["asset_policy"]["restricted_assets"]
+assert "ui.player-hearts" in manifest["asset_policy"]["restricted_assets"]
 assets = manifest["assets"]
-assert len(assets) == 30
+assert len(assets) == 31
+catalog_path = root / manifest["editor_catalog"]
+catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+assert catalog["schema"] == "kookie.greybox-module-catalog/v1"
+assert catalog["pack_id"] == "rgsdev-modular-prototyping"
+assert catalog["license"] == "CC0"
+assert catalog["editor_policy"]["texture_override"] == "free"
+modules = catalog["modules"]
+assert len(modules) == 75
+module_runtime_paths = set()
+for module in modules:
+    assert module["license"] == "CC0"
+    assert module["texture_override"] == "free"
+    assert module["runtime_ready"] is True
+    runtime_path = pathlib.PurePosixPath(module["runtime_path"])
+    assert not runtime_path.is_absolute() and ".." not in runtime_path.parts
+    assert runtime_path not in module_runtime_paths
+    module_runtime_paths.add(runtime_path)
+    model = root.joinpath(*runtime_path.parts)
+    assert model.is_file() and not model.is_symlink()
+    data = model.read_bytes()
+    assert len(data) >= 12
+    magic, version, length = struct.unpack_from("<III", data)
+    assert magic == 0x46546C67 and version == 2 and length == len(data)
+assert len(module_runtime_paths) == 75
 cat_source = next(
     source for source in manifest["direct_sources"]
     if source["id"] == "prildarill-low-poly-cat"
@@ -37,6 +62,14 @@ for source_file in cat_source["source_files"]:
     path = root.joinpath(*relative.parts)
     assert path.is_file() and not path.is_symlink()
     assert hashlib.sha256(path.read_bytes()).hexdigest() == source_file["sha256"]
+heart_source = next(
+    source for source in manifest["direct_sources"]
+    if source["id"] == "echo-studios-heart-assets"
+)
+heart_asset = next(asset for asset in assets if asset["id"] == "ui.player-hearts")
+heart_authored = root / heart_asset["authored_path"]
+assert heart_authored.is_file() and not heart_authored.is_symlink()
+assert hashlib.sha256(heart_authored.read_bytes()).hexdigest() == heart_source["source_sha256"]
 seen = set()
 for asset in assets:
     assert asset["id"] and asset["kind"] and asset["license"]
@@ -56,7 +89,7 @@ for asset in assets:
         assert len(data) >= 12
         magic, version, length = struct.unpack_from("<III", data)
         assert magic == 0x46546C67 and version == 2 and length == len(data)
-    if asset["kind"] in {"particle-texture", "flipbook", "predrawn-spritesheet"}:
+    if asset["kind"] in {"particle-texture", "flipbook", "predrawn-spritesheet", "ui-spritesheet"}:
         runtime = root / asset["runtime_path"]
         data = runtime.read_bytes()
         assert data[:8] == b"\x89PNG\r\n\x1a\n"
@@ -84,6 +117,9 @@ assert "prototype request" in goose_terms
 cat_terms = (root / "licenses/prildarill-meow-terms.txt").read_text(encoding="utf-8")
 assert "No credit" in cat_terms
 assert "prototype-only" in cat_terms
+heart_terms = (root / "licenses/echo-studios-heart-terms.txt").read_text(encoding="utf-8")
+assert "No SPDX license" in heart_terms
+assert "prototype-only" in heart_terms
 print(f"manifest assets={len(assets)} declared-files={len(seen)}")
 PY
 

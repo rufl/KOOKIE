@@ -81,6 +81,33 @@ class GooseStatusOverlay {
         return maximumHearts
     }
 
+    Int heartStateFor(Int health, Int maxHealth, Int maximumHearts, Int heart) {
+        if (maxHealth <= 0 || maximumHearts <= 0 ||
+            heart < 0 || heart >= maximumHearts) {
+            return 0
+        }
+        var totalQuarterHearts = health * maximumHearts * 4 / maxHealth
+        var state = totalQuarterHearts - heart * 4
+        if (state < 0) { state = 0 }
+        if (state > 4) { state = 4 }
+        return state
+    }
+
+    Int actorHeartStateAt(Int index, Int heart) {
+        if (index < 0 || index >= actorCountValue) { return 0 }
+        return heartStateFor(
+            actorHealths[index], actorMaxHealths[index],
+            actorMaximumHeartCountAt(index), heart)
+    }
+
+    Int heartSpriteResourceBase() { return 400 }
+
+    Int heartSpriteResource(Int state) {
+        if (state < 0) { state = 0 }
+        if (state > 4) { state = 4 }
+        return heartSpriteResourceBase() + state
+    }
+
     Int actorFilledHeartCountAt(Int index) {
         if (index < 0 || index >= actorCountValue) { return 0 }
         var maximumHearts = actorMaximumHeartCountAt(index)
@@ -176,20 +203,11 @@ class GooseStatusOverlay {
     }
 
     Bool pushHeart(
-        FrameStaging target, Int left, Int bottom, Bool filled, Int resource
+        FrameStaging target, Int left, Int bottom, Int state
     ) {
-        var colorResource = resource
-        if (!filled) {
-            colorResource = resource - 3
-        }
-        return pushQuad(target, colorResource,
-                left + 1, bottom + 1, left + 3, bottom + 3) &&
-            pushQuad(target, colorResource,
-                left, bottom + 2, left + 2, bottom + 4) &&
-            pushQuad(target, colorResource,
-                left + 2, bottom + 2, left + 4, bottom + 4) &&
-            pushQuad(target, colorResource,
-                left + 1, bottom, left + 3, bottom + 2)
+        if (state < 0 || state > 4) { return false }
+        return pushQuad(target, heartSpriteResource(state),
+            left, bottom, left + 4, bottom + 4)
     }
 
     Bool pushActor(
@@ -215,12 +233,10 @@ class GooseStatusOverlay {
         }
         var maximumHearts = (maxHealth + 19) / 20
         if (maximumHearts > 5) { maximumHearts = 5 }
-        var filledHearts = (health + 19) / 20
-        if (filledHearts > maximumHearts) { filledHearts = maximumHearts }
-        if (filledHearts < 0) { filledHearts = 0 }
         for (var heart = 0; heart < maximumHearts; heart = heart + 1) {
             if (!pushHeart(target, safeX - maximumHearts * 2 + heart * 4,
-                    safeY + 22, heart < filledHearts, 18)) {
+                    safeY + 22,
+                    heartStateFor(health, maxHealth, maximumHearts, heart))) {
                 return false
             }
         }

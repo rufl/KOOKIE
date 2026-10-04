@@ -38,8 +38,8 @@ class G1Demo {
     }
 
     Bool prepareSession() {
-        if (!arena.ready() || arena.vertexCount() != 90 ||
-            arena.triangleCount() != 30 || arena.authoredChecksum() <= 0) {
+        if (!arena.ready() || arena.vertexCount() != 118 ||
+            arena.triangleCount() != 170 || arena.authoredChecksum() <= 0) {
             return failAt(1)
         }
         if (!loopback.loadAuthoredBroadPhase(arena.authoredCollision()) ||
@@ -101,8 +101,8 @@ class G1Demo {
             loopback.clientBroadPhaseTriangleCount() != arena.triangleCount()) {
             return failAt(8)
         }
-        var wallStart = SpatialPoint(70, 10, 20)
-        var wallEnd = SpatialPoint(90, 10, 20)
+        var wallStart = SpatialPoint(140, 10, 20)
+        var wallEnd = SpatialPoint(180, 10, 20)
         var clientWall = loopback.queryClientBroadPhasePath(
             loopback.clientBroadPhaseRevision(), wallStart, wallEnd)
         if (!clientWall.accepted() || !clientWall.collided()) {
@@ -203,30 +203,30 @@ class G1Demo {
 
     Bool verifyArenaContact() {
         var floorProbe = arena.queryPath(
-            SpatialPoint(20, 5, 30), SpatialPoint(20, -2, 30))
+            SpatialPoint(40, 5, 60), SpatialPoint(40, -2, 60))
         if (!floorProbe.accepted() || !floorProbe.collided() ||
             arena.lastHitSurface() != 6) {
             return failAt(18)
         }
         var wallProbe = arena.queryPath(
-            SpatialPoint(70, 10, 20), SpatialPoint(90, 10, 20))
+            SpatialPoint(140, 10, 20), SpatialPoint(180, 10, 20))
         if (!wallProbe.accepted() || !wallProbe.collided() ||
             arena.lastHitSurface() != 3) {
             return failAt(19)
         }
         var corridorProbe = arena.queryPath(
-            SpatialPoint(70, 10, 60), SpatialPoint(90, 10, 60))
+            SpatialPoint(140, 10, 140), SpatialPoint(180, 10, 140))
         if (!corridorProbe.accepted() || corridorProbe.collided()) {
             return failAt(20)
         }
         var pillarProbe = arena.queryPath(
-            SpatialPoint(50, 6, 59), SpatialPoint(72, 6, 59))
+            SpatialPoint(100, 6, 118), SpatialPoint(150, 6, 118))
         if (!pillarProbe.accepted() || !pillarProbe.collided() ||
             arena.lastHitSurface() != 2) {
             return failAt(21)
         }
         var skyProbe = arena.queryPath(
-            SpatialPoint(20, 5, 30), SpatialPoint(20, 19, 30))
+            SpatialPoint(40, 5, 60), SpatialPoint(40, 23, 60))
         if (!skyProbe.accepted() || skyProbe.collided()) {
             return failAt(22)
         }

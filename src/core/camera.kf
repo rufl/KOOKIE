@@ -216,6 +216,22 @@ class CameraState {
         return true
     }
 
+    Bool resolveFollowCollision(BoundedTriangleCollection geometry) {
+        if (!followReadyValue) { return false }
+        var result = geometry.query(
+            followTargetXValue, followTargetYValue, followTargetZValue,
+            followXValue, followYValue, followZValue)
+        if (!result.accepted()) {
+            return false
+        }
+        if (result.collided()) {
+            followXValue = result.resolvedX()
+            followYValue = result.resolvedY()
+            followZValue = result.resolvedZ()
+        }
+        return true
+    }
+
     Int currentX() { return followXValue }
     Int currentY() { return followYValue }
     Int currentZ() { return followZValue }

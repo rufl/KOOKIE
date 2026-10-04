@@ -42,7 +42,7 @@ class BoundedReplayTimeline {
             actualCheckpoints = 64
         }
         checkpointSnapshotCapacityValue = 512
-        checkpointSidecarCapacityValue = 1296
+        checkpointSidecarCapacityValue = 3072
         commands = InputReplayRecorder(actualCommands)
         interactions = InteractionReplayRecorder(actualCommands)
         commandCapacityValue = actualCommands

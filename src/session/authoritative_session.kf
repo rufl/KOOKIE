@@ -244,7 +244,7 @@ class LoopbackSession {
         clientRemotePlayerTwoSnapshots = NetcodeSnapshotWindow()
         playerOneCorrectionMetrics = NetcodeCorrectionMetrics()
         playerTwoCorrectionMetrics = NetcodeCorrectionMetrics()
-        broadPhaseCollection = BoundedTriangleCollection(32, 64)
+        broadPhaseCollection = BoundedTriangleCollection(192, 64)
         broadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
         serverRewindHistory = NetcodeRewindHistory(
             netcodeMaximumRewindActors(), netcodeMaximumRewindTicks())
@@ -509,9 +509,9 @@ class LoopbackSession {
             enemyLootSkillExperiences[index] = 0
             enemyLootClaimed[index] = false
         }
-        clientBroadPhaseCollection = BoundedTriangleCollection(32, 64)
+        clientBroadPhaseCollection = BoundedTriangleCollection(192, 64)
         clientBroadPhaseCollection.configureBounds(0, 0, 0, 10, 10, 10)
-        broadPhaseTransport = BroadPhaseTransportQueue(4, 32)
+        broadPhaseTransport = BroadPhaseTransportQueue(4, 192)
         remoteEndpoint = RemoteSessionEndpoint(
             127, 0, 0, 1, 1, 1, 2, 3, 4)
         remoteLink = RemoteSessionLink(remoteEndpoint)

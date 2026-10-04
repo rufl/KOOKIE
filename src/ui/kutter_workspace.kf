@@ -7,6 +7,8 @@ Int kutterModeAssets() { return 4 }
 Int kutterModeEncounter() { return 5 }
 Int kutterModeItems() { return 6 }
 Int kutterModeSkills() { return 7 }
+Int kutterModeGreybox() { return 8 }
+Int kutterModeMaterials() { return 9 }
 
 Int kutterWorkspaceDiagnosticNone() { return 0 }
 Int kutterWorkspaceDiagnosticRevision() { return 1 }

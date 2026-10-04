@@ -83,6 +83,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_push_resize_event(Int width, Int height): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_ui_assets_loaded(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_play_ui_clip(Int clipId): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_set_volumes(
@@ -808,6 +810,10 @@ main() {
 
     var audio = kookie_audio_open()
     assert(audio > 0, "dummy SDL audio device must open")
+    assert(kookie_audio_ui_assets_loaded() == 14 &&
+        kookie_audio_play_ui_clip(1040) &&
+        !kookie_audio_play_ui_clip(9999),
+        "uploaded UI OGG assets must load and reject unknown clips")
     assert(kookie_audio_mixer_version() == 3002004 &&
         kookie_audio_set_volumes(80, 60) &&
         kookie_audio_effects_volume() == 80 &&

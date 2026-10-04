@@ -56,6 +56,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_delay(Int milliseconds): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_presentation_smoke_requested(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_set_volumes(Int effects, Int music): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_ui_assets_loaded(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_play_ui_clip(Int clipId): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_spatial_clip(
@@ -643,15 +645,15 @@ class G1NativePresentation {
         if (!interactionSession.loadAuthoredBroadPhase(
                 arena.authoredCollision()) ||
             !interactionSession.enableFpsMovement(true) ||
-            !interactionSession.configureEnemyRules(160, 35, 15) ||
+            !interactionSession.configureEnemyRules(320, 35, 15) ||
             !interactionSession.defineEnemyWeapon(7, 10, 0, 3, 1) ||
             !interactionSession.setEnemyWeaponRange(7, 40) ||
             !interactionSession.setEnemyWeaponCooldown(7, 15) ||
             !interactionSession.defineEnemyEncounter(4, 4, 12) ||
             !interactionSession.configureEnemyEncounterZone(
-                4, 80, 1, 70, 70) ||
+                4, g1ArenaMaxX() / 2, 1, g1ArenaMaxZ() / 2, 140) ||
             !interactionSession.configureEnemySpatialBounds(
-                0, -4, 0, 160, 20, 140) ||
+                0, -4, 0, g1ArenaMaxX(), g1ArenaMaxY(), g1ArenaMaxZ()) ||
             !interactionSession.definePlayerWeapon(7, 10, 0, 3, 1) ||
             !interactionSession.setPlayerWeaponRange(7, 40) ||
             !interactionSession.addEnemyCombatActor(1, 100, 0) ||
@@ -674,14 +676,14 @@ class G1NativePresentation {
             !interactionSession.equipPlayerCombatWeapon(2, 7)) {
             return false
         }
-        if (!interactionSession.setEnemySpatialPosition(1, 20, 1, 30) ||
-            !interactionSession.setEnemySpatialPosition(2, 28, 1, 30) ||
+        if (!interactionSession.setEnemySpatialPosition(1, 40, 1, 60) ||
+            !interactionSession.setEnemySpatialPosition(2, 56, 1, 60) ||
             !interactionSession.admitEnemyAt(
-                4, 3, 0, 80, 0, 7, 45, 1, 30) ||
+                4, 3, 0, 80, 0, 7, 90, 1, 60) ||
             !interactionSession.admitEnemyAt(
-                4, 4, 0, 80, 0, 7, 120, 1, 28) ||
+                4, 4, 0, 80, 0, 7, 260, 1, 56) ||
             !interactionSession.admitEnemyAt(
-                4, 5, 0, 80, 0, 7, 132, 1, 112) ||
+                4, 5, 0, 80, 0, 7, 264, 1, 224) ||
             !interactionSession.configureEnemyRole(3, 1, 1, 1, 0) ||
             !interactionSession.configureEnemyRole(4, 1, 1, 1, 0) ||
             !interactionSession.configureEnemyRole(5, 2, 1, 2, 0) ||
@@ -1029,10 +1031,14 @@ class G1NativePresentation {
         if (!camera.setFollowTarget(targetX, targetY, targetZ)) {
             return false
         }
+        var moved = false
         if (!hadTarget) {
-            return camera.snapFollowTarget()
+            moved = camera.snapFollowTarget()
+        } else {
+            moved = camera.stepFollow()
         }
-        return camera.stepFollow()
+        return moved && camera.resolveFollowCollision(
+            arena.collisionGeometry())
     }
 
     Bool applyMouseLook() {
@@ -1297,8 +1303,32 @@ Bool sendHostGameState(
     return acknowledgement.length > 0 &&
         sendGamePayload(acknowledgement)
 }
+Int menuUiSoundForAction(
+    Int action, Int beforeScreen, Int afterScreen, Bool handled
+) {
+    if (!handled) { return 1020 }
+    if (action == gameShellActionUp()) { return 1001 }
+    if (action == gameShellActionDown()) { return 1002 }
+    if (action == gameShellActionLeft()) { return 1050 }
+    if (action == gameShellActionRight()) { return 1051 }
+    if (action == gameShellActionActivate()) {
+        if (beforeScreen != afterScreen) { return 1031 }
+        return 1040
+    }
+    if (action == gameShellActionBack()) {
+        if (beforeScreen == gameShellScreenMain()) { return 1010 }
+        return 1030
+    }
+    return 0
+}
+
+Bool playMenuUiSound(Int audio, Int clip) {
+    if (audio <= 0 || clip <= 0) { return true }
+    return kookie_audio_play_ui_clip(clip)
+}
 
 main() {
+
     println("KOOKIE native SDL game shell")
     assert(kookie_sdl_init(48), "SDL video/audio adapter init must succeed")
     var window = kookie_window_create(1280, 720, 0)
@@ -1339,6 +1369,8 @@ main() {
     var audio = kookie_audio_open()
     var appliedSettingsRevision = 0
     if (audio > 0) {
+        assert(kookie_audio_ui_assets_loaded() == 14,
+            "uploaded UI OGG assets must load into SDL mixer tracks")
         assert(kookie_audio_set_volumes(
             shell.effectsVolume(), shell.musicVolume()),
             "SDL mixer FX and music buses must accept initial gains")
@@ -1394,22 +1426,47 @@ main() {
             if (eventKind == 1 || eventKind == 4) {
                 running = false
             } else if (eventKind == 7) {
-                var handled = shell.handleAction(kookie_last_event_a())
-                if (handled && audio > 0) {
-                    kookie_audio_queue_spatial_clip(1, 120, 70, 70)
+                var beforeScreen = shell.screen()
+                var action = kookie_last_event_a()
+                var gameplayBefore = shell.gameplayVisible()
+                var handled = shell.handleAction(action)
+                var clip = 0
+                if (gameplayBefore) {
+                    if (action == gameShellActionBack() && handled) {
+                        clip = 1030
+                    } else if (action == gameShellActionActivate()) {
+                        clip = 1041
+                    }
+                } else {
+                    clip = menuUiSoundForAction(
+                        action, beforeScreen, shell.screen(), handled)
                 }
+                assert(playMenuUiSound(audio, clip),
+                    "keyboard UI interaction must play its mapped sound")
             } else if (eventKind == 8) {
+                var gameplayBefore = shell.gameplayVisible()
+                var beforeScreen = shell.screen()
                 var clicked = shell.handlePointer(
                     kookie_last_event_a(), kookie_last_event_b())
-                if (clicked && audio > 0) {
-                    kookie_audio_queue_spatial_clip(1, 120, 70, 70)
+                var clip = 0
+                if (gameplayBefore) {
+                    clip = 1041
+                } else if (clicked) {
+                    clip = menuUiSoundForAction(
+                        gameShellActionActivate(), beforeScreen,
+                        shell.screen(), true)
                 }
+                assert(playMenuUiSound(audio, clip),
+                    "pointer UI interaction must play its mapped sound")
             }
             eventKind = kookie_poll_event()
         }
         if (kookie_consume_scoreboard_toggle() != 0 &&
             shell.gameplayVisible()) {
-            presentation.toggleScoreboard()
+            var scoreboardVisible = presentation.toggleScoreboard()
+            assert(playMenuUiSound(
+                    audio, if (scoreboardVisible) 1031 else 1030),
+                "scoreboard toggle must play its mapped sound")
         }
 
         if (shell.networkRequest() != 0) {
@@ -1449,6 +1506,9 @@ main() {
                 shell.resolutionWidth(), shell.resolutionHeight())
             assert(shell.acknowledgeDisplayApply(displayApplied),
                 "display transaction must complete")
+            assert(playMenuUiSound(
+                    audio, if (displayApplied) 1040 else 1020),
+                "display apply result must play its mapped sound")
         }
 
         if (shell.kutter().generation() > reload.activeGeneration() &&

@@ -1,0 +1,434 @@
+package ui
+
+Int kutterGreyboxSchemaVersion() { return 1 }
+Int kutterGreyboxCatalogCapacity() { return 96 }
+Int kutterGreyboxPlacementCapacity() { return 128 }
+Int kutterGreyboxAssetNamespace() { return 101 }
+Int kutterGreyboxKindGround() { return 1 }
+Int kutterGreyboxKindWall() { return 2 }
+Int kutterGreyboxKindDoorway() { return 3 }
+Int kutterGreyboxKindStairs() { return 4 }
+Int kutterGreyboxKindRamp() { return 5 }
+Int kutterGreyboxKindFence() { return 6 }
+Int kutterGreyboxKindRailing() { return 7 }
+Int kutterGreyboxKindLadder() { return 8 }
+Int kutterGreyboxKindPillar() { return 9 }
+Int kutterGreyboxKindWindow() { return 10 }
+Int kutterGreyboxKindProp() { return 11 }
+Int kutterGreyboxCollisionSolid() { return 1 }
+Int kutterGreyboxCollisionDecorative() { return 2 }
+Int kutterGreyboxTexturePolicyDefault() { return 1 }
+Int kutterGreyboxTexturePolicyFree() { return 2 }
+Int kutterGreyboxRuntimeReady() { return 1 }
+Int kutterGreyboxRuntimeMissing() { return 2 }
+Int kutterGreyboxLevelMagic() { return 126375221 }
+Int kutterGreyboxLevelWordHeader() { return 6 }
+Int kutterGreyboxLevelWordsPerPlacement() { return 11 }
+
+class BoundedKutterGreyboxCatalog {
+    Int[] moduleIds
+    Int[] assetTokens
+    Int[] kinds
+    Int[] collisionModes
+    Int[] texturePolicies
+    Int[] materialSlots
+    Int[] snapX
+    Int[] snapY
+    Int[] snapZ
+    Int[] boundsX
+    Int[] boundsY
+    Int[] boundsZ
+    Int[] runtimeStatuses
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > kutterGreyboxCatalogCapacity()) {
+            actualCapacity = kutterGreyboxCatalogCapacity()
+        }
+        moduleIds = new Int[actualCapacity]
+        assetTokens = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        collisionModes = new Int[actualCapacity]
+        texturePolicies = new Int[actualCapacity]
+        materialSlots = new Int[actualCapacity]
+        snapX = new Int[actualCapacity]
+        snapY = new Int[actualCapacity]
+        snapZ = new Int[actualCapacity]
+        boundsX = new Int[actualCapacity]
+        boundsY = new Int[actualCapacity]
+        boundsZ = new Int[actualCapacity]
+        runtimeStatuses = new Int[actualCapacity]
+        clear()
+    }
+
+    Bool clear() {
+        countValue = 0
+        return true
+    }
+
+    Int moduleIndex(Int moduleId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (moduleIds[index] == moduleId) { return index }
+        }
+        return -1
+    }
+
+    Bool addModule(
+        Int moduleId, Int assetToken, Int kind, Int collisionMode,
+        Int texturePolicy, Int materialSlotCount,
+        Int moduleSnapX, Int moduleSnapY, Int moduleSnapZ,
+        Int moduleBoundsX, Int moduleBoundsY, Int moduleBoundsZ,
+        Int runtimeStatus
+    ) {
+        if (countValue >= moduleIds.length || moduleId <= 0 ||
+            assetToken <= 0 || kind <= 0 || kind > kutterGreyboxKindProp() ||
+            collisionMode < kutterGreyboxCollisionSolid() ||
+            collisionMode > kutterGreyboxCollisionDecorative() ||
+            texturePolicy < kutterGreyboxTexturePolicyDefault() ||
+            texturePolicy > kutterGreyboxTexturePolicyFree() ||
+            materialSlotCount <= 0 || materialSlotCount > 4 ||
+            moduleSnapX <= 0 || moduleSnapY <= 0 || moduleSnapZ <= 0 ||
+            moduleBoundsX <= 0 || moduleBoundsY <= 0 || moduleBoundsZ <= 0 ||
+            runtimeStatus < kutterGreyboxRuntimeReady() ||
+            runtimeStatus > kutterGreyboxRuntimeMissing() ||
+            moduleIndex(moduleId) >= 0 ||
+            (countValue > 0 && moduleId <= moduleIds[countValue - 1])) {
+            return false
+        }
+        moduleIds[countValue] = moduleId
+        assetTokens[countValue] = assetToken
+        kinds[countValue] = kind
+        collisionModes[countValue] = collisionMode
+        texturePolicies[countValue] = texturePolicy
+        materialSlots[countValue] = materialSlotCount
+        snapX[countValue] = moduleSnapX
+        snapY[countValue] = moduleSnapY
+        snapZ[countValue] = moduleSnapZ
+        boundsX[countValue] = moduleBoundsX
+        boundsY[countValue] = moduleBoundsY
+        boundsZ[countValue] = moduleBoundsZ
+        runtimeStatuses[countValue] = runtimeStatus
+        countValue = countValue + 1
+        return true
+    }
+
+    Bool loadRgsdevPack() {
+        clear()
+        if (!addModule(41001, 51001, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41002, 51002, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41003, 51003, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41004, 51004, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41005, 51005, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41006, 51006, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41007, 51007, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41008, 51008, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41009, 51009, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41010, 51010, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41011, 51011, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41012, 51012, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41013, 51013, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41014, 51014, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41015, 51015, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41016, 51016, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41017, 51017, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41018, 51018, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41019, 51019, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41020, 51020, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41021, 51021, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41022, 51022, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41023, 51023, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41024, 51024, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41025, 51025, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41026, 51026, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41027, 51027, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41028, 51028, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41029, 51029, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41030, 51030, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41031, 51031, kutterGreyboxKindGround(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41032, 51032, kutterGreyboxKindGround(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41033, 51033, kutterGreyboxKindGround(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41034, 51034, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41035, 51035, kutterGreyboxKindLadder(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41036, 51036, kutterGreyboxKindLadder(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41037, 51037, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41038, 51038, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41039, 51039, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41040, 51040, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41041, 51041, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41042, 51042, kutterGreyboxKindRailing(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41043, 51043, kutterGreyboxKindRailing(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41044, 51044, kutterGreyboxKindRamp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41045, 51045, kutterGreyboxKindRamp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41046, 51046, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41047, 51047, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41048, 51048, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41049, 51049, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41050, 51050, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41051, 51051, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41052, 51052, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41053, 51053, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41054, 51054, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41055, 51055, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41056, 51056, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41057, 51057, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41058, 51058, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41059, 51059, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41060, 51060, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41061, 51061, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41062, 51062, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41063, 51063, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41064, 51064, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41065, 51065, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41066, 51066, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41067, 51067, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41068, 51068, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41069, 51069, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41070, 51070, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41071, 51071, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41072, 51072, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41073, 51073, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41074, 51074, kutterGreyboxKindWindow(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addModule(41075, 51075, kutterGreyboxKindWindow(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        return validate()
+    }
+
+    Bool validate() {
+        if (countValue <= 0 || countValue > moduleIds.length) { return false }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (moduleIds[index] <= 0 || assetTokens[index] <= 0 ||
+                kinds[index] <= 0 || kinds[index] > kutterGreyboxKindProp() ||
+                collisionModes[index] < kutterGreyboxCollisionSolid() ||
+                collisionModes[index] > kutterGreyboxCollisionDecorative() ||
+                texturePolicies[index] < kutterGreyboxTexturePolicyDefault() ||
+                texturePolicies[index] > kutterGreyboxTexturePolicyFree() ||
+                materialSlots[index] <= 0 || materialSlots[index] > 4 ||
+                snapX[index] <= 0 || snapY[index] <= 0 || snapZ[index] <= 0 ||
+                boundsX[index] <= 0 || boundsY[index] <= 0 || boundsZ[index] <= 0 ||
+                runtimeStatuses[index] < kutterGreyboxRuntimeReady() ||
+                runtimeStatuses[index] > kutterGreyboxRuntimeMissing() ||
+                (index > 0 && moduleIds[index] <= moduleIds[index - 1])) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int count() {
+        return countValue
+    }
+    Int moduleId(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return moduleIds[index]
+    }
+    Int assetToken(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return assetTokens[index]
+    }
+    Int kind(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return kinds[index]
+    }
+    Int collisionMode(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return collisionModes[index]
+    }
+    Int texturePolicy(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return texturePolicies[index]
+    }
+    Int materialSlotCount(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return materialSlots[index]
+    }
+    Int snapXValue(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return snapX[index]
+    }
+    Int snapYValue(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return snapY[index]
+    }
+    Int snapZValue(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return snapZ[index]
+    }
+    Int boundsXValue(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return boundsX[index]
+    }
+    Int boundsYValue(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return boundsY[index]
+    }
+    Int boundsZValue(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return boundsZ[index]
+    }
+    Int runtimeStatus(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return runtimeStatuses[index]
+    }
+
+    Bool hasModule(Int moduleId) { return moduleIndex(moduleId) >= 0 }
+    Bool supportsTextureOverride(Int moduleId, Int slot) {
+        var index = moduleIndex(moduleId)
+        return index >= 0 && texturePolicies[index] == kutterGreyboxTexturePolicyFree() &&
+            slot >= 0 && slot < materialSlots[index]
+    }
+}
+
+class BoundedKutterGreyboxLevel {
+    Int[] nodeIds
+    Int[] moduleIds
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] rotations
+    Int[] scales
+    Int[] textureOverrides
+    Int countValue
+    Int generationValue
+    Int checksumValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > kutterGreyboxPlacementCapacity()) {
+            actualCapacity = kutterGreyboxPlacementCapacity()
+        }
+        nodeIds = new Int[actualCapacity]
+        moduleIds = new Int[actualCapacity]
+        positionsX = new Int[actualCapacity]
+        positionsY = new Int[actualCapacity]
+        positionsZ = new Int[actualCapacity]
+        rotations = new Int[actualCapacity]
+        scales = new Int[actualCapacity]
+        textureOverrides = new Int[actualCapacity * 4]
+        clear()
+    }
+
+    Bool clear() {
+        countValue = 0
+        generationValue = 1
+        checksumValue = calculateChecksum()
+        return true
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 137
+        result = mix(result, kutterGreyboxSchemaVersion())
+        result = mix(result, generationValue)
+        result = mix(result, countValue)
+        for (var index = 0; index < countValue; index = index + 1) {
+            result = mix(result, nodeIds[index])
+            result = mix(result, moduleIds[index])
+            result = mix(result, positionsX[index])
+            result = mix(result, positionsY[index])
+            result = mix(result, positionsZ[index])
+            result = mix(result, rotations[index])
+            result = mix(result, scales[index])
+            for (var slot = 0; slot < 4; slot = slot + 1) {
+                result = mix(result, textureOverrides[index * 4 + slot])
+            }
+        }
+        if (result <= 0) { return 1 }
+        return result
+    }
+
+    Int nodeIndex(Int nodeId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (nodeIds[index] == nodeId) { return index }
+        }
+        return -1
+    }
+
+    Bool addModule(
+        BoundedKutterGreyboxCatalog catalog, Int nodeId, Int moduleId,
+        Int x, Int y, Int z, Int rotation, Int scale
+    ) {
+        if (!catalog.validate() || countValue >= nodeIds.length ||
+            nodeId <= 0 || moduleId <= 0 || catalog.moduleIndex(moduleId) < 0 ||
+            nodeIndex(nodeId) >= 0 || x < -1000000 || x > 1000000 ||
+            y < -1000000 || y > 1000000 || z < -1000000 || z > 1000000 ||
+            rotation < -360000 || rotation > 360000 || scale <= 0 || scale > 1000000 ||
+            (countValue > 0 && nodeId <= nodeIds[countValue - 1])) {
+            return false
+        }
+        var index = countValue
+        nodeIds[index] = nodeId
+        moduleIds[index] = moduleId
+        positionsX[index] = x
+        positionsY[index] = y
+        positionsZ[index] = z
+        rotations[index] = rotation
+        scales[index] = scale
+        for (var slot = 0; slot < 4; slot = slot + 1) {
+            textureOverrides[index * 4 + slot] = 0
+        }
+        countValue = countValue + 1
+        generationValue = generationValue + 1
+        checksumValue = calculateChecksum()
+        return true
+    }
+
+    Bool setTextureOverride(
+        BoundedKutterGreyboxCatalog catalog, Int nodeId, Int slot, Int textureAssetToken
+    ) {
+        var index = nodeIndex(nodeId)
+        if (!catalog.validate() || index < 0 || slot < 0 || slot >= 4 ||
+            textureAssetToken < 0 || !catalog.supportsTextureOverride(moduleIds[index], slot)) {
+            return false
+        }
+        textureOverrides[index * 4 + slot] = textureAssetToken
+        generationValue = generationValue + 1
+        checksumValue = calculateChecksum()
+        return true
+    }
+
+    Bool validate(BoundedKutterGreyboxCatalog catalog) {
+        if (!catalog.validate() || countValue <= 0 || countValue > nodeIds.length ||
+            generationValue <= 0 || checksumValue != calculateChecksum()) { return false }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (nodeIds[index] <= 0 || catalog.moduleIndex(moduleIds[index]) < 0 ||
+                positionsX[index] < -1000000 || positionsX[index] > 1000000 ||
+                positionsY[index] < -1000000 || positionsY[index] > 1000000 ||
+                positionsZ[index] < -1000000 || positionsZ[index] > 1000000 ||
+                rotations[index] < -360000 || rotations[index] > 360000 ||
+                scales[index] <= 0 || (index > 0 && nodeIds[index] <= nodeIds[index - 1])) {
+                return false
+            }
+            for (var slot = 0; slot < 4; slot = slot + 1) {
+                var textureToken = textureOverrides[index * 4 + slot]
+                if (textureToken < 0 || (textureToken > 0 &&
+                    !catalog.supportsTextureOverride(moduleIds[index], slot))) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Int count() { return countValue }
+    Int generation() { return generationValue }
+    Int checksum() { return checksumValue }
+    Int nodeId(Int index) { if (index < 0 || index >= countValue) { return 0 } return nodeIds[index] }
+    Int moduleId(Int index) { if (index < 0 || index >= countValue) { return 0 } return moduleIds[index] }
+    Int x(Int index) { if (index < 0 || index >= countValue) { return 0 } return positionsX[index] }
+    Int y(Int index) { if (index < 0 || index >= countValue) { return 0 } return positionsY[index] }
+    Int z(Int index) { if (index < 0 || index >= countValue) { return 0 } return positionsZ[index] }
+    Int rotation(Int index) { if (index < 0 || index >= countValue) { return 0 } return rotations[index] }
+    Int scale(Int index) { if (index < 0 || index >= countValue) { return 0 } return scales[index] }
+    Int textureOverride(Int index, Int slot) {
+        if (index < 0 || index >= countValue || slot < 0 || slot >= 4) { return 0 }
+        return textureOverrides[index * 4 + slot]
+    }
+}
+

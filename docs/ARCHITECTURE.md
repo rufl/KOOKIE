@@ -136,8 +136,11 @@ Authored 3D doors add a 36-vertex cuboid to the 90-vertex, 30-triangle
 open-sky arena world mesh. The arena now spans a 160 by 140 world-unit
 footprint with interconnected room partitions, central corridors and L-shaped
 cover pillars; the current gameplay extraction submits the arena, door and
-actor world geometry in a dedicated pass, then submits the HUD as an overlay
-pass. The native SDL_GPU world pipeline consumes raw authored coordinates, a
+actor world geometry in a dedicated pass, then submits projected actor labels
+and five-state heart sprites as camera-facing 2D billboard quads before the
+HUD overlay pass. Authoritative player/bot health drives empty, quarter, half,
+three-quarter and full heart states; lobby name IDs drive the labels. The
+native SDL_GPU world pipeline consumes raw authored coordinates, a
 view-projection matrix, a generated material texture atlas and a D16 depth
 target. Kof owns camera input and world extraction; the native adapter only
 owns GPU resources, uploads and draw submission.
@@ -664,7 +667,12 @@ workspace, fence-gated frame-boundary GPU reload and compatibility
 offer/response transport execute on the supported JVM/native paths. The
 handshake passed with the host and two clients in separate Linux network
 namespaces and distinct IPv4 stacks. Stale, invalid or incompatible
-transactions preserve the active generation. The definition-driven multiplayer
+transactions preserve the active generation.
+The Kutter editor also exposes the Rgsdev modular greybox catalog and bounded
+placement state. Modules carry snap, collision and material-slot metadata;
+placement records can assign texture override tokens without changing the
+source mesh, leaving material authoring free for the editor surface.
+The definition-driven multiplayer
 sample executes the published elite-bounty hook after authoritative death and
 applies its command exactly once. General format compatibility, arbitrary
 live-code reload, a production-grade editor and fresh qualification on three

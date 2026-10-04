@@ -2,6 +2,11 @@ package world
 
 import core
 
+Int g1ArenaMaxX() { return 320 }
+Int g1ArenaMaxY() { return 24 }
+Int g1ArenaMaxZ() { return 280 }
+Int g1ArenaWallThickness() { return 4 }
+
 class G1Arena {
     BoundedAuthoredCollision authoredValue
     BoundedTriangleCollection collisionValue
@@ -9,8 +14,8 @@ class G1Arena {
     Bool readyValue
 
     public constructor() {
-        authoredValue = BoundedAuthoredCollision(96, 32)
-        collisionValue = BoundedTriangleCollection(32, 256)
+        authoredValue = BoundedAuthoredCollision(256, 256)
+        collisionValue = BoundedTriangleCollection(192, 64)
         contactValue = BoundedTriangleContactController(
             collisionValue, 1, 64, 60, 2)
         readyValue = buildArena()
@@ -42,60 +47,98 @@ class G1Arena {
                 ax, ay, az, cx, cy, cz, dx, dy, dz, surface)
     }
 
+    Bool appendIndexedQuad(
+        Int a, Int b, Int c, Int d, Int surface
+    ) {
+        return authoredValue.addTriangle(a, b, c, surface) &&
+            authoredValue.addTriangle(a, c, d, surface)
+    }
+
+    Bool appendBox(
+        Int left, Int bottom, Int front,
+        Int right, Int top, Int back,
+        Int surface
+    ) {
+        var base = authoredValue.vertexCount()
+        if (!authoredValue.addVertex(left, bottom, front) ||
+            !authoredValue.addVertex(right, bottom, front) ||
+            !authoredValue.addVertex(right, top, front) ||
+            !authoredValue.addVertex(left, top, front) ||
+            !authoredValue.addVertex(left, bottom, back) ||
+            !authoredValue.addVertex(right, bottom, back) ||
+            !authoredValue.addVertex(right, top, back) ||
+            !authoredValue.addVertex(left, top, back)) {
+            return false
+        }
+        return appendIndexedQuad(
+                base, base + 1, base + 2, base + 3, surface) &&
+            appendIndexedQuad(
+                base + 5, base + 4, base + 7, base + 6, surface) &&
+            appendIndexedQuad(
+                base + 4, base, base + 3, base + 7, surface) &&
+            appendIndexedQuad(
+                base + 1, base + 5, base + 6, base + 2, surface) &&
+            appendIndexedQuad(
+                base + 3, base + 2, base + 6, base + 7, surface) &&
+            appendIndexedQuad(
+                base + 4, base + 5, base + 1, base, surface)
+    }
+
+    Bool appendCover(
+        Int left, Int front, Int right, Int back, Int surface
+    ) {
+        return appendBox(
+            left, 0, front, right, 14, back, surface)
+    }
+
     Bool buildArena() {
+        var maxX = g1ArenaMaxX()
+        var maxY = g1ArenaMaxY()
+        var maxZ = g1ArenaMaxZ()
+        var thickness = g1ArenaWallThickness()
         if (!authoredValue.configure(
-                101, 1001, 2, 1, 100,
-                0, -4, 0, 160, 20, 140)) {
+                101, 1001, 3, 1, 100,
+                0, -4, 0, maxX, maxY, maxZ)) {
             return false
         }
 
-        // Large open-sky arena floor: 160 by 140 world units.
         if (!appendQuad(
-                0, 0, 0, 160, 0, 0, 160, 0, 140, 0, 0, 140, 6)) {
+                0, 0, 0, maxX, 0, 0, maxX, 0, maxZ, 0, 0, maxZ, 6)) {
             return false
         }
 
-        // Four perimeter walls leave the sky open while keeping combat inside.
-        if (!appendQuad(
-                0, 0, 0, 0, 20, 0, 0, 20, 140, 0, 0, 140, 8) ||
-            !appendQuad(
-                160, 0, 140, 160, 20, 140, 160, 20, 0, 160, 0, 0, 8) ||
-            !appendQuad(
-                0, 0, 0, 160, 0, 0, 160, 20, 0, 0, 20, 0, 8) ||
-            !appendQuad(
-                160, 0, 140, 0, 0, 140, 0, 20, 140, 160, 20, 140, 8)) {
+        // Perimeter walls are solid six-sided volumes, not camera-facing planes.
+        if (!appendBox(
+                0, 0, 0, thickness, maxY, maxZ, 8) ||
+            !appendBox(
+                maxX - thickness, 0, 0, maxX, maxY, maxZ, 8) ||
+            !appendBox(
+                thickness, 0, 0, maxX - thickness, maxY, thickness, 8) ||
+            !appendBox(
+                thickness, 0, maxZ - thickness,
+                maxX - thickness, maxY, maxZ, 8)) {
             return false
         }
 
-        // Central cross-corridor: four room mouths connect through a wide hub.
-        if (!appendQuad(
-                80, 0, 0, 80, 20, 0, 80, 20, 48, 80, 0, 48, 3) ||
-            !appendQuad(
-                80, 0, 92, 80, 20, 92, 80, 20, 140, 80, 0, 140, 3) ||
-            !appendQuad(
-                0, 0, 70, 0, 20, 70, 50, 20, 70, 50, 0, 70, 4) ||
-            !appendQuad(
-                110, 0, 70, 110, 20, 70, 160, 20, 70, 160, 0, 70, 4)) {
+        // Central cross-corridor leaves a wide, camera-safe room junction.
+        if (!appendBox(158, 0, 4, 162, maxY, 96, 3) ||
+            !appendBox(158, 0, 184, 162, maxY, 276, 3) ||
+            !appendBox(4, 0, 138, 100, maxY, 142, 4) ||
+            !appendBox(220, 0, 138, 316, maxY, 142, 4)) {
             return false
         }
 
-        // Offset partitions make six distinct rooms without dead ends.
-        if (!appendQuad(
-                40, 0, 100, 40, 20, 100, 40, 20, 140, 40, 0, 140, 5) ||
-            !appendQuad(
-                120, 0, 0, 120, 20, 0, 120, 20, 40, 120, 0, 40, 5)) {
+        // Offset partitions preserve long sight lines without dead ends.
+        if (!appendBox(78, 0, 200, 82, maxY, 276, 5) ||
+            !appendBox(238, 0, 4, 242, maxY, 80, 5)) {
             return false
         }
 
-        // Two L-shaped cover pillars sit in the central hub.
-        if (!appendQuad(
-                58, 0, 54, 58, 12, 54, 58, 12, 64, 58, 0, 64, 2) ||
-            !appendQuad(
-                58, 0, 54, 58, 12, 54, 68, 12, 54, 68, 0, 54, 7) ||
-            !appendQuad(
-                94, 0, 78, 94, 12, 78, 94, 12, 88, 94, 0, 88, 2) ||
-            !appendQuad(
-                94, 0, 88, 94, 12, 88, 104, 12, 88, 104, 0, 88, 7)) {
+        // Two solid L-shaped cover clusters.
+        if (!appendCover(116, 108, 120, 128, 2) ||
+            !appendCover(116, 108, 136, 112, 7) ||
+            !appendCover(200, 156, 204, 176, 2) ||
+            !appendCover(188, 172, 204, 176, 7)) {
             return false
         }
 
@@ -109,6 +152,10 @@ class G1Arena {
 
     BoundedAuthoredCollision authoredCollision() {
         return authoredValue
+    }
+
+    BoundedTriangleCollection collisionGeometry() {
+        return collisionValue
     }
 
     Int authoredChecksum() {

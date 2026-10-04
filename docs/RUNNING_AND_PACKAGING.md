@@ -160,10 +160,14 @@ output for its exact reduction workload, not a general speedup claim.
 ## Prototype content package
 
 The first content profile stages a bounded, signed asset catalog under
-`content/prototype`. It includes converted GLB models from the modular and
-Classic64 packs, the requested animated goose, authored VFX PNGs, bounded
-runtime PNG derivatives, cooked RGBA8 PNG outputs, and retained source notices.
-It is opt-in so existing runtime packages remain content-free:
+`content/prototype`. It includes the converted GLB library from the Rgsdev
+modular pack (75 greybox pieces plus the existing character asset), the
+Classic64 pack, the requested animated goose, authored VFX PNGs, bounded
+runtime PNG derivatives, cooked RGBA8 PNG outputs, and retained source
+notices. `greybox_modules.json` is the editor-facing catalog: it binds each
+module to its runtime GLB, 1-grid placement/snap metadata, collision role and
+free texture-override policy. It is opt-in so existing runtime packages remain
+content-free:
 
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.prototype \
@@ -191,6 +195,14 @@ required; KOOKIE retains attribution voluntarily. No SPDX license or
 standalone raw-file redistribution grant is stated, so the cat source and GLB
 remain prototype-only and must not be advertised as CC0 or an independent
 asset pack.
+
+The catalog also stages Echo Studios' five-state player-heart sheet at
+`ui.player-hearts`. Its authored copy preserves the supplied 320x64 PNG; the
+bounded runtime derivative is cooked from a 160x32 nearest-neighbor copy, and
+the native presentation samples those five states into the 2D billboard atlas.
+The source page is a name-your-own-price download but does not state a
+standard license or standalone redistribution terms. Keep the heart asset
+prototype-only; see `licenses/echo-studios-heart-terms.txt`.
 
 ## Linux SDL presentation package
 

@@ -1,0 +1,1820 @@
+{
+  "schema": "kookie.greybox-module-catalog/v1",
+  "pack_id": "rgsdev-modular-prototyping",
+  "source_archive": "C__Users_rafael_Downloads_Free 3D Modular Game Assets For Prototyping.zip",
+  "source_archive_sha256": "fc22015d5ec0860955c0e4969bed4c57c1b0912690f16a563c7413b1fd4bcbde",
+  "license": "CC0",
+  "license_file": "licenses/modular-cc0.txt",
+  "creator": "Raphael Gon\u00e7alves / Rgsdev",
+  "editor_policy": {
+    "role": "greybox-module",
+    "default_material": "untextured",
+    "texture_override": "free",
+    "texture_override_requires_uv": true,
+    "rotation_step_degrees": 90,
+    "snap_unit": 1000,
+    "max_material_slots": 4
+  },
+  "modules": [
+    {
+      "module_id": 41001,
+      "asset_token": 51001,
+      "asset_id": "model.modular-arrow",
+      "name": "Arrow",
+      "source_path": "Pieces/arrow.fbx",
+      "runtime_path": "models/modular/arrow.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41002,
+      "asset_token": 51002,
+      "asset_id": "model.modular-box",
+      "name": "Box",
+      "source_path": "Pieces/box.fbx",
+      "runtime_path": "models/modular/box.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41003,
+      "asset_token": 51003,
+      "asset_id": "model.modular-coin",
+      "name": "Coin",
+      "source_path": "Pieces/coin.fbx",
+      "runtime_path": "models/modular/coin.glb",
+      "kind": "prop",
+      "collision": "decorative",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41004,
+      "asset_token": 51004,
+      "asset_id": "model.modular-cone",
+      "name": "Cone",
+      "source_path": "Pieces/cone.fbx",
+      "runtime_path": "models/modular/cone.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41005,
+      "asset_token": 51005,
+      "asset_id": "model.modular-cone1",
+      "name": "Cone1",
+      "source_path": "Pieces/cone1.fbx",
+      "runtime_path": "models/modular/cone1.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41006,
+      "asset_token": 51006,
+      "asset_id": "model.modular-cone2",
+      "name": "Cone2",
+      "source_path": "Pieces/cone2.fbx",
+      "runtime_path": "models/modular/cone2.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41007,
+      "asset_token": 51007,
+      "asset_id": "model.modular-cone3",
+      "name": "Cone3",
+      "source_path": "Pieces/cone3.fbx",
+      "runtime_path": "models/modular/cone3.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41008,
+      "asset_token": 51008,
+      "asset_id": "model.modular-cone4",
+      "name": "Cone4",
+      "source_path": "Pieces/cone4.fbx",
+      "runtime_path": "models/modular/cone4.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41009,
+      "asset_token": 51009,
+      "asset_id": "model.modular-cube",
+      "name": "Cube",
+      "source_path": "Pieces/cube.fbx",
+      "runtime_path": "models/modular/cube.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41010,
+      "asset_token": 51010,
+      "asset_id": "model.modular-cube4",
+      "name": "Cube4",
+      "source_path": "Pieces/cube4.fbx",
+      "runtime_path": "models/modular/cube4.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41011,
+      "asset_token": 51011,
+      "asset_id": "model.modular-cube5",
+      "name": "Cube5",
+      "source_path": "Pieces/cube5.fbx",
+      "runtime_path": "models/modular/cube5.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41012,
+      "asset_token": 51012,
+      "asset_id": "model.modular-cube6",
+      "name": "Cube6",
+      "source_path": "Pieces/cube6.fbx",
+      "runtime_path": "models/modular/cube6.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41013,
+      "asset_token": 51013,
+      "asset_id": "model.modular-cube7",
+      "name": "Cube7",
+      "source_path": "Pieces/cube7.fbx",
+      "runtime_path": "models/modular/cube7.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41014,
+      "asset_token": 51014,
+      "asset_id": "model.modular-cube8",
+      "name": "Cube8",
+      "source_path": "Pieces/cube8.fbx",
+      "runtime_path": "models/modular/cube8.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41015,
+      "asset_token": 51015,
+      "asset_id": "model.modular-cube9",
+      "name": "Cube9",
+      "source_path": "Pieces/cube9.fbx",
+      "runtime_path": "models/modular/cube9.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41016,
+      "asset_token": 51016,
+      "asset_id": "model.modular-cylinder",
+      "name": "Cylinder",
+      "source_path": "Pieces/cylinder.fbx",
+      "runtime_path": "models/modular/cylinder.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41017,
+      "asset_token": 51017,
+      "asset_id": "model.modular-cylinder1",
+      "name": "Cylinder1",
+      "source_path": "Pieces/cylinder1.fbx",
+      "runtime_path": "models/modular/cylinder1.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41018,
+      "asset_token": 51018,
+      "asset_id": "model.modular-cylinder2",
+      "name": "Cylinder2",
+      "source_path": "Pieces/cylinder2.fbx",
+      "runtime_path": "models/modular/cylinder2.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41019,
+      "asset_token": 51019,
+      "asset_id": "model.modular-cylinder3",
+      "name": "Cylinder3",
+      "source_path": "Pieces/cylinder3.fbx",
+      "runtime_path": "models/modular/cylinder3.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41020,
+      "asset_token": 51020,
+      "asset_id": "model.modular-cylinder4",
+      "name": "Cylinder4",
+      "source_path": "Pieces/cylinder4.fbx",
+      "runtime_path": "models/modular/cylinder4.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41021,
+      "asset_token": 51021,
+      "asset_id": "model.modular-cylinder5",
+      "name": "Cylinder5",
+      "source_path": "Pieces/cylinder5.fbx",
+      "runtime_path": "models/modular/cylinder5.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41022,
+      "asset_token": 51022,
+      "asset_id": "model.modular-door",
+      "name": "Door",
+      "source_path": "Pieces/door.fbx",
+      "runtime_path": "models/modular/door.glb",
+      "kind": "doorway",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41023,
+      "asset_token": 51023,
+      "asset_id": "model.modular-door1",
+      "name": "Door1",
+      "source_path": "Pieces/door1.fbx",
+      "runtime_path": "models/modular/door1.glb",
+      "kind": "doorway",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41024,
+      "asset_token": 51024,
+      "asset_id": "model.modular-door2",
+      "name": "Door2",
+      "source_path": "Pieces/door2.fbx",
+      "runtime_path": "models/modular/door2.glb",
+      "kind": "doorway",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41025,
+      "asset_token": 51025,
+      "asset_id": "model.modular-door3",
+      "name": "Door3",
+      "source_path": "Pieces/door3.fbx",
+      "runtime_path": "models/modular/door3.glb",
+      "kind": "doorway",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41026,
+      "asset_token": 51026,
+      "asset_id": "model.modular-fence_edge",
+      "name": "Fence Edge",
+      "source_path": "Pieces/fence edge.fbx",
+      "runtime_path": "models/modular/fence_edge.glb",
+      "kind": "fence",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41027,
+      "asset_token": 51027,
+      "asset_id": "model.modular-fence_wood",
+      "name": "Fence Wood",
+      "source_path": "Pieces/fence wood.fbx",
+      "runtime_path": "models/modular/fence_wood.glb",
+      "kind": "fence",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41028,
+      "asset_token": 51028,
+      "asset_id": "model.modular-fence",
+      "name": "Fence",
+      "source_path": "Pieces/fence.fbx",
+      "runtime_path": "models/modular/fence.glb",
+      "kind": "fence",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41029,
+      "asset_token": 51029,
+      "asset_id": "model.modular-fence2",
+      "name": "Fence2",
+      "source_path": "Pieces/fence2.fbx",
+      "runtime_path": "models/modular/fence2.glb",
+      "kind": "fence",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41030,
+      "asset_token": 51030,
+      "asset_id": "model.modular-fence3",
+      "name": "Fence3",
+      "source_path": "Pieces/fence3.fbx",
+      "runtime_path": "models/modular/fence3.glb",
+      "kind": "fence",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41031,
+      "asset_token": 51031,
+      "asset_id": "model.modular-ground_corner",
+      "name": "Ground Corner",
+      "source_path": "Pieces/ground corner.fbx",
+      "runtime_path": "models/modular/ground_corner.glb",
+      "kind": "ground",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41032,
+      "asset_token": 51032,
+      "asset_id": "model.modular-ground",
+      "name": "Ground",
+      "source_path": "Pieces/ground.fbx",
+      "runtime_path": "models/modular/ground.glb",
+      "kind": "ground",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41033,
+      "asset_token": 51033,
+      "asset_id": "model.modular-ground1",
+      "name": "Ground1",
+      "source_path": "Pieces/ground1.fbx",
+      "runtime_path": "models/modular/ground1.glb",
+      "kind": "ground",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41034,
+      "asset_token": 51034,
+      "asset_id": "model.modular-key",
+      "name": "Key",
+      "source_path": "Pieces/key.fbx",
+      "runtime_path": "models/modular/key.glb",
+      "kind": "prop",
+      "collision": "decorative",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41035,
+      "asset_token": 51035,
+      "asset_id": "model.modular-ladder",
+      "name": "Ladder",
+      "source_path": "Pieces/ladder.fbx",
+      "runtime_path": "models/modular/ladder.glb",
+      "kind": "ladder",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41036,
+      "asset_token": 51036,
+      "asset_id": "model.modular-ladder1",
+      "name": "Ladder1",
+      "source_path": "Pieces/ladder1.fbx",
+      "runtime_path": "models/modular/ladder1.glb",
+      "kind": "ladder",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41037,
+      "asset_token": 51037,
+      "asset_id": "model.modular-pillar",
+      "name": "Pillar",
+      "source_path": "Pieces/pillar.fbx",
+      "runtime_path": "models/modular/pillar.glb",
+      "kind": "pillar",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41038,
+      "asset_token": 51038,
+      "asset_id": "model.modular-pillar1",
+      "name": "Pillar1",
+      "source_path": "Pieces/pillar1.fbx",
+      "runtime_path": "models/modular/pillar1.glb",
+      "kind": "pillar",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41039,
+      "asset_token": 51039,
+      "asset_id": "model.modular-pillar2",
+      "name": "Pillar2",
+      "source_path": "Pieces/pillar2.fbx",
+      "runtime_path": "models/modular/pillar2.glb",
+      "kind": "pillar",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41040,
+      "asset_token": 51040,
+      "asset_id": "model.modular-pillar3",
+      "name": "Pillar3",
+      "source_path": "Pieces/pillar3.fbx",
+      "runtime_path": "models/modular/pillar3.glb",
+      "kind": "pillar",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41041,
+      "asset_token": 51041,
+      "asset_id": "model.modular-pillar4",
+      "name": "Pillar4",
+      "source_path": "Pieces/pillar4.fbx",
+      "runtime_path": "models/modular/pillar4.glb",
+      "kind": "pillar",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41042,
+      "asset_token": 51042,
+      "asset_id": "model.modular-railing_edge",
+      "name": "Railing Edge",
+      "source_path": "Pieces/railing edge.fbx",
+      "runtime_path": "models/modular/railing_edge.glb",
+      "kind": "railing",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41043,
+      "asset_token": 51043,
+      "asset_id": "model.modular-railing",
+      "name": "Railing",
+      "source_path": "Pieces/railing.fbx",
+      "runtime_path": "models/modular/railing.glb",
+      "kind": "railing",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41044,
+      "asset_token": 51044,
+      "asset_id": "model.modular-ramp",
+      "name": "Ramp",
+      "source_path": "Pieces/ramp.fbx",
+      "runtime_path": "models/modular/ramp.glb",
+      "kind": "ramp",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41045,
+      "asset_token": 51045,
+      "asset_id": "model.modular-ramp1",
+      "name": "Ramp1",
+      "source_path": "Pieces/ramp1.fbx",
+      "runtime_path": "models/modular/ramp1.glb",
+      "kind": "ramp",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41046,
+      "asset_token": 51046,
+      "asset_id": "model.modular-sphere",
+      "name": "Sphere",
+      "source_path": "Pieces/sphere.fbx",
+      "runtime_path": "models/modular/sphere.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41047,
+      "asset_token": 51047,
+      "asset_id": "model.modular-sphere1",
+      "name": "Sphere1",
+      "source_path": "Pieces/sphere1.fbx",
+      "runtime_path": "models/modular/sphere1.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41048,
+      "asset_token": 51048,
+      "asset_id": "model.modular-sphere2",
+      "name": "Sphere2",
+      "source_path": "Pieces/sphere2.fbx",
+      "runtime_path": "models/modular/sphere2.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41049,
+      "asset_token": 51049,
+      "asset_id": "model.modular-spike",
+      "name": "Spike",
+      "source_path": "Pieces/spike.fbx",
+      "runtime_path": "models/modular/spike.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41050,
+      "asset_token": 51050,
+      "asset_id": "model.modular-spikes_big",
+      "name": "Spikes Big",
+      "source_path": "Pieces/spikes big.fbx",
+      "runtime_path": "models/modular/spikes_big.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41051,
+      "asset_token": 51051,
+      "asset_id": "model.modular-spikes_small",
+      "name": "Spikes Small",
+      "source_path": "Pieces/spikes small.fbx",
+      "runtime_path": "models/modular/spikes_small.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41052,
+      "asset_token": 51052,
+      "asset_id": "model.modular-stairs_corner",
+      "name": "Stairs Corner",
+      "source_path": "Pieces/stairs corner.fbx",
+      "runtime_path": "models/modular/stairs_corner.glb",
+      "kind": "stairs",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41053,
+      "asset_token": 51053,
+      "asset_id": "model.modular-stairs_corner1",
+      "name": "Stairs Corner1",
+      "source_path": "Pieces/stairs corner1.fbx",
+      "runtime_path": "models/modular/stairs_corner1.glb",
+      "kind": "stairs",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41054,
+      "asset_token": 51054,
+      "asset_id": "model.modular-stairs",
+      "name": "Stairs",
+      "source_path": "Pieces/stairs.fbx",
+      "runtime_path": "models/modular/stairs.glb",
+      "kind": "stairs",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41055,
+      "asset_token": 51055,
+      "asset_id": "model.modular-stairs1",
+      "name": "Stairs1",
+      "source_path": "Pieces/stairs1.fbx",
+      "runtime_path": "models/modular/stairs1.glb",
+      "kind": "stairs",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41056,
+      "asset_token": 51056,
+      "asset_id": "model.modular-stairs2",
+      "name": "Stairs2",
+      "source_path": "Pieces/stairs2.fbx",
+      "runtime_path": "models/modular/stairs2.glb",
+      "kind": "stairs",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41057,
+      "asset_token": 51057,
+      "asset_id": "model.modular-toggle_switch",
+      "name": "Toggle Switch",
+      "source_path": "Pieces/toggle switch.fbx",
+      "runtime_path": "models/modular/toggle_switch.glb",
+      "kind": "prop",
+      "collision": "decorative",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41058,
+      "asset_token": 51058,
+      "asset_id": "model.modular-torus",
+      "name": "Torus",
+      "source_path": "Pieces/torus.fbx",
+      "runtime_path": "models/modular/torus.glb",
+      "kind": "prop",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41059,
+      "asset_token": 51059,
+      "asset_id": "model.modular-wall_corner_bottom",
+      "name": "Wall Corner Bottom",
+      "source_path": "Pieces/wall corner bottom.fbx",
+      "runtime_path": "models/modular/wall_corner_bottom.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41060,
+      "asset_token": 51060,
+      "asset_id": "model.modular-wall_corner_bottom1",
+      "name": "Wall Corner Bottom1",
+      "source_path": "Pieces/wall corner bottom1.fbx",
+      "runtime_path": "models/modular/wall_corner_bottom1.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41061,
+      "asset_token": 51061,
+      "asset_id": "model.modular-wall_corner_bottom2",
+      "name": "Wall Corner Bottom2",
+      "source_path": "Pieces/wall corner bottom2.fbx",
+      "runtime_path": "models/modular/wall_corner_bottom2.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41062,
+      "asset_token": 51062,
+      "asset_id": "model.modular-wall_corner_top",
+      "name": "Wall Corner Top",
+      "source_path": "Pieces/wall corner top.fbx",
+      "runtime_path": "models/modular/wall_corner_top.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41063,
+      "asset_token": 51063,
+      "asset_id": "model.modular-wall_corner_top1",
+      "name": "Wall Corner Top1",
+      "source_path": "Pieces/wall corner top1.fbx",
+      "runtime_path": "models/modular/wall_corner_top1.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41064,
+      "asset_token": 51064,
+      "asset_id": "model.modular-wall_corner",
+      "name": "Wall Corner",
+      "source_path": "Pieces/wall corner.fbx",
+      "runtime_path": "models/modular/wall_corner.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41065,
+      "asset_token": 51065,
+      "asset_id": "model.modular-wall_corner1",
+      "name": "Wall Corner1",
+      "source_path": "Pieces/wall corner1.fbx",
+      "runtime_path": "models/modular/wall_corner1.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41066,
+      "asset_token": 51066,
+      "asset_id": "model.modular-wall_corner4",
+      "name": "Wall Corner4",
+      "source_path": "Pieces/wall corner4.fbx",
+      "runtime_path": "models/modular/wall_corner4.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41067,
+      "asset_token": 51067,
+      "asset_id": "model.modular-wall_door",
+      "name": "Wall Door",
+      "source_path": "Pieces/wall door.fbx",
+      "runtime_path": "models/modular/wall_door.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41068,
+      "asset_token": 51068,
+      "asset_id": "model.modular-wall_door1",
+      "name": "Wall Door1",
+      "source_path": "Pieces/wall door1.fbx",
+      "runtime_path": "models/modular/wall_door1.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41069,
+      "asset_token": 51069,
+      "asset_id": "model.modular-wall_door2",
+      "name": "Wall Door2",
+      "source_path": "Pieces/wall door2.fbx",
+      "runtime_path": "models/modular/wall_door2.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41070,
+      "asset_token": 51070,
+      "asset_id": "model.modular-wall_window",
+      "name": "Wall Window",
+      "source_path": "Pieces/wall window.fbx",
+      "runtime_path": "models/modular/wall_window.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41071,
+      "asset_token": 51071,
+      "asset_id": "model.modular-wall_window1",
+      "name": "Wall Window1",
+      "source_path": "Pieces/wall window1.fbx",
+      "runtime_path": "models/modular/wall_window1.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41072,
+      "asset_token": 51072,
+      "asset_id": "model.modular-wall",
+      "name": "Wall",
+      "source_path": "Pieces/wall.fbx",
+      "runtime_path": "models/modular/wall.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41073,
+      "asset_token": 51073,
+      "asset_id": "model.modular-wall1",
+      "name": "Wall1",
+      "source_path": "Pieces/wall1.fbx",
+      "runtime_path": "models/modular/wall1.glb",
+      "kind": "wall",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41074,
+      "asset_token": 51074,
+      "asset_id": "model.modular-window",
+      "name": "Window",
+      "source_path": "Pieces/window.fbx",
+      "runtime_path": "models/modular/window.glb",
+      "kind": "window",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    },
+    {
+      "module_id": 41075,
+      "asset_token": 51075,
+      "asset_id": "model.modular-window1",
+      "name": "Window1",
+      "source_path": "Pieces/window1.fbx",
+      "runtime_path": "models/modular/window1.glb",
+      "kind": "window",
+      "collision": "solid",
+      "texture_slots": 1,
+      "texture_override": "free",
+      "snap": [
+        1000,
+        1000,
+        1000
+      ],
+      "bounds": [
+        1000,
+        1000,
+        1000
+      ],
+      "runtime_ready": true,
+      "license": "CC0"
+    }
+  ]
+}

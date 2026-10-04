@@ -222,7 +222,8 @@ class ArenaAnimalMeshes {
     }
 
     Int actorCount() { return actorCountValue }
-    Int renderVertexCapacity() { return actorIds.length * 120 }
+    Bool animationReady() { return animationReadyValue }
+    Int renderVertexCapacity() { return actorIds.length * 240 }
     Int gooseAnimationState() { return gooseRuntime.stateId() }
     Int catAnimationState() { return catRuntime.stateId() }
     Int gooseAnimationTick() { return gooseRuntime.clipTick() }
@@ -292,59 +293,88 @@ class ArenaAnimalMeshes {
     Bool stageGoose(
         FrameStaging target, Int index, Int resourceBase
     ) {
+        // Low-poly proportions mirror the prototype goose asset; pose motion
+        // stays procedural so the native world path needs no skeletal upload.
         var phase = actorPhases[index]
         var bob = if (arenaAnimalAnimationWave(phase, 8) > 0) 1 else 0
-        var swing = if (actorMoving[index])
+        var gait = if (actorMoving[index])
             arenaAnimalAnimationWave(phase, 4) else 0
+        var attackLift = 0
+        if (actorAttacking[index]) {
+            attackLift = gooseRuntime.clipTick() / 2
+            if (attackLift > 3) { attackLift = 3 }
+        }
         var x = actorXs[index]
         var y = actorYs[index]
         var z = actorZs[index]
         var bodyBottom = y + 1 + bob
-        var bodyTop = bodyBottom + 2
+        var bodyTop = bodyBottom + 3
         var facing = actorFacings[index]
-        var headX = x + facing * 3
+        var neckX = x + facing * 2
+        var headX = x + facing * 4
+        var tailX = x - facing * 2
+        var beakY = bodyTop + 2 - attackLift / 2
+        var wingLift = gait + attackLift
+
         if (!pushBox(
                 target, resourceBase,
-                x - 2, bodyBottom, z - 1,
-                x + 2, bodyTop, z + 1) ||
+                x - 3, bodyBottom, z - 2,
+                x + 3, bodyTop, z + 2) ||
             !pushBox(
                 target, resourceBase + 1,
-                headX - 1, bodyTop, z - 1,
-                headX + 1, bodyTop + 2, z + 1) ||
+                neckX - 1, bodyTop - 1, z - 1,
+                neckX + 1, bodyTop + 3, z + 1) ||
+            !pushBox(
+                target, resourceBase + 1,
+                headX - 1, bodyTop + 1, z - 1,
+                headX + 1, bodyTop + 4, z + 1) ||
             !pushTriangle(
                 target, resourceBase + 2,
-                headX, bodyTop + 1, z - 1,
-                headX + facing * 3, bodyTop + 1, z,
-                headX, bodyTop + 2, z - 1) ||
+                headX + facing, beakY, z - 1,
+                headX + facing * 4, beakY, z,
+                headX + facing, beakY + 1, z - 1) ||
             !pushTriangle(
                 target, resourceBase + 2,
-                headX, bodyTop + 1, z + 1,
-                headX + facing * 3, bodyTop + 1, z,
-                headX, bodyTop + 2, z + 1) ||
+                headX + facing, beakY, z + 1,
+                headX + facing * 4, beakY, z,
+                headX + facing, beakY + 1, z + 1) ||
             !pushQuad(
                 target, resourceBase + 1,
-                x - 1, bodyBottom + 1, z + 1,
-                x + 1, bodyBottom + 1 + swing, z + 2,
-                x + 1, bodyBottom - 1, z + 1,
-                x - 1, bodyBottom - 1, z + 1) ||
+                x - 2, bodyBottom + 2, z + 2,
+                x, bodyBottom + 2 + wingLift, z + 4,
+                x + 1, bodyBottom - 1, z + 2,
+                x - 1, bodyBottom - 1, z + 2) ||
             !pushQuad(
                 target, resourceBase + 1,
-                x - 1, bodyBottom + 1, z - 1,
-                x + 1, bodyBottom + 1 + swing, z - 2,
-                x + 1, bodyBottom - 1, z - 1,
-                x - 1, bodyBottom - 1, z - 1) ||
+                x - 2, bodyBottom + 2, z - 2,
+                x, bodyBottom + 2 + wingLift, z - 4,
+                x + 1, bodyBottom - 1, z - 2,
+                x - 1, bodyBottom - 1, z - 2) ||
+            !pushTriangle(
+                target, resourceBase + 2,
+                tailX, bodyTop - 1, z - 1,
+                tailX - facing * 3, bodyTop + 1, z,
+                tailX, bodyTop - 1, z + 1) ||
+            !pushBox(
+                target, resourceBase + 2,
+                x - 2 + gait, y, z - 1,
+                x - 1 + gait, bodyBottom, z) ||
+            !pushBox(
+                target, resourceBase + 2,
+                x + 1 - gait, y, z,
+                x + 2 - gait, bodyBottom, z + 1) ||
             !pushQuad(
                 target, resourceBase + 2,
-                x - 1 + swing, y, z - 1,
-                x + swing, y, z - 1,
-                x + swing, bodyBottom, z - 1,
-                x - 1 + swing, bodyBottom, z - 1) ||
+                x - 3 + gait, y, z - 2,
+                x - 1 + gait, y, z - 2,
+                x - 1 + gait, y, z - 1,
+                x - 3 + gait, y, z - 1) ||
             !pushQuad(
                 target, resourceBase + 2,
-                x + swing, y, z + 1,
-                x + 1 + swing, y, z + 1,
-                x + 1 + swing, bodyBottom, z + 1,
-                x + swing, bodyBottom, z + 1)) {
+                x + 1 - gait, y, z,
+                x + 3 - gait, y, z,
+                x + 3 - gait, y, z + 1,
+                x + 1 - gait, y, z + 1)) {
             return false
         }
         return true
@@ -353,70 +383,89 @@ class ArenaAnimalMeshes {
     Bool stageCat(
         FrameStaging target, Int index, Int resourceBase
     ) {
+        // The cat follows the same asset-sized silhouette with independent
+        // procedural gait, tail sway, ear lift and attack recoil.
         var phase = actorPhases[index]
         var bob = if (arenaAnimalAnimationWave(phase, 10) > 0) 1 else 0
-        var swing = if (actorMoving[index])
+        var gait = if (actorMoving[index])
             arenaAnimalAnimationWave(phase, 4) else 0
+        var tailSwing = if (actorMoving[index] || actorAttacking[index])
+            arenaAnimalAnimationWave(phase, 6) else 0
+        var attackLift = 0
+        if (actorAttacking[index]) {
+            attackLift = catRuntime.clipTick() / 2
+            if (attackLift > 3) { attackLift = 3 }
+        }
         var x = actorXs[index]
         var y = actorYs[index]
         var z = actorZs[index]
         var bodyBottom = y + 1 + bob
-        var bodyTop = bodyBottom + 2
+        var bodyTop = bodyBottom + 3
         var facing = actorFacings[index]
-        var headX = x + facing * 2
+        var headX = x + facing * 3
         var tailX = x - facing * 3
+        var earTop = bodyTop + 4 + attackLift
+
         if (!pushBox(
                 target, resourceBase + 3,
-                x - 2, bodyBottom, z - 1,
-                x + 2, bodyTop, z + 1) ||
+                x - 2, bodyBottom, z - 2,
+                x + 2, bodyTop, z + 2) ||
             !pushBox(
                 target, resourceBase + 4,
-                headX - 1, bodyTop, z - 1,
-                headX + 1, bodyTop + 2, z + 1) ||
+                x + facing - 1, bodyTop - 1, z - 1,
+                x + facing + 1, bodyTop + 2, z + 1) ||
+            !pushBox(
+                target, resourceBase + 4,
+                headX - 2, bodyTop + 1, z - 2,
+                headX + 2, bodyTop + 4, z + 2) ||
+            !pushBox(
+                target, resourceBase + 5,
+                headX + facing, bodyTop + 1, z - 1,
+                headX + facing * 2, bodyTop + 2, z + 1) ||
             !pushTriangle(
                 target, resourceBase + 5,
-                headX - 1, bodyTop + 2, z - 1,
-                headX, bodyTop + 4, z - 1,
-                headX, bodyTop + 2, z - 1) ||
+                headX - 1, bodyTop + 3, z - 1,
+                headX, earTop, z - 1,
+                headX, bodyTop + 3, z - 1) ||
             !pushTriangle(
                 target, resourceBase + 5,
-                headX, bodyTop + 2, z - 1,
-                headX, bodyTop + 4, z - 1,
-                headX + 1, bodyTop + 2, z - 1) ||
+                headX, bodyTop + 3, z - 1,
+                headX, earTop, z - 1,
+                headX + 1, bodyTop + 3, z - 1) ||
             !pushTriangle(
                 target, resourceBase + 5,
-                headX - 1, bodyTop + 2, z + 1,
-                headX, bodyTop + 4, z + 1,
-                headX, bodyTop + 2, z + 1) ||
+                headX - 1, bodyTop + 3, z + 1,
+                headX, earTop, z + 1,
+                headX, bodyTop + 3, z + 1) ||
             !pushTriangle(
                 target, resourceBase + 5,
-                headX, bodyTop + 2, z + 1,
-                headX, bodyTop + 4, z + 1,
-                headX + 1, bodyTop + 2, z + 1) ||
+                headX, bodyTop + 3, z + 1,
+                headX, earTop, z + 1,
+                headX + 1, bodyTop + 3, z + 1) ||
             !pushQuad(
                 target, resourceBase + 4,
-                tailX, bodyBottom + 1, z,
-                tailX - facing, bodyBottom + 2 + swing, z,
-                tailX - facing * 2, bodyBottom + 1, z + swing,
-                tailX - facing, bodyBottom, z + swing) ||
+                tailX, bodyBottom + 2, z,
+                tailX - facing, bodyBottom + 3 + tailSwing, z,
+                tailX - facing * 2, bodyBottom + 2, z + tailSwing,
+                tailX - facing, bodyBottom, z + tailSwing) ||
             !pushQuad(
                 target, resourceBase + 5,
-                tailX - facing * 2, bodyBottom + 1, z + swing,
-                tailX - facing * 3, bodyBottom + 3, z + swing,
-                tailX - facing * 3, bodyBottom + 2, z + swing + 1,
-                tailX - facing * 2, bodyBottom, z + swing + 1) ||
+                tailX - facing * 2, bodyBottom + 2, z + tailSwing,
+                tailX - facing * 4, bodyBottom + 4 + attackLift, z + tailSwing,
+                tailX - facing * 4, bodyBottom + 2, z + tailSwing + 1,
+                tailX - facing * 2, bodyBottom, z + tailSwing + 1) ||
             !pushQuad(
                 target, resourceBase + 4,
-                x - 1 + swing, y, z - 1,
-                x + swing, y, z - 1,
-                x + swing, bodyBottom, z - 1,
-                x - 1 + swing, bodyBottom, z - 1) ||
+                x - 2 + gait, y, z - 1,
+                x - 1 + gait, y, z - 1,
+                x - 1 + gait, bodyBottom, z - 1,
+                x - 2 + gait, bodyBottom, z - 1) ||
             !pushQuad(
                 target, resourceBase + 4,
-                x + swing, y, z + 1,
-                x + 1 + swing, y, z + 1,
-                x + 1 + swing, bodyBottom, z + 1,
-                x + swing, bodyBottom, z + 1)) {
+                x + 1 - gait, y, z + 1,
+                x + 2 - gait, y, z + 1,
+                x + 2 - gait, bodyBottom, z + 1,
+                x + 1 - gait, bodyBottom, z + 1)) {
             return false
         }
         return true

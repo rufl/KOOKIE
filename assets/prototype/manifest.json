@@ -2,10 +2,11 @@
   "schema": "kookie.prototype-content/v1",
   "content_id": "kookie-prototype-assets-1",
   "package_role": "prototype-content-staging",
+  "editor_catalog": "greybox_modules.json",
   "generated_from": {
     "tool": "Blender 5.2.2 + ImageMagick 7 + KOOKIE bounded PNG kooker",
     "coordinate_convention": "glTF Y-up; source GLBs retain exported transforms",
-    "notes": "FBX/BLEND sources were converted to GLB; TGA flipbooks were converted to PNG; runtime PNGs are bounded 128x128 or 256x256 derivatives and cooked through the existing PNG intake."
+    "notes": "FBX/BLEND sources were converted to GLB; TGA flipbooks were converted to PNG; runtime PNGs are bounded 128x128, 160x32 or 256x256 derivatives and cooked through the existing PNG intake."
   },
   "source_archives": [
     {
@@ -64,14 +65,24 @@
       "license": "upstream-use-permission-no-credit-required",
       "license_file": "licenses/prildarill-meow-terms.txt",
       "redistribution": "prototype-only; raw source redistribution not explicitly granted"
+    },
+    {
+      "id": "echo-studios-heart-assets",
+      "source_url": "https://echo-studios-2026.itch.io/heart-assetsv2",
+      "source_name": "hearts_0001.png",
+      "source_sha256": "f3e1913e5454307e400bb702cad560442458af12baa0314b50383a138a0a0437",
+      "license": "upstream-prototype-only",
+      "license_file": "licenses/echo-studios-heart-terms.txt",
+      "redistribution": "prototype-only; standard license not stated on source page"
     }
   ],
   "asset_policy": {
     "all_sources_claimed_cc0": false,
     "cc0_assets": "The modular, Brackeys VFX and Classic64 source notices are retained verbatim.",
-    "restricted_assets": ["model.goose", "model.prildarill-cat"],
+    "restricted_assets": ["model.goose", "model.prildarill-cat", "ui.player-hearts"],
     "goose_warning": "The source page permits commercial use and editing but prohibits reselling or redistributing the model file. The converted GLB remains prototype-only and must not be treated as CC0.",
     "cat_warning": "The source page permits use in own projects, editing and no-credit use. It does not name a standard license or separately grant standalone raw-file redistribution; keep the cat prototype-only until that boundary is confirmed.",
+    "heart_warning": "The Echo Studios page offers the heart sheet as a name-your-own-price download but does not state a standard license or standalone redistribution terms; keep the sheet prototype-only until that boundary is confirmed.",
     "credits_required": false,
     "credits_retained": true
   },
@@ -388,6 +399,20 @@
       "format": "glb",
       "license": "upstream-use-permission-no-credit-required",
       "cook_status": "Blender 5.2.2 GLB derivative; source blend, FBX and texture retained; prototype-only"
+    },
+    {
+      "id": "ui.player-hearts",
+      "kind": "ui-spritesheet",
+      "source": "direct_sources.echo-studios-heart-assets",
+      "authored_path": "ui/hearts_0001.png",
+      "runtime_path": "runtime/ui/hearts_0001.png",
+      "cooked_path": "cooked/ui/hearts_0001.rgba.png",
+      "format": "png",
+      "grid": "5x1",
+      "source_dimensions": "320x64",
+      "runtime_dimensions": "160x32",
+      "license": "upstream-prototype-only",
+      "cook_status": "bounded PNG derivative; native atlas samples five nearest-neighbor heart states"
     }
   ]
 }

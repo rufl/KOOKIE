@@ -21,11 +21,11 @@ Int broadPhaseSnapshotKind() {
 }
 
 Int maximumSessionTransportWords() {
-    return 300
+    return 1740
 }
 
 Int maximumSessionTransportTriangles() {
-    return 32
+    return 192
 }
 
 Int[] newBroadPhaseSnapshot(

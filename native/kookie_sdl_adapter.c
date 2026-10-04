@@ -11,7 +11,9 @@
 
 
 #include "kookie_pixel_font.h"
+#include "kookie_heart_atlas.h"
 #include "kookie_transport.h"
+#include "kookie_audio_assets.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,20 +24,23 @@
 #endif
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
-#define KOOKIE_TRANSPORT_MAX_WORDS 300
+#define KOOKIE_TRANSPORT_MAX_WORDS 1740
 #define KOOKIE_GPU_SCENE_MAX_VERTICES 4096
 #define KOOKIE_GPU_WORLD_MAX_VERTICES 2048
 #define KOOKIE_GPU_WORLD_TEXTURE_WIDTH 256
 #define KOOKIE_GPU_WORLD_TEXTURE_HEIGHT 256
 #define KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE 64
 #define KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW 4
-#define KOOKIE_GPU_ATLAS_WIDTH 128
+#define KOOKIE_GPU_ATLAS_WIDTH 256
 #define KOOKIE_GPU_ATLAS_HEIGHT 128
 #define KOOKIE_GPU_ATLAS_TILE_SIZE 8
-#define KOOKIE_GPU_ATLAS_TILES_PER_ROW 16
+#define KOOKIE_GPU_ATLAS_TILES_PER_ROW 32
 #define KOOKIE_GPU_SOLID_COLORS 16
 #define KOOKIE_GPU_FONT_COLORS 5
 #define KOOKIE_GPU_FONT_GLYPHS_PER_COLOR 48
+#define KOOKIE_GPU_HEART_BASE_RESOURCE 400
+#define KOOKIE_GPU_HEART_STATE_COUNT 5
+#define KOOKIE_GPU_HEART_FIRST_TILE 256
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -59,6 +64,8 @@ typedef struct {
     MIX_Mixer *mixer;
     MIX_Track *effects_track;
     MIX_Track *music_track;
+    MIX_Audio *ui_audio[KOOKIE_AUDIO_UI_ASSET_COUNT];
+    MIX_Track *ui_tracks[KOOKIE_AUDIO_UI_ASSET_COUNT];
     SDL_AudioStream *effects_stream;
     SDL_AudioStream *music_stream;
     SDL_AudioSpec spec;
@@ -151,9 +158,22 @@ static void kookie_gpu_reload_reset(int active_generation) {
 
 static KookieWindowSlot window_slots[KOOKIE_MAX_WINDOWS];
 static KookieAudioSlot audio_slot;
+static void kookie_audio_release_ui_assets(void) {
+    for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
+        if (audio_slot.ui_tracks[index] != NULL) {
+            MIX_DestroyTrack(audio_slot.ui_tracks[index]);
+            audio_slot.ui_tracks[index] = NULL;
+        }
+        if (audio_slot.ui_audio[index] != NULL) {
+            MIX_DestroyAudio(audio_slot.ui_audio[index]);
+            audio_slot.ui_audio[index] = NULL;
+        }
+    }
+}
 static void kookie_audio_release(void) {
     unsigned int generation = audio_slot.generation;
     bool mixer_initialized = audio_slot.mixer_initialized;
+    kookie_audio_release_ui_assets();
     if (audio_slot.effects_track != NULL) {
         MIX_DestroyTrack(audio_slot.effects_track);
     }
@@ -850,6 +870,21 @@ static void kookie_gpu_build_atlas(Uint8 *pixels) {
                         palette[font_palette[color]],
                         4u);
                 }
+            }
+        }
+    }
+    for (int state = 0; state < KOOKIE_GPU_HEART_STATE_COUNT; state += 1) {
+        int tile = KOOKIE_GPU_HEART_FIRST_TILE + state;
+        int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        for (int y = 0; y < KOOKIE_GPU_ATLAS_TILE_SIZE; y += 1) {
+            for (int x = 0; x < KOOKIE_GPU_ATLAS_TILE_SIZE; x += 1) {
+                size_t offset = (size_t)(
+                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
+                    4u;
+                memcpy(pixels + offset, kookie_heart_tiles[state][y][x], 4u);
             }
         }
     }
@@ -1593,7 +1628,20 @@ static bool kookie_gpu_scene_push_vertex_internal(
     int tile = 0;
     float texture_x = 0.0f;
     float texture_y = 0.0f;
-    if (resource < 101) {
+    if (resource >= KOOKIE_GPU_HEART_BASE_RESOURCE &&
+        resource < KOOKIE_GPU_HEART_BASE_RESOURCE +
+            KOOKIE_GPU_HEART_STATE_COUNT) {
+        int state = resource - KOOKIE_GPU_HEART_BASE_RESOURCE;
+        tile = KOOKIE_GPU_HEART_FIRST_TILE + state;
+        texture_x = (float)(
+            (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
+            (float)u * 7.0f / 100.0f;
+        texture_y = (float)(
+            (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
+            (float)v * 7.0f / 100.0f;
+    } else if (resource < 101) {
         tile = (resource - 1) % KOOKIE_GPU_SOLID_COLORS;
         texture_x = (float)(
             (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
@@ -1683,7 +1731,7 @@ static void kookie_gpu_build_world_camera_matrix(
         ? 1.0f : (float)width / (float)height;
     const float focal_length = 1.0f / tanf(75.0f * pi / 360.0f);
     const float near_plane = 0.1f;
-    const float far_plane = 256.0f;
+    const float far_plane = 640.0f;
     projection[0] = focal_length / aspect;
     projection[5] = focal_length;
     projection[10] = far_plane / (far_plane - near_plane);
@@ -2945,6 +2993,41 @@ int kookie_consume_mouse_wheel_y(void) {
     return value;
 }
 
+static bool kookie_audio_load_ui_assets(void) {
+    for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
+        int clip_id = kookie_audio_ui_clip_id_at(index);
+        audio_slot.ui_audio[index] = MIX_LoadAudio(
+            audio_slot.mixer, kookie_audio_ui_clip_path(clip_id), true);
+        audio_slot.ui_tracks[index] = MIX_CreateTrack(audio_slot.mixer);
+        if (audio_slot.ui_audio[index] == NULL ||
+            audio_slot.ui_tracks[index] == NULL ||
+            !MIX_SetTrackAudio(
+                audio_slot.ui_tracks[index], audio_slot.ui_audio[index]) ||
+            !MIX_SetTrackGain(
+                audio_slot.ui_tracks[index],
+                (float)audio_slot.effects_volume / 100.0f)) {
+            kookie_audio_release_ui_assets();
+            memset(
+                audio_slot.ui_audio, 0, sizeof(audio_slot.ui_audio));
+            memset(
+                audio_slot.ui_tracks, 0, sizeof(audio_slot.ui_tracks));
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool kookie_audio_set_ui_gain(int effects) {
+    for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
+        if (audio_slot.ui_tracks[index] != NULL &&
+            !MIX_SetTrackGain(
+                audio_slot.ui_tracks[index], (float)effects / 100.0f)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 int kookie_audio_open(void) {
     if (audio_slot.mixer != NULL) {
         return 0;
@@ -3004,6 +3087,7 @@ int kookie_audio_open(void) {
         kookie_audio_release();
         return 0;
     }
+    (void)kookie_audio_load_ui_assets();
     return make_token(0, audio_slot.generation, KOOKIE_AUDIO_KIND);
 }
 
@@ -3016,7 +3100,8 @@ bool kookie_audio_set_volumes(int effects, int music) {
     if (!MIX_SetTrackGain(
             audio_slot.effects_track, (float)effects / 100.0f) ||
         !MIX_SetTrackGain(
-            audio_slot.music_track, (float)music / 100.0f)) {
+            audio_slot.music_track, (float)music / 100.0f) ||
+        !kookie_audio_set_ui_gain(effects)) {
         return false;
     }
     audio_slot.effects_volume = effects;
@@ -3034,6 +3119,19 @@ int kookie_audio_music_volume(void) {
 
 int kookie_audio_mixer_version(void) {
     return MIX_Version();
+}
+int kookie_audio_ui_assets_loaded(void) {
+    if (audio_slot.mixer == NULL) {
+        return 0;
+    }
+    int loaded = 0;
+    for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
+        if (audio_slot.ui_audio[index] != NULL &&
+            audio_slot.ui_tracks[index] != NULL) {
+            loaded += 1;
+        }
+    }
+    return loaded;
 }
 
 bool kookie_audio_queue_silence(int frames) {
@@ -3098,6 +3196,19 @@ bool kookie_audio_queue_spatial_clip(
 bool kookie_audio_queue_clip(int clip_id, int frames) {
     return kookie_audio_queue_spatial_clip(
         clip_id, frames, 100, 100);
+}
+bool kookie_audio_play_ui_clip(int clip_id) {
+    int index = kookie_audio_ui_clip_index(clip_id);
+    if (audio_slot.mixer == NULL || index < 0) {
+        return false;
+    }
+    if (audio_slot.ui_tracks[index] == NULL) {
+        return kookie_audio_queue_clip(1, 120);
+    }
+    return MIX_SetTrackGain(
+            audio_slot.ui_tracks[index],
+            (float)audio_slot.effects_volume / 100.0f) &&
+        MIX_PlayTrack(audio_slot.ui_tracks[index], 0);
 }
 
 bool kookie_audio_close(int token) {

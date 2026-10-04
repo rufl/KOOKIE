@@ -341,6 +341,31 @@ PY
 }
 
 bundle_prototype_content
+bundle_audio_assets() {
+  if [[ "$RUNTIME" != presentation &&
+        ! ( "$TARGET" == windows-x86_64 && "$RUNTIME" == native ) ]]; then
+    return 0
+  fi
+  local source_root="$ROOT_DIR/assets/audio/ui"
+  local destination_root="$PACKAGE_ROOT/assets/audio/ui"
+  [[ -d "$source_root" ]] || {
+    echo "package_kookie: UI audio asset directory missing: $source_root" >&2
+    exit 1
+  }
+  mkdir -p "$destination_root"
+  local count=0
+  for source in "$source_root"/*.ogg; do
+    [[ -f "$source" ]] || continue
+    cp -- "$source" "$destination_root/$(basename "$source")"
+    count=$((count + 1))
+  done
+  [[ "$count" == 14 ]] || {
+    echo "package_kookie: expected 14 UI audio assets, found $count" >&2
+    exit 1
+  }
+}
+
+bundle_audio_assets
 
 
 bundle_linux_native() {

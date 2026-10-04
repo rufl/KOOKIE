@@ -25,7 +25,7 @@ class BoundedReplayBundleFileStore {
         commandCapacity = actualCapacity
         checkpointCapacity = actualCapacity
         primaryCapacityValue = 512
-        sidecarCapacityValue = 1296
+        sidecarCapacityValue = 3072
         digitsPerWord = 6
         words = new Int[10 + actualCapacity * 12 + actualCapacity * 4 +
             actualCapacity * (primaryCapacityValue + sidecarCapacityValue) +

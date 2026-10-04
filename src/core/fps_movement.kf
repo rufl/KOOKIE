@@ -46,7 +46,7 @@ class FpsMovementController {
             actualCapacityValue = 8
         }
         scaleValue = fpsMovementCoordinateScale()
-        collisionValue = BoundedTriangleCollection(32, 256)
+        collisionValue = BoundedTriangleCollection(192, 256)
         collisionValue.configureBounds(0, -32, 0, 256, 128, 224)
         capsuleValue = BoundedTriangleContactController(
             collisionValue, 2, 256, 60, 4)
@@ -148,7 +148,7 @@ class FpsMovementController {
     Bool configure(BoundedAuthoredCollision authored) {
         configuredValue = false
         clearActors()
-        if (!authored.validate() || authored.triangleCount() > 32) {
+        if (!authored.validate() || authored.triangleCount() > 192) {
             return false
         }
         if (!collisionValue.configureBounds(

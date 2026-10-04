@@ -51,7 +51,8 @@ class GameShell {
     Int portValue
     MatchLobbyState lobbyValue
     BoundedKutterWorkspace kutterValue
-
+    BoundedKutterGreyboxCatalog greyboxCatalogValue
+    BoundedKutterGreyboxLevel greyboxLevelValue
     public constructor() {
         screenValue = gameShellScreenMain()
         selectionValue = 0
@@ -76,6 +77,9 @@ class GameShell {
         portValue = 47101
         lobbyValue = MatchLobbyState()
         kutterValue = BoundedKutterWorkspace()
+        greyboxCatalogValue = BoundedKutterGreyboxCatalog(96)
+        greyboxCatalogValue.loadRgsdevPack()
+        greyboxLevelValue = BoundedKutterGreyboxLevel(128)
     }
 
     Int screen() { return screenValue }
@@ -101,6 +105,12 @@ class GameShell {
     }
     Int renderVertexCapacity() { return 2048 }
     BoundedKutterWorkspace kutter() { return kutterValue }
+    BoundedKutterGreyboxCatalog greyboxCatalog() {
+        return greyboxCatalogValue
+    }
+    BoundedKutterGreyboxLevel greyboxLevel() {
+        return greyboxLevelValue
+    }
 
     Int resolutionIndex() { return resolutionValue }
     Int displayMode() { return displayModeValue }
@@ -411,7 +421,7 @@ class GameShell {
         } else if (selectionValue == 3) {
             staged = kutterValue.stageSpawn(2001)
         } else if (selectionValue == 4) {
-            staged = kutterValue.stageAsset(1001)
+            staged = kutterValue.stageAsset(greyboxCatalogValue.assetToken(0))
         } else if (selectionValue == 5) {
             staged = kutterValue.stageEncounter(
                 3001, 10 + kutterValue.revision())

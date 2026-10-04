@@ -5,6 +5,14 @@ also distribute the permissively licensed SDL dependencies below. The optional
 Windows JVM package has a separate bundled-runtime license boundary described
 after the SDL notices.
 
+
+User-supplied UI sound assets
+The `assets/audio/ui` OGG files were supplied with this project as
+`C__Users_rafael_Desktop_ogg.zip`; filenames identify the JDSherbert Ultimate
+UI SFX Pack. The upload contained no license file or redistribution terms.
+Confirm the pack's license before redistributing a package containing these
+files.
+
 SDL 3.4.16
 Source: https://github.com/libsdl-org/SDL/releases/tag/release-3.4.16
 Windows MinGW archive:

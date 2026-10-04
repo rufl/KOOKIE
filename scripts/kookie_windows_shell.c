@@ -14,6 +14,7 @@
 
 
 #include "../native/kookie_pixel_font.h"
+#include "../native/kookie_audio_assets.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -52,9 +53,13 @@ typedef struct {
     MIX_Mixer *mixer;
     MIX_Track *effects_track;
     MIX_Track *music_track;
+    MIX_Audio *ui_audio[KOOKIE_AUDIO_UI_ASSET_COUNT];
+    MIX_Track *ui_tracks[KOOKIE_AUDIO_UI_ASSET_COUNT];
     SDL_AudioStream *effects_stream;
     SDL_AudioStream *music_stream;
     SDL_AudioSpec spec;
+    int effects_volume;
+    int music_volume;
     bool initialized;
 } AudioState;
 
@@ -359,6 +364,14 @@ static void render(SDL_Renderer *renderer, const AppState *app) {
 }
 
 static void audio_close(AudioState *audio) {
+    for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
+        if (audio->ui_tracks[index] != NULL) {
+            MIX_DestroyTrack(audio->ui_tracks[index]);
+        }
+        if (audio->ui_audio[index] != NULL) {
+            MIX_DestroyAudio(audio->ui_audio[index]);
+        }
+    }
     if (audio->effects_track != NULL) MIX_DestroyTrack(audio->effects_track);
     if (audio->music_track != NULL) MIX_DestroyTrack(audio->music_track);
     if (audio->effects_stream != NULL) SDL_DestroyAudioStream(audio->effects_stream);
@@ -366,6 +379,46 @@ static void audio_close(AudioState *audio) {
     if (audio->mixer != NULL) MIX_DestroyMixer(audio->mixer);
     if (audio->initialized) MIX_Quit();
     memset(audio, 0, sizeof(*audio));
+}
+
+static bool audio_load_ui_assets(AudioState *audio) {
+    for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
+        int clip_id = kookie_audio_ui_clip_id_at(index);
+        audio->ui_audio[index] = MIX_LoadAudio(
+            audio->mixer, kookie_audio_ui_clip_path(clip_id), true);
+        audio->ui_tracks[index] = MIX_CreateTrack(audio->mixer);
+        if (audio->ui_audio[index] == NULL ||
+            audio->ui_tracks[index] == NULL ||
+            !MIX_SetTrackAudio(
+                audio->ui_tracks[index], audio->ui_audio[index]) ||
+            !MIX_SetTrackGain(audio->ui_tracks[index], 0.8f)) {
+            for (int cleanup = 0;
+                 cleanup <= index && cleanup < KOOKIE_AUDIO_UI_ASSET_COUNT;
+                 cleanup += 1) {
+                if (audio->ui_tracks[cleanup] != NULL) {
+                    MIX_DestroyTrack(audio->ui_tracks[cleanup]);
+                    audio->ui_tracks[cleanup] = NULL;
+                }
+                if (audio->ui_audio[cleanup] != NULL) {
+                    MIX_DestroyAudio(audio->ui_audio[cleanup]);
+                    audio->ui_audio[cleanup] = NULL;
+                }
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool audio_set_ui_gain(AudioState *audio, int effects_volume) {
+    for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
+        if (audio->ui_tracks[index] != NULL &&
+            !MIX_SetTrackGain(
+                audio->ui_tracks[index], effects_volume / 100.0f)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool audio_open(AudioState *audio) {
@@ -400,18 +453,38 @@ static bool audio_open(AudioState *audio) {
         return false;
     }
     SDL_DestroyProperties(options);
+    if (!MIX_SetTrackGain(audio->effects_track, 0.8f) ||
+        !MIX_SetTrackGain(audio->music_track, 0.6f)) {
+        audio_close(audio);
+        return false;
+    }
+    audio->effects_volume = 80;
+    audio->music_volume = 60;
+    (void)audio_load_ui_assets(audio);
     return true;
 }
 
 static bool audio_set_volumes(
     AudioState *audio, int effects_volume, int music_volume
 ) {
-    return audio->mixer != NULL &&
-        MIX_SetTrackGain(audio->effects_track, effects_volume / 100.0f) &&
-        MIX_SetTrackGain(audio->music_track, music_volume / 100.0f);
+    if (audio->mixer == NULL ||
+        effects_volume < 0 || effects_volume > 100 ||
+        music_volume < 0 || music_volume > 100) {
+        return false;
+    }
+    if (!MIX_SetTrackGain(
+            audio->effects_track, effects_volume / 100.0f) ||
+        !MIX_SetTrackGain(
+            audio->music_track, music_volume / 100.0f) ||
+        !audio_set_ui_gain(audio, effects_volume)) {
+        return false;
+    }
+    audio->effects_volume = effects_volume;
+    audio->music_volume = music_volume;
+    return true;
 }
 
-static void audio_click(AudioState *audio) {
+static void audio_fallback_click(AudioState *audio) {
     static float samples[120 * 2];
     static bool initialized;
     if (audio->effects_stream == NULL) return;
@@ -424,6 +497,19 @@ static void audio_click(AudioState *audio) {
         initialized = true;
     }
     SDL_PutAudioStreamData(audio->effects_stream, samples, sizeof(samples));
+}
+
+static bool audio_play_ui_clip(AudioState *audio, int clip_id) {
+    int index = kookie_audio_ui_clip_index(clip_id);
+    if (audio->mixer == NULL || index < 0) return false;
+    if (audio->ui_tracks[index] == NULL) {
+        audio_fallback_click(audio);
+        return true;
+    }
+    return MIX_SetTrackGain(
+            audio->ui_tracks[index],
+            audio->effects_volume / 100.0f) &&
+        MIX_PlayTrack(audio->ui_tracks[index], 0);
 }
 
 static uint64_t rotate_left(uint64_t value, unsigned int shift) {
@@ -869,8 +955,63 @@ static bool handle_click(
     }
     return false;
 }
+static int audio_clip_for_key(
+    Screen before, const AppState *app, SDL_Keycode key, bool handled
+) {
+    if (before == SCREEN_GAME) {
+        if (key == SDLK_ESCAPE && handled) {
+            return KOOKIE_AUDIO_UI_POPUP_CLOSE_1;
+        }
+        if (key == SDLK_RETURN || key == SDLK_SPACE) {
+            return KOOKIE_AUDIO_UI_SELECT_2;
+        }
+        return 0;
+    }
+    if (!handled) {
+        if (key == SDLK_RETURN || key == SDLK_SPACE) {
+            return KOOKIE_AUDIO_UI_ERROR_1;
+        }
+        return 0;
+    }
+    if (key == SDLK_UP || key == SDLK_W) {
+        return KOOKIE_AUDIO_UI_CURSOR_1;
+    }
+    if (key == SDLK_DOWN || key == SDLK_S) {
+        return KOOKIE_AUDIO_UI_CURSOR_2;
+    }
+    if (key == SDLK_LEFT || key == SDLK_A) {
+        return KOOKIE_AUDIO_UI_SWIPE_1;
+    }
+    if (key == SDLK_RIGHT || key == SDLK_D) {
+        return KOOKIE_AUDIO_UI_SWIPE_2;
+    }
+    if (key == SDLK_RETURN || key == SDLK_SPACE) {
+        return before == app->screen
+            ? KOOKIE_AUDIO_UI_SELECT_1
+            : KOOKIE_AUDIO_UI_POPUP_OPEN_1;
+    }
+    if (key == SDLK_ESCAPE) {
+        return before == SCREEN_MAIN
+            ? KOOKIE_AUDIO_UI_CANCEL_1
+            : KOOKIE_AUDIO_UI_POPUP_CLOSE_1;
+    }
+    return 0;
+}
+
+static int audio_clip_for_click(
+    Screen before, const AppState *app, bool clicked
+) {
+    if (before == SCREEN_GAME) {
+        return KOOKIE_AUDIO_UI_SELECT_2;
+    }
+    if (!clicked) return 0;
+    return before == app->screen
+        ? KOOKIE_AUDIO_UI_SELECT_1
+        : KOOKIE_AUDIO_UI_POPUP_OPEN_1;
+}
 
 static Uint64 explicit_deadline(void) {
+
     const char *value = getenv("KOOKIE_VISUAL_TEST_MILLISECONDS");
     if (value == NULL || *value == '\0') return 0;
     char *end = NULL;
@@ -1010,16 +1151,27 @@ int main(int argc, char **argv) {
                 event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
                 app.quit = true;
             } else if (event.type == SDL_EVENT_KEY_DOWN && !event.key.repeat) {
-                if (handle_key(&app, window, &audio, event.key.key) && audio_ready) {
-                    audio_click(&audio);
+                Screen before = app.screen;
+                bool handled = handle_key(&app, window, &audio, event.key.key);
+                if (audio_ready) {
+                    int clip = audio_clip_for_key(
+                        before, &app, event.key.key, handled);
+                    if (clip > 0) {
+                        (void)audio_play_ui_clip(&audio, clip);
+                    }
                 }
             } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
                        event.button.button == SDL_BUTTON_LEFT) {
                 SDL_ConvertEventToRenderCoordinates(renderer, &event);
-                if (handle_click(
-                        &app, window, &audio,
-                        event.button.x, event.button.y) && audio_ready) {
-                    audio_click(&audio);
+                Screen before = app.screen;
+                bool clicked = handle_click(
+                    &app, window, &audio,
+                    event.button.x, event.button.y);
+                if (audio_ready) {
+                    int clip = audio_clip_for_click(before, &app, clicked);
+                    if (clip > 0) {
+                        (void)audio_play_ui_clip(&audio, clip);
+                    }
                 }
             }
         }
