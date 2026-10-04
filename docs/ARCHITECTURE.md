@@ -140,10 +140,14 @@ actor world geometry in a dedicated pass, then submits projected actor labels
 and five-state heart sprites as camera-facing 2D billboard quads before the
 HUD overlay pass. Authoritative player/bot health drives empty, quarter, half,
 three-quarter and full heart states; lobby name IDs drive the labels. The
-native SDL_GPU world pipeline consumes raw authored coordinates, a
-view-projection matrix, a generated material texture atlas and a D16 depth
-target. Kof owns camera input and world extraction; the native adapter only
-owns GPU resources, uploads and draw submission.
+cooperative gameplay pass also stages a round, upper-right tactical minimap
+with camera-relative arena markers. `G1NativePresentation.setCooperativeMode`
+is the mode seam: local/remote player markers are admitted only when it is
+true; PvP retains the map and non-player markers while suppressing player
+locations. The native SDL_GPU world pipeline consumes raw authored coordinates,
+a view-projection matrix, a generated material texture atlas and a D16 depth
+target. Kof owns camera input and world extraction; the native adapter only owns
+GPU resources, uploads and draw submission.
 
 
 ### Native adapter

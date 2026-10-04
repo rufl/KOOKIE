@@ -203,6 +203,11 @@ the native presentation samples those five states into the 2D billboard atlas.
 The source page is a name-your-own-price download but does not state a
 standard license or standalone redistribution terms. Keep the heart asset
 prototype-only; see `licenses/echo-studios-heart-terms.txt`.
+The native gameplay presentation also stages the bounded Zylve-style tactical
+map as a round upper-right overlay. `G1NativePresentation.setCooperativeMode`
+is the mode seam: cooperative matches show local and remote player markers;
+PvP suppresses both player markers while retaining the map and non-player
+markers.
 
 ## Linux SDL presentation package
 

@@ -583,6 +583,7 @@ class G1NativePresentation {
     ArenaAnimalMeshes animalMeshes
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
+    GooseMinimap minimap
     Int worldNativeCapacity
     MultiplayerScoreboard scoreboardUi
     MatchScoreboardState scoreboardState
@@ -592,6 +593,7 @@ class G1NativePresentation {
     FrameStaging doorFrame
     FrameStaging actorFrame
     FrameStaging animalFrame
+    FrameStaging minimapFrame
     FrameStaging scoreboardFrame
     Int worldCapacity
     Int hudCapacity
@@ -599,7 +601,9 @@ class G1NativePresentation {
     Int doorCapacity
     Int actorCapacity
     Int animalCapacity
+    Int minimapCapacity
     Int scoreboardCapacity
+    Bool cooperativeModeValue
     Bool mirrorRemoteValue
     Int localNameIdValue
     Int remoteNameIdValue
@@ -613,6 +617,7 @@ class G1NativePresentation {
         arena = scenario.authoredArena()
         hud = ShooterHud(100, 3)
         gooseOverlay = GooseStatusOverlay(6)
+        minimap = GooseMinimap(8)
         animalMeshes = ArenaAnimalMeshes(6)
         scoreboardUi = MultiplayerScoreboard()
         scoreboardState = MatchScoreboardState(2)
@@ -624,14 +629,17 @@ class G1NativePresentation {
         hudFrame = FrameStaging(hud.renderVertexCount())
         actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
         animalFrame = FrameStaging(animalMeshes.renderVertexCapacity())
+        minimapFrame = FrameStaging(minimap.renderVertexCapacity())
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
         worldCapacity = worldFrame.vertexCapacity()
         doorCapacity = doorFrame.vertexCapacity()
         hudCapacity = hudFrame.vertexCapacity()
         actorCapacity = actorFrame.vertexCapacity()
-        scoreboardCapacity = scoreboardFrame.vertexCapacity()
         animalCapacity = animalFrame.vertexCapacity()
+        minimapCapacity = minimapFrame.vertexCapacity()
+        scoreboardCapacity = scoreboardFrame.vertexCapacity()
         nativeCapacity = 0
+        cooperativeModeValue = true
         mirrorRemoteValue = false
         localNameIdValue = 1
         remoteNameIdValue = 2
@@ -640,6 +648,12 @@ class G1NativePresentation {
         playerDeathsOneValue = 0
         playerDeathsTwoValue = 0
     }
+    Bool setCooperativeMode(Bool cooperative) {
+        cooperativeModeValue = cooperative
+        return true
+    }
+
+    Bool cooperativeMode() { return cooperativeModeValue }
 
     Bool prepareGooseSession() {
         if (!interactionSession.loadAuthoredBroadPhase(
@@ -698,6 +712,7 @@ class G1NativePresentation {
         interactionSession = LoopbackSession(16, 8)
         hud = ShooterHud(100, 3)
         if (!animalMeshes.clear() ||
+            !minimap.clear() ||
             !camera.clearFollowTarget()) {
             return false
         }
@@ -733,7 +748,8 @@ class G1NativePresentation {
         worldNativeCapacity = kookie_gpu_world_capacity()
         return nativeCapacity >=
             worldCapacity + doorCapacity + hudCapacity +
-            actorCapacity + animalCapacity + scoreboardCapacity &&
+            actorCapacity + animalCapacity + minimapCapacity +
+            scoreboardCapacity &&
             worldNativeCapacity >=
             worldCapacity + doorCapacity + animalCapacity
     }
@@ -835,8 +851,8 @@ class G1NativePresentation {
     }
 
     Bool stageGooseActors(Int frame, NativeGameNetworkState network) {
-        if (!gooseOverlay.clear()) {
-            println("KOOKIE gameplay actor overlay clear failed")
+        if (!gooseOverlay.clear() || !minimap.clear()) {
+            println("KOOKIE gameplay actor/minimap clear failed")
             return false
         }
         var playerOneX = interactionSession.serverPosition(1)
@@ -903,6 +919,13 @@ class G1NativePresentation {
             println("KOOKIE gameplay remote actor overlay failed")
             return false
         }
+        if (!minimap.addMarker(
+                gooseMinimapMarkerLocalPlayer(), playerOneX, playerOneZ) ||
+            !minimap.addMarker(
+                gooseMinimapMarkerRemotePlayer(), playerTwoX, playerTwoZ)) {
+            println("KOOKIE gameplay player minimap marker failed")
+            return false
+        }
         for (var bot = 3; bot <= 5; bot = bot + 1) {
             var botX = interactionSession.enemySpatialPositionX(bot)
             var botY = interactionSession.enemySpatialPositionY(bot)
@@ -928,9 +951,23 @@ class G1NativePresentation {
                 return false
 
             }
+            if (!minimap.addMarker(
+                    gooseMinimapMarkerEnemy(), botX, botZ)) {
+                println("KOOKIE gameplay enemy minimap marker failed")
+                return false
+            }
         }
         if (!gooseOverlay.stage(actorFrame, frame, 9)) {
             println("KOOKIE gameplay actor frame stage failed")
+            return false
+        }
+        return true
+    }
+    Bool stageMinimap(Int frame) {
+        if (!minimap.stage(
+                minimapFrame, frame, 9,
+                camera.normalizedYaw(), cooperativeModeValue)) {
+            println("KOOKIE gameplay minimap stage failed")
             return false
         }
         return true
@@ -1169,6 +1206,9 @@ class G1NativePresentation {
             println("KOOKIE gameplay animal stage failed")
             return false
         }
+        if (!stageMinimap(frame)) {
+            return false
+        }
         if (!interactionSession.stageWorldInteractionGeometry3d(
                 doorFrame, frame, 7)) {
             println("KOOKIE gameplay door world stage failed")
@@ -1199,13 +1239,14 @@ class G1NativePresentation {
         }
         var vertexCount =
             actorFrame.stagedCount() + hudFrame.stagedCount() +
-            scoreboardCount
+            minimapFrame.stagedCount() + scoreboardCount
         if (!kookie_gpu_scene_begin(vertexCount)) {
             println("KOOKIE gameplay GPU scene begin failed")
             println(vertexCount)
             return false
         }
         if (!upload(actorFrame) || !upload(hudFrame) ||
+            !upload(minimapFrame) ||
             (scoreboardVisible && !upload(scoreboardFrame))) {
             println("KOOKIE gameplay GPU scene upload failed")
             return false
@@ -1228,7 +1269,8 @@ class G1NativePresentation {
             !animalFrame.retire(frame) ||
             !actorFrame.retire(frame) ||
             !doorFrame.retire(frame) ||
-            !hudFrame.retire(frame)) {
+            !hudFrame.retire(frame) ||
+            !minimapFrame.retire(frame)) {
             println("KOOKIE gameplay frame retire failed")
             return false
         }
@@ -1258,6 +1300,7 @@ class G1NativePresentation {
             animalFrame.vertexCapacity() == animalCapacity &&
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&
+            minimapFrame.vertexCapacity() == minimapCapacity &&
             scoreboardFrame.vertexCapacity() == scoreboardCapacity &&
             kookie_gpu_scene_capacity() == nativeCapacity &&
             kookie_gpu_world_capacity() == worldNativeCapacity

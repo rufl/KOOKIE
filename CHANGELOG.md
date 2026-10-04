@@ -2,6 +2,14 @@
 
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
+## Unreleased
+
+- Added a Zylve-style round upper-right tactical minimap to the native gameplay
+  presentation. Cooperative matches show local and remote player markers;
+  PvP suppresses player markers while retaining non-player markers. Added
+  camera-relative arena mapping, bounded marker geometry, and native/Kof
+  regression coverage.
+
 ## 2026-10-02
 ### GUI shell polish and current Linux qualification
 

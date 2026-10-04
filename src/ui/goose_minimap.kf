@@ -1,0 +1,209 @@
+package ui
+
+import core
+
+record GooseMinimapPoint(Int x, Int y, Bool visible)
+
+Int gooseMinimapMarkerLocalPlayer() { return 1 }
+Int gooseMinimapMarkerRemotePlayer() { return 2 }
+Int gooseMinimapMarkerEnemy() { return 3 }
+
+class GooseMinimap {
+    Int[] markerKinds
+    Int[] markerXs
+    Int[] markerZs
+    Int markerCountValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        markerKinds = new Int[actualCapacity]
+        markerXs = new Int[actualCapacity]
+        markerZs = new Int[actualCapacity]
+        markerCountValue = 0
+    }
+
+    Bool clear() {
+        markerCountValue = 0
+        return true
+    }
+
+    Bool addMarker(Int kind, Int x, Int z) {
+        if (markerCountValue >= markerKinds.length ||
+            kind < gooseMinimapMarkerLocalPlayer() ||
+            kind > gooseMinimapMarkerEnemy()) {
+            return false
+        }
+        var safeX = x
+        var safeZ = z
+        if (safeX < 0) { safeX = 0 }
+        if (safeX > 320) { safeX = 320 }
+        if (safeZ < 0) { safeZ = 0 }
+        if (safeZ > 280) { safeZ = 280 }
+        markerKinds[markerCountValue] = kind
+        markerXs[markerCountValue] = safeX
+        markerZs[markerCountValue] = safeZ
+        markerCountValue = markerCountValue + 1
+        return true
+    }
+
+    Int markerCount() { return markerCountValue }
+    Int markerKindAt(Int index) {
+        if (index < 0 || index >= markerCountValue) { return 0 }
+        return markerKinds[index]
+    }
+
+    Int centerX() { return 72 }
+    Int centerY() { return 68 }
+    Int outerRadius() { return 27 }
+    Int innerRadius() { return 23 }
+    Int mapRadius() { return 20 }
+
+    Int normalizedYaw(Int yaw) {
+        var value = yaw % 360
+        if (value < 0) { value = value + 360 }
+        return value
+    }
+
+    GooseMinimapPoint mapPoint(Int x, Int z, Int yaw) {
+        var localX = x - 160
+        var localZ = z - 140
+        var sector = (normalizedYaw(yaw) + 22) / 45
+        if (sector >= 8) { sector = sector - 8 }
+        var rotatedX = localX
+        var rotatedZ = localZ
+        if (sector == 1) {
+            rotatedX = (localX + localZ) * 71 / 100
+            rotatedZ = (-localX + localZ) * 71 / 100
+        } else if (sector == 2) {
+            rotatedX = localZ
+            rotatedZ = -localX
+        } else if (sector == 3) {
+            rotatedX = (-localX + localZ) * 71 / 100
+            rotatedZ = (-localX - localZ) * 71 / 100
+        } else if (sector == 4) {
+            rotatedX = -localX
+            rotatedZ = -localZ
+        } else if (sector == 5) {
+            rotatedX = (-localX - localZ) * 71 / 100
+            rotatedZ = (localX - localZ) * 71 / 100
+        } else if (sector == 6) {
+            rotatedX = -localZ
+            rotatedZ = localX
+        } else if (sector == 7) {
+            rotatedX = (localX - localZ) * 71 / 100
+            rotatedZ = (localX + localZ) * 71 / 100
+        }
+        var screenX = centerX() + rotatedX * mapRadius() / 160
+        var screenY = centerY() + rotatedZ * mapRadius() / 140
+        var offsetX = screenX - centerX()
+        var offsetY = screenY - centerY()
+        return GooseMinimapPoint(screenX, screenY,
+            offsetX * offsetX + offsetY * offsetY <= mapRadius() * mapRadius())
+    }
+
+    Bool pushTriangle(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+    ) {
+        return target.pushVertex(resource, ax, ay, 0, 0) &&
+            target.pushVertex(resource, bx, by, 100, 0) &&
+            target.pushVertex(resource, cx, cy, 50, 100)
+    }
+
+    Bool pushQuad(
+        FrameStaging target, Int resource,
+        Int left, Int bottom, Int right, Int top
+    ) {
+        return target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, bottom, 100, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, bottom, 0, 100) &&
+            target.pushVertex(resource, right, top, 100, 0) &&
+            target.pushVertex(resource, left, top, 0, 0)
+    }
+
+    Bool pushOctagon(
+        FrameStaging target, Int resource, Int radius
+    ) {
+        var diagonal = radius * 4 / 10
+        var cx = centerX()
+        var cy = centerY()
+        return pushTriangle(target, resource,
+                cx, cy, cx - diagonal, cy + radius, cx + diagonal, cy + radius) &&
+            pushTriangle(target, resource,
+                cx, cy, cx + diagonal, cy + radius, cx + radius, cy + diagonal) &&
+            pushTriangle(target, resource,
+                cx, cy, cx + radius, cy + diagonal, cx + radius, cy - diagonal) &&
+            pushTriangle(target, resource,
+                cx, cy, cx + radius, cy - diagonal, cx + diagonal, cy - radius) &&
+            pushTriangle(target, resource,
+                cx, cy, cx + diagonal, cy - radius, cx - diagonal, cy - radius) &&
+            pushTriangle(target, resource,
+                cx, cy, cx - diagonal, cy - radius, cx - radius, cy - diagonal) &&
+            pushTriangle(target, resource,
+                cx, cy, cx - radius, cy - diagonal, cx - radius, cy + diagonal) &&
+            pushTriangle(target, resource,
+                cx, cy, cx - radius, cy + diagonal, cx - diagonal, cy + radius)
+    }
+
+    Bool pushMarker(
+        FrameStaging target, Int resource, GooseMinimapPoint point
+    ) {
+        if (!point.visible) { return true }
+        return pushTriangle(target, resource,
+                point.x, point.y + 3,
+                point.x + 3, point.y,
+                point.x, point.y - 3) &&
+            pushTriangle(target, resource,
+                point.x, point.y + 3,
+                point.x, point.y - 3,
+                point.x - 3, point.y)
+    }
+
+    Int markerResource(Int kind, Int resourceBase) {
+        if (kind == gooseMinimapMarkerLocalPlayer()) {
+            return resourceBase - 2
+        }
+        if (kind == gooseMinimapMarkerRemotePlayer()) {
+            return resourceBase - 7
+        }
+        return resourceBase - 3
+    }
+
+    Int renderVertexCapacity() {
+        return markerKinds.length * 6 + 120
+    }
+
+    Bool stage(
+        FrameStaging target, Int frame, Int resourceBase,
+        Int yaw, Bool cooperative
+    ) {
+        if (frame <= 0 || resourceBase < 8 || resourceBase > 14 ||
+            target.vertexCapacity() < renderVertexCapacity() ||
+            !target.begin(frame)) {
+            return false
+        }
+        var staged = pushOctagon(target, resourceBase + 2, outerRadius()) &&
+            pushOctagon(target, resourceBase + 1, innerRadius()) &&
+            pushQuad(target, resourceBase - 1,
+                centerX() - innerRadius(), centerY() - 1,
+                centerX() + innerRadius(), centerY() + 1) &&
+            pushQuad(target, resourceBase - 1,
+                centerX() - 1, centerY() - innerRadius(),
+                centerX() + 1, centerY() + innerRadius())
+        for (var index = 0; staged && index < markerCountValue; index = index + 1) {
+            var isPlayer = markerKinds[index] == gooseMinimapMarkerLocalPlayer() ||
+                markerKinds[index] == gooseMinimapMarkerRemotePlayer()
+            if (!cooperative && isPlayer) { continue }
+            staged = pushMarker(target,
+                markerResource(markerKinds[index], resourceBase),
+                mapPoint(markerXs[index], markerZs[index], yaw))
+        }
+        if (!staged) {
+            target.discard()
+            return false
+        }
+        return target.publish()
+    }
+}

@@ -371,6 +371,45 @@ test "overhead billboards map names and partial heart damage" {
         "billboard staging must emit all five heart sprite resources")
     assert(frame.retire(2))
 }
+test "cooperative minimap hides player markers in PvP" {
+    var minimap = GooseMinimap(3)
+    var frame = FrameStaging(minimap.renderVertexCapacity())
+    assert(minimap.addMarker(gooseMinimapMarkerLocalPlayer(), 155, 135) &&
+        minimap.addMarker(gooseMinimapMarkerRemotePlayer(), 165, 145) &&
+        minimap.addMarker(gooseMinimapMarkerEnemy(), 170, 140) &&
+        minimap.centerX() > 0 && minimap.centerY() > 0 &&
+        minimap.centerX() + minimap.outerRadius() <= 100 &&
+        minimap.centerY() + minimap.outerRadius() <= 100 &&
+        minimap.outerRadius() > minimap.innerRadius() &&
+        minimap.mapPoint(160, 140, 0).x == minimap.centerX() &&
+        minimap.mapPoint(160, 140, 0).y == minimap.centerY() &&
+        minimap.stage(frame, 1, 9, 0, true),
+        "cooperative minimap must stage bounded map and player markers")
+    var coopLocal = false
+    var coopRemote = false
+    var coopEnemy = false
+    for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+        if (frame.resourceAt(index) == 7) { coopLocal = true }
+        if (frame.resourceAt(index) == 2) { coopRemote = true }
+        if (frame.resourceAt(index) == 6) { coopEnemy = true }
+    }
+    assert(coopLocal && coopRemote && coopEnemy,
+        "cooperative minimap must include both players and enemy markers")
+    assert(frame.retire(1) &&
+        minimap.stage(frame, 2, 9, 0, false),
+        "PvP minimap must retain map staging")
+    var pvpPlayer = false
+    var pvpEnemy = false
+    for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+        if (frame.resourceAt(index) == 7 || frame.resourceAt(index) == 2) {
+            pvpPlayer = true
+        }
+        if (frame.resourceAt(index) == 6) { pvpEnemy = true }
+    }
+    assert(!pvpPlayer && pvpEnemy,
+        "PvP minimap must hide player markers without hiding enemies")
+    assert(frame.retire(2))
+}
 test "arena staging emits perspective depth" {
     var arena = G1Arena()
     var camera = CameraState(-450, 450)
