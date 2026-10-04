@@ -4,6 +4,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 
+- Added a dedicated Kutter Level Editor surface inspired by DINX authoring
+  modes, MudLump cursor/grid editing and Zylve placement/validation workflows.
+  It supports bounded select/prop/spawn/encounter/trigger/light/erase tools,
+  cursor placement, selection movement, preview state, history and
+  `BoundedKutterStudio` persistence.
 - Added a Zylve-style round upper-right tactical minimap to the native gameplay
   presentation. Cooperative matches show local and remote player markers;
   PvP suppresses player markers while retaining non-player markers. Added

@@ -455,7 +455,11 @@ registries and generation.
 `BoundedKutterWorkspace` applies revision-checked world/entity/weapon/loot
 transactions to one atomic geometry/collision/navigation/render product set.
 The Kutter screen exposes inspection toggles, console mutations,
-play-in-editor and a bounded 16-entry undo/redo history. The native adapter
+play-in-editor and a bounded 16-entry undo/redo history. Its dedicated Level
+Editor adds explicit select/prop/player-spawn/enemy-spawn/encounter/trigger/
+light/erase tools, grid-snapped cursor placement, selection movement, bounded
+undo/redo, preview state and structural validation before a document is saved
+through the existing `BoundedKutterStudio` wire format. The native adapter
 keeps the active CPU scene separate while staging a candidate, waits for
 synchronous upload-fence completion before reusing its persistent GPU buffer,
 then activates at a frame boundary. The Kof coordinator retains referenced

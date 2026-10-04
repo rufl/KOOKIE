@@ -7,6 +7,7 @@ Int gameShellScreenOptions() { return 2 }
 Int gameShellScreenMultiplayer() { return 3 }
 Int gameShellScreenGame() { return 4 }
 Int gameShellScreenKutter() { return 5 }
+Int gameShellScreenKutterLevel() { return 6 }
 
 Int gameShellActionUp() { return 1 }
 Int gameShellActionDown() { return 2 }
@@ -53,6 +54,7 @@ class GameShell {
     BoundedKutterWorkspace kutterValue
     BoundedKutterGreyboxCatalog greyboxCatalogValue
     BoundedKutterGreyboxLevel greyboxLevelValue
+    BoundedKutterLevelEditor levelEditorValue
     public constructor() {
         screenValue = gameShellScreenMain()
         selectionValue = 0
@@ -80,6 +82,7 @@ class GameShell {
         greyboxCatalogValue = BoundedKutterGreyboxCatalog(96)
         greyboxCatalogValue.loadRgsdevPack()
         greyboxLevelValue = BoundedKutterGreyboxLevel(128)
+        levelEditorValue = BoundedKutterLevelEditor()
     }
 
     Int screen() { return screenValue }
@@ -110,6 +113,9 @@ class GameShell {
     }
     BoundedKutterGreyboxLevel greyboxLevel() {
         return greyboxLevelValue
+    }
+    BoundedKutterLevelEditor levelEditor() {
+        return levelEditorValue
     }
 
     Int resolutionIndex() { return resolutionValue }
@@ -225,6 +231,7 @@ class GameShell {
         if (screenValue == gameShellScreenOptions()) { return 7 }
         if (screenValue == gameShellScreenMultiplayer()) { return 7 }
         if (screenValue == gameShellScreenKutter()) { return 10 }
+        if (screenValue == gameShellScreenKutterLevel()) { return 10 }
         return 0
     }
 
@@ -408,6 +415,11 @@ class GameShell {
             selectionValue = 3
             return true
         }
+        if (selectionValue == 2) {
+            screenValue = gameShellScreenKutterLevel()
+            selectionValue = 0
+            return true
+        }
         if (!kutterValue.begin(kutterValue.revision())) { return false }
         var staged = false
         if (selectionValue == 0) {
@@ -443,6 +455,58 @@ class GameShell {
         return kutterValue.publish()
     }
 
+    Bool handleKutterLevelAction(Int action) {
+        if (action < gameShellActionUp() || action > gameShellActionBack()) {
+            return false
+        }
+        if (action == gameShellActionUp() || action == gameShellActionDown()) {
+            return moveSelection(
+                if (action == gameShellActionUp()) -1 else 1)
+        }
+        if (action == gameShellActionBack()) {
+            screenValue = gameShellScreenKutter()
+            selectionValue = 2
+            return true
+        }
+        if (action == gameShellActionLeft() ||
+            action == gameShellActionRight()) {
+            var direction = if (action == gameShellActionLeft()) -1 else 1
+            if (selectionValue == 0) {
+                return levelEditorValue.cycleTool(direction)
+            }
+            if (selectionValue == 1) {
+                return levelEditorValue.moveCursor(0, direction)
+            }
+            if (selectionValue == 2) {
+                return levelEditorValue.moveCursor(1, direction)
+            }
+            if (selectionValue == 3) {
+                return levelEditorValue.cycleGrid(direction)
+            }
+            if (selectionValue == 6) {
+                return levelEditorValue.undo()
+            }
+            if (selectionValue == 7) {
+                return levelEditorValue.redo()
+            }
+            return false
+        }
+        if (action != gameShellActionActivate()) { return false }
+        if (selectionValue == 4) { return levelEditorValue.applyTool() }
+        if (selectionValue == 5) {
+            return levelEditorValue.moveSelectedToCursor()
+        }
+        if (selectionValue == 6) { return levelEditorValue.undo() }
+        if (selectionValue == 7) { return levelEditorValue.redo() }
+        if (selectionValue == 8) { return levelEditorValue.togglePreview() }
+        if (selectionValue == 9) {
+            screenValue = gameShellScreenKutter()
+            selectionValue = 2
+            return true
+        }
+        return false
+    }
+
     Bool handleAction(Int action) {
         if (action < gameShellActionUp() || action > gameShellActionBack()) {
             return false
@@ -455,6 +519,9 @@ class GameShell {
                 return true
             }
             return false
+        }
+        if (screenValue == gameShellScreenKutterLevel()) {
+            return handleKutterLevelAction(action)
         }
         if (screenValue == gameShellScreenMultiplayer() && networkEditingValue) {
             return editNetworkValue(action)
@@ -523,6 +590,20 @@ class GameShell {
             else if (y >= -90 && y <= -78) { selectionValue = 9 }
             else { return false }
             return activateKutter()
+        }
+        if (screenValue == gameShellScreenKutterLevel()) {
+            if (y >= 54 && y <= 66) { selectionValue = 0 }
+            else if (y >= 38 && y <= 50) { selectionValue = 1 }
+            else if (y >= 22 && y <= 34) { selectionValue = 2 }
+            else if (y >= 6 && y <= 18) { selectionValue = 3 }
+            else if (y >= -10 && y <= 2) { selectionValue = 4 }
+            else if (y >= -26 && y <= -14) { selectionValue = 5 }
+            else if (y >= -42 && y <= -30) { selectionValue = 6 }
+            else if (y >= -58 && y <= -46) { selectionValue = 7 }
+            else if (y >= -74 && y <= -62) { selectionValue = 8 }
+            else if (y >= -90 && y <= -78) { selectionValue = 9 }
+            else { return false }
+            return handleKutterLevelAction(gameShellActionActivate())
         }
         if (y >= 20 && y <= 32) { selectionValue = 0 }
         else if (y >= 4 && y <= 16) { selectionValue = 1 }
@@ -643,6 +724,17 @@ class GameShell {
         }
         return true
     }
+    Bool pushSignedNumber(
+        FrameStaging target, Int value,
+        Int left, Int bottom, Int scale, Int color
+    ) {
+        if (value >= 0) {
+            return pushNumber(target, value, left, bottom, scale, color)
+        }
+        return pushText(target, "-", left, bottom, scale, color) &&
+            pushNumber(target, -value, left + 6 * scale, bottom, scale, color)
+    }
+
 
     Bool pushSelectionPanel(
         FrameStaging target, Int row, Int bottom, Int top
@@ -911,6 +1003,79 @@ class GameShell {
                 -96, 1, 0)
     }
 
+    String levelToolLabel() {
+        if (levelEditorValue.tool() == kutterLevelToolProp()) { return "PROP" }
+        if (levelEditorValue.tool() == kutterLevelToolPlayerSpawn()) {
+            return "PLAYER SPAWN"
+        }
+        if (levelEditorValue.tool() == kutterLevelToolEnemySpawn()) {
+            return "ENEMY SPAWN"
+        }
+        if (levelEditorValue.tool() == kutterLevelToolEncounter()) {
+            return "ENCOUNTER"
+        }
+        if (levelEditorValue.tool() == kutterLevelToolTrigger()) {
+            return "TRIGGER"
+        }
+        if (levelEditorValue.tool() == kutterLevelToolLight()) { return "LIGHT" }
+        if (levelEditorValue.tool() == kutterLevelToolErase()) { return "ERASE" }
+        return "SELECT"
+    }
+
+    Bool stageKutterLevel(FrameStaging target) {
+        var normal = 0
+        var issueColor = if (levelEditorValue.validLevel()) 4 else 3
+        return pushScreenFrame(target) &&
+            pushCenteredText(target, "LEVEL EDITOR", 80, 2, 1) &&
+            pushText(target, "GEN", -88, 70, 1, normal) &&
+            pushNumber(target, levelEditorValue.generation(), -66, 70, 1, 2) &&
+            pushText(target, "NODES", -20, 70, 1, normal) &&
+            pushNumber(target, levelEditorValue.nodeCount(), 16, 70, 1, 2) &&
+            pushText(target, "ISSUES", 45, 70, 1, issueColor) &&
+            pushNumber(target, levelEditorValue.validationIssueCount(),
+                84, 70, 1, issueColor) &&
+            pushSelectionPanel(target, 0, 54, 66) &&
+            pushCenteredText(target, levelToolLabel(), 57, 1,
+                if (selectionValue == 0) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 1, 38, 50) &&
+            pushText(target, "CURSOR X", -84, 41, 1,
+                if (selectionValue == 1) selectedTextColor() else normal) &&
+            pushSignedNumber(target, levelEditorValue.cursorX(), 40, 41, 1,
+                if (selectionValue == 1) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 2, 22, 34) &&
+            pushText(target, "CURSOR Z", -84, 25, 1,
+                if (selectionValue == 2) selectedTextColor() else normal) &&
+            pushSignedNumber(target, levelEditorValue.cursorZ(), 40, 25, 1,
+                if (selectionValue == 2) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 3, 6, 18) &&
+            pushText(target, "GRID", -84, 9, 1,
+                if (selectionValue == 3) selectedTextColor() else normal) &&
+            pushNumber(target, levelEditorValue.gridSize(), 40, 9, 1,
+                if (selectionValue == 3) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 4, -10, 2) &&
+            pushCenteredText(target, "APPLY TOOL", -7, 1,
+                if (selectionValue == 4) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 5, -26, -14) &&
+            pushCenteredText(target, "MOVE SELECTED", -23, 1,
+                if (selectionValue == 5) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 6, -42, -30) &&
+            pushCenteredText(target, "UNDO", -39, 1,
+                if (selectionValue == 6) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 7, -58, -46) &&
+            pushCenteredText(target, "REDO", -55, 1,
+                if (selectionValue == 7) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 8, -74, -62) &&
+            pushCenteredText(target,
+                if (levelEditorValue.previewActive())
+                    "PREVIEW ON" else "PREVIEW OFF",
+                -71, 1, if (selectionValue == 8) selectedTextColor() else normal) &&
+            pushSelectionPanel(target, 9, -90, -78) &&
+            pushCenteredText(target, "BACK", -87, 1,
+                if (selectionValue == 9) selectedTextColor() else normal) &&
+            pushCenteredText(target, "L/R CHANGE ENTER APPLY ESC BACK",
+                -97, 1, 0)
+    }
+
     Bool stageKutter(FrameStaging target) {
         var normal = 0
         return pushScreenFrame(target) &&
@@ -927,7 +1092,7 @@ class GameShell {
                 if (kutterValue.aiVisible()) "AI VISIBLE" else "AI HIDDEN",
                 41, 1, if (selectionValue == 1) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 2, 22, 34) &&
-            pushCenteredText(target, "WORLD EDITOR", 25, 1,
+            pushCenteredText(target, "LEVEL EDITOR", 25, 1,
                 if (selectionValue == 2) selectedTextColor() else normal) &&
             pushSelectionPanel(target, 3, 6, 18) &&
             pushCenteredText(target, "ENTITY SPAWN", 9, 1,
@@ -967,6 +1132,8 @@ class GameShell {
             staged = stageMultiplayer(target)
         } else if (screenValue == gameShellScreenKutter()) {
             staged = stageKutter(target)
+        } else if (screenValue == gameShellScreenKutterLevel()) {
+            staged = stageKutterLevel(target)
         }
         if (!staged) {
             target.discard()

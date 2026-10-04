@@ -6608,6 +6608,52 @@ test "kutter inspector editors publish atomic undoable products" {
         "kutter surface must render and expose undo redo controls")
 }
 
+test "kutter level editor provides bounded tools validation and history" {
+    var editor = BoundedKutterLevelEditor()
+    assert(editor.nodeCount() == 1 &&
+        !editor.validLevel() &&
+        editor.validationIssueCount() == 1 &&
+        editor.cycleTool(1) &&
+        editor.tool() == kutterLevelToolProp() &&
+        editor.moveCursor(0, 1) &&
+        editor.moveCursor(1, 1) &&
+        editor.cursorX() == 100 && editor.cursorZ() == 100 &&
+        editor.applyTool() &&
+        editor.nodeCount() == 2 &&
+        editor.undo() &&
+        editor.nodeCount() == 1 &&
+        editor.redo() &&
+        editor.nodeCount() == 2,
+        "level editor must place snapped props and preserve bounded undo redo")
+    assert(editor.cycleTool(4) &&
+        editor.tool() == kutterLevelToolTrigger() &&
+        editor.applyTool() &&
+        editor.validLevel() &&
+        editor.validationIssueCount() == 0,
+        "level editor must expose authored trigger validation")
+    var shell = GameShell()
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenKutterLevel(),
+        "Kutter must open the dedicated level editor surface")
+    var frame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(frame, 1) && frame.stagedCount() > 0 &&
+        frame.retire(1) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.levelEditor().tool() == kutterLevelToolProp() &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.levelEditor().cursorX() == 100 &&
+        shell.handleAction(gameShellActionBack()) &&
+        shell.screen() == gameShellScreenKutter(),
+        "level editor UI must expose tool, cursor, render, and back controls")
+}
+
 test "kutter greybox catalog stages texture-ready modular placements" {
     var catalog = BoundedKutterGreyboxCatalog(96)
     assert(catalog.loadRgsdevPack() && catalog.validate() &&

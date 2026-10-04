@@ -166,8 +166,10 @@ Classic64 pack, the requested animated goose, authored VFX PNGs, bounded
 runtime PNG derivatives, cooked RGBA8 PNG outputs, and retained source
 notices. `greybox_modules.json` is the editor-facing catalog: it binds each
 module to its runtime GLB, 1-grid placement/snap metadata, collision role and
-free texture-override policy. It is opt-in so existing runtime packages remain
-content-free:
+free texture-override policy. The Kutter Level Editor adds Zylve-style
+placement tools and validation, plus MudLump-style grid/cursor workflow and
+bounded undo/redo, while persisting through the existing Kof studio wire
+format. It is opt-in so existing runtime packages remain content-free:
 
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.prototype \

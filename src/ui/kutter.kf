@@ -167,7 +167,8 @@ class BoundedKutterStudio {
             nodeId <= 0 || nodeId > 1000000 || nodeKind <= 0 || nodeKind > 1000000 ||
             x < -1000000 || x > 1000000 || y < -1000000 || y > 1000000 ||
             z < -1000000 || z > 1000000 || rotation < -360000 || rotation > 360000 ||
-            scale <= 0 || scale > 1000000 || nodeIndex(nodeId) >= 0) {
+            scale <= 0 || scale > 1000000 || nodeIndex(nodeId) >= 0 ||
+            parentId == nodeId) {
             return reject(kutterStudioDiagnosticBounds())
         }
         if (nodeCountValue > 0 && nodeId <= nodeIds[nodeCountValue - 1]) {
@@ -218,6 +219,7 @@ class BoundedKutterStudio {
         }
         for (var index = 0; index < nodeCountValue; index = index + 1) {
             if (nodeIds[index] <= 0 || nodeKinds[index] <= 0 || nodeScale[index] <= 0 ||
+                nodeParents[index] == nodeIds[index] ||
                 (nodeParents[index] > 0 && nodeIndex(nodeParents[index]) < 0)) {
                 return false
             }
@@ -288,6 +290,57 @@ class BoundedKutterStudio {
         diagnosticValue = kutterStudioDiagnosticNone()
         return true
     }
+    Bool beginEdit() {
+        if (!configuredValue || !sealedValue) {
+            return reject(kutterStudioDiagnosticState())
+        }
+        sealedValue = false
+        generationValue = generationValue + 1
+        wordCountValue = 0
+        diagnosticValue = kutterStudioDiagnosticNone()
+        return true
+    }
+
+    Bool removeNode(Int nodeId) {
+        if (!configuredValue || sealedValue || nodeId <= 0) {
+            return reject(kutterStudioDiagnosticState())
+        }
+        var index = nodeIndex(nodeId)
+        if (index < 0) { return reject(kutterStudioDiagnosticBounds()) }
+        for (var child = 0; child < nodeCountValue; child = child + 1) {
+            if (nodeParents[child] == nodeId) {
+                return reject(kutterStudioDiagnosticHierarchy())
+            }
+        }
+        for (var cursor = index; cursor < nodeCountValue - 1; cursor = cursor + 1) {
+            nodeIds[cursor] = nodeIds[cursor + 1]
+            nodeParents[cursor] = nodeParents[cursor + 1]
+            nodeKinds[cursor] = nodeKinds[cursor + 1]
+            nodeX[cursor] = nodeX[cursor + 1]
+            nodeY[cursor] = nodeY[cursor + 1]
+            nodeZ[cursor] = nodeZ[cursor + 1]
+            nodeRotation[cursor] = nodeRotation[cursor + 1]
+            nodeScale[cursor] = nodeScale[cursor + 1]
+        }
+        nodeCountValue = nodeCountValue - 1
+        return true
+    }
+
+    Bool moveNode(Int nodeId, Int x, Int y, Int z) {
+        if (!configuredValue || sealedValue ||
+            x < -1000000 || x > 1000000 ||
+            y < -1000000 || y > 1000000 ||
+            z < -1000000 || z > 1000000) {
+            return reject(kutterStudioDiagnosticBounds())
+        }
+        var index = nodeIndex(nodeId)
+        if (index < 0) { return reject(kutterStudioDiagnosticBounds()) }
+        nodeX[index] = x
+        nodeY[index] = y
+        nodeZ[index] = z
+        return true
+    }
+
 
     Bool validate() {
         return sealedValue && structuralValid() && checksumValue == calculateChecksum()
@@ -439,6 +492,10 @@ class BoundedKutterStudio {
     Int nodeId(Int index) {
         if (index < 0 || index >= nodeCountValue) { return 0 }
         return nodeIds[index]
+    }
+    Int nodeKind(Int index) {
+        if (index < 0 || index >= nodeCountValue) { return 0 }
+        return nodeKinds[index]
     }
     Int nodeParent(Int index) {
         if (index < 0 || index >= nodeCountValue) { return -1 }

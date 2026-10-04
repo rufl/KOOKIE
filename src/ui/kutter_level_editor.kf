@@ -1,0 +1,350 @@
+package ui
+
+Int kutterLevelToolSelect() { return 1 }
+Int kutterLevelToolProp() { return 2 }
+Int kutterLevelToolPlayerSpawn() { return 3 }
+Int kutterLevelToolEnemySpawn() { return 4 }
+Int kutterLevelToolEncounter() { return 5 }
+Int kutterLevelToolTrigger() { return 6 }
+Int kutterLevelToolLight() { return 7 }
+Int kutterLevelToolErase() { return 8 }
+Int kutterLevelToolCount() { return 8 }
+
+Int kutterLevelGridSmall() { return 25 }
+Int kutterLevelGridMedium() { return 100 }
+Int kutterLevelGridLarge() { return 250 }
+Int kutterLevelHistoryCapacity() { return 16 }
+
+Int kutterLevelIssueMissingPlayer() { return 1 }
+Int kutterLevelIssueMultiplePlayers() { return 2 }
+Int kutterLevelIssueMissingGoal() { return 4 }
+
+class BoundedKutterLevelEditor {
+    BoundedKutterStudio documentValue
+    Int snapshotStrideValue
+    Int[] undoSnapshots
+    Int[] redoSnapshots
+    Int undoCountValue
+    Int redoCountValue
+    Int toolValue
+    Int selectedNodeValue
+    Int cursorXValue
+    Int cursorZValue
+    Int gridSizeValue
+    Bool previewActiveValue
+
+    public constructor() {
+        documentValue = BoundedKutterStudio(
+            kutterStudioNodeCapacity(), kutterStudioAssetCapacity())
+        documentValue.configure(1, 1, 1)
+        documentValue.addNode(
+            1, 0, kutterLevelToolPlayerSpawn(), 0, 0, 0, 0, 1000)
+        documentValue.seal()
+        snapshotStrideValue = documentValue.wire.length
+        undoSnapshots = new Int[
+            snapshotStrideValue * kutterLevelHistoryCapacity()]
+        redoSnapshots = new Int[
+            snapshotStrideValue * kutterLevelHistoryCapacity()]
+        undoCountValue = 0
+        redoCountValue = 0
+        toolValue = kutterLevelToolSelect()
+        selectedNodeValue = 1
+        cursorXValue = 0
+        cursorZValue = 0
+        gridSizeValue = kutterLevelGridMedium()
+        previewActiveValue = false
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) { return -value }
+        return value
+    }
+
+    Int snapValue(Int value) {
+        var grid = gridSizeValue
+        if (grid <= 0) { grid = kutterLevelGridMedium() }
+        if (value >= 0) {
+            return ((value + grid / 2) / grid) * grid
+        }
+        return ((value - grid / 2) / grid) * grid
+    }
+
+    Int snapshotOffset(Int slot) { return slot * snapshotStrideValue }
+
+    void copySnapshot(
+        Int[] source, Int sourceSlot, Int[] target, Int targetSlot
+    ) {
+        var sourceOffset = snapshotOffset(sourceSlot)
+        var targetOffset = snapshotOffset(targetSlot)
+        for (var index = 0; index < snapshotStrideValue; index = index + 1) {
+            target[targetOffset + index] = source[sourceOffset + index]
+        }
+    }
+
+    void shiftSnapshots(Int[] snapshots) {
+        for (var slot = 1; slot < kutterLevelHistoryCapacity(); slot = slot + 1) {
+            copySnapshot(snapshots, slot, snapshots, slot - 1)
+        }
+    }
+
+    Bool recordSnapshot(Int[] snapshots, Int slot) {
+        if (!documentValue.validate() || !documentValue.encode()) { return false }
+        var offset = snapshotOffset(slot)
+        for (var index = 0; index < snapshotStrideValue; index = index + 1) {
+            snapshots[offset + index] = documentValue.wire[index]
+        }
+        return true
+    }
+
+    Bool pushUndoSnapshot() {
+        var slot = undoCountValue
+        if (slot >= kutterLevelHistoryCapacity()) {
+            shiftSnapshots(undoSnapshots)
+            slot = kutterLevelHistoryCapacity() - 1
+            undoCountValue = slot
+        }
+        if (!recordSnapshot(undoSnapshots, slot)) { return false }
+        undoCountValue = undoCountValue + 1
+        redoCountValue = 0
+        return true
+    }
+    Bool pushUndoSnapshotPreservingRedo() {
+        var slot = undoCountValue
+        if (slot >= kutterLevelHistoryCapacity()) {
+            shiftSnapshots(undoSnapshots)
+            slot = kutterLevelHistoryCapacity() - 1
+            undoCountValue = slot
+        }
+        if (!recordSnapshot(undoSnapshots, slot)) { return false }
+        undoCountValue = undoCountValue + 1
+        return true
+    }
+
+
+    Bool pushRedoSnapshot() {
+        var slot = redoCountValue
+        if (slot >= kutterLevelHistoryCapacity()) {
+            shiftSnapshots(redoSnapshots)
+            slot = kutterLevelHistoryCapacity() - 1
+            redoCountValue = slot
+        }
+        if (!recordSnapshot(redoSnapshots, slot)) { return false }
+        redoCountValue = redoCountValue + 1
+        return true
+    }
+
+    Bool restoreSnapshot(Int[] snapshots, Int slot) {
+        var offset = snapshotOffset(slot)
+        var wordCount = snapshots[offset + 2]
+        if (wordCount < 11 || wordCount > snapshotStrideValue) { return false }
+        var words = new Int[wordCount]
+        for (var index = 0; index < wordCount; index = index + 1) {
+            words[index] = snapshots[offset + index]
+        }
+        return documentValue.decode(words)
+    }
+
+    Bool beginMutation() {
+        if (!documentValue.validate() || !pushUndoSnapshot() ||
+            !documentValue.beginEdit()) {
+            return false
+        }
+        return true
+    }
+
+    Bool finishMutation(Bool accepted) {
+        if (!accepted || !documentValue.seal()) {
+            documentValue.seal()
+            if (undoCountValue > 0) { undoCountValue = undoCountValue - 1 }
+            return false
+        }
+        selectedNodeValue = if (documentValue.nodeIndex(selectedNodeValue) >= 0)
+            selectedNodeValue else 0
+        return true
+    }
+
+    Int nextNodeId() {
+        if (documentValue.nodeCount() <= 0) { return 1 }
+        return documentValue.nodeId(documentValue.nodeCount() - 1) + 1
+    }
+
+    Bool cycleTool(Int direction) {
+        if (direction != -1 && direction != 1) { return false }
+        toolValue = toolValue + direction
+        if (toolValue < kutterLevelToolSelect()) {
+            toolValue = kutterLevelToolCount()
+        }
+        if (toolValue > kutterLevelToolCount()) {
+            toolValue = kutterLevelToolSelect()
+        }
+        return true
+    }
+
+    Bool cycleGrid(Int direction) {
+        if (direction != -1 && direction != 1) { return false }
+        if (gridSizeValue == kutterLevelGridSmall()) {
+            gridSizeValue = if (direction > 0)
+                kutterLevelGridMedium() else kutterLevelGridLarge()
+        } else if (gridSizeValue == kutterLevelGridMedium()) {
+            gridSizeValue = if (direction > 0)
+                kutterLevelGridLarge() else kutterLevelGridSmall()
+        } else {
+            gridSizeValue = if (direction > 0)
+                kutterLevelGridSmall() else kutterLevelGridMedium()
+        }
+        cursorXValue = snapValue(cursorXValue)
+        cursorZValue = snapValue(cursorZValue)
+        return true
+    }
+
+    Bool moveCursor(Int axis, Int direction) {
+        if ((axis != 0 && axis != 1) ||
+            (direction != -1 && direction != 1)) { return false }
+        var next = if (axis == 0) cursorXValue else cursorZValue
+        next = next + direction * gridSizeValue
+        if (next < -1000000) { next = -1000000 }
+        if (next > 1000000) { next = 1000000 }
+        if (axis == 0) {
+            cursorXValue = snapValue(next)
+        } else {
+            cursorZValue = snapValue(next)
+        }
+        return true
+    }
+
+    Bool selectAtCursor() {
+        var bestNode = 0
+        var bestDistance = 2000000000
+        for (var index = 0; index < documentValue.nodeCount(); index = index + 1) {
+            var distance = absolute(documentValue.nodeXValue(index) - cursorXValue) +
+                absolute(documentValue.nodeZValue(index) - cursorZValue)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                bestNode = documentValue.nodeId(index)
+            }
+        }
+        if (bestNode <= 0) { return false }
+        selectedNodeValue = bestNode
+        return true
+    }
+
+    Bool addCurrentTool() {
+        if (toolValue == kutterLevelToolSelect() ||
+            toolValue == kutterLevelToolErase()) { return false }
+        if (!beginMutation()) { return false }
+        var accepted = documentValue.addNode(
+            nextNodeId(), 0, toolValue, cursorXValue, 0, cursorZValue, 0, 1000)
+        if (!finishMutation(accepted)) { return false }
+        selectedNodeValue = documentValue.nodeId(documentValue.nodeCount() - 1)
+        return true
+    }
+
+    Bool removeSelected() {
+        if (selectedNodeValue <= 0) { return false }
+        if (!beginMutation()) { return false }
+        var accepted = documentValue.removeNode(selectedNodeValue)
+        if (!finishMutation(accepted)) { return false }
+        selectedNodeValue = 0
+        return true
+    }
+
+    Bool moveSelectedToCursor() {
+        if (selectedNodeValue <= 0) { return false }
+        if (!beginMutation()) { return false }
+        var index = documentValue.nodeIndex(selectedNodeValue)
+        var accepted = index >= 0 && documentValue.moveNode(
+            selectedNodeValue, cursorXValue, documentValue.nodeYValue(index), cursorZValue)
+        return finishMutation(accepted)
+    }
+
+    Bool applyTool() {
+        if (toolValue == kutterLevelToolSelect()) { return selectAtCursor() }
+        if (toolValue == kutterLevelToolErase()) {
+            if (selectedNodeValue <= 0 && !selectAtCursor()) { return false }
+            return removeSelected()
+        }
+        return addCurrentTool()
+    }
+
+    Bool undo() {
+        if (undoCountValue <= 0) { return false }
+        if (!pushRedoSnapshot()) { return false }
+        var slot = undoCountValue - 1
+        if (!restoreSnapshot(undoSnapshots, slot)) { return false }
+        undoCountValue = slot
+        selectedNodeValue = 0
+        return true
+    }
+
+    Bool redo() {
+        if (redoCountValue <= 0) { return false }
+        if (!pushUndoSnapshotPreservingRedo()) { return false }
+        var slot = redoCountValue - 1
+        if (!restoreSnapshot(redoSnapshots, slot)) { return false }
+        redoCountValue = slot
+        selectedNodeValue = 0
+        return true
+    }
+
+    Bool togglePreview() {
+        previewActiveValue = !previewActiveValue
+        return true
+    }
+
+    Int validationMask() {
+        var players = 0
+        var goals = 0
+        for (var index = 0; index < documentValue.nodeCount(); index = index + 1) {
+            if (documentValue.nodeKind(index) == kutterLevelToolPlayerSpawn()) {
+                players = players + 1
+            }
+            if (documentValue.nodeKind(index) == kutterLevelToolTrigger()) {
+                goals = goals + 1
+            }
+        }
+        var result = 0
+        if (players == 0) { result = result + kutterLevelIssueMissingPlayer() }
+        if (players > 1) { result = result + kutterLevelIssueMultiplePlayers() }
+        if (goals == 0) { result = result + kutterLevelIssueMissingGoal() }
+        return result
+    }
+
+    Int validationIssueCount() {
+        var mask = validationMask()
+        var count = 0
+        if ((mask & kutterLevelIssueMissingPlayer()) != 0) { count = count + 1 }
+        if ((mask & kutterLevelIssueMultiplePlayers()) != 0) { count = count + 1 }
+        if ((mask & kutterLevelIssueMissingGoal()) != 0) { count = count + 1 }
+        return count
+    }
+
+    Bool validLevel() {
+        return documentValue.validate() && validationMask() == 0
+    }
+
+    Bool save(String path) { return documentValue.save(path) }
+    Bool load(String path) {
+        if (!documentValue.load(path)) { return false }
+        undoCountValue = 0
+        redoCountValue = 0
+        selectedNodeValue = 0
+        return true
+    }
+
+    BoundedKutterStudio document() { return documentValue }
+    Int tool() { return toolValue }
+    Int selectedNode() { return selectedNodeValue }
+    Int cursorX() { return cursorXValue }
+    Int cursorZ() { return cursorZValue }
+    Int gridSize() { return gridSizeValue }
+    Bool previewActive() { return previewActiveValue }
+    Int undoCount() { return undoCountValue }
+    Int redoCount() { return redoCountValue }
+    Int nodeCount() { return documentValue.nodeCount() }
+    Int nodeId(Int index) { return documentValue.nodeId(index) }
+    Int nodeKind(Int index) { return documentValue.nodeKind(index) }
+    Int nodeX(Int index) { return documentValue.nodeXValue(index) }
+    Int nodeZ(Int index) { return documentValue.nodeZValue(index) }
+    Int generation() { return documentValue.generation() }
+    Int checksum() { return documentValue.checksum() }
+}
