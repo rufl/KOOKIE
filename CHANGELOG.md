@@ -3,6 +3,14 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added a shared fail-closed SDL3/SDL_mixer resolver and a pinned
+  `scripts/bootstrap_sdl3_mixer.sh` path for hosts that have SDL 3.4.16 but no
+  SDL_mixer development package. Linux package, presentation, LAN and G5 gates
+  now accept the prepared prefix, validate exact 3.4.16/3.2.4 metadata and
+  continue bundling only the reviewed SDL runtime libraries.
+- Clarified that `kookie`/`kookie.exe` is the relocatable launcher inside a
+  signed package; the separate install/update/channel launcher is still not
+  published.
 - Branded the player-facing test game **GatoGanso** and set `Jared Lite`
   as the default UI font with `Pixand` for display/title text. The supplied
   SIL Open Font License files, source TTFs and deterministic bounded native

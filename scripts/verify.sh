@@ -3,6 +3,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
+source "$root_dir/scripts/sdl3_dependencies.sh"
 
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
@@ -87,9 +88,13 @@ if [[ -n "$render_node" ]]; then
 fi
 
 isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
-if command -v gcc >/dev/null && command -v glslc >/dev/null && command -v pkg-config >/dev/null &&
-   [[ -n "$isolation_wrapper" ]] && command -v "$isolation_wrapper" >/dev/null &&
-   pkg-config --exists sdl3 sdl3-mixer; then
+presentation_dependencies_available=0
+if kookie_prepare_sdl3_dependencies "$root_dir"; then
+  presentation_dependencies_available=1
+fi
+if command -v gcc >/dev/null && command -v glslc >/dev/null &&
+   [[ "$presentation_dependencies_available" == 1 ]] &&
+   [[ -n "$isolation_wrapper" ]] && command -v "$isolation_wrapper" >/dev/null; then
   mkdir -p "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" \
     "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" \
     "$presentation_probe_core_dir" "$presentation_probe_content_dir" \

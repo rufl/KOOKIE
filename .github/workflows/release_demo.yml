@@ -60,6 +60,15 @@ jobs:
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
           kof version
 
+      - name: Prepare pinned SDL_mixer development prefix
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/sdl3_dependencies.sh
+          if ! kookie_prepare_sdl3_dependencies "$PWD"; then
+            bash scripts/bootstrap_sdl3_mixer.sh
+          fi
+
       - name: Build deterministic Linux artifact
         shell: bash
         env:

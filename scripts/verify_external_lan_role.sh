@@ -3,6 +3,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
+source "$root_dir/scripts/sdl3_dependencies.sh"
 
 role="${KOOKIE_EXTERNAL_LAN_ROLE:-}"
 case "$role" in
@@ -30,7 +31,7 @@ if [[ "$target" == native ]]; then
     echo "external LAN native role requires pkg-config" >&2
     exit 75
   }
-  pkg-config --exists sdl3 sdl3-mixer || {
+  kookie_require_sdl3_dependencies "$root_dir" || {
     echo "external LAN native role requires SDL3 and SDL_mixer" >&2
     exit 75
   }

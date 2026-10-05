@@ -1,5 +1,6 @@
 # Kof compiler output and local caches
 build/
+.kookie-deps/
 .kof/
 release/
 *.class

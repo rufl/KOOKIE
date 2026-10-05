@@ -115,14 +115,24 @@ Run the non-graphical G6 expansion probes:
 bash scripts/verify_g6_runtime.sh
 ```
 
-Presentation package builds additionally require SDL 3.4.16, SDL_mixer 3.2.4
-and `glslc`. Exact package, kooker, Windows and cross-host qualification
-commands live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
+Presentation package builds require SDL 3.4.16, SDL_mixer 3.2.4
+and `glslc`. If `pkg-config` cannot find SDL_mixer, prepare the pinned
+development prefix once:
 
-An auto-installing, self-updating launcher is not published yet. It should be
-a separate developer/player bootstrap product: the player package must remain
-self-contained, while Kof installation and stable/beta/alpha/canary channel
-updates must use signed manifests, pinned artifacts and atomic rollback.
+```bash
+bash scripts/bootstrap_sdl3_mixer.sh
+```
+
+The bootstrap downloads the official SDL_mixer 3.2.4 source archive, verifies
+its SHA-256, builds only the bounded WAVE/stb_vorbis backends and stores the
+ignored prefix under `.kookie-deps`. Exact package, kooker, Windows and
+cross-host qualification commands live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
+
+The current player launcher is the signed package's relocatable `kookie`
+wrapper; it sets the package library path and does not require Kof or Python.
+An auto-installing, self-updating launcher is not published yet. It remains a
+separate product that needs signed channel manifests, pinned artifacts and
+atomic rollback.
 
 ## Multiplayer lobby and score screen
 

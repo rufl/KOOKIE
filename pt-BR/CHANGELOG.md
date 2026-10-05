@@ -3,6 +3,15 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos um resolver compartilhado e fail-closed de SDL3/SDL_mixer e o
+  caminho fixado `scripts/bootstrap_sdl3_mixer.sh` para hosts que têm SDL 3.4.16,
+  mas não têm o pacote de desenvolvimento do SDL_mixer. Os gates Linux de
+  pacote, apresentação, LAN e G5 agora aceitam o prefixo preparado, validam os
+  metadados exatos 3.4.16/3.2.4 e continuam incluindo somente as bibliotecas
+  SDL de runtime revisadas.
+- Esclarecemos que `kookie`/`kookie.exe` é o launcher relocável dentro do pacote
+  assinado; o launcher separado de instalação/atualização/canais ainda não foi
+  publicado.
 - Adicionamos à shell GatoGanso e à shell nativa Windows uma superfície flexível
   de acessibilidade: escala do HUD em 85/100/115 por cento, visibilidade do
   mapa tático e texto de alto contraste. A apresentação ao vivo aplica escala

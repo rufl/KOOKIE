@@ -120,15 +120,25 @@ Execute as sondas não gráficas de expansão G6:
 bash scripts/verify_g6_runtime.sh
 ```
 
-Builds de pacotes de apresentação também exigem SDL 3.4.16, SDL_mixer 3.2.4
-e `glslc`. Os comandos exatos de pacote, kooker, Windows e qualificação entre
-hosts estão em [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
+Builds de pacotes de apresentação exigem SDL 3.4.16, SDL_mixer 3.2.4
+e `glslc`. Se o `pkg-config` não encontrar SDL_mixer, prepare uma vez o
+prefixo de desenvolvimento fixado:
 
-Um launcher auto-instalável e autoatualizável ainda não foi publicado. Ele deve
-ser um produto separado de bootstrap de desenvolvedor/jogador: o pacote do
-jogo precisa permanecer autossuficiente, enquanto a instalação do Kof e as
-atualizações dos canais stable/beta/alpha/canary devem usar manifestos
-assinados, artefatos fixados e rollback atômico.
+```bash
+bash scripts/bootstrap_sdl3_mixer.sh
+```
+
+O bootstrap baixa o arquivo oficial de fontes do SDL_mixer 3.2.4, valida seu
+SHA-256, compila somente os backends limitados WAVE/stb_vorbis e armazena o
+prefixo ignorado em `.kookie-deps`. Os comandos exatos de pacote, kooker,
+Windows e qualificação entre hosts estão em
+[Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
+
+O launcher atual do jogador é o wrapper relocável `kookie` do pacote assinado;
+ele configura o caminho das bibliotecas do pacote e não exige Kof nem Python.
+Um launcher auto-instalável e autoatualizável ainda não foi publicado. Ele
+continua sendo um produto separado que exige manifestos de canal assinados,
+artefatos fixados e rollback atômico.
 
 ## Lobby multiplayer e tela de placar
 

@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-package-smoke.XXXXXX")"
 cleanup() { rm -rf -- "$WORK_DIR"; }
 trap cleanup EXIT INT TERM
@@ -257,9 +258,12 @@ grep -Fq 'KOOKIE_SIGNING_KEY must name a regular Ed25519 private key' \
 
 presentation_manifest_args=()
 presentation_status="dependency fail-closed gate"
+presentation_dependencies_available=0
+if kookie_prepare_sdl3_dependencies "$ROOT_DIR"; then
+  presentation_dependencies_available=1
+fi
 if command -v glslc >/dev/null &&
-   command -v pkg-config >/dev/null &&
-   pkg-config --exists sdl3 sdl3-mixer; then
+   [[ "$presentation_dependencies_available" == 1 ]]; then
   KOOKIE_VERSION=0.1.0-dogfood.presentation-smoke \
   KOOKIE_BUILD_ID=package-presentation-smoke \
   "$ROOT_DIR/scripts/package_kookie.sh" --runtime presentation \
@@ -318,7 +322,7 @@ else
     echo 'package smoke: presentation packaging unexpectedly ignored missing dependencies' >&2
     exit 1
   fi
-  grep -Eq 'glslc is required|pkg-config is required|SDL3 or SDL_mixer development files are required' \
+  grep -Eq 'glslc is required|pkg-config is required|SDL3 or SDL_mixer development files are required|KOOKIE requires SDL3' \
     "$WORK_DIR/presentation-unavailable.out"
 fi
 python3 - "$MANIFEST" native \

@@ -4,6 +4,7 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
 
 for command_name in kof cc glslc ldd pkg-config python3; do
   command -v "$command_name" >/dev/null || {
@@ -21,7 +22,7 @@ if [[ -z "$ISOLATION_WRAPPER" ]] || ! command -v "$ISOLATION_WRAPPER" >/dev/null
   echo 'G5 renderer gate requires KOOKIE_PRESENTATION_ISOLATION_WRAPPER' >&2
   exit 75
 fi
-pkg-config --exists sdl3 sdl3-mixer || {
+kookie_require_sdl3_dependencies "$ROOT_DIR" || {
   echo 'G5 renderer gate requires SDL3 and SDL_mixer development files' >&2
   exit 75
 }

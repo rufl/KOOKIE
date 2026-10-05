@@ -4,6 +4,7 @@ IFS=$'\n\t'
 
 BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
 TARGET="linux-x86_64"
 RUNTIME="${KOOKIE_RUNTIME:-native}"
 VERSION="${KOOKIE_VERSION:-0.1.0-dogfood.1}"
@@ -43,7 +44,9 @@ SHA-256-pinned OpenJDK runtime supplied through KOOKIE_WINDOWS_JAVA_ARCHIVE.
 Windows presentation packages contain native Kof PE gameplay, SDL3, SDL_mixer,
 the native adapter, and SPIR-V/DXIL shader binaries.
 Set `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to the
-verified distribution used for the build.
+verified distribution used for the build. Linux presentation packaging
+auto-discovers `.kookie-deps/sdl3-mixer-3.2.4`; run
+`bash scripts/bootstrap_sdl3_mixer.sh` when the host lacks SDL_mixer.
 EOF
 }
 
@@ -160,10 +163,7 @@ if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
   command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
   command -v glslc >/dev/null || { echo 'package_kookie: glslc is required for presentation packaging' >&2; exit 2; }
   command -v pkg-config >/dev/null || { echo 'package_kookie: pkg-config is required for presentation packaging' >&2; exit 2; }
-  pkg-config --exists sdl3 sdl3-mixer || {
-    echo 'package_kookie: SDL3 or SDL_mixer development files are required for presentation packaging' >&2
-    exit 2
-  }
+  kookie_require_sdl3_dependencies "$ROOT_DIR" || exit 2
 fi
 if [[ "$TARGET" == windows-x86_64 &&
       ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then

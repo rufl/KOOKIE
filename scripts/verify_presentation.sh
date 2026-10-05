@@ -3,6 +3,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
+source "$root_dir/scripts/sdl3_dependencies.sh"
 
 artifact_dir="${KOOKIE_PRESENTATION_EVIDENCE_DIR:-/tmp/kookie-presentation-$$}"
 mkdir -p "$artifact_dir"
@@ -37,7 +38,7 @@ for command_name in kof python3 gcc glslc pkg-config; do
 done
 command -v "$KOOKIE_PRESENTATION_ISOLATION_WRAPPER" >/dev/null || \
   record_blocker 75 "isolation-wrapper-unavailable"
-if ! pkg-config --exists sdl3 sdl3-mixer; then
+if ! kookie_prepare_sdl3_dependencies "$root_dir"; then
   record_blocker 75 "sdl3-or-sdl3-mixer-development-files-unavailable"
 fi
 if [[ "$KOOKIE_SDL_VIDEO_DRIVER" == "offscreen" ]]; then

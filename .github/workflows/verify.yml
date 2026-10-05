@@ -93,6 +93,8 @@ jobs:
       - name: Check demo release scripts
         run: |
           bash -n scripts/build_demo_release.sh \
+            scripts/bootstrap_sdl3_mixer.sh \
+            scripts/sdl3_dependencies.sh \
             scripts/verify_linux_presentation_package.sh \
             scripts/verify_windows_presentation.sh \
             scripts/package_kookie.sh \

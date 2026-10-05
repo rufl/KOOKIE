@@ -51,6 +51,13 @@ canal assinados, artefatos Kof publicados para esses canais nem política
 Authenticode para Windows. Até existirem, execuções diretas da fonte exigem
 Kof; os gates completos de qualificação, pacote e evidências exigem Python
 adicionalmente, enquanto o pacote assinado continua sendo o caminho do usuário.
+### Launcher empacotado atual
+
+O launcher existente hoje é o wrapper relocável gerado dentro do pacote
+assinado: `kookie` no Linux e `kookie.exe`/`kookie.cmd` no Windows. Ele
+configura o caminho das bibliotecas locais e inicia o binário Kof nativo
+incluído; `kookie --package-smoke` exercita o caminho do pacote sem gráficos.
+Ele não é instalador, atualizador nem seletor de canal.
 
 
 O alvo JVM é usado para qualificação diferencial local e para o pacote de
@@ -194,6 +201,39 @@ obrigatório; o KOOKIE mantém a atribuição voluntariamente. Não há licença
 nem concessão explícita de redistribuição do arquivo bruto, portanto a fonte e
 o GLB do gato permanecem apenas protótipo e não devem ser anunciados como CC0
 ou como um pacote de assets independente.
+
+## Dependências de desenvolvimento SDL3/SDL_mixer
+
+Os gates Linux aceitam SDL 3.4.16 e SDL_mixer 3.2.4 via `pkg-config`. O
+resolver compartilhado também aceita `KOOKIE_SDL3_PREFIX` e
+`KOOKIE_SDL3_MIXER_PREFIX`, valida as versões exatas dos headers/metadados e
+adiciona a biblioteca selecionada ao caminho do smoke local. Ele não aceita
+silenciosamente um mixer antigo nem uma biblioteca de runtime não revisada.
+
+Quando o host tem SDL3, mas não tem o pacote de desenvolvimento do SDL_mixer,
+prepare o prefixo local fixado:
+
+```bash
+bash scripts/bootstrap_sdl3_mixer.sh
+```
+
+O bootstrap também exige CMake, um compilador C e `curl` ou `wget`; os arquivos
+de desenvolvimento do SDL3 do host continuam necessários.
+
+O bootstrap valida o SHA-256 do arquivo oficial SDL_mixer 3.2.4, compila os
+backends WAVE e `stb_vorbis` incluído e instala no prefixo ignorado
+`.kookie-deps/sdl3-mixer-3.2.4`. Para uma árvore de fontes revisada offline:
+
+```bash
+KOOKIE_SDL3_MIXER_SOURCE=/caminho/para/SDL_mixer-3.2.4 \
+  bash scripts/bootstrap_sdl3_mixer.sh
+```
+
+Depois da preparação, `package_kookie.sh`, `verify.sh`, os gates nativos de
+LAN externo e o gate do renderer G5 descobrem o prefixo automaticamente. O
+pacote de apresentação continua incluindo somente as bibliotecas de runtime
+SDL3/SDL_mixer resolvidas; libc e o loader dinâmico do host ficam fora do
+arquivo.
 
 ## Pacote de apresentação SDL para Linux
 
@@ -534,9 +574,10 @@ O workflow exige runners self-hosted com labels `kookie-demo-release`,
 `linux`/`windows` e `x64`. Ambos precisam de Kof `0.5.0-beta` no commit de
 fonte fixado, Python 3, OpenSSL, `glslc`, Zig 0.16.0 e o digest fixado da
 distribuição Kof. O runner Linux também precisa dos arquivos de
-desenvolvimento SDL3/SDL_mixer e de um wrapper de display isolado para o smoke
-opcional. O runner Windows também precisa dos prefixes MinGW SDL3/SDL_mixer e
-de `KOOKIE_DXC`.
+desenvolvimento SDL3 e de um wrapper de display isolado para o smoke opcional;
+o workflow prepara o prefixo fixado do SDL_mixer quando a entrada
+`pkg-config` está ausente. O runner Windows também precisa dos prefixes MinGW
+SDL3/SDL_mixer e de `KOOKIE_DXC`.
 
 Configure os secrets de ambiente `KOOKIE_SIGNING_KEY_PEM` e
 `KOOKIE_KOF_ARCHIVE_SHA256`. Use `publish=false` para qualificação somente de

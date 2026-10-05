@@ -50,6 +50,13 @@ manifests, published Kof toolchain artifacts for those channels and the
 Windows Authenticode policy. Until those exist, direct source runs require Kof;
 full repository qualification and package/evidence gates additionally require
 Python, while the signed package remains the user path.
+### Current packaged launcher
+
+The launcher that exists today is the relocatable wrapper generated inside a
+signed package: `kookie` on Linux and `kookie.exe`/`kookie.cmd` on Windows. It
+sets the package-local runtime path and starts the bundled native Kof binary;
+`kookie --package-smoke` exercises the graphics-free package path. It is not an
+installer, updater or channel selector.
 
 
 
@@ -210,6 +217,38 @@ map as a round upper-right overlay. `G1NativePresentation.setCooperativeMode`
 is the mode seam: cooperative matches show local and remote player markers;
 PvP suppresses both player markers while retaining the map and non-player
 markers.
+
+## SDL3/SDL_mixer development dependencies
+
+The Linux gates accept SDL 3.4.16 and SDL_mixer 3.2.4 through `pkg-config`.
+The shared resolver also accepts `KOOKIE_SDL3_PREFIX` and
+`KOOKIE_SDL3_MIXER_PREFIX`, validates the exact header/package versions and
+adds the selected library directory to the local smoke path. It does not
+silently accept an older mixer or an unreviewed runtime library.
+
+When the host has SDL3 but no SDL_mixer development package, prepare the
+pinned local prefix:
+
+```bash
+bash scripts/bootstrap_sdl3_mixer.sh
+```
+
+The bootstrap also requires CMake, a C compiler and `curl` or `wget`; the host
+SDL3 development files remain required.
+
+The bootstrap verifies the official SDL_mixer 3.2.4 archive SHA-256, builds
+the WAVE and bundled `stb_vorbis` backends, and installs into the ignored
+`.kookie-deps/sdl3-mixer-3.2.4` prefix. For an offline reviewed source tree:
+
+```bash
+KOOKIE_SDL3_MIXER_SOURCE=/path/to/SDL_mixer-3.2.4 \
+  bash scripts/bootstrap_sdl3_mixer.sh
+```
+
+After preparation, `package_kookie.sh`, `verify.sh`, the external-LAN native
+gates and the G5 renderer gate discover the prefix automatically. The
+presentation package still bundles only the resolved SDL3/SDL_mixer runtime
+libraries; host libc and the dynamic loader remain outside the archive.
 
 ## Linux SDL presentation package
 
@@ -547,9 +586,10 @@ The workflow requires self-hosted runners with labels
 `kookie-demo-release`, `linux`/`windows` and `x64`. Both runners need Kof
 `0.5.0-beta` at the pinned source commit, Python 3, OpenSSL, `glslc`, Zig
 0.16.0 and the pinned Kof distribution digest. The Linux runner additionally
-needs SDL3/SDL_mixer development files and an isolated display wrapper for
-optional package presentation smoke. The Windows runner additionally needs
-MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`.
+needs SDL3 development files and an isolated display wrapper for optional
+package presentation smoke; the workflow bootstraps the pinned SDL_mixer
+prefix when its `pkg-config` entry is absent. The Windows runner additionally
+needs MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`.
 
 Configure environment secrets `KOOKIE_SIGNING_KEY_PEM` and
 `KOOKIE_KOF_ARCHIVE_SHA256`. Dispatch with `publish=false` for artifact-only
