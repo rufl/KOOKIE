@@ -5,6 +5,20 @@ also distribute the permissively licensed SDL dependencies below. The optional
 Windows JVM package has a separate bundled-runtime license boundary described
 after the SDL notices.
 
+GatoGanso bundled fonts
+The GatoGanso UI bundles `Jared Lite` and `Pixand`, created by Jared
+Nickerl, from the supplied `C__Users_rafael_Downloads_readable_pixel_fonts.zip`
+archive (SHA-256:
+`f089859f0c8899c7b3eee6db9dbbde4735db5726b0ba6b1ce08be5acedaa51d8`).
+The unmodified TTF files, `OFL.txt` and `readme.txt` are retained in
+`assets/fonts` and copied into distributable packages under `fonts`.
+`jared-lite.ttf` SHA-256:
+`d6c8b6ab80224c680f130053b788227e5d4be5d0924315acf4deb2efb665a283`.
+`pixand.ttf` SHA-256:
+`a7e0332c2a61b9885ce1ed0a0344ddddd6671492933cb9f710e5c5b81a8926a7`.
+Both fonts are licensed under the SIL Open Font License 1.1; the complete
+license and redistribution note are shipped unchanged beside the font files.
+
 
 User-supplied UI sound assets
 The `assets/audio/ui` OGG files were supplied with this project as

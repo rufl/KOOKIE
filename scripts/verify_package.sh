@@ -82,6 +82,28 @@ test -f "$HEADLESS_ADAPTER" -a -f "$PERSISTENCE_ADAPTER" -a \
 test -f "$PACKAGE_ROOT/LICENSE"
 test -f "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 test -f "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
+for font_asset in fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt \
+  fonts/readme.txt fonts/manifest.json; do
+  test -f "$PACKAGE_ROOT/$font_asset"
+done
+python3 - "$PACKAGE_ROOT/fonts/manifest.json" "$PACKAGE_ROOT/fonts" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+font_root = pathlib.Path(sys.argv[2])
+assert manifest["game"] == "GatoGanso"
+assert manifest["defaults"]["body"]["family"] == "Jared Lite"
+assert manifest["defaults"]["display"]["family"] == "Pixand"
+for entry in manifest["files"]:
+    path = font_root / entry["path"]
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"]
+PY
+grep -Fq 'game_display_name=GatoGanso' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'font_default_body=Jared-Lite' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'font_default_display=Pixand' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'MIT License' "$PACKAGE_ROOT/LICENSE"
 grep -Fq 'SDL_mixer 3.2.4' "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 grep -Fxq 'license_status=MIT-application' "$PACKAGE_ROOT/PROVENANCE.txt"

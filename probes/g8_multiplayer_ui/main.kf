@@ -35,6 +35,14 @@ main() {
     assert(lobby.leave() && lobby.phase() == multiplayerLobbyPhaseOffline(),
         "leave must return the lobby to offline")
     var shell = GameShell()
+    assert(uiFontCount() == 2 &&
+        uiFontDefaultBody() == uiFontJaredLite() &&
+        uiFontDefaultDisplay() == uiFontPixand() &&
+        uiFontName(uiFontDefaultBody()) == "Jared Lite" &&
+        uiFontName(uiFontDefaultDisplay()) == "Pixand" &&
+        uiGameDisplayName() == "GatoGanso" &&
+        uiGameTitle() == "GATOGANSO",
+        "GatoGanso must expose the two default UI fonts")
     var mainFrame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(mainFrame, 1) &&
         mainFrame.stagedCount() > 0 &&

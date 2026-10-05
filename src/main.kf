@@ -361,11 +361,11 @@ test "overhead billboards map names and partial heart damage" {
     var sawQuarter = false
     var sawEmpty = false
     for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-        if (frame.resourceAt(index) == 400) { sawEmpty = true }
-        if (frame.resourceAt(index) == 401) { sawQuarter = true }
-        if (frame.resourceAt(index) == 402) { sawHalf = true }
-        if (frame.resourceAt(index) == 403) { sawThreeQuarter = true }
-        if (frame.resourceAt(index) == 404) { sawFull = true }
+        if (frame.resourceAt(index) == 600) { sawEmpty = true }
+        if (frame.resourceAt(index) == 601) { sawQuarter = true }
+        if (frame.resourceAt(index) == 602) { sawHalf = true }
+        if (frame.resourceAt(index) == 603) { sawThreeQuarter = true }
+        if (frame.resourceAt(index) == 604) { sawFull = true }
     }
     assert(sawFull && sawThreeQuarter && sawHalf && sawQuarter && sawEmpty,
         "billboard staging must emit all five heart sprite resources")
@@ -6625,7 +6625,10 @@ test "kutter level editor provides bounded tools validation and history" {
         editor.redo() &&
         editor.nodeCount() == 2,
         "level editor must place snapped props and preserve bounded undo redo")
-    assert(editor.cycleTool(4) &&
+    assert(editor.cycleTool(1) &&
+        editor.cycleTool(1) &&
+        editor.cycleTool(1) &&
+        editor.cycleTool(1) &&
         editor.tool() == kutterLevelToolTrigger() &&
         editor.applyTool() &&
         editor.validLevel() &&

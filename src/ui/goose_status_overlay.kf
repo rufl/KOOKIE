@@ -100,7 +100,7 @@ class GooseStatusOverlay {
             actorMaximumHeartCountAt(index), heart)
     }
 
-    Int heartSpriteResourceBase() { return 400 }
+    Int heartSpriteResourceBase() { return uiFontHeartResourceBase() }
 
     Int heartSpriteResource(Int state) {
         if (state < 0) { state = 0 }

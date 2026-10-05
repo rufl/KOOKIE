@@ -121,9 +121,9 @@ static int text_width(const char *text, int scale) {
     return length == 0 ? 0 : (int)length * 6 * scale - scale;
 }
 
-static void draw_text(
+static void draw_text_font(
     SDL_Renderer *renderer, const char *text, int x, int y,
-    int scale, int color
+    int scale, int color, int font
 ) {
     set_color(renderer, color);
     for (const unsigned char *cursor = (const unsigned char *)text;
@@ -131,7 +131,7 @@ static void draw_text(
         int glyph = kookie_pixel_glyph_for_ascii(*cursor);
         if (glyph > 0) {
             for (int row = 0; row < KOOKIE_PIXEL_GLYPH_HEIGHT; row += 1) {
-                uint8_t bits = kookie_pixel_glyph_rows[glyph][row];
+                uint8_t bits = *kookie_pixel_glyph_row(font, glyph, row);
                 for (int column = 0;
                      column < KOOKIE_PIXEL_GLYPH_WIDTH; column += 1) {
                     if ((bits & (uint8_t)(1u << (4 - column))) != 0) {
@@ -150,13 +150,29 @@ static void draw_text(
     }
 }
 
+static void draw_text(
+    SDL_Renderer *renderer, const char *text, int x, int y,
+    int scale, int color
+) {
+    draw_text_font(
+        renderer, text, x, y, scale, color, KOOKIE_PIXEL_FONT_JARED_LITE);
+}
+
+static void draw_centered_text_font(
+    SDL_Renderer *renderer, const char *text, int y,
+    int scale, int color, int font
+) {
+    draw_text_font(
+        renderer, text,
+        (KOOKIE_LOGICAL_WIDTH - text_width(text, scale)) / 2,
+        y, scale, color, font);
+}
+
 static void draw_centered_text(
     SDL_Renderer *renderer, const char *text, int y, int scale, int color
 ) {
-    draw_text(
-        renderer, text,
-        (KOOKIE_LOGICAL_WIDTH - text_width(text, scale)) / 2,
-        y, scale, color);
+    draw_centered_text_font(
+        renderer, text, y, scale, color, KOOKIE_PIXEL_FONT_JARED_LITE);
 }
 
 static void draw_frame(SDL_Renderer *renderer) {
@@ -174,7 +190,8 @@ static void draw_selection(
 
 static void draw_main(SDL_Renderer *renderer, const AppState *app) {
     draw_frame(renderer);
-    draw_centered_text(renderer, "KOOKIE", 76, 10, 13);
+    draw_centered_text_font(
+        renderer, "GATOGANSO", 76, 10, 13, KOOKIE_PIXEL_FONT_PIXAND);
     draw_centered_text(renderer, "OLD SCHOOL COOP", 164, 3, 12);
     static const char *items[] = {"PLAY", "MULTIPLAYER", "OPTIONS", "QUIT"};
     int item_scale = app->text_size + 3;
@@ -1058,7 +1075,7 @@ int main(int argc, char **argv) {
     bool winsock_ready = WSAStartup(MAKEWORD(2, 2), &winsock_data) == 0;
 
     SDL_Window *window = SDL_CreateWindow(
-        "KOOKIE", 1280, 720,
+        "GatoGanso", 1280, 720,
         SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
     if (window == NULL) {
         if (winsock_ready) WSACleanup();

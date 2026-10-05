@@ -1,0 +1,34 @@
+import core
+import ui
+
+main() {
+    assert(uiFontCount() == 2 &&
+        uiFontDefaultBody() == uiFontJaredLite() &&
+        uiFontDefaultDisplay() == uiFontPixand() &&
+        uiFontName(uiFontDefaultBody()) == "Jared Lite" &&
+        uiFontName(uiFontDefaultDisplay()) == "Pixand" &&
+        uiGameDisplayName() == "GatoGanso" &&
+        uiGameTitle() == "GATOGANSO",
+        "GatoGanso must expose both default fonts")
+    var shell = GameShell()
+    var frame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(frame, 1) && frame.stagedCount() > 0,
+        "GatoGanso main shell must stage")
+    var sawBodyFont = false
+    var sawDisplayFont = false
+    for (var vertex = 0; vertex < frame.stagedCount(); vertex = vertex + 1) {
+        var resource = frame.resourceAt(vertex)
+        if (resource >= uiFontResourceBase() &&
+            resource < uiFontResourceBase() + uiFontResourceStride()) {
+            sawBodyFont = true
+        }
+        if (resource >= uiFontResourceBase() + uiFontResourceStride() &&
+            resource < uiFontResourceBase() + uiFontResourceStride() * 2) {
+            sawDisplayFont = true
+        }
+    }
+    assert(sawBodyFont && sawDisplayFont,
+        "main shell must stage Jared Lite and Pixand resources")
+    assert(frame.retire(1))
+    println("KOOKIE G9 GatoGanso font defaults verified")
+}

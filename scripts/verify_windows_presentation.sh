@@ -99,7 +99,12 @@ for relative in (
     "build/g6_world.vert.dxil",
     "build/g0_triangle.frag.dxil",
     "DEMO_CONTROLS.txt",
-):
+    "fonts/jared-lite.ttf",
+    "fonts/pixand.ttf",
+    "fonts/OFL.txt",
+    "fonts/readme.txt",
+    "fonts/manifest.json",
+)
     assert (root / relative).is_file(), relative
 assert (root / "kookie.exe").read_bytes()[:2] == b"MZ"
 assert not (root / "kookie.jar").exists()
@@ -115,6 +120,9 @@ provenance = dict(
 assert provenance["windows_status"] == "kof-native-pe-sdl-gpu-bundled-runtime"
 assert provenance["dependency_policy"] == "bundled-sdl-and-shader-assets-license-files-retained"
 assert provenance["runtime_dependencies"] == "Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL"
+assert provenance["game_display_name"] == "GatoGanso"
+assert provenance["font_default_body"] == "Jared-Lite"
+assert provenance["font_default_display"] == "Pixand"
 PY
 
 if [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]]; then

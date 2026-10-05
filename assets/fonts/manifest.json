@@ -1,0 +1,36 @@
+{
+  "schema": "kookie.gatoganso-font-catalog/v1",
+  "game": "GatoGanso",
+  "source_archive": "C__Users_rafael_Downloads_readable_pixel_fonts.zip",
+  "source_archive_sha256": "f089859f0c8899c7b3eee6db9dbbde4735db5726b0ba6b1ce08be5acedaa51d8",
+  "defaults": {
+    "body": {
+      "family": "Jared Lite",
+      "file": "jared-lite.ttf",
+      "atlas": "JARED_LITE"
+    },
+    "display": {
+      "family": "Pixand",
+      "file": "pixand.ttf",
+      "atlas": "PIXAND"
+    }
+  },
+  "files": [
+    {
+      "path": "jared-lite.ttf",
+      "sha256": "d6c8b6ab80224c680f130053b788227e5d4be5d0924315acf4deb2efb665a283"
+    },
+    {
+      "path": "pixand.ttf",
+      "sha256": "a7e0332c2a61b9885ce1ed0a0344ddddd6671492933cb9f710e5c5b81a8926a7"
+    },
+    {
+      "path": "OFL.txt",
+      "sha256": "32780aff62874bafcba08be23a9f0e70a8770f9b1ccd8ab18a7dc482a45f2f33"
+    },
+    {
+      "path": "readme.txt",
+      "sha256": "08d03792531c27bbcafa42d20f1094eb957c44af1005ee3f0f3392c19e14330f"
+    }
+  ]
+}

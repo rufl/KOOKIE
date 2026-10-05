@@ -1,0 +1,21 @@
+package ui
+
+Int uiFontJaredLite() { return 0 }
+Int uiFontPixand() { return 1 }
+Int uiFontCount() { return 2 }
+Int uiFontDefaultBody() { return uiFontJaredLite() }
+Int uiFontDefaultDisplay() { return uiFontPixand() }
+
+// Native presentation keeps one bounded resource range per font.
+Int uiFontResourceBase() { return 101 }
+Int uiFontResourceStride() { return 240 }
+Int uiFontHeartResourceBase() { return 600 }
+
+String uiFontName(Int font) {
+    if (font == uiFontJaredLite()) { return "Jared Lite" }
+    if (font == uiFontPixand()) { return "Pixand" }
+    return ""
+}
+
+String uiGameTitle() { return "GATOGANSO" }
+String uiGameDisplayName() { return "GatoGanso" }

@@ -193,7 +193,8 @@ PY
     build/g0_triangle.frag.spv build/g0_triangle.vert.dxil \
     build/g5_triangle_instance.vert.dxil build/g6_world.vert.dxil \
     build/g0_triangle.frag.dxil PROVENANCE.txt THIRD_PARTY_NOTICES.txt \
-    DEMO_CONTROLS.txt; do
+    DEMO_CONTROLS.txt fonts/jared-lite.ttf fonts/pixand.ttf \
+    fonts/OFL.txt fonts/readme.txt fonts/manifest.json; do
     [[ -f "$PACKAGE_ROOT/$required" ]] || {
       echo "build_demo_release: missing Windows package entry $required" >&2
       exit 1
@@ -210,7 +211,9 @@ else
     build/g0_triangle.vert.spv build/g5_triangle_instance.vert.spv \
     build/g6_world.vert.spv build/g0_triangle.frag.spv kookie-server \
     kookie-server.bin LICENSE \
-    THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt; do
+    THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt \
+    fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt fonts/readme.txt \
+    fonts/manifest.json; do
     [[ -e "$PACKAGE_ROOT/$required" ]] || {
       echo "build_demo_release: missing Linux package entry $required" >&2
       exit 1

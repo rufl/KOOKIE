@@ -3,12 +3,21 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Branded the player-facing test game **GatoGanso** and set `Jared Lite`
+  as the default UI font with `Pixand` for display/title text. The supplied
+  SIL Open Font License files, source TTFs and deterministic bounded native
+  atlas are retained in the source and distributable font catalog.
+
 
 - Added a dedicated Kutter Level Editor surface inspired by DINX authoring
   modes, MudLump cursor/grid editing and Zylve placement/validation workflows.
   It supports bounded select/prop/spawn/encounter/trigger/light/erase tools,
   cursor placement, selection movement, preview state, history and
   `BoundedKutterStudio` persistence.
+- Fixed the CI linter and native/JVM regression gate by reducing the
+  Rgsdev greybox catalog's repeated long calls to bounded range helpers and
+  making level-editor tool-cycle coverage use the actual directional input
+  contract.
 - Added a Zylve-style round upper-right tactical minimap to the native gameplay
   presentation. Cooperative matches show local and remote player markers;
   PvP suppresses player markers while retaining non-player markers. Added

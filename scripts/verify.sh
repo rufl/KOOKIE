@@ -17,6 +17,8 @@ fi
 
 python3 scripts/lint_kf.py src probes apps
 python3 scripts/lsp_verify.py src
+bash scripts/verify_font_assets.sh
+bash scripts/verify_font_ui.sh
 python3 scripts/lsp_verify.py probes
 
 kof check src --target jvm

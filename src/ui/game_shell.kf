@@ -630,8 +630,16 @@ class GameShell {
         return 0
     }
 
+    Int textResourceWithFont(Int font, Int color, Int glyphValue) {
+        if (font < 0 || font >= uiFontCount() ||
+            color < 0 || color > 4 ||
+            glyphValue < 1 || glyphValue > 44) { return 0 }
+        return uiFontResourceBase() + font * uiFontResourceStride() +
+            color * 48 + glyphValue - 1
+    }
     Int textResource(Int color, Int glyphValue) {
-        return 100 + color * 48 + glyphValue
+        return textResourceWithFont(
+            uiFontDefaultBody(), color, glyphValue)
     }
 
     Bool pushQuad(
@@ -662,11 +670,12 @@ class GameShell {
         return text.length() * 6 * scale - scale
     }
 
-    Bool pushText(
+    Bool pushTextWithFont(
         FrameStaging target, String text,
-        Int left, Int bottom, Int scale, Int color
+        Int left, Int bottom, Int scale, Int color, Int font
     ) {
-        if (scale <= 0 || color < 0 || color > 4) { return false }
+        if (scale <= 0 || color < 0 || color > 4 ||
+            font < 0 || font >= uiFontCount()) { return false }
         var safeLeft = left
         var width = textWidth(text, scale)
         if (safeLeft < -100) { safeLeft = -100 }
@@ -678,7 +687,8 @@ class GameShell {
         for (var index = 0; index < text.length(); index = index + 1) {
             var glyphValue = glyph(text.charAt(index))
             if (glyphValue > 0 &&
-                !pushQuad(target, textResource(color, glyphValue),
+                !pushQuad(target,
+                    textResourceWithFont(font, color, glyphValue),
                     x, bottom, x + 5 * scale, bottom + 7 * scale)) {
                 return false
             }
@@ -686,13 +696,30 @@ class GameShell {
         }
         return true
     }
+    Bool pushText(
+        FrameStaging target, String text,
+        Int left, Int bottom, Int scale, Int color
+    ) {
+        return pushTextWithFont(
+            target, text, left, bottom, scale, color,
+            uiFontDefaultBody())
+    }
 
+    Bool pushCenteredTextWithFont(
+        FrameStaging target, String text,
+        Int bottom, Int scale, Int color, Int font
+    ) {
+        return pushTextWithFont(target, text,
+            -textWidth(text, scale) / 2,
+            bottom, scale, color, font)
+    }
     Bool pushCenteredText(
         FrameStaging target, String text,
         Int bottom, Int scale, Int color
     ) {
-        return pushText(target, text, -textWidth(text, scale) / 2,
-            bottom, scale, color)
+        return pushCenteredTextWithFont(
+            target, text, bottom, scale, color,
+            uiFontDefaultBody())
     }
 
     Int numberWidth(Int value, Int scale) {
@@ -754,7 +781,9 @@ class GameShell {
         var scale = textSize()
         var itemColor = 0
         return pushScreenFrame(target) &&
-            pushCenteredText(target, "KOOKIE", 70, 3, 1) &&
+            pushCenteredTextWithFont(
+                target, uiGameTitle(), 70, 3, 1,
+                uiFontDefaultDisplay()) &&
             pushCenteredText(target, "OLD SCHOOL COOP", 55, 1, 2) &&
             pushCenteredText(target, "G1 READY", 47, 1, 4) &&
             pushSelectionPanel(target, 0, 25, 45) &&

@@ -38,9 +38,14 @@
 #define KOOKIE_GPU_SOLID_COLORS 16
 #define KOOKIE_GPU_FONT_COLORS 5
 #define KOOKIE_GPU_FONT_GLYPHS_PER_COLOR 48
-#define KOOKIE_GPU_HEART_BASE_RESOURCE 400
+#define KOOKIE_GPU_FONT_RESOURCE_BASE 101
+#define KOOKIE_GPU_FONT_RESOURCE_STRIDE \
+    (KOOKIE_GPU_FONT_COLORS * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR)
+#define KOOKIE_GPU_HEART_BASE_RESOURCE 600
 #define KOOKIE_GPU_HEART_STATE_COUNT 5
-#define KOOKIE_GPU_HEART_FIRST_TILE 256
+#define KOOKIE_GPU_HEART_FIRST_TILE \
+    (KOOKIE_GPU_SOLID_COLORS + \
+        KOOKIE_PIXEL_FONT_COUNT * KOOKIE_GPU_FONT_RESOURCE_STRIDE)
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -487,7 +492,8 @@ int kookie_window_create(int width, int height, int hidden) {
     if (hidden) {
         flags |= SDL_WINDOW_HIDDEN;
     }
-    SDL_Window *window = SDL_CreateWindow("KOOKIE", width, height, flags);
+    SDL_Window *window = SDL_CreateWindow(
+        "GatoGanso", width, height, flags);
     bool minimum_size = window != NULL &&
         SDL_SetWindowMinimumSize(window, 320, 180);
     if (window == NULL || !minimum_size) {
@@ -848,27 +854,31 @@ static void kookie_gpu_build_atlas(Uint8 *pixels) {
             }
         }
     }
-    for (int color = 0; color < KOOKIE_GPU_FONT_COLORS; color += 1) {
-        for (int glyph = 1; glyph <= KOOKIE_PIXEL_GLYPH_COUNT; glyph += 1) {
-            int tile = KOOKIE_GPU_SOLID_COLORS +
-                color * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph - 1;
-            int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-                KOOKIE_GPU_ATLAS_TILE_SIZE;
-            int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-                KOOKIE_GPU_ATLAS_TILE_SIZE;
-            for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
-                uint8_t row = kookie_pixel_glyph_rows[glyph][y];
-                for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
-                    if ((row & (uint8_t)(1u << (4 - x))) == 0) {
-                        continue;
+    for (int font = 0; font < KOOKIE_PIXEL_FONT_COUNT; font += 1) {
+        for (int color = 0; color < KOOKIE_GPU_FONT_COLORS; color += 1) {
+            for (int glyph = 1;
+                 glyph <= KOOKIE_PIXEL_GLYPH_COUNT; glyph += 1) {
+                int tile = KOOKIE_GPU_SOLID_COLORS +
+                    (font * KOOKIE_GPU_FONT_COLORS + color) *
+                        KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph - 1;
+                int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+                    KOOKIE_GPU_ATLAS_TILE_SIZE;
+                int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+                    KOOKIE_GPU_ATLAS_TILE_SIZE;
+                for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
+                    uint8_t row = *kookie_pixel_glyph_row(font, glyph, y);
+                    for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
+                        if ((row & (uint8_t)(1u << (4 - x))) == 0) {
+                            continue;
+                        }
+                        size_t offset = (size_t)(
+                            (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
+                            4u;
+                        memcpy(
+                            pixels + offset,
+                            palette[font_palette[color]],
+                            4u);
                     }
-                    size_t offset = (size_t)(
-                        (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
-                        4u;
-                    memcpy(
-                        pixels + offset,
-                        palette[font_palette[color]],
-                        4u);
                 }
             }
         }
@@ -1641,7 +1651,7 @@ static bool kookie_gpu_scene_push_vertex_internal(
             (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
             KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
             (float)v * 7.0f / 100.0f;
-    } else if (resource < 101) {
+    } else if (resource < KOOKIE_GPU_FONT_RESOURCE_BASE) {
         tile = (resource - 1) % KOOKIE_GPU_SOLID_COLORS;
         texture_x = (float)(
             (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
@@ -1650,15 +1660,19 @@ static bool kookie_gpu_scene_push_vertex_internal(
             (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
             KOOKIE_GPU_ATLAS_TILE_SIZE) + 3.5f;
     } else {
-        int encoded = resource - 101;
-        int color = encoded / KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
-        int glyph = encoded % KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
-        if (color < 0 || color >= KOOKIE_GPU_FONT_COLORS ||
+        int encoded = resource - KOOKIE_GPU_FONT_RESOURCE_BASE;
+        int font = encoded / KOOKIE_GPU_FONT_RESOURCE_STRIDE;
+        int font_encoded = encoded % KOOKIE_GPU_FONT_RESOURCE_STRIDE;
+        int color = font_encoded / KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
+        int glyph = font_encoded % KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
+        if (font < 0 || font >= KOOKIE_PIXEL_FONT_COUNT ||
+            color < 0 || color >= KOOKIE_GPU_FONT_COLORS ||
             glyph >= KOOKIE_PIXEL_GLYPH_COUNT) {
             return false;
         }
         tile = KOOKIE_GPU_SOLID_COLORS +
-            color * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph;
+            (font * KOOKIE_GPU_FONT_COLORS + color) *
+                KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph;
         texture_x = (float)(
             (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
             KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f + (float)u * 4.0f / 100.0f;

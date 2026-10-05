@@ -160,6 +160,11 @@ not the current playable-demo package.
 
 The current source tree has a bounded player-facing slice:
 
+The player-facing test game is branded **GatoGanso**. Its bounded native
+presentation uses bundled `Jared Lite` body text and `Pixand` display text;
+the original TTF files and SIL Open Font License notice remain in
+`assets/fonts`.
+
 - `Play` starts the local authoritative listen-server/client encounter,
   accepts keyboard and mouse input, runs three goose bots and resets when
   leaving and entering `Play` again.

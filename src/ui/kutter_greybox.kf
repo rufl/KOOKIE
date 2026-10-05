@@ -114,83 +114,80 @@ class BoundedKutterGreyboxCatalog {
         return true
     }
 
+    Bool addRgsdevModule(Int moduleId, Int kind, Int collisionMode) {
+        return addModule(
+            moduleId, moduleId + 10000, kind, collisionMode,
+            kutterGreyboxTexturePolicyFree(), 1,
+            1000, 1000, 1000, 1000, 1000, 1000,
+            kutterGreyboxRuntimeReady()
+        )
+    }
+
+    Bool addRgsdevModuleRange(
+        Int firstModuleId, Int lastModuleId, Int kind, Int collisionMode
+    ) {
+        if (firstModuleId <= 0 || lastModuleId < firstModuleId) { return false }
+        var moduleId = firstModuleId
+        while (moduleId <= lastModuleId) {
+            if (!addRgsdevModule(moduleId, kind, collisionMode)) { return false }
+            moduleId = moduleId + 1
+        }
+        return true
+    }
+
     Bool loadRgsdevPack() {
         clear()
-        if (!addModule(41001, 51001, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41002, 51002, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41003, 51003, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41004, 51004, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41005, 51005, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41006, 51006, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41007, 51007, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41008, 51008, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41009, 51009, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41010, 51010, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41011, 51011, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41012, 51012, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41013, 51013, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41014, 51014, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41015, 51015, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41016, 51016, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41017, 51017, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41018, 51018, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41019, 51019, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41020, 51020, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41021, 51021, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41022, 51022, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41023, 51023, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41024, 51024, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41025, 51025, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41026, 51026, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41027, 51027, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41028, 51028, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41029, 51029, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41030, 51030, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41031, 51031, kutterGreyboxKindGround(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41032, 51032, kutterGreyboxKindGround(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41033, 51033, kutterGreyboxKindGround(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41034, 51034, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41035, 51035, kutterGreyboxKindLadder(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41036, 51036, kutterGreyboxKindLadder(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41037, 51037, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41038, 51038, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41039, 51039, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41040, 51040, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41041, 51041, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41042, 51042, kutterGreyboxKindRailing(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41043, 51043, kutterGreyboxKindRailing(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41044, 51044, kutterGreyboxKindRamp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41045, 51045, kutterGreyboxKindRamp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41046, 51046, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41047, 51047, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41048, 51048, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41049, 51049, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41050, 51050, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41051, 51051, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41052, 51052, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41053, 51053, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41054, 51054, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41055, 51055, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41056, 51056, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41057, 51057, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41058, 51058, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41059, 51059, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41060, 51060, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41061, 51061, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41062, 51062, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41063, 51063, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41064, 51064, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41065, 51065, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41066, 51066, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41067, 51067, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41068, 51068, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41069, 51069, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41070, 51070, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41071, 51071, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41072, 51072, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41073, 51073, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41074, 51074, kutterGreyboxKindWindow(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
-        if (!addModule(41075, 51075, kutterGreyboxKindWindow(), kutterGreyboxCollisionSolid(), kutterGreyboxTexturePolicyFree(), 1, 1000, 1000, 1000, 1000, 1000, 1000, kutterGreyboxRuntimeReady())) { return false }
+        if (!addRgsdevModuleRange(
+            41001, 41002, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41003, 41003, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41004, 41021, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41022, 41025, kutterGreyboxKindDoorway(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41026, 41030, kutterGreyboxKindFence(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41031, 41033, kutterGreyboxKindGround(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41034, 41034, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41035, 41036, kutterGreyboxKindLadder(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41037, 41041, kutterGreyboxKindPillar(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41042, 41043, kutterGreyboxKindRailing(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41044, 41045, kutterGreyboxKindRamp(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41046, 41051, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41052, 41056, kutterGreyboxKindStairs(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41057, 41057, kutterGreyboxKindProp(), kutterGreyboxCollisionDecorative()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41058, 41058, kutterGreyboxKindProp(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41059, 41073, kutterGreyboxKindWall(), kutterGreyboxCollisionSolid()
+        )) { return false }
+        if (!addRgsdevModuleRange(
+            41074, 41075, kutterGreyboxKindWindow(), kutterGreyboxCollisionSolid()
+        )) { return false }
         return validate()
     }
 

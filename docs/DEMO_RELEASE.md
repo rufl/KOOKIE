@@ -20,6 +20,11 @@ fix. No current Windows demo archive is published.
 
 The current source tree has these release-capable paths:
 
+The player-facing test game is named **GatoGanso**. The presentation defaults
+to `Jared Lite` for bounded UI text and `Pixand` for display/title text; both
+font files and their SIL Open Font License notice ship with the package.
+
+
 - Local `Play` starts an authoritative listen-server/client goose encounter
   with bounded keyboard/mouse input, three bots, HUD/nameplates, damage and
   deterministic reset by leaving and re-entering `Play`.

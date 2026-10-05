@@ -341,6 +341,26 @@ PY
 }
 
 bundle_prototype_content
+bundle_font_assets() {
+  local source_root="$ROOT_DIR/assets/fonts"
+  local destination_root="$PACKAGE_ROOT/fonts"
+  [[ -d "$source_root" ]] || {
+    echo "package_kookie: font asset directory missing: $source_root" >&2
+    exit 1
+  }
+  mkdir -p "$destination_root"
+  local count=0
+  for source in "$source_root"/*; do
+    [[ -f "$source" ]] || continue
+    cp -- "$source" "$destination_root/$(basename "$source")"
+    count=$((count + 1))
+  done
+  [[ "$count" == 5 ]] || {
+    echo "package_kookie: expected 5 font assets, found $count" >&2
+    exit 1
+  }
+}
+
 bundle_audio_assets() {
   if [[ "$RUNTIME" != presentation &&
         ! ( "$TARGET" == windows-x86_64 && "$RUNTIME" == native ) ]]; then
@@ -365,6 +385,7 @@ bundle_audio_assets() {
   }
 }
 
+bundle_font_assets
 bundle_audio_assets
 
 
@@ -889,7 +910,7 @@ if [[ "$TARGET" == windows-x86_64 ]]; then
 fi
 if [[ "$RUNTIME" == presentation ]]; then
   cat > "$PACKAGE_ROOT/DEMO_CONTROLS.txt" <<'EOF'
-KOOKIE bounded first demo
+GatoGanso bounded first demo
 
 Launch:
   Linux:   ./kookie
@@ -907,7 +928,7 @@ Local playable slice:
   Mouse wheel          zoom camera
   F / Left mouse       fire
   Ctrl                 jump
-  Select Play to start the authoritative goose encounter.
+  Select Play to start the authoritative GatoGanso encounter.
   Escape returns to the menu; select Play again for a fresh encounter.
 
 Two-player dogfood:
@@ -968,6 +989,10 @@ kof_compiler_sha256=$KOF_COMPILER_SHA256
 release_signing=ed25519
 release_public_key_sha256=$PUBLIC_KEY_SHA256
 license_status=MIT-application
+game_display_name=GatoGanso
+font_catalog=fonts/manifest.json
+font_default_body=Jared-Lite
+font_default_display=Pixand
 windows_status=$WINDOWS_STATUS
 dependency_policy=$DEPENDENCY_POLICY
 sdl_version=$SDL_VERSION
