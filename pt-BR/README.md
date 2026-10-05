@@ -168,12 +168,19 @@ A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
   interpolação remota de seis ticks e métricas de correção da predição. O
   caminho WAN continua sendo IPv4/UDP direto best-effort, não um protocolo
   compatível com QUIC nem um relay de produção.
-A revisão de GUI de 2026-10-02 adiciona uma moldura consistente, trilhos nas
-linhas selecionadas, subtítulos por tela, clipping limitado de texto e dicas
-explícitas de teclado nas telas principal, opções, multiplayer e Kutter. O
-probe focado `bash scripts/verify_multiplayer_ui.sh` agora faz staging das
-quatro telas nos caminhos JVM e nativo; `bash scripts/verify_goose_game.sh`
-também passa.
+O passe de GUI de 2026-10-02 agora adiciona uma shell em moldura consistente,
+trilhos nas linhas selecionadas, subtítulos por tela, clipping limitado e dicas
+explícitas de teclado nas telas principal, opções, multiplayer, acessibilidade
+e Kutter. O menu principal expõe `Play`, `Multiplayer`, `Options`,
+`Accessibility`, `Kutter` e `Quit`. Acessibilidade alterna escala do HUD
+(`85%`, `100%`, `115%`), visibilidade do mapa tático e texto de alto contraste;
+escala e mapa atualizam a apresentação ao vivo sem alterar os orçamentos fixos
+de vértices. O mapa redondo no canto superior direito mantém a meta de
+flexibilidade inspirada em DINX/ZYLVE sem copiar nenhum dos produtos. O probe
+focado `bash scripts/verify_multiplayer_ui.sh` faz staging de cinco frames da
+shell nos caminhos JVM e nativo; `bash scripts/verify_font_ui.sh` cobre o
+contrato de fontes/título e `bash scripts/verify_goose_game.sh` cobre o
+gameplay.
 O gate focado do servidor dedicado também passa 512 ticks medidos com p95 de
 `3,624ms` (p99 de `3,689ms`, máximo de `3,899ms`) sob o orçamento declarado
 de simulação de 4ms.

@@ -11,6 +11,7 @@ class ShooterHud {
     Int tickValue
     Bool focusedValue
     Bool configuredValue
+    Int scalePercentValue
     Int lastImpactSequenceValue
     Int damageFeedbackUntilTick
     Int hitFeedbackUntilTick
@@ -52,6 +53,7 @@ class ShooterHud {
         tickValue = 0
         focusedValue = false
         configuredValue = false
+        scalePercentValue = 100
         lastImpactSequenceValue = 0
         damageFeedbackUntilTick = -1
         hitFeedbackUntilTick = -1
@@ -95,6 +97,17 @@ class ShooterHud {
         focusedValue = focused
         configuredValue = true
         return true
+    }
+    Bool setScale(Int percent) {
+        if (percent < 80 || percent > 120) { return false }
+        scalePercentValue = percent
+        return true
+    }
+    Int scaleCoordinate(Int value) {
+        var scaled = value * scalePercentValue / 100
+        if (scaled < -100) { return -100 }
+        if (scaled > 100) { return 100 }
+        return scaled
     }
     Bool updateEncounterReplication(
         Int activeEnemies, Int remainingBudget,
@@ -221,12 +234,27 @@ class ShooterHud {
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
     ) {
-        return target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, bottom, 100, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, top, 0, 0)
+        var safeLeft = scaleCoordinate(left)
+        var safeBottom = scaleCoordinate(bottom)
+        var safeRight = scaleCoordinate(right)
+        var safeTop = scaleCoordinate(top)
+        return target.pushVertex(resource, safeLeft, safeBottom, 0, 100) &&
+            target.pushVertex(resource, safeRight, safeBottom, 100, 100) &&
+            target.pushVertex(resource, safeRight, safeTop, 100, 0) &&
+            target.pushVertex(resource, safeLeft, safeBottom, 0, 100) &&
+            target.pushVertex(resource, safeRight, safeTop, 100, 0) &&
+            target.pushVertex(resource, safeLeft, safeTop, 0, 0)
+    }
+    Bool pushTriangle(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+    ) {
+        return target.pushVertex(
+                resource, scaleCoordinate(ax), scaleCoordinate(ay), 50, 0) &&
+            target.pushVertex(
+                resource, scaleCoordinate(bx), scaleCoordinate(by), 100, 50) &&
+            target.pushVertex(
+                resource, scaleCoordinate(cx), scaleCoordinate(cy), 50, 100)
     }
 
     Bool pushVitalPanels(
@@ -262,18 +290,14 @@ class ShooterHud {
         FrameStaging target, Int resource,
         Int centerX, Int centerY, Int radius
     ) {
-        return target.pushVertex(
-                resource, centerX, centerY + radius, 50, 0) &&
-            target.pushVertex(
-                resource, centerX + radius, centerY, 100, 50) &&
-            target.pushVertex(
-                resource, centerX, centerY - radius, 50, 100) &&
-            target.pushVertex(
-                resource, centerX, centerY + radius, 50, 0) &&
-            target.pushVertex(
-                resource, centerX, centerY - radius, 50, 100) &&
-            target.pushVertex(
-                resource, centerX - radius, centerY, 0, 50)
+        return pushTriangle(target, resource,
+                centerX, centerY + radius,
+                centerX + radius, centerY,
+                centerX, centerY - radius) &&
+            pushTriangle(target, resource,
+                centerX, centerY + radius,
+                centerX, centerY - radius,
+                centerX - radius, centerY)
     }
 
     Bool pushBuildStatus(FrameStaging target, Int resourceBase) {
@@ -713,6 +737,9 @@ class ShooterHud {
 
     Bool focused() {
         return focusedValue
+    }
+    Int scalePercent() {
+        return scalePercentValue
     }
 
     Int lastImpactSequence() {

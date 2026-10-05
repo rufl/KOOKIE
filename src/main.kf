@@ -101,8 +101,9 @@ main() {
 test "game shell menus transact display audio and lobby state" {
     var shell = GameShell()
     assert(shell.screen() == gameShellScreenMain() &&
-        shell.selection() == 0 && !shell.quitRequested(),
-        "game shell must open on a stable main menu")
+        shell.selection() == 0 && shell.optionCount() == 6 &&
+        !shell.quitRequested(),
+        "game shell must open on a stable six-option main menu")
     assert(shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionActivate()) &&
@@ -182,6 +183,56 @@ test "game shell menus transact display audio and lobby state" {
         shell.handleAction(gameShellActionActivate()) &&
         !shell.networkEditing(),
         "port editor must support coarse and bounded changes")
+}
+
+test "accessibility surface controls bounded HUD presentation" {
+    var shell = GameShell()
+    var frame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenAccessibility() &&
+        shell.optionCount() == 4 &&
+        shell.stage(frame, 1) &&
+        frame.stagedCount() > 0 &&
+        frame.retire(1) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.hudScale() == 3 &&
+        shell.hudScalePercent() == 115 &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionLeft()) &&
+        !shell.tacticalMapVisible() &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.highContrast() &&
+        shell.stage(frame, 2) &&
+        frame.retire(2) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenMain() &&
+        shell.selection() == 3,
+        "accessibility options must update and return to the main menu")
+}
+
+test "HUD scale keeps the bounded overlay readable and staged" {
+    var hud = ShooterHud(100, 3)
+    var frame = FrameStaging(hud.renderVertexCount())
+    assert(hud.update(100, 3, 0, 1, true) &&
+        hud.updateEncounterReplication(0, 0, true, 1, 1) &&
+        hud.stage(frame, 1, 9) &&
+        frame.stagedCount() == hud.renderVertexCount(),
+        "HUD scale baseline must stage")
+    var baseline = frame.checksum()
+    assert(frame.retire(1) &&
+        hud.setScale(115) &&
+        hud.scalePercent() == 115 &&
+        hud.stage(frame, 2, 9) &&
+        frame.checksum() != baseline &&
+        frame.retire(2) &&
+        hud.setScale(85) &&
+        hud.scalePercent() == 85,
+        "HUD scale must change geometry without exceeding the fixed budget")
 }
 
 test "shooter HUD stages semantic combat feedback hierarchy" {
@@ -409,6 +460,13 @@ test "cooperative minimap hides player markers in PvP" {
     assert(!pvpPlayer && pvpEnemy,
         "PvP minimap must hide player markers without hiding enemies")
     assert(frame.retire(2))
+    assert(minimap.setVisible(false) &&
+        !minimap.visible() &&
+        minimap.stage(frame, 3, 9, 0, true) &&
+        frame.stagedCount() > 0 &&
+        frame.retire(3) &&
+        minimap.setVisible(true),
+        "hidden tactical map must retain a bounded published frame")
 }
 test "arena staging emits perspective depth" {
     var arena = G1Arena()
@@ -6593,6 +6651,7 @@ test "kutter inspector editors publish atomic undoable products" {
     assert(shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionActivate()) &&
         shell.screen() == gameShellScreenKutter() &&
         shell.handleAction(gameShellActionActivate()) &&
@@ -6636,6 +6695,7 @@ test "kutter level editor provides bounded tools validation and history" {
         "level editor must expose authored trigger validation")
     var shell = GameShell()
     assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionActivate()) &&

@@ -13,6 +13,7 @@ class GooseMinimap {
     Int[] markerXs
     Int[] markerZs
     Int markerCountValue
+    Bool visibleValue
 
     public constructor(Int capacity) {
         var actualCapacity = capacity
@@ -21,12 +22,18 @@ class GooseMinimap {
         markerXs = new Int[actualCapacity]
         markerZs = new Int[actualCapacity]
         markerCountValue = 0
+        visibleValue = true
     }
 
     Bool clear() {
         markerCountValue = 0
         return true
     }
+    Bool setVisible(Bool visible) {
+        visibleValue = visible
+        return true
+    }
+    Bool visible() { return visibleValue }
 
     Bool addMarker(Int kind, Int x, Int z) {
         if (markerCountValue >= markerKinds.length ||
@@ -183,6 +190,13 @@ class GooseMinimap {
             target.vertexCapacity() < renderVertexCapacity() ||
             !target.begin(frame)) {
             return false
+        }
+        if (!visibleValue) {
+            if (!pushQuad(target, resourceBase, 0, 0, 0, 0)) {
+                target.discard()
+                return false
+            }
+            return target.publish()
         }
         var staged = pushOctagon(target, resourceBase + 2, outerRadius()) &&
             pushOctagon(target, resourceBase + 1, innerRadius()) &&

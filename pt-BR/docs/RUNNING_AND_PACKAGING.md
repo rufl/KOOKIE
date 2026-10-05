@@ -254,10 +254,13 @@ usa o perfil de conteúdo `none` e não redistribui assets do protótipo.
   Escape e entrar novamente em `Play` redefine o encounter limitado.
 - Opções: 1280×720 até 2560×1440, janela/sem borda/tela cheia exclusiva,
   volumes separados para efeitos e música e três tamanhos de texto.
+- Acessibilidade: escala do HUD (`SMALL` 85%, `MEDIUM` 100%, `LARGE` 115%),
+  visibilidade do mapa tático e texto de alto contraste. As mudanças entram ao
+  vivo na shell de apresentação e mantêm os orçamentos fixos de staging.
 - Multiplayer: Host, Join e Leave com campos editáveis de IPv4 e porta.
   Depois que o peer conectar, selecione `READY` nos dois clientes antes de
-  abrir o gameplay; o lobby mostra a identidade limitada do peer, a contagem
-  de jogadores e o placeholder honesto de ping até existir RTT.
+  abrir o gameplay; o lobby mostra identidade limitada, contagem de jogadores
+  e placeholder honesto de ping até existir RTT.
 - Durante o gameplay, `Tab` alterna a tela de jogadores com nome, status, score,
   vida, K/D e ping. `--` significa que o RTT ainda não está disponível.
 
@@ -267,22 +270,25 @@ bits autentica peers; o fallback local apenas detecta corrupção acidental. O
 lobby não fornece criptografia nem identidade pública.
 ### Qualificação da GUI
 
-O polimento da shell é coberto pelo probe limitado de modelo/staging:
+O polimento da shell e as configurações de acessibilidade são cobertos pelos
+probes limitados de modelo/staging:
 
 ```bash
+bash scripts/verify_font_ui.sh
 bash scripts/verify_multiplayer_ui.sh
 bash scripts/verify_goose_game.sh
 ```
 
-O probe faz staging das telas principal, opções, multiplayer e Kutter nos
-caminhos JVM e nativo. A validação gráfica deve usar
-`overzeer-isolated-display`; Xvfb simples ou o desktop ativo não são
-evidência. Na workstation atual, a tentativa isolada de 2026-10-02 foi
-bloqueada de forma fail-closed por pressão total de I/O (`62.54%` bloqueado), e
-o orquestrador completo excedeu separadamente o orçamento sensível à pressão
-do p95 da simulação (`4153us > 4000us`). O pacote local `0.1.0-gui.1` passou
-extração assinada e package-smoke, mas a evidência nativa de apresentação GPU
-continua aberta.
+O probe de multiplayer faz staging das telas principal, opções, acessibilidade,
+multiplayer e Kutter nos caminhos JVM e nativo. A validação gráfica DEVE usar
+`overzeer-isolated-display`; Xvfb simples ou o desktop ativo não são evidência.
+
+Na workstation atual, a tentativa isolada de 2026-10-02 foi bloqueada de forma
+fail-closed por pressão total de I/O (`62.54%` bloqueado), e o orquestrador
+completo excedeu separadamente o orçamento sensível à pressão do p95 da
+simulação (`4153us > 4000us`). O pacote local `0.1.0-gui.1` passou extração
+assinada e package-smoke, mas a evidência nativa de apresentação GPU continua
+aberta.
 
 O gate focado do servidor dedicado agora passa 512 ticks medidos com p95 de
 `3624us`, p99 de `3689us` e máximo de `3899us` sob o orçamento declarado de

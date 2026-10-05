@@ -7,6 +7,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   as the default UI font with `Pixand` for display/title text. The supplied
   SIL Open Font License files, source TTFs and deterministic bounded native
   atlas are retained in the source and distributable font catalog.
+- Added the flexible accessibility surface to the GatoGanso shell and native
+  Windows shell: HUD scale at 85/100/115 percent, tactical-map visibility and
+  high-contrast text. Live presentation applies scale/map changes without
+  changing fixed overlay budgets.
+- Expanded the bounded GUI probe to stage the accessibility frame and added
+  regression coverage for live HUD scaling, minimap visibility and high
+  contrast. The main menu now has explicit Accessibility and Quit rows while
+  preserving Kutter authoring access.
 
 
 - Added a dedicated Kutter Level Editor surface inspired by DINX authoring

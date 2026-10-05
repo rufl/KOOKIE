@@ -271,6 +271,9 @@ the `none` content profile and does not redistribute prototype assets.
   after Escape to reset the bounded encounter.
 - Options: 1280×720 through 2560×1440, windowed/borderless/exclusive
   fullscreen, separate effects/music volume and three text sizes.
+- Accessibility: HUD scale (`SMALL` 85%, `MEDIUM` 100%, `LARGE` 115%),
+  tactical-map visibility and high-contrast text. Changes apply live in the
+  presentation shell and retain fixed staging budgets.
 - Multiplayer: Host, Join and Leave with editable IPv4 and port fields.
   After the peer connects, select `READY` on both clients before gameplay opens;
   the lobby shows the bounded peer identity, player count and honest ping
@@ -284,17 +287,20 @@ fallback only detects accidental corruption. The lobby provides neither
 encryption nor public identity.
 ### GUI qualification
 
-The shell polish is covered by the bounded model/staging probe:
+The shell polish and accessibility settings are covered by bounded model/staging
+probes:
 
 ```bash
+bash scripts/verify_font_ui.sh
 bash scripts/verify_multiplayer_ui.sh
 bash scripts/verify_goose_game.sh
 ```
 
-The probe stages the main, options, multiplayer and Kutter frames in JVM and
-native paths. Graphical validation must use `overzeer-isolated-display`; plain
-Xvfb or the active desktop is not evidence. On the current workstation, the
-2026-10-02 isolated attempt was fail-closed by full I/O pressure
+The multiplayer probe stages the main, options, accessibility, multiplayer and
+Kutter shell frames on JVM and native paths. Graphical validation MUST use
+`overzeer-isolated-display`; plain Xvfb or the active desktop is not evidence.
+
+The current workstation's 2026-10-02 isolated attempt was fail-closed by full
 (`62.54%` blocked), and the full orchestrator separately exceeded the
 pressure-sensitive simulation p95 budget (`4153us > 4000us`). The local
 `0.1.0-gui.1` package passed signed extraction and package smoke, but native

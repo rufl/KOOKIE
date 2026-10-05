@@ -140,9 +140,12 @@ before calling it a public release.
   model, codec, overlay bounds and JVM/native probe path.
 - The GUI shell now has a consistent framed hierarchy, selected-row rails,
   screen-specific subtitles, bounded text clipping and explicit keyboard hints
-  across main, options, multiplayer and Kutter. The expanded
-  `scripts/verify_multiplayer_ui.sh` probe stages all four screen frames in
-  JVM and native paths.
+  across main, options, multiplayer, accessibility and Kutter. The main menu
+  exposes Play, Multiplayer, Options, Accessibility, Kutter and Quit.
+  Accessibility changes HUD scale (85/100/115 percent), tactical-map visibility
+  and high-contrast text while preserving fixed staging budgets. The expanded
+  `scripts/verify_multiplayer_ui.sh` probe stages five shell frames in JVM and
+  native paths; `scripts/verify_font_ui.sh` covers the bundled font/title path.
 
 - The current GUI qualification build produced
   `0.1.0-gui.1` from source commit

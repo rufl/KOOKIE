@@ -100,10 +100,15 @@ antes de uma release pública.
   determinísticos. `bash scripts/verify_multiplayer_ui.sh` prova modelo,
   codec, limites da sobreposição e probe JVM/nativo.
 - A shell de GUI agora possui hierarquia em moldura consistente, trilhos nas
-  linhas selecionadas, subtítulos por tela, clipping limitado de texto e dicas
-  explícitas de teclado nas telas principal, opções, multiplayer e Kutter. O
-  probe expandido `scripts/verify_multiplayer_ui.sh` faz staging dos quatro
-  frames de tela nos caminhos JVM e nativo.
+  linhas selecionadas, subtítulos por tela, clipping limitado e dicas explícitas
+  de teclado nas telas principal, opções, multiplayer, acessibilidade e Kutter.
+  O menu principal expõe Play, Multiplayer, Options, Accessibility, Kutter e
+  Quit. Acessibilidade altera a escala do HUD (85/100/115 por cento), a
+  visibilidade do mapa tático e o texto de alto contraste, preservando os
+  orçamentos fixos de staging. O probe expandido
+  `scripts/verify_multiplayer_ui.sh` faz staging de cinco frames da shell nos
+  caminhos JVM e nativo; `scripts/verify_font_ui.sh` cobre o caminho de
+  fontes/título empacotado.
 
 - O build atual de qualificação da GUI produziu
   `0.1.0-gui.1` a partir do commit de fonte

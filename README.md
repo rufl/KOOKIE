@@ -178,9 +178,15 @@ the original TTF files and SIL Open Font License notice remain in
   relay service.
 The 2026-10-02 GUI pass adds a consistent framed shell, selected-row rails,
 screen-specific subtitles, bounded text clipping and explicit keyboard hints
-across the main, options, multiplayer and Kutter screens. The focused
-`bash scripts/verify_multiplayer_ui.sh` probe now stages all four screens in
-both JVM and native paths; `bash scripts/verify_goose_game.sh` also passes.
+across the main, options, multiplayer, accessibility and Kutter screens. The
+main menu now exposes `Play`, `Multiplayer`, `Options`, `Accessibility`, `Kutter`
+and `Quit`. Accessibility cycles HUD scale (`85%`, `100%`, `115%`), tactical-map
+visibility and high-contrast text; scale and map changes apply to the live
+presentation without changing fixed vertex budgets. The round upper-right map
+keeps the DINX/ZYLVE-inspired flexibility goal without copying either product.
+The focused `bash scripts/verify_multiplayer_ui.sh` probe stages five shell
+frames in both JVM and native paths; `bash scripts/verify_font_ui.sh` covers the
+font/title contract and `bash scripts/verify_goose_game.sh` covers gameplay.
 The focused dedicated-server gate also passes 512 measured ticks at p95
 `3.624ms` (p99 `3.689ms`, maximum `3.899ms`) under the declared 4ms
 simulation budget.

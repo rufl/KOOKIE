@@ -655,6 +655,10 @@ class G1NativePresentation {
 
     Bool cooperativeMode() { return cooperativeModeValue }
 
+    Bool applyUiSettings(GameShell shell) {
+        return hud.setScale(shell.hudScalePercent()) &&
+            minimap.setVisible(shell.tacticalMapVisible())
+    }
     Bool prepareGooseSession() {
         if (!interactionSession.loadAuthoredBroadPhase(
                 arena.authoredCollision()) ||
@@ -709,10 +713,14 @@ class G1NativePresentation {
     }
 
     Bool resetGooseSession() {
+        var preservedScale = hud.scalePercent()
+        var preservedMinimap = minimap.visible()
         interactionSession = LoopbackSession(16, 8)
         hud = ShooterHud(100, 3)
-        if (!animalMeshes.clear() ||
+        if (!hud.setScale(preservedScale) ||
+            !animalMeshes.clear() ||
             !minimap.clear() ||
+            !minimap.setVisible(preservedMinimap) ||
             !camera.clearFollowTarget()) {
             return false
         }
@@ -1394,6 +1402,9 @@ main() {
     assert(shell.configureLobbyIdentity(
             localNameId, defaultRemoteNameId, kookie_transport_room_code()),
         "lobby identity must remain bounded")
+    assert(presentation.applyUiSettings(shell),
+        "accessibility settings must configure HUD scale and tactical map")
+    var appliedUiSettingsRevision = shell.settingsRevision()
     var shellFrame = FrameStaging(shell.renderVertexCapacity())
     assert(kookie_gpu_scene_capacity() >= shell.renderVertexCapacity(),
         "native scene must hold menu geometry")
@@ -1533,6 +1544,11 @@ main() {
             network.reset()
             assert(presentation.resetGooseSession(),
                 "entering gameplay must create a fresh bot encounter")
+        }
+        if (shell.settingsRevision() != appliedUiSettingsRevision) {
+            assert(presentation.applyUiSettings(shell),
+                "accessibility settings must update the live HUD")
+            appliedUiSettingsRevision = shell.settingsRevision()
         }
 
 

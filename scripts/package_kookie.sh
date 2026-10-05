@@ -920,7 +920,7 @@ Menu:
   Arrow keys or WASD  navigate
   Enter, Space, click  select
   Escape               back
-
+  Accessibility        HUD scale 85/100/115%, tactical map and high contrast
 Local playable slice:
   W / S                move forward / backward
   A / D                strafe left / right

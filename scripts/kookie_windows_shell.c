@@ -37,6 +37,7 @@ int kookie_kof_gameplay_main(void);
 typedef enum {
     SCREEN_MAIN,
     SCREEN_OPTIONS,
+    SCREEN_ACCESSIBILITY,
     SCREEN_MULTIPLAYER,
     SCREEN_GAME
 } Screen;
@@ -81,6 +82,9 @@ typedef struct {
     int effects_volume;
     int music_volume;
     int text_size;
+    int hud_scale;
+    bool tactical_map;
+    bool high_contrast;
     int display_result;
     NetworkStatus network_status;
     bool network_editing;
@@ -187,21 +191,29 @@ static void draw_selection(
     fill_rect(renderer, 130, (float)y, 1020, 54, selected ? 12 : 10);
     fill_rect(renderer, 136, (float)y + 6, 1008, 42, 9);
 }
+static int ui_text_color(const AppState *app, int color) {
+    if (!app->high_contrast) return color;
+    if (color == 11 || color == 12 || color == 13 || color == 14) return 15;
+    return color;
+}
 
 static void draw_main(SDL_Renderer *renderer, const AppState *app) {
     draw_frame(renderer);
     draw_centered_text_font(
         renderer, "GATOGANSO", 76, 10, 13, KOOKIE_PIXEL_FONT_PIXAND);
     draw_centered_text(renderer, "OLD SCHOOL COOP", 164, 3, 12);
-    static const char *items[] = {"PLAY", "MULTIPLAYER", "OPTIONS", "QUIT"};
+    static const char *items[] = {
+        "PLAY", "MULTIPLAYER", "OPTIONS", "ACCESSIBILITY", "QUIT"
+    };
     int item_scale = app->text_size + 3;
-    for (int index = 0; index < 4; index += 1) {
-        int y = 238 + index * 76;
+    for (int index = 0; index < 5; index += 1) {
+        int y = 202 + index * 76;
         draw_selection(renderer, y, app->selection == index);
         draw_centered_text(
             renderer, items[index], y + (54 - 7 * item_scale) / 2,
             item_scale,
-            app->selection == index ? (index == 3 ? 11 : 12) : 15);
+            ui_text_color(app, app->selection == index ?
+                (index == 4 ? 11 : 12) : 15));
     }
     draw_centered_text(renderer, "ARROWS ENTER ESC", 654, 2, 8);
 }
@@ -221,6 +233,14 @@ static const char *display_mode_label(int mode) {
 static const char *text_size_label(int size) {
     static const char *labels[] = {"SMALL", "MEDIUM", "LARGE"};
     return labels[size];
+}
+static const char *hud_scale_label(int scale) {
+    static const char *labels[] = {"SMALL", "MEDIUM", "LARGE"};
+    return labels[scale];
+}
+
+static const char *toggle_label(bool enabled) {
+    return enabled ? "ON" : "OFF";
 }
 
 static void draw_volume(
@@ -242,8 +262,8 @@ static void draw_option_row(
 ) {
     int y = 142 + row * 64;
     draw_selection(renderer, y, app->selection == row);
-    draw_text(renderer, label, 170, y + 15, 3, 15);
-    draw_text(renderer, value, 690, y + 15, 3, 13);
+    draw_text(renderer, label, 170, y + 15, 3, ui_text_color(app, 15));
+    draw_text(renderer, value, 690, y + 15, 3, ui_text_color(app, 13));
 }
 
 static void draw_options(SDL_Renderer *renderer, const AppState *app) {
@@ -276,6 +296,25 @@ static void draw_options(SDL_Renderer *renderer, const AppState *app) {
         renderer, "BACK", back_y + 15, 3,
         app->selection == 6 ? 12 : 15);
     draw_centered_text(renderer, "LEFT RIGHT CHANGE", 670, 2, 8);
+}
+static void draw_accessibility(
+    SDL_Renderer *renderer, const AppState *app
+) {
+    draw_frame(renderer);
+    draw_centered_text(renderer, "ACCESSIBILITY", 62, 7, 13);
+    draw_centered_text(renderer, "CLEARER CONTROL", 112, 3, 14);
+    draw_option_row(
+        renderer, app, 0, "HUD SCALE", hud_scale_label(app->hud_scale));
+    draw_option_row(
+        renderer, app, 1, "TACTICAL MAP", toggle_label(app->tactical_map));
+    draw_option_row(
+        renderer, app, 2, "HIGH CONTRAST", toggle_label(app->high_contrast));
+    int back_y = 142 + 3 * 64;
+    draw_selection(renderer, back_y, app->selection == 3);
+    draw_centered_text(
+        renderer, "BACK", back_y + 15, 3,
+        ui_text_color(app, app->selection == 3 ? 12 : 15));
+    draw_centered_text(renderer, "LEFT RIGHT CHANGE", 654, 2, 8);
 }
 
 static const char *network_status_label(NetworkStatus status) {
@@ -350,7 +389,7 @@ static void draw_multiplayer(SDL_Renderer *renderer, const AppState *app) {
         654, 2, 8);
 }
 
-static void draw_game(SDL_Renderer *renderer) {
+static void draw_game(SDL_Renderer *renderer, const AppState *app) {
     fill_rect(renderer, 0, 0, 1280, 320, 1);
     fill_rect(renderer, 0, 320, 1280, 400, 10);
     fill_rect(renderer, 90, 180, 320, 390, 8);
@@ -362,10 +401,25 @@ static void draw_game(SDL_Renderer *renderer) {
     }
     fill_rect(renderer, 634, 350, 12, 40, 15);
     fill_rect(renderer, 620, 364, 40, 12, 15);
-    fill_rect(renderer, 26, 628, 330, 66, 9);
-    draw_text(renderer, "HEALTH 100", 48, 648, 3, 14);
-    fill_rect(renderer, 920, 628, 334, 66, 9);
-    draw_text(renderer, "AMMO 30/120", 946, 648, 3, 12);
+    int hud_percent = app->hud_scale == 0 ? 85 :
+        (app->hud_scale == 2 ? 115 : 100);
+    int panel_height = 66 * hud_percent / 100;
+    int health_width = 330 * hud_percent / 100;
+    int ammo_width = 334 * hud_percent / 100;
+    int health_y = 694 - panel_height;
+    int ammo_x = 1254 - ammo_width;
+    fill_rect(renderer, 26, health_y, health_width, panel_height, 9);
+    fill_rect(renderer, ammo_x, health_y, ammo_width, panel_height, 9);
+    int label_color = app->high_contrast ? 15 : 14;
+    draw_text(renderer, "HEALTH 100", 48, health_y + 20, 3, label_color);
+    draw_text(renderer, "AMMO 30/120", ammo_x + 26, health_y + 20, 3, 12);
+    if (app->tactical_map) {
+        fill_rect(renderer, 1034, 36, 210, 156, 9);
+        fill_rect(renderer, 1044, 46, 190, 136, 8);
+        fill_rect(renderer, 1125, 102, 28, 8, label_color);
+        fill_rect(renderer, 1135, 92, 8, 28, label_color);
+        draw_text(renderer, "MAP", 1050, 52, 2, label_color);
+    }
     draw_text(renderer, "ESC MENU", 1080, 24, 2, 15);
 }
 
@@ -374,11 +428,13 @@ static void render(SDL_Renderer *renderer, const AppState *app) {
     SDL_RenderClear(renderer);
     switch (app->screen) {
         case SCREEN_OPTIONS: draw_options(renderer, app); break;
+        case SCREEN_ACCESSIBILITY: draw_accessibility(renderer, app); break;
         case SCREEN_MULTIPLAYER: draw_multiplayer(renderer, app); break;
-        case SCREEN_GAME: draw_game(renderer); break;
+        case SCREEN_GAME: draw_game(renderer, app); break;
         default: draw_main(renderer, app); break;
     }
 }
+
 
 static void audio_close(AudioState *audio) {
     for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
@@ -769,8 +825,9 @@ static bool apply_display(SDL_Window *window, const AppState *app) {
 }
 
 static void move_selection(AppState *app, int direction) {
-    int count = app->screen == SCREEN_MAIN ? 4 :
-        (app->screen == SCREEN_OPTIONS ? 7 : 6);
+    int count = app->screen == SCREEN_MAIN ? 5 :
+        (app->screen == SCREEN_OPTIONS ? 7 :
+        (app->screen == SCREEN_ACCESSIBILITY ? 4 : 6));
     app->selection = (app->selection + direction + count) % count;
 }
 
@@ -795,6 +852,19 @@ static bool adjust_options(AppState *app, int direction, AudioState *audio) {
         return false;
     }
     app->display_result = 0;
+    return true;
+}
+
+static bool adjust_accessibility(AppState *app, int direction) {
+    if (app->selection == 0) {
+        app->hud_scale = (app->hud_scale + direction + 3) % 3;
+    } else if (app->selection == 1) {
+        app->tactical_map = direction > 0;
+    } else if (app->selection == 2) {
+        app->high_contrast = direction > 0;
+    } else {
+        return false;
+    }
     return true;
 }
 
@@ -873,7 +943,16 @@ static bool activate(
         } else if (app->selection == 2) {
             app->screen = SCREEN_OPTIONS;
             app->selection = 0;
+        } else if (app->selection == 3) {
+            app->screen = SCREEN_ACCESSIBILITY;
+            app->selection = 0;
         } else app->quit = true;
+        return true;
+    }
+    if (app->screen == SCREEN_ACCESSIBILITY) {
+        if (app->selection < 3) return adjust_accessibility(app, 1);
+        app->screen = SCREEN_MAIN;
+        app->selection = 3;
         return true;
     }
     if (app->screen == SCREEN_OPTIONS) {
@@ -927,14 +1006,23 @@ static bool handle_key(
     if ((key == SDLK_RIGHT || key == SDLK_D) && app->screen == SCREEN_OPTIONS) {
         return adjust_options(app, 1, audio);
     }
+    if ((key == SDLK_LEFT || key == SDLK_A) &&
+        app->screen == SCREEN_ACCESSIBILITY) {
+        return adjust_accessibility(app, -1);
+    }
+    if ((key == SDLK_RIGHT || key == SDLK_D) &&
+        app->screen == SCREEN_ACCESSIBILITY) {
+        return adjust_accessibility(app, 1);
+    }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
         return activate(app, window, audio);
     }
     if (key == SDLK_ESCAPE) {
         if (app->screen == SCREEN_MAIN) app->quit = true;
         else {
+            Screen previous = app->screen;
             app->screen = SCREEN_MAIN;
-            app->selection = 0;
+            app->selection = previous == SCREEN_ACCESSIBILITY ? 3 : 0;
         }
         return true;
     }
@@ -946,15 +1034,17 @@ static bool handle_click(
 ) {
     if (x < 100 || x > 1180 || app->screen == SCREEN_GAME) return false;
     if (app->screen == SCREEN_MAIN) {
-        for (int index = 0; index < 4; index += 1) {
-            int top = 238 + index * 76;
+        for (int index = 0; index < 5; index += 1) {
+            int top = 202 + index * 76;
             if (y >= top && y <= top + 54) {
                 app->selection = index;
                 return activate(app, window, audio);
             }
         }
-    } else if (app->screen == SCREEN_OPTIONS) {
-        for (int index = 0; index < 7; index += 1) {
+    } else if (app->screen == SCREEN_OPTIONS ||
+               app->screen == SCREEN_ACCESSIBILITY) {
+        int count = app->screen == SCREEN_OPTIONS ? 7 : 4;
+        for (int index = 0; index < count; index += 1) {
             int top = 142 + index * 64;
             if (y >= top && y <= top + 54) {
                 app->selection = index;
@@ -1052,6 +1142,7 @@ int main(int argc, char **argv) {
     bool package_smoke = strcmp(mode, "--package-smoke") == 0;
     bool visual_smoke = strcmp(mode, "--visual-smoke") == 0 ||
         strcmp(mode, "--visual-smoke-options") == 0 ||
+        strcmp(mode, "--visual-smoke-accessibility") == 0 ||
         strcmp(mode, "--visual-smoke-multiplayer") == 0;
     int linked_sdl = SDL_GetVersion();
     int linked_mixer = MIX_Version();
@@ -1130,12 +1221,17 @@ int main(int argc, char **argv) {
         .text_size = 1,
         .effects_volume = 80,
         .music_volume = 60,
+        .hud_scale = 1,
+        .tactical_map = true,
+        .high_contrast = false,
         .network_status = NETWORK_OFFLINE,
         .address = {127, 0, 0, 1},
         .port = KOOKIE_LOBBY_PORT
     };
     if (strcmp(mode, "--visual-smoke-options") == 0) {
         app.screen = SCREEN_OPTIONS;
+    } else if (strcmp(mode, "--visual-smoke-accessibility") == 0) {
+        app.screen = SCREEN_ACCESSIBILITY;
     } else if (strcmp(mode, "--visual-smoke-multiplayer") == 0) {
         app.screen = SCREEN_MULTIPLAYER;
     }

@@ -60,17 +60,33 @@ main() {
         optionsFrame.stagedCount() <= optionsShell.renderVertexCapacity() &&
         optionsFrame.retire(2),
         "options shell must render the polished settings frame")
+    var accessibilityShell = GameShell()
+    var accessibilityFrame = FrameStaging(
+        accessibilityShell.renderVertexCapacity())
+    assert(accessibilityShell.handleAction(gameShellActionDown()) &&
+        accessibilityShell.handleAction(gameShellActionDown()) &&
+        accessibilityShell.handleAction(gameShellActionDown()) &&
+        accessibilityShell.handleAction(gameShellActionActivate()) &&
+        accessibilityShell.screen() == gameShellScreenAccessibility() &&
+        accessibilityShell.handleAction(gameShellActionRight()) &&
+        accessibilityShell.hudScalePercent() == 115 &&
+        accessibilityShell.stage(accessibilityFrame, 3) &&
+        accessibilityFrame.stagedCount() > 0 &&
+        accessibilityFrame.stagedCount() <= accessibilityShell.renderVertexCapacity() &&
+        accessibilityFrame.retire(3),
+        "accessibility shell must render and apply the flexible control frame")
     var kutterShell = GameShell()
     var kutterFrame = FrameStaging(kutterShell.renderVertexCapacity())
     assert(kutterShell.handleAction(gameShellActionDown()) &&
         kutterShell.handleAction(gameShellActionDown()) &&
         kutterShell.handleAction(gameShellActionDown()) &&
+        kutterShell.handleAction(gameShellActionDown()) &&
         kutterShell.handleAction(gameShellActionActivate()) &&
         kutterShell.screen() == gameShellScreenKutter() &&
-        kutterShell.stage(kutterFrame, 3) &&
+        kutterShell.stage(kutterFrame, 4) &&
         kutterFrame.stagedCount() > 0 &&
         kutterFrame.stagedCount() <= kutterShell.renderVertexCapacity() &&
-        kutterFrame.retire(3),
+        kutterFrame.retire(4),
         "Kutter shell must render the polished authoring frame")
     var playShell = GameShell()
     assert(playShell.handleAction(gameShellActionActivate()) &&

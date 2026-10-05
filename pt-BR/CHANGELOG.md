@@ -2,6 +2,16 @@
 
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
+## Não lançado
+- Adicionamos à shell GatoGanso e à shell nativa Windows uma superfície flexível
+  de acessibilidade: escala do HUD em 85/100/115 por cento, visibilidade do
+  mapa tático e texto de alto contraste. A apresentação ao vivo aplica escala
+  e mapa sem alterar os orçamentos fixos da sobreposição.
+- Expandimos o probe limitado de GUI para fazer staging do frame de
+  acessibilidade e adicionamos regressão para escala do HUD, visibilidade do
+  minimapa e alto contraste ao vivo. O menu principal agora possui linhas
+  explícitas para Accessibility e Quit, preservando o acesso ao Kutter.
+
 ## 2026-10-02
 ### Polimento da shell de GUI e qualificação Linux atual
 
