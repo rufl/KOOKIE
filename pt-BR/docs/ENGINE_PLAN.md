@@ -219,12 +219,12 @@ Para payloads de assets em massa, uma cópia de intervalo de arquivo para
 staging pode evitar FFI por byte **somente** quando Kof validou/preparou o
 formato, offset e tamanho; o adaptador não pode se tornar um parser/kooker de
 assets. Pequenas sondas de `File.writeBytes/readBytes/readRange` preservaram
-bytes zero/de bit alto na JVM/nativo. O renderer implementado agora envia uma
-cena fixa de 486 vértices de arena/porta/HUD por chamadas escalares verificadas
-e buffers nativos persistentes; o Kof emite coordenadas clip em perspectiva e
-profundidade normalizada por vértice, e o SDL_GPU resolve a cena por um alvo
-D16. Casos grandes/de erro por intervalo e um adaptador real de buffer em massa
-ainda não foram comprovados.
+bytes zero/de bit alto na JVM/nativo. O renderer implementado agora usa
+buffers nativos persistentes para 534 vértices triangulados da arena, 36 da
+porta e 372 do HUD por chamadas escalares verificadas; o Kof emite coordenadas
+clip em perspectiva e profundidade normalizada por vértice, e o SDL_GPU resolve
+a cena por um alvo D16. Casos grandes/de erro por intervalo e um adaptador real
+de buffer em massa ainda não foram comprovados.
 
 A sobrecarga do staging escalar é uma **medição de aprovação/reprovação**. Se
 uploads representativos de draw/instância/animação não atingirem o orçamento,
@@ -780,11 +780,11 @@ autenticada cumprem os contratos de G0. G1 também está fechado pelo caminho
 executável `G1Demo`: servidor autoritativo a 60 Hz admite dois clientes
 loopback, expõe correção de predição e reconciliação, resolve um encontro com
 uma arma/inimigo e limpa movimento/disparo mantidos na perda de foco. A arena
-criada com 78 vértices e 26 triângulos fornece inclinação caminhável, degraus e
-salas empilhadas; o servidor replica triângulos e limites explícitos para o
+criada com 142 vértices únicos e 178 triângulos fornece corredores, cover e
+uma sala elevada; o servidor replica triângulos e limites explícitos para o
 cliente. O Kof aplica uma câmera em perspectiva e a profundidade por vértice à
-cena nativa SDL_GPU fixa de 486 vértices: 78 da arena, 36 da porta e 372 do HUD
-para
+cena nativa SDL_GPU com 534 vértices triangulados da arena, 36 da porta e 372
+do HUD para
 vida/munição, glifo de conexão distinguível pela forma, carga ativa/reserva do
 encounter, marcadores confirmados de acerto/eliminação, alertas laterais de
 dano, estado estrutural de inventário/equipamento/skill/loot, sinais de

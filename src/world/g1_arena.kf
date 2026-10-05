@@ -119,6 +119,17 @@ class G1Arena {
                 maxX - thickness, maxY, maxZ, 8)) {
             return false
         }
+        // The raised room keeps vertical collision and snapshot coverage in G1.
+        if (!appendQuad(
+                20, 8, 16, 32, 8, 16, 32, 8, 28, 20, 8, 28, 7) ||
+            !appendQuad(
+                20, 0, 16, 20, 8, 16, 20, 8, 28, 20, 0, 28, 7) ||
+            !appendQuad(
+                32, 0, 28, 32, 8, 28, 32, 8, 16, 32, 0, 16, 7) ||
+            !appendQuad(
+                20, 0, 28, 20, 8, 28, 32, 8, 28, 32, 0, 28, 7)) {
+            return false
+        }
 
         // Central cross-corridor leaves a wide, camera-safe room junction.
         if (!appendBox(158, 0, 4, 162, maxY, 96, 3) ||

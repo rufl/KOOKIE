@@ -736,10 +736,10 @@ execution pass their G0 contracts. G1 is also closed by the executable
 `G1Demo` path: a 60 Hz authoritative server admits two loopback clients,
 exposes prediction correction and reconciliation, resolves one weapon/enemy
 encounter, and clears held movement/fire across focus loss. Its authored
-90-vertex/30-triangle open-sky arena supplies interconnected rooms,
-central corridors and L-shaped cover pillars; the server replicates its
-triangle data and explicit bounds to the client. Kof projects the authored
-world through a perspective camera and emits bounded native SDL_GPU world,
+142-unique-vertex/178-triangle open-sky arena spans 320 by 280 world units,
+with central corridors, L-shaped cover and a raised room; the server replicates
+its triangle data and explicit bounds to the client. Kof projects
+the authored world through a perspective camera and emits bounded native SDL_GPU world,
 actor and HUD passes with normalized per-vertex depth. The confirmed local
 hitscan event also reaches bounded replay/audio queues and native SDL clip
 playback. An isolated GPU smoke rendered and read back the bounded scene, and

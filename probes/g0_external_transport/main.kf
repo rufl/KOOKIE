@@ -145,20 +145,22 @@ Bool openRemoteSlot(Int slot, Int hostPort) {
 
 Bool externalRoleReceiveState(LoopbackSession client) {
     var received = kookie_transport_receive()
-    if (received != 20 || kookie_transport_last_status() != 1) {
+    if (received != gameplayStateMessageLength() ||
+        kookie_transport_last_status() != 1) {
         println("external-state-receive-failed")
         println(received)
         println(kookie_transport_last_status())
         return false
     }
-    var state = new Int[20]
-    for (var index = 0; index < 20; index = index + 1) {
+    var state = new Int[gameplayStateMessageLength()]
+    for (var index = 0;
+        index < gameplayStateMessageLength(); index = index + 1) {
         state[index] = kookie_transport_receive_word(index)
     }
     if (!validGameplayStateMessage(state)) {
         println("external-state-invalid")
-        println(state[19])
-        println(gameplayMessageChecksum(state, 19))
+        println(state[state.length - 1])
+        println(gameplayMessageChecksum(state, state.length - 1))
         return false
     }
     return client.applyRemoteGameplayState(state)
@@ -837,9 +839,13 @@ main() {
     var clientB = LoopbackSession(8, 4)
     var endpointA = RemoteSessionEndpoint(127, 0, 0, 1, 47101, 1, 2, 3, 4)
     var endpointB = RemoteSessionEndpoint(127, 0, 0, 1, 47102, 1, 2, 3, 4)
-    assert(arena.ready() &&
-        kookie_transport_max_words() == maximumSessionTransportWords() &&
-        endpointA.valid() && endpointB.valid() &&
+    assert(arena.ready(), "transport arena must initialize")
+    assert(
+        kookie_transport_max_words() == maximumSessionTransportWords(),
+        "transport backend must expose matching word capacity")
+    assert(endpointA.valid() && endpointB.valid(),
+        "transport endpoints must initialize")
+    assert(
         host.defineWorldKey(1, 2, 0, 0, 0) &&
         host.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         host.defineWorldSecret(3, 2, 0, 0, 0) &&
@@ -851,7 +857,9 @@ main() {
         clientB.defineWorldKey(1, 2, 0, 0, 0) &&
         clientB.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         clientB.defineWorldSecret(3, 2, 0, 0, 0) &&
-        clientB.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
+        clientB.defineWorldExit(4, 2, 1, 0, 0, 0, 0),
+        "transport sessions must define matching world state")
+    assert(
         host.registerExtensionManifest(7, 1, 1, 2, 4) &&
         host.configureExtensionLoadOrder(7, 1, 10) &&
         host.configureExtensionProvenance(7, 1, 701) &&
@@ -868,10 +876,14 @@ main() {
         host.setEnemyDefinitionLoot(7, 1002, 897, 77, 4) &&
         host.setEnemyDefinitionRankCurrency(
             7, 1002, enemyDefinitionBossKind(), 25) &&
-        host.setEnemyDefinitionProgression(7, 1002, 30, 100) &&
-        host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
-        clientA.start() && clientB.start() &&
-        host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        host.setEnemyDefinitionProgression(7, 1002, 30, 100),
+        "transport host must configure extension gameplay")
+    assert(host.start() && host.connectPlayer() == 1 &&
+        host.connectPlayer() == 2,
+        "transport host must start with two players")
+    assert(clientA.start() && clientB.start(),
+        "transport clients must start")
+    assert(host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         clientA.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         clientB.loadAuthoredBroadPhase(arena.authoredCollision()),
         "transport sessions must configure matching authored gameplay")

@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Fixed the expanded G1 arena regression: restored the raised-room collision
+  geometry, synchronized the JVM transport backend with the native 1,740-word
+  / 6,984-byte frame bound, and updated the external role receiver for the
+  24-word gameplay-state message. External evidence gates now validate all 178
+  authored arena triangles.
 - Added a shared fail-closed SDL3/SDL_mixer resolver and a pinned
   `scripts/bootstrap_sdl3_mixer.sh` path for hosts that have SDL 3.4.16 but no
   SDL_mixer development package. Linux package, presentation, LAN and G5 gates

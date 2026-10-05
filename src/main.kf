@@ -489,22 +489,28 @@ test "arena staging emits perspective depth" {
     assert(frame.retire(1))
 }
 
-test "large arena links rooms, cover and open sky" {
+test "large arena links rooms, raised room, cover and open sky" {
     var arena = G1Arena()
     var wall = arena.query(140, 10, 20, 180, 10, 20)
     var corridor = arena.query(140, 10, 140, 180, 10, 140)
     var pillar = arena.query(100, 6, 118, 150, 6, 118)
+    var raisedRoom = arena.query(24, 12, 20, 24, 6, 20)
     var sky = arena.query(40, 5, 60, 40, 23, 60)
+    assert(raisedRoom.accepted(),
+        "raised-room query must stay within the collision budget")
+    assert(raisedRoom.collided(),
+        "raised-room query must retain the raised surface")
     assert(arena.ready() &&
-        arena.vertexCount() == 118 &&
-        arena.triangleCount() == 170 &&
+        arena.vertexCount() == 142 &&
+        arena.triangleCount() == 178 &&
         arena.authoredCollision().maxX() == g1ArenaMaxX() &&
         arena.authoredCollision().maxZ() == g1ArenaMaxZ() &&
         wall.accepted() && wall.collided() &&
         corridor.accepted() && !corridor.collided() &&
         pillar.accepted() && pillar.collided() &&
+        raisedRoom.accepted() && raisedRoom.collided() &&
         sky.accepted() && !sky.collided(),
-        "large arena must connect rooms around cover under open sky")
+        "large arena must connect rooms, retain raised room and open sky")
 }
 
 test "WASD movement axes match gameplay controls" {

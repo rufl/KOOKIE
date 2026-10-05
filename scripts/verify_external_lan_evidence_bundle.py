@@ -18,6 +18,7 @@ EXPECTED_FILES = {
     "evidence/evidence.json",
 }
 ROLES = ("host", "client-a", "client-b")
+EXPECTED_ARENA_TRIANGLES = 178
 
 
 RUN_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{7,127}")
@@ -152,7 +153,7 @@ def verify_bundle(bundle_path: Path) -> tuple[dict | None, str]:
             return None, "combat damage evidence is not positive"
         if evidence.get("combatDeath") is not True:
             return None, "combat death evidence is not terminal"
-        if evidence.get("arenaTriangleCount") != 30:
+        if evidence.get("arenaTriangleCount") != EXPECTED_ARENA_TRIANGLES:
             return None, "authored arena evidence is incomplete"
         if evidence.get("combatReward") != 25:
             return None, "combat reward evidence is incomplete"

@@ -38,8 +38,8 @@ class G1Demo {
     }
 
     Bool prepareSession() {
-        if (!arena.ready() || arena.vertexCount() != 118 ||
-            arena.triangleCount() != 170 || arena.authoredChecksum() <= 0) {
+        if (!arena.ready() || arena.vertexCount() != 142 ||
+            arena.triangleCount() != 178 || arena.authoredChecksum() <= 0) {
             return failAt(1)
         }
         if (!loopback.loadAuthoredBroadPhase(arena.authoredCollision()) ||

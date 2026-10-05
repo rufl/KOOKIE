@@ -8,9 +8,9 @@ import java.net.SocketTimeoutException
 
 class KookieJvmTransportState {
     static Int maxSlots = 4
-    static Int maxWords = 300
+    static Int maxWords = 1740
     static Int headerWords = 6
-    static Int maxWireBytes = 1224
+    static Int maxWireBytes = (maxWords + headerWords) * 4
     static Int magic = 0x4b4f4f4b
     static Int version = 1
     static Int defaultTimeoutMilliseconds = 1000
@@ -31,9 +31,9 @@ class KookieJvmTransportState {
     static Int[] receiveCounts = new Int[4]
     static Int[] receiveSequences = new Int[4]
     static Int[] lastStatuses = new Int[4]
-    static Int[][] sendWords = new Int[4][300]
-    static Int[][] receiveWords = new Int[4][300]
-    static Byte[][] lastSendWires = new Byte[4][1224]
+    static Int[][] sendWords = new Int[4][maxWords]
+    static Int[][] receiveWords = new Int[4][maxWords]
+    static Byte[][] lastSendWires = new Byte[4][maxWireBytes]
     static Int[] lastSendLengths = new Int[4]
     static Bool[] lastSendValid = new Bool[4]
     static Long[] macState = new Long[4]

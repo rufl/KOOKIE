@@ -136,10 +136,11 @@ player-facing demo release. The open D1 gate is tracked in
   or `jvm`. JVM mode builds and launches three direct Kof JVM roles and uses
   the same role metadata and evidence validator as native mode; this expands
   local cross-target regression coverage without claiming separate-host proof.
-- Raised the shared authenticated UDP payload bound to 300 words (32 arena
+- Raised the shared authenticated UDP payload bound to 1,740 words (192 arena
   triangles) and kept native/JVM transport capacities synchronized. The
-  three-process regression now exchanges the complete 30-triangle `G1Arena`
-  in both directions and proves room/corridor collision after receipt.
+  three-process regression now exchanges the complete 178-triangle `G1Arena`
+  in both directions and proves raised-room and corridor collision after
+  receipt.
 - Replaced the interaction-only wire with unified, versioned checksummed
   movement, fire, interaction, disconnect and reconnect commands plus
   authoritative state for both player positions, combat health, currency,

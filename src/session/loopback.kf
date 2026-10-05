@@ -94,6 +94,9 @@ Int gameplayCommandMessageKind() {
 Int gameplayStateMessageKind() {
     return 4
 }
+Int gameplayStateMessageLength() {
+    return 24
+}
 Int gameplayInputBundleMessageKind() {
     return netcodeInputBundleKind()
 }
@@ -498,7 +501,7 @@ Int[] newGameplayStateMessage(
     if (player < 1 || player > 2) {
         return new Int[0]
     }
-    var words = new Int[24]
+    var words = new Int[gameplayStateMessageLength()]
     words[0] = protocolVersion()
     words[1] = gameplayStateMessageKind()
     words[2] = tick
@@ -517,7 +520,7 @@ Int[] newGameplayStateMessage(
 Bool setGameplayStateProgression(
     Int[] words, Int secretCount, Bool levelCompleted, Int interactionMask
 ) {
-    if (words.length != 24 || secretCount < 0 || secretCount > 64 ||
+    if (words.length != gameplayStateMessageLength() ||
         interactionMask < 0 || interactionMask > 65535) {
         return false
     }
@@ -533,7 +536,7 @@ Bool setGameplayStateProgression(
 Bool setGameplayStateReplication(
     Int[] words, Int playerOnePosition, Int playerTwoPosition, Int currency
 ) {
-    if (words.length != 24 ||
+    if (words.length != gameplayStateMessageLength() ||
         playerOnePosition < -1000000 || playerOnePosition > 1000000 ||
         playerTwoPosition < -1000000 || playerTwoPosition > 1000000 ||
         currency < 0 || currency > 1000000) {
@@ -550,7 +553,7 @@ Bool setGameplayStateMovement(
     Int playerOneY, Int playerOneZ,
     Int playerTwoY, Int playerTwoZ
 ) {
-    if (words.length != 24 ||
+    if (words.length != gameplayStateMessageLength() ||
         playerOneY < -1000000 || playerOneY > 1000000 ||
         playerOneZ < -1000000 || playerOneZ > 1000000 ||
         playerTwoY < -1000000 || playerTwoY > 1000000 ||
@@ -568,7 +571,7 @@ Bool setGameplayStateConnection(
     Int[] words, Bool connected, Int generation,
     Int disconnectReason, Int diagnostic
 ) {
-    if (words.length != 24 || generation <= 0 || generation > 1000000 ||
+    if (words.length != gameplayStateMessageLength() ||
         disconnectReason < 0 || disconnectReason > 4 ||
         diagnostic < gameplayMoveDiagnostic() ||
         diagnostic > gameplayProgressionDiagnostic() ||
@@ -587,7 +590,7 @@ Bool setGameplayStateConnection(
 }
 
 Bool validGameplayStateFields(Int[] words) {
-    return words.length == 24 &&
+    return words.length == gameplayStateMessageLength() &&
         words[0] == protocolVersion() &&
         words[1] == gameplayStateMessageKind() &&
         words[2] >= 0 && words[2] <= 1000000 &&

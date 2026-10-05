@@ -133,8 +133,9 @@ estados de conexão, encounter, ameaça/derrota de elite/chefe,
 inventário/equipamento/skill/loot G3 e publicação de criador G4 distinguíveis
 pela forma. Overflow de apresentação é diagnosticado e nunca desfaz estado
 autoritativo. Portas 3D criadas adicionam um cuboide de 36 vértices à malha
-mundial da arena de 78 vértices; a extração atual envia esses 114 vértices
-mundiais em um passe dedicado e depois envia billboards de atores e o HUD de
+mundial da arena com 142 vértices únicos e 178 triângulos; a extração envia
+534 vértices triangulados da arena e 36 da porta em um passe dedicado, e depois
+envia billboards de atores e o HUD de
 372 vértices em um passe de overlay. O pipeline mundial SDL_GPU nativo recebe
 coordenadas autorais brutas, uma matriz view-projection, um atlas de materiais
 texturizado gerado e um alvo D16 de profundidade. Os níveis Y autorais incluem

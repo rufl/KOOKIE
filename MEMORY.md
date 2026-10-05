@@ -9,10 +9,10 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   prediction correction/reconciliation, one player weapon/enemy kill,
   focus-loss recovery and confirmed kill feedback reaching HUD plus queued
   audio.
-- `G1Arena` owns 90 vertices/30 triangles across a 160 by 140 open-sky
-  footprint: interconnected rooms, central corridors and two L-shaped cover
-  pillars. Server snapshots include explicit bounds and all triangles; client
-  room/corridor/cover queries pass.
+- `G1Arena` owns 142 unique vertices/178 triangles across a 320 by 280
+  footprint: interconnected corridors, L-shaped cover and a raised room.
+  Server snapshots include explicit bounds and all triangles; client
+  raised-room/corridor/cover queries pass.
 - World, door and semantic HUD staging uses persistent bounded capacities for
   the expanded arena, door cuboid, animated animals and HUD. The native
   SDL_GPU bridge owns persistent scene buffers and a 16-color semantic
@@ -28,7 +28,7 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
 - G0 remains closed: isolated presentation and authenticated external-LAN
   evidence pass. Operational host identities, addresses, fingerprints,
   deployment identifiers and raw evidence remain outside the repository.
-- The JVM/native three-process G2 regression transports all 26 authored arena
+- The JVM/native three-process G2 regression transports all 178 authored arena
   triangles, unified checksummed gameplay commands and bounded authoritative
   encounter state. Clients apply enemy ID/state/target/health/position, active
   and reserve counts, and the latest confirmed impact. The qualified path
@@ -203,8 +203,9 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
 - Extended the HUD to 372 fixed vertices with a structural
   source→validation→publication rail and separate success/failure marks.
   Kutter/threat staging now uses small fixed-coordinate helpers so native and
-  JVM structural vertices remain exact. The full scene remains below the native
-  512-vertex capacity at 486 vertices.
+  JVM structural vertices remain exact. The expanded arena stages 534
+  triangulated vertices; presentation capacities are derived from the active
+  arena, door, HUD and overlay components.
 - Existing `BoundedExtensionRegistry` and `BoundedEnemyDefinitionRegistry`
   remain the manifest and data-definition foundations used by G1, G3, the
   external transport probe and the new kutter transaction.

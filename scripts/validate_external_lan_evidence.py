@@ -30,6 +30,7 @@ def marker_value(lines, marker: str):
 
 
 RUN_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{7,127}")
+EXPECTED_ARENA_TRIANGLES = 178
 ROLE_NAMES = ("host", "client-a", "client-b")
 
 
@@ -179,7 +180,7 @@ def main() -> int:
         return fail("server-owned combat damage was not positive")
     if combat_death != 1:
         return fail("server-owned combat death was not terminal")
-    if arena_triangles != 30:
+    if arena_triangles != EXPECTED_ARENA_TRIANGLES:
         return fail("complete authored arena did not traverse transport")
     if combat_reward != 25:
         return fail("server-owned combat reward was not replicated")

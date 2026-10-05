@@ -9,12 +9,13 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
   predição/reconciliação observável, uma eliminação com arma/inimigo,
   recuperação da perda de foco e feedback confirmado da eliminação chegando ao
   HUD e ao áudio enfileirado.
-- `G1Arena` contém 78 vértices e 26 triângulos para piso inferior, rampa,
-  plataforma superior, dois degraus e salas empilhadas. Snapshots do servidor
-  incluem limites explícitos e todos os triângulos; consultas do cliente aos
-  andares superior/inferior passam.
-- O staging de mundo, porta e HUD semântico usa 486 vértices fixos: 78 da
-  arena, 36 da porta e 372 do HUD para tracks emolduradas de vida/munição,
+- `G1Arena` contém 142 vértices únicos e 178 triângulos em um footprint de
+  320 por 280: corredores interligados, cobertura em L e uma sala elevada.
+  Snapshots do servidor incluem limites explícitos e todos os triângulos;
+  consultas do cliente à sala elevada, corredores e cobertura passam.
+- O staging de mundo, porta e HUD semântico usa capacidades persistentes:
+  534 vértices triangulados da arena, 36 da porta e 372 do HUD para tracks
+  emolduradas de vida/munição,
   ícones estruturais, glifo de conexão distinguível pela forma, carga
   ativa/reserva do encounter, mira responsiva ao foco, marcadores de
   acerto/eliminação, alertas laterais de dano, estado estrutural de
@@ -34,7 +35,7 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
 - G0 continua fechado: apresentação isolada e evidência LAN externa autenticada
   passam. Identidades, endereços, fingerprints, IDs de deployment e evidência
   operacional permanecem fora do repositório.
-- A regressão G2 de três processos na JVM e no nativo transporta todos os 26
+- A regressão G2 de três processos na JVM e no nativo transporta todos os 178
   triângulos da arena, comandos unificados com checksum e estado autoritativo
   limitado do encounter. Os clientes aplicam ID/estado/alvo/vida/posição,
   contagens ativa/reserva e o impacto confirmado mais recente. O caminho

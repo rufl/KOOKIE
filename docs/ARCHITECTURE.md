@@ -132,11 +132,11 @@ The HUD derives tick-limited hit/kill/damage geometry plus shape-distinct
 connection, encounter, elite/boss threat/defeat, G3
 inventory/equipment/skill/world-loot status and G4 kutter-publication status.
 Presentation overflow is diagnosed and never rolls back authoritative state.
-Authored 3D doors add a 36-vertex cuboid to the 90-vertex, 30-triangle
-open-sky arena world mesh. The arena now spans a 160 by 140 world-unit
-footprint with interconnected room partitions, central corridors and L-shaped
-cover pillars; the current gameplay extraction submits the arena, door and
-actor world geometry in a dedicated pass, then submits projected actor labels
+Authored 3D doors add a 36-vertex cuboid to the 142-unique-vertex,
+178-triangle open-sky arena world mesh. The arena now spans a 320 by 280
+world-unit footprint with central corridors, L-shaped cover and a raised room;
+the current gameplay extraction submits the arena, door and actor world
+geometry in a dedicated pass, then submits projected actor labels
 and five-state heart sprites as camera-facing 2D billboard quads before the
 HUD overlay pass. Authoritative player/bot health drives empty, quarter, half,
 three-quarter and full heart states; lobby name IDs drive the labels. The

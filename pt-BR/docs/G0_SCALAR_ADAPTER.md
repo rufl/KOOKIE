@@ -2,7 +2,7 @@
 
 [English](../../docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implementado e exercitado na JVM/nativo e em apresentação isolada com janela real**. A fronteira C estreita cobre ciclo de vida SDL, streams SDL_mixer de efeitos/música, clips sintetizados limitados, upload/draw SPIR-V da cena com projeção em perspectiva e depth testing D16, e estado de eventos pertencente ao Kof. A sonda de apresentação reporta capacidade válida de swapchain, desenha e captura a cena de 486 vértices e consome o clip `201` do evento autoritativo; evidências da máquina permanecem fora do repositório.
+Status: **implementado e exercitado na JVM/nativo e em apresentação isolada com janela real**. A fronteira C estreita cobre ciclo de vida SDL, streams SDL_mixer de efeitos/música, clips sintetizados limitados, upload/draw SPIR-V da cena com projeção em perspectiva e depth testing D16, e estado de eventos pertencente ao Kof. A sonda de apresentação reporta capacidade válida de swapchain, desenha e captura a arena autoral (142 vértices únicos, 178 triângulos, 534 vértices triangulados) e consome o clip `201` do evento autoritativo; evidências da máquina permanecem fora do repositório.
 
 O gate atual de fonte/CI usa Kof `0.5.0-beta` no commit de fonte fixado; esta
 página registra o contrato limitado do adaptador, enquanto a evidência de

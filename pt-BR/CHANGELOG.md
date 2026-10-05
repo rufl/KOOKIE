@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Corrigimos a regressão da arena G1 expandida: restauramos a geometria de
+  colisão da sala elevada, sincronizamos o backend JVM com o limite nativo de
+  1.740 palavras / 6.984 bytes por frame e atualizamos o receptor de papel
+  externo para a mensagem de estado de gameplay de 24 palavras. Os gates de
+  evidência LAN agora validam os 178 triângulos autorais da arena.
 - Adicionamos um resolver compartilhado e fail-closed de SDL3/SDL_mixer e o
   caminho fixado `scripts/bootstrap_sdl3_mixer.sh` para hosts que têm SDL 3.4.16,
   mas não têm o pacote de desenvolvimento do SDL_mixer. Os gates Linux de
