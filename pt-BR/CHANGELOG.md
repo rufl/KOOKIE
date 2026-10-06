@@ -14,9 +14,27 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   pacote, apresentação, LAN e G5 agora aceitam o prefixo preparado, validam os
   metadados exatos 3.4.16/3.2.4 e continuam incluindo somente as bibliotecas
   SDL de runtime revisadas.
-- Esclarecemos que `kookie`/`kookie.exe` é o launcher relocável dentro do pacote
-  assinado; o launcher separado de instalação/atualização/canais ainda não foi
-  publicado.
+- Adicionamos o `kookie-launcher` nativo para Linux e Windows x86_64. Ele
+  descobre o pacote publicado mais novo pela API de releases do KOOKIE no
+  GitHub, verifica o manifesto Ed25519 embutido e o digest do archive, extrai
+  com segurança, ativa atualizações atomicamente, mantém o marcador anterior e
+  faz fallback para o pacote ativo em falhas transitórias. Adicionamos o smoke
+  test assinado em `scripts/verify_launcher.sh`.
+- Impedimos que um pacote dogfood local seja rebaixado quando o canal público
+  do GitHub está em uma versão mais antiga ou igual: o launcher lê a identidade
+  de `PROVENANCE.txt` e mantém o maior baseline SemVer disponível até existir
+  uma release publicada mais nova.
+- Corrigimos lançamentos Windows de dogfood/serviço sem `LOCALAPPDATA` ou
+  `USERPROFILE`: o launcher agora reutiliza diretamente o diretório de ação
+  remota já criado como estado isolado, usando `TEMP`/`TMP` como fallback
+  quando a telemetria não está disponível.
+- Tornamos a criação do processo filho do launcher segura para serviços de
+  dogfood: o jogo embutido não herda handles de captura remota, mantendo a
+  criação normal de janelas Windows; lançamentos desktop mantêm stdio herdado.
+- Em modo dogfood, o launcher agora captura stdout/stderr do jogo embutido em
+  buffers limitados e propaga uma saída não zero; no desktop, mantém o reaper
+  destacado e o stdio herdado.
+
 - Adicionamos à shell GatoGanso e à shell nativa Windows uma superfície flexível
   de acessibilidade: escala do HUD em 85/100/115 por cento, visibilidade do
   mapa tático e texto de alto contraste. A apresentação ao vivo aplica escala

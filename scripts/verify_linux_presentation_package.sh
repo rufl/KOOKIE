@@ -101,7 +101,8 @@ PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
   echo "verify_linux_presentation_package: missing extracted root" >&2
   exit 1
 }
-for required in kookie kookie.bin kookie-smoke.bin build/libkookie_sdl_adapter.so \
+for required in kookie kookie.bin kookie-launcher kookie-smoke.bin \
+  build/libkookie_sdl_adapter.so \
   build/g0_triangle.vert.spv build/g5_triangle_instance.vert.spv \
   build/g6_world.vert.spv build/g0_triangle.frag.spv kookie-server \
   kookie-server.bin LICENSE \
@@ -119,10 +120,12 @@ for library_pattern in 'libSDL3.so*' 'libSDL3_mixer.so*'; do
     exit 1
   }
 done
-[[ -x "$PACKAGE_ROOT/kookie" && -x "$PACKAGE_ROOT/kookie.bin" ]] || {
+[[ -x "$PACKAGE_ROOT/kookie" && -x "$PACKAGE_ROOT/kookie.bin" &&
+  -x "$PACKAGE_ROOT/kookie-launcher" ]] || {
   echo 'verify_linux_presentation_package: launchers are not executable' >&2
   exit 1
 }
+"$PACKAGE_ROOT/kookie-launcher" --self-test
 
 python3 - "$MANIFEST" "$ARCHIVE" "$PACKAGE_ROOT" "${SOURCE_DATE_EPOCH:-}" <<'PY'
 import hashlib

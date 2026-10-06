@@ -63,22 +63,27 @@ The result is intentionally opinionated:
 
 ### Play the published package
 
-The signed Linux dogfood archive already contains the native Kof game, SDL3,
-SDL_mixer and its launcher. Running the packaged game requires neither the Kof
-toolchain nor Python:
+Packages built from the current tree contain the native Kof game, SDL3, SDL_mixer
+and the cross-platform update launcher. They require neither the Kof toolchain
+nor Python:
 
-1. Download [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
+1. Download the target package from the
+   [KOOKIE GitHub releases](https://github.com/rufl/KOOKIE/releases).
 2. Verify `SHA256SUMS` and the detached signatures as described in
    [Running and packaging](docs/RUNNING_AND_PACKAGING.md#run-the-currently-published-linux-dogfood).
-3. Extract the archive and run:
+3. Extract the archive and run the updater:
 
 ```bash
-./kookie
+./kookie-launcher
 ```
 
-The current public release is Linux-only. A current Windows demo archive is
-not published yet; a Windows package will launch through `kookie.exe` and will
-also be self-contained.
+The launcher fetches the newest published package for Linux or Windows,
+verifies its signed manifest and archive digest, updates atomically, and then
+starts the game. `./kookie` remains the direct local-package wrapper.
+The currently public GitHub release is Linux-only and predates this updater;
+it can be run through `./kookie`. Windows packages built by the same script
+include `kookie-launcher.exe` and `kookie-launcher.cmd`, which select a Windows
+release when one is published.
 
 ### Run qualification from source
 
@@ -128,11 +133,15 @@ its SHA-256, builds only the bounded WAVE/stb_vorbis backends and stores the
 ignored prefix under `.kookie-deps`. Exact package, kooker, Windows and
 cross-host qualification commands live in [Running and packaging](docs/RUNNING_AND_PACKAGING.md).
 
-The current player launcher is the signed package's relocatable `kookie`
-wrapper; it sets the package library path and does not require Kof or Python.
-An auto-installing, self-updating launcher is not published yet. It remains a
-separate product that needs signed channel manifests, pinned artifacts and
-atomic rollback.
+The player entrypoint is the signed package's native update launcher:
+`kookie-launcher` on Linux and `kookie-launcher.exe`/`kookie-launcher.cmd` on
+Windows. It queries the latest published target package from the KOOKIE GitHub
+release API on each normal start, verifies the embedded Ed25519 manifest
+signature and archive SHA-256, stages/extracts safely, then launches the game.
+It requires neither Kof nor Python. Use `--check`, `--offline` or
+`--self-test` for non-launching operation; see
+[Running and packaging](docs/RUNNING_AND_PACKAGING.md) for state paths,
+fallback behavior and the focused updater smoke test.
 
 ## Multiplayer lobby and score screen
 

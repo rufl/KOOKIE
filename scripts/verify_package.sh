@@ -66,6 +66,9 @@ tar -xzf "$ARCHIVE" -C "$WORK_DIR/extracted"
 BINARY="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64/kookie"
 test -f "$BINARY"
 PACKAGE_ROOT="$WORK_DIR/extracted/kookie-0.1.0-dogfood.smoke-linux-x86_64"
+LAUNCHER="$PACKAGE_ROOT/kookie-launcher"
+test -x "$LAUNCHER"
+"$LAUNCHER" --self-test
 SERVER="$PACKAGE_ROOT/kookie-server"
 SERVER_BINARY="$PACKAGE_ROOT/kookie-server.bin"
 HEADLESS_ADAPTER="$PACKAGE_ROOT/lib/libkookie_headless_adapter.so"
@@ -116,6 +119,7 @@ grep -Fq 'kof_source_commit=bf17ac7e736471c8a04b4153e5b0f607be75e70c' \
 grep -Eq '^kof_compiler_sha256=[0-9a-f]{64}$' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'release_signing=ed25519' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fxq 'update_launcher=kookie-launcher' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'crash_durable_save=staged-validated-fsync-rename-directory-fsync' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'replay_admission=identity-bound-checksummed-v3' \

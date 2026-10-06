@@ -187,13 +187,14 @@ with zipfile.ZipFile(archive) as source:
     source.extractall(destination)
 PY
   PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
-  for required in kookie.cmd kookie.exe SDL3.dll SDL3_mixer.dll \
+  for required in kookie.cmd kookie.exe kookie-launcher.exe kookie-launcher.cmd \
+    SDL3.dll SDL3_mixer.dll \
     build/SDL3.dll build/SDL3_mixer.dll build/g0_triangle.vert.spv \
     build/g5_triangle_instance.vert.spv build/g6_world.vert.spv \
     build/g0_triangle.frag.spv build/g0_triangle.vert.dxil \
     build/g5_triangle_instance.vert.dxil build/g6_world.vert.dxil \
-    build/g0_triangle.frag.dxil PROVENANCE.txt THIRD_PARTY_NOTICES.txt \
-    DEMO_CONTROLS.txt fonts/jared-lite.ttf fonts/pixand.ttf \
+    build/g0_triangle.frag.dxil RELEASE_PUBLIC_KEY.pem \
+    PROVENANCE.txt THIRD_PARTY_NOTICES.txt \
     fonts/OFL.txt fonts/readme.txt fonts/manifest.json; do
     [[ -f "$PACKAGE_ROOT/$required" ]] || {
       echo "build_demo_release: missing Windows package entry $required" >&2
@@ -204,13 +205,17 @@ PY
     echo 'build_demo_release: Windows package is not an MZ PE executable' >&2
     exit 1
   }
+  [[ "$(od -An -N2 -tx1 "$PACKAGE_ROOT/kookie-launcher.exe" | tr -d ' \n')" == 4d5a ]] || {
+    echo 'build_demo_release: Windows launcher is not an MZ PE executable' >&2
+    exit 1
+  }
 else
   tar -xzf "$ARCHIVE" -C "$EXTRACTED"
   PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
-  for required in kookie kookie.bin kookie-smoke.bin build/libkookie_sdl_adapter.so \
-    build/g0_triangle.vert.spv build/g5_triangle_instance.vert.spv \
-    build/g6_world.vert.spv build/g0_triangle.frag.spv kookie-server \
-    kookie-server.bin LICENSE \
+  for required in kookie kookie.bin kookie-launcher kookie-smoke.bin \
+    build/libkookie_sdl_adapter.so build/g0_triangle.vert.spv \
+    build/g5_triangle_instance.vert.spv build/g6_world.vert.spv \
+    build/g0_triangle.frag.spv kookie-server kookie-server.bin LICENSE \
     THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt \
     fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt fonts/readme.txt \
     fonts/manifest.json; do
@@ -226,6 +231,7 @@ else
       exit 1
     }
   done
+  "$PACKAGE_ROOT/kookie-launcher" --self-test
   PACKAGE_SMOKE_OUTPUT="$(
     cd "$WORK_DIR"
     "$PACKAGE_ROOT/kookie" --package-smoke

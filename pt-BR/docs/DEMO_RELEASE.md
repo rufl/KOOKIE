@@ -17,7 +17,9 @@ assinado para Linux x86-64, construído a partir do commit
 apresentação, o lobby/tela de placar Kof-first, o protocolo de input/ACK em
 passo fixo, compensação de lag e interpolação, a qualificação PE/SDL nativa
 Windows e a correção do gate PE da CI hospedada. Nenhum arquivo atual de demo
-Windows foi publicado.
+Windows foi publicado. Pacotes novos produzidos a partir da árvore atual
+também incluem o `kookie-launcher`/`kookie-launcher.exe` nativo; o arquivo
+público acima antecede esse updater.
 
 A árvore de fontes atual possui estes caminhos aptos a release:
 

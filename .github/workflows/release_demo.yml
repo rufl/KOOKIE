@@ -59,6 +59,7 @@ jobs:
           printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
           kof version
+          zig version
 
       - name: Prepare pinned SDL_mixer development prefix
         shell: bash

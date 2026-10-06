@@ -17,6 +17,8 @@ It predates the current source presentation path, KOF-owned multiplayer
 lobby/score screen, fixed-tick input/ACK protocol, lag compensation and
 interpolation, native Windows PE/SDL qualification and the hosted-CI PE gate
 fix. No current Windows demo archive is published.
+current tree also include the native `kookie-launcher`/`kookie-launcher.exe`;
+the public archive above predates that updater.
 
 The current source tree has these release-capable paths:
 

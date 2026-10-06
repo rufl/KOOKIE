@@ -13,9 +13,27 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   SDL_mixer development package. Linux package, presentation, LAN and G5 gates
   now accept the prepared prefix, validate exact 3.4.16/3.2.4 metadata and
   continue bundling only the reviewed SDL runtime libraries.
-- Clarified that `kookie`/`kookie.exe` is the relocatable launcher inside a
-  signed package; the separate install/update/channel launcher is still not
-  published.
+- Added the native `kookie-launcher` for Linux and Windows x86_64. It discovers
+  the newest published target package from the KOOKIE GitHub release API,
+  verifies the embedded Ed25519 manifest and archive digest, extracts safely,
+  atomically activates updates, retains the previous marker and falls back to
+  the active package on transient update failures. Added the signed local
+  updater fixture at `scripts/verify_launcher.sh`.
+- Prevented a local dogfood package from being downgraded when the public GitHub
+  channel is older or equal: the launcher reads the bundled `PROVENANCE.txt`
+  identity and keeps the highest available SemVer baseline until a newer
+  published release exists.
+- Fixed Windows dogfood/service launches without `LOCALAPPDATA` or
+  `USERPROFILE`: the launcher now reuses the already-created remote action
+  directory as isolated state, falling back to `TEMP`/`TMP` when telemetry is
+  unavailable.
+- Made dogfood launcher child creation service-safe: the bundled game does not
+  inherit remote capture handles, while normal Windows window creation remains
+  enabled; desktop launches retain inherited stdio.
+- In dogfood mode, the launcher now captures the bundled game's stdout/stderr
+  with bounded buffers and propagates a nonzero game exit; desktop mode keeps
+  the detached reaper and inherited stdio.
+
 - Branded the player-facing test game **GatoGanso** and set `Jared Lite`
   as the default UI font with `Pixand` for display/title text. The supplied
   SIL Open Font License files, source TTFs and deterministic bounded native

@@ -31,6 +31,10 @@ Usage: scripts/package_kookie.sh [--runtime native|presentation|jvm] [--target l
 
 Builds a signed immutable KOOKIE archive, provenance manifest, public key,
 signature set, and SHA256SUMS.
+Every package also contains a native `kookie-launcher` that fetches the newest
+signed target release from GitHub before launching; Windows adds `.exe` and
+`.cmd` forms.
+
 Native Linux packages contain the Kof executable and use the host's system
 runtime. Presentation packages contain the persistent native Kof SDL_GPU
 application, SDL3, SDL_mixer, the adapter, and shaders.
@@ -158,6 +162,10 @@ if [[ "$TARGET" == linux-x86_64 ]]; then
     exit 2
   }
 fi
+command -v zig >/dev/null || {
+  echo 'package_kookie: zig is required to build the cross-platform KOOKIE launcher' >&2
+  exit 2
+}
 if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
   command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for presentation packaging' >&2; exit 2; }
   command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
@@ -181,7 +189,6 @@ if [[ "$TARGET" == windows-x86_64 &&
     echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_SDL_MIXER_PREFIX containing the SDL_mixer MinGW package' >&2
     exit 2
   }
-  command -v zig >/dev/null || { echo 'package_kookie: zig is required for Windows packaging' >&2; exit 2; }
 fi
 if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
   command -v java >/dev/null || {
@@ -388,6 +395,39 @@ bundle_audio_assets() {
 bundle_font_assets
 bundle_audio_assets
 
+
+bundle_launcher() {
+  local launcher_source_dir="$WORK_DIR/kookie-launcher-source"
+  local launcher_binary="$PACKAGE_ROOT/kookie-launcher"
+  local zig_target="x86_64-linux-gnu"
+  mkdir -p "$launcher_source_dir"
+  cp -- "$ROOT_DIR/launcher/kookie_launcher.zig" \
+    "$launcher_source_dir/kookie_launcher.zig"
+  cp -- "$PUBLIC_KEY_WORK" "$launcher_source_dir/RELEASE_PUBLIC_KEY.pem"
+  if [[ "$TARGET" == windows-x86_64 ]]; then
+    zig_target="x86_64-windows-gnu"
+    launcher_binary="$PACKAGE_ROOT/kookie-launcher.exe"
+  fi
+  zig build-exe "$launcher_source_dir/kookie_launcher.zig" \
+    -target "$zig_target" -O ReleaseSafe -fstrip \
+    -femit-bin="$launcher_binary"
+  test -f "$launcher_binary" || {
+    echo "package_kookie: launcher executable missing: $launcher_binary" >&2
+    exit 1
+  }
+  chmod 755 "$launcher_binary"
+  if [[ "$TARGET" == windows-x86_64 ]]; then
+    cat > "$PACKAGE_ROOT/kookie-launcher.cmd" <<'EOF'
+@echo off
+setlocal
+set "ROOT=%~dp0"
+"%ROOT%kookie-launcher.exe" %*
+exit /b %ERRORLEVEL%
+EOF
+  fi
+}
+
+bundle_launcher
 
 bundle_linux_native() {
   local binary="$1"
@@ -912,9 +952,10 @@ if [[ "$RUNTIME" == presentation ]]; then
   cat > "$PACKAGE_ROOT/DEMO_CONTROLS.txt" <<'EOF'
 GatoGanso bounded first demo
 
-Launch:
-  Linux:   ./kookie
-  Windows: kookie.cmd
+Launch/update:
+  Linux:   ./kookie-launcher
+  Windows: kookie-launcher.cmd
+Direct local package smoke: kookie --package-smoke
 
 Menu:
   Arrow keys or WASD  navigate
@@ -978,6 +1019,7 @@ channel=dogfood
 target=$TARGET
 runtime=$RUNTIME
 native_linux_launcher=$([[ "$TARGET" == linux-x86_64 ]] && echo system-loader || echo direct)
+update_launcher=kookie-launcher
 version=$VERSION
 build_id=$BUILD_ID
 source_commit=$SOURCE_COMMIT

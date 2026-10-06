@@ -20,45 +20,71 @@ interactive packaged game. `kof run` itself does not require Python 3; Python
 is currently used by repository lint, package/provenance validation, evidence
 validation and rendezvous tooling.
 
-The published presentation package is self-contained: players launch its
-`kookie`/`kookie.exe` entrypoint without installing Kof or Python. An
-auto-installing, self-updating launcher with stable/beta/alpha/canary channels
-is not published yet; see [Demo release readiness](DEMO_RELEASE.md) for the
-current package and target-hardware gates.
+The published package includes a self-contained update launcher:
 
-### Launcher boundary
+- Linux: `kookie-launcher`
+- Windows: `kookie-launcher.exe` or `kookie-launcher.cmd`
 
-The launcher requested for the player workflow is not implemented or published
-yet. Keep two responsibilities separate:
+The launcher requires neither Kof nor Python at runtime. On every normal start
+it queries the GitHub releases API for `rufl/KOOKIE`, selects the newest
+non-draft published release containing the current target's package, signed
+manifest and manifest signature, and updates before launching the game. The
+current package channel is `dogfood`; prereleases are intentionally included.
+It never downloads an unsigned mutable `latest` URL.
 
-- **Player launcher:** downloads and launches only signed KOOKIE game packages.
-  It must not install the Kof compiler or require Python at runtime.
-- **Developer bootstrap:** optionally installs the exact pinned Kof toolchain
-  needed for source qualification, then runs developer commands.
+The update path is:
 
-Stable, beta, alpha and canary are release channels, not arbitrary Git branch
-checkouts. Each channel needs a signed manifest containing target, version,
-artifact URL, SHA-256, signature, Kof identity and minimum runtime metadata.
-The launcher must embed the release public key, verify HTTPS plus the manifest
-signature and artifact hash, stage updates in a new directory, switch
-atomically, retain one rollback version and require explicit opt-in for
-non-stable channels. It must never execute an unsigned `latest` download or
-replace a running installation.
-
-The repository currently lacks the native launcher binaries, signed channel
-manifests, published Kof toolchain artifacts for those channels and the
-Windows Authenticode policy. Until those exist, direct source runs require Kof;
-full repository qualification and package/evidence gates additionally require
-Python, while the signed package remains the user path.
-### Current packaged launcher
-
-The launcher that exists today is the relocatable wrapper generated inside a
-signed package: `kookie` on Linux and `kookie.exe`/`kookie.cmd` on Windows. It
-sets the package-local runtime path and starts the bundled native Kof binary;
-`kookie --package-smoke` exercises the graphics-free package path. It is not an
-installer, updater or channel selector.
+1. Validate HTTPS URLs (plain HTTP is accepted only for localhost fixture
+   tests).
+2. Verify the Ed25519 manifest signature against the public key embedded in
+   the launcher.
+3. Stream the archive to a private state directory and verify its exact size
+   and SHA-256 from the signed manifest.
+4. Reject archive traversal, absolute paths and symlinks; extract to a new
+   staging directory and run `kookie --package-smoke`.
+5. Atomically activate the validated package and retain the previous marker.
+On startup, a bundled `PROVENANCE.txt` version is a local floor: an older or
+equal public release is not activated, so a dogfood package is not silently
+downgraded while its newer release is not yet published.
 
 
+State is stored in `$XDG_STATE_HOME/kookie` or
+`$HOME/.local/state/kookie` on Linux, and `%LOCALAPPDATA%\KOOKIE\state` on
+Windows. `--state-dir PATH` and `KOOKIE_STATE_DIR` override this location.
+
+Useful commands:
+
+```bash
+./kookie-launcher              # update, then launch
+./kookie-launcher --check      # update/check without launching
+./kookie-launcher --offline    # use the active package without network access
+./kookie-launcher --self-test  # validate the embedded launcher key/target
+```
+
+Run the focused local signed-update fixture with:
+
+```bash
+bash scripts/verify_launcher.sh
+```
+
+Windows has equivalent `.exe` arguments; `kookie-launcher.cmd` forwards them.
+`--check` and `--no-launch` return an error instead of silently falling back
+when an update fails. Normal starts fall back to the last active package, if
+one exists. The package-local `kookie`/`kookie.exe` remains the direct game
+wrapper; `kookie --package-smoke` is the graphics-free package qualification
+path.
+
+The launcher is intentionally a separate native binary rather than the ZTASH
+GUI: it reuses ZTASH's bounded download/archive/rollback safety model without
+making KOOKIE releases depend on ZLAY, ZFONT, GLFW or the full ZTASH build.
+The launcher currently targets Linux and Windows x86_64.
+
+The Windows presentation package requires an interactive desktop session for
+the SDL video/GPU window. A service receiver without that session cannot pass a
+full `launch` action; use the bounded `--package-smoke` probe for service
+qualification. The launcher keeps the desktop launch path unchanged and
+reports a nonzero dogfood game exit instead of treating a headless presentation
+failure as a successful launch.
 
 
 The JVM target is used for local differential qualification and for the
@@ -147,13 +173,16 @@ KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64
 ```
 
-The private key must be a regular mode-`0600` file. The builder emits a
-Linux-targeted archive, detached archive and manifest signatures,
-`SHA256SUMS`, a public key and provenance JSON. Provenance binds the clean
-source commit, pinned Kof source commit, compiler JAR hash and distribution
-archive hash.
+The private key must be a regular mode-`0600` file. The packager also needs
+Zig to build the native update launcher. It emits a Linux-targeted archive,
+detached archive and manifest signatures, `SHA256SUMS`, a public key and
+provenance JSON. Provenance binds the clean source commit, pinned Kof source
+commit, compiler JAR hash and distribution archive hash.
 
-Every Linux archive also contains:
+Every Linux archive also contains the native `kookie-launcher` update entrypoint:
+
+- `kookie-launcher`, which discovers the newest signed target release before
+  starting the package game;
 
 - `kookie-server`, a graphics-independent bounded workload server;
 - `kooker`, the native bounded source kooker;

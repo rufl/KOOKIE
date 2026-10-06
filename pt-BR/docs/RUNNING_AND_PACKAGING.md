@@ -20,46 +20,71 @@ interativo empacotado. O próprio `kof run` não exige Python 3; Python é usado
 atualmente pelo lint do repositório, validação de pacote/procedência,
 validação de evidências e tooling de rendezvous.
 
-O pacote de apresentação publicado é autossuficiente: jogadores iniciam seu
-entrypoint `kookie`/`kookie.exe` sem instalar Kof ou Python. Um launcher
-auto-instalável, autoatualizável e com canais stable/beta/alpha/canary ainda não
-foi publicado; consulte [Prontidão da release demo](DEMO_RELEASE.md) para os
-gates atuais de pacote e hardware-alvo.
+O pacote publicado inclui um launcher nativo de atualização:
 
-### Limite do launcher
+- Linux: `kookie-launcher`
+- Windows: `kookie-launcher.exe` ou `kookie-launcher.cmd`
 
-O launcher solicitado para o fluxo do jogador ainda não foi implementado nem
-publicado. Mantenha duas responsabilidades separadas:
+O launcher não exige Kof nem Python em runtime. Em cada início normal ele
+consulta a API de releases do GitHub para `rufl/KOOKIE`, seleciona a release
+publicada mais nova e não rascunho que contenha o pacote do alvo atual, o
+manifesto assinado e sua assinatura, atualiza e então inicia o jogo. O canal
+atual do pacote é `dogfood`; prereleases são incluídas intencionalmente. Ele
+nunca baixa uma URL mutável `latest` sem assinatura.
 
-- **Launcher do jogador:** baixa e inicia somente pacotes KOOKIE assinados. Não
-  deve instalar o compilador Kof nem exigir Python em runtime.
-- **Bootstrap de desenvolvimento:** opcionalmente instala o toolchain Kof exato
-  e fixado necessário para qualificação da fonte e então executa os comandos de
-  desenvolvimento.
+O fluxo de atualização:
 
-Stable, beta, alpha e canary são canais de release, não checkouts arbitrários
-de branches Git. Cada canal precisa de um manifesto assinado contendo alvo,
-versão, URL do artefato, SHA-256, assinatura, identidade do Kof e metadados
-mínimos de runtime. O launcher deve embutir a chave pública de release, validar
-HTTPS junto com a assinatura do manifesto e o hash do artefato, preparar a
-atualização em um diretório novo, trocar atomicamente, manter uma versão para
-rollback e exigir opt-in explícito para canais não-stable. Nunca deve executar
-um download `latest` sem assinatura nem substituir uma instalação em execução.
-
-O repositório atualmente não possui binários nativos do launcher, manifestos de
-canal assinados, artefatos Kof publicados para esses canais nem política
-Authenticode para Windows. Até existirem, execuções diretas da fonte exigem
-Kof; os gates completos de qualificação, pacote e evidências exigem Python
-adicionalmente, enquanto o pacote assinado continua sendo o caminho do usuário.
-### Launcher empacotado atual
-
-O launcher existente hoje é o wrapper relocável gerado dentro do pacote
-assinado: `kookie` no Linux e `kookie.exe`/`kookie.cmd` no Windows. Ele
-configura o caminho das bibliotecas locais e inicia o binário Kof nativo
-incluído; `kookie --package-smoke` exercita o caminho do pacote sem gráficos.
-Ele não é instalador, atualizador nem seletor de canal.
+1. Valida URLs HTTPS (HTTP simples só é aceito em fixtures locais de teste).
+2. Verifica a assinatura Ed25519 do manifesto com a chave pública embutida no
+   launcher.
+3. Transfere o arquivo para um diretório de estado privado e verifica tamanho
+   exato e SHA-256 fornecidos pelo manifesto assinado.
+4. Rejeita traversal, caminhos absolutos e symlinks; extrai em um diretório de
+   staging novo e executa `kookie --package-smoke`.
+5. Ativa atomicamente o pacote validado e mantém o marcador anterior.
+No início, a versão de `PROVENANCE.txt` do pacote é um piso local: uma release
+pública mais antiga ou igual não é ativada, evitando downgrade silencioso de um
+pacote dogfood enquanto sua release mais nova ainda não foi publicada.
 
 
+O estado fica em `$XDG_STATE_HOME/kookie` ou
+`$HOME/.local/state/kookie` no Linux, e em
+`%LOCALAPPDATA%\KOOKIE\state` no Windows. `--state-dir PATH` e
+`KOOKIE_STATE_DIR` sobrescrevem esse local.
+
+Comandos úteis:
+
+```bash
+./kookie-launcher              # atualiza e inicia
+./kookie-launcher --check      # atualiza/verifica sem iniciar
+./kookie-launcher --offline    # usa o pacote ativo sem rede
+./kookie-launcher --self-test  # valida chave/alvo embutidos
+```
+
+Execute o fixture focado de atualização assinada local com:
+
+```bash
+bash scripts/verify_launcher.sh
+```
+
+No Windows, os argumentos são equivalentes no `.exe`; o
+`kookie-launcher.cmd` apenas os encaminha. `--check` e `--no-launch` retornam
+erro em vez de fazer fallback silencioso quando a atualização falha. Inícios
+normais usam o último pacote ativo, se existir. O `kookie`/`kookie.exe` local
+continua sendo o wrapper direto do jogo; `kookie --package-smoke` é o caminho
+de qualificação sem gráficos.
+
+O launcher é um binário nativo separado, não a GUI do ZTASH: reutiliza o modelo
+de segurança de download, archive e rollback limitados do ZTASH sem tornar as
+releases do KOOKIE dependentes de ZLAY, ZFONT, GLFW ou do build completo do
+ZTASH. Atualmente os alvos são Linux e Windows x86_64.
+
+O pacote de apresentação Windows exige uma sessão de desktop interativa para
+criar a janela SDL/vídeo/GPU. Um receptor de serviço sem essa sessão não pode
+passar uma ação `launch` completa; use o probe limitado `--package-smoke` para
+qualificação do serviço. O launcher mantém inalterado o caminho desktop e
+reporta uma saída não zero do jogo em dogfood, em vez de tratar uma falha de
+apresentação headless como lançamento bem-sucedido.
 O alvo JVM é usado para qualificação diferencial local e para o pacote de
 compatibilidade Windows explícito:
 
@@ -149,14 +174,16 @@ KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64
 ```
 
-A chave privada deve ser um arquivo regular com modo `0600`. O builder emite
-um arquivo direcionado ao Linux, assinaturas separadas do arquivo e do
-manifesto, `SHA256SUMS`, uma chave pública e JSON de procedência. A procedência
-vincula o commit limpo, o commit fixado do código-fonte Kof, o hash do JAR do
-compilador e o hash do arquivo da distribuição.
+A chave privada deve ser um arquivo regular com modo `0600`. O builder também
+precisa de Zig para compilar o launcher nativo de atualização. Ele emite um
+arquivo direcionado ao Linux, assinaturas separadas do arquivo e do manifesto,
+`SHA256SUMS`, uma chave pública e JSON de procedência. A procedência vincula o
+commit limpo, o commit fixado do código-fonte Kof, o hash do JAR do compilador
+e o hash do arquivo da distribuição.
 
-Todo arquivo Linux também contém:
-
+Todo arquivo Linux também contém o entrypoint nativo de atualização:
+- `kookie-launcher`, que descobre a release assinada mais nova antes de iniciar
+  o jogo do pacote;
 - `kookie-server`, servidor de carga limitada independente de gráficos;
 - `kooker`, kooker nativo e limitado de fontes;
 - `kookie-simd-bench`, sonda de paridade e tempo escalar/SIMD.

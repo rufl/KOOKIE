@@ -86,6 +86,8 @@ root = destination / archive_path.stem
 for relative in (
     "kookie.cmd",
     "kookie.exe",
+    "kookie-launcher.exe",
+    "kookie-launcher.cmd",
     "kookie-visual.exe",
     "build/SDL3.dll",
     "SDL3.dll",
@@ -98,20 +100,24 @@ for relative in (
     "build/g5_triangle_instance.vert.dxil",
     "build/g6_world.vert.dxil",
     "build/g0_triangle.frag.dxil",
-    "DEMO_CONTROLS.txt",
+    "RELEASE_PUBLIC_KEY.pem",
     "fonts/jared-lite.ttf",
     "fonts/pixand.ttf",
     "fonts/OFL.txt",
     "fonts/readme.txt",
     "fonts/manifest.json",
-)
+):
     assert (root / relative).is_file(), relative
 assert (root / "kookie.exe").read_bytes()[:2] == b"MZ"
+assert (root / "kookie-launcher.exe").read_bytes()[:2] == b"MZ"
 assert not (root / "kookie.jar").exists()
 assert not (root / "runtime").exists()
 launcher = (root / "kookie.cmd").read_text(encoding="utf-8")
 assert '"%ROOT%kookie.exe" %*' in launcher
 assert "cd /d \"%ROOT%\"" in launcher
+update_launcher = (root / "kookie-launcher.cmd").read_text(encoding="utf-8")
+assert '"%ROOT%kookie-launcher.exe" %*' in update_launcher
+assert "cd /d \"%ROOT%\"" not in update_launcher
 provenance = dict(
     line.split("=", 1)
     for line in (root / "PROVENANCE.txt").read_text(encoding="utf-8").splitlines()
@@ -123,6 +129,7 @@ assert provenance["runtime_dependencies"] == "Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL"
 assert provenance["game_display_name"] == "GatoGanso"
 assert provenance["font_default_body"] == "Jared-Lite"
 assert provenance["font_default_display"] == "Pixand"
+assert provenance["update_launcher"] == "kookie-launcher"
 PY
 
 if [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]]; then

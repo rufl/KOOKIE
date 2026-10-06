@@ -67,22 +67,27 @@ O resultado é intencionalmente opinativo:
 
 ### Jogar o pacote publicado
 
-O arquivo dogfood Linux assinado já contém o jogo Kof nativo, SDL3, SDL_mixer
-e seu launcher. Executar o jogo empacotado não exige nem o toolchain Kof nem
-Python:
+Pacotes produzidos a partir da árvore atual contêm o jogo Kof nativo, SDL3,
+SDL_mixer e o launcher cross-platform de atualização. Eles não exigem o
+toolchain Kof nem Python:
 
-1. Baixe [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
+1. Baixe o pacote do alvo nas
+   [releases do KOOKIE no GitHub](https://github.com/rufl/KOOKIE/releases).
 2. Valide `SHA256SUMS` e as assinaturas destacadas conforme
    [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md#executar-o-dogfood-linux-publicado-atualmente).
-3. Extraia o arquivo e execute:
+3. Extraia o arquivo e execute o updater:
 
 ```bash
-./kookie
+./kookie-launcher
 ```
 
-A release pública atual é somente Linux. Ainda não existe um arquivo de demo
-Windows atual publicado; o pacote Windows usará `kookie.exe` e também será
-autossuficiente.
+O launcher busca o pacote publicado mais novo para Linux ou Windows, verifica
+manifesto e digest do arquivo, atualiza atomicamente e inicia o jogo.
+`./kookie` continua sendo o wrapper direto do pacote local. A release pública
+atual no GitHub é somente Linux e antecede este updater; ela pode ser executada
+com `./kookie`. Pacotes Windows produzidos pelo mesmo script incluem
+`kookie-launcher.exe` e `kookie-launcher.cmd`, que selecionam uma release
+Windows quando ela for publicada.
 
 ### Executar a qualificação a partir da fonte
 
@@ -134,11 +139,10 @@ prefixo ignorado em `.kookie-deps`. Os comandos exatos de pacote, kooker,
 Windows e qualificação entre hosts estão em
 [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md).
 
-O launcher atual do jogador é o wrapper relocável `kookie` do pacote assinado;
-ele configura o caminho das bibliotecas do pacote e não exige Kof nem Python.
-Um launcher auto-instalável e autoatualizável ainda não foi publicado. Ele
-continua sendo um produto separado que exige manifestos de canal assinados,
-artefatos fixados e rollback atômico.
+O launcher nativo `kookie-launcher` atualiza pelo GitHub, valida manifesto
+Ed25519 e SHA-256 do archive, faz staging seguro e ativa atomicamente em
+Linux/Windows x86_64. Consulte [Execução e empacotamento](docs/RUNNING_AND_PACKAGING.md)
+para os caminhos de estado, fallback offline e o smoke test do updater.
 
 ## Lobby multiplayer e tela de placar
 
