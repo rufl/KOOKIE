@@ -83,6 +83,19 @@ extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_push_resize_event(Int width, Int height): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_load_music_ogg(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_music_ogg_loaded(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_music_ogg_duration_frames(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_music_ogg_loops(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_play_music_loop(
+    Int loops, Int loopStartFrame, Int loopEndFrame
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_play_ui_clip_loop(
+    Int clipId, Int loops, Int loopStartFrame, Int loopEndFrame
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_ui_clip_loops(
+    Int clipId
+): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_ui_assets_loaded(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_play_ui_clip(Int clipId): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
@@ -814,6 +827,16 @@ main() {
         kookie_audio_play_ui_clip(1040) &&
         !kookie_audio_play_ui_clip(9999),
         "uploaded UI OGG assets must load and reject unknown clips")
+    assert(kookie_audio_load_music_ogg() &&
+        kookie_audio_music_ogg_loaded() == 1,
+        "configured OGG soundtrack must decode into a retained track")
+    var musicFrames = kookie_audio_music_ogg_duration_frames()
+    assert(musicFrames > 0 &&
+        kookie_audio_play_music_loop(-1, 0, musicFrames) &&
+        kookie_audio_music_ogg_loops() == -1 &&
+        kookie_audio_play_ui_clip_loop(1040, -1, 0, 48000) &&
+        kookie_audio_ui_clip_loops(1040) == -1,
+        "predecoded OGG music and SFX must loop at exact sample-frame bounds")
     assert(kookie_audio_mixer_version() == 3002004 &&
         kookie_audio_set_volumes(80, 60) &&
         kookie_audio_effects_volume() == 80 &&

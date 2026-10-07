@@ -99,20 +99,23 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 |---|---|---|
 | Platform and graphics | **SDL3 + SDL_GPU** | One window/input/gamepad/GPU stack; 3D and compute. Kof owns extraction, culling, batching and passes. zlib license. Keep Sokol as an alternative only if the GPU/ABI spike fails |
 | Shader build | **SDL_shadercross + DXC**, SPIRV-Cross and SPIRV-Tools as required by the build | HLSL → offline SPIR-V for Linux; reflect resource layouts. Build-time tools, not mandatory shipped runtime shader compilers. Installed ShaderC alone is not the selected HLSL pipeline |
-| Audio | **SDL_mixer 3.2.4** | One zlib-licensed mixer authority with separate effects/music streams and Kof-owned cue, gain and spatial policy. Optional codec backends are disabled/not bundled; PCM streams require no decoder dependency |
+| Audio | **SDL_mixer 3.2.4** | One zlib-licensed mixer authority with separate effects/music streams and Kof-owned cue, gain and spatial policy. The pinned build enables WAVE and bundled `stb_vorbis` for bounded OGG Vorbis; other optional codec backends remain disabled/not bundled |
 | Image decoding | **Kof-owned PNG kooker**, then **SDL3_image** only for a runtime pixel service | The current kooker validates, decodes and canonicalizes the bounded PNG subset itself. A future SDL3_image boundary may decode admitted canonical PNG for upload; it does not own source admission, color-space/material decisions or cooking. zlib library; optional codec dependencies have separate notices |
 | Text rendering | **FreeType**, then **HarfBuzz** when implementing shaped text | Rasterization and shaping services only. Kof owns widgets, layout, focus and glyph-cache policy. Font fallback, bidi/line breaking, IME and accessibility are not solved merely by linking these libraries |
 | Package compression | **Zstandard (`libzstd`)** | Add at the cooked-package stage, not per frame. Use bounded independently addressable chunks, declared decoded lengths and decoder limits; compression is not integrity/authentication. BSD license option |
 
 **Audio choice details.** SDL_mixer is the adopted device/mixer authority.
-KOOKIE submits generated PCM streams and bounded cooked PCM16 clips, so
-packages do not need optional compressed-audio decoders. Any future native
-codec must pass the permissive-license and dependency-closure gate before
-packaging. OpenAL Soft is not an alternative under that native presentation
-policy because the inspected implementation is LGPL-2.0-or-later. The separate
-Windows JVM profile retains its OpenJDK license tree; it does not relax the
-native media-library gate. Do not run a second library as a competing mixer
-authority.
+KOOKIE submits generated PCM streams, bounded cooked PCM16 clips and
+byte-preserving bounded OGG Vorbis payloads. `MIX_LoadAudio(..., true)` decodes
+admitted OGG once into a retained seekable track; explicit sample-frame loop
+start/end/count properties cover both music and SFX. The package therefore
+needs the pinned SDL_mixer runtime with its bundled `stb_vorbis`, but no second
+decoder or competing mixer authority. Any future native codec must pass the
+permissive-license and dependency-closure gate before packaging. OpenAL Soft is
+not an alternative under that native presentation policy because the inspected
+implementation is LGPL-2.0-or-later. The separate Windows JVM profile retains
+its OpenJDK license tree; it does not relax the native media-library gate. Do
+not run a second library as a competing mixer authority.
 
 **Keep these engine libraries in Kof:** typed entity/component storage; a small
 math library using selective MIT JOML ports; shooter movement/collision;
@@ -146,17 +149,19 @@ transport still does not supply replication, prediction or authoritative
 simulation.
 
 **Observed local availability:** SDL3 3.4.16 is the system package;
-SDL_mixer 3.2.4 was built from pinned source with only the PCM input needed by
-this integration. FreeType 2.14.3, HarfBuzz 14.5.0 and zstd 1.5.7 are also
-available. SDL3_image and SDL_shadercross remain outside the current gate.
-This inventory does not prove automatic future integration.
+SDL_mixer 3.2.4 was built from pinned source with WAVE and bundled
+`stb_vorbis` enabled for the OGG intake/runtime path. FreeType 2.14.3,
+HarfBuzz 14.5.0 and zstd 1.5.7 are also available. SDL3_image and
+SDL_shadercross remain outside the current gate. This inventory does not prove
+automatic future integration.
 
 **Adoption status/order:** SDL_GPU/input, checked token transfer, the world-space
-perspective/material/depth pass, bounded stereo spatialization and SDL_mixer
-effects/music gain are integrated. Add image/text services and package
-compression only when each contract is established. Pin artifact hashes, build
-options, transitive notices and adapter ABI at each adoption. This shortlist
-implies no separate backend/plugin framework or performance promise.
+perspective/material/depth pass, bounded stereo spatialization, SDL_mixer
+effects/music gain, OGG predecode and sample-frame loops are integrated. Add
+image/text services and package compression only when each contract is
+established. Pin artifact hashes, build options, transitive notices and adapter
+ABI at each adoption. This shortlist implies no separate backend/plugin
+framework or performance promise.
 
 Primary sources: [SDL GPU](https://wiki.libsdl.org/SDL3/CategoryGPU),
 [shadercross](https://github.com/libsdl-org/SDL_shadercross) and its
@@ -540,8 +545,8 @@ Initial source formats: project manifest and entity/encounter/item definitions
 in readable structured data; static meshes/materials in a documented glTF
 subset; Dust3D `.ds3`; LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`;
 Blockbench `.bbmodel` character rigs; standalone PNG images; and audio in a
-deliberately small supported set. These are offline intake formats, not runtime
-package formats.
+deliberately small supported set. These are offline intake sources; their
+canonical products are the explicit package/runtime contracts.
 Validate finite geometry, triangle
 indices, voxel dimensions/palette references, sprite frame bounds, animation
 metadata, size/count limits, resource references, transforms and collision
@@ -562,6 +567,7 @@ full tool/version receipt remains required package-provenance hardening:
 | Blockbench `.bbmodel` | Parse the exact 5.0 cube/bone outliner and bounded numeric position/rotation/scale clips into reopened `KCHR` v1 rig data; texture pixels and per-face UV/material output require a separate product |
 | PNG `.png` | Verify a 1 MiB/64-chunk/256×256 static 8-bit subset, decode color types 0/2/3/4/6 with palette/transparency and filters 0–4, then reopen deterministic RGBA8 PNG output; reject Adam7, APNG, unsupported ancillary chunks and ambiguous color profiles |
 | PCM WAVE `.wav` | Admit exact RIFF/WAVE PCM tag `0x0001` with mono/stereo 8- or 16-bit samples at 8–96 kHz under 2 MiB/32 chunks/30 seconds/1 MiB canonical PCM; strip bounded inert metadata and reopen deterministic PCM16; reject RF64, extensible, float, compressed, cue/loop and unknown semantics |
+| OGG Vorbis `.ogg` | Validate one bounded Ogg Vorbis logical stream with page CRC/sequence/continuation/BOS/EOS checks, identification/comment/setup headers, 8–96 kHz, 1–8 channels, decoded-frame and optional sample-frame loop bounds; retain the admitted pages byte-for-byte and reject malformed/non-Vorbis input | Byte-preserving OGG payload with source, compressed-payload, Vorbis-metadata, canonical, frame and loop-bound checksums/counts |
 
 Use GLB for 3D runtime interchange and PNG plus versioned metadata for sprite
 runtime interchange. OBJ/FBX are conversion fallbacks, not runtime contracts.
@@ -584,10 +590,17 @@ explicit subset. It preserves sample values; runtime sRGB/linear interpretation
 belongs to material policy, and embedded color profiles reject rather than
 silently changing that policy.
 
-The audio reader follows the PCM registration in
+The WAVE reader follows the PCM registration in
 [RFC 2361](https://www.rfc-editor.org/rfc/rfc2361) and the RIFF/WAVE model
-documented by [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV).
-Compressed or streamed audio remains a separate future pipeline.
+documented by [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV). It emits
+static PCM16.
+
+The OGG reader independently bounds the Ogg page/packet envelope, validates
+Vorbis identification/comment/setup headers and page CRCs, derives the frame
+bound from page granules and carries optional loop comments into the canonical
+result. The pinned native `stb_vorbis` backend performs decode after the
+adapter retains the canonical payload; streaming decode remains a separate
+future pipeline.
 
 For boomer-shooter authoring add a Quake-style textual brush `.map` subset: convex brush plane clipping/triangulation, entity/property translation, material mapping and derived collision/visibility. TrenchBroom can be an external authoring tool; our `.kf` kooker remains the import authority. This does **not** promise WAD/BSP/QuakeC/source-port compatibility. Source maps are not shipped original-game assets.
 
@@ -602,8 +615,9 @@ content checksum. Stale, incomplete, mismatched or invalid transactions retain
 the prior generation.
 
 `BoundedSourceKooker` admits the documented indexed GLB,
-Dust3D/Aseprite/VOX, convex brush-map, Blockbench 5.0 character, PNG and PCM
-WAVE subsets under explicit size/count/chunk/depth/duration limits.
+Dust3D/Aseprite/VOX, convex brush-map, Blockbench 5.0 character, PNG, PCM
+WAVE and OGG Vorbis subsets under explicit size/count/chunk/depth/duration
+limits.
 `scripts/kooker.sh` provides developer JVM file `cook`, `package`,
 `inspect-package` and `validate-package` commands. Linux archives also carry a
 native runner for the same Kof `cook` path; package operations remain JVM-only.
@@ -790,10 +804,11 @@ actor and HUD scene.
 Feedback transport preserves multi-event order, rejects duplicates and gaps
 without partial presentation, and resumes from the new-generation baseline.
 The Kof layer computes listener-relative distance attenuation and stereo
-panning; SDL_mixer queues the resulting left/right PCM gains. HRTF/EFX waits
-for a proven permissive solution; streamed decoding remains later expansion,
-while the completed G5 soak is recorded below. Neither is missing G2
-acceptance.
+panning; SDL_mixer queues the resulting left/right PCM gains. Configured OGG
+music is predecoded once and both music and SFX expose exact sample-frame
+loop start/end/count controls. HRTF/EFX waits for a proven permissive solution;
+streamed decoding remains later expansion, while the completed G5 soak is
+recorded below. Neither is missing G2 acceptance.
 
 G3 is closed at its current acceptance gate. Server-owned enemy deaths produce
 deterministic full rolls; remote pickup/equip/progression commands cannot

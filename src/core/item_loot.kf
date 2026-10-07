@@ -935,6 +935,50 @@ class BoundedWorldLoot {
         return ranks[index]
     }
 
+    Int mixChecksum(Int state, Int start, Int count) {
+        if (state < 0 || state >= 1000003 ||
+            start < 0 || start >= countValue ||
+            count <= 0 || count > countValue) {
+            return -1
+        }
+        var result = state
+        var cursor = start
+        var remaining = count
+        // Eight values per block stay within Long before one modular reduction.
+        while (remaining >= 4) {
+            var value: Long = result
+            value = value * 31L + stableIds[cursor]
+            value = value * 31L + ranks[cursor]
+            cursor = cursor + 1
+            if (cursor >= countValue) { cursor = 0 }
+            value = value * 31L + stableIds[cursor]
+            value = value * 31L + ranks[cursor]
+            cursor = cursor + 1
+            if (cursor >= countValue) { cursor = 0 }
+            value = value * 31L + stableIds[cursor]
+            value = value * 31L + ranks[cursor]
+            cursor = cursor + 1
+            if (cursor >= countValue) { cursor = 0 }
+            value = value * 31L + stableIds[cursor]
+            value = value * 31L + ranks[cursor]
+            cursor = cursor + 1
+            if (cursor >= countValue) { cursor = 0 }
+            result = (value % 1000003L).toInt()
+            remaining = remaining - 4
+        }
+        while (remaining > 0) {
+            var value: Long = result
+            value = value * 31L + stableIds[cursor]
+            value = value * 31L + ranks[cursor]
+            result = (value % 1000003L).toInt()
+            cursor = cursor + 1
+            if (cursor >= countValue) { cursor = 0 }
+            remaining = remaining - 1
+        }
+        return result
+    }
+
+
     Int positionX(Int index) {
         if (index < 0 || index >= countValue) {
             return -1000001

@@ -2,7 +2,7 @@
 
 [Português (Brasil)](../pt-BR/docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, bounded synthesized clips, SPIR-V scene upload/draw with perspective projection and D16 depth testing, and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the authored arena (142 unique vertices, 178 triangles, 534 staged vertices) and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
+Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, predecoded OGG Vorbis tracks with exact sample-frame loop bounds, bounded synthesized clips, SPIR-V scene upload/draw with perspective projection and D16 depth testing, and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the authored arena (142 unique vertices, 178 triangles, 534 staged vertices) and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
 
 The current source/CI gate uses Kof `0.5.0-beta` at the pinned source commit;
 this page records the bounded adapter contract, while machine-specific
@@ -30,12 +30,14 @@ The direct Kof binding still carries no SDL pointer, struct, event union, callba
 - `SDL_PollEvent` flattened to event kind plus two scalar payload fields;
 - default playback SDL_mixer open/close with slot+generation+kind tokens;
 - independent effects/music tracks backed by SDL audio streams;
+- predecoded OGG Vorbis music/SFX tracks with explicit sample-frame loop
+  start/end/count;
 - bounded PCM silence and clip transfer without a callback into Kof;
 - SPIR-V SDL_GPU device create/claim/release/destroy behind a checked token;
 - first shader, texture upload, sampler, pipeline and swapchain draw path;
 - explicit shutdown ordering for GPU, windows, mixer tracks/streams and SDL.
 
-The adapter does not retain Kof pointers, callbacks, gameplay state, entities or Kof-owned audio sample buffers. `probes/g0_native_adapter/main.kf` exercises hidden window creation/teardown, real SDL event polling into `WindowStateTracker`, synthetic resize/focus queueing, optional GPU lifecycle plus the first upload/draw, dummy playback-device open/close, bounded silence and clip PCM transfer, and stale-token rejection.
+The adapter does not retain Kof pointers, callbacks, gameplay state, entities or Kof-owned audio sample buffers. `probes/g0_native_adapter/main.kf` exercises hidden window creation/teardown, real SDL event polling into `WindowStateTracker`, synthetic resize/focus queueing, optional GPU lifecycle plus the first upload/draw, dummy playback-device open/close, bounded silence and clip PCM transfer, configured OGG predecode with exact music/SFX loop bounds, and stale-token rejection.
 
 ## Window and input state
 
@@ -61,10 +63,13 @@ The adapter flattens SDL events, while Kof owns the transition policy and author
 
 The native adapter proves a real SDL_mixer lifecycle, separate gain controls,
 bounded silence transfer and deterministic synthesized clip variants
-(`clipId=1` and impact clips `201`–`203`, at most 480 stereo F32 frames). The
-presentation probe selects clip `201` from the confirmed authoritative kill
-event. Scalar FFI still cannot pass a Kof-owned sample buffer; decoded asset
-ownership and streamed voice lifetimes remain later boundaries.
+(`clipId=1` and impact clips `201`–`203`, at most 480 stereo F32 frames).
+`kookie_audio_load_music_ogg` uses `MIX_LoadAudio(..., true)` so admitted OGG
+bytes are decoded once into a retained seekable track. Music and SFX loop calls
+pass explicit sample-frame start/end/count properties to SDL_mixer; the native
+probe exercises an infinite full-track music loop and a bounded SFX loop. The
+Kof queue still does not pass Kof-owned sample buffers through scalar FFI;
+streamed voice lifetimes remain a later boundary.
 
 ## GPU lifecycle
 
@@ -73,8 +78,8 @@ The adapter requests SPIR-V support, creates an SDL_GPU device, claims an SDL wi
 ## Regression proof
 
 `src/main.kf` contains the executable smoke path and focused contracts for
-resource tokens, platform/audio lifecycle, frame staging and the GameShell
-menu/options/lobby transaction.
+resource tokens, platform/audio lifecycle, OGG source intake, frame staging and
+the GameShell menu/options/lobby transaction.
 
 `scripts/verify_exception.sh` preserves the native exception-lifetime reproducer and its JVM/native negative controls: JVM exits on the failed assertion; native currently reaches `unreachable` with exit 0. This is a compiler defect record, not an engine cleanup guarantee.
 
@@ -93,8 +98,7 @@ where assigning an extern `Int` inside that Kof loop emitted an invalid
 
 ## Next proof boundary
 
-Production work beyond this boundary includes decoded asset ownership,
-streamed voices, real SDL device-loss notification and bounded resource
-retirement under sustained load. Do not cast SDL pointers to integer tokens,
-add callbacks into Kof, or infer those contracts from the qualified scene/clip
-probe.
+Production work beyond this boundary includes streamed voices, real SDL
+device-loss notification and bounded resource retirement under sustained load.
+Do not cast SDL pointers to integer tokens, add callbacks into Kof, or infer
+those contracts from the qualified scene/clip/OGG probe.

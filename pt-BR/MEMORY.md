@@ -53,8 +53,8 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
 - G4 está completo para seu contrato limitado. Assinaturas de hooks tipadas
   cobrem sessão/jogador/inimigo/loot/publicação do editor; o kooker admite os
   subconjuntos documentados de GLB, Dust3D, Aseprite, VOX, brushes convexos,
-  Blockbench 5.0, PNG e WAVE PCM pela CLI JVM de desenvolvimento e pela CLI
-  nativa de entrada Linux empacotada; o reload de `.kpkg` valida estado
+  Blockbench 5.0, PNG, WAVE PCM e OGG Vorbis pela CLI JVM de desenvolvimento e
+  pela CLI nativa de entrada Linux empacotada; o reload de `.kpkg` valida estado
   candidato de pacote/registros antes da troca; o workspace Kutter fornece
   edição, play-in-editor e undo/redo limitado; e produtos GPU só ativam no
   limite de frame após a fence de upload. Uma oferta de 18 palavras e uma
@@ -108,9 +108,9 @@ As fundações limitadas executam; os gates de implementação G0–G6 estão co
   encerram o G5 limitado. Desempenho em várias máquinas/WAN e outros
   hardwares/SOs não é afirmado.
 - Os arquivos Linux agora constroem nativamente o mesmo ponto de entrada Kof do
-  kooker de conteúdo. O smoke do pacote exercita canonicalização WAVE PCM,
-  reabertura idempotente, rejeição de entrada malformada e denylist de
-  dependências gráficas fora do checkout.
+  kooker de conteúdo. O smoke do pacote exercita canonicalização WAVE PCM e
+  OGG Vorbis, reabertura idempotente, rejeição de entrada malformada e denylist
+  de dependências gráficas fora do checkout.
 
 ## Lote de qualificação Windows PE/SDL
 

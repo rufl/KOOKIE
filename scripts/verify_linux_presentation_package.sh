@@ -102,7 +102,7 @@ PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
   exit 1
 }
 for required in kookie kookie.bin kookie-launcher kookie-smoke.bin \
-  build/libkookie_sdl_adapter.so \
+  build/libkookie_sdl_adapter.so build/libkookie_persistence_adapter.so \
   build/g0_triangle.vert.spv build/g5_triangle_instance.vert.spv \
   build/g6_world.vert.spv build/g0_triangle.frag.spv kookie-server \
   kookie-server.bin LICENSE \

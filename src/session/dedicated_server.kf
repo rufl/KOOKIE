@@ -253,6 +253,19 @@ class BoundedDedicatedServer {
         return (state * 31 + value) % 1000003
     }
 
+    Int mixPair(Int state, Int first, Int second) {
+        var result = state * 31 + first
+        result = result * 31 + second
+        return result % 1000003
+    }
+
+    Int mixQuad(
+        Int state, Int first, Int second, Int third, Int fourth
+    ) {
+        var result = mixPair(state, first, second)
+        return mixPair(result, third, fourth)
+    }
+
     Bool configureReferenceWorkload() {
         if (!validConfigurationValue || configuredValue || !scene.ready() ||
             !authority.configureEnemyRules(128, 1, 30) ||
@@ -381,12 +394,13 @@ class BoundedDedicatedServer {
             var enemyId = enemyIds[enemyCursor]
             var visible = (tick + work) % 4 != 0
             var distance = 2 + ((tick + work) % 127)
-            var decision = authority.stepEnemy(
-                enemyId, tick, 1, visible, distance, 0)
-            if (!decision.accepted()) { return false }
-            workloadChecksumValue = mix(workloadChecksumValue, enemyId)
-            workloadChecksumValue = mix(
-                workloadChecksumValue, authority.enemyState(enemyId))
+            if (!authority.stepEnemyForBudget(
+                    enemyId, tick, 1, visible, distance, 0)) {
+                return false
+            }
+            workloadChecksumValue = mixPair(
+                workloadChecksumValue, enemyId,
+                authority.lastEnemyState())
             enemyCursor = enemyCursor + 1
             if (enemyCursor >= enemyIds.length) { enemyCursor = 0 }
             lastAiWorkValue = lastAiWorkValue + 1
@@ -402,22 +416,18 @@ class BoundedDedicatedServer {
             projectileCursor = projectileCursor - authority.spatialProjectileCapacity()
         }
         lastPickupWorkValue = 0
+        var pickupChecksum = pickups.mixChecksum(
+            workloadChecksumValue, pickupCursor, pickupBudgetValue)
+        if (pickupChecksum < 0) { return false }
+        workloadChecksumValue = pickupChecksum
         for (var work = 0; work < pickupBudgetValue; work = work + 1) {
-            workloadChecksumValue = mix(
-                workloadChecksumValue, pickups.stableId(pickupCursor))
-            workloadChecksumValue = mix(
-                workloadChecksumValue, pickups.rank(pickupCursor))
             pickupCursor = pickupCursor + 1
-            if (pickupCursor >= pickups.count()) { pickupCursor = 0 }
+            if (pickupCursor >= pickupCapacityValue) { pickupCursor = 0 }
             lastPickupWorkValue = lastPickupWorkValue + 1
         }
-        workloadChecksumValue = mix(workloadChecksumValue, tick)
-        workloadChecksumValue = mix(
-            workloadChecksumValue, lastProjectileMovedValue)
-        workloadChecksumValue = mix(
-            workloadChecksumValue, authority.spatialProjectileBlocked())
-        workloadChecksumValue = mix(
-            workloadChecksumValue, scene.dynamicChecksum())
+        workloadChecksumValue = mixQuad(
+            workloadChecksumValue, tick, lastProjectileMovedValue,
+            authority.spatialProjectileBlocked(), scene.dynamicChecksum())
         if (lastAiWorkValue > peakAiWorkValue) {
             peakAiWorkValue = lastAiWorkValue
         }

@@ -1,0 +1,472 @@
+package content
+
+Int oggDiagnosticNone() { return 0 }
+Int oggDiagnosticHeader() { return 1 }
+Int oggDiagnosticPage() { return 2 }
+Int oggDiagnosticVorbis() { return 3 }
+Int oggDiagnosticComment() { return 4 }
+Int oggDiagnosticCapacity() { return 5 }
+Int oggDiagnosticCanonical() { return 6 }
+Int oggMaxSourceBytes() { return 16777216 }
+Int oggMaxPacketBytes() { return 1048576 }
+Int oggMaxPages() { return 1048576 }
+Int oggMaxDurationFrames() { return 57600000 }
+
+class BoundedOggIntake {
+    Int[] canonicalWire
+    Int[] packetWire
+    Int sourceChecksumValue
+    Int payloadChecksumValue
+    Int metadataChecksumValue
+    Int canonicalChecksumValue
+    Int sampleRateValue
+    Int channelCountValue
+    Int frameCountValue
+    Int pageCountValue
+    Int packetCountValue
+    Int loopStartValue
+    Int loopEndValue
+    Int canonicalLengthValue
+    Int diagnosticValue
+    Int streamSerial0Value
+    Int streamSerial1Value
+    Int streamSerial2Value
+    Int streamSerial3Value
+    Int expectedSequenceValue
+    Int packetLengthValue
+    Bool loopStartFoundValue
+    Bool loopEndFoundValue
+    Bool loopLengthFoundValue
+    Bool seenBosValue
+    Bool seenEosValue
+    Bool acceptedValue
+
+    public constructor() {
+        packetWire = new Int[oggMaxPacketBytes()]
+        clear()
+    }
+
+    Bool clear() {
+        canonicalWire = new Int[0]
+        sourceChecksumValue = 0
+        payloadChecksumValue = 0
+        metadataChecksumValue = 0
+        canonicalChecksumValue = 0
+        sampleRateValue = 0
+        channelCountValue = 0
+        frameCountValue = 0
+        pageCountValue = 0
+        packetCountValue = 0
+        loopStartValue = 0
+        loopEndValue = 0
+        canonicalLengthValue = 0
+        diagnosticValue = oggDiagnosticNone()
+        streamSerial0Value = 0
+        streamSerial1Value = 0
+        streamSerial2Value = 0
+        streamSerial3Value = 0
+        expectedSequenceValue = 0
+        packetLengthValue = 0
+        loopLengthValueStore = 0
+        loopStartFoundValue = false
+        loopEndFoundValue = false
+        loopLengthFoundValue = false
+        seenBosValue = false
+        seenEosValue = false
+        seenAudioValue = false
+        acceptedValue = false
+        return true
+    }
+
+    Bool reject(Int diagnostic) {
+        diagnosticValue = diagnostic
+        canonicalLengthValue = 0
+        acceptedValue = false
+        return false
+    }
+
+    Int u32(Int[] source, Int offset) {
+        if (offset < 0 || offset + 4 > source.length ||
+            source[offset + 3] >= 128) {
+            return -1
+        }
+        return source[offset] + source[offset + 1] * 256 +
+            source[offset + 2] * 65536 + source[offset + 3] * 16777216
+    }
+
+    Bool isCapture(Int[] source, Int offset) {
+        return offset >= 0 && offset + 4 <= source.length &&
+            source[offset] == 79 && source[offset + 1] == 103 &&
+            source[offset + 2] == 103 && source[offset + 3] == 83
+    }
+    Bool pageCrcValid(Int[] source, Int offset, Int length) {
+        if (length < 27 || offset < 0 || offset + length > source.length) {
+            return false
+        }
+        var crc0 = 0
+        var crc1 = 0
+        var crc2 = 0
+        var crc3 = 0
+        for (var index = 0; index < length; index = index + 1) {
+            var value = source[offset + index]
+            if (index >= 22 && index < 26) { value = 0 }
+            crc0 = (crc0 ^ value) & 255
+            for (var bit = 0; bit < 8; bit = bit + 1) {
+                var carry = crc0 & 128
+                crc0 = ((crc0 << 1) & 255) | (crc1 >>> 7)
+                crc1 = ((crc1 << 1) & 255) | (crc2 >>> 7)
+                crc2 = ((crc2 << 1) & 255) | (crc3 >>> 7)
+                crc3 = (crc3 << 1) & 255
+                if (carry != 0) {
+                    crc0 = crc0 ^ 4
+                    crc1 = crc1 ^ 193
+                    crc2 = crc2 ^ 29
+                    crc3 = crc3 ^ 183
+                }
+            }
+        }
+        return source[offset + 22] == crc3 &&
+            source[offset + 23] == crc2 &&
+            source[offset + 24] == crc1 &&
+            source[offset + 25] == crc0
+    }
+
+
+    Bool sameSerial(Int[] source, Int offset) {
+        return source[offset + 14] == streamSerial0Value &&
+            source[offset + 15] == streamSerial1Value &&
+            source[offset + 16] == streamSerial2Value &&
+            source[offset + 17] == streamSerial3Value
+    }
+
+    Int pageGranule(Int[] source, Int offset) {
+        var allOnes = true
+        for (var index = 0; index < 8; index = index + 1) {
+            if (source[offset + 6 + index] != 255) { allOnes = false }
+        }
+        if (allOnes) { return -1 }
+        if (source[offset + 10] != 0 || source[offset + 11] != 0 ||
+            source[offset + 12] != 0 || source[offset + 13] != 0 ||
+            source[offset + 9] >= 128) {
+            return -1
+        }
+        return source[offset + 6] + source[offset + 7] * 256 +
+            source[offset + 8] * 65536 + source[offset + 9] * 16777216
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int checksum(Int[] source, Int limit) {
+        var result = 17
+        for (var index = 0; index < limit; index = index + 1) {
+            result = mix(result, source[index])
+        }
+        return result
+    }
+
+    Bool startsWithAscii(
+        Int[] source, Int offset, Int length, String expected
+    ) {
+        if (length < expected.length()) { return false }
+        for (var index = 0; index < expected.length(); index = index + 1) {
+            var actual = source[offset + index]
+            if (actual >= 97 && actual <= 122) {
+                actual = actual - 32
+            }
+            var wanted = expected.charAt(index) as Int
+            if (wanted >= 97 && wanted <= 122) {
+                wanted = wanted - 32
+            }
+            if (actual != wanted) { return false }
+        }
+        return true
+    }
+
+    Int decimal(Int[] source, Int offset, Int length) {
+        if (length <= 0 || length > 10) { return -1 }
+        var value = 0
+        for (var index = 0; index < length; index = index + 1) {
+            var digit = source[offset + index] - 48
+            if (digit < 0 || digit > 9) { return -1 }
+            if (value > 100000000) { return -1 }
+            value = value * 10 + digit
+        }
+        return value
+    }
+
+    Bool setLoopTag(String name, Int[] source, Int offset, Int length) {
+        if (!startsWithAscii(source, offset, length, name)) {
+            return true
+        }
+        var prefixLength = name.length()
+        if (length <= prefixLength) { return false }
+        var value = decimal(
+            source, offset + prefixLength, length - prefixLength)
+        if (value < 0) { return false }
+        if (name == "LOOPSTART=") {
+            if (loopStartFoundValue && loopStartValue != value) {
+                return false
+            }
+            loopStartValue = value
+            loopStartFoundValue = true
+        } else if (name == "LOOPEND=") {
+            if (loopEndFoundValue && loopEndValue != value) {
+                return false
+            }
+            loopEndValue = value
+            loopEndFoundValue = true
+        } else {
+            if (loopLengthFoundValue && loopLengthValue() != value) {
+                return false
+            }
+            loopLengthValueStore = value
+            loopLengthFoundValue = true
+        }
+        return true
+    }
+
+    Int loopLengthValueStore
+
+    Int loopLengthValue() { return loopLengthValueStore }
+
+    Bool parseIdentification() {
+        if (packetLengthValue < 30 || packetWire[0] != 1 ||
+            !startsWithAscii(packetWire, 1, packetLengthValue, "vorbis") ||
+            u32(packetWire, 7) != 0 || packetWire[11] <= 0 ||
+            packetWire[11] > 8 || u32(packetWire, 12) < 8000 ||
+            u32(packetWire, 12) > 96000 || packetWire[28] < 102 ||
+            packetWire[28] > 221 || packetWire[29] != 1) {
+            return false
+        }
+        var block = packetWire[28]
+        var shortExponent = block & 15
+        var longExponent = (block >>> 4) & 15
+        if (shortExponent < 6 || shortExponent > 13 ||
+            longExponent < 6 || longExponent > 13 ||
+            shortExponent > longExponent) {
+            return false
+        }
+        channelCountValue = packetWire[11]
+        sampleRateValue = u32(packetWire, 12)
+        return true
+    }
+
+    Bool parseComment() {
+        if (packetLengthValue < 11 || packetWire[0] != 3 ||
+            !startsWithAscii(packetWire, 1, packetLengthValue, "vorbis")) {
+            return false
+        }
+        var cursor = 7
+        var vendorLength = u32(packetWire, cursor)
+        if (vendorLength < 0 || vendorLength > packetLengthValue - cursor - 4) {
+            return false
+        }
+        cursor = cursor + 4 + vendorLength
+        if (cursor + 4 > packetLengthValue) { return false }
+        var commentCount = u32(packetWire, cursor)
+        if (commentCount < 0 || commentCount > 256) { return false }
+        cursor = cursor + 4
+        for (var index = 0; index < commentCount; index = index + 1) {
+            if (cursor + 4 > packetLengthValue) { return false }
+            var commentLength = u32(packetWire, cursor)
+            cursor = cursor + 4
+            if (commentLength < 0 ||
+                commentLength > packetLengthValue - cursor) {
+                return false
+            }
+            if (!setLoopTag(
+                    "LOOPSTART=", packetWire, cursor, commentLength) ||
+                !setLoopTag(
+                    "LOOPEND=", packetWire, cursor, commentLength) ||
+                !setLoopTag(
+                    "LOOPLENGTH=", packetWire, cursor, commentLength)) {
+                return false
+            }
+            cursor = cursor + commentLength
+        }
+        return cursor + 1 == packetLengthValue &&
+            packetWire[cursor] == 1
+    }
+
+    Bool completePacket() {
+        if (packetLengthValue <= 0 || packetCountValue > 65536) {
+            return false
+        }
+        if (packetCountValue == 0) {
+            if (!parseIdentification()) { return false }
+        } else if (packetCountValue == 1) {
+            if (!parseComment()) { return false }
+        } else if (packetCountValue == 2) {
+            if (packetLengthValue < 7 || packetWire[0] != 5 ||
+                !startsWithAscii(packetWire, 1, packetLengthValue, "vorbis")) {
+                return false
+            }
+        }
+        packetCountValue = packetCountValue + 1
+        if (packetCountValue > 3) { seenAudioValue = true }
+        packetLengthValue = 0
+        return true
+    }
+
+    Bool seenAudioValue
+
+    Bool appendSegment(Int[] source, Int offset, Int length) {
+        if (length < 0 || packetLengthValue + length > packetWire.length) {
+            return false
+        }
+        for (var index = 0; index < length; index = index + 1) {
+            packetWire[packetLengthValue + index] = source[offset + index]
+        }
+        packetLengthValue = packetLengthValue + length
+        return true
+    }
+
+    Bool read(Int[] source) {
+        clear()
+        if (source.length < 28 || source.length > oggMaxSourceBytes()) {
+            return reject(oggDiagnosticHeader())
+        }
+        for (var index = 0; index < source.length; index = index + 1) {
+            if (source[index] < 0 || source[index] > 255) {
+                return reject(oggDiagnosticHeader())
+            }
+        }
+        var cursor = 0
+        while (cursor < source.length) {
+            if (pageCountValue >= oggMaxPages() || cursor + 27 > source.length ||
+                !isCapture(source, cursor) || source[cursor + 4] != 0) {
+                return reject(oggDiagnosticPage())
+            }
+            var headerType = source[cursor + 5]
+            if (headerType < 0 || headerType > 7) {
+                return reject(oggDiagnosticPage())
+            }
+            var segmentCount = source[cursor + 26]
+            if (segmentCount <= 0 || cursor + 27 + segmentCount > source.length) {
+                return reject(oggDiagnosticPage())
+            }
+            if (pageCountValue == 0) {
+                if ((headerType & 2) == 0 || (headerType & 1) != 0) {
+                    return reject(oggDiagnosticPage())
+                }
+                streamSerial0Value = source[cursor + 14]
+                streamSerial1Value = source[cursor + 15]
+                streamSerial2Value = source[cursor + 16]
+                streamSerial3Value = source[cursor + 17]
+                seenBosValue = true
+            } else {
+                if (!sameSerial(source, cursor) ||
+                    u32(source, cursor + 18) != expectedSequenceValue ||
+                    ((headerType & 1) != 0) != (packetLengthValue > 0) ||
+                    (headerType & 2) != 0 || seenEosValue) {
+                    return reject(oggDiagnosticPage())
+                }
+            }
+            var granule = pageGranule(source, cursor)
+            if (granule >= 0 && granule > frameCountValue) {
+                frameCountValue = granule
+            }
+            var segmentTable = cursor + 27
+            var dataCursor = segmentTable + segmentCount
+            var dataLength = 0
+            for (var index = 0; index < segmentCount; index = index + 1) {
+                dataLength = dataLength + source[segmentTable + index]
+            }
+            if (dataCursor + dataLength > source.length) {
+                return reject(oggDiagnosticPage())
+            }
+            if (!pageCrcValid(
+                    source, cursor, 27 + segmentCount + dataLength)) {
+                return reject(oggDiagnosticPage())
+            }
+            var segmentCursor = dataCursor
+            for (var index = 0; index < segmentCount; index = index + 1) {
+                var length = source[segmentTable + index]
+                if (!appendSegment(source, segmentCursor, length)) {
+                    return reject(oggDiagnosticCapacity())
+                }
+                segmentCursor = segmentCursor + length
+                if (length < 255 && !completePacket()) {
+                    return reject(oggDiagnosticVorbis())
+                }
+            }
+            if ((headerType & 4) != 0) {
+                if (seenEosValue || packetLengthValue > 0 ||
+                    cursor + 27 + segmentCount + dataLength != source.length) {
+                    return reject(oggDiagnosticPage())
+                }
+                seenEosValue = true
+            }
+            expectedSequenceValue = expectedSequenceValue + 1
+            pageCountValue = pageCountValue + 1
+            cursor = dataCursor + dataLength
+        }
+        if (!seenBosValue || !seenEosValue || packetLengthValue != 0 ||
+            packetCountValue < 4 || !seenAudioValue || frameCountValue <= 0 ||
+            frameCountValue > oggMaxDurationFrames() ||
+            sampleRateValue <= 0 || channelCountValue <= 0) {
+            return reject(oggDiagnosticVorbis())
+        }
+        if (loopLengthFoundValue && !loopEndFoundValue) {
+            loopEndValue = loopStartValue + loopLengthValue()
+            loopEndFoundValue = true
+        }
+        if (loopStartValue < 0 || loopEndValue < 0 ||
+            loopStartValue > frameCountValue || loopEndValue > frameCountValue ||
+            (loopEndFoundValue && loopEndValue <= loopStartValue)) {
+            return reject(oggDiagnosticComment())
+        }
+        if (!loopEndFoundValue) { loopEndValue = frameCountValue }
+        canonicalWire = new Int[source.length]
+        for (var index = 0; index < source.length; index = index + 1) {
+            canonicalWire[index] = source[index]
+        }
+        canonicalLengthValue = source.length
+        sourceChecksumValue = checksum(source, source.length)
+        payloadChecksumValue = sourceChecksumValue
+        canonicalChecksumValue = checksum(canonicalWire, canonicalLengthValue)
+        metadataChecksumValue = 17
+        metadataChecksumValue = mix(metadataChecksumValue, sampleRateValue)
+        metadataChecksumValue = mix(metadataChecksumValue, channelCountValue)
+        metadataChecksumValue = mix(metadataChecksumValue, frameCountValue)
+        metadataChecksumValue = mix(metadataChecksumValue, pageCountValue)
+        metadataChecksumValue = mix(metadataChecksumValue, packetCountValue)
+        metadataChecksumValue = mix(metadataChecksumValue, loopStartValue)
+        metadataChecksumValue = mix(metadataChecksumValue, loopEndValue)
+        acceptedValue = true
+        diagnosticValue = oggDiagnosticNone()
+        return reopenCanonical()
+    }
+
+    Bool reopenCanonical() {
+        return acceptedValue && canonicalLengthValue > 0 &&
+            canonicalLengthValue == canonicalWire.length &&
+            isCapture(canonicalWire, 0) &&
+            checksum(canonicalWire, canonicalLengthValue) == canonicalChecksumValue
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int payloadChecksum() { return payloadChecksumValue }
+    Int metadataChecksum() { return metadataChecksumValue }
+    Int canonicalChecksum() { return canonicalChecksumValue }
+    Int sampleRate() { return sampleRateValue }
+    Int channelCount() { return channelCountValue }
+    Int frameCount() { return frameCountValue }
+    Int pageCount() { return pageCountValue }
+    Int packetCount() { return packetCountValue }
+    Int loopStartFrame() { return loopStartValue }
+    Int loopEndFrame() { return loopEndValue }
+    Int canonicalLength() { return canonicalLengthValue }
+    Int[] canonicalBytes() { return canonicalWire }
+    Int durationMillis() {
+        if (!acceptedValue || sampleRateValue <= 0) { return 0 }
+        return (frameCountValue / sampleRateValue) * 1000 +
+            ((frameCountValue % sampleRateValue) * 1000) / sampleRateValue
+    }
+}

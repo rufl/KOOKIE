@@ -123,6 +123,12 @@ class BoundedSourceFileKooker {
                 return reject(sourceFileDiagnosticSource())
             }
             output = kookerValue.wav().canonicalBytes()
+        } else if (kind == "ogg") {
+            if (!kookerValue.cookOgg(source)) {
+                resultValue = kookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = kookerValue.ogg().canonicalBytes()
         } else {
             return reject(sourceFileDiagnosticKind())
         }
@@ -140,4 +146,5 @@ class BoundedSourceFileKooker {
     BoundedBlockbenchIntake blockbench() { return kookerValue.blockbench() }
     BoundedPngIntake png() { return kookerValue.png() }
     BoundedWavIntake wav() { return kookerValue.wav() }
+    BoundedOggIntake ogg() { return kookerValue.ogg() }
 }

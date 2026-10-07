@@ -8,6 +8,7 @@ Int sourceKindQuakeMap() { return 5 }
 Int sourceKindBlockbench() { return 6 }
 Int sourceKindPng() { return 7 }
 Int sourceKindWav() { return 8 }
+Int sourceKindOgg() { return 9 }
 
 record SourceCookResult(
     Bool accepted,
@@ -34,6 +35,7 @@ class BoundedSourceKooker {
     BoundedBlockbenchIntake blockbenchValue
     BoundedPngIntake pngValue
     BoundedWavIntake wavValue
+    BoundedOggIntake oggValue
     SourceCookResult resultValue
 
     public constructor() {
@@ -46,6 +48,7 @@ class BoundedSourceKooker {
         blockbenchValue = BoundedBlockbenchIntake()
         pngValue = BoundedPngIntake(65536)
         wavValue = BoundedWavIntake()
+        oggValue = BoundedOggIntake()
         resultValue = rejected(sourceKindGlb(), 0)
     }
 
@@ -203,6 +206,20 @@ class BoundedSourceKooker {
         return true
     }
 
+    Bool cookOgg(Int[] source) {
+        resultValue = rejected(sourceKindOgg(), oggDiagnosticHeader())
+        if (!oggValue.read(source)) {
+            resultValue = rejected(sourceKindOgg(), oggValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, sourceKindOgg(), 0, oggValue.sourceChecksum(),
+            0, 0, oggValue.payloadChecksum(),
+            oggValue.metadataChecksum(), 0, oggValue.canonicalChecksum(),
+            oggValue.frameCount(), oggValue.channelCount())
+        return true
+    }
+
     SourceCookResult result() { return resultValue }
     BoundedExternalGlbSceneReader glb() { return glbValue }
     BoundedAuthoredCollision glbCollision() { return glbCollisionValue }
@@ -213,4 +230,5 @@ class BoundedSourceKooker {
     BoundedBlockbenchIntake blockbench() { return blockbenchValue }
     BoundedPngIntake png() { return pngValue }
     BoundedWavIntake wav() { return wavValue }
+    BoundedOggIntake ogg() { return oggValue }
 }

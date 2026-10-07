@@ -287,6 +287,8 @@ class EnemySpatialWorld {
             true, false, true, distance, endX, endY, endZ)
     }
 
+
+
     EnemyMoveResult moveToward(Int enemyId, Int targetId, Int step) {
         var enemyIndex = find(enemyId)
         var targetIndex = find(targetId)

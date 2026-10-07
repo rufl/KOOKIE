@@ -54,13 +54,17 @@ typedef struct {
     MIX_Mixer *mixer;
     MIX_Track *effects_track;
     MIX_Track *music_track;
+    MIX_Audio *music_ogg_audio;
+    MIX_Track *music_ogg_track;
     MIX_Audio *ui_audio[KOOKIE_AUDIO_UI_ASSET_COUNT];
     MIX_Track *ui_tracks[KOOKIE_AUDIO_UI_ASSET_COUNT];
     SDL_AudioStream *effects_stream;
     SDL_AudioStream *music_stream;
     SDL_AudioSpec spec;
+    Sint64 music_ogg_duration_frames;
     int effects_volume;
     int music_volume;
+    bool music_ogg_loaded;
     bool initialized;
 } AudioState;
 
@@ -436,7 +440,96 @@ static void render(SDL_Renderer *renderer, const AppState *app) {
 }
 
 
+static void audio_release_music_ogg(AudioState *audio) {
+    if (audio->music_ogg_track != NULL) {
+        MIX_DestroyTrack(audio->music_ogg_track);
+        audio->music_ogg_track = NULL;
+    }
+    if (audio->music_ogg_audio != NULL) {
+        MIX_DestroyAudio(audio->music_ogg_audio);
+        audio->music_ogg_audio = NULL;
+    }
+    audio->music_ogg_duration_frames = 0;
+    audio->music_ogg_loaded = false;
+}
+
+static bool audio_play_predecoded_track(
+    MIX_Track *track,
+    MIX_Audio *audio,
+    float gain,
+    int loops,
+    int loop_start_frame,
+    int loop_end_frame
+) {
+    if (track == NULL || audio == NULL || loops < -1 ||
+        loop_start_frame < 0) {
+        return false;
+    }
+    Sint64 duration = MIX_GetAudioDuration(audio);
+    if (duration <= 0 || loop_start_frame >= duration) {
+        return false;
+    }
+    Sint64 loop_end = loop_end_frame < 0 ?
+        duration : (Sint64)loop_end_frame;
+    if (loop_end <= loop_start_frame || loop_end > duration) {
+        return false;
+    }
+    SDL_PropertiesID options = SDL_CreateProperties();
+    if (options == 0 ||
+        !SDL_SetNumberProperty(
+            options, MIX_PROP_PLAY_LOOPS_NUMBER, (Sint64)loops) ||
+        !SDL_SetNumberProperty(
+            options, MIX_PROP_PLAY_LOOP_START_FRAME_NUMBER,
+            (Sint64)loop_start_frame) ||
+        !(loop_end == duration ||
+            SDL_SetNumberProperty(
+                options, MIX_PROP_PLAY_MAX_FRAME_NUMBER, loop_end)) ||
+        !MIX_SetTrackGain(track, gain) ||
+        !MIX_PlayTrack(track, options)) {
+        if (options != 0) SDL_DestroyProperties(options);
+        return false;
+    }
+    SDL_DestroyProperties(options);
+    return true;
+}
+
+static bool audio_load_music_ogg(AudioState *audio) {
+    const char *path = getenv("KOOKIE_AUDIO_MUSIC_OGG");
+    if (audio->mixer == NULL || path == NULL || path[0] == '\0') {
+        return false;
+    }
+    MIX_Audio *loaded_audio = MIX_LoadAudio(audio->mixer, path, true);
+    MIX_Track *loaded_track = loaded_audio == NULL ?
+        NULL : MIX_CreateTrack(audio->mixer);
+    Sint64 duration = loaded_audio == NULL ?
+        0 : MIX_GetAudioDuration(loaded_audio);
+    if (loaded_audio == NULL || loaded_track == NULL || duration <= 0 ||
+        !MIX_SetTrackAudio(loaded_track, loaded_audio) ||
+        !MIX_SetTrackGain(
+            loaded_track, (float)audio->music_volume / 100.0f)) {
+        if (loaded_track != NULL) MIX_DestroyTrack(loaded_track);
+        if (loaded_audio != NULL) MIX_DestroyAudio(loaded_audio);
+        return false;
+    }
+    audio_release_music_ogg(audio);
+    audio->music_ogg_audio = loaded_audio;
+    audio->music_ogg_track = loaded_track;
+    audio->music_ogg_duration_frames = duration;
+    audio->music_ogg_loaded = true;
+    return true;
+}
+
+static bool audio_play_music_loop(AudioState *audio) {
+    if (!audio->music_ogg_loaded) return false;
+    return audio_play_predecoded_track(
+        audio->music_ogg_track,
+        audio->music_ogg_audio,
+        (float)audio->music_volume / 100.0f,
+        -1, 0, -1);
+}
+
 static void audio_close(AudioState *audio) {
+    audio_release_music_ogg(audio);
     for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
         if (audio->ui_tracks[index] != NULL) {
             MIX_DestroyTrack(audio->ui_tracks[index]);
@@ -534,6 +627,12 @@ static bool audio_open(AudioState *audio) {
     audio->effects_volume = 80;
     audio->music_volume = 60;
     (void)audio_load_ui_assets(audio);
+    const char *music_path = getenv("KOOKIE_AUDIO_MUSIC_OGG");
+    if (music_path != NULL && music_path[0] != '\0' &&
+        (!audio_load_music_ogg(audio) || !audio_play_music_loop(audio))) {
+        audio_close(audio);
+        return false;
+    }
     return true;
 }
 
@@ -549,7 +648,10 @@ static bool audio_set_volumes(
             audio->effects_track, effects_volume / 100.0f) ||
         !MIX_SetTrackGain(
             audio->music_track, music_volume / 100.0f) ||
-        !audio_set_ui_gain(audio, effects_volume)) {
+        !audio_set_ui_gain(audio, effects_volume) ||
+        (audio->music_ogg_track != NULL &&
+            !MIX_SetTrackGain(
+                audio->music_ogg_track, music_volume / 100.0f))) {
         return false;
     }
     audio->effects_volume = effects_volume;
@@ -572,17 +674,31 @@ static void audio_fallback_click(AudioState *audio) {
     SDL_PutAudioStreamData(audio->effects_stream, samples, sizeof(samples));
 }
 
-static bool audio_play_ui_clip(AudioState *audio, int clip_id) {
+static bool audio_play_ui_clip_loop(
+    AudioState *audio,
+    int clip_id,
+    int loops,
+    int loop_start_frame,
+    int loop_end_frame
+) {
     int index = kookie_audio_ui_clip_index(clip_id);
     if (audio->mixer == NULL || index < 0) return false;
     if (audio->ui_tracks[index] == NULL) {
+        if (loops != 0) return false;
         audio_fallback_click(audio);
         return true;
     }
-    return MIX_SetTrackGain(
-            audio->ui_tracks[index],
-            audio->effects_volume / 100.0f) &&
-        MIX_PlayTrack(audio->ui_tracks[index], 0);
+    return audio_play_predecoded_track(
+        audio->ui_tracks[index],
+        audio->ui_audio[index],
+        audio->effects_volume / 100.0f,
+        loops,
+        loop_start_frame,
+        loop_end_frame);
+}
+
+static bool audio_play_ui_clip(AudioState *audio, int clip_id) {
+    return audio_play_ui_clip_loop(audio, clip_id, 0, 0, -1);
 }
 
 static uint64_t rotate_left(uint64_t value, unsigned int shift) {

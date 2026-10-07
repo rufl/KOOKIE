@@ -334,17 +334,18 @@ performance claims.
 The kooker accepts documented subsets rather than claiming general format
 compatibility:
 
-`GLB` · `Dust3D` · `Aseprite` · `VOX` · `MAP` · `Blockbench` · `PNG` · `WAV`
+`GLB` · `Dust3D` · `Aseprite` · `VOX` · `MAP` · `Blockbench` · `PNG` · `WAV` · `OGG Vorbis`
 
 It emits bounded canonical geometry/collision, RGBA8 images/atlases, `KCHR`
-characters, PCM16 audio and package-ready checksums. Products are reopened and
-validated before atomic publication; failed imports keep the prior generation
-active.
+characters, PCM16 audio, byte-preserving OGG Vorbis tracks and package-ready
+checksums. Products are reopened and validated before atomic publication; failed
+imports keep the prior generation active.
 
 ```bash
 scripts/kooker.sh cook blockbench character.bbmodel character.kchar
 scripts/kooker.sh cook png texture.png texture.rgba.png
 scripts/kooker.sh cook wav effect.wav effect.pcm16.wav
+scripts/kooker.sh cook ogg theme.ogg theme.canonical.ogg
 ```
 
 Limits are part of the contract, not temporary documentation omissions. See
@@ -367,8 +368,8 @@ for the production work still open.
 - Live reload covers validated scene/render products, not arbitrary Kof code,
   shaders, editor plugins or unbounded streaming.
 - Rich authoring beyond the bounded persistent Kutter, broader OS/GPU coverage,
-  streamed/compressed audio, HRTF/EFX and a general-purpose sandboxed extension
-  API remain unfinished.
+  streamed audio, codecs outside the bounded OGG Vorbis/WAVE set, HRTF/EFX and
+  a general-purpose sandboxed extension API remain unfinished.
 
 If a claim lacks a focused test or probe, it is not presented as complete.
 

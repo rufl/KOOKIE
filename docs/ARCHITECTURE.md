@@ -384,7 +384,8 @@ Packages contain:
 ### Supported authoring intake
 
 The file kooker accepts these authoring sources in addition to the canonical
-indexed glTF subset. They are **offline intake formats**, not runtime formats:
+indexed glTF subset. They are **offline intake sources**; canonical results are
+the only forms admitted to packages and runtime adapters:
 
 | Source | Implemented bounded contract | Canonical result |
 |---|---|---|
@@ -395,6 +396,7 @@ indexed glTF subset. They are **offline intake formats**, not runtime formats:
 | Blockbench `.bbmodel` | Exact format 5.0 JSON up to 1 MiB; cube-only character outliner with at most 64 UUID bones, 128 cuboids, 32 clips, 512 keyframes and depth 16; position/rotation/scale values bounded to ±100,000 and normalized to thousandths, clips up to 600 seconds, and `linear`/`step` interpolation; reject duplicate/unknown UUIDs, Molang, effects and unsupported interpolation | Reopened little-endian `KCHR` v1 with fixed-point cuboids, UUID-bound hierarchy/clips and source/character/bone/animation/canonical checksums; texture pixels and per-face UV/material data are outside `KCHR` v1 |
 | PNG `.png` | Up to 1 MiB, 64 chunks and 256×256 pixels; non-interlaced 8-bit color types 0/2/3/4/6, consecutive `IDAT`, zlib, filters 0–4, `PLTE`, `tRNS` and validated `tEXt`; verify CRC/Adler and reject Adam7, APNG, other depths and every other ancillary/unknown chunk | Reopened deterministic non-interlaced RGBA8 PNG plus source, decoded-pixel, metadata and canonical checksums |
 | PCM WAVE `.wav` | RIFF/WAVE up to 2 MiB and 32 chunks; exact 16-byte PCM `fmt ` with format tag `0x0001`, mono/stereo, 8–96 kHz, unsigned 8-bit or signed little-endian 16-bit samples, at most 30 seconds and 1 MiB of canonical PCM; admit and strip `JUNK`, `PAD ` and `LIST/INFO`, require zero odd-byte padding, and reject RF64, extensible/float/compressed audio, cues, loops and every other chunk | Reopened deterministic PCM16 WAVE with source, normalized-sample, stripped-metadata and canonical checksums |
+| OGG Vorbis `.ogg` | Ogg pages up to 16 MiB in one logical serial stream, at most 1,048,576 pages and 57,600,000 decoded sample frames; require version 0, monotonic sequence/continuation/BOS/EOS state, valid page CRCs, Vorbis identification/comment/setup headers, 8–96 kHz and 1–8 channels; accept optional `LOOPSTART`, `LOOPEND` or `LOOPLENGTH` comments only when the resulting sample-frame range is valid; reject truncated/malformed pages, non-Vorbis streams, CRC/sequence/header errors and out-of-range loop bounds | Byte-preserving OGG pages plus source, compressed-payload, Vorbis-metadata, canonical, decoded-frame and loop-bound checksums/counts |
 
 Canonical intake rules:
 
@@ -406,6 +408,9 @@ Canonical intake rules:
 - Prefer GLB for 3D interchange and PNG plus metadata for sprite interchange;
   OBJ/FBX or other exports are fallback conversion inputs, not runtime
   contracts.
+- Preserve admitted OGG pages byte-for-byte as the canonical compressed payload;
+  the native adapter predecodes that payload before sample-frame seeking or
+  looping.
 - Validate counts, dimensions, indices, palette references, image sizes,
   animation durations, finite numeric values and decoded memory before staging.
 - A failed or unsupported conversion retains the previous valid package.
@@ -433,6 +438,12 @@ registered by [RFC 2361](https://www.rfc-editor.org/rfc/rfc2361) and the
 RIFF/WAVE loading model documented by
 [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV). It emits static PCM16;
 streaming and compressed decoding remain outside this intake contract.
+
+The OGG reader validates the bounded Ogg page/packet envelope and Vorbis
+identification, comment and setup headers. It derives the decoded frame bound
+from page granules and carries optional sample-frame loop comments into the
+canonical result; SDL_mixer's pinned `stb_vorbis` backend performs the actual
+native decode.
 
 The kooker owns scene, collision, gameplay and package semantics. Native image,
 font and audio libraries only provide narrow decoding mechanisms.

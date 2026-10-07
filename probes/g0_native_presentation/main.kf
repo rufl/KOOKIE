@@ -95,8 +95,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_available(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_durable_publish_default(): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_durable_trace(): Int
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
 
 Int lobbyProtocolMagic() { return 1263488843 }
 Int lobbyMessageHello() { return 1 }

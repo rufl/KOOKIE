@@ -2,7 +2,7 @@
 
 [English](../../docs/G0_SCALAR_ADAPTER.md)
 
-Status: **implementado e exercitado na JVM/nativo e em apresentação isolada com janela real**. A fronteira C estreita cobre ciclo de vida SDL, streams SDL_mixer de efeitos/música, clips sintetizados limitados, upload/draw SPIR-V da cena com projeção em perspectiva e depth testing D16, e estado de eventos pertencente ao Kof. A sonda de apresentação reporta capacidade válida de swapchain, desenha e captura a arena autoral (142 vértices únicos, 178 triângulos, 534 vértices triangulados) e consome o clip `201` do evento autoritativo; evidências da máquina permanecem fora do repositório.
+Status: **implementado e exercitado na JVM/nativo e em apresentação isolada com janela real**. A fronteira C estreita cobre ciclo de vida SDL, streams SDL_mixer de efeitos/música, tracks OGG Vorbis pré-decodadas com limites exatos de loop por frame de amostra, clips sintetizados limitados, upload/draw SPIR-V da cena com projeção em perspectiva e depth testing D16, e estado de eventos pertencente ao Kof. A sonda de apresentação reporta capacidade válida de swapchain, desenha e captura a arena autoral (142 vértices únicos, 178 triângulos, 534 vértices triangulados) e consome o clip `201` do evento autoritativo; evidências da máquina permanecem fora do repositório.
 
 O gate atual de fonte/CI usa Kof `0.5.0-beta` no commit de fonte fixado; esta
 página registra o contrato limitado do adaptador, enquanto a evidência de
@@ -30,12 +30,14 @@ A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de ev
 - `SDL_PollEvent` achatado para tipo de evento mais dois campos escalares;
 - abertura/fechamento do SDL_mixer playback com tokens por slot+geração+tipo;
 - tracks independentes de efeitos/música sobre streams de áudio SDL;
+- tracks OGG Vorbis pré-decodadas de música/SFX com início/fim/quantidade
+  explícitos de loop em frames de amostra;
 - transferência PCM limitada sem callback para dentro do Kof;
 - criação/claim/release/destruição de dispositivo SDL_GPU SPIR-V por token;
 - primeiro shader, upload de textura, sampler, pipeline e draw no swapchain;
 - encerramento explícito de GPU, janelas, tracks/streams do mixer e SDL.
 
-O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades nem buffers de amostras pertencentes ao Kof. `probes/g0_native_adapter/main.kf` exercita criação/destruição de janela oculta, polling real de eventos SDL para `WindowStateTracker`, enfileiramento sintético de resize/foco, ciclo GPU opcional com o primeiro upload/draw, abertura/fechamento de dispositivo playback dummy, transferência PCM limitada de silêncio e clip e rejeição de token obsoleto.
+O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades nem buffers de amostras pertencentes ao Kof. `probes/g0_native_adapter/main.kf` exercita criação/destruição de janela oculta, polling real de eventos SDL para `WindowStateTracker`, enfileiramento sintético de resize/foco, ciclo GPU opcional com o primeiro upload/draw, abertura/fechamento de dispositivo playback dummy, transferência PCM limitada de silêncio e clip, pré-decodificação OGG configurada com limites exatos de loop para música/SFX e rejeição de token obsoleto.
 
 ## Estado de janela e entrada
 
@@ -62,10 +64,13 @@ O adaptador achata eventos SDL, enquanto o Kof possui a política de transição
 
 O adaptador comprova ciclo real do SDL_mixer, ganhos separados, transferência
 limitada de silêncio e clips sintetizados determinísticos (`clipId=1` e
-`201`–`203`, no máximo 480 frames estéreo F32). A apresentação seleciona o clip
-`201` do evento confirmado de eliminação. A FFI escalar ainda não transporta
-buffers Kof; propriedade de assets decodificados e vida de vozes em streaming
-continuam limites posteriores.
+`201`–`203`, no máximo 480 frames estéreo F32). `kookie_audio_load_music_ogg`
+usa `MIX_LoadAudio(..., true)`, portanto os bytes OGG admitidos são decodificados
+uma vez em uma track mantida e buscável. As chamadas de loop de música e SFX
+passam propriedades explícitas de início/fim/quantidade de frames ao SDL_mixer;
+a sonda nativa exercita um loop infinito da track completa e um loop limitado
+de SFX. A fila Kof ainda não passa buffers de amostras pertencentes ao Kof pela
+FFI escalar; a vida de vozes em streaming continua sendo um limite posterior.
 
 ## Ciclo de vida GPU
 
@@ -74,8 +79,8 @@ O adaptador solicita suporte SPIR-V, cria um dispositivo SDL_GPU, faz claim de u
 ## Prova de regressão
 
 `src/main.kf` contém o smoke executável e contratos focados de tokens de
-recursos, ciclo de vida plataforma/áudio, staging de frame e transação
-menu/opções/lobby do GameShell.
+recursos, ciclo de vida de plataforma/áudio, entrada de fonte OGG, staging de
+frame e transação menu/opções/lobby do GameShell.
 
 `scripts/verify_exception.sh` preserva o reproduzível do lifetime de exceções nativas e seus controles negativos JVM/nativo: a JVM termina na asserção falha; o nativo atualmente chega a `unreachable` com exit 0. Isso é um registro de defeito do compilador, não uma garantia de limpeza do engine.
 
@@ -94,8 +99,8 @@ atribuir um `Int` extern dentro daquele loop Kof emitia uma chamada inválida a
 
 ## Próximo limite de comprovação
 
-Trabalho posterior inclui propriedade de assets decodificados, vozes em
-streaming, notificação real de perda de dispositivo SDL e retirement limitado
-sob carga sustentada. Não converta ponteiros SDL em tokens inteiros, adicione
-callbacks para dentro do Kof nem infira esses contratos a partir da sonda
-qualificada de cena/clip.
+Trabalho posterior inclui vozes em streaming, notificação real de perda de
+dispositivo SDL e retirement limitado de recursos sob carga sustentada. Não
+converta ponteiros SDL em tokens inteiros, adicione callbacks para dentro do
+Kof nem infira esses contratos a partir da sonda qualificada de
+cena/clip/OGG.

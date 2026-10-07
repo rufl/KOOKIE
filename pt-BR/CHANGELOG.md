@@ -3,6 +3,26 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos entrada OGG Vorbis limitada ao kooker nativo de desenvolvimento
+  e empacotado: estado de CRC/sequência/continuação/BOS/EOS das páginas,
+  cabeçalhos Vorbis de identificação/comentário/setup, limite de frames
+  decodificados e limites opcionais de loop em frames são validados antes de
+  reter o payload preservado byte a byte. O caminho `stb_vorbis` fixado do
+  SDL_mixer pré-decodifica música OGG e os SFX de UI distribuídos; controles
+  explícitos de início/fim/quantidade em frames evitam loops com lacunas por
+  aproximação de relógio.
+- Fechamos a lacuna sensível à pressão do p95 do servidor dedicado G5. A carga
+  autoritativa agora usa um passo escalar de inimigo sem um registro
+  `EnemyAttackDecision` por tick, armazena slots/coordenadas estáveis do alvo
+  dos projéteis em cache e agrupa blocos de checksum dos pickups e deltas da
+  cena de referência. A saída JVM/nativa continua com checksum `217802` e
+  `520690`; o gate nativo focado com 128 ticks de aquecimento e 512 medidos
+  passou em p50/p95/p99/máximo de `3805/3925/3958/4936us` sob o orçamento de
+  `4000us`. A verificação do pacote usa a mesma janela de qualificação.
+- Fechamos a lacuna de empacotamento Linux da ponte de save segura para PE:
+  `libkookie_persistence_adapter.so` agora é distribuída ao lado do adaptador
+  SDL, fazendo staging, publicação e confirmação usarem o mesmo estado nativo
+  de persistência em vez de depender de uma biblioteca FFI ausente.
 - Concluímos o contrato limitado de publicação de save durável contra crash do
   P2. O `BoundedSessionSaveCoordinator` Kof agora codifica progressão de nível
   e autoridade G3, prepara paths arbitrários, carrega/restaura seções

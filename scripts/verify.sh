@@ -132,9 +132,11 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
     native/kookie_transport.c \
-    native/kookie_persistence_adapter.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
+  gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    native/kookie_persistence_adapter.c \
+    -o "$adapter_build_dir/libkookie_persistence_adapter.so"
   glslc -fshader-stage=vert native/shaders/g0_triangle.vert \
     -o "$adapter_build_dir/g0_triangle.vert.spv"
   glslc -fshader-stage=vert native/shaders/g5_triangle_instance.vert \
@@ -192,6 +194,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
     KOOKIE_PRESENTATION_SMOKE="${KOOKIE_REQUIRE_PRESENTATION:-0}" \
     KOOKIE_SCREENSHOT_PATH="${KOOKIE_SCREENSHOT_PATH:-}" \
+    KOOKIE_AUDIO_MUSIC_OGG="$root_dir/assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg" \
     KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
     SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
     "${presentation_command[@]}" \

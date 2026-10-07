@@ -307,10 +307,10 @@ procedência permanente de release e publicação aprovada.
 
 Amplitude completa de ARPG, suporte geral a formatos de autoria, relay,
 recuperação de NAT simétrico, segurança WAN de produção, HRTF/EFX, áudio em
-streaming/comprimido, sandbox geral de extensões, macOS/ARM e cobertura ampla
-de GPUs continuam milestones separados. Eles não devem ampliar a afirmação
-deste jogo de gansos limitado, mas não bloqueiam a implementação delimitada na
-fonte.
+streaming e codecs fora do conjunto limitado OGG Vorbis/WAVE, sandbox geral de
+extensões, macOS/ARM e cobertura ampla de GPUs continuam milestones separados.
+Eles não devem ampliar a afirmação deste jogo de gansos limitado, mas não
+bloqueiam a implementação delimitada na fonte.
 
 O plano de implementação acompanha este trabalho como **D1 — Release de demo
 jogável** em [ENGINE_PLAN.md](ENGINE_PLAN.md). Os comandos de build e

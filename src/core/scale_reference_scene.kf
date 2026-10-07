@@ -155,17 +155,6 @@ class BoundedScaleReferenceScene {
         return true
     }
 
-    Int applyChecksumDelta(
-        Int current, Int prior, Int updated, Long weight
-    ) {
-        var delta: Long = updated - prior
-        delta = delta % 1000003L
-        if (delta < 0L) { delta = delta + 1000003L }
-        var result: Long = current
-        result = result + (delta * weight) % 1000003L
-        result = result % 1000003L
-        return result.toInt()
-    }
 
     Bool step(Int tick, Int lightBudget, Int effectBudget) {
         if (!readyValue || tick < 0 || lightBudget <= 0 ||
@@ -173,14 +162,15 @@ class BoundedScaleReferenceScene {
             effectBudget > effectXs.length) {
             return false
         }
+        var checksumDelta: Long = 0L
         for (var work = 0; work < lightBudget; work = work + 1) {
             var lightIndex = lightCursor
             var priorIntensity = lightIntensities[lightIndex]
             var updatedIntensity = 55 + ((tick + lightIndex * 7) % 46)
             lightIntensities[lightIndex] = updatedIntensity
-            dynamicChecksumValue = applyChecksumDelta(
-                dynamicChecksumValue, priorIntensity, updatedIntensity,
-                lightChecksumWeights[lightIndex])
+            var lightDelta: Long = updatedIntensity - priorIntensity
+            checksumDelta = checksumDelta +
+                lightDelta * lightChecksumWeights[lightIndex]
             lightCursor = lightCursor + 1
             if (lightCursor == lightXs.length) { lightCursor = 0 }
         }
@@ -190,12 +180,24 @@ class BoundedScaleReferenceScene {
             var updatedFrame =
                 (priorFrame + 1 + (tick % 2)) % 16
             effectFrames[effectIndex] = updatedFrame
-            dynamicChecksumValue = applyChecksumDelta(
-                dynamicChecksumValue, priorFrame, updatedFrame,
-                effectChecksumWeights[effectIndex])
+            var effectDelta: Long = updatedFrame - priorFrame
+            checksumDelta = checksumDelta +
+                effectDelta * effectChecksumWeights[effectIndex]
             effectCursor = effectCursor + 1
             if (effectCursor == effectFrames.length) { effectCursor = 0 }
         }
+        var normalizedDelta = checksumDelta % 1000003L
+        if (normalizedDelta < 0L) {
+            normalizedDelta = normalizedDelta + 1000003L
+        }
+        var nextChecksum = dynamicChecksumValue + normalizedDelta.toInt()
+        if (nextChecksum >= 1000003) {
+            nextChecksum = nextChecksum - 1000003
+        }
+        if (nextChecksum < 0) {
+            nextChecksum = nextChecksum + 1000003
+        }
+        dynamicChecksumValue = nextChecksum
         return true
     }
 

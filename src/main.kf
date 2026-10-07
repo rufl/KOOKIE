@@ -6466,6 +6466,54 @@ test "G4 WAV intake normalizes bounded PCM audio", "wav" {
         kooker.result().diagnostic() == wavDiagnosticData(),
         "PCM data must contain complete interleaved frames")
 }
+test "G4 OGG intake preserves Vorbis pages and deterministic loop bounds", "ogg" {
+    var source = File(
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg"
+    ).readBytes()
+    assert(source.length > 0, "bundled OGG fixture must be readable")
+    var kooker = BoundedSourceKooker()
+    var accepted = kooker.cookOgg(source)
+    assert(accepted,
+        "bounded OGG must accept a real Vorbis stream")
+    var result = kooker.result()
+    var audio = kooker.ogg()
+    var canonical = audio.canonicalBytes()
+    var canonicalMatches = true
+    for (var index = 0; index < source.length; index = index + 1) {
+        if (canonical[index] != source[index]) { canonicalMatches = false }
+    }
+    assert(result.accepted() && result.sourceKind() == sourceKindOgg() &&
+        canonicalMatches &&
+        result.materialChecksum() == audio.payloadChecksum() &&
+        result.metadataChecksum() == audio.metadataChecksum() &&
+        result.visibilityChecksum() == audio.canonicalChecksum() &&
+        result.primaryCount() == audio.frameCount() &&
+        result.secondaryCount() == audio.channelCount() &&
+        audio.sampleRate() == 48000 && audio.channelCount() == 2 &&
+        audio.frameCount() > 0 && audio.pageCount() > 0 &&
+        audio.packetCount() >= 4 && audio.loopStartFrame() == 0 &&
+        audio.loopEndFrame() == audio.frameCount() &&
+        canonical.length == source.length && audio.reopenCanonical(),
+        "OGG cooking must retain bounded compressed bytes and frame bounds")
+    var canonicalChecksum = audio.canonicalChecksum()
+    assert(kooker.cookOgg(canonical) &&
+        kooker.ogg().canonicalChecksum() == canonicalChecksum &&
+        kooker.ogg().canonicalLength() == canonical.length,
+        "canonical OGG must be idempotent")
+    var corrupt = new Int[source.length]
+    for (var index = 0; index < source.length; index = index + 1) {
+        corrupt[index] = source[index]
+    }
+    corrupt[0] = 0
+    assert(!kooker.cookOgg(corrupt) &&
+        kooker.result().diagnostic() == oggDiagnosticPage(),
+        "OGG page capture corruption must reject")
+    corrupt[0] = source[0]
+    corrupt[22] = (corrupt[22] + 1) % 256
+    assert(!kooker.cookOgg(corrupt) &&
+        kooker.result().diagnostic() == oggDiagnosticPage(),
+        "OGG page CRC corruption must reject")
+}
 
 test "trusted hooks subscribe to broader typed domain events" {
     var extensions = BoundedExtensionRegistry(1, 1, 2, 2)

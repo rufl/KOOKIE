@@ -392,8 +392,8 @@ Os pacotes contêm:
 ### Fontes de autoria aceitas
 
 O kooker de arquivos aceita estas fontes de autoria, além do subconjunto
-canônico de glTF indexado. Elas são **formatos de entrada offline**, não
-formatos de runtime:
+canônico de glTF indexado. Elas são **fontes de entrada offline**; somente os
+resultados canônicos entram em pacotes e adaptadores de runtime:
 
 | Fonte | Contrato limitado implementado | Resultado canônico |
 |---|---|---|
@@ -404,6 +404,7 @@ formatos de runtime:
 | Blockbench `.bbmodel` | JSON do formato 5.0 exato, de até 1 MiB; outliner de personagem somente com cubos, com no máximo 64 ossos UUID, 128 cuboides, 32 clips, 512 keyframes e profundidade 16; valores de posição/rotação/escala limitados a ±100.000 e normalizados em milésimos, clips de até 600 segundos e interpolação `linear`/`step`; rejeitar UUIDs duplicados/desconhecidos, Molang, efeitos e interpolação incompatível | `KCHR` v1 little-endian reaberto, com cuboides em ponto fixo, hierarquia/clips vinculados por UUID e checksums de fonte/personagem/ossos/animação/canônico; pixels de textura e dados UV/material por face ficam fora do `KCHR` v1 |
 | PNG `.png` | Até 1 MiB, 64 chunks e 256×256 pixels; tipos de cor 0/2/3/4/6 de 8 bits sem entrelaçamento, `IDAT` consecutivo, zlib, filtros 0–4, `PLTE`, `tRNS` e `tEXt` validado; verificar CRC/Adler e rejeitar Adam7, APNG, outras profundidades e qualquer outro chunk auxiliar/desconhecido | PNG RGBA8 determinístico, sem entrelaçamento e reaberto, mais checksums de fonte, pixels decodificados, metadados e canônico |
 | WAVE PCM `.wav` | RIFF/WAVE de até 2 MiB e 32 chunks; `fmt ` PCM exato de 16 bytes com tag `0x0001`, mono/estéreo, 8–96 kHz, amostras unsigned de 8 bits ou signed little-endian de 16 bits, no máximo 30 segundos e 1 MiB de PCM canônico; admitir e remover `JUNK`, `PAD ` e `LIST/INFO`, exigir padding ímpar zero e rejeitar RF64, extensível/float/comprimido, cues, loops e qualquer outro chunk | WAVE PCM16 determinístico e reaberto, com checksums de fonte, amostras normalizadas, metadados removidos e canônico |
+| OGG Vorbis `.ogg` | Páginas Ogg de até 16 MiB em um único stream lógico serial, no máximo 1.048.576 páginas e 57.600.000 frames de amostras decodificados; exigir versão 0, sequência/continuação/BOS/EOS monotônicas, CRCs de página válidos, cabeçalhos Vorbis de identificação/comentário/setup, 8–96 kHz e 1–8 canais; aceitar comentários opcionais `LOOPSTART`, `LOOPEND` ou `LOOPLENGTH` somente quando o intervalo resultante de frames for válido; rejeitar páginas truncadas/malformadas, streams não Vorbis, erros de CRC/sequência/cabeçalho e limites de loop fora da faixa | Páginas OGG preservadas byte a byte, mais checksums/contagens da fonte, payload comprimido, metadados Vorbis, canônico, frames decodificados e limites de loop |
 
 Regras canônicas de entrada:
 
@@ -416,6 +417,9 @@ Regras canônicas de entrada:
 - Preferir GLB para intercâmbio 3D e PNG mais metadados para intercâmbio de
   sprites; OBJ/FBX ou outras exportações são entradas de conversão alternativas,
   não contratos de runtime.
+- Preservar as páginas OGG admitidas byte a byte como payload comprimido
+  canônico; o adaptador nativo pré-decodifica esse payload antes de buscar ou
+  fazer loop por frame de amostra.
 - Validar contagens, dimensões, índices, referências de paleta, tamanhos de
   imagem, durações de animação, valores numéricos finitos e memória decodificada
   antes do staging.
@@ -446,6 +450,12 @@ registrada pela [RFC 2361](https://www.rfc-editor.org/rfc/rfc2361) e o modelo de
 carregamento RIFF/WAVE documentado por
 [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV). Ele emite PCM16
 estático; streaming e decodificação comprimida ficam fora deste contrato.
+
+O leitor OGG valida o envelope limitado de páginas/pacotes Ogg e os cabeçalhos
+Vorbis de identificação, comentário e setup. Ele deriva o limite de frames
+decodificados dos granules das páginas e leva comentários opcionais de loop em
+frames para o resultado canônico; o backend `stb_vorbis` fixado do SDL_mixer
+faz a decodificação nativa real.
 
 O kooker é responsável pela semântica de cenas, colisões, gameplay e pacotes.
 Bibliotecas nativas de imagem, fontes e áudio fornecem apenas mecanismos

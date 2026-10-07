@@ -390,6 +390,16 @@ bundle_audio_assets() {
     echo "package_kookie: expected 14 UI audio assets, found $count" >&2
     exit 1
   }
+  for category in music sfx; do
+    source_root="$ROOT_DIR/assets/audio/$category"
+    [[ -d "$source_root" ]] || continue
+    destination_root="$PACKAGE_ROOT/assets/audio/$category"
+    mkdir -p "$destination_root"
+    for source in "$source_root"/*.ogg; do
+      [[ -f "$source" ]] || continue
+      cp -- "$source" "$destination_root/$(basename "$source")"
+    done
+  done
 }
 
 bundle_font_assets
@@ -555,7 +565,7 @@ bundle_linux_kooker() {
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 usage() {
-  echo "Usage: kooker cook <glb|aseprite|vox|map|blockbench|png|wav> <input> <output>" >&2
+  echo "Usage: kooker cook <glb|aseprite|vox|map|blockbench|png|wav|ogg> <input> <output>" >&2
   echo "       kooker cook dust3d <input.ds3> <export.glb> <output>" >&2
   exit 2
 }
@@ -570,7 +580,7 @@ case "$kind" in
   blockbench) code=6 ;;
   png) code=7 ;;
   wav) code=8 ;;
-  *) usage ;;
+  ogg) code=9 ;;
 esac
 if [ "$kind" = "dust3d" ]; then
   [ "$#" -eq 5 ] || usage
@@ -922,9 +932,11 @@ else
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
     "$ROOT_DIR/native/kookie_transport.c" \
-    "$ROOT_DIR/native/kookie_persistence_adapter.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
     "${SDL_FLAGS[@]}" -lm
+  cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    "$ROOT_DIR/native/kookie_persistence_adapter.c" \
+    -o "$PACKAGE_ROOT/build/libkookie_persistence_adapter.so"
   glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
     -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
   glslc -fshader-stage=vert \

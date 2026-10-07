@@ -311,10 +311,11 @@ before calling it a public release.
 ## Explicitly not blocking this demo
 
 Full ARPG breadth, arbitrary authoring-format support, relay service, symmetric
-NAT recovery, production WAN security, HRTF/EFX, streamed/compressed audio, a
-general extension sandbox, macOS/ARM support and broad GPU coverage remain
-separate milestones. They must not be used to expand this bounded goose game
-claim, but they also do not block the scoped source implementation.
+NAT recovery, production WAN security, HRTF/EFX, streamed audio and codecs
+outside the bounded OGG Vorbis/WAVE set, a general extension sandbox, macOS/ARM
+support and broad GPU coverage remain separate milestones. They must not be used
+to expand this bounded goose game claim, but they also do not block the scoped
+source implementation.
 
 The implementation plan tracks this work as **D1 — Playable demo release** in
 [ENGINE_PLAN.md](../docs/ENGINE_PLAN.md). Build and qualification commands remain

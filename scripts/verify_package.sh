@@ -130,8 +130,8 @@ grep -Fq 'content_kooker=native-bounded-intake-cli' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 SERVER_LOG="$WORK_DIR/server.log"
-KOOKIE_SERVER_WARMUP_TICKS=64 \
-KOOKIE_SERVER_TICKS=128 \
+KOOKIE_SERVER_WARMUP_TICKS=128 \
+KOOKIE_SERVER_TICKS=512 \
 KOOKIE_SERVER_RSS_SAMPLE_TICKS=32 \
 KOOKIE_SERVER_P95_BUDGET_US="$p95_budget_us" \
   "$SERVER" >"$SERVER_LOG"
@@ -150,12 +150,12 @@ def paired(label):
     index = lines.index(label)
     return lines[index + 1]
 
-assert paired("warmup-ticks") == "64"
-assert paired("measured-ticks") == "128"
+assert paired("warmup-ticks") == "128"
+assert paired("measured-ticks") == "512"
 assert paired("simulation-budget-pass") == "true"
 assert int(paired("simulation-budget-us")) == p95_budget_us
 assert int(paired("simulation-p95-us")) <= p95_budget_us
-assert paired("rss-samples") == "5"
+assert paired("rss-samples") == "17"
 assert paired("rss-plateau") == "true"
 assert paired("realtime") == "false"
 PY
@@ -226,6 +226,34 @@ if "$KOOKER" cook wav "$WORK_DIR/invalid.wav" "$WORK_DIR/rejected.wav" \
 fi
 grep -Fq 'cook-rejected diagnostic=3 source=1' \
   "$WORK_DIR/kooker-invalid.log"
+OGG_SOURCE="$ROOT_DIR/assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg"
+OGG_COOKED="$WORK_DIR/cooked.ogg"
+OGG_REOPENED="$WORK_DIR/reopened.ogg"
+OGG_LOG="$WORK_DIR/kooker-ogg.log"
+"$KOOKER" cook ogg "$OGG_SOURCE" "$OGG_COOKED" >"$OGG_LOG" 2>&1
+grep -Fq 'cooked kind=9' "$OGG_LOG"
+grep -Fq 'sample-rate=48000 channels=2' "$OGG_LOG"
+"$KOOKER" cook ogg "$OGG_COOKED" "$OGG_REOPENED" \
+  >"$WORK_DIR/kooker-ogg-reopen.log" 2>&1
+cmp "$OGG_COOKED" "$OGG_REOPENED"
+python3 - "$OGG_COOKED" <<'PY'
+import pathlib
+import sys
+
+payload = pathlib.Path(sys.argv[1]).read_bytes()
+assert payload.startswith(b"OggS")
+assert b"\x01vorbis" in payload
+assert b"\x03vorbis" in payload
+assert b"\x05vorbis" in payload
+PY
+printf 'OggS' >"$WORK_DIR/invalid.ogg"
+if "$KOOKER" cook ogg "$WORK_DIR/invalid.ogg" "$WORK_DIR/rejected.ogg" \
+   >"$WORK_DIR/kooker-ogg-invalid.log" 2>&1; then
+  echo 'package smoke: native kooker accepted a truncated OGG' >&2
+  exit 1
+fi
+grep -Fq 'cook-rejected diagnostic=3 source=1' \
+  "$WORK_DIR/kooker-ogg-invalid.log"
 for headless_binary in \
   "$SERVER_BINARY" "$HEADLESS_ADAPTER" "$PERSISTENCE_ADAPTER" "$KOOKER_BINARY" \
   "$SIMD_BINARY" "$SIMD_LIBRARY"; do
@@ -289,6 +317,7 @@ if command -v glslc >/dev/null &&
   test -x "$PRESENTATION_ROOT/kookie-server"
   test -x "$PRESENTATION_ROOT/kookie-server.bin"
   test -f "$PRESENTATION_ROOT/build/libkookie_sdl_adapter.so"
+  test -f "$PRESENTATION_ROOT/build/libkookie_persistence_adapter.so"
   test -f "$PRESENTATION_ROOT/lib/libkookie_headless_adapter.so"
   test -x "$PRESENTATION_ROOT/kookie-simd-bench"
   test -x "$PRESENTATION_ROOT/kookie-simd-bench.bin"

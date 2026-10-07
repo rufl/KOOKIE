@@ -308,6 +308,7 @@ class AuthoritativeEnemySession {
     SpatialImpactQueue spatialImpacts
     Int[] spatialImpactScratch
     EnemySteeringResult lastEnemySteering
+    Int lastEnemyStateValue
 
     public constructor(Int actorCapacity, Int encounterCapacity) {
         combat = CombatWorld(actorCapacity, actorCapacity)
@@ -336,6 +337,7 @@ class AuthoritativeEnemySession {
         spatialImpactScratch = new Int[8]
         lastEnemySteering = EnemySteeringResult(
             false, false, false, 0, 0, 0, 0, 0, 0)
+        lastEnemyStateValue = 0
         for (var index = 0; index < actorCapacity; index = index + 1) {
             linkedEnemyIds[index] = 0
             linkedEncounterIds[index] = 0
@@ -845,6 +847,27 @@ class AuthoritativeEnemySession {
             true, enemyId, step.targetId(), tick, resolution.accepted(),
             resolution.actionId(), resolution.applied(), resolution.died())
     }
+
+    Bool stepEnemyForBudget(
+        Int enemyId, Int tick, Int targetId,
+        Bool targetVisible, Int distance, Int critical
+    ) {
+        var step = enemies.step(
+            enemyId, tick, targetId, targetVisible, distance)
+        if (!step.accepted()) {
+            return false
+        }
+        lastEnemyStateValue = step.state()
+        if (!step.attackReady()) {
+            return true
+        }
+        // stepEnemy keeps the dispatch accepted after a resolution rejection.
+        combat.resolveHitscan(
+            enemyId, step.targetId(), tick, distance, critical)
+        return true
+    }
+
+    Int lastEnemyState() { return lastEnemyStateValue }
     EnemySteeringResult steerEnemySpatial(
         Int enemyId, Int targetId, Int step
     ) {
@@ -1121,6 +1144,13 @@ class AuthoritativeEnemySession {
         spatialProjectileHitsValue = 0
         spatialProjectileBlockedValue = 0
         var moved = 0
+        // Projectile advancement does not mutate spatial actor positions.
+        // Cache the repeated target lookup and coordinates for this budget.
+        var cachedTargetId = 0
+        var cachedTargetSlot = -1
+        var cachedTargetX = 0
+        var cachedTargetY = 0
+        var cachedTargetZ = 0
         for (var visited = 0; visited < limit; visited = visited + 1) {
             var index = start + visited
             if (index >= spatialProjectileActive.length) {
@@ -1131,7 +1161,18 @@ class AuthoritativeEnemySession {
             }
             var projectileId = spatialProjectileIds[index]
             var targetId = spatialProjectileTargets[index]
-            if (!spatial.hasPosition(targetId)) {
+            var targetSlot = cachedTargetSlot
+            if (targetId != cachedTargetId) {
+                targetSlot = spatial.positionSlot(targetId)
+                cachedTargetId = targetId
+                cachedTargetSlot = targetSlot
+                if (targetSlot >= 0) {
+                    cachedTargetX = spatial.positionXAt(targetSlot)
+                    cachedTargetY = spatial.positionYAt(targetSlot)
+                    cachedTargetZ = spatial.positionZAt(targetSlot)
+                }
+            }
+            if (targetSlot < 0) {
                 stageSpatialImpact(
                     3, projectileId, spatialProjectileSources[index], targetId)
                 stageSpatialImpactPosition(
@@ -1147,11 +1188,11 @@ class AuthoritativeEnemySession {
             var startX = spatialProjectileX[index]
             var startY = spatialProjectileY[index]
             var startZ = spatialProjectileZ[index]
-            var targetX = spatial.positionX(targetId)
-            var targetY = spatial.positionY(targetId)
-            var targetZ = spatial.positionZ(targetId)
-            var distance = spatial.distanceFromPointToActor(
-                startX, startY, startZ, targetId)
+            var targetX = cachedTargetX
+            var targetY = cachedTargetY
+            var targetZ = cachedTargetZ
+            var distance = spatial.distanceBetween(
+                startX, startY, startZ, targetX, targetY, targetZ)
             if (spatialProjectileRecycleDistance > 0 &&
                 distance <= spatialProjectileRecycleDistance) {
                 var sourceId = spatialProjectileSources[index]
@@ -1163,8 +1204,8 @@ class AuthoritativeEnemySession {
                 spatialProjectileY[index] = startY
                 spatialProjectileZ[index] = startZ
                 spatialProjectileTravelled[index] = 0
-                distance = spatial.distanceFromPointToActor(
-                    startX, startY, startZ, targetId)
+                distance = spatial.distanceBetween(
+                    startX, startY, startZ, targetX, targetY, targetZ)
             }
             var remaining = spatialProjectileRanges[index] -
                 spatialProjectileTravelled[index]

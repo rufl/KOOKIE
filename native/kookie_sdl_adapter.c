@@ -69,13 +69,17 @@ typedef struct {
     MIX_Mixer *mixer;
     MIX_Track *effects_track;
     MIX_Track *music_track;
+    MIX_Audio *music_ogg_audio;
+    MIX_Track *music_ogg_track;
     MIX_Audio *ui_audio[KOOKIE_AUDIO_UI_ASSET_COUNT];
     MIX_Track *ui_tracks[KOOKIE_AUDIO_UI_ASSET_COUNT];
     SDL_AudioStream *effects_stream;
     SDL_AudioStream *music_stream;
     SDL_AudioSpec spec;
+    Sint64 music_ogg_duration_frames;
     int effects_volume;
     int music_volume;
+    bool music_ogg_loaded;
     bool mixer_initialized;
     unsigned int generation;
 } KookieAudioSlot;
@@ -163,6 +167,19 @@ static void kookie_gpu_reload_reset(int active_generation) {
 
 static KookieWindowSlot window_slots[KOOKIE_MAX_WINDOWS];
 static KookieAudioSlot audio_slot;
+static void kookie_audio_release_music_ogg(void) {
+    if (audio_slot.music_ogg_track != NULL) {
+        MIX_DestroyTrack(audio_slot.music_ogg_track);
+        audio_slot.music_ogg_track = NULL;
+    }
+    if (audio_slot.music_ogg_audio != NULL) {
+        MIX_DestroyAudio(audio_slot.music_ogg_audio);
+        audio_slot.music_ogg_audio = NULL;
+    }
+    audio_slot.music_ogg_duration_frames = 0;
+    audio_slot.music_ogg_loaded = false;
+}
+
 static void kookie_audio_release_ui_assets(void) {
     for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
         if (audio_slot.ui_tracks[index] != NULL) {
@@ -178,6 +195,7 @@ static void kookie_audio_release_ui_assets(void) {
 static void kookie_audio_release(void) {
     unsigned int generation = audio_slot.generation;
     bool mixer_initialized = audio_slot.mixer_initialized;
+    kookie_audio_release_music_ogg();
     kookie_audio_release_ui_assets();
     if (audio_slot.effects_track != NULL) {
         MIX_DestroyTrack(audio_slot.effects_track);
@@ -3007,6 +3025,108 @@ int kookie_consume_mouse_wheel_y(void) {
     return value;
 }
 
+static bool kookie_audio_play_predecoded_track(
+    MIX_Track *track,
+    MIX_Audio *audio,
+    float gain,
+    int loops,
+    int loop_start_frame,
+    int loop_end_frame
+) {
+    if (track == NULL || audio == NULL || loops < -1 ||
+        loop_start_frame < 0) {
+        return false;
+    }
+    Sint64 duration = MIX_GetAudioDuration(audio);
+    if (duration <= 0 || loop_start_frame >= duration) {
+        return false;
+    }
+    Sint64 loop_end = loop_end_frame < 0 ?
+        duration : (Sint64)loop_end_frame;
+    if (loop_end <= loop_start_frame || loop_end > duration) {
+        return false;
+    }
+    SDL_PropertiesID options = SDL_CreateProperties();
+    if (options == 0 ||
+        !SDL_SetNumberProperty(
+            options, MIX_PROP_PLAY_LOOPS_NUMBER, (Sint64)loops) ||
+        !SDL_SetNumberProperty(
+            options, MIX_PROP_PLAY_LOOP_START_FRAME_NUMBER,
+            (Sint64)loop_start_frame) ||
+        !(loop_end == duration ||
+            SDL_SetNumberProperty(
+                options, MIX_PROP_PLAY_MAX_FRAME_NUMBER, loop_end)) ||
+        !MIX_SetTrackGain(track, gain) ||
+        !MIX_PlayTrack(track, options)) {
+        if (options != 0) {
+            SDL_DestroyProperties(options);
+        }
+        return false;
+    }
+    SDL_DestroyProperties(options);
+    return true;
+}
+
+static bool kookie_audio_music_path_configured(void) {
+    const char *path = getenv("KOOKIE_AUDIO_MUSIC_OGG");
+    return path != NULL && path[0] != '\0';
+}
+
+static bool kookie_audio_load_music_ogg_asset(void) {
+    const char *path = getenv("KOOKIE_AUDIO_MUSIC_OGG");
+    if (audio_slot.mixer == NULL || path == NULL || path[0] == '\0') {
+        return false;
+    }
+    MIX_Audio *audio = MIX_LoadAudio(audio_slot.mixer, path, true);
+    MIX_Track *track = audio == NULL ?
+        NULL : MIX_CreateTrack(audio_slot.mixer);
+    Sint64 duration = audio == NULL ? 0 : MIX_GetAudioDuration(audio);
+    if (audio == NULL || track == NULL || duration <= 0 ||
+        !MIX_SetTrackAudio(track, audio) ||
+        !MIX_SetTrackGain(
+            track, (float)audio_slot.music_volume / 100.0f)) {
+        if (track != NULL) {
+            MIX_DestroyTrack(track);
+        }
+        if (audio != NULL) {
+            MIX_DestroyAudio(audio);
+        }
+        return false;
+    }
+    kookie_audio_release_music_ogg();
+    audio_slot.music_ogg_audio = audio;
+    audio_slot.music_ogg_track = track;
+    audio_slot.music_ogg_duration_frames = duration;
+    audio_slot.music_ogg_loaded = true;
+    return true;
+}
+
+bool kookie_audio_load_music_ogg(void) {
+    return kookie_audio_load_music_ogg_asset();
+}
+
+bool kookie_audio_play_music_loop(
+    int loops,
+    int loop_start_frame,
+    int loop_end_frame
+) {
+    if (!audio_slot.music_ogg_loaded) {
+        return false;
+    }
+    return kookie_audio_play_predecoded_track(
+        audio_slot.music_ogg_track,
+        audio_slot.music_ogg_audio,
+        (float)audio_slot.music_volume / 100.0f,
+        loops,
+        loop_start_frame,
+        loop_end_frame);
+}
+
+bool kookie_audio_stop_music(void) {
+    return audio_slot.music_ogg_track != NULL &&
+        MIX_StopTrack(audio_slot.music_ogg_track, 0);
+}
+
 static bool kookie_audio_load_ui_assets(void) {
     for (int index = 0; index < KOOKIE_AUDIO_UI_ASSET_COUNT; index += 1) {
         int clip_id = kookie_audio_ui_clip_id_at(index);
@@ -3102,6 +3222,12 @@ int kookie_audio_open(void) {
         return 0;
     }
     (void)kookie_audio_load_ui_assets();
+    if (kookie_audio_music_path_configured() &&
+        (!kookie_audio_load_music_ogg_asset() ||
+            !kookie_audio_play_music_loop(-1, 0, -1))) {
+        kookie_audio_release();
+        return 0;
+    }
     return make_token(0, audio_slot.generation, KOOKIE_AUDIO_KIND);
 }
 
@@ -3115,7 +3241,10 @@ bool kookie_audio_set_volumes(int effects, int music) {
             audio_slot.effects_track, (float)effects / 100.0f) ||
         !MIX_SetTrackGain(
             audio_slot.music_track, (float)music / 100.0f) ||
-        !kookie_audio_set_ui_gain(effects)) {
+        !kookie_audio_set_ui_gain(effects) ||
+        (audio_slot.music_ogg_track != NULL &&
+            !MIX_SetTrackGain(
+                audio_slot.music_ogg_track, (float)music / 100.0f))) {
         return false;
     }
     audio_slot.effects_volume = effects;
@@ -3134,6 +3263,25 @@ int kookie_audio_music_volume(void) {
 int kookie_audio_mixer_version(void) {
     return MIX_Version();
 }
+int kookie_audio_music_ogg_loaded(void) {
+    return audio_slot.music_ogg_loaded ? 1 : 0;
+}
+
+int kookie_audio_music_ogg_duration_frames(void) {
+    if (!audio_slot.music_ogg_loaded ||
+        audio_slot.music_ogg_duration_frames <= 0) {
+        return -1;
+    }
+    return (int)audio_slot.music_ogg_duration_frames;
+}
+
+int kookie_audio_music_ogg_loops(void) {
+    if (audio_slot.music_ogg_track == NULL) {
+        return 0;
+    }
+    return MIX_GetTrackLoops(audio_slot.music_ogg_track);
+}
+
 int kookie_audio_ui_assets_loaded(void) {
     if (audio_slot.mixer == NULL) {
         return 0;
@@ -3211,19 +3359,41 @@ bool kookie_audio_queue_clip(int clip_id, int frames) {
     return kookie_audio_queue_spatial_clip(
         clip_id, frames, 100, 100);
 }
-bool kookie_audio_play_ui_clip(int clip_id) {
+bool kookie_audio_play_ui_clip_loop(
+    int clip_id,
+    int loops,
+    int loop_start_frame,
+    int loop_end_frame
+) {
     int index = kookie_audio_ui_clip_index(clip_id);
     if (audio_slot.mixer == NULL || index < 0) {
         return false;
     }
     if (audio_slot.ui_tracks[index] == NULL) {
-        return kookie_audio_queue_clip(1, 120);
+        return loops == 0 && kookie_audio_queue_clip(1, 120);
     }
-    return MIX_SetTrackGain(
-            audio_slot.ui_tracks[index],
-            (float)audio_slot.effects_volume / 100.0f) &&
-        MIX_PlayTrack(audio_slot.ui_tracks[index], 0);
+    return kookie_audio_play_predecoded_track(
+        audio_slot.ui_tracks[index],
+        audio_slot.ui_audio[index],
+        (float)audio_slot.effects_volume / 100.0f,
+        loops,
+        loop_start_frame,
+        loop_end_frame);
 }
+
+int kookie_audio_ui_clip_loops(int clip_id) {
+    int index = kookie_audio_ui_clip_index(clip_id);
+    if (audio_slot.mixer == NULL || index < 0 ||
+        audio_slot.ui_tracks[index] == NULL) {
+        return 0;
+    }
+    return MIX_GetTrackLoops(audio_slot.ui_tracks[index]);
+}
+
+bool kookie_audio_play_ui_clip(int clip_id) {
+    return kookie_audio_play_ui_clip_loop(clip_id, 0, 0, -1);
+}
+
 
 bool kookie_audio_close(int token) {
     int slot;

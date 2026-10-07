@@ -98,21 +98,24 @@ todos os candidatos ao G0.
 |---|---|---|
 | Plataforma e gráficos | **SDL3 + SDL_GPU** | Uma única stack de janela/entrada/gamepad/GPU; 3D e compute. Kof possui a extração, o culling, o agrupamento e os passes. Licença zlib. Mantenha Sokol como alternativa somente se o spike de GPU/ABI falhar |
 | Compilação de shaders | **SDL_shadercross + DXC**, SPIRV-Cross e SPIRV-Tools conforme exigido pelo build | HLSL → SPIR-V offline para Linux; refletir layouts de recursos. Ferramentas de build, não compiladores de shaders obrigatórios no runtime distribuído. O ShaderC instalado sozinho não é o pipeline HLSL selecionado |
-| Áudio | **SDL_mixer 3.2.4** | Uma única autoridade zlib de mixagem, com streams separados de efeitos/música e política Kof de cues, ganho e espacialização. Backends opcionais de codecs ficam desabilitados/não empacotados; streams PCM não exigem decoder |
+| Áudio | **SDL_mixer 3.2.4** | Uma única autoridade zlib de mixagem, com streams separados de efeitos/música e política Kof de cues, ganho e espacialização. A build fixada habilita WAVE e `stb_vorbis` incluído para OGG Vorbis limitado; os demais backends opcionais de codec continuam desabilitados/não empacotados |
 | Decodificação de imagens | **Kooker PNG pertencente ao Kof**, depois **SDL3_image** somente para um serviço de pixels no runtime | O kooker atual valida, decodifica e torna canônico o subconjunto PNG limitado por conta própria. Uma futura fronteira SDL3_image pode decodificar PNG canônico admitido para upload; ela não controla admissão da fonte, decisões de espaço de cor/material nem cooking. Biblioteca zlib; dependências opcionais de codecs têm avisos separados |
 | Renderização de texto | **FreeType**, depois **HarfBuzz** ao implementar texto com shaping | Apenas serviços de rasterização e shaping. Kof possui os widgets, o layout, o foco e a política de cache de glifos. Fallback de fontes, bidi/quebra de linhas, IME e acessibilidade não são resolvidos simplesmente vinculando essas bibliotecas |
 | Compressão de pacotes | **Zstandard (`libzstd`)** | Adicionar no estágio de pacote cozido, não por frame. Use blocos limitados e endereçáveis independentemente, comprimentos decodificados declarados e limites do decodificador; compressão não é integridade/autenticação. Opção de licença BSD |
 
 **Detalhes da escolha de áudio.** SDL_mixer é a autoridade adotada de
-dispositivo/mixagem. O KOOKIE envia streams PCM gerados e clips PCM16 cozidos
-de forma limitada, portanto os pacotes não precisam de decodificadores
-opcionais de áudio comprimido. Qualquer codec nativo futuro deve passar pelo
-gate de licença permissiva e fechamento de dependências antes do empacotamento.
-OpenAL Soft não é alternativa sob essa política da apresentação nativa porque
-a implementação inspecionada usa LGPL-2.0-or-later. O perfil JVM separado para
-Windows preserva a árvore de licenças do OpenJDK; ele não relaxa o gate de
-bibliotecas de mídia nativas. Não execute uma segunda biblioteca como
-autoridade concorrente de mixer.
+dispositivo/mixagem. O KOOKIE envia streams PCM gerados, clips PCM16 cozidos
+de forma limitada e payloads OGG Vorbis limitados preservados byte a byte.
+`MIX_LoadAudio(..., true)` decodifica OGG admitido uma vez em uma track mantida
+e buscável; propriedades explícitas de início/fim/quantidade de frames cobrem
+loops de música e SFX. O pacote precisa do runtime fixado do SDL_mixer com seu
+`stb_vorbis` incluído, mas não de um segundo decoder ou autoridade concorrente
+de mixer. Qualquer codec nativo futuro deve passar pelo gate de licença
+permissiva e fechamento de dependências antes do empacotamento. OpenAL Soft não
+é alternativa sob essa política da apresentação nativa porque a implementação
+inspecionada usa LGPL-2.0-or-later. O perfil JVM separado para Windows preserva
+a árvore de licenças do OpenJDK; ele não relaxa o gate de bibliotecas de mídia
+nativas. Não execute uma segunda biblioteca como autoridade concorrente de mixer.
 
 **Mantenha estas bibliotecas do motor no Kof:** armazenamento tipado de
 entidades/componentes; uma pequena biblioteca de matemática usando ports MIT
@@ -146,18 +149,20 @@ de rede de terceiros até que a fatia de LAN exija uma; um transporte ainda não
 replicação, predição ou simulação autoritativa.
 
 **Disponibilidade local observada:** SDL3 3.4.16 é o pacote do sistema;
-SDL_mixer 3.2.4 foi compilado da fonte fixada, somente com entrada PCM
-necessária para a integração. FreeType 2.14.3, HarfBuzz 14.5.0 e zstd 1.5.7
-também estão disponíveis. SDL3_image e SDL_shadercross continuam fora do gate
-atual. Esse inventário não comprova integração futura automática.
+SDL_mixer 3.2.4 foi compilado da fonte fixada com WAVE e `stb_vorbis` incluído
+habilitados para o caminho de entrada/runtime OGG. FreeType 2.14.3, HarfBuzz
+14.5.0 e zstd 1.5.7 também estão disponíveis. SDL3_image e SDL_shadercross
+continuam fora do gate atual. Esse inventário não comprova integração futura
+automática.
 
 **Status/ordem de adoção:** SDL_GPU/entrada, transferência verificada de
 tokens, o passe mundial em perspectiva com materiais/profundidade,
-espacialização estéreo limitada e SDL_mixer com volumes de efeitos/música estão
-integrados. Em seguida, adicione serviços de imagem/texto e compressão somente
-quando cada contrato estiver estabelecido. Fixe hashes de artefatos, opções de
-build, avisos transitivos e ABI do adaptador em cada adoção. Esta lista curta
-não implica framework separado de backend/plugin nem promessa de desempenho.
+espacialização estéreo limitada, SDL_mixer com volumes de efeitos/música,
+pré-decodificação OGG e loops por frames de amostra estão integrados. Em
+seguida, adicione serviços de imagem/texto e compressão somente quando cada
+contrato estiver estabelecido. Fixe hashes de artefatos, opções de build,
+avisos transitivos e ABI do adaptador em cada adoção. Esta lista curta não
+implica framework separado de backend/plugin nem promessa de desempenho.
 
 Fontes primárias: [SDL GPU](https://wiki.libsdl.org/SDL3/CategoryGPU),
 [shadercross](https://github.com/libsdl-org/SDL_shadercross) e sua
@@ -564,8 +569,8 @@ entidades/encontros/itens em dados estruturados legíveis; malhas
 estáticas/materiais em um subconjunto documentado de glTF; Dust3D `.ds3`;
 LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`; rigs de personagem
 Blockbench `.bbmodel`; imagens PNG independentes; e áudio em um conjunto
-deliberadamente pequeno e compatível. Esses são formatos de entrada offline,
-não formatos de pacote em tempo de execução. Valide
+deliberadamente pequeno e compatível. Estes são fontes de entrada offline; seus
+produtos canônicos são os contratos explícitos de pacote/runtime. Valide
 geometria finita, índices de triângulos, dimensões de voxels/referências de paleta,
 limites de quadros de sprites, metadados de animação, limites de tamanho/quantidade,
 referências de recursos, transformações e sinalizadores de colisão. Bibliotecas
@@ -587,6 +592,7 @@ obrigatório de proveniência do pacote:
 | Blockbench `.bbmodel` | Analisar o outliner 5.0 exato de cubos/ossos e clips numéricos limitados de posição/rotação/escala em dados de rig `KCHR` v1 reabertos; pixels de textura e saída UV/material por face exigem um produto separado |
 | PNG `.png` | Verificar um subconjunto estático de 8 bits limitado a 1 MiB/64 chunks/256×256, decodificar tipos de cor 0/2/3/4/6 com paleta/transparência e filtros 0–4 e então reabrir a saída PNG RGBA8 determinística; rejeitar Adam7, APNG, chunks auxiliares incompatíveis e perfis de cor ambíguos |
 | WAVE PCM `.wav` | Admitir RIFF/WAVE exato com tag PCM `0x0001`, amostras mono/estéreo de 8 ou 16 bits em 8–96 kHz sob 2 MiB/32 chunks/30 segundos/1 MiB de PCM canônico; remover metadados inertes limitados e reabrir PCM16 determinístico; rejeitar RF64, extensível, float, comprimido, cues/loops e semântica desconhecida |
+| OGG Vorbis `.ogg` | Validar um stream lógico Ogg Vorbis limitado com verificações de CRC/sequência/continuação/BOS/EOS das páginas, cabeçalhos de identificação/comentário/setup, 8–96 kHz, 1–8 canais, limite de frames decodificados e limites opcionais de loop em frames; preservar as páginas admitidas byte a byte e rejeitar entrada malformada/não Vorbis | Payload OGG preservado byte a byte, com checksums/contagens da fonte, payload comprimido, metadados Vorbis, canônico, frames e limites de loop |
 
 Use GLB para intercâmbio de runtime 3D e PNG mais metadados versionados para
 intercâmbio de runtime de sprites. OBJ/FBX são alternativas de conversão, não
@@ -612,10 +618,17 @@ subconjunto explícito. Ele preserva os valores das amostras; a interpretação
 sRGB/linear no runtime pertence à política de materiais, e perfis de cor
 incorporados são rejeitados em vez de alterar silenciosamente essa política.
 
-O leitor de áudio segue o registro PCM da
+O leitor WAVE segue o registro PCM da
 [RFC 2361](https://www.rfc-editor.org/rfc/rfc2361) e o modelo RIFF/WAVE
-documentado por [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV).
-Áudio comprimido ou em streaming continua sendo um pipeline futuro separado.
+documentado por [SDL_LoadWAV](https://wiki.libsdl.org/SDL3/SDL_LoadWAV). Ele emite
+PCM16 estático.
+
+O leitor OGG limita independentemente o envelope de páginas/pacotes Ogg,
+valida cabeçalhos Vorbis de identificação/comentário/setup e CRCs de página,
+deriva o limite de frames dos granules e transporta comentários opcionais de
+loop para o resultado canônico. O backend nativo `stb_vorbis` fixado decodifica
+depois que o adaptador retém o payload canônico; decodificação em streaming
+continua sendo um pipeline futuro separado.
 
 Para autoria de boomer-shooter, adicione um subconjunto textual de brushes no estilo
 Quake, `.map`: recorte/triangulação de planos de brushes convexos, tradução de
@@ -641,9 +654,10 @@ Transações obsoletas, incompletas, divergentes ou inválidas preservam a gera�
 anterior.
 
 `BoundedSourceKooker` admite os subconjuntos documentados de GLB indexado,
-Dust3D/Aseprite/VOX, mapas de brushes convexos, personagens Blockbench 5.0, PNG
-e WAVE PCM sob limites explícitos de tamanho/quantidade/chunks/profundidade/
-duração. `scripts/kooker.sh` fornece comandos JVM de desenvolvimento
+Dust3D/Aseprite/VOX, mapas de brushes convexos, personagens Blockbench 5.0,
+PNG, WAVE PCM e OGG Vorbis sob limites explícitos de
+tamanho/quantidade/chunks/profundidade/duração. `scripts/kooker.sh` fornece
+comandos JVM de desenvolvimento
 `cook`, `package`, `inspect-package` e `validate-package`. Os arquivos Linux
 também contêm um runner nativo para o mesmo caminho Kof de `cook`; operações de
 pacote continuam exclusivas da JVM. O leitor de pacotes valida campos
@@ -842,9 +856,11 @@ feedback preserva a ordem de vários eventos, rejeita duplicatas e lacunas sem
 apresentação parcial e retoma pelo baseline da nova geração. O Kof calcula
 atenuação por distância e pan estéreo relativos ao listener, enquanto o
 adaptador SDL_mixer enfileira os ganhos PCM esquerdo/direito resultantes.
-HRTF/EFX aguardam uma solução permissiva comprovada; decodificação em streaming
-continua como expansão posterior, enquanto o soak G5 concluído está registrado
-abaixo. Nenhum é critério faltante da aceitação G2.
+Música OGG configurada é pré-decodificada uma vez, e música/SFX expõem controles
+exatos de início/fim/quantidade de loop em frames de amostra. HRTF/EFX aguardam
+uma solução permissiva comprovada; decodificação em streaming continua como
+expansão posterior, enquanto o soak G5 concluído está registrado abaixo. Nenhum
+é critério faltante da aceitação G2.
 
 G3 está fechado no gate de aceitação atual. Mortes de inimigos sob autoridade
 do servidor produzem rolagens completas determinísticas; comandos remotos de

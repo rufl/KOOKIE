@@ -256,11 +256,48 @@ KOOKIE_SDL3_MIXER_SOURCE=/caminho/para/SDL_mixer-3.2.4 \
   bash scripts/bootstrap_sdl3_mixer.sh
 ```
 
+### Música e SFX OGG Vorbis
+
+O kooker de desenvolvimento admite OGG Vorbis limitado e preserva as páginas
+validadas byte a byte:
+
+```bash
+scripts/kooker.sh cook ogg input.ogg cooked.ogg
+```
+
+O kooker valida o stream lógico Vorbis único, CRCs e sequência das páginas,
+os cabeçalhos Vorbis, os limites de frames decodificados e comentários
+opcionais `LOOPSTART`, `LOOPEND`/`LOOPLENGTH` em frames de amostra. O
+SDL_mixer de runtime pré-decodifica o payload canônico com o backend
+`stb_vorbis` fixado; início/fim/quantidade do loop são propriedades de frames de
+amostra, não aproximações de relógio.
+
+Para habilitar uma trilha OGG no adaptador nativo, defina o caminho antes de
+iniciar:
+
+```bash
+KOOKIE_AUDIO_MUSIC_OGG=/caminho/absoluto/theme.ogg ./kookie
+```
+
+O catálogo existente `assets/audio/ui/*.ogg` é carregado como tracks SFX
+pré-decodadas e expõe limites exatos de loop pela API nativa de clips de UI.
+Para pacotes de apresentação ou Windows nativo, `package_kookie.sh` também
+copia arquivos `.ogg` encontrados nos diretórios opcionais
+`assets/audio/music/` e `assets/audio/sfx/`; o runtime só inicia
+automaticamente a trilha configurada explicitamente.
+
+Sem `KOOKIE_AUDIO_MUSIC_OGG`, os streams PCM gerados anteriores de música e
+efeitos permanecem inalterados.
+
 Depois da preparação, `package_kookie.sh`, `verify.sh`, os gates nativos de
 LAN externo e o gate do renderer G5 descobrem o prefixo automaticamente. O
 pacote de apresentação continua incluindo somente as bibliotecas de runtime
 SDL3/SDL_mixer resolvidas; libc e o loader dinâmico do host ficam fora do
 arquivo.
+O arquivo de apresentação também contém
+`build/libkookie_persistence_adapter.so`; o owner de save Kof usa essa ponte
+stateful única para staging, publicação e confirmação, enquanto o render SDL
+permanece em `build/libkookie_sdl_adapter.so`.
 
 ## Pacote de apresentação SDL para Linux
 
@@ -357,10 +394,22 @@ simulação (`4153us > 4000us`). O pacote local `0.1.0-gui.1` passou extração
 assinada e package-smoke, mas a evidência nativa de apresentação GPU continua
 aberta.
 
-O gate focado do servidor dedicado agora passa 512 ticks medidos com p95 de
+Um registro anterior de qualificação focada passou 512 ticks medidos com p95 de
 `3624us`, p99 de `3689us` e máximo de `3899us` sob o orçamento declarado de
-`4000us`. O excesso anterior do orquestrador completo foi sensível à pressão e
-continua registrado separadamente do bloqueio de apresentação na GPU-alvo.
+`4000us`. O resultado mais recente abaixo o substitui para o código atual; o
+excesso anterior do orquestrador completo continua registrado como sensível à
+pressão.
+
+A execução nativa focada mais recente, após a otimização do caminho
+autoritativo, usa a janela de qualificação do pacote: 128 ticks de aquecimento
+e 512 medidos. Ela registrou p50/p95/p99/máximo de `3805/3925/3958/4936us`,
+checksum da carga `217802`, assinatura de recursos `520690` e crescimento/faixa
+de RSS de 64 KiB sob o orçamento inalterado de p95 de `4000us`.
+`scripts/verify_package.sh` usa a mesma janela em vez de uma amostra curta sob
+pressão de cold start.
+A rota escalar de inimigos, o cache da posição do alvo e as atualizações
+agrupadas dos checksums de loot/cena preservam o checksum `217802` da carga
+JVM/nativa.
 
 O commit de fonte atual também possui o pacote local de qualificação somente
 nativo `0.1.0-perf.2`, com SHA-256 do arquivo

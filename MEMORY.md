@@ -43,12 +43,12 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   preserves drops and reward claims. Separate-host execution remains unproven.
 - G4 is complete for its bounded contract. Typed hook subscriptions cover
   session/player/enemy/loot/editor publication; the kooker admits the documented
-  GLB, Dust3D, Aseprite, VOX, convex brush, Blockbench 5.0, PNG and PCM WAVE
-  subsets through the developer JVM CLI and packaged Linux native intake CLI;
-  `.kpkg` reload validates candidate package/registry state before swap; the
-  Kutter workspace provides inspection, edits, play-in-editor and bounded
-  undo/redo; and GPU products activate at a frame boundary only after their
-  upload fence. An 18-word offer and 7-word response transport the exact
+  GLB, Dust3D, Aseprite, VOX, convex brush, Blockbench 5.0, PNG, PCM WAVE and
+  OGG Vorbis subsets through the developer JVM CLI and packaged Linux native
+  intake CLI; `.kpkg` reload validates candidate package/registry state before
+  swap; the Kutter workspace provides inspection, edits, play-in-editor and
+  bounded undo/redo; and GPU products activate at a frame boundary only after
+  their upload fence. An 18-word offer and 7-word response transport the exact
   13-word compatibility identity through authenticated remote-role transport
   before gameplay. That handshake passed with host and clients in three
   isolated Linux network namespaces and distinct IPv4 stacks. General format
@@ -85,6 +85,12 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   triangles, 64 enemies, 256 projectiles, 512 pickups, 24 lights and 64 effects.
   The 30-minute 60 Hz soak kept simulation p95 at 3.202 ms and RSS within
   128 KiB after warm-up.
+- The latest focused native dedicated-server gate uses the same bounded
+  128-warm-up/512-measured window as package qualification and records
+  p50/p95/p99/max `3.805/3.925/3.958/4.936 ms`, checksum `217802`, resource
+  signature `520690`, and 64 KiB RSS growth/range. The scalar enemy step,
+  target-position cache, batched loot checksum and batched scene checksum
+  preserve JVM/native parity.
 - Two authenticated same-host clients receive the complete state every tick.
   Four-chunk assembly is transactional and checksum-gated; client B reconnects
   at generation 2 without accepting rollback.
@@ -107,9 +113,9 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   a dedicated-server save owner remains separate. Multi-machine/WAN and other
   hardware/OS performance remain unclaimed.
 - Linux archives now build the same Kof content-kooker entry point natively.
-  Package smoke exercises PCM WAVE canonicalization, idempotent reopen,
-  malformed-input rejection and a graphics-dependency denylist outside the
-  checkout.
+  Package smoke exercises PCM WAVE and OGG Vorbis canonicalization, idempotent
+  reopen, malformed-input rejection and a graphics-dependency denylist outside
+  the checkout.
 
 ## Windows PE/SDL qualification batch
 

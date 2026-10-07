@@ -3,6 +3,25 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added bounded OGG Vorbis intake to the developer and packaged native kooker:
+  page CRC/sequence/continuation/BOS/EOS state, Vorbis identification/comment/
+  setup headers, decoded-frame and optional sample-frame loop bounds are
+  validated before the byte-preserving payload is retained. SDL_mixer's pinned
+  `stb_vorbis` path predecodes OGG music and the bundled UI SFX tracks, and
+  explicit sample-frame loop start/end/count controls avoid gap-prone
+  wall-clock looping.
+- Closed the pressure-sensitive G5 dedicated-server p95 gap. The authoritative
+  workload now uses a scalar enemy step without a per-tick
+  `EnemyAttackDecision` record, caches stable projectile target slots and
+  coordinates, batches pickup checksum blocks and reference-scene checksum
+  deltas. JVM/native output remains checksum `217802` with resource signature
+  `520690`; the focused native gate with 128 warm-up and 512 measured ticks passed at
+  p50/p95/p99/max `3805/3925/3958/4936us` under the `4000us` budget.
+  Package verification uses the same qualification window.
+- Closed the Linux presentation packaging gap for the PE-safe save bridge:
+  `libkookie_persistence_adapter.so` is now shipped beside the SDL adapter, so
+  host staging, publication and confirmation resolve to one shared native
+  persistence state instead of a missing FFI library.
 - Completed the bounded P2 crash-durable save publication contract. The Kof
   `BoundedSessionSaveCoordinator` now encodes level progression plus G3
   authority, stages arbitrary paths, loads/restores validated sections,

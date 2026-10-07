@@ -274,10 +274,44 @@ KOOKIE_SDL3_MIXER_SOURCE=/path/to/SDL_mixer-3.2.4 \
   bash scripts/bootstrap_sdl3_mixer.sh
 ```
 
+### OGG Vorbis music and SFX
+
+The developer cooker admits bounded OGG Vorbis and preserves the validated
+pages byte-for-byte:
+
+```bash
+scripts/kooker.sh cook ogg input.ogg cooked.ogg
+```
+
+The cooker validates the single logical Vorbis stream, page CRCs and sequence
+state, Vorbis headers, decoded-frame bounds and optional `LOOPSTART`,
+`LOOPEND`/`LOOPLENGTH` sample-frame comments. Runtime SDL_mixer predecodes the
+canonical payload with the pinned `stb_vorbis` backend; loop start/end/count
+are sample-frame properties, not wall-clock approximations.
+
+To enable an OGG soundtrack in the native adapter, set the path before launch:
+
+```bash
+KOOKIE_AUDIO_MUSIC_OGG=/absolute/path/theme.ogg ./kookie
+```
+
+The existing `assets/audio/ui/*.ogg` catalog is loaded as predecoded SFX tracks
+and exposes exact loop bounds through the native UI-clip API. For presentation
+or native Windows packages, `package_kookie.sh` also copies `.ogg` files found
+under optional `assets/audio/music/` and `assets/audio/sfx/` directories;
+runtime code only auto-starts the explicitly configured soundtrack path.
+
+Without `KOOKIE_AUDIO_MUSIC_OGG`, the previous generated PCM music/effects
+streams remain unchanged.
+
 After preparation, `package_kookie.sh`, `verify.sh`, the external-LAN native
 gates and the G5 renderer gate discover the prefix automatically. The
 presentation package still bundles only the resolved SDL3/SDL_mixer runtime
 libraries; host libc and the dynamic loader remain outside the archive.
+The presentation archive also contains
+`build/libkookie_persistence_adapter.so`; the Kof save owner uses that single
+stateful bridge for staging, publication and confirmation, while SDL rendering
+remains in `build/libkookie_sdl_adapter.so`.
 
 ## Linux SDL presentation package
 
@@ -374,10 +408,19 @@ pressure-sensitive simulation p95 budget (`4153us > 4000us`). The local
 `0.1.0-gui.1` package passed signed extraction and package smoke, but native
 GPU presentation evidence remains open.
 
-The focused dedicated-server gate now passes 512 measured ticks at p95
+An earlier focused qualification record passed 512 measured ticks at p95
 `3624us`, p99 `3689us` and maximum `3899us` under the declared `4000us`
-simulation budget. The earlier full orchestration overrun was pressure-sensitive
-and remains recorded separately from the target-GPU presentation blocker.
+simulation budget. The latest result below supersedes it for the current source;
+the prior full-orchestration overrun remains recorded as pressure-sensitive.
+
+The latest focused native run after the authoritative-path optimization uses
+the package qualification window: 128 warm-up ticks and 512 measured ticks.
+It recorded p50/p95/p99/max `3805/3925/3958/4936us`, workload checksum
+`217802`, resource signature `520690`, and 64 KiB RSS growth/range under the
+unchanged `4000us` p95 budget. `scripts/verify_package.sh` uses this same
+window rather than a shorter cold-start sample.
+The scalar enemy path, target-position cache and batched loot/reference-scene
+checksum updates preserve the `217802` JVM/native workload checksum.
 
 The current source commit also has a local native-only qualification package
 `0.1.0-perf.2`, with archive SHA-256

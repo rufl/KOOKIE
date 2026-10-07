@@ -3,7 +3,7 @@ import kof.process
 
 Bool printUsage() {
     println("Usage:")
-    println("  kooker cook <glb|aseprite|vox|map|blockbench|png|wav> <input> <output>")
+    println("  kooker cook <glb|aseprite|vox|map|blockbench|png|wav|ogg> <input> <output>")
     println("  kooker cook dust3d <input.ds3> <export.glb> <output>")
     println("  kooker package <chunk-kind> <input> <logical-path> <output.kpkg>")
     println("  kooker inspect-package <input.kpkg>")
@@ -67,6 +67,24 @@ Bool cookPaths(
             " bytes=" + kooker.outputLength())
         return true
     }
+    if (kind == "ogg") {
+        var audio = kooker.ogg()
+        println("cooked kind=" + result.sourceKind() +
+            " source=" + result.sourceChecksum() +
+            " payload=" + result.materialChecksum() +
+            " metadata=" + result.metadataChecksum() +
+            " canonical=" + result.visibilityChecksum() +
+            " sample-rate=" + audio.sampleRate() +
+            " channels=" + audio.channelCount() +
+            " frames=" + audio.frameCount() +
+            " duration-ms=" + audio.durationMillis() +
+            " loop-start=" + audio.loopStartFrame() +
+            " loop-end=" + audio.loopEndFrame() +
+            " pages=" + audio.pageCount() +
+            " packets=" + audio.packetCount() +
+            " bytes=" + kooker.outputLength())
+        return true
+    }
     println("cooked kind=" + result.sourceKind() +
         " source=" + result.sourceChecksum() +
         " geometry=" + result.geometryChecksum() +
@@ -116,6 +134,8 @@ Bool nativeCookCommand() {
         kind = "png"
     } else if (marker[0] == 56) {
         kind = "wav"
+    } else if (marker[0] == 57) {
+        kind = "ogg"
     } else {
         return printUsage()
     }
