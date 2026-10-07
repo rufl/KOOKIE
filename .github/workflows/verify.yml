@@ -58,6 +58,7 @@ jobs:
       - name: Build pinned Kof toolchain
         run: |
           set -euo pipefail
+          # Keep the Kof shaded jar build independent of a stale reduced POM.
           mvn -q -f _kof/pom.xml clean package \
             -DskipTests -Drevision="$KOF_VERSION" \
             -DcreateDependencyReducedPom=false
