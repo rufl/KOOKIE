@@ -83,20 +83,27 @@ player-facing demo release. The open D1 gate is tracked in
 - `InputReplayRecorder` now records validated resulting tick commands (not raw platform events) in a bounded FIFO, preserves deterministic order, rejects stale/duplicate/invalid commands, and replays or resets without unbounded growth; `LoopbackSession` captures consumed commands only when explicitly enabled and resets the bounded capture on disable; `BoundedReplayWireCodec` and `BoundedReplayFileStore` persist bounded engine/content metadata, seed, signed tick commands, ordered checkpoints, hash diagnostics and initial snapshots with corruption rejection; replay checkpoints carry bounded state snapshots, and `LoopbackSession.encodeReplayCheckpoint`/`applyReplayCheckpoint` restore tick, movement, prediction, snapshot, player combat, skill resources/cooldowns, statuses, enemy combat actors, AI state, spatial positions, encounter budgets and encounter links before staging commands.
 - `BoundedAffixPoolStore` now provides weighted deterministic selection of non-contiguous content affix IDs for item rolls; JVM/native coverage verifies stable seeded selection.
 - P2 crash-durable save publication is implemented by the native POSIX/Windows
-  persistence adapter. `BoundedSessionSaveCoordinator` is now the Kof-first
-  session boundary: it encodes level progression plus G3 authority, stages
-  arbitrary paths, loads/restores validated sections and discards interrupted
-  stages. The POSIX Kof gate drives stage → native publish → confirmation →
-  restore; the Windows gate cross-compiles and runs the adapter against raw
-  old/new byte fixtures under Wine. File flush/sync, same-directory atomic
-  replacement and directory durability are explicit phases. The Windows run
+  persistence adapter. `BoundedSessionSaveCoordinator` is the arbitrary-path
+  Kof-first session boundary: it encodes level progression plus G3 authority,
+  stages, loads/restores validated sections and discards interrupted stages.
+  The Windows PE-safe `BoundedHostSessionSaveCoordinator` keeps encoding,
+  migration and rollback in Kof, transfers bounded wire words through checked
+  integral calls, and leaves schema-byte staging/read plus durable publication
+  to the native adapter without `File` or `String` FFI. The POSIX Kof gate and
+  G7 player-facing goose gate exercises stage → native publish → confirmation →
+  restore; `scripts/verify_pe_durable_save.sh` repeats the same Kof-first
+  cycle through generated PE under Wine, and the G0 presentation smoke repeats
+  it after Play and a fresh session. The Windows gate cross-compiles and runs
+  the adapter against raw old/new byte fixtures under Wine. File flush/sync,
+  same-directory atomic replacement and directory durability are explicit phases.
+  The Windows run
   is a console smoke, not native NTFS evidence. The gates interrupt before
   file sync, after file sync, after rename and after directory sync; they prove
   the prior save remains valid before replacement and the complete new save
-  remains valid after replacement, including torn-stage cleanup. This closes
-  bounded adapter/schema evidence. The G7 player-facing goose gameplay gate
-  now publishes and restores a fresh session, including inventory state; a
-  packaged app/server save owner remains a separate integration boundary.
+  remains valid after replacement, including torn-stage cleanup. The G0
+  presentation owner now binds save publication to gameplay exit/window close
+  and restore to process start/re-entry; a dedicated-server save owner remains
+  a separate boundary.
 - Player weapon and replicated enemy impact/audio presentation events now enter
   replay history automatically and round-trip through checkpoint sidecars;
   JVM/native coverage verifies the path. The isolated DRI3 screenshot gate now

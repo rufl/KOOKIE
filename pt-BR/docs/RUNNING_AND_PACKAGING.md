@@ -486,6 +486,18 @@ fail-closed para IR de ponto flutuante, exceções capturáveis/concorrência e 
 não integral. As alocações geradas duram até o processo terminar; o alvo é
 para a carga de gameplay limitada, não para um serviço sem limite.
 
+O probe de apresentação usa `BoundedHostSessionSaveCoordinator` no caminho
+alcançável pelo PE. O Kof codifica e valida o wire limitado; FFI integral
+verificado permite que o adaptador nativo faça staging/leitura dos bytes do
+schema e a publicação durável sem FFI de `File` ou `String`. Os probes nativos
+G7 e o smoke Play de G0 verificam restauração de inventário em sessão nova.
+
+A qualificação de persistência PE sem SDL é:
+
+```bash
+bash scripts/verify_pe_durable_save.sh
+```
+
 ### Shell SDL nativo
 
 Gere o shell nativo a partir dos pacotes oficiais de desenvolvimento MinGW do
@@ -557,6 +569,12 @@ pacote duas vezes, compara todos os artefatos assinados, valida caminhos ZIP
 seguros e licenças e verifica o PE nativo, as import libraries SDL e as
 entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1` adiciona o smoke completo opcional,
 exigindo `wine` e `overzeer-isolated-display`.
+
+Quando `KOOKIE_RUN_WINE=1`, o smoke isolado de apresentação também exige o
+marcador `KOOKIE G7 native presentation durable save verified`. Isso exercita a
+ponte escalar de save segura para PE pelo caminho Play empacotado; o owner G0
+publica ao sair do gameplay/fechar a janela e restaura ao iniciar/reentrar no
+processo. Isso não substitui a evidência de hardware/GPU Windows nativo.
 
 Para o artefato Windows publicável, use o builder determinístico de árvore
 limpa:

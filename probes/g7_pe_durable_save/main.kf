@@ -1,0 +1,69 @@
+import core
+import session
+import ui
+
+LoopbackSession newSaveSession() {
+    var game = LoopbackSession(16, 8)
+    assert(game.configureEnemyRules(50, 35, 15),
+        "bot rules must configure")
+    assert(game.defineEnemyWeapon(7, 10, 0, 3, 1) &&
+        game.setEnemyWeaponRange(7, 40) &&
+        game.setEnemyWeaponCooldown(7, 15) &&
+        game.defineEnemyEncounter(4, 4, 12) &&
+        game.configureEnemyEncounterZone(4, 16, 1, 12, 28) &&
+        game.configureEnemySpatialBounds(-16, -4, -4, 40, 16, 32),
+        "bot encounter must configure spatial bounds")
+    assert(game.definePlayerWeapon(7, 10, 0, 3, 1) &&
+        game.setPlayerWeaponRange(7, 40) &&
+        game.addEnemyCombatActor(1, 100, 0) &&
+        game.addEnemyCombatActor(2, 100, 0) &&
+        game.equipEnemyCombatWeapon(1, 7) &&
+        game.equipEnemyCombatWeapon(2, 7) &&
+        game.defineWorldKey(1, 30, 0, 0, 0) &&
+        game.defineWorldDoor(2, 1, 0, 5, 5, 3, 5, 1, 8) &&
+        game.start(),
+        "goose players must start with combat actors")
+    assert(game.connectPlayer() == 1 && game.connectPlayer() == 2,
+        "goose players must connect")
+    assert(game.addPlayerCombatActor(1, 100, 0) &&
+        game.addPlayerCombatActor(2, 100, 0) &&
+        game.equipPlayerCombatWeapon(1, 7) &&
+        game.equipPlayerCombatWeapon(2, 7),
+        "connected player combat actors must equip")
+    assert(game.setEnemySpatialPosition(1, -6, 1, 6) &&
+        game.setEnemySpatialPosition(2, 6, 1, 6) &&
+        game.admitEnemyAt(4, 3, 0, 80, 0, 7, 8, 1, 12) &&
+        game.admitEnemyAt(4, 4, 0, 80, 0, 7, 18, 1, 18) &&
+        game.admitEnemyAt(4, 5, 0, 80, 0, 7, 28, 1, 24) &&
+        game.configureEnemyRole(3, 1, 1, 1, 0) &&
+        game.configureEnemyRole(4, 1, 1, 1, 0) &&
+        game.configureEnemyRole(5, 2, 1, 2, 0),
+        "three bot geese must join the encounter")
+    return game
+}
+
+main() {
+    var game = newSaveSession()
+    assert(game.addPlayerItem(1, 900, 2) &&
+        game.playerItemQuantity(1, 900) == 2,
+        "PE save fixture must enter player inventory")
+    var shell = GameShell()
+    var owner = BoundedHostGameplaySaveOwner(game)
+    assert(owner.recoverAndRestore() &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.gameplayVisible() &&
+        shell.consumeGameplayEntry() &&
+        shell.handleAction(gameShellActionBack()) &&
+        !shell.gameplayVisible() &&
+        owner.publish(),
+        "PE gameplay exit must publish a durable save")
+    var restarted = newSaveSession()
+    assert(shell.handleAction(gameShellActionActivate()) &&
+        shell.gameplayVisible() &&
+        shell.consumeGameplayEntry() &&
+        owner.bind(restarted) &&
+        owner.recoverAndRestore() &&
+        restarted.playerItemQuantity(1, 900) == 2,
+        "PE fresh gameplay must restore durable inventory")
+    println("KOOKIE G7 PE durable save verified")
+}

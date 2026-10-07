@@ -166,6 +166,7 @@ for marker in (
     "KOOKIE G1 native arena HUD verified",
     "KOOKIE G2 native 3D door verified",
     "KOOKIE G4 GPU-safe kutter reload verified",
+    "KOOKIE G7 native presentation durable save verified",
     "KOOKIE native kutter screen verified",
     "KOOKIE native SDL adapter verified",
 ):

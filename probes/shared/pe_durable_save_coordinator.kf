@@ -1,0 +1,276 @@
+package session
+
+import core
+
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_begin(
+    Int wireLength
+): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_word(
+    Int index, Int value
+): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_commit(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_cancel(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_staging_exists(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_discard_stage(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_target_exists(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_begin(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_length(): Int
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_word(
+    Int index
+): Int
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
+
+class BoundedHostSessionSaveCoordinator {
+    LoopbackSession sessionValue
+    BoundedSaveSchemaWireCodec codec
+    BoundedSaveSections expected
+    Int sectionCapacityValue
+    Int payloadCapacityValue
+    Bool preparedValue
+
+    public constructor(
+        LoopbackSession nextSession,
+        Int nextSectionCapacity,
+        Int nextPayloadCapacity
+    ) {
+        sessionValue = nextSession
+        sectionCapacityValue = nextSectionCapacity
+        if (sectionCapacityValue < 1) {
+            sectionCapacityValue = 1
+        }
+        if (sectionCapacityValue > 12) {
+            sectionCapacityValue = 12
+        }
+        payloadCapacityValue = nextPayloadCapacity
+        if (payloadCapacityValue < 1) {
+            payloadCapacityValue = 1
+        }
+        if (payloadCapacityValue > 160) {
+            payloadCapacityValue = 160
+        }
+        codec = BoundedSaveSchemaWireCodec(
+            sectionCapacityValue, payloadCapacityValue)
+        expected = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        preparedValue = false
+    }
+
+    Bool stage(
+        Int player,
+        Int levelId,
+        Int contentVersion,
+        Int revision
+    ) {
+        if (preparedValue || player < 1 || player > 2 || levelId < 1 ||
+            levelId > 1000000 || contentVersion < 1 ||
+            contentVersion > 1000000 || revision < 0 ||
+            sessionValue.inputReplayEnabledValue()) {
+            return false
+        }
+        var sections = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!sections.setRevision(revision) ||
+            !sessionValue.encodeLevelProgression(
+                sections, levelId, contentVersion) ||
+            !sessionValue.encodeG3Authority(player, sections)) {
+            return false
+        }
+        if (kookie_durable_host_target_exists()) {
+            var current = BoundedSaveSections(
+                sectionCapacityValue, payloadCapacityValue)
+            if (!readDefault(current) ||
+                sections.revision() <= current.revision()) {
+                return false
+            }
+        }
+        if (!codec.encode(sections) ||
+            !kookie_durable_host_stage_begin(codec.encodedLength())) {
+            return false
+        }
+        for (var index = 0; index < codec.encodedLength(); index = index + 1) {
+            if (!kookie_durable_host_stage_word(
+                    index, codec.encodedWord(index))) {
+                kookie_durable_host_stage_cancel()
+                return false
+            }
+        }
+        if (!kookie_durable_host_stage_commit() ||
+            !expected.replaceFrom(sections)) {
+            return false
+        }
+        preparedValue = true
+        return true
+    }
+
+    Bool confirmPublished() {
+        if (!preparedValue || kookie_durable_host_staging_exists()) {
+            return false
+        }
+        var verified = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!readDefault(verified) || !sameSections(expected, verified)) {
+            return false
+        }
+        preparedValue = false
+        expected.clear()
+        return true
+    }
+
+    Bool cancelStaged() {
+        if (!preparedValue ||
+            !kookie_durable_host_discard_stage()) {
+            return false
+        }
+        preparedValue = false
+        expected.clear()
+        return true
+    }
+
+    Bool recoverInterruptedStage() {
+        return !preparedValue && kookie_durable_host_discard_stage()
+    }
+
+    Bool hasPublishedSave() {
+        return kookie_durable_host_target_exists()
+    }
+
+    Int publishedRevision() {
+        if (!hasPublishedSave()) {
+            return -1
+        }
+        var current = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!readDefault(current)) {
+            return -2
+        }
+        return current.revision()
+    }
+
+    Bool readDefault(BoundedSaveSections target) {
+        if (!kookie_durable_host_load_begin()) {
+            return false
+        }
+        var wireLength = kookie_durable_host_load_length()
+        var maxWireLength = 4 + sectionCapacityValue * (3 + payloadCapacityValue)
+        if (wireLength < 4 || wireLength > maxWireLength) {
+            return false
+        }
+        var wire = new Int[wireLength]
+        for (var index = 0; index < wireLength; index = index + 1) {
+            var word = kookie_durable_host_load_word(index)
+            if (word < 0) {
+                return false
+            }
+            wire[index] = word
+        }
+        return codec.decode(wire, target)
+    }
+
+    Bool restore(
+        Int player,
+        Int levelId,
+        Int contentVersion
+    ) {
+        if (preparedValue || player < 1 || player > 2 || levelId < 1 ||
+            levelId > 1000000 || contentVersion < 1 ||
+            contentVersion > 1000000 ||
+            sessionValue.inputReplayEnabledValue()) {
+            return false
+        }
+        var source = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!readDefault(source)) {
+            return false
+        }
+        var rollback = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!rollback.setRevision(sessionValue.currentServerTick()) ||
+            !sessionValue.encodeLevelProgression(
+                rollback, levelId, contentVersion) ||
+            !sessionValue.encodeG3Authority(player, rollback)) {
+            return false
+        }
+        if (sessionValue.restoreLevelProgression(
+                source, levelId, contentVersion) &&
+            sessionValue.decodeG3Authority(player, source)) {
+            return true
+        }
+        sessionValue.restoreLevelProgression(
+            rollback, levelId, contentVersion)
+        sessionValue.decodeG3Authority(player, rollback)
+        return false
+    }
+
+    Bool isPrepared() { return preparedValue }
+
+    Bool sameSections(
+        BoundedSaveSections first,
+        BoundedSaveSections second
+    ) {
+        if (first.revision() != second.revision() ||
+            first.sectionCount() != second.sectionCount()) {
+            return false
+        }
+        for (var section = 0; section < first.sectionCount(); section = section + 1) {
+            if (first.sectionId(section) != second.sectionId(section) ||
+                first.sectionVersion(section) != second.sectionVersion(section) ||
+                first.sectionLength(section) != second.sectionLength(section)) {
+                return false
+            }
+            for (var value = 0; value < first.sectionLength(section); value = value + 1) {
+                if (first.sectionValue(section, value) !=
+                    second.sectionValue(section, value)) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+}
+
+class BoundedHostGameplaySaveOwner {
+    LoopbackSession sessionValue
+    BoundedHostSessionSaveCoordinator storageValue
+
+    public constructor(LoopbackSession nextSession) {
+        sessionValue = nextSession
+        storageValue = BoundedHostSessionSaveCoordinator(
+            nextSession, 12, 160)
+    }
+
+    Bool bind(LoopbackSession nextSession) {
+        sessionValue = nextSession
+        storageValue = BoundedHostSessionSaveCoordinator(
+            nextSession, 12, 160)
+        return true
+    }
+
+    Bool recoverAndRestore() {
+        if (!storageValue.recoverInterruptedStage()) {
+            return false
+        }
+        if (storageValue.hasPublishedSave()) {
+            return storageValue.restore(1, 1, 1)
+        }
+        return true
+    }
+
+    Bool publish() {
+        var revision = sessionValue.currentServerTick() + 1
+        var published = storageValue.publishedRevision()
+        if (storageValue.hasPublishedSave() && published < 0) {
+            return false
+        }
+        if (published >= revision) {
+            revision = published + 1
+        }
+        if (revision > 1000000) {
+            return false
+        }
+        return storageValue.stage(1, 1, 1, revision) &&
+            kookie_durable_publish_default() &&
+            kookie_durable_trace() == 31 &&
+            storageValue.confirmPublished()
+    }
+}

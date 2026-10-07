@@ -4,7 +4,6 @@ import ui
 
 extern "./lib/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
 extern "./lib/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
-
 LoopbackSession newGooseGame() {
     var game = LoopbackSession(16, 8)
     assert(game.configureEnemyRules(50, 35, 15),
@@ -71,21 +70,28 @@ main() {
     assert(game.addPlayerItem(1, 900, 2) &&
         game.playerItemQuantity(1, 900) == 2,
         "player inventory must contain the durable-save fixture")
-    var savePath = "durable-save.dat"
-    var save = BoundedSessionSaveCoordinator(game, 12, 160)
-    assert(save.recoverInterruptedStage(savePath) &&
-        save.stage(
-            savePath, 1, 1, 1, game.currentServerTick() + 1) &&
-        kookie_durable_publish_default() &&
-        kookie_durable_trace() == 31 &&
-        save.confirmPublished(),
-        "player-facing session must publish a durable save")
+    var shell = GameShell()
+    var owner = BoundedHostGameplaySaveOwner(game)
+    assert(owner.recoverAndRestore() &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.gameplayVisible() &&
+        shell.consumeGameplayEntry() &&
+        shell.handleAction(gameShellActionBack()) &&
+        !shell.gameplayVisible() &&
+        owner.publish(),
+        "leaving player gameplay must publish a durable save")
     var restarted = newGooseGame()
-    var restartedSave = BoundedSessionSaveCoordinator(
-        restarted, 12, 160)
-    assert(restartedSave.restore(savePath, 1, 1, 1) &&
+    assert(shell.handleAction(gameShellActionActivate()) &&
+        shell.gameplayVisible() &&
+        shell.consumeGameplayEntry() &&
+        owner.bind(restarted) &&
+        owner.recoverAndRestore() &&
         restarted.playerItemQuantity(1, 900) == 2,
-        "restarted player session must restore durable inventory")
+        "re-entering player gameplay must restore durable inventory")
+    assert(shell.handleAction(gameShellActionBack()) &&
+        !shell.gameplayVisible() &&
+        owner.publish(),
+        "repeated gameplay exit must publish a newer save")
 
     var overlay = GooseStatusOverlay(6)
     var frame = FrameStaging(1440)

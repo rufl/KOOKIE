@@ -73,6 +73,43 @@ static bool discard_stage(void) {
     return remove(staging_path) == 0 && absent(staging_path);
 }
 
+static bool verify_host_schema_bridge(void) {
+    const int wire[] = {
+        99112233, 1, 7, 1,
+        11, 1, 1, 42
+    };
+    if (!kookie_durable_host_stage_begin(
+            (int)(sizeof(wire) / sizeof(wire[0])))) {
+        return false;
+    }
+    for (int index = 0;
+         index < (int)(sizeof(wire) / sizeof(wire[0])); index += 1) {
+        if (!kookie_durable_host_stage_word(index, wire[index])) {
+            kookie_durable_host_stage_cancel();
+            return false;
+        }
+    }
+    if (!kookie_durable_host_stage_commit() ||
+        !kookie_durable_host_staging_exists() ||
+        kookie_durable_host_target_exists() ||
+        !kookie_durable_publish_default() ||
+        kookie_durable_trace() != 31 ||
+        kookie_durable_host_staging_exists() ||
+        !kookie_durable_host_target_exists() ||
+        !kookie_durable_host_load_begin() ||
+        kookie_durable_host_load_length() !=
+            (int)(sizeof(wire) / sizeof(wire[0]))) {
+        return false;
+    }
+    for (int index = 0;
+         index < (int)(sizeof(wire) / sizeof(wire[0])); index += 1) {
+        if (kookie_durable_host_load_word(index) != wire[index]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool publish_paths(
     const char *staging, const char *target) {
     return kookie_durable_publish(staging, target);
@@ -247,7 +284,9 @@ int main(void) {
     int mode = kookie_durable_mode();
     if (mode == 0) {
         if (!discard_stage() ||
-            (!absent(target_path) && remove(target_path) != 0)) {
+            (!absent(target_path) && remove(target_path) != 0) ||
+            !verify_host_schema_bridge() ||
+            remove(target_path) != 0 || !absent(target_path)) {
             return 1;
         }
         if (!write_file(staging_path, "revision-1") ||

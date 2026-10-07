@@ -15,8 +15,16 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   `scripts/verify_durable_save.sh` and
   `scripts/verify_durable_save_windows.sh`; the G7 player-facing goose gate
   now publishes and restores a freshly constructed session, including
-  inventory state. A packaged shell/server save owner remains a separate
-  integration milestone.
+  inventory, and the G0 presentation owner publishes on gameplay exit or
+  window close and restores on process start/re-entry. A dedicated-server save
+  owner remains a separate integration milestone.
+- Added the PE-safe `BoundedHostSessionSaveCoordinator` bridge. Kof keeps
+  section encoding, schema validation, migration and rollback; checked
+  integral calls hand bounded wire words to the native adapter for file-byte
+  staging/read and durable publication without `File` or `String` FFI. The G7
+  native gate, `scripts/verify_pe_durable_save.sh` under generated PE/Wine and
+  the G0 packaged presentation smoke now exercise the PE-safe bridge and its
+  presentation lifecycle; a dedicated-server save trigger remains separate.
 - Fixed the expanded G1 arena regression: restored the raised-room collision
   geometry, synchronized the JVM transport backend with the native 1,740-word
   / 6,984-byte frame bound, and updated the external role receiver for the

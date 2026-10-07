@@ -15,9 +15,18 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   diretório e recuperação de staging truncado em
   `scripts/verify_durable_save.sh` e
   `scripts/verify_durable_save_windows.sh`; o gate player-facing G7 de gansos
-  agora publica e restaura uma sessão recém-construída, incluindo o inventário.
-  Um owner de save de shell/servidor empacotado permanece um milestone de
-  integração separado.
+  agora publica e restaura uma sessão recém-construída, incluindo o inventário,
+  e o owner de apresentação G0 publica ao sair do gameplay ou fechar a janela e
+  restaura ao iniciar/reentrar no processo. Um owner de save de servidor
+  dedicado permanece como milestone de integração separado.
+- Adicionamos a ponte `BoundedHostSessionSaveCoordinator` segura para PE. O
+  Kof mantém a codificação das seções, validação do schema, migração e
+  rollback; chamadas integrais verificadas transferem palavras wire limitadas
+  ao adaptador nativo para staging/leitura dos bytes do arquivo e publicação
+  durável, sem FFI de `File` ou `String`. O gate nativo G7, o
+  `scripts/verify_pe_durable_save.sh` pelo PE/Wine gerado e o smoke de
+  apresentação G0 empacotado agora exercitam a ponte segura para PE e seu ciclo
+  de apresentação; o trigger de save do servidor dedicado continua separado.
 - Corrigimos a regressão da arena G1 expandida: restauramos a geometria de
   colisão da sala elevada, sincronizamos o backend JVM com o limite nativo de
   1.740 palavras / 6.984 bytes por frame e atualizamos o receptor de papel

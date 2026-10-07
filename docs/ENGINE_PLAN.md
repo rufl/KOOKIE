@@ -669,13 +669,17 @@ Data/shader reload can be supported after validation and GPU-safe retirement. In
   `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`; its cross-compiled
   native adapter gate exercises the old/new byte replacement contract with
   raw fixtures, while remaining a Wine console smoke rather than native NTFS
-  evidence. The coordinator accepts an arbitrary target path; the host-owned
-  native boundary remains intentionally narrow because the qualified Windows
-  PE path does not provide the same Kof `String` FFI. These gates close the
-  bounded P2 publication contract. The G7 player-facing goose gameplay gate
-  now drives this lifecycle through a native publish and a freshly constructed
-  session restore, including inventory state. A packaged shell/server owner
-  with a long-lived save path remains a separate integration boundary.
+  evidence. The arbitrary-path coordinator remains the file-capable Kof
+  session boundary. The Windows PE presentation boundary uses
+  `BoundedHostSessionSaveCoordinator`: Kof still owns section encoding,
+  validation, migration and rollback, while checked integral calls transfer
+  bounded wire words to the native adapter for schema-byte staging/read and
+  durable publication without `File` or `String` FFI. The native G7 gate and
+  `scripts/verify_pe_durable_save.sh` execute this bridge through generated
+  Kof PE under Wine; the G0 presentation owner publishes on gameplay exit or
+  window close and restores a fresh session, including inventory, on process
+  start/re-entry. A dedicated-server save owner remains a separate integration
+  boundary.
 - Migrations operate on schemas, never raw slots/pointers. `BoundedSaveSections`, `BoundedSaveSchemaWireCodec`, `BoundedSaveSchemaFileStore` and `BoundedSaveMigrationGate` now persist progression v1, item v1, quest v1, world v2, RNG v2, currency v1, rolled-item v1, equipment v1, skill v1 and status v1 sections, transforming prior world/RNG versions with default fields; typed bounded item ownership/quantity, quest state/progress, atomic inventory currency/item transactions, rolled item fields, equipment slot ownership, skill progression and status effects round-trip through the schema wire; unsupported/newer sections fail with the old save left intact. Future section-version transforms remain required.
 - Replay presentation history now captures authoritative player weapon events and
   replicated enemy impact/audio presentation events automatically; the history

@@ -725,13 +725,18 @@ linguagem de script.
   `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`. O gate nativo
   cross-target exercita o contrato de substituição de bytes antigo/novo com
   fixtures brutos. A execução Windows é um smoke de console sob Wine, não
-  evidência de NTFS Windows nativo. A fronteira nativa continua estreita
-  porque o PE Windows qualificado não oferece o mesmo FFI de `String` do Kof.
-  O gate player-facing G7 de gameplay de gansos agora executa esse ciclo com
-  publicação nativa e restauração em uma sessão recém-construída, incluindo o
-  inventário. Um owner de save de shell/servidor empacotado, com path
-  persistente de longa duração, continua sendo uma fronteira de integração
-  separada. Detecção de corrupção não é autenticação.
+  evidência de NTFS Windows nativo. O coordenador de path arbitrário continua
+  sendo a fronteira Kof com suporte a `File`. A fronteira de apresentação PE
+  Windows usa `BoundedHostSessionSaveCoordinator`: o Kof continua dono da
+  codificação, validação, migração e rollback das seções, enquanto chamadas
+  integrais verificadas transferem palavras wire limitadas ao adaptador nativo
+  para staging/leitura dos bytes do schema e publicação durável, sem FFI de
+  `File` ou `String`. Os gates G7 nativo e
+  `scripts/verify_pe_durable_save.sh` executam essa ponte pelo PE Kof gerado
+  sob Wine; o owner de apresentação G0 publica ao sair do gameplay ou fechar a
+  janela e restaura uma sessão nova, incluindo o inventário, ao iniciar/reentrar
+  no processo. Um owner de save de servidor dedicado continua sendo uma
+  fronteira de integração separada. Detecção de corrupção não é autenticação.
 - Migrações operam sobre schemas, nunca sobre slots/ponteiros brutos. Seções obrigatórias desconhecidas/mais novas falham com um erro útil e deixam o save antigo intacto.
 - O replay armazena a versão da engine/conteúdo, o snapshot/seed inicial, comandos de tick e checkpoints/diagnósticos de hash. Buscar uma posição restaura um checkpoint e então simula novamente. Eventos de apresentação com timestamp não são suficientes.
 - Progressão de nível implementada: seção `11`, versão `1`, payload `[levelId, contentVersion, count, (stableId, activeFlag)*count]`. IDs/versões ficam em `1..1000000`; até 64 interações criadas exigem no máximo 131 palavras. O destino selado exige identidade de nível/conteúdo e conjunto exato de IDs, independentemente da ordem de declaração. Dependências inválidas, requisitos não declarados, IDs duplicados/desconhecidos ou seção ausente rejeitam sem alterar o progresso. Saves antigos podem iniciar explicitamente um nível novo; nenhum progresso é inventado.

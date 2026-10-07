@@ -95,6 +95,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_available(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_durable_publish_default(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_durable_trace(): Int
 
 Int lobbyProtocolMagic() { return 1263488843 }
 Int lobbyMessageHello() { return 1 }
@@ -580,6 +582,7 @@ class G1NativePresentation {
     G4KutterDemo kutterScenario
     G1Arena arena
     LoopbackSession interactionSession
+    BoundedHostGameplaySaveOwner saveOwner
     ArenaAnimalMeshes animalMeshes
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
@@ -623,6 +626,7 @@ class G1NativePresentation {
         scoreboardState = MatchScoreboardState(2)
         camera = CameraState(-450, 450)
         interactionSession = LoopbackSession(16, 8)
+        saveOwner = BoundedHostGameplaySaveOwner(interactionSession)
         worldNativeCapacity = 0
         worldFrame = FrameStaging(arena.renderVertexCount())
         doorFrame = FrameStaging(36)
@@ -716,6 +720,9 @@ class G1NativePresentation {
         var preservedScale = hud.scalePercent()
         var preservedMinimap = minimap.visible()
         interactionSession = LoopbackSession(16, 8)
+        if (!saveOwner.bind(interactionSession)) {
+            return false
+        }
         hud = ShooterHud(100, 3)
         if (!hud.setScale(preservedScale) ||
             !animalMeshes.clear() ||
@@ -730,7 +737,11 @@ class G1NativePresentation {
         playerKillsTwoValue = 0
         playerDeathsOneValue = 0
         playerDeathsTwoValue = 0
-        return prepareGooseSession()
+        if (!prepareGooseSession() ||
+            !saveOwner.recoverAndRestore()) {
+            return false
+        }
+        return true
     }
 
     Bool prepare() {
@@ -742,6 +753,9 @@ class G1NativePresentation {
                 kutterScenario.completed()) ||
             !camera.applyLook(20, -20) ||
             !prepareGooseSession()) {
+            return false
+        }
+        if (!saveOwner.recoverAndRestore()) {
             return false
         }
         var blocked = interactionSession.queryWorldDoorPath(
@@ -812,6 +826,9 @@ class G1NativePresentation {
     }
     LoopbackSession gameplaySession() {
         return interactionSession
+    }
+    Bool saveGameplay() {
+        return saveOwner.publish()
     }
 
     MatchScoreboardState scoreboard() {
@@ -1437,8 +1454,7 @@ main() {
         assert(shell.handleAction(gameShellActionActivate()) &&
             shell.gameplayVisible() &&
             shell.consumeGameplayEntry() &&
-            presentation.resetGooseSession() &&
-            shell.handleAction(gameShellActionBack()),
+            presentation.resetGooseSession(),
             "main Play must reset the fresh bot encounter")
         assert(processGamePackets(
                 presentation.gameplaySession(), network,
@@ -1446,8 +1462,26 @@ main() {
             presentation.applyMouseLook() &&
             presentation.advanceGameplay(true, network),
             "fresh goose gameplay must process and advance one fixed tick")
+        assert(presentation.gameplaySession().addPlayerItem(1, 900, 2) &&
+            presentation.gameplaySession().playerItemQuantity(1, 900) == 2,
+            "presentation player session must expose the durable-save fixture")
+        assert(shell.handleAction(gameShellActionBack()) &&
+            !shell.gameplayVisible() &&
+            presentation.saveGameplay(),
+            "leaving gameplay must publish a durable save")
+        assert(shell.handleAction(gameShellActionActivate()) &&
+            shell.gameplayVisible() &&
+            shell.consumeGameplayEntry() &&
+            presentation.resetGooseSession() &&
+            presentation.gameplaySession().playerItemQuantity(1, 900) == 2,
+            "re-entering gameplay must restore durable inventory")
         assert(presentation.drawGameFrame(frame, network),
             "authored arena and authoritative HUD must draw")
+        assert(shell.handleAction(gameShellActionBack()) &&
+            !shell.gameplayVisible() &&
+            presentation.saveGameplay(),
+            "second gameplay exit must remain durable")
+        println("KOOKIE G7 native presentation durable save verified")
         frame = frame + 1
         assert(kookie_gpu_reload_stage(
                 2, shell.kutter().renderChecksum()) &&
@@ -1478,12 +1512,21 @@ main() {
         var eventKind = kookie_poll_event()
         while (eventKind != 0) {
             if (eventKind == 1 || eventKind == 4) {
+                if (shell.gameplayVisible()) {
+                    assert(presentation.saveGameplay(),
+                        "closing gameplay must publish a durable save")
+                }
                 running = false
             } else if (eventKind == 7) {
                 var beforeScreen = shell.screen()
                 var action = kookie_last_event_a()
                 var gameplayBefore = shell.gameplayVisible()
                 var handled = shell.handleAction(action)
+                if (gameplayBefore &&
+                    action == gameShellActionBack() && handled) {
+                    assert(presentation.saveGameplay(),
+                        "leaving gameplay must publish a durable save")
+                }
                 var clip = 0
                 if (gameplayBefore) {
                     if (action == gameShellActionBack() && handled) {

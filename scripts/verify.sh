@@ -32,6 +32,7 @@ bash scripts/verify_interactions.sh
 bash scripts/verify_multiplayer_ui.sh
 bash scripts/verify_durable_save.sh
 bash scripts/verify_goose_game.sh
+bash scripts/verify_pe_durable_save.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh
 bash scripts/verify_package.sh
@@ -126,9 +127,12 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     ln -s "$demo_file" "$probe_demo_dir/$(basename "$demo_file")"
     ln -s "$demo_file" "$presentation_probe_demo_dir/$(basename "$demo_file")"
   done
+  cp "$root_dir/probes/shared/pe_durable_save_coordinator.kf" \
+    "$presentation_probe_session_dir/pe_durable_save_coordinator.kf"
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
     native/kookie_transport.c \
+    native/kookie_persistence_adapter.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
   glslc -fshader-stage=vert native/shaders/g0_triangle.vert \

@@ -503,6 +503,18 @@ floating-point IR, caught exceptions/concurrency, and non-integral FFI.
 Generated allocations are process-lifetime; this target is for the bounded
 gameplay workload, not an unbounded service.
 
+The presentation probe uses `BoundedHostSessionSaveCoordinator` for the PE
+reachable path. Kof encodes and validates the bounded wire; checked integral
+FFI calls let the native persistence adapter stage/read schema bytes and run
+the durable publish boundary without `File` or `String` FFI. The G7 native
+probe and the G0 Play smoke verify fresh-session inventory restoration.
+
+The no-SDL PE persistence qualification is:
+
+```bash
+bash scripts/verify_pe_durable_save.sh
+```
+
 ### Native SDL shell
 
 Build the native shell from the official MinGW development packages for SDL
@@ -523,7 +535,11 @@ The package links the complete reachable `src/` Kof gameplay PE object into
 no JDK. The package smoke prints
 `KOOKIE native Kof PE gameplay verified` after SDL initialization.
 
-The `native` profile's marker proves PE linkage and SDL initialization only.
+With `KOOKIE_RUN_WINE=1`, the isolated presentation smoke also requires the
+`KOOKIE G7 native presentation durable save verified` marker. This exercises
+the PE-safe scalar save bridge through the packaged Play path; the G0 owner
+publishes on gameplay exit/window close and restores on process start/re-entry.
+It does not replace native Windows hardware/GPU evidence.
 Use `--runtime presentation` for the shared Kof SDL loop: it renders the
 three-bot encounter, maps input, and supports the same direct/WAN transport as
 Linux. A fresh Windows package still needs native hardware presentation smoke

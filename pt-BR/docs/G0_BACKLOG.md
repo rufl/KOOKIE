@@ -66,22 +66,29 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
 - O `LoopbackSession` agora coloca snapshots replicados de impacto de inimigos em filas limitadas de apresentação de render e áudio, com mapeamentos determinísticos de clipes para acerto/bloqueio/expiração; snapshots duplicados são rejeitados e testes JVM/nativos cobrem identidade, ordem e consumo de áudio.
 - Bordas de disparo do jogador agora alimentam uma fila limitada de apresentação de arma autoritativa, com estado do tiro aceito, transições de munição e supressão de disparo mantido; o adaptador SDL nativo isolado consome clipes de impacto confirmados 201/202/203 pela ponte de áudio.
 - O P2 de publicação de save durável contra crash foi implementado pelo
-  adaptador nativo POSIX/Windows. `BoundedSessionSaveCoordinator` é agora a
-  fronteira Kof-first da sessão: codifica progressão de nível e autoridade G3,
-  prepara paths arbitrários, carrega/restaura seções validadas e descarta
-  staging interrompido. O gate Kof POSIX executa stage → publicação nativa →
-  confirmação → restauração; o gate Windows compila em cross-target e executa
-  o adaptador contra fixtures brutos de bytes antigo/novo sob Wine. Flush/sync
-  do arquivo, substituição atômica no mesmo diretório e durabilidade do
-  diretório são fases explícitas. A execução Windows é um smoke de console,
-  não evidência de NTFS Windows nativo. Os gates interrompem antes do sync do
-  arquivo, depois do sync do arquivo, depois do rename e depois do sync do
-  diretório; provam que o save anterior permanece válido antes da substituição
-  e que o novo save completo permanece válido depois dela, incluindo a limpeza
-  de staging truncado. Isso fecha a evidência limitada do adaptador/schema. O
-  gate player-facing G7 de gameplay de gansos agora publica e restaura uma
-  sessão nova, incluindo o inventário; um owner de save de app/servidor
-  empacotado continua sendo uma fronteira de integração separada.
+  adaptador nativo POSIX/Windows. `BoundedSessionSaveCoordinator` continua sendo
+  a fronteira Kof-first de path arbitrário: codifica progressão de nível e
+  autoridade G3, prepara, carrega/restaura seções validadas e descarta staging
+  interrompido. O `BoundedHostSessionSaveCoordinator` seguro para PE Windows
+  mantém codificação, migração e rollback no Kof, transfere palavras wire
+  limitadas por chamadas integrais verificadas e deixa staging/leitura dos
+  bytes do schema e publicação durável no adaptador nativo, sem FFI de `File` ou
+  `String`. O gate Kof POSIX e o gate player-facing G7 de gameplay de gansos
+  executam stage → publicação nativa → confirmação → restauração;
+  `scripts/verify_pe_durable_save.sh` repete o mesmo ciclo Kof-first pelo PE
+  gerado sob Wine, e o smoke de apresentação G0 repete o ciclo após Play e
+  uma sessão nova. O gate Windows compila em cross-target e executa o
+  adaptador contra fixtures brutos de bytes antigo/novo sob Wine. Flush/sync do
+  arquivo, substituição atômica no mesmo diretório e durabilidade do diretório
+  são fases explícitas. A execução
+  Windows é um smoke de console, não evidência de NTFS Windows nativo. Os gates
+  interrompem antes do sync do arquivo, depois do sync do arquivo, depois do
+  rename e depois do sync do diretório; provam que o save anterior permanece
+  válido antes da substituição e que o novo save completo permanece válido
+  depois dela, incluindo a limpeza de staging truncado. O owner de apresentação
+  G0 vincula publicação à saída do gameplay/fechamento da janela e restauração
+  ao início/reentrada do processo; um owner de save de servidor dedicado
+  continua sendo uma fronteira separada.
 - A perda de foco agora limpa comandos de jogador pendentes, emite bordas de liberação dos botões mantidos, bloqueia novos inputs enquanto desfocado e rearma corretamente ao recuperar o foco; a cobertura JVM/nativa impede disparos obsoletos.
 - A pausa agora redefine a dívida de tempo do fixed-step, desarma comandos de jogador pendentes, bloqueia simulação/input enquanto pausado e retoma sem picos de catch-up; a cobertura JVM/nativa fixa o contrato documentado de pausa.
 - `InputReplayRecorder` agora registra comandos de tick resultantes validados (não eventos crus da plataforma) em um FIFO limitado, preserva ordem determinística, rejeita comandos obsoletos/duplicados/inválidos e reproduz ou redefine sem crescimento ilimitado; `LoopbackSession` captura comandos consumidos somente quando explicitamente habilitado e redefine a captura limitada ao desabilitar.

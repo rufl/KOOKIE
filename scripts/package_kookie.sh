@@ -674,9 +674,12 @@ bundle_windows_native_presentation() {
   local pe_build="$WORK_DIR/kof-pe-presentation"
   local adapter_obj="$WORK_DIR/kookie-sdl-adapter.obj"
   local transport_obj="$WORK_DIR/kookie-transport.obj"
+  local persistence_obj="$WORK_DIR/kookie-persistence-adapter.obj"
   mkdir -p "$presentation_root"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
   cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" \
     "$presentation_root/main.kf"
+  cp -- "$ROOT_DIR/probes/shared/pe_durable_save_coordinator.kf" \
+    "$presentation_root/session/pe_durable_save_coordinator.kf"
   for module in core content session world ui demo; do
     for source in "$ROOT_DIR/src/$module/"*.kf; do
       ln -s -- "$source" "$presentation_root/$module/$(basename "$source")"
@@ -695,10 +698,14 @@ bundle_windows_native_presentation() {
     -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_transport.c" -o "$transport_obj"
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -fno-ident \
+    -I "$ROOT_DIR/native" \
+    -c "$ROOT_DIR/native/kookie_persistence_adapter.c" -o "$persistence_obj"
   zig cc -target x86_64-windows-gnu -s -fno-ident \
     -Wl,/subsystem:console -Wl,/Brepro \
     "$ROOT_DIR/native/kookie_pe_entry.c" \
-    "$pe_build/kof-module.obj" "$adapter_obj" "$transport_obj" \
+    "$pe_build/kof-module.obj" "$adapter_obj" "$transport_obj" "$persistence_obj" \
     "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
     "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
     -lws2_32 -lpsapi -o "$PACKAGE_ROOT/kookie.exe"
@@ -904,6 +911,8 @@ else
   PRESENTATION_ROOT="$WORK_DIR/presentation"
   mkdir -p "$PRESENTATION_ROOT"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
   cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" "$PRESENTATION_ROOT/main.kf"
+  cp -- "$ROOT_DIR/probes/shared/pe_durable_save_coordinator.kf" \
+    "$PRESENTATION_ROOT/session/pe_durable_save_coordinator.kf"
   for module in core content session world ui demo; do
     for source in "$ROOT_DIR/src/$module/"*.kf; do
       ln -s -- "$source" "$PRESENTATION_ROOT/$module/$(basename "$source")"
@@ -913,6 +922,7 @@ else
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
     "$ROOT_DIR/native/kookie_transport.c" \
+    "$ROOT_DIR/native/kookie_persistence_adapter.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
     "${SDL_FLAGS[@]}" -lm
   glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \

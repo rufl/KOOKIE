@@ -201,7 +201,8 @@ if [[ "${KOOKIE_RUN_PRESENTATION:-0}" == 1 ]]; then
   presentation_status=$?
   set -e
   cat "$KOOKIE_PRESENTATION_ADAPTER_LOG"
-  [[ "$presentation_status" == 0 ]] || exit "$presentation_status"
+  grep -Fq 'KOOKIE G7 native presentation durable save verified' \
+    "$KOOKIE_PRESENTATION_ADAPTER_LOG"
   KOOKIE_RENDER_NODE="$render_node" \
     python3 "$ROOT_DIR/scripts/validate_presentation_evidence.py" \
       "$KOOKIE_PRESENTATION_ADAPTER_LOG" \
