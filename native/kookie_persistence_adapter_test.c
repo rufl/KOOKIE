@@ -205,6 +205,7 @@ static bool verify_symlink_path(
     }
     if (!remove_symlink_path(symlink_path)) {
 #ifdef _WIN32
+        /* Some Wine environments cannot remove the created reparse fixture. */
         symlink_check_skipped = true;
         return true;
 #else
