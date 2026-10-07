@@ -3,13 +3,21 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
-- Concluímos a publicação de save durável contra crash do P2. O adaptador
-  nativo agora descarrega os dados do arquivo, faz substituição atômica no
-  mesmo diretório e descarrega os metadados do diretório em POSIX e Windows.
-  Adicionamos cobertura E2E de interrupção antes/depois do sync, depois do
-  rename, depois do sync do diretório e recuperação de staging truncado em
+- Concluímos o contrato limitado de publicação de save durável contra crash do
+  P2. O `BoundedSessionSaveCoordinator` Kof agora codifica progressão de nível
+  e autoridade G3, prepara paths arbitrários, carrega/restaura seções
+  validadas, descarta staging interrompido e expõe a fronteira explícita
+  `stage → publicação nativa → confirmPublished`. O gate Kof POSIX exercita
+  esse caminho de ponta a ponta; o adaptador nativo descarrega os dados do
+  arquivo, faz substituição atômica no mesmo diretório e descarrega os
+  metadados do diretório em POSIX e Windows. Adicionamos cobertura E2E de
+  interrupção antes/depois do sync, depois do rename, depois do sync do
+  diretório e recuperação de staging truncado em
   `scripts/verify_durable_save.sh` e
-  `scripts/verify_durable_save_windows.sh`.
+  `scripts/verify_durable_save_windows.sh`; o gate player-facing G7 de gansos
+  agora publica e restaura uma sessão recém-construída, incluindo o inventário.
+  Um owner de save de shell/servidor empacotado permanece um milestone de
+  integração separado.
 - Corrigimos a regressão da arena G1 expandida: restauramos a geometria de
   colisão da sala elevada, sincronizamos o backend JVM com o limite nativo de
   1.740 palavras / 6.984 bytes por frame e atualizamos o receptor de papel

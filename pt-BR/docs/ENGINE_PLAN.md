@@ -713,15 +713,25 @@ linguagem de script.
 ### Saves e replay
 
 - Seções de save versionadas: personagem/progressão, instâncias e propriedade de itens, persistência do mundo, estado de missões/encontros, streams explícitos de RNG e IDs de conteúdo.
-- Faça o snapshot em um limite de tick definido; prepare e valide o arquivo,
-  depois publique por `BoundedDurableSavePublication` e
-  `native/kookie_persistence_adapter.c`. POSIX usa `fsync` do arquivo, `rename`
-  atômico no mesmo diretório e `fsync` do diretório pai; Windows usa
-  `FlushFileBuffers` no arquivo e diretório, mais `MoveFileEx` no mesmo volume
-  com `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`. Os gates E2E de
-  fases provam que o save anterior continua válido antes da substituição e que
-  o novo save completo continua válido depois do rename. Detecção de corrupção
-  não é autenticação.
+- Faça o snapshot em um limite de tick definido. `BoundedSessionSaveCoordinator`
+  é a fronteira Kof-first: codifica progressão de nível e autoridade G3 em
+  seções limitadas, prepara paths arbitrários, carrega/restaura seções
+  validadas e descarta staging interrompido. O host então invoca
+  `native/kookie_persistence_adapter.c` e chama `confirmPublished`. POSIX usa
+  `fsync` do arquivo, `rename` atômico no mesmo diretório e `fsync` do
+  diretório pai; o gate Kof exercita coordenador, publicação nativa e
+  restauração. Windows usa `FlushFileBuffers` no arquivo e diretório, mais
+  `MoveFileEx` no mesmo volume com
+  `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`. O gate nativo
+  cross-target exercita o contrato de substituição de bytes antigo/novo com
+  fixtures brutos. A execução Windows é um smoke de console sob Wine, não
+  evidência de NTFS Windows nativo. A fronteira nativa continua estreita
+  porque o PE Windows qualificado não oferece o mesmo FFI de `String` do Kof.
+  O gate player-facing G7 de gameplay de gansos agora executa esse ciclo com
+  publicação nativa e restauração em uma sessão recém-construída, incluindo o
+  inventário. Um owner de save de shell/servidor empacotado, com path
+  persistente de longa duração, continua sendo uma fronteira de integração
+  separada. Detecção de corrupção não é autenticação.
 - Migrações operam sobre schemas, nunca sobre slots/ponteiros brutos. Seções obrigatórias desconhecidas/mais novas falham com um erro útil e deixam o save antigo intacto.
 - O replay armazena a versão da engine/conteúdo, o snapshot/seed inicial, comandos de tick e checkpoints/diagnósticos de hash. Buscar uma posição restaura um checkpoint e então simula novamente. Eventos de apresentação com timestamp não são suficientes.
 - Progressão de nível implementada: seção `11`, versão `1`, payload `[levelId, contentVersion, count, (stableId, activeFlag)*count]`. IDs/versões ficam em `1..1000000`; até 64 interações criadas exigem no máximo 131 palavras. O destino selado exige identidade de nível/conteúdo e conjunto exato de IDs, independentemente da ordem de declaração. Dependências inválidas, requisitos não declarados, IDs duplicados/desconhecidos ou seção ausente rejeitam sem alterar o progresso. Saves antigos podem iniciar explicitamente um nível novo; nenhum progresso é inventado.

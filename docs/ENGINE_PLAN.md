@@ -658,17 +658,24 @@ Data/shader reload can be supported after validation and GPU-safe retirement. In
 ### Saves and replay
 
 - Versioned save sections: character/progression, item instances and ownership, world persistence, quest/encounter state, explicit RNG streams and content IDs.
-- Snapshot at a defined tick boundary; stage and validate the checksummed file,
-  then publish it through `BoundedDurableSavePublication` and
-  `native/kookie_persistence_adapter.c`. POSIX uses file `fsync`, same-directory
-  atomic `rename` and parent-directory `fsync`; its Kof gate exercises the
-  schema store and publication class. Windows uses file and directory
-  `FlushFileBuffers` plus same-volume `MoveFileEx` with
+- Snapshot at a defined tick boundary; `BoundedSessionSaveCoordinator` encodes
+  level progression plus G3 authority into bounded sections, stages and
+  validates the checksummed file, then the host invokes
+  `native/kookie_persistence_adapter.c` and calls `confirmPublished`. POSIX
+  uses file `fsync`, same-directory atomic `rename` and parent-directory
+  `fsync`; its Kof gate now exercises the coordinator, native publication and
+  restore path. Windows uses file and directory `FlushFileBuffers` plus
+  same-volume `MoveFileEx` with
   `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`; its cross-compiled
-  native adapter gate exercises the same old/new save-byte contract. The
-  phase-fault gates prove interrupted publication leaves the previous save valid
-  before rename and a complete new save valid after rename. Corruption detection
-  is not authentication.
+  native adapter gate exercises the old/new byte replacement contract with
+  raw fixtures, while remaining a Wine console smoke rather than native NTFS
+  evidence. The coordinator accepts an arbitrary target path; the host-owned
+  native boundary remains intentionally narrow because the qualified Windows
+  PE path does not provide the same Kof `String` FFI. These gates close the
+  bounded P2 publication contract. The G7 player-facing goose gameplay gate
+  now drives this lifecycle through a native publish and a freshly constructed
+  session restore, including inventory state. A packaged shell/server owner
+  with a long-lived save path remains a separate integration boundary.
 - Migrations operate on schemas, never raw slots/pointers. `BoundedSaveSections`, `BoundedSaveSchemaWireCodec`, `BoundedSaveSchemaFileStore` and `BoundedSaveMigrationGate` now persist progression v1, item v1, quest v1, world v2, RNG v2, currency v1, rolled-item v1, equipment v1, skill v1 and status v1 sections, transforming prior world/RNG versions with default fields; typed bounded item ownership/quantity, quest state/progress, atomic inventory currency/item transactions, rolled item fields, equipment slot ownership, skill progression and status effects round-trip through the schema wire; unsupported/newer sections fail with the old save left intact. Future section-version transforms remain required.
 - Replay presentation history now captures authoritative player weapon events and
   replicated enemy impact/audio presentation events automatically; the history

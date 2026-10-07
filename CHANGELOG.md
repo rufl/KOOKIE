@@ -3,12 +3,20 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Completed P2 crash-durable save publication. The native adapter now flushes
-  file data, performs same-directory atomic replacement and flushes directory
-  metadata on POSIX and Windows. Added phase-interruption E2E coverage for
-  pre-sync, post-sync, post-rename, post-directory-sync and torn-stage recovery
-  in `scripts/verify_durable_save.sh` and
-  `scripts/verify_durable_save_windows.sh`.
+- Completed the bounded P2 crash-durable save publication contract. The Kof
+  `BoundedSessionSaveCoordinator` now encodes level progression plus G3
+  authority, stages arbitrary paths, loads/restores validated sections,
+  discards interrupted staging and exposes the explicit
+  `stage → native publish → confirmPublished` boundary. The POSIX Kof gate
+  exercises that path end to end; the native adapter flushes file data,
+  performs same-directory atomic replacement and flushes directory metadata on
+  POSIX and Windows. Added phase-interruption E2E coverage for pre-sync,
+  post-sync, post-rename, post-directory-sync and torn-stage recovery in
+  `scripts/verify_durable_save.sh` and
+  `scripts/verify_durable_save_windows.sh`; the G7 player-facing goose gate
+  now publishes and restores a freshly constructed session, including
+  inventory state. A packaged shell/server save owner remains a separate
+  integration milestone.
 - Fixed the expanded G1 arena regression: restored the raised-room collision
   geometry, synchronized the JVM transport backend with the native 1,740-word
   / 6,984-byte frame bound, and updated the external role receiver for the

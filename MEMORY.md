@@ -93,7 +93,14 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   p50/p95/p99/max 0.304/0.645/0.845/1.089 ms; visual readback passed.
 - Crash-durable save publication, multi-step migrations, checksummed
   identity-bound replay v3 and clean-tree Ed25519 release signing close bounded
-  G5. Multi-machine/WAN and other hardware/OS performance remain unclaimed.
+  G5. `BoundedSessionSaveCoordinator` is the Kof-first session boundary: it
+  encodes level progression plus G3 authority, stages arbitrary paths,
+  loads/restores validated sections and discards interrupted staging. The POSIX
+  Kof gate proves stage → native publish → confirm → restore; the G7
+  player-facing goose gate repeats the load into a freshly constructed session,
+  including inventory state. The remaining boundary is attaching this
+  coordinator to a packaged shell/server lifecycle. Multi-machine/WAN and
+  other hardware/OS performance remain unclaimed.
 - Linux archives now build the same Kof content-kooker entry point natively.
   Package smoke exercises PCM WAVE canonicalization, idempotent reopen,
   malformed-input rejection and a graphics-dependency denylist outside the

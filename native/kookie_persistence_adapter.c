@@ -116,6 +116,19 @@ static bool kookie_durable_same_parent(
 #endif
 }
 
+static bool kookie_durable_safe_parent(const char *parent) {
+#ifdef _WIN32
+    DWORD attributes = GetFileAttributesA(parent);
+    return attributes != INVALID_FILE_ATTRIBUTES &&
+        (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0 &&
+        (attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0;
+#else
+    struct stat status;
+    return lstat(parent, &status) == 0 &&
+        S_ISDIR(status.st_mode) && !S_ISLNK(status.st_mode);
+#endif
+}
+
 static int kookie_durable_fault(void) {
     const char *fault = getenv("KOOKIE_DURABLE_FAULT");
     if (fault == NULL) {
@@ -171,7 +184,9 @@ bool kookie_durable_publish(
             staging_path, staging_parent, sizeof(staging_parent)) ||
         !kookie_durable_parent(
             target_path, target_parent, sizeof(target_parent)) ||
-        !kookie_durable_same_parent(staging_parent, target_parent)) {
+        !kookie_durable_same_parent(staging_parent, target_parent) ||
+        !kookie_durable_safe_parent(staging_parent) ||
+        !kookie_durable_safe_parent(target_parent)) {
         return false;
     }
 

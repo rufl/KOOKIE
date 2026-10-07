@@ -1,0 +1,170 @@
+package session
+
+import core
+
+class BoundedSessionSaveCoordinator {
+    LoopbackSession sessionValue
+    BoundedDurableSavePublication publicationValue
+    Int sectionCapacityValue
+    Int payloadCapacityValue
+    Int stagedPlayerValue
+    Int stagedLevelIdValue
+    Int stagedContentVersionValue
+    Int stagedRevisionValue
+
+    public constructor(
+        LoopbackSession nextSession,
+        Int nextSectionCapacity,
+        Int nextPayloadCapacity
+    ) {
+        sessionValue = nextSession
+        sectionCapacityValue = nextSectionCapacity
+        if (sectionCapacityValue < 1) {
+            sectionCapacityValue = 1
+        }
+        if (sectionCapacityValue > 12) {
+            sectionCapacityValue = 12
+        }
+        payloadCapacityValue = nextPayloadCapacity
+        if (payloadCapacityValue < 1) {
+            payloadCapacityValue = 1
+        }
+        if (payloadCapacityValue > 160) {
+            payloadCapacityValue = 160
+        }
+        publicationValue = BoundedDurableSavePublication(
+            sectionCapacityValue, payloadCapacityValue)
+        stagedPlayerValue = 0
+        stagedLevelIdValue = 0
+        stagedContentVersionValue = 0
+        stagedRevisionValue = -1
+    }
+
+    Bool stage(
+        String path,
+        Int player,
+        Int levelId,
+        Int contentVersion,
+        Int revision
+    ) {
+        if (publicationValue.isPrepared() || path.length() == 0 ||
+            player < 1 || player > 2 || levelId < 1 ||
+            levelId > 1000000 || contentVersion < 1 ||
+            contentVersion > 1000000 || revision < 0 ||
+            sessionValue.inputReplayEnabledValue()) {
+            return false
+        }
+        var sections = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!sections.setRevision(revision) ||
+            !sessionValue.encodeLevelProgression(
+                sections, levelId, contentVersion) ||
+            !sessionValue.encodeG3Authority(player, sections) ||
+            !publicationValue.stage(path, sections)) {
+            return false
+        }
+        stagedPlayerValue = player
+        stagedLevelIdValue = levelId
+        stagedContentVersionValue = contentVersion
+        stagedRevisionValue = revision
+        return true
+    }
+
+    Bool confirmPublished() {
+        if (!publicationValue.confirmPublished()) {
+            return false
+        }
+        clearStagedMetadata()
+        return true
+    }
+
+    Bool cancelStaged() {
+        if (!publicationValue.cancelStaged()) {
+            return false
+        }
+        clearStagedMetadata()
+        return true
+    }
+
+    Bool recoverInterruptedStage(String path) {
+        return !publicationValue.isPrepared() && path.length() > 0 &&
+            publicationValue.discardInterruptedStage(path)
+    }
+
+    Bool load(String path, BoundedSaveSections target) {
+        return !publicationValue.isPrepared() && path.length() > 0 &&
+            publicationValue.read(path, target)
+    }
+
+    Bool restore(
+        String path,
+        Int player,
+        Int levelId,
+        Int contentVersion
+    ) {
+        if (publicationValue.isPrepared() || path.length() == 0 ||
+            player < 1 || player > 2 || levelId < 1 ||
+            levelId > 1000000 || contentVersion < 1 ||
+            contentVersion > 1000000 ||
+            sessionValue.inputReplayEnabledValue()) {
+            return false
+        }
+        var source = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!publicationValue.read(path, source)) {
+            return false
+        }
+        var rollback = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!rollback.setRevision(sessionValue.currentServerTick()) ||
+            !sessionValue.encodeLevelProgression(
+                rollback, levelId, contentVersion) ||
+            !sessionValue.encodeG3Authority(player, rollback)) {
+            return false
+        }
+        if (sessionValue.restoreLevelProgression(
+                source, levelId, contentVersion) &&
+            sessionValue.decodeG3Authority(player, source)) {
+            return true
+        }
+        sessionValue.restoreLevelProgression(
+            rollback, levelId, contentVersion)
+        sessionValue.decodeG3Authority(player, rollback)
+        return false
+    }
+
+    Bool isPrepared() {
+        return publicationValue.isPrepared()
+    }
+
+    String stagingPath() {
+        return publicationValue.stagingPath()
+    }
+
+    String targetPath() {
+        return publicationValue.targetPath()
+    }
+
+    Int stagedPlayer() {
+        return stagedPlayerValue
+    }
+
+    Int stagedLevelId() {
+        return stagedLevelIdValue
+    }
+
+    Int stagedContentVersion() {
+        return stagedContentVersionValue
+    }
+
+    Int stagedRevision() {
+        return stagedRevisionValue
+    }
+
+    void clearStagedMetadata() {
+        stagedPlayerValue = 0
+        stagedLevelIdValue = 0
+        stagedContentVersionValue = 0
+        stagedRevisionValue = -1
+    }
+}

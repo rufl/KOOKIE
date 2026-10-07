@@ -9,11 +9,15 @@
 #include <windows.h>
 #else
 #include <sys/stat.h>
+#include <errno.h>
 #include <unistd.h>
 #endif
 
 static const char *const staging_path = "durable-save.dat.kookie-stage";
 static const char *const target_path = "durable-save.dat";
+#ifdef _WIN32
+static bool symlink_check_skipped;
+#endif
 
 static bool write_file(const char *path, const char *contents) {
     FILE *file = fopen(path, "wb");
@@ -47,12 +51,19 @@ static bool read_matches(const char *path, const char *expected) {
 }
 
 static bool absent(const char *path) {
-    FILE *file = fopen(path, "rb");
-    if (file != NULL) {
-        fclose(file);
+#ifdef _WIN32
+    DWORD attributes = GetFileAttributesA(path);
+    if (attributes != INVALID_FILE_ATTRIBUTES) {
         return false;
     }
-    return true;
+    return GetLastError() == ERROR_FILE_NOT_FOUND;
+#else
+    struct stat status;
+    if (lstat(path, &status) == 0) {
+        return false;
+    }
+    return errno == ENOENT;
+#endif
 }
 
 static bool discard_stage(void) {
@@ -99,7 +110,11 @@ static bool create_hard_link_path(
 static bool create_symbolic_link_path(
     const char *existing, const char *link_path) {
 #ifdef _WIN32
-    return CreateSymbolicLinkA(link_path, existing, 0) != 0;
+    DWORD flags = 0;
+#ifdef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
+    flags |= SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
+#endif
+    return CreateSymbolicLinkA(link_path, existing, flags) != 0;
 #else
     return symlink(existing, link_path) == 0;
 #endif
@@ -109,6 +124,7 @@ static bool verify_symlink_path(
     const char *symlink_path) {
 #ifdef _WIN32
     if (!create_symbolic_link_path(target_path, symlink_path)) {
+        symlink_check_skipped = true;
         return true;
     }
 #else
@@ -124,6 +140,36 @@ static bool verify_symlink_path(
     return ok;
 }
 
+static bool verify_parent_symlink_path(void) {
+#ifdef _WIN32
+    return true;
+#else
+    const char *directory = "durable-save-parent-dir";
+    const char *parent_link = "durable-save-parent-link";
+    const char *staging = "durable-save-parent-link/stage";
+    const char *target = "durable-save-parent-link/target";
+    (void)remove(staging);
+    (void)remove(target);
+    (void)remove(parent_link);
+    (void)remove_directory_path(directory);
+    if (!make_directory_path(directory) ||
+        !create_symbolic_link_path(directory, parent_link) ||
+        !write_file(staging, "revision-2") ||
+        !write_file(target, "revision-1") ||
+        publish_paths(staging, target) ||
+        kookie_durable_trace() != 0 ||
+        !read_matches(staging, "revision-2") ||
+        !read_matches(target, "revision-1") ||
+        remove(staging) != 0 ||
+        remove(target) != 0 ||
+        remove(parent_link) != 0 ||
+        !remove_directory_path(directory)) {
+        return false;
+    }
+    return true;
+#endif
+}
+
 static bool verify_negative_paths(void) {
     const char *cross_directory = "durable-save-negative-dir";
     const char *cross_stage =
@@ -137,9 +183,12 @@ static bool verify_negative_paths(void) {
     (void)remove_directory_path(staging_path);
 
     if (!make_directory_path(cross_directory) ||
+        !write_file(cross_stage, "revision-2") ||
         publish_paths(cross_stage, target_path) ||
         kookie_durable_trace() != 0 ||
+        !read_matches(cross_stage, "revision-2") ||
         !read_matches(target_path, "revision-1") ||
+        remove(cross_stage) != 0 ||
         !remove_directory_path(cross_directory)) {
         return false;
     }
@@ -157,7 +206,8 @@ static bool verify_negative_paths(void) {
         remove(staging_path) != 0) {
         return false;
     }
-    return verify_symlink_path(symlink_path);
+    return verify_symlink_path(symlink_path) &&
+        verify_parent_symlink_path();
 }
 
 static bool verify_absolute_paths(void) {
@@ -209,6 +259,11 @@ int main(void) {
             return 1;
         }
         puts("durable-baseline-ok");
+#ifdef _WIN32
+        if (symlink_check_skipped) {
+            puts("durable-symlink-check-skipped");
+        }
+#endif
         return 0;
     }
     if (mode == 5) {
@@ -275,6 +330,7 @@ int main(void) {
     }
     if (mode == 4) {
         if (!read_matches(target_path, "revision-4") ||
+            !read_matches(staging_path, "torn") ||
             !discard_stage() || !absent(staging_path) ||
             !read_matches(target_path, "revision-4")) {
             return 1;

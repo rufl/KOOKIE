@@ -31,6 +31,7 @@ bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_interactions.sh
 bash scripts/verify_multiplayer_ui.sh
 bash scripts/verify_durable_save.sh
+bash scripts/verify_goose_game.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh
 bash scripts/verify_package.sh

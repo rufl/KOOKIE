@@ -5526,6 +5526,50 @@ test "G3 authoritative loot progression replication and save reload" {
         restored.worldLootCount() == 1,
         "reloaded reward claims must prevent boss reward duplication")
 }
+test "Kof session save coordinator stages and recovers host-owned publication" {
+    var session = LoopbackSession(8, 4)
+    assert(session.start() && session.connectPlayer() == 1,
+        "coordinator session must start with one connected player")
+    var coordinator = BoundedSessionSaveCoordinator(session, 12, 160)
+    var savePath = "/tmp/kookie-session-coordinator-test.bin"
+    var target = File(savePath)
+    var staging = File(savePath + ".kookie-stage")
+    if (target.exists()) {
+        assert(target.delete())
+    }
+    if (staging.exists()) {
+        assert(staging.delete())
+    }
+    assert(coordinator.stage(savePath, 1, 1, 1, 1) &&
+        coordinator.isPrepared() &&
+        coordinator.stagedPlayer() == 1 &&
+        coordinator.stagedLevelId() == 1 &&
+        coordinator.stagedContentVersion() == 1 &&
+        coordinator.stagedRevision() == 1 &&
+        coordinator.stagingPath() == savePath + ".kookie-stage" &&
+        coordinator.targetPath() == savePath &&
+        staging.exists(),
+        "Kof coordinator must encode and stage one bounded session snapshot")
+    var loadedBeforePublish = BoundedSaveSections(12, 160)
+    assert(!coordinator.load(savePath, loadedBeforePublish) &&
+        !coordinator.confirmPublished(),
+        "coordinator must not load or confirm before host publication")
+    assert(coordinator.cancelStaged() && !coordinator.isPrepared() &&
+        !staging.exists(),
+        "coordinator must cancel an unconfirmed host publication")
+    assert(coordinator.stage(savePath, 1, 1, 1, 2) &&
+        coordinator.isPrepared(),
+        "coordinator must stage a second snapshot")
+    var recovery = BoundedSessionSaveCoordinator(session, 12, 160)
+    assert(recovery.recoverInterruptedStage(savePath) &&
+        !staging.exists(),
+        "new coordinator must discard an interrupted staged snapshot")
+    assert(coordinator.cancelStaged() && !coordinator.isPrepared(),
+        "original coordinator must clear its interrupted state")
+    assert(recovery.recoverInterruptedStage(savePath),
+        "recovery must report success when no interrupted stage exists")
+}
+
 
 Bool g4PutLe16(Int[] target, Int offset, Int value) {
     target[offset] = value & 255

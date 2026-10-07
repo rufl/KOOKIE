@@ -2,7 +2,10 @@ import core
 import session
 import ui
 
-main() {
+extern "./lib/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
+extern "./lib/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
+
+LoopbackSession newGooseGame() {
     var game = LoopbackSession(16, 8)
     assert(game.configureEnemyRules(50, 35, 15),
         "bot rules must configure")
@@ -39,6 +42,11 @@ main() {
         game.configureEnemyRole(4, 1, 1, 1, 0) &&
         game.configureEnemyRole(5, 2, 1, 2, 0),
         "three bot geese must join the encounter")
+    return game
+}
+
+main() {
+    var game = newGooseGame()
 
     var playerOneHealthBefore = game.enemyCombatHealth(1)
     var playerTwoHealthBefore = game.enemyCombatHealth(2)
@@ -59,6 +67,25 @@ main() {
     assert(game.enemyCombatHealth(1) < playerOneHealthBefore ||
         game.enemyCombatHealth(2) < playerTwoHealthBefore,
         "bot AI must damage a player")
+
+    assert(game.addPlayerItem(1, 900, 2) &&
+        game.playerItemQuantity(1, 900) == 2,
+        "player inventory must contain the durable-save fixture")
+    var savePath = "durable-save.dat"
+    var save = BoundedSessionSaveCoordinator(game, 12, 160)
+    assert(save.recoverInterruptedStage(savePath) &&
+        save.stage(
+            savePath, 1, 1, 1, game.currentServerTick() + 1) &&
+        kookie_durable_publish_default() &&
+        kookie_durable_trace() == 31 &&
+        save.confirmPublished(),
+        "player-facing session must publish a durable save")
+    var restarted = newGooseGame()
+    var restartedSave = BoundedSessionSaveCoordinator(
+        restarted, 12, 160)
+    assert(restartedSave.restore(savePath, 1, 1, 1) &&
+        restarted.playerItemQuantity(1, 900) == 2,
+        "restarted player session must restore durable inventory")
 
     var overlay = GooseStatusOverlay(6)
     var frame = FrameStaging(1440)

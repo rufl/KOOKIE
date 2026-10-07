@@ -81,11 +81,15 @@ jobs:
           echo "KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=$WINDOWS_JAVA_ARCHIVE_SHA256" \
             >> "$GITHUB_ENV"
 
+      - name: Install Wine for the console Windows durability gate
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y wine wine64
 
       - name: Run repository verification gate
         run: bash scripts/verify.sh
-      - name: Verify bounded Kof PE/COFF backend
-        run: bash scripts/verify_kof_pe_backend.sh
+      - name: Verify cross-target Windows durable save adapter
+        run: bash scripts/verify_durable_save_windows.sh
       - name: Verify reproducible Windows JVM package
         run: bash scripts/verify_windows_jvm_package.sh
       - name: Verify G6 runtime probes

@@ -10,9 +10,15 @@ cleanup() {
   rm -rf "$WORK_DIR"
 }
 trap cleanup EXIT INT TERM
-mkdir -p "$WORK_DIR/core" "$WORK_DIR/lib" "$WORK_DIR/native"
+mkdir -p "$WORK_DIR/core" "$WORK_DIR/content" "$WORK_DIR/session" "$WORK_DIR/lib" "$WORK_DIR/native"
 for source_file in "$ROOT_DIR/src/core/"*.kf; do
   ln -s "$source_file" "$WORK_DIR/core/$(basename "$source_file")"
+done
+for source_file in "$ROOT_DIR/src/content/"*.kf; do
+  ln -s "$source_file" "$WORK_DIR/content/$(basename "$source_file")"
+done
+for source_file in "$ROOT_DIR/src/session/"*.kf; do
+  ln -s "$source_file" "$WORK_DIR/session/$(basename "$source_file")"
 done
 cp -- "$ROOT_DIR/probes/g5_durable_save/main.kf" "$WORK_DIR/main.kf"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
