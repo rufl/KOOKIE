@@ -19,6 +19,11 @@ static const char *const target_path = "durable-save.dat";
 static bool symlink_check_skipped;
 #endif
 
+static bool report_test_failure(const char *stage) {
+    fprintf(stderr, "durable-test-failed: %s\n", stage);
+    return false;
+}
+
 static bool write_file(const char *path, const char *contents) {
     FILE *file = fopen(path, "wb");
     if (file == NULL) {
@@ -78,33 +83,46 @@ static bool verify_host_schema_bridge(void) {
         99112233, 1, 7, 1,
         11, 1, 1, 42
     };
-    if (!kookie_durable_host_stage_begin(
-            (int)(sizeof(wire) / sizeof(wire[0])))) {
-        return false;
+    const int wire_length = (int)(sizeof(wire) / sizeof(wire[0]));
+    if (!kookie_durable_host_stage_begin(wire_length)) {
+        return report_test_failure("host stage begin");
     }
-    for (int index = 0;
-         index < (int)(sizeof(wire) / sizeof(wire[0])); index += 1) {
+    for (int index = 0; index < wire_length; index += 1) {
         if (!kookie_durable_host_stage_word(index, wire[index])) {
             kookie_durable_host_stage_cancel();
-            return false;
+            return report_test_failure("host stage word");
         }
     }
-    if (!kookie_durable_host_stage_commit() ||
-        !kookie_durable_host_staging_exists() ||
-        kookie_durable_host_target_exists() ||
-        !kookie_durable_publish_default() ||
-        kookie_durable_trace() != 31 ||
-        kookie_durable_host_staging_exists() ||
-        !kookie_durable_host_target_exists() ||
-        !kookie_durable_host_load_begin() ||
-        kookie_durable_host_load_length() !=
-            (int)(sizeof(wire) / sizeof(wire[0]))) {
-        return false;
+    if (!kookie_durable_host_stage_commit()) {
+        return report_test_failure("host stage commit");
     }
-    for (int index = 0;
-         index < (int)(sizeof(wire) / sizeof(wire[0])); index += 1) {
+    if (!kookie_durable_host_staging_exists()) {
+        return report_test_failure("host staging exists");
+    }
+    if (kookie_durable_host_target_exists()) {
+        return report_test_failure("host target absent before publish");
+    }
+    if (!kookie_durable_publish_default()) {
+        return report_test_failure("host publish");
+    }
+    if (kookie_durable_trace() != 31) {
+        return report_test_failure("host publish trace");
+    }
+    if (kookie_durable_host_staging_exists()) {
+        return report_test_failure("host staging absent after publish");
+    }
+    if (!kookie_durable_host_target_exists()) {
+        return report_test_failure("host target exists after publish");
+    }
+    if (!kookie_durable_host_load_begin()) {
+        return report_test_failure("host load begin");
+    }
+    if (kookie_durable_host_load_length() != wire_length) {
+        return report_test_failure("host load length");
+    }
+    for (int index = 0; index < wire_length; index += 1) {
         if (kookie_durable_host_load_word(index) != wire[index]) {
-            return false;
+            return report_test_failure("host load word");
         }
     }
     return true;
@@ -283,11 +301,17 @@ static bool verify_absolute_paths(void) {
 int main(void) {
     int mode = kookie_durable_mode();
     if (mode == 0) {
-        if (!discard_stage() ||
-            (!absent(target_path) && remove(target_path) != 0) ||
-            !verify_host_schema_bridge() ||
-            remove(target_path) != 0 || !absent(target_path)) {
+        if (!discard_stage()) {
+            return report_test_failure("baseline discard stage");
+        }
+        if (!absent(target_path) && remove(target_path) != 0) {
+            return report_test_failure("baseline target cleanup");
+        }
+        if (!verify_host_schema_bridge()) {
             return 1;
+        }
+        if (remove(target_path) != 0 || !absent(target_path)) {
+            return report_test_failure("baseline host target reset");
         }
         if (!write_file(staging_path, "revision-1") ||
             !publish() || kookie_durable_trace() != 31 ||
@@ -295,7 +319,7 @@ int main(void) {
             !absent(staging_path) ||
             !verify_negative_paths() ||
             !verify_absolute_paths()) {
-            return 1;
+            return report_test_failure("baseline native path checks");
         }
         puts("durable-baseline-ok");
 #ifdef _WIN32
