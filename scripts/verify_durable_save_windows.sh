@@ -54,34 +54,71 @@ run_clean() {
 run_fault() {
   KOOKIE_DURABLE_FAULT="$1" wine ./durable-save.exe
 }
+report_failure() {
+  local phase="$1"
+  local expected="$2"
+  local actual="$3"
+  local log="$4"
+  printf 'verify-durable-save-windows: %s exited with status %s (expected %s)\n' \
+    "$phase" "$actual" "$expected" >&2
+  if [[ -f "$log" ]]; then
+    printf '%s:\n' "$log" >&2
+    cat "$log" >&2
+  fi
+  exit 1
+}
+run_success() {
+  local phase="$1"
+  local log="$2"
+  shift 2
+  set +e
+  "$@" >"$log" 2>&1
+  local status=$?
+  set -e
+  if [[ "$status" -ne 0 ]]; then
+    report_failure "$phase" 0 "$status" "$log"
+  fi
+}
+assert_status() {
+  local phase="$1"
+  local expected="$2"
+  local actual="$3"
+  local log="$4"
+  if [[ "$actual" -ne "$expected" ]]; then
+    report_failure "$phase" "$expected" "$actual" "$log"
+  fi
+}
 
-run_clean >baseline.log
+run_success baseline baseline.log run_clean
 set +e
 run_fault before-file-sync >before-file-sync.log 2>&1
 before_file_sync_status=$?
 set -e
-[[ "$before_file_sync_status" -eq 84 ]]
-run_fault recover-before-file-sync >recover-before-file-sync.log
+assert_status before-file-sync 84 "$before_file_sync_status" before-file-sync.log
+run_success recover-before-file-sync recover-before-file-sync.log \
+  run_fault recover-before-file-sync
 set +e
 run_fault before-rename >after-file-sync.log 2>&1
 after_file_sync_status=$?
 set -e
-[[ "$after_file_sync_status" -eq 85 ]]
-run_fault recover-after-file-sync >recover-after-file-sync.log
+assert_status before-rename 85 "$after_file_sync_status" after-file-sync.log
+run_success recover-after-file-sync recover-after-file-sync.log \
+  run_fault recover-after-file-sync
 set +e
 run_fault after-rename >after-rename.log 2>&1
 after_rename_status=$?
 set -e
-[[ "$after_rename_status" -eq 86 ]]
-run_fault recover >recover.log
+assert_status after-rename 86 "$after_rename_status" after-rename.log
+run_success recover recover.log run_fault recover
 set +e
 run_fault after-directory-sync >after-directory-sync.log 2>&1
 after_directory_status=$?
 set -e
-[[ "$after_directory_status" -eq 87 ]]
-run_fault recover-after-directory >recover-after-directory.log
+assert_status after-directory-sync 87 "$after_directory_status" after-directory-sync.log
+run_success recover-after-directory recover-after-directory.log \
+  run_fault recover-after-directory
 printf 'torn' >durable-save.dat.kookie-stage
-run_fault torn-stage >torn.log
+run_success torn-stage torn.log run_fault torn-stage
 
 for log in baseline recover-before-file-sync recover-after-file-sync recover \
     recover-after-directory torn; do
