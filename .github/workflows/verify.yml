@@ -59,7 +59,8 @@ jobs:
         run: |
           set -euo pipefail
           mvn -q -f _kof/pom.xml clean package \
-            -DskipTests -Drevision="$KOF_VERSION"
+            -DskipTests -Drevision="$KOF_VERSION" \
+            -DcreateDependencyReducedPom=false
           bash _kof/scripts/package.sh \
             --output "$RUNNER_TEMP/kof-dist" --skip-build
           archive="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
