@@ -174,6 +174,14 @@ static bool create_symbolic_link_path(
     return symlink(existing, link_path) == 0;
 #endif
 }
+static bool remove_symlink_path(const char *path) {
+#ifdef _WIN32
+    return DeleteFileA(path) != 0;
+#else
+    return remove(path) == 0;
+#endif
+}
+
 
 static bool verify_symlink_path(
     const char *symlink_path) {
@@ -188,14 +196,14 @@ static bool verify_symlink_path(
     }
 #endif
     if (publish_paths(symlink_path, target_path)) {
-        (void)remove(symlink_path);
+        (void)remove_symlink_path(symlink_path);
         return report_test_failure("negative symlink publish accepted");
     }
     if (!read_matches(target_path, "revision-1")) {
-        (void)remove(symlink_path);
+        (void)remove_symlink_path(symlink_path);
         return report_test_failure("negative symlink changed target");
     }
-    if (remove(symlink_path) != 0) {
+    if (!remove_symlink_path(symlink_path)) {
         return report_test_failure("negative symlink cleanup");
     }
     return true;
