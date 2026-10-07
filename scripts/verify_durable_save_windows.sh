@@ -144,6 +144,18 @@ test -s durable-save.dat
 test ! -e durable-save.dat.kookie-stage
 EOF_RUN
 chmod 755 "$WORK_DIR/run-wine.sh"
+mkdir "$WORK_DIR/wine-prefix"
+set +e
+WINEPREFIX="$WORK_DIR/wine-prefix" \
+  WINEARCH=win64 \
+  WINEDEBUG=-all \
+  wineboot --init >/dev/null
+wineboot_status=$?
+set -e
+if [[ "$wineboot_status" -ne 0 ]]; then
+  printf 'verify-durable-save-windows: wineboot returned %s; validating the prefix with the executable\n' \
+    "$wineboot_status" >&2
+fi
 (
   cd "$WORK_DIR"
   WINEPREFIX="$WORK_DIR/wine-prefix" \
