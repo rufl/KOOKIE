@@ -3,7 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-for tool in python3 tr wine zig; do
+for tool in python3 tr wine wineboot zig; do
   command -v "$tool" >/dev/null || {
     echo "verify-durable-save-windows: $tool is required" >&2
     exit 2
@@ -108,6 +108,10 @@ test ! -e durable-save.dat.kookie-stage
 EOF_RUN
 chmod 755 "$WORK_DIR/run-wine.sh"
 mkdir "$WORK_DIR/wine-prefix"
+WINEPREFIX="$WORK_DIR/wine-prefix" \
+  WINEARCH=win64 \
+  WINEDEBUG=-all \
+  wineboot --init >/dev/null
 (
   cd "$WORK_DIR"
   WINEPREFIX="$WORK_DIR/wine-prefix" \

@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Hardened the hosted Ubuntu verification workflow's Wine gate: enable the i386
+  architecture, install both Wine architectures and initialize a win64 prefix
+  before the Windows durable-save smoke. Wine64-only installation can fail before
+  the actual PE test when `syswow64/rundll32.exe` is unavailable.
 - Added bounded OGG Vorbis intake to the developer and packaged native kooker:
   page CRC/sequence/continuation/BOS/EOS state, Vorbis identification/comment/
   setup headers, decoded-frame and optional sample-frame loop bounds are

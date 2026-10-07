@@ -83,8 +83,15 @@ jobs:
 
       - name: Install Wine for the console Windows durability gate
         run: |
+          set -euo pipefail
+          sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y wine wine64
+          sudo apt-get install --no-install-recommends -y wine wine64 wine32:i386
+          wine --version
+          smoke_prefix="$RUNNER_TEMP/wine-ci-smoke"
+          WINEARCH=win64 WINEPREFIX="$smoke_prefix" WINEDEBUG=-all \
+            wineboot --init
+          rm -rf -- "$smoke_prefix"
 
       - name: Run repository verification gate
         run: bash scripts/verify.sh

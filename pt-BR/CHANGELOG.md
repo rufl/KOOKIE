@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Endurecemos o gate Wine da verificação Ubuntu hospedada: habilitamos a
+  arquitetura i386, instalamos as duas arquiteturas do Wine e inicializamos um
+  prefixo win64 antes do smoke de save durável Windows. Uma instalação somente
+  com Wine64 pode falhar antes do teste PE quando
+  `syswow64/rundll32.exe` não está disponível.
 - Adicionamos entrada OGG Vorbis limitada ao kooker nativo de desenvolvimento
   e empacotado: estado de CRC/sequência/continuação/BOS/EOS das páginas,
   cabeçalhos Vorbis de identificação/comentário/setup, limite de frames
