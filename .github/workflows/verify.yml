@@ -58,7 +58,14 @@ jobs:
       - name: Build pinned Kof toolchain
         run: |
           set -euo pipefail
-          # Keep the Kof shaded jar build independent of a stale reduced POM.
+          # Concretize Kof's CI-friendly parent versions before shade resolves
+          # the dependency-reduced POM; Maven otherwise requests ${revision}.
+          mvn -q -f _kof/pom.xml flatten:flatten \
+            -Drevision="$KOF_VERSION"
+          for pom_dir in _kof _kof/kof-compiler _kof/kof-cli \
+              _kof/kof-runtime _kof/kof-script _kof/kof-c-compiler; do
+            cp -- "$pom_dir/.flattened-pom.xml" "$pom_dir/pom.xml"
+          done
           mvn -q -f _kof/pom.xml clean package \
             -DskipTests -Drevision="$KOF_VERSION" \
             -DcreateDependencyReducedPom=false
