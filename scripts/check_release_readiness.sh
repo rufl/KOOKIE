@@ -115,11 +115,11 @@ if (( CHECK_GITHUB == 1 )); then
   linux_runner=0
   windows_runner=0
   while IFS=$'\t' read -r _ runner_labels; do
-    [[ "$runner_labels" == *self-hosted* &&
-       "$runner_labels" == *x64* &&
-       "$runner_labels" == *kookie-demo-release* ]] || continue
-    [[ "$runner_labels" == *linux* ]] && linux_runner=1
-    [[ "$runner_labels" == *windows* ]] && windows_runner=1
+    [[ ",$runner_labels," == *",self-hosted,"* &&
+       ",$runner_labels," == *",x64,"* &&
+       ",$runner_labels," == *",kookie-demo-release,"* ]] || continue
+    [[ ",$runner_labels," == *",linux,"* ]] && linux_runner=1
+    [[ ",$runner_labels," == *",windows,"* ]] && windows_runner=1
   done <<< "$runners"
   if (( linux_runner == 0 )); then
     echo "BLOCKED: Linux release runner labels are missing in $REPO" >&2
