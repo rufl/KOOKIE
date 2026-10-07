@@ -187,13 +187,16 @@ static bool verify_symlink_path(
         return report_test_failure("negative symlink create");
     }
 #endif
-    bool ok = !publish_paths(symlink_path, target_path) &&
-        read_matches(target_path, "revision-1");
-    if (remove(symlink_path) != 0) {
-        ok = false;
+    if (publish_paths(symlink_path, target_path)) {
+        (void)remove(symlink_path);
+        return report_test_failure("negative symlink publish accepted");
     }
-    if (!ok) {
-        return report_test_failure("negative symlink publish");
+    if (!read_matches(target_path, "revision-1")) {
+        (void)remove(symlink_path);
+        return report_test_failure("negative symlink changed target");
+    }
+    if (remove(symlink_path) != 0) {
+        return report_test_failure("negative symlink cleanup");
     }
     return true;
 }
