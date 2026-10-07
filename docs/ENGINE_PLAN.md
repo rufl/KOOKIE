@@ -658,9 +658,21 @@ Data/shader reload can be supported after validation and GPU-safe retirement. In
 ### Saves and replay
 
 - Versioned save sections: character/progression, item instances and ownership, world persistence, quest/encounter state, explicit RNG streams and content IDs.
-- Snapshot at a defined tick boundary; stage file, validate/checksum, flush/sync, atomic replacement and directory-durability policy appropriate to the target. `BoundedRedundantSaveFileStore` and `BoundedSaveSchemaFileStore` now write two bounded wire copies, recover one corrupted copy and repair both copies; interrupted-write recovery, flush/sync, atomic replacement and directory durability still require a proven filesystem primitive. Corruption detection is not authentication.
+- Snapshot at a defined tick boundary; stage and validate the checksummed file,
+  then publish it through `BoundedDurableSavePublication` and
+  `native/kookie_persistence_adapter.c`. POSIX uses file `fsync`, same-directory
+  atomic `rename` and parent-directory `fsync`; its Kof gate exercises the
+  schema store and publication class. Windows uses file and directory
+  `FlushFileBuffers` plus same-volume `MoveFileEx` with
+  `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH`; its cross-compiled
+  native adapter gate exercises the same old/new save-byte contract. The
+  phase-fault gates prove interrupted publication leaves the previous save valid
+  before rename and a complete new save valid after rename. Corruption detection
+  is not authentication.
 - Migrations operate on schemas, never raw slots/pointers. `BoundedSaveSections`, `BoundedSaveSchemaWireCodec`, `BoundedSaveSchemaFileStore` and `BoundedSaveMigrationGate` now persist progression v1, item v1, quest v1, world v2, RNG v2, currency v1, rolled-item v1, equipment v1, skill v1 and status v1 sections, transforming prior world/RNG versions with default fields; typed bounded item ownership/quantity, quest state/progress, atomic inventory currency/item transactions, rolled item fields, equipment slot ownership, skill progression and status effects round-trip through the schema wire; unsupported/newer sections fail with the old save left intact. Future section-version transforms remain required.
-- Replay presentation history now captures authoritative player weapon events and replicated enemy impact/audio presentation events automatically; the history is included in the native-safe replay sidecar and atomic checkpoint bundle. The isolated DRI3 screenshot gate passes; crash-durable save publication remains deferred and is not a G0 release gate.
+- Replay presentation history now captures authoritative player weapon events and
+  replicated enemy impact/audio presentation events automatically; the history
+  is included in the native-safe replay sidecar and atomic checkpoint bundle.
 - Implemented level progression: section `11`, version `1`, payload `[levelId, contentVersion, count, (stableId, activeFlag)*count]`. IDs/versions are `1..1000000`; up to 64 authored interactions require at most 131 words. The sealed destination requires matching level/content identity and the exact ID set, independent of declaration order. Invalid dependencies, undeclared requirements, duplicate/unknown IDs or missing sections reject without changing live progress. Old saves may explicitly start a fresh level; no progress is invented.
 - `BoundedSaveSections` and schema codecs allow up to 12 sections and 160 words per section. Schema file v2 is `[magic, 2, slotWords]` plus two `[wireLength, checksum, wire...]` slots sized to the actual envelope. The fixed 316-word v1 format remains readable; repair writes v2. Corrupt/truncated/trailing files, insufficient destination capacity and valid newer schemas leave the destination intact.
 - Interaction capture records consumed `(tick, player, sequence, targetId)` commands, including failed gameplay checks, in strict tick/player order with increasing per-player sequences. Admission reserves the bounded 64-command log before mutating sequence state. Export through `exportInteractionReplay` before disabling capture. Replay bundle v2 carries this log; genuine v1 reads produce an empty log. The older plain replay wire codec rejects interaction-bearing timelines rather than dropping commands.

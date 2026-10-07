@@ -82,8 +82,19 @@ player-facing demo release. The open D1 gate is tracked in
 - Pause now resets fixed-step wall-clock debt, disarms pending player commands, blocks simulation/input while paused, and resumes without catch-up spikes; JVM/native coverage fixes the documented pause contract.
 - `InputReplayRecorder` now records validated resulting tick commands (not raw platform events) in a bounded FIFO, preserves deterministic order, rejects stale/duplicate/invalid commands, and replays or resets without unbounded growth; `LoopbackSession` captures consumed commands only when explicitly enabled and resets the bounded capture on disable; `BoundedReplayWireCodec` and `BoundedReplayFileStore` persist bounded engine/content metadata, seed, signed tick commands, ordered checkpoints, hash diagnostics and initial snapshots with corruption rejection; replay checkpoints carry bounded state snapshots, and `LoopbackSession.encodeReplayCheckpoint`/`applyReplayCheckpoint` restore tick, movement, prediction, snapshot, player combat, skill resources/cooldowns, statuses, enemy combat actors, AI state, spatial positions, encounter budgets and encounter links before staging commands.
 - `BoundedAffixPoolStore` now provides weighted deterministic selection of non-contiguous content affix IDs for item rolls; JVM/native coverage verifies stable seeded selection.
-- Save write durability still requires a proven atomic replacement plus flush/sync filesystem primitive; current bounded redundant/schema stores validate, recover one bad copy and repair it, but do not claim crash-durable publication.
-- Player weapon and replicated enemy impact/audio presentation events now enter replay history automatically and round-trip through checkpoint sidecars; JVM/native coverage verifies the path. The isolated DRI3 screenshot gate now passes; crash-durable save publication remains deferred and is not a G0 release gate.
+- P2 crash-durable save publication is implemented by the native POSIX/Windows
+  persistence adapter. The POSIX Kof gate exercises the schema store and
+  `BoundedDurableSavePublication`; the Windows gate cross-compiles and runs the
+  same adapter API against complete old/new save-byte fixtures. File
+  flush/sync, same-directory atomic replacement and directory durability are
+  explicit phases. The gates interrupt before file sync, after file sync, after
+  rename and after directory sync; they prove the prior save remains valid
+  before replacement and the complete new save remains valid after replacement,
+  including torn-stage cleanup.
+- Player weapon and replicated enemy impact/audio presentation events now enter
+  replay history automatically and round-trip through checkpoint sidecars;
+  JVM/native coverage verifies the path. The isolated DRI3 screenshot gate now
+  passes; crash-durable save publication is no longer deferred.
 - DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and AArch64 cross-target syntax proof. Bulk Kof integration remains blocked by the existing `FFI001` array/buffer boundary; no speedup is claimed.
 - `BoundedRayTargetWorld` now provides bounded integer ray and shotgun-pellet target selection with nearest-hit ordering, stable-ID ties, spread offsets, source exclusion through `SpatialAimContract`, target removal and invalid-input rejection; JVM/native coverage proves center and offset pellet hits.
 - `CombatWorld.resolveShotgunPelletTargets` and player/enemy session wrappers now accept exactly one validated target per pellet, preserve repeated target IDs when multiple pellets hit the same actor, allow bounded misses, and publish ordered combat events; JVM/native coverage proves target order and rejects wrong-length selections.

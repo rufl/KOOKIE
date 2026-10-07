@@ -65,7 +65,16 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
 - Projéteis espaciais agora publicam eventos limitados de impacto terminal para acerto, bloqueio por obstáculo e expiração/cancelamento, preservando IDs de projétil/fonte/alvo, posição do impacto e dano aplicado; testes JVM/nativos cobrem o evento de acerto autoritativo.
 - O `LoopbackSession` agora coloca snapshots replicados de impacto de inimigos em filas limitadas de apresentação de render e áudio, com mapeamentos determinísticos de clipes para acerto/bloqueio/expiração; snapshots duplicados são rejeitados e testes JVM/nativos cobrem identidade, ordem e consumo de áudio.
 - Bordas de disparo do jogador agora alimentam uma fila limitada de apresentação de arma autoritativa, com estado do tiro aceito, transições de munição e supressão de disparo mantido; o adaptador SDL nativo isolado consome clipes de impacto confirmados 201/202/203 pela ponte de áudio.
-- `BoundedSaveState` agora valida um payload inteiro limitado da versão 1 e revisão limitada, expõe checksums determinísticos do envelope, rejeita corrupção de capacidade/valor e suporta restauração em memória; `BoundedSaveHistory` publica revisões estritamente crescentes com eviction e restauração determinísticas limitadas; `BoundedSaveWireCodec` enquadra envelopes validados em palavras inteiras limitadas e rejeita corrupção de cabeçalho, tamanho, versão e checksum; I/O de arquivo e migrações continuam adiados.
+- O P2 de publicação de save durável contra crash foi implementado pelo
+  adaptador nativo POSIX/Windows. O gate Kof POSIX exercita o schema e
+  `BoundedDurableSavePublication`; o gate Windows compila em cross-target e
+  executa a mesma API do adaptador contra fixtures completos de bytes de save
+  antigo/novo. Flush/sync do arquivo, substituição atômica no mesmo diretório e
+  durabilidade do diretório são fases explícitas. Os gates interrompem antes
+  do sync do arquivo, depois do sync do arquivo, depois do rename e depois do
+  sync do diretório; provam que o save anterior permanece válido antes da
+  substituição e que o novo save completo permanece válido depois dela,
+  incluindo a limpeza de staging truncado.
 - A perda de foco agora limpa comandos de jogador pendentes, emite bordas de liberação dos botões mantidos, bloqueia novos inputs enquanto desfocado e rearma corretamente ao recuperar o foco; a cobertura JVM/nativa impede disparos obsoletos.
 - A pausa agora redefine a dívida de tempo do fixed-step, desarma comandos de jogador pendentes, bloqueia simulação/input enquanto pausado e retoma sem picos de catch-up; a cobertura JVM/nativa fixa o contrato documentado de pausa.
 - `InputReplayRecorder` agora registra comandos de tick resultantes validados (não eventos crus da plataforma) em um FIFO limitado, preserva ordem determinística, rejeita comandos obsoletos/duplicados/inválidos e reproduz ou redefine sem crescimento ilimitado; `LoopbackSession` captura comandos consumidos somente quando explicitamente habilitado e redefine a captura limitada ao desabilitar.

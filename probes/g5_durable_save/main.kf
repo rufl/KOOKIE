@@ -1,8 +1,6 @@
 import core
 
-extern "./lib/libkookie_persistence_adapter.so" kookie_durable_publish(
-    String stagingPath, String targetPath
-): Bool
+extern "./lib/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
 extern "./lib/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
 extern "./lib/libkookie_persistence_adapter.so" kookie_durable_mode(): Int
 
@@ -35,41 +33,61 @@ main() {
         assert(publication.discardInterruptedStage(path))
         var initial = saveRevision(1, 101)
         assert(publication.stage(path, initial) &&
-            kookie_durable_publish(
-                publication.stagingPath(), publication.targetPath()) &&
+            kookie_durable_publish_default() &&
             kookie_durable_trace() == 31 && publication.confirmPublished() &&
             hasRevision(publication, path, 1, 101))
         println("durable-baseline-ok")
-    } else if (mode == 1) {
-        var interrupted = saveRevision(2, 202)
-        assert(publication.stage(path, interrupted) &&
-            !kookie_durable_publish(
-                publication.stagingPath(), publication.targetPath()) &&
-            kookie_durable_trace() == 3 &&
+    } else if (mode == 5) {
+        var beforeSync = saveRevision(2, 202)
+        assert(publication.stage(path, beforeSync))
+        assert(kookie_durable_publish_default())
+        assert(false, "before-file-sync fault must terminate the process")
+    } else if (mode == 8) {
+        assert(File(path + ".kookie-stage").exists() &&
+            publication.discardInterruptedStage(path) &&
             hasRevision(publication, path, 1, 101))
-        println("durable-before-rename-recovered")
+        println("durable-before-file-sync-recovered")
+    } else if (mode == 1) {
+        var afterSync = saveRevision(2, 202)
+        assert(publication.stage(path, afterSync))
+        assert(kookie_durable_publish_default())
+        assert(false, "after-file-sync fault must terminate the process")
+    } else if (mode == 9) {
+        assert(File(path + ".kookie-stage").exists() &&
+            publication.discardInterruptedStage(path) &&
+            hasRevision(publication, path, 1, 101))
+        println("durable-after-file-sync-recovered")
     } else if (mode == 2) {
         assert(publication.discardInterruptedStage(path))
         var renamed = saveRevision(2, 202)
         assert(publication.stage(path, renamed))
-        assert(kookie_durable_publish(
-            publication.stagingPath(), publication.targetPath()))
+        assert(kookie_durable_publish_default())
         assert(false, "after-rename fault must terminate the process")
     } else if (mode == 3) {
-        assert(publication.discardInterruptedStage(path) &&
+        assert(!File(path + ".kookie-stage").exists() &&
             hasRevision(publication, path, 2, 202))
         var finalSave = saveRevision(3, 303)
         assert(publication.stage(path, finalSave) &&
-            kookie_durable_publish(
-                publication.stagingPath(), publication.targetPath()) &&
+            kookie_durable_publish_default() &&
             kookie_durable_trace() == 31 && publication.confirmPublished() &&
             hasRevision(publication, path, 3, 303))
         println("durable-after-rename-recovered")
+    } else if (mode == 6) {
+        assert(publication.discardInterruptedStage(path) &&
+            hasRevision(publication, path, 3, 303))
+        var directorySynced = saveRevision(4, 404)
+        assert(publication.stage(path, directorySynced) &&
+            kookie_durable_publish_default())
+        assert(false, "after-directory-sync fault must terminate the process")
+    } else if (mode == 7) {
+        assert(!File(path + ".kookie-stage").exists() &&
+            hasRevision(publication, path, 4, 404))
+        println("durable-after-directory-sync-recovered")
     } else if (mode == 4) {
-        assert(hasRevision(publication, path, 3, 303) &&
+        assert(hasRevision(publication, path, 4, 404) &&
             publication.discardInterruptedStage(path) &&
             !File(path + ".kookie-stage").exists() &&
-            hasRevision(publication, path, 3, 303))
+            hasRevision(publication, path, 4, 404))
         println("durable-torn-stage-discarded")
     } else {
         assert(false, "unknown durability probe mode")

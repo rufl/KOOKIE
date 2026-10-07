@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Completed P2 crash-durable save publication. The native adapter now flushes
+  file data, performs same-directory atomic replacement and flushes directory
+  metadata on POSIX and Windows. Added phase-interruption E2E coverage for
+  pre-sync, post-sync, post-rename, post-directory-sync and torn-stage recovery
+  in `scripts/verify_durable_save.sh` and
+  `scripts/verify_durable_save_windows.sh`.
 - Fixed the expanded G1 arena regression: restored the raised-room collision
   geometry, synchronized the JVM transport backend with the native 1,740-word
   / 6,984-byte frame bound, and updated the external role receiver for the

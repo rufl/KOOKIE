@@ -75,26 +75,47 @@ outside-checkout interactive and target-hardware evidence are still required
 before calling it a public release.
 
 
-## Current release decision — 2026-10-02
+## Current release decision — 2026-10-07
 
-The Linux and Windows artifact/package gates pass in the current qualification
-batch. Local clean-tree artifact runs now exist for both targets, but D1 is
-still blocked by:
+A fresh D1 qualification pass ran from a clean KOOKIE checkout. The release
+gate remains **blocked**; no player-facing public release is claimed.
 
-- a publishable paired build of the current source with release signatures and
-  provenance; the local Linux and Windows qualification artifacts used
-  temporary keys and were built separately;
-- outside-checkout interactive `Play` → encounter → restart/quit smoke on both
-  targets, repeated from a fresh extraction;
-- fresh-host/runtime-floor verification and retained machine/driver/input/audio
-  evidence;
-- a present-capable Linux GPU/driver run; this workstation's isolated
-  environment lacks DRI3 and a supported SDL_GPU backend;
-- native Windows hardware presentation evidence, including input, audio,
-  resize and GPU/driver behavior. The optional isolated Wine presentation smoke
-  reached native SDL but exited 70 with `No supported SDL_GPU backend found!`;
-- Authenticode/SmartScreen policy for Windows and final release notes;
-- fresh cross-host multiplayer evidence if Host/Join/WAN remains a public claim.
+Passed:
+
+- `scripts/build_demo_release.sh --target linux-x86_64` produced the
+  deterministic signed local artifact
+  `0.1.0-d1-e2e.1` from source commit
+  `9d9cfe784e534fe34a0e30694198435ce90a7546`; archive SHA-256:
+  `edf553e256bc9fa34b58a2217c3db87a207765fbb4cdc058cb5703130c1d5738`.
+- The Linux duplicate-build, detached-signature, checksum, safe-extraction and
+  package-smoke gates passed. The artifact was extracted and smoke-tested
+  outside the checkout at
+  `/home/lich/lichforge/ztash-releases/kookie-d1-e2e-extracted`.
+- Focused launcher, interaction/recovery, goose-game and multiplayer UI
+  probes passed.
+- The existing Windows `0.1.0-dogfood.60` native package passed isolated Wine
+  `--package-smoke` outside the checkout. Its manifest is `runtime=native`
+  with `windows_presentation=false`; this is not D1 presentation evidence.
+
+Blocked:
+
+- The Linux presentation smoke reached the native SDL shell but reported
+  `No DRI3 support detected` and
+  `No supported SDL_GPU backend found!`; `Play`/encounter/restart/quit was
+  therefore not certified on target-capable hardware.
+- `scripts/verify_windows_presentation.sh` could not build the paired current
+  source artifact: `KOOKIE_WINDOWS_SDL_PREFIX` is unset, and
+  `KOOKIE_WINDOWS_SDL_MIXER_PREFIX`, `KOOKIE_DXC` and `dxc` are unavailable.
+- The Linux artifact used an ephemeral Ed25519 key because no permanent
+  `KOOKIE_SIGNING_KEY` was available. It is a qualification artifact, not a
+  release identity.
+- The candidate public release URL returned HTTP `404`; no paired publication,
+  Authenticode/SmartScreen decision, native Windows hardware evidence or fresh
+  cross-host multiplayer evidence exists.
+
+The required final D1 actions are therefore target-capable Linux GPU evidence,
+a paired current-source Windows presentation build and hardware run, permanent
+release provenance, and approved publication.
 
 
 

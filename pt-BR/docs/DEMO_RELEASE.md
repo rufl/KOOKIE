@@ -243,28 +243,48 @@ antes de uma release pública.
   bloqueiam a demo local limitada quando saída/reinício estiver demonstrado.
 
 
-## Decisão atual de release — 2026-10-02
+## Decisão atual de release — 2026-10-07
 
-Os gates de artefato/pacote Linux e Windows passam no lote atual de
-qualificação. Agora existem artefatos locais de árvore limpa para os dois
-alvos, mas D1 continua bloqueado por:
+Foi executada uma nova qualification D1 a partir de um checkout KOOKIE limpo.
+O gate de release continua **bloqueado**; nenhuma release pública player-facing
+é reivindicada.
 
-- um build pareado publicável da fonte atual com assinaturas e procedência de
-  release; os artefatos locais de qualificação Linux e Windows usaram chaves
-  temporárias e foram construídos separadamente;
-- smoke interativo fora do checkout de `Play` → encounter → reinício/saída nos
-  dois alvos, repetido a partir de uma extração nova;
-- verificação em host novo/piso de runtime e evidência retida de máquina,
-  driver, input e áudio;
-- execução em GPU/driver Linux com capacidade de apresentação; o ambiente
-  isolado desta workstation não oferece DRI3 nem backend SDL_GPU suportado;
-- evidência de apresentação em hardware Windows nativo, incluindo input, áudio,
-  redimensionamento e comportamento de GPU/driver. O smoke opcional de
-  apresentação em Wine isolado chegou ao SDL nativo, mas saiu com código 70 e
-  `kookie_gpu_open: No supported SDL_GPU backend found!`;
-- decisão de Authenticode/SmartScreen para Windows e notas finais da release;
-- evidência multiplayer entre hosts novos se Host/Join/WAN continuar sendo uma
-  afirmação pública.
+Passou:
+
+- `scripts/build_demo_release.sh --target linux-x86_64` produziu o artefato
+  local determinístico e assinado `0.1.0-d1-e2e.1`, a partir do commit de fonte
+  `9d9cfe784e534fe34a0e30694198435ce90a7546`; SHA-256 do arquivo:
+  `edf553e256bc9fa34b58a2217c3db87a207765fbb4cdc058cb5703130c1d5738`.
+- Passaram os gates de build duplicado Linux, assinaturas destacadas,
+  checksums, extração segura e package smoke. O artefato foi extraído e
+  testado fora do checkout em
+  `/home/lich/lichforge/ztash-releases/kookie-d1-e2e-extracted`.
+- Passaram os probes focados de launcher, interação/recovery, goose game e UI
+  multiplayer.
+- O pacote Windows nativo existente `0.1.0-dogfood.60` passou
+  `--package-smoke` em Wine isolado fora do checkout. O manifesto declara
+  `runtime=native` e `windows_presentation=false`; isso não é evidência de
+  apresentação D1.
+
+Bloqueios:
+
+- O smoke de apresentação Linux chegou ao shell SDL nativo, mas reportou
+  `No DRI3 support detected` e
+  `No supported SDL_GPU backend found!`; portanto `Play`/encounter/restart/quit
+  não foi certificado em hardware capaz de apresentar.
+- `scripts/verify_windows_presentation.sh` não conseguiu construir o artefato
+  pareado da fonte atual: `KOOKIE_WINDOWS_SDL_PREFIX` não está definido, e
+  `KOOKIE_WINDOWS_SDL_MIXER_PREFIX`, `KOOKIE_DXC` e `dxc` não estão disponíveis.
+- O artefato Linux usou uma chave Ed25519 efêmera porque
+  `KOOKIE_SIGNING_KEY` permanente não estava disponível. É artefato de
+  qualification, não identidade de release.
+- A URL pública candidata retornou HTTP `404`; não existe publicação pareada,
+  decisão Authenticode/SmartScreen, evidência nativa de hardware Windows ou
+  evidência multiplayer entre hosts novos.
+
+As ações finais necessárias para D1 são evidência Linux em GPU capaz de
+apresentação, build e execução Windows presentation da fonte atual em hardware,
+procedência permanente de release e publicação aprovada.
 
 
 
