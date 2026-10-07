@@ -658,6 +658,7 @@ específica do alvo; não deve ser generalizada para outras combinações de
 SO/GPU ou para qualificação de WAN/segurança.
 
 ### Workflow de release demo pareada
+Para os paths exatos da workstation, os checks de readiness, a configuração dos secrets e os comandos de disparo, veja [RELEASE_OPERATIONS.md](RELEASE_OPERATIONS.md).
 
 `.github/workflows/release_demo.yml` é um workflow disparado manualmente e
 aprovado manualmente. Ele gera os pacotes Linux e Windows de forma

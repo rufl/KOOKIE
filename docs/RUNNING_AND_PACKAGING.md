@@ -664,6 +664,7 @@ target-specific evidence; it does not generalize to other OS/GPU combinations
 or WAN/security qualification.
 
 ### Paired demo release workflow
+For exact workstation paths, readiness checks, secret setup and dispatch commands, see [RELEASE_OPERATIONS.md](RELEASE_OPERATIONS.md).
 
 `.github/workflows/release_demo.yml` is a manually dispatched, manually
 approved workflow. It builds Linux and Windows packages independently, then
