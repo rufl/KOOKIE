@@ -184,7 +184,7 @@ static bool verify_symlink_path(
     }
 #else
     if (!create_symbolic_link_path(target_path, symlink_path)) {
-        return false;
+        return report_test_failure("negative symlink create");
     }
 #endif
     bool ok = !publish_paths(symlink_path, target_path) &&
@@ -192,7 +192,10 @@ static bool verify_symlink_path(
     if (remove(symlink_path) != 0) {
         ok = false;
     }
-    return ok;
+    if (!ok) {
+        return report_test_failure("negative symlink publish");
+    }
+    return true;
 }
 
 static bool verify_parent_symlink_path(void) {
@@ -219,7 +222,7 @@ static bool verify_parent_symlink_path(void) {
         remove(target) != 0 ||
         remove(parent_link) != 0 ||
         !remove_directory_path(directory)) {
-        return false;
+        return report_test_failure("negative parent symlink");
     }
     return true;
 #endif
@@ -245,13 +248,13 @@ static bool verify_negative_paths(void) {
         !read_matches(target_path, "revision-1") ||
         remove(cross_stage) != 0 ||
         !remove_directory_path(cross_directory)) {
-        return false;
+        return report_test_failure("negative cross-directory path");
     }
     if (!make_directory_path(staging_path) ||
         publish() ||
         !read_matches(target_path, "revision-1") ||
         !remove_directory_path(staging_path)) {
-        return false;
+        return report_test_failure("negative directory staging path");
     }
     if (!write_file(staging_path, "revision-2") ||
         !create_hard_link_path(staging_path, hard_link) ||
@@ -259,10 +262,12 @@ static bool verify_negative_paths(void) {
         !read_matches(target_path, "revision-1") ||
         remove(hard_link) != 0 ||
         remove(staging_path) != 0) {
+        return report_test_failure("negative hard-link path");
+    }
+    if (!verify_symlink_path(symlink_path)) {
         return false;
     }
-    return verify_symlink_path(symlink_path) &&
-        verify_parent_symlink_path();
+    return verify_parent_symlink_path();
 }
 
 static bool verify_absolute_paths(void) {
@@ -278,20 +283,20 @@ static bool verify_absolute_paths(void) {
     if (staging_length == 0 || target_length == 0 ||
         staging_length >= sizeof(absolute_staging) ||
         target_length >= sizeof(absolute_target)) {
-        return false;
+        return report_test_failure("absolute path resolution");
     }
     if (!write_file(absolute_staging, "revision-2") ||
         !publish_paths(absolute_staging, absolute_target) ||
         kookie_durable_trace() != 31 ||
         !read_matches(absolute_target, "revision-2") ||
         !absent(absolute_staging)) {
-        return false;
+        return report_test_failure("absolute path publish");
     }
     if (!write_file(staging_path, "revision-1") ||
         !publish() || kookie_durable_trace() != 31 ||
         !read_matches(target_path, "revision-1") ||
         !absent(staging_path)) {
-        return false;
+        return report_test_failure("absolute path relative restore");
     }
 #endif
     return true;
@@ -313,13 +318,19 @@ int main(void) {
         if (remove(target_path) != 0 || !absent(target_path)) {
             return report_test_failure("baseline host target reset");
         }
-        if (!write_file(staging_path, "revision-1") ||
-            !publish() || kookie_durable_trace() != 31 ||
+        if (!write_file(staging_path, "revision-1")) {
+            return report_test_failure("baseline native staging write");
+        }
+        if (!publish() || kookie_durable_trace() != 31 ||
             !read_matches(target_path, "revision-1") ||
-            !absent(staging_path) ||
-            !verify_negative_paths() ||
-            !verify_absolute_paths()) {
-            return report_test_failure("baseline native path checks");
+            !absent(staging_path)) {
+            return report_test_failure("baseline native publish");
+        }
+        if (!verify_negative_paths()) {
+            return report_test_failure("baseline negative path checks");
+        }
+        if (!verify_absolute_paths()) {
+            return report_test_failure("baseline absolute path checks");
         }
         puts("durable-baseline-ok");
 #ifdef _WIN32
