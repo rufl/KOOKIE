@@ -167,7 +167,7 @@ if [[ "${#baseline_lines[@]}" -eq 1 &&
 elif [[ "${#baseline_lines[@]}" -eq 2 &&
     "${baseline_lines[0]}" == "durable-baseline-ok" &&
     "${baseline_lines[1]}" == "durable-symlink-check-skipped" ]]; then
-  echo "Windows symlink/reparse fixture skipped: Wine privilege unavailable" >&2
+  echo "Windows symlink/reparse fixture skipped: unavailable in this Wine environment" >&2
 else
   report_output_failure baseline baseline.log baseline.stderr
 fi
