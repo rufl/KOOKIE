@@ -51,8 +51,10 @@ A árvore de fontes atual possui estes caminhos aptos a release:
   de artefato assinado passou com MinGW SDL3/SDL_mixer e DXC fixados; não há
   evidência de hardware Windows alvo retida.
 - Smoke em Wine do shell nativo Windows com marcadores de gameplay. O smoke
-  visual de apresentação continua opcional e exige GPU isolada capaz de DRI3;
-  ligação de pacote ou saída Xvfb não é evidência de apresentação visual.
+  visual nativo Windows está disponível por
+  `KOOKIE_RUN_NATIVE_PRESENTATION=1` e pelo
+  `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` revisado; Wine, ligação de
+  pacote e saída Xvfb não são evidência visual do alvo.
 - Pipeline de pacote dogfood Linux assinado e pacote Windows JVM separado para
   compatibilidade/qualificação. O pacote JVM não é fallback do jogo nativo.
 
@@ -87,15 +89,34 @@ Se o multiplayer for anunciado na mesma release dogfood, também são exigidos
 `Host/Join`, o gate de dois jogadores `READY`, o placar `Tab` e evidência
 entre hosts para a afirmação LAN/WAN suportada.
 
-A apresentação pública continua sendo um artefato de qualificação porque
-antecede a árvore de fontes atual. O caminho da fonte agora está implementado:
-`Play` inicia um encounter autoritativo local; `Host/Join` admite um segundo
-jogador pelo lobby explícito; três bots gansos atacam; snapshots do host
-replicam jogadores/bots; `Tab` mostra a tela limitada de jogadores
-autoritativa do host; e os caminhos de input/ACK em passo fixo, rewind e
-interpolação são limitados na sessão e na apresentação. Ainda faltam pacote de
-árvore limpa, gameplay interativo fora do checkout e evidência de hardware
-antes de uma release pública.
+O arquivo de apresentação publicado é o pacote de qualificação dogfood da
+fonte atual `0.1.0-dogfood.38`: `Play` inicia um encounter autoritativo local;
+`Host/Join` admite um segundo jogador pelo lobby explícito; três bots gansos
+atacam; snapshots do host replicam jogadores/bots; `Tab` mostra a tela limitada
+de jogadores autoritativa do host; e os caminhos de input/ACK em passo fixo,
+rewind e interpolação são limitados na sessão e na apresentação. Os gates de
+artefato pareado, checksum e assinatura passaram. Ainda são obrigatórias a
+interação fora do checkout e a evidência de hardware-alvo antes de chamar isso
+de release player-facing.
+
+### Contrato executável de evidência D1
+
+- O smoke Linux define `KOOKIE_RUN_PRESENTATION=1`, exige
+  `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` revisado e um nó real
+  `/dev/dri/renderD*`, e executa o pacote extraído. Falta de isolamento ou GPU
+  falha fechado; Xvfb, Wine e GPU headless não substituem esse gate.
+- O smoke Windows nativo define `KOOKIE_RUN_NATIVE_PRESENTATION=1`, exige
+  `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` e executa `kookie.exe`
+  extraído por esse wrapper com display/sessão nativos.
+- `scripts/validate_presentation_evidence.py` exige capacidade de apresentação,
+  tempo positivo de draw GPU, áudio aberto, checksum da captura, PPM P6
+  limitado e os markers de gameplay/restart D1 e G0/G1/G2/G4/Kutter. Ele grava
+  máquina, SO, wrapper, comando, hash do log e hash da captura em
+  `evidence.json`.
+- `release_demo.yml` envia o artefato de evidência Linux quando o smoke Linux
+  está habilitado e o artefato Windows quando o smoke nativo Windows está
+  habilitado. `run_windows_wine_smoke` continua sendo apenas evidência de
+  compatibilidade do pacote.
 
 ## Trabalho restante, ordenado por impacto na release
 
@@ -154,13 +175,14 @@ antes de uma release pública.
 
 ### P0 — qualificação da release Linux
 
-- Gerar um novo arquivo `presentation` Linux assinado a partir de árvore limpa,
-  com o lobby/placar e gameplay local atuais.
-- A qualificação de 2026-10-02 passou
-  `scripts/verify_linux_presentation_package.sh` no checkout atual:
-  artefato assinado, extração segura e package-smoke. Usou um prefixo
-  temporário fixado de SDL_mixer 3.2.4 e não substitui o builder de árvore limpa
-  nem a evidência de hardware-alvo.
+- O arquivo Linux pareado `0.1.0-dogfood.38` é o artefato atual de
+  qualificação do runtime `presentation` assinado. O workflow de release o
+  gerou com uma identidade única de fonte/toolchain; empacotamento
+  determinístico, assinaturas, extração segura e package-smoke passaram.
+- Restam os gates Linux fora do checkout: iniciar/reiniciar/sair em um sistema
+  suportado novo e executar o smoke real de GPU com apresentação definido acima.
+  Eles devem reter máquina, driver, wrapper, screenshot, log e saída. Isso é
+  separado do gate de artefato/pacote.
 - Verificar o arquivo final fora do checkout em um Linux suportado novo:
   assinatura/checksum, extração, inicialização, `Play`, movimento/olhar/disparo,
   dano, reinício, saída e relançamento repetido.
@@ -182,13 +204,15 @@ antes de uma release pública.
 
 ### P0 — qualificação da release Windows
 
-- Gerar um ZIP `presentation` Windows x86-64 assinado a partir da árvore atual,
-  incluindo Kof PE nativo, DLLs SDL3/SDL_mixer, shaders, avisos e procedência.
-- A qualificação de 2026-10-02 passou
-  `scripts/verify_windows_presentation.sh` com prefixos MinGW SDL3/SDL_mixer
-  e DXC fixados. Isso comprova apenas o artefato PE/SDL/SPIR-V/DXIL assinado e
-  reprodutível; as dependências temporárias e o gate do artefato não comprovam
-  apresentação em hardware Windows.
+- O ZIP Windows pareado `0.1.0-dogfood.38` inclui Kof PE nativo, DLLs
+  SDL3/SDL_mixer, shaders SPIR-V/DXIL, avisos e procedência.
+  `scripts/verify_windows_presentation.sh` passou a qualificação PE/SDL/SPIR-V/
+  DXIL assinada e reprodutível; isso não comprova apresentação em hardware
+  Windows.
+- Restam os gates Windows fora do checkout: iniciar e repetir
+  `Play`/reinício/saída em hardware suportado, depois executar o smoke pelo
+  wrapper nativo e reter evidência de GPU/input/áudio. Wine continua sendo
+  apenas evidência de compatibilidade.
 - Uma execução de `scripts/build_demo_release.sh` em worktree destacado limpo
   produziu `0.1.0-windows-e2e.1` do commit de fonte
   `1678a7de671866d94080718c367ab05875a92c2d` com o commit de fonte Kof
@@ -218,16 +242,16 @@ antes de uma release pública.
 
 ### P1 — distribuição pareada e operação de release
 
-- Publicar arquivos Linux e Windows correspondentes com a mesma identidade de
-  fonte/toolchain limpa, manifestos, chave pública, assinaturas destacadas e
-  `SHA256SUMS`.
+- Os arquivos Linux/Windows pareados `0.1.0-dogfood.38` foram publicados com
+  manifestos, chave pública, assinaturas destacadas e `SHA256SUMS`.
 - Execute `.github/workflows/release_demo.yml` com `publish=false` para
-  qualificar artefatos; o caminho aprovado `publish=true` gera e publica o par
-  Linux/Windows somente após aprovação do ambiente `kookie-demo-release`.
-  Runners self-hosted precisam dos labels `kookie-demo-release`, `linux`/`windows`
+  qualificações futuras; o caminho aprovado `publish=true` exige aprovação do
+  ambiente `kookie-demo-release` antes de publicar o par Linux/Windows.
+- Runners self-hosted precisam dos labels `kookie-demo-release`, `linux`/`windows`
   e `x64`; `.github/actionlint.yaml` declara o label customizado para lint local.
-- O workflow não substitui evidência nativa do hardware-alvo; anexe essa
-  evidência ao registro da release antes de aprovar a publicação.
+- A publicação não substitui evidência nativa do hardware-alvo. Anexe os
+  artefatos de evidência Linux e Windows do contrato executável D1 antes de
+  promover o pacote dogfood a release player-facing.
 - Adicionar notas de release com controles, pisos suportados, limitações,
   identidades exatas de fonte/toolchain e o limite de networking multiplayer
   best-effort.
@@ -290,9 +314,10 @@ Bloqueios:
   decisão Authenticode/SmartScreen, evidência nativa de hardware Windows ou
   evidência multiplayer entre hosts novos.
 
-As ações finais necessárias para D1 são evidência Linux em GPU capaz de
-apresentação, build e execução Windows presentation da fonte atual em hardware,
-procedência permanente de release e publicação aprovada.
+As ações D1 restantes são smoke interativo extraído fora do checkout, evidência
+Linux em GPU capaz de apresentação, evidência de apresentação Windows nativa
+pelo wrapper revisado e notas/política para promover a pré-release dogfood a
+release player-facing.
 
 
 

@@ -624,9 +624,14 @@ scripts/package_kookie.sh --runtime presentation --target windows-x86_64
 `glslc` must be on `PATH`. `scripts/verify_windows_presentation.sh` rebuilds
 the signed package twice, compares every archive/signature, validates safe ZIP
 paths and retained licenses, and checks the native PE, SDL import libraries
-and SPIR-V/DXIL entries. `KOOKIE_RUN_WINE=1` adds the optional full smoke; it
-requires `wine` and `overzeer-isolated-display`.
+and SPIR-V/DXIL entries. `KOOKIE_RUN_WINE=1` adds the optional compatibility
+smoke; it requires `wine` and `overzeer-isolated-display`.
 
+For target-hardware evidence, set `KOOKIE_RUN_NATIVE_PRESENTATION=1` and
+provide `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. The reviewed wrapper
+must provide a private Windows display/session, bounded timeout and complete
+process-tree cleanup; the script launches the extracted `kookie.exe`, validates
+the D1 markers and P6 screenshot, and retains `native-evidence.json`.
 For the publishable Windows artifact, use the clean-tree deterministic builder:
 
 ```bash
@@ -642,7 +647,7 @@ scripts/build_demo_release.sh \
   --output /tmp/kookie-demo-windows
 ```
 
-The 2026-10-02 qualification batch passed
+The `0.1.0-dogfood.38` qualification batch passed
 `verify_windows_presentation.sh` with pinned MinGW SDL3/SDL_mixer prefixes and
 DXC. This proves the reproducible signed PE/SDL/SPIR-V/DXIL artifact path only;
 native Windows input/audio/GPU/driver evidence and outside-checkout interactive
@@ -652,11 +657,11 @@ It writes the signed archive, manifest, public key, detached signatures,
 `SHA256SUMS` and `BUILD_SUMMARY.txt`. Native Windows launch/input/audio/GPU
 evidence remains a separate target-hardware gate.
 
-On a DRI3-capable isolated host, the full smoke executes the same native Kof
-PE entry that owns the SDL window, GPU scene staging, audio queue, kutter
-reload and gameplay markers. The package has no JVM dependency. This remains
-target-specific evidence; it does not generalize to other OS/GPU combinations
-or WAN/security qualification.
+On a supported Windows GPU with the reviewed native isolation wrapper, the full
+smoke executes the same native Kof PE entry that owns the SDL window, GPU scene
+staging, audio queue, kutter reload and gameplay markers. The package has no
+JVM dependency. This remains target-specific evidence; it does not generalize
+to other OS/GPU combinations or WAN/security qualification.
 
 ### Paired demo release workflow
 For exact workstation paths, readiness checks, secret setup and dispatch commands, see [RELEASE_OPERATIONS.md](RELEASE_OPERATIONS.md).
@@ -673,7 +678,8 @@ The workflow requires self-hosted runners with labels
 needs SDL3 development files and an isolated display wrapper for optional
 package presentation smoke; the workflow bootstraps the pinned SDL_mixer
 prefix when its `pkg-config` entry is absent. The Windows runner additionally
-needs MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`.
+needs MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`; native Windows smoke also
+requires the reviewed `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`.
 
 The hosted `verify.yml` job has a 45-minute budget because installing Wine
 with both `wine64` and `wine32:i386` can exceed the old core budget on a cold

@@ -297,19 +297,26 @@ currently passes 94 scenarios and both external evidence gates pass. No G0
 release blocker remains; D1 remains a separate player-facing package gate.
 
 - Local release qualification covers native Linux and the native Windows SDL3 +
-  SDL_mixer platform shell. The Windows presentation package links native Kof
-  PE to the SDL_GPU adapter and bundles SPIR-V/DXIL products; the native-shell
-  Wine smoke verifies gameplay markers and the native PE marker. The
-  2026-10-02 signed Linux package/package-smoke gate and signed Windows native
-  PE/SDL presentation artifact gate passed with temporary pinned dependencies.
+  SDL_mixer platform shell. The paired `0.1.0-dogfood.38` presentation
+  artifacts passed deterministic packaging, signatures, safe extraction and
+  package-smoke gates; the Windows presentation package links native Kof PE to
+  the SDL_GPU adapter and bundles SPIR-V/DXIL products. Wine remains a
+  compatibility smoke, not target-hardware evidence.
 - The fixed-tick session path now has bounded input/ACK redundancy, authenticated
   endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
   interpolation and prediction-correction metrics; these focused checks do not
   prove a player-facing release.
 - The latest public tag is the paired dogfood `0.1.0-dogfood.38`. D1 still
   needs a clean extracted interactive smoke outside the checkout, fresh-host
-  verification, native Linux/Windows target-hardware evidence and release
-  policy/notes. Cross-host multiplayer evidence is required only if advertised.
+  verification and native Linux/Windows target-hardware evidence. Cross-host
+  multiplayer evidence is required only if advertised.
+- The executable D1 contract is fail-closed: Linux requires
+  `KOOKIE_RUN_PRESENTATION=1`, a reviewed
+  `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` and a real render node; native
+  Windows requires `KOOKIE_RUN_NATIVE_PRESENTATION=1` and
+  `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. The validator requires
+  present capability, positive GPU draw, audio, screenshot and D1 markers,
+  writes `evidence.json`, and the workflow uploads the retained artifact.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

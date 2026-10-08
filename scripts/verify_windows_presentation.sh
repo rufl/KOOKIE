@@ -12,8 +12,18 @@ command -v openssl >/dev/null || { echo 'verify_windows_presentation: openssl is
 command -v python3 >/dev/null || { echo 'verify_windows_presentation: python3 is required' >&2; exit 2; }
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-windows-presentation-smoke.XXXXXX")"
-cleanup() { rm -rf -- "$WORK_DIR"; }
-trap cleanup EXIT INT TERM
+PRESENTATION_EVIDENCE_DIR="${KOOKIE_PRESENTATION_EVIDENCE_DIR:-}"
+cleanup() {
+  if [[ -n "$PRESENTATION_EVIDENCE_DIR" ]]; then
+    mkdir -p "$PRESENTATION_EVIDENCE_DIR"
+    for evidence_file in native.log native-presentation.ppm native-evidence.json wine.log; do
+      if [[ -f "$WORK_DIR/$evidence_file" ]]; then
+        cp -- "$WORK_DIR/$evidence_file" "$PRESENTATION_EVIDENCE_DIR/"
+      fi
+    done
+  fi
+  rm -rf -- "$WORK_DIR"
+}
 SIGNING_KEY="$WORK_DIR/release-signing.pem"
 openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
 chmod 600 "$SIGNING_KEY"
@@ -132,6 +142,48 @@ assert provenance["font_default_display"] == "Pixand"
 assert provenance["update_launcher"] == "kookie-launcher"
 PY
 
+if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
+  native_wrapper="${KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER:-}"
+  [[ -n "$native_wrapper" ]] && command -v "$native_wrapper" >/dev/null || {
+    echo 'verify_windows_presentation: KOOKIE_RUN_NATIVE_PRESENTATION=1 requires KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER' >&2
+    exit 75
+  }
+  NATIVE_ROOT="$WORK_DIR/native-presentation"
+  NATIVE_PACKAGE="$NATIVE_ROOT/$PACKAGE_NAME"
+  cp -a -- "$EXTRACTED/$PACKAGE_NAME" "$NATIVE_ROOT"
+  native_screenshot="$WORK_DIR/native-presentation.ppm"
+  native_evidence="$WORK_DIR/native-evidence.json"
+  native_package_path="$NATIVE_PACKAGE"
+  native_screenshot_path="$native_screenshot"
+  native_evidence_path="$native_evidence"
+  if command -v cygpath >/dev/null; then
+    native_package_path="$(cygpath -w "$NATIVE_PACKAGE")"
+    native_screenshot_path="$(cygpath -w "$native_screenshot")"
+    native_evidence_path="$(cygpath -w "$native_evidence")"
+  fi
+  export KOOKIE_PRESENTATION_ISOLATION_WRAPPER="$native_wrapper"
+  export KOOKIE_PRESENTATION_SMOKE=1
+  export KOOKIE_SHADER_DIR="$native_package_path/build"
+  export KOOKIE_SCREENSHOT_PATH="$native_screenshot_path"
+  export KOOKIE_PRESENTATION_EVIDENCE_JSON="$native_evidence_path"
+  export KOOKIE_PRESENTATION_COMMAND="package:$native_package_path/kookie.exe"
+  unset SDL_AUDIODRIVER || true
+  set +e
+  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- bash -c '
+    cd "$1"
+    exec ./kookie.exe
+  ' verify_windows_native_presentation "$NATIVE_PACKAGE" \
+    >"$WORK_DIR/native.log" 2>&1
+  native_status=$?
+  set -e
+  cat "$WORK_DIR/native.log"
+  if [[ "$native_status" != 0 ]]; then
+    exit "$native_status"
+  fi
+  python3 "$ROOT_DIR/scripts/validate_presentation_evidence.py" \
+    "$WORK_DIR/native.log" "$native_screenshot" "$native_evidence" >/dev/null
+fi
+
 if [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]]; then
   command -v wine >/dev/null || {
     echo 'verify_windows_presentation: KOOKIE_RUN_WINE=1 requires wine' >&2
@@ -164,15 +216,23 @@ import sys
 text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
 for marker in (
     "KOOKIE G1 native arena HUD verified",
+    "KOOKIE D1 authoritative gameplay verified",
+    "KOOKIE D1 Play restart exit verified",
     "KOOKIE G2 native 3D door verified",
     "KOOKIE G4 GPU-safe kutter reload verified",
     "KOOKIE G7 native presentation durable save verified",
     "KOOKIE native kutter screen verified",
     "KOOKIE native SDL adapter verified",
-):
     assert marker in text, marker
 PY
 fi
 
+presentation_suffix=""
+if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
+  presentation_suffix="${presentation_suffix}, isolated native presentation smoke"
+fi
+if [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]]; then
+  presentation_suffix="${presentation_suffix}, isolated Wine smoke"
+fi
 printf 'KOOKIE Windows presentation package passed: reproducible signed artifact, native Kof PE gameplay, native SDL3/SDL_mixer adapter, SPIR-V/DXIL shaders%s\n' \
-  "$( [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]] && printf ', isolated Wine smoke' )"
+  "$presentation_suffix"

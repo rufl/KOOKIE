@@ -219,21 +219,28 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   O assembler nativo upstream emite ELF Linux; a ponte Kof PE Windows emite
   PE/COFF AMD64 determinístico para os grafos alcançáveis qualificados de
   gameplay/apresentação.
-- A qualificação local de release cobre Linux nativo e o shell de plataforma
-  Windows SDL3 + SDL_mixer. O pacote de apresentação Windows liga Kof PE
-  nativo ao adaptador SDL_GPU e inclui produtos SPIR-V/DXIL; o smoke do shell
-  nativo em Wine verifica marcadores de gameplay e o marcador PE nativo. O
-  lote de 2026-10-02 passou o gate de pacote/package-smoke Linux assinado e o
-  gate de artefato de apresentação PE/SDL nativo Windows com dependências
-  temporariamente fixadas.
+- A qualificação local cobre Linux nativo e o shell de plataforma Windows
+  SDL3 + SDL_mixer. Os artefatos `presentation` pareados
+  `0.1.0-dogfood.38` passaram gates de empacotamento determinístico,
+  assinaturas, extração segura e package-smoke; o pacote de apresentação
+  Windows liga Kof PE nativo ao adaptador SDL_GPU e inclui produtos SPIR-V/
+  DXIL. Wine continua sendo smoke de compatibilidade, não evidência de
+  hardware-alvo.
 - A sessão agora possui redundância limitada de input/ACK em passo fixo,
   fixação de endpoint autenticado, histórico de rewind de hitscan de 12 ticks,
   interpolação remota de seis ticks e métricas de correção da predição; esses
   checks focados não comprovam uma release voltada ao jogador.
 - A tag pública mais recente é o dogfood pareado `0.1.0-dogfood.38`. D1 ainda
-  exige smoke interativo extraído fora do checkout, verificação em host novo,
-  evidência de hardware nativo Linux/Windows e política/notas da release.
-  Evidência entre hosts só é necessária se o multiplayer for anunciado.
+  exige smoke interativo extraído fora do checkout, verificação em host novo e
+  evidência de hardware nativo Linux/Windows. Evidência entre hosts só é
+  necessária se o multiplayer for anunciado.
+- O contrato executável D1 falha fechado: Linux exige
+  `KOOKIE_RUN_PRESENTATION=1`, `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` revisado
+  e nó de renderização real; Windows nativo exige
+  `KOOKIE_RUN_NATIVE_PRESENTATION=1` e
+  `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. O validador exige capacidade
+  de apresentação, draw GPU positivo, áudio, captura e markers D1, grava
+  `evidence.json`, e o workflow envia o artefato retido.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 

@@ -55,9 +55,10 @@ font files and their SIL Open Font License notice ship with the package.
   SDL_GPU presentation package, with SPIR-V/DXIL products and reproducible
   artifact gates. The signed presentation artifact gate passed with pinned
   MinGW SDL3/SDL_mixer and DXC; no target Windows hardware evidence is retained.
-- Native-shell Wine gameplay-marker smoke for Windows. Presentation visual Wine
-  smoke remains optional and requires a DRI3-capable isolated GPU; package
-  linkage or Xvfb output is not visual presentation evidence.
+- Native-shell Wine gameplay-marker smoke for Windows. Native Windows visual
+  smoke is available through `KOOKIE_RUN_NATIVE_PRESENTATION=1` and the
+  reviewed `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`; Wine, package
+  linkage and Xvfb output are not visual target presentation evidence.
 - A signed Linux dogfood package pipeline and a separate Windows JVM package
   for compatibility/qualification. The JVM package is not a native-game
   fallback.
@@ -110,9 +111,10 @@ Blocked:
   Authenticode/SmartScreen decision, native Windows hardware evidence or fresh
   cross-host multiplayer evidence exists.
 
-The required final D1 actions are therefore target-capable Linux GPU evidence,
-a paired current-source Windows presentation build and hardware run, permanent
-release provenance, and approved publication.
+The remaining D1 actions are a clean extracted interactive smoke outside the
+checkout, target-capable Linux GPU evidence, native Windows presentation
+evidence through the reviewed wrapper, and release notes/policy for promotion
+from dogfood pre-release to player-facing release.
 
 
 
@@ -135,15 +137,32 @@ If multiplayer is advertised in the same dogfood release, also require
 `Host/Join`, the two-player `READY` gate, `Tab` scoreboard behavior and
 cross-host evidence for the supported LAN/WAN claim.
 
-The published presentation archive remains a qualification artifact because it
-predates the current source tree. The source path is now implemented: `Play`
-starts a local authoritative encounter; `Host/Join` admits a second player
-through the explicit ready lobby; three goose bots attack players; host
-snapshots replicate player/bot state; `Tab` shows the bounded host-authoritative
-player screen; and the fixed-tick input/ACK, rewind and interpolation paths are
-bounded in the session and presentation code. Fresh clean-tree package,
-outside-checkout interactive and target-hardware evidence are still required
-before calling it a public release.
+The published presentation archive is the current-source dogfood qualification
+package `0.1.0-dogfood.38`: `Play` starts a local authoritative encounter;
+`Host/Join` admits a second player through the explicit ready lobby; three
+goose bots attack players; host snapshots replicate player/bot state; `Tab`
+shows the bounded host-authoritative player screen; and the fixed-tick input/ACK,
+rewind and interpolation paths are bounded in the session and presentation code.
+The paired artifact, checksum and signature gates passed. Clean
+outside-checkout interactive and target-hardware evidence remain required before
+calling it a player-facing release.
+
+### Executable D1 evidence contract
+
+- Linux target smoke sets `KOOKIE_RUN_PRESENTATION=1`, requires the reviewed
+  `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` and a real `/dev/dri/renderD*` node,
+  then runs the extracted package. Missing isolation or GPU capability fails
+  closed; Xvfb, Wine and headless GPU tests are not substitutes.
+- Windows target smoke sets `KOOKIE_RUN_NATIVE_PRESENTATION=1`, requires
+  `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`, and runs the extracted
+  `kookie.exe` through that wrapper with a native display/session.
+- `scripts/validate_presentation_evidence.py` requires present capability,
+  positive GPU draw time, audio-open, screenshot checksum, a bounded P6 PPM and
+  the D1 gameplay/restart plus G0/G1/G2/G4/Kutter markers. It writes the
+  machine, OS, wrapper, command, log hash and screenshot hash to `evidence.json`.
+- `release_demo.yml` uploads the Linux evidence artifact when Linux smoke is
+  enabled and the Windows evidence artifact when native Windows smoke is
+  enabled. `run_windows_wine_smoke` remains package compatibility evidence only.
 
 ## Remaining work, ordered by release impact
 
@@ -197,13 +216,14 @@ before calling it a public release.
 
 ### P0 — Linux release qualification
 
-- Build a new clean-tree signed Linux `presentation` archive from the current
-  source, with the current lobby/score screen and local gameplay path.
-- The 2026-10-02 qualification run passed
-  `scripts/verify_linux_presentation_package.sh` on the current checkout:
-  signed artifact, safe extraction and packaged smoke. It used a temporary
-  pinned SDL_mixer 3.2.4 prefix and does not replace the clean-tree release
-  builder or target-hardware evidence.
+- The paired `0.1.0-dogfood.38` Linux archive is the current qualification
+  artifact for the signed `presentation` runtime. The release workflow built
+  it from one source/toolchain identity; deterministic packaging, signatures,
+  safe extraction and package smoke passed.
+- The remaining Linux gates are outside-checkout launch/restart/quit on a fresh
+  supported system and the real present-capable GPU smoke defined above. They
+  must retain the machine, driver, wrapper, screenshot, log and exit evidence.
+  This is separate from the artifact/package gate.
 - Verify the final archive outside the checkout on a fresh supported Linux
   system: signature/checksum, extraction, launch, `Play`, movement/look/fire,
   damage, restart, quit and repeated relaunch.
@@ -225,13 +245,15 @@ before calling it a public release.
 
 ### P0 — Windows release qualification
 
-- Build a new signed Windows x86-64 `presentation` ZIP from the current tree,
-  including native Kof PE, SDL3/SDL_mixer DLLs, shaders, notices and provenance.
-- The 2026-10-02 qualification run passed
-  `scripts/verify_windows_presentation.sh` with pinned MinGW SDL3/SDL_mixer
-  prefixes and DXC. This proves reproducible signed PE/SDL/SPIR-V/DXIL
-  artifact output only; the temporary build dependencies and artifact gate do
-  not prove Windows hardware presentation.
+- The paired `0.1.0-dogfood.38` Windows ZIP includes native Kof PE,
+  SDL3/SDL_mixer DLLs, SPIR-V/DXIL shaders, notices and provenance.
+  `scripts/verify_windows_presentation.sh` passed reproducible signed
+  PE/SDL/SPIR-V/DXIL qualification; this does not prove Windows hardware
+  presentation.
+- The remaining Windows gates are outside-checkout launch and repeated
+  `Play`/restart/quit on supported hardware, followed by the native wrapper
+  smoke and retained GPU/input/audio evidence. Wine remains compatibility
+  evidence only.
 - A clean detached-worktree run of `scripts/build_demo_release.sh` produced
   `0.1.0-windows-e2e.1` from source commit
   `1678a7de671866d94080718c367ab05875a92c2d` with Kof source commit
@@ -260,16 +282,18 @@ before calling it a public release.
 
 ### P1 — paired distribution and release operations
 
-- Publish matching Linux and Windows archives from one clean source/toolchain
-  identity with manifests, public key, detached signatures and `SHA256SUMS`.
-- Run `.github/workflows/release_demo.yml` with `publish=false` for artifact
-  qualification; its approved `publish=true` path builds and publishes the
-  Linux/Windows pair only after the `kookie-demo-release` environment approves.
-  Self-hosted runners must carry `kookie-demo-release`, `linux`/`windows` and
+- The paired `0.1.0-dogfood.38` Linux/Windows archives are published with
+  manifests, public key, detached signatures and `SHA256SUMS`.
+- Run `.github/workflows/release_demo.yml` with `publish=false` for future
+  qualification; its approved `publish=true` path requires the
+  `kookie-demo-release` environment approval and builds the Linux/Windows pair
+  before publication.
+- Self-hosted runners must carry `kookie-demo-release`, `linux`/`windows` and
   `x64` labels; `.github/actionlint.yaml` declares the custom label for local
   workflow linting.
-- The workflow does not replace native target-hardware evidence; attach that
-  evidence to the release record before approving publication.
+- Publication does not replace native target-hardware evidence. Attach the
+  Linux and Windows evidence artifacts from the executable D1 contract before
+  promoting this dogfood package to a player-facing release.
 - Add release notes containing controls, supported floors, known limitations,
   exact source/toolchain identities and the multiplayer best-effort boundary.
 

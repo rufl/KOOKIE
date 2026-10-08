@@ -85,7 +85,7 @@ bash scripts/bootstrap_release.sh --apply \
   --reviewer release-admin \
   --signing-key "$KOOKIE_SIGNING_KEY" \
   --kof-archive "$KOF_ARCHIVE" \
-  --version 0.1.0-dogfood.37 \
+  --version 0.1.0-dogfood.38 \
   --qualify
 ```
 
@@ -119,7 +119,9 @@ substitute.
 The Linux runner additionally needs SDL3 development files, the pinned
 SDL_mixer preparation path and an isolated display wrapper for optional
 presentation smoke. The Windows runner additionally needs the MinGW SDL3 and
-SDL_mixer prefixes and `KOOKIE_DXC`.
+SDL_mixer prefixes and `KOOKIE_DXC`. Native Windows presentation smoke also
+requires a reviewed `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` that
+provides a private display/session boundary, bounded timeout and process cleanup.
 On Windows, the runner service must use Git for Windows `bash.exe`, not the WSL
 shim. Keep tool paths at machine scope; NTFS does not reliably expose POSIX mode
 bits, so the package gate restricts transient signing keys with `icacls.exe`.
@@ -137,10 +139,11 @@ Qualify artifacts first:
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
   --ref main \
-  -f version=0.1.0-dogfood.37 \
+  -f version=0.1.0-dogfood.38 \
   -f publish=false \
   -f run_linux_presentation_smoke=false \
-  -f run_windows_wine_smoke=false
+  -f run_windows_wine_smoke=false \
+  -f run_windows_presentation_smoke=false
 ```
 
 Inspect the run:
@@ -162,10 +165,11 @@ are retained, publish:
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
   --ref main \
-  -f version=0.1.0-dogfood.37 \
+  -f version=0.1.0-dogfood.38 \
   -f publish=true \
   -f run_linux_presentation_smoke=false \
-  -f run_windows_wine_smoke=false
+  -f run_windows_wine_smoke=false \
+  -f run_windows_presentation_smoke=false
 ```
 
 The public release must use the permanent key. The local qualification key,

@@ -11,10 +11,11 @@ e [levantamento de sistemas de jogo](GAME_ECOSYSTEM.md) para os limites das
 evidências.
 
 A lacuna atual de release é acompanhada em [Prontidão da release demo](DEMO_RELEASE.md).
-Em 2026-10-02, os gates de pacote/package-smoke Linux assinado e de artefato de
-apresentação PE/SDL nativo Windows passaram com dependências de build
-temporariamente fixadas. Eles não substituem build pareado de árvore limpa,
-smoke interativo fora do checkout nem evidência de apresentação em hardware-alvo.
+O release dogfood pareado público `0.1.0-dogfood.38` passou os gates de
+artefato Linux/Windows assinados, checksum, extração e publicação. Continua
+sendo uma pré-release de qualificação: smoke interativo fora do checkout,
+evidência de apresentação no host-alvo e a promoção D1 voltada ao jogador
+continuam abertas.
 
 ## 1. Produto e responsabilidade não negociável
 
@@ -954,16 +955,14 @@ implementa o encounter local limitado de `Play`, o lobby explícito de dois
 jogadores `Host/Join` com ready e a tela de jogadores autoritativa do host por
 `Tab`. O protocolo de input/ACK em passo fixo, a fixação de endpoint, o rewind
 de hitscan de 12 ticks, a interpolação remota de seis ticks e as métricas de
-correção da predição são comportamento limitado da fonte com checks focados;
-não tornam o artefato público atual.
+correção da predição são comportamento limitado da fonte com checks focados; o
+artefato pareado `0.1.0-dogfood.38` agora carrega o caminho de apresentação
+qualificado atual.
 
-O lote de qualificação de 2026-10-02 passou package-smoke Linux assinado com
-prefixo temporário fixado de SDL_mixer e o gate de artefato de apresentação PE/
-SDL nativo Windows com MinGW/DXC fixados. D1 continua aberto para um par
-Linux/Windows de árvore limpa, smoke fora do checkout de jogar/reiniciar/sair,
+Os gates D1 restantes são smoke fora do checkout de jogar/reiniciar/sair,
 verificação em host novo/piso de runtime, evidência de apresentação em GPU
-Linux nativa, evidência de hardware Windows nativo, política/notas finais da
-release e evidência multiplayer entre hosts se anunciada. D1 está acompanhado
+Linux nativa, evidência de hardware Windows nativo e política/notas finais da
+release. Evidência entre hosts só é necessária se anunciada. D1 está acompanhado
 em [Prontidão da release demo](DEMO_RELEASE.md).
 
 ### Evidência limitada medida e metas de desempenho mantidas

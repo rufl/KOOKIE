@@ -10,10 +10,10 @@ Kof 0.5.0-beta source commit
 and [game-system survey](GAME_ECOSYSTEM.md) for evidence boundaries.
 
 The current release gap is tracked in [Demo release readiness](DEMO_RELEASE.md).
-On 2026-10-02, signed Linux package/package smoke and Windows native PE/SDL
-presentation artifact gates passed with temporary pinned build dependencies.
-They do not replace a clean-tree paired build, outside-checkout interactive
-smoke or target-hardware presentation evidence.
+The paired public dogfood release `0.1.0-dogfood.38` passed the signed
+Linux/Windows artifact, checksum, extraction and publication gates. It remains
+a qualification pre-release: outside-checkout interactive smoke, target-host
+presentation evidence and the player-facing D1 promotion gate are still open.
 
 ## 1. Product and non-negotiable ownership
 
@@ -902,17 +902,14 @@ now implements the bounded local `Play` encounter, the explicit two-player
 `Host/Join` ready lobby and the host-authoritative `Tab` player screen. The
 fixed-tick input/ACK protocol, endpoint pinning, 12-tick hitscan rewind,
 six-tick remote interpolation and prediction-correction metrics are bounded
-source behavior with focused checks; they do not make the public artifact
-current.
+source behavior with focused checks; the paired `0.1.0-dogfood.38` artifact now
+carries the current qualified presentation path.
 
-The 2026-10-02 qualification batch passed signed Linux package/package smoke
-with a temporary pinned SDL_mixer prefix and the signed Windows native PE/SDL
-presentation artifact gate with pinned MinGW/DXC dependencies. D1 remains open
-for a clean-tree Linux/Windows pair, outside-checkout play/restart/quit smoke,
+The remaining D1 gates are outside-checkout play/restart/quit smoke,
 fresh-host/runtime-floor verification, native Linux GPU presentation evidence,
-native Windows hardware presentation evidence, final release policy/notes and
-cross-host multiplayer evidence if advertised. D1 is tracked in
-[Demo release readiness](DEMO_RELEASE.md).
+native Windows hardware presentation evidence and final release policy/notes.
+Cross-host multiplayer evidence remains conditional on advertising that path.
+D1 is tracked in [Demo release readiness](DEMO_RELEASE.md).
 
 ### Measured bounded evidence and retained performance targets
 

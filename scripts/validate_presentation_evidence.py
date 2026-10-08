@@ -79,6 +79,8 @@ def main() -> int:
         "audio-open",
         "KOOKIE G0 native SDL adapter verified",
         "KOOKIE G1 native arena HUD verified",
+        "KOOKIE D1 authoritative gameplay verified",
+        "KOOKIE D1 Play restart exit verified",
         "KOOKIE G2 native 3D door verified",
         "KOOKIE G4 GPU-safe kutter reload verified",
         "KOOKIE native kutter screen verified",

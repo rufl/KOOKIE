@@ -15,7 +15,14 @@ done
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-linux-presentation-package.XXXXXX")"
 PRESENTATION_STAGE=""
+PRESENTATION_EVIDENCE_DIR="${KOOKIE_PRESENTATION_EVIDENCE_DIR:-}"
 cleanup() {
+  if [[ -n "$PRESENTATION_STAGE" &&
+        -n "$PRESENTATION_EVIDENCE_DIR" &&
+        -d "$PRESENTATION_STAGE" ]]; then
+    mkdir -p "$PRESENTATION_EVIDENCE_DIR"
+    cp -a -- "$PRESENTATION_STAGE/." "$PRESENTATION_EVIDENCE_DIR/"
+  fi
   rm -rf -- "$WORK_DIR"
   if [[ -n "$PRESENTATION_STAGE" ]]; then
     rm -rf -- "$PRESENTATION_STAGE"

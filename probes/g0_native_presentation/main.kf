@@ -745,7 +745,11 @@ class G1NativePresentation {
     }
 
     Bool prepare() {
-        if (!scenario.run() || !kutterScenario.run() ||
+        if (!scenario.run()) {
+            return false
+        }
+        println("KOOKIE D1 authoritative gameplay verified")
+        if (!kutterScenario.run() ||
             !hud.updateKutterPublication(
                 kutterScenario.publicationStatus(),
                 kutterScenario.publishedGeneration(),
@@ -1482,6 +1486,7 @@ main() {
             presentation.saveGameplay(),
             "second gameplay exit must remain durable")
         println("KOOKIE G7 native presentation durable save verified")
+        println("KOOKIE D1 Play restart exit verified")
         frame = frame + 1
         assert(kookie_gpu_reload_stage(
                 2, shell.kutter().renderChecksum()) &&

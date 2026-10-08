@@ -22,6 +22,11 @@ on:
         required: true
         default: false
         type: boolean
+      run_windows_presentation_smoke:
+        description: "Run native Windows presentation smoke through the reviewed isolation wrapper"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -101,6 +106,7 @@ jobs:
           : "${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:?configure an isolated presentation wrapper on this runner}"
           KOOKIE_PACKAGE_DIR="$RUNNER_TEMP/kookie-demo-linux" \
           KOOKIE_PACKAGE_NAME="kookie-${DEMO_VERSION}-linux-x86_64" \
+          KOOKIE_PRESENTATION_EVIDENCE_DIR="$RUNNER_TEMP/kookie-d1-evidence-linux" \
           KOOKIE_RUN_PRESENTATION=1 \
             scripts/verify_linux_presentation_package.sh
 
@@ -111,6 +117,15 @@ jobs:
           path: ${{ runner.temp }}/kookie-demo-linux
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload Linux presentation evidence
+        if: ${{ inputs.run_linux_presentation_smoke }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: kookie-d1-presentation-evidence-linux-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-d1-evidence-linux
+          if-no-files-found: error
+          retention-days: 30
 
   windows:
     name: Windows x86-64 presentation package
@@ -159,6 +174,8 @@ jobs:
         shell: bash
         env:
           KOOKIE_RUN_WINE: ${{ inputs.run_windows_wine_smoke && '1' || '0' }}
+          KOOKIE_RUN_NATIVE_PRESENTATION: ${{ inputs.run_windows_presentation_smoke && '1' || '0' }}
+          KOOKIE_PRESENTATION_EVIDENCE_DIR: ${{ runner.temp }}/kookie-d1-evidence-windows
         run: |
           set -euo pipefail
           scripts/verify_windows_presentation.sh
@@ -170,6 +187,15 @@ jobs:
           path: ${{ runner.temp }}/kookie-demo-windows
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload Windows presentation evidence
+        if: ${{ inputs.run_windows_presentation_smoke }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: kookie-d1-presentation-evidence-windows-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-d1-evidence-windows
+          if-no-files-found: error
+          retention-days: 30
 
   publish:
     name: Publish approved Linux/Windows pair

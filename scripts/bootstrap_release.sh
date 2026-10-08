@@ -13,6 +13,7 @@ QUALIFY=0
 PUBLISH=0
 LINUX_SMOKE=false
 WINDOWS_SMOKE=false
+WINDOWS_PRESENTATION_SMOKE=false
 REVIEWERS=()
 HARDWARE_EVIDENCE=0
 
@@ -41,7 +42,7 @@ Workflow execution:
   --version VERSION        release version, required with --qualify/--publish
   --linux-presentation-smoke
   --windows-wine-smoke
-
+  --windows-presentation-smoke
 Other:
   --repo OWNER/REPO        GitHub repository (default: rufl/KOOKIE)
   --help                   show this help
@@ -57,15 +58,18 @@ Examples:
     --reviewer release-admin \
     --signing-key "$HOME/.config/kookie/release/kookie-ed25519.pem" \
     --kof-archive /path/to/kof-0.5.0-beta-linux-x86_64.tar.gz \
-    --version 0.1.0-dogfood.37 --qualify
+    --version 0.1.0-dogfood.38 --qualify
 
-  # Configure, qualify, then publish only after qualification succeeds
+  # Configure, qualify native target presentation, then publish only after
+  # hardware evidence and environment approval
   scripts/bootstrap_release.sh --apply \
     --reviewer release-admin \
     --signing-key "$HOME/.config/kookie/release/kookie-ed25519.pem" \
     --kof-archive /path/to/kof-0.5.0-beta-linux-x86_64.tar.gz \
-    --version 0.1.0-dogfood.37 --qualify --publish \
-    --confirm-hardware-evidence
+    --version 0.1.0-dogfood.38 --qualify \
+    --linux-presentation-smoke \
+    --windows-presentation-smoke \
+    --publish --confirm-hardware-evidence
 EOF
 }
 
@@ -92,7 +96,7 @@ while (($#)); do
     --confirm-hardware-evidence) HARDWARE_EVIDENCE=1; shift ;;
     --linux-presentation-smoke) LINUX_SMOKE=true; shift ;;
     --windows-wine-smoke) WINDOWS_SMOKE=true; shift ;;
-    --help|-h) usage; exit 0 ;;
+    --windows-presentation-smoke) WINDOWS_PRESENTATION_SMOKE=true; shift ;;
     *) fail "unknown argument: $1" ;;
   esac
 done
@@ -201,7 +205,8 @@ run_workflow() {
     -f "version=$VERSION" \
     -f "publish=$publish" \
     -f "run_linux_presentation_smoke=$LINUX_SMOKE" \
-    -f "run_windows_wine_smoke=$WINDOWS_SMOKE"
+    -f "run_windows_wine_smoke=$WINDOWS_SMOKE" \
+    -f "run_windows_presentation_smoke=$WINDOWS_PRESENTATION_SMOKE"
 
   for _ in {1..30}; do
     candidate_runs="$(gh run list --repo "$REPO" --workflow release_demo.yml \

@@ -86,7 +86,7 @@ bash scripts/bootstrap_release.sh --apply \
   --reviewer release-admin \
   --signing-key "$KOOKIE_SIGNING_KEY" \
   --kof-archive "$KOF_ARCHIVE" \
-  --version 0.1.0-dogfood.37 \
+  --version 0.1.0-dogfood.38 \
   --qualify
 ```
 
@@ -120,7 +120,9 @@ novo não é substituto.
 O runner Linux também precisa dos arquivos de desenvolvimento SDL3, do
 caminho de preparação do SDL_mixer fixado e de um wrapper de display isolado
 para o smoke opcional. O runner Windows também precisa dos prefixes MinGW do
-SDL3 e SDL_mixer e de `KOOKIE_DXC`.
+SDL3 e SDL_mixer e de `KOOKIE_DXC`. O smoke nativo Windows também exige um
+`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` revisado, com display/sessão
+privada, timeout limitado e limpeza da árvore de processos.
 No Windows, o serviço do runner precisa usar o `bash.exe` do Git for Windows,
 não o shim do WSL. Mantenha os caminhos das ferramentas no escopo da máquina;
 o NTFS não expõe bits de modo POSIX de forma confiável, então o gate restringe
@@ -139,10 +141,11 @@ Primeiro qualifique os artefatos:
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
   --ref main \
-  -f version=0.1.0-dogfood.37 \
+  -f version=0.1.0-dogfood.38 \
   -f publish=false \
   -f run_linux_presentation_smoke=false \
-  -f run_windows_wine_smoke=false
+  -f run_windows_wine_smoke=false \
+  -f run_windows_presentation_smoke=false
 ```
 
 Acompanhe a execução:
@@ -164,10 +167,11 @@ aprovação do environment, publique:
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
   --ref main \
-  -f version=0.1.0-dogfood.37 \
+  -f version=0.1.0-dogfood.38 \
   -f publish=true \
   -f run_linux_presentation_smoke=false \
-  -f run_windows_wine_smoke=false
+  -f run_windows_wine_smoke=false \
+  -f run_windows_presentation_smoke=false
 ```
 
 A release pública deve usar a chave permanente. A chave local de qualificação,

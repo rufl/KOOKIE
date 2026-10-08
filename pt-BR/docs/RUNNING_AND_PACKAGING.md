@@ -611,8 +611,14 @@ scripts/package_kookie.sh --runtime presentation --target windows-x86_64
 `glslc` deve estar no `PATH`. `scripts/verify_windows_presentation.sh` gera o
 pacote duas vezes, compara todos os artefatos assinados, valida caminhos ZIP
 seguros e licenças e verifica o PE nativo, as import libraries SDL e as
-entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1` adiciona o smoke completo opcional,
-exigindo `wine` e `overzeer-isolated-display`.
+entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1` adiciona o smoke de compatibilidade
+opcional, exigindo `wine` e `overzeer-isolated-display`.
+
+Para evidência de hardware-alvo, defina `KOOKIE_RUN_NATIVE_PRESENTATION=1` e
+forneça `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. O wrapper revisado
+deve fornecer display/sessão Windows privada, timeout limitado e limpeza
+completa da árvore de processos; o script executa o `kookie.exe` extraído,
+valida os markers D1 e o screenshot P6 e retém `native-evidence.json`.
 
 Quando `KOOKIE_RUN_WINE=1`, o smoke isolado de apresentação também exige o
 marcador `KOOKIE G7 native presentation durable save verified`. Isso exercita a
@@ -636,7 +642,7 @@ scripts/build_demo_release.sh \
   --output /tmp/kookie-demo-windows
 ```
 
-O lote de qualificação de 2026-10-02 passou
+O lote de qualificação `0.1.0-dogfood.38` passou
 `verify_windows_presentation.sh` com prefixes MinGW SDL3/SDL_mixer e DXC
 fixados. Isso comprova somente o caminho de artefato PE/SDL/SPIR-V/DXIL
 assinado e reprodutível; evidência nativa Windows de input/áudio/GPU/driver e
@@ -646,11 +652,12 @@ O comando escreve arquivo assinado, manifesto, chave pública, assinaturas
 destacadas, `SHA256SUMS` e `BUILD_SUMMARY.txt`. Evidência nativa de
 inicialização/input/áudio/GPU Windows continua sendo gate separado de hardware.
 
-Em um host isolado capaz de DRI3, o smoke executa a mesma entrada Kof PE nativa
-que possui a janela SDL, staging de cena GPU, fila de áudio, reload do kutter
-e os marcadores de gameplay. O pacote não tem dependência JVM. Esta é evidência
-específica do alvo; não deve ser generalizada para outras combinações de
-SO/GPU ou para qualificação de WAN/segurança.
+Em uma GPU Windows suportada com o wrapper nativo isolado revisado, o smoke
+executa a mesma entrada Kof PE nativa que possui a janela SDL, staging de cena
+GPU, fila de áudio, reload do kutter e os marcadores de gameplay. O pacote não
+tem dependência JVM. Esta é evidência específica do alvo; não deve ser
+generalizada para outras combinações de SO/GPU ou para qualificação de
+WAN/segurança.
 
 ### Workflow de release demo pareada
 Para os paths exatos da workstation, os checks de readiness, a configuração dos secrets e os comandos de disparo, veja [RELEASE_OPERATIONS.md](RELEASE_OPERATIONS.md).
@@ -667,7 +674,8 @@ distribuição Kof. O runner Linux também precisa dos arquivos de
 desenvolvimento SDL3 e de um wrapper de display isolado para o smoke opcional;
 o workflow prepara o prefixo fixado do SDL_mixer quando a entrada
 `pkg-config` está ausente. O runner Windows também precisa dos prefixes MinGW
-SDL3/SDL_mixer e de `KOOKIE_DXC`.
+SDL3/SDL_mixer e de `KOOKIE_DXC`; o smoke nativo Windows também exige o
+`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` revisado.
 
 O job hospedado `verify.yml` tem orçamento de 45 minutos porque instalar o Wine
 com `wine64` e `wine32:i386` pode exceder o orçamento anterior em um runner
