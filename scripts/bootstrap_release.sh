@@ -154,9 +154,7 @@ else
   done
 
   environment_payload="$(jq -cn --argjson reviewers "$reviewer_json" \
-    '{wait_timer: 0, prevent_self_review: true, reviewers: $reviewers,
-      deployment_branch_policy: {protected_branches: false,
-      custom_branch_policies: false}}')"
+    '{wait_timer: 0, prevent_self_review: true, reviewers: $reviewers}')"
   printf '%s' "$environment_payload" |
     gh api --method PUT "repos/$REPO/environments/$ENVIRONMENT" --input - >/dev/null
   printf 'Environment configured with %s required reviewer(s).\n' \
