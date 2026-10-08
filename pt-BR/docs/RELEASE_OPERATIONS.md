@@ -78,6 +78,9 @@ bash scripts/bootstrap_release.sh \
 
 Configurar o GitHub e qualificar:
 
+Substitua `release-admin` pelo login real do usuário no GitHub; não é um valor
+literal.
+
 ```bash
 bash scripts/bootstrap_release.sh --apply \
   --reviewer release-admin \

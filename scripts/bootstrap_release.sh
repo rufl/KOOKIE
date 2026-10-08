@@ -73,14 +73,19 @@ fail() {
   printf 'bootstrap_release: %s\n' "$1" >&2
   exit 2
 }
+require_value() {
+  [[ $# -eq 2 && -n "$2" ]] ||
+    fail "$1 requires a non-empty value"
+}
+
 
 while (($#)); do
   case "$1" in
-    --repo) REPO="${2:?missing repository}"; shift 2 ;;
-    --signing-key) SIGNING_KEY="${2:?missing signing key}"; shift 2 ;;
-    --kof-archive) KOF_ARCHIVE="${2:?missing Kof archive}"; shift 2 ;;
-    --reviewer) REVIEWERS+=("${2:?missing reviewer login}"); shift 2 ;;
-    --version) VERSION="${2:?missing version}"; shift 2 ;;
+    --repo) require_value "$1" "${2-}"; REPO="$2"; shift 2 ;;
+    --signing-key) require_value "$1" "${2-}"; SIGNING_KEY="$2"; shift 2 ;;
+    --kof-archive) require_value "$1" "${2-}"; KOF_ARCHIVE="$2"; shift 2 ;;
+    --reviewer) require_value "$1" "${2-}"; REVIEWERS+=("$2"); shift 2 ;;
+    --version) require_value "$1" "${2-}"; VERSION="$2"; shift 2 ;;
     --apply) APPLY=1; shift ;;
     --qualify) QUALIFY=1; shift ;;
     --publish) PUBLISH=1; shift ;;
