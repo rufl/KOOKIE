@@ -110,6 +110,11 @@ Both runners need Kof `0.5.0-beta` at
 The hosted verification workflow pins the signed Node24-compatible
 `mlugg/setup-zig` commit `272b55e6c4fcef353f6d923050ff32f018636378` because
 upstream `v2` still declares Node20.
+The Linux release runner exposes pinned SDL3 3.4.16 at
+`$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.16`; the workflow exports
+`KOOKIE_SDL3_PREFIX` before preparing SDL_mixer. A newer system SDL3 is not a
+substitute.
+
 
 The Linux runner additionally needs SDL3 development files, the pinned
 SDL_mixer preparation path and an isolated display wrapper for optional

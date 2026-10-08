@@ -43,6 +43,15 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - name: Configure pinned Linux SDL3 prefix
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdl3_prefix="$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.16"
+          test -f "$sdl3_prefix/include/SDL3/SDL_version.h"
+          test -f "$sdl3_prefix/lib/pkgconfig/sdl3.pc"
+          printf 'KOOKIE_SDL3_PREFIX=%s\n' "$sdl3_prefix" >> "$GITHUB_ENV"
+
 
       - name: Prepare release identity
         shell: bash
@@ -96,7 +105,7 @@ jobs:
             scripts/verify_linux_presentation_package.sh
 
       - name: Upload Linux artifact set
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kookie-demo-linux-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-linux
@@ -155,7 +164,7 @@ jobs:
           scripts/verify_windows_presentation.sh
 
       - name: Upload Windows artifact set
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kookie-demo-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-windows
@@ -180,13 +189,13 @@ jobs:
           persist-credentials: false
 
       - name: Download Linux artifact set
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: kookie-demo-linux-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-linux
 
       - name: Download Windows artifact set
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: kookie-demo-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-windows

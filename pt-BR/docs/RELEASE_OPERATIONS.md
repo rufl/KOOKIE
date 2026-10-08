@@ -112,6 +112,10 @@ O workflow de verificação hospedado fixa o commit assinado do
 `mlugg/setup-zig` compatível com Node24,
 `272b55e6c4fcef353f6d923050ff32f018636378`, porque o `v2` upstream ainda
 declara Node20.
+O runner Linux da release expõe o SDL3 3.4.16 fixado em
+`$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.16`; o workflow exporta
+`KOOKIE_SDL3_PREFIX` antes de preparar o SDL_mixer. Um SDL3 de sistema mais
+novo não é substituto.
 
 O runner Linux também precisa dos arquivos de desenvolvimento SDL3, do
 caminho de preparação do SDL_mixer fixado e de um wrapper de display isolado

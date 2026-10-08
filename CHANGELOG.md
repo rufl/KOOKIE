@@ -5,6 +5,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 ## Unreleased
 - Pinned the hosted verification workflow to the signed Node24-compatible
   `mlugg/setup-zig` commit while upstream `v2` still declares Node20.
+- Pinned release artifact upload/download actions to their Node24-compatible
+  major versions and made the Linux release job export its pinned SDL3 3.4.16
+  prefix; the host's newer system SDL3 is no longer accepted implicitly.
 - Made the Windows Git Bash packaging gate use NTFS ACLs instead of relying on
   POSIX `chmod` mode bits; transient Ed25519 signing keys are restricted with
   `icacls.exe`.

@@ -6,6 +6,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Fixamos o workflow de verificação hospedado no commit assinado do
   `mlugg/setup-zig` compatível com Node24 enquanto o `v2` upstream ainda declara
   Node20.
+- Fixamos as actions de upload/download de artefatos da release nas versões
+  major compatíveis com Node24 e fazemos o job Linux da release exportar seu
+  prefixo SDL3 3.4.16 fixado; o SDL3 de sistema mais novo não é mais aceito
+  implicitamente.
 - Fizemos o gate de empacotamento no Git Bash do Windows usar ACLs NTFS em vez
   de depender dos bits de modo POSIX de `chmod`; chaves Ed25519 transitórias são
   restringidas com `icacls.exe`.
