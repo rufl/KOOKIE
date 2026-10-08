@@ -17,6 +17,12 @@ pinned Kof 0.5.0-beta source commit
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c`. It remains a pre-release
 qualification artifact: target-hardware presentation evidence and the D1
 player-facing release gate remain open.
+The D1 contract qualification dispatch
+[`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
+passed both deterministic package builds, then failed closed before target
+presentation: Linux has no `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, and Windows
+has no `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. No target-hardware
+evidence was produced or claimed.
 
 The current source tree has these release-capable paths:
 

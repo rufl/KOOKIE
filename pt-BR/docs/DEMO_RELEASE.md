@@ -17,6 +17,13 @@ Kof 0.5.0-beta fixado em
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c`. Continua sendo um artefato de
 qualificação pré-release: a evidência de apresentação em hardware-alvo e o gate
 D1 da release voltada ao jogador continuam abertos.
+O dispatch de qualificação do contrato D1
+[`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
+passou os dois builds determinísticos de pacote e depois falhou fechado antes
+da apresentação no alvo: o Linux não possui
+`KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, e o Windows não possui
+`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. Nenhuma evidência de hardware
+alvo foi produzida ou reivindicada.
 
 A árvore de fontes atual possui estes caminhos aptos a release:
 

@@ -317,6 +317,11 @@ release blocker remains; D1 remains a separate player-facing package gate.
   `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. The validator requires
   present capability, positive GPU draw, audio, screenshot and D1 markers,
   writes `evidence.json`, and the workflow uploads the retained artifact.
+- D1 contract qualification run
+  [`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
+  passed both package builds and failed closed before presentation because the
+  Linux and Windows isolation-wrapper variables were not configured; no
+  target-hardware evidence was produced.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

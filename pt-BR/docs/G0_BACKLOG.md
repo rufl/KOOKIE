@@ -241,6 +241,11 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. O validador exige capacidade
   de apresentação, draw GPU positivo, áudio, captura e markers D1, grava
   `evidence.json`, e o workflow envia o artefato retido.
+- O run de qualificação do contrato D1
+  [`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
+  passou os dois builds de pacote e falhou fechado antes da apresentação porque
+  as variáveis dos wrappers de isolamento Linux e Windows não foram
+  configuradas; nenhuma evidência de hardware-alvo foi produzida.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 
