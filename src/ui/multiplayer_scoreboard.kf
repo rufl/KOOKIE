@@ -57,7 +57,7 @@ class MultiplayerScoreboard {
 
     Int textWidth(String text) {
         if (text.length() == 0) { return 0 }
-        return text.length() * 6 - 1
+        return text.length() * uiFontGlyphAdvance() - 1
     }
 
     Bool pushText(
@@ -70,10 +70,11 @@ class MultiplayerScoreboard {
             var glyphValue = glyph(text.charAt(index))
             if (glyphValue > 0 &&
                 !pushQuad(target, textResource(color, glyphValue),
-                    x, bottom, x + 5, bottom + 7)) {
+                    x, bottom,
+                    x + uiFontGlyphWidth(), bottom + uiFontGlyphHeight())) {
                 return false
             }
-            x = x + 6
+            x = x + uiFontGlyphAdvance()
         }
         return true
     }
@@ -91,7 +92,7 @@ class MultiplayerScoreboard {
             digits = digits + 1
             remaining = remaining / 10
         }
-        return digits * 6 - 1
+        return digits * uiFontGlyphAdvance() - 1
     }
 
     Bool pushNumber(
@@ -105,10 +106,11 @@ class MultiplayerScoreboard {
         while (divisor > 0) {
             var digit = (value / divisor) % 10
             if (!pushQuad(target, textResource(color, 27 + digit),
-                    x, bottom, x + 5, bottom + 7)) {
+                    x, bottom,
+                    x + uiFontGlyphWidth(), bottom + uiFontGlyphHeight())) {
                 return false
             }
-            x = x + 6
+            x = x + uiFontGlyphAdvance()
             divisor = divisor / 10
         }
         return true
@@ -153,7 +155,8 @@ class MultiplayerScoreboard {
             pushText(target, "/",
                 left + numberWidth(state.healthAt(index)) + 2, bottom, color) &&
             pushNumber(target, state.maximumHealthAt(index),
-                left + numberWidth(state.healthAt(index)) + 8, bottom, color)
+                left + numberWidth(state.healthAt(index)) +
+                    uiFontGlyphAdvance() + 1, bottom, color)
     }
 
     Bool pushKillsDeaths(
@@ -164,7 +167,8 @@ class MultiplayerScoreboard {
             pushText(target, "/",
                 left + numberWidth(state.killsAt(index)) + 2, bottom, color) &&
             pushNumber(target, state.deathsAt(index),
-                left + numberWidth(state.killsAt(index)) + 8, bottom, color)
+                left + numberWidth(state.killsAt(index)) +
+                    uiFontGlyphAdvance() + 1, bottom, color)
     }
 
     Bool pushPing(

@@ -718,6 +718,7 @@ bundle_windows_native_presentation() {
   local presentation_root="$WORK_DIR/presentation-source"
   local pe_build="$WORK_DIR/kof-pe-presentation"
   local adapter_obj="$WORK_DIR/kookie-sdl-adapter.obj"
+  local model_obj="$WORK_DIR/kookie-model-assets.obj"
   local transport_obj="$WORK_DIR/kookie-transport.obj"
   local persistence_obj="$WORK_DIR/kookie-persistence-adapter.obj"
   mkdir -p "$presentation_root"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
@@ -742,6 +743,10 @@ bundle_windows_native_presentation() {
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$ROOT_DIR/native" \
+    -c "$ROOT_DIR/native/kookie_model_assets.c" -o "$model_obj"
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -fno-ident \
+    -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_transport.c" -o "$transport_obj"
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -fno-ident \
@@ -750,7 +755,8 @@ bundle_windows_native_presentation() {
   zig cc -target x86_64-windows-gnu -s -fno-ident \
     -Wl,/subsystem:console -Wl,/Brepro \
     "$ROOT_DIR/native/kookie_pe_entry.c" \
-    "$pe_build/kof-module.obj" "$adapter_obj" "$transport_obj" "$persistence_obj" \
+    "$pe_build/kof-module.obj" "$adapter_obj" "$model_obj" "$transport_obj" \
+    "$persistence_obj" \
     "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
     "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
     -lws2_32 -lpsapi -o "$PACKAGE_ROOT/kookie.exe"
@@ -966,6 +972,7 @@ else
   IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
+    "$ROOT_DIR/native/kookie_model_assets.c" \
     "$ROOT_DIR/native/kookie_transport.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
     "${SDL_FLAGS[@]}" -lm
@@ -1020,10 +1027,10 @@ Menu:
   Escape               back
   Accessibility        HUD scale 85/100/115%, tactical map and high contrast
 Local playable slice:
-  W / S                move forward / backward
-  A / D                strafe left / right
-  Mouse                look
-  Mouse wheel          zoom camera
+  W / S                move forward / backward relative to camera yaw
+  A / D                strafe left / right relative to camera yaw
+  Mouse                horizontal/vertical look; camera stays on player
+  Mouse wheel          zoom camera; authored walls stop camera clipping
   F / Left mouse       fire
   Ctrl                 jump
   Select Play to start the authoritative GatoGanso encounter.
@@ -1036,7 +1043,9 @@ Two-player dogfood:
 
 The multiplayer path is direct-IPv4 dogfood networking. It has no relay,
 public identity service, encryption or production DDoS protection.
-This package contains no prototype content profile.
+Prototype presentation content:
+  --content prototype includes the goose/cat GLB models.
+  --content none keeps the package content-free and uses bounded fallback silhouettes.
 EOF
 fi
 cp -- "$ROOT_DIR/LICENSE" "$PACKAGE_ROOT/LICENSE"

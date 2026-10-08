@@ -32,6 +32,18 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_begin(
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_vertex(
     Int resource, Int x, Int y, Int z, Int u, Int v
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_available(
+    Int model
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_vertex_count(
+    Int model
+): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_model(
+    Int model, Int resourceBase, Int x, Int y, Int z, Int facing,
+    Int phase, Int animationState, Int animationTick, Int moving,
+    Int attacking
+): Bool
+
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_set_camera(
     Int x, Int y, Int z, Int yaw, Int pitch
@@ -97,6 +109,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int inde
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
+Int kookieModelGoose() { return 1 }
+Int kookieModelCat() { return 2 }
+
 
 Int lobbyProtocolMagic() { return 1263488843 }
 Int lobbyMessageHello() { return 1 }
@@ -588,6 +603,9 @@ class G1NativePresentation {
     GooseStatusOverlay gooseOverlay
     GooseMinimap minimap
     Int worldNativeCapacity
+    Bool nativeAnimalModelsValue
+    Int gooseModelVertexCountValue
+    Int catModelVertexCountValue
     MultiplayerScoreboard scoreboardUi
     MatchScoreboardState scoreboardState
     CameraState camera
@@ -628,11 +646,14 @@ class G1NativePresentation {
         interactionSession = LoopbackSession(16, 8)
         saveOwner = BoundedHostGameplaySaveOwner(interactionSession)
         worldNativeCapacity = 0
+        nativeAnimalModelsValue = false
+        gooseModelVertexCountValue = 0
+        catModelVertexCountValue = 0
         worldFrame = FrameStaging(arena.renderVertexCount())
         doorFrame = FrameStaging(36)
         hudFrame = FrameStaging(hud.renderVertexCount())
-        actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
         animalFrame = FrameStaging(animalMeshes.renderVertexCapacity())
+        actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
         minimapFrame = FrameStaging(minimap.renderVertexCapacity())
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
         worldCapacity = worldFrame.vertexCapacity()
@@ -745,6 +766,21 @@ class G1NativePresentation {
     }
 
     Bool prepare() {
+        var modelsAvailable =
+            kookie_gpu_model_available(kookieModelGoose()) &&
+            kookie_gpu_model_available(kookieModelCat())
+        if (modelsAvailable) {
+            gooseModelVertexCountValue =
+                kookie_gpu_model_vertex_count(kookieModelGoose())
+            catModelVertexCountValue =
+                kookie_gpu_model_vertex_count(kookieModelCat())
+            modelsAvailable =
+                gooseModelVertexCountValue > 0 &&
+                catModelVertexCountValue > 0 &&
+                gooseModelVertexCountValue % 3 == 0 &&
+                catModelVertexCountValue % 3 == 0
+        }
+        nativeAnimalModelsValue = modelsAvailable
         if (!scenario.run()) {
             return false
         }
@@ -815,6 +851,37 @@ class G1NativePresentation {
         }
         return true
     }
+    Bool uploadAnimalModels() {
+        for (var index = 0; index < animalMeshes.actorCapacity();
+             index = index + 1) {
+            if (!animalMeshes.actorCurrentAt(index)) { continue }
+            var kind = animalMeshes.actorKindAt(index)
+            var model = kookieModelGoose()
+            var animationState = animalMeshes.gooseAnimationState()
+            var animationTick = animalMeshes.gooseAnimationTick()
+            if (kind == 2) {
+                model = kookieModelCat()
+                animationState = animalMeshes.catAnimationState()
+                animationTick = animalMeshes.catAnimationTick()
+            }
+            if (!kookie_gpu_world_push_model(
+                    model, 3,
+                    animalMeshes.actorXAt(index),
+                    animalMeshes.actorYAt(index),
+                    animalMeshes.actorZAt(index),
+                    animalMeshes.actorFacingAt(index),
+                    animalMeshes.actorPhaseAt(index),
+                    animationState, animationTick,
+                    if (animalMeshes.actorMovingAt(index)) 1 else 0,
+                    if (animalMeshes.actorAttackingAt(index)) 1 else 0)) {
+                println("KOOKIE gameplay native animal model upload failed")
+                println(animalMeshes.actorIdAt(index))
+                return false
+            }
+        }
+        return true
+    }
+
     Bool configureIdentity(
         Bool mirrorRemote, Int localNameId, Int remoteNameId
     ) {
@@ -1076,8 +1143,13 @@ class G1NativePresentation {
                 return false
             }
         }
-        if (!animalMeshes.stage(animalFrame, frame, 3)) {
-            println("KOOKIE gameplay animal mesh frame stage failed")
+        if (nativeAnimalModelsValue) {
+            if (!animalMeshes.stepNative()) {
+                println("KOOKIE gameplay animal animation step failed")
+                return false
+            }
+        } else if (!animalMeshes.stage(animalFrame, frame, 3)) {
+            println("KOOKIE gameplay animal fallback staging failed")
             return false
         }
         return true
@@ -1154,8 +1226,10 @@ class G1NativePresentation {
         var jump = kookie_input_state(6)
         var playerOneHealthBefore = interactionSession.enemyCombatHealth(1)
         var playerTwoHealthBefore = interactionSession.enemyCombatHealth(2)
-        var moveX = localMoveForwardAxis()
-        var moveZ = localMoveStrafeAxis()
+        var moveForward = localMoveForwardAxis()
+        var moveStrafe = localMoveStrafeAxis()
+        var moveX = camera.movementWorldX(moveForward, moveStrafe)
+        var moveZ = camera.movementWorldZ(moveForward, moveStrafe)
         if (!host &&
             !sendLocalGameInput(
                 interactionSession, state, player, moveX, moveZ, fire, jump)) {
@@ -1247,9 +1321,22 @@ class G1NativePresentation {
             println("KOOKIE gameplay HUD stage failed")
             return false
         }
+        var animalVertexCount = 0
+        if (nativeAnimalModelsValue) {
+            animalVertexCount = animalMeshes.modelVertexCount(
+                gooseModelVertexCountValue, catModelVertexCountValue)
+        } else {
+            animalVertexCount = animalFrame.stagedCount()
+        }
         var worldVertexCount =
             worldFrame.stagedCount() + doorFrame.stagedCount() +
-            animalFrame.stagedCount()
+            animalVertexCount
+        if (animalVertexCount <= 0 ||
+            worldVertexCount > worldNativeCapacity) {
+            println("KOOKIE gameplay animal model capacity failed")
+            println(animalVertexCount)
+            return false
+        }
         if (!kookie_gpu_world_set_camera(
                 camera.currentX(), camera.currentY(), camera.currentZ(),
                 camera.currentYaw(), camera.currentPitch())) {
@@ -1258,7 +1345,8 @@ class G1NativePresentation {
         }
         if (!kookie_gpu_world_begin(worldVertexCount) ||
             !uploadWorld(worldFrame) || !uploadWorld(doorFrame) ||
-            !uploadWorld(animalFrame) ||
+            (nativeAnimalModelsValue && !uploadAnimalModels()) ||
+            (!nativeAnimalModelsValue && !uploadWorld(animalFrame)) ||
             !kookie_gpu_world_commit() ||
             kookie_gpu_world_count() != worldVertexCount) {
             println("KOOKIE gameplay world GPU pass failed")
@@ -1295,7 +1383,7 @@ class G1NativePresentation {
             return false
         }
         if (!worldFrame.retire(frame) ||
-            !animalFrame.retire(frame) ||
+            (!nativeAnimalModelsValue && !animalFrame.retire(frame)) ||
             !actorFrame.retire(frame) ||
             !doorFrame.retire(frame) ||
             !hudFrame.retire(frame) ||

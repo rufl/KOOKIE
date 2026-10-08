@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the shipped GatoGanso fonts into the bounded native 5x7 atlas."""
+"""Render the shipped GatoGanso fonts into the bounded native 7x7 atlas."""
 
 from __future__ import annotations
 
@@ -15,29 +15,45 @@ FONT_SPECS = (
     ("PIXAND", "Pixand", ROOT / "assets/fonts/pixand.ttf"),
 )
 RENDER_SIZE = 32
-BASELINE = 28
-CELL_WIDTH = 28
-THRESHOLD = 32
+GLYPH_WIDTH = 7
+GLYPH_HEIGHT = 7
+THRESHOLD = 96
 
 
 def render_glyph(font: ImageFont.FreeTypeFont, value: str) -> tuple[int, ...]:
-    canvas = Image.new("L", (RENDER_SIZE, RENDER_SIZE), 0)
+    bbox = font.getbbox(value)
+    width = max(1, bbox[2] - bbox[0])
+    height = max(1, bbox[3] - bbox[1])
+    canvas = Image.new("L", (width + 4, height + 4), 0)
     ImageDraw.Draw(canvas).text(
-        (0, BASELINE), value, font=font, anchor="ls", fill=255
+        (2 - bbox[0], 2 - bbox[1]), value, font=font, fill=255
     )
-    cell = canvas.crop((0, 0, CELL_WIDTH, CELL_WIDTH)).resize(
-        (5, 7), Image.Resampling.LANCZOS
+    ink_bounds = canvas.getbbox()
+    if ink_bounds is None:
+        return (0,) * GLYPH_HEIGHT
+    ink = canvas.crop(ink_bounds)
+    scale = min(GLYPH_WIDTH / ink.width, GLYPH_HEIGHT / ink.height)
+    resized = ink.resize(
+        (max(1, round(ink.width * scale)), max(1, round(ink.height * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    cell = Image.new("L", (GLYPH_WIDTH, GLYPH_HEIGHT), 0)
+    cell.paste(
+        resized,
+        ((GLYPH_WIDTH - resized.width) // 2,
+         (GLYPH_HEIGHT - resized.height) // 2),
     )
     return tuple(
-        sum(1 << (4 - column) for column in range(5)
+        sum(1 << (GLYPH_WIDTH - 1 - column)
+            for column in range(GLYPH_WIDTH)
             if cell.getpixel((column, row)) >= THRESHOLD)
-        for row in range(7)
+        for row in range(GLYPH_HEIGHT)
     )
 
 
 def render_font(path: Path) -> tuple[tuple[int, ...], ...]:
     font = ImageFont.truetype(path, RENDER_SIZE)
-    blank = (0, 0, 0, 0, 0, 0, 0)
+    blank = (0,) * GLYPH_HEIGHT
     return (blank,) + tuple(render_glyph(font, value) for value in GLYPH_CHARS)
 
 
@@ -61,7 +77,7 @@ def generate() -> str:
         "#define KOOKIE_PIXEL_FONT_JARED_LITE 0",
         "#define KOOKIE_PIXEL_FONT_PIXAND 1",
         "#define KOOKIE_PIXEL_GLYPH_COUNT 44",
-        "#define KOOKIE_PIXEL_GLYPH_WIDTH 5",
+        "#define KOOKIE_PIXEL_GLYPH_WIDTH 7",
         "#define KOOKIE_PIXEL_GLYPH_HEIGHT 7",
         "",
         "/*",

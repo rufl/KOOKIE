@@ -212,6 +212,22 @@ scripts/package_kookie.sh --runtime native --target linux-x86_64 \
   --content prototype
 ```
 
+Para executar a apresentação SDL nativa com os modelos de ganso e gato do
+protótipo, gere explicitamente o perfil de apresentação:
+
+```bash
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
+KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
+scripts/package_kookie.sh --runtime presentation --target linux-x86_64 \
+  --content prototype
+```
+
+`G1NativePresentation` resolve `goose.glb` e `cat.glb` pelo loader nativo
+limitado e envia seus triângulos ao passe de mundo SDL_GPU. O perfil sem
+conteúdo `none` mantém o fallback limitado de silhuetas procedurais e não
+redistribui os modelos do protótipo.
+
 `assets/prototype/manifest.json` vincula caminhos de origem, SHA-256 dos
 arquivos de origem, saídas convertidas, grades de frames e avisos de licença.
 `PROVENANCE.txt` e o JSON assinado registram o digest determinístico da árvore
@@ -228,6 +244,10 @@ obrigatório; o KOOKIE mantém a atribuição voluntariamente. Não há licença
 nem concessão explícita de redistribuição do arquivo bruto, portanto a fonte e
 o GLB do gato permanecem apenas protótipo e não devem ser anunciados como CC0
 ou como um pacote de assets independente.
+Quando esse perfil está presente, a apresentação usa `goose.glb` e `cat.glb`.
+Contagens limitadas de vértices, materiais, posição, direção, estado de
+animação e estado de ataque/movimento passam pela API nativa verificada; os
+buffers de staging do Kof não recebem malhas sem limite.
 
 ## Dependências de desenvolvimento SDL3/SDL_mixer
 
@@ -346,8 +366,10 @@ release pareada final em árvore limpa.
 Esse perfil exige SDL 3.4.16, SDL_mixer 3.2.4, `glslc`, compilador C e
 `pkg-config`. O arquivo contém a aplicação Kof de menu/jogo, adaptador SDL,
 shaders SPIR-V, SDL3 e SDL_mixer. Ele usa o loader dinâmico e a libc do host.
-Arquivos de apresentação também incluem `DEMO_CONTROLS.txt`; a primeira demo
-usa o perfil de conteúdo `none` e não redistribui assets do protótipo.
+Arquivos de apresentação também incluem `DEMO_CONTROLS.txt`. O comando padrão
+usa o perfil de conteúdo `none` e não redistribui assets do protótipo; passe
+`--content prototype` para empacotar explicitamente a demo com os modelos de
+ganso e gato.
 
 ### Controles
 
@@ -356,6 +378,10 @@ usa o perfil de conteúdo `none` e não redistribui assets do protótipo.
 - Voltar: Escape.
 - `Play`: encounter autoritativo local servidor listen/cliente; voltar com
   Escape e entrar novamente em `Play` redefine o encounter limitado.
+- Gameplay: `W`/`S` movem para frente/trás e `A`/`D` fazem strafe relativo
+  ao olhar horizontal do mouse; o olhar vertical inclina a câmera acoplada,
+  a roda do mouse aplica zoom e a colisão criada para a arena para nas paredes.
+- Disparo: `F` ou botão esquerdo do mouse. Salto: `Ctrl`.
 - Opções: 1280×720 até 2560×1440, janela/sem borda/tela cheia exclusiva,
   volumes separados para efeitos e música e três tamanhos de texto.
 - Acessibilidade: escala do HUD (`SMALL` 85%, `MEDIUM` 100%, `LARGE` 115%),

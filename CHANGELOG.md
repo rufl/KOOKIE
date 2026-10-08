@@ -3,6 +3,17 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Camera-relative gameplay now applies horizontal mouse yaw to WASD movement,
+  while the deterministic third-person follow, scroll zoom and authored
+  obstacle collision remain active.
+- Rebuilt the bundled GatoGanso font atlas from tight glyph bounds into
+  readable 7x7 cells with an 8-cell advance; native GPU and Windows shell
+  renderers now use the same width and bit-mask contract.
+- Added bounded native GLB presentation for the GatoGanso encounter: the
+  prototype content profile now uploads the existing goose and cat models
+  directly into the SDL_GPU world pass with per-actor animation/material
+  state. Content-free presentation packages retain the bounded procedural
+  silhouette fallback and do not redistribute prototype assets.
 - Pinned the hosted verification workflow to the signed Node24-compatible
   `mlugg/setup-zig` commit while upstream `v2` still declares Node20.
 - Pinned release artifact upload/download actions to their Node24-compatible

@@ -140,9 +140,46 @@ class CameraState {
         return value
     }
 
-    Int followDirectionX() {
+    Int yawSector() {
         var sector = (normalizedYaw() + 22) / 45
         if (sector >= 8) { sector = sector - 8 }
+        return sector
+    }
+
+    Int movementForwardX() {
+        var sector = yawSector()
+        if (sector == 1 || sector == 2 || sector == 3) { return 1 }
+        if (sector == 5 || sector == 6 || sector == 7) { return -1 }
+        return 0
+    }
+
+    Int movementForwardZ() {
+        var sector = yawSector()
+        if (sector == 0 || sector == 1 || sector == 7) { return 1 }
+        if (sector == 3 || sector == 4 || sector == 5) { return -1 }
+        return 0
+    }
+
+    Int movementLeftX() {
+        return -movementForwardZ()
+    }
+
+    Int movementLeftZ() {
+        return movementForwardX()
+    }
+
+    Int movementWorldX(Int forward, Int strafe) {
+        return clampMovementAxis(
+            forward * movementForwardX() + strafe * movementLeftX())
+    }
+
+    Int movementWorldZ(Int forward, Int strafe) {
+        return clampMovementAxis(
+            forward * movementForwardZ() + strafe * movementLeftZ())
+    }
+
+    Int followDirectionX() {
+        var sector = yawSector()
         if (sector == 2 || sector == 6) {
             return if (sector == 2) 100 else -100
         }
@@ -152,8 +189,7 @@ class CameraState {
     }
 
     Int followDirectionZ() {
-        var sector = (normalizedYaw() + 22) / 45
-        if (sector >= 8) { sector = sector - 8 }
+        var sector = yawSector()
         if (sector == 0) { return 100 }
         if (sector == 4) { return -100 }
         if (sector == 1 || sector == 7) { return 71 }

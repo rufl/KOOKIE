@@ -10,6 +10,10 @@ main() {
         uiGameDisplayName() == "GatoGanso" &&
         uiGameTitle() == "GATOGANSO",
         "GatoGanso must expose both default fonts")
+    assert(uiFontGlyphWidth() == 7 &&
+        uiFontGlyphHeight() == 7 &&
+        uiFontGlyphAdvance() == 8,
+        "GatoGanso font atlas metrics must be readable 7x7 cells")
     var shell = GameShell()
     var frame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(frame, 1) && frame.stagedCount() > 0,

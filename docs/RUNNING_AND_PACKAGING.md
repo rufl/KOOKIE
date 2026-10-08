@@ -217,6 +217,22 @@ scripts/package_kookie.sh --runtime native --target linux-x86_64 \
   --content prototype
 ```
 
+To run the native SDL presentation with the prototype goose and cat models,
+build the presentation profile explicitly:
+
+```bash
+KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
+KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
+scripts/package_kookie.sh --runtime presentation --target linux-x86_64 \
+  --content prototype
+```
+
+`G1NativePresentation` resolves `goose.glb` and `cat.glb` through the native
+bounded model loader and submits their triangles to the SDL_GPU world pass.
+The content-free `none` profile keeps the bounded procedural silhouette
+fallback; it does not redistribute the prototype models.
+
 `assets/prototype/manifest.json` binds the selected source paths, archive
 SHA-256 values, converted output paths, frame grids, and license notices.
 Package `PROVENANCE.txt` and the signed JSON manifest record the deterministic
@@ -233,6 +249,11 @@ required; KOOKIE retains attribution voluntarily. No SPDX license or
 standalone raw-file redistribution grant is stated, so the cat source and GLB
 remain prototype-only and must not be advertised as CC0 or an independent
 asset pack.
+The native gameplay presentation uses the prototype `goose.glb` and `cat.glb`
+when that profile is present. Their bounded vertex counts, materials,
+positions, facing, animation state and attack/movement state are transferred
+through the checked native model API; no unbounded mesh data enters the Kof
+frame staging buffers.
 
 The catalog also stages Echo Studios' five-state player-heart sheet at
 `ui.player-hearts`. Its authored copy preserves the supplied 320x64 PNG; the
@@ -361,8 +382,10 @@ clean-tree paired release.
 This profile requires SDL 3.4.16, SDL_mixer 3.2.4, `glslc`, a C compiler and
 `pkg-config`. The archive contains the Kof menu/game application, SDL adapter,
 SPIR-V shaders, SDL3 and SDL_mixer. It uses the host dynamic loader and libc.
-Presentation archives also include `DEMO_CONTROLS.txt`; the first demo uses
-the `none` content profile and does not redistribute prototype assets.
+Presentation archives also include `DEMO_CONTROLS.txt`. The default
+presentation command uses the `none` content profile and does not redistribute
+prototype assets; pass `--content prototype` to package the goose/cat model
+demo explicitly.
 
 ### Controls
 
@@ -371,6 +394,10 @@ the `none` content profile and does not redistribute prototype assets.
 - Back: Escape.
 - `Play`: local authoritative listen-server/client encounter; re-enter `Play`
   after Escape to reset the bounded encounter.
+- Gameplay: `W`/`S` move forward/backward and `A`/`D` strafe relative to
+  horizontal mouse look; vertical mouse look pitches the locked follow camera,
+  the mouse wheel zooms it, and authored collision stops it at walls.
+- Fire: `F` or left mouse button. Jump: `Ctrl`.
 - Options: 1280×720 through 2560×1440, windowed/borderless/exclusive
   fullscreen, separate effects/music volume and three text sizes.
 - Accessibility: HUD scale (`SMALL` 85%, `MEDIUM` 100%, `LARGE` 115%),

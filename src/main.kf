@@ -522,6 +522,27 @@ test "WASD movement axes match gameplay controls" {
         movementStrafeAxis(1, 1) == 0,
         "WASD must map forward to the forward channel and strafe to the lateral channel")
 }
+test "mouse yaw steers movement relative to the follow camera" {
+    var camera = CameraState(-450, 450)
+    assert(camera.movementWorldX(1, 0) == 0 &&
+        camera.movementWorldZ(1, 0) == 1 &&
+        camera.movementWorldX(0, 1) == -1 &&
+        camera.movementWorldZ(0, 1) == 0,
+        "zero-yaw movement must use camera forward and left")
+    assert(camera.applyLook(90, 0) &&
+        camera.movementWorldX(1, 0) == 1 &&
+        camera.movementWorldZ(1, 0) == 0 &&
+        camera.movementWorldX(0, 1) == 0 &&
+        camera.movementWorldZ(0, 1) == 1,
+        "horizontal mouse yaw must rotate forward and strafe axes")
+    assert(camera.applyLook(90, 0) &&
+        camera.movementWorldX(1, 0) == 0 &&
+        camera.movementWorldZ(1, 0) == -1 &&
+        camera.movementWorldX(0, 1) == 1 &&
+        camera.movementWorldZ(0, 1) == 0,
+        "camera-relative movement must remain deterministic across turns")
+}
+
 
 
 

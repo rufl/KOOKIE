@@ -155,7 +155,7 @@ class GooseStatusOverlay {
 
     Int textWidth(String text, Int scale) {
         if (text.length() == 0) { return 0 }
-        return text.length() * 6 * scale - scale
+        return text.length() * uiFontGlyphAdvance() * scale - scale
     }
 
     Bool pushText(
@@ -174,10 +174,12 @@ class GooseStatusOverlay {
             var glyphValue = glyph(text.charAt(index))
             if (glyphValue > 0 &&
                 !pushQuad(target, textResource(color, glyphValue),
-                    x, bottom, x + 5 * scale, bottom + 7 * scale)) {
+                    x, bottom,
+                    x + uiFontGlyphWidth() * scale,
+                    bottom + uiFontGlyphHeight() * scale)) {
                 return false
             }
-            x = x + 6 * scale
+            x = x + uiFontGlyphAdvance() * scale
         }
         return true
     }

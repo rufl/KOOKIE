@@ -54,6 +54,7 @@ cp -- "$ROOT_DIR/probes/g5_reference_renderer/main.kf" "$SOURCE_DIR/main.kf"
 IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_sdl_adapter.c" \
+  "$ROOT_DIR/native/kookie_model_assets.c" \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SOURCE_DIR/build/libkookie_sdl_adapter.so" \
   "${SDL_FLAGS[@]}" -lm

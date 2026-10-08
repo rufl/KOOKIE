@@ -126,7 +126,8 @@ static void fill_rect(
 
 static int text_width(const char *text, int scale) {
     size_t length = strlen(text);
-    return length == 0 ? 0 : (int)length * 6 * scale - scale;
+    return length == 0 ? 0 :
+        (int)length * (KOOKIE_PIXEL_GLYPH_WIDTH + 1) * scale - scale;
 }
 
 static void draw_text_font(
@@ -142,7 +143,8 @@ static void draw_text_font(
                 uint8_t bits = *kookie_pixel_glyph_row(font, glyph, row);
                 for (int column = 0;
                      column < KOOKIE_PIXEL_GLYPH_WIDTH; column += 1) {
-                    if ((bits & (uint8_t)(1u << (4 - column))) != 0) {
+                    if ((bits & (uint8_t)(
+                            1u << (KOOKIE_PIXEL_GLYPH_WIDTH - 1 - column))) != 0) {
                         SDL_FRect pixel = {
                             (float)(x + column * scale),
                             (float)(y + row * scale),
@@ -154,7 +156,7 @@ static void draw_text_font(
                 }
             }
         }
-        x += 6 * scale;
+        x += (KOOKIE_PIXEL_GLYPH_WIDTH + 1) * scale;
     }
 }
 

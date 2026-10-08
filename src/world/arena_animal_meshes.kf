@@ -220,6 +220,79 @@ class ArenaAnimalMeshes {
         animationSteppedValue = true
         return true
     }
+    Bool stepNative() {
+        if (!animationReadyValue || actorCountValue <= 0) {
+            return false
+        }
+        return advanceAnimations()
+    }
+
+    Int actorCapacity() { return actorIds.length }
+
+    Bool actorCurrentAt(Int index) {
+        return index >= 0 && index < actorCurrent.length &&
+            actorCurrent[index]
+    }
+
+    Int actorIdAt(Int index) {
+        if (!actorCurrentAt(index)) { return 0 }
+        return actorIds[index]
+    }
+
+    Int actorKindAt(Int index) {
+        if (!actorCurrentAt(index)) { return 0 }
+        return actorKinds[index]
+    }
+
+    Int actorXAt(Int index) {
+        if (!actorCurrentAt(index)) { return 0 }
+        return actorXs[index]
+    }
+
+    Int actorYAt(Int index) {
+        if (!actorCurrentAt(index)) { return 0 }
+        return actorYs[index]
+    }
+
+    Int actorZAt(Int index) {
+        if (!actorCurrentAt(index)) { return 0 }
+        return actorZs[index]
+    }
+
+    Int actorFacingAt(Int index) {
+        if (!actorCurrentAt(index)) { return 1 }
+        return actorFacings[index]
+    }
+
+    Int actorPhaseAt(Int index) {
+        if (!actorCurrentAt(index)) { return -1 }
+        return actorPhases[index]
+    }
+
+    Bool actorMovingAt(Int index) {
+        if (!actorCurrentAt(index)) { return false }
+        return actorMoving[index]
+    }
+
+    Bool actorAttackingAt(Int index) {
+        if (!actorCurrentAt(index)) { return false }
+        return actorAttacking[index]
+    }
+
+    Int modelVertexCount(Int gooseVertices, Int catVertices) {
+        if (gooseVertices <= 0 || catVertices <= 0) { return -1 }
+        var total = 0
+        for (var index = 0; index < actorCurrent.length; index = index + 1) {
+            if (!actorCurrent[index]) { continue }
+            if (actorKinds[index] == 1) {
+                total = total + gooseVertices
+            } else {
+                total = total + catVertices
+            }
+        }
+        return total
+    }
+
 
     Int actorCount() { return actorCountValue }
     Bool animationReady() { return animationReadyValue }

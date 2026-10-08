@@ -3,6 +3,14 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O gameplay relativo à câmera agora aplica o yaw horizontal do mouse ao
+  movimento WASD; o follow determinístico em terceira pessoa, o zoom no scroll
+  e a colisão autorada contra obstáculos continuam ativos.
+- Adicionamos apresentação nativa GLB limitada ao encontro GatoGanso: o perfil
+  de conteúdo protótipo agora envia os modelos existentes de ganso e gato
+  diretamente ao passe de mundo SDL_GPU, com estado de animação/material por
+  ator. Pacotes de apresentação sem conteúdo mantêm o fallback limitado de
+  silhuetas procedurais e não redistribuem assets do protótipo.
 - Fixamos o workflow de verificação hospedado no commit assinado do
   `mlugg/setup-zig` compatível com Node24 enquanto o `v2` upstream ainda declara
   Node20.

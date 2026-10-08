@@ -14,6 +14,7 @@
 #include "kookie_heart_atlas.h"
 #include "kookie_transport.h"
 #include "kookie_audio_assets.h"
+#include "kookie_model_assets.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +36,7 @@
 #define KOOKIE_GPU_ATLAS_HEIGHT 128
 #define KOOKIE_GPU_ATLAS_TILE_SIZE 8
 #define KOOKIE_GPU_ATLAS_TILES_PER_ROW 32
+#define KOOKIE_GPU_HEART_TILE_SIZE 8
 #define KOOKIE_GPU_SOLID_COLORS 16
 #define KOOKIE_GPU_FONT_COLORS 5
 #define KOOKIE_GPU_FONT_GLYPHS_PER_COLOR 48
@@ -886,7 +888,8 @@ static void kookie_gpu_build_atlas(Uint8 *pixels) {
                 for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
                     uint8_t row = *kookie_pixel_glyph_row(font, glyph, y);
                     for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
-                        if ((row & (uint8_t)(1u << (4 - x))) == 0) {
+                        if ((row & (uint8_t)(
+                                1u << (KOOKIE_PIXEL_GLYPH_WIDTH - 1 - x))) == 0) {
                             continue;
                         }
                         size_t offset = (size_t)(
@@ -907,8 +910,8 @@ static void kookie_gpu_build_atlas(Uint8 *pixels) {
             KOOKIE_GPU_ATLAS_TILE_SIZE;
         int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
             KOOKIE_GPU_ATLAS_TILE_SIZE;
-        for (int y = 0; y < KOOKIE_GPU_ATLAS_TILE_SIZE; y += 1) {
-            for (int x = 0; x < KOOKIE_GPU_ATLAS_TILE_SIZE; x += 1) {
+        for (int y = 0; y < KOOKIE_GPU_HEART_TILE_SIZE; y += 1) {
+            for (int x = 0; x < KOOKIE_GPU_HEART_TILE_SIZE; x += 1) {
                 size_t offset = (size_t)(
                     (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
                     4u;
@@ -1548,6 +1551,48 @@ bool kookie_gpu_world_push_vertex(
     gpu_world_scene.count += 1;
     return true;
 }
+static bool kookie_gpu_model_emit_vertex(
+    void *context, int resource, int x, int y, int z, int u, int v
+) {
+    (void)context;
+    return kookie_gpu_world_push_vertex(resource, x, y, z, u, v);
+}
+
+bool kookie_gpu_model_available(int model) {
+    return kookie_model_assets_available(model);
+}
+
+int kookie_gpu_model_vertex_count(int model) {
+    return kookie_model_assets_vertex_count(model);
+}
+
+bool kookie_gpu_world_push_model(
+    int model,
+    int resource_base,
+    int x,
+    int y,
+    int z,
+    int facing,
+    int phase,
+    int animation_state,
+    int animation_tick,
+    int moving,
+    int attacking
+) {
+    if (!gpu_world_scene.open) {
+        return false;
+    }
+    int vertex_count = kookie_model_assets_vertex_count(model);
+    if (vertex_count <= 0 ||
+        gpu_world_scene.count > gpu_world_scene.expected - vertex_count) {
+        return false;
+    }
+    return kookie_model_assets_emit(
+        model, resource_base, x, y, z, facing, phase,
+        animation_state, animation_tick, moving, attacking,
+        kookie_gpu_model_emit_vertex, NULL);
+}
+
 
 bool kookie_gpu_world_commit(void) {
     if (!gpu_world_scene.open ||
@@ -1664,19 +1709,21 @@ static bool kookie_gpu_scene_push_vertex_internal(
         texture_x = (float)(
             (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
             KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
-            (float)u * 7.0f / 100.0f;
+            (float)u * (float)(KOOKIE_GPU_HEART_TILE_SIZE - 1) / 100.0f;
         texture_y = (float)(
             (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
             KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
-            (float)v * 7.0f / 100.0f;
+            (float)v * (float)(KOOKIE_GPU_HEART_TILE_SIZE - 1) / 100.0f;
     } else if (resource < KOOKIE_GPU_FONT_RESOURCE_BASE) {
         tile = (resource - 1) % KOOKIE_GPU_SOLID_COLORS;
         texture_x = (float)(
             (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 3.5f;
+            KOOKIE_GPU_ATLAS_TILE_SIZE) +
+            KOOKIE_GPU_ATLAS_TILE_SIZE / 2.0f - 0.5f;
         texture_y = (float)(
             (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 3.5f;
+            KOOKIE_GPU_ATLAS_TILE_SIZE) +
+            KOOKIE_GPU_ATLAS_TILE_SIZE / 2.0f - 0.5f;
     } else {
         int encoded = resource - KOOKIE_GPU_FONT_RESOURCE_BASE;
         int font = encoded / KOOKIE_GPU_FONT_RESOURCE_STRIDE;
@@ -1693,10 +1740,12 @@ static bool kookie_gpu_scene_push_vertex_internal(
                 KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph;
         texture_x = (float)(
             (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f + (float)u * 4.0f / 100.0f;
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
+            (float)u * (float)(KOOKIE_PIXEL_GLYPH_WIDTH - 1) / 100.0f;
         texture_y = (float)(
             (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f + (float)v * 6.0f / 100.0f;
+            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
+            (float)v * (float)(KOOKIE_PIXEL_GLYPH_HEIGHT - 1) / 100.0f;
     }
 
     float normalized_u =

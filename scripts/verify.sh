@@ -131,6 +131,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     "$presentation_probe_session_dir/pe_durable_save_coordinator.kf"
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     native/kookie_sdl_adapter.c \
+    native/kookie_model_assets.c \
     native/kookie_transport.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm

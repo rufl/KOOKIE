@@ -762,7 +762,7 @@ class GameShell {
 
     Int textWidth(String text, Int scale) {
         if (text.length() == 0) { return 0 }
-        return text.length() * 6 * scale - scale
+        return text.length() * uiFontGlyphAdvance() * scale - scale
     }
 
     Bool pushTextWithFont(
@@ -784,10 +784,12 @@ class GameShell {
             if (glyphValue > 0 &&
                 !pushQuad(target,
                     textResourceWithFont(font, color, glyphValue),
-                    x, bottom, x + 5 * scale, bottom + 7 * scale)) {
+                    x, bottom,
+                    x + uiFontGlyphWidth() * scale,
+                    bottom + uiFontGlyphHeight() * scale)) {
                 return false
             }
-            x = x + 6 * scale
+            x = x + uiFontGlyphAdvance() * scale
         }
         return true
     }
@@ -824,7 +826,7 @@ class GameShell {
             digits = digits + 1
             remaining = remaining / 10
         }
-        return digits * 6 * scale - scale
+        return digits * uiFontGlyphAdvance() * scale - scale
     }
 
     Bool pushNumber(
@@ -838,10 +840,12 @@ class GameShell {
         while (divisor > 0) {
             var digit = (value / divisor) % 10
             if (!pushQuad(target, textResource(color, 27 + digit),
-                    x, bottom, x + 5 * scale, bottom + 7 * scale)) {
+                    x, bottom,
+                    x + uiFontGlyphWidth() * scale,
+                    bottom + uiFontGlyphHeight() * scale)) {
                 return false
             }
-            x = x + 6 * scale
+            x = x + uiFontGlyphAdvance() * scale
             divisor = divisor / 10
         }
         return true
@@ -854,7 +858,8 @@ class GameShell {
             return pushNumber(target, value, left, bottom, scale, color)
         }
         return pushText(target, "-", left, bottom, scale, color) &&
-            pushNumber(target, -value, left + 6 * scale, bottom, scale, color)
+            pushNumber(target, -value,
+                left + uiFontGlyphAdvance() * scale, bottom, scale, color)
     }
 
 
