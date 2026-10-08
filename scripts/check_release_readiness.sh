@@ -110,7 +110,7 @@ if (( CHECK_GITHUB == 1 )); then
   done
 
   runners="$(gh api "repos/$REPO/actions/runners" --paginate \
-    --jq '.runners[] | [.name,.status,(.labels | map(.name) | join(","))] | @tsv' \
+    --jq '.runners[] | [.name,.status,(.labels | map(.name | ascii_downcase) | join(","))] | @tsv' \
     2>/dev/null || true)"
   linux_runner=0
   windows_runner=0
