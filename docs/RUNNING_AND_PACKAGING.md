@@ -486,35 +486,30 @@ on Linux while both game clients run Linux or Windows.
 
 ### Run the currently published Linux dogfood
 
-The latest public package is
-[`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
-It is a signed Linux x86-64 presentation dogfood build from source commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; it predates the current input/
-session bridge, fixed-tick netcode, lobby/score screen and native Windows
-PE/SDL qualification. Download the seven release assets, then verify the
-checksum set and detached signatures:
+The latest public dogfood release is
+[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38).
+It contains signed Linux and Windows x86-64 artifacts built from source commit
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. For the Linux package, download
+the release assets, then verify the checksum set and detached signatures:
 
 ```bash
 sha256sum --check SHA256SUMS
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
+  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
   -in SHA256SUMS -sigfile SHA256SUMS.sig
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
-  -in kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz \
-  -sigfile kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz.sig
-tar -xzf kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz
-cd kookie-0.1.0-dogfood.34-linux-x86_64
+  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
+  -in kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz \
+  -sigfile kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz.sig
+tar -xzf kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz
+cd kookie-0.1.0-dogfood.38-linux-x86_64
 ./kookie
 ```
 
 The archive bundles SDL3, SDL_mixer and the native adapters, but uses the host
 dynamic loader/libc and requires a supported presentation-capable Linux GPU.
-That published commit predates the source-tree input/session bridge, fixed-tick
-input/ACK path, lag-compensated rewind, remote interpolation, WAN rendezvous,
-fixed Host/Join lobby, explicit ready gate and player screen. Rebuild the
-presentation profile for the current playable goose path; the published
-archive does not contain these changes.
+This is the current-source dogfood package; target-hardware presentation
+evidence remains an open D1 gate.
 
 
 ## Windows x86-64 packages

@@ -230,11 +230,10 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   fixação de endpoint autenticado, histórico de rewind de hitscan de 12 ticks,
   interpolação remota de seis ticks e métricas de correção da predição; esses
   checks focados não comprovam uma release voltada ao jogador.
-- A tag pública mais recente continua somente Linux:
-  `0.1.0-dogfood.34`. D1 ainda exige par Linux/Windows de árvore limpa, smoke
-  interativo fora do checkout, verificação em host novo, evidência de hardware
-  Linux/Windows nativo e política/notas finais. Evidência entre hosts só é
-  necessária se o multiplayer for anunciado.
+- A tag pública mais recente é o dogfood pareado `0.1.0-dogfood.38`. D1 ainda
+  exige smoke interativo extraído fora do checkout, verificação em host novo,
+  evidência de hardware nativo Linux/Windows e política/notas da release.
+  Evidência entre hosts só é necessária se o multiplayer for anunciado.
 - Registros de deployment e evidência entre hosts são retidos fora deste
   repositório.
 

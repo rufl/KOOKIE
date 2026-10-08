@@ -10,15 +10,13 @@ hardware.
 
 ## Current public state
 
-The latest public release is [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34),
-published on 2026-09-30. It contains one signed Linux x86-64 SDL presentation
-archive built from source commit `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`.
-It predates the current source presentation path, KOF-owned multiplayer
-lobby/score screen, fixed-tick input/ACK protocol, lag compensation and
-interpolation, native Windows PE/SDL qualification and the hosted-CI PE gate
-fix. No current Windows demo archive is published.
-current tree also include the native `kookie-launcher`/`kookie-launcher.exe`;
-the public archive above predates that updater.
+The latest public dogfood release is [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38), published from source commit
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7` through the paired release
+workflow. It contains signed Linux and Windows x86-64 artifacts using the
+pinned Kof 0.5.0-beta source commit
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. It remains a pre-release
+qualification artifact: target-hardware presentation evidence and the D1
+player-facing release gate remain open.
 
 The current source tree has these release-capable paths:
 
@@ -64,18 +62,17 @@ font files and their SIL Open Font License notice ship with the package.
   for compatibility/qualification. The JVM package is not a native-game
   fallback.
 
-The published presentation archive remains a qualification artifact because it
-predates the current source tree. The source path is now implemented: `Play`
-starts a local authoritative encounter; `Host/Join` admits a second player
-through the explicit ready lobby; three goose bots attack players; host
+The published archive is the current-source dogfood qualification package:
+`Play` starts a local authoritative encounter; `Host/Join` admits a second
+player through the explicit ready lobby; three goose bots attack players; host
 snapshots replicate player/bot state; `Tab` shows the bounded host-authoritative
 player screen; and the fixed-tick input/ACK, rewind and interpolation paths are
-bounded in the session and presentation code. Fresh clean-tree package,
-outside-checkout interactive and target-hardware evidence are still required
-before calling it a public release.
+bounded in the session and presentation code. The package passed the paired
+artifact, checksum and signature gates, but target-hardware presentation and
+outside-checkout interactive evidence remain required for D1.
 
 
-## Current release decision — 2026-10-07
+## Previous D1 qualification — 2026-10-07
 
 A fresh D1 qualification pass ran from a clean KOOKIE checkout. The release
 gate remains **blocked**; no player-facing public release is claimed.

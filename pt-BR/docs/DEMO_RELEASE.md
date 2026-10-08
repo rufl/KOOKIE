@@ -10,16 +10,13 @@ exercitado no hardware-alvo.
 
 ## Estado público atual
 
-A release pública mais recente é [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34),
-publicada em 2026-09-30. Ela contém um único arquivo de apresentação SDL
-assinado para Linux x86-64, construído a partir do commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ela antecede o caminho atual de
-apresentação, o lobby/tela de placar Kof-first, o protocolo de input/ACK em
-passo fixo, compensação de lag e interpolação, a qualificação PE/SDL nativa
-Windows e a correção do gate PE da CI hospedada. Nenhum arquivo atual de demo
-Windows foi publicado. Pacotes novos produzidos a partir da árvore atual
-também incluem o `kookie-launcher`/`kookie-launcher.exe` nativo; o arquivo
-público acima antecede esse updater.
+A release pública dogfood mais recente é [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38), publicada a partir do commit de fonte
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7` pelo workflow de release pareado.
+Ela contém artefatos assinados Linux e Windows x86-64 usando o commit de fonte
+Kof 0.5.0-beta fixado em
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. Continua sendo um artefato de
+qualificação pré-release: a evidência de apresentação em hardware-alvo e o gate
+D1 da release voltada ao jogador continuam abertos.
 
 A árvore de fontes atual possui estes caminhos aptos a release:
 
@@ -58,6 +55,17 @@ A árvore de fontes atual possui estes caminhos aptos a release:
   ligação de pacote ou saída Xvfb não é evidência de apresentação visual.
 - Pipeline de pacote dogfood Linux assinado e pacote Windows JVM separado para
   compatibilidade/qualificação. O pacote JVM não é fallback do jogo nativo.
+
+O arquivo publicado é o pacote dogfood de qualificação da fonte atual:
+`Play` inicia um encounter autoritativo local; `Host/Join` admite um segundo
+jogador pelo lobby explícito de pronto; três bots gansos atacam jogadores;
+snapshots do host replicam jogadores/bots; `Tab` mostra a tela limitada de
+jogadores autoritativa do host; e os caminhos de input/ACK em passo fixo,
+rewind e interpolação são limitados na sessão e na apresentação. O pacote
+passou os gates pareados de artefato, checksums e assinaturas, mas a evidência
+de apresentação em hardware-alvo e o smoke interativo fora do checkout ainda
+são necessários para D1.
+
 
 
 ## O que “demo jogável” significa neste milestone
@@ -243,7 +251,7 @@ antes de uma release pública.
   bloqueiam a demo local limitada quando saída/reinício estiver demonstrado.
 
 
-## Decisão atual de release — 2026-10-07
+## Decisão anterior de D1 — 2026-10-07
 
 Foi executada uma nova qualification D1 a partir de um checkout KOOKIE limpo.
 O gate de release continua **bloqueado**; nenhuma release pública player-facing

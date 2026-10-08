@@ -160,14 +160,13 @@ significa que o RTT ainda não foi medido.
 
 ## Estado atual da demo e da release
 
-O artefato público mais recente é
-[`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34):
-uma apresentação SDL assinada para Linux x86-64, construída a partir do commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede o caminho atual de
-apresentação, netcode em passo fixo, lobby/tela de placar multiplayer, a
-qualificação PE/SDL Windows e os gates atuais da CI. É dogfood de apresentação,
-não o pacote atual de demo
-jogável.
+O artefato dogfood público mais recente é
+[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38):
+um par Linux/Windows x86-64 assinado, construído a partir do commit de fonte
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. É um pacote de qualificação
+pré-release; os gates determinísticos de artefato, checksums e assinaturas
+passaram, mas a evidência de apresentação em hardware-alvo continua um gate D1
+aberto.
 
 A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
 

@@ -306,8 +306,8 @@ release blocker remains; D1 remains a separate player-facing package gate.
   endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
   interpolation and prediction-correction metrics; these focused checks do not
   prove a player-facing release.
-- The latest public tag remains Linux-only `0.1.0-dogfood.34`. D1 still needs a
-  clean-tree Linux/Windows pair, outside-checkout interactive smoke, fresh-host
+- The latest public tag is the paired dogfood `0.1.0-dogfood.38`. D1 still
+  needs a clean extracted interactive smoke outside the checkout, fresh-host
   verification, native Linux/Windows target-hardware evidence and release
   policy/notes. Cross-host multiplayer evidence is required only if advertised.
 - Operational deployment records and cross-host evidence are intentionally
@@ -361,8 +361,8 @@ The roadmap is not complete; completed work remains recorded here rather than ar
   endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
   interpolation and prediction-correction metrics; these focused checks do not
   prove a player-facing release.
-- The latest public tag remains Linux-only `0.1.0-dogfood.34`. D1 still needs a
-  clean-tree Linux/Windows pair, outside-checkout interactive smoke, fresh-host
+- The latest public tag is the paired dogfood `0.1.0-dogfood.38`. D1 still
+  needs a clean extracted interactive smoke outside the checkout, fresh-host
   verification, native Linux/Windows target-hardware evidence and release
   policy/notes. Cross-host multiplayer evidence is required only if advertised.
 - Operational deployment records and cross-host evidence are intentionally

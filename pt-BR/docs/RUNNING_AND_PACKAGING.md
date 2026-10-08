@@ -477,35 +477,30 @@ enquanto os dois clientes podem rodar em Linux ou Windows.
 
 ### Executar o dogfood Linux publicado atualmente
 
-O pacote público mais recente é
-[`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34).
-É um build dogfood de apresentação Linux x86-64 assinado, da fonte no commit
-`4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; ele antecede a ponte atual de
-input/sessão, o netcode em passo fixo, o lobby/placar e a qualificação PE/SDL
-nativa Windows. Baixe os sete assets da release e valide o conjunto de checksums
+O dogfood público mais recente é
+[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38).
+Ele contém artefatos assinados Linux e Windows x86-64 construídos a partir do
+commit de fonte `a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Para o pacote Linux,
+baixe os assets da release e valide o conjunto de checksums e assinaturas:
 
 ```bash
 sha256sum --check SHA256SUMS
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
+  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
   -in SHA256SUMS -sigfile SHA256SUMS.sig
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.34-linux-x86_64.pub.pem \
-  -in kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz \
-  -sigfile kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz.sig
-tar -xzf kookie-0.1.0-dogfood.34-linux-x86_64.tar.gz
-cd kookie-0.1.0-dogfood.34-linux-x86_64
+  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
+  -in kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz \
+  -sigfile kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz.sig
+tar -xzf kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz
+cd kookie-0.1.0-dogfood.38-linux-x86_64
 ./kookie
 ```
 
 O arquivo inclui SDL3, SDL_mixer e os adaptadores nativos, mas usa o
 loader/libc dinâmico do host e exige uma GPU Linux suportada para apresentação.
-Esse commit publicado antecede a ponte de input/sessão da árvore de fontes, o
-caminho de input/ACK em passo fixo, o rewind com compensação de lag, a
-interpolação remota, o rendezvous WAN, o lobby fixo Host/Join, o gate explícito
-de pronto e a tela de jogadores. Gere novamente o perfil de apresentação para
-obter o caminho jogável atual de gansos; o arquivo público não contém essas
-mudanças.
+Este é o pacote dogfood da fonte atual; a evidência de apresentação em
+hardware-alvo continua sendo um gate D1 aberto.
 
 ## Pacotes Windows x86-64
 
