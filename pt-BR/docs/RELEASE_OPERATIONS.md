@@ -61,9 +61,40 @@ O comando configura:
 
 Ele não atualiza secrets quando a chave ou o archive local são inválidos.
 
+## Bootstrap de um comando
+
+`scripts/bootstrap_release.sh` é a entrada única para a sequência segura e
+repetível. Ele valida a chave permanente e o archive Kof, cria o environment
+com aprovadores obrigatórios, configura os dois secrets do repositório,
+verifica os dois runners self-hosted e pode disparar a qualificação.
+
+Somente dry-run/readiness:
+
+```bash
+bash scripts/bootstrap_release.sh \
+  --signing-key "$KOOKIE_SIGNING_KEY" \
+  --kof-archive "$KOF_ARCHIVE"
+```
+
+Configurar o GitHub e qualificar:
+
+```bash
+bash scripts/bootstrap_release.sh --apply \
+  --reviewer release-admin \
+  --signing-key "$KOOKIE_SIGNING_KEY" \
+  --kof-archive "$KOF_ARCHIVE" \
+  --version 0.1.0-dogfood.37 \
+  --qualify
+```
+
+Adicionar `--publish` exige a confirmação explícita
+`--confirm-hardware-evidence` e ainda pausa na aprovação do environment no
+GitHub. O script não pode criar hosts físicos de runner nem inventar uma chave
+de assinatura permanente; ele termina exibindo os URLs de configuração.
+
 ## Contrato dos runners
 
-Registre dois runners self-hosted x86-64 com estes labels:
+Registre dois runners self-hosted x86-64 **online** com estes labels:
 
 ```text
 self-hosted, linux, x64, kookie-demo-release

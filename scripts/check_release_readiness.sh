@@ -110,23 +110,24 @@ if (( CHECK_GITHUB == 1 )); then
   done
 
   runners="$(gh api "repos/$REPO/actions/runners" --paginate \
-    --jq '.runners[] | [.name,(.labels | map(.name) | join(","))] | @tsv' \
+    --jq '.runners[] | [.name,.status,(.labels | map(.name) | join(","))] | @tsv' \
     2>/dev/null || true)"
   linux_runner=0
   windows_runner=0
-  while IFS=$'\t' read -r _ runner_labels; do
-    [[ ",$runner_labels," == *",self-hosted,"* &&
+  while IFS=$'\t' read -r _ runner_status runner_labels; do
+    [[ "$runner_status" == online &&
+       ",$runner_labels," == *",self-hosted,"* &&
        ",$runner_labels," == *",x64,"* &&
        ",$runner_labels," == *",kookie-demo-release,"* ]] || continue
     [[ ",$runner_labels," == *",linux,"* ]] && linux_runner=1
     [[ ",$runner_labels," == *",windows,"* ]] && windows_runner=1
   done <<< "$runners"
   if (( linux_runner == 0 )); then
-    echo "BLOCKED: Linux release runner labels are missing in $REPO" >&2
+    echo "BLOCKED: online Linux release runner labels are missing in $REPO" >&2
     failures=$((failures + 1))
   fi
   if (( windows_runner == 0 )); then
-    echo "BLOCKED: Windows release runner labels are missing in $REPO" >&2
+    echo "BLOCKED: online Windows release runner labels are missing in $REPO" >&2
     failures=$((failures + 1))
   fi
 

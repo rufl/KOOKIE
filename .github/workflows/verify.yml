@@ -116,6 +116,7 @@ jobs:
           bash -n scripts/build_demo_release.sh \
             scripts/bootstrap_sdl3_mixer.sh \
             scripts/check_release_readiness.sh \
+            scripts/bootstrap_release.sh \
             scripts/sdl3_dependencies.sh \
             scripts/verify_linux_presentation_package.sh \
             scripts/verify_windows_presentation.sh \

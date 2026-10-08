@@ -60,9 +60,40 @@ The command sets:
 
 It refuses to update secrets when the local key/archive is invalid.
 
+## One-command bootstrap
+
+`scripts/bootstrap_release.sh` is the single entry point for the safe,
+repeatable sequence. It validates the permanent key and Kof archive, creates
+the environment with required reviewers, configures both repository secrets,
+checks the two self-hosted runners, and can dispatch qualification.
+
+Dry-run/readiness only:
+
+```bash
+bash scripts/bootstrap_release.sh \
+  --signing-key "$KOOKIE_SIGNING_KEY" \
+  --kof-archive "$KOF_ARCHIVE"
+```
+
+Configure GitHub and qualify:
+
+```bash
+bash scripts/bootstrap_release.sh --apply \
+  --reviewer release-admin \
+  --signing-key "$KOOKIE_SIGNING_KEY" \
+  --kof-archive "$KOF_ARCHIVE" \
+  --version 0.1.0-dogfood.37 \
+  --qualify
+```
+
+Adding `--publish` requires the explicit
+`--confirm-hardware-evidence` acknowledgement and still pauses at the
+GitHub environment approval. The script cannot create physical runner hosts
+or invent a permanent signing key; it exits with setup URLs instead.
+
 ## Runner contract
 
-Register two self-hosted x86-64 runners with these labels:
+Register two **online** self-hosted x86-64 runners with these labels:
 
 ```text
 self-hosted, linux, x64, kookie-demo-release
