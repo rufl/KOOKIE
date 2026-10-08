@@ -6,6 +6,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Fizemos o gate de empacotamento no Git Bash do Windows usar ACLs NTFS em vez
   de depender dos bits de modo POSIX de `chmod`; chaves Ed25519 transitórias são
   restringidas com `icacls.exe`.
+- Tornamos as opções do linker cross do Windows imunes à conversão de caminhos
+  do MSYS no Git Bash; `/Brepro` e `/subsystem:console` chegam ao Zig como
+  flags do linker.
 - Endurecemos o gate Wine da verificação Ubuntu hospedada: habilitamos a
   arquitetura i386, instalamos as duas arquiteturas do Wine e inicializamos um
   prefixo win64 antes do smoke de save durável Windows. Uma instalação somente

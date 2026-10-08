@@ -117,6 +117,8 @@ No Windows, o serviço do runner precisa usar o `bash.exe` do Git for Windows,
 não o shim do WSL. Mantenha os caminhos das ferramentas no escopo da máquina;
 o NTFS não expõe bits de modo POSIX de forma confiável, então o gate restringe
 as chaves Ed25519 transitórias com `icacls.exe`.
+O gate do pacote Windows também exclui da conversão de caminhos do MSYS no Git
+Bash as opções do linker que começam com `-Wl,/`.
 
 Crie `kookie-demo-release` em **Settings → Environments** e adicione
 aprovadores obrigatórios antes de permitir `publish=true`.

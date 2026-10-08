@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 IFS=$'\n\t'
+if [[ "${OSTYPE:-}" == msys* ||
+      "${OSTYPE:-}" == cygwin* ||
+      "${OSTYPE:-}" == win32* ]]; then
+  # Git Bash otherwise rewrites linker options such as -Wl,/Brepro as paths.
+  MSYS2_ARG_CONV_EXCL="${MSYS2_ARG_CONV_EXCL:+$MSYS2_ARG_CONV_EXCL;}-Wl,/"
+  export MSYS2_ARG_CONV_EXCL
+fi
 
 BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

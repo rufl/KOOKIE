@@ -6,6 +6,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Made the Windows Git Bash packaging gate use NTFS ACLs instead of relying on
   POSIX `chmod` mode bits; transient Ed25519 signing keys are restricted with
   `icacls.exe`.
+- Made Windows cross-linker options immune to Git Bash's MSYS path conversion;
+  `/Brepro` and `/subsystem:console` now reach Zig as linker flags.
 - Hardened the hosted Ubuntu verification workflow's Wine gate: enable the i386
   architecture, install both Wine architectures and initialize a win64 prefix
   before the Windows durable-save smoke. Wine64-only installation can fail before
