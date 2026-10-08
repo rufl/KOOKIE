@@ -143,10 +143,38 @@ KOF_COMPILER_SHA256="$(sha256sum "$KOF_COMPILER_JAR" | cut -d ' ' -f 1)"
   echo 'package_kookie: KOOKIE_SIGNING_KEY must name a regular Ed25519 private key' >&2
   exit 2
 }
-signing_key_mode="$(stat -c '%a' "$SIGNING_KEY")"
-if (( (8#$signing_key_mode & 077) != 0 )); then
-  echo 'package_kookie: signing key must not be group/world accessible' >&2
-  exit 2
+if [[ "${OSTYPE:-}" == msys* ||
+      "${OSTYPE:-}" == cygwin* ||
+      "${OSTYPE:-}" == win32* ]]; then
+  command -v cygpath >/dev/null || {
+    echo 'package_kookie: cygpath is required to secure a Windows signing key' >&2
+    exit 2
+  }
+  command -v icacls.exe >/dev/null || {
+    echo 'package_kookie: icacls.exe is required to secure a Windows signing key' >&2
+    exit 2
+  }
+  command -v whoami.exe >/dev/null || {
+    echo 'package_kookie: whoami.exe is required to secure a Windows signing key' >&2
+    exit 2
+  }
+  windows_signing_key="$(cygpath -w "$SIGNING_KEY")"
+  windows_signing_identity="$(whoami.exe 2>/dev/null | tr -d '\r')"
+  [[ -n "$windows_signing_identity" ]] || {
+    echo 'package_kookie: unable to resolve the Windows signing-key identity' >&2
+    exit 2
+  }
+  icacls.exe "$windows_signing_key" /inheritance:r \
+    /grant:r "$windows_signing_identity:(R)" >/dev/null 2>&1 || {
+    echo 'package_kookie: unable to restrict the Windows signing-key ACL' >&2
+    exit 2
+  }
+else
+  signing_key_mode="$(stat -c '%a' "$SIGNING_KEY")"
+  if (( (8#$signing_key_mode & 077) != 0 )); then
+    echo 'package_kookie: signing key must not be group/world accessible' >&2
+    exit 2
+  fi
 fi
 signing_key_description="$(openssl pkey -in "$SIGNING_KEY" -text -noout 2>/dev/null)" || {
   echo 'package_kookie: signing key is unreadable' >&2

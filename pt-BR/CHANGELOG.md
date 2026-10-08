@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Fizemos o gate de empacotamento no Git Bash do Windows usar ACLs NTFS em vez
+  de depender dos bits de modo POSIX de `chmod`; chaves Ed25519 transitórias são
+  restringidas com `icacls.exe`.
 - Endurecemos o gate Wine da verificação Ubuntu hospedada: habilitamos a
   arquitetura i386, instalamos as duas arquiteturas do Wine e inicializamos um
   prefixo win64 antes do smoke de save durável Windows. Uma instalação somente

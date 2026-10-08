@@ -113,6 +113,10 @@ O runner Linux também precisa dos arquivos de desenvolvimento SDL3, do
 caminho de preparação do SDL_mixer fixado e de um wrapper de display isolado
 para o smoke opcional. O runner Windows também precisa dos prefixes MinGW do
 SDL3 e SDL_mixer e de `KOOKIE_DXC`.
+No Windows, o serviço do runner precisa usar o `bash.exe` do Git for Windows,
+não o shim do WSL. Mantenha os caminhos das ferramentas no escopo da máquina;
+o NTFS não expõe bits de modo POSIX de forma confiável, então o gate restringe
+as chaves Ed25519 transitórias com `icacls.exe`.
 
 Crie `kookie-demo-release` em **Settings → Environments** e adicione
 aprovadores obrigatórios antes de permitir `publish=true`.

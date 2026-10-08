@@ -112,6 +112,9 @@ The Linux runner additionally needs SDL3 development files, the pinned
 SDL_mixer preparation path and an isolated display wrapper for optional
 presentation smoke. The Windows runner additionally needs the MinGW SDL3 and
 SDL_mixer prefixes and `KOOKIE_DXC`.
+On Windows, the runner service must use Git for Windows `bash.exe`, not the WSL
+shim. Keep tool paths at machine scope; NTFS does not reliably expose POSIX mode
+bits, so the package gate restricts transient signing keys with `icacls.exe`.
 
 Create `kookie-demo-release` in repository **Settings → Environments** and add
 required reviewers before allowing `publish=true`.
