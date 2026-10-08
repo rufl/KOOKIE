@@ -108,6 +108,10 @@ Ambos precisam de Kof `0.5.0-beta` no commit
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c`, Python 3, OpenSSL, `glslc`, Zig
 `0.16.0` e o archive Kof exato cujo digest está em
 `KOOKIE_KOF_ARCHIVE_SHA256`.
+O workflow de verificação hospedado fixa o commit assinado do
+`mlugg/setup-zig` compatível com Node24,
+`272b55e6c4fcef353f6d923050ff32f018636378`, porque o `v2` upstream ainda
+declara Node20.
 
 O runner Linux também precisa dos arquivos de desenvolvimento SDL3, do
 caminho de preparação do SDL_mixer fixado e de um wrapper de display isolado

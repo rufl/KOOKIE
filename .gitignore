@@ -14,7 +14,8 @@ release/
 __pycache__/
 *.py[cod]
 
-# Local environment and credentials
+## Local environment and credentials
 .env
 .env.*
 !.env.example
+actions-runner/

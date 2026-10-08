@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Fixamos o workflow de verificação hospedado no commit assinado do
+  `mlugg/setup-zig` compatível com Node24 enquanto o `v2` upstream ainda declara
+  Node20.
 - Fizemos o gate de empacotamento no Git Bash do Windows usar ACLs NTFS em vez
   de depender dos bits de modo POSIX de `chmod`; chaves Ed25519 transitórias são
   restringidas com `icacls.exe`.

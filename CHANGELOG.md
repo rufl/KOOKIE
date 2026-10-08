@@ -3,6 +3,8 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Pinned the hosted verification workflow to the signed Node24-compatible
+  `mlugg/setup-zig` commit while upstream `v2` still declares Node20.
 - Made the Windows Git Bash packaging gate use NTFS ACLs instead of relying on
   POSIX `chmod` mode bits; transient Ed25519 signing keys are restricted with
   `icacls.exe`.

@@ -51,7 +51,9 @@ jobs:
           distribution: temurin
           java-version: "25"
       - name: Install pinned Zig cross-toolchain
-        uses: mlugg/setup-zig@v2
+        # Upstream v2 still declares node20; this signed commit is its Node24
+        # build until upstream publishes the corresponding versioned release.
+        uses: mlugg/setup-zig@272b55e6c4fcef353f6d923050ff32f018636378
         with:
           version: "0.16.0"
 
