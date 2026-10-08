@@ -680,10 +680,10 @@ package presentation smoke; the workflow bootstraps the pinned SDL_mixer
 prefix when its `pkg-config` entry is absent. The Windows runner additionally
 needs MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`.
 
-The hosted `verify.yml` job is Ubuntu-based and installs both `wine64` and
-`wine32:i386`, after enabling the i386 architecture. A wine64-only install can
-fail before the console gate because a win64 prefix still needs the
-`syswow64/rundll32.exe` helper.
+The hosted `verify.yml` job has a 45-minute budget because installing Wine
+with both `wine64` and `wine32:i386` can exceed the old core budget on a cold
+Ubuntu runner. The i386 architecture remains required because a win64 prefix
+needs the `syswow64/rundll32.exe` helper.
 
 Configure environment secrets `KOOKIE_SIGNING_KEY_PEM` and
 `KOOKIE_KOF_ARCHIVE_SHA256`. Dispatch with `publish=false` for artifact-only

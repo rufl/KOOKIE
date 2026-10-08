@@ -674,10 +674,10 @@ o workflow prepara o prefixo fixado do SDL_mixer quando a entrada
 `pkg-config` está ausente. O runner Windows também precisa dos prefixes MinGW
 SDL3/SDL_mixer e de `KOOKIE_DXC`.
 
-O job hospedado `verify.yml` usa Ubuntu e instala `wine64` e `wine32:i386`
-depois de habilitar a arquitetura i386. Uma instalação somente com wine64 pode
-falhar antes do gate de console porque um prefixo win64 ainda precisa do helper
-`syswow64/rundll32.exe`.
+O job hospedado `verify.yml` tem orçamento de 45 minutos porque instalar o Wine
+com `wine64` e `wine32:i386` pode exceder o orçamento anterior em um runner
+Ubuntu frio. A arquitetura i386 continua necessária porque um prefixo win64
+precisa do helper `syswow64/rundll32.exe`.
 
 Configure os secrets de ambiente `KOOKIE_SIGNING_KEY_PEM` e
 `KOOKIE_KOF_ARCHIVE_SHA256`. Use `publish=false` para qualificação somente de
