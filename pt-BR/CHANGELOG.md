@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos a primeira fatia da biblioteca interna de UI para Kof/KofJS:
+  metadados limitados de assets SVG/PNG com texto alternativo obrigatório,
+  papéis de texto Jared Lite/Pixand, tokens de superfícies escuras, ícones SVG
+  intrínsecos limitados e a fachada composável `KookieUiDocument`. O probe G10
+  focado qualifica execução em JVM/native e saída de type-check/build KofJS.
 - Os workers nativos de jobs agora executam somente agendamento e conclusão
   de plataforma; o resultado e o checksum do descritor permanecem no
   `BoundedJobGraph` do Kof, removendo o cálculo de engine do worker C.

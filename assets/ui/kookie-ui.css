@@ -1,0 +1,16 @@
+/* Kookie UI host stylesheet: load this file before the KofJS document. */
+@font-face {
+  font-family: "Jared Lite";
+  src: url("../fonts/jared-lite.ttf") format("truetype"), url("../../fonts/jared-lite.ttf") format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pixand";
+  src: url("../fonts/pixand.ttf") format("truetype"), url("../../fonts/pixand.ttf") format("truetype");
+  font-display: swap;
+}
+
+.kookie-ui-focus:focus-visible {
+  outline: 2px solid #15803d;
+  outline-offset: 2px;
+}

@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added the first internal Kof/KofJS UI library slice: bounded SVG/PNG asset
+  metadata with required alternative text, Jared Lite/Pixand text roles,
+  dark surface tokens, bounded intrinsic SVG icons, and a composable
+  `KookieUiDocument` facade. The focused G10 probe qualifies JVM/native
+  execution and KofJS type-check/build output.
 - Native job workers now execute only platform scheduling and completion;
   result and descriptor-checksum semantics remain in Kof's
   `BoundedJobGraph`, removing engine computation from the C worker.

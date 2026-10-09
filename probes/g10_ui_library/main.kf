@@ -1,0 +1,67 @@
+import ui
+
+main() {
+    assert(kookieUiFontName(kookieUiFontBody()) == "Jared Lite" &&
+        kookieUiFontName(kookieUiFontDisplay()) == "Pixand" &&
+        kookieUiFontSource(kookieUiFontBody()) == "fonts/jared-lite.ttf" &&
+        kookieUiFontSource(kookieUiFontDisplay()) == "fonts/pixand.ttf",
+        "Kookie UI must expose the packaged body and display fonts")
+
+    var svg = KookieUiAsset(
+        "assets/ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(),
+        "GatoGanso mark")
+    var png = KookieUiAsset(
+        "assets/prototype/runtime/ui/hearts_0001.png",
+        kookieUiAssetPng(),
+        "Health hearts")
+    var invalid = KookieUiAsset(
+        "assets/ui/gatoganso-mark.svg",
+        kookieUiAssetPng(),
+        "GatoGanso mark")
+    var missingAlt = KookieUiAsset(
+        "assets/ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(),
+        "")
+    assert(svg.accepted() && svg.isSvg() &&
+        png.accepted() && png.isPng() &&
+        !invalid.accepted() && !missingAlt.accepted(),
+        "Kookie UI must validate SVG/PNG extensions and alternative text")
+
+    var icon = KookieUiIcon("heart", 64)
+    assert(kookieUiIconSupported(icon.name()) && icon.size() == 48,
+        "Kookie UI icons must use the bounded SVG icon set")
+    icon.setAccent()
+
+    var title = KookieUiText(
+        "GATOGANSO", kookieUiTextRoleDisplay(), 32, true,
+        kookieUiForeground())
+    var body = KookieUiText(
+        "SVG + PNG UI assets", kookieUiTextRoleBody(), 16, false,
+        kookieUiMuted())
+    assert(title.role() == kookieUiTextRoleDisplay() &&
+        title.size() == 32 && body.role() == kookieUiTextRoleBody() &&
+        body.text() == "SVG + PNG UI assets",
+        "Kookie UI text must retain role, size, weight, and content")
+    body.setText("SVG + PNG assets ready")
+    assert(body.text() == "SVG + PNG assets ready",
+        "Kookie UI text must update without replacing its handle")
+
+    var document = KookieUiDocument("GatoGanso UI", 960, 540)
+    var panel = View(kookieUiRootStyle())
+    var column = Column(listOf(title.widget(), body.widget()))
+    panel.bind(column)
+    assert(document.bindView(panel) &&
+        document.bindIcon(icon) &&
+        document.bindIconDescription(icon) &&
+        document.bindAsset(svg, 32) &&
+        document.bindAssetDescription(svg) &&
+        document.bindAsset(png, 48) &&
+        document.bindAssetDescription(png) &&
+        document.boundCount() == 7 &&
+        document.show() && document.shown(),
+        "Kookie UI document must compose text, SVG, PNG, and icon nodes")
+    assert(document.close() && !document.shown(),
+        "Kookie UI document must close deterministically")
+    println("KOOKIE G10 internal Kof/KofJS UI library verified")
+}

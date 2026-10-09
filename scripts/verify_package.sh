@@ -90,6 +90,9 @@ for font_asset in fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt \
   fonts/readme.txt fonts/manifest.json; do
   test -f "$PACKAGE_ROOT/$font_asset"
 done
+for ui_asset in assets/ui/kookie-ui.css assets/ui/gatoganso-mark.svg; do
+  test -f "$PACKAGE_ROOT/$ui_asset"
+done
 python3 - "$PACKAGE_ROOT/fonts/manifest.json" "$PACKAGE_ROOT/fonts" <<'PY'
 import hashlib
 import json

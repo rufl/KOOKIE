@@ -1,0 +1,297 @@
+package ui
+
+Int kookieUiAssetPng() { return 1 }
+Int kookieUiAssetSvg() { return 2 }
+Int kookieUiAssetSvgz() { return 3 }
+
+Int kookieUiFontBody() { return 0 }
+Int kookieUiFontDisplay() { return 1 }
+
+Int kookieUiTextRoleBody() { return 0 }
+Int kookieUiTextRoleDisplay() { return 1 }
+
+Color kookieUiBackground() { return Color(15, 23, 42) }
+Color kookieUiSurface() { return Color(15, 31, 43) }
+Color kookieUiSurfaceRaised() { return Color(22, 42, 55) }
+Color kookieUiForeground() { return Color(255, 255, 255) }
+Color kookieUiMuted() { return Color(184, 197, 207) }
+Color kookieUiAccent() { return Color(217, 119, 6) }
+Color kookieUiFocus() { return Color(21, 128, 61) }
+
+String kookieUiFontName(Int role) {
+    if (role == kookieUiFontBody()) { return "Jared Lite" }
+    if (role == kookieUiFontDisplay()) { return "Pixand" }
+    return ""
+}
+
+String kookieUiFontSource(Int role) {
+    if (role == kookieUiFontBody()) { return "fonts/jared-lite.ttf" }
+    if (role == kookieUiFontDisplay()) { return "fonts/pixand.ttf" }
+    return ""
+}
+
+Bool kookieUiHasSuffix(String value, String suffix) {
+    if (suffix.length() == 0 || value.length() < suffix.length()) {
+        return false
+    }
+    var start = value.length() - suffix.length()
+    for (var index = 0; index < suffix.length(); index = index + 1) {
+        if (value.charAt(start + index) != suffix.charAt(index)) {
+            return false
+        }
+    }
+    return true
+}
+
+class KookieUiAsset {
+    String sourceValue
+    Int kindValue
+    String altValue
+
+    public constructor(String source, Int kind, String alt) {
+        sourceValue = source
+        kindValue = kind
+        altValue = alt
+    }
+
+    Bool accepted() {
+        if (sourceValue.length() == 0 || altValue.length() == 0) {
+            return false
+        }
+        if (kindValue == kookieUiAssetPng()) {
+            return kookieUiHasSuffix(sourceValue, ".png")
+        }
+        if (kindValue == kookieUiAssetSvg()) {
+            return kookieUiHasSuffix(sourceValue, ".svg")
+        }
+        if (kindValue == kookieUiAssetSvgz()) {
+            return kookieUiHasSuffix(sourceValue, ".svgz")
+        }
+        return false
+    }
+
+    Bool isPng() { return kindValue == kookieUiAssetPng() }
+    Bool isSvg() { return kindValue == kookieUiAssetSvg() }
+    Bool isSvgz() { return kindValue == kookieUiAssetSvgz() }
+    String source() { return sourceValue }
+    String alt() { return altValue }
+
+    Image image() {
+        return Image(sourceValue)
+    }
+
+    Label accessibilityLabel() {
+        var label = Label(altValue)
+        label.setStyle(Style(
+            "position: absolute; width: 1px; height: 1px; overflow: hidden"
+        ))
+        return label
+    }
+}
+
+void kookieUiApplyImageSize(Image image, Int size) {
+    if (size <= 16) {
+        image.setStyle(Style(
+            "width: 16px; height: 16px; object-fit: contain"
+        ))
+    } else if (size <= 24) {
+        image.setStyle(Style(
+            "width: 24px; height: 24px; object-fit: contain"
+        ))
+    } else if (size <= 32) {
+        image.setStyle(Style(
+            "width: 32px; height: 32px; object-fit: contain"
+        ))
+    } else {
+        image.setStyle(Style(
+            "width: 48px; height: 48px; object-fit: contain"
+        ))
+    }
+}
+
+class KookieUiIcon {
+    String nameValue
+    Int sizeValue
+    Icon iconValue
+
+    public constructor(String name, Int size) {
+        nameValue = if (kookieUiIconSupported(name)) name else "close"
+        sizeValue = size
+        if (sizeValue < 16) { sizeValue = 16 }
+        if (sizeValue > 48) { sizeValue = 48 }
+        iconValue = Icon(nameValue, sizeValue)
+    }
+
+    Icon widget() { return iconValue }
+    String name() { return nameValue }
+    Int size() { return sizeValue }
+
+    void setAccent() {
+        iconValue.setStyle(Style("color: #d97706"))
+    }
+
+    Label accessibilityLabel() {
+        var label = Label(nameValue)
+        label.setStyle(Style(
+            "position: absolute; width: 1px; height: 1px; overflow: hidden"
+        ))
+        return label
+    }
+}
+
+Bool kookieUiIconSupported(String name) {
+    return name == "home" || name == "star" || name == "heart" ||
+        name == "search" || name == "settings" || name == "user" ||
+        name == "menu" || name == "close" || name == "check" ||
+        name == "plus" || name == "minus" || name == "trash" ||
+        name == "edit" || name == "share" || name == "download" ||
+        name == "upload" || name == "mail" || name == "phone" ||
+        name == "calendar" || name == "clock" || name == "eye" ||
+        name == "lock"
+}
+
+class KookieUiText {
+    Label labelValue
+    String textValue
+    Int roleValue
+    Int sizeValue
+    Bool boldValue
+
+    public constructor(
+        String text, Int role, Int size, Bool bold, Color color
+    ) {
+        textValue = text
+        roleValue = role
+        if (roleValue != kookieUiTextRoleDisplay()) {
+            roleValue = kookieUiTextRoleBody()
+        }
+        sizeValue = size
+        if (sizeValue < 12) { sizeValue = 12 }
+        if (sizeValue > 48) { sizeValue = 48 }
+        boldValue = bold
+        labelValue = Label(text)
+        labelValue.fontSize = sizeValue
+        labelValue.bold = boldValue
+        labelValue.color = color
+        if (roleValue == kookieUiTextRoleDisplay()) {
+            labelValue.setStyle(Style(
+                "font-family: Pixand, 'Jared Lite', sans-serif; line-height: 1.2"
+            ))
+        } else {
+            labelValue.setStyle(Style(
+                "font-family: 'Jared Lite', sans-serif; line-height: 1.35"
+            ))
+        }
+    }
+
+    Label widget() { return labelValue }
+    String text() { return textValue }
+    Int role() { return roleValue }
+    Int size() { return sizeValue }
+    Bool bold() { return boldValue }
+
+    void setText(String text) {
+        textValue = text
+        labelValue.text = text
+    }
+
+    void setColor(Color color) {
+        labelValue.color = color
+    }
+}
+
+Style kookieUiSurfaceStyle() {
+    return Style(kookieUiSurface(), kookieUiForeground(), 16, 8)
+}
+
+Style kookieUiRaisedStyle() {
+    return Style(kookieUiSurfaceRaised(), kookieUiForeground(), 12, 6)
+}
+
+Style kookieUiRootStyle() {
+    return Style(kookieUiBackground(), kookieUiForeground(), 20, 0)
+}
+
+class KookieUiDocument {
+    Window windowValue
+    Int boundCountValue
+    Bool shownValue
+
+    public constructor(String title, Int width, Int height) {
+        windowValue = Window(title)
+        if (width > 0 && height > 0) {
+            windowValue.size(width, height)
+        }
+        windowValue.theme = Theme.dark()
+        boundCountValue = 0
+        shownValue = false
+    }
+
+    Window window() { return windowValue }
+    Int boundCount() { return boundCountValue }
+    Bool shown() { return shownValue }
+
+    Bool bindText(KookieUiText text) {
+        windowValue.bind(text.widget())
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool bindAsset(KookieUiAsset asset, Int size) {
+        if (!asset.accepted()) { return false }
+        var image = asset.image()
+        kookieUiApplyImageSize(image, size)
+        windowValue.bind(image)
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool bindAssetDescription(KookieUiAsset asset) {
+        if (!asset.accepted()) { return false }
+        windowValue.bind(asset.accessibilityLabel())
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool bindIcon(KookieUiIcon icon) {
+        windowValue.bind(icon.widget())
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool bindIconDescription(KookieUiIcon icon) {
+        windowValue.bind(icon.accessibilityLabel())
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool bindView(View view) {
+        windowValue.bind(view)
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool bindColumn(Column column) {
+        windowValue.bind(column)
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool bindRow(Row row) {
+        windowValue.bind(row)
+        boundCountValue = boundCountValue + 1
+        return true
+    }
+
+    Bool show() {
+        windowValue.show()
+        shownValue = true
+        return true
+    }
+
+    Bool close() {
+        windowValue.close()
+        shownValue = false
+        return true
+    }
+}

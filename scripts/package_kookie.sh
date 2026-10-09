@@ -402,6 +402,24 @@ bundle_font_assets() {
     exit 1
   }
 }
+bundle_ui_assets() {
+  local source_root="$ROOT_DIR/assets/ui"
+  local destination_root="$PACKAGE_ROOT/assets/ui"
+  [[ -d "$source_root" ]] || {
+    echo "package_kookie: UI asset directory missing: $source_root" >&2
+    exit 1
+  }
+  mkdir -p "$destination_root"
+  for name in kookie-ui.css gatoganso-mark.svg; do
+    [[ -f "$source_root/$name" && ! -L "$source_root/$name" ]] || {
+      echo "package_kookie: UI asset missing: $name" >&2
+      exit 1
+    }
+    cp -- "$source_root/$name" "$destination_root/$name"
+  done
+}
+
+bundle_ui_assets
 
 bundle_audio_assets() {
   if [[ "$RUNTIME" != presentation &&
