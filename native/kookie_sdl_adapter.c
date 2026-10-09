@@ -541,6 +541,22 @@ bool kookie_window_is_resizable(int token) {
     return (SDL_GetWindowFlags(window_slots[slot].window) &
         SDL_WINDOW_RESIZABLE) != 0;
 }
+bool kookie_window_set_gameplay_mouse_mode(int token, int enabled) {
+    int slot;
+    unsigned int generation;
+    if (!decode_token(token, KOOKIE_WINDOW_KIND, &slot, &generation) ||
+        window_slots[slot].window == NULL ||
+        window_slots[slot].generation != generation ||
+        (enabled != 0 && enabled != 1)) {
+        return false;
+    }
+    SDL_Window *window = window_slots[slot].window;
+    bool relative = enabled != 0;
+    if (SDL_GetWindowRelativeMouseMode(window) == relative) {
+        return true;
+    }
+    return SDL_SetWindowRelativeMouseMode(window, relative);
+}
 
 bool kookie_window_apply_display(
     int token, int mode, int width, int height

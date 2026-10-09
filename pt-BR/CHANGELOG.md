@@ -10,6 +10,11 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O gameplay relativo à câmera agora aplica o yaw horizontal do mouse ao
   movimento WASD; o follow determinístico em terceira pessoa, o zoom no scroll
   e a colisão autorada contra obstáculos continuam ativos.
+- Estabilizamos os ticks fixos do gameplay GatoGanso drenando eventos de
+  apresentação de arma confirmados e ignorando inimigos autônomos mortos;
+  disparos confirmados agora exibem rastros limitados na tela.
+- O gameplay SDL agora ativa o modo relativo do mouse enquanto está ativo,
+  mantendo WASD e mouselook contínuo no mesmo caminho de entrada com foco.
 - Adicionamos apresentação nativa GLB limitada ao encontro GatoGanso: o perfil
   de conteúdo protótipo agora envia os modelos existentes de ganso e gato
   diretamente ao passe de mundo SDL_GPU, com estado de animação/material por

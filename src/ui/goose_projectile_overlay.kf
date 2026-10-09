@@ -1,0 +1,141 @@
+package ui
+
+import core
+
+Int gooseProjectileLifetimeFrames() { return 4 }
+Int gooseProjectileHalfSize() { return 2 }
+
+class GooseProjectileOverlay {
+    Int[] fromXs
+    Int[] fromYs
+    Int[] fromDepths
+    Int[] toXs
+    Int[] toYs
+    Int[] toDepths
+    Int[] ages
+    Bool[] active
+    Int activeCountValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > 16) { actualCapacity = 16 }
+        fromXs = new Int[actualCapacity]
+        fromYs = new Int[actualCapacity]
+        fromDepths = new Int[actualCapacity]
+        toXs = new Int[actualCapacity]
+        toYs = new Int[actualCapacity]
+        toDepths = new Int[actualCapacity]
+        ages = new Int[actualCapacity]
+        active = new Bool[actualCapacity]
+        clear()
+    }
+
+    Bool clear() {
+        activeCountValue = 0
+        for (var index = 0; index < active.length; index = index + 1) {
+            fromXs[index] = 0
+            fromYs[index] = 0
+            fromDepths[index] = 1
+            toXs[index] = 0
+            toYs[index] = 0
+            toDepths[index] = 1
+            ages[index] = 0
+            active[index] = false
+        }
+        return true
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) { return index }
+        }
+        var oldest = 0
+        for (var index = 1; index < ages.length; index = index + 1) {
+            if (ages[index] > ages[oldest]) { oldest = index }
+        }
+        return oldest
+    }
+
+    Int clampScreen(Int value) {
+        if (value < -98) { return -98 }
+        if (value > 98) { return 98 }
+        return value
+    }
+
+    Int clampDepth(Int value) {
+        if (value < 1) { return 1 }
+        if (value > 99) { return 99 }
+        return value
+    }
+
+    Bool addShot(
+        Int fromX, Int fromY, Int fromDepth,
+        Int toX, Int toY, Int toDepth
+    ) {
+        var slot = freeSlot()
+        if (!active[slot]) { activeCountValue = activeCountValue + 1 }
+        fromXs[slot] = clampScreen(fromX)
+        fromYs[slot] = clampScreen(fromY)
+        fromDepths[slot] = clampDepth(fromDepth)
+        toXs[slot] = clampScreen(toX)
+        toYs[slot] = clampScreen(toY)
+        toDepths[slot] = clampDepth(toDepth)
+        ages[slot] = 0
+        active[slot] = true
+        return true
+    }
+
+    Bool advance() {
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) { continue }
+            ages[index] = ages[index] + 1
+            if (ages[index] >= gooseProjectileLifetimeFrames()) {
+                active[index] = false
+                activeCountValue = activeCountValue - 1
+            }
+        }
+        return true
+    }
+
+    Int activeCount() { return activeCountValue }
+    Int renderVertexCapacity() { return active.length * 6 }
+
+    Int interpolate(Int from, Int to, Int age) {
+        return from + (to - from) * age / gooseProjectileLifetimeFrames()
+    }
+
+    Bool pushQuad(
+        FrameStaging target, Int resource,
+        Int centerX, Int centerY, Int depth
+    ) {
+        var half = gooseProjectileHalfSize()
+        var left = centerX - half
+        var right = centerX + half
+        var bottom = centerY - half
+        var top = centerY + half
+        return target.pushVertexDepth(resource, left, bottom, depth, 0, 100) &&
+            target.pushVertexDepth(resource, right, bottom, depth, 100, 100) &&
+            target.pushVertexDepth(resource, right, top, depth, 100, 0) &&
+            target.pushVertexDepth(resource, left, bottom, depth, 0, 100) &&
+            target.pushVertexDepth(resource, right, top, depth, 100, 0) &&
+            target.pushVertexDepth(resource, left, top, depth, 0, 0)
+    }
+
+    Bool stage(FrameStaging target, Int frame, Int resource) {
+        if (activeCountValue <= 0 || resource <= 0) { return false }
+        if (!target.begin(frame)) { return false }
+        for (var index = 0; index < active.length; index = index + 1) {
+            if (!active[index]) { continue }
+            var age = ages[index]
+            var centerX = interpolate(fromXs[index], toXs[index], age)
+            var centerY = interpolate(fromYs[index], toYs[index], age)
+            var depth = interpolate(fromDepths[index], toDepths[index], age)
+            if (!pushQuad(target, resource, centerX, centerY, depth)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+}

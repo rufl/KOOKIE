@@ -3202,20 +3202,30 @@ class LoopbackSession {
         }
         var accepted = true
         for (var index = 0; index < enemyCount && accepted; index = index + 1) {
+            if (enemyCombat.enemyState(enemyIds[index]) == 7) {
+                continue
+            }
             if (enemyAutonomous[index]) {
                 var targetId = nearestLiveEnemyTarget(enemyIds[index])
-                if (targetId > 0) {
-                    lastEnemyDecision = enemyCombat.stepEnemyRoleSpatial(
-                        enemyIds[index], tick, targetId,
-                        enemyPerceptionCriticals[index])
-                    accepted = lastEnemyDecision.accepted()
-                    if (accepted && lastEnemyDecision.fired() &&
-                        lastEnemyDecision.applied() > 0) {
-                        var gain = 70
-                        if (lastEnemyDecision.died()) {
-                            gain = 100
-                        }
-                        accepted = recordFeedbackEvent(
+                lastEnemyDecision = enemyCombat.stepEnemyRoleSpatial(
+                    enemyIds[index], tick, targetId,
+                    enemyPerceptionCriticals[index])
+                if (accepted && lastEnemyDecision.fired() &&
+                    lastEnemyDecision.applied() > 0) {
+                    var gain = 70
+                    if (lastEnemyDecision.died()) {
+                        gain = 100
+                    }
+                    accepted = recordFeedbackEvent(
+                        1, enemyIds[index], targetId,
+                        enemyCombat.enemySpatialPositionX(targetId),
+                        enemyCombat.enemySpatialPositionY(targetId),
+                        enemyCombat.enemySpatialPositionZ(targetId),
+                        lastEnemyDecision.applied(),
+                        lastEnemyDecision.died(),
+                        impactClip(1), gain)
+                    if (accepted) {
+                        pushImpactPresentation(
                             1, enemyIds[index], targetId,
                             enemyCombat.enemySpatialPositionX(targetId),
                             enemyCombat.enemySpatialPositionY(targetId),
@@ -3223,16 +3233,6 @@ class LoopbackSession {
                             lastEnemyDecision.applied(),
                             lastEnemyDecision.died(),
                             impactClip(1), gain)
-                        if (accepted) {
-                            pushImpactPresentation(
-                                1, enemyIds[index], targetId,
-                                enemyCombat.enemySpatialPositionX(targetId),
-                                enemyCombat.enemySpatialPositionY(targetId),
-                                enemyCombat.enemySpatialPositionZ(targetId),
-                                lastEnemyDecision.applied(),
-                                lastEnemyDecision.died(),
-                                impactClip(1), gain)
-                        }
                     }
                 }
             } else if (enemyPerceptionActive[index]) {

@@ -9,6 +9,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
 extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int height, Int hidden): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_window_destroy(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_window_is_resizable(Int token): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_window_set_gameplay_mouse_mode(
+    Int token, Int enabled
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_window_apply_display(
     Int token, Int mode, Int width, Int height
 ): Bool
@@ -616,6 +619,8 @@ class G1NativePresentation {
     FrameStaging animalFrame
     FrameStaging minimapFrame
     FrameStaging scoreboardFrame
+    GooseProjectileOverlay projectileOverlay
+    FrameStaging projectileFrame
     Int worldCapacity
     Int hudCapacity
     Int nativeCapacity
@@ -623,6 +628,7 @@ class G1NativePresentation {
     Int actorCapacity
     Int animalCapacity
     Int minimapCapacity
+    Int projectileCapacity
     Int scoreboardCapacity
     Bool cooperativeModeValue
     Bool mirrorRemoteValue
@@ -632,6 +638,8 @@ class G1NativePresentation {
     Int playerKillsTwoValue
     Int playerDeathsOneValue
     Int playerDeathsTwoValue
+    Bool localShotValue
+    Bool remoteShotValue
     public constructor() {
         scenario = G1Demo()
         kutterScenario = G4KutterDemo()
@@ -642,6 +650,7 @@ class G1NativePresentation {
         animalMeshes = ArenaAnimalMeshes(6)
         scoreboardUi = MultiplayerScoreboard()
         scoreboardState = MatchScoreboardState(2)
+        projectileOverlay = GooseProjectileOverlay(8)
         camera = CameraState(-450, 450)
         interactionSession = LoopbackSession(16, 8)
         saveOwner = BoundedHostGameplaySaveOwner(interactionSession)
@@ -656,6 +665,7 @@ class G1NativePresentation {
         actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
         minimapFrame = FrameStaging(minimap.renderVertexCapacity())
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
+        projectileFrame = FrameStaging(projectileOverlay.renderVertexCapacity())
         worldCapacity = worldFrame.vertexCapacity()
         doorCapacity = doorFrame.vertexCapacity()
         hudCapacity = hudFrame.vertexCapacity()
@@ -663,6 +673,7 @@ class G1NativePresentation {
         animalCapacity = animalFrame.vertexCapacity()
         minimapCapacity = minimapFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
+        projectileCapacity = projectileFrame.vertexCapacity()
         nativeCapacity = 0
         cooperativeModeValue = true
         mirrorRemoteValue = false
@@ -672,6 +683,8 @@ class G1NativePresentation {
         playerKillsTwoValue = 0
         playerDeathsOneValue = 0
         playerDeathsTwoValue = 0
+        localShotValue = false
+        remoteShotValue = false
     }
     Bool setCooperativeMode(Bool cooperative) {
         cooperativeModeValue = cooperative
@@ -749,7 +762,8 @@ class G1NativePresentation {
             !animalMeshes.clear() ||
             !minimap.clear() ||
             !minimap.setVisible(preservedMinimap) ||
-            !camera.clearFollowTarget()) {
+            !camera.clearFollowTarget() ||
+            !projectileOverlay.clear()) {
             return false
         }
         scoreboardState = MatchScoreboardState(2)
@@ -758,6 +772,8 @@ class G1NativePresentation {
         playerKillsTwoValue = 0
         playerDeathsOneValue = 0
         playerDeathsTwoValue = 0
+        localShotValue = false
+        remoteShotValue = false
         if (!prepareGooseSession() ||
             !saveOwner.recoverAndRestore()) {
             return false
@@ -811,7 +827,7 @@ class G1NativePresentation {
         return nativeCapacity >=
             worldCapacity + doorCapacity + hudCapacity +
             actorCapacity + animalCapacity + minimapCapacity +
-            scoreboardCapacity &&
+            projectileCapacity + scoreboardCapacity &&
             worldNativeCapacity >=
             worldCapacity + doorCapacity + animalCapacity
     }
@@ -1186,7 +1202,53 @@ class G1NativePresentation {
                 -kookie_consume_mouse_delta_y() / 2)
     }
 
-    Bool fireNearestBot(Int player, Int shotTick) {
+    Bool spawnPlayerProjectile(Int player, Int target) {
+        if (player != 1 && player != 2) { return false }
+        var sourceX = interactionSession.enemySpatialPositionX(player)
+        var sourceY = interactionSession.enemySpatialPositionY(player)
+        var sourceZ = interactionSession.enemySpatialPositionZ(player)
+        if (interactionSession.fpsMovementEnabled()) {
+            sourceX = interactionSession.fpsPositionX(player)
+            sourceY = interactionSession.fpsPositionY(player)
+            sourceZ = interactionSession.fpsPositionZ(player)
+        }
+        var targetX = sourceX + 12
+        var targetY = sourceY
+        var targetZ = sourceZ
+        if (target > 0) {
+            targetX = interactionSession.enemySpatialPositionX(target)
+            targetY = interactionSession.enemySpatialPositionY(target)
+            targetZ = interactionSession.enemySpatialPositionZ(target)
+        }
+        return projectileOverlay.addShot(
+            arena.projectX(sourceX, sourceZ, camera),
+            arena.projectY(sourceX, sourceY, sourceZ, camera),
+            arena.projectDepth(sourceX, sourceY, sourceZ),
+            arena.projectX(targetX, targetZ, camera),
+            arena.projectY(targetX, targetY, targetZ, camera),
+            arena.projectDepth(targetX, targetY, targetZ))
+    }
+
+    Bool drainPlayerWeaponPresentations() {
+        localShotValue = false
+        remoteShotValue = false
+        while (interactionSession.playerWeaponPresentationCount() > 0) {
+            if (!interactionSession.dequeuePlayerWeaponPresentation()) {
+                return false
+            }
+            var presentation = interactionSession.lastPlayerWeaponPresentation()
+            if (presentation.kind() == 1) {
+                if (presentation.actorId() == 1) {
+                    localShotValue = true
+                } else if (presentation.actorId() == 2) {
+                    remoteShotValue = true
+                }
+            }
+        }
+        return true
+    }
+
+    Bool fireNearestBot(Int player, Int shotTick, Bool visualShot) {
         if ((player != 1 && player != 2) || shotTick < 0) { return false }
         var target = 0
         var distance = 1000001
@@ -1214,20 +1276,18 @@ class G1NativePresentation {
                 }
             }
         }
-        return true
+        return !visualShot || spawnPlayerProjectile(player, target)
     }
 
-    Bool advanceGameplay(
-        Bool host, NativeGameNetworkState state
+    Bool advanceGameplayInput(
+        Bool host, NativeGameNetworkState state,
+        Int moveForward, Int moveStrafe, Int fire, Int jump
     ) {
+        if (!projectileOverlay.advance()) { return false }
         var player = if (host) 1 else 2
         var tick = interactionSession.currentServerTick() + 1
-        var fire = kookie_input_state(5)
-        var jump = kookie_input_state(6)
         var playerOneHealthBefore = interactionSession.enemyCombatHealth(1)
         var playerTwoHealthBefore = interactionSession.enemyCombatHealth(2)
-        var moveForward = localMoveForwardAxis()
-        var moveStrafe = localMoveStrafeAxis()
         var moveX = camera.movementWorldX(moveForward, moveStrafe)
         var moveZ = camera.movementWorldZ(moveForward, moveStrafe)
         if (!host &&
@@ -1256,6 +1316,10 @@ class G1NativePresentation {
             println(interactionSession.currentServerTick())
             return false
         }
+        if (!drainPlayerWeaponPresentations()) {
+            println("KOOKIE player weapon presentation drain failed")
+            return false
+        }
         if (!updateFollowCamera(player)) {
             println("KOOKIE follow camera update failed")
             return false
@@ -1270,10 +1334,14 @@ class G1NativePresentation {
         }
         var localShotTick = interactionSession.currentServerTick()
         if (interactionSession.lastInputEdges(player).firePressed() != 0 &&
-            !fireNearestBot(player, localShotTick)) {
+            !fireNearestBot(player, localShotTick, localShotValue)) {
             return false
         }
-        if (host && state.consumeRemoteFire()) {
+        remoteShotValue = false
+        if (host) {
+            remoteShotValue = state.consumeRemoteFire()
+        }
+        if (host && remoteShotValue) {
             var remoteShotTick = netcodeLagCompensationTick(
                 interactionSession.currentServerTick(),
                 interactionSession.latestSnapshotSequence(),
@@ -1283,11 +1351,22 @@ class G1NativePresentation {
                 state.remoteFireTick() < remoteShotTick) {
                 remoteShotTick = state.remoteFireTick()
             }
-            if (!fireNearestBot(2, remoteShotTick)) {
+            if (!fireNearestBot(2, remoteShotTick, true)) {
                 return false
             }
         }
         return true
+    }
+
+    Bool advanceGameplay(
+        Bool host, NativeGameNetworkState state
+    ) {
+        return advanceGameplayInput(
+            host, state, localMoveForwardAxis(), localMoveStrafeAxis(),
+            kookie_input_state(5), kookie_input_state(6))
+    }
+    Int projectileOverlayCount() {
+        return projectileOverlay.activeCount()
     }
 
     Bool drawGameFrame(Int frame, NativeGameNetworkState network) {
@@ -1320,6 +1399,14 @@ class G1NativePresentation {
         if (!hud.stage(hudFrame, frame, 9)) {
             println("KOOKIE gameplay HUD stage failed")
             return false
+        }
+        var projectileCount = 0
+        if (projectileOverlay.activeCount() > 0) {
+            if (!projectileOverlay.stage(projectileFrame, frame, 6)) {
+                println("KOOKIE gameplay projectile stage failed")
+                return false
+            }
+            projectileCount = projectileFrame.stagedCount()
         }
         var animalVertexCount = 0
         if (nativeAnimalModelsValue) {
@@ -1356,7 +1443,7 @@ class G1NativePresentation {
         }
         var vertexCount =
             actorFrame.stagedCount() + hudFrame.stagedCount() +
-            minimapFrame.stagedCount() + scoreboardCount
+            minimapFrame.stagedCount() + scoreboardCount + projectileCount
         if (!kookie_gpu_scene_begin(vertexCount)) {
             println("KOOKIE gameplay GPU scene begin failed")
             println(vertexCount)
@@ -1364,7 +1451,8 @@ class G1NativePresentation {
         }
         if (!upload(actorFrame) || !upload(hudFrame) ||
             !upload(minimapFrame) ||
-            (scoreboardVisible && !upload(scoreboardFrame))) {
+            (scoreboardVisible && !upload(scoreboardFrame)) ||
+            (projectileCount > 0 && !upload(projectileFrame))) {
             println("KOOKIE gameplay GPU scene upload failed")
             return false
         }
@@ -1387,7 +1475,8 @@ class G1NativePresentation {
             !actorFrame.retire(frame) ||
             !doorFrame.retire(frame) ||
             !hudFrame.retire(frame) ||
-            !minimapFrame.retire(frame)) {
+            !minimapFrame.retire(frame) ||
+            (projectileCount > 0 && !projectileFrame.retire(frame))) {
             println("KOOKIE gameplay frame retire failed")
             return false
         }
@@ -1418,6 +1507,7 @@ class G1NativePresentation {
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&
             minimapFrame.vertexCapacity() == minimapCapacity &&
+            projectileFrame.vertexCapacity() == projectileCapacity &&
             scoreboardFrame.vertexCapacity() == scoreboardCapacity &&
             kookie_gpu_scene_capacity() == nativeCapacity &&
             kookie_gpu_world_capacity() == worldNativeCapacity
@@ -1542,6 +1632,7 @@ main() {
 
     var smoke = kookie_presentation_smoke_requested()
     var frame = 1
+    var gameplayMouseMode = false
     if (smoke) {
         assert(shell.handleAction(gameShellActionActivate()) &&
             shell.gameplayVisible() &&
@@ -1554,6 +1645,27 @@ main() {
             presentation.applyMouseLook() &&
             presentation.advanceGameplay(true, network),
             "fresh goose gameplay must process and advance one fixed tick")
+        var movementStartX = presentation.gameplaySession().fpsPositionX(1)
+        var movementStartZ = presentation.gameplaySession().fpsPositionZ(1)
+        for (var movementTick = 0; movementTick < 4;
+             movementTick = movementTick + 1) {
+            assert(presentation.advanceGameplayInput(
+                    true, network, 1, 0, 0, 0),
+                "WASD movement must advance the authoritative FPS pose")
+        }
+        assert(
+            presentation.gameplaySession().fpsPositionX(1) != movementStartX ||
+            presentation.gameplaySession().fpsPositionZ(1) != movementStartZ,
+            "WASD movement must change the authoritative FPS pose")
+        for (var shotTick = 0; shotTick < 40;
+             shotTick = shotTick + 1) {
+            assert(presentation.advanceGameplayInput(
+                    true, network, 0, 0,
+                    if (shotTick % 2 == 0) 1 else 0, 0),
+                "repeated fire edges must keep gameplay fixed-step healthy")
+        }
+        assert(presentation.projectileOverlayCount() > 0,
+            "a confirmed player shot must stage a visible projectile tracer")
         assert(presentation.gameplaySession().addPlayerItem(1, 900, 2) &&
             presentation.gameplaySession().playerItemQuantity(1, 900) == 2,
             "presentation player session must expose the durable-save fixture")
@@ -1680,6 +1792,13 @@ main() {
             network.reset()
             assert(presentation.resetGooseSession(),
                 "entering gameplay must create a fresh bot encounter")
+        }
+        var wantsGameplayMouseMode = shell.gameplayVisible()
+        if (wantsGameplayMouseMode != gameplayMouseMode) {
+            assert(kookie_window_set_gameplay_mouse_mode(
+                    window, if (wantsGameplayMouseMode) 1 else 0),
+                "gameplay mouse mode must follow the active screen")
+            gameplayMouseMode = wantsGameplayMouseMode
         }
         if (shell.settingsRevision() != appliedUiSettingsRevision) {
             assert(presentation.applyUiSettings(shell),
@@ -1809,6 +1928,10 @@ main() {
         if (running) { kookie_delay(16) }
     }
 
+    if (gameplayMouseMode) {
+        assert(kookie_window_set_gameplay_mouse_mode(window, 0),
+            "gameplay mouse mode must release before shutdown")
+    }
     kookie_transport_close()
     if (audio > 0) {
         assert(kookie_audio_close(audio), "live SDL mixer token must close")

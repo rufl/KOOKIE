@@ -9,6 +9,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Camera-relative gameplay now applies horizontal mouse yaw to WASD movement,
   while the deterministic third-person follow, scroll zoom and authored
   obstacle collision remain active.
+- Stabilized live GatoGanso fixed ticks by draining confirmed player weapon
+  presentation events and skipping dead autonomous enemies; confirmed shots
+  now render bounded on-screen tracers.
+- SDL gameplay now enables relative mouse mode while active, so WASD and
+  continuous mouselook use the same focused gameplay input path.
 - Rebuilt the bundled GatoGanso font atlas from tight glyph bounds into
   readable 7x7 cells with an 8-cell advance; native GPU and Windows shell
   renderers now use the same width and bit-mask contract.
