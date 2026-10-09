@@ -669,6 +669,17 @@ test "arena animal meshes animate goose and cat silhouettes" {
         "animal movement and attack flags must advance procedural animation")
 }
 
+test "goose projectile tracers stage in the foreground" {
+    var overlay = GooseProjectileOverlay(1)
+    var frame = FrameStaging(overlay.renderVertexCapacity())
+    assert(overlay.addShot(-80, -20, 80, 80, 20, 80) &&
+        overlay.stage(frame, 1, 6) &&
+        frame.stagedCount() == 6 &&
+        frame.depthAt(0) == 0 &&
+        frame.retire(1),
+        "projectile tracers must stage above world and actor depth")
+}
+
 test "G2 gameplay wire validates commands and authoritative state" {
     assert(maximumSessionTransportWords() ==
             12 + maximumSessionTransportTriangles() * 9 &&
@@ -1259,6 +1270,33 @@ test "player fire input publishes weapon presentation" {
     assert(loopback.advance(16667) == 1 &&
         loopback.playerWeaponPresentationCount() == 1,
         "a new fire edge must publish after release")
+}
+
+test "player fire history rolls over without stopping fixed-step gameplay" {
+    var loopback = LoopbackSession(4, 2)
+    assert(loopback.start() && loopback.connectPlayer() == 1 &&
+        loopback.definePlayerWeapon(9, 1, 0, 4, 1) &&
+        loopback.setPlayerWeaponRange(9, 20) &&
+        loopback.setPlayerWeaponCooldown(9, 1) &&
+        loopback.addPlayerCombatActor(1, 20, 0) &&
+        loopback.equipPlayerCombatWeapon(1, 9))
+    var sequence = 1
+    for (var shot = 0; shot < 70; shot = shot + 1) {
+        assert(loopback.receiveInput(
+                1, sequence, sequence, 0, 0, 0, 0, 1, 0) &&
+            loopback.advance(16667) == 1 &&
+            loopback.playerWeaponPresentationCount() == 1 &&
+            loopback.dequeuePlayerWeaponPresentation())
+        sequence = sequence + 1
+        assert(loopback.receiveInput(
+                1, sequence, sequence, 0, 0, 0, 0, 0, 0) &&
+            loopback.advance(16667) == 1 &&
+            loopback.playerWeaponPresentationCount() == 0)
+        sequence = sequence + 1
+    }
+    assert(loopback.currentServerTick() == 140 &&
+        loopback.replayPresentationCount() == 16,
+        "bounded fire presentations must roll over without rejecting fixed ticks")
 }
 
 test "bounded save envelope validation" {

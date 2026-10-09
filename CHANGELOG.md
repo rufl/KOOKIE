@@ -6,6 +6,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Native world GPU capacity now budgets the authored arena, door and full
   six-actor animal-model expansion, and the presentation smoke reports that
   budget before gameplay drawing instead of rejecting valid GLB meshes.
+- Native goose and cat model emission now applies the idle animation tick to
+  the authored GLB pose; gameplay animals no longer freeze when they are not
+  moving.
+- Projectile tracers now render at foreground depth, and bounded replay
+  presentation history rolls over instead of aborting fixed-step gameplay
+  after repeated fire and dry-fire input.
 - Native menu glyphs now preserve grayscale edge coverage through SDL_GPU and
   the Windows shell, while menu option rows apply the selected text size and
   keep long labels inside their panels.

@@ -6,6 +6,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - A capacidade GPU nativa do mundo agora reserva a arena autorada, a porta e
   a expansão de modelos animais para seis atores; o smoke de apresentação
   reporta esse orçamento antes do desenho, sem rejeitar GLBs válidos.
+- A emissão nativa dos modelos de ganso e gato agora aplica o tick da
+  animação idle à pose GLB autorada; os animais do gameplay não congelam
+  quando estão parados.
+- Os rastros de projétil agora são desenhados em profundidade de primeiro
+  plano, e o histórico limitado de apresentações de replay gira seus eventos
+  em vez de abortar o passo fixo após tiros e tentativas sem munição repetidos.
 - Os glifos nativos do menu agora preservam cobertura de borda em tons de
   cinza no SDL_GPU e no shell Windows; as linhas de opções aplicam o tamanho
   de fonte selecionado e mantêm rótulos longos dentro dos painéis.

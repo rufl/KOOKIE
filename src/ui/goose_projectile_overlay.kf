@@ -130,7 +130,9 @@ class GooseProjectileOverlay {
             var age = ages[index]
             var centerX = interpolate(fromXs[index], toXs[index], age)
             var centerY = interpolate(fromYs[index], toYs[index], age)
-            var depth = interpolate(fromDepths[index], toDepths[index], age)
+            // Tracers are presentation feedback, not world surfaces. Keep
+            // them in front of the 3D pass and actor overlays.
+            var depth = 0
             if (!pushQuad(target, resource, centerX, centerY, depth)) {
                 target.discard()
                 return false

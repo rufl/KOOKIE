@@ -47,8 +47,25 @@ class BoundedReplayPresentationHistory {
     Bool append(ReplayPresentationEvent event) {
         if (event.tick() < 0 || event.kind() <= 0 || event.kind() > 4 ||
             event.sequence() <= 0 || event.sourceId() <= 0 ||
-            event.targetId() < 0 || countValue == ticks.length) {
+            event.targetId() < 0) {
             return false
+        }
+        if (countValue == ticks.length) {
+            for (var index = 1; index < countValue; index = index + 1) {
+                ticks[index - 1] = ticks[index]
+                kinds[index - 1] = kinds[index]
+                sequences[index - 1] = sequences[index]
+                sourceIds[index - 1] = sourceIds[index]
+                targetIds[index - 1] = targetIds[index]
+                valueOnes[index - 1] = valueOnes[index]
+                valueTwos[index - 1] = valueTwos[index]
+                valueThrees[index - 1] = valueThrees[index]
+                valueFours[index - 1] = valueFours[index]
+                valueFives[index - 1] = valueFives[index]
+                valueSixes[index - 1] = valueSixes[index]
+                flags[index - 1] = flags[index]
+            }
+            countValue = countValue - 1
         }
         ticks[countValue] = event.tick()
         kinds[countValue] = event.kind()

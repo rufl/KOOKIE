@@ -1449,7 +1449,10 @@ bool kookie_model_assets_emit(
         y < -1000 || y > 1000 || z < -1000 || z > 1000) {
         return false;
     }
-    int bob = moving != 0 && model_phase_wave(phase, 8) > 0 ? 1 : 0;
+    int idle_bob = animation_state == 1 &&
+            model_phase_wave(animation_tick, 8) > 0 ? 1 : 0;
+    int gait_bob = moving != 0 && model_phase_wave(phase, 8) > 0 ? 1 : 0;
+    int bob = idle_bob + gait_bob;
     float attack_lift = 0.0f;
     if (attacking != 0 || animation_state == 3) {
         int tick = animation_tick;
