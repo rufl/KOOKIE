@@ -14,6 +14,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   now render bounded on-screen tracers.
 - SDL gameplay now enables relative mouse mode while active, so WASD and
   continuous mouselook use the same focused gameplay input path.
+- First-person presentation now omits the local goose world mesh, projects
+  actor overlays with the GPU camera, and selects local hitscan targets along
+  the crosshair ray instead of by nearest distance.
 - Rebuilt the bundled GatoGanso font atlas from tight glyph bounds into
   readable 7x7 cells with an 8-cell advance; native GPU and Windows shell
   renderers now use the same width and bit-mask contract.

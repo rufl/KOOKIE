@@ -245,33 +245,19 @@ class G1Arena {
         return value
     }
 
-    Int viewDepth(Int x, Int y, Int z) {
-        var depth = 64 - (x + z) / 2 + y / 2
-        if (depth < 32) {
-            return 32
-        }
-        if (depth > 64) {
-            return 64
-        }
-        return depth
-    }
-
     Int projectX(Int x, Int z, CameraState camera) {
-        var depth = viewDepth(x, 0, z)
-        var centered = (x - z) * 3 - 6
-        return clampScreen(centered * 51 / depth +
-            camera.currentYaw() / 10)
+        return clampScreen(camera.projectScreenX(x, 0, z))
     }
 
     Int projectY(Int x, Int y, Int z, CameraState camera) {
-        var depth = viewDepth(x, y, z)
-        var centered = (x + z) * 2 - y * 6 - 36
-        return clampScreen(centered * 51 / depth -
-            camera.currentPitch() / 10)
+        return clampScreen(camera.projectScreenY(x, y, z))
     }
 
-    Int projectDepth(Int x, Int y, Int z) {
-        return clampDepth(viewDepth(x, y, z) * 100 / 80)
+    Int projectDepthAt(
+        Int x, Int y, Int z, CameraState camera
+    ) {
+        var depth = camera.projectScreenDepth(x, y, z)
+        return clampDepth(depth)
     }
     Bool stageWorld(
         FrameStaging target, Int frame, Int resourceBase
@@ -324,7 +310,7 @@ class G1Arena {
                         resourceBase + surface - 1,
                         projectX(x, z, camera),
                         projectY(x, y, z, camera),
-                        projectDepth(x, y, z),
+                        projectDepthAt(x, y, z, camera),
                         corner * 50, surface * 12)) {
                     target.discard()
                     return false

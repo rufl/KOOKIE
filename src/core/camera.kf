@@ -76,6 +76,7 @@ class CameraState {
     Int followZValue
     Int followDistanceValue
     Int desiredFollowDistanceValue
+    Int[] sineValues
     Bool followReadyValue
 
     public constructor(Int nextMinPitch, Int nextMaxPitch) {
@@ -96,6 +97,17 @@ class CameraState {
         followDistanceValue = 10
         desiredFollowDistanceValue = 10
         followReadyValue = false
+        sineValues = new Int[10]
+        sineValues[0] = 0
+        sineValues[1] = 174
+        sineValues[2] = 342
+        sineValues[3] = 500
+        sineValues[4] = 643
+        sineValues[5] = 766
+        sineValues[6] = 866
+        sineValues[7] = 940
+        sineValues[8] = 985
+        sineValues[9] = 1000
     }
 
     Bool applyLook(Int deltaYaw, Int deltaPitch) {
@@ -266,6 +278,104 @@ class CameraState {
             followZValue = result.resolvedZ()
         }
         return true
+    }
+    Int sineFixed(Int angle) {
+        var normalized = angle % 360
+        if (normalized < 0) { normalized = normalized + 360 }
+        var sign = 1
+        if (normalized >= 180) {
+            normalized = normalized - 180
+            sign = -1
+        }
+        if (normalized > 90) {
+            normalized = 180 - normalized
+        }
+        var index = normalized / 10
+        var value = sineValues[9]
+        if (index < 9) {
+            var remainder = normalized % 10
+            value = sineValues[index] +
+                (sineValues[index + 1] - sineValues[index]) *
+                remainder / 10
+        }
+        return sign * value
+    }
+
+    Int cosineFixed(Int angle) {
+        return sineFixed(angle + 90)
+    }
+
+    Int aimDirectionX() {
+        return sineFixed(yaw) * cosineFixed(pitch) / 1000
+    }
+
+    Int aimDirectionY() {
+        return sineFixed(pitch)
+    }
+
+    Int aimDirectionZ() {
+        return cosineFixed(yaw) * cosineFixed(pitch) / 1000
+    }
+
+    Int aimEndX(Int distance) {
+        return followXValue + aimDirectionX() * distance / 1000
+    }
+
+    Int aimEndY(Int distance) {
+        return followYValue + aimDirectionY() * distance / 1000
+    }
+
+    Int aimEndZ(Int distance) {
+        return followZValue + aimDirectionZ() * distance / 1000
+    }
+
+    Int viewRightDot(Int x, Int y, Int z) {
+        return cosineFixed(yaw) * (x - followXValue) -
+            sineFixed(yaw) * (z - followZValue)
+    }
+
+    Int viewUpDot(Int x, Int y, Int z) {
+        var sinPitch = sineFixed(pitch)
+        var sinYaw = sineFixed(yaw)
+        var cosYaw = cosineFixed(yaw)
+        var upX = -sinPitch * sinYaw / 1000
+        var upY = cosineFixed(pitch)
+        var upZ = -sinPitch * cosYaw / 1000
+        return upX * (x - followXValue) +
+            upY * (y - followYValue) +
+            upZ * (z - followZValue)
+    }
+
+    Int viewForwardDot(Int x, Int y, Int z) {
+        return aimDirectionX() * (x - followXValue) +
+            aimDirectionY() * (y - followYValue) +
+            aimDirectionZ() * (z - followZValue)
+    }
+
+    Int projectScreenX(Int x, Int y, Int z) {
+        var depth = viewForwardDot(x, y, z)
+        var right = viewRightDot(x, y, z)
+        if (depth <= 0) {
+            return if (right >= 0) 100 else -100
+        }
+        return right * 73 / depth
+    }
+
+    Int projectScreenY(Int x, Int y, Int z) {
+        var depth = viewForwardDot(x, y, z)
+        var up = viewUpDot(x, y, z)
+        if (depth <= 0) {
+            return if (up >= 0) 100 else -100
+        }
+        return up * 130 / depth
+    }
+
+    Int projectScreenDepth(Int x, Int y, Int z) {
+        var depth = viewForwardDot(x, y, z) / 1000
+        depth = depth * 2
+        if (depth < 1) { return 1 }
+        if (depth > 99) { return 99 }
+        return depth
     }
 
     Int currentX() { return followXValue }

@@ -15,6 +15,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   disparos confirmados agora exibem rastros limitados na tela.
 - O gameplay SDL agora ativa o modo relativo do mouse enquanto está ativo,
   mantendo WASD e mouselook contínuo no mesmo caminho de entrada com foco.
+- A apresentação em primeira pessoa agora oculta o ganso local no passe de
+  mundo, projeta overlays de atores com a câmera GPU e seleciona alvos hitscan
+  locais pelo raio da mira, não pela menor distância.
 - Adicionamos apresentação nativa GLB limitada ao encontro GatoGanso: o perfil
   de conteúdo protótipo agora envia os modelos existentes de ganso e gato
   diretamente ao passe de mundo SDL_GPU, com estado de animação/material por

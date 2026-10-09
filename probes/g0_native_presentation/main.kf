@@ -600,6 +600,7 @@ class G1NativePresentation {
     G4KutterDemo kutterScenario
     G1Arena arena
     LoopbackSession interactionSession
+    BoundedRayTargetWorld playerAimTargets
     BoundedHostGameplaySaveOwner saveOwner
     ArenaAnimalMeshes animalMeshes
     ShooterHud hud
@@ -653,6 +654,7 @@ class G1NativePresentation {
         projectileOverlay = GooseProjectileOverlay(8)
         camera = CameraState(-450, 450)
         interactionSession = LoopbackSession(16, 8)
+        playerAimTargets = BoundedRayTargetWorld(3, 64)
         saveOwner = BoundedHostGameplaySaveOwner(interactionSession)
         worldNativeCapacity = 0
         nativeAnimalModelsValue = false
@@ -752,6 +754,7 @@ class G1NativePresentation {
 
     Bool resetGooseSession() {
         var preservedScale = hud.scalePercent()
+        playerAimTargets = BoundedRayTargetWorld(3, 64)
         var preservedMinimap = minimap.visible()
         interactionSession = LoopbackSession(16, 8)
         if (!saveOwner.bind(interactionSession)) {
@@ -1015,19 +1018,22 @@ class G1NativePresentation {
             playerOneName = localNameIdValue
             playerTwoName = remoteNameIdValue
         }
+        var remotePlayerId = if (mirrorRemoteValue) 1 else 2
+        var remotePlayerX = if (remotePlayerId == 1) playerOneX else playerTwoX
+        var remotePlayerY = if (remotePlayerId == 1) playerOneY else playerTwoY
+        var remotePlayerZ = if (remotePlayerId == 1) playerOneZ else playerTwoZ
+        var remotePlayerHealth =
+            if (remotePlayerId == 1) playerOneHealth else playerTwoHealth
+        var remotePlayerName =
+            if (remotePlayerId == 1) playerOneName else playerTwoName
         if (!gooseOverlay.addDepth(
-                1, arena.projectX(playerOneX, playerOneZ, camera),
-                arena.projectY(playerOneX, playerOneY, playerOneZ, camera),
-                arena.projectDepth(playerOneX, playerOneY, playerOneZ),
-                playerOneHealth, 100, playerOneName, false)) {
-            println("KOOKIE gameplay local actor overlay failed")
-            return false
-        }
-        if (!gooseOverlay.addDepth(
-                2, arena.projectX(playerTwoX, playerTwoZ, camera),
-                arena.projectY(playerTwoX, playerTwoY, playerTwoZ, camera),
-                arena.projectDepth(playerTwoX, playerTwoY, playerTwoZ),
-                playerTwoHealth, 100, playerTwoName, false)) {
+                remotePlayerId,
+                arena.projectX(remotePlayerX, remotePlayerZ, camera),
+                arena.projectY(
+                    remotePlayerX, remotePlayerY, remotePlayerZ, camera),
+                arena.projectDepthAt(
+                    remotePlayerX, remotePlayerY, remotePlayerZ, camera),
+                remotePlayerHealth, 100, remotePlayerName, false)) {
             println("KOOKIE gameplay remote actor overlay failed")
             return false
         }
@@ -1056,7 +1062,7 @@ class G1NativePresentation {
                     bot,
                     arena.projectX(botX, botZ, camera),
                     arena.projectY(botX, botY, botZ, camera),
-                    arena.projectDepth(botX, botY, botZ),
+                    arena.projectDepthAt(botX, botY, botZ, camera),
                     botHealth, 80, bot - 2, true)) {
                 println("KOOKIE gameplay bot overlay failed")
                 println(bot)
@@ -1132,13 +1138,20 @@ class G1NativePresentation {
             interactionSession.lastInputEdges(1).firePressed() != 0
         var playerTwoAttack =
             interactionSession.lastInputEdges(2).firePressed() != 0
+        var remotePlayerId = if (mirrorRemoteValue) 1 else 2
+        var remotePlayerX = if (remotePlayerId == 1) playerOneX else playerTwoX
+        var remotePlayerY = if (remotePlayerId == 1) playerOneY else playerTwoY
+        var remotePlayerZ = if (remotePlayerId == 1) playerOneZ else playerTwoZ
+        var remotePlayerMoving =
+            if (remotePlayerId == 1) playerOneMoving else playerTwoMoving
+        var remotePlayerAttack =
+            if (remotePlayerId == 1) playerOneAttack else playerTwoAttack
+        var remotePlayerKind = if (remotePlayerId == 1) 1 else 2
         if (!animalMeshes.setActor(
-                1, 1, playerOneX, playerOneY, playerOneZ,
-                playerOneMoving, playerOneAttack) ||
-            !animalMeshes.setActor(
-                2, 2, playerTwoX, playerTwoY, playerTwoZ,
-                playerTwoMoving, playerTwoAttack)) {
-            println("KOOKIE gameplay player mesh staging failed")
+                remotePlayerId, remotePlayerKind,
+                remotePlayerX, remotePlayerY, remotePlayerZ,
+                remotePlayerMoving, remotePlayerAttack)) {
+            println("KOOKIE gameplay remote player mesh staging failed")
             return false
         }
         for (var bot = 3; bot <= 5; bot = bot + 1) {
@@ -1202,7 +1215,44 @@ class G1NativePresentation {
                 -kookie_consume_mouse_delta_y() / 2)
     }
 
-    Bool spawnPlayerProjectile(Int player, Int target) {
+    Int aimTargetForPlayer(Int player) {
+        if (player != 1 && player != 2) { return 0 }
+        for (var bot = 3; bot <= 5; bot = bot + 1) {
+            var live = interactionSession.enemyState(bot) != 7 &&
+                interactionSession.enemyCombatHealth(bot) > 0
+            if (!live) {
+                playerAimTargets.removeTarget(bot)
+                continue
+            }
+            var botX = interactionSession.enemySpatialPositionX(bot)
+            var botY = interactionSession.enemySpatialPositionY(bot)
+            var botZ = interactionSession.enemySpatialPositionZ(bot)
+            if (mirrorRemoteValue &&
+                interactionSession.clientRemoteEnemyIndex(bot) >= 0) {
+                botX = interactionSession.clientRemoteEnemyPositionX(bot)
+                botY = interactionSession.clientRemoteEnemyPositionY(bot)
+                botZ = interactionSession.clientRemoteEnemyPositionZ(bot)
+            }
+            if (!playerAimTargets.setTarget(bot, botX, botY + 3, botZ)) {
+                return 0
+            }
+        }
+        var range = 64
+        var aim = SpatialAimContract(
+            player,
+            camera.currentX(), camera.currentY(), camera.currentZ(),
+            camera.aimEndX(range), camera.aimEndY(range),
+            camera.aimEndZ(range), range, 5)
+        var result = playerAimTargets.queryAim(aim)
+        if (!result.accepted() || !result.hit()) {
+            return 0
+        }
+        return result.targetId()
+    }
+
+    Bool spawnPlayerProjectile(
+        Int player, Int target, Bool cameraAim
+    ) {
         if (player != 1 && player != 2) { return false }
         var sourceX = interactionSession.enemySpatialPositionX(player)
         var sourceY = interactionSession.enemySpatialPositionY(player)
@@ -1211,6 +1261,21 @@ class G1NativePresentation {
             sourceX = interactionSession.fpsPositionX(player)
             sourceY = interactionSession.fpsPositionY(player)
             sourceZ = interactionSession.fpsPositionZ(player)
+        }
+        if (cameraAim) {
+            var targetX = camera.aimEndX(48)
+            var targetY = camera.aimEndY(48)
+            var targetZ = camera.aimEndZ(48)
+            if (target > 0) {
+                targetX = interactionSession.enemySpatialPositionX(target)
+                targetY = interactionSession.enemySpatialPositionY(target)
+                targetZ = interactionSession.enemySpatialPositionZ(target)
+            }
+            return projectileOverlay.addShot(
+                0, 0, 1,
+                arena.projectX(targetX, targetZ, camera),
+                arena.projectY(targetX, targetY, targetZ, camera),
+                arena.projectDepthAt(targetX, targetY, targetZ, camera))
         }
         var targetX = sourceX + 12
         var targetY = sourceY
@@ -1223,10 +1288,10 @@ class G1NativePresentation {
         return projectileOverlay.addShot(
             arena.projectX(sourceX, sourceZ, camera),
             arena.projectY(sourceX, sourceY, sourceZ, camera),
-            arena.projectDepth(sourceX, sourceY, sourceZ),
+            arena.projectDepthAt(sourceX, sourceY, sourceZ, camera),
             arena.projectX(targetX, targetZ, camera),
             arena.projectY(targetX, targetY, targetZ, camera),
-            arena.projectDepth(targetX, targetY, targetZ))
+            arena.projectDepthAt(targetX, targetY, targetZ, camera))
     }
 
     Bool drainPlayerWeaponPresentations() {
@@ -1248,19 +1313,30 @@ class G1NativePresentation {
         return true
     }
 
-    Bool fireNearestBot(Int player, Int shotTick, Bool visualShot) {
+    Bool fireNearestBot(
+        Int player, Int shotTick, Bool visualShot, Bool cameraAim
+    ) {
         if ((player != 1 && player != 2) || shotTick < 0) { return false }
         var target = 0
         var distance = 1000001
-        for (var bot = 3; bot <= 5; bot = bot + 1) {
-            if (interactionSession.enemyState(bot) != 7 &&
-                interactionSession.enemyCombatHealth(bot) > 0) {
-                var candidateDistance = interactionSession.enemyDistanceAt(
-                    player, bot, shotTick)
-                if (candidateDistance >= 0 &&
-                    candidateDistance < distance) {
-                    distance = candidateDistance
-                    target = bot
+        if (cameraAim) {
+            target = aimTargetForPlayer(player)
+            if (target > 0) {
+                distance = interactionSession.enemyDistanceAt(
+                    player, target, shotTick)
+                if (distance < 0) { target = 0 }
+            }
+        } else {
+            for (var bot = 3; bot <= 5; bot = bot + 1) {
+                if (interactionSession.enemyState(bot) != 7 &&
+                    interactionSession.enemyCombatHealth(bot) > 0) {
+                    var candidateDistance = interactionSession.enemyDistanceAt(
+                        player, bot, shotTick)
+                    if (candidateDistance >= 0 &&
+                        candidateDistance < distance) {
+                        distance = candidateDistance
+                        target = bot
+                    }
                 }
             }
         }
@@ -1276,7 +1352,8 @@ class G1NativePresentation {
                 }
             }
         }
-        return !visualShot || spawnPlayerProjectile(player, target)
+        return !visualShot ||
+            spawnPlayerProjectile(player, target, cameraAim)
     }
 
     Bool advanceGameplayInput(
@@ -1334,7 +1411,8 @@ class G1NativePresentation {
         }
         var localShotTick = interactionSession.currentServerTick()
         if (interactionSession.lastInputEdges(player).firePressed() != 0 &&
-            !fireNearestBot(player, localShotTick, localShotValue)) {
+            !fireNearestBot(
+                player, localShotTick, localShotValue, true)) {
             return false
         }
         remoteShotValue = false
@@ -1351,7 +1429,7 @@ class G1NativePresentation {
                 state.remoteFireTick() < remoteShotTick) {
                 remoteShotTick = state.remoteFireTick()
             }
-            if (!fireNearestBot(2, remoteShotTick, true)) {
+            if (!fireNearestBot(2, remoteShotTick, true, false)) {
                 return false
             }
         }
@@ -1367,6 +1445,9 @@ class G1NativePresentation {
     }
     Int projectileOverlayCount() {
         return projectileOverlay.activeCount()
+    }
+    Int visibleAnimalActorCount() {
+        return animalMeshes.actorCount()
     }
 
     Bool drawGameFrame(Int frame, NativeGameNetworkState network) {
@@ -1449,10 +1530,11 @@ class G1NativePresentation {
             println(vertexCount)
             return false
         }
-        if (!upload(actorFrame) || !upload(hudFrame) ||
+        if (!upload(actorFrame) ||
+            (projectileCount > 0 && !upload(projectileFrame)) ||
+            !upload(hudFrame) ||
             !upload(minimapFrame) ||
-            (scoreboardVisible && !upload(scoreboardFrame)) ||
-            (projectileCount > 0 && !upload(projectileFrame))) {
+            (scoreboardVisible && !upload(scoreboardFrame))) {
             println("KOOKIE gameplay GPU scene upload failed")
             return false
         }
@@ -1681,6 +1763,8 @@ main() {
             "re-entering gameplay must restore durable inventory")
         assert(presentation.drawGameFrame(frame, network),
             "authored arena and authoritative HUD must draw")
+        assert(presentation.visibleAnimalActorCount() == 4,
+            "first-person presentation must omit the local goose world mesh")
         assert(shell.handleAction(gameShellActionBack()) &&
             !shell.gameplayVisible() &&
             presentation.saveGameplay(),
