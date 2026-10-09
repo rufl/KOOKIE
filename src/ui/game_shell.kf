@@ -776,17 +776,20 @@ class GameShell {
         if (safeLeft < -100) { safeLeft = -100 }
         if (safeLeft + width > 100) {
             safeLeft = 100 - width
+            if (safeLeft < -100) { safeLeft = -100 }
         }
         var x = safeLeft
 
         for (var index = 0; index < text.length(); index = index + 1) {
             var glyphValue = glyph(text.charAt(index))
+            var glyphRight = x + uiFontGlyphWidth() * scale
+            var glyphTop = bottom + uiFontGlyphHeight() * scale
             if (glyphValue > 0 &&
+                x >= -100 && glyphRight <= 100 &&
+                bottom >= -100 && glyphTop <= 100 &&
                 !pushQuad(target,
                     textResourceWithFont(font, color, glyphValue),
-                    x, bottom,
-                    x + uiFontGlyphWidth() * scale,
-                    bottom + uiFontGlyphHeight() * scale)) {
+                    x, bottom, glyphRight, glyphTop)) {
                 return false
             }
             x = x + uiFontGlyphAdvance() * scale
@@ -882,7 +885,7 @@ class GameShell {
         var itemColor = normalTextColor()
         return pushScreenFrame(target) &&
             pushCenteredTextWithFont(
-                target, uiGameTitle(), 70, 3, 1,
+                target, uiGameTitle(), 70, 2, 1,
                 uiFontDefaultDisplay()) &&
             pushCenteredText(target, "OLD SCHOOL COOP", 55, 1,
                 mutedTextColor()) &&

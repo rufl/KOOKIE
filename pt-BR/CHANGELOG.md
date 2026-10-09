@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Mantivemos o texto 7x7 do menu dentro do contrato de clipping nativo: o
+  título de exibição `GATOGANSO` agora usa uma escala que cabe, e rótulos
+  grandes recortam glifos antes do staging em vez de enviar coordenadas
+  rejeitadas ao SDL_GPU.
 - O gameplay relativo à câmera agora aplica o yaw horizontal do mouse ao
   movimento WASD; o follow determinístico em terceira pessoa, o zoom no scroll
   e a colisão autorada contra obstáculos continuam ativos.

@@ -21,9 +21,14 @@ main() {
     var sawBodyFont = false
     var sawDisplayFont = false
     for (var vertex = 0; vertex < frame.stagedCount(); vertex = vertex + 1) {
+        assert(frame.xAt(vertex) >= -100 &&
+            frame.xAt(vertex) <= 100 &&
+            frame.yAt(vertex) >= -100 &&
+            frame.yAt(vertex) <= 100,
+            "main shell vertices must stay inside native clip bounds")
         var resource = frame.resourceAt(vertex)
         if (resource >= uiFontResourceBase() &&
-            resource < uiFontResourceBase() + uiFontResourceStride()) {
+            resource < uiFontResourceBase() + uiFontResourceStride() * 2) {
             sawBodyFont = true
         }
         if (resource >= uiFontResourceBase() + uiFontResourceStride() &&

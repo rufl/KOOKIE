@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Kept 7x7 menu text inside the native clip contract: the `GATOGANSO`
+  display title now uses a fitting scale, and oversized labels clip glyphs
+  before staging instead of sending rejected coordinates to SDL_GPU.
 - Camera-relative gameplay now applies horizontal mouse yaw to WASD movement,
   while the deterministic third-person follow, scroll zoom and authored
   obstacle collision remain active.
