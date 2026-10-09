@@ -5,7 +5,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 ## Não lançado
 - Os atores GLB nativos agora usam tiles de textura do modelo endereçados por
   UV para corpo/cabeça/pés do ganso e materiais do gato, em vez da paleta da
-  arena.
+  arena, preservando uma amostra limitada mais densa das malhas autoradas.
 - Os ticks de inimigos autônomos agora toleram a ausência de alvo jogador
   vivo; ciclos repetidos de tiro/morte não abortam mais o loop de passo fixo.
 - Mantivemos o texto 7x7 do menu dentro do contrato de clipping nativo: o

@@ -4,7 +4,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 - Native GLB actors now use dedicated UV-addressed model texture tiles for
-  goose body/head/feet and cat materials instead of the arena palette.
+  goose body/head/feet and cat materials instead of the arena palette, while
+  retaining a denser bounded sample of the authored meshes.
 - Autonomous enemy ticks now tolerate having no live player target, so repeated
   fire/death cycles cannot abort the fixed-step gameplay loop.
 - Kept 7x7 menu text inside the native clip contract: the `GATOGANSO`

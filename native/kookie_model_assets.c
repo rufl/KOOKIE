@@ -14,7 +14,7 @@
 #define KOOKIE_MODEL_MAX_BUFFER_VIEWS 256
 #define KOOKIE_MODEL_MAX_MESHES 32
 #define KOOKIE_MODEL_MAX_PRIMITIVES 64
-#define KOOKIE_MODEL_MAX_TRIANGLES 128
+#define KOOKIE_MODEL_MAX_TRIANGLES 256
 #define KOOKIE_MODEL_MAX_JSON_DEPTH 32
 #define KOOKIE_MODEL_MAX_POSITION_COMPONENTS 3
 #define KOOKIE_MODEL_GLTF_MAGIC 0x46546c67u
@@ -1067,10 +1067,10 @@ static bool model_read_index(
 
 static int model_target_triangles(int model) {
     if (model == KOOKIE_MODEL_GOOSE) {
-        return 64;
+        return 128;
     }
     if (model == KOOKIE_MODEL_CAT) {
-        return 112;
+        return 192;
     }
     return 0;
 }
