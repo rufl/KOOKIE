@@ -3,6 +3,12 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Os glifos nativos do menu agora preservam cobertura de borda em tons de
+  cinza no SDL_GPU e no shell Windows; as linhas de opções aplicam o tamanho
+  de fonte selecionado e mantêm rótulos longos dentro dos painéis.
+- O Apply de display agora sincroniza e verifica tamanhos windowed/borderless,
+  usa a resolução selecionada em janelas borderless e verifica transições para
+  fullscreen exclusivo.
 - Os atores GLB nativos agora usam tiles de textura do modelo endereçados por
   UV para corpo/cabeça/pés do ganso e materiais do gato, em vez da paleta da
   arena, preservando uma amostra limitada mais densa das malhas autoradas.

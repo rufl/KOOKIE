@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Native menu glyphs now preserve grayscale edge coverage through SDL_GPU and
+  the Windows shell, while menu option rows apply the selected text size and
+  keep long labels inside their panels.
+- Display Apply now synchronizes and verifies windowed/borderless sizes, uses
+  the selected resolution for borderless windows, and verifies exclusive
+  fullscreen transitions.
 - Native GLB actors now use dedicated UV-addressed model texture tiles for
   goose body/head/feet and cat materials instead of the arena palette, while
   retaining a denser bounded sample of the authored meshes.

@@ -1716,6 +1716,9 @@ main() {
     var frame = 1
     var gameplayMouseMode = false
     if (smoke) {
+        assert(kookie_window_apply_display(window, 0, 960, 540) &&
+            kookie_window_apply_display(window, 0, 1280, 720),
+            "display Apply must commit and restore a windowed resolution")
         assert(shell.handleAction(gameShellActionActivate()) &&
             shell.gameplayVisible() &&
             shell.consumeGameplayEntry() &&

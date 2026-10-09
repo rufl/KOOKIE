@@ -575,28 +575,40 @@ bool kookie_window_apply_display(
         return false;
     }
     SDL_Window *window = window_slots[slot].window;
-    if (mode == 0) {
-        return SDL_SetWindowFullscreen(window, false) &&
-            SDL_SetWindowFullscreenMode(window, NULL) &&
-            SDL_SetWindowBordered(window, true) &&
-            SDL_SetWindowResizable(window, true) &&
-            SDL_SetWindowSize(window, width, height) &&
-            SDL_SetWindowPosition(
-                window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    if ((SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0 &&
+        (!SDL_SetWindowFullscreen(window, false) ||
+         !SDL_SyncWindow(window))) {
+        return false;
     }
-    if (mode == 1) {
-        return SDL_SetWindowFullscreenMode(window, NULL) &&
-            SDL_SetWindowFullscreen(window, true);
+    if (mode == 0 || mode == 1) {
+        if (!SDL_SetWindowBordered(window, mode == 0) ||
+            !SDL_SetWindowResizable(window, mode == 0) ||
+            !SDL_SetWindowSize(window, width, height) ||
+            !SDL_SetWindowPosition(
+                window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED) ||
+            !SDL_SyncWindow(window)) {
+            return false;
+        }
+        int applied_width = 0;
+        int applied_height = 0;
+        if (!SDL_GetWindowSize(window, &applied_width, &applied_height)) {
+            return false;
+        }
+        Uint32 flags = SDL_GetWindowFlags(window);
+        return applied_width == width && applied_height == height &&
+            (flags & SDL_WINDOW_FULLSCREEN) == 0;
     }
     SDL_DisplayID display = SDL_GetDisplayForWindow(window);
     SDL_DisplayMode closest;
     if (display == 0 ||
         !SDL_GetClosestFullscreenDisplayMode(
-            display, width, height, 0.0f, true, &closest)) {
+            display, width, height, 0.0f, true, &closest) ||
+        !SDL_SetWindowFullscreenMode(window, &closest) ||
+        !SDL_SetWindowFullscreen(window, true) ||
+        !SDL_SyncWindow(window)) {
         return false;
     }
-    return SDL_SetWindowFullscreenMode(window, &closest) &&
-        SDL_SetWindowFullscreen(window, true);
+    return (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
 }
 
 bool kookie_window_destroy(int token) {
@@ -905,10 +917,10 @@ static void kookie_gpu_build_atlas(Uint8 *pixels) {
                 int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
                     KOOKIE_GPU_ATLAS_TILE_SIZE;
                 for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
-                    uint8_t row = *kookie_pixel_glyph_row(font, glyph, y);
                     for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
-                        if ((row & (uint8_t)(
-                                1u << (KOOKIE_PIXEL_GLYPH_WIDTH - 1 - x))) == 0) {
+                        uint8_t alpha =
+                            kookie_pixel_glyph_alpha(font, glyph, y, x);
+                        if (alpha == 0) {
                             continue;
                         }
                         size_t offset = (size_t)(
@@ -917,7 +929,8 @@ static void kookie_gpu_build_atlas(Uint8 *pixels) {
                         memcpy(
                             pixels + offset,
                             palette[font_palette[color]],
-                            4u);
+                            3u);
+                        pixels[offset + 3u] = alpha;
                     }
                 }
             }

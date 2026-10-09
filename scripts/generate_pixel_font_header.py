@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the shipped GatoGanso fonts into the bounded native 7x7 atlas."""
+"""Render the shipped GatoGanso fonts into the bounded native 7x7 alpha atlas."""
 
 from __future__ import annotations
 
@@ -17,10 +17,11 @@ FONT_SPECS = (
 RENDER_SIZE = 32
 GLYPH_WIDTH = 7
 GLYPH_HEIGHT = 7
-THRESHOLD = 96
 
 
-def render_glyph(font: ImageFont.FreeTypeFont, value: str) -> tuple[int, ...]:
+def render_glyph(
+    font: ImageFont.FreeTypeFont, value: str
+) -> tuple[tuple[int, ...], ...]:
     bbox = font.getbbox(value)
     width = max(1, bbox[2] - bbox[0])
     height = max(1, bbox[3] - bbox[1])
@@ -30,7 +31,9 @@ def render_glyph(font: ImageFont.FreeTypeFont, value: str) -> tuple[int, ...]:
     )
     ink_bounds = canvas.getbbox()
     if ink_bounds is None:
-        return (0,) * GLYPH_HEIGHT
+        return tuple(
+            (0,) * GLYPH_WIDTH for _ in range(GLYPH_HEIGHT)
+        )
     ink = canvas.crop(ink_bounds)
     scale = min(GLYPH_WIDTH / ink.width, GLYPH_HEIGHT / ink.height)
     resized = ink.resize(
@@ -44,24 +47,31 @@ def render_glyph(font: ImageFont.FreeTypeFont, value: str) -> tuple[int, ...]:
          (GLYPH_HEIGHT - resized.height) // 2),
     )
     return tuple(
-        sum(1 << (GLYPH_WIDTH - 1 - column)
-            for column in range(GLYPH_WIDTH)
-            if cell.getpixel((column, row)) >= THRESHOLD)
+        tuple(cell.getpixel((column, row)) for column in range(GLYPH_WIDTH))
         for row in range(GLYPH_HEIGHT)
     )
 
 
-def render_font(path: Path) -> tuple[tuple[int, ...], ...]:
+def render_font(
+    path: Path
+) -> tuple[tuple[tuple[int, ...], ...], ...]:
     font = ImageFont.truetype(path, RENDER_SIZE)
-    blank = (0,) * GLYPH_HEIGHT
+    blank = tuple((0,) * GLYPH_WIDTH for _ in range(GLYPH_HEIGHT))
     return (blank,) + tuple(render_glyph(font, value) for value in GLYPH_CHARS)
 
 
-def format_rows(rows: tuple[tuple[int, ...], ...]) -> str:
+def format_rows(
+    rows: tuple[tuple[tuple[int, ...], ...], ...]
+) -> str:
     return "\n".join(
-        "    {" + ", ".join(f"0x{value:02x}" for value in row) + "},"
-        for row in rows
+        "    {" + ", ".join(
+            "{" + ", ".join(f"0x{value:02x}" for value in row) + "}"
+            for row in glyph
+        ) + "},"
+        for glyph in rows
     )
+
+
 
 
 def generate() -> str:
@@ -87,9 +97,9 @@ def generate() -> str:
         " * see assets/fonts/OFL.txt. The original TTF files remain packaged for",
         " * users and future rasterizers.",
         " */",
-        "static const uint8_t kookie_pixel_font_glyph_rows[",
+        "static const uint8_t kookie_pixel_font_glyph_alpha[",
         "    KOOKIE_PIXEL_FONT_COUNT][KOOKIE_PIXEL_GLYPH_COUNT + 1][",
-        "    KOOKIE_PIXEL_GLYPH_HEIGHT] = {",
+        "    KOOKIE_PIXEL_GLYPH_HEIGHT][KOOKIE_PIXEL_GLYPH_WIDTH] = {",
     ]
     for index, (constant, family, _) in enumerate(FONT_SPECS):
         lines.append(f"    /* {constant}: {family} */")
@@ -101,16 +111,19 @@ def generate() -> str:
         [
             "};",
             "",
-            "static inline const uint8_t *kookie_pixel_glyph_row(",
-            "    int font, int glyph, int row",
+            "static inline uint8_t kookie_pixel_glyph_alpha(",
+            "    int font, int glyph, int row, int column",
             ") {",
             "    if (font < 0 || font >= KOOKIE_PIXEL_FONT_COUNT ||",
             "        glyph < 0 || glyph > KOOKIE_PIXEL_GLYPH_COUNT ||",
-            "        row < 0 || row >= KOOKIE_PIXEL_GLYPH_HEIGHT) {",
-            "        return NULL;",
+            "        row < 0 || row >= KOOKIE_PIXEL_GLYPH_HEIGHT ||",
+            "        column < 0 || column >= KOOKIE_PIXEL_GLYPH_WIDTH) {",
+            "        return 0;",
             "    }",
-            "    return &kookie_pixel_font_glyph_rows[font][glyph][row];",
+            "    return kookie_pixel_font_glyph_alpha",
+            "        [font][glyph][row][column];",
             "}",
+            "",
             "",
             "static inline int kookie_pixel_glyph_for_ascii(unsigned char value) {",
             "    if (value >= 'A' && value <= 'Z') return (int)(value - 'A') + 1;",

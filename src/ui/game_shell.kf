@@ -764,6 +764,18 @@ class GameShell {
         if (text.length() == 0) { return 0 }
         return text.length() * uiFontGlyphAdvance() * scale - scale
     }
+    Int fittedTextScale(String text, Int desiredScale, Int maxWidth) {
+        var scale = desiredScale
+        if (scale < 1) { scale = 1 }
+        if (maxWidth < uiFontGlyphWidth()) {
+            return 1
+        }
+        while (scale > 1 && textWidth(text, scale) > maxWidth) {
+            scale = scale - 1
+        }
+        return scale
+    }
+
 
     Bool pushTextWithFont(
         FrameStaging target, String text,
@@ -821,6 +833,31 @@ class GameShell {
             target, text, bottom, scale, color,
             uiFontDefaultBody())
     }
+    Bool pushTextFitted(
+        FrameStaging target, String text,
+        Int left, Int bottom, Int desiredScale, Int color, Int maxWidth
+    ) {
+        return pushText(
+            target, text, left, bottom,
+            fittedTextScale(text, desiredScale, maxWidth), color)
+    }
+    Bool pushCenteredTextFitted(
+        FrameStaging target, String text,
+        Int bottom, Int desiredScale, Int color, Int maxWidth
+    ) {
+        var scale = fittedTextScale(text, desiredScale, maxWidth)
+        return pushCenteredText(target, text, bottom, scale, color)
+    }
+    Bool pushCenteredTextWithFontFitted(
+        FrameStaging target, String text,
+        Int bottom, Int desiredScale, Int color, Int font, Int maxWidth
+    ) {
+        var scale = fittedTextScale(text, desiredScale, maxWidth)
+        return pushCenteredTextWithFont(
+            target, text, bottom, scale, color, font)
+    }
+
+
 
     Int numberWidth(Int value, Int scale) {
         var digits = 1
@@ -884,32 +921,37 @@ class GameShell {
         var scale = textSize()
         var itemColor = normalTextColor()
         return pushScreenFrame(target) &&
-            pushCenteredTextWithFont(
+            pushCenteredTextWithFontFitted(
                 target, uiGameTitle(), 70, 2, 1,
-                uiFontDefaultDisplay()) &&
-            pushCenteredText(target, "OLD SCHOOL COOP", 55, 1,
-                mutedTextColor()) &&
-            pushCenteredText(target, "G1 READY", 47, 1, 4) &&
+                uiFontDefaultDisplay(), 184) &&
+            pushCenteredTextFitted(target, "OLD SCHOOL COOP", 55, 1,
+                mutedTextColor(), 184) &&
+            pushCenteredTextFitted(target, "G1 READY", 47, 1, 4, 184) &&
             pushSelectionPanel(target, 0, 25, 45) &&
-            pushCenteredText(target, "PLAY", 29, scale,
-                if (selectionValue == 0) selectedTextColor() else itemColor) &&
+            pushCenteredTextFitted(target, "PLAY", 29, scale,
+                if (selectionValue == 0) selectedTextColor() else itemColor,
+                184) &&
             pushSelectionPanel(target, 1, 3, 23) &&
-            pushCenteredText(target, "MULTIPLAYER", 7, scale,
-                if (selectionValue == 1) selectedTextColor() else itemColor) &&
+            pushCenteredTextFitted(target, "MULTIPLAYER", 7, scale,
+                if (selectionValue == 1) selectedTextColor() else itemColor,
+                184) &&
             pushSelectionPanel(target, 2, -19, 1) &&
-            pushCenteredText(target, "OPTIONS", -15, scale,
-                if (selectionValue == 2) selectedTextColor() else itemColor) &&
+            pushCenteredTextFitted(target, "OPTIONS", -15, scale,
+                if (selectionValue == 2) selectedTextColor() else itemColor,
+                184) &&
             pushSelectionPanel(target, 3, -41, -21) &&
-            pushCenteredText(target, "ACCESSIBILITY", -37, scale,
-                if (selectionValue == 3) selectedTextColor() else itemColor) &&
+            pushCenteredTextFitted(target, "ACCESSIBILITY", -37, scale,
+                if (selectionValue == 3) selectedTextColor() else itemColor,
+                184) &&
             pushSelectionPanel(target, 4, -63, -43) &&
-            pushCenteredText(target, "KUTTER", -59, scale,
-                if (selectionValue == 4) selectedTextColor() else itemColor) &&
+            pushCenteredTextFitted(target, "KUTTER", -59, scale,
+                if (selectionValue == 4) selectedTextColor() else itemColor,
+                184) &&
             pushSelectionPanel(target, 5, -85, -65) &&
-            pushCenteredText(target, "QUIT", -81, scale,
-                if (selectionValue == 5) 3 else itemColor) &&
-            pushCenteredText(target, "ARROWS ENTER ESC", -97, 1,
-                mutedTextColor())
+            pushCenteredTextFitted(target, "QUIT", -81, scale,
+                if (selectionValue == 5) 3 else itemColor, 184) &&
+            pushCenteredTextFitted(target, "ARROWS ENTER ESC", -97, 1,
+                mutedTextColor(), 184)
     }
 
     String resolutionLabel() {
@@ -950,6 +992,7 @@ class GameShell {
     }
 
     Bool stageOptions(FrameStaging target) {
+        var scale = textSize()
         var rowColor = normalTextColor()
         var resultColor = 4
         var resultText = "APPLY"
@@ -963,34 +1006,40 @@ class GameShell {
             resultText = "FAILED"
         }
         return pushScreenFrame(target) &&
-            pushCenteredText(target, "OPTIONS", 77, 2, 1) &&
-            pushCenteredText(target, "TUNE THE RUN", 66, 1, 4) &&
+            pushCenteredTextFitted(target, "OPTIONS", 77, 2, 1, 184) &&
+            pushCenteredTextFitted(target, "TUNE THE RUN", 66, 1, 4, 184) &&
             pushSelectionPanel(target, 0, 41, 53) &&
-            pushText(target, "RESOLUTION", -84, 44, 1, rowColor) &&
-            pushText(target, resolutionLabel(), 20, 44, 1,
-                mutedTextColor()) &&
+            pushTextFitted(target, "RESOLUTION", -84, 44, scale,
+                rowColor, 168) &&
+            pushTextFitted(target, resolutionLabel(), 20, 44, scale,
+                mutedTextColor(), 76) &&
             pushSelectionPanel(target, 1, 21, 33) &&
-            pushText(target, "DISPLAY MODE", -84, 24, 1, rowColor) &&
-            pushText(target, displayModeLabel(), 20, 24, 1,
-                mutedTextColor()) &&
+            pushTextFitted(target, "DISPLAY MODE", -84, 24, scale,
+                rowColor, 168) &&
+            pushTextFitted(target, displayModeLabel(), 20, 24, scale,
+                mutedTextColor(), 76) &&
             pushSelectionPanel(target, 2, 1, 13) &&
-            pushText(target, "FX VOLUME", -84, 4, 1, rowColor) &&
+            pushTextFitted(target, "FX VOLUME", -84, 4, scale,
+                rowColor, 168) &&
             pushVolume(target, effectsVolumeValue, 20, 4, 2) &&
             pushSelectionPanel(target, 3, -19, -7) &&
-            pushText(target, "MUSIC VOLUME", -84, -16, 1, rowColor) &&
+            pushTextFitted(target, "MUSIC VOLUME", -84, -16, scale,
+                rowColor, 168) &&
             pushVolume(target, musicVolumeValue, 20, -16, 2) &&
             pushSelectionPanel(target, 4, -39, -27) &&
-            pushText(target, "TEXT SIZE", -84, -36, 1, rowColor) &&
-            pushText(target, textSizeLabel(), 20, -36, 1,
-                mutedTextColor()) &&
+            pushTextFitted(target, "TEXT SIZE", -84, -36, scale,
+                rowColor, 168) &&
+            pushTextFitted(target, textSizeLabel(), 20, -36, scale,
+                mutedTextColor(), 76) &&
             pushSelectionPanel(target, 5, -64, -52) &&
-            pushCenteredText(target, resultText, -61, 1,
-                if (selectionValue == 5) resultColor else rowColor) &&
+            pushCenteredTextFitted(target, resultText, -61, 1,
+                if (selectionValue == 5) resultColor else rowColor, 184) &&
             pushSelectionPanel(target, 6, -82, -70) &&
-            pushCenteredText(target, "BACK", -79, 1,
-                if (selectionValue == 6) selectedTextColor() else rowColor) &&
-            pushCenteredText(target, "ARROWS MOVE LEFT RIGHT", -93, 1,
-                mutedTextColor())
+            pushCenteredTextFitted(target, "BACK", -79, 1,
+                if (selectionValue == 6) selectedTextColor() else rowColor,
+                184) &&
+            pushCenteredTextFitted(target, "ARROWS MOVE LEFT RIGHT", -93,
+                1, mutedTextColor(), 184)
     }
     String hudScaleLabel() {
         if (hudScaleValue == 0) { return "SMALL" }

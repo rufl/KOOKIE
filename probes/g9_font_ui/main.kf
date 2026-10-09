@@ -18,6 +18,7 @@ main() {
     var frame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(frame, 1) && frame.stagedCount() > 0,
         "GatoGanso main shell must stage")
+    var baselineChecksum = frame.checksum()
     var sawBodyFont = false
     var sawDisplayFont = false
     for (var vertex = 0; vertex < frame.stagedCount(); vertex = vertex + 1) {
@@ -38,6 +39,26 @@ main() {
     }
     assert(sawBodyFont && sawDisplayFont,
         "main shell must stage Jared Lite and Pixand resources")
-    assert(frame.retire(1))
+    assert(frame.retire(1) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenOptions(),
+        "font UI probe must enter the options screen")
+    var optionsFrame = FrameStaging(shell.renderVertexCapacity())
+    assert(shell.stage(optionsFrame, 2),
+        "options screen must stage before text-size changes")
+    var optionsBaselineChecksum = optionsFrame.checksum()
+    assert(optionsFrame.retire(2))
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionRight()) &&
+        shell.textSize() == 3 &&
+        shell.stage(optionsFrame, 3) &&
+        optionsFrame.checksum() != optionsBaselineChecksum &&
+        optionsFrame.retire(3),
+        "text-size changes must alter live staged UI geometry")
     println("KOOKIE G9 GatoGanso font defaults verified")
 }

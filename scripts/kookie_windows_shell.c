@@ -134,25 +134,28 @@ static void draw_text_font(
     SDL_Renderer *renderer, const char *text, int x, int y,
     int scale, int color, int font
 ) {
-    set_color(renderer, color);
+    const Uint8 *rgba = palette[color & 15];
     for (const unsigned char *cursor = (const unsigned char *)text;
          *cursor != '\0'; cursor += 1) {
         int glyph = kookie_pixel_glyph_for_ascii(*cursor);
         if (glyph > 0) {
             for (int row = 0; row < KOOKIE_PIXEL_GLYPH_HEIGHT; row += 1) {
-                uint8_t bits = *kookie_pixel_glyph_row(font, glyph, row);
                 for (int column = 0;
                      column < KOOKIE_PIXEL_GLYPH_WIDTH; column += 1) {
-                    if ((bits & (uint8_t)(
-                            1u << (KOOKIE_PIXEL_GLYPH_WIDTH - 1 - column))) != 0) {
-                        SDL_FRect pixel = {
-                            (float)(x + column * scale),
-                            (float)(y + row * scale),
-                            (float)scale,
-                            (float)scale
-                        };
-                        SDL_RenderFillRect(renderer, &pixel);
+                    Uint8 alpha = kookie_pixel_glyph_alpha(
+                        font, glyph, row, column);
+                    if (alpha == 0) {
+                        continue;
                     }
+                    SDL_SetRenderDrawColor(
+                        renderer, rgba[0], rgba[1], rgba[2], alpha);
+                    SDL_FRect pixel = {
+                        (float)(x + column * scale),
+                        (float)(y + row * scale),
+                        (float)scale,
+                        (float)scale
+                    };
+                    SDL_RenderFillRect(renderer, &pixel);
                 }
             }
         }
@@ -250,11 +253,11 @@ static const char *toggle_label(bool enabled) {
 }
 
 static void draw_volume(
-    SDL_Renderer *renderer, int volume, int x, int y
+    SDL_Renderer *renderer, int volume, int x, int y, int scale
 ) {
     char text[8];
     snprintf(text, sizeof(text), "%d%%", volume);
-    draw_text(renderer, text, x, y + 6, 3, 13);
+    draw_text(renderer, text, x, y + (54 - 7 * scale) / 2, scale, 13);
     for (int index = 0; index < 10; index += 1) {
         fill_rect(
             renderer, (float)(x + 170 + index * 25), (float)(y + 9),
@@ -264,61 +267,74 @@ static void draw_volume(
 
 static void draw_option_row(
     SDL_Renderer *renderer, const AppState *app, int row,
-    const char *label, const char *value
+    const char *label, const char *value, int scale
 ) {
     int y = 142 + row * 64;
     draw_selection(renderer, y, app->selection == row);
-    draw_text(renderer, label, 170, y + 15, 3, ui_text_color(app, 15));
-    draw_text(renderer, value, 690, y + 15, 3, ui_text_color(app, 13));
+    int text_y = y + (54 - 7 * scale) / 2;
+    draw_text(renderer, label, 170, text_y, scale, ui_text_color(app, 15));
+    draw_text(renderer, value, 690, text_y, scale, ui_text_color(app, 13));
 }
 
 static void draw_options(SDL_Renderer *renderer, const AppState *app) {
+    int text_scale = app->text_size + 3;
     draw_frame(renderer);
     draw_centered_text(renderer, "OPTIONS", 62, 7, 13);
     draw_option_row(
-        renderer, app, 0, "RESOLUTION", resolution_label(app->resolution));
+        renderer, app, 0, "RESOLUTION", resolution_label(app->resolution),
+        text_scale);
     draw_option_row(
-        renderer, app, 1, "DISPLAY MODE", display_mode_label(app->display_mode));
+        renderer, app, 1, "DISPLAY MODE", display_mode_label(app->display_mode),
+        text_scale);
     int fx_y = 142 + 2 * 64;
     draw_selection(renderer, fx_y, app->selection == 2);
-    draw_text(renderer, "FX VOLUME", 170, fx_y + 15, 3, 15);
-    draw_volume(renderer, app->effects_volume, 690, fx_y);
+    draw_text(
+        renderer, "FX VOLUME", 170, fx_y + (54 - 7 * text_scale) / 2,
+        text_scale, 15);
+    draw_volume(renderer, app->effects_volume, 690, fx_y, text_scale);
     int music_y = 142 + 3 * 64;
     draw_selection(renderer, music_y, app->selection == 3);
-    draw_text(renderer, "MUSIC VOLUME", 170, music_y + 15, 3, 15);
-    draw_volume(renderer, app->music_volume, 690, music_y);
+    draw_text(
+        renderer, "MUSIC VOLUME", 170,
+        music_y + (54 - 7 * text_scale) / 2, text_scale, 15);
+    draw_volume(renderer, app->music_volume, 690, music_y, text_scale);
     draw_option_row(
-        renderer, app, 4, "TEXT SIZE", text_size_label(app->text_size));
+        renderer, app, 4, "TEXT SIZE", text_size_label(app->text_size),
+        text_scale);
     int apply_y = 142 + 5 * 64;
     draw_selection(renderer, apply_y, app->selection == 5);
     const char *apply = app->display_result == 1 ? "APPLIED" :
         (app->display_result == 2 ? "FAILED" : "APPLY");
     draw_centered_text(
-        renderer, apply, apply_y + 15, 3,
+        renderer, apply, apply_y + (54 - 7 * text_scale) / 2, text_scale,
         app->display_result == 2 ? 11 : (app->selection == 5 ? 12 : 14));
     int back_y = 142 + 6 * 64;
     draw_selection(renderer, back_y, app->selection == 6);
     draw_centered_text(
-        renderer, "BACK", back_y + 15, 3,
+        renderer, "BACK", back_y + (54 - 7 * text_scale) / 2, text_scale,
         app->selection == 6 ? 12 : 15);
     draw_centered_text(renderer, "LEFT RIGHT CHANGE", 670, 2, 8);
 }
 static void draw_accessibility(
     SDL_Renderer *renderer, const AppState *app
 ) {
+    int text_scale = app->text_size + 3;
     draw_frame(renderer);
     draw_centered_text(renderer, "ACCESSIBILITY", 62, 7, 13);
     draw_centered_text(renderer, "CLEARER CONTROL", 112, 3, 14);
     draw_option_row(
-        renderer, app, 0, "HUD SCALE", hud_scale_label(app->hud_scale));
+        renderer, app, 0, "HUD SCALE", hud_scale_label(app->hud_scale),
+        text_scale);
     draw_option_row(
-        renderer, app, 1, "TACTICAL MAP", toggle_label(app->tactical_map));
+        renderer, app, 1, "TACTICAL MAP", toggle_label(app->tactical_map),
+        text_scale);
     draw_option_row(
-        renderer, app, 2, "HIGH CONTRAST", toggle_label(app->high_contrast));
+        renderer, app, 2, "HIGH CONTRAST", toggle_label(app->high_contrast),
+        text_scale);
     int back_y = 142 + 3 * 64;
     draw_selection(renderer, back_y, app->selection == 3);
     draw_centered_text(
-        renderer, "BACK", back_y + 15, 3,
+        renderer, "BACK", back_y + (54 - 7 * text_scale) / 2, text_scale,
         ui_text_color(app, app->selection == 3 ? 12 : 15));
     draw_centered_text(renderer, "LEFT RIGHT CHANGE", 654, 2, 8);
 }
@@ -920,26 +936,40 @@ static bool apply_display(SDL_Window *window, const AppState *app) {
     static const int heights[] = {720, 900, 1080, 1440};
     int width = widths[app->resolution];
     int height = heights[app->resolution];
-    if (app->display_mode == 0) {
-        return SDL_SetWindowFullscreen(window, false) &&
-            SDL_SetWindowFullscreenMode(window, NULL) &&
-            SDL_SetWindowBordered(window, true) &&
-            SDL_SetWindowResizable(window, true) &&
-            SDL_SetWindowSize(window, width, height) &&
-            SDL_SetWindowPosition(
-                window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    if ((SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0 &&
+        (!SDL_SetWindowFullscreen(window, false) ||
+         !SDL_SyncWindow(window))) {
+        return false;
+    }
+    if (app->display_mode == 0 || app->display_mode == 1) {
+        if (!SDL_SetWindowBordered(window, app->display_mode == 0) ||
+            !SDL_SetWindowResizable(window, app->display_mode == 0) ||
+            !SDL_SetWindowSize(window, width, height) ||
+            !SDL_SetWindowPosition(
+                window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED) ||
+            !SDL_SyncWindow(window)) {
+            return false;
+        }
+        int applied_width = 0;
+        int applied_height = 0;
+        if (!SDL_GetWindowSize(window, &applied_width, &applied_height)) {
+            return false;
+        }
+        Uint32 flags = SDL_GetWindowFlags(window);
+        return applied_width == width && applied_height == height &&
+            (flags & SDL_WINDOW_FULLSCREEN) == 0;
     }
     SDL_DisplayID display = SDL_GetDisplayForWindow(window);
     if (display == 0) return false;
-    if (app->display_mode == 1) {
-        return SDL_SetWindowFullscreenMode(window, NULL) &&
-            SDL_SetWindowFullscreen(window, true);
-    }
     SDL_DisplayMode mode;
-    return SDL_GetClosestFullscreenDisplayMode(
-            display, width, height, 0.0f, true, &mode) &&
-        SDL_SetWindowFullscreenMode(window, &mode) &&
-        SDL_SetWindowFullscreen(window, true);
+    if (!SDL_GetClosestFullscreenDisplayMode(
+            display, width, height, 0.0f, true, &mode) ||
+        !SDL_SetWindowFullscreenMode(window, &mode) ||
+        !SDL_SetWindowFullscreen(window, true) ||
+        !SDL_SyncWindow(window)) {
+        return false;
+    }
+    return (SDL_GetWindowFlags(window) & SDL_WINDOW_FULLSCREEN) != 0;
 }
 
 static void move_selection(AppState *app, int direction) {
@@ -1317,7 +1347,8 @@ int main(int argc, char **argv) {
     if (renderer == NULL ||
         !SDL_SetRenderLogicalPresentation(
             renderer, KOOKIE_LOGICAL_WIDTH, KOOKIE_LOGICAL_HEIGHT,
-            SDL_LOGICAL_PRESENTATION_LETTERBOX)) {
+            SDL_LOGICAL_PRESENTATION_LETTERBOX) ||
+        !SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)) {
         if (renderer != NULL) SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         if (winsock_ready) WSACleanup();
