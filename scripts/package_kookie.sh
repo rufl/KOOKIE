@@ -600,7 +600,7 @@ bundle_linux_kooker() {
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 usage() {
-  echo "Usage: kooker cook <glb|aseprite|vox|map|blockbench|png|wav|ogg> <input> <output>" >&2
+  echo "Usage: kooker cook <glb|aseprite|vox|map|blockbench|png|wav|ogg|svg|svgz> <input> <output>" >&2
   echo "       kooker cook dust3d <input.ds3> <export.glb> <output>" >&2
   exit 2
 }
@@ -616,6 +616,8 @@ case "$kind" in
   png) code=7 ;;
   wav) code=8 ;;
   ogg) code=9 ;;
+  svg) code=10 ;;
+  svgz) code=11 ;;
 esac
 if [ "$kind" = "dust3d" ]; then
   [ "$#" -eq 5 ] || usage

@@ -9,6 +9,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Native transport no longer computes received-payload sums in C; Kof
   aggregates the received words while the C boundary retains socket and
   wire-word transfer mechanics.
+- Added bounded open-format SVG and SVGZ intake in Kof: static W3C shape
+  parsing, fixed-point `SVGC` canonical vector wire, color/alpha preservation,
+  gzip decoding and rejection of scripts/external/CSS features.
 
 - Native world GPU buffers now grow from the submitted scene/world vertex counts
   instead of a fixed actor budget, and the presentation smoke reports the

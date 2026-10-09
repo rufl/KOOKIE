@@ -278,7 +278,7 @@ scope are in [Demo release readiness](docs/DEMO_RELEASE.md).
 | **Player-facing slice** | Local `Play` runs the bounded authoritative goose encounter; Host/Join adds explicit two-player ready gating; `Tab` exposes the host-authoritative player screen. Fresh clean-tree package smoke and native hardware evidence remain release gates. |
 | **Shooter and ARPG systems** | Hitscan/projectile/shotgun combat, enemy roles, deterministic loot, inventory, equipment, skills, status effects, bosses, rewards and exactly-once progression |
 | **World and presentation** | True 3D authored arena with slopes, steps and stacked rooms; capsule/triangle collision; doors, secrets and exits; semantic HUD; SDL_GPU instancing; positional gain/pan through SDL_mixer |
-| **Content and kutter tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG and WAV intake; canonical products; `.kpkg` validation; transactional Kutter edits; persistent Kutter hierarchy/transform/asset registry |
+| **Content and kutter tooling** | Bounded GLB, Dust3D, Aseprite, VOX, Quake-style brush, Blockbench, PNG, SVG/SVGZ and WAV intake; canonical products; `.kpkg` validation; transactional Kutter edits; persistent Kutter hierarchy/transform/asset registry |
 | **Persistence and release** | Checksummed replay, schema migrations, crash-durable save publication, signed clean-tree packages, dependency closure and outside-checkout smoke |
 | **Runtime targets** | Authoritative native Linux x86-64; native Windows Kof PE gameplay linked to SDL3/SDL_mixer shell; native Windows Kof PE SDL_GPU presentation with SPIR-V/DXIL products; separate reproducible Windows Kof JVM compatibility package; deterministic reachable Kof-to-AMD64 PE/COFF compiler |
 
@@ -333,18 +333,21 @@ performance claims.
 The kooker accepts documented subsets rather than claiming general format
 compatibility:
 
-`GLB` · `Dust3D` · `Aseprite` · `VOX` · `MAP` · `Blockbench` · `PNG` · `WAV` · `OGG Vorbis`
+`GLB` · `Dust3D` · `Aseprite` · `VOX` · `MAP` · `Blockbench` · `PNG` · `WAV` · `OGG Vorbis` · `SVG` · `SVGZ`
 
 It emits bounded canonical geometry/collision, RGBA8 images/atlases, `KCHR`
-characters, PCM16 audio, byte-preserving OGG Vorbis tracks and package-ready
-checksums. Products are reopened and validated before atomic publication; failed
-imports keep the prior generation active.
+characters, fixed-point `SVGC` vector products, PCM16 audio, byte-preserving
+OGG Vorbis tracks and package-ready checksums. Products are reopened and
+validated before atomic publication; failed imports keep the prior generation
+active.
 
 ```bash
 scripts/kooker.sh cook blockbench character.bbmodel character.kchar
 scripts/kooker.sh cook png texture.png texture.rgba.png
 scripts/kooker.sh cook wav effect.wav effect.pcm16.wav
 scripts/kooker.sh cook ogg theme.ogg theme.canonical.ogg
+scripts/kooker.sh cook svg icon.svg icon.svgc
+scripts/kooker.sh cook svgz icon.svgz icon.svgc
 ```
 
 Limits are part of the contract, not temporary documentation omissions. See

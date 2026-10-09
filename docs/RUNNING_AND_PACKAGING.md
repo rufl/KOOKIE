@@ -127,6 +127,8 @@ scripts/kooker.sh cook dust3d model.ds3 model.glb model.kmesh
 scripts/kooker.sh cook blockbench character.bbmodel character.kchar
 scripts/kooker.sh cook png texture.png texture.rgba.png
 scripts/kooker.sh cook wav effect.wav effect.pcm16.wav
+scripts/kooker.sh cook svg icon.svg icon.svgc
+scripts/kooker.sh cook svgz icon.svgz icon.svgc
 scripts/kooker.sh package 4 level.kmesh data/level.kmesh level.kpkg
 scripts/kooker.sh inspect-package level.kpkg
 scripts/kooker.sh validate-package kutter.kpkg

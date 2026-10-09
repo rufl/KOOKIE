@@ -564,9 +564,10 @@ Editable sources → **Kof kooker** → versioned engine package → validated r
 Initial source formats: project manifest and entity/encounter/item definitions
 in readable structured data; static meshes/materials in a documented glTF
 subset; Dust3D `.ds3`; LibreSprite `.ase`/`.aseprite`; MagicaVoxel `.vox`;
-Blockbench `.bbmodel` character rigs; standalone PNG images; and audio in a
-deliberately small supported set. These are offline intake sources; their
-canonical products are the explicit package/runtime contracts.
+Blockbench `.bbmodel` character rigs; standalone PNG and SVG/SVGZ vector
+sources; and audio in a deliberately small supported set. These are offline
+intake sources; their canonical products are the explicit package/runtime
+contracts.
 Validate finite geometry, triangle
 indices, voxel dimensions/palette references, sprite frame bounds, animation
 metadata, size/count limits, resource references, transforms and collision
@@ -588,6 +589,7 @@ full tool/version receipt remains required package-provenance hardening:
 | PNG `.png` | Verify a 1 MiB/64-chunk/256×256 static 8-bit subset, decode color types 0/2/3/4/6 with palette/transparency and filters 0–4, then reopen deterministic RGBA8 PNG output; reject Adam7, APNG, unsupported ancillary chunks and ambiguous color profiles |
 | PCM WAVE `.wav` | Admit exact RIFF/WAVE PCM tag `0x0001` with mono/stereo 8- or 16-bit samples at 8–96 kHz under 2 MiB/32 chunks/30 seconds/1 MiB canonical PCM; strip bounded inert metadata and reopen deterministic PCM16; reject RF64, extensible, float, compressed, cue/loop and unknown semantics |
 | OGG Vorbis `.ogg` | Validate one bounded Ogg Vorbis logical stream with page CRC/sequence/continuation/BOS/EOS checks, identification/comment/setup headers, 8–96 kHz, 1–8 channels, decoded-frame and optional sample-frame loop bounds; retain the admitted pages byte-for-byte and reject malformed/non-Vorbis input | Byte-preserving OGG payload with source, compressed-payload, Vorbis-metadata, canonical, frame and loop-bound checksums/counts |
+| SVG `.svg` / SVGZ `.svgz` | Admit the bounded static W3C subset, normalize numbers to thousandths, preserve literal fill/stroke colors and emit reopened `SVGC` v1 vector wire |
 
 Use GLB for 3D runtime interchange and PNG plus versioned metadata for sprite
 runtime interchange. OBJ/FBX are conversion fallbacks, not runtime contracts.

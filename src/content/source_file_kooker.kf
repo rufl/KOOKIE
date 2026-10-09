@@ -129,6 +129,12 @@ class BoundedSourceFileKooker {
                 return reject(sourceFileDiagnosticSource())
             }
             output = kookerValue.ogg().canonicalBytes()
+        } else if (kind == "svg" || kind == "svgz") {
+            if (!kookerValue.cookSvg(source, kind == "svgz")) {
+                resultValue = kookerValue.result()
+                return reject(sourceFileDiagnosticSource())
+            }
+            output = kookerValue.svg().canonicalBytes()
         } else {
             return reject(sourceFileDiagnosticKind())
         }
@@ -147,4 +153,5 @@ class BoundedSourceFileKooker {
     BoundedPngIntake png() { return kookerValue.png() }
     BoundedWavIntake wav() { return kookerValue.wav() }
     BoundedOggIntake ogg() { return kookerValue.ogg() }
+    BoundedSvgIntake svg() { return kookerValue.svg() }
 }

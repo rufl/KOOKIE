@@ -397,6 +397,11 @@ the only forms admitted to packages and runtime adapters:
 | PNG `.png` | Up to 1 MiB, 64 chunks and 256×256 pixels; non-interlaced 8-bit color types 0/2/3/4/6, consecutive `IDAT`, zlib, filters 0–4, `PLTE`, `tRNS` and validated `tEXt`; verify CRC/Adler and reject Adam7, APNG, other depths and every other ancillary/unknown chunk | Reopened deterministic non-interlaced RGBA8 PNG plus source, decoded-pixel, metadata and canonical checksums |
 | PCM WAVE `.wav` | RIFF/WAVE up to 2 MiB and 32 chunks; exact 16-byte PCM `fmt ` with format tag `0x0001`, mono/stereo, 8–96 kHz, unsigned 8-bit or signed little-endian 16-bit samples, at most 30 seconds and 1 MiB of canonical PCM; admit and strip `JUNK`, `PAD ` and `LIST/INFO`, require zero odd-byte padding, and reject RF64, extensible/float/compressed audio, cues, loops and every other chunk | Reopened deterministic PCM16 WAVE with source, normalized-sample, stripped-metadata and canonical checksums |
 | OGG Vorbis `.ogg` | Ogg pages up to 16 MiB in one logical serial stream, at most 1,048,576 pages and 57,600,000 decoded sample frames; require version 0, monotonic sequence/continuation/BOS/EOS state, valid page CRCs, Vorbis identification/comment/setup headers, 8–96 kHz and 1–8 channels; accept optional `LOOPSTART`, `LOOPEND` or `LOOPLENGTH` comments only when the resulting sample-frame range is valid; reject truncated/malformed pages, non-Vorbis streams, CRC/sequence/header errors and out-of-range loop bounds | Byte-preserving OGG pages plus source, compressed-payload, Vorbis-metadata, canonical, decoded-frame and loop-bound checksums/counts |
+| SVG `.svg` / SVGZ `.svgz` | Static W3C SVG subset up to 1 MiB of source or expanded gzip data: `svg` with `viewBox`, groups, `path` commands `M/L/H/V/C/S/Q/T/A/Z`, line/rect/circle/ellipse/polyline/polygon shapes, fixed-point numeric values and literal fill/stroke colors; reject scripts, external references, CSS, transforms, text, images, filters, gradients, unsupported XML and gzip optional fields | Reopened little-endian `SVGC` v1 fixed-point vector wire with source, geometry, material, viewBox and canonical checksums |
+
+SVGZ is the gzip transport encoding of the same SVG grammar, not a second
+geometry dialect. ODG, DXF, PDF and GeoJSON remain separate future intake
+contracts; the kooker does not silently reinterpret them as SVG.
 
 Canonical intake rules:
 
@@ -408,6 +413,9 @@ Canonical intake rules:
 - Prefer GLB for 3D interchange and PNG plus metadata for sprite interchange;
   OBJ/FBX or other exports are fallback conversion inputs, not runtime
   contracts.
+- Preserve SVG geometry and literal color/alpha semantics in the canonical
+  vector product; rasterization is a later renderer decision, not source
+  admission.
 - Preserve admitted OGG pages byte-for-byte as the canonical compressed payload;
   the native adapter predecodes that payload before sample-frame seeking or
   looping.

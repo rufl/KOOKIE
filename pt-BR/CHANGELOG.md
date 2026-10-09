@@ -9,6 +9,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O transporte nativo não calcula mais em C a soma do payload recebido; o Kof
   agrega as palavras recebidas, enquanto a fronteira C mantém somente sockets
   e transferência das palavras de wire.
+- Adicionamos intake limitado de SVG e SVGZ em formato aberto no Kof: parsing
+  de formas estáticas W3C, wire vetorial canônico `SVGC` em ponto fixo,
+  preservação de cor/alfa, decodificação gzip e rejeição de scripts, referências
+  externas e CSS.
 
 - Os buffers GPU nativos do mundo agora crescem conforme as contagens de
   vértices do lote de cena/mundo enviado, em vez de um orçamento fixo de

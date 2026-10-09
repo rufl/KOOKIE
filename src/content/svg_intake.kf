@@ -1,0 +1,1358 @@
+package content
+
+Int svgDiagnosticNone() { return 0 }
+Int svgDiagnosticHeader() { return 1 }
+Int svgDiagnosticStructure() { return 2 }
+Int svgDiagnosticAttribute() { return 3 }
+Int svgDiagnosticNumber() { return 4 }
+Int svgDiagnosticPath() { return 5 }
+Int svgDiagnosticUnsupported() { return 6 }
+Int svgDiagnosticCapacity() { return 7 }
+Int svgDiagnosticCanonical() { return 8 }
+Int svgDiagnosticCompression() { return 9 }
+Int svgCanonicalMagic() { return 1129727827 }
+Int svgCanonicalVersion() { return 1 }
+
+class BoundedSvgIntake {
+    Int[] sourceValue
+    Int[] documentValue
+    Int sourceChecksumValue
+    Int diagnosticValue
+    Bool acceptedValue
+    Bool compressedValue
+    Int viewBoxXValue
+    Int viewBoxYValue
+    Int viewBoxWidthValue
+    Int viewBoxHeightValue
+    Int shapeCountValue
+    Int parameterCountValue
+    Int[] shapeKinds
+    Int[] shapeParameterStarts
+    Int[] shapeParameterCounts
+    Int[] shapeFillColors
+    Int[] shapeFillAlphas
+    Int[] shapeFillPresent
+    Int[] shapeStrokeColors
+    Int[] shapeStrokeAlphas
+    Int[] shapeStrokePresent
+    Int[] shapeStrokeWidths
+    Int[] parameters
+    Int[] wireWords
+    Int wireLengthValue
+    BoundedZlibInflater inflaterValue
+
+    Int parserCursorValue
+    Int tagNameValue
+    Int tagContentStartValue
+    Int tagContentEndValue
+    Bool tagClosingValue
+    Bool tagSelfClosingValue
+    Bool tagSpecialValue
+    Int groupDepthValue
+    Bool rootSeenValue
+    Bool rootOpenValue
+    Bool rootClosedValue
+    Bool emitValue
+    Int scratchCountValue
+    Int[] scratch
+
+    Int tempXValue
+    Int tempYValue
+    Int tempWidthValue
+    Int tempHeightValue
+    Int tempX2Value
+    Int tempY2Value
+    Int tempRadiusValue
+    Int tempRadiusXValue
+    Int tempRadiusYValue
+    Int tempFillColorValue
+    Int tempFillAlphaValue
+    Bool tempFillPresentValue
+    Int tempStrokeColorValue
+    Int tempStrokeAlphaValue
+    Bool tempStrokePresentValue
+    Int tempStrokeWidthValue
+    Int tempPathStartValue
+    Int tempPathEndValue
+    Int tempPointsStartValue
+    Int tempPointsEndValue
+    Bool tempHasXValue
+    Bool tempHasYValue
+    Bool tempHasWidthValue
+    Bool tempHasHeightValue
+    Bool tempHasX2Value
+    Bool tempHasY2Value
+    Bool tempHasRadiusValue
+    Bool tempHasRadiusXValue
+    Bool tempHasRadiusYValue
+    Bool tempHasPathValue
+    Bool tempHasPointsValue
+    Bool tempHasFillValue
+    Bool tempHasStrokeValue
+    Bool tempHasStrokeWidthValue
+
+    Int pathCursorValue
+    Int pathLimitValue
+    Int pathCommandValue
+    Int pathCurrentXValue
+    Int pathCurrentYValue
+    Int pathStartXValue
+    Int pathStartYValue
+    Bool pathHasSubpathValue
+    Int numberValue
+
+    public constructor() {
+        sourceValue = new Int[0]
+        documentValue = new Int[0]
+        shapeKinds = new Int[0]
+        shapeParameterStarts = new Int[0]
+        shapeParameterCounts = new Int[0]
+        shapeFillColors = new Int[0]
+        shapeFillAlphas = new Int[0]
+        shapeFillPresent = new Int[0]
+        shapeStrokeColors = new Int[0]
+        shapeStrokeAlphas = new Int[0]
+        shapeStrokePresent = new Int[0]
+        shapeStrokeWidths = new Int[0]
+        parameters = new Int[0]
+        wireWords = new Int[0]
+        inflaterValue = BoundedZlibInflater(1048576)
+        scratch = new Int[8]
+        clear()
+    }
+
+    Bool clear() {
+        sourceValue = new Int[0]
+        documentValue = new Int[0]
+        sourceChecksumValue = 0
+        diagnosticValue = svgDiagnosticNone()
+        acceptedValue = false
+        compressedValue = false
+        viewBoxXValue = 0
+        viewBoxYValue = 0
+        viewBoxWidthValue = 0
+        viewBoxHeightValue = 0
+        shapeCountValue = 0
+        parameterCountValue = 0
+        wireLengthValue = 0
+        parserCursorValue = 0
+        tagNameValue = 0
+        tagContentStartValue = 0
+        tagContentEndValue = 0
+        tagClosingValue = false
+        tagSelfClosingValue = false
+        tagSpecialValue = false
+        groupDepthValue = 0
+        rootSeenValue = false
+        rootOpenValue = false
+        rootClosedValue = false
+        emitValue = false
+        scratchCountValue = 0
+        tempXValue = 0
+        tempYValue = 0
+        tempWidthValue = 0
+        tempHeightValue = 0
+        tempX2Value = 0
+        tempY2Value = 0
+        tempRadiusValue = 0
+        tempRadiusXValue = 0
+        tempRadiusYValue = 0
+        tempFillColorValue = 0
+        tempFillAlphaValue = 255
+        tempFillPresentValue = true
+        tempStrokeColorValue = 0
+        tempStrokeAlphaValue = 255
+        tempStrokePresentValue = false
+        tempStrokeWidthValue = 1000
+        tempPathStartValue = -1
+        tempPathEndValue = -1
+        tempPointsStartValue = -1
+        tempPointsEndValue = -1
+        tempHasXValue = false
+        tempHasYValue = false
+        tempHasWidthValue = false
+        tempHasHeightValue = false
+        tempHasX2Value = false
+        tempHasY2Value = false
+        tempHasRadiusValue = false
+        tempHasRadiusXValue = false
+        tempHasRadiusYValue = false
+        tempHasPathValue = false
+        tempHasPointsValue = false
+        tempHasFillValue = false
+        tempHasStrokeValue = false
+        tempHasStrokeWidthValue = false
+        pathCursorValue = 0
+        pathLimitValue = 0
+        pathCommandValue = 0
+        pathCurrentXValue = 0
+        pathCurrentYValue = 0
+        pathStartXValue = 0
+        pathStartYValue = 0
+        pathHasSubpathValue = false
+        numberValue = 0
+        return true
+    }
+
+    Int checksum(Int[] bytes) {
+        var result = 17
+        for (var index = 0; index < bytes.length; index = index + 1) {
+            result = (result * 31 + bytes[index]) % 1000003
+        }
+        return result
+    }
+
+    Int mix(Int state, Int value) {
+        var normalized = value % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Bool isWhitespace(Int value) {
+        return value == 9 || value == 10 || value == 13 || value == 32
+    }
+
+    Bool isDigit(Int value) { return value >= 48 && value <= 57 }
+
+    Bool isHexDigit(Int value) {
+        return isDigit(value) ||
+            (value >= 65 && value <= 70) ||
+            (value >= 97 && value <= 102)
+    }
+
+    Int hexDigit(Int value) {
+        if (value >= 48 && value <= 57) { return value - 48 }
+        if (value >= 65 && value <= 70) { return value - 55 }
+        return value - 87
+    }
+
+    Bool matchesLiteral(Int start, Int end, String value) {
+        if (start < 0 || end < start || end - start != value.length()) {
+            return false
+        }
+        for (var index = 0; index < value.length(); index = index + 1) {
+            if (documentValue[start + index] != (value.charAt(index) as Int)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int skipWhitespace(Int cursor, Int limit) {
+        var next = cursor
+        while (next < limit && isWhitespace(documentValue[next])) {
+            next = next + 1
+        }
+        return next
+    }
+
+    Int skipNumberSeparators(Int cursor, Int limit) {
+        var next = cursor
+        while (next < limit &&
+            (isWhitespace(documentValue[next]) || documentValue[next] == 44)) {
+            next = next + 1
+        }
+        return next
+    }
+
+    Int nameCode(Int start, Int end) {
+        if (matchesLiteral(start, end, "svg")) { return 1 }
+        if (matchesLiteral(start, end, "g")) { return 2 }
+        if (matchesLiteral(start, end, "path")) { return 3 }
+        if (matchesLiteral(start, end, "line")) { return 4 }
+        if (matchesLiteral(start, end, "rect")) { return 5 }
+        if (matchesLiteral(start, end, "circle")) { return 6 }
+        if (matchesLiteral(start, end, "ellipse")) { return 7 }
+        if (matchesLiteral(start, end, "polyline")) { return 8 }
+        if (matchesLiteral(start, end, "polygon")) { return 9 }
+        return 0
+    }
+
+    Int attributeCode(Int start, Int end) {
+        if (matchesLiteral(start, end, "viewBox")) { return 1 }
+        if (matchesLiteral(start, end, "xmlns")) { return 2 }
+        if (matchesLiteral(start, end, "version")) { return 3 }
+        if (matchesLiteral(start, end, "fill")) { return 4 }
+        if (matchesLiteral(start, end, "stroke")) { return 5 }
+        if (matchesLiteral(start, end, "stroke-width")) { return 6 }
+        if (matchesLiteral(start, end, "d")) { return 7 }
+        if (matchesLiteral(start, end, "x")) { return 8 }
+        if (matchesLiteral(start, end, "y")) { return 9 }
+        if (matchesLiteral(start, end, "width")) { return 10 }
+        if (matchesLiteral(start, end, "height")) { return 11 }
+        if (matchesLiteral(start, end, "cx")) { return 12 }
+        if (matchesLiteral(start, end, "cy")) { return 13 }
+        if (matchesLiteral(start, end, "r")) { return 14 }
+        if (matchesLiteral(start, end, "rx")) { return 15 }
+        if (matchesLiteral(start, end, "ry")) { return 16 }
+        if (matchesLiteral(start, end, "x1")) { return 17 }
+        if (matchesLiteral(start, end, "y1")) { return 18 }
+        if (matchesLiteral(start, end, "x2")) { return 19 }
+        if (matchesLiteral(start, end, "y2")) { return 20 }
+        if (matchesLiteral(start, end, "points")) { return 21 }
+        if (matchesLiteral(start, end, "id")) { return 22 }
+        return 0
+    }
+
+    Bool readTag() {
+        tagSpecialValue = false
+        if (parserCursorValue >= documentValue.length ||
+            documentValue[parserCursorValue] != 60) {
+            diagnosticValue = svgDiagnosticStructure()
+            return false
+        }
+        var start = parserCursorValue
+        if (start + 1 >= documentValue.length) {
+            diagnosticValue = svgDiagnosticHeader()
+            return false
+        }
+        if (documentValue[start + 1] == 63) {
+            var cursor = start + 2
+            while (cursor + 1 < documentValue.length &&
+                !(documentValue[cursor] == 63 &&
+                    documentValue[cursor + 1] == 62)) {
+                cursor = cursor + 1
+            }
+            if (cursor + 1 >= documentValue.length) {
+                diagnosticValue = svgDiagnosticStructure()
+                return false
+            }
+            parserCursorValue = cursor + 2
+            tagSpecialValue = true
+            return true
+        }
+        if (documentValue[start + 1] == 33) {
+            if (start + 3 >= documentValue.length ||
+                documentValue[start + 2] != 45 || documentValue[start + 3] != 45) {
+                diagnosticValue = svgDiagnosticUnsupported()
+                return false
+            }
+            var cursor = start + 4
+            while (cursor + 2 < documentValue.length &&
+                !(documentValue[cursor] == 45 &&
+                    documentValue[cursor + 1] == 45 &&
+                    documentValue[cursor + 2] == 62)) {
+                cursor = cursor + 1
+            }
+            if (cursor + 2 >= documentValue.length) {
+                diagnosticValue = svgDiagnosticStructure()
+                return false
+            }
+            parserCursorValue = cursor + 3
+            tagSpecialValue = true
+            return true
+        }
+        var cursor = start + 1
+        tagClosingValue = false
+        if (documentValue[cursor] == 47) {
+            tagClosingValue = true
+            cursor = cursor + 1
+        }
+        var nameStart = cursor
+        while (cursor < documentValue.length &&
+            !isWhitespace(documentValue[cursor]) &&
+            documentValue[cursor] != 47 && documentValue[cursor] != 62) {
+            cursor = cursor + 1
+        }
+        if (cursor == nameStart) {
+            diagnosticValue = svgDiagnosticHeader()
+            return false
+        }
+        var nameEnd = cursor
+        tagNameValue = nameCode(nameStart, nameEnd)
+        if (tagNameValue == 0) {
+            diagnosticValue = svgDiagnosticUnsupported()
+            return false
+        }
+        var quote = 0
+        var close = cursor
+        while (close < documentValue.length) {
+            var value = documentValue[close]
+            if (quote != 0) {
+                if (value == quote) { quote = 0 }
+            } else if (value == 34 || value == 39) {
+                quote = value
+            } else if (value == 62) {
+                break
+            }
+            close = close + 1
+        }
+        if (quote != 0 || close >= documentValue.length) {
+            diagnosticValue = svgDiagnosticStructure()
+            return false
+        }
+        var contentEnd = close
+        while (contentEnd > cursor && isWhitespace(documentValue[contentEnd - 1])) {
+            contentEnd = contentEnd - 1
+        }
+        tagSelfClosingValue = false
+        if (!tagClosingValue && contentEnd > cursor &&
+            documentValue[contentEnd - 1] == 47) {
+            tagSelfClosingValue = true
+            contentEnd = contentEnd - 1
+            while (contentEnd > cursor && isWhitespace(documentValue[contentEnd - 1])) {
+                contentEnd = contentEnd - 1
+            }
+        }
+        tagContentStartValue = cursor
+        tagContentEndValue = contentEnd
+        parserCursorValue = close + 1
+        return true
+    }
+
+    Bool readFixedNumber(Int start, Int end) {
+        var cursor = skipNumberSeparators(start, end)
+        if (cursor >= end) { return false }
+        var sign = 1
+        if (documentValue[cursor] == 45 || documentValue[cursor] == 43) {
+            if (documentValue[cursor] == 45) { sign = -1 }
+            cursor = cursor + 1
+        }
+        var integer = 0
+        var integerDigits = 0
+        while (cursor < end && isDigit(documentValue[cursor])) {
+            integer = integer * 10 + documentValue[cursor] - 48
+            if (integer > 1000000) { return false }
+            integerDigits = integerDigits + 1
+            cursor = cursor + 1
+        }
+        var fraction = 0
+        var fractionDigits = 0
+        if (cursor < end && documentValue[cursor] == 46) {
+            cursor = cursor + 1
+            while (cursor < end && isDigit(documentValue[cursor])) {
+                if (fractionDigits < 3) {
+                    fraction = fraction * 10 + documentValue[cursor] - 48
+                }
+                fractionDigits = fractionDigits + 1
+                cursor = cursor + 1
+            }
+        }
+        if (integerDigits == 0 && fractionDigits == 0) { return false }
+        while (fractionDigits < 3) {
+            fraction = fraction * 10
+            fractionDigits = fractionDigits + 1
+        }
+        var value = integer * 1000 + fraction
+        if (sign < 0) { value = -value }
+        numberValue = value
+        pathCursorValue = cursor
+        return true
+    }
+
+    Bool parseFixedList(Int start, Int end, Int expected) {
+        var cursor = skipNumberSeparators(start, end)
+        scratchCountValue = 0
+        while (cursor < end) {
+            pathCursorValue = cursor
+            if (!readFixedNumber(cursor, end) || scratchCountValue >= scratch.length) {
+                diagnosticValue = svgDiagnosticNumber()
+                return false
+            }
+            scratch[scratchCountValue] = numberValue
+            scratchCountValue = scratchCountValue + 1
+            cursor = skipNumberSeparators(pathCursorValue, end)
+        }
+        if (scratchCountValue != expected) {
+            diagnosticValue = svgDiagnosticNumber()
+            return false
+        }
+        return true
+    }
+
+    Bool parseColor(Int start, Int end) {
+        if (matchesLiteral(start, end, "none")) {
+            tempFillPresentValue = false
+            tempFillColorValue = 0
+            tempFillAlphaValue = 0
+            return true
+        }
+        var colorStart = start
+        if (matchesLiteral(start, end, "black")) {
+            tempFillColorValue = 0
+            tempFillAlphaValue = 255
+            tempFillPresentValue = true
+            return true
+        }
+        if (matchesLiteral(start, end, "white")) {
+            tempFillColorValue = 16777215
+            tempFillAlphaValue = 255
+            tempFillPresentValue = true
+            return true
+        }
+        if (matchesLiteral(start, end, "red")) {
+            tempFillColorValue = 16711680
+            tempFillAlphaValue = 255
+            tempFillPresentValue = true
+            return true
+        }
+        if (matchesLiteral(start, end, "green")) {
+            tempFillColorValue = 32768
+            tempFillAlphaValue = 255
+            tempFillPresentValue = true
+            return true
+        }
+        if (matchesLiteral(start, end, "blue")) {
+            tempFillColorValue = 255
+            tempFillAlphaValue = 255
+            tempFillPresentValue = true
+            return true
+        }
+        if (matchesLiteral(start, end, "transparent")) {
+            tempFillColorValue = 0
+            tempFillAlphaValue = 0
+            tempFillPresentValue = true
+            return true
+        }
+        if (end <= start || documentValue[start] != 35) { return false }
+        colorStart = start + 1
+        var digits = end - colorStart
+        if (digits != 3 && digits != 6 && digits != 8) { return false }
+        for (var index = colorStart; index < end; index = index + 1) {
+            if (!isHexDigit(documentValue[index])) { return false }
+        }
+        var red = 0
+        var green = 0
+        var blue = 0
+        var alpha = 255
+        if (digits == 3) {
+            red = hexDigit(documentValue[colorStart]) * 17
+            green = hexDigit(documentValue[colorStart + 1]) * 17
+            blue = hexDigit(documentValue[colorStart + 2]) * 17
+        } else {
+            red = hexDigit(documentValue[colorStart]) * 16 +
+                hexDigit(documentValue[colorStart + 1])
+            green = hexDigit(documentValue[colorStart + 2]) * 16 +
+                hexDigit(documentValue[colorStart + 3])
+            blue = hexDigit(documentValue[colorStart + 4]) * 16 +
+                hexDigit(documentValue[colorStart + 5])
+            if (digits == 8) {
+                alpha = hexDigit(documentValue[colorStart + 6]) * 16 +
+                    hexDigit(documentValue[colorStart + 7])
+            }
+        }
+        tempFillColorValue = red * 65536 + green * 256 + blue
+        tempFillAlphaValue = alpha
+        tempFillPresentValue = true
+        return true
+    }
+
+    Bool parseStyleColor(Int start, Int end, Bool fill) {
+        var previousFillColor = tempFillColorValue
+        var previousFillAlpha = tempFillAlphaValue
+        var previousFillPresent = tempFillPresentValue
+        if (!parseColor(start, end)) { return false }
+        if (fill) {
+            return true
+        }
+        tempStrokeColorValue = tempFillColorValue
+        tempStrokeAlphaValue = tempFillAlphaValue
+        tempStrokePresentValue = tempFillPresentValue
+        tempFillColorValue = previousFillColor
+        tempFillAlphaValue = previousFillAlpha
+        tempFillPresentValue = previousFillPresent
+        return true
+
+    }
+    Bool parseTagAttributes(Int kind, Bool svgRoot) {
+        var cursor = tagContentStartValue
+        var seen = new Bool[23]
+        for (var index = 0; index < seen.length; index = index + 1) {
+            seen[index] = false
+        }
+        while (cursor < tagContentEndValue) {
+            cursor = skipWhitespace(cursor, tagContentEndValue)
+            if (cursor >= tagContentEndValue) { break }
+            var nameStart = cursor
+            while (cursor < tagContentEndValue &&
+                !isWhitespace(documentValue[cursor]) &&
+                documentValue[cursor] != 61) {
+                cursor = cursor + 1
+            }
+            var code = attributeCode(nameStart, cursor)
+            if (code <= 0 || code >= seen.length || seen[code]) {
+                diagnosticValue = svgDiagnosticAttribute()
+                return false
+            }
+            seen[code] = true
+            cursor = skipWhitespace(cursor, tagContentEndValue)
+            if (cursor >= tagContentEndValue || documentValue[cursor] != 61) {
+                diagnosticValue = svgDiagnosticAttribute()
+                return false
+            }
+            cursor = skipWhitespace(cursor + 1, tagContentEndValue)
+            if (cursor >= tagContentEndValue ||
+                (documentValue[cursor] != 34 && documentValue[cursor] != 39)) {
+                diagnosticValue = svgDiagnosticAttribute()
+                return false
+            }
+            var quote = documentValue[cursor]
+            cursor = cursor + 1
+            var valueStart = cursor
+            while (cursor < tagContentEndValue && documentValue[cursor] != quote) {
+                cursor = cursor + 1
+            }
+            if (cursor >= tagContentEndValue) {
+                diagnosticValue = svgDiagnosticAttribute()
+                return false
+            }
+            var valueEnd = cursor
+            cursor = cursor + 1
+            if (svgRoot) {
+                if (code == 1) {
+                    if (!parseFixedList(valueStart, valueEnd, 4) ||
+                        scratch[2] <= 0 || scratch[3] <= 0) { return false }
+                    viewBoxXValue = scratch[0]
+                    viewBoxYValue = scratch[1]
+                    viewBoxWidthValue = scratch[2]
+                    viewBoxHeightValue = scratch[3]
+                } else if (code == 2) {
+                    if (!matchesLiteral(valueStart, valueEnd,
+                            "http://www.w3.org/2000/svg")) {
+                        diagnosticValue = svgDiagnosticAttribute()
+                        return false
+                    }
+                } else if (code == 3 || code == 22) {
+                    if (code == 3 && !matchesLiteral(valueStart, valueEnd, "1.1")) {
+                        diagnosticValue = svgDiagnosticAttribute()
+                        return false
+                    }
+                } else {
+                    diagnosticValue = svgDiagnosticUnsupported()
+                    return false
+                }
+            } else {
+                if (code == 22) {
+                } else if (code == 4) {
+                    if (!parseStyleColor(valueStart, valueEnd, true)) { return false }
+                    tempHasFillValue = true
+                } else if (code == 5) {
+                    if (!parseStyleColor(valueStart, valueEnd, false)) { return false }
+                    tempHasStrokeValue = true
+                } else if (code == 6) {
+                    if (!parseFixedList(valueStart, valueEnd, 1) || scratch[0] <= 0) {
+                        return false
+                    }
+                    tempStrokeWidthValue = scratch[0]
+                    tempHasStrokeWidthValue = true
+                } else if (code == 7) {
+                    if (kind != 3) { return false }
+                    tempPathStartValue = valueStart
+                    tempPathEndValue = valueEnd
+                    tempHasPathValue = true
+                } else if (code == 8) {
+                    if (kind != 5 && kind != 4 && kind != 8 && kind != 9) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempXValue = scratch[0]
+                    tempHasXValue = true
+                } else if (code == 9) {
+                    if (kind != 5 && kind != 4 && kind != 8 && kind != 9) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempYValue = scratch[0]
+                    tempHasYValue = true
+                } else if (code == 10) {
+                    if (kind != 5) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempWidthValue = scratch[0]
+                    tempHasWidthValue = true
+                } else if (code == 11) {
+                    if (kind != 5) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempHeightValue = scratch[0]
+                    tempHasHeightValue = true
+                } else if (code == 12) {
+                    if (kind != 6 && kind != 7) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempXValue = scratch[0]
+                    tempHasXValue = true
+                } else if (code == 13) {
+                    if (kind != 6 && kind != 7) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempYValue = scratch[0]
+                    tempHasYValue = true
+                } else if (code == 14) {
+                    if (kind != 6) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempRadiusValue = scratch[0]
+                    tempHasRadiusValue = true
+                } else if (code == 15) {
+                    if (kind != 7) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempRadiusXValue = scratch[0]
+                    tempHasRadiusXValue = true
+                } else if (code == 16) {
+                    if (kind != 7) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempRadiusYValue = scratch[0]
+                    tempHasRadiusYValue = true
+                } else if (code == 17) {
+                    if (kind != 4) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempXValue = scratch[0]
+                    tempHasXValue = true
+                } else if (code == 18) {
+                    if (kind != 4) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempYValue = scratch[0]
+                    tempHasYValue = true
+                } else if (code == 19) {
+                    if (kind != 4) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempX2Value = scratch[0]
+                    tempHasX2Value = true
+                } else if (code == 20) {
+                    if (kind != 4) { return false }
+                    if (!parseFixedList(valueStart, valueEnd, 1)) { return false }
+                    tempY2Value = scratch[0]
+                    tempHasY2Value = true
+                } else if (code == 21) {
+                    if (kind != 8 && kind != 9) { return false }
+                    tempPointsStartValue = valueStart
+                    tempPointsEndValue = valueEnd
+                    tempHasPointsValue = true
+                } else {
+                    diagnosticValue = svgDiagnosticUnsupported()
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Bool emitParameter(Int value) {
+        if (emitValue) {
+            if (parameterCountValue >= parameters.length) {
+                diagnosticValue = svgDiagnosticCapacity()
+                return false
+            }
+            parameters[parameterCountValue] = value
+        }
+        parameterCountValue = parameterCountValue + 1
+        return true
+    }
+
+    Int pathBase(Int command) {
+        if (command >= 97) { return command - 32 }
+        return command
+    }
+
+    Bool isPathCommand(Int value) {
+        return value == 65 || value == 67 || value == 72 || value == 76 ||
+            value == 77 || value == 81 || value == 83 || value == 84 ||
+            value == 86 || value == 90 || value == 97 || value == 99 ||
+            value == 104 || value == 108 || value == 109 || value == 113 ||
+            value == 115 || value == 116 || value == 118 || value == 122
+    }
+
+    Int pathArity(Int command) {
+        var base = pathBase(command)
+        if (base == 65) { return 7 }
+        if (base == 67) { return 6 }
+        if (base == 72 || base == 86) { return 1 }
+        if (base == 76 || base == 77 || base == 84) { return 2 }
+        if (base == 81 || base == 83) { return 4 }
+        return 0
+    }
+
+    Bool emitPathRecord(Int command, Int count) {
+        if (!emitParameter(command) || !emitParameter(count)) { return false }
+        for (var index = 0; index < count; index = index + 1) {
+            if (!emitParameter(scratch[index])) { return false }
+        }
+        return true
+    }
+
+    Bool parsePath(Int start, Int end) {
+        pathCursorValue = start
+        pathLimitValue = end
+        pathCommandValue = 0
+        pathCurrentXValue = 0
+        pathCurrentYValue = 0
+        pathStartXValue = 0
+        pathStartYValue = 0
+        pathHasSubpathValue = false
+        while (true) {
+            pathCursorValue = skipNumberSeparators(pathCursorValue, pathLimitValue)
+            if (pathCursorValue >= pathLimitValue) { return pathHasSubpathValue }
+            var value = documentValue[pathCursorValue]
+            if (isPathCommand(value)) {
+                pathCommandValue = value
+                pathCursorValue = pathCursorValue + 1
+                if (pathBase(value) == 90) {
+                    if (!pathHasSubpathValue || !emitPathRecord(8, 0)) {
+                        diagnosticValue = svgDiagnosticPath()
+                        return false
+                    }
+                    pathCurrentXValue = pathStartXValue
+                    pathCurrentYValue = pathStartYValue
+                    pathCommandValue = 0
+                }
+                continue
+            }
+            if (pathCommandValue == 0) {
+                diagnosticValue = svgDiagnosticPath()
+                return false
+            }
+            var arity = pathArity(pathCommandValue)
+            if (arity <= 0 || arity > scratch.length) {
+                diagnosticValue = svgDiagnosticPath()
+                return false
+            }
+            for (var index = 0; index < arity; index = index + 1) {
+                if (!readFixedNumber(pathCursorValue, pathLimitValue)) {
+                    diagnosticValue = svgDiagnosticNumber()
+                    return false
+                }
+                scratch[index] = numberValue
+                pathCursorValue = pathCursorValue
+            }
+            var relative = pathCommandValue >= 97
+            var base = pathBase(pathCommandValue)
+            var emitted = base
+            if (base == 72) {
+                var nextX = scratch[0]
+                if (relative) { nextX = pathCurrentXValue + nextX }
+                scratch[0] = nextX
+                scratch[1] = pathCurrentYValue
+                emitted = 76
+                arity = 2
+            } else if (base == 86) {
+                var nextY = scratch[0]
+                if (relative) { nextY = pathCurrentYValue + nextY }
+                scratch[0] = pathCurrentXValue
+                scratch[1] = nextY
+                emitted = 76
+                arity = 2
+            } else if (base == 65) {
+                if ((scratch[3] != 0 && scratch[3] != 1000) ||
+                    (scratch[4] != 0 && scratch[4] != 1000)) {
+                    diagnosticValue = svgDiagnosticPath()
+                    return false
+                }
+                if (relative) {
+                    scratch[5] = pathCurrentXValue + scratch[5]
+                    scratch[6] = pathCurrentYValue + scratch[6]
+                }
+            } else if (base == 67) {
+                if (relative) {
+                    for (var component = 0; component < 6; component = component + 2) {
+                        scratch[component] = scratch[component] + pathCurrentXValue
+                        scratch[component + 1] = scratch[component + 1] + pathCurrentYValue
+                    }
+                }
+            } else if (base == 81 || base == 83) {
+                if (relative) {
+                    for (var component = 0; component < 4; component = component + 2) {
+                        scratch[component] = scratch[component] + pathCurrentXValue
+                        scratch[component + 1] = scratch[component + 1] + pathCurrentYValue
+                    }
+                }
+            } else if (base == 77 || base == 76 || base == 84) {
+                if (relative) {
+                    scratch[0] = scratch[0] + pathCurrentXValue
+                    scratch[1] = scratch[1] + pathCurrentYValue
+                }
+            }
+            if (base == 77 && pathHasSubpathValue) {
+                emitted = 76
+            }
+            if (!emitPathRecord(emitted, arity)) {
+                return false
+            }
+            if (base == 77 || base == 76 || base == 84) {
+                pathCurrentXValue = scratch[0]
+                pathCurrentYValue = scratch[1]
+                if (base == 77 && !pathHasSubpathValue) {
+                    pathStartXValue = pathCurrentXValue
+                    pathStartYValue = pathCurrentYValue
+                    pathHasSubpathValue = true
+                    if (pathCommandValue == 77 || pathCommandValue == 109) {
+                        pathCommandValue = if (relative) 108 else 76
+                    }
+                }
+            } else if (base == 72 || base == 86) {
+                pathCurrentXValue = scratch[0]
+                pathCurrentYValue = scratch[1]
+            } else if (base == 65) {
+                pathCurrentXValue = scratch[5]
+                pathCurrentYValue = scratch[6]
+            } else if (base == 67) {
+                pathCurrentXValue = scratch[4]
+                pathCurrentYValue = scratch[5]
+            } else if (base == 81 || base == 83) {
+                pathCurrentXValue = scratch[2]
+                pathCurrentYValue = scratch[3]
+            }
+        }
+    }
+
+    Bool appendPoints(Int start, Int end, Int minimumPairs) {
+        var cursor = skipNumberSeparators(start, end)
+        var count = 0
+        while (cursor < end) {
+            pathCursorValue = cursor
+            if (!readFixedNumber(cursor, end)) {
+                diagnosticValue = svgDiagnosticNumber()
+                return false
+            }
+            if (!emitParameter(numberValue)) { return false }
+            count = count + 1
+            cursor = skipNumberSeparators(pathCursorValue, end)
+        }
+        if (count < minimumPairs * 2 || count % 2 != 0) {
+            diagnosticValue = svgDiagnosticNumber()
+            return false
+        }
+        return true
+    }
+
+    Bool finishShape(Int kind) {
+        if (shapeCountValue >= shapeKinds.length && emitValue) {
+            diagnosticValue = svgDiagnosticCapacity()
+            return false
+        }
+        var shapeIndex = shapeCountValue
+        var start = parameterCountValue
+        var valid = true
+        if (kind == 3) {
+            valid = parsePath(tempPathStartValue, tempPathEndValue)
+        } else if (kind == 4) {
+            valid = emitParameter(tempXValue) && emitParameter(tempYValue) &&
+                emitParameter(tempX2Value) && emitParameter(tempY2Value)
+        } else if (kind == 5) {
+            valid = emitParameter(tempXValue) && emitParameter(tempYValue) &&
+                emitParameter(tempWidthValue) && emitParameter(tempHeightValue)
+        } else if (kind == 6) {
+            valid = emitParameter(tempXValue) && emitParameter(tempYValue) &&
+                emitParameter(tempRadiusValue)
+        } else if (kind == 7) {
+            valid = emitParameter(tempXValue) && emitParameter(tempYValue) &&
+                emitParameter(tempRadiusXValue) && emitParameter(tempRadiusYValue)
+        } else if (kind == 8 || kind == 9) {
+            valid = appendPoints(tempPointsStartValue, tempPointsEndValue, 2)
+        } else if (kind == 10) {
+            valid = appendPoints(tempPointsStartValue, tempPointsEndValue, 3)
+        }
+        if (!valid) { return false }
+        if (emitValue) {
+            shapeKinds[shapeIndex] = kind
+            shapeParameterStarts[shapeIndex] = start
+            shapeParameterCounts[shapeIndex] = parameterCountValue - start
+            shapeFillColors[shapeIndex] = tempFillColorValue
+            shapeFillAlphas[shapeIndex] = tempFillAlphaValue
+            shapeFillPresent[shapeIndex] = if (tempFillPresentValue) 1 else 0
+            shapeStrokeColors[shapeIndex] = tempStrokeColorValue
+            shapeStrokeAlphas[shapeIndex] = tempStrokeAlphaValue
+            shapeStrokePresent[shapeIndex] = if (tempStrokePresentValue) 1 else 0
+            shapeStrokeWidths[shapeIndex] = tempStrokeWidthValue
+        }
+        shapeCountValue = shapeCountValue + 1
+        return true
+    }
+
+    Bool parseShape(Int kind) {
+        tempXValue = 0
+        tempYValue = 0
+        tempWidthValue = 0
+        tempHeightValue = 0
+        tempX2Value = 0
+        tempY2Value = 0
+        tempRadiusValue = 0
+        tempRadiusXValue = 0
+        tempRadiusYValue = 0
+        tempFillColorValue = 0
+        tempFillAlphaValue = 255
+        tempFillPresentValue = true
+        tempStrokeColorValue = 0
+        tempStrokeAlphaValue = 255
+        tempStrokePresentValue = false
+        tempStrokeWidthValue = 1000
+        tempPathStartValue = -1
+        tempPathEndValue = -1
+        tempPointsStartValue = -1
+        tempPointsEndValue = -1
+        tempHasXValue = false
+        tempHasYValue = false
+        tempHasWidthValue = false
+        tempHasHeightValue = false
+        tempHasX2Value = false
+        tempHasY2Value = false
+        tempHasRadiusValue = false
+        tempHasRadiusXValue = false
+        tempHasRadiusYValue = false
+        tempHasPathValue = false
+        tempHasPointsValue = false
+        tempHasFillValue = false
+        tempHasStrokeValue = false
+        tempHasStrokeWidthValue = false
+        if (!parseTagAttributes(kind, false)) { return false }
+        if (kind == 3 && !tempHasPathValue) { return false }
+        if (kind == 4 && (!tempHasXValue || !tempHasYValue ||
+                !tempHasX2Value || !tempHasY2Value)) { return false }
+        if (kind == 5 && (!tempHasXValue || !tempHasYValue ||
+                !tempHasWidthValue || !tempHasHeightValue ||
+                tempWidthValue <= 0 || tempHeightValue <= 0)) { return false }
+        if (kind == 6 && (!tempHasXValue || !tempHasYValue ||
+                !tempHasRadiusValue || tempRadiusValue <= 0)) { return false }
+        if (kind == 7 && (!tempHasXValue || !tempHasYValue ||
+                !tempHasRadiusXValue || !tempHasRadiusYValue ||
+                tempRadiusXValue <= 0 || tempRadiusYValue <= 0)) { return false }
+        if ((kind == 8 || kind == 9 || kind == 10) && !tempHasPointsValue) {
+            return false
+        }
+        return finishShape(kind)
+    }
+
+    Bool parseDocument(Bool emit) {
+        parserCursorValue = 0
+        groupDepthValue = 0
+        rootSeenValue = false
+        rootOpenValue = false
+        rootClosedValue = false
+        emitValue = emit
+        shapeCountValue = 0
+        parameterCountValue = 0
+        if (documentValue.length >= 3 && documentValue[0] == 239 &&
+            documentValue[1] == 187 && documentValue[2] == 191) {
+            parserCursorValue = 3
+        }
+        while (parserCursorValue < documentValue.length) {
+            parserCursorValue = skipWhitespace(parserCursorValue, documentValue.length)
+            if (parserCursorValue >= documentValue.length) { break }
+            if (documentValue[parserCursorValue] != 60) {
+                diagnosticValue = svgDiagnosticStructure()
+                return false
+            }
+            if (!readTag()) { return false }
+            if (tagSpecialValue) { continue }
+            if (tagClosingValue) {
+                if (tagContentStartValue != tagContentEndValue) {
+                    diagnosticValue = svgDiagnosticStructure()
+                    return false
+                }
+                if (tagNameValue == 2) {
+                    if (groupDepthValue <= 0) { return false }
+                    groupDepthValue = groupDepthValue - 1
+                } else if (tagNameValue == 1) {
+                    if (!rootOpenValue || groupDepthValue != 0 || rootClosedValue) {
+                        return false
+                    }
+                    rootOpenValue = false
+                    rootClosedValue = true
+                } else {
+                    diagnosticValue = svgDiagnosticStructure()
+                    return false
+                }
+                continue
+            }
+            if (tagNameValue == 1) {
+                if (rootSeenValue || groupDepthValue != 0 || rootClosedValue ||
+                    tagSelfClosingValue || !parseTagAttributes(1, true)) {
+                    return false
+                }
+                rootSeenValue = true
+                rootOpenValue = true
+            } else {
+                if (!rootOpenValue || rootClosedValue) { return false }
+                if (tagNameValue == 2) {
+                    if (tagContentStartValue != tagContentEndValue) {
+                        diagnosticValue = svgDiagnosticUnsupported()
+                        return false
+                    }
+                    if (!tagSelfClosingValue) { groupDepthValue = groupDepthValue + 1 }
+                } else {
+                    if (!tagSelfClosingValue || groupDepthValue < 0) {
+                        diagnosticValue = svgDiagnosticStructure()
+                        return false
+                    }
+                    if (!parseShape(tagNameValue)) { return false }
+                }
+            }
+        }
+        if (!rootSeenValue || !rootClosedValue || groupDepthValue != 0 ||
+            viewBoxWidthValue <= 0 || viewBoxHeightValue <= 0 || shapeCountValue <= 0) {
+            diagnosticValue = svgDiagnosticStructure()
+            return false
+        }
+        return true
+    }
+
+    Int wordAt(Int[] bytes, Int offset) {
+        return bytes[offset] | (bytes[offset + 1] << 8) |
+            (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)
+    }
+
+    Bool emitCanonical() {
+        var styleChecksum = 17
+        var geometryChecksum = 17
+        for (var index = 0; index < shapeCountValue; index = index + 1) {
+            styleChecksum = mix(styleChecksum, shapeFillColors[index])
+            styleChecksum = mix(styleChecksum, shapeFillAlphas[index])
+            styleChecksum = mix(styleChecksum, shapeFillPresent[index])
+            styleChecksum = mix(styleChecksum, shapeStrokeColors[index])
+            styleChecksum = mix(styleChecksum, shapeStrokeAlphas[index])
+            styleChecksum = mix(styleChecksum, shapeStrokePresent[index])
+            styleChecksum = mix(styleChecksum, shapeStrokeWidths[index])
+            geometryChecksum = mix(geometryChecksum, shapeKinds[index])
+            for (var cursor = shapeParameterStarts[index];
+                cursor < shapeParameterStarts[index] + shapeParameterCounts[index];
+                cursor = cursor + 1) {
+                geometryChecksum = mix(geometryChecksum, parameters[cursor])
+            }
+        }
+        var length = 10
+        for (var index = 0; index < shapeCountValue; index = index + 1) {
+            length = length + 11 + shapeParameterCounts[index]
+        }
+        if (length <= 10) { return false }
+        wireWords = new Int[length]
+        var cursor = 0
+        wireWords[cursor] = svgCanonicalMagic(); cursor = cursor + 1
+        wireWords[cursor] = svgCanonicalVersion(); cursor = cursor + 1
+        wireWords[cursor] = sourceChecksumValue; cursor = cursor + 1
+        wireWords[cursor] = viewBoxXValue; cursor = cursor + 1
+        wireWords[cursor] = viewBoxYValue; cursor = cursor + 1
+        wireWords[cursor] = viewBoxWidthValue; cursor = cursor + 1
+        wireWords[cursor] = viewBoxHeightValue; cursor = cursor + 1
+        wireWords[cursor] = shapeCountValue; cursor = cursor + 1
+        wireWords[cursor] = parameterCountValue; cursor = cursor + 1
+        wireWords[cursor] = styleChecksum; cursor = cursor + 1
+        for (var index = 0; index < shapeCountValue; index = index + 1) {
+            wireWords[cursor] = shapeKinds[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeParameterCounts[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeFillColors[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeFillAlphas[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeFillPresent[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeStrokeColors[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeStrokeAlphas[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeStrokePresent[index]; cursor = cursor + 1
+            wireWords[cursor] = shapeStrokeWidths[index]; cursor = cursor + 1
+            wireWords[cursor] = geometryChecksum; cursor = cursor + 1
+            wireWords[cursor] = styleChecksum; cursor = cursor + 1
+            for (var parameter = shapeParameterStarts[index];
+                parameter < shapeParameterStarts[index] + shapeParameterCounts[index];
+                parameter = parameter + 1) {
+                wireWords[cursor] = parameters[parameter]
+                cursor = cursor + 1
+            }
+        }
+        wireLengthValue = cursor
+        return cursor == length
+    }
+
+    Bool loadCanonical(Int[] source) {
+        if (source.length < 40 || source.length % 4 != 0 ||
+            wordAt(source, 0) != svgCanonicalMagic() ||
+            wordAt(source, 4) != svgCanonicalVersion()) {
+            diagnosticValue = svgDiagnosticCanonical()
+            return false
+        }
+        var words = source.length / 4
+        var shapes = wordAt(source, 28)
+        var parameterTotal = wordAt(source, 32)
+        if (shapes <= 0 || parameterTotal < 0 || shapes > words ||
+            words < 10) {
+            diagnosticValue = svgDiagnosticCanonical()
+            return false
+        }
+        sourceValue = source
+        sourceChecksumValue = wordAt(source, 8)
+        viewBoxXValue = wordAt(source, 12)
+        viewBoxYValue = wordAt(source, 16)
+        viewBoxWidthValue = wordAt(source, 20)
+        viewBoxHeightValue = wordAt(source, 24)
+        shapeCountValue = shapes
+        parameterCountValue = parameterTotal
+        shapeKinds = new Int[shapes]
+        shapeParameterStarts = new Int[shapes]
+        shapeParameterCounts = new Int[shapes]
+        shapeFillColors = new Int[shapes]
+        shapeFillAlphas = new Int[shapes]
+        shapeFillPresent = new Int[shapes]
+        shapeStrokeColors = new Int[shapes]
+        shapeStrokeAlphas = new Int[shapes]
+        shapeStrokePresent = new Int[shapes]
+        shapeStrokeWidths = new Int[shapes]
+        parameters = new Int[parameterTotal]
+        var cursor = 10
+        var parameterCursor = 0
+        for (var index = 0; index < shapes; index = index + 1) {
+            if (cursor + 11 > words) { return false }
+            shapeKinds[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeParameterStarts[index] = parameterCursor
+            shapeParameterCounts[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeFillColors[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeFillAlphas[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeFillPresent[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeStrokeColors[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeStrokeAlphas[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeStrokePresent[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            shapeStrokeWidths[index] = wordAt(source, cursor * 4); cursor = cursor + 1
+            cursor = cursor + 2
+            if (shapeParameterCounts[index] < 0 ||
+                parameterCursor + shapeParameterCounts[index] > parameterTotal ||
+                cursor + shapeParameterCounts[index] > words) {
+                diagnosticValue = svgDiagnosticCanonical()
+                return false
+            }
+            for (var parameter = 0; parameter < shapeParameterCounts[index]; parameter = parameter + 1) {
+                parameters[parameterCursor] = wordAt(source, cursor * 4)
+                parameterCursor = parameterCursor + 1
+                cursor = cursor + 1
+            }
+        }
+        if (parameterCursor != parameterTotal || cursor != words) {
+            diagnosticValue = svgDiagnosticCanonical()
+            return false
+        }
+        wireWords = new Int[words]
+        for (var index = 0; index < words; index = index + 1) {
+            wireWords[index] = wordAt(source, index * 4)
+        }
+        wireLengthValue = words
+        acceptedValue = true
+        compressedValue = false
+        return true
+    }
+
+    Int[] encodedCanonicalBytes() {
+        if (wireLengthValue <= 0) { return new Int[0] }
+        var bytes = new Int[wireLengthValue * 4]
+        for (var index = 0; index < wireLengthValue; index = index + 1) {
+            var value = wireWords[index]
+            bytes[index * 4] = value & 255
+            bytes[index * 4 + 1] = (value >>> 8) & 255
+            bytes[index * 4 + 2] = (value >>> 16) & 255
+            bytes[index * 4 + 3] = (value >>> 24) & 255
+        }
+        return bytes
+    }
+
+    Int littleWord(Int[] bytes, Int offset) {
+        return bytes[offset] | (bytes[offset + 1] << 8) |
+            (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)
+    }
+
+    Int crc32Bytes(Int[] bytes, Int count) {
+        var crc = -1
+        for (var index = 0; index < count; index = index + 1) {
+            crc = crc ^ bytes[index]
+            for (var bit = 0; bit < 8; bit = bit + 1) {
+                if ((crc & 1) != 0) {
+                    crc = (crc >>> 1) ^ -306674912
+                } else {
+                    crc = crc >>> 1
+                }
+            }
+        }
+        return crc ^ -1
+    }
+
+    Bool decodeGzip(Int[] source) {
+        if (source.length < 18 || source[0] != 31 || source[1] != 139 ||
+            source[2] != 8 || source[3] != 0) {
+            diagnosticValue = svgDiagnosticCompression()
+            return false
+        }
+        var expectedLength = littleWord(source, source.length - 4)
+        if (expectedLength <= 0 || expectedLength > 1048576) {
+            diagnosticValue = svgDiagnosticCapacity()
+            return false
+        }
+        var compressedLength = source.length - 18
+        if (!inflaterValue.inflateRaw(source, 10, compressedLength, expectedLength)) {
+            diagnosticValue = svgDiagnosticCompression()
+            return false
+        }
+        var decoded = new Int[expectedLength]
+        for (var index = 0; index < expectedLength; index = index + 1) {
+            decoded[index] = inflaterValue.outputByte(index)
+        }
+        if (crc32Bytes(decoded, expectedLength) !=
+            littleWord(source, source.length - 8)) {
+            diagnosticValue = svgDiagnosticCompression()
+            return false
+        }
+        documentValue = decoded
+        return true
+    }
+
+    Bool read(Int[] source, Bool compressed) {
+        clear()
+        sourceValue = source
+        sourceChecksumValue = checksum(source)
+        if (source.length >= 4 && wordAt(source, 0) == svgCanonicalMagic()) {
+            return loadCanonical(source)
+        }
+        compressedValue = compressed
+        if (!compressed && (source.length <= 0 || source.length > 1048576)) {
+            diagnosticValue = svgDiagnosticCapacity()
+            return false
+        }
+        if (compressed) {
+            if (!decodeGzip(source)) { return false }
+        } else {
+            documentValue = source
+        }
+        if (documentValue.length <= 0 || !parseDocument(false)) { return false }
+        shapeKinds = new Int[shapeCountValue]
+        shapeParameterStarts = new Int[shapeCountValue]
+        shapeParameterCounts = new Int[shapeCountValue]
+        shapeFillColors = new Int[shapeCountValue]
+        shapeFillAlphas = new Int[shapeCountValue]
+        shapeFillPresent = new Int[shapeCountValue]
+        shapeStrokeColors = new Int[shapeCountValue]
+        shapeStrokeAlphas = new Int[shapeCountValue]
+        shapeStrokePresent = new Int[shapeCountValue]
+        shapeStrokeWidths = new Int[shapeCountValue]
+        parameters = new Int[parameterCountValue]
+        if (!parseDocument(true) || !emitCanonical()) { return false }
+        acceptedValue = true
+        return true
+    }
+
+    Bool accepted() { return acceptedValue }
+    Int diagnostic() { return diagnosticValue }
+    Int sourceChecksum() { return sourceChecksumValue }
+    Int geometryChecksum() {
+        var result = 17
+        for (var index = 0; index < shapeCountValue; index = index + 1) {
+            result = mix(result, shapeKinds[index])
+            for (var parameter = shapeParameterStarts[index];
+                parameter < shapeParameterStarts[index] + shapeParameterCounts[index];
+                parameter = parameter + 1) {
+                result = mix(result, parameters[parameter])
+            }
+        }
+        return result
+    }
+    Int materialChecksum() {
+        var result = 17
+        for (var index = 0; index < shapeCountValue; index = index + 1) {
+            result = mix(result, shapeFillColors[index])
+            result = mix(result, shapeFillAlphas[index])
+            result = mix(result, shapeFillPresent[index])
+            result = mix(result, shapeStrokeColors[index])
+            result = mix(result, shapeStrokeAlphas[index])
+            result = mix(result, shapeStrokePresent[index])
+            result = mix(result, shapeStrokeWidths[index])
+        }
+        return result
+    }
+    Int metadataChecksum() {
+        return mix(mix(mix(17, viewBoxXValue), viewBoxYValue),
+            mix(viewBoxWidthValue, viewBoxHeightValue))
+    }
+    Int canonicalChecksum() { return checksum(encodedCanonicalBytes()) }
+    Int shapeCount() { return shapeCountValue }
+    Int parameterCount() { return parameterCountValue }
+    Int viewBoxX() { return viewBoxXValue }
+    Int viewBoxY() { return viewBoxYValue }
+    Int viewBoxWidth() { return viewBoxWidthValue }
+    Int viewBoxHeight() { return viewBoxHeightValue }
+    Int[] canonicalBytes() {
+        if (!acceptedValue) { return new Int[0] }
+        return encodedCanonicalBytes()
+    }
+    Int canonicalLength() { return wireLengthValue * 4 }
+}

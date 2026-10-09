@@ -9,6 +9,8 @@ Int sourceKindBlockbench() { return 6 }
 Int sourceKindPng() { return 7 }
 Int sourceKindWav() { return 8 }
 Int sourceKindOgg() { return 9 }
+Int sourceKindSvg() { return 10 }
+Int sourceKindSvgz() { return 11 }
 
 record SourceCookResult(
     Bool accepted,
@@ -36,6 +38,7 @@ class BoundedSourceKooker {
     BoundedPngIntake pngValue
     BoundedWavIntake wavValue
     BoundedOggIntake oggValue
+    BoundedSvgIntake svgValue
     SourceCookResult resultValue
 
     public constructor() {
@@ -49,6 +52,7 @@ class BoundedSourceKooker {
         pngValue = BoundedPngIntake(65536)
         wavValue = BoundedWavIntake()
         oggValue = BoundedOggIntake()
+        svgValue = BoundedSvgIntake()
         resultValue = rejected(sourceKindGlb(), 0)
     }
 
@@ -219,6 +223,21 @@ class BoundedSourceKooker {
             oggValue.frameCount(), oggValue.channelCount())
         return true
     }
+    Bool cookSvg(Int[] source, Bool gzip) {
+        var kind = if (gzip) sourceKindSvgz() else sourceKindSvg()
+        resultValue = rejected(kind, svgDiagnosticHeader())
+        if (!svgValue.read(source, gzip)) {
+            resultValue = rejected(kind, svgValue.diagnostic())
+            return false
+        }
+        resultValue = SourceCookResult(
+            true, kind, 0, svgValue.sourceChecksum(),
+            svgValue.geometryChecksum(), 0, svgValue.materialChecksum(),
+            svgValue.metadataChecksum(), 0, svgValue.canonicalChecksum(),
+            svgValue.shapeCount(), svgValue.parameterCount())
+        return true
+    }
+
 
     SourceCookResult result() { return resultValue }
     BoundedExternalGlbSceneReader glb() { return glbValue }
@@ -231,4 +250,5 @@ class BoundedSourceKooker {
     BoundedPngIntake png() { return pngValue }
     BoundedWavIntake wav() { return wavValue }
     BoundedOggIntake ogg() { return oggValue }
+    BoundedSvgIntake svg() { return svgValue }
 }

@@ -3,7 +3,7 @@ import kof.process
 
 Bool printUsage() {
     println("Usage:")
-    println("  kooker cook <glb|aseprite|vox|map|blockbench|png|wav|ogg> <input> <output>")
+    println("  kooker cook <glb|dust3d|aseprite|vox|map|blockbench|png|wav|ogg|svg|svgz> <input> <output>")
     println("  kooker cook dust3d <input.ds3> <export.glb> <output>")
     println("  kooker package <chunk-kind> <input> <logical-path> <output.kpkg>")
     println("  kooker inspect-package <input.kpkg>")
@@ -85,6 +85,21 @@ Bool cookPaths(
             " bytes=" + kooker.outputLength())
         return true
     }
+    if (kind == "svg" || kind == "svgz") {
+        var vector = kooker.svg()
+        println("cooked kind=" + result.sourceKind() +
+            " source=" + result.sourceChecksum() +
+            " geometry=" + result.geometryChecksum() +
+            " material=" + result.materialChecksum() +
+            " metadata=" + result.metadataChecksum() +
+            " canonical=" + result.visibilityChecksum() +
+            " view-box=" + vector.viewBoxX() + "," + vector.viewBoxY() +
+            "," + vector.viewBoxWidth() + "," + vector.viewBoxHeight() +
+            " shapes=" + vector.shapeCount() +
+            " parameters=" + vector.parameterCount() +
+            " bytes=" + kooker.outputLength())
+        return true
+    }
     println("cooked kind=" + result.sourceKind() +
         " source=" + result.sourceChecksum() +
         " geometry=" + result.geometryChecksum() +
@@ -116,26 +131,36 @@ Bool cookCommand(List<String> args, Int offset) {
 
 Bool nativeCookCommand() {
     var marker = File(".kooker-native-kind").readRange(0, 2)
-    if (marker.length != 1) { return printUsage() }
+    if (marker.length <= 0 || marker.length > 2) { return printUsage() }
+    var markerCode = 0
+    for (var index = 0; index < marker.length; index = index + 1) {
+        var digit = marker[index] - 48
+        if (digit < 0 || digit > 9) { return printUsage() }
+        markerCode = markerCode * 10 + digit
+    }
     var kind = ""
-    if (marker[0] == 49) {
+    if (markerCode == 1) {
         kind = "glb"
-    } else if (marker[0] == 50) {
+    } else if (markerCode == 2) {
         kind = "dust3d"
-    } else if (marker[0] == 51) {
+    } else if (markerCode == 3) {
         kind = "aseprite"
-    } else if (marker[0] == 52) {
+    } else if (markerCode == 4) {
         kind = "vox"
-    } else if (marker[0] == 53) {
+    } else if (markerCode == 5) {
         kind = "map"
-    } else if (marker[0] == 54) {
+    } else if (markerCode == 6) {
         kind = "blockbench"
-    } else if (marker[0] == 55) {
+    } else if (markerCode == 7) {
         kind = "png"
-    } else if (marker[0] == 56) {
+    } else if (markerCode == 8) {
         kind = "wav"
-    } else if (marker[0] == 57) {
+    } else if (markerCode == 9) {
         kind = "ogg"
+    } else if (markerCode == 10) {
+        kind = "svg"
+    } else if (markerCode == 11) {
+        kind = "svgz"
     } else {
         return printUsage()
     }

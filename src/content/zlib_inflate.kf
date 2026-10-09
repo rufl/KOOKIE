@@ -406,6 +406,42 @@ class BoundedZlibInflater {
         return finish(true)
     }
 
+    Bool inflateRaw(Int[] source, Int start, Int length, Int expectedLength) {
+        clear()
+        if (start < 0 || length <= 0 || length > source.length ||
+            start > source.length - length ||
+            expectedLength < 0 || expectedLength > output.length) {
+            return finish(false)
+        }
+        sourceValue = source
+        sourceStartValue = start
+        bitPositionValue = 0
+        bitLimitValue = length * 8
+        var finalBlock = false
+        while (!finalBlock) {
+            var finalFlag = readBits(1)
+            var blockType = readBits(2)
+            if (finalFlag < 0 || blockType < 0 || blockType == 3) {
+                return finish(false)
+            }
+            finalBlock = finalFlag == 1
+            if (blockType == 0) {
+                if (!decodeStored()) { return finish(false) }
+            } else {
+                if ((blockType == 1 && !fixedTables()) ||
+                    (blockType == 2 && !dynamicTables()) ||
+                    !decodeCompressed()) {
+                    return finish(false)
+                }
+            }
+        }
+        var consumedBytes = (bitPositionValue + 7) / 8
+        if (consumedBytes != length || outputCountValue != expectedLength) {
+            return finish(false)
+        }
+        return finish(true)
+    }
+
     Bool accepted() { return acceptedValue }
     Int outputLength() { return outputCountValue }
     Int outputByte(Int index) {
