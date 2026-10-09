@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- A capacidade GPU nativa do mundo agora reserva a arena autorada, a porta e
+  a expansão de modelos animais para seis atores; o smoke de apresentação
+  reporta esse orçamento antes do desenho, sem rejeitar GLBs válidos.
 - Os glifos nativos do menu agora preservam cobertura de borda em tons de
   cinza no SDL_GPU e no shell Windows; as linhas de opções aplicam o tamanho
   de fonte selecionado e mantêm rótulos longos dentro dos painéis.

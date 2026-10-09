@@ -827,12 +827,27 @@ class G1NativePresentation {
         }
         nativeCapacity = kookie_gpu_scene_capacity()
         worldNativeCapacity = kookie_gpu_world_capacity()
-        return nativeCapacity >=
-            worldCapacity + doorCapacity + hudCapacity +
-            actorCapacity + animalCapacity + minimapCapacity +
-            projectileCapacity + scoreboardCapacity &&
-            worldNativeCapacity >=
-            worldCapacity + doorCapacity + animalCapacity
+        var requiredAnimalCapacity = animalCapacity
+        if (nativeAnimalModelsValue) {
+            var largestModelVertexCount = gooseModelVertexCountValue
+            if (catModelVertexCountValue > largestModelVertexCount) {
+                largestModelVertexCount = catModelVertexCountValue
+            }
+            requiredAnimalCapacity =
+                animalMeshes.actorCapacity() * largestModelVertexCount
+        }
+        if (nativeCapacity <
+                worldCapacity + doorCapacity + hudCapacity +
+                actorCapacity + animalCapacity + minimapCapacity +
+                projectileCapacity + scoreboardCapacity ||
+            worldNativeCapacity <
+                worldCapacity + doorCapacity + requiredAnimalCapacity) {
+            return false
+        }
+        if (nativeAnimalModelsValue) {
+            println("KOOKIE G1 native animal capacity verified")
+        }
+        return true
     }
 
     Bool upload(FrameStaging frame) {
