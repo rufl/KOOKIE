@@ -884,7 +884,7 @@ class G1NativePresentation {
                 animationTick = animalMeshes.catAnimationTick()
             }
             if (!kookie_gpu_world_push_model(
-                    model, 3,
+                    model, if (model == kookieModelGoose()) 9 else 12,
                     animalMeshes.actorXAt(index),
                     animalMeshes.actorYAt(index),
                     animalMeshes.actorZAt(index),

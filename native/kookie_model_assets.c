@@ -1079,13 +1079,13 @@ static int model_material_slot(int model, int mesh_index) {
     if (model == KOOKIE_MODEL_CAT) {
         return 3;
     }
-    if (mesh_index <= 0) {
-        return 0;
-    }
     if (mesh_index == 1) {
         return 1;
     }
-    return 2;
+    if (mesh_index == 4) {
+        return 2;
+    }
+    return 0;
 }
 
 static bool model_build_asset(

@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Os atores GLB nativos agora usam tiles de textura do modelo endereçados por
+  UV para corpo/cabeça/pés do ganso e materiais do gato, em vez da paleta da
+  arena.
+- Os ticks de inimigos autônomos agora toleram a ausência de alvo jogador
+  vivo; ciclos repetidos de tiro/morte não abortam mais o loop de passo fixo.
 - Mantivemos o texto 7x7 do menu dentro do contrato de clipping nativo: o
   título de exibição `GATOGANSO` agora usa uma escala que cabe, e rótulos
   grandes recortam glifos antes do staging em vez de enviar coordenadas

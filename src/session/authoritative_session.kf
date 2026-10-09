@@ -3207,6 +3207,7 @@ class LoopbackSession {
             }
             if (enemyAutonomous[index]) {
                 var targetId = nearestLiveEnemyTarget(enemyIds[index])
+                if (targetId <= 0) { continue }
                 lastEnemyDecision = enemyCombat.stepEnemyRoleSpatial(
                     enemyIds[index], tick, targetId,
                     enemyPerceptionCriticals[index])

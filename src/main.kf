@@ -4698,6 +4698,10 @@ test "FPS session accepts idle arena enemy tick" {
             2, 1, 1, 0, 0, 0, 0, 0, 0) &&
         session.advance(16667) == 1,
         "full arena gameplay session must accept an idle tick")
+    assert(session.disconnectPlayer(1, 1) &&
+        session.disconnectPlayer(2, 1) &&
+        session.advance(16667) == 1,
+        "autonomous enemies must tolerate having no live player target")
 }
 
 test "authoritative weapon and damage transitions" {
