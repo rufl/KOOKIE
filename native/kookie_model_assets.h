@@ -2,6 +2,7 @@
 #define KOOKIE_MODEL_ASSETS_H
 
 #include <stdbool.h>
+#include <stddef.h>
 
 #define KOOKIE_MODEL_GOOSE 1
 #define KOOKIE_MODEL_CAT 2
@@ -11,6 +12,8 @@ typedef bool (*KookieModelEmitVertex)(
 
 bool kookie_model_assets_available(int model);
 int kookie_model_assets_vertex_count(int model);
+bool kookie_model_assets_texture_png(
+    int model, const unsigned char **data, size_t *length);
 bool kookie_model_assets_emit(
     int model,
     int resource_base,

@@ -10,6 +10,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   dentro do limite para ganso e gato, em vez de fazer subamostragem uniforme;
   as superfícies completas não ficam mais esburacadas, e o buffer do mundo
   cobre o orçamento de seis atores com os modelos inteiros.
+- O upload nativo de texturas de modelo agora copia o PNG embutido no GLB do
+  gato para uma região UV de tamanho completo; o ganso mantém seus tiles
+  procedurais dedicados porque seu GLB não tem imagem embutida.
 - A emissão nativa dos modelos de ganso e gato agora aplica o tick da
   animação idle à pose GLB autorada; os animais do gameplay não congelam
   quando estão parados.

@@ -9,6 +9,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Native GLB loading now retains every bounded source triangle for the goose and
   cat instead of uniform decimation; complete animal surfaces no longer show
   holes, and the world buffer covers the full six-actor model budget.
+- Native model texture upload now copies the cat GLB's embedded PNG into a
+  full-size UV region; the goose keeps its dedicated procedural material tiles
+  because its GLB has no embedded image.
 - Native goose and cat model emission now applies the idle animation tick to
   the authored GLB pose; gameplay animals no longer freeze when they are not
   moving.

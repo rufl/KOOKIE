@@ -8,6 +8,7 @@
 #include <float.h>
 
 #define KOOKIE_MODEL_MAX_FILE_BYTES (2u * 1024u * 1024u)
+#define KOOKIE_MODEL_MAX_TEXTURE_BYTES (512u * 1024u)
 #define KOOKIE_MODEL_MAX_JSON_BYTES (512u * 1024u)
 #define KOOKIE_MODEL_MAX_NODES 64
 #define KOOKIE_MODEL_MAX_ACCESSORS 256
@@ -87,6 +88,8 @@ typedef struct {
     bool loaded;
     int model;
     int triangle_count;
+    size_t texture_png_length;
+    uint8_t texture_png[KOOKIE_MODEL_MAX_TEXTURE_BYTES];
     KookieModelTriangle triangles[KOOKIE_MODEL_MAX_TRIANGLES];
 } KookieModelAsset;
 
@@ -672,6 +675,75 @@ static bool model_parse_views(
     }
     return true;
 }
+static bool model_copy_embedded_texture(
+    KookieModelAsset *asset,
+    const KookieJson *json,
+    size_t root_start,
+    size_t root_end,
+    const KookieModelScene *scene,
+    const uint8_t *bin,
+    size_t bin_length
+) {
+    if (asset == NULL || json == NULL || scene == NULL ||
+        bin == NULL) {
+        return false;
+    }
+    asset->texture_png_length = 0;
+    size_t array_start = 0;
+    size_t array_end = 0;
+    if (!json_field_value_fixed(
+            json, root_start, root_end, "images",
+            &array_start, &array_end)) {
+        return true;
+    }
+    int count = json_array_count(json, array_start, array_end);
+    if (count < 0 || count > 8) {
+        return false;
+    }
+    for (int index = 0; index < count; index += 1) {
+        size_t image_start = 0;
+        size_t image_end = 0;
+        if (!json_object_bounds(
+                json, array_start, array_end, index,
+                &image_start, &image_end)) {
+            return false;
+        }
+        size_t mime_start = 0;
+        size_t mime_end = 0;
+        if (!json_field_value_fixed(
+                json, image_start, image_end, "mimeType",
+                &mime_start, &mime_end) ||
+            !json_string_equals(json, mime_start, mime_end, "image/png")) {
+            continue;
+        }
+        int buffer_view = KOOKIE_MODEL_INVALID_INDEX;
+        bool present = false;
+        if (!json_object_int(
+                json, image_start, image_end, "bufferView",
+                &buffer_view, &present)) {
+            return false;
+        }
+        if (!present || buffer_view < 0 ||
+            buffer_view >= scene->view_count) {
+            continue;
+        }
+        const KookieModelBufferView *view = &scene->views[buffer_view];
+        if (view->byte_offset < 0 || view->byte_length <= 0 ||
+            (size_t)view->byte_offset > bin_length ||
+            (size_t)view->byte_length > bin_length -
+                (size_t)view->byte_offset ||
+            (size_t)view->byte_length > KOOKIE_MODEL_MAX_TEXTURE_BYTES) {
+            return false;
+        }
+        memcpy(
+            asset->texture_png,
+            bin + (size_t)view->byte_offset,
+            (size_t)view->byte_length);
+        asset->texture_png_length = (size_t)view->byte_length;
+        return true;
+    }
+    return true;
+}
 
 static bool model_parse_meshes(
     const KookieJson *json,
@@ -1098,6 +1170,11 @@ static bool model_build_asset(
         !model_parse_nodes(json, root_start, root_end, &scene)) {
         return false;
     }
+    if (!model_copy_embedded_texture(
+            asset, json, root_start, root_end,
+            &scene, bin, bin_length)) {
+        return false;
+    }
     int total_triangles = 0;
     float minimum[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
     float maximum[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
@@ -1388,6 +1465,23 @@ int kookie_model_assets_vertex_count(int model) {
         return 0;
     }
     return asset->triangle_count * 3;
+}
+bool kookie_model_assets_texture_png(
+    int model, const unsigned char **data, size_t *length
+) {
+    if (data == NULL || length == NULL) {
+        return false;
+    }
+    *data = NULL;
+    *length = 0;
+    KookieModelAsset *asset = model_asset_for(model);
+    if (asset == NULL || !model_try_load(asset, model) ||
+        asset->texture_png_length == 0) {
+        return false;
+    }
+    *data = asset->texture_png;
+    *length = asset->texture_png_length;
+    return true;
 }
 
 static int model_phase_wave(int phase, int period) {
