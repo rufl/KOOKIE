@@ -606,7 +606,6 @@ class G1NativePresentation {
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
     GooseMinimap minimap
-    Int worldNativeCapacity
     Bool nativeAnimalModelsValue
     Int gooseModelVertexCountValue
     Int catModelVertexCountValue
@@ -624,7 +623,6 @@ class G1NativePresentation {
     FrameStaging projectileFrame
     Int worldCapacity
     Int hudCapacity
-    Int nativeCapacity
     Int doorCapacity
     Int actorCapacity
     Int animalCapacity
@@ -656,7 +654,6 @@ class G1NativePresentation {
         interactionSession = LoopbackSession(16, 8)
         playerAimTargets = BoundedRayTargetWorld(3, 64)
         saveOwner = BoundedHostGameplaySaveOwner(interactionSession)
-        worldNativeCapacity = 0
         nativeAnimalModelsValue = false
         gooseModelVertexCountValue = 0
         catModelVertexCountValue = 0
@@ -676,7 +673,6 @@ class G1NativePresentation {
         minimapCapacity = minimapFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
         projectileCapacity = projectileFrame.vertexCapacity()
-        nativeCapacity = 0
         cooperativeModeValue = true
         mirrorRemoteValue = false
         localNameIdValue = 1
@@ -825,27 +821,8 @@ class G1NativePresentation {
             !above.accepted() || above.collided()) {
             return false
         }
-        nativeCapacity = kookie_gpu_scene_capacity()
-        worldNativeCapacity = kookie_gpu_world_capacity()
-        var requiredAnimalCapacity = animalCapacity
         if (nativeAnimalModelsValue) {
-            var largestModelVertexCount = gooseModelVertexCountValue
-            if (catModelVertexCountValue > largestModelVertexCount) {
-                largestModelVertexCount = catModelVertexCountValue
-            }
-            requiredAnimalCapacity =
-                animalMeshes.actorCapacity() * largestModelVertexCount
-        }
-        if (nativeCapacity <
-                worldCapacity + doorCapacity + hudCapacity +
-                actorCapacity + animalCapacity + minimapCapacity +
-                projectileCapacity + scoreboardCapacity ||
-            worldNativeCapacity <
-                worldCapacity + doorCapacity + requiredAnimalCapacity) {
-            return false
-        }
-        if (nativeAnimalModelsValue) {
-            println("KOOKIE G1 native animal capacity verified")
+            println("KOOKIE G1 native animal mesh coverage verified")
         }
         return true
     }
@@ -1514,9 +1491,8 @@ class G1NativePresentation {
         var worldVertexCount =
             worldFrame.stagedCount() + doorFrame.stagedCount() +
             animalVertexCount
-        if (animalVertexCount <= 0 ||
-            worldVertexCount > worldNativeCapacity) {
-            println("KOOKIE gameplay animal model capacity failed")
+        if (animalVertexCount <= 0) {
+            println("KOOKIE gameplay animal model count failed")
             println(animalVertexCount)
             return false
         }
@@ -1527,6 +1503,7 @@ class G1NativePresentation {
             return false
         }
         if (!kookie_gpu_world_begin(worldVertexCount) ||
+            kookie_gpu_world_capacity() < worldVertexCount ||
             !uploadWorld(worldFrame) || !uploadWorld(doorFrame) ||
             (nativeAnimalModelsValue && !uploadAnimalModels()) ||
             (!nativeAnimalModelsValue && !uploadWorld(animalFrame)) ||
@@ -1540,7 +1517,8 @@ class G1NativePresentation {
         var vertexCount =
             actorFrame.stagedCount() + hudFrame.stagedCount() +
             minimapFrame.stagedCount() + scoreboardCount + projectileCount
-        if (!kookie_gpu_scene_begin(vertexCount)) {
+        if (!kookie_gpu_scene_begin(vertexCount) ||
+            kookie_gpu_scene_capacity() < vertexCount) {
             println("KOOKIE gameplay GPU scene begin failed")
             println(vertexCount)
             return false
@@ -1605,9 +1583,7 @@ class G1NativePresentation {
             hudFrame.vertexCapacity() == hudCapacity &&
             minimapFrame.vertexCapacity() == minimapCapacity &&
             projectileFrame.vertexCapacity() == projectileCapacity &&
-            scoreboardFrame.vertexCapacity() == scoreboardCapacity &&
-            kookie_gpu_scene_capacity() == nativeCapacity &&
-            kookie_gpu_world_capacity() == worldNativeCapacity
+            scoreboardFrame.vertexCapacity() == scoreboardCapacity
     }
 
     Bool dequeueCombatFeedbackAudio() {

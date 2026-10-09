@@ -3,12 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Native world GPU capacity now budgets the authored arena, door and full
-  six-actor animal-model expansion, and the presentation smoke reports that
-  budget before gameplay drawing instead of rejecting valid GLB meshes.
-- Native GLB loading now retains every bounded source triangle for the goose and
-  cat instead of uniform decimation; complete animal surfaces no longer show
-  holes, and the world buffer covers the full six-actor model budget.
+- Native world GPU buffers now grow from the submitted scene/world vertex counts
+  instead of a fixed actor budget, and the presentation smoke reports the
+  current batch capacity before gameplay drawing.
+- Native GLB loading now retains every source triangle for the goose and cat,
+  allocating scene arrays and embedded images from GLB-declared sizes instead
+  of fixed caps; complete animal surfaces no longer show holes.
 - Native model texture upload now copies the cat GLB's embedded PNG into a
   full-size UV region; the goose keeps its dedicated procedural material tiles
   because its GLB has no embedded image.

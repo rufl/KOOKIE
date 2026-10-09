@@ -6,20 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
+#include <limits.h>
 
-#define KOOKIE_MODEL_MAX_FILE_BYTES (2u * 1024u * 1024u)
-#define KOOKIE_MODEL_MAX_TEXTURE_BYTES (512u * 1024u)
-#define KOOKIE_MODEL_MAX_JSON_BYTES (512u * 1024u)
-#define KOOKIE_MODEL_MAX_NODES 64
-#define KOOKIE_MODEL_MAX_ACCESSORS 256
-#define KOOKIE_MODEL_MAX_BUFFER_VIEWS 256
-#define KOOKIE_MODEL_MAX_MESHES 32
-#define KOOKIE_MODEL_MAX_PRIMITIVES 64
-// Keep the complete bounded prototype meshes. Uniform triangle sampling
-// leaves visible holes in sparse animal parts.
-#define KOOKIE_MODEL_MAX_TRIANGLES 1024
-#define KOOKIE_MODEL_MAX_JSON_DEPTH 32
-#define KOOKIE_MODEL_MAX_POSITION_COMPONENTS 3
 #define KOOKIE_MODEL_GLTF_MAGIC 0x46546c67u
 #define KOOKIE_MODEL_GLTF_VERSION 2u
 #define KOOKIE_MODEL_JSON_CHUNK 0x4e4f534au
@@ -89,9 +77,21 @@ typedef struct {
     int model;
     int triangle_count;
     size_t texture_png_length;
-    uint8_t texture_png[KOOKIE_MODEL_MAX_TEXTURE_BYTES];
-    KookieModelTriangle triangles[KOOKIE_MODEL_MAX_TRIANGLES];
+    uint8_t *texture_png;
+    KookieModelTriangle *triangles;
 } KookieModelAsset;
+static void model_asset_release(KookieModelAsset *asset) {
+    if (asset == NULL) {
+        return;
+    }
+    free(asset->texture_png);
+    free(asset->triangles);
+    asset->texture_png = NULL;
+    asset->triangles = NULL;
+    asset->texture_png_length = 0;
+    asset->triangle_count = 0;
+    asset->loaded = false;
+}
 
 static KookieModelAsset model_assets[2];
 
@@ -143,9 +143,9 @@ static bool json_string_equals(
 }
 
 static bool json_value_end(
-    const KookieJson *json, size_t start, size_t *end, int depth
+    const KookieJson *json, size_t start, size_t *end
 ) {
-    if (start >= json->length || end == NULL || depth > KOOKIE_MODEL_MAX_JSON_DEPTH) {
+    if (start >= json->length || end == NULL) {
         return false;
     }
     size_t position = json_skip_whitespace(json, start);
@@ -177,7 +177,7 @@ static bool json_value_end(
                 }
                 position = json_skip_whitespace(json, position + 1);
             }
-            if (!json_value_end(json, position, &item_end, depth + 1)) {
+            if (!json_value_end(json, position, &item_end)) {
                 return false;
             }
             position = json_skip_whitespace(json, item_end);
@@ -238,7 +238,7 @@ static bool json_field_value_fixed(
         }
         size_t current_start = json_skip_whitespace(json, position + 1);
         size_t current_end = 0;
-        if (!json_value_end(json, current_start, &current_end, 0) ||
+        if (!json_value_end(json, current_start, &current_end) ||
             current_end > object_end) {
             return false;
         }
@@ -276,7 +276,7 @@ static bool json_array_item(
     int index = 0;
     while (position < array_end - 1) {
         size_t current_end = 0;
-        if (!json_value_end(json, position, &current_end, 0) ||
+        if (!json_value_end(json, position, &current_end) ||
             current_end > array_end) {
             return false;
         }
@@ -312,7 +312,7 @@ static int json_array_count(
     int count = 0;
     while (position < array_end - 1) {
         size_t current_end = 0;
-        if (!json_value_end(json, position, &current_end, 0) ||
+        if (!json_value_end(json, position, &current_end) ||
             current_end > array_end) {
             return -1;
         }
@@ -540,17 +540,29 @@ static void model_matrix_from_trs(
 }
 
 typedef struct {
-    KookieModelAccessor accessors[KOOKIE_MODEL_MAX_ACCESSORS];
+    KookieModelAccessor *accessors;
     int accessor_count;
-    KookieModelBufferView views[KOOKIE_MODEL_MAX_BUFFER_VIEWS];
+    KookieModelBufferView *views;
     int view_count;
-    KookieModelPrimitive primitives[KOOKIE_MODEL_MAX_PRIMITIVES];
+    KookieModelPrimitive *primitives;
     int primitive_count;
-    KookieModelMesh meshes[KOOKIE_MODEL_MAX_MESHES];
+    KookieModelMesh *meshes;
     int mesh_count;
-    KookieModelNode nodes[KOOKIE_MODEL_MAX_NODES];
+    KookieModelNode *nodes;
     int node_count;
 } KookieModelScene;
+
+static void model_scene_release(KookieModelScene *scene) {
+    if (scene == NULL) {
+        return;
+    }
+    free(scene->accessors);
+    free(scene->views);
+    free(scene->primitives);
+    free(scene->meshes);
+    free(scene->nodes);
+    memset(scene, 0, sizeof(*scene));
+}
 
 static bool json_object_bounds(
     const KookieJson *json,
@@ -582,7 +594,11 @@ static bool model_parse_accessors(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0 || count > KOOKIE_MODEL_MAX_ACCESSORS) {
+    if (count <= 0) {
+        return false;
+    }
+    scene->accessors = calloc((size_t)count, sizeof(*scene->accessors));
+    if (scene->accessors == NULL) {
         return false;
     }
     scene->accessor_count = count;
@@ -642,7 +658,11 @@ static bool model_parse_views(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0 || count > KOOKIE_MODEL_MAX_BUFFER_VIEWS) {
+    if (count <= 0) {
+        return false;
+    }
+    scene->views = calloc((size_t)count, sizeof(*scene->views));
+    if (scene->views == NULL) {
         return false;
     }
     scene->view_count = count;
@@ -688,6 +708,8 @@ static bool model_copy_embedded_texture(
         bin == NULL) {
         return false;
     }
+    free(asset->texture_png);
+    asset->texture_png = NULL;
     asset->texture_png_length = 0;
     size_t array_start = 0;
     size_t array_end = 0;
@@ -697,7 +719,7 @@ static bool model_copy_embedded_texture(
         return true;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count < 0 || count > 8) {
+    if (count < 0) {
         return false;
     }
     for (int index = 0; index < count; index += 1) {
@@ -731,14 +753,18 @@ static bool model_copy_embedded_texture(
         if (view->byte_offset < 0 || view->byte_length <= 0 ||
             (size_t)view->byte_offset > bin_length ||
             (size_t)view->byte_length > bin_length -
-                (size_t)view->byte_offset ||
-            (size_t)view->byte_length > KOOKIE_MODEL_MAX_TEXTURE_BYTES) {
+                (size_t)view->byte_offset) {
+            return false;
+        }
+        uint8_t *texture = malloc((size_t)view->byte_length);
+        if (texture == NULL) {
             return false;
         }
         memcpy(
-            asset->texture_png,
+            texture,
             bin + (size_t)view->byte_offset,
             (size_t)view->byte_length);
+        asset->texture_png = texture;
         asset->texture_png_length = (size_t)view->byte_length;
         return true;
     }
@@ -758,7 +784,11 @@ static bool model_parse_meshes(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0 || count > KOOKIE_MODEL_MAX_MESHES) {
+    if (count <= 0) {
+        return false;
+    }
+    scene->meshes = calloc((size_t)count, sizeof(*scene->meshes));
+    if (scene->meshes == NULL) {
         return false;
     }
     scene->mesh_count = count;
@@ -781,9 +811,18 @@ static bool model_parse_meshes(
         int primitive_count = json_array_count(
             json, primitive_array_start, primitive_array_end);
         if (primitive_count <= 0 ||
-            scene->primitive_count + primitive_count > KOOKIE_MODEL_MAX_PRIMITIVES) {
+            primitive_count > INT_MAX - scene->primitive_count) {
             return false;
         }
+        int next_primitive_count =
+            scene->primitive_count + primitive_count;
+        KookieModelPrimitive *primitives = realloc(
+            scene->primitives,
+            (size_t)next_primitive_count * sizeof(*scene->primitives));
+        if (primitives == NULL) {
+            return false;
+        }
+        scene->primitives = primitives;
         KookieModelMesh *mesh = &scene->meshes[mesh_index];
         mesh->first_primitive = scene->primitive_count;
         mesh->primitive_count = primitive_count;
@@ -850,7 +889,11 @@ static bool model_parse_nodes(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0 || count > KOOKIE_MODEL_MAX_NODES) {
+    if (count <= 0) {
+        return false;
+    }
+    scene->nodes = calloc((size_t)count, sizeof(*scene->nodes));
+    if (scene->nodes == NULL) {
         return false;
     }
     scene->node_count = count;
@@ -944,7 +987,7 @@ static bool model_node_world(
     KookieModelMatrix *result
 ) {
     if (node_index < 0 || node_index >= scene->node_count ||
-        depth > KOOKIE_MODEL_MAX_NODES || result == NULL) {
+        depth > scene->node_count || result == NULL) {
         return false;
     }
     KookieModelNode *node = &scene->nodes[node_index];
@@ -1164,18 +1207,22 @@ static bool model_build_asset(
 ) {
     KookieModelScene scene;
     memset(&scene, 0, sizeof(scene));
+    bool success = false;
     if (!model_parse_accessors(json, root_start, root_end, &scene) ||
         !model_parse_views(json, root_start, root_end, &scene) ||
         !model_parse_meshes(json, root_start, root_end, &scene) ||
         !model_parse_nodes(json, root_start, root_end, &scene)) {
-        return false;
+        goto cleanup;
     }
+    free(asset->triangles);
+    asset->triangles = NULL;
+    asset->triangle_count = 0;
     if (!model_copy_embedded_texture(
             asset, json, root_start, root_end,
             &scene, bin, bin_length)) {
-        return false;
+        goto cleanup;
     }
-    int total_triangles = 0;
+    size_t total_triangles = 0;
     float minimum[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
     float maximum[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
     for (int node_index = 0; node_index < scene.node_count; node_index += 1) {
@@ -1185,7 +1232,7 @@ static bool model_build_asset(
         }
         KookieModelMatrix world;
         if (!model_node_world(&scene, node_index, 0, &world)) {
-            return false;
+            goto cleanup;
         }
         KookieModelMesh *mesh = &scene.meshes[node->mesh];
         for (int primitive_offset = 0;
@@ -1197,14 +1244,18 @@ static bool model_build_asset(
                 primitive->index_accessor >= scene.accessor_count ||
                 primitive->position_accessor < 0 ||
                 primitive->position_accessor >= scene.accessor_count) {
-                return false;
+                goto cleanup;
             }
             const KookieModelAccessor *indices =
                 &scene.accessors[primitive->index_accessor];
             if (indices->count <= 0 || indices->count % 3 != 0) {
-                return false;
+                goto cleanup;
             }
-            total_triangles += indices->count / 3;
+            size_t primitive_triangles = (size_t)indices->count / 3u;
+            if (total_triangles > SIZE_MAX - primitive_triangles) {
+                goto cleanup;
+            }
+            total_triangles += primitive_triangles;
             const KookieModelAccessor *positions =
                 &scene.accessors[primitive->position_accessor];
             for (int vertex = 0; vertex < positions->count; vertex += 1) {
@@ -1213,7 +1264,7 @@ static bool model_build_asset(
                 if (!model_read_position(
                         &scene, bin, bin_length,
                         primitive->position_accessor, vertex, source)) {
-                    return false;
+                    goto cleanup;
                 }
                 model_matrix_apply(world, source, transformed);
                 for (int component = 0; component < 3; component += 1) {
@@ -1227,15 +1278,19 @@ static bool model_build_asset(
             }
         }
     }
-    if (total_triangles <= 0 ||
-        total_triangles > KOOKIE_MODEL_MAX_TRIANGLES ||
+    if (total_triangles == 0 || total_triangles > (size_t)INT_MAX ||
+        total_triangles > SIZE_MAX / sizeof(*asset->triangles) ||
         maximum[1] <= minimum[1]) {
-        return false;
+        goto cleanup;
+    }
+    asset->triangles = malloc(
+        total_triangles * sizeof(*asset->triangles));
+    if (asset->triangles == NULL) {
+        goto cleanup;
     }
     float center_x = (minimum[0] + maximum[0]) * 0.5f;
     float center_z = (minimum[2] + maximum[2]) * 0.5f;
     float scale = KOOKIE_MODEL_TARGET_HEIGHT / (maximum[1] - minimum[1]);
-    asset->triangle_count = 0;
     for (int node_index = 0; node_index < scene.node_count; node_index += 1) {
         KookieModelNode *node = &scene.nodes[node_index];
         if (node->mesh < 0 || node->mesh >= scene.mesh_count) {
@@ -1243,7 +1298,7 @@ static bool model_build_asset(
         }
         KookieModelMatrix world;
         if (!model_node_world(&scene, node_index, 0, &world)) {
-            return false;
+            goto cleanup;
         }
         KookieModelMesh *mesh = &scene.meshes[node->mesh];
         for (int primitive_offset = 0;
@@ -1254,9 +1309,11 @@ static bool model_build_asset(
             const KookieModelAccessor *indices =
                 &scene.accessors[primitive->index_accessor];
             int primitive_triangles = indices->count / 3;
-            for (int triangle = 0; triangle < primitive_triangles; triangle += 1) {
-                if (asset->triangle_count >= KOOKIE_MODEL_MAX_TRIANGLES) {
-                    return false;
+            for (int triangle = 0;
+                 triangle < primitive_triangles;
+                 triangle += 1) {
+                if ((size_t)asset->triangle_count >= total_triangles) {
+                    goto cleanup;
                 }
                 KookieModelTriangle *output =
                     &asset->triangles[asset->triangle_count];
@@ -1266,7 +1323,7 @@ static bool model_build_asset(
                             &scene, bin, bin_length,
                             primitive->index_accessor,
                             triangle * 3 + corner, &source_index)) {
-                        return false;
+                        goto cleanup;
                     }
                     float source[3];
                     float transformed[3];
@@ -1274,7 +1331,7 @@ static bool model_build_asset(
                             &scene, bin, bin_length,
                             primitive->position_accessor,
                             source_index, source)) {
-                        return false;
+                        goto cleanup;
                     }
                     model_matrix_apply(world, source, transformed);
                     output->position[corner][0] =
@@ -1287,7 +1344,7 @@ static bool model_build_asset(
                             &scene, bin, bin_length,
                             primitive->texcoord_accessor,
                             source_index, output->uv[corner])) {
-                        return false;
+                        goto cleanup;
                     }
                 }
                 output->material_slot = model_material_slot(model, node->mesh);
@@ -1295,7 +1352,13 @@ static bool model_build_asset(
             }
         }
     }
-    return asset->triangle_count > 0;
+    success = (size_t)asset->triangle_count == total_triangles;
+cleanup:
+    model_scene_release(&scene);
+    if (!success) {
+        model_asset_release(asset);
+    }
+    return success;
 }
 
 static bool model_read_file(
@@ -1312,8 +1375,7 @@ static bool model_read_file(
         return false;
     }
     long file_length = ftell(file);
-    if (file_length < 20 || (unsigned long)file_length > KOOKIE_MODEL_MAX_FILE_BYTES ||
-        fseek(file, 0, SEEK_SET) != 0) {
+    if (file_length < 20 || fseek(file, 0, SEEK_SET) != 0) {
         fclose(file);
         return false;
     }
@@ -1362,8 +1424,7 @@ static bool model_load_file(KookieModelAsset *asset, int model, const char *path
             goto cleanup;
         }
         if (chunk_type == KOOKIE_MODEL_JSON_CHUNK) {
-            if (json_found || chunk_length == 0 ||
-                chunk_length > KOOKIE_MODEL_MAX_JSON_BYTES) {
+            if (json_found || chunk_length == 0) {
                 goto cleanup;
             }
             json_data = (char *)malloc((size_t)chunk_length + 1u);
@@ -1391,7 +1452,7 @@ static bool model_load_file(KookieModelAsset *asset, int model, const char *path
     }
     KookieJson json = {json_data, json_length};
     size_t root_end = 0;
-    if (!json_value_end(&json, 0, &root_end, 0) ||
+    if (!json_value_end(&json, 0, &root_end) ||
         json_skip_whitespace(&json, root_end) != json_length ||
         json.text[0] != '{') {
         goto cleanup;
