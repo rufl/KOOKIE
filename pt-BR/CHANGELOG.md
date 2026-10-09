@@ -6,6 +6,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Os workers nativos de jobs agora executam somente agendamento e conclusão
   de plataforma; o resultado e o checksum do descritor permanecem no
   `BoundedJobGraph` do Kof, removendo o cálculo de engine do worker C.
+- O transporte nativo não calcula mais em C a soma do payload recebido; o Kof
+  agrega as palavras recebidas, enquanto a fronteira C mantém somente sockets
+  e transferência das palavras de wire.
 
 - Os buffers GPU nativos do mundo agora crescem conforme as contagens de
   vértices do lote de cena/mundo enviado, em vez de um orçamento fixo de

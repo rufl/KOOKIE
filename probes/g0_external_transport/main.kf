@@ -3,6 +3,14 @@ import session
 import world
 import content
 
+Int receivedPayloadSum(Int count) {
+    if (count < 0) { return -1 }
+    var sum = 0
+    for (var index = 0; index < count; index = index + 1) {
+        sum = sum + kookie_transport_receive_word(index)
+    }
+    return sum
+}
 
 Bool sendPayload(Int[] payload) {
     if (!kookie_transport_send_begin(payload.length)) {
@@ -35,7 +43,7 @@ Bool receivePayload(LoopbackSession session, Int[] payload, Bool host) {
         kookie_transport_receive_word(3) == payload[3] &&
         kookie_transport_receive_word(4) == payload[4] &&
         kookie_transport_receive_word(5) == payload[5]
-    if (!headerMatches || kookie_transport_receive_sum() != expectedSum) {
+    if (!headerMatches || receivedPayloadSum(payload.length) != expectedSum) {
         return false
     }
     if (host) {

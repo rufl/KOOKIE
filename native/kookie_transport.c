@@ -955,13 +955,6 @@ int kookie_transport_receive_word(int index) {
     return transport.receive_words[index];
 }
 
-int kookie_transport_receive_sum(void) {
-    int sum = 0;
-    for (int index = 0; index < transport.receive_count; index += 1) {
-        sum += transport.receive_words[index];
-    }
-    return sum;
-}
 
 int kookie_transport_last_status(void) {
     return transport.last_status;

@@ -42,7 +42,6 @@ bool kookie_transport_replay_last_datagram(void);
 int kookie_transport_receive(void);
 int kookie_transport_receive_available(void);
 int kookie_transport_receive_word(int index);
-int kookie_transport_receive_sum(void);
 int kookie_transport_last_status(void);
 int kookie_transport_timeout_milliseconds(void);
 bool kookie_transport_close(void);

@@ -6,6 +6,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Native job workers now execute only platform scheduling and completion;
   result and descriptor-checksum semantics remain in Kof's
   `BoundedJobGraph`, removing engine computation from the C worker.
+- Native transport no longer computes received-payload sums in C; Kof
+  aggregates the received words while the C boundary retains socket and
+  wire-word transfer mechanics.
 
 - Native world GPU buffers now grow from the submitted scene/world vertex counts
   instead of a fixed actor budget, and the presentation smoke reports the

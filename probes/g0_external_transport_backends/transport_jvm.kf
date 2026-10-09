@@ -551,14 +551,6 @@ Int kookie_transport_receive_word(Int index) {
     return KookieJvmTransportState.receiveWords[slot][index]
 }
 
-Int kookie_transport_receive_sum() {
-    var slot = KookieJvmTransportState.activeSlot
-    var sum = 0
-    for (var index = 0; index < KookieJvmTransportState.receiveCounts[slot]; index = index + 1) {
-        sum = sum + KookieJvmTransportState.receiveWords[slot][index]
-    }
-    return sum
-}
 
 Int kookie_transport_last_status() {
     return KookieJvmTransportState.lastStatuses[KookieJvmTransportState.activeSlot]

@@ -22,6 +22,5 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_send_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_replay_last_datagram(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
-extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_sum(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_last_status(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool

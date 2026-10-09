@@ -72,9 +72,15 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_word(Int index): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_close(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_last_status(): Int
-extern "./build/libkookie_sdl_adapter.so" kookie_transport_receive_sum(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_timeout_milliseconds(): Int
-
+Int receivedPayloadSum(Int count) {
+    if (count < 0) { return -1 }
+    var sum = 0
+    for (var index = 0; index < count; index = index + 1) {
+        sum = sum + kookie_transport_receive_word(index)
+    }
+    return sum
+}
 
 extern "./build/libkookie_sdl_adapter.so" kookie_drain_events(Int maxEvents): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
@@ -280,7 +286,7 @@ Bool transportSnapshot(
         kookie_transport_receive_word(4) == payload[4] &&
         kookie_transport_receive_word(5) == payload[5]
     return headerMatches &&
-        kookie_transport_receive_sum() == expectedSum &&
+        receivedPayloadSum(payload.length) == expectedSum &&
         session.applyRemoteBroadPhaseSnapshot(payload)
 }
 Bool transportSend(Int[] payload) {
@@ -308,7 +314,7 @@ Bool transportReceive(LoopbackSession session, Int[] payload) {
         kookie_transport_receive_word(4) == payload[4] &&
         kookie_transport_receive_word(5) == payload[5]
     return headerMatches &&
-        kookie_transport_receive_sum() == expectedSum &&
+        receivedPayloadSum(payload.length) == expectedSum &&
         session.applyRemoteBroadPhaseSnapshot(payload)
 }
 Bool transportReceiveHost(LoopbackSession session, Int[] payload) {
@@ -329,7 +335,7 @@ Bool transportReceiveHost(LoopbackSession session, Int[] payload) {
         kookie_transport_receive_word(4) == payload[4] &&
         kookie_transport_receive_word(5) == payload[5]
     return headerMatches &&
-        kookie_transport_receive_sum() == expectedSum &&
+        receivedPayloadSum(payload.length) == expectedSum &&
         session.applyBroadPhaseSnapshot(payload)
 }
 

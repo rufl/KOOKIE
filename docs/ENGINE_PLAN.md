@@ -52,7 +52,7 @@ mechanisms stay native; engine semantics move to Kof:
 | `native/kookie_jobs.c` | worker threads, queues, sleep, completion state | job result and descriptor-checksum semantics; this cutover is complete |
 | `native/kookie_sdl_adapter.c` | SDL/SDL_GPU/SDL_mixer handles, transfers, uploads and draw calls | camera/projection, model/world texture generation and render policy |
 | `native/kookie_model_assets.c` | only unavoidable byte/image codec primitives | GLB file, JSON, scene, mesh, material and animation semantics via `src/content/glb*.kf` |
-| `native/kookie_transport.c` | sockets, Winsock, nonblocking I/O and address handles | session/protocol policy; packet codec/MAC when the scalar ABI is no longer the constraint |
+| `native/kookie_transport.c` | sockets, Winsock, nonblocking I/O, address handles and wire-word transfer | session/protocol policy and received-payload aggregation; packet codec/MAC when the scalar ABI is no longer the constraint |
 | `native/kookie_persistence_adapter.c` | fsync/FlushFileBuffers, atomic rename and path operations | schema, migration, validation and save coordination |
 | `scripts/kookie_windows_shell.c` | thin SDL/window/audio mechanism during cutover | menu, accessibility, lobby, presentation and audio policy; highest-priority shell retirement |
 | `native/kookie_simd_dispatch.c` | ISA detection and intrinsic reductions | benchmark and selection policy |
