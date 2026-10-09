@@ -1,6 +1,5 @@
 #include "kookie_jobs.h"
 
-#include <stdint.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -21,7 +20,6 @@ typedef pthread_t KookieJobsThread;
 #define KOOKIE_JOBS_MAX_JOBS 32
 #define KOOKIE_JOBS_MAX_WORKERS 4
 #define KOOKIE_JOBS_MAX_GENERATION 1000000
-#define KOOKIE_JOBS_MAX_SCALAR 1000000
 #define KOOKIE_JOBS_MAX_DELAY_MICROSECONDS 1000000
 
 typedef struct {
@@ -32,11 +30,9 @@ typedef struct {
     int generation;
     int ordinal;
     int kind;
-    int left;
-    int right;
-    int delay_microseconds;
     int result;
     int checksum;
+    int delay_microseconds;
     int status;
 } KookieJob;
 
@@ -118,43 +114,6 @@ static bool kookie_jobs_valid_token(int token) {
     return token > 0 && token <= KOOKIE_JOBS_MAX_JOBS;
 }
 
-static int kookie_jobs_calculate_checksum(
-    int generation,
-    int ordinal,
-    int kind,
-    int left,
-    int right
-) {
-    int result = 73;
-    result = (result * 31 + generation) % 1000003;
-    result = (result * 31 + ordinal) % 1000003;
-    result = (result * 31 + kind) % 1000003;
-    result = (result * 31 + left) % 1000003;
-    result = (result * 31 + right) % 1000003;
-    if (result <= 0) {
-        return 1;
-    }
-    return result;
-}
-
-static int kookie_jobs_compute(const KookieJob *job, int *status) {
-    int64_t result;
-    if (job->kind == 1) {
-        result = (int64_t)job->left * (int64_t)job->right;
-    } else if (job->kind == 2) {
-        result = (int64_t)job->left + (int64_t)job->right;
-        result = result * result + job->ordinal;
-    } else {
-        *status = 2;
-        return 0;
-    }
-    if (result < -2000000000LL || result > 2000000000LL) {
-        *status = 3;
-        return 0;
-    }
-    *status = 1;
-    return (int)result;
-}
 
 static void kookie_jobs_sleep(int microseconds) {
     if (microseconds <= 0) {
@@ -199,14 +158,9 @@ static void *kookie_jobs_worker(void *unused) {
         kookie_jobs_unlock();
 
         kookie_jobs_sleep(job.delay_microseconds);
-        int status = 0;
-        int result = kookie_jobs_compute(&job, &status);
 
         kookie_jobs_lock();
-        jobs_state.jobs[token].result = result;
-        jobs_state.jobs[token].status = status;
-        jobs_state.jobs[token].checksum = kookie_jobs_calculate_checksum(
-            job.generation, job.ordinal, job.kind, job.left, job.right);
+        jobs_state.jobs[token].status = 1;
         jobs_state.jobs[token].running = false;
         jobs_state.jobs[token].completed = true;
         kookie_jobs_signal_all();
@@ -281,16 +235,14 @@ int kookie_jobs_submit(
     int generation,
     int ordinal,
     int kind,
-    int left,
-    int right,
+    int result,
+    int checksum,
     int delay_microseconds
 ) {
     if (!jobs_state.opened ||
         generation <= 0 || generation > KOOKIE_JOBS_MAX_GENERATION ||
         ordinal < 0 || ordinal >= KOOKIE_JOBS_MAX_JOBS ||
         (kind != 1 && kind != 2) ||
-        left < -KOOKIE_JOBS_MAX_SCALAR || left > KOOKIE_JOBS_MAX_SCALAR ||
-        right < -KOOKIE_JOBS_MAX_SCALAR || right > KOOKIE_JOBS_MAX_SCALAR ||
         delay_microseconds < 0 ||
         delay_microseconds > KOOKIE_JOBS_MAX_DELAY_MICROSECONDS) {
         return 0;
@@ -317,11 +269,9 @@ int kookie_jobs_submit(
     job->generation = generation;
     job->ordinal = ordinal;
     job->kind = kind;
-    job->left = left;
-    job->right = right;
+    job->result = result;
+    job->checksum = checksum;
     job->delay_microseconds = delay_microseconds;
-    job->checksum = kookie_jobs_calculate_checksum(
-        generation, ordinal, kind, left, right);
     jobs_state.queue[jobs_state.queue_tail] = slot;
     jobs_state.queue_tail =
         (jobs_state.queue_tail + 1) % KOOKIE_JOBS_MAX_JOBS;

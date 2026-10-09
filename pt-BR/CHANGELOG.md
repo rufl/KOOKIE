@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Os workers nativos de jobs agora executam somente agendamento e conclusão
+  de plataforma; o resultado e o checksum do descritor permanecem no
+  `BoundedJobGraph` do Kof, removendo o cálculo de engine do worker C.
+
 - Os buffers GPU nativos do mundo agora crescem conforme as contagens de
   vértices do lote de cena/mundo enviado, em vez de um orçamento fixo de
   atores; o smoke de apresentação reporta a capacidade do lote atual.

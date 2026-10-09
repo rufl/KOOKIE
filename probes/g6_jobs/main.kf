@@ -2,7 +2,7 @@ import core
 
 extern "./build/libkookie_jobs.so" kookie_jobs_open(Int workers): Bool
 extern "./build/libkookie_jobs.so" kookie_jobs_submit(
-    Int generation, Int ordinal, Int kind, Int left, Int right,
+    Int generation, Int ordinal, Int kind, Int result, Int checksum,
     Int delayMicros
 ): Int
 extern "./build/libkookie_jobs.so" kookie_jobs_poll(): Int
@@ -32,7 +32,11 @@ main() {
         var delay = 0
         if (ordinal == 0) { delay = 100000 }
         var token = kookie_jobs_submit(
-            graph.generation(), ordinal, kind, left, right, delay)
+            graph.generation(), ordinal, kind,
+            graph.expectedResult(ordinal, kind, left, right),
+            graph.descriptorChecksum(
+                graph.generation(), ordinal, kind, left, right),
+            delay)
         assert(token > 0 && graph.attachNativeToken(ordinal, token),
             "copied scalar job must be queued")
     }

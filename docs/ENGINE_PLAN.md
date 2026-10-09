@@ -42,6 +42,26 @@ The existing Kof compiler/runtime is an upstream tool dependency written partly 
 
 **Forbidden shortcuts:** a Java/Bevy/Zig engine driven by `.kf` scripts; handwritten JS game logic stored in Kof strings; a C `engine_tick`/`render_world` implementation; casting integers into arbitrary native pointers; duplicating gameplay in a second language to make the demo work.
 
+### Current C migration boundary
+
+The C inventory is split by ownership, not by file size. Platform and ABI
+mechanisms stay native; engine semantics move to Kof:
+
+| Native code | Keep in C | Move to Kof |
+|---|---|---|
+| `native/kookie_jobs.c` | worker threads, queues, sleep, completion state | job result and descriptor-checksum semantics; this cutover is complete |
+| `native/kookie_sdl_adapter.c` | SDL/SDL_GPU/SDL_mixer handles, transfers, uploads and draw calls | camera/projection, model/world texture generation and render policy |
+| `native/kookie_model_assets.c` | only unavoidable byte/image codec primitives | GLB file, JSON, scene, mesh, material and animation semantics via `src/content/glb*.kf` |
+| `native/kookie_transport.c` | sockets, Winsock, nonblocking I/O and address handles | session/protocol policy; packet codec/MAC when the scalar ABI is no longer the constraint |
+| `native/kookie_persistence_adapter.c` | fsync/FlushFileBuffers, atomic rename and path operations | schema, migration, validation and save coordination |
+| `scripts/kookie_windows_shell.c` | thin SDL/window/audio mechanism during cutover | menu, accessibility, lobby, presentation and audio policy; highest-priority shell retirement |
+| `native/kookie_simd_dispatch.c` | ISA detection and intrinsic reductions | benchmark and selection policy |
+
+Any GLB/content migration must size storage from the declared asset data, not
+introduce another arbitrary asset cap. Pointer, struct, buffer and callback
+marshaling remains C only where the Kof ABI cannot express it.
+
+
 This plan does not choose a public license or authorize redistribution of third-party assets. Resolve ownership/notices before publishing ports.
 
 ## 2. Platform and graphics decision

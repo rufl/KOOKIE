@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Native job workers now execute only platform scheduling and completion;
+  result and descriptor-checksum semantics remain in Kof's
+  `BoundedJobGraph`, removing engine computation from the C worker.
+
 - Native world GPU buffers now grow from the submitted scene/world vertex counts
   instead of a fixed actor budget, and the presentation smoke reports the
   current batch capacity before gameplay drawing.

@@ -8,8 +8,8 @@ int kookie_jobs_submit(
     int generation,
     int ordinal,
     int kind,
-    int left,
-    int right,
+    int result,
+    int checksum,
     int delay_microseconds
 );
 int kookie_jobs_poll(void);
