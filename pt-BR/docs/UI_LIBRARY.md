@@ -13,7 +13,7 @@ mas mantém a posse no código-fonte do KOOKIE.
 | Papéis de fonte | `kookieUiFontBody`, `kookieUiFontDisplay`, `KookieUiText` | estilo Kof + CSS do host |
 | Assets SVG/PNG | `KookieUiAsset` | `Image` no KofJS; host/adaptador nativo fora desta fatia |
 | Ícones vetoriais embutidos | `KookieUiIcon` | registro intrínseco de SVG do Kof |
-| Texto de acessibilidade | `alt` obrigatório, `bindAssetDescription`, `bindIconDescription` | árvore de labels do Kof |
+| Texto de acessibilidade | argumento `alt` não vazio no construtor, `bindAssetDescription`, `bindIconDescription` | árvore de labels do Kof |
 | Composição da janela | `KookieUiDocument` | `Window` do Kof |
 
 A fachada possui metadados, limites e composição. Ela não decodifica bytes de
@@ -30,10 +30,14 @@ main() {
         "GATOGANSO", kookieUiTextRoleDisplay(), 32, true,
         kookieUiForeground())
     var logo = KookieUiAsset(
-        "assets/ui/gatoganso-mark.svg", kookieUiAssetSvg(), "GatoGanso")
+        "ui.gatoganso-mark", "assets/ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(), "GatoGanso mark",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
     var hearts = KookieUiAsset(
-        "assets/prototype/runtime/ui/hearts_0001.png",
-        kookieUiAssetPng(), "Vida")
+        "ui.player-hearts",
+        "content/prototype/runtime/ui/hearts_0001.png",
+        kookieUiAssetPng(), "Player health",
+        "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3")
 
     document.bindText(title)
     document.bindAsset(logo, 32)
@@ -44,20 +48,37 @@ main() {
 }
 ```
 
-`KookieUiAsset.accepted()` é validação limitada de metadados: a origem e o
-texto alternativo não podem estar vazios, e o tipo declarado precisa
-corresponder a `.png`, `.svg` ou `.svgz`. Não é um decodificador de conteúdo.
-Os assets ainda precisam passar pelo pipeline antes da publicação:
+`KookieUiAsset.accepted()` valida o formato da referência: ID não vazio,
+caminho de runtime seguro e relativo ao pacote, texto alternativo, tipo/extensão
+e uma string SHA-256 minúscula de 64 caracteres. Não lê bytes, consulta o
+manifesto nem verifica a integridade do arquivo.
+
+`assets/ui/manifest.json` é o contrato de publicação. Os gates de pacote e da
+demo resolvem IDs pelas entradas `runtime_path` e verificam o digest declarado
+antes de servir ou admitir conteúdo. Um chamador que constrói
+`KookieUiAsset` diretamente ainda precisa usar um registro desse fluxo de
+publicação verificado; `accepted()` sozinho não prova que o ID foi publicado
+nem que os bytes correspondem ao digest. Entradas de protótipo podem faltar no
+pacote `none`, mas precisam existir e ter hash validado no pacote `prototype`.
+O manifesto declara separadamente que a demo UI isolada exige sua entrada de
+protótipo; por isso o gate da demo falha se o PNG não for preparado.
+
+A árvore-fonte pode preparar o asset autorado no caminho de pacote usado pela
+demo:
+
+```bash
+mkdir -p build/content/prototype/runtime/ui
+cp assets/prototype/runtime/ui/hearts_0001.png \
+  build/content/prototype/runtime/ui/hearts_0001.png
+```
+
+Os assets-fonte ainda precisam passar pelo pipeline antes da publicação nativa:
 
 ```bash
 scripts/kooker.sh cook png input.png output.rgba.png
 scripts/kooker.sh cook svg input.svg output.svgc
 scripts/kooker.sh cook svgz input.svgz output.svgzc
 ```
-
-O host pode servir o asset autorado para KofJS, enquanto os pipelines nativo e
-de pacote devem usar a representação admitida/cozida correspondente. A
-fachada nunca trata um caminho não validado como conteúdo publicado.
 
 ## Fontes e renderização
 
@@ -97,10 +118,11 @@ uma saída temporizada da CLI é prova de renderização.
 
 ## Acessibilidade e estilo
 
-- Todo asset raster/vetorial exige texto alternativo não vazio.
-- Monte o label de descrição correspondente para imagens e ícones que
-  comunicam significado; assets decorativos não devem ser admitidos como
-  conteúdo semântico.
+- Todo asset raster/vetorial admitido por esta fatia exige texto alternativo
+  não vazio.
+- Esta fatia não modela assets decorativos; use assets semânticos somente com
+  texto significativo e monte o label de descrição correspondente quando o
+  conteúdo comunicar significado.
 - Preserve o contraste da paleta escura e o foco visível definido em
   `assets/ui/kookie-ui.css`.
 - Use o conjunto intrínseco de ícones SVG em controles, não emoji ou glifos de

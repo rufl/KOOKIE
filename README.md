@@ -207,7 +207,9 @@ frames in both JVM and native paths; `bash scripts/verify_font_ui.sh` covers the
 font/title contract; [`docs/UI_LIBRARY.md`](docs/UI_LIBRARY.md) documents the
 internal Kof/KofJS SVG/PNG and typography facade, and
 `bash scripts/verify_ui_library.sh` qualifies its G10 probe;
-`bash scripts/verify_goose_game.sh` covers gameplay.
+`bash scripts/verify_ui_demo.sh` builds the isolated KofJS UI demo and checks
+the published asset manifest; `bash scripts/verify_goose_game.sh` covers
+gameplay.
 The focused dedicated-server gate also passes 512 measured ticks at p95
 `3.624ms` (p99 `3.689ms`, maximum `3.899ms`) under the declared 4ms
 simulation budget.

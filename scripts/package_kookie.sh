@@ -410,7 +410,7 @@ bundle_ui_assets() {
     exit 1
   }
   mkdir -p "$destination_root"
-  for name in kookie-ui.css gatoganso-mark.svg; do
+  for name in kookie-ui.css gatoganso-mark.svg manifest.json; do
     [[ -f "$source_root/$name" && ! -L "$source_root/$name" ]] || {
       echo "package_kookie: UI asset missing: $name" >&2
       exit 1

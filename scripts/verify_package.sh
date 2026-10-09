@@ -90,7 +90,8 @@ for font_asset in fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt \
   fonts/readme.txt fonts/manifest.json; do
   test -f "$PACKAGE_ROOT/$font_asset"
 done
-for ui_asset in assets/ui/kookie-ui.css assets/ui/gatoganso-mark.svg; do
+for ui_asset in assets/ui/kookie-ui.css assets/ui/gatoganso-mark.svg \
+  assets/ui/manifest.json; do
   test -f "$PACKAGE_ROOT/$ui_asset"
 done
 python3 - "$PACKAGE_ROOT/fonts/manifest.json" "$PACKAGE_ROOT/fonts" <<'PY'
@@ -107,6 +108,53 @@ assert manifest["defaults"]["display"]["family"] == "Pixand"
 for entry in manifest["files"]:
     path = font_root / entry["path"]
     assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"]
+PY
+python3 - "$PACKAGE_ROOT/assets/ui/manifest.json" "$PACKAGE_ROOT" <<'PY'
+import hashlib
+import json
+import pathlib
+import sys
+
+manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+root = pathlib.Path(sys.argv[2])
+assert manifest["schema"] == "kookie.gatoganso-ui/v1"
+assert manifest["publication"]["sha256_required"] is True
+seen = set()
+for asset in manifest["assets"]:
+    asset_id = asset["id"]
+    kind = asset["kind"]
+    alt = asset["alt"]
+    runtime_value = asset["runtime_path"]
+    runtime = pathlib.PurePosixPath(runtime_value)
+    digest = asset["sha256"]
+    assert isinstance(alt, str) and alt
+    assert isinstance(asset_id, str) and asset_id and asset_id == asset_id.strip()
+    assert all(ord(character) > 32 for character in asset_id)
+    assert asset_id not in seen
+    seen.add(asset_id)
+    expected_suffix = {"png": ".png", "svg": ".svg", "svgz": ".svgz"}[kind]
+    runtime_text = runtime.as_posix()
+    authored_value = asset["authored_path"]
+    authored = pathlib.PurePosixPath(authored_value)
+    authored_text = authored.as_posix()
+    assert isinstance(runtime_value, str) and runtime_value == runtime_text
+    assert isinstance(authored_value, str) and authored_value == authored_text
+    assert not runtime.is_absolute() and not authored.is_absolute()
+    assert runtime_text.endswith(expected_suffix)
+    assert runtime_text == runtime_text.strip()
+    assert authored_text == authored_text.strip()
+    assert "" not in runtime.parts and "." not in runtime.parts
+    assert "" not in authored.parts and "." not in authored.parts
+    assert all(ord(character) >= 32 for character in runtime_text)
+    assert all(ord(character) >= 32 for character in authored_text)
+    assert len(digest) == 64 and digest == digest.lower()
+    assert all(character in "0123456789abcdef" for character in digest)
+    path = root.joinpath(*runtime.parts)
+    if not path.is_file():
+        assert asset_id == "ui.player-hearts"
+        assert manifest["publication"]["prototype_assets_are_optional"] is True
+        continue
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
 PY
 grep -Fq 'game_display_name=GatoGanso' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'font_default_body=Jared-Lite' "$PACKAGE_ROOT/PROVENANCE.txt"

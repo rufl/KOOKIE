@@ -13,7 +13,7 @@ and ZWEB while keeping ownership in KOOKIE source.
 | Font roles | `kookieUiFontBody`, `kookieUiFontDisplay`, `KookieUiText` | Kof style + host CSS |
 | SVG/PNG assets | `KookieUiAsset` | `Image` in KofJS; host/native adapter outside this slice |
 | Built-in vector icons | `KookieUiIcon` | Kof intrinsic SVG icon registry |
-| Accessibility text | required `alt`, `bindAssetDescription`, `bindIconDescription` | Kof label tree |
+| Accessibility text | non-empty `alt` constructor argument, `bindAssetDescription`, `bindIconDescription` | Kof label tree |
 | Window composition | `KookieUiDocument` | Kof `Window` |
 
 The facade owns metadata, bounds and composition. It does not decode image
@@ -30,10 +30,14 @@ main() {
         "GATOGANSO", kookieUiTextRoleDisplay(), 32, true,
         kookieUiForeground())
     var logo = KookieUiAsset(
-        "assets/ui/gatoganso-mark.svg", kookieUiAssetSvg(), "GatoGanso")
+        "ui.gatoganso-mark", "assets/ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(), "GatoGanso mark",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
     var hearts = KookieUiAsset(
-        "assets/prototype/runtime/ui/hearts_0001.png",
-        kookieUiAssetPng(), "Health")
+        "ui.player-hearts",
+        "content/prototype/runtime/ui/hearts_0001.png",
+        kookieUiAssetPng(), "Player health",
+        "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3")
 
     document.bindText(title)
     document.bindAsset(logo, 32)
@@ -44,20 +48,37 @@ main() {
 }
 ```
 
-`KookieUiAsset.accepted()` is deliberately bounded metadata validation: the
-source is non-empty, the alternative text is non-empty, and the declared kind
-matches `.png`, `.svg` or `.svgz`. It is not a content decoder. Source assets
-must still pass the content pipeline before publication:
+`KookieUiAsset.accepted()` validates the asset reference shape: a non-empty ID,
+safe package-relative runtime path, alternative text, kind/extension and a
+lowercase 64-character SHA-256 string. It does not read bytes, consult the
+manifest or verify file integrity.
+
+`assets/ui/manifest.json` is the publication contract. The package and demo
+verification gates resolve IDs through `runtime_path` entries and verify the
+declared digest before serving or admitting content. A caller constructing
+`KookieUiAsset` directly must still use a record from that verified publication
+flow; `accepted()` alone is not proof that an ID is published or that bytes
+match the declared digest. Prototype entries may be absent from a `none`
+package, but they must be present and hash-verified in the `prototype` package.
+The manifest separately declares that the isolated UI demo requires its
+prototype entry; the demo gate therefore fails if the PNG is not staged.
+
+The source tree can stage the authored prototype asset under the package path
+used by the demo:
+
+```bash
+mkdir -p build/content/prototype/runtime/ui
+cp assets/prototype/runtime/ui/hearts_0001.png \
+  build/content/prototype/runtime/ui/hearts_0001.png
+```
+
+Source assets must still pass the content pipeline before native publication:
 
 ```bash
 scripts/kooker.sh cook png input.png output.rgba.png
 scripts/kooker.sh cook svg input.svg output.svgc
 scripts/kooker.sh cook svgz input.svgz output.svgzc
 ```
-
-The UI host may serve the authored web asset for KofJS, while native/package
-pipelines must use their own admitted/cooked representation. The UI facade
-never treats an unvalidated path as published content.
 
 ## Fonts and rendering
 
@@ -98,9 +119,11 @@ proof.
 
 ## Accessibility and style rules
 
-- Every raster/vector asset requires non-empty alternative text.
-- Mount the matching description label for icons and images that convey
-  meaning; decorative assets should not be admitted as semantic content.
+- Every raster/vector asset admitted by this slice requires non-empty
+  alternative text.
+- This slice does not model decorative assets; use semantic assets only with
+  meaningful text and mount the matching description label for content that
+  conveys meaning.
 - Keep the dark palette contrast and the visible focus ring from
   `assets/ui/kookie-ui.css`.
 - Use the intrinsic SVG icon set instead of emoji or text glyphs for controls.

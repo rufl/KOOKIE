@@ -43,29 +43,82 @@ Bool kookieUiHasSuffix(String value, String suffix) {
     return true
 }
 
+Bool kookieUiSha256(String value) {
+    if (value.length() != 64) { return false }
+    for (var index = 0; index < value.length(); index = index + 1) {
+        var character = value.charAt(index) as Int
+        if (!((character >= 48 && character <= 57) ||
+            (character >= 97 && character <= 102))) {
+            return false
+        }
+    }
+    return true
+}
+Bool kookieUiSafeRuntimePath(String value) {
+    if (value.length() == 0) { return false }
+    var first = value.charAt(0) as Int
+    if (first == 47 || first == 92 || first == 58) { return false }
+    for (var index = 0; index < value.length(); index = index + 1) {
+        var character = value.charAt(index) as Int
+        if (character <= 32 || character == 35 || character == 58 ||
+            character == 63 || character == 92) {
+            return false
+        }
+        if (character == 47 &&
+            (index + 1 == value.length() ||
+                (index > 0 && (value.charAt(index - 1) as Int) == 47))) {
+            return false
+        }
+        if (character == 46) {
+            var atStart = index == 0 ||
+                (value.charAt(index - 1) as Int) == 47
+            var atEnd = index + 1 == value.length() ||
+                (value.charAt(index + 1) as Int) == 47
+            if (atStart && atEnd) { return false }
+            if (index + 1 < value.length() &&
+                (value.charAt(index + 1) as Int) == 46) {
+                var parentAtEnd = index + 2 == value.length() ||
+                    (value.charAt(index + 2) as Int) == 47
+                if (atStart && parentAtEnd) { return false }
+            }
+        }
+    }
+    return true
+}
+
+
 class KookieUiAsset {
-    String sourceValue
+    String assetIdValue
+    String runtimePathValue
     Int kindValue
     String altValue
+    String checksumValue
 
-    public constructor(String source, Int kind, String alt) {
-        sourceValue = source
+    public constructor(
+        String assetId, String runtimePath, Int kind, String alt, String sha256
+    ) {
+        assetIdValue = assetId
+        runtimePathValue = runtimePath
         kindValue = kind
         altValue = alt
+        checksumValue = sha256
     }
 
     Bool accepted() {
-        if (sourceValue.length() == 0 || altValue.length() == 0) {
+        if (assetIdValue.length() == 0 ||
+            !kookieUiSafeRuntimePath(runtimePathValue) ||
+            altValue.length() == 0 ||
+            !kookieUiSha256(checksumValue)) {
             return false
         }
         if (kindValue == kookieUiAssetPng()) {
-            return kookieUiHasSuffix(sourceValue, ".png")
+            return kookieUiHasSuffix(runtimePathValue, ".png")
         }
         if (kindValue == kookieUiAssetSvg()) {
-            return kookieUiHasSuffix(sourceValue, ".svg")
+            return kookieUiHasSuffix(runtimePathValue, ".svg")
         }
         if (kindValue == kookieUiAssetSvgz()) {
-            return kookieUiHasSuffix(sourceValue, ".svgz")
+            return kookieUiHasSuffix(runtimePathValue, ".svgz")
         }
         return false
     }
@@ -73,12 +126,11 @@ class KookieUiAsset {
     Bool isPng() { return kindValue == kookieUiAssetPng() }
     Bool isSvg() { return kindValue == kookieUiAssetSvg() }
     Bool isSvgz() { return kindValue == kookieUiAssetSvgz() }
-    String source() { return sourceValue }
+    String id() { return assetIdValue }
+    String source() { return runtimePathValue }
     String alt() { return altValue }
+    String checksum() { return checksumValue }
 
-    Image image() {
-        return Image(sourceValue)
-    }
 
     Label accessibilityLabel() {
         var label = Label(altValue)
@@ -239,7 +291,7 @@ class KookieUiDocument {
 
     Bool bindAsset(KookieUiAsset asset, Int size) {
         if (!asset.accepted()) { return false }
-        var image = asset.image()
+        var image = Image(asset.source())
         kookieUiApplyImageSize(image, size)
         windowValue.bind(image)
         boundCountValue = boundCountValue + 1

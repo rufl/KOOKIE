@@ -1,0 +1,28 @@
+{
+  "schema": "kookie.gatoganso-ui/v1",
+  "game": "GatoGanso",
+  "publication": {
+    "runtime_paths_are_package_relative": true,
+    "sha256_required": true,
+    "prototype_assets_are_optional": true,
+    "demo_requires_prototype_assets": true
+  },
+  "assets": [
+    {
+      "id": "ui.gatoganso-mark",
+      "kind": "svg",
+      "alt": "GatoGanso mark",
+      "authored_path": "assets/ui/gatoganso-mark.svg",
+      "runtime_path": "assets/ui/gatoganso-mark.svg",
+      "sha256": "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e"
+    },
+    {
+      "id": "ui.player-hearts",
+      "kind": "png",
+      "alt": "Player health",
+      "authored_path": "assets/prototype/runtime/ui/hearts_0001.png",
+      "runtime_path": "content/prototype/runtime/ui/hearts_0001.png",
+      "sha256": "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3"
+    }
+  ]
+}

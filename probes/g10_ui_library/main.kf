@@ -8,25 +8,63 @@ main() {
         "Kookie UI must expose the packaged body and display fonts")
 
     var svg = KookieUiAsset(
+        "ui.gatoganso-mark",
         "assets/ui/gatoganso-mark.svg",
         kookieUiAssetSvg(),
-        "GatoGanso mark")
+        "GatoGanso mark",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
     var png = KookieUiAsset(
-        "assets/prototype/runtime/ui/hearts_0001.png",
+        "ui.player-hearts",
+        "content/prototype/runtime/ui/hearts_0001.png",
         kookieUiAssetPng(),
-        "Health hearts")
+        "Player health",
+        "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3")
     var invalid = KookieUiAsset(
+        "ui.gatoganso-mark",
         "assets/ui/gatoganso-mark.svg",
         kookieUiAssetPng(),
-        "GatoGanso mark")
+        "GatoGanso mark",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
     var missingAlt = KookieUiAsset(
+        "ui.gatoganso-mark",
         "assets/ui/gatoganso-mark.svg",
         kookieUiAssetSvg(),
-        "")
+        "",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+    var invalidChecksum = KookieUiAsset(
+        "ui.gatoganso-mark",
+        "assets/ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(),
+        "GatoGanso mark",
+        "not-a-sha256")
+    var invalidPath = KookieUiAsset(
+        "ui.gatoganso-mark",
+        "../assets/ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(),
+        "GatoGanso mark",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+    var invalidId = KookieUiAsset(
+        "",
+        "assets/ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(),
+        "GatoGanso mark",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+    var invalidDotPath = KookieUiAsset(
+        "ui.gatoganso-mark",
+        "assets/./ui/gatoganso-mark.svg",
+        kookieUiAssetSvg(),
+        "GatoGanso mark",
+        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
     assert(svg.accepted() && svg.isSvg() &&
+        svg.id() == "ui.gatoganso-mark" &&
+        svg.source() == "assets/ui/gatoganso-mark.svg" &&
+        svg.checksum() ==
+            "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e" &&
         png.accepted() && png.isPng() &&
-        !invalid.accepted() && !missingAlt.accepted(),
-        "Kookie UI must validate SVG/PNG extensions and alternative text")
+        !invalid.accepted() && !missingAlt.accepted() &&
+        !invalidChecksum.accepted() && !invalidPath.accepted() &&
+        !invalidId.accepted() && !invalidDotPath.accepted(),
+        "Kookie UI must validate IDs, checksums, kinds, extensions, and alt text")
 
     var icon = KookieUiIcon("heart", 64)
     assert(kookieUiIconSupported(icon.name()) && icon.size() == 48,

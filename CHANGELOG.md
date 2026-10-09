@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added an isolated KofJS UI demo and a published UI asset manifest. UI
+  references now carry stable IDs, package-relative runtime paths, required
+  lowercase SHA-256 digests, and prototype-asset optionality. The focused
+  `verify_ui_demo.sh` check builds the KofJS artifact and validates staged
+  SVG/PNG/font resources.
 - Added the first internal Kof/KofJS UI library slice: bounded SVG/PNG asset
   metadata with required alternative text, Jared Lite/Pixand text roles,
   dark surface tokens, bounded intrinsic SVG icons, and a composable
