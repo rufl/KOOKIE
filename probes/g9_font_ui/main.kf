@@ -28,7 +28,7 @@ main() {
             "main shell vertices must stay inside native clip bounds")
         var resource = frame.resourceAt(vertex)
         if (resource >= uiFontResourceBase() &&
-            resource < uiFontResourceBase() + uiFontResourceStride() * 2) {
+            resource < uiFontResourceBase() + uiFontResourceStride()) {
             sawBodyFont = true
         }
         if (resource >= uiFontResourceBase() + uiFontResourceStride() &&
