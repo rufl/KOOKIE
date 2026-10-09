@@ -6,6 +6,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - A capacidade GPU nativa do mundo agora reserva a arena autorada, a porta e
   a expansão de modelos animais para seis atores; o smoke de apresentação
   reporta esse orçamento antes do desenho, sem rejeitar GLBs válidos.
+- O carregamento nativo de GLB agora retém todos os triângulos autorados
+  dentro do limite para ganso e gato, em vez de fazer subamostragem uniforme;
+  as superfícies completas não ficam mais esburacadas, e o buffer do mundo
+  cobre o orçamento de seis atores com os modelos inteiros.
 - A emissão nativa dos modelos de ganso e gato agora aplica o tick da
   animação idle à pose GLB autorada; os animais do gameplay não congelam
   quando estão parados.

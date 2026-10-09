@@ -6,6 +6,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Native world GPU capacity now budgets the authored arena, door and full
   six-actor animal-model expansion, and the presentation smoke reports that
   budget before gameplay drawing instead of rejecting valid GLB meshes.
+- Native GLB loading now retains every bounded source triangle for the goose and
+  cat instead of uniform decimation; complete animal surfaces no longer show
+  holes, and the world buffer covers the full six-actor model budget.
 - Native goose and cat model emission now applies the idle animation tick to
   the authored GLB pose; gameplay animals no longer freeze when they are not
   moving.

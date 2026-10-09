@@ -14,7 +14,9 @@
 #define KOOKIE_MODEL_MAX_BUFFER_VIEWS 256
 #define KOOKIE_MODEL_MAX_MESHES 32
 #define KOOKIE_MODEL_MAX_PRIMITIVES 64
-#define KOOKIE_MODEL_MAX_TRIANGLES 256
+// Keep the complete bounded prototype meshes. Uniform triangle sampling
+// leaves visible holes in sparse animal parts.
+#define KOOKIE_MODEL_MAX_TRIANGLES 1024
 #define KOOKIE_MODEL_MAX_JSON_DEPTH 32
 #define KOOKIE_MODEL_MAX_POSITION_COMPONENTS 3
 #define KOOKIE_MODEL_GLTF_MAGIC 0x46546c67u
@@ -1065,15 +1067,6 @@ static bool model_read_index(
     return false;
 }
 
-static int model_target_triangles(int model) {
-    if (model == KOOKIE_MODEL_GOOSE) {
-        return 128;
-    }
-    if (model == KOOKIE_MODEL_CAT) {
-        return 192;
-    }
-    return 0;
-}
 
 static int model_material_slot(int model, int mesh_index) {
     if (model == KOOKIE_MODEL_CAT) {
@@ -1157,21 +1150,14 @@ static bool model_build_asset(
             }
         }
     }
-    int target_triangles = model_target_triangles(model);
-    if (total_triangles <= 0 || target_triangles <= 0 ||
-        total_triangles < target_triangles / 4 ||
+    if (total_triangles <= 0 ||
+        total_triangles > KOOKIE_MODEL_MAX_TRIANGLES ||
         maximum[1] <= minimum[1]) {
         return false;
-    }
-    int keep_stride = (total_triangles + target_triangles - 1) /
-        target_triangles;
-    if (keep_stride < 1) {
-        keep_stride = 1;
     }
     float center_x = (minimum[0] + maximum[0]) * 0.5f;
     float center_z = (minimum[2] + maximum[2]) * 0.5f;
     float scale = KOOKIE_MODEL_TARGET_HEIGHT / (maximum[1] - minimum[1]);
-    int global_triangle = 0;
     asset->triangle_count = 0;
     for (int node_index = 0; node_index < scene.node_count; node_index += 1) {
         KookieModelNode *node = &scene.nodes[node_index];
@@ -1192,11 +1178,6 @@ static bool model_build_asset(
                 &scene.accessors[primitive->index_accessor];
             int primitive_triangles = indices->count / 3;
             for (int triangle = 0; triangle < primitive_triangles; triangle += 1) {
-                int selected = global_triangle % keep_stride == 0;
-                global_triangle += 1;
-                if (!selected) {
-                    continue;
-                }
                 if (asset->triangle_count >= KOOKIE_MODEL_MAX_TRIANGLES) {
                     return false;
                 }

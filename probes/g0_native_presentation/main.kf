@@ -794,8 +794,8 @@ class G1NativePresentation {
             catModelVertexCountValue =
                 kookie_gpu_model_vertex_count(kookieModelCat())
             modelsAvailable =
-                gooseModelVertexCountValue > 0 &&
-                catModelVertexCountValue > 0 &&
+                gooseModelVertexCountValue == 708 &&
+                catModelVertexCountValue == 2400 &&
                 gooseModelVertexCountValue % 3 == 0 &&
                 catModelVertexCountValue % 3 == 0
         }
