@@ -28,6 +28,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   GLB JSON lookup now ignores nested root fields in Kof and caps recursive native
   JSON depth. LAN evidence verification rejects symlinked archive roots before
   extraction.
+- Fixed release readiness to recognize GitHub's lowercase
+  `required_reviewers` environment protection rule, so a configured approval
+  gate no longer reports the release environment as missing.
 
 
 

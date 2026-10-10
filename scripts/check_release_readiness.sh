@@ -132,7 +132,7 @@ if (( CHECK_GITHUB == 1 )); then
   fi
 
   required_reviewer_rules="$(gh api "repos/$REPO/environments/kookie-demo-release" \
-    --jq '[.protection_rules[]? | select(.type == "RequiredReviewers" and ((.reviewers // []) | length > 0))] | length' \
+    --jq '[.protection_rules[]? | select(.type == "required_reviewers" and ((.reviewers // []) | length > 0))] | length' \
     2>/dev/null || true)"
   if [[ ! "$required_reviewer_rules" =~ ^[1-9][0-9]*$ ]]; then
     echo "BLOCKED: GitHub environment has no required reviewer rule: $REPO/kookie-demo-release" >&2
