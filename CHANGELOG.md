@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Hardened KOOKIE's native binary consumers against the pinned Kof
+  `0.5.0-beta` `File.readBytes()` partial-word bug: bounded source, save,
+  replay, package and KofScript reads now use `readRange`. Linux presentation
+  verification rejects a nonzero child status, Windows PE/package/release
+  checks fail closed on path, classpath, cleanup, reviewer and provenance
+  mismatches, and release smoke capability failures happen before builds.
 - Added `scripts/report_code_mix.py` and a source-composition audit. The current
   working tree is 94,374 physical lines: 76.85% Kof, 0.59% KofScript, 11.36%
   C/header, 6.96% shell, 2.53% Python, 1.59% PE-bridge Java and 0.12% GPU

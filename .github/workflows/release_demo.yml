@@ -57,6 +57,31 @@ jobs:
           test -f "$sdl3_prefix/lib/pkgconfig/sdl3.pc"
           printf 'KOOKIE_SDL3_PREFIX=%s\n' "$sdl3_prefix" >> "$GITHUB_ENV"
 
+      - name: Preflight Linux presentation capability
+        if: ${{ inputs.run_linux_presentation_smoke }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
+          [[ -n "$wrapper" ]] && command -v "$wrapper" >/dev/null || {
+            echo 'release_demo: Linux presentation smoke requires KOOKIE_PRESENTATION_ISOLATION_WRAPPER' >&2
+            exit 75
+          }
+          render_node="${KOOKIE_RENDER_NODE:-}"
+          if [[ -z "$render_node" ]]; then
+            for candidate in /dev/dri/renderD*; do
+              if [[ -c "$candidate" ]]; then
+                render_node="$candidate"
+                break
+              fi
+            done
+          fi
+          [[ -n "$render_node" && -c "$render_node" ]] || {
+            echo 'release_demo: Linux presentation smoke requires a /dev/dri/renderD* node' >&2
+            exit 75
+          }
+          printf 'KOOKIE_RENDER_NODE=%s\n' "$render_node" >>"$GITHUB_ENV"
+
 
       - name: Prepare release identity
         shell: bash
@@ -66,12 +91,28 @@ jobs:
         run: |
           set -euo pipefail
           : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
+          source scripts/kof_pin.sh
+          [[ "$KOOKIE_KOF_SOURCE_COMMIT" == "$KOF_PIN_SOURCE_COMMIT" ]] || {
+            echo 'release_demo: workflow Kof source pin disagrees with scripts/kof_pin.sh' >&2
+            exit 2
+          }
           : "${KOOKIE_KOF_ARCHIVE_SHA256:?KOOKIE_KOF_ARCHIVE_SHA256 is required}"
           : "${KOOKIE_KOF_SOURCE_COMMIT:?Kof source commit is required}"
+          : "${KOOKIE_KOF_ARCHIVE:?configure KOOKIE_KOF_ARCHIVE on this release runner}"
+          [[ -f "$KOOKIE_KOF_ARCHIVE" && ! -L "$KOOKIE_KOF_ARCHIVE" ]] || {
+            echo 'release_demo: KOOKIE_KOF_ARCHIVE must be a regular file' >&2
+            exit 2
+          }
+          actual_kof_archive_sha256="$(sha256sum "$KOOKIE_KOF_ARCHIVE" | cut -d ' ' -f 1)"
+          [[ "$actual_kof_archive_sha256" == "${KOOKIE_KOF_ARCHIVE_SHA256,,}" ]] || {
+            echo 'release_demo: installed Kof archive does not match KOOKIE_KOF_ARCHIVE_SHA256' >&2
+            exit 2
+          }
           printf '%s\n' "$KOOKIE_SIGNING_KEY_PEM" >"$RUNNER_TEMP/kookie-signing.pem"
           chmod 600 "$RUNNER_TEMP/kookie-signing.pem"
           printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
+          printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$KOOKIE_KOF_ARCHIVE" >>"$GITHUB_ENV"
           kof version
           zig version
 
@@ -136,6 +177,29 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - name: Preflight Windows presentation capability
+        if: ${{ inputs.run_windows_presentation_smoke || inputs.run_windows_wine_smoke }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.run_windows_presentation_smoke }}" == true ]]; then
+            wrapper="${KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER:-}"
+            [[ -n "$wrapper" ]] && command -v "$wrapper" >/dev/null || {
+              echo 'release_demo: native Windows presentation smoke requires KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER' >&2
+              exit 75
+            }
+          fi
+          if [[ "${{ inputs.run_windows_wine_smoke }}" == true ]]; then
+            command -v wine >/dev/null || {
+              echo 'release_demo: Wine smoke requires wine' >&2
+              exit 2
+            }
+            command -v overzeer-isolated-display >/dev/null || {
+              echo 'release_demo: Wine smoke requires overzeer-isolated-display' >&2
+              exit 2
+            }
+          fi
+
 
       - name: Prepare release identity
         shell: bash
@@ -145,8 +209,23 @@ jobs:
         run: |
           set -euo pipefail
           : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
+          source scripts/kof_pin.sh
+          [[ "$KOOKIE_KOF_SOURCE_COMMIT" == "$KOF_PIN_SOURCE_COMMIT" ]] || {
+            echo 'release_demo: workflow Kof source pin disagrees with scripts/kof_pin.sh' >&2
+            exit 2
+          }
           : "${KOOKIE_KOF_ARCHIVE_SHA256:?KOOKIE_KOF_ARCHIVE_SHA256 is required}"
           : "${KOOKIE_KOF_SOURCE_COMMIT:?Kof source commit is required}"
+          : "${KOOKIE_KOF_ARCHIVE:?configure KOOKIE_KOF_ARCHIVE on this release runner}"
+          [[ -f "$KOOKIE_KOF_ARCHIVE" && ! -L "$KOOKIE_KOF_ARCHIVE" ]] || {
+            echo 'release_demo: KOOKIE_KOF_ARCHIVE must be a regular file' >&2
+            exit 2
+          }
+          actual_kof_archive_sha256="$(sha256sum "$KOOKIE_KOF_ARCHIVE" | cut -d ' ' -f 1)"
+          [[ "$actual_kof_archive_sha256" == "${KOOKIE_KOF_ARCHIVE_SHA256,,}" ]] || {
+            echo 'release_demo: installed Kof archive does not match KOOKIE_KOF_ARCHIVE_SHA256' >&2
+            exit 2
+          }
           : "${KOOKIE_WINDOWS_SDL_PREFIX:?configure KOOKIE_WINDOWS_SDL_PREFIX on this runner}"
           : "${KOOKIE_WINDOWS_SDL_MIXER_PREFIX:?configure KOOKIE_WINDOWS_SDL_MIXER_PREFIX on this runner}"
           : "${KOOKIE_DXC:?configure KOOKIE_DXC on this runner}"
@@ -154,6 +233,7 @@ jobs:
           chmod 600 "$RUNNER_TEMP/kookie-signing.pem"
           printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
+          printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$KOOKIE_KOF_ARCHIVE" >>"$GITHUB_ENV"
           kof version
           zig version
           "$KOOKIE_DXC" --version

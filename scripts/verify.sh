@@ -4,11 +4,12 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
 source "$root_dir/scripts/sdl3_dependencies.sh"
+source "$root_dir/scripts/kof_pin.sh"
 
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
 
-expected_kof_version="kof 0.5.0-beta"
+expected_kof_version="$KOF_PIN_CLI_VERSION"
 actual_kof_version="$(kof version)"
 if [[ "$actual_kof_version" != "$expected_kof_version" ]]; then
   printf 'KOOKIE requires %s; found %s\n' \
@@ -54,7 +55,7 @@ else
 fi
 
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
-adapter_build_dir="$root_dir/build"
+adapter_build_dir="$build_dir/adapter"
 rm -rf "$adapter_build_dir"
 mkdir -p "$adapter_build_dir"
 transport_key_file="$adapter_build_dir/transport.key"

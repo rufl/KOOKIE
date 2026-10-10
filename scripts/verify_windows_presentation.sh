@@ -24,6 +24,7 @@ cleanup() {
   fi
   rm -rf -- "$WORK_DIR"
 }
+trap cleanup EXIT INT TERM
 SIGNING_KEY="$WORK_DIR/release-signing.pem"
 openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
 chmod 600 "$SIGNING_KEY"
@@ -149,6 +150,7 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
     exit 75
   }
   NATIVE_ROOT="$WORK_DIR/native-presentation"
+  mkdir -p "$NATIVE_ROOT"
   NATIVE_PACKAGE="$NATIVE_ROOT/$PACKAGE_NAME"
   cp -a -- "$EXTRACTED/$PACKAGE_NAME" "$NATIVE_ROOT"
   native_screenshot="$WORK_DIR/native-presentation.ppm"

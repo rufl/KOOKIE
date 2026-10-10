@@ -9,11 +9,23 @@ trap cleanup EXIT INT TERM
 
 openssl genpkey -algorithm ED25519 -out "$WORK_DIR/signing.pem" 2>/dev/null
 chmod 600 "$WORK_DIR/signing.pem"
+: "${KOOKIE_KOF_ARCHIVE:?set KOOKIE_KOF_ARCHIVE to the exact Kof distribution archive}"
+[[ -f "$KOOKIE_KOF_ARCHIVE" && ! -L "$KOOKIE_KOF_ARCHIVE" ]] || {
+  echo 'verify_prototype_package: KOOKIE_KOF_ARCHIVE must be a regular file' >&2
+  exit 2
+}
+kof_archive_sha256="$(sha256sum "$KOOKIE_KOF_ARCHIVE" | cut -d ' ' -f 1)"
+[[ "$kof_archive_sha256" != 0000000000000000000000000000000000000000000000000000000000000000 ]] || {
+  echo 'verify_prototype_package: Kof archive digest cannot be all zeroes' >&2
+  exit 2
+}
 RELEASE_DIR="$WORK_DIR/release"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 KOOKIE_ALLOW_DIRTY_PACKAGE=1 \
 KOOKIE_SIGNING_KEY="$WORK_DIR/signing.pem" \
-KOOKIE_KOF_ARCHIVE_SHA256=f6fd41ed59c461dd968376e8e2dd3f0dc24ee712578d318a7fb3f707bc761bdc \
-KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_ARCHIVE="$KOOKIE_KOF_ARCHIVE" \
+KOOKIE_KOF_ARCHIVE_SHA256="$kof_archive_sha256" \
+KOOKIE_KOF_SOURCE_COMMIT="$KOF_PIN_SOURCE_COMMIT" \
 KOOKIE_VERSION=0.1.0-dogfood.prototype-smoke \
 KOOKIE_BUILD_ID=prototype-package-smoke \
 SOURCE_DATE_EPOCH=1700000000 \

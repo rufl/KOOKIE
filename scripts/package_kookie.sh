@@ -12,6 +12,7 @@ fi
 BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 TARGET="linux-x86_64"
 RUNTIME="${KOOKIE_RUNTIME:-native}"
 VERSION="${KOOKIE_VERSION:-0.1.0-dogfood.1}"
@@ -22,8 +23,9 @@ PROVENANCE_SCHEMA="${KOOKIE_PACKAGE_PROVENANCE_SCHEMA:-kookie.package-provenance
 SIGNING_KEY="${KOOKIE_SIGNING_KEY:-}"
 KOF_ARCHIVE_SHA256="${KOOKIE_KOF_ARCHIVE_SHA256:-}"
 KOF_SOURCE_COMMIT="${KOOKIE_KOF_SOURCE_COMMIT:-}"
-EXPECTED_KOF_VERSION="${KOOKIE_EXPECTED_KOF_VERSION:-kof 0.5.0-beta}"
-EXPECTED_KOF_SOURCE_COMMIT="${KOOKIE_EXPECTED_KOF_SOURCE_COMMIT:-bf17ac7e736471c8a04b4153e5b0f607be75e70c}"
+KOF_ARCHIVE="${KOOKIE_KOF_ARCHIVE:-}"
+EXPECTED_KOF_VERSION="${KOOKIE_EXPECTED_KOF_VERSION:-$KOF_PIN_CLI_VERSION}"
+EXPECTED_KOF_SOURCE_COMMIT="${KOOKIE_EXPECTED_KOF_SOURCE_COMMIT:-$KOF_PIN_SOURCE_COMMIT}"
 WINDOWS_JAVA_ARCHIVE="${KOOKIE_WINDOWS_JAVA_ARCHIVE:-}"
 WINDOWS_JAVA_ARCHIVE_SHA256="${KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256:-}"
 WINDOWS_JAVA_VERSION="not-bundled"
@@ -54,8 +56,10 @@ Windows JVM packages contain canonical Kof JVM classes and the exact
 SHA-256-pinned OpenJDK runtime supplied through KOOKIE_WINDOWS_JAVA_ARCHIVE.
 Windows presentation packages contain native Kof PE gameplay, SDL3, SDL_mixer,
 the native adapter, and SPIR-V/DXIL shader binaries.
-Set `KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to the
-verified distribution used for the build. Linux presentation packaging
+Set `KOOKIE_KOF_ARCHIVE` to that regular archive and set
+`KOOKIE_KOF_ARCHIVE_SHA256` and `KOOKIE_KOF_SOURCE_COMMIT` to its verified
+identity. The archive is hashed again before the compiler is packaged.
+Linux presentation packaging
 auto-discovers `.kookie-deps/sdl3-mixer-3.2.4`; run
 `bash scripts/bootstrap_sdl3_mixer.sh` when the host lacks SDL_mixer.
 EOF
@@ -117,6 +121,7 @@ command -v openssl >/dev/null || { echo 'package_kookie: openssl is required' >&
 command -v stat >/dev/null || { echo 'package_kookie: stat is required' >&2; exit 2; }
 command -v git >/dev/null || { echo 'package_kookie: git is required' >&2; exit 2; }
 command -v readlink >/dev/null || { echo 'package_kookie: readlink is required' >&2; exit 2; }
+command -v tar >/dev/null || { echo 'package_kookie: tar is required' >&2; exit 2; }
 command -v kof >/dev/null || { echo 'package_kookie: kof is required' >&2; exit 2; }
 command -v python3 >/dev/null || { echo 'package_kookie: python3 is required' >&2; exit 2; }
 ACTUAL_KOF_VERSION="$(kof version 2>/dev/null)" || {
@@ -133,6 +138,16 @@ if [[ ! "$KOF_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ||
   echo 'package_kookie: KOOKIE_KOF_ARCHIVE_SHA256 must identify a nonzero verified Kof distribution' >&2
   exit 2
 fi
+if [[ -z "$KOF_ARCHIVE" || ! -f "$KOF_ARCHIVE" || -L "$KOF_ARCHIVE" ]]; then
+  echo 'package_kookie: KOOKIE_KOF_ARCHIVE must name the exact distribution archive used by the installed Kof' >&2
+  exit 2
+fi
+actual_kof_archive_sha256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
+[[ "$actual_kof_archive_sha256" == "${KOF_ARCHIVE_SHA256,,}" ]] || {
+  printf 'package_kookie: Kof archive digest mismatch: expected %s; found %s\n' \
+    "$KOF_ARCHIVE_SHA256" "$actual_kof_archive_sha256" >&2
+  exit 2
+}
 [[ "$KOF_SOURCE_COMMIT" == "$EXPECTED_KOF_SOURCE_COMMIT" ]] || {
   printf 'package_kookie: expected Kof source commit %s; found %s\n' \
     "$EXPECTED_KOF_SOURCE_COMMIT" "${KOF_SOURCE_COMMIT:-unset}" >&2
@@ -146,6 +161,15 @@ KOF_COMPILER_JAR="$KOF_HOME/lib/kof.jar"
   exit 2
 }
 KOF_COMPILER_SHA256="$(sha256sum "$KOF_COMPILER_JAR" | cut -d ' ' -f 1)"
+archive_kof_compiler_sha256="$(
+  tar -xOzf "$KOF_ARCHIVE" --wildcards '*/lib/kof.jar' |
+    sha256sum | cut -d ' ' -f 1
+)"
+[[ "$archive_kof_compiler_sha256" == "$KOF_COMPILER_SHA256" ]] || {
+  printf 'package_kookie: installed Kof compiler differs from archive: expected %s; found %s\n' \
+    "$KOF_COMPILER_SHA256" "$archive_kof_compiler_sha256" >&2
+  exit 2
+}
 [[ -n "$SIGNING_KEY" && -f "$SIGNING_KEY" && ! -L "$SIGNING_KEY" ]] || {
   echo 'package_kookie: KOOKIE_SIGNING_KEY must name a regular Ed25519 private key' >&2
   exit 2
@@ -732,6 +756,7 @@ bundle_windows_native_shell() {
 @echo off
 setlocal
 set "ROOT=%~dp0"
+cd /d "%ROOT%"
 "%ROOT%kookie.exe" %*
 exit /b %ERRORLEVEL%
 EOF

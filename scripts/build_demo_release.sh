@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 TARGET=""
 VERSION=""
 OUTPUT_DIR=""
@@ -54,6 +55,10 @@ esac
   echo 'build_demo_release: KOOKIE_KOF_ARCHIVE_SHA256 is required' >&2
   exit 2
 }
+[[ -n "${KOOKIE_KOF_ARCHIVE:-}" ]] || {
+  echo 'build_demo_release: KOOKIE_KOF_ARCHIVE is required' >&2
+  exit 2
+}
 [[ -n "${KOOKIE_KOF_SOURCE_COMMIT:-}" ]] || {
   echo 'build_demo_release: KOOKIE_KOF_SOURCE_COMMIT is required' >&2
   exit 2
@@ -88,7 +93,7 @@ if [[ "${KOOKIE_CONTENT_PROFILE:-none}" != none ]]; then
   exit 2
 fi
 export KOOKIE_CONTENT_PROFILE=none
-export KOOKIE_SIGNING_KEY KOOKIE_KOF_ARCHIVE_SHA256 KOOKIE_KOF_SOURCE_COMMIT
+export KOOKIE_SIGNING_KEY KOOKIE_KOF_ARCHIVE KOOKIE_KOF_ARCHIVE_SHA256 KOOKIE_KOF_SOURCE_COMMIT
 export KOOKIE_VERSION="$VERSION"
 export KOOKIE_BUILD_ID="$BUILD_ID"
 export SOURCE_DATE_EPOCH

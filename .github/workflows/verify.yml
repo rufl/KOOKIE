@@ -38,6 +38,13 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - name: Validate repository Kof pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          source scripts/kof_pin.sh
+          [[ "$KOF_VERSION" == "$KOF_PIN_VERSION" ]]
+          [[ "$KOF_SOURCE_COMMIT" == "$KOF_PIN_SOURCE_COMMIT" ]]
       - name: Checkout pinned Kof source
         uses: actions/checkout@v5
         with:
@@ -77,6 +84,7 @@ jobs:
           archive="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
           archive_sha256="$(sha256sum "$archive" | cut -d ' ' -f 1)"
           echo "KOOKIE_KOF_ARCHIVE_SHA256=$archive_sha256" >> "$GITHUB_ENV"
+          echo "KOOKIE_KOF_ARCHIVE=$archive" >> "$GITHUB_ENV"
           echo "KOOKIE_KOF_SOURCE_COMMIT=$KOF_SOURCE_COMMIT" >> "$GITHUB_ENV"
           kof_bin="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64/bin"
           echo "$kof_bin" >> "$GITHUB_PATH"

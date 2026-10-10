@@ -3,8 +3,9 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-EXPECTED_KOF_VERSION='kof 0.5.0-beta'
-EXPECTED_KOF_SOURCE_COMMIT='bf17ac7e736471c8a04b4153e5b0f607be75e70c'
+source "$ROOT_DIR/scripts/kof_pin.sh"
+EXPECTED_KOF_VERSION="$KOF_PIN_CLI_VERSION"
+EXPECTED_KOF_SOURCE_COMMIT="$KOF_PIN_SOURCE_COMMIT"
 EXPECTED_ZIG_VERSION='0.16.0'
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-0}"
 [[ "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]] || {
@@ -89,7 +90,11 @@ backend_args=("$SOURCE" "$generated_c")
 if [[ "$LIBRARY" == 1 ]]; then
   backend_args+=(--library)
 fi
-java -cp "$classes:$kof_jar" dev.kof.compiler.KofPeBackendMain \
+java_classpath_separator=':'
+case "${OSTYPE:-}" in
+  msys*|cygwin*|win32*) java_classpath_separator=';' ;;
+esac
+java -cp "$classes${java_classpath_separator}$kof_jar" dev.kof.compiler.KofPeBackendMain \
   "${backend_args[@]}"
 (
   cd "$work_dir"

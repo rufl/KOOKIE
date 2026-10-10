@@ -429,6 +429,10 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing dependencies,
 authority boundaries or qualification claims. During development, run the
 smallest focused check that proves the change. The complete gate is:
 
+The gate's package checks require `KOOKIE_KOF_ARCHIVE` to point to the exact
+Kof distribution used by `kof`, with `KOOKIE_KOF_ARCHIVE_SHA256` and
+`KOOKIE_KOF_SOURCE_COMMIT` set to its verified identity.
+
 ```bash
 bash scripts/verify.sh
 ```

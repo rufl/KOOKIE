@@ -107,6 +107,8 @@ Both runners need Kof `0.5.0-beta` at
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c`, Python 3, OpenSSL, `glslc`, Zig
 `0.16.0` and the exact Kof archive whose digest is stored in
 `KOOKIE_KOF_ARCHIVE_SHA256`.
+The runner must expose that archive as `KOOKIE_KOF_ARCHIVE`; release jobs
+recompute its SHA-256 before building, instead of trusting digest metadata alone.
 The hosted verification workflow pins the signed Node24-compatible
 `mlugg/setup-zig` commit `272b55e6c4fcef353f6d923050ff32f018636378` because
 upstream `v2` still declares Node20.

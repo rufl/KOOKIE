@@ -208,6 +208,9 @@ if [[ "${KOOKIE_RUN_PRESENTATION:-0}" == 1 ]]; then
   presentation_status=$?
   set -e
   cat "$KOOKIE_PRESENTATION_ADAPTER_LOG"
+  if [[ "$presentation_status" -ne 0 ]]; then
+    exit "$presentation_status"
+  fi
   grep -Fq 'KOOKIE G7 native presentation durable save verified' \
     "$KOOKIE_PRESENTATION_ADAPTER_LOG"
   KOOKIE_RENDER_NODE="$render_node" \

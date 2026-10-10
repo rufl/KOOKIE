@@ -75,7 +75,8 @@ Bool executeKofScriptArtifact(
     Int subjectKind,
     Int value
 ) {
-    var encoded = File(path).readBytes()
+    var encodedFile = File(path)
+    var encoded = encodedFile.readRange(0, encodedFile.size())
     var artifact = BoundedOfflineProductArtifact(8192)
     if (!artifact.decodeBytes(encoded) ||
         artifact.kind() != offlineArtifactKofScriptKind()) {
@@ -119,7 +120,8 @@ Bool executeNativeKofScriptRequest() {
     if (!File(requestPath).exists() || !File("artifact.kofart").exists()) {
         return false
     }
-    var request = BoundedKofScriptRequest(File(requestPath).readBytes())
+    var requestFile = File(requestPath)
+    var request = BoundedKofScriptRequest(requestFile.readRange(0, requestFile.size()))
     var tick = request.next()
     var sequence = request.next()
     var eventKind = request.next()

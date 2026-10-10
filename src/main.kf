@@ -1444,7 +1444,7 @@ test "bounded save file store" {
         restored.payloadValue(1) == 202,
         "save file store must restore decoded values")
     var file = File(path)
-    var corrupted = file.readBytes()
+    var corrupted = file.readRange(0, file.size())
     corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
     assert(file.writeBytes(corrupted) &&
         !store.read(path, restored),
@@ -1462,7 +1462,7 @@ test "redundant save file recovery" {
     assert(store.write(path, state))
     var restored = BoundedSaveState(2, 1000)
     var file = File(path)
-    var corrupted = file.readBytes()
+    var corrupted = file.readRange(0, file.size())
     corrupted[18] = corrupted[18] + 1
     assert(file.writeBytes(corrupted) &&
         store.read(path, restored) &&
@@ -1471,12 +1471,12 @@ test "redundant save file recovery" {
         "redundant save must recover from one corrupted copy")
     assert(store.repair(path),
         "redundant save repair must rewrite both copies")
-    var repaired = file.readBytes()
+    var repaired = file.readRange(0, file.size())
     repaired[66] = repaired[66] + 1
     assert(file.writeBytes(repaired) &&
         store.read(path, restored),
         "repaired save must survive corruption of the other copy")
-    var fullyCorrupted = file.readBytes()
+    var fullyCorrupted = file.readRange(0, file.size())
     fullyCorrupted[18] = fullyCorrupted[18] + 1
     assert(file.writeBytes(fullyCorrupted) &&
         !store.read(path, restored),
@@ -1538,7 +1538,7 @@ test "schema save file persistence and recovery" {
         restored.payloadValue(1) == 404,
         "schema file store must migrate legacy payloads on load")
     var file = File(path)
-    var corrupted = file.readBytes()
+    var corrupted = file.readRange(0, file.size())
     corrupted[18] = corrupted[18] + 1
     assert(file.writeBytes(corrupted) &&
         store.readLegacy(path, restored) &&
@@ -1546,13 +1546,13 @@ test "schema save file persistence and recovery" {
         "schema file store must recover from one corrupted copy")
     assert(store.repair(path),
         "schema save repair must rewrite both migrated copies")
-    var repaired = file.readBytes()
+    var repaired = file.readRange(0, file.size())
     var secondCopyStart = 18 + (repaired.length - 18) / 2
     repaired[secondCopyStart] = repaired[secondCopyStart] + 1
     assert(file.writeBytes(repaired) &&
         store.readLegacy(path, restored),
         "repaired schema save must survive one copy corruption")
-    var fullyCorrupted = file.readBytes()
+    var fullyCorrupted = file.readRange(0, file.size())
     fullyCorrupted[18] = fullyCorrupted[18] + 1
     assert(file.writeBytes(fullyCorrupted) &&
         !store.readLegacy(path, restored),
@@ -2646,7 +2646,7 @@ test "bounded replay wire and file codecs" {
         loaded.lastPlayed().sequence() == 2,
         "replay file codec must restore signed commands")
     var file = File(path)
-    var corrupted = file.readBytes()
+    var corrupted = file.readRange(0, file.size())
     corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
     assert(file.writeBytes(corrupted) &&
         !files.read(path, loaded),
@@ -2712,7 +2712,7 @@ test "bounded replay timeline checkpoints" {
         restored.seekRemainingCommands() == 1,
         "timeline file codec must restore checkpoint state and commands")
     var file = File(path)
-    var corrupted = file.readBytes()
+    var corrupted = file.readRange(0, file.size())
     corrupted[corrupted.length - 1] = corrupted[corrupted.length - 1] + 1
     assert(file.writeBytes(corrupted) &&
         !files.readTimeline(path, restored),
@@ -6587,7 +6587,7 @@ test "G4 WAV intake normalizes bounded PCM audio", "wav" {
 test "G4 OGG intake preserves Vorbis pages and deterministic loop bounds", "ogg" {
     var source = File(
         "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg"
-    ).readBytes()
+    ).readRange(0, oggMaxSourceBytes() + 1)
     assert(source.length > 0, "bundled OGG fixture must be readable")
     var kooker = BoundedSourceKooker()
     var accepted = kooker.cookOgg(source)
@@ -6770,7 +6770,8 @@ test "external kutter packages load through bounded file envelopes" {
             packageValue, payload, badPaths) &&
         files.diagnostic() == packageFileDiagnosticPath(),
         "package file must reject traversal paths")
-    var encodedFile = File(path).readBytes()
+    var encodedHandle = File(path)
+    var encodedFile = encodedHandle.readRange(0, encodedHandle.size())
     encodedFile[encodedFile.length - 1] =
         encodedFile[encodedFile.length - 1] + 1
     var corruptPath = "/tmp/kookie-external-corrupt.kpkg"

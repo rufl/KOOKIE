@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 for tool in kof java javac zig wine; do
   command -v "$tool" >/dev/null || {
     echo "verify-pe-durable-save: $tool is required" >&2
@@ -31,7 +32,7 @@ done
 cp -- "$ROOT_DIR/probes/shared/pe_durable_save_coordinator.kf" \
   "$WORK_DIR/session/pe_durable_save_coordinator.kf"
 
-KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c \
+KOOKIE_KOF_SOURCE_COMMIT="$KOF_PIN_SOURCE_COMMIT" \
   "$ROOT_DIR/scripts/kof_pe_build.sh" "$WORK_DIR" \
   --output "$WORK_DIR/pe" --library >/dev/null
 zig cc -target x86_64-windows-gnu -std=c11 \

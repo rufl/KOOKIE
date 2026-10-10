@@ -419,6 +419,10 @@ Leia [CONTRIBUTING.md](CONTRIBUTING.md) antes de mudar dependências, fronteiras
 de autoridade ou afirmações de qualificação. Durante o desenvolvimento,
 execute a menor verificação focada que comprove a mudança. O gate completo é:
 
+Os checks de pacote do gate exigem que `KOOKIE_KOF_ARCHIVE` aponte para a
+distribuição Kof exata usada pelo `kof`, com `KOOKIE_KOF_ARCHIVE_SHA256` e
+`KOOKIE_KOF_SOURCE_COMMIT` configurados para a identidade verificada.
+
 ```bash
 bash scripts/verify.sh
 ```

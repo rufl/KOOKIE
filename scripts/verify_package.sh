@@ -4,6 +4,7 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-package-smoke.XXXXXX")"
 cleanup() { rm -rf -- "$WORK_DIR"; }
 trap cleanup EXIT INT TERM
@@ -119,7 +120,7 @@ grep -Fxq 'license_status=MIT-application' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dependency_policy=permissive-distributed-only' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'dedicated_server=bounded-headless-workload-with-runtime-telemetry' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
-grep -Fq 'kof_source_commit=bf17ac7e736471c8a04b4153e5b0f607be75e70c' \
+grep -Fq "kof_source_commit=$KOF_PIN_SOURCE_COMMIT" \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Eq '^kof_compiler_sha256=[0-9a-f]{64}$' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
@@ -365,7 +366,7 @@ else
 fi
 python3 - "$MANIFEST" native \
   "${presentation_manifest_args[@]}" <<'PY'
-import json, pathlib, sys
+import json, os, pathlib, sys
 arguments = sys.argv[1:]
 assert len(arguments) >= 2 and len(arguments) % 2 == 0
 for index in range(0, len(arguments), 2):
@@ -381,9 +382,9 @@ for index in range(0, len(arguments), 2):
     assert manifest["signature_encoding"] == "binary"
     assert len(manifest["source_commit"]) == 40
     assert manifest["source_tree_state"] in {"clean", "dirty-allowed"}
-    assert manifest["kof_version"] == "kof 0.5.0-beta"
+    assert manifest["kof_version"] == os.environ["KOF_PIN_CLI_VERSION"]
     assert len(manifest["kof_archive_sha256"]) == 64
-    assert manifest["kof_source_commit"] == "bf17ac7e736471c8a04b4153e5b0f607be75e70c"
+    assert manifest["kof_source_commit"] == os.environ["KOF_PIN_SOURCE_COMMIT"]
     assert len(manifest["kof_compiler_sha256"]) == 64
     assert isinstance(manifest["source_date_epoch"], int)
     assert manifest["windows_java_runtime"] is False
@@ -435,6 +436,7 @@ if [[ -n "${KOOKIE_WINDOWS_SDL_PREFIX:-}" &&
   test -f "$WINDOWS_ROOT/LICENSE"
   test -f "$WINDOWS_ROOT/THIRD_PARTY_NOTICES.txt"
   grep -Fq 'windows_status=kof-native-pe-sdl-shell-runtime' "$WINDOWS_ROOT/PROVENANCE.txt"
+  grep -Fq 'cd /d "%ROOT%"' "$WINDOWS_ROOT/kookie.cmd"
   python3 - "$WINDOWS_MANIFEST" <<'PY'
 import json, pathlib, sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))

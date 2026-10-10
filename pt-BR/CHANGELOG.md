@@ -3,6 +3,13 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Endurecemos os consumidores binários nativos do KOOKIE contra o bug de
+  palavra parcial de `File.readBytes()` no Kof fixado `0.5.0-beta`: leituras
+  limitadas de fontes, saves, replay, pacote e KofScript agora usam
+  `readRange`. A verificação de apresentação Linux rejeita status filho
+  diferente de zero; os gates Windows PE/pacote/release falham fechado para
+  divergências de caminho, classpath, limpeza, reviewer e procedência; falhas
+  de capacidade do smoke de release ocorrem antes dos builds.
 - Adicionamos `scripts/report_code_mix.py` e uma auditoria de composição das
   fontes. O working tree atual tem 94.374 linhas físicas: 76,85% Kof, 0,59%
   KofScript, 11,36% C/header, 6,96% shell, 2,53% Python, 1,59% Java da ponte
