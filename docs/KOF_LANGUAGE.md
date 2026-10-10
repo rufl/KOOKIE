@@ -158,7 +158,7 @@ A distribution of the upstream compiler for Windows/macOS does **not** prove nat
 **Measured:** this release runs scalar `extern` calls on JVM/native x86-64 and
 the bounded `Buffer(U8)` SIMD fixture on both targets. Calling libm
 `sqrt(9.0)` returned `3.0`; calling installed SDL3 `SDL_GetVersion()` returned
-`3004016`.
+`3004018`.
 
 Source-verified scalar set: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`,
 `String`; `void` additionally allowed as a return. Native requires a library

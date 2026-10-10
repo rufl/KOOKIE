@@ -151,7 +151,7 @@ Todos os acréscimos são locais ao usuário. Nenhuma substituição de pacote d
 | Kof Editor | `~/.local/bin/kof-editor`, código-fonte 0.1.4-beta em `~/.local/share/kof-editor/source` |
 | WebView nativo | Compilado a partir do código-fonte C do Kof4j fixado, usando WebKitGTK 4.1 / GTK 3 existentes |
 | Cliente LSP / DAP | Qualquer cliente de editor compatível com `vscode-languageclient` 9.0.1 |
-| Pré-requisitos nativos | GCC 16.2, binutils 2.47, GDB 17.2, pkg-config, SDL3 3.4.16, cabeçalhos/carregador Vulkan, ShaderC e SPIRV-tools existentes |
+| Pré-requisitos nativos | GCC 16.2, binutils 2.47, GDB 17.2, pkg-config, SDL3 3.4.18, cabeçalhos/carregador Vulkan, ShaderC e SPIRV-tools existentes |
 | Outros pré-requisitos | Git, Bash, curl, unzip, Python, bubblewrap e ferramentas DBus existentes |
 
 ```sh

@@ -168,7 +168,7 @@ choosing a third-party networking library until the LAN slice requires one; a
 transport still does not supply replication, prediction or authoritative
 simulation.
 
-**Observed local availability:** SDL3 3.4.16 is the system package;
+**Observed local availability:** SDL3 3.4.18 is the system package;
 SDL_mixer 3.2.4 was built from pinned source with WAVE and bundled
 `stb_vorbis` enabled for the OGG intake/runtime path. FreeType 2.14.3,
 HarfBuzz 14.5.0 and zstd 1.5.7 are also available. SDL3_image and

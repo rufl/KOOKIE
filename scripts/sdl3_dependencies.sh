@@ -2,7 +2,7 @@
 # Shared SDL3/SDL3_mixer discovery for Linux verification and packaging.
 # This file is sourced by Bash scripts; it deliberately does not change shell options.
 
-KOOKIE_SDL3_REQUIRED_VERSION=3.4.16
+KOOKIE_SDL3_REQUIRED_VERSION=3.4.18
 KOOKIE_SDL3_MIXER_REQUIRED_VERSION=3.2.4
 
 _kookie_sdl_prepend_path() {
@@ -265,7 +265,7 @@ kookie_require_sdl3_dependencies() {
     return 0
   fi
   cat >&2 <<'EOF'
-KOOKIE requires SDL3 3.4.16 and SDL_mixer 3.2.4 development metadata.
+KOOKIE requires SDL3 3.4.18 and SDL_mixer 3.2.4 development metadata.
 Install them through pkg-config, set KOOKIE_SDL3_PREFIX and/or
 KOOKIE_SDL3_MIXER_PREFIX, or run:
   bash scripts/bootstrap_sdl3_mixer.sh

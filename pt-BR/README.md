@@ -125,7 +125,7 @@ Execute as sondas não gráficas de expansão G6:
 bash scripts/verify_g6_runtime.sh
 ```
 
-Builds de pacotes de apresentação exigem SDL 3.4.16, SDL_mixer 3.2.4
+Builds de pacotes de apresentação exigem SDL 3.4.18, SDL_mixer 3.2.4
 e `glslc`. Se o `pkg-config` não encontrar SDL_mixer, prepare uma vez o
 prefixo de desenvolvimento fixado:
 
@@ -435,7 +435,7 @@ sensíveis de segurança pertencem ao
 ## Licença e procedência
 
 O KOOKIE usa a [licença MIT](../LICENSE). As dependências nativas distribuídas
-são SDL 3.4.16 e SDL_mixer 3.2.4 sob a licença zlib. O perfil JVM opcional para
+ são SDL 3.4.18 e SDL_mixer 3.2.4 sob a licença zlib. O perfil JVM opcional para
 Windows inclui um runtime OpenJDK fixado por SHA-256 sob licenças próprias e
 preserva `runtime/legal` e `runtime/NOTICE`. Fontes e fronteiras exatas estão em
 [THIRD_PARTY_NOTICES.txt](../THIRD_PARTY_NOTICES.txt).

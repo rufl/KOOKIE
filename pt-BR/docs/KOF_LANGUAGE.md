@@ -157,7 +157,7 @@ Uma distribuição do compilador para Windows/macOS **não** comprova saída nat
 **Medido:** esta versão executa chamadas escalares `extern` em JVM/nativo
 x86-64 e a fixture SIMD limitada de `Buffer(U8)` nos dois alvos. Chamar
 `sqrt(9.0)` da libm retornou `3.0`; chamar `SDL_GetVersion()` do SDL3 instalado
-retornou `3004016`.
+retornou `3004018`.
 
 Conjunto escalar verificado na fonte: `Int`, `Long`, `Float`, `Double`,
 `Bool`/`Boolean`, `String`; `void` também é permitido como retorno. O nativo

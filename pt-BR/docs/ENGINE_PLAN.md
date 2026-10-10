@@ -149,7 +149,7 @@ sessão/protocolo independentes do transporte de G0. Adie a escolha de uma bibli
 de rede de terceiros até que a fatia de LAN exija uma; um transporte ainda não fornece
 replicação, predição ou simulação autoritativa.
 
-**Disponibilidade local observada:** SDL3 3.4.16 é o pacote do sistema;
+**Disponibilidade local observada:** SDL3 3.4.18 é o pacote do sistema;
 SDL_mixer 3.2.4 foi compilado da fonte fixada com WAVE e `stb_vorbis` incluído
 habilitados para o caminho de entrada/runtime OGG. FreeType 2.14.3, HarfBuzz
 14.5.0 e zstd 1.5.7 também estão disponíveis. SDL3_image e SDL_shadercross

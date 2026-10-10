@@ -47,7 +47,7 @@ expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tok
 [[ "$(kof run src/main.kf --target native 2>/dev/null)" == "$expected_output" ]]
 
 if [[ -f /usr/lib/libSDL3.so ]]; then
-  platform_output=$'KOOKIE G0 scalar platform probe\n3004016\ntrue'
+  platform_output=$'KOOKIE G0 scalar platform probe\n3004018\ntrue'
   [[ "$(kof run probes/g0_platform/main.kf --target jvm)" == "$platform_output" ]]
   [[ "$(kof run probes/g0_platform/main.kf --target native 2>/dev/null)" == "$platform_output" ]]
 else

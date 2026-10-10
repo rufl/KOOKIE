@@ -277,7 +277,7 @@ markers.
 
 ## SDL3/SDL_mixer development dependencies
 
-The Linux gates accept SDL 3.4.16 and SDL_mixer 3.2.4 through `pkg-config`.
+The Linux gates accept SDL 3.4.18 and SDL_mixer 3.2.4 through `pkg-config`.
 The shared resolver also accepts `KOOKIE_SDL3_PREFIX` and
 `KOOKIE_SDL3_MIXER_PREFIX`, validates the exact header/package versions and
 adds the selected library directory to the local smoke path. It does not
@@ -404,7 +404,7 @@ the current checkout; it did not prove a present-capable Linux GPU or the final
 clean-tree paired release.
 
 
-This profile requires SDL 3.4.16, SDL_mixer 3.2.4, `glslc`, a C compiler and
+This profile requires SDL 3.4.18, SDL_mixer 3.2.4, `glslc`, a C compiler and
 `pkg-config`. The archive contains the Kof menu/game application, SDL adapter,
 SPIR-V shaders, SDL3 and SDL_mixer. It uses the host dynamic loader and libc.
 Presentation archives also include `DEMO_CONTROLS.txt`. The default
@@ -570,7 +570,7 @@ evidence remains an open D1 gate.
 
 
 The pinned compiler bridge lowers the reachable optimized Kof IR graph to
-deterministic C11, then uses Zig 0.16.0 to emit an AMD64 COFF object and
+deterministic C11, then uses Zig 0.17.0 to emit an AMD64 COFF object and
 Windows PE:
 
 ```bash
@@ -608,7 +608,7 @@ bash scripts/verify_pe_durable_save.sh
 ### Native SDL shell
 
 Build the native shell from the official MinGW development packages for SDL
-3.4.16 and SDL_mixer 3.2.4:
+3.4.18 and SDL_mixer 3.2.4:
 
 ```bash
 KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
@@ -730,7 +730,7 @@ environment approves the publish job.
 The workflow requires self-hosted runners with labels
 `kookie-demo-release`, `linux`/`windows` and `x64`. Both runners need Kof
 `0.5.0-beta` at the pinned source commit, Python 3, OpenSSL, `glslc`, Zig
-0.16.0 and the pinned Kof distribution digest. The Linux runner additionally
+0.17.0 and the pinned Kof distribution digest. The Linux runner additionally
 needs SDL3 development files and an isolated display wrapper for optional
 package presentation smoke; the workflow bootstraps the pinned SDL_mixer
 prefix when its `pkg-config` entry is absent. The Windows runner additionally

@@ -5,8 +5,8 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_mixer/SDL_mixer.h>
-#if SDL_VERSION != SDL_VERSIONNUM(3, 4, 16)
-#error "KOOKIE requires SDL 3.4.16 headers"
+#if SDL_VERSION != SDL_VERSIONNUM(3, 4, 18)
+#error "KOOKIE requires SDL 3.4.18 headers"
 #endif
 #if SDL_MIXER_VERSION != SDL_VERSIONNUM(3, 2, 4)
 #error "KOOKIE requires SDL_mixer 3.2.4 headers"

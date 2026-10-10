@@ -3,6 +3,14 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Updated the native dependency baseline to latest stable SDL 3.4.18 and Zig
+  0.17.0; SDL_mixer remains at its latest stable 3.2.4. GitHub Actions now use
+  checkout v7, setup-java v6, download-artifact v8 and the latest verified
+  setup-zig commit, while CI runs on Temurin 27. PE/COFF builds now pass
+  explicit `-g0` to keep Zig 0.17.0's debug paths out of reproducible objects.
+  The Kof `0.5.0-beta` source pin stays on the newer Buffer-compatible commit
+  because the latest public archive still fails the native Buffer qualification.
+
 - Hardened KOOKIE's native binary consumers against the pinned Kof
   `0.5.0-beta` `File.readBytes()` partial-word bug: bounded source, save,
   replay, package and KofScript reads now use `readRange`. Linux presentation

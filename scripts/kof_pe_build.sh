@@ -6,7 +6,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/kof_pin.sh"
 EXPECTED_KOF_VERSION="$KOF_PIN_CLI_VERSION"
 EXPECTED_KOF_SOURCE_COMMIT="$KOF_PIN_SOURCE_COMMIT"
-EXPECTED_ZIG_VERSION='0.16.0'
+EXPECTED_ZIG_VERSION='0.17.0'
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-0}"
 [[ "$SOURCE_DATE_EPOCH" =~ ^[0-9]+$ ]] || {
   echo 'kof-pe-build: SOURCE_DATE_EPOCH must be a non-negative integer' >&2
@@ -40,7 +40,7 @@ OUTPUT_DIR="$3"
   echo "kof-pe-build: source does not exist: $SOURCE" >&2
   exit 2
 }
-for tool in kof java javac zig readlink; do
+for tool in cc cmp kof objcopy python3 zig readlink; do
   command -v "$tool" >/dev/null || {
     echo "kof-pe-build: $tool is required" >&2
     exit 2
@@ -98,10 +98,12 @@ java -cp "$classes${java_classpath_separator}$kof_jar" dev.kof.compiler.KofPeBac
   "${backend_args[@]}"
 (
   cd "$work_dir"
-  zig cc -target x86_64-windows-gnu -std=c11 -O2 \
+  zig cc -target x86_64-windows-gnu -g0 -std=c11 -O2 \
     -Wall -Wextra -Werror -fno-ident -c kof-module.c -o kof-module.obj
+  objcopy --strip-debug kof-module.obj kof-module.stripped.obj
+  mv -- kof-module.stripped.obj kof-module.obj
   if [[ "$LIBRARY" == 0 ]]; then
-    zig cc -target x86_64-windows-gnu -s -fno-ident \
+    zig cc -target x86_64-windows-gnu -g0 -s -fno-ident \
       -Wl,--build-id=none kof-module.obj -o kof-module.exe
   fi
 )

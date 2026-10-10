@@ -182,7 +182,7 @@ Bounded foundations execute; the G0–G6 implementation gates are complete withi
   streams; the adapter remains scalar, token-checked and allocation-free on
   queue submission.
 - KOOKIE is MIT. Distributable packages contain only reviewed permissive
-  components and host system APIs: SDL 3.4.16 and SDL_mixer 3.2.4 are zlib.
+  components and host APIs: SDL 3.4.18 and SDL_mixer 3.2.4 use zlib.
   Linux no longer bundles its loader/libc, Windows no longer embeds a JDK, and
   distributable JVM packaging fails closed.
 - Focused isolated Wine runs visually verified main/options/multiplayer and
@@ -284,7 +284,7 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
   Windows PE bridge is qualified for the reachable gameplay/presentation graphs,
   with native shell Wine evidence and presentation artifact evidence; visual
   presentation smoke remains DRI3/GPU-gated.
-- SDL 3.4.16 + SDL_GPU with Vulkan/SPIR-V is the graphics boundary; SDL_mixer
+  SDL 3.4.18 + SDL_GPU com Vulkan/SPIR-V é a fronteira gráfica; SDL_mixer
   3.2.4 owns effects/music buses. The packaged Kof benchmark validates the
   bulk-buffer ABI and chooses between the measured SIMD and scalar reduction
   routes. Gameplay stays on the scalar Kof path until profiling identifies a
@@ -299,7 +299,7 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 
 1. Functions use `Int f(Int x)` / `f(Int x): Int`, **not fun/fn**. `record` and `class X(...)` are immutable/record-style; mutable classes use fields + explicit constructor. No top-level ordinary variables, array literals or Kotlin safe-call/coalesce assumptions.
 2. `.kf` modules/imports work. Measured directory import on JVM/native; `run` collects siblings and rejects multiple `main()` functions (`PKG002`). Separate application entry scopes.
-3. Native **scalar** `extern` works now; old blanket “native FFI unsupported” claims are stale. Measured sqrt → `3.0`, SDL_GetVersion → `3004016` on both targets.
+3. Native **scalar** `extern` works now; old blanket “native FFI unsupported” claims are stale. Measured sqrt → `3.0`, SDL_GetVersion → `3004018` on both targets.
 4. Kof 0.5.0-beta `Buffer(U8, INOUT)` plus token FFI passed supplied independent native x86-64/cross verification. Script/JS/Android/riscv32/MCU still return `FFI001`; structs/pointers/variadics and native callbacks remain outside the general contract. Integer resource IDs must be real adapter tokens, not pointer casts.
 5. Native x86 collector's automatic path is gated by **cumulative `kof_spawn_count == 0`**. Awaiting a task does not reopen it. Do not bypass by unsafe manual GC. Library threads must never retain/call Kof heap state.
 6. Packaged native execution warned runtime pruning cannot find `NativeRuntime.java` outside compiler module; full-runtime fallback ran. Tiny upstream binary-size claims are not verified for this release path.

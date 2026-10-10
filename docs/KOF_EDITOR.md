@@ -156,7 +156,7 @@ background editor service or global IDE settings change was made.
 | Kof Editor | `~/.local/bin/kof-editor`, source 0.1.4-beta at `~/.local/share/kof-editor/source` |
 | Native WebView | Built from the pinned Kof4j C source, using existing WebKitGTK 4.1 / GTK 3 |
 | LSP / DAP client | Any compatible editor client using `vscode-languageclient` 9.0.1 |
-| Native prerequisites | Existing GCC 16.2, binutils 2.47, GDB 17.2, pkg-config, SDL3 3.4.16, Vulkan headers/loader, ShaderC and SPIRV-tools |
+| Native prerequisites | Existing GCC 16.2, binutils 2.47, GDB 17.2, pkg-config, SDL3 3.4.18, Vulkan headers/loader, ShaderC and SPIRV-tools |
 | Other prerequisites | Existing Git, Bash, curl, unzip, Python, bubblewrap and DBus tools |
 
 ```sh

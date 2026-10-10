@@ -11,7 +11,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-for tool in cc cmp kof python3 zig; do
+for tool in cc cmp kof objcopy python3 zig; do
   command -v "$tool" >/dev/null || {
     echo "verify-kof-pe: $tool is required" >&2
     exit 2

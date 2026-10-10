@@ -268,7 +268,7 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 ## Decisões propostas
 
 - Linux x86-64 nativo primeiro; oráculo diferencial JVM. Outros SOs/arquiteturas não são prometidos.
-- SDL3 3.4.16 + SDL_GPU Vulkan/SPIR-V é a fronteira gráfica; SDL_mixer 3.2.4
+  SDL3 3.4.18 + SDL_GPU Vulkan/SPIR-V é a fronteira gráfica; SDL_mixer 3.2.4
   controla os buses. O benchmark Kof empacotado valida a ABI de buffer em lote
   e escolhe entre as rotas medidas de redução SIMD e escalar. O gameplay
   permanece no caminho escalar Kof até que o profiling identifique uma carga
@@ -283,7 +283,7 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 
 1. As funções usam `Int f(Int x)` / `f(Int x): Int`, **não fun/fn**. `record` e `class X(...)` são imutáveis/no estilo de records; classes mutáveis usam campos + construtor explícito. Não há variáveis ordinárias no nível superior, literais de array nem pressupostos de safe-call/coalesce do Kotlin.
 2. Módulos/imports `.kf` funcionam. A importação de diretórios foi medida na JVM/nativo; `run` coleta irmãos e rejeita várias funções `main()` (`PKG002`). Escopos de entrada de aplicações são separados.
-3. O `extern` nativo **escalar** funciona agora; as antigas afirmações gerais de que “FFI nativo não é suportado” estão desatualizadas. sqrt → `3.0`, SDL_GetVersion → `3004016` foram medidos em ambos os alvos.
+3. O `extern` nativo **escalar** funciona agora; as antigas afirmações gerais de que “FFI nativo não é suportado” estão desatualizadas. sqrt → `3.0`, SDL_GetVersion → `3004018` foram medidos em ambos os alvos.
 4. O `Buffer(U8, INOUT)` mais token FFI do Kof 0.5.0-beta passou na verificação independente fornecida para x86-64 nativo/cross. Script/JS/Android/riscv32/MCU ainda retornam `FFI001`; structs/ponteiros/variádicos e callbacks nativos continuam fora do contrato geral. IDs de recursos devem ser tokens reais do adaptador, não casts de ponteiros.
 5. O caminho automático do coletor x86 nativo é controlado por `kof_spawn_count == 0` **cumulativo**. Aguardar uma tarefa não o reabre. Não contornar usando GC manual inseguro. Threads de bibliotecas nunca devem manter/chamar estado do heap Kof.
 6. A execução nativa empacotada avisou que o pruning do runtime não consegue encontrar `NativeRuntime.java` fora do módulo do compilador; o fallback de runtime completo foi executado. As pequenas alegações de tamanho binário do upstream não foram verificadas para este caminho de release.

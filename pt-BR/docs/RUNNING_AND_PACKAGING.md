@@ -256,7 +256,7 @@ buffers de staging do Kof não recebem malhas sem limite.
 
 ## Dependências de desenvolvimento SDL3/SDL_mixer
 
-Os gates Linux aceitam SDL 3.4.16 e SDL_mixer 3.2.4 via `pkg-config`. O
+Os gates Linux aceitam SDL 3.4.18 e SDL_mixer 3.2.4 via `pkg-config`. O
 resolver compartilhado também aceita `KOOKIE_SDL3_PREFIX` e
 `KOOKIE_SDL3_MIXER_PREFIX`, valida as versões exatas dos headers/metadados e
 adiciona a biblioteca selecionada ao caminho do smoke local. Ele não aceita
@@ -385,7 +385,7 @@ SDL_mixer 3.2.4. Verificou arquivo assinado, extração segura e package-smoke n
 checkout atual; não comprovou GPU Linux com capacidade de apresentação nem a
 release pareada final em árvore limpa.
 
-Esse perfil exige SDL 3.4.16, SDL_mixer 3.2.4, `glslc`, compilador C e
+Esse perfil exige SDL 3.4.18, SDL_mixer 3.2.4, `glslc`, compilador C e
 `pkg-config`. O arquivo contém a aplicação Kof de menu/jogo, adaptador SDL,
 shaders SPIR-V, SDL3 e SDL_mixer. Ele usa o loader dinâmico e a libc do host.
 Arquivos de apresentação também incluem `DEMO_CONTROLS.txt`. O comando padrão
@@ -555,7 +555,7 @@ hardware-alvo continua sendo um gate D1 aberto.
 ### Compilador Kof PE/COFF alcançável
 
 A ponte fixada do compilador reduz o grafo alcançável da IR Kof otimizada para
-C11 determinístico e usa Zig 0.16.0 para emitir um objeto COFF AMD64 e um PE
+C11 determinístico e usa Zig 0.17.0 para emitir um objeto COFF AMD64 e um PE
 de console Windows:
 
 ```bash
@@ -593,7 +593,7 @@ bash scripts/verify_pe_durable_save.sh
 ### Shell SDL nativo
 
 Gere o shell nativo a partir dos pacotes oficiais de desenvolvimento MinGW do
-SDL 3.4.16 e SDL_mixer 3.2.4:
+SDL 3.4.18 e SDL_mixer 3.2.4:
 
 ```bash
 KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
@@ -721,7 +721,7 @@ ambiente `kookie-demo-release`.
 
 O workflow exige runners self-hosted com labels `kookie-demo-release`,
 `linux`/`windows` e `x64`. Ambos precisam de Kof `0.5.0-beta` no commit de
-fonte fixado, Python 3, OpenSSL, `glslc`, Zig 0.16.0 e o digest fixado da
+fonte fixado, Python 3, OpenSSL, `glslc`, Zig 0.17.0 e o digest fixado da
 distribuição Kof. O runner Linux também precisa dos arquivos de
 desenvolvimento SDL3 e de um wrapper de display isolado para o smoke opcional;
 o workflow prepara o prefixo fixado do SDL_mixer quando a entrada

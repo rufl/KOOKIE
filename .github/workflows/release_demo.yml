@@ -45,14 +45,14 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout requested source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Configure pinned Linux SDL3 prefix
         shell: bash
         run: |
           set -euo pipefail
-          sdl3_prefix="$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.16"
+          sdl3_prefix="$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.18"
           test -f "$sdl3_prefix/include/SDL3/SDL_version.h"
           test -f "$sdl3_prefix/lib/pkgconfig/sdl3.pc"
           printf 'KOOKIE_SDL3_PREFIX=%s\n' "$sdl3_prefix" >> "$GITHUB_ENV"
@@ -174,7 +174,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout requested source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Preflight Windows presentation capability
@@ -289,19 +289,19 @@ jobs:
       contents: write
     steps:
       - name: Checkout release commit
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Download Linux artifact set
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: kookie-demo-linux-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-linux
 
       - name: Download Windows artifact set
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: kookie-demo-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-windows

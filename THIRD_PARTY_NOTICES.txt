@@ -27,11 +27,11 @@ UI SFX Pack. The upload contained no license file or redistribution terms.
 Confirm the pack's license before redistributing a package containing these
 files.
 
-SDL 3.4.16
-Source: https://github.com/libsdl-org/SDL/releases/tag/release-3.4.16
+SDL 3.4.18
+Source: https://github.com/libsdl-org/SDL/releases/tag/release-3.4.18
 Windows MinGW archive:
-https://github.com/libsdl-org/SDL/releases/download/release-3.4.16/SDL3-devel-3.4.16-mingw.tar.gz
-SHA-256: c7ef65bd72eabac6e5b535411dbd8d5824d0aab24fd62ff8812666b336f18a9c
+https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-devel-3.4.18-mingw.tar.gz
+SHA-256: 049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf
 
 SDL_mixer 3.2.4
 Source: https://github.com/libsdl-org/SDL_mixer/releases/tag/release-3.2.4

@@ -26,7 +26,7 @@ for command_name in cmake cc pkg-config sha256sum tar; do
 done
 
 kookie_prepare_sdl3_host "$ROOT_DIR" || {
-  echo 'bootstrap_sdl3_mixer: SDL3 3.4.16 development files are unavailable' >&2
+  echo 'bootstrap_sdl3_mixer: SDL3 3.4.18 development files are unavailable' >&2
   exit 2
 }
 

@@ -11,7 +11,7 @@ cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
 
 export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.5.0-beta-linux-x86_64
 export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.5.0-beta-linux-x86_64.tar.gz
-export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.16/x86_64-w64-mingw32
+export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
@@ -106,18 +106,17 @@ self-hosted, windows, x64, kookie-demo-release
 
 Ambos precisam de Kof `0.5.0-beta` no commit
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c`, Python 3, OpenSSL, `glslc`, Zig
-`0.16.0` e o archive Kof exato cujo digest está em
+`0.17.0` e o archive Kof exato cujo digest está em
 `KOOKIE_KOF_ARCHIVE_SHA256`.
 O runner deve expor esse arquivo em `KOOKIE_KOF_ARCHIVE`; os jobs de release
 recalculam o SHA-256 antes do build, em vez de confiar apenas no metadata.
-O workflow de verificação hospedado fixa o commit assinado do
-`mlugg/setup-zig` compatível com Node24,
-`272b55e6c4fcef353f6d923050ff32f018636378`, porque o `v2` upstream ainda
-declara Node20.
-O runner Linux da release expõe o SDL3 3.4.16 fixado em
-`$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.16`; o workflow exporta
+O workflow de verificação hospedado fixa o commit verificado mais recente do
+`mlugg/setup-zig`, `d1434d08867e3ee9daa34448df10607b98908d29`; a action
+`v2` atual declara Node20.
+O runner Linux da release expõe o SDL3 3.4.18 fixado em
+`$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.18`; o workflow exporta
 `KOOKIE_SDL3_PREFIX` antes de preparar o SDL_mixer. Um SDL3 de sistema mais
-novo não é substituto.
+antigo ou não revisado não é substituto.
 
 O runner Linux também precisa dos arquivos de desenvolvimento SDL3, do
 caminho de preparação do SDL_mixer fixado e de um wrapper de display isolado

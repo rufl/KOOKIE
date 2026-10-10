@@ -1112,17 +1112,17 @@ if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
 elif [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
   WINDOWS_STATUS=kof-native-pe-sdl-gpu-bundled-runtime
   DEPENDENCY_POLICY=bundled-sdl-and-shader-assets-license-files-retained
-  SDL_VERSION=3.4.16
+  SDL_VERSION=3.4.18
   SDL_MIXER_VERSION=3.2.4
   RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL
 elif [[ "$TARGET" == windows-x86_64 ]]; then
   WINDOWS_STATUS=kof-native-pe-sdl-shell-runtime
   DEPENDENCY_POLICY=bundled-sdl-license-files-retained
-  SDL_VERSION=3.4.16
+  SDL_VERSION=3.4.18
   SDL_MIXER_VERSION=3.2.4
   RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer
 elif [[ "$RUNTIME" == presentation ]]; then
-  SDL_VERSION=3.4.16
+  SDL_VERSION=3.4.18
   SDL_MIXER_VERSION=3.2.4
   RUNTIME_DEPENDENCIES=SDL3+SDL_mixer
 fi

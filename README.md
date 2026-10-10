@@ -120,7 +120,7 @@ Run the non-graphical G6 expansion probes:
 bash scripts/verify_g6_runtime.sh
 ```
 
-Presentation package builds require SDL 3.4.16, SDL_mixer 3.2.4
+Presentation package builds require SDL 3.4.18, SDL_mixer 3.2.4
 and `glslc`. If `pkg-config` cannot find SDL_mixer, prepare the pinned
 development prefix once:
 
@@ -444,7 +444,7 @@ belong in the [private reporting path](SECURITY.md), not a public issue.
 ## License and provenance
 
 KOOKIE is [MIT licensed](LICENSE). Native distributed runtime dependencies are
-SDL 3.4.16 and SDL_mixer 3.2.4 under the zlib License. The optional Windows JVM
+SDL 3.4.18 and SDL_mixer 3.2.4 under the zlib License. The optional Windows JVM
 profile bundles one SHA-256-pinned OpenJDK runtime under its own licenses and
 preserves `runtime/legal` and `runtime/NOTICE`. Exact sources and boundaries are
 recorded in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
