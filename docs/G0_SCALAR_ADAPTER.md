@@ -19,7 +19,10 @@ presentation evidence remains a separate release requirement.
 
 `SdlLifecycle` owns the Kof-side initialized flag. It rejects negative flags, makes repeated initialization idempotent, and makes shutdown explicit. `probes/g0_platform/main.kf` calls `SDL_Init(0)` and `SDL_Quit()` on both targets when `/usr/lib/libSDL3.so` is installed. `0` intentionally requests no SDL subsystem; it does not prove video/audio initialization.
 
-The direct Kof binding still carries no SDL pointer, struct, event union, callback, window, GPU device or audio device. The measured Kof FFI limitation remains: scalar extern calls work, while arrays/structs/pointers/out-buffers/callbacks do not form a portable binding.
+The direct Kof binding still carries no SDL pointer, struct, event union,
+callback, window, GPU device or audio device. The active Kof `0.5.0-beta` pin
+does support byte-only `Buffer(U8)` for synchronous, target-qualified INOUT
+calls; that does not form a portable typed or asynchronous engine binding.
 
 ## Narrow native adapter
 
@@ -37,7 +40,13 @@ The direct Kof binding still carries no SDL pointer, struct, event union, callba
 - first shader, texture upload, sampler, pipeline and swapchain draw path;
 - explicit shutdown ordering for GPU, windows, mixer tracks/streams and SDL.
 
-The adapter does not retain Kof pointers, callbacks, gameplay state, entities or Kof-owned audio sample buffers. `probes/g0_native_adapter/main.kf` exercises hidden window creation/teardown, real SDL event polling into `WindowStateTracker`, synthetic resize/focus queueing, optional GPU lifecycle plus the first upload/draw, dummy playback-device open/close, bounded silence and clip PCM transfer, configured OGG predecode with exact music/SFX loop bounds, and stale-token rejection.
+The adapter does not retain Kof pointers, callbacks, gameplay state, entities
+or Kof-owned audio sample buffers. `probes/g0_native_adapter/main.kf` exercises
+hidden window creation/teardown, real SDL event polling into
+`WindowStateTracker`, synthetic resize/focus queueing, optional GPU lifecycle
+plus the first upload/draw, dummy playback-device open/close, bounded silence
+and clip PCM transfer, configured OGG predecode with exact music/SFX loop
+bounds, registered UI OGG spatial playback, and stale-token rejection.
 
 ## Window and input state
 
@@ -62,14 +71,17 @@ The adapter flattens SDL events, while Kof owns the transition policy and author
 - no callback into Kof and no competing gameplay/audio policy authority.
 
 The native adapter proves a real SDL_mixer lifecycle, separate gain controls,
-bounded silence transfer and deterministic synthesized clip variants
-(`clipId=1` and impact clips `201`–`203`, at most 480 stereo F32 frames).
-`kookie_audio_load_music_ogg` uses `MIX_LoadAudio(..., true)` so admitted OGG
-bytes are decoded once into a retained seekable track. Music and SFX loop calls
-pass explicit sample-frame start/end/count properties to SDL_mixer; the native
-probe exercises an infinite full-track music loop and a bounded SFX loop. The
-Kof queue still does not pass Kof-owned sample buffers through scalar FFI;
-streamed voice lifetimes remain a later boundary.
+bounded silence transfer, deterministic synthesized clip variants
+(`clipId=1` and impact clips `201`–`203`, at most 480 stereo F32 frames), and
+spatial playback for the registered UI OGG tracks. `kookie_audio_load_music_ogg`
+uses `MIX_LoadAudio(..., true)` so admitted OGG bytes are decoded once into a
+retained seekable track. `kookie_audio_play_ui_clip_spatial` applies bounded
+left/right gains through `MIX_SetTrackStereo`; the native probe rejects
+unknown clips and invalid gains. Music and SFX loop calls pass explicit
+sample-frame start/end/count properties to SDL_mixer; the native probe
+exercises an infinite full-track music loop and a bounded SFX loop. The Kof
+queue still does not pass Kof-owned sample buffers through scalar FFI; streamed
+voice lifetimes remain a later boundary.
 
 ## GPU lifecycle
 

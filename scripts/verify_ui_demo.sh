@@ -30,6 +30,13 @@ trap cleanup EXIT INT TERM
 mkdir -p "$work_dir/ui" "$work_dir/assets/ui" "$work_dir/fonts"
 cp -- "$root_dir/apps/ui_demo/main.kf" "$work_dir/main.kf"
 ln -s -- "$root_dir/src/ui/kookie_ui.kf" "$work_dir/ui/kookie_ui.kf"
+ln -s -- "$root_dir/src/ui/kookie_ui_components.kf" \
+  "$work_dir/ui/kookie_ui_components.kf"
+ln -s -- "$root_dir/src/ui/kookie_ui_audio.kf" \
+  "$work_dir/ui/kookie_ui_audio.kf"
+mkdir -p "$work_dir/core"
+ln -s -- "$root_dir/src/core/audio_queue.kf" \
+  "$work_dir/core/audio_queue.kf"
 python3 "$root_dir/scripts/generate_ui_manifest_kf.py" \
   --check "$root_dir/assets/ui/manifest.json" "$root_dir/src/ui/published_assets.kf"
 ln -s -- "$root_dir/src/ui/published_assets.kf" \

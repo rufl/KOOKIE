@@ -13,10 +13,12 @@ Int kookieUiTextRoleDisplay() { return 1 }
 Color kookieUiBackground() { return Color(15, 23, 42) }
 Color kookieUiSurface() { return Color(15, 31, 43) }
 Color kookieUiSurfaceRaised() { return Color(22, 42, 55) }
-Color kookieUiForeground() { return Color(255, 255, 255) }
-Color kookieUiMuted() { return Color(184, 197, 207) }
+Color kookieUiForeground() { return Color(248, 250, 252) }
+Color kookieUiMuted() { return Color(100, 116, 139) }
 Color kookieUiAccent() { return Color(217, 119, 6) }
 Color kookieUiFocus() { return Color(21, 128, 61) }
+Color kookieUiDanger() { return Color(220, 38, 38) }
+Color kookieUiSuccess() { return Color(34, 197, 94) }
 
 String kookieUiFontName(Int role) {
     if (role == kookieUiFontBody()) { return "Jared Lite" }
@@ -333,6 +335,44 @@ class KookieUiDocument {
         windowValue.bind(row)
         boundCountValue = boundCountValue + 1
         return true
+    }
+
+    Bool bindMenu(String title, String subtitle, String hint) {
+        var titleText = KookieUiText(
+            title, kookieUiTextRoleDisplay(), 32, true,
+            kookieUiForeground())
+        var subtitleText = KookieUiText(
+            subtitle, kookieUiTextRoleBody(), 18, false,
+            kookieUiMuted())
+        var hintText = KookieUiText(
+            hint, kookieUiTextRoleBody(), 14, false,
+            kookieUiMuted())
+        var content = Column(listOf(
+            titleText.widget(), subtitleText.widget(), hintText.widget()))
+        var panel = View(kookieUiSurfaceStyle())
+        panel.bind(content)
+        return bindView(panel)
+    }
+
+    Bool bindHud(String health, String ammunition, String build, String xp) {
+        var healthText = KookieUiText(
+            health, kookieUiTextRoleBody(), 14, true,
+            kookieUiForeground())
+        var ammunitionText = KookieUiText(
+            ammunition, kookieUiTextRoleBody(), 14, true,
+            kookieUiForeground())
+        var buildText = KookieUiText(
+            build, kookieUiTextRoleBody(), 14, false,
+            kookieUiMuted())
+        var xpText = KookieUiText(
+            xp, kookieUiTextRoleBody(), 14, false,
+            kookieUiMuted())
+        var stats = Row(listOf(
+            healthText.widget(), ammunitionText.widget(),
+            buildText.widget(), xpText.widget()))
+        var panel = View(kookieUiRaisedStyle())
+        panel.bind(stats)
+        return bindView(panel)
     }
 
     Bool show() {

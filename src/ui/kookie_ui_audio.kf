@@ -1,0 +1,224 @@
+package ui
+
+import core
+
+Int kookieUiSoundOgg() { return 1 }
+Int kookieUiSoundWav() { return 2 }
+Int kookieUiSoundMaximumBankEntries() { return 32 }
+
+Bool kookieUiSafeMediaPath(String value) {
+    if (value.length() == 0) { return false }
+    var first = value.charAt(0) as Int
+    if (first == 47 || first == 92 || first == 58) { return false }
+    for (var index = 0; index < value.length(); index = index + 1) {
+        var character = value.charAt(index) as Int
+        if (character < 32 || character == 35 || character == 58 ||
+            character == 63 || character == 92) {
+            return false
+        }
+        if (character == 47 &&
+            (index + 1 == value.length() ||
+                (index > 0 && (value.charAt(index - 1) as Int) == 47))) {
+            return false
+        }
+        if (character == 46) {
+            var atStart = index == 0 ||
+                (value.charAt(index - 1) as Int) == 47
+            var atEnd = index + 1 == value.length() ||
+                (value.charAt(index + 1) as Int) == 47
+            if (atStart && atEnd) { return false }
+            if (index + 1 < value.length() &&
+                (value.charAt(index + 1) as Int) == 46) {
+                var parentAtEnd = index + 2 == value.length() ||
+                    (value.charAt(index + 2) as Int) == 47
+                if (atStart && parentAtEnd) { return false }
+            }
+        }
+    }
+    return true
+}
+
+Bool kookieUiSoundKindValid(Int kind, String source) {
+    if (!kookieUiSafeMediaPath(source)) { return false }
+    if (kind == kookieUiSoundOgg()) {
+        return kookieUiHasSuffix(source, ".ogg")
+    }
+    if (kind == kookieUiSoundWav()) {
+        return kookieUiHasSuffix(source, ".wav")
+    }
+    return false
+}
+
+
+class KookieUiSoundCue {
+    String idValue
+    String sourceValue
+    Int kindValue
+    String labelValue
+    String checksumValue
+    Int clipIdValue
+    Int defaultGainValue
+
+    public constructor(
+        String id, String source, Int kind, String label,
+        String checksum, Int clipId, Int defaultGain
+    ) {
+        idValue = id
+        sourceValue = source
+        kindValue = kind
+        labelValue = label
+        checksumValue = checksum
+        clipIdValue = clipId
+        defaultGainValue = defaultGain
+    }
+
+    Bool accepted() {
+        return idValue.length() > 0 &&
+            kookieUiSoundKindValid(kindValue, sourceValue) &&
+            labelValue.length() > 0 && kookieUiSha256(checksumValue) &&
+            clipIdValue > 0 && clipIdValue <= 1000000 &&
+            defaultGainValue >= 0 && defaultGainValue <= 100
+    }
+
+
+    String id() { return idValue }
+    String source() { return sourceValue }
+    Int kind() { return kindValue }
+    String label() { return labelValue }
+    String checksum() { return checksumValue }
+    Int clipId() { return clipIdValue }
+    Int defaultGain() { return defaultGainValue }
+    Bool isOgg() { return kindValue == kookieUiSoundOgg() }
+    Bool isWav() { return kindValue == kookieUiSoundWav() }
+}
+
+
+
+class KookieUiSoundBank {
+    Int[] clipIds
+    String[] cueIds
+    Int[] gains
+    Int capacityValue
+    Int countValue
+    Bool openedValue
+    QueuedAudio queueValue
+    String lastCueIdValue
+
+    public constructor(Int capacity) {
+        capacityValue = capacity
+        if (capacityValue <= 0) { capacityValue = 1 }
+        if (capacityValue > kookieUiSoundMaximumBankEntries()) {
+            capacityValue = kookieUiSoundMaximumBankEntries()
+        }
+        clipIds = new Int[capacityValue]
+        cueIds = new String[capacityValue]
+        gains = new Int[capacityValue]
+        queueValue = QueuedAudio(capacityValue)
+        countValue = 0
+        openedValue = false
+        lastCueIdValue = ""
+    }
+
+    Int find(String id) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (cueIds[index] == id) { return index }
+        }
+        return -1
+    }
+
+    Int findClip(Int clipId) {
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (clipIds[index] == clipId) { return index }
+        }
+        return -1
+    }
+
+    Bool add(KookieUiSoundCue cue) {
+        if (openedValue || !cue.accepted() || countValue >= capacityValue ||
+            find(cue.id()) >= 0 || findClip(cue.clipId()) >= 0) {
+            return false
+        }
+        clipIds[countValue] = cue.clipId()
+        cueIds[countValue] = cue.id()
+        gains[countValue] = cue.defaultGain()
+        countValue = countValue + 1
+        return true
+    }
+
+
+    Bool open() {
+        if (openedValue || countValue == 0 || !queueValue.open()) {
+            return false
+        }
+        openedValue = true
+        return true
+    }
+
+    Bool isOpen() { return openedValue }
+    Int count() { return countValue }
+    Int capacity() { return capacityValue }
+    Int pending() { return queueValue.queuedCount() }
+
+    Int clipId(String id) {
+        var index = find(id)
+        if (index < 0) { return 0 }
+        return clipIds[index]
+    }
+
+    Int defaultGain(String id) {
+        var index = find(id)
+        if (index < 0) { return -1 }
+        return gains[index]
+    }
+
+    Bool play(String id) {
+        var index = find(id)
+        if (index < 0) { return false }
+        return queueValue.queue(clipIds[index], gains[index])
+    }
+
+    Bool playWithGain(String id, Int gain) {
+        var index = find(id)
+        if (index < 0) { return false }
+        return queueValue.queue(clipIds[index], gain)
+    }
+
+    Bool playSpatial(
+        String id, Int sourceX, Int sourceY, Int sourceZ,
+        Int listenerX, Int listenerY, Int listenerZ,
+        Int rightX, Int rightZ, Int maxDistance
+    ) {
+        var index = find(id)
+        if (index < 0) { return false }
+        return queueValue.queueSpatial(
+            clipIds[index], gains[index], sourceX, sourceY, sourceZ,
+            listenerX, listenerY, listenerZ, rightX, rightZ, maxDistance)
+    }
+
+    Bool dequeue() {
+        if (!queueValue.dequeue()) { return false }
+        lastCueIdValue = ""
+        var index = findClip(queueValue.consumedClip())
+        if (index >= 0) { lastCueIdValue = cueIds[index] }
+        return true
+    }
+
+    String consumedCueId() { return lastCueIdValue }
+    Int consumedClip() { return queueValue.consumedClip() }
+    Int consumedGain() { return queueValue.consumedGain() }
+    Int consumedLeftGain() { return queueValue.consumedLeftGain() }
+    Int consumedRightGain() { return queueValue.consumedRightGain() }
+
+    Bool resetQueue() {
+        if (!openedValue) { return false }
+        lastCueIdValue = ""
+        return queueValue.reset()
+    }
+
+    Bool close() {
+        if (!openedValue || !queueValue.close()) { return false }
+        openedValue = false
+        lastCueIdValue = ""
+        return true
+    }
+}

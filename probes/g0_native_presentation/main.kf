@@ -26,6 +26,12 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resou
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
     Int resource, Int x, Int y, Int depth, Int u, Int v
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_quad_depth(
+    Int resource, Int left, Int bottom, Int right, Int top, Int depth
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_triangle(
+    Int resource, Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_capacity(): Int
@@ -693,6 +699,9 @@ class G1NativePresentation {
 
     Bool applyUiSettings(GameShell shell) {
         return hud.setScale(shell.hudScalePercent()) &&
+            hud.setHighContrast(shell.highContrast()) &&
+            gooseOverlay.setHighContrast(shell.highContrast()) &&
+            scoreboardUi.setHighContrast(shell.highContrast()) &&
             minimap.setVisible(shell.tacticalMapVisible())
     }
     Bool prepareGooseSession() {
@@ -750,6 +759,7 @@ class G1NativePresentation {
 
     Bool resetGooseSession() {
         var preservedScale = hud.scalePercent()
+        var preservedContrast = hud.highContrast()
         playerAimTargets = BoundedRayTargetWorld(3, 64)
         var preservedMinimap = minimap.visible()
         interactionSession = LoopbackSession(16, 8)
@@ -758,6 +768,7 @@ class G1NativePresentation {
         }
         hud = ShooterHud(100, 3)
         if (!hud.setScale(preservedScale) ||
+            !hud.setHighContrast(preservedContrast) ||
             !animalMeshes.clear() ||
             !minimap.clear() ||
             !minimap.setVisible(preservedMinimap) ||
@@ -828,7 +839,35 @@ class G1NativePresentation {
     }
 
     Bool upload(FrameStaging frame) {
-        for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+        var index = 0
+        while (index < frame.stagedCount()) {
+            var span = frame.primitiveSpanAt(index)
+            if (span == 6) {
+                if (!kookie_gpu_scene_push_quad_depth(
+                        frame.resourceAt(index),
+                        frame.xAt(index), frame.yAt(index),
+                        frame.xAt(index + 1), frame.yAt(index + 2),
+                        frame.depthAt(index))) {
+                    println("KOOKIE gameplay quad upload failed")
+                    println(index)
+                    return false
+                }
+                index = index + 6
+                continue
+            }
+            if (span == 3) {
+                if (!kookie_gpu_scene_push_triangle(
+                        frame.resourceAt(index),
+                        frame.xAt(index), frame.yAt(index),
+                        frame.xAt(index + 1), frame.yAt(index + 1),
+                        frame.xAt(index + 2), frame.yAt(index + 2))) {
+                    println("KOOKIE gameplay triangle upload failed")
+                    println(index)
+                    return false
+                }
+                index = index + 3
+                continue
+            }
             if (!kookie_gpu_scene_push_vertex_depth(
                     frame.resourceAt(index),
                     frame.xAt(index), frame.yAt(index),
@@ -836,11 +875,9 @@ class G1NativePresentation {
                     frame.uAt(index), frame.vAt(index))) {
                 println("KOOKIE gameplay vertex upload failed")
                 println(index)
-                println(frame.resourceAt(index))
-                println(frame.xAt(index))
-                println(frame.yAt(index))
                 return false
             }
+            index = index + 1
         }
         return true
     }

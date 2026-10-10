@@ -39,6 +39,52 @@ There is no privileged offline simulation path.
 8. **No hidden authority:** renderer, client, editor, audio and mods cannot
    silently mutate authoritative server state.
 
+### Measured source composition
+
+`scripts/report_code_mix.py` measures physical source lines in the current
+working tree under `src`, `probes`, `apps`, `native`, `scripts` and `tooling`.
+The report includes untracked source files and excludes generated build output.
+Current result:
+
+| Group | Files | Lines | Share |
+|---|---:|---:|---:|
+| Kof (`.kf`) | 144 | 72,524 | 76.85% |
+| KofScript (`.ks`) | 4 | 558 | 0.59% |
+| C/header (`.c`, `.h`) | 18 | 10,717 | 11.36% |
+| Shell tooling (`.sh`) | 43 | 6,570 | 6.96% |
+| Python tooling (`.py`) | 16 | 2,386 | 2.53% |
+| PE bridge Java (`.java`) | 1 | 1,504 | 1.59% |
+| GPU shaders | 8 | 115 | 0.12% |
+| **Total** | **234** | **94,374** | **100%** |
+
+The runtime slice (Kof/KofScript/C/shaders, excluding build tooling and the PE
+bridge) is 83,914 lines: Kof 86.43%, KofScript 0.66%, C/header 12.77% and
+shaders 0.14%. This is a composition measure, not a performance claim.
+
+Do not translate code only to increase the Kof percentage. Keep SDL/SDL_GPU,
+SDL_mixer, Winsock, filesystem durability, thread scheduling, SIMD intrinsics,
+shader source and buffer/pointer marshalling native. KofScript remains the
+bounded behavior/artifact tier; it is not a hot-loop replacement for compiled
+Kof. Move native code only when the Kof ABI can preserve bulk transfer,
+ownership and frame-time behavior. The current model parser/vertex expansion
+and Windows shell remain explicit migration candidates, but neither is
+converted by this audit: the former would add per-vertex boundary traffic
+without a bulk-buffer ABI, and the latter is UI cold-path code requiring a
+stable PE export/object ABI.
+
+The active Kof4j `0.5.0-beta` pin implements byte-only `Buffer(U8)` for JVM,
+JS and native x86-64; `scripts/verify_simd_dispatch.sh` qualifies the
+synchronous JVM/native x86-64 INOUT shape. The pinned source comments claim
+riscv64/aarch64 support, while newer upstream docs still report Native
+`FFI001`; KOOKIE treats cross support as unqualified. `Buffer(U8)` does not
+define a typed, asynchronous GPU/audio ownership contract.
+
+KOOKIE therefore keeps `FrameStaging`/content wires as bounded Kof-owned arrays,
+uses C-owned storage for native work and retains the checked scalar adapter.
+See [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md) for the versioned buffer
+decision and reusable UI/audio boundary.
+
+
 ## 3. Layer model
 
 ```mermaid
@@ -720,6 +766,13 @@ range across 181 samples and resource signature `520690` remained stable. An
 authenticated same-host host plus two clients replicate the complete state on
 every tick, assemble four chunks transactionally, reject stale/tampered state,
 and recover client B at generation 2.
+
+The P0 server gate now keeps the direct tick benchmark on the existing p95
+contract and runs a separate bounded 64-sample phase profile for clock,
+collision, AI, projectile, pickup and finalize timing. The phase profile is
+diagnostic and does not replace the direct-path timing gate. Enemy authority and
+impact histories use head/count ring buffers, preserving monotonic sequence and
+latest-value semantics without shifting full histories when capacity is reached.
 
 The SDL_GPU boundary stages 2,952 vertex attributes as 984 hardware triangle
 instances in one draw. On the recorded Intel Arrow Lake Vulkan 26.2.3 device,

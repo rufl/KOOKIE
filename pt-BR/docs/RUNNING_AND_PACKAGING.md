@@ -306,7 +306,21 @@ copia arquivos `.ogg` encontrados nos diretórios opcionais
 `assets/audio/music/` e `assets/audio/sfx/`; o runtime só inicia
 automaticamente a trilha configurada explicitamente.
 
-Sem `KOOKIE_AUDIO_MUSIC_OGG`, os streams PCM gerados anteriores de música e
+O catálogo UI é material JDSherbert fornecido pelo usuário e atualmente não
+possui termos de licença/redistribuição no repositório; seus 14 arquivos são
+portanto um bloqueio para publicação, não uma dependência liberada. Metadados
+SHA-256 dos cues não resolvem esse gate legal. Use as verificações semânticas
+focadas durante o desenvolvimento:
+
+```bash
+bash scripts/verify_ui_library.sh
+bash scripts/verify_ui_demo.sh
+```
+
+Não publique pacote contendo `assets/audio/ui/*.ogg` até registrar a licença
+e a permissão de redistribuição do pack em `THIRD_PARTY_NOTICES.txt`.
+
+Sem `KOOKIE_AUDIO_MUSIC_OGG`, os streams PCM gerados anteriormente de música e
 efeitos permanecem inalterados.
 
 Depois da preparação, `package_kookie.sh`, `verify.sh`, os gates nativos de

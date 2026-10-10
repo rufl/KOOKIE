@@ -148,6 +148,18 @@ de release player-facing.
   caminhos JVM e nativo; `scripts/verify_font_ui.sh` cobre o caminho de
   fontes/título empacotado.
 
+- O skin nativo da UI é compartilhado entre menus e gameplay por
+  `src/ui/kookie_ui_native.kf`: superfícies/trilhos do GameShell, rótulos
+  semânticos do HUD (`HP`, `AMMO`, `BAG`, `XP`), nameplates e scoreboard agora
+  usam um contrato único de paleta/foco/contraste. O orçamento de staging do
+  HUD é de 438 vértices e continua pré-alocado.
+
+- O caminho nativo da UI agora agrupa primitivas limitadas de quad/triângulo na
+  fronteira Kof/C e cresce as capacidades das cenas CPU/GPU com folga. Mudanças
+  de quantidade em menus/HUD evitam expansão de chamadas por vértice e
+  reconstrução repetida de buffers GPU, mantendo uma única chamada de draw para
+  a UI de gameplay.
+
 - O build atual de qualificação da GUI produziu
   `0.1.0-gui.1` a partir do commit de fonte
   `b1d4db92bf3adf166d503ca0eb44d8569498950c`; o SHA-256 do arquivo Linux é

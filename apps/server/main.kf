@@ -1,6 +1,7 @@
 import session
 import kof.process
 
+extern "./lib/libkookie_headless_adapter.so" kookie_headless_monotonic_nanoseconds(): Long
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_measure_begin(): Bool
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_measure_elapsed_microseconds(): Int
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_rss_kib(): Int
@@ -10,6 +11,44 @@ extern "./lib/libkookie_headless_adapter.so" kookie_headless_warmup_ticks(): Int
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_sample_interval(): Int
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_realtime(): Bool
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_p95_budget_microseconds(): Int
+
+Int elapsedMonotonicMicroseconds(Long start) {
+    var now = kookie_headless_monotonic_nanoseconds()
+    if (start < 0L || now < start) { return -1 }
+    var elapsed = (now - start) / 1000L
+    if (elapsed == 0L && now > start) { return 1 }
+    if (elapsed > 2000000000L) { return 2000000000 }
+    return elapsed.toInt()
+}
+
+Bool recordPhaseElapsed(
+    BoundedPhaseTelemetry telemetry, Int phase, Long start
+) {
+    var elapsed = elapsedMonotonicMicroseconds(start)
+    return elapsed >= 0 && telemetry.recordPhase(phase, elapsed)
+}
+
+Bool phaseTelemetryComplete(
+    BoundedPhaseTelemetry telemetry, Int expectedSamples
+) {
+    for (var phase = dedicatedPhaseClock();
+        phase <= dedicatedPhaseFinalize(); phase = phase + 1) {
+        if (telemetry.samples(phase) != expectedSamples) {
+            return false
+        }
+    }
+    return true
+}
+
+void printPhaseTelemetry(
+    BoundedPhaseTelemetry telemetry, Int phase, String name
+) {
+    println("phase-" + name + "-samples=" + telemetry.samples(phase))
+    println("phase-" + name + "-p50-us=" + telemetry.p50Micros(phase))
+    println("phase-" + name + "-p95-us=" + telemetry.p95Micros(phase))
+    println("phase-" + name + "-p99-us=" + telemetry.p99Micros(phase))
+    println("phase-" + name + "-max-us=" + telemetry.maximumMicros(phase))
+}
 
 main() {
     // Persist each extern result before a later call; native local liveness is
@@ -29,7 +68,8 @@ main() {
     }
     var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
     var telemetry = BoundedTickTelemetry(20000)
-    if (!telemetry.valid() || !server.configureReferenceWorkload() ||
+    if (!telemetry.valid() ||
+        !server.configureReferenceWorkload() ||
         (configuration.warmupTicks() > 0 &&
             !server.runTicks(configuration.warmupTicks()))) {
         println("dedicated-server-rejected")
@@ -41,8 +81,7 @@ main() {
     }
     for (var sample = 0; sample < configuration.measuredTicks();
         sample = sample + 1) {
-        if (!kookie_headless_measure_begin() ||
-            !server.advance(16666)) {
+        if (!kookie_headless_measure_begin() || !server.advance(16666)) {
             println("dedicated-server-tick-rejected")
             process.exit(1)
         }
@@ -69,12 +108,90 @@ main() {
             }
         }
     }
+    var phaseTelemetry = BoundedPhaseTelemetry(20000)
+    if (!phaseTelemetry.valid()) {
+        println("dedicated-server-phase-telemetry-rejected")
+        process.exit(1)
+    }
+    var phaseSampleCount = configuration.measuredTicks()
+    if (phaseSampleCount > 64) { phaseSampleCount = 64 }
+    var phaseServer = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
+    var phaseWarmupTicks = configuration.warmupTicks()
+    if (phaseWarmupTicks > 600) { phaseWarmupTicks = 600 }
+    if (!phaseServer.configureReferenceWorkload() ||
+        (phaseWarmupTicks > 0 &&
+            !phaseServer.runTicks(phaseWarmupTicks))) {
+        println("dedicated-server-phase-setup-rejected")
+        process.exit(1)
+    }
+    for (var sample = 0; sample < phaseSampleCount;
+        sample = sample + 1) {
+        var phaseStart = kookie_headless_monotonic_nanoseconds()
+        var steps = phaseServer.beginAdvance(16666)
+        if (steps != 1 ||
+            !phaseTelemetry.recordPhase(
+                dedicatedPhaseClock(),
+                elapsedMonotonicMicroseconds(phaseStart))) {
+            println("dedicated-server-clock-phase-rejected")
+            process.exit(1)
+        }
+        for (var step = 0; step < steps; step = step + 1) {
+            phaseStart = kookie_headless_monotonic_nanoseconds()
+            var collisionOk = phaseServer.beginAdvanceStep() &&
+                phaseServer.runAdvanceCollisionPhase()
+            if (!collisionOk ||
+                !recordPhaseElapsed(
+                    phaseTelemetry, dedicatedPhaseCollision(), phaseStart)) {
+                println("dedicated-server-collision-phase-rejected")
+                process.exit(1)
+            }
+            phaseStart = kookie_headless_monotonic_nanoseconds()
+            var aiOk = phaseServer.runAdvanceAiPhase()
+            if (!aiOk ||
+                !recordPhaseElapsed(
+                    phaseTelemetry, dedicatedPhaseAi(), phaseStart)) {
+                println("dedicated-server-ai-phase-rejected")
+                process.exit(1)
+            }
+            phaseStart = kookie_headless_monotonic_nanoseconds()
+            var projectileOk = phaseServer.runAdvanceProjectilePhase()
+            if (!projectileOk ||
+                !recordPhaseElapsed(
+                    phaseTelemetry, dedicatedPhaseProjectile(), phaseStart)) {
+                println("dedicated-server-projectile-phase-rejected")
+                process.exit(1)
+            }
+            phaseStart = kookie_headless_monotonic_nanoseconds()
+            var pickupOk = phaseServer.runAdvancePickupPhase()
+            if (!pickupOk ||
+                !recordPhaseElapsed(
+                    phaseTelemetry, dedicatedPhasePickup(), phaseStart)) {
+                println("dedicated-server-pickup-phase-rejected")
+                process.exit(1)
+            }
+            phaseStart = kookie_headless_monotonic_nanoseconds()
+            var finalizeOk = phaseServer.finishAdvanceStep()
+            if (!finalizeOk ||
+                !recordPhaseElapsed(
+                    phaseTelemetry, dedicatedPhaseFinalize(), phaseStart)) {
+                println("dedicated-server-finalize-phase-rejected")
+                process.exit(1)
+            }
+        }
+        if (!phaseServer.completeAdvance()) {
+            println("dedicated-server-phase-complete-rejected")
+            process.exit(1)
+        }
+    }
     var simulationBudgetPass = telemetry.p95Micros() <= p95BudgetMicros
     var rssPlateau =
         telemetry.rssGrowthKib() <= 1024 &&
         telemetry.rssRangeKib() <= 4096
     if (!server.resourcePlateau() || server.overloadCount() != 0 ||
-        telemetry.tickSamples() != configuration.measuredTicks()) {
+        !phaseServer.resourcePlateau() ||
+        phaseServer.overloadCount() != 0 ||
+        telemetry.tickSamples() != configuration.measuredTicks() ||
+        !phaseTelemetryComplete(phaseTelemetry, phaseSampleCount)) {
         println("dedicated-server-rejected")
         println("resource-plateau")
         println(server.resourcePlateau())
@@ -84,6 +201,8 @@ main() {
         println(telemetry.tickSamples())
         println("expected-tick-samples")
         println(configuration.measuredTicks())
+        println("phase-telemetry-complete")
+        println(phaseTelemetryComplete(phaseTelemetry, phaseSampleCount))
         process.exit(1)
     }
     println("KOOKIE G5 dedicated headless server")
@@ -112,6 +231,21 @@ main() {
     println(p95BudgetMicros)
     println("simulation-budget-pass")
     println(simulationBudgetPass)
+    println("phase-samples=" + phaseSampleCount)
+    println("phase-profile=isolated-phased-diagnostic")
+    println("phase-telemetry=true")
+    printPhaseTelemetry(
+        phaseTelemetry, dedicatedPhaseClock(), "clock")
+    printPhaseTelemetry(
+        phaseTelemetry, dedicatedPhaseCollision(), "collision")
+    printPhaseTelemetry(
+        phaseTelemetry, dedicatedPhaseAi(), "ai")
+    printPhaseTelemetry(
+        phaseTelemetry, dedicatedPhaseProjectile(), "projectile")
+    printPhaseTelemetry(
+        phaseTelemetry, dedicatedPhasePickup(), "pickup")
+    printPhaseTelemetry(
+        phaseTelemetry, dedicatedPhaseFinalize(), "finalize")
     println("rss-first-kib")
     println(telemetry.firstRssKib())
     println("rss-last-kib")

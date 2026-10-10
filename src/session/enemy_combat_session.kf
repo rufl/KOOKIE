@@ -135,6 +135,7 @@ class EnemyImpactSnapshotHistory {
     Int[] positionsZ
     Int[] appliedAmounts
     Bool[] died
+    Int head
     Int count
     EnemyImpactSnapshot latestValue
 
@@ -154,46 +155,44 @@ class EnemyImpactSnapshotHistory {
         positionsZ = new Int[actualCapacity]
         appliedAmounts = new Int[actualCapacity]
         died = new Bool[actualCapacity]
+        head = 0
         count = 0
         latestValue = EnemyImpactSnapshot(
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false)
     }
 
     Bool push(EnemyImpactSnapshot snapshot) {
+        var latestIndex = head + count - 1
+        if (latestIndex >= sequences.length) {
+            latestIndex = latestIndex - sequences.length
+        }
         if (snapshot.sequence() <= 0 || snapshot.tick() < 0 ||
             snapshot.kind() <= 0 || snapshot.kind() > 3 ||
             snapshot.projectileId() <= 0 || snapshot.sourceId() <= 0 ||
             snapshot.targetId() < 0 || snapshot.applied() < 0 ||
-            (count > 0 && snapshot.sequence() <= sequences[count - 1])) {
+            (count > 0 && snapshot.sequence() <= sequences[latestIndex])) {
             return false
         }
         if (count == sequences.length) {
-            for (var index = 1; index < count; index = index + 1) {
-                sequences[index - 1] = sequences[index]
-                ticks[index - 1] = ticks[index]
-                kinds[index - 1] = kinds[index]
-                projectileIds[index - 1] = projectileIds[index]
-                sourceIds[index - 1] = sourceIds[index]
-                targetIds[index - 1] = targetIds[index]
-                positionsX[index - 1] = positionsX[index]
-                positionsY[index - 1] = positionsY[index]
-                positionsZ[index - 1] = positionsZ[index]
-                appliedAmounts[index - 1] = appliedAmounts[index]
-                died[index - 1] = died[index]
-            }
+            head = head + 1
+            if (head == sequences.length) { head = 0 }
             count = count - 1
         }
-        sequences[count] = snapshot.sequence()
-        ticks[count] = snapshot.tick()
-        kinds[count] = snapshot.kind()
-        projectileIds[count] = snapshot.projectileId()
-        sourceIds[count] = snapshot.sourceId()
-        targetIds[count] = snapshot.targetId()
-        positionsX[count] = snapshot.x()
-        positionsY[count] = snapshot.y()
-        positionsZ[count] = snapshot.z()
-        appliedAmounts[count] = snapshot.applied()
-        died[count] = snapshot.died()
+        var index = head + count
+        if (index >= sequences.length) {
+            index = index - sequences.length
+        }
+        sequences[index] = snapshot.sequence()
+        ticks[index] = snapshot.tick()
+        kinds[index] = snapshot.kind()
+        projectileIds[index] = snapshot.projectileId()
+        sourceIds[index] = snapshot.sourceId()
+        targetIds[index] = snapshot.targetId()
+        positionsX[index] = snapshot.x()
+        positionsY[index] = snapshot.y()
+        positionsZ[index] = snapshot.z()
+        appliedAmounts[index] = snapshot.applied()
+        died[index] = snapshot.died()
         count = count + 1
         latestValue = snapshot
         return true
@@ -218,6 +217,7 @@ class EnemySnapshotHistory {
     Int[] enemyIds
     Int[] states
     Int[] targets
+    Int head
     Int count
     EnemyAuthoritySnapshot latestValue
 
@@ -231,6 +231,7 @@ class EnemySnapshotHistory {
         enemyIds = new Int[actualCapacity]
         states = new Int[actualCapacity]
         targets = new Int[actualCapacity]
+        head = 0
         count = 0
         latestValue = EnemyAuthoritySnapshot(0, 0, 0, 0, 0)
         for (var index = 0; index < actualCapacity; index = index + 1) {
@@ -243,27 +244,30 @@ class EnemySnapshotHistory {
     }
 
     Bool push(EnemyAuthoritySnapshot snapshot) {
+        var latestIndex = head + count - 1
+        if (latestIndex >= sequences.length) {
+            latestIndex = latestIndex - sequences.length
+        }
         if (snapshot.sequence() <= 0 || snapshot.tick() < 0 ||
             snapshot.enemyId() <= 0 || snapshot.state() < 0 ||
             snapshot.targetId() < 0 ||
-            (count > 0 && snapshot.sequence() <= sequences[count - 1])) {
+            (count > 0 && snapshot.sequence() <= sequences[latestIndex])) {
             return false
         }
         if (count == sequences.length) {
-            for (var index = 1; index < count; index = index + 1) {
-                sequences[index - 1] = sequences[index]
-                ticks[index - 1] = ticks[index]
-                enemyIds[index - 1] = enemyIds[index]
-                states[index - 1] = states[index]
-                targets[index - 1] = targets[index]
-            }
+            head = head + 1
+            if (head == sequences.length) { head = 0 }
             count = count - 1
         }
-        sequences[count] = snapshot.sequence()
-        ticks[count] = snapshot.tick()
-        enemyIds[count] = snapshot.enemyId()
-        states[count] = snapshot.state()
-        targets[count] = snapshot.targetId()
+        var index = head + count
+        if (index >= sequences.length) {
+            index = index - sequences.length
+        }
+        sequences[index] = snapshot.sequence()
+        ticks[index] = snapshot.tick()
+        enemyIds[index] = snapshot.enemyId()
+        states[index] = snapshot.state()
+        targets[index] = snapshot.targetId()
         count = count + 1
         latestValue = snapshot
         return true

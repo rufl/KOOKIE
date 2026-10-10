@@ -31,6 +31,12 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resou
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
     Int resource, Int x, Int y, Int depth, Int u, Int v
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_quad_depth(
+    Int resource, Int left, Int bottom, Int right, Int top, Int depth
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_triangle(
+    Int resource, Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
@@ -104,6 +110,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_audio_ui_clip_loops(
 ): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_ui_assets_loaded(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_play_ui_clip(Int clipId): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_audio_play_ui_clip_spatial(
+    Int clipId, Int leftGain, Int rightGain
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_queue_silence(Int frames): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_set_volumes(
@@ -145,7 +154,31 @@ class G1HeadlessPresentation {
     }
 
     Bool upload(FrameStaging frame) {
-        for (var index = 0; index < frame.stagedCount(); index = index + 1) {
+        var index = 0
+        while (index < frame.stagedCount()) {
+            var span = frame.primitiveSpanAt(index)
+            if (span == 6) {
+                if (!kookie_gpu_scene_push_quad_depth(
+                        frame.resourceAt(index),
+                        frame.xAt(index), frame.yAt(index),
+                        frame.xAt(index + 1), frame.yAt(index + 2),
+                        frame.depthAt(index))) {
+                    return false
+                }
+                index = index + 6
+                continue
+            }
+            if (span == 3) {
+                if (!kookie_gpu_scene_push_triangle(
+                        frame.resourceAt(index),
+                        frame.xAt(index), frame.yAt(index),
+                        frame.xAt(index + 1), frame.yAt(index + 1),
+                        frame.xAt(index + 2), frame.yAt(index + 2))) {
+                    return false
+                }
+                index = index + 3
+                continue
+            }
             if (!kookie_gpu_scene_push_vertex_depth(
                     frame.resourceAt(index),
                     frame.xAt(index), frame.yAt(index),
@@ -153,6 +186,7 @@ class G1HeadlessPresentation {
                     frame.uAt(index), frame.vAt(index))) {
                 return false
             }
+            index = index + 1
         }
         return true
     }
@@ -831,8 +865,11 @@ main() {
     assert(audio > 0, "dummy SDL audio device must open")
     assert(kookie_audio_ui_assets_loaded() == 14 &&
         kookie_audio_play_ui_clip(1040) &&
-        !kookie_audio_play_ui_clip(9999),
-        "uploaded UI OGG assets must load and reject unknown clips")
+        kookie_audio_play_ui_clip_spatial(1001, 25, 50) &&
+        !kookie_audio_play_ui_clip_spatial(1001, -1, 50) &&
+        !kookie_audio_play_ui_clip(9999) &&
+        !kookie_audio_play_ui_clip_spatial(9999, 50, 50),
+        "uploaded UI OGG assets must load, pan and reject invalid clips")
     assert(kookie_audio_load_music_ogg() &&
         kookie_audio_music_ogg_loaded() == 1,
         "configured OGG soundtrack must decode into a retained track")

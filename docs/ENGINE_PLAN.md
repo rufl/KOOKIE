@@ -199,11 +199,14 @@ Versioned UI sources and additional license boundaries are in
 
 ## 3. The FFI boundary must be proven first
 
-The upstream native Kof runtime currently accepts scalar `extern` calls;
-arrays/structs/pointers/out-buffers and native callbacks remain blocked there.
-The KOOKIE PE bridge separately lowers bounded heap/array values and integral
-FFI for the qualified Windows graphs. The original measurements covered actual
-SDL version and libm calls, **not graphics initialization**.
+The pinned Kof `0.5.0-beta` runtime exposes byte-only `Buffer(U8)` on the JVM
+and native x86-64 paths; `scripts/verify_simd_dispatch.sh` qualifies its
+synchronous INOUT shape on those targets. Generic typed arrays, structs, raw
+pointers, arbitrary out-buffers and native callbacks remain outside the
+portable contract. The KOOKIE PE bridge separately lowers bounded heap/array
+values and integral FFI for the qualified Windows graphs. The original
+measurements covered actual SDL version and libm calls, **not graphics
+initialization**.
 
 ### Adapter contract
 
@@ -214,7 +217,7 @@ Proposed API categories below are design contracts, not existing functions:
 | Lifecycle | ABI version, capabilities, create/destroy, status/error | Adapter owns SDL resources; Kof owns application lifecycle decisions |
 | Input | Poll event; tagged type; scalar fields; normalized text copied as String | Adapter flattens SDL_Event only; Kof bindings, commands and focus policy |
 | Resources | Typed integer token; scalar descriptor fields; explicit release | Adapter registry owns native pointers; Kof asset/resource lifetime policy |
-| Uploads | Staging token, offset/count, fixed scalar tuples; later safe bulk buffers if supported | Adapter packs/transfers bytes; Kof creates/validates data and content semantics |
+| Uploads | Synchronous, bounded `Buffer(U8)` fixtures where a target is qualified; otherwise staging tokens, offset/count and fixed scalar tuples | Adapter packs/transfers bytes; Kof creates/validates the data and content semantics |
 | Commands | Begin/end pass, bind pipeline/resource, viewport/scissor, draw/dispatch | Kof pass selection, sort order, visibility and batching |
 | Audio | Decoded clip/stream token, queue data, gain/channel controls | Kof voice allocation/priority and spatialization policy; SDL device/queue for G0, configured mixing/spatial DSP/codec mechanisms in the selected production library |
 | Diagnostics | Numeric status and copied error text | No exceptions unwinding across C/Kof boundary |
@@ -233,10 +236,9 @@ Rules:
 
 The first cube can use scalar staging calls. A matrix/instance is written as a fixed tuple per call, not sixteen individual FFI calls. Static vertex/index payloads upload once; dynamic data uses bounded reusable staging buffers. Kof owns packing policy and resource layout; the C side only copies the specified tuple into checked buffer positions.
 
-For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/kooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer stages a fixed 486-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers; Kof now emits perspective clip coordinates plus normalized per-vertex depth, and SDL_GPU resolves the scene through a D16 depth target. Large/ranged asset error cases and a real bulk-buffer adapter remain unproven.
+For bulk asset payloads, a low-level file-range-to-staging copy may avoid per-byte FFI **only** when Kof has validated/cooked the format, offset and size; the adapter must not become an asset parser/kooker. Small `File.writeBytes/readBytes/readRange` probes preserved zero/high-bit bytes on JVM/native. The implemented renderer stages a fixed 486-vertex arena/door/HUD scene through checked scalar calls and persistent native buffers; Kof now emits perspective clip coordinates plus normalized per-vertex depth, and SDL_GPU resolves the scene through a D16 depth target. Large/ranged asset error cases and a production bulk-buffer adapter remain unproven; the measured `Buffer(U8)` fixture is not an asynchronous GPU ownership contract.
 
-
-Scalar staging overhead is a **go/no-go measurement**. If representative draw/instance/animation uploads miss budget, prefer a properly specified upstream buffer-FFI addition (element format, length, borrow/copy lifetime, ownership and GC rules). Do not encode binary frames as JSON/Base64 strings or assume a pointer cast solves bulk transfer. Do not grow the shim into a C renderer to pass a benchmark.
+Scalar staging overhead is a **go/no-go measurement**. If representative draw/instance/animation uploads miss budget, prefer an explicitly specified typed or asynchronous buffer ABI addition, or a target-qualified byte fixture with declared schema, length, lifetime and ownership. Do not encode binary frames as JSON/Base64 strings or assume a pointer cast solves bulk transfer. Do not grow the shim into a C renderer to pass a benchmark.
 
 ### Native startup and GC gates
 
@@ -988,7 +990,7 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 
 | Risk | Current evidence | Action / release gate |
 |---|---|---|
-| Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | Pinned 0.5.0-beta `Buffer(U8, INOUT)` passes the packaged JVM/native `u8` reduction benchmark; supplied cross verification passes, while Script/JS/Android/riscv32/MCU remain `FFI001` | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
+| Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | Pinned 0.5.0-beta `Buffer(U8, INOUT)` passes the packaged JVM/native x86-64 `u8` reduction benchmark; upstream cross-target verification was supplied but not rerun by KOOKIE, while Script/JS/Android/riscv32/MCU remain `FFI001` | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
 | Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows native Kof PE gameplay passes through the SDL shell smoke, and the presentation package gate verifies native PE/SDL_GPU linkage and shader products | Keep separate platform/GPU gates; do not infer DRI3-capable Windows presentation from package linkage or graphics-free smoke |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
 | Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |

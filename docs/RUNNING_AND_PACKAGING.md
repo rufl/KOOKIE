@@ -318,6 +318,21 @@ To enable an OGG soundtrack in the native adapter, set the path before launch:
 KOOKIE_AUDIO_MUSIC_OGG=/absolute/path/theme.ogg ./kookie
 ```
 
+The UI catalog is user-supplied JDSherbert material and currently has no
+license/redistribution terms in the repository; its 14 files are therefore a
+release publication blocker, not a cleared third-party dependency. SHA-256
+metadata in the UI cue manifest does not resolve that legal gate. Use the
+focused semantic checks while developing:
+
+```bash
+bash scripts/verify_ui_library.sh
+bash scripts/verify_ui_demo.sh
+```
+
+Do not publish a package containing `assets/audio/ui/*.ogg` until the pack's
+license and redistribution permission are recorded in
+`THIRD_PARTY_NOTICES.txt`.
+
 The existing `assets/audio/ui/*.ogg` catalog is loaded as predecoded SFX tracks
 and exposes exact loop bounds through the native UI-clip API. For presentation
 or native Windows packages, `package_kookie.sh` also copies `.ogg` files found

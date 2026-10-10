@@ -24,3 +24,7 @@ the verification gate. The active bounded G0 sequence is tracked in
 [G0_BACKLOG](G0_BACKLOG.md), with resource-token and scalar-adapter details in
 [G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md) and
 [G0_SCALAR_ADAPTER](G0_SCALAR_ADAPTER.md).
+The reusable UI/media boundary and the independently audited upstream
+0.5.0-beta ABI are recorded in
+[KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md); it deliberately distinguishes the
+CI pin above from the reviewed upstream `main` source.

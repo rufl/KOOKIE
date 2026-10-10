@@ -4,8 +4,10 @@ Date: 2026-09-22. These are narrow CLI experiments, not engine tests or graphics
 
 These results intentionally preserve the historical Kof `0.4.9-beta` artifact.
 The active KOOKIE source/CI gate uses Kof `0.5.0-beta` at the pinned commit in
-[KOF_LANGUAGE](KOF_LANGUAGE.md); do not use this page's jar identity as the
-current build input.
+[`KOF_LANGUAGE`](KOF_LANGUAGE.md); do not use this page's jar identity as the
+current build input. Current bounded `Buffer(U8)` evidence is maintained by
+[`scripts/verify_simd_dispatch.sh`](../scripts/verify_simd_dispatch.sh) and the
+ABI decision in [`KOF_LANGUAGE`](KOF_LANGUAGE.md).
 
 ## Environment and artifact
 

@@ -192,6 +192,17 @@ calling it a player-facing release.
   `scripts/verify_multiplayer_ui.sh` probe stages five shell frames in JVM and
   native paths; `scripts/verify_font_ui.sh` covers the bundled font/title path.
 
+- The native UI skin is shared across menus and gameplay through
+  `src/ui/kookie_ui_native.kf`: GameShell surfaces/selection rails, HUD
+  semantic labels (`HP`, `AMMO`, `BAG`, `XP`), actor nameplates and scoreboard
+  now use one palette/focus/contrast contract. The HUD staging budget is 438
+  vertices and remains preallocated.
+
+- The native UI path now batches bounded quad/triangle staging primitives at the
+  Kof/C boundary and grows CPU/GPU scene capacities with headroom. Menu/HUD
+  count changes therefore avoid per-vertex call expansion and repeated GPU
+  buffer reconstruction while retaining one gameplay UI draw call.
+
 - The current GUI qualification build produced
   `0.1.0-gui.1` from source commit
   `b1d4db92bf3adf166d503ca0eb44d8569498950c`; its Linux archive SHA-256 is

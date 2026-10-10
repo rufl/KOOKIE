@@ -3,6 +3,7 @@ package ui
 import core
 
 class ShooterHud {
+    KookieUiNativeTheme themeValue
     Int healthValue
     Int maxHealthValue
     Int ammunitionValue
@@ -39,6 +40,7 @@ class ShooterHud {
 
 
     public constructor(Int maxHealth, Int maxAmmunition) {
+        themeValue = KookieUiNativeTheme()
         healthValue = 0
         maxHealthValue = maxHealth
         if (maxHealthValue <= 0) {
@@ -102,6 +104,12 @@ class ShooterHud {
         if (percent < 80 || percent > 120) { return false }
         scalePercentValue = percent
         return true
+    }
+    Bool setHighContrast(Bool enabled) {
+        return themeValue.setHighContrast(enabled)
+    }
+    Bool highContrast() {
+        return themeValue.highContrast()
     }
     Int scaleCoordinate(Int value) {
         var scaled = value * scalePercentValue / 100
@@ -226,7 +234,7 @@ class ShooterHud {
 
 
     Int renderVertexCount() {
-        return 372
+        return 438
     }
 
 
@@ -234,27 +242,30 @@ class ShooterHud {
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
     ) {
-        var safeLeft = scaleCoordinate(left)
-        var safeBottom = scaleCoordinate(bottom)
-        var safeRight = scaleCoordinate(right)
-        var safeTop = scaleCoordinate(top)
-        return target.pushVertex(resource, safeLeft, safeBottom, 0, 100) &&
-            target.pushVertex(resource, safeRight, safeBottom, 100, 100) &&
-            target.pushVertex(resource, safeRight, safeTop, 100, 0) &&
-            target.pushVertex(resource, safeLeft, safeBottom, 0, 100) &&
-            target.pushVertex(resource, safeRight, safeTop, 100, 0) &&
-            target.pushVertex(resource, safeLeft, safeTop, 0, 0)
+        return kookieUiNativePushQuad(
+            target, resource, scaleCoordinate(left), scaleCoordinate(bottom),
+            scaleCoordinate(right), scaleCoordinate(top))
     }
     Bool pushTriangle(
         FrameStaging target, Int resource,
         Int ax, Int ay, Int bx, Int by, Int cx, Int cy
     ) {
-        return target.pushVertex(
-                resource, scaleCoordinate(ax), scaleCoordinate(ay), 50, 0) &&
-            target.pushVertex(
-                resource, scaleCoordinate(bx), scaleCoordinate(by), 100, 50) &&
-            target.pushVertex(
-                resource, scaleCoordinate(cx), scaleCoordinate(cy), 50, 100)
+        return kookieUiNativePushTriangle(
+            target, resource,
+            scaleCoordinate(ax), scaleCoordinate(ay),
+            scaleCoordinate(bx), scaleCoordinate(by),
+            scaleCoordinate(cx), scaleCoordinate(cy))
+    }
+    Int textResource(Int color, Int glyphValue) {
+        return kookieUiNativeTextResource(color, glyphValue)
+    }
+    Bool pushText(
+        FrameStaging target, String text,
+        Int left, Int bottom, Int scale, Int color
+    ) {
+        return kookieUiNativePushText(
+            target, text, scaleCoordinate(left), scaleCoordinate(bottom),
+            scale, color)
     }
 
     Bool pushVitalPanels(
@@ -695,7 +706,18 @@ class ShooterHud {
             !pushKutterPublicationStatus(target, resourceBase) ||
             !pushThreatStatus(target, resourceBase) ||
             !pushCombatFeedback(target, resourceBase) ||
-            !pushBuildStatus(target, resourceBase)) {
+            !pushBuildStatus(target, resourceBase) ||
+            !pushText(
+                target, "HP", -96, -78, 1, themeValue.foregroundColor()) ||
+            !pushText(
+                target, "AMMO", 24, -78, 1,
+                themeValue.foregroundColor()) ||
+            !pushText(
+                target, "BAG", -14, -69, 1,
+                themeValue.mutedColor()) ||
+            !pushText(
+                target, "XP", 4, -69, 1,
+                themeValue.mutedColor())) {
 
             target.discard()
             return false

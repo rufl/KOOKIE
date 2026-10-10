@@ -24,3 +24,7 @@ humano; [MEMORY](../../pt-BR/MEMORY.md) é a nota para retomar o trabalho;
 está em [G0_BACKLOG](G0_BACKLOG.md), com detalhes de tokens de recursos e
 adaptador escalar em [G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md) e
 [G0_SCALAR_ADAPTER](G0_SCALAR_ADAPTER.md).
+A fronteira reutilizável de UI/mídia e a ABI upstream 0.5.0-beta auditada de
+forma independente estão registradas em
+[KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md); ela distingue intencionalmente o
+pin de CI acima do `main` upstream revisado.

@@ -161,6 +161,164 @@ class BoundedTickTelemetry {
     Int rssGrowthKib() { return lastRssKibValue - firstRssKibValue }
     Int rssRangeKib() { return maximumRssKibValue - minimumRssKibValue }
 }
+Int dedicatedPhaseClock() { return 1 }
+Int dedicatedPhaseCollision() { return 2 }
+Int dedicatedPhaseAi() { return 3 }
+Int dedicatedPhaseProjectile() { return 4 }
+Int dedicatedPhasePickup() { return 5 }
+Int dedicatedPhaseFinalize() { return 6 }
+Int dedicatedPhaseCount() { return 6 }
+
+class BoundedPhaseTelemetry {
+    BoundedTickTelemetry clockValue
+    BoundedTickTelemetry collisionValue
+    BoundedTickTelemetry aiValue
+    BoundedTickTelemetry projectileValue
+    BoundedTickTelemetry pickupValue
+    BoundedTickTelemetry finalizeValue
+    Bool validValue
+
+    public constructor(Int maximumTrackedMicros) {
+        clockValue = BoundedTickTelemetry(maximumTrackedMicros)
+        collisionValue = BoundedTickTelemetry(maximumTrackedMicros)
+        aiValue = BoundedTickTelemetry(maximumTrackedMicros)
+        projectileValue = BoundedTickTelemetry(maximumTrackedMicros)
+        pickupValue = BoundedTickTelemetry(maximumTrackedMicros)
+        finalizeValue = BoundedTickTelemetry(maximumTrackedMicros)
+        validValue = clockValue.valid() &&
+            collisionValue.valid() &&
+            aiValue.valid() &&
+            projectileValue.valid() &&
+            pickupValue.valid() &&
+            finalizeValue.valid()
+    }
+
+    Bool recordPhase(Int phase, Int microseconds) {
+        if (!validValue || phase < dedicatedPhaseClock() ||
+            phase > dedicatedPhaseFinalize()) {
+            return false
+        }
+        if (phase == dedicatedPhaseClock()) {
+            return clockValue.recordTick(microseconds)
+        }
+        if (phase == dedicatedPhaseCollision()) {
+            return collisionValue.recordTick(microseconds)
+        }
+        if (phase == dedicatedPhaseAi()) {
+            return aiValue.recordTick(microseconds)
+        }
+        if (phase == dedicatedPhaseProjectile()) {
+            return projectileValue.recordTick(microseconds)
+        }
+        if (phase == dedicatedPhasePickup()) {
+            return pickupValue.recordTick(microseconds)
+        }
+        return finalizeValue.recordTick(microseconds)
+    }
+
+    Bool valid() { return validValue }
+
+    Int samples(Int phase) {
+        if (phase == dedicatedPhaseClock()) { return clockValue.tickSamples() }
+        if (phase == dedicatedPhaseCollision()) {
+            return collisionValue.tickSamples()
+        }
+        if (phase == dedicatedPhaseAi()) { return aiValue.tickSamples() }
+        if (phase == dedicatedPhaseProjectile()) {
+            return projectileValue.tickSamples()
+        }
+        if (phase == dedicatedPhasePickup()) {
+            return pickupValue.tickSamples()
+        }
+        if (phase == dedicatedPhaseFinalize()) {
+            return finalizeValue.tickSamples()
+        }
+        return -1
+    }
+
+    Int p50Micros(Int phase) {
+        if (phase == dedicatedPhaseClock()) {
+            return clockValue.p50Micros()
+        }
+        if (phase == dedicatedPhaseCollision()) {
+            return collisionValue.p50Micros()
+        }
+        if (phase == dedicatedPhaseAi()) { return aiValue.p50Micros() }
+        if (phase == dedicatedPhaseProjectile()) {
+            return projectileValue.p50Micros()
+        }
+        if (phase == dedicatedPhasePickup()) {
+            return pickupValue.p50Micros()
+        }
+        if (phase == dedicatedPhaseFinalize()) {
+            return finalizeValue.p50Micros()
+        }
+        return -1
+    }
+
+    Int p95Micros(Int phase) {
+        if (phase == dedicatedPhaseClock()) {
+            return clockValue.p95Micros()
+        }
+        if (phase == dedicatedPhaseCollision()) {
+            return collisionValue.p95Micros()
+        }
+        if (phase == dedicatedPhaseAi()) { return aiValue.p95Micros() }
+        if (phase == dedicatedPhaseProjectile()) {
+            return projectileValue.p95Micros()
+        }
+        if (phase == dedicatedPhasePickup()) {
+            return pickupValue.p95Micros()
+        }
+        if (phase == dedicatedPhaseFinalize()) {
+            return finalizeValue.p95Micros()
+        }
+        return -1
+    }
+
+    Int p99Micros(Int phase) {
+        if (phase == dedicatedPhaseClock()) {
+            return clockValue.p99Micros()
+        }
+        if (phase == dedicatedPhaseCollision()) {
+            return collisionValue.p99Micros()
+        }
+        if (phase == dedicatedPhaseAi()) { return aiValue.p99Micros() }
+        if (phase == dedicatedPhaseProjectile()) {
+            return projectileValue.p99Micros()
+        }
+        if (phase == dedicatedPhasePickup()) {
+            return pickupValue.p99Micros()
+        }
+        if (phase == dedicatedPhaseFinalize()) {
+            return finalizeValue.p99Micros()
+        }
+        return -1
+    }
+
+    Int maximumMicros(Int phase) {
+        if (phase == dedicatedPhaseClock()) {
+            return clockValue.maximumTickMicros()
+        }
+        if (phase == dedicatedPhaseCollision()) {
+            return collisionValue.maximumTickMicros()
+        }
+        if (phase == dedicatedPhaseAi()) {
+            return aiValue.maximumTickMicros()
+        }
+        if (phase == dedicatedPhaseProjectile()) {
+            return projectileValue.maximumTickMicros()
+        }
+        if (phase == dedicatedPhasePickup()) {
+            return pickupValue.maximumTickMicros()
+        }
+        if (phase == dedicatedPhaseFinalize()) {
+            return finalizeValue.maximumTickMicros()
+        }
+        return -1
+    }
+}
+
 
 class BoundedDedicatedServer {
     FixedStepClock clock
@@ -189,6 +347,14 @@ class BoundedDedicatedServer {
     Int baselineResourceSignatureValue
     Int droppedMicrosValue
     Int overloadCountValue
+    Int pendingAdvanceStepsValue
+    Int pendingAdvanceStepValue
+    Int pendingAdvanceFirstTickValue
+    Int pendingAdvancePriorDroppedMicrosValue
+    Int activeStepTickValue
+    Int advancePhaseValue
+    Bool advanceOpenValue
+    Bool stepOpenValue
     Bool validConfigurationValue
     Bool configuredValue
     Bool healthyValue
@@ -245,9 +411,18 @@ class BoundedDedicatedServer {
         baselineResourceSignatureValue = 0
         droppedMicrosValue = 0
         overloadCountValue = 0
+        pendingAdvanceStepsValue = 0
+        pendingAdvanceStepValue = 0
+        pendingAdvanceFirstTickValue = 0
+        pendingAdvancePriorDroppedMicrosValue = 0
+        activeStepTickValue = 0
+        advancePhaseValue = 0
+        advanceOpenValue = false
+        stepOpenValue = false
         configuredValue = false
         healthyValue = validConfigurationValue
     }
+
 
     Int mix(Int state, Int value) {
         return (state * 31 + value) % 1000003
@@ -413,7 +588,8 @@ class BoundedDedicatedServer {
         lastProjectileWorkValue = projectileBudgetValue
         projectileCursor = projectileCursor + projectileBudgetValue
         while (projectileCursor >= authority.spatialProjectileCapacity()) {
-            projectileCursor = projectileCursor - authority.spatialProjectileCapacity()
+            projectileCursor =
+                projectileCursor - authority.spatialProjectileCapacity()
         }
         lastPickupWorkValue = 0
         var pickupChecksum = pickups.mixChecksum(
@@ -444,8 +620,152 @@ class BoundedDedicatedServer {
             authority.activeSpatialProjectiles() == projectileCapacityValue
     }
 
+    Int beginAdvance(Int elapsedMicros) {
+        if (!configuredValue || !healthyValue || advanceOpenValue ||
+            elapsedMicros < 0) {
+            return -1
+        }
+        var priorDropped = clock.droppedTimeMicros()
+        var steps = clock.advance(elapsedMicros)
+        if (steps < 0) { return -1 }
+        pendingAdvanceStepsValue = steps
+        pendingAdvanceStepValue = 0
+        pendingAdvanceFirstTickValue = clock.tick() - steps + 1
+        pendingAdvancePriorDroppedMicrosValue = priorDropped
+        activeStepTickValue = 0
+        advancePhaseValue = 0
+        advanceOpenValue = true
+        stepOpenValue = false
+        return steps
+    }
+
+    Bool beginAdvanceStep() {
+        if (!advanceOpenValue || stepOpenValue ||
+            pendingAdvanceStepValue >= pendingAdvanceStepsValue) {
+            return false
+        }
+        activeStepTickValue =
+            pendingAdvanceFirstTickValue + pendingAdvanceStepValue
+        advancePhaseValue = 0
+        stepOpenValue = true
+        lastAiWorkValue = 0
+        lastProjectileWorkValue = 0
+        lastProjectileMovedValue = 0
+        lastPickupWorkValue = 0
+        return true
+    }
+
+    Bool runAdvanceCollisionPhase() {
+        if (!stepOpenValue || advancePhaseValue != 0) { return false }
+        if (!scene.step(activeStepTickValue, 8, 16)) { return false }
+        var collisionSample = scene.query(64, 20, 64, 64, 0, 64)
+        if (!collisionSample.accepted() || !collisionSample.collided()) {
+            return false
+        }
+        workloadChecksumValue = mix(
+            workloadChecksumValue, collisionSample.hitStep())
+        advancePhaseValue = 1
+        return true
+    }
+
+    Bool runAdvanceAiPhase() {
+        if (!stepOpenValue || advancePhaseValue != 1) { return false }
+        for (var work = 0; work < aiBudgetValue; work = work + 1) {
+            var enemyId = enemyIds[enemyCursor]
+            var visible = (activeStepTickValue + work) % 4 != 0
+            var distance = 2 + ((activeStepTickValue + work) % 127)
+            if (!authority.stepEnemyForBudget(
+                    enemyId, activeStepTickValue, 1, visible, distance, 0)) {
+                return false
+            }
+            workloadChecksumValue = mixPair(
+                workloadChecksumValue, enemyId,
+                authority.lastEnemyState())
+            enemyCursor = enemyCursor + 1
+            if (enemyCursor >= enemyIds.length) { enemyCursor = 0 }
+            lastAiWorkValue = lastAiWorkValue + 1
+        }
+        advancePhaseValue = 2
+        return true
+    }
+
+    Bool runAdvanceProjectilePhase() {
+        if (!stepOpenValue || advancePhaseValue != 2) { return false }
+        lastProjectileMovedValue =
+            authority.advanceSpatialProjectilesBudgeted(
+                activeStepTickValue, projectileCursor, projectileBudgetValue)
+        if (lastProjectileMovedValue < 0 ||
+            !refillProjectiles(activeStepTickValue)) {
+            return false
+        }
+        lastProjectileWorkValue = projectileBudgetValue
+        projectileCursor = projectileCursor + projectileBudgetValue
+        while (projectileCursor >= authority.spatialProjectileCapacity()) {
+            projectileCursor =
+                projectileCursor - authority.spatialProjectileCapacity()
+        }
+        advancePhaseValue = 3
+        return true
+    }
+
+    Bool runAdvancePickupPhase() {
+        if (!stepOpenValue || advancePhaseValue != 3) { return false }
+        lastPickupWorkValue = 0
+        var pickupChecksum = pickups.mixChecksum(
+            workloadChecksumValue, pickupCursor, pickupBudgetValue)
+        if (pickupChecksum < 0) { return false }
+        workloadChecksumValue = pickupChecksum
+        for (var work = 0; work < pickupBudgetValue; work = work + 1) {
+            pickupCursor = pickupCursor + 1
+            if (pickupCursor >= pickupCapacityValue) { pickupCursor = 0 }
+            lastPickupWorkValue = lastPickupWorkValue + 1
+        }
+        advancePhaseValue = 4
+        return true
+    }
+
+    Bool finishAdvanceStep() {
+        if (!stepOpenValue || advancePhaseValue != 4) { return false }
+        workloadChecksumValue = mixQuad(
+            workloadChecksumValue, activeStepTickValue,
+            lastProjectileMovedValue, authority.spatialProjectileBlocked(),
+            scene.dynamicChecksum())
+        if (lastAiWorkValue > peakAiWorkValue) {
+            peakAiWorkValue = lastAiWorkValue
+        }
+        if (lastProjectileWorkValue > peakProjectileWorkValue) {
+            peakProjectileWorkValue = lastProjectileWorkValue
+        }
+        if (lastPickupWorkValue > peakPickupWorkValue) {
+            peakPickupWorkValue = lastPickupWorkValue
+        }
+        ticksProcessedValue = ticksProcessedValue + 1
+        var validStep = lastAiWorkValue <= aiBudgetValue &&
+            lastProjectileWorkValue <= projectileBudgetValue &&
+            lastPickupWorkValue <= pickupBudgetValue &&
+            authority.activeSpatialProjectiles() == projectileCapacityValue
+        stepOpenValue = false
+        advancePhaseValue = 0
+        pendingAdvanceStepValue = pendingAdvanceStepValue + 1
+        return validStep
+    }
+
+    Bool completeAdvance() {
+        if (!advanceOpenValue || stepOpenValue ||
+            pendingAdvanceStepValue != pendingAdvanceStepsValue) {
+            return false
+        }
+        droppedMicrosValue = clock.droppedTimeMicros()
+        if (droppedMicrosValue > pendingAdvancePriorDroppedMicrosValue) {
+            overloadCountValue = overloadCountValue + 1
+        }
+        advanceOpenValue = false
+        return true
+    }
+
     Bool advance(Int elapsedMicros) {
-        if (!configuredValue || !healthyValue || elapsedMicros < 0) {
+        if (!configuredValue || !healthyValue || advanceOpenValue ||
+            stepOpenValue || elapsedMicros < 0) {
             return false
         }
         var priorDropped = clock.droppedTimeMicros()

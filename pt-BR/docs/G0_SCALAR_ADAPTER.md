@@ -19,7 +19,11 @@ apresentação específica da máquina continua sendo requisito separado da rele
 
 `SdlLifecycle` possui a flag de inicialização no lado Kof. Rejeita flags negativos, torna a inicialização repetida idempotente e torna o encerramento explícito. `probes/g0_platform/main.kf` chama `SDL_Init(0)` e `SDL_Quit()` nos dois alvos quando `/usr/lib/libSDL3.so` está instalado. `0` solicita deliberadamente nenhum subsistema SDL; isso não comprova inicialização de vídeo/áudio.
 
-A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de evento, callback, janela, dispositivo GPU ou dispositivo de áudio. A limitação medida da FFI Kof permanece: chamadas extern escalares funcionam, enquanto arrays/structs/ponteiros/buffers de saída/callbacks não formam uma binding portável.
+A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de
+evento, callback, janela, dispositivo GPU ou dispositivo de áudio. A versão
+fixada do Kof `0.5.0-beta` suporta `Buffer(U8)` somente em chamadas INOUT
+síncronas e qualificadas por target; isso não forma uma binding portável tipada
+ou assíncrona para a engine.
 
 ## Adaptador nativo estreito
 
@@ -37,7 +41,14 @@ A binding direta do Kof ainda não transporta ponteiro SDL, struct, união de ev
 - primeiro shader, upload de textura, sampler, pipeline e draw no swapchain;
 - encerramento explícito de GPU, janelas, tracks/streams do mixer e SDL.
 
-O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades nem buffers de amostras pertencentes ao Kof. `probes/g0_native_adapter/main.kf` exercita criação/destruição de janela oculta, polling real de eventos SDL para `WindowStateTracker`, enfileiramento sintético de resize/foco, ciclo GPU opcional com o primeiro upload/draw, abertura/fechamento de dispositivo playback dummy, transferência PCM limitada de silêncio e clip, pré-decodificação OGG configurada com limites exatos de loop para música/SFX e rejeição de token obsoleto.
+O adaptador não retém ponteiros Kof, callbacks, estado de gameplay, entidades
+nem buffers de amostras pertencentes ao Kof. `probes/g0_native_adapter/main.kf`
+exercita criação/destruição de janela oculta, polling real de eventos SDL para
+`WindowStateTracker`, enfileiramento sintético de resize/foco, ciclo GPU
+opcional com o primeiro upload/draw, abertura/fechamento de dispositivo
+playback dummy, transferência PCM limitada de silêncio e clip, pré-decodificação
+OGG configurada com limites exatos de loop para música/SFX, reprodução espacial
+dos OGG UI registrados e rejeição de token obsoleto.
 
 ## Estado de janela e entrada
 
@@ -63,14 +74,18 @@ O adaptador achata eventos SDL, enquanto o Kof possui a política de transição
   gameplay/áudio.
 
 O adaptador comprova ciclo real do SDL_mixer, ganhos separados, transferência
-limitada de silêncio e clips sintetizados determinísticos (`clipId=1` e
-`201`–`203`, no máximo 480 frames estéreo F32). `kookie_audio_load_music_ogg`
-usa `MIX_LoadAudio(..., true)`, portanto os bytes OGG admitidos são decodificados
-uma vez em uma track mantida e buscável. As chamadas de loop de música e SFX
-passam propriedades explícitas de início/fim/quantidade de frames ao SDL_mixer;
-a sonda nativa exercita um loop infinito da track completa e um loop limitado
-de SFX. A fila Kof ainda não passa buffers de amostras pertencentes ao Kof pela
-FFI escalar; a vida de vozes em streaming continua sendo um limite posterior.
+limitada de silêncio, clips sintetizados determinísticos (`clipId=1` e
+`201`–`203`, no máximo 480 frames estéreo F32) e reprodução espacial das tracks
+OGG UI registradas. `kookie_audio_load_music_ogg` usa
+`MIX_LoadAudio(..., true)`, portanto os bytes OGG admitidos são decodificados
+uma vez em uma track mantida e buscável. `kookie_audio_play_ui_clip_spatial`
+aplica ganhos limitados esquerdo/direito por `MIX_SetTrackStereo`; a sonda
+nativa rejeita clips desconhecidos e ganhos inválidos. As chamadas de loop de
+música e SFX passam propriedades explícitas de início/fim/quantidade de frames
+ao SDL_mixer; a sonda nativa exercita um loop infinito da track completa e um
+loop limitado de SFX. A fila Kof ainda não passa buffers de amostras
+pertencentes ao Kof pela FFI escalar; a vida de vozes em streaming continua
+sendo um limite posterior.
 
 ## Ciclo de vida GPU
 

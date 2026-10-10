@@ -189,19 +189,28 @@ e Kutter. O menu principal expõe `Play`, `Multiplayer`, `Options`,
 (`85%`, `100%`, `115%`), visibilidade do mapa tático e texto de alto contraste;
 escala e mapa atualizam a apresentação ao vivo sem alterar os orçamentos fixos
 de vértices. O mapa redondo no canto superior direito mantém a meta de
-flexibilidade inspirada em DINX/ZYLVE sem copiar nenhum dos produtos. O probe
-focado `bash scripts/verify_multiplayer_ui.sh` faz staging de cinco frames da
-shell nos caminhos JVM e nativo; `bash scripts/verify_font_ui.sh` cobre o
-contrato de fontes/título; [`docs/UI_LIBRARY.md`](docs/UI_LIBRARY.md) documenta
-a fachada interna Kof/KofJS de SVG/PNG e tipografia,
-`bash scripts/verify_ui_library.sh` qualifica o probe G10 e
+flexibilidade inspirada em DINX/ZYLVE sem copiar nenhum dos produtos.
+O probe focado `bash scripts/verify_multiplayer_ui.sh` faz staging de cinco
+frames da shell nos caminhos JVM e nativo; `bash scripts/verify_font_ui.sh` cobre
+o contrato de fontes/título; [`docs/UI_LIBRARY.md`](docs/UI_LIBRARY.md) documenta
+a fachada interna Kof/KofJS de SVG/PNG, tipografia e cues de som;
+`bash scripts/verify_ui_library.sh` verifica os contratos reutilizáveis Kof/
+KofScript; `bash scripts/verify_ui_sound_catalog.sh` verifica as 14 tuplas de
+publicação source/digest nativas e o FIFO espacial limitado; e
 `bash scripts/verify_ui_demo.sh` compila a demo KofJS isolada e verifica o
-manifesto de assets publicados; `bash scripts/verify_package.sh` valida o perfil
-de pacote `none` e `bash scripts/verify_prototype_package.sh` valida o perfil
-`prototype`; `bash scripts/verify_goose_game.sh` cobre o gameplay.
-O gate focado do servidor dedicado também passa 512 ticks medidos com p95 de
-`3,624ms` (p99 de `3,689ms`, máximo de `3,899ms`) sob o orçamento declarado
-de simulação de 4ms.
+manifesto de assets publicados. O adaptador de sound cues mantém metadados
+`.ogg`/`.wav` separados da fila nativa limitada e aplica ganhos espaciais UI
+registrados no SDL_mixer. Os 14 OGG JDSherbert fornecidos
+continuam bloqueados para redistribuição até a procedência/licença ser
+confirmada. [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) registra
+a fronteira atual de UI/FFI do Kof4j `0.5.0-beta`: a pinagem ativa qualifica
+`Buffer(U8)` síncrono em JVM/nativo x86-64, enquanto o suporte cross não é
+qualificado e `Buffer(U8)` não é uma ABI portátil tipada/assíncrona de upload.
+`bash scripts/verify_package.sh` valida o perfil de pacote `none` e
+`bash scripts/verify_prototype_package.sh` valida o perfil `prototype`;
+`bash scripts/verify_goose_game.sh` cobre o gameplay. O gate focado do servidor
+dedicado também passa 512 ticks medidos com p95 `3,624ms` (p99 `3,689ms`,
+máximo `3,899ms`) sob o orçamento declarado de simulação de 4ms.
 
 
 Revisões autoritativas no mesmo tick são ordenadas pela sequência de estado:
@@ -392,6 +401,10 @@ concluída.
   desenvolvimento, release, kooker e qualificação.
 - [Notas da linguagem Kof](docs/KOF_LANGUAGE.md) — sintaxe, alvos, FFI e
   descobertas do runtime.
+- [Biblioteca de UI](docs/UI_LIBRARY.md) — contratos reutilizáveis de layout,
+  widgets, tipografia, assets, ícones e cues de som.
+- [Migração UI/ABI para Kof4j](docs/KOF4J_UI_MIGRATION.md) — fronteira
+  upstream, evidências de buffers e caminho de contribuição.
 - [Sondas executadas](docs/RESEARCH_PROBES.md) — comandos, resultados e limites
   de prova.
 - [Changelog](CHANGELOG.md) — mudanças recentes de comportamento.

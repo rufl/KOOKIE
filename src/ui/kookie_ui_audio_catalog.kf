@@ -1,0 +1,114 @@
+package ui
+
+Bool kookieUiSoundTextEquals(String actual, String expected) {
+    if (actual.length() != expected.length()) { return false }
+    for (var index = 0; index < actual.length(); index = index + 1) {
+        if ((actual.charAt(index) as Int) != (expected.charAt(index) as Int)) {
+            return false
+        }
+    }
+    return true
+}
+
+Bool kookieUiPublishedSoundMatch(
+    KookieUiSoundCue cue, Int clipId, String source, String checksum
+) {
+    return cue.accepted() && cue.kind() == kookieUiSoundOgg() &&
+        cue.clipId() == clipId &&
+        kookieUiSoundTextEquals(cue.source(), source) &&
+        kookieUiSoundTextEquals(cue.checksum(), checksum)
+}
+
+Bool kookieUiPublishedSoundCue(KookieUiSoundCue cue) {
+    if (kookieUiPublishedSoundMatch(
+            cue, 1001,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg",
+            "5f3d6b0caf71a1321aa9dae650cb0761f5f183e508463343590997e282f74cf7")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1002,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 2.ogg",
+            "156e2126fc94604f54f49115b49b5ffd29350d4e2551b9ca9568b1c725ce554e")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1003,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 3.ogg",
+            "12f10fb352d9532cc90fb291b240cf2c8ec436af0f44ed63fa4505b3268bf994")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1004,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 4.ogg",
+            "dec98e95aa59163505793ead60b704c403e4d8271baaffe566fd4718ee5e89b0")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1005,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 5.ogg",
+            "58f5a3c31c3682d2cd2561dd660d0231b7954bd44a612eeb8c6c95065b29b7d5")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1010,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cancel - 1.ogg",
+            "8e90ba31f5525c678f2aad2a7beadd9ac02ab4251075295e758e16040d5db4fe")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1011,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cancel - 2.ogg",
+            "d0c65744e8d96ba3bd3ee17aa23d72972641e35b45958a8d8433e9bf3f11404d")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1020,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Error - 1.ogg",
+            "513e39836e70cacb07dff58deb73e6037cd4ab044c36d2fee8244a9f94fdf9fe")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1030,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Popup Close - 1.ogg",
+            "bb1ffba148c3ec12fbbe27cdb0d21290d9103905d83e487fc75c7ae7e05bb7da")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1031,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Popup Open - 1.ogg",
+            "f6cf55e6da54034e7878de00f12d0ccc843e9f52832f7a3baaa6ad912a2e3ed1")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1040,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Select - 1.ogg",
+            "8976719dff665887fd695e4d218753ae9f2c01288edf7e4a0ac22d2271ce9e22")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1041,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Select - 2.ogg",
+            "931ac8c5df0b0519da45ac50c89c6a8dcfea741cd40cb01fd7ad67a25578a23f")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1050,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Swipe - 1.ogg",
+            "95191036d9520bcc87b04e2b7ec3a25326920495b871b354dfd4468d49ed0ac3")) {
+        return true
+    }
+    if (kookieUiPublishedSoundMatch(
+            cue, 1051,
+            "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Swipe - 2.ogg",
+            "78148bdc4a24a65989085de97a024aa300bed7bfa2c87b9c48968362b8b83ef0")) {
+        return true
+    }
+    return false
+}
+
+Bool kookieUiSoundBankAddPublished(
+    KookieUiSoundBank bank, KookieUiSoundCue cue
+) {
+    return kookieUiPublishedSoundCue(cue) && bank.add(cue)
+}

@@ -8,6 +8,7 @@ class FrameStaging {
     Int[] depths
     Int[] us
     Int[] vs
+    Int[] primitiveSpans
     Int frame
     Int published
     Int retired
@@ -23,6 +24,7 @@ class FrameStaging {
         this.depths = new Int[capacity]
         this.us = new Int[capacity]
         this.vs = new Int[capacity]
+        this.primitiveSpans = new Int[capacity]
         this.frame = 0
         this.published = 0
         this.retired = 0
@@ -59,8 +61,105 @@ class FrameStaging {
         depths[count] = depth
         us[count] = u
         vs[count] = v
+        primitiveSpans[count] = 0
         count = count + 1
         writes = writes + 5
+        return true
+    }
+
+    Bool pushQuadDepth(
+        Int resource, Int left, Int bottom, Int right, Int top, Int depth
+    ) {
+        if (!open || resource <= 0 || depth < 0 || depth > 100 ||
+            count > resources.length - 6) {
+            return false
+        }
+        var index = count
+        resources[index] = resource
+        xs[index] = left
+        ys[index] = bottom
+        zs[index] = 0
+        depths[index] = depth
+        us[index] = 0
+        vs[index] = 100
+        resources[index + 1] = resource
+        xs[index + 1] = right
+        ys[index + 1] = bottom
+        zs[index + 1] = 0
+        depths[index + 1] = depth
+        us[index + 1] = 100
+        vs[index + 1] = 100
+        resources[index + 2] = resource
+        xs[index + 2] = right
+        ys[index + 2] = top
+        zs[index + 2] = 0
+        depths[index + 2] = depth
+        us[index + 2] = 100
+        vs[index + 2] = 0
+        resources[index + 3] = resource
+        xs[index + 3] = left
+        ys[index + 3] = bottom
+        zs[index + 3] = 0
+        depths[index + 3] = depth
+        us[index + 3] = 0
+        vs[index + 3] = 100
+        resources[index + 4] = resource
+        xs[index + 4] = right
+        ys[index + 4] = top
+        zs[index + 4] = 0
+        depths[index + 4] = depth
+        us[index + 4] = 100
+        vs[index + 4] = 0
+        resources[index + 5] = resource
+        xs[index + 5] = left
+        ys[index + 5] = top
+        zs[index + 5] = 0
+        depths[index + 5] = depth
+        us[index + 5] = 0
+        vs[index + 5] = 0
+        primitiveSpans[index] = 6
+        count = count + 6
+        writes = writes + 30
+        return true
+    }
+
+    Bool pushQuad(
+        Int resource, Int left, Int bottom, Int right, Int top
+    ) {
+        return pushQuadDepth(resource, left, bottom, right, top, 0)
+    }
+
+    Bool pushTriangle(
+        Int resource, Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+    ) {
+        if (!open || resource <= 0 || count > resources.length - 3) {
+            return false
+        }
+        var index = count
+        resources[index] = resource
+        xs[index] = ax
+        ys[index] = ay
+        zs[index] = 0
+        depths[index] = 0
+        us[index] = 50
+        vs[index] = 0
+        resources[index + 1] = resource
+        xs[index + 1] = bx
+        ys[index + 1] = by
+        zs[index + 1] = 0
+        depths[index + 1] = 0
+        us[index + 1] = 100
+        vs[index + 1] = 50
+        resources[index + 2] = resource
+        xs[index + 2] = cx
+        ys[index + 2] = cy
+        zs[index + 2] = 0
+        depths[index + 2] = 0
+        us[index + 2] = 50
+        vs[index + 2] = 100
+        primitiveSpans[index] = 3
+        count = count + 3
+        writes = writes + 15
         return true
     }
     Bool pushWorldVertex(
@@ -76,6 +175,7 @@ class FrameStaging {
         depths[count] = 0
         us[count] = u
         vs[count] = v
+        primitiveSpans[count] = 0
         count = count + 1
         writes = writes + 5
         return true
@@ -114,6 +214,13 @@ class FrameStaging {
 
     Int stagedCount() {
         return count
+    }
+
+    Int primitiveSpanAt(Int index) {
+        if (index < 0 || index >= count) {
+            return 0
+        }
+        return primitiveSpans[index]
     }
 
     Int scalarWrites() {

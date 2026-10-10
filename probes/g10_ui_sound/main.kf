@@ -1,0 +1,136 @@
+import ui
+
+main() {
+    var cursor1 = KookieUiSoundCue(
+        "ui.cursor.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg",
+        kookieUiSoundOgg(), "Cursor 1",
+        "5f3d6b0caf71a1321aa9dae650cb0761f5f183e508463343590997e282f74cf7",
+        1001, 80)
+    var cursor2 = KookieUiSoundCue(
+        "ui.cursor.2",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 2.ogg",
+        kookieUiSoundOgg(), "Cursor 2",
+        "156e2126fc94604f54f49115b49b5ffd29350d4e2551b9ca9568b1c725ce554e",
+        1002, 80)
+    var cursor3 = KookieUiSoundCue(
+        "ui.cursor.3",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 3.ogg",
+        kookieUiSoundOgg(), "Cursor 3",
+        "12f10fb352d9532cc90fb291b240cf2c8ec436af0f44ed63fa4505b3268bf994",
+        1003, 80)
+    var cursor4 = KookieUiSoundCue(
+        "ui.cursor.4",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 4.ogg",
+        kookieUiSoundOgg(), "Cursor 4",
+        "dec98e95aa59163505793ead60b704c403e4d8271baaffe566fd4718ee5e89b0",
+        1004, 80)
+    var cursor5 = KookieUiSoundCue(
+        "ui.cursor.5",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 5.ogg",
+        kookieUiSoundOgg(), "Cursor 5",
+        "58f5a3c31c3682d2cd2561dd660d0231b7954bd44a612eeb8c6c95065b29b7d5",
+        1005, 80)
+    var cancel1 = KookieUiSoundCue(
+        "ui.cancel.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cancel - 1.ogg",
+        kookieUiSoundOgg(), "Cancel 1",
+        "8e90ba31f5525c678f2aad2a7beadd9ac02ab4251075295e758e16040d5db4fe",
+        1010, 80)
+    var cancel2 = KookieUiSoundCue(
+        "ui.cancel.2",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cancel - 2.ogg",
+        kookieUiSoundOgg(), "Cancel 2",
+        "d0c65744e8d96ba3bd3ee17aa23d72972641e35b45958a8d8433e9bf3f11404d",
+        1011, 80)
+    var error1 = KookieUiSoundCue(
+        "ui.error.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Error - 1.ogg",
+        kookieUiSoundOgg(), "Error 1",
+        "513e39836e70cacb07dff58deb73e6037cd4ab044c36d2fee8244a9f94fdf9fe",
+        1020, 80)
+    var popupClose = KookieUiSoundCue(
+        "ui.popup.close.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Popup Close - 1.ogg",
+        kookieUiSoundOgg(), "Popup close",
+        "bb1ffba148c3ec12fbbe27cdb0d21290d9103905d83e487fc75c7ae7e05bb7da",
+        1030, 80)
+    var popupOpen = KookieUiSoundCue(
+        "ui.popup.open.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Popup Open - 1.ogg",
+        kookieUiSoundOgg(), "Popup open",
+        "f6cf55e6da54034e7878de00f12d0ccc843e9f52832f7a3baaa6ad912a2e3ed1",
+        1031, 80)
+    var select1 = KookieUiSoundCue(
+        "ui.select.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Select - 1.ogg",
+        kookieUiSoundOgg(), "Select 1",
+        "8976719dff665887fd695e4d218753ae9f2c01288edf7e4a0ac22d2271ce9e22",
+        1040, 80)
+    var select2 = KookieUiSoundCue(
+        "ui.select.2",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Select - 2.ogg",
+        kookieUiSoundOgg(), "Select 2",
+        "931ac8c5df0b0519da45ac50c89c6a8dcfea741cd40cb01fd7ad67a25578a23f",
+        1041, 80)
+    var swipe1 = KookieUiSoundCue(
+        "ui.swipe.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Swipe - 1.ogg",
+        kookieUiSoundOgg(), "Swipe 1",
+        "95191036d9520bcc87b04e2b7ec3a25326920495b871b354dfd4468d49ed0ac3",
+        1050, 80)
+    var swipe2 = KookieUiSoundCue(
+        "ui.swipe.2",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Swipe - 2.ogg",
+        kookieUiSoundOgg(), "Swipe 2",
+        "78148bdc4a24a65989085de97a024aa300bed7bfa2c87b9c48968362b8b83ef0",
+        1051, 80)
+    assert(kookieUiPublishedSoundCue(cursor1) &&
+        kookieUiPublishedSoundCue(cursor2) &&
+        kookieUiPublishedSoundCue(cursor3) &&
+        kookieUiPublishedSoundCue(cursor4) &&
+        kookieUiPublishedSoundCue(cursor5) &&
+        kookieUiPublishedSoundCue(cancel1) &&
+        kookieUiPublishedSoundCue(cancel2) &&
+        kookieUiPublishedSoundCue(error1) &&
+        kookieUiPublishedSoundCue(popupClose) &&
+        kookieUiPublishedSoundCue(popupOpen) &&
+        kookieUiPublishedSoundCue(select1) &&
+        kookieUiPublishedSoundCue(select2) &&
+        kookieUiPublishedSoundCue(swipe1) &&
+        kookieUiPublishedSoundCue(swipe2),
+        "all registered UI sound publication tuples must match their clip IDs")
+    var wrongSource = KookieUiSoundCue(
+        "ui.wrong", cursor2.source(), kookieUiSoundOgg(), "Wrong source",
+        cursor2.checksum(), 1001, 80)
+    var wrongChecksum = KookieUiSoundCue(
+        "ui.wrong-digest", cursor1.source(), kookieUiSoundOgg(), "Wrong digest",
+        cursor2.checksum(), 1001, 80)
+    var invalidPath = KookieUiSoundCue(
+        "ui.invalid", "../audio/ui/cursor.ogg", kookieUiSoundOgg(), "Invalid",
+        cursor1.checksum(), 1001, 80)
+    assert(!kookieUiPublishedSoundCue(wrongSource) &&
+        !kookieUiPublishedSoundCue(wrongChecksum) &&
+        !kookieUiPublishedSoundCue(invalidPath),
+        "published UI sound checks must reject source, digest and path mismatches")
+    var bank = KookieUiSoundBank(2)
+    assert(kookieUiSoundBankAddPublished(bank, cursor1),
+        "published cursor must enter the sound bank")
+    assert(!kookieUiSoundBankAddPublished(bank, wrongSource),
+        "mismatched source must not enter the sound bank")
+    assert(bank.open() && bank.play("ui.cursor.1"),
+        "published cursor must open and queue")
+    assert(bank.playSpatial(
+            "ui.cursor.1", 10, 0, 0, 0, 0, 0, 100, 0, 100) &&
+        bank.pending() == 2 && bank.dequeue() &&
+        bank.consumedClip() == 1001 && bank.consumedGain() == 80 &&
+        bank.consumedLeftGain() == 80 &&
+        bank.consumedRightGain() == 80,
+        "published cursor must preserve the first FIFO event")
+    assert(bank.dequeue() && bank.consumedClip() == 1001 &&
+        bank.consumedLeftGain() != bank.consumedRightGain(),
+        "spatial queue must preserve effective left/right gains")
+    assert(bank.pending() == 0 && bank.close(),
+        "published sound FIFO must close cleanly")
+    println("KOOKIE G10 published UI sound catalog verified")
+}

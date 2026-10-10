@@ -4,9 +4,11 @@ import core
 import session
 
 class MultiplayerScoreboard {
+    KookieUiNativeTheme themeValue
     Bool visibleValue
 
     public constructor() {
+        themeValue = KookieUiNativeTheme()
         visibleValue = false
     }
 
@@ -19,40 +21,29 @@ class MultiplayerScoreboard {
         visibleValue = !visibleValue
         return visibleValue
     }
+    Bool setHighContrast(Bool enabled) {
+        return themeValue.setHighContrast(enabled)
+    }
+
+    Bool highContrast() {
+        return themeValue.highContrast()
+    }
     Int renderVertexCapacity() { return 900 }
 
     Int glyph(Char value) {
-        if (value >= 'A' && value <= 'Z') {
-            return (value as Int) - ('A' as Int) + 1
-        }
-        if (value >= '0' && value <= '9') {
-            return (value as Int) - ('0' as Int) + 27
-        }
-        if (value == '.') { return 37 }
-        if (value == ':') { return 38 }
-        if (value == '-') { return 39 }
-        if (value == '/') { return 40 }
-        if (value == '%') { return 41 }
-        if (value == '>') { return 42 }
-        if (value == '+') { return 43 }
-        if (value == '?') { return 44 }
-        return 0
+        return kookieUiNativeGlyph(value)
     }
 
     Int textResource(Int color, Int glyphValue) {
-        return 100 + color * 48 + glyphValue
+        return kookieUiNativeTextResource(color, glyphValue)
     }
 
     Bool pushQuad(
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
     ) {
-        return target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, bottom, 100, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, top, 0, 0)
+        return kookieUiNativePushQuad(
+            target, resource, left, bottom, right, top)
     }
 
     Int textWidth(String text) {
@@ -139,12 +130,12 @@ class MultiplayerScoreboard {
     Int statusColor(Int flags) {
         if ((flags & multiplayerScoreboardFlagConnected()) == 0 ||
             (flags & multiplayerScoreboardFlagAlive()) == 0) {
-            return 3
+            return themeValue.dangerColor()
         }
         if ((flags & multiplayerScoreboardFlagReady()) != 0) {
-            return 4
+            return themeValue.successColor()
         }
-        return 2
+        return themeValue.mutedColor()
     }
 
     Bool pushHealth(
@@ -187,11 +178,16 @@ class MultiplayerScoreboard {
     ) {
         var flags = state.flagsAt(index)
         var color = statusColor(flags)
-        return pushQuad(target, 11, -88, bottom, 88, bottom + 24) &&
-            pushQuad(target, 10, -86, bottom + 2, 86, bottom + 22) &&
+        return pushQuad(
+                target, kookieUiNativeResourceSurface(),
+                -88, bottom, 88, bottom + 24) &&
+            pushQuad(
+                target, kookieUiNativeResourceBackground(),
+                -86, bottom + 2, 86, bottom + 22) &&
             pushText(target, playerName(state.nameIdAt(index)),
                 -82, bottom + 12,
-                if ((flags & multiplayerScoreboardFlagHost()) != 0) 4 else 1) &&
+                if ((flags & multiplayerScoreboardFlagHost()) != 0)
+                    themeValue.successColor() else themeValue.accentColor()) &&
             pushText(target, statusLabel(flags), -82, bottom + 3, color) &&
             pushNumber(target, state.scoreAt(index), -43, bottom + 12, 1) &&
             pushHealth(target, state, index, -3, bottom + 12, 1) &&
@@ -207,14 +203,25 @@ class MultiplayerScoreboard {
             !target.begin(frame)) {
             return false
         }
-        var staged = pushQuad(target, 10, -94, -72, 94, 72) &&
-            pushQuad(target, 11, -92, -70, 92, 70) &&
-            pushCenteredText(target, "SCOREBOARD", 55, 1) &&
-            pushText(target, "PLAYER", -82, 35, 0) &&
-            pushText(target, "SCORE", -43, 35, 0) &&
-            pushText(target, "HP", -3, 35, 0) &&
-            pushText(target, "K/D", 40, 35, 0) &&
-            pushText(target, "PING", 65, 35, 0)
+        var staged =
+            pushQuad(
+                target, kookieUiNativeResourceBackground(),
+                -94, -72, 94, 72) &&
+            pushQuad(
+                target, kookieUiNativeResourceSurface(),
+                -92, -70, 92, 70) &&
+            pushCenteredText(
+                target, "SCOREBOARD", 55, themeValue.accentColor()) &&
+            pushText(
+                target, "PLAYER", -82, 35, themeValue.mutedColor()) &&
+            pushText(
+                target, "SCORE", -43, 35, themeValue.mutedColor()) &&
+            pushText(
+                target, "HP", -3, 35, themeValue.mutedColor()) &&
+            pushText(
+                target, "K/D", 40, 35, themeValue.mutedColor()) &&
+            pushText(
+                target, "PING", 65, 35, themeValue.mutedColor())
         if (staged && state.count() == 0) {
             staged = pushCenteredText(target, "NO PLAYERS", 4, 3)
         }
@@ -222,7 +229,8 @@ class MultiplayerScoreboard {
             staged = pushRow(target, state, index, 4 - index * 34)
         }
         if (staged) {
-            staged = pushCenteredText(target, "TAB CLOSE", -62, 0)
+            staged = pushCenteredText(
+                target, "TAB CLOSE", -62, themeValue.mutedColor())
         }
         if (!staged) {
             target.discard()

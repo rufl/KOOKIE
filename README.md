@@ -205,14 +205,24 @@ keeps the DINX/ZYLVE-inspired flexibility goal without copying either product.
 The focused `bash scripts/verify_multiplayer_ui.sh` probe stages five shell
 frames in both JVM and native paths; `bash scripts/verify_font_ui.sh` covers the
 font/title contract; [`docs/UI_LIBRARY.md`](docs/UI_LIBRARY.md) documents the
-internal Kof/KofJS SVG/PNG and typography facade, and
+internal Kof/KofJS SVG/PNG, typography and sound-cue facade;
+`bash scripts/verify_ui_library.sh` checks the reusable Kof/KofScript contracts;
+`bash scripts/verify_ui_sound_catalog.sh` checks all 14 native source/digest
+publication tuples and the bounded spatial FIFO; and
 `bash scripts/verify_ui_demo.sh` builds the isolated KofJS UI demo and checks
-the published asset manifest; `bash scripts/verify_package.sh` validates the
-`none` package profile and `bash scripts/verify_prototype_package.sh` validates
-the `prototype` profile; `bash scripts/verify_goose_game.sh` covers gameplay.
-The focused dedicated-server gate also passes 512 measured ticks at p95
-`3.624ms` (p99 `3.689ms`, maximum `3.899ms`) under the declared 4ms
-simulation budget.
+the published asset manifest. The sound-cue adapter keeps `.ogg`/`.wav`
+descriptor metadata separate from the bounded native queue and applies
+registered UI spatial gains in SDL_mixer. The 14 supplied JDSherbert OGG files
+remain license-blocked for redistribution until provenance is confirmed.
+[`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) records the current
+Kof4j `0.5.0-beta` UI/FFI boundary: the active pin qualifies synchronous
+`Buffer(U8)` on JVM/native x86-64, while cross support is unqualified and
+`Buffer(U8)` is not a portable typed/asynchronous upload ABI. `bash
+scripts/verify_package.sh` validates the `none` package profile and
+`bash scripts/verify_prototype_package.sh` validates the `prototype` profile;
+`bash scripts/verify_goose_game.sh` covers gameplay. The focused dedicated-
+server gate also passes 512 measured ticks at p95 `3.624ms` (p99 `3.689ms`,
+maximum `3.899ms`) under the declared 4ms simulation budget.
 
 
 Same-tick authoritative revisions are ordered by state sequence: a newer
@@ -401,6 +411,10 @@ If a claim lacks a focused test or probe, it is not presented as complete.
   release, kooker and qualification commands.
 - [Kof language notes](docs/KOF_LANGUAGE.md) — syntax, targets, FFI and runtime
   findings.
+- [UI library](docs/UI_LIBRARY.md) — reusable layout, widgets, typography,
+  assets, icons and sound-cue contracts.
+- [Kof4j UI/ABI migration](docs/KOF4J_UI_MIGRATION.md) — upstream boundary,
+  buffer evidence and contribution path.
 - [Executed probes](docs/RESEARCH_PROBES.md) — commands, results and proof
   limits.
 - [Changelog](CHANGELOG.md) — recent behavior changes.

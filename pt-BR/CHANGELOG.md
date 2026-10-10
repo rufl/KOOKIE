@@ -3,6 +3,13 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos `scripts/report_code_mix.py` e uma auditoria de composição das
+  fontes. O working tree atual tem 94.374 linhas físicas: 76,85% Kof, 0,59%
+  KofScript, 11,36% C/header, 6,96% shell, 2,53% Python, 1,59% Java da ponte
+  PE e 0,12% shaders GPU. A fatia somente de runtime tem 86,43% Kof; os
+  mecanismos nativos permanecem na fronteira até uma ABI de buffers provar uma
+  migração mais rápida e segura.
+
 - Adicionamos uma demo KofJS isolada e um manifesto publicado de assets UI.
   As referências agora usam bindings gerados a partir do manifesto, com IDs
   estáveis, caminhos de runtime relativos ao pacote, SHA-256 minúsculo
@@ -10,11 +17,58 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   estilos da demo resolve as URLs empacotadas das fontes sem requests 404 de
   fallback. O gate compartilhado `verify_ui_manifest.py` valida os perfis
   `none`, `prototype` e demo.
+- Adicionamos um kit retido e limitado de layout/componentes para apps, jogos
+  e superfícies do Kutter: `KookieUiLayoutSpec`, `KookieUiPanel`, botões,
+  campos de texto, toggles, sliders, feedback de progresso/badge, toolbars,
+  tabs e inspectors. O estado dos controles comuns permanece no Kof para
+  probes JVM/native determinísticos enquanto KofJS renderiza os mesmos handles;
+  o probe G10 e a demo de UI agora exercitam a composição compartilhada.
+- Adicionamos `KookieUiSoundCue`/`KookieUiSoundBank` para metadados de cues
+  `.ogg`/`.wav` relativos ao pacote, tuplas exatas de publicação dos 14 clipes
+  OGG UI registrados, FIFO limitado/ganhos espaciais e metadados determinísticos
+  para o adapter nativo. O caminho SDL nativo agora aplica ganhos esquerdo/
+  direito às tracks UI registradas; o descritor KofScript carrega o mesmo nó de
+  som, clip ID e gain padrão. A demo UI e o probe G10 exercitam as duas camadas.
+  SHA-256 do descritor não substitui gate de bytes/licença do arquivo na
+  release.
+- Auditamos a pinagem ativa do Kof4j `0.5.0-beta`,
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`: `Buffer(U8)` é uma fronteira de
+  bytes síncrona em JVM/nativo x86-64 e passa a fixture SIMD INOUT local. A
+  fonte fixada afirma suporte cross, enquanto a documentação mais nova do
+  `main` ainda informa Native `FFI001`; o KOOKIE mantém staging escalar/próprio
+  até uma fixture em lote por target provar uma fronteira portátil da engine.
+- Adicionamos o caminho de performance P0 do servidor dedicado: o benchmark
+  direto do tick mantém seu gate p95 existente, enquanto um perfil limitado de
+  64 amostras reporta percentis de relógio, colisão, IA, projéteis, itens e
+  finalização. Históricos de snapshots e impactos de inimigos agora removem
+  entradas por ring buffer de `head/count`, sem deslocar arrays completos ao
+  atingir a capacidade.
 - Adicionamos a primeira fatia da biblioteca interna de UI para Kof/KofJS:
   metadados limitados de assets SVG/PNG com texto alternativo obrigatório,
   papéis de texto Jared Lite/Pixand, tokens de superfícies escuras, ícones SVG
-  intrínsecos limitados e a fachada composável `KookieUiDocument`. O probe G10
-  focado qualifica execução em JVM/native e saída de type-check/build KofJS.
+  intrínsecos limitados, composições reutilizáveis `bindMenu` e `bindHud` e a
+  fachada composável `KookieUiDocument`. O probe G10 focado qualifica execução
+  JVM/native e saída de type-check/build KofJS.
+- Adicionamos a companheira de GUI em KofScript `src/ui/kookie_ui.ks`:
+  descritores semânticos limitados de texto/asset/ícone com validação da
+  publicação e ciclo de vida determinístico. O gate de UI agora executa essa
+  companheira em JVM/native; a renderização baseada em handles permanece na
+  fachada Kof/KofJS porque os runtimes atuais de KofScript não expõem handles
+  `kof.ui`.
+- Recriamos o skin nativo da UI da engine sobre os tokens compartilhados de
+  Kof/KofJS: `KookieUiNativeTheme` agora centraliza superfícies de
+  `FrameStaging`, trilhos de foco, cores semânticas e contraste de
+  acessibilidade para GameShell, HUD, nameplates e scoreboard. O HUD de
+  gameplay agora expõe os rótulos estáveis HP, AMMO, BAG e XP dentro de um
+  orçamento limitado de 438 vértices. O atlas SDL e a folha de estilos do host
+  usam os mesmos tokens de background/surface/accent/focus/danger/success. Os
+  gates focados de multiplayer, fontes e gameplay UI continuam verdes.
+- Otimizamos o staging nativo da UI para reduzir custo na fronteira de
+  renderização: `FrameStaging` agora escreve quads/triângulos em uma operação
+  limitada, spans de primitivas agrupam chamadas de upload Kof/C e as
+  capacidades das cenas CPU/GPU crescem com folga para evitar reallocação ou
+  reconstrução de buffers em pequenas mudanças de quantidade no HUD/menus. A
+  UI de gameplay continua em uma única chamada de draw.
 - Os workers nativos de jobs agora executam somente agendamento e conclusão
   de plataforma; o resultado e o checksum do descritor permanecem no
   `BoundedJobGraph` do Kof, removendo o cálculo de engine do worker C.

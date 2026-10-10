@@ -113,21 +113,16 @@ class GooseMinimap {
         FrameStaging target, Int resource,
         Int ax, Int ay, Int bx, Int by, Int cx, Int cy
     ) {
-        return target.pushVertex(resource, ax, ay, 0, 0) &&
-            target.pushVertex(resource, bx, by, 100, 0) &&
-            target.pushVertex(resource, cx, cy, 50, 100)
+        return kookieUiNativePushTriangle(
+            target, resource, ax, ay, bx, by, cx, cy)
     }
 
     Bool pushQuad(
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
     ) {
-        return target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, bottom, 100, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, top, 0, 0)
+        return kookieUiNativePushQuad(
+            target, resource, left, bottom, right, top)
     }
 
     Bool pushOctagon(

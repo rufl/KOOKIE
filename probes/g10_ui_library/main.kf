@@ -89,5 +89,48 @@ main() {
         "Kookie UI document must compose text, SVG, PNG, and icon nodes")
     assert(document.close() && !document.shown(),
         "Kookie UI document must close deterministically")
+    var screens = KookieUiDocument("GatoGanso screens", 960, 540)
+    assert(screens.bindMenu(
+            "GATOGANSO", "OLD SCHOOL COOP", "ARROWS ENTER ESC") &&
+        screens.bindHud("HP 100", "AMMO 3", "BAG 0/8", "XP 0/1") &&
+        screens.boundCount() == 2 && screens.show() && screens.shown(),
+        "Kookie UI must compose reusable menu and HUD views")
+    var layout = kookieUiColumnLayout(8, 12)
+    assert(layout.direction() == kookieUiLayoutColumn() &&
+        layout.gap() == 8 && layout.padding() == 12 &&
+        layout.setFill(true, true) && layout.fillWidth() && layout.fillHeight(),
+        "Kookie UI layout must retain bounded direction, spacing and fill semantics")
+
+    var componentPanel = KookieUiPanel(kookieUiPanelRaised(), layout)
+    var layoutView = KookieUiLayout(layout)
+    var action = KookieUiButton("PLAY", kookieUiButtonPrimary())
+    var field = KookieUiTextField("Player name", "Gato")
+    var toggle = KookieUiToggle("Audio", true)
+    var slider = KookieUiSlider(0, 100, 10, 40)
+    var progress = KookieUiProgressBar(0, 100, 75)
+    var badge = KookieUiBadge("READY", kookieUiComponentColorSuccess())
+    var toolbar = KookieUiToolbar(2)
+    var tabs = KookieUiTabs(3)
+    var inspector = KookieUiInspector(4)
+    assert(field.setValue("Ganso") && field.value() == "Ganso" &&
+        toggle.checked() && toggle.setChecked(false) && !toggle.checked() &&
+        slider.setValue(80) && slider.value() == 80 &&
+        progress.setValue(90) && progress.value() == 90 &&
+        badge.setText("LIVE") && badge.text() == "LIVE" &&
+        toolbar.add(action) && toolbar.count() == 1 &&
+        tabs.addTab("World") && tabs.addTab("Inspector") &&
+        tabs.selected() == 0 && tabs.select(1) && tabs.selected() == 1 &&
+        inspector.addEntry("Position", "0, 0, 0") && inspector.count() == 1,
+        "Kookie UI widgets must expose bounded state transitions")
+    var componentContent = Column(listOf(
+        field.widget(), toggle.widget(), slider.widget(), progress.widget(),
+        badge.widget(), toolbar.widget(), tabs.widget(), inspector.widget()))
+    assert(componentPanel.bindColumn(componentContent) &&
+        layoutView.bindView(componentPanel.widget()) &&
+        !action.consumePressed(),
+        "Kookie UI components must compose through the shared layout and panel")
+
+
+    println("KOOKIE G10 reusable layout and widget system verified")
     println("KOOKIE G10 internal Kof/KofJS UI library verified")
 }

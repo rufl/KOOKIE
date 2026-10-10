@@ -3,17 +3,66 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added `scripts/report_code_mix.py` and a source-composition audit. The current
+  working tree is 94,374 physical lines: 76.85% Kof, 0.59% KofScript, 11.36%
+  C/header, 6.96% shell, 2.53% Python, 1.59% PE-bridge Java and 0.12% GPU
+  shader. The runtime-only slice is 86.43% Kof; native mechanisms remain at
+  the boundary unless a bulk-buffer ABI proves a faster, safe migration.
+
 - Added an isolated KofJS UI demo and a published UI asset manifest. UI
   references now use generated bindings from the manifest, with stable IDs,
   package-relative runtime paths, required lowercase SHA-256 digests, and
   explicit prototype-asset optionality. The demo stylesheet resolves packaged
   font URLs without fallback 404 requests. Shared `verify_ui_manifest.py`
   gates validate the `none`, `prototype` and demo staging profiles.
+- Added a bounded retained layout/component kit for apps, games and Kutter
+  surfaces: `KookieUiLayoutSpec`, `KookieUiPanel`, buttons, text fields,
+  toggles, sliders, progress/badge feedback, toolbars, tabs and inspectors.
+  Common control state stays in Kof for deterministic JVM/native probes while
+  KofJS renders the same handles; the G10 probe and UI demo now exercise the
+  shared composition path.
+- Added `KookieUiSoundCue`/`KookieUiSoundBank` for package-relative `.ogg`/`.wav`
+  cue metadata, exact publication tuples for the 14 registered UI OGG clips,
+  bounded FIFO/spatial gains and deterministic native-adapter metadata. The
+  native SDL path now applies left/right gains to registered UI tracks; the
+  KofScript descriptor carries the same sound node, clip ID and default gain.
+  The UI demo and G10 probe exercise both layers. Descriptor SHA-256 is not a
+  substitute for a release file-byte/license gate.
+- Audited the active Kof4j `0.5.0-beta` pin
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`: `Buffer(U8)` is a synchronous
+  byte boundary on JVM/native x86-64 and passes the local SIMD INOUT fixture.
+  The pinned source claims cross support, while newer upstream `main` docs
+  still report Native `FFI001`; KOOKIE keeps checked scalar/owned staging
+  until a target-specific bulk fixture proves a portable engine boundary.
+- Added the P0 dedicated-server performance path: the direct tick benchmark keeps
+  its existing p95 gate, while a bounded 64-sample phase profile reports clock,
+  collision, AI, projectile, pickup and finalize percentiles. Enemy snapshot and
+  impact histories now evict through head/count ring buffers instead of shifting
+  full arrays at capacity.
 - Added the first internal Kof/KofJS UI library slice: bounded SVG/PNG asset
   metadata with required alternative text, Jared Lite/Pixand text roles,
-  dark surface tokens, bounded intrinsic SVG icons, and a composable
-  `KookieUiDocument` facade. The focused G10 probe qualifies JVM/native
-  execution and KofJS type-check/build output.
+  dark surface tokens, bounded intrinsic SVG icons, reusable `bindMenu` and
+  `bindHud` compositions, and a composable `KookieUiDocument` facade. The
+  focused G10 probe qualifies JVM/native execution and KofJS type-check/build
+  output.
+- Added the KofScript GUI companion `src/ui/kookie_ui.ks`: bounded semantic
+  text/asset/icon descriptors with publication validation and deterministic
+  lifecycle state. The UI gate now executes this companion on JVM/native;
+  handle-backed rendering remains in the Kof/KofJS facade because current
+  KofScript runtimes do not expose `kof.ui` handles.
+- Rebuilt the native engine UI skin on the shared Kof/KofJS design tokens:
+  `KookieUiNativeTheme` now centralizes FrameStaging surfaces, focus rails,
+  semantic text colors and accessibility contrast for GameShell, HUD,
+  nameplates and scoreboard. The gameplay HUD now exposes stable HP, AMMO, BAG
+  and XP labels within a bounded 438-vertex budget. The SDL atlas palette and
+  host stylesheet now use the same background/surface/accent/focus/danger/
+  success tokens. Focused multiplayer, font and gameplay UI gates remain
+  green.
+- Optimized native UI staging for render-boundary cost: `FrameStaging` now
+  writes quads/triangles in one bounded operation, primitive spans batch Kof/C
+  upload calls, and CPU/GPU scene capacities grow with headroom to avoid
+  reallocating or rebuilding buffers on small HUD/menu count changes. Gameplay
+  UI remains one scene draw call.
 - Native job workers now execute only platform scheduling and completion;
   result and descriptor-checksum semantics remain in Kof's
   `BoundedJobGraph`, removing engine computation from the C worker.

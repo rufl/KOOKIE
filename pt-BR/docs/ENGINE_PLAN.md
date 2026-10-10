@@ -181,11 +181,13 @@ As fontes versionadas da UI e os limites adicionais de licenciamento estão em
 
 ## 3. A fronteira FFI deve ser comprovada primeiro
 
-O runtime nativo upstream atual aceita chamadas `extern` escalares;
-arrays/estruturas/ponteiros/buffers de saída e callbacks nativos continuam
-bloqueados nele. A ponte PE do KOOKIE baixa separadamente valores limitados de
-heap/arrays e FFI integral para os grafos Windows qualificados. As medições
-originais cobriram a versão real do SDL e chamadas de libm, **não a
+O runtime Kof `0.5.0-beta` fixado expõe `Buffer(U8)` somente em bytes nos
+caminhos JVM e nativo x86-64; `scripts/verify_simd_dispatch.sh` qualifica seu
+formato síncrono INOUT nesses alvos. Arrays tipados genéricos, structs,
+ponteiros crus, buffers de saída arbitrários e callbacks nativos continuam
+fora do contrato portátil. A ponte PE do KOOKIE baixa separadamente valores
+limitados de heap/arrays e FFI integral para os grafos Windows qualificados. As
+medições originais cobriram a versão real do SDL e chamadas de libm, **não a
 inicialização gráfica**.
 
 ### Contrato do adaptador
@@ -197,7 +199,7 @@ As categorias de API propostas abaixo são contratos de design, não funções e
 | Ciclo de vida | Versão da ABI, capacidades, criação/destruição, status/erro | O adaptador possui os recursos do SDL; o Kof possui as decisões do ciclo de vida da aplicação |
 | Entrada | Evento de polling; tipo marcado; campos escalares; texto normalizado copiado como String | O adaptador apenas achata SDL_Event; bindings, comandos e política de foco pertencem ao Kof |
 | Recursos | Token inteiro tipado; campos escalares do descritor; liberação explícita | O registro do adaptador possui os ponteiros nativos; a política de tempo de vida de ativos/recursos pertence ao Kof |
-| Uploads | Token de staging, deslocamento/quantidade, tuplas escalares fixas; posteriormente buffers em massa seguros, se houver suporte | O adaptador empacota/transfere bytes; o Kof cria/valida os dados e a semântica do conteúdo |
+| Uploads | Fixtures síncronas e limitadas de `Buffer(U8)` quando o target é qualificado; caso contrário, token de staging, deslocamento/quantidade e tuplas escalares fixas | O adaptador empacota/transfere bytes; o Kof cria/valida os dados e a semântica do conteúdo |
 | Comandos | Iniciar/finalizar passe, associar pipeline/recurso, viewport/scissor, draw/dispatch | Seleção de passe, ordem de classificação, visibilidade e agrupamento pertencem ao Kof |
 | Áudio | Token de clipe/stream decodificado, dados enfileirados, controles de ganho/canal | O Kof possui a política de alocação/prioridade e espacialização de vozes; o SDL possui o dispositivo/fila para G0, e os mecanismos de mixagem/DSP espacial/codec configurados pertencem à biblioteca de produção selecionada |
 | Diagnóstico | Status numérico e texto de erro copiado | Nenhuma exceção deve se desenrolar através da fronteira C/Kof |
@@ -230,15 +232,17 @@ buffers nativos persistentes para 534 vértices triangulados da arena, 36 da
 porta e 372 do HUD por chamadas escalares verificadas; o Kof emite coordenadas
 clip em perspectiva e profundidade normalizada por vértice, e o SDL_GPU resolve
 a cena por um alvo D16. Casos grandes/de erro por intervalo e um adaptador real
-de buffer em massa ainda não foram comprovados.
+de buffer em massa ainda não foram comprovados; a fixture medida de `Buffer(U8)`
+não é um contrato assíncrono de ownership de GPU.
 
 A sobrecarga do staging escalar é uma **medição de aprovação/reprovação**. Se
 uploads representativos de draw/instância/animação não atingirem o orçamento,
-prefira uma adição upstream de FFI de buffer com especificação adequada
-(formato dos elementos, comprimento, tempo de vida de empréstimo/cópia,
-propriedade e regras de GC). Não codifique frames binários como strings
-JSON/Base64 nem presuma que um cast de ponteiro resolva a transferência em
-massa. Não transforme o shim em um renderer C para passar em um benchmark.
+prefira uma adição de ABI de buffer tipada ou assíncrona explicitamente
+especificada, ou uma fixture de bytes qualificada por target com schema,
+comprimento, tempo de vida e ownership declarados. Não codifique frames
+binários como strings JSON/Base64 nem presuma que um cast de ponteiro resolva a
+transferência em massa. Não transforme o shim em um renderer C para passar em
+um benchmark.
 
 ### Gates de inicialização nativa e GC
 
@@ -1022,7 +1026,7 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 
 | Risco | Evidência atual | Ação / estágio de liberação |
 |---|---|---|
-| FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | O `Buffer(U8, INOUT)` fixado do 0.5.0-beta passa no benchmark empacotado de redução `u8` na JVM/no nativo; a verificação cross fornecida passa, enquanto Script/JS/Android/riscv32/MCU continuam em `FFI001` | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
+| FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | O `Buffer(U8, INOUT)` fixado do 0.5.0-beta passa no benchmark empacotado de redução `u8` em JVM/nativo x86-64; a verificação cross foi fornecida, mas não foi repetida pelo KOOKIE, enquanto Script/JS/Android/riscv32/MCU continuam em `FFI001` | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
 | Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; o shell Windows nativo baixa e executa gameplay Kof PE no Wine isolado, e o pacote de apresentação verifica ligação nativa a SDL3/SDL_mixer/SDL_GPU e produtos SPIR-V/DXIL | Manter gates por plataforma/GPU; não inferir smoke visual de apresentação Windows a partir de linkage, smoke sem gráficos ou Xvfb padrão |
 | Coletor nativo após spawn | Estágio de spawn cumulativo na fonte do alocador | Uma única thread Kof; soak prolongado; nenhum bypass inseguro de GC manual |
 | Desempenho da geração de código nativo | Pipeline mínimo de otimização | Medir arrays/matemática/FFI representativos; usar batching/pré-alocação; não reescrever a jogabilidade em C |

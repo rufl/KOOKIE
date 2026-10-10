@@ -37,6 +37,53 @@ Não existe um caminho privilegiado de simulação offline.
 8. **Nenhuma autoridade oculta:** renderizador, cliente, editor, áudio e mods não podem
    alterar silenciosamente o estado autoritativo do servidor.
 
+### Composição medida das fontes
+
+`scripts/report_code_mix.py` mede linhas físicas de fonte no working tree atual
+em `src`, `probes`, `apps`, `native`, `scripts` e `tooling`. O relatório inclui
+fontes não rastreadas e exclui saída gerada de build. Resultado atual:
+
+| Grupo | Arquivos | Linhas | Participação |
+|---|---:|---:|---:|
+| Kof (`.kf`) | 144 | 72.524 | 76,85% |
+| KofScript (`.ks`) | 4 | 558 | 0,59% |
+| C/header (`.c`, `.h`) | 18 | 10.717 | 11,36% |
+| Ferramentas shell (`.sh`) | 43 | 6.570 | 6,96% |
+| Ferramentas Python (`.py`) | 16 | 2.386 | 2,53% |
+| Ponte PE Java (`.java`) | 1 | 1.504 | 1,59% |
+| Shaders GPU | 8 | 115 | 0,12% |
+| **Total** | **234** | **94.374** | **100%** |
+
+A fatia de runtime (Kof/KofScript/C/shaders, excluindo ferramentas de build e a
+ponte PE) tem 83.914 linhas: Kof 86,43%, KofScript 0,66%, C/header 12,77% e
+shaders 0,14%. Isso mede composição; não é uma afirmação de performance.
+
+Não traduza código apenas para aumentar a porcentagem de Kof. SDL/SDL_GPU,
+SDL_mixer, Winsock, durabilidade de filesystem, agendamento de threads,
+intrínsecos SIMD, shaders e marshalling de buffers/ponteiros permanecem nativos.
+KofScript continua sendo a camada limitada de comportamento/artefatos; não é
+substituto de loops quentes compilados em Kof. Código nativo só deve migrar
+quando a ABI Kof preservar transferência em bloco, ownership e comportamento
+de frame-time. O parser/expansão de vértices de modelos e o shell Windows
+continuam candidatos explícitos, mas não foram convertidos nesta auditoria:
+o primeiro adicionaria tráfego por vértice na fronteira sem ABI de buffers; o
+segundo é IU de cold path e exige ABI estável de exportação/objetos PE.
+
+A versão `0.5.0-beta` fixada do Kof4j implementa `Buffer(U8)` somente em
+bytes para JVM, JS e nativo x86-64; `scripts/verify_simd_dispatch.sh` qualifica
+o formato síncrono INOUT em JVM/nativo x86-64. Os comentários da fonte fixada
+afirmam suporte a riscv64/aarch64, enquanto a documentação upstream mais nova
+ainda informa Native `FFI001`; o KOOKIE trata o suporte cross como não
+qualificado. `Buffer(U8)` não define contrato tipado de ownership assíncrono
+para GPU/áudio.
+
+Por isso o KOOKIE mantém `FrameStaging`/wires de conteúdo como arrays limitados
+possuídos pelo Kof, usa memória possuída pelo C no trabalho nativo e conserva
+o adaptador escalar verificado. Veja
+[KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md) para a decisão versionada de
+buffers e a fronteira reutilizável de UI/áudio.
+
+
 ## 3. Modelo de camadas
 
 ```mermaid
@@ -726,6 +773,14 @@ ficou em uma faixa de 128 KiB em 181 amostras e a assinatura de recursos
 clientes replicam o estado completo a cada tick, montam quatro chunks de forma
 transacional, rejeitam estado obsoleto/adulterado e recuperam o cliente B na
 geração 2.
+
+O gate P0 do servidor agora mantém o benchmark direto do tick no contrato p95
+existente e executa um perfil separado e limitado de 64 amostras para medir
+relógio, colisão, IA, projéteis, itens e finalização. O perfil de fases é
+diagnóstico e não substitui o gate de tempo do caminho direto. Os históricos de
+autoridade e impactos de inimigos usam ring buffers de `head/count`, preservando
+sequência monotônica e o último valor sem deslocar históricos completos ao
+atingir a capacidade.
 
 A fronteira SDL_GPU prepara 2.952 atributos de vértice como 984 instâncias de
 triângulo em hardware em um draw. No dispositivo Vulkan 26.2.3 Intel Arrow

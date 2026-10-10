@@ -1,0 +1,707 @@
+package ui
+
+// Shared layout constants. The host keeps the same semantic contract on
+// KofJS, JVM and native; only KofJS renders the kof.ui handles.
+Int kookieUiLayoutRow() { return 1 }
+Int kookieUiLayoutColumn() { return 2 }
+Int kookieUiLayoutStart() { return 1 }
+Int kookieUiLayoutCenter() { return 2 }
+Int kookieUiLayoutEnd() { return 3 }
+Int kookieUiLayoutStretch() { return 4 }
+
+Int kookieUiPanelSurface() { return 1 }
+Int kookieUiPanelRaised() { return 2 }
+Int kookieUiPanelTransparent() { return 3 }
+Int kookieUiPanelDanger() { return 4 }
+
+Int kookieUiButtonPrimary() { return 1 }
+Int kookieUiButtonSecondary() { return 2 }
+Int kookieUiButtonDanger() { return 3 }
+Int kookieUiButtonGhost() { return 4 }
+
+Int kookieUiComponentColorForeground() { return 0 }
+Int kookieUiComponentColorMuted() { return 1 }
+Int kookieUiComponentColorAccent() { return 2 }
+Int kookieUiComponentColorDanger() { return 3 }
+Int kookieUiComponentColorSuccess() { return 4 }
+
+String kookieUiCssToken(Int token) {
+    if (token == kookieUiComponentColorForeground()) { return "#f8fafc" }
+    if (token == kookieUiComponentColorMuted()) { return "#64748b" }
+    if (token == kookieUiComponentColorAccent()) { return "#d97706" }
+    if (token == kookieUiComponentColorDanger()) { return "#dc2626" }
+    if (token == kookieUiComponentColorSuccess()) { return "#22c55e" }
+    return "#0f172a"
+}
+
+String kookieUiCssAlign(Int value) {
+    if (value == kookieUiLayoutCenter()) { return "center" }
+    if (value == kookieUiLayoutEnd()) { return "flex-end" }
+    if (value == kookieUiLayoutStretch()) { return "stretch" }
+    return "flex-start"
+}
+
+String kookieUiCssJustify(Int value) {
+    if (value == kookieUiLayoutCenter()) { return "center" }
+    if (value == kookieUiLayoutEnd()) { return "flex-end" }
+    if (value == kookieUiLayoutStretch()) { return "space-between" }
+    return "flex-start"
+}
+
+class KookieUiLayoutSpec {
+    Int directionValue
+    Int gapValue
+    Int paddingValue
+    Int alignValue
+    Int justifyValue
+    Bool fillWidthValue
+    Bool fillHeightValue
+
+    public constructor(
+        Int direction, Int gap, Int padding, Int align, Int justify
+    ) {
+        directionValue = if (direction == kookieUiLayoutRow())
+            kookieUiLayoutRow() else kookieUiLayoutColumn()
+        gapValue = gap
+        if (gapValue < 0) { gapValue = 0 }
+        if (gapValue > 64) { gapValue = 64 }
+        paddingValue = padding
+        if (paddingValue < 0) { paddingValue = 0 }
+        if (paddingValue > 64) { paddingValue = 64 }
+        alignValue = align
+        if (alignValue < kookieUiLayoutStart() ||
+            alignValue > kookieUiLayoutStretch()) {
+            alignValue = kookieUiLayoutStart()
+        }
+        justifyValue = justify
+        if (justifyValue < kookieUiLayoutStart() ||
+            justifyValue > kookieUiLayoutStretch()) {
+            justifyValue = kookieUiLayoutStart()
+        }
+        fillWidthValue = false
+        fillHeightValue = false
+    }
+
+    Bool setDirection(Int direction) {
+        if (direction != kookieUiLayoutRow() &&
+            direction != kookieUiLayoutColumn()) { return false }
+        directionValue = direction
+        return true
+    }
+
+    Bool setGap(Int gap) {
+        if (gap < 0 || gap > 64) { return false }
+        gapValue = gap
+        return true
+    }
+
+    Bool setPadding(Int padding) {
+        if (padding < 0 || padding > 64) { return false }
+        paddingValue = padding
+        return true
+    }
+
+    Bool setAlign(Int align) {
+        if (align < kookieUiLayoutStart() ||
+            align > kookieUiLayoutStretch()) { return false }
+        alignValue = align
+        return true
+    }
+
+    Bool setJustify(Int justify) {
+        if (justify < kookieUiLayoutStart() ||
+            justify > kookieUiLayoutStretch()) { return false }
+        justifyValue = justify
+        return true
+    }
+
+    Bool setFill(Bool fillWidth, Bool fillHeight) {
+        fillWidthValue = fillWidth
+        fillHeightValue = fillHeight
+        return true
+    }
+
+    Int direction() { return directionValue }
+    Int gap() { return gapValue }
+    Int padding() { return paddingValue }
+    Int align() { return alignValue }
+    Int justify() { return justifyValue }
+    Bool fillWidth() { return fillWidthValue }
+    Bool fillHeight() { return fillHeightValue }
+
+    String css() {
+        var direction = "column"
+        if (directionValue == kookieUiLayoutRow()) { direction = "row" }
+        var result = "display: flex; box-sizing: border-box; " +
+            "flex-direction: " + direction + "; " +
+            "gap: " + gapValue + "px; padding: " + paddingValue + "px; " +
+            "align-items: " + kookieUiCssAlign(alignValue) + "; " +
+            "justify-content: " + kookieUiCssJustify(justifyValue) + ";"
+        if (fillWidthValue) { result = result + " width: 100%;" }
+        if (fillHeightValue) { result = result + " height: 100%;" }
+        return result
+    }
+
+    Style style() {
+        return Style(kookieUiBackground(), kookieUiForeground(), paddingValue, 0)
+    }
+}
+
+KookieUiLayoutSpec kookieUiColumnLayout(Int gap, Int padding) {
+    return KookieUiLayoutSpec(
+        kookieUiLayoutColumn(), gap, padding,
+        kookieUiLayoutStretch(), kookieUiLayoutStart())
+}
+
+KookieUiLayoutSpec kookieUiRowLayout(Int gap, Int padding) {
+    return KookieUiLayoutSpec(
+        kookieUiLayoutRow(), gap, padding,
+        kookieUiLayoutCenter(), kookieUiLayoutStart())
+}
+
+Style kookieUiStackStyle(KookieUiLayoutSpec spec, Int direction) {
+    if (direction == kookieUiLayoutRow()) {
+        if (spec.justify() == kookieUiLayoutCenter()) {
+            return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:center")
+        }
+        if (spec.justify() == kookieUiLayoutEnd()) {
+            return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end")
+        }
+        if (spec.justify() == kookieUiLayoutStretch()) {
+            return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:space-between")
+        }
+        return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-start")
+    }
+    if (spec.align() == kookieUiLayoutCenter()) {
+        return Style("display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:flex-start")
+    }
+    if (spec.align() == kookieUiLayoutEnd()) {
+        return Style("display:flex;flex-direction:column;gap:8px;align-items:flex-end;justify-content:flex-start")
+    }
+    return Style("display:flex;flex-direction:column;gap:8px;align-items:stretch;justify-content:flex-start")
+
+
+}
+class KookieUiLayout {
+    View viewValue
+    KookieUiLayoutSpec specValue
+
+    public constructor(KookieUiLayoutSpec spec) {
+        specValue = spec
+        viewValue = View(specValue.style())
+    }
+
+    View widget() { return viewValue }
+    KookieUiLayoutSpec spec() { return specValue }
+
+    Bool bindView(View child) {
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindColumn(Column child) {
+        child.setStyle(kookieUiStackStyle(specValue, kookieUiLayoutColumn()))
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindRow(Row child) {
+        child.setStyle(kookieUiStackStyle(specValue, kookieUiLayoutRow()))
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindLabel(Label child) {
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindButton(Button child) {
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindInput(Input child) {
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindImage(Image child) {
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindIcon(Icon child) {
+        viewValue.bind(child)
+        return true
+    }
+}
+
+Style kookieUiPanelStyle(Int variant, Int padding) {
+    if (variant == kookieUiPanelRaised()) {
+        return Style(kookieUiSurfaceRaised(), kookieUiForeground(), padding, 6)
+    }
+    if (variant == kookieUiPanelTransparent()) {
+        return Style(kookieUiBackground(), kookieUiForeground(), padding, 0)
+    }
+    if (variant == kookieUiPanelDanger()) {
+        return Style(Color(59, 23, 32), kookieUiForeground(), padding, 8)
+    }
+    return Style(kookieUiSurface(), kookieUiForeground(), padding, 8)
+}
+
+class KookieUiPanel {
+    View viewValue
+    Int variantValue
+    KookieUiLayoutSpec specValue
+
+    public constructor(Int variant, KookieUiLayoutSpec spec) {
+        variantValue = variant
+        if (variantValue < kookieUiPanelSurface() ||
+            variantValue > kookieUiPanelDanger()) {
+            variantValue = kookieUiPanelSurface()
+        }
+        specValue = spec
+        viewValue = View(kookieUiPanelStyle(variantValue, specValue.padding()))
+    }
+
+    View widget() { return viewValue }
+    Int variant() { return variantValue }
+    KookieUiLayoutSpec spec() { return specValue }
+
+    Bool bindView(View child) {
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindColumn(Column child) {
+        child.setStyle(kookieUiStackStyle(specValue, kookieUiLayoutColumn()))
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindRow(Row child) {
+        child.setStyle(kookieUiStackStyle(specValue, kookieUiLayoutRow()))
+        viewValue.bind(child)
+        return true
+    }
+
+    Bool bindLabel(Label child) {
+        viewValue.bind(child)
+        return true
+    }
+}
+
+Style kookieUiButtonStyle(Int variant, Bool selected) {
+    if (selected || variant == kookieUiButtonPrimary()) {
+        return Style("min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:#d97706;color:#f8fafc")
+    }
+    if (variant == kookieUiButtonDanger()) {
+        return Style("min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:#dc2626;color:#f8fafc")
+    }
+    if (variant == kookieUiButtonGhost()) {
+        return Style(
+            "min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:transparent;color:#f8fafc")
+    }
+    return Style("min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:#162a37;color:#f8fafc")
+}
+
+class KookieUiButton {
+    Button buttonValue
+    String textValue
+    Int variantValue
+    Bool selectedValue
+    Bool pressedValue
+
+    public constructor(String text, Int variant) {
+        textValue = text
+        if (textValue.length() == 0) { textValue = "Action" }
+        variantValue = variant
+        if (variantValue < kookieUiButtonPrimary() ||
+            variantValue > kookieUiButtonGhost()) {
+            variantValue = kookieUiButtonSecondary()
+        }
+        selectedValue = false
+        pressedValue = false
+        buttonValue = Button(textValue, () -> {
+            pressedValue = true
+        })
+        refresh()
+    }
+
+    Button widget() { return buttonValue }
+    String text() { return textValue }
+    Int variant() { return variantValue }
+    Bool selected() { return selectedValue }
+
+    Bool setText(String text) {
+        if (text.length() == 0) { return false }
+        textValue = text
+        buttonValue.text = textValue
+        return true
+    }
+
+    Bool setSelected(Bool selected) {
+        selectedValue = selected
+        refresh()
+        return true
+    }
+
+    void refresh() {
+        buttonValue.setStyle(kookieUiButtonStyle(variantValue, selectedValue))
+    }
+
+    Bool pressed() { return pressedValue }
+
+    Bool consumePressed() {
+        if (!pressedValue) { return false }
+        pressedValue = false
+        return true
+    }
+}
+
+class KookieUiTextField {
+    Label captionValue
+    Input inputValue
+    View viewValue
+    String labelValue
+    String valueValue
+
+    public constructor(String label, String initial) {
+        labelValue = label
+        if (labelValue.length() == 0) { labelValue = "Value" }
+        valueValue = initial
+        captionValue = Label(labelValue)
+        captionValue.setStyle(Style(
+            "font-family: 'Jared Lite', sans-serif; color: #f8fafc;"))
+        inputValue = Input(initial)
+        inputValue.setStyle(
+            Style("min-height:44px;padding:8px;border:1px solid #24566a;background:#0f172a;color:#f8fafc"))
+        var content = Column(listOf(captionValue, inputValue))
+        content.setStyle(Style("display:flex;flex-direction:column;gap:6px"))
+        viewValue = View(Style("display:flex;flex-direction:column;gap:6px"))
+        viewValue.bind(content)
+    }
+
+    View widget() { return viewValue }
+    Input input() { return inputValue }
+    String label() { return labelValue }
+    String value() { return valueValue }
+
+    Bool setValue(String value) {
+        valueValue = value
+        inputValue.text = value
+        return true
+    }
+}
+
+class KookieUiToggle {
+    Button buttonValue
+    String labelValue
+    Bool checkedValue
+
+    public constructor(String label, Bool checked) {
+        labelValue = label
+        if (labelValue.length() == 0) { labelValue = "Toggle" }
+        checkedValue = checked
+        buttonValue = Button("", () -> {
+            checkedValue = !checkedValue
+            var state = "OFF"
+            if (checkedValue) { state = "ON" }
+            buttonValue.text = labelValue + ": " + state
+            buttonValue.setStyle(kookieUiButtonStyle(
+                kookieUiButtonSecondary(), checkedValue))
+        })
+        refresh()
+    }
+
+    Button widget() { return buttonValue }
+    String label() { return labelValue }
+    Bool checked() { return checkedValue }
+
+    Bool setChecked(Bool checked) {
+        checkedValue = checked
+        refresh()
+        return true
+    }
+
+    void refresh() {
+        var state = "OFF"
+        if (checkedValue) { state = "ON" }
+        buttonValue.text = labelValue + ": " + state
+        buttonValue.setStyle(kookieUiButtonStyle(kookieUiButtonSecondary(), checkedValue))
+    }
+}
+
+class KookieUiSlider {
+    Int minimumValue
+    Int maximumValue
+    Int stepValue
+    Int valueValue
+    Label valueLabel
+    Button decrementButton
+    Button incrementButton
+    View viewValue
+
+    public constructor(Int minimum, Int maximum, Int step, Int initial) {
+        minimumValue = minimum
+        maximumValue = maximum
+        if (maximumValue <= minimumValue) { maximumValue = minimumValue + 1 }
+        stepValue = step
+        if (stepValue <= 0) { stepValue = 1 }
+        valueValue = initial
+        if (valueValue < minimumValue) { valueValue = minimumValue }
+        if (valueValue > maximumValue) { valueValue = maximumValue }
+        valueLabel = Label("")
+        decrementButton = Button("-", () -> {
+            valueValue = valueValue - stepValue
+            if (valueValue < minimumValue) { valueValue = minimumValue }
+            valueLabel.text = valueValue + " / " + maximumValue
+        })
+        incrementButton = Button("+", () -> {
+            valueValue = valueValue + stepValue
+            if (valueValue > maximumValue) { valueValue = maximumValue }
+            valueLabel.text = valueValue + " / " + maximumValue
+        })
+        var row = Row(listOf(decrementButton, valueLabel, incrementButton))
+        row.setStyle(Style("display:flex;align-items:center;gap:8px;min-height:44px"))
+        viewValue = View(Style("display:flex;flex-direction:row;align-items:center"))
+        viewValue.bind(row)
+        refresh()
+    }
+
+    View widget() { return viewValue }
+    Int minimum() { return minimumValue }
+    Int maximum() { return maximumValue }
+    Int step() { return stepValue }
+    Int value() { return valueValue }
+
+    Bool setValue(Int value) {
+        valueValue = value
+        if (valueValue < minimumValue) { valueValue = minimumValue }
+        if (valueValue > maximumValue) { valueValue = maximumValue }
+        refresh()
+        return true
+    }
+
+    void refresh() {
+        valueLabel.text = valueValue + " / " + maximumValue
+        valueLabel.setStyle(Style("min-width:72px;text-align:center;color:#f8fafc"))
+    }
+}
+
+class KookieUiProgressBar {
+    Int minimumValue
+    Int maximumValue
+    Int valueValue
+    View trackValue
+    View fillValue
+
+    public constructor(Int minimum, Int maximum, Int initial) {
+        minimumValue = minimum
+        maximumValue = maximum
+        if (maximumValue <= minimumValue) { maximumValue = minimumValue + 1 }
+        trackValue = View(Style("width:100%;height:12px;overflow:hidden;border-radius:6px;background:#0f172a"))
+        fillValue = View(Style("height:100%;border-radius:6px;background:#22c55e"))
+        trackValue.bind(fillValue)
+        valueValue = initial
+        setValue(initial)
+    }
+
+    View widget() { return trackValue }
+    Int minimum() { return minimumValue }
+    Int maximum() { return maximumValue }
+    Int value() { return valueValue }
+
+    Bool setValue(Int value) {
+        valueValue = value
+        if (valueValue < minimumValue) { valueValue = minimumValue }
+        if (valueValue > maximumValue) { valueValue = maximumValue }
+        var percent = (valueValue - minimumValue) * 100 /
+            (maximumValue - minimumValue)
+        fillValue.setStyle(kookieUiProgressFillStyle(percent))
+        return true
+    }
+}
+
+Style kookieUiProgressFillStyle(Int percent) {
+    if (percent >= 88) {
+        return Style("width:100%;height:100%;border-radius:6px;background:#22c55e")
+    }
+    if (percent >= 63) {
+        return Style("width:75%;height:100%;border-radius:6px;background:#22c55e")
+    }
+    if (percent >= 38) {
+        return Style("width:50%;height:100%;border-radius:6px;background:#22c55e")
+    }
+    if (percent >= 13) {
+        return Style("width:25%;height:100%;border-radius:6px;background:#22c55e")
+    }
+    return Style("width:0%;height:100%;border-radius:6px;background:#22c55e")
+}
+
+Style kookieUiBadgeStyle(Int color) {
+    if (color == kookieUiComponentColorDanger()) {
+        return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#dc2626;color:#f8fafc")
+    }
+    if (color == kookieUiComponentColorSuccess()) {
+        return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#22c55e;color:#f8fafc")
+    }
+    if (color == kookieUiComponentColorMuted()) {
+        return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#64748b;color:#f8fafc")
+    }
+    return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#d97706;color:#f8fafc")
+}
+
+class KookieUiBadge {
+    Label labelValue
+    String textValue
+
+    public constructor(String text, Int color) {
+        textValue = text
+        labelValue = Label(textValue)
+        labelValue.setStyle(kookieUiBadgeStyle(color))
+    }
+
+    Label widget() { return labelValue }
+    String text() { return textValue }
+
+    Bool setText(String text) {
+        if (text.length() == 0) { return false }
+        textValue = text
+        labelValue.text = textValue
+        return true
+    }
+}
+
+class KookieUiToolbar {
+    List<kof.ui.Button> buttonsValue
+    Row rowValue
+    Int capacityValue
+
+    public constructor(Int capacity) {
+        capacityValue = capacity
+        if (capacityValue <= 0) { capacityValue = 1 }
+        if (capacityValue > 16) { capacityValue = 16 }
+        buttonsValue = listOf()
+        rowValue = Row(buttonsValue)
+        rowValue.setStyle(Style("display:flex;align-items:center;gap:8px;min-height:44px"))
+    }
+
+    Bool add(KookieUiButton button) {
+        if (buttonsValue.size() >= capacityValue) { return false }
+        buttonsValue.add(button.widget())
+        rowValue = Row(buttonsValue)
+        rowValue.setStyle(Style("display:flex;align-items:center;gap:8px;min-height:44px"))
+        return true
+    }
+
+    Row widget() { return rowValue }
+    Int count() { return buttonsValue.size() }
+    Int capacity() { return capacityValue }
+}
+
+class KookieUiTabs {
+    List<kof.ui.Button> buttonsValue
+    String[] labelsValue
+    Row rowValue
+    Int capacityValue
+    Int countValue
+    Int selectedValue
+
+    public constructor(Int capacity) {
+        capacityValue = capacity
+        if (capacityValue <= 0) { capacityValue = 1 }
+        if (capacityValue > 16) { capacityValue = 16 }
+        buttonsValue = listOf()
+        labelsValue = new String[capacityValue]
+        rowValue = Row(buttonsValue)
+        countValue = 0
+        selectedValue = -1
+        rowValue.setStyle(Style("display:flex;align-items:center;gap:4px;min-height:44px"))
+    }
+
+    Bool addTab(String label) {
+        if (label.length() == 0 || countValue >= capacityValue) { return false }
+        var tabIndex = countValue
+        labelsValue[tabIndex] = label
+        var tab = Button(label, () -> {
+            selectedValue = tabIndex
+            for (var index = 0; index < countValue; index = index + 1) {
+                var selected = index == selectedValue
+                buttonsValue[index].setStyle(
+                    kookieUiButtonStyle(kookieUiButtonSecondary(), selected))
+            }
+        })
+        buttonsValue.add(tab)
+        countValue = countValue + 1
+        if (selectedValue < 0) { selectedValue = 0 }
+        rebuild()
+        return true
+    }
+
+    Bool select(Int index) {
+        if (index < 0 || index >= countValue) { return false }
+        selectedValue = index
+        rebuild()
+        return true
+    }
+
+    void rebuild() {
+        for (var index = 0; index < countValue; index = index + 1) {
+            var selected = index == selectedValue
+            buttonsValue[index].text = labelsValue[index]
+            buttonsValue[index].setStyle(kookieUiButtonStyle(kookieUiButtonSecondary(), selected))
+        }
+        rowValue = Row(buttonsValue)
+        rowValue.setStyle(Style("display:flex;align-items:center;gap:4px;min-height:44px"))
+    }
+
+    Row widget() { return rowValue }
+    Int count() { return countValue }
+    Int selected() { return selectedValue }
+    String label(Int index) {
+        if (index < 0 || index >= countValue) { return "" }
+        return labelsValue[index]
+    }
+}
+
+class KookieUiInspector {
+    List<kof.ui.Row> rowsValue
+    Int capacityValue
+    View viewValue
+
+    public constructor(Int capacity) {
+        capacityValue = capacity
+        if (capacityValue <= 0) { capacityValue = 1 }
+        if (capacityValue > 64) { capacityValue = 64 }
+        rowsValue = listOf()
+        rebuild()
+    }
+
+    Bool addEntry(String key, String value) {
+        if (key.length() == 0 || rowsValue.size() >= capacityValue) {
+            return false
+        }
+        var keyLabel = Label(key)
+        var valueLabel = Label(value)
+        keyLabel.setStyle(Style("min-width: 140px; color: #94a3b8;"))
+        valueLabel.setStyle(Style("color: #f8fafc;"))
+        var row = Row(listOf(keyLabel, valueLabel))
+        row.setStyle(Style("display:flex;flex-direction:row;gap:12px;min-height:32px;align-items:center"))
+        rowsValue.add(row)
+        rebuild()
+        return true
+    }
+
+    void rebuild() {
+        var content = Column(rowsValue)
+        content.setStyle(Style("display:flex;flex-direction:column;gap:4px"))
+        viewValue = View(Style(kookieUiSurface(), kookieUiForeground(), 12, 8))
+        viewValue.bind(content)
+    }
+
+    View widget() { return viewValue }
+    Int count() { return rowsValue.size() }
+    Int capacity() { return capacityValue }
+}

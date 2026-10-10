@@ -14,3 +14,102 @@
   outline: 2px solid #15803d;
   outline-offset: 2px;
 }
+
+:root {
+  --kookie-background: #0f172a;
+  --kookie-surface: #0f1f2b;
+  --kookie-surface-raised: #162a37;
+  --kookie-foreground: #f8fafc;
+  --kookie-muted: #64748b;
+  --kookie-accent: #d97706;
+  --kookie-focus: #15803d;
+  --kookie-danger: #dc2626;
+  --kookie-success: #22c55e;
+  --kookie-radius-panel: 16px;
+  --kookie-radius-control: 8px;
+  --kookie-space: 8px;
+}
+
+.kookie-ui-root {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: calc(var(--kookie-space) * 3);
+  color: var(--kookie-foreground);
+  background: var(--kookie-background);
+  font-family: "Jared Lite", sans-serif;
+}
+
+.kookie-ui-surface {
+  color: var(--kookie-foreground);
+  background: var(--kookie-surface);
+  border: 1px solid color-mix(in srgb, var(--kookie-muted) 35%, transparent);
+  border-radius: var(--kookie-radius-panel);
+}
+
+.kookie-ui-raised {
+  color: var(--kookie-foreground);
+  background: var(--kookie-surface-raised);
+  border-radius: var(--kookie-radius-control);
+}
+
+.kookie-ui-menu-row {
+  min-height: calc(var(--kookie-space) * 5);
+  padding: var(--kookie-space) calc(var(--kookie-space) * 2);
+  border-radius: var(--kookie-radius-control);
+}
+
+.kookie-ui-menu-row[aria-selected="true"] {
+  color: var(--kookie-foreground);
+  background: var(--kookie-accent);
+  box-shadow: inset 3px 0 var(--kookie-focus),
+    inset -3px 0 var(--kookie-focus);
+}
+
+.kookie-ui-hud {
+  pointer-events: none;
+  color: var(--kookie-foreground);
+  font-family: "Jared Lite", sans-serif;
+}
+
+.kookie-ui-hud__label {
+  color: var(--kookie-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kookie-ui-hud__value {
+  color: var(--kookie-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.kookie-ui-danger {
+  color: var(--kookie-danger);
+}
+
+.kookie-ui-success {
+  color: var(--kookie-success);
+}
+
+.kookie-ui-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

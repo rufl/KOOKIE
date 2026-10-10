@@ -155,24 +155,70 @@ A distribution of the upstream compiler for Windows/macOS does **not** prove nat
 
 ## FFI: usable now, incomplete for graphics
 
-**Measured:** this release runs scalar `extern` calls on JVM and native x86-64. Calling libm `sqrt(9.0)` returned `3.0`; calling installed SDL3 `SDL_GetVersion()` returned `3004016` (3.4.16).
+**Measured:** this release runs scalar `extern` calls on JVM/native x86-64 and
+the bounded `Buffer(U8)` SIMD fixture on both targets. Calling libm
+`sqrt(9.0)` returned `3.0`; calling installed SDL3 `SDL_GetVersion()` returned
+`3004016`.
 
-Source-verified scalar set: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`, `String`; `void` additionally allowed as a return. The Kof declaration name is the C symbol; no alias. Native requires a library string and links by use with a direct ABI call, not runtime `dlopen`.
+Source-verified scalar set: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`,
+`String`; `void` additionally allowed as a return. Native requires a library
+string and links by use with a direct ABI call, not runtime `dlopen`.
 
-**Measured limitation:** `extern ... upload(Float[] values): void` is rejected with `FFI001` on both JVM and native. The scalar gate does not expose arbitrary C pointers, structs, arrays, out-buffers or variadics. Returning SDL pointers as `Long` is not a supported portable substitute.
+Current `0.5.0-beta` also has a byte-only `Buffer(U8)` contract. The pinned
+implementation maps it to the `B` FFI token and a synchronous payload pointer;
+the local `scripts/verify_simd_dispatch.sh` proves copy-in/copy-back and an
+INOUT reduction on JVM and native x86-64. The pinned source comments claim the
+same surface for native riscv64/aarch64, but KOOKIE has not rerun that matrix.
+The latest upstream `main` documentation still says Native is `FFI001`, so
+cross-target support remains an upstream source claim, not a KOOKIE result.
 
-JVM/host-JS callbacks are documented for synchronous non-escaping calls; native callbacks are rejected. A C library retaining a callback beyond the downcall is outside that lifetime contract. Prefer an engine-owned polling loop and queued audio, not foreign callbacks into Kof.
+The older 0.4.9 probe rejected `extern ... upload(Float[] values): void` on JVM
+and native. That result remains historical; current 0.5.0 array/record binding
+is target-specific and does not establish a portable engine upload ABI.
+Returning SDL pointers as `Long` is never a supported substitute.
+
+JVM/host-JS callbacks are documented for synchronous non-escaping calls; native
+callbacks are rejected. A C library retaining a callback beyond the downcall is
+outside that lifetime contract. Prefer an engine-owned polling loop and queued
+audio, not foreign callbacks into Kof.
 
 Consequences:
 
-1. Direct scalar APIs can be called directly; do not wrap them gratuitously.
-2. SDL event unions, GPU descriptors, native resource pointers and upload buffers need a **small C ABI adapter** until Kof gains corresponding interop.
-3. Export integer **registry tokens**, not pointer casts; validate type/generation/bounds, copy strings immediately, and release resources explicitly.
-4. Keep simulation, collision, scene traversal, culling, sorting, materials, pass selection, animation, asset semantics and tools in Kof. Adapter code marshals; it does not become the engine.
-5. The bulk-data path is an explicit performance gate. Scalar staging can prove correctness; it does not establish acceptable frame time for dynamic geometry/instancing.
-6. Native `_start`/C-runtime integration needs actual graphics-library initialization proof. A version query does not prove that allocator/TLS/thread-heavy library paths work.
+1. Direct scalar APIs and the measured synchronous byte fixture can be called
+   directly; do not wrap them gratuitously.
+2. SDL event unions, GPU descriptors, typed vertex uploads, native resource
+   pointers and asynchronous audio/GPU work need a **small C ABI adapter**.
+3. Export integer **registry tokens**, not pointer casts; validate
+   type/generation/bounds, copy strings immediately, and release resources
+   explicitly.
+4. Keep simulation, collision, scene traversal, culling, sorting, materials,
+   pass selection, animation, asset semantics and tools in Kof. Adapter code
+   marshals; it does not become the engine.
+5. The bulk-data path is an explicit performance gate. Scalar staging and the
+   byte benchmark prove correctness, not acceptable frame time for dynamic
+   geometry/instancing.
+6. Native `_start`/C-runtime integration needs actual graphics-library
+   initialization proof. A version query does not prove allocator/TLS/thread-
+   heavy library paths.
 
-Sources: [CompilerPipeline.java:457–495](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/CompilerPipeline.java#L457-L495), [FfiSignature.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/FfiSignature.java), [native FFI tests](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/test/java/dev/kof/compiler/FfiNativeE2ETest.java), [module interop contract](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/docs/language-reference/modules.md#L128-L175).
+Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/bf17ac7e736471c8a04b4153e5b0f607be75e70c),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+[local Buffer gate](../scripts/verify_simd_dispatch.sh),
+[runtime ABI](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/docs/runtime/RUNTIME_ABI.md).
+
+### Current 0.5.0-beta ABI refresh
+
+`Buffer(U8)` is useful now as a synchronous byte boundary, not as a generic
+zero-copy or asynchronous resource API. `KofBuffer` owns allocation and
+`bytes()` returns a managed copy; the native FFI payload is valid only for the
+downcall. KOOKIE therefore keeps `Int[]` byte wires, parallel `FrameStaging`
+arrays and the checked scalar C adapter for UI/graphics/audio.
+
+A future bulk path must define schema, length, stride, capacity, generation and
+checksum, copy into adapter-owned storage before returning, and retain the
+scalar fallback until target coverage and a representative frame budget pass.
+`RUNTIME_ABI.md` remains behavioral, not a public C layout.
 
 ## Memory and performance risks
 

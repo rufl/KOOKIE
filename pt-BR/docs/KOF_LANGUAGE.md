@@ -154,24 +154,75 @@ Uma distribuição do compilador para Windows/macOS **não** comprova saída nat
 
 ## FFI: utilizável agora, incompleto para gráficos
 
-**Medido:** esta versão executa chamadas escalares `extern` na JVM e em x86-64 nativo. Chamar `sqrt(9.0)` da libm retornou `3.0`; chamar `SDL_GetVersion()` do SDL3 instalado retornou `3004016` (3.4.16).
+**Medido:** esta versão executa chamadas escalares `extern` em JVM/nativo
+x86-64 e a fixture SIMD limitada de `Buffer(U8)` nos dois alvos. Chamar
+`sqrt(9.0)` da libm retornou `3.0`; chamar `SDL_GetVersion()` do SDL3 instalado
+retornou `3004016`.
 
-Conjunto escalar verificado na fonte: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`, `String`; `void` também é permitido como retorno. O nome da declaração Kof é o símbolo C; não há alias. O nativo exige uma string de biblioteca e faz a ligação por uso com uma chamada ABI direta, não com `dlopen` em tempo de execução.
+Conjunto escalar verificado na fonte: `Int`, `Long`, `Float`, `Double`,
+`Bool`/`Boolean`, `String`; `void` também é permitido como retorno. O nativo
+exige uma string de biblioteca e faz a ligação por uso com uma chamada ABI
+direta, não com `dlopen` em tempo de execução.
 
-**Limitação medida:** `extern ... upload(Float[] values): void` é rejeitado com `FFI001` tanto na JVM quanto no nativo. O mecanismo escalar não expõe ponteiros C arbitrários, structs, arrays, buffers de saída ou variádicas. Retornar ponteiros SDL como `Long` não é um substituto portátil compatível.
+O `0.5.0-beta` atual também possui contrato de bytes `Buffer(U8)`. A
+implementação fixada o mapeia para o token FFI `B` e um ponteiro de payload
+síncrono; `scripts/verify_simd_dispatch.sh` prova cópia de entrada/retorno e
+uma redução INOUT em JVM e nativo x86-64. Os comentários da fonte fixada
+afirmam a mesma superfície para riscv64/aarch64, mas o KOOKIE não repetiu essa
+matriz. A documentação mais recente do `main` upstream ainda diz Native
+`FFI001`; suporte cross continua uma afirmação de fonte, não um resultado do
+KOOKIE.
 
-Callbacks da JVM/host-JS são documentados para chamadas síncronas que não escapam; callbacks nativos são rejeitados. Uma biblioteca C que retenha um callback além da chamada descendente está fora desse contrato de tempo de vida. Prefira um loop de consulta controlado pelo mecanismo e áudio enfileirado, não callbacks estrangeiros para dentro do Kof.
+A sonda antiga de 0.4.9 rejeitou `extern ... upload(Float[] values): void` na
+JVM e no nativo. Esse resultado permanece histórico; o binding de arrays/records
+do 0.5.0 é específico por target e não estabelece ABI portátil de upload da
+engine. Retornar ponteiros SDL como `Long` nunca é substituto suportado.
+
+Callbacks da JVM/host-JS são documentados para chamadas síncronas que não
+escapam; callbacks nativos são rejeitados. Uma biblioteca C que retenha um
+callback além da chamada descendente está fora desse contrato de tempo de vida.
+Prefira um loop de consulta controlado pelo mecanismo e áudio enfileirado, não
+callbacks estrangeiros para dentro do Kof.
 
 Consequências:
 
-1. APIs escalares diretas podem ser chamadas diretamente; não as envolva sem necessidade.
-2. Uniões de eventos SDL, descritores de GPU, ponteiros de recursos nativos e buffers de upload precisam de um **pequeno adaptador de ABI C** até que o Kof adquira a interoperabilidade correspondente.
-3. Exporte **tokens inteiros de registro**, não conversões de ponteiros; valide tipo/geração/limites, copie strings imediatamente e libere recursos explicitamente.
-4. Mantenha no Kof a simulação, colisão, travessia da cena, culling, ordenação, materiais, seleção de passes, animação, semântica de assets e ferramentas. O código do adaptador faz o marshalling; ele não se torna o mecanismo.
-5. O caminho de dados em massa é um requisito explícito de desempenho. O staging escalar pode comprovar a correção; ele não estabelece um tempo de quadro aceitável para geometria/instanciamento dinâmicos.
-6. A integração de `_start`/runtime C exige comprovação real da inicialização da biblioteca gráfica. Uma consulta de versão não comprova que os caminhos da biblioteca que usam intensivamente alocador/TLS/threads funcionam.
+1. APIs escalares diretas e a fixture síncrona medida de bytes podem ser
+   chamadas diretamente; não as envolva sem necessidade.
+2. Uniões de eventos SDL, descritores de GPU, uploads de vértices tipados,
+   ponteiros de recursos nativos e trabalho assíncrono de áudio/GPU precisam de
+   um **pequeno adaptador de ABI C**.
+3. Exporte **tokens inteiros de registro**, não conversões de ponteiros; valide
+   tipo/geração/limites, copie strings imediatamente e libere recursos
+   explicitamente.
+4. Mantenha no Kof a simulação, colisão, travessia da cena, culling, ordenação,
+   materiais, seleção de passes, animação, semântica de assets e ferramentas.
+   O código do adaptador faz o marshalling; ele não se torna o mecanismo.
+5. O caminho de dados em massa é um gate explícito de desempenho. Staging
+   escalar e benchmark de bytes provam correção, não tempo de quadro aceitável
+   para geometria/instanciamento dinâmicos.
+6. A integração de `_start`/runtime C exige comprovação real da inicialização
+   da biblioteca gráfica. Uma consulta de versão não comprova caminhos que
+   usam intensivamente alocador/TLS/threads.
 
-Fontes: [CompilerPipeline.java:457–495](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/CompilerPipeline.java#L457-L495), [FfiSignature.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/FfiSignature.java), [testes de FFI nativo](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/test/java/dev/kof/compiler/FfiNativeE2ETest.java), [contrato de interoperabilidade de módulos](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/docs/language-reference/modules.md#L128-L175).
+Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/bf17ac7e736471c8a04b4153e5b0f607be75e70c),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+[gate local de Buffer](../scripts/verify_simd_dispatch.sh),
+[ABI do runtime](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/docs/runtime/RUNTIME_ABI.md).
+
+### Atualização da ABI do 0.5.0-beta
+
+`Buffer(U8)` é agora uma fronteira síncrona de bytes, não uma API genérica de
+zero-copy ou recursos assíncronos. `KofBuffer` possui a alocação e `bytes()`
+retorna uma cópia gerenciada; o payload FFI nativo só é válido durante a
+chamada. Por isso o KOOKIE mantém wires de bytes em `Int[]`, arrays paralelos
+de `FrameStaging` e o adaptador C escalar verificado para UI/gráficos/áudio.
+
+Um caminho em lote futuro precisa definir schema, comprimento, stride,
+capacidade, generation e checksum, copiar para memória do adapter antes de
+retornar e manter o fallback escalar até passar cobertura por target e um
+orçamento de frame representativo. `RUNTIME_ABI.md` continua comportamental,
+não um layout C público.
 
 ## Riscos de memória e desempenho
 

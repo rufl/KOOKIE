@@ -106,6 +106,18 @@ assert int(fields["rss-samples"]) == 17
 assert fields["rss-plateau"] == "true"
 assert fields["realtime"] == "false"
 assert fields["resource-plateau"] == "true"
+assert fields["phase-telemetry"] == "true"
+assert fields["phase-profile"] == "isolated-phased-diagnostic"
+phase_samples = int(fields["phase-samples"])
+assert 0 < phase_samples <= int(fields["measured-ticks"])
+for phase in ("clock", "collision", "ai", "projectile", "pickup", "finalize"):
+    prefix = f"phase-{phase}-"
+    assert int(fields[prefix + "samples"]) == phase_samples
+    phase_p50 = int(fields[prefix + "p50-us"])
+    phase_p95 = int(fields[prefix + "p95-us"])
+    phase_p99 = int(fields[prefix + "p99-us"])
+    phase_max = int(fields[prefix + "max-us"])
+    assert 0 <= phase_p50 <= phase_p95 <= phase_p99 <= phase_max
 PY
 grep -Fqx 'KOOKIE G5 dedicated headless workload verified' <<<"$jvm_output"
 printf '%s\n%s\n' "$jvm_output" "$server_output"

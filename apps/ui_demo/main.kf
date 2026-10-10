@@ -2,31 +2,54 @@ import ui
 
 main() {
     var document = KookieUiDocument("GatoGanso UI demo", 960, 540)
-    var title = KookieUiText(
-        "GATOGANSO", kookieUiTextRoleDisplay(), 36, true,
-        kookieUiForeground())
-    var subtitle = KookieUiText(
-        "Published UI assets on KofJS", kookieUiTextRoleBody(), 18, false,
-        kookieUiMuted())
     var logo = kookieUiPublishedUiGatogansoMark()
     var hearts = kookieUiPublishedUiPlayerHearts()
     var icon = KookieUiIcon("heart", 32)
     icon.setAccent()
+    var soundCue = KookieUiSoundCue(
+        "ui.cursor.1",
+        "assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg",
+        kookieUiSoundOgg(), "Menu cursor",
+        "5f3d6b0caf71a1321aa9dae650cb0761f5f183e508463343590997e282f74cf7",
+        1001, 80)
+    var soundBank = KookieUiSoundBank(4)
+    assert(soundCue.accepted() && soundBank.add(soundCue) &&
+        soundBank.open() && soundBank.play("ui.cursor.1") &&
+        soundBank.pending() == 1 && soundBank.close(),
+        "KofJS UI demo must retain reusable bounded sound-cue semantics")
 
-    var header = Row(listOf(icon.widget(), title.widget()))
-    var content = Column(listOf(header, subtitle.widget()))
-    var panel = View(kookieUiSurfaceStyle())
-    panel.bind(content)
-
-    assert(logo.accepted() && hearts.accepted() &&
-        document.bindView(panel) &&
+    assert(document.bindMenu(
+            "GATOGANSO", "OLD SCHOOL COOP", "ARROWS ENTER ESC") &&
+        document.bindHud("HP 100", "AMMO 3", "BAG 0/8", "XP 0/1") &&
+        logo.accepted() && hearts.accepted() &&
         document.bindAsset(logo, 96) &&
         document.bindAssetDescription(logo) &&
         document.bindAsset(hearts, 48) &&
         document.bindAssetDescription(hearts) &&
         document.bindIcon(icon) &&
         document.bindIconDescription(icon) &&
-        document.boundCount() == 7,
-        "KofJS UI demo must bind published SVG, PNG, icon, and composed text nodes")
+        document.boundCount() == 8,
+        "KofJS UI demo must bind menu, HUD, published assets and icon semantics")
+
+    var layout = kookieUiColumnLayout(8, 12)
+    var panel = KookieUiPanel(kookieUiPanelRaised(), layout)
+    var action = KookieUiButton("PLAY", kookieUiButtonPrimary())
+    var nameField = KookieUiTextField("Player name", "Gato")
+    var audio = KookieUiToggle("Audio", true)
+    var health = KookieUiProgressBar(0, 100, 75)
+    var status = KookieUiBadge("READY", kookieUiComponentColorSuccess())
+    var tabs = KookieUiTabs(2)
+    tabs.addTab("GAME")
+    tabs.addTab("EDITOR")
+    var inspector = KookieUiInspector(2)
+    inspector.addEntry("Mode", "Play")
+    inspector.addEntry("Map", "Greybox")
+    var content = Column(listOf(
+        action.widget(), nameField.widget(), audio.widget(), health.widget(),
+        status.widget(), tabs.widget(), inspector.widget()))
+    panel.bindColumn(content)
+    assert(document.bindView(panel.widget()) &&
+        document.boundCount() == 9,
+        "KofJS UI demo must bind the reusable app/game/editor component panel")
     document.show()
 }

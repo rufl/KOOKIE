@@ -3,6 +3,7 @@ package ui
 import core
 
 class GooseStatusOverlay {
+    KookieUiNativeTheme themeValue
     Int[] actorIds
     Int[] actorXs
     Int[] actorYs
@@ -14,6 +15,7 @@ class GooseStatusOverlay {
     Int actorCountValue
 
     public constructor(Int capacity) {
+        themeValue = KookieUiNativeTheme()
         var actualCapacity = capacity
         if (actualCapacity <= 0) {
             actualCapacity = 1
@@ -27,6 +29,13 @@ class GooseStatusOverlay {
         actorDepths = new Int[actualCapacity]
         actorBots = new Bool[actualCapacity]
         actorCountValue = 0
+    }
+    Bool setHighContrast(Bool enabled) {
+        return themeValue.setHighContrast(enabled)
+    }
+
+    Bool highContrast() {
+        return themeValue.highContrast()
     }
 
     Bool clear() {
@@ -120,37 +129,19 @@ class GooseStatusOverlay {
     Int renderVertexCapacity() { return actorIds.length * 240 }
 
     Int glyph(Char value) {
-        if (value >= 'A' && value <= 'Z') {
-            return (value as Int) - ('A' as Int) + 1
-        }
-        if (value >= '0' && value <= '9') {
-            return (value as Int) - ('0' as Int) + 27
-        }
-        if (value == '.') { return 37 }
-        if (value == ':') { return 38 }
-        if (value == '-') { return 39 }
-        if (value == '/') { return 40 }
-        if (value == '%') { return 41 }
-        if (value == '>') { return 42 }
-        if (value == '+') { return 43 }
-        if (value == '?') { return 44 }
-        return 0
+        return kookieUiNativeGlyph(value)
     }
 
     Int textResource(Int color, Int glyphValue) {
-        return 100 + color * 48 + glyphValue
+        return kookieUiNativeTextResource(color, glyphValue)
     }
 
     Bool pushQuad(
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
     ) {
-        return target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, bottom, 100, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, bottom, 0, 100) &&
-            target.pushVertex(resource, right, top, 100, 0) &&
-            target.pushVertex(resource, left, top, 0, 0)
+        return kookieUiNativePushQuad(
+            target, resource, left, bottom, right, top)
     }
 
     Int textWidth(String text, Int scale) {
@@ -201,7 +192,7 @@ class GooseStatusOverlay {
         }
         return pushText(target, name,
             centerX - textWidth(name, 1) / 2, bottom, 1,
-            if (bot) 2 else 1)
+            if (bot) themeValue.mutedColor() else themeValue.accentColor())
     }
 
     Bool pushHeart(

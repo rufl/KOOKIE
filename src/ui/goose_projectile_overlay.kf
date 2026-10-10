@@ -114,12 +114,8 @@ class GooseProjectileOverlay {
         var right = centerX + half
         var bottom = centerY - half
         var top = centerY + half
-        return target.pushVertexDepth(resource, left, bottom, depth, 0, 100) &&
-            target.pushVertexDepth(resource, right, bottom, depth, 100, 100) &&
-            target.pushVertexDepth(resource, right, top, depth, 100, 0) &&
-            target.pushVertexDepth(resource, left, bottom, depth, 0, 100) &&
-            target.pushVertexDepth(resource, right, top, depth, 100, 0) &&
-            target.pushVertexDepth(resource, left, top, depth, 0, 0)
+        return target.pushQuadDepth(
+            resource, left, bottom, right, top, depth)
     }
 
     Bool stage(FrameStaging target, Int frame, Int resource) {

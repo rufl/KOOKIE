@@ -1,0 +1,147 @@
+package ui
+
+import core
+
+// The SDL presentation path consumes the same design tokens as the Kof/KofJS
+// facade, but emits bounded FrameStaging geometry instead of retaining UI
+// native drawing vocabulary.
+Int kookieUiNativeResourceMuted() { return 9 }
+Int kookieUiNativeResourceBackground() { return 10 }
+Int kookieUiNativeResourceSurface() { return 11 }
+Int kookieUiNativeResourceDanger() { return 12 }
+Int kookieUiNativeResourceAccent() { return 13 }
+Int kookieUiNativeResourceFocus() { return 14 }
+Int kookieUiNativeResourceSuccess() { return 15 }
+Int kookieUiNativeResourceForeground() { return 16 }
+
+Int kookieUiNativeColorForeground() { return 0 }
+Int kookieUiNativeColorAccent() { return 1 }
+Int kookieUiNativeColorMuted() { return 2 }
+Int kookieUiNativeColorDanger() { return 3 }
+Int kookieUiNativeColorSuccess() { return 4 }
+
+class KookieUiNativeTheme {
+    Bool highContrastValue
+    Int textScaleValue
+
+    public constructor() {
+        highContrastValue = false
+        textScaleValue = 1
+    }
+
+    Bool setHighContrast(Bool enabled) {
+        highContrastValue = enabled
+        return true
+    }
+
+    Bool setTextScale(Int scale) {
+        if (scale < 1 || scale > 3) { return false }
+        textScaleValue = scale
+        return true
+    }
+
+    Bool highContrast() { return highContrastValue }
+    Int textScale() { return textScaleValue }
+    Int textScaleFor(Int desired) {
+        var result = desired + textScaleValue - 1
+        if (result < 1) { result = 1 }
+        if (result > 3) { result = 3 }
+        return result
+    }
+
+    Int foregroundColor() {
+        return if (highContrastValue)
+            kookieUiNativeColorSuccess()
+        else kookieUiNativeColorForeground()
+    }
+    Int accentColor() {
+        return if (highContrastValue)
+            kookieUiNativeColorSuccess()
+        else kookieUiNativeColorAccent()
+    }
+    Int mutedColor() {
+        return if (highContrastValue)
+            kookieUiNativeColorSuccess()
+        else kookieUiNativeColorMuted()
+    }
+    Int dangerColor() { return kookieUiNativeColorDanger() }
+    Int successColor() { return kookieUiNativeColorSuccess() }
+    Int panelResource() { return kookieUiNativeResourceSurface() }
+    Int selectedPanelResource() { return kookieUiNativeResourceAccent() }
+    Int focusRailResource() { return kookieUiNativeResourceFocus() }
+}
+
+Bool kookieUiNativePushQuad(
+    FrameStaging target, Int resource,
+    Int left, Int bottom, Int right, Int top
+) {
+    return target.pushQuad(resource, left, bottom, right, top)
+}
+
+Bool kookieUiNativePushTriangle(
+    FrameStaging target, Int resource,
+    Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+) {
+    return target.pushTriangle(resource, ax, ay, bx, by, cx, cy)
+}
+
+Int kookieUiNativeGlyph(Char value) {
+    if (value >= 'A' && value <= 'Z') {
+        return (value as Int) - ('A' as Int) + 1
+    }
+    if (value >= '0' && value <= '9') {
+        return (value as Int) - ('0' as Int) + 27
+    }
+    if (value == '.') { return 37 }
+    if (value == ':') { return 38 }
+    if (value == '-') { return 39 }
+    if (value == '/') { return 40 }
+    if (value == '%') { return 41 }
+    if (value == '>') { return 42 }
+    if (value == '+') { return 43 }
+    if (value == '?') { return 44 }
+    return 0
+}
+
+Int kookieUiNativeTextResource(Int color, Int glyphValue) {
+    if (color < 0 || color > 4 || glyphValue < 1 || glyphValue > 44) {
+        return 0
+    }
+    return uiFontResourceBase() +
+        color * uiFontResourceStride() + glyphValue - 1
+}
+
+Int kookieUiNativeTextWidth(String text, Int scale) {
+    if (text.length() == 0) { return 0 }
+    return text.length() * uiFontGlyphAdvance() * scale - scale
+}
+
+Bool kookieUiNativePushText(
+    FrameStaging target, String text,
+    Int left, Int bottom, Int scale, Int color
+) {
+    if (scale <= 0 || color < 0 || color > 4) { return false }
+    var x = left
+    for (var index = 0; index < text.length(); index = index + 1) {
+        var glyphValue = kookieUiNativeGlyph(text.charAt(index))
+        if (glyphValue > 0 &&
+            !kookieUiNativePushQuad(
+                target, kookieUiNativeTextResource(color, glyphValue),
+                x, bottom,
+                x + uiFontGlyphWidth() * scale,
+                bottom + uiFontGlyphHeight() * scale)) {
+            return false
+        }
+        x = x + uiFontGlyphAdvance() * scale
+    }
+    return true
+}
+
+Bool kookieUiNativePushCenteredText(
+    FrameStaging target, String text,
+    Int bottom, Int scale, Int color
+) {
+    return kookieUiNativePushText(
+        target, text, -kookieUiNativeTextWidth(text, scale) / 2,
+        bottom, scale, color)
+}

@@ -1,6 +1,29 @@
 import session
 
 main() {
+    var enemyHistory = EnemySnapshotHistory(2)
+    assert(enemyHistory.push(EnemyAuthoritySnapshot(1, 1, 1001, 1, 1)) &&
+        enemyHistory.push(EnemyAuthoritySnapshot(2, 2, 1002, 2, 1)) &&
+        enemyHistory.push(EnemyAuthoritySnapshot(3, 3, 1003, 3, 1)) &&
+        enemyHistory.size() == 2 &&
+        enemyHistory.latestSequence() == 3 &&
+        enemyHistory.latest().enemyId() == 1003 &&
+        !enemyHistory.push(EnemyAuthoritySnapshot(2, 2, 1002, 2, 1)),
+        "enemy snapshot history must evict oldest entries without shifting")
+    var impactHistory = EnemyImpactSnapshotHistory(2)
+    assert(impactHistory.push(
+            EnemyImpactSnapshot(1, 1, 1, 1, 1, 2, 3, 4, 5, 6, false)) &&
+        impactHistory.push(
+            EnemyImpactSnapshot(2, 2, 2, 2, 1, 2, 4, 5, 6, 7, true)) &&
+        impactHistory.push(
+            EnemyImpactSnapshot(3, 3, 3, 3, 1, 2, 5, 6, 7, 8, false)) &&
+        impactHistory.size() == 2 &&
+        impactHistory.latestSequence() == 3 &&
+        impactHistory.latest().projectileId() == 3 &&
+        !impactHistory.push(
+            EnemyImpactSnapshot(2, 2, 2, 2, 1, 2, 4, 5, 6, 7, true)),
+        "enemy impact history must retain monotonic order in a ring")
+
     var invalid = BoundedDedicatedServer(65, 256, 512, 16, 64, 128)
     assert(!invalid.configureReferenceWorkload(),
         "reference workload must reject capacities above the declared G5 ceiling")
@@ -66,6 +89,22 @@ main() {
         telemetry.maximumRssKib() == 120 &&
         telemetry.rssGrowthKib() == 10 && telemetry.rssRangeKib() == 20,
         "bounded telemetry must retain RSS growth and range")
+    var phases = BoundedPhaseTelemetry(10)
+    assert(phases.valid() &&
+        phases.recordPhase(dedicatedPhaseClock(), 1) &&
+        phases.recordPhase(dedicatedPhaseCollision(), 2) &&
+        phases.recordPhase(dedicatedPhaseAi(), 3) &&
+        phases.recordPhase(dedicatedPhaseProjectile(), 4) &&
+        phases.recordPhase(dedicatedPhasePickup(), 5) &&
+        phases.recordPhase(dedicatedPhaseFinalize(), 15) &&
+        phases.samples(dedicatedPhaseFinalize()) == 1 &&
+        phases.p50Micros(dedicatedPhaseFinalize()) == 10 &&
+        phases.p95Micros(dedicatedPhaseFinalize()) == 10 &&
+        phases.p99Micros(dedicatedPhaseFinalize()) == 10 &&
+        phases.maximumMicros(dedicatedPhaseFinalize()) == 15 &&
+        !phases.recordPhase(0, 1) &&
+        !phases.recordPhase(dedicatedPhaseCount() + 1, 1),
+        "phase telemetry must retain bounded per-phase percentiles")
     var admission = BoundedDedicatedClientAdmission(1)
     var client = BoundedDedicatedClientView(1)
     assert(admission.valid() && client.valid() &&

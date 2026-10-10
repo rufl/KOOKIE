@@ -21,6 +21,7 @@ python3 scripts/lsp_verify.py src
 bash scripts/verify_font_assets.sh
 bash scripts/verify_font_ui.sh
 bash scripts/verify_ui_library.sh
+bash scripts/verify_ui_sound_catalog.sh
 bash scripts/verify_ui_demo.sh
 python3 scripts/lsp_verify.py probes
 
