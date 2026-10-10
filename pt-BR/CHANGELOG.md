@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Fixamos todas as GitHub Actions de terceiros nos workflows de release e
+  verificação em SHAs imutáveis e corrigimos o loader de save durável para que
+  uma falha em `ferror()` não pule `fclose()` nem deixe um stream aberto.
+
 - Atualizamos a baseline nativa para SDL 3.4.18 e Zig 0.17.0, as versões
   estáveis mais recentes; o SDL_mixer permanece na versão estável mais recente
   3.2.4. As Actions do GitHub agora usam checkout v7, setup-java v6,

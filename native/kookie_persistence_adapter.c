@@ -606,8 +606,10 @@ static int kookie_host_read_words(
     size_t length = fread(
         kookie_host_input_bytes, 1,
         sizeof(kookie_host_input_bytes), file);
-    bool ok = ferror(file) == 0 && fclose(file) == 0;
-    if (!ok || length == 0 ||
+    bool read_ok = ferror(file) == 0;
+    int close_result = fclose(file);
+    bool ok = read_ok && close_result == 0;
+    if (!ok ||
         length > (size_t)KOOKIE_HOST_FILE_BYTE_CAPACITY ||
         length % KOOKIE_HOST_DIGITS_PER_WORD != 0) {
         return 0;

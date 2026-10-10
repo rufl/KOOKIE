@@ -45,7 +45,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout requested source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Configure pinned Linux SDL3 prefix
@@ -152,7 +152,7 @@ jobs:
             scripts/verify_linux_presentation_package.sh
 
       - name: Upload Linux artifact set
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-demo-linux-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-linux
@@ -161,7 +161,7 @@ jobs:
 
       - name: Upload Linux presentation evidence
         if: ${{ inputs.run_linux_presentation_smoke }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-d1-presentation-evidence-linux-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-d1-evidence-linux
@@ -174,7 +174,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout requested source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Preflight Windows presentation capability
@@ -261,7 +261,7 @@ jobs:
           scripts/verify_windows_presentation.sh
 
       - name: Upload Windows artifact set
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-demo-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-windows
@@ -270,7 +270,7 @@ jobs:
 
       - name: Upload Windows presentation evidence
         if: ${{ inputs.run_windows_presentation_smoke }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-d1-presentation-evidence-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-d1-evidence-windows
@@ -289,19 +289,19 @@ jobs:
       contents: write
     steps:
       - name: Checkout release commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Download Linux artifact set
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: kookie-demo-linux-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-linux
 
       - name: Download Windows artifact set
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: kookie-demo-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-windows

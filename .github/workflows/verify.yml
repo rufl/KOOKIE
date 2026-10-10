@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Validate repository Kof pin
@@ -46,14 +46,14 @@ jobs:
           [[ "$KOF_VERSION" == "$KOF_PIN_VERSION" ]]
           [[ "$KOF_SOURCE_COMMIT" == "$KOF_PIN_SOURCE_COMMIT" ]]
       - name: Checkout pinned Kof source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: KofLang/Kof4j
           ref: ${{ env.KOF_SOURCE_COMMIT }}
           path: _kof
           persist-credentials: false
       - name: Install Java runtime for Kof build and JVM artifacts
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
         with:
           distribution: temurin
           java-version: "27"

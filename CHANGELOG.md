@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Pinned every third-party GitHub Action in the release and verification
+  workflows to immutable commit SHAs, and fixed the durable-save loader so
+  a failed `ferror()` check cannot skip `fclose()` and leak a stream.
+
 - Updated the native dependency baseline to latest stable SDL 3.4.18 and Zig
   0.17.0; SDL_mixer remains at its latest stable 3.2.4. GitHub Actions now use
   checkout v7, setup-java v6, download-artifact v8 and the latest verified
