@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
+import ipaddress
 import json
 import os
 import platform
@@ -58,13 +59,21 @@ def main() -> int:
     if len(key_hex) != 32:
         return fail("KOOKIE_TRANSPORT_KEY_HEX must be 32 characters")
     try:
-        bytes.fromhex(key_hex)
+        key_bytes = bytes.fromhex(key_hex)
     except ValueError:
         return fail("KOOKIE_TRANSPORT_KEY_HEX must be hexadecimal")
+    if not any(key_bytes):
+        return fail("KOOKIE_TRANSPORT_KEY_HEX must not be all zero")
+    canonical_key_hex = key_bytes.hex()
     hostname = socket.gethostname().strip() or platform.node().strip() or "unknown"
     machine_digest = machine_fingerprint(hostname)
-    key_digest = hashlib.sha256(key_hex.encode("ascii")).hexdigest()
-    host_ipv4 = os.environ.get("KOOKIE_EXTERNAL_LAN_HOST_IPV4", "127.0.0.1")
+    key_digest = hashlib.sha256(canonical_key_hex.encode("ascii")).hexdigest()
+    host_ipv4 = os.environ.get("KOOKIE_EXTERNAL_LAN_HOST_IPV4", "127.0.0.1").strip()
+    try:
+        if ipaddress.ip_address(host_ipv4).version != 4:
+            return fail("KOOKIE_EXTERNAL_LAN_HOST_IPV4 must be an IPv4 literal")
+    except ValueError:
+        return fail("KOOKIE_EXTERNAL_LAN_HOST_IPV4 must be an IPv4 literal")
     lines = (
         f"external-role-run-id={role}:{run_id}\n",
         f"external-role-identity={role}:{hostname}\n",

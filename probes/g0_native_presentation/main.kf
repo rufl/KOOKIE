@@ -75,6 +75,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_completed_fence(): I
 extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_push_key_event(Int key): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_push_quit_event(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_delay(Int milliseconds): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_presentation_smoke_requested(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
@@ -1694,6 +1696,24 @@ Bool playMenuUiSound(Int audio, Int clip) {
     return kookie_audio_play_ui_clip(clip)
 }
 
+Bool driveSmokeKeyboardAction(
+    GameShell shell, G1NativePresentation presentation,
+    Int key, Int expectedAction
+) {
+    if (!kookie_push_key_event(key) || kookie_poll_event() != 7 ||
+        kookie_last_event_a() != expectedAction) {
+        return false
+    }
+    var gameplayBefore = shell.gameplayVisible()
+    if (!shell.handleAction(kookie_last_event_a())) {
+        return false
+    }
+    if (gameplayBefore && expectedAction == gameShellActionBack()) {
+        return presentation.saveGameplay()
+    }
+    return true
+}
+
 main() {
 
     println("KOOKIE native SDL game shell")
@@ -1754,11 +1774,12 @@ main() {
         assert(kookie_window_apply_display(window, 0, 960, 540) &&
             kookie_window_apply_display(window, 0, 1280, 720),
             "display Apply must commit and restore a windowed resolution")
-        assert(shell.handleAction(gameShellActionActivate()) &&
+        assert(driveSmokeKeyboardAction(
+                shell, presentation, 13, gameShellActionActivate()) &&
             shell.gameplayVisible() &&
             shell.consumeGameplayEntry() &&
             presentation.resetGooseSession(),
-            "main Play must reset the fresh bot encounter")
+            "main Play must arrive through the SDL key event path")
         assert(processGamePackets(
                 presentation.gameplaySession(), network,
                 presentation.scoreboard(), true) &&
@@ -1789,24 +1810,25 @@ main() {
         assert(presentation.gameplaySession().addPlayerItem(1, 900, 2) &&
             presentation.gameplaySession().playerItemQuantity(1, 900) == 2,
             "presentation player session must expose the durable-save fixture")
-        assert(shell.handleAction(gameShellActionBack()) &&
-            !shell.gameplayVisible() &&
-            presentation.saveGameplay(),
-            "leaving gameplay must publish a durable save")
-        assert(shell.handleAction(gameShellActionActivate()) &&
+        assert(driveSmokeKeyboardAction(
+                shell, presentation, 27, gameShellActionBack()) &&
+            !shell.gameplayVisible(),
+            "leaving gameplay must arrive through the SDL escape event path")
+        assert(driveSmokeKeyboardAction(
+                shell, presentation, 13, gameShellActionActivate()) &&
             shell.gameplayVisible() &&
             shell.consumeGameplayEntry() &&
             presentation.resetGooseSession() &&
             presentation.gameplaySession().playerItemQuantity(1, 900) == 2,
-            "re-entering gameplay must restore durable inventory")
+            "restarting Play must arrive through the SDL return event path")
         assert(presentation.drawGameFrame(frame, network),
             "authored arena and authoritative HUD must draw")
         assert(presentation.visibleAnimalActorCount() == 4,
             "first-person presentation must omit the local goose world mesh")
-        assert(shell.handleAction(gameShellActionBack()) &&
-            !shell.gameplayVisible() &&
-            presentation.saveGameplay(),
-            "second gameplay exit must remain durable")
+        assert(driveSmokeKeyboardAction(
+                shell, presentation, 27, gameShellActionBack()) &&
+            !shell.gameplayVisible(),
+            "second gameplay exit must arrive through the SDL escape event path")
         println("KOOKIE G7 native presentation durable save verified")
         println("KOOKIE D1 Play restart exit verified")
         frame = frame + 1
@@ -1835,6 +1857,7 @@ main() {
 
     var running = true
     var menuFrames = 0
+    var smokeQuitQueued = false
     while (running && !shell.quitRequested()) {
         var eventKind = kookie_poll_event()
         while (eventKind != 0) {
@@ -1844,6 +1867,9 @@ main() {
                         "closing gameplay must publish a durable save")
                 }
                 running = false
+                if (smoke && eventKind == 1) {
+                    println("KOOKIE D1 SDL black-box quit verified")
+                }
             } else if (eventKind == 7) {
                 var beforeScreen = shell.screen()
                 var action = kookie_last_event_a()
@@ -2019,7 +2045,7 @@ main() {
             frame = frame + 1
         }
 
-        if (smoke && menuFrames >= 3) {
+        if (smoke && menuFrames >= 3 && !smokeQuitQueued) {
             assert(kookie_gpu_capture_window(),
                 "main menu screenshot capture must succeed")
             assert(kookie_gpu_report_window_present_capabilities(),
@@ -2045,7 +2071,9 @@ main() {
             }
             println("KOOKIE native kutter screen verified")
             println("gpu-open")
-            running = false
+            assert(kookie_push_quit_event(),
+                "SDL quit event must enqueue for black-box shutdown")
+            smokeQuitQueued = true
         }
         if (running) { kookie_delay(16) }
     }

@@ -84,6 +84,9 @@ def read_run_manifest(
         return None, None, "run manifest listener ports are invalid"
     if manifest.get("transportKeySha256") != key_hash:
         return None, None, "run manifest key fingerprint does not match evidence"
+    source_revision = manifest.get("sourceRevision")
+    if not isinstance(source_revision, str) or not source_revision.strip():
+        return None, None, "run manifest source revision is missing"
     return path, manifest, ""
 
 
@@ -224,10 +227,15 @@ def main() -> int:
     if len(key_hex) != 32:
         return fail("transport key evidence is not a 32-character boundary")
     try:
-        bytes.fromhex(key_hex)
+        key_bytes = bytes.fromhex(key_hex)
     except ValueError:
         return fail("transport key evidence is not hexadecimal")
-    expected_key_hash = hashlib.sha256(key_hex.encode("ascii")).hexdigest()
+    if not any(key_bytes):
+        return fail("transport key evidence must not be all zero")
+    canonical_key_hex = key_bytes.hex()
+    expected_key_hash = hashlib.sha256(
+        canonical_key_hex.encode("ascii")
+    ).hexdigest()
     process_exit_statuses = {}
     if topology in ("same-host-multi-process", "separate-hosts"):
         for role in ROLE_NAMES:
@@ -294,6 +302,8 @@ def main() -> int:
                     return fail(f"host IPv4 marker for {role} is not IPv4")
             except ValueError:
                 return fail(f"invalid host IPv4 marker for {role}")
+        if len(set(role_host_ipv4.values())) != 1:
+            return fail("role logs disagree on the host IPv4 address")
         run_id_values = set(role_run_ids.values())
         if len(run_id_values) != 1:
             return fail("role logs do not share one run ID")
@@ -398,7 +408,7 @@ def main() -> int:
             "skillRank": g3_skill_rank,
             "worldLootCountAfterPickup": g3_world_loot_count,
         },
-        "transportKeySha256": hashlib.sha256(key_hex.encode("ascii")).hexdigest(),
+        "transportKeySha256": expected_key_hash,
         "probeLog": str(log_path),
         "probeOutputSha256": hashlib.sha256(output).hexdigest(),
         "command": os.environ.get("KOOKIE_EXTERNAL_LAN_COMMAND", ""),

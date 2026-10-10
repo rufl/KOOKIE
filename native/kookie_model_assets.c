@@ -16,6 +16,12 @@
 #define KOOKIE_MODEL_TARGET_HEIGHT 7.0f
 
 #define KOOKIE_MODEL_INVALID_INDEX (-1)
+#define KOOKIE_MODEL_MAX_FILE_BYTES (16u * 1024u * 1024u)
+#define KOOKIE_MODEL_MAX_ACCESSORS 4096
+#define KOOKIE_MODEL_MAX_BUFFER_VIEWS 4096
+#define KOOKIE_MODEL_MAX_MESHES 1024
+#define KOOKIE_MODEL_MAX_NODES 4096
+#define KOOKIE_MODEL_MAX_PRIMITIVES 8192
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -343,8 +349,8 @@ static bool json_int(
     }
     char *parsed_end = NULL;
     long value = strtol(json->text + start, &parsed_end, 10);
-    if (parsed_end == NULL || parsed_end <= json->text + start ||
-        (size_t)(parsed_end - json->text) > end ||
+    if (parsed_end == NULL || parsed_end != json->text + end ||
+        parsed_end <= json->text + start ||
         value < INT32_MIN || value > INT32_MAX) {
         return false;
     }
@@ -363,8 +369,8 @@ static bool json_float(
     }
     char *parsed_end = NULL;
     float value = strtof(json->text + start, &parsed_end);
-    if (parsed_end == NULL || parsed_end <= json->text + start ||
-        (size_t)(parsed_end - json->text) > end || !isfinite(value)) {
+    if (parsed_end == NULL || parsed_end != json->text + end ||
+        parsed_end <= json->text + start || !isfinite(value)) {
         return false;
     }
     *result = value;
@@ -594,7 +600,7 @@ static bool model_parse_accessors(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0) {
+    if (count <= 0 || count > KOOKIE_MODEL_MAX_ACCESSORS) {
         return false;
     }
     scene->accessors = calloc((size_t)count, sizeof(*scene->accessors));
@@ -658,7 +664,7 @@ static bool model_parse_views(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0) {
+    if (count <= 0 || count > KOOKIE_MODEL_MAX_BUFFER_VIEWS) {
         return false;
     }
     scene->views = calloc((size_t)count, sizeof(*scene->views));
@@ -677,8 +683,12 @@ static bool model_parse_views(
         KookieModelBufferView *view = &scene->views[index];
         view->byte_offset = 0;
         view->byte_stride = 0;
+        int buffer = -1;
         bool present = false;
         if (!json_object_int(
+                json, object_start, object_end, "buffer",
+                &buffer, &present) || !present || buffer != 0 ||
+            !json_object_int(
                 json, object_start, object_end, "byteOffset",
                 &view->byte_offset, &present) ||
             (present && view->byte_offset < 0) ||
@@ -695,6 +705,34 @@ static bool model_parse_views(
     }
     return true;
 }
+static bool model_validate_bin_buffer(
+    const KookieJson *json,
+    size_t root_start,
+    size_t root_end,
+    size_t bin_length
+) {
+    size_t array_start = 0;
+    size_t array_end = 0;
+    if (!json_field_value_fixed(
+            json, root_start, root_end, "buffers",
+            &array_start, &array_end) ||
+        json_array_count(json, array_start, array_end) != 1) {
+        return false;
+    }
+    size_t object_start = 0;
+    size_t object_end = 0;
+    int byte_length = 0;
+    bool present = false;
+    return json_object_bounds(
+            json, array_start, array_end, 0,
+            &object_start, &object_end) &&
+        json_object_int(
+            json, object_start, object_end, "byteLength",
+            &byte_length, &present) &&
+        present && byte_length >= 0 &&
+        (size_t)byte_length == bin_length;
+}
+
 static bool model_copy_embedded_texture(
     KookieModelAsset *asset,
     const KookieJson *json,
@@ -784,7 +822,7 @@ static bool model_parse_meshes(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0) {
+    if (count <= 0 || count > KOOKIE_MODEL_MAX_MESHES) {
         return false;
     }
     scene->meshes = calloc((size_t)count, sizeof(*scene->meshes));
@@ -811,7 +849,9 @@ static bool model_parse_meshes(
         int primitive_count = json_array_count(
             json, primitive_array_start, primitive_array_end);
         if (primitive_count <= 0 ||
-            primitive_count > INT_MAX - scene->primitive_count) {
+            primitive_count > INT_MAX - scene->primitive_count ||
+            scene->primitive_count >
+                KOOKIE_MODEL_MAX_PRIMITIVES - primitive_count) {
             return false;
         }
         int next_primitive_count =
@@ -889,7 +929,7 @@ static bool model_parse_nodes(
         return false;
     }
     int count = json_array_count(json, array_start, array_end);
-    if (count <= 0) {
+    if (count <= 0 || count > KOOKIE_MODEL_MAX_NODES) {
         return false;
     }
     scene->nodes = calloc((size_t)count, sizeof(*scene->nodes));
@@ -1126,12 +1166,13 @@ static bool model_read_uv(
         if (!isfinite(value)) {
             return false;
         }
-        int encoded = (int)lrintf(value * 100.0f);
-        if (encoded < 0) {
+        int encoded = 0;
+        if (value <= 0.0f) {
             encoded = 0;
-        }
-        if (encoded > 100) {
+        } else if (value >= 1.0f) {
             encoded = 100;
+        } else {
+            encoded = (int)lrintf(value * 100.0f);
         }
         result[component] = encoded;
     }
@@ -1268,6 +1309,11 @@ static bool model_build_asset(
                 }
                 model_matrix_apply(world, source, transformed);
                 for (int component = 0; component < 3; component += 1) {
+                    if (!isfinite(transformed[component])) {
+                        goto cleanup;
+                    }
+                }
+                for (int component = 0; component < 3; component += 1) {
                     if (transformed[component] < minimum[component]) {
                         minimum[component] = transformed[component];
                     }
@@ -1283,14 +1329,22 @@ static bool model_build_asset(
         maximum[1] <= minimum[1]) {
         goto cleanup;
     }
+    float center_x = (minimum[0] + maximum[0]) * 0.5f;
+    float center_z = (minimum[2] + maximum[2]) * 0.5f;
+    float height = maximum[1] - minimum[1];
+    if (!isfinite(center_x) || !isfinite(center_z) ||
+        !isfinite(height) || height <= 0.0f) {
+        goto cleanup;
+    }
+    float scale = KOOKIE_MODEL_TARGET_HEIGHT / height;
+    if (!isfinite(scale)) {
+        goto cleanup;
+    }
     asset->triangles = malloc(
         total_triangles * sizeof(*asset->triangles));
     if (asset->triangles == NULL) {
         goto cleanup;
     }
-    float center_x = (minimum[0] + maximum[0]) * 0.5f;
-    float center_z = (minimum[2] + maximum[2]) * 0.5f;
-    float scale = KOOKIE_MODEL_TARGET_HEIGHT / (maximum[1] - minimum[1]);
     for (int node_index = 0; node_index < scene.node_count; node_index += 1) {
         KookieModelNode *node = &scene.nodes[node_index];
         if (node->mesh < 0 || node->mesh >= scene.mesh_count) {
@@ -1334,12 +1388,22 @@ static bool model_build_asset(
                         goto cleanup;
                     }
                     model_matrix_apply(world, source, transformed);
+                    for (int component = 0; component < 3; component += 1) {
+                        if (!isfinite(transformed[component])) {
+                            goto cleanup;
+                        }
+                    }
                     output->position[corner][0] =
                         (transformed[0] - center_x) * scale;
                     output->position[corner][1] =
                         (transformed[1] - minimum[1]) * scale;
                     output->position[corner][2] =
                         (transformed[2] - center_z) * scale;
+                    if (!isfinite(output->position[corner][0]) ||
+                        !isfinite(output->position[corner][1]) ||
+                        !isfinite(output->position[corner][2])) {
+                        goto cleanup;
+                    }
                     if (!model_read_uv(
                             &scene, bin, bin_length,
                             primitive->texcoord_accessor,
@@ -1375,7 +1439,9 @@ static bool model_read_file(
         return false;
     }
     long file_length = ftell(file);
-    if (file_length < 20 || fseek(file, 0, SEEK_SET) != 0) {
+    if (file_length < 20 ||
+        (uintmax_t)file_length > KOOKIE_MODEL_MAX_FILE_BYTES ||
+        fseek(file, 0, SEEK_SET) != 0) {
         fclose(file);
         return false;
     }
@@ -1420,7 +1486,8 @@ static bool model_load_file(KookieModelAsset *asset, int model, const char *path
         uint32_t chunk_length = model_u32(data + offset);
         uint32_t chunk_type = model_u32(data + offset + 4);
         offset += 8;
-        if ((size_t)chunk_length > data_length - offset) {
+        if ((size_t)chunk_length > data_length - offset ||
+            (chunk_length & 3u) != 0) {
             goto cleanup;
         }
         if (chunk_type == KOOKIE_MODEL_JSON_CHUNK) {
@@ -1455,6 +1522,9 @@ static bool model_load_file(KookieModelAsset *asset, int model, const char *path
     if (!json_value_end(&json, 0, &root_end) ||
         json_skip_whitespace(&json, root_end) != json_length ||
         json.text[0] != '{') {
+        goto cleanup;
+    }
+    if (!model_validate_bin_buffer(&json, 0, root_end, bin_length)) {
         goto cleanup;
     }
     asset->model = model;

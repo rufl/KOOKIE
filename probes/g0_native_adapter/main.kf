@@ -93,6 +93,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_push_resize_event(Int width, Int height): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_push_key_event(Int key): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_push_quit_event(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(Int focused): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_open(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_audio_load_music_ogg(): Bool
@@ -842,6 +844,14 @@ main() {
     var stateSnapshot = state.snapshot()
     var nativeStateApplied = stateSnapshot.width() == 640 && stateSnapshot.height() == 480 && stateSnapshot.focused()
     assert(nativeStateApplied, "native events must reach Kof state")
+    assert(kookie_push_key_event(13), "SDL return key event must enqueue")
+    eventKind = kookie_poll_event()
+    assert(eventKind == 7 && kookie_last_event_a() == 5,
+        "SDL return key event must flatten to activate")
+    assert(kookie_push_quit_event(), "SDL quit event must enqueue")
+    eventKind = kookie_poll_event()
+    assert(eventKind == 1, "SDL quit event must flatten to quit")
+
 
     var gpu = kookie_gpu_open(window)
     if (gpu > 0) {

@@ -153,6 +153,9 @@ Required environment on every host:
   KOOKIE_EXTERNAL_LAN_RUN_MANIFEST
   KOOKIE_EXTERNAL_LAN_HOST_IPV4 on clients
 
+The manifest sourceRevision must be non-empty and bind the qualification
+evidence to the source revision that produced the role JARs.
+
 The launcher records role identity, machine fingerprint, key fingerprint,
 run ID, host IPv4 and process exit status in the role log. Keep the manifest
 and raw key outside this archive and transfer them through an authorized

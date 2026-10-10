@@ -45,9 +45,15 @@ def main() -> int:
     if len(key_hex) != 32:
         return fail("KOOKIE_TRANSPORT_KEY_HEX must be 32 characters")
     try:
-        bytes.fromhex(key_hex)
+        key_bytes = bytes.fromhex(key_hex)
     except ValueError:
         return fail("KOOKIE_TRANSPORT_KEY_HEX must be hexadecimal")
+    if not any(key_bytes):
+        return fail("KOOKIE_TRANSPORT_KEY_HEX must not be all zero")
+    canonical_key_hex = key_bytes.hex()
+    revision = source_revision()
+    if not revision:
+        return fail("source revision is unavailable")
 
     manifest = {
         "kind": "kookie-g0-external-lan-run",
@@ -55,9 +61,11 @@ def main() -> int:
         "runId": run_id,
         "roles": ["host", "client-a", "client-b"],
         "hostListenerPorts": [47101, 47102],
-        "transportKeySha256": hashlib.sha256(key_hex.encode("ascii")).hexdigest(),
+        "transportKeySha256": hashlib.sha256(
+            canonical_key_hex.encode("ascii")
+        ).hexdigest(),
         "createdAt": datetime.now(timezone.utc).isoformat(),
-        "sourceRevision": source_revision(),
+        "sourceRevision": revision,
     }
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(

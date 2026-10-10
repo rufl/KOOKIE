@@ -55,10 +55,25 @@ public final class KookieExternalLanMetadata {
             throw new IllegalArgumentException(
                     "KOOKIE_TRANSPORT_KEY_HEX must be 32 hexadecimal characters");
         }
+        byte[] keyBytes = HexFormat.of().parseHex(keyHex);
+        boolean nonZero = false;
+        for (byte keyByte : keyBytes) {
+            nonZero |= keyByte != 0;
+        }
+        if (!nonZero) {
+            throw new IllegalArgumentException(
+                    "KOOKIE_TRANSPORT_KEY_HEX must not be all zero");
+        }
+        String canonicalKeyHex = HexFormat.of().formatHex(keyBytes);
         String hostname = hostname();
-        String machineDigest = sha256("kookie-machine:" + machineIdentity(hostname));
-        String keyDigest = sha256(keyHex);
-        String hostIpv4 = System.getenv().getOrDefault("KOOKIE_EXTERNAL_LAN_HOST_IPV4", "127.0.0.1");
+        String machineDigest = sha256(machineIdentity(hostname));
+        String keyDigest = sha256(canonicalKeyHex);
+        String hostIpv4 = System.getenv().getOrDefault(
+                "KOOKIE_EXTERNAL_LAN_HOST_IPV4", "127.0.0.1").trim();
+        if (!isIpv4Literal(hostIpv4)) {
+            throw new IllegalArgumentException(
+                    "KOOKIE_EXTERNAL_LAN_HOST_IPV4 must be an IPv4 literal");
+        }
         String lines = "external-role-run-id=" + role + ":" + runId + "\n"
                 + "external-role-identity=" + role + ":" + hostname + "\n"
                 + "external-role-machine-fingerprint=" + role + ":" + machineDigest + "\n"
@@ -77,6 +92,31 @@ public final class KookieExternalLanMetadata {
                 + "\",\"hostIpv4\":\"" + json(hostIpv4)
                 + "\",\"exitStatus\":" + exitStatus
                 + ",\"log\":\"" + json(logPath.toString()) + "\"}");
+    }
+
+    private static boolean isIpv4Literal(String value) {
+        String[] octets = value.split("\\.", -1);
+        if (octets.length != 4) {
+            return false;
+        }
+        for (String octet : octets) {
+            if (octet.isEmpty()) {
+                return false;
+            }
+            int parsed = 0;
+            for (int index = 0; index < octet.length(); index += 1) {
+                char digitCharacter = octet.charAt(index);
+                if (digitCharacter < '0' || digitCharacter > '9') {
+                    return false;
+                }
+                int digit = digitCharacter - '0';
+                if (parsed > (255 - digit) / 10) {
+                    return false;
+                }
+                parsed = parsed * 10 + digit;
+            }
+        }
+        return true;
     }
 
     private static String requiredEnvironment(String name) {

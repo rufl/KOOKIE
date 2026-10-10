@@ -11,6 +11,15 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   native sends/replays reject an endpoint without a peer, native key-file
   loading rejects symlinks and files with extra links or group/other
   permissions, and host IPv4 environment parsing is strict.
+- Hardened the native GLB loader against numeric suffixes, integer and fixed-point
+  overflow, non-finite transforms, invalid BIN metadata, oversized files, malformed
+  chunk alignment, and out-of-range UV/index data. Added permanent ASan/UBSan
+  fixture coverage for these boundaries.
+- The native presentation smoke now drives Play, Back/restart and quit through
+  queued SDL events. External LAN manifests require a source revision; key
+  fingerprints are canonicalized across Python, JVM and native metadata, and
+  IPv4 parsing rejects overflowing octets. GPU diagnostic timing now saturates
+  safely instead of overflowing 64-bit counter arithmetic.
 
 
 

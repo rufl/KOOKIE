@@ -61,7 +61,16 @@ int main(void) {
         "KOOKIE_EXTERNAL_LAN_HOST_IPV4", "127.0.0.999", 1) == 0 &&
         kookie_transport_external_host_octet(0) == -1,
         "reject out-of-range IPv4 environment");
+    require_condition(setenv(
+        "KOOKIE_EXTERNAL_LAN_HOST_IPV4",
+        "999999999999999999999999.0.0.1", 1) == 0 &&
+        kookie_transport_external_host_octet(0) == -1,
+        "reject overflowing IPv4 environment");
     unsetenv("KOOKIE_EXTERNAL_LAN_HOST_IPV4");
+    require_condition(
+        kookie_transport_select_slot(3) &&
+        !kookie_transport_set_key(0, 0, 0, 0),
+        "reject all-zero transport key");
 
     int listener_port = reserve_port();
     require_condition(kookie_transport_select_slot(0), "select listener slot");

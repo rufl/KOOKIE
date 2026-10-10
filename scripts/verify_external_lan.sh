@@ -33,7 +33,11 @@ fi
 evidence_json="${KOOKIE_EXTERNAL_LAN_EVIDENCE_JSON:-/tmp/kookie-external-lan-$$/evidence.json}"
 artifact_dir="${KOOKIE_EXTERNAL_LAN_EVIDENCE_DIR:-$(dirname "$evidence_json")}"
 mkdir -p "$artifact_dir"
+artifact_dir="$(cd "$artifact_dir" && pwd)"
 probe_log="${KOOKIE_EXTERNAL_LAN_PROBE_LOG:-$artifact_dir/probe.log}"
+if [[ "$probe_log" != /* ]]; then
+  probe_log="$root_dir/$probe_log"
+fi
 export KOOKIE_EXTERNAL_LAN_COMMAND="${KOOKIE_EXTERNAL_LAN_COMMAND:-KOOKIE_EXTERNAL_LAN_TARGET=$target bash scripts/verify_external_lan.sh}"
 export KOOKIE_TRANSPORT_KEY_HEX="${KOOKIE_TRANSPORT_KEY_HEX:-00000001000000020000000300000004}"
 lan_mode="${KOOKIE_EXTERNAL_LAN_MODE:-in-process}"
@@ -52,6 +56,7 @@ if [[ "$lan_mode" == "processes" && -z "${KOOKIE_EXTERNAL_LAN_RUN_ID:-}" ]]; the
 fi
 build_dir="$(mktemp -d -t kookie-external-lan-XXXXXX)"
 source_dir="$build_dir/source"
+runtime_dir="$build_dir/runtime"
 host_pid=""
 client_a_pid=""
 client_b_pid=""
@@ -61,11 +66,11 @@ cleanup() {
       kill "$pid" 2>/dev/null || true
     fi
   done
-  rm -rf "$build_dir" "$root_dir/build"
+  rm -rf "$build_dir"
 }
 trap cleanup EXIT
 
-mkdir -p "$root_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
+mkdir -p "$runtime_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
 for content_file in "$root_dir"/src/content/*.kf; do
   ln -s "$content_file" "$source_dir/content/$(basename "$content_file")"
 done
@@ -88,7 +93,7 @@ if [[ "$target" == native ]]; then
     native/kookie_sdl_adapter.c \
     native/kookie_model_assets.c \
     native/kookie_transport.c \
-    -o "$root_dir/build/libkookie_sdl_adapter.so" \
+    -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
 fi
 if [[ "$lan_mode" == "processes" ]]; then
@@ -113,7 +118,10 @@ if [[ "$lan_mode" == "processes" ]]; then
     local log="$2"
     export KOOKIE_EXTERNAL_LAN_ROLE="$role"
     if [[ "$target" == native ]]; then
-      "$build_dir/$target-$role/Default/Main" >"$log" 2>&1 &
+      (
+        cd "$runtime_dir"
+        "$build_dir/$target-$role/Default/Main"
+      ) >"$log" 2>&1 &
     else
       java -cp "$build_dir/$target-$role" Default.Main >"$log" 2>&1 &
     fi
@@ -154,7 +162,10 @@ if [[ "$lan_mode" == "processes" ]]; then
 else
   set +e
   if [[ "$target" == native ]]; then
-    "$binary" >"$probe_log" 2>&1
+    (
+      cd "$runtime_dir"
+      "$binary"
+    ) >"$probe_log" 2>&1
   else
     java -cp "$build_dir/$target" Default.Main >"$probe_log" 2>&1
   fi

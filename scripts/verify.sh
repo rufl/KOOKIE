@@ -33,6 +33,8 @@ kof test src/main.kf --target native
 bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_transport.sh
+python3 scripts/verify_external_lan_metadata.py
+python3 scripts/verify_model_loader_sanitizer.py
 bash scripts/verify_interactions.sh
 bash scripts/verify_durable_save.sh
 bash scripts/verify_goose_game.sh

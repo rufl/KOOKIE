@@ -41,7 +41,13 @@ else
   command -v jar >/dev/null || { echo "external LAN JVM role requires jar" >&2; exit 75; }
 fi
 
-export KOOKIE_TRANSPORT_KEY_HEX="${KOOKIE_TRANSPORT_KEY_HEX:-00000001000000020000000300000004}"
+transport_key="${KOOKIE_TRANSPORT_KEY_HEX:-}"
+if [[ ! "$transport_key" =~ ^[0-9a-fA-F]{32}$ ||
+      "$transport_key" =~ ^0+$ ]]; then
+  echo "external LAN role requires a non-zero 32-character hexadecimal KOOKIE_TRANSPORT_KEY_HEX" >&2
+  exit 64
+fi
+export KOOKIE_TRANSPORT_KEY_HEX="$transport_key"
 export KOOKIE_EXTERNAL_LAN_HOST_IPV4="${KOOKIE_EXTERNAL_LAN_HOST_IPV4:-127.0.0.1}"
 export KOOKIE_EXTERNAL_LAN_TIMEOUT_MILLISECONDS="${KOOKIE_EXTERNAL_LAN_TIMEOUT_MILLISECONDS:-30000}"
 run_id="${KOOKIE_EXTERNAL_LAN_RUN_ID:-}"
@@ -58,23 +64,27 @@ export KOOKIE_EXTERNAL_LAN_RUN_ID="$run_id"
 export KOOKIE_EXTERNAL_LAN_RUN_MANIFEST="$run_manifest"
 
 artifact_dir="${KOOKIE_EXTERNAL_LAN_EVIDENCE_DIR:-/tmp/kookie-external-lan-role-${role}-$$}"
-probe_log="${KOOKIE_EXTERNAL_LAN_PROBE_LOG:-$artifact_dir/probe.log}"
 mkdir -p "$artifact_dir"
+artifact_dir="$(cd "$artifact_dir" && pwd)"
+probe_log="${KOOKIE_EXTERNAL_LAN_PROBE_LOG:-$artifact_dir/probe.log}"
+if [[ "$probe_log" != /* ]]; then
+  probe_log="$root_dir/$probe_log"
+fi
 build_dir="${KOOKIE_EXTERNAL_LAN_ROLE_BUILD_DIR:-$(mktemp -d -t kookie-external-lan-role-XXXXXX)}"
 remove_build_dir=1
 if [[ -n "${KOOKIE_EXTERNAL_LAN_ROLE_BUILD_DIR:-}" ]]; then
   remove_build_dir=0
 fi
 source_dir="$build_dir/source"
+runtime_dir="$build_dir/runtime"
 cleanup() {
-  rm -rf "$root_dir/build"
   if [[ "$remove_build_dir" -eq 1 ]]; then
     rm -rf "$build_dir"
   fi
 }
 trap cleanup EXIT
 
-mkdir -p "$root_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
+mkdir -p "$runtime_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
 for content_file in "$root_dir"/src/content/*.kf; do
   ln -s "$content_file" "$source_dir/content/$(basename "$content_file")"
 done
@@ -99,7 +109,7 @@ if [[ "$target" == native ]]; then
     native/kookie_sdl_adapter.c \
     native/kookie_model_assets.c \
     native/kookie_transport.c \
-    -o "$root_dir/build/libkookie_sdl_adapter.so" \
+    -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
   kof build "$source_dir/main.kf" \
     --target native --output "$build_dir/native-$role"
@@ -117,7 +127,10 @@ fi
 
 set +e
 if [[ "$target" == native ]]; then
-  "$build_dir/native-$role/Default/Main" >"$probe_log" 2>&1
+  (
+    cd "$runtime_dir"
+    "$build_dir/native-$role/Default/Main"
+  ) >"$probe_log" 2>&1
 else
   java -cp "$build_dir/jvm-$role" \
     Default.Main >"$probe_log" 2>&1

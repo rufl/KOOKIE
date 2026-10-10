@@ -97,7 +97,8 @@ class BoundedExternalGlbHierarchyReader {
             var length = u32(source, offset)
             var kind = u32(source, offset + 4)
             offset = offset + 8
-            if (length < 0 || length > source.length - offset) { return false }
+            if (length < 0 || length % 4 != 0 ||
+                length > source.length - offset) { return false }
             if (kind == 1313821514) {
                 if (found || length > json.length) { return false }
                 found = true
@@ -254,7 +255,8 @@ class BoundedExternalGlbHierarchyReader {
     }
 
     Int fixedNumber(Int start, Int end, Int scale) {
-        if (start < 0 || end <= start || scale <= 0) { return 2000000000 }
+        if (start < 0 || end <= start || scale <= 0 ||
+            scale > 1000000) { return 2000000000 }
         var cursor = start
         var negative = false
         if (json[cursor] == 45) {
@@ -263,8 +265,11 @@ class BoundedExternalGlbHierarchyReader {
         }
         var whole: Long = 0L
         while (cursor < end && json[cursor] >= 48 && json[cursor] <= 57) {
-            whole = whole * 10L + (json[cursor] - 48)
-            if (whole > 1000000000L) { return 2000000000 }
+            var digit = json[cursor] - 48
+            if (whole > (1000000000L - digit) / 10L) {
+                return 2000000000
+            }
+            whole = whole * 10L + digit
             cursor = cursor + 1
         }
         var fraction: Long = 0L
@@ -279,8 +284,13 @@ class BoundedExternalGlbHierarchyReader {
                 cursor = cursor + 1
             }
         }
-        var scaled = whole * divisor + fraction
-        scaled = scaled * scale / divisor
+        if (whole > 1000000000L / scale) { return 2000000000 }
+        var scaled = whole * scale
+        var fractional = fraction * scale / divisor
+        if (scaled > 1000000000L - fractional) {
+            return 2000000000
+        }
+        scaled = scaled + fractional
         if (cursor < end && (json[cursor] == 101 || json[cursor] == 69)) {
             cursor = cursor + 1
             var exponentNegative = false

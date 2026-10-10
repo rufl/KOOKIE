@@ -59,6 +59,7 @@
 #define KOOKIE_GPU_RECOVERY_READY 1
 #define KOOKIE_GPU_RECOVERY_LOST 2
 #define KOOKIE_GPU_RECOVERY_FAILED 3
+#define KOOKIE_GPU_MAX_SHADER_BYTES (16u * 1024u * 1024u)
 #define KOOKIE_WINDOW_KIND 1
 #define KOOKIE_AUDIO_KIND 2
 #define KOOKIE_GPU_KIND 3
@@ -299,6 +300,21 @@ typedef struct {
 } KookieGpuReload;
 
 static int gpu_recovery_state = KOOKIE_GPU_RECOVERY_UNAVAILABLE;
+static int kookie_elapsed_microseconds(Uint64 elapsed, Uint64 frequency) {
+    if (frequency == 0) {
+        return 0;
+    }
+    long double value =
+        ((long double)elapsed * 1000000.0L) / (long double)frequency;
+    if (value >= (long double)INT_MAX) {
+        return INT_MAX;
+    }
+    if (value < 1.0L) {
+        return 1;
+    }
+    return (int)value;
+}
+
 
 static KookieGpuResources gpu_resources;
 static KookieGpuScene gpu_scene;
@@ -470,15 +486,8 @@ static bool kookie_gpu_submit_and_wait_fence(
     bool success = SDL_WaitForGPUIdle(device);
     Uint64 elapsed = SDL_GetPerformanceCounter() - start;
     Uint64 frequency = SDL_GetPerformanceFrequency();
-    if (frequency == 0) {
-        last_gpu_fence_wait_microseconds = 0;
-    } else {
-        Uint64 microseconds = (elapsed * 1000000u) / frequency;
-        if (microseconds == 0) {
-            microseconds = 1;
-        }
-        last_gpu_fence_wait_microseconds = (int)microseconds;
-    }
+    last_gpu_fence_wait_microseconds =
+        kookie_elapsed_microseconds(elapsed, frequency);
     SDL_ReleaseGPUFence(device, fence);
     return success;
 }
@@ -998,9 +1007,10 @@ static bool read_shader_binary(
     if (directory == NULL) {
         directory = "build";
     }
-    if (snprintf(
-            path, sizeof(path), "%s/%s.%s",
-            directory, name, extension) < 0) {
+    int written = snprintf(
+        path, sizeof(path), "%s/%s.%s",
+        directory, name, extension);
+    if (written < 0 || (size_t)written >= sizeof(path)) {
         return false;
     }
 
@@ -1012,7 +1022,9 @@ static bool read_shader_binary(
         return false;
     }
     long length = ftell(file);
-    if (length <= 0 || fseek(file, 0, SEEK_SET) != 0) {
+    if (length <= 0 ||
+        (uintmax_t)length > KOOKIE_GPU_MAX_SHADER_BYTES ||
+        fseek(file, 0, SEEK_SET) != 0) {
         fclose(file);
         return false;
     }
@@ -2650,8 +2662,8 @@ bool kookie_gpu_draw_scene(void) {
         }
         Uint64 frequency = SDL_GetPerformanceFrequency();
         Uint64 elapsed = SDL_GetPerformanceCounter() - start;
-        last_gpu_fence_wait_microseconds = frequency == 0
-            ? 0 : (int)((elapsed * 1000000u) / frequency);
+        last_gpu_fence_wait_microseconds =
+            kookie_elapsed_microseconds(elapsed, frequency);
         SDL_ReleaseGPUFence(
             gpu_slot.device, gpu_scene_frame_fences[slot]);
         gpu_scene_frame_fences[slot] = NULL;
@@ -3112,13 +3124,8 @@ int kookie_gpu_measure_headless_overlap(int frames, int slots) {
     }
     Uint64 elapsed = SDL_GetPerformanceCounter() - start;
     Uint64 frequency = SDL_GetPerformanceFrequency();
-    int microseconds = 0;
-    if (frequency != 0) {
-        microseconds = (int)((elapsed * 1000000u) / frequency);
-        if (microseconds == 0) {
-            microseconds = 1;
-        }
-    }
+    int microseconds =
+        kookie_elapsed_microseconds(elapsed, frequency);
     fprintf(stderr,
         "KOOKIE gpu-overlap-frames=%d slots=%d submitted=%d retired=%d peak-inflight=%d elapsed-us=%d\n",
         frames, slots, submitted, retired, peak_in_flight, microseconds);
@@ -3227,12 +3234,8 @@ int kookie_gpu_measure_reference_scene(
         }
         Uint64 elapsed = SDL_GetPerformanceCounter() - start;
         if (frame >= warmup_frames) {
-            Uint64 microseconds = frequency == 0
-                ? 0 : (elapsed * 1000000u) / frequency;
-            if (microseconds == 0) {
-                microseconds = 1;
-            }
-            samples[frame - warmup_frames] = (int)microseconds;
+            samples[frame - warmup_frames] =
+                kookie_elapsed_microseconds(elapsed, frequency);
         }
     }
     if (success && !SDL_WaitForGPUIdle(device)) {
@@ -3298,11 +3301,7 @@ int kookie_gpu_measure_draw(int frames) {
     if (frequency == 0) {
         return 0;
     }
-    Uint64 microseconds = (elapsed * 1000000u) / frequency;
-    if (microseconds == 0) {
-        microseconds = 1;
-    }
-    return (int)microseconds;
+    return kookie_elapsed_microseconds(elapsed, frequency);
 }
 bool kookie_gpu_report_window_draw(void) {
     int microseconds = kookie_gpu_measure_draw(3);
@@ -3329,11 +3328,7 @@ int kookie_gpu_measure_headless_draw(int frames) {
     if (frequency == 0) {
         return 0;
     }
-    Uint64 microseconds = (elapsed * 1000000u) / frequency;
-    if (microseconds == 0) {
-        microseconds = 1;
-    }
-    return (int)microseconds;
+    return kookie_elapsed_microseconds(elapsed, frequency);
 }
 bool kookie_gpu_headless_budget(int frames, int budget_microseconds) {
     int microseconds = kookie_gpu_measure_headless_draw(frames);
@@ -3361,6 +3356,23 @@ bool kookie_push_resize_event(int width, int height) {
     event.window.data2 = height;
     return SDL_PushEvent(&event);
 }
+bool kookie_push_key_event(int key) {
+    if (key < 0) {
+        return false;
+    }
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_KEY_DOWN;
+    event.key.key = (SDL_Keycode)key;
+    event.key.repeat = false;
+    return SDL_PushEvent(&event);
+}
+
+bool kookie_push_quit_event(void) {
+    SDL_Event event = {0};
+    event.type = SDL_EVENT_QUIT;
+    return SDL_PushEvent(&event);
+}
+
 
 bool kookie_push_focus_event(int focused) {
     if (focused != 0 && focused != 1) {

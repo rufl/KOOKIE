@@ -794,22 +794,23 @@ static bool parse_key_word(const char *text, uint32_t *value) {
     return true;
 }
 
-static void configure_lobby_key(void) {
+static bool configure_lobby_key(void) {
     const char *encoded = getenv("KOOKIE_TRANSPORT_KEY_HEX");
-    uint32_t words[4] = {
-        UINT32_C(1263488843), UINT32_C(1330332754),
-        UINT32_C(1229737803), UINT32_C(1162760019)
-    };
-    if (encoded != NULL && strlen(encoded) == 32) {
-        uint32_t parsed[4];
-        bool valid = true;
-        for (int index = 0; index < 4; index += 1) {
-            valid = valid && parse_key_word(encoded + index * 8, &parsed[index]);
+    if (encoded == NULL || strlen(encoded) != 32) {
+        return false;
+    }
+    uint32_t words[4];
+    for (int index = 0; index < 4; index += 1) {
+        if (!parse_key_word(encoded + index * 8, &words[index])) {
+            return false;
         }
-        if (valid) memcpy(words, parsed, sizeof(words));
+    }
+    if ((words[0] | words[1] | words[2] | words[3]) == 0) {
+        return false;
     }
     lobby.key0 = (uint64_t)words[0] | ((uint64_t)words[1] << 32);
     lobby.key1 = (uint64_t)words[2] | ((uint64_t)words[3] << 32);
+    return true;
 }
 
 static void close_lobby(void) {
@@ -822,7 +823,9 @@ static void close_lobby(void) {
 
 static bool open_lobby_socket(int port, bool host, const int address[4]) {
     close_lobby();
-    configure_lobby_key();
+    if (!configure_lobby_key()) {
+        return false;
+    }
     SOCKET socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (socket_fd == INVALID_SOCKET) return false;
     u_long nonblocking = 1;

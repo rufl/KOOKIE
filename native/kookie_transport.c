@@ -608,10 +608,11 @@ static bool kookie_transport_parse_host_address(
         }
         uint32_t value = 0;
         do {
-            value = value * 10u + (uint32_t)(*cursor - '0');
-            if (value > 255u) {
+            uint32_t digit = (uint32_t)(*cursor - '0');
+            if (value > 25u || (value == 25u && digit > 5u)) {
                 return false;
             }
+            value = value * 10u + digit;
             cursor += 1;
         } while (*cursor >= '0' && *cursor <= '9');
         octets[index] = value;

@@ -109,6 +109,9 @@ def verify_bundle(bundle_path: Path) -> tuple[dict | None, str]:
         run_id = manifest.get("runId", "")
         if not isinstance(run_id, str) or RUN_ID_PATTERN.fullmatch(run_id) is None:
             return None, "manifest run ID is invalid"
+        source_revision = manifest.get("sourceRevision")
+        if not isinstance(source_revision, str) or not source_revision.strip():
+            return None, "manifest source revision is missing"
         if evidence.get("kind") != "kookie-g0-external-lan":
             return None, "evidence kind is invalid"
         if evidence.get("status") != "passed":

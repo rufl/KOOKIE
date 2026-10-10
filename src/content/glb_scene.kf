@@ -305,11 +305,17 @@ class BoundedExternalGlbSceneReader {
         }
         var result = 0
         while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
-            result = result * 10 + json[cursor] - 48
-            if (result > 1000000000) {
+            var digit = json[cursor] - 48
+            if (result > (1000000000 - digit) / 10) {
                 return -1
             }
+            result = result * 10 + digit
             cursor = cursor + 1
+        }
+        if (cursor < limit && json[cursor] != 44 && json[cursor] != 125 &&
+            json[cursor] != 93 && json[cursor] != 32 && json[cursor] != 9 &&
+            json[cursor] != 10 && json[cursor] != 13) {
+            return -1
         }
         return result
     }
@@ -399,7 +405,12 @@ class BoundedExternalGlbSceneReader {
             viewCountValue = viewCountValue + 1
             cursor = skipWhitespace(end + 1, jsonLengthValue)
             if (cursor < jsonLengthValue && json[cursor] == 44) {
-                cursor = cursor + 1
+                cursor = skipWhitespace(cursor + 1, jsonLengthValue)
+                if (cursor >= jsonLengthValue || json[cursor] == 93) {
+                    return false
+                }
+            } else if (cursor >= jsonLengthValue || json[cursor] != 93) {
+                return false
             }
         }
         cursor = skipWhitespace(cursor, jsonLengthValue)
@@ -468,7 +479,12 @@ class BoundedExternalGlbSceneReader {
             accessorCountValue = accessorCountValue + 1
             cursor = skipWhitespace(end + 1, jsonLengthValue)
             if (cursor < jsonLengthValue && json[cursor] == 44) {
-                cursor = cursor + 1
+                cursor = skipWhitespace(cursor + 1, jsonLengthValue)
+                if (cursor >= jsonLengthValue || json[cursor] == 93) {
+                    return false
+                }
+            } else if (cursor >= jsonLengthValue || json[cursor] != 93) {
+                return false
             }
         }
         cursor = skipWhitespace(cursor, jsonLengthValue)
@@ -501,6 +517,7 @@ class BoundedExternalGlbSceneReader {
     }
 
     Int readFloatFixed(Int[] source, Int offset, Int scale) {
+        if (scale <= 0 || scale > 1000000) { return 2000000000 }
         var b0 = source[offset]
         var b1 = source[offset + 1]
         var b2 = source[offset + 2]
@@ -658,7 +675,8 @@ class BoundedExternalGlbSceneReader {
             var length = u32(source, offset)
             var type = u32(source, offset + 4)
             offset = offset + 8
-            if (length < 0 || length > source.length - offset) {
+            if (length < 0 || length % 4 != 0 ||
+                length > source.length - offset) {
                 return false
             }
             if (type == 1313821514) {
