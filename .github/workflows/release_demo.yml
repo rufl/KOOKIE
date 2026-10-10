@@ -67,6 +67,9 @@ jobs:
             echo 'release_demo: Linux presentation smoke requires KOOKIE_PRESENTATION_ISOLATION_WRAPPER' >&2
             exit 75
           }
+          : "${KOOKIE_PRESENTATION_HARDWARE_ID:?set a stable target hardware identifier on the runner}"
+          : "${KOOKIE_PRESENTATION_GPU_DRIVER:?set the target GPU driver identity on the runner}"
+
           render_node="${KOOKIE_RENDER_NODE:-}"
           if [[ -z "$render_node" ]]; then
             for candidate in /dev/dri/renderD*; do
@@ -188,6 +191,9 @@ jobs:
               echo 'release_demo: native Windows presentation smoke requires KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER' >&2
               exit 75
             }
+            : "${KOOKIE_PRESENTATION_HARDWARE_ID:?set a stable target hardware identifier on the runner}"
+            : "${KOOKIE_PRESENTATION_GPU_DRIVER:?set the target GPU driver identity on the runner}"
+
           fi
           if [[ "${{ inputs.run_windows_wine_smoke }}" == true ]]; then
             command -v wine >/dev/null || {
@@ -288,6 +294,22 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Require target hardware evidence for publication
+        shell: bash
+        env:
+          RUN_LINUX_PRESENTATION_SMOKE: ${{ inputs.run_linux_presentation_smoke }}
+          RUN_WINDOWS_PRESENTATION_SMOKE: ${{ inputs.run_windows_presentation_smoke }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_LINUX_PRESENTATION_SMOKE" == true ]] || {
+            echo 'release_demo: publish requires run_linux_presentation_smoke=true' >&2
+            exit 2
+          }
+          [[ "$RUN_WINDOWS_PRESENTATION_SMOKE" == true ]] || {
+            echo 'release_demo: publish requires run_windows_presentation_smoke=true' >&2
+            exit 2
+          }
+
       - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -306,7 +328,19 @@ jobs:
           name: kookie-demo-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-windows
 
-      - name: Assemble paired checksums and notes
+      - name: Download Linux presentation evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: kookie-d1-presentation-evidence-linux-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-d1-evidence-linux
+
+      - name: Download Windows presentation evidence
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: kookie-d1-presentation-evidence-windows-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-d1-evidence-windows
+
+      - name: Assemble paired checksums and qualification manifest
         shell: bash
         env:
           KOOKIE_SIGNING_KEY_PEM: ${{ secrets.KOOKIE_SIGNING_KEY_PEM }}
@@ -321,21 +355,36 @@ jobs:
             source_dir="$RUNNER_TEMP/kookie-demo-$target"
             find "$source_dir" -maxdepth 1 -type f \
               ! -name 'SHA256SUMS' ! -name 'SHA256SUMS.sig' \
-              ! -name 'BUILD_SUMMARY.txt' -exec cp -- {} "$publish_dir/" \;
+              ! -name 'BUILD_SUMMARY.txt' \
+              ! -name 'QUALIFICATION_MANIFEST.json' -exec cp -- {} "$publish_dir/" \;
             cp -- "$source_dir/BUILD_SUMMARY.txt" \
               "$publish_dir/BUILD_SUMMARY-$target.txt"
           done
           signing_key="$RUNNER_TEMP/kookie-signing.pem"
           printf '%s\n' "$KOOKIE_SIGNING_KEY_PEM" >"$signing_key"
           chmod 600 "$signing_key"
+          python3 scripts/build_release_qualification.py \
+            "$publish_dir/RELEASE_QUALIFICATION.json" \
+            --package-manifest "linux=$RUNNER_TEMP/kookie-demo-linux/kookie-${DEMO_VERSION}-linux-x86_64.json" \
+            --package-manifest "windows=$RUNNER_TEMP/kookie-demo-windows/kookie-${DEMO_VERSION}-windows-x86_64.json" \
+            --evidence "linux=$RUNNER_TEMP/kookie-d1-evidence-linux/evidence.json" \
+            --evidence "windows=$RUNNER_TEMP/kookie-d1-evidence-windows/evidence.json" \
+            --require-hardware
+          openssl pkeyutl -sign -rawin -inkey "$signing_key" \
+            -in "$publish_dir/RELEASE_QUALIFICATION.json" \
+            -out "$publish_dir/RELEASE_QUALIFICATION.json.sig"
           mapfile -t assets < <(
             cd "$publish_dir"
-            printf '%s\n' kookie-* | sort
+            printf '%s\n' kookie-* RELEASE_QUALIFICATION.json \
+              RELEASE_QUALIFICATION.json.sig | sort
           )
           (cd "$publish_dir" && sha256sum "${assets[@]}" > SHA256SUMS)
           openssl pkeyutl -sign -rawin -inkey "$signing_key" \
             -in "$publish_dir/SHA256SUMS" -out "$publish_dir/SHA256SUMS.sig"
           public_key="$publish_dir/kookie-${DEMO_VERSION}-linux-x86_64.pub.pem"
+          openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
+            -in "$publish_dir/RELEASE_QUALIFICATION.json" \
+            -sigfile "$publish_dir/RELEASE_QUALIFICATION.json.sig" >/dev/null
           openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
             -in "$publish_dir/SHA256SUMS" \
             -sigfile "$publish_dir/SHA256SUMS.sig" >/dev/null
@@ -352,9 +401,9 @@ jobs:
           \`Tab\` player screen. Networking remains direct-IPv4 dogfood with no
           relay, public identity service or production DDoS protection.
 
-          Verify \`SHA256SUMS\` and \`SHA256SUMS.sig\` before extraction. Native
-          GPU/input/audio evidence is target-specific and retained with the
-          release qualification record.
+          Verify \`SHA256SUMS\` and \`SHA256SUMS.sig\` before extraction.
+          \`RELEASE_QUALIFICATION.json\` is the canonical paired artifact and
+          records the target-specific hardware evidence required for publication.
           EOF
           printf 'KOOKIE paired release assets prepared in %s\n' "$publish_dir"
 

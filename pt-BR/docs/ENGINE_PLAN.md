@@ -11,11 +11,12 @@ e [levantamento de sistemas de jogo](GAME_ECOSYSTEM.md) para os limites das
 evidências.
 
 A lacuna atual de release é acompanhada em [Prontidão da release demo](DEMO_RELEASE.md).
-O release dogfood pareado público `0.1.0-dogfood.38` passou os gates de
-artefato Linux/Windows assinados, checksum, extração e publicação. Continua
-sendo uma pré-release de qualificação: smoke interativo fora do checkout,
-evidência de apresentação no host-alvo e a promoção D1 voltada ao jogador
-continuam abertas.
+O registro dogfood público `0.1.0-dogfood.38` passou os gates de artefato
+Linux/Windows assinado, checksum, extração e publicação. Esse registro é
+histórico em relação ao checkout atual; candidatos novos só são autoridade por
+meio do `RELEASE_QUALIFICATION.json` assinado. Smoke interativo fora do
+checkout, evidência de apresentação no host-alvo e promoção D1 voltada ao
+jogador continuam abertas até o manifesto informar `releaseEligible=true`.
 
 ## 1. Produto e responsabilidade não negociável
 
@@ -960,8 +961,9 @@ jogadores `Host/Join` com ready e a tela de jogadores autoritativa do host por
 `Tab`. O protocolo de input/ACK em passo fixo, a fixação de endpoint, o rewind
 de hitscan de 12 ticks, a interpolação remota de seis ticks e as métricas de
 correção da predição são comportamento limitado da fonte com checks focados; o
-artefato pareado `0.1.0-dogfood.38` agora carrega o caminho de apresentação
-qualificado atual.
+artefato pareado `.38` registra o caminho de apresentação daquele histórico;
+candidatos novos só são autoridade quando avaliados pelo
+`RELEASE_QUALIFICATION.json` assinado.
 
 Os gates D1 restantes são smoke fora do checkout de jogar/reiniciar/sair,
 verificação em host novo/piso de runtime, evidência de apresentação em GPU

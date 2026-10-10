@@ -7,6 +7,15 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   verificação em SHAs imutáveis e corrigimos o loader de save durável para que
   uma falha em `ferror()` não pule `fclose()` nem deixe um stream aberto.
 
+
+- Adicionamos manifestos assinados de qualificação da release. Os builders
+  emitem `QUALIFICATION_MANIFEST.json` com evidência de hardware marcada como
+  `not-run`; a publicação agora monta e assina o
+  `RELEASE_QUALIFICATION.json` pareado e recusa publicação sem evidência nativa
+  Linux e Windows aprovada. O conteúdo de protótipo agora declara política de
+  modelos nativos obrigatórios em vez de aceitar silenciosamente o fallback
+  procedural.
+
 - Atualizamos a baseline nativa para SDL 3.4.18 e Zig 0.17.0, as versões
   estáveis mais recentes; o SDL_mixer permanece na versão estável mais recente
   3.2.4. As Actions do GitHub agora usam checkout v7, setup-java v6,

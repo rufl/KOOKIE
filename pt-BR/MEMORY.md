@@ -2,6 +2,13 @@
 
 As fundações limitadas executam; os gates de implementação G0–G6 estão completos dentro dos limites de qualificação abaixo. A release de demo voltada ao jogador D1 continua aberta.
 
+A identidade de release não é inferida deste arquivo: artefatos-alvo só são
+autoridade pelo `RELEASE_QUALIFICATION.json` assinado, e os builders de pacote
+emitem `QUALIFICATION_MANIFEST.json` com
+`hardwarePresentation.status=not-run` até existir evidência do alvo. Registros
+de versão/hash abaixo são históricos salvo quando anexados a esse manifesto.
+
+
 ## Lote atual de qualificação
 
 - `G1Demo` é o caminho único e executável da aceitação G1 na JVM e no nativo.

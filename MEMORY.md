@@ -2,6 +2,13 @@
 
 Bounded foundations execute; the G0–G6 implementation gates are complete within the qualification limits below. The D1 player-facing demo release is still open.
 
+Release identity is not inferred from this file: target artifacts are
+authoritative only through signed `RELEASE_QUALIFICATION.json`, and package
+builders emit `QUALIFICATION_MANIFEST.json` with `hardwarePresentation.status`
+set to `not-run` until target evidence exists. Version/hash records below are
+historical unless explicitly attached to that manifest.
+
+
 ## Current qualification batch
 
 - `G1Demo` is the single executable G1 acceptance path on JVM and native. It

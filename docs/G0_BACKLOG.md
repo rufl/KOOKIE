@@ -297,19 +297,21 @@ currently passes 94 scenarios and both external evidence gates pass. No G0
 release blocker remains; D1 remains a separate player-facing package gate.
 
 - Local release qualification covers native Linux and the native Windows SDL3 +
-  SDL_mixer platform shell. The paired `0.1.0-dogfood.38` presentation
-  artifacts passed deterministic packaging, signatures, safe extraction and
-  package-smoke gates; the Windows presentation package links native Kof PE to
-  the SDL_GPU adapter and bundles SPIR-V/DXIL products. Wine remains a
-  compatibility smoke, not target-hardware evidence.
+  SDL_mixer platform shell. The historical `.38` presentation artifacts
+  passed deterministic packaging, signatures, safe extraction and package-smoke
+  gates; the Windows presentation package links native Kof PE to the SDL_GPU
+  adapter and bundles SPIR-V/DXIL products. Wine remains a compatibility smoke,
+  not target-hardware evidence.
 - The fixed-tick session path now has bounded input/ACK redundancy, authenticated
   endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
   interpolation and prediction-correction metrics; these focused checks do not
   prove a player-facing release.
-- The latest public tag is the paired dogfood `0.1.0-dogfood.38`. D1 still
-  needs a clean extracted interactive smoke outside the checkout, fresh-host
-  verification and native Linux/Windows target-hardware evidence. Cross-host
-  multiplayer evidence is required only if advertised.
+- The published `.38` tag is a historical dogfood record. D1 still needs a
+  clean extracted interactive smoke outside the checkout, fresh-host
+  verification and native Linux/Windows target-hardware evidence. New
+  candidates are authoritative only through signed
+  `RELEASE_QUALIFICATION.json`; cross-host multiplayer evidence is required
+  only if advertised.
 - The executable D1 contract is fail-closed: Linux requires
   `KOOKIE_RUN_PRESENTATION=1`, a reviewed
   `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` and a real render node; native
@@ -373,10 +375,12 @@ The roadmap is not complete; completed work remains recorded here rather than ar
   endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
   interpolation and prediction-correction metrics; these focused checks do not
   prove a player-facing release.
-- The latest public tag is the paired dogfood `0.1.0-dogfood.38`. D1 still
-  needs a clean extracted interactive smoke outside the checkout, fresh-host
+- The published `.38` tag is a historical dogfood record. D1 still needs a
+  clean extracted interactive smoke outside the checkout, fresh-host
   verification, native Linux/Windows target-hardware evidence and release
-  policy/notes. Cross-host multiplayer evidence is required only if advertised.
+  policy/notes. New candidates are authoritative only through signed
+  `RELEASE_QUALIFICATION.json`; cross-host multiplayer evidence is required
+  only if advertised.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

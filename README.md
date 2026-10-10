@@ -169,12 +169,13 @@ bash scripts/verify_multiplayer_ui.sh
 
 ## Current demo and release status
 
-The latest public dogfood artifact is
-[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38):
-a signed Linux/Windows x86-64 pair built from source commit
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. It is a pre-release
-qualification package; deterministic artifact gates, checksums and signatures
-passed, while target-hardware presentation evidence remains an open D1 gate.
+The latest published dogfood artifact recorded by this repository is
+[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38),
+built from source commit `a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. That
+record is historical relative to the current checkout. For every new
+candidate, `RELEASE_QUALIFICATION.json` is the signed authority: deterministic
+artifact gates may pass while target-hardware presentation evidence remains
+required for `releaseEligible=true`.
 
 The current source tree has a bounded player-facing slice:
 

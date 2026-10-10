@@ -395,6 +395,9 @@ for index in range(0, len(arguments), 2):
     assert manifest["dedicated_server"] is True
     assert manifest["simd_benchmark"] is True
     assert manifest["content_kooker"] is True
+    assert manifest["content_profile"] == "none"
+    assert manifest["prototype_models_policy"] == "fallback-allowed"
+
     release_root = (
         "https://github.com/rufl/KOOKIE/releases/download/"
         + manifest["version"])

@@ -1504,6 +1504,57 @@ static bool model_try_load(KookieModelAsset *asset, int model) {
     }
     return false;
 }
+static bool model_profile_manifest_exists(const char *root) {
+    if (root == NULL || root[0] == '\0') {
+        return false;
+    }
+    char path[1024];
+    int written = snprintf(path, sizeof(path), "%s/manifest.json", root);
+    if (written < 0 || (size_t)written >= sizeof(path)) {
+        return false;
+    }
+    FILE *file = fopen(path, "rb");
+    if (file == NULL) {
+        return false;
+    }
+    return fclose(file) == 0;
+}
+
+bool kookie_model_assets_required(void) {
+    const char *explicit_requirement =
+        getenv("KOOKIE_REQUIRE_NATIVE_ANIMAL_MODELS");
+    if (explicit_requirement != NULL &&
+        strcmp(explicit_requirement, "1") == 0) {
+        return true;
+    }
+    const char *profile = getenv("KOOKIE_CONTENT_PROFILE");
+    if (profile != NULL && strcmp(profile, "none") == 0) {
+        return false;
+    }
+    if (profile != NULL && strcmp(profile, "prototype") == 0) {
+        return true;
+    }
+    if (explicit_requirement != NULL &&
+        strcmp(explicit_requirement, "0") == 0) {
+        return false;
+    }
+    const char *environment_root = getenv("KOOKIE_PROTOTYPE_CONTENT_ROOT");
+    const char *roots[3] = {
+        environment_root, "content/prototype", "assets/prototype"
+    };
+    for (int index = 0; index < 3; index += 1) {
+        if (roots[index] == NULL ||
+            (index > 0 && roots[index - 1] != NULL &&
+                strcmp(roots[index], roots[index - 1]) == 0)) {
+            continue;
+        }
+        if (model_profile_manifest_exists(roots[index])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 static KookieModelAsset *model_asset_for(int model) {
     if (model == KOOKIE_MODEL_GOOSE) {

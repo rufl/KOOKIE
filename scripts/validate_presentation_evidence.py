@@ -62,8 +62,13 @@ def marker_value(log: str, marker: str):
 
 
 def main() -> int:
-    if len(sys.argv) != 4:
-        return fail("usage: validate_presentation_evidence.py LOG PPM EVIDENCE_JSON")
+    if len(sys.argv) not in (4, 5) or (
+            len(sys.argv) == 5 and sys.argv[4] != "--require-hardware-metadata"):
+        return fail(
+            "usage: validate_presentation_evidence.py LOG PPM EVIDENCE_JSON "
+            "[--require-hardware-metadata]"
+        )
+    require_hardware_metadata = len(sys.argv) == 5
     log_path = Path(sys.argv[1])
     ppm_path = Path(sys.argv[2])
     evidence_path = Path(sys.argv[3]) if sys.argv[3] else None
@@ -71,6 +76,13 @@ def main() -> int:
         return fail(f"missing adapter log: {log_path}")
     log_bytes = log_path.read_bytes()
     log = log_bytes.decode("utf-8", errors="replace")
+    hardware_id = os.environ.get("KOOKIE_PRESENTATION_HARDWARE_ID", "").strip()
+    gpu_driver = os.environ.get("KOOKIE_PRESENTATION_GPU_DRIVER", "").strip()
+    if require_hardware_metadata and (not hardware_id or not gpu_driver):
+        return fail(
+            "hardware evidence requires KOOKIE_PRESENTATION_HARDWARE_ID and "
+            "KOOKIE_PRESENTATION_GPU_DRIVER"
+        )
     required = (
         "gpu-open",
         "gpu-window-screenshot-checksum",
@@ -115,16 +127,21 @@ def main() -> int:
         "os": platform.system(),
         "osRelease": platform.release(),
         "machine": platform.machine(),
+        "hardwareId": hardware_id,
+        "gpuDriver": gpu_driver,
         "videoDriver": os.environ.get("KOOKIE_SDL_VIDEO_DRIVER", ""),
+        "displayServer": os.environ.get(
+            "KOOKIE_PRESENTATION_DISPLAY_SERVER", ""
+        ),
         "renderNode": os.environ.get("KOOKIE_RENDER_NODE", ""),
         "isolationWrapper": os.environ.get(
             "KOOKIE_PRESENTATION_ISOLATION_WRAPPER",
             "",
         ),
         "command": os.environ.get("KOOKIE_PRESENTATION_COMMAND", ""),
-        "adapterLog": str(log_path),
+        "adapterLog": log_path.name,
         "adapterLogSha256": hashlib.sha256(log_bytes).hexdigest(),
-        "screenshot": str(ppm_path),
+        "screenshot": ppm_path.name,
         "screenshotWidth": width,
         "screenshotHeight": height,
         "screenshotSha256": hashlib.sha256(ppm).hexdigest(),

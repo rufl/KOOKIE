@@ -326,6 +326,11 @@ cp -- "$PUBLIC_KEY_WORK" "$PACKAGE_ROOT/RELEASE_PUBLIC_KEY.pem"
 PROTOTYPE_CONTENT_TREE_SHA256=not-included
 PROTOTYPE_CONTENT_ASSET_COUNT=0
 PROTOTYPE_CONTENT_FILE_COUNT=0
+PROTOTYPE_MODELS_POLICY=fallback-allowed
+if [[ "$CONTENT_PROFILE" == prototype ]]; then
+  PROTOTYPE_MODELS_POLICY=strict-native-required
+fi
+
 
 bundle_prototype_content() {
   [[ "$CONTENT_PROFILE" == prototype ]] || return 0
@@ -553,9 +558,13 @@ bundle_linux_native() {
       echo 'package_kookie: SDL3 and SDL_mixer runtime libraries must resolve' >&2
       exit 1
     }
-    cat > "$PACKAGE_ROOT/kookie" <<'EOF'
+    {
+      cat <<'EOF'
 #!/usr/bin/env sh
 set -eu
+EOF
+      printf 'export KOOKIE_CONTENT_PROFILE=%s\n' "$CONTENT_PROFILE"
+      cat <<'EOF'
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$root"
 export LD_LIBRARY_PATH="$root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
@@ -564,6 +573,7 @@ if [ "${1:-}" = "--package-smoke" ]; then
 fi
 exec "$root/kookie.bin" "$@"
 EOF
+    } >"$PACKAGE_ROOT/kookie"
   else
     cat > "$PACKAGE_ROOT/kookie" <<'EOF'
 #!/usr/bin/env sh
@@ -838,14 +848,19 @@ bundle_windows_native_presentation() {
   "$KOOKIE_DXC" -T ps_6_0 -E main \
     -Fo "$PACKAGE_ROOT/build/g0_triangle.frag.dxil" \
     "$ROOT_DIR/native/shaders/g0_triangle.frag.hlsl"
-  cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
+  {
+    cat <<'EOF'
 @echo off
 setlocal
+EOF
+    printf 'set "KOOKIE_CONTENT_PROFILE=%s"\n' "$CONTENT_PROFILE"
+    cat <<'EOF'
 set "ROOT=%~dp0"
 cd /d "%ROOT%"
 "%ROOT%kookie.exe" %*
 exit /b %ERRORLEVEL%
 EOF
+  } >"$PACKAGE_ROOT/kookie.cmd"
 }
 
 bundle_windows_jvm() {
@@ -1167,6 +1182,8 @@ prototype_content_profile=$CONTENT_PROFILE
 prototype_content_sha256=$PROTOTYPE_CONTENT_TREE_SHA256
 prototype_content_asset_count=$PROTOTYPE_CONTENT_ASSET_COUNT
 prototype_content_file_count=$PROTOTYPE_CONTENT_FILE_COUNT
+prototype_models_policy=$PROTOTYPE_MODELS_POLICY
+
 crash_durable_save=staged-validated-fsync-rename-directory-fsync
 replay_admission=identity-bound-checksummed-v3
 EOF
@@ -1227,17 +1244,20 @@ python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$WINDOWS_JAVA_ACTUAL_SHA256" "$WINDOWS_JAVA_VERSION" \
   "$WINDOWS_JAVA_VENDOR" "$WINDOWS_DXC_VERSION" "$PACKAGE_EPOCH" \
   "$CONTENT_PROFILE" "$PROTOTYPE_CONTENT_TREE_SHA256" \
-  "$PROTOTYPE_CONTENT_ASSET_COUNT" "$PROTOTYPE_CONTENT_FILE_COUNT" <<'PY'
+  "$PROTOTYPE_CONTENT_ASSET_COUNT" "$PROTOTYPE_CONTENT_FILE_COUNT" \
+  "$PROTOTYPE_MODELS_POLICY" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
-(target, version, build_id, base_url, schema, runtime, source_commit,
- source_tree_state, kof_version, kof_archive_sha256, kof_source_commit,
- kof_compiler_sha256, public_key_sha256, public_key_name,
- windows_java_archive_sha256, windows_java_version, windows_java_vendor,
- windows_dxc_version, source_date_epoch, content_profile,
- prototype_content_sha256, prototype_content_asset_count,
- prototype_content_file_count) = sys.argv[3:26]
+(
+    target, version, build_id, base_url, schema, runtime, source_commit,
+    source_tree_state, kof_version, kof_archive_sha256, kof_source_commit,
+    kof_compiler_sha256, public_key_sha256, public_key_name,
+    windows_java_archive_sha256, windows_java_version, windows_java_vendor,
+    windows_dxc_version, source_date_epoch, content_profile,
+    prototype_content_sha256, prototype_content_asset_count,
+    prototype_content_file_count, prototype_models_policy
+) = sys.argv[3:27]
 encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
@@ -1270,6 +1290,8 @@ manifest = {
     "prototype_content_sha256": prototype_content_sha256,
     "prototype_content_asset_count": int(prototype_content_asset_count),
     "prototype_content_file_count": int(prototype_content_file_count),
+    "prototype_models_policy": prototype_models_policy,
+
     "signing": "ed25519",
     "proof": "ed25519-signature-set",
     "signature_encoding": "binary",

@@ -21,6 +21,10 @@ cleanup() {
         cp -- "$WORK_DIR/$evidence_file" "$PRESENTATION_EVIDENCE_DIR/"
       fi
     done
+    if [[ -f "$WORK_DIR/native-evidence.json" ]]; then
+      cp -- "$WORK_DIR/native-evidence.json" \
+        "$PRESENTATION_EVIDENCE_DIR/evidence.json"
+    fi
   fi
   rm -rf -- "$WORK_DIR"
 }
@@ -144,6 +148,9 @@ assert provenance["update_launcher"] == "kookie-launcher"
 PY
 
 if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
+  : "${KOOKIE_PRESENTATION_HARDWARE_ID:?KOOKIE_RUN_NATIVE_PRESENTATION=1 requires KOOKIE_PRESENTATION_HARDWARE_ID}"
+  : "${KOOKIE_PRESENTATION_GPU_DRIVER:?KOOKIE_RUN_NATIVE_PRESENTATION=1 requires KOOKIE_PRESENTATION_GPU_DRIVER}"
+
   native_wrapper="${KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER:-}"
   [[ -n "$native_wrapper" ]] && command -v "$native_wrapper" >/dev/null || {
     echo 'verify_windows_presentation: KOOKIE_RUN_NATIVE_PRESENTATION=1 requires KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER' >&2
@@ -183,7 +190,8 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
     exit "$native_status"
   fi
   python3 "$ROOT_DIR/scripts/validate_presentation_evidence.py" \
-    "$WORK_DIR/native.log" "$native_screenshot" "$native_evidence" >/dev/null
+    "$WORK_DIR/native.log" "$native_screenshot" "$native_evidence" \
+    --require-hardware-metadata >/dev/null
 fi
 
 if [[ "${KOOKIE_RUN_WINE:-0}" == 1 ]]; then

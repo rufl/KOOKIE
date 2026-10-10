@@ -168,6 +168,9 @@ printf '%s\n' "$PACKAGE_SMOKE_OUTPUT" >"$PACKAGE_SMOKE_LOG"
 grep -Fq 'KOOKIE G1 authoritative shooter verified' "$PACKAGE_SMOKE_LOG"
 
 if [[ "${KOOKIE_RUN_PRESENTATION:-0}" == 1 ]]; then
+  : "${KOOKIE_PRESENTATION_HARDWARE_ID:?KOOKIE_RUN_PRESENTATION=1 requires KOOKIE_PRESENTATION_HARDWARE_ID}"
+  : "${KOOKIE_PRESENTATION_GPU_DRIVER:?KOOKIE_RUN_PRESENTATION=1 requires KOOKIE_PRESENTATION_GPU_DRIVER}"
+
   isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
   [[ -n "$isolation_wrapper" ]] && command -v "$isolation_wrapper" >/dev/null || {
     echo 'verify_linux_presentation_package: KOOKIE_RUN_PRESENTATION=1 requires KOOKIE_PRESENTATION_ISOLATION_WRAPPER' >&2
@@ -217,7 +220,8 @@ if [[ "${KOOKIE_RUN_PRESENTATION:-0}" == 1 ]]; then
     python3 "$ROOT_DIR/scripts/validate_presentation_evidence.py" \
       "$KOOKIE_PRESENTATION_ADAPTER_LOG" \
       "$KOOKIE_SCREENSHOT_PATH" \
-      "$KOOKIE_PRESENTATION_EVIDENCE_JSON" >/dev/null
+      "$KOOKIE_PRESENTATION_EVIDENCE_JSON" \
+      --require-hardware-metadata >/dev/null
 fi
 
 printf 'KOOKIE Linux presentation package passed: signed artifact, safe extraction, package smoke%s\n' \

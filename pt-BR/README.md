@@ -160,13 +160,14 @@ significa que o RTT ainda não foi medido.
 
 ## Estado atual da demo e da release
 
-O artefato dogfood público mais recente é
-[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38):
-um par Linux/Windows x86-64 assinado, construído a partir do commit de fonte
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. É um pacote de qualificação
-pré-release; os gates determinísticos de artefato, checksums e assinaturas
-passaram, mas a evidência de apresentação em hardware-alvo continua um gate D1
-aberto.
+O artefato dogfood público registrado neste repositório é
+[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38),
+construído a partir do commit de fonte
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Esse registro é histórico em
+relação ao checkout atual. Para cada candidato novo,
+`RELEASE_QUALIFICATION.json` é a autoridade assinada: os gates determinísticos
+do artefato podem passar enquanto a evidência de apresentação em hardware ainda
+é necessária para `releaseEligible=true`.
 
 A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
 

@@ -256,6 +256,10 @@ content_profile=none
 artifact_status=deterministic-signed-clean-tree
 hardware_presentation_status=not-run-by-builder
 EOF
+python3 "$ROOT_DIR/scripts/build_release_qualification.py" \
+  "$OUTPUT_DIR/QUALIFICATION_MANIFEST.json" \
+  --package-manifest "$TARGET=$MANIFEST"
+
 
 printf 'build_demo_release: deterministic signed %s package verified in %s\n' \
   "$TARGET" "$OUTPUT_DIR"

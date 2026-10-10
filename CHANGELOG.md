@@ -7,6 +7,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   workflows to immutable commit SHAs, and fixed the durable-save loader so
   a failed `ferror()` check cannot skip `fclose()` and leak a stream.
 
+
+- Added signed release qualification manifests. Target builders emit
+  `QUALIFICATION_MANIFEST.json` with hardware evidence marked `not-run`;
+  publication now assembles and signs paired `RELEASE_QUALIFICATION.json` and
+  refuses publication without passed native Linux and Windows presentation
+  evidence. Prototype content now declares a strict native-model policy instead
+  of silently accepting the procedural fallback.
+
 - Updated the native dependency baseline to latest stable SDL 3.4.18 and Zig
   0.17.0; SDL_mixer remains at its latest stable 3.2.4. GitHub Actions now use
   checkout v7, setup-java v6, download-artifact v8 and the latest verified

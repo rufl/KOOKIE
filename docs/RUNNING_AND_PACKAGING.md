@@ -240,6 +240,14 @@ bounded model loader and submits their triangles to the SDL_GPU world pass.
 The content-free `none` profile keeps the bounded procedural silhouette
 fallback; it does not redistribute the prototype models.
 
+The presentation probe treats the content profile as a runtime contract:
+`content=prototype` requires both native GLB models and their declared bounded
+vertex counts; it fails closed if either model is unavailable or invalid.
+`content=none` is the only profile that permits the procedural silhouette
+fallback. Package provenance records this as
+`prototype_models_policy=strict-native-required` or `fallback-allowed`.
+
+
 `assets/prototype/manifest.json` binds the selected source paths, archive
 SHA-256 values, converted output paths, frame grids, and license notices.
 Package `PROVENANCE.txt` and the signed JSON manifest record the deterministic
@@ -538,11 +546,14 @@ on Linux while both game clients run Linux or Windows.
 
 ### Run the currently published Linux dogfood
 
-The latest public dogfood release is
+The latest published dogfood record is
 [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38).
-It contains signed Linux and Windows x86-64 artifacts built from source commit
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. For the Linux package, download
-the release assets, then verify the checksum set and detached signatures:
+This example is historical relative to the current checkout. It contains
+signed Linux and Windows x86-64 artifacts built from source commit
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. For a new candidate, use its
+signed `RELEASE_QUALIFICATION.json` as the release identity. For the historical
+Linux package, download the release assets, then verify the checksum set and
+detached signatures:
 
 ```bash
 sha256sum --check SHA256SUMS
@@ -560,8 +571,8 @@ cd kookie-0.1.0-dogfood.38-linux-x86_64
 
 The archive bundles SDL3, SDL_mixer and the native adapters, but uses the host
 dynamic loader/libc and requires a supported presentation-capable Linux GPU.
-This is the current-source dogfood package; target-hardware presentation
-evidence remains an open D1 gate.
+The example is package/artifact evidence only; target-hardware presentation
+evidence is authoritative only when `RELEASE_QUALIFICATION.json` reports it.
 
 
 ## Windows x86-64 packages
@@ -703,15 +714,16 @@ scripts/build_demo_release.sh \
   --output /tmp/kookie-demo-windows
 ```
 
-The `0.1.0-dogfood.38` qualification batch passed
+The historical `.38` qualification batch passed
 `verify_windows_presentation.sh` with pinned MinGW SDL3/SDL_mixer prefixes and
 DXC. This proves the reproducible signed PE/SDL/SPIR-V/DXIL artifact path only;
 native Windows input/audio/GPU/driver evidence and outside-checkout interactive
-smoke remain release gates.
+smoke remain release gates for each candidate.
 
-It writes the signed archive, manifest, public key, detached signatures,
-`SHA256SUMS` and `BUILD_SUMMARY.txt`. Native Windows launch/input/audio/GPU
-evidence remains a separate target-hardware gate.
+It writes the signed archive, package manifest, public key, detached signatures,
+`SHA256SUMS`, `BUILD_SUMMARY.txt` and `QUALIFICATION_MANIFEST.json`. Native
+Windows launch/input/audio/GPU evidence remains authoritative only when the
+paired `RELEASE_QUALIFICATION.json` retains the target evidence.
 
 On a supported Windows GPU with the reviewed native isolation wrapper, the full
 smoke executes the same native Kof PE entry that owns the SDL window, GPU scene

@@ -10,10 +10,12 @@ Kof 0.5.0-beta source commit
 and [game-system survey](GAME_ECOSYSTEM.md) for evidence boundaries.
 
 The current release gap is tracked in [Demo release readiness](DEMO_RELEASE.md).
-The paired public dogfood release `0.1.0-dogfood.38` passed the signed
-Linux/Windows artifact, checksum, extraction and publication gates. It remains
-a qualification pre-release: outside-checkout interactive smoke, target-host
-presentation evidence and the player-facing D1 promotion gate are still open.
+The published dogfood record `0.1.0-dogfood.38` passed the signed
+Linux/Windows artifact, checksum, extraction and publication gates. That record
+is historical relative to the current checkout; new candidates are authoritative
+only through signed `RELEASE_QUALIFICATION.json`. Outside-checkout interactive
+smoke, target-host presentation evidence and the player-facing D1 promotion
+gate remain open until that manifest reports `releaseEligible=true`.
 
 ## 1. Product and non-negotiable ownership
 
@@ -926,8 +928,8 @@ now implements the bounded local `Play` encounter, the explicit two-player
 `Host/Join` ready lobby and the host-authoritative `Tab` player screen. The
 fixed-tick input/ACK protocol, endpoint pinning, 12-tick hitscan rewind,
 six-tick remote interpolation and prediction-correction metrics are bounded
-source behavior with focused checks; the paired `0.1.0-dogfood.38` artifact now
-carries the current qualified presentation path.
+source behavior with focused checks; candidate artifacts are authoritative only
+when paired with signed target evidence in `RELEASE_QUALIFICATION.json`.
 
 The remaining D1 gates are outside-checkout play/restart/quit smoke,
 fresh-host/runtime-floor verification, native Linux GPU presentation evidence,

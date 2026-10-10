@@ -75,18 +75,27 @@ bash scripts/bootstrap_release.sh \
   --kof-archive "$KOF_ARCHIVE"
 ```
 
-Configure GitHub and qualify:
-
-Replace `release-admin` with the actual GitHub user login; it is not a
-literal placeholder.
-
 ```bash
+RELEASE_VERSION=0.1.0-demo.N
 bash scripts/bootstrap_release.sh --apply \
   --reviewer release-admin \
   --signing-key "$KOOKIE_SIGNING_KEY" \
   --kof-archive "$KOF_ARCHIVE" \
-  --version 0.1.0-dogfood.38 \
+  --version "$RELEASE_VERSION" \
   --qualify
+```
+
+For the final publication after both native target smokes have passed:
+
+
+```bash
+RELEASE_VERSION=0.1.0-demo.N
+bash scripts/bootstrap_release.sh --apply \
+  --reviewer release-admin \
+  --signing-key "$KOOKIE_SIGNING_KEY" \
+  --kof-archive "$KOF_ARCHIVE" \
+  --version "$RELEASE_VERSION" \
+  --publish --confirm-hardware-evidence
 ```
 
 Adding `--publish` requires the explicit
@@ -124,6 +133,10 @@ presentation smoke. The Windows runner additionally needs the MinGW SDL3 and
 SDL_mixer prefixes and `KOOKIE_DXC`. Native Windows presentation smoke also
 requires a reviewed `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` that
 provides a private display/session boundary, bounded timeout and process cleanup.
+Both native presentation runners must set non-empty
+`KOOKIE_PRESENTATION_HARDWARE_ID` and `KOOKIE_PRESENTATION_GPU_DRIVER`
+environment variables. These values identify the physical target and driver
+used for the authoritative evidence; missing values fail the release gate.
 On Windows, the runner service must use Git for Windows `bash.exe`, not the WSL
 shim. Keep tool paths at machine scope; NTFS does not reliably expose POSIX mode
 bits, so the package gate restricts transient signing keys with `icacls.exe`.
@@ -135,17 +148,18 @@ required reviewers before allowing `publish=true`.
 
 ## Dispatch
 
-Qualify artifacts first:
+Qualify artifacts first. Set `RELEASE_VERSION` to the candidate version:
 
 ```bash
+RELEASE_VERSION=0.1.0-demo.N
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
   --ref main \
-  -f version=0.1.0-dogfood.38 \
+  -f version="$RELEASE_VERSION" \
   -f publish=false \
-  -f run_linux_presentation_smoke=false \
+  -f run_linux_presentation_smoke=true \
   -f run_windows_wine_smoke=false \
-  -f run_windows_presentation_smoke=false
+  -f run_windows_presentation_smoke=true
 ```
 
 Inspect the run:
@@ -160,18 +174,20 @@ gh run watch "$(gh run list \
   --repo rufl/KOOKIE
 ```
 
-Only after the clean pair, target hardware evidence and environment approval
-are retained, publish:
+Only after `RELEASE_QUALIFICATION.json` is generated with
+`releaseEligible=true` and the environment approval is granted, publish the
+same candidate:
 
 ```bash
+RELEASE_VERSION=0.1.0-demo.N
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
   --ref main \
-  -f version=0.1.0-dogfood.38 \
+  -f version="$RELEASE_VERSION" \
   -f publish=true \
-  -f run_linux_presentation_smoke=false \
+  -f run_linux_presentation_smoke=true \
   -f run_windows_wine_smoke=false \
-  -f run_windows_presentation_smoke=false
+  -f run_windows_presentation_smoke=true
 ```
 
 The public release must use the permanent key. The local qualification key,

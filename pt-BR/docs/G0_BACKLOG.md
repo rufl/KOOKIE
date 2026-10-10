@@ -220,20 +220,20 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   PE/COFF AMD64 determinístico para os grafos alcançáveis qualificados de
   gameplay/apresentação.
 - A qualificação local cobre Linux nativo e o shell de plataforma Windows
-  SDL3 + SDL_mixer. Os artefatos `presentation` pareados
-  `0.1.0-dogfood.38` passaram gates de empacotamento determinístico,
-  assinaturas, extração segura e package-smoke; o pacote de apresentação
-  Windows liga Kof PE nativo ao adaptador SDL_GPU e inclui produtos SPIR-V/
-  DXIL. Wine continua sendo smoke de compatibilidade, não evidência de
-  hardware-alvo.
+  SDL3 + SDL_mixer. Os artefatos `presentation` históricos `.38` passaram
+  gates de empacotamento determinístico, assinaturas, extração segura e
+  package-smoke; o pacote de apresentação Windows liga Kof PE nativo ao
+  adaptador SDL_GPU e inclui produtos SPIR-V/DXIL. Wine continua sendo smoke de
+  compatibilidade, não evidência de hardware-alvo.
 - A sessão agora possui redundância limitada de input/ACK em passo fixo,
   fixação de endpoint autenticado, histórico de rewind de hitscan de 12 ticks,
   interpolação remota de seis ticks e métricas de correção da predição; esses
   checks focados não comprovam uma release voltada ao jogador.
-- A tag pública mais recente é o dogfood pareado `0.1.0-dogfood.38`. D1 ainda
-  exige smoke interativo extraído fora do checkout, verificação em host novo e
-  evidência de hardware nativo Linux/Windows. Evidência entre hosts só é
-  necessária se o multiplayer for anunciado.
+- A tag pública `.38` é um registro dogfood histórico. D1 ainda exige smoke
+  interativo extraído fora do checkout, verificação em host novo e evidência de
+  hardware nativo Linux/Windows. Candidatos novos só têm autoridade pelo
+  `RELEASE_QUALIFICATION.json` assinado; evidência entre hosts só é necessária
+  se o multiplayer for anunciado.
 - O contrato executável D1 falha fechado: Linux exige
   `KOOKIE_RUN_PRESENTATION=1`, `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` revisado
   e nó de renderização real; Windows nativo exige

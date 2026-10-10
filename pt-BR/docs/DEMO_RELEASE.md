@@ -10,13 +10,13 @@ exercitado no hardware-alvo.
 
 ## Estado público atual
 
-A release pública dogfood mais recente é [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38), publicada a partir do commit de fonte
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7` pelo workflow de release pareado.
-Ela contém artefatos assinados Linux e Windows x86-64 usando o commit de fonte
-Kof 0.5.0-beta fixado em
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. Continua sendo um artefato de
-qualificação pré-release: a evidência de apresentação em hardware-alvo e o gate
-D1 da release voltada ao jogador continuam abertos.
+A última ficha dogfood publicada é [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38), construída a partir do commit de fonte
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Esses dados são históricos em
+relação a este checkout e não identificam a fonte atual. Candidatos novos
+devem ser julgados pelo `RELEASE_QUALIFICATION.json` assinado, não por este
+parágrafo. O artefato registrado usa o commit Kof 0.5.0-beta fixado em
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c` e continua pré-release porque não
+reteve evidência de hardware-alvo.
 O dispatch de qualificação do contrato D1
 [`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
 passou os dois builds determinísticos de pacote e depois falhou fechado antes
@@ -65,15 +65,14 @@ A árvore de fontes atual possui estes caminhos aptos a release:
 - Pipeline de pacote dogfood Linux assinado e pacote Windows JVM separado para
   compatibilidade/qualificação. O pacote JVM não é fallback do jogo nativo.
 
-O arquivo publicado é o pacote dogfood de qualificação da fonte atual:
+Este checkout fornece o caminho de qualificação dogfood:
 `Play` inicia um encounter autoritativo local; `Host/Join` admite um segundo
 jogador pelo lobby explícito de pronto; três bots gansos atacam jogadores;
 snapshots do host replicam jogadores/bots; `Tab` mostra a tela limitada de
 jogadores autoritativa do host; e os caminhos de input/ACK em passo fixo,
-rewind e interpolação são limitados na sessão e na apresentação. O pacote
-passou os gates pareados de artefato, checksums e assinaturas, mas a evidência
-de apresentação em hardware-alvo e o smoke interativo fora do checkout ainda
-são necessários para D1.
+rewind e interpolação são limitados na sessão e na apresentação. A evidência
+de pacote e hardware é específica de cada candidato e só é autoritativa pelo
+manifesto de qualificação assinado.
 
 
 
@@ -96,15 +95,13 @@ Se o multiplayer for anunciado na mesma release dogfood, também são exigidos
 `Host/Join`, o gate de dois jogadores `READY`, o placar `Tab` e evidência
 entre hosts para a afirmação LAN/WAN suportada.
 
-O arquivo de apresentação publicado é o pacote de qualificação dogfood da
-fonte atual `0.1.0-dogfood.38`: `Play` inicia um encounter autoritativo local;
-`Host/Join` admite um segundo jogador pelo lobby explícito; três bots gansos
-atacam; snapshots do host replicam jogadores/bots; `Tab` mostra a tela limitada
-de jogadores autoritativa do host; e os caminhos de input/ACK em passo fixo,
-rewind e interpolação são limitados na sessão e na apresentação. Os gates de
-artefato pareado, checksum e assinatura passaram. Ainda são obrigatórias a
-interação fora do checkout e a evidência de hardware-alvo antes de chamar isso
-de release player-facing.
+O arquivo de apresentação registrado no lote histórico `.38` inicia um
+encounter autoritativo local por `Play`; `Host/Join` admite o segundo jogador
+pelo lobby explícito; três bots gansos atacam; snapshots do host replicam
+jogadores/bots; e `Tab` mostra a tela limitada autoritativa do host. Os gates
+de artefato pareado, checksum e assinatura passaram. Esta árvore de fontes não
+deve herdar a identidade desse lote: interação fora do checkout e evidência de
+hardware-alvo são gates de release para cada candidato novo.
 
 ### Contrato executável de evidência D1
 
@@ -117,13 +114,29 @@ de release player-facing.
   extraído por esse wrapper com display/sessão nativos.
 - `scripts/validate_presentation_evidence.py` exige capacidade de apresentação,
   tempo positivo de draw GPU, áudio aberto, checksum da captura, PPM P6
-  limitado e os markers de gameplay/restart D1 e G0/G1/G2/G4/Kutter. Ele grava
-  máquina, SO, wrapper, comando, hash do log e hash da captura em
-  `evidence.json`.
+  limitado e os markers de gameplay/restart D1 e G0/G1/G2/G4/Kutter. A
+  evidência de release também exige `KOOKIE_PRESENTATION_HARDWARE_ID` e
+  `KOOKIE_PRESENTATION_GPU_DRIVER` não vazios; grava hardware-alvo, driver,
+  máquina, SO, wrapper, comando, hash do log e hash da captura em `evidence.json`.
 - `release_demo.yml` envia o artefato de evidência Linux quando o smoke Linux
   está habilitado e o artefato Windows quando o smoke nativo Windows está
   habilitado. `run_windows_wine_smoke` continua sendo apenas evidência de
   compatibilidade do pacote.
+
+### Manifesto canônico de qualificação
+
+`scripts/build_demo_release.sh` escreve `QUALIFICATION_MANIFEST.json` ao lado
+de cada artefato determinístico. Ele registra o digest do manifesto do pacote e
+marca a apresentação de hardware como `not-run`; isso é apenas qualificação de
+artefato.
+
+O workflow de publicação escreve e assina o par
+`RELEASE_QUALIFICATION.json`. Esse é o registro canônico da release: contém as
+identidades dos dois pacotes e as evidências Linux/Windows retidas. A
+publicação agora falha sem os dois smokes nativos com `status=passed` e sem
+`releaseEligible=true`. `BUILD_SUMMARY.txt` e as notas em prosa são
+informativos, não autoridade de release.
+
 
 ## Trabalho restante, ordenado por impacto na release
 
@@ -194,10 +207,10 @@ de release player-facing.
 
 ### P0 — qualificação da release Linux
 
-- O arquivo Linux pareado `0.1.0-dogfood.38` é o artefato atual de
-  qualificação do runtime `presentation` assinado. O workflow de release o
-  gerou com uma identidade única de fonte/toolchain; empacotamento
-  determinístico, assinaturas, extração segura e package-smoke passaram.
+- O artefato Linux de apresentação de cada candidato só é válido quando seu
+  manifesto de pacote aparece em `QUALIFICATION_MANIFEST.json`. Empacotamento
+  determinístico, assinaturas, extração segura e package-smoke são gates de
+  artefato; não implicam qualificação de hardware.
 - Restam os gates Linux fora do checkout: iniciar/reiniciar/sair em um sistema
   suportado novo e executar o smoke real de GPU com apresentação definido acima.
   Eles devem reter máquina, driver, wrapper, screenshot, log e saída. Isso é
@@ -223,11 +236,10 @@ de release player-facing.
 
 ### P0 — qualificação da release Windows
 
-- O ZIP Windows pareado `0.1.0-dogfood.38` inclui Kof PE nativo, DLLs
-  SDL3/SDL_mixer, shaders SPIR-V/DXIL, avisos e procedência.
-  `scripts/verify_windows_presentation.sh` passou a qualificação PE/SDL/SPIR-V/
-  DXIL assinada e reprodutível; isso não comprova apresentação em hardware
-  Windows.
+- O artefato Windows de apresentação de cada candidato só é válido quando seu
+  manifesto de pacote aparece em `QUALIFICATION_MANIFEST.json`.
+  `scripts/verify_windows_presentation.sh` prova qualificação PE/SDL/SPIR-V/
+  DXIL assinada e reprodutível; não prova apresentação em hardware Windows.
 - Restam os gates Windows fora do checkout: iniciar e repetir
   `Play`/reinício/saída em hardware suportado, depois executar o smoke pelo
   wrapper nativo e reter evidência de GPU/input/áudio. Wine continua sendo
@@ -249,9 +261,9 @@ de release player-facing.
   Windows.
 - Verificar extração, inicialização e ciclos repetidos de `Play`/reinício/saída
   fora do checkout em hardware e drivers Windows suportados.
-- `scripts/build_demo_release.sh` escreve o ZIP Windows final em árvore limpa,
-  manifesto, assinaturas, `SHA256SUMS` e resumo de build após a verificação de
-  dois builds determinísticos.
+- `scripts/build_demo_release.sh` escreve o arquivo de destino, manifesto do
+  pacote, assinaturas, `SHA256SUMS`, `BUILD_SUMMARY.txt` e
+  `QUALIFICATION_MANIFEST.json` após dois builds determinísticos.
 - Reter evidência nativa Windows de GPU/input/áudio. Wine prova o caminho do
   pacote; o smoke visual opcional exige GPU isolada capaz de DRI3.
 - Decidir se a distribuição para usuários comuns exige assinatura Authenticode;
@@ -261,8 +273,9 @@ de release player-facing.
 
 ### P1 — distribuição pareada e operação de release
 
-- Os arquivos Linux/Windows pareados `0.1.0-dogfood.38` foram publicados com
-  manifestos, chave pública, assinaturas destacadas e `SHA256SUMS`.
+- A publicação deve incluir o `RELEASE_QUALIFICATION.json` pareado e assinado,
+  os manifestos dos pacotes-alvo, chave pública, assinaturas destacadas e
+  `SHA256SUMS`.
 - Execute `.github/workflows/release_demo.yml` com `publish=false` para
   qualificações futuras; o caminho aprovado `publish=true` exige aprovação do
   ambiente `kookie-demo-release` antes de publicar o par Linux/Windows.

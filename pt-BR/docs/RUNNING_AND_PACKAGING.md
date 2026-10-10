@@ -233,6 +233,14 @@ limitado e envia seus triângulos ao passe de mundo SDL_GPU. O perfil sem
 conteúdo `none` mantém o fallback limitado de silhuetas procedurais e não
 redistribui os modelos do protótipo.
 
+O probe de apresentação trata o perfil de conteúdo como contrato de runtime:
+`content=prototype` exige os dois modelos GLB nativos e suas contagens limitadas
+de vértices; falha fechado se qualquer modelo estiver ausente ou inválido.
+Somente `content=none` permite o fallback procedural de silhueta. A procedência
+do pacote registra isso como
+`prototype_models_policy=strict-native-required` ou `fallback-allowed`.
+
+
 `assets/prototype/manifest.json` vincula caminhos de origem, SHA-256 dos
 arquivos de origem, saídas convertidas, grades de frames e avisos de licença.
 `PROVENANCE.txt` e o JSON assinado registram o digest determinístico da árvore
@@ -525,11 +533,13 @@ enquanto os dois clientes podem rodar em Linux ou Windows.
 
 ### Executar o dogfood Linux publicado atualmente
 
-O dogfood público mais recente é
+O dogfood público mais recente registrado é
 [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38).
-Ele contém artefatos assinados Linux e Windows x86-64 construídos a partir do
-commit de fonte `a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Para o pacote Linux,
-baixe os assets da release e valide o conjunto de checksums e assinaturas:
+Este exemplo é histórico em relação ao checkout atual. Ele contém artefatos
+Linux e Windows x86-64 assinados construídos do commit
+`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Para candidatos novos, use o
+`RELEASE_QUALIFICATION.json` assinado como identidade da release. Para o pacote
+Linux histórico, baixe os assets e valide o conjunto de checksums e assinaturas:
 
 ```bash
 sha256sum --check SHA256SUMS
@@ -547,8 +557,8 @@ cd kookie-0.1.0-dogfood.38-linux-x86_64
 
 O arquivo inclui SDL3, SDL_mixer e os adaptadores nativos, mas usa o
 loader/libc dinâmico do host e exige uma GPU Linux suportada para apresentação.
-Este é o pacote dogfood da fonte atual; a evidência de apresentação em
-hardware-alvo continua sendo um gate D1 aberto.
+O exemplo comprova apenas artefato/pacote; a evidência de hardware só é
+autoridade quando o `RELEASE_QUALIFICATION.json` a retém.
 
 ## Pacotes Windows x86-64
 
@@ -694,15 +704,16 @@ scripts/build_demo_release.sh \
   --output /tmp/kookie-demo-windows
 ```
 
-O lote de qualificação `0.1.0-dogfood.38` passou
+O lote histórico `.38` passou
 `verify_windows_presentation.sh` com prefixes MinGW SDL3/SDL_mixer e DXC
 fixados. Isso comprova somente o caminho de artefato PE/SDL/SPIR-V/DXIL
 assinado e reprodutível; evidência nativa Windows de input/áudio/GPU/driver e
-smoke interativo fora do checkout continuam sendo gates de release.
+smoke interativo fora do checkout continuam sendo gates para cada candidato.
 
-O comando escreve arquivo assinado, manifesto, chave pública, assinaturas
-destacadas, `SHA256SUMS` e `BUILD_SUMMARY.txt`. Evidência nativa de
-inicialização/input/áudio/GPU Windows continua sendo gate separado de hardware.
+O comando escreve arquivo assinado, manifesto do pacote, chave pública,
+assinaturas destacadas, `SHA256SUMS`, `BUILD_SUMMARY.txt` e
+`QUALIFICATION_MANIFEST.json`. A evidência nativa Windows só é autoridade
+quando o `RELEASE_QUALIFICATION.json` pareado a retém.
 
 Em uma GPU Windows suportada com o wrapper nativo isolado revisado, o smoke
 executa a mesma entrada Kof PE nativa que possui a janela SDL, staging de cena

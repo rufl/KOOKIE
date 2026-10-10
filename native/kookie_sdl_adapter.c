@@ -2004,6 +2004,10 @@ static bool kookie_gpu_model_emit_vertex(
 bool kookie_gpu_model_available(int model) {
     return kookie_model_assets_available(model);
 }
+bool kookie_gpu_model_assets_required(void) {
+    return kookie_model_assets_required();
+}
+
 
 int kookie_gpu_model_vertex_count(int model) {
     return kookie_model_assets_vertex_count(model);

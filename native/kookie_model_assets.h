@@ -11,6 +11,8 @@ typedef bool (*KookieModelEmitVertex)(
     void *context, int resource, int x, int y, int z, int u, int v);
 
 bool kookie_model_assets_available(int model);
+bool kookie_model_assets_required(void);
+
 int kookie_model_assets_vertex_count(int model);
 bool kookie_model_assets_texture_png(
     int model, const unsigned char **data, size_t *length);

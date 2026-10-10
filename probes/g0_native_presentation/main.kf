@@ -44,6 +44,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_vertex(
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_available(
     Int model
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_assets_required(): Bool
+
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_vertex_count(
     Int model
 ): Int
@@ -792,6 +794,7 @@ class G1NativePresentation {
     }
 
     Bool prepare() {
+        var modelsRequired = kookie_gpu_model_assets_required()
         var modelsAvailable =
             kookie_gpu_model_available(kookieModelGoose()) &&
             kookie_gpu_model_available(kookieModelCat())
@@ -807,6 +810,10 @@ class G1NativePresentation {
                 catModelVertexCountValue % 3 == 0
         }
         nativeAnimalModelsValue = modelsAvailable
+        if (modelsRequired && !modelsAvailable) {
+            println("KOOKIE prototype animal models required but unavailable")
+            return false
+        }
         if (!scenario.run()) {
             return false
         }
