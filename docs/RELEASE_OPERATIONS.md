@@ -95,6 +95,9 @@ bash scripts/bootstrap_release.sh --apply \
   --signing-key "$KOOKIE_SIGNING_KEY" \
   --kof-archive "$KOF_ARCHIVE" \
   --version "$RELEASE_VERSION" \
+  --qualify \
+  --linux-presentation-smoke \
+  --windows-presentation-smoke \
   --publish --confirm-hardware-evidence
 ```
 

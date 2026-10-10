@@ -40,6 +40,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The hosted CI now installs the official Zig 0.17.0 archive with a pinned
   SHA-256 instead of using the Node20-based setup action, removing the
   GitHub Actions Node20 deprecation warning.
+- Release operations now pass the qualification and native presentation smoke
+  flags required by the bootstrap publication gate.
 
 
 
