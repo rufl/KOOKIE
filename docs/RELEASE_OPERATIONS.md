@@ -118,9 +118,10 @@ Both runners need Kof `0.5.0-beta` at
 `KOOKIE_KOF_ARCHIVE_SHA256`.
 The runner must expose that archive as `KOOKIE_KOF_ARCHIVE`; release jobs
 recompute its SHA-256 before building, instead of trusting digest metadata alone.
-The hosted verification workflow pins the latest verified `mlugg/setup-zig`
-commit `d1434d08867e3ee9daa34448df10607b98908d29`; the current `v2` action
-declares Node20.
+The hosted verification workflow downloads the official Zig 0.17.0 Linux
+archive over HTTPS and verifies SHA-256
+`1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026` before
+adding it to `PATH`; it does not depend on a Node-based setup action.
 The Linux release runner exposes pinned SDL3 3.4.18 at
 `$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.18`; the workflow exports
 `KOOKIE_SDL3_PREFIX` before preparing SDL_mixer. An older or unreviewed system
