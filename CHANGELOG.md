@@ -8,8 +8,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   checkout v7, setup-java v6, download-artifact v8 and the latest verified
   setup-zig commit, while CI runs on Temurin 27. PE/COFF builds now pass
   explicit `-g0` to keep Zig 0.17.0's debug paths out of reproducible objects.
-  The Kof `0.5.0-beta` source pin stays on the newer Buffer-compatible commit
-  because the latest public archive still fails the native Buffer qualification.
+  The Kof `0.5.0-beta` source pin remains `bf17ac7e736471c8a04b4153e5b0f607be75e70c`;
+  the latest tagged archive at `317d9f6b1c3e27032cc955a05f859f6c627d9338`
+  fails native Buffer qualification (`FFI001`).
 
 - Hardened KOOKIE's native binary consumers against the pinned Kof
   `0.5.0-beta` `File.readBytes()` partial-word bug: bounded source, save,

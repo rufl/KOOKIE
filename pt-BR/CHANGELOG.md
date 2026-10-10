@@ -9,9 +9,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   download-artifact v8 e o commit verificado mais recente do setup-zig; a CI
   roda com Temurin 27. Os builds PE/COFF agora passam `-g0` explicitamente para
   manter os caminhos de debug do Zig 0.17.0 fora dos objetos reprodutíveis. O pin
-  de fonte Kof `0.5.0-beta` permanece no commit compatível mais novo com Buffer
-  porque o arquivo público mais recente ainda falha na qualificação nativa de
-  Buffer.
+  de fonte Kof `0.5.0-beta` permanece em `bf17ac7e736471c8a04b4153e5b0f607be75e70c`;
+  o archive marcado mais recente em `317d9f6b1c3e27032cc955a05f859f6c627d9338`
+  falha na qualificação nativa de Buffer (`FFI001`).
 - Endurecemos os consumidores binários nativos do KOOKIE contra o bug de
   palavra parcial de `File.readBytes()` no Kof fixado `0.5.0-beta`: leituras
   limitadas de fontes, saves, replay, pacote e KofScript agora usam
