@@ -9,6 +9,10 @@ trap 'rm -rf -- "$work_dir"' EXIT INT TERM
 cp "$root_dir/probes/g10_ui_library/main.kf" "$work_dir/main.kf"
 mkdir "$work_dir/ui"
 ln -s "$root_dir/src/ui/kookie_ui.kf" "$work_dir/ui/kookie_ui.kf"
+python3 "$root_dir/scripts/generate_ui_manifest_kf.py" \
+  --check "$root_dir/assets/ui/manifest.json" "$root_dir/src/ui/published_assets.kf"
+ln -s "$root_dir/src/ui/published_assets.kf" \
+  "$work_dir/ui/published_assets.kf"
 
 jvm_output="$(cd "$work_dir" && kof run main.kf --target jvm)"
 native_output="$(cd "$work_dir" && kof run main.kf --target native)"

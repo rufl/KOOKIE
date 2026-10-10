@@ -1,12 +1,12 @@
 /* Kookie UI host stylesheet: load this file before the KofJS document. */
 @font-face {
   font-family: "Jared Lite";
-  src: url("../fonts/jared-lite.ttf") format("truetype"), url("../../fonts/jared-lite.ttf") format("truetype");
+  src: url("../../fonts/jared-lite.ttf") format("truetype");
   font-display: swap;
 }
 @font-face {
   font-family: "Pixand";
-  src: url("../fonts/pixand.ttf") format("truetype"), url("../../fonts/pixand.ttf") format("truetype");
+  src: url("../../fonts/pixand.ttf") format("truetype");
   font-display: swap;
 }
 

@@ -7,59 +7,47 @@ main() {
         kookieUiFontSource(kookieUiFontDisplay()) == "fonts/pixand.ttf",
         "Kookie UI must expose the packaged body and display fonts")
 
-    var svg = KookieUiAsset(
-        "ui.gatoganso-mark",
-        "assets/ui/gatoganso-mark.svg",
-        kookieUiAssetSvg(),
-        "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
-    var png = KookieUiAsset(
-        "ui.player-hearts",
-        "content/prototype/runtime/ui/hearts_0001.png",
-        kookieUiAssetPng(),
-        "Player health",
-        "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3")
+    var svg = kookieUiPublishedUiGatogansoMark()
+    var png = kookieUiPublishedUiPlayerHearts()
     var invalid = KookieUiAsset(
-        "ui.gatoganso-mark",
-        "assets/ui/gatoganso-mark.svg",
+        svg.id(),
+        svg.source(),
         kookieUiAssetPng(),
-        "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+        svg.alt(),
+        svg.checksum())
     var missingAlt = KookieUiAsset(
-        "ui.gatoganso-mark",
-        "assets/ui/gatoganso-mark.svg",
+        svg.id(),
+        svg.source(),
         kookieUiAssetSvg(),
         "",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+        svg.checksum())
     var invalidChecksum = KookieUiAsset(
-        "ui.gatoganso-mark",
-        "assets/ui/gatoganso-mark.svg",
+        svg.id(),
+        svg.source(),
         kookieUiAssetSvg(),
-        "GatoGanso mark",
+        svg.alt(),
         "not-a-sha256")
     var invalidPath = KookieUiAsset(
-        "ui.gatoganso-mark",
+        svg.id(),
         "../assets/ui/gatoganso-mark.svg",
         kookieUiAssetSvg(),
-        "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+        svg.alt(),
+        svg.checksum())
     var invalidId = KookieUiAsset(
         "",
-        "assets/ui/gatoganso-mark.svg",
+        svg.source(),
         kookieUiAssetSvg(),
-        "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+        svg.alt(),
+        svg.checksum())
     var invalidDotPath = KookieUiAsset(
-        "ui.gatoganso-mark",
+        svg.id(),
         "assets/./ui/gatoganso-mark.svg",
         kookieUiAssetSvg(),
-        "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+        svg.alt(),
+        svg.checksum())
     assert(svg.accepted() && svg.isSvg() &&
-        svg.id() == "ui.gatoganso-mark" &&
-        svg.source() == "assets/ui/gatoganso-mark.svg" &&
-        svg.checksum() ==
-            "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e" &&
+        svg.id().length() > 0 && svg.source().length() > 0 &&
+        svg.alt().length() > 0 && svg.checksum().length() == 64 &&
         png.accepted() && png.isPng() &&
         !invalid.accepted() && !missingAlt.accepted() &&
         !invalidChecksum.accepted() && !invalidPath.accepted() &&

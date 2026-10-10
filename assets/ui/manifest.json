@@ -5,7 +5,8 @@
     "runtime_paths_are_package_relative": true,
     "sha256_required": true,
     "prototype_assets_are_optional": true,
-    "demo_requires_prototype_assets": true
+    "demo_requires_prototype_assets": true,
+    "optional_asset_ids": ["ui.player-hearts"]
   },
   "assets": [
     {

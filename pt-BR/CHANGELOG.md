@@ -4,10 +4,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## Não lançado
 - Adicionamos uma demo KofJS isolada e um manifesto publicado de assets UI.
-  As referências agora carregam IDs estáveis, caminhos de runtime relativos ao
-  pacote, SHA-256 minúsculo obrigatório e opcionalidade para assets de
-  protótipo. O check focado `verify_ui_demo.sh` compila o artefato KofJS e
-  valida os recursos SVG/PNG/fontes preparados.
+  As referências agora usam bindings gerados a partir do manifesto, com IDs
+  estáveis, caminhos de runtime relativos ao pacote, SHA-256 minúsculo
+  obrigatório e opcionalidade explícita para assets de protótipo. A folha de
+  estilos da demo resolve as URLs empacotadas das fontes sem requests 404 de
+  fallback. O gate compartilhado `verify_ui_manifest.py` valida os perfis
+  `none`, `prototype` e demo.
 - Adicionamos a primeira fatia da biblioteca interna de UI para Kof/KofJS:
   metadados limitados de assets SVG/PNG com texto alternativo obrigatório,
   papéis de texto Jared Lite/Pixand, tokens de superfícies escuras, ícones SVG

@@ -37,6 +37,8 @@ openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
 mkdir "$WORK_DIR/extracted"
 tar -xzf "$ARCHIVE" -C "$WORK_DIR/extracted"
 PACKAGE_ROOT="$WORK_DIR/extracted/kookie-0.1.0-dogfood.prototype-smoke-linux-x86_64"
+python3 "$ROOT_DIR/scripts/verify_ui_manifest.py" \
+  "$PACKAGE_ROOT/assets/ui/manifest.json" "$PACKAGE_ROOT" --profile prototype
 
 python3 - "$PACKAGE_ROOT" "$MANIFEST" <<'PY'
 import hashlib

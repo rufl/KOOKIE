@@ -8,18 +8,8 @@ main() {
     var subtitle = KookieUiText(
         "Published UI assets on KofJS", kookieUiTextRoleBody(), 18, false,
         kookieUiMuted())
-    var logo = KookieUiAsset(
-        "ui.gatoganso-mark",
-        "assets/ui/gatoganso-mark.svg",
-        kookieUiAssetSvg(),
-        "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
-    var hearts = KookieUiAsset(
-        "ui.player-hearts",
-        "content/prototype/runtime/ui/hearts_0001.png",
-        kookieUiAssetPng(),
-        "Player health",
-        "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3")
+    var logo = kookieUiPublishedUiGatogansoMark()
+    var hearts = kookieUiPublishedUiPlayerHearts()
     var icon = KookieUiIcon("heart", 32)
     icon.setAccent()
 

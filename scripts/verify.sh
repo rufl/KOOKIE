@@ -38,6 +38,7 @@ bash scripts/verify_pe_durable_save.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh
 bash scripts/verify_package.sh
+bash scripts/verify_prototype_package.sh
 
 expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified\nKOOKIE G1 authoritative shooter verified'
 [[ "$(kof run src/main.kf --target jvm)" == "$expected_output" ]]

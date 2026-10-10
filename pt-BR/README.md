@@ -196,8 +196,9 @@ contrato de fontes/título; [`docs/UI_LIBRARY.md`](docs/UI_LIBRARY.md) documenta
 a fachada interna Kof/KofJS de SVG/PNG e tipografia,
 `bash scripts/verify_ui_library.sh` qualifica o probe G10 e
 `bash scripts/verify_ui_demo.sh` compila a demo KofJS isolada e verifica o
-manifesto de assets publicados; `bash scripts/verify_goose_game.sh` cobre o
-gameplay.
+manifesto de assets publicados; `bash scripts/verify_package.sh` valida o perfil
+de pacote `none` e `bash scripts/verify_prototype_package.sh` valida o perfil
+`prototype`; `bash scripts/verify_goose_game.sh` cobre o gameplay.
 O gate focado do servidor dedicado também passa 512 ticks medidos com p95 de
 `3,624ms` (p99 de `3,689ms`, máximo de `3,899ms`) sob o orçamento declarado
 de simulação de 4ms.

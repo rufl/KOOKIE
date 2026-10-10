@@ -410,13 +410,16 @@ bundle_ui_assets() {
     exit 1
   }
   mkdir -p "$destination_root"
-  for name in kookie-ui.css gatoganso-mark.svg manifest.json; do
+  for name in kookie-ui.css manifest.json; do
     [[ -f "$source_root/$name" && ! -L "$source_root/$name" ]] || {
       echo "package_kookie: UI asset missing: $name" >&2
       exit 1
     }
     cp -- "$source_root/$name" "$destination_root/$name"
   done
+  python3 "$ROOT_DIR/scripts/stage_ui_manifest.py" \
+    "$source_root/manifest.json" "$ROOT_DIR" "$PACKAGE_ROOT" \
+    --profile "$CONTENT_PROFILE" >/dev/null
 }
 
 bundle_ui_assets

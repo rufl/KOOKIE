@@ -29,15 +29,8 @@ main() {
     var title = KookieUiText(
         "GATOGANSO", kookieUiTextRoleDisplay(), 32, true,
         kookieUiForeground())
-    var logo = KookieUiAsset(
-        "ui.gatoganso-mark", "assets/ui/gatoganso-mark.svg",
-        kookieUiAssetSvg(), "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
-    var hearts = KookieUiAsset(
-        "ui.player-hearts",
-        "content/prototype/runtime/ui/hearts_0001.png",
-        kookieUiAssetPng(), "Player health",
-        "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3")
+    var logo = kookieUiPublishedUiGatogansoMark()
+    var hearts = kookieUiPublishedUiPlayerHearts()
 
     document.bindText(title)
     document.bindAsset(logo, 32)
@@ -46,6 +39,15 @@ main() {
     document.bindAssetDescription(hearts)
     document.show()
 }
+```
+
+The published constructors in `src/ui/published_assets.kf` are generated from
+`assets/ui/manifest.json`; callers should use them instead of copying IDs,
+paths or digests into application code. The source is checked with:
+
+```bash
+python3 scripts/generate_ui_manifest_kf.py --check \
+  assets/ui/manifest.json src/ui/published_assets.kf
 ```
 
 `KookieUiAsset.accepted()` validates the asset reference shape: a non-empty ID,
@@ -62,14 +64,17 @@ match the declared digest. Prototype entries may be absent from a `none`
 package, but they must be present and hash-verified in the `prototype` package.
 The manifest separately declares that the isolated UI demo requires its
 prototype entry; the demo gate therefore fails if the PNG is not staged.
+The shared `scripts/verify_ui_manifest.py` gate validates the same manifest
+against the staged runtime tree for the `none`, `prototype` and demo profiles.
+The `none` profile may omit only the prototype heart PNG; the other profiles
+must contain every declared runtime asset and match every digest.
+`publication.optional_asset_ids` is the authoritative list for that exception.
 
-The source tree can stage the authored prototype asset under the package path
-used by the demo:
+The source tree can stage the manifest's authored assets at their runtime paths:
 
 ```bash
-mkdir -p build/content/prototype/runtime/ui
-cp assets/prototype/runtime/ui/hearts_0001.png \
-  build/content/prototype/runtime/ui/hearts_0001.png
+python3 scripts/stage_ui_manifest.py \
+  assets/ui/manifest.json . build --profile prototype
 ```
 
 Source assets must still pass the content pipeline before native publication:

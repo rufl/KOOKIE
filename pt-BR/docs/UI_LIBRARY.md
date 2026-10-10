@@ -29,15 +29,8 @@ main() {
     var title = KookieUiText(
         "GATOGANSO", kookieUiTextRoleDisplay(), 32, true,
         kookieUiForeground())
-    var logo = KookieUiAsset(
-        "ui.gatoganso-mark", "assets/ui/gatoganso-mark.svg",
-        kookieUiAssetSvg(), "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
-    var hearts = KookieUiAsset(
-        "ui.player-hearts",
-        "content/prototype/runtime/ui/hearts_0001.png",
-        kookieUiAssetPng(), "Player health",
-        "c468c974f5c044012c0d84ef57c6e3941f8472ab841fc030ea98d865013576d3")
+    var logo = kookieUiPublishedUiGatogansoMark()
+    var hearts = kookieUiPublishedUiPlayerHearts()
 
     document.bindText(title)
     document.bindAsset(logo, 32)
@@ -46,6 +39,15 @@ main() {
     document.bindAssetDescription(hearts)
     document.show()
 }
+```
+
+Os construtores publicados em `src/ui/published_assets.kf` são gerados a partir
+de `assets/ui/manifest.json`; os chamadores devem usá-los em vez de copiar IDs,
+caminhos ou digests para o código da aplicação. A fonte é verificada com:
+
+```bash
+python3 scripts/generate_ui_manifest_kf.py --check \
+  assets/ui/manifest.json src/ui/published_assets.kf
 ```
 
 `KookieUiAsset.accepted()` valida o formato da referência: ID não vazio,
@@ -62,14 +64,18 @@ nem que os bytes correspondem ao digest. Entradas de protótipo podem faltar no
 pacote `none`, mas precisam existir e ter hash validado no pacote `prototype`.
 O manifesto declara separadamente que a demo UI isolada exige sua entrada de
 protótipo; por isso o gate da demo falha se o PNG não for preparado.
+O gate compartilhado `scripts/verify_ui_manifest.py` valida o mesmo manifesto
+contra a árvore de runtime preparada nos perfis `none`, `prototype` e demo.
+O perfil `none` pode omitir somente o PNG de corações de protótipo; os outros
+perfis precisam conter todos os assets declarados e corresponder a cada digest.
+`publication.optional_asset_ids` é a lista autoritativa dessa exceção.
 
-A árvore-fonte pode preparar o asset autorado no caminho de pacote usado pela
-demo:
+A árvore-fonte pode preparar os assets autorados nos caminhos de runtime do
+manifesto:
 
 ```bash
-mkdir -p build/content/prototype/runtime/ui
-cp assets/prototype/runtime/ui/hearts_0001.png \
-  build/content/prototype/runtime/ui/hearts_0001.png
+python3 scripts/stage_ui_manifest.py \
+  assets/ui/manifest.json . build --profile prototype
 ```
 
 Os assets-fonte ainda precisam passar pelo pipeline antes da publicação nativa:
