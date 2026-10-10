@@ -31,6 +31,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Fixed release readiness to recognize GitHub's lowercase
   `required_reviewers` environment protection rule, so a configured approval
   gate no longer reports the release environment as missing.
+- Release bootstrap now rejects publication requests that omit either native
+  Linux or Windows presentation smoke, matching the workflow's publish gate
+  before dispatching qualification jobs.
+- Release bootstrap now requires the local clean HEAD to match the remote
+  `main` commit before dispatching qualification or publication, preventing a
+  release run from silently packaging a different commit.
 
 
 

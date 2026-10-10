@@ -114,6 +114,12 @@ fi
 if (( PUBLISH == 1 && HARDWARE_EVIDENCE == 0 )); then
   fail '--publish requires --confirm-hardware-evidence'
 fi
+if (( PUBLISH == 1 )); then
+  [[ "$LINUX_SMOKE" == true ]] ||
+    fail '--publish requires --linux-presentation-smoke'
+  [[ "$WINDOWS_PRESENTATION_SMOKE" == true ]] ||
+    fail '--publish requires --windows-presentation-smoke'
+fi
 if (( APPLY == 1 && ${#REVIEWERS[@]} == 0 )); then
   fail '--apply requires at least one --reviewer LOGIN'
 fi
@@ -185,6 +191,16 @@ Configure environment reviewers at: https://github.com/$REPO/settings/environmen
 The runner machines and permanent key cannot be fabricated by this script.
 EOF
   exit "$remote_check"
+fi
+
+if (( QUALIFY == 1 )); then
+  command -v git >/dev/null || fail 'git is required with --qualify'
+  local_head="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+  remote_head="$(gh api "repos/$REPO/commits/main" --jq '.sha')" ||
+    fail "cannot resolve $REPO/main"
+  [[ "$local_head" == "$remote_head" ]] || {
+    fail "local HEAD $local_head is not $REPO/main $remote_head; push the commit before release"
+  }
 fi
 
 (( QUALIFY == 1 )) || exit 0
