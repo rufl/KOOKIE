@@ -6,6 +6,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Fixamos todas as GitHub Actions de terceiros nos workflows de release e
   verificação em SHAs imutáveis e corrigimos o loader de save durável para que
   uma falha em `ferror()` não pule `fclose()` nem deixe um stream aberto.
+- Endurecemos a admissão do transporte UDP nativo e JVM: somente datagramas
+  autenticados podem promover o último remetente; peers configurados rejeitam
+  outros endpoints; envios/replays nativos rejeitam endpoint sem peer; e a
+  leitura nativa da chave rejeita symlinks, hard links e permissões de
+  grupo/outros; o IPv4 do ambiente é estrito.
+
 
 
 - Adicionamos manifestos assinados de qualificação da release. Os builders

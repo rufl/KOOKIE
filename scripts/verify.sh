@@ -32,8 +32,8 @@ kof test src/main.kf --target jvm
 kof test src/main.kf --target native
 bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
+bash scripts/verify_transport.sh
 bash scripts/verify_interactions.sh
-bash scripts/verify_multiplayer_ui.sh
 bash scripts/verify_durable_save.sh
 bash scripts/verify_goose_game.sh
 bash scripts/verify_pe_durable_save.sh

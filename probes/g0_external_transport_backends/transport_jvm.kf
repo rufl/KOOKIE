@@ -232,11 +232,43 @@ InetAddress kookie_transport_ipv4(
     }
 }
 
+Bool kookie_transport_external_ipv4_syntax(String encoded) {
+    if (encoded == null || encoded.length() == 0) {
+        return false
+    }
+    var segmentCount = 0
+    var value = 0
+    var hasDigit = false
+    for (var index = 0; index < encoded.length(); index = index + 1) {
+        var character = encoded.charAt(index) as Int
+        if (character >= 48 && character <= 57) {
+            value = value * 10 + character - 48
+            if (value > 255) {
+                return false
+            }
+            hasDigit = true
+        } else if (character == 46) {
+            if (!hasDigit || segmentCount >= 3) {
+                return false
+            }
+            segmentCount = segmentCount + 1
+            value = 0
+            hasDigit = false
+        } else {
+            return false
+        }
+    }
+    return hasDigit && segmentCount == 3
+}
+
 InetAddress kookie_transport_external_host_address() {
     KookieJvmTransportState.addressValid = false
     var encoded = System.getenv("KOOKIE_EXTERNAL_LAN_HOST_IPV4")
     if (encoded == null || encoded.length() == 0) {
         encoded = "127.0.0.1"
+    }
+    if (!kookie_transport_external_ipv4_syntax(encoded)) {
+        return InetAddress.getByName("0.0.0.0")
     }
     try {
         var address = InetAddress.getByName(encoded)
@@ -475,13 +507,29 @@ Bool kookie_transport_replay_last_datagram() {
     }
 }
 
+Bool kookie_transport_addresses_match(InetAddress left, InetAddress right) {
+    var leftBytes = left.getAddress()
+    var rightBytes = right.getAddress()
+    if (leftBytes.length != rightBytes.length) {
+        return false
+    }
+    for (var index = 0; index < leftBytes.length; index = index + 1) {
+        if (leftBytes[index] != rightBytes[index]) {
+            return false
+        }
+    }
+    return true
+}
+
 Int kookie_transport_receive() {
     var slot = KookieJvmTransportState.activeSlot
     if (!KookieJvmTransportState.socketOpen[slot]) {
         return 0
     }
+    KookieJvmTransportState.lastSenderValid[slot] = false
     var wire = new Byte[KookieJvmTransportState.maxWireBytes]
     var packet = new DatagramPacket(wire, wire.length)
+
     try {
         KookieJvmTransportState.sockets[slot].receive(packet)
     } catch (SocketTimeoutException error) {
@@ -495,9 +543,15 @@ Int kookie_transport_receive() {
         KookieJvmTransportState.lastStatuses[slot] = 3
         return 0
     }
-    KookieJvmTransportState.lastSenders[slot] = packet.getAddress()
-    KookieJvmTransportState.lastSenderPorts[slot] = packet.getPort()
-    KookieJvmTransportState.lastSenderValid[slot] = true
+    if (KookieJvmTransportState.peerValid[slot] &&
+        (!kookie_transport_addresses_match(
+            packet.getAddress(), KookieJvmTransportState.peers[slot]) ||
+            packet.getPort() != KookieJvmTransportState.peerPorts[slot])) {
+        KookieJvmTransportState.receiveCounts[slot] = 0
+        KookieJvmTransportState.lastSenderValid[slot] = false
+        KookieJvmTransportState.lastStatuses[slot] = 3
+        return 0
+    }
     var byteCount = packet.getLength()
     if (byteCount <= 0 || byteCount % 4 != 0 ||
         byteCount > KookieJvmTransportState.maxWireBytes) {
@@ -533,6 +587,10 @@ Int kookie_transport_receive() {
         KookieJvmTransportState.lastStatuses[slot] = 3
         return 0
     }
+    KookieJvmTransportState.lastSenders[slot] = packet.getAddress()
+    KookieJvmTransportState.lastSenderPorts[slot] = packet.getPort()
+    KookieJvmTransportState.lastSenderValid[slot] = true
+
     KookieJvmTransportState.receiveCounts[slot] = payloadCount
     KookieJvmTransportState.receiveSequences[slot] = sequence
     for (var index = 0; index < payloadCount; index = index + 1) {

@@ -6,6 +6,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Pinned every third-party GitHub Action in the release and verification
   workflows to immutable commit SHAs, and fixed the durable-save loader so
   a failed `ferror()` check cannot skip `fclose()` and leak a stream.
+- Hardened native and JVM UDP transport admission: only authenticated
+  datagrams can promote a last sender, configured peers reject other endpoints,
+  native sends/replays reject an endpoint without a peer, native key-file
+  loading rejects symlinks and files with extra links or group/other
+  permissions, and host IPv4 environment parsing is strict.
+
 
 
 - Added signed release qualification manifests. Target builders emit

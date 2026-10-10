@@ -37,6 +37,13 @@ typedef socklen_t kookie_socklen_t;
 typedef ssize_t kookie_io_size_t;
 #define KOOKIE_INVALID_SOCKET (-1)
 #endif
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+#ifndef O_NOFOLLOW
+#define O_NOFOLLOW 0
+#endif
+
 
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 1740
@@ -456,20 +463,44 @@ bool kookie_transport_set_key_from_file(void) {
     if (kookie_socket_valid(transport.socket_fd)) {
         return false;
     }
-#ifdef _WIN32
-    return false;
-#else
     const char *path = getenv("KOOKIE_TRANSPORT_KEY_FILE");
     if (path == NULL || path[0] == '\0') {
         return false;
     }
-    struct stat info;
-    if (stat(path, &info) != 0 || !S_ISREG(info.st_mode) ||
-        (info.st_mode & 0077) != 0) {
+#ifdef _WIN32
+    HANDLE handle = CreateFileA(
+        path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
         return false;
     }
-    int file_descriptor = open(path, O_RDONLY);
+    BY_HANDLE_FILE_INFORMATION info;
+    if (!GetFileInformationByHandle(handle, &info) ||
+        (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
+        (info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 ||
+        info.nNumberOfLinks != 1) {
+        CloseHandle(handle);
+        return false;
+    }
+    char encoded[33];
+    DWORD length = 0;
+    BOOL read_success = ReadFile(
+        handle, encoded, (DWORD)sizeof(encoded), &length, NULL);
+    CloseHandle(handle);
+    if (!read_success || length != 32) {
+        return false;
+    }
+#else
+    int file_descriptor = open(
+        path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
     if (file_descriptor < 0) {
+        return false;
+    }
+    struct stat info;
+    if (fstat(file_descriptor, &info) != 0 ||
+        !S_ISREG(info.st_mode) || info.st_nlink != 1 ||
+        (info.st_mode & 0077) != 0) {
+        close(file_descriptor);
         return false;
     }
     char encoded[33];
@@ -478,9 +509,9 @@ bool kookie_transport_set_key_from_file(void) {
     if (length != 32) {
         return false;
     }
+#endif
     encoded[32] = '\0';
     return kookie_transport_set_key_from_encoded(encoded);
-#endif
 }
 
 bool kookie_transport_rotate_key_from_file(void) {
@@ -569,19 +600,33 @@ static bool kookie_transport_parse_host_address(
     if (encoded == NULL || encoded[0] == '\0') {
         encoded = "127.0.0.1";
     }
-    unsigned int first = 0;
-    unsigned int second = 0;
-    unsigned int third = 0;
-    unsigned int fourth = 0;
-    char trailing = '\0';
-    if (sscanf(
-            encoded, "%u.%u.%u.%u%c",
-            &first, &second, &third, &fourth, &trailing) != 4 ||
-        first > 255 || second > 255 || third > 255 || fourth > 255) {
-        return false;
+    const char *cursor = encoded;
+    uint32_t octets[4];
+    for (int index = 0; index < 4; index += 1) {
+        if (*cursor < '0' || *cursor > '9') {
+            return false;
+        }
+        uint32_t value = 0;
+        do {
+            value = value * 10u + (uint32_t)(*cursor - '0');
+            if (value > 255u) {
+                return false;
+            }
+            cursor += 1;
+        } while (*cursor >= '0' && *cursor <= '9');
+        octets[index] = value;
+        if (index < 3) {
+            if (*cursor != '.') {
+                return false;
+            }
+            cursor += 1;
+        } else if (*cursor != '\0') {
+            return false;
+        }
     }
     address->s_addr = htonl(
-        (first << 24) | (second << 16) | (third << 8) | fourth);
+        (octets[0] << 24) | (octets[1] << 16) |
+        (octets[2] << 8) | octets[3]);
     return true;
 }
 
@@ -724,6 +769,7 @@ bool kookie_transport_set_peer_ipv4(
     transport.peer.sin_family = AF_INET;
     transport.peer.sin_addr.s_addr = htonl(address);
     transport.peer.sin_port = htons((uint16_t)port);
+    transport.peer_valid = true;
     return true;
 }
 bool kookie_transport_set_peer_last_sender(void) {
@@ -800,10 +846,12 @@ bool kookie_transport_send_word(int index, int word) {
 
 bool kookie_transport_send_commit(void) {
     if (!kookie_socket_valid(transport.socket_fd) ||
+        !transport.peer_valid ||
         transport.send_count <= 0 ||
         transport.send_sequence == UINT32_MAX) {
         return false;
     }
+
     uint32_t wire[
         KOOKIE_TRANSPORT_HEADER_WORDS + KOOKIE_TRANSPORT_MAX_WORDS];
     int frame_words = KOOKIE_TRANSPORT_HEADER_WORDS + transport.send_count;
@@ -835,10 +883,12 @@ bool kookie_transport_send_commit(void) {
 }
 bool kookie_transport_replay_last_datagram(void) {
     if (!kookie_socket_valid(transport.socket_fd) ||
+        !transport.peer_valid ||
         !transport.last_send_valid ||
         transport.last_send_bytes <= 0) {
         return false;
     }
+
     kookie_io_size_t sent = kookie_socket_send(
         transport.socket_fd,
         transport.last_send_wire,
@@ -851,6 +901,8 @@ static int kookie_transport_receive_with_flags(int flags) {
     if (!kookie_socket_valid(transport.socket_fd)) {
         return 0;
     }
+    transport.last_sender_valid = false;
+
     uint32_t wire[
         KOOKIE_TRANSPORT_HEADER_WORDS + KOOKIE_TRANSPORT_MAX_WORDS];
     struct sockaddr_in sender;
@@ -875,8 +927,6 @@ static int kookie_transport_receive_with_flags(int flags) {
         transport.last_status = 3;
         return 0;
     }
-    transport.last_sender = sender;
-    transport.last_sender_valid = true;
     if (bytes <= 0 ||
         bytes % (kookie_io_size_t)sizeof(uint32_t) != 0 ||
         bytes > (kookie_io_size_t)sizeof(wire)) {
@@ -912,8 +962,12 @@ static int kookie_transport_receive_with_flags(int flags) {
     if (actual_mac != expected_mac) {
         transport.receive_count = 0;
         transport.last_status = 3;
+
         return 0;
     }
+    transport.last_sender = sender;
+    transport.last_sender_valid = true;
+
     transport.receive_count = (int)payload_count;
     transport.receive_sequence = sequence;
     for (int index = 0; index < transport.receive_count; index += 1) {
