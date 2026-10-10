@@ -31,6 +31,14 @@ calls; that does not form a portable typed or asynchronous engine binding.
 - window create/destroy with slot+generation+kind tokens;
 - stale and wrong-kind window-token rejection;
 - `SDL_PollEvent` flattened to event kind plus two scalar payload fields;
+- event kind `7` carries the raw SDL keycode in `dataA`; `dataB` is `0`
+  for release, `1` for press and `2` for repeat;
+- event kind `8` carries normalized left-button-down coordinates in `dataA`
+  and `dataB`; event kind `9` carries left-button release with
+  `dataA = SDL_BUTTON_LEFT`;
+- key bindings, held input, scoreboard toggling, mouse-fire state and focus
+  clearing are Kof policy in `NativeInputState` and `WindowStateTracker`;
+  the adapter does not translate keys into gameplay actions.
 - default playback SDL_mixer open/close with slot+generation+kind tokens;
 - independent effects/music tracks backed by SDL audio streams;
 - predecoded OGG Vorbis music/SFX tracks with explicit sample-frame loop
@@ -42,11 +50,12 @@ calls; that does not form a portable typed or asynchronous engine binding.
 
 The adapter does not retain Kof pointers, callbacks, gameplay state, entities
 or Kof-owned audio sample buffers. `probes/g0_native_adapter/main.kf` exercises
-hidden window creation/teardown, real SDL event polling into
-`WindowStateTracker`, synthetic resize/focus queueing, optional GPU lifecycle
-plus the first upload/draw, dummy playback-device open/close, bounded silence
-and clip PCM transfer, configured OGG predecode with exact music/SFX loop
-bounds, registered UI OGG spatial playback, and stale-token rejection.
+hidden window creation/teardown, real SDL event polling into raw scalar events,
+Kof `WindowStateTracker`/`NativeInputState` application, synthetic resize/focus
+queueing, optional GPU lifecycle plus the first upload/draw, dummy
+playback-device open/close, bounded silence and clip PCM transfer, configured
+OGG predecode with exact music/SFX loop bounds, registered UI OGG spatial
+playback, and stale-token rejection.
 
 ## Window and input state
 
@@ -58,7 +67,12 @@ bounds, registered UI OGG spatial playback, and stale-token rejection.
 - `applyNativeEvent(kind, dataA, dataB)` maps adapter kinds `1..4` to close, resize and focus transitions;
 - `snapshot()` returns copied scalar state through `WindowState`.
 
-The adapter flattens SDL events, while Kof owns the transition policy and authoritative loop. The probe polls adapter output and applies event kinds and scalar payloads to a Kof `WindowStateTracker`; the isolated smoke remains the acceptance boundary for OS-generated behavior.
+The adapter flattens SDL events, while Kof owns the transition and input
+policy: `WindowStateTracker` handles window state and `NativeInputState`
+handles key/button bindings, held gameplay state, scoreboard toggling and
+focus-loss clearing. The probe polls adapter output and applies event kinds
+and scalar payloads to those Kof-owned contracts; the isolated smoke remains
+the acceptance boundary for OS-generated behavior.
 
 ## Queued audio state
 

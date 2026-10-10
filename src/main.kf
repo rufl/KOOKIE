@@ -2822,6 +2822,25 @@ test "platform state and audio queue lifecycle" {
         7, 100, 0, 0, 0, 0, 0, 0, 0, 0, 20))
     assert(audio.close())
 }
+test "Kof native input owns raw bindings and focus reset", "input" {
+    var input = NativeInputState()
+    assert(input.applyKey(119, 1) &&
+        input.forwardHeld() == 1 &&
+        input.applyKey(119, 2) &&
+        input.forwardHeld() == 1 &&
+        input.applyKey(119, 0) &&
+        input.forwardHeld() == 0,
+        "Kof raw key phases must own held movement")
+    assert(input.applyKey(9, 1) &&
+        input.consumeScoreboardToggle() == 1 &&
+        input.consumeScoreboardToggle() == 0,
+        "Kof Tab binding must own scoreboard toggle")
+    assert(input.applyMouseButton(1) &&
+        input.fireHeld() == 1 &&
+        input.clearHeld() &&
+        input.fireHeld() == 0,
+        "Kof focus policy must clear mouse fire")
+}
 test "remote endpoint and key lifecycle" {
     var endpoint = RemoteSessionEndpoint(
         127, 0, 0, 1, 4000, 1, 2, 3, 4)

@@ -107,8 +107,6 @@ extern "./build/libkookie_sdl_adapter.so" kookie_transport_reset_session(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_wan_rendezvous_enabled(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_room_code(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_transport_player_name_id(): Int
-extern "./build/libkookie_sdl_adapter.so" kookie_input_state(Int input): Int
-extern "./build/libkookie_sdl_adapter.so" kookie_consume_scoreboard_toggle(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_delta_x(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_delta_y(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_consume_mouse_wheel_y(): Int
@@ -518,14 +516,14 @@ Bool sendGamePayload(Int[] payload) {
     return kookie_transport_send_commit()
 }
 
-Int localMoveForwardAxis() {
+Int localMoveForwardAxis(NativeInputState input) {
     return movementForwardAxis(
-        kookie_input_state(1), kookie_input_state(2))
+        input.forwardHeld(), input.backwardHeld())
 }
 
-Int localMoveStrafeAxis() {
+Int localMoveStrafeAxis(NativeInputState input) {
     return movementStrafeAxis(
-        kookie_input_state(3), kookie_input_state(4))
+        input.leftHeld(), input.rightHeld())
 }
 
 Int gooseStatusMagic() { return 1196384339 }
@@ -625,6 +623,8 @@ class G1NativePresentation {
     MultiplayerScoreboard scoreboardUi
     MatchScoreboardState scoreboardState
     CameraState camera
+    NativeInputState inputStateValue
+    WindowStateTracker windowStateValue
     FrameStaging worldFrame
     FrameStaging hudFrame
     FrameStaging doorFrame
@@ -663,6 +663,8 @@ class G1NativePresentation {
         scoreboardUi = MultiplayerScoreboard()
         scoreboardState = MatchScoreboardState(2)
         projectileOverlay = GooseProjectileOverlay(8)
+        inputStateValue = NativeInputState()
+        windowStateValue = WindowStateTracker(1280, 720)
         camera = CameraState(-450, 450)
         interactionSession = LoopbackSession(16, 8)
         playerAimTargets = BoundedRayTargetWorld(3, 64)
@@ -696,6 +698,31 @@ class G1NativePresentation {
         playerDeathsTwoValue = 0
         localShotValue = false
         remoteShotValue = false
+    }
+    Bool applyNativeKey(Int key, Int phase) {
+        return inputStateValue.applyKey(key, phase)
+    }
+
+    Bool applyNativeMouseButton(Int pressed) {
+        return inputStateValue.applyMouseButton(pressed)
+    }
+
+    Bool applyNativeWindowEvent(Int kind, Int dataA, Int dataB) {
+        if (!windowStateValue.applyNativeEvent(kind, dataA, dataB)) {
+            return false
+        }
+        if (kind == 3 && dataA == 0) {
+            if (!inputStateValue.clearHeld()) { return false }
+            kookie_consume_mouse_delta_x()
+            kookie_consume_mouse_delta_y()
+            kookie_consume_mouse_wheel_y()
+        }
+        return true
+    }
+
+    Int inputForwardHeld() { return inputStateValue.forwardHeld() }
+    Int consumeScoreboardToggle() {
+        return inputStateValue.consumeScoreboardToggle()
     }
     Bool setCooperativeMode(Bool cooperative) {
         cooperativeModeValue = cooperative
@@ -765,6 +792,7 @@ class G1NativePresentation {
     }
 
     Bool resetGooseSession() {
+        if (!inputStateValue.clearHeld()) { return false }
         var preservedScale = hud.scalePercent()
         var preservedContrast = hud.highContrast()
         playerAimTargets = BoundedRayTargetWorld(3, 64)
@@ -1481,8 +1509,9 @@ class G1NativePresentation {
         Bool host, NativeGameNetworkState state
     ) {
         return advanceGameplayInput(
-            host, state, localMoveForwardAxis(), localMoveStrafeAxis(),
-            kookie_input_state(5), kookie_input_state(6))
+            host, state, localMoveForwardAxis(inputStateValue),
+            localMoveStrafeAxis(inputStateValue),
+            inputStateValue.fireHeld(), inputStateValue.jumpHeld())
     }
     Int projectileOverlayCount() {
         return projectileOverlay.activeCount()
@@ -1704,11 +1733,15 @@ Bool driveSmokeKeyboardAction(
     Int key, Int expectedAction
 ) {
     if (!kookie_push_key_event(key) || kookie_poll_event() != 7 ||
-        kookie_last_event_a() != expectedAction) {
+        kookie_last_event_b() != 1 ||
+        nativeInputAction(kookie_last_event_a()) != expectedAction ||
+        !presentation.applyNativeKey(
+            kookie_last_event_a(), kookie_last_event_b())) {
         return false
     }
     var gameplayBefore = shell.gameplayVisible()
-    if (!shell.handleAction(kookie_last_event_a())) {
+    var action = nativeInputAction(kookie_last_event_a())
+    if (!shell.handleAction(action)) {
         return false
     }
     if (gameplayBefore && expectedAction == gameShellActionBack()) {
@@ -1785,16 +1818,23 @@ main() {
             "main Play must arrive through the SDL key event path")
         assert(kookie_push_key_event(119) &&
             kookie_poll_event() == 7 &&
-            kookie_last_event_a() == 1 &&
-            kookie_input_state(1) == 1,
-            "SDL forward key must enter gameplay input state")
+            presentation.applyNativeKey(
+                kookie_last_event_a(), kookie_last_event_b()) &&
+            kookie_last_event_a() == 119 &&
+            kookie_last_event_b() == 1 &&
+            presentation.inputForwardHeld() == 1,
+            "Kof input policy must admit the raw forward key")
         assert(kookie_push_focus_event(0) &&
             kookie_poll_event() == 3 &&
+            presentation.applyNativeWindowEvent(
+                3, kookie_last_event_a(), kookie_last_event_b()) &&
             kookie_last_event_a() == 0 &&
-            kookie_input_state(1) == 0,
-            "focus loss must clear held gameplay input")
+            presentation.inputForwardHeld() == 0,
+            "Kof focus policy must clear held gameplay input")
         assert(kookie_push_focus_event(1) &&
             kookie_poll_event() == 3 &&
+            presentation.applyNativeWindowEvent(
+                3, kookie_last_event_a(), kookie_last_event_b()) &&
             kookie_last_event_a() == 1,
             "focus regain must reach the game shell")
         assert(processGamePackets(
@@ -1887,30 +1927,44 @@ main() {
                 if (smoke && eventKind == 1) {
                     println("KOOKIE D1 SDL black-box quit verified")
                 }
+            } else if (eventKind == 2 || eventKind == 3) {
+                assert(presentation.applyNativeWindowEvent(
+                        eventKind, kookie_last_event_a(), kookie_last_event_b()),
+                    "Kof window policy must consume native window events")
             } else if (eventKind == 7) {
-                var beforeScreen = shell.screen()
-                var action = kookie_last_event_a()
-                var gameplayBefore = shell.gameplayVisible()
-                var handled = shell.handleAction(action)
-                if (gameplayBefore &&
-                    action == gameShellActionBack() && handled) {
-                    assert(presentation.saveGameplay(),
-                        "leaving gameplay must publish a durable save")
-                }
-                var clip = 0
-                if (gameplayBefore) {
-                    if (action == gameShellActionBack() && handled) {
-                        clip = 1030
-                    } else if (action == gameShellActionActivate()) {
-                        clip = 1041
+                var key = kookie_last_event_a()
+                var phase = kookie_last_event_b()
+                assert(presentation.applyNativeKey(key, phase),
+                    "Kof input policy must consume raw key events")
+                if (phase == 1) {
+                    var action = nativeInputAction(key)
+                    if (action != 0) {
+                        var beforeScreen = shell.screen()
+                        var gameplayBefore = shell.gameplayVisible()
+                        var handled = shell.handleAction(action)
+                        if (gameplayBefore &&
+                            action == gameShellActionBack() && handled) {
+                            assert(presentation.saveGameplay(),
+                                "leaving gameplay must publish a durable save")
+                        }
+                        var clip = 0
+                        if (gameplayBefore) {
+                            if (action == gameShellActionBack() && handled) {
+                                clip = 1030
+                            } else if (action == gameShellActionActivate()) {
+                                clip = 1041
+                            }
+                        } else {
+                            clip = menuUiSoundForAction(
+                                action, beforeScreen, shell.screen(), handled)
+                        }
+                        assert(playMenuUiSound(audio, clip),
+                            "keyboard UI interaction must play its mapped sound")
                     }
-                } else {
-                    clip = menuUiSoundForAction(
-                        action, beforeScreen, shell.screen(), handled)
                 }
-                assert(playMenuUiSound(audio, clip),
-                    "keyboard UI interaction must play its mapped sound")
             } else if (eventKind == 8) {
+                assert(presentation.applyNativeMouseButton(1),
+                    "Kof input policy must admit mouse press")
                 var gameplayBefore = shell.gameplayVisible()
                 var beforeScreen = shell.screen()
                 var clicked = shell.handlePointer(
@@ -1925,10 +1979,13 @@ main() {
                 }
                 assert(playMenuUiSound(audio, clip),
                     "pointer UI interaction must play its mapped sound")
+            } else if (eventKind == 9) {
+                assert(presentation.applyNativeMouseButton(0),
+                    "Kof input policy must admit mouse release")
             }
             eventKind = kookie_poll_event()
         }
-        if (kookie_consume_scoreboard_toggle() != 0 &&
+        if (presentation.consumeScoreboardToggle() != 0 &&
             shell.gameplayVisible()) {
             var scoreboardVisible = presentation.toggleScoreboard()
             assert(playMenuUiSound(

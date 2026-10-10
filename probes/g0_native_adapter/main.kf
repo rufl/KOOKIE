@@ -828,6 +828,7 @@ main() {
     assert(kookie_window_is_resizable(window),
         "desktop SDL window must remain resizable and maximizable")
     var state = WindowStateTracker(320, 240)
+    var nativeInput = NativeInputState()
     var drainCount = kookie_drain_events(32)
 
     assert(kookie_push_resize_event(640, 480), "SDL resize event must enqueue")
@@ -841,13 +842,25 @@ main() {
     assert(eventKind == 3, "focus event must flatten to kind 3")
     var focusApplied = state.applyNativeEvent(eventKind, kookie_last_event_a(), kookie_last_event_b())
     assert(focusApplied, "focus event must update Kof state")
+    assert(nativeInput.applyKey(119, 1) && nativeInput.forwardHeld() == 1,
+        "Kof input policy must admit a raw forward key")
+    assert(kookie_push_focus_event(0), "SDL focus loss event must enqueue")
+    eventKind = kookie_poll_event()
+    assert(eventKind == 3 &&
+        state.applyNativeEvent(eventKind, kookie_last_event_a(), kookie_last_event_b()) &&
+        nativeInput.clearHeld() && nativeInput.forwardHeld() == 0,
+        "Kof focus policy must clear held input")
     var stateSnapshot = state.snapshot()
-    var nativeStateApplied = stateSnapshot.width() == 640 && stateSnapshot.height() == 480 && stateSnapshot.focused()
+    var nativeStateApplied = stateSnapshot.width() == 640 && stateSnapshot.height() == 480 &&
+        !stateSnapshot.focused()
     assert(nativeStateApplied, "native events must reach Kof state")
     assert(kookie_push_key_event(13), "SDL return key event must enqueue")
     eventKind = kookie_poll_event()
-    assert(eventKind == 7 && kookie_last_event_a() == 5,
-        "SDL return key event must flatten to activate")
+    assert(eventKind == 7 && kookie_last_event_a() == 13 &&
+        kookie_last_event_b() == 1 &&
+        nativeInput.applyKey(kookie_last_event_a(), kookie_last_event_b()) &&
+        nativeInputAction(kookie_last_event_a()) == 5,
+        "SDL adapter must flatten raw keys for Kof bindings")
     assert(kookie_push_quit_event(), "SDL quit event must enqueue")
     eventKind = kookie_poll_event()
     assert(eventKind == 1, "SDL quit event must flatten to quit")

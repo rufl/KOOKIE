@@ -1,0 +1,83 @@
+package core
+
+Int nativeInputAction(Int key) {
+    if (key == 273 || key == 1073741906 || key == 119) { return 1 }
+    if (key == 274 || key == 1073741905 || key == 115) { return 2 }
+    if (key == 276 || key == 1073741904 || key == 97) { return 3 }
+    if (key == 275 || key == 1073741903 || key == 100) { return 4 }
+    if (key == 13 || key == 32) { return 5 }
+    if (key == 27) { return 6 }
+    return 0
+}
+
+class NativeInputState {
+    Int forwardValue
+    Int backwardValue
+    Int leftValue
+    Int rightValue
+    Int fireValue
+    Int jumpValue
+    Bool scoreboardToggleValue
+
+    public constructor() {
+        forwardValue = 0
+        backwardValue = 0
+        leftValue = 0
+        rightValue = 0
+        fireValue = 0
+        jumpValue = 0
+        scoreboardToggleValue = false
+    }
+
+    Bool applyKey(Int key, Int phase) {
+        if (phase < 0 || phase > 2) { return false }
+        var pressed = if (phase == 0) 0 else 1
+        if (key == 119 || key == 1073741906) {
+            forwardValue = pressed
+        } else if (key == 115 || key == 1073741905) {
+            backwardValue = pressed
+        } else if (key == 97 || key == 1073741904) {
+            leftValue = pressed
+        } else if (key == 100 || key == 1073741903) {
+            rightValue = pressed
+        } else if (key == 102 || key == 32) {
+            fireValue = pressed
+        } else if (key == 1073742048 || key == 1073742052) {
+            jumpValue = pressed
+        }
+        if (key == 9 && phase == 1) {
+            scoreboardToggleValue = true
+        }
+        return true
+    }
+
+    Bool applyMouseButton(Int pressed) {
+        if (pressed != 0 && pressed != 1) { return false }
+        fireValue = pressed
+        return true
+    }
+
+    Bool clearHeld() {
+        forwardValue = 0
+        backwardValue = 0
+        leftValue = 0
+        rightValue = 0
+        fireValue = 0
+        jumpValue = 0
+        scoreboardToggleValue = false
+        return true
+    }
+
+    Int forwardHeld() { return forwardValue }
+    Int backwardHeld() { return backwardValue }
+    Int leftHeld() { return leftValue }
+    Int rightHeld() { return rightValue }
+    Int fireHeld() { return fireValue }
+    Int jumpHeld() { return jumpValue }
+
+    Int consumeScoreboardToggle() {
+        var value = if (scoreboardToggleValue) 1 else 0
+        scoreboardToggleValue = false
+        return value
+    }
+}
