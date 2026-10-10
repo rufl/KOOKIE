@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def make_glb(
     positions: list[tuple[float, float, float]] | None = None,
     node_count: int = 1,
+    extra: object | None = None,
 ) -> bytes:
     if positions is None:
         positions = [(0.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 2.0, 0.0)]
@@ -57,6 +58,8 @@ def make_glb(
         ],
         "nodes": [{"mesh": 0} for _ in range(node_count)],
     }
+    if extra is not None:
+        document["extras"] = extra
     encoded = json.dumps(document, separators=(",", ":")).encode("utf-8")
     encoded += b" " * ((-len(encoded)) % 4)
     header_length = 12 + 8 + len(encoded) + 8 + len(binary)
@@ -171,6 +174,12 @@ def main() -> int:
         array_limit_root = work / "array-limit"
         write_fixture(array_limit_root, make_glb(node_count=4097))
         exercise(binary, array_limit_root, 0)
+        deep_value: object = 0
+        for _ in range(256):
+            deep_value = [deep_value]
+        deep_root = work / "deep-json"
+        write_fixture(deep_root, make_glb(extra=deep_value))
+        exercise(binary, deep_root, 0)
 
         suffix_root = work / "numeric-suffix"
         suffix = make_glb().replace(b'"count":3', b'"count":3e0', 1)

@@ -277,6 +277,54 @@ class BoundedExternalGlbSceneReader {
     Int valueStart(Int start, Int limit, Int field) {
         if (start < 0 || limit < 0 || start >= limit ||
             limit > jsonLengthValue) { return -1 }
+        if (start == 0) {
+            var objectDepth = 1
+            var arrayDepth = 0
+            var rootCursor = skipWhitespace(start, limit)
+            if (rootCursor >= limit || json[rootCursor] != 123) {
+                return -1
+            }
+            rootCursor = rootCursor + 1
+            while (rootCursor < limit) {
+                if (json[rootCursor] == 34) {
+                    var end = rootCursor + 1
+                    var escaped = false
+                    while (end < limit) {
+                        if (escaped) {
+                            escaped = false
+                        } else if (json[end] == 92) {
+                            escaped = true
+                        } else if (json[end] == 34) {
+                            break
+                        }
+                        end = end + 1
+                    }
+                    if (end >= limit) { return -1 }
+                    var directField = objectDepth == 1 && arrayDepth == 0
+                    if (field == 0 && objectDepth == 2 && arrayDepth == 0) {
+                        directField = true
+                    }
+                    if (directField && keyMatches(rootCursor + 1, field)) {
+                        var colon = skipWhitespace(end + 1, limit)
+                        if (colon < limit && json[colon] == 58) {
+                            return skipWhitespace(colon + 1, limit)
+                        }
+                    }
+                    rootCursor = end
+                } else if (json[rootCursor] == 123) {
+                    objectDepth = objectDepth + 1
+                } else if (json[rootCursor] == 125) {
+                    objectDepth = objectDepth - 1
+                } else if (json[rootCursor] == 91) {
+                    arrayDepth = arrayDepth + 1
+                } else if (json[rootCursor] == 93) {
+                    arrayDepth = arrayDepth - 1
+                }
+                if (objectDepth < 0 || arrayDepth < 0) { return -1 }
+                rootCursor = rootCursor + 1
+            }
+            return -1
+        }
         var cursor = start
         while (cursor < limit) {
             if (json[cursor] == 34 && keyMatches(cursor + 1, field)) {

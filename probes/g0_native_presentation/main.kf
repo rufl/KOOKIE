@@ -76,6 +76,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_poll_event(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_a(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_last_event_b(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_push_key_event(Int key): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_push_focus_event(
+    Int focused
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_push_quit_event(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_delay(Int milliseconds): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_presentation_smoke_requested(): Bool
@@ -1780,6 +1783,20 @@ main() {
             shell.consumeGameplayEntry() &&
             presentation.resetGooseSession(),
             "main Play must arrive through the SDL key event path")
+        assert(kookie_push_key_event(119) &&
+            kookie_poll_event() == 7 &&
+            kookie_last_event_a() == 1 &&
+            kookie_input_state(1) == 1,
+            "SDL forward key must enter gameplay input state")
+        assert(kookie_push_focus_event(0) &&
+            kookie_poll_event() == 3 &&
+            kookie_last_event_a() == 0 &&
+            kookie_input_state(1) == 0,
+            "focus loss must clear held gameplay input")
+        assert(kookie_push_focus_event(1) &&
+            kookie_poll_event() == 3 &&
+            kookie_last_event_a() == 1,
+            "focus regain must reach the game shell")
         assert(processGamePackets(
                 presentation.gameplaySession(), network,
                 presentation.scoreboard(), true) &&

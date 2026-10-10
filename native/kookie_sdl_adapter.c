@@ -527,6 +527,27 @@ static int scoreboard_toggle_pending;
 static int gameplay_mouse_delta_x;
 static int gameplay_mouse_delta_y;
 static int gameplay_mouse_wheel_y;
+static void kookie_clear_input_state(void) {
+    gameplay_input_state = 0;
+    scoreboard_toggle_pending = 0;
+    gameplay_mouse_delta_x = 0;
+    gameplay_mouse_delta_y = 0;
+    gameplay_mouse_wheel_y = 0;
+}
+
+static void kookie_reset_event_state(void) {
+    last_event_a = 0;
+    last_event_b = 0;
+    pending_focus_event = -1;
+    kookie_clear_input_state();
+}
+
+static void kookie_apply_focus_state(int focused) {
+    if (focused == 0) {
+        kookie_clear_input_state();
+    }
+}
+
 
 static unsigned int kookie_input_bit(SDL_Keycode key) {
     switch (key) {
@@ -620,6 +641,7 @@ bool kookie_sdl_init(int flags) {
         return false;
     }
 #endif
+    kookie_reset_event_state();
     kookie_gpu_scene_release(&gpu_scene);
     kookie_gpu_world_release(&gpu_world_scene);
     memset(&gpu_world_texture_layout, 0, sizeof(gpu_world_texture_layout));
@@ -655,6 +677,7 @@ void kookie_sdl_shutdown(void) {
     kookie_gpu_world_release(&gpu_world_scene);
     memset(&gpu_world_texture_layout, 0, sizeof(gpu_world_texture_layout));
     SDL_Quit();
+    kookie_reset_event_state();
 }
 
 int kookie_window_create(int width, int height, int hidden) {
@@ -3401,6 +3424,7 @@ int kookie_poll_event(void) {
         if (pending_focus_event >= 0) {
             last_event_a = pending_focus_event;
             last_event_b = 0;
+            kookie_apply_focus_state(pending_focus_event);
             pending_focus_event = -1;
             return 3;
         }
@@ -3422,11 +3446,7 @@ int kookie_poll_event(void) {
                 case SDL_EVENT_WINDOW_FOCUS_LOST:
                     last_event_a = 0;
                     last_event_b = 0;
-                    gameplay_input_state = 0;
-                    scoreboard_toggle_pending = 0;
-                    gameplay_mouse_delta_x = 0;
-                    gameplay_mouse_delta_y = 0;
-                    gameplay_mouse_wheel_y = 0;
+                    kookie_apply_focus_state(0);
                     return 3;
                 case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
                     last_event_a = 0;

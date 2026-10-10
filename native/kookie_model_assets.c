@@ -22,6 +22,7 @@
 #define KOOKIE_MODEL_MAX_MESHES 1024
 #define KOOKIE_MODEL_MAX_NODES 4096
 #define KOOKIE_MODEL_MAX_PRIMITIVES 8192
+#define KOOKIE_MODEL_MAX_JSON_DEPTH 128
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -148,10 +149,12 @@ static bool json_string_equals(
         memcmp(json->text + start + 1, expected, expected_length) == 0;
 }
 
-static bool json_value_end(
-    const KookieJson *json, size_t start, size_t *end
+static bool json_value_end_nested(
+    const KookieJson *json, size_t start, size_t *end,
+    unsigned int depth
 ) {
-    if (start >= json->length || end == NULL) {
+    if (start >= json->length || end == NULL ||
+        depth > KOOKIE_MODEL_MAX_JSON_DEPTH) {
         return false;
     }
     size_t position = json_skip_whitespace(json, start);
@@ -183,7 +186,8 @@ static bool json_value_end(
                 }
                 position = json_skip_whitespace(json, position + 1);
             }
-            if (!json_value_end(json, position, &item_end)) {
+            if (!json_value_end_nested(
+                    json, position, &item_end, depth + 1)) {
                 return false;
             }
             position = json_skip_whitespace(json, item_end);
@@ -212,6 +216,12 @@ static bool json_value_end(
     }
     *end = position;
     return position > start;
+}
+
+static bool json_value_end(
+    const KookieJson *json, size_t start, size_t *end
+) {
+    return json_value_end_nested(json, start, end, 0);
 }
 
 

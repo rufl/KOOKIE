@@ -80,7 +80,13 @@ def verify_bundle(bundle_path: Path) -> tuple[dict | None, str]:
                 names = set()
                 for member in archive.getmembers():
                     name = member.name.rstrip("/")
-                    if name == "" or name == "evidence":
+                    if name == "":
+                        if not member.isdir():
+                            return None, f"unexpected bundle member: {member.name}"
+                        continue
+                    if name == "evidence":
+                        if not member.isdir():
+                            return None, f"unexpected bundle member: {member.name}"
                         continue
                     if name not in EXPECTED_FILES or not member.isfile():
                         return None, f"unexpected bundle member: {member.name}"

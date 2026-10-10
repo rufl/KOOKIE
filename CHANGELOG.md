@@ -20,6 +20,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   fingerprints are canonicalized across Python, JVM and native metadata, and
   IPv4 parsing rejects overflowing octets. GPU diagnostic timing now saturates
   safely instead of overflowing 64-bit counter arithmetic.
+- Native SDL focus loss now clears held gameplay input, scoreboard toggles and
+  accumulated mouse deltas; adapter event state is reset across SDL lifecycles.
+  GLB JSON lookup now ignores nested root fields in Kof and caps recursive native
+  JSON depth. LAN evidence verification rejects symlinked archive roots before
+  extraction.
 
 
 
