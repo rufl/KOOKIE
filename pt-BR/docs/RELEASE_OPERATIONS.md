@@ -101,6 +101,9 @@ bash scripts/bootstrap_release.sh --apply \
   --signing-key "$KOOKIE_SIGNING_KEY" \
   --kof-archive "$KOF_ARCHIVE" \
   --version "$RELEASE_VERSION" \
+  --qualify \
+  --linux-presentation-smoke \
+  --windows-presentation-smoke \
   --publish --confirm-hardware-evidence
 ```
 
@@ -124,9 +127,10 @@ Ambos precisam de Kof `0.5.0-beta` no commit
 `KOOKIE_KOF_ARCHIVE_SHA256`.
 O runner deve expor esse arquivo em `KOOKIE_KOF_ARCHIVE`; os jobs de release
 recalculam o SHA-256 antes do build, em vez de confiar apenas no metadata.
-O workflow de verificação hospedado fixa o commit verificado mais recente do
-`mlugg/setup-zig`, `d1434d08867e3ee9daa34448df10607b98908d29`; a action
-`v2` atual declara Node20.
+O workflow de verificação hospedado baixa o archive oficial do Zig 0.17.0 por
+HTTPS, verifica o SHA-256
+`1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026` e só então
+o adiciona ao `PATH`; ele não depende de uma action baseada em Node.
 O runner Linux da release expõe o SDL3 3.4.18 fixado em
 `$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.18`; o workflow exporta
 `KOOKIE_SDL3_PREFIX` antes de preparar o SDL_mixer. Um SDL3 de sistema mais

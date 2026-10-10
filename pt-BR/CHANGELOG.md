@@ -11,6 +11,14 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   outros endpoints; envios/replays nativos rejeitam endpoint sem peer; e a
   leitura nativa da chave rejeita symlinks, hard links e permissões de
   grupo/outros; o IPv4 do ambiente é estrito.
+- Corrigimos o readiness de release para reconhecer a regra de proteção de
+  environment `required_reviewers` em minúsculas do GitHub.
+- O bootstrap de release agora exige os smokes nativos Linux e Windows, e
+  confirma que o `HEAD` local coincide com `main` remoto antes de despachar.
+- A CI hospedada baixa o archive oficial do Zig 0.17.0 com SHA-256 fixado, sem
+  depender da action baseada em Node20.
+- A documentação de operações passa todos os flags de qualificação e smoke
+  nativo exigidos pelo gate de publicação.
 
 
 
