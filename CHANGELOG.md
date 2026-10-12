@@ -38,6 +38,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Corrected release operations: the `publish=true` run creates and signs its
   final qualification manifest and then waits at the environment gate; it does
   not require a manifest from a previous qualification run.
+- The Windows presentation gate now probes the private desktop and extracted
+  package path before launching the GPU smoke, making wrapper/path failures
+  explicit instead of reporting only the child exit status.
 - Added reviewed Linux Gamescope headless and Windows private-desktop
   presentation wrappers, including target GPU identity capture and bounded
   process cleanup.

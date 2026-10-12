@@ -37,6 +37,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Corrigimos a operação de release: a execução com `publish=true` cria e assina
   o manifesto final de qualificação e depois aguarda o gate do environment; ela
   não exige um manifesto de uma qualificação anterior.
+- O gate de apresentação Windows agora testa o desktop privado e o caminho do
+  package extraído antes de iniciar o smoke GPU, tornando falhas do wrapper ou
+  do caminho explícitas em vez de reportar somente o status do filho.
 - Adicionamos wrappers revisados de apresentação: Gamescope headless isolado
   no Linux e desktop privado no Windows, com captura da identidade da GPU alvo
   e limpeza limitada da árvore de processos.

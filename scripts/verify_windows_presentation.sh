@@ -207,6 +207,21 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   unset SDL_AUDIODRIVER || true
   set +e
   "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- -c '
+    printf "KOOKIE Windows isolated desktop wrapper probe\n"
+    printf "KOOKIE_NATIVE_PACKAGE=%s\n" "$KOOKIE_NATIVE_PACKAGE"
+    test -f "$KOOKIE_NATIVE_PACKAGE/kookie.exe"
+  ' verify_windows_wrapper \
+    >"$WORK_DIR/native-wrapper.log" 2>&1
+  wrapper_status=$?
+  set -e
+  cat "$WORK_DIR/native-wrapper.log"
+  if [[ "$wrapper_status" != 0 ]]; then
+    echo "verify_windows_presentation: Windows wrapper probe failed with status $wrapper_status" >&2
+    exit "$wrapper_status"
+  fi
+
+  set +e
+  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- -c '
     cd "$KOOKIE_NATIVE_PACKAGE"
     exec ./kookie.exe
   ' verify_windows_native_presentation \
