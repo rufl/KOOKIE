@@ -33,6 +33,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   synthetic key assertions, menu geometry reserves GPU capacity explicitly,
   and the release smoke reaches the Kutter path through the actual main-menu
   selection.
+- Removed the stale host `cc` prerequisite from the Windows PE preflight; the
+  pinned Zig C driver is the compiler used for the cross-build.
+
 
 - Revalidated the exception-lifetime reproducer with Kof `0.6.0`: the
   deliberately failing assertion now exits with status 1 on JVM and native;

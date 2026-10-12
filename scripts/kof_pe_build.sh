@@ -40,7 +40,7 @@ OUTPUT_DIR="$3"
   echo "kof-pe-build: source does not exist: $SOURCE" >&2
   exit 2
 }
-for tool in cc cmp kof python3 zig readlink; do
+for tool in cmp kof python3 zig readlink; do
   command -v "$tool" >/dev/null || {
     echo "kof-pe-build: $tool is required" >&2
     exit 2
