@@ -34,6 +34,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Corrigimos a chamada do desktop privado Windows para passar diretamente os
   argumentos `-c` do Bash; o wrapper já fornece `bash.exe`, então um segundo
   `bash` fazia o filho sair com 127 antes de iniciar o PE.
+- Corrigimos a operação de release: a execução com `publish=true` cria e assina
+  o manifesto final de qualificação e depois aguarda o gate do environment; ela
+  não exige um manifesto de uma qualificação anterior.
 - Adicionamos wrappers revisados de apresentação: Gamescope headless isolado
   no Linux e desktop privado no Windows, com captura da identidade da GPU alvo
   e limpeza limitada da árvore de processos.

@@ -205,9 +205,10 @@ gh run watch "$(gh run list \
   --repo rufl/KOOKIE
 ```
 
-Only after `RELEASE_QUALIFICATION.json` is generated with
-`releaseEligible=true` and the environment approval is granted, publish the
-same candidate:
+After the qualification run succeeds with `releaseEligible=true`, dispatch the
+same candidate with `publish=true`. This second run rebuilds both artifacts,
+generates and signs its own final `RELEASE_QUALIFICATION.json`, then pauses at
+the environment approval before creating the public prerelease:
 
 ```bash
 RELEASE_VERSION=0.1.0-demo.N

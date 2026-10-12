@@ -35,6 +35,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Fixed the Windows private-desktop invocation to pass Bash's `-c` arguments
   directly; the wrapper already supplies `bash.exe`, so passing a second
   `bash` made the child exit 127 before the PE started.
+- Corrected release operations: the `publish=true` run creates and signs its
+  final qualification manifest and then waits at the environment gate; it does
+  not require a manifest from a previous qualification run.
 - Added reviewed Linux Gamescope headless and Windows private-desktop
   presentation wrappers, including target GPU identity capture and bounded
   process cleanup.
