@@ -32,6 +32,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The Windows native smoke now passes its extracted package through an
   inherited environment variable instead of a Git Bash path argument, avoiding
   MSYS argument conversion before the private-desktop wrapper starts the PE.
+- Fixed the Windows private-desktop invocation to pass Bash's `-c` arguments
+  directly; the wrapper already supplies `bash.exe`, so passing a second
+  `bash` made the child exit 127 before the PE started.
 - Added reviewed Linux Gamescope headless and Windows private-desktop
   presentation wrappers, including target GPU identity capture and bounded
   process cleanup.
