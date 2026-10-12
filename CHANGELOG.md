@@ -33,9 +33,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   synthetic key assertions, menu geometry reserves GPU capacity explicitly,
   and the release smoke reaches the Kutter path through the actual main-menu
   selection.
-- Removed the stale host `cc` and `objcopy` prerequisites from the Windows PE
+- Removed stale host `cc` and `objcopy` prerequisites from the Windows PE
   preflight; the pinned Zig C driver emits the debug-free object and executable
-  used for the cross-build.
+  used for the cross-build, and the Java backend classpath is converted through
+  `cygpath` on Git Bash.
 
 
 - Revalidated the exception-lifetime reproducer with Kof `0.6.0`: the

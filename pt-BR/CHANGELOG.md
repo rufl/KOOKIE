@@ -34,7 +34,8 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   caminho real do menu principal até o Kutter.
 - Removemos os pré-requisitos obsoletos de `cc` e `objcopy` do preflight PE
   Windows; o driver C fixado do Zig gera o objeto sem debug e o executável
-  usados no cross-build.
+  usados no cross-build, e o classpath Java do backend é convertido por
+  `cygpath` no Git Bash.
 
 
 - Revalidamos o reproduzível de lifetime de exceções com Kof `0.6.0`: a

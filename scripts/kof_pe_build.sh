@@ -90,11 +90,17 @@ backend_args=("$SOURCE" "$generated_c")
 if [[ "$LIBRARY" == 1 ]]; then
   backend_args+=(--library)
 fi
-java_classpath_separator=':'
+java_classpath="$classes:$kof_jar"
 case "${OSTYPE:-}" in
-  msys*|cygwin*|win32*) java_classpath_separator=';' ;;
+  msys*|cygwin*|win32*)
+    if command -v cygpath >/dev/null; then
+      java_classpath="$(cygpath -wp "$java_classpath")"
+    else
+      java_classpath="$classes;$kof_jar"
+    fi
+    ;;
 esac
-java -cp "$classes${java_classpath_separator}$kof_jar" dev.kof.compiler.KofPeBackendMain \
+java -cp "$java_classpath" dev.kof.compiler.KofPeBackendMain \
   "${backend_args[@]}"
 (
   cd "$work_dir"
