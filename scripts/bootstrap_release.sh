@@ -191,6 +191,7 @@ EOF
   exit "$remote_check"
 fi
 
+RELEASE_SOURCE_COMMIT=""
 if (( QUALIFY == 1 )); then
   command -v git >/dev/null || fail 'git is required with --qualify'
   local_head="$(git -C "$ROOT_DIR" rev-parse HEAD)"
@@ -199,6 +200,7 @@ if (( QUALIFY == 1 )); then
   [[ "$local_head" == "$remote_head" ]] || {
     fail "local HEAD $local_head is not $REPO/main $remote_head; push the commit before release"
   }
+  RELEASE_SOURCE_COMMIT="$local_head"
 fi
 
 (( QUALIFY == 1 )) || exit 0
@@ -207,7 +209,7 @@ run_workflow() {
   local publish="$1"
   local run_id=""
   local head_sha
-  head_sha="$(gh api "repos/$REPO/commits/main" --jq '.sha')"
+  head_sha="$RELEASE_SOURCE_COMMIT"
   local existing_runs candidate_runs candidate
   existing_runs="$(gh run list --repo "$REPO" --workflow release_demo.yml \
     --event workflow_dispatch --limit 20 --json databaseId \
@@ -215,8 +217,9 @@ run_workflow() {
 
   gh workflow run release_demo.yml \
     --repo "$REPO" \
-    --ref main \
+    --ref "$head_sha" \
     -f "version=$VERSION" \
+    -f "source_commit=$head_sha" \
     -f "publish=$publish" \
     -f "run_linux_presentation_smoke=$LINUX_SMOKE" \
     -f "run_windows_wine_smoke=$WINDOWS_SMOKE" \

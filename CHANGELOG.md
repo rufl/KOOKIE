@@ -168,6 +168,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Release bootstrap now requires the local clean HEAD to match the remote
   `main` commit before dispatching qualification or publication, preventing a
   release run from silently packaging a different commit.
+- Release bootstrap now passes that verified commit as both workflow `ref` and
+  `source_commit`, so qualification and publication use one immutable revision.
 - The paired `RELEASE_QUALIFICATION.json` now carries the exact Kof archive
   and compiler JAR SHA-256 values and rejects Linux/Windows package pairs with
   mismatched Kof artifact identities.
