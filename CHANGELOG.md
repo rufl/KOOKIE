@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Fixed native CI camera regressions by explicitly initializing the zero slot
+  of the Kof-owned sine lookup table; camera aim projection and crosshair ray
+  selection now pass the full 120-test native suite. Tagged both regressions
+  as `camera` for focused reproduction.
 - Split file-backed G3 configuration, prototype GLB, and Kutter persistence
   adapters out of the Windows native PE staging graph; the native presentation
   package now keeps those optional file APIs outside the content-free reachability

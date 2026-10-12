@@ -559,7 +559,7 @@ test "mouse yaw steers movement relative to the follow camera" {
         camera.movementWorldZ(0, 1) == 0,
         "camera-relative movement must remain deterministic across turns")
 }
-test "camera aim projection follows the crosshair ray" {
+test "camera aim projection follows the crosshair ray", "camera" {
     var camera = CameraState(-450, 450)
     assert(camera.applyLook(0, 0) &&
         camera.setFollowTarget(40, 1, 60) &&
@@ -639,7 +639,7 @@ test "Kof staging emits bounded GPU camera and texture coordinates", "gpu-stagin
         restoredSections.sectionValue(0, 1) == 77,
         "durable file decode must return the Kof-owned save sections")
 }
-test "camera ray selects the target under the crosshair" {
+test "camera ray selects the target under the crosshair", "camera" {
     var camera = CameraState(-450, 450)
     var rays = BoundedRayTargetWorld(2, 64)
     assert(camera.applyLook(0, 0) &&

@@ -105,6 +105,7 @@ class CameraState {
         gpuProjectionValues = new Int[16]
         gpuMatrixValues = new Int[16]
         followReadyValue = false
+        sineValues[0] = 0
         sineValues[1] = 174
         sineValues[2] = 342
         sineValues[3] = 500
