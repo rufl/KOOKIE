@@ -221,66 +221,35 @@ Kof4j `0.5.0-beta` UI/FFI boundary: the active pin qualifies synchronous
 `Buffer(U8)` is not a portable typed/asynchronous upload ABI. `bash
 scripts/verify_package.sh` validates the `none` package profile and
 `bash scripts/verify_prototype_package.sh` validates the `prototype` profile;
-`bash scripts/verify_goose_game.sh` covers gameplay. The focused dedicated-
-server gate also passes 512 measured ticks at p95 `3.624ms` (p99 `3.689ms`,
-maximum `3.899ms`) under the declared 4ms simulation budget.
+`bash scripts/verify_goose_game.sh` covers the bounded gameplay path. The
+retained G5 Linux x86-64 qualification records the 4 ms/tick timing contract,
+30-minute soak, resource plateau and 984-instance renderer batch; it does not
+claim arbitrary population, another OS/GPU, WAN scale or streaming.
 
+The latest local paired qualification was built from source commit
+`69b16d9312ebe6b86c34fda1f665ad1b8665558b`:
 
-Same-tick authoritative revisions are ordered by state sequence: a newer
-sequence replaces the latest sample for lifecycle or stale-command diagnostics,
-while older ticks and sequences remain rejected. Restoring a replay checkpoint
-starts a fresh rewind-history epoch before fixed-tick advancement resumes.
+- Linux `0.1.0-linux-e2e.3`, archive SHA-256
+  `d35443f514e7a21c3bfd1dadb170c76658944959de37b99084070a9908191cb1`.
+- Windows `0.1.0-windows-e2e.3`, archive SHA-256
+  `c6d80779f960339752bfa8a5848b515f46827ddfc11a3e3cfd788e5e81dce7f6`.
 
-The 2026-10-02 local Linux clean-tree qualification built the deterministic
-signed `0.1.0-linux-e2e.1` package from source commit
-`1678a7de671866d94080718c367ab05875a92c2d`, verified signatures/checksums,
-safe extraction and package smoke outside the checkout, and passed
-`scripts/verify_goose_game.sh`. It used a temporary local Ed25519 key and a
-pinned SDL_mixer 3.2.4 prefix, so it is not a public release identity. The
-isolated presentation smoke reported `No DRI3 support detected` and
-`No supported SDL_GPU backend found` before timeout 124; supported Linux
-hardware evidence remains open.
+Both passed deterministic duplicate builds, detached signatures, checksums,
+safe extraction, and target package qualification. The package manifests
+record Kof source `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; these were
+qualification-only artifacts signed with an ephemeral key, not public releases.
 
-The 2026-10-02 qualification batch also passed the signed Windows native
-PE/SDL presentation artifact gate with pinned MinGW SDL3/SDL_mixer and DXC.
-A clean detached-worktree builder run produced
-`0.1.0-windows-e2e.1` from source commit
-`1678a7de671866d94080718c367ab05875a92c2d` with Kof source commit
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c`; its archive SHA-256 is
-`c8153ae34b2a1ea7f8c85411df95393c02573fc433a477c539153459975e80a4`.
-Outside-checkout verification passed deterministic duplicate builds,
-signatures/checksums, safe ZIP extraction, PE `MZ` validation and the
-SPIR-V/DXIL package entries. The qualification key was temporary, so it is not
-a public release artifact. An isolated Wine presentation smoke reached native
-SDL but exited 70 with `kookie_gpu_open: No supported SDL_GPU backend found!`;
-native Windows hardware evidence remains open.
-The current GUI qualification artifact is
-`0.1.0-gui.1`, built from source commit
-`b1d4db92bf3adf166d503ca0eb44d8569498950c`, with archive SHA-256
-`d9b909a4270fc9ca8fbd46a63bd0a21bc646e819da2ae6c3f89fa143dc1da902`.
-Deterministic signing, extraction and package smoke passed. It uses an
-ephemeral key and is not a public release. An earlier overzeer attempt was
-blocked by full I/O pressure; a retry reached native SDL but reported
-`No DRI3 support detected` and `No supported SDL_GPU backend found` before
-the 240-second timeout, so no target-hardware GPU claim is made.
+The current host cannot close target presentation gates: isolated Linux
+presentation exits `124` because DRI3/SDL_GPU is unavailable, and isolated
+Wine exits `70` for the same missing SDL_GPU backend. Native Windows hardware
+presentation and fresh target-host Play/restart/quit evidence remain open.
+The same host measured dedicated-server p95 at `6.9 ms` against the declared
+`4 ms` budget; the budget was not relaxed.
 
-The current source commit
-`87d3bc63b3bbc66c23f796258f5b9ea5147fb0df` also produced local native package
-`0.1.0-perf.2`; its archive SHA-256 is
-`3d40aa2c012e610c460379c5ca0c62ecf0cc30b6bba57165bfe45c2dee8c8014`.
-Extracted package smoke passed, and the packaged dedicated server passed the
-4ms p95 gate (`3396us` in the retained run). This is a local qualification
-package, not a public release.
-
-
-The deterministic clean-tree builder now passes locally for both Linux and
-Windows; the public package, target-specific presentation evidence and paired
-release still need to be refreshed.
-
-| Target | Current source/evidence state | Remaining release evidence |
+| Target | Qualified now | Remaining release evidence |
 |---|---|---|
-| Linux x86-64 | Clean-tree deterministic package/signature/checksum verification, outside-checkout package smoke and focused goose gameplay smoke pass. | Run `Play`/movement/look/fire/damage/restart/quit smoke on a fresh supported Linux host with a present-capable GPU, then retain driver, screenshot and exit evidence. |
-| Windows x86-64 | Clean-tree deterministic `0.1.0-windows-e2e.1` package/signature/checksum verification, safe extraction, PE validation and SPIR-V/DXIL entries pass; isolated Wine presentation is blocked by the missing SDL_GPU backend. | Run the paired release workflow and complete native Windows input/audio/GPU/driver presentation smoke. |
+| Linux x86-64 | Deterministic signed package, extraction, package smoke, gameplay/package provenance | Fresh supported-GPU Play/movement/look/fire/damage/restart/quit smoke, screenshot, driver and exit evidence; current host also needs the 4 ms timing gate |
+| Windows x86-64 | Deterministic signed PE/SDL/SPIR-V/DXIL package | Native Windows input/audio/GPU/driver presentation smoke and paired release evidence |
 
 
 The detailed acceptance checklist, release blockers and non-blocking future
