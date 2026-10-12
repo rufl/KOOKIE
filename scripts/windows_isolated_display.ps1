@@ -28,7 +28,7 @@ if ($separator -lt 0 -or $separator + 1 -ge $arguments.Count) {
     [Console]::Error.WriteLine('windows-isolated-display: expected -- followed by a command')
     exit 2
 }
-$childArguments = @($arguments[($separator + 1)..($arguments.Count - 1)])
+$childArguments = @('--noprofile', '--norc') + @($arguments[($separator + 1)..($arguments.Count - 1)])
 if ($childArguments.Count -eq 0) {
     [Console]::Error.WriteLine('windows-isolated-display: command is required')
     exit 2
