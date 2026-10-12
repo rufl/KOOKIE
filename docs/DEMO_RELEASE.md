@@ -70,6 +70,37 @@ font files and their SIL Open Font License notice ship with the package.
   for compatibility/qualification. The JVM package is not a native-game
   fallback.
 
+### Current local qualification record — 2026-10-12
+
+Source commit `69b16d9312ebe6b86c34fda1f665ad1b8665558b` produced the paired
+outside-checkout, deterministic signed qualification artifacts:
+
+- Linux `0.1.0-linux-e2e.3`: archive SHA-256
+  `d35443f514e7a21c3bfd1dadb170c76658944959de37b99084070a9908191cb1`;
+  manifest SHA-256 `238e98a8704c9b295cac22a081332dca52852290199d4df1771731473afec1b8`;
+  package extraction, launcher, signature/checksum, shader, and package smoke
+  passed.
+- Windows `0.1.0-windows-e2e.3`: archive SHA-256
+  `c6d80779f960339752bfa8a5848b515f46827ddfc11a3e3cfd788e5e81dce7f6`;
+  manifest SHA-256 `3654307e3b11836908eddaf4c3d56114b495097cf0a3ceee4d8bbe67c960e36c`;
+  PE `MZ`, extraction, launcher, signature/checksum, SPIR-V/DXIL and package
+  qualification passed.
+- Both manifests record Kof source commit
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`, compiler JAR SHA-256
+  `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`, and
+  the qualification-only local Kof distribution SHA-256
+  `111ab2abb44bf2dbedddacee054cb0afedcfc7e63d8f67c03fd53835d80a4230`.
+  The local archive is not a public Kof release identity.
+- Linux isolated presentation failed closed with exit `124` because this host
+  reports `No DRI3 support detected` and `No supported SDL_GPU backend found`.
+  Windows Wine compatibility smoke failed closed with exit `70` for the same
+  missing SDL_GPU backend. Native Windows target-hardware presentation was not
+  run; no hardware evidence is claimed.
+- The G5 authenticated headless host/two-client gate passed. The current
+  host's dedicated-server timing sample measured p95 `6.9 ms` against the
+  declared `4 ms` budget, so this run does not replace the retained
+  Linux x86-64 timing/soak qualification; no broader scale claim is added.
+
 The current source tree provides the dogfood qualification path:
 `Play` starts a local authoritative encounter; `Host/Join` admits a second
 player through the explicit ready lobby; three goose bots attack players; host
