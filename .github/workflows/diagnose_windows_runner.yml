@@ -57,24 +57,28 @@ jobs:
           printf '%s\n' '=== filesystem candidates ==='
           for root in \
             "${RUNNER_WORKSPACE:-}" "${RUNNER_TEMP:-}" \
-            /c/actions-runner /d/actions-runner /c/runner /d/runner; do
+            /c/actions-runner /d/actions-runner /c/runner /d/runner \
+            /c/kookie-tools /d/kookie-tools; do
             [[ -d "$root" ]] || continue
             printf 'root=%s\n' "$root"
-            find "$root" -maxdepth 4 -type f \( \
+            find "$root" -maxdepth 5 -type f \( \
               -name '.env' -o -name 'overzeer*' -o -name 'dxc.exe' -o \
-              -name 'kof-0.6.0-linux-x86_64.tar.gz' -o -name 'kof.exe' \
-            \) -print 2>/dev/null | awk 'NR <= 80 {print}'
+              -name 'kof-0.6.0-linux-x86_64.tar.gz' -o -name 'kof.exe' -o \
+              -name 'kof' \
+            \) -print 2>/dev/null | awk 'NR <= 120 {print}'
           done
           printf '%s\n' '=== Windows identity and GPU ==='
+          powershell_path=''
           if command -v powershell.exe >/dev/null 2>&1; then
-            powershell.exe -NoProfile -NonInteractive -Command \
-              '$ErrorActionPreference="Continue"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID; query user'
+            powershell_path=powershell.exe
           elif command -v pwsh.exe >/dev/null 2>&1; then
-            pwsh.exe -NoProfile -NonInteractive -Command \
-              '$ErrorActionPreference="Continue"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID; query user'
+            powershell_path=pwsh.exe
           elif [[ -x /c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe ]]; then
-            /c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -NonInteractive -Command \
-              '$ErrorActionPreference="Continue"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID; query user'
+            powershell_path=/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+          fi
+          if [[ -n "$powershell_path" ]]; then
+            "$powershell_path" -NoProfile -NonInteractive -Command \
+              '$ErrorActionPreference="Continue"; Write-Output "OS:"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Write-Output "VIDEO:"; try { Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID | Format-List } catch { Write-Output ("VIDEO_ERROR=" + $_) }; Write-Output "DISPLAY_PNP:"; try { Get-PnpDevice -Class Display | Select-Object FriendlyName,InstanceId,Status | Format-List } catch { Write-Output ("PNP_ERROR=" + $_) }; Write-Output "USER:"; query user; exit 0'
           else
             printf '%s\n' 'PowerShell unavailable'
           fi
