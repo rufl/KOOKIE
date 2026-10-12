@@ -784,8 +784,31 @@ bundle_windows_kof_sdl() {
     "$presentation_root/main.kf"
   cp -- "$ROOT_DIR/probes/shared/pe_durable_save_coordinator.kf" \
     "$presentation_root/session/pe_durable_save_coordinator.kf"
+  cp -- "$ROOT_DIR/probes/shared/pe_glb_asset_store.kf" \
+    "$presentation_root/content/glb_asset_store.kf"
+  cp -- "$ROOT_DIR/probes/shared/pe_content_package_file_store.kf" \
+    "$presentation_root/content/package_file.kf"
   for module in core content session world ui demo; do
     for source in "$ROOT_DIR/src/$module/"*.kf; do
+      if [[ "$module" == core ]]; then
+        case "$(basename "$source")" in
+          durable_save_file.kf|replay_bundle_file.kf|replay_file.kf|save_file.kf|save_redundant_file.kf|save_schema_file.kf)
+            continue
+            ;;
+        esac
+      elif [[ "$module" == content ]]; then
+        case "$(basename "$source")" in
+          g3_config_file.kf|glb_asset_store.kf|external_package_loader.kf|package_file.kf|source_file_kooker.kf)
+            continue
+            ;;
+        esac
+      elif [[ "$module" == ui &&
+              "$(basename "$source")" == kutter_file.kf ]]; then
+        continue
+      elif [[ "$module" == session &&
+              "$(basename "$source")" == durable_save_coordinator.kf ]]; then
+        continue
+      fi
       ln -s -- "$source" "$presentation_root/$module/$(basename "$source")"
     done
   done

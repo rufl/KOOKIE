@@ -1,6 +1,7 @@
 import ui
 
 main() {
+    var fileStore = BoundedKutterStudioFileStore()
     var kutter = BoundedKutterStudio(16, 8)
     assert(kutter.configure(4, 1001, 7) &&
         kutter.addNode(10, 0, kutterModeWorld(), 100, 200, 300, 45, 1000) &&
@@ -10,10 +11,10 @@ main() {
         "Kutter must seal bounded hierarchy, transforms, and assets")
     var checksum = kutter.checksum()
     var path = "build/kutter.kutter"
-    assert(kutter.save(path), "Kutter must persist canonical binary state")
-
+    assert(fileStore.save(kutter, path),
+        "Kutter must persist canonical binary state")
     var reopened = BoundedKutterStudio(16, 8)
-    assert(reopened.load(path) && reopened.checksum() == checksum &&
+    assert(fileStore.load(reopened, path) && reopened.checksum() == checksum &&
         reopened.nodeCount() == 2 && reopened.nodeParent(1) == 10 &&
         reopened.nodeXValue(1) == -5 && reopened.nodeScaleValue(1) == 1250 &&
         reopened.assetCount() == 1 && reopened.assetStatus(0) == 2,
@@ -25,7 +26,7 @@ main() {
     var badPath = "build/kutter_bad.kutter"
     assert(File(badPath).writeBytes(badBytes),
         "Kutter tamper fixture must be writable")
-    assert(!reopened.load(badPath) && reopened.checksum() == checksum &&
+    assert(!fileStore.load(reopened, badPath) && reopened.checksum() == checksum &&
         reopened.nodeCount() == 2,
         "failed Kutter open must preserve active project")
 

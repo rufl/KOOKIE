@@ -322,14 +322,6 @@ class BoundedKutterLevelEditor {
         return documentValue.validate() && validationMask() == 0
     }
 
-    Bool save(String path) { return documentValue.save(path) }
-    Bool load(String path) {
-        if (!documentValue.load(path)) { return false }
-        undoCountValue = 0
-        redoCountValue = 0
-        selectedNodeValue = 0
-        return true
-    }
 
     BoundedKutterStudio document() { return documentValue }
     Int tool() { return toolValue }

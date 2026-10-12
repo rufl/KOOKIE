@@ -86,7 +86,11 @@ main() {
     assert(component.get(1) == 40 && component.activeCount() == 2, "component values must be readable")
     assert(component.remove(1) && !component.has(1), "component value must remove")
 
-    var g1 = G1Demo()
+    var g3Config = BoundedG3Config()
+    assert(BoundedG3ConfigFileLoader().load(
+        g3Config, "config/g3/demo.json"),
+        "G3 demo configuration must load")
+    var g1 = G1Demo(g3Config)
     var g1Passed = g1.run()
     if (!g1Passed) {
         println(g1.failureStep())

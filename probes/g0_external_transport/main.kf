@@ -3,6 +3,11 @@ import session
 import world
 import content
 
+
+Bool loadExternalG3Config(BoundedG3Config config) {
+    return BoundedG3ConfigFileLoader().load(
+        config, "config/g3/external_lan.json")
+}
 Int receivedPayloadSum(Int count) {
     if (count < 0) { return -1 }
     var sum = 0
@@ -88,7 +93,7 @@ BoundedContentCompatibility externalRoleCompatibility(
 
 Bool externalRoleConfigureG3Definition(LoopbackSession host) {
     var config = BoundedG3Config()
-    assert(config.load("config/g3/external_lan.json"),
+    assert(loadExternalG3Config(config),
         "external role G3 config must load")
     return config.loaded() &&
         host.registerExtensionManifest(
@@ -162,7 +167,7 @@ Bool externalRoleConfigureG3Definition(LoopbackSession host) {
 
 Bool externalRoleConfigureG3Runtime(LoopbackSession host) {
     var config = BoundedG3Config()
-    assert(config.load("config/g3/external_lan.json"),
+    assert(loadExternalG3Config(config),
         "external role G3 config must load")
     var playerId = config.value("playerActorId")
     var secondaryPlayerId = config.value("secondaryPlayerId")
@@ -621,7 +626,7 @@ Bool externalRoleHostReceiveCommand(
 
 Bool externalRoleSaveReload(LoopbackSession host) {
     var config = BoundedG3Config()
-    assert(config.load("config/g3/external_lan.json"),
+    assert(loadExternalG3Config(config),
         "external role G3 config must load")
     var playerId = config.value("playerActorId")
     var itemId = host.playerEquipmentItem(playerId, 0)
@@ -668,7 +673,7 @@ Bool externalRoleSaveReload(LoopbackSession host) {
 Bool externalRoleHostQualification() {
     var arena = G1Arena()
     var config = BoundedG3Config()
-    assert(config.load("config/g3/external_lan.json"),
+    assert(loadExternalG3Config(config),
         "external role G3 config must load")
     var compatibility = externalRoleCompatibility(
         arena,
@@ -865,7 +870,7 @@ Bool externalRoleHostQualification() {
 Bool externalRoleClientQualification(Int clientId) {
     var arena = G1Arena()
     var config = BoundedG3Config()
-    assert(config.load("config/g3/external_lan.json"),
+    assert(loadExternalG3Config(config),
         "external role G3 config must load")
     var compatibility = externalRoleCompatibility(
         arena,
@@ -1106,7 +1111,7 @@ main() {
     } else {
         var arena = G1Arena()
         var config = BoundedG3Config()
-        assert(config.load("config/g3/external_lan.json"),
+        assert(loadExternalG3Config(config),
             "external role G3 config must load")
         var compatibility = externalRoleCompatibility(
             arena,

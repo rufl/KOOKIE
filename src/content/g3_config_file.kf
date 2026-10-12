@@ -1,0 +1,8 @@
+package content
+
+class BoundedG3ConfigFileLoader {
+    Bool load(BoundedG3Config config, String path) {
+        return config.loadBytes(
+            File(path).readRange(0, g3ConfigMaximumBytes() + 1))
+    }
+}

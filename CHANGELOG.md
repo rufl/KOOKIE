@@ -3,6 +3,21 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Split file-backed G3 configuration, prototype GLB, and Kutter persistence
+  adapters out of the Windows native PE staging graph; the native presentation
+  package now keeps those optional file APIs outside the content-free reachability
+  profile while JVM/native source probes retain their file-backed checks.
+- Initialized all SDL GPU resource handles before fail-fast shader-manifest
+  validation so the Windows `-Werror` PE/SDL build reaches cleanup safely.
+- PE object staging now prefers LLVM COFF stripping, avoiding invalid
+  `.llvm_addrsig` symbol indexes from GNU `objcopy` before Windows linking.
+- Kept G5 bounded to the declared Linux x86-64 contract: dedicated headless
+  server, 30-minute realtime soak, timing/resource plateaus and bounded
+  instancing only; no arbitrary-population, other-OS/GPU, WAN-scale or
+  streaming claim is added.
+- Fixed the G5 renderer gate to stage the `ui` package required by the
+  reference batch probe; the check still requires an isolated hardware Vulkan
+  device and does not accept software rendering.
 - Added a single offline shader product pipeline in
   `scripts/shader_pipeline.py`: cataloged GLSL products are compiled to
   SPIR-V, validated with `spirv-val`, reflected against vertex/resource

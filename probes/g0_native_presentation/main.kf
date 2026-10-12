@@ -656,7 +656,9 @@ class G1NativePresentation {
     Bool localShotValue
     Bool remoteShotValue
     public constructor() {
-        scenario = G1Demo()
+        var g3Config = BoundedG3Config()
+        g3Config.loadDefaults()
+        scenario = G1Demo(g3Config)
         kutterScenario = G4KutterDemo()
         arena = scenario.authoredArena()
         hud = ShooterHud(100, 3)

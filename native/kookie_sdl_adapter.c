@@ -1144,6 +1144,10 @@ static bool kookie_gpu_prepare_resources(
     SDL_GPUDevice *device,
     SDL_GPUTextureFormat target_format
 ) {
+    bool success = false;
+    SDL_GPUTransferBuffer *transfer = NULL;
+    SDL_GPUCommandBuffer *command_buffer = NULL;
+    SDL_Surface *cat_texture = NULL;
     if (!kookie_gpu_prepare_world_texture_layout()) {
         return false;
     }
@@ -1218,10 +1222,8 @@ static bool kookie_gpu_prepare_resources(
             "KOOKIE gpu_prepare shader manifest is incomplete or invalid\n");
         goto cleanup;
     }
-    SDL_GPUTransferBuffer *transfer = NULL;
-    SDL_GPUCommandBuffer *command_buffer = NULL;
-    SDL_Surface *cat_texture = NULL;
-    bool success = false;
+
+
     cat_texture = kookie_gpu_load_cat_texture();
 
     SDL_GPUShaderFormat shader_format =

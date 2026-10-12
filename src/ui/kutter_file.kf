@@ -1,0 +1,42 @@
+package ui
+class BoundedKutterStudioFileStore {
+    Bool save(BoundedKutterStudio studio, String path) {
+        if (path.length() <= 0 || !studio.validate() || !studio.encode()) {
+            return false
+        }
+        var wordCount = studio.encodedLength()
+        if (wordCount <= 0) { return false }
+        var bytes = new Int[wordCount * 4]
+        for (var index = 0; index < wordCount; index = index + 1) {
+            var value = studio.encodedWord(index)
+            var offset = index * 4
+            bytes[offset] = value & 255
+            bytes[offset + 1] = (value >>> 8) & 255
+            bytes[offset + 2] = (value >>> 16) & 255
+            bytes[offset + 3] = (value >>> 24) & 255
+        }
+        return File(path).writeBytes(bytes)
+    }
+
+    Bool load(BoundedKutterStudio studio, String path) {
+        var bytes = File(path).readRange(
+            0, studio.encodedCapacity() * 4 + 1)
+        if (bytes.length <= 0 || bytes.length % 4 != 0 ||
+            bytes.length > studio.encodedCapacity() * 4) {
+            return false
+        }
+        var words = new Int[bytes.length / 4]
+        for (var index = 0; index < words.length; index = index + 1) {
+            var offset = index * 4
+            if (bytes[offset] < 0 || bytes[offset] > 255 ||
+                bytes[offset + 1] < 0 || bytes[offset + 1] > 255 ||
+                bytes[offset + 2] < 0 || bytes[offset + 2] > 255 ||
+                bytes[offset + 3] < 0 || bytes[offset + 3] >= 128) {
+                return false
+            }
+            words[index] = bytes[offset] + bytes[offset + 1] * 256 +
+                bytes[offset + 2] * 65536 + bytes[offset + 3] * 16777216
+        }
+        return studio.decode(words)
+    }
+}

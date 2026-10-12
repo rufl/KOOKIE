@@ -269,6 +269,14 @@ class BoundedG3Config {
         return value
     }
 
+    Bool stringEquals(String first, String second) {
+        if (first.length() != second.length()) { return false }
+        for (var index = 0; index < first.length(); index = index + 1) {
+            if (first.charAt(index) != second.charAt(index)) { return false }
+        }
+        return true
+    }
+
     Bool parseObject() {
         skipWhitespace()
         if (cursorValue >= sourceValue.length || sourceValue[cursorValue] != 123) {
@@ -288,7 +296,7 @@ class BoundedG3Config {
             }
             cursorValue = cursorValue + 1
             var value = 0
-            if (fieldNames[index] == "enemyKind") {
+            if (stringEquals(fieldNames[index], "enemyKind")) {
                 value = readKind()
             } else {
                 value = readInteger()
@@ -320,7 +328,7 @@ class BoundedG3Config {
 
     Int fieldIndexByName(String name) {
         for (var index = 0; index < fieldCountValue; index = index + 1) {
-            if (fieldNames[index] == name) { return index }
+            if (stringEquals(fieldNames[index], name)) { return index }
         }
         return -1
     }
@@ -450,14 +458,14 @@ class BoundedG3Config {
             validValueRange("enemyRuleMaxProjectiles", 1, 1000000)
     }
 
-    Bool load(String path) {
+    Bool loadBytes(Int[] sourceBytes) {
         loadedValue = false
         checksumValue = 0
         for (var index = 0; index < fieldCountValue; index = index + 1) {
             fieldValues[index] = 0
             fieldSeen[index] = false
         }
-        sourceValue = File(path).readRange(0, g3ConfigMaximumBytes() + 1)
+        sourceValue = sourceBytes
         if (sourceValue.length <= 0 ||
             sourceValue.length > g3ConfigMaximumBytes()) {
             sourceValue = new Int[0]
@@ -472,6 +480,112 @@ class BoundedG3Config {
         }
         checksumValue = calculateChecksum()
         sourceValue = new Int[0]
+        loadedValue = checksumValue > 0
+        return loadedValue
+    }
+
+    Bool loadDefaults() {
+        loadedValue = false
+        checksumValue = 0
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            fieldValues[index] = 0
+            fieldSeen[index] = true
+        }
+        fieldValues[0] = 1
+        fieldValues[1] = 7
+        fieldValues[2] = 4
+        fieldValues[3] = 1
+        fieldValues[4] = 1
+        fieldValues[5] = 7
+        fieldValues[6] = 1
+        fieldValues[7] = 1
+        fieldValues[8] = 2
+        fieldValues[9] = 4
+        fieldValues[10] = 10
+        fieldValues[11] = 701
+        fieldValues[12] = 1
+        fieldValues[13] = 2
+        fieldValues[14] = 1002
+        fieldValues[15] = 10
+        fieldValues[16] = 1
+        fieldValues[17] = 3
+        fieldValues[18] = 5
+        fieldValues[19] = 0
+        fieldValues[20] = 7
+        fieldValues[21] = 1
+        fieldValues[22] = 1
+        fieldValues[23] = 1
+        fieldValues[24] = 1
+        fieldValues[25] = 897
+        fieldValues[26] = 77
+        fieldValues[27] = 4
+        fieldValues[28] = 3
+        fieldValues[29] = 25
+        fieldValues[30] = 30
+        fieldValues[31] = 100
+        fieldValues[32] = 3
+        fieldValues[33] = 0
+        fieldValues[34] = 3
+        fieldValues[35] = 1
+        fieldValues[36] = 20
+        fieldValues[37] = 7
+        fieldValues[38] = 3
+        fieldValues[39] = 0
+        fieldValues[40] = 3
+        fieldValues[41] = 1
+        fieldValues[42] = 20
+        fieldValues[43] = 10
+        fieldValues[44] = 1
+        fieldValues[45] = 4
+        fieldValues[46] = 1
+        fieldValues[47] = 2
+        fieldValues[48] = 1
+        fieldValues[49] = 3
+        fieldValues[50] = 40
+        fieldValues[51] = 1
+        fieldValues[52] = 20
+        fieldValues[53] = 0
+        fieldValues[54] = 6
+        fieldValues[55] = 0
+        fieldValues[56] = 0
+        fieldValues[57] = 20
+        fieldValues[58] = 1
+        fieldValues[59] = 2
+        fieldValues[60] = 0
+        fieldValues[61] = 1
+        fieldValues[62] = 11
+        fieldValues[63] = 1
+        fieldValues[64] = 5
+        fieldValues[65] = 0
+        fieldValues[66] = 0
+        fieldValues[67] = 501
+        fieldValues[68] = 10
+        fieldValues[69] = 1
+        fieldValues[70] = 10
+        fieldValues[71] = 1
+        fieldValues[72] = 1
+        fieldValues[73] = 30
+        fieldValues[74] = 2
+        fieldValues[75] = 100
+        fieldValues[76] = 0
+        fieldValues[77] = 40
+        fieldValues[78] = 20
+        fieldValues[79] = 3
+        fieldValues[80] = 0
+        fieldValues[81] = 0
+        fieldValues[82] = 0
+        fieldValues[83] = 0
+        fieldValues[84] = 0
+        fieldValues[85] = 0
+        fieldValues[86] = 10
+        fieldValues[87] = 2
+        fieldValues[88] = 8
+        fieldValues[89] = 4
+        fieldValues[90] = 100
+        fieldValues[91] = 20
+        fieldValues[92] = 2
+        if (!validate()) { return false }
+        checksumValue = calculateChecksum()
         loadedValue = checksumValue > 0
         return loadedValue
     }

@@ -1,0 +1,28 @@
+package content
+
+// Native PE presentation does not load editable package files.
+class BoundedContentPackageFileStore {
+    Int payloadCapacityValue
+
+    public constructor(
+        Int assetCapacity, Int dependencyCapacity,
+        Int chunkCapacity, Int payloadCapacity
+    ) {
+        payloadCapacityValue = payloadCapacity
+    }
+
+    Int payloadCapacity() { return payloadCapacityValue }
+
+    Bool read(String path, BoundedContentPackage target) { return false }
+
+    Bool write(
+        String filePath,
+        BoundedContentPackage packageValue,
+        Int[] payload,
+        String[] logicalPaths
+    ) { return false }
+
+    Int[] chunkCopy(BoundedContentPackage packageValue, Int chunk) {
+        return new Int[0]
+    }
+}

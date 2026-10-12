@@ -39,7 +39,7 @@ cleanup() {
   rm -rf -- "$WORK_DIR"
 }
 trap cleanup EXIT INT TERM
-mkdir -p "$SOURCE_DIR"/{core,content,session,build} "$EVIDENCE_DIR"
+mkdir -p "$SOURCE_DIR"/{core,content,session,ui,build} "$EVIDENCE_DIR"
 for source_file in "$ROOT_DIR/src/core/"*.kf; do
   ln -s "$source_file" "$SOURCE_DIR/core/$(basename "$source_file")"
 done
@@ -48,6 +48,9 @@ for source_file in "$ROOT_DIR/src/content/"*.kf; do
 done
 for source_file in "$ROOT_DIR/src/session/"*.kf; do
   ln -s "$source_file" "$SOURCE_DIR/session/$(basename "$source_file")"
+done
+for source_file in "$ROOT_DIR/src/ui/"*.kf; do
+  ln -s "$source_file" "$SOURCE_DIR/ui/$(basename "$source_file")"
 done
 cp -- "$ROOT_DIR/probes/g5_reference_renderer/main.kf" "$SOURCE_DIR/main.kf"
 

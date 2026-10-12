@@ -135,7 +135,9 @@ class G1HeadlessPresentation {
     Int hudCapacity
 
     public constructor() {
-        scenario = G1Demo()
+        var g3Config = BoundedG3Config()
+        g3Config.loadDefaults()
+        scenario = G1Demo(g3Config)
         arena = scenario.authoredArena()
         hud = scenario.shooterHud()
         camera = CameraState(-450, 450)

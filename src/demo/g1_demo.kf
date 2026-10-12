@@ -20,9 +20,9 @@ class G1Demo {
     Int worldChecksumValue
     Int hudChecksumValue
 
-    public constructor() {
-        g3Config = BoundedG3Config()
-        g3ConfigLoadedValue = g3Config.load("config/g3/demo.json")
+    public constructor(BoundedG3Config nextConfig) {
+        g3Config = nextConfig
+        g3ConfigLoadedValue = g3Config.loaded()
         loopback = LoopbackSession(
             g3Config.value("sessionEnemyCapacity"),
             g3Config.value("sessionPlayerCapacity"))

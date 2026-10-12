@@ -1,0 +1,198 @@
+package core
+class BoundedDurableSaveFileCodec {
+    Int sectionCapacityValue
+    Int payloadCapacityValue
+    Int maxWireLengthValue
+    Int maxFileByteLengthValue
+    Int[] fileBytes
+    Int fileByteLengthValue
+    Int[] firstWire
+    Int[] secondWire
+    Int[] decodedWire
+    Int decodedWireLengthValue
+    BoundedSaveSchemaWireCodec validator
+
+    public constructor(Int nextSectionCapacity, Int nextPayloadCapacity) {
+        sectionCapacityValue = nextSectionCapacity
+        if (sectionCapacityValue < 1) { sectionCapacityValue = 1 }
+        if (sectionCapacityValue > 12) { sectionCapacityValue = 12 }
+        payloadCapacityValue = nextPayloadCapacity
+        if (payloadCapacityValue < 1) { payloadCapacityValue = 1 }
+        if (payloadCapacityValue > 160) { payloadCapacityValue = 160 }
+        maxWireLengthValue =
+            4 + sectionCapacityValue * (3 + payloadCapacityValue)
+        maxFileByteLengthValue =
+            (3 + (maxWireLengthValue + 2) * 2) * 6
+        fileBytes = new Int[maxFileByteLengthValue]
+        firstWire = new Int[maxWireLengthValue]
+        secondWire = new Int[maxWireLengthValue]
+        decodedWire = new Int[maxWireLengthValue]
+        validator = BoundedSaveSchemaWireCodec(
+            sectionCapacityValue, payloadCapacityValue)
+        fileByteLengthValue = 0
+        decodedWireLengthValue = 0
+    }
+
+    Int checksum(BoundedSaveSchemaWireCodec wire, Int length) {
+        var checksum = (
+            1 + wire.encodedWord(1) * 31 + wire.encodedWord(2) * 17
+        ) % 1000003
+        for (var index = 0; index < length; index = index + 1) {
+            checksum = (
+                checksum + wire.encodedWord(index) + (index + 1) * 17
+            ) % 1000003
+        }
+        return checksum
+    }
+
+    Bool putFileWord(Int index, Int value) {
+        if (index < 0 ||
+            index >= maxFileByteLengthValue / 6 ||
+            value < 0) {
+            return false
+        }
+        var remaining = value
+        var offset = index * 6
+        for (var digit = 0; digit < 6; digit = digit + 1) {
+            fileBytes[offset + digit] = remaining % 64
+            remaining = remaining / 64
+        }
+        return remaining == 0
+    }
+
+    Bool encode(BoundedSaveSchemaWireCodec wire) {
+        fileByteLengthValue = 0
+        var length = wire.encodedLength()
+        if (length < 4 || length > maxWireLengthValue) { return false }
+        var slotWords = length + 2
+        var wordCount = 3 + slotWords * 2
+        if (wordCount * 6 > maxFileByteLengthValue) { return false }
+        var checksumValue = checksum(wire, length)
+        if (!putFileWord(0, 11773399) ||
+            !putFileWord(1, 2) ||
+            !putFileWord(2, slotWords)) {
+            return false
+        }
+        for (var copy = 0; copy < 2; copy = copy + 1) {
+            var start = 3 + copy * slotWords
+            if (!putFileWord(start, length) ||
+                !putFileWord(start + 1, checksumValue)) {
+                return false
+            }
+            for (var index = 0; index < length; index = index + 1) {
+                if (!putFileWord(
+                        start + 2 + index, wire.encodedWord(index))) {
+                    return false
+                }
+            }
+        }
+        fileByteLengthValue = wordCount * 6
+        return true
+    }
+
+    Int decodeWord(Int[] bytes, Int offset) {
+        if (offset < 0 || offset + 6 > bytes.length) { return -1 }
+        var decoded = 0
+        var multiplier = 1
+        for (var digit = 0; digit < 6; digit = digit + 1) {
+            var value = bytes[offset + digit]
+            if (value < 0 || value >= 64 ||
+                (digit == 5 && value != 0)) {
+                return -1
+            }
+            decoded = decoded + value * multiplier
+            if (digit < 5) { multiplier = multiplier * 64 }
+        }
+        return decoded
+    }
+
+    Bool decodeSlot(
+        Int[] words, Int slotStart, Int slotWords, Int[] target
+    ) {
+        var length = slotWords - 2
+        if (slotStart < 3 || slotStart + slotWords > words.length ||
+            length < 4 || words[slotStart] != length) {
+            return false
+        }
+        var candidate = new Int[length]
+        for (var index = 0; index < length; index = index + 1) {
+            candidate[index] = words[slotStart + 2 + index]
+        }
+        if (candidate[0] != 99112233 ||
+            words[slotStart + 1] != checksumCandidate(candidate, length)) {
+            return false
+        }
+        var sections = BoundedSaveSections(
+            sectionCapacityValue, payloadCapacityValue)
+        if (!validator.decode(candidate, sections)) { return false }
+        for (var index = 0; index < length; index = index + 1) {
+            target[index] = candidate[index]
+        }
+        return true
+    }
+
+    Int checksumCandidate(Int[] wire, Int length) {
+        var checksum = (1 + wire[1] * 31 + wire[2] * 17) % 1000003
+        for (var index = 0; index < length; index = index + 1) {
+            checksum = (
+                checksum + wire[index] + (index + 1) * 17
+            ) % 1000003
+        }
+        return checksum
+    }
+
+    Bool decode(Int[] bytes, Int length) {
+        fileByteLengthValue = 0
+        decodedWireLengthValue = 0
+        if (length <= 0 || length > maxFileByteLengthValue ||
+            length % 6 != 0 || length != bytes.length) {
+            return false
+        }
+        var wordCount = length / 6
+        var words = new Int[wordCount]
+        for (var index = 0; index < wordCount; index = index + 1) {
+            var word = decodeWord(bytes, index * 6)
+            if (word < 0) { return false }
+            words[index] = word
+        }
+        if (wordCount < 3 || words[0] != 11773399 || words[1] != 2) {
+            return false
+        }
+        var slotWords = words[2]
+        if (slotWords < 6 ||
+            slotWords > maxWireLengthValue + 2 ||
+            wordCount != 3 + slotWords * 2) {
+            return false
+        }
+        var firstValid = decodeSlot(words, 3, slotWords, firstWire)
+        var secondValid = decodeSlot(
+            words, 3 + slotWords, slotWords, secondWire)
+        if (!firstValid && !secondValid) { return false }
+        var selected = secondWire
+        if (firstValid &&
+            (!secondValid || secondWire[2] <= firstWire[2])) {
+            selected = firstWire
+        }
+        for (var index = 0; index < slotWords - 2; index = index + 1) {
+            decodedWire[index] = selected[index]
+        }
+        decodedWireLengthValue = slotWords - 2
+        fileByteLengthValue = length
+        return true
+    }
+
+    Int maximumFileByteCount() { return maxFileByteLengthValue }
+    Int fileByteCount() { return fileByteLengthValue }
+
+    Int fileByte(Int index) {
+        if (index < 0 || index >= fileByteLengthValue) { return -1 }
+        return fileBytes[index]
+    }
+
+    Int wireLength() { return decodedWireLengthValue }
+
+    Int wireWord(Int index) {
+        if (index < 0 || index >= decodedWireLengthValue) { return -1 }
+        return decodedWire[index]
+    }
+}
