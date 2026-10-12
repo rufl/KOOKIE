@@ -72,6 +72,9 @@ jobs:
           elif command -v pwsh.exe >/dev/null 2>&1; then
             pwsh.exe -NoProfile -NonInteractive -Command \
               '$ErrorActionPreference="Continue"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID; query user'
+          elif [[ -x /c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe ]]; then
+            /c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -NonInteractive -Command \
+              '$ErrorActionPreference="Continue"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID; query user'
           else
             printf '%s\n' 'PowerShell unavailable'
           fi
