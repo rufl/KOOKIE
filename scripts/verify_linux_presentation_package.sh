@@ -3,8 +3,6 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-: "${KOOKIE_KOF_ARCHIVE_SHA256:?set KOOKIE_KOF_ARCHIVE_SHA256 to the pinned Kof distribution digest}"
-: "${KOOKIE_KOF_SOURCE_COMMIT:?set KOOKIE_KOF_SOURCE_COMMIT to the pinned Kof source commit}"
 
 for command_name in cp find grep mkdir openssl python3 rm sha256sum tar; do
   command -v "$command_name" >/dev/null || {
@@ -45,6 +43,8 @@ if [[ -n "$PACKAGE_DIR" ]]; then
   RELEASE_DIR="$(cd "$PACKAGE_DIR" && pwd)"
   PACKAGE_NAME="${KOOKIE_PACKAGE_NAME:?set KOOKIE_PACKAGE_NAME with KOOKIE_PACKAGE_DIR}"
 else
+  : "${KOOKIE_KOF_ARCHIVE_SHA256:?set KOOKIE_KOF_ARCHIVE_SHA256 to the pinned Kof distribution digest}"
+  : "${KOOKIE_KOF_SOURCE_COMMIT:?set KOOKIE_KOF_SOURCE_COMMIT to the pinned Kof source commit}"
   SIGNING_KEY="${KOOKIE_SIGNING_KEY:-}"
   if [[ -z "$SIGNING_KEY" ]]; then
     SIGNING_KEY="$WORK_DIR/release-signing.pem"
