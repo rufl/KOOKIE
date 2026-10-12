@@ -36,10 +36,71 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  KOF_VERSION: 0.6.0
+  KOF_SOURCE_COMMIT: bb90986d065118e4f63978e8e6985256ff714203
   KOOKIE_KOF_SOURCE_COMMIT: bb90986d065118e4f63978e8e6985256ff714203
+  ZIG_VERSION: 0.17.0
+  ZIG_ARCHIVE_SHA256: b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428
+  ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
 jobs:
+  toolchain:
+    name: Build pinned Kof archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout KOOKIE
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Checkout pinned Kof source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: KofLang/Kof4j
+          ref: ${{ env.KOF_SOURCE_COMMIT }}
+          path: _kof
+          persist-credentials: false
+      - name: Install Java runtime for Kof build
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: "27"
+      - name: Build pinned Kof distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/prepare_kof_source.sh _kof "$KOF_VERSION"
+          mvn -q -f _kof/pom.xml flatten:flatten \
+            -Drevision="$KOF_VERSION"
+          for pom_dir in _kof _kof/kof-compiler _kof/kof-cli \
+              _kof/kof-runtime _kof/kof-script _kof/kof-c-compiler; do
+            cp -- "$pom_dir/.flattened-pom.xml" "$pom_dir/pom.xml"
+          done
+          mvn -q -f _kof/pom.xml clean package \
+            -DskipTests -Drevision="$KOF_VERSION" \
+            -DcreateDependencyReducedPom=false
+          bash _kof/scripts/package.sh \
+            --output "$RUNNER_TEMP/kof-dist" --skip-build
+          archive="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          test -f "$archive"
+          artifact_dir="$RUNNER_TEMP/kookie-kof-artifact"
+          mkdir -p "$artifact_dir"
+          cp -- "$archive" "$artifact_dir/"
+          (
+            cd "$artifact_dir"
+            sha256sum "$(basename "$archive")" > SHA256SUMS
+            printf '%s\n' "$KOF_SOURCE_COMMIT" > SOURCE_COMMIT
+          )
+      - name: Upload pinned Kof archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: kookie-kof-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-kof-artifact
+          if-no-files-found: error
+          retention-days: 2
+
   linux:
     name: Linux x86-64 presentation package
+    needs: [toolchain]
     runs-on: [self-hosted, linux, x64, kookie-demo-release]
     timeout-minutes: 60
     steps:
@@ -47,6 +108,42 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Download pinned Kof archive
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: kookie-kof-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-kof
+      - name: Configure pinned Kof archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/kookie-kof/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          checksum_file="$RUNNER_TEMP/kookie-kof/SHA256SUMS"
+          source_file="$RUNNER_TEMP/kookie-kof/SOURCE_COMMIT"
+          test -f "$archive"
+          test -f "$checksum_file"
+          test -f "$source_file"
+          (
+            cd "$(dirname "$archive")"
+            sha256sum --check SHA256SUMS
+          )
+          [[ "$(tr -d '\r\n' <"$source_file")" == "$KOF_SOURCE_COMMIT" ]] || {
+            echo 'release_demo: Kof archive source metadata disagrees with workflow pin' >&2
+            exit 2
+          }
+          kof_root="$RUNNER_TEMP/kookie-kof/kof-${KOF_VERSION}-linux-x86_64"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/kookie-kof"
+          kof_bin="$kof_root/bin"
+          test -x "$kof_bin/kof"
+          printf '%s\n' "$kof_bin" >> "$GITHUB_PATH"
+          printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$archive" >> "$GITHUB_ENV"
+          printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' \
+            "$(cut -d ' ' -f 1 "$checksum_file")" >> "$GITHUB_ENV"
+          printf 'KOOKIE_KOF_SOURCE_COMMIT=%s\n' "$KOF_SOURCE_COMMIT" \
+            >> "$GITHUB_ENV"
+          export PATH="$kof_bin:$PATH"
+          [[ "$(kof version)" == "kof $KOF_VERSION" ]]
+
       - name: Configure pinned Linux SDL3 prefix
         shell: bash
         run: |
@@ -89,7 +186,6 @@ jobs:
         shell: bash
         env:
           KOOKIE_SIGNING_KEY_PEM: ${{ secrets.KOOKIE_SIGNING_KEY_PEM }}
-          KOOKIE_KOF_ARCHIVE_SHA256: ${{ secrets.KOOKIE_KOF_ARCHIVE_SHA256 }}
         run: |
           set -euo pipefail
           : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
@@ -176,6 +272,7 @@ jobs:
 
   windows:
     name: Windows x86-64 presentation package
+    needs: [toolchain]
     runs-on: [self-hosted, windows, x64, kookie-demo-release]
     timeout-minutes: 60
     steps:
@@ -183,6 +280,102 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Download pinned Kof archive
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: kookie-kof-${{ inputs.version }}
+          path: ${{ runner.temp }}/kookie-kof
+      - name: Configure pinned Windows release tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          runner_temp="$(cygpath -u "$RUNNER_TEMP")"
+          workspace="$(cygpath -u "$GITHUB_WORKSPACE")"
+          archive="$runner_temp/kookie-kof/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          checksum_file="$runner_temp/kookie-kof/SHA256SUMS"
+          source_file="$runner_temp/kookie-kof/SOURCE_COMMIT"
+          test -f "$archive"
+          test -f "$checksum_file"
+          test -f "$source_file"
+          (
+            cd "$(dirname "$archive")"
+            sha256sum --check SHA256SUMS
+          )
+          [[ "$(tr -d '\r\n' <"$source_file")" == "$KOF_SOURCE_COMMIT" ]] || {
+            echo 'release_demo: Kof archive source metadata disagrees with workflow pin' >&2
+            exit 2
+          }
+          kof_root="$runner_temp/kookie-kof/kof-${KOF_VERSION}-linux-x86_64"
+          tar -xzf "$archive" -C "$runner_temp/kookie-kof"
+          kof_bin="$kof_root/bin"
+          test -f "$kof_bin/kof"
+          printf '%s\n' "$kof_bin" >> "$GITHUB_PATH"
+          printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$archive" >> "$GITHUB_ENV"
+          printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' \
+            "$(cut -d ' ' -f 1 "$checksum_file")" >> "$GITHUB_ENV"
+          printf 'KOOKIE_KOF_SOURCE_COMMIT=%s\n' "$KOF_SOURCE_COMMIT" \
+            >> "$GITHUB_ENV"
+          export PATH="$kof_bin:$PATH"
+          [[ "$(kof version)" == "kof $KOF_VERSION" ]]
+
+          zig_archive="$runner_temp/zig-x86_64-windows-${ZIG_VERSION}.zip"
+          zig_install="$runner_temp/zig-x86_64-windows-${ZIG_VERSION}"
+          curl --fail --location --retry 3 --output "$zig_archive" \
+            "$ZIG_ARCHIVE_URL"
+          echo "$ZIG_ARCHIVE_SHA256  $zig_archive" | sha256sum --check -
+          rm -rf -- "$zig_install"
+          python3 - "$zig_archive" "$runner_temp" <<'PY'
+          import pathlib
+          import sys
+          import zipfile
+
+          archive = pathlib.Path(sys.argv[1])
+          destination = pathlib.Path(sys.argv[2]).resolve()
+          with zipfile.ZipFile(archive) as source:
+              for entry in source.infolist():
+                  target = (destination / entry.filename).resolve()
+                  if destination not in target.parents and target != destination:
+                      raise SystemExit(f"unsafe Zig archive entry: {entry.filename}")
+              source.extractall(destination)
+          PY
+          test -x "$zig_install/zig.exe"
+          printf '%s\n' "$zig_install" >> "$GITHUB_PATH"
+          export PATH="$zig_install:$PATH"
+          [[ "$(zig version)" == "$ZIG_VERSION" ]]
+
+          wrapper="$workspace/scripts/windows_isolated_display"
+          test -x "$wrapper"
+          printf '%s\n' "$workspace/scripts" >> "$GITHUB_PATH"
+          printf 'KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER=%s\n' \
+            "$wrapper" >> "$GITHUB_ENV"
+          if [[ "${{ inputs.run_windows_presentation_smoke }}" == true ]]; then
+            powershell_path=/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
+            gpu_json="$runner_temp/kookie-gpu.json"
+            "$powershell_path" -NoLogo -NoProfile -NonInteractive -Command \
+              '$ErrorActionPreference="Stop"; $gpu=Get-CimInstance Win32_VideoController | Where-Object { $_.PNPDeviceID -like "PCI*" } | Select-Object -First 1 Name,DriverVersion,PNPDeviceID; if ($null -eq $gpu) { throw "no PCI display adapter found" }; $gpu | ConvertTo-Json -Compress' \
+              >"$gpu_json"
+            mapfile -t gpu_identity < <(python3 - "$gpu_json" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          gpu = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+          for key in ("PNPDeviceID", "Name", "DriverVersion"):
+              value = gpu.get(key)
+              if not isinstance(value, str) or not value.strip():
+                  raise SystemExit(f"missing Windows GPU field: {key}")
+              print(value.replace("\r", " ").replace("\n", " ").strip())
+          PY
+            )
+            [[ "${#gpu_identity[@]}" == 3 ]]
+            printf 'KOOKIE_PRESENTATION_HARDWARE_ID=%s\n' "${gpu_identity[0]}" \
+              >> "$GITHUB_ENV"
+            printf 'KOOKIE_PRESENTATION_GPU_DRIVER=%s %s\n' \
+              "${gpu_identity[1]}" "${gpu_identity[2]}" >> "$GITHUB_ENV"
+            printf 'Windows presentation target: %s (%s)\n' \
+              "${gpu_identity[1]}" "${gpu_identity[2]}"
+          fi
+
       - name: Preflight Windows presentation capability
         if: ${{ inputs.run_windows_presentation_smoke || inputs.run_windows_wine_smoke }}
         shell: bash
@@ -214,7 +407,6 @@ jobs:
         shell: bash
         env:
           KOOKIE_SIGNING_KEY_PEM: ${{ secrets.KOOKIE_SIGNING_KEY_PEM }}
-          KOOKIE_KOF_ARCHIVE_SHA256: ${{ secrets.KOOKIE_KOF_ARCHIVE_SHA256 }}
         run: |
           set -euo pipefail
           : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
