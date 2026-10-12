@@ -234,9 +234,13 @@ printf 'KOOKIE Windows isolated desktop wrapper probe\n'
 printf 'KOOKIE_NATIVE_PACKAGE=%s\n' "$KOOKIE_NATIVE_PACKAGE"
 test -f "$KOOKIE_NATIVE_PACKAGE/kookie.exe"
 SH
+  wrapper_probe_command="$wrapper_probe"
+  if command -v cygpath >/dev/null; then
+    wrapper_probe_command="$(cygpath -w "$wrapper_probe")"
+  fi
   set +e
   "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    "$wrapper_probe" verify_windows_wrapper \
+    "$wrapper_probe_command" verify_windows_wrapper \
     >"$WORK_DIR/native-wrapper.log" 2>&1
   wrapper_status=$?
   set -e
@@ -251,9 +255,13 @@ SH
 cd "$KOOKIE_NATIVE_PACKAGE"
 exec ./kookie.exe
 SH
+  native_command_path="$native_command"
+  if command -v cygpath >/dev/null; then
+    native_command_path="$(cygpath -w "$native_command")"
+  fi
   set +e
   "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    "$native_command" verify_windows_native_presentation \
+    "$native_command_path" verify_windows_native_presentation \
     >"$WORK_DIR/native.log" 2>&1
   native_status=$?
   set -e
