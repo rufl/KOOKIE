@@ -221,6 +221,10 @@ if [[ "$TARGET" == linux-x86_64 ]]; then
     echo 'package_kookie: cc is required for the headless server adapter' >&2
     exit 2
   }
+  command -v strip >/dev/null || {
+    echo 'package_kookie: strip is required for deterministic Linux native binaries' >&2
+    exit 2
+  }
 fi
 command -v zig >/dev/null || {
   echo 'package_kookie: zig is required to build the cross-platform KOOKIE launcher' >&2
@@ -550,6 +554,9 @@ EOF
   fi
 }
 
+strip_linux_native_debug() {
+  strip --strip-debug "$1"
+}
 bundle_launcher
 
 bundle_linux_native() {
@@ -558,6 +565,7 @@ bundle_linux_native() {
   shift 2
   cp -- "$binary" "$PACKAGE_ROOT/kookie.bin"
   chmod 755 "$PACKAGE_ROOT/kookie.bin"
+  strip_linux_native_debug "$PACKAGE_ROOT/kookie.bin"
   if [[ "$presentation_package" == 1 ]]; then
     mkdir "$PACKAGE_ROOT/lib"
     local found_sdl=0
@@ -638,6 +646,7 @@ bundle_linux_server() {
   }
   cp -- "$server_binary" "$PACKAGE_ROOT/kookie-server.bin"
   chmod 755 "$PACKAGE_ROOT/kookie-server.bin"
+  strip_linux_native_debug "$PACKAGE_ROOT/kookie-server.bin"
   cp -- "$server_root/lib/libkookie_headless_adapter.so" \
     "$PACKAGE_ROOT/lib/libkookie_headless_adapter.so"
   cp -- "$server_root/lib/libkookie_persistence_adapter.so" \
@@ -678,6 +687,7 @@ bundle_linux_kooker() {
   }
   cp -- "$kooker_binary" "$PACKAGE_ROOT/kooker.bin"
   chmod 755 "$PACKAGE_ROOT/kooker.bin"
+  strip_linux_native_debug "$PACKAGE_ROOT/kooker.bin"
   cat > "$PACKAGE_ROOT/kooker" <<'EOF'
 #!/usr/bin/env sh
 set -eu
@@ -759,6 +769,7 @@ bundle_linux_simd_benchmark() {
   cp -- "$benchmark_root/lib/libkookie_simd_dispatch.so" \
     "$PACKAGE_ROOT/lib/libkookie_simd_dispatch.so"
   chmod 755 "$PACKAGE_ROOT/kookie-simd-bench.bin"
+  strip_linux_native_debug "$PACKAGE_ROOT/kookie-simd-bench.bin"
   cat > "$PACKAGE_ROOT/kookie-simd-bench" <<'EOF'
 #!/usr/bin/env sh
 set -eu
@@ -1054,6 +1065,7 @@ else
   }
   cp -- "$SMOKE_BINARY" "$PACKAGE_ROOT/kookie-smoke.bin"
   chmod 755 "$PACKAGE_ROOT/kookie-smoke.bin"
+  strip_linux_native_debug "$PACKAGE_ROOT/kookie-smoke.bin"
 fi
 if [[ "$TARGET" == linux-x86_64 ]]; then
   bundle_linux_server

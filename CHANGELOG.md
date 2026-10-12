@@ -3,6 +3,8 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Stripped Linux native debug sections during release packaging so temporary
+  compiler build paths cannot make the two deterministic package builds differ.
 - Upgraded the release and CI Kof gate to `0.6.0` source commit
   `bb90986d065118e4f63978e8e6985256ff714203`; the first corrected
   source-built Linux distribution in this qualification had SHA-256
