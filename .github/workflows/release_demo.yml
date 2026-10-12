@@ -143,6 +143,21 @@ jobs:
             >> "$GITHUB_ENV"
           export PATH="$kof_bin:$PATH"
           [[ "$(kof version)" == "kof $KOF_VERSION" ]]
+      - name: Configure isolated Linux presentation wrapper
+        if: ${{ inputs.run_linux_presentation_smoke }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          wrapper="$GITHUB_WORKSPACE/scripts/linux_gamescope_isolated_display"
+          test -x "$wrapper"
+          command -v overzeer-isolated-display >/dev/null
+          command -v gamescope >/dev/null
+          printf '%s\n' "$GITHUB_WORKSPACE/scripts" >> "$GITHUB_PATH"
+          printf 'KOOKIE_PRESENTATION_ISOLATION_WRAPPER=%s\n' "$wrapper" \
+            >> "$GITHUB_ENV"
+          printf 'KOOKIE_PRESENTATION_DISPLAY_SERVER=%s\n' \
+            'gamescope-headless-xwayland' >> "$GITHUB_ENV"
+
 
       - name: Configure pinned Linux SDL3 prefix
         shell: bash

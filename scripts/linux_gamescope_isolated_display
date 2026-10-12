@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+sandbox_wrapper="${KOOKIE_LINUX_DISPLAY_SANDBOX:-overzeer-isolated-display}"
+command -v "$sandbox_wrapper" >/dev/null || {
+  echo "linux-gamescope-isolated-display: missing sandbox wrapper: $sandbox_wrapper" >&2
+  exit 1
+}
+command -v gamescope >/dev/null || {
+  echo 'linux-gamescope-isolated-display: gamescope is required' >&2
+  exit 1
+}
+export OVERZEER_DISPLAY_BACKEND=gamescope
+
+sandbox_args=()
+command_args=()
+while (($#)); do
+  if [[ "$1" == -- ]]; then
+    shift
+    command_args=("$@")
+    break
+  fi
+  sandbox_args+=("$1")
+  shift
+done
+
+((${#command_args[@]} > 0)) || {
+  echo 'linux-gamescope-isolated-display: missing command' >&2
+  exit 2
+}
+
+exec "$sandbox_wrapper" "${sandbox_args[@]}" -- \
+  gamescope \
+    --backend headless \
+    --expose-wayland \
+    --xwayland-count 1 \
+    --nested-width 1280 \
+    --nested-height 820 \
+    --output-width 1280 \
+    --output-height 820 \
+    -- \
+    "${command_args[@]}"
