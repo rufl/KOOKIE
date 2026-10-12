@@ -228,6 +228,18 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   export KOOKIE_PRESENTATION_EVIDENCE_JSON="$native_evidence_path"
   export KOOKIE_NATIVE_PACKAGE="$NATIVE_PACKAGE"
   unset SDL_AUDIODRIVER || true
+  set +e
+  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
+    -c 'printf "KOOKIE Windows isolated desktop runtime probe\n"' \
+    verify_windows_runtime_probe \
+    >"$WORK_DIR/native-wrapper-runtime.log" 2>&1
+  runtime_probe_status=$?
+  set -e
+  cat "$WORK_DIR/native-wrapper-runtime.log"
+  if [[ "$runtime_probe_status" != 0 ]]; then
+    echo "verify_windows_presentation: Windows isolated Bash runtime probe failed with status $runtime_probe_status" >&2
+    exit "$runtime_probe_status"
+  fi
   wrapper_probe="$WORK_DIR/native-wrapper-probe.sh"
   cat >"$wrapper_probe" <<'SH'
 printf 'KOOKIE Windows isolated desktop wrapper probe\n'
