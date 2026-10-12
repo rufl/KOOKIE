@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Fortalecemos o wrapper de desktop privado Windows para preferir o
+  `usr\bin\bash.exe` real do Git for Windows, passar comandos isolados por
+  scripts temporários com paths nativos e falhar cedo se o runtime Bash
+  isolado não iniciar.
 - A proveniência do release agora registra bytes dos runtimes SDL empacotados,
   archives SDL Windows fixados, os archives Zig Linux/Windows fixados e as
   identidades das ferramentas Java/GLSL/SPIR-V/DXC usadas no PE nativo; o
