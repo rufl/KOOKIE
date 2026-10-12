@@ -3,6 +3,15 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- A proveniência do release agora registra bytes dos runtimes SDL empacotados,
+  archives SDL Windows fixados e as identidades das ferramentas Java/GLSL/
+  SPIR-V/DXC usadas no PE nativo; o qualificador final verifica esses campos
+  e todas as assinaturas contra a chave pública confiável do release.
+- O gate Windows usa o package determinístico exato enviado como artifact,
+  vincula a evidência aos digests do archive e do manifesto e testa o wrapper
+  de desktop privado antes do smoke PE.
+- A publicação agora exige `source_commit` imutável; qualificação e publicação
+  não podem derivar silenciosamente para um `main` mais novo.
 - Atualizamos o gate de release e CI do Kof para o commit de fonte `0.6.0`
   `bb90986d065118e4f63978e8e6985256ff714203`; a primeira distribuição Linux
   corrigida construída a partir da fonte nesta qualificação teve SHA-256
@@ -40,6 +49,8 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O gate de apresentação Windows agora testa o desktop privado e o caminho do
   package extraído antes de iniciar o smoke GPU, tornando falhas do wrapper ou
   do caminho explícitas em vez de reportar somente o status do filho.
+- O gate Windows agora valida e apresenta o package exato emitido pela etapa de
+  build determinístico, em vez de recompilar um package de smoke não publicado.
 - Adicionamos wrappers revisados de apresentação: Gamescope headless isolado
   no Linux e desktop privado no Windows, com captura da identidade da GPU alvo
   e limpeza limitada da árvore de processos.

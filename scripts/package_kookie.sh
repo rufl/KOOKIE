@@ -34,6 +34,19 @@ WINDOWS_JAVA_ACTUAL_SHA256="not-bundled"
 KOOKIE_DXC="${KOOKIE_DXC:-}"
 WINDOWS_DXC_VERSION="not-bundled"
 SHADER_MANIFEST_SHA256="not-bundled"
+SDL3_ARCHIVE_SHA256="${KOOKIE_SDL3_ARCHIVE_SHA256:-not-pinned}"
+SDL3_MIXER_ARCHIVE_SHA256="${KOOKIE_SDL3_MIXER_ARCHIVE_SHA256:-not-pinned}"
+SDL3_RUNTIME_SHA256=not-bundled
+SDL3_MIXER_RUNTIME_SHA256=not-bundled
+JAVA_TOOL_VERSION=not-used
+JAVAC_TOOL_VERSION=not-used
+JAVA_TOOL_SHA256=not-used
+JAVAC_TOOL_SHA256=not-used
+GLSLC_TOOL_VERSION=not-used
+GLSLC_TOOL_SHA256=not-used
+SPIRV_VAL_TOOL_VERSION=not-used
+SPIRV_VAL_TOOL_SHA256=not-used
+DXC_TOOL_SHA256=not-used
 
 usage() {
   cat <<'EOF'
@@ -252,6 +265,19 @@ if [[ "$TARGET" == windows-x86_64 &&
     -f "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" &&
     -f "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" ]] || {
     echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_SDL_MIXER_PREFIX containing the SDL_mixer MinGW package' >&2
+    exit 2
+  }
+  [[ "$SDL3_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ &&
+    "$SDL3_MIXER_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || {
+    echo 'package_kookie: Windows SDL archive SHA-256 pins are required' >&2
+    exit 2
+  }
+  command -v java >/dev/null || {
+    echo 'package_kookie: java is required for Windows native PE packaging' >&2
+    exit 2
+  }
+  command -v javac >/dev/null || {
+    echo 'package_kookie: javac is required for Windows native PE packaging' >&2
     exit 2
   }
 fi
@@ -1142,6 +1168,49 @@ if [[ -f "$PACKAGE_ROOT/build/kookie_shader_manifest.json" ]]; then
     sha256sum "$PACKAGE_ROOT/build/kookie_shader_manifest.json" | cut -d ' ' -f 1
   )"
 fi
+if [[ "$RUNTIME" == presentation ]]; then
+  if [[ "$TARGET" == windows-x86_64 ]]; then
+    SDL3_RUNTIME_SHA256="$(sha256sum "$PACKAGE_ROOT/SDL3.dll" | cut -d ' ' -f 1)"
+    SDL3_MIXER_RUNTIME_SHA256="$(
+      sha256sum "$PACKAGE_ROOT/SDL3_mixer.dll" | cut -d ' ' -f 1
+    )"
+  else
+    sdl3_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
+      -name 'libSDL3.so*' -print -quit)"
+    sdl3_mixer_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
+      -name 'libSDL3_mixer.so*' -print -quit)"
+    [[ -n "$sdl3_runtime" && -n "$sdl3_mixer_runtime" ]] || {
+      echo 'package_kookie: bundled SDL runtime files are missing' >&2
+      exit 1
+    }
+    SDL3_RUNTIME_SHA256="$(sha256sum "$sdl3_runtime" | cut -d ' ' -f 1)"
+    SDL3_MIXER_RUNTIME_SHA256="$(
+      sha256sum "$sdl3_mixer_runtime" | cut -d ' ' -f 1
+    )"
+  fi
+fi
+if [[ "$TARGET" == windows-x86_64 &&
+      ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
+  JAVA_TOOL_VERSION="$(java --version 2>&1 | tr '\n' ' ')"
+  JAVAC_TOOL_VERSION="$(javac --version 2>&1 | tr '\n' ' ')"
+  JAVA_TOOL_SHA256="$(
+    sha256sum "$(readlink -f "$(command -v java)")" | cut -d ' ' -f 1
+  )"
+  JAVAC_TOOL_SHA256="$(
+    sha256sum "$(readlink -f "$(command -v javac)")" | cut -d ' ' -f 1
+  )"
+  GLSLC_TOOL_VERSION="$(glslc --version 2>&1 | tr '\n' ' ')"
+  GLSLC_TOOL_SHA256="$(
+    sha256sum "$(readlink -f "$(command -v glslc)")" | cut -d ' ' -f 1
+  )"
+  SPIRV_VAL_TOOL_VERSION="$(spirv-val --version 2>&1 | tr '\n' ' ')"
+  SPIRV_VAL_TOOL_SHA256="$(
+    sha256sum "$(readlink -f "$(command -v spirv-val)")" | cut -d ' ' -f 1
+  )"
+  DXC_TOOL_SHA256="$(
+    sha256sum "$(readlink -f "$KOOKIE_DXC")" | cut -d ' ' -f 1
+  )"
+fi
 PYTHON_VERSION="$(python3 --version 2>&1)"
 cat > "$PACKAGE_ROOT/PROVENANCE.txt" <<EOF
 application=kookie
@@ -1169,6 +1238,19 @@ windows_status=$WINDOWS_STATUS
 dependency_policy=$DEPENDENCY_POLICY
 sdl_version=$SDL_VERSION
 sdl_mixer_version=$SDL_MIXER_VERSION
+sdl3_archive_sha256=$SDL3_ARCHIVE_SHA256
+sdl_mixer_archive_sha256=$SDL3_MIXER_ARCHIVE_SHA256
+sdl3_runtime_sha256=$SDL3_RUNTIME_SHA256
+sdl_mixer_runtime_sha256=$SDL3_MIXER_RUNTIME_SHA256
+java_tool_version=$JAVA_TOOL_VERSION
+javac_tool_version=$JAVAC_TOOL_VERSION
+java_tool_sha256=$JAVA_TOOL_SHA256
+javac_tool_sha256=$JAVAC_TOOL_SHA256
+glslc_tool_version=$GLSLC_TOOL_VERSION
+glslc_tool_sha256=$GLSLC_TOOL_SHA256
+spirv_val_tool_version=$SPIRV_VAL_TOOL_VERSION
+spirv_val_tool_sha256=$SPIRV_VAL_TOOL_SHA256
+dxc_tool_sha256=$DXC_TOOL_SHA256
 runtime_dependencies=$RUNTIME_DEPENDENCIES
 windows_java_archive_sha256=$WINDOWS_JAVA_ACTUAL_SHA256
 windows_java_version=$WINDOWS_JAVA_VERSION
@@ -1247,7 +1329,14 @@ python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$WINDOWS_JAVA_VENDOR" "$WINDOWS_DXC_VERSION" "$PACKAGE_EPOCH" \
   "$CONTENT_PROFILE" "$PROTOTYPE_CONTENT_TREE_SHA256" \
   "$PROTOTYPE_CONTENT_ASSET_COUNT" "$PROTOTYPE_CONTENT_FILE_COUNT" \
-  "$PROTOTYPE_MODELS_POLICY" "$SHADER_MANIFEST_SHA256" <<'PY'
+  "$PROTOTYPE_MODELS_POLICY" "$SHADER_MANIFEST_SHA256" \
+  "$SDL3_ARCHIVE_SHA256" "$SDL3_MIXER_ARCHIVE_SHA256" \
+  "$SDL3_RUNTIME_SHA256" "$SDL3_MIXER_RUNTIME_SHA256" \
+  "$JAVA_TOOL_VERSION" "$JAVAC_TOOL_VERSION" \
+  "$JAVA_TOOL_SHA256" "$JAVAC_TOOL_SHA256" \
+  "$GLSLC_TOOL_VERSION" "$GLSLC_TOOL_SHA256" \
+  "$SPIRV_VAL_TOOL_VERSION" "$SPIRV_VAL_TOOL_SHA256" \
+  "$DXC_TOOL_SHA256" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
@@ -1259,8 +1348,12 @@ manifest_path = pathlib.Path(sys.argv[2])
     windows_dxc_version, source_date_epoch, content_profile,
     prototype_content_sha256, prototype_content_asset_count,
     prototype_content_file_count, prototype_models_policy,
-    shader_manifest_sha256
-) = sys.argv[3:28]
+    shader_manifest_sha256, sdl3_archive_sha256, sdl_mixer_archive_sha256,
+    sdl3_runtime_sha256, sdl_mixer_runtime_sha256, java_tool_version,
+    javac_tool_version, java_tool_sha256, javac_tool_sha256,
+    glslc_tool_version, glslc_tool_sha256, spirv_val_tool_version,
+    spirv_val_tool_sha256, dxc_tool_sha256
+) = sys.argv[3:41]
 encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
@@ -1283,6 +1376,19 @@ manifest = {
     "windows_java_vendor": windows_java_vendor,
     "windows_dxc_version": windows_dxc_version,
     "shader_manifest_sha256": shader_manifest_sha256,
+    "sdl3_archive_sha256": sdl3_archive_sha256,
+    "sdl_mixer_archive_sha256": sdl_mixer_archive_sha256,
+    "sdl3_runtime_sha256": sdl3_runtime_sha256,
+    "sdl_mixer_runtime_sha256": sdl_mixer_runtime_sha256,
+    "java_tool_version": java_tool_version,
+    "javac_tool_version": javac_tool_version,
+    "java_tool_sha256": java_tool_sha256,
+    "javac_tool_sha256": javac_tool_sha256,
+    "glslc_tool_version": glslc_tool_version,
+    "glslc_tool_sha256": glslc_tool_sha256,
+    "spirv_val_tool_version": spirv_val_tool_version,
+    "spirv_val_tool_sha256": spirv_val_tool_sha256,
+    "dxc_tool_sha256": dxc_tool_sha256,
     "windows_presentation": target == "windows-x86_64" and runtime == "presentation",
     "archive": archive.name,
     "size": archive.stat().st_size,

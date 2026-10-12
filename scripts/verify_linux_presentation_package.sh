@@ -170,6 +170,12 @@ print(value)
 PY
 )"
 export KOOKIE_PRESENTATION_SOURCE_COMMIT="$package_source_commit"
+export KOOKIE_PRESENTATION_PACKAGE_ARCHIVE_SHA256="$(
+  sha256sum "$ARCHIVE" | cut -d ' ' -f 1
+)"
+export KOOKIE_PRESENTATION_PACKAGE_MANIFEST_SHA256="$(
+  sha256sum "$MANIFEST" | cut -d ' ' -f 1
+)"
 
 PACKAGE_SMOKE_LOG="$WORK_DIR/package-smoke.log"
 PACKAGE_SMOKE_OUTPUT="$(

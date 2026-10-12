@@ -218,6 +218,8 @@ for every new candidate.
   machine, OS, wrapper, command, log hash and screenshot hash to `evidence.json`.
 - The generated `evidence.json` carries the exact package `source_commit`;
   `build_release_qualification.py` rejects evidence from another revision.
+- Evidence also records the exact package archive and manifest SHA-256 values;
+  the Windows native gate does not rebuild a different package for presentation.
 - `release_demo.yml` uploads the Linux evidence artifact when Linux smoke is
   enabled and the Windows evidence artifact when native Windows smoke is
   enabled. `run_windows_wine_smoke` remains package compatibility evidence only.
@@ -372,6 +374,8 @@ informational, not release authority.
   qualification; its approved `publish=true` path requires the
   `kookie-demo-release` environment approval and builds the Linux/Windows pair
   before publication.
+- A publish dispatch must pass the immutable `source_commit` from the
+  successful qualification run and use that commit as its workflow ref.
 - Self-hosted runners must carry `kookie-demo-release`, `linux`/`windows` and
   `x64` labels; `.github/actionlint.yaml` declares the custom label for local
   workflow linting.

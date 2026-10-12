@@ -7,6 +7,11 @@ on:
         description: "SemVer release version without a leading v"
         required: true
         type: string
+      source_commit:
+        description: "Immutable KOOKIE commit to qualify and publish; required when publish=true"
+        required: false
+        default: ""
+        type: string
       publish:
         description: "Publish the verified Linux/Windows pair after environment approval"
         required: true
@@ -57,6 +62,7 @@ jobs:
       - name: Checkout KOOKIE
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ inputs.source_commit || github.sha }}
           persist-credentials: false
       - name: Checkout pinned Kof source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -113,6 +119,7 @@ jobs:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ inputs.source_commit || github.sha }}
           persist-credentials: false
       - name: Download pinned Kof archive
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -301,12 +308,18 @@ jobs:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ inputs.source_commit || github.sha }}
           persist-credentials: false
       - name: Download pinned Kof archive
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: kookie-kof-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-kof
+      - name: Install Java runtime for Windows PE build
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6
+        with:
+          distribution: temurin
+          java-version: "27"
       - name: Configure pinned Windows release tools
         shell: bash
         run: |
@@ -402,6 +415,10 @@ jobs:
           printf 'KOOKIE_WINDOWS_SDL_PREFIX=%s\n' "$sdl_prefix" >> "$GITHUB_ENV"
           printf 'KOOKIE_WINDOWS_SDL_MIXER_PREFIX=%s\n' "$sdl_mixer_prefix" \
             >> "$GITHUB_ENV"
+          printf 'KOOKIE_SDL3_ARCHIVE_SHA256=%s\n' "$SDL3_ARCHIVE_SHA256" \
+            >> "$GITHUB_ENV"
+          printf 'KOOKIE_SDL3_MIXER_ARCHIVE_SHA256=%s\n' \
+            "$SDL3_MIXER_ARCHIVE_SHA256" >> "$GITHUB_ENV"
 
 
           wrapper="$workspace/scripts/windows_isolated_display"
@@ -519,6 +536,9 @@ jobs:
       - name: Run Windows artifact gate
         shell: bash
         env:
+          DEMO_VERSION: ${{ inputs.version }}
+          KOOKIE_PACKAGE_DIR: ${{ runner.temp }}/kookie-demo-windows
+          KOOKIE_PACKAGE_NAME: kookie-${{ inputs.version }}-windows-x86_64
           KOOKIE_RUN_WINE: ${{ inputs.run_windows_wine_smoke && '1' || '0' }}
           KOOKIE_RUN_NATIVE_PRESENTATION: ${{ inputs.run_windows_presentation_smoke && '1' || '0' }}
           KOOKIE_PRESENTATION_EVIDENCE_DIR: ${{ runner.temp }}/kookie-d1-evidence-windows
@@ -559,6 +579,7 @@ jobs:
         env:
           RUN_LINUX_PRESENTATION_SMOKE: ${{ inputs.run_linux_presentation_smoke }}
           RUN_WINDOWS_PRESENTATION_SMOKE: ${{ inputs.run_windows_presentation_smoke }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: |
           set -euo pipefail
           [[ "$RUN_LINUX_PRESENTATION_SMOKE" == true ]] || {
@@ -569,11 +590,15 @@ jobs:
             echo 'release_demo: publish requires run_windows_presentation_smoke=true' >&2
             exit 2
           }
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'release_demo: publish requires source_commit as a 40-character lowercase commit SHA' >&2
+            exit 2
+          }
 
       - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.source_commit }}
           persist-credentials: false
 
       - name: Download Linux artifact set
@@ -605,6 +630,7 @@ jobs:
         env:
           KOOKIE_SIGNING_KEY_PEM: ${{ secrets.KOOKIE_SIGNING_KEY_PEM }}
           DEMO_VERSION: ${{ inputs.version }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: |
           set -euo pipefail
           : "${KOOKIE_SIGNING_KEY_PEM:?KOOKIE_SIGNING_KEY_PEM is required}"
@@ -623,8 +649,13 @@ jobs:
           signing_key="$RUNNER_TEMP/kookie-signing.pem"
           printf '%s\n' "$KOOKIE_SIGNING_KEY_PEM" >"$signing_key"
           chmod 600 "$signing_key"
+          trusted_public_key="$publish_dir/release-public-key.pem"
+          openssl pkey -in "$signing_key" -pubout -out "$trusted_public_key"
+          chmod 644 "$trusted_public_key"
           python3 scripts/build_release_qualification.py \
             "$publish_dir/RELEASE_QUALIFICATION.json" \
+            --trusted-public-key "$trusted_public_key" \
+            --expected-source-commit "$SOURCE_COMMIT" \
             --package-manifest "linux=$RUNNER_TEMP/kookie-demo-linux/kookie-${DEMO_VERSION}-linux-x86_64.json" \
             --package-manifest "windows=$RUNNER_TEMP/kookie-demo-windows/kookie-${DEMO_VERSION}-windows-x86_64.json" \
             --evidence "linux=$RUNNER_TEMP/kookie-d1-evidence-linux/evidence.json" \
@@ -641,14 +672,14 @@ jobs:
           (cd "$publish_dir" && sha256sum "${assets[@]}" > SHA256SUMS)
           openssl pkeyutl -sign -rawin -inkey "$signing_key" \
             -in "$publish_dir/SHA256SUMS" -out "$publish_dir/SHA256SUMS.sig"
-          public_key="$publish_dir/kookie-${DEMO_VERSION}-linux-x86_64.pub.pem"
+          public_key="$trusted_public_key"
           openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
             -in "$publish_dir/RELEASE_QUALIFICATION.json" \
             -sigfile "$publish_dir/RELEASE_QUALIFICATION.json.sig" >/dev/null
           openssl pkeyutl -verify -rawin -pubin -inkey "$public_key" \
             -in "$publish_dir/SHA256SUMS" \
             -sigfile "$publish_dir/SHA256SUMS.sig" >/dev/null
-          source_commit="$(git rev-parse HEAD)"
+          source_commit="$SOURCE_COMMIT"
           cat >"$RUNNER_TEMP/release-notes.md" <<EOF
           # KOOKIE $DEMO_VERSION
 
@@ -672,11 +703,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DEMO_VERSION: ${{ inputs.version }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
         run: |
           set -euo pipefail
           gh release create "$DEMO_VERSION" \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
+            --target "$SOURCE_COMMIT" \
             --prerelease \
             --title "KOOKIE $DEMO_VERSION" \
             --notes-file "$RUNNER_TEMP/release-notes.md"

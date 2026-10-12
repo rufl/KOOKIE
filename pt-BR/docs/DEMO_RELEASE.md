@@ -170,6 +170,8 @@ hardware-alvo são gates de release para cada candidato novo.
   máquina, SO, wrapper, comando, hash do log e hash da captura em `evidence.json`.
 - O `evidence.json` gerado carrega o `source_commit` exato do pacote;
   `build_release_qualification.py` rejeita evidência de outra revisão.
+- A evidência também registra os SHA-256 exatos do archive e do manifesto do
+  package; o gate nativo Windows não recompila outro package para apresentação.
 - `release_demo.yml` envia o artefato de evidência Linux quando o smoke Linux
   está habilitado e o artefato Windows quando o smoke nativo Windows está
   habilitado. `run_windows_wine_smoke` continua sendo apenas evidência de
@@ -331,6 +333,8 @@ informativos, não autoridade de release.
 - Execute `.github/workflows/release_demo.yml` com `publish=false` para
   qualificações futuras; o caminho aprovado `publish=true` exige aprovação do
   ambiente `kookie-demo-release` antes de publicar o par Linux/Windows.
+- Um dispatch de publicação deve passar o `source_commit` imutável da
+  qualificação aprovada e usar esse commit como ref do workflow.
 - Runners self-hosted precisam dos labels `kookie-demo-release`, `linux`/`windows`
   e `x64`; `.github/actionlint.yaml` declara o label customizado para lint local.
 - A publicação não substitui evidência nativa do hardware-alvo. Anexe os

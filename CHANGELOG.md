@@ -3,6 +3,15 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Release provenance now records bundled SDL runtime bytes, pinned Windows SDL
+  archives, and the Java/GLSL/SPIR-V/DXC tool identities used for native PE
+  packaging; the final qualifier verifies those fields and all package
+  signatures against the trusted release public key.
+- The Windows presentation gate now consumes the exact uploaded deterministic
+  package, binds evidence to its archive and manifest digests, and probes the
+  private desktop wrapper before the PE smoke.
+- Publication now requires an explicit immutable `source_commit`; the
+  qualification and publish runs cannot silently drift to a newer `main`.
 - Stripped Linux native debug sections during release packaging so temporary
   compiler build paths cannot make the two deterministic package builds differ.
 - Upgraded the release and CI Kof gate to `0.6.0` source commit
@@ -41,6 +50,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The Windows presentation gate now probes the private desktop and extracted
   package path before launching the GPU smoke, making wrapper/path failures
   explicit instead of reporting only the child exit status.
+- The Windows gate now validates and presents the exact package emitted by the
+  deterministic build step instead of rebuilding an unuploaded smoke package.
 - Added reviewed Linux Gamescope headless and Windows private-desktop
   presentation wrappers, including target GPU identity capture and bounded
   process cleanup.

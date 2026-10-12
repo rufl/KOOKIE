@@ -193,29 +193,32 @@ gh workflow run release_demo.yml \
   -f run_windows_presentation_smoke=true
 ```
 
-Inspect the run:
+Inspect the run and retain its immutable source commit:
 
 ```bash
-gh run watch "$(gh run list \
+QUALIFICATION_RUN="$(gh run list \
   --repo rufl/KOOKIE \
   --workflow release_demo.yml \
   --limit 1 \
   --json databaseId \
-  --jq '.[0].databaseId')" \
-  --repo rufl/KOOKIE
+  --jq '.[0].databaseId')"
+gh run watch "$QUALIFICATION_RUN" --repo rufl/KOOKIE
+SOURCE_COMMIT="$(gh run view "$QUALIFICATION_RUN" \
+  --repo rufl/KOOKIE --json headSha --jq .headSha)"
 ```
 
 After the qualification run succeeds with `releaseEligible=true`, dispatch the
-same candidate with `publish=true`. This second run rebuilds both artifacts,
-generates and signs its own final `RELEASE_QUALIFICATION.json`, then pauses at
-the environment approval before creating the public prerelease:
+same immutable source commit with `publish=true`. The publish workflow checks
+out `SOURCE_COMMIT`, rebuilds both artifacts from it, generates and signs its
+own final `RELEASE_QUALIFICATION.json`, then pauses at the environment approval
+before creating the public prerelease:
 
 ```bash
-RELEASE_VERSION=0.1.0-demo.N
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
-  --ref main \
+  --ref "$SOURCE_COMMIT" \
   -f version="$RELEASE_VERSION" \
+  -f source_commit="$SOURCE_COMMIT" \
   -f publish=true \
   -f run_linux_presentation_smoke=true \
   -f run_windows_wine_smoke=false \

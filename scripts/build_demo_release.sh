@@ -256,8 +256,12 @@ content_profile=none
 artifact_status=deterministic-signed-clean-tree
 hardware_presentation_status=not-run-by-builder
 EOF
+trusted_public_key="$WORK_DIR/release-public-key.pem"
+openssl pkey -in "$KOOKIE_SIGNING_KEY" -pubout -out "$trusted_public_key" >/dev/null
+chmod 644 "$trusted_public_key"
 python3 "$ROOT_DIR/scripts/build_release_qualification.py" \
   "$OUTPUT_DIR/QUALIFICATION_MANIFEST.json" \
+  --trusted-public-key "$trusted_public_key" \
   --package-manifest "$TARGET=$MANIFEST"
 
 

@@ -7,7 +7,7 @@ import re
 import sys
 from pathlib import Path
 
-SOURCE_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
+DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 
 def fail(message: str) -> int:
@@ -79,13 +79,21 @@ def main() -> int:
         return fail(f"missing adapter log: {log_path}")
     log_bytes = log_path.read_bytes()
     log = log_bytes.decode("utf-8", errors="replace")
-    hardware_id = os.environ.get("KOOKIE_PRESENTATION_HARDWARE_ID", "").strip()
-    gpu_driver = os.environ.get("KOOKIE_PRESENTATION_GPU_DRIVER", "").strip()
-    if require_hardware_metadata and (not hardware_id or not gpu_driver):
-        return fail(
-            "hardware evidence requires KOOKIE_PRESENTATION_HARDWARE_ID and "
-            "KOOKIE_PRESENTATION_GPU_DRIVER"
-        )
+    package_archive_sha = os.environ.get(
+        "KOOKIE_PRESENTATION_PACKAGE_ARCHIVE_SHA256", "").strip()
+    package_manifest_sha = os.environ.get(
+        "KOOKIE_PRESENTATION_PACKAGE_MANIFEST_SHA256", "").strip()
+    if require_hardware_metadata:
+        if DIGEST_PATTERN.fullmatch(package_archive_sha) is None:
+            return fail(
+                "hardware evidence requires the package archive SHA-256")
+        if DIGEST_PATTERN.fullmatch(package_manifest_sha) is None:
+            return fail(
+                "hardware evidence requires the package manifest SHA-256")
+    elif package_archive_sha and DIGEST_PATTERN.fullmatch(package_archive_sha) is None:
+        return fail("package archive SHA-256 is invalid")
+    elif package_manifest_sha and DIGEST_PATTERN.fullmatch(package_manifest_sha) is None:
+        return fail("package manifest SHA-256 is invalid")
     source_commit = os.environ.get(
         "KOOKIE_PRESENTATION_SOURCE_COMMIT", "").strip()
     if source_commit and SOURCE_COMMIT_PATTERN.fullmatch(source_commit) is None:
@@ -149,6 +157,8 @@ def main() -> int:
             "",
         ),
         "command": os.environ.get("KOOKIE_PRESENTATION_COMMAND", ""),
+        "packageArchiveSha256": package_archive_sha,
+        "packageManifestSha256": package_manifest_sha,
         "adapterLog": log_path.name,
         "adapterLogSha256": hashlib.sha256(log_bytes).hexdigest(),
         "screenshot": ppm_path.name,

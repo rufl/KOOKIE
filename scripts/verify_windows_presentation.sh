@@ -29,45 +29,62 @@ cleanup() {
   rm -rf -- "$WORK_DIR"
 }
 trap cleanup EXIT INT TERM
-SIGNING_KEY="$WORK_DIR/release-signing.pem"
-openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
-chmod 600 "$SIGNING_KEY"
-export KOOKIE_SIGNING_KEY="$SIGNING_KEY"
-export KOOKIE_ALLOW_DIRTY_PACKAGE=1
+PACKAGE_DIR="${KOOKIE_PACKAGE_DIR:-}"
+if [[ -n "$PACKAGE_DIR" ]]; then
+  [[ -d "$PACKAGE_DIR" ]] || {
+    echo 'verify_windows_presentation: KOOKIE_PACKAGE_DIR is not a directory' >&2
+    exit 2
+  }
+  RELEASE_DIR="$(cd "$PACKAGE_DIR" && pwd)"
+  PACKAGE_NAME="${KOOKIE_PACKAGE_NAME:?set KOOKIE_PACKAGE_NAME with KOOKIE_PACKAGE_DIR}"
+  EXPECTED_SOURCE_DATE_EPOCH=""
+else
+  SIGNING_KEY="$WORK_DIR/release-signing.pem"
+  openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
+  chmod 600 "$SIGNING_KEY"
+  export KOOKIE_SIGNING_KEY="$SIGNING_KEY"
+  export KOOKIE_ALLOW_DIRTY_PACKAGE=1
+  export KOOKIE_VERSION="${KOOKIE_VERSION:-0.1.0-windows-presentation-smoke}"
+  export KOOKIE_BUILD_ID="${KOOKIE_BUILD_ID:-windows-presentation-smoke}"
+  export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1704067200}"
+  for release in release-a release-b; do
+    "$ROOT_DIR/scripts/package_kookie.sh" --runtime presentation \
+      --target windows-x86_64 --output "$WORK_DIR/$release"
+  done
+  PACKAGE_NAME="kookie-$KOOKIE_VERSION-windows-x86_64"
+  RELEASE_DIR="$WORK_DIR/release-a"
+  EXPECTED_SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH"
+fi
 export KOOKIE_CONTENT_PROFILE=none
-export KOOKIE_VERSION="${KOOKIE_VERSION:-0.1.0-windows-presentation-smoke}"
-export KOOKIE_BUILD_ID="${KOOKIE_BUILD_ID:-windows-presentation-smoke}"
-export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1704067200}"
 
-for release in release-a release-b; do
-  "$ROOT_DIR/scripts/package_kookie.sh" --runtime presentation \
-    --target windows-x86_64 --output "$WORK_DIR/$release"
-done
-
-PACKAGE_NAME="kookie-$KOOKIE_VERSION-windows-x86_64"
 ARCHIVE_NAME="$PACKAGE_NAME.zip"
 for artifact in \
   "$ARCHIVE_NAME" "$ARCHIVE_NAME.sig" "$PACKAGE_NAME.json" \
   "$PACKAGE_NAME.json.sig" "$PACKAGE_NAME.pub.pem" SHA256SUMS SHA256SUMS.sig; do
-  cmp "$WORK_DIR/release-a/$artifact" "$WORK_DIR/release-b/$artifact"
+  [[ -f "$RELEASE_DIR/$artifact" ]] || {
+    echo "verify_windows_presentation: missing artifact $RELEASE_DIR/$artifact" >&2
+    exit 1
+  }
+  if [[ -z "$PACKAGE_DIR" ]]; then
+    cmp "$RELEASE_DIR/$artifact" "$WORK_DIR/release-b/$artifact"
+  fi
 done
 (
-  cd "$WORK_DIR/release-a"
+  cd "$RELEASE_DIR"
   sha256sum --check SHA256SUMS >/dev/null
 )
-PUBLIC_KEY="$WORK_DIR/release-a/$PACKAGE_NAME.pub.pem"
-ARCHIVE="$WORK_DIR/release-a/$ARCHIVE_NAME"
-MANIFEST="$WORK_DIR/release-a/$PACKAGE_NAME.json"
+PUBLIC_KEY="$RELEASE_DIR/$PACKAGE_NAME.pub.pem"
+ARCHIVE="$RELEASE_DIR/$ARCHIVE_NAME"
+MANIFEST="$RELEASE_DIR/$PACKAGE_NAME.json"
 openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
   -in "$ARCHIVE" -sigfile "$ARCHIVE.sig" >/dev/null
 openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
   -in "$MANIFEST" -sigfile "$MANIFEST.sig" >/dev/null
 openssl pkeyutl -verify -rawin -pubin -inkey "$PUBLIC_KEY" \
-  -in "$WORK_DIR/release-a/SHA256SUMS" \
-  -sigfile "$WORK_DIR/release-a/SHA256SUMS.sig" >/dev/null
+  -in "$RELEASE_DIR/SHA256SUMS" -sigfile "$RELEASE_DIR/SHA256SUMS.sig" >/dev/null
 
 EXTRACTED="$WORK_DIR/extracted"
-python3 - "$ARCHIVE" "$MANIFEST" "$EXTRACTED" "$SOURCE_DATE_EPOCH" <<'PY'
+python3 - "$ARCHIVE" "$MANIFEST" "$EXTRACTED" "$EXPECTED_SOURCE_DATE_EPOCH" <<'PY'
 import hashlib
 import json
 import pathlib
@@ -78,7 +95,7 @@ import zipfile
 archive_path = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
 destination = pathlib.Path(sys.argv[3])
-expected_epoch = int(sys.argv[4])
+expected_epoch = int(sys.argv[4]) if sys.argv[4] else None
 with zipfile.ZipFile(archive_path) as archive:
     for entry in archive.infolist():
         relative = pathlib.PurePosixPath(entry.filename)
@@ -95,7 +112,8 @@ assert manifest["windows_java_runtime"] is False
 assert manifest["windows_java_version"] == "not-bundled"
 assert manifest["content_profile"] == "none"
 assert manifest["windows_dxc_version"] != "not-bundled"
-assert manifest["source_date_epoch"] == expected_epoch
+if expected_epoch is not None:
+    assert manifest["source_date_epoch"] == expected_epoch
 assert manifest["sha256"] == hashlib.sha256(archive_path.read_bytes()).hexdigest()
 root = destination / archive_path.stem
 for relative in (
@@ -173,6 +191,12 @@ print(value)
 PY
 )"
 export KOOKIE_PRESENTATION_SOURCE_COMMIT="$package_source_commit"
+export KOOKIE_PRESENTATION_PACKAGE_ARCHIVE_SHA256="$(
+  sha256sum "$ARCHIVE" | cut -d ' ' -f 1
+)"
+export KOOKIE_PRESENTATION_PACKAGE_MANIFEST_SHA256="$(
+  sha256sum "$MANIFEST" | cut -d ' ' -f 1
+)"
 
 if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   : "${KOOKIE_PRESENTATION_HARDWARE_ID:?KOOKIE_RUN_NATIVE_PRESENTATION=1 requires KOOKIE_PRESENTATION_HARDWARE_ID}"
