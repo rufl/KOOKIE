@@ -186,7 +186,7 @@ RELEASE_VERSION=0.1.0-demo.N
 SOURCE_COMMIT="$(git rev-parse HEAD)"
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
-  --ref "$SOURCE_COMMIT" \
+  --ref main \
   -f version="$RELEASE_VERSION" \
   -f source_commit="$SOURCE_COMMIT" \
   -f publish=false \
@@ -218,7 +218,7 @@ before creating the public prerelease:
 ```bash
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
-  --ref "$SOURCE_COMMIT" \
+  --ref main \
   -f version="$RELEASE_VERSION" \
   -f source_commit="$SOURCE_COMMIT" \
   -f publish=true \

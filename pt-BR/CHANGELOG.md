@@ -134,9 +134,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   environment `required_reviewers` em minúsculas do GitHub.
 - O bootstrap de release agora exige os smokes nativos Linux e Windows, e
   confirma que o `HEAD` local coincide com `main` remoto antes de despachar.
-- O bootstrap agora passa esse commit verificado como `ref` e
-  `source_commit` do workflow, mantendo qualificação e publicação na mesma
-  revisão imutável.
+- O bootstrap agora passa esse commit verificado como `source_commit`; todos os
+  checkouts dos packages usam uma revisão imutável, enquanto o ref do dispatch
+  seleciona apenas a definição do workflow.
 - A CI hospedada baixa o archive oficial do Zig 0.17.0 com SHA-256 fixado, sem
   depender da action baseada em Node20.
 - A documentação de operações passa todos os flags de qualificação e smoke

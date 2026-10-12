@@ -375,7 +375,8 @@ informational, not release authority.
   `kookie-demo-release` environment approval and builds the Linux/Windows pair
   before publication.
 - A publish dispatch must pass the immutable `source_commit` from the
-  successful qualification run and use that commit as its workflow ref.
+  successful qualification run; all package checkouts use that commit even
+  though the dispatch ref selects the workflow definition.
 - Self-hosted runners must carry `kookie-demo-release`, `linux`/`windows` and
   `x64` labels; `.github/actionlint.yaml` declares the custom label for local
   workflow linting.

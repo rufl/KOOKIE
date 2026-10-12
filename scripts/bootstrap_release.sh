@@ -217,7 +217,7 @@ run_workflow() {
 
   gh workflow run release_demo.yml \
     --repo "$REPO" \
-    --ref "$head_sha" \
+    --ref main \
     -f "version=$VERSION" \
     -f "source_commit=$head_sha" \
     -f "publish=$publish" \

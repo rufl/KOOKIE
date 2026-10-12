@@ -334,7 +334,8 @@ informativos, não autoridade de release.
   qualificações futuras; o caminho aprovado `publish=true` exige aprovação do
   ambiente `kookie-demo-release` antes de publicar o par Linux/Windows.
 - Um dispatch de publicação deve passar o `source_commit` imutável da
-  qualificação aprovada e usar esse commit como ref do workflow.
+  qualificação aprovada; todos os checkouts dos packages usam esse commit,
+  enquanto o ref do dispatch apenas seleciona a definição do workflow.
 - Runners self-hosted precisam dos labels `kookie-demo-release`, `linux`/`windows`
   e `x64`; `.github/actionlint.yaml` declara o label customizado para lint local.
 - A publicação não substitui evidência nativa do hardware-alvo. Anexe os
