@@ -212,12 +212,13 @@ public static class KookieWindowsIsolatedDesktop
         return result.ToString();
     }
 
-    private static string BuildCommandLine(string executable, string[] arguments)
+    private static string BuildCommandLine(string[] arguments)
     {
-        var commandLine = new StringBuilder(QuoteArgument(executable));
+        var commandLine = new StringBuilder();
         foreach (var argument in arguments)
         {
-            commandLine.Append(' ');
+            if (commandLine.Length > 0)
+                commandLine.Append(' ');
             commandLine.Append(QuoteArgument(argument));
         }
         return commandLine.ToString();
@@ -264,7 +265,7 @@ public static class KookieWindowsIsolatedDesktop
             startup.hStdInput = GetStdHandle(-10);
             startup.hStdOutput = GetStdHandle(-11);
             startup.hStdError = GetStdHandle(-12);
-            var commandLine = new StringBuilder(BuildCommandLine(executable, arguments));
+            var commandLine = new StringBuilder(BuildCommandLine(arguments));
             ProcessInformation processInformation;
             if (!CreateProcess(
                     executable,
