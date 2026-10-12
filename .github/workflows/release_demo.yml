@@ -8,9 +8,8 @@ on:
         required: true
         type: string
       source_commit:
-        description: "Immutable KOOKIE commit to qualify and publish; required when publish=true"
-        required: false
-        default: ""
+        description: "Immutable KOOKIE commit to qualify and publish"
+        required: true
         type: string
       publish:
         description: "Publish the verified Linux/Windows pair after environment approval"
@@ -61,10 +60,20 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      - name: Validate immutable source commit
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'release_demo: source_commit must be a 40-character lowercase commit SHA' >&2
+            exit 2
+          }
       - name: Checkout KOOKIE
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.source_commit || github.sha }}
+          ref: ${{ inputs.source_commit }}
           persist-credentials: false
       - name: Checkout pinned Kof source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -121,7 +130,7 @@ jobs:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.source_commit || github.sha }}
+          ref: ${{ inputs.source_commit }}
           persist-credentials: false
       - name: Download pinned Kof archive
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -328,7 +337,7 @@ jobs:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.source_commit || github.sha }}
+          ref: ${{ inputs.source_commit }}
           persist-credentials: false
       - name: Download pinned Kof archive
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8

@@ -189,10 +189,12 @@ candidata:
 
 ```bash
 RELEASE_VERSION=0.1.0-demo.N
+SOURCE_COMMIT="$(git rev-parse HEAD)"
 gh workflow run release_demo.yml \
   --repo rufl/KOOKIE \
-  --ref main \
+  --ref "$SOURCE_COMMIT" \
   -f version="$RELEASE_VERSION" \
+  -f source_commit="$SOURCE_COMMIT" \
   -f publish=false \
   -f run_linux_presentation_smoke=true \
   -f run_windows_wine_smoke=false \
