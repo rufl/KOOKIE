@@ -338,10 +338,6 @@ try {
     if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
         throw 'Git Bash executable not found; set KOOKIE_WINDOWS_BASH'
     }
-    if ($env:KOOKIE_WINDOWS_ISOLATED_DEBUG -eq '1') {
-        $argumentText = ($childArguments | ForEach-Object { '[' + $_ + ']' }) -join ' '
-        [Console]::Error.WriteLine(('windows-isolated-display: bash={0} args={1}' -f $bashPath, $argumentText))
-    }
     $exitCode = [KookieWindowsIsolatedDesktop]::Run($bashPath, [string[]]$childArguments, $timeoutSeconds)
     exit $exitCode
 }
