@@ -32,8 +32,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   drenados antes das asserções de teclas sintéticas, a geometria do menu
   reserva capacidade GPU explicitamente e o smoke de release percorre o
   caminho real do menu principal até o Kutter.
-- Removemos o pré-requisito obsoleto de `cc` do preflight PE Windows; o
-  driver C fixado do Zig é o compilador usado no cross-build.
+- Removemos os pré-requisitos obsoletos de `cc` e `objcopy` do preflight PE
+  Windows; o driver C fixado do Zig gera o objeto sem debug e o executável
+  usados no cross-build.
 
 
 - Revalidamos o reproduzível de lifetime de exceções com Kof `0.6.0`: a

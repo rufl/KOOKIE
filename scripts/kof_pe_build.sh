@@ -46,14 +46,6 @@ for tool in cmp kof python3 zig readlink; do
     exit 2
   }
 done
-if command -v llvm-objcopy >/dev/null; then
-  objcopy_tool=llvm-objcopy
-elif command -v objcopy >/dev/null; then
-  objcopy_tool=objcopy
-else
-  echo 'kof-pe-build: llvm-objcopy or objcopy is required' >&2
-  exit 2
-fi
 actual_zig_version="$(zig version)"
 [[ "$actual_zig_version" == "$EXPECTED_ZIG_VERSION" ]] || {
   echo "kof-pe-build: expected Zig $EXPECTED_ZIG_VERSION; found $actual_zig_version" >&2
@@ -108,8 +100,6 @@ java -cp "$classes${java_classpath_separator}$kof_jar" dev.kof.compiler.KofPeBac
   cd "$work_dir"
   zig cc -target x86_64-windows-gnu -g0 -std=c11 -O2 \
     -Wall -Wextra -Werror -fno-ident -c kof-module.c -o kof-module.obj
-  "$objcopy_tool" --strip-debug kof-module.obj kof-module.stripped.obj
-  mv -- kof-module.stripped.obj kof-module.obj
   if [[ "$LIBRARY" == 0 ]]; then
     zig cc -target x86_64-windows-gnu -g0 -s -fno-ident \
       -Wl,--build-id=none kof-module.obj -o kof-module.exe
