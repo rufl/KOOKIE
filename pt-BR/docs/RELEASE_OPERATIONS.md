@@ -155,13 +155,17 @@ o backend X11 do SDL através do servidor Xwayland do Gamescope dentro dele. O
 workflow prepara o prefixo fixado do SDL_mixer quando a entrada `pkg-config`
 está ausente.
 
-O runner Windows também precisa dos prefixes MinGW SDL3/SDL_mixer,
-`KOOKIE_DXC`, Git Bash e Windows PowerShell 5. O workflow baixa e verifica o
-archive oficial Zig `0.17.0` para Windows com SHA-256
-`b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428` e usa o
-wrapper versionado `scripts/windows_isolated_display`. O smoke nativo Windows
-também registra a identidade PNP, o nome e a versão do driver do primeiro
-adaptador PCI de vídeo como evidência do hardware alvo.
+O runner Windows precisa de `KOOKIE_DXC`, Git Bash e Windows PowerShell 5; o
+workflow baixa e verifica, em cada release, os archives oficiais de
+desenvolvimento MinGW do SDL3 `3.4.18` (SHA-256
+`049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf`) e do
+SDL_mixer `3.2.4` (SHA-256
+`2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6`). Ele
+também baixa e verifica o archive oficial Zig `0.17.0` para Windows com
+SHA-256 `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428` e
+usa o wrapper versionado `scripts/windows_isolated_display`. O smoke nativo
+Windows também registra a identidade PNP, o nome e a versão do driver do
+primeiro adaptador PCI de vídeo como evidência do hardware alvo.
 
 Ambos os runners de apresentação nativa devem definir as variáveis não vazias
 `KOOKIE_PRESENTATION_HARDWARE_ID` e `KOOKIE_PRESENTATION_GPU_DRIVER`. Esses

@@ -42,6 +42,12 @@ env:
   ZIG_VERSION: 0.17.0
   ZIG_ARCHIVE_SHA256: b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428
   ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
+  SDL3_VERSION: 3.4.18
+  SDL3_ARCHIVE_URL: https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-devel-3.4.18-mingw.tar.gz
+  SDL3_ARCHIVE_SHA256: 049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf
+  SDL3_MIXER_VERSION: 3.2.4
+  SDL3_MIXER_ARCHIVE_URL: https://github.com/libsdl-org/SDL_mixer/releases/download/release-3.2.4/SDL3_mixer-devel-3.2.4-mingw.tar.gz
+  SDL3_MIXER_ARCHIVE_SHA256: 2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6
 jobs:
   toolchain:
     name: Build pinned Kof archive
@@ -358,6 +364,45 @@ jobs:
           printf '%s\n' "$zig_install" >> "$GITHUB_PATH"
           export PATH="$zig_install:$PATH"
           [[ "$(zig version)" == "$ZIG_VERSION" ]]
+          sdl_root="$runner_temp/kookie-sdl"
+          sdl_archive="$runner_temp/SDL3-devel-${SDL3_VERSION}-mingw.tar.gz"
+          sdl_mixer_archive="$runner_temp/SDL3_mixer-devel-${SDL3_MIXER_VERSION}-mingw.tar.gz"
+          curl --fail --location --retry 3 --output "$sdl_archive" \
+            "$SDL3_ARCHIVE_URL"
+          echo "$SDL3_ARCHIVE_SHA256  $sdl_archive" | sha256sum --check -
+          curl --fail --location --retry 3 --output "$sdl_mixer_archive" \
+            "$SDL3_MIXER_ARCHIVE_URL"
+          echo "$SDL3_MIXER_ARCHIVE_SHA256  $sdl_mixer_archive" | sha256sum --check -
+          rm -rf -- "$sdl_root"
+          mkdir -p "$sdl_root"
+          python3 - "$sdl_root" "$sdl_archive" "$sdl_mixer_archive" <<'PY'
+          import pathlib
+          import sys
+          import tarfile
+
+          destination = pathlib.Path(sys.argv[1]).resolve()
+          for archive_path in sys.argv[2:]:
+              with tarfile.open(archive_path, mode="r:gz") as archive:
+                  for entry in archive.getmembers():
+                      target = (destination / entry.name).resolve()
+                      if destination not in target.parents and target != destination:
+                          raise SystemExit(f"unsafe SDL archive entry: {entry.name}")
+                      if entry.issym() or entry.islnk():
+                          raise SystemExit(f"link in SDL archive is not allowed: {entry.name}")
+                  archive.extractall(destination)
+          PY
+          sdl_prefix="$sdl_root/SDL3-${SDL3_VERSION}/x86_64-w64-mingw32"
+          sdl_mixer_prefix="$sdl_root/SDL3_mixer-${SDL3_MIXER_VERSION}/x86_64-w64-mingw32"
+          test -f "$sdl_prefix/include/SDL3/SDL_version.h"
+          test -f "$sdl_prefix/lib/libSDL3.dll.a"
+          test -f "$sdl_prefix/bin/SDL3.dll"
+          test -f "$sdl_mixer_prefix/include/SDL3_mixer/SDL_mixer.h"
+          test -f "$sdl_mixer_prefix/lib/libSDL3_mixer.dll.a"
+          test -f "$sdl_mixer_prefix/bin/SDL3_mixer.dll"
+          printf 'KOOKIE_WINDOWS_SDL_PREFIX=%s\n' "$sdl_prefix" >> "$GITHUB_ENV"
+          printf 'KOOKIE_WINDOWS_SDL_MIXER_PREFIX=%s\n' "$sdl_mixer_prefix" \
+            >> "$GITHUB_ENV"
+
 
           wrapper="$workspace/scripts/windows_isolated_display"
           test -x "$wrapper"

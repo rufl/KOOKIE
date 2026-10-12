@@ -22,6 +22,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   readiness. Windows release setup pins the official Zig `0.17.0` archive at
   SHA-256
   `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428`.
+- Windows release setup now downloads the official MinGW SDL3 `3.4.18` and
+  SDL_mixer `3.2.4` development archives on every run and verifies their
+  SHA-256 pins before compiling, so a stale self-hosted SDL prefix cannot pass
+  the header gate.
 - Added reviewed Linux Gamescope headless and Windows private-desktop
   presentation wrappers, including target GPU identity capture and bounded
   process cleanup.

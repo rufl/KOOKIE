@@ -20,6 +20,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   readiness de release. A preparação Windows fixa o archive oficial Zig
   `0.17.0` no SHA-256
   `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428`.
+- A preparação Windows agora baixa os archives oficiais de desenvolvimento
+  MinGW do SDL3 `3.4.18` e do SDL_mixer `3.2.4` em cada execução e verifica
+  seus pins SHA-256 antes da compilação, impedindo que um prefixo SDL antigo do
+  runner self-hosted passe pelo gate de headers.
 - Adicionamos wrappers revisados de apresentação: Gamescope headless isolado
   no Linux e desktop privado no Windows, com captura da identidade da GPU alvo
   e limpeza limitada da árvore de processos.
