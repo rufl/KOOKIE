@@ -4,10 +4,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## Não lançado
 - A proveniência do release agora registra bytes dos runtimes SDL empacotados,
-  archives SDL Windows fixados, o archive Zig Windows fixado e as identidades
-  das ferramentas Java/GLSL/SPIR-V/DXC usadas no PE nativo; o qualificador
-  final verifica esses campos e todas as assinaturas contra a chave pública
-  confiável do release.
+  archives SDL Windows fixados, os archives Zig Linux/Windows fixados e as
+  identidades das ferramentas Java/GLSL/SPIR-V/DXC usadas no PE nativo; o
+  qualificador final verifica esses campos e todas as assinaturas contra a
+  chave pública confiável do release.
 - O gate Windows usa o package determinístico exato enviado como artifact,
   vincula a evidência aos digests do archive e do manifesto e testa o wrapper
   de desktop privado antes do smoke PE.

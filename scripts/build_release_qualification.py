@@ -31,6 +31,31 @@ def sha256(path: Path) -> str:
             digest.update(chunk)
     return digest.hexdigest()
 
+def public_key_sha256(path: Path, label: str) -> str:
+    try:
+        result = subprocess.run(
+            [
+                "openssl",
+                "pkey",
+                "-pubin",
+                "-in",
+                str(path),
+                "-pubout",
+                "-outform",
+                "DER",
+            ],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as error:
+        fail(f"cannot run openssl for {label}: {error}")
+    if result.returncode != 0:
+        detail = result.stderr.decode(errors="replace").strip()
+        suffix = f": {detail}" if detail else ""
+        fail(f"cannot derive {label} digest{suffix}")
+    return hashlib.sha256(result.stdout).hexdigest()
+
 
 def require_regular(path: Path, label: str) -> None:
     if path.is_symlink() or not path.is_file():
@@ -287,7 +312,7 @@ def validate_package(
         require_regular(candidate, f"{target} {label}")
     public_key_sha = validate_sha256(
         manifest["public_key_sha256"], f"{target} public key SHA-256")
-    if sha256(public_key_path) != public_key_sha:
+    if public_key_sha256(public_key_path, f"{target} package public key") != public_key_sha:
         fail(f"{target} public key digest mismatch")
     if public_key_sha != trusted_public_key_sha:
         fail(f"{target} package is signed by an untrusted public key")
@@ -476,7 +501,8 @@ def main() -> int:
     args = parser.parse_args()
     trusted_public_key = args.trusted_public_key.resolve()
     require_regular(trusted_public_key, "trusted release public key")
-    trusted_public_key_sha = sha256(trusted_public_key)
+    trusted_public_key_sha = public_key_sha256(
+        trusted_public_key, "trusted release public key")
 
     package_entries: dict[str, dict[str, Any]] = {}
     package_manifests: dict[str, dict[str, Any]] = {}

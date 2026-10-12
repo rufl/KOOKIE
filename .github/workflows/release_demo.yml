@@ -47,6 +47,8 @@ env:
   ZIG_VERSION: 0.17.0
   ZIG_ARCHIVE_SHA256: b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428
   ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
+  ZIG_LINUX_ARCHIVE_SHA256: 1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026
+  ZIG_LINUX_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
   SDL3_VERSION: 3.4.18
   SDL3_ARCHIVE_URL: https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-devel-3.4.18-mingw.tar.gz
   SDL3_ARCHIVE_SHA256: 049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf
@@ -156,6 +158,24 @@ jobs:
             >> "$GITHUB_ENV"
           export PATH="$kof_bin:$PATH"
           [[ "$(kof version)" == "kof $KOF_VERSION" ]]
+      - name: Install pinned Linux Zig toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+          install_dir="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}"
+          curl --fail --location --retry 3 --output "$archive" \
+            "$ZIG_LINUX_ARCHIVE_URL"
+          echo "$ZIG_LINUX_ARCHIVE_SHA256  $archive" | sha256sum --check -
+          rm -rf -- "$install_dir"
+          tar -xJf "$archive" -C "$RUNNER_TEMP"
+          test -x "$install_dir/zig"
+          printf '%s\n' "$install_dir" >> "$GITHUB_PATH"
+          printf 'KOOKIE_ZIG_VERSION=%s\n' "$ZIG_VERSION" >> "$GITHUB_ENV"
+          printf 'KOOKIE_ZIG_ARCHIVE_SHA256=%s\n' \
+            "$ZIG_LINUX_ARCHIVE_SHA256" >> "$GITHUB_ENV"
+          export PATH="$install_dir:$PATH"
+          [[ "$(zig version)" == "$ZIG_VERSION" ]]
       - name: Configure isolated Linux presentation wrapper
         if: ${{ inputs.run_linux_presentation_smoke }}
         shell: bash

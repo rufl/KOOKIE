@@ -4,9 +4,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 - Release provenance now records bundled SDL runtime bytes, pinned Windows SDL
-  archives, the pinned Windows Zig archive, and the Java/GLSL/SPIR-V/DXC tool
-  identities used for native PE packaging; the final qualifier verifies those
-  fields and all package signatures against the trusted release public key.
+  archives, and the pinned Linux/Windows Zig archives plus the Java/GLSL/
+  SPIR-V/DXC tool identities used for native PE packaging; the final qualifier
+  verifies those fields and all package signatures against the trusted release
+  public key.
 - The Windows presentation gate now consumes the exact uploaded deterministic
   package, binds evidence to its archive and manifest digests, and probes the
   private desktop wrapper before the PE smoke.
