@@ -29,6 +29,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The Windows presentation gate now executes the extracted PE's
   `--package-smoke` entry point before opening the isolated desktop, separating
   loader/runtime failures from graphics-presentation failures.
+- The Windows native smoke now passes its extracted package through an
+  inherited environment variable instead of a Git Bash path argument, avoiding
+  MSYS argument conversion before the private-desktop wrapper starts the PE.
 - Added reviewed Linux Gamescope headless and Windows private-desktop
   presentation wrappers, including target GPU identity capture and bounded
   process cleanup.

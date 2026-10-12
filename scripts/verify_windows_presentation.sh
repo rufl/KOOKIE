@@ -203,12 +203,13 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   export KOOKIE_SCREENSHOT_PATH="$native_screenshot_path"
   export KOOKIE_PRESENTATION_EVIDENCE_JSON="$native_evidence_path"
   export KOOKIE_PRESENTATION_COMMAND="package:$native_package_path/kookie.exe"
+  export KOOKIE_NATIVE_PACKAGE="$NATIVE_PACKAGE"
   unset SDL_AUDIODRIVER || true
   set +e
   "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- bash -c '
-    cd "$1"
+    cd "$KOOKIE_NATIVE_PACKAGE"
     exec ./kookie.exe
-  ' verify_windows_native_presentation "$NATIVE_PACKAGE" \
+  ' verify_windows_native_presentation \
     >"$WORK_DIR/native.log" 2>&1
   native_status=$?
   set -e

@@ -27,6 +27,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O gate de apresentação Windows agora executa o entrypoint `--package-smoke`
   do PE extraído antes de abrir o desktop isolado, separando falhas de
   carregador/runtime das falhas de apresentação gráfica.
+- O smoke nativo Windows agora passa o package extraído por uma variável de
+  ambiente herdada, em vez de um argumento de caminho do Git Bash, evitando a
+  conversão de argumentos do MSYS antes de o wrapper de desktop privado iniciar
+  o PE.
 - Adicionamos wrappers revisados de apresentação: Gamescope headless isolado
   no Linux e desktop privado no Windows, com captura da identidade da GPU alvo
   e limpeza limitada da árvore de processos.
