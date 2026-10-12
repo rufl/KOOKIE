@@ -90,7 +90,14 @@ outside-checkout, deterministic signed qualification artifacts:
   `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6`, and
   the qualification-only local Kof distribution SHA-256
   `111ab2abb44bf2dbedddacee054cb0afedcfc7e63d8f67c03fd53835d80a4230`.
-  The local archive is not a public Kof release identity.
+  The public Kof 0.5.0-beta Linux release asset
+  [`kof-0.5.0-beta-linux-x86_64.tar.gz`](https://github.com/KofLang/Kof4j/releases/download/kof-0.5.0-beta-linux-x86_64/kof-0.5.0-beta-linux-x86_64.tar.gz)
+  has SHA-256
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9` and
+  belongs to release commit `317d9f6b1c3e27032cc955a05f859f6c627d9338`.
+  It is not interchangeable with the active qualification source pin
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; the current packages therefore
+  retain the source-built qualification distribution above.
 - Linux isolated presentation failed closed with exit `124` because this host
   reports `No DRI3 support detected` and `No supported SDL_GPU backend found`.
   Windows Wine compatibility smoke failed closed with exit `70` for the same

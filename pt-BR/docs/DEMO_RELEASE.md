@@ -24,6 +24,45 @@ da apresentação no alvo: o Linux não possui
 `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, e o Windows não possui
 `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. Nenhuma evidência de hardware
 alvo foi produzida ou reivindicada.
+### Registro atual de qualificação local — 2026-10-12
+
+O commit de fonte `69b16d9312ebe6b86c34fda1f665ad1b8665558b` produziu os
+artefatos pareados de qualificação, determinísticos, assinados e verificados
+fora do checkout:
+
+- Linux `0.1.0-linux-e2e.3`: SHA-256 do arquivo
+  `d35443f514e7a21c3bfd1dadb170c76658944959de37b99084070a9908191cb1`;
+  SHA-256 do manifesto
+  `238e98a8704c9b295cac22a081332dca52852290199d4df1771731473afec1b8`;
+  extração, launcher, assinatura/checksum, shader e smoke do pacote passaram.
+- Windows `0.1.0-windows-e2e.3`: SHA-256 do arquivo
+  `c6d80779f960339752bfa8a5848b515f46827ddfc11a3e3cfd788e5e81dce7f6`;
+  SHA-256 do manifesto
+  `3654307e3b11836908eddaf4c3d56114b495097cf0a3ceee4d8bbe67c960e36c`;
+  PE `MZ`, extração, launcher, assinatura/checksum, SPIR-V/DXIL e qualificação
+  do pacote passaram.
+- Ambos os manifestos registram o commit de fonte Kof
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`, o SHA-256 do JAR do compilador
+  `6634e1bf80334cc2518c50f9d1a05e2da92ff318282775ba58a087891e2420a6` e o
+  SHA-256 da distribuição Kof local, usada apenas para qualificação:
+  `111ab2abb44bf2dbedddacee054cb0afedcfc7e63d8f67c03fd53835d80a4230`.
+- O arquivo público Linux do Kof 0.5.0-beta
+  [`kof-0.5.0-beta-linux-x86_64.tar.gz`](https://github.com/KofLang/Kof4j/releases/download/kof-0.5.0-beta-linux-x86_64/kof-0.5.0-beta-linux-x86_64.tar.gz)
+  tem SHA-256
+  `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9` e
+  pertence ao commit de release `317d9f6b1c3e27032cc955a05f859f6c627d9338`.
+  Ele não é intercambiável com a fonte ativa fixada em
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; por isso os pacotes atuais
+  mantêm a distribuição Kof construída a partir da fonte fixada.
+- A apresentação Linux isolada falhou fechado com exit `124` porque este host
+  informa `No DRI3 support detected` e `No supported SDL_GPU backend found`.
+  O smoke de compatibilidade Windows em Wine falhou fechado com exit `70` pelo
+  mesmo backend SDL_GPU ausente. A apresentação em hardware Windows nativo não
+  foi executada; nenhuma evidência de hardware é reivindicada.
+- O gate G5 autenticado de host e dois clientes passou. A amostra atual do
+  servidor dedicado mediu p95 de `6.9 ms` contra o orçamento declarado de
+  `4 ms`; ela não substitui a qualificação Linux x86-64 de timing/soak retida.
+
 
 A árvore de fontes atual possui estes caminhos aptos a release:
 
