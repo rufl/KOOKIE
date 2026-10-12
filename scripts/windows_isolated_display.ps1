@@ -212,13 +212,12 @@ public static class KookieWindowsIsolatedDesktop
         return result.ToString();
     }
 
-    private static string BuildCommandLine(string[] arguments)
+    private static string BuildCommandLine(string executable, string[] arguments)
     {
-        var commandLine = new StringBuilder();
+        var commandLine = new StringBuilder(QuoteArgument(executable));
         foreach (var argument in arguments)
         {
-            if (commandLine.Length > 0)
-                commandLine.Append(' ');
+            commandLine.Append(' ');
             commandLine.Append(QuoteArgument(argument));
         }
         return commandLine.ToString();
@@ -265,7 +264,7 @@ public static class KookieWindowsIsolatedDesktop
             startup.hStdInput = GetStdHandle(-10);
             startup.hStdOutput = GetStdHandle(-11);
             startup.hStdError = GetStdHandle(-12);
-            var commandLine = new StringBuilder(BuildCommandLine(arguments));
+            var commandLine = new StringBuilder(BuildCommandLine(executable, arguments));
             ProcessInformation processInformation;
             if (!CreateProcess(
                     executable,
@@ -331,7 +330,10 @@ public static class KookieWindowsIsolatedDesktop
 try {
     $bashPath = $env:KOOKIE_WINDOWS_BASH
     if ([string]::IsNullOrWhiteSpace($bashPath) -or -not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
-        $bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+        $bashPath = Join-Path $env:ProgramFiles 'Git\usr\bin\bash.exe'
+        if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
+            $bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+        }
     }
     if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
         throw 'Git Bash executable not found; set KOOKIE_WINDOWS_BASH'
