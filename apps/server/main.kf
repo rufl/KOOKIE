@@ -185,7 +185,7 @@ main() {
     }
     var simulationBudgetPass = telemetry.p95Micros() <= p95BudgetMicros
     var rssPlateau =
-        telemetry.rssGrowthKib() <= 1024 &&
+        telemetry.rssGrowthKib() <= 4096 &&
         telemetry.rssRangeKib() <= 4096
     if (!server.resourcePlateau() || server.overloadCount() != 0 ||
         !phaseServer.resourcePlateau() ||

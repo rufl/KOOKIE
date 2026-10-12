@@ -36,8 +36,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  KOOKIE_KOF_SOURCE_COMMIT: bf17ac7e736471c8a04b4153e5b0f607be75e70c
-
+  KOOKIE_KOF_SOURCE_COMMIT: bb90986d065118e4f63978e8e6985256ff714203
 jobs:
   linux:
     name: Linux x86-64 presentation package
@@ -116,7 +115,11 @@ jobs:
           printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$KOOKIE_KOF_ARCHIVE" >>"$GITHUB_ENV"
-          kof version
+          actual_kof_version="$(kof version)"
+          [[ "$actual_kof_version" == "$KOF_PIN_CLI_VERSION" ]] || {
+            printf 'release_demo: expected %s; found %s\n' "$KOF_PIN_CLI_VERSION" "$actual_kof_version" >&2
+            exit 2
+          }
           zig version
 
       - name: Prepare pinned SDL_mixer development prefix
@@ -240,7 +243,11 @@ jobs:
           printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$KOOKIE_KOF_ARCHIVE_SHA256" >>"$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$KOOKIE_KOF_ARCHIVE" >>"$GITHUB_ENV"
-          kof version
+          actual_kof_version="$(kof version)"
+          [[ "$actual_kof_version" == "$KOF_PIN_CLI_VERSION" ]] || {
+            printf 'release_demo: expected %s; found %s\n' "$KOF_PIN_CLI_VERSION" "$actual_kof_version" >&2
+            exit 2
+          }
           zig version
           "$KOOKIE_DXC" --version
 
@@ -394,7 +401,7 @@ jobs:
 
           Signed native presentation packages built from source commit
           \`$source_commit\` with Kof source commit
-          \`${KOOKIE_KOF_SOURCE_COMMIT:-bf17ac7e736471c8a04b4153e5b0f607be75e70c}\`.
+          \`${KOOKIE_KOF_SOURCE_COMMIT:-bb90986d065118e4f63978e8e6985256ff714203}\`.
 
           This bounded first demo contains local \`Play\`, fixed two-player
           \`Host/Join\`, explicit \`READY\` gating and the host-authoritative

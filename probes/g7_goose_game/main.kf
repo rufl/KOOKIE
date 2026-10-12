@@ -2,8 +2,6 @@ import core
 import session
 import ui
 
-extern "./lib/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
-extern "./lib/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
 LoopbackSession newGooseGame() {
     var game = LoopbackSession(16, 8)
     assert(game.configureEnemyRules(50, 35, 15),

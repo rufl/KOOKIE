@@ -3,6 +3,33 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Upgraded the release and CI Kof gate to `0.6.0` source commit
+  `bb90986d065118e4f63978e8e6985256ff714203`; the first corrected
+  source-built Linux distribution in this qualification had SHA-256
+  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`.
+  Its compiler JAR SHA-256 is
+  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`;
+  CI computes the archive digest per build because tar metadata is not stable.
+  The tagged public archive was rejected because its embedded CLI reports
+  `kof 0.5.0-beta` despite the `0.6.0` source version.
+- Revalidated the official Zig `0.17.0` archive pin at SHA-256
+  `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`.
+- Revalidated the exception-lifetime reproducer with Kof `0.6.0`: the
+  deliberately failing assertion now exits with status 1 on JVM and native;
+  the historical `0.5.0-beta` native false pass remains marked as historical.
+- Applied downstream Kof `0.6.0` native-GC patch
+  `scripts/kof-0.6.0-native-gc.patch`
+  (SHA-256 `641a2591690d4fbd569faf4771d550cd05320218eb7c0290f61957fc4097607e`).
+  It makes the already-marked-block path idempotent in both the linked-list and
+  bitmap mark paths; without it, repeated native `LoopbackSession` allocation
+  can loop in `kof_gc_mark_transitive`.
+- Added `scripts/kof-as/as`, selected by `scripts/kof_pin.sh`, to route Kof's
+  large native assembly through Clang's integrated assembler while delegating
+  unrelated assembler invocations to system `as`.
+- Raised the dedicated-server RSS plateau allowance to 4 MiB for Kof
+  `0.6.0`'s stable 2116 KiB native allocator baseline; the independent
+  resource plateau check remains enforced.
+
 - Fixed native CI camera regressions by explicitly initializing the zero slot
   of the Kof-owned sine lookup table; camera aim projection and crosshair ray
   selection now pass the full 120-test native suite. Tagged both regressions

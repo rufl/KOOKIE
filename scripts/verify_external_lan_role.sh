@@ -3,8 +3,8 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
+source "$root_dir/scripts/kof_pin.sh"
 source "$root_dir/scripts/sdl3_dependencies.sh"
-
 role="${KOOKIE_EXTERNAL_LAN_ROLE:-}"
 case "$role" in
   host|client-a|client-b) ;;

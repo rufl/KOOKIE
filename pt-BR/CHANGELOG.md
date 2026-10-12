@@ -3,6 +3,33 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Atualizamos o gate de release e CI do Kof para o commit de fonte `0.6.0`
+  `bb90986d065118e4f63978e8e6985256ff714203`; a primeira distribuição Linux
+  corrigida construída a partir da fonte nesta qualificação teve SHA-256
+  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`.
+  O SHA-256 do JAR do compilador é
+  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`;
+  a CI calcula o digest do archive por build porque os metadados tar não são
+  estáveis. O archive público marcado foi rejeitado porque sua CLI embutida
+  reporta `kof 0.5.0-beta` apesar da versão de fonte `0.6.0`.
+- Revalidamos a pinagem do archive oficial Zig `0.17.0` com SHA-256
+  `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`.
+- Revalidamos o reproduzível de lifetime de exceções com Kof `0.6.0`: a
+  asserção deliberadamente falha com status 1 na JVM e no native; o falso
+  sucesso histórico do native em `0.5.0-beta` continua marcado como histórico.
+- Aplicamos o patch downstream de GC native do Kof `0.6.0`,
+  `scripts/kof-0.6.0-native-gc.patch`
+  (SHA-256 `641a2591690d4fbd569faf4771d550cd05320218eb7c0290f61957fc4097607e`).
+  Ele torna idempotente o caminho de blocos já marcados nos caminhos de mark
+  por lista e bitmap; sem ele, alocações repetidas de `LoopbackSession` no
+  native podem entrar em loop em `kof_gc_mark_transitive`.
+- Adicionamos `scripts/kof-as/as`, selecionado por `scripts/kof_pin.sh`, para
+  encaminhar a assembly native grande do Kof ao assembler integrado do Clang,
+  delegando outras invocações de assembler ao `as` do sistema.
+- Elevamos a tolerância de plateau de RSS do servidor dedicado para 4 MiB
+  para a linha de base estável de 2116 KiB do allocator native do Kof
+  `0.6.0`; a verificação independente de plateau de recursos continua obrigatória.
+
 - Corrigimos as regressões nativas de camera no CI inicializando explicitamente
   o slot zero da tabela de seno pertencente ao Kof; a projeção da mira e a
   seleção do raio sob o crosshair agora passam a suíte nativa completa de 120

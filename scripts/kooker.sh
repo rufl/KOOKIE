@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 command -v kof >/dev/null || {
   echo 'kooker: kof is required' >&2
   exit 2

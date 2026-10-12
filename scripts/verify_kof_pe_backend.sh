@@ -3,6 +3,8 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
+export KOOKIE_KOF_SOURCE_COMMIT="${KOOKIE_KOF_SOURCE_COMMIT:-$KOF_PIN_SOURCE_COMMIT}"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-verify-kof-pe.XXXXXX")"
 WINE_WORK_DIR=''
 cleanup() {

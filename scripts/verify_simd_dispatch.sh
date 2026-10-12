@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
+source "$root/scripts/kof_pin.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 

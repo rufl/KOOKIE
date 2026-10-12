@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root_dir/scripts/kof_pin.sh"
 work_dir="$(mktemp -d -t kookie-interactions-XXXXXX)"
 trap 'rm -rf -- "$work_dir"' EXIT
 

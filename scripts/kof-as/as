@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Kof 0.6.0 invokes the host assembler as `as -o OBJECT FILE.s`. GNU as
+# takes more than an hour on KOOKIE's generated 28 MiB host modules here,
+# while Clang's integrated assembler handles the same syntax in under a second.
+if (($# == 3)) && [[ "$1" == "-o" ]]; then
+  command -v clang >/dev/null || {
+    echo 'kof-as: clang is required for Kof native assembly' >&2
+    exit 127
+  }
+  exec clang -c -x assembler "$3" -o "$2"
+fi
+
+# C/FFI builds may invoke `as` with target flags. Preserve those invocations
+# instead of making the repository shim a general-purpose assembler.
+real_as="${KOF_REAL_AS:-/usr/bin/as}"
+[[ -x "$real_as" ]] || {
+  echo "kof-as: system assembler is missing: $real_as" >&2
+  exit 127
+}
+exec "$real_as" "$@"

@@ -24,27 +24,28 @@ semantic sound-cue/queue adapter over the existing bounded `QueuedAudio`
 contract. It does not duplicate `kof.ui`, decode media, or create another
 renderer.
 
-## Upstream 0.5.0-beta ABI audit
+## Upstream 0.6.0 ABI audit
 
 The active KOOKIE qualification baseline is Kof4j source
-[`bf17ac7e`](https://github.com/KofLang/Kof4j/tree/bf17ac7e736471c8a04b4153e5b0f607be75e70c).
-The local CLI reports `kof 0.5.0-beta`.
+[`bb90986d`](https://github.com/KofLang/Kof4j/tree/bb90986d065118e4f63978e8e6985256ff714203).
+The local CLI reports `kof 0.6.0`.
 
 The pinned implementation and the latest upstream documentation are not
 identical:
 
-- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
+- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/bb90986d065118e4f63978e8e6985256ff714203/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
   exposes `buffer.alloc(Int)` and `Buffer.bytes()` on JVM, JS and native
   x86-64; its source comments also claim riscv64/aarch64 support.
-- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
+- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/bb90986d065118e4f63978e8e6985256ff714203/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
   lowers `Buffer(U8)` as the `B` token and a synchronous payload pointer on
   the pinned native implementation. `scripts/verify_simd_dispatch.sh`
   exercises copy-in/copy-back and an INOUT reduction on JVM and native
   x86-64.
-- The newer [`main` ABI docs`](https://github.com/KofLang/Kof4j/blob/317d9f6b1c3e27032cc955a05f859f6c627d9338/learn/stdlib/buffer.md)
-  still label Native as `FFI001`. Cross-target support is therefore an
+- The pinned upstream buffer guide still documents Native as an honest gap,
+  while the pinned compiler/runtime source exposes the bounded native
+  implementation used by KOOKIE. Cross-target support therefore remains an
   upstream source claim, not a KOOKIE qualification result.
-- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/bf17ac7e736471c8a04b4153e5b0f607be75e70c/docs/runtime/RUNTIME_ABI.md)
+- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/bb90986d065118e4f63978e8e6985256ff714203/docs/runtime/RUNTIME_ABI.md)
   is a behavioral runtime contract, not a stable public C wire ABI. KOOKIE
   must not copy object headers, array layouts or allocator details into an
   engine-facing library.

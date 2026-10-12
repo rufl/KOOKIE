@@ -120,7 +120,7 @@ host de pacote que mantenha o CSS em `assets/ui` e as fontes empacotadas em
 ```
 
 `KookieUiText` aplica família, altura de linha, tamanho, peso e cor ao mesmo
-handle de `Label`. O `Font` do Kof 0.5.0-beta registra metadados, mas não anexa
+handle de `Label`. O `Font` do Kof `0.6.0` registra metadados, mas não anexa
 a fonte CSS a um Label; esta fatia usa portanto o caminho de estilo suportado,
 sem alegar que uma atribuição isolada é renderizada.
 
@@ -243,7 +243,7 @@ de mídia, enquanto uma futura API upstream de playback precisa definir
 ownership, close, gain, loop, espacialização e falha por target antes desta
 fatia migrar para o Kof4j. Veja
 [`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) para a auditoria da ABI
-0.5.0-beta e a fronteira de migração de buffers.
+0.6.0 e a fronteira de migração de buffers.
 
 
 ## Acessibilidade e estilo

@@ -8,16 +8,25 @@ permanente do proprietário.
 
 ```bash
 cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
+source scripts/kof_pin.sh
 
-export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.5.0-beta-linux-x86_64
-export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.5.0-beta-linux-x86_64.tar.gz
+export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.0-linux-x86_64
+export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.0-linux-x86_64.tar.gz
 export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c
+export KOOKIE_KOF_SOURCE_COMMIT=bb90986d065118e4f63978e8e6985256ff714203
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
+
+`KOF_ARCHIVE` deve ser uma distribuição Kof `0.6.0` construída a partir da
+fonte, com metadados normalizados e o patch downstream de GC aplicado por
+`scripts/prepare_kof_source.sh`, no commit fixado. O JAR do compilador deve
+corresponder ao build corrigido; os gates nativos também exigem `clang`.
+O archive público Linux marcado não é aceitável: seu `VERSION` diz `0.6.0`,
+mas sua CLI reporta `kof 0.5.0-beta`. O workflow repete `kof version` antes do
+empacotamento.
 
 O arquivo `/tmp/kookie-release-qualification.pem` existente é efêmero e não
 deve ser enviado como identidade da release pública. Use uma chave Ed25519
@@ -124,8 +133,8 @@ self-hosted, linux, x64, kookie-demo-release
 self-hosted, windows, x64, kookie-demo-release
 ```
 
-Ambos precisam de Kof `0.5.0-beta` no commit
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c`, Python 3, OpenSSL, `glslc`,
+Ambos precisam de Kof `0.6.0` no commit
+`bb90986d065118e4f63978e8e6985256ff714203`, Python 3, OpenSSL, `glslc`,
 `spirv-val`, Zig `0.17.0` e o archive Kof exato cujo digest está em
 `KOOKIE_KOF_ARCHIVE_SHA256`. O runner Windows também precisa de
 `KOOKIE_DXC`.

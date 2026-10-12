@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  KOF_VERSION: 0.5.0-beta
-  KOF_SOURCE_COMMIT: bf17ac7e736471c8a04b4153e5b0f607be75e70c
+  KOF_VERSION: 0.6.0
+  KOF_SOURCE_COMMIT: bb90986d065118e4f63978e8e6985256ff714203
   WINDOWS_JAVA_ARCHIVE_SHA256: e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd
   WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
   # Hosted runners are shared; keep the recorded 4 ms local target separate
@@ -77,6 +77,7 @@ jobs:
       - name: Build pinned Kof toolchain
         run: |
           set -euo pipefail
+          bash scripts/prepare_kof_source.sh _kof "$KOF_VERSION"
           # Concretize Kof's CI-friendly parent versions before shade resolves
           # the dependency-reduced POM; Maven otherwise requests ${revision}.
           mvn -q -f _kof/pom.xml flatten:flatten \
@@ -98,7 +99,11 @@ jobs:
           kof_bin="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64/bin"
           echo "$kof_bin" >> "$GITHUB_PATH"
           export PATH="$kof_bin:$PATH"
-          kof version
+          actual_kof_version="$(kof version)"
+          [[ "$actual_kof_version" == "kof $KOF_VERSION" ]] || {
+            printf 'Kof CLI version mismatch: expected kof %s; found %s\n' "$KOF_VERSION" "$actual_kof_version" >&2
+            exit 2
+          }
           rm -rf _kof
       - name: Download pinned Windows JVM runtime
         run: |
@@ -112,13 +117,14 @@ jobs:
             >> "$GITHUB_ENV"
 
 
-      - name: Install Wine and initialize console prefix
+      - name: Install Clang, Wine, and initialize console prefix
         run: |
           set -euo pipefail
           sudo dpkg --add-architecture i386
           sudo apt-get -o Acquire::Retries=3 update
           sudo apt-get -o Acquire::Retries=3 install \
-            --no-install-recommends -y wine wine64 wine32:i386
+            --no-install-recommends -y clang wine wine64 wine32:i386
+          clang --version
           wine --version
           smoke_prefix="$RUNNER_TEMP/wine-ci-smoke"
           WINEARCH=win64 WINEPREFIX="$smoke_prefix" WINEDEBUG=-all \
@@ -130,6 +136,8 @@ jobs:
         run: bash scripts/verify_windows_jvm_package.sh
       - name: Verify G6 runtime probes
         run: bash scripts/verify_g6_runtime.sh
+      - name: Verify Kof PE backend
+        run: bash scripts/verify_kof_pe_backend.sh
       - name: Check demo release scripts
         run: |
           bash -n scripts/build_demo_release.sh \
@@ -140,4 +148,7 @@ jobs:
             scripts/verify_linux_presentation_package.sh \
             scripts/verify_windows_presentation.sh \
             scripts/package_kookie.sh \
+            scripts/prepare_kof_source.sh \
+            scripts/kof_pe_build.sh \
+            scripts/verify_kof_pe_backend.sh \
             scripts/verify_package.sh

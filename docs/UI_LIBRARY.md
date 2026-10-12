@@ -119,7 +119,7 @@ package host that keeps the CSS under `assets/ui` and the bundled fonts under
 ```
 
 `KookieUiText` applies the family, line-height, size, weight and color to the
-same Label handle. The current Kof 0.5.0-beta `Font` handle records metadata
+same Label handle. The current Kof `0.6.0` `Font` handle records metadata
 but does not attach a CSS font to a Label; this slice therefore uses the
 supported Label style path instead of claiming that assignment is rendered.
 
@@ -242,7 +242,7 @@ semantic node with `bindSound(..., defaultGain)`, `nodeClipId()` and
 and media handles, while a future upstream playback API must define ownership,
 close, gain, looping, spatialization and target failure semantics before this
 slice can move to Kof4j. See
-[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) for the current 0.5.0-beta ABI
+[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) for the current `0.6.0` ABI
 audit and the buffer migration boundary.
 
 

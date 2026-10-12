@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 : "${KOOKIE_KOF_ARCHIVE_SHA256:?set KOOKIE_KOF_ARCHIVE_SHA256 to the pinned Kof distribution digest}"
 : "${KOOKIE_KOF_SOURCE_COMMIT:?set KOOKIE_KOF_SOURCE_COMMIT to the pinned Kof source commit}"
 : "${KOOKIE_WINDOWS_JAVA_ARCHIVE:?set KOOKIE_WINDOWS_JAVA_ARCHIVE to a pinned Windows x64 OpenJDK ZIP}"

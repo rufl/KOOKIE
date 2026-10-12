@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 command -v cc >/dev/null || { echo "cc is required" >&2; exit 1; }
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 

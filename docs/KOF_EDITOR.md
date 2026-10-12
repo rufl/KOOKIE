@@ -4,9 +4,10 @@ Research and installation date: 2026-09-22. The original source audit below prec
 
 Pinned source: [`KofLang/Kof-Editor@bed6ae7d567b090497a447583a10b8522acaf66a`](https://github.com/KofLang/Kof-Editor/tree/bed6ae7d567b090497a447583a10b8522acaf66a), `VERSION` = `0.1.4-beta`. Compiler cross-reference: [Kof4j 22a186b9](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), 0.4.9-beta. Upstream packaging may select older compilers. The locally installed pairing is verified only for the workflows listed below, not every upstream feature.
 
-The active KOOKIE source/CI gate uses Kof `0.5.0-beta`; editor/compiler
-findings tied to the `0.4.9-beta` pairing below remain historical unless a
-workflow explicitly identifies them as current.
+The active KOOKIE source/CI gate uses Kof `0.6.0` at source commit
+`bb90986d065118e4f63978e8e6985256ff714203`; editor/compiler findings tied to the
+older `0.4.9-beta` pairing below remain historical. This page's local editor
+verification used that older pairing and is not a Kof `0.6.0` qualification.
 
 ## Actual architecture
 
@@ -148,11 +149,11 @@ background editor service or global IDE settings change was made.
 
 | Component | Installed location / version |
 |---|---|
-| Kof CLI | `~/.local/bin/kof` → `~/.local/share/kof4j/0.5.0-beta/bin/kof` |
-| Compiler source | Historical 0.4.9 research checkout remains separately retained; the active 0.5.0-beta installation is the packaged release |
-| Compiler JAR | SHA-256 `78e5ab9b65994889b8e593378aeabfbb6d5d71862e28a96f186085cabe404334` |
+| Kof CLI | `~/.local/bin/kof` → `~/.local/share/kof4j/0.6.0-bb90986e-gcfix2/bin/kof` |
+| Compiler source | Patched source-built Kof `0.6.0` at commit `bb90986d065118e4f63978e8e6985256ff714203`; the editor-specific 0.4.9 research checkout remains historical |
+| Compiler JAR | SHA-256 `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9` |
 | Maven | `~/.local/bin/mvn`, Apache Maven 3.9.16; retained for historical source/tooling work |
-| Java | Embedded Eclipse Adoptium 25.0.4.1 reported by `kof info --json` |
+| Java | Host Arch Linux Java 27 reported by `kof info --json`; no embedded JDK |
 | Kof Editor | `~/.local/bin/kof-editor`, source 0.1.4-beta at `~/.local/share/kof-editor/source` |
 | Native WebView | Built from the pinned Kof4j C source, using existing WebKitGTK 4.1 / GTK 3 |
 | LSP / DAP client | Any compatible editor client using `vscode-languageclient` 9.0.1 |
@@ -253,10 +254,10 @@ externally bounded exit/output gates.
 
 For maintenance, retain the historical 0.4.9 installation JSON, original
 upstream JAR and `artifacts/tooling-fixes.patch` under
-`~/.local/share/kof4j/0.4.9-beta/`; they are not the active compiler. The
-active packaged release is under `~/.local/share/kof4j/0.5.0-beta/`. Replace it
-only through a digest-checked upgrade, then repeat focused CLI/LSP/DAP and
-engine contract probes before changing the release gate. Editor source,
-launcher and provenance are retained under
+`~/.local/share/kof4j/0.4.9-beta/`; they are not the active compiler.
+The active packaged release is under `~/.local/share/kof4j/0.6.0-bb90986e`.
+The editor verification above used the historical 0.4.9 pairing; repeat
+editor-specific CLI/LSP/DAP probes after any compiler change.
+The editor source, launcher and provenance are retained under
 `~/.local/share/kof-editor/`; client source, lockfile and installable VSIX under
 `~/.local/share/kof-lsp-client/`.

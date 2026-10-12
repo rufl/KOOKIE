@@ -19,7 +19,7 @@ updates KOOKIE_SIGNING_KEY_PEM and KOOKIE_KOF_ARCHIVE_SHA256 in the repository.
 Options:
   --repo OWNER/REPO       GitHub repository (default: rufl/KOOKIE)
   --signing-key PATH      owner-controlled Ed25519 private key
-  --kof-archive PATH      exact Kof 0.5.0-beta distribution archive
+  --kof-archive PATH      exact Kof 0.6.0 distribution archive
   --skip-github           only validate local release inputs
   --set-github-secrets    upload the validated inputs to GitHub Actions
   --help                  show this help

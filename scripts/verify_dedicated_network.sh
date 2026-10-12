@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-dedicated-network.XXXXXX")"
 SOURCE_DIR="$WORK_DIR/source"
 BUILD_DIR="$WORK_DIR/build"

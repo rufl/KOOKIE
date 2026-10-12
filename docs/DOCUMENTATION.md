@@ -7,8 +7,8 @@
 - Preserve measured commands, source pins, hashes and proof limits. Do not translate code identifiers, paths, command names or upstream product names.
 - Write status like a teammate would: say what works, what was actually checked and what is still blocked. Avoid milestone language that sounds more complete than the evidence.
 
-The active source/CI baseline is Kof `0.5.0-beta` at
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c`. Current session documentation must
+The active source/CI baseline is Kof `0.6.0` at
+`bb90986d065118e4f63978e8e6985256ff714203`. Current session documentation must
 describe strict tick ordering, newer same-tick state-sequence revisions and
 fresh rewind history after checkpoint restore. Research pages retain their
 dated toolchain snapshots intentionally; refresh their scope and evidence
@@ -25,6 +25,6 @@ the verification gate. The active bounded G0 sequence is tracked in
 [G0_RESOURCE_TOKENS](G0_RESOURCE_TOKENS.md) and
 [G0_SCALAR_ADAPTER](G0_SCALAR_ADAPTER.md).
 The reusable UI/media boundary and the independently audited upstream
-0.5.0-beta ABI are recorded in
+`0.6.0` ABI are recorded in
 [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md); it deliberately distinguishes the
 CI pin above from the reviewed upstream `main` source.

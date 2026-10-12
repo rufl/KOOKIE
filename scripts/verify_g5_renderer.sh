@@ -4,6 +4,7 @@ IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
 
 for command_name in kof cc glslc spirv-val ldd pkg-config python3; do

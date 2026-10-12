@@ -86,7 +86,7 @@ only generated mechanical shader metadata and GPU handles. Kof continues to own
 camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
-The active Kof4j `0.5.0-beta` pin implements byte-only `Buffer(U8)` for JVM,
+The active Kof4j `0.6.0` pin implements byte-only `Buffer(U8)` for JVM,
 JS and native x86-64; `scripts/verify_simd_dispatch.sh` qualifies the
 synchronous JVM/native x86-64 INOUT shape. The pinned source comments claim
 riscv64/aarch64 support, while newer upstream docs still report Native

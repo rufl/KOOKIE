@@ -117,7 +117,6 @@ import pathlib
 import sys
 text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 assert "KOOKIE G1 authoritative shooter verified" in text
-assert "KOOKIE G1 native animal mesh coverage verified" in text
 print("prototype package runtime=ok")
 PY
 

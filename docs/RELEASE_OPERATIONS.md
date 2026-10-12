@@ -8,16 +8,25 @@ the owner-controlled release signing key.
 
 ```bash
 cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
+source scripts/kof_pin.sh
 
-export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.5.0-beta-linux-x86_64
-export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.5.0-beta-linux-x86_64.tar.gz
+export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.0-linux-x86_64
+export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.0-linux-x86_64.tar.gz
 export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=bf17ac7e736471c8a04b4153e5b0f607be75e70c
+export KOOKIE_KOF_SOURCE_COMMIT=bb90986d065118e4f63978e8e6985256ff714203
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
+
+`KOF_ARCHIVE` must be a source-built, metadata-normalized Kof `0.6.0`
+distribution from the pinned commit with the downstream GC patch applied by
+`scripts/prepare_kof_source.sh`. Its compiler JAR must match the resulting
+patched source build; the release workflow rechecks `kof version` before
+packaging. Native package gates also require `clang`.
+The public tagged Linux archive is not acceptable: its `VERSION` says
+`0.6.0`, but its CLI reports `kof 0.5.0-beta`.
 
 The existing `/tmp/kookie-release-qualification.pem` is ephemeral and must not
 be uploaded as the public release identity. Use an owner-controlled permanent
@@ -118,8 +127,8 @@ self-hosted, linux, x64, kookie-demo-release
 self-hosted, windows, x64, kookie-demo-release
 ```
 
-Both runners need Kof `0.5.0-beta` at
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c`, Python 3, OpenSSL, `glslc`,
+Both runners need Kof `0.6.0` at
+`bb90986d065118e4f63978e8e6985256ff714203`, Python 3, OpenSSL, `glslc`,
 `spirv-val`, Zig `0.17.0` and the exact Kof archive whose digest is stored in
 `KOOKIE_KOF_ARCHIVE_SHA256`. The Windows runner also needs `KOOKIE_DXC`.
 The runner must expose that archive as `KOOKIE_KOF_ARCHIVE`; release jobs

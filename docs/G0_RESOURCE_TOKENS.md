@@ -4,7 +4,7 @@
 
 Status: **implemented and exercised on JVM/native Kof targets**. This is the first bounded G0 engine contract; it is not a native SDL registry yet.
 
-The current source/CI gate uses Kof `0.5.0-beta` at the pinned source commit;
+The current source/CI gate uses Kof `0.6.0` at the pinned source commit;
 this contract is current engine evidence, while native SDL registry ownership
 remains a separate boundary.
 

@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 command -v kof >/dev/null || { echo 'verify_g6_runtime: kof is required' >&2; exit 2; }
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-g6-runtime.XXXXXX")"

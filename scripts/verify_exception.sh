@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root_dir/scripts/kof_pin.sh"
 cd "$root_dir"
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 
@@ -32,5 +33,5 @@ run_case() {
 }
 
 run_case jvm 1 $'no-throw\nfalse'
-run_case native 0 $'no-throw\nfalse\ntrue\nunreachable'
-echo "KOOKIE native exception lifetime reproducer remains observed"
+run_case native 1 $'no-throw\nfalse\nexpected failure'
+echo "KOOKIE JVM/native exception assertion semantics verified"

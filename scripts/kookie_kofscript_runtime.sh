@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 TARGET="${KOOKIE_KOFSCRIPT_RUNTIME_TARGET:-jvm}"
 case "$TARGET" in
   jvm|native) ;;

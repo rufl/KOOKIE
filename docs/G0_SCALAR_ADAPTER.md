@@ -4,7 +4,7 @@
 
 Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, predecoded OGG Vorbis tracks with exact sample-frame loop bounds, bounded synthesized clips, SPIR-V scene upload/draw with perspective projection and D16 depth testing, and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the authored arena (142 unique vertices, 178 triangles, 534 staged vertices) and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
 
-The current source/CI gate uses Kof `0.5.0-beta` at the pinned source commit;
+The current source/CI gate uses Kof `0.6.0` at the pinned source commit;
 this page records the bounded adapter contract, while machine-specific
 presentation evidence remains a separate release requirement.
 
@@ -20,7 +20,7 @@ presentation evidence remains a separate release requirement.
 `SdlLifecycle` owns the Kof-side initialized flag. It rejects negative flags, makes repeated initialization idempotent, and makes shutdown explicit. `probes/g0_platform/main.kf` calls `SDL_Init(0)` and `SDL_Quit()` on both targets when `/usr/lib/libSDL3.so` is installed. `0` intentionally requests no SDL subsystem; it does not prove video/audio initialization.
 
 The direct Kof binding still carries no SDL pointer, struct, event union,
-callback, window, GPU device or audio device. The active Kof `0.5.0-beta` pin
+callback, window, GPU device or audio device. The active Kof `0.6.0` pin
 does support byte-only `Buffer(U8)` for synchronous, target-qualified INOUT
 calls; that does not form a portable typed or asynchronous engine binding.
 
@@ -107,7 +107,11 @@ The adapter requests SPIR-V support, creates an SDL_GPU device, claims an SDL wi
 resource tokens, platform/audio lifecycle, OGG source intake, frame staging and
 the GameShell menu/options/lobby transaction.
 
-`scripts/verify_exception.sh` preserves the native exception-lifetime reproducer and its JVM/native negative controls: JVM exits on the failed assertion; native currently reaches `unreachable` with exit 0. This is a compiler defect record, not an engine cleanup guarantee.
+`scripts/verify_exception.sh` now checks the corrected Kof `0.6.0` native
+exception lifetime: the deliberately failing assertion exits with status 1 and
+prints `no-throw`/`false` on JVM and `no-throw`/`false`/`expected failure` on
+native. The historical Kof `0.5.0-beta` false pass remains recorded in
+[COURSE_PROBES](COURSE_PROBES.md); it is not an active engine contract.
 
 The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`,
 `glslc`, `spirv-val`, `pkg-config` and a reviewed

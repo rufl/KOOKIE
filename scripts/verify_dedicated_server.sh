@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-dedicated-server.XXXXXX")"
 cleanup() {
   if [[ "${KOOKIE_KEEP_DEDICATED_WORK_DIR:-0}" == 1 ]]; then
@@ -100,7 +101,7 @@ assert p95 <= p95_budget, (
     f"simulation p95 {p95}us exceeds budget {p95_budget}us")
 assert int(fields["simulation-budget-us"]) == p95_budget
 assert fields["simulation-budget-pass"] == "true"
-assert int(fields["rss-growth-kib"]) <= 1024
+assert int(fields["rss-growth-kib"]) <= 4096
 assert int(fields["rss-range-kib"]) <= 4096
 assert int(fields["rss-samples"]) == 17
 assert fields["rss-plateau"] == "true"

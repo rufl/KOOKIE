@@ -4,8 +4,8 @@ Research date: 2026-09-22. Companion to [KOF_COURSE](KOF_COURSE.md).
 
 These probes intentionally preserve the historical artifact identity from
 [RESEARCH_PROBES](RESEARCH_PROBES.md). The active KOOKIE qualification gate
-uses Kof `0.5.0-beta`; these course observations are not current engine-gate
-results.
+uses Kof `0.6.0`; these outputs were recorded against the older `0.5.0-beta`
+artifact and are not current engine-gate results.
 
 ## Scope and reproduction
 
