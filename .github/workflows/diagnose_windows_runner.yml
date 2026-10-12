@@ -1,0 +1,77 @@
+name: Diagnose KOOKIE Windows runner
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Windows runner inventory
+    runs-on: [self-hosted, windows, x64, kookie-demo-release]
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Inventory runner capabilities
+        shell: bash
+        run: |
+          set +e
+          printf '%s\n' '=== shell ==='
+          uname -a
+          pwd
+          printf 'PATH=%s\n' "$PATH"
+          printf 'RUNNER_TEMP=%s\nRUNNER_WORKSPACE=%s\nRUNNER_TOOL_CACHE=%s\n' \
+            "${RUNNER_TEMP:-}" "${RUNNER_WORKSPACE:-}" "${RUNNER_TOOL_CACHE:-}"
+          printf '%s\n' '=== commands ==='
+          for command_name in \
+            overzeer-isolated-display overzeer-isolated-display.exe \
+            powershell.exe pwsh.exe dotnet.exe csc.exe msbuild.exe \
+            dxc.exe zig.exe kof.exe glslc.exe spirv-val.exe \
+            qprocess.exe quser.exe query.exe; do
+            if command -v "$command_name" >/dev/null 2>&1; then
+              printf '%s=%s\n' "$command_name" "$(command -v "$command_name")"
+            else
+              printf '%s=missing\n' "$command_name"
+            fi
+          done
+          printf '%s\n' '=== KOOKIE runner variables ==='
+          for name in \
+            KOOKIE_KOF_ARCHIVE KOOKIE_KOF_SOURCE_COMMIT \
+            KOOKIE_WINDOWS_SDL_PREFIX KOOKIE_WINDOWS_SDL_MIXER_PREFIX \
+            KOOKIE_DXC KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER \
+            KOOKIE_PRESENTATION_HARDWARE_ID KOOKIE_PRESENTATION_GPU_DRIVER; do
+            value="${!name:-}"
+            if [[ "$name" == KOOKIE_KOF_ARCHIVE ]]; then
+              [[ -n "$value" ]] && value="present:$value" || value=missing
+            elif [[ "$name" == KOOKIE_KOF_SOURCE_COMMIT || "$name" == KOOKIE_PRESENTATION_HARDWARE_ID || "$name" == KOOKIE_PRESENTATION_GPU_DRIVER ]]; then
+              [[ -n "$value" ]] || value=missing
+            else
+              [[ -n "$value" ]] && value=present || value=missing
+            fi
+            printf '%s=%s\n' "$name" "$value"
+          done
+          printf '%s\n' '=== filesystem candidates ==='
+          for root in \
+            "${RUNNER_WORKSPACE:-}" "${RUNNER_TEMP:-}" \
+            /c/actions-runner /d/actions-runner /c/runner /d/runner; do
+            [[ -d "$root" ]] || continue
+            printf 'root=%s\n' "$root"
+            find "$root" -maxdepth 4 -type f \( \
+              -name '.env' -o -name 'overzeer*' -o -name 'dxc.exe' -o \
+              -name 'kof-0.6.0-linux-x86_64.tar.gz' -o -name 'kof.exe' \
+            \) -print 2>/dev/null | awk 'NR <= 80 {print}'
+          done
+          printf '%s\n' '=== Windows identity and GPU ==='
+          if command -v powershell.exe >/dev/null 2>&1; then
+            powershell.exe -NoProfile -NonInteractive -Command \
+              '$ErrorActionPreference="Continue"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID; query user'
+          elif command -v pwsh.exe >/dev/null 2>&1; then
+            pwsh.exe -NoProfile -NonInteractive -Command \
+              '$ErrorActionPreference="Continue"; Get-CimInstance Win32_OperatingSystem | Select-Object Caption,Version,BuildNumber; Get-CimInstance Win32_VideoController | Select-Object Name,DriverVersion,PNPDeviceID; query user'
+          else
+            printf '%s\n' 'PowerShell unavailable'
+          fi
