@@ -99,6 +99,14 @@ def main() -> int:
         "KOOKIE_PRESENTATION_SOURCE_COMMIT", "").strip()
     if source_commit and SOURCE_COMMIT_PATTERN.fullmatch(source_commit) is None:
         return fail("presentation source commit is not a lowercase 40-character SHA")
+    hardware_id = os.environ.get(
+        "KOOKIE_PRESENTATION_HARDWARE_ID", "").strip()
+    gpu_driver = os.environ.get(
+        "KOOKIE_PRESENTATION_GPU_DRIVER", "").strip()
+    if require_hardware_metadata and not hardware_id:
+        return fail("hardware evidence requires KOOKIE_PRESENTATION_HARDWARE_ID")
+    if require_hardware_metadata and not gpu_driver:
+        return fail("hardware evidence requires KOOKIE_PRESENTATION_GPU_DRIVER")
     if require_hardware_metadata and not source_commit:
         return fail(
             "hardware evidence requires KOOKIE_PRESENTATION_SOURCE_COMMIT")

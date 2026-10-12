@@ -226,15 +226,17 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   export KOOKIE_SHADER_DIR="$native_package_path/build"
   export KOOKIE_SCREENSHOT_PATH="$native_screenshot_path"
   export KOOKIE_PRESENTATION_EVIDENCE_JSON="$native_evidence_path"
-  export KOOKIE_PRESENTATION_COMMAND="package:$native_package_path/kookie.exe"
   export KOOKIE_NATIVE_PACKAGE="$NATIVE_PACKAGE"
   unset SDL_AUDIODRIVER || true
+  wrapper_probe="$WORK_DIR/native-wrapper-probe.sh"
+  cat >"$wrapper_probe" <<'SH'
+printf 'KOOKIE Windows isolated desktop wrapper probe\n'
+printf 'KOOKIE_NATIVE_PACKAGE=%s\n' "$KOOKIE_NATIVE_PACKAGE"
+test -f "$KOOKIE_NATIVE_PACKAGE/kookie.exe"
+SH
   set +e
-  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- -c '
-    printf "KOOKIE Windows isolated desktop wrapper probe\n"
-    printf "KOOKIE_NATIVE_PACKAGE=%s\n" "$KOOKIE_NATIVE_PACKAGE"
-    test -f "$KOOKIE_NATIVE_PACKAGE/kookie.exe"
-  ' verify_windows_wrapper \
+  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
+    "$wrapper_probe" verify_windows_wrapper \
     >"$WORK_DIR/native-wrapper.log" 2>&1
   wrapper_status=$?
   set -e
@@ -244,11 +246,14 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
     exit "$wrapper_status"
   fi
 
+  native_command="$WORK_DIR/native-run.sh"
+  cat >"$native_command" <<'SH'
+cd "$KOOKIE_NATIVE_PACKAGE"
+exec ./kookie.exe
+SH
   set +e
-  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- -c '
-    cd "$KOOKIE_NATIVE_PACKAGE"
-    exec ./kookie.exe
-  ' verify_windows_native_presentation \
+  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
+    "$native_command" verify_windows_native_presentation \
     >"$WORK_DIR/native.log" 2>&1
   native_status=$?
   set -e
