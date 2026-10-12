@@ -78,6 +78,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Release bootstrap now requires the local clean HEAD to match the remote
   `main` commit before dispatching qualification or publication, preventing a
   release run from silently packaging a different commit.
+- The paired `RELEASE_QUALIFICATION.json` now carries the exact Kof archive
+  and compiler JAR SHA-256 values and rejects Linux/Windows package pairs with
+  mismatched Kof artifact identities.
 - The hosted CI now installs the official Zig 0.17.0 archive with a pinned
   SHA-256 instead of using the Node20-based setup action, removing the
   GitHub Actions Node20 deprecation warning.

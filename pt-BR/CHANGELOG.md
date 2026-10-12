@@ -48,6 +48,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   depender da action baseada em Node20.
 - A documentação de operações passa todos os flags de qualificação e smoke
   nativo exigidos pelo gate de publicação.
+- O `RELEASE_QUALIFICATION.json` pareado agora carrega exatamente os SHA-256 do
+  archive Kof e do JAR do compilador e rejeita pares Linux/Windows com
+  identidades de artefato Kof divergentes.
 - Concluímos o gate externo de processos do G3: o host agora salva e recarrega
   pelo schema sua moeda, item gerado, equipamento, skill e recompensa já
   reivindicada depois do caminho eliminação→drop→coleta→equipamento. O

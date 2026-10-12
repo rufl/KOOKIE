@@ -28,6 +28,17 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def validate_sha256(value: Any, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+        or value == "0" * 64
+    ):
+        fail(f"{label} must be a nonzero lowercase SHA-256 digest")
+    return value
+
+
 def load_json(path: Path) -> dict[str, Any]:
     if not path.is_file():
         fail(f"missing JSON file: {path}")
@@ -58,9 +69,9 @@ def validate_package(target: str, path: Path) -> tuple[dict[str, Any], dict[str,
         "target",
         "runtime",
         "source_commit",
-        "source_tree_state",
-        "kof_version",
         "kof_source_commit",
+        "kof_archive_sha256",
+        "kof_compiler_sha256",
         "build_id",
         "archive",
         "sha256",
@@ -90,6 +101,12 @@ def validate_package(target: str, path: Path) -> tuple[dict[str, Any], dict[str,
         fail(f"{target} package has an invalid source commit")
     if not isinstance(manifest["kof_source_commit"], str) or len(manifest["kof_source_commit"]) != 40:
         fail(f"{target} package has an invalid Kof source commit")
+    kof_archive_sha256 = validate_sha256(
+        manifest["kof_archive_sha256"], f"{target} Kof archive SHA-256"
+    )
+    kof_compiler_sha256 = validate_sha256(
+        manifest["kof_compiler_sha256"], f"{target} Kof compiler SHA-256"
+    )
     archive_name = manifest["archive"]
     if not isinstance(archive_name, str) or Path(archive_name).name != archive_name:
         fail(f"{target} package archive name is unsafe")
@@ -108,10 +125,11 @@ def validate_package(target: str, path: Path) -> tuple[dict[str, Any], dict[str,
         "target": target,
         "runtime": manifest["runtime"],
         "version": manifest["version"],
-        "buildId": manifest["build_id"],
         "sourceCommit": manifest["source_commit"],
         "kofVersion": manifest["kof_version"],
         "kofSourceCommit": manifest["kof_source_commit"],
+        "kofArchiveSha256": kof_archive_sha256,
+        "kofCompilerSha256": kof_compiler_sha256,
         "contentProfile": manifest["content_profile"],
     }
     return manifest, artifact
@@ -220,6 +238,8 @@ def main() -> int:
     source_commits = {manifest["source_commit"] for manifest in package_manifests.values()}
     kof_commits = {manifest["kof_source_commit"] for manifest in package_manifests.values()}
     kof_versions = {manifest["kof_version"] for manifest in package_manifests.values()}
+    kof_archives = {manifest["kof_archive_sha256"] for manifest in package_manifests.values()}
+    kof_compilers = {manifest["kof_compiler_sha256"] for manifest in package_manifests.values()}
     profiles = {manifest["content_profile"] for manifest in package_manifests.values()}
     if len(versions) != 1:
         fail("package manifests disagree on release version")
@@ -227,6 +247,8 @@ def main() -> int:
         fail("package manifests disagree on source commit")
     if len(kof_commits) != 1 or len(kof_versions) != 1:
         fail("package manifests disagree on Kof toolchain identity")
+    if len(kof_archives) != 1 or len(kof_compilers) != 1:
+        fail("package manifests disagree on Kof artifact identity")
     if len(profiles) != 1:
         fail("package manifests disagree on content profile")
     if args.require_hardware and set(package_entries) != TARGETS:
@@ -260,6 +282,8 @@ def main() -> int:
         "sourceCommit": next(iter(source_commits)),
         "kofVersion": next(iter(kof_versions)),
         "kofSourceCommit": next(iter(kof_commits)),
+        "kofArchiveSha256": next(iter(kof_archives)),
+        "kofCompilerSha256": next(iter(kof_compilers)),
         "status": status,
         "releaseEligible": status == "hardware-qualified" and set(targets) == TARGETS,
         "targets": targets,

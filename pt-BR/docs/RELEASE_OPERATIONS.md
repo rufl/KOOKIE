@@ -60,6 +60,9 @@ O comando configura:
   runners de release.
 
 Ele não atualiza secrets quando a chave ou o archive local são inválidos.
+O `RELEASE_QUALIFICATION.json` pareado também registra exatamente
+`kofArchiveSha256` e `kofCompilerSha256` e rejeita um par Linux/Windows cujas
+identidades de artefato Kof sejam diferentes.
 
 ## Bootstrap de um comando
 

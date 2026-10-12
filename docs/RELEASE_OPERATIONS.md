@@ -59,6 +59,9 @@ The command sets:
   release runners.
 
 It refuses to update secrets when the local key/archive is invalid.
+The paired `RELEASE_QUALIFICATION.json` also records the exact
+`kofArchiveSha256` and `kofCompilerSha256` values and rejects a Linux/Windows
+pair whose Kof artifact identities differ.
 
 ## One-command bootstrap
 
