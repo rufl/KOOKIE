@@ -18,6 +18,8 @@ command -v kof >/dev/null || { echo "external LAN gate requires kof" >&2; exit 7
 command -v python3 >/dev/null || { echo "external LAN gate requires python3" >&2; exit 75; }
 if [[ "$target" == native ]]; then
   command -v gcc >/dev/null || { echo "external LAN native gate requires gcc" >&2; exit 75; }
+  command -v glslc >/dev/null || { echo "external LAN native gate requires glslc" >&2; exit 75; }
+  command -v spirv-val >/dev/null || { echo "external LAN native gate requires spirv-val" >&2; exit 75; }
   command -v pkg-config >/dev/null || {
     echo "external LAN native gate requires pkg-config" >&2
     exit 75
@@ -71,6 +73,9 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$runtime_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
+mkdir -p "$runtime_dir/config/g3"
+cp "$root_dir/config/g3/external_lan.json" "$runtime_dir/config/g3/external_lan.json"
+cp "$root_dir/config/g3/demo.json" "$runtime_dir/config/g3/demo.json"
 for content_file in "$root_dir"/src/content/*.kf; do
   ln -s "$content_file" "$source_dir/content/$(basename "$content_file")"
 done
@@ -89,9 +94,11 @@ done
   sed -n '5,$p' "$root_dir/probes/g0_external_transport/main.kf"
 } > "$source_dir/main.kf"
 if [[ "$target" == native ]]; then
+  python3 "$root_dir/scripts/shader_pipeline.py" \
+    --root "$root_dir" --output "$runtime_dir/build" --target linux
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    -I"$runtime_dir/build" \
     native/kookie_sdl_adapter.c \
-    native/kookie_model_assets.c \
     native/kookie_transport.c \
     -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
@@ -99,12 +106,28 @@ fi
 if [[ "$lan_mode" == "processes" ]]; then
   for role in host client-a client-b; do
     export KOOKIE_EXTERNAL_LAN_ROLE="$role"
-    kof build "$source_dir/main.kf" \
-      --target "$target" --output "$build_dir/$target-$role"
+    if [[ "$target" == native ]]; then
+      (
+        cd "$runtime_dir"
+        kof build "$source_dir/main.kf" \
+          --target "$target" --output "$build_dir/$target-$role"
+      )
+    else
+      kof build "$source_dir/main.kf" \
+        --target "$target" --output "$build_dir/$target-$role"
+    fi
   done
 else
-  kof build "$source_dir/main.kf" \
-    --target "$target" --output "$build_dir/$target"
+  if [[ "$target" == native ]]; then
+    (
+      cd "$runtime_dir"
+      kof build "$source_dir/main.kf" \
+        --target "$target" --output "$build_dir/$target"
+    )
+  else
+    kof build "$source_dir/main.kf" \
+      --target "$target" --output "$build_dir/$target"
+  fi
 fi
 binary="$build_dir/$target/Default/Main"
 if [[ "$lan_mode" == "processes" ]]; then

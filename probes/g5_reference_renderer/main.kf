@@ -1,5 +1,6 @@
 import core
 import session
+import ui
 
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
@@ -7,11 +8,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open_headless_ready(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(
-    Int resource, Int x, Int y, Int u, Int v
-): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
-    Int resource, Int x, Int y, Int depth, Int u, Int v
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_uv(
+    Int x, Int y, Int depth, Int encodedU, Int encodedV
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
@@ -24,10 +22,14 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_reference_scene(
 
 Bool uploadReferenceFrame(FrameStaging frame) {
     for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-        if (!kookie_gpu_scene_push_vertex_depth(
-                frame.resourceAt(index), frame.xAt(index), frame.yAt(index),
-                frame.depthAt(index),
-                frame.uAt(index), frame.vAt(index))) {
+        var encodedU = kookieUiNativeTextureU(
+            frame.resourceAt(index), frame.uAt(index))
+        var encodedV = kookieUiNativeTextureV(
+            frame.resourceAt(index), frame.vAt(index))
+        if (encodedU < 0 || encodedV < 0 ||
+            !kookie_gpu_scene_push_vertex_uv(
+                frame.xAt(index), frame.yAt(index), frame.depthAt(index),
+                encodedU, encodedV)) {
             return false
         }
     }

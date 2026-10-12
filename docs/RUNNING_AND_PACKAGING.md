@@ -412,9 +412,10 @@ the current checkout; it did not prove a present-capable Linux GPU or the final
 clean-tree paired release.
 
 
-This profile requires SDL 3.4.18, SDL_mixer 3.2.4, `glslc`, a C compiler and
-`pkg-config`. The archive contains the Kof menu/game application, SDL adapter,
-SPIR-V shaders, SDL3 and SDL_mixer. It uses the host dynamic loader and libc.
+This profile requires SDL 3.4.18, SDL_mixer 3.2.4, `glslc`, `spirv-val`, a C
+compiler and `pkg-config`. The archive contains the Kof menu/game application,
+SDL adapter, validated SPIR-V shaders, the shader manifest/reflection header,
+SDL3 and SDL_mixer. It uses the host dynamic loader and libc.
 Presentation archives also include `DEMO_CONTROLS.txt`. The default
 presentation command uses the `none` content profile and does not redistribute
 prototype assets; pass `--content prototype` to package the goose/cat model
@@ -616,10 +617,10 @@ The no-SDL PE persistence qualification is:
 bash scripts/verify_pe_durable_save.sh
 ```
 
-### Native SDL shell
+### Native Kof SDL runtime
 
-Build the native shell from the official MinGW development packages for SDL
-3.4.18 and SDL_mixer 3.2.4:
+Build the native Kof SDL runtime from the official MinGW development packages
+for SDL 3.4.18 and SDL_mixer 3.2.4:
 
 ```bash
 KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
@@ -631,10 +632,11 @@ KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
 
-The package links the complete reachable `src/` Kof gameplay PE object into
-`kookie.exe`, alongside the native SDL3/SDL_mixer menu/lobby shell. It contains
-`kookie.exe`, `SDL3.dll`, `SDL3_mixer.dll`, licenses and provenance; it contains
-no JDK. The package smoke prints
+The package links the complete reachable `src/` Kof gameplay and presentation
+object into `kookie.exe`, alongside the native SDL3/SDL_mixer adapter. Kof owns
+the menu, lobby and gameplay policy. It contains `kookie.exe`, `SDL3.dll`,
+`SDL3_mixer.dll`, licenses and provenance; it contains no JDK. The package
+smoke prints
 `KOOKIE native Kof PE gameplay verified` after SDL initialization.
 
 With `KOOKIE_RUN_WINE=1`, the isolated presentation smoke also requires the
@@ -687,10 +689,10 @@ SOURCE_DATE_EPOCH=<unix-timestamp> \
 scripts/package_kookie.sh --runtime presentation --target windows-x86_64
 ```
 
-`glslc` must be on `PATH`. `scripts/verify_windows_presentation.sh` rebuilds
-the signed package twice, compares every archive/signature, validates safe ZIP
-paths and retained licenses, and checks the native PE, SDL import libraries
-and SPIR-V/DXIL entries. `KOOKIE_RUN_WINE=1` adds the optional compatibility
+`glslc` and `spirv-val` must be on `PATH`. `scripts/verify_windows_presentation.sh`
+rebuilds the signed package twice, compares every archive/signature, validates
+safe ZIP paths and retained licenses, and checks the native PE, SDL import
+libraries and SPIR-V/DXIL entries plus the reflected shader manifest.
 smoke; it requires `wine` and `overzeer-isolated-display`.
 
 For target-hardware evidence, set `KOOKIE_RUN_NATIVE_PRESENTATION=1` and
@@ -741,13 +743,14 @@ environment approves the publish job.
 
 The workflow requires self-hosted runners with labels
 `kookie-demo-release`, `linux`/`windows` and `x64`. Both runners need Kof
-`0.5.0-beta` at the pinned source commit, Python 3, OpenSSL, `glslc`, Zig
-0.17.0 and the pinned Kof distribution digest. The Linux runner additionally
-needs SDL3 development files and an isolated display wrapper for optional
-package presentation smoke; the workflow bootstraps the pinned SDL_mixer
-prefix when its `pkg-config` entry is absent. The Windows runner additionally
-needs MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`; native Windows smoke also
-requires the reviewed `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`.
+`0.5.0-beta` at the pinned source commit, Python 3, OpenSSL, `glslc`,
+`spirv-val`, Zig 0.17.0 and the pinned Kof distribution digest. The Linux
+runner additionally needs SDL3 development files and an isolated display
+wrapper for optional package presentation smoke; the workflow bootstraps the
+pinned SDL_mixer prefix when its `pkg-config` entry is absent. The Windows
+runner additionally needs MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`;
+native Windows smoke also requires the reviewed
+`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`.
 
 The hosted `verify.yml` job has a 45-minute budget because installing Wine
 with both `wine64` and `wine32:i386` can exceed the old core budget on a cold
@@ -804,6 +807,25 @@ bash scripts/verify_external_lan.sh
 
 Use `KOOKIE_EXTERNAL_LAN_TARGET=native` for the native path. Same-host evidence
 remains `externalHostExecution=unproven`.
+The G3 acceptance path in this regression includes server-owned
+kill→drop→pickup→equip, recipient kinds `7`/`8`, and a host schema-file
+save/reload of currency, rolled item, equipment, skill and claimed reward.
+The validator records that round trip in `g3SaveReload`; this does not promote
+same-host evidence to a separate-physical-host claim.
+
+### Editing G3 configuration
+
+The authored G3 inputs live in `config/g3/demo.json` and
+`config/g3/external_lan.json`. Edit these files directly for extension
+metadata, enemy balance, weapons, encounters, loot/affix tables, skills,
+statuses and bounded session capacities. The runtime loads the selected JSON
+at startup; malformed, incomplete, duplicated or out-of-range fields fail
+closed. `enemyKind` is the only string-valued field (`normal`, `elite` or
+`boss`); all other authored values are bounded integers. The loaded checksum
+participates in the compatibility identity, so all peers must use matching
+content. Packaged builds preserve the same relative `config/g3` paths for
+user/modder edits.
+
 
 ## Repository verification gate
 

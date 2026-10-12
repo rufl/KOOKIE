@@ -301,6 +301,7 @@ if kookie_prepare_sdl3_dependencies "$ROOT_DIR"; then
   presentation_dependencies_available=1
 fi
 if command -v glslc >/dev/null &&
+   command -v spirv-val >/dev/null &&
    [[ "$presentation_dependencies_available" == 1 ]]; then
   KOOKIE_VERSION=0.1.0-dogfood.presentation-smoke \
   KOOKIE_BUILD_ID=package-presentation-smoke \
@@ -328,10 +329,20 @@ if command -v glslc >/dev/null &&
   test -x "$PRESENTATION_ROOT/kookie-simd-bench"
   test -x "$PRESENTATION_ROOT/kookie-simd-bench.bin"
   test -f "$PRESENTATION_ROOT/lib/libkookie_simd_dispatch.so"
-  test -f "$PRESENTATION_ROOT/build/g0_triangle.vert.spv"
-  test -f "$PRESENTATION_ROOT/build/g5_triangle_instance.vert.spv"
-  test -f "$PRESENTATION_ROOT/build/g6_world.vert.spv"
-  test -f "$PRESENTATION_ROOT/build/g0_triangle.frag.spv"
+  test -f "$PRESENTATION_ROOT/build/kookie_shader_manifest.json"
+  test -f "$PRESENTATION_ROOT/build/kookie_shader_manifest.h"
+  python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
+    --verify-manifest \
+    "$PRESENTATION_ROOT/build/kookie_shader_manifest.json"
+  python3 - "$PRESENTATION_MANIFEST" \
+    "$PRESENTATION_ROOT/build/kookie_shader_manifest.json" <<'PY'
+import hashlib, json, pathlib, sys
+package_manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+shader_manifest = pathlib.Path(sys.argv[2])
+assert package_manifest["shader_manifest_sha256"] == hashlib.sha256(
+    shader_manifest.read_bytes()
+).hexdigest()
+PY
   test -f "$PRESENTATION_ROOT/THIRD_PARTY_NOTICES.txt"
   test -f "$PRESENTATION_ROOT/DEMO_CONTROLS.txt"
   test -n "$(find "$PRESENTATION_ROOT/lib" -maxdepth 1 -name 'libSDL3.so*' -print -quit)"
@@ -361,12 +372,12 @@ else
     echo 'package smoke: presentation packaging unexpectedly ignored missing dependencies' >&2
     exit 1
   fi
-  grep -Eq 'glslc is required|pkg-config is required|SDL3 or SDL_mixer development files are required|KOOKIE requires SDL3' \
+  grep -Eq 'glslc is required|spirv-val is required|pkg-config is required|SDL3 or SDL_mixer development files are required|KOOKIE requires SDL3' \
     "$WORK_DIR/presentation-unavailable.out"
 fi
 python3 - "$MANIFEST" native \
   "${presentation_manifest_args[@]}" <<'PY'
-import json, os, pathlib, sys
+import json, os, pathlib, re, sys
 arguments = sys.argv[1:]
 assert len(arguments) >= 2 and len(arguments) % 2 == 0
 for index in range(0, len(arguments), 2):
@@ -386,6 +397,10 @@ for index in range(0, len(arguments), 2):
     assert len(manifest["kof_archive_sha256"]) == 64
     assert manifest["kof_source_commit"] == os.environ["KOF_PIN_SOURCE_COMMIT"]
     assert len(manifest["kof_compiler_sha256"]) == 64
+    if runtime == "presentation":
+        assert re.fullmatch(r"[0-9a-f]{64}", manifest["shader_manifest_sha256"])
+    else:
+        assert manifest["shader_manifest_sha256"] == "not-bundled"
     assert isinstance(manifest["source_date_epoch"], int)
     assert manifest["windows_java_runtime"] is False
     assert manifest["windows_java_archive_sha256"] == "not-bundled"
@@ -438,10 +453,16 @@ if [[ -n "${KOOKIE_WINDOWS_SDL_PREFIX:-}" &&
   test -f "$WINDOWS_ROOT/SDL3_mixer.dll"
   test -f "$WINDOWS_ROOT/LICENSE"
   test -f "$WINDOWS_ROOT/THIRD_PARTY_NOTICES.txt"
-  grep -Fq 'windows_status=kof-native-pe-sdl-shell-runtime' "$WINDOWS_ROOT/PROVENANCE.txt"
+  grep -Fq 'windows_status=kof-native-pe-sdl-gpu-bundled-runtime' "$WINDOWS_ROOT/PROVENANCE.txt"
   grep -Fq 'cd /d "%ROOT%"' "$WINDOWS_ROOT/kookie.cmd"
-  python3 - "$WINDOWS_MANIFEST" <<'PY'
-import json, pathlib, sys
+  test -f "$WINDOWS_ROOT/build/kookie_shader_manifest.json"
+  test -f "$WINDOWS_ROOT/build/kookie_shader_manifest.h"
+  python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
+    --verify-manifest \
+    "$WINDOWS_ROOT/build/kookie_shader_manifest.json"
+  python3 - "$WINDOWS_MANIFEST" \
+    "$WINDOWS_ROOT/build/kookie_shader_manifest.json" <<'PY'
+import hashlib, json, pathlib, sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 assert manifest["schema"] == "kookie.package-provenance/v2"
 assert manifest["application"] == "kookie"
@@ -451,6 +472,10 @@ assert manifest["signing"] == "ed25519"
 assert manifest["proof"] == "ed25519-signature-set"
 assert manifest["windows_java_runtime"] is False
 assert manifest["windows_java_archive_sha256"] == "not-bundled"
+shader_manifest = pathlib.Path(sys.argv[2])
+shader_hash = manifest["shader_manifest_sha256"]
+assert len(shader_hash) == 64 and all(char in "0123456789abcdef" for char in shader_hash)
+assert shader_hash == hashlib.sha256(shader_manifest.read_bytes()).hexdigest()
 PY
   windows_status="archive"
 fi

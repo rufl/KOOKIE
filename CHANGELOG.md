@@ -3,6 +3,33 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added a single offline shader product pipeline in
+  `scripts/shader_pipeline.py`: cataloged GLSL products are compiled to
+  SPIR-V, validated with `spirv-val`, reflected against vertex/resource
+  contracts, and emitted with a generated SDL_GPU metadata header. Windows
+  packaging also emits the existing HLSL/DXIL products through the same
+  manifest.
+- The SDL adapter now takes shader resource counts and entry points from the
+  generated manifest instead of hard-coded shader declarations. Package smoke
+  checks validate shader artifacts and record the shader manifest digest in
+  release provenance.
+- Retired the 1,481-line C Windows interactive shell: both Windows native
+  packages now enter the Kof presentation and keep SDL/PE C code at the
+  platform/ABI boundary.
+- Moved prototype GLB file discovery, bounded byte intake, JSON, hierarchy,
+  mesh, normalization, UV and model staging semantics to
+  `src/content/glb_model.kf`; the SDL adapter now receives only validated cat
+  PNG bytes through a scalar staging ABI.
+- Updated the model sanitizer and prototype-package checks to exercise the Kof
+  reader and packaged content; Kof JVM/native probes preserve the goose/cat
+  counts (708/2400 expanded vertices).
+- Moved GPU camera/projection math, world/material texture generation, UI/world
+  resource-to-UV mapping and render-pass selection into Kof. The SDL adapter
+  now accepts only bounded matrix words, packed texture words, encoded or
+  normalized UV scalars and explicit pass flags before native upload/draw.
+- Moved the redundant durable-save envelope, checksum and slot selection into
+  `BoundedDurableSaveFileCodec`; the native persistence adapter now transfers
+  raw bounded bytes and performs only path-safe file durability operations.
 - Pinned every third-party GitHub Action in the release and verification
   workflows to immutable commit SHAs, and fixed the durable-save loader so
   a failed `ferror()` check cannot skip `fclose()` and leak a stream.
@@ -11,10 +38,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   native sends/replays reject an endpoint without a peer, native key-file
   loading rejects symlinks and files with extra links or group/other
   permissions, and host IPv4 environment parsing is strict.
-- Hardened the native GLB loader against numeric suffixes, integer and fixed-point
-  overflow, non-finite transforms, invalid BIN metadata, oversized files, malformed
-  chunk alignment, and out-of-range UV/index data. Added permanent ASan/UBSan
-  fixture coverage for these boundaries.
+- Hardened the Kof GLB reader against numeric suffixes, integer and fixed-point
+  overflow, non-finite transforms, invalid BIN metadata, oversized files,
+  malformed chunk alignment, and out-of-range UV/index data. Focused fixture
+  coverage exercises these boundaries.
 - The native presentation smoke now drives Play, Back/restart and quit through
   queued SDL events. External LAN manifests require a source revision; key
   fingerprints are canonicalized across Python, JVM and native metadata, and
@@ -25,9 +52,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   and focus-loss clearing; for input, the adapter only flattens raw events
   and stages bounded mouse deltas. SDL adapter event state still resets across
   SDL lifecycles.
-  GLB JSON lookup now ignores nested root fields in Kof and caps recursive native
-  JSON depth. LAN evidence verification rejects symlinked archive roots before
-  extraction.
+- GLB JSON lookup now ignores nested root fields in Kof. LAN evidence
+  verification rejects symlinked archive roots before extraction.
 - Fixed release readiness to recognize GitHub's lowercase
   `required_reviewers` environment protection rule, so a configured approval
   gate no longer reports the release environment as missing.
@@ -42,6 +68,20 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   GitHub Actions Node20 deprecation warning.
 - Release operations now pass the qualification and native presentation smoke
   flags required by the bootstrap publication gate.
+- Completed the external G3 process gate: the host now schema-file
+  save/reloads its authoritative currency, rolled item, equipment, skill and
+  claimed-reward state after the kill→drop→pickup→equip path. The external
+  evidence validator requires this round trip alongside recipient state kinds
+  `7`/`8`; native role builds now run from their runtime directory so the
+  relative SDL adapter ABI resolves in multi-process mode. Qualification
+  remains same-host; separate physical hosts are not claimed.
+- Externalized authored G3 extension, enemy, combat, loot, skill, progression,
+  actor-capacity and qualification inputs into `config/g3/external_lan.json`
+  and `config/g3/demo.json`. `BoundedG3Config` performs bounded strict JSON
+  loading, rejects unknown/duplicate/missing fields and invalid ranges, and
+  feeds the G1 demo plus external JVM/native probes. Packaged builds copy the
+  editable `config/g3` tree. Evidence records the config checksum and accepts
+  modified item IDs/rewards instead of pinning the default `900`/`25` values.
 
 
 
@@ -68,9 +108,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   checks fail closed on path, classpath, cleanup, reviewer and provenance
   mismatches, and release smoke capability failures happen before builds.
 - Added `scripts/report_code_mix.py` and a source-composition audit. The current
-  working tree is 94,374 physical lines: 76.85% Kof, 0.59% KofScript, 11.36%
-  C/header, 6.96% shell, 2.53% Python, 1.59% PE-bridge Java and 0.12% GPU
-  shader. The runtime-only slice is 86.43% Kof; native mechanisms remain at
+  working tree is 94,940 physical lines: 78.69% Kof, 0.69% KofScript, 8.52%
+  C/header, 7.16% shell, 3.24% Python, 1.58% PE-bridge Java and 0.12% GPU
+  shader. The runtime-only slice is 89.40% Kof; native mechanisms remain at
   the boundary unless a bulk-buffer ABI proves a faster, safe migration.
 
 - Added an isolated KofJS UI demo and a published UI asset manifest. UI

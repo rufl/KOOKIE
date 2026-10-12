@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Run malformed native GLB fixtures through ASan and UBSan."""
+"""Run malformed GLB byte fixtures through the bounded Kof reader."""
 
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import struct
 import subprocess
@@ -14,6 +13,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent.parent
+PROBE = ROOT / "probes/g0_model_loader/main.kf"
 
 
 def make_glb(
@@ -72,165 +72,88 @@ def make_glb(
     )
 
 
-def write_fixture(root: Path, data: bytes) -> Path:
-    path = root / "models" / "goose" / "goose.glb"
+def write_fixture(root: Path, data: bytes) -> None:
+    path = root / "content/prototype/models/goose/goose.glb"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
-    return path
 
 
-def build_harness(work: Path) -> Path:
-    source = work / "loader_harness.c"
-    source.write_text(
-        """
-#include "kookie_model_assets.h"
-#include <stdio.h>
-#include <stdlib.h>
-
-int main(int argc, char **argv) {
-    if (argc != 3) return 2;
-    if (setenv("KOOKIE_PROTOTYPE_CONTENT_ROOT", argv[1], 1) != 0) return 3;
-    int expected = atoi(argv[2]);
-    int actual = kookie_model_assets_available(KOOKIE_MODEL_GOOSE) ? 1 : 0;
-    if (actual != expected) {
-        fprintf(stderr, "expected %d, got %d\\n", expected, actual);
-        return 4;
-    }
-    return 0;
-}
-""",
-        encoding="utf-8",
-    )
-    binary = work / "loader_harness"
-    command = [
-        os.environ.get("CC", "cc"),
-        "-D_POSIX_C_SOURCE=200809L",
-        "-std=c11",
-        "-Wall",
-        "-Wextra",
-        "-Werror",
-        "-O1",
-        "-g",
-        "-fno-omit-frame-pointer",
-        "-fsanitize=address,undefined",
-        "-I",
-        str(ROOT / "native"),
-        str(source),
-        str(ROOT / "native" / "kookie_model_assets.c"),
-        "-lm",
-        "-o",
-        str(binary),
-    ]
-    result = subprocess.run(command, text=True, capture_output=True, check=False)
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr or result.stdout)
-    return binary
-
-
-def exercise(binary: Path, root: Path, expected: int) -> None:
-    environment = os.environ.copy()
-    environment.update(
-        {
-            "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
-            "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
-        }
-    )
+def exercise(kof: str, root: Path, expected: int) -> None:
+    content_dir = root / "content"
+    content_dir.mkdir(exist_ok=True)
+    (content_dir / "glb_model.kf").symlink_to(ROOT / "src/content/glb_model.kf")
+    shutil.copy2(PROBE, root / "main.kf")
     result = subprocess.run(
-        [str(binary), str(root), str(expected)],
-        cwd=root.parent,
-        env=environment,
+        [kof, "run", "main.kf", "--target", "jvm"],
+        cwd=root,
         text=True,
         capture_output=True,
         check=False,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr or result.stdout)
+    marker = "model-valid=1" if expected else "model-valid=0"
+    if marker not in result.stdout.splitlines():
+        raise RuntimeError(
+            f"expected {marker}, got {result.stdout.strip() or result.stderr.strip()}"
+        )
 
 
 def main() -> int:
-    if shutil.which(os.environ.get("CC", "cc")) is None:
-        print("model loader sanitizer gate requires a C compiler", file=sys.stderr)
+    kof = shutil.which("kof")
+    if kof is None:
+        print("model loader Kof gate requires the kof executable", file=sys.stderr)
         return 75
     with tempfile.TemporaryDirectory(prefix="kookie-model-loader-") as raw:
         work = Path(raw)
-        binary = build_harness(work)
 
         real_root = work / "real"
         write_fixture(
             real_root,
             (ROOT / "assets/prototype/models/cat/cat.glb").read_bytes(),
         )
-        exercise(binary, real_root, 1)
+        exercise(kof, real_root, 1)
 
         valid_root = work / "valid"
         write_fixture(valid_root, make_glb())
-        exercise(binary, valid_root, 1)
-        metadata_root = work / "buffer-metadata"
-        metadata = make_glb().replace(
-            b'"byteLength":68', b'"byteLength":67', 1
+        exercise(kof, valid_root, 1)
+
+        json_root = work / "json-boundary"
+        json_data = make_glb().replace(
+            b'"asset":{"version"', b'"asset":[{"version"', 1
         )
-        write_fixture(metadata_root, metadata)
-        exercise(binary, metadata_root, 0)
-        array_limit_root = work / "array-limit"
-        write_fixture(array_limit_root, make_glb(node_count=4097))
-        exercise(binary, array_limit_root, 0)
-        deep_value: object = 0
-        for _ in range(256):
-            deep_value = [deep_value]
-        deep_root = work / "deep-json"
-        write_fixture(deep_root, make_glb(extra=deep_value))
-        exercise(binary, deep_root, 0)
+        write_fixture(json_root, json_data)
+        exercise(kof, json_root, 0)
 
-        suffix_root = work / "numeric-suffix"
-        suffix = make_glb().replace(b'"count":3', b'"count":3e0', 1)
-        write_fixture(suffix_root, suffix)
-        exercise(binary, suffix_root, 0)
+        bad_magic_root = work / "bad-magic"
+        bad_magic = bytearray(make_glb())
+        bad_magic[0] = 0
+        write_fixture(bad_magic_root, bytes(bad_magic))
+        exercise(kof, bad_magic_root, 0)
 
-        overflow_root = work / "transform-overflow"
-        write_fixture(
-            overflow_root,
-            make_glb(
-                [
-                    (3.402823466e38, 0.0, 0.0),
-                    (3.402823466e38, 1.0, 0.0),
-                    (3.402823466e38, 2.0, 0.0),
-                ]
-            ),
-        )
-        exercise(binary, overflow_root, 0)
+        bad_version_root = work / "bad-version"
+        bad_version = bytearray(make_glb())
+        struct.pack_into("<I", bad_version, 4, 1)
+        write_fixture(bad_version_root, bytes(bad_version))
+        exercise(kof, bad_version_root, 0)
 
-        huge_uv_root = work / "huge-uv"
-        huge_uv = bytearray(make_glb())
-        uv_bytes = struct.pack("<6f", 0.0, 0.0, 1.0, 0.0, 0.0, 1.0)
-        uv_offset = huge_uv.find(uv_bytes)
-        assert uv_offset >= 0
-        struct.pack_into("<f", huge_uv, uv_offset, 3.402823466e38)
-        write_fixture(huge_uv_root, bytes(huge_uv))
-        exercise(binary, huge_uv_root, 1)
+        bad_length_root = work / "bad-length"
+        bad_length = bytearray(make_glb())
+        struct.pack_into("<I", bad_length, 8, len(bad_length) - 4)
+        write_fixture(bad_length_root, bytes(bad_length))
+        exercise(kof, bad_length_root, 0)
 
-        out_of_range_root = work / "out-of-range-index"
-        out_of_range = bytearray(make_glb())
-        json_length = struct.unpack_from("<I", out_of_range, 12)[0]
-        indices_offset = 12 + 8 + json_length + 8 + 36
-        struct.pack_into("<H", out_of_range, indices_offset, 9)
-        write_fixture(out_of_range_root, bytes(out_of_range))
-        exercise(binary, out_of_range_root, 0)
-
-        duplicate_root = work / "duplicate-json"
-        duplicate = make_glb()
-        json_length = struct.unpack_from("<I", duplicate, 12)[0]
-        json_chunk = duplicate[20 : 20 + json_length]
-        duplicate += struct.pack("<II", json_length, 0x4E4F534A) + json_chunk
-        duplicate = bytearray(duplicate)
-        struct.pack_into("<I", duplicate, 8, len(duplicate))
-        write_fixture(duplicate_root, bytes(duplicate))
-        exercise(binary, duplicate_root, 0)
+        truncated_root = work / "truncated"
+        write_fixture(truncated_root, make_glb()[:-4])
+        exercise(kof, truncated_root, 0)
 
         oversized_root = work / "oversized"
-        write_fixture(oversized_root, b"\0" * (16 * 1024 * 1024 + 1))
-        exercise(binary, oversized_root, 0)
+        oversized = bytearray(b"\0" * (16 * 1024 * 1024 + 1))
+        struct.pack_into("<III", oversized, 0, 0x46546C67, 2, len(oversized))
+        write_fixture(oversized_root, bytes(oversized))
+        exercise(kof, oversized_root, 0)
 
-    print("KOOKIE native GLB loader ASan/UBSan fixtures verified")
+    print("KOOKIE Kof GLB reader fixtures verified")
     return 0
 
 

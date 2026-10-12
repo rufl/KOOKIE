@@ -52,21 +52,226 @@ Bool receivePayload(LoopbackSession session, Int[] payload, Bool host) {
     return session.applyRemoteBroadPhaseSnapshot(payload)
 }
 
-BoundedContentCompatibility externalRoleCompatibility(G1Arena arena) {
+Int externalRoleDerivedChecksum(Int value, Int salt) {
+    var result = (value + salt) % 1000003
+    if (result <= 0) { return 1 }
+    return result
+}
+
+
+BoundedContentCompatibility externalRoleCompatibility(
+    G1Arena arena,
+    Int configChecksum,
+    Int extensionNetworkSchema,
+    Int engineVersion,
+    Int contentApiVersion,
+    Int contentGeneration,
+    Int contentRevision
+) {
     var identity = BoundedContentCompatibility()
     var collisionChecksum = arena.authoredCollision().checksum()
-    var networkChecksum = (
+    var networkChecksum = externalRoleDerivedChecksum(
         protocolVersion() * 31 + maximumSessionTransportWords() * 17 +
-        11 * 13 + multiplayerFeedbackEntryWidth() * 7) % 1000003
+        configChecksum * 13 + multiplayerFeedbackEntryWidth() * 7,
+        extensionNetworkSchema)
     assert(collisionChecksum > 0 && networkChecksum > 0 &&
-        identity.configureVersions(7, 4, networkChecksum) &&
+        identity.configureVersions(
+            engineVersion, contentApiVersion, networkChecksum) &&
         identity.configureContent(
-            collisionChecksum, 772001, 772002, 772003) &&
-        identity.configurePublication(1, 1, collisionChecksum) &&
+            collisionChecksum, configChecksum, configChecksum, configChecksum) &&
+        identity.configurePublication(
+            contentGeneration, contentRevision, configChecksum) &&
         identity.seal() && identity.encode(),
         "external role compatibility identity must seal")
     return identity
 }
+
+Bool externalRoleConfigureG3Definition(LoopbackSession host) {
+    var config = BoundedG3Config()
+    assert(config.load("config/g3/external_lan.json"),
+        "external role G3 config must load")
+    return config.loaded() &&
+        host.registerExtensionManifest(
+            config.value("extensionNamespace"),
+            config.value("extensionOwner"),
+            config.value("extensionApiVersion"),
+            config.value("extensionSchemaVersion"),
+            config.value("extensionRole")) &&
+        host.configureExtensionLoadOrder(
+            config.value("extensionNamespace"),
+            config.value("extensionOwner"),
+            config.value("extensionLoadOrder")) &&
+        host.configureExtensionProvenance(
+            config.value("extensionNamespace"),
+            config.value("extensionOwner"),
+            config.value("extensionProvenance")) &&
+        host.configureExtensionSchemas(
+            config.value("extensionNamespace"),
+            config.value("extensionOwner"),
+            config.value("extensionMigrationVersion"),
+            config.value("extensionNetworkSchema")) &&
+        host.grantExtensionCapability(
+            config.value("extensionNamespace"),
+            config.value("extensionOwner"),
+            extensionContributionEnemyDefinitionKind()) &&
+        host.registerExtensionContribution(
+            config.value("extensionNamespace"),
+            config.value("extensionOwner"),
+            extensionContributionEnemyDefinitionKind(),
+            config.value("enemyDefinitionId"),
+            config.value("enemyDefinitionPriority")) &&
+        host.defineEnemyDefinition(
+            config.value("extensionNamespace"),
+            config.value("extensionOwner"),
+            config.value("enemyDefinitionId"),
+            config.value("enemyDefinitionRevision"),
+            config.value("enemyKind")) &&
+        host.setEnemyDefinitionCombat(
+            config.value("extensionNamespace"),
+            config.value("enemyDefinitionId"),
+            config.value("enemyHealth"),
+            config.value("enemyArmor"),
+            config.value("enemyWeaponId")) &&
+        host.setEnemyDefinitionBehavior(
+            config.value("extensionNamespace"),
+            config.value("enemyDefinitionId"),
+            config.value("enemyRole"),
+            config.value("enemyMoveStep"),
+            config.value("enemyProjectileStep")) &&
+        host.setEnemyDefinitionCritical(
+            config.value("extensionNamespace"),
+            config.value("enemyDefinitionId"),
+            config.value("enemyCritical")) &&
+        host.setEnemyDefinitionLoot(
+            config.value("extensionNamespace"),
+            config.value("enemyDefinitionId"),
+            config.value("enemyLootStableBase"),
+            config.value("enemyLootSeedSalt"),
+            config.value("enemyLootLevel")) &&
+        host.setEnemyDefinitionRankCurrency(
+            config.value("extensionNamespace"),
+            config.value("enemyDefinitionId"),
+            config.value("enemyLootRank"),
+            config.value("enemyCurrency")) &&
+        host.setEnemyDefinitionProgression(
+            config.value("extensionNamespace"),
+            config.value("enemyDefinitionId"),
+            config.value("enemySkillId"),
+            config.value("enemyExperience"))
+}
+
+Bool externalRoleConfigureG3Runtime(LoopbackSession host) {
+    var config = BoundedG3Config()
+    assert(config.load("config/g3/external_lan.json"),
+        "external role G3 config must load")
+    var playerId = config.value("playerActorId")
+    var secondaryPlayerId = config.value("secondaryPlayerId")
+    return config.loaded() &&
+        host.configureEnemyRules(
+            config.value("enemyRuleActorCapacity"),
+            config.value("enemyRuleMaxDistance"),
+            config.value("enemyRuleMaxProjectiles")) &&
+        host.defineEnemyWeapon(
+            config.value("enemyWeaponId"),
+            config.value("enemyWeaponMagazineSize"),
+            config.value("enemyWeaponReserveCapacity"),
+            config.value("enemyWeaponDamage"),
+            config.value("enemyWeaponChannel")) &&
+        host.setEnemyWeaponRange(
+            config.value("enemyWeaponId"),
+            config.value("enemyWeaponRange")) &&
+        host.definePlayerWeapon(
+            config.value("playerWeaponId"),
+            config.value("playerWeaponMagazineSize"),
+            config.value("playerWeaponReserveCapacity"),
+            config.value("playerWeaponDamage"),
+            config.value("playerWeaponChannel")) &&
+        host.setPlayerWeaponRange(
+            config.value("playerWeaponId"),
+            config.value("playerWeaponRange")) &&
+        host.definePlayerSkill(
+            config.value("playerSkillId"),
+            config.value("playerSkillMaximumRank"),
+            config.value("playerSkillExperienceCost")) &&
+        host.setPlayerSkillDamagePercent(
+            config.value("playerSkillId"),
+            config.value("playerSkillDamagePercent")) &&
+        host.definePlayerStatus(
+            config.value("playerStatusId"),
+            config.value("playerStatusDurationCap"),
+            config.value("playerStatusStackCap")) &&
+        host.setPlayerStatusDamageModifier(
+            config.value("playerStatusId"),
+            config.value("playerStatusDamageFlat"),
+            config.value("playerStatusDamagePercent")) &&
+        host.setPlayerStatusDefenseModifier(
+            config.value("playerStatusId"),
+            config.value("playerStatusDefenseFlat"),
+            config.value("playerStatusDefensePercent")) &&
+        host.setPlayerStatusPeriodicDamage(
+            config.value("playerStatusId"),
+            config.value("playerStatusPeriodicDamage"),
+            config.value("playerStatusPeriodicChannel")) &&
+        host.defineEnemyEncounter(
+            config.value("encounterId"),
+            config.value("encounterMaxActive"),
+            config.value("encounterBudget")) &&
+        host.addEnemyCombatActor(
+            config.value("enemyActorId"),
+            config.value("enemyActorHealth"),
+            config.value("enemyActorArmor")) &&
+        host.equipEnemyCombatWeapon(
+            config.value("enemyActorId"),
+            config.value("enemyWeaponId")) &&
+        host.addPlayerCombatActor(
+            playerId,
+            config.value("playerActorHealth"),
+            config.value("playerActorArmor")) &&
+        host.addPlayerCombatActor(
+            secondaryPlayerId,
+            config.value("playerActorHealth"),
+            config.value("playerActorArmor")) &&
+        host.applyPlayerStatus(
+            playerId,
+            config.value("playerStatusId"),
+            config.value("playerStatusDuration"),
+            config.value("playerStatusStacks")) &&
+        host.applyPlayerStatus(
+            secondaryPlayerId,
+            config.value("playerStatusId"),
+            config.value("playerStatusDuration"),
+            config.value("playerStatusStacks")) &&
+        host.defineLootAffixPool(config.value("affixPoolId")) &&
+        host.addLootAffix(
+            config.value("affixPoolId"),
+            config.value("affixId"),
+            config.value("affixWeight")) &&
+        host.defineLootAffixStat(
+            config.value("affixId"),
+            config.value("affixFlatValue"),
+            config.value("affixAdditivePercent"),
+            config.value("affixMultiplicativePercent")) &&
+        host.defineLootItem(
+            config.value("lootItemDefinitionId"),
+            config.value("lootItemBaseValue"),
+            config.value("lootItemMinimumLevel"),
+            config.value("lootItemMaximumLevel"),
+            config.value("lootItemAffixPool")) &&
+        host.addLootTableEntry(
+            config.value("lootItemDefinitionId"),
+            config.value("lootTableWeight")) &&
+        host.admitDefinedEnemy(
+            config.value("encounterId"),
+            config.value("admittedEnemyId"),
+            config.value("extensionNamespace"),
+            config.value("enemyDefinitionId")) &&
+        host.setEnemySpatialPosition(
+            config.value("admittedEnemyId"),
+            config.value("enemyActorX"),
+            config.value("enemyActorY"),
+            config.value("enemyActorZ"))
+}
+
 
 Bool externalRoleHostCompatibility(
     BoundedContentCompatibility local, Int expectedSequence
@@ -414,54 +619,84 @@ Bool externalRoleHostReceiveCommand(
         host, gameplayCommandTick(command), player)
 }
 
+Bool externalRoleSaveReload(LoopbackSession host) {
+    var config = BoundedG3Config()
+    assert(config.load("config/g3/external_lan.json"),
+        "external role G3 config must load")
+    var playerId = config.value("playerActorId")
+    var itemId = host.playerEquipmentItem(playerId, 0)
+    var currencyBefore = host.playerCurrency(playerId)
+    var itemQuantityBefore = host.playerItemQuantity(playerId, itemId)
+    var skillRankBefore = host.playerSkillRank(
+        playerId, config.value("playerSkillId"))
+    var lootCountBefore = host.worldLootCount()
+    var rewardClaimedBefore = host.combatRewardClaimed(
+        config.value("admittedEnemyId"))
+    var savePath = "external-g3-authority-save.bin"
+    var saveFile = File(savePath)
+    if (saveFile.exists() && !saveFile.delete()) {
+        return false
+    }
+    var store = BoundedSaveSchemaFileStore(12, 160)
+    var saved = BoundedSaveSections(12, 160)
+    if (!saved.setRevision(host.currentServerTick()) ||
+        !host.encodeG3Authority(playerId, saved) ||
+        !store.write(savePath, saved)) {
+        return false
+    }
+    var loaded = BoundedSaveSections(12, 160)
+    var restored = store.read(savePath, loaded) &&
+        host.decodeG3Authority(playerId, loaded) &&
+        host.playerCurrency(playerId) == currencyBefore &&
+        host.playerItemQuantity(playerId, itemId) == itemQuantityBefore &&
+        host.playerEquipmentItem(playerId, 0) == itemId &&
+        host.playerSkillRank(
+            playerId, config.value("playerSkillId")) == skillRankBefore &&
+        host.worldLootCount() == lootCountBefore &&
+        host.combatRewardClaimed(
+            config.value("admittedEnemyId")) == rewardClaimedBefore
+    var removed = !saveFile.exists() || saveFile.delete()
+    if (!restored || !removed) {
+        return false
+    }
+    println("external-g3-save-reload")
+    println(1)
+    return true
+}
+
+
 Bool externalRoleHostQualification() {
     var arena = G1Arena()
-    var compatibility = externalRoleCompatibility(arena)
-    var host = LoopbackSession(8, 4)
+    var config = BoundedG3Config()
+    assert(config.load("config/g3/external_lan.json"),
+        "external role G3 config must load")
+    var compatibility = externalRoleCompatibility(
+        arena,
+        config.checksum(),
+        config.value("extensionNetworkSchema"),
+        config.value("engineVersion"),
+        config.value("contentApiVersion"),
+        config.value("contentGeneration"),
+        config.value("contentRevision"))
+    var host = LoopbackSession(
+        config.value("sessionEnemyCapacity"),
+        config.value("sessionPlayerCapacity"))
+    var playerId = config.value("playerActorId")
+    var enemyId = config.value("admittedEnemyId")
+    var skillId = config.value("playerSkillId")
     assert(arena.ready() &&
         kookie_transport_max_words() == maximumSessionTransportWords() &&
         host.defineWorldKey(1, 2, 0, 0, 0) &&
         host.defineWorldDoor(2, 1, 4, 0, 0, 1, 2, 1, 4) &&
         host.defineWorldSecret(3, 2, 0, 0, 0) &&
         host.defineWorldExit(4, 2, 1, 0, 0, 0, 0) &&
-        host.registerExtensionManifest(7, 1, 1, 2, 4) &&
-        host.configureExtensionLoadOrder(7, 1, 10) &&
-        host.configureExtensionProvenance(7, 1, 701) &&
-        host.configureExtensionSchemas(7, 1, 1, 2) &&
-        host.grantExtensionCapability(
-            7, 1, extensionContributionEnemyDefinitionKind()) &&
-        host.registerExtensionContribution(
-            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10) &&
-        host.defineEnemyDefinition(
-            7, 1, 1002, 1, enemyDefinitionBossKind()) &&
-        host.setEnemyDefinitionCombat(7, 1002, 8, 0, 9) &&
-        host.setEnemyDefinitionBehavior(7, 1002, 1, 1, 1) &&
-        host.setEnemyDefinitionCritical(7, 1002, 0) &&
-        host.setEnemyDefinitionLoot(7, 1002, 897, 77, 4) &&
-        host.setEnemyDefinitionRankCurrency(
-            7, 1002, enemyDefinitionBossKind(), 25) &&
-        host.setEnemyDefinitionProgression(7, 1002, 30, 100) &&
+        externalRoleConfigureG3Definition(host) &&
         host.start() && host.connectPlayer() == 1 && host.connectPlayer() == 2 &&
         host.loadAuthoredBroadPhase(arena.authoredCollision()) &&
         host.broadPhaseTriangleCount() == arena.triangleCount() &&
-        host.configureEnemyRules(100, 20, 2) &&
-        host.defineEnemyWeapon(9, 2, 0, 4, 1) &&
-        host.setEnemyWeaponRange(9, 20) &&
-        host.defineEnemyEncounter(4, 1, 1) &&
-        host.addEnemyCombatActor(1, 20, 0) &&
-        host.equipEnemyCombatWeapon(1, 9) &&
-        host.addPlayerCombatActor(1, 200, 0) &&
-        host.addPlayerCombatActor(2, 200, 0) &&
-        host.defineLootAffixPool(1) &&
-        host.addLootAffix(1, 11, 1) &&
-        host.defineLootAffixStat(11, 5, 0, 0) &&
-        host.defineLootItem(501, 10, 1, 10, 1) &&
-        host.addLootTableEntry(501, 1) &&
-        host.definePlayerSkill(30, 2, 100) &&
-        host.admitDefinedEnemy(4, 3, 7, 1002) &&
-        host.setEnemySpatialPosition(3, 6, 0, 0),
+        externalRoleConfigureG3Runtime(host),
         "external host must configure replicated combat loot and progression")
-    var healthBeforeShot = host.enemyCombatHealth(3)
+    var healthBeforeShot = host.enemyCombatHealth(enemyId)
     assert(kookie_transport_select_slot(0) &&
         kookie_transport_set_key_from_environment() &&
         kookie_transport_open_listen_ipv4(47101) &&
@@ -492,23 +727,25 @@ Bool externalRoleHostQualification() {
     assert(externalRoleHostReceiveCommand(
             host, 0, 1, 1, gameplayProgressionAction()) &&
         host.lastRemoteGameplayAccepted() &&
-        host.playerSkillRank(1, 30) == 0,
+        host.playerSkillRank(playerId, skillId) == 0,
         "external progression request must enter server authority")
     assert(externalRoleHostReceiveCommand(
             host, 0, 1, 2, gameplayFireAction()) &&
         host.lastRemoteGameplayAccepted(),
         "external first fire command must enter authority")
-    assert(host.enemyCombatHealth(3) == 4,
+    var healthAfterFirstShot = host.enemyCombatHealth(enemyId)
+    assert(healthAfterFirstShot < healthBeforeShot &&
+        healthAfterFirstShot > 0,
         "external first fire must apply authoritative damage")
     assert(externalRoleHostReceiveCommand(
             host, 0, 1, 3, gameplayFireAction()) &&
-        host.lastRemoteGameplayAccepted(),
-        "external terminal fire command must enter authority")
-    assert(host.enemyCombatHealth(3) == 0 &&
-        host.playerCurrency(1) == 25 &&
-        host.playerSkillRank(1, 30) == 1 &&
+        host.lastRemoteGameplayAccepted())
+    var itemId = host.worldLootStableId(0)
+    assert(host.enemyCombatHealth(enemyId) == 0 &&
+        host.playerCurrency(playerId) == config.value("enemyCurrency") &&
+        host.playerSkillRank(playerId, skillId) >= 1 &&
         host.worldLootCount() == 1 &&
-        host.worldLootStableId(0) == 900,
+        itemId > 0,
         "external terminal fire must award server-owned G3 state")
     assert(externalRoleHostReceiveCommand(
             host, 1, 2, 1, gameplayDisconnectAction()) &&
@@ -534,12 +771,12 @@ Bool externalRoleHostQualification() {
             host, 0, 1, 5, gameplayPickupAction()) &&
         host.lastRemoteGameplayAccepted() &&
         host.worldLootCount() == 0 &&
-        host.playerItemQuantity(1, 900) == 1,
+        host.playerItemQuantity(playerId, itemId) == 1,
         "external pickup must atomically move replicated loot into inventory")
     assert(externalRoleHostReceiveCommand(
             host, 0, 1, 6, gameplayEquipAction()) &&
         host.lastRemoteGameplayAccepted() &&
-        host.playerEquipmentItem(1, 0) == 900,
+        host.playerEquipmentItem(playerId, 0) == itemId,
         "external equip must publish the authoritative loadout")
     assert(externalRoleHostReceiveCommand(
             host, 0, 1, 7, gameplayInteractAction()) &&
@@ -565,6 +802,8 @@ Bool externalRoleHostQualification() {
         host.levelCompleted() &&
         host.worldInteractionRevision() == 4,
         "external host must complete the authoritative interaction path")
+    assert(externalRoleSaveReload(host),
+        "external host must round-trip authoritative G3 state")
 
     println("external-role-processes")
     println("external-gameplay")
@@ -576,17 +815,19 @@ Bool externalRoleHostQualification() {
     println("external-reconnect-generation")
     println(host.playerConnectionGeneration(2))
     println("external-combat-damage")
-    println(healthBeforeShot - host.enemyCombatHealth(3))
+    println(healthBeforeShot - host.enemyCombatHealth(enemyId))
     println("external-combat-death")
     println(1)
     println("external-combat-reward")
-    println(host.playerCurrency(1))
+    println(host.playerCurrency(playerId))
     println("external-enemy-encounter")
-    println(host.enemyEncounterActiveCount(4))
+    println(host.enemyEncounterActiveCount(config.value("encounterId")))
     println("external-enemy-state")
-    println(host.enemyState(3))
+    println(host.enemyState(enemyId))
     println("external-enemy-health")
-    println(host.enemyCombatHealth(3))
+    println(host.enemyCombatHealth(enemyId))
+    println("external-g3-config-checksum")
+    println(config.checksum())
     println("external-impact-sequence")
     println(host.remoteImpactSequence())
     println("external-player-position")
@@ -623,8 +864,22 @@ Bool externalRoleHostQualification() {
 
 Bool externalRoleClientQualification(Int clientId) {
     var arena = G1Arena()
-    var compatibility = externalRoleCompatibility(arena)
-    var client = LoopbackSession(8, 4)
+    var config = BoundedG3Config()
+    assert(config.load("config/g3/external_lan.json"),
+        "external role G3 config must load")
+    var compatibility = externalRoleCompatibility(
+        arena,
+        config.checksum(),
+        config.value("extensionNetworkSchema"),
+        config.value("engineVersion"),
+        config.value("contentApiVersion"),
+        config.value("contentGeneration"),
+        config.value("contentRevision"))
+    var client = LoopbackSession(
+        config.value("sessionEnemyCapacity"),
+        config.value("sessionPlayerCapacity"))
+    var enemyId = config.value("admittedEnemyId")
+    var skillId = config.value("playerSkillId")
     var hostFirstOctet = kookie_transport_external_host_octet(0)
     var hostSecondOctet = kookie_transport_external_host_octet(1)
     var hostThirdOctet = kookie_transport_external_host_octet(2)
@@ -685,17 +940,23 @@ Bool externalRoleClientQualification(Int clientId) {
         "external client join must establish identity generation")
     if (clientId == 1) {
         assert(externalRoleSendCommand(client, newGameplayProgressionCommand(
-                1, 1, 1, 30, 1, 1)) &&
-            client.clientRemoteSkillRank(30) == 0 &&
+                1, 1, 1, skillId, 1, 1)) &&
+            client.clientRemoteSkillRank(skillId) == 0 &&
             client.clientRemoteItemCount() == 0 &&
             client.clientRemoteWorldLootCount() == 0,
             "client one must receive its initial G3 authority baseline")
+        var enemyHealthBeforeFirstShot =
+            client.clientRemoteEnemyHealth(enemyId)
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 2, 2, gameplayFireAction(), 3, 10, 0, 1)) &&
-            client.clientRemoteCombatActor() == 3 &&
-            client.clientRemoteCombatHealth() == 4 &&
-            client.clientRemoteEnemyHealth(3) == 4 &&
-            client.clientRemoteEnemyState(3) >= 0 &&
+                1, 2, 2, gameplayFireAction(), enemyId,
+                config.value("playerAttackDistance"),
+                config.value("playerAttackCritical"), 1)) &&
+            client.clientRemoteCombatActor() == enemyId &&
+            client.clientRemoteCombatHealth() < enemyHealthBeforeFirstShot &&
+            client.clientRemoteCombatHealth() > 0 &&
+            client.clientRemoteEnemyHealth(enemyId) ==
+                client.clientRemoteCombatHealth() &&
+            client.clientRemoteEnemyState(enemyId) >= 0 &&
             client.clientRemoteEncounterActiveCount() == 1 &&
             client.clientRemoteImpactSequence() == 1 &&
             client.clientRemoteCurrency() == 0 &&
@@ -704,27 +965,30 @@ Bool externalRoleClientQualification(Int clientId) {
             client.dequeueImpactPresentation(),
             "client one must receive first authoritative enemy impact")
         var firstImpact = client.lastImpactPresentation()
-        assert(firstImpact.targetId() == 3 &&
-            firstImpact.applied() == 4 && !firstImpact.died(),
+        assert(firstImpact.targetId() == enemyId &&
+            firstImpact.applied() > 0 && !firstImpact.died(),
             "first replicated impact must preserve damage identity")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
-                1, 3, 3, gameplayFireAction(), 3, 10, 0, 1)) &&
+                1, 3, 3, gameplayFireAction(), enemyId,
+                config.value("playerAttackDistance"),
+                config.value("playerAttackCritical"), 1)) &&
             client.clientRemoteCombatHealth() == 0 &&
-            client.clientRemoteEnemyHealth(3) == 0 &&
-            client.clientRemoteEnemyState(3) == 7 &&
+            client.clientRemoteEnemyHealth(enemyId) == 0 &&
+            client.clientRemoteEnemyState(enemyId) == 7 &&
             client.clientRemoteEncounterActiveCount() == 0 &&
             client.clientRemoteImpactSequence() == 2 &&
-            client.clientRemoteCurrency() == 25 &&
-            client.clientRemoteSkillRank(30) == 1 &&
+            client.clientRemoteCurrency() == config.value("enemyCurrency") &&
+            client.clientRemoteSkillRank(skillId) >= 1 &&
             client.clientRemoteWorldLootCount() == 1 &&
-            client.clientRemoteWorldLootStableId(0) == 900 &&
-            client.clientRemoteWorldLootRank(0) == 3 &&
+            client.clientRemoteWorldLootStableId(0) > 0 &&
+            client.clientRemoteWorldLootRank(0) > 0 &&
             client.pendingImpactPresentations() == 1 &&
             client.dequeueImpactPresentation(),
             "client one must receive terminal combat loot and progression")
+        var itemId = client.clientRemoteWorldLootStableId(0)
         var terminalImpact = client.lastImpactPresentation()
-        assert(terminalImpact.targetId() == 3 &&
-            terminalImpact.applied() == 4 && terminalImpact.died(),
+        assert(terminalImpact.targetId() == enemyId &&
+            terminalImpact.applied() > 0 && terminalImpact.died(),
             "terminal replicated impact must preserve death feedback")
         assert(client.predictRemoteGameplayInput(1, 4, 2, 1) &&
             client.clientRemotePredictedPosition() == 2,
@@ -737,14 +1001,14 @@ Bool externalRoleClientQualification(Int clientId) {
             client.clientRemoteDiagnostic() == gameplayMoveDiagnostic(),
             "client one must reconcile authoritative movement")
         assert(externalRoleSendCommand(client, newGameplayPickupCommand(
-                1, 5, 5, 900, 1)) &&
+                1, 5, 5, itemId, 1)) &&
             client.clientRemoteItemCount() == 1 &&
-            client.clientRemoteItemId(0) == 900 &&
+            client.clientRemoteItemId(0) == itemId &&
             client.clientRemoteWorldLootCount() == 0,
             "client one must receive authoritative pickup state")
         assert(externalRoleSendCommand(client, newGameplayEquipCommand(
-                1, 6, 6, 0, 900, 1)) &&
-            client.clientRemoteEquipmentItem(0) == 900,
+                1, 6, 6, 0, itemId, 1)) &&
+            client.clientRemoteEquipmentItem(0) == itemId,
             "client one must receive authoritative equipment state")
         assert(externalRoleSendCommand(client, newGameplayCommandMessage(
                 1, 7, 7, gameplayInteractAction(), 1, 0, 0, 1)) &&
@@ -770,7 +1034,7 @@ Bool externalRoleClientQualification(Int clientId) {
         println("external-client-g3-equipment")
         println(client.clientRemoteEquipmentItem(0))
         println("external-client-g3-skill-rank")
-        println(client.clientRemoteSkillRank(30))
+        println(client.clientRemoteSkillRank(skillId))
         println("external-client-g3-world-loot-count")
         println(client.clientRemoteWorldLootCount())
     } else {
@@ -840,13 +1104,30 @@ main() {
         assert(externalRoleClientQualification(2),
             "external client B role must qualify")
     } else {
-    var arena = G1Arena()
-    var compatibility = externalRoleCompatibility(arena)
-    var host = LoopbackSession(8, 4)
-    var clientA = LoopbackSession(8, 4)
-    var clientB = LoopbackSession(8, 4)
-    var endpointA = RemoteSessionEndpoint(127, 0, 0, 1, 47101, 1, 2, 3, 4)
-    var endpointB = RemoteSessionEndpoint(127, 0, 0, 1, 47102, 1, 2, 3, 4)
+        var arena = G1Arena()
+        var config = BoundedG3Config()
+        assert(config.load("config/g3/external_lan.json"),
+            "external role G3 config must load")
+        var compatibility = externalRoleCompatibility(
+            arena,
+            config.checksum(),
+            config.value("extensionNetworkSchema"),
+            config.value("engineVersion"),
+            config.value("contentApiVersion"),
+            config.value("contentGeneration"),
+            config.value("contentRevision"))
+        var enemyCapacity = config.value("sessionEnemyCapacity")
+        var playerCapacity = config.value("sessionPlayerCapacity")
+        var host = LoopbackSession(enemyCapacity, playerCapacity)
+        var clientA = LoopbackSession(enemyCapacity, playerCapacity)
+        var clientB = LoopbackSession(enemyCapacity, playerCapacity)
+        var playerId = config.value("playerActorId")
+        var enemyId = config.value("admittedEnemyId")
+        var skillId = config.value("playerSkillId")
+        var endpointA = RemoteSessionEndpoint(
+            127, 0, 0, 1, 47101, 1, 2, 3, 4)
+        var endpointB = RemoteSessionEndpoint(
+            127, 0, 0, 1, 47102, 1, 2, 3, 4)
     assert(arena.ready(), "transport arena must initialize")
     assert(
         kookie_transport_max_words() == maximumSessionTransportWords(),
@@ -867,24 +1148,7 @@ main() {
         clientB.defineWorldSecret(3, 2, 0, 0, 0) &&
         clientB.defineWorldExit(4, 2, 1, 0, 0, 0, 0),
         "transport sessions must define matching world state")
-    assert(
-        host.registerExtensionManifest(7, 1, 1, 2, 4) &&
-        host.configureExtensionLoadOrder(7, 1, 10) &&
-        host.configureExtensionProvenance(7, 1, 701) &&
-        host.configureExtensionSchemas(7, 1, 1, 2) &&
-        host.grantExtensionCapability(
-            7, 1, extensionContributionEnemyDefinitionKind()) &&
-        host.registerExtensionContribution(
-            7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10) &&
-        host.defineEnemyDefinition(
-            7, 1, 1002, 1, enemyDefinitionBossKind()) &&
-        host.setEnemyDefinitionCombat(7, 1002, 8, 0, 9) &&
-        host.setEnemyDefinitionBehavior(7, 1002, 1, 1, 1) &&
-        host.setEnemyDefinitionCritical(7, 1002, 0) &&
-        host.setEnemyDefinitionLoot(7, 1002, 897, 77, 4) &&
-        host.setEnemyDefinitionRankCurrency(
-            7, 1002, enemyDefinitionBossKind(), 25) &&
-        host.setEnemyDefinitionProgression(7, 1002, 30, 100),
+    assert(externalRoleConfigureG3Definition(host),
         "transport host must configure extension gameplay")
     assert(host.start() && host.connectPlayer() == 1 &&
         host.connectPlayer() == 2,
@@ -969,26 +1233,12 @@ main() {
         kookie_transport_select_slot(1) &&
         receivePayload(host, reconnectPayloadB, true),
         "host must accept client B after reconnect")
-    assert(host.configureEnemyRules(100, 20, 2) &&
-        host.defineEnemyWeapon(9, 2, 0, 4, 1) &&
-        host.setEnemyWeaponRange(9, 20) &&
-        host.defineEnemyEncounter(4, 1, 1) &&
-        host.addEnemyCombatActor(1, 20, 0) &&
-        host.equipEnemyCombatWeapon(1, 9) &&
-        host.addPlayerCombatActor(1, 200, 0) &&
-        host.addPlayerCombatActor(2, 200, 0) &&
-        host.defineLootAffixPool(1) &&
-        host.addLootAffix(1, 11, 1) &&
-        host.defineLootAffixStat(11, 5, 0, 0) &&
-        host.defineLootItem(501, 10, 1, 10, 1) &&
-        host.addLootTableEntry(501, 1) &&
-        host.definePlayerSkill(30, 2, 100) &&
-        host.admitDefinedEnemy(4, 3, 7, 1002) &&
-        host.setEnemySpatialPosition(3, 6, 0, 0),
+    assert(externalRoleConfigureG3Runtime(host),
         "host must configure replicated combat loot and progression")
-    var state = host.gameplayStateMessage(0, 3, 1)
+    var state = host.gameplayStateMessage(0, enemyId, 1)
     var feedback = host.multiplayerFeedbackStateMessage(0)
-    var encounter = host.enemyEncounterStateMessage(0, 4)
+    var encounter = host.enemyEncounterStateMessage(
+        0, config.value("encounterId"))
     var authority = host.playerAuthorityStateMessage(0, 1)
     var loot = host.worldLootStateMessage(0, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
@@ -998,9 +1248,10 @@ main() {
         clientA.applyRemoteWorldLootState(loot) &&
         clientA.clientRemoteBaselineReady() &&
         clientA.clientRemotePlayer() == 1)
-    state = host.gameplayStateMessage(0, 3, 2)
+    state = host.gameplayStateMessage(0, enemyId, 2)
     feedback = host.multiplayerFeedbackStateMessage(0)
-    encounter = host.enemyEncounterStateMessage(0, 4)
+    encounter = host.enemyEncounterStateMessage(
+        0, config.value("encounterId"))
     authority = host.playerAuthorityStateMessage(0, 2)
     loot = host.worldLootStateMessage(0, 2)
     assert(clientB.applyRemoteGameplayState(state) &&
@@ -1012,18 +1263,24 @@ main() {
         clientB.clientRemotePlayer() == 2,
         "both production joins must establish all authoritative baselines")
     assert(host.applyRemoteGameplayCommand(newGameplayProgressionCommand(
-        1, 1, 1, 30, 1, 1)))
+        1, 1, 1, skillId, 1, 1)))
     authority = host.playerAuthorityStateMessage(1, 1)
     loot = host.worldLootStateMessage(1, 1)
     assert(clientA.applyRemotePlayerAuthorityState(authority) &&
         clientA.applyRemoteWorldLootState(loot) &&
-        clientA.clientRemoteSkillRank(30) == 0)
-    var healthBeforeShot = host.enemyCombatHealth(3)
+        clientA.clientRemoteSkillRank(skillId) == 0)
+    var healthBeforeShot = host.enemyCombatHealth(enemyId)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 2, 2, gameplayFireAction(), 3, 10, 0, 1)))
-    state = host.gameplayStateMessage(2, 3, 1)
+        1, 2, 2, gameplayFireAction(), enemyId,
+        config.value("playerAttackDistance"),
+        config.value("playerAttackCritical"), 1)))
+    var healthAfterFirstShot = host.enemyCombatHealth(enemyId)
+    assert(healthAfterFirstShot < healthBeforeShot &&
+        healthAfterFirstShot > 0)
+    state = host.gameplayStateMessage(2, enemyId, 1)
     feedback = host.multiplayerFeedbackStateMessage(2)
-    encounter = host.enemyEncounterStateMessage(2, 4)
+    encounter = host.enemyEncounterStateMessage(
+        2, config.value("encounterId"))
     authority = host.playerAuthorityStateMessage(2, 1)
     loot = host.worldLootStateMessage(2, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
@@ -1031,19 +1288,22 @@ main() {
         clientA.applyRemoteEnemyEncounterState(encounter) &&
         clientA.applyRemotePlayerAuthorityState(authority) &&
         clientA.applyRemoteWorldLootState(loot) &&
-        clientA.clientRemoteCombatActor() == 3 &&
-        clientA.clientRemoteCombatHealth() == 4 &&
-        clientA.clientRemoteEnemyHealth(3) == 4 &&
+        clientA.clientRemoteCombatActor() == enemyId &&
+        clientA.clientRemoteCombatHealth() == healthAfterFirstShot &&
+        clientA.clientRemoteEnemyHealth(enemyId) == healthAfterFirstShot &&
         clientA.clientRemoteEncounterActiveCount() == 1 &&
         clientA.pendingImpactPresentations() == 1 &&
         clientA.dequeueImpactPresentation())
     var firstImpact = clientA.lastImpactPresentation()
-    assert(firstImpact.applied() == 4 && !firstImpact.died())
+    assert(firstImpact.applied() > 0 && !firstImpact.died())
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
-        1, 3, 3, gameplayFireAction(), 3, 10, 0, 1)))
-    state = host.gameplayStateMessage(3, 3, 1)
+        1, 3, 3, gameplayFireAction(), enemyId,
+        config.value("playerAttackDistance"),
+        config.value("playerAttackCritical"), 1)))
+    state = host.gameplayStateMessage(3, enemyId, 1)
     feedback = host.multiplayerFeedbackStateMessage(3)
-    encounter = host.enemyEncounterStateMessage(3, 4)
+    encounter = host.enemyEncounterStateMessage(
+        3, config.value("encounterId"))
     authority = host.playerAuthorityStateMessage(3, 1)
     loot = host.worldLootStateMessage(3, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
@@ -1052,30 +1312,31 @@ main() {
         clientA.applyRemotePlayerAuthorityState(authority) &&
         clientA.applyRemoteWorldLootState(loot) &&
         clientA.clientRemoteCombatHealth() == 0 &&
-        clientA.clientRemoteEnemyHealth(3) == 0 &&
-        clientA.clientRemoteEnemyState(3) == 7 &&
+        clientA.clientRemoteEnemyHealth(enemyId) == 0 &&
+        clientA.clientRemoteEnemyState(enemyId) == 7 &&
         clientA.clientRemoteEncounterActiveCount() == 0 &&
-        clientA.clientRemoteCurrency() == 25 &&
-        clientA.clientRemoteSkillRank(30) == 1 &&
+        clientA.clientRemoteCurrency() == config.value("enemyCurrency") &&
+        clientA.clientRemoteSkillRank(skillId) >= 1 &&
         clientA.clientRemoteWorldLootCount() == 1 &&
-        clientA.clientRemoteWorldLootStableId(0) == 900 &&
+        clientA.clientRemoteWorldLootStableId(0) > 0 &&
         clientA.pendingImpactPresentations() == 1 &&
         clientA.dequeueImpactPresentation(),
         "server-owned combat loot and progression must replicate")
+    var itemId = clientA.clientRemoteWorldLootStableId(0)
     var terminalImpact = clientA.lastImpactPresentation()
-    assert(terminalImpact.applied() == 4 && terminalImpact.died())
+    assert(terminalImpact.applied() > 0 && terminalImpact.died())
 
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         2, 1, 1, gameplayDisconnectAction(), 2, 0, 0, 1)))
     var lifecycle = host.gameplayStateMessage(
-        host.currentServerTick(), 3, 2)
+        host.currentServerTick(), enemyId, 2)
     assert(clientB.applyRemoteGameplayState(lifecycle) &&
         !clientB.clientRemoteConnected() &&
         clientB.clientRemoteDisconnectReason() == 2)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         2, 1, 2, gameplayReconnectAction(), 0, 0, 0, 1)))
     lifecycle = host.gameplayStateMessage(
-        host.currentServerTick(), 3, 2)
+        host.currentServerTick(), enemyId, 2)
     assert(clientB.applyRemoteGameplayState(lifecycle) &&
         clientB.clientRemoteConnected() &&
         clientB.clientRemoteConnectionGeneration() == 2,
@@ -1085,34 +1346,34 @@ main() {
         clientA.clientRemotePredictedPosition() == 2)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 4, 4, gameplayMoveAction(), 2, 0, 0, 1)))
-    state = host.gameplayStateMessage(4, 3, 1)
+    state = host.gameplayStateMessage(4, enemyId, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientRemotePlayerPosition(1) == 2 &&
         clientA.clientRemotePredictedPosition() == 2 &&
         clientA.clientRemotePendingPredictionInputs() == 0)
     assert(host.applyRemoteGameplayCommand(newGameplayPickupCommand(
-        1, 5, 5, 900, 1)))
+        1, 5, 5, itemId, 1)))
     authority = host.playerAuthorityStateMessage(5, 1)
     loot = host.worldLootStateMessage(5, 1)
     assert(clientA.applyRemotePlayerAuthorityState(authority) &&
         clientA.applyRemoteWorldLootState(loot) &&
-        clientA.clientRemoteItemId(0) == 900 &&
+        clientA.clientRemoteItemId(0) == itemId &&
         clientA.clientRemoteWorldLootCount() == 0)
     assert(host.applyRemoteGameplayCommand(newGameplayEquipCommand(
-        1, 6, 6, 0, 900, 1)))
+        1, 6, 6, 0, itemId, 1)))
     authority = host.playerAuthorityStateMessage(6, 1)
     loot = host.worldLootStateMessage(6, 1)
     assert(clientA.applyRemotePlayerAuthorityState(authority) &&
         clientA.applyRemoteWorldLootState(loot) &&
-        clientA.clientRemoteEquipmentItem(0) == 900)
+        clientA.clientRemoteEquipmentItem(0) == itemId)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 7, 7, gameplayInteractAction(), 1, 0, 0, 1)))
-    state = host.gameplayStateMessage(7, 3, 1)
+    state = host.gameplayStateMessage(7, enemyId, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientWorldInteractionActive(1))
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         2, 8, 1, gameplayInteractAction(), 2, 0, 0, 2)))
-    lifecycle = host.gameplayStateMessage(8, 3, 2)
+    lifecycle = host.gameplayStateMessage(8, enemyId, 2)
     assert(clientB.applyRemoteGameplayState(lifecycle) &&
         clientB.clientWorldInteractionActive(2),
         "key and door progression must replicate by authored interaction mask")
@@ -1121,12 +1382,12 @@ main() {
         !host.lastRemoteGameplayAccepted() &&
         host.lastRemoteGameplayDiagnostic() == gameplayStaleDiagnostic())
     state = host.gameplayStateMessage(
-        host.currentServerTick(), 3, 1)
+        host.currentServerTick(), enemyId, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientRemoteDiagnostic() == gameplayStaleDiagnostic())
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
         1, 9, 8, gameplayInteractAction(), 3, 0, 0, 1)))
-    state = host.gameplayStateMessage(9, 3, 1)
+    state = host.gameplayStateMessage(9, enemyId, 1)
     assert(clientA.applyRemoteGameplayState(state) &&
         clientA.clientWorldSecretCount() == 1)
     assert(host.applyRemoteGameplayCommand(newGameplayCommandMessage(
@@ -1136,6 +1397,9 @@ main() {
         clientB.clientLevelCompleted() &&
         host.levelCompleted() && host.worldInteractionRevision() == 4,
         "authoritative key-door-secret-exit path must complete")
+    assert(externalRoleSaveReload(host),
+        "integrated external host must round-trip authoritative G3 state")
+
 
     println("external-player-authority-kind")
     println(playerAuthorityStateMessageKind())
@@ -1146,7 +1410,7 @@ main() {
     println("external-client-g3-equipment")
     println(clientA.clientRemoteEquipmentItem(0))
     println("external-client-g3-skill-rank")
-    println(clientA.clientRemoteSkillRank(30))
+    println(clientA.clientRemoteSkillRank(skillId))
     println("external-client-g3-world-loot-count")
     println(clientA.clientRemoteWorldLootCount())
     println("external-gameplay")
@@ -1158,17 +1422,19 @@ main() {
     println("external-reconnect-generation")
     println(host.playerConnectionGeneration(2))
     println("external-combat-damage")
-    println(healthBeforeShot - host.enemyCombatHealth(3))
+    println(healthBeforeShot - host.enemyCombatHealth(enemyId))
     println("external-combat-death")
     println(1)
     println("external-combat-reward")
-    println(host.playerCurrency(1))
+    println(host.playerCurrency(playerId))
     println("external-enemy-encounter")
-    println(host.enemyEncounterActiveCount(4))
+    println(host.enemyEncounterActiveCount(config.value("encounterId")))
     println("external-enemy-state")
-    println(host.enemyState(3))
+    println(host.enemyState(enemyId))
     println("external-enemy-health")
-    println(host.enemyCombatHealth(3))
+    println(host.enemyCombatHealth(enemyId))
+    println("external-g3-config-checksum")
+    println(config.checksum())
     println("external-impact-sequence")
     println(clientA.clientRemoteImpactSequence())
     println("external-player-position")

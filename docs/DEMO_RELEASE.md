@@ -57,11 +57,12 @@ font files and their SIL Open Font License notice ship with the package.
   isolated presentation run reported `No DRI3 support detected` and `No
   supported SDL_GPU backend found` before timeout 124; target-hardware
   evidence remains required.
-- Windows x86-64 native Kof PE gameplay linkage to the SDL shell and the
-  SDL_GPU presentation package, with SPIR-V/DXIL products and reproducible
-  artifact gates. The signed presentation artifact gate passed with pinned
-  MinGW SDL3/SDL_mixer and DXC; no target Windows hardware evidence is retained.
-- Native-shell Wine gameplay-marker smoke for Windows. Native Windows visual
+- Windows x86-64 native Kof PE gameplay linkage to the SDL3/SDL_mixer adapter
+  and the SDL_GPU presentation package, with SPIR-V/DXIL products and
+  reproducible artifact gates. The signed presentation artifact gate passed
+  with pinned MinGW SDL3/SDL_mixer and DXC; no target Windows hardware evidence
+  is retained.
+- Native Kof SDL Wine gameplay-marker smoke for Windows. Native Windows visual
   smoke is available through `KOOKIE_RUN_NATIVE_PRESENTATION=1` and the
   reviewed `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`; Wine, package
   linkage and Xvfb output are not visual target presentation evidence.

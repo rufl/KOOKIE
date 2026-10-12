@@ -6,7 +6,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
 
-for command_name in kof cc glslc ldd pkg-config python3; do
+for command_name in kof cc glslc spirv-val ldd pkg-config python3; do
   command -v "$command_name" >/dev/null || {
     printf 'G5 renderer gate requires %s\n' "$command_name" >&2
     exit 75
@@ -52,9 +52,11 @@ done
 cp -- "$ROOT_DIR/probes/g5_reference_renderer/main.kf" "$SOURCE_DIR/main.kf"
 
 IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
+python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
+  --root "$ROOT_DIR" --output "$SOURCE_DIR/build" --target linux
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
+  -I"$SOURCE_DIR/build" \
   "$ROOT_DIR/native/kookie_sdl_adapter.c" \
-  "$ROOT_DIR/native/kookie_model_assets.c" \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SOURCE_DIR/build/libkookie_sdl_adapter.so" \
   "${SDL_FLAGS[@]}" -lm
@@ -66,14 +68,6 @@ while IFS= read -r library; do
   esac
 done < <(ldd "$SOURCE_DIR/build/libkookie_sdl_adapter.so" |
   sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p')
-glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
-  -o "$SOURCE_DIR/build/g0_triangle.vert.spv"
-glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
-  -o "$SOURCE_DIR/build/g5_triangle_instance.vert.spv"
-glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g6_world.vert" \
-  -o "$SOURCE_DIR/build/g6_world.vert.spv"
-glslc -fshader-stage=frag "$ROOT_DIR/native/shaders/g0_triangle.frag" \
-  -o "$SOURCE_DIR/build/g0_triangle.frag.spv"
 (
   cd "$SOURCE_DIR"
   kof build main.kf --target native --output "$BINARY_DIR"

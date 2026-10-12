@@ -125,9 +125,9 @@ Execute as sondas não gráficas de expansão G6:
 bash scripts/verify_g6_runtime.sh
 ```
 
-Builds de pacotes de apresentação exigem SDL 3.4.18, SDL_mixer 3.2.4
-e `glslc`. Se o `pkg-config` não encontrar SDL_mixer, prepare uma vez o
-prefixo de desenvolvimento fixado:
+Builds de pacotes de apresentação exigem SDL 3.4.18, SDL_mixer 3.2.4,
+`glslc` e `spirv-val`. Se o `pkg-config` não encontrar SDL_mixer, prepare uma
+vez o prefixo de desenvolvimento fixado:
 
 ```bash
 bash scripts/bootstrap_sdl3_mixer.sh

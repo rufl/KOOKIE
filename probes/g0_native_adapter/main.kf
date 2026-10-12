@@ -27,15 +27,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_push_headless_device_reset(
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_push_headless_device_lost(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resource, Int x, Int y, Int u, Int v): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
-    Int resource, Int x, Int y, Int depth, Int u, Int v
-): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_quad_depth(
-    Int resource, Int left, Int bottom, Int right, Int top, Int depth
-): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_triangle(
-    Int resource, Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_uv(
+    Int x, Int y, Int depth, Int encodedU, Int encodedV
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
@@ -155,39 +148,31 @@ class G1HeadlessPresentation {
         hudCapacity = hudFrame.vertexCapacity()
     }
 
+    Bool uploadSceneVertex(FrameStaging frame, Int index) {
+        var encodedU = kookieUiNativeTextureU(
+            frame.resourceAt(index), frame.uAt(index))
+        var encodedV = kookieUiNativeTextureV(
+            frame.resourceAt(index), frame.vAt(index))
+        if (encodedU < 0 || encodedV < 0) { return false }
+        return kookie_gpu_scene_push_vertex_uv(
+            frame.xAt(index), frame.yAt(index), frame.depthAt(index),
+            encodedU, encodedV)
+    }
+
     Bool upload(FrameStaging frame) {
         var index = 0
         while (index < frame.stagedCount()) {
             var span = frame.primitiveSpanAt(index)
-            if (span == 6) {
-                if (!kookie_gpu_scene_push_quad_depth(
-                        frame.resourceAt(index),
-                        frame.xAt(index), frame.yAt(index),
-                        frame.xAt(index + 1), frame.yAt(index + 2),
-                        frame.depthAt(index))) {
-                    return false
+            if (span == 6 || span == 3) {
+                for (var vertex = 0; vertex < span; vertex = vertex + 1) {
+                    if (!uploadSceneVertex(frame, index + vertex)) {
+                        return false
+                    }
                 }
-                index = index + 6
+                index = index + span
                 continue
             }
-            if (span == 3) {
-                if (!kookie_gpu_scene_push_triangle(
-                        frame.resourceAt(index),
-                        frame.xAt(index), frame.yAt(index),
-                        frame.xAt(index + 1), frame.yAt(index + 1),
-                        frame.xAt(index + 2), frame.yAt(index + 2))) {
-                    return false
-                }
-                index = index + 3
-                continue
-            }
-            if (!kookie_gpu_scene_push_vertex_depth(
-                    frame.resourceAt(index),
-                    frame.xAt(index), frame.yAt(index),
-                    frame.depthAt(index),
-                    frame.uAt(index), frame.vAt(index))) {
-                return false
-            }
+            if (!uploadSceneVertex(frame, index)) { return false }
             index = index + 1
         }
         return true
@@ -241,8 +226,11 @@ class G1HeadlessPresentation {
                 shell.renderVertexCapacity(), 0) ||
             !kookie_gpu_reload_stage(2, shell.kutter().renderChecksum()) ||
             !kookie_gpu_scene_begin(3) ||
-            !kookie_gpu_scene_push_vertex(1, 0, 0, 0, 0) ||
-            kookie_gpu_scene_push_vertex(0, 0, 0, 0, 0) ||
+            !kookie_gpu_scene_push_vertex_uv(
+                0, 0, 0,
+                kookieUiNativeTextureU(1, 0),
+                kookieUiNativeTextureV(1, 0)) ||
+            kookie_gpu_scene_push_vertex_uv(0, 0, 0, -1, 0) ||
             !kookie_gpu_reload_cancel(2) ||
             kookie_gpu_reload_pending_generation() != 0 ||
             kookie_gpu_reload_active_generation() != 1 ||

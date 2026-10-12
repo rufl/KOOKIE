@@ -579,6 +579,62 @@ test "camera aim projection follows the crosshair ray" {
         camera.aimDirectionZ() == 0,
         "mouse yaw must rotate the authoritative camera ray")
 }
+test "Kof staging emits bounded GPU camera and texture coordinates", "gpu-staging" {
+    var camera = CameraState(-450, 450)
+    assert(!camera.buildGpuCameraMatrix(0, 720) &&
+        camera.buildGpuCameraMatrix(1280, 720) &&
+        camera.gpuCameraMatrixElement(0) > 0 &&
+        camera.gpuCameraMatrixElement(5) > 0,
+        "camera matrix staging must stay bounded and positive on the focal axes")
+    var worldTexture = BoundedWorldTextureAsset()
+    assert(worldTexture.build(64, 64) &&
+        worldTexture.width() == 320 &&
+        worldTexture.height() == 256 &&
+        worldTexture.textureU(1, 0) > 0 &&
+        worldTexture.textureU(1, 100) > worldTexture.textureU(1, 0) &&
+        worldTexture.textureU(15, 0) > 0 &&
+        worldTexture.textureV(15, 100) > worldTexture.textureV(15, 0) &&
+        worldTexture.textureU(16, 0) < 0,
+        "world texture resources must map to bounded Kof-owned UV words")
+    assert(kookieUiNativeTextureU(1, 0) >= 0 &&
+        kookieUiNativeTextureV(101, 0) >= 0 &&
+        kookieUiNativeTextureU(0, 0) < 0,
+        "UI resources must map to bounded encoded atlas coordinates")
+    var sections = BoundedSaveSections(2, 4)
+    var payload = new Int[2]
+    payload[0] = 41
+    payload[1] = 77
+    assert(sections.setRevision(9) && sections.put(1, 1, payload),
+        "save sections must provide a bounded file-codec fixture")
+    var wire = BoundedSaveSchemaWireCodec(2, 4)
+    var fileCodec = BoundedDurableSaveFileCodec(2, 4)
+    assert(wire.encode(sections) &&
+        fileCodec.encode(wire) &&
+        fileCodec.fileByteCount() > 0,
+        "Kof must encode the durable file envelope before native I/O")
+    var fileBytes = new Int[fileCodec.fileByteCount()]
+    for (var byteIndex = 0;
+         byteIndex < fileBytes.length;
+         byteIndex = byteIndex + 1) {
+        fileBytes[byteIndex] = fileCodec.fileByte(byteIndex)
+    }
+    var restoredFile = BoundedDurableSaveFileCodec(2, 4)
+    var restoredWire = BoundedSaveSchemaWireCodec(2, 4)
+    var restoredSections = BoundedSaveSections(2, 4)
+    assert(restoredFile.decode(fileBytes, fileBytes.length) &&
+        restoredFile.wireLength() == wire.encodedLength(),
+        "Kof must validate and select the redundant durable file slot")
+    var restoredWords = new Int[restoredFile.wireLength()]
+    for (var wordIndex = 0;
+         wordIndex < restoredWords.length;
+         wordIndex = wordIndex + 1) {
+        restoredWords[wordIndex] = restoredFile.wireWord(wordIndex)
+    }
+    assert(restoredWire.decode(restoredWords, restoredSections) &&
+        restoredSections.revision() == 9 &&
+        restoredSections.sectionValue(0, 1) == 77,
+        "durable file decode must return the Kof-owned save sections")
+}
 test "camera ray selects the target under the crosshair" {
     var camera = CameraState(-450, 450)
     var rays = BoundedRayTargetWorld(2, 64)

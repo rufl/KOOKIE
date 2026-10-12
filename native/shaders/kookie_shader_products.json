@@ -1,0 +1,69 @@
+{
+  "schema": "kookie.shader-products/v1",
+  "products": [
+    {
+      "name": "g0_triangle.vert",
+      "stage": "vertex",
+      "entrypoint": "main",
+      "glsl_source": "native/shaders/g0_triangle.vert",
+      "hlsl_source": "native/shaders/g0_triangle.vert.hlsl",
+      "inputs": [
+        {"location": 0, "type": "float2"},
+        {"location": 1, "type": "float2"}
+      ],
+      "outputs": [
+        {"location": 0, "type": "float2"}
+      ],
+      "resources": []
+    },
+    {
+      "name": "g5_triangle_instance.vert",
+      "stage": "vertex",
+      "entrypoint": "main",
+      "glsl_source": "native/shaders/g5_triangle_instance.vert",
+      "hlsl_source": "native/shaders/g5_triangle_instance.vert.hlsl",
+      "inputs": [
+        {"location": 0, "type": "float4"},
+        {"location": 1, "type": "float4"},
+        {"location": 2, "type": "float4"}
+      ],
+      "outputs": [
+        {"location": 0, "type": "float2"}
+      ],
+      "resources": []
+    },
+    {
+      "name": "g6_world.vert",
+      "stage": "vertex",
+      "entrypoint": "main",
+      "glsl_source": "native/shaders/g6_world.vert",
+      "hlsl_source": "native/shaders/g6_world.vert.hlsl",
+      "inputs": [
+        {"location": 0, "type": "float3"},
+        {"location": 1, "type": "float2"}
+      ],
+      "outputs": [
+        {"location": 0, "type": "float2"}
+      ],
+      "resources": [
+        {"name": "Camera", "set": 1, "binding": 0, "kind": "uniform_buffer", "size": 64}
+      ]
+    },
+    {
+      "name": "g0_triangle.frag",
+      "stage": "fragment",
+      "entrypoint": "main",
+      "glsl_source": "native/shaders/g0_triangle.frag",
+      "hlsl_source": "native/shaders/g0_triangle.frag.hlsl",
+      "inputs": [
+        {"location": 0, "type": "float2"}
+      ],
+      "outputs": [
+        {"location": 0, "type": "float4"}
+      ],
+      "resources": [
+        {"name": "albedo", "set": 2, "binding": 0, "kind": "sampler"}
+      ]
+    }
+  ]
+}

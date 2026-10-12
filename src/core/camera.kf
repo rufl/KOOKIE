@@ -77,6 +77,9 @@ class CameraState {
     Int followDistanceValue
     Int desiredFollowDistanceValue
     Int[] sineValues
+    Int[] gpuViewValues
+    Int[] gpuProjectionValues
+    Int[] gpuMatrixValues
     Bool followReadyValue
 
     public constructor(Int nextMinPitch, Int nextMaxPitch) {
@@ -98,7 +101,10 @@ class CameraState {
         desiredFollowDistanceValue = 10
         followReadyValue = false
         sineValues = new Int[10]
-        sineValues[0] = 0
+        gpuViewValues = new Int[16]
+        gpuProjectionValues = new Int[16]
+        gpuMatrixValues = new Int[16]
+        followReadyValue = false
         sineValues[1] = 174
         sineValues[2] = 342
         sineValues[3] = 500
@@ -376,6 +382,89 @@ class CameraState {
         if (depth < 1) { return 1 }
         if (depth > 99) { return 99 }
         return depth
+    }
+
+
+    Int gpuCameraTranslation(
+        Int right, Int up, Int forward, Int x, Int y, Int z
+    ) {
+        var result: Long = right
+        result = result * x
+        result = result + up * y
+        result = result + forward * z
+        result = result * 1000L
+        return (-result).toInt()
+    }
+
+    Bool buildGpuCameraMatrix(Int width, Int height) {
+        if (width <= 0 || height <= 0 || width > 4096 || height > 4096) {
+            return false
+        }
+        for (var index = 0; index < 16; index = index + 1) {
+            gpuViewValues[index] = 0
+            gpuProjectionValues[index] = 0
+            gpuMatrixValues[index] = 0
+        }
+        var sinYaw = sineFixed(yaw)
+        var cosYaw = cosineFixed(yaw)
+        var sinPitch = sineFixed(pitch)
+        var cosPitch = cosineFixed(pitch)
+        var rightX = cosYaw
+        var rightY = 0
+        var rightZ = -sinYaw
+        var forwardX = sinYaw * cosPitch / 1000
+        var forwardY = sinPitch
+        var forwardZ = cosYaw * cosPitch / 1000
+        var upX = -sinPitch * sinYaw / 1000
+        var upY = cosPitch
+        var upZ = -sinPitch * cosYaw / 1000
+
+        gpuViewValues[0] = rightX * 1000
+        gpuViewValues[4] = rightY * 1000
+        gpuViewValues[8] = rightZ * 1000
+        gpuViewValues[12] = gpuCameraTranslation(
+            rightX, rightY, rightZ,
+            followXValue, followYValue, followZValue)
+        gpuViewValues[1] = upX * 1000
+        gpuViewValues[5] = upY * 1000
+        gpuViewValues[9] = upZ * 1000
+        gpuViewValues[13] = gpuCameraTranslation(
+            upX, upY, upZ,
+            followXValue, followYValue, followZValue)
+        gpuViewValues[2] = forwardX * 1000
+        gpuViewValues[6] = forwardY * 1000
+        gpuViewValues[10] = forwardZ * 1000
+        gpuViewValues[14] = gpuCameraTranslation(
+            forwardX, forwardY, forwardZ,
+            followXValue, followYValue, followZValue)
+        gpuViewValues[15] = 1000000
+
+        var focalByHeight: Long = 1303225
+        focalByHeight = focalByHeight * height / width
+        gpuProjectionValues[0] = focalByHeight.toInt()
+        gpuProjectionValues[5] = 1303225
+        gpuProjectionValues[10] = 1000156
+        gpuProjectionValues[11] = 1000000
+        gpuProjectionValues[14] = -100016
+
+        for (var column = 0; column < 4; column = column + 1) {
+            for (var row = 0; row < 4; row = row + 1) {
+                var value: Long = 0
+                for (var index = 0; index < 4; index = index + 1) {
+                    var product: Long = gpuProjectionValues[index * 4 + row]
+                    product = product *
+                        gpuViewValues[column * 4 + index] / 1000000L
+                    value = value + product
+                }
+                gpuMatrixValues[column * 4 + row] = value.toInt()
+            }
+        }
+        return true
+    }
+
+    Int gpuCameraMatrixElement(Int index) {
+        if (index < 0 || index >= gpuMatrixValues.length) { return 0 }
+        return gpuMatrixValues[index]
     }
 
     Int currentX() { return followXValue }

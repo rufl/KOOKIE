@@ -33,6 +33,7 @@ WINDOWS_JAVA_VENDOR="not-bundled"
 WINDOWS_JAVA_ACTUAL_SHA256="not-bundled"
 KOOKIE_DXC="${KOOKIE_DXC:-}"
 WINDOWS_DXC_VERSION="not-bundled"
+SHADER_MANIFEST_SHA256="not-bundled"
 
 usage() {
   cat <<'EOF'
@@ -229,6 +230,7 @@ if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
   command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for presentation packaging' >&2; exit 2; }
   command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
   command -v glslc >/dev/null || { echo 'package_kookie: glslc is required for presentation packaging' >&2; exit 2; }
+  command -v spirv-val >/dev/null || { echo 'package_kookie: spirv-val is required for presentation packaging' >&2; exit 2; }
   command -v pkg-config >/dev/null || { echo 'package_kookie: pkg-config is required for presentation packaging' >&2; exit 2; }
   kookie_require_sdl3_dependencies "$ROOT_DIR" || exit 2
 fi
@@ -269,18 +271,23 @@ if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
     exit 2
   }
 fi
-if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
+if [[ "$TARGET" == windows-x86_64 &&
+      ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
   if [[ -z "$KOOKIE_DXC" ]]; then
     KOOKIE_DXC="$(command -v dxc || true)"
   fi
   [[ -n "$KOOKIE_DXC" && -x "$KOOKIE_DXC" ]] || {
-    echo 'package_kookie: Windows presentation packaging requires KOOKIE_DXC pointing to dxc' >&2
+    echo 'package_kookie: Windows Kof SDL packaging requires KOOKIE_DXC pointing to dxc' >&2
     exit 2
   }
   WINDOWS_DXC_VERSION="$("$KOOKIE_DXC" --version 2>/dev/null | tr '\n' ' ' || true)"
   [[ -n "$WINDOWS_DXC_VERSION" ]] || WINDOWS_DXC_VERSION=unreported
   command -v glslc >/dev/null || {
-    echo 'package_kookie: glslc is required for Windows presentation packaging' >&2
+    echo 'package_kookie: glslc is required for Windows Kof SDL packaging' >&2
+    exit 2
+  }
+  command -v spirv-val >/dev/null || {
+    echo 'package_kookie: spirv-val is required for Windows Kof SDL packaging' >&2
     exit 2
   }
 fi
@@ -412,6 +419,27 @@ PY
 }
 
 bundle_prototype_content
+bundle_g3_configs() {
+  local source_root="$ROOT_DIR/config/g3"
+  local destination_root="$PACKAGE_ROOT/config/g3"
+  [[ -d "$source_root" ]] || {
+    echo "package_kookie: G3 config directory missing: $source_root" >&2
+    exit 1
+  }
+  mkdir -p "$destination_root"
+  local count=0
+  for source in "$source_root"/*.json; do
+    [[ -f "$source" && ! -L "$source" ]] || continue
+    cp -- "$source" "$destination_root/$(basename "$source")"
+    count=$((count + 1))
+  done
+  [[ "$count" -gt 0 ]] || {
+    echo "package_kookie: G3 config directory is empty: $source_root" >&2
+    exit 1
+  }
+}
+
+bundle_g3_configs
 bundle_font_assets() {
   local source_root="$ROOT_DIR/assets/fonts"
   local destination_root="$PACKAGE_ROOT/fonts"
@@ -744,39 +772,11 @@ exec ./kookie-simd-bench.bin
 EOF
   chmod 755 "$PACKAGE_ROOT/kookie-simd-bench"
 }
-bundle_windows_native_shell() {
-  local pe_build="$WORK_DIR/kof-pe-shell"
-  KOOKIE_KOF_SOURCE_COMMIT="$KOF_SOURCE_COMMIT" \
-    "$ROOT_DIR/scripts/kof_pe_build.sh" "$ROOT_DIR/src" \
-    --output "$pe_build" --library >/dev/null
-  zig cc -target x86_64-windows-gnu -std=c11 \
-    -Wall -Wextra -Werror -O2 -s -fno-ident \
-    -Wl,/subsystem:console -Wl,/Brepro \
-    -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
-    -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
-    "$ROOT_DIR/scripts/kookie_windows_shell.c" \
-    "$pe_build/kof-module.obj" \
-    "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
-    "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
-    -lws2_32 -o "$PACKAGE_ROOT/kookie.exe"
-  cp -- "$KOOKIE_WINDOWS_SDL_PREFIX/bin/SDL3.dll" "$PACKAGE_ROOT/SDL3.dll"
-  cp -- "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/bin/SDL3_mixer.dll" \
-    "$PACKAGE_ROOT/SDL3_mixer.dll"
-  cat > "$PACKAGE_ROOT/kookie.cmd" <<'EOF'
-@echo off
-setlocal
-set "ROOT=%~dp0"
-cd /d "%ROOT%"
-"%ROOT%kookie.exe" %*
-exit /b %ERRORLEVEL%
-EOF
-}
 
-bundle_windows_native_presentation() {
+bundle_windows_kof_sdl() {
   local presentation_root="$WORK_DIR/presentation-source"
   local pe_build="$WORK_DIR/kof-pe-presentation"
   local adapter_obj="$WORK_DIR/kookie-sdl-adapter.obj"
-  local model_obj="$WORK_DIR/kookie-model-assets.obj"
   local transport_obj="$WORK_DIR/kookie-transport.obj"
   local persistence_obj="$WORK_DIR/kookie-persistence-adapter.obj"
   mkdir -p "$presentation_root"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
@@ -792,16 +792,15 @@ bundle_windows_native_presentation() {
   KOOKIE_KOF_SOURCE_COMMIT="$KOF_SOURCE_COMMIT" \
     "$ROOT_DIR/scripts/kof_pe_build.sh" "$presentation_root" \
     --output "$pe_build" --library >/dev/null
+  python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
+    --root "$ROOT_DIR" --output "$PACKAGE_ROOT/build" --target windows
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
     -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
+    -I "$PACKAGE_ROOT/build" \
     -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_sdl_adapter.c" -o "$adapter_obj"
-  zig cc -target x86_64-windows-gnu -std=c11 \
-    -Wall -Wextra -Werror -O2 -fno-ident \
-    -I "$ROOT_DIR/native" \
-    -c "$ROOT_DIR/native/kookie_model_assets.c" -o "$model_obj"
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$ROOT_DIR/native" \
@@ -813,7 +812,7 @@ bundle_windows_native_presentation() {
   zig cc -target x86_64-windows-gnu -s -fno-ident \
     -Wl,/subsystem:console -Wl,/Brepro \
     "$ROOT_DIR/native/kookie_pe_entry.c" \
-    "$pe_build/kof-module.obj" "$adapter_obj" "$model_obj" "$transport_obj" \
+    "$pe_build/kof-module.obj" "$adapter_obj" "$transport_obj" \
     "$persistence_obj" \
     "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
     "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
@@ -824,30 +823,6 @@ bundle_windows_native_presentation() {
     "$PACKAGE_ROOT/SDL3_mixer.dll"
   cp -- "$PACKAGE_ROOT/SDL3.dll" "$PACKAGE_ROOT/build/SDL3.dll"
   cp -- "$PACKAGE_ROOT/SDL3_mixer.dll" "$PACKAGE_ROOT/build/SDL3_mixer.dll"
-  glslc -fshader-stage=vert \
-    "$ROOT_DIR/native/shaders/g0_triangle.vert" \
-    -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
-  glslc -fshader-stage=vert \
-    "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
-    -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
-  glslc -fshader-stage=vert \
-    "$ROOT_DIR/native/shaders/g6_world.vert" \
-    -o "$PACKAGE_ROOT/build/g6_world.vert.spv"
-  glslc -fshader-stage=frag \
-    "$ROOT_DIR/native/shaders/g0_triangle.frag" \
-    -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
-  "$KOOKIE_DXC" -T vs_6_0 -E main \
-    -Fo "$PACKAGE_ROOT/build/g0_triangle.vert.dxil" \
-    "$ROOT_DIR/native/shaders/g0_triangle.vert.hlsl"
-  "$KOOKIE_DXC" -T vs_6_0 -E main \
-    -Fo "$PACKAGE_ROOT/build/g5_triangle_instance.vert.dxil" \
-    "$ROOT_DIR/native/shaders/g5_triangle_instance.vert.hlsl"
-  "$KOOKIE_DXC" -T vs_6_0 -E main \
-    -Fo "$PACKAGE_ROOT/build/g6_world.vert.dxil" \
-    "$ROOT_DIR/native/shaders/g6_world.vert.hlsl"
-  "$KOOKIE_DXC" -T ps_6_0 -E main \
-    -Fo "$PACKAGE_ROOT/build/g0_triangle.frag.dxil" \
-    "$ROOT_DIR/native/shaders/g0_triangle.frag.hlsl"
   {
     cat <<'EOF'
 @echo off
@@ -1010,10 +985,9 @@ EOF
 }
 
 
-if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == native ]]; then
-  bundle_windows_native_shell
-elif [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
-  bundle_windows_native_presentation
+if [[ "$TARGET" == windows-x86_64 &&
+      ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
+  bundle_windows_kof_sdl
 elif [[ "$TARGET" == windows-x86_64 ]]; then
   bundle_windows_jvm
 elif [[ "$RUNTIME" == native ]]; then
@@ -1033,25 +1007,17 @@ else
     done
   done
   IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
+  python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
+    --root "$ROOT_DIR" --output "$PACKAGE_ROOT/build" --target linux
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    -I"$PACKAGE_ROOT/build" \
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
-    "$ROOT_DIR/native/kookie_model_assets.c" \
     "$ROOT_DIR/native/kookie_transport.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
     "${SDL_FLAGS[@]}" -lm
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_persistence_adapter.c" \
     -o "$PACKAGE_ROOT/build/libkookie_persistence_adapter.so"
-  glslc -fshader-stage=vert "$ROOT_DIR/native/shaders/g0_triangle.vert" \
-    -o "$PACKAGE_ROOT/build/g0_triangle.vert.spv"
-  glslc -fshader-stage=vert \
-    "$ROOT_DIR/native/shaders/g5_triangle_instance.vert" \
-    -o "$PACKAGE_ROOT/build/g5_triangle_instance.vert.spv"
-  glslc -fshader-stage=vert \
-    "$ROOT_DIR/native/shaders/g6_world.vert" \
-    -o "$PACKAGE_ROOT/build/g6_world.vert.spv"
-  glslc -fshader-stage=frag "$ROOT_DIR/native/shaders/g0_triangle.frag" \
-    -o "$PACKAGE_ROOT/build/g0_triangle.frag.spv"
   (cd "$PACKAGE_ROOT" && kof build "$PRESENTATION_ROOT/main.kf" --target native --output "$WORK_DIR/build" >/dev/null)
   BINARY="$WORK_DIR/build/Default/Main"
   test -x "$BINARY" || { echo "package_kookie: presentation executable missing: $BINARY" >&2; exit 1; }
@@ -1124,22 +1090,22 @@ if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
   WINDOWS_STATUS=kof-jvm-bundled-runtime
   DEPENDENCY_POLICY=bundled-runtime-license-files-retained
   RUNTIME_DEPENDENCIES=OpenJDK-runtime
-elif [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == presentation ]]; then
+elif [[ "$TARGET" == windows-x86_64 &&
+        ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
   WINDOWS_STATUS=kof-native-pe-sdl-gpu-bundled-runtime
   DEPENDENCY_POLICY=bundled-sdl-and-shader-assets-license-files-retained
   SDL_VERSION=3.4.18
   SDL_MIXER_VERSION=3.2.4
   RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL
-elif [[ "$TARGET" == windows-x86_64 ]]; then
-  WINDOWS_STATUS=kof-native-pe-sdl-shell-runtime
-  DEPENDENCY_POLICY=bundled-sdl-license-files-retained
-  SDL_VERSION=3.4.18
-  SDL_MIXER_VERSION=3.2.4
-  RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer
 elif [[ "$RUNTIME" == presentation ]]; then
   SDL_VERSION=3.4.18
   SDL_MIXER_VERSION=3.2.4
   RUNTIME_DEPENDENCIES=SDL3+SDL_mixer
+fi
+if [[ -f "$PACKAGE_ROOT/build/kookie_shader_manifest.json" ]]; then
+  SHADER_MANIFEST_SHA256="$(
+    sha256sum "$PACKAGE_ROOT/build/kookie_shader_manifest.json" | cut -d ' ' -f 1
+  )"
 fi
 PYTHON_VERSION="$(python3 --version 2>&1)"
 cat > "$PACKAGE_ROOT/PROVENANCE.txt" <<EOF
@@ -1173,6 +1139,7 @@ windows_java_archive_sha256=$WINDOWS_JAVA_ACTUAL_SHA256
 windows_java_version=$WINDOWS_JAVA_VERSION
 windows_java_vendor=$WINDOWS_JAVA_VENDOR
 windows_dxc_version=$WINDOWS_DXC_VERSION
+shader_manifest_sha256=$SHADER_MANIFEST_SHA256
 source_date_epoch=$PACKAGE_EPOCH
 archive_builder=$PYTHON_VERSION-zipfile
 dedicated_server=$([[ "$TARGET" == linux-x86_64 ]] && echo bounded-headless-workload-with-runtime-telemetry || echo unavailable)
@@ -1245,7 +1212,7 @@ python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$WINDOWS_JAVA_VENDOR" "$WINDOWS_DXC_VERSION" "$PACKAGE_EPOCH" \
   "$CONTENT_PROFILE" "$PROTOTYPE_CONTENT_TREE_SHA256" \
   "$PROTOTYPE_CONTENT_ASSET_COUNT" "$PROTOTYPE_CONTENT_FILE_COUNT" \
-  "$PROTOTYPE_MODELS_POLICY" <<'PY'
+  "$PROTOTYPE_MODELS_POLICY" "$SHADER_MANIFEST_SHA256" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
@@ -1256,8 +1223,9 @@ manifest_path = pathlib.Path(sys.argv[2])
     windows_java_archive_sha256, windows_java_version, windows_java_vendor,
     windows_dxc_version, source_date_epoch, content_profile,
     prototype_content_sha256, prototype_content_asset_count,
-    prototype_content_file_count, prototype_models_policy
-) = sys.argv[3:27]
+    prototype_content_file_count, prototype_models_policy,
+    shader_manifest_sha256
+) = sys.argv[3:28]
 encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
@@ -1279,6 +1247,7 @@ manifest = {
     "windows_java_version": windows_java_version,
     "windows_java_vendor": windows_java_vendor,
     "windows_dxc_version": windows_dxc_version,
+    "shader_manifest_sha256": shader_manifest_sha256,
     "windows_presentation": target == "windows-x86_64" and runtime == "presentation",
     "archive": archive.name,
     "size": archive.stat().st_size,

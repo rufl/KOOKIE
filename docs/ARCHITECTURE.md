@@ -48,29 +48,43 @@ Current result:
 
 | Group | Files | Lines | Share |
 |---|---:|---:|---:|
-| Kof (`.kf`) | 144 | 72,524 | 76.85% |
-| KofScript (`.ks`) | 4 | 558 | 0.59% |
-| C/header (`.c`, `.h`) | 18 | 10,717 | 11.36% |
-| Shell tooling (`.sh`) | 43 | 6,570 | 6.96% |
-| Python tooling (`.py`) | 16 | 2,386 | 2.53% |
-| PE bridge Java (`.java`) | 1 | 1,504 | 1.59% |
+| Kof (`.kf`) | 151 | 75,497 | 79.54% |
+| KofScript (`.ks`) | 4 | 658 | 0.69% |
+| C/header (`.c`, `.h`) | 16 | 7,378 | 7.77% |
+| Shell tooling (`.sh`) | 46 | 6,737 | 7.10% |
+| Python tooling (`.py`) | 19 | 3,024 | 3.19% |
+| PE bridge Java (`.java`) | 1 | 1,504 | 1.58% |
 | GPU shaders | 8 | 115 | 0.12% |
-| **Total** | **234** | **94,374** | **100%** |
+| **Total** | **245** | **94,913** | **100%** |
 
 The runtime slice (Kof/KofScript/C/shaders, excluding build tooling and the PE
-bridge) is 83,914 lines: Kof 86.43%, KofScript 0.66%, C/header 12.77% and
+bridge) is 83,648 lines: Kof 90.26%, KofScript 0.79%, C/header 8.82% and
 shaders 0.14%. This is a composition measure, not a performance claim.
 
 Do not translate code only to increase the Kof percentage. Keep SDL/SDL_GPU,
 SDL_mixer, Winsock, filesystem durability, thread scheduling, SIMD intrinsics,
 shader source and buffer/pointer marshalling native. KofScript remains the
 bounded behavior/artifact tier; it is not a hot-loop replacement for compiled
-Kof. Move native code only when the Kof ABI can preserve bulk transfer,
-ownership and frame-time behavior. The current model parser/vertex expansion
-and Windows shell remain explicit migration candidates, but neither is
-converted by this audit: the former would add per-vertex boundary traffic
-without a bulk-buffer ABI, and the latter is UI cold-path code requiring a
-stable PE export/object ABI.
+Kof. The Windows executable now enters
+`probes/g0_native_presentation/main.kf`; `native/kookie_pe_entry.c` and
+`native/kookie_sdl_adapter.c` are ABI/platform mechanisms only. GLB scene,
+mesh, hierarchy, normalization, UV and animation
+staging now live in `src/content/glb_model.kf`; it also owns bounded file
+discovery, GLB bytes and image-range selection. The SDL adapter receives only
+the validated cat PNG bytes through a scalar byte staging ABI.
+`src/core/camera.kf` emits the fixed-point view/projection matrix and
+`src/content/gpu_world_texture.kf` emits packed RGBA words plus normalized
+world UVs. The presentation stages those words, camera scalars, encoded UI UVs
+and the world/scene pass plan; C only validates scalar ranges, copies/uploads
+the payloads and submits SDL_GPU work.
+
+Shader products remain an explicit graphics exception. The product list in
+`native/shaders/kookie_shader_products.json` is built by
+`scripts/shader_pipeline.py`; SPIR-V is validated and reflected into a packaged
+`kookie_shader_manifest.json` plus a generated C header. The SDL adapter consumes
+only generated mechanical shader metadata and GPU handles. Kof continues to own
+camera/projection semantics, bounded staging, material/pass selection and render
+ordering; it never parses or composes SPIR-V at runtime.
 
 The active Kof4j `0.5.0-beta` pin implements byte-only `Buffer(U8)` for JVM,
 JS and native x86-64; `scripts/verify_simd_dispatch.sh` qualifies the
@@ -81,8 +95,15 @@ define a typed, asynchronous GPU/audio ownership contract.
 
 KOOKIE therefore keeps `FrameStaging`/content wires as bounded Kof-owned arrays,
 uses C-owned storage for native work and retains the checked scalar adapter.
+At startup, `main.kf` transfers each bounded GLB as packed 32-bit words,
+unpacks it into Kof-owned bytes, and parses the scene there; only the validated
+cat PNG byte range crosses back to SDL for image decoding. No native model
+pointer or scene/vertex callback crosses the ABI.
 See [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md) for the versioned buffer
 decision and reusable UI/audio boundary.
+The redundant durable-save envelope, checksum and slot selection are also
+Kof-owned (`BoundedDurableSaveFileCodec`); the native persistence adapter only
+transfers bounded bytes and performs path-safe fsync/rename durability.
 
 
 ## 3. Layer model
@@ -191,9 +212,11 @@ with camera-relative arena markers. `G1NativePresentation.setCooperativeMode`
 is the mode seam: local/remote player markers are admitted only when it is
 true; PvP retains the map and non-player markers while suppressing player
 locations. The native SDL_GPU world pipeline consumes raw authored coordinates,
-a view-projection matrix, a generated material texture atlas and a D16 depth
-target. Kof owns camera input and world extraction; the native adapter only owns
-GPU resources, uploads and draw submission.
+Kof-staged fixed-point view-projection words, Kof-generated packed material
+words and a D16 depth target; only the validated cat image range is decoded
+and overlaid by SDL. Kof owns camera input, world extraction, texture
+generation, UV mapping and pass selection. The native adapter only owns GPU
+resources, scalar transfers and draw submission.
 
 
 ### Native adapter
@@ -214,6 +237,8 @@ The adapter owns:
 The adapter does not own entities, collision, gameplay, content semantics,
 render policy or save logic. Native crossing uses checked scalars, tokens and
 bounded buffers; no raw Kof pointers or callbacks are retained.
+Scene resource IDs never cross the GPU ABI: Kof resolves UI/world resources to
+bounded encoded or normalized UV values before C receives a vertex.
 
 The Windows compiler boundary consumes optimized IR from the exact pinned Kof
 frontend and emits deterministic C11 and AMD64 COFF. Standalone builds emit a
@@ -728,6 +753,22 @@ ordering, capacity/conflict diagnostics and immutable checksums.
 `BoundedEnemyDefinitionRegistry` seals complete elite/boss combat, behavior,
 loot, progression and currency rules; the authoritative session instantiates
 the actor and every reward contract atomically from those definitions.
+The external G3 probe routes recipient player-authority kind `7` and world-loot
+kind `8` through authenticated same-host host-plus-two-client JVM and native
+processes, then round-trips the post-pickup currency, rolled item, equipment,
+skill and claimed-reward state through the schema-file save. Separate physical
+host execution remains outside this qualification.
+
+Authored G3 values are external JSON, not probe literals. `config/g3/demo.json`
+drives the G1 demo; `config/g3/external_lan.json` drives the external
+qualification. `BoundedG3Config` loads the flat schema with bounded bytes and
+fields, rejects unknown/duplicate/missing fields and invalid ranges, and
+contributes its checksum to content compatibility. Modders can edit extension
+metadata, enemy definitions, weapons, encounters, actors, affixes, items,
+skills, statuses and session capacities without rebuilding Kof source. Engine
+protocol framing, transport safety limits and authored arena geometry remain
+engine/test contracts rather than balance data.
+
 
 ### G4 — Kutter and extension pipeline
 
@@ -803,11 +844,11 @@ The retained bounded evidence now covers four expansion slices:
   window, bounded retries/deadlines, deterministic loss/latency pressure,
   ordered delivery, replay rejection and backpressure.
 
-The Windows PE profiles are reproducible and signed: the native shell links
-complete reachable Kof gameplay to SDL3/SDL_mixer, while the presentation
+The Windows PE profiles are reproducible and signed: the native Kof SDL profile
+links complete reachable Kof gameplay to SDL3/SDL_mixer, while the presentation
 profile links native Kof PE to SDL3/SDL_mixer and bundles SPIR-V/DXIL products.
 The separate Windows JVM package retains its pinned OpenJDK runtime for
-compatibility only. The native-shell isolated Wine smoke verifies gameplay;
+compatibility only. The native-SDL isolated Wine smoke verifies gameplay;
 presentation visual smoke remains environment-gated on a DRI3-capable GPU.
 The WAN profile does not claim NAT traversal, relay service, confidentiality or
 DDoS resistance.

@@ -120,9 +120,9 @@ Run the non-graphical G6 expansion probes:
 bash scripts/verify_g6_runtime.sh
 ```
 
-Presentation package builds require SDL 3.4.18, SDL_mixer 3.2.4
-and `glslc`. If `pkg-config` cannot find SDL_mixer, prepare the pinned
-development prefix once:
+Presentation package builds require SDL 3.4.18, SDL_mixer 3.2.4,
+`glslc` and `spirv-val`. If `pkg-config` cannot find SDL_mixer, prepare the
+pinned development prefix once:
 
 ```bash
 bash scripts/bootstrap_sdl3_mixer.sh

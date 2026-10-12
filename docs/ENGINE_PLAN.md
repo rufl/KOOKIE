@@ -53,16 +53,24 @@ mechanisms stay native; engine semantics move to Kof:
 |---|---|---|
 | `native/kookie_jobs.c` | worker threads, queues, sleep, completion state | job result and descriptor-checksum semantics; this cutover is complete |
 | `native/kookie_sdl_adapter.c` | SDL/SDL_GPU/SDL_mixer handles, transfers, uploads and draw calls | camera/projection, model/world texture generation and render policy |
-| `native/kookie_model_assets.c` | only unavoidable byte/image codec primitives | GLB file, JSON, scene, mesh, material and animation semantics via `src/content/glb*.kf` |
 | `native/kookie_transport.c` | sockets, Winsock, nonblocking I/O, address handles and wire-word transfer | session/protocol policy and received-payload aggregation; packet codec/MAC when the scalar ABI is no longer the constraint |
 | `native/kookie_persistence_adapter.c` | fsync/FlushFileBuffers, atomic rename and path operations | schema, migration, validation and save coordination |
-| `scripts/kookie_windows_shell.c` | thin SDL/window/audio mechanism during cutover | menu, accessibility, lobby, presentation and audio policy; highest-priority shell retirement |
+| `native/kookie_pe_entry.c` | PE `main` entry and exit-code bridge | all Windows menu, accessibility, lobby, presentation and audio policy in `probes/g0_native_presentation/main.kf` |
 | `native/kookie_simd_dispatch.c` | ISA detection and intrinsic reductions | benchmark and selection policy |
 
 Any GLB/content migration must size storage from the declared asset data, not
 introduce another arbitrary asset cap. Pointer, struct, buffer and callback
 marshaling remains C only where the Kof ABI cannot express it.
-
+The current cutover is scalar and explicit: `src/core/camera.kf` builds the
+fixed-point view/projection matrix; `src/content/gpu_world_texture.kf` builds
+the bounded RGBA atlas and resolves world resource IDs to normalized UV words;
+`src/ui/kookie_ui_native.kf` resolves UI resource IDs to encoded atlas
+coordinates; and the presentation stages the render pass plan. C only validates
+those scalars, owns native storage/transfers, decodes the validated cat PNG
+range through SDL and submits the selected GPU draws.
+The same rule applies to persistence: `BoundedDurableSaveFileCodec` owns the
+redundant envelope, checksum and slot selection; C receives only bounded file
+bytes for safe create/read/fsync/rename operations.
 
 This plan does not choose a public license or authorize redistribution of third-party assets. Resolve ownership/notices before publishing ports.
 
@@ -120,7 +128,7 @@ maximum performance. Adopt in stages; do not link every candidate into G0.
 | Area | Recommended choice | Boundary / reason |
 |---|---|---|
 | Platform and graphics | **SDL3 + SDL_GPU** | One window/input/gamepad/GPU stack; 3D and compute. Kof owns extraction, culling, batching and passes. zlib license. Keep Sokol as an alternative only if the GPU/ABI spike fails |
-| Shader build | **SDL_shadercross + DXC**, SPIRV-Cross and SPIRV-Tools as required by the build | HLSL → offline SPIR-V for Linux; reflect resource layouts. Build-time tools, not mandatory shipped runtime shader compilers. Installed ShaderC alone is not the selected HLSL pipeline |
+| Shader build | **`scripts/shader_pipeline.py`**, SPIR-V Tools, DXC/SDL_shadercross when available | Current products compile GLSL to validated offline SPIR-V and emit reflection metadata; Windows also emits DXIL from HLSL. The generated manifest drives SDL_GPU shader counts. HLSL canonical-source migration remains gated on a qualified cross-platform compiler path; no runtime shader compiler |
 | Audio | **SDL_mixer 3.2.4** | One zlib-licensed mixer authority with separate effects/music streams and Kof-owned cue, gain and spatial policy. The pinned build enables WAVE and bundled `stb_vorbis` for bounded OGG Vorbis; other optional codec backends remain disabled/not bundled |
 | Image decoding | **Kof-owned PNG kooker**, then **SDL3_image** only for a runtime pixel service | The current kooker validates, decodes and canonicalizes the bounded PNG subset itself. A future SDL3_image boundary may decode admitted canonical PNG for upload; it does not own source admission, color-space/material decisions or cooking. zlib library; optional codec dependencies have separate notices |
 | Text rendering | **FreeType**, then **HarfBuzz** when implementing shaped text | Rasterization and shaping services only. Kof owns widgets, layout, focus and glyph-cache policy. Font fallback, bidi/line breaking, IME and accessibility are not solved merely by linking these libraries |
@@ -521,7 +529,7 @@ Initial renderer: opaque/masked forward rendering, depth buffer, static lightmap
 - Baseline passes: depth/opaque + optional bounded shadows, transparent/effects, viewmodel, postprocess/tone map, UI. Do not introduce deferred/clustered complexity until measured light populations need it.
 - Low-resolution/pixelated, palette/limited-light and cleaner modern styles are material/postprocess profiles, not alternate world simulators.
 - Single coordinate convention: meters, Y up, right-handed world, camera forward -Z. Build explicit projection/clip conversion for SDL_GPU's documented clip/depth convention; do not transpose/flip ad hoc. Validate culling winding, normals, handedness, depth range and texture origin together.
-- Shader sources in HLSL, offline SPIR-V for first platform; pin SDL_shadercross and reflect/validate vertex/uniform bindings. Additional backend shader products only when their target is exercised.
+- Shader products are declared in `native/shaders/kookie_shader_products.json` and built by `scripts/shader_pipeline.py`. Every SPIR-V product passes `spirv-val`; the tool emits `kookie_shader_manifest.json` and a generated `kookie_shader_manifest.h` containing reflected stage/resource metadata. `native/kookie_sdl_adapter.c` consumes that metadata for SDL_GPU shader creation; Kof retains camera/projection, staging, material and pass policy. The current Linux path is GLSL → SPIR-V; HLSL → DXIL remains the Windows backend product until canonical-source parity is qualified.
 - First animation path: sprite/billboard or rigid mesh; then Kof animation state/interpolation and skeletal pose evaluation, GPU skinning shader. Bind pose/index/weight admission stays in the kooker. No per-frame asset parsing.
 - HUD/menu/inventory/debug overlay CPU logic and layout are `.kf`, rendered through the engine. External text/font rasterization may be a narrow library dependency; do not begin with an entire webview editor/runtime UI.
 
@@ -847,9 +855,11 @@ definitions drive combat, behavior, loot, progression and currency, and
 `LoopbackSession.admitDefinedEnemy` commits the actor plus reward contracts
 atomically. Checksummed recipient authority/world-loot schemas preserve full
 inventory and RNG identity; state kinds `7`/`8` traverse authenticated
-same-host host-plus-two-client processes on JVM and native; that G3 state-kind
-qualification remains same-host. G4 now adds typed domain-event subscriptions;
-the bounded
+same-host host-plus-two-client processes on JVM and native. The external host
+also round-trips the post-pickup currency, rolled item, equipment, skill and
+claimed-reward state through the schema-file save before evidence is emitted;
+that G3 state-kind qualification remains same-host. G4 now adds typed
+domain-event subscriptions; the bounded
 GLB/Dust3D/Aseprite/VOX/brush kooker and file CLI; validated external
 package/registry loading; transactional Kutter inspection/editing with
 undo/redo and play-in-editor; fence-gated frame-boundary GPU reload; and
@@ -909,13 +919,13 @@ population scalability, streamed content, or G6 sandboxing.
 
 G6 is qualified for the declared bounded contract by
 `scripts/verify_g6_runtime.sh`, the reproducible native Windows PE/SDL package
-gates, and the native shell's isolated Wine smoke. The native shell smoke
-linked the complete reachable `src/` Kof object, launched through the SDL3
-shell, and passed the expected gameplay markers plus the native PE marker.
-The presentation package gate additionally verifies native Kof PE linkage to
-the SDL3/SDL_mixer adapter and retained SPIR-V/DXIL products. Its optional Wine
-visual smoke requires an isolated DRI3-capable GPU; the default isolated Xvfb
-environment is intentionally not treated as presentation evidence.
+gates, and the native-SDL isolated Wine smoke. The native-SDL smoke linked the
+complete reachable `src/` Kof object, launched through the Kof SDL runtime, and
+passed the expected gameplay markers plus the native PE marker. The presentation
+package gate additionally verifies native Kof PE linkage to the SDL3/SDL_mixer
+adapter and retained SPIR-V/DXIL products. Its optional Wine visual smoke
+requires an isolated DRI3-capable GPU; the default isolated Xvfb environment is
+intentionally not treated as presentation evidence.
 
 This qualifies native Kof PE gameplay on Windows, native PE/SDL_GPU
 presentation packaging, and the separate JVM compatibility package on the
@@ -993,7 +1003,7 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 | Risk | Current evidence | Action / release gate |
 |---|---|---|
 | Bulk FFI remains target-specific; structs/pointers/native callbacks are not a general contract | Pinned 0.5.0-beta `Buffer(U8, INOUT)` passes the packaged JVM/native x86-64 `u8` reduction benchmark; upstream cross-target verification was supplied but not rerun by KOOKIE, while Script/JS/Android/riscv32/MCU remain `FFI001` | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
-| Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows native Kof PE gameplay passes through the SDL shell smoke, and the presentation package gate verifies native PE/SDL_GPU linkage and shader products | Keep separate platform/GPU gates; do not infer DRI3-capable Windows presentation from package linkage or graphics-free smoke |
+| Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows native Kof PE gameplay passes through the Kof SDL smoke, and the presentation package gate verifies native PE/SDL_GPU linkage and shader products | Keep separate platform/GPU gates; do not infer DRI3-capable Windows presentation from package linkage or graphics-free smoke |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
 | Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |
 | Distribution runtime closure | The Windows JVM profile retains a digest-pinned full OpenJDK runtime and legal tree; native compiler pruning still emits its known warning | Keep the JVM choice explicit, record runtime identity/size, compare reproducible archives and never treat it as silent native fallback |
@@ -1003,7 +1013,7 @@ Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with 
 | Editor reliability/security | Single-file run, JS UI, privileged unauthenticated handlers | CLI + separate LSP-capable editor; no dependency on editor fork |
 | Kutter pipeline becomes second engine | Multiple monolithic runtimes or authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
 | License/asset assumptions | Unclear code/asset rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |
-| Native portability overclaimed | Upstream native output remains Linux ELF; the KOOKIE bridge emits deterministic AMD64 PE/COFF for the qualified reachable gameplay/presentation graphs and rejects floating-point IR, catchable exceptions and concurrency with `PE001` | Keep separate platform gates; retain actual Windows shell smoke and artifact checks, and require DRI3-capable visual evidence before claiming presentation execution |
+| Native portability overclaimed | Upstream native output remains Linux ELF; the KOOKIE bridge emits deterministic AMD64 PE/COFF for the qualified reachable gameplay/presentation graphs and rejects floating-point IR, catchable exceptions and concurrency with `PE001` | Keep separate platform gates; retain actual Windows Kof SDL smoke and artifact checks, and require DRI3-capable visual evidence before claiming presentation execution |
 
 ## 12. Historical first implementation increment
 

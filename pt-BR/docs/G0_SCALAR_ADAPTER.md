@@ -99,13 +99,23 @@ frame e transação menu/opções/lobby do GameShell.
 
 `scripts/verify_exception.sh` preserva o reproduzível do lifetime de exceções nativas e seus controles negativos JVM/nativo: a JVM termina na asserção falha; o nativo atualmente chega a `unreachable` com exit 0. Isso é um registro de defeito do compilador, não uma garantia de limpeza do engine.
 
-O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3, `gcc`, `glslc`, `pkg-config` e um `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` revisado estão disponíveis, ele compila o adaptador e os shaders SPIR-V, emite o ELF nativo da sonda e o executa pelo wrapper com áudio dummy. Quando essas dependências faltam, a CI registra um skip explícito.
+O gate também verifica a sonda do adaptador nativo Kof. Quando headers SDL3,
+`gcc`, `glslc`, `spirv-val`, `pkg-config` e um
+`KOOKIE_PRESENTATION_ISOLATION_WRAPPER` revisado estão disponíveis, ele executa
+`scripts/shader_pipeline.py` para compilar e validar os produtos SPIR-V
+catalogados, emite o ELF nativo da sonda e o executa pelo wrapper com áudio
+dummy. Quando essas dependências faltam, a CI registra um skip explícito.
 
 ```bash
 bash scripts/verify.sh
 ```
 
-O gate materializa links temporários para os pacotes Kof canônicos ao compilar sondas independentes e os remove ao sair. Checks, testes e builds Kof passam na JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; shaders compilam por `glslc`; staging fixo da cena, timing positivo de draw, captura de screenshot e teardown de recursos são exercitados dentro do display isolado.
+O gate materializa links temporários para os pacotes Kof canônicos ao compilar
+sondas independentes e os remove ao sair. Checks, testes e builds Kof passam na
+JVM/nativo. O adaptador C compila com `-Wall -Wextra -Werror`; o pipeline de
+shader compila e valida SPIR-V e emite o header de reflexão gerado; staging fixo
+da cena, timing positivo de draw, captura de screenshot e teardown de recursos
+são exercitados dentro do display isolado.
 
 A sonda drena eventos SDL preexistentes por um helper nativo escalar limitado.
 Manter o loop de drain em C evita uma falha medida do compilador nativo em que

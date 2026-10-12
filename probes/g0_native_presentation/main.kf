@@ -1,9 +1,9 @@
 import core
 import session
+import content
 import demo
 import world
 import ui
-
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
 extern "./build/libkookie_sdl_adapter.so" kookie_window_create(Int width, Int height, Int hidden): Int
@@ -22,15 +22,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_report_window_draw(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex(Int resource, Int x, Int y, Int u, Int v): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_depth(
-    Int resource, Int x, Int y, Int depth, Int u, Int v
-): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_quad_depth(
-    Int resource, Int left, Int bottom, Int right, Int top, Int depth
-): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_triangle(
-    Int resource, Int ax, Int ay, Int bx, Int by, Int cx, Int cy
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_uv(
+    Int x, Int y, Int depth, Int encodedU, Int encodedV
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
@@ -38,29 +31,35 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_begin(
     Int vertexCount
 ): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_vertex(
-    Int resource, Int x, Int y, Int z, Int u, Int v
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_vertex_uv(
+    Int x, Int y, Int z, Int textureU, Int textureV
 ): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_available(
-    Int model
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_begin(
+    Int byteLength
 ): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_assets_required(): Bool
-
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_vertex_count(
-    Int model
-): Int
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_model(
-    Int model, Int resourceBase, Int x, Int y, Int z, Int facing,
-    Int phase, Int animationState, Int animationTick, Int moving,
-    Int attacking
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_byte(
+    Int index, Int value
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_texture_stage_begin(
+    Int width, Int height, Int catX, Int catY, Int catWidth, Int catHeight
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_texture_stage_word(
+    Int index, Int value
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_texture_stage_commit(): Bool
 
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_commit(): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_set_camera(
-    Int x, Int y, Int z, Int yaw, Int pitch
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_camera_stage_begin(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_camera_stage_word(
+    Int index, Int value
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_camera_stage_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_draw_scene(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_render_set_passes(
+    Int world, Int scene
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_stage(
     Int generation, Int productChecksum
 ): Bool
@@ -620,6 +619,10 @@ class G1NativePresentation {
     Bool nativeAnimalModelsValue
     Int gooseModelVertexCountValue
     Int catModelVertexCountValue
+    BoundedExternalGlbModelReader gooseModelReader
+    BoundedExternalGlbModelReader catModelReader
+    BoundedExternalGlbAssetStore modelAssets
+    BoundedWorldTextureAsset worldTextureAsset
     MultiplayerScoreboard scoreboardUi
     MatchScoreboardState scoreboardState
     CameraState camera
@@ -669,6 +672,10 @@ class G1NativePresentation {
         interactionSession = LoopbackSession(16, 8)
         playerAimTargets = BoundedRayTargetWorld(3, 64)
         saveOwner = BoundedHostGameplaySaveOwner(interactionSession)
+        gooseModelReader = BoundedExternalGlbModelReader()
+        catModelReader = BoundedExternalGlbModelReader()
+        modelAssets = BoundedExternalGlbAssetStore()
+        worldTextureAsset = BoundedWorldTextureAsset()
         nativeAnimalModelsValue = false
         gooseModelVertexCountValue = 0
         catModelVertexCountValue = 0
@@ -825,26 +832,85 @@ class G1NativePresentation {
         }
         return true
     }
+    Bool loadModel(
+        BoundedExternalGlbModelReader reader, Int model
+    ) {
+        var source = modelAssets.bytes(model)
+        return source.length > 0 &&
+            reader.read(source, model) && reader.valid()
+    }
+
+    Bool stageCatTexture() {
+        var textureLength = catModelReader.textureLength()
+        if (catModelReader.textureOffset() < 0 || textureLength <= 0) {
+            return true
+        }
+        if (!kookie_gpu_model_texture_stage_begin(textureLength)) {
+            return false
+        }
+        for (var index = 0; index < textureLength; index = index + 1) {
+            var value = catModelReader.textureByte(index)
+            if (value < 0 ||
+                !kookie_gpu_model_texture_stage_byte(index, value)) {
+                return false
+            }
+        }
+        return kookie_gpu_model_texture_stage_commit()
+    }
+
+    Bool prepareModelAssets() {
+        var modelsAvailable =
+            modelAssets.available(kookieModelGoose()) &&
+            modelAssets.available(kookieModelCat()) &&
+            loadModel(gooseModelReader, kookieModelGoose()) &&
+            loadModel(catModelReader, kookieModelCat())
+        if (!modelsAvailable) { return false }
+        gooseModelVertexCountValue = gooseModelReader.vertexCount()
+        catModelVertexCountValue = catModelReader.vertexCount()
+        if (gooseModelVertexCountValue != 708 ||
+            catModelVertexCountValue != 2400 ||
+            gooseModelVertexCountValue % 3 != 0 ||
+            catModelVertexCountValue % 3 != 0) {
+            return false
+        }
+        return stageCatTexture()
+    }
+    Bool prepareWorldTexture() {
+        var catWidth = catModelReader.textureWidth()
+        var catHeight = catModelReader.textureHeight()
+        if (!catModelReader.valid() || catWidth <= 0 || catHeight <= 0) {
+            catWidth = 0
+            catHeight = 0
+        }
+        if (!worldTextureAsset.build(catWidth, catHeight) ||
+            !kookie_gpu_world_texture_stage_begin(
+                worldTextureAsset.width(), worldTextureAsset.height(),
+                worldTextureAsset.catX(), worldTextureAsset.catY(),
+                worldTextureAsset.catWidth(), worldTextureAsset.catHeight())) {
+            return false
+        }
+        for (var index = 0;
+             index < worldTextureAsset.wordCount();
+             index = index + 1) {
+            if (!kookie_gpu_world_texture_stage_word(
+                    index, worldTextureAsset.word(index))) {
+                return false
+            }
+        }
+        return kookie_gpu_world_texture_stage_commit()
+    }
+
+
 
     Bool prepare() {
-        var modelsRequired = kookie_gpu_model_assets_required()
-        var modelsAvailable =
-            kookie_gpu_model_available(kookieModelGoose()) &&
-            kookie_gpu_model_available(kookieModelCat())
-        if (modelsAvailable) {
-            gooseModelVertexCountValue =
-                kookie_gpu_model_vertex_count(kookieModelGoose())
-            catModelVertexCountValue =
-                kookie_gpu_model_vertex_count(kookieModelCat())
-            modelsAvailable =
-                gooseModelVertexCountValue == 708 &&
-                catModelVertexCountValue == 2400 &&
-                gooseModelVertexCountValue % 3 == 0 &&
-                catModelVertexCountValue % 3 == 0
-        }
+        var modelsRequired = modelAssets.required()
+        var modelsAvailable = prepareModelAssets()
         nativeAnimalModelsValue = modelsAvailable
         if (modelsRequired && !modelsAvailable) {
             println("KOOKIE prototype animal models required but unavailable")
+            return false
+        }
+        if (!prepareWorldTexture()) {
             return false
         }
         if (!scenario.run()) {
@@ -878,41 +944,33 @@ class G1NativePresentation {
         return true
     }
 
+    Bool uploadSceneVertex(FrameStaging frame, Int index) {
+        var encodedU = kookieUiNativeTextureU(
+            frame.resourceAt(index), frame.uAt(index))
+        var encodedV = kookieUiNativeTextureV(
+            frame.resourceAt(index), frame.vAt(index))
+        if (encodedU < 0 || encodedV < 0) { return false }
+        return kookie_gpu_scene_push_vertex_uv(
+            frame.xAt(index), frame.yAt(index), frame.depthAt(index),
+            encodedU, encodedV)
+    }
+
     Bool upload(FrameStaging frame) {
         var index = 0
         while (index < frame.stagedCount()) {
             var span = frame.primitiveSpanAt(index)
-            if (span == 6) {
-                if (!kookie_gpu_scene_push_quad_depth(
-                        frame.resourceAt(index),
-                        frame.xAt(index), frame.yAt(index),
-                        frame.xAt(index + 1), frame.yAt(index + 2),
-                        frame.depthAt(index))) {
-                    println("KOOKIE gameplay quad upload failed")
-                    println(index)
-                    return false
+            if (span == 6 || span == 3) {
+                for (var vertex = 0; vertex < span; vertex = vertex + 1) {
+                    if (!uploadSceneVertex(frame, index + vertex)) {
+                        println("KOOKIE gameplay primitive upload failed")
+                        println(index)
+                        return false
+                    }
                 }
-                index = index + 6
+                index = index + span
                 continue
             }
-            if (span == 3) {
-                if (!kookie_gpu_scene_push_triangle(
-                        frame.resourceAt(index),
-                        frame.xAt(index), frame.yAt(index),
-                        frame.xAt(index + 1), frame.yAt(index + 1),
-                        frame.xAt(index + 2), frame.yAt(index + 2))) {
-                    println("KOOKIE gameplay triangle upload failed")
-                    println(index)
-                    return false
-                }
-                index = index + 3
-                continue
-            }
-            if (!kookie_gpu_scene_push_vertex_depth(
-                    frame.resourceAt(index),
-                    frame.xAt(index), frame.yAt(index),
-                    frame.depthAt(index),
-                    frame.uAt(index), frame.vAt(index))) {
+            if (!uploadSceneVertex(frame, index)) {
                 println("KOOKIE gameplay vertex upload failed")
                 println(index)
                 return false
@@ -922,12 +980,20 @@ class G1NativePresentation {
         return true
     }
 
+    Bool uploadWorldVertex(FrameStaging frame, Int index) {
+        var textureU = worldTextureAsset.textureU(
+            frame.resourceAt(index), frame.uAt(index))
+        var textureV = worldTextureAsset.textureV(
+            frame.resourceAt(index), frame.vAt(index))
+        if (textureU < 0 || textureV < 0) { return false }
+        return kookie_gpu_world_push_vertex_uv(
+            frame.xAt(index), frame.yAt(index), frame.zAt(index),
+            textureU, textureV)
+    }
+
     Bool uploadWorld(FrameStaging frame) {
         for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-            if (!kookie_gpu_world_push_vertex(
-                    frame.resourceAt(index),
-                    frame.xAt(index), frame.yAt(index), frame.zAt(index),
-                    frame.uAt(index), frame.vAt(index))) {
+            if (!uploadWorldVertex(frame, index)) {
                 println("KOOKIE gameplay world vertex upload failed")
                 println(index)
                 println(frame.resourceAt(index))
@@ -939,21 +1005,78 @@ class G1NativePresentation {
         }
         return true
     }
+    Int phaseWave(Int phase, Int period) {
+        var value = phase % period
+        if (value < 0) { value = value + period }
+        return if (value < period / 2) -1 else 1
+    }
+
+    Bool uploadModel(
+        BoundedExternalGlbModelReader reader,
+        Int resourceBase,
+        Int x,
+        Int y,
+        Int z,
+        Int facing,
+        Int phase,
+        Int animationState,
+        Int animationTick,
+        Int moving,
+        Int attacking
+    ) {
+        if (!reader.valid() || facing == 0) { return false }
+        var idleBob = 0
+        if (animationState == 1 && phaseWave(animationTick, 8) > 0) {
+            idleBob = 1
+        }
+        var gaitBob = 0
+        if (moving != 0 && phaseWave(phase, 8) > 0) { gaitBob = 1 }
+        var attackLift = if (attacking != 0) 2 else 0
+        var bob = idleBob + gaitBob + attackLift
+        for (var index = 0; index < reader.vertexCount(); index = index + 1) {
+            var localX = reader.vertexX(index)
+            var localY = reader.vertexY(index) + bob
+            var localZ = reader.vertexZ(index)
+            var worldX = x
+            var worldZ = z
+            if (facing > 0) {
+                worldX = x - localZ
+                worldZ = z + localX
+            } else {
+                worldX = x + localZ
+                worldZ = z - localX
+            }
+            var resource = resourceBase + reader.vertexMaterial(index)
+            var textureU = worldTextureAsset.textureU(
+                resource, reader.vertexU(index))
+            var textureV = worldTextureAsset.textureV(
+                resource, reader.vertexV(index))
+            if (textureU < 0 || textureV < 0 ||
+                !kookie_gpu_world_push_vertex_uv(
+                    worldX, y + localY, worldZ, textureU, textureV)) {
+                return false
+            }
+        }
+        return true
+    }
+
     Bool uploadAnimalModels() {
         for (var index = 0; index < animalMeshes.actorCapacity();
              index = index + 1) {
             if (!animalMeshes.actorCurrentAt(index)) { continue }
             var kind = animalMeshes.actorKindAt(index)
-            var model = kookieModelGoose()
+            var reader = gooseModelReader
+            var resourceBase = 9
             var animationState = animalMeshes.gooseAnimationState()
             var animationTick = animalMeshes.gooseAnimationTick()
             if (kind == 2) {
-                model = kookieModelCat()
+                reader = catModelReader
+                resourceBase = 12
                 animationState = animalMeshes.catAnimationState()
                 animationTick = animalMeshes.catAnimationTick()
             }
-            if (!kookie_gpu_world_push_model(
-                    model, if (model == kookieModelGoose()) 9 else 12,
+            if (!uploadModel(
+                    reader, resourceBase,
                     animalMeshes.actorXAt(index),
                     animalMeshes.actorYAt(index),
                     animalMeshes.actorZAt(index),
@@ -1574,10 +1697,22 @@ class G1NativePresentation {
             println(animalVertexCount)
             return false
         }
-        if (!kookie_gpu_world_set_camera(
-                camera.currentX(), camera.currentY(), camera.currentZ(),
-                camera.currentYaw(), camera.currentPitch())) {
+        var windowState = windowStateValue.snapshot()
+        if (!camera.buildGpuCameraMatrix(
+                windowState.width(), windowState.height()) ||
+            !kookie_gpu_world_camera_stage_begin()) {
             println("KOOKIE gameplay world camera failed")
+            return false
+        }
+        for (var matrixIndex = 0; matrixIndex < 16; matrixIndex = matrixIndex + 1) {
+            if (!kookie_gpu_world_camera_stage_word(
+                    matrixIndex, camera.gpuCameraMatrixElement(matrixIndex))) {
+                println("KOOKIE gameplay world camera stage failed")
+                return false
+            }
+        }
+        if (!kookie_gpu_world_camera_stage_commit()) {
+            println("KOOKIE gameplay world camera commit failed")
             return false
         }
         if (!kookie_gpu_world_begin(worldVertexCount) ||
@@ -1619,7 +1754,8 @@ class G1NativePresentation {
             println(kookie_gpu_scene_count())
             return false
         }
-        if (!kookie_gpu_draw_scene()) {
+        if (!kookie_gpu_render_set_passes(1, 1) ||
+            !kookie_gpu_draw_scene()) {
             println("KOOKIE gameplay GPU scene draw failed")
             return false
         }
@@ -1647,6 +1783,7 @@ class G1NativePresentation {
         if (!kookie_gpu_scene_begin(vertexCount) ||
             !upload(shellFrame) || !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != vertexCount ||
+            !kookie_gpu_render_set_passes(0, 1) ||
             !kookie_gpu_draw_scene()) {
             return false
         }
@@ -1892,12 +2029,16 @@ main() {
         assert(kookie_gpu_reload_stage(
                 2, shell.kutter().renderChecksum()) &&
             kookie_gpu_scene_begin(3) &&
-            kookie_gpu_scene_push_vertex(1, 0, 0, 0, 0) &&
-            !kookie_gpu_scene_push_vertex(0, 0, 0, 0, 0) &&
+            kookie_gpu_scene_push_vertex_uv(
+                0, 0, 0,
+                kookieUiNativeTextureU(1, 0),
+                kookieUiNativeTextureV(1, 0)) &&
+            !kookie_gpu_scene_push_vertex_uv(0, 0, 0, -1, 0) &&
             kookie_gpu_reload_cancel(2) &&
             kookie_gpu_reload_pending_generation() == 0 &&
             kookie_gpu_reload_active_generation() == 1 &&
             kookie_gpu_scene_count() > 0 &&
+            kookie_gpu_render_set_passes(0, 1) &&
             kookie_gpu_draw_scene(),
             "failed staged reload must preserve the active GPU scene")
         println("KOOKIE G1 native arena HUD verified")

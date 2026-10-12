@@ -3,9 +3,9 @@ package session
 import core
 
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_begin(
-    Int wireLength
+    Int byteLength
 ): Bool
-extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_word(
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_byte(
     Int index, Int value
 ): Bool
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_stage_commit(): Bool
@@ -14,16 +14,17 @@ extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_staging_ex
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_discard_stage(): Bool
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_target_exists(): Bool
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_begin(): Bool
-extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_length(): Int
-extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_word(
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_byte_length(): Int
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_host_load_byte(
     Int index
 ): Int
-extern "./build/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
 extern "./build/libkookie_persistence_adapter.so" kookie_durable_trace(): Int
+extern "./build/libkookie_persistence_adapter.so" kookie_durable_publish_default(): Bool
 
 class BoundedHostSessionSaveCoordinator {
     LoopbackSession sessionValue
     BoundedSaveSchemaWireCodec codec
+    BoundedDurableSaveFileCodec fileCodec
     BoundedSaveSections expected
     Int sectionCapacityValue
     Int payloadCapacityValue
@@ -50,6 +51,8 @@ class BoundedHostSessionSaveCoordinator {
             payloadCapacityValue = 160
         }
         codec = BoundedSaveSchemaWireCodec(
+            sectionCapacityValue, payloadCapacityValue)
+        fileCodec = BoundedDurableSaveFileCodec(
             sectionCapacityValue, payloadCapacityValue)
         expected = BoundedSaveSections(
             sectionCapacityValue, payloadCapacityValue)
@@ -85,12 +88,13 @@ class BoundedHostSessionSaveCoordinator {
             }
         }
         if (!codec.encode(sections) ||
-            !kookie_durable_host_stage_begin(codec.encodedLength())) {
+            !fileCodec.encode(codec) ||
+            !kookie_durable_host_stage_begin(fileCodec.fileByteCount())) {
             return false
         }
-        for (var index = 0; index < codec.encodedLength(); index = index + 1) {
-            if (!kookie_durable_host_stage_word(
-                    index, codec.encodedWord(index))) {
+        for (var index = 0; index < fileCodec.fileByteCount(); index = index + 1) {
+            if (!kookie_durable_host_stage_byte(
+                    index, fileCodec.fileByte(index))) {
                 kookie_durable_host_stage_cancel()
                 return false
             }
@@ -151,18 +155,23 @@ class BoundedHostSessionSaveCoordinator {
         if (!kookie_durable_host_load_begin()) {
             return false
         }
-        var wireLength = kookie_durable_host_load_length()
-        var maxWireLength = 4 + sectionCapacityValue * (3 + payloadCapacityValue)
-        if (wireLength < 4 || wireLength > maxWireLength) {
+        var byteLength = kookie_durable_host_load_byte_length()
+        if (byteLength <= 0 ||
+            byteLength > fileCodec.maximumFileByteCount()) {
             return false
         }
+        var bytes = new Int[byteLength]
+        for (var index = 0; index < byteLength; index = index + 1) {
+            var value = kookie_durable_host_load_byte(index)
+            if (value < 0) { return false }
+            bytes[index] = value
+        }
+        if (!fileCodec.decode(bytes, byteLength)) { return false }
+        var wireLength = fileCodec.wireLength()
+        if (wireLength < 4) { return false }
         var wire = new Int[wireLength]
         for (var index = 0; index < wireLength; index = index + 1) {
-            var word = kookie_durable_host_load_word(index)
-            if (word < 0) {
-                return false
-            }
-            wire[index] = word
+            wire[index] = fileCodec.wireWord(index)
         }
         return codec.decode(wire, target)
     }

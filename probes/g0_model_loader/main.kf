@@ -1,0 +1,13 @@
+import content
+
+main() {
+    var source = File("content/prototype/models/goose/goose.glb").readRange(
+        0, 1048577)
+    var reader = BoundedExternalGlbModelReader()
+    var valid = source.length > 0 && reader.read(source, 1) && reader.valid()
+    if (valid) {
+        println("model-valid=1")
+    } else {
+        println("model-valid=0")
+    }
+}

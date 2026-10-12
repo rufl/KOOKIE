@@ -1,0 +1,1305 @@
+package content
+
+class BoundedExternalGlbAssetStore {
+    Int maximumBytesValue
+    Int[] gooseSourceValue
+    Int[] catSourceValue
+    Bool gooseAttemptedValue
+    Bool catAttemptedValue
+
+    public constructor() {
+        maximumBytesValue = 1048576
+        gooseSourceValue = new Int[0]
+        catSourceValue = new Int[0]
+        gooseAttemptedValue = false
+        catAttemptedValue = false
+    }
+
+    String relativePath(Int model) {
+        if (model == 1) { return "models/goose/goose.glb" }
+        if (model == 2) { return "models/cat/cat.glb" }
+        return ""
+    }
+
+    Int[] readCandidate(Int model, String root) {
+        var relative = relativePath(model)
+        if (relative.length() == 0 || root.length() == 0) {
+            return new Int[0]
+        }
+        var bytes = File(root + "/" + relative).readRange(
+            0, maximumBytesValue + 1)
+        if (bytes.length < 20 || bytes.length > maximumBytesValue) {
+            return new Int[0]
+        }
+        return bytes
+    }
+
+    Bool load(Int model) {
+        if (model != 1 && model != 2) { return false }
+        if (model == 1 && gooseAttemptedValue) {
+            return gooseSourceValue.length > 0
+        }
+        if (model == 2 && catAttemptedValue) {
+            return catSourceValue.length > 0
+        }
+        if (model == 1) {
+            gooseAttemptedValue = true
+        } else {
+            catAttemptedValue = true
+        }
+        var roots = 0
+        while (roots < 2) {
+            var root = "content/prototype"
+            if (roots == 1) { root = "assets/prototype" }
+            var candidate = readCandidate(model, root)
+            if (candidate.length > 0) {
+                if (model == 1) {
+                    gooseSourceValue = candidate
+                } else {
+                    catSourceValue = candidate
+                }
+                return true
+            }
+            roots = roots + 1
+        }
+        return false
+    }
+
+    Bool required() {
+        return File("content/prototype/manifest.json").exists() ||
+            File("assets/prototype/manifest.json").exists()
+    }
+
+    Bool available(Int model) {
+        return load(model)
+    }
+
+    Int[] bytes(Int model) {
+        if (!load(model)) { return new Int[0] }
+        if (model == 1) { return gooseSourceValue }
+        if (model == 2) { return catSourceValue }
+        return new Int[0]
+    }
+}
+
+class BoundedExternalGlbModelReader {
+    Int[] sourceValue
+    Int[] json
+    Int jsonLengthValue
+    Int binOffsetValue
+    Int binLengthValue
+    Int[] viewOffsets
+    Int[] viewLengths
+    Int[] viewStrides
+    Int viewCountValue
+    Int[] accessorViews
+    Int[] accessorOffsets
+    Int[] accessorComponents
+    Int[] accessorCounts
+    Int[] accessorKinds
+    Int accessorCountValue
+    Int[] primitivePosition
+    Int[] primitiveIndex
+    Int[] primitiveTexcoord
+    Int[] primitiveMesh
+    Int[] primitiveMode
+    Int[] primitiveMaterial
+    Int primitiveCountValue
+    Int meshCountValue
+    Int[] nodeMesh
+    Int[] nodeParent
+    Int[] nodeMatrices
+    Int[] nodeWorldMatrices
+    Bool[] nodeWorldReady
+    Bool[] nodeWorldVisiting
+    Int nodeCountValue
+    Int[] scratch
+    Int modelValue
+    Int coordinateScaleValue
+    Int transformScaleValue
+    Int[] vertexXValue
+    Int[] vertexYValue
+    Int[] vertexZValue
+    Int[] vertexUValue
+    Int[] vertexVValue
+    Int[] vertexMaterialValue
+    Int vertexCountValue
+    Int triangleCountValue
+    Int textureOffsetValue
+    Int textureLengthValue
+    Int textureWidthValue
+    Int textureHeightValue
+    Bool textureValidValue
+    Bool readValue
+
+    public constructor() {
+        sourceValue = new Int[0]
+        json = new Int[65536]
+        viewOffsets = new Int[256]
+        viewLengths = new Int[256]
+        viewStrides = new Int[256]
+        accessorViews = new Int[256]
+        accessorOffsets = new Int[256]
+        accessorComponents = new Int[256]
+        accessorCounts = new Int[256]
+        accessorKinds = new Int[256]
+        primitivePosition = new Int[128]
+        primitiveIndex = new Int[128]
+        primitiveTexcoord = new Int[128]
+        primitiveMesh = new Int[128]
+        primitiveMode = new Int[128]
+        primitiveMaterial = new Int[128]
+        nodeMesh = new Int[256]
+        nodeParent = new Int[256]
+        nodeMatrices = new Int[256 * 12]
+        nodeWorldMatrices = new Int[256 * 12]
+        nodeWorldReady = new Bool[256]
+        nodeWorldVisiting = new Bool[256]
+        scratch = new Int[16]
+        vertexXValue = new Int[0]
+        vertexYValue = new Int[0]
+        vertexZValue = new Int[0]
+        vertexUValue = new Int[0]
+        vertexVValue = new Int[0]
+        vertexMaterialValue = new Int[0]
+        clear()
+    }
+
+    Bool clear() {
+        sourceValue = new Int[0]
+        jsonLengthValue = 0
+        binOffsetValue = 0
+        binLengthValue = 0
+        viewCountValue = 0
+        accessorCountValue = 0
+        primitiveCountValue = 0
+        meshCountValue = 0
+        nodeCountValue = 0
+        modelValue = 0
+        coordinateScaleValue = 100000
+        transformScaleValue = 1000000
+        vertexCountValue = 0
+        triangleCountValue = 0
+        textureOffsetValue = -1
+        textureLengthValue = 0
+        textureWidthValue = 0
+        textureHeightValue = 0
+        textureValidValue = false
+        readValue = false
+        for (var index = 0; index < nodeWorldReady.length; index = index + 1) {
+            nodeWorldReady[index] = false
+            nodeWorldVisiting[index] = false
+            nodeMesh[index] = -1
+            nodeParent[index] = -1
+        }
+        return true
+    }
+
+    Int skipWhitespace(Int position, Int limit) {
+        var cursor = position
+        while (cursor < limit &&
+            (json[cursor] == 32 || json[cursor] == 9 ||
+                json[cursor] == 10 || json[cursor] == 13)) {
+            cursor = cursor + 1
+        }
+        return cursor
+    }
+
+    Int stringEnd(Int start, Int limit) {
+        var escaped = false
+        for (var cursor = start + 1; cursor < limit; cursor = cursor + 1) {
+            if (escaped) {
+                escaped = false
+            } else if (json[cursor] == 92) {
+                escaped = true
+            } else if (json[cursor] == 34) {
+                return cursor
+            }
+        }
+        return -1
+    }
+
+    Int objectEnd(Int start, Int limit) {
+        if (start < 0 || start >= limit || json[start] != 123) { return -1 }
+        var objects = 0
+        var arrays = 0
+        var cursor = start
+        while (cursor < limit) {
+            if (json[cursor] == 34) {
+                cursor = stringEnd(cursor, limit)
+                if (cursor < 0) { return -1 }
+            } else if (json[cursor] == 123) {
+                objects = objects + 1
+            } else if (json[cursor] == 125) {
+                objects = objects - 1
+                if (objects == 0 && arrays == 0) { return cursor }
+            } else if (json[cursor] == 91) {
+                arrays = arrays + 1
+            } else if (json[cursor] == 93) {
+                arrays = arrays - 1
+            }
+            if (objects < 0 || arrays < 0) { return -1 }
+            cursor = cursor + 1
+        }
+        return -1
+    }
+
+    Int arrayEnd(Int start, Int limit) {
+        if (start < 0 || start >= limit || json[start] != 91) { return -1 }
+        var objects = 0
+        var arrays = 0
+        var cursor = start
+        while (cursor < limit) {
+            if (json[cursor] == 34) {
+                cursor = stringEnd(cursor, limit)
+                if (cursor < 0) { return -1 }
+            } else if (json[cursor] == 123) {
+                objects = objects + 1
+            } else if (json[cursor] == 125) {
+                objects = objects - 1
+            } else if (json[cursor] == 91) {
+                arrays = arrays + 1
+            } else if (json[cursor] == 93) {
+                arrays = arrays - 1
+                if (objects == 0 && arrays == 0) { return cursor }
+            }
+            if (objects < 0 || arrays < 0) { return -1 }
+            cursor = cursor + 1
+        }
+        return -1
+    }
+
+    Bool keyEquals(Int start, Int end, String name) {
+        if (end - start - 1 != name.length()) { return false }
+        for (var index = 0; index < name.length(); index = index + 1) {
+            if (json[start + 1 + index] != (name.charAt(index) as Int)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int fieldValueStart(Int objectStart, Int objectLimit, String name) {
+        if (objectStart < 0 || objectLimit <= objectStart ||
+            json[objectStart] != 123) {
+            return -1
+        }
+        var objectDepth = 1
+        var arrayDepth = 0
+        var cursor = objectStart + 1
+        while (cursor < objectLimit) {
+            if (json[cursor] == 34) {
+                var end = stringEnd(cursor, objectLimit)
+                if (end < 0) { return -1 }
+                if (objectDepth == 1 && arrayDepth == 0 &&
+                    keyEquals(cursor, end, name)) {
+                    var colon = skipWhitespace(end + 1, objectLimit)
+                    if (colon < objectLimit && json[colon] == 58) {
+                        return skipWhitespace(colon + 1, objectLimit)
+                    }
+                }
+                cursor = end
+            } else if (json[cursor] == 123) {
+                objectDepth = objectDepth + 1
+            } else if (json[cursor] == 125) {
+                objectDepth = objectDepth - 1
+            } else if (json[cursor] == 91) {
+                arrayDepth = arrayDepth + 1
+            } else if (json[cursor] == 93) {
+                arrayDepth = arrayDepth - 1
+            }
+            cursor = cursor + 1
+        }
+        return -1
+    }
+
+    Int numberEnd(Int start, Int limit) {
+        if (start < 0 || start >= limit) { return -1 }
+        var cursor = start
+        if (json[cursor] == 45) { cursor = cursor + 1 }
+        var digits = 0
+        while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
+            digits = digits + 1
+            cursor = cursor + 1
+        }
+        if (digits == 0) { return -1 }
+        if (cursor < limit && json[cursor] == 46) {
+            cursor = cursor + 1
+            var fractions = 0
+            while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
+                fractions = fractions + 1
+                cursor = cursor + 1
+            }
+            if (fractions == 0) { return -1 }
+        }
+        if (cursor < limit && (json[cursor] == 101 || json[cursor] == 69)) {
+            cursor = cursor + 1
+            if (cursor < limit && (json[cursor] == 43 || json[cursor] == 45)) {
+                cursor = cursor + 1
+            }
+            var exponents = 0
+            while (cursor < limit && json[cursor] >= 48 && json[cursor] <= 57) {
+                exponents = exponents + 1
+                cursor = cursor + 1
+            }
+            if (exponents == 0) { return -1 }
+        }
+        return cursor
+    }
+
+    Int fixedNumber(Int start, Int end, Int scale) {
+        if (start < 0 || end <= start || scale <= 0 || scale > 1000000) {
+            return 2000000000
+        }
+        var cursor = start
+        var negative = false
+        if (json[cursor] == 45) {
+            negative = true
+            cursor = cursor + 1
+        }
+        var whole: Long = 0L
+        while (cursor < end && json[cursor] >= 48 && json[cursor] <= 57) {
+            var digit = json[cursor] - 48
+            if (whole > (1000000000L - digit) / 10L) {
+                return 2000000000
+            }
+            whole = whole * 10L + digit
+            cursor = cursor + 1
+        }
+        var fraction: Long = 0L
+        var divisor: Long = 1L
+        if (cursor < end && json[cursor] == 46) {
+            cursor = cursor + 1
+            while (cursor < end && json[cursor] >= 48 && json[cursor] <= 57) {
+                if (divisor < 1000000000L) {
+                    fraction = fraction * 10L + (json[cursor] - 48)
+                    divisor = divisor * 10L
+                }
+                cursor = cursor + 1
+            }
+        }
+        if (whole > 1000000000L / scale) { return 2000000000 }
+        var scaled = whole * scale
+        var fractional = fraction * scale / divisor
+        if (scaled > 1000000000L - fractional) { return 2000000000 }
+        scaled = scaled + fractional
+        if (cursor < end && (json[cursor] == 101 || json[cursor] == 69)) {
+            cursor = cursor + 1
+            var exponentNegative = false
+            if (cursor < end && json[cursor] == 45) {
+                exponentNegative = true
+                cursor = cursor + 1
+            } else if (cursor < end && json[cursor] == 43) {
+                cursor = cursor + 1
+            }
+            var exponent = 0
+            while (cursor < end && json[cursor] >= 48 && json[cursor] <= 57) {
+                exponent = exponent * 10 + json[cursor] - 48
+                if (exponent > 18) {
+                    if (!exponentNegative) { return 2000000000 }
+                    exponent = 18
+                }
+                cursor = cursor + 1
+            }
+            for (var power = 0; power < exponent; power = power + 1) {
+                if (exponentNegative) {
+                    scaled = scaled / 10L
+                } else {
+                    if (scaled > 100000000L) { return 2000000000 }
+                    scaled = scaled * 10L
+                }
+            }
+        }
+        if (negative) { scaled = -scaled }
+        if (scaled < -1000000000L || scaled > 1000000000L) {
+            return 2000000000
+        }
+        return scaled.toInt()
+    }
+
+    Int integerAt(Int start, Int limit) {
+        var end = numberEnd(start, limit)
+        if (end < 0) { return -1 }
+        var negative = json[start] == 45
+        var value = fixedNumber(start, end, 1)
+        if (value == 2000000000 || (!negative && value < 0)) { return -1 }
+        return value
+    }
+
+    Int integerField(Int objectStart, Int objectLimit, String name) {
+        var start = fieldValueStart(objectStart, objectLimit, name)
+        if (start < 0) { return -1 }
+        return integerAt(start, objectLimit)
+    }
+
+    Bool parseFixedArray(
+        Int start, Int limit, Int count, Int scale, Int scratchOffset
+    ) {
+        if (start < 0 || start >= limit || json[start] != 91 || count <= 0 ||
+            scratchOffset < 0 || scratchOffset + count > scratch.length) {
+            return false
+        }
+        var end = arrayEnd(start, limit)
+        if (end < 0) { return false }
+        var cursor = start + 1
+        for (var index = 0; index < count; index = index + 1) {
+            cursor = skipWhitespace(cursor, end)
+            var valueEnd = numberEnd(cursor, end)
+            if (valueEnd < 0) {
+                return false
+            }
+            var value = fixedNumber(cursor, valueEnd, scale)
+            if (value == 2000000000) {
+                return false
+            }
+            scratch[scratchOffset + index] = value
+            cursor = skipWhitespace(valueEnd, end)
+            if (index + 1 < count) {
+                if (cursor >= end || json[cursor] != 44) { return false }
+                cursor = cursor + 1
+            }
+        }
+        if (skipWhitespace(cursor, end) != end) {
+            return false
+        }
+        return true
+    }
+
+    Int scaled(Int first, Int second, Int divisor) {
+        var result: Long = first
+        result = result * second / divisor
+        if (result < -1000000000L || result > 1000000000L) {
+            return 2000000000
+        }
+        return result.toInt()
+    }
+
+    Bool buildTrsMatrix(Int objectStart, Int objectLimit, Int nodeIndex) {
+        var tx = 0
+        var ty = 0
+        var tz = 0
+        var sx = transformScaleValue
+        var sy = transformScaleValue
+        var sz = transformScaleValue
+        var qx = 0
+        var qy = 0
+        var qz = 0
+        var qw = transformScaleValue
+        var translation = fieldValueStart(objectStart, objectLimit, "translation")
+        var rotation = fieldValueStart(objectStart, objectLimit, "rotation")
+        var scale = fieldValueStart(objectStart, objectLimit, "scale")
+        if (translation >= 0 && !parseFixedArray(
+                translation, objectLimit, 3, coordinateScaleValue, 0)) {
+            return false
+        }
+        if (translation >= 0) {
+            tx = scratch[0]
+            ty = scratch[1]
+            tz = scratch[2]
+        }
+        if (rotation >= 0 && !parseFixedArray(
+                rotation, objectLimit, 4, transformScaleValue, 0)) {
+            return false
+        }
+        if (rotation >= 0) {
+            qx = scratch[0]
+            qy = scratch[1]
+            qz = scratch[2]
+            qw = scratch[3]
+        }
+        if (scale >= 0 && !parseFixedArray(
+                scale, objectLimit, 3, transformScaleValue, 0)) {
+            return false
+        }
+        if (scale >= 0) {
+            sx = scratch[0]
+            sy = scratch[1]
+            sz = scratch[2]
+        }
+        var norm: Long = qx
+        norm = norm * qx
+        var term: Long = qy
+        term = term * qy
+        norm = norm + term
+        term = qz
+        term = term * qz
+        norm = norm + term
+        term = qw
+        term = term * qw
+        norm = norm + term
+        var expected: Long = transformScaleValue
+        expected = expected * transformScaleValue
+        var difference = norm - expected
+        if (difference < 0L) { difference = -difference }
+        if (difference > expected / 50L + transformScaleValue) {
+            return false
+        }
+        var xx = scaled(qx, qx, transformScaleValue)
+        var yy = scaled(qy, qy, transformScaleValue)
+        var zz = scaled(qz, qz, transformScaleValue)
+        var xy = scaled(qx, qy, transformScaleValue)
+        var xz = scaled(qx, qz, transformScaleValue)
+        var yz = scaled(qy, qz, transformScaleValue)
+        var xw = scaled(qx, qw, transformScaleValue)
+        var yw = scaled(qy, qw, transformScaleValue)
+        var zw = scaled(qz, qw, transformScaleValue)
+        if (xx == 2000000000 || yy == 2000000000 || zz == 2000000000 ||
+            xy == 2000000000 || xz == 2000000000 || yz == 2000000000 ||
+            xw == 2000000000 || yw == 2000000000 || zw == 2000000000) {
+            return false
+        }
+        var r00 = transformScaleValue - 2 * (yy + zz)
+        var r01 = 2 * (xy - zw)
+        var r02 = 2 * (xz + yw)
+        var r10 = 2 * (xy + zw)
+        var r11 = transformScaleValue - 2 * (xx + zz)
+        var r12 = 2 * (yz - xw)
+        var r20 = 2 * (xz - yw)
+        var r21 = 2 * (yz + xw)
+        var r22 = transformScaleValue - 2 * (xx + yy)
+        var offset = nodeIndex * 12
+        nodeMatrices[offset] = scaled(r00, sx, transformScaleValue)
+        nodeMatrices[offset + 1] = scaled(r01, sy, transformScaleValue)
+        nodeMatrices[offset + 2] = scaled(r02, sz, transformScaleValue)
+        nodeMatrices[offset + 3] = tx
+        nodeMatrices[offset + 4] = scaled(r10, sx, transformScaleValue)
+        nodeMatrices[offset + 5] = scaled(r11, sy, transformScaleValue)
+        nodeMatrices[offset + 6] = scaled(r12, sz, transformScaleValue)
+        nodeMatrices[offset + 7] = ty
+        nodeMatrices[offset + 8] = scaled(r20, sx, transformScaleValue)
+        nodeMatrices[offset + 9] = scaled(r21, sy, transformScaleValue)
+        nodeMatrices[offset + 10] = scaled(r22, sz, transformScaleValue)
+        nodeMatrices[offset + 11] = tz
+        for (var element = 0; element < 12; element = element + 1) {
+            if (nodeMatrices[offset + element] == 2000000000) { return false }
+        }
+        return true
+    }
+
+    Bool parseMatrixValues(Int start, Int limit, Int nodeIndex) {
+        var end = arrayEnd(start, limit)
+        if (end < 0 || !parseFixedArray(
+                start, limit, 16, transformScaleValue, 0)) {
+            return false
+        }
+        var offset = nodeIndex * 12
+        nodeMatrices[offset] = scratch[0]
+        nodeMatrices[offset + 1] = scratch[4]
+        nodeMatrices[offset + 2] = scratch[8]
+        nodeMatrices[offset + 3] = scratch[12]
+        nodeMatrices[offset + 4] = scratch[1]
+        nodeMatrices[offset + 5] = scratch[5]
+        nodeMatrices[offset + 6] = scratch[9]
+        nodeMatrices[offset + 7] = scratch[13]
+        nodeMatrices[offset + 8] = scratch[2]
+        nodeMatrices[offset + 9] = scratch[6]
+        nodeMatrices[offset + 10] = scratch[10]
+        nodeMatrices[offset + 11] = scratch[14]
+        return scratch[3] == 0 && scratch[7] == 0 && scratch[11] == 0 &&
+            scratch[15] == transformScaleValue
+    }
+
+    Bool parseNodeMatrix(Int objectStart, Int objectLimit, Int nodeIndex) {
+        var matrix = fieldValueStart(objectStart, objectLimit, "matrix")
+        if (matrix >= 0) {
+            return parseMatrixValues(matrix, objectLimit, nodeIndex)
+        }
+        return buildTrsMatrix(objectStart, objectLimit, nodeIndex)
+    }
+
+    Bool loadJson(Int[] source) {
+        if (source.length < 20 || source.length > 1048576 ||
+            source[0] != 103 || source[1] != 108 || source[2] != 84 ||
+            source[3] != 70 || source[4] != 2 || source[5] != 0 ||
+            source[6] != 0 || source[7] != 0 ||
+            source[8] + source[9] * 256 + source[10] * 65536 +
+                source[11] * 16777216 != source.length) {
+            return false
+        }
+        var offset = 12
+        var jsonFound = false
+        var binFound = false
+        while (offset + 8 <= source.length) {
+            var length = source[offset] + source[offset + 1] * 256 +
+                source[offset + 2] * 65536 + source[offset + 3] * 16777216
+            var kind = source[offset + 4] + source[offset + 5] * 256 +
+                source[offset + 6] * 65536 + source[offset + 7] * 16777216
+            offset = offset + 8
+            if (length < 0 || length % 4 != 0 || length > source.length - offset) {
+                return false
+            }
+            if (kind == 1313821514) {
+                if (jsonFound || length <= 0 || length > json.length) { return false }
+                for (var index = 0; index < length; index = index + 1) {
+                    json[index] = source[offset + index]
+                }
+                jsonLengthValue = length
+                jsonFound = true
+            } else if (kind == 5130562) {
+                if (binFound || length <= 0) { return false }
+                binOffsetValue = offset
+                binLengthValue = length
+                binFound = true
+            } else {
+                return false
+            }
+            offset = offset + length
+        }
+        return offset == source.length && jsonFound && binFound
+    }
+
+    Bool parseViews() {
+        var start = fieldValueStart(0, jsonLengthValue, "bufferViews")
+        var end = arrayEnd(start, jsonLengthValue)
+        if (start < 0 || end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123 || viewCountValue >= viewOffsets.length) { return false }
+            var objectLimit = objectEnd(cursor, end)
+            if (objectLimit < 0) { return false }
+            var buffer = integerField(cursor, objectLimit, "buffer")
+            var offset = integerField(cursor, objectLimit, "byteOffset")
+            var length = integerField(cursor, objectLimit, "byteLength")
+            var stride = integerField(cursor, objectLimit, "byteStride")
+            if (offset < 0) { offset = 0 }
+            if (stride < 0) { stride = 0 }
+            if (buffer != 0 || length <= 0 || offset > binLengthValue - length) {
+                return false
+            }
+            viewOffsets[viewCountValue] = offset
+            viewLengths[viewCountValue] = length
+            viewStrides[viewCountValue] = stride
+            viewCountValue = viewCountValue + 1
+            cursor = skipWhitespace(objectLimit + 1, end)
+            if (cursor < end && json[cursor] == 44) {
+                cursor = skipWhitespace(cursor + 1, end)
+            } else if (cursor != end) {
+                return false
+            }
+        }
+        return viewCountValue > 0
+    }
+
+    Int kindForType(Int objectStart, Int objectLimit) {
+        var start = fieldValueStart(objectStart, objectLimit, "type")
+        if (start < 0 || json[start] != 34) { return 0 }
+        var end = stringEnd(start, objectLimit)
+        if (end < 0) { return 0 }
+        if (keyEquals(start, end, "SCALAR")) { return 1 }
+        if (keyEquals(start, end, "VEC2")) { return 2 }
+        if (keyEquals(start, end, "VEC3")) { return 3 }
+        if (keyEquals(start, end, "VEC4")) { return 4 }
+        if (keyEquals(start, end, "MAT4")) { return 44 }
+        return 0
+    }
+
+    Bool parseAccessors() {
+        var start = fieldValueStart(0, jsonLengthValue, "accessors")
+        var end = arrayEnd(start, jsonLengthValue)
+        if (start < 0 || end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123 || accessorCountValue >= accessorViews.length) {
+                return false
+            }
+            var objectLimit = objectEnd(cursor, end)
+            if (objectLimit < 0) { return false }
+            accessorViews[accessorCountValue] =
+                integerField(cursor, objectLimit, "bufferView")
+            accessorOffsets[accessorCountValue] =
+                integerField(cursor, objectLimit, "byteOffset")
+            accessorComponents[accessorCountValue] =
+                integerField(cursor, objectLimit, "componentType")
+            accessorCounts[accessorCountValue] =
+                integerField(cursor, objectLimit, "count")
+            accessorKinds[accessorCountValue] = kindForType(cursor, objectLimit)
+            if (accessorOffsets[accessorCountValue] < 0) {
+                accessorOffsets[accessorCountValue] = 0
+            }
+            if (accessorViews[accessorCountValue] < 0 ||
+                accessorCounts[accessorCountValue] <= 0 ||
+                accessorKinds[accessorCountValue] == 0) {
+                return false
+            }
+            accessorCountValue = accessorCountValue + 1
+            cursor = skipWhitespace(objectLimit + 1, end)
+            if (cursor < end && json[cursor] == 44) {
+                cursor = skipWhitespace(cursor + 1, end)
+            } else if (cursor != end) {
+                return false
+            }
+        }
+        return accessorCountValue > 0
+    }
+
+    Bool parseMeshes() {
+        var start = fieldValueStart(0, jsonLengthValue, "meshes")
+        var end = arrayEnd(start, jsonLengthValue)
+        if (start < 0 || end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123 || meshCountValue >= 128) { return false }
+            var meshLimit = objectEnd(cursor, end)
+            if (meshLimit < 0) { return false }
+            var primitives = fieldValueStart(cursor, meshLimit, "primitives")
+            var primitiveEnd = arrayEnd(primitives, meshLimit)
+            if (primitives < 0 || primitiveEnd < 0) { return false }
+            var primitiveCursor = skipWhitespace(primitives + 1, primitiveEnd)
+            while (primitiveCursor < primitiveEnd) {
+                if (json[primitiveCursor] != 123 ||
+                    primitiveCountValue >= primitivePosition.length) {
+                    return false
+                }
+                var primitiveLimit = objectEnd(primitiveCursor, primitiveEnd)
+                if (primitiveLimit < 0) { return false }
+                var attributes = fieldValueStart(
+                    primitiveCursor, primitiveLimit, "attributes")
+                var attributesEnd = objectEnd(attributes, primitiveLimit)
+                if (attributes < 0 || attributesEnd < 0) { return false }
+                var position = integerField(attributes, attributesEnd, "POSITION")
+                var indices = integerField(primitiveCursor, primitiveLimit, "indices")
+                var texcoord = integerField(attributes, attributesEnd, "TEXCOORD_0")
+                var mode = integerField(primitiveCursor, primitiveLimit, "mode")
+                var material = integerField(primitiveCursor, primitiveLimit, "material")
+                if (mode < 0) { mode = 4 }
+                if (material < 0) { material = 0 }
+                if (position < 0 || indices < 0 || mode != 4 ||
+                    position >= accessorCountValue || indices >= accessorCountValue) {
+                    return false
+                }
+                primitivePosition[primitiveCountValue] = position
+                primitiveIndex[primitiveCountValue] = indices
+                primitiveTexcoord[primitiveCountValue] = texcoord
+                primitiveMesh[primitiveCountValue] = meshCountValue
+                primitiveMode[primitiveCountValue] = mode
+                primitiveMaterial[primitiveCountValue] = material
+                primitiveCountValue = primitiveCountValue + 1
+                primitiveCursor = skipWhitespace(primitiveLimit + 1, primitiveEnd)
+                if (primitiveCursor < primitiveEnd && json[primitiveCursor] == 44) {
+                    primitiveCursor = skipWhitespace(primitiveCursor + 1, primitiveEnd)
+                } else if (primitiveCursor != primitiveEnd) {
+                    return false
+                }
+            }
+            meshCountValue = meshCountValue + 1
+            cursor = skipWhitespace(meshLimit + 1, end)
+            if (cursor < end && json[cursor] == 44) {
+                cursor = skipWhitespace(cursor + 1, end)
+            } else if (cursor != end) {
+                return false
+            }
+        }
+        return meshCountValue > 0 && primitiveCountValue > 0
+    }
+
+    Bool parseNodes() {
+        var start = fieldValueStart(0, jsonLengthValue, "nodes")
+        if (start < 0) { return false }
+        var end = arrayEnd(start, jsonLengthValue)
+        if (end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123 || nodeCountValue >= nodeMesh.length) {
+                return false
+            }
+            var objectLimit = objectEnd(cursor, end)
+            if (objectLimit < 0) { return false }
+            nodeMesh[nodeCountValue] = integerField(cursor, objectLimit, "mesh")
+            if (nodeMesh[nodeCountValue] < 0) { nodeMesh[nodeCountValue] = -1 }
+            nodeParent[nodeCountValue] = -1
+            if (!parseNodeMatrix(cursor, objectLimit, nodeCountValue)) {
+                return false
+            }
+            nodeCountValue = nodeCountValue + 1
+            cursor = skipWhitespace(objectLimit + 1, end)
+            if (cursor < end && json[cursor] == 44) {
+                cursor = skipWhitespace(cursor + 1, end)
+            } else if (cursor != end) {
+                return false
+            }
+        }
+        cursor = skipWhitespace(start + 1, end)
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            var objectLimit = objectEnd(cursor, end)
+            if (objectLimit < 0) { return false }
+            var children = fieldValueStart(cursor, objectLimit, "children")
+            if (children >= 0) {
+                var childrenEnd = arrayEnd(children, objectLimit)
+                if (childrenEnd < 0) { return false }
+                var childCursor = skipWhitespace(children + 1, childrenEnd)
+                while (childCursor < childrenEnd) {
+                    var child = integerAt(childCursor, childrenEnd)
+                    if (child < 0 || child >= nodeCountValue) { return false }
+                    nodeParent[child] = node
+                    var childEnd = numberEnd(childCursor, childrenEnd)
+                    childCursor = skipWhitespace(childEnd, childrenEnd)
+                    if (childCursor < childrenEnd && json[childCursor] == 44) {
+                        childCursor = skipWhitespace(childCursor + 1, childrenEnd)
+                    } else if (childCursor != childrenEnd) {
+                        return false
+                    }
+                }
+            }
+            cursor = skipWhitespace(objectLimit + 1, end)
+            if (cursor < end && json[cursor] == 44) {
+                cursor = skipWhitespace(cursor + 1, end)
+            }
+        }
+        return nodeCountValue > 0
+    }
+
+    Bool parseTextureRange(Int[] source) {
+        var start = fieldValueStart(0, jsonLengthValue, "images")
+        if (start < 0) { return true }
+        var end = arrayEnd(start, jsonLengthValue)
+        if (end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        if (cursor >= end || json[cursor] != 123) { return true }
+        var objectLimit = objectEnd(cursor, end)
+        if (objectLimit < 0) { return false }
+        var view = integerField(cursor, objectLimit, "bufferView")
+        if (view < 0 || view >= viewCountValue) { return true }
+        var offset = binOffsetValue + viewOffsets[view]
+        var length = viewLengths[view]
+        if (offset < 0 || length < 24 || offset > source.length - length) {
+            return false
+        }
+        if (source[offset] != 137 || source[offset + 1] != 80 ||
+            source[offset + 2] != 78 || source[offset + 3] != 71 ||
+            source[offset + 12] != 73 || source[offset + 13] != 72 ||
+            source[offset + 14] != 68 || source[offset + 15] != 82 ||
+            source[offset + 16] >= 128 || source[offset + 20] >= 128) {
+            return false
+        }
+        var width = source[offset + 16] * 16777216 +
+            source[offset + 17] * 65536 +
+            source[offset + 18] * 256 + source[offset + 19]
+        var height = source[offset + 20] * 16777216 +
+            source[offset + 21] * 65536 +
+            source[offset + 22] * 256 + source[offset + 23]
+        if (width <= 0 || height <= 0) { return false }
+        textureOffsetValue = offset
+        textureLengthValue = length
+        textureWidthValue = width
+        textureHeightValue = height
+        textureValidValue = true
+        return true
+    }
+
+    Bool accessorSpan(
+        Int accessor, Int components, Int componentBytes,
+        Int element, Int elementBytes, Int[] result
+    ) {
+        if (result.length < 1 || accessor < 0 || accessor >= accessorCountValue ||
+            accessorKinds[accessor] != components ||
+            accessorComponents[accessor] != componentBytes ||
+            element < 0 || element >= accessorCounts[accessor]) {
+            return false
+        }
+        var view = accessorViews[accessor]
+        if (view < 0 || view >= viewCountValue) { return false }
+        var stride = viewStrides[view]
+        if (stride <= 0) { stride = elementBytes }
+        var accessorOffset = accessorOffsets[accessor]
+        if (stride < elementBytes || accessorOffset < 0 ||
+            accessorOffset > viewLengths[view] - elementBytes ||
+            element > (viewLengths[view] - accessorOffset - elementBytes) / stride) {
+            return false
+        }
+        var offset = binOffsetValue + viewOffsets[view] + accessorOffset +
+            element * stride
+        if (offset < binOffsetValue || offset + elementBytes >
+            binOffsetValue + binLengthValue || offset + elementBytes > sourceValue.length) {
+            return false
+        }
+        result[0] = offset
+        return true
+    }
+
+    Int readFloatFixed(Int offset, Int scale) {
+        if (offset < 0 || offset + 4 > sourceValue.length || scale <= 0) {
+            return 2000000000
+        }
+        var b0 = sourceValue[offset]
+        var b1 = sourceValue[offset + 1]
+        var b2 = sourceValue[offset + 2]
+        var b3 = sourceValue[offset + 3]
+        var exponent = (b3 % 128) * 2 + b2 / 128
+        var fraction = b0 + b1 * 256 + (b2 % 128) * 65536
+        if (exponent == 255) { return 2000000000 }
+        if (exponent == 0) { return 0 }
+        var mantissa = 8388608 + fraction
+        var result: Long = mantissa
+        result = result * scale
+        var shift = exponent - 150
+        if (shift >= 0) {
+            for (var index = 0; index < shift; index = index + 1) {
+                if (result > 1000000L) { return 2000000000 }
+                result = result * 2L
+            }
+        } else {
+            for (var index = 0; index < -shift; index = index + 1) {
+                result = result / 2L
+            }
+        }
+        if (b3 >= 128) { result = -result }
+        if (result < -1000000L || result > 1000000L) { return 2000000000 }
+        return result.toInt()
+    }
+
+    Bool readPosition(Int accessor, Int element, Int[] result) {
+        if (result.length < 3 || !accessorSpan(accessor, 3, 5126, element, 12, scratch)) {
+            return false
+        }
+        var offset = scratch[0]
+        result[0] = readFloatFixed(offset, coordinateScaleValue)
+        result[1] = readFloatFixed(offset + 4, coordinateScaleValue)
+        result[2] = readFloatFixed(offset + 8, coordinateScaleValue)
+        if (result[0] == 2000000000) {
+            return false
+        }
+        if (result[1] == 2000000000) {
+            return false
+        }
+        if (result[2] == 2000000000) {
+            return false
+        }
+        return true
+    }
+
+    Int readIndex(Int accessor, Int element) {
+        var component = accessorComponents[accessor]
+        var bytes = 0
+        if (component == 5121) { bytes = 1 }
+        if (component == 5123) { bytes = 2 }
+        if (component == 5125) { bytes = 4 }
+        if (bytes == 0 || !accessorSpan(accessor, 1, component, element, bytes, scratch)) {
+            return -1
+        }
+        var offset = scratch[0]
+        if (component == 5121) { return sourceValue[offset] }
+        if (component == 5123) {
+            return sourceValue[offset] + sourceValue[offset + 1] * 256
+        }
+        var value = sourceValue[offset] + sourceValue[offset + 1] * 256 +
+            sourceValue[offset + 2] * 65536 + sourceValue[offset + 3] * 16777216
+        if (value < 0) { return -1 }
+        return value
+    }
+
+    Int readUv(Int accessor, Int element, Int component) {
+        if (accessor < 0) { return 0 }
+        if (component < 0 || component > 1 ||
+            !accessorSpan(accessor, 2, 5126, element, 8, scratch)) {
+            return -1
+        }
+        var value = readFloatFixed(
+            scratch[0] + component * 4, 100)
+        if (value == 2000000000) { return -1 }
+        if (value < 0) { return 0 }
+        if (value > 100) { return 100 }
+        return value
+    }
+
+    Int bounded(Int value) {
+        if (value < -1000000000) { return -1000000000 }
+        if (value > 1000000000) { return 1000000000 }
+        return value
+    }
+
+    Bool multiplyWorld(Int node) {
+        if (node < 0 || node >= nodeCountValue) { return false }
+        if (nodeWorldReady[node] || nodeWorldVisiting[node]) {
+            return nodeWorldReady[node]
+        }
+        nodeWorldVisiting[node] = true
+        var parent = nodeParent[node]
+        if (parent >= 0 && !multiplyWorld(parent)) {
+            nodeWorldVisiting[node] = false
+            return false
+        }
+        var localOffset = node * 12
+        var worldOffset = node * 12
+        if (parent < 0) {
+            for (var index = 0; index < 12; index = index + 1) {
+                nodeWorldMatrices[worldOffset + index] = nodeMatrices[localOffset + index]
+            }
+        } else {
+            var parentOffset = parent * 12
+            for (var row = 0; row < 3; row = row + 1) {
+                for (var column = 0; column < 3; column = column + 1) {
+                    var value: Long = nodeWorldMatrices[parentOffset + row * 4]
+                    value = value * nodeMatrices[localOffset + column]
+                    var term: Long = nodeWorldMatrices[parentOffset + row * 4 + 1]
+                    term = term * nodeMatrices[localOffset + 4 + column]
+                    value = value + term
+                    term = nodeWorldMatrices[parentOffset + row * 4 + 2]
+                    term = term * nodeMatrices[localOffset + 8 + column]
+                    value = value + term
+                    nodeWorldMatrices[worldOffset + row * 4 + column] =
+                        bounded((value / transformScaleValue).toInt())
+                }
+                var translation: Long = nodeWorldMatrices[parentOffset + row * 4]
+                translation = translation * nodeMatrices[localOffset + 3]
+                var term: Long = nodeWorldMatrices[parentOffset + row * 4 + 1]
+                term = term * nodeMatrices[localOffset + 7]
+                translation = translation + term
+                term = nodeWorldMatrices[parentOffset + row * 4 + 2]
+                term = term * nodeMatrices[localOffset + 11]
+                translation = translation + term
+                translation = translation / transformScaleValue +
+                    nodeWorldMatrices[parentOffset + row * 4 + 3]
+                nodeWorldMatrices[worldOffset + row * 4 + 3] =
+                    bounded(translation.toInt())
+            }
+        }
+        nodeWorldReady[node] = true
+        nodeWorldVisiting[node] = false
+        return true
+    }
+
+    Int worldCoordinate(Int node, Int x, Int y, Int z, Int component) {
+        if (component < 0 || component > 2 || !multiplyWorld(node)) {
+            return 2000000000
+        }
+        var offset = node * 12
+        var rowOffset = offset + component * 4
+        var value: Long = nodeWorldMatrices[rowOffset]
+        value = value * x
+        var term: Long = nodeWorldMatrices[rowOffset + 1]
+        value = value + term * y
+        term = nodeWorldMatrices[rowOffset + 2]
+        value = value + term * z
+        value = value / transformScaleValue +
+            nodeWorldMatrices[rowOffset + 3]
+        return bounded(value.toInt())
+    }
+
+    Bool calculateBounds(Int[] minValues, Int[] maxValues) {
+        if (minValues.length < 3 || maxValues.length < 3) { return false }
+        minValues[0] = 1000000000
+        minValues[1] = 1000000000
+        minValues[2] = 1000000000
+        maxValues[0] = -1000000000
+        maxValues[1] = -1000000000
+        maxValues[2] = -1000000000
+        var position = new Int[3]
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            var mesh = nodeMesh[node]
+            if (mesh < 0 || mesh >= meshCountValue || !multiplyWorld(node)) { continue }
+            for (var primitive = 0; primitive < primitiveCountValue; primitive = primitive + 1) {
+                if (primitiveMesh[primitive] != mesh) { continue }
+                var accessor = primitivePosition[primitive]
+                for (var index = 0; index < accessorCounts[accessor]; index = index + 1) {
+                    if (!readPosition(accessor, index, position)) {
+                        return false
+                    }
+                    for (var component = 0; component < 3; component = component + 1) {
+                        var value = worldCoordinate(
+                            node, position[0], position[1], position[2], component)
+                        if (value == 2000000000) {
+                            return false
+                        }
+                        if (value < minValues[component]) { minValues[component] = value }
+                        if (value > maxValues[component]) { maxValues[component] = value }
+                    }
+                }
+            }
+        }
+        if (minValues[1] >= maxValues[1]) {
+            return false
+        }
+        return true
+    }
+
+    Int normalized(Int value, Int center, Int height) {
+        var difference: Long = value
+        difference = difference - center
+        var result = difference * 6000L / height
+        return result.toInt()
+    }
+
+    Int roundFixed(Int value) {
+        if (value >= 0) { return ((value + 500) / 1000) }
+        return -((-value + 500) / 1000)
+    }
+
+    Int materialSlot(Int model, Int mesh) {
+        if (model == 2) { return 3 }
+        if (mesh == 1) { return 1 }
+        if (mesh == 4) { return 2 }
+        return 0
+    }
+
+    Int expandedTriangleCount() {
+        var total: Long = 0
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            var mesh = nodeMesh[node]
+            if (mesh < 0 || mesh >= meshCountValue) { continue }
+            for (var primitive = 0; primitive < primitiveCountValue; primitive = primitive + 1) {
+                if (primitiveMesh[primitive] != mesh || primitiveMode[primitive] != 4) {
+                    continue
+                }
+                var indices = primitiveIndex[primitive]
+                if (indices < 0 || indices >= accessorCountValue) { return -1 }
+                var indexCount = accessorCounts[indices]
+                if (indexCount < 3 || indexCount % 3 != 0) { return -1 }
+                total = total + indexCount / 3
+                if (total > 715827882L) { return -1 }
+            }
+        }
+        return total.toInt()
+    }
+
+    Bool allocateGeometry() {
+        var triangles = expandedTriangleCount()
+        if (triangles <= 0) { return false }
+        var vertices = triangles * 3
+        vertexXValue = new Int[vertices]
+        vertexYValue = new Int[vertices]
+        vertexZValue = new Int[vertices]
+        vertexUValue = new Int[vertices]
+        vertexVValue = new Int[vertices]
+        vertexMaterialValue = new Int[vertices]
+        return true
+    }
+
+    Bool emitGeometry(Int[] minValues, Int[] maxValues) {
+        var height = maxValues[1] - minValues[1]
+        if (height <= 0) { return false }
+        var centerX: Long = minValues[0]
+        centerX = (centerX + maxValues[0]) / 2L
+        var centerZ: Long = minValues[2]
+        centerZ = (centerZ + maxValues[2]) / 2L
+        var position = new Int[3]
+        var output = 0
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            var mesh = nodeMesh[node]
+            if (mesh < 0 || mesh >= meshCountValue || !multiplyWorld(node)) { continue }
+            for (var primitive = 0; primitive < primitiveCountValue; primitive = primitive + 1) {
+                if (primitiveMesh[primitive] != mesh || primitiveMode[primitive] != 4) {
+                    continue
+                }
+                var positions = primitivePosition[primitive]
+                var indices = primitiveIndex[primitive]
+                var indexCount = accessorCounts[indices]
+                if (indexCount < 3 || indexCount % 3 != 0) { return false }
+                for (var triangle = 0; triangle < indexCount / 3; triangle = triangle + 1) {
+                    for (var corner = 0; corner < 3; corner = corner + 1) {
+                        var sourceIndex = readIndex(indices, triangle * 3 + corner)
+                        if (sourceIndex < 0 || sourceIndex >= accessorCounts[positions] ||
+                            output >= vertexXValue.length ||
+                            !readPosition(positions, sourceIndex, position)) {
+                            return false
+                        }
+                        var worldX = worldCoordinate(node, position[0], position[1], position[2], 0)
+                        var worldY = worldCoordinate(node, position[0], position[1], position[2], 1)
+                        var worldZ = worldCoordinate(node, position[0], position[1], position[2], 2)
+                        if (worldX == 2000000000 || worldY == 2000000000 || worldZ == 2000000000) {
+                            return false
+                        }
+                        vertexXValue[output] = roundFixed(normalized(worldX, centerX.toInt(), height))
+                        vertexYValue[output] = roundFixed(normalized(worldY, minValues[1], height))
+                        vertexZValue[output] = roundFixed(normalized(worldZ, centerZ.toInt(), height))
+                        var u = readUv(primitiveTexcoord[primitive], sourceIndex, 0)
+                        var v = readUv(primitiveTexcoord[primitive], sourceIndex, 1)
+                        if (u < 0 || v < 0) { return false }
+                        vertexUValue[output] = u
+                        vertexVValue[output] = v
+                        vertexMaterialValue[output] =
+                            materialSlot(modelValue, mesh)
+                        output = output + 1
+                    }
+                }
+            }
+        }
+        vertexCountValue = output
+        triangleCountValue = output / 3
+        return output > 0 && output % 3 == 0
+    }
+
+    Bool read(Int[] source, Int model) {
+        clear()
+        if ((model != 1 && model != 2) || source.length < 20) { return false }
+        sourceValue = source
+        modelValue = model
+        if (!loadJson(source)) { return false }
+        var rootStart = skipWhitespace(0, jsonLengthValue)
+        var rootEnd = objectEnd(rootStart, jsonLengthValue)
+        if (rootStart < 0 || rootEnd < 0 || rootStart >= jsonLengthValue ||
+            json[rootStart] != 123 || !parseViews() || !parseAccessors() ||
+            !parseMeshes() || !parseNodes() || !parseTextureRange(source)) {
+            return false
+        }
+        if (!allocateGeometry()) {
+            return false
+        }
+        var minValues = new Int[3]
+        var maxValues = new Int[3]
+        if (!calculateBounds(minValues, maxValues) ||
+            !emitGeometry(minValues, maxValues)) {
+            return false
+        }
+        readValue = true
+        return true
+    }
+
+    Bool valid() {
+        return readValue && vertexCountValue > 0 && triangleCountValue > 0 &&
+            vertexCountValue == triangleCountValue * 3
+    }
+
+    Int vertexCount() { if (!readValue) { return 0 } return vertexCountValue }
+    Int triangleCount() { if (!readValue) { return 0 } return triangleCountValue }
+
+    Int vertexX(Int index) {
+        if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
+        return vertexXValue[index]
+    }
+    Int vertexY(Int index) {
+        if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
+        return vertexYValue[index]
+    }
+    Int vertexZ(Int index) {
+        if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
+        return vertexZValue[index]
+    }
+    Int vertexU(Int index) {
+        if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
+        return vertexUValue[index]
+    }
+    Int vertexV(Int index) {
+        if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
+        return vertexVValue[index]
+    }
+    Int vertexMaterial(Int index) {
+        if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
+        return vertexMaterialValue[index]
+    }
+    Int textureOffset() {
+        if (!readValue || !textureValidValue) { return -1 }
+        return textureOffsetValue
+    }
+    Int textureLength() {
+        if (!readValue || !textureValidValue) { return 0 }
+        return textureLengthValue
+    }
+
+    Int textureByte(Int index) {
+        if (!readValue || !textureValidValue || index < 0 ||
+            index >= textureLengthValue) {
+            return -1
+        }
+        return sourceValue[textureOffsetValue + index]
+    }
+
+    Int textureWidth() {
+        if (!readValue || !textureValidValue) { return 0 }
+        return textureWidthValue
+    }
+
+    Int textureHeight() {
+        if (!readValue || !textureValidValue) { return 0 }
+        return textureHeightValue
+    }
+}

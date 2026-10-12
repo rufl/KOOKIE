@@ -77,6 +77,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 mkdir -p "$PACKAGE_ROOT" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world" "$WORK_DIR/metadata-classes"
+mkdir -p "$PACKAGE_ROOT/config/g3"
+cp -- "$ROOT_DIR/config/g3/external_lan.json" \
+  "$PACKAGE_ROOT/config/g3/external_lan.json"
 for content_file in "$ROOT_DIR"/src/content/*.kf; do
   ln -s "$content_file" "$source_dir/content/$(basename "$content_file")"
 done
@@ -112,6 +115,7 @@ for role in host client-a client-b; do
 @echo off
 setlocal
 set "ROOT=%~dp0"
+cd /d "%ROOT%"
 set "ROLE=$role"
 set "JAR=%ROOT%kookie-external-lan-$role.jar"
 set "LOG=%KOOKIE_EXTERNAL_LAN_PROBE_LOG%"
@@ -160,6 +164,8 @@ The launcher records role identity, machine fingerprint, key fingerprint,
 run ID, host IPv4 and process exit status in the role log. Keep the manifest
 and raw key outside this archive and transfer them through an authorized
 secure channel.
+The editable external G3 inputs are in config/g3/external_lan.json. Keep the
+same file on all peers; its checksum is part of compatibility admission.
 Optional environment:
   KOOKIE_EXTERNAL_LAN_TIMEOUT_MILLISECONDS (launcher default: 30000)
 EOF

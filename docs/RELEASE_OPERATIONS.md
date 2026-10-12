@@ -116,9 +116,9 @@ self-hosted, windows, x64, kookie-demo-release
 ```
 
 Both runners need Kof `0.5.0-beta` at
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c`, Python 3, OpenSSL, `glslc`, Zig
-`0.17.0` and the exact Kof archive whose digest is stored in
-`KOOKIE_KOF_ARCHIVE_SHA256`.
+`bf17ac7e736471c8a04b4153e5b0f607be75e70c`, Python 3, OpenSSL, `glslc`,
+`spirv-val`, Zig `0.17.0` and the exact Kof archive whose digest is stored in
+`KOOKIE_KOF_ARCHIVE_SHA256`. The Windows runner also needs `KOOKIE_DXC`.
 The runner must expose that archive as `KOOKIE_KOF_ARCHIVE`; release jobs
 recompute its SHA-256 before building, instead of trusting digest metadata alone.
 The hosted verification workflow downloads the official Zig 0.17.0 Linux

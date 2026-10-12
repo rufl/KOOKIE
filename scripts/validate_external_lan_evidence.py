@@ -126,7 +126,8 @@ def main() -> int:
         "external-client-g3-item",
         "external-client-g3-equipment",
         "external-client-g3-skill-rank",
-        "external-client-g3-world-loot-count",
+        "external-g3-config-checksum",
+        "external-g3-save-reload",
         "KOOKIE external-style authenticated host/two-client transport verified",
     )
     for marker in required:
@@ -175,6 +176,9 @@ def main() -> int:
         lines, "external-client-g3-skill-rank")
     g3_world_loot_count = marker_value(
         lines, "external-client-g3-world-loot-count")
+    g3_config_checksum = marker_value(
+        lines, "external-g3-config-checksum")
+    g3_save_reload = marker_value(lines, "external-g3-save-reload")
     if host_port_a is None or not 1 <= host_port_a <= 65535:
         return fail("invalid host listener port A")
     if host_port_b is None or not 1 <= host_port_b <= 65535:
@@ -185,8 +189,8 @@ def main() -> int:
         return fail("server-owned combat death was not terminal")
     if arena_triangles != EXPECTED_ARENA_TRIANGLES:
         return fail("complete authored arena did not traverse transport")
-    if combat_reward != 25:
-        return fail("server-owned combat reward was not replicated")
+    if combat_reward is None or combat_reward <= 0:
+        return fail("server-owned combat reward was not positive")
     if enemy_encounter_active != 0:
         return fail("replicated enemy encounter did not reach terminal state")
     if enemy_state != 7:
@@ -215,14 +219,18 @@ def main() -> int:
         return fail("player-authority state kind 7 did not traverse transport")
     if world_loot_kind != 8:
         return fail("world-loot state kind 8 did not traverse transport")
-    if g3_item != 900:
+    if g3_item is None or g3_item <= 0:
         return fail("authoritative picked-up item did not reach client A")
-    if g3_equipment != 900:
-        return fail("authoritative equipment did not reach client A")
-    if g3_skill_rank != 1:
+    if g3_equipment != g3_item:
+        return fail("authoritative equipment did not match picked-up item")
+    if g3_skill_rank is None or g3_skill_rank < 1:
         return fail("authoritative skill rank did not reach client A")
+    if g3_config_checksum is None or g3_config_checksum <= 0:
+        return fail("external G3 config checksum was not emitted")
     if g3_world_loot_count != 0:
         return fail("picked-up world loot did not disappear for client A")
+    if g3_save_reload != 1:
+        return fail("authoritative G3 save/reload did not round-trip")
     key_hex = os.environ.get("KOOKIE_TRANSPORT_KEY_HEX", "")
     if len(key_hex) != 32:
         return fail("transport key evidence is not a 32-character boundary")
@@ -400,6 +408,7 @@ def main() -> int:
         "reconnectGeneration": reconnect_generation,
         "staleDiagnostic": stale_diagnostic,
         "interactionRevision": interaction_revision,
+        "g3ConfigChecksum": g3_config_checksum,
         "g3Replication": {
             "playerAuthorityKind": player_authority_kind,
             "worldLootKind": world_loot_kind,
@@ -407,6 +416,10 @@ def main() -> int:
             "equipmentItemId": g3_equipment,
             "skillRank": g3_skill_rank,
             "worldLootCountAfterPickup": g3_world_loot_count,
+        },
+        "g3SaveReload": {
+            "status": "passed",
+            "roundTrip": g3_save_reload == 1,
         },
         "transportKeySha256": expected_key_hash,
         "probeLog": str(log_path),

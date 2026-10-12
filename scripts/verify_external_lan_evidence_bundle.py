@@ -164,8 +164,41 @@ def verify_bundle(bundle_path: Path) -> tuple[dict | None, str]:
             return None, "combat death evidence is not terminal"
         if evidence.get("arenaTriangleCount") != EXPECTED_ARENA_TRIANGLES:
             return None, "authored arena evidence is incomplete"
-        if evidence.get("combatReward") != 25:
+        if (
+            not isinstance(evidence.get("combatReward"), int) or
+            evidence["combatReward"] <= 0
+        ):
             return None, "combat reward evidence is incomplete"
+        config_checksum = evidence.get("g3ConfigChecksum")
+        if not isinstance(config_checksum, int) or config_checksum <= 0:
+            return None, "G3 config checksum evidence is incomplete"
+        g3_replication = evidence.get("g3Replication")
+        if not isinstance(g3_replication, dict):
+            return None, "G3 recipient-state evidence is incomplete"
+        if g3_replication.get("playerAuthorityKind") != 7:
+            return None, "player-authority evidence is incomplete"
+        if g3_replication.get("worldLootKind") != 8:
+            return None, "world-loot evidence is incomplete"
+        item_id = g3_replication.get("itemId")
+        equipment_item_id = g3_replication.get("equipmentItemId")
+        if (
+            not isinstance(item_id, int) or item_id <= 0 or
+            equipment_item_id != item_id
+        ):
+            return None, "G3 item/equipment evidence is incomplete"
+        if (
+            not isinstance(g3_replication.get("skillRank"), int) or
+            g3_replication["skillRank"] < 1
+        ):
+            return None, "G3 skill evidence is incomplete"
+        if g3_replication.get("worldLootCountAfterPickup") != 0:
+            return None, "G3 world-loot evidence is incomplete"
+        g3_save_reload = evidence.get("g3SaveReload")
+        if not isinstance(g3_save_reload, dict) or (
+            g3_save_reload.get("status") != "passed" or
+            g3_save_reload.get("roundTrip") is not True
+        ):
+            return None, "G3 save/reload evidence is incomplete"
         if evidence.get("playerPosition") != 2:
             return None, "authoritative movement evidence is incomplete"
         if evidence.get("reconnectGeneration") != 2:

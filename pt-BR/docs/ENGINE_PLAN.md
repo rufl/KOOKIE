@@ -45,6 +45,30 @@ O compilador/runtime existente do Kof é uma dependência de ferramenta upstream
 
 **Atalhos proibidos:** um engine Java/Bevy/Zig controlado por scripts `.kf`; lógica de jogo JS escrita manualmente e armazenada em strings Kof; uma implementação C de `engine_tick`/`render_world`; converter inteiros em ponteiros nativos arbitrários; duplicar o gameplay em uma segunda linguagem para fazer a demo funcionar.
 
+### Fronteira atual de migração C
+
+O inventário C é dividido por responsabilidade, não por tamanho de arquivo:
+mecanismos de plataforma e ABI permanecem nativos; semântica do engine migra
+para Kof:
+
+| Código nativo | Permanece em C | Move para Kof |
+|---|---|---|
+| `native/kookie_jobs.c` | threads, filas, espera e estado de conclusão | semântica do resultado e checksum do descritor; corte concluído |
+| `native/kookie_sdl_adapter.c` | handles SDL/SDL_GPU/SDL_mixer, transfers, uploads e draws | câmera/projeção, geração de texturas de modelo/mundo e política de passes |
+| `native/kookie_transport.c` | sockets, Winsock, I/O não bloqueante, handles de endereço e transferência de words | política de sessão/protocolo e agregação de payload recebido; codec/MAC quando a ABI escalar deixar de ser a restrição |
+| `native/kookie_persistence_adapter.c` | fsync/FlushFileBuffers, rename atômico e operações de caminho | schema, migração, validação e coordenação de save |
+| `native/kookie_pe_entry.c` | entrada `main` de PE e ponte do exit code | menu Windows, acessibilidade, lobby, apresentação e política de áudio em `probes/g0_native_presentation/main.kf` |
+| `native/kookie_simd_dispatch.c` | detecção de ISA e reduções intrínsecas | política de benchmark e seleção |
+
+Toda a descoberta de arquivo GLB, leitura limitada de bytes, parsing de JSON,
+scene/mesh/material/UV e staging de imagem ficam em
+`src/content/glb_model.kf`. A câmera, o atlas mundial, o mapeamento de UV e o
+plano de passes também são Kof; C valida escalares, transfere payloads,
+decodifica o PNG validado e submete draws SDL_GPU. O envelope redundante,
+checksum e seleção de slot do save pertencem a `BoundedDurableSaveFileCodec`;
+o adapter de persistência recebe somente bytes limitados para operações seguras
+de arquivo.
+
 Este plano não escolhe uma licença pública nem autoriza a redistribuição de assets de terceiros. Resolva a titularidade/notificações antes de publicar ports.
 
 ## 2. Decisão de plataforma e gráficos
@@ -99,7 +123,7 @@ todos os candidatos ao G0.
 | Área | Escolha recomendada | Limite / motivo |
 |---|---|---|
 | Plataforma e gráficos | **SDL3 + SDL_GPU** | Uma única stack de janela/entrada/gamepad/GPU; 3D e compute. Kof possui a extração, o culling, o agrupamento e os passes. Licença zlib. Mantenha Sokol como alternativa somente se o spike de GPU/ABI falhar |
-| Compilação de shaders | **SDL_shadercross + DXC**, SPIRV-Cross e SPIRV-Tools conforme exigido pelo build | HLSL → SPIR-V offline para Linux; refletir layouts de recursos. Ferramentas de build, não compiladores de shaders obrigatórios no runtime distribuído. O ShaderC instalado sozinho não é o pipeline HLSL selecionado |
+| Compilação de shaders | **`scripts/shader_pipeline.py`**, SPIR-V Tools, DXC/SDL_shadercross quando disponíveis | Os produtos atuais compilam GLSL para SPIR-V offline validado e emitem metadados de reflexão; Windows também emite DXIL a partir de HLSL. O manifesto gerado conduz as contagens de shaders do SDL_GPU. A migração para HLSL como fonte canônica permanece condicionada a um caminho de compilador multiplataforma qualificado; não há compilador de shader no runtime |
 | Áudio | **SDL_mixer 3.2.4** | Uma única autoridade zlib de mixagem, com streams separados de efeitos/música e política Kof de cues, ganho e espacialização. A build fixada habilita WAVE e `stb_vorbis` incluído para OGG Vorbis limitado; os demais backends opcionais de codec continuam desabilitados/não empacotados |
 | Decodificação de imagens | **Kooker PNG pertencente ao Kof**, depois **SDL3_image** somente para um serviço de pixels no runtime | O kooker atual valida, decodifica e torna canônico o subconjunto PNG limitado por conta própria. Uma futura fronteira SDL3_image pode decodificar PNG canônico admitido para upload; ela não controla admissão da fonte, decisões de espaço de cor/material nem cooking. Biblioteca zlib; dependências opcionais de codecs têm avisos separados |
 | Renderização de texto | **FreeType**, depois **HarfBuzz** ao implementar texto com shaping | Apenas serviços de rasterização e shaping. Kof possui os widgets, o layout, o foco e a política de cache de glifos. Fallback de fontes, bidi/quebra de linhas, IME e acessibilidade não são resolvidos simplesmente vinculando essas bibliotecas |
@@ -526,7 +550,7 @@ Renderizador inicial: renderização forward opaca/mascarada, buffer de profundi
 - Passagens básicas: profundidade/opaca + sombras opcionais limitadas, transparência/efeitos, viewmodel, pós-processamento/mapeamento de tons, UI. Não introduza complexidade deferred/clustered até que populações de luzes medidas exijam isso.
 - Estilos de baixa resolução/pixelados, de paleta/iluminação limitada e modernos mais limpos são perfis de material/pós-processamento, não simuladores de mundo alternativos.
 - Convenção única de coordenadas: metros, Y para cima, mundo destro, câmera apontando para -Z. Construa conversão explícita de projeção/clipping para a convenção documentada de clipping/profundidade do SDL_GPU; não transponha/inverta de forma ad hoc. Valide juntos a orientação de culling, normais, orientação, intervalo de profundidade e origem das texturas.
-- Fontes de shader em HLSL, SPIR-V offline para a primeira plataforma; fixe o SDL_shadercross e faça reflexão/validação das ligações de vértice/uniformes. Produtos adicionais de shader para backends somente quando o alvo correspondente for exercitado.
+- Os produtos de shader são declarados em `native/shaders/kookie_shader_products.json` e construídos por `scripts/shader_pipeline.py`. Todo produto SPIR-V passa por `spirv-val`; a ferramenta emite `kookie_shader_manifest.json` e o `kookie_shader_manifest.h` gerado, contendo metadados refletidos de estágio/recursos. `native/kookie_sdl_adapter.c` consome esses metadados para criar shaders SDL_GPU; Kof mantém a política de câmera/projeção, staging, materiais e passes. O caminho Linux atual é GLSL → SPIR-V; HLSL → DXIL permanece o produto Windows até que a paridade da fonte canônica seja qualificada.
 - Primeiro caminho de animação: sprite/billboard ou malha rígida; depois avaliação do estado/interpolação de animação do Kof e da pose esquelética, shader de skinning na GPU. A admissão de pose de referência/índice/peso permanece no kooker. Nenhum parsing de assets por quadro.
 - A lógica e o layout de HUD/menu/inventário/sobreposição de depuração são `.kf`, renderizados pelo engine. A rasterização externa de texto/fontes pode ser uma dependência estreita de biblioteca; não comece com um editor/runtime de UI completo baseado em webview.
 
@@ -880,8 +904,10 @@ controlam combate, comportamento, loot, progressão e moeda;
 `LoopbackSession.admitDefinedEnemy` confirma atomicamente o ator e seus
 contratos de recompensa. Schemas com checksum preservam inventário completo e
 identidade do RNG; os tipos `7`/`8` atravessam processos autenticados na mesma
-máquina com host mais dois clientes na JVM e no nativo; essa qualificação dos
-tipos G3 continua na mesma máquina. G4 agora adiciona assinaturas tipadas de
+máquina com host mais dois clientes na JVM e no nativo. O host externo também
+faz round trip da moeda, item gerado, equipamento, skill e recompensa
+reivindicada após a coleta pelo save de schema antes de emitir a evidência;
+essa qualificação dos tipos G3 continua na mesma máquina. G4 agora adiciona
 eventos de domínio; kooker limitado de GLB/Dust3D/Aseprite/VOX/brush e CLI de
 arquivos; carga validada de pacotes/registros externos; inspeção/edição
 transacional no Kutter com undo/redo e play-in-editor; reload GPU no limite de
@@ -942,12 +968,12 @@ escalabilidade arbitrária de população, conteúdo em streaming ou sandbox G6.
 
 G6 está qualificado para o contrato limitado declarado por
 `scripts/verify_g6_runtime.sh`, pelos gates reproduzíveis dos pacotes nativos PE/SDL
-Windows e pelo smoke completo do shell nativo em Wine isolado. O compilador baixa
-o grafo alcançável atual de gameplay/apresentação para PE/COFF AMD64; o shell
-nativo liga o objeto Kof completo de `src/` ao SDL3/SDL_mixer e o smoke verifica
-os marcadores de gameplay e `KOOKIE native Kof PE gameplay verified`. O pacote
-de apresentação liga o Kof PE ao adaptador SDL_GPU, preserva SPIR-V/DXIL e
-passa no gate de artefato reproduzível.
+Windows e pelo smoke isolado em Wine do runtime Kof SDL. O compilador baixa o
+grafo alcançável atual de gameplay/apresentação para PE/COFF AMD64; o smoke
+liga o objeto Kof completo de `src/` ao runtime SDL Kof e verifica os marcadores
+de gameplay e `KOOKIE native Kof PE gameplay verified`. O pacote de apresentação
+liga o Kof PE ao adaptador SDL_GPU, preserva SPIR-V/DXIL e passa no gate de
+artefato reproduzível.
 
 O smoke visual Wine da apresentação é opcional e exige GPU isolada capaz de DRI3;
 Xvfb isolado sem backend SDL_GPU não é evidência de apresentação. Isso não
@@ -1029,7 +1055,7 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 | Risco | Evidência atual | Ação / estágio de liberação |
 |---|---|---|
 | FFI em lote continua específica por alvo; estruturas/ponteiros/callbacks nativos não são um contrato geral | O `Buffer(U8, INOUT)` fixado do 0.5.0-beta passa no benchmark empacotado de redução `u8` em JVM/nativo x86-64; a verificação cross foi fornecida, mas não foi repetida pelo KOOKIE, enquanto Script/JS/Android/riscv32/MCU continuam em `FFI001` | Usar somente alvos medidos, manter fallback escalar e direcionar trabalho de produção apenas quando um perfil identificar o mesmo formato de redução em lote |
-| Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; o shell Windows nativo baixa e executa gameplay Kof PE no Wine isolado, e o pacote de apresentação verifica ligação nativa a SDL3/SDL_mixer/SDL_GPU e produtos SPIR-V/DXIL | Manter gates por plataforma/GPU; não inferir smoke visual de apresentação Windows a partir de linkage, smoke sem gráficos ou Xvfb padrão |
+| Inicialização do runtime C nativo/driver | Caminhos reais SDL3 de GPU/áudio/entrada passam no Linux qualificado; o gameplay Kof PE nativo de Windows passa pelo smoke SDL Kof, e o pacote de apresentação verifica ligação nativa a SDL3/SDL_mixer/SDL_GPU e produtos SPIR-V/DXIL | Manter gates por plataforma/GPU; não inferir smoke visual de apresentação Windows a partir de linkage, smoke sem gráficos ou Xvfb padrão |
 | Coletor nativo após spawn | Estágio de spawn cumulativo na fonte do alocador | Uma única thread Kof; soak prolongado; nenhum bypass inseguro de GC manual |
 | Desempenho da geração de código nativo | Pipeline mínimo de otimização | Medir arrays/matemática/FFI representativos; usar batching/pré-alocação; não reescrever a jogabilidade em C |
 | Fechamento do runtime distribuído | O perfil JVM para Windows preserva um runtime OpenJDK completo fixado por digest e sua árvore legal; a poda do compilador nativo ainda emite o aviso conhecido | Manter a escolha JVM explícita, registrar identidade/tamanho do runtime, comparar arquivos reproduzíveis e nunca tratá-la como fallback nativo silencioso |
@@ -1039,7 +1065,7 @@ Regra de exibição do repositório: configure `KOOKIE_PRESENTATION_ISOLATION_WR
 | Confiabilidade/segurança do editor | Execução de arquivo único, UI em JS, manipuladores privilegiados não autenticados | CLI + editor separado com capacidade de LSP; nenhuma dependência de fork do editor |
 | Pipeline de criação torna-se um segundo engine | Vários runtimes monolíticos ou autoridades | Contratos compartilhados de runtime/query/conteúdo `.kf`; publicação em estágios no limite do quadro |
 | Suposições sobre licenças/recursos | Direitos de código/assets indefinidos; fonte DoomKof sem licença | Preservar a proveniência, resolver concessões, possuir/testar os recursos inicialmente |
-| Portabilidade nativa alegada em excesso | A saída nativa upstream continua sendo ELF Linux; a ponte do KOOKIE emite PE/COFF AMD64 determinístico para os grafos alcançáveis qualificados de gameplay/apresentação e rejeita IR de ponto flutuante, exceções capturáveis e concorrência com `PE001` | Manter gates separados; conservar o smoke real do shell Windows e os checks de artefato, exigindo GPU isolada com DRI3 antes de alegar execução visual da apresentação |
+| Portabilidade nativa alegada em excesso | A saída nativa upstream continua sendo ELF Linux; a ponte do KOOKIE emite PE/COFF AMD64 determinístico para os grafos alcançáveis qualificados de gameplay/apresentação e rejeita IR de ponto flutuante, exceções capturáveis e concorrência com `PE001` | Manter gates separados; conservar o smoke real SDL Kof de Windows e os checks de artefato, exigindo GPU isolada com DRI3 antes de alegar execução visual da apresentação |
 
 ## 12. Primeiro incremento histórico
 

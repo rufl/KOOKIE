@@ -1,0 +1,481 @@
+package content
+
+import core
+
+Int g3ConfigSchemaVersion() { return 1 }
+Int g3ConfigMaximumBytes() { return 65536 }
+Int g3ConfigMaximumFields() { return 96 }
+
+class BoundedG3Config {
+    String[] fieldNames
+    Int[] fieldValues
+    Bool[] fieldSeen
+    Int fieldCountValue
+    Int[] sourceValue
+    Int cursorValue
+    Bool parseValidValue
+    Bool loadedValue
+    Int checksumValue
+
+    public constructor() {
+        fieldNames = new String[g3ConfigMaximumFields()]
+        fieldValues = new Int[g3ConfigMaximumFields()]
+        fieldSeen = new Bool[g3ConfigMaximumFields()]
+        sourceValue = new Int[0]
+        fieldCountValue = 0
+        cursorValue = 0
+        parseValidValue = false
+        loadedValue = false
+        checksumValue = 0
+        addField("configVersion")
+        addField("engineVersion")
+        addField("contentApiVersion")
+        addField("contentGeneration")
+        addField("contentRevision")
+        addField("extensionNamespace")
+        addField("extensionOwner")
+        addField("extensionApiVersion")
+        addField("extensionSchemaVersion")
+        addField("extensionRole")
+        addField("extensionLoadOrder")
+        addField("extensionProvenance")
+        addField("extensionMigrationVersion")
+        addField("extensionNetworkSchema")
+        addField("enemyDefinitionId")
+        addField("enemyDefinitionPriority")
+        addField("enemyDefinitionRevision")
+        addField("enemyKind")
+        addField("enemyHealth")
+        addField("enemyArmor")
+        addField("enemyWeaponId")
+        addField("enemyRole")
+        addField("enemyMoveStep")
+        addField("enemyProjectileStep")
+        addField("enemyCritical")
+        addField("enemyLootStableBase")
+        addField("enemyLootSeedSalt")
+        addField("enemyLootLevel")
+        addField("enemyLootRank")
+        addField("enemyCurrency")
+        addField("enemySkillId")
+        addField("enemyExperience")
+        addField("enemyWeaponMagazineSize")
+        addField("enemyWeaponReserveCapacity")
+        addField("enemyWeaponDamage")
+        addField("enemyWeaponChannel")
+        addField("enemyWeaponRange")
+        addField("playerWeaponId")
+        addField("playerWeaponMagazineSize")
+        addField("playerWeaponReserveCapacity")
+        addField("playerWeaponDamage")
+        addField("playerWeaponChannel")
+        addField("playerWeaponRange")
+        addField("playerAttackDistance")
+        addField("playerAttackCritical")
+        addField("encounterId")
+        addField("encounterMaxActive")
+        addField("encounterBudget")
+        addField("enemyActorId")
+        addField("admittedEnemyId")
+        addField("enemyPerceptionDistance")
+        addField("enemyPerceptionVisible")
+        addField("enemyActorHealth")
+        addField("enemyActorArmor")
+        addField("enemyActorX")
+        addField("enemyActorY")
+        addField("enemyActorZ")
+        addField("playerActorHealth")
+        addField("playerActorId")
+        addField("secondaryPlayerId")
+        addField("playerActorArmor")
+        addField("affixPoolId")
+        addField("affixId")
+        addField("affixWeight")
+        addField("affixFlatValue")
+        addField("affixAdditivePercent")
+        addField("affixMultiplicativePercent")
+        addField("lootItemDefinitionId")
+        addField("lootItemBaseValue")
+        addField("lootItemMinimumLevel")
+        addField("lootItemMaximumLevel")
+        addField("lootItemAffixPool")
+        addField("lootTableWeight")
+        addField("playerSkillId")
+        addField("playerSkillMaximumRank")
+        addField("playerSkillExperienceCost")
+        addField("playerSkillDamagePercent")
+        addField("playerStatusId")
+        addField("playerStatusDurationCap")
+        addField("playerStatusStackCap")
+        addField("playerStatusDamageFlat")
+        addField("playerStatusDamagePercent")
+        addField("playerStatusDefenseFlat")
+        addField("playerStatusDefensePercent")
+        addField("playerStatusPeriodicDamage")
+        addField("playerStatusPeriodicChannel")
+        addField("playerStatusDuration")
+        addField("playerStatusStacks")
+        addField("sessionEnemyCapacity")
+        addField("sessionPlayerCapacity")
+        addField("enemyRuleActorCapacity")
+        addField("enemyRuleMaxDistance")
+        addField("enemyRuleMaxProjectiles")
+    }
+
+    Bool addField(String name) {
+        if (fieldCountValue >= fieldNames.length) { return false }
+        fieldNames[fieldCountValue] = name
+        fieldValues[fieldCountValue] = 0
+        fieldSeen[fieldCountValue] = false
+        fieldCountValue = fieldCountValue + 1
+        return true
+    }
+
+    Bool whitespace(Int value) {
+        return value == 32 || value == 9 || value == 10 || value == 13
+    }
+
+    Int skipWhitespace() {
+        while (cursorValue < sourceValue.length &&
+            whitespace(sourceValue[cursorValue])) {
+            cursorValue = cursorValue + 1
+        }
+        return cursorValue
+    }
+
+    Bool rangeEquals(Int start, Int end, String expected) {
+        if (start < 0 || end < start || end - start != expected.length()) {
+            return false
+        }
+        for (var index = 0; index < expected.length(); index = index + 1) {
+            if (sourceValue[start + index] !=
+                    (expected.charAt(index) as Int)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int fieldIndex(Int start, Int end) {
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            if (rangeEquals(start, end, fieldNames[index])) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int readField() {
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length ||
+            sourceValue[cursorValue] != 34) {
+            parseValidValue = false
+            return -1
+        }
+        cursorValue = cursorValue + 1
+        var start = cursorValue
+        while (cursorValue < sourceValue.length &&
+            sourceValue[cursorValue] != 34) {
+            if (sourceValue[cursorValue] == 92) {
+                parseValidValue = false
+                return -1
+            }
+            cursorValue = cursorValue + 1
+        }
+        if (cursorValue >= sourceValue.length) {
+            parseValidValue = false
+            return -1
+        }
+        var index = fieldIndex(start, cursorValue)
+        cursorValue = cursorValue + 1
+        if (index < 0 || fieldSeen[index]) {
+            parseValidValue = false
+            return -1
+        }
+        return index
+    }
+
+    Int readInteger() {
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length) {
+            parseValidValue = false
+            return 0
+        }
+        var sign = 1
+        if (sourceValue[cursorValue] == 45) {
+            sign = -1
+            cursorValue = cursorValue + 1
+        }
+        var value = 0
+        var digits = 0
+        while (cursorValue < sourceValue.length) {
+            var character = sourceValue[cursorValue]
+            if (character < 48 || character > 57) { break }
+            value = value * 10 + character - 48
+            if (value > 1000000) {
+                parseValidValue = false
+                return 0
+            }
+            digits = digits + 1
+            cursorValue = cursorValue + 1
+        }
+        if (digits == 0) {
+            parseValidValue = false
+            return 0
+        }
+        if (cursorValue < sourceValue.length &&
+            !whitespace(sourceValue[cursorValue]) &&
+            sourceValue[cursorValue] != 44 &&
+            sourceValue[cursorValue] != 125) {
+            parseValidValue = false
+            return 0
+        }
+        return value * sign
+    }
+
+    Int readKind() {
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length ||
+            sourceValue[cursorValue] != 34) {
+            parseValidValue = false
+            return 0
+        }
+        cursorValue = cursorValue + 1
+        var start = cursorValue
+        while (cursorValue < sourceValue.length &&
+            sourceValue[cursorValue] != 34) {
+            if (sourceValue[cursorValue] == 92) {
+                parseValidValue = false
+                return 0
+            }
+            cursorValue = cursorValue + 1
+        }
+        if (cursorValue >= sourceValue.length) {
+            parseValidValue = false
+            return 0
+        }
+        var value = 0
+        if (rangeEquals(start, cursorValue, "normal")) {
+            value = enemyDefinitionNormalKind()
+        } else if (rangeEquals(start, cursorValue, "elite")) {
+            value = enemyDefinitionEliteKind()
+        } else if (rangeEquals(start, cursorValue, "boss")) {
+            value = enemyDefinitionBossKind()
+        } else {
+            parseValidValue = false
+            return 0
+        }
+        cursorValue = cursorValue + 1
+        return value
+    }
+
+    Bool parseObject() {
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length || sourceValue[cursorValue] != 123) {
+            return false
+        }
+        cursorValue = cursorValue + 1
+        skipWhitespace()
+        if (cursorValue < sourceValue.length && sourceValue[cursorValue] == 125) {
+            return false
+        }
+        while (cursorValue < sourceValue.length) {
+            var index = readField()
+            if (!parseValidValue) { return false }
+            skipWhitespace()
+            if (cursorValue >= sourceValue.length || sourceValue[cursorValue] != 58) {
+                return false
+            }
+            cursorValue = cursorValue + 1
+            var value = 0
+            if (fieldNames[index] == "enemyKind") {
+                value = readKind()
+            } else {
+                value = readInteger()
+            }
+            if (!parseValidValue) { return false }
+            fieldValues[index] = value
+            fieldSeen[index] = true
+            skipWhitespace()
+            if (cursorValue >= sourceValue.length) { return false }
+            if (sourceValue[cursorValue] == 125) {
+                cursorValue = cursorValue + 1
+                return true
+            }
+            if (sourceValue[cursorValue] != 44) { return false }
+            cursorValue = cursorValue + 1
+            skipWhitespace()
+            if (cursorValue >= sourceValue.length || sourceValue[cursorValue] == 125) {
+                return false
+            }
+        }
+        return false
+    }
+
+    Int value(String name) {
+        var index = fieldIndexByName(name)
+        if (index < 0 || !fieldSeen[index]) { return -1 }
+        return fieldValues[index]
+    }
+
+    Int fieldIndexByName(String name) {
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            if (fieldNames[index] == name) { return index }
+        }
+        return -1
+    }
+
+    Int mix(Int state, Int valueToMix) {
+        var normalized = valueToMix % 1000003
+        if (normalized < 0) { normalized = normalized + 1000003 }
+        return (state * 31 + normalized) % 1000003
+    }
+
+    Int calculateChecksum() {
+        var result = 67
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            result = mix(result, fieldValues[index])
+        }
+        if (result == 0) { return 1 }
+        return result
+    }
+
+    Bool allFieldsPresent() {
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            if (!fieldSeen[index]) { return false }
+        }
+        return true
+    }
+
+    Bool validValueRange(String name, Int minimum, Int maximum) {
+        var current = value(name)
+        return current >= minimum && current <= maximum
+    }
+
+    Bool validate() {
+        if (!allFieldsPresent() || value("configVersion") != g3ConfigSchemaVersion()) {
+            return false
+        }
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            if (!validValueRange(fieldNames[index], -1000000, 1000000)) {
+                return false
+            }
+        }
+        return validValueRange("engineVersion", 1, 1000000) &&
+            validValueRange("contentApiVersion", 1, 1000000) &&
+            validValueRange("contentGeneration", 1, 1000000) &&
+            validValueRange("contentRevision", 1, 1000000) &&
+            validValueRange("extensionNamespace", 1, 1000000) &&
+            validValueRange("extensionOwner", 1, 1000000) &&
+            validValueRange("extensionApiVersion", 1, 1000000) &&
+            validValueRange("extensionSchemaVersion", 1, 1000000) &&
+            validValueRange("extensionRole", 1, 1000000) &&
+            validValueRange("extensionLoadOrder", 1, 1000000) &&
+            validValueRange("extensionProvenance", 1, 1000000) &&
+            validValueRange("extensionMigrationVersion", 1, 1000000) &&
+            validValueRange("extensionNetworkSchema", 1, 1000000) &&
+            validValueRange("enemyDefinitionId", 1, 1000000) &&
+            validValueRange("enemyDefinitionPriority", 1, 1000000) &&
+            validValueRange("enemyDefinitionRevision", 1, 1000000) &&
+            validValueRange("enemyKind", enemyDefinitionNormalKind(),
+                enemyDefinitionBossKind()) &&
+            validValueRange("enemyHealth", 1, 1000000) &&
+            validValueRange("enemyArmor", 0, 1000000) &&
+            validValueRange("enemyWeaponId", 1, 1000000) &&
+            validValueRange("enemyRole", 1, 3) &&
+            validValueRange("enemyMoveStep", 1, 1000000) &&
+            validValueRange("enemyProjectileStep", 1, 1000000) &&
+            validValueRange("enemyCritical", 0, 1) &&
+            validValueRange("enemyLootStableBase", 1, 999999) &&
+            validValueRange("enemyLootSeedSalt", 0, 1000000) &&
+            validValueRange("enemyLootLevel", 1, 1000000) &&
+            validValueRange("enemyLootRank", 1, 3) &&
+            validValueRange("enemyCurrency", 0, 1000000) &&
+            validValueRange("enemySkillId", 0, 1000000) &&
+            validValueRange("enemyExperience", 0, 1000000) &&
+            validValueRange("enemyWeaponMagazineSize", 1, 1000000) &&
+            validValueRange("enemyWeaponReserveCapacity", 0, 1000000) &&
+            validValueRange("enemyWeaponDamage", 1, 1000000) &&
+            validValueRange("enemyWeaponChannel", 0, 1000000) &&
+            validValueRange("enemyWeaponRange", 1, 1000000) &&
+            validValueRange("playerWeaponId", 1, 1000000) &&
+            validValueRange("playerWeaponMagazineSize", 1, 1000000) &&
+            validValueRange("playerWeaponReserveCapacity", 0, 1000000) &&
+            validValueRange("playerWeaponDamage", 1, 1000000) &&
+            validValueRange("playerWeaponChannel", 0, 1000000) &&
+            validValueRange("playerWeaponRange", 1, 1000000) &&
+            validValueRange("playerAttackDistance", 0, 1000000) &&
+            validValueRange("playerAttackCritical", 0, 1) &&
+            validValueRange("encounterId", 1, 1000000) &&
+            validValueRange("encounterMaxActive", 1, 1000000) &&
+            validValueRange("encounterBudget", 1, 1000000) &&
+            validValueRange("enemyActorId", 1, 1000000) &&
+            validValueRange("admittedEnemyId", 1, 1000000) &&
+            validValueRange("enemyPerceptionDistance", 0, 1000000) &&
+            validValueRange("enemyPerceptionVisible", 0, 1) &&
+            validValueRange("enemyActorHealth", 1, 1000000) &&
+            validValueRange("enemyActorArmor", 0, 1000000) &&
+            validValueRange("playerActorId", 1, 1000000) &&
+            validValueRange("secondaryPlayerId", 1, 1000000) &&
+            validValueRange("playerActorHealth", 1, 1000000) &&
+            validValueRange("playerActorArmor", 0, 1000000) &&
+            validValueRange("affixPoolId", 1, 1000000) &&
+            validValueRange("affixId", 1, 1000000) &&
+            validValueRange("affixWeight", 1, 1000000) &&
+            validValueRange("lootItemDefinitionId", 1, 1000000) &&
+            validValueRange("lootItemBaseValue", 1, 1000000) &&
+            validValueRange("lootItemMinimumLevel", 1, 1000000) &&
+            validValueRange("lootItemMaximumLevel", 1, 1000000) &&
+            validValueRange("lootItemAffixPool", 1, 1000000) &&
+            validValueRange("lootTableWeight", 1, 1000000) &&
+            validValueRange("playerSkillId", 1, 1000000) &&
+            validValueRange("playerSkillMaximumRank", 1, 1000000) &&
+            validValueRange("playerSkillExperienceCost", 1, 1000000) &&
+            validValueRange("playerSkillDamagePercent", 0, 1000) &&
+            validValueRange("playerStatusId", 1, 1000000) &&
+            validValueRange("playerStatusDurationCap", 1, 1000000) &&
+            validValueRange("playerStatusStackCap", 1, 1000000) &&
+            validValueRange("playerStatusDamageFlat", 0, 1000000) &&
+            validValueRange("playerStatusDamagePercent", 0, 1000) &&
+            validValueRange("playerStatusDefenseFlat", 0, 1000000) &&
+            validValueRange("playerStatusDefensePercent", 0, 1000) &&
+            validValueRange("playerStatusPeriodicDamage", 0, 1000000) &&
+            validValueRange("playerStatusPeriodicChannel", 0, 3) &&
+            validValueRange("playerStatusDuration", 1, 1000000) &&
+            validValueRange("playerStatusStacks", 1, 1000000) &&
+            validValueRange("sessionEnemyCapacity", 1, 64) &&
+            validValueRange("sessionPlayerCapacity", 1, 64) &&
+            validValueRange("enemyRuleActorCapacity", 1, 1000000) &&
+            validValueRange("enemyRuleMaxDistance", 1, 1000000) &&
+            validValueRange("enemyRuleMaxProjectiles", 1, 1000000)
+    }
+
+    Bool load(String path) {
+        loadedValue = false
+        checksumValue = 0
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            fieldValues[index] = 0
+            fieldSeen[index] = false
+        }
+        sourceValue = File(path).readRange(0, g3ConfigMaximumBytes() + 1)
+        if (sourceValue.length <= 0 ||
+            sourceValue.length > g3ConfigMaximumBytes()) {
+            sourceValue = new Int[0]
+            return false
+        }
+        cursorValue = 0
+        parseValidValue = true
+        if (!parseObject() || !parseValidValue ||
+            skipWhitespace() != sourceValue.length || !validate()) {
+            sourceValue = new Int[0]
+            return false
+        }
+        checksumValue = calculateChecksum()
+        sourceValue = new Int[0]
+        loadedValue = checksumValue > 0
+        return loadedValue
+    }
+
+    Bool loaded() { return loadedValue }
+    Int checksum() { return checksumValue }
+}

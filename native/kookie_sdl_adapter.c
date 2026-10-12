@@ -10,16 +10,13 @@
 #endif
 
 
-#include "kookie_pixel_font.h"
-#include "kookie_heart_atlas.h"
 #include "kookie_transport.h"
 #include "kookie_audio_assets.h"
-#include "kookie_model_assets.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "kookie_shader_manifest.h"
 #include <stdint.h>
-#include <math.h>
 #include <limits.h>
 #if defined(_WIN32)
 #include <windows.h>
@@ -27,28 +24,8 @@
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 1740
-#define KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE 64
-#define KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW 4
-#define KOOKIE_GPU_WORLD_MODEL_RESOURCE_BASE 9
-#define KOOKIE_GPU_WORLD_MODEL_RESOURCE_LIMIT 16
-#define KOOKIE_GPU_WORLD_MODEL_FIRST_TILE 8
-#define KOOKIE_GPU_WORLD_MODEL_CAT_TEXTURE_RESOURCE 15
 #define KOOKIE_GPU_ATLAS_WIDTH 256
 #define KOOKIE_GPU_ATLAS_HEIGHT 128
-#define KOOKIE_GPU_ATLAS_TILE_SIZE 8
-#define KOOKIE_GPU_ATLAS_TILES_PER_ROW 32
-#define KOOKIE_GPU_HEART_TILE_SIZE 8
-#define KOOKIE_GPU_SOLID_COLORS 16
-#define KOOKIE_GPU_FONT_COLORS 5
-#define KOOKIE_GPU_FONT_GLYPHS_PER_COLOR 48
-#define KOOKIE_GPU_FONT_RESOURCE_BASE 101
-#define KOOKIE_GPU_FONT_RESOURCE_STRIDE \
-    (KOOKIE_GPU_FONT_COLORS * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR)
-#define KOOKIE_GPU_HEART_BASE_RESOURCE 600
-#define KOOKIE_GPU_HEART_STATE_COUNT 5
-#define KOOKIE_GPU_HEART_FIRST_TILE \
-    (KOOKIE_GPU_SOLID_COLORS + \
-        KOOKIE_PIXEL_FONT_COUNT * KOOKIE_GPU_FONT_RESOURCE_STRIDE)
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -60,6 +37,7 @@
 #define KOOKIE_GPU_RECOVERY_LOST 2
 #define KOOKIE_GPU_RECOVERY_FAILED 3
 #define KOOKIE_GPU_MAX_SHADER_BYTES (16u * 1024u * 1024u)
+#define KOOKIE_GPU_MAX_MODEL_TEXTURE_BYTES (1024u * 1024u)
 #define KOOKIE_WINDOW_KIND 1
 #define KOOKIE_AUDIO_KIND 2
 #define KOOKIE_GPU_KIND 3
@@ -153,8 +131,52 @@ typedef struct {
     bool cat_embedded;
     bool ready;
 } KookieGpuWorldTextureLayout;
+typedef struct {
+    Uint8 *bytes;
+    size_t length;
+    size_t next_byte;
+    bool open;
+    bool committed;
+} KookieGpuModelTextureStaging;
+typedef struct {
+    Uint8 *pixels;
+    size_t bytes;
+    Uint32 width;
+    Uint32 height;
+    Uint32 cat_x;
+    Uint32 cat_y;
+    Uint32 cat_width;
+    Uint32 cat_height;
+    size_t next_word;
+    bool open;
+    bool committed;
+} KookieGpuWorldTextureStaging;
+
+static KookieGpuModelTextureStaging gpu_model_texture_staging;
+static KookieGpuWorldTextureStaging gpu_world_texture_staging;
+static int gpu_world_camera_matrix[16];
+static KookieGpuWorldScene gpu_world_scene;
+static int gpu_world_camera_stage_count;
+static bool gpu_world_camera_stage_open;
+static bool gpu_world_camera_matrix_ready;
+static bool gpu_render_plan_ready;
+static bool gpu_render_world;
+static bool gpu_render_scene;
+static bool gpu_render_policy_active;
+
+static void kookie_gpu_model_texture_staging_release(void) {
+    free(gpu_model_texture_staging.bytes);
+    memset(&gpu_model_texture_staging, 0, sizeof(gpu_model_texture_staging));
+}
+
+static void kookie_gpu_world_texture_staging_release(void) {
+    free(gpu_world_texture_staging.pixels);
+    memset(&gpu_world_texture_staging, 0, sizeof(gpu_world_texture_staging));
+}
 
 static KookieGpuWorldTextureLayout gpu_world_texture_layout;
+
+
 static void kookie_gpu_scene_release(KookieGpuScene *scene) {
     if (scene == NULL) {
         return;
@@ -216,73 +238,51 @@ static void kookie_gpu_world_release(KookieGpuWorldScene *scene) {
     free(scene->vertices);
     memset(scene, 0, sizeof(*scene));
 }
-static Uint32 kookie_gpu_png_u32(const unsigned char *data) {
-    return ((Uint32)data[0] << 24) | ((Uint32)data[1] << 16) |
-        ((Uint32)data[2] << 8) | (Uint32)data[3];
-}
-
 static bool kookie_gpu_prepare_world_texture_layout(void) {
     if (gpu_world_texture_layout.ready) {
         return true;
     }
-    int model_tile_count =
-        KOOKIE_GPU_WORLD_MODEL_RESOURCE_LIMIT -
-        KOOKIE_GPU_WORLD_MODEL_RESOURCE_BASE;
-    if (model_tile_count <= 0 ||
-        KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW <= 0 ||
-        KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE <= 0) {
-        return false;
-    }
-    int last_model_tile =
-        KOOKIE_GPU_WORLD_MODEL_FIRST_TILE + model_tile_count - 1;
-    size_t base_width = (size_t)KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW *
-        (size_t)KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-    size_t base_height = ((size_t)last_model_tile /
-        (size_t)KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW + 1u) *
-        (size_t)KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-    if (base_width > UINT32_MAX || base_height > UINT32_MAX) {
-        return false;
-    }
-    gpu_world_texture_layout.width = (Uint32)base_width;
-    gpu_world_texture_layout.height = (Uint32)base_height;
-    gpu_world_texture_layout.cat_x = (Uint32)(
-        (last_model_tile % KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-        KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE);
-    gpu_world_texture_layout.cat_y = (Uint32)(
-        (last_model_tile / KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-        KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE);
-    gpu_world_texture_layout.cat_width =
-        KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-    gpu_world_texture_layout.cat_height =
-        KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-    const unsigned char *encoded = NULL;
-    size_t encoded_length = 0;
-    if (kookie_model_assets_texture_png(
-            KOOKIE_MODEL_CAT, &encoded, &encoded_length) &&
-        encoded_length >= 24u &&
-        encoded[0] == 0x89 && encoded[1] == 'P' &&
-        encoded[2] == 'N' && encoded[3] == 'G' &&
-        encoded[12] == 'I' && encoded[13] == 'H' &&
-        encoded[14] == 'D' && encoded[15] == 'R') {
-        Uint32 cat_width = kookie_gpu_png_u32(encoded + 16);
-        Uint32 cat_height = kookie_gpu_png_u32(encoded + 20);
-        if (cat_width > 0 && cat_height > 0 &&
-            (size_t)cat_width <= SIZE_MAX - base_width) {
-            size_t texture_width = base_width + (size_t)cat_width;
-            size_t texture_height = base_height > (size_t)cat_height
-                ? base_height : (size_t)cat_height;
-            if (texture_width <= UINT32_MAX &&
-                texture_height <= UINT32_MAX) {
-                gpu_world_texture_layout.width = (Uint32)texture_width;
-                gpu_world_texture_layout.height = (Uint32)texture_height;
-                gpu_world_texture_layout.cat_x = (Uint32)base_width;
-                gpu_world_texture_layout.cat_y = 0;
-                gpu_world_texture_layout.cat_width = cat_width;
-                gpu_world_texture_layout.cat_height = cat_height;
-                gpu_world_texture_layout.cat_embedded = true;
-            }
+    if (!gpu_world_texture_staging.committed) {
+        if (gpu_world_scene.committed && gpu_world_scene.count > 0) {
+            return false;
         }
+        gpu_world_texture_layout.width = 256u;
+        gpu_world_texture_layout.height = 256u;
+        gpu_world_texture_layout.cat_x = 0;
+        gpu_world_texture_layout.cat_y = 0;
+        gpu_world_texture_layout.cat_width = 0;
+        gpu_world_texture_layout.cat_height = 0;
+        gpu_world_texture_layout.cat_embedded = false;
+        gpu_world_texture_layout.ready = true;
+        return true;
     }
+    if (gpu_world_texture_staging.width < 256u ||
+        gpu_world_texture_staging.height < 256u ||
+        gpu_world_texture_staging.width > 4096u ||
+        gpu_world_texture_staging.height > 4096u ||
+        (gpu_world_texture_staging.cat_width > 0u &&
+            gpu_world_texture_staging.cat_height == 0u) ||
+        (gpu_world_texture_staging.cat_width == 0u &&
+            gpu_world_texture_staging.cat_height > 0u)) {
+        return false;
+    }
+    if (gpu_world_texture_staging.cat_width > 0u &&
+        (gpu_world_texture_staging.cat_x >= gpu_world_texture_staging.width ||
+         gpu_world_texture_staging.cat_y >= gpu_world_texture_staging.height ||
+         gpu_world_texture_staging.cat_width >
+             gpu_world_texture_staging.width - gpu_world_texture_staging.cat_x ||
+         gpu_world_texture_staging.cat_height >
+             gpu_world_texture_staging.height - gpu_world_texture_staging.cat_y)) {
+        return false;
+    }
+    gpu_world_texture_layout.width = gpu_world_texture_staging.width;
+    gpu_world_texture_layout.height = gpu_world_texture_staging.height;
+    gpu_world_texture_layout.cat_x = gpu_world_texture_staging.cat_x;
+    gpu_world_texture_layout.cat_y = gpu_world_texture_staging.cat_y;
+    gpu_world_texture_layout.cat_width = gpu_world_texture_staging.cat_width;
+    gpu_world_texture_layout.cat_height = gpu_world_texture_staging.cat_height;
+    gpu_world_texture_layout.cat_embedded =
+        gpu_world_texture_staging.cat_width > 0u;
     gpu_world_texture_layout.ready = true;
     return true;
 }
@@ -324,12 +324,6 @@ static KookieGpuReload gpu_reload;
 static SDL_GPUFence *gpu_scene_frame_fences[3];
 static int gpu_scene_frame_slot;
 static int last_gpu_scene_draw_calls;
-static KookieGpuWorldScene gpu_world_scene;
-static int gpu_world_camera_x = 16;
-static int gpu_world_camera_y = 6;
-static int gpu_world_camera_z = -20;
-static int gpu_world_camera_yaw;
-static int gpu_world_camera_pitch;
 
 static void kookie_gpu_reload_reset(int active_generation) {
     memset(&gpu_reload, 0, sizeof(gpu_reload));
@@ -591,6 +585,15 @@ bool kookie_sdl_init(int flags) {
     kookie_gpu_scene_release(&gpu_scene);
     kookie_gpu_world_release(&gpu_world_scene);
     memset(&gpu_world_texture_layout, 0, sizeof(gpu_world_texture_layout));
+    kookie_gpu_world_texture_staging_release();
+    kookie_gpu_model_texture_staging_release();
+    gpu_world_camera_stage_count = 0;
+    gpu_world_camera_stage_open = false;
+    gpu_world_camera_matrix_ready = false;
+    gpu_render_plan_ready = false;
+    gpu_render_world = false;
+    gpu_render_scene = false;
+    gpu_render_policy_active = false;
     bool initialized = SDL_Init((SDL_InitFlags)flags);
     return initialized;
 }
@@ -622,6 +625,15 @@ void kookie_sdl_shutdown(void) {
     kookie_gpu_scene_release(&gpu_scene);
     kookie_gpu_world_release(&gpu_world_scene);
     memset(&gpu_world_texture_layout, 0, sizeof(gpu_world_texture_layout));
+    kookie_gpu_world_texture_staging_release();
+    kookie_gpu_model_texture_staging_release();
+    gpu_world_camera_stage_count = 0;
+    gpu_world_camera_stage_open = false;
+    gpu_world_camera_matrix_ready = false;
+    gpu_render_plan_ready = false;
+    gpu_render_world = false;
+    gpu_render_scene = false;
+    gpu_render_policy_active = false;
     SDL_Quit();
     kookie_reset_event_state();
 }
@@ -1010,163 +1022,14 @@ static bool read_shader_binary(
     *size = (size_t)length;
     return true;
 }
-static void kookie_gpu_build_atlas(Uint8 *pixels) {
-    static const Uint8 palette[KOOKIE_GPU_SOLID_COLORS][4] = {
-        { 71,  85, 105, 255}, { 37, 99, 235, 255},
-        { 15, 118, 110, 255}, {124, 58, 237, 255},
-        {180,  83,   9, 255}, {220,  38,  38, 255},
-        {  8, 145, 178, 255}, {101, 163,  13, 255},
-        {100, 116, 139, 255}, { 15,  23,  42, 255},
-        { 15,  31,  43, 255}, {220,  38,  38, 255},
-        {217, 119,   6, 255}, { 21, 128,  61, 255},
-        { 34, 197,  94, 255}, {248, 250, 252, 255}
-    };
-    static const int font_palette[KOOKIE_GPU_FONT_COLORS] = {
-        15, 12, 8, 11, 14
-    };
-    memset(
-        pixels, 0,
-        KOOKIE_GPU_ATLAS_WIDTH * KOOKIE_GPU_ATLAS_HEIGHT * 4u);
-    for (int color = 0; color < KOOKIE_GPU_SOLID_COLORS; color += 1) {
-        int tile_x = (color % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        int tile_y = (color / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        for (int y = 0; y < KOOKIE_GPU_ATLAS_TILE_SIZE; y += 1) {
-            for (int x = 0; x < KOOKIE_GPU_ATLAS_TILE_SIZE; x += 1) {
-                size_t offset = (size_t)(
-                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) * 4u;
-                memcpy(pixels + offset, palette[color], 4u);
-            }
-        }
-    }
-    for (int font = 0; font < KOOKIE_PIXEL_FONT_COUNT; font += 1) {
-        for (int color = 0; color < KOOKIE_GPU_FONT_COLORS; color += 1) {
-            for (int glyph = 1;
-                 glyph <= KOOKIE_PIXEL_GLYPH_COUNT; glyph += 1) {
-                int tile = KOOKIE_GPU_SOLID_COLORS +
-                    (font * KOOKIE_GPU_FONT_COLORS + color) *
-                        KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph - 1;
-                int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-                    KOOKIE_GPU_ATLAS_TILE_SIZE;
-                int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-                    KOOKIE_GPU_ATLAS_TILE_SIZE;
-                for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
-                    for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
-                        uint8_t alpha =
-                            kookie_pixel_glyph_alpha(font, glyph, y, x);
-                        if (alpha == 0) {
-                            continue;
-                        }
-                        size_t offset = (size_t)(
-                            (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
-                            4u;
-                        memcpy(
-                            pixels + offset,
-                            palette[font_palette[color]],
-                            3u);
-                        pixels[offset + 3u] = alpha;
-                    }
-                }
-            }
-        }
-    }
-    for (int state = 0; state < KOOKIE_GPU_HEART_STATE_COUNT; state += 1) {
-        int tile = KOOKIE_GPU_HEART_FIRST_TILE + state;
-        int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        for (int y = 0; y < KOOKIE_GPU_HEART_TILE_SIZE; y += 1) {
-            for (int x = 0; x < KOOKIE_GPU_HEART_TILE_SIZE; x += 1) {
-                size_t offset = (size_t)(
-                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
-                    4u;
-                memcpy(pixels + offset, kookie_heart_tiles[state][y][x], 4u);
-            }
-        }
-    }
-}
-static Uint8 kookie_gpu_model_channel(int value) {
-    if (value < 0) { return 0; }
-    if (value > 255) { return 255; }
-    return (Uint8)value;
-}
-static void kookie_gpu_build_model_tile(
-    Uint8 *pixels, Uint32 texture_width, Uint32 texture_height, int tile,
-    int primary_red, int primary_green, int primary_blue,
-    int shadow_red, int shadow_green, int shadow_blue,
-    int accent_red, int accent_green, int accent_blue
-) {
-    size_t tile_capacity = (size_t)(
-        texture_width / KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE) *
-        (size_t)(texture_height / KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE);
-    if (pixels == NULL || tile < KOOKIE_GPU_WORLD_MODEL_FIRST_TILE ||
-        (size_t)tile >= tile_capacity) {
-        return;
-    }
-    int tile_x = (tile % KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-        KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-    int tile_y = (tile / KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-        KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-    for (int y = 0; y < KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE; y += 1) {
-        for (int x = 0; x < KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE; x += 1) {
-            bool shadow = ((x / 8 + y / 8) % 2) != 0;
-            bool accent = (x % 32 < 2) || (y % 32 < 2);
-            int red = shadow ? shadow_red : primary_red;
-            int green = shadow ? shadow_green : primary_green;
-            int blue = shadow ? shadow_blue : primary_blue;
-            if (accent) {
-                red = (red + accent_red) / 2;
-                green = (green + accent_green) / 2;
-                blue = (blue + accent_blue) / 2;
-            }
-            size_t offset = (size_t)(
-                (size_t)(tile_y + y) * (size_t)texture_width +
-                (size_t)(tile_x + x)) * 4u;
-            pixels[offset] = kookie_gpu_model_channel(red);
-            pixels[offset + 1u] = kookie_gpu_model_channel(green);
-            pixels[offset + 2u] = kookie_gpu_model_channel(blue);
-            pixels[offset + 3u] = 255;
-        }
-    }
-}
-static void kookie_gpu_build_model_textures(
-    Uint8 *pixels, Uint32 texture_width, Uint32 texture_height
-) {
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        8, 232, 232, 218, 166, 170, 164, 250, 250, 240);
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        9, 244, 244, 232, 188, 190, 184, 36, 42, 50);
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        10, 218, 132, 46, 154, 78, 24, 248, 178, 48);
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        11, 176, 124, 78, 110, 70, 44, 222, 174, 106);
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        12, 198, 146, 96, 128, 86, 58, 238, 204, 154);
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        13, 126, 86, 58, 78, 48, 34, 214, 164, 100);
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        14, 162, 106, 66, 96, 62, 40, 232, 184, 112);
-    kookie_gpu_build_model_tile(
-        pixels, texture_width, texture_height,
-        15, 142, 92, 58, 84, 54, 36, 222, 172, 102);
-}
 static SDL_Surface *kookie_gpu_load_cat_texture(void) {
     if (!gpu_world_texture_layout.cat_embedded) {
         return NULL;
     }
-    const unsigned char *encoded = NULL;
-    size_t encoded_length = 0;
-    if (!kookie_model_assets_texture_png(
-            KOOKIE_MODEL_CAT, &encoded, &encoded_length)) {
+    const unsigned char *encoded = gpu_model_texture_staging.bytes;
+    size_t encoded_length = gpu_model_texture_staging.length;
+    if (!gpu_model_texture_staging.committed ||
+        encoded == NULL || encoded_length == 0) {
         return NULL;
     }
     SDL_IOStream *input = SDL_IOFromConstMem(encoded, encoded_length);
@@ -1185,7 +1048,8 @@ static SDL_Surface *kookie_gpu_load_cat_texture(void) {
     }
     if (rgba->w <= 0 || rgba->h <= 0 ||
         (Uint32)rgba->w != gpu_world_texture_layout.cat_width ||
-        (Uint32)rgba->h != gpu_world_texture_layout.cat_height) {
+        (Uint32)rgba->h != gpu_world_texture_layout.cat_height ||
+        rgba->pitch < rgba->w * 4) {
         if (rgba != decoded) {
             SDL_DestroySurface(decoded);
         }
@@ -1197,69 +1061,39 @@ static SDL_Surface *kookie_gpu_load_cat_texture(void) {
     }
     return rgba;
 }
- 
-static void kookie_gpu_build_world_texture(
-    Uint8 *pixels,
-    Uint32 texture_width,
-    Uint32 texture_height,
-    const SDL_Surface *cat_texture
+
+static bool kookie_gpu_copy_world_texture(
+    Uint8 *pixels, size_t bytes, const SDL_Surface *cat_texture
 ) {
-    static const Uint8 palette[8][3] = {
-        { 92, 102, 112}, { 42, 118, 156}, {156,  68,  52}, {126, 116,  88},
-        { 54, 124,  74}, {172, 128,  42}, { 86,  68, 142}, { 36, 42, 50}
-    };
-    if (pixels == NULL || texture_width == 0 || texture_height == 0) {
-        return;
+    if (pixels == NULL) {
+        return false;
     }
-    memset(
-        pixels, 0,
-        (size_t)texture_width * (size_t)texture_height * 4u);
-    for (int material = 0; material < 8; material += 1) {
-        int tile_x = (material % KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-            KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-        int tile_y = (material / KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-            KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-        for (int y = 0; y < KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE; y += 1) {
-            for (int x = 0; x < KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE; x += 1) {
-                int shade = ((x / 8 + y / 8 + material) % 2) == 0 ? 14 : -8;
-                if (material == 2 &&
-                    (y % 16 < 2 || (x + (y / 16) * 12) % 32 < 2)) {
-                    shade = -30;
-                }
-                if (material == 5 && ((x + y) % 20) < 8) {
-                    shade = 26;
-                }
-                if (material == 7 && (x % 16 < 2 || y % 16 < 2)) {
-                    shade = 28;
-                }
-                int red = (int)palette[material][0] + shade;
-                int green = (int)palette[material][1] + shade;
-                int blue = (int)palette[material][2] + shade;
-                if (red < 0) { red = 0; }
-                if (green < 0) { green = 0; }
-                if (blue < 0) { blue = 0; }
-                if (red > 255) { red = 255; }
-                if (green > 255) { green = 255; }
-                if (blue > 255) { blue = 255; }
-                size_t offset = (size_t)(
-                    (size_t)(tile_y + y) * (size_t)texture_width +
-                    (size_t)(tile_x + x)) * 4u;
-                pixels[offset] = (Uint8)red;
-                pixels[offset + 1u] = (Uint8)green;
-                pixels[offset + 2u] = (Uint8)blue;
-                pixels[offset + 3u] = 255;
-            }
+    if (!gpu_world_texture_staging.committed) {
+        if ((gpu_world_scene.committed && gpu_world_scene.count > 0) ||
+            cat_texture != NULL) {
+            return false;
         }
+        memset(pixels, 0, bytes);
+        return true;
     }
-    kookie_gpu_build_model_textures(
-        pixels, texture_width, texture_height);
+    if (bytes != gpu_world_texture_staging.bytes) {
+        return false;
+    }
+    memcpy(pixels, gpu_world_texture_staging.pixels, bytes);
     if (cat_texture == NULL) {
-        return;
+        return true;
+    }
+    if (!gpu_world_texture_layout.cat_embedded ||
+        cat_texture->w <= 0 || cat_texture->h <= 0 ||
+        cat_texture->pitch < cat_texture->w * 4 ||
+        (Uint32)cat_texture->w != gpu_world_texture_layout.cat_width ||
+        (Uint32)cat_texture->h != gpu_world_texture_layout.cat_height) {
+        return false;
     }
     for (int y = 0; y < cat_texture->h; y += 1) {
         size_t destination = (size_t)(
             (size_t)gpu_world_texture_layout.cat_y + (size_t)y) *
-            (size_t)texture_width +
+            (size_t)gpu_world_texture_layout.width +
             (size_t)gpu_world_texture_layout.cat_x;
         const Uint8 *source =
             (const Uint8 *)cat_texture->pixels +
@@ -1269,6 +1103,7 @@ static void kookie_gpu_build_world_texture(
             source,
             (size_t)cat_texture->w * 4u);
     }
+    return true;
 }
 static bool kookie_gpu_vertex_buffer_size(
     int vertex_count, size_t components, Uint32 *size
@@ -1365,6 +1200,24 @@ static bool kookie_gpu_prepare_resources(
     size_t fragment_size = 0;
     size_t scene_vertex_size = 0;
     size_t world_vertex_size = 0;
+    const KookieShaderMetadata *vertex_metadata =
+        kookie_shader_metadata_find("g0_triangle.vert");
+    const KookieShaderMetadata *scene_metadata =
+        kookie_shader_metadata_find("g5_triangle_instance.vert");
+    const KookieShaderMetadata *world_metadata =
+        kookie_shader_metadata_find("g6_world.vert");
+    const KookieShaderMetadata *fragment_metadata =
+        kookie_shader_metadata_find("g0_triangle.frag");
+    if (vertex_metadata == NULL || scene_metadata == NULL ||
+        world_metadata == NULL || fragment_metadata == NULL ||
+        strcmp(vertex_metadata->stage, "vertex") != 0 ||
+        strcmp(scene_metadata->stage, "vertex") != 0 ||
+        strcmp(world_metadata->stage, "vertex") != 0 ||
+        strcmp(fragment_metadata->stage, "fragment") != 0) {
+        fprintf(stderr,
+            "KOOKIE gpu_prepare shader manifest is incomplete or invalid\n");
+        goto cleanup;
+    }
     SDL_GPUTransferBuffer *transfer = NULL;
     SDL_GPUCommandBuffer *command_buffer = NULL;
     SDL_Surface *cat_texture = NULL;
@@ -1406,9 +1259,13 @@ static bool kookie_gpu_prepare_resources(
     SDL_GPUShaderCreateInfo vertex_info = {0};
     vertex_info.code_size = vertex_size;
     vertex_info.code = vertex_code;
-    vertex_info.entrypoint = "main";
+    vertex_info.entrypoint = vertex_metadata->entrypoint;
     vertex_info.format = shader_format;
     vertex_info.stage = SDL_GPU_SHADERSTAGE_VERTEX;
+    vertex_info.num_samplers = vertex_metadata->num_samplers;
+    vertex_info.num_storage_textures = vertex_metadata->num_storage_textures;
+    vertex_info.num_storage_buffers = vertex_metadata->num_storage_buffers;
+    vertex_info.num_uniform_buffers = vertex_metadata->num_uniform_buffers;
     gpu_resources.vertex_shader = SDL_CreateGPUShader(device, &vertex_info);
     if (gpu_resources.vertex_shader == NULL) {
         fprintf(stderr, "KOOKIE gpu_prepare menu vertex shader failed: %s\n",
@@ -1418,6 +1275,14 @@ static bool kookie_gpu_prepare_resources(
     SDL_GPUShaderCreateInfo scene_shader_info = vertex_info;
     scene_shader_info.code_size = scene_vertex_size;
     scene_shader_info.code = scene_vertex_code;
+    scene_shader_info.entrypoint = scene_metadata->entrypoint;
+    scene_shader_info.num_samplers = scene_metadata->num_samplers;
+    scene_shader_info.num_storage_textures =
+        scene_metadata->num_storage_textures;
+    scene_shader_info.num_storage_buffers =
+        scene_metadata->num_storage_buffers;
+    scene_shader_info.num_uniform_buffers =
+        scene_metadata->num_uniform_buffers;
     gpu_resources.scene_vertex_shader =
         SDL_CreateGPUShader(device, &scene_shader_info);
     if (gpu_resources.scene_vertex_shader == NULL) {
@@ -1428,7 +1293,14 @@ static bool kookie_gpu_prepare_resources(
     SDL_GPUShaderCreateInfo world_shader_info = vertex_info;
     world_shader_info.code_size = world_vertex_size;
     world_shader_info.code = world_vertex_code;
-    world_shader_info.num_uniform_buffers = 1;
+    world_shader_info.entrypoint = world_metadata->entrypoint;
+    world_shader_info.num_samplers = world_metadata->num_samplers;
+    world_shader_info.num_storage_textures =
+        world_metadata->num_storage_textures;
+    world_shader_info.num_storage_buffers =
+        world_metadata->num_storage_buffers;
+    world_shader_info.num_uniform_buffers =
+        world_metadata->num_uniform_buffers;
     gpu_resources.world_vertex_shader =
         SDL_CreateGPUShader(device, &world_shader_info);
     if (gpu_resources.world_vertex_shader == NULL) {
@@ -1440,10 +1312,16 @@ static bool kookie_gpu_prepare_resources(
     SDL_GPUShaderCreateInfo fragment_info = {0};
     fragment_info.code_size = fragment_size;
     fragment_info.code = fragment_code;
-    fragment_info.entrypoint = "main";
+    fragment_info.entrypoint = fragment_metadata->entrypoint;
     fragment_info.format = shader_format;
     fragment_info.stage = SDL_GPU_SHADERSTAGE_FRAGMENT;
-    fragment_info.num_samplers = 1;
+    fragment_info.num_samplers = fragment_metadata->num_samplers;
+    fragment_info.num_storage_textures =
+        fragment_metadata->num_storage_textures;
+    fragment_info.num_storage_buffers =
+        fragment_metadata->num_storage_buffers;
+    fragment_info.num_uniform_buffers =
+        fragment_metadata->num_uniform_buffers;
     gpu_resources.fragment_shader =
         SDL_CreateGPUShader(device, &fragment_info);
     if (gpu_resources.fragment_shader == NULL) {
@@ -1689,12 +1567,13 @@ static bool kookie_gpu_prepare_resources(
         -0.8f,  0.8f, 0.0f, 1.0f
     };
     const Uint16 indices[6] = {0, 1, 2, 3, 4, 5};
-    kookie_gpu_build_atlas(pixels);
-    kookie_gpu_build_world_texture(
-        pixels + world_texture_offset,
-        gpu_resources.world_texture_width,
-        gpu_resources.world_texture_height,
-        cat_texture);
+    if (!kookie_gpu_copy_world_texture(
+            pixels + world_texture_offset,
+            world_texture_bytes,
+            cat_texture)) {
+        SDL_UnmapGPUTransferBuffer(device, transfer);
+        goto cleanup;
+    }
     memcpy(pixels + vertex_offset, vertices, sizeof(vertices));
     memcpy(pixels + index_offset, indices, sizeof(indices));
     SDL_UnmapGPUTransferBuffer(device, transfer);
@@ -1904,6 +1783,9 @@ int kookie_gpu_world_count(void) {
 }
 
 bool kookie_gpu_world_begin(int vertex_count) {
+    if (!gpu_world_texture_staging.committed) {
+        return false;
+    }
     if (!kookie_gpu_prepare_world_texture_layout()) {
         return false;
     }
@@ -1922,105 +1804,141 @@ bool kookie_gpu_world_begin(int vertex_count) {
     return true;
 }
 
-bool kookie_gpu_world_push_vertex(
-    int resource, int x, int y, int z, int u, int v
+bool kookie_gpu_world_push_vertex_uv(
+    int x, int y, int z, int texture_u, int texture_v
 ) {
     if (!gpu_world_scene.open ||
         gpu_world_scene.count >= gpu_world_scene.expected ||
-        resource <= 0 || resource >= KOOKIE_GPU_WORLD_MODEL_RESOURCE_LIMIT ||
         x < -1000 || x > 1000 ||
         y < -1000 || y > 1000 ||
         z < -1000 || z > 1000 ||
-        u < 0 || u > 100 || v < 0 || v > 100) {
+        texture_u < 0 || texture_u > 1000000 ||
+        texture_v < 0 || texture_v > 1000000) {
         return false;
-    }
-    float texture_u = 0.0f;
-    float texture_v = 0.0f;
-    if (resource == KOOKIE_GPU_WORLD_MODEL_CAT_TEXTURE_RESOURCE) {
-        texture_u = (
-            (float)gpu_world_texture_layout.cat_x + 0.5f +
-            (float)u * (float)(gpu_world_texture_layout.cat_width - 1u) /
-                100.0f) /
-            (float)gpu_world_texture_layout.width;
-        texture_v = (
-            (float)gpu_world_texture_layout.cat_y + 0.5f +
-            (float)v * (float)(gpu_world_texture_layout.cat_height - 1u) /
-                100.0f) /
-            (float)gpu_world_texture_layout.height;
-    } else {
-        int tile = (resource - 1) % 8;
-        if (resource >= KOOKIE_GPU_WORLD_MODEL_RESOURCE_BASE) {
-            tile = KOOKIE_GPU_WORLD_MODEL_FIRST_TILE +
-                resource - KOOKIE_GPU_WORLD_MODEL_RESOURCE_BASE;
-        }
-        int tile_x = (tile % KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-            KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-        int tile_y = (tile / KOOKIE_GPU_WORLD_TEXTURE_TILES_PER_ROW) *
-            KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE;
-        texture_u = (
-            (float)tile_x + 0.5f + (float)u *
-                (float)(KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE - 1) / 100.0f) /
-            (float)gpu_world_texture_layout.width;
-        texture_v = (
-            (float)tile_y + 0.5f + (float)v *
-                (float)(KOOKIE_GPU_WORLD_TEXTURE_TILE_SIZE - 1) / 100.0f) /
-            (float)gpu_world_texture_layout.height;
     }
     size_t offset = (size_t)gpu_world_scene.count * 5u;
     gpu_world_scene.vertices[offset] = (float)x;
     gpu_world_scene.vertices[offset + 1u] = (float)y;
     gpu_world_scene.vertices[offset + 2u] = (float)z;
-    gpu_world_scene.vertices[offset + 3u] = texture_u;
-    gpu_world_scene.vertices[offset + 4u] = texture_v;
+    gpu_world_scene.vertices[offset + 3u] =
+        (float)texture_u / 1000000.0f;
+    gpu_world_scene.vertices[offset + 4u] =
+        (float)texture_v / 1000000.0f;
     gpu_world_scene.count += 1;
     return true;
 }
-static bool kookie_gpu_model_emit_vertex(
-    void *context, int resource, int x, int y, int z, int u, int v
-) {
-    (void)context;
-    return kookie_gpu_world_push_vertex(resource, x, y, z, u, v);
-}
-
-bool kookie_gpu_model_available(int model) {
-    return kookie_model_assets_available(model);
-}
-bool kookie_gpu_model_assets_required(void) {
-    return kookie_model_assets_required();
-}
-
-
-int kookie_gpu_model_vertex_count(int model) {
-    return kookie_model_assets_vertex_count(model);
-}
-
-bool kookie_gpu_world_push_model(
-    int model,
-    int resource_base,
-    int x,
-    int y,
-    int z,
-    int facing,
-    int phase,
-    int animation_state,
-    int animation_tick,
-    int moving,
-    int attacking
-) {
-    if (!gpu_world_scene.open) {
+bool kookie_gpu_model_texture_stage_begin(int byte_length) {
+    if (gpu_world_texture_layout.ready ||
+        gpu_model_texture_staging.open ||
+        byte_length <= 0 ||
+        byte_length > (int)KOOKIE_GPU_MAX_MODEL_TEXTURE_BYTES) {
         return false;
     }
-    int vertex_count = kookie_model_assets_vertex_count(model);
-    if (vertex_count <= 0 ||
-        gpu_world_scene.count > gpu_world_scene.expected - vertex_count) {
+    kookie_gpu_model_texture_staging_release();
+    gpu_model_texture_staging.bytes = (Uint8 *)malloc((size_t)byte_length);
+    if (gpu_model_texture_staging.bytes == NULL) {
         return false;
     }
-    return kookie_model_assets_emit(
-        model, resource_base, x, y, z, facing, phase,
-        animation_state, animation_tick, moving, attacking,
-        kookie_gpu_model_emit_vertex, NULL);
+    gpu_model_texture_staging.length = (size_t)byte_length;
+    gpu_model_texture_staging.next_byte = 0;
+    gpu_model_texture_staging.open = true;
+    gpu_model_texture_staging.committed = false;
+    return true;
 }
 
+bool kookie_gpu_model_texture_stage_byte(int index, int value) {
+    if (!gpu_model_texture_staging.open ||
+        index < 0 || (size_t)index != gpu_model_texture_staging.next_byte ||
+        gpu_model_texture_staging.next_byte >=
+            gpu_model_texture_staging.length ||
+        value < 0 || value > 255) {
+        return false;
+    }
+    gpu_model_texture_staging.bytes[
+        gpu_model_texture_staging.next_byte] = (Uint8)value;
+    gpu_model_texture_staging.next_byte += 1;
+    return true;
+}
+
+bool kookie_gpu_model_texture_stage_commit(void) {
+    if (!gpu_model_texture_staging.open ||
+        gpu_model_texture_staging.next_byte !=
+            gpu_model_texture_staging.length) {
+        return false;
+    }
+    gpu_model_texture_staging.open = false;
+    gpu_model_texture_staging.committed = true;
+    return true;
+}
+
+bool kookie_gpu_world_texture_stage_begin(
+    int width, int height, int cat_x, int cat_y, int cat_width, int cat_height
+) {
+    if (gpu_world_texture_layout.ready ||
+        gpu_world_texture_staging.open ||
+        width < 256 || height < 256 ||
+        width > 4096 || height > 4096 ||
+        cat_x < 0 || cat_y < 0 || cat_width < 0 || cat_height < 0 ||
+        (cat_width == 0) != (cat_height == 0) ||
+        (cat_width > 0 &&
+            (cat_x >= width || cat_y >= height ||
+             cat_width > width - cat_x || cat_height > height - cat_y)) ||
+        (size_t)width > SIZE_MAX / (size_t)height) {
+        return false;
+    }
+    size_t pixels = (size_t)width * (size_t)height;
+    if (pixels > 16777216u || pixels > SIZE_MAX / 4u) {
+        return false;
+    }
+    kookie_gpu_world_texture_staging_release();
+    gpu_world_texture_staging.pixels = (Uint8 *)malloc(pixels * 4u);
+    if (gpu_world_texture_staging.pixels == NULL) {
+        return false;
+    }
+    gpu_world_texture_staging.bytes = pixels * 4u;
+    gpu_world_texture_staging.width = (Uint32)width;
+    gpu_world_texture_staging.height = (Uint32)height;
+    gpu_world_texture_staging.cat_x = (Uint32)cat_x;
+    gpu_world_texture_staging.cat_y = (Uint32)cat_y;
+    gpu_world_texture_staging.cat_width = (Uint32)cat_width;
+    gpu_world_texture_staging.cat_height = (Uint32)cat_height;
+    gpu_world_texture_staging.next_word = 0;
+    gpu_world_texture_staging.open = true;
+    gpu_world_texture_staging.committed = false;
+    return true;
+}
+
+bool kookie_gpu_world_texture_stage_word(int index, int value) {
+    if (!gpu_world_texture_staging.open ||
+        index < 0 ||
+        (size_t)index != gpu_world_texture_staging.next_word ||
+        gpu_world_texture_staging.next_word >=
+            gpu_world_texture_staging.bytes / 4u) {
+        return false;
+    }
+    Uint32 packed = (Uint32)(uint32_t)value;
+    size_t offset = gpu_world_texture_staging.next_word * 4u;
+    gpu_world_texture_staging.pixels[offset] = (Uint8)(packed & 255u);
+    gpu_world_texture_staging.pixels[offset + 1u] =
+        (Uint8)((packed >> 8) & 255u);
+    gpu_world_texture_staging.pixels[offset + 2u] =
+        (Uint8)((packed >> 16) & 255u);
+    gpu_world_texture_staging.pixels[offset + 3u] =
+        (Uint8)((packed >> 24) & 255u);
+    gpu_world_texture_staging.next_word += 1;
+    return true;
+}
+
+bool kookie_gpu_world_texture_stage_commit(void) {
+    if (!gpu_world_texture_staging.open ||
+        gpu_world_texture_staging.next_word !=
+            gpu_world_texture_staging.bytes / 4u) {
+        return false;
+    }
+    gpu_world_texture_staging.open = false;
+    gpu_world_texture_staging.committed = true;
+    return true;
+}
 
 bool kookie_gpu_world_commit(void) {
     if (!gpu_world_scene.open ||
@@ -2032,22 +1950,46 @@ bool kookie_gpu_world_commit(void) {
     return true;
 }
 
-bool kookie_gpu_world_set_camera(
-    int x, int y, int z, int yaw, int pitch
-) {
-    if (x < -1000 || x > 1000 ||
-        y < -1000 || y > 1000 ||
-        z < -1000 || z > 1000 ||
-        pitch < -890 || pitch > 890) {
+bool kookie_gpu_world_camera_stage_begin(void) {
+    if (gpu_world_camera_stage_open) {
         return false;
     }
-    gpu_world_camera_x = x;
-    gpu_world_camera_y = y;
-    gpu_world_camera_z = z;
-    gpu_world_camera_yaw = yaw;
-    gpu_world_camera_pitch = pitch;
+    gpu_world_camera_stage_count = 0;
+    gpu_world_camera_stage_open = true;
+    gpu_world_camera_matrix_ready = false;
     return true;
 }
+
+bool kookie_gpu_world_camera_stage_word(int index, int value) {
+    if (!gpu_world_camera_stage_open ||
+        index < 0 || index != gpu_world_camera_stage_count ||
+        index >= 16) {
+        return false;
+    }
+    gpu_world_camera_matrix[index] = value;
+    gpu_world_camera_stage_count += 1;
+    return true;
+}
+
+bool kookie_gpu_world_camera_stage_commit(void) {
+    if (!gpu_world_camera_stage_open ||
+        gpu_world_camera_stage_count != 16) {
+        return false;
+    }
+    gpu_world_camera_stage_open = false;
+    gpu_world_camera_matrix_ready = true;
+    return true;
+}
+bool kookie_gpu_render_set_passes(int world, int scene) {
+    if ((world != 0 && world != 1) || (scene != 0 && scene != 1)) {
+        return false;
+    }
+    gpu_render_world = world != 0;
+    gpu_render_scene = scene != 0;
+    gpu_render_plan_ready = true;
+    return true;
+}
+
 
 static bool kookie_gpu_world_upload(
     SDL_GPUDevice *device, const KookieGpuWorldScene *scene
@@ -2114,7 +2056,7 @@ bool kookie_gpu_scene_begin(int vertex_count) {
 }
 
 static bool kookie_gpu_scene_push_vertex_internal(
-    int resource, int x, int y, int depth, int u, int v
+    int x, int y, int depth, int encoded_u, int encoded_v
 ) {
     KookieGpuScene *scene = NULL;
     if (gpu_pending_scene.open) {
@@ -2123,67 +2065,12 @@ static bool kookie_gpu_scene_push_vertex_internal(
         scene = &gpu_scene;
     }
     if (scene == NULL || scene->count >= scene->expected ||
-        resource <= 0 || x < -100 || x > 100 || y < -100 || y > 100 ||
+        x < -100 || x > 100 || y < -100 || y > 100 ||
         depth < 0 || depth > 100 ||
-        u < 0 || u > 100 || v < 0 || v > 100) {
+        encoded_u < 0 || encoded_u > 255 ||
+        encoded_v < 0 || encoded_v > 255) {
         return false;
     }
-    int tile = 0;
-    float texture_x = 0.0f;
-    float texture_y = 0.0f;
-    if (resource >= KOOKIE_GPU_HEART_BASE_RESOURCE &&
-        resource < KOOKIE_GPU_HEART_BASE_RESOURCE +
-            KOOKIE_GPU_HEART_STATE_COUNT) {
-        int state = resource - KOOKIE_GPU_HEART_BASE_RESOURCE;
-        tile = KOOKIE_GPU_HEART_FIRST_TILE + state;
-        texture_x = (float)(
-            (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
-            (float)u * (float)(KOOKIE_GPU_HEART_TILE_SIZE - 1) / 100.0f;
-        texture_y = (float)(
-            (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
-            (float)v * (float)(KOOKIE_GPU_HEART_TILE_SIZE - 1) / 100.0f;
-    } else if (resource < KOOKIE_GPU_FONT_RESOURCE_BASE) {
-        tile = (resource - 1) % KOOKIE_GPU_SOLID_COLORS;
-        texture_x = (float)(
-            (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) +
-            KOOKIE_GPU_ATLAS_TILE_SIZE / 2.0f - 0.5f;
-        texture_y = (float)(
-            (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) +
-            KOOKIE_GPU_ATLAS_TILE_SIZE / 2.0f - 0.5f;
-    } else {
-        int encoded = resource - KOOKIE_GPU_FONT_RESOURCE_BASE;
-        int font = encoded / KOOKIE_GPU_FONT_RESOURCE_STRIDE;
-        int font_encoded = encoded % KOOKIE_GPU_FONT_RESOURCE_STRIDE;
-        int color = font_encoded / KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
-        int glyph = font_encoded % KOOKIE_GPU_FONT_GLYPHS_PER_COLOR;
-        if (font < 0 || font >= KOOKIE_PIXEL_FONT_COUNT ||
-            color < 0 || color >= KOOKIE_GPU_FONT_COLORS ||
-            glyph >= KOOKIE_PIXEL_GLYPH_COUNT) {
-            return false;
-        }
-        tile = KOOKIE_GPU_SOLID_COLORS +
-            (font * KOOKIE_GPU_FONT_COLORS + color) *
-                KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph;
-        texture_x = (float)(
-            (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
-            (float)u * (float)(KOOKIE_PIXEL_GLYPH_WIDTH - 1) / 100.0f;
-        texture_y = (float)(
-            (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE) + 0.5f +
-            (float)v * (float)(KOOKIE_PIXEL_GLYPH_HEIGHT - 1) / 100.0f;
-    }
-
-    float normalized_u =
-        texture_x / (float)KOOKIE_GPU_ATLAS_WIDTH;
-    float normalized_v =
-        texture_y / (float)KOOKIE_GPU_ATLAS_HEIGHT;
-    int encoded_u = (int)(normalized_u * 255.0f + 0.5f);
-    int encoded_v = (int)(normalized_v * 255.0f + 0.5f);
     size_t offset = (size_t)scene->count * 4u;
     scene->vertices[offset] = (float)x / 100.0f;
     scene->vertices[offset + 1u] = (float)y / 100.0f;
@@ -2193,150 +2080,22 @@ static bool kookie_gpu_scene_push_vertex_internal(
     scene->count += 1;
     return true;
 }
-static void kookie_gpu_build_world_camera_matrix(
-    float out[16], Uint32 width, Uint32 height
-) {
-    const float pi = 3.14159265358979323846f;
-    const float yaw = (float)gpu_world_camera_yaw * pi / 180.0f;
-    const float pitch = (float)gpu_world_camera_pitch * pi / 180.0f;
-    const float sin_yaw = sinf(yaw);
-    const float cos_yaw = cosf(yaw);
-    const float sin_pitch = sinf(pitch);
-    const float cos_pitch = cosf(pitch);
-    const float right_x = cos_yaw;
-    const float right_y = 0.0f;
-    const float right_z = -sin_yaw;
-    const float forward_x = sin_yaw * cos_pitch;
-    const float forward_y = sin_pitch;
-    const float forward_z = cos_yaw * cos_pitch;
-    const float up_x = -sin_pitch * sin_yaw;
-    const float up_y = cos_pitch;
-    const float up_z = -sin_pitch * cos_yaw;
-
-    float view[16] = {0};
-    view[0] = right_x;
-    view[4] = right_y;
-    view[8] = right_z;
-    view[12] = -(
-        right_x * (float)gpu_world_camera_x +
-        right_y * (float)gpu_world_camera_y +
-        right_z * (float)gpu_world_camera_z);
-    view[1] = up_x;
-    view[5] = up_y;
-    view[9] = up_z;
-    view[13] = -(
-        up_x * (float)gpu_world_camera_x +
-        up_y * (float)gpu_world_camera_y +
-        up_z * (float)gpu_world_camera_z);
-    view[2] = forward_x;
-    view[6] = forward_y;
-    view[10] = forward_z;
-    view[14] = -(
-        forward_x * (float)gpu_world_camera_x +
-        forward_y * (float)gpu_world_camera_y +
-        forward_z * (float)gpu_world_camera_z);
-    view[15] = 1.0f;
-
-    float projection[16] = {0};
-    const float aspect = height == 0
-        ? 1.0f : (float)width / (float)height;
-    const float focal_length = 1.0f / tanf(75.0f * pi / 360.0f);
-    const float near_plane = 0.1f;
-    const float far_plane = 640.0f;
-    projection[0] = focal_length / aspect;
-    projection[5] = focal_length;
-    projection[10] = far_plane / (far_plane - near_plane);
-    projection[11] = 1.0f;
-    projection[14] = -near_plane * far_plane /
-        (far_plane - near_plane);
-
-    for (int column = 0; column < 4; column += 1) {
-        for (int row = 0; row < 4; row += 1) {
-            float value = 0.0f;
-            for (int index = 0; index < 4; index += 1) {
-                value += projection[index * 4 + row] *
-                    view[column * 4 + index];
-            }
-            out[column * 4 + row] = value;
-        }
-    }
-}
-
-static KookieGpuScene *kookie_gpu_open_scene(void) {
-    if (gpu_pending_scene.open) {
-        return &gpu_pending_scene;
-    }
-    if (gpu_scene.open) {
-        return &gpu_scene;
-    }
-    return NULL;
-}
-
-static bool kookie_gpu_scene_primitive_bounds(
-    KookieGpuScene *scene,
-    int resource, int left, int bottom, int right, int top, int depth,
-    int vertex_count
-) {
-    return scene != NULL && vertex_count > 0 &&
-        scene->count <= scene->expected - vertex_count &&
-        resource > 0 && left >= -100 && left <= 100 &&
-        right >= -100 && right <= 100 &&
-        bottom >= -100 && bottom <= 100 &&
-        top >= -100 && top <= 100 &&
-        depth >= 0 && depth <= 100;
-}
-
-bool kookie_gpu_scene_push_vertex(
-    int resource, int x, int y, int u, int v
-) {
-    return kookie_gpu_scene_push_vertex_internal(
-        resource, x, y, 0, u, v);
-}
-
-bool kookie_gpu_scene_push_vertex_depth(
-    int resource, int x, int y, int depth, int u, int v
-) {
-    return kookie_gpu_scene_push_vertex_internal(
-        resource, x, y, depth, u, v);
-}
-
-bool kookie_gpu_scene_push_quad_depth(
-    int resource, int left, int bottom, int right, int top, int depth
-) {
-    KookieGpuScene *scene = kookie_gpu_open_scene();
-    if (!kookie_gpu_scene_primitive_bounds(
-            scene, resource, left, bottom, right, top, depth, 6)) {
+static bool kookie_gpu_world_camera_matrix_floats(float out[16]) {
+    if (out == NULL || !gpu_world_camera_matrix_ready) {
         return false;
     }
-    return kookie_gpu_scene_push_vertex_internal(
-            resource, left, bottom, depth, 0, 100) &&
-        kookie_gpu_scene_push_vertex_internal(
-            resource, right, bottom, depth, 100, 100) &&
-        kookie_gpu_scene_push_vertex_internal(
-            resource, right, top, depth, 100, 0) &&
-        kookie_gpu_scene_push_vertex_internal(
-            resource, left, bottom, depth, 0, 100) &&
-        kookie_gpu_scene_push_vertex_internal(
-            resource, right, top, depth, 100, 0) &&
-        kookie_gpu_scene_push_vertex_internal(
-            resource, left, top, depth, 0, 0);
+    for (int index = 0; index < 16; index += 1) {
+        out[index] = (float)gpu_world_camera_matrix[index] / 1000000.0f;
+    }
+    return true;
 }
 
-bool kookie_gpu_scene_push_triangle(
-    int resource, int ax, int ay, int bx, int by, int cx, int cy
+
+bool kookie_gpu_scene_push_vertex_uv(
+    int x, int y, int depth, int encoded_u, int encoded_v
 ) {
-    KookieGpuScene *scene = kookie_gpu_open_scene();
-    if (!kookie_gpu_scene_primitive_bounds(
-            scene, resource, ax, ay, bx, by, 0, 3) ||
-        cx < -100 || cx > 100 || cy < -100 || cy > 100) {
-        return false;
-    }
     return kookie_gpu_scene_push_vertex_internal(
-            resource, ax, ay, 0, 50, 0) &&
-        kookie_gpu_scene_push_vertex_internal(
-            resource, bx, by, 0, 100, 50) &&
-        kookie_gpu_scene_push_vertex_internal(
-            resource, cx, cy, 0, 50, 100);
+        x, y, depth, encoded_u, encoded_v);
 }
 
 bool kookie_gpu_scene_commit(void) {
@@ -2459,10 +2218,19 @@ static bool kookie_gpu_draw_test_internal(
             return false;
         }
     }
-    bool world_draw = gpu_world_scene.committed &&
-        gpu_world_scene.count > 0;
-    bool scene_draw = gpu_scene.active && gpu_scene.committed &&
+    bool world_draw = (gpu_render_policy_active
+        ? gpu_render_world : true) &&
+        gpu_world_scene.committed && gpu_world_scene.count > 0;
+    bool scene_draw = (gpu_render_policy_active
+        ? gpu_render_scene : true) &&
+        gpu_scene.active && gpu_scene.committed &&
         gpu_scene.count > 0;
+    float world_camera_matrix[16] = {0};
+    if (world_draw &&
+        !kookie_gpu_world_camera_matrix_floats(world_camera_matrix)) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return false;
+    }
     SDL_GPUDepthStencilTargetInfo depth_target = {0};
     SDL_GPUDepthStencilTargetInfo *depth_target_ptr = NULL;
     if (world_draw || scene_draw) {
@@ -2501,11 +2269,9 @@ static bool kookie_gpu_draw_test_internal(
     SDL_GPUBufferBinding vertex_binding = {0};
     last_gpu_scene_draw_calls = 0;
     if (world_draw) {
-        float camera_matrix[16] = {0};
-        kookie_gpu_build_world_camera_matrix(
-            camera_matrix, target_width, target_height);
         SDL_PushGPUVertexUniformData(
-            command_buffer, 0, camera_matrix, sizeof(camera_matrix));
+            command_buffer, 0, world_camera_matrix,
+            sizeof(world_camera_matrix));
         binding.texture = gpu_resources.world_texture;
         binding.sampler = gpu_resources.sampler;
         vertex_binding.buffer = gpu_resources.world_vertex_buffer;
@@ -2527,7 +2293,7 @@ static bool kookie_gpu_draw_test_internal(
             render_pass, 3, (Uint32)(gpu_scene.count / 3), 0, 0);
         last_gpu_scene_draw_calls += 1;
     }
-    if (!world_draw && !scene_draw) {
+    if (!world_draw && !scene_draw && !gpu_render_policy_active) {
         binding.texture = gpu_resources.texture;
         binding.sampler = gpu_resources.sampler;
         vertex_binding.buffer = gpu_resources.vertex_buffer;
@@ -2574,13 +2340,20 @@ bool kookie_gpu_draw_test(void) {
 }
 
 bool kookie_gpu_draw_scene(void) {
+    if (!gpu_render_plan_ready) {
+        return false;
+    }
     bool activate_pending =
         gpu_reload.pending_generation != 0 &&
         gpu_reload.pending_scene_committed &&
         gpu_reload.scene_generation == gpu_reload.pending_generation;
     KookieGpuScene *scene =
         activate_pending ? &gpu_pending_scene : &gpu_scene;
-    if ((!scene->committed && !gpu_world_scene.committed) ||
+    bool requested_world = gpu_render_world &&
+        gpu_world_scene.committed && gpu_world_scene.count > 0;
+    bool requested_scene = gpu_render_scene &&
+        scene->committed && scene->count > 0;
+    if ((!requested_scene && !requested_world) ||
         gpu_slot.device == NULL ||
         gpu_slot.window_slot < 0 ||
         gpu_slot.window_slot >= KOOKIE_MAX_WINDOWS ||
@@ -2601,13 +2374,13 @@ bool kookie_gpu_draw_scene(void) {
             SDL_GetError());
         return false;
     }
-    if (gpu_world_scene.committed &&
+    if (requested_world &&
         !kookie_gpu_world_upload(gpu_slot.device, &gpu_world_scene)) {
         fprintf(stderr, "KOOKIE gpu_draw_scene world upload failed: %s\n",
             SDL_GetError());
         return false;
     }
-    if (scene->committed &&
+    if (requested_scene &&
         !kookie_gpu_upload_scene_async(gpu_slot.device, scene)) {
         fprintf(stderr, "KOOKIE gpu_draw_scene upload failed: %s\n",
             SDL_GetError());
@@ -2616,7 +2389,7 @@ bool kookie_gpu_draw_scene(void) {
     if (activate_pending && !kookie_gpu_activate_pending_scene()) {
         return false;
     }
-    gpu_scene.active = true;
+    gpu_scene.active = requested_scene;
     int slot = gpu_scene_frame_slot;
     if (gpu_scene_frame_fences[slot] != NULL) {
         Uint64 start = SDL_GetPerformanceCounter();
@@ -2637,8 +2410,11 @@ bool kookie_gpu_draw_scene(void) {
             gpu_slot.device, gpu_scene_frame_fences[slot]);
         gpu_scene_frame_fences[slot] = NULL;
     }
-    if (!kookie_gpu_draw_test_internal(
-            window, NULL, &gpu_scene_frame_fences[slot])) {
+    gpu_render_policy_active = true;
+    bool drawn = kookie_gpu_draw_test_internal(
+        window, NULL, &gpu_scene_frame_fences[slot]);
+    gpu_render_policy_active = false;
+    if (!drawn) {
         fprintf(stderr, "KOOKIE gpu_draw_scene draw failed: %s\n",
             SDL_GetError());
         gpu_scene.active = false;
@@ -2726,6 +2502,12 @@ int kookie_gpu_window_screenshot_checksum(void) {
         gpu_world_scene.count > 0;
     bool scene_draw = gpu_scene.active && gpu_scene.committed &&
         gpu_scene.count > 0;
+    float world_camera_matrix[16] = {0};
+    if (world_draw &&
+        !kookie_gpu_world_camera_matrix_floats(world_camera_matrix)) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return 0;
+    }
     SDL_GPUDepthStencilTargetInfo depth_target = {0};
     SDL_GPUDepthStencilTargetInfo *depth_target_ptr = NULL;
     if (world_draw || scene_draw) {
@@ -2759,11 +2541,9 @@ int kookie_gpu_window_screenshot_checksum(void) {
     SDL_GPUTextureSamplerBinding binding = {0};
     SDL_GPUBufferBinding vertex_binding = {0};
     if (world_draw) {
-        float camera_matrix[16] = {0};
-        kookie_gpu_build_world_camera_matrix(
-            camera_matrix, target_width, target_height);
         SDL_PushGPUVertexUniformData(
-            command_buffer, 0, camera_matrix, sizeof(camera_matrix));
+            command_buffer, 0, world_camera_matrix,
+            sizeof(world_camera_matrix));
         binding.texture = gpu_resources.world_texture;
         binding.sampler = gpu_resources.sampler;
         vertex_binding.buffer = gpu_resources.world_vertex_buffer;

@@ -20,6 +20,58 @@ Int kookieUiNativeColorMuted() { return 2 }
 Int kookieUiNativeColorDanger() { return 3 }
 Int kookieUiNativeColorSuccess() { return 4 }
 
+Int kookieUiNativeAtlasCoordinate(
+    Int resource, Int coordinate, Bool vertical
+) {
+    if (resource <= 0 || coordinate < 0 || coordinate > 100) {
+        return -1
+    }
+    var tile = 0
+    var span = 8
+    var offset = 0
+    if (resource < uiFontResourceBase()) {
+        tile = (resource - 1) % 16
+        offset = tile % 32 * 8
+        if (vertical) {
+            offset = tile / 32 * 8
+        }
+        var centerNumerator = (offset * 2 + 7) * 255
+        return (centerNumerator + 256) / 512
+    }
+    if (resource >= uiFontHeartResourceBase() &&
+        resource < uiFontHeartResourceBase() + 5) {
+        tile = 16 + uiFontCount() * 5 * 48 +
+            resource - uiFontHeartResourceBase()
+        span = 8
+    } else {
+        var encoded = resource - uiFontResourceBase()
+        var font = encoded / uiFontResourceStride()
+        var fontEncoded = encoded % uiFontResourceStride()
+        var color = fontEncoded / 48
+        var glyph = fontEncoded % 48
+        if (font < 0 || font >= uiFontCount() ||
+            color < 0 || color >= 5 || glyph < 0 || glyph >= 48) {
+            return -1
+        }
+        tile = 16 + (font * 5 + color) * 48 + glyph
+        span = 7
+    }
+    offset = tile % 32 * 8
+    if (vertical) {
+        offset = tile / 32 * 8
+    }
+    var numerator = (offset * 100 + 50 + coordinate * (span - 1)) * 255
+    return (numerator + 12800) / 25600
+}
+
+Int kookieUiNativeTextureU(Int resource, Int coordinate) {
+    return kookieUiNativeAtlasCoordinate(resource, coordinate, false)
+}
+
+Int kookieUiNativeTextureV(Int resource, Int coordinate) {
+    return kookieUiNativeAtlasCoordinate(resource, coordinate, true)
+}
+
 class KookieUiNativeTheme {
     Bool highContrastValue
     Int textScaleValue

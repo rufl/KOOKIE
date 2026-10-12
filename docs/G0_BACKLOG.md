@@ -129,7 +129,7 @@ player-facing demo release. The open D1 gate is tracked in
   this backend is intentionally JVM-only; see `docs/KOF_LANGUAGE.md`.
 - Reproducible Linux x86-64 archives support native Kof and the persistent SDL
   presentation. Windows x86-64 now ships native Kof PE gameplay in both the
-  SDL3 + SDL_mixer shell and the SDL_GPU presentation package, with no
+  SDL3 + SDL_mixer runtime and the SDL_GPU presentation package, with no
   embedded JDK in either native profile. The separate JVM package remains a
   compatibility profile. Product packages include MIT/zlib notices and reject
   unreviewed distributed runtime libraries.
@@ -194,6 +194,12 @@ player-facing demo release. The open D1 gate is tracked in
   per-client host receive sequences, role-specific process exit statuses and
   host/client identities. The validator rejects missing sequence, auth or
   exit-status markers instead of treating gameplay markers alone as proof.
+- The external contract also requires the G3 recipient-state values
+  (authority kind `7`, world-loot kind `8`, a positive item/equipment ID
+  match, positive skill rank, zero post-pickup drops) and a successful host
+  schema-file save/reload. The loaded `config/g3/external_lan.json` checksum
+  is emitted and validated; both the log validator and evidence-bundle
+  verifier reject incomplete G3 evidence.
 - Separate-host role logs now append role identity, a hashed machine
   fingerprint, the transport-key fingerprint and the configured host IPv4.
   `separate-hosts` validation requires all three roles, matching key

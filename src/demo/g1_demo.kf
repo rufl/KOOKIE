@@ -1,14 +1,16 @@
 package demo
 
-import core
+import content
 import session
 import world
 import ui
 
 class G1Demo {
     G1Arena arena
-    LoopbackSession loopback
     CameraState camera
+    BoundedG3Config g3Config
+    Bool g3ConfigLoadedValue
+    LoopbackSession loopback
     ShooterHud hud
     FrameStaging worldFrame
     FrameStaging hudFrame
@@ -19,10 +21,16 @@ class G1Demo {
     Int hudChecksumValue
 
     public constructor() {
+        g3Config = BoundedG3Config()
+        g3ConfigLoadedValue = g3Config.load("config/g3/demo.json")
+        loopback = LoopbackSession(
+            g3Config.value("sessionEnemyCapacity"),
+            g3Config.value("sessionPlayerCapacity"))
         arena = G1Arena()
-        loopback = LoopbackSession(8, 4)
         camera = CameraState(-450, 450)
-        hud = ShooterHud(20, 3)
+        hud = ShooterHud(
+            g3Config.value("playerActorHealth"),
+            g3Config.value("playerWeaponMagazineSize"))
         worldFrame = FrameStaging(arena.renderVertexCount())
         hudFrame = FrameStaging(hud.renderVertexCount())
         failureStepValue = 0
@@ -38,7 +46,8 @@ class G1Demo {
     }
 
     Bool prepareSession() {
-        if (!arena.ready() || arena.vertexCount() != 142 ||
+        if (!g3ConfigLoadedValue || !arena.ready() ||
+            arena.vertexCount() != 142 ||
             arena.triangleCount() != 178 || arena.authoredChecksum() <= 0) {
             return failAt(1)
         }
@@ -47,53 +56,187 @@ class G1Demo {
             loopback.broadPhaseTriangleCapacity() != arena.triangleCapacity()) {
             return failAt(2)
         }
-        if (!loopback.configureEnemyRules(100, 20, 2) ||
-            !loopback.defineEnemyWeapon(7, 3, 0, 3, 1) ||
-            !loopback.setEnemyWeaponRange(7, 20) ||
-            !loopback.defineEnemyEncounter(4, 1, 2) ||
-            !loopback.addEnemyCombatActor(1, 20, 0) ||
-            !loopback.equipEnemyCombatWeapon(1, 7)) {
+        if (!loopback.configureEnemyRules(
+                g3Config.value("enemyRuleActorCapacity"),
+                g3Config.value("enemyRuleMaxDistance"),
+                g3Config.value("enemyRuleMaxProjectiles")) ||
+            !loopback.defineEnemyWeapon(
+                g3Config.value("enemyWeaponId"),
+                g3Config.value("enemyWeaponMagazineSize"),
+                g3Config.value("enemyWeaponReserveCapacity"),
+                g3Config.value("enemyWeaponDamage"),
+                g3Config.value("enemyWeaponChannel")) ||
+            !loopback.setEnemyWeaponRange(
+                g3Config.value("enemyWeaponId"),
+                g3Config.value("enemyWeaponRange")) ||
+            !loopback.defineEnemyEncounter(
+                g3Config.value("encounterId"),
+                g3Config.value("encounterMaxActive"),
+                g3Config.value("encounterBudget")) ||
+            !loopback.addEnemyCombatActor(
+                g3Config.value("enemyActorId"),
+                g3Config.value("enemyActorHealth"),
+                g3Config.value("enemyActorArmor")) ||
+            !loopback.equipEnemyCombatWeapon(
+                g3Config.value("enemyActorId"),
+                g3Config.value("enemyWeaponId"))) {
             return failAt(3)
         }
-        if (!loopback.registerExtensionManifest(7, 1, 1, 2, 4) ||
-            !loopback.configureExtensionLoadOrder(7, 1, 10) ||
-            !loopback.configureExtensionProvenance(7, 1, 701) ||
-            !loopback.configureExtensionSchemas(7, 1, 1, 2) ||
+        if (!loopback.registerExtensionManifest(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("extensionOwner"),
+                g3Config.value("extensionApiVersion"),
+                g3Config.value("extensionSchemaVersion"),
+                g3Config.value("extensionRole")) ||
+            !loopback.configureExtensionLoadOrder(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("extensionOwner"),
+                g3Config.value("extensionLoadOrder")) ||
+            !loopback.configureExtensionProvenance(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("extensionOwner"),
+                g3Config.value("extensionProvenance")) ||
+            !loopback.configureExtensionSchemas(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("extensionOwner"),
+                g3Config.value("extensionMigrationVersion"),
+                g3Config.value("extensionNetworkSchema")) ||
             !loopback.grantExtensionCapability(
-                7, 1, extensionContributionEnemyDefinitionKind()) ||
+                g3Config.value("extensionNamespace"),
+                g3Config.value("extensionOwner"),
+                extensionContributionEnemyDefinitionKind()) ||
             !loopback.registerExtensionContribution(
-                7, 1, extensionContributionEnemyDefinitionKind(), 1002, 10) ||
+                g3Config.value("extensionNamespace"),
+                g3Config.value("extensionOwner"),
+                extensionContributionEnemyDefinitionKind(),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemyDefinitionPriority")) ||
             !loopback.defineEnemyDefinition(
-                7, 1, 1002, 1, enemyDefinitionBossKind()) ||
-            !loopback.setEnemyDefinitionCombat(7, 1002, 5, 0, 7) ||
-            !loopback.setEnemyDefinitionBehavior(7, 1002, 1, 1, 1) ||
-            !loopback.setEnemyDefinitionCritical(7, 1002, 1) ||
-            !loopback.setEnemyDefinitionLoot(7, 1002, 897, 77, 4) ||
+                g3Config.value("extensionNamespace"),
+                g3Config.value("extensionOwner"),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemyDefinitionRevision"),
+                g3Config.value("enemyKind")) ||
+            !loopback.setEnemyDefinitionCombat(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemyHealth"),
+                g3Config.value("enemyArmor"),
+                g3Config.value("enemyWeaponId")) ||
+            !loopback.setEnemyDefinitionBehavior(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemyRole"),
+                g3Config.value("enemyMoveStep"),
+                g3Config.value("enemyProjectileStep")) ||
+            !loopback.setEnemyDefinitionCritical(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemyCritical")) ||
+            !loopback.setEnemyDefinitionLoot(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemyLootStableBase"),
+                g3Config.value("enemyLootSeedSalt"),
+                g3Config.value("enemyLootLevel")) ||
             !loopback.setEnemyDefinitionRankCurrency(
-                7, 1002, enemyDefinitionBossKind(), 25) ||
-            !loopback.setEnemyDefinitionProgression(7, 1002, 30, 100)) {
+                g3Config.value("extensionNamespace"),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemyLootRank"),
+                g3Config.value("enemyCurrency")) ||
+            !loopback.setEnemyDefinitionProgression(
+                g3Config.value("extensionNamespace"),
+                g3Config.value("enemyDefinitionId"),
+                g3Config.value("enemySkillId"),
+                g3Config.value("enemyExperience"))) {
             return failAt(4)
         }
-        if (!loopback.definePlayerWeapon(7, 3, 0, 3, 1) ||
-            !loopback.setPlayerWeaponRange(7, 20) ||
+        if (!loopback.definePlayerWeapon(
+                g3Config.value("playerWeaponId"),
+                g3Config.value("playerWeaponMagazineSize"),
+                g3Config.value("playerWeaponReserveCapacity"),
+                g3Config.value("playerWeaponDamage"),
+                g3Config.value("playerWeaponChannel")) ||
+            !loopback.setPlayerWeaponRange(
+                g3Config.value("playerWeaponId"),
+                g3Config.value("playerWeaponRange")) ||
             !loopback.start() || loopback.connectPlayer() != 1 ||
             loopback.connectPlayer() != 2 || loopback.playerCount() != 2) {
             return failAt(5)
         }
-        if (!loopback.defineLootAffixPool(1) ||
-            !loopback.addLootAffix(1, 11, 1) ||
-            !loopback.defineLootAffixStat(11, 5, 0, 0) ||
-            !loopback.defineLootItem(501, 10, 1, 10, 1) ||
-            !loopback.addLootTableEntry(501, 1) ||
-            !loopback.definePlayerSkill(30, 2, 100) ||
-            !loopback.learnPlayerSkill(1, 30)) {
+        if (!loopback.defineLootAffixPool(
+                g3Config.value("affixPoolId")) ||
+            !loopback.addLootAffix(
+                g3Config.value("affixPoolId"),
+                g3Config.value("affixId"),
+                g3Config.value("affixWeight")) ||
+            !loopback.defineLootAffixStat(
+                g3Config.value("affixId"),
+                g3Config.value("affixFlatValue"),
+                g3Config.value("affixAdditivePercent"),
+                g3Config.value("affixMultiplicativePercent")) ||
+            !loopback.defineLootItem(
+                g3Config.value("lootItemDefinitionId"),
+                g3Config.value("lootItemBaseValue"),
+                g3Config.value("lootItemMinimumLevel"),
+                g3Config.value("lootItemMaximumLevel"),
+                g3Config.value("lootItemAffixPool")) ||
+            !loopback.addLootTableEntry(
+                g3Config.value("lootItemDefinitionId"),
+                g3Config.value("lootTableWeight")) ||
+            !loopback.definePlayerSkill(
+                g3Config.value("playerSkillId"),
+                g3Config.value("playerSkillMaximumRank"),
+                g3Config.value("playerSkillExperienceCost")) ||
+            !loopback.setPlayerSkillDamagePercent(
+                g3Config.value("playerSkillId"),
+                g3Config.value("playerSkillDamagePercent")) ||
+            !loopback.definePlayerStatus(
+                g3Config.value("playerStatusId"),
+                g3Config.value("playerStatusDurationCap"),
+                g3Config.value("playerStatusStackCap")) ||
+            !loopback.setPlayerStatusDamageModifier(
+                g3Config.value("playerStatusId"),
+                g3Config.value("playerStatusDamageFlat"),
+                g3Config.value("playerStatusDamagePercent")) ||
+            !loopback.setPlayerStatusDefenseModifier(
+                g3Config.value("playerStatusId"),
+                g3Config.value("playerStatusDefenseFlat"),
+                g3Config.value("playerStatusDefensePercent")) ||
+            !loopback.setPlayerStatusPeriodicDamage(
+                g3Config.value("playerStatusId"),
+                g3Config.value("playerStatusPeriodicDamage"),
+                g3Config.value("playerStatusPeriodicChannel")) ||
+            !loopback.learnPlayerSkill(
+                g3Config.value("playerActorId"),
+                g3Config.value("playerSkillId"))) {
             return failAt(6)
         }
-        if (!loopback.addPlayerCombatActor(1, 20, 0) ||
-            !loopback.equipPlayerCombatWeapon(1, 7) ||
-            !loopback.admitDefinedEnemy(4, 3, 7, 1002) ||
-            loopback.enemyKind(3) != enemyDefinitionBossKind() ||
-            !loopback.configureEnemyPerception(3, 1, true, 40, 0)) {
+        if (!loopback.addPlayerCombatActor(
+                g3Config.value("playerActorId"),
+                g3Config.value("playerActorHealth"),
+                g3Config.value("playerActorArmor")) ||
+            !loopback.equipPlayerCombatWeapon(
+                g3Config.value("playerActorId"),
+                g3Config.value("playerWeaponId")) ||
+            !loopback.applyPlayerStatus(
+                g3Config.value("playerActorId"),
+                g3Config.value("playerStatusId"),
+                g3Config.value("playerStatusDuration"),
+                g3Config.value("playerStatusStacks")) ||
+            !loopback.admitDefinedEnemy(
+                g3Config.value("encounterId"),
+                g3Config.value("admittedEnemyId"),
+                g3Config.value("extensionNamespace"),
+                g3Config.value("enemyDefinitionId")) ||
+            loopback.enemyKind(g3Config.value("admittedEnemyId")) !=
+                g3Config.value("enemyKind") ||
+            !loopback.configureEnemyPerception(
+                g3Config.value("admittedEnemyId"),
+                g3Config.value("playerActorId"),
+                g3Config.value("enemyPerceptionVisible") == 1,
+                g3Config.value("enemyPerceptionDistance"),
+                g3Config.value("enemyCritical"))) {
             return failAt(7)
         }
         if (!loopback.queueBroadPhaseSnapshot(0, 1) ||
@@ -112,94 +255,110 @@ class G1Demo {
     }
 
     Bool runAuthoritativeSession() {
-        if (!loopback.predictClientInput(1, 4) ||
-            !loopback.applySnapshot(1, 0, 1, 0) ||
-            loopback.predictedPosition(1) != 4 ||
-            loopback.predictionCorrection(1) != 4 ||
-            loopback.pendingPredictionInputs(1) != 1) {
+        var playerId = g3Config.value("playerActorId")
+        var secondaryPlayerId = g3Config.value("secondaryPlayerId")
+        var enemyId = g3Config.value("admittedEnemyId")
+        var encounterId = g3Config.value("encounterId")
+        var skillId = g3Config.value("playerSkillId")
+        if (!loopback.predictClientInput(playerId, 4) ||
+            !loopback.applySnapshot(playerId, 0, 1, 0) ||
+            loopback.predictedPosition(playerId) != 4 ||
+            loopback.predictionCorrection(playerId) != 4 ||
+            loopback.pendingPredictionInputs(playerId) != 1) {
             return failAt(10)
         }
         var firstCommand = InputCommand(1, 1, 3, 0, 0, 0, 1, 0)
         var secondCommand = InputCommand(1, 1, 2, 0, 0, 0, 0, 1)
         var staleCommand = InputCommand(1, 1, 4, 0, 0, 0, 1, 0)
-        if (!loopback.receiveInputCommand(1, firstCommand) ||
-            !loopback.receiveInputCommand(2, secondCommand) ||
-            loopback.receiveInputCommand(1, staleCommand) ||
+        if (!loopback.receiveInputCommand(playerId, firstCommand) ||
+            !loopback.receiveInputCommand(secondaryPlayerId, secondCommand) ||
+            loopback.receiveInputCommand(playerId, staleCommand) ||
             loopback.advance(16667) != 1) {
             return failAt(11)
         }
-        if (loopback.serverPosition(1) != 3 ||
-            loopback.serverPosition(2) != 2 ||
-            loopback.pendingPredictionInputs(1) != 0 || !loopback.inSync()) {
+        if (loopback.serverPosition(playerId) != 3 ||
+            loopback.serverPosition(secondaryPlayerId) != 2 ||
+            loopback.pendingPredictionInputs(playerId) != 0 ||
+            !loopback.inSync()) {
             return failAt(12)
         }
-        if (loopback.lastInputEdges(1).firePressed() != 1 ||
+        if (loopback.lastInputEdges(playerId).firePressed() != 1 ||
             loopback.playerWeaponPresentationCount() != 1 ||
             !loopback.dequeuePlayerWeaponPresentation() ||
-            loopback.lastPlayerWeaponPresentation().actorId() != 1) {
+            loopback.lastPlayerWeaponPresentation().actorId() != playerId) {
             return failAt(13)
         }
-        var enemyHit = loopback.resolveEnemyHitscan(1, 3, 1, 10, 1)
+        var enemyHit = loopback.resolveEnemyHitscan(
+            playerId, enemyId, 1,
+            g3Config.value("playerAttackDistance"),
+            g3Config.value("playerAttackCritical"))
         if (!enemyHit.accepted() || !enemyHit.died() ||
-            loopback.enemyState(3) != 7 ||
-            loopback.enemyEncounterActiveCount(4) != 0 ||
+            loopback.enemyState(enemyId) != 7 ||
+            loopback.enemyEncounterActiveCount(encounterId) != 0 ||
             loopback.pendingImpactPresentations() != 1 ||
             loopback.pendingImpactAudio() != 1 ||
             loopback.impactPresentationDrops() != 0 ||
             !loopback.dequeueImpactPresentation()) {
             return failAt(14)
         }
-        if (loopback.playerCurrency(1) != 25 ||
-            loopback.playerSkillRank(1, 30) != 1 ||
+        if (loopback.playerCurrency(playerId) !=
+                g3Config.value("enemyCurrency") ||
+            loopback.playerSkillRank(playerId, skillId) < 1 ||
             loopback.worldLootCount() != 1 ||
-            loopback.worldLootStableId(0) != 900 ||
-            loopback.worldLootRank(0) != 3) {
+            loopback.worldLootStableId(0) <= 0 ||
+            loopback.worldLootRank(0) !=
+                g3Config.value("enemyLootRank")) {
             return failAt(14)
         }
         var impact = loopback.lastImpactPresentation()
         var encounter = loopback.enemyEncounterStateMessage(
-            loopback.currentServerTick(), 4)
-        if (impact.sourceId() != 1 || impact.targetId() != 3 ||
+            loopback.currentServerTick(), encounterId)
+        if (impact.sourceId() != playerId ||
+            impact.targetId() != enemyId ||
             impact.applied() != enemyHit.applied() || !impact.died() ||
-            impact.clip() != 201 || impact.gain() != 100 ||
-            !hud.presentImpact(1, impact, loopback.currentClientTick()) ||
+            impact.clip() <= 0 || impact.gain() <= 0 ||
+            !hud.presentImpact(
+                playerId, impact, loopback.currentClientTick()) ||
             !loopback.applyRemoteEnemyEncounterState(encounter) ||
-            loopback.clientRemoteEnemyState(3) != 7 ||
-            loopback.clientRemoteEnemyHealth(3) != 0 ||
+            loopback.clientRemoteEnemyState(enemyId) != 7 ||
+            loopback.clientRemoteEnemyHealth(enemyId) != 0 ||
             loopback.clientRemoteEncounterActiveCount() != 0 ||
-            loopback.clientRemoteEncounterRemainingBudget() != 1) {
+            loopback.clientRemoteEncounterRemainingBudget() !=
+                g3Config.value("encounterBudget") - 1) {
             return failAt(14)
         }
         return true
     }
 
     Bool verifyFocusRecovery() {
-        var position = loopback.serverPosition(1)
+        var playerId = g3Config.value("playerActorId")
+        var position = loopback.serverPosition(playerId)
         var pending = InputCommand(2, 2, 4, 0, 0, 0, 1, 0)
-        if (!loopback.receiveInputCommand(1, pending) ||
-            !loopback.applyPlayerFocus(1, 0) ||
-            loopback.playerFocused(1) ||
-            loopback.lastInputEdges(1).fireReleased() != 1) {
+        if (!loopback.receiveInputCommand(playerId, pending) ||
+            !loopback.applyPlayerFocus(playerId, 0) ||
+            loopback.playerFocused(playerId) ||
+            loopback.lastInputEdges(playerId).fireReleased() != 1) {
             return failAt(15)
         }
         var unfocused = InputCommand(3, 3, 4, 0, 0, 0, 1, 0)
         if (loopback.advance(16667) != 1 ||
-            loopback.serverPosition(1) != position ||
+            loopback.serverPosition(playerId) != position ||
             loopback.playerWeaponPresentationCount() != 0 ||
-            loopback.receiveInputCommand(1, unfocused)) {
+            loopback.receiveInputCommand(playerId, unfocused)) {
             return failAt(16)
         }
         var resumed = InputCommand(3, 3, 2, 0, 0, 0, 1, 0)
-        if (!loopback.applyPlayerFocus(1, 1) ||
-            !loopback.receiveInputCommand(1, resumed) ||
+        if (!loopback.applyPlayerFocus(playerId, 1) ||
+            !loopback.receiveInputCommand(playerId, resumed) ||
             loopback.advance(16667) != 1 ||
-            loopback.serverPosition(1) != position + 2 ||
+            loopback.serverPosition(playerId) != position + 2 ||
             loopback.playerWeaponPresentationCount() != 1 ||
             !loopback.inSync()) {
             return failAt(17)
         }
         return true
     }
+
 
     Bool verifyArenaContact() {
         var floorProbe = arena.queryPath(
@@ -238,12 +397,15 @@ class G1Demo {
             camera.currentYaw() != 20 || camera.currentPitch() != -20) {
             return failAt(23)
         }
-        var health = loopback.playerCombatHealth(1)
-        var ammunition = loopback.playerCombatMagazine(1)
+        var playerId = g3Config.value("playerActorId")
+        var skillId = g3Config.value("playerSkillId")
+        var enemyId = g3Config.value("admittedEnemyId")
+        var health = loopback.playerCombatHealth(playerId)
+        var ammunition = loopback.playerCombatMagazine(playerId)
         var enemies = loopback.clientRemoteEncounterActiveCount()
         var tick = loopback.currentClientTick()
-        var focused = loopback.playerFocused(1)
-        var inventory = loopback.playerInventory(1)
+        var focused = loopback.playerFocused(playerId)
+        var inventory = loopback.playerInventory(playerId)
         var lootRank = 0
         if (loopback.worldLootCount() > 0) {
             lootRank = loopback.worldLootRank(0)
@@ -252,21 +414,22 @@ class G1Demo {
             !hud.updateEncounterReplication(
                 enemies,
                 loopback.clientRemoteEncounterRemainingBudget(),
-                loopback.playerConnected(1),
-                loopback.playerConnectionGeneration(1),
+                loopback.playerConnected(playerId),
+                loopback.playerConnectionGeneration(playerId),
                 loopback.clientRemoteEnemyEncounterSequence()) ||
             !hud.updateInventoryStatus(
                 inventory.itemCount(), inventory.itemCapacity(),
-                loopback.playerEquipmentItem(1, 0) > 0) ||
+                loopback.playerEquipmentItem(playerId, 0) > 0) ||
             !hud.updateSkillStatus(
-                loopback.playerSkillRank(1, 30),
-                loopback.playerSkillExperience(1, 30), 100) ||
+                loopback.playerSkillRank(playerId, skillId),
+                loopback.playerSkillExperience(playerId, skillId),
+                g3Config.value("playerSkillExperienceCost")) ||
             !hud.updateWorldLootStatus(
                 loopback.worldLootCount(), lootRank) ||
             !hud.updateThreatStatus(
                 loopback.activeEnemyKindCount(enemyDefinitionEliteKind()),
                 loopback.activeEnemyKindCount(enemyDefinitionBossKind()),
-                loopback.enemyKind(3))) {
+                loopback.enemyKind(enemyId))) {
             return failAt(24)
         }
 

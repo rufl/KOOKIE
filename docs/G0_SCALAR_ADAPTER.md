@@ -109,13 +109,23 @@ the GameShell menu/options/lobby transaction.
 
 `scripts/verify_exception.sh` preserves the native exception-lifetime reproducer and its JVM/native negative controls: JVM exits on the failed assertion; native currently reaches `unreachable` with exit 0. This is a compiler defect record, not an engine cleanup guarantee.
 
-The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`, `glslc`, `pkg-config` and a reviewed `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` are available, it compiles the adapter and SPIR-V shaders, emits the native probe ELF and runs it through that wrapper with dummy audio. If those dependencies are absent, CI records an explicit skip.
+The gate also checks the Kof native adapter probe. If SDL3 headers, `gcc`,
+`glslc`, `spirv-val`, `pkg-config` and a reviewed
+`KOOKIE_PRESENTATION_ISOLATION_WRAPPER` are available, it runs
+`scripts/shader_pipeline.py` to compile and validate the cataloged SPIR-V
+products, emits the native probe ELF and runs it through that wrapper with
+dummy audio. If those dependencies are absent, CI records an explicit skip.
 
 ```bash
 bash scripts/verify.sh
 ```
 
-The gate materializes temporary links to canonical Kof packages while compiling standalone probes, then removes them on exit. Kof source checks, tests and builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`; shaders compile through `glslc`; fixed scene staging, positive draw timing, screenshot capture and resource teardown are exercised inside the isolated display.
+The gate materializes temporary links to canonical Kof packages while compiling
+standalone probes, then removes them on exit. Kof source checks, tests and
+builds pass on JVM/native. The C adapter compiles with `-Wall -Wextra -Werror`;
+the shader pipeline compiles and validates SPIR-V and emits the generated
+reflection header; fixed scene staging, positive draw timing, screenshot capture
+and resource teardown are exercised inside the isolated display.
 
 The probe drains pre-existing SDL events through one bounded native scalar
 helper. Keeping the drain loop in C avoids a measured native compiler failure

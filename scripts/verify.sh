@@ -102,6 +102,7 @@ if kookie_prepare_sdl3_dependencies "$root_dir"; then
   presentation_dependencies_available=1
 fi
 if command -v gcc >/dev/null && command -v glslc >/dev/null &&
+   command -v spirv-val >/dev/null &&
    [[ "$presentation_dependencies_available" == 1 ]] &&
    [[ -n "$isolation_wrapper" ]] && command -v "$isolation_wrapper" >/dev/null; then
   mkdir -p "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" \
@@ -136,23 +137,14 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
   done
   cp "$root_dir/probes/shared/pe_durable_save_coordinator.kf" \
     "$presentation_probe_session_dir/pe_durable_save_coordinator.kf"
+  python3 scripts/shader_pipeline.py \
+    --root "$root_dir" --output "$adapter_build_dir" --target linux
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    -I"$adapter_build_dir" \
     native/kookie_sdl_adapter.c \
-    native/kookie_model_assets.c \
     native/kookie_transport.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
-  gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
-    native/kookie_persistence_adapter.c \
-    -o "$adapter_build_dir/libkookie_persistence_adapter.so"
-  glslc -fshader-stage=vert native/shaders/g0_triangle.vert \
-    -o "$adapter_build_dir/g0_triangle.vert.spv"
-  glslc -fshader-stage=vert native/shaders/g5_triangle_instance.vert \
-    -o "$adapter_build_dir/g5_triangle_instance.vert.spv"
-  glslc -fshader-stage=vert native/shaders/g6_world.vert \
-    -o "$adapter_build_dir/g6_world.vert.spv"
-  glslc -fshader-stage=frag native/shaders/g0_triangle.frag \
-    -o "$adapter_build_dir/g0_triangle.frag.spv"
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
     --target native --output "$adapter_build_dir/native-adapter"
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
@@ -229,7 +221,7 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
         "${KOOKIE_PRESENTATION_EVIDENCE_JSON:-}"
   fi
 else
-  echo "native SDL adapter smoke skipped: SDL3/SDL_mixer development files, gcc, glslc, pkg-config, or isolated-display wrapper unavailable"
+  echo "native SDL adapter smoke skipped: SDL3/SDL_mixer development files, gcc, glslc, spirv-val, pkg-config, or isolated-display wrapper unavailable"
 fi
 
 kof build src --target jvm --output "$build_dir/jvm"

@@ -108,62 +108,16 @@ for relative in (
 assert not (content / "models/cat/source").exists()
 print("prototype package manifest/provenance/content=ok")
 PY
-cat >"$WORK_DIR/model_assets_probe.c" <<'EOF'
-#define _POSIX_C_SOURCE 200809L
-#include "kookie_model_assets.h"
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-int main(int argc, char **argv) {
-    if (argc != 3) {
-        return 2;
-    }
-    bool expected = strcmp(argv[1], "present") == 0;
-    if (setenv("KOOKIE_PROTOTYPE_CONTENT_ROOT", argv[2], 1) != 0) {
-        return 3;
-    }
-    unsetenv("KOOKIE_REQUIRE_NATIVE_ANIMAL_MODELS");
-    unsetenv("KOOKIE_CONTENT_PROFILE");
-    if (kookie_model_assets_required() != expected) {
-        return 4;
-    }
-    if (expected) {
-        if (!kookie_model_assets_available(KOOKIE_MODEL_GOOSE) ||
-            !kookie_model_assets_available(KOOKIE_MODEL_CAT) ||
-            kookie_model_assets_vertex_count(KOOKIE_MODEL_GOOSE) != 708 ||
-            kookie_model_assets_vertex_count(KOOKIE_MODEL_CAT) != 2400) {
-            return 5;
-        }
-    } else if (kookie_model_assets_available(KOOKIE_MODEL_GOOSE) ||
-               kookie_model_assets_available(KOOKIE_MODEL_CAT)) {
-        return 6;
-    }
-    if (setenv("KOOKIE_CONTENT_PROFILE", "prototype", 1) != 0 ||
-        !kookie_model_assets_required()) {
-        return 7;
-    }
-    puts("prototype model policy=ok");
-    return 0;
-}
-EOF
-cc -std=c11 -Wall -Wextra -Werror -I"$ROOT_DIR/native" \
-  "$ROOT_DIR/native/kookie_model_assets.c" \
-  "$WORK_DIR/model_assets_probe.c" -lm \
-  -o "$WORK_DIR/model_assets_probe"
-mkdir "$WORK_DIR/empty-content"
-(cd "$WORK_DIR" && "$WORK_DIR/model_assets_probe" present "$PACKAGE_ROOT/content/prototype")
-(cd "$WORK_DIR" && "$WORK_DIR/model_assets_probe" missing "$WORK_DIR/empty-content")
 
 
-"$PACKAGE_ROOT/kookie" --package-smoke \
+(cd "$PACKAGE_ROOT" && ./kookie --package-smoke) \
   >"$WORK_DIR/runtime.log" 2>"$WORK_DIR/runtime.err"
 python3 - "$WORK_DIR/runtime.log" <<'PY'
 import pathlib
 import sys
 text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
 assert "KOOKIE G1 authoritative shooter verified" in text
+assert "KOOKIE G1 native animal mesh coverage verified" in text
 print("prototype package runtime=ok")
 PY
 

@@ -32,7 +32,7 @@ record_blocker() {
 if [[ -z "$KOOKIE_PRESENTATION_ISOLATION_WRAPPER" ]]; then
   record_blocker 75 "isolation-wrapper-not-configured"
 fi
-for command_name in kof python3 gcc glslc pkg-config; do
+for command_name in kof python3 gcc glslc spirv-val pkg-config; do
   command -v "$command_name" >/dev/null || \
     record_blocker 75 "missing-$command_name"
 done

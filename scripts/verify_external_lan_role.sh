@@ -27,6 +27,8 @@ command -v kof >/dev/null || { echo "external LAN role requires kof" >&2; exit 7
 command -v python3 >/dev/null || { echo "external LAN role requires python3" >&2; exit 75; }
 if [[ "$target" == native ]]; then
   command -v gcc >/dev/null || { echo "external LAN native role requires gcc" >&2; exit 75; }
+  command -v glslc >/dev/null || { echo "external LAN native role requires glslc" >&2; exit 75; }
+  command -v spirv-val >/dev/null || { echo "external LAN native role requires spirv-val" >&2; exit 75; }
   command -v pkg-config >/dev/null || {
     echo "external LAN native role requires pkg-config" >&2
     exit 75
@@ -85,6 +87,9 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$runtime_dir/build" "$source_dir/content" "$source_dir/core" "$source_dir/session" "$source_dir/world"
+mkdir -p "$runtime_dir/config/g3"
+cp "$root_dir/config/g3/external_lan.json" "$runtime_dir/config/g3/external_lan.json"
+cp "$root_dir/config/g3/demo.json" "$runtime_dir/config/g3/demo.json"
 for content_file in "$root_dir"/src/content/*.kf; do
   ln -s "$content_file" "$source_dir/content/$(basename "$content_file")"
 done
@@ -105,14 +110,19 @@ done
 
 jvm_metadata_jar=""
 if [[ "$target" == native ]]; then
+  python3 "$root_dir/scripts/shader_pipeline.py" \
+    --root "$root_dir" --output "$runtime_dir/build" --target linux
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    -I"$runtime_dir/build" \
     native/kookie_sdl_adapter.c \
-    native/kookie_model_assets.c \
     native/kookie_transport.c \
     -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
-  kof build "$source_dir/main.kf" \
-    --target native --output "$build_dir/native-$role"
+  (
+    cd "$runtime_dir"
+    kof build "$source_dir/main.kf" \
+      --target native --output "$build_dir/native-$role"
+  )
 else
   jvm_metadata_classes="$build_dir/jvm-metadata-classes"
   jvm_metadata_jar="$build_dir/kookie-external-lan-metadata.jar"

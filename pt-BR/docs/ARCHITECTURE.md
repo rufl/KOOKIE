@@ -45,29 +45,39 @@ fontes não rastreadas e exclui saída gerada de build. Resultado atual:
 
 | Grupo | Arquivos | Linhas | Participação |
 |---|---:|---:|---:|
-| Kof (`.kf`) | 144 | 72.524 | 76,85% |
-| KofScript (`.ks`) | 4 | 558 | 0,59% |
-| C/header (`.c`, `.h`) | 18 | 10.717 | 11,36% |
-| Ferramentas shell (`.sh`) | 43 | 6.570 | 6,96% |
-| Ferramentas Python (`.py`) | 16 | 2.386 | 2,53% |
-| Ponte PE Java (`.java`) | 1 | 1.504 | 1,59% |
+| Kof (`.kf`) | 151 | 75.497 | 79,54% |
+| KofScript (`.ks`) | 4 | 658 | 0,69% |
+| C/header (`.c`, `.h`) | 16 | 7.378 | 7,77% |
+| Ferramentas shell (`.sh`) | 46 | 6.737 | 7,10% |
+| Ferramentas Python (`.py`) | 19 | 3.024 | 3,19% |
+| Ponte PE Java (`.java`) | 1 | 1.504 | 1,58% |
 | Shaders GPU | 8 | 115 | 0,12% |
-| **Total** | **234** | **94.374** | **100%** |
+| **Total** | **245** | **94.913** | **100%** |
 
 A fatia de runtime (Kof/KofScript/C/shaders, excluindo ferramentas de build e a
-ponte PE) tem 83.914 linhas: Kof 86,43%, KofScript 0,66%, C/header 12,77% e
+ponte PE) tem 83.648 linhas: Kof 90,26%, KofScript 0,79%, C/header 8,82% e
 shaders 0,14%. Isso mede composição; não é uma afirmação de performance.
 
 Não traduza código apenas para aumentar a porcentagem de Kof. SDL/SDL_GPU,
 SDL_mixer, Winsock, durabilidade de filesystem, agendamento de threads,
 intrínsecos SIMD, shaders e marshalling de buffers/ponteiros permanecem nativos.
 KofScript continua sendo a camada limitada de comportamento/artefatos; não é
-substituto de loops quentes compilados em Kof. Código nativo só deve migrar
-quando a ABI Kof preservar transferência em bloco, ownership e comportamento
-de frame-time. O parser/expansão de vértices de modelos e o shell Windows
-continuam candidatos explícitos, mas não foram convertidos nesta auditoria:
-o primeiro adicionaria tráfego por vértice na fronteira sem ABI de buffers; o
-segundo é IU de cold path e exige ABI estável de exportação/objetos PE.
+substituto de loops quentes compilados em Kof. O executável Windows agora entra
+em `probes/g0_native_presentation/main.kf`; `native/kookie_pe_entry.c` e
+`native/kookie_sdl_adapter.c` são somente mecanismos de ABI/plataforma. Cena
+GLB, meshes, hierarquia, normalização, UVs e staging de animação vivem em
+`src/content/glb_model.kf`; ele também possui a descoberta limitada de arquivos,
+os bytes GLB e a seleção do intervalo de imagem. O adapter SDL recebe somente
+os bytes PNG validados do gato por uma ABI escalar de staging.
+
+Os produtos de shader continuam sendo uma exceção gráfica explícita. A lista em
+`native/shaders/kookie_shader_products.json` é construída por
+`scripts/shader_pipeline.py`; o SPIR-V é validado e refletido em
+`kookie_shader_manifest.json` empacotado e em um header C gerado. O adapter SDL
+consome somente metadados mecânicos gerados e handles de GPU. Kof continua
+responsável pela semântica de câmera/projeção, staging limitado, seleção de
+material/passe e ordenação de renderização; ele nunca faz parse nem composição
+de SPIR-V no runtime.
 
 A versão `0.5.0-beta` fixada do Kof4j implementa `Buffer(U8)` somente em
 bytes para JVM, JS e nativo x86-64; `scripts/verify_simd_dispatch.sh` qualifica
@@ -78,8 +88,12 @@ qualificado. `Buffer(U8)` não define contrato tipado de ownership assíncrono
 para GPU/áudio.
 
 Por isso o KOOKIE mantém `FrameStaging`/wires de conteúdo como arrays limitados
-possuídos pelo Kof, usa memória possuída pelo C no trabalho nativo e conserva
-o adaptador escalar verificado. Veja
+possuídos pelo Kof, usa memória possuída pelo C no trabalho nativo e conserva o
+adaptador escalar verificado. No startup, `main.kf` transfere cada GLB limitado
+como palavras de 32 bits empacotadas, desempacota para bytes possuídos pelo Kof
+e faz o parse da cena; somente o intervalo PNG validado do cat volta ao SDL para
+decodificação. Nenhum ponteiro nativo de modelo nem callback de cena/vértice
+atravessa a ABI. Veja
 [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md) para a decisão versionada de
 buffers e a fronteira reutilizável de UI/áudio.
 
@@ -738,6 +752,12 @@ carga/prioridade, diagnósticos de capacidade/conflito e checksums imutáveis.
 comportamento, loot, progressão e moeda para elites/chefes; a sessão
 autoritativa instancia o ator e todos os contratos de recompensa atomicamente a
 partir dessas definições.
+O probe externo do G3 encaminha os tipos de autoridade do jogador `7` e loot
+mundial `8` por processos autenticados na mesma máquina com host e dois
+clientes JVM e nativos, e então faz round trip da moeda, item gerado,
+equipamento, skill e recompensa reivindicada pelo save de schema. Execução em
+hosts físicos separados continua fora desta qualificação.
+
 
 ### G4 — Pipeline de criação e extensões
 
@@ -799,10 +819,11 @@ arbitrária.
 ### G6 — Expansão
 
 A qualificação Windows atual inclui pacotes PE/SDL reproduzíveis e assinados:
-o shell nativo liga o gameplay Kof alcançável ao SDL3/SDL_mixer, e o perfil de
-apresentação liga Kof PE nativo ao adaptador SDL_GPU e empacota produtos
-SPIR-V/DXIL. O smoke Wine isolado do shell verifica gameplay; o smoke visual da
-apresentação permanece dependente de GPU isolada capaz de DRI3.
+o perfil Kof SDL nativo liga o gameplay Kof alcançável ao SDL3/SDL_mixer, e o
+perfil de apresentação liga Kof PE nativo ao adaptador SDL_GPU e empacota
+produtos SPIR-V/DXIL. O smoke Wine isolado do runtime Kof SDL verifica
+gameplay; o smoke visual da apresentação permanece dependente de GPU isolada
+capaz de DRI3.
 
 ### G6 — Evolução do netcode
 

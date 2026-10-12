@@ -393,9 +393,10 @@ SDL_mixer 3.2.4. Verificou arquivo assinado, extração segura e package-smoke n
 checkout atual; não comprovou GPU Linux com capacidade de apresentação nem a
 release pareada final em árvore limpa.
 
-Esse perfil exige SDL 3.4.18, SDL_mixer 3.2.4, `glslc`, compilador C e
-`pkg-config`. O arquivo contém a aplicação Kof de menu/jogo, adaptador SDL,
-shaders SPIR-V, SDL3 e SDL_mixer. Ele usa o loader dinâmico e a libc do host.
+Esse perfil exige SDL 3.4.18, SDL_mixer 3.2.4, `glslc`, `spirv-val`,
+compilador C e `pkg-config`. O arquivo contém a aplicação Kof de menu/jogo,
+adaptador SDL, shaders SPIR-V validados, o manifesto/header de reflexão de
+shader, SDL3 e SDL_mixer. Ele usa o loader dinâmico e a libc do host.
 Arquivos de apresentação também incluem `DEMO_CONTROLS.txt`. O comando padrão
 usa o perfil de conteúdo `none` e não redistribui assets do protótipo; passe
 `--content prototype` para empacotar explicitamente a demo com os modelos de
@@ -600,10 +601,10 @@ A qualificação de persistência PE sem SDL é:
 bash scripts/verify_pe_durable_save.sh
 ```
 
-### Shell SDL nativo
+### Runtime Kof SDL nativo
 
-Gere o shell nativo a partir dos pacotes oficiais de desenvolvimento MinGW do
-SDL 3.4.18 e SDL_mixer 3.2.4:
+Gere o runtime Kof SDL nativo a partir dos pacotes oficiais de desenvolvimento
+MinGW do SDL 3.4.18 e SDL_mixer 3.2.4:
 
 ```bash
 KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
@@ -615,10 +616,11 @@ KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
 
-O pacote liga o objeto PE do gameplay Kof completo de `src/` ao
-`kookie.exe`, junto ao shell nativo SDL3/SDL_mixer de menu/lobby. Ele contém
-`kookie.exe`, as DLLs SDL, licenças e procedência; não contém JDK. O smoke do
-pacote imprime `KOOKIE native Kof PE gameplay verified` após inicializar SDL.
+O pacote liga o objeto PE completo de gameplay e apresentação Kof de `src/` ao
+`kookie.exe`, junto ao adaptador nativo SDL3/SDL_mixer. O Kof é responsável pela
+política de menu, lobby e gameplay. Ele contém `kookie.exe`, as DLLs SDL,
+licenças e procedência; não contém JDK. O smoke do pacote imprime
+`KOOKIE native Kof PE gameplay verified` após inicializar SDL.
 
 ### Runtime Kof JVM incluído
 
@@ -669,11 +671,12 @@ SOURCE_DATE_EPOCH=<timestamp-unix> \
 scripts/package_kookie.sh --runtime presentation --target windows-x86_64
 ```
 
-`glslc` deve estar no `PATH`. `scripts/verify_windows_presentation.sh` gera o
-pacote duas vezes, compara todos os artefatos assinados, valida caminhos ZIP
-seguros e licenças e verifica o PE nativo, as import libraries SDL e as
-entradas SPIR-V/DXIL. `KOOKIE_RUN_WINE=1` adiciona o smoke de compatibilidade
-opcional, exigindo `wine` e `overzeer-isolated-display`.
+`glslc` e `spirv-val` devem estar no `PATH`. `scripts/verify_windows_presentation.sh`
+gera o pacote duas vezes, compara todos os artefatos assinados, valida caminhos
+ZIP seguros e licenças e verifica o PE nativo, as import libraries SDL, as
+entradas SPIR-V/DXIL e o manifesto de reflexão de shaders. `KOOKIE_RUN_WINE=1`
+adiciona o smoke de compatibilidade opcional, exigindo `wine` e
+`overzeer-isolated-display`.
 
 Para evidência de hardware-alvo, defina `KOOKIE_RUN_NATIVE_PRESENTATION=1` e
 forneça `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. O wrapper revisado
@@ -732,8 +735,8 @@ ambiente `kookie-demo-release`.
 
 O workflow exige runners self-hosted com labels `kookie-demo-release`,
 `linux`/`windows` e `x64`. Ambos precisam de Kof `0.5.0-beta` no commit de
-fonte fixado, Python 3, OpenSSL, `glslc`, Zig 0.17.0 e o digest fixado da
-distribuição Kof. O runner Linux também precisa dos arquivos de
+fonte fixado, Python 3, OpenSSL, `glslc`, `spirv-val`, Zig 0.17.0 e o digest
+fixado da distribuição Kof. O runner Linux também precisa dos arquivos de
 desenvolvimento SDL3 e de um wrapper de display isolado para o smoke opcional;
 o workflow prepara o prefixo fixado do SDL_mixer quando a entrada
 `pkg-config` está ausente. O runner Windows também precisa dos prefixes MinGW
@@ -792,6 +795,13 @@ bash scripts/verify_external_lan.sh
 
 Use `KOOKIE_EXTERNAL_LAN_TARGET=native` para o caminho nativo. Evidência na
 mesma máquina continua como `externalHostExecution=unproven`.
+O caminho de aceitação G3 nessa regressão inclui eliminação→drop→coleta→
+equipamento sob autoridade do servidor, os tipos de destinatário `7`/`8` e
+save/reload por schema no host de moeda, item gerado, equipamento, skill e
+recompensa reivindicada. O validador registra esse round trip em
+`g3SaveReload`; isso não transforma evidência na mesma máquina em uma
+alegação sobre hosts físicos separados.
+
 
 ## Gate de verificação do repositório
 

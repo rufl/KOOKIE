@@ -53,12 +53,12 @@ A árvore de fontes atual possui estes caminhos aptos a release:
   execução isolada de apresentação reportou `No DRI3 support detected` e `No
   supported SDL_GPU backend found` antes do timeout 124; a evidência de
   hardware-alvo continua necessária.
-- Ligação de gameplay Kof PE nativo Windows x86-64 ao shell SDL e ao pacote de
-  apresentação SDL_GPU, com produtos SPIR-V/DXIL e gates reproduzíveis. O gate
-  de artefato assinado passou com MinGW SDL3/SDL_mixer e DXC fixados; não há
-  evidência de hardware Windows alvo retida.
-- Smoke em Wine do shell nativo Windows com marcadores de gameplay. O smoke
-  visual nativo Windows está disponível por
+- Ligação de gameplay Kof PE nativo Windows x86-64 ao adaptador SDL3/SDL_mixer
+  e ao pacote de apresentação SDL_GPU, com produtos SPIR-V/DXIL e gates
+  reproduzíveis. O gate de artefato assinado passou com MinGW SDL3/SDL_mixer e
+  DXC fixados; não há evidência de hardware Windows alvo retida.
+- Smoke em Wine do runtime Kof SDL nativo Windows com marcadores de gameplay. O
+  smoke visual nativo Windows está disponível por
   `KOOKIE_RUN_NATIVE_PRESENTATION=1` e pelo
   `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` revisado; Wine, ligação de
   pacote e saída Xvfb não são evidência visual do alvo.

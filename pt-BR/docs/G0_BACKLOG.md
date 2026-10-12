@@ -162,6 +162,11 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   três papéis JVM diretos do Kof e usa os mesmos metadados de papel e validador
   de evidência do modo nativo; isso amplia a regressão local entre alvos sem
   declarar prova entre hosts distintos.
+- O contrato externo também exige os valores de estado do destinatário G3
+  (tipo de autoridade `7`, loot mundial `8`, item/equipamento `900`, rank da
+  skill `1`, zero drops após a coleta) e um save/reload por schema bem-sucedido
+  no host; tanto o validador do log quanto o verificador do bundle rejeitam
+  evidência G3 incompleta.
 
 - Um manifesto compartilhado de execução agora vincula o run-ID, os três
   papéis, portas, revisão de origem e fingerprint da chave. A coleta entre
@@ -172,7 +177,7 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
 - O validador fail-closed aceita somente janela real com capacidade positiva,
   marcador de draw, screenshot P6 válido e saída limpa.
 - Arquivos reproduzíveis cobrem Kof nativo e a apresentação SDL persistente no
-  Linux. O Windows x86-64 agora recebe gameplay Kof PE nativo no shell SDL3 +
+  Linux. O Windows x86-64 agora recebe gameplay Kof PE nativo no runtime SDL3 +
   SDL_mixer e no pacote SDL_GPU, sem JDK embutido nos perfis nativos. O pacote
   JVM de roles LAN é somente ferramenta de qualificação/compatibilidade.
   Pacotes do produto incluem avisos MIT/zlib e rejeitam bibliotecas não

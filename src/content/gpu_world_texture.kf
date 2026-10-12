@@ -1,0 +1,223 @@
+package content
+
+class BoundedWorldTextureAsset {
+    Int widthValue
+    Int heightValue
+    Int catXValue
+    Int catYValue
+    Int catWidthValue
+    Int catHeightValue
+    Int[] words
+
+    public constructor() {
+        words = new Int[0]
+        clear()
+    }
+
+    Bool clear() {
+        widthValue = 0
+        heightValue = 0
+        catXValue = 0
+        catYValue = 0
+        catWidthValue = 0
+        catHeightValue = 0
+        words = new Int[0]
+        return true
+    }
+
+    Int channel(Int value) {
+        if (value < 0) { return 0 }
+        if (value > 255) { return 255 }
+        return value
+    }
+
+    Int packedPixel(Int red, Int green, Int blue, Int alpha) {
+        return (channel(red) & 255) |
+            ((channel(green) & 255) << 8) |
+            ((channel(blue) & 255) << 16) |
+            ((channel(alpha) & 255) << 24)
+    }
+
+    Bool putPixel(Int x, Int y, Int packed) {
+        if (x < 0 || y < 0 || x >= widthValue || y >= heightValue) {
+            return false
+        }
+        words[y * widthValue + x] = packed
+        return true
+    }
+
+    Bool fillMaterial(Int material) {
+        if (material < 0 || material >= 8) { return false }
+        var red = 0
+        var green = 0
+        var blue = 0
+        if (material == 0) { red = 92; green = 102; blue = 112 }
+        if (material == 1) { red = 42; green = 118; blue = 156 }
+        if (material == 2) { red = 156; green = 68; blue = 52 }
+        if (material == 3) { red = 126; green = 116; blue = 88 }
+        if (material == 4) { red = 54; green = 124; blue = 74 }
+        if (material == 5) { red = 172; green = 128; blue = 42 }
+        if (material == 6) { red = 86; green = 68; blue = 142 }
+        if (material == 7) { red = 36; green = 42; blue = 50 }
+        var tileX = (material % 4) * 64
+        var tileY = (material / 4) * 64
+        for (var y = 0; y < 64; y = y + 1) {
+            for (var x = 0; x < 64; x = x + 1) {
+                var shade = -8
+                if ((x / 8 + y / 8 + material) % 2 == 0) {
+                    shade = 14
+                }
+                if (material == 2 &&
+                    (y % 16 < 2 || (x + (y / 16) * 12) % 32 < 2)) {
+                    shade = -30
+                }
+                if (material == 5 && (x + y) % 20 < 8) {
+                    shade = 26
+                }
+                if (material == 7 && (x % 16 < 2 || y % 16 < 2)) {
+                    shade = 28
+                }
+                if (!putPixel(
+                        tileX + x, tileY + y,
+                        packedPixel(red + shade, green + shade, blue + shade, 255))) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Bool fillModelTile(
+        Int tile, Int primaryRed, Int primaryGreen, Int primaryBlue,
+        Int shadowRed, Int shadowGreen, Int shadowBlue,
+        Int accentRed, Int accentGreen, Int accentBlue
+    ) {
+        if (tile < 8 || tile >= 16) { return false }
+        var tileX = (tile % 4) * 64
+        var tileY = (tile / 4) * 64
+        for (var y = 0; y < 64; y = y + 1) {
+            for (var x = 0; x < 64; x = x + 1) {
+                var red = primaryRed
+                var green = primaryGreen
+                var blue = primaryBlue
+                if ((x / 8 + y / 8) % 2 != 0) {
+                    red = shadowRed
+                    green = shadowGreen
+                    blue = shadowBlue
+                }
+                if (x % 32 < 2 || y % 32 < 2) {
+                    red = (red + accentRed) / 2
+                    green = (green + accentGreen) / 2
+                    blue = (blue + accentBlue) / 2
+                }
+                if (!putPixel(
+                        tileX + x, tileY + y,
+                        packedPixel(red, green, blue, 255))) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Bool build(Int catWidth, Int catHeight) {
+        clear()
+        if (catWidth < 0 || catHeight < 0 ||
+            (catWidth == 0 && catHeight != 0) ||
+            (catWidth != 0 && catHeight == 0) ||
+            catWidth > 3840 || catHeight > 4096) {
+            return false
+        }
+        widthValue = 256 + catWidth
+        heightValue = if (catHeight > 256) catHeight else 256
+        if (widthValue > 4096 || heightValue > 4096) {
+            return false
+        }
+        var pixelCount: Long = widthValue
+        pixelCount = pixelCount * heightValue
+        if (pixelCount <= 0L || pixelCount > 16777216L) {
+            return false
+        }
+        words = new Int[pixelCount.toInt()]
+        catXValue = if (catWidth > 0) 256 else 0
+        catYValue = 0
+        catWidthValue = catWidth
+        catHeightValue = catHeight
+        for (var material = 0; material < 8; material = material + 1) {
+            if (!fillMaterial(material)) { return false }
+        }
+        if (!fillModelTile(
+                8, 232, 232, 218, 166, 170, 164, 250, 250, 240) ||
+            !fillModelTile(
+                9, 244, 244, 232, 188, 190, 184, 36, 42, 50) ||
+            !fillModelTile(
+                10, 218, 132, 46, 154, 78, 24, 248, 178, 48) ||
+            !fillModelTile(
+                11, 176, 124, 78, 110, 70, 44, 222, 174, 106) ||
+            !fillModelTile(
+                12, 198, 146, 96, 128, 86, 58, 238, 204, 154) ||
+            !fillModelTile(
+                13, 126, 86, 58, 78, 48, 34, 214, 164, 100) ||
+            !fillModelTile(
+                14, 162, 106, 66, 96, 62, 40, 232, 184, 112) ||
+            !fillModelTile(
+                15, 142, 92, 58, 84, 54, 36, 222, 172, 102)) {
+            return false
+        }
+        return true
+    }
+
+    Int textureCoordinate(
+        Int resource, Int coordinate, Bool vertical
+    ) {
+        if (resource <= 0 || resource > 15 ||
+            coordinate < 0 || coordinate > 100) {
+            return -1
+        }
+        var offset = 0
+        var span = 63
+        var textureSize = if (vertical) { heightValue } else { widthValue }
+        if (resource == 15) {
+            if (catWidthValue <= 0 || catHeightValue <= 0) {
+                return -1
+            }
+            offset = if (vertical) { catYValue } else { catXValue }
+            span = if (vertical) { catHeightValue - 1 } else { catWidthValue - 1 }
+        } else {
+            var tile = (resource - 1) % 8
+            if (resource >= 9) {
+                tile = 8 + resource - 9
+            }
+            var tileCoordinate = if (vertical) { tile / 4 } else { tile % 4 }
+            offset = tileCoordinate * 64
+        }
+        if (textureSize <= 0 || span < 0) { return -1 }
+        var numerator: Long = offset
+        numerator = numerator * 100L + 50L + coordinate * span
+        numerator = numerator * 1000000L
+        var denominator: Long = textureSize
+        denominator = denominator * 100L
+        return (numerator / denominator).toInt()
+    }
+
+    Int textureU(Int resource, Int coordinate) {
+        return textureCoordinate(resource, coordinate, false)
+    }
+
+    Int textureV(Int resource, Int coordinate) {
+        return textureCoordinate(resource, coordinate, true)
+    }
+
+    Int width() { return widthValue }
+    Int height() { return heightValue }
+    Int catX() { return catXValue }
+    Int catY() { return catYValue }
+    Int catWidth() { return catWidthValue }
+    Int catHeight() { return catHeightValue }
+    Int wordCount() { return words.length }
+
+    Int word(Int index) {
+        if (index < 0 || index >= words.length) { return 0 }
+        return words[index]
+    }
+}

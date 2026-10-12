@@ -78,19 +78,16 @@ static bool discard_stage(void) {
     return remove(staging_path) == 0 && absent(staging_path);
 }
 
-static bool verify_host_schema_bridge(void) {
-    const int wire[] = {
-        99112233, 1, 7, 1,
-        11, 1, 1, 42
-    };
-    const int wire_length = (int)(sizeof(wire) / sizeof(wire[0]));
-    if (!kookie_durable_host_stage_begin(wire_length)) {
+static bool verify_host_byte_bridge(void) {
+    const int bytes[] = {0, 1, 63, 64, 127, 255, 42, 0};
+    const int byte_length = (int)(sizeof(bytes) / sizeof(bytes[0]));
+    if (!kookie_durable_host_stage_begin(byte_length)) {
         return report_test_failure("host stage begin");
     }
-    for (int index = 0; index < wire_length; index += 1) {
-        if (!kookie_durable_host_stage_word(index, wire[index])) {
+    for (int index = 0; index < byte_length; index += 1) {
+        if (!kookie_durable_host_stage_byte(index, bytes[index])) {
             kookie_durable_host_stage_cancel();
-            return report_test_failure("host stage word");
+            return report_test_failure("host stage byte");
         }
     }
     if (!kookie_durable_host_stage_commit()) {
@@ -117,12 +114,12 @@ static bool verify_host_schema_bridge(void) {
     if (!kookie_durable_host_load_begin()) {
         return report_test_failure("host load begin");
     }
-    if (kookie_durable_host_load_length() != wire_length) {
-        return report_test_failure("host load length");
+    if (kookie_durable_host_load_byte_length() != byte_length) {
+        return report_test_failure("host load byte length");
     }
-    for (int index = 0; index < wire_length; index += 1) {
-        if (kookie_durable_host_load_word(index) != wire[index]) {
-            return report_test_failure("host load word");
+    for (int index = 0; index < byte_length; index += 1) {
+        if (kookie_durable_host_load_byte(index) != bytes[index]) {
+            return report_test_failure("host load byte");
         }
     }
     return true;
@@ -329,7 +326,7 @@ int main(void) {
         if (!absent(target_path) && remove(target_path) != 0) {
             return report_test_failure("baseline target cleanup");
         }
-        if (!verify_host_schema_bridge()) {
+        if (!verify_host_byte_bridge()) {
             return 1;
         }
         if (remove(target_path) != 0 || !absent(target_path)) {

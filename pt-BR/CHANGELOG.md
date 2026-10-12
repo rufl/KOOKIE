@@ -3,6 +3,35 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos um pipeline offline único de produtos de shader em
+  `scripts/shader_pipeline.py`: produtos GLSL catalogados são compilados para
+  SPIR-V, validados com `spirv-val`, refletidos contra contratos de
+  vértice/recursos e emitidos com um header de metadados SDL_GPU gerado. O
+  empacotamento Windows também emite os produtos HLSL/DXIL existentes pelo
+  mesmo manifesto.
+- O adapter SDL agora recebe contagens de recursos e entry points do manifesto
+  gerado, em vez de declarações de shader hard-coded. O smoke de pacote valida
+  os artefatos de shader e registra o digest do manifesto na proveniência da
+  release.
+- Removemos o shell interativo C de Windows de 1.481 linhas: os dois
+  empacotamentos nativos de Windows agora entram na apresentação Kof, mantendo
+  C/PE/SDL somente na fronteira de plataforma e ABI.
+- Migramos para `src/content/glb_model.kf` a descoberta dos arquivos GLB do
+  protótipo, a entrada limitada de bytes, o JSON, a hierarquia, as meshes, a
+  normalização, os UVs e o staging dos modelos. O adapter SDL recebe somente
+  os bytes PNG validados do gato por uma ABI escalar de staging.
+- Atualizamos os checks do loader e do pacote para exercitar o leitor Kof e o
+  conteúdo empacotado; as sondas Kof JVM/nativa preservam as contagens de
+  goose/cat (708/2.400 vértices expandidos).
+- Migramos para Kof a matemática de câmera/projeção da GPU, a geração de
+  texturas de mundo/materiais, o mapeamento de recursos UI/mundo para UVs e a
+  seleção de passes. O adapter SDL agora recebe apenas palavras de matriz,
+  palavras de textura, UVs codificados/normalizados e flags explícitos de
+  passe antes do upload/desenho nativo.
+- Migramos para `BoundedDurableSaveFileCodec` o envelope redundante do save
+  durável, o checksum e a seleção do slot; o adapter nativo agora transfere
+  apenas bytes limitados e executa somente a durabilidade segura de arquivo,
+  fsync e rename.
 - Fixamos todas as GitHub Actions de terceiros nos workflows de release e
   verificação em SHAs imutáveis e corrigimos o loader de save durável para que
   uma falha em `ferror()` não pule `fclose()` nem deixe um stream aberto.
@@ -19,6 +48,14 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   depender da action baseada em Node20.
 - A documentação de operações passa todos os flags de qualificação e smoke
   nativo exigidos pelo gate de publicação.
+- Concluímos o gate externo de processos do G3: o host agora salva e recarrega
+  pelo schema sua moeda, item gerado, equipamento, skill e recompensa já
+  reivindicada depois do caminho eliminação→drop→coleta→equipamento. O
+  validador de evidência externa exige esse round trip junto dos tipos de
+  estado `7`/`8` do destinatário; builds nativos de roles agora executam no
+  diretório de runtime para resolver a ABI relativa do adapter SDL no modo
+  multiprocesso. A qualificação continua na mesma máquina; hosts físicos
+  separados não são reivindicados.
 
 
 
@@ -47,9 +84,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   divergências de caminho, classpath, limpeza, reviewer e procedência; falhas
   de capacidade do smoke de release ocorrem antes dos builds.
 - Adicionamos `scripts/report_code_mix.py` e uma auditoria de composição das
-  fontes. O working tree atual tem 94.374 linhas físicas: 76,85% Kof, 0,59%
-  KofScript, 11,36% C/header, 6,96% shell, 2,53% Python, 1,59% Java da ponte
-  PE e 0,12% shaders GPU. A fatia somente de runtime tem 86,43% Kof; os
+  fontes. O working tree atual tem 94.940 linhas físicas: 78,69% Kof, 0,69%
+  KofScript, 8,52% C/header, 7,16% shell, 3,24% Python, 1,58% Java da ponte
+  PE e 0,12% shaders GPU. A fatia somente de runtime tem 89,40% Kof; os
   mecanismos nativos permanecem na fronteira até uma ABI de buffers provar uma
   migração mais rápida e segura.
 
