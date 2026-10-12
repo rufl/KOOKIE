@@ -146,6 +146,18 @@ assert provenance["font_default_body"] == "Jared-Lite"
 assert provenance["font_default_display"] == "Pixand"
 assert provenance["update_launcher"] == "kookie-launcher"
 PY
+PACKAGE_SMOKE_LOG="$WORK_DIR/windows-package-smoke.log"
+set +e
+"$EXTRACTED/$PACKAGE_NAME/kookie.exe" --package-smoke \
+  >"$PACKAGE_SMOKE_LOG" 2>&1
+package_smoke_status=$?
+set -e
+cat "$PACKAGE_SMOKE_LOG"
+if [[ "$package_smoke_status" != 0 ]]; then
+  echo "verify_windows_presentation: Windows PE package smoke failed with status $package_smoke_status" >&2
+  exit "$package_smoke_status"
+fi
+
 package_source_commit="$(
   python3 - "$MANIFEST" <<'PY'
 import json

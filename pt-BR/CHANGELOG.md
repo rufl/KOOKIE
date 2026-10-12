@@ -24,6 +24,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   MinGW do SDL3 `3.4.18` e do SDL_mixer `3.2.4` em cada execução e verifica
   seus pins SHA-256 antes da compilação, impedindo que um prefixo SDL antigo do
   runner self-hosted passe pelo gate de headers.
+- O gate de apresentação Windows agora executa o entrypoint `--package-smoke`
+  do PE extraído antes de abrir o desktop isolado, separando falhas de
+  carregador/runtime das falhas de apresentação gráfica.
 - Adicionamos wrappers revisados de apresentação: Gamescope headless isolado
   no Linux e desktop privado no Windows, com captura da identidade da GPU alvo
   e limpeza limitada da árvore de processos.

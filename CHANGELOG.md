@@ -26,6 +26,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   SDL_mixer `3.2.4` development archives on every run and verifies their
   SHA-256 pins before compiling, so a stale self-hosted SDL prefix cannot pass
   the header gate.
+- The Windows presentation gate now executes the extracted PE's
+  `--package-smoke` entry point before opening the isolated desktop, separating
+  loader/runtime failures from graphics-presentation failures.
 - Added reviewed Linux Gamescope headless and Windows private-desktop
   presentation wrappers, including target GPU identity capture and bounded
   process cleanup.
