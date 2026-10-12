@@ -7,6 +7,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   o slot zero da tabela de seno pertencente ao Kof; a projeção da mira e a
   seleção do raio sob o crosshair agora passam a suíte nativa completa de 120
   testes. Os dois testes foram marcados com `camera` para reprodução focada.
+- Vinculamos a evidência de apresentação de hardware ao `source_commit`
+  exato do pacote; a qualificação agora rejeita `evidence.json` de outra
+  revisão e valida os commits do pacote/Kof como SHA-1 minúsculo.
 - Adicionamos um pipeline offline único de produtos de shader em
   `scripts/shader_pipeline.py`: produtos GLSL catalogados são compilados para
   SPIR-V, validados com `spirv-val`, refletidos contra contratos de

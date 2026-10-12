@@ -146,6 +146,21 @@ assert provenance["font_default_body"] == "Jared-Lite"
 assert provenance["font_default_display"] == "Pixand"
 assert provenance["update_launcher"] == "kookie-launcher"
 PY
+package_source_commit="$(
+  python3 - "$MANIFEST" <<'PY'
+import json
+import pathlib
+import sys
+
+value = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get(
+    "source_commit")
+if not isinstance(value, str) or len(value) != 40 or any(
+        character not in "0123456789abcdef" for character in value):
+    raise SystemExit("package manifest has an invalid source commit")
+print(value)
+PY
+)"
+export KOOKIE_PRESENTATION_SOURCE_COMMIT="$package_source_commit"
 
 if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   : "${KOOKIE_PRESENTATION_HARDWARE_ID:?KOOKIE_RUN_NATIVE_PRESENTATION=1 requires KOOKIE_PRESENTATION_HARDWARE_ID}"

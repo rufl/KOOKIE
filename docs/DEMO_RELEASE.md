@@ -212,6 +212,8 @@ for every new candidate.
   additionally requires non-empty `KOOKIE_PRESENTATION_HARDWARE_ID` and
   `KOOKIE_PRESENTATION_GPU_DRIVER`; it writes the target hardware, driver,
   machine, OS, wrapper, command, log hash and screenshot hash to `evidence.json`.
+- The generated `evidence.json` carries the exact package `source_commit`;
+  `build_release_qualification.py` rejects evidence from another revision.
 - `release_demo.yml` uploads the Linux evidence artifact when Linux smoke is
   enabled and the Windows evidence artifact when native Windows smoke is
   enabled. `run_windows_wine_smoke` remains package compatibility evidence only.

@@ -164,6 +164,8 @@ hardware-alvo são gates de release para cada candidato novo.
   evidência de release também exige `KOOKIE_PRESENTATION_HARDWARE_ID` e
   `KOOKIE_PRESENTATION_GPU_DRIVER` não vazios; grava hardware-alvo, driver,
   máquina, SO, wrapper, comando, hash do log e hash da captura em `evidence.json`.
+- O `evidence.json` gerado carrega o `source_commit` exato do pacote;
+  `build_release_qualification.py` rejeita evidência de outra revisão.
 - `release_demo.yml` envia o artefato de evidência Linux quando o smoke Linux
   está habilitado e o artefato Windows quando o smoke nativo Windows está
   habilitado. `run_windows_wine_smoke` continua sendo apenas evidência de

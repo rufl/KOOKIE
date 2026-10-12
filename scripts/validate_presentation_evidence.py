@@ -3,8 +3,11 @@ import hashlib
 import json
 import os
 import platform
+import re
 import sys
 from pathlib import Path
+
+SOURCE_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 
 
 def fail(message: str) -> int:
@@ -83,6 +86,13 @@ def main() -> int:
             "hardware evidence requires KOOKIE_PRESENTATION_HARDWARE_ID and "
             "KOOKIE_PRESENTATION_GPU_DRIVER"
         )
+    source_commit = os.environ.get(
+        "KOOKIE_PRESENTATION_SOURCE_COMMIT", "").strip()
+    if source_commit and SOURCE_COMMIT_PATTERN.fullmatch(source_commit) is None:
+        return fail("presentation source commit is not a lowercase 40-character SHA")
+    if require_hardware_metadata and not source_commit:
+        return fail(
+            "hardware evidence requires KOOKIE_PRESENTATION_SOURCE_COMMIT")
     required = (
         "gpu-open",
         "gpu-window-screenshot-checksum",
@@ -155,6 +165,8 @@ def main() -> int:
         "gpuSafeKutterReload": True,
         "kutterScreen": True,
     }
+    if source_commit:
+        evidence["sourceCommit"] = source_commit
     if evidence_path is not None:
         evidence_path.parent.mkdir(parents=True, exist_ok=True)
         evidence_path.write_text(

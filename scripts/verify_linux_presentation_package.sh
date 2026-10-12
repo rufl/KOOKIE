@@ -155,6 +155,21 @@ assert manifest["signing"] == "ed25519"
 assert manifest["windows_presentation"] is False
 assert (package_root / "PROVENANCE.txt").is_file()
 PY
+package_source_commit="$(
+  python3 - "$MANIFEST" <<'PY'
+import json
+import pathlib
+import sys
+
+value = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")).get(
+    "source_commit")
+if not isinstance(value, str) or len(value) != 40 or any(
+        character not in "0123456789abcdef" for character in value):
+    raise SystemExit("package manifest has an invalid source commit")
+print(value)
+PY
+)"
+export KOOKIE_PRESENTATION_SOURCE_COMMIT="$package_source_commit"
 
 PACKAGE_SMOKE_LOG="$WORK_DIR/package-smoke.log"
 PACKAGE_SMOKE_OUTPUT="$(

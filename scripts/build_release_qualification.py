@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, NoReturn
@@ -14,6 +15,8 @@ from typing import Any, NoReturn
 SCHEMA = "kookie.release-qualification/v1"
 PACKAGE_SCHEMA = "kookie.package-provenance/v2"
 TARGETS = {"linux-x86_64", "windows-x86_64"}
+
+COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 
 
 def fail(message: str) -> NoReturn:
@@ -36,6 +39,12 @@ def validate_sha256(value: Any, label: str) -> str:
         or value == "0" * 64
     ):
         fail(f"{label} must be a nonzero lowercase SHA-256 digest")
+    return value
+
+
+def validate_commit(value: Any, label: str) -> str:
+    if not isinstance(value, str) or COMMIT_PATTERN.fullmatch(value) is None:
+        fail(f"{label} must be a lowercase 40-character commit SHA")
     return value
 
 
@@ -97,10 +106,10 @@ def validate_package(target: str, path: Path) -> tuple[dict[str, Any], dict[str,
         fail(f"{target} package has an invalid none-profile model policy")
     if manifest["signing"] != "ed25519":
         fail(f"{target} package is not Ed25519 signed")
-    if not isinstance(manifest["source_commit"], str) or len(manifest["source_commit"]) != 40:
-        fail(f"{target} package has an invalid source commit")
-    if not isinstance(manifest["kof_source_commit"], str) or len(manifest["kof_source_commit"]) != 40:
-        fail(f"{target} package has an invalid Kof source commit")
+    source_commit = validate_commit(
+        manifest["source_commit"], f"{target} package source commit")
+    kof_source_commit = validate_commit(
+        manifest["kof_source_commit"], f"{target} package Kof source commit")
     kof_archive_sha256 = validate_sha256(
         manifest["kof_archive_sha256"], f"{target} Kof archive SHA-256"
     )
@@ -125,9 +134,9 @@ def validate_package(target: str, path: Path) -> tuple[dict[str, Any], dict[str,
         "target": target,
         "runtime": manifest["runtime"],
         "version": manifest["version"],
-        "sourceCommit": manifest["source_commit"],
+        "sourceCommit": source_commit,
         "kofVersion": manifest["kof_version"],
-        "kofSourceCommit": manifest["kof_source_commit"],
+        "kofSourceCommit": kof_source_commit,
         "kofArchiveSha256": kof_archive_sha256,
         "kofCompilerSha256": kof_compiler_sha256,
         "contentProfile": manifest["content_profile"],
@@ -135,9 +144,15 @@ def validate_package(target: str, path: Path) -> tuple[dict[str, Any], dict[str,
     return manifest, artifact
 
 
-def validate_evidence(target: str, path: Path) -> dict[str, Any]:
+def validate_evidence(
+    target: str, path: Path, expected_source_commit: str
+) -> dict[str, Any]:
     evidence_path = path.resolve()
     evidence = load_json(evidence_path)
+    evidence_source_commit = validate_commit(
+        evidence.get("sourceCommit"), f"{target} evidence source commit")
+    if evidence_source_commit != expected_source_commit:
+        fail(f"{target} evidence source commit does not match its package")
     if evidence.get("kind") != "kookie-g1-authoritative-presentation":
         fail(f"unsupported presentation evidence kind for {target}")
     if evidence.get("status") != "passed" or evidence.get("exitStatus") != 0:
@@ -173,6 +188,7 @@ def validate_evidence(target: str, path: Path) -> dict[str, Any]:
         fail(f"presentation evidence lacks target hardware metadata for {target}")
     return {
         "status": "passed",
+        "sourceCommit": evidence_source_commit,
         "evidence": evidence_path.name,
         "evidenceSha256": sha256(evidence_path),
         "host": evidence.get("host", ""),
@@ -262,7 +278,8 @@ def main() -> int:
             hardware_passed = False
             hardware = {"status": "not-run"}
         else:
-            hardware = validate_evidence(target, evidence_path)
+            hardware = validate_evidence(
+                target, evidence_path, package_manifests[target]["source_commit"])
         targets[target] = {
             "artifact": package_entries[target],
             "hardwarePresentation": hardware,

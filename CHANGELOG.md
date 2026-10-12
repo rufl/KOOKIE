@@ -7,6 +7,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   of the Kof-owned sine lookup table; camera aim projection and crosshair ray
   selection now pass the full 120-test native suite. Tagged both regressions
   as `camera` for focused reproduction.
+- Bound hardware presentation evidence to the exact package source commit;
+  release qualification now rejects stale or cross-revision `evidence.json`
+  files and validates package/Kof commit fields as lowercase SHA-1 values.
 - Split file-backed G3 configuration, prototype GLB, and Kutter persistence
   adapters out of the Windows native PE staging graph; the native presentation
   package now keeps those optional file APIs outside the content-free reachability
