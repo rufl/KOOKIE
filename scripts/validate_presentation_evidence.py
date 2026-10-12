@@ -7,6 +7,7 @@ import re
 import sys
 from pathlib import Path
 
+SOURCE_COMMIT_PATTERN = re.compile(r"[0-9a-f]{40}")
 DIGEST_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 

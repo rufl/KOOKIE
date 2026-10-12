@@ -323,8 +323,13 @@ def validate_package(
         fail(f"package archive digest mismatch for {target}")
     checksum_entries: dict[str, str] = {}
     for line in checksums_path.read_text(encoding="utf-8").splitlines():
-        digest, separator, name = line.partition("  ")
-        if not separator or name in checksum_entries:
+        fields = line.split()
+        if len(fields) != 2:
+            fail(f"{target} SHA256SUMS has an invalid entry")
+        digest, name = fields
+        if name.startswith("*"):
+            name = name[1:]
+        if not name or name in checksum_entries:
             fail(f"{target} SHA256SUMS has an invalid entry")
         checksum_entries[name] = validate_sha256(
             digest, f"{target} SHA256SUMS entry")
