@@ -3,11 +3,6 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-: "${KOOKIE_KOF_ARCHIVE_SHA256:?set KOOKIE_KOF_ARCHIVE_SHA256 to the pinned Kof distribution digest}"
-: "${KOOKIE_KOF_SOURCE_COMMIT:?set KOOKIE_KOF_SOURCE_COMMIT to the pinned Kof source commit}"
-: "${KOOKIE_WINDOWS_SDL_PREFIX:?set KOOKIE_WINDOWS_SDL_PREFIX to the SDL3 MinGW prefix}"
-: "${KOOKIE_WINDOWS_SDL_MIXER_PREFIX:?set KOOKIE_WINDOWS_SDL_MIXER_PREFIX to the SDL_mixer MinGW prefix}"
-: "${KOOKIE_DXC:?set KOOKIE_DXC to the pinned dxc executable}"
 command -v openssl >/dev/null || { echo 'verify_windows_presentation: openssl is required' >&2; exit 2; }
 command -v python3 >/dev/null || { echo 'verify_windows_presentation: python3 is required' >&2; exit 2; }
 
@@ -39,6 +34,11 @@ if [[ -n "$PACKAGE_DIR" ]]; then
   PACKAGE_NAME="${KOOKIE_PACKAGE_NAME:?set KOOKIE_PACKAGE_NAME with KOOKIE_PACKAGE_DIR}"
   EXPECTED_SOURCE_DATE_EPOCH=""
 else
+  : "${KOOKIE_KOF_ARCHIVE_SHA256:?set KOOKIE_KOF_ARCHIVE_SHA256 to the pinned Kof distribution digest}"
+  : "${KOOKIE_KOF_SOURCE_COMMIT:?set KOOKIE_KOF_SOURCE_COMMIT to the pinned Kof source commit}"
+  : "${KOOKIE_WINDOWS_SDL_PREFIX:?set KOOKIE_WINDOWS_SDL_PREFIX to the SDL3 MinGW prefix}"
+  : "${KOOKIE_WINDOWS_SDL_MIXER_PREFIX:?set KOOKIE_WINDOWS_SDL_MIXER_PREFIX to the SDL_mixer MinGW prefix}"
+  : "${KOOKIE_DXC:?set KOOKIE_DXC to the pinned dxc executable}"
   SIGNING_KEY="$WORK_DIR/release-signing.pem"
   openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
   chmod 600 "$SIGNING_KEY"

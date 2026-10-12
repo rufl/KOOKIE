@@ -377,6 +377,9 @@ jobs:
           printf '%s\n' "$zig_install" >> "$GITHUB_PATH"
           export PATH="$zig_install:$PATH"
           [[ "$(zig version)" == "$ZIG_VERSION" ]]
+          printf 'KOOKIE_ZIG_VERSION=%s\n' "$ZIG_VERSION" >> "$GITHUB_ENV"
+          printf 'KOOKIE_ZIG_ARCHIVE_SHA256=%s\n' "$ZIG_ARCHIVE_SHA256" \
+            >> "$GITHUB_ENV"
           sdl_root="$runner_temp/kookie-sdl"
           sdl_archive="$runner_temp/SDL3-devel-${SDL3_VERSION}-mingw.tar.gz"
           sdl_mixer_archive="$runner_temp/SDL3_mixer-devel-${SDL3_MIXER_VERSION}-mingw.tar.gz"
@@ -656,8 +659,8 @@ jobs:
             "$publish_dir/RELEASE_QUALIFICATION.json" \
             --trusted-public-key "$trusted_public_key" \
             --expected-source-commit "$SOURCE_COMMIT" \
-            --package-manifest "linux=$RUNNER_TEMP/kookie-demo-linux/kookie-${DEMO_VERSION}-linux-x86_64.json" \
-            --package-manifest "windows=$RUNNER_TEMP/kookie-demo-windows/kookie-${DEMO_VERSION}-windows-x86_64.json" \
+            --package-manifest "linux=$publish_dir/kookie-${DEMO_VERSION}-linux-x86_64.json" \
+            --package-manifest "windows=$publish_dir/kookie-${DEMO_VERSION}-windows-x86_64.json" \
             --evidence "linux=$RUNNER_TEMP/kookie-d1-evidence-linux/evidence.json" \
             --evidence "windows=$RUNNER_TEMP/kookie-d1-evidence-windows/evidence.json" \
             --require-hardware
@@ -670,6 +673,7 @@ jobs:
               RELEASE_QUALIFICATION.json.sig | sort
           )
           (cd "$publish_dir" && sha256sum "${assets[@]}" > SHA256SUMS)
+          (cd "$publish_dir" && sha256sum --check SHA256SUMS >/dev/null)
           openssl pkeyutl -sign -rawin -inkey "$signing_key" \
             -in "$publish_dir/SHA256SUMS" -out "$publish_dir/SHA256SUMS.sig"
           public_key="$trusted_public_key"

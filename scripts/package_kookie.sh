@@ -47,6 +47,10 @@ GLSLC_TOOL_SHA256=not-used
 SPIRV_VAL_TOOL_VERSION=not-used
 SPIRV_VAL_TOOL_SHA256=not-used
 DXC_TOOL_SHA256=not-used
+ZIG_EXPECTED_VERSION="${KOOKIE_ZIG_VERSION:-}"
+ZIG_VERSION_USED=not-determined
+ZIG_BINARY_SHA256=not-determined
+ZIG_ARCHIVE_SHA256="${KOOKIE_ZIG_ARCHIVE_SHA256:-not-pinned}"
 
 usage() {
   cat <<'EOF'
@@ -243,6 +247,21 @@ command -v zig >/dev/null || {
   echo 'package_kookie: zig is required to build the cross-platform KOOKIE launcher' >&2
   exit 2
 }
+ZIG_VERSION_USED="$(zig version)"
+ZIG_BINARY_SHA256="$(
+  sha256sum "$(readlink -f "$(command -v zig)")" | cut -d ' ' -f 1
+)"
+if [[ "$TARGET" == windows-x86_64 &&
+      ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
+  [[ -n "$ZIG_EXPECTED_VERSION" && "$ZIG_VERSION_USED" == "$ZIG_EXPECTED_VERSION" ]] || {
+    echo 'package_kookie: Windows native packaging requires the expected Zig version' >&2
+    exit 2
+  }
+  [[ "$ZIG_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || {
+    echo 'package_kookie: Windows Zig archive SHA-256 pin is required' >&2
+    exit 2
+  }
+fi
 if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
   command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for presentation packaging' >&2; exit 2; }
   command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
@@ -1251,6 +1270,9 @@ glslc_tool_sha256=$GLSLC_TOOL_SHA256
 spirv_val_tool_version=$SPIRV_VAL_TOOL_VERSION
 spirv_val_tool_sha256=$SPIRV_VAL_TOOL_SHA256
 dxc_tool_sha256=$DXC_TOOL_SHA256
+zig_version=$ZIG_VERSION_USED
+zig_archive_sha256=$ZIG_ARCHIVE_SHA256
+zig_binary_sha256=$ZIG_BINARY_SHA256
 runtime_dependencies=$RUNTIME_DEPENDENCIES
 windows_java_archive_sha256=$WINDOWS_JAVA_ACTUAL_SHA256
 windows_java_version=$WINDOWS_JAVA_VERSION
@@ -1336,7 +1358,8 @@ python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$JAVA_TOOL_SHA256" "$JAVAC_TOOL_SHA256" \
   "$GLSLC_TOOL_VERSION" "$GLSLC_TOOL_SHA256" \
   "$SPIRV_VAL_TOOL_VERSION" "$SPIRV_VAL_TOOL_SHA256" \
-  "$DXC_TOOL_SHA256" <<'PY'
+  "$DXC_TOOL_SHA256" "$ZIG_VERSION_USED" "$ZIG_ARCHIVE_SHA256" \
+  "$ZIG_BINARY_SHA256" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
@@ -1352,8 +1375,9 @@ manifest_path = pathlib.Path(sys.argv[2])
     sdl3_runtime_sha256, sdl_mixer_runtime_sha256, java_tool_version,
     javac_tool_version, java_tool_sha256, javac_tool_sha256,
     glslc_tool_version, glslc_tool_sha256, spirv_val_tool_version,
-    spirv_val_tool_sha256, dxc_tool_sha256
-) = sys.argv[3:41]
+    spirv_val_tool_sha256, dxc_tool_sha256, zig_version, zig_archive_sha256,
+    zig_binary_sha256
+) = sys.argv[3:44]
 encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
@@ -1389,6 +1413,9 @@ manifest = {
     "spirv_val_tool_version": spirv_val_tool_version,
     "spirv_val_tool_sha256": spirv_val_tool_sha256,
     "dxc_tool_sha256": dxc_tool_sha256,
+    "zig_version": zig_version,
+    "zig_archive_sha256": zig_archive_sha256,
+    "zig_binary_sha256": zig_binary_sha256,
     "windows_presentation": target == "windows-x86_64" and runtime == "presentation",
     "archive": archive.name,
     "size": archive.stat().st_size,

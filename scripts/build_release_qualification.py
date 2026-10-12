@@ -149,6 +149,9 @@ def validate_package(
         "glslc_tool_version",
         "glslc_tool_sha256",
         "spirv_val_tool_version",
+        "zig_version",
+        "zig_archive_sha256",
+        "zig_binary_sha256",
         "spirv_val_tool_sha256",
         "dxc_tool_sha256",
         "signing",
@@ -227,11 +230,33 @@ def validate_package(
         or sdl_mixer_archive_sha256 == "not-pinned"
     ):
         fail(f"{target} package lacks pinned SDL archive provenance")
+    zig_version = manifest["zig_version"]
+    if not isinstance(zig_version, str) or not zig_version.strip():
+        fail(f"{target} package lacks Zig version provenance")
+    zig_archive_sha256 = validate_digest_or_marker(
+        manifest["zig_archive_sha256"],
+        f"{target} Zig archive SHA-256",
+        "not-pinned",
+    )
+    zig_binary_sha256 = validate_sha256(
+        manifest["zig_binary_sha256"],
+        f"{target} Zig binary SHA-256",
+    )
+    if target == "windows-x86_64" and zig_archive_sha256 == "not-pinned":
+        fail(f"{target} package lacks pinned Zig archive provenance")
     archive_name = manifest["archive"]
     if not isinstance(archive_name, str) or Path(archive_name).name != archive_name:
         fail(f"{target} package archive name is unsafe")
     manifest_name = manifest_path.name
     package_name = manifest_path.stem
+    expected_package_name = f"kookie-{manifest['version']}-{target}"
+    if package_name != expected_package_name:
+        fail(f"{target} package manifest name is not {expected_package_name!r}")
+    expected_archive_name = expected_package_name + (
+        ".zip" if target == "windows-x86_64" else ".tar.gz"
+    )
+    if archive_name != expected_archive_name:
+        fail(f"{target} package archive name is not {expected_archive_name!r}")
     expected_names = {
         "public_key": f"{package_name}.pub.pem",
         "archive_signature": f"{archive_name}.sig",
@@ -330,6 +355,9 @@ def validate_package(
         "spirvValToolVersion": manifest["spirv_val_tool_version"],
         "spirvValToolSha256": manifest["spirv_val_tool_sha256"],
         "dxcToolSha256": manifest["dxc_tool_sha256"],
+        "zigVersion": zig_version,
+        "zigArchiveSha256": zig_archive_sha256,
+        "zigBinarySha256": zig_binary_sha256,
         "contentProfile": manifest["content_profile"],
     }
     return manifest, artifact
