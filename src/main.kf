@@ -602,6 +602,10 @@ test "Kof staging emits bounded GPU camera and texture coordinates", "gpu-stagin
         "world texture resources must map to bounded Kof-owned UV words")
     assert(kookieUiNativeTextureU(1, 0) >= 0 &&
         kookieUiNativeTextureV(101, 0) >= 0 &&
+        kookieUiNativeTextureU(
+            kookieUiNativeTextResource(2, 1), 0) >= 0 &&
+        kookieUiNativeTextResource(2, 1) ==
+            uiFontResourceBase() + 2 * 48 &&
         kookieUiNativeTextureU(0, 0) < 0,
         "UI resources must map to bounded encoded atlas coordinates")
     var sections = BoundedSaveSections(2, 4)

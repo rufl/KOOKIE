@@ -160,7 +160,8 @@ Int kookieUiNativeTextResource(Int color, Int glyphValue) {
         return 0
     }
     return uiFontResourceBase() +
-        color * uiFontResourceStride() + glyphValue - 1
+        uiFontDefaultBody() * uiFontResourceStride() +
+        color * 48 + glyphValue - 1
 }
 
 Int kookieUiNativeTextWidth(String text, Int scale) {

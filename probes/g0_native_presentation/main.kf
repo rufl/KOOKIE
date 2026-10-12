@@ -22,6 +22,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close(Int token): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_report_window_draw(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_reserve_capacity(
+    Int vertexCapacity
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_uv(
     Int x, Int y, Int depth, Int encodedU, Int encodedV
 ): Bool
@@ -1869,8 +1872,22 @@ Bool driveSmokeKeyboardAction(
     GameShell shell, G1NativePresentation presentation,
     Int key, Int expectedAction
 ) {
-    if (!kookie_push_key_event(key) || kookie_poll_event() != 7 ||
-        kookie_last_event_b() != 1 ||
+    if (!kookie_push_key_event(key)) {
+        return false
+    }
+    var eventKind = kookie_poll_event()
+    while (eventKind != 0 && eventKind != 7) {
+        if (eventKind == 2 || eventKind == 3) {
+            if (!presentation.applyNativeWindowEvent(
+                    eventKind, kookie_last_event_a(), kookie_last_event_b())) {
+                return false
+            }
+        } else {
+            return false
+        }
+        eventKind = kookie_poll_event()
+    }
+    if (eventKind != 7 || kookie_last_event_b() != 1 ||
         nativeInputAction(kookie_last_event_a()) != expectedAction ||
         !presentation.applyNativeKey(
             kookie_last_event_a(), kookie_last_event_b())) {
@@ -1915,8 +1932,9 @@ main() {
         "accessibility settings must configure HUD scale and tactical map")
     var appliedUiSettingsRevision = shell.settingsRevision()
     var shellFrame = FrameStaging(shell.renderVertexCapacity())
-    assert(kookie_gpu_scene_capacity() >= shell.renderVertexCapacity(),
-        "native scene must hold menu geometry")
+    assert(kookie_gpu_scene_reserve_capacity(shell.renderVertexCapacity()) &&
+        kookie_gpu_scene_capacity() >= shell.renderVertexCapacity(),
+        "native scene must reserve menu geometry")
     var reload = BoundedGpuReloadCoordinator()
     var shellWorldChecksum = shell.kutter().worldChecksum()
     var shellCollisionChecksum = shell.kutter().collisionChecksum()
@@ -1992,14 +2010,18 @@ main() {
             presentation.gameplaySession().fpsPositionX(1) != movementStartX ||
             presentation.gameplaySession().fpsPositionZ(1) != movementStartZ,
             "WASD movement must change the authoritative FPS pose")
+        var stagedProjectile = false
         for (var shotTick = 0; shotTick < 40;
              shotTick = shotTick + 1) {
             assert(presentation.advanceGameplayInput(
                     true, network, 0, 0,
                     if (shotTick % 2 == 0) 1 else 0, 0),
                 "repeated fire edges must keep gameplay fixed-step healthy")
+            if (presentation.projectileOverlayCount() > 0) {
+                stagedProjectile = true
+            }
         }
-        assert(presentation.projectileOverlayCount() > 0,
+        assert(stagedProjectile,
             "a confirmed player shot must stage a visible projectile tracer")
         assert(presentation.gameplaySession().addPlayerItem(1, 900, 2) &&
             presentation.gameplaySession().playerItemQuantity(1, 900) == 2,
@@ -2044,6 +2066,7 @@ main() {
         println("KOOKIE G1 native arena HUD verified")
         println("KOOKIE G2 native 3D door verified")
         assert(shell.handleAction(gameShellActionDown()) &&
+            shell.handleAction(gameShellActionDown()) &&
             shell.handleAction(gameShellActionDown()) &&
             shell.handleAction(gameShellActionDown()) &&
             shell.handleAction(gameShellActionActivate()) &&

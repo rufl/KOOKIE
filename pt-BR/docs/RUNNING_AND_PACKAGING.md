@@ -747,24 +747,35 @@ independente e só publica uma pré-release pareada depois da aprovação do
 ambiente `kookie-demo-release`.
 
 O workflow exige runners self-hosted com labels `kookie-demo-release`,
-Ambos precisam de Kof `0.6.0` no commit de fonte fixado, Python 3, OpenSSL,
-`glslc`, `spirv-val`, Zig 0.17.0 e o digest fixado da distribuição Kof. O runner
-Linux também precisa dos arquivos de
-desenvolvimento SDL3 e de um wrapper de display isolado para o smoke opcional;
-o workflow prepara o prefixo fixado do SDL_mixer quando a entrada
-`pkg-config` está ausente. O runner Windows também precisa dos prefixes MinGW
-SDL3/SDL_mixer e de `KOOKIE_DXC`; o smoke nativo Windows também exige o
-`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` revisado.
+`linux`/`windows` e `x64`. O job hospedado `toolchain` constrói o Kof `0.6.0`
+a partir do commit de fonte fixado, envia o archive com `SHA256SUMS` e
+`SOURCE_COMMIT`, e cada job self-hosted de alvo verifica e usa esse artefato
+exato. Os runners não precisam de archive Kof, Zig ou secret de digest Kof
+pré-instalados.
 
-O job hospedado `verify.yml` tem orçamento de 45 minutos porque instalar o Wine
-com `wine64` e `wine32:i386` pode exceder o orçamento anterior em um runner
-Ubuntu frio. A arquitetura i386 continua necessária porque um prefixo win64
-precisa do helper `syswow64/rundll32.exe`.
+O runner Linux também precisa de arquivos de desenvolvimento SDL3 fixados,
+`overzeer-isolated-display`, `gamescope`, um nó de renderização utilizável e
+seu nó DRM primário pareado. O wrapper versionado
+`scripts/linux_gamescope_isolated_display` fornece o compositor headless
+Wayland/Xwayland privado; o smoke de release usa o backend X11 do SDL através
+do servidor Xwayland do Gamescope dentro dele. O workflow prepara o prefixo
+fixado do SDL_mixer quando a entrada `pkg-config` está ausente. O runner
+Windows também precisa dos
+prefixes MinGW SDL3/SDL_mixer, `KOOKIE_DXC`, Git Bash e Windows PowerShell 5;
+o wrapper Windows versionado possui o desktop privado, o timeout e a limpeza
+da árvore de processos. O smoke nativo Windows registra a identidade PNP do
+adaptador PCI e a versão do driver.
 
-Configure os secrets de ambiente `KOOKIE_SIGNING_KEY_PEM` e
-`KOOKIE_KOF_ARCHIVE_SHA256`. Use `publish=false` para qualificação somente de
-artefatos. Use `publish=true` apenas depois de reter evidência nativa Linux e
-Windows de inicialização/input/áudio/GPU no registro da release.
+O job hospedado `verify.yml` tem orçamento de 45 minutos porque instalar o
+Wine com `wine64` e `wine32:i386` pode exceder o orçamento anterior em um
+runner Ubuntu frio. A arquitetura i386 continua necessária porque um prefixo
+win64 precisa do helper `syswow64/rundll32.exe`.
+
+Configure o secret de repositório `KOOKIE_SIGNING_KEY_PEM`. O digest do Kof é
+gerado e verificado a partir do artefato de toolchain de cada execução; ele não
+é um secret estático do repositório. Use `publish=false` para qualificação
+somente de artefatos. Use `publish=true` apenas depois de reter evidência
+nativa Linux e Windows de inicialização/input/áudio/GPU no registro da release.
 
 ### Sondas runtime G6
 

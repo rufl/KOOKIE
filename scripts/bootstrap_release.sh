@@ -142,7 +142,6 @@ local_check=$?
 set -e
 (( local_check == 0 )) || exit "$local_check"
 
-kof_sha256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 
 if (( APPLY == 0 )); then
   printf 'Plan only: no GitHub secrets or environment changes will be made.\n'
@@ -171,7 +170,6 @@ else
     "${#REVIEWERS[@]}"
 
   gh secret set KOOKIE_SIGNING_KEY_PEM --repo "$REPO" < "$SIGNING_KEY"
-  gh secret set KOOKIE_KOF_ARCHIVE_SHA256 --repo "$REPO" --body "$kof_sha256"
   printf 'GitHub secrets configured without printing secret contents.\n'
 fi
 

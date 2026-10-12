@@ -14,7 +14,8 @@ Usage: scripts/check_release_readiness.sh [options]
 
 Checks the local signing identity, pinned Kof archive and GitHub release
 prerequisites without printing secret contents. With --set-github-secrets it
-updates KOOKIE_SIGNING_KEY_PEM and KOOKIE_KOF_ARCHIVE_SHA256 in the repository.
+updates KOOKIE_SIGNING_KEY_PEM in the repository. The release workflow builds
+and verifies the Kof archive per run; no static Kof digest secret is required.
 
 Options:
   --repo OWNER/REPO       GitHub repository (default: rufl/KOOKIE)
@@ -102,12 +103,10 @@ if (( CHECK_GITHUB == 1 )); then
   fi
 
   secret_names="$(gh secret list --repo "$REPO" --json name --jq '.[].name' 2>/dev/null || true)"
-  for required_secret in KOOKIE_SIGNING_KEY_PEM KOOKIE_KOF_ARCHIVE_SHA256; do
-    if ! printf '%s\n' "$secret_names" | grep -Fqx "$required_secret"; then
-      echo "BLOCKED: GitHub secret is missing: $REPO/$required_secret" >&2
-      failures=$((failures + 1))
-    fi
-  done
+  if ! printf '%s\n' "$secret_names" | grep -Fqx 'KOOKIE_SIGNING_KEY_PEM'; then
+    echo "BLOCKED: GitHub secret is missing: $REPO/KOOKIE_SIGNING_KEY_PEM" >&2
+    failures=$((failures + 1))
+  fi
 
   runners="$(gh api "repos/$REPO/actions/runners" --paginate \
     --jq '.runners[] | [.name,.status,(.labels | map(.name | ascii_downcase) | join(","))] | @tsv' \
@@ -142,7 +141,6 @@ if (( CHECK_GITHUB == 1 )); then
   if (( SET_GITHUB_SECRETS == 1 &&
         local_failures == 0 && github_authenticated == 1 )); then
     gh secret set KOOKIE_SIGNING_KEY_PEM --repo "$REPO" < "$SIGNING_KEY"
-    gh secret set KOOKIE_KOF_ARCHIVE_SHA256 --repo "$REPO" --body "$kof_sha256"
     echo "GitHub secrets updated: $REPO"
   elif (( SET_GITHUB_SECRETS == 1 )); then
     echo 'GitHub secrets were not changed because readiness checks failed.' >&2

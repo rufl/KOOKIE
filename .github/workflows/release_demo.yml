@@ -157,6 +157,7 @@ jobs:
             >> "$GITHUB_ENV"
           printf 'KOOKIE_PRESENTATION_DISPLAY_SERVER=%s\n' \
             'gamescope-headless-xwayland' >> "$GITHUB_ENV"
+          printf 'KOOKIE_SDL_VIDEO_DRIVER=%s\n' 'x11' >> "$GITHUB_ENV"
 
 
       - name: Configure pinned Linux SDL3 prefix

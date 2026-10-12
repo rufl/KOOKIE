@@ -25,8 +25,12 @@ class BoundedExternalGlbAssetStore {
         if (relative.length() == 0 || root.length() == 0) {
             return new Int[0]
         }
-        var bytes = File(root + "/" + relative).readRange(
-            0, maximumBytesValue + 1)
+        var path = root + "/" + relative
+        var file = File(path)
+        if (!file.exists()) {
+            return new Int[0]
+        }
+        var bytes = file.readRange(0, maximumBytesValue + 1)
         if (bytes.length < 20 || bytes.length > maximumBytesValue) {
             return new Int[0]
         }

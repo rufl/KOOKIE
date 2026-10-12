@@ -754,23 +754,32 @@ publishes them as one pre-release only after the `kookie-demo-release`
 environment approves the publish job.
 
 The workflow requires self-hosted runners with labels
-`kookie-demo-release`, `linux`/`windows` and `x64`. Both runners need Kof
-`0.6.0` at the pinned source commit, Python 3, OpenSSL, `glslc`,
-`spirv-val`, Zig 0.17.0 and the pinned Kof distribution digest. The Linux
-runner additionally needs SDL3 development files and an isolated display
-wrapper for optional package presentation smoke; the workflow bootstraps the
+`kookie-demo-release`, `linux`/`windows` and `x64`. The hosted `toolchain` job
+builds Kof `0.6.0` from the pinned source commit, uploads the archive with
+`SHA256SUMS` and `SOURCE_COMMIT`, and each self-hosted target job verifies and
+uses that exact artifact. The runners do not need a preinstalled Kof archive,
+Zig or a static Kof digest secret.
+
+The Linux runner additionally needs pinned SDL3 development files,
+`overzeer-isolated-display`, `gamescope`, a usable render node and its paired
+primary DRM card. The tracked
+`scripts/linux_gamescope_isolated_display` wrapper provides the private
+headless Wayland/Xwayland compositor; the release smoke uses SDL's X11 backend
+through Gamescope's Xwayland server inside it. The workflow bootstraps the
 pinned SDL_mixer prefix when its `pkg-config` entry is absent. The Windows
-runner additionally needs MinGW SDL3/SDL_mixer prefixes and `KOOKIE_DXC`;
-native Windows smoke also requires the reviewed
-`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`.
+SDL3/SDL_mixer prefixes, `KOOKIE_DXC`, Git Bash and Windows PowerShell 5;
+the tracked Windows wrapper owns the private desktop, timeout and process-tree
+cleanup. Native Windows smoke records the PCI adapter PNP identity and driver
+version.
 
 The hosted `verify.yml` job has a 45-minute budget because installing Wine
 with both `wine64` and `wine32:i386` can exceed the old core budget on a cold
 Ubuntu runner. The i386 architecture remains required because a win64 prefix
 needs the `syswow64/rundll32.exe` helper.
 
-Configure environment secrets `KOOKIE_SIGNING_KEY_PEM` and
-`KOOKIE_KOF_ARCHIVE_SHA256`. Dispatch with `publish=false` for artifact-only
+Configure the `KOOKIE_SIGNING_KEY_PEM` repository secret. The Kof digest is
+generated and verified from the per-run toolchain artifact; it is not a static
+repository secret. Dispatch with `publish=false` for artifact-only
 qualification. Set `publish=true` only after native Linux and Windows
 launch/input/audio/GPU evidence has been retained with the release record.
 

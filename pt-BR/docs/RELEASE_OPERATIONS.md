@@ -51,8 +51,8 @@ bash scripts/check_release_readiness.sh \
 ```
 
 Depois que os dois runners self-hosted e o environment
-`kookie-demo-release` existirem, o mesmo comando pode cadastrar os dois secrets
-necessários no repositório:
+`kookie-demo-release` existirem, o mesmo comando pode configurar o secret de
+assinatura controlado pelo proprietário:
 
 ```bash
 bash scripts/check_release_readiness.sh \
@@ -62,14 +62,14 @@ bash scripts/check_release_readiness.sh \
   --set-github-secrets
 ```
 
-O comando configura:
+O comando configura somente `KOOKIE_SIGNING_KEY_PEM`. O job hospedado
+`toolchain` constrói o archive Kof fixado uma vez por execução, publica
+`SHA256SUMS` e `SOURCE_COMMIT`, e os dois jobs de alvo verificam esse artefato
+antes de empacotar. `KOOKIE_KOF_ARCHIVE_SHA256` continua sendo um valor de
+ambiente por job do pacote, não um secret estático do repositório.
 
-- `KOOKIE_SIGNING_KEY_PEM` a partir do arquivo de chave permanente;
-- `KOOKIE_KOF_ARCHIVE_SHA256` a partir do archive Kof exato fornecido aos dois
-  runners de release.
-
-Ele não atualiza secrets quando a chave ou o archive local são inválidos.
-O `RELEASE_QUALIFICATION.json` pareado também registra exatamente
+Ele não atualiza o secret de assinatura quando a chave ou o archive local são
+inválidos. O `RELEASE_QUALIFICATION.json` pareado também registra exatamente
 `kofArchiveSha256` e `kofCompilerSha256` e rejeita um par Linux/Windows cujas
 identidades de artefato Kof sejam diferentes.
 
@@ -77,8 +77,8 @@ identidades de artefato Kof sejam diferentes.
 
 `scripts/bootstrap_release.sh` é a entrada única para a sequência segura e
 repetível. Ele valida a chave permanente e o archive Kof, cria o environment
-com aprovadores obrigatórios, configura os dois secrets do repositório,
-verifica os dois runners self-hosted e pode disparar a qualificação.
+com aprovadores obrigatórios, configura o secret de assinatura, verifica os
+dois runners self-hosted e pode disparar a qualificação.
 
 Somente dry-run/readiness:
 
@@ -126,47 +126,54 @@ de assinatura permanente; ele termina exibindo os URLs de configuração.
 
 ## Contrato dos runners
 
-Registre dois runners self-hosted x86-64 **online** com estes labels:
+O workflow exige dois runners self-hosted x86-64 **online** com estes labels:
 
 ```text
 self-hosted, linux, x64, kookie-demo-release
 self-hosted, windows, x64, kookie-demo-release
 ```
 
-Ambos precisam de Kof `0.6.0` no commit
-`bb90986d065118e4f63978e8e6985256ff714203`, Python 3, OpenSSL, `glslc`,
-`spirv-val`, Zig `0.17.0` e o archive Kof exato cujo digest está em
-`KOOKIE_KOF_ARCHIVE_SHA256`. O runner Windows também precisa de
-`KOOKIE_DXC`.
-O runner deve expor esse arquivo em `KOOKIE_KOF_ARCHIVE`; os jobs de release
-recalculam o SHA-256 antes do build, em vez de confiar apenas no metadata.
-O workflow de verificação hospedado baixa o archive oficial do Zig 0.17.0 por
-HTTPS, verifica o SHA-256
-`1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026` e só então
-o adiciona ao `PATH`; ele não depende de uma action baseada em Node.
-O runner Linux da release expõe o SDL3 3.4.18 fixado em
-`$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.18`; o workflow exporta
-`KOOKIE_SDL3_PREFIX` antes de preparar o SDL_mixer. Um SDL3 de sistema mais
-antigo ou não revisado não é substituto.
+Ambos precisam de suporte ao shell do Git conforme o sistema, Python 3,
+OpenSSL, `glslc`, `spirv-val` e o checkout do repositório. O job hospedado
+`toolchain` constrói o Kof `0.6.0` a partir de
+`bb90986d065118e4f63978e8e6985256ff714203`; cada job self-hosted baixa,
+verifica esse archive exato e adiciona seu binário `kof` ao `PATH`. Archive Kof
+pré-instalado, secret de digest do compilador Kof e Zig pré-instalado não fazem
+parte do contrato dos runners de release.
 
-O runner Linux também precisa dos arquivos de desenvolvimento SDL3, do
-caminho de preparação do SDL_mixer fixado e de um wrapper de display isolado
-para o smoke opcional. O runner Windows também precisa dos prefixes MinGW do
-SDL3 e SDL_mixer e de `KOOKIE_DXC`. O smoke nativo Windows também exige um
-`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER` revisado, com display/sessão
-privada, timeout limitado e limpeza da árvore de processos.
-Ambos os runners de apresentação nativa devem definir variáveis de ambiente não
-vazias `KOOKIE_PRESENTATION_HARDWARE_ID` e
-`KOOKIE_PRESENTATION_GPU_DRIVER`. Esses valores identificam o hardware físico e
-o driver usados na evidência autoritativa; valores ausentes falham o gate de
-release.
+O runner Linux também precisa de:
+
+- arquivos de desenvolvimento SDL3 fixados em
+  `$HOME/.local/share/kookie-deps/sdl/SDL3-3.4.18`;
+- o sandbox revisado `overzeer-isolated-display` e `gamescope`;
+- um nó `/dev/dri/renderD*` utilizável e o nó DRM primário pareado para o
+  compositor headless do Gamescope.
+
+O wrapper versionado `scripts/linux_gamescope_isolated_display` compõe essas
+peças em um display Wayland/Xwayland headless privado, e o job de release usa
+o backend X11 do SDL através do servidor Xwayland do Gamescope dentro dele. O
+workflow prepara o prefixo fixado do SDL_mixer quando a entrada `pkg-config`
+está ausente.
+
+O runner Windows também precisa dos prefixes MinGW SDL3/SDL_mixer,
+`KOOKIE_DXC`, Git Bash e Windows PowerShell 5. O workflow baixa e verifica o
+archive oficial Zig `0.17.0` para Windows com SHA-256
+`b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428` e usa o
+wrapper versionado `scripts/windows_isolated_display`. O smoke nativo Windows
+também registra a identidade PNP, o nome e a versão do driver do primeiro
+adaptador PCI de vídeo como evidência do hardware alvo.
+
+Ambos os runners de apresentação nativa devem definir as variáveis não vazias
+`KOOKIE_PRESENTATION_HARDWARE_ID` e `KOOKIE_PRESENTATION_GPU_DRIVER`. Esses
+valores identificam o alvo físico e o driver usados na evidência autoritativa;
+valores ausentes falham o gate.
 
 No Windows, o serviço do runner precisa usar o `bash.exe` do Git for Windows,
 não o shim do WSL. Mantenha os caminhos das ferramentas no escopo da máquina;
 o NTFS não expõe bits de modo POSIX de forma confiável, então o gate restringe
-as chaves Ed25519 transitórias com `icacls.exe`.
-O gate do pacote Windows também exclui da conversão de caminhos do MSYS no Git
-Bash as opções do linker que começam com `-Wl,/`.
+as chaves Ed25519 transitórias com `icacls.exe`. O gate do pacote Windows
+também exclui da conversão de caminhos do MSYS as opções do linker que começam
+com `-Wl,/`.
 
 Crie `kookie-demo-release` em **Settings → Environments** e adicione
 aprovadores obrigatórios antes de permitir `publish=true`.

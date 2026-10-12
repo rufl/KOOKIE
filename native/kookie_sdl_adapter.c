@@ -2056,6 +2056,13 @@ bool kookie_gpu_scene_begin(int vertex_count) {
         : gpu_reload.active_generation;
     return true;
 }
+bool kookie_gpu_scene_reserve_capacity(int vertex_capacity) {
+    if (vertex_capacity <= 0 || gpu_reload.pending_generation != 0) {
+        return false;
+    }
+    return kookie_gpu_scene_reserve(
+        &gpu_scene.vertices, &gpu_scene.capacity, vertex_capacity, 4);
+}
 
 static bool kookie_gpu_scene_push_vertex_internal(
     int x, int y, int depth, int encoded_u, int encoded_v

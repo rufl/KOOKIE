@@ -14,6 +14,25 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   reporta `kof 0.5.0-beta` apesar da versão de fonte `0.6.0`.
 - Revalidamos a pinagem do archive oficial Zig `0.17.0` com SHA-256
   `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`.
+- O workflow de release agora constrói a distribuição Kof fixada uma vez em um
+  job hospedado `toolchain` e passa o archive verificado aos dois alvos
+  self-hosted; o digest Kof estático do repositório não faz mais parte do
+  readiness de release. A preparação Windows fixa o archive oficial Zig
+  `0.17.0` no SHA-256
+  `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428`.
+- Adicionamos wrappers revisados de apresentação: Gamescope headless isolado
+  no Linux e desktop privado no Windows, com captura da identidade da GPU alvo
+  e limpeza limitada da árvore de processos.
+- Corrigimos a inicialização da apresentação nativa sem conteúdo: a descoberta
+  opcional de GLB verifica a existência do arquivo antes da leitura, então
+  assets de protótipo ausentes selecionam o fallback limitado em vez de
+  desreferenciar um resultado de arquivo inválido.
+- Corrigimos o staging e o smoke da apresentação nativa: o atlas de fonte UI
+  agora usa corretamente o stride da fonte padrão, eventos de janela SDL são
+  drenados antes das asserções de teclas sintéticas, a geometria do menu
+  reserva capacidade GPU explicitamente e o smoke de release percorre o
+  caminho real do menu principal até o Kutter.
+
 - Revalidamos o reproduzível de lifetime de exceções com Kof `0.6.0`: a
   asserção deliberadamente falha com status 1 na JVM e no native; o falso
   sucesso histórico do native em `0.5.0-beta` continua marcado como histórico.

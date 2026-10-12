@@ -16,6 +16,24 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   `kof 0.5.0-beta` despite the `0.6.0` source version.
 - Revalidated the official Zig `0.17.0` archive pin at SHA-256
   `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`.
+- The release workflow now builds the pinned Kof distribution once in a
+  hosted `toolchain` job and passes the verified archive to both self-hosted
+  targets; the static repository Kof digest is no longer part of release
+  readiness. Windows release setup pins the official Zig `0.17.0` archive at
+  SHA-256
+  `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428`.
+- Added reviewed Linux Gamescope headless and Windows private-desktop
+  presentation wrappers, including target GPU identity capture and bounded
+  process cleanup.
+- Fixed content-free native presentation startup: optional GLB discovery now
+  checks file existence before reading, so missing prototype assets select the
+  bounded fallback instead of dereferencing an invalid file result.
+- Fixed native presentation staging and smoke coverage: the UI font atlas now
+  uses the default font stride correctly, SDL window events are drained before
+  synthetic key assertions, menu geometry reserves GPU capacity explicitly,
+  and the release smoke reaches the Kutter path through the actual main-menu
+  selection.
+
 - Revalidated the exception-lifetime reproducer with Kof `0.6.0`: the
   deliberately failing assertion now exits with status 1 on JVM and native;
   the historical `0.5.0-beta` native false pass remains marked as historical.
