@@ -98,6 +98,12 @@ outside-checkout, deterministic signed qualification artifacts:
   It is not interchangeable with the active qualification source pin
   `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; the current packages therefore
   retain the source-built qualification distribution above.
+  A clean rebuild of that pinned Kof source produced archive SHA-256
+  `29a5fddb0100cdb660abf96508360c51ff17bb4b6b295e60c9fe93a7624c0af0` and
+  passed the JVM/native G6 Buffer SIMD gate. Repeating only the Kof packaging
+  step produced `2ced9feda3641bcab09c809a7b4604f63f0f9440a79d6e483a1b731e603552d2`
+  while the expanded files remained byte-identical; neither generated archive
+  is used as a public release identity.
 - Linux isolated presentation failed closed with exit `124` because this host
   reports `No DRI3 support detected` and `No supported SDL_GPU backend found`.
   Windows Wine compatibility smoke failed closed with exit `70` for the same

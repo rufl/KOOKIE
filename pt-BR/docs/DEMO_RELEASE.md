@@ -54,6 +54,13 @@ fora do checkout:
   Ele não é intercambiável com a fonte ativa fixada em
   `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; por isso os pacotes atuais
   mantêm a distribuição Kof construída a partir da fonte fixada.
+  Uma reconstrução limpa dessa fonte Kof fixada produziu o arquivo com SHA-256
+  `29a5fddb0100cdb660abf96508360c51ff17bb4b6b295e60c9fe93a7624c0af0` e
+  passou no gate SIMD G6 de Buffer na JVM/no nativo. Repetir apenas o
+  empacotamento do Kof produziu
+  `2ced9feda3641bcab09c809a7b4604f63f0f9440a79d6e483a1b731e603552d2`,
+  embora os arquivos expandidos fossem idênticos byte a byte; nenhum dos dois
+  arquivos gerados é usado como identidade de release pública.
 - A apresentação Linux isolada falhou fechado com exit `124` porque este host
   informa `No DRI3 support detected` e `No supported SDL_GPU backend found`.
   O smoke de compatibilidade Windows em Wine falhou fechado com exit `70` pelo
