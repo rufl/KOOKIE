@@ -136,11 +136,18 @@ grep -Fq 'content_kooker=native-bounded-intake-cli' \
   "$PACKAGE_ROOT/PROVENANCE.txt"
 p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 SERVER_LOG="$WORK_DIR/server.log"
+server_status=0
 KOOKIE_SERVER_WARMUP_TICKS=128 \
 KOOKIE_SERVER_TICKS=512 \
 KOOKIE_SERVER_RSS_SAMPLE_TICKS=32 \
 KOOKIE_SERVER_P95_BUDGET_US="$p95_budget_us" \
-  "$SERVER" >"$SERVER_LOG"
+  "$SERVER" >"$SERVER_LOG" 2>&1 || server_status=$?
+if [[ "$server_status" -ne 0 ]]; then
+  cat "$SERVER_LOG" >&2
+  printf 'package smoke: bundled headless server exited %s\n' \
+    "$server_status" >&2
+  exit "$server_status"
+fi
 grep -Fq 'KOOKIE G5 dedicated headless server' "$SERVER_LOG"
 grep -Fq 'graphics=none' "$SERVER_LOG"
 grep -Fq 'simulation-budget-pass' "$SERVER_LOG"
