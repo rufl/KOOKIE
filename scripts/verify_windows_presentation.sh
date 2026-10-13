@@ -231,11 +231,12 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   export KOOKIE_NATIVE_PACKAGE="$NATIVE_PACKAGE"
   unset SDL_AUDIODRIVER || true
   runtime_command="$WORK_DIR/native-runtime.cmd"
-  cat >"$runtime_command" <<EOF
-@echo off
-echo KOOKIE Windows isolated desktop runtime probe > "$native_runtime_log_path"
-exit /b 0
-EOF
+  {
+    printf '%s\r\n' '@echo off'
+    printf 'echo KOOKIE Windows isolated desktop runtime probe > "%s"\r\n' \
+      "$native_runtime_log_path"
+    printf '%s\r\n' 'exit /b 0'
+  } >"$runtime_command"
   runtime_command_path="$(cygpath -w "$runtime_command")"
   set +e
   KOOKIE_WINDOWS_COMMAND="$native_command_shell" "$native_wrapper" \
@@ -258,16 +259,17 @@ EOF
   wrapper_probe="$WORK_DIR/native-wrapper-probe.cmd"
   wrapper_probe_log="$WORK_DIR/native-wrapper.log"
   wrapper_probe_log_path="$(cygpath -w "$wrapper_probe_log")"
-  cat >"$wrapper_probe" <<EOF
-@echo off
-echo KOOKIE Windows isolated desktop wrapper probe > "$wrapper_probe_log_path"
-echo KOOKIE_NATIVE_PACKAGE=$native_package_path >> "$wrapper_probe_log_path"
-if not exist "$native_package_path\kookie.exe" (
-  echo missing kookie.exe >> "$wrapper_probe_log_path"
-  exit /b 1
-)
-exit /b 0
-EOF
+  {
+    printf '%s\r\n' '@echo off'
+    printf 'echo KOOKIE Windows isolated desktop wrapper probe > "%s"\r\n' \
+      "$wrapper_probe_log_path"
+    printf 'echo KOOKIE_NATIVE_PACKAGE=%s >> "%s"\r\n' \
+      "$native_package_path" "$wrapper_probe_log_path"
+    printf 'if not exist "%s\\kookie.exe" (\r\n' "$native_package_path"
+    printf '  echo missing kookie.exe >> "%s"\r\n' "$wrapper_probe_log_path"
+    printf '%s\r\n' '  exit /b 1' ')'
+    printf '%s\r\n' 'exit /b 0'
+  } >"$wrapper_probe"
   wrapper_probe_command="$(cygpath -w "$wrapper_probe")"
   set +e
   KOOKIE_WINDOWS_COMMAND="$native_command_shell" "$native_wrapper" \
@@ -285,12 +287,13 @@ EOF
   native_command="$WORK_DIR/native-run.cmd"
   native_log="$WORK_DIR/native.log"
   native_log_path="$(cygpath -w "$native_log")"
-  cat >"$native_command" <<EOF
-@echo off
-cd /d "$native_package_path"
-"$native_package_path\kookie.exe" > "$native_log_path" 2>&1
-exit /b %ERRORLEVEL%
-EOF
+  {
+    printf '%s\r\n' '@echo off'
+    printf 'cd /d "%s"\r\n' "$native_package_path"
+    printf '"%s\\kookie.exe" > "%s" 2>&1\r\n' \
+      "$native_package_path" "$native_log_path"
+    printf '%s\r\n' 'exit /b %ERRORLEVEL%'
+  } >"$native_command"
   native_command_path="$(cygpath -w "$native_command")"
   set +e
   KOOKIE_WINDOWS_COMMAND="$native_command_shell" "$native_wrapper" \

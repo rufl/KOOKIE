@@ -505,11 +505,12 @@ jobs:
             runtime_script_path="$(cygpath -w "$runtime_script")"
             runtime_log_path="$(cygpath -w "$runtime_log")"
             runtime_host_log="$RUNNER_TEMP/kookie-windows-isolated-runtime-host.log"
-            cat >"$runtime_script" <<EOF
-          @echo off
-          echo KOOKIE Windows isolated runtime preflight > "$runtime_log_path"
-          exit /b 0
-          EOF
+            {
+              printf '%s\r\n' '@echo off'
+              printf 'echo KOOKIE Windows isolated runtime preflight > "%s"\r\n' \
+                "$runtime_log_path"
+              printf '%s\r\n' 'exit /b 0'
+            } >"$runtime_script"
             set +e
             KOOKIE_WINDOWS_COMMAND='C:\Windows\System32\cmd.exe' "$wrapper" \
               --timeout 30 -- /c "$runtime_script_path" \
