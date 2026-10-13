@@ -48,7 +48,6 @@ public static class KookieWindowsIsolatedDesktop
     private const uint DesktopAllAccess = 0x000F01FF;
     private const uint JobObjectExtendedLimitInformation = 9;
     private const uint JobObjectLimitKillOnJobClose = 0x00002000;
-    private const uint StartfUseStdHandles = 0x00000100;
     private const uint WaitObject0 = 0x00000000;
     private const uint WaitTimeout = 0x00000102;
     private const uint Infinite = 0xFFFFFFFF;
@@ -165,8 +164,6 @@ public static class KookieWindowsIsolatedDesktop
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr handle);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr GetStdHandle(int standardHandle);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CreateProcess(
@@ -260,24 +257,14 @@ public static class KookieWindowsIsolatedDesktop
             var startup = new StartupInfo();
             startup.cb = Marshal.SizeOf(typeof(StartupInfo));
             startup.lpDesktop = "WinSta0\\" + desktopName;
-            var useStandardHandles = Environment.GetEnvironmentVariable("KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES") != "1";
-            if (useStandardHandles)
-            {
-                startup.dwFlags = StartfUseStdHandles;
-                startup.hStdInput = GetStdHandle(-10);
-                startup.hStdOutput = GetStdHandle(-11);
-                startup.hStdError = GetStdHandle(-12);
-            }
             var commandLine = new StringBuilder(BuildCommandLine(executable, arguments));
-            if (Environment.GetEnvironmentVariable("KOOKIE_WINDOWS_ISOLATED_DEBUG") == "1")
-                Console.Error.WriteLine("windows-isolated-display: commandLine={0} desktop={1} stdHandles={2} handles={3},{4},{5}", commandLine, startup.lpDesktop, useStandardHandles, startup.hStdInput, startup.hStdOutput, startup.hStdError);
             ProcessInformation processInformation;
             if (!CreateProcess(
                     executable,
                     commandLine,
                     IntPtr.Zero,
                     IntPtr.Zero,
-                    useStandardHandles,
+                    false,
                     CreateSuspended | CreateUnicodeEnvironment,
                     IntPtr.Zero,
                     null,
@@ -347,10 +334,6 @@ try {
     $childArguments = @($commandArguments)
     if ([System.IO.Path]::GetFileName($commandPath) -ieq 'bash.exe') {
         $childArguments = @('--noprofile', '--norc') + $childArguments
-    }
-    if ($env:KOOKIE_WINDOWS_ISOLATED_DEBUG -eq '1') {
-        $argumentText = ($childArguments | ForEach-Object { '[' + $_ + ']' }) -join ' '
-        [Console]::Error.WriteLine(('windows-isolated-display: command={0} args={1}' -f $commandPath, $argumentText))
     }
     $exitCode = [KookieWindowsIsolatedDesktop]::Run($commandPath, [string[]]$childArguments, $timeoutSeconds)
 }

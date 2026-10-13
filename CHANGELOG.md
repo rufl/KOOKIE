@@ -3,10 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Hardened the Windows private desktop runner wrapper to prefer Git for
-  Windows' real `usr\bin\bash.exe`, pass isolated commands through temporary
-  scripts with native paths, and fail early if the isolated Bash runtime cannot
-  start.
+- Hardened the Windows private desktop runner to launch native presentation
+  through `cmd.exe` without inherited standard handles, invoke temporary `.cmd`
+  scripts through native paths, capture output with explicit redirection, and
+  fail early if the isolated command host cannot start.
 - Release provenance now records bundled SDL runtime bytes, pinned Windows SDL
   archives, and the pinned Linux/Windows Zig archives plus the Java/GLSL/
   SPIR-V/DXC tool identities used for native PE packaging; the final qualifier
