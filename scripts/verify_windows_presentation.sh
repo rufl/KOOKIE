@@ -299,6 +299,12 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
       "$native_log_path"
     printf 'echo KOOKIE_PRESENTATION_EVIDENCE_JSON=%%KOOKIE_PRESENTATION_EVIDENCE_JSON%% >> "%s"\r\n' \
       "$native_log_path"
+    printf 'set "SDL_GPU_DRIVER=vulkan"\r\n'
+    printf 'set "SDL_VIDEODRIVER=windows"\r\n'
+    printf 'echo SDL_GPU_DRIVER=%%SDL_GPU_DRIVER%% >> "%s"\r\n' \
+      "$native_log_path"
+    printf 'echo SDL_VIDEODRIVER=%%SDL_VIDEODRIVER%% >> "%s"\r\n' \
+      "$native_log_path"
     printf 'if not exist "%s\\kookie.exe" (\r\n' "$native_package_path"
     printf '  echo missing kookie.exe >> "%s"\r\n' "$native_log_path"
     printf '%s\r\n' '  exit /b 1' ')'
