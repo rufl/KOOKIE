@@ -73,7 +73,7 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   reserva capacidade GPU explicitamente e o smoke de release percorre o
   caminho real do menu principal até o Kutter.
 - Restauramos o staging determinístico do objeto PE com stripping COFF do LLVM,
-  fallback para `objcopy` do GNU e fallback para `zig objcopy` quando as
+  fallback para `objcopy` do GNU e um stripper COFF portátil em Python quando as
   ferramentas standalone não estão disponíveis. O Zig 0.17.0 emite uma seção
   CodeView contendo o caminho do cache mesmo com `-g0`; removê-la mantém os
   builds PE repetidos byte a byte idênticos.

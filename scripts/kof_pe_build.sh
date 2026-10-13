@@ -51,7 +51,7 @@ if command -v llvm-objcopy >/dev/null; then
 elif command -v objcopy >/dev/null; then
   objcopy_tool=(objcopy)
 else
-  objcopy_tool=(zig objcopy)
+  objcopy_tool=(python3 "$ROOT_DIR/scripts/strip_coff_debug.py")
 fi
 actual_zig_version="$(zig version)"
 [[ "$actual_zig_version" == "$EXPECTED_ZIG_VERSION" ]] || {
