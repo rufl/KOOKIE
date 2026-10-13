@@ -72,6 +72,9 @@ jobs:
           rm -rf -- "$install_dir"
           tar -xJf "$archive" -C "$RUNNER_TEMP"
           printf '%s\n' "$install_dir" >> "$GITHUB_PATH"
+          printf 'KOOKIE_ZIG_VERSION=%s\n' "$ZIG_VERSION" >> "$GITHUB_ENV"
+          printf 'KOOKIE_ZIG_ARCHIVE_SHA256=%s\n' \
+            "$ZIG_ARCHIVE_SHA256" >> "$GITHUB_ENV"
           "$install_dir/zig" version
 
       - name: Build pinned Kof toolchain
