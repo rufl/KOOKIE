@@ -69,10 +69,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   drenados antes das asserções de teclas sintéticas, a geometria do menu
   reserva capacidade GPU explicitamente e o smoke de release percorre o
   caminho real do menu principal até o Kutter.
-- Removemos os pré-requisitos obsoletos de `cc` e `objcopy` do preflight PE
-  Windows; o driver C fixado do Zig gera o objeto sem debug e o executável
-  usados no cross-build, e o classpath Java do backend é convertido por
-  `cygpath` no Git Bash.
+- Restauramos o staging determinístico do objeto PE com stripping COFF do LLVM
+  e fallback para `objcopy` do GNU. O Zig 0.17.0 emite uma seção CodeView
+  contendo o caminho do cache mesmo com `-g0`; removê-la mantém os builds PE
+  repetidos byte a byte idênticos.
 
 
 - Revalidamos o reproduzível de lifetime de exceções com Kof `0.6.0`: a
