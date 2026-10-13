@@ -28,11 +28,11 @@ if ($separator -lt 0 -or $separator + 1 -ge $arguments.Count) {
     [Console]::Error.WriteLine('windows-isolated-display: expected -- followed by a command')
     exit 2
 }
-$childArguments = @('--noprofile', '--norc') + @($arguments[($separator + 1)..($arguments.Count - 1)])
-if ($childArguments.Count -eq 0) {
-    [Console]::Error.WriteLine('windows-isolated-display: command is required')
-    exit 2
-}
+ $commandArguments = @($arguments[($separator + 1)..($arguments.Count - 1)])
+ if ($commandArguments.Count -eq 0) {
+     [Console]::Error.WriteLine('windows-isolated-display: command is required')
+     exit 2
+ }
 
 if (-not [Type]::GetType('KookieWindowsIsolatedDesktop', $false)) {
     Add-Type -TypeDefinition @'
@@ -343,6 +343,10 @@ try {
     }
     if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
         throw 'Git Bash executable not found; set KOOKIE_WINDOWS_BASH'
+    }
+    $childArguments = @($commandArguments)
+    if ([System.IO.Path]::GetFileName($bashPath) -ieq 'bash.exe') {
+        $childArguments = @('--noprofile', '--norc') + $childArguments
     }
     if ($env:KOOKIE_WINDOWS_ISOLATED_DEBUG -eq '1') {
         $argumentText = ($childArguments | ForEach-Object { '[' + $_ + ']' }) -join ' '
