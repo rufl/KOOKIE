@@ -997,7 +997,10 @@ remains Kof-owned and scalar.
 - GPU: actual surface verification for shader/texture/culling/depth, resize/minimize/focus and resource teardown. Never substitute source checks or an `InitWindow` print fixture for a real window.
 - Tooling: malformed content rejection and stale edit/cook result rejection with prior valid world preserved.
 
-Repository display rule: configure `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` with a reviewed wrapper that provides private display/session sockets, bounded timeouts and complete process-tree cleanup. Never interact with the developer desktop/monitors. Plain Xvfb or merely unsetting DISPLAY is insufficient for graphical tests. No full matrix during implementation; final pre-commit matrix only with the user's one-shot permit.
+Repository display rule: Linux verification defaults to the tracked `scripts/linux_gamescope_isolated_display` wrapper; an explicit `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` override must still provide private display/session sockets, bounded timeouts and complete process-tree cleanup. Never interact with the developer desktop/monitors. Plain Xvfb or merely unsetting DISPLAY is insufficient for graphical tests. No full matrix during implementation; final pre-commit matrix only with the user's one-shot permit.
+The tracked KOOKIE wrapper sets `OVERZEER_DISPLAY_PRESSURE_GATE=0` by default;
+set it to `1` to restore pressure deferral. This does not disable private
+display/session isolation, render-node restrictions, timeouts or cleanup.
 
 ### Risk register
 

@@ -867,9 +867,14 @@ platform-specific wording emitted by `file` for an AMD64 COFF object.
 ## Graphical qualification isolation
 
 Never run KOOKIE graphical checks against the active desktop or physical
-monitors. Supply a reviewed disposable isolation wrapper through
-`KOOKIE_PRESENTATION_ISOLATION_WRAPPER`; it must provide private display and
-session sockets, a bounded timeout and complete process-tree cleanup.
+monitors. Use the tracked `scripts/linux_gamescope_isolated_display` wrapper by
+default, or set `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` to a reviewed override;
+either must provide private display/session sockets, a bounded timeout and
+complete process-tree cleanup.
+The tracked wrapper sets `OVERZEER_DISPLAY_PRESSURE_GATE=0` by default for
+KOOKIE; set it to `1` to restore pressure deferral. Private display/session
+isolation, render-node restrictions, bounded timeout and process cleanup remain
+mandatory.
 
 Offscreen SDL checks prove lifecycle and GPU-resource behavior, not real window
 presentation. Use `KOOKIE_SDL_VIDEO_DRIVER=x11` only with an isolated

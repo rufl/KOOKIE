@@ -13,14 +13,14 @@ for command_name in kof cc glslc spirv-val ldd pkg-config python3; do
     exit 75
   }
 done
-ISOLATION_WRAPPER="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
+ISOLATION_WRAPPER="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-$ROOT_DIR/scripts/linux_gamescope_isolated_display}"
 RENDER_TIMEOUT_SECONDS="${KOOKIE_G5_RENDER_TIMEOUT_SECONDS:-120}"
 [[ "$RENDER_TIMEOUT_SECONDS" =~ ^[1-9][0-9]*$ ]] || {
   echo 'KOOKIE_G5_RENDER_TIMEOUT_SECONDS must be a positive integer' >&2
   exit 2
 }
 if [[ -z "$ISOLATION_WRAPPER" ]] || ! command -v "$ISOLATION_WRAPPER" >/dev/null; then
-  echo 'G5 renderer gate requires KOOKIE_PRESENTATION_ISOLATION_WRAPPER' >&2
+  echo 'G5 renderer gate requires an available isolated presentation wrapper' >&2
   exit 75
 fi
 kookie_require_sdl3_dependencies "$ROOT_DIR" || {

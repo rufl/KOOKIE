@@ -14,7 +14,8 @@ export KOOKIE_PRESENTATION_EVIDENCE_JSON="${KOOKIE_PRESENTATION_EVIDENCE_JSON:-$
 export KOOKIE_PRESENTATION_BLOCKER_JSON="${KOOKIE_PRESENTATION_BLOCKER_JSON:-$artifact_dir/blocker.json}"
 export KOOKIE_PRESENTATION_ADAPTER_LOG="${KOOKIE_PRESENTATION_ADAPTER_LOG:-$artifact_dir/adapter.log}"
 export KOOKIE_PRESENTATION_COMMAND="${KOOKIE_PRESENTATION_COMMAND:-bash scripts/verify_presentation.sh}"
-export KOOKIE_PRESENTATION_ISOLATION_WRAPPER="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
+linux_isolation_wrapper="$root_dir/scripts/linux_gamescope_isolated_display"
+export KOOKIE_PRESENTATION_ISOLATION_WRAPPER="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-$linux_isolation_wrapper}"
 
 record_blocker() {
   local status="$1"

@@ -453,4 +453,10 @@ gráficos iniciados. A verificação de instalação posterior exercitou a CLI d
 compilador, LSP/DAP e o editor/servidor isolado real; ela não verificou a pilha
 gráfica do engine nem executou uma suíte completa.
 
-Todas as verificações gráficas usam um wrapper revisado configurado por `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, com sockets privados, timeout e limpeza de processos; nunca o desktop do desenvolvedor. A matriz completa somente na etapa final anterior ao commit, com permissão do usuário.
+Todas as verificações gráficas usam por padrão o wrapper rastreado
+`scripts/linux_gamescope_isolated_display` ou um wrapper revisado configurado por
+`KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, com sockets privados, timeout e limpeza
+de processos; nunca o desktop do desenvolvedor. A matriz completa somente na
+etapa final anterior ao commit, com permissão do usuário.
+O wrapper rastreado do KOOKIE usa `OVERZEER_DISPLAY_PRESSURE_GATE=0` por
+padrão; definir `1` restaura a postergação por pressão sem alterar o isolamento.

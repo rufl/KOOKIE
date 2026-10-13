@@ -192,9 +192,9 @@ if [[ "${KOOKIE_RUN_PRESENTATION:-0}" == 1 ]]; then
   : "${KOOKIE_PRESENTATION_HARDWARE_ID:?KOOKIE_RUN_PRESENTATION=1 requires KOOKIE_PRESENTATION_HARDWARE_ID}"
   : "${KOOKIE_PRESENTATION_GPU_DRIVER:?KOOKIE_RUN_PRESENTATION=1 requires KOOKIE_PRESENTATION_GPU_DRIVER}"
 
-  isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
+  isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-$ROOT_DIR/scripts/linux_gamescope_isolated_display}"
   [[ -n "$isolation_wrapper" ]] && command -v "$isolation_wrapper" >/dev/null || {
-    echo 'verify_linux_presentation_package: KOOKIE_RUN_PRESENTATION=1 requires KOOKIE_PRESENTATION_ISOLATION_WRAPPER' >&2
+    echo 'verify_linux_presentation_package: KOOKIE_RUN_PRESENTATION=1 requires an available isolated presentation wrapper' >&2
     exit 75
   }
   render_node="${KOOKIE_RENDER_NODE:-}"

@@ -462,7 +462,10 @@ games/editor/server or graphics launched. Later installation verification
 exercised compiler CLI, LSP/DAP and the actual isolated editor/server; it did
 not verify the engine graphics stack or run a full suite.
 
-All graphical checks use a reviewed wrapper configured through
+All graphical checks use the tracked `scripts/linux_gamescope_isolated_display`
+wrapper by default or a reviewed wrapper configured through
 `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, with private sockets, timeout and
 process cleanup; never the developer desktop. Full matrix only final
 pre-commit with user permit.
+The tracked KOOKIE wrapper defaults `OVERZEER_DISPLAY_PRESSURE_GATE=0`;
+setting it to `1` restores pressure deferral without changing isolation.

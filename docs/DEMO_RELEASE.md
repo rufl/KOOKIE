@@ -203,10 +203,11 @@ for every new candidate.
 
 ### Executable D1 evidence contract
 
-- Linux target smoke sets `KOOKIE_RUN_PRESENTATION=1`, requires the reviewed
-  `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` and a real `/dev/dri/renderD*` node,
-  then runs the extracted package. Missing isolation or GPU capability fails
-  closed; Xvfb, Wine and headless GPU tests are not substitutes.
+- Linux target smoke sets `KOOKIE_RUN_PRESENTATION=1` and uses the tracked
+  `scripts/linux_gamescope_isolated_display` wrapper by default; set
+  `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` to override it. A real
+  `/dev/dri/renderD*` node is still required, and missing isolation or GPU
+  capability fails closed; Xvfb, Wine and headless GPU tests are not substitutes.
 - Windows target smoke sets `KOOKIE_RUN_NATIVE_PRESENTATION=1`, requires
   `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`, and runs the extracted
   `kookie.exe` through that wrapper with a native display/session.

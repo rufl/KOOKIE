@@ -7,6 +7,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_open_headless_ready(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_close_headless(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_capacity(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_reserve_capacity(
+    Int vertexCapacity
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_uv(
     Int x, Int y, Int depth, Int encodedU, Int encodedV
@@ -52,7 +55,8 @@ main() {
         renderer.dynamicEffectInstances() == 88 &&
         renderer.batchedDrawCalls() == 1,
         "reference renderer counts must match the bounded scene")
-    assert(kookie_gpu_scene_capacity() >= renderer.vertexCount(),
+    assert(kookie_gpu_scene_reserve_capacity(renderer.vertexCount()) &&
+        kookie_gpu_scene_capacity() >= renderer.vertexCount(),
         "GPU scene buffer must fit the reference batch")
     assert(renderer.stage(server, frame, 1),
         "Kof renderer must stage the reference batch")

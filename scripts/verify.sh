@@ -96,7 +96,7 @@ if [[ -n "$render_node" ]]; then
   echo "isolated SDL adapter render node: $render_node"
 fi
 
-isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-}"
+isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-$root_dir/scripts/linux_gamescope_isolated_display}"
 presentation_dependencies_available=0
 if kookie_prepare_sdl3_dependencies "$root_dir"; then
   presentation_dependencies_available=1

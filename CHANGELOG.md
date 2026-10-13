@@ -3,6 +3,13 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- The G5 reference probe now reserves native GPU scene capacity before checking
+  it. Linux presentation scripts default to the tracked Gamescope/isolation
+  wrapper while retaining explicit wrapper overrides and fail-closed checks.
+- The tracked KOOKIE Linux wrapper now defaults
+  `OVERZEER_DISPLAY_PRESSURE_GATE=0`; private display/session isolation,
+  render-node restrictions, bounded timeouts and cleanup remain active, and
+  setting the variable to `1` restores pressure deferral.
 - Hardened the Windows private desktop runner to launch native presentation
   through `cmd.exe` without inherited standard handles, disable MSYS path
   conversion for native arguments, invoke temporary `.cmd` scripts through

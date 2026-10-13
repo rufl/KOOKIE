@@ -11,6 +11,7 @@ command -v gamescope >/dev/null || {
   exit 1
 }
 export OVERZEER_DISPLAY_BACKEND=gamescope
+export OVERZEER_DISPLAY_PRESSURE_GATE="${OVERZEER_DISPLAY_PRESSURE_GATE:-0}"
 
 sandbox_args=()
 command_args=()
