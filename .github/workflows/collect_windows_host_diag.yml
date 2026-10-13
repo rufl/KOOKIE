@@ -55,7 +55,7 @@ jobs:
           }
           Get-Content -LiteralPath $output
           POWERSHELL
-          powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass \
+          /c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass \
             -File "$(cygpath -w "$script")"
       - name: Upload host diagnostics
         uses: actions/upload-artifact@v4
