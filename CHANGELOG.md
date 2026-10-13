@@ -4,9 +4,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ## Unreleased
 - Hardened the Windows private desktop runner to launch native presentation
-  through `cmd.exe` without inherited standard handles, invoke temporary `.cmd`
-  scripts through native paths, capture output with explicit redirection, and
-  fail early if the isolated command host cannot start.
+  through `cmd.exe` without inherited standard handles, disable MSYS path
+  conversion for native arguments, invoke temporary `.cmd` scripts through
+  native paths, capture output with explicit redirection, and fail early if the
+  isolated command host cannot start.
 - Release provenance now records bundled SDL runtime bytes, pinned Windows SDL
   archives, and the pinned Linux/Windows Zig archives plus the Java/GLSL/
   SPIR-V/DXC tool identities used for native PE packaging; the final qualifier

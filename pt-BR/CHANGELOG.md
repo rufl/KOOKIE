@@ -4,9 +4,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## Não lançado
 - Fortalecemos o runner de desktop privado Windows para iniciar a apresentação
-  nativa pelo `cmd.exe` sem handles padrão herdados, executar scripts `.cmd`
-  temporários por paths nativos, capturar a saída com redirecionamento explícito
-  e falhar cedo se o host de comandos isolado não iniciar.
+  nativa pelo `cmd.exe` sem handles padrão herdados, desabilitar a conversão
+  de paths do MSYS para argumentos nativos, executar scripts `.cmd` temporários
+  por paths nativos, capturar a saída com redirecionamento explícito e falhar
+  cedo se o host de comandos isolado não iniciar.
 - A proveniência do release agora registra bytes dos runtimes SDL empacotados,
   archives SDL Windows fixados, os archives Zig Linux/Windows fixados e as
   identidades das ferramentas Java/GLSL/SPIR-V/DXC usadas no PE nativo; o
