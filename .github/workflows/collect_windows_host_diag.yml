@@ -12,10 +12,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Collect host facts
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Continue'
-          $output = Join-Path $env:RUNNER_TEMP 'kookie-windows-host-diagnostics.txt'
           @(
             "identity=$(whoami)"
             "computer=$env:COMPUTERNAME"
