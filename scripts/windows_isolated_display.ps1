@@ -260,20 +260,24 @@ public static class KookieWindowsIsolatedDesktop
             var startup = new StartupInfo();
             startup.cb = Marshal.SizeOf(typeof(StartupInfo));
             startup.lpDesktop = "WinSta0\\" + desktopName;
-            startup.dwFlags = StartfUseStdHandles;
-            startup.hStdInput = GetStdHandle(-10);
-            startup.hStdOutput = GetStdHandle(-11);
-            startup.hStdError = GetStdHandle(-12);
+            var useStandardHandles = Environment.GetEnvironmentVariable("KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES") != "1";
+            if (useStandardHandles)
+            {
+                startup.dwFlags = StartfUseStdHandles;
+                startup.hStdInput = GetStdHandle(-10);
+                startup.hStdOutput = GetStdHandle(-11);
+                startup.hStdError = GetStdHandle(-12);
+            }
             var commandLine = new StringBuilder(BuildCommandLine(executable, arguments));
             if (Environment.GetEnvironmentVariable("KOOKIE_WINDOWS_ISOLATED_DEBUG") == "1")
-                Console.Error.WriteLine("windows-isolated-display: commandLine={0} desktop={1} handles={2},{3},{4}", commandLine, startup.lpDesktop, startup.hStdInput, startup.hStdOutput, startup.hStdError);
+                Console.Error.WriteLine("windows-isolated-display: commandLine={0} desktop={1} stdHandles={2} handles={3},{4},{5}", commandLine, startup.lpDesktop, useStandardHandles, startup.hStdInput, startup.hStdOutput, startup.hStdError);
             ProcessInformation processInformation;
             if (!CreateProcess(
                     executable,
                     commandLine,
                     IntPtr.Zero,
                     IntPtr.Zero,
-                    true,
+                    useStandardHandles,
                     CreateSuspended | CreateUnicodeEnvironment,
                     IntPtr.Zero,
                     null,

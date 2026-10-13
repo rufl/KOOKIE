@@ -502,7 +502,8 @@ jobs:
 
             runtime_log="$RUNNER_TEMP/kookie-windows-isolated-runtime.log"
             set +e
-            KOOKIE_WINDOWS_ISOLATED_DEBUG=1 "$wrapper" \
+            KOOKIE_WINDOWS_ISOLATED_DEBUG=1 \
+              KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES=1 "$wrapper" \
               --timeout 30 -- -c 'exit 0' verify_windows_preflight \
               >"$runtime_log" 2>&1
             runtime_status=$?
