@@ -148,11 +148,17 @@ if [[ "$server_status" -ne 0 ]]; then
     "$server_status" >&2
   exit "$server_status"
 fi
-grep -Fq 'KOOKIE G5 dedicated headless server' "$SERVER_LOG"
-grep -Fq 'graphics=none' "$SERVER_LOG"
-grep -Fq 'simulation-budget-pass' "$SERVER_LOG"
-grep -Fq 'rss-plateau' "$SERVER_LOG"
-grep -Fq 'resource-plateau=true' "$SERVER_LOG"
+if ! {
+  grep -Fq 'KOOKIE G5 dedicated headless server' "$SERVER_LOG"
+  grep -Fq 'graphics=none' "$SERVER_LOG"
+  grep -Fq 'simulation-budget-pass' "$SERVER_LOG"
+  grep -Fq 'rss-plateau' "$SERVER_LOG"
+  grep -Fq 'resource-plateau=true' "$SERVER_LOG"
+}; then
+  cat "$SERVER_LOG" >&2
+  echo 'package smoke: bundled headless server output was incomplete' >&2
+  exit 1
+fi
 python3 - "$SERVER_LOG" "$p95_budget_us" <<'PY'
 import pathlib
 import sys
