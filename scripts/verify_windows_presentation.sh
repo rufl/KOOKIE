@@ -303,6 +303,18 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   native_status=$?
   set -e
   cat "$native_log"
+  printf 'verify_windows_presentation: native command status=%s log_bytes=' \
+    "$native_status"
+  wc -c <"$native_log"
+  cat "$WORK_DIR/native-host.log"
+  for native_output in "$native_screenshot" "$native_evidence"; do
+    if [[ -f "$native_output" ]]; then
+      printf 'verify_windows_presentation: output=%s bytes=' "$native_output"
+      wc -c <"$native_output"
+    else
+      printf 'verify_windows_presentation: output missing=%s\n' "$native_output"
+    fi
+  done
   python3 "$ROOT_DIR/scripts/validate_presentation_evidence.py" \
     "$WORK_DIR/native.log" "$native_screenshot" "$native_evidence" \
     --require-hardware-metadata >/dev/null

@@ -615,12 +615,12 @@ jobs:
           retention-days: 14
 
       - name: Upload Windows presentation evidence
-        if: ${{ inputs.run_windows_presentation_smoke }}
+        if: ${{ always() && inputs.run_windows_presentation_smoke }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-d1-presentation-evidence-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-d1-evidence-windows
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 30
 
   publish:
