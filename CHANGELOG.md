@@ -79,9 +79,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   synthetic key assertions, menu geometry reserves GPU capacity explicitly,
   and the release smoke reaches the Kutter path through the actual main-menu
   selection.
-- Restored deterministic PE object staging with LLVM COFF stripping and a GNU
-  `objcopy` fallback. Zig 0.17.0 emits a cache-path-bearing CodeView section
-  even with `-g0`; stripping it keeps repeated PE builds byte-identical.
+- Restored deterministic PE object staging with LLVM COFF stripping, a GNU
+  `objcopy` fallback, and a `zig objcopy` fallback when standalone tools are
+  unavailable. Zig 0.17.0 emits a cache-path-bearing CodeView section even
+  with `-g0`; stripping it keeps repeated PE builds byte-identical.
 
 
 - Revalidated the exception-lifetime reproducer with Kof `0.6.0`: the
