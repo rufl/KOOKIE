@@ -733,10 +733,10 @@ jobs:
             "$publish_dir/RELEASE_QUALIFICATION.json" \
             --trusted-public-key "$trusted_public_key" \
             --expected-source-commit "$SOURCE_COMMIT" \
-            --package-manifest "linux=$publish_dir/kookie-${DEMO_VERSION}-linux-x86_64.json" \
-            --package-manifest "windows=$publish_dir/kookie-${DEMO_VERSION}-windows-x86_64.json" \
-            --evidence "linux=$RUNNER_TEMP/kookie-d1-evidence-linux/evidence.json" \
-            --evidence "windows=$RUNNER_TEMP/kookie-d1-evidence-windows/evidence.json" \
+            --package-manifest "linux-x86_64=$publish_dir/kookie-${DEMO_VERSION}-linux-x86_64.json" \
+            --package-manifest "windows-x86_64=$publish_dir/kookie-${DEMO_VERSION}-windows-x86_64.json" \
+            --evidence "linux-x86_64=$RUNNER_TEMP/kookie-d1-evidence-linux/evidence.json" \
+            --evidence "windows-x86_64=$RUNNER_TEMP/kookie-d1-evidence-windows/evidence.json" \
             --require-hardware
           openssl pkeyutl -sign -rawin -inkey "$signing_key" \
             -in "$publish_dir/RELEASE_QUALIFICATION.json" \
