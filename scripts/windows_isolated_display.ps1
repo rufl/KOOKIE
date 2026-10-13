@@ -45,6 +45,13 @@ public static class KookieWindowsIsolatedDesktop
 {
     private const uint CreateSuspended = 0x00000004;
     private const uint CreateUnicodeEnvironment = 0x00000400;
+    private const uint StartfUseStdHandles = 0x00000100;
+    private const uint GenericRead = 0x80000000;
+    private const uint GenericWrite = 0x40000000;
+    private const uint FileShareRead = 0x00000001;
+    private const uint FileShareWrite = 0x00000002;
+    private const uint OpenExisting = 3;
+    private const uint FileAttributeNormal = 0x00000080;
     private const uint DesktopAllAccess = 0x000F01FF;
     private const uint JobObjectExtendedLimitInformation = 9;
     private const uint JobObjectLimitKillOnJobClose = 0x00002000;
@@ -52,6 +59,7 @@ public static class KookieWindowsIsolatedDesktop
     private const uint WaitTimeout = 0x00000102;
     private const uint Infinite = 0xFFFFFFFF;
     private const uint StillActive = 259;
+    private static readonly IntPtr InvalidHandleValue = new IntPtr(-1);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct StartupInfo
@@ -77,6 +85,12 @@ public static class KookieWindowsIsolatedDesktop
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    private struct SecurityAttributes
+    {
+        public int nLength;
+        public IntPtr lpSecurityDescriptor;
+        public int bInheritHandle;
+    }
     private struct ProcessInformation
     {
         public IntPtr hProcess;
@@ -161,9 +175,18 @@ public static class KookieWindowsIsolatedDesktop
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool GetExitCodeProcess(IntPtr process, out uint exitCode);
 
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr CreateFile(
+        string name,
+        uint desiredAccess,
+        uint shareMode,
+        ref SecurityAttributes securityAttributes,
+        uint creationDisposition,
+        uint flagsAndAttributes,
+        IntPtr templateFile);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CloseHandle(IntPtr handle);
-
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern bool CreateProcess(
@@ -225,6 +248,24 @@ public static class KookieWindowsIsolatedDesktop
         throw new Win32Exception(Marshal.GetLastWin32Error(), operation);
     }
 
+    private static IntPtr OpenNullHandle(uint access, string streamName)
+    {
+        var securityAttributes = new SecurityAttributes();
+        securityAttributes.nLength = Marshal.SizeOf(typeof(SecurityAttributes));
+        securityAttributes.bInheritHandle = 1;
+        var handle = CreateFile(
+            "NUL",
+            access,
+            FileShareRead | FileShareWrite,
+            ref securityAttributes,
+            OpenExisting,
+            FileAttributeNormal,
+            IntPtr.Zero);
+        if (handle == InvalidHandleValue)
+            ThrowLastError("CreateFile NUL " + streamName + " failed");
+        return handle;
+    }
+
     public static int Run(string executable, string[] arguments, int timeoutSeconds)
     {
         if (String.IsNullOrWhiteSpace(executable))
@@ -242,62 +283,72 @@ public static class KookieWindowsIsolatedDesktop
         var job = IntPtr.Zero;
         var process = IntPtr.Zero;
         var thread = IntPtr.Zero;
+        var standardInput = IntPtr.Zero;
+        var standardOutput = IntPtr.Zero;
+        var standardError = IntPtr.Zero;
         var completed = false;
         try
-        {
-            job = CreateJobObject(IntPtr.Zero, null);
-            if (job == IntPtr.Zero)
-                ThrowLastError("CreateJobObject failed");
-            var limits = new ExtendedLimitInformation();
-            limits.basicLimitInformation.limitFlags = JobObjectLimitKillOnJobClose;
-            var limitsSize = (uint)Marshal.SizeOf(typeof(ExtendedLimitInformation));
-            if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, ref limits, limitsSize))
-                ThrowLastError("SetInformationJobObject failed");
-
-            var startup = new StartupInfo();
-            startup.cb = Marshal.SizeOf(typeof(StartupInfo));
-            startup.lpDesktop = "WinSta0\\" + desktopName;
-            var commandLine = new StringBuilder(BuildCommandLine(executable, arguments));
-            ProcessInformation processInformation;
-            if (!CreateProcess(
-                    executable,
-                    commandLine,
-                    IntPtr.Zero,
-                    IntPtr.Zero,
-                    false,
-                    CreateSuspended | CreateUnicodeEnvironment,
-                    IntPtr.Zero,
-                    null,
-                    ref startup,
-                    out processInformation))
-                ThrowLastError("CreateProcess failed");
-
-            process = processInformation.hProcess;
-            thread = processInformation.hThread;
-            if (!AssignProcessToJobObject(job, process))
-                ThrowLastError("AssignProcessToJobObject failed");
-            if (ResumeThread(thread) == 0xFFFFFFFF)
-                ThrowLastError("ResumeThread failed");
-
-            var timeoutMilliseconds = checked((uint)timeoutSeconds * 1000U);
-            var waitResult = WaitForSingleObject(process, timeoutMilliseconds);
-            if (waitResult == WaitTimeout)
             {
-                if (!TerminateJobObject(job, 124))
-                    ThrowLastError("TerminateJobObject failed");
-                WaitForSingleObject(process, Infinite);
-                completed = true;
-                return 124;
-            }
-            if (waitResult != WaitObject0)
-                ThrowLastError("WaitForSingleObject failed");
+                job = CreateJobObject(IntPtr.Zero, null);
+                if (job == IntPtr.Zero)
+                    ThrowLastError("CreateJobObject failed");
+                var limits = new ExtendedLimitInformation();
+                limits.basicLimitInformation.limitFlags = JobObjectLimitKillOnJobClose;
+                var limitsSize = (uint)Marshal.SizeOf(typeof(ExtendedLimitInformation));
+                if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, ref limits, limitsSize))
+                    ThrowLastError("SetInformationJobObject failed");
 
-            uint exitCode;
-            if (!GetExitCodeProcess(process, out exitCode))
-                ThrowLastError("GetExitCodeProcess failed");
-            completed = true;
-            return exitCode == StillActive ? 1 : (int)exitCode;
-        }
+                standardInput = OpenNullHandle(GenericRead, "stdin");
+                standardOutput = OpenNullHandle(GenericWrite, "stdout");
+                standardError = OpenNullHandle(GenericWrite, "stderr");
+                var startup = new StartupInfo();
+                startup.cb = Marshal.SizeOf(typeof(StartupInfo));
+                startup.lpDesktop = "WinSta0\\" + desktopName;
+                startup.dwFlags = StartfUseStdHandles;
+                startup.hStdInput = standardInput;
+                startup.hStdOutput = standardOutput;
+                startup.hStdError = standardError;
+                var commandLine = new StringBuilder(BuildCommandLine(executable, arguments));
+                ProcessInformation processInformation;
+                if (!CreateProcess(
+                        executable,
+                        commandLine,
+                        IntPtr.Zero,
+                        IntPtr.Zero,
+                        true,
+                        CreateSuspended | CreateUnicodeEnvironment,
+                        IntPtr.Zero,
+                        null,
+                        ref startup,
+                        out processInformation))
+                    ThrowLastError("CreateProcess failed");
+
+                process = processInformation.hProcess;
+                thread = processInformation.hThread;
+                if (!AssignProcessToJobObject(job, process))
+                    ThrowLastError("AssignProcessToJobObject failed");
+                if (ResumeThread(thread) == 0xFFFFFFFF)
+                    ThrowLastError("ResumeThread failed");
+
+                var timeoutMilliseconds = checked((uint)timeoutSeconds * 1000U);
+                var waitResult = WaitForSingleObject(process, timeoutMilliseconds);
+                if (waitResult == WaitTimeout)
+                {
+                    if (!TerminateJobObject(job, 124))
+                        ThrowLastError("TerminateJobObject failed");
+                    WaitForSingleObject(process, Infinite);
+                    completed = true;
+                    return 124;
+                }
+                if (waitResult != WaitObject0)
+                    ThrowLastError("WaitForSingleObject failed");
+
+                uint exitCode;
+                if (!GetExitCodeProcess(process, out exitCode))
+                    ThrowLastError("GetExitCodeProcess failed");
+                completed = true;
+                return exitCode == StillActive ? 1 : (int)exitCode;
+            }
         finally
         {
             if (!completed)
@@ -307,6 +358,12 @@ public static class KookieWindowsIsolatedDesktop
                 if (job != IntPtr.Zero)
                     TerminateJobObject(job, 2);
             }
+            if (standardError != IntPtr.Zero)
+                CloseHandle(standardError);
+            if (standardOutput != IntPtr.Zero)
+                CloseHandle(standardOutput);
+            if (standardInput != IntPtr.Zero)
+                CloseHandle(standardInput);
             if (thread != IntPtr.Zero)
                 CloseHandle(thread);
             if (process != IntPtr.Zero)
