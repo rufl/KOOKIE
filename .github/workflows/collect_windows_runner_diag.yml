@@ -1,0 +1,30 @@
+name: Collect Windows runner diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    name: Collect NetworkService diagnostic
+    runs-on: [self-hosted, windows, x64, kookie-demo-release]
+    timeout-minutes: 5
+    steps:
+      - name: Validate diagnostic archive
+        shell: powershell
+        run: |
+          $archive = 'C:\Windows\Temp\kookie-networkservice-diag.zip'
+          if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+              throw "Diagnostic archive not found: $archive"
+          }
+          Get-Item -LiteralPath $archive | Format-List FullName,Length,LastWriteTime
+          Get-FileHash -Algorithm SHA256 -LiteralPath $archive
+      - name: Upload diagnostic archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: kookie-networkservice-diag
+          path: C:\Windows\Temp\kookie-networkservice-diag.zip
+          if-no-files-found: error
+          retention-days: 2
