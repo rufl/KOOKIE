@@ -8,6 +8,13 @@ source "$ROOT_DIR/scripts/kof_pin.sh"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-package-smoke.XXXXXX")"
 cleanup() { rm -rf -- "$WORK_DIR"; }
 trap cleanup EXIT INT TERM
+package_smoke_error() {
+  local status=$?
+  printf 'package smoke: command failed status=%s line=%s: %s\n' \
+    "$status" "${BASH_LINENO[0]}" "$BASH_COMMAND" >&2
+  exit "$status"
+}
+trap package_smoke_error ERR
 command -v openssl >/dev/null || { echo "openssl is required" >&2; exit 1; }
 SIGNING_KEY="$WORK_DIR/release-signing.pem"
 openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
