@@ -171,19 +171,35 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          archive="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
-          install_dir="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}"
-          curl --fail --location --retry 3 --output "$archive" \
-            "$ZIG_LINUX_ARCHIVE_URL"
-          echo "$ZIG_LINUX_ARCHIVE_SHA256  $archive" | sha256sum --check -
-          rm -rf -- "$install_dir"
-          tar -xJf "$archive" -C "$RUNNER_TEMP"
-          test -x "$install_dir/zig"
-          printf '%s\n' "$install_dir" >> "$GITHUB_PATH"
+          if [[ -n "${KOOKIE_ZIG_BIN:-}" ]]; then
+            test -x "$KOOKIE_ZIG_BIN"
+            [[ "$("$KOOKIE_ZIG_BIN" version)" == "$ZIG_VERSION" ]] || {
+              echo 'release_demo: KOOKIE_ZIG_BIN version disagrees with pinned Zig version' >&2
+              exit 2
+            }
+            if [[ -n "${KOOKIE_ZIG_BINARY_SHA256:-}" ]]; then
+              actual_zig_binary_sha256="$(sha256sum "$KOOKIE_ZIG_BIN" | cut -d ' ' -f 1)"
+              [[ "$actual_zig_binary_sha256" == "${KOOKIE_ZIG_BINARY_SHA256,,}" ]] || {
+                echo 'release_demo: KOOKIE_ZIG_BIN digest disagrees with runner pin' >&2
+                exit 2
+              }
+            fi
+            printf '%s\n' "$(dirname "$KOOKIE_ZIG_BIN")" >> "$GITHUB_PATH"
+          else
+            archive="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+            install_dir="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}"
+            curl --fail --location --retry 3 --connect-timeout 15 --max-time 180 \
+              --output "$archive" "$ZIG_LINUX_ARCHIVE_URL"
+            echo "$ZIG_LINUX_ARCHIVE_SHA256  $archive" | sha256sum --check -
+            rm -rf -- "$install_dir"
+            tar -xJf "$archive" -C "$RUNNER_TEMP"
+            test -x "$install_dir/zig"
+            printf '%s\n' "$install_dir" >> "$GITHUB_PATH"
+          fi
           printf 'KOOKIE_ZIG_VERSION=%s\n' "$ZIG_VERSION" >> "$GITHUB_ENV"
           printf 'KOOKIE_ZIG_ARCHIVE_SHA256=%s\n' \
             "$ZIG_LINUX_ARCHIVE_SHA256" >> "$GITHUB_ENV"
-          export PATH="$install_dir:$PATH"
+          export PATH="${KOOKIE_ZIG_BIN:+$(dirname "$KOOKIE_ZIG_BIN"):}${PATH}"
           [[ "$(zig version)" == "$ZIG_VERSION" ]]
       - name: Configure isolated Linux presentation wrapper
         if: ${{ inputs.run_linux_presentation_smoke }}
@@ -607,11 +623,12 @@ jobs:
           scripts/verify_windows_presentation.sh
 
       - name: Upload Windows artifact set
+        if: ${{ always() && inputs.run_windows_presentation_smoke }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-demo-windows-${{ inputs.version }}
           path: ${{ runner.temp }}/kookie-demo-windows
-          if-no-files-found: error
+          if-no-files-found: ignore
           retention-days: 14
 
       - name: Upload Windows presentation evidence

@@ -11,7 +11,7 @@ PRESENTATION_EVIDENCE_DIR="${KOOKIE_PRESENTATION_EVIDENCE_DIR:-}"
 cleanup() {
   if [[ -n "$PRESENTATION_EVIDENCE_DIR" ]]; then
     mkdir -p "$PRESENTATION_EVIDENCE_DIR"
-    for evidence_file in native.log native-presentation.ppm native-evidence.json wine.log; do
+    for evidence_file in native.log native-host.log native-run.cmd native-wrapper-host.log native-wrapper-runtime-host.log native-presentation.ppm native-evidence.json wine.log; do
       if [[ -f "$WORK_DIR/$evidence_file" ]]; then
         cp -- "$WORK_DIR/$evidence_file" "$PRESENTATION_EVIDENCE_DIR/"
       fi
@@ -290,9 +290,24 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   {
     printf '%s\r\n' '@echo off'
     printf 'cd /d "%s"\r\n' "$native_package_path"
-    printf '"%s\\kookie.exe" > "%s" 2>&1\r\n' \
+    printf 'echo CD=%%CD%% > "%s"\r\n' "$native_log_path"
+    printf 'echo KOOKIE_PRESENTATION_SMOKE=%%KOOKIE_PRESENTATION_SMOKE%% >> "%s"\r\n' \
+      "$native_log_path"
+    printf 'echo KOOKIE_SHADER_DIR=%%KOOKIE_SHADER_DIR%% >> "%s"\r\n' \
+      "$native_log_path"
+    printf 'echo KOOKIE_SCREENSHOT_PATH=%%KOOKIE_SCREENSHOT_PATH%% >> "%s"\r\n' \
+      "$native_log_path"
+    printf 'echo KOOKIE_PRESENTATION_EVIDENCE_JSON=%%KOOKIE_PRESENTATION_EVIDENCE_JSON%% >> "%s"\r\n' \
+      "$native_log_path"
+    printf 'if not exist "%s\\kookie.exe" (\r\n' "$native_package_path"
+    printf '  echo missing kookie.exe >> "%s"\r\n' "$native_log_path"
+    printf '%s\r\n' '  exit /b 1' ')'
+    printf '"%s\\kookie.exe" >> "%s" 2>&1\r\n' \
       "$native_package_path" "$native_log_path"
-    printf '%s\r\n' 'exit /b %ERRORLEVEL%'
+    printf 'set "native_status=%%ERRORLEVEL%%"\r\n'
+    printf 'echo native_exit=%%native_status%% >> "%s"\r\n' "$native_log_path"
+    printf 'if not "%%native_status%%"=="0" exit /b %%native_status%%\r\n'
+    printf '%s\r\n' 'exit /b 0'
   } >"$native_command"
   native_command_path="$(cygpath -w "$native_command")"
   set +e
