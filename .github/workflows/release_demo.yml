@@ -504,6 +504,7 @@ jobs:
             set +e
             KOOKIE_WINDOWS_BASH='C:\Windows\System32\cmd.exe' \
               KOOKIE_WINDOWS_ISOLATED_DEBUG=1 \
+              KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES=1 \
               --timeout 30 -- /c 'exit 0' \
               >"$runtime_log" 2>&1
             runtime_status=$?
