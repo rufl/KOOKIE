@@ -239,12 +239,19 @@ EOF
   runtime_command_path="$(cygpath -w "$runtime_command")"
   set +e
   KOOKIE_WINDOWS_BASH="$native_command_shell" \
+    KOOKIE_WINDOWS_ISOLATED_DEBUG=1 \
     KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES=1 "$native_wrapper" \
     --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
     /c "$runtime_command_path" \
     >"$WORK_DIR/native-wrapper-runtime-host.log" 2>&1
   runtime_probe_status=$?
   set -e
+  cat "$WORK_DIR/native-wrapper-runtime-host.log"
+  if [[ ! -f "$native_runtime_log" ]]; then
+    echo "verify_windows_presentation: isolated runtime script did not create $native_runtime_log" >&2
+    cat "$runtime_command"
+    exit 1
+  fi
   cat "$native_runtime_log"
   if [[ "$runtime_probe_status" != 0 ]]; then
     echo "verify_windows_presentation: Windows isolated runtime probe failed with status $runtime_probe_status" >&2
