@@ -12,9 +12,13 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Collect host facts
-        shell: powershell
+        shell: bash
         run: |
+          set -euo pipefail
+          script="$RUNNER_TEMP/kookie-windows-host-diagnostics.ps1"
+          cat >"$script" <<'POWERSHELL'
           $ErrorActionPreference = 'Continue'
+          $output = Join-Path $env:RUNNER_TEMP 'kookie-windows-host-diagnostics.txt'
           @(
             "identity=$(whoami)"
             "computer=$env:COMPUTERNAME"
@@ -50,6 +54,9 @@ jobs:
               [KookieWindowsSessionProbe]::CloseHandle($token) | Out-Null
           }
           Get-Content -LiteralPath $output
+          POWERSHELL
+          powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass \
+            -File "$(cygpath -w "$script")"
       - name: Upload host diagnostics
         uses: actions/upload-artifact@v4
         with:
