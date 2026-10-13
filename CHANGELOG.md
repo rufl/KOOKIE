@@ -3,6 +3,9 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Restored native UI atlas generation before the SDL_GPU texture upload. Windows
+  presentation now renders the menu/HUD instead of a clear-only frame, and
+  screenshot smoke rejects a uniform captured frame.
 - The G5 reference probe now reserves native GPU scene capacity before checking
   it. Linux presentation scripts default to the tracked Gamescope/isolation
   wrapper while retaining explicit wrapper overrides and fail-closed checks.

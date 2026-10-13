@@ -10,6 +10,8 @@
 #endif
 
 
+#include "kookie_pixel_font.h"
+#include "kookie_heart_atlas.h"
 #include "kookie_transport.h"
 #include "kookie_audio_assets.h"
 #include <stdio.h>
@@ -26,6 +28,17 @@
 #define KOOKIE_TRANSPORT_MAX_WORDS 1740
 #define KOOKIE_GPU_ATLAS_WIDTH 256
 #define KOOKIE_GPU_ATLAS_HEIGHT 128
+#define KOOKIE_GPU_ATLAS_TILE_SIZE 8
+#define KOOKIE_GPU_ATLAS_TILES_PER_ROW 32
+#define KOOKIE_GPU_HEART_TILE_SIZE 8
+#define KOOKIE_GPU_SOLID_COLORS 16
+#define KOOKIE_GPU_FONT_COLORS 5
+#define KOOKIE_GPU_FONT_GLYPHS_PER_COLOR 48
+#define KOOKIE_GPU_HEART_STATE_COUNT 5
+#define KOOKIE_GPU_HEART_FIRST_TILE \
+    (KOOKIE_GPU_SOLID_COLORS + \
+        KOOKIE_PIXEL_FONT_COUNT * \
+            (KOOKIE_GPU_FONT_COLORS * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR))
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -1022,6 +1035,83 @@ static bool read_shader_binary(
     *size = (size_t)length;
     return true;
 }
+static void kookie_gpu_build_atlas(Uint8 *pixels) {
+    static const Uint8 palette[KOOKIE_GPU_SOLID_COLORS][4] = {
+        { 71,  85, 105, 255}, { 37, 99, 235, 255},
+        { 15, 118, 110, 255}, {124, 58, 237, 255},
+        {180,  83,   9, 255}, {220, 38, 38, 255},
+        {  8, 145, 178, 255}, {101, 163,  13, 255},
+        {100, 116, 139, 255}, { 15, 23, 42, 255},
+        { 15,  31,  43, 255}, {220, 38, 38, 255},
+        {217, 119,   6, 255}, { 21, 128,  61, 255},
+        { 34, 197,  94, 255}, {248, 250, 252, 255}
+    };
+    static const int font_palette[KOOKIE_GPU_FONT_COLORS] = {
+        15, 12, 8, 11, 14
+    };
+    memset(
+        pixels, 0,
+        KOOKIE_GPU_ATLAS_WIDTH * KOOKIE_GPU_ATLAS_HEIGHT * 4u);
+    for (int color = 0; color < KOOKIE_GPU_SOLID_COLORS; color += 1) {
+        int tile_x = (color % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        int tile_y = (color / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        for (int y = 0; y < KOOKIE_GPU_ATLAS_TILE_SIZE; y += 1) {
+            for (int x = 0; x < KOOKIE_GPU_ATLAS_TILE_SIZE; x += 1) {
+                size_t offset = (size_t)(
+                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) * 4u;
+                memcpy(pixels + offset, palette[color], 4u);
+            }
+        }
+    }
+    for (int font = 0; font < KOOKIE_PIXEL_FONT_COUNT; font += 1) {
+        for (int color = 0; color < KOOKIE_GPU_FONT_COLORS; color += 1) {
+            for (int glyph = 1;
+                 glyph <= KOOKIE_PIXEL_GLYPH_COUNT; glyph += 1) {
+                int tile = KOOKIE_GPU_SOLID_COLORS +
+                    (font * KOOKIE_GPU_FONT_COLORS + color) *
+                        KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph - 1;
+                int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+                    KOOKIE_GPU_ATLAS_TILE_SIZE;
+                int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+                    KOOKIE_GPU_ATLAS_TILE_SIZE;
+                for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
+                    for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
+                        uint8_t alpha =
+                            kookie_pixel_glyph_alpha(font, glyph, y, x);
+                        if (alpha == 0) {
+                            continue;
+                        }
+                        size_t offset = (size_t)(
+                            (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
+                            4u;
+                        memcpy(
+                            pixels + offset,
+                            palette[font_palette[color]],
+                            3u);
+                        pixels[offset + 3u] = alpha;
+                    }
+                }
+            }
+        }
+    }
+    for (int state = 0; state < KOOKIE_GPU_HEART_STATE_COUNT; state += 1) {
+        int tile = KOOKIE_GPU_HEART_FIRST_TILE + state;
+        int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
+            KOOKIE_GPU_ATLAS_TILE_SIZE;
+        for (int y = 0; y < KOOKIE_GPU_HEART_TILE_SIZE; y += 1) {
+            for (int x = 0; x < KOOKIE_GPU_HEART_TILE_SIZE; x += 1) {
+                size_t offset = (size_t)(
+                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
+                    4u;
+                memcpy(pixels + offset, kookie_heart_tiles[state][y][x], 4u);
+            }
+        }
+    }
+}
 static SDL_Surface *kookie_gpu_load_cat_texture(void) {
     if (!gpu_world_texture_layout.cat_embedded) {
         return NULL;
@@ -1569,6 +1659,7 @@ static bool kookie_gpu_prepare_resources(
         -0.8f,  0.8f, 0.0f, 1.0f
     };
     const Uint16 indices[6] = {0, 1, 2, 3, 4, 5};
+    kookie_gpu_build_atlas(pixels);
     if (!kookie_gpu_copy_world_texture(
             pixels + world_texture_offset,
             world_texture_bytes,
@@ -2630,8 +2721,29 @@ int kookie_gpu_window_screenshot_checksum(void) {
         return 0;
     }
     unsigned int checksum = 0;
+    bool varied = false;
     for (size_t index = 0; index < byte_count; index += 1) {
         checksum = (checksum + pixels[index]) & 0x7fffffffU;
+    }
+    for (size_t index = 4; index < byte_count; index += 4) {
+        if (pixels[index] != pixels[0] ||
+            pixels[index + 1u] != pixels[1] ||
+            pixels[index + 2u] != pixels[2] ||
+            pixels[index + 3u] != pixels[3]) {
+            varied = true;
+            break;
+        }
+    }
+    if (!varied) {
+        fprintf(stderr,
+            "KOOKIE gpu screenshot has no visible pixel variation\n");
+        const char *empty_path = getenv("KOOKIE_SCREENSHOT_PATH");
+        if (empty_path != NULL && empty_path[0] != '\0') {
+            remove(empty_path);
+        }
+        SDL_UnmapGPUTransferBuffer(device, transfer);
+        SDL_ReleaseGPUTransferBuffer(device, transfer);
+        return 0;
     }
     const char *screenshot_path = getenv("KOOKIE_SCREENSHOT_PATH");
     bool export_success = screenshot_path == NULL || screenshot_path[0] == '\0' ||

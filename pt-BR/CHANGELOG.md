@@ -3,6 +3,9 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Restauramos a geração do atlas nativo de UI antes do upload da textura no
+  SDL_GPU. A apresentação Windows agora renderiza menu/HUD em vez de um frame
+  apenas limpo, e o smoke de screenshot rejeita um frame capturado uniforme.
 - Fortalecemos o runner de desktop privado Windows para iniciar a apresentação
   nativa pelo `cmd.exe` sem handles padrão herdados, desabilitar a conversão
   de paths do MSYS para argumentos nativos, executar scripts `.cmd` temporários
