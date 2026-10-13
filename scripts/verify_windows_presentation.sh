@@ -207,6 +207,7 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
     echo 'verify_windows_presentation: KOOKIE_RUN_NATIVE_PRESENTATION=1 requires KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER' >&2
     exit 75
   }
+  native_command_shell="${KOOKIE_WINDOWS_NATIVE_COMMAND_SHELL:-C:\Windows\System32\cmd.exe}"
   NATIVE_ROOT="$WORK_DIR/native-presentation"
   mkdir -p "$NATIVE_ROOT"
   NATIVE_PACKAGE="$NATIVE_ROOT/$PACKAGE_NAME"
@@ -229,30 +230,30 @@ if [[ "${KOOKIE_RUN_NATIVE_PRESENTATION:-0}" == 1 ]]; then
   export KOOKIE_NATIVE_PACKAGE="$NATIVE_PACKAGE"
   unset SDL_AUDIODRIVER || true
   set +e
-  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    -c 'printf "KOOKIE Windows isolated desktop runtime probe\n"' \
-    verify_windows_runtime_probe \
+  KOOKIE_WINDOWS_BASH="$native_command_shell" "$native_wrapper" \
+    --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
+    /c 'echo KOOKIE Windows isolated desktop runtime probe' \
     >"$WORK_DIR/native-wrapper-runtime.log" 2>&1
   runtime_probe_status=$?
   set -e
   cat "$WORK_DIR/native-wrapper-runtime.log"
   if [[ "$runtime_probe_status" != 0 ]]; then
-    echo "verify_windows_presentation: Windows isolated Bash runtime probe failed with status $runtime_probe_status" >&2
+    echo "verify_windows_presentation: Windows isolated runtime probe failed with status $runtime_probe_status" >&2
     exit "$runtime_probe_status"
   fi
-  wrapper_probe="$WORK_DIR/native-wrapper-probe.sh"
-  cat >"$wrapper_probe" <<'SH'
-printf 'KOOKIE Windows isolated desktop wrapper probe\n'
-printf 'KOOKIE_NATIVE_PACKAGE=%s\n' "$KOOKIE_NATIVE_PACKAGE"
-test -f "$KOOKIE_NATIVE_PACKAGE/kookie.exe"
-SH
-  wrapper_probe_command="$wrapper_probe"
-  if command -v cygpath >/dev/null; then
-    wrapper_probe_command="$(cygpath -w "$wrapper_probe")"
-  fi
+  wrapper_probe="$WORK_DIR/native-wrapper-probe.cmd"
+  cat >"$wrapper_probe" <<EOF
+@echo off
+echo KOOKIE Windows isolated desktop wrapper probe
+echo KOOKIE_NATIVE_PACKAGE=$native_package_path
+if not exist "$native_package_path\kookie.exe" exit /b 1
+exit /b 0
+EOF
+  wrapper_probe_command="$(cygpath -w "$wrapper_probe")"
   set +e
-  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    "$wrapper_probe_command" verify_windows_wrapper \
+  KOOKIE_WINDOWS_BASH="$native_command_shell" "$native_wrapper" \
+    --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
+    /c "$wrapper_probe_command" \
     >"$WORK_DIR/native-wrapper.log" 2>&1
   wrapper_status=$?
   set -e
@@ -262,18 +263,18 @@ SH
     exit "$wrapper_status"
   fi
 
-  native_command="$WORK_DIR/native-run.sh"
-  cat >"$native_command" <<'SH'
-cd "$KOOKIE_NATIVE_PACKAGE"
-exec ./kookie.exe
-SH
-  native_command_path="$native_command"
-  if command -v cygpath >/dev/null; then
-    native_command_path="$(cygpath -w "$native_command")"
-  fi
+  native_command="$WORK_DIR/native-run.cmd"
+  cat >"$native_command" <<EOF
+@echo off
+cd /d "$native_package_path"
+"$native_package_path\kookie.exe"
+exit /b %ERRORLEVEL%
+EOF
+  native_command_path="$(cygpath -w "$native_command")"
   set +e
-  "$native_wrapper" --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    "$native_command_path" verify_windows_native_presentation \
+  KOOKIE_WINDOWS_BASH="$native_command_shell" "$native_wrapper" \
+    --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
+    /c "$native_command_path" \
     >"$WORK_DIR/native.log" 2>&1
   native_status=$?
   set -e
