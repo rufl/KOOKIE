@@ -265,6 +265,8 @@ public static class KookieWindowsIsolatedDesktop
             startup.hStdOutput = GetStdHandle(-11);
             startup.hStdError = GetStdHandle(-12);
             var commandLine = new StringBuilder(BuildCommandLine(executable, arguments));
+            if (Environment.GetEnvironmentVariable("KOOKIE_WINDOWS_ISOLATED_DEBUG") -eq "1")
+                Console.Error.WriteLine("windows-isolated-display: commandLine={0} desktop={1} handles={2},{3},{4}", commandLine, startup.lpDesktop, startup.hStdInput, startup.hStdOutput, startup.hStdError);
             ProcessInformation processInformation;
             if (!CreateProcess(
                     executable,
@@ -337,6 +339,10 @@ try {
     }
     if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
         throw 'Git Bash executable not found; set KOOKIE_WINDOWS_BASH'
+    }
+    if ($env:KOOKIE_WINDOWS_ISOLATED_DEBUG -eq '1') {
+        $argumentText = ($childArguments | ForEach-Object { '[' + $_ + ']' }) -join ' '
+        [Console]::Error.WriteLine(('windows-isolated-display: bash={0} args={1}' -f $bashPath, $argumentText))
     }
     $exitCode = [KookieWindowsIsolatedDesktop]::Run($bashPath, [string[]]$childArguments, $timeoutSeconds)
     exit $exitCode

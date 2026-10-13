@@ -500,6 +500,18 @@ jobs:
             : "${KOOKIE_PRESENTATION_HARDWARE_ID:?set a stable target hardware identifier on the runner}"
             : "${KOOKIE_PRESENTATION_GPU_DRIVER:?set the target GPU driver identity on the runner}"
 
+            runtime_log="$RUNNER_TEMP/kookie-windows-isolated-runtime.log"
+            set +e
+            KOOKIE_WINDOWS_ISOLATED_DEBUG=1 "$wrapper" \
+              --timeout 30 -- -c 'exit 0' verify_windows_preflight \
+              >"$runtime_log" 2>&1
+            runtime_status=$?
+            set -e
+            cat "$runtime_log"
+            if [[ "$runtime_status" != 0 ]]; then
+              echo "release_demo: isolated Windows Bash runtime probe failed with status $runtime_status" >&2
+              exit "$runtime_status"
+            fi
           fi
           if [[ "${{ inputs.run_windows_wine_smoke }}" == true ]]; then
             command -v wine >/dev/null || {
