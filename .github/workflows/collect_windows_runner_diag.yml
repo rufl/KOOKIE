@@ -12,22 +12,47 @@ jobs:
     runs-on: [self-hosted, windows, x64, kookie-demo-release]
     timeout-minutes: 5
     steps:
-      - name: Validate diagnostic archive
+      - name: Collect diagnostic files
         shell: bash
         run: |
           powershell_path=/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe
           "$powershell_path" -NoLogo -NoProfile -NonInteractive -Command '
-            $archive = "C:\Windows\Temp\kookie-networkservice-diag.zip"
-            if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
-                throw "Diagnostic archive not found: $archive"
+            $destination = "C:\Windows\Temp\kookie-collected"
+            Remove-Item -LiteralPath $destination -Recurse -Force -ErrorAction SilentlyContinue
+            New-Item -ItemType Directory -Path $destination -Force | Out-Null
+
+            $task = schtasks.exe /Query /TN KookieNetworkServiceDiag /FO LIST 2>&1
+            $task | Set-Content -LiteralPath "$destination\task.txt"
+
+            $sources = @(
+                "C:\Windows\Temp\kookie-networkservice-diag.zip",
+                "C:\Windows\Temp\kookie-networkservice-diag.ps1"
+            )
+            $sources += Get-ChildItem `
+                -Path "C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Temp" `
+                -Filter "kookie-isolated-diag-*" `
+                -Force -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty FullName
+
+            foreach ($source in $sources) {
+                if (Test-Path -LiteralPath $source) {
+                    Copy-Item -LiteralPath $source -Destination $destination `
+                        -Recurse -Force -ErrorAction Continue
+                }
             }
-            Get-Item -LiteralPath $archive | Format-List FullName,Length,LastWriteTime
-            Get-FileHash -Algorithm SHA256 -LiteralPath $archive
+
+            Get-ChildItem -LiteralPath $destination -Recurse -Force |
+                Select-Object FullName,Length,LastWriteTime |
+                Format-List | Out-File "$destination\inventory.txt"
+
+            if (@(Get-ChildItem -LiteralPath $destination -Recurse -File).Count -eq 1) {
+                throw "No diagnostic output found on the Windows runner"
+            }
           '
-      - name: Upload diagnostic archive
+      - name: Upload diagnostic files
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-networkservice-diag
-          path: C:\Windows\Temp\kookie-networkservice-diag.zip
+          path: C:\Windows\Temp\kookie-collected
           if-no-files-found: error
           retention-days: 2
