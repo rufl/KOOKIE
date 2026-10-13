@@ -21,7 +21,7 @@ jobs:
             Remove-Item -LiteralPath $destination -Recurse -Force -ErrorAction SilentlyContinue
             New-Item -ItemType Directory -Path $destination -Force | Out-Null
 
-            $task = schtasks.exe /Query /TN KookieNetworkServiceDiag /FO LIST 2>&1
+            $task = schtasks.exe /Query /TN KookieNetworkServiceDiag /FO LIST /V 2>&1
             $task | Set-Content -LiteralPath "$destination\task.txt"
 
             $sources = @(
@@ -29,8 +29,13 @@ jobs:
                 "C:\Windows\Temp\kookie-networkservice-diag.ps1"
             )
             $sources += Get-ChildItem `
+                -Path "C:\Windows\Temp" `
+                -Filter "kookie*" `
+                -Force -ErrorAction SilentlyContinue |
+                Select-Object -ExpandProperty FullName
+            $sources += Get-ChildItem `
                 -Path "C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Temp" `
-                -Filter "kookie-isolated-diag-*" `
+                -Filter "kookie*" `
                 -Force -ErrorAction SilentlyContinue |
                 Select-Object -ExpandProperty FullName
 
