@@ -10,11 +10,15 @@ main() {
         uiGameDisplayName() == "GatoGanso" &&
         uiGameTitle() == "GATOGANSO",
         "GatoGanso must expose both default fonts")
-    assert(uiFontGlyphWidth() == 7 &&
+    assert(uiFontGlyphWidth() == 4 &&
         uiFontGlyphHeight() == 7 &&
-        uiFontGlyphAdvance() == 8,
-        "GatoGanso font atlas metrics must be readable 7x7 cells")
+        uiFontGlyphAdvance() == 5,
+        "native font metrics must preserve square glyph pixels in 16:9 UI")
     var shell = GameShell()
+    assert(shell.textWidth("HP", 1) == 9 &&
+        shell.textWidth("HP", 2) == 18 &&
+        shell.textWidth("GATOGANSO", 1) == 44,
+        "native text width must keep the corrected five-unit glyph advance")
     var frame = FrameStaging(shell.renderVertexCapacity())
     assert(shell.stage(frame, 1) && frame.stagedCount() > 0,
         "GatoGanso main shell must stage")

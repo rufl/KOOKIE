@@ -128,11 +128,14 @@ sem alegar que uma atribuição isolada é renderizada.
 
 - KofJS: `Window`, `Label`, `Image`, `Icon`, `View`, `Column` e `Row` viram
   nós DOM e renderizam na página gerada. SVG usa `Image` nativo do navegador ou
-o caminho de ícone intrínseco; PNG usa `Image`.
+  o caminho de ícone intrínseco; PNG usa `Image`. `@font-face` carrega os TTF
+  empacotados por `assets/ui/kookie-ui.css`.
 - JVM/native: o mesmo código compila e a fachada mantém metadados/estado
   determinísticos. Os handles `kof.ui` são no-op por contrato do Kof. O HUD de
   gameplay SDL continua usando `FrameStaging` e o adaptador nativo verificado;
-  esta biblioteca não cria silenciosamente um segundo renderer nativo.
+  esta biblioteca não cria silenciosamente um segundo renderer nativo. O texto
+  nativo usa o atlas limitado gerado a partir dos TTF empacotados no build; ele
+  não carrega bytes TTF ou SVG em runtime.
 - KofScript: `KookieUiScriptDocument` é a camada semântica limitada. Ela não
   possui handles `kof.ui` e não renderiza sozinha; o host deve mapear seus
   descritores para a fachada Kof/KofJS baseada em handles.
@@ -142,7 +145,9 @@ o caminho de ícone intrínseco; PNG usa `Image`.
 `src/ui/kookie_ui_native.kf` é o contraparte nativo da mesma paleta, métricas
 de fonte e semântica de foco. Ele não cria um segundo renderer:
 `KookieUiNativeTheme` possui as cores/recursos semânticos e os helpers limitados
-escrevem diretamente no contrato existente de `FrameStaging`.
+escrevem diretamente no contrato existente de `FrameStaging`. A skin nativa
+organiza os glifos de sete colunas do atlas em uma célula lógica de quatro por
+sete para manter pixels quadrados no clip de apresentação 16:9 suportado.
 
 Os menus da engine (`GameShell`) agora usam esse skin para superfícies,
 trilhos de seleção, cores de texto, barras de volume e contraste. O HUD de

@@ -6,6 +6,13 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Restauramos a geração do atlas nativo de UI antes do upload da textura no
   SDL_GPU. A apresentação Windows agora renderiza menu/HUD em vez de um frame
   apenas limpo, e o smoke de screenshot rejeita um frame capturado uniforme.
+- Corrigimos o layout do texto nativo para o clip de apresentação SDL 16:9: o
+  atlas derivado do TTF com sete colunas agora usa quatro unidades horizontais
+  lógicas e avanço de cinco unidades, mantendo pixels quadrados em vez de
+  esticar cada rótulo horizontalmente. O caminho CSS/SVG do KofJS não muda.
+- Documentamos a fronteira dos alvos: KofJS carrega assets SVG/TTF no host,
+  enquanto SDL nativo consome o atlas gerado no build a partir dos TTF e não
+  decodifica bytes SVG/TTF em runtime.
 - Fortalecemos o runner de desktop privado Windows para iniciar a apresentação
   nativa pelo `cmd.exe` sem handles padrão herdados, desabilitar a conversão
   de paths do MSYS para argumentos nativos, executar scripts `.cmd` temporários

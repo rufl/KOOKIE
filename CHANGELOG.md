@@ -6,6 +6,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Restored native UI atlas generation before the SDL_GPU texture upload. Windows
   presentation now renders the menu/HUD instead of a clear-only frame, and
   screenshot smoke rejects a uniform captured frame.
+- Corrected native text layout for the 16:9 SDL presentation clip: the
+  seven-column TTF-derived atlas now uses four logical horizontal units and a
+  five-unit advance, keeping glyph pixels square instead of stretching every
+  label horizontally. The KofJS CSS/SVG path is unchanged.
+- Documented the target boundary: KofJS loads SVG/TTF assets in the host,
+  while native SDL consumes the build-time atlas generated from those TTFs and
+  does not decode SVG/TTF bytes at runtime.
 - The G5 reference probe now reserves native GPU scene capacity before checking
   it. Linux presentation scripts default to the tracked Gamescope/isolation
   wrapper while retaining explicit wrapper overrides and fail-closed checks.
