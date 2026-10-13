@@ -303,7 +303,7 @@ public static class KookieWindowsIsolatedDesktop
                 standardError = OpenNullHandle(GenericWrite, "stderr");
                 var startup = new StartupInfo();
                 startup.cb = Marshal.SizeOf(typeof(StartupInfo));
-                startup.lpDesktop = "WinSta0\\" + desktopName;
+                startup.lpDesktop = desktopName;
                 startup.dwFlags = StartfUseStdHandles;
                 startup.hStdInput = standardInput;
                 startup.hStdOutput = standardOutput;
