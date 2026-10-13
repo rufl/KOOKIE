@@ -65,7 +65,7 @@ jobs:
                       [string[]]$ChildArguments
                   )
                   $log = Join-Path $diag "$Name.log"
-                  $env:KOOKIE_WINDOWS_BASH = $Executable
+                  $env:KOOKIE_WINDOWS_COMMAND = $Executable
                   $env:KOOKIE_WINDOWS_ISOLATED_DEBUG = '1'
                   if ($NoStdHandles) {
                       $env:KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES = '1'
@@ -102,11 +102,11 @@ jobs:
               $results += Invoke-IsolatedProbe `
                   -Name 'cmd-no-std' -Executable $cmd `
                   -NoStdHandles $true `
-                  -ChildArguments @('/c', 'call', $cmdProbe)
+                  -ChildArguments @('/c', $cmdProbe)
               $results += Invoke-IsolatedProbe `
                   -Name 'cmd-with-std' -Executable $cmd `
                   -NoStdHandles $false `
-                  -ChildArguments @('/c', 'call', $cmdProbe)
+                  -ChildArguments @('/c', $cmdProbe)
               if ($bash) {
                   & $bash --noprofile --norc -c 'exit 0'
                   Write-Host "direct-bash-status=$LASTEXITCODE"

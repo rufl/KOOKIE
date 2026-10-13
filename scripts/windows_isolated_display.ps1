@@ -334,26 +334,25 @@ public static class KookieWindowsIsolatedDesktop
 }
 
 try {
-    $bashPath = $env:KOOKIE_WINDOWS_BASH
-    if ([string]::IsNullOrWhiteSpace($bashPath) -or -not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
-        $bashPath = Join-Path $env:ProgramFiles 'Git\usr\bin\bash.exe'
-        if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
-            $bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+    $commandPath = $env:KOOKIE_WINDOWS_COMMAND
+    if ([string]::IsNullOrWhiteSpace($commandPath) -or -not (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
+        $commandPath = Join-Path $env:ProgramFiles 'Git\usr\bin\bash.exe'
+        if (-not (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
+            $commandPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
         }
     }
-    if (-not (Test-Path -LiteralPath $bashPath -PathType Leaf)) {
-        throw 'Git Bash executable not found; set KOOKIE_WINDOWS_BASH'
+    if (-not (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
+        throw 'Windows command executable not found; set KOOKIE_WINDOWS_COMMAND'
     }
     $childArguments = @($commandArguments)
-    if ([System.IO.Path]::GetFileName($bashPath) -ieq 'bash.exe') {
+    if ([System.IO.Path]::GetFileName($commandPath) -ieq 'bash.exe') {
         $childArguments = @('--noprofile', '--norc') + $childArguments
     }
     if ($env:KOOKIE_WINDOWS_ISOLATED_DEBUG -eq '1') {
         $argumentText = ($childArguments | ForEach-Object { '[' + $_ + ']' }) -join ' '
-        [Console]::Error.WriteLine(('windows-isolated-display: bash={0} args={1}' -f $bashPath, $argumentText))
+        [Console]::Error.WriteLine(('windows-isolated-display: command={0} args={1}' -f $commandPath, $argumentText))
     }
-    $exitCode = [KookieWindowsIsolatedDesktop]::Run($bashPath, [string[]]$childArguments, $timeoutSeconds)
-    exit $exitCode
+    $exitCode = [KookieWindowsIsolatedDesktop]::Run($commandPath, [string[]]$childArguments, $timeoutSeconds)
 }
 catch {
     [Console]::Error.WriteLine(('windows-isolated-display: {0}' -f $_.Exception.Message))

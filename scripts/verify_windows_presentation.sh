@@ -238,11 +238,11 @@ exit /b 0
 EOF
   runtime_command_path="$(cygpath -w "$runtime_command")"
   set +e
-  KOOKIE_WINDOWS_BASH="$native_command_shell" \
+  KOOKIE_WINDOWS_COMMAND="$native_command_shell" \
     KOOKIE_WINDOWS_ISOLATED_DEBUG=1 \
     KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES=1 "$native_wrapper" \
     --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    /c call "$runtime_command_path" \
+    /c "$runtime_command_path" \
     >"$WORK_DIR/native-wrapper-runtime-host.log" 2>&1
   runtime_probe_status=$?
   set -e
@@ -272,10 +272,10 @@ exit /b 0
 EOF
   wrapper_probe_command="$(cygpath -w "$wrapper_probe")"
   set +e
-  KOOKIE_WINDOWS_BASH="$native_command_shell" \
+  KOOKIE_WINDOWS_COMMAND="$native_command_shell" \
     KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES=1 "$native_wrapper" \
     --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    /c call "$wrapper_probe_command" \
+    /c "$wrapper_probe_command" \
     >"$WORK_DIR/native-wrapper-host.log" 2>&1
   wrapper_status=$?
   set -e
@@ -296,10 +296,10 @@ exit /b %ERRORLEVEL%
 EOF
   native_command_path="$(cygpath -w "$native_command")"
   set +e
-  KOOKIE_WINDOWS_BASH="$native_command_shell" \
+  KOOKIE_WINDOWS_COMMAND="$native_command_shell" \
     KOOKIE_WINDOWS_ISOLATED_NO_STD_HANDLES=1 "$native_wrapper" \
     --timeout "${KOOKIE_PRESENTATION_TIMEOUT:-240}" -- \
-    /c call "$native_command_path" \
+    /c "$native_command_path" \
     >"$WORK_DIR/native-host.log" 2>&1
   native_status=$?
   set -e
