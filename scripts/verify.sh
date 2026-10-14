@@ -17,17 +17,16 @@ if [[ "$actual_kof_version" != "$expected_kof_version" ]]; then
   exit 1
 fi
 
-python3 scripts/lint_kf.py src probes apps
-python3 scripts/lsp_verify.py src
-bash scripts/verify_font_assets.sh
-bash scripts/verify_font_ui.sh
-bash scripts/verify_ui_library.sh
-bash scripts/verify_ui_sound_catalog.sh
-bash scripts/verify_ui_demo.sh
-python3 scripts/lsp_verify.py probes
+if [[ "${KOOKIE_VERIFY_SKIP_STATIC:-0}" != 1 ]]; then
+  bash scripts/verify_static.sh
+else
+  KOOKIE_FONT_UI_TARGETS=native bash scripts/verify_font_ui.sh
+  KOOKIE_UI_LIBRARY_TARGETS=native \
+    KOOKIE_UI_LIBRARY_SKIP_JS=1 \
+    bash scripts/verify_ui_library.sh
+  KOOKIE_UI_SOUND_TARGETS=native bash scripts/verify_ui_sound_catalog.sh
+fi
 
-kof check src --target jvm
-kof test src/main.kf --target jvm
 # The JVM test keeps the per-file Kof test-runner contract; native `src` is
 # compiled and executed once by the final build/smoke below instead of being
 # recompiled through the same harness.
@@ -255,4 +254,8 @@ native_output="$(
 )"
 [[ "$native_output" == "$expected_output" ]]
 
-echo "KOOKIE verification passed: linter, LSP, JVM checks/test, native build/runtime smoke, durable save, adapter/reference renderer smoke when available, packages, and JVM/native builds"
+if [[ "${KOOKIE_VERIFY_SKIP_STATIC:-0}" == 1 ]]; then
+  echo "KOOKIE native verification passed: native UI/runtime smoke, durable save, adapter/reference renderer smoke when available, packages, and JVM/native builds"
+else
+  echo "KOOKIE verification passed: linter, LSP, JVM checks/test, native build/runtime smoke, durable save, adapter/reference renderer smoke when available, packages, and JVM/native builds"
+fi

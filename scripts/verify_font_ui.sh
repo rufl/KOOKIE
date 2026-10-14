@@ -14,8 +14,21 @@ for module in content core session ui; do
   done
 done
 
-jvm_output="$(cd "$work_dir" && kof run main.kf --target jvm)"
-native_output="$(cd "$work_dir" && kof run main.kf --target native)"
-[[ "$jvm_output" == *"KOOKIE G9 GatoGanso font defaults verified"* ]]
-[[ "$native_output" == *"KOOKIE G9 GatoGanso font defaults verified"* ]]
-printf '%s\n%s\n' "$jvm_output" "$native_output"
+read -r -a targets <<< "${KOOKIE_FONT_UI_TARGETS:-jvm native}"
+(( ${#targets[@]} > 0 )) || {
+  echo 'verify_font_ui: at least one target is required' >&2
+  exit 2
+}
+for target in "${targets[@]}"; do
+  case "$target" in
+    jvm|native) ;;
+    *) echo "verify_font_ui: unsupported target: $target" >&2; exit 2 ;;
+  esac
+  output="$(cd "$work_dir" && kof run main.kf --target "$target")"
+  [[ "$output" == *"KOOKIE G9 GatoGanso font defaults verified"* ]] || {
+    printf '%s\n' "$output" >&2
+    echo "verify_font_ui: marker missing for $target" >&2
+    exit 1
+  }
+  printf '%s\n' "$output"
+done

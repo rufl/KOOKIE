@@ -14,9 +14,21 @@ ln -s -- "$root_dir/src/ui/kookie_ui_audio_catalog.kf" \
   "$work_dir/ui/kookie_ui_audio_catalog.kf"
 ln -s -- "$root_dir/src/core/audio_queue.kf" "$work_dir/core/audio_queue.kf"
 
-jvm_output="$(cd "$work_dir" && kof run main.kf --target jvm)"
-native_output="$(cd "$work_dir" && kof run main.kf --target native)"
-for output in "$jvm_output" "$native_output"; do
-  [[ "$output" == *"KOOKIE G10 published UI sound catalog verified"* ]]
+read -r -a targets <<< "${KOOKIE_UI_SOUND_TARGETS:-jvm native}"
+(( ${#targets[@]} > 0 )) || {
+  echo 'verify_ui_sound_catalog: at least one target is required' >&2
+  exit 2
+}
+for target in "${targets[@]}"; do
+  case "$target" in
+    jvm|native) ;;
+    *) echo "verify_ui_sound_catalog: unsupported target: $target" >&2; exit 2 ;;
+  esac
+  output="$(cd "$work_dir" && kof run main.kf --target "$target")"
+  [[ "$output" == *"KOOKIE G10 published UI sound catalog verified"* ]] || {
+    printf '%s\n' "$output" >&2
+    echo "verify_ui_sound_catalog: marker missing for $target" >&2
+    exit 1
+  }
+  printf '%s\n' "$output"
 done
-printf '%s\n%s\n' "$jvm_output" "$native_output"

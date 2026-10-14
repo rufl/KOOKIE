@@ -23,35 +23,51 @@ ln -s "$root_dir/src/ui/published_assets.kf" \
 cat "$root_dir/src/ui/kookie_ui.ks" \
   "$root_dir/src/ui/published_assets.ks" \
   "$root_dir/probes/g10_ui_library/main.ks" > "$work_dir/kofscript.ks"
-kofscript_jvm_output="$(
-  cd "$work_dir" && kof script kofscript.ks --target jvm
-)"
-kofscript_native_output="$(
-  cd "$work_dir" && kof script kofscript.ks --target native
-)"
-
-jvm_output="$(cd "$work_dir" && kof run main.kf --target jvm)"
-native_output="$(cd "$work_dir" && kof run main.kf --target native)"
-js_check="$(cd "$work_dir" && kof check main.kf --target js)"
-js_build_dir="$work_dir/js-build"
-(
-  cd "$work_dir"
-  kof build main.kf --target js --output "$js_build_dir" >/dev/null
-)
-[[ "$js_check" == *"checked 1 file(s) — no errors"* ]]
-[[ -f "$js_build_dir/Default.mjs" ]]
-[[ -f "$js_build_dir/index.html" ]]
-grep -Fq 'kofUiImageNew' "$js_build_dir/Default.mjs"
-grep -Fq 'kofUiIconNew' "$js_build_dir/Default.mjs"
-
-for output in "$jvm_output" "$native_output"; do
-  [[ "$output" == *"KOOKIE G10 internal Kof/KofJS UI library verified"* ]]
+read -r -a targets <<< "${KOOKIE_UI_LIBRARY_TARGETS:-jvm native}"
+(( ${#targets[@]} > 0 )) || {
+  echo 'verify_ui_library: at least one target is required' >&2
+  exit 2
+}
+ui_outputs=()
+kofscript_outputs=()
+for target in "${targets[@]}"; do
+  case "$target" in
+    jvm|native) ;;
+    *) echo "verify_ui_library: unsupported target: $target" >&2; exit 2 ;;
+  esac
+  ui_output="$(cd "$work_dir" && kof run main.kf --target "$target")"
+  kofscript_output="$(
+    cd "$work_dir" && kof script kofscript.ks --target "$target"
+  )"
+  ui_outputs+=("$ui_output")
+  kofscript_outputs+=("$kofscript_output")
 done
-[[ "$jvm_output" == *"KOOKIE G10 reusable layout and widget system verified"* ]]
-[[ "$native_output" == *"KOOKIE G10 reusable layout and widget system verified"* ]]
-for output in "$kofscript_jvm_output" "$kofscript_native_output"; do
+
+if [[ "${KOOKIE_UI_LIBRARY_SKIP_JS:-0}" != 1 ]]; then
+  js_check="$(cd "$work_dir" && kof check main.kf --target js)"
+  js_build_dir="$work_dir/js-build"
+  (
+    cd "$work_dir"
+    kof build main.kf --target js --output "$js_build_dir" >/dev/null
+  )
+  [[ "$js_check" == *"checked 1 file(s) — no errors"* ]]
+  [[ -f "$js_build_dir/Default.mjs" ]]
+  [[ -f "$js_build_dir/index.html" ]]
+  grep -Fq 'kofUiImageNew' "$js_build_dir/Default.mjs"
+  grep -Fq 'kofUiIconNew' "$js_build_dir/Default.mjs"
+fi
+
+for output in "${ui_outputs[@]}"; do
+  [[ "$output" == *"KOOKIE G10 internal Kof/KofJS UI library verified"* ]]
+  [[ "$output" == *"KOOKIE G10 reusable layout and widget system verified"* ]]
+done
+for output in "${kofscript_outputs[@]}"; do
   [[ "$output" == *"KOOKIE G10 KofScript UI library verified"* ]]
 done
-printf '%s\n%s\n%s\n%s\n%s\n' \
-  "$jvm_output" "$native_output" \
-  "$kofscript_jvm_output" "$kofscript_native_output" "$js_check"
+
+for output in "${ui_outputs[@]}" "${kofscript_outputs[@]}"; do
+  printf '%s\n' "$output"
+done
+if [[ "${KOOKIE_UI_LIBRARY_SKIP_JS:-0}" != 1 ]]; then
+  printf '%s\n' "$js_check"
+fi

@@ -27,6 +27,8 @@ KOF_SOURCE_COMMIT="${KOOKIE_KOF_SOURCE_COMMIT:-}"
 KOF_ARCHIVE="${KOOKIE_KOF_ARCHIVE:-}"
 EXPECTED_KOF_VERSION="${KOOKIE_EXPECTED_KOF_VERSION:-$KOF_PIN_CLI_VERSION}"
 EXPECTED_KOF_SOURCE_COMMIT="${KOOKIE_EXPECTED_KOF_SOURCE_COMMIT:-$KOF_PIN_SOURCE_COMMIT}"
+PREBUILT_NATIVE_BUILD="${KOOKIE_PREBUILT_NATIVE_BUILD:-}"
+PREBUILT_NATIVE_MANIFEST="${KOOKIE_PREBUILT_NATIVE_MANIFEST:-}"
 WINDOWS_JAVA_ARCHIVE="${KOOKIE_WINDOWS_JAVA_ARCHIVE:-}"
 WINDOWS_JAVA_ARCHIVE_SHA256="${KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256:-}"
 WINDOWS_JAVA_VERSION="not-bundled"
@@ -197,6 +199,42 @@ archive_kof_compiler_sha256="$(
     "$KOF_COMPILER_SHA256" "$archive_kof_compiler_sha256" >&2
   exit 2
 }
+source_tree_sha256() {
+  git -C "$ROOT_DIR" ls-files -z -- src |
+    while IFS= read -r -d '' source_path; do
+      sha256sum "$ROOT_DIR/$source_path"
+    done | sha256sum | cut -d ' ' -f 1
+}
+
+if [[ -n "$PREBUILT_NATIVE_BUILD" ]]; then
+  [[ -d "$PREBUILT_NATIVE_BUILD" ]] || {
+    echo 'package_kookie: KOOKIE_PREBUILT_NATIVE_BUILD must name a build directory' >&2
+    exit 2
+  }
+  [[ -n "$PREBUILT_NATIVE_MANIFEST" &&
+     -f "$PREBUILT_NATIVE_MANIFEST" &&
+     ! -L "$PREBUILT_NATIVE_MANIFEST" ]] || {
+    echo 'package_kookie: KOOKIE_PREBUILT_NATIVE_MANIFEST must name a regular identity manifest' >&2
+    exit 2
+  }
+  prebuilt_binary="$PREBUILT_NATIVE_BUILD/Default/Main"
+  [[ -x "$prebuilt_binary" ]] || {
+    echo "package_kookie: prebuilt native executable missing: $prebuilt_binary" >&2
+    exit 2
+  }
+  current_source_commit="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+  current_source_tree_sha256="$(source_tree_sha256)"
+  grep -Fxq "target=native" "$PREBUILT_NATIVE_MANIFEST" &&
+    grep -Fxq "source_commit=$current_source_commit" "$PREBUILT_NATIVE_MANIFEST" &&
+    grep -Fxq "source_tree_sha256=$current_source_tree_sha256" "$PREBUILT_NATIVE_MANIFEST" &&
+    grep -Fxq "kof_version=$EXPECTED_KOF_VERSION" "$PREBUILT_NATIVE_MANIFEST" &&
+    grep -Fxq "kof_source_commit=$KOF_SOURCE_COMMIT" "$PREBUILT_NATIVE_MANIFEST" &&
+    grep -Fxq "kof_compiler_sha256=$KOF_COMPILER_SHA256" "$PREBUILT_NATIVE_MANIFEST" || {
+      echo 'package_kookie: prebuilt native identity does not match current source/toolchain' >&2
+      exit 2
+    }
+fi
+
 [[ -n "$SIGNING_KEY" && -f "$SIGNING_KEY" && ! -L "$SIGNING_KEY" ]] || {
   echo 'package_kookie: KOOKIE_SIGNING_KEY must name a regular Ed25519 private key' >&2
   exit 2
