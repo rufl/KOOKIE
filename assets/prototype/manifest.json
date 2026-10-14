@@ -503,6 +503,15 @@
       "runtime_path": "runtime/power_ups/watermelon.json",
       "format": "json",
       "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.wool-ball",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/wool_ball.json",
+      "runtime_path": "runtime/power_ups/wool_ball.json",
+      "format": "json",
+      "license": "project-authored"
     }
   ]
 }

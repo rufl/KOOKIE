@@ -152,12 +152,16 @@ class LoopbackSession {
     PowerUpWorld powerUpWorldValue
     PowerUpEffectState playerOnePowerUps
     PowerUpEffectState playerTwoPowerUps
+    AnimalAbilityController animalAbilities
+    Int[] playerAnimalKinds
     Bool powerUpWorldConfiguredValue
     Bool fpsMovementEnabledValue
     Bool playerOneConnected
     Bool playerOneFocused
     Bool playerTwoFocused
     Bool playerTwoConnected
+    Int lastAnimalAttackDamageValue
+    Bool lastAnimalPushValue
     Int serverTick
     Int clientTick
     Int snapshotSequence
@@ -239,12 +243,19 @@ class LoopbackSession {
         powerUpWorldValue = PowerUpWorld(powerUpMaximumDefinitions())
         playerOnePowerUps = PowerUpEffectState()
         playerTwoPowerUps = PowerUpEffectState()
+        animalAbilities = AnimalAbilityController(entityCapacity)
+        playerAnimalKinds = new Int[3]
+        playerAnimalKinds[0] = 0
+        playerAnimalKinds[1] = animalKindGoose()
+        playerAnimalKinds[2] = animalKindCat()
         powerUpWorldConfiguredValue = false
         fpsMovementEnabledValue = false
         playerOneConnected = false
         playerOneFocused = false
         playerTwoFocused = false
         playerTwoConnected = false
+        lastAnimalAttackDamageValue = 0
+        lastAnimalPushValue = false
         serverTick = 0
         clientTick = 0
         snapshotSequence = 0
@@ -725,6 +736,20 @@ class LoopbackSession {
         powerUpWorldConfiguredValue = true
         return true
     }
+    Bool configurePlayerAnimal(Int player, Int animalKind) {
+        if (started || (player != 1 && player != 2) ||
+            !validAnimalKind(animalKind)) {
+            return false
+        }
+        playerAnimalKinds[player] = animalKind
+        return true
+    }
+
+    Int playerAnimal(Int player) {
+        if (player != 1 && player != 2) { return 0 }
+        return playerAnimalKinds[player]
+    }
+
 
     Int powerUpPositionX(Int player) {
         if (fpsMovementEnabledValue) {
@@ -751,21 +776,6 @@ class LoopbackSession {
         return 0
     }
 
-    Bool restorePlayerHealth(Int player, Int amount) {
-        if (player != 1 && player != 2 || amount <= 0) {
-            return false
-        }
-        var restored = false
-        if (playerCombat.hasActor(player)) {
-            if (!playerCombat.restoreHealth(player, amount)) { return false }
-            restored = true
-        }
-        if (enemyCombat.hasActor(player)) {
-            if (!enemyCombat.restoreHealth(player, amount)) { return false }
-            restored = true
-        }
-        return restored
-    }
 
     Bool applyPowerUpPickup(Int player, PowerUpPickup pickup, Int tick) {
         if (!powerUpWorldConfiguredValue ||
@@ -774,34 +784,31 @@ class LoopbackSession {
         }
         var applied = false
         if (player == 1) {
-            applied = playerOnePowerUps.apply(pickup, tick)
+            applied = playerOnePowerUps.applyForAnimal(
+                pickup, tick, playerAnimalKinds[player])
         } else {
-            applied = playerTwoPowerUps.apply(pickup, tick)
+            applied = playerTwoPowerUps.applyForAnimal(
+                pickup, tick, playerAnimalKinds[player])
         }
         if (!applied) { return false }
-        var healing = if (player == 1)
-            playerOnePowerUps.consumeHealing()
-        else
-            playerTwoPowerUps.consumeHealing()
-        if (healing > 0 && !restorePlayerHealth(player, healing)) {
-            return false
-        }
         return refreshPlayerCombatModifiers(player)
     }
 
     Bool consumePowerUpPickups(Int tick) {
         if (!powerUpWorldConfiguredValue) { return true }
         if (playerOneConnected) {
-            var playerOnePickup = powerUpWorldValue.pickupAt(
-                powerUpPositionX(1), powerUpPositionY(1), powerUpPositionZ(1))
+            var playerOnePickup = powerUpWorldValue.pickupAtForAnimal(
+                powerUpPositionX(1), powerUpPositionY(1), powerUpPositionZ(1),
+                playerAnimalKinds[1])
             if (playerOnePickup.accepted() &&
                 !applyPowerUpPickup(1, playerOnePickup, tick)) {
                 return false
             }
         }
         if (playerTwoConnected) {
-            var playerTwoPickup = powerUpWorldValue.pickupAt(
-                powerUpPositionX(2), powerUpPositionY(2), powerUpPositionZ(2))
+            var playerTwoPickup = powerUpWorldValue.pickupAtForAnimal(
+                powerUpPositionX(2), powerUpPositionY(2), powerUpPositionZ(2),
+                playerAnimalKinds[2])
             if (playerTwoPickup.accepted() &&
                 !applyPowerUpPickup(2, playerTwoPickup, tick)) {
                 return false
@@ -810,19 +817,36 @@ class LoopbackSession {
         return true
     }
 
-    Bool advancePowerUpStates(Int tick) {
-        if (!powerUpWorldConfiguredValue) { return true }
-        if (!playerOnePowerUps.advance(tick) ||
-            !playerTwoPowerUps.advance(tick)) {
+    Bool syncAnimalProjectileDefense(Int tick) {
+        if (playerOneConnected &&
+            !enemyCombat.setProjectileDefense(
+                1, playerOnePowerUps.woolMaceActive(tick),
+                animalAbilities.evadesProjectile(1, tick))) {
             return false
         }
-        if (playerOneConnected && !refreshPlayerCombatModifiers(1)) {
-            return false
-        }
-        if (playerTwoConnected && !refreshPlayerCombatModifiers(2)) {
+        if (playerTwoConnected &&
+            !enemyCombat.setProjectileDefense(
+                2, playerTwoPowerUps.woolMaceActive(tick),
+                animalAbilities.evadesProjectile(2, tick))) {
             return false
         }
         return true
+    }
+
+    Bool advancePowerUpStates(Int tick) {
+        if (powerUpWorldConfiguredValue) {
+            if (!playerOnePowerUps.advance(tick) ||
+                !playerTwoPowerUps.advance(tick)) {
+                return false
+            }
+            if (playerOneConnected && !refreshPlayerCombatModifiers(1)) {
+                return false
+            }
+            if (playerTwoConnected && !refreshPlayerCombatModifiers(2)) {
+                return false
+            }
+        }
+        return syncAnimalProjectileDefense(tick)
     }
 
     Int powerUpKind(Int player) {
@@ -876,6 +900,36 @@ class LoopbackSession {
         if (player == 2) { return playerTwoPowerUps.scubaDrainReduction() }
         return 0
     }
+    Int powerUpSeedDamage(Int player) {
+        if (player == 1) { return playerOnePowerUps.watermelonSeedDamage() }
+        if (player == 2) { return playerTwoPowerUps.watermelonSeedDamage() }
+        return 0
+    }
+
+    Int powerUpMaceDamage(Int player) {
+        if (player == 1) { return playerOnePowerUps.woolMaceDamage() }
+        if (player == 2) { return playerTwoPowerUps.woolMaceDamage() }
+        return 0
+    }
+
+    Bool playerWatermelonActive(Int player, Int tick) {
+        if (player == 1) { return playerOnePowerUps.watermelonActive(tick) }
+        if (player == 2) { return playerTwoPowerUps.watermelonActive(tick) }
+        return false
+    }
+
+    Bool playerWoolMaceActive(Int player, Int tick) {
+        if (player == 1) { return playerOnePowerUps.woolMaceActive(tick) }
+        if (player == 2) { return playerTwoPowerUps.woolMaceActive(tick) }
+        return false
+    }
+
+    Bool playerMegaphoneActive(Int player, Int tick) {
+        if (player == 1) { return playerOnePowerUps.megaphoneActive(tick) }
+        if (player == 2) { return playerTwoPowerUps.megaphoneActive(tick) }
+        return false
+    }
+
 
 
     Bool fpsInLiquid(Int player) {
@@ -969,8 +1023,11 @@ class LoopbackSession {
             if (!serverMovement.setPosition(1, positionOne) ||
                 !clientMovement.setPosition(1, positionOne) ||
                 (fpsMovementEnabledValue &&
-                    !fpsMovement.addActor(
-                        1, positionOne, positionOneY, positionOneZ)) ||
+                    (!fpsMovement.addActor(
+                        1, positionOne, positionOneY, positionOneZ) ||
+                     !fpsMovement.configureAnimalActor(
+                        1, playerAnimalKinds[1]))) ||
+                !animalAbilities.configureActor(1, playerAnimalKinds[1]) ||
                 !playerOnePrediction.restore(positionOne, serverTick) ||
                 !playerOneSnapshots.reset() ||
                 (recovering && !playerOneInputs.resetForReplay())) {
@@ -992,8 +1049,11 @@ class LoopbackSession {
             if (!serverMovement.setPosition(2, positionTwo) ||
                 !clientMovement.setPosition(2, positionTwo) ||
                 (fpsMovementEnabledValue &&
-                    !fpsMovement.addActor(
-                        2, positionTwo, positionTwoY, positionTwoZ)) ||
+                    (!fpsMovement.addActor(
+                        2, positionTwo, positionTwoY, positionTwoZ) ||
+                     !fpsMovement.configureAnimalActor(
+                        2, playerAnimalKinds[2]))) ||
+                !animalAbilities.configureActor(2, playerAnimalKinds[2]) ||
                 !playerTwoPrediction.restore(positionTwo, serverTick) ||
                 !playerTwoSnapshots.reset() ||
                 (recovering && !playerTwoInputs.resetForReplay())) {
@@ -1046,6 +1106,8 @@ class LoopbackSession {
             playerOneInputs.clearPending()
             playerOneEdges.clearHeld()
             playerOnePowerUps.clear()
+            animalAbilities.removeActor(1)
+            enemyCombat.setProjectileDefense(1, false, false)
             interactionTargets[1] = 0
             interactionTicks[1] = 0
             disconnectReasons[1] = reason
@@ -1057,6 +1119,8 @@ class LoopbackSession {
             playerTwoInputs.clearPending()
             playerTwoEdges.clearHeld()
             playerTwoPowerUps.clear()
+            animalAbilities.removeActor(2)
+            enemyCombat.setProjectileDefense(2, false, false)
             interactionTargets[2] = 0
             interactionTicks[2] = 0
             disconnectReasons[2] = reason
@@ -4934,6 +4998,200 @@ class LoopbackSession {
         return playerCombat.reserve(actorId)
     }
 
+    Int nearestLiveEnemy(Int sourceId) {
+        var nearest = 0
+        var nearestDistance = 1000000000
+        for (var index = 0; index < enemyCount; index = index + 1) {
+            var enemyId = enemyIds[index]
+            if (enemyId <= 0 ||
+                enemyCombat.enemyState(enemyId) == 7 ||
+                !enemyCombat.hasSpatialPosition(enemyId)) {
+                continue
+            }
+            var distance = enemyCombat.spatialDistance(sourceId, enemyId)
+            if (distance >= 0 && distance < nearestDistance) {
+                nearest = enemyId
+                nearestDistance = distance
+            }
+        }
+        return nearest
+    }
+
+    AreaDamageResult playerWoolMaceAttack(
+        Int player, Int targetId, Int tick, Int critical
+    ) {
+        lastAnimalAttackDamageValue = 0
+        lastAnimalPushValue = false
+        if (player < 1 || player > 2 ||
+            playerAnimalKinds[player] != animalKindCat() ||
+            !playerWoolMaceActive(player, tick) ||
+            enemyCombat.enemyState(targetId) < 0) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var result = enemyCombat.playerMelee(
+            player, targetId, tick, animalAbilityMeleeRange(),
+            powerUpMaceDamage(player), 0, critical)
+        lastAnimalAttackDamageValue = result.applied()
+        return result
+    }
+
+    AreaDamageResult playerMegaphoneHonk(
+        Int player, Int targetId, Int tick, Int critical
+    ) {
+        lastAnimalAttackDamageValue = 0
+        lastAnimalPushValue = false
+        if (player < 1 || player > 2 ||
+            playerAnimalKinds[player] != animalKindGoose() ||
+            !playerMegaphoneActive(player, tick) ||
+            enemyCombat.enemyState(targetId) < 0 ||
+            enemyCombat.spatialDistance(player, targetId) < 0 ||
+            enemyCombat.spatialDistance(player, targetId) >
+                animalAbilityHonkRange()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var result = enemyCombat.playerMelee(
+            player, targetId, tick, animalAbilityHonkRange(),
+            (if (player == 1)
+                playerOnePowerUps.megaphoneHonkDamage()
+            else
+                playerTwoPowerUps.megaphoneHonkDamage()),
+            0, critical)
+        var pushed = enemyCombat.pushEnemyAway(
+            targetId, player, animalAbilityHonkPushDistance())
+        lastAnimalAttackDamageValue = result.applied()
+        lastAnimalPushValue = pushed.accepted()
+        return result
+    }
+
+    AreaDamageResult fireWatermelonSeed(
+        Int player, Int targetId, Int tick, Int critical
+    ) {
+        lastAnimalAttackDamageValue = 0
+        lastAnimalPushValue = false
+        if (player < 1 || player > 2 ||
+            playerAnimalKinds[player] != animalKindGoose() ||
+            !playerWatermelonActive(player, tick) ||
+            enemyCombat.enemyState(targetId) < 0) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var canFire = if (player == 1)
+            playerOnePowerUps.canFireWatermelonSeed(tick)
+        else
+            playerTwoPowerUps.canFireWatermelonSeed(tick)
+        if (!canFire ||
+            enemyCombat.spatialDistance(player, targetId) >
+                animalAbilitySeedRange()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var targets = new Int[1]
+        targets[0] = targetId
+        var damage = if (player == 1)
+            playerOnePowerUps.watermelonSeedDamage()
+        else
+            playerTwoPowerUps.watermelonSeedDamage()
+        var result = enemyCombat.playerAreaDamage(
+            player, targets, damage, 0, critical, tick)
+        if (result.accepted()) {
+            if (player == 1) {
+                playerOnePowerUps.markWatermelonSeedFired(tick)
+            } else {
+                playerTwoPowerUps.markWatermelonSeedFired(tick)
+            }
+        }
+        lastAnimalAttackDamageValue = result.applied()
+        return result
+    }
+
+    Bool stepWatermelonSeedHeld(Int player, Int tick) {
+        if (!playerWatermelonActive(player, tick)) { return true }
+        var targetId = nearestLiveEnemy(player)
+        if (targetId <= 0) { return true }
+        if (player == 1 && !playerOnePowerUps.canFireWatermelonSeed(tick) ||
+            player == 2 && !playerTwoPowerUps.canFireWatermelonSeed(tick)) {
+            return true
+        }
+        fireWatermelonSeed(player, targetId, tick, 0)
+        return true
+    }
+    Bool stepMegaphoneHonkPressed(
+        Int player, Int tick, Bool pressed
+    ) {
+        if (!pressed || !playerMegaphoneActive(player, tick)) {
+            return true
+        }
+        var targetId = nearestLiveEnemy(player)
+        if (targetId > 0) {
+            playerMegaphoneHonk(player, targetId, tick, 0)
+        }
+        return true
+    }
+
+    Bool stepWoolMacePressed(
+        Int player, Int tick, Bool pressed
+    ) {
+        if (!pressed || !playerWoolMaceActive(player, tick)) {
+            return true
+        }
+        var targetId = nearestLiveEnemy(player)
+        if (targetId > 0) {
+            playerWoolMaceAttack(player, targetId, tick, 0)
+        }
+        return true
+    }
+
+
+    Bool activatePlayerAnimalAbility(
+        Int player, Int ability, Int targetId,
+        Int directionX, Int directionZ, Int tick
+    ) {
+        if (player < 1 || player > 2 || !playerConnected(player) ||
+            tick < serverTick) {
+            return false
+        }
+        if (ability == animalAbilityWoolMelee()) {
+            return playerWoolMaceAttack(player, targetId, tick, 0).accepted()
+        }
+        if (ability == animalAbilityHonk()) {
+            return playerMegaphoneHonk(player, targetId, tick, 0).accepted()
+        }
+        if (ability == animalAbilitySeedFire()) {
+            return fireWatermelonSeed(player, targetId, tick, 0).accepted()
+        }
+        if (!animalAbilities.use(player, ability, targetId, tick)) {
+            return false
+        }
+        var result = animalAbilities.lastResult()
+        if (result.displacement() > 0) {
+            if (!fpsMovementEnabledValue ||
+                !fpsMovement.burst(
+                    player, directionX, directionZ, result.displacement())) {
+                return false
+            }
+            var x = fpsMovement.positionX(player)
+            var y = fpsMovement.positionY(player)
+            var z = fpsMovement.positionZ(player)
+            if (!serverMovement.setPosition(player, x) ||
+                !enemyCombat.setSpatialPosition(player, x, y, z)) {
+                return false
+            }
+        }
+        if (ability == animalAbilityFlap()) {
+            animalAbilities.markFlapping(player, tick)
+        }
+        return syncAnimalProjectileDefense(tick)
+    }
+
+    Int lastAnimalAttackDamage() { return lastAnimalAttackDamageValue }
+    Bool lastAnimalPushAccepted() { return lastAnimalPushValue }
+    Bool lastAnimalAbilityCanceledDash() {
+        return animalAbilities.lastCanceledDash()
+    }
+    Int playerFallDamage(Int player, Int rawDamage, Int tick) {
+        return animalAbilities.mitigateFallDamage(
+            player, rawDamage, tick)
+    }
+
+
     Bool stepPlayerWeaponPresentationCaptured(
         Int actorId, Int tick, InputEdges edges
     ) {
@@ -6019,10 +6277,31 @@ class LoopbackSession {
                         1, commandOne, playerOneEdges.lastEdges())) {
                     return -1
                 }
-                if (playerCombat.isAlive(1) &&
-                    !stepPlayerWeaponPresentationCaptured(
-                        1, simulationTick, playerOneEdges.lastEdges())) {
-                    return -1
+                if (fpsMovement.lastFlapped()) {
+                    animalAbilities.markFlapping(1, simulationTick)
+                }
+                if (playerCombat.isAlive(1)) {
+                    if (commandOne.fire() != 0 &&
+                        playerWatermelonActive(1, simulationTick)) {
+                        if (!stepWatermelonSeedHeld(1, simulationTick)) {
+                            return -1
+                        }
+                    } else if (playerMegaphoneActive(1, simulationTick)) {
+                        if (!stepMegaphoneHonkPressed(
+                                1, simulationTick,
+                                playerOneEdges.lastEdges().firePressed() != 0)) {
+                            return -1
+                        }
+                    } else if (playerWoolMaceActive(1, simulationTick)) {
+                        if (!stepWoolMacePressed(
+                                1, simulationTick,
+                                playerOneEdges.lastEdges().firePressed() != 0)) {
+                            return -1
+                        }
+                    } else if (!stepPlayerWeaponPresentationCaptured(
+                            1, simulationTick, playerOneEdges.lastEdges())) {
+                        return -1
+                    }
                 }
             }
             if (playerTwoConnected && playerTwoInputs.queuedCount() > 0 &&
@@ -6039,16 +6318,40 @@ class LoopbackSession {
                         2, commandTwo, playerTwoEdges.lastEdges())) {
                     return -1
                 }
-                if (playerCombat.isAlive(2) &&
-                    !stepPlayerWeaponPresentationCaptured(
-                        2, simulationTick, playerTwoEdges.lastEdges())) {
-                    return -1
+                if (fpsMovement.lastFlapped()) {
+                    animalAbilities.markFlapping(2, simulationTick)
+                }
+                if (playerCombat.isAlive(2)) {
+                    if (commandTwo.fire() != 0 &&
+                        playerWatermelonActive(2, simulationTick)) {
+                        if (!stepWatermelonSeedHeld(2, simulationTick)) {
+                            return -1
+                        }
+                    } else if (playerMegaphoneActive(2, simulationTick)) {
+                        if (!stepMegaphoneHonkPressed(
+                                2, simulationTick,
+                                playerTwoEdges.lastEdges().firePressed() != 0)) {
+                            return -1
+                        }
+                    } else if (playerWoolMaceActive(2, simulationTick)) {
+                        if (!stepWoolMacePressed(
+                                2, simulationTick,
+                                playerTwoEdges.lastEdges().firePressed() != 0)) {
+                            return -1
+                        }
+                    } else if (!stepPlayerWeaponPresentationCaptured(
+                            2, simulationTick, playerTwoEdges.lastEdges())) {
+                        return -1
+                    }
                 }
             }
             if (!consumeWorldInteractions(simulationTick)) {
                 return -1
             }
             if (!consumePowerUpPickups(simulationTick)) {
+                return -1
+            }
+            if (!syncAnimalProjectileDefense(simulationTick)) {
                 return -1
             }
             if (!advanceEnemyTick(simulationTick)) {
@@ -6124,7 +6427,9 @@ class LoopbackSession {
                 fpsMovement.positionX(player), fpsMovement.positionY(player),
                 fpsMovement.positionZ(player), liquidActorHeightValue)
         }
-        if (!fpsMovement.configurePowerUpActor(
+        if (!fpsMovement.configureAnimalActor(
+                player, playerAnimalKinds[player]) ||
+            !fpsMovement.configurePowerUpActor(
                 player, powerUpSpeedBonus(player), powerUpJumpBonus(player)) ||
             !fpsMovement.configureLiquidActor(
                 player, liquid, liquidMovementProfileValue) ||

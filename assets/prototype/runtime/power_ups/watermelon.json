@@ -6,8 +6,8 @@
   "y": 1,
   "z": 60,
   "pickupRadius": 3,
-  "durationTicks": 1,
-  "effectValue": 35,
+  "durationTicks": 600,
+  "effectValue": 6,
   "visualSize": 2,
   "resource": 13
 }

@@ -745,6 +745,7 @@ class G1NativePresentation {
     PowerUpConfig megaphoneConfigValue
     PowerUpConfig scubaKitConfigValue
     PowerUpConfig watermelonConfigValue
+    PowerUpConfig woolBallConfigValue
     PowerUpWorld powerUpWorldValue
     BoundedLiquidWorld liquidWorldValue
     LiquidObjectWorld liquidObjectsValue
@@ -755,6 +756,8 @@ class G1NativePresentation {
     Int playerOneLiquidBodyValue
     Int playerTwoLiquidBodyValue
     MultiplayerScoreboard scoreboardUi
+    DevConsole consoleValue
+    FrameStaging consoleFrame
     MatchScoreboardState scoreboardState
     CameraState camera
     NativeInputState inputStateValue
@@ -790,6 +793,7 @@ class G1NativePresentation {
     Int minimapCapacity
     Int projectileCapacity
     Int scoreboardCapacity
+    Int consoleCapacity
     Int localPlayerValue
     Bool cooperativeModeValue
     Bool mirrorRemoteValue
@@ -817,6 +821,7 @@ class G1NativePresentation {
         animalMeshes = ArenaAnimalMeshes(6)
         attackVfx = AnimalAttackVfx(animalMeshes.actorCapacity())
         scoreboardUi = MultiplayerScoreboard()
+        consoleValue = DevConsole()
         scoreboardState = MatchScoreboardState(2)
         projectileOverlay = GooseProjectileOverlay(8)
         inputStateValue = NativeInputState()
@@ -839,6 +844,7 @@ class G1NativePresentation {
         megaphoneConfigValue = PowerUpConfig()
         scubaKitConfigValue = PowerUpConfig()
         watermelonConfigValue = PowerUpConfig()
+        woolBallConfigValue = PowerUpConfig()
         powerUpWorldValue = PowerUpWorld(powerUpMaximumDefinitions())
         liquidWorldValue = BoundedLiquidWorld(liquidMaximumBodies())
         liquidObjectsValue = LiquidObjectWorld(liquidDefaultObjectCapacity())
@@ -868,6 +874,7 @@ class G1NativePresentation {
         actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
         minimapFrame = FrameStaging(minimap.renderVertexCapacity())
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
+        consoleFrame = FrameStaging(consoleValue.renderVertexCapacity())
         projectileFrame = FrameStaging(projectileOverlay.renderVertexCapacity())
         worldCapacity = worldFrame.vertexCapacity()
         waterCapacity = waterFrame.vertexCapacity()
@@ -882,6 +889,7 @@ class G1NativePresentation {
         attackVfxCapacity = attackVfxFrame.vertexCapacity()
         lootBeamCapacity = lootBeamFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
+        consoleCapacity = consoleFrame.vertexCapacity()
         projectileCapacity = projectileFrame.vertexCapacity()
         localPlayerValue = 1
         cooperativeModeValue = true
@@ -907,6 +915,26 @@ class G1NativePresentation {
     Bool applyNativeKey(Int key, Int phase) {
         return inputStateValue.applyKey(key, phase)
     }
+    Bool applyConsoleKey(Int key, Int phase) {
+        return consoleValue.applyKey(key, phase)
+    }
+    Bool consoleOpen() { return consoleValue.visible() }
+    String consumeConsoleCommand() {
+        return consoleValue.consumeCommand()
+    }
+    Bool consoleWrite(String line) {
+        return consoleValue.appendOutput(line)
+    }
+    Bool consoleClear() {
+        return consoleValue.clearOutput()
+    }
+    Bool consoleStage(FrameStaging target, Int frame) {
+        return consoleValue.stage(target, frame)
+    }
+    Int consoleRenderCapacity() {
+        return consoleValue.renderVertexCapacity()
+    }
+
 
     Bool applyNativeMouseButton(Int pressed) {
         return inputStateValue.applyMouseButton(pressed)
@@ -977,7 +1005,10 @@ class G1NativePresentation {
                 "assets/prototype/runtime/power_ups/scuba_kit.json") ||
             !powerUpLoader.load(
                 watermelonConfigValue,
-                "assets/prototype/runtime/power_ups/watermelon.json")) {
+                "assets/prototype/runtime/power_ups/watermelon.json") ||
+            !powerUpLoader.load(
+                woolBallConfigValue,
+                "assets/prototype/runtime/power_ups/wool_ball.json")) {
             return false
         }
         liquidWorldValue = BoundedLiquidWorld(liquidMaximumBodies())
@@ -1007,7 +1038,8 @@ class G1NativePresentation {
             !powerUpWorldValue.add(jetpackConfigValue.definition()) ||
             !powerUpWorldValue.add(megaphoneConfigValue.definition()) ||
             !powerUpWorldValue.add(scubaKitConfigValue.definition()) ||
-            !powerUpWorldValue.add(watermelonConfigValue.definition())) {
+            !powerUpWorldValue.add(watermelonConfigValue.definition()) ||
+            !powerUpWorldValue.add(woolBallConfigValue.definition())) {
             return false
         }
         if (!oxygenMeterValue.configure(
@@ -1033,6 +1065,10 @@ class G1NativePresentation {
                 liquidWorldValue, liquidPhysicsValue.movementProfile(),
                 liquidPhysicsValue.actorHeight()) ||
             !interactionSession.configurePowerUps(powerUpWorldValue) ||
+            !interactionSession.configurePlayerAnimal(
+                1, localAnimalKindValue) ||
+            !interactionSession.configurePlayerAnimal(
+                2, remoteAnimalKindValue) ||
             !interactionSession.configureEnemyRules(320, 35, 15) ||
             !interactionSession.defineEnemyWeapon(7, 10, 0, 20, 1) ||
             !interactionSession.setEnemyWeaponRange(7, 40) ||
@@ -2284,6 +2320,15 @@ class G1NativePresentation {
             }
             scoreboardCount = scoreboardFrame.stagedCount()
         }
+        var consoleVisible = consoleValue.visible()
+        var consoleCount = 0
+        if (consoleVisible) {
+            if (!consoleValue.stage(consoleFrame, frame)) {
+                println("KOOKIE dev console stage failed")
+                return false
+            }
+            consoleCount = consoleFrame.stagedCount()
+        }
         if (!arena.stageWorld(worldFrame, frame, 1)) {
             println("KOOKIE gameplay arena world stage failed")
             return false
@@ -2427,7 +2472,8 @@ class G1NativePresentation {
         }
         var vertexCount =
             actorFrame.stagedCount() + hudFrame.stagedCount() +
-            minimapFrame.stagedCount() + scoreboardCount + projectileCount
+            minimapFrame.stagedCount() + scoreboardCount + consoleCount +
+            projectileCount
         if (!kookie_gpu_scene_begin(vertexCount) ||
             kookie_gpu_scene_capacity() < vertexCount) {
             println("KOOKIE gameplay GPU scene begin failed")
@@ -2438,7 +2484,8 @@ class G1NativePresentation {
             (projectileCount > 0 && !upload(projectileFrame)) ||
             !upload(hudFrame) ||
             !upload(minimapFrame) ||
-            (scoreboardVisible && !upload(scoreboardFrame))) {
+            (scoreboardVisible && !upload(scoreboardFrame)) ||
+            (consoleVisible && !upload(consoleFrame))) {
             println("KOOKIE gameplay GPU scene upload failed")
             return false
         }
@@ -2480,21 +2527,34 @@ class G1NativePresentation {
             println("KOOKIE gameplay scoreboard retire failed")
             return false
         }
+        if (consoleVisible && !consoleFrame.retire(frame)) {
+            println("KOOKIE dev console retire failed")
+            return false
+        }
         return true
     }
 
 
     Bool drawShellFrame(GameShell shell, FrameStaging shellFrame, Int frame) {
         if (!shell.stage(shellFrame, frame)) { return false }
-        var vertexCount = shellFrame.stagedCount()
+        var consoleVisible = consoleValue.visible()
+        var consoleCount = 0
+        if (consoleVisible) {
+            if (!consoleValue.stage(consoleFrame, frame)) { return false }
+            consoleCount = consoleFrame.stagedCount()
+        }
+        var vertexCount = shellFrame.stagedCount() + consoleCount
         if (!kookie_gpu_scene_begin(vertexCount) ||
-            !upload(shellFrame) || !kookie_gpu_scene_commit() ||
+            !upload(shellFrame) ||
+            (consoleVisible && !upload(consoleFrame)) ||
+            !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != vertexCount ||
             !kookie_gpu_render_set_passes(0, 1) ||
             !kookie_gpu_draw_scene()) {
             return false
         }
-        return shellFrame.retire(frame)
+        if (!shellFrame.retire(frame)) { return false }
+        return !consoleVisible || consoleFrame.retire(frame)
     }
 
     Bool capacitiesStable() {
@@ -2511,7 +2571,8 @@ class G1NativePresentation {
             hudFrame.vertexCapacity() == hudCapacity &&
             minimapFrame.vertexCapacity() == minimapCapacity &&
             projectileFrame.vertexCapacity() == projectileCapacity &&
-            scoreboardFrame.vertexCapacity() == scoreboardCapacity
+            scoreboardFrame.vertexCapacity() == scoreboardCapacity &&
+            consoleFrame.vertexCapacity() == consoleCapacity
     }
 
     Bool dequeueCombatFeedbackAudio() {
@@ -2558,6 +2619,62 @@ Bool sendHostGameState(
     return acknowledgement.length > 0 &&
         sendGamePayload(acknowledgement)
 }
+Bool processDevConsoleCommand(
+    G1NativePresentation presentation, GameShell shell
+) {
+    var command = presentation.consumeConsoleCommand()
+    if (command.length() == 0) { return true }
+    var kind = devConsoleCommandKind(command)
+    var session = presentation.gameplaySession()
+    if (kind == devConsoleCommandHelp()) {
+        return presentation.consoleWrite("help clear status pause resume") &&
+            presentation.consoleWrite("players where ui quit")
+    }
+    if (kind == devConsoleCommandClear()) {
+        return presentation.consoleClear() &&
+            presentation.consoleWrite("console cleared")
+    }
+    if (kind == devConsoleCommandStatus()) {
+        return presentation.consoleWrite(
+                "TICK " + session.currentServerTick()) &&
+            presentation.consoleWrite(
+                "PLAYERS " + session.playerCount()) &&
+            presentation.consoleWrite(
+                if (session.isPaused()) "PAUSED" else "RUNNING")
+    }
+    if (kind == devConsoleCommandPause()) {
+        if (session.setPaused(1)) {
+            return presentation.consoleWrite("PAUSED")
+        }
+        return presentation.consoleWrite("PAUSE FAILED")
+    }
+    if (kind == devConsoleCommandResume()) {
+        if (session.setPaused(0)) {
+            return presentation.consoleWrite("RUNNING")
+        }
+        return presentation.consoleWrite("RESUME FAILED")
+    }
+    if (kind == devConsoleCommandPlayers()) {
+        return presentation.consoleWrite(
+            "PLAYERS " + session.playerCount())
+    }
+    if (kind == devConsoleCommandWhere()) {
+        if (!session.playerConnected(1)) {
+            return presentation.consoleWrite("P1 DISCONNECTED")
+        }
+        return presentation.consoleWrite(
+            "P1 POS " + session.serverPosition(1))
+    }
+    if (kind == devConsoleCommandUi()) {
+        return presentation.consoleWrite(
+            "UI NATIVE HUD / KOFJS WIDGETS")
+    }
+    if (kind == devConsoleCommandQuit()) {
+        return shell.requestQuit() && presentation.consoleWrite("QUIT")
+    }
+    return presentation.consoleWrite("UNKNOWN COMMAND " + command)
+}
+
 Int menuUiSoundForAction(
     Int action, Int beforeScreen, Int afterScreen, Bool handled
 ) {
@@ -2811,32 +2928,45 @@ main() {
             } else if (eventKind == 7) {
                 var key = kookie_last_event_a()
                 var phase = kookie_last_event_b()
-                assert(presentation.applyNativeKey(key, phase),
-                    "Kof input policy must consume raw key events")
-                if (phase == 1) {
-                    var action = nativeInputAction(key)
-                    if (action != 0) {
-                        var beforeScreen = shell.screen()
-                        var gameplayBefore = shell.gameplayVisible()
-                        var handled = shell.handleAction(action)
-                        if (gameplayBefore &&
-                            action == gameShellActionBack() && handled) {
-                            assert(presentation.saveGameplay(),
-                                "leaving gameplay must publish a durable save")
-                        }
-                        var clip = 0
-                        if (gameplayBefore) {
-                            if (action == gameShellActionBack() && handled) {
-                                clip = 1030
-                            } else if (action == gameShellActionActivate()) {
-                                clip = 1041
+                var consoleInput =
+                    presentation.consoleOpen() ||
+                    key == devConsoleKeyTilde()
+                if (consoleInput) {
+                    assert(presentation.applyConsoleKey(key, phase),
+                        "dev console must consume raw key events")
+                    if (phase == 1) {
+                        assert(processDevConsoleCommand(
+                                presentation, shell),
+                            "dev console command must execute")
+                    }
+                } else {
+                    assert(presentation.applyNativeKey(key, phase),
+                        "Kof input policy must consume raw key events")
+                    if (phase == 1) {
+                        var action = nativeInputAction(key)
+                        if (action != 0) {
+                            var beforeScreen = shell.screen()
+                            var gameplayBefore = shell.gameplayVisible()
+                            var handled = shell.handleAction(action)
+                            if (gameplayBefore &&
+                                action == gameShellActionBack() && handled) {
+                                assert(presentation.saveGameplay(),
+                                    "leaving gameplay must publish a durable save")
                             }
-                        } else {
-                            clip = menuUiSoundForAction(
-                                action, beforeScreen, shell.screen(), handled)
+                            var clip = 0
+                            if (gameplayBefore) {
+                                if (action == gameShellActionBack() && handled) {
+                                    clip = 1030
+                                } else if (action == gameShellActionActivate()) {
+                                    clip = 1041
+                                }
+                            } else {
+                                clip = menuUiSoundForAction(
+                                    action, beforeScreen, shell.screen(), handled)
+                            }
+                            assert(playMenuUiSound(audio, clip),
+                                "keyboard UI interaction must play its mapped sound")
                         }
-                        assert(playMenuUiSound(audio, clip),
-                            "keyboard UI interaction must play its mapped sound")
                     }
                 }
             } else if (eventKind == 8) {

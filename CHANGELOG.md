@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- CI/CD P1 now builds the pinned Kof toolchain once per verification run,
+  separates static/JVM, native/package and Windows JVM gates, caches Maven/Zig/
+  JRE/SDL toolchains with SHA-256 revalidation, reuses source/toolchain-bound
+  JVM/native build artifacts, records runner preflight and gate timings, and
+  fails closed on build-identity mismatches. Static/JVM and Windows JVM gates
+  pass; full native/package qualification remains runner-bound.
 - The active Kof gate follows the source-built `0.6.5` toolchain from the last
   green Kof `lab` ancestor,
   `940f3bd81c25e564afc60f9d32d49652e47edcbc`. The upstream native GC cycle
@@ -38,9 +44,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   movement applies the configured gravity, buoyancy, drag, swim impulse and
   speed limits; the HUD exposes a configurable O2 meter; floatable and dense
   objects resolve differently through the same liquid world.
-- The prototype now exposes five bounded power-ups from JSON: coffee mugs
-  increase movement speed, jetpacks increase jump impulse, megaphones increase
-  damage, scuba kits reduce underwater O2 drain and watermelons restore health.
+- The prototype now exposes six bounded power-ups from JSON: coffee mugs
+  increase movement speed, jetpacks increase jump impulse, megaphones arm
+  goose honks, scuba kits reduce underwater O2 drain, watermelons arm timed
+  machine-gun seed fire for geese, and wool balls arm cat mace attacks that
+  damage nearby enemies and block incoming projectiles. Goose flapping reduces
+  fall damage; cats can roll to evade projectiles, dash, and double jump;
+  geese can double jump, flap and kick to cancel dashes.
   Pickups stage diamond world markers and an active HUD panel.
 - Native gameplay now renders the bounded goose and cat GLB geometry with
   correct model UV/material selection, including the embedded cat skin atlas.

@@ -1,0 +1,220 @@
+package core
+
+Int animalKindGoose() { return 1 }
+Int animalKindCat() { return 2 }
+
+Bool validAnimalKind(Int kind) {
+    return kind == animalKindGoose() || kind == animalKindCat()
+}
+
+Int animalAbilityNone() { return 0 }
+Int animalAbilityRoll() { return 1 }
+Int animalAbilityDash() { return 2 }
+Int animalAbilityFlap() { return 3 }
+Int animalAbilityKick() { return 4 }
+Int animalAbilityHonk() { return 5 }
+Int animalAbilitySeedFire() { return 6 }
+Int animalAbilityWoolMelee() { return 7 }
+
+Int animalAbilityRollDurationTicks() { return 8 }
+Int animalAbilityRollCooldownTicks() { return 12 }
+Int animalAbilityRollDistance() { return 8 }
+Int animalAbilityDashDurationTicks() { return 4 }
+Int animalAbilityDashCooldownTicks() { return 18 }
+Int animalAbilityDashDistance() { return 14 }
+Int animalAbilityFlapDurationTicks() { return 2 }
+Int animalAbilityFallMitigationPercent() { return 50 }
+Int animalAbilityMeleeRange() { return 10 }
+Int animalAbilityHonkRange() { return 24 }
+Int animalAbilityHonkPushDistance() { return 8 }
+Int animalAbilitySeedRange() { return 40 }
+
+
+record AnimalAbilityResult(
+    Bool accepted, Int actorId, Int ability, Int targetId,
+    Int displacement, Bool canceledDash
+)
+
+class AnimalAbilityController {
+    Int[] animalKinds
+    Int[] dashExpiryTicks
+    Int[] dashCooldownTicks
+    Int[] rollExpiryTicks
+    Int[] rollCooldownTicks
+    Int[] flapExpiryTicks
+    Bool[] activeValues
+    Int actualCapacityValue
+    AnimalAbilityResult lastResultValue
+
+    public constructor(Int capacity) {
+        actualCapacityValue = capacity
+        if (actualCapacityValue <= 0) { actualCapacityValue = 1 }
+        if (actualCapacityValue > fpsMovementMaximumActors()) {
+            actualCapacityValue = fpsMovementMaximumActors()
+        }
+        animalKinds = new Int[actualCapacityValue]
+        dashExpiryTicks = new Int[actualCapacityValue]
+        dashCooldownTicks = new Int[actualCapacityValue]
+        rollExpiryTicks = new Int[actualCapacityValue]
+        rollCooldownTicks = new Int[actualCapacityValue]
+        flapExpiryTicks = new Int[actualCapacityValue]
+        activeValues = new Bool[actualCapacityValue]
+        lastResultValue = AnimalAbilityResult(
+            false, 0, animalAbilityNone(), 0, 0, false)
+        clear()
+    }
+
+    Bool clear() {
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            animalKinds[index] = animalKindGoose()
+            dashExpiryTicks[index] = 0
+            dashCooldownTicks[index] = 0
+            rollExpiryTicks[index] = 0
+            rollCooldownTicks[index] = 0
+            flapExpiryTicks[index] = 0
+            activeValues[index] = false
+        }
+        lastResultValue = AnimalAbilityResult(
+            false, 0, animalAbilityNone(), 0, 0, false)
+        return true
+    }
+
+    Int slotFor(Int actorId) {
+        if (actorId <= 0 || actorId > actualCapacityValue) { return -1 }
+        return actorId - 1
+    }
+
+    Bool configureActor(Int actorId, Int animalKind) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !validAnimalKind(animalKind)) { return false }
+        animalKinds[slot] = animalKind
+        dashExpiryTicks[slot] = 0
+        dashCooldownTicks[slot] = 0
+        rollExpiryTicks[slot] = 0
+        rollCooldownTicks[slot] = 0
+        flapExpiryTicks[slot] = 0
+        activeValues[slot] = true
+        return true
+    }
+
+    Bool removeActor(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return false }
+        activeValues[slot] = false
+        dashExpiryTicks[slot] = 0
+        rollExpiryTicks[slot] = 0
+        flapExpiryTicks[slot] = 0
+        return true
+    }
+
+    Int animalKind(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return animalKinds[slot]
+    }
+
+    Bool allowed(Int actorId, Int ability) {
+        var kind = animalKind(actorId)
+        if (kind == 0) { return false }
+        if (ability == animalAbilityRoll() || ability == animalAbilityDash()) {
+            return kind == animalKindCat()
+        }
+        if (ability == animalAbilityFlap() || ability == animalAbilityKick() ||
+            ability == animalAbilityHonk() ||
+            ability == animalAbilitySeedFire()) {
+            return kind == animalKindGoose()
+        }
+        if (ability == animalAbilityWoolMelee()) {
+            return kind == animalKindCat()
+        }
+        return ability == animalAbilityNone()
+    }
+
+    Bool use(Int actorId, Int ability, Int targetId, Int tick) {
+        var slot = slotFor(actorId)
+        var accepted = false
+        var displacement = 0
+        var canceledDash = false
+        if (slot >= 0 && activeValues[slot] && tick >= 0 &&
+            targetId >= 0 && allowed(actorId, ability)) {
+            if (ability == animalAbilityRoll() &&
+                tick >= rollCooldownTicks[slot]) {
+                rollExpiryTicks[slot] = tick + animalAbilityRollDurationTicks()
+                rollCooldownTicks[slot] = tick + animalAbilityRollCooldownTicks()
+                displacement = animalAbilityRollDistance()
+                accepted = true
+            } else if (ability == animalAbilityDash() &&
+                tick >= dashCooldownTicks[slot]) {
+                dashExpiryTicks[slot] = tick + animalAbilityDashDurationTicks()
+                dashCooldownTicks[slot] = tick + animalAbilityDashCooldownTicks()
+                displacement = animalAbilityDashDistance()
+                accepted = true
+            } else if (ability == animalAbilityFlap()) {
+                flapExpiryTicks[slot] = tick + animalAbilityFlapDurationTicks()
+                accepted = true
+            } else if (ability == animalAbilityKick()) {
+                if (targetId > 0 && dashActive(targetId, tick)) {
+                    canceledDash = cancelDash(targetId)
+                }
+                accepted = true
+            }
+        }
+        lastResultValue = AnimalAbilityResult(
+            accepted, actorId, ability, targetId, displacement, canceledDash)
+        return accepted
+    }
+
+    Bool markFlapping(Int actorId, Int tick) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot] || tick < 0 ||
+            animalKinds[slot] != animalKindGoose()) {
+            return false
+        }
+        flapExpiryTicks[slot] = tick + animalAbilityFlapDurationTicks()
+        return true
+    }
+
+    Bool cancelDash(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return false }
+        if (dashExpiryTicks[slot] <= 0) { return false }
+        dashExpiryTicks[slot] = 0
+        return true
+    }
+
+    Bool dashActive(Int actorId, Int tick) {
+        var slot = slotFor(actorId)
+        return slot >= 0 && activeValues[slot] && tick >= 0 &&
+            dashExpiryTicks[slot] > tick
+    }
+
+    Bool rolling(Int actorId, Int tick) {
+        var slot = slotFor(actorId)
+        return slot >= 0 && activeValues[slot] && tick >= 0 &&
+            rollExpiryTicks[slot] > tick
+    }
+
+    Bool flapping(Int actorId, Int tick) {
+        var slot = slotFor(actorId)
+        return slot >= 0 && activeValues[slot] && tick >= 0 &&
+            flapExpiryTicks[slot] > tick
+    }
+
+    Bool evadesProjectile(Int actorId, Int tick) {
+        return animalKind(actorId) == animalKindCat() && rolling(actorId, tick)
+    }
+
+    Int mitigateFallDamage(Int actorId, Int rawDamage, Int tick) {
+        if (rawDamage <= 0) { return 0 }
+        if (animalKind(actorId) == animalKindGoose() && flapping(actorId, tick)) {
+            var reduction = rawDamage * animalAbilityFallMitigationPercent() / 100
+            if (reduction >= rawDamage) { return 0 }
+            return rawDamage - reduction
+        }
+        return rawDamage
+    }
+
+    AnimalAbilityResult lastResult() { return lastResultValue }
+    Int lastDisplacement() { return lastResultValue.displacement() }
+    Bool lastCanceledDash() { return lastResultValue.canceledDash() }
+}

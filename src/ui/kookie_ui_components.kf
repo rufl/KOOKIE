@@ -705,3 +705,237 @@ class KookieUiInspector {
     Int count() { return rowsValue.size() }
     Int capacity() { return capacityValue }
 }
+
+class KookieUiCheckbox {
+    Button buttonValue
+    String labelValue
+    Bool checkedValue
+
+    public constructor(String label, Bool checked) {
+        labelValue = label
+        if (labelValue.length() == 0) { labelValue = "Checkbox" }
+        checkedValue = checked
+        buttonValue = Button("", () -> {
+            checkedValue = !checkedValue
+            refresh()
+        })
+        refresh()
+    }
+
+    Button widget() { return buttonValue }
+    String label() { return labelValue }
+    Bool checked() { return checkedValue }
+
+    Bool setChecked(Bool checked) {
+        checkedValue = checked
+        refresh()
+        return true
+    }
+
+    void refresh() {
+        var mark = "[ ] "
+        if (checkedValue) { mark = "[x] " }
+        buttonValue.text = mark + labelValue
+        buttonValue.setStyle(kookieUiButtonStyle(
+            kookieUiButtonSecondary(), checkedValue))
+    }
+}
+
+class KookieUiSelect {
+    String[] optionsValue
+    Int capacityValue
+    Int countValue
+    Int selectedValue
+    Label valueLabel
+    Button previousButton
+    Button nextButton
+    View viewValue
+
+    public constructor(Int capacity) {
+        capacityValue = capacity
+        if (capacityValue <= 0) { capacityValue = 1 }
+        if (capacityValue > 32) { capacityValue = 32 }
+        optionsValue = new String[capacityValue]
+        countValue = 0
+        selectedValue = -1
+        valueLabel = Label("")
+        previousButton = Button("<", () -> {
+            select(selectedValue - 1)
+        })
+        nextButton = Button(">", () -> {
+            select(selectedValue + 1)
+        })
+        var row = Row(listOf(previousButton, valueLabel, nextButton))
+        row.setStyle(Style(
+            "display:flex;align-items:center;gap:8px;min-height:44px"))
+        viewValue = View(Style(
+            "display:flex;flex-direction:row;align-items:center"))
+        viewValue.bind(row)
+    }
+
+    Bool addOption(String option) {
+        if (option.length() == 0 || countValue >= capacityValue) {
+            return false
+        }
+        optionsValue[countValue] = option
+        countValue = countValue + 1
+        if (selectedValue < 0) { selectedValue = 0 }
+        refresh()
+        return true
+    }
+
+    Bool select(Int index) {
+        if (countValue <= 0) { return false }
+        selectedValue = index
+        if (selectedValue < 0) { selectedValue = countValue - 1 }
+        if (selectedValue >= countValue) { selectedValue = 0 }
+        refresh()
+        return true
+    }
+
+    void refresh() {
+        if (selectedValue >= 0 && selectedValue < countValue) {
+            valueLabel.text = optionsValue[selectedValue]
+        } else {
+            valueLabel.text = "--"
+        }
+        valueLabel.setStyle(Style(
+            "min-width:96px;text-align:center;color:#f8fafc"))
+    }
+
+    View widget() { return viewValue }
+    Int count() { return countValue }
+    Int selected() { return selectedValue }
+    String selectedLabel() {
+        if (selectedValue < 0 || selectedValue >= countValue) { return "" }
+        return optionsValue[selectedValue]
+    }
+}
+
+class KookieUiModal {
+    View viewValue
+    Label titleValue
+    Label bodyValue
+    Bool openValue
+
+    public constructor(String title, String body) {
+        titleValue = Label(title)
+        bodyValue = Label(body)
+        titleValue.setStyle(Style(
+            "font-family:'Jared Lite',Pixand,sans-serif;font-weight:700;color:#f8fafc"))
+        bodyValue.setStyle(Style(
+            "font-family:Pixand,sans-serif;line-height:1.35;color:#f8fafc"))
+        var content = Column(listOf(titleValue, bodyValue))
+        content.setStyle(Style(
+            "display:flex;flex-direction:column;gap:12px"))
+        viewValue = View(Style(
+            "display:flex;flex-direction:column;gap:12px;background:#162a37;color:#f8fafc;padding:20px;border-radius:8px;border:1px solid #475569"))
+        viewValue.bind(content)
+        openValue = false
+    }
+
+    View widget() { return viewValue }
+    String title() { return titleValue.text }
+    String body() { return bodyValue.text }
+    Bool open() { return openValue }
+    Bool show() {
+        openValue = true
+        return true
+    }
+    Bool close() {
+        openValue = false
+        return true
+    }
+    Bool setTitle(String title) {
+        if (title.length() == 0) { return false }
+        titleValue.text = title
+        return true
+    }
+    Bool setBody(String body) {
+        if (body.length() == 0) { return false }
+        bodyValue.text = body
+        return true
+    }
+}
+
+class KookieUiToast {
+    Label labelValue
+    Int colorValue
+    Int remainingValue
+    Bool visibleValue
+
+    public constructor() {
+        labelValue = Label("")
+        colorValue = kookieUiComponentColorMuted()
+        remainingValue = 0
+        visibleValue = false
+        labelValue.setStyle(kookieUiBadgeStyle(colorValue))
+    }
+
+    Label widget() { return labelValue }
+    String text() { return labelValue.text }
+    Int color() { return colorValue }
+    Int remaining() { return remainingValue }
+    Bool visible() { return visibleValue }
+
+    Bool show(String text, Int color, Int durationTicks) {
+        if (text.length() == 0 || durationTicks <= 0 ||
+            color < kookieUiComponentColorForeground() ||
+            color > kookieUiComponentColorSuccess()) {
+            return false
+        }
+        colorValue = color
+        remainingValue = durationTicks
+        visibleValue = true
+        labelValue.text = text
+        labelValue.setStyle(kookieUiBadgeStyle(colorValue))
+        return true
+    }
+
+    Bool advance() {
+        if (!visibleValue) { return true }
+        remainingValue = remainingValue - 1
+        if (remainingValue <= 0) {
+            remainingValue = 0
+            visibleValue = false
+        }
+        return true
+    }
+
+    Bool dismiss() {
+        remainingValue = 0
+        visibleValue = false
+        return true
+    }
+}
+
+class KookieUiKeybind {
+    Button buttonValue
+    String actionValue
+    String keyValue
+
+    public constructor(String action, String key) {
+        actionValue = action
+        keyValue = key
+        if (actionValue.length() == 0) { actionValue = "Action" }
+        if (keyValue.length() == 0) { keyValue = "UNBOUND" }
+        buttonValue = Button("", () -> {})
+        refresh()
+    }
+
+    Button widget() { return buttonValue }
+    String action() { return actionValue }
+    String key() { return keyValue }
+
+    Bool setKey(String key) {
+        if (key.length() == 0) { return false }
+        keyValue = key
+        refresh()
+        return true
+    }
+
+    void refresh() {
+        buttonValue.text = actionValue + ": " + keyValue
+        buttonValue.setStyle(kookieUiButtonStyle(kookieUiButtonGhost(), false))
+    }
+}

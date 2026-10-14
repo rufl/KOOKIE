@@ -1,0 +1,285 @@
+package ui
+
+import core
+
+Int devConsoleKeyTilde() { return 96 }
+Int devConsoleKeyBackspace() { return 8 }
+Int devConsoleKeyDelete() { return 127 }
+Int devConsoleKeyEnter() { return 13 }
+Int devConsoleKeyEscape() { return 27 }
+Int devConsoleKeyUp() { return 273 }
+Int devConsoleKeyDown() { return 274 }
+
+Int devConsoleCommandUnknown() { return 0 }
+Int devConsoleCommandHelp() { return 1 }
+Int devConsoleCommandClear() { return 2 }
+Int devConsoleCommandStatus() { return 3 }
+Int devConsoleCommandPause() { return 4 }
+Int devConsoleCommandResume() { return 5 }
+Int devConsoleCommandPlayers() { return 6 }
+Int devConsoleCommandWhere() { return 7 }
+Int devConsoleCommandUi() { return 8 }
+Int devConsoleCommandQuit() { return 9 }
+
+Int devConsoleMaximumHistory() { return 16 }
+Int devConsoleMaximumOutput() { return 12 }
+Int devConsoleMaximumLineLength() { return 78 }
+
+String devConsoleKeyText(Int key) {
+    if (key == 32) { return " " }
+    if (key == 45) { return "-" }
+    if (key == 46) { return "." }
+    if (key == 47) { return "/" }
+    if (key == 48) { return "0" }
+    if (key == 49) { return "1" }
+    if (key == 50) { return "2" }
+    if (key == 51) { return "3" }
+    if (key == 52) { return "4" }
+    if (key == 53) { return "5" }
+    if (key == 54) { return "6" }
+    if (key == 55) { return "7" }
+    if (key == 56) { return "8" }
+    if (key == 57) { return "9" }
+    if (key == 97) { return "a" }
+    if (key == 98) { return "b" }
+    if (key == 99) { return "c" }
+    if (key == 100) { return "d" }
+    if (key == 101) { return "e" }
+    if (key == 102) { return "f" }
+    if (key == 103) { return "g" }
+    if (key == 104) { return "h" }
+    if (key == 105) { return "i" }
+    if (key == 106) { return "j" }
+    if (key == 107) { return "k" }
+    if (key == 108) { return "l" }
+    if (key == 109) { return "m" }
+    if (key == 110) { return "n" }
+    if (key == 111) { return "o" }
+    if (key == 112) { return "p" }
+    if (key == 113) { return "q" }
+    if (key == 114) { return "r" }
+    if (key == 115) { return "s" }
+    if (key == 116) { return "t" }
+    if (key == 117) { return "u" }
+    if (key == 118) { return "v" }
+    if (key == 119) { return "w" }
+    if (key == 120) { return "x" }
+    if (key == 121) { return "y" }
+    if (key == 122) { return "z" }
+    return ""
+}
+
+Int devConsoleCommandKind(String line) {
+    if (line == "help") { return devConsoleCommandHelp() }
+    if (line == "clear") { return devConsoleCommandClear() }
+    if (line == "status") { return devConsoleCommandStatus() }
+    if (line == "pause") { return devConsoleCommandPause() }
+    if (line == "resume") { return devConsoleCommandResume() }
+    if (line == "players") { return devConsoleCommandPlayers() }
+    if (line == "where") { return devConsoleCommandWhere() }
+    if (line == "ui") { return devConsoleCommandUi() }
+    if (line == "quit") { return devConsoleCommandQuit() }
+    return devConsoleCommandUnknown()
+}
+
+class DevConsole {
+    Bool visibleValue
+    String inputValue
+    String pendingCommandValue
+    String[] historyValues
+    String[] outputValues
+    Int historyCountValue
+    Int outputCountValue
+    Int historyCursorValue
+
+    public constructor() {
+        visibleValue = false
+        inputValue = ""
+        pendingCommandValue = ""
+        historyValues = new String[devConsoleMaximumHistory()]
+        outputValues = new String[devConsoleMaximumOutput()]
+        historyCountValue = 0
+        outputCountValue = 0
+        historyCursorValue = 0
+    }
+
+    Bool visible() { return visibleValue }
+    String input() { return inputValue }
+    Int historyCount() { return historyCountValue }
+    Int outputCount() { return outputCountValue }
+    String outputAt(Int index) {
+        if (index < 0 || index >= outputCountValue) { return "" }
+        return outputValues[index]
+    }
+
+    Bool setVisible(Bool visible) {
+        visibleValue = visible
+        if (!visibleValue) {
+            inputValue = ""
+            historyCursorValue = historyCountValue
+        }
+        return true
+    }
+
+    Bool toggle() {
+        return setVisible(!visibleValue)
+    }
+
+    Bool appendOutput(String line) {
+        if (line.length() == 0 || line.length() > devConsoleMaximumLineLength()) {
+            return false
+        }
+        if (outputCountValue < outputValues.length) {
+            outputValues[outputCountValue] = line
+            outputCountValue = outputCountValue + 1
+            return true
+        }
+        for (var index = 1; index < outputValues.length; index = index + 1) {
+            outputValues[index - 1] = outputValues[index]
+        }
+        outputValues[outputValues.length - 1] = line
+        return true
+    }
+
+    Bool clearOutput() {
+        outputCountValue = 0
+        return true
+    }
+
+    Bool addHistory(String line) {
+        if (line.length() == 0 || line.length() > devConsoleMaximumLineLength()) {
+            return false
+        }
+        if (historyCountValue < historyValues.length) {
+            historyValues[historyCountValue] = line
+            historyCountValue = historyCountValue + 1
+        } else {
+            for (var index = 1; index < historyValues.length; index = index + 1) {
+                historyValues[index - 1] = historyValues[index]
+            }
+            historyValues[historyValues.length - 1] = line
+        }
+        historyCursorValue = historyCountValue
+        return true
+    }
+
+    Bool submit() {
+        if (inputValue.length() == 0) { return false }
+        pendingCommandValue = inputValue
+        if (!appendOutput("> " + inputValue) || !addHistory(inputValue)) {
+            return false
+        }
+        inputValue = ""
+        return true
+    }
+
+    String consumeCommand() {
+        var result = pendingCommandValue
+        pendingCommandValue = ""
+        return result
+    }
+
+    Bool moveHistory(Int direction) {
+        if (historyCountValue == 0 || (direction != -1 && direction != 1)) {
+            return false
+        }
+        historyCursorValue = historyCursorValue + direction
+        if (historyCursorValue < 0) { historyCursorValue = 0 }
+        if (historyCursorValue > historyCountValue) {
+            historyCursorValue = historyCountValue
+        }
+        if (historyCursorValue == historyCountValue) {
+            inputValue = ""
+        } else {
+            inputValue = historyValues[historyCursorValue]
+        }
+        return true
+    }
+
+    Bool applyKey(Int key, Int phase) {
+        if (key == devConsoleKeyTilde()) {
+            if (phase == 1) { return toggle() }
+            return true
+        }
+        if (!visibleValue) { return false }
+        if (phase != 1) { return true }
+        if (key == devConsoleKeyEscape()) {
+            return setVisible(false)
+        }
+        if (key == devConsoleKeyEnter()) {
+            submit()
+            return true
+        }
+        if (key == devConsoleKeyBackspace() ||
+            key == devConsoleKeyDelete()) {
+            if (inputValue.length() > 0) {
+                inputValue = inputValue.substring(0, inputValue.length() - 1)
+            }
+            historyCursorValue = historyCountValue
+            return true
+        }
+        if (key == devConsoleKeyUp()) { return moveHistory(-1) }
+        if (key == devConsoleKeyDown()) { return moveHistory(1) }
+        var text = devConsoleKeyText(key)
+        if (text.length() == 0 || inputValue.length() >= devConsoleMaximumLineLength()) {
+            return true
+        }
+        inputValue = inputValue + text
+        historyCursorValue = historyCountValue
+        return true
+    }
+
+    Int renderVertexCapacity() {
+        return 900
+    }
+
+    Bool pushQuad(FrameStaging target, Int resource,
+        Int left, Int bottom, Int right, Int top
+    ) {
+        return kookieUiNativePushQuad(target, resource, left, bottom, right, top)
+    }
+
+    Bool pushText(FrameStaging target, String text,
+        Int left, Int bottom, Int color
+    ) {
+        return kookieUiNativePushText(target, text, left, bottom, 1, color)
+    }
+
+    Bool stage(FrameStaging target, Int frame) {
+        if (!visibleValue) { return true }
+        if (frame <= 0 || target.vertexCapacity() < renderVertexCapacity() ||
+            !target.begin(frame)) {
+            return false
+        }
+        var staged =
+            pushQuad(target, kookieUiNativeResourceBackground(),
+                -99, -96, 99, 96) &&
+            pushQuad(target, kookieUiNativeResourceSurface(),
+                -97, -94, 97, 92) &&
+            pushQuad(target, kookieUiNativeResourceAccent(),
+                -97, 89, 97, 92) &&
+            pushText(target, "DEV CONSOLE  ~ TOGGLE  ESC CLOSE",
+                -92, 82, kookieUiNativeColorAccent())
+        var firstLine = outputCountValue - 8
+        if (firstLine < 0) { firstLine = 0 }
+        var line = 0
+        for (var index = firstLine;
+            staged && index < outputCountValue;
+            index = index + 1) {
+            staged = pushText(target, outputValues[index],
+                -92, 68 - line * 9, kookieUiNativeColorForeground())
+            line = line + 1
+        }
+        if (staged) {
+            staged = pushQuad(target, kookieUiNativeResourceMuted(),
+                -97, -75, 97, -72) &&
+                pushText(target, "> " + inputValue + "_",
+                    -92, -70, kookieUiNativeColorSuccess())
+        }
+        if (!staged) {
+            target.discard()
+            return false
+        }
+        return target.publish()
+    }
+}

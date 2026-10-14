@@ -5,7 +5,8 @@ Int powerUpKindJetpack() { return 2 }
 Int powerUpKindMegaphone() { return 3 }
 Int powerUpKindScubaKit() { return 4 }
 Int powerUpKindWatermelon() { return 5 }
-Int powerUpMaximumKinds() { return 5 }
+Int powerUpKindWoolBall() { return 6 }
+Int powerUpMaximumKinds() { return 6 }
 Int powerUpMaximumDefinitions() { return 8 }
 Int powerUpMaximumId() { return 64 }
 Int powerUpMaximumRadius() { return 32 }
@@ -18,7 +19,7 @@ Int powerUpRenderBobAmplitude() { return 1 }
 
 Bool validPowerUpKind(Int kind) {
     return kind >= powerUpKindCoffeeMug() &&
-        kind <= powerUpKindWatermelon()
+        kind <= powerUpKindWoolBall()
 }
 
 String powerUpName(Int kind) {
@@ -27,7 +28,22 @@ String powerUpName(Int kind) {
     if (kind == powerUpKindMegaphone()) { return "MEGAPHONE" }
     if (kind == powerUpKindScubaKit()) { return "SCUBA KIT" }
     if (kind == powerUpKindWatermelon()) { return "WATERMELON" }
+    if (kind == powerUpKindWoolBall()) { return "WOOL BALL" }
     return ""
+}
+
+Bool powerUpAllowedForAnimal(Int kind, Int animalKind) {
+    if (!validPowerUpKind(kind) || !validAnimalKind(animalKind)) {
+        return false
+    }
+    if (kind == powerUpKindMegaphone() ||
+        kind == powerUpKindWatermelon()) {
+        return animalKind == animalKindGoose()
+    }
+    if (kind == powerUpKindWoolBall()) {
+        return animalKind == animalKindCat()
+    }
+    return true
 }
 
 record PowerUpDefinition(
@@ -188,6 +204,32 @@ class PowerUpWorld {
         }
         return PowerUpPickup(false, 0, 0, 0, 0, 0)
     }
+    PowerUpPickup pickupAtForAnimal(
+        Int x, Int y, Int z, Int animalKind
+    ) {
+        if (!validAnimalKind(animalKind) ||
+            x < liquidWorldCoordinateMinimum() ||
+            x > liquidWorldCoordinateMaximum() ||
+            y < liquidWorldCoordinateMinimum() ||
+            y > liquidWorldCoordinateMaximum() ||
+            z < liquidWorldCoordinateMinimum() ||
+            z > liquidWorldCoordinateMaximum()) {
+            return PowerUpPickup(false, 0, 0, 0, 0, 0)
+        }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (activeValues[index] &&
+                powerUpAllowedForAnimal(kinds[index], animalKind) &&
+                within(x, xValues[index], pickupRadiuses[index]) &&
+                within(y, yValues[index], pickupRadiuses[index]) &&
+                within(z, zValues[index], pickupRadiuses[index])) {
+                activeValues[index] = false
+                return PowerUpPickup(
+                    true, ids[index], kinds[index], durations[index],
+                    effects[index], resources[index])
+            }
+        }
+        return PowerUpPickup(false, 0, 0, 0, 0, 0)
+    }
 
     Int renderVertexCount() {
         return activeCount() * powerUpVerticesPerDefinition()
@@ -234,7 +276,11 @@ class PowerUpEffectState {
     Int megaphoneExpiryValue
     Int scubaDrainReductionValue
     Int scubaExpiryValue
-    Int pendingHealingValue
+    Int watermelonSeedDamageValue
+    Int watermelonExpiryValue
+    Int watermelonNextShotTickValue
+    Int woolMaceDamageValue
+    Int woolMaceExpiryValue
     Int lastKindValue
     Int lastResourceValue
 
@@ -251,17 +297,29 @@ class PowerUpEffectState {
         megaphoneExpiryValue = 0
         scubaDrainReductionValue = 0
         scubaExpiryValue = 0
-        pendingHealingValue = 0
+        watermelonSeedDamageValue = 0
+        watermelonExpiryValue = 0
+        watermelonNextShotTickValue = 0
+        woolMaceDamageValue = 0
+        woolMaceExpiryValue = 0
         lastKindValue = 0
         lastResourceValue = 0
         return true
     }
 
     Bool apply(PowerUpPickup pickup, Int tick) {
+        return applyForAnimal(pickup, tick, animalKindGoose())
+    }
+
+    Bool applyForAnimal(
+        PowerUpPickup pickup, Int tick, Int animalKind
+    ) {
         if (!pickup.accepted() || tick < 0 ||
             !validPowerUpKind(pickup.kind()) ||
+            !powerUpAllowedForAnimal(pickup.kind(), animalKind) ||
             pickup.durationTicks() <= 0 || pickup.effectValue() <= 0 ||
-            pickup.resource() <= 0 || pickup.resource() > powerUpMaximumResource()) {
+            pickup.resource() <= 0 ||
+            pickup.resource() > powerUpMaximumResource()) {
             return false
         }
         var expiry = tick + pickup.durationTicks()
@@ -290,9 +348,14 @@ class PowerUpEffectState {
             scubaExpiryValue = expiry
             return true
         }
-        pendingHealingValue = pickup.effectValue()
-        lastKindValue = 0
-        lastResourceValue = 0
+        if (pickup.kind() == powerUpKindWatermelon()) {
+            watermelonSeedDamageValue = pickup.effectValue()
+            watermelonExpiryValue = expiry
+            watermelonNextShotTickValue = tick
+            return true
+        }
+        woolMaceDamageValue = pickup.effectValue()
+        woolMaceExpiryValue = expiry
         return true
     }
 
@@ -314,6 +377,15 @@ class PowerUpEffectState {
             scubaDrainReductionValue = 0
             scubaExpiryValue = 0
         }
+        if (watermelonExpiryValue > 0 && tick >= watermelonExpiryValue) {
+            watermelonSeedDamageValue = 0
+            watermelonExpiryValue = 0
+            watermelonNextShotTickValue = 0
+        }
+        if (woolMaceExpiryValue > 0 && tick >= woolMaceExpiryValue) {
+            woolMaceDamageValue = 0
+            woolMaceExpiryValue = 0
+        }
         if ((lastKindValue == powerUpKindCoffeeMug() &&
                 coffeeExpiryValue == 0) ||
             (lastKindValue == powerUpKindJetpack() &&
@@ -321,7 +393,11 @@ class PowerUpEffectState {
             (lastKindValue == powerUpKindMegaphone() &&
                 megaphoneExpiryValue == 0) ||
             (lastKindValue == powerUpKindScubaKit() &&
-                scubaExpiryValue == 0)) {
+                scubaExpiryValue == 0) ||
+            (lastKindValue == powerUpKindWatermelon() &&
+                watermelonExpiryValue == 0) ||
+            (lastKindValue == powerUpKindWoolBall() &&
+                woolMaceExpiryValue == 0)) {
             lastKindValue = 0
             lastResourceValue = 0
         }
@@ -331,13 +407,38 @@ class PowerUpEffectState {
     Int coffeeSpeedBonus() { return coffeeSpeedBonusValue }
     Int jetpackImpulseBonus() { return jetpackImpulseBonusValue }
     Int megaphoneDamagePercent() { return megaphoneDamagePercentValue }
-    Int scubaDrainReduction() { return scubaDrainReductionValue }
-
-    Int consumeHealing() {
-        var healing = pendingHealingValue
-        pendingHealingValue = 0
-        return healing
+    Int megaphoneHonkDamage() {
+        var damage = megaphoneDamagePercentValue / 5
+        if (megaphoneDamagePercentValue > 0 && damage < 1) {
+            return 1
+        }
+        return damage
     }
+    Int scubaDrainReduction() { return scubaDrainReductionValue }
+    Int watermelonSeedDamage() { return watermelonSeedDamageValue }
+    Int woolMaceDamage() { return woolMaceDamageValue }
+
+    Bool watermelonActive(Int tick) {
+        return tick >= 0 && watermelonExpiryValue > tick &&
+            watermelonSeedDamageValue > 0
+    }
+    Bool woolMaceActive(Int tick) {
+        return tick >= 0 && woolMaceExpiryValue > tick &&
+            woolMaceDamageValue > 0
+    }
+    Bool megaphoneActive(Int tick) {
+        return tick >= 0 && megaphoneExpiryValue > tick &&
+            megaphoneDamagePercentValue > 0
+    }
+    Bool canFireWatermelonSeed(Int tick) {
+        return watermelonActive(tick) && tick >= watermelonNextShotTickValue
+    }
+    Bool markWatermelonSeedFired(Int tick) {
+        if (!canFireWatermelonSeed(tick)) { return false }
+        watermelonNextShotTickValue = tick + 2
+        return true
+    }
+
 
     Int activeKind() { return lastKindValue }
     Int activeResource() { return lastResourceValue }
@@ -358,6 +459,14 @@ class PowerUpEffectState {
         if (lastKindValue == powerUpKindScubaKit()) {
             return if (scubaExpiryValue > tick)
                 scubaExpiryValue - tick else 0
+        }
+        if (lastKindValue == powerUpKindWatermelon()) {
+            return if (watermelonExpiryValue > tick)
+                watermelonExpiryValue - tick else 0
+        }
+        if (lastKindValue == powerUpKindWoolBall()) {
+            return if (woolMaceExpiryValue > tick)
+                woolMaceExpiryValue - tick else 0
         }
         return 0
     }

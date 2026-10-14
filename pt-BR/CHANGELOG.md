@@ -3,6 +3,13 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O CI/CD P1 agora constrói o toolchain Kof fixado uma vez por execução de
+  verificação, separa os gates static/JVM, native/package e Windows JVM,
+  cacheia toolchains Maven/Zig/JRE/SDL com revalidação SHA-256, reutiliza
+  artefatos JVM/native vinculados à fonte e ao toolchain, registra preflight dos
+  runners e duração dos gates e falha fechado em divergências de identidade do
+  build. Os gates static/JVM e Windows JVM passam; a qualificação completa
+  native/package continua dependente do runner.
 - O gate ativo do Kof acompanha o toolchain `0.6.5` construído a partir do
   último ancestral verde da `lab` do Kof,
   `940f3bd81c25e564afc60f9d32d49652e47edcbc`. A guarda upstream de ciclos do GC
@@ -39,11 +46,15 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   impulso de nado e limites de velocidade configurados; o HUD expõe um medidor
   O2 configurável; objetos flutuáveis e densos resolvem de forma diferente no
   mesmo mundo líquido.
-- O protótipo agora expõe cinco power-ups limitados via JSON: canecas de café
-  aumentam a velocidade, jetpacks aumentam o impulso de pulo, megafones
-  aumentam o dano, kits de mergulho reduzem o consumo de O2 submerso e
-  melancias restauram vida. Pickups geram marcadores diamante no mundo e um
-  painel ativo no HUD.
+- O protótipo agora expõe seis power-ups limitados via JSON: canecas de café
+  aumentam a velocidade, jetpacks aumentam o impulso de pulo, megafones armam
+  buzinas do ganso, kits de mergulho reduzem o consumo de O2 submerso,
+  melancias armam uma metralhadora temporária de sementes para gansos e bolas
+  de lã armam a maça do gato para causar dano próximo e bloquear projéteis.
+  O bater de asas do ganso reduz dano de queda; gatos podem rolar para evitar
+  projéteis, dar dash e fazer pulo duplo; gansos podem fazer pulo duplo, bater
+  asas e dar chute para cancelar dash. Pickups geram marcadores diamante no
+  mundo e um painel ativo no HUD.
 - O gameplay nativo agora renderiza a geometria GLB limitada do ganso e do gato
   com seleção correta de UV/material, incluindo o atlas de textura embutido do gato.
 - A geometria do mundo agora recebe iluminação de ponto animada e uma sombra blob

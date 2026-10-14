@@ -88,6 +88,7 @@ class FpsMovementController {
     Int[] powerUpSpeedBonuses
     Int[] powerUpJumpBonuses
     Int[] liquidMaxRiseSpeeds
+    Int[] animalKinds
     Int lastActorValue
     Bool lastAcceptedValue
     Bool lastCollidedValue
@@ -152,6 +153,7 @@ class FpsMovementController {
         liquidMaxRiseSpeeds = new Int[actualCapacityValue]
         powerUpSpeedBonuses = new Int[actualCapacityValue]
         powerUpJumpBonuses = new Int[actualCapacityValue]
+        animalKinds = new Int[actualCapacityValue]
         clearActors()
         configuredValue = false
         lastActorValue = 0
@@ -192,6 +194,7 @@ class FpsMovementController {
             liquidMaxRiseSpeeds[index] = 0
             powerUpSpeedBonuses[index] = 0
             powerUpJumpBonuses[index] = 0
+            animalKinds[index] = animalKindGoose()
         }
     }
 
@@ -398,6 +401,55 @@ class FpsMovementController {
         powerUpJumpBonuses[slot] = jumpBonus
         return true
     }
+    Bool configureAnimalActor(Int actorId, Int animalKind) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot] ||
+            !validAnimalKind(animalKind)) {
+            return false
+        }
+        animalKinds[slot] = animalKind
+        return true
+    }
+
+    Int animalKind(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return animalKinds[slot]
+    }
+
+    Bool burst(Int actorId, Int directionX, Int directionZ, Int distance) {
+        var slot = slotFor(actorId)
+        if (!configuredValue || slot < 0 || !activeValues[slot] ||
+            distance <= 0 || distance > fpsMovementCollisionMaxDistance()) {
+            return false
+        }
+        directionX = sign(clampAxis(directionX))
+        directionZ = sign(clampAxis(directionZ))
+        if (directionX == 0 && directionZ == 0) {
+            directionZ = 1
+        }
+        var movement = capsuleValue.move(
+            positionXValues[slot], positionYValues[slot],
+            positionZValues[slot],
+            positionXValues[slot] + scaled(directionX * distance),
+            positionYValues[slot],
+            positionZValues[slot] + scaled(directionZ * distance))
+        if (!movement.accepted()) { return false }
+        positionXValues[slot] = movement.resolvedX()
+        positionYValues[slot] = movement.resolvedY()
+        positionZValues[slot] = movement.resolvedZ()
+        velocityXValues[slot] = 0
+        velocityYValues[slot] = 0
+        velocityZValues[slot] = 0
+        groundedValues[slot] = movement.grounded()
+        return true
+    }
+
+
+    Bool flappingAllowed(Int actorId) {
+        return animalKind(actorId) == animalKindGoose()
+    }
+
 
 
     Bool liquidActive(Int actorId) {
@@ -504,6 +556,7 @@ class FpsMovementController {
                 lastDoubleJumpValue = true
             }
             if (!wasGrounded && jumpHeld &&
+                animalKinds[slot] == animalKindGoose() &&
                 flapCooldownValues[slot] == 0) {
                 velocityYValues[slot] = velocityYValues[slot] +
                     fpsMovementFlapImpulse()

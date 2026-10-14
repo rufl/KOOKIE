@@ -27,7 +27,7 @@ assert "model.goose" in manifest["asset_policy"]["restricted_assets"]
 assert "model.prildarill-cat" in manifest["asset_policy"]["restricted_assets"]
 assert "ui.player-hearts" in manifest["asset_policy"]["restricted_assets"]
 assets = manifest["assets"]
-assert len(assets) == 31
+assert len(assets) == 42
 catalog_path = root / manifest["editor_catalog"]
 catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
 assert catalog["schema"] == "kookie.greybox-module-catalog/v1"

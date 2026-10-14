@@ -498,6 +498,60 @@ class EnemySpatialWorld {
                 vertical.collided(),
             enemyId, vertical.x(), vertical.y(), vertical.z())
     }
+    EnemyMoveResult pushAwayFrom(
+        Int enemyId, Int sourceId, Int step
+    ) {
+        var enemyIndex = find(enemyId)
+        var sourceIndex = find(sourceId)
+        if (enemyIndex < 0 || sourceIndex < 0 || step <= 0 ||
+            step > maxDistance) {
+            return EnemyMoveResult(false, false, enemyId, 0, 0, 0)
+        }
+        var startX = positionsX[enemyIndex]
+        var startY = positionsY[enemyIndex]
+        var startZ = positionsZ[enemyIndex]
+        var deltaX = startX - positionsX[sourceIndex]
+        var deltaY = startY - positionsY[sourceIndex]
+        var deltaZ = startZ - positionsZ[sourceIndex]
+        var distance = segmentDistance(
+            startX, startY, startZ,
+            positionsX[sourceIndex], positionsY[sourceIndex],
+            positionsZ[sourceIndex])
+        var targetX = startX + deltaX
+        var targetY = startY + deltaY
+        var targetZ = startZ + deltaZ
+        if (distance == 0) {
+            targetX = startX + step
+            targetY = startY
+            targetZ = startZ
+        }
+        var result = moveTowardPoint(enemyId, targetX, targetY, targetZ, step)
+        if (result.accepted()) { return result }
+
+        var trace = obstacles.query(
+            startX, startY, startZ, targetX, targetY, targetZ)
+        if (!trace.accepted()) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        var nextX = targetX
+        var nextY = targetY
+        var nextZ = targetZ
+        if (trace.collided()) {
+            nextX = trace.resolvedX()
+            nextY = trace.resolvedY()
+            nextZ = trace.resolvedZ()
+        }
+        if (!navigator.inside(nextX, nextY, nextZ) ||
+            !physicsValue.setPosition(enemyId, nextX, nextY, nextZ)) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        positionsX[enemyIndex] = nextX
+        positionsY[enemyIndex] = nextY
+        positionsZ[enemyIndex] = nextZ
+        return EnemyMoveResult(
+            true, trace.collided(), enemyId, nextX, nextY, nextZ)
+    }
+
 
     EnemySteeringResult steerToward(
         Int enemyId, Int targetId, Int step

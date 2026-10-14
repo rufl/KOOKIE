@@ -98,6 +98,10 @@ class GameShell {
     Int screen() { return screenValue }
     Int selection() { return selectionValue }
     Bool quitRequested() { return quitRequestedValue }
+    Bool requestQuit() {
+        quitRequestedValue = true
+        return true
+    }
     Bool gameplayVisible() { return screenValue == gameShellScreenGame() }
     Bool gameplayEntryPending() { return gameplayEntryPendingValue }
     Bool consumeGameplayEntry() {

@@ -64,8 +64,8 @@ content = package_root / "content" / "prototype"
 inner = json.loads((content / "manifest.json").read_text(encoding="utf-8"))
 assert release_manifest["content_profile"] == "prototype"
 assert release_manifest["prototype_models_policy"] == "strict-native-required"
-assert release_manifest["prototype_content_asset_count"] == len(inner["assets"]) == 31
-assert release_manifest["prototype_content_file_count"] == 141
+assert release_manifest["prototype_content_asset_count"] == len(inner["assets"]) == 42
+assert release_manifest["prototype_content_file_count"] == 142
 assert (package_root / "PROVENANCE.txt").read_text(encoding="utf-8").count(
     "prototype_content_profile=prototype") == 1
 provenance = {}
@@ -75,8 +75,8 @@ for line in (package_root / "PROVENANCE.txt").read_text(encoding="utf-8").splitl
         provenance[key] = value
 assert provenance["prototype_content_profile"] == "prototype"
 assert provenance["prototype_models_policy"] == "strict-native-required"
-assert provenance["prototype_content_asset_count"] == "31"
-assert provenance["prototype_content_file_count"] == "141"
+assert provenance["prototype_content_asset_count"] == "42"
+assert provenance["prototype_content_file_count"] == "142"
 digest = hashlib.sha256()
 file_count = 0
 for path in sorted(content.rglob("*")):
@@ -86,7 +86,7 @@ for path in sorted(content.rglob("*")):
         digest.update(b"\0")
         digest.update(hashlib.sha256(path.read_bytes()).digest())
         file_count += 1
-assert file_count == 141
+assert file_count == 142
 assert digest.hexdigest() == release_manifest["prototype_content_sha256"]
 assert provenance["prototype_content_sha256"] == digest.hexdigest()
 for relative in (

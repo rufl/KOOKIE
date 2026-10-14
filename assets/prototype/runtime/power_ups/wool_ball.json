@@ -1,0 +1,13 @@
+{
+  "configVersion": 1,
+  "powerUpId": 6,
+  "kind": 6,
+  "x": 200,
+  "y": 1,
+  "z": 120,
+  "pickupRadius": 3,
+  "durationTicks": 600,
+  "effectValue": 30,
+  "visualSize": 2,
+  "resource": 14
+}

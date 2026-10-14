@@ -4983,6 +4983,7 @@ test "power-up JSON definitions stage named pickups" {
     var megaphone = PowerUpConfig()
     var scuba = PowerUpConfig()
     var watermelon = PowerUpConfig()
+    var woolBall = PowerUpConfig()
     assert(loader.load(
             coffee, "assets/prototype/runtime/power_ups/coffee_mug.json") &&
         loader.load(
@@ -4995,16 +4996,21 @@ test "power-up JSON definitions stage named pickups" {
         loader.load(
             watermelon,
             "assets/prototype/runtime/power_ups/watermelon.json") &&
+        loader.load(
+            woolBall,
+            "assets/prototype/runtime/power_ups/wool_ball.json") &&
         coffee.kind() == powerUpKindCoffeeMug() &&
         jetpack.kind() == powerUpKindJetpack() &&
         megaphone.kind() == powerUpKindMegaphone() &&
         scuba.kind() == powerUpKindScubaKit() &&
         watermelon.kind() == powerUpKindWatermelon() &&
+        woolBall.kind() == powerUpKindWoolBall() &&
         powerUpName(coffee.kind()) == "COFFEE MUG" &&
         powerUpName(jetpack.kind()) == "JETPACK" &&
         powerUpName(megaphone.kind()) == "MEGAPHONE" &&
         powerUpName(scuba.kind()) == "SCUBA KIT" &&
-        powerUpName(watermelon.kind()) == "WATERMELON",
+        powerUpName(watermelon.kind()) == "WATERMELON" &&
+        powerUpName(woolBall.kind()) == "WOOL BALL",
         "power-up JSON must load every named pickup definition")
     var world = PowerUpWorld(powerUpMaximumDefinitions())
     assert(world.add(coffee.definition()) &&
@@ -5012,13 +5018,14 @@ test "power-up JSON definitions stage named pickups" {
         world.add(megaphone.definition()) &&
         world.add(scuba.definition()) &&
         world.add(watermelon.definition()) &&
-        world.count() == 5 &&
-        world.activeCount() == 5 &&
-        world.renderVertexCount() == 30,
+        world.add(woolBall.definition()) &&
+        world.count() == 6 &&
+        world.activeCount() == 6 &&
+        world.renderVertexCount() == 36,
         "power-up definitions must populate the bounded pickup world")
     var frame = FrameStaging(world.renderVertexCount())
     assert(world.stage(frame, 3) &&
-        frame.stagedCount() == 30 &&
+        frame.stagedCount() == 36 &&
         frame.resourceAt(0) == coffee.resource() &&
         frame.resourceAt(6) == jetpack.resource(),
         "power-up world must stage resource-backed diamond pickups")
@@ -5055,12 +5062,46 @@ test "power-up state applies configurable effects" {
         state.scubaDrainReduction() == 1 &&
         state.apply(
             PowerUpPickup(
-                true, 5, powerUpKindWatermelon(), 1, 35, 13),
+                true, 5, powerUpKindWatermelon(), 600, 35, 13),
             10) &&
-        state.consumeHealing() == 35 &&
-        state.activeKind() == 0,
-        "jetpack, megaphone, scuba kit, and watermelon effects must apply")
+        state.watermelonSeedDamage() == 35 &&
+        state.activeKind() == powerUpKindWatermelon() &&
+        state.megaphoneHonkDamage() == 5 &&
+        !state.applyForAnimal(
+            PowerUpPickup(
+                true, 3, powerUpKindMegaphone(), 600, 25, 11),
+            10, animalKindCat()) &&
+        state.applyForAnimal(
+            PowerUpPickup(
+                true, 6, powerUpKindWoolBall(), 600, 30, 14),
+            10, animalKindCat()) &&
+        state.woolMaceDamage() == 30 &&
+        state.woolMaceActive(10) &&
+        !state.applyForAnimal(
+            PowerUpPickup(
+                true, 6, powerUpKindWoolBall(), 600, 30, 14),
+            10, animalKindGoose()),
+        "role-specific power-up effects must apply without watermelon healing")
 }
+test "animal abilities enforce role actions and defenses" {
+    var abilities = AnimalAbilityController(2)
+    assert(abilities.configureActor(1, animalKindGoose()) &&
+        abilities.configureActor(2, animalKindCat()) &&
+        !abilities.use(1, animalAbilityRoll(), 0, 10) &&
+        abilities.use(2, animalAbilityRoll(), 0, 10) &&
+        abilities.evadesProjectile(2, 10) &&
+        abilities.use(2, animalAbilityDash(), 0, 20) &&
+        abilities.dashActive(2, 20) &&
+        abilities.use(1, animalAbilityKick(), 2, 20) &&
+        abilities.lastCanceledDash() &&
+        !abilities.dashActive(2, 20) &&
+        abilities.use(1, animalAbilityFlap(), 0, 20) &&
+        abilities.flapping(1, 20) &&
+        abilities.mitigateFallDamage(1, 20, 20) == 10 &&
+        abilities.mitigateFallDamage(2, 20, 20) == 20,
+        "animal roles must gate roll, dash, flap, kick, evasion and fall mitigation")
+}
+
 
 test "FPS session consumes configured coffee mug pickup" {
     var arena = G1Arena()
@@ -5090,6 +5131,135 @@ test "FPS session consumes configured coffee mug pickup" {
         session.powerUpRemaining(1) == 600,
         "session must consume the coffee mug and expose its effect state")
 }
+test "FPS session assigns role-specific powerups" {
+    var arena = G1Arena()
+    var world = PowerUpWorld(powerUpMaximumDefinitions())
+    assert(world.add(PowerUpDefinition(
+            1, powerUpKindWatermelon(), 20, 1, 30, 3, 600, 6, 2, 13)) &&
+        world.add(PowerUpDefinition(
+            2, powerUpKindWoolBall(), 24, 1, 30, 3, 600, 30, 2, 14)),
+        "role-specific pickup fixture must admit watermelon and wool")
+    var session = LoopbackSession(8, 2)
+    assert(arena.ready() &&
+        session.configureEnemySpatialBounds(
+            0, -4, 0, g1ArenaMaxX(), g1ArenaMaxY(), g1ArenaMaxZ()) &&
+        session.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        session.enableFpsMovement(true) &&
+        session.configurePowerUps(world) &&
+        session.addEnemyCombatActor(1, 100, 0) &&
+        session.addEnemyCombatActor(2, 100, 0) &&
+        session.start() &&
+        session.connectPlayer() == 1 &&
+        session.connectPlayer() == 2 &&
+        session.playerAnimal(1) == animalKindGoose() &&
+        session.playerAnimal(2) == animalKindCat() &&
+        session.setEnemySpatialPosition(1, 20, 1, 30) &&
+        session.setEnemySpatialPosition(2, 24, 1, 30) &&
+        session.receiveInput(
+            1, 1, 1, 0, 0, 0, 0, 0, 0) &&
+        session.receiveInput(
+            2, 1, 1, 0, 0, 0, 0, 0, 0),
+        "role-specific session actors must configure")
+    assert(session.advance(16667) == 1 &&
+        session.powerUpKind(1) == powerUpKindWatermelon() &&
+        session.powerUpSeedDamage(1) == 6 &&
+        session.powerUpKind(2) == powerUpKindWoolBall() &&
+        session.powerUpMaceDamage(2) == 30 &&
+        session.playerWoolMaceActive(2, 1),
+        "goose and cat must consume only their permitted powerups")
+    assert(session.activatePlayerAnimalAbility(
+            2, animalAbilityRoll(), 0, -1, 0, 1) &&
+        session.enemyCombat.projectileDefenseActiveFor(2) &&
+        session.activatePlayerAnimalAbility(
+            2, animalAbilityDash(), 0, -1, 0, 1) &&
+        session.activatePlayerAnimalAbility(
+            1, animalAbilityKick(), 2, 0, 0, 1) &&
+        session.lastAnimalAbilityCanceledDash(),
+        "cat roll and dash must evade projectiles while goose kick cancels dash")
+}
+test "goose powerups fire seeds and push with honk" {
+    var world = PowerUpWorld(powerUpMaximumDefinitions())
+    assert(world.add(PowerUpDefinition(
+            1, powerUpKindWatermelon(), 50, 1, 50, 3, 600, 6, 2, 13)),
+        "goose combat fixture must configure a watermelon pickup")
+    var session = LoopbackSession(8, 8)
+    assert(session.configurePowerUps(world) &&
+        session.configureEnemySpatialBounds(0, 0, 0, 50, 10, 50) &&
+        session.start() &&
+        session.configureEnemyRules(100, 20, 2) &&
+        session.defineEnemyWeapon(9, 4, 0, 3, 1) &&
+        session.setEnemyWeaponRange(9, 20) &&
+        session.defineEnemyEncounter(4, 1, 2) &&
+        session.addEnemyCombatActor(1, 100, 0) &&
+        session.connectPlayer() == 1 &&
+        session.admitEnemy(4, 2, 100, 0, 9) &&
+        session.setEnemySpatialPosition(1, 0, 1, 0) &&
+        session.setEnemySpatialPosition(2, 8, 1, 0) &&
+        session.applyPowerUpPickup(
+            1, PowerUpPickup(
+                true, 1, powerUpKindWatermelon(), 600, 6, 13), 0),
+        "goose combat fixture must admit its player and enemy")
+    var seed = session.fireWatermelonSeed(1, 2, 0, 0)
+    assert(seed.accepted(), "watermelon seed resolution must be accepted")
+    assert(seed.applied() == 6,
+        "watermelon seed must apply configured damage")
+    assert(session.enemyCombatHealth(2) == 94,
+        "watermelon seed must reduce enemy health")
+    assert(session.stepWatermelonSeedHeld(1, 2) &&
+        session.enemyCombatHealth(2) == 88,
+        "held watermelon fire must repeat on its fixed machine-gun cadence")
+    assert(session.applyPowerUpPickup(
+            1, PowerUpPickup(
+                true, 2, powerUpKindMegaphone(), 600, 25, 11), 0))
+    var honk = session.playerMegaphoneHonk(1, 2, 0, 0)
+    assert(honk.accepted(), "megaphone honk resolution must be accepted")
+    assert(honk.applied() == 5,
+        "megaphone honk must apply its small configured damage")
+    assert(session.lastAnimalPushAccepted(),
+        "megaphone honk must push a valid target")
+    assert(session.enemySpatialPositionX(2) > 8,
+        "megaphone honk must move its target away")
+}
+test "cat wool mace damages and guards against projectiles" {
+    var world = PowerUpWorld(powerUpMaximumDefinitions())
+    assert(world.add(PowerUpDefinition(
+            1, powerUpKindWoolBall(), 0, 0, 0, 3, 600, 30, 2, 14)),
+        "cat combat fixture must configure a wool ball pickup")
+    var session = LoopbackSession(8, 8)
+    assert(session.configurePowerUps(world) &&
+        session.configureEnemySpatialBounds(0, 0, 0, 50, 10, 50) &&
+        session.start() &&
+        session.configureEnemyRules(100, 20, 2) &&
+        session.defineEnemyWeapon(9, 4, 0, 3, 1) &&
+        session.setEnemyWeaponRange(9, 20) &&
+        session.defineEnemyEncounter(4, 1, 2) &&
+        session.addEnemyCombatActor(1, 100, 0) &&
+        session.addEnemyCombatActor(2, 100, 0) &&
+        session.connectPlayer() == 1 &&
+        session.connectPlayer() == 2 &&
+        session.admitEnemyAt(4, 3, 0, 100, 0, 9, 8, 0, 0) &&
+        session.setEnemySpatialPosition(1, 0, 0, 0) &&
+        session.setEnemySpatialPosition(2, 0, 0, 0) &&
+        session.applyPowerUpPickup(
+            2, PowerUpPickup(
+                true, 1, powerUpKindWoolBall(), 600, 30, 14), 0),
+        "cat combat fixture must admit players and enemy")
+    var melee = session.playerWoolMaceAttack(2, 3, 0, 0)
+    assert(melee.accepted() && melee.applied() == 30 &&
+        session.enemyCombatHealth(3) == 70,
+        "wool ball must become a nearby cat melee weapon")
+    assert(session.advance(16667) == 1 &&
+        session.spawnEnemyProjectileSpatial(3, 2, 1, 20, 3, 0).accepted() &&
+        session.advanceEnemyProjectiles(1) == 1 &&
+        session.advanceEnemyProjectiles(2) == 1 &&
+        session.advanceEnemyProjectiles(3) == 1 &&
+        session.activeEnemyProjectiles() == 0 &&
+        session.enemyProjectilesBlocked() == 1 &&
+        session.enemyCombatHealth(2) == 100,
+        "wool mace must nullify projectiles that reach the cat")
+}
+
+
 
 
 test "liquid controller admits configured underwater actors" {
@@ -5109,6 +5279,7 @@ test "liquid controller admits configured underwater actors" {
         controller.addActor(1, 150, 2, 140) &&
         world.underwater(150, 2, 140, physics.actorHeight()) &&
         controller.configureLiquidActor(
+
             1, true, physics.movementProfile()),
         "movement test must admit an underwater actor with its profile")
 }
