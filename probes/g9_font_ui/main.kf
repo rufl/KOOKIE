@@ -3,11 +3,10 @@ import ui
 
 main() {
     assert(uiFontCount() == 2 &&
-        uiFontDefaultBody() == uiFontJaredLite() &&
-        uiFontDefaultDisplay() == uiFontPixand() &&
-        uiFontName(uiFontDefaultBody()) == "Jared Lite" &&
-        uiFontName(uiFontDefaultDisplay()) == "Pixand" &&
-        uiGameDisplayName() == "GatoGanso" &&
+        uiFontDefaultBody() == uiFontPixand() &&
+        uiFontDefaultDisplay() == uiFontJaredLite() &&
+        uiFontName(uiFontDefaultBody()) == "Pixand" &&
+        uiFontName(uiFontDefaultDisplay()) == "Jared Lite" &&
         uiGameTitle() == "GATOGANSO",
         "GatoGanso must expose both default fonts")
     assert(uiFontGlyphWidth() == 4 &&
@@ -31,15 +30,15 @@ main() {
         assert(frame.textCodepointCountAt(run) > 0 &&
             frame.textScaleAt(run) > 0,
             "native text runs must retain shaped input bounds")
-        if (frame.textFontAt(run) == uiFontJaredLite()) {
+        if (frame.textFontAt(run) == uiFontPixand()) {
             sawBodyFont = true
         }
-        if (frame.textFontAt(run) == uiFontPixand()) {
+        if (frame.textFontAt(run) == uiFontJaredLite()) {
             sawDisplayFont = true
         }
     }
     assert(sawBodyFont && sawDisplayFont,
-        "main shell must stage Jared Lite and Pixand text runs")
+        "main shell must stage Pixand body and Jared Lite display text")
     assert(frame.retire(1) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&

@@ -512,6 +512,14 @@ class AuthoritativeEnemySession {
     Bool addActor(Int id, Int health, Int armor) {
         return combat.addActor(id, health, armor)
     }
+    Bool hasActor(Int actorId) {
+        return combat.hasActor(actorId)
+    }
+
+    Bool restoreHealth(Int actorId, Int amount) {
+        return combat.restoreHealth(actorId, amount)
+    }
+
 
     Bool equipWeapon(Int actorId, Int weaponId) {
         return combat.equipWeapon(actorId, weaponId)
@@ -767,6 +775,9 @@ class AuthoritativeEnemySession {
         if (!enemies.addEnemy(enemyId, tick) ||
             !combat.equipWeapon(enemyId, weaponId) ||
             (positioned && !spatial.setPosition(enemyId, x, y, z))) {
+            if (spatial.hasPosition(enemyId)) {
+                spatial.removePosition(enemyId)
+            }
             enemies.removeEnemy(enemyId)
             combat.removeActor(enemyId)
             encounters.release(encounterId)
@@ -813,6 +824,10 @@ class AuthoritativeEnemySession {
             return false
         }
         var encounterId = linkedEncounterIds[linkIndex]
+        if (spatial.hasPosition(enemyId) &&
+            !spatial.removePosition(enemyId)) {
+            return false
+        }
         if (!enemies.removeEnemy(enemyId) ||
             !combat.removeActor(enemyId) ||
             !encounters.release(encounterId)) {

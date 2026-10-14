@@ -145,6 +145,14 @@ class LoopbackSession {
     MovementComponent serverMovement
     MovementComponent clientMovement
     FpsMovementController fpsMovement
+    BoundedLiquidWorld liquidWorldValue
+    LiquidMovementProfile liquidMovementProfileValue
+    Int liquidActorHeightValue
+    Bool liquidMovementConfiguredValue
+    PowerUpWorld powerUpWorldValue
+    PowerUpEffectState playerOnePowerUps
+    PowerUpEffectState playerTwoPowerUps
+    Bool powerUpWorldConfiguredValue
     Bool fpsMovementEnabledValue
     Bool playerOneConnected
     Bool playerOneFocused
@@ -223,6 +231,15 @@ class LoopbackSession {
         serverMovement = MovementComponent(entityCapacity, 4)
         clientMovement = MovementComponent(entityCapacity, 4)
         fpsMovement = FpsMovementController(entityCapacity)
+        liquidWorldValue = BoundedLiquidWorld(liquidMaximumBodies())
+        liquidMovementProfileValue = LiquidMovementProfile(
+            1, 1, 1, 0, 0, 0, 0, 1, 1)
+        liquidActorHeightValue = 1
+        liquidMovementConfiguredValue = false
+        powerUpWorldValue = PowerUpWorld(powerUpMaximumDefinitions())
+        playerOnePowerUps = PowerUpEffectState()
+        playerTwoPowerUps = PowerUpEffectState()
+        powerUpWorldConfiguredValue = false
         fpsMovementEnabledValue = false
         playerOneConnected = false
         playerOneFocused = false
@@ -679,6 +696,207 @@ class LoopbackSession {
     Bool fpsMovementEnabled() {
         return fpsMovementEnabledValue
     }
+    Bool configureLiquid(
+        BoundedLiquidWorld world, LiquidMovementProfile profile,
+        Int actorHeight
+    ) {
+        if (started || world.bodyCount() <= 0 || actorHeight <= 0 ||
+            profile.horizontalSpeed() <= 0 ||
+            profile.horizontalAcceleration() <= 0 ||
+            profile.horizontalBraking() <= 0 ||
+            profile.verticalDrag() < 0 ||
+            profile.verticalDrag() > liquidParameterScale() ||
+            profile.gravity() < 0 || profile.buoyancy() < 0 ||
+            profile.swimImpulse() < 0 ||
+            profile.maxFallSpeed() <= 0 || profile.maxRiseSpeed() <= 0) {
+            return false
+        }
+        liquidWorldValue = world
+        liquidMovementProfileValue = profile
+        liquidActorHeightValue = actorHeight
+        liquidMovementConfiguredValue = true
+        return true
+    }
+    Bool configurePowerUps(PowerUpWorld world) {
+        if (started || world.count() <= 0) { return false }
+        powerUpWorldValue = world
+        playerOnePowerUps.clear()
+        playerTwoPowerUps.clear()
+        powerUpWorldConfiguredValue = true
+        return true
+    }
+
+    Int powerUpPositionX(Int player) {
+        if (fpsMovementEnabledValue) {
+            return fpsMovement.positionX(player)
+        }
+        return serverMovement.position(player)
+    }
+    Int powerUpPositionY(Int player) {
+        if (fpsMovementEnabledValue) {
+            return fpsMovement.positionY(player)
+        }
+        if (enemyCombat.hasSpatialPosition(player)) {
+            return enemyCombat.enemySpatialPositionY(player)
+        }
+        return 0
+    }
+    Int powerUpPositionZ(Int player) {
+        if (fpsMovementEnabledValue) {
+            return fpsMovement.positionZ(player)
+        }
+        if (enemyCombat.hasSpatialPosition(player)) {
+            return enemyCombat.enemySpatialPositionZ(player)
+        }
+        return 0
+    }
+
+    Bool restorePlayerHealth(Int player, Int amount) {
+        if (player != 1 && player != 2 || amount <= 0) {
+            return false
+        }
+        var restored = false
+        if (playerCombat.hasActor(player)) {
+            if (!playerCombat.restoreHealth(player, amount)) { return false }
+            restored = true
+        }
+        if (enemyCombat.hasActor(player)) {
+            if (!enemyCombat.restoreHealth(player, amount)) { return false }
+            restored = true
+        }
+        return restored
+    }
+
+    Bool applyPowerUpPickup(Int player, PowerUpPickup pickup, Int tick) {
+        if (!powerUpWorldConfiguredValue ||
+            (player != 1 && player != 2) || !pickup.accepted()) {
+            return false
+        }
+        var applied = false
+        if (player == 1) {
+            applied = playerOnePowerUps.apply(pickup, tick)
+        } else {
+            applied = playerTwoPowerUps.apply(pickup, tick)
+        }
+        if (!applied) { return false }
+        var healing = if (player == 1)
+            playerOnePowerUps.consumeHealing()
+        else
+            playerTwoPowerUps.consumeHealing()
+        if (healing > 0 && !restorePlayerHealth(player, healing)) {
+            return false
+        }
+        return refreshPlayerCombatModifiers(player)
+    }
+
+    Bool consumePowerUpPickups(Int tick) {
+        if (!powerUpWorldConfiguredValue) { return true }
+        if (playerOneConnected) {
+            var playerOnePickup = powerUpWorldValue.pickupAt(
+                powerUpPositionX(1), powerUpPositionY(1), powerUpPositionZ(1))
+            if (playerOnePickup.accepted() &&
+                !applyPowerUpPickup(1, playerOnePickup, tick)) {
+                return false
+            }
+        }
+        if (playerTwoConnected) {
+            var playerTwoPickup = powerUpWorldValue.pickupAt(
+                powerUpPositionX(2), powerUpPositionY(2), powerUpPositionZ(2))
+            if (playerTwoPickup.accepted() &&
+                !applyPowerUpPickup(2, playerTwoPickup, tick)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool advancePowerUpStates(Int tick) {
+        if (!powerUpWorldConfiguredValue) { return true }
+        if (!playerOnePowerUps.advance(tick) ||
+            !playerTwoPowerUps.advance(tick)) {
+            return false
+        }
+        if (playerOneConnected && !refreshPlayerCombatModifiers(1)) {
+            return false
+        }
+        if (playerTwoConnected && !refreshPlayerCombatModifiers(2)) {
+            return false
+        }
+        return true
+    }
+
+    Int powerUpKind(Int player) {
+        if (player == 1 && playerOnePowerUps.remaining(serverTick) > 0) {
+            return playerOnePowerUps.activeKind()
+        }
+        if (player == 2 && playerTwoPowerUps.remaining(serverTick) > 0) {
+            return playerTwoPowerUps.activeKind()
+        }
+        return 0
+    }
+    Int powerUpResource(Int player) {
+        if (player == 1 && playerOnePowerUps.remaining(serverTick) > 0) {
+            return playerOnePowerUps.activeResource()
+        }
+        if (player == 2 && playerTwoPowerUps.remaining(serverTick) > 0) {
+            return playerTwoPowerUps.activeResource()
+        }
+        return 0
+    }
+    Int powerUpRemaining(Int player) {
+        if (player == 1) {
+            return playerOnePowerUps.remaining(serverTick)
+        }
+        if (player == 2) {
+            return playerTwoPowerUps.remaining(serverTick)
+        }
+        return 0
+    }
+    Int powerUpSpeedBonus(Int player) {
+        if (player == 1) { return playerOnePowerUps.coffeeSpeedBonus() }
+        if (player == 2) { return playerTwoPowerUps.coffeeSpeedBonus() }
+        return 0
+    }
+    Int powerUpJumpBonus(Int player) {
+        if (player == 1) { return playerOnePowerUps.jetpackImpulseBonus() }
+        if (player == 2) { return playerTwoPowerUps.jetpackImpulseBonus() }
+        return 0
+    }
+    Int powerUpDamagePercent(Int player) {
+        if (player == 1) {
+            return playerOnePowerUps.megaphoneDamagePercent()
+        }
+        if (player == 2) {
+            return playerTwoPowerUps.megaphoneDamagePercent()
+        }
+        return 0
+    }
+    Int powerUpOxygenDrainReduction(Int player) {
+        if (player == 1) { return playerOnePowerUps.scubaDrainReduction() }
+        if (player == 2) { return playerTwoPowerUps.scubaDrainReduction() }
+        return 0
+    }
+
+
+    Bool fpsInLiquid(Int player) {
+        if (!liquidMovementConfiguredValue ||
+            (player != 1 && player != 2)) {
+            return false
+        }
+        return liquidWorldValue.contains(
+            fpsMovement.positionX(player), fpsMovement.positionY(player),
+            fpsMovement.positionZ(player), liquidActorHeightValue)
+    }
+
+    Bool fpsUnderwater(Int player) {
+        if (!liquidMovementConfiguredValue ||
+            (player != 1 && player != 2)) {
+            return false
+        }
+        return liquidWorldValue.underwater(
+            fpsMovement.positionX(player), fpsMovement.positionY(player),
+            fpsMovement.positionZ(player), liquidActorHeightValue)
+    }
 
     Int fpsPositionX(Int player) {
         return fpsMovement.positionX(player)
@@ -712,6 +930,18 @@ class LoopbackSession {
         return fpsMovement.lastJumped()
     }
 
+    Bool fpsLastDoubleJump() {
+        return fpsMovement.lastDoubleJump()
+    }
+
+    Bool fpsLastFlapped() {
+        return fpsMovement.lastFlapped()
+    }
+
+    Int fpsAirJumpsUsed(Int player) {
+        return fpsMovement.airJumpsUsed(player)
+    }
+
     Bool fpsLastCoyoteJump() {
         return fpsMovement.lastCoyoteJump()
     }
@@ -719,7 +949,6 @@ class LoopbackSession {
     Bool fpsLastBunnyHop() {
         return fpsMovement.lastBunnyHop()
     }
-
 
     Bool connectSpecificPlayer(Int player) {
         if (!started || (player != 1 && player != 2)) {
@@ -816,6 +1045,7 @@ class LoopbackSession {
             playerOneFocused = false
             playerOneInputs.clearPending()
             playerOneEdges.clearHeld()
+            playerOnePowerUps.clear()
             interactionTargets[1] = 0
             interactionTicks[1] = 0
             disconnectReasons[1] = reason
@@ -826,6 +1056,7 @@ class LoopbackSession {
             playerTwoFocused = false
             playerTwoInputs.clearPending()
             playerTwoEdges.clearHeld()
+            playerTwoPowerUps.clear()
             interactionTargets[2] = 0
             interactionTicks[2] = 0
             disconnectReasons[2] = reason
@@ -2093,6 +2324,27 @@ class LoopbackSession {
         }
         return clientRemoteWorldLootRanks[index]
     }
+    Int clientRemoteWorldLootPositionX(Int index) {
+        if (index < 0 || index >= clientRemoteWorldLootCountValue) {
+            return 0
+        }
+        return clientRemoteWorldLootPositionsX[index]
+    }
+
+    Int clientRemoteWorldLootPositionY(Int index) {
+        if (index < 0 || index >= clientRemoteWorldLootCountValue) {
+            return 0
+        }
+        return clientRemoteWorldLootPositionsY[index]
+    }
+
+    Int clientRemoteWorldLootPositionZ(Int index) {
+        if (index < 0 || index >= clientRemoteWorldLootCountValue) {
+            return 0
+        }
+        return clientRemoteWorldLootPositionsZ[index]
+    }
+
 
 
     Bool consumeWorldInteractions(Int tick) {
@@ -4258,6 +4510,7 @@ class LoopbackSession {
         var skillPercent = 0
         var statusFlat = 0
         var statusPercent = 0
+        var powerUpPercent = powerUpDamagePercent(player)
         var defenseFlat = 0
         var defensePercent = 0
         if (player == 1 && playerOneConnected) {
@@ -4286,21 +4539,28 @@ class LoopbackSession {
             return false
         }
         statusFlat = statusFlat + playerEquipmentDamageBonuses[player]
+        var totalPercent = skillPercent
         if (skillPercent < 0 || statusFlat < 0 || statusFlat > 1000000 ||
-            statusPercent < 0 || defenseFlat < 0 || defensePercent < 0 ||
-            skillPercent > 1000000 - statusPercent) {
+            statusPercent < 0 || powerUpPercent < 0 ||
+            defenseFlat < 0 || defensePercent < 0 ||
+            statusPercent > 1000000 - totalPercent) {
             return false
         }
+        totalPercent = totalPercent + statusPercent
+        if (powerUpPercent > 1000000 - totalPercent) {
+            return false
+        }
+        totalPercent = totalPercent + powerUpPercent
         if (playerCombat.isAlive(player) &&
             (!playerCombat.setDamageModifier(
-                player, statusFlat, skillPercent + statusPercent) ||
+                player, statusFlat, totalPercent) ||
              !playerCombat.setDefenseModifier(
                 player, defenseFlat, defensePercent))) {
             return false
         }
         if (enemyCombat.currentHealth(player) > 0 &&
             (!enemyCombat.setDamageModifier(
-                player, statusFlat, skillPercent + statusPercent) ||
+                player, statusFlat, totalPercent) ||
              !enemyCombat.setDefenseModifier(
                 player, defenseFlat, defensePercent))) {
             return false
@@ -4834,6 +5094,14 @@ class LoopbackSession {
     Int worldLootPositionX(Int index) {
         return worldLoot.positionX(index)
     }
+    Int worldLootPositionY(Int index) {
+        return worldLoot.positionY(index)
+    }
+
+    Int worldLootPositionZ(Int index) {
+        return worldLoot.positionZ(index)
+    }
+
 
     BoundedItemRoll worldLootRoll(Int index) {
         return worldLoot.rollAt(index)
@@ -5734,6 +6002,9 @@ class LoopbackSession {
         }
         for (var step = 0; step < steps; step = step + 1) {
             var simulationTick = clock.tick() - steps + step + 1
+            if (!advancePowerUpStates(simulationTick)) {
+                return -1
+            }
             if (playerOneConnected && playerOneInputs.queuedCount() > 0 &&
                 playerOneInputs.nextTick() <= simulationTick) {
                 playerOneInputs.dequeue()
@@ -5775,6 +6046,9 @@ class LoopbackSession {
                 }
             }
             if (!consumeWorldInteractions(simulationTick)) {
+                return -1
+            }
+            if (!consumePowerUpPickups(simulationTick)) {
                 return -1
             }
             if (!advanceEnemyTick(simulationTick)) {
@@ -5844,7 +6118,17 @@ class LoopbackSession {
         Int player, Int moveX, Int moveZ,
         Bool jumpPressed, Bool jumpHeld
     ) {
-        if (!fpsMovement.step(
+        var liquid = false
+        if (liquidMovementConfiguredValue) {
+            liquid = liquidWorldValue.contains(
+                fpsMovement.positionX(player), fpsMovement.positionY(player),
+                fpsMovement.positionZ(player), liquidActorHeightValue)
+        }
+        if (!fpsMovement.configurePowerUpActor(
+                player, powerUpSpeedBonus(player), powerUpJumpBonus(player)) ||
+            !fpsMovement.configureLiquidActor(
+                player, liquid, liquidMovementProfileValue) ||
+            !fpsMovement.step(
                 player, moveX, moveZ, jumpPressed, jumpHeld)) {
             return false
         }

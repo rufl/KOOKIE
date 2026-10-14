@@ -27,7 +27,8 @@
         {"location": 1, "type": "float2"}
       ],
       "outputs": [
-        {"location": 0, "type": "float2"}
+        {"location": 0, "type": "float2"},
+        {"location": 1, "type": "float3"}
       ],
       "resources": [
         {"name": "Camera", "set": 1, "binding": 0, "kind": "uniform_buffer", "size": 64}
@@ -47,6 +48,25 @@
       ],
       "resources": [
         {"name": "albedo", "set": 2, "binding": 0, "kind": "sampler"}
+      ]
+    },
+    {
+      "name": "g6_world.frag",
+      "stage": "fragment",
+      "entrypoint": "main",
+      "glsl_source": "native/shaders/g6_world.frag",
+      "hlsl_source": "native/shaders/g6_world.frag.hlsl",
+      "inputs": [
+        {"location": 0, "type": "float2"},
+        {"location": 1, "type": "float3"}
+      ],
+      "outputs": [
+        {"location": 0, "type": "float4"}
+      ],
+      "resources": [
+        {"name": "albedo", "set": 2, "binding": 0, "kind": "sampler"},
+        {"name": "Lighting", "set": 2, "binding": 1,
+         "kind": "uniform_buffer", "size": 256}
       ]
     }
   ]

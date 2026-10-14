@@ -1,0 +1,16 @@
+{
+  "configVersion": 1,
+  "actorHeight": 2,
+  "underwaterGravity": 1,
+  "underwaterBuoyancy": 1,
+  "horizontalSpeed": 4,
+  "horizontalAcceleration": 2,
+  "horizontalBraking": 1,
+  "verticalDrag": 250,
+  "swimImpulse": 3,
+  "maxFallSpeed": 6,
+  "maxRiseSpeed": 6,
+  "oxygenCapacity": 100,
+  "oxygenDrainPerTick": 2,
+  "oxygenRecoveryPerTick": 5
+}

@@ -485,6 +485,23 @@ class CombatWorld {
         alive[index] = true
         return true
     }
+    Bool hasActor(Int actorId) {
+        return findActor(actorId) >= 0
+    }
+
+    Bool restoreHealth(Int actorId, Int amount) {
+        var index = findActor(actorId)
+        if (index < 0 || !alive[index] || amount <= 0 ||
+            amount > 1000000) {
+            return false
+        }
+        health[index] = health[index] + amount
+        if (health[index] > maxHealth[index]) {
+            health[index] = maxHealth[index]
+        }
+        return true
+    }
+
 
     Bool removeActor(Int actorId) {
         var index = findActor(actorId)

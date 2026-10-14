@@ -127,6 +127,9 @@ test "game shell menus transact display audio and lobby state" {
         shell.textSize() == 3,
         "options must adjust resolution display audio and readable text")
     assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionActivate()) &&
         shell.displayApplyPending() &&
         shell.acknowledgeDisplayApply(true) &&
@@ -153,16 +156,19 @@ test "game shell menus transact display audio and lobby state" {
         shell.networkStatus() == gameShellNetworkConnected(),
         "host flow must expose hosting and connected transitions")
     assert(shell.markNetworkDisconnected() &&
-        shell.networkStatus() == gameShellNetworkIdle() &&
-        shell.handleAction(gameShellActionActivate()) &&
+        shell.networkStatus() == gameShellNetworkIdle(),
+        "remote leave must reset the lobby to idle")
+    assert(shell.handleAction(gameShellActionActivate()) &&
+        shell.networkRequest() == gameShellNetworkHostRequest() &&
         shell.completeNetworkRequest(gameShellNetworkHostRequest(), true) &&
         shell.markNetworkConnected(),
-        "remote leave must reset state and allow another lobby")
+        "lobby must accept another host after remote leave")
     assert(shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionActivate()) &&
-        shell.networkRequest() == gameShellNetworkLeaveRequest() &&
-        shell.completeNetworkRequest(gameShellNetworkLeaveRequest(), true) &&
+        shell.networkRequest() == gameShellNetworkLeaveRequest(),
+        "connected lobby must expose leave after reconnect")
+    assert(shell.completeNetworkRequest(gameShellNetworkLeaveRequest(), true) &&
         shell.networkStatus() == gameShellNetworkIdle(),
         "leave must return the lobby to offline state")
     assert(shell.handleAction(gameShellActionDown()) &&
@@ -185,6 +191,72 @@ test "game shell menus transact display audio and lobby state" {
         !shell.networkEditing(),
         "port editor must support coarse and bounded changes")
 }
+test "game shell pointer rows follow the options visual grid" {
+    var shell = GameShell()
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenOptions() &&
+        shell.handlePointer(0, 43) &&
+        shell.resolutionIndex() == 1 &&
+        shell.handlePointer(0, -73) &&
+        shell.screen() == gameShellScreenMain(),
+        "options pointer hitboxes must track the widened row grid")
+}
+test "lobby options select cat with nickname and color" {
+    var shell = GameShell()
+    assert(shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionDown()) &&
+        shell.handleAction(gameShellActionActivate()) &&
+        shell.screen() == gameShellScreenOptions(),
+        "lobby customization must open through the options screen")
+    for (var row = 0; row < 7; row = row + 1) {
+        assert(shell.handleAction(gameShellActionDown()),
+            "options navigation must reach the animal selector")
+    }
+    assert(shell.handleAction(gameShellActionRight()) &&
+        shell.localAnimalKind() == multiplayerAnimalCat() &&
+        shell.lobbyAnimalLabel(shell.localAnimalKind()) == "CAT" &&
+        shell.setLocalNickname("KITTY") &&
+        shell.setLocalColor(3) &&
+        shell.localNickname() == "KITTY" &&
+        shell.localColorId() == 3,
+        "nickname, color and animal profile must remain selectable together")
+}
+
+test "game shell dense menu pointers follow compact visual grids" {
+    var lobby = GameShell()
+    assert(lobby.handleAction(gameShellActionDown()) &&
+        lobby.handleAction(gameShellActionActivate()) &&
+        lobby.screen() == gameShellScreenMultiplayer() &&
+        lobby.handlePointer(0, 14) &&
+        lobby.networkRequest() == gameShellNetworkHostRequest() &&
+        lobby.handlePointer(0, -82) &&
+        lobby.screen() == gameShellScreenMain(),
+        "lobby pointer rows must follow the compact session grid")
+    var editor = GameShell()
+    var frame = FrameStaging(editor.renderVertexCapacity())
+    assert(editor.handleAction(gameShellActionDown()) &&
+        editor.handleAction(gameShellActionDown()) &&
+        editor.handleAction(gameShellActionDown()) &&
+        editor.handleAction(gameShellActionDown()) &&
+        editor.handleAction(gameShellActionActivate()) &&
+        editor.screen() == gameShellScreenKutter() &&
+        editor.handlePointer(0, 44) &&
+        editor.handleAction(gameShellActionDown()) &&
+        editor.handleAction(gameShellActionDown()) &&
+        editor.handleAction(gameShellActionActivate()) &&
+        editor.screen() == gameShellScreenKutterLevel() &&
+        editor.stage(frame, 1) &&
+        frame.retire(1) &&
+        editor.handlePointer(0, -82) &&
+        editor.screen() == gameShellScreenKutter() &&
+        editor.stage(frame, 2) &&
+        frame.retire(2),
+        "Kutter pointer rows must follow the compact editor grid")
+}
+
+
 
 test "accessibility surface controls bounded HUD presentation" {
     var shell = GameShell()
@@ -239,8 +311,10 @@ test "HUD scale keeps the bounded overlay readable and staged" {
 
 test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
-    assert(hud.renderVertexCount() == 438,
-        "HUD geometry must retain a fixed bounded budget with semantic labels")
+    assert(hud.renderVertexCount() == 474 &&
+        hud.updateOxygen(60, 100, true) &&
+        hud.updatePowerUpStatus(powerUpKindCoffeeMug(), 9),
+        "HUD geometry must retain a fixed bounded budget with power-up status")
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
         hud.updateEncounterReplication(0, 0, true, 1, 1) &&
@@ -394,9 +468,12 @@ test "goose overlay clips native screen bounds" {
     var overlay = GooseStatusOverlay(1)
     var frame = FrameStaging(overlay.renderVertexCapacity())
     assert(overlay.clear() &&
-        overlay.addDepth(1, 98, 98, 63, 100, 100, 1, false) &&
-        overlay.stage(frame, 1, 9),
-        "edge actors must stage without native coordinate overflow")
+        overlay.addDepth(1, -98, 98, 63, 100, 100, 1, false) &&
+        overlay.stage(frame, 1, 9) &&
+        frame.textRuns() == 1 &&
+        frame.textLeftAt(0) >= -100 && frame.textLeftAt(0) <= 100 &&
+        frame.textBottomAt(0) >= -100 && frame.textBottomAt(0) <= 100,
+        "edge actors and nameplates must stay inside native bounds")
     for (var index = 0; index < frame.stagedCount(); index = index + 1) {
         assert(frame.xAt(index) >= -100 && frame.xAt(index) <= 100 &&
             frame.yAt(index) >= -100 && frame.yAt(index) <= 100,
@@ -406,38 +483,33 @@ test "goose overlay clips native screen bounds" {
     }
     assert(frame.retire(1))
 }
-test "overhead billboards map names and partial heart damage" {
+test "overhead billboards map names and one heart damage state" {
     var overlay = GooseStatusOverlay(3)
     var frame = FrameStaging(overlay.renderVertexCapacity())
-    assert(overlay.addDepth(7, 0, 0, 41, 50, 100, 2, false) &&
+    assert(overlay.addDepthNamed(
+            7, 0, 0, 41, 50, 100, 2, false, 3, "SKY") &&
         overlay.addDepth(8, 10, 0, 42, 75, 100, 3, false) &&
         overlay.addDepth(9, 20, 0, 43, 85, 100, 4, false) &&
-        overlay.actorNameAt(0) == "WADDLE" &&
-        overlay.actorMaximumHeartCountAt(0) == 5 &&
-        overlay.actorHeartStateAt(0, 0) == 4 &&
-        overlay.actorHeartStateAt(0, 1) == 4 &&
-        overlay.actorHeartStateAt(0, 2) == 2 &&
-        overlay.actorHeartStateAt(0, 3) == 0 &&
-        overlay.actorHeartStateAt(0, 4) == 0 &&
-        overlay.actorHeartStateAt(1, 3) == 3 &&
-        overlay.actorHeartStateAt(2, 4) == 1 &&
+        overlay.actorNameAt(0) == "SKY" &&
+        overlay.actorColorAt(0) == 3 &&
+        overlay.actorMaximumHeartCountAt(0) == 1 &&
+        overlay.actorHeartStateAt(0, 0) == 2 &&
+        overlay.actorHeartStateAt(0, 1) == 0 &&
+        overlay.actorFilledHeartCountAt(0) == 1 &&
+        overlay.actorHeartStateAt(1, 0) == 3 &&
+        overlay.actorHeartStateAt(2, 0) == 3 &&
         overlay.stage(frame, 2, 9) &&
         frame.stagedCount() > 0,
-        "overhead billboards must expose names and quarter-heart damage states")
-    var sawFull = false
-    var sawThreeQuarter = false
-    var sawHalf = false
-    var sawQuarter = false
-    var sawEmpty = false
+        "overhead billboards must expose one nickname heart with damage state")
+    var heartQuads = 0
     for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-        if (frame.resourceAt(index) == 600) { sawEmpty = true }
-        if (frame.resourceAt(index) == 601) { sawQuarter = true }
-        if (frame.resourceAt(index) == 602) { sawHalf = true }
-        if (frame.resourceAt(index) == 603) { sawThreeQuarter = true }
-        if (frame.resourceAt(index) == 604) { sawFull = true }
+        if (frame.resourceAt(index) >= 600 &&
+            frame.resourceAt(index) <= 604) {
+            heartQuads = heartQuads + 1
+        }
     }
-    assert(sawFull && sawThreeQuarter && sawHalf && sawQuarter && sawEmpty,
-        "billboard staging must emit all five heart sprite resources")
+    assert(heartQuads == 18,
+        "each overhead actor must stage exactly one heart quad")
     assert(frame.retire(2))
 }
 test "cooperative minimap hides player markers in PvP" {
@@ -599,6 +671,8 @@ test "Kof staging emits bounded GPU camera and world texture coordinates", "gpu-
         worldTexture.textureU(1, 100) > worldTexture.textureU(1, 0) &&
         worldTexture.textureU(15, 0) > 0 &&
         worldTexture.textureV(15, 100) > worldTexture.textureV(15, 0) &&
+        worldTexture.textureU(9, 100) > worldTexture.textureU(9, 0) &&
+        worldTexture.textureV(14, 100) > worldTexture.textureV(14, 0) &&
         worldTexture.textureU(16, 0) < 0,
         "world texture resources must map to bounded Kof-owned UV words")
     var textFrame = FrameStaging(16)
@@ -721,6 +795,7 @@ test "arena animal meshes animate goose and cat silhouettes" {
     var animals = ArenaAnimalMeshes(2)
     var frame = FrameStaging(animals.renderVertexCapacity())
     var firstChecksum = 0
+    var normalCount = 0
     var changed = false
     assert(animals.animationReady() &&
         animals.beginFrame() &&
@@ -731,6 +806,7 @@ test "arena animal meshes animate goose and cat silhouettes" {
         frame.stagedCount() <= animals.renderVertexCapacity(),
         "goose and cat meshes must stage bounded procedural silhouettes")
     firstChecksum = frame.checksum()
+    normalCount = frame.stagedCount()
     assert(frame.retire(1))
     for (var tick = 2; tick <= 8; tick = tick + 1) {
         assert(animals.beginFrame() &&
@@ -748,6 +824,46 @@ test "arena animal meshes animate goose and cat silhouettes" {
         animals.gooseAnimationState() > 0 &&
         animals.catAnimationState() > 0,
         "animal movement and attack flags must advance procedural animation")
+    assert(animals.beginFrame() &&
+        animals.setActor(1, 1, 52, 1, 60, false, false) &&
+        animals.setActor(2, 2, 68, 1, 60, false, false) &&
+        animals.setActorDamageFlash(2, true) &&
+        animals.stage(frame, 9, 3) &&
+        frame.stagedCount() > normalCount &&
+        frame.retire(9),
+        "animal damage feedback must add a bounded red flash overlay")
+}
+
+test "animal attack VFX stage scratches and beaks" {
+    var animals = ArenaAnimalMeshes(2)
+    var attack = AnimalAttackVfx(2)
+    var frame = FrameStaging(attack.renderVertexCapacity())
+    assert(animals.beginFrame() &&
+        animals.setActor(1, multiplayerAnimalGoose(), 40, 1, 60, false, true) &&
+        animals.setActor(2, multiplayerAnimalCat(), 56, 1, 60, false, true) &&
+        attack.stage(frame, 1, animals, false, 1, 0, 0, 0, 1) &&
+        attack.active() &&
+        frame.stagedCount() == 24 &&
+        frame.resourceAt(0) == 6 &&
+        frame.resourceAt(6) == 3 &&
+        frame.retire(1),
+        "goose beaks and cat scratches must stage distinct bounded VFX")
+    assert(animals.beginFrame() &&
+        animals.setActor(1, multiplayerAnimalGoose(), 40, 1, 60, false, false) &&
+        animals.setActor(2, multiplayerAnimalCat(), 56, 1, 60, false, false) &&
+        attack.stage(frame, 2, animals, true, multiplayerAnimalCat(),
+            48, 1, 60, -1) &&
+        attack.active() &&
+        frame.stagedCount() == 18 &&
+        frame.resourceAt(0) == 3 &&
+        frame.retire(2),
+        "the selected local animal must use its attack VFX")
+    assert(animals.beginFrame() &&
+        animals.setActor(1, multiplayerAnimalGoose(), 40, 1, 60, false, false) &&
+        animals.setActor(2, multiplayerAnimalCat(), 56, 1, 60, false, false) &&
+        attack.stage(frame, 3, animals, false, 1, 0, 0, 0, 1) &&
+        !attack.active(),
+        "inactive attack VFX must not publish stale geometry")
 }
 
 test "goose projectile tracers stage in the foreground" {
@@ -4710,6 +4826,29 @@ test "capsule slide and step result" {
         "spatial gate must reject stale broad-phase movement geometry")
 }
 
+test "bounded physics bodies integrate gravity friction and dynamic collision" {
+    var geometry = BoundedTriangleCollection(2, 20)
+    assert(geometry.configureBounds(-10, -10, -10, 20, 20, 20),
+        "physics geometry must configure bounded world limits")
+    var physics = BoundedPhysicsBodyWorld(2, geometry, 1, 20)
+    assert(physics.configureDynamics(1, 8, 8, 2, 1) &&
+        physics.addBody(1, 2, 5, 2) &&
+        physics.addBody(2, 8, 5, 2),
+        "physics bodies must admit bounded dynamic actors")
+    assert(physics.setVelocity(1, 4, 3, 0),
+        "physics must accept airborne velocity state")
+    var airborne = physics.stepBody(1, 0, 0)
+    assert(airborne.accepted() && !airborne.grounded() &&
+        airborne.y() == 7 && airborne.velocityY() == 2 &&
+        airborne.velocityX() == 3,
+        "physics must apply gravity and friction on an airborne body")
+    var blocked = physics.stepBody(1, 0, 0)
+    assert(blocked.accepted() && blocked.collided() &&
+        blocked.dynamicCollision() && blocked.colliderId() == 2 &&
+        blocked.x() < 8 && blocked.velocityX() == 2,
+        "physics must stop a moving body at a dynamic collider")
+}
+
 test "shared capsule and spatial admission" {
     var capsule = BoundedCapsuleWorld(0, 0, 0, 10, 10, 10, 1, 20)
     var capsuleHit = capsule.queryCapsule(2, 2, 2, 10, 2, 2)
@@ -4758,23 +4897,23 @@ test "tuned FPS movement preserves air control and jump assists" {
         controller.velocityX(1) < heldAirVelocity,
         "released jump must cut height and ease horizontal air speed")
     assert(controller.step(1, 0, 0, true, true) &&
-        controller.jumpBufferTicks(1) > 0 &&
-        controller.jumpBufferTicks(1) <= fpsMovementJumpBufferTicks(),
-        "airborne jump input must remain buffered for landing")
-    var bunnyHopSeen = false
-    var airtimeBudget = fpsMovementAirTimeTicks() +
-        fpsMovementCoyoteTicks()
-    for (var tick = 0; tick < airtimeBudget; tick = tick + 1) {
+        controller.lastDoubleJump() &&
+        controller.airJumpsUsed(1) == 1 &&
+        controller.velocityY(1) > 0 &&
+        !controller.grounded(1),
+        "airborne jump input must launch the goose's double jump")
+    var flapSeen = false
+    for (var tick = 0; tick < 6; tick = tick + 1) {
         assert(controller.step(1, 0, 0, false, true),
-            "held jump simulation must remain deterministic")
-        if (controller.lastBunnyHop()) {
-            bunnyHopSeen = true
+            "held jump flapping must remain deterministic")
+        if (controller.lastFlapped()) {
+            flapSeen = true
         }
     }
-    assert(bunnyHopSeen,
-        "held jump must chain a buffered bunny hop on landing")
-}
+    assert(flapSeen && !controller.grounded(1),
+        "held jump must flap the airborne goose")
 
+}
 test "FPS controller permits coyote jumps from a ledge" {
     var ledge = BoundedAuthoredCollision(6, 2)
     assert(ledge.configure(
@@ -4803,6 +4942,316 @@ test "FPS controller permits coyote jumps from a ledge" {
     assert(controller.step(1, 0, 0, true, true) &&
         controller.lastCoyoteJump(),
         "jump input inside coyote time must launch")
+}
+
+test "liquid JSON config drives water rendering and sampling" {
+    var loader = LiquidConfigFileLoader()
+    var physics = LiquidPhysicsConfig()
+    var pool = WaterBodyConfig()
+    var channel = WaterBodyConfig()
+    assert(loader.loadPhysics(physics, "assets/prototype/runtime/liquid_physics.json") &&
+        loader.loadWaterBody(
+            pool, "assets/prototype/runtime/water_bodies/pool.json") &&
+        loader.loadWaterBody(
+            channel, "assets/prototype/runtime/water_bodies/channel.json") &&
+        physics.oxygenCapacity() == 100 &&
+        pool.styleId() == 0 &&
+        channel.styleId() == 1 &&
+        pool.toonContrast() == 280,
+        "liquid JSON files must load bounded gameplay and visual parameters")
+    var world = BoundedLiquidWorld(2)
+    assert(world.addBody(pool.definition()) &&
+        world.addBody(channel.definition()) &&
+        world.bodyCount() == 2 &&
+        world.sample(150, 2, 140, 2).underwater() &&
+        world.sample(260, 2, 60, 2).underwater() &&
+        world.sample(150, 4, 140, 2).inside() &&
+        !world.sample(240, 2, 140, 2).inside() &&
+        world.renderVertexCount() == 12,
+        "water body bounds must distinguish bodies, surface and outside")
+    var frame = FrameStaging(world.renderVertexCount())
+    assert(world.stage(frame, 1) &&
+        frame.stagedCount() == 12 &&
+        frame.resourceAt(6) == liquidWaterVertexResourceBase() + 1,
+        "water bodies must stage style-specific marker triangles")
+}
+
+test "power-up JSON definitions stage named pickups" {
+    var loader = PowerUpConfigFileLoader()
+    var coffee = PowerUpConfig()
+    var jetpack = PowerUpConfig()
+    var megaphone = PowerUpConfig()
+    var scuba = PowerUpConfig()
+    var watermelon = PowerUpConfig()
+    assert(loader.load(
+            coffee, "assets/prototype/runtime/power_ups/coffee_mug.json") &&
+        loader.load(
+            jetpack, "assets/prototype/runtime/power_ups/jetpack.json") &&
+        loader.load(
+            megaphone,
+            "assets/prototype/runtime/power_ups/megaphone.json") &&
+        loader.load(
+            scuba, "assets/prototype/runtime/power_ups/scuba_kit.json") &&
+        loader.load(
+            watermelon,
+            "assets/prototype/runtime/power_ups/watermelon.json") &&
+        coffee.kind() == powerUpKindCoffeeMug() &&
+        jetpack.kind() == powerUpKindJetpack() &&
+        megaphone.kind() == powerUpKindMegaphone() &&
+        scuba.kind() == powerUpKindScubaKit() &&
+        watermelon.kind() == powerUpKindWatermelon() &&
+        powerUpName(coffee.kind()) == "COFFEE MUG" &&
+        powerUpName(jetpack.kind()) == "JETPACK" &&
+        powerUpName(megaphone.kind()) == "MEGAPHONE" &&
+        powerUpName(scuba.kind()) == "SCUBA KIT" &&
+        powerUpName(watermelon.kind()) == "WATERMELON",
+        "power-up JSON must load every named pickup definition")
+    var world = PowerUpWorld(powerUpMaximumDefinitions())
+    assert(world.add(coffee.definition()) &&
+        world.add(jetpack.definition()) &&
+        world.add(megaphone.definition()) &&
+        world.add(scuba.definition()) &&
+        world.add(watermelon.definition()) &&
+        world.count() == 5 &&
+        world.activeCount() == 5 &&
+        world.renderVertexCount() == 30,
+        "power-up definitions must populate the bounded pickup world")
+    var frame = FrameStaging(world.renderVertexCount())
+    assert(world.stage(frame, 3) &&
+        frame.stagedCount() == 30 &&
+        frame.resourceAt(0) == coffee.resource() &&
+        frame.resourceAt(6) == jetpack.resource(),
+        "power-up world must stage resource-backed diamond pickups")
+}
+
+test "power-up state applies configurable effects" {
+    var state = PowerUpEffectState()
+    assert(state.apply(
+            PowerUpPickup(
+                true, 1, powerUpKindCoffeeMug(), 600, 2, 9),
+            999900) &&
+        state.coffeeSpeedBonus() == 2 &&
+        state.remaining(999900) == 600 &&
+        state.advance(1000499) &&
+        state.remaining(1000499) == 1 &&
+        state.advance(1000500) &&
+        state.coffeeSpeedBonus() == 0,
+        "coffee mug must remain valid after a late authoritative tick")
+    assert(state.apply(
+            PowerUpPickup(
+                true, 2, powerUpKindJetpack(), 480, 4, 10),
+            10) &&
+        state.jetpackImpulseBonus() == 4 &&
+        state.remaining(10) == 480 &&
+        state.apply(
+            PowerUpPickup(
+                true, 3, powerUpKindMegaphone(), 600, 25, 11),
+            10) &&
+        state.megaphoneDamagePercent() == 25 &&
+        state.apply(
+            PowerUpPickup(
+                true, 4, powerUpKindScubaKit(), 900, 1, 12),
+            10) &&
+        state.scubaDrainReduction() == 1 &&
+        state.apply(
+            PowerUpPickup(
+                true, 5, powerUpKindWatermelon(), 1, 35, 13),
+            10) &&
+        state.consumeHealing() == 35 &&
+        state.activeKind() == 0,
+        "jetpack, megaphone, scuba kit, and watermelon effects must apply")
+}
+
+test "FPS session consumes configured coffee mug pickup" {
+    var arena = G1Arena()
+    var world = PowerUpWorld(powerUpMaximumDefinitions())
+    assert(world.add(PowerUpDefinition(
+            1, powerUpKindCoffeeMug(), 20, 1, 30, 3, 600, 2, 2, 9)),
+        "session pickup fixture must admit a coffee mug")
+    var session = LoopbackSession(8, 2)
+    assert(arena.ready() &&
+        session.configureEnemySpatialBounds(
+            0, -4, 0, g1ArenaMaxX(), g1ArenaMaxY(), g1ArenaMaxZ()) &&
+        session.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        session.enableFpsMovement(true) &&
+        session.configurePowerUps(world) &&
+        session.addEnemyCombatActor(1, 100, 0) &&
+        session.addEnemyCombatActor(2, 100, 0) &&
+        session.start() &&
+        session.connectPlayer() == 1 &&
+        session.setEnemySpatialPosition(1, 20, 1, 30) &&
+        session.receiveInput(
+            1, 1, 1, 0, 0, 0, 0, 0, 0),
+        "session must admit a configured pickup at the player position")
+    assert(session.advance(16667) == 1 &&
+        session.powerUpKind(1) == powerUpKindCoffeeMug() &&
+        session.powerUpResource(1) == 9 &&
+        session.powerUpSpeedBonus(1) == 2 &&
+        session.powerUpRemaining(1) == 600,
+        "session must consume the coffee mug and expose its effect state")
+}
+
+
+test "liquid controller admits configured underwater actors" {
+    var loader = LiquidConfigFileLoader()
+    var physics = LiquidPhysicsConfig()
+    var pool = WaterBodyConfig()
+    assert(loader.loadPhysics(physics, "assets/prototype/runtime/liquid_physics.json") &&
+        loader.loadWaterBody(
+            pool, "assets/prototype/runtime/water_bodies/pool.json"),
+        "liquid controller test must load its JSON configuration")
+    var world = BoundedLiquidWorld(2)
+    var arena = G1Arena()
+    var controller = FpsMovementController(1)
+    assert(world.addBody(pool.definition()) &&
+        arena.ready() &&
+        controller.configure(arena.authoredCollision()) &&
+        controller.addActor(1, 150, 2, 140) &&
+        world.underwater(150, 2, 140, physics.actorHeight()) &&
+        controller.configureLiquidActor(
+            1, true, physics.movementProfile()),
+        "movement test must admit an underwater actor with its profile")
+}
+
+test "liquid controller applies configured swim movement" {
+    var loader = LiquidConfigFileLoader()
+    var physics = LiquidPhysicsConfig()
+    var pool = WaterBodyConfig()
+    assert(loader.loadPhysics(physics, "assets/prototype/runtime/liquid_physics.json") &&
+        loader.loadWaterBody(
+            pool, "assets/prototype/runtime/water_bodies/pool.json"),
+        "liquid movement test must load its JSON configuration")
+    var world = BoundedLiquidWorld(2)
+    var arena = G1Arena()
+    var controller = FpsMovementController(1)
+    assert(world.addBody(pool.definition()) &&
+        arena.ready() &&
+        controller.configure(arena.authoredCollision()) &&
+        controller.addActor(1, 150, 2, 140) &&
+        controller.configureLiquidActor(
+            1, true, physics.movementProfile()) &&
+        controller.step(1, 4, 0, true, true),
+        "liquid movement step must be accepted")
+    assert(controller.liquidActive(1) &&
+        controller.velocityX(1) > 0 &&
+        controller.velocityY(1) > 0 &&
+        !controller.grounded(1),
+        "underwater movement must use configured swim and horizontal response")
+}
+
+test "FPS session applies liquid movement while partially immersed" {
+    var arena = G1Arena()
+    var world = BoundedLiquidWorld(1)
+    assert(world.addBody(LiquidBodyDefinition(
+            1, 0, 64, 0, 64, 1, 8, 0,
+            500, 500, 500, 1, 1, 100,
+            500, 200, 800, 4, 2, 2)),
+        "partial immersion test must admit its water body")
+    var session = LoopbackSession(8, 2)
+    assert(arena.ready() &&
+        session.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        session.enableFpsMovement(true) &&
+        session.configureLiquid(
+            world, LiquidMovementProfile(4, 2, 1, 0, 1, 1, 3, 6, 6), 2) &&
+        session.addEnemyCombatActor(1, 100, 0) &&
+        session.addEnemyCombatActor(2, 100, 0) &&
+        session.start() &&
+        session.connectPlayer() == 1 &&
+        session.setEnemySpatialPosition(1, 20, 1, 30) &&
+        session.fpsInLiquid(1) &&
+        !session.fpsUnderwater(1),
+        "partial immersion must select liquid movement without O2 depletion")
+    assert(session.receiveInput(
+            1, 1, 1, 4, 0, 0, 0, 0, 0),
+        "partially immersed FPS input must be admitted")
+    assert(session.advance(16667) == 1,
+        "partially immersed FPS input must advance one fixed tick")
+    assert(session.fpsVelocityX(1) > 0,
+        "partially immersed FPS input must use liquid acceleration")
+}
+
+test "liquid oxygen and object buoyancy use configured values" {
+    var loader = LiquidConfigFileLoader()
+    var physics = LiquidPhysicsConfig()
+    var pool = WaterBodyConfig()
+    var crate = FloatableConfig()
+    var stone = FloatableConfig()
+    assert(loader.loadPhysics(physics, "assets/prototype/runtime/liquid_physics.json") &&
+        loader.loadWaterBody(
+            pool, "assets/prototype/runtime/water_bodies/pool.json") &&
+        loader.loadFloatable(
+            crate, "assets/prototype/runtime/floatables/crate.json") &&
+        loader.loadFloatable(
+            stone, "assets/prototype/runtime/floatables/stone.json"),
+        "liquid physics and floatable JSON files must load")
+    var oxygen = LiquidOxygenMeter(1, 1, 1)
+    assert(oxygen.configure(
+            physics.oxygenCapacity(),
+            physics.oxygenDrainPerTick(),
+            physics.oxygenRecoveryPerTick()) &&
+        oxygen.update(true) &&
+        oxygen.current() == 98 &&
+        oxygen.update(false) &&
+        oxygen.current() == 100,
+        "oxygen must drain underwater and recover at the surface")
+    var world = BoundedLiquidWorld(2)
+    var objects = LiquidObjectWorld(2)
+    assert(world.addBody(pool.definition()) &&
+        objects.addObject(
+            crate.objectId(), crate.x(), crate.y(), crate.z(),
+            crate.halfExtent(), crate.floatable(), crate.density(),
+            crate.buoyancy(), crate.drag(), crate.gravity(),
+            crate.maxFallSpeed(), crate.resource()) &&
+        objects.addObject(
+            stone.objectId(), stone.x(), stone.y(), stone.z(),
+            stone.halfExtent(), stone.floatable(), stone.density(),
+            stone.buoyancy(), stone.drag(), stone.gravity(),
+            stone.maxFallSpeed(), stone.resource()),
+        "configured floatable and non-floatable objects must be admitted")
+    for (var tick = 0; tick < 16; tick = tick + 1) {
+        assert(objects.step(world), "liquid object step must remain bounded")
+    }
+    assert(objects.floatingAt(crate.objectId()) &&
+        objects.yAt(crate.objectId()) == pool.surfaceY() &&
+        objects.yAt(stone.objectId()) < objects.yAt(crate.objectId()),
+        "buoyant and dense objects must resolve differently in the same water")
+}
+
+test "water splash accepts configured lifetime" {
+    var loader = LiquidConfigFileLoader()
+    var pool = WaterBodyConfig()
+    assert(loader.loadWaterBody(
+            pool, "assets/prototype/runtime/water_bodies/pool.json"),
+        "splash test must load the water body configuration")
+    var splashes = WaterSplashVfx(2)
+    assert(splashes.trigger(
+            150, 140, pool.surfaceY(), pool.styleId(),
+            pool.splashDuration(), pool.splashRadius(), pool.splashHeight()) &&
+        splashes.activeCount() == 1,
+        "water entry must accept the configured splash")
+    for (var tick = 0; tick < pool.splashDuration(); tick = tick + 1) {
+        assert(splashes.advance(), "splash lifetime update must be deterministic")
+    }
+    assert(!splashes.active() && splashes.activeCount() == 0,
+        "splash must expire at its configured duration")
+}
+
+test "water splash stages configured toon geometry" {
+    var loader = LiquidConfigFileLoader()
+    var pool = WaterBodyConfig()
+    assert(loader.loadWaterBody(
+            pool, "assets/prototype/runtime/water_bodies/pool.json"),
+        "splash staging test must load the water body configuration")
+    var splashes = WaterSplashVfx(2)
+    var frame = FrameStaging(splashes.renderVertexCapacity())
+    assert(splashes.trigger(
+            150, 140, pool.surfaceY(), pool.styleId(),
+            pool.splashDuration(), pool.splashRadius(), pool.splashHeight()),
+        "splash staging test must activate its configured splash")
+    assert(splashes.stage(frame, 1),
+        "water entry must stage the configured toon splash")
+    assert(frame.stagedCount() == liquidSplashVerticesPerSplash(),
+        "staged water splash must use four configured triangles")
 }
 
 test "FPS session routes authored movement and pose" {
@@ -4927,6 +5376,38 @@ test "authoritative weapon and damage transitions" {
     assert(!combat.applyDamage(DamageRequest(1, 2, 1, 1, 0)).accepted() &&
         combat.deaths() == 1,
         "dead targets must reject repeated damage and rewards")
+}
+test "goose combat kills 100 health players in five 20 damage hits" {
+    var combat = CombatWorld(3, 1)
+    assert(combat.addActor(1, 100, 0) &&
+        combat.addActor(2, 100, 0) &&
+        combat.addActor(3, 100, 0),
+        "goose combat must admit two players and an attacker")
+    for (var hit = 0; hit < 5; hit = hit + 1) {
+        var firstPlayer = combat.applyDamage(
+            DamageRequest(3, 1, 20, 1, 0))
+        assert(firstPlayer.accepted() && firstPlayer.applied() == 20 &&
+            firstPlayer.remainingHealth() == 100 - (hit + 1) * 20 &&
+            (if (hit == 4) firstPlayer.died() else !firstPlayer.died()),
+            "normal goose hits must deal exactly 20 damage")
+    }
+    for (var hit = 0; hit < 5; hit = hit + 1) {
+        var secondPlayer = combat.applyDamage(
+            DamageRequest(3, 2, 20, 1, 0))
+        assert(secondPlayer.accepted() && secondPlayer.applied() == 20 &&
+            secondPlayer.remainingHealth() == 100 - (hit + 1) * 20 &&
+            (if (hit == 4) secondPlayer.died() else !secondPlayer.died()),
+            "each player must require five normal hits")
+    }
+    var criticalWorld = CombatWorld(2, 1)
+    assert(criticalWorld.addActor(1, 100, 0) &&
+        criticalWorld.addActor(2, 100, 0),
+        "critical fixture must admit a full-health target")
+    var critical = criticalWorld.applyDamage(
+        DamageRequest(1, 2, 20, 1, 1))
+    assert(critical.accepted() && critical.applied() == 40 &&
+        critical.remainingHealth() == 60 && !critical.died(),
+        "critical goose hits must deal exactly 40 damage")
 }
 test "combat resistance and shield mitigation" {
     var combat = CombatWorld(2, 1)
@@ -5123,6 +5604,15 @@ test "enemy spatial visibility movement and projectile targeting" {
     assert(movement.accepted() && movement.collided() &&
         movement.resolvedZ() == 4 && world.positionZ(2) == 4,
         "enemy movement must stop at the authoritative obstacle sample")
+    var dynamicWorld = EnemySpatialWorld(2, 20)
+    assert(dynamicWorld.configureBounds(0, 0, 0, 10, 10, 10) &&
+        dynamicWorld.setPosition(1, 2, 2, 2) &&
+        dynamicWorld.setPosition(2, 5, 2, 2),
+        "dynamic enemy actors must register in the shared physics world")
+    var dynamicMovement = dynamicWorld.moveToward(1, 2, 5)
+    assert(dynamicMovement.accepted() && dynamicMovement.collided() &&
+        dynamicMovement.resolvedX() < 5,
+        "enemy movement must stop before a dynamic actor collider")
 
     var session = AuthoritativeEnemySession(3, 1)
     assert(session.configureEnemyRules(100, 20, 2) &&
@@ -5624,6 +6114,13 @@ test "G3 authoritative loot progression replication and save reload" {
         client.clientRemoteStatusStackCount(40) == 2 &&
         client.clientRemoteWorldLootCount() == 1 &&
         client.clientRemoteWorldLootStableId(0) == 901 &&
+        client.clientRemoteWorldLootRank(0) == 3 &&
+        client.clientRemoteWorldLootPositionX(0) ==
+            host.worldLootPositionX(0) &&
+        client.clientRemoteWorldLootPositionY(0) ==
+            host.worldLootPositionY(0) &&
+        client.clientRemoteWorldLootPositionZ(0) ==
+            host.worldLootPositionZ(0) &&
         client.clientRemoteWorldLootSeed(0) == 2829,
         "G3 replication must expose inventory, equipment, progression, and drops")
     var replicatedHud = ShooterHud(200, 8)

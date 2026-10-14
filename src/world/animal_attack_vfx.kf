@@ -1,0 +1,135 @@
+package world
+
+import core
+
+class AnimalAttackVfx {
+    Int capacityValue
+    Bool activeValue
+
+    public constructor(Int capacity) {
+        capacityValue = capacity
+        if (capacityValue <= 0) { capacityValue = 1 }
+        if (capacityValue > 12) { capacityValue = 12 }
+        activeValue = false
+    }
+
+    Int renderVertexCapacity() { return capacityValue * 18 + 18 }
+    Bool active() { return activeValue }
+
+    Bool pushTriangle(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return target.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            target.pushWorldVertex(resource, bx, by, bz, 100, 0) &&
+            target.pushWorldVertex(resource, cx, cy, cz, 100, 100)
+    }
+
+    Bool pushQuad(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int dx, Int dy, Int dz
+    ) {
+        return pushTriangle(
+                target, resource, ax, ay, az, bx, by, bz, cx, cy, cz) &&
+            pushTriangle(
+                target, resource, ax, ay, az, cx, cy, cz, dx, dy, dz)
+    }
+
+    Bool pushCatScratch(
+        FrameStaging target, Int x, Int y, Int z, Int facing, Int offset
+    ) {
+        var startX = x + facing * 2
+        var endX = x + facing * 8
+        var startY = y + 4 + offset
+        var endY = startY + 2
+        var startZ = z + offset - 1
+        var endZ = startZ + 1
+        return pushQuad(
+            target, 3,
+            startX, startY, startZ,
+            endX, endY, startZ,
+            endX, endY + 1, endZ,
+            startX, startY + 1, endZ)
+    }
+
+    Bool pushGooseBeak(
+        FrameStaging target, Int x, Int y, Int z, Int facing
+    ) {
+        var baseX = x + facing * 2
+        var tipX = x + facing * 9
+        return pushTriangle(
+                target, 6,
+                baseX, y + 4, z - 1,
+                tipX, y + 5, z,
+                baseX, y + 6, z + 1) &&
+            pushTriangle(
+                target, 6,
+                baseX, y + 4, z + 1,
+                tipX, y + 5, z,
+                baseX, y + 6, z - 1)
+    }
+
+    Bool stageActor(
+        FrameStaging target, Int kind, Int x, Int y, Int z,
+        Int facing, Int frame
+    ) {
+        if (kind == 2) {
+            var offset = (frame % 3) - 1
+            return pushCatScratch(target, x, y, z, facing, offset - 2) &&
+                pushCatScratch(target, x, y, z, facing, offset) &&
+                pushCatScratch(target, x, y, z, facing, offset + 2)
+        }
+        return pushGooseBeak(target, x, y, z, facing)
+    }
+
+    Bool stage(
+        FrameStaging target, Int frame, ArenaAnimalMeshes animals,
+        Bool localAttacking, Int localKind,
+        Int localX, Int localY, Int localZ, Int localFacing
+    ) {
+        activeValue = false
+        var effectCount = if (localAttacking) 1 else 0
+        for (var index = 0; index < animals.actorCapacity(); index = index + 1) {
+            if (animals.actorCurrentAt(index) && animals.actorAttackingAt(index)) {
+                effectCount = effectCount + 1
+            }
+        }
+        if (effectCount <= 0) { return true }
+        if (!target.begin(frame) ||
+            target.vertexCapacity() < renderVertexCapacity()) {
+            target.discard()
+            return false
+        }
+        for (var index = 0; index < animals.actorCapacity(); index = index + 1) {
+            if (!animals.actorCurrentAt(index) ||
+                !animals.actorAttackingAt(index)) {
+                continue
+            }
+            if (!stageActor(
+                target, animals.actorKindAt(index), animals.actorXAt(index),
+                animals.actorYAt(index), animals.actorZAt(index),
+                animals.actorFacingAt(index), frame)) {
+                target.discard()
+                return false
+            }
+        }
+        if (localAttacking &&
+            !stageActor(
+                target, localKind, localX, localY, localZ,
+                localFacing, frame)) {
+            target.discard()
+            return false
+        }
+        if (!target.publish()) {
+            target.discard()
+            return false
+        }
+        activeValue = true
+        return true
+    }
+}

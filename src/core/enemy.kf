@@ -24,6 +24,7 @@ record SpatialPositionResult(Bool accepted, Int x, Int y, Int z)
 class EnemySpatialWorld {
     BoundedTriangleCollection obstacles
     EnemyNavigator navigator
+    BoundedPhysicsBodyWorld physicsValue
     BoundedNavigationProduct navigationProduct
     Bool navigationProductLoaded
     Int[] ids
@@ -43,6 +44,8 @@ class EnemySpatialWorld {
             maxDistance = 1
         }
         obstacles = BoundedTriangleCollection(64, maxDistance)
+        physicsValue = BoundedPhysicsBodyWorld(
+            capacity, obstacles, 1, maxDistance)
         navigator = EnemyNavigator(obstacles, 128, 64)
         navigationProduct = BoundedNavigationProduct(1)
         navigationProductLoaded = false
@@ -168,17 +171,34 @@ class EnemySpatialWorld {
         var index = find(id)
         if (index < 0) {
             index = freeSlot()
-            if (index < 0) {
+            if (index < 0 || !physicsValue.setPosition(id, x, y, z)) {
                 return false
             }
             ids[index] = id
             active[index] = true
             cachedPositionId = id
             cachedPositionSlot = index
+        } else if (!physicsValue.setPosition(id, x, y, z)) {
+            return false
         }
         positionsX[index] = x
         positionsY[index] = y
         positionsZ[index] = z
+        return true
+    }
+
+    Bool removePosition(Int id) {
+        var index = find(id)
+        if (index < 0 || !physicsValue.removeBody(id)) {
+            return false
+        }
+        ids[index] = 0
+        active[index] = false
+        positionsX[index] = 0
+        positionsY[index] = 0
+        positionsZ[index] = 0
+        cachedPositionId = 0
+        cachedPositionSlot = -1
         return true
     }
 
@@ -292,64 +312,87 @@ class EnemySpatialWorld {
     EnemyMoveResult moveToward(Int enemyId, Int targetId, Int step) {
         var enemyIndex = find(enemyId)
         var targetIndex = find(targetId)
-        if (enemyIndex < 0 || targetIndex < 0 || step < 0 || step > maxDistance) {
+        if (enemyIndex < 0 || targetIndex < 0 || step < 0 ||
+            step > maxDistance) {
             return EnemyMoveResult(false, false, enemyId, 0, 0, 0)
         }
         var startX = positionsX[enemyIndex]
         var startY = positionsY[enemyIndex]
         var startZ = positionsZ[enemyIndex]
-
         var deltaX = positionsX[targetIndex] - startX
         var deltaY = positionsY[targetIndex] - startY
         var deltaZ = positionsZ[targetIndex] - startZ
         var distance = segmentDistance(
             startX, startY, startZ,
-            positionsX[targetIndex], positionsY[targetIndex], positionsZ[targetIndex])
-        if (distance == 0) {
-            return EnemyMoveResult(true, false, enemyId, startX, startY, startZ)
-        }
-        var nextX = startX + (deltaX * step) / distance
-        var nextY = startY + (deltaY * step) / distance
-        var nextZ = startZ + (deltaZ * step) / distance
-        if (nextX == startX && nextY == startY && nextZ == startZ) {
-            if (absolute(deltaX) >= absolute(deltaY) &&
-                absolute(deltaX) >= absolute(deltaZ)) {
-                if (deltaX < 0) {
-                    nextX = startX - 1
-                } else {
-                    nextX = startX + 1
-                }
-            } else if (absolute(deltaY) >= absolute(deltaZ)) {
-                if (deltaY < 0) {
-                    nextY = startY - 1
-                } else {
-                    nextY = startY + 1
-                }
-            } else {
-                if (deltaZ < 0) {
+            positionsX[targetIndex], positionsY[targetIndex],
+            positionsZ[targetIndex])
+        var nextX = startX
+        var nextY = startY
+        var nextZ = startZ
+        if (distance > 0) {
+            nextX = startX + (deltaX * step) / distance
+            nextY = startY + (deltaY * step) / distance
+            nextZ = startZ + (deltaZ * step) / distance
+            if (nextX == startX && nextY == startY && nextZ == startZ) {
+                if (absolute(deltaX) >= absolute(deltaY) &&
+                    absolute(deltaX) >= absolute(deltaZ)) {
+                    if (deltaX < 0) {
+                        nextX = startX - 1
+                    } else {
+                        nextX = startX + 1
+                    }
+                } else if (absolute(deltaY) >= absolute(deltaZ)) {
+                    if (deltaY < 0) {
+                        nextY = startY - 1
+                    } else {
+                        nextY = startY + 1
+                    }
+                } else if (deltaZ < 0) {
                     nextZ = startZ - 1
                 } else {
                     nextZ = startZ + 1
+                }
             }
-        }
         }
         var result = obstacles.query(
             startX, startY, startZ, nextX, nextY, nextZ)
         if (!result.accepted()) {
-            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+            return EnemyMoveResult(false, false, enemyId,
+                startX, startY, startZ)
         }
         if (result.collided()) {
-            positionsX[enemyIndex] = result.resolvedX()
-            positionsY[enemyIndex] = result.resolvedY()
-            positionsZ[enemyIndex] = result.resolvedZ()
-            return EnemyMoveResult(
-                true, true, enemyId,
-                result.resolvedX(), result.resolvedY(), result.resolvedZ())
+            nextX = result.resolvedX()
+            nextY = result.resolvedY()
+            nextZ = result.resolvedZ()
         }
-        positionsX[enemyIndex] = nextX
-        positionsY[enemyIndex] = nextY
-        positionsZ[enemyIndex] = nextZ
-        return EnemyMoveResult(true, false, enemyId, nextX, nextY, nextZ)
+        var dynamicMovement = physicsValue.queryDynamic(
+            startX, startY, startZ, nextX, nextY, nextZ, enemyId)
+        if (!dynamicMovement.accepted()) {
+            return EnemyMoveResult(false, false, enemyId,
+                startX, startY, startZ)
+        }
+        if (dynamicMovement.collided()) {
+            nextX = dynamicMovement.resolvedX()
+            nextY = dynamicMovement.resolvedY()
+            nextZ = dynamicMovement.resolvedZ()
+        }
+        if (!physicsValue.syncPosition(enemyId, nextX, nextY, nextZ)) {
+            return EnemyMoveResult(false, false, enemyId,
+                startX, startY, startZ)
+        }
+        var vertical = physicsValue.stepVertical(enemyId)
+        if (!vertical.accepted()) {
+            return EnemyMoveResult(false, false, enemyId,
+                startX, startY, startZ)
+        }
+        positionsX[enemyIndex] = vertical.x()
+        positionsY[enemyIndex] = vertical.y()
+        positionsZ[enemyIndex] = vertical.z()
+        return EnemyMoveResult(
+            true,
+            result.collided() || dynamicMovement.collided() ||
+                vertical.collided(),
+            enemyId, vertical.x(), vertical.y(), vertical.z())
     }
     Bool loadNavigationProduct(BoundedNavigationProduct product) {
         if (!product.validate()) {
@@ -425,17 +468,35 @@ class EnemySpatialWorld {
             return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
         }
         if (trace.collided()) {
-            positionsX[enemyIndex] = trace.resolvedX()
-            positionsY[enemyIndex] = trace.resolvedY()
-            positionsZ[enemyIndex] = trace.resolvedZ()
-            return EnemyMoveResult(
-                true, true, enemyId,
-                trace.resolvedX(), trace.resolvedY(), trace.resolvedZ())
+            nextX = trace.resolvedX()
+            nextY = trace.resolvedY()
+            nextZ = trace.resolvedZ()
         }
-        positionsX[enemyIndex] = nextX
-        positionsY[enemyIndex] = nextY
-        positionsZ[enemyIndex] = nextZ
-        return EnemyMoveResult(true, false, enemyId, nextX, nextY, nextZ)
+        var dynamicMovement = physicsValue.queryDynamic(
+            startX, startY, startZ, nextX, nextY, nextZ, enemyId)
+        if (!dynamicMovement.accepted()) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        if (dynamicMovement.collided()) {
+            nextX = dynamicMovement.resolvedX()
+            nextY = dynamicMovement.resolvedY()
+            nextZ = dynamicMovement.resolvedZ()
+        }
+        if (!physicsValue.syncPosition(enemyId, nextX, nextY, nextZ)) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        var vertical = physicsValue.stepVertical(enemyId)
+        if (!vertical.accepted()) {
+            return EnemyMoveResult(false, false, enemyId, startX, startY, startZ)
+        }
+        positionsX[enemyIndex] = vertical.x()
+        positionsY[enemyIndex] = vertical.y()
+        positionsZ[enemyIndex] = vertical.z()
+        return EnemyMoveResult(
+            true,
+            trace.collided() || dynamicMovement.collided() ||
+                vertical.collided(),
+            enemyId, vertical.x(), vertical.y(), vertical.z())
     }
 
     EnemySteeringResult steerToward(
@@ -516,6 +577,13 @@ class EnemySpatialWorld {
             source[2] <= 0) {
             return false
         }
+        for (var previous = 0;
+             previous < active.length;
+             previous = previous + 1) {
+            if (active[previous]) {
+                physicsValue.removeBody(ids[previous])
+            }
+        }
         cachedPositionId = 0
         cachedPositionSlot = -1
         var offset = 3
@@ -530,6 +598,20 @@ class EnemySpatialWorld {
             positionsY[index] = source[offset + 3]
             positionsZ[index] = source[offset + 4]
             offset = offset + 5
+        }
+        for (var restored = 0;
+             restored < active.length;
+             restored = restored + 1) {
+            if (active[restored]) {
+                if (ids[restored] <= 0 ||
+                    !physicsValue.setPosition(
+                        ids[restored],
+                        positionsX[restored],
+                        positionsY[restored],
+                        positionsZ[restored])) {
+                    return false
+                }
+            }
         }
         maxDistance = source[2]
         return true

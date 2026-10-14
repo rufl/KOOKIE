@@ -8,8 +8,10 @@ layout(set = 1, binding = 0) uniform Camera {
 };
 
 layout(location = 0) out vec2 texcoord;
+layout(location = 1) out vec3 world_position;
 
 void main() {
     gl_Position = view_projection * vec4(position, 1.0);
     texcoord = uv;
+    world_position = position;
 }

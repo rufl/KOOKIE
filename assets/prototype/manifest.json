@@ -413,6 +413,96 @@
       "runtime_dimensions": "160x32",
       "license": "upstream-prototype-only",
       "cook_status": "bounded PNG derivative; native atlas samples five nearest-neighbor heart states"
+    },
+    {
+      "id": "config.liquid-physics",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/liquid_physics.json",
+      "runtime_path": "runtime/liquid_physics.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.water-bodies.pool",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/water_bodies/pool.json",
+      "runtime_path": "runtime/water_bodies/pool.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.water-bodies.channel",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/water_bodies/channel.json",
+      "runtime_path": "runtime/water_bodies/channel.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.floatables.crate",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/floatables/crate.json",
+      "runtime_path": "runtime/floatables/crate.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.floatables.stone",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/floatables/stone.json",
+      "runtime_path": "runtime/floatables/stone.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.coffee-mug",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/coffee_mug.json",
+      "runtime_path": "runtime/power_ups/coffee_mug.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.jetpack",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/jetpack.json",
+      "runtime_path": "runtime/power_ups/jetpack.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.megaphone",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/megaphone.json",
+      "runtime_path": "runtime/power_ups/megaphone.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.scuba-kit",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/scuba_kit.json",
+      "runtime_path": "runtime/power_ups/scuba_kit.json",
+      "format": "json",
+      "license": "project-authored"
+    },
+    {
+      "id": "config.power-ups.watermelon",
+      "kind": "runtime-config",
+      "source": "authored",
+      "authored_path": "runtime/power_ups/watermelon.json",
+      "runtime_path": "runtime/power_ups/watermelon.json",
+      "format": "json",
+      "license": "project-authored"
     }
   ]
 }

@@ -9,6 +9,7 @@ struct VertexInput {
 
 struct VertexOutput {
     float2 uv : TEXCOORD0;
+    float3 world_position : TEXCOORD1;
     float4 position : SV_Position;
 };
 
@@ -16,5 +17,6 @@ VertexOutput main(VertexInput input) {
     VertexOutput output;
     output.position = mul(view_projection, float4(input.position, 1.0));
     output.uv = input.uv;
+    output.world_position = input.position;
     return output;
 }

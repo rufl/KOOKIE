@@ -59,8 +59,9 @@ for source_file in "$ROOT_DIR/src/ui/"*.kf; do
   ln -s "$source_file" "$SOURCE_DIR/ui/$(basename "$source_file")"
 done
 cp -- "$ROOT_DIR/probes/g5_reference_renderer/main.kf" "$SOURCE_DIR/main.kf"
-
 IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
+IFS=' ' read -r -a TEXT_FLAGS <<<"$(pkg-config --cflags freetype2 harfbuzz)"
+IFS=' ' read -r -a TEXT_LIBS <<<"$(pkg-config --libs freetype2 harfbuzz)"
 python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
   --root "$ROOT_DIR" --output "$SOURCE_DIR/build" --target linux
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
@@ -70,7 +71,8 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SOURCE_DIR/build/libkookie_sdl_adapter.so" \
   "${SDL_FLAGS[@]}" \
-  $(pkg-config --cflags --libs freetype2 harfbuzz) -lm
+  "${TEXT_FLAGS[@]}" \
+  "${TEXT_LIBS[@]}" -lm
 while IFS= read -r library; do
   case "$(basename "$library")" in
     libSDL3.so*|libSDL3_mixer.so*)

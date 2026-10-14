@@ -58,8 +58,7 @@ fi
 
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
 adapter_build_dir="$build_dir/adapter"
-rm -rf "$adapter_build_dir"
-mkdir -p "$adapter_build_dir"
+mkdir -p "$adapter_build_dir/build"
 transport_key_file="$adapter_build_dir/transport.key"
 printf '%s' '00000001000000020000000300000004' >"$transport_key_file"
 chmod 600 "$transport_key_file"
@@ -145,24 +144,38 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     native/kookie_sdl_adapter.c \
     native/kookie_ui_renderer.c \
     native/kookie_transport.c \
-    -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
+    -o "$adapter_build_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
-  SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
-    --target native --output "$adapter_build_dir/native-adapter"
+  gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+    native/kookie_persistence_adapter.c \
+    -o "$adapter_build_dir/build/libkookie_persistence_adapter.so"
+  (
+    cd "$adapter_build_dir"
+    SDL_AUDIODRIVER=dummy kof build "$root_dir/probes/g0_native_adapter/main.kf" \
+      --target native --output "$adapter_build_dir/native-adapter"
+  )
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
-    SDL_AUDIODRIVER=dummy kof build probes/g0_native_presentation/main.kf \
-      --target native --output "$adapter_build_dir/native-presentation"
+    (
+      cd "$adapter_build_dir"
+      SDL_AUDIODRIVER=dummy kof build "$root_dir/probes/g0_native_presentation/main.kf" \
+        --target native --output "$adapter_build_dir/native-presentation"
+    )
   fi
   adapter_log="${KOOKIE_PRESENTATION_ADAPTER_LOG:-$build_dir/native-adapter.log}"
   mkdir -p "$(dirname "$adapter_log")"
   presentation_compositor_bin="${KOOKIE_PRESENTATION_COMPOSITOR_BIN:-}"
   presentation_compositor_libdir="${KOOKIE_PRESENTATION_COMPOSITOR_LIBDIR:-}"
   presentation_env=()
+  presentation_binary="$adapter_build_dir/native-adapter/Default/Main"
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
-    presentation_command=("$adapter_build_dir/native-presentation/Default/Main")
-  else
-    presentation_command=("$adapter_build_dir/native-adapter/Default/Main")
+    presentation_binary="$adapter_build_dir/native-presentation/Default/Main"
   fi
+  presentation_command=(
+    bash -c 'cd "$1" && exec "$2"'
+    --
+    "$adapter_build_dir"
+    "$presentation_binary"
+  )
   if [[ -n "$presentation_compositor_bin" ]]; then
     [[ -x "$presentation_compositor_bin" ]] || {
       echo "presentation compositor is not executable: $presentation_compositor_bin" >&2

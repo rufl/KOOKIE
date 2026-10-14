@@ -1,0 +1,170 @@
+package world
+
+import core
+
+class WaterSplashVfx {
+    Bool[] activeValues
+    Int[] xValues
+    Int[] zValues
+    Int[] surfaceValues
+    Int[] ages
+    Int[] durations
+    Int[] radiuses
+    Int[] heights
+    Int[] styles
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > liquidMaximumBodies()) {
+            actualCapacity = liquidMaximumBodies()
+        }
+        activeValues = new Bool[actualCapacity]
+        xValues = new Int[actualCapacity]
+        zValues = new Int[actualCapacity]
+        surfaceValues = new Int[actualCapacity]
+        ages = new Int[actualCapacity]
+        durations = new Int[actualCapacity]
+        radiuses = new Int[actualCapacity]
+        heights = new Int[actualCapacity]
+        styles = new Int[actualCapacity]
+        clear()
+    }
+
+    Bool clear() {
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            activeValues[index] = false
+            xValues[index] = 0
+            zValues[index] = 0
+            surfaceValues[index] = 0
+            ages[index] = 0
+            durations[index] = 0
+            radiuses[index] = 0
+            heights[index] = 0
+            styles[index] = 0
+        }
+        return true
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (!activeValues[index]) { return index }
+        }
+        return 0
+    }
+
+    Bool trigger(
+        Int x, Int z, Int surfaceY, Int styleId,
+        Int duration, Int radius, Int height
+    ) {
+        if (x < liquidWorldCoordinateMinimum() ||
+            x > liquidWorldCoordinateMaximum() ||
+            z < liquidWorldCoordinateMinimum() ||
+            z > liquidWorldCoordinateMaximum() ||
+            surfaceY < liquidWorldCoordinateMinimum() ||
+            surfaceY > liquidWorldCoordinateMaximum() ||
+            styleId < 0 || styleId >= liquidMaximumStyles() ||
+            duration <= 0 || radius <= 0 || height <= 0) {
+            return false
+        }
+        var slot = freeSlot()
+        activeValues[slot] = true
+        xValues[slot] = x
+        zValues[slot] = z
+        surfaceValues[slot] = surfaceY
+        ages[slot] = 0
+        durations[slot] = duration
+        radiuses[slot] = radius
+        heights[slot] = height
+        styles[slot] = styleId
+        return true
+    }
+
+    Bool advance() {
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (!activeValues[index]) { continue }
+            ages[index] = ages[index] + 1
+            if (ages[index] >= durations[index]) {
+                activeValues[index] = false
+            }
+        }
+        return true
+    }
+
+    Bool active() {
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (activeValues[index]) { return true }
+        }
+        return false
+    }
+
+    Int activeCount() {
+        var count = 0
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (activeValues[index]) { count = count + 1 }
+        }
+        return count
+    }
+
+    Int renderVertexCapacity() {
+        return activeValues.length * liquidSplashVerticesPerSplash()
+    }
+
+    Int markerResource(Int styleId) {
+        return liquidWaterVertexResourceBase() + styleId
+    }
+
+    Bool pushSplashTriangle(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az, Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return target.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            target.pushWorldVertex(resource, bx, by, bz, 100, 0) &&
+            target.pushWorldVertex(resource, cx, cy, cz, 50, 100)
+    }
+
+    Bool stage(FrameStaging target, Int frame) {
+        if (!active() || target.vertexCapacity() < renderVertexCapacity() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (!activeValues[index]) { continue }
+            var progress = ages[index]
+            if (progress > durations[index]) { progress = durations[index] }
+            var radius = radiuses[index] +
+                radiuses[index] * progress / durations[index]
+            var height = heights[index] - heights[index] * progress / durations[index]
+            if (height <= 0) { height = 1 }
+            var x = xValues[index]
+            var z = zValues[index]
+            var y = surfaceValues[index]
+            var resource = markerResource(styles[index])
+            if (!pushSplashTriangle(
+                    target, resource,
+                    x - radius, y, z,
+                    x, y + height, z,
+                    x + radius, y, z) ||
+                !pushSplashTriangle(
+                    target, resource,
+                    x, y, z - radius,
+                    x, y + height, z,
+                    x, y, z + radius) ||
+                !pushSplashTriangle(
+                    target, resource,
+                    x - radius, y, z,
+                    x, y, z - radius,
+                    x, y, z + radius) ||
+                !pushSplashTriangle(
+                    target, resource,
+                    x - radius, y, z,
+                    x, y, z + radius,
+                    x + radius, y, z)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+}

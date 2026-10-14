@@ -5,12 +5,12 @@
   "source_archive_sha256": "f089859f0c8899c7b3eee6db9dbbde4735db5726b0ba6b1ce08be5acedaa51d8",
   "defaults": {
     "body": {
-      "family": "Jared Lite",
-      "file": "jared-lite.ttf"
-    },
-    "display": {
       "family": "Pixand",
       "file": "pixand.ttf"
+    },
+    "display": {
+      "family": "Jared Lite",
+      "file": "jared-lite.ttf"
     }
   },
   "native_renderer": {

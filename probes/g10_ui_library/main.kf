@@ -1,10 +1,10 @@
 import ui
 
 main() {
-    assert(kookieUiFontName(kookieUiFontBody()) == "Jared Lite" &&
-        kookieUiFontName(kookieUiFontDisplay()) == "Pixand" &&
-        kookieUiFontSource(kookieUiFontBody()) == "fonts/jared-lite.ttf" &&
-        kookieUiFontSource(kookieUiFontDisplay()) == "fonts/pixand.ttf",
+    assert(kookieUiFontName(kookieUiFontBody()) == "Pixand" &&
+        kookieUiFontName(kookieUiFontDisplay()) == "Jared Lite" &&
+        kookieUiFontSource(kookieUiFontBody()) == "fonts/pixand.ttf" &&
+        kookieUiFontSource(kookieUiFontDisplay()) == "fonts/jared-lite.ttf",
         "Kookie UI must expose the packaged body and display fonts")
 
     var svg = kookieUiPublishedUiGatogansoMark()

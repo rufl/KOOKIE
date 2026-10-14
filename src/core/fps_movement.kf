@@ -33,6 +33,9 @@ Int fpsMovementGravity() { return 1 }
 Int fpsMovementJumpVelocity() {
     return fpsMovementGravity() * (fpsMovementAirTimeTicks() / 2)
 }
+Int fpsMovementMaximumAirJumps() { return 1 }
+Int fpsMovementFlapImpulse() { return fpsMovementGravity() * 2 }
+Int fpsMovementFlapIntervalTicks() { return 3 }
 Int fpsMovementMaximumFallTicks() { return 16 }
 Int fpsMovementMaxFallSpeed() {
     return fpsMovementGravity() * fpsMovementMaximumFallTicks()
@@ -68,14 +71,30 @@ class FpsMovementController {
     Int[] velocityZValues
     Int[] coyoteTicksValues
     Int[] jumpBufferTicksValues
+    Int[] airJumpValues
+    Int[] flapCooldownValues
     Bool[] activeValues
     Bool[] groundedValues
     Bool[] jumpCutArmedValues
+    Bool[] liquidActiveValues
+    Int[] liquidHorizontalSpeeds
+    Int[] liquidHorizontalAccelerations
+    Int[] liquidHorizontalBrakings
+    Int[] liquidVerticalDrags
+    Int[] liquidGravities
+    Int[] liquidBuoyancies
+    Int[] liquidSwimImpulses
+    Int[] liquidMaxFallSpeeds
+    Int[] powerUpSpeedBonuses
+    Int[] powerUpJumpBonuses
+    Int[] liquidMaxRiseSpeeds
     Int lastActorValue
     Bool lastAcceptedValue
     Bool lastCollidedValue
     Bool lastGroundedValue
     Bool lastJumpedValue
+    Bool lastDoubleJumpValue
+    Bool lastFlappedValue
     Bool lastCoyoteJumpValue
     Bool lastBunnyHopValue
     Bool lastLandedValue
@@ -116,9 +135,23 @@ class FpsMovementController {
         velocityZValues = new Int[actualCapacityValue]
         coyoteTicksValues = new Int[actualCapacityValue]
         jumpBufferTicksValues = new Int[actualCapacityValue]
+        airJumpValues = new Int[actualCapacityValue]
+        flapCooldownValues = new Int[actualCapacityValue]
         activeValues = new Bool[actualCapacityValue]
         groundedValues = new Bool[actualCapacityValue]
         jumpCutArmedValues = new Bool[actualCapacityValue]
+        liquidActiveValues = new Bool[actualCapacityValue]
+        liquidHorizontalSpeeds = new Int[actualCapacityValue]
+        liquidHorizontalAccelerations = new Int[actualCapacityValue]
+        liquidHorizontalBrakings = new Int[actualCapacityValue]
+        liquidVerticalDrags = new Int[actualCapacityValue]
+        liquidGravities = new Int[actualCapacityValue]
+        liquidBuoyancies = new Int[actualCapacityValue]
+        liquidSwimImpulses = new Int[actualCapacityValue]
+        liquidMaxFallSpeeds = new Int[actualCapacityValue]
+        liquidMaxRiseSpeeds = new Int[actualCapacityValue]
+        powerUpSpeedBonuses = new Int[actualCapacityValue]
+        powerUpJumpBonuses = new Int[actualCapacityValue]
         clearActors()
         configuredValue = false
         lastActorValue = 0
@@ -126,6 +159,8 @@ class FpsMovementController {
         lastCollidedValue = false
         lastGroundedValue = false
         lastJumpedValue = false
+        lastDoubleJumpValue = false
+        lastFlappedValue = false
         lastCoyoteJumpValue = false
         lastBunnyHopValue = false
         lastLandedValue = false
@@ -141,9 +176,22 @@ class FpsMovementController {
             velocityZValues[index] = 0
             coyoteTicksValues[index] = 0
             jumpBufferTicksValues[index] = 0
+            airJumpValues[index] = 0
+            flapCooldownValues[index] = 0
             activeValues[index] = false
             groundedValues[index] = false
-            jumpCutArmedValues[index] = false
+            liquidActiveValues[index] = false
+            liquidHorizontalSpeeds[index] = 0
+            liquidHorizontalAccelerations[index] = 0
+            liquidHorizontalBrakings[index] = 0
+            liquidVerticalDrags[index] = 0
+            liquidGravities[index] = 0
+            liquidBuoyancies[index] = 0
+            liquidSwimImpulses[index] = 0
+            liquidMaxFallSpeeds[index] = 0
+            liquidMaxRiseSpeeds[index] = 0
+            powerUpSpeedBonuses[index] = 0
+            powerUpJumpBonuses[index] = 0
         }
     }
 
@@ -265,6 +313,8 @@ class FpsMovementController {
         velocityZValues[slot] = 0
         coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
         jumpBufferTicksValues[slot] = 0
+        airJumpValues[slot] = 0
+        flapCooldownValues[slot] = 0
         activeValues[slot] = true
         groundedValues[slot] = true
         jumpCutArmedValues[slot] = false
@@ -292,6 +342,8 @@ class FpsMovementController {
         velocityZValues[slot] = 0
         coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
         jumpBufferTicksValues[slot] = 0
+        airJumpValues[slot] = 0
+        flapCooldownValues[slot] = 0
         groundedValues[slot] = true
         jumpCutArmedValues[slot] = false
         return true
@@ -306,6 +358,52 @@ class FpsMovementController {
             actorId, x, worldCoordinate(positionYValues[slot]),
             worldCoordinate(positionZValues[slot]))
     }
+    Bool configureLiquidActor(
+        Int actorId, Bool active, LiquidMovementProfile profile
+    ) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot] ||
+            profile.horizontalSpeed() <= 0 ||
+            profile.horizontalAcceleration() <= 0 ||
+            profile.horizontalBraking() <= 0 ||
+            profile.verticalDrag() < 0 ||
+            profile.verticalDrag() > liquidParameterScale() ||
+            profile.gravity() < 0 || profile.buoyancy() < 0 ||
+            profile.swimImpulse() < 0 ||
+            profile.maxFallSpeed() <= 0 || profile.maxRiseSpeed() <= 0) {
+            return false
+        }
+        liquidActiveValues[slot] = active
+        liquidHorizontalSpeeds[slot] = profile.horizontalSpeed()
+        liquidHorizontalAccelerations[slot] = profile.horizontalAcceleration()
+        liquidHorizontalBrakings[slot] = profile.horizontalBraking()
+        liquidVerticalDrags[slot] = profile.verticalDrag()
+        liquidGravities[slot] = profile.gravity()
+        liquidBuoyancies[slot] = profile.buoyancy()
+        liquidSwimImpulses[slot] = profile.swimImpulse()
+        liquidMaxFallSpeeds[slot] = profile.maxFallSpeed()
+        liquidMaxRiseSpeeds[slot] = profile.maxRiseSpeed()
+        return true
+    }
+    Bool configurePowerUpActor(
+        Int actorId, Int speedBonus, Int jumpBonus
+    ) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot] ||
+            speedBonus < 0 || speedBonus > powerUpMaximumEffect() ||
+            jumpBonus < 0 || jumpBonus > powerUpMaximumEffect()) {
+            return false
+        }
+        powerUpSpeedBonuses[slot] = speedBonus
+        powerUpJumpBonuses[slot] = jumpBonus
+        return true
+    }
+
+
+    Bool liquidActive(Int actorId) {
+        var slot = slotFor(actorId)
+        return slot >= 0 && activeValues[slot] && liquidActiveValues[slot]
+    }
 
     Bool step(
         Int actorId, Int moveX, Int moveZ,
@@ -317,24 +415,41 @@ class FpsMovementController {
         }
         moveX = clampAxis(moveX)
         moveZ = clampAxis(moveZ)
+        var liquid = liquidActiveValues[slot]
         var wasGrounded = groundedValues[slot]
-        if (wasGrounded) {
-            coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
-        } else if (coyoteTicksValues[slot] > 0) {
-            coyoteTicksValues[slot] = coyoteTicksValues[slot] - 1
+        if (!liquid) {
+            if (wasGrounded) {
+                coyoteTicksValues[slot] = fpsMovementCoyoteTicks()
+            } else if (coyoteTicksValues[slot] > 0) {
+                coyoteTicksValues[slot] = coyoteTicksValues[slot] - 1
+            }
+            if (jumpBufferTicksValues[slot] > 0) {
+                jumpBufferTicksValues[slot] = jumpBufferTicksValues[slot] - 1
+            }
+            if (jumpPressed) {
+                jumpBufferTicksValues[slot] = fpsMovementJumpBufferTicks()
+            }
+            if (flapCooldownValues[slot] > 0) {
+                flapCooldownValues[slot] = flapCooldownValues[slot] - 1
+            }
+        } else {
+            coyoteTicksValues[slot] = 0
+            jumpBufferTicksValues[slot] = 0
+            flapCooldownValues[slot] = 0
         }
-        if (jumpBufferTicksValues[slot] > 0) {
-            jumpBufferTicksValues[slot] = jumpBufferTicksValues[slot] - 1
-        }
-        if (jumpPressed) {
-            jumpBufferTicksValues[slot] = fpsMovementJumpBufferTicks()
-        }
+        lastDoubleJumpValue = false
+        lastFlappedValue = false
 
-        var targetX = sign(moveX) * fpsMovementWalkSpeed()
-        var targetZ = sign(moveZ) * fpsMovementWalkSpeed()
-        var acceleration = fpsMovementAirAcceleration()
-        var braking = fpsMovementAirBraking()
-        if (wasGrounded) {
+        var targetSpeed = if (liquid)
+            liquidHorizontalSpeeds[slot] else fpsMovementWalkSpeed()
+        targetSpeed = targetSpeed + powerUpSpeedBonuses[slot]
+        var targetX = sign(moveX) * targetSpeed
+        var targetZ = sign(moveZ) * targetSpeed
+        var acceleration = if (liquid)
+            liquidHorizontalAccelerations[slot] else fpsMovementAirAcceleration()
+        var braking = if (liquid)
+            liquidHorizontalBrakings[slot] else fpsMovementAirBraking()
+        if (!liquid && wasGrounded) {
             acceleration = fpsMovementGroundAcceleration()
             braking = fpsMovementGroundBraking()
         }
@@ -355,24 +470,70 @@ class FpsMovementController {
 
         var jumped = false
         var coyoteJump = false
-        if (jumpBufferTicksValues[slot] > 0 &&
-            coyoteTicksValues[slot] > 0) {
-            jumped = true
-            coyoteJump = !wasGrounded
-            jumpBufferTicksValues[slot] = 0
-            coyoteTicksValues[slot] = 0
-            groundedValues[slot] = false
-            velocityYValues[slot] = fpsMovementJumpVelocity()
-            jumpCutArmedValues[slot] = true
+        if (liquid) {
+            if (jumpPressed) {
+                var swimImpulse = liquidSwimImpulses[slot] +
+                    powerUpJumpBonuses[slot]
+                velocityYValues[slot] = velocityYValues[slot] +
+                    swimImpulse
+                jumped = swimImpulse > 0
+            }
+        } else {
+            if (jumpBufferTicksValues[slot] > 0 &&
+                coyoteTicksValues[slot] > 0) {
+                jumped = true
+                coyoteJump = !wasGrounded
+                jumpBufferTicksValues[slot] = 0
+                coyoteTicksValues[slot] = 0
+                groundedValues[slot] = false
+                velocityYValues[slot] = fpsMovementJumpVelocity() +
+                    powerUpJumpBonuses[slot]
+                jumpCutArmedValues[slot] = true
+                flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
+            } else if (jumpBufferTicksValues[slot] > 0 &&
+                !wasGrounded && coyoteTicksValues[slot] <= 0 &&
+                airJumpValues[slot] < fpsMovementMaximumAirJumps()) {
+                jumped = true
+                airJumpValues[slot] = airJumpValues[slot] + 1
+                jumpBufferTicksValues[slot] = 0
+                groundedValues[slot] = false
+                velocityYValues[slot] = fpsMovementJumpVelocity() +
+                    powerUpJumpBonuses[slot]
+                jumpCutArmedValues[slot] = true
+                flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
+                lastDoubleJumpValue = true
+            }
+            if (!wasGrounded && jumpHeld &&
+                flapCooldownValues[slot] == 0) {
+                velocityYValues[slot] = velocityYValues[slot] +
+                    fpsMovementFlapImpulse()
+                if (velocityYValues[slot] > fpsMovementJumpVelocity()) {
+                    velocityYValues[slot] = fpsMovementJumpVelocity()
+                }
+                flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
+                lastFlappedValue = true
+            }
+            if (jumpCutArmedValues[slot] && !jumpHeld &&
+                velocityYValues[slot] > 0) {
+                velocityYValues[slot] = velocityYValues[slot] *
+                    fpsMovementJumpCutNumerator() /
+                    fpsMovementJumpCutDenominator()
+                jumpCutArmedValues[slot] = false
+            }
         }
-        if (jumpCutArmedValues[slot] && !jumpHeld &&
-            velocityYValues[slot] > 0) {
+        if (liquid) {
+            velocityYValues[slot] = velocityYValues[slot] +
+                liquidBuoyancies[slot] - liquidGravities[slot]
             velocityYValues[slot] = velocityYValues[slot] *
-                fpsMovementJumpCutNumerator() /
-                fpsMovementJumpCutDenominator()
-            jumpCutArmedValues[slot] = false
-        }
-        if (!wasGrounded || jumped) {
+                (liquidParameterScale() -
+                    liquidVerticalDrags[slot]) / liquidParameterScale()
+            if (velocityYValues[slot] < -liquidMaxFallSpeeds[slot]) {
+                velocityYValues[slot] = -liquidMaxFallSpeeds[slot]
+            }
+            if (velocityYValues[slot] > liquidMaxRiseSpeeds[slot]) {
+                velocityYValues[slot] = liquidMaxRiseSpeeds[slot]
+            }
+        } else if (!wasGrounded || jumped) {
             velocityYValues[slot] = velocityYValues[slot] - fpsMovementGravity()
             if (velocityYValues[slot] < -fpsMovementMaxFallSpeed()) {
                 velocityYValues[slot] = -fpsMovementMaxFallSpeed()
@@ -401,6 +562,7 @@ class FpsMovementController {
         positionYValues[slot] = movement.resolvedY()
         positionZValues[slot] = movement.resolvedZ()
         var groundedNow = movement.grounded()
+        if (liquid) { groundedNow = false }
         var landed = !wasGrounded && groundedNow
         var bunnyHop = false
         if (groundedNow) {
@@ -413,12 +575,16 @@ class FpsMovementController {
                 groundedNow = false
                 bunnyHop = jumpHeld
                 jumped = true
+                airJumpValues[slot] = 0
                 jumpBufferTicksValues[slot] = 0
                 velocityYValues[slot] = fpsMovementJumpVelocity()
                 jumpCutArmedValues[slot] = true
+                flapCooldownValues[slot] = fpsMovementFlapIntervalTicks()
                 coyoteTicksValues[slot] = 0
             } else {
                 groundedValues[slot] = true
+                airJumpValues[slot] = 0
+                flapCooldownValues[slot] = 0
                 jumpCutArmedValues[slot] = false
             }
         } else {
@@ -487,11 +653,18 @@ class FpsMovementController {
         if (slot < 0 || !activeValues[slot]) { return 0 }
         return jumpBufferTicksValues[slot]
     }
+    Int airJumpsUsed(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return airJumpValues[slot]
+    }
 
     Bool lastAccepted() { return lastAcceptedValue }
     Bool lastCollided() { return lastCollidedValue }
     Bool lastGrounded() { return lastGroundedValue }
     Bool lastJumped() { return lastJumpedValue }
+    Bool lastDoubleJump() { return lastDoubleJumpValue }
+    Bool lastFlapped() { return lastFlappedValue }
     Bool lastCoyoteJump() { return lastCoyoteJumpValue }
     Bool lastBunnyHop() { return lastBunnyHopValue }
     Bool lastLanded() { return lastLandedValue }

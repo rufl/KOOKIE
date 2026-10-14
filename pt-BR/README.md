@@ -193,6 +193,21 @@ A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
   interpolação remota de seis ticks e métricas de correção da predição. O
   caminho WAN continua sendo IPv4/UDP direto best-effort, não um protocolo
   compatível com QUIC nem um relay de produção.
+O slice líquido do protótipo é orientado por dados: `assets/prototype/runtime/liquid_physics.json`
+controla movimento submerso e taxas de O2; `runtime/water_bodies/*.json` define
+limites, tint, caustics, contraste/opacidade toon e tempo de respingo;
+`runtime/floatables/*.json` escolhe buoyancy, densidade, drag e gravidade por
+objeto; e `runtime/power_ups/*.json` define canecas de café, jetpacks,
+megafones, kits de mergulho e melancias com posições, durações e efeitos
+limitados. O gameplay nativo gera as superfícies marcador, a geometria toon de
+respingo, os objetos flutuantes, os diamantes de power-up e o painel de
+power-up ativo do HUD a partir dessas definições. Canecas aumentam a
+velocidade, jetpacks aumentam o impulso de pulo, megafones aumentam o dano,
+kits de mergulho reduzem o consumo de O2 submerso e melancias restauram vida.
+A suíte JVM cobre carregamento JSON, movimento submerso, recuperação de
+oxigênio, buoyancy, efeitos de pickup e expiração de respingo; a apresentação
+SDL_GPU nativa continua sujeita ao gate de driver/dependências do host.
+
 O passe de GUI de 2026-10-02 agora adiciona uma shell em moldura consistente,
 trilhos nas linhas selecionadas, subtítulos por tela, clipping limitado e dicas
 explícitas de teclado nas telas principal, opções, multiplayer, acessibilidade

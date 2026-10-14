@@ -373,7 +373,7 @@ class KookieUiTextField {
         valueValue = initial
         captionValue = Label(labelValue)
         captionValue.setStyle(Style(
-            "font-family: 'Jared Lite', sans-serif; color: #f8fafc;"))
+            "font-family: Pixand, sans-serif; color: #f8fafc;"))
         inputValue = Input(initial)
         inputValue.setStyle(
             Style("min-height:44px;padding:8px;border:1px solid #24566a;background:#0f172a;color:#f8fafc"))

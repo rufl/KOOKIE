@@ -20,6 +20,7 @@ class ArenaAnimalMeshes {
     Bool[] actorKnown
     Bool[] actorCurrent
     Bool[] actorMoving
+    Bool[] actorFlashed
     Bool[] actorAttacking
     Int actorCountValue
     Bool gooseMovingValue
@@ -44,6 +45,7 @@ class ArenaAnimalMeshes {
         actorZs = new Int[actualCapacity]
         actorPhases = new Int[actualCapacity]
         actorFacings = new Int[actualCapacity]
+        actorFlashed = new Bool[actualCapacity]
         actorKnown = new Bool[actualCapacity]
         actorCurrent = new Bool[actualCapacity]
         actorMoving = new Bool[actualCapacity]
@@ -101,6 +103,7 @@ class ArenaAnimalMeshes {
             actorPhases[index] = 0
             actorFacings[index] = 1
             actorKnown[index] = false
+            actorFlashed[index] = false
             actorCurrent[index] = false
             actorMoving[index] = false
             actorAttacking[index] = false
@@ -188,6 +191,16 @@ class ArenaAnimalMeshes {
             catAttackingValue = catAttackingValue || attacking
         }
         return true
+    }
+    Bool setActorDamageFlash(Int actorId, Bool flashed) {
+        var slot = slotFor(actorId)
+        if (slot < 0) { return false }
+        actorFlashed[slot] = flashed
+        return true
+    }
+
+    Bool actorDamageFlashAt(Int index) {
+        return actorCurrentAt(index) && actorFlashed[index]
     }
 
 
@@ -296,7 +309,7 @@ class ArenaAnimalMeshes {
 
     Int actorCount() { return actorCountValue }
     Bool animationReady() { return animationReadyValue }
-    Int renderVertexCapacity() { return actorIds.length * 240 }
+    Int renderVertexCapacity() { return actorIds.length * 300 }
     Int gooseAnimationState() { return gooseRuntime.stateId() }
     Int catAnimationState() { return catRuntime.stateId() }
     Int gooseAnimationTick() { return gooseRuntime.clipTick() }
@@ -361,6 +374,24 @@ class ArenaAnimalMeshes {
                 target, resource,
                 left, bottom, back, right, bottom, back,
                 right, bottom, front, left, bottom, front)
+    }
+    Bool stageDamageFlash(FrameStaging target, Int index) {
+        if (!actorDamageFlashAt(index)) { return true }
+        var x = actorXs[index]
+        var y = actorYs[index]
+        var z = actorZs[index]
+        return pushQuad(
+                target, 3,
+                x - 4, y, z - 3,
+                x + 4, y, z - 3,
+                x + 4, y + 8, z - 3,
+                x - 4, y + 8, z - 3) &&
+            pushQuad(
+                target, 3,
+                x - 4, y, z + 3,
+                x - 4, y + 8, z + 3,
+                x + 4, y + 8, z + 3,
+                x + 4, y, z + 3)
     }
 
     Bool stageGoose(
@@ -565,7 +596,7 @@ class ArenaAnimalMeshes {
             } else {
                 staged = stageCat(target, index, resourceBase)
             }
-            if (!staged) {
+            if (!staged || !stageDamageFlash(target, index)) {
                 target.discard()
                 return false
             }

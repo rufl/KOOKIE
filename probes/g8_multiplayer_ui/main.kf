@@ -4,7 +4,13 @@ import ui
 
 main() {
     var lobby = MatchLobbyState()
-    assert(lobby.valid(), "fresh lobby state must be valid")
+    assert(lobby.valid() &&
+        lobby.setLocalProfile("SKY", 3) &&
+        lobby.setRemoteProfile("BILL", 4) &&
+        lobby.localNickname() == "SKY" &&
+        lobby.localColorId() == 3 &&
+        lobby.remoteNickname() == "BILL",
+        "lobby identity must accept bounded nickname and color profiles")
     assert(lobby.beginHost(4242, 1) &&
         lobby.phase() == multiplayerLobbyPhaseHosting(),
         "host admission must enter hosting")
@@ -12,9 +18,11 @@ main() {
         lobby.phase() == multiplayerLobbyPhaseWaiting() &&
         lobby.playerCount() == 1,
         "host must expose a bounded waiting state")
-    assert(lobby.markConnected(2, 38) &&
+    assert(lobby.markConnected(2, 4, 38) &&
         lobby.phase() == multiplayerLobbyPhaseConnected() &&
-        lobby.remoteConnected() && lobby.playerCount() == 2,
+        lobby.remoteConnected() && lobby.playerCount() == 2 &&
+        lobby.remoteNickname() == "BILL" &&
+        lobby.remoteColorId() == 4,
         "peer admission must become connected with ping")
     assert(lobby.setLocalReady(true) && lobby.setRemoteReady(true) &&
         lobby.phase() == multiplayerLobbyPhaseReady(),
@@ -36,10 +44,10 @@ main() {
         "leave must return the lobby to offline")
     var shell = GameShell()
     assert(uiFontCount() == 2 &&
-        uiFontDefaultBody() == uiFontJaredLite() &&
-        uiFontDefaultDisplay() == uiFontPixand() &&
-        uiFontName(uiFontDefaultBody()) == "Jared Lite" &&
-        uiFontName(uiFontDefaultDisplay()) == "Pixand" &&
+        uiFontDefaultBody() == uiFontPixand() &&
+        uiFontDefaultDisplay() == uiFontJaredLite() &&
+        uiFontName(uiFontDefaultBody()) == "Pixand" &&
+        uiFontName(uiFontDefaultDisplay()) == "Jared Lite" &&
         uiGameDisplayName() == "GatoGanso" &&
         uiGameTitle() == "GATOGANSO",
         "GatoGanso must expose the two default UI fonts")
@@ -60,6 +68,26 @@ main() {
         optionsFrame.stagedCount() <= optionsShell.renderVertexCapacity() &&
         optionsFrame.retire(2),
         "options shell must render the polished settings frame")
+    var profileShell = GameShell()
+    assert(profileShell.configureLobbyIdentity(1, 2, 1, 4, 4242) &&
+        profileShell.handleAction(gameShellActionDown()) &&
+        profileShell.handleAction(gameShellActionDown()) &&
+        profileShell.handleAction(gameShellActionActivate()),
+        "profile options must be reachable")
+    for (var move = 0; move < 5; move = move + 1) {
+        assert(profileShell.handleAction(gameShellActionDown()),
+            "profile options must expose nickname row")
+    }
+    assert(profileShell.handleAction(gameShellActionRight()) &&
+        profileShell.localNickname() == "WADDLE" &&
+        profileShell.handleAction(gameShellActionDown()) &&
+        profileShell.handleAction(gameShellActionRight()) &&
+        profileShell.localColorId() == 2 &&
+        profileShell.setLocalNickname("SKY") &&
+        profileShell.setLocalColor(3) &&
+        profileShell.localNickname() == "SKY" &&
+        profileShell.localColorId() == 3,
+        "options and connection profile APIs must update nickname and color")
     var accessibilityShell = GameShell()
     var accessibilityFrame = FrameStaging(
         accessibilityShell.renderVertexCapacity())
@@ -104,7 +132,7 @@ main() {
         "each Play entry must request another fresh bot encounter")
 
     var lobbyFrame = FrameStaging(shell.renderVertexCapacity())
-    assert(shell.configureLobbyIdentity(1, 2, 4242) &&
+    assert(shell.configureLobbyIdentity(1, 2, 1, 4, 4242) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionActivate()) &&
         shell.screen() == gameShellScreenMultiplayer() &&
@@ -113,7 +141,7 @@ main() {
         lobbyFrame.retire(1),
         "multiplayer shell must render the lobby player card")
     var readyShell = GameShell()
-    assert(readyShell.configureLobbyIdentity(1, 2, 4242),
+    assert(readyShell.configureLobbyIdentity(1, 2, 1, 4, 4242),
         "readiness shell identity must be valid")
     assert(readyShell.handleAction(gameShellActionDown()),
         "readiness shell must enter multiplayer selection")

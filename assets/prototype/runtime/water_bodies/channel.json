@@ -1,0 +1,23 @@
+{
+  "configVersion": 1,
+  "bodyId": 2,
+  "minX": 232,
+  "maxX": 304,
+  "minZ": 32,
+  "maxZ": 112,
+  "surfaceY": 4,
+  "depth": 6,
+  "styleId": 1,
+  "tintR": 90,
+  "tintG": 470,
+  "tintB": 820,
+  "causticScale": 9,
+  "causticSpeed": 10,
+  "causticStrength": 120,
+  "toonBase": 650,
+  "toonContrast": 250,
+  "opacity": 800,
+  "splashDuration": 16,
+  "splashRadius": 2,
+  "splashHeight": 3
+}

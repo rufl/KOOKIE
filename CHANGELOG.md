@@ -3,6 +3,44 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Loot drops now render animated crossed vertical beams with rank colors, while
+  cat scratches and goose beaks stage distinct world-space attack VFX.
+- Lobby customization now selects goose or cat alongside nickname and color;
+  the native profile handshake replicates the selected species.
+- Typography now uses Pixand for body text and Jared Lite for display text across
+  Kof, CSS, and native FreeType/HarfBuzz rendering; original TTFs and the SIL
+  Open Font License notice remain packaged.
+
+- The prototype now loads bounded water-body, liquid-physics and floatable JSON
+  definitions. Water surfaces stage marker geometry for animated caustics and a
+  toon pass; entry transitions stage configurable splash VFX; underwater FPS
+  movement applies the configured gravity, buoyancy, drag, swim impulse and
+  speed limits; the HUD exposes a configurable O2 meter; floatable and dense
+  objects resolve differently through the same liquid world.
+- The prototype now exposes five bounded power-ups from JSON: coffee mugs
+  increase movement speed, jetpacks increase jump impulse, megaphones increase
+  damage, scuba kits reduce underwater O2 drain and watermelons restore health.
+  Pickups stage diamond world markers and an active HUD panel.
+- Native gameplay now renders the bounded goose and cat GLB geometry with
+  correct model UV/material selection, including the embedded cat skin atlas.
+- World geometry now has animated point-light shading and a low-poly blob shadow
+  staged beneath every visible animal.
+- Enemy/object movement now shares bounded gravity, friction, static contact, and
+  dynamic broad-phase collision state.
+- Successful enemy hits now add a short red damage-flash overlay for immediate
+  player feedback.
+- Goose gameplay now stages one bounded heart and nickname billboard above every
+  player and bot, with deterministic bot names and optional player color.
+- Demo combat now uses 100 health, 20 damage per normal hit, and 40 damage for
+  critical hits, so a full-health player survives exactly five normal hits.
+- Multiplayer options and the lobby handshake now carry validated nicknames and
+  color profiles end to end.
+- FPS goose movement now supports one air jump and rate-limited held-jump
+  flapping after takeoff.
+- Goose nameplates now clamp their text origin to the native logical screen bounds, so actors at the left edge cannot abort the gameplay scene upload.
+- Native menus now share a safer header grid, wider content gutters, and taller option rows so large text no longer collides with panel edges.
+- Lobby and Kutter rows now reserve their own compact bands below header metadata, keeping status text clear of actionable panels.
+- Kof 0.6.4 native adapter probes now build, link, and run from an isolated package root, matching `extern "./build/..."`; G5 renderer verification now passes FreeType/HarfBuzz compiler flags and libraries as distinct arguments.
 - Third-person follow camera now keeps a two-world-unit clearance from authored collision surfaces while retaining the existing spring-arm easing.
 - Native SDL_GPU world rendering now binds the D16 depth target with `LESS` testing and depth writes, so wall textures participate in deterministic depth ordering.
 - FPS movement tuning is now named and centralized: ground/air braking eases

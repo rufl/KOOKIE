@@ -207,6 +207,21 @@ the original TTF files and SIL Open Font License notice remain in
   remote interpolation and prediction-correction metrics. The WAN path remains
   best-effort direct IPv4/UDP rather than a QUIC-compatible or production
   relay service.
+The prototype liquid slice is data-driven: `assets/prototype/runtime/liquid_physics.json`
+controls underwater movement and O2 rates; `runtime/water_bodies/*.json` defines
+surface bounds, tint, caustics, toon contrast/opacity and splash timing;
+`runtime/floatables/*.json` selects per-object buoyancy, density, drag and
+gravity; and `runtime/power_ups/*.json` defines coffee mugs, jetpacks,
+megaphones, scuba kits and watermelons with bounded pickup positions, durations
+and effect values. Native gameplay stages the water marker surfaces, toon splash
+geometry, floating objects, power-up diamonds and the active power-up HUD panel
+from those bounded definitions. Coffee mugs increase movement speed, jetpacks
+increase jump impulse, megaphones increase damage, scuba kits reduce underwater
+O2 drain and watermelons restore health. The JVM suite covers JSON loading,
+underwater movement, oxygen recovery, buoyancy, pickup effects and splash
+expiry; native SDL_GPU presentation remains subject to the host's
+driver/dependency gate.
+
 The 2026-10-02 GUI pass adds a consistent framed shell, selected-row rails,
 screen-specific subtitles, bounded text clipping and explicit keyboard hints
 across the main, options, multiplayer, accessibility and Kutter screens. The

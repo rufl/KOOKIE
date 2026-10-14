@@ -21,14 +21,14 @@ Color kookieUiDanger() { return Color(220, 38, 38) }
 Color kookieUiSuccess() { return Color(34, 197, 94) }
 
 String kookieUiFontName(Int role) {
-    if (role == kookieUiFontBody()) { return "Jared Lite" }
-    if (role == kookieUiFontDisplay()) { return "Pixand" }
+    if (role == kookieUiFontBody()) { return "Pixand" }
+    if (role == kookieUiFontDisplay()) { return "Jared Lite" }
     return ""
 }
 
 String kookieUiFontSource(Int role) {
-    if (role == kookieUiFontBody()) { return "fonts/jared-lite.ttf" }
-    if (role == kookieUiFontDisplay()) { return "fonts/pixand.ttf" }
+    if (role == kookieUiFontBody()) { return "fonts/pixand.ttf" }
+    if (role == kookieUiFontDisplay()) { return "fonts/jared-lite.ttf" }
     return ""
 }
 
@@ -229,11 +229,11 @@ class KookieUiText {
         labelValue.color = color
         if (roleValue == kookieUiTextRoleDisplay()) {
             labelValue.setStyle(Style(
-                "font-family: Pixand, 'Jared Lite', sans-serif; line-height: 1.2"
+                "font-family: 'Jared Lite', Pixand, sans-serif; line-height: 1.2"
             ))
         } else {
             labelValue.setStyle(Style(
-                "font-family: 'Jared Lite', sans-serif; line-height: 1.35"
+                "font-family: Pixand, sans-serif; line-height: 1.35"
             ))
         }
     }

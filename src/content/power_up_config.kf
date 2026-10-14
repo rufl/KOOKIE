@@ -1,0 +1,85 @@
+package content
+
+import core
+
+Int powerUpConfigSchemaVersion() { return 1 }
+
+class PowerUpConfig {
+    BoundedLiquidJsonObject jsonValue
+
+    public constructor() {
+        jsonValue = BoundedLiquidJsonObject()
+        jsonValue.addField("configVersion")
+        jsonValue.addField("powerUpId")
+        jsonValue.addField("kind")
+        jsonValue.addField("x")
+        jsonValue.addField("y")
+        jsonValue.addField("z")
+        jsonValue.addField("pickupRadius")
+        jsonValue.addField("durationTicks")
+        jsonValue.addField("effectValue")
+        jsonValue.addField("visualSize")
+        jsonValue.addField("resource")
+    }
+
+    Bool loadBytes(Int[] bytes) {
+        if (!jsonValue.loadBytes(bytes)) { return false }
+        return jsonValue.value("configVersion") == powerUpConfigSchemaVersion() &&
+            jsonValue.value("powerUpId") > 0 &&
+            jsonValue.value("powerUpId") <= powerUpMaximumId() &&
+            validPowerUpKind(jsonValue.value("kind")) &&
+            jsonValue.value("x") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("x") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("y") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("y") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("z") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("z") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("pickupRadius") > 0 &&
+            jsonValue.value("pickupRadius") <= powerUpMaximumRadius() &&
+            jsonValue.value("durationTicks") > 0 &&
+            jsonValue.value("durationTicks") <= powerUpMaximumDuration() &&
+            jsonValue.value("effectValue") > 0 &&
+            jsonValue.value("effectValue") <= powerUpMaximumEffect() &&
+            jsonValue.value("visualSize") > 0 &&
+            jsonValue.value("visualSize") <= powerUpMaximumRadius() &&
+            jsonValue.value("resource") > 0 &&
+            jsonValue.value("resource") <= powerUpMaximumResource() &&
+            jsonValue.value("x") - jsonValue.value("visualSize") >=
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("x") + jsonValue.value("visualSize") <=
+                liquidWorldCoordinateMaximum() &&
+            jsonValue.value("y") - jsonValue.value("visualSize") >=
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("y") + jsonValue.value("visualSize") <=
+                liquidWorldCoordinateMaximum() &&
+            jsonValue.value("z") - jsonValue.value("visualSize") >=
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("z") + jsonValue.value("visualSize") <=
+                liquidWorldCoordinateMaximum()
+    }
+
+    Int value(String name) { return jsonValue.value(name) }
+    Int powerUpId() { return value("powerUpId") }
+    Int kind() { return value("kind") }
+    Int x() { return value("x") }
+    Int y() { return value("y") }
+    Int z() { return value("z") }
+    Int pickupRadius() { return value("pickupRadius") }
+    Int durationTicks() { return value("durationTicks") }
+    Int effectValue() { return value("effectValue") }
+    Int visualSize() { return value("visualSize") }
+    Int resource() { return value("resource") }
+
+    PowerUpDefinition definition() {
+        return PowerUpDefinition(
+            powerUpId(), kind(), x(), y(), z(), pickupRadius(),
+            durationTicks(), effectValue(), visualSize(), resource())
+    }
+}
+
+class PowerUpConfigFileLoader {
+    Bool load(PowerUpConfig config, String path) {
+        return config.loadBytes(
+            File(path).readRange(0, liquidConfigMaximumBytes() + 1))
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "configVersion": 1,
+  "objectId": 2,
+  "x": 180,
+  "y": 9,
+  "z": 150,
+  "halfExtent": 2,
+  "floatable": 0,
+  "density": 4,
+  "buoyancy": 0,
+  "drag": 0,
+  "gravity": 1,
+  "maxFallSpeed": 8,
+  "resource": 7
+}

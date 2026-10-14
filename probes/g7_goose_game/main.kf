@@ -6,14 +6,14 @@ LoopbackSession newGooseGame() {
     var game = LoopbackSession(16, 8)
     assert(game.configureEnemyRules(50, 35, 15),
         "bot rules must configure")
-    assert(game.defineEnemyWeapon(7, 10, 0, 3, 1) &&
+    assert(game.defineEnemyWeapon(7, 10, 0, 20, 1) &&
         game.setEnemyWeaponRange(7, 40) &&
         game.setEnemyWeaponCooldown(7, 15) &&
         game.defineEnemyEncounter(4, 4, 12) &&
         game.configureEnemyEncounterZone(4, 16, 1, 12, 28) &&
         game.configureEnemySpatialBounds(-16, -4, -4, 40, 16, 32),
         "bot encounter must configure spatial bounds")
-    assert(game.definePlayerWeapon(7, 10, 0, 3, 1) &&
+    assert(game.definePlayerWeapon(7, 10, 0, 20, 1) &&
         game.setPlayerWeaponRange(7, 40) &&
         game.addEnemyCombatActor(1, 100, 0) &&
         game.addEnemyCombatActor(2, 100, 0) &&
@@ -94,27 +94,38 @@ main() {
     var overlay = GooseStatusOverlay(6)
     var frame = FrameStaging(1440)
     assert(overlay.add(
-            1, -20, 20, game.enemyCombatHealth(1), 100, 1, false) &&
-        overlay.add(
-            2, 20, 20, game.enemyCombatHealth(2), 100, 2, false) &&
-        overlay.add(
-            3, 60, 20, game.enemyCombatHealth(3), 80, 3, true) &&
-        overlay.add(
-            4, 100, 20, game.enemyCombatHealth(4), 80, 4, true) &&
-        overlay.add(
-            5, 140, 20, game.enemyCombatHealth(5), 80, 1, true) &&
-        overlay.actorCount() == 5 &&
-        overlay.actorNameAt(0) == "GOOSE" &&
+            1, -20, 20, game.enemyCombatHealth(1), 100, 1, false),
+        "player one overlay actor must be accepted")
+    assert(overlay.add(
+            2, 20, 20, game.enemyCombatHealth(2), 100, 2, false),
+        "player two overlay actor must be accepted")
+    assert(overlay.add(
+            3, 60, 20, game.enemyCombatHealth(3), 80, 3, true),
+        "first bot overlay actor must be accepted")
+    assert(overlay.add(
+            4, 100, 20, game.enemyCombatHealth(4), 80, 4, true),
+        "second bot overlay actor must be accepted")
+    assert(overlay.add(
+            5, 140, 20, game.enemyCombatHealth(5), 80, 1, true),
+        "third bot overlay actor must be accepted")
+    assert(overlay.actorCount() == 5,
+        "goose overlay must retain all players and bots")
+    assert(overlay.actorNameAt(0) == "GOOSE" &&
         overlay.actorNameAt(1) == "WADDLE" &&
-        overlay.actorNameAt(2) == "BOT GOOSE" &&
-        overlay.actorIsBotAt(2) && overlay.actorIsBotAt(4) &&
-        overlay.actorMaximumHeartCountAt(0) == 5 &&
-        overlay.actorMaximumHeartCountAt(2) == 4 &&
-        overlay.actorFilledHeartCountAt(0) ==
-            (game.enemyCombatHealth(1) + 19) / 20 &&
-        overlay.actorFilledHeartCountAt(2) ==
-            (game.enemyCombatHealth(3) + 19) / 20 &&
-        overlay.stage(frame, 1, 9) &&
+        overlay.actorNameAt(2) == "BOT HONK",
+        "goose and bot nicknames must be deterministic")
+    assert(overlay.actorIsBotAt(2) && overlay.actorIsBotAt(4),
+        "bot flags must remain visible")
+    assert(overlay.actorMaximumHeartCountAt(0) == 1 &&
+        overlay.actorMaximumHeartCountAt(2) == 1,
+        "each goose must expose one heart")
+    var playerOneHeart = if (game.enemyCombatHealth(1) > 0) 1 else 0
+    var firstBotHeart = if (game.enemyCombatHealth(3) > 0) 1 else 0
+    assert(overlay.actorFilledHeartCountAt(0) == playerOneHeart,
+        "player heart fill must follow authoritative health")
+    assert(overlay.actorFilledHeartCountAt(2) == firstBotHeart,
+        "bot heart fill must follow authoritative health")
+    assert(overlay.stage(frame, 1, 9) &&
         frame.stagedCount() > 0,
         "goose names, hearts and bodies must stage together")
     println("KOOKIE G7 goose WAN gameplay verified")

@@ -1,5 +1,8 @@
 package session
 
+Int multiplayerAnimalGoose() { return 1 }
+Int multiplayerAnimalCat() { return 2 }
+
 Int multiplayerLobbyPhaseOffline() { return 0 }
 Int multiplayerLobbyPhaseHosting() { return 1 }
 Int multiplayerLobbyPhaseJoining() { return 2 }
@@ -33,6 +36,12 @@ class MatchLobbyState {
     Int roomValue
     Int localNameIdValue
     Int remoteNameIdValue
+    String localNicknameValue
+    String remoteNicknameValue
+    Int localColorIdValue
+    Int remoteColorIdValue
+    Int localAnimalKindValue
+    Int remoteAnimalKindValue
     Bool localReadyValue
     Bool remoteReadyValue
     Bool remoteConnectedValue
@@ -46,6 +55,12 @@ class MatchLobbyState {
         roomValue = 0
         localNameIdValue = 1
         remoteNameIdValue = 2
+        localNicknameValue = "GOOSE"
+        remoteNicknameValue = "WADDLE"
+        localColorIdValue = 1
+        remoteColorIdValue = 4
+        localAnimalKindValue = multiplayerAnimalGoose()
+        remoteAnimalKindValue = multiplayerAnimalCat()
         localReadyValue = false
         remoteReadyValue = false
         remoteConnectedValue = false
@@ -63,14 +78,106 @@ class MatchLobbyState {
         return nameId >= 1 && nameId <= 4
     }
 
-    Bool setIdentity(Int localNameId, Int remoteNameId, Int room) {
+    Bool validAnimalKind(Int kind) {
+        return kind == multiplayerAnimalGoose() ||
+            kind == multiplayerAnimalCat()
+    }
+
+    Bool validColor(Int colorId) {
+        return colorId >= 0 && colorId <= 4
+    }
+
+    String defaultNickname(Int nameId) {
+        if (nameId == 2) { return "WADDLE" }
+        if (nameId == 3) { return "HONK" }
+        if (nameId == 4) { return "POND" }
+        return "GOOSE"
+    }
+
+    Bool validNickname(String nickname) {
+        if (nickname.length() < 1 || nickname.length() > 12) {
+            return false
+        }
+        for (var index = 0; index < nickname.length(); index = index + 1) {
+            var character = nickname.charAt(index) as Int
+            if (!((character >= 65 && character <= 90) ||
+                    (character >= 48 && character <= 57) ||
+                    character == 32 || character == 45 ||
+                    character == 95)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool setIdentity(
+        Int localNameId, Int remoteNameId,
+        Int localColorId, Int remoteColorId, Int room
+    ) {
         if (!validName(localNameId) || !validName(remoteNameId) ||
+            !validColor(localColorId) || !validColor(remoteColorId) ||
             room < 0 || room > 1000000) {
             return false
         }
         localNameIdValue = localNameId
         remoteNameIdValue = remoteNameId
+        localNicknameValue = defaultNickname(localNameId)
+        remoteNicknameValue = defaultNickname(remoteNameId)
+        localColorIdValue = localColorId
+        remoteColorIdValue = remoteColorId
+        localAnimalKindValue = multiplayerAnimalGoose()
+        remoteAnimalKindValue = multiplayerAnimalCat()
         roomValue = room
+        changed()
+        return true
+    }
+
+    Bool setLocalNameId(Int nameId) {
+        if (!validName(nameId)) { return false }
+        localNameIdValue = nameId
+        localNicknameValue = defaultNickname(nameId)
+        changed()
+        return true
+    }
+    Bool setRemoteNameId(Int nameId) {
+        if (!validName(nameId)) { return false }
+        remoteNameIdValue = nameId
+        remoteNicknameValue = defaultNickname(nameId)
+        changed()
+        return true
+    }
+
+    Bool setLocalProfile(String nickname, Int colorId) {
+        if (!validNickname(nickname) || !validColor(colorId)) {
+            return false
+        }
+        localNicknameValue = nickname
+        localColorIdValue = colorId
+        changed()
+        return true
+    }
+    Bool setLocalAnimalKind(Int kind) {
+        if (!validAnimalKind(kind)) { return false }
+        localAnimalKindValue = kind
+        changed()
+        return true
+    }
+
+    Bool setRemoteAnimalKind(Int kind) {
+        if (!validAnimalKind(kind)) { return false }
+        remoteAnimalKindValue = kind
+        changed()
+        return true
+    }
+
+
+
+    Bool setRemoteProfile(String nickname, Int colorId) {
+        if (!validNickname(nickname) || !validColor(colorId)) {
+            return false
+        }
+        remoteNicknameValue = nickname
+        remoteColorIdValue = colorId
         changed()
         return true
     }
@@ -128,17 +235,21 @@ class MatchLobbyState {
         return true
     }
 
-    Bool markConnected(Int remoteNameId, Int ping) {
+    Bool markConnected(
+        Int remoteNameId, Int remoteColorId, Int ping
+    ) {
         if ((phaseValue != multiplayerLobbyPhaseHosting() &&
                 phaseValue != multiplayerLobbyPhaseJoining() &&
                 phaseValue != multiplayerLobbyPhaseWaiting() &&
                 phaseValue != multiplayerLobbyPhaseReady() &&
                 phaseValue != multiplayerLobbyPhaseConnected()) ||
-            !validName(remoteNameId) || ping < 0 || ping > 10000) {
+            !validName(remoteNameId) || !validColor(remoteColorId) ||
+            ping < 0 || ping > 10000) {
             return false
         }
         phaseValue = multiplayerLobbyPhaseConnected()
         remoteNameIdValue = remoteNameId
+        remoteColorIdValue = remoteColorId
         remoteConnectedValue = true
         playerCountValue = 2
         pingValue = ping
@@ -217,6 +328,11 @@ class MatchLobbyState {
             errorValue <= multiplayerLobbyErrorRejected() &&
             roomValue >= 0 && roomValue <= 1000000 &&
             validName(localNameIdValue) && validName(remoteNameIdValue) &&
+            validAnimalKind(localAnimalKindValue) &&
+            validAnimalKind(remoteAnimalKindValue) &&
+            validNickname(localNicknameValue) &&
+            validNickname(remoteNicknameValue) &&
+            validColor(localColorIdValue) && validColor(remoteColorIdValue) &&
             playerCountValue >= 1 && playerCountValue <= 2 &&
             pingValue >= 0 && pingValue <= 10000 &&
             ((remoteConnectedValue && playerCountValue == 2) ||
@@ -228,6 +344,12 @@ class MatchLobbyState {
     Int room() { return roomValue }
     Int localNameId() { return localNameIdValue }
     Int remoteNameId() { return remoteNameIdValue }
+    String localNickname() { return localNicknameValue }
+    String remoteNickname() { return remoteNicknameValue }
+    Int localColorId() { return localColorIdValue }
+    Int remoteColorId() { return remoteColorIdValue }
+    Int localAnimalKind() { return localAnimalKindValue }
+    Int remoteAnimalKind() { return remoteAnimalKindValue }
     Bool localReady() { return localReadyValue }
     Bool remoteReady() { return remoteReadyValue }
     Bool remoteConnected() { return remoteConnectedValue }

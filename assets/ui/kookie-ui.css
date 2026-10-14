@@ -36,7 +36,7 @@
   padding: calc(var(--kookie-space) * 3);
   color: var(--kookie-foreground);
   background: var(--kookie-background);
-  font-family: "Jared Lite", sans-serif;
+  font-family: "Pixand", sans-serif;
 }
 
 .kookie-ui-surface {
@@ -68,7 +68,7 @@
 .kookie-ui-hud {
   pointer-events: none;
   color: var(--kookie-foreground);
-  font-family: "Jared Lite", sans-serif;
+  font-family: "Pixand", sans-serif;
 }
 
 .kookie-ui-hud__label {

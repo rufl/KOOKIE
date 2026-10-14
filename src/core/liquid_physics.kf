@@ -1,0 +1,585 @@
+package core
+
+Int liquidMaximumBodies() { return 8 }
+Int liquidMaximumStyles() { return 4 }
+Int liquidWaterVertexResourceBase() { return 16 }
+Int liquidWaterMarkerCoordinateBase() { return 1500000 }
+Int liquidWaterMarkerCoordinateStride() { return 10000 }
+Int liquidWaterMarkerCoordinateLimit() { return 2000000 }
+Int liquidDefaultObjectCapacity() { return 8 }
+Int liquidObjectVerticesPerObject() { return 36 }
+Int liquidWaterTrianglesPerBody() { return 2 }
+Int liquidWaterVerticesPerTriangle() { return 3 }
+Int liquidWaterVerticesPerBody() {
+    return liquidWaterTrianglesPerBody() * liquidWaterVerticesPerTriangle()
+}
+
+
+Int liquidSplashTriangleCount() { return 4 }
+Int liquidSplashVerticesPerTriangle() { return 3 }
+Int liquidSplashVerticesPerSplash() {
+    return liquidSplashTriangleCount() * liquidSplashVerticesPerTriangle()
+}
+Int liquidParameterScale() { return 1000 }
+Int liquidWorldCoordinateMinimum() { return -1000 }
+Int liquidWorldCoordinateMaximum() { return 1000 }
+Int liquidMaximumObjectId() { return 64 }
+
+record LiquidBodyDefinition(
+    Int bodyId, Int minX, Int maxX, Int minZ, Int maxZ,
+    Int surfaceY, Int depth, Int styleId,
+    Int tintR, Int tintG, Int tintB,
+    Int causticScale, Int causticSpeed, Int causticStrength,
+    Int toonBase, Int toonContrast, Int opacity,
+    Int splashDuration, Int splashRadius, Int splashHeight
+)
+
+record LiquidSample(
+    Bool inside, Bool underwater, Int bodyId, Int surfaceY, Int styleId
+)
+
+record LiquidMovementProfile(
+    Int horizontalSpeed, Int horizontalAcceleration, Int horizontalBraking,
+    Int verticalDrag, Int gravity, Int buoyancy, Int swimImpulse,
+    Int maxFallSpeed, Int maxRiseSpeed
+)
+
+class BoundedLiquidWorld {
+    Int[] ids
+    Int[] minXs
+    Int[] maxXs
+    Int[] minZs
+    Int[] maxZs
+    Int[] surfaceYs
+    Int[] depths
+    Int[] styleIds
+    Int[] tintRs
+    Int[] tintGs
+    Int[] tintBs
+    Int[] causticScales
+    Int[] causticSpeeds
+    Int[] causticStrengths
+    Int[] toonBases
+    Int[] toonContrasts
+    Int[] opacities
+    Int[] splashDurations
+    Int[] splashRadiuses
+    Int[] splashHeights
+    Int bodyCountValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > liquidMaximumBodies()) {
+            actualCapacity = liquidMaximumBodies()
+        }
+        ids = new Int[actualCapacity]
+        minXs = new Int[actualCapacity]
+        maxXs = new Int[actualCapacity]
+        minZs = new Int[actualCapacity]
+        maxZs = new Int[actualCapacity]
+        surfaceYs = new Int[actualCapacity]
+        depths = new Int[actualCapacity]
+        styleIds = new Int[actualCapacity]
+        tintRs = new Int[actualCapacity]
+        tintGs = new Int[actualCapacity]
+        tintBs = new Int[actualCapacity]
+        causticScales = new Int[actualCapacity]
+        causticSpeeds = new Int[actualCapacity]
+        causticStrengths = new Int[actualCapacity]
+        toonBases = new Int[actualCapacity]
+        toonContrasts = new Int[actualCapacity]
+        opacities = new Int[actualCapacity]
+        splashDurations = new Int[actualCapacity]
+        splashRadiuses = new Int[actualCapacity]
+        splashHeights = new Int[actualCapacity]
+        bodyCountValue = 0
+    }
+
+    Bool validDefinition(LiquidBodyDefinition definition) {
+        return definition.bodyId() > 0 &&
+            definition.minX() >= liquidWorldCoordinateMinimum() &&
+            definition.maxX() <= liquidWorldCoordinateMaximum() &&
+            definition.minX() < definition.maxX() &&
+            definition.minZ() >= liquidWorldCoordinateMinimum() &&
+            definition.maxZ() <= liquidWorldCoordinateMaximum() &&
+            definition.minZ() < definition.maxZ() &&
+            definition.surfaceY() >= liquidWorldCoordinateMinimum() &&
+            definition.surfaceY() <= liquidWorldCoordinateMaximum() &&
+            definition.depth() > 0 &&
+            definition.depth() <=
+                liquidWorldCoordinateMaximum() -
+                liquidWorldCoordinateMinimum() &&
+            definition.surfaceY() - definition.depth() >=
+                liquidWorldCoordinateMinimum() &&
+            definition.styleId() < liquidMaximumStyles() &&
+            definition.tintR() >= 0 &&
+            definition.tintR() <= liquidParameterScale() &&
+            definition.tintG() >= 0 &&
+            definition.tintG() <= liquidParameterScale() &&
+            definition.tintB() >= 0 &&
+            definition.tintB() <= liquidParameterScale() &&
+            definition.causticScale() > 0 &&
+            definition.causticSpeed() >= 0 &&
+            definition.causticStrength() >= 0 &&
+            definition.causticStrength() <= liquidParameterScale() &&
+            definition.toonBase() >= 0 &&
+            definition.toonBase() <= liquidParameterScale() &&
+            definition.toonContrast() >= 0 &&
+            definition.toonContrast() <= liquidParameterScale() &&
+            definition.opacity() >= 0 &&
+            definition.opacity() <= liquidParameterScale() &&
+            definition.splashDuration() > 0 &&
+            definition.splashRadius() > 0 &&
+            definition.splashHeight() > 0
+    }
+
+    Bool addBody(LiquidBodyDefinition definition) {
+        if (!validDefinition(definition) || bodyCountValue >= ids.length) {
+            return false
+        }
+        for (var index = 0; index < bodyCountValue; index = index + 1) {
+            if (ids[index] == definition.bodyId()) { return false }
+        }
+        var slot = bodyCountValue
+        ids[slot] = definition.bodyId()
+        minXs[slot] = definition.minX()
+        maxXs[slot] = definition.maxX()
+        minZs[slot] = definition.minZ()
+        maxZs[slot] = definition.maxZ()
+        surfaceYs[slot] = definition.surfaceY()
+        depths[slot] = definition.depth()
+        styleIds[slot] = definition.styleId()
+        tintRs[slot] = definition.tintR()
+        tintGs[slot] = definition.tintG()
+        tintBs[slot] = definition.tintB()
+        causticScales[slot] = definition.causticScale()
+        causticSpeeds[slot] = definition.causticSpeed()
+        causticStrengths[slot] = definition.causticStrength()
+        toonBases[slot] = definition.toonBase()
+        toonContrasts[slot] = definition.toonContrast()
+        opacities[slot] = definition.opacity()
+        splashDurations[slot] = definition.splashDuration()
+        splashRadiuses[slot] = definition.splashRadius()
+        splashHeights[slot] = definition.splashHeight()
+        bodyCountValue = bodyCountValue + 1
+        return true
+    }
+
+    Int bodyCount() { return bodyCountValue }
+    Int bodyIdAt(Int index) {
+        if (index < 0 || index >= bodyCountValue) { return 0 }
+        return ids[index]
+    }
+    Int bodyIndex(Int bodyId) {
+        for (var index = 0; index < bodyCountValue; index = index + 1) {
+            if (ids[index] == bodyId) { return index }
+        }
+        return -1
+    }
+    Int surfaceYAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else surfaceYs[index]
+    }
+    Int styleIdAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else styleIds[index]
+    }
+    Int tintRAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else tintRs[index]
+    }
+    Int tintGAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else tintGs[index]
+    }
+    Int tintBAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else tintBs[index]
+    }
+    Int causticScaleAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else causticScales[index]
+    }
+    Int causticSpeedAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else causticSpeeds[index]
+    }
+    Int causticStrengthAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else causticStrengths[index]
+    }
+    Int toonBaseAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else toonBases[index]
+    }
+    Int toonContrastAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else toonContrasts[index]
+    }
+    Int opacityAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else opacities[index]
+    }
+    Int splashDurationAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else splashDurations[index]
+    }
+    Int splashRadiusAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else splashRadiuses[index]
+    }
+    Int splashHeightAt(Int bodyId) {
+        var index = bodyIndex(bodyId)
+        return if (index < 0) 0 else splashHeights[index]
+    }
+
+    LiquidSample sample(Int x, Int y, Int z, Int actorHeight) {
+        if (actorHeight <= 0) {
+            return LiquidSample(false, false, 0, 0, 0)
+        }
+        for (var index = 0; index < bodyCountValue; index = index + 1) {
+            var bottom = surfaceYs[index] - depths[index]
+            if (x >= minXs[index] && x <= maxXs[index] &&
+                z >= minZs[index] && z <= maxZs[index] &&
+                y <= surfaceYs[index] && y + actorHeight >= bottom) {
+                return LiquidSample(
+                    true, y + actorHeight <= surfaceYs[index],
+                    ids[index], surfaceYs[index], styleIds[index])
+            }
+        }
+        return LiquidSample(false, false, 0, 0, 0)
+    }
+
+    Bool contains(Int x, Int y, Int z, Int actorHeight) {
+        return sample(x, y, z, actorHeight).inside()
+    }
+
+    Bool underwater(Int x, Int y, Int z, Int actorHeight) {
+        return sample(x, y, z, actorHeight).underwater()
+    }
+
+    Int renderVertexCount() {
+        return bodyCountValue * liquidWaterVerticesPerBody()
+    }
+
+    Int markerResource(Int styleId) {
+        if (styleId < 0 || styleId >= liquidMaximumStyles()) { return 0 }
+        return liquidWaterVertexResourceBase() + styleId
+    }
+
+    Bool stage(FrameStaging target, Int frame) {
+        if (bodyCountValue <= 0 ||
+            target.vertexCapacity() < renderVertexCount() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < bodyCountValue; index = index + 1) {
+            var resource = markerResource(styleIds[index])
+            if (!target.pushWorldVertex(
+                    resource, minXs[index], surfaceYs[index], minZs[index], 0, 0) ||
+                !target.pushWorldVertex(
+                    resource, maxXs[index], surfaceYs[index], minZs[index], 100, 0) ||
+                !target.pushWorldVertex(
+                    resource, maxXs[index], surfaceYs[index], maxZs[index], 100, 100) ||
+                !target.pushWorldVertex(
+                    resource, minXs[index], surfaceYs[index], minZs[index], 0, 0) ||
+                !target.pushWorldVertex(
+                    resource, maxXs[index], surfaceYs[index], maxZs[index], 100, 100) ||
+                !target.pushWorldVertex(
+                    resource, minXs[index], surfaceYs[index], maxZs[index], 0, 100)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+
+    Int primaryBodyId() { return if (bodyCountValue <= 0) 0 else ids[0] }
+    Int primaryTintR() { return tintRAt(primaryBodyId()) }
+    Int primaryTintG() { return tintGAt(primaryBodyId()) }
+    Int primaryTintB() { return tintBAt(primaryBodyId()) }
+    Int primaryCausticScale() { return causticScaleAt(primaryBodyId()) }
+    Int primaryCausticSpeed() { return causticSpeedAt(primaryBodyId()) }
+    Int primaryCausticStrength() { return causticStrengthAt(primaryBodyId()) }
+    Int primaryToonBase() { return toonBaseAt(primaryBodyId()) }
+    Int primaryToonContrast() { return toonContrastAt(primaryBodyId()) }
+    Int primaryOpacity() { return opacityAt(primaryBodyId()) }
+}
+
+class LiquidOxygenMeter {
+    Int maximumValue
+    Int currentValue
+    Int drainValue
+    Int recoveryValue
+
+    public constructor(Int maximum, Int drain, Int recovery) {
+        maximumValue = maximum
+        if (maximumValue <= 0) { maximumValue = 1 }
+        drainValue = if (drain > 0) drain else 1
+        recoveryValue = if (recovery > 0) recovery else 1
+        currentValue = maximumValue
+    }
+
+    Bool configure(Int maximum, Int drain, Int recovery) {
+        if (maximum <= 0 || drain <= 0 || recovery <= 0) { return false }
+        maximumValue = maximum
+        drainValue = drain
+        recoveryValue = recovery
+        currentValue = maximumValue
+        return true
+    }
+
+    Bool reset() {
+        currentValue = maximumValue
+        return true
+    }
+
+    Bool updateWithRates(
+        Bool underwaterValue, Int drain, Int recovery
+    ) {
+        if (drain < 0 || recovery < 0) { return false }
+        if (underwaterValue) {
+            currentValue = currentValue - drain
+            if (currentValue < 0) { currentValue = 0 }
+        } else {
+            currentValue = currentValue + recovery
+            if (currentValue > maximumValue) { currentValue = maximumValue }
+        }
+        return true
+    }
+
+    Bool update(Bool underwaterValue) {
+        return updateWithRates(underwaterValue, drainValue, recoveryValue)
+    }
+
+    Int current() { return currentValue }
+    Int maximum() { return maximumValue }
+    Bool depleted() { return currentValue <= 0 }
+}
+
+class LiquidObjectWorld {
+    Int[] ids
+    Int[] xValues
+    Int[] yValues
+    Int[] zValues
+    Int[] velocityYValues
+    Int[] halfExtents
+    Bool[] floatableValues
+    Int[] densities
+    Int[] buoyancies
+    Int[] drags
+    Int[] gravities
+    Int[] maxFallSpeeds
+    Int[] resources
+    Bool[] floatingValues
+    Int objectCountValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > liquidMaximumBodies()) {
+            actualCapacity = liquidMaximumBodies()
+        }
+        ids = new Int[actualCapacity]
+        xValues = new Int[actualCapacity]
+        yValues = new Int[actualCapacity]
+        zValues = new Int[actualCapacity]
+        velocityYValues = new Int[actualCapacity]
+        halfExtents = new Int[actualCapacity]
+        floatableValues = new Bool[actualCapacity]
+        densities = new Int[actualCapacity]
+        buoyancies = new Int[actualCapacity]
+        drags = new Int[actualCapacity]
+        gravities = new Int[actualCapacity]
+        maxFallSpeeds = new Int[actualCapacity]
+        resources = new Int[actualCapacity]
+        floatingValues = new Bool[actualCapacity]
+        objectCountValue = 0
+    }
+
+    Bool addObject(
+        Int objectId, Int x, Int y, Int z, Int halfExtent, Bool floatable,
+        Int density, Int buoyancy, Int drag, Int gravity, Int maxFallSpeed,
+        Int resource
+    ) {
+        if (objectId <= 0 || objectId > liquidMaximumObjectId() ||
+            x < liquidWorldCoordinateMinimum() ||
+            x > liquidWorldCoordinateMaximum() ||
+            y < liquidWorldCoordinateMinimum() ||
+            y > liquidWorldCoordinateMaximum() ||
+            z < liquidWorldCoordinateMinimum() ||
+            z > liquidWorldCoordinateMaximum() ||
+            halfExtent <= 0 ||
+            halfExtent > liquidWorldCoordinateMaximum() -
+                liquidWorldCoordinateMinimum() ||
+            x - halfExtent < liquidWorldCoordinateMinimum() ||
+            x + halfExtent > liquidWorldCoordinateMaximum() ||
+            y - halfExtent < liquidWorldCoordinateMinimum() ||
+            y + halfExtent > liquidWorldCoordinateMaximum() ||
+            z - halfExtent < liquidWorldCoordinateMinimum() ||
+            z + halfExtent > liquidWorldCoordinateMaximum() ||
+            density <= 0 ||
+            buoyancy < 0 ||
+            drag < 0 || drag > liquidParameterScale() ||
+            gravity < 0 ||
+            maxFallSpeed <= 0 || resource <= 0 || resource > 15 ||
+            objectCountValue >= ids.length) {
+            return false
+        }
+        for (var index = 0; index < objectCountValue; index = index + 1) {
+            if (ids[index] == objectId) { return false }
+        }
+        var slot = objectCountValue
+        ids[slot] = objectId
+        xValues[slot] = x
+        yValues[slot] = y
+        zValues[slot] = z
+        velocityYValues[slot] = 0
+        halfExtents[slot] = halfExtent
+        floatableValues[slot] = floatable
+        densities[slot] = density
+        buoyancies[slot] = buoyancy
+        drags[slot] = drag
+        gravities[slot] = gravity
+        maxFallSpeeds[slot] = maxFallSpeed
+        resources[slot] = resource
+        floatingValues[slot] = false
+        objectCountValue = objectCountValue + 1
+        return true
+    }
+
+    Int objectCount() { return objectCountValue }
+    Int objectIdAt(Int index) {
+        if (index < 0 || index >= objectCountValue) { return 0 }
+        return ids[index]
+    }
+    Int objectIndex(Int objectId) {
+        for (var index = 0; index < objectCountValue; index = index + 1) {
+            if (ids[index] == objectId) { return index }
+        }
+        return -1
+    }
+    Int xAt(Int objectId) {
+        var index = objectIndex(objectId)
+        return if (index < 0) 0 else xValues[index]
+    }
+    Int yAt(Int objectId) {
+        var index = objectIndex(objectId)
+        return if (index < 0) 0 else yValues[index]
+    }
+    Int zAt(Int objectId) {
+        var index = objectIndex(objectId)
+        return if (index < 0) 0 else zValues[index]
+    }
+    Bool floatingAt(Int objectId) {
+        var index = objectIndex(objectId)
+        return index >= 0 && floatingValues[index]
+    }
+
+    Bool step(BoundedLiquidWorld liquids) {
+        if (liquids.bodyCount() <= 0) { return false }
+        for (var index = 0; index < objectCountValue; index = index + 1) {
+            var sample = liquids.sample(
+                xValues[index], yValues[index], zValues[index],
+                halfExtents[index] * 2)
+            floatingValues[index] = false
+            if (floatableValues[index] && sample.inside()) {
+                var verticalForce = buoyancies[index] -
+                    gravities[index] * densities[index]
+                velocityYValues[index] = velocityYValues[index] + verticalForce
+                if (velocityYValues[index] > 0) {
+                    var dampedVelocity = velocityYValues[index] *
+                        (liquidParameterScale() - drags[index]) /
+                        liquidParameterScale()
+                    if (dampedVelocity <= 0) { dampedVelocity = 1 }
+                    velocityYValues[index] = dampedVelocity
+                }
+                if (velocityYValues[index] > maxFallSpeeds[index]) {
+                    velocityYValues[index] = maxFallSpeeds[index]
+                }
+                if (velocityYValues[index] < -maxFallSpeeds[index]) {
+                    velocityYValues[index] = -maxFallSpeeds[index]
+                }
+                yValues[index] = yValues[index] + velocityYValues[index]
+                if (yValues[index] >= sample.surfaceY()) {
+                    yValues[index] = sample.surfaceY()
+                    velocityYValues[index] = 0
+                    floatingValues[index] = true
+                }
+            } else {
+                velocityYValues[index] = velocityYValues[index] - gravities[index]
+                if (velocityYValues[index] < -maxFallSpeeds[index]) {
+                    velocityYValues[index] = -maxFallSpeeds[index]
+                }
+                yValues[index] = yValues[index] + velocityYValues[index]
+                var minimumCenterY =
+                    liquidWorldCoordinateMinimum() + halfExtents[index]
+                if (yValues[index] < minimumCenterY) {
+                    yValues[index] = minimumCenterY
+                    velocityYValues[index] = 0
+                }
+            }
+        }
+        return true
+    }
+
+    Int renderVertexCount() {
+        return objectCountValue * liquidObjectVerticesPerObject()
+    }
+
+    Bool pushFace(
+        FrameStaging target, Int resource,
+        Int ax, Int ay, Int az, Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz, Int dx, Int dy, Int dz
+    ) {
+        return target.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            target.pushWorldVertex(resource, bx, by, bz, 100, 0) &&
+            target.pushWorldVertex(resource, cx, cy, cz, 100, 100) &&
+            target.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            target.pushWorldVertex(resource, cx, cy, cz, 100, 100) &&
+            target.pushWorldVertex(resource, dx, dy, dz, 0, 100)
+    }
+
+    Bool stage(FrameStaging target, Int frame) {
+        if (objectCountValue <= 0 ||
+            target.vertexCapacity() < renderVertexCount() ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < objectCountValue; index = index + 1) {
+            var x = xValues[index]
+            var y = yValues[index]
+            var z = zValues[index]
+            var h = halfExtents[index]
+            var minX = x - h
+            var maxX = x + h
+            var minY = y - h
+            var maxY = y + h
+            var minZ = z - h
+            var maxZ = z + h
+            if (!pushFace(target, resources[index],
+                    minX, minY, minZ, maxX, minY, minZ,
+                    maxX, minY, maxZ, minX, minY, maxZ) ||
+                !pushFace(target, resources[index],
+                    minX, maxY, maxZ, maxX, maxY, maxZ,
+                    maxX, maxY, minZ, minX, maxY, minZ) ||
+                !pushFace(target, resources[index],
+                    minX, minY, maxZ, maxX, minY, maxZ,
+                    maxX, maxY, maxZ, minX, maxY, maxZ) ||
+                !pushFace(target, resources[index],
+                    maxX, minY, minZ, minX, minY, minZ,
+                    minX, maxY, minZ, maxX, maxY, minZ) ||
+                !pushFace(target, resources[index],
+                    minX, minY, minZ, minX, minY, maxZ,
+                    minX, maxY, maxZ, minX, maxY, minZ) ||
+                !pushFace(target, resources[index],
+                    maxX, minY, maxZ, maxX, minY, minZ,
+                    maxX, maxY, minZ, maxX, maxY, maxZ)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+}

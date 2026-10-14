@@ -1,0 +1,470 @@
+package core
+
+record PhysicsBodyStepResult(
+    Bool accepted,
+    Bool collided,
+    Bool dynamicCollision,
+    Bool grounded,
+    Int bodyId,
+    Int colliderId,
+    Int x,
+    Int y,
+    Int z,
+    Int velocityX,
+    Int velocityY,
+    Int velocityZ
+)
+
+Int physicsBodyRadius() { return 1 }
+Int physicsBodyHeight() { return 2 }
+Int physicsBodyGravity() { return 1 }
+Int physicsBodyMaxFallSpeed() { return 16 }
+Int physicsBodyMaxSpeed() { return 8 }
+Int physicsBodyAcceleration() { return 2 }
+Int physicsBodyFriction() { return 1 }
+
+class BoundedPhysicsBodyWorld {
+    BoundedTriangleCollection geometry
+    BoundedTriangleContactController contact
+    BoundedDynamicBroadPhase dynamic
+    Int[] ids
+    Int[] positionsX
+    Int[] positionsY
+    Int[] positionsZ
+    Int[] velocitiesX
+    Int[] velocitiesY
+    Int[] velocitiesZ
+    Bool[] active
+    Bool[] groundedValues
+    Int actualCapacityValue
+    Int radiusValue
+    Int heightValue
+    Int maxDistanceValue
+    Int gravityValue
+    Int maxFallSpeedValue
+    Int maxSpeedValue
+    Int accelerationValue
+    Int frictionValue
+
+    public constructor(
+        Int capacity, BoundedTriangleCollection nextGeometry,
+        Int radius, Int maxDistance
+    ) {
+        actualCapacityValue = capacity
+        if (actualCapacityValue <= 0) {
+            actualCapacityValue = 1
+        }
+        if (actualCapacityValue > 128) {
+            actualCapacityValue = 128
+        }
+        geometry = nextGeometry
+        radiusValue = radius
+        if (radiusValue < 0) {
+            radiusValue = 0
+        }
+        heightValue = radiusValue * 2
+        maxDistanceValue = maxDistance
+        if (maxDistanceValue <= 0) {
+            maxDistanceValue = 1
+        }
+        contact = BoundedTriangleContactController(
+            geometry, radiusValue, maxDistanceValue, 60, 0)
+        dynamic = BoundedDynamicBroadPhase(
+            actualCapacityValue, maxDistanceValue)
+        ids = new Int[actualCapacityValue]
+        positionsX = new Int[actualCapacityValue]
+        positionsY = new Int[actualCapacityValue]
+        positionsZ = new Int[actualCapacityValue]
+        velocitiesX = new Int[actualCapacityValue]
+        velocitiesY = new Int[actualCapacityValue]
+        velocitiesZ = new Int[actualCapacityValue]
+        active = new Bool[actualCapacityValue]
+        groundedValues = new Bool[actualCapacityValue]
+        gravityValue = physicsBodyGravity()
+        maxFallSpeedValue = physicsBodyMaxFallSpeed()
+        maxSpeedValue = physicsBodyMaxSpeed()
+        accelerationValue = physicsBodyAcceleration()
+        frictionValue = physicsBodyFriction()
+        clear()
+    }
+
+    void clear() {
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            ids[index] = 0
+            positionsX[index] = 0
+            positionsY[index] = 0
+            positionsZ[index] = 0
+            velocitiesX[index] = 0
+            velocitiesY[index] = 0
+            velocitiesZ[index] = 0
+            active[index] = false
+            groundedValues[index] = false
+        }
+    }
+
+    Bool configureDynamics(
+        Int gravity, Int maxFallSpeed, Int maxSpeed,
+        Int acceleration, Int friction
+    ) {
+        if (gravity < 0 || maxFallSpeed <= 0 || maxSpeed <= 0 ||
+            acceleration <= 0 || friction <= 0 || maxFallSpeed < gravity) {
+            return false
+        }
+        gravityValue = gravity
+        maxFallSpeedValue = maxFallSpeed
+        maxSpeedValue = maxSpeed
+        accelerationValue = acceleration
+        frictionValue = friction
+        return true
+    }
+
+    Int find(Int id) {
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            if (active[index] && ids[index] == id) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            if (!active[index]) {
+                return index
+            }
+        }
+        return -1
+    }
+
+    Int absolute(Int value) {
+        if (value < 0) {
+            return -value
+        }
+        return value
+    }
+
+    Int sign(Int value) {
+        if (value < 0) {
+            return -1
+        }
+        if (value > 0) {
+            return 1
+        }
+        return 0
+    }
+
+    Int minimum(Int first, Int second) {
+        if (first < second) {
+            return first
+        }
+        return second
+    }
+
+    Int approach(Int value, Int target, Int delta) {
+        if (value < target) {
+            value = value + delta
+            if (value > target) {
+                value = target
+            }
+            return value
+        }
+        if (value > target) {
+            value = value - delta
+            if (value < target) {
+                value = target
+            }
+        }
+        return value
+    }
+
+    Bool updateDynamic(Int slot) {
+        return dynamic.update(
+            ids[slot],
+            positionsX[slot] - radiusValue,
+            positionsY[slot],
+            positionsZ[slot] - radiusValue,
+            positionsX[slot] + radiusValue,
+            positionsY[slot] + heightValue,
+            positionsZ[slot] + radiusValue)
+    }
+
+    Bool addBody(Int id, Int x, Int y, Int z) {
+        if (id <= 0 || find(id) >= 0) {
+            return false
+        }
+        var slot = freeSlot()
+        if (slot < 0 || !dynamic.add(
+                id, x - radiusValue, y, z - radiusValue,
+                x + radiusValue, y + heightValue, z + radiusValue)) {
+            return false
+        }
+        ids[slot] = id
+        positionsX[slot] = x
+        positionsY[slot] = y
+        positionsZ[slot] = z
+        velocitiesX[slot] = 0
+        velocitiesY[slot] = 0
+        velocitiesZ[slot] = 0
+        active[slot] = true
+        groundedValues[slot] = true
+        return true
+    }
+
+    Bool setPosition(Int id, Int x, Int y, Int z) {
+        var slot = find(id)
+        if (slot < 0) {
+            return addBody(id, x, y, z)
+        }
+        positionsX[slot] = x
+        positionsY[slot] = y
+        positionsZ[slot] = z
+        velocitiesX[slot] = 0
+        velocitiesY[slot] = 0
+        velocitiesZ[slot] = 0
+        groundedValues[slot] = true
+        return updateDynamic(slot)
+    }
+
+    Bool removeBody(Int id) {
+        var slot = find(id)
+        if (slot < 0 || !dynamic.remove(id)) {
+            return false
+        }
+        active[slot] = false
+        ids[slot] = 0
+        groundedValues[slot] = false
+        return true
+    }
+    Bool syncPosition(
+        Int id, Int x, Int y, Int z
+    ) {
+        var slot = find(id)
+        if (slot < 0) {
+            return false
+        }
+        positionsX[slot] = x
+        positionsY[slot] = y
+        positionsZ[slot] = z
+        velocitiesX[slot] = 0
+        velocitiesZ[slot] = 0
+        var probe = contact.move(x, y, z, x, y, z)
+        groundedValues[slot] = probe.accepted() && probe.grounded()
+        return updateDynamic(slot)
+    }
+    Bool setVelocity(Int id, Int velocityX, Int velocityY, Int velocityZ) {
+        var slot = find(id)
+        if (slot < 0) { return false }
+        velocitiesX[slot] = velocityX
+        velocitiesY[slot] = velocityY
+        velocitiesZ[slot] = velocityZ
+        groundedValues[slot] = false
+        return true
+    }
+
+    DynamicActorSweepResult queryDynamic(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ, Int ignoredBodyId
+    ) {
+        return dynamic.queryCapsule(
+            startX, startY, startZ, endX, endY, endZ,
+            radiusValue, ignoredBodyId)
+    }
+
+    PhysicsBodyStepResult stepVertical(Int id) {
+        return integrate(id, 0, 0, false)
+    }
+
+
+
+    PhysicsBodyStepResult rejected(Int id, Int slot) {
+        var bodyId = id
+        var x = 0
+        var y = 0
+        var z = 0
+        var velocityX = 0
+        var velocityY = 0
+        var velocityZ = 0
+        if (slot >= 0) {
+            bodyId = ids[slot]
+            x = positionsX[slot]
+            y = positionsY[slot]
+            z = positionsZ[slot]
+            velocityX = velocitiesX[slot]
+            velocityY = velocitiesY[slot]
+            velocityZ = velocitiesZ[slot]
+        }
+        return PhysicsBodyStepResult(
+            false, false, false, false, bodyId, -1,
+            x, y, z, velocityX, velocityY, velocityZ)
+    }
+
+    PhysicsBodyStepResult integrate(
+        Int id, Int desiredX, Int desiredZ, Bool direct
+    ) {
+        var slot = find(id)
+        if (slot < 0) {
+            return rejected(id, slot)
+        }
+        var wasGrounded = groundedValues[slot]
+        var targetX = desiredX
+        var targetZ = desiredZ
+        if (!direct) {
+            targetX = sign(desiredX) * minimum(absolute(desiredX), maxSpeedValue)
+            targetZ = sign(desiredZ) * minimum(absolute(desiredZ), maxSpeedValue)
+        }
+        if (direct) {
+            velocitiesX[slot] = targetX
+            velocitiesZ[slot] = targetZ
+        } else {
+            if (targetX != 0) {
+                velocitiesX[slot] = approach(
+                    velocitiesX[slot], targetX, accelerationValue)
+            } else {
+                velocitiesX[slot] = approach(
+                    velocitiesX[slot], 0, frictionValue)
+            }
+            if (targetZ != 0) {
+                velocitiesZ[slot] = approach(
+                    velocitiesZ[slot], targetZ, accelerationValue)
+            } else {
+                velocitiesZ[slot] = approach(
+                    velocitiesZ[slot], 0, frictionValue)
+            }
+        }
+        if (wasGrounded) {
+            velocitiesY[slot] = 0
+        } else {
+            velocitiesY[slot] = velocitiesY[slot] - gravityValue
+            if (velocitiesY[slot] < -maxFallSpeedValue) {
+                velocitiesY[slot] = -maxFallSpeedValue
+            }
+        }
+
+        var movement = contact.move(
+            positionsX[slot], positionsY[slot], positionsZ[slot],
+            positionsX[slot] + velocitiesX[slot],
+            positionsY[slot] + velocitiesY[slot],
+            positionsZ[slot] + velocitiesZ[slot])
+        if (!movement.accepted()) {
+            return rejected(id, slot)
+        }
+        var dynamicMovement = dynamic.queryCapsule(
+            positionsX[slot], positionsY[slot], positionsZ[slot],
+            movement.resolvedX(), movement.resolvedY(), movement.resolvedZ(),
+            radiusValue, id)
+        if (!dynamicMovement.accepted()) {
+            return rejected(id, slot)
+        }
+        var nextX = movement.resolvedX()
+        var nextY = movement.resolvedY()
+        var nextZ = movement.resolvedZ()
+        if (dynamicMovement.collided()) {
+            nextX = dynamicMovement.resolvedX()
+            nextY = dynamicMovement.resolvedY()
+            nextZ = dynamicMovement.resolvedZ()
+        }
+        positionsX[slot] = nextX
+        positionsY[slot] = nextY
+        positionsZ[slot] = nextZ
+        if (!updateDynamic(slot)) {
+            return rejected(id, slot)
+        }
+        groundedValues[slot] = movement.grounded()
+        if (groundedValues[slot] && velocitiesY[slot] < 0) {
+            velocitiesY[slot] = 0
+        }
+        return PhysicsBodyStepResult(
+            true,
+            movement.collided() || dynamicMovement.collided(),
+            dynamicMovement.collided(),
+            groundedValues[slot],
+            id,
+            dynamicMovement.actorId(),
+            nextX, nextY, nextZ,
+            velocitiesX[slot], velocitiesY[slot], velocitiesZ[slot])
+    }
+
+    PhysicsBodyStepResult stepBody(
+        Int id, Int desiredX, Int desiredZ
+    ) {
+        return integrate(id, desiredX, desiredZ, false)
+    }
+    PhysicsBodyStepResult moveDirect(
+        Int id, Int velocityX, Int velocityZ
+    ) {
+        return integrate(id, velocityX, velocityZ, true)
+    }
+
+    PhysicsBodyStepResult moveToward(
+        Int id, Int targetX, Int targetY, Int targetZ, Int step
+    ) {
+        var slot = find(id)
+        if (slot < 0 || step < 0 || step > maxDistanceValue) {
+            return rejected(id, slot)
+        }
+        var deltaX = targetX - positionsX[slot]
+        var deltaZ = targetZ - positionsZ[slot]
+        var distance = absolute(deltaX)
+        if (absolute(deltaZ) > distance) {
+            distance = absolute(deltaZ)
+        }
+        var desiredX = 0
+        var desiredZ = 0
+        if (distance > 0) {
+            desiredX = (deltaX * step) / distance
+            desiredZ = (deltaZ * step) / distance
+            if (desiredX == 0 && deltaX != 0) {
+                desiredX = sign(deltaX)
+            }
+            if (desiredZ == 0 && deltaZ != 0) {
+                desiredZ = sign(deltaZ)
+            }
+        }
+        return integrate(id, desiredX, desiredZ, true)
+    }
+    Int positionX(Int id) {
+        var slot = find(id)
+        if (slot < 0) { return 0 }
+        return positionsX[slot]
+    }
+    Int positionY(Int id) {
+        var slot = find(id)
+        if (slot < 0) { return 0 }
+        return positionsY[slot]
+    }
+    Int positionZ(Int id) {
+        var slot = find(id)
+        if (slot < 0) { return 0 }
+        return positionsZ[slot]
+    }
+    Int velocityX(Int id) {
+        var slot = find(id)
+        if (slot < 0) { return 0 }
+        return velocitiesX[slot]
+    }
+    Int velocityY(Int id) {
+        var slot = find(id)
+        if (slot < 0) { return 0 }
+        return velocitiesY[slot]
+    }
+    Int velocityZ(Int id) {
+        var slot = find(id)
+        if (slot < 0) { return 0 }
+        return velocitiesZ[slot]
+    }
+    Bool grounded(Int id) {
+        var slot = find(id)
+        return slot >= 0 && groundedValues[slot]
+    }
+    Int radius() { return radiusValue }
+    Int gravity() { return gravityValue }
+    Int bodyCount() {
+        var count = 0
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            if (active[index]) {
+                count = count + 1
+            }
+        }
+        return count
+    }
+}

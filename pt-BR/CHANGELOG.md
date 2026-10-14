@@ -3,6 +3,47 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Drops de loot agora exibem beams verticais cruzados e animados com cores por
+  rank; arranhões de gato e bicadas de ganso agora usam VFX distintos no mundo.
+- A customização do lobby agora escolhe ganso ou gato junto com apelido e cor;
+  o handshake nativo replica a espécie selecionada.
+- A tipografia agora usa Pixand no texto de corpo e Jared Lite no texto de
+  display em Kof, CSS e renderização nativa FreeType/HarfBuzz; os TTFs originais
+  e o aviso da SIL Open Font License continuam empacotados.
+
+- O protótipo agora carrega definições JSON limitadas de corpos d'água, física
+  líquida e objetos flutuáveis. As superfícies geram geometria marcador para
+  caustics animados e passe toon; transições de entrada geram VFX de respingo
+  configurável; o movimento FPS submerso aplica gravidade, buoyancy, drag,
+  impulso de nado e limites de velocidade configurados; o HUD expõe um medidor
+  O2 configurável; objetos flutuáveis e densos resolvem de forma diferente no
+  mesmo mundo líquido.
+- O protótipo agora expõe cinco power-ups limitados via JSON: canecas de café
+  aumentam a velocidade, jetpacks aumentam o impulso de pulo, megafones
+  aumentam o dano, kits de mergulho reduzem o consumo de O2 submerso e
+  melancias restauram vida. Pickups geram marcadores diamante no mundo e um
+  painel ativo no HUD.
+- O gameplay nativo agora renderiza a geometria GLB limitada do ganso e do gato
+  com seleção correta de UV/material, incluindo o atlas de textura embutido do gato.
+- A geometria do mundo agora recebe iluminação de ponto animada e uma sombra blob
+  low-poly sob cada animal visível.
+- O movimento de inimigos/objetos agora compartilha gravidade, atrito, contato
+  estático e colisão dinâmica por broad phase dentro de limites.
+- Acertos bem-sucedidos nos inimigos agora exibem por alguns ticks um overlay
+  vermelho de dano para feedback imediato ao jogador.
+- O gameplay dos gansos agora exibe um coração limitado e uma placa de nome
+  acima de cada jogador e bot, com nomes determinísticos para bots e cor de
+  jogador opcional.
+- O combate demo agora usa 100 de vida, 20 de dano por acerto normal e 40 de
+  dano crítico; um jogador com vida cheia sobrevive exatamente a cinco acertos.
+- As opções multiplayer e o handshake do lobby agora transportam perfis
+  validados de apelido e cor de ponta a ponta.
+- O movimento FPS do ganso agora suporta um salto no ar e flap limitado por
+  intervalo enquanto o salto permanece pressionado.
+- As placas de nome dos gansos agora limitam a origem do texto aos limites lógicos nativos da tela, evitando que atores na borda esquerda abortem o upload da cena de gameplay.
+- Os menus nativos agora compartilham uma grade de cabeçalho mais segura, margens laterais maiores e linhas de opções mais altas, evitando colisões do texto ampliado com os painéis.
+- As linhas de lobby e Kutter agora reservam faixas compactas próprias abaixo dos metadados do cabeçalho, mantendo o status separado dos painéis acionáveis.
+- Os probes do adaptador native do Kof 0.6.4 agora compilam, linkam e executam a partir de uma raiz de pacote isolada, em acordo com `extern "./build/..."`; a verificação do renderer G5 agora passa flags e bibliotecas de compilação do FreeType/HarfBuzz como argumentos distintos.
 - A câmera de follow em terceira pessoa agora mantém dois world units de folga das superfícies de colisão autoradas, preservando o easing do spring arm existente.
 - O render nativo SDL_GPU agora usa o alvo de depth D16 com teste `LESS` e escrita de depth, colocando as texturas das paredes em uma ordenação de profundidade determinística.
 - As tunables do movimento FPS agora são nomeadas e centralizadas: o braking

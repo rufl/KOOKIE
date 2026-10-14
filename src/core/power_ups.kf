@@ -1,0 +1,364 @@
+package core
+
+Int powerUpKindCoffeeMug() { return 1 }
+Int powerUpKindJetpack() { return 2 }
+Int powerUpKindMegaphone() { return 3 }
+Int powerUpKindScubaKit() { return 4 }
+Int powerUpKindWatermelon() { return 5 }
+Int powerUpMaximumKinds() { return 5 }
+Int powerUpMaximumDefinitions() { return 8 }
+Int powerUpMaximumId() { return 64 }
+Int powerUpMaximumRadius() { return 32 }
+Int powerUpMaximumDuration() { return 1000000 }
+Int powerUpMaximumEffect() { return 1000000 }
+Int powerUpMaximumResource() { return 15 }
+Int powerUpVerticesPerDefinition() { return 6 }
+Int powerUpRenderBobPeriod() { return 16 }
+Int powerUpRenderBobAmplitude() { return 1 }
+
+Bool validPowerUpKind(Int kind) {
+    return kind >= powerUpKindCoffeeMug() &&
+        kind <= powerUpKindWatermelon()
+}
+
+String powerUpName(Int kind) {
+    if (kind == powerUpKindCoffeeMug()) { return "COFFEE MUG" }
+    if (kind == powerUpKindJetpack()) { return "JETPACK" }
+    if (kind == powerUpKindMegaphone()) { return "MEGAPHONE" }
+    if (kind == powerUpKindScubaKit()) { return "SCUBA KIT" }
+    if (kind == powerUpKindWatermelon()) { return "WATERMELON" }
+    return ""
+}
+
+record PowerUpDefinition(
+    Int powerUpId, Int kind, Int x, Int y, Int z,
+    Int pickupRadius, Int durationTicks, Int effectValue,
+    Int visualSize, Int resource
+)
+
+record PowerUpPickup(
+    Bool accepted, Int powerUpId, Int kind,
+    Int durationTicks, Int effectValue, Int resource
+)
+
+class PowerUpWorld {
+    Int[] ids
+    Int[] kinds
+    Int[] xValues
+    Int[] yValues
+    Int[] zValues
+    Int[] pickupRadiuses
+    Int[] durations
+    Int[] effects
+    Int[] visualSizes
+    Int[] resources
+    Bool[] activeValues
+    Int countValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > powerUpMaximumDefinitions()) {
+            actualCapacity = powerUpMaximumDefinitions()
+        }
+        ids = new Int[actualCapacity]
+        kinds = new Int[actualCapacity]
+        xValues = new Int[actualCapacity]
+        yValues = new Int[actualCapacity]
+        zValues = new Int[actualCapacity]
+        pickupRadiuses = new Int[actualCapacity]
+        durations = new Int[actualCapacity]
+        effects = new Int[actualCapacity]
+        visualSizes = new Int[actualCapacity]
+        resources = new Int[actualCapacity]
+        activeValues = new Bool[actualCapacity]
+        countValue = 0
+        clear()
+    }
+
+    Bool clear() {
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            ids[index] = 0
+            kinds[index] = 0
+            xValues[index] = 0
+            yValues[index] = 0
+            zValues[index] = 0
+            pickupRadiuses[index] = 0
+            durations[index] = 0
+            effects[index] = 0
+            visualSizes[index] = 0
+            resources[index] = 0
+            activeValues[index] = false
+        }
+        countValue = 0
+        return true
+    }
+
+    Bool validDefinition(PowerUpDefinition definition) {
+        return definition.powerUpId() > 0 &&
+            definition.powerUpId() <= powerUpMaximumId() &&
+            validPowerUpKind(definition.kind()) &&
+            definition.x() >= liquidWorldCoordinateMinimum() &&
+            definition.x() <= liquidWorldCoordinateMaximum() &&
+            definition.y() >= liquidWorldCoordinateMinimum() &&
+            definition.y() <= liquidWorldCoordinateMaximum() &&
+            definition.z() >= liquidWorldCoordinateMinimum() &&
+            definition.z() <= liquidWorldCoordinateMaximum() &&
+            definition.pickupRadius() > 0 &&
+            definition.pickupRadius() <= powerUpMaximumRadius() &&
+            definition.durationTicks() > 0 &&
+            definition.durationTicks() <= powerUpMaximumDuration() &&
+            definition.effectValue() > 0 &&
+            definition.effectValue() <= powerUpMaximumEffect() &&
+            definition.visualSize() > 0 &&
+            definition.visualSize() <= powerUpMaximumRadius() &&
+            definition.resource() > 0 &&
+            definition.resource() <= powerUpMaximumResource() &&
+            definition.x() - definition.visualSize() >=
+                liquidWorldCoordinateMinimum() &&
+            definition.x() + definition.visualSize() <=
+                liquidWorldCoordinateMaximum() &&
+            definition.y() - definition.visualSize() >=
+                liquidWorldCoordinateMinimum() &&
+            definition.y() + definition.visualSize() <=
+                liquidWorldCoordinateMaximum() &&
+            definition.z() - definition.visualSize() >=
+                liquidWorldCoordinateMinimum() &&
+            definition.z() + definition.visualSize() <=
+                liquidWorldCoordinateMaximum()
+    }
+
+    Bool add(PowerUpDefinition definition) {
+        if (!validDefinition(definition) || countValue >= ids.length) {
+            return false
+        }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (ids[index] == definition.powerUpId()) { return false }
+        }
+        ids[countValue] = definition.powerUpId()
+        kinds[countValue] = definition.kind()
+        xValues[countValue] = definition.x()
+        yValues[countValue] = definition.y()
+        zValues[countValue] = definition.z()
+        pickupRadiuses[countValue] = definition.pickupRadius()
+        durations[countValue] = definition.durationTicks()
+        effects[countValue] = definition.effectValue()
+        visualSizes[countValue] = definition.visualSize()
+        resources[countValue] = definition.resource()
+        activeValues[countValue] = true
+        countValue = countValue + 1
+        return true
+    }
+
+    Int count() { return countValue }
+    Int activeCount() {
+        var count = 0
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (activeValues[index]) { count = count + 1 }
+        }
+        return count
+    }
+    Bool active() { return activeCount() > 0 }
+
+    Bool within(Int value, Int center, Int radius) {
+        var distance = value - center
+        if (distance < 0) { distance = -distance }
+        return distance <= radius
+    }
+
+    PowerUpPickup pickupAt(Int x, Int y, Int z) {
+        if (x < liquidWorldCoordinateMinimum() ||
+            x > liquidWorldCoordinateMaximum() ||
+            y < liquidWorldCoordinateMinimum() ||
+            y > liquidWorldCoordinateMaximum() ||
+            z < liquidWorldCoordinateMinimum() ||
+            z > liquidWorldCoordinateMaximum()) {
+            return PowerUpPickup(false, 0, 0, 0, 0, 0)
+        }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (activeValues[index] &&
+                within(x, xValues[index], pickupRadiuses[index]) &&
+                within(y, yValues[index], pickupRadiuses[index]) &&
+                within(z, zValues[index], pickupRadiuses[index])) {
+                activeValues[index] = false
+                return PowerUpPickup(
+                    true, ids[index], kinds[index], durations[index],
+                    effects[index], resources[index])
+            }
+        }
+        return PowerUpPickup(false, 0, 0, 0, 0, 0)
+    }
+
+    Int renderVertexCount() {
+        return activeCount() * powerUpVerticesPerDefinition()
+    }
+
+    Bool stage(FrameStaging target, Int frame) {
+        var activeCapacity = renderVertexCount()
+        if (activeCapacity <= 0 || target.vertexCapacity() < activeCapacity ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < countValue; index = index + 1) {
+            if (!activeValues[index]) { continue }
+            var bob = (frame + index) % powerUpRenderBobPeriod()
+            if (bob > powerUpRenderBobPeriod() / 2) {
+                bob = powerUpRenderBobPeriod() - bob
+            }
+            bob = bob * powerUpRenderBobAmplitude()
+            var x = xValues[index]
+            var y = yValues[index] + bob
+            var z = zValues[index]
+            var size = visualSizes[index]
+            var resource = resources[index]
+            if (!target.pushWorldVertex(resource, x - size, y, z, 0, 50) ||
+                !target.pushWorldVertex(resource, x, y + size, z, 50, 0) ||
+                !target.pushWorldVertex(resource, x + size, y, z, 100, 50) ||
+                !target.pushWorldVertex(resource, x - size, y, z, 0, 50) ||
+                !target.pushWorldVertex(resource, x + size, y, z, 100, 50) ||
+                !target.pushWorldVertex(resource, x, y - size, z, 50, 100)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+}
+
+class PowerUpEffectState {
+    Int coffeeSpeedBonusValue
+    Int coffeeExpiryValue
+    Int jetpackImpulseBonusValue
+    Int jetpackExpiryValue
+    Int megaphoneDamagePercentValue
+    Int megaphoneExpiryValue
+    Int scubaDrainReductionValue
+    Int scubaExpiryValue
+    Int pendingHealingValue
+    Int lastKindValue
+    Int lastResourceValue
+
+    public constructor() {
+        clear()
+    }
+
+    Bool clear() {
+        coffeeSpeedBonusValue = 0
+        coffeeExpiryValue = 0
+        jetpackImpulseBonusValue = 0
+        jetpackExpiryValue = 0
+        megaphoneDamagePercentValue = 0
+        megaphoneExpiryValue = 0
+        scubaDrainReductionValue = 0
+        scubaExpiryValue = 0
+        pendingHealingValue = 0
+        lastKindValue = 0
+        lastResourceValue = 0
+        return true
+    }
+
+    Bool apply(PowerUpPickup pickup, Int tick) {
+        if (!pickup.accepted() || tick < 0 ||
+            !validPowerUpKind(pickup.kind()) ||
+            pickup.durationTicks() <= 0 || pickup.effectValue() <= 0 ||
+            pickup.resource() <= 0 || pickup.resource() > powerUpMaximumResource()) {
+            return false
+        }
+        var expiry = tick + pickup.durationTicks()
+        if (expiry <= tick) {
+            return false
+        }
+        lastKindValue = pickup.kind()
+        lastResourceValue = pickup.resource()
+        if (pickup.kind() == powerUpKindCoffeeMug()) {
+            coffeeSpeedBonusValue = pickup.effectValue()
+            coffeeExpiryValue = expiry
+            return true
+        }
+        if (pickup.kind() == powerUpKindJetpack()) {
+            jetpackImpulseBonusValue = pickup.effectValue()
+            jetpackExpiryValue = expiry
+            return true
+        }
+        if (pickup.kind() == powerUpKindMegaphone()) {
+            megaphoneDamagePercentValue = pickup.effectValue()
+            megaphoneExpiryValue = expiry
+            return true
+        }
+        if (pickup.kind() == powerUpKindScubaKit()) {
+            scubaDrainReductionValue = pickup.effectValue()
+            scubaExpiryValue = expiry
+            return true
+        }
+        pendingHealingValue = pickup.effectValue()
+        lastKindValue = 0
+        lastResourceValue = 0
+        return true
+    }
+
+    Bool advance(Int tick) {
+        if (tick < 0) { return false }
+        if (coffeeExpiryValue > 0 && tick >= coffeeExpiryValue) {
+            coffeeSpeedBonusValue = 0
+            coffeeExpiryValue = 0
+        }
+        if (jetpackExpiryValue > 0 && tick >= jetpackExpiryValue) {
+            jetpackImpulseBonusValue = 0
+            jetpackExpiryValue = 0
+        }
+        if (megaphoneExpiryValue > 0 && tick >= megaphoneExpiryValue) {
+            megaphoneDamagePercentValue = 0
+            megaphoneExpiryValue = 0
+        }
+        if (scubaExpiryValue > 0 && tick >= scubaExpiryValue) {
+            scubaDrainReductionValue = 0
+            scubaExpiryValue = 0
+        }
+        if ((lastKindValue == powerUpKindCoffeeMug() &&
+                coffeeExpiryValue == 0) ||
+            (lastKindValue == powerUpKindJetpack() &&
+                jetpackExpiryValue == 0) ||
+            (lastKindValue == powerUpKindMegaphone() &&
+                megaphoneExpiryValue == 0) ||
+            (lastKindValue == powerUpKindScubaKit() &&
+                scubaExpiryValue == 0)) {
+            lastKindValue = 0
+            lastResourceValue = 0
+        }
+        return true
+    }
+
+    Int coffeeSpeedBonus() { return coffeeSpeedBonusValue }
+    Int jetpackImpulseBonus() { return jetpackImpulseBonusValue }
+    Int megaphoneDamagePercent() { return megaphoneDamagePercentValue }
+    Int scubaDrainReduction() { return scubaDrainReductionValue }
+
+    Int consumeHealing() {
+        var healing = pendingHealingValue
+        pendingHealingValue = 0
+        return healing
+    }
+
+    Int activeKind() { return lastKindValue }
+    Int activeResource() { return lastResourceValue }
+    Int remaining(Int tick) {
+        if (tick < 0) { return 0 }
+        if (lastKindValue == powerUpKindCoffeeMug()) {
+            return if (coffeeExpiryValue > tick)
+                coffeeExpiryValue - tick else 0
+        }
+        if (lastKindValue == powerUpKindJetpack()) {
+            return if (jetpackExpiryValue > tick)
+                jetpackExpiryValue - tick else 0
+        }
+        if (lastKindValue == powerUpKindMegaphone()) {
+            return if (megaphoneExpiryValue > tick)
+                megaphoneExpiryValue - tick else 0
+        }
+        if (lastKindValue == powerUpKindScubaKit()) {
+            return if (scubaExpiryValue > tick)
+                scubaExpiryValue - tick else 0
+        }
+        return 0
+    }
+}

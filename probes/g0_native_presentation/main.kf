@@ -44,6 +44,12 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_begin(
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_vertex_uv(
     Int x, Int y, Int z, Int textureU, Int textureV
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_set_water_style(
+    Int styleId, Int enabled, Int timeTicks,
+    Int tintR, Int tintG, Int tintB,
+    Int causticScale, Int causticSpeed, Int causticStrength,
+    Int toonBase, Int toonContrast, Int opacity
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_begin(
     Int byteLength
 ): Bool
@@ -135,6 +141,7 @@ Int kookieModelCat() { return 2 }
 
 
 Int lobbyProtocolMagic() { return 1263488843 }
+Int lobbyProtocolVersion() { return 3 }
 Int lobbyMessageHello() { return 1 }
 Int lobbyMessageAccept() { return 2 }
 Int lobbyMessageLeave() { return 3 }
@@ -148,22 +155,32 @@ class NativeLobbyState {
     Bool wanPeerReadyValue
     Bool hostValue
     Int remoteNameIdValue
+    Int remoteColorIdValue
+    Int remoteAnimalKindValue
 
     public constructor() {
         wanRendezvousValue = false
         wanPeerReadyValue = false
         hostValue = true
         remoteNameIdValue = 2
+        remoteColorIdValue = 4
+        remoteAnimalKindValue = multiplayerAnimalCat()
     }
 
     Bool wanRendezvous() { return wanRendezvousValue }
     Bool peerReady() { return wanPeerReadyValue }
     Bool host() { return hostValue }
     Int remoteNameId() { return remoteNameIdValue }
+    Int remoteColorId() { return remoteColorIdValue }
+    Int remoteAnimalKind() { return remoteAnimalKindValue }
     void setWanRendezvous(Bool value) { wanRendezvousValue = value }
     void setPeerReady(Bool value) { wanPeerReadyValue = value }
     void setHost(Bool value) { hostValue = value }
     void setRemoteNameId(Int value) { remoteNameIdValue = value }
+    void setRemoteColorId(Int value) { remoteColorIdValue = value }
+    void setRemoteAnimalKind(Int value) { remoteAnimalKindValue = value }
+
+
 }
 
 Bool configureLobbyKey() {
@@ -173,17 +190,76 @@ Bool configureLobbyKey() {
         1263488843, 1330332754, 1229737803, 1162760019)
 }
 
-Bool sendLobbyMessage(Int operation, Int role) {
+String lobbyNicknameCharacter(Int value) {
+    if (value == 65) { return "A" }
+    if (value == 66) { return "B" }
+    if (value == 67) { return "C" }
+    if (value == 68) { return "D" }
+    if (value == 69) { return "E" }
+    if (value == 70) { return "F" }
+    if (value == 71) { return "G" }
+    if (value == 72) { return "H" }
+    if (value == 73) { return "I" }
+    if (value == 74) { return "J" }
+    if (value == 75) { return "K" }
+    if (value == 76) { return "L" }
+    if (value == 77) { return "M" }
+    if (value == 78) { return "N" }
+    if (value == 79) { return "O" }
+    if (value == 80) { return "P" }
+    if (value == 81) { return "Q" }
+    if (value == 82) { return "R" }
+    if (value == 83) { return "S" }
+    if (value == 84) { return "T" }
+    if (value == 85) { return "U" }
+    if (value == 86) { return "V" }
+    if (value == 87) { return "W" }
+    if (value == 88) { return "X" }
+    if (value == 89) { return "Y" }
+    if (value == 90) { return "Z" }
+    if (value == 48) { return "0" }
+    if (value == 49) { return "1" }
+    if (value == 50) { return "2" }
+    if (value == 51) { return "3" }
+    if (value == 52) { return "4" }
+    if (value == 53) { return "5" }
+    if (value == 54) { return "6" }
+    if (value == 55) { return "7" }
+    if (value == 56) { return "8" }
+    if (value == 57) { return "9" }
+    if (value == 32) { return " " }
+    if (value == 45) { return "-" }
+    if (value == 95) { return "_" }
+    return ""
+}
+
+Bool sendLobbyMessage(GameShell shell, Int operation, Int role) {
     var room = kookie_transport_room_code()
-    var name = kookie_transport_player_name_id()
-    return kookie_transport_send_begin(6) &&
-        kookie_transport_send_word(0, lobbyProtocolMagic()) &&
-        kookie_transport_send_word(1, 1) &&
-        kookie_transport_send_word(2, operation) &&
-        kookie_transport_send_word(3, room) &&
-        kookie_transport_send_word(4, role) &&
-        kookie_transport_send_word(5, name) &&
-        kookie_transport_send_commit()
+    var name = shell.lobby().localNameId()
+    var color = shell.lobby().localColorId()
+    var animalKind = shell.lobby().localAnimalKind()
+    var nickname = shell.lobby().localNickname()
+    var length = nickname.length()
+    if (length < 1 || length > 12) { return false }
+    if (!kookie_transport_send_begin(9 + length) ||
+        !kookie_transport_send_word(0, lobbyProtocolMagic()) ||
+        !kookie_transport_send_word(1, lobbyProtocolVersion()) ||
+        !kookie_transport_send_word(2, operation) ||
+        !kookie_transport_send_word(3, room) ||
+        !kookie_transport_send_word(4, role) ||
+        !kookie_transport_send_word(5, name) ||
+        !kookie_transport_send_word(6, color) ||
+        !kookie_transport_send_word(7, length) ||
+        !kookie_transport_send_word(8, animalKind)) {
+        return false
+    }
+    for (var index = 0; index < length; index = index + 1) {
+        if (!kookie_transport_send_word(
+                9 + index, nickname.charAt(index) as Int)) {
+            return false
+        }
+    }
+    return kookie_transport_send_commit()
 }
 
 Int lobbyRole(Int operation) {
@@ -197,7 +273,7 @@ Bool serviceNetworkRequest(GameShell shell, NativeLobbyState state) {
     if (operation == gameShellNetworkLeaveRequest()) {
         if (shell.networkStatus() == gameShellNetworkConnected()) {
             sendLobbyMessage(
-                lobbyMessageLeave(),
+                shell, lobbyMessageLeave(),
                 if (state.host()) 1 else 2)
         }
         state.setWanRendezvous(false)
@@ -217,14 +293,14 @@ Bool serviceNetworkRequest(GameShell shell, NativeLobbyState state) {
         (operation == gameShellNetworkHostRequest() ||
             operation == gameShellNetworkJoinRequest())) {
         success = kookie_transport_open_rendezvous_environment(shell.port()) &&
-            sendLobbyMessage(lobbyMessageHello(), lobbyRole(operation))
+            sendLobbyMessage(shell, lobbyMessageHello(), lobbyRole(operation))
     } else if (success && operation == gameShellNetworkHostRequest()) {
         success = kookie_transport_open_listen_ipv4(shell.port())
     } else if (success && operation == gameShellNetworkJoinRequest()) {
         success = kookie_transport_open_remote_ipv4(
             shell.addressOne(), shell.addressTwo(),
             shell.addressThree(), shell.addressFour(), shell.port()) &&
-            sendLobbyMessage(lobbyMessageHello(), lobbyRole(operation))
+            sendLobbyMessage(shell, lobbyMessageHello(), lobbyRole(operation))
     }
     if (!success) { kookie_transport_close() }
     return shell.completeNetworkRequest(operation, success)
@@ -233,7 +309,7 @@ Bool serviceNetworkRequest(GameShell shell, NativeLobbyState state) {
 Bool validLobbyEnvelope(Int received) {
     return received >= 4 &&
         kookie_transport_receive_word(0) == lobbyProtocolMagic() &&
-        kookie_transport_receive_word(1) == 1 &&
+        kookie_transport_receive_word(1) == lobbyProtocolVersion() &&
         kookie_transport_receive_word(3) == kookie_transport_room_code()
 }
 
@@ -249,12 +325,13 @@ Bool serviceNetworkHandshake(
     if (state.wanRendezvous() &&
         status != gameShellNetworkConnected() &&
         !sendLobbyMessage(
-            lobbyMessageHello(),
+            shell, lobbyMessageHello(),
             if (status == gameShellNetworkHosting()) 1 else 2)) {
         return false
     }
     if (status == gameShellNetworkConnected() &&
         !sendLobbyMessage(
+            shell,
             if (shell.lobby().localReady())
                 lobbyMessageReady() else lobbyMessageUnready(),
             if (state.host()) 1 else 2)) {
@@ -278,7 +355,7 @@ Bool serviceNetworkHandshake(
         }
         state.setPeerReady(true)
         return sendLobbyMessage(
-            lobbyMessageHello(),
+            shell, lobbyMessageHello(),
             if (status == gameShellNetworkHosting()) 1 else 2)
     }
     if (operation == lobbyMessageLeave()) {
@@ -286,13 +363,37 @@ Bool serviceNetworkHandshake(
         state.setPeerReady(false)
         return shell.markNetworkDisconnected()
     }
-    if (received < 6) { return true }
+    if (received < 9) { return false }
     var remoteNameId = kookie_transport_receive_word(5)
-    if (remoteNameId < 1 || remoteNameId > 4) { return false }
+    var remoteColorId = kookie_transport_receive_word(6)
+    var nicknameLength = kookie_transport_receive_word(7)
+    var remoteAnimalKind = kookie_transport_receive_word(8)
+    if (remoteNameId < 1 || remoteNameId > 4 ||
+        remoteColorId < 0 || remoteColorId > 4 ||
+        (remoteAnimalKind != multiplayerAnimalGoose() &&
+            remoteAnimalKind != multiplayerAnimalCat()) ||
+        nicknameLength < 1 || nicknameLength > 12 ||
+        received != 9 + nicknameLength) {
+        return false
+    }
+    var remoteNickname = ""
+    for (var index = 0; index < nicknameLength; index = index + 1) {
+        var character = lobbyNicknameCharacter(
+            kookie_transport_receive_word(9 + index))
+        if (character.length() != 1) { return false }
+        remoteNickname = remoteNickname + character
+    }
     state.setRemoteNameId(remoteNameId)
+    state.setRemoteColorId(remoteColorId)
+    state.setRemoteAnimalKind(remoteAnimalKind)
+    if (!shell.setRemoteNameId(remoteNameId) ||
+        !shell.setRemoteAnimalKind(remoteAnimalKind) ||
+        !shell.setRemoteProfile(remoteNickname, remoteColorId)) {
+        return false
+    }
     if (operation == lobbyMessageHello()) {
         return kookie_transport_set_peer_last_sender() &&
-            sendLobbyMessage(lobbyMessageAccept(),
+            sendLobbyMessage(shell, lobbyMessageAccept(),
                 if (status == gameShellNetworkHosting()) 1 else 2) &&
             shell.markNetworkConnected()
     }
@@ -583,6 +684,8 @@ Bool processGamePackets(
             if (session.applyRemoteGameplayState(words)) {
                 state.setRemoteSnapshotSequence(words[3])
             }
+        } else if (!host && validWorldLootStateMessage(words)) {
+            session.applyRemoteWorldLootState(words)
         } else if (!host && validGameplayInputAckMessage(words)) {
             var acknowledged = gameplayInputAckSequence(words)
             state.setRemoteInputAck(acknowledged)
@@ -621,6 +724,7 @@ class G1NativePresentation {
     BoundedRayTargetWorld playerAimTargets
     BoundedHostGameplaySaveOwner saveOwner
     ArenaAnimalMeshes animalMeshes
+    AnimalAttackVfx attackVfx
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
     GooseMinimap minimap
@@ -631,38 +735,76 @@ class G1NativePresentation {
     BoundedExternalGlbModelReader catModelReader
     BoundedExternalGlbAssetStore modelAssets
     BoundedWorldTextureAsset worldTextureAsset
+    LiquidPhysicsConfig liquidPhysicsValue
+    WaterBodyConfig waterPoolConfigValue
+    WaterBodyConfig waterChannelConfigValue
+    FloatableConfig crateConfigValue
+    FloatableConfig stoneConfigValue
+    PowerUpConfig coffeeMugConfigValue
+    PowerUpConfig jetpackConfigValue
+    PowerUpConfig megaphoneConfigValue
+    PowerUpConfig scubaKitConfigValue
+    PowerUpConfig watermelonConfigValue
+    PowerUpWorld powerUpWorldValue
+    BoundedLiquidWorld liquidWorldValue
+    LiquidObjectWorld liquidObjectsValue
+    LiquidOxygenMeter oxygenMeterValue
+    WaterSplashVfx waterSplashVfxValue
+    Bool playerOneUnderwaterValue
+    Bool playerTwoUnderwaterValue
+    Int playerOneLiquidBodyValue
+    Int playerTwoLiquidBodyValue
     MultiplayerScoreboard scoreboardUi
     MatchScoreboardState scoreboardState
     CameraState camera
     NativeInputState inputStateValue
     WindowStateTracker windowStateValue
     FrameStaging worldFrame
+    FrameStaging waterFrame
+    FrameStaging waterSplashFrame
+    FrameStaging floatingObjectFrame
+    FrameStaging powerUpFrame
     FrameStaging hudFrame
     FrameStaging doorFrame
     FrameStaging actorFrame
     FrameStaging animalFrame
+    FrameStaging shadowFrame
+    FrameStaging attackVfxFrame
+    FrameStaging lootBeamFrame
     FrameStaging minimapFrame
     FrameStaging scoreboardFrame
     GooseProjectileOverlay projectileOverlay
     FrameStaging projectileFrame
     Int worldCapacity
+    Int waterCapacity
+    Int waterSplashCapacity
+    Int floatingObjectCapacity
+    Int powerUpCapacity
     Int hudCapacity
     Int doorCapacity
     Int actorCapacity
     Int animalCapacity
+    Int shadowCapacity
+    Int attackVfxCapacity
+    Int lootBeamCapacity
     Int minimapCapacity
     Int projectileCapacity
     Int scoreboardCapacity
+    Int localPlayerValue
     Bool cooperativeModeValue
     Bool mirrorRemoteValue
     Int localNameIdValue
     Int remoteNameIdValue
+    Int localAnimalKindValue
+    Int remoteAnimalKindValue
+    Bool lootBeamActiveValue
     Int playerKillsOneValue
     Int playerKillsTwoValue
     Int playerDeathsOneValue
     Int playerDeathsTwoValue
     Bool localShotValue
     Bool remoteShotValue
+    Int[] damageFlashTicks
     public constructor() {
         var g3Config = BoundedG3Config()
         g3Config.loadDefaults()
@@ -673,6 +815,7 @@ class G1NativePresentation {
         gooseOverlay = GooseStatusOverlay(6)
         minimap = GooseMinimap(8)
         animalMeshes = ArenaAnimalMeshes(6)
+        attackVfx = AnimalAttackVfx(animalMeshes.actorCapacity())
         scoreboardUi = MultiplayerScoreboard()
         scoreboardState = MatchScoreboardState(2)
         projectileOverlay = GooseProjectileOverlay(8)
@@ -686,35 +829,80 @@ class G1NativePresentation {
         catModelReader = BoundedExternalGlbModelReader()
         modelAssets = BoundedExternalGlbAssetStore()
         worldTextureAsset = BoundedWorldTextureAsset()
+        liquidPhysicsValue = LiquidPhysicsConfig()
+        waterPoolConfigValue = WaterBodyConfig()
+        waterChannelConfigValue = WaterBodyConfig()
+        crateConfigValue = FloatableConfig()
+        stoneConfigValue = FloatableConfig()
+        coffeeMugConfigValue = PowerUpConfig()
+        jetpackConfigValue = PowerUpConfig()
+        megaphoneConfigValue = PowerUpConfig()
+        scubaKitConfigValue = PowerUpConfig()
+        watermelonConfigValue = PowerUpConfig()
+        powerUpWorldValue = PowerUpWorld(powerUpMaximumDefinitions())
+        liquidWorldValue = BoundedLiquidWorld(liquidMaximumBodies())
+        liquidObjectsValue = LiquidObjectWorld(liquidDefaultObjectCapacity())
+        oxygenMeterValue = LiquidOxygenMeter(1, 1, 1)
+        waterSplashVfxValue = WaterSplashVfx(liquidMaximumBodies())
+        playerOneUnderwaterValue = false
+        playerTwoUnderwaterValue = false
+        playerOneLiquidBodyValue = 0
+        playerTwoLiquidBodyValue = 0
         nativeAnimalModelsValue = false
         gooseModelVertexCountValue = 0
         catModelVertexCountValue = 0
         worldFrame = FrameStaging(arena.renderVertexCount())
-        doorFrame = FrameStaging(36)
+        waterFrame = FrameStaging(
+            liquidMaximumBodies() * liquidWaterVerticesPerBody())
+        waterSplashFrame = FrameStaging(waterSplashVfxValue.renderVertexCapacity())
+        floatingObjectFrame = FrameStaging(
+            liquidDefaultObjectCapacity() * liquidObjectVerticesPerObject())
+        powerUpFrame = FrameStaging(
+            powerUpMaximumDefinitions() * powerUpVerticesPerDefinition())
         hudFrame = FrameStaging(hud.renderVertexCount())
+        doorFrame = FrameStaging(36)
         animalFrame = FrameStaging(animalMeshes.renderVertexCapacity())
+        shadowFrame = FrameStaging(animalMeshes.actorCapacity() * 24)
+        attackVfxFrame = FrameStaging(attackVfx.renderVertexCapacity())
+        lootBeamFrame = FrameStaging(8 * 18)
         actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
         minimapFrame = FrameStaging(minimap.renderVertexCapacity())
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
         projectileFrame = FrameStaging(projectileOverlay.renderVertexCapacity())
         worldCapacity = worldFrame.vertexCapacity()
-        doorCapacity = doorFrame.vertexCapacity()
+        waterCapacity = waterFrame.vertexCapacity()
+        waterSplashCapacity = waterSplashFrame.vertexCapacity()
+        floatingObjectCapacity = floatingObjectFrame.vertexCapacity()
+        powerUpCapacity = powerUpFrame.vertexCapacity()
         hudCapacity = hudFrame.vertexCapacity()
+        doorCapacity = doorFrame.vertexCapacity()
         actorCapacity = actorFrame.vertexCapacity()
         animalCapacity = animalFrame.vertexCapacity()
-        minimapCapacity = minimapFrame.vertexCapacity()
+        shadowCapacity = shadowFrame.vertexCapacity()
+        attackVfxCapacity = attackVfxFrame.vertexCapacity()
+        lootBeamCapacity = lootBeamFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
         projectileCapacity = projectileFrame.vertexCapacity()
+        localPlayerValue = 1
         cooperativeModeValue = true
         mirrorRemoteValue = false
         localNameIdValue = 1
         remoteNameIdValue = 2
+        localAnimalKindValue = multiplayerAnimalGoose()
+        remoteAnimalKindValue = multiplayerAnimalCat()
+        lootBeamActiveValue = false
         playerKillsOneValue = 0
         playerKillsTwoValue = 0
         playerDeathsOneValue = 0
         playerDeathsTwoValue = 0
         localShotValue = false
         remoteShotValue = false
+        damageFlashTicks = new Int[6]
+        for (var flashIndex = 0;
+             flashIndex < damageFlashTicks.length;
+             flashIndex = flashIndex + 1) {
+            damageFlashTicks[flashIndex] = 0
+        }
     }
     Bool applyNativeKey(Int key, Int phase) {
         return inputStateValue.applyKey(key, phase)
@@ -755,12 +943,98 @@ class G1NativePresentation {
             scoreboardUi.setHighContrast(shell.highContrast()) &&
             minimap.setVisible(shell.tacticalMapVisible())
     }
+    Bool prepareLiquidContent() {
+        var loader = LiquidConfigFileLoader()
+        if (!loader.loadPhysics(
+                liquidPhysicsValue,
+                "assets/prototype/runtime/liquid_physics.json") ||
+            !loader.loadWaterBody(
+                waterPoolConfigValue,
+                "assets/prototype/runtime/water_bodies/pool.json") ||
+            !loader.loadWaterBody(
+                waterChannelConfigValue,
+                "assets/prototype/runtime/water_bodies/channel.json") ||
+            !loader.loadFloatable(
+                crateConfigValue,
+                "assets/prototype/runtime/floatables/crate.json") ||
+            !loader.loadFloatable(
+                stoneConfigValue,
+                "assets/prototype/runtime/floatables/stone.json")) {
+            return false
+        }
+        var powerUpLoader = PowerUpConfigFileLoader()
+        if (!powerUpLoader.load(
+                coffeeMugConfigValue,
+                "assets/prototype/runtime/power_ups/coffee_mug.json") ||
+            !powerUpLoader.load(
+                jetpackConfigValue,
+                "assets/prototype/runtime/power_ups/jetpack.json") ||
+            !powerUpLoader.load(
+                megaphoneConfigValue,
+                "assets/prototype/runtime/power_ups/megaphone.json") ||
+            !powerUpLoader.load(
+                scubaKitConfigValue,
+                "assets/prototype/runtime/power_ups/scuba_kit.json") ||
+            !powerUpLoader.load(
+                watermelonConfigValue,
+                "assets/prototype/runtime/power_ups/watermelon.json")) {
+            return false
+        }
+        liquidWorldValue = BoundedLiquidWorld(liquidMaximumBodies())
+        if (!liquidWorldValue.addBody(waterPoolConfigValue.definition()) ||
+            !liquidWorldValue.addBody(waterChannelConfigValue.definition())) {
+            return false
+        }
+        liquidObjectsValue = LiquidObjectWorld(liquidDefaultObjectCapacity())
+        if (!liquidObjectsValue.addObject(
+                crateConfigValue.objectId(), crateConfigValue.x(),
+                crateConfigValue.y(), crateConfigValue.z(),
+                crateConfigValue.halfExtent(), crateConfigValue.floatable(),
+                crateConfigValue.density(), crateConfigValue.buoyancy(),
+                crateConfigValue.drag(), crateConfigValue.gravity(),
+                crateConfigValue.maxFallSpeed(), crateConfigValue.resource()) ||
+            !liquidObjectsValue.addObject(
+                stoneConfigValue.objectId(), stoneConfigValue.x(),
+                stoneConfigValue.y(), stoneConfigValue.z(),
+                stoneConfigValue.halfExtent(), stoneConfigValue.floatable(),
+                stoneConfigValue.density(), stoneConfigValue.buoyancy(),
+                stoneConfigValue.drag(), stoneConfigValue.gravity(),
+                stoneConfigValue.maxFallSpeed(), stoneConfigValue.resource())) {
+            return false
+        }
+        powerUpWorldValue = PowerUpWorld(powerUpMaximumDefinitions())
+        if (!powerUpWorldValue.add(coffeeMugConfigValue.definition()) ||
+            !powerUpWorldValue.add(jetpackConfigValue.definition()) ||
+            !powerUpWorldValue.add(megaphoneConfigValue.definition()) ||
+            !powerUpWorldValue.add(scubaKitConfigValue.definition()) ||
+            !powerUpWorldValue.add(watermelonConfigValue.definition())) {
+            return false
+        }
+        if (!oxygenMeterValue.configure(
+                liquidPhysicsValue.oxygenCapacity(),
+                liquidPhysicsValue.oxygenDrainPerTick(),
+                liquidPhysicsValue.oxygenRecoveryPerTick()) ||
+            !waterSplashVfxValue.clear()) {
+            return false
+        }
+        playerOneUnderwaterValue = false
+        playerTwoUnderwaterValue = false
+        playerOneLiquidBodyValue = 0
+        playerTwoLiquidBodyValue = 0
+        return true
+    }
+
     Bool prepareGooseSession() {
+        if (!prepareLiquidContent()) { return false }
         if (!interactionSession.loadAuthoredBroadPhase(
                 arena.authoredCollision()) ||
             !interactionSession.enableFpsMovement(true) ||
+            !interactionSession.configureLiquid(
+                liquidWorldValue, liquidPhysicsValue.movementProfile(),
+                liquidPhysicsValue.actorHeight()) ||
+            !interactionSession.configurePowerUps(powerUpWorldValue) ||
             !interactionSession.configureEnemyRules(320, 35, 15) ||
-            !interactionSession.defineEnemyWeapon(7, 10, 0, 3, 1) ||
+            !interactionSession.defineEnemyWeapon(7, 10, 0, 20, 1) ||
             !interactionSession.setEnemyWeaponRange(7, 40) ||
             !interactionSession.setEnemyWeaponCooldown(7, 15) ||
             !interactionSession.defineEnemyEncounter(4, 4, 12) ||
@@ -768,7 +1042,7 @@ class G1NativePresentation {
                 4, g1ArenaMaxX() / 2, 1, g1ArenaMaxZ() / 2, 140) ||
             !interactionSession.configureEnemySpatialBounds(
                 0, -4, 0, g1ArenaMaxX(), g1ArenaMaxY(), g1ArenaMaxZ()) ||
-            !interactionSession.definePlayerWeapon(7, 10, 0, 3, 1) ||
+            !interactionSession.definePlayerWeapon(7, 10, 0, 20, 1) ||
             !interactionSession.setPlayerWeaponRange(7, 40) ||
             !interactionSession.addEnemyCombatActor(1, 100, 0) ||
             !interactionSession.addEnemyCombatActor(2, 100, 0) ||
@@ -836,6 +1110,11 @@ class G1NativePresentation {
         playerDeathsTwoValue = 0
         localShotValue = false
         remoteShotValue = false
+        for (var flashIndex = 0;
+             flashIndex < damageFlashTicks.length;
+             flashIndex = flashIndex + 1) {
+            damageFlashTicks[flashIndex] = 0
+        }
         if (!prepareGooseSession() ||
             !saveOwner.recoverAndRestore()) {
             return false
@@ -1006,11 +1285,24 @@ class G1NativePresentation {
     }
 
     Bool uploadWorldVertex(FrameStaging frame, Int index) {
-        var textureU = worldTextureAsset.textureU(
-            frame.resourceAt(index), frame.uAt(index))
-        var textureV = worldTextureAsset.textureV(
-            frame.resourceAt(index), frame.vAt(index))
-        if (textureU < 0 || textureV < 0) { return false }
+        var resource = frame.resourceAt(index)
+        var textureU = 0
+        var textureV = 0
+        if (resource >= liquidWaterVertexResourceBase() &&
+            resource < liquidWaterVertexResourceBase() + liquidMaximumStyles()) {
+            var style = resource - liquidWaterVertexResourceBase()
+            textureU = liquidWaterMarkerCoordinateBase() +
+                style * liquidWaterMarkerCoordinateStride()
+            textureV = liquidWaterMarkerCoordinateBase()
+        } else {
+            textureU = worldTextureAsset.textureU(resource, frame.uAt(index))
+            textureV = worldTextureAsset.textureV(resource, frame.vAt(index))
+        }
+        if (textureU < 0 || textureV < 0 ||
+            textureU > liquidWaterMarkerCoordinateLimit() ||
+            textureV > liquidWaterMarkerCoordinateLimit()) {
+            return false
+        }
         return kookie_gpu_world_push_vertex_uv(
             frame.xAt(index), frame.yAt(index), frame.zAt(index),
             textureU, textureV)
@@ -1030,6 +1322,206 @@ class G1NativePresentation {
         }
         return true
     }
+    Bool pushBlobShadowTriangle(
+        Int centerX, Int centerZ,
+        Int ax, Int az, Int au, Int av,
+        Int bx, Int bz, Int bu, Int bv
+    ) {
+        return shadowFrame.pushWorldVertex(
+                8, centerX, 1, centerZ, 50, 50) &&
+            shadowFrame.pushWorldVertex(
+                8, ax, 1, az, au, av) &&
+            shadowFrame.pushWorldVertex(
+                8, bx, 1, bz, bu, bv)
+    }
+    Bool stageBlobShadows(Int frame) {
+        if (!shadowFrame.begin(frame)) { return false }
+        for (var index = 0; index < animalMeshes.actorCapacity();
+             index = index + 1) {
+            if (!animalMeshes.actorCurrentAt(index)) { continue }
+            var centerX = animalMeshes.actorXAt(index)
+            var centerZ = animalMeshes.actorZAt(index)
+            if (!pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX - 4, centerZ, 0, 50,
+                    centerX - 3, centerZ - 2, 15, 20) ||
+                !pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX - 3, centerZ - 2, 15, 20,
+                    centerX, centerZ - 3, 50, 0) ||
+                !pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX, centerZ - 3, 50, 0,
+                    centerX + 3, centerZ - 2, 85, 20) ||
+                !pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX + 3, centerZ - 2, 85, 20,
+                    centerX + 4, centerZ, 100, 50) ||
+                !pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX + 4, centerZ, 100, 50,
+                    centerX + 3, centerZ + 2, 85, 80) ||
+                !pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX + 3, centerZ + 2, 85, 80,
+                    centerX, centerZ + 3, 50, 100) ||
+                !pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX, centerZ + 3, 50, 100,
+                    centerX - 3, centerZ + 2, 15, 80) ||
+                !pushBlobShadowTriangle(
+                    centerX, centerZ,
+                    centerX - 3, centerZ + 2, 15, 80,
+                    centerX - 4, centerZ, 0, 50)) {
+                return false
+            }
+        }
+        return shadowFrame.publish()
+    }
+    Int worldLootCountForRender() {
+        if (mirrorRemoteValue) {
+            return interactionSession.clientRemoteWorldLootCount()
+        }
+        return interactionSession.worldLootCount()
+    }
+
+    Int worldLootRankForRender(Int index) {
+        if (mirrorRemoteValue) {
+            return interactionSession.clientRemoteWorldLootRank(index)
+        }
+        return interactionSession.worldLootRank(index)
+    }
+
+    Int worldLootPositionXForRender(Int index) {
+        if (mirrorRemoteValue) {
+            return interactionSession.clientRemoteWorldLootPositionX(index)
+        }
+        return interactionSession.worldLootPositionX(index)
+    }
+
+    Int worldLootPositionYForRender(Int index) {
+        if (mirrorRemoteValue) {
+            return interactionSession.clientRemoteWorldLootPositionY(index)
+        }
+        return interactionSession.worldLootPositionY(index)
+    }
+
+    Int worldLootPositionZForRender(Int index) {
+        if (mirrorRemoteValue) {
+            return interactionSession.clientRemoteWorldLootPositionZ(index)
+        }
+        return interactionSession.worldLootPositionZ(index)
+    }
+
+    Int lootBeamResource(Int rank) {
+        if (rank >= 3) { return 7 }
+        if (rank == 2) { return 6 }
+        return 5
+    }
+
+    Bool pushLootBeamQuad(
+        Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz,
+        Int dx, Int dy, Int dz
+    ) {
+        return lootBeamFrame.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            lootBeamFrame.pushWorldVertex(resource, bx, by, bz, 100, 0) &&
+            lootBeamFrame.pushWorldVertex(resource, cx, cy, cz, 100, 100) &&
+            lootBeamFrame.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            lootBeamFrame.pushWorldVertex(resource, cx, cy, cz, 100, 100) &&
+            lootBeamFrame.pushWorldVertex(resource, dx, dy, dz, 0, 100)
+    }
+
+    Bool pushLootBeamTriangle(
+        Int resource,
+        Int ax, Int ay, Int az,
+        Int bx, Int by, Int bz,
+        Int cx, Int cy, Int cz
+    ) {
+        return lootBeamFrame.pushWorldVertex(resource, ax, ay, az, 0, 0) &&
+            lootBeamFrame.pushWorldVertex(resource, bx, by, bz, 100, 0) &&
+            lootBeamFrame.pushWorldVertex(resource, cx, cy, cz, 50, 100)
+    }
+
+    Bool stageLootBeams(Int frame) {
+        lootBeamActiveValue = false
+        var count = worldLootCountForRender()
+        if (count <= 0) { return true }
+        if (count > 8) { count = 8 }
+        if (!lootBeamFrame.begin(frame)) { return false }
+        for (var index = 0; index < count; index = index + 1) {
+            var x = worldLootPositionXForRender(index)
+            var y = worldLootPositionYForRender(index)
+            var z = worldLootPositionZForRender(index)
+            var width = 2 + ((frame + index) % 4)
+            var height = 9 + ((frame + index) % 5)
+            var top = y + height
+            var resource = lootBeamResource(
+                worldLootRankForRender(index))
+            if (!pushLootBeamQuad(
+                    resource,
+                    x - width, y + 1, z,
+                    x + width, y + 1, z,
+                    x + width / 2, top, z,
+                    x - width / 2, top, z) ||
+                !pushLootBeamQuad(
+                    resource,
+                    x, y + 1, z - width,
+                    x, y + 1, z + width,
+                    x, top, z + width / 2,
+                    x, top, z - width / 2) ||
+                !pushLootBeamTriangle(
+                    resource, x, y + 1, z - 3,
+                    x + 3, y + 1, z,
+                    x, y + 1, z + 3) ||
+                !pushLootBeamTriangle(
+                    resource, x, y + 1, z - 3,
+                    x, y + 1, z + 3,
+                    x - 3, y + 1, z)) {
+                lootBeamFrame.discard()
+                return false
+            }
+        }
+        if (!lootBeamFrame.publish()) {
+            lootBeamFrame.discard()
+            return false
+        }
+        lootBeamActiveValue = true
+        return true
+    }
+
+    Int highestWorldLootRank() {
+        var highest = 0
+        var count = worldLootCountForRender()
+        if (count > 8) { count = 8 }
+        for (var index = 0; index < count; index = index + 1) {
+            var rank = worldLootRankForRender(index)
+            if (rank > highest) { highest = rank }
+        }
+        return highest
+    }
+
+    Bool stageAnimalAttackVfx(Int frame) {
+        var localPlayer = if (mirrorRemoteValue) 2 else 1
+        var localX = interactionSession.serverPosition(localPlayer)
+        var localY = interactionSession.enemySpatialPositionY(localPlayer)
+        var localZ = interactionSession.enemySpatialPositionZ(localPlayer)
+        var localAttacking =
+            interactionSession.lastInputEdges(localPlayer).firePressed() != 0
+        if (interactionSession.fpsMovementEnabled()) {
+            localX = interactionSession.fpsPositionX(localPlayer)
+            localY = interactionSession.fpsPositionY(localPlayer)
+            localZ = interactionSession.fpsPositionZ(localPlayer)
+        }
+        var localFacing =
+            if (camera.aimEndX(1) >= camera.currentX()) 1 else -1
+        return attackVfx.stage(
+            attackVfxFrame, frame, animalMeshes, localAttacking,
+            localAnimalKindValue, localX, localY, localZ, localFacing)
+    }
+
     Int phaseWave(Int phase, Int period) {
         var value = phase % period
         if (value < 0) { value = value + period }
@@ -1047,7 +1539,8 @@ class G1NativePresentation {
         Int animationState,
         Int animationTick,
         Int moving,
-        Int attacking
+        Int attacking,
+        Bool flashed
     ) {
         if (!reader.valid() || facing == 0) { return false }
         var idleBob = 0
@@ -1072,6 +1565,11 @@ class G1NativePresentation {
                 worldZ = z - localX
             }
             var resource = resourceBase + reader.vertexMaterial(index)
+            if (flashed) {
+                resource = 3
+            } else if (resourceBase == 12) {
+                resource = 15
+            }
             var textureU = worldTextureAsset.textureU(
                 resource, reader.vertexU(index))
             var textureV = worldTextureAsset.textureV(
@@ -1109,7 +1607,8 @@ class G1NativePresentation {
                     animalMeshes.actorPhaseAt(index),
                     animationState, animationTick,
                     if (animalMeshes.actorMovingAt(index)) 1 else 0,
-                    if (animalMeshes.actorAttackingAt(index)) 1 else 0)) {
+                    if (animalMeshes.actorAttackingAt(index)) 1 else 0,
+                    damageFlashAt(animalMeshes.actorIdAt(index)))) {
                 println("KOOKIE gameplay native animal model upload failed")
                 println(animalMeshes.actorIdAt(index))
                 return false
@@ -1119,16 +1618,23 @@ class G1NativePresentation {
     }
 
     Bool configureIdentity(
-        Bool mirrorRemote, Int localNameId, Int remoteNameId
+        Bool mirrorRemote, Int localNameId, Int remoteNameId,
+        Int localAnimalKind, Int remoteAnimalKind
     ) {
         if (localNameId < 1 || localNameId > 4 ||
-            remoteNameId < 1 || remoteNameId > 4) {
+            remoteNameId < 1 || remoteNameId > 4 ||
+            (localAnimalKind != multiplayerAnimalGoose() &&
+                localAnimalKind != multiplayerAnimalCat()) ||
+            (remoteAnimalKind != multiplayerAnimalGoose() &&
+                remoteAnimalKind != multiplayerAnimalCat())) {
             return false
         }
 
         mirrorRemoteValue = mirrorRemote
         localNameIdValue = localNameId
         remoteNameIdValue = remoteNameId
+        localAnimalKindValue = localAnimalKind
+        remoteAnimalKindValue = remoteAnimalKind
         return true
     }
     LoopbackSession gameplaySession() {
@@ -1182,7 +1688,9 @@ class G1NativePresentation {
                 interactionSession.currentServerTick())
     }
 
-    Bool stageGooseActors(Int frame, NativeGameNetworkState network) {
+    Bool stageGooseActors(
+        Int frame, NativeGameNetworkState network, GameShell shell
+    ) {
         if (!gooseOverlay.clear() || !minimap.clear()) {
             println("KOOKIE gameplay actor/minimap clear failed")
             return false
@@ -1243,14 +1751,15 @@ class G1NativePresentation {
             if (remotePlayerId == 1) playerOneHealth else playerTwoHealth
         var remotePlayerName =
             if (remotePlayerId == 1) playerOneName else playerTwoName
-        if (!gooseOverlay.addDepth(
+        if (!gooseOverlay.addDepthNamed(
                 remotePlayerId,
                 arena.projectX(remotePlayerX, remotePlayerZ, camera),
                 arena.projectY(
                     remotePlayerX, remotePlayerY, remotePlayerZ, camera),
                 arena.projectDepthAt(
                     remotePlayerX, remotePlayerY, remotePlayerZ, camera),
-                remotePlayerHealth, 100, remotePlayerName, false)) {
+                remotePlayerHealth, 100, remotePlayerName, false,
+                shell.lobby().remoteColorId(), shell.remoteNickname())) {
             println("KOOKIE gameplay remote actor overlay failed")
             return false
         }
@@ -1275,12 +1784,13 @@ class G1NativePresentation {
             }
             if (botHealth < 0) { botHealth = 0 }
             if (botHealth > 80) { botHealth = 80 }
-            if (!gooseOverlay.addDepth(
+            if (!gooseOverlay.addDepthColored(
                     bot,
                     arena.projectX(botX, botZ, camera),
                     arena.projectY(botX, botY, botZ, camera),
                     arena.projectDepthAt(botX, botY, botZ, camera),
-                    botHealth, 80, bot - 2, true)) {
+                    botHealth, 80, bot - 2, true,
+                    shell.lobby().remoteColorId())) {
                 println("KOOKIE gameplay bot overlay failed")
                 println(bot)
                 return false
@@ -1363,7 +1873,7 @@ class G1NativePresentation {
             if (remotePlayerId == 1) playerOneMoving else playerTwoMoving
         var remotePlayerAttack =
             if (remotePlayerId == 1) playerOneAttack else playerTwoAttack
-        var remotePlayerKind = if (remotePlayerId == 1) 1 else 2
+        var remotePlayerKind = remoteAnimalKindValue
         if (!animalMeshes.setActor(
                 remotePlayerId, remotePlayerKind,
                 remotePlayerX, remotePlayerY, remotePlayerZ,
@@ -1389,6 +1899,16 @@ class G1NativePresentation {
                 return false
             }
         }
+        for (var actorIndex = 0;
+             actorIndex < animalMeshes.actorCapacity();
+             actorIndex = actorIndex + 1) {
+            if (animalMeshes.actorCurrentAt(actorIndex) &&
+                !animalMeshes.setActorDamageFlash(
+                    animalMeshes.actorIdAt(actorIndex),
+                    damageFlashAt(animalMeshes.actorIdAt(actorIndex)))) {
+                return false
+            }
+        }
         if (nativeAnimalModelsValue) {
             if (!animalMeshes.stepNative()) {
                 println("KOOKIE gameplay animal animation step failed")
@@ -1396,6 +1916,10 @@ class G1NativePresentation {
             }
         } else if (!animalMeshes.stage(animalFrame, frame, 3)) {
             println("KOOKIE gameplay animal fallback staging failed")
+            return false
+        }
+        if (!stageBlobShadows(frame)) {
+            println("KOOKIE gameplay blob shadow staging failed")
             return false
         }
         return true
@@ -1530,6 +2054,26 @@ class G1NativePresentation {
         return true
     }
 
+    Bool advanceDamageFlashes() {
+        for (var index = 0; index < damageFlashTicks.length;
+             index = index + 1) {
+            if (damageFlashTicks[index] > 0) {
+                damageFlashTicks[index] = damageFlashTicks[index] - 1
+            }
+        }
+        return true
+    }
+    Bool triggerDamageFlash(Int actorId) {
+        if (actorId < 0 || actorId >= damageFlashTicks.length) {
+            return false
+        }
+        damageFlashTicks[actorId] = 6
+        return true
+    }
+    Bool damageFlashAt(Int actorId) {
+        return actorId >= 0 && actorId < damageFlashTicks.length &&
+            damageFlashTicks[actorId] > 0
+    }
     Bool fireNearestBot(
         Int player, Int shotTick, Bool visualShot, Bool cameraAim
     ) {
@@ -1561,6 +2105,10 @@ class G1NativePresentation {
             var result = interactionSession.resolveEnemyHitscanAt(
                 player, target, interactionSession.currentServerTick(),
                 shotTick, distance, 0)
+            if (result.accepted() && result.applied() > 0 &&
+                target >= 3 && !triggerDamageFlash(target)) {
+                return false
+            }
             if (result.accepted() && result.died()) {
                 if (player == 1) {
                     playerKillsOneValue = playerKillsOneValue + 1
@@ -1573,12 +2121,49 @@ class G1NativePresentation {
             spawnPlayerProjectile(player, target, cameraAim)
     }
 
+    Bool updatePlayerLiquidPresentation(Int player, Bool underwater) {
+        if (player != 1 && player != 2) { return false }
+        var x = interactionSession.fpsPositionX(player)
+        var z = interactionSession.fpsPositionZ(player)
+        var sample = liquidWorldValue.sample(
+            x, interactionSession.fpsPositionY(player), z,
+            liquidPhysicsValue.actorHeight())
+        var bodyId = sample.bodyId()
+        var previous = playerOneUnderwaterValue
+        var previousBody = playerOneLiquidBodyValue
+        if (player == 2) {
+            previous = playerTwoUnderwaterValue
+            previousBody = playerTwoLiquidBodyValue
+        }
+        if (bodyId <= 0) { bodyId = previousBody }
+        if (underwater != previous && bodyId > 0 &&
+            !waterSplashVfxValue.trigger(
+                x, z, liquidWorldValue.surfaceYAt(bodyId),
+                liquidWorldValue.styleIdAt(bodyId),
+                liquidWorldValue.splashDurationAt(bodyId),
+                liquidWorldValue.splashRadiusAt(bodyId),
+                liquidWorldValue.splashHeightAt(bodyId))) {
+            return false
+        }
+        if (player == 1) {
+            playerOneUnderwaterValue = underwater
+            playerOneLiquidBodyValue = bodyId
+        } else {
+            playerTwoUnderwaterValue = underwater
+            playerTwoLiquidBodyValue = bodyId
+        }
+        return true
+    }
+
     Bool advanceGameplayInput(
         Bool host, NativeGameNetworkState state,
         Int moveForward, Int moveStrafe, Int fire, Int jump
     ) {
-        if (!projectileOverlay.advance()) { return false }
+        if (!advanceDamageFlashes() || !projectileOverlay.advance()) {
+            return false
+        }
         var player = if (host) 1 else 2
+        localPlayerValue = player
         var tick = interactionSession.currentServerTick() + 1
         var playerOneHealthBefore = interactionSession.enemyCombatHealth(1)
         var playerTwoHealthBefore = interactionSession.enemyCombatHealth(2)
@@ -1608,6 +2193,25 @@ class G1NativePresentation {
             println("KOOKIE gameplay step result")
             println(steps)
             println(interactionSession.currentServerTick())
+            return false
+        }
+        var oxygenDrain = liquidPhysicsValue.oxygenDrainPerTick()
+        var oxygenReduction =
+            interactionSession.powerUpOxygenDrainReduction(player)
+        if (oxygenReduction >= oxygenDrain) {
+            oxygenDrain = 0
+        } else {
+            oxygenDrain = oxygenDrain - oxygenReduction
+        }
+        if (!waterSplashVfxValue.advance() ||
+            !liquidObjectsValue.step(liquidWorldValue) ||
+            !updatePlayerLiquidPresentation(
+                1, interactionSession.fpsUnderwater(1)) ||
+            !updatePlayerLiquidPresentation(
+                2, interactionSession.fpsUnderwater(2)) ||
+            !oxygenMeterValue.updateWithRates(
+                interactionSession.fpsUnderwater(player),
+                oxygenDrain, liquidPhysicsValue.oxygenRecoveryPerTick())) {
             return false
         }
         if (!drainPlayerWeaponPresentations()) {
@@ -1668,7 +2272,9 @@ class G1NativePresentation {
         return animalMeshes.actorCount()
     }
 
-    Bool drawGameFrame(Int frame, NativeGameNetworkState network) {
+    Bool drawGameFrame(
+        Int frame, NativeGameNetworkState network, GameShell shell
+    ) {
         var scoreboardVisible = scoreboardUi.visible()
         var scoreboardCount = 0
         if (scoreboardVisible) {
@@ -1682,9 +2288,26 @@ class G1NativePresentation {
             println("KOOKIE gameplay arena world stage failed")
             return false
         }
-        if (!stageGooseActors(frame, network) ||
-            !stageAnimalMeshes(frame, network)) {
-            println("KOOKIE gameplay animal stage failed")
+        if (!liquidWorldValue.stage(waterFrame, frame) ||
+            !liquidObjectsValue.stage(floatingObjectFrame, frame)) {
+            println("KOOKIE gameplay liquid world stage failed")
+            return false
+        }
+        if (powerUpWorldValue.active() &&
+            !powerUpWorldValue.stage(powerUpFrame, frame)) {
+            println("KOOKIE gameplay power-up stage failed")
+            return false
+        }
+        if (waterSplashVfxValue.active() &&
+            !waterSplashVfxValue.stage(waterSplashFrame, frame)) {
+            println("KOOKIE gameplay water splash stage failed")
+            return false
+        }
+        if (!stageGooseActors(frame, network, shell) ||
+            !stageAnimalMeshes(frame, network) ||
+            !stageAnimalAttackVfx(frame) ||
+            !stageLootBeams(frame)) {
+            println("KOOKIE gameplay animal/loot stage failed")
             return false
         }
         if (!stageMinimap(frame)) {
@@ -1695,7 +2318,15 @@ class G1NativePresentation {
             println("KOOKIE gameplay door world stage failed")
             return false
         }
-        if (!hud.stage(hudFrame, frame, 9)) {
+        if (!hud.updateWorldLootStatus(
+                worldLootCountForRender(), highestWorldLootRank()) ||
+            !hud.updateOxygen(
+                oxygenMeterValue.current(), oxygenMeterValue.maximum(),
+                interactionSession.fpsUnderwater(localPlayerValue)) ||
+            !hud.updatePowerUpStatus(
+                interactionSession.powerUpKind(localPlayerValue),
+                interactionSession.powerUpResource(localPlayerValue)) ||
+            !hud.stage(hudFrame, frame, 9)) {
             println("KOOKIE gameplay HUD stage failed")
             return false
         }
@@ -1715,8 +2346,16 @@ class G1NativePresentation {
             animalVertexCount = animalFrame.stagedCount()
         }
         var worldVertexCount =
-            worldFrame.stagedCount() + doorFrame.stagedCount() +
-            animalVertexCount
+            worldFrame.stagedCount() + waterFrame.stagedCount() +
+            floatingObjectFrame.stagedCount() +
+            (if (powerUpWorldValue.active())
+                powerUpFrame.stagedCount() else 0) +
+            doorFrame.stagedCount() + shadowFrame.stagedCount() +
+            animalVertexCount +
+            (if (waterSplashVfxValue.active())
+                waterSplashFrame.stagedCount() else 0) +
+            (if (attackVfx.active()) attackVfxFrame.stagedCount() else 0) +
+            (if (lootBeamActiveValue) lootBeamFrame.stagedCount() else 0)
         if (animalVertexCount <= 0) {
             println("KOOKIE gameplay animal model count failed")
             println(animalVertexCount)
@@ -1740,11 +2379,45 @@ class G1NativePresentation {
             println("KOOKIE gameplay world camera commit failed")
             return false
         }
+        if (!kookie_gpu_world_set_water_style(
+                waterPoolConfigValue.styleId(), 1,
+                interactionSession.currentServerTick(),
+                waterPoolConfigValue.tintR(), waterPoolConfigValue.tintG(),
+                waterPoolConfigValue.tintB(),
+                waterPoolConfigValue.causticScale(),
+                waterPoolConfigValue.causticSpeed(),
+                waterPoolConfigValue.causticStrength(),
+                waterPoolConfigValue.toonBase(),
+                waterPoolConfigValue.toonContrast(),
+                waterPoolConfigValue.opacity()) ||
+            !kookie_gpu_world_set_water_style(
+                waterChannelConfigValue.styleId(), 1,
+                interactionSession.currentServerTick(),
+                waterChannelConfigValue.tintR(),
+                waterChannelConfigValue.tintG(),
+                waterChannelConfigValue.tintB(),
+                waterChannelConfigValue.causticScale(),
+                waterChannelConfigValue.causticSpeed(),
+                waterChannelConfigValue.causticStrength(),
+                waterChannelConfigValue.toonBase(),
+                waterChannelConfigValue.toonContrast(),
+                waterChannelConfigValue.opacity())) {
+            println("KOOKIE gameplay water style update failed")
+            return false
+        }
         if (!kookie_gpu_world_begin(worldVertexCount) ||
             kookie_gpu_world_capacity() < worldVertexCount ||
+            !uploadWorld(waterFrame) ||
+            !uploadWorld(floatingObjectFrame) ||
+            (powerUpWorldValue.active() &&
+                !uploadWorld(powerUpFrame)) ||
             !uploadWorld(worldFrame) || !uploadWorld(doorFrame) ||
+            !uploadWorld(shadowFrame) ||
+            (waterSplashVfxValue.active() &&
+                !uploadWorld(waterSplashFrame)) ||
+            (attackVfx.active() && !uploadWorld(attackVfxFrame)) ||
+            (lootBeamActiveValue && !uploadWorld(lootBeamFrame)) ||
             (nativeAnimalModelsValue && !uploadAnimalModels()) ||
-            (!nativeAnimalModelsValue && !uploadWorld(animalFrame)) ||
             !kookie_gpu_world_commit() ||
             kookie_gpu_world_count() != worldVertexCount) {
             println("KOOKIE gameplay world GPU pass failed")
@@ -1785,7 +2458,16 @@ class G1NativePresentation {
             return false
         }
         if (!worldFrame.retire(frame) ||
+            !waterFrame.retire(frame) ||
+            !floatingObjectFrame.retire(frame) ||
+            (powerUpWorldValue.active() &&
+                !powerUpFrame.retire(frame)) ||
+            (waterSplashVfxValue.active() &&
+                !waterSplashFrame.retire(frame)) ||
             (!nativeAnimalModelsValue && !animalFrame.retire(frame)) ||
+            !shadowFrame.retire(frame) ||
+            (attackVfx.active() && !attackVfxFrame.retire(frame)) ||
+            (lootBeamActiveValue && !lootBeamFrame.retire(frame)) ||
             !actorFrame.retire(frame) ||
             !doorFrame.retire(frame) ||
             !hudFrame.retire(frame) ||
@@ -1817,8 +2499,14 @@ class G1NativePresentation {
 
     Bool capacitiesStable() {
         return worldFrame.vertexCapacity() == worldCapacity &&
-            actorFrame.vertexCapacity() == actorCapacity &&
+            waterFrame.vertexCapacity() == waterCapacity &&
+            waterSplashFrame.vertexCapacity() == waterSplashCapacity &&
+            floatingObjectFrame.vertexCapacity() == floatingObjectCapacity &&
+            powerUpFrame.vertexCapacity() == powerUpCapacity &&
             animalFrame.vertexCapacity() == animalCapacity &&
+            shadowFrame.vertexCapacity() == shadowCapacity &&
+            attackVfxFrame.vertexCapacity() == attackVfxCapacity &&
+            lootBeamFrame.vertexCapacity() == lootBeamCapacity &&
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&
             minimapFrame.vertexCapacity() == minimapCapacity &&
@@ -1856,6 +2544,10 @@ Bool sendHostGameState(
     status[3] = session.enemyCombatHealth(1)
     status[4] = session.enemyCombatHealth(2)
     if (!sendGamePayload(status)) { return false }
+    var lootState = session.worldLootStateMessage(tick, 1)
+    if (lootState.length == 0 || !sendGamePayload(lootState)) {
+        return false
+    }
     var scoreboardMessage = scoreboard.publish(tick)
     if (scoreboardMessage.length == 0 ||
         !sendGamePayload(scoreboardMessage)) {
@@ -1945,10 +2637,12 @@ main() {
     var localNameId = kookie_transport_player_name_id()
     var defaultRemoteNameId = if (localNameId == 1) 2 else 1
     assert(presentation.configureIdentity(
-            false, localNameId, defaultRemoteNameId),
-        "goose identity must have bounded local and remote names")
+            false, localNameId, defaultRemoteNameId,
+            multiplayerAnimalGoose(), multiplayerAnimalCat()),
+        "goose identity must have bounded local and remote profile")
     assert(shell.configureLobbyIdentity(
-            localNameId, defaultRemoteNameId, kookie_transport_room_code()),
+            localNameId, defaultRemoteNameId, 1, 4,
+            kookie_transport_room_code()),
         "lobby identity must remain bounded")
     assert(presentation.applyUiSettings(shell),
         "accessibility settings must configure HUD scale and tactical map")
@@ -2059,7 +2753,7 @@ main() {
             presentation.resetGooseSession() &&
             presentation.gameplaySession().playerItemQuantity(1, 900) == 2,
             "restarting Play must arrive through the SDL return event path")
-        assert(presentation.drawGameFrame(frame, network),
+        assert(presentation.drawGameFrame(frame, network, shell),
             "authored arena and authoritative HUD must draw")
         assert(presentation.visibleAnimalActorCount() == 4,
             "first-person presentation must omit the local goose world mesh")
@@ -2183,9 +2877,9 @@ main() {
             "lobby request must reach the authenticated UDP transport")
         assert(serviceNetworkHandshake(shell, lobby),
             "lobby handshake must remain valid")
-        assert(shell.configureLobbyIdentity(
-                localNameId, lobby.remoteNameId(),
-                kookie_transport_room_code()),
+        assert(shell.setRemoteNameId(lobby.remoteNameId()) &&
+            shell.setRemoteProfile(
+                shell.remoteNickname(), lobby.remoteColorId()),
             "lobby screen must expose the current bounded peer identity")
         if (shell.networkStatus() == gameShellNetworkConnected() &&
             shell.lobby().phase() == multiplayerLobbyPhaseReady() &&
@@ -2270,13 +2964,16 @@ main() {
             assert(presentation.configureIdentity(
                     !hostGameplay &&
                         shell.networkStatus() == gameShellNetworkConnected(),
-                    localNameId, lobby.remoteNameId()),
-                "network identity must drive goose nameplates")
+                    shell.lobby().localNameId(),
+                    shell.lobby().remoteNameId(),
+                    shell.lobby().localAnimalKind(),
+                    shell.lobby().remoteAnimalKind()),
+                "network identity must drive animal nameplates")
         }
 
         if (running && !shell.quitRequested()) {
             if (shell.gameplayVisible()) {
-                assert(presentation.drawGameFrame(frame, network),
+                assert(presentation.drawGameFrame(frame, network, shell),
                     "gameplay scene must draw")
             } else {
                 assert(presentation.drawShellFrame(shell, shellFrame, frame),

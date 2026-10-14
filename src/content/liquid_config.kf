@@ -1,0 +1,481 @@
+package content
+
+import core
+
+Int liquidConfigSchemaVersion() { return 1 }
+Int liquidConfigMaximumBytes() { return 32768 }
+Int liquidConfigMaximumFields() { return 32 }
+Int liquidConfigMaximumValue() { return 1000000 }
+
+class BoundedLiquidJsonObject {
+    String[] fieldNames
+    Int[] fieldValues
+    Bool[] fieldSeen
+    Int fieldCountValue
+    Int[] sourceValue
+    Int cursorValue
+    Bool parseValidValue
+
+    public constructor() {
+        fieldNames = new String[liquidConfigMaximumFields()]
+        fieldValues = new Int[liquidConfigMaximumFields()]
+        fieldSeen = new Bool[liquidConfigMaximumFields()]
+        sourceValue = new Int[0]
+        fieldCountValue = 0
+        cursorValue = 0
+        parseValidValue = false
+    }
+
+    Bool addField(String name) {
+        if (name.length() <= 0 || fieldCountValue >= fieldNames.length ||
+            fieldIndex(name) >= 0) {
+            return false
+        }
+        fieldNames[fieldCountValue] = name
+        fieldValues[fieldCountValue] = 0
+        fieldSeen[fieldCountValue] = false
+        fieldCountValue = fieldCountValue + 1
+        return true
+    }
+
+    Bool whitespace(Int value) {
+        return value == 32 || value == 9 || value == 10 || value == 13
+    }
+
+    Int skipWhitespace() {
+        while (cursorValue < sourceValue.length &&
+            whitespace(sourceValue[cursorValue])) {
+            cursorValue = cursorValue + 1
+        }
+        return cursorValue
+    }
+
+    Bool stringEquals(String first, String second) {
+        if (first.length() != second.length()) { return false }
+        for (var index = 0; index < first.length(); index = index + 1) {
+            if (first.charAt(index) != second.charAt(index)) { return false }
+        }
+        return true
+    }
+
+    Bool rangeEquals(Int start, Int end, String expected) {
+        if (start < 0 || end < start || end - start != expected.length()) {
+            return false
+        }
+        for (var index = 0; index < expected.length(); index = index + 1) {
+            if (sourceValue[start + index] !=
+                    (expected.charAt(index) as Int)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int fieldIndex(String name) {
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            if (stringEquals(fieldNames[index], name)) { return index }
+        }
+        return -1
+    }
+
+    Int fieldIndexAt(Int start, Int end) {
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            if (rangeEquals(start, end, fieldNames[index])) { return index }
+        }
+        return -1
+    }
+
+    Int readField() {
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length ||
+            sourceValue[cursorValue] != 34) {
+            parseValidValue = false
+            return -1
+        }
+        cursorValue = cursorValue + 1
+        var start = cursorValue
+        while (cursorValue < sourceValue.length &&
+            sourceValue[cursorValue] != 34) {
+            if (sourceValue[cursorValue] == 92) {
+                parseValidValue = false
+                return -1
+            }
+            cursorValue = cursorValue + 1
+        }
+        if (cursorValue >= sourceValue.length) {
+            parseValidValue = false
+            return -1
+        }
+        var index = fieldIndexAt(start, cursorValue)
+        cursorValue = cursorValue + 1
+        if (index < 0 || fieldSeen[index]) {
+            parseValidValue = false
+            return -1
+        }
+        return index
+    }
+
+    Int readInteger() {
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length) {
+            parseValidValue = false
+            return 0
+        }
+        var sign = 1
+        if (sourceValue[cursorValue] == 45) {
+            sign = -1
+            cursorValue = cursorValue + 1
+        }
+        var value = 0
+        var digits = 0
+        while (cursorValue < sourceValue.length) {
+            var character = sourceValue[cursorValue]
+            if (character < 48 || character > 57) { break }
+            value = value * 10 + character - 48
+            if (value > liquidConfigMaximumValue()) {
+                parseValidValue = false
+                return 0
+            }
+            digits = digits + 1
+            cursorValue = cursorValue + 1
+        }
+        if (digits == 0) {
+            parseValidValue = false
+            return 0
+        }
+        if (cursorValue < sourceValue.length &&
+            !whitespace(sourceValue[cursorValue]) &&
+            sourceValue[cursorValue] != 44 &&
+            sourceValue[cursorValue] != 125) {
+            parseValidValue = false
+            return 0
+        }
+        return value * sign
+    }
+
+    Bool parseObject() {
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length || sourceValue[cursorValue] != 123) {
+            return false
+        }
+        cursorValue = cursorValue + 1
+        skipWhitespace()
+        if (cursorValue >= sourceValue.length || sourceValue[cursorValue] == 125) {
+            return false
+        }
+        while (cursorValue < sourceValue.length) {
+            var index = readField()
+            if (!parseValidValue) { return false }
+            skipWhitespace()
+            if (cursorValue >= sourceValue.length || sourceValue[cursorValue] != 58) {
+                return false
+            }
+            cursorValue = cursorValue + 1
+            var value = readInteger()
+            if (!parseValidValue) { return false }
+            fieldValues[index] = value
+            fieldSeen[index] = true
+            skipWhitespace()
+            if (cursorValue >= sourceValue.length) { return false }
+            if (sourceValue[cursorValue] == 125) {
+                cursorValue = cursorValue + 1
+                return true
+            }
+            if (sourceValue[cursorValue] != 44) { return false }
+            cursorValue = cursorValue + 1
+            skipWhitespace()
+            if (cursorValue >= sourceValue.length || sourceValue[cursorValue] == 125) {
+                return false
+            }
+        }
+        return false
+    }
+
+    Bool allFieldsPresent() {
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            if (!fieldSeen[index]) { return false }
+        }
+        return true
+    }
+
+    Int value(String name) {
+        var index = fieldIndex(name)
+        if (index < 0 || !fieldSeen[index]) { return -1 }
+        return fieldValues[index]
+    }
+
+    Bool loadBytes(Int[] bytes) {
+        for (var index = 0; index < fieldCountValue; index = index + 1) {
+            fieldValues[index] = 0
+            fieldSeen[index] = false
+        }
+        sourceValue = bytes
+        if (sourceValue.length <= 0 ||
+            sourceValue.length > liquidConfigMaximumBytes()) {
+            sourceValue = new Int[0]
+            return false
+        }
+        cursorValue = 0
+        parseValidValue = true
+        if (!parseObject() || !parseValidValue ||
+            skipWhitespace() != sourceValue.length || !allFieldsPresent()) {
+            sourceValue = new Int[0]
+            return false
+        }
+        sourceValue = new Int[0]
+        return true
+    }
+}
+
+class WaterBodyConfig {
+    BoundedLiquidJsonObject jsonValue
+
+    public constructor() {
+        jsonValue = BoundedLiquidJsonObject()
+        jsonValue.addField("configVersion")
+        jsonValue.addField("bodyId")
+        jsonValue.addField("minX")
+        jsonValue.addField("maxX")
+        jsonValue.addField("minZ")
+        jsonValue.addField("maxZ")
+        jsonValue.addField("surfaceY")
+        jsonValue.addField("depth")
+        jsonValue.addField("styleId")
+        jsonValue.addField("tintR")
+        jsonValue.addField("tintG")
+        jsonValue.addField("tintB")
+        jsonValue.addField("causticScale")
+        jsonValue.addField("causticSpeed")
+        jsonValue.addField("causticStrength")
+        jsonValue.addField("toonBase")
+        jsonValue.addField("toonContrast")
+        jsonValue.addField("opacity")
+        jsonValue.addField("splashDuration")
+        jsonValue.addField("splashRadius")
+        jsonValue.addField("splashHeight")
+    }
+
+    Bool loadBytes(Int[] bytes) {
+        if (!jsonValue.loadBytes(bytes)) { return false }
+        return jsonValue.value("configVersion") == liquidConfigSchemaVersion() &&
+            jsonValue.value("bodyId") > 0 &&
+            jsonValue.value("bodyId") <= liquidMaximumBodies() &&
+            jsonValue.value("minX") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("maxX") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("minX") < jsonValue.value("maxX") &&
+            jsonValue.value("minZ") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("maxZ") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("minZ") < jsonValue.value("maxZ") &&
+            jsonValue.value("surfaceY") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("surfaceY") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("depth") > 0 &&
+            jsonValue.value("depth") <=
+                liquidWorldCoordinateMaximum() -
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("surfaceY") - jsonValue.value("depth") >=
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("styleId") < liquidMaximumStyles() &&
+            jsonValue.value("tintR") >= 0 &&
+            jsonValue.value("tintR") <= liquidParameterScale() &&
+            jsonValue.value("tintG") >= 0 &&
+            jsonValue.value("tintG") <= liquidParameterScale() &&
+            jsonValue.value("tintB") >= 0 &&
+            jsonValue.value("tintB") <= liquidParameterScale() &&
+            jsonValue.value("causticScale") > 0 &&
+            jsonValue.value("causticSpeed") >= 0 &&
+            jsonValue.value("causticStrength") >= 0 &&
+            jsonValue.value("causticStrength") <= liquidParameterScale() &&
+            jsonValue.value("toonBase") >= 0 &&
+            jsonValue.value("toonBase") <= liquidParameterScale() &&
+            jsonValue.value("toonContrast") >= 0 &&
+            jsonValue.value("toonContrast") <= liquidParameterScale() &&
+            jsonValue.value("opacity") >= 0 &&
+            jsonValue.value("opacity") <= liquidParameterScale() &&
+            jsonValue.value("splashDuration") > 0 &&
+            jsonValue.value("splashRadius") > 0 &&
+            jsonValue.value("splashHeight") > 0
+    }
+
+    Int value(String name) { return jsonValue.value(name) }
+    Int bodyId() { return value("bodyId") }
+    Int minX() { return value("minX") }
+    Int maxX() { return value("maxX") }
+    Int minZ() { return value("minZ") }
+    Int maxZ() { return value("maxZ") }
+    Int surfaceY() { return value("surfaceY") }
+    Int depth() { return value("depth") }
+    Int styleId() { return value("styleId") }
+    Int tintR() { return value("tintR") }
+    Int tintG() { return value("tintG") }
+    Int tintB() { return value("tintB") }
+    Int causticScale() { return value("causticScale") }
+    Int causticSpeed() { return value("causticSpeed") }
+    Int causticStrength() { return value("causticStrength") }
+    Int toonBase() { return value("toonBase") }
+    Int toonContrast() { return value("toonContrast") }
+    Int opacity() { return value("opacity") }
+    Int splashDuration() { return value("splashDuration") }
+    Int splashRadius() { return value("splashRadius") }
+    Int splashHeight() { return value("splashHeight") }
+
+    LiquidBodyDefinition definition() {
+        return LiquidBodyDefinition(
+            bodyId(), minX(), maxX(), minZ(), maxZ(), surfaceY(), depth(),
+            styleId(), tintR(), tintG(), tintB(), causticScale(), causticSpeed(),
+            causticStrength(), toonBase(), toonContrast(), opacity(),
+            splashDuration(), splashRadius(), splashHeight())
+    }
+}
+
+class LiquidPhysicsConfig {
+    BoundedLiquidJsonObject jsonValue
+
+    public constructor() {
+        jsonValue = BoundedLiquidJsonObject()
+        jsonValue.addField("configVersion")
+        jsonValue.addField("actorHeight")
+        jsonValue.addField("underwaterGravity")
+        jsonValue.addField("underwaterBuoyancy")
+        jsonValue.addField("horizontalSpeed")
+        jsonValue.addField("horizontalAcceleration")
+        jsonValue.addField("horizontalBraking")
+        jsonValue.addField("verticalDrag")
+        jsonValue.addField("swimImpulse")
+        jsonValue.addField("maxFallSpeed")
+        jsonValue.addField("maxRiseSpeed")
+        jsonValue.addField("oxygenCapacity")
+        jsonValue.addField("oxygenDrainPerTick")
+        jsonValue.addField("oxygenRecoveryPerTick")
+    }
+
+    Bool loadBytes(Int[] bytes) {
+        if (!jsonValue.loadBytes(bytes)) { return false }
+        return jsonValue.value("configVersion") == liquidConfigSchemaVersion() &&
+            jsonValue.value("actorHeight") > 0 &&
+            jsonValue.value("underwaterGravity") >= 0 &&
+            jsonValue.value("underwaterBuoyancy") >= 0 &&
+            jsonValue.value("horizontalSpeed") > 0 &&
+            jsonValue.value("horizontalAcceleration") > 0 &&
+            jsonValue.value("horizontalBraking") > 0 &&
+            jsonValue.value("verticalDrag") >= 0 &&
+            jsonValue.value("verticalDrag") <= liquidParameterScale() &&
+            jsonValue.value("swimImpulse") >= 0 &&
+            jsonValue.value("maxFallSpeed") > 0 &&
+            jsonValue.value("maxRiseSpeed") > 0 &&
+            jsonValue.value("oxygenCapacity") > 0 &&
+            jsonValue.value("oxygenDrainPerTick") > 0 &&
+            jsonValue.value("oxygenRecoveryPerTick") > 0
+    }
+
+    Int value(String name) { return jsonValue.value(name) }
+    Int actorHeight() { return value("actorHeight") }
+    Int underwaterGravity() { return value("underwaterGravity") }
+    Int underwaterBuoyancy() { return value("underwaterBuoyancy") }
+    Int horizontalSpeed() { return value("horizontalSpeed") }
+    Int horizontalAcceleration() { return value("horizontalAcceleration") }
+    Int horizontalBraking() { return value("horizontalBraking") }
+    Int verticalDrag() { return value("verticalDrag") }
+    Int swimImpulse() { return value("swimImpulse") }
+    Int maxFallSpeed() { return value("maxFallSpeed") }
+    Int maxRiseSpeed() { return value("maxRiseSpeed") }
+    Int oxygenCapacity() { return value("oxygenCapacity") }
+    Int oxygenDrainPerTick() { return value("oxygenDrainPerTick") }
+    Int oxygenRecoveryPerTick() { return value("oxygenRecoveryPerTick") }
+
+    LiquidMovementProfile movementProfile() {
+        return LiquidMovementProfile(
+            horizontalSpeed(), horizontalAcceleration(), horizontalBraking(),
+            verticalDrag(), underwaterGravity(), underwaterBuoyancy(),
+            swimImpulse(), maxFallSpeed(), maxRiseSpeed())
+    }
+}
+
+class FloatableConfig {
+    BoundedLiquidJsonObject jsonValue
+
+    public constructor() {
+        jsonValue = BoundedLiquidJsonObject()
+        jsonValue.addField("configVersion")
+        jsonValue.addField("objectId")
+        jsonValue.addField("x")
+        jsonValue.addField("y")
+        jsonValue.addField("z")
+        jsonValue.addField("halfExtent")
+        jsonValue.addField("floatable")
+        jsonValue.addField("density")
+        jsonValue.addField("buoyancy")
+        jsonValue.addField("drag")
+        jsonValue.addField("gravity")
+        jsonValue.addField("maxFallSpeed")
+        jsonValue.addField("resource")
+    }
+
+    Bool loadBytes(Int[] bytes) {
+        if (!jsonValue.loadBytes(bytes)) { return false }
+        return jsonValue.value("configVersion") == liquidConfigSchemaVersion() &&
+            jsonValue.value("objectId") > 0 &&
+            jsonValue.value("objectId") <= liquidMaximumObjectId() &&
+            jsonValue.value("x") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("x") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("y") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("y") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("z") >= liquidWorldCoordinateMinimum() &&
+            jsonValue.value("z") <= liquidWorldCoordinateMaximum() &&
+            jsonValue.value("halfExtent") > 0 &&
+            jsonValue.value("halfExtent") <=
+                liquidWorldCoordinateMaximum() -
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("x") - jsonValue.value("halfExtent") >=
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("x") + jsonValue.value("halfExtent") <=
+                liquidWorldCoordinateMaximum() &&
+            jsonValue.value("y") - jsonValue.value("halfExtent") >=
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("y") + jsonValue.value("halfExtent") <=
+                liquidWorldCoordinateMaximum() &&
+            jsonValue.value("z") - jsonValue.value("halfExtent") >=
+                liquidWorldCoordinateMinimum() &&
+            jsonValue.value("z") + jsonValue.value("halfExtent") <=
+                liquidWorldCoordinateMaximum() &&
+            (jsonValue.value("floatable") == 0 ||
+                jsonValue.value("floatable") == 1) &&
+            jsonValue.value("density") > 0 &&
+            jsonValue.value("buoyancy") >= 0 &&
+            jsonValue.value("drag") >= 0 &&
+            jsonValue.value("drag") <= liquidParameterScale() &&
+            jsonValue.value("gravity") >= 0 &&
+            jsonValue.value("maxFallSpeed") > 0 &&
+            jsonValue.value("resource") > 0 && jsonValue.value("resource") <= 15
+    }
+
+    Int value(String name) { return jsonValue.value(name) }
+    Int objectId() { return value("objectId") }
+    Int x() { return value("x") }
+    Int y() { return value("y") }
+    Int z() { return value("z") }
+    Int halfExtent() { return value("halfExtent") }
+    Bool floatable() { return value("floatable") != 0 }
+    Int density() { return value("density") }
+    Int buoyancy() { return value("buoyancy") }
+    Int drag() { return value("drag") }
+    Int gravity() { return value("gravity") }
+    Int maxFallSpeed() { return value("maxFallSpeed") }
+    Int resource() { return value("resource") }
+}
+
+class LiquidConfigFileLoader {
+    Bool loadWaterBody(WaterBodyConfig config, String path) {
+        return config.loadBytes(
+            File(path).readRange(0, liquidConfigMaximumBytes() + 1))
+    }
+
+    Bool loadPhysics(LiquidPhysicsConfig config, String path) {
+        return config.loadBytes(
+            File(path).readRange(0, liquidConfigMaximumBytes() + 1))
+    }
+
+    Bool loadFloatable(FloatableConfig config, String path) {
+        return config.loadBytes(
+            File(path).readRange(0, liquidConfigMaximumBytes() + 1))
+    }
+}

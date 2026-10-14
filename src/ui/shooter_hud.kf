@@ -28,6 +28,11 @@ class ShooterHud {
     Int skillRankValue
     Int skillExperienceValue
     Int skillGoalValue
+    Int oxygenValue
+    Int maxOxygenValue
+    Bool underwaterValue
+    Int powerUpKindValue
+    Int powerUpResourceValue
     Int worldLootCountValue
     Int worldLootRankValue
     Int eliteThreatsValue
@@ -70,6 +75,11 @@ class ShooterHud {
         skillRankValue = 0
         skillExperienceValue = 0
         skillGoalValue = 1
+        oxygenValue = 1
+        maxOxygenValue = 1
+        underwaterValue = false
+        powerUpKindValue = 0
+        powerUpResourceValue = 0
         worldLootCountValue = 0
         worldLootRankValue = 0
         eliteThreatsValue = 0
@@ -160,6 +170,27 @@ class ShooterHud {
         skillGoalValue = experienceGoal
         return true
     }
+    Bool updateOxygen(Int current, Int maximum, Bool underwater) {
+        if (maximum <= 0 || current < 0 || current > maximum) {
+            return false
+        }
+        oxygenValue = current
+        maxOxygenValue = maximum
+        underwaterValue = underwater
+        return true
+    }
+    Bool updatePowerUpStatus(Int kind, Int resource) {
+        if (kind == 0) {
+            if (resource != 0) { return false }
+        } else if (!validPowerUpKind(kind) ||
+            resource <= 0 || resource > powerUpMaximumResource()) {
+            return false
+        }
+        powerUpKindValue = kind
+        powerUpResourceValue = resource
+        return true
+    }
+
 
     Bool updateWorldLootStatus(Int count, Int highestRank) {
         if (count < 0 || count > 8 ||
@@ -234,7 +265,7 @@ class ShooterHud {
 
 
     Int renderVertexCount() {
-        return 438
+        return 474
     }
 
 
@@ -401,6 +432,50 @@ class ShooterHud {
             pushQuad(
                 target, lootResource,
                 15, -89, lootPipThreeRight, -88)
+    }
+
+
+    Bool pushOxygenStatus(
+        FrameStaging target, Int resourceBase
+    ) {
+        var oxygenRight = 82
+        if (maxOxygenValue > 0) {
+            oxygenRight = 52 + (oxygenValue * 40) / maxOxygenValue
+        }
+        var fillResource = resourceBase + 6
+        if (!underwaterValue) {
+            fillResource = resourceBase + 5
+        } else if (oxygenValue * 4 <= maxOxygenValue) {
+            fillResource = resourceBase + 4
+        }
+        return pushQuad(target, resourceBase, 46, 66, 98, 80) &&
+            pushQuad(target, resourceBase + 1, 48, 68, 96, 78) &&
+            pushQuad(target, fillResource, 52, 71, oxygenRight, 75)
+    }
+    Bool pushPowerUpStatus(
+        FrameStaging target, Int resourceBase
+    ) {
+        if (powerUpKindValue == 0) { return true }
+        var iconResource = resourceBase + 3
+        if (powerUpResourceValue == 10) {
+            iconResource = resourceBase + 4
+        } else if (powerUpResourceValue == 11) {
+            iconResource = resourceBase + 7
+        } else if (powerUpResourceValue == 12) {
+            iconResource = resourceBase + 6
+        } else if (powerUpResourceValue == 13) {
+            iconResource = resourceBase + 5
+        }
+        return pushQuad(target, resourceBase, -48, 50, 44, 64) &&
+            pushQuad(target, resourceBase + 1, -46, 52, 42, 62) &&
+            pushQuad(target, iconResource, -44, 54, -34, 60)
+    }
+
+    Bool pushPowerUpText(FrameStaging target) {
+        if (powerUpKindValue == 0) { return true }
+        return pushText(
+            target, powerUpName(powerUpKindValue), -31, 53, 1,
+            themeValue.foregroundColor())
     }
 
 
@@ -714,8 +789,12 @@ class ShooterHud {
                 themeValue.mutedColor()) ||
             !pushText(
                 target, "XP", 4, -69, 1,
-                themeValue.mutedColor())) {
-
+                themeValue.mutedColor()) ||
+            !pushPowerUpStatus(target, resourceBase) ||
+            !pushPowerUpText(target) ||
+            !pushOxygenStatus(target, resourceBase) ||
+            !pushText(
+                target, "O2", 48, 68, 1, themeValue.foregroundColor())) {
             target.discard()
             return false
         }
@@ -729,6 +808,11 @@ class ShooterHud {
     Int ammunition() {
         return ammunitionValue
     }
+    Int oxygen() { return oxygenValue }
+    Int maxOxygen() { return maxOxygenValue }
+    Bool underwater() { return underwaterValue }
+    Int powerUpKind() { return powerUpKindValue }
+    Int powerUpResource() { return powerUpResourceValue }
 
     Int enemies() {
         return enemiesValue

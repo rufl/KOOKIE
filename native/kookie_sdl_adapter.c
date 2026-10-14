@@ -38,6 +38,8 @@
 #define KOOKIE_GPU_RECOVERY_FAILED 3
 #define KOOKIE_GPU_MAX_SHADER_BYTES (16u * 1024u * 1024u)
 #define KOOKIE_GPU_MAX_MODEL_TEXTURE_BYTES (1024u * 1024u)
+#define KOOKIE_GPU_WORLD_TEXTURE_COORDINATE_LIMIT 2000000
+#define KOOKIE_GPU_WATER_STYLE_COUNT 4
 #define KOOKIE_WINDOW_KIND 1
 #define KOOKIE_AUDIO_KIND 2
 #define KOOKIE_GPU_KIND 3
@@ -77,6 +79,7 @@ typedef struct {
     SDL_GPUShader *fragment_shader;
     SDL_GPUGraphicsPipeline *pipeline;
     SDL_GPUShader *world_vertex_shader;
+    SDL_GPUShader *world_fragment_shader;
     SDL_GPUGraphicsPipeline *world_pipeline;
     SDL_GPUTexture *texture;
     SDL_GPUTransferBuffer *ui_transfer;
@@ -157,7 +160,21 @@ typedef struct {
     bool open;
     bool committed;
 } KookieGpuWorldTextureStaging;
+typedef struct {
+    int enabled;
+    int tint_r;
+    int tint_g;
+    int tint_b;
+    int caustic_scale;
+    int caustic_speed;
+    int caustic_strength;
+    int toon_base;
+    int toon_contrast;
+    int opacity;
+} KookieWaterStyle;
 
+static KookieWaterStyle gpu_water_styles[KOOKIE_GPU_WATER_STYLE_COUNT];
+static int gpu_water_time_ticks;
 static KookieGpuModelTextureStaging gpu_model_texture_staging;
 static KookieGpuWorldTextureStaging gpu_world_texture_staging;
 static int gpu_world_camera_matrix[16];
@@ -545,6 +562,9 @@ static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
     }
     if (gpu_resources.world_vertex_shader != NULL) {
         SDL_ReleaseGPUShader(device, gpu_resources.world_vertex_shader);
+    }
+    if (gpu_resources.world_fragment_shader != NULL) {
+        SDL_ReleaseGPUShader(device, gpu_resources.world_fragment_shader);
     }
     if (gpu_resources.vertex_shader != NULL) {
         SDL_ReleaseGPUShader(device, gpu_resources.vertex_shader);
@@ -1285,20 +1305,26 @@ static bool kookie_gpu_prepare_resources(
     Uint8 *vertex_code = NULL;
     Uint8 *fragment_code = NULL;
     Uint8 *world_vertex_code = NULL;
+    Uint8 *world_fragment_code = NULL;
     size_t vertex_size = 0;
     size_t fragment_size = 0;
     size_t world_vertex_size = 0;
+    size_t world_fragment_size = 0;
     const KookieShaderMetadata *vertex_metadata =
         kookie_shader_metadata_find("g0_triangle.vert");
     const KookieShaderMetadata *world_metadata =
         kookie_shader_metadata_find("g6_world.vert");
     const KookieShaderMetadata *fragment_metadata =
         kookie_shader_metadata_find("g0_triangle.frag");
+    const KookieShaderMetadata *world_fragment_metadata =
+        kookie_shader_metadata_find("g6_world.frag");
     if (vertex_metadata == NULL ||
         world_metadata == NULL || fragment_metadata == NULL ||
+        world_fragment_metadata == NULL ||
         strcmp(vertex_metadata->stage, "vertex") != 0 ||
         strcmp(world_metadata->stage, "vertex") != 0 ||
-        strcmp(fragment_metadata->stage, "fragment") != 0) {
+        strcmp(fragment_metadata->stage, "fragment") != 0 ||
+        strcmp(world_fragment_metadata->stage, "fragment") != 0) {
         fprintf(stderr,
             "KOOKIE gpu_prepare shader manifest is incomplete or invalid\n");
         goto cleanup;
@@ -1328,7 +1354,12 @@ static bool kookie_gpu_prepare_resources(
             "g0_triangle.frag",
             shader_format,
             &fragment_code,
-            &fragment_size)) {
+            &fragment_size) ||
+        !read_shader_binary(
+            "g6_world.frag",
+            shader_format,
+            &world_fragment_code,
+            &world_fragment_size)) {
         fprintf(stderr, "KOOKIE gpu_prepare shader binary load failed: %s\n",
             SDL_GetError());
         goto cleanup;
@@ -1386,6 +1417,24 @@ static bool kookie_gpu_prepare_resources(
         SDL_CreateGPUShader(device, &fragment_info);
     if (gpu_resources.fragment_shader == NULL) {
         fprintf(stderr, "KOOKIE gpu_prepare fragment shader failed: %s\n",
+            SDL_GetError());
+        goto cleanup;
+    }
+    SDL_GPUShaderCreateInfo world_fragment_info = fragment_info;
+    world_fragment_info.code_size = world_fragment_size;
+    world_fragment_info.code = world_fragment_code;
+    world_fragment_info.entrypoint = world_fragment_metadata->entrypoint;
+    world_fragment_info.num_samplers = world_fragment_metadata->num_samplers;
+    world_fragment_info.num_storage_textures =
+        world_fragment_metadata->num_storage_textures;
+    world_fragment_info.num_storage_buffers =
+        world_fragment_metadata->num_storage_buffers;
+    world_fragment_info.num_uniform_buffers =
+        world_fragment_metadata->num_uniform_buffers;
+    gpu_resources.world_fragment_shader =
+        SDL_CreateGPUShader(device, &world_fragment_info);
+    if (gpu_resources.world_fragment_shader == NULL) {
+        fprintf(stderr, "KOOKIE gpu_prepare world fragment shader failed: %s\n",
             SDL_GetError());
         goto cleanup;
     }
@@ -1543,6 +1592,7 @@ static bool kookie_gpu_prepare_resources(
     world_vertex_attributes[1].format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2;
     world_vertex_attributes[1].offset = 3u * (Uint32)sizeof(float);
     pipeline_info.vertex_shader = gpu_resources.world_vertex_shader;
+    pipeline_info.fragment_shader = gpu_resources.world_fragment_shader;
     pipeline_info.vertex_input_state.vertex_buffer_descriptions =
         &world_vertex_description;
     pipeline_info.vertex_input_state.vertex_attributes =
@@ -1673,6 +1723,7 @@ cleanup:
     }
     free(fragment_code);
     free(world_vertex_code);
+    free(world_fragment_code);
     free(vertex_code);
     if (!success) {
         kookie_gpu_release_resources(device);
@@ -1816,6 +1867,39 @@ int kookie_gpu_world_count(void) {
     return gpu_world_scene.committed ? gpu_world_scene.count : 0;
 }
 
+bool kookie_gpu_world_set_water_style(
+    int style_id, int enabled, int time_ticks,
+    int tint_r, int tint_g, int tint_b,
+    int caustic_scale, int caustic_speed, int caustic_strength,
+    int toon_base, int toon_contrast, int opacity
+) {
+    if (style_id < 0 || style_id >= KOOKIE_GPU_WATER_STYLE_COUNT ||
+        (enabled != 0 && enabled != 1) || time_ticks < 0 ||
+        tint_r < 0 || tint_r > 1000 ||
+        tint_g < 0 || tint_g > 1000 ||
+        tint_b < 0 || tint_b > 1000 ||
+        caustic_scale <= 0 || caustic_speed < 0 ||
+        caustic_strength < 0 || caustic_strength > 1000 ||
+        toon_base < 0 || toon_base > 1000 ||
+        toon_contrast < 0 || toon_contrast > 1000 ||
+        opacity < 0 || opacity > 1000) {
+        return false;
+    }
+    KookieWaterStyle *style = &gpu_water_styles[style_id];
+    style->enabled = enabled;
+    style->tint_r = tint_r;
+    style->tint_g = tint_g;
+    style->tint_b = tint_b;
+    style->caustic_scale = caustic_scale;
+    style->caustic_speed = caustic_speed;
+    style->caustic_strength = caustic_strength;
+    style->toon_base = toon_base;
+    style->toon_contrast = toon_contrast;
+    style->opacity = opacity;
+    gpu_water_time_ticks = time_ticks;
+    return true;
+}
+
 bool kookie_gpu_world_begin(int vertex_count) {
     if (!gpu_world_texture_staging.committed) {
         return false;
@@ -1846,8 +1930,8 @@ bool kookie_gpu_world_push_vertex_uv(
         x < -1000 || x > 1000 ||
         y < -1000 || y > 1000 ||
         z < -1000 || z > 1000 ||
-        texture_u < 0 || texture_u > 1000000 ||
-        texture_v < 0 || texture_v > 1000000) {
+        texture_u < 0 || texture_u > KOOKIE_GPU_WORLD_TEXTURE_COORDINATE_LIMIT ||
+        texture_v < 0 || texture_v > KOOKIE_GPU_WORLD_TEXTURE_COORDINATE_LIMIT) {
         return false;
     }
     size_t offset = (size_t)gpu_world_scene.count * 5u;
@@ -2413,6 +2497,44 @@ static bool kookie_gpu_draw_test_internal(
     target.store_op = SDL_GPU_STOREOP_STORE;
     SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(
         command_buffer, &target, 1, depth_target_ptr);
+    float world_lighting[64] = {0.0f};
+    world_lighting[0] = 160.0f;
+    world_lighting[1] = 72.0f;
+    world_lighting[2] = 140.0f;
+    world_lighting[3] = 260.0f;
+    world_lighting[4] = 1.0f;
+    world_lighting[5] = 0.78f;
+    world_lighting[6] = 0.56f;
+    world_lighting[7] = 1.0f;
+    world_lighting[8] = 0.42f;
+    world_lighting[9] = 0.48f;
+    world_lighting[10] = 0.58f;
+    world_lighting[11] = 1.0f;
+    if (world_draw) {
+        Uint32 phase = (SDL_GetTicks() / 32u) % 512u;
+        Uint32 sweep = phase < 256u ? phase : 512u - phase;
+        world_lighting[0] = 64.0f + (float)sweep * 0.75f;
+        world_lighting[2] = 96.0f + (float)(256u - sweep) * 0.5f;
+    }
+    world_lighting[12] = (float)gpu_water_time_ticks / 60.0f;
+    for (int style_index = 0;
+         style_index < KOOKIE_GPU_WATER_STYLE_COUNT;
+         style_index++) {
+        const KookieWaterStyle *style = &gpu_water_styles[style_index];
+        int base = 16 + style_index * 12;
+        world_lighting[base] = style->enabled ? 1.0f : 0.0f;
+        world_lighting[base + 1] = (float)style->caustic_scale / 10.0f;
+        world_lighting[base + 2] = (float)style->caustic_speed / 100.0f;
+        world_lighting[base + 3] =
+            (float)style->caustic_strength / 1000.0f;
+        world_lighting[base + 4] = (float)style->tint_r / 1000.0f;
+        world_lighting[base + 5] = (float)style->tint_g / 1000.0f;
+        world_lighting[base + 6] = (float)style->tint_b / 1000.0f;
+        world_lighting[base + 8] = (float)style->toon_base / 1000.0f;
+        world_lighting[base + 9] =
+            (float)style->toon_contrast / 1000.0f;
+        world_lighting[base + 10] = (float)style->opacity / 1000.0f;
+    }
     if (render_pass == NULL) {
         fprintf(stderr, "KOOKIE gpu_draw begin render pass failed: %s\n",
             SDL_GetError());
@@ -2426,6 +2548,9 @@ static bool kookie_gpu_draw_test_internal(
         SDL_PushGPUVertexUniformData(
             command_buffer, 0, world_camera_matrix,
             sizeof(world_camera_matrix));
+        SDL_PushGPUFragmentUniformData(
+            command_buffer, 1, world_lighting,
+            sizeof(world_lighting));
         binding.texture = gpu_resources.world_texture;
         binding.sampler = gpu_resources.sampler;
         vertex_binding.buffer = gpu_resources.world_vertex_buffer;
