@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Third-person follow camera now keeps a two-world-unit clearance from authored collision surfaces while retaining the existing spring-arm easing.
+- Native SDL_GPU world rendering now binds the D16 depth target with `LESS` testing and depth writes, so wall textures participate in deterministic depth ordering.
+- FPS movement tuning is now named and centralized: ground/air braking eases
+  velocity, the jump profile targets a 300 ms airtime, and coyote/jump-buffer
+  windows are both 100 ms at the fixed-step boundary.
 - Replaced the native build-time UI atlas with semantic UTF-16 text runs.
   SDL presentation now shapes text with HarfBuzz and rasterizes packaged TTF
   fonts with FreeType at runtime; the existing four-unit logical width and

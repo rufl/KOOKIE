@@ -270,6 +270,9 @@ class CameraState {
         followZValue = approach(followZValue, desiredFollowZ(), 4)
         return true
     }
+    Int collisionClearance() {
+        return 2
+    }
 
     Bool resolveFollowCollision(BoundedTriangleCollection geometry) {
         if (!followReadyValue) { return false }
@@ -280,12 +283,40 @@ class CameraState {
             return false
         }
         if (result.collided()) {
-            followXValue = result.resolvedX()
-            followYValue = result.resolvedY()
-            followZValue = result.resolvedZ()
+            var deltaX = result.endX() - result.startX()
+            var deltaY = result.endY() - result.startY()
+            var deltaZ = result.endZ() - result.startZ()
+            var pathDistance = deltaX
+            if (pathDistance < 0) { pathDistance = -pathDistance }
+            if (deltaY < 0 && -deltaY > pathDistance) {
+                pathDistance = -deltaY
+            }
+            if (deltaZ < 0 && -deltaZ > pathDistance) {
+                pathDistance = -deltaZ
+            }
+            if (deltaY > pathDistance) {
+                pathDistance = deltaY
+            }
+            if (deltaZ > pathDistance) {
+                pathDistance = deltaZ
+            }
+            var safeStep = result.hitStep() - collisionClearance()
+            if (safeStep < 0) {
+                safeStep = 0
+            }
+            if (pathDistance <= 0 || safeStep == 0) {
+                followXValue = result.startX()
+                followYValue = result.startY()
+                followZValue = result.startZ()
+            } else {
+                followXValue = result.startX() + deltaX * safeStep / pathDistance
+                followYValue = result.startY() + deltaY * safeStep / pathDistance
+                followZValue = result.startZ() + deltaZ * safeStep / pathDistance
+            }
         }
         return true
     }
+
     Int sineFixed(Int angle) {
         var normalized = angle % 360
         if (normalized < 0) { normalized = normalized + 360 }

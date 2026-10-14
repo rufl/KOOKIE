@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- A câmera de follow em terceira pessoa agora mantém dois world units de folga das superfícies de colisão autoradas, preservando o easing do spring arm existente.
+- O render nativo SDL_GPU agora usa o alvo de depth D16 com teste `LESS` e escrita de depth, colocando as texturas das paredes em uma ordenação de profundidade determinística.
+- As tunables do movimento FPS agora são nomeadas e centralizadas: o braking
+  no chão e no ar faz easing da velocidade, o perfil de salto busca 300 ms de
+  airtime e as janelas de coyote/jump buffer têm 100 ms no fixed step.
 - Substituímos o atlas nativo de UI gerado no build por runs semânticos UTF-16.
   A apresentação SDL agora faz shaping com HarfBuzz e rasterização em runtime
   das fontes TTF empacotadas com FreeType; a largura lógica de quatro unidades

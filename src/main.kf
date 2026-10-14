@@ -709,8 +709,8 @@ test "third person camera resolves authored wall collision" {
         camera.snapFollowTarget() &&
         camera.currentX() == 160 &&
         camera.resolveFollowCollision(arena.collisionGeometry()) &&
-        camera.currentX() < 158,
-        "camera follow must stop before a solid interior wall")
+        camera.currentX() <= 156,
+        "camera follow must stop two world units before a solid interior wall")
     var clear = arena.query(
         150, 1, 20, camera.currentX(), camera.currentY(), camera.currentZ())
     assert(clear.accepted() && !clear.collided(),
@@ -4752,14 +4752,19 @@ test "tuned FPS movement preserves air control and jump assists" {
         !controller.grounded(1),
         "ground jump must launch with held-state tracking")
     var heldJumpVelocity = controller.velocityY(1)
+    var heldAirVelocity = controller.velocityX(1)
     assert(controller.step(1, 0, 0, false, false) &&
-        controller.velocityY(1) < heldJumpVelocity,
-        "released jump must apply a short-hop cut")
+        controller.velocityY(1) < heldJumpVelocity &&
+        controller.velocityX(1) < heldAirVelocity,
+        "released jump must cut height and ease horizontal air speed")
     assert(controller.step(1, 0, 0, true, true) &&
-        controller.jumpBufferTicks(1) > 0,
+        controller.jumpBufferTicks(1) > 0 &&
+        controller.jumpBufferTicks(1) <= fpsMovementJumpBufferTicks(),
         "airborne jump input must remain buffered for landing")
     var bunnyHopSeen = false
-    for (var tick = 0; tick < 24; tick = tick + 1) {
+    var airtimeBudget = fpsMovementAirTimeTicks() +
+        fpsMovementCoyoteTicks()
+    for (var tick = 0; tick < airtimeBudget; tick = tick + 1) {
         assert(controller.step(1, 0, 0, false, true),
             "held jump simulation must remain deterministic")
         if (controller.lastBunnyHop()) {
@@ -4790,8 +4795,11 @@ test "FPS controller permits coyote jumps from a ledge" {
         assert(controller.step(1, 4, 0, false, false),
             "ledge movement must remain deterministic")
     }
-    assert(!controller.grounded(1) && controller.coyoteTicks(1) > 0,
-        "walking off a ledge must retain a coyote window")
+    var remainingCoyoteTicks = controller.coyoteTicks(1)
+    assert(!controller.grounded(1) &&
+        remainingCoyoteTicks > 0 &&
+        remainingCoyoteTicks <= fpsMovementCoyoteTicks(),
+        "walking off a ledge must retain a bounded coyote window")
     assert(controller.step(1, 0, 0, true, true) &&
         controller.lastCoyoteJump(),
         "jump input inside coyote time must launch")

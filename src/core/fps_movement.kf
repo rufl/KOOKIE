@@ -1,15 +1,59 @@
 package core
 
 Int fpsMovementCoordinateScale() { return 8 }
-Int fpsMovementCoyoteTicks() { return 8 }
-Int fpsMovementJumpBufferTicks() { return 8 }
+Int fpsMovementTickMicros() { return 16667 }
+
+Int fpsMovementTicksForMicros(Int durationMicros) {
+    if (durationMicros <= 0) {
+        return 0
+    }
+    return (durationMicros + fpsMovementTickMicros() - 1) /
+        fpsMovementTickMicros()
+}
+
+Int fpsMovementCoyoteWindowMicros() { return 100000 }
+Int fpsMovementJumpBufferWindowMicros() { return 100000 }
+Int fpsMovementJumpAirTimeMicros() { return 300000 }
+Int fpsMovementCoyoteTicks() {
+    return fpsMovementTicksForMicros(fpsMovementCoyoteWindowMicros())
+}
+Int fpsMovementJumpBufferTicks() {
+    return fpsMovementTicksForMicros(fpsMovementJumpBufferWindowMicros())
+}
+Int fpsMovementAirTimeTicks() {
+    return fpsMovementTicksForMicros(fpsMovementJumpAirTimeMicros())
+}
+
 Int fpsMovementWalkSpeed() { return 8 }
 Int fpsMovementGroundAcceleration() { return 3 }
 Int fpsMovementAirAcceleration() { return 1 }
 Int fpsMovementGroundBraking() { return 2 }
-Int fpsMovementJumpVelocity() { return 12 }
-Int fpsMovementGravity() { return 2 }
-Int fpsMovementMaxFallSpeed() { return 16 }
+Int fpsMovementAirBraking() { return 1 }
+Int fpsMovementGravity() { return 1 }
+Int fpsMovementJumpVelocity() {
+    return fpsMovementGravity() * (fpsMovementAirTimeTicks() / 2)
+}
+Int fpsMovementMaximumFallTicks() { return 16 }
+Int fpsMovementMaxFallSpeed() {
+    return fpsMovementGravity() * fpsMovementMaximumFallTicks()
+}
+Int fpsMovementJumpCutNumerator() { return 3 }
+Int fpsMovementJumpCutDenominator() { return 5 }
+
+Int fpsMovementMaximumActors() { return 8 }
+Int fpsMovementInputAxisLimit() { return 4 }
+Int fpsMovementCollisionTriangleCapacity() { return 192 }
+Int fpsMovementCollisionMaxDistance() { return 256 }
+Int fpsMovementCollisionMinimumX() { return 0 }
+Int fpsMovementCollisionMinimumY() { return -32 }
+Int fpsMovementCollisionMinimumZ() { return 0 }
+Int fpsMovementCollisionMaximumX() { return 256 }
+Int fpsMovementCollisionMaximumY() { return 128 }
+Int fpsMovementCollisionMaximumZ() { return 224 }
+Int fpsMovementCapsuleRadius() { return 2 }
+Int fpsMovementCapsuleMaxDistance() { return 256 }
+Int fpsMovementSlopeLimit() { return 60 }
+Int fpsMovementStepHeight() { return 4 }
 
 class FpsMovementController {
     BoundedTriangleCollection collisionValue
@@ -42,15 +86,28 @@ class FpsMovementController {
         if (actualCapacityValue <= 0) {
             actualCapacityValue = 1
         }
-        if (actualCapacityValue > 8) {
-            actualCapacityValue = 8
+        if (actualCapacityValue > fpsMovementMaximumActors()) {
+            actualCapacityValue = fpsMovementMaximumActors()
         }
         scaleValue = fpsMovementCoordinateScale()
-        collisionValue = BoundedTriangleCollection(192, 256)
-        collisionValue.configureBounds(0, -32, 0, 256, 128, 224)
+        collisionValue = BoundedTriangleCollection(
+            fpsMovementCollisionTriangleCapacity(),
+            fpsMovementCollisionMaxDistance())
+        collisionValue.configureBounds(
+            fpsMovementCollisionMinimumX(),
+            fpsMovementCollisionMinimumY(),
+            fpsMovementCollisionMinimumZ(),
+            fpsMovementCollisionMaximumX(),
+            fpsMovementCollisionMaximumY(),
+            fpsMovementCollisionMaximumZ())
         capsuleValue = BoundedTriangleContactController(
-            collisionValue, 2, 256, 60, 4)
-        capsuleValue.setGroundProbeDistance(scaleValue)
+            collisionValue,
+            fpsMovementCapsuleRadius(),
+            fpsMovementCapsuleMaxDistance(),
+            fpsMovementSlopeLimit(),
+            fpsMovementStepHeight())
+        capsuleValue.setGroundProbeDistance(
+            fpsMovementCoordinateScale())
         positionXValues = new Int[actualCapacityValue]
         positionYValues = new Int[actualCapacityValue]
         positionZValues = new Int[actualCapacityValue]
@@ -109,11 +166,12 @@ class FpsMovementController {
     }
 
     Int clampAxis(Int value) {
-        if (value < -4) {
-            return -4
+        var limit = fpsMovementInputAxisLimit()
+        if (value < -limit) {
+            return -limit
         }
-        if (value > 4) {
-            return 4
+        if (value > limit) {
+            return limit
         }
         return value
     }
@@ -148,7 +206,8 @@ class FpsMovementController {
     Bool configure(BoundedAuthoredCollision authored) {
         configuredValue = false
         clearActors()
-        if (!authored.validate() || authored.triangleCount() > 192) {
+        if (!authored.validate() ||
+            authored.triangleCount() > fpsMovementCollisionTriangleCapacity()) {
             return false
         }
         if (!collisionValue.configureBounds(
@@ -274,22 +333,24 @@ class FpsMovementController {
         var targetX = sign(moveX) * fpsMovementWalkSpeed()
         var targetZ = sign(moveZ) * fpsMovementWalkSpeed()
         var acceleration = fpsMovementAirAcceleration()
+        var braking = fpsMovementAirBraking()
         if (wasGrounded) {
             acceleration = fpsMovementGroundAcceleration()
+            braking = fpsMovementGroundBraking()
         }
         if (moveX != 0) {
             velocityXValues[slot] = approach(
                 velocityXValues[slot], targetX, acceleration)
-        } else if (wasGrounded) {
+        } else {
             velocityXValues[slot] = approach(
-                velocityXValues[slot], 0, fpsMovementGroundBraking())
+                velocityXValues[slot], 0, braking)
         }
         if (moveZ != 0) {
             velocityZValues[slot] = approach(
                 velocityZValues[slot], targetZ, acceleration)
-        } else if (wasGrounded) {
+        } else {
             velocityZValues[slot] = approach(
-                velocityZValues[slot], 0, fpsMovementGroundBraking())
+                velocityZValues[slot], 0, braking)
         }
 
         var jumped = false
@@ -306,7 +367,9 @@ class FpsMovementController {
         }
         if (jumpCutArmedValues[slot] && !jumpHeld &&
             velocityYValues[slot] > 0) {
-            velocityYValues[slot] = velocityYValues[slot] * 3 / 5
+            velocityYValues[slot] = velocityYValues[slot] *
+                fpsMovementJumpCutNumerator() /
+                fpsMovementJumpCutDenominator()
             jumpCutArmedValues[slot] = false
         }
         if (!wasGrounded || jumped) {

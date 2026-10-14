@@ -1523,6 +1523,12 @@ static bool kookie_gpu_prepare_resources(
             SDL_GetError());
         goto cleanup;
     }
+    pipeline_info.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
+    pipeline_info.depth_stencil_state.enable_depth_test = true;
+    pipeline_info.depth_stencil_state.enable_depth_write = true;
+    pipeline_info.target_info.depth_stencil_format =
+        SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+    pipeline_info.target_info.has_depth_stencil_target = true;
     SDL_GPUVertexBufferDescription world_vertex_description = {0};
     world_vertex_description.slot = 0;
     world_vertex_description.pitch = 5u * (Uint32)sizeof(float);
