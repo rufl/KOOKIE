@@ -111,8 +111,8 @@ import sys
 manifest = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
 font_root = pathlib.Path(sys.argv[2])
 assert manifest["game"] == "GatoGanso"
-assert manifest["defaults"]["body"]["family"] == "Jared Lite"
-assert manifest["defaults"]["display"]["family"] == "Pixand"
+assert manifest["defaults"]["body"]["family"] == "Pixand"
+assert manifest["defaults"]["display"]["family"] == "Jared Lite"
 for entry in manifest["files"]:
     path = font_root / entry["path"]
     assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"]
@@ -120,8 +120,8 @@ PY
 python3 "$ROOT_DIR/scripts/verify_ui_manifest.py" \
   "$PACKAGE_ROOT/assets/ui/manifest.json" "$PACKAGE_ROOT" --profile none
 grep -Fq 'game_display_name=GatoGanso' "$PACKAGE_ROOT/PROVENANCE.txt"
-grep -Fq 'font_default_body=Jared-Lite' "$PACKAGE_ROOT/PROVENANCE.txt"
-grep -Fq 'font_default_display=Pixand' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'font_default_body=Pixand' "$PACKAGE_ROOT/PROVENANCE.txt"
+grep -Fq 'font_default_display=Jared Lite' "$PACKAGE_ROOT/PROVENANCE.txt"
 grep -Fq 'MIT License' "$PACKAGE_ROOT/LICENSE"
 grep -Fq 'SDL_mixer 3.2.4' "$PACKAGE_ROOT/THIRD_PARTY_NOTICES.txt"
 grep -Fxq 'license_status=MIT-application' "$PACKAGE_ROOT/PROVENANCE.txt"

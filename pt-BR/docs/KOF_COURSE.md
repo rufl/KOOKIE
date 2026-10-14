@@ -2,9 +2,10 @@
 
 Data da pesquisa: 2026-09-22. Isto estende [KOF_LANGUAGE](KOF_LANGUAGE.md), não é uma implementação de engine. As fontes/resultados completos executados estão em [COURSE_PROBES](COURSE_PROBES.md).
 
-O gate ativo de qualificação do KOOKIE usa Kof `0.6.4`; a identidade do
-artefato `0.4.9-beta` abaixo é mantida intencionalmente como evidência histórica
-do curso, não como entrada de build atual da engine.
+O gate ativo de qualificação do KOOKIE usa Kof `0.6.5` da branch `lab`, no
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`; a identidade do artefato
+`0.4.9-beta` abaixo é mantida intencionalmente como evidência histórica do
+curso, não como entrada de build atual da engine.
 
 ## Fontes, versões e evidências
 
@@ -73,10 +74,10 @@ Para `"a|b|c"`, `split("\\|")` produziu comprimento 3 na JVM e 1 no nativo; `spl
 A causa no código-fonte corresponde à observação: [StatementLowerer.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/StatementLowerer.java#L388-L477) salta para `finallyLabel` na linha 406; o ramo sem finally coloca `KofTryEnd` imediatamente **antes** desse label nas linhas 474–475. O fluxo normal ignora a remoção do handler. [NativeMethodEmitter.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/nat/NativeMethodEmitter.java#L284-L309) instala/restaura a cadeia de exceções TLS no início/fim do try; [RuntimeGc.java](https://github.com/KofLang/Kof4j/blob/22a186b9bf9df37c03809ba6ef4af85085386f63/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java#L370-L390) segue essa cadeia em um throw.
 
 Um helper que retornava em ambos os ramos produziu os valores esperados em uma sondagem de controle, mas **não é uma solução alternativa geral segura**: retornar não estabelece, por si só, que a cadeia TLS foi desvinculada; um throw posterior pode encontrar um frame expirado. Nenhum patch do compilador foi feito nesta pesquisa. **Decisão:** corrigir/revalidar isso antes de depender da limpeza de exceções nativas ou de resultados de testes baseados em exceções. Mantenha controles negativos e compare externamente as saídas/códigos de saída observados.
-O gate ativo, construído a partir da fonte Kof `0.6.4`, repete a sondagem
-mínima por meio de `scripts/verify_exception.sh`; o native agora termina com
-status 1 e o diagnóstico da asserção, portanto esse falso sucesso histórico não
-é um resultado atual do gate da engine.
+O gate ativo, construído a partir da fonte Kof `0.6.5`, repete a sondagem mínima
+por meio de `scripts/verify_exception.sh`; JVM e native terminam com status 1
+e os diagnósticos esperados, portanto esse falso sucesso histórico não é
+comportamento atual do gate da engine.
 
 Exemplo do curso: [teste de stack](https://github.com/lunalully/curso-completo-de-kof/blob/d6fc8318e77f30ab0d6be87055d86a7eb63960d3/11-testes-unitarios/solucoes/03-pilha-test.kf#L36-L42).
 

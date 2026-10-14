@@ -18,9 +18,10 @@ paragraph. The recorded artifact uses the pinned Kof 0.5.0-beta source commit
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c` and remains a pre-release
 qualification artifact because target-hardware evidence was not retained.
 
-New release candidates use the source-built Kof `0.6.4` at commit
-`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; the qualification records below
-retain their historical Kof identities.
+New release candidates use the source-built Kof `0.6.5` from the Kof `lab`
+branch at commit `940f3bd81c25e564afc60f9d32d49652e47edcbc`; the qualification
+records below retain their historical Kof identities. The workflow builds the
+distribution from source because no public 0.6.5 archive is used as the pin.
 The D1 contract qualification dispatch
 [`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
 passed both deterministic package builds, then failed closed before target
@@ -31,7 +32,7 @@ evidence was produced or claimed.
 The current source tree has these release-capable paths:
 
 The player-facing test game is named **GatoGanso**. The presentation defaults
-to `Jared Lite` for bounded UI text and `Pixand` for display/title text; both
+to `Pixand` for bounded UI text and `Jared Lite` for display/title text; both
 font files and their SIL Open Font License notice ship with the package.
 
 
@@ -99,9 +100,9 @@ outside-checkout, deterministic signed qualification artifacts:
   has SHA-256
   `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9` and
   belongs to release commit `317d9f6b1c3e27032cc955a05f859f6c627d9338`.
-  It is not interchangeable with the active qualification source pin
-  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; the current packages therefore
-  retain the source-built qualification distribution above.
+  It is not interchangeable with the historical qualification source pin
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; the historical packages retained
+  the source-built qualification distribution above.
   A clean rebuild of that pinned Kof source produced archive SHA-256
   `29a5fddb0100cdb660abf96508360c51ff17bb4b6b295e60c9fe93a7624c0af0` and
   passed the JVM/native G6 Buffer SIMD gate. Repeating only the Kof packaging

@@ -29,7 +29,8 @@ or bypasses environment approval.
 
 Required for every run:
   --signing-key PATH       permanent owner-controlled Ed25519 key, mode 0600
-  --kof-archive PATH       exact Kof 0.6.4 distribution archive
+  --kof-archive PATH       supplied Kof 0.6.5 distribution archive; hosted
+                           release qualification rechecks the pinned source
 
 Remote configuration:
   --apply                  update GitHub secrets and the approval environment
@@ -51,13 +52,13 @@ Examples:
   # Validate only; no GitHub mutation
   scripts/bootstrap_release.sh \
     --signing-key "$HOME/.config/kookie/release/kookie-ed25519.pem" \
-    --kof-archive /path/to/kof-0.6.4-linux-x86_64.tar.gz
+    --kof-archive /path/to/kof-0.6.5-linux-x86_64.tar.gz
 
   # Configure secrets/environment and qualify
   scripts/bootstrap_release.sh --apply \
     --reviewer release-admin \
     --signing-key "$HOME/.config/kookie/release/kookie-ed25519.pem" \
-    --kof-archive /path/to/kof-0.6.4-linux-x86_64.tar.gz
+    --kof-archive /path/to/kof-0.6.5-linux-x86_64.tar.gz
     --version 0.1.0-dogfood.38 --qualify
 
   # Configure, qualify native target presentation, then publish only after
@@ -65,7 +66,7 @@ Examples:
   scripts/bootstrap_release.sh --apply \
     --reviewer release-admin \
     --signing-key "$HOME/.config/kookie/release/kookie-ed25519.pem" \
-    --kof-archive /path/to/kof-0.6.4-linux-x86_64.tar.gz
+    --kof-archive /path/to/kof-0.6.5-linux-x86_64.tar.gz
     --version 0.1.0-dogfood.38 --qualify \
     --linux-presentation-smoke \
     --windows-presentation-smoke \

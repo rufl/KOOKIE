@@ -27,35 +27,61 @@ var document = KookieUiScriptDocument(8)
 assert(document.valid() && document.boundCount() == 0 && !document.shown(),
     "KofScript UI document must start empty and hidden")
 assert(document.bindText(
-        "GATOGANSO", kookieUiScriptRoleDisplay(), 36) &&
-    document.bindAsset(svgId, svgSource, svgKind, svgAlt, svgChecksum) &&
-    document.bindAsset(pngId, pngSource, pngKind, pngAlt, pngChecksum) &&
-    document.bindIcon("heart", "Health", 48) &&
-    document.bindSound(
-        soundId, soundSource, soundKind, soundLabel, soundChecksum, 1001, 80) &&
-    document.boundCount() == 5,
-    "KofScript UI document must admit bounded semantic nodes")
-assert(document.nodeKind(0) == kookieUiScriptNodeText() &&
-    document.nodeKind(1) == kookieUiScriptNodeAsset() &&
-    document.nodeKind(2) == kookieUiScriptNodeAsset() &&
-    document.nodeKind(3) == kookieUiScriptNodeIcon() &&
-    document.nodeKind(4) == kookieUiScriptNodeSound() &&
-    document.nodeAssetType(1) == svgKind &&
-    document.nodeAssetType(2) == pngKind &&
-    document.nodeAssetType(4) == soundKind &&
-    document.nodeId(1) == svgId && document.nodeSource(2) == pngSource &&
-    document.nodeAlt(3) == "Health" && document.nodeSize(3) == 48 &&
-    document.nodeId(4) == soundId &&
-    document.nodeClipId(4) == 1001 && document.nodeGain(4) == 80,
-    "KofScript UI nodes must expose deterministic asset and sound descriptors")
+        "GATOGANSO", kookieUiScriptRoleDisplay(), 36),
+    "KofScript UI document must admit bounded display text")
+assert(document.bindAsset(
+        svgKind, svgId, svgSource, svgAlt, svgChecksum),
+    "KofScript UI document must admit SVG asset")
+assert(document.bindAsset(
+        pngKind, pngId, pngSource, pngAlt, pngChecksum),
+    "KofScript UI document must admit PNG asset")
+assert(document.bindIcon("heart", "Health", 48),
+    "KofScript UI document must admit icon")
+assert(document.bindSound(
+        soundKind, soundId, soundSource, soundLabel, soundChecksum, 1001, 80),
+    "KofScript UI document must admit sound")
+assert(document.boundCount() == 5,
+    "KofScript UI document must count five semantic nodes")
+assert(document.nodeKind(0) == kookieUiScriptNodeText(),
+    "KofScript UI text node kind must be deterministic")
+assert(document.nodeKind(1) == kookieUiScriptNodeAsset(),
+    "KofScript UI SVG node kind must be deterministic")
+assert(document.nodeKind(2) == kookieUiScriptNodeAsset(),
+    "KofScript UI PNG node kind must be deterministic")
+assert(document.nodeKind(3) == kookieUiScriptNodeIcon(),
+    "KofScript UI icon node kind must be deterministic")
+assert(document.nodeKind(4) == kookieUiScriptNodeSound(),
+    "KofScript UI sound node kind must be deterministic")
+assert(document.nodeAssetType(1) == svgKind,
+    "KofScript UI SVG type must be deterministic")
+assert(document.nodeAssetType(2) == pngKind,
+    "KofScript UI PNG type must be deterministic")
+assert(document.nodeAssetType(4) == soundKind,
+    "KofScript UI sound type must be deterministic")
+assert(document.nodeId(1) == svgId,
+    "KofScript UI SVG id must be deterministic")
+assert(document.nodeSource(2) == pngSource,
+    "KofScript UI PNG source must be deterministic")
+assert(document.nodeAlt(3) == "Health" && document.nodeSize(3) == 48,
+    "KofScript UI icon descriptor must be deterministic")
+assert(document.nodeId(4) == soundId,
+    "KofScript UI sound id must be deterministic")
+assert(document.nodeClipId(4) == 1001,
+    "KofScript UI sound clip must be deterministic")
+assert(document.nodeGain(4) == 80,
+    "KofScript UI sound gain must be deterministic")
 assert(!document.bindAsset(
-        "", "../invalid.svg", kookieUiScriptAssetSvg(), "", "not-a-sha256"),
-    "KofScript UI assets must reject invalid publication descriptors")
+        kookieUiScriptAssetSvg(), "", "../invalid.svg", "", "not-a-sha256"),
+    "KofScript UI assets must reject empty publication descriptors")
+assert(!document.bindAsset(
+        kookieUiScriptAssetSvg(), "ui.invalid", "../invalid.svg", "Invalid",
+        svgChecksum),
+    "KofScript UI assets must reject traversal paths")
 assert(!document.bindSound(
-        "ui.invalid", "../audio/ui/cursor.ogg", soundKind, "Invalid",
+        soundKind, "ui.invalid", "../audio/ui/cursor.ogg", "Invalid",
         soundChecksum, 1002, 80) &&
     !document.bindSound(
-        "ui.invalid-gain", soundSource, soundKind, "Invalid gain",
+        soundKind, "ui.invalid-gain", soundSource, "Invalid gain",
         soundChecksum, 1002, 101),
     "KofScript UI sounds must reject traversal paths and invalid gains")
 var beforeShow = document.checksum()

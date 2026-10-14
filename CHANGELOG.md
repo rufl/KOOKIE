@@ -3,6 +3,27 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- The active Kof gate follows the source-built `0.6.5` toolchain from the last
+  green Kof `lab` ancestor,
+  `940f3bd81c25e564afc60f9d32d49652e47edcbc`. The upstream native GC cycle
+  guard is verified by `scripts/prepare_kof_source.sh`; the obsolete local
+  0.6.4 patch is no longer applied. Remaining 0.6.4 performance/UI
+  measurements stay historical until rerun against 0.6.5.
+- The current Kof `lab` head,
+  `3a6454c0acce1c74d015bd45c4a52bb149a025c6`, is not promoted yet. Its
+  initial native KofScript UI gate exposed mixed-arity descriptor forwarding;
+  KOOKIE now keeps numeric descriptor fields in native-safe positions and the
+  focused UI gate passes on both the pinned toolchain and this candidate. Full
+  lab-head qualification, including the native source build and package smoke,
+  remains pending; the earlier LEA/SIMD regression in its lineage still needs
+  revalidation before changing the active pin.
+- `scripts/verify.sh` keeps the per-file Kof test-runner gate on the JVM; the
+  final native `kof build` is the native compile gate, builds `src` once per
+  JVM/native target and executes the emitted artifacts for the final runtime
+  smoke, avoiding duplicate native `check`/`test`/`run` compilation.
+- The G6 Kof Buffer/SIMD benchmark now materializes scalar and native
+  reductions before validation, avoiding repeated mixed native FFI evaluation
+  while retaining the JVM/native totals and timing checks.
 - Loot drops now render animated crossed vertical beams with rank colors, while
   cat scratches and goose beaks stage distinct world-space attack VFX.
 - Lobby customization now selects goose or cat alongside nickname and color;

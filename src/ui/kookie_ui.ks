@@ -190,59 +190,12 @@ class KookieUiScriptDocument {
         checksumValue = 17
     }
 
-    Bool appendNode(
-        Int kind, Int assetType, String id, String source, String alt,
-        String checksum, Int role, Int size, Int clipId, Int gain
-    ) {
-        var nodeValid = false
-        if (kind == kookieUiScriptNodeText()) {
-            nodeValid = source.length() > 0 &&
-                (role == kookieUiScriptRoleBody() ||
-                    role == kookieUiScriptRoleDisplay()) &&
-                size >= 12 && size <= 48
-        } else if (kind == kookieUiScriptNodeAsset()) {
-            nodeValid = id.length() > 0 &&
-                kookieUiScriptSafePath(source) &&
-                kookieUiScriptAssetTypeValid(assetType, source) &&
-                alt.length() > 0 && kookieUiScriptSha256(checksum)
-        } else if (kind == kookieUiScriptNodeIcon()) {
-            nodeValid = kookieUiScriptSupportedIcon(id) &&
-                alt.length() > 0 && size >= 16 && size <= 48
-        } else if (kind == kookieUiScriptNodeSound()) {
-            nodeValid = id.length() > 0 &&
-                kookieUiScriptSoundTypeValid(assetType, source) &&
-                alt.length() > 0 && kookieUiScriptSha256(checksum) &&
-                clipId > 0 && clipId <= 1000000 &&
-                gain >= 0 && gain <= 100
-        }
-        if (!validValue || closedValue || shownValue ||
-            nodeCountValue >= kinds.length || !nodeValid) {
-            return false
-        }
+    Bool beginNode(Int kind) {
+        if (!validValue) { return false }
+        if (closedValue) { return false }
+        if (shownValue) { return false }
+        if (nodeCountValue >= kinds.length) { return false }
         kinds[nodeCountValue] = kind
-        assetTypes[nodeCountValue] = assetType
-        roles[nodeCountValue] = role
-        sizes[nodeCountValue] = size
-        clipIds[nodeCountValue] = clipId
-        gains[nodeCountValue] = gain
-        ids[nodeCountValue] = id
-        sources[nodeCountValue] = source
-        alts[nodeCountValue] = alt
-        checksums[nodeCountValue] = checksum
-        checksumValue = kookieUiScriptMix(checksumValue, kind)
-        checksumValue = kookieUiScriptMix(checksumValue, assetType)
-        checksumValue = kookieUiScriptMix(
-            checksumValue, kookieUiScriptStringScore(id))
-        checksumValue = kookieUiScriptMix(
-            checksumValue, kookieUiScriptStringScore(source))
-        checksumValue = kookieUiScriptMix(
-            checksumValue, kookieUiScriptStringScore(alt))
-        checksumValue = kookieUiScriptMix(
-            checksumValue, kookieUiScriptStringScore(checksum))
-        checksumValue = kookieUiScriptMix(checksumValue, role)
-        checksumValue = kookieUiScriptMix(checksumValue, size)
-        checksumValue = kookieUiScriptMix(checksumValue, clipId)
-        checksumValue = kookieUiScriptMix(checksumValue, gain)
         nodeCountValue = nodeCountValue + 1
         return true
     }
@@ -255,35 +208,162 @@ class KookieUiScriptDocument {
         var actualSize = size
         if (actualSize < 12) { actualSize = 12 }
         if (actualSize > 48) { actualSize = 48 }
-        return appendNode(
-            kookieUiScriptNodeText(), 0, "", text, "", "",
-            actualRole, actualSize, 0, 0)
+        if (text.length() == 0) { return false }
+        if (actualRole != kookieUiScriptRoleBody() &&
+            actualRole != kookieUiScriptRoleDisplay()) {
+            return false
+        }
+        if (!beginNode(kookieUiScriptNodeText())) {
+            return false
+        }
+        var nodeIndex = nodeCountValue - 1
+        assetTypes[nodeIndex] = 0
+        roles[nodeIndex] = actualRole
+        sizes[nodeIndex] = actualSize
+        clipIds[nodeIndex] = 0
+        gains[nodeIndex] = 0
+        ids[nodeIndex] = ""
+        sources[nodeIndex] = text
+        alts[nodeIndex] = ""
+        checksums[nodeIndex] = ""
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptNodeText())
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(""))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(text))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(""))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(""))
+        checksumValue = kookieUiScriptMix(checksumValue, actualRole)
+        checksumValue = kookieUiScriptMix(checksumValue, actualSize)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        return true
     }
 
     Bool bindAsset(
-        String assetId, String source, Int assetType, String alt,
+        Int assetType, String assetId, String source, String alt,
         String checksum
     ) {
-        return appendNode(
-            kookieUiScriptNodeAsset(), assetType, assetId, source, alt,
-            checksum, 0, 0, 0, 0)
+        if (assetId.length() == 0) { return false }
+        if (!kookieUiScriptSafePath(source) ||
+            !kookieUiScriptAssetTypeValid(assetType, source)) {
+            return false
+        }
+        if (alt.length() == 0) { return false }
+        if (!kookieUiScriptSha256(checksum)) { return false }
+        if (!beginNode(kookieUiScriptNodeAsset())) {
+            return false
+        }
+        var nodeIndex = nodeCountValue - 1
+        assetTypes[nodeIndex] = assetType
+        roles[nodeIndex] = 0
+        sizes[nodeIndex] = 0
+        clipIds[nodeIndex] = 0
+        gains[nodeIndex] = 0
+        ids[nodeIndex] = assetId
+        sources[nodeIndex] = source
+        alts[nodeIndex] = alt
+        checksums[nodeIndex] = checksum
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptNodeAsset())
+        checksumValue = kookieUiScriptMix(checksumValue, assetType)
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(assetId))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(source))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(alt))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(checksum))
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        return true
     }
 
     Bool bindIcon(String name, String alt, Int size) {
         var actualSize = size
         if (actualSize < 16) { actualSize = 16 }
         if (actualSize > 48) { actualSize = 48 }
-        return appendNode(
-            kookieUiScriptNodeIcon(), 0, name, "", alt, "", 0, actualSize, 0, 0)
+        if (!kookieUiScriptSupportedIcon(name)) { return false }
+        if (alt.length() == 0) { return false }
+        if (!beginNode(kookieUiScriptNodeIcon())) {
+            return false
+        }
+        var nodeIndex = nodeCountValue - 1
+        assetTypes[nodeIndex] = 0
+        roles[nodeIndex] = 0
+        sizes[nodeIndex] = actualSize
+        clipIds[nodeIndex] = 0
+        gains[nodeIndex] = 0
+        ids[nodeIndex] = name
+        sources[nodeIndex] = ""
+        alts[nodeIndex] = alt
+        checksums[nodeIndex] = ""
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptNodeIcon())
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(name))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(""))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(alt))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(""))
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, actualSize)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        return true
     }
 
     Bool bindSound(
-        String soundId, String source, Int soundType, String label,
+        Int soundType, String soundId, String source, String label,
         String checksum, Int clipId, Int defaultGain
     ) {
-        return appendNode(
-            kookieUiScriptNodeSound(), soundType, soundId, source, label,
-            checksum, 0, 0, clipId, defaultGain)
+        if (soundId.length() == 0) { return false }
+        if (!kookieUiScriptSoundTypeValid(soundType, source)) {
+            return false
+        }
+        if (label.length() == 0) { return false }
+        if (!kookieUiScriptSha256(checksum)) { return false }
+        if (clipId <= 0 || clipId > 1000000) { return false }
+        if (defaultGain < 0 || defaultGain > 100) { return false }
+        if (!beginNode(kookieUiScriptNodeSound())) {
+            return false
+        }
+        var nodeIndex = nodeCountValue - 1
+        assetTypes[nodeIndex] = soundType
+        roles[nodeIndex] = 0
+        sizes[nodeIndex] = 0
+        clipIds[nodeIndex] = clipId
+        gains[nodeIndex] = defaultGain
+        ids[nodeIndex] = soundId
+        sources[nodeIndex] = source
+        alts[nodeIndex] = label
+        checksums[nodeIndex] = checksum
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptNodeSound())
+        checksumValue = kookieUiScriptMix(checksumValue, soundType)
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(soundId))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(source))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(label))
+        checksumValue = kookieUiScriptMix(
+            checksumValue, kookieUiScriptStringScore(checksum))
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, 0)
+        checksumValue = kookieUiScriptMix(checksumValue, clipId)
+        checksumValue = kookieUiScriptMix(checksumValue, defaultGain)
+        return true
     }
 
     Bool canBind(Int amount) {

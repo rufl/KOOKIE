@@ -106,8 +106,8 @@ scripts/kooker.sh cook svgz input.svgz output.svgzc
 
 The shipped roles are:
 
-- body: `Jared Lite`, `fonts/jared-lite.ttf`;
-- display: `Pixand`, `fonts/pixand.ttf`.
+- body: `Pixand`, `fonts/pixand.ttf`;
+- display: `Jared Lite`, `fonts/jared-lite.ttf`.
 
 Load `assets/ui/kookie-ui.css` in the KofJS host before the generated module.
 Its relative font URLs work with the source tree (`assets/fonts`) and with a
@@ -119,9 +119,9 @@ package host that keeps the CSS under `assets/ui` and the bundled fonts under
 ```
 
 `KookieUiText` applies the family, line-height, size, weight and color to the
-same Label handle. The current Kof `0.6.4` `Font` handle records metadata
-but does not attach a CSS font to a Label; this slice therefore uses the
-supported Label style path instead of claiming that assignment is rendered.
+same Label handle. The current Kof `0.6.5` source retains the metadata-only
+`Font` handle behavior; the focused Buffer/exception gates pass against the
+active pin, while UI-specific font probes remain separate.
 
 ## Target boundary
 
@@ -247,8 +247,8 @@ semantic node with `bindSound(..., defaultGain)`, `nodeClipId()` and
 and media handles, while a future upstream playback API must define ownership,
 close, gain, looping, spatialization and target failure semantics before this
 slice can move to Kof4j. See
-[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) for the current `0.6.4` ABI
-audit and the buffer migration boundary.
+[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) for the current pinned Kof ABI
+boundary and the buffer migration decision.
 
 
 ## Accessibility and style rules

@@ -17,12 +17,12 @@ manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 assert manifest["schema"] == "kookie.gatoganso-font-catalog/v2"
 assert manifest["game"] == "GatoGanso"
 assert manifest["defaults"]["body"] == {
-    "family": "Jared Lite",
-    "file": "jared-lite.ttf",
-}
-assert manifest["defaults"]["display"] == {
     "family": "Pixand",
     "file": "pixand.ttf",
+}
+assert manifest["defaults"]["display"] == {
+    "family": "Jared Lite",
+    "file": "jared-lite.ttf",
 }
 assert manifest["native_renderer"] == {
     "rasterizer": "FreeType",
@@ -35,5 +35,5 @@ for entry in manifest["files"]:
     assert hashlib.sha256(path.read_bytes()).hexdigest() == entry["sha256"], path
 for name in ("jared-lite.ttf", "pixand.ttf"):
     assert (font_dir / name).read_bytes()[:4] == b"\x00\x01\x00\x00"
-print("GatoGanso font assets verified: Jared Lite body, Pixand display")
+print("GatoGanso font assets verified: Pixand body, Jared Lite display")
 PY

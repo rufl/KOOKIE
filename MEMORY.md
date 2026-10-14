@@ -82,17 +82,16 @@ historical unless explicitly attached to that manifest.
 
 ## G5 completion batch
 
-- Release and CI now build Kof `0.6.4` from source commit
-  `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; the upstream public Linux
-  archive SHA-256 is
-  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`.
-  The source build applies
-  `scripts/kof-0.6.4-native-gc-cycle.patch` (SHA-256
-  `073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`);
-  the patched compiler JAR observed in qualification has SHA-256
-  `7a2211d0450fe57d1001007079cb12b880d74481b54fef1bb335a5f1d558724d`.
-  The prior G5 measurements below were recorded with older toolchains and are
-  not 0.6.4 performance evidence.
+- Release and CI now build Kof `0.6.5` from source commit
+  `940f3bd81c25e564afc60f9d32d49652e47edcbc` on the `lab` branch; no public
+  0.6.5 archive is used as the pin. `scripts/prepare_kof_source.sh` verifies
+  the three upstream `.Ltry_done_pop` guards; the former local 0.6.4 patch is
+  removed. The observed source-built Linux archive SHA-256 is
+  `c4db94ad085b13475e5eb6074f01b50370d709b15eb5d7148bacbccc2303c856`, and
+  its compiler JAR SHA-256 is
+  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
+  The G5 measurements below were recorded with older toolchains and are not
+  0.6.5 performance evidence.
 - The complete bounded scene has 192 authored vertices, 64 loaded collision
   triangles, 64 enemies, 256 projectiles, 512 pickups, 24 lights and 64 effects.
   The 30-minute 60 Hz soak kept simulation p95 at 3.202 ms and RSS within
@@ -266,27 +265,22 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 
 ## Pinned research identities
 
-- Current KOOKIE build toolchain: Kof `0.6.4` source
-  `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; the upstream public Linux
-  distribution archive SHA-256 is
-  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`.
-  The source build applies
-  `scripts/kof-0.6.4-native-gc-cycle.patch` (SHA-256
-  `073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`);
-  the patched compiler JAR SHA-256 is
-  `7a2211d0450fe57d1001007079cb12b880d74481b54fef1bb335a5f1d558724d`.
-  The archive digest is per release asset; the source commit, patch digest
-  and compiler JAR hash identify the release toolchain.
-- Kof4j: `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`, VERSION `0.6.4`.
+- Current KOOKIE build toolchain: Kof `0.6.5` source
+  `940f3bd81c25e564afc60f9d32d49652e47edcbc` from `lab`; no public 0.6.5
+  archive is used as the pin. The observed source-built Linux archive SHA-256
+  is `c4db94ad085b13475e5eb6074f01b50370d709b15eb5d7148bacbccc2303c856`,
+  and its compiler JAR SHA-256 is
+  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
+- Kof4j: `940f3bd81c25e564afc60f9d32d49652e47edcbc`, VERSION `0.6.5`.
 - Executed release: `kof-0.4.9-beta-linux-x86_64`, published 2026-09-20; standalone jar SHA-256 `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`.
 - Kof Editor: `bed6ae7d567b090497a447583a10b8522acaf66a`, VERSION `0.1.4-beta`; now installed with a project-restricted, network-isolated launcher and visually verified in private X11.
 - Do not infer release state from README 0.4.0 or website 0.4.1. Source SHA and release jar are separately identified, not assumed byte-equivalent.
 - Complete course: [`lunalully/curso-completo-de-kof@d6fc8318e77f30ab0d6be87055d86a7eb63960d3`](https://github.com/lunalully/curso-completo-de-kof/tree/d6fc8318e77f30ab0d6be87055d86a7eb63960d3), baseline 0.3.7-beta. [Official portal](https://koflang.github.io/docs) snapshot was generated 2026-09-17; several pages differ from pinned compiler source. See [KOF_COURSE](docs/KOF_COURSE.md).
-- Minecraft Java26.3, released2026-09-15; exact version-metadata SHA-1 `96c00d95a31328714d3811cfade2804bb050e455`. Uses SDL3/LWJGL3.4.3 and JOML1.10.9; source/version/license matrix in [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
+- Minecraft Java26.3, released 2026-09-15; exact version-metadata SHA-1 `96c00d95a31328714d3811cfade2804bb050e455`. Uses SDL3/LWJGL3.4.3 and JOML1.10.9; source/version/license matrix in [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Temporary research clones/jars were under `/tmp/kookie-*`; not project dependencies. Durable evidence and full probe sources live in [RESEARCH_PROBES](docs/RESEARCH_PROBES.md), [COURSE_PROBES](docs/COURSE_PROBES.md) and [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- The active CLI is the source-built, GC-patched Kof `0.6.4` distribution selected by
+- The active CLI is the source-built Kof `0.6.5` distribution selected by
   `scripts/kof_pin.sh`; its compiler JAR SHA-256 is
-  `7a2211d0450fe57d1001007079cb12b880d74481b54fef1bb335a5f1d558724d`.
+  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
   The prior 0.5.0-beta and 0.6.0 installations remain historical comparison
   artifacts only.
 
@@ -313,11 +307,9 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 1. Functions use `Int f(Int x)` / `f(Int x): Int`, **not fun/fn**. `record` and `class X(...)` are immutable/record-style; mutable classes use fields + explicit constructor. No top-level ordinary variables, array literals or Kotlin safe-call/coalesce assumptions.
 2. `.kf` modules/imports work. Measured directory import on JVM/native; `run` collects siblings and rejects multiple `main()` functions (`PKG002`). Separate application entry scopes.
 3. Native **scalar** `extern` works now; old blanket “native FFI unsupported” claims are stale. Measured sqrt → `3.0`, SDL_GetVersion → `3004018` on both targets.
-4. Kof 0.6.4 `Buffer(U8, INOUT)` plus token FFI is qualified locally by the
-   JVM/native x86-64 SIMD gate. The pinned source also implements synchronous
-   callbacks on JVM, host JS and native x86-64/riscv64/aarch64, but KOOKIE has
-   not yet promoted that callback surface as an engine ABI. Cross Buffer,
-   structs, pointers and variadics remain outside the portable engine contract.
+4. The `0.6.5` `Buffer(U8, INOUT)` qualification passes on the JVM/native
+   x86-64 SIMD gate. Cross-target support and callback behavior remain outside
+   current KOOKIE ABI evidence.
 5. Native x86 collector's automatic path is gated by **cumulative `kof_spawn_count == 0`**. Awaiting a task does not reopen it. Do not bypass by unsafe manual GC. Library threads must never retain/call Kof heap state.
 6. Packaged native execution warned runtime pruning cannot find `NativeRuntime.java` outside compiler module; full-runtime fallback ran. Tiny upstream binary-size claims are not verified for this release path.
 7. Native compiler optimization remains limited; the JVM JIT may outperform it. Representative bounded simulation and hardware-render timings are now recorded for G5, not generalized to other workloads or platforms.

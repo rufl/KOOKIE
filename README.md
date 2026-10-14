@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Latest KOOKIE dogfood release" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Project status: experimental" src="https://img.shields.io/badge/status-experimental-f59e0b">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.4" src="https://img.shields.io/badge/Kof-0.6.4-64748b">
+  <img alt="Kof 0.6.5" src="https://img.shields.io/badge/Kof-0.6.5-64748b">
 </p>
 
 <p align="center">
@@ -87,15 +87,13 @@ release when one is published.
 
 ### Run qualification from source
 
-Install [Kof 0.6.4](https://github.com/KofLang/Kof4j) for the source
+Install [Kof 0.6.5](https://github.com/KofLang/Kof4j) for the source
 entrypoint:
 
-Use the source-built distribution from Kof commit
-`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. `scripts/prepare_kof_source.sh`
-applies and verifies `scripts/kof-0.6.4-native-gc-cycle.patch`, which makes
-the native mark worklist discard already-marked blocks instead of requeueing
-cyclic object graphs, then normalizes the compiler metadata before Maven
-packaging.
+Use the source-built distribution from the Kof `lab` branch at commit
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`. `scripts/prepare_kof_source.sh`
+verifies that the upstream native GC cycle guard is present, then normalizes
+the compiler metadata before Maven packaging.
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
@@ -192,7 +190,7 @@ required for `releaseEligible=true`.
 The current source tree has a bounded player-facing slice:
 
 The player-facing test game is branded **GatoGanso**. Its bounded native
-presentation uses bundled `Jared Lite` body text and `Pixand` display text;
+presentation uses bundled `Pixand` body text and `Jared Lite` display text;
 the original TTF files and SIL Open Font License notice remain in
 `assets/fonts`.
 
@@ -243,10 +241,10 @@ descriptor metadata separate from the bounded native queue and applies
 registered UI spatial gains in SDL_mixer. The 14 supplied JDSherbert OGG files
 remain license-blocked for redistribution until provenance is confirmed.
 [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) records the current
-Kof4j `0.6.4` UI/FFI boundary: the active pin qualifies synchronous
-`Buffer(U8)` on JVM/native x86-64, while cross support is unqualified and
-`Buffer(U8)` is not a portable typed/asynchronous upload ABI. `bash
-scripts/verify_package.sh` validates the `none` package profile and
+Kof4j `0.6.5` UI/FFI boundary. The synchronous `Buffer(U8)` qualification
+passes on JVM and native x86-64 with the active pin; cross support remains
+unqualified and `Buffer(U8)` is not a portable typed/asynchronous upload ABI.
+`bash scripts/verify_package.sh` validates the `none` package profile and
 `bash scripts/verify_prototype_package.sh` validates the `prototype` profile;
 `bash scripts/verify_goose_game.sh` covers the bounded gameplay path. The
 retained G5 Linux x86-64 qualification records the 4 ms/tick timing contract,

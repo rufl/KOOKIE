@@ -3,9 +3,9 @@
 Data da pesquisa: 2026-09-22. Pesquisa somente na Internet/API/código-fonte; nenhum desses jogos foi compilado ou executado aqui.
 
 Este é um levantamento datado do ecossistema, não o registro de qualificação
-atual do KOOKIE. A baseline ativa de fonte/CI é Kof `0.6.4`; os projetos
-abaixo continuam sendo referências de pesquisa e não foram usados como
-dependências da engine.
+atual do KOOKIE. A baseline ativa de fonte/CI agora é o Kof `0.6.5` da branch
+`lab`; os projetos abaixo continuam sendo referências de pesquisa e não foram
+usados como dependências da engine.
 
 ## Resposta
 

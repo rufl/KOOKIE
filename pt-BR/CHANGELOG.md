@@ -3,6 +3,27 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O gate ativo do Kof acompanha o toolchain `0.6.5` construído a partir do
+  último ancestral verde da `lab` do Kof,
+  `940f3bd81c25e564afc60f9d32d49652e47edcbc`. A guarda upstream de ciclos do GC
+  native é verificada por `scripts/prepare_kof_source.sh`; o patch local
+  obsoleto do 0.6.4 não é mais aplicado. As medições restantes de desempenho/UI
+  do 0.6.4 continuam históricas até serem executadas novamente contra o 0.6.5.
+- O head atual da `lab` do Kof,
+  `3a6454c0acce1c74d015bd45c4a52bb149a025c6`, ainda não foi promovido. O gate
+  nativo inicial do KofScript expôs forwarding de descritores com aridade mista;
+  o KOOKIE agora mantém os campos numéricos em posições seguras para native e
+  o gate focado de UI passa tanto no toolchain fixado quanto neste candidato. A
+  qualificação completa do head da lab, incluindo build nativo da fonte e smoke
+  do pacote, continua pendente; a regressão LEA/SIMD anterior da linhagem ainda
+  precisa ser revalidada antes de mudar o pin ativo.
+- `scripts/verify.sh` mantém o gate do runner de testes por arquivo do Kof na
+  JVM; o `kof build` native final é o gate de compilação nativa, constrói `src`
+  uma vez por alvo JVM/native e executa os artefatos emitidos no smoke final,
+  evitando compilação nativa duplicada por `check`/`test`/`run`.
+- O benchmark G6 de Buffer/SIMD do Kof agora materializa as reduções escalar e
+  nativa antes da validação, evitando avaliação FFI nativa mista repetida e
+  mantendo os totais e as verificações de tempo JVM/native.
 - Drops de loot agora exibem beams verticais cruzados e animados com cores por
   rank; arranhões de gato e bicadas de ganso agora usam VFX distintos no mundo.
 - A customização do lobby agora escolhe ganso ou gato junto com apelido e cor;

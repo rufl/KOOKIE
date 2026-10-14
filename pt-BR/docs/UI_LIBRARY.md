@@ -107,8 +107,8 @@ scripts/kooker.sh cook svgz input.svgz output.svgzc
 
 Os papéis distribuídos são:
 
-- corpo: `Jared Lite`, `fonts/jared-lite.ttf`;
-- display: `Pixand`, `fonts/pixand.ttf`.
+- corpo: `Pixand`, `fonts/pixand.ttf`;
+- display: `Jared Lite`, `fonts/jared-lite.ttf`.
 
 Carregue `assets/ui/kookie-ui.css` no host KofJS antes do módulo gerado. As
 URLs relativas das fontes funcionam na árvore-fonte (`assets/fonts`) e em um
@@ -120,9 +120,9 @@ host de pacote que mantenha o CSS em `assets/ui` e as fontes empacotadas em
 ```
 
 `KookieUiText` aplica família, altura de linha, tamanho, peso e cor ao mesmo
-handle de `Label`. O `Font` do Kof `0.6.4` registra metadados, mas não anexa
-a fonte CSS a um Label; esta fatia usa portanto o caminho de estilo suportado,
-sem alegar que uma atribuição isolada é renderizada.
+handle de `Label`. A fonte atual do Kof `0.6.5` mantém o comportamento do
+handle `Font` apenas com metadados; os gates focados de Buffer/exceção passam
+contra o pin ativo, enquanto as sondas específicas de fontes permanecem separadas.
 
 ## Fronteira dos alvos
 
@@ -247,8 +247,8 @@ camadas continuam descritores/adapters: `kof.media` possui arquivos e handles
 de mídia, enquanto uma futura API upstream de playback precisa definir
 ownership, close, gain, loop, espacialização e falha por target antes desta
 fatia migrar para o Kof4j. Veja
-[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) para a auditoria da ABI
-`0.6.4` e a fronteira de migração de buffers.
+[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) para a fronteira da ABI do Kof
+fixado atualmente e a decisão de migração de buffers.
 
 
 ## Acessibilidade e estilo

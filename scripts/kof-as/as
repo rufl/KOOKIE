@@ -1,12 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Kof 0.6.4 invokes the host assembler as `as -o OBJECT FILE.s`. GNU as
+# Kof 0.6.5 invokes the host assembler as `as -o OBJECT FILE.s`. GNU as
 # takes more than an hour on KOOKIE's generated 28 MiB host modules here,
 # while Clang's integrated assembler handles the same syntax in under a second.
+# Keep GNU as for small modules: the integrated assembler is not interchangeable
+# for every Kof runtime relocation. Use Clang only for the large modules where
+# GNU as is pathologically slow.
 if (($# == 3)) && [[ "$1" == "-o" ]]; then
+  real_as="${KOF_REAL_AS:-/usr/bin/as}"
+  [[ -x "$real_as" ]] || {
+    echo "kof-as: system assembler is missing: $real_as" >&2
+    exit 127
+  }
+  assembly_size="$(stat -c '%s' -- "$3")"
+  if ((assembly_size < 1048576)); then
+    exec "$real_as" "$@"
+  fi
   command -v clang >/dev/null || {
-    echo 'kof-as: clang is required for Kof native assembly' >&2
+    echo 'kof-as: clang is required for large Kof native assembly' >&2
     exit 127
   }
   exec clang -c -x assembler "$3" -o "$2"

@@ -27,9 +27,10 @@ bash scripts/verify_ui_demo.sh
 python3 scripts/lsp_verify.py probes
 
 kof check src --target jvm
-kof check src --target native
 kof test src/main.kf --target jvm
-kof test src/main.kf --target native
+# The JVM test keeps the per-file Kof test-runner contract; native `src` is
+# compiled and executed once by the final build/smoke below instead of being
+# recompiled through the same harness.
 bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_transport.sh
@@ -44,9 +45,6 @@ bash scripts/verify_dedicated_network.sh
 bash scripts/verify_package.sh
 bash scripts/verify_prototype_package.sh
 
-expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified\nKOOKIE G1 authoritative shooter verified'
-[[ "$(kof run src/main.kf --target jvm)" == "$expected_output" ]]
-[[ "$(kof run src/main.kf --target native 2>/dev/null)" == "$expected_output" ]]
 
 if [[ -f /usr/lib/libSDL3.so ]]; then
   platform_output=$'KOOKIE G0 scalar platform probe\n3004018\ntrue'
@@ -240,6 +238,21 @@ else
 fi
 
 kof build src --target jvm --output "$build_dir/jvm"
+# `kof build` and `kof check` share the same CompilerDriver pipeline; the
+# final native build therefore covers native compilation without a duplicate.
 kof build src --target native --output "$build_dir/native"
+# Build once and execute the emitted artifacts directly; `kof run` would
+# compile the same source tree again and does not add runtime coverage here.
+expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified\nKOOKIE G1 authoritative shooter verified'
+jvm_output="$(
+  cd "$root_dir"
+  java --enable-native-access=ALL-UNNAMED -cp "$build_dir/jvm" Default.Main
+)"
+[[ "$jvm_output" == "$expected_output" ]]
+native_output="$(
+  cd "$root_dir"
+  "$build_dir/native/Default/Main" 2>/dev/null
+)"
+[[ "$native_output" == "$expected_output" ]]
 
-echo "KOOKIE verification passed: linter, LSP, JVM/native checks, tests, runtime smoke, durable save, adapter/reference renderer smoke when available, packages, and JVM/native builds"
+echo "KOOKIE verification passed: linter, LSP, JVM checks/test, native build/runtime smoke, durable save, adapter/reference renderer smoke when available, packages, and JVM/native builds"

@@ -18,9 +18,11 @@ parágrafo. O artefato registrado usa o commit Kof 0.5.0-beta fixado em
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c` e continua pré-release porque não
 reteve evidência de hardware-alvo.
 
-Novos candidatos de release usam o Kof `0.6.4` construído a partir da fonte
-no commit `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; os registros de
-qualificação abaixo mantêm suas identidades históricas do Kof.
+Novos candidatos de release usam o Kof `0.6.5` construído a partir da branch
+`lab`, no commit `940f3bd81c25e564afc60f9d32d49652e47edcbc`; os registros de
+qualificação abaixo mantêm suas identidades históricas do Kof. O workflow
+constrói a distribuição a partir da fonte porque o pin não usa archive público
+do 0.6.5.
 O dispatch de qualificação do contrato D1
 [`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
 passou os dois builds determinísticos de pacote e depois falhou fechado antes
@@ -28,6 +30,11 @@ da apresentação no alvo: o Linux não possui
 `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, e o Windows não possui
 `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. Nenhuma evidência de hardware
 alvo foi produzida ou reivindicada.
+
+O jogo voltado ao jogador se chama **GatoGanso**. A apresentação usa `Pixand`
+para texto de UI limitado e `Jared Lite` para display/título; os dois arquivos
+de fonte e o aviso da SIL Open Font License seguem no pacote.
+
 ### Registro atual de qualificação local — 2026-10-12
 
 O commit de fonte `69b16d9312ebe6b86c34fda1f665ad1b8665558b` produziu os
@@ -55,9 +62,9 @@ fora do checkout:
   tem SHA-256
   `f93f02eb62af584ea49ffb44efdbf54f970bdb9570f16fdc48ccc28242798ca9` e
   pertence ao commit de release `317d9f6b1c3e27032cc955a05f859f6c627d9338`.
-  Ele não é intercambiável com a fonte ativa fixada em
-  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; por isso os pacotes atuais
-  mantêm a distribuição Kof construída a partir da fonte fixada.
+  Ele não é intercambiável com a fonte histórica de qualificação fixada em
+  `bf17ac7e736471c8a04b4153e5b0f607be75e70c`; os pacotes históricos mantiveram
+  a distribuição Kof construída a partir da fonte fixada.
   Uma reconstrução limpa dessa fonte Kof fixada produziu o arquivo com SHA-256
   `29a5fddb0100cdb660abf96508360c51ff17bb4b6b295e60c9fe93a7624c0af0` e
   passou no gate SIMD G6 de Buffer na JVM/no nativo. Repetir apenas o

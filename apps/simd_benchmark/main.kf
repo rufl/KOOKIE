@@ -41,10 +41,14 @@ main() {
     memset(values, 251, 1048576L)
     var scalarValues = values.bytes()
     var expected: Long = 263192576L
-    assert(scalarValues.length == byteCount &&
-        scalarByteSum(scalarValues) == expected &&
-        kookie_simd_sum_u8_buffer(values, byteCount) == expected,
-        "Kof scalar and SIMD reductions must agree before measurement")
+    var scalarExpected = scalarByteSum(scalarValues)
+    var simdExpected = kookie_simd_sum_u8_buffer(values, byteCount)
+    assert(scalarValues.length == byteCount,
+        "Buffer(U8) SIMD benchmark must preserve the byte count")
+    assert(scalarExpected == expected,
+        "Kof scalar reduction must preserve the expected result")
+    assert(simdExpected == expected,
+        "Kof SIMD reduction must preserve the expected result")
 
     var scalarTotal: Long = 0L
     var scalarStart = kookie_headless_monotonic_nanoseconds()

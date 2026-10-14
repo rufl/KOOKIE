@@ -19,8 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  KOF_VERSION: 0.6.4
-  KOF_SOURCE_COMMIT: aaab7523ea6fddc818beee27ab46ccbb9fd9734a
+  KOF_VERSION: 0.6.5
+  KOF_SOURCE_COMMIT: 940f3bd81c25e564afc60f9d32d49652e47edcbc
   WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
   # Hosted runners are shared; keep the recorded 4 ms local target separate
   # from this scheduling-tolerant CI ceiling.

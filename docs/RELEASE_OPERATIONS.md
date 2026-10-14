@@ -10,27 +10,24 @@ the owner-controlled release signing key.
 cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
 source scripts/kof_pin.sh
 
-export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.4-linux-x86_64
-export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.4-linux-x86_64.tar.gz
+export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.5-linux-x86_64
+export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.5-linux-x86_64.tar.gz
 export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_FREETYPE_PREFIX=/tmp/kookie-release-deps/freetype/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/tmp/kookie-release-deps/harfbuzz/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a
+export KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
 
-`KOF_ARCHIVE` must be a source-built, metadata-normalized Kof `0.6.4`
-distribution from the pinned commit. `scripts/prepare_kof_source.sh` applies
-and verifies `scripts/kof-0.6.4-native-gc-cycle.patch` before Maven packaging;
-the patch makes the native mark worklist discard already-marked blocks instead
-of requeueing cyclic object graphs. Its SHA-256 is
-`073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`.
-Its compiler JAR must match the resulting source build; the release workflow
-rechecks `kof version` before packaging. Native package gates also require
-`pkg-config`, FreeType 2 and HarfBuzz for the text renderer.
+`KOF_ARCHIVE` must be a source-built, metadata-normalized Kof `0.6.5`
+distribution from the pinned Kof `lab` commit. `scripts/prepare_kof_source.sh`
+verifies the upstream native GC cycle guard before Maven packaging; no local
+GC patch is applied. Its compiler JAR must match the resulting source build;
+the release workflow rechecks `kof version` before packaging. Native package
+gates also require `pkg-config`, FreeType 2 and HarfBuzz for the text renderer.
 
 The existing `/tmp/kookie-release-qualification.pem` is ephemeral and must not
 be uploaded as the public release identity. Use an owner-controlled permanent
@@ -134,9 +131,9 @@ self-hosted, windows, x64, kookie-demo-release
 
 Both runners need Git for Windows/Linux shell support as applicable, Python 3,
 OpenSSL, `glslc`, `spirv-val` and the repository checkout. The hosted
-`toolchain` job builds Kof `0.6.4` from
-`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; each self-hosted job downloads and
-verifies that exact archive and prepends its `kof` binary. A preinstalled Kof
+`toolchain` job builds Kof `0.6.5` from
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`; each self-hosted job downloads
+and verifies that exact archive and prepends its `kof` binary. A preinstalled
 archive, Kof compiler digest secret or preinstalled Zig is not part of the
 release-runner contract.
 

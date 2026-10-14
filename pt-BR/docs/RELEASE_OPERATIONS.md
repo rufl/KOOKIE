@@ -10,25 +10,22 @@ permanente do proprietário.
 cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
 source scripts/kof_pin.sh
 
-export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.4-linux-x86_64
-export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.4-linux-x86_64.tar.gz
+export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.5-linux-x86_64
+export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.5-linux-x86_64.tar.gz
 export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_FREETYPE_PREFIX=/tmp/kookie-release-deps/freetype/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/tmp/kookie-release-deps/harfbuzz/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a
+export KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
 
-`KOF_ARCHIVE` deve ser uma distribuição Kof `0.6.4` construída a partir da
-fonte, com metadados normalizados, no commit fixado.
-`scripts/prepare_kof_source.sh` aplica e verifica
-`scripts/kof-0.6.4-native-gc-cycle.patch` antes do Maven; o patch faz a
-worklist de mark nativo descartar blocos já marcados em vez de recolocar
-grafos cíclicos. Seu SHA-256 é
-`073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`.
+`KOF_ARCHIVE` deve ser uma distribuição Kof `0.6.5` construída a partir da
+fonte, com metadados normalizados, no commit `lab` fixado.
+`scripts/prepare_kof_source.sh` verifica a guarda upstream de ciclos do GC
+native antes do Maven; nenhum patch local de GC é aplicado.
 O JAR do compilador deve corresponder ao build da fonte; o workflow repete
 `kof version` antes do empacotamento. Os gates nativos também exigem
 `pkg-config`, FreeType 2 e HarfBuzz para o renderer de texto.
@@ -140,8 +137,8 @@ self-hosted, windows, x64, kookie-demo-release
 
 Ambos precisam de suporte ao shell do Git conforme o sistema, Python 3,
 OpenSSL, `glslc`, `spirv-val` e o checkout do repositório. O job hospedado
-`toolchain` constrói o Kof `0.6.4` a partir de
-`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; cada job self-hosted baixa,
+`toolchain` constrói o Kof `0.6.5` a partir de
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`; cada job self-hosted baixa,
 verifica esse archive exato e adiciona seu binário `kof` ao `PATH`. Archive Kof
 pré-instalado, secret de digest do compilador Kof e Zig pré-instalado não fazem
 parte do contrato dos runners de release.

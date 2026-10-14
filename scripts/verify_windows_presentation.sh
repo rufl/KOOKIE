@@ -165,8 +165,8 @@ assert provenance["harfbuzz_version"] not in ("", "not-bundled")
 assert len(provenance["freetype_runtime_sha256"]) == 64
 assert len(provenance["harfbuzz_runtime_sha256"]) == 64
 assert provenance["game_display_name"] == "GatoGanso"
-assert provenance["font_default_body"] == "Jared-Lite"
-assert provenance["font_default_display"] == "Pixand"
+assert provenance["font_default_body"] == "Pixand"
+assert provenance["font_default_display"] == "Jared Lite"
 assert provenance["update_launcher"] == "kookie-launcher"
 PY
 PACKAGE_SMOKE_LOG="$WORK_DIR/windows-package-smoke.log"

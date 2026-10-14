@@ -12,15 +12,16 @@ usage() {
   cat <<'EOF'
 Usage: scripts/check_release_readiness.sh [options]
 
-Checks the local signing identity, pinned Kof archive and GitHub release
+Checks the local signing identity, supplied Kof archive and GitHub release
 prerequisites without printing secret contents. With --set-github-secrets it
 updates KOOKIE_SIGNING_KEY_PEM in the repository. The release workflow builds
-and verifies the Kof archive per run; no static Kof digest secret is required.
+and verifies the pinned Kof source/archive per run; no static Kof digest secret
+is required.
 
 Options:
   --repo OWNER/REPO       GitHub repository (default: rufl/KOOKIE)
   --signing-key PATH      owner-controlled Ed25519 private key
-  --kof-archive PATH      exact Kof 0.6.4 distribution archive
+  --kof-archive PATH      supplied Kof 0.6.5 distribution archive
   --skip-github           only validate local release inputs
   --set-github-secrets    upload the validated inputs to GitHub Actions
   --help                  show this help

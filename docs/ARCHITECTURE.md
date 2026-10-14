@@ -86,12 +86,12 @@ only generated mechanical shader metadata and GPU handles. Kof continues to own
 camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
-The active Kof4j `0.6.4` pin implements byte-only `Buffer(U8)` for JVM,
-JS and native x86-64; `scripts/verify_simd_dispatch.sh` qualifies the
-synchronous JVM/native x86-64 INOUT shape. Cross-target support remains
-unqualified. `Buffer(U8)` does not define a typed, asynchronous GPU/audio
-ownership contract.
-
+The active Kof4j `0.6.5` pin is the Kof `lab` source commit
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`. The existing
+`scripts/verify_simd_dispatch.sh` qualifies `Buffer(U8)` on JVM and native
+x86-64 with the active pin. Cross-target support remains unqualified, and
+`Buffer(U8)` does not define a typed, asynchronous GPU/audio ownership
+contract.
 KOOKIE therefore keeps `FrameStaging`/content wires as bounded Kof-owned arrays,
 uses C-owned storage for native work and retains the checked scalar adapter.
 At startup, `main.kf` transfers each bounded GLB as packed 32-bit words,

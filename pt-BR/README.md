@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Release dogfood mais recente do KOOKIE" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Estado do projeto: experimental" src="https://img.shields.io/badge/estado-experimental-f59e0b">
   <a href="../LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.4" src="https://img.shields.io/badge/Kof-0.6.4-64748b">
+  <img alt="Kof 0.6.5" src="https://img.shields.io/badge/Kof-0.6.5-64748b">
 </p>
 
 <p align="center">
@@ -91,14 +91,13 @@ Windows quando ela for publicada.
 
 ### Executar a qualificação a partir da fonte
 
-Instale [Kof 0.6.4](https://github.com/KofLang/Kof4j) para o entrypoint
+Instale [Kof 0.6.5](https://github.com/KofLang/Kof4j) para o entrypoint
 de fonte:
 
-Use a distribuição construída a partir da fonte no commit Kof
-`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. `scripts/prepare_kof_source.sh`
-aplica e verifica `scripts/kof-0.6.4-native-gc-cycle.patch`, que impede que
-grafos cíclicos do GC native recoloquem blocos já marcados indefinidamente,
-e normaliza os metadados do compilador antes do empacotamento Maven.
+Use a distribuição construída a partir da branch `lab` do Kof no commit
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`. `scripts/prepare_kof_source.sh`
+verifica que a guarda de ciclos do GC native upstream está presente e depois
+normaliza os metadados do compilador antes do empacotamento Maven.
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
@@ -182,6 +181,10 @@ do artefato podem passar enquanto a evidência de apresentação em hardware ain
 
 A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
 
+O jogo voltado ao jogador se chama **GatoGanso**. A apresentação nativa
+limitada usa `Pixand` para texto de corpo e `Jared Lite` para display; os dois
+TTFs originais e o aviso da SIL Open Font License permanecem em `assets/fonts`.
+
 - `Play` inicia o encounter autoritativo local servidor listen/cliente, aceita
   teclado/mouse, executa três bots gansos e reinicia ao sair e entrar novamente
   em `Play`.
@@ -230,13 +233,14 @@ manifesto de assets publicados. O adaptador de sound cues mantém metadados
 registrados no SDL_mixer. Os 14 OGG JDSherbert fornecidos
 continuam bloqueados para redistribuição até a procedência/licença ser
 confirmada. [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) registra
-a fronteira atual de UI/FFI do Kof4j `0.6.4`: a pinagem ativa qualifica
-`Buffer(U8)` síncrono em JVM/nativo x86-64, enquanto o suporte cross não é
-qualificado e `Buffer(U8)` não é uma ABI portátil tipada/assíncrona de upload.
-`bash scripts/verify_package.sh` valida o perfil de pacote `none` e
-`bash scripts/verify_prototype_package.sh` valida o perfil `prototype`;
-`bash scripts/verify_goose_game.sh` cobre o gameplay. O gate focado do servidor
-dedicado também passa 512 ticks medidos com p95 `3,624ms` (p99 `3,689ms`,
+a fronteira atual de UI/FFI do Kof4j `0.6.5`. A qualificação síncrona de
+`Buffer(U8)` passa na JVM e no native x86-64 com o pin ativo; o suporte cross
+continua não qualificado e `Buffer(U8)` não é uma ABI portátil
+tipada/assíncrona de upload.
+`bash scripts/verify_package.sh` valida o perfil `none` do pacote;
+`bash scripts/verify_prototype_package.sh` valida o perfil `prototype`; e
+`bash scripts/verify_goose_game.sh` cobre o caminho de gameplay limitado. O gate
+focado do servidor dedicado também passa 512 ticks medidos com p95 `3,624ms` (p99 `3,689ms`,
 máximo `3,899ms`) sob o orçamento declarado de simulação de 4ms.
 
 

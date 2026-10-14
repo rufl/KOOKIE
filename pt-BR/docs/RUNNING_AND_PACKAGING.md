@@ -8,12 +8,12 @@ de evidência limitados, não uma promessa de suporte de produção.
 
 ## Execução de fonte/desenvolvimento
 
-Instale [Kof 0.6.4](https://github.com/KofLang/Kof4j) para executar o
+Instale [Kof 0.6.5](https://github.com/KofLang/Kof4j) para executar o
 entrypoint autoritativo da fonte na raiz do repositório:
 
-Use a distribuição construída a partir da fonte no commit Kof
-`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. O build de release executa
-`scripts/prepare_kof_source.sh` antes do Maven; ele verifica o guard de GC
+Use a distribuição construída a partir da fonte na branch `lab` do Kof, no
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`. O build de release executa
+`scripts/prepare_kof_source.sh` antes do Maven; ele verifica a guarda de GC
 native upstream e normaliza os metadados do compilador.
 
 Antes de qualquer comando Kof native, execute `source scripts/kof_pin.sh`. O
@@ -180,9 +180,9 @@ privada do owner:
 
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.N \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64
 ```
@@ -220,9 +220,9 @@ originais. A opção é explícita para manter os pacotes existentes sem conteú
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.prototype \
 KOOKIE_BUILD_ID=prototype-content \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target linux-x86_64 \
   --content prototype
@@ -232,9 +232,9 @@ Para executar a apresentação SDL nativa com os modelos de ganso e gato do
 protótipo, gere explicitamente o perfil de apresentação:
 
 ```bash
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime presentation --target linux-x86_64 \
   --content prototype
@@ -366,9 +366,9 @@ isolada e releases dogfood assinados:
 ```bash
 KOOKIE_RUNTIME=presentation \
 KOOKIE_VERSION=0.1.0-dogfood.N \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime presentation --target linux-x86_64
 ```
@@ -377,8 +377,8 @@ Para smoke de extração e assinaturas de um pacote em árvore limpa:
 
 ```bash
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/verify_linux_presentation_package.sh
 ```
@@ -389,8 +389,8 @@ o conjunto verificado em um diretório de saída vazio:
 ```bash
 KOOKIE_VERSION=0.1.0-demo.N \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/build_demo_release.sh \
   --target linux-x86_64 \
@@ -623,9 +623,9 @@ KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer-3.2.4/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_FREETYPE_PREFIX=/caminho/para/freetype/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/caminho/para/harfbuzz/x86_64-w64-mingw32 \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/package_kookie.sh --runtime native --target windows-x86_64
 ```
@@ -644,9 +644,9 @@ OpenJDK Windows x64 exato:
 ```bash
 KOOKIE_WINDOWS_JAVA_ARCHIVE=/caminho/para/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip \
 KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 SOURCE_DATE_EPOCH=<timestamp-unix> \
 scripts/package_kookie.sh --runtime jvm --target windows-x86_64
@@ -679,9 +679,9 @@ KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer-3.2.4/x86_64-w64-mingw3
 KOOKIE_WINDOWS_FREETYPE_PREFIX=/caminho/para/freetype/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/caminho/para/harfbuzz/x86_64-w64-mingw32 \
 KOOKIE_DXC=/caminho/para/dxc \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 SOURCE_DATE_EPOCH=<timestamp-unix> \
 scripts/package_kookie.sh --runtime presentation --target windows-x86_64
@@ -713,9 +713,9 @@ limpa:
 KOOKIE_WINDOWS_SDL_PREFIX=/caminho/para/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/caminho/para/SDL3_mixer-3.2.4/x86_64-w64-mingw32 \
 KOOKIE_DXC=/caminho/para/dxc \
-KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a \
+KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
 KOOKIE_KOF_ARCHIVE_SHA256=<sha256-verificado-da-distribuicao> \
-KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.4-linux-x86_64.tar.gz \
+KOOKIE_KOF_ARCHIVE=/caminho/seguro/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/caminho/seguro/kookie-ed25519.pem \
 scripts/build_demo_release.sh \
   --target windows-x86_64 \
@@ -750,7 +750,7 @@ independente e só publica uma pré-release pareada depois da aprovação do
 ambiente `kookie-demo-release`.
 
 O workflow exige runners self-hosted com labels `kookie-demo-release`,
-`linux`/`windows` e `x64`. O job hospedado `toolchain` constrói o Kof `0.6.4`
+`linux`/`windows` e `x64`. O job hospedado `toolchain` constrói o Kof `0.6.5`
 a partir do commit de fonte fixado, envia o archive com `SHA256SUMS` e
 `SOURCE_COMMIT`, e cada job self-hosted de alvo verifica e usa esse artefato
 exato. Os runners não precisam de archive Kof, Zig ou secret de digest Kof

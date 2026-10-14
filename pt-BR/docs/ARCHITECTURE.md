@@ -79,12 +79,11 @@ responsável pela semântica de câmera/projeção, staging limitado, seleção 
 material/passe e ordenação de renderização; ele nunca faz parse nem composição
 de SPIR-V no runtime.
 
-A versão `0.6.4` fixada do Kof4j implementa `Buffer(U8)` somente em
-bytes para JVM, JS e nativo x86-64; `scripts/verify_simd_dispatch.sh` qualifica
-o formato síncrono INOUT em JVM/nativo x86-64. O suporte cross continua não
-qualificado. `Buffer(U8)` não define um contrato tipado e assíncrono de posse de
-GPU/áudio.
-
+A pinagem ativa do Kof4j `0.6.5` é o commit da fonte `lab` do Kof
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`. O gate
+`scripts/verify_simd_dispatch.sh` qualifica `Buffer(U8)` na JVM e no native
+x86-64 com o pin ativo. O suporte cross continua não qualificado. `Buffer(U8)`
+não define um contrato tipado e assíncrono de posse de GPU/áudio.
 Por isso o KOOKIE mantém `FrameStaging`/wires de conteúdo como arrays limitados
 possuídos pelo Kof, usa memória possuída pelo C no trabalho nativo e conserva o
 adaptador escalar verificado. No startup, `main.kf` transfere cada GLB limitado

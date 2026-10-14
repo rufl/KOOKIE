@@ -4,10 +4,11 @@
 
 Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, predecoded OGG Vorbis tracks with exact sample-frame loop bounds, bounded synthesized clips, SPIR-V scene upload/draw with perspective projection and D16 depth testing, and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the authored arena (142 unique vertices, 178 triangles, 534 staged vertices) and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
 
-The current source/CI gate uses Kof `0.6.4` at source commit
-`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; this page records the bounded
-adapter contract, while machine-specific presentation evidence remains a
-separate release requirement.
+The current source/CI gate uses Kof `0.6.5` from the `lab` branch at
+`940f3bd81c25e564afc60f9d32d49652e47edcbc`; this page records the bounded
+adapter contract, while focused exception/SIMD gates pass on the active pin
+and machine-specific presentation evidence remains a separate release
+requirement.
 
 
 ## SDL lifecycle boundary
@@ -21,9 +22,9 @@ separate release requirement.
 `SdlLifecycle` owns the Kof-side initialized flag. It rejects negative flags, makes repeated initialization idempotent, and makes shutdown explicit. `probes/g0_platform/main.kf` calls `SDL_Init(0)` and `SDL_Quit()` on both targets when `/usr/lib/libSDL3.so` is installed. `0` intentionally requests no SDL subsystem; it does not prove video/audio initialization.
 
 The direct Kof binding still carries no SDL pointer, struct, event union,
-callback, window, GPU device or audio device. The active Kof `0.6.4` pin
-supports byte-only `Buffer(U8)` for synchronous, target-qualified INOUT calls;
-that does not form a portable typed or asynchronous engine binding.
+callback, window, GPU device or audio device. The active `0.6.5` pin qualifies
+byte-only `Buffer(U8)` for synchronous, target-qualified INOUT calls on JVM and
+native x86-64; cross-target support remains unqualified.
 
 ## Narrow native adapter
 
@@ -108,7 +109,7 @@ The adapter requests SPIR-V support, creates an SDL_GPU device, claims an SDL wi
 resource tokens, platform/audio lifecycle, OGG source intake, frame staging and
 the GameShell menu/options/lobby transaction.
 
-`scripts/verify_exception.sh` now checks the corrected Kof `0.6.4` native
+`scripts/verify_exception.sh` now checks the corrected Kof `0.6.5` native
 exception lifetime: the deliberately failing assertion exits with status 1 and
 prints `no-throw`/`false` on JVM and `no-throw`/`false`/`expected failure` on
 native. The historical Kof `0.5.0-beta` false pass remains recorded in

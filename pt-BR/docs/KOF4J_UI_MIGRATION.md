@@ -25,27 +25,28 @@ isso o KOOKIE adiciona somente um adaptador semântico de cues/fila sobre o
 contrato limitado existente de `QueuedAudio`. Ele não duplica `kof.ui`, não
 decodifica mídia e não cria outro renderer.
 
-## Auditoria da ABI do 0.6.4
+## Fronteira da ABI do Kof 0.6.5 fixado atualmente
 
 A baseline ativa de qualificação do KOOKIE é o fonte do Kof4j
-[`aaab7523`](https://github.com/KofLang/Kof4j/tree/aaab7523ea6fddc818beee27ab46ccbb9fd9734a).
-A CLI local reporta `kof 0.6.4`.
+[`940f3bd81c25e564afc60f9d32d49652e47edcbc`](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc).
+A CLI de qualificação reporta `kof 0.6.5`; a qualificação focada de Buffer
+abaixo passa na JVM e no native x86-64 com este pin.
 
 A implementação fixada e a documentação upstream mais recente não são
 idênticas:
 
-- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
+- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
   expõe `buffer.alloc(Int)` e `Buffer.bytes()` em JVM, JS e nativo
   x86-64; os comentários da fonte também afirmam suporte a riscv64/aarch64.
-- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
+- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
   baixa `Buffer(U8)` como token `B` e ponteiro de payload síncrono na
   implementação nativa fixada. `scripts/verify_simd_dispatch.sh` exercita
   cópia de entrada/retorno e uma redução INOUT em JVM e nativo x86-64.
-  ainda documenta Native como `FFI001`, enquanto a fonte fixada do
-  compilador/runtime expõe a implementação nativa limitada usada pelo KOOKIE.
-  O suporte cross é, portanto, uma afirmação da fonte upstream, não um
-  resultado de qualificação do KOOKIE.
-- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/docs/runtime/RUNTIME_ABI.md)
+  O guia upstream ainda documenta Native como `FFI001`, enquanto a fonte
+  fixada expõe a implementação nativa limitada usada pelo KOOKIE. O suporte
+  cross é, portanto, uma afirmação da fonte upstream, não um resultado de
+  qualificação do KOOKIE.
+- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/docs/runtime/RUNTIME_ABI.md)
   é um contrato comportamental do runtime, não uma ABI C pública estável.
   O KOOKIE não deve copiar headers de objetos, layouts de arrays ou detalhes
   do alocador para uma biblioteca de engine.
@@ -95,9 +96,12 @@ target:
   externos e publicação WAV futura.
 
 `src/ui/kookie_ui.ks` expõe o mesmo sound node no descritor KofScript:
-`bindSound(..., defaultGain)`, `nodeClipId()` e `nodeGain()`, além das constantes
-de tipo OGG/WAV. O descritor só registra dados semânticos e participa das regras
-existentes de checksum/ciclo de vida.
+`bindSound(soundType, soundId, source, label, checksum, clipId, defaultGain)`,
+`nodeClipId()` e `nodeGain()`, além das constantes de tipo OGG/WAV. A
+publicação de assets usa `bindAsset(assetType, assetId, source, alt, checksum)`;
+os dois argumentos numéricos de tipo ficam em posições iniciais estáveis para
+o lowering nativo. O descritor só registra dados semânticos e participa das
+regras existentes de checksum/ciclo de vida.
 
 ## Migração para o Kof4j
 

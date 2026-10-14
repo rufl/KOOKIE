@@ -2,36 +2,20 @@
 
 Research date: 2026-09-22. This is a working reference, not a claim of complete language conformance.
 
-The active KOOKIE qualification baseline is the Kof `0.6.4` source
-commit listed below. The older `0.4.9-beta` measurements later in this page
-remain historical research and do not describe the current build input.
+The active KOOKIE qualification baseline is the Kof `0.6.5` source from the
+`lab` branch at commit
+[`940f3bd81c25e564afc60f9d32d49652e47edcbc`](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc).
+Kof `0.6.5` is built from source in CI; no public archive is used as the
+pin. `scripts/prepare_kof_source.sh` verifies the upstream native GC cycle
+guard and normalizes compiler metadata before packaging.
 
-## Evidence baseline
-
-### Current release toolchain
-
-- KOOKIE's release/CI gate is Kof `0.6.4` source commit
-  [`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`](https://github.com/KofLang/Kof4j/tree/aaab7523ea6fddc818beee27ab46ccbb9fd9734a).
-- The public Linux archive
-  [`kof-0.6.4-linux-x86_64.tar.gz`](https://github.com/KofLang/Kof4j/releases/download/kof-0.6.4-linux-x86_64/kof-0.6.4-linux-x86_64.tar.gz)
-  has SHA-256
-  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`
-  and reports `kof 0.6.4`. Its bundled `lib/kof.jar` observed during
-  qualification has SHA-256
-  `137a838d38757e317545474d55ad6a3ad291fb86d263ae77d9197cf705829c62`.
-- The pinned source contains the upstream iterative native-GC walk, but its
-  already-marked branches at this release pin returned the block to the
-  worklist. `scripts/prepare_kof_source.sh` applies and verifies the tracked
-  `scripts/kof-0.6.4-native-gc-cycle.patch`, which returns zero for those
-  branches and prevents cyclic graphs from requeueing forever.
 - Source gates must run `source scripts/kof_pin.sh`; it prepends the tracked
-  `scripts/kof-as/as` wrapper. The wrapper uses Clang's integrated assembler for
-  Kof's `as -o OBJECT FILE.s` calls and delegates other assembler command lines
-  to system `as`.
-- `scripts/verify_simd_dispatch.sh` is the current local ABI proof for the
-  synchronous `Buffer(U8, INOUT)` shape on JVM/native x86-64. Cross-target
-  support remains unqualified until the same probe is executed against this
-  `0.6.4` source build.
+  `scripts/kof-as/as` wrapper. The wrapper uses Clang's integrated assembler
+  for Kof's `as -o OBJECT FILE.s` calls and delegates other assembler command
+  lines to system `as`.
+- `scripts/verify_simd_dispatch.sh` is the active Buffer qualification gate; it
+  passes on JVM and native x86-64 with Kof `0.6.5`. The detailed ABI
+  measurements below retain their original toolchain labels where stated.
 - The 0.4.9 and 0.5.0 material below is retained as historical research.
 
 
@@ -170,20 +154,20 @@ Source-verified scalar set: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`,
 `String`; `void` additionally allowed as a return. Native requires a library
 string and links by use with a direct ABI call, not runtime `dlopen`.
 
-Current `0.6.4` also has a byte-only `Buffer(U8)` contract. The pinned
+Current `0.6.5` also has a byte-only `Buffer(U8)` contract. The pinned
 implementation maps it to the `B` FFI token and a synchronous payload pointer;
-the local `scripts/verify_simd_dispatch.sh` proves copy-in/copy-back and an
-INOUT reduction on JVM and native x86-64. The pinned source comments claim the
-same surface for native riscv64/aarch64, but KOOKIE has not rerun that matrix.
-Cross-target support remains an upstream source claim, not a KOOKIE result.
+the local gate proves copy-in/copy-back and an INOUT reduction on JVM and
+native x86-64. The pinned source comments claim the same surface for native
+riscv64/aarch64, but KOOKIE has not rerun that matrix. Cross-target support
+remains an upstream source claim, not a KOOKIE result.
 
 The older 0.4.9 probe rejected `extern ... upload(Float[] values): void` on JVM
-and native. That result remains historical; current 0.6.4 array/record binding
+and native. That result remains historical; current 0.6.5 array/record binding
 is target-specific and does not establish a portable engine upload ABI.
 
 Returning SDL pointers as `Long` is never a supported substitute.
 
-The pinned `0.6.4` source implements synchronous, non-escaping FFI callbacks
+The pinned `0.6.5` source implements synchronous, non-escaping FFI callbacks
 on JVM, the host JS runner and Native x86-64/riscv64/aarch64 for scalar and
 `String` arguments with primitive or `void` returns. KOOKIE has not yet run a
 local callback probe against this source build, so it is not promoted as an
@@ -209,13 +193,13 @@ Consequences:
    initialization proof. A version query does not prove allocator/TLS/thread-
    heavy library paths.
 
-Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/aaab7523ea6fddc818beee27ab46ccbb9fd9734a),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [local Buffer gate](../scripts/verify_simd_dispatch.sh),
-[runtime ABI](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/docs/runtime/RUNTIME_ABI.md).
+[runtime ABI](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/docs/runtime/RUNTIME_ABI.md).
 
-### Current 0.6.4 ABI refresh
+### Current 0.6.5 ABI boundary
 `bytes()` returns a managed copy; the native FFI payload is valid only for the
 downcall. KOOKIE therefore keeps `Int[]` byte wires, parallel `FrameStaging`
 arrays and the checked scalar C adapter for UI/graphics/audio.

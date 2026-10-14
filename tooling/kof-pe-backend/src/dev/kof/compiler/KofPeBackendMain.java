@@ -19,7 +19,7 @@ import java.util.TreeMap;
 /**
  * Strict Kof IR to C11 lowering for the bounded Windows PE/COFF target.
  *
- * <p>The class deliberately lives in the compiler package. Kof 0.6.4 does
+ * <p>The class deliberately lives in the compiler package. Kof 0.6.5 does
  * not expose a public optimized-IR frontend API, so this tool is pinned to the
  * exact Kof source revision enforced by the launcher. Unsupported IR is a
  * PE001 build error; it is never replaced with a stub.
