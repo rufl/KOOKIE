@@ -109,7 +109,7 @@ class GooseStatusOverlay {
             actorMaximumHeartCountAt(index), heart)
     }
 
-    Int heartSpriteResourceBase() { return uiFontHeartResourceBase() }
+    Int heartSpriteResourceBase() { return uiHeartResourceBase() }
 
     Int heartSpriteResource(Int state) {
         if (state < 0) { state = 0 }
@@ -128,14 +128,6 @@ class GooseStatusOverlay {
 
     Int renderVertexCapacity() { return actorIds.length * 240 }
 
-    Int glyph(Char value) {
-        return kookieUiNativeGlyph(value)
-    }
-
-    Int textResource(Int color, Int glyphValue) {
-        return kookieUiNativeTextResource(color, glyphValue)
-    }
-
     Bool pushQuad(
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
@@ -145,34 +137,15 @@ class GooseStatusOverlay {
     }
 
     Int textWidth(String text, Int scale) {
-        if (text.length() == 0) { return 0 }
-        return text.length() * uiFontGlyphAdvance() * scale - scale
+        return kookieUiNativeTextWidth(text, scale)
     }
 
     Bool pushText(
         FrameStaging target, String text,
         Int left, Int bottom, Int scale, Int color
     ) {
-        if (scale <= 0 || color < 0 || color > 4) { return false }
-        var safeLeft = left
-        var width = textWidth(text, scale)
-        if (safeLeft < -100) { safeLeft = -100 }
-        if (safeLeft + width > 100) {
-            safeLeft = 100 - width
-        }
-        var x = safeLeft
-        for (var index = 0; index < text.length(); index = index + 1) {
-            var glyphValue = glyph(text.charAt(index))
-            if (glyphValue > 0 &&
-                !pushQuad(target, textResource(color, glyphValue),
-                    x, bottom,
-                    x + uiFontGlyphWidth() * scale,
-                    bottom + uiFontGlyphHeight() * scale)) {
-                return false
-            }
-            x = x + uiFontGlyphAdvance() * scale
-        }
-        return true
+        return kookieUiNativePushText(
+            target, text, left, bottom, scale, color)
     }
 
     String playerName(Int nameId) {

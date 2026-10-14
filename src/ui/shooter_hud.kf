@@ -256,9 +256,6 @@ class ShooterHud {
             scaleCoordinate(bx), scaleCoordinate(by),
             scaleCoordinate(cx), scaleCoordinate(cy))
     }
-    Int textResource(Int color, Int glyphValue) {
-        return kookieUiNativeTextResource(color, glyphValue)
-    }
     Bool pushText(
         FrameStaging target, String text,
         Int left, Int bottom, Int scale, Int color

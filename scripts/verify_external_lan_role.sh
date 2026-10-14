@@ -5,6 +5,7 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
 source "$root_dir/scripts/kof_pin.sh"
 source "$root_dir/scripts/sdl3_dependencies.sh"
+source "$root_dir/scripts/native_text_dependencies.sh"
 role="${KOOKIE_EXTERNAL_LAN_ROLE:-}"
 case "$role" in
   host|client-a|client-b) ;;
@@ -35,6 +36,10 @@ if [[ "$target" == native ]]; then
   }
   kookie_require_sdl3_dependencies "$root_dir" || {
     echo "external LAN native role requires SDL3 and SDL_mixer" >&2
+    exit 75
+  }
+  kookie_require_native_text_dependencies "$root_dir" || {
+    echo "external LAN native role requires FreeType and HarfBuzz" >&2
     exit 75
   }
 else
@@ -115,9 +120,10 @@ if [[ "$target" == native ]]; then
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     -I"$runtime_dir/build" \
     native/kookie_sdl_adapter.c \
+    native/kookie_ui_renderer.c \
     native/kookie_transport.c \
     -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
   (
     cd "$runtime_dir"
     kof build "$source_dir/main.kf" \

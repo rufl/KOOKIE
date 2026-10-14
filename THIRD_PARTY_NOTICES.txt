@@ -1,9 +1,9 @@
 KOOKIE third-party notices
 
 KOOKIE application code is distributed under MIT. Native presentation packages
-also distribute the permissively licensed SDL dependencies below. The optional
-Windows JVM package has a separate bundled-runtime license boundary described
-after the SDL notices.
+also distribute the permissively licensed SDL and native text dependencies below.
+The optional Windows JVM package has a separate bundled-runtime license boundary
+described after the SDL notices.
 
 GatoGanso bundled fonts
 The GatoGanso UI bundles `Jared Lite` and `Pixand`, created by Jared
@@ -62,10 +62,21 @@ freely, subject to the following restrictions:
    misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
 
-The Windows native package links only SDL and SDL_mixer; its mixer DLL imports
-no optional codec library. Linux presentation packaging rejects unreviewed
-non-system runtime libraries and copies only SDL and SDL_mixer. Host
-operating-system libraries are not redistributed.
+The Windows native package links SDL, SDL_mixer, FreeType and HarfBuzz. Linux
+presentation packaging rejects unreviewed non-system runtime libraries and
+copies only the approved SDL, SDL_mixer and native text runtime dependencies.
+Host operating-system libraries are not redistributed.
+
+FreeType
+The native renderer uses FreeType for TrueType rasterization.
+Source: https://gitlab.freedesktop.org/freetype/freetype
+License: FreeType License (FTL), distributed with the upstream source as
+`docs/FTL.TXT`.
+
+HarfBuzz
+The native renderer uses HarfBuzz for glyph shaping.
+Source: https://github.com/harfbuzz/harfbuzz
+License: MIT, distributed with the upstream source as `COPYING`.
 
 Windows JVM runtime
 The Windows JVM profile bundles the exact SHA-256-pinned OpenJDK runtime named

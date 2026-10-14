@@ -10,23 +10,28 @@ permanente do proprietário.
 cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
 source scripts/kof_pin.sh
 
-export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.0-linux-x86_64
-export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.0-linux-x86_64.tar.gz
+export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.4-linux-x86_64
+export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.4-linux-x86_64.tar.gz
 export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
+export KOOKIE_WINDOWS_FREETYPE_PREFIX=/tmp/kookie-release-deps/freetype/x86_64-w64-mingw32
+export KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/tmp/kookie-release-deps/harfbuzz/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=bb90986d065118e4f63978e8e6985256ff714203
+export KOOKIE_KOF_SOURCE_COMMIT=aaab7523ea6fddc818beee27ab46ccbb9fd9734a
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
 
-`KOF_ARCHIVE` deve ser uma distribuição Kof `0.6.0` construída a partir da
-fonte, com metadados normalizados e o patch downstream de GC aplicado por
-`scripts/prepare_kof_source.sh`, no commit fixado. O JAR do compilador deve
-corresponder ao build corrigido; os gates nativos também exigem `clang`.
-O archive público Linux marcado não é aceitável: seu `VERSION` diz `0.6.0`,
-mas sua CLI reporta `kof 0.5.0-beta`. O workflow repete `kof version` antes do
-empacotamento.
+`KOF_ARCHIVE` deve ser uma distribuição Kof `0.6.4` construída a partir da
+fonte, com metadados normalizados, no commit fixado.
+`scripts/prepare_kof_source.sh` aplica e verifica
+`scripts/kof-0.6.4-native-gc-cycle.patch` antes do Maven; o patch faz a
+worklist de mark nativo descartar blocos já marcados em vez de recolocar
+grafos cíclicos. Seu SHA-256 é
+`073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`.
+O JAR do compilador deve corresponder ao build da fonte; o workflow repete
+`kof version` antes do empacotamento. Os gates nativos também exigem
+`pkg-config`, FreeType 2 e HarfBuzz para o renderer de texto.
 
 O arquivo `/tmp/kookie-release-qualification.pem` existente é efêmero e não
 deve ser enviado como identidade da release pública. Use uma chave Ed25519
@@ -135,8 +140,8 @@ self-hosted, windows, x64, kookie-demo-release
 
 Ambos precisam de suporte ao shell do Git conforme o sistema, Python 3,
 OpenSSL, `glslc`, `spirv-val` e o checkout do repositório. O job hospedado
-`toolchain` constrói o Kof `0.6.0` a partir de
-`bb90986d065118e4f63978e8e6985256ff714203`; cada job self-hosted baixa,
+`toolchain` constrói o Kof `0.6.4` a partir de
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; cada job self-hosted baixa,
 verifica esse archive exato e adiciona seu binário `kof` ao `PATH`. Archive Kof
 pré-instalado, secret de digest do compilador Kof e Zig pré-instalado não fazem
 parte do contrato dos runners de release.
@@ -155,15 +160,19 @@ o backend X11 do SDL através do servidor Xwayland do Gamescope dentro dele. O
 workflow prepara o prefixo fixado do SDL_mixer quando a entrada `pkg-config`
 está ausente.
 
-O runner Windows precisa de `KOOKIE_DXC`, Git Bash e Windows PowerShell 5; o
-workflow baixa e verifica, em cada release, os archives oficiais de
-desenvolvimento MinGW do SDL3 `3.4.18` (SHA-256
+O runner Windows precisa de `KOOKIE_DXC`, Git Bash, Windows PowerShell 5,
+`pkg-config` e prefixos MinGW de FreeType e HarfBuzz; o workflow baixa e
+verifica, em cada release, os archives oficiais de desenvolvimento MinGW do
+SDL3 `3.4.18` (SHA-256
 `049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf`) e do
 SDL_mixer `3.2.4` (SHA-256
-`2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6`). Ele
-também baixa e verifica o archive oficial Zig `0.17.0` para Windows com
-SHA-256 `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428` e
-usa o wrapper versionado `scripts/windows_isolated_display`. O smoke nativo
+`2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6`). Os
+prefixos de texto configurados devem fornecer headers, import libraries MinGW,
+`freetype2.pc`/`harfbuzz.pc` e todas as DLLs de runtime de FreeType e HarfBuzz
+exigidas por `package_kookie.sh`. Ele também baixa e verifica o archive oficial
+Zig `0.17.0` para Windows com SHA-256
+`b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428` e usa o
+wrapper versionado `scripts/windows_isolated_display`. O smoke nativo
 Windows também registra a identidade PNP, o nome e a versão do driver do
 primeiro adaptador PCI de vídeo como evidência do hardware alvo.
 

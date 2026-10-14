@@ -3,16 +3,14 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Restored native UI atlas generation before the SDL_GPU texture upload. Windows
-  presentation now renders the menu/HUD instead of a clear-only frame, and
-  screenshot smoke rejects a uniform captured frame.
-- Corrected native text layout for the 16:9 SDL presentation clip: the
-  seven-column TTF-derived atlas now uses four logical horizontal units and a
-  five-unit advance, keeping glyph pixels square instead of stretching every
-  label horizontally. The KofJS CSS/SVG path is unchanged.
-- Documented the target boundary: KofJS loads SVG/TTF assets in the host,
-  while native SDL consumes the build-time atlas generated from those TTFs and
-  does not decode SVG/TTF bytes at runtime.
+- Replaced the native build-time UI atlas with semantic UTF-16 text runs.
+  SDL presentation now shapes text with HarfBuzz and rasterizes packaged TTF
+  fonts with FreeType at runtime; the existing four-unit logical width and
+  five-unit advance preserve the 16:9 layout contract.
+- Native UI now renders the packaged Gatoganso SVG mark through the SDL
+  adapter; the KofJS CSS/SVG path remains unchanged.
+- Upgraded the native text dependency gate and release provenance to record
+  FreeType and HarfBuzz versions plus bundled native presentation runtime hashes.
 - The G5 reference probe now reserves native GPU scene capacity before checking
   it. Linux presentation scripts default to the tracked Gamescope/isolation
   wrapper while retaining explicit wrapper overrides and fail-closed checks.
@@ -37,15 +35,15 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   qualification and publish runs cannot silently drift to a newer `main`.
 - Stripped Linux native debug sections during release packaging so temporary
   compiler build paths cannot make the two deterministic package builds differ.
-- Upgraded the release and CI Kof gate to `0.6.0` source commit
-  `bb90986d065118e4f63978e8e6985256ff714203`; the first corrected
-  source-built Linux distribution in this qualification had SHA-256
-  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`.
-  Its compiler JAR SHA-256 is
-  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`;
-  CI computes the archive digest per build because tar metadata is not stable.
-  The tagged public archive was rejected because its embedded CLI reports
-  `kof 0.5.0-beta` despite the `0.6.0` source version.
+- Upgraded the release and CI Kof gate to `0.6.4` source commit
+  `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. The upstream public Linux
+  archive is `kof-0.6.4-linux-x86_64.tar.gz` with SHA-256
+  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`;
+  release CI builds its own source archive. The preparation gate applies and
+  verifies `scripts/kof-0.6.4-native-gc-cycle.patch` (SHA-256
+  `073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`) so
+  already-marked blocks leave the native GC worklist instead of requeueing
+  cyclic object graphs.
 - Revalidated the official Zig `0.17.0` archive pin at SHA-256
   `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`.
 - The release workflow now builds the pinned Kof distribution once in a
@@ -81,11 +79,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Fixed content-free native presentation startup: optional GLB discovery now
   checks file existence before reading, so missing prototype assets select the
   bounded fallback instead of dereferencing an invalid file result.
-- Fixed native presentation staging and smoke coverage: the UI font atlas now
-  uses the default font stride correctly, SDL window events are drained before
-  synthetic key assertions, menu geometry reserves GPU capacity explicitly,
-  and the release smoke reaches the Kutter path through the actual main-menu
-  selection.
+- Fixed native presentation staging and smoke coverage: semantic UTF-16 text
+  runs now cross the adapter boundary, the SVG mark is rendered by the native
+  UI renderer, SDL window events are drained before synthetic key assertions,
+  menu geometry reserves GPU capacity explicitly, and the release smoke reaches
+  the Kutter path through the actual main-menu selection.
 - Restored deterministic PE object staging with LLVM COFF stripping, a GNU
   `objcopy` fallback, and a portable Python COFF stripper when standalone tools
   are unavailable. Zig 0.17.0 emits a cache-path-bearing CodeView section even

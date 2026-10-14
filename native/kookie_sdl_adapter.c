@@ -9,9 +9,7 @@
 #error "KOOKIE requires SDL_mixer 3.2.4 headers"
 #endif
 
-
-#include "kookie_pixel_font.h"
-#include "kookie_heart_atlas.h"
+#include "kookie_ui_renderer.h"
 #include "kookie_transport.h"
 #include "kookie_audio_assets.h"
 #include <stdio.h>
@@ -26,19 +24,8 @@
 #define KOOKIE_MAX_WINDOWS 8
 #define KOOKIE_TRANSPORT_MAX_SLOTS 4
 #define KOOKIE_TRANSPORT_MAX_WORDS 1740
-#define KOOKIE_GPU_ATLAS_WIDTH 256
-#define KOOKIE_GPU_ATLAS_HEIGHT 128
-#define KOOKIE_GPU_ATLAS_TILE_SIZE 8
-#define KOOKIE_GPU_ATLAS_TILES_PER_ROW 32
-#define KOOKIE_GPU_HEART_TILE_SIZE 8
-#define KOOKIE_GPU_SOLID_COLORS 16
-#define KOOKIE_GPU_FONT_COLORS 5
-#define KOOKIE_GPU_FONT_GLYPHS_PER_COLOR 48
-#define KOOKIE_GPU_HEART_STATE_COUNT 5
-#define KOOKIE_GPU_HEART_FIRST_TILE \
-    (KOOKIE_GPU_SOLID_COLORS + \
-        KOOKIE_PIXEL_FONT_COUNT * \
-            (KOOKIE_GPU_FONT_COLORS * KOOKIE_GPU_FONT_GLYPHS_PER_COLOR))
+#define KOOKIE_GPU_UI_TEXTURE_WIDTH 2048
+#define KOOKIE_GPU_UI_TEXTURE_HEIGHT 2048
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -89,19 +76,17 @@ typedef struct {
     SDL_GPUShader *vertex_shader;
     SDL_GPUShader *fragment_shader;
     SDL_GPUGraphicsPipeline *pipeline;
-    SDL_GPUShader *scene_vertex_shader;
-    SDL_GPUGraphicsPipeline *scene_pipeline;
     SDL_GPUShader *world_vertex_shader;
     SDL_GPUGraphicsPipeline *world_pipeline;
     SDL_GPUTexture *texture;
+    SDL_GPUTransferBuffer *ui_transfer;
+    SDL_GPUTransferBuffer *ui_quad_transfer;
     SDL_GPUTexture *world_texture;
     SDL_GPUTexture *depth_texture;
     Uint32 depth_width;
     Uint32 depth_height;
     SDL_GPUBuffer *vertex_buffer;
     SDL_GPUBuffer *index_buffer;
-    SDL_GPUBuffer *scene_vertex_buffer;
-    SDL_GPUTransferBuffer *scene_transfer;
     SDL_GPUBuffer *world_vertex_buffer;
     SDL_GPUTransferBuffer *world_transfer;
     Uint32 world_texture_width;
@@ -110,14 +95,22 @@ typedef struct {
     Uint32 cat_texture_y;
     Uint32 cat_texture_width;
     Uint32 cat_texture_height;
-    int scene_vertex_capacity;
     int world_vertex_capacity;
     SDL_GPUSampler *sampler;
     bool ready;
 } KookieGpuResources;
 
 typedef struct {
-    float *vertices;
+    KookieUiVertex *ui_vertices;
+    KookieUiTextRun *text_runs;
+    size_t *text_run_starts;
+    uint32_t *text_codepoints;
+    size_t text_capacity;
+    size_t text_codepoint_capacity;
+    int text_count;
+    int text_codepoint_count;
+    size_t text_open_start;
+    bool text_open;
     size_t capacity;
     int expected;
     int count;
@@ -194,7 +187,10 @@ static void kookie_gpu_scene_release(KookieGpuScene *scene) {
     if (scene == NULL) {
         return;
     }
-    free(scene->vertices);
+    free(scene->ui_vertices);
+    free(scene->text_runs);
+    free(scene->text_run_starts);
+    free(scene->text_codepoints);
     memset(scene, 0, sizeof(*scene));
 }
 
@@ -216,7 +212,7 @@ static bool kookie_gpu_growth_target(
     return true;
 }
 
-static bool kookie_gpu_scene_reserve(
+static bool kookie_gpu_world_scene_reserve(
     float **vertices, size_t *capacity, int vertex_count, size_t components
 ) {
     if (vertices == NULL || capacity == NULL || vertex_count <= 0 ||
@@ -241,6 +237,98 @@ static bool kookie_gpu_scene_reserve(
     }
     *vertices = resized;
     *capacity = target_count;
+    return true;
+}
+static bool kookie_gpu_scene_reserve_data(
+    KookieGpuScene *scene, int vertex_count
+) {
+    if (scene == NULL || vertex_count <= 0 ||
+        (size_t)vertex_count > SIZE_MAX / sizeof(KookieUiVertex)) {
+        return false;
+    }
+    if (scene->capacity >= (size_t)vertex_count) {
+        return true;
+    }
+    size_t target_count = 0;
+    if (!kookie_gpu_growth_target(
+            (size_t)vertex_count, &target_count) ||
+        target_count > SIZE_MAX / sizeof(KookieUiVertex)) {
+        return false;
+    }
+    KookieUiVertex *ui_vertices = (KookieUiVertex *)malloc(
+        target_count * sizeof(KookieUiVertex));
+    if (ui_vertices == NULL) {
+        return false;
+    }
+    if (scene->count > 0) {
+        memcpy(ui_vertices, scene->ui_vertices,
+            (size_t)scene->count * sizeof(KookieUiVertex));
+    }
+    free(scene->ui_vertices);
+    scene->ui_vertices = ui_vertices;
+    scene->capacity = target_count;
+    return true;
+}
+static bool kookie_gpu_scene_reserve_text_runs(
+    KookieGpuScene *scene, size_t required
+) {
+    if (scene == NULL || required == 0 || scene->text_capacity >= required) {
+        return scene != NULL && required > 0;
+    }
+    size_t target = 0;
+    if (!kookie_gpu_growth_target(required, &target) ||
+        target > SIZE_MAX / sizeof(KookieUiTextRun) ||
+        target > SIZE_MAX / sizeof(size_t)) {
+        return false;
+    }
+    KookieUiTextRun *runs = (KookieUiTextRun *)malloc(
+        target * sizeof(KookieUiTextRun));
+    size_t *starts = (size_t *)malloc(target * sizeof(size_t));
+    if (runs == NULL || starts == NULL) {
+        free(runs);
+        free(starts);
+        return false;
+    }
+    if (scene->text_count > 0) {
+        memcpy(runs, scene->text_runs,
+            (size_t)scene->text_count * sizeof(KookieUiTextRun));
+        memcpy(starts, scene->text_run_starts,
+            (size_t)scene->text_count * sizeof(size_t));
+    }
+    free(scene->text_runs);
+    free(scene->text_run_starts);
+    scene->text_runs = runs;
+    scene->text_run_starts = starts;
+    scene->text_capacity = target;
+    return true;
+}
+
+static bool kookie_gpu_scene_reserve_codepoints(
+    KookieGpuScene *scene, size_t required
+) {
+    if (scene == NULL || required == 0 || required <= scene->text_codepoint_capacity) {
+        return scene != NULL && required > 0;
+    }
+    size_t target = 0;
+    if (!kookie_gpu_growth_target(required, &target) ||
+        target > SIZE_MAX / sizeof(uint32_t)) {
+        return false;
+    }
+    uint32_t *codepoints = (uint32_t *)malloc(target * sizeof(uint32_t));
+    if (codepoints == NULL) {
+        return false;
+    }
+    if (scene->text_codepoint_count > 0) {
+        memcpy(codepoints, scene->text_codepoints,
+            (size_t)scene->text_codepoint_count * sizeof(uint32_t));
+    }
+    free(scene->text_codepoints);
+    scene->text_codepoints = codepoints;
+    scene->text_codepoint_capacity = target;
+    for (int index = 0; index < scene->text_count; index += 1) {
+        scene->text_runs[index].codepoints =
+            scene->text_codepoints + scene->text_run_starts[index];
+    }
     return true;
 }
 
@@ -332,6 +420,7 @@ static int kookie_elapsed_microseconds(Uint64 elapsed, Uint64 frequency) {
 static KookieGpuResources gpu_resources;
 static KookieGpuScene gpu_scene;
 static KookieGpuScene gpu_pending_scene;
+static KookieUiRenderer *gpu_ui_renderer;
 static int last_gpu_fence_wait_microseconds;
 static KookieGpuReload gpu_reload;
 static SDL_GPUFence *gpu_scene_frame_fences[3];
@@ -415,14 +504,14 @@ static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
         memset(&gpu_resources, 0, sizeof(gpu_resources));
         return;
     }
-    if (gpu_resources.scene_transfer != NULL) {
-        SDL_ReleaseGPUTransferBuffer(device, gpu_resources.scene_transfer);
+    if (gpu_resources.ui_transfer != NULL) {
+        SDL_ReleaseGPUTransferBuffer(device, gpu_resources.ui_transfer);
+    }
+    if (gpu_resources.ui_quad_transfer != NULL) {
+        SDL_ReleaseGPUTransferBuffer(device, gpu_resources.ui_quad_transfer);
     }
     if (gpu_resources.world_transfer != NULL) {
         SDL_ReleaseGPUTransferBuffer(device, gpu_resources.world_transfer);
-    }
-    if (gpu_resources.scene_vertex_buffer != NULL) {
-        SDL_ReleaseGPUBuffer(device, gpu_resources.scene_vertex_buffer);
     }
     if (gpu_resources.world_vertex_buffer != NULL) {
         SDL_ReleaseGPUBuffer(device, gpu_resources.world_vertex_buffer);
@@ -445,9 +534,6 @@ static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
     if (gpu_resources.sampler != NULL) {
         SDL_ReleaseGPUSampler(device, gpu_resources.sampler);
     }
-    if (gpu_resources.scene_pipeline != NULL) {
-        SDL_ReleaseGPUGraphicsPipeline(device, gpu_resources.scene_pipeline);
-    }
     if (gpu_resources.pipeline != NULL) {
         SDL_ReleaseGPUGraphicsPipeline(device, gpu_resources.pipeline);
     }
@@ -456,9 +542,6 @@ static void kookie_gpu_release_resources(SDL_GPUDevice *device) {
     }
     if (gpu_resources.fragment_shader != NULL) {
         SDL_ReleaseGPUShader(device, gpu_resources.fragment_shader);
-    }
-    if (gpu_resources.scene_vertex_shader != NULL) {
-        SDL_ReleaseGPUShader(device, gpu_resources.scene_vertex_shader);
     }
     if (gpu_resources.world_vertex_shader != NULL) {
         SDL_ReleaseGPUShader(device, gpu_resources.world_vertex_shader);
@@ -647,6 +730,10 @@ void kookie_sdl_shutdown(void) {
     gpu_render_world = false;
     gpu_render_scene = false;
     gpu_render_policy_active = false;
+    if (gpu_ui_renderer != NULL) {
+        kookie_ui_renderer_destroy(gpu_ui_renderer);
+        gpu_ui_renderer = NULL;
+    }
     SDL_Quit();
     kookie_reset_event_state();
 }
@@ -1035,83 +1122,6 @@ static bool read_shader_binary(
     *size = (size_t)length;
     return true;
 }
-static void kookie_gpu_build_atlas(Uint8 *pixels) {
-    static const Uint8 palette[KOOKIE_GPU_SOLID_COLORS][4] = {
-        { 71,  85, 105, 255}, { 37, 99, 235, 255},
-        { 15, 118, 110, 255}, {124, 58, 237, 255},
-        {180,  83,   9, 255}, {220, 38, 38, 255},
-        {  8, 145, 178, 255}, {101, 163,  13, 255},
-        {100, 116, 139, 255}, { 15, 23, 42, 255},
-        { 15,  31,  43, 255}, {220, 38, 38, 255},
-        {217, 119,   6, 255}, { 21, 128,  61, 255},
-        { 34, 197,  94, 255}, {248, 250, 252, 255}
-    };
-    static const int font_palette[KOOKIE_GPU_FONT_COLORS] = {
-        15, 12, 8, 11, 14
-    };
-    memset(
-        pixels, 0,
-        KOOKIE_GPU_ATLAS_WIDTH * KOOKIE_GPU_ATLAS_HEIGHT * 4u);
-    for (int color = 0; color < KOOKIE_GPU_SOLID_COLORS; color += 1) {
-        int tile_x = (color % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        int tile_y = (color / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        for (int y = 0; y < KOOKIE_GPU_ATLAS_TILE_SIZE; y += 1) {
-            for (int x = 0; x < KOOKIE_GPU_ATLAS_TILE_SIZE; x += 1) {
-                size_t offset = (size_t)(
-                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) * 4u;
-                memcpy(pixels + offset, palette[color], 4u);
-            }
-        }
-    }
-    for (int font = 0; font < KOOKIE_PIXEL_FONT_COUNT; font += 1) {
-        for (int color = 0; color < KOOKIE_GPU_FONT_COLORS; color += 1) {
-            for (int glyph = 1;
-                 glyph <= KOOKIE_PIXEL_GLYPH_COUNT; glyph += 1) {
-                int tile = KOOKIE_GPU_SOLID_COLORS +
-                    (font * KOOKIE_GPU_FONT_COLORS + color) *
-                        KOOKIE_GPU_FONT_GLYPHS_PER_COLOR + glyph - 1;
-                int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-                    KOOKIE_GPU_ATLAS_TILE_SIZE;
-                int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-                    KOOKIE_GPU_ATLAS_TILE_SIZE;
-                for (int y = 0; y < KOOKIE_PIXEL_GLYPH_HEIGHT; y += 1) {
-                    for (int x = 0; x < KOOKIE_PIXEL_GLYPH_WIDTH; x += 1) {
-                        uint8_t alpha =
-                            kookie_pixel_glyph_alpha(font, glyph, y, x);
-                        if (alpha == 0) {
-                            continue;
-                        }
-                        size_t offset = (size_t)(
-                            (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
-                            4u;
-                        memcpy(
-                            pixels + offset,
-                            palette[font_palette[color]],
-                            3u);
-                        pixels[offset + 3u] = alpha;
-                    }
-                }
-            }
-        }
-    }
-    for (int state = 0; state < KOOKIE_GPU_HEART_STATE_COUNT; state += 1) {
-        int tile = KOOKIE_GPU_HEART_FIRST_TILE + state;
-        int tile_x = (tile % KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        int tile_y = (tile / KOOKIE_GPU_ATLAS_TILES_PER_ROW) *
-            KOOKIE_GPU_ATLAS_TILE_SIZE;
-        for (int y = 0; y < KOOKIE_GPU_HEART_TILE_SIZE; y += 1) {
-            for (int x = 0; x < KOOKIE_GPU_HEART_TILE_SIZE; x += 1) {
-                size_t offset = (size_t)(
-                    (tile_y + y) * KOOKIE_GPU_ATLAS_WIDTH + tile_x + x) *
-                    4u;
-                memcpy(pixels + offset, kookie_heart_tiles[state][y][x], 4u);
-            }
-        }
-    }
-}
 static SDL_Surface *kookie_gpu_load_cat_texture(void) {
     if (!gpu_world_texture_layout.cat_embedded) {
         return NULL;
@@ -1241,43 +1251,29 @@ static bool kookie_gpu_prepare_resources(
     if (!kookie_gpu_prepare_world_texture_layout()) {
         return false;
     }
-    int required_scene_vertices =
-        gpu_scene.committed ? gpu_scene.count : 0;
-    if (gpu_pending_scene.committed &&
-        gpu_pending_scene.count > required_scene_vertices) {
-        required_scene_vertices = gpu_pending_scene.count;
-    }
     int required_world_vertices =
         gpu_world_scene.committed ? gpu_world_scene.count : 0;
     if (gpu_resources.ready && gpu_resources.device == device &&
         gpu_resources.target_format == target_format &&
-        gpu_resources.scene_vertex_capacity >= required_scene_vertices &&
         gpu_resources.world_vertex_capacity >= required_world_vertices) {
         return true;
     }
     if (gpu_resources.ready) {
         kookie_gpu_release_resources(gpu_resources.device);
     }
-    int scene_vertex_capacity = 0;
     int world_vertex_capacity = 0;
     if (!kookie_gpu_resource_capacity(
-            required_scene_vertices, &scene_vertex_capacity) ||
-        !kookie_gpu_resource_capacity(
             required_world_vertices, &world_vertex_capacity)) {
         return false;
     }
-    Uint32 scene_vertex_buffer_size = 0;
     Uint32 world_vertex_buffer_size = 0;
     if (!kookie_gpu_vertex_buffer_size(
-            scene_vertex_capacity, 4, &scene_vertex_buffer_size) ||
-        !kookie_gpu_vertex_buffer_size(
             world_vertex_capacity, 5, &world_vertex_buffer_size)) {
         return false;
     }
 
     gpu_resources.device = device;
     gpu_resources.target_format = target_format;
-    gpu_resources.scene_vertex_capacity = scene_vertex_capacity;
     gpu_resources.world_vertex_capacity = world_vertex_capacity;
     gpu_resources.world_texture_width = gpu_world_texture_layout.width;
     gpu_resources.world_texture_height = gpu_world_texture_layout.height;
@@ -1288,24 +1284,19 @@ static bool kookie_gpu_prepare_resources(
     gpu_resources.ready = true;
     Uint8 *vertex_code = NULL;
     Uint8 *fragment_code = NULL;
-    Uint8 *scene_vertex_code = NULL;
     Uint8 *world_vertex_code = NULL;
     size_t vertex_size = 0;
     size_t fragment_size = 0;
-    size_t scene_vertex_size = 0;
     size_t world_vertex_size = 0;
     const KookieShaderMetadata *vertex_metadata =
         kookie_shader_metadata_find("g0_triangle.vert");
-    const KookieShaderMetadata *scene_metadata =
-        kookie_shader_metadata_find("g5_triangle_instance.vert");
     const KookieShaderMetadata *world_metadata =
         kookie_shader_metadata_find("g6_world.vert");
     const KookieShaderMetadata *fragment_metadata =
         kookie_shader_metadata_find("g0_triangle.frag");
-    if (vertex_metadata == NULL || scene_metadata == NULL ||
+    if (vertex_metadata == NULL ||
         world_metadata == NULL || fragment_metadata == NULL ||
         strcmp(vertex_metadata->stage, "vertex") != 0 ||
-        strcmp(scene_metadata->stage, "vertex") != 0 ||
         strcmp(world_metadata->stage, "vertex") != 0 ||
         strcmp(fragment_metadata->stage, "fragment") != 0) {
         fprintf(stderr,
@@ -1328,11 +1319,6 @@ static bool kookie_gpu_prepare_resources(
             shader_format,
             &vertex_code,
             &vertex_size) ||
-        !read_shader_binary(
-            "g5_triangle_instance.vert",
-            shader_format,
-            &scene_vertex_code,
-            &scene_vertex_size) ||
         !read_shader_binary(
             "g6_world.vert",
             shader_format,
@@ -1361,24 +1347,6 @@ static bool kookie_gpu_prepare_resources(
     gpu_resources.vertex_shader = SDL_CreateGPUShader(device, &vertex_info);
     if (gpu_resources.vertex_shader == NULL) {
         fprintf(stderr, "KOOKIE gpu_prepare menu vertex shader failed: %s\n",
-            SDL_GetError());
-        goto cleanup;
-    }
-    SDL_GPUShaderCreateInfo scene_shader_info = vertex_info;
-    scene_shader_info.code_size = scene_vertex_size;
-    scene_shader_info.code = scene_vertex_code;
-    scene_shader_info.entrypoint = scene_metadata->entrypoint;
-    scene_shader_info.num_samplers = scene_metadata->num_samplers;
-    scene_shader_info.num_storage_textures =
-        scene_metadata->num_storage_textures;
-    scene_shader_info.num_storage_buffers =
-        scene_metadata->num_storage_buffers;
-    scene_shader_info.num_uniform_buffers =
-        scene_metadata->num_uniform_buffers;
-    gpu_resources.scene_vertex_shader =
-        SDL_CreateGPUShader(device, &scene_shader_info);
-    if (gpu_resources.scene_vertex_shader == NULL) {
-        fprintf(stderr, "KOOKIE gpu_prepare scene vertex shader failed: %s\n",
             SDL_GetError());
         goto cleanup;
     }
@@ -1426,8 +1394,8 @@ static bool kookie_gpu_prepare_resources(
     texture_info.type = SDL_GPU_TEXTURETYPE_2D;
     texture_info.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     texture_info.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
-    texture_info.width = KOOKIE_GPU_ATLAS_WIDTH;
-    texture_info.height = KOOKIE_GPU_ATLAS_HEIGHT;
+    texture_info.width = KOOKIE_GPU_UI_TEXTURE_WIDTH;
+    texture_info.height = KOOKIE_GPU_UI_TEXTURE_HEIGHT;
     texture_info.layer_count_or_depth = 1;
     texture_info.num_levels = 1;
     texture_info.sample_count = SDL_GPU_SAMPLECOUNT_1;
@@ -1452,14 +1420,6 @@ static bool kookie_gpu_prepare_resources(
         goto cleanup;
     }
 
-    SDL_GPUBufferCreateInfo scene_vertex_info = {0};
-    scene_vertex_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
-    scene_vertex_info.size = scene_vertex_buffer_size;
-    gpu_resources.scene_vertex_buffer =
-        SDL_CreateGPUBuffer(device, &scene_vertex_info);
-    if (gpu_resources.scene_vertex_buffer == NULL) {
-        goto cleanup;
-    }
     SDL_GPUBufferCreateInfo world_vertex_info = {0};
     world_vertex_info.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
     world_vertex_info.size = world_vertex_buffer_size;
@@ -1477,12 +1437,21 @@ static bool kookie_gpu_prepare_resources(
         goto cleanup;
     }
 
-    SDL_GPUTransferBufferCreateInfo scene_transfer_info = {0};
-    scene_transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
-    scene_transfer_info.size = scene_vertex_buffer_size;
-    gpu_resources.scene_transfer =
-        SDL_CreateGPUTransferBuffer(device, &scene_transfer_info);
-    if (gpu_resources.scene_transfer == NULL) {
+    SDL_GPUTransferBufferCreateInfo ui_transfer_info = {0};
+    ui_transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    ui_transfer_info.size = KOOKIE_GPU_UI_TEXTURE_WIDTH *
+        KOOKIE_GPU_UI_TEXTURE_HEIGHT * 4u;
+    gpu_resources.ui_transfer =
+        SDL_CreateGPUTransferBuffer(device, &ui_transfer_info);
+    if (gpu_resources.ui_transfer == NULL) {
+        goto cleanup;
+    }
+    SDL_GPUTransferBufferCreateInfo ui_quad_transfer_info = {0};
+    ui_quad_transfer_info.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    ui_quad_transfer_info.size = 96u;
+    gpu_resources.ui_quad_transfer =
+        SDL_CreateGPUTransferBuffer(device, &ui_quad_transfer_info);
+    if (gpu_resources.ui_quad_transfer == NULL) {
         goto cleanup;
     }
     SDL_GPUTransferBufferCreateInfo world_transfer_info = {0};
@@ -1554,39 +1523,6 @@ static bool kookie_gpu_prepare_resources(
             SDL_GetError());
         goto cleanup;
     }
-    SDL_GPUVertexBufferDescription scene_vertex_description = {0};
-    scene_vertex_description.slot = 0;
-    scene_vertex_description.pitch = 12u * (Uint32)sizeof(float);
-    scene_vertex_description.input_rate = SDL_GPU_VERTEXINPUTRATE_INSTANCE;
-    SDL_GPUVertexAttribute scene_vertex_attributes[3] = {0};
-    for (Uint32 index = 0; index < 3; index += 1) {
-        scene_vertex_attributes[index].location = index;
-        scene_vertex_attributes[index].buffer_slot = 0;
-        scene_vertex_attributes[index].format =
-            SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4;
-        scene_vertex_attributes[index].offset =
-            index * 4u * (Uint32)sizeof(float);
-    }
-    pipeline_info.vertex_shader = gpu_resources.scene_vertex_shader;
-    pipeline_info.depth_stencil_state.compare_op =
-        SDL_GPU_COMPAREOP_LESS_OR_EQUAL;
-    pipeline_info.depth_stencil_state.enable_depth_test = true;
-    pipeline_info.depth_stencil_state.enable_depth_write = true;
-    pipeline_info.target_info.depth_stencil_format =
-        SDL_GPU_TEXTUREFORMAT_D16_UNORM;
-    pipeline_info.target_info.has_depth_stencil_target = true;
-    pipeline_info.vertex_input_state.vertex_buffer_descriptions =
-        &scene_vertex_description;
-    pipeline_info.vertex_input_state.vertex_attributes =
-        scene_vertex_attributes;
-    pipeline_info.vertex_input_state.num_vertex_attributes = 3;
-    gpu_resources.scene_pipeline =
-        SDL_CreateGPUGraphicsPipeline(device, &pipeline_info);
-    if (gpu_resources.scene_pipeline == NULL) {
-        fprintf(stderr, "KOOKIE gpu_prepare scene pipeline failed: %s\n",
-            SDL_GetError());
-        goto cleanup;
-    }
     SDL_GPUVertexBufferDescription world_vertex_description = {0};
     world_vertex_description.slot = 0;
     world_vertex_description.pitch = 5u * (Uint32)sizeof(float);
@@ -1614,8 +1550,8 @@ static bool kookie_gpu_prepare_resources(
         goto cleanup;
     }
 
-    const Uint32 atlas_bytes =
-        KOOKIE_GPU_ATLAS_WIDTH * KOOKIE_GPU_ATLAS_HEIGHT * 4u;
+    const Uint32 ui_texture_bytes =
+        KOOKIE_GPU_UI_TEXTURE_WIDTH * KOOKIE_GPU_UI_TEXTURE_HEIGHT * 4u;
     if ((size_t)gpu_resources.world_texture_width >
             SIZE_MAX / (size_t)gpu_resources.world_texture_height) {
         goto cleanup;
@@ -1627,7 +1563,7 @@ static bool kookie_gpu_prepare_resources(
         goto cleanup;
     }
     const Uint32 world_texture_bytes = (Uint32)(world_texture_pixels * 4u);
-    const Uint32 world_texture_offset = atlas_bytes;
+    const Uint32 world_texture_offset = ui_texture_bytes;
     if (world_texture_bytes > UINT32_MAX - world_texture_offset) {
         goto cleanup;
     }
@@ -1651,15 +1587,15 @@ static bool kookie_gpu_prepare_resources(
         goto cleanup;
     }
     const float vertices[24] = {
-        -0.8f, -0.8f, 0.0f, 1.0f,
-         0.8f, -0.8f, 1.0f, 1.0f,
-         0.8f,  0.8f, 1.0f, 0.0f,
-        -0.8f, -0.8f, 0.0f, 1.0f,
-         0.8f,  0.8f, 1.0f, 0.0f,
-        -0.8f,  0.8f, 0.0f, 1.0f
+        -1.0f, -1.0f, 0.0f, 1.0f,
+         1.0f, -1.0f, 1.0f, 1.0f,
+         1.0f,  1.0f, 1.0f, 0.0f,
+        -1.0f, -1.0f, 0.0f, 1.0f,
+         1.0f,  1.0f, 1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 0.0f
     };
     const Uint16 indices[6] = {0, 1, 2, 3, 4, 5};
-    kookie_gpu_build_atlas(pixels);
+    memset(pixels, 0, ui_texture_bytes);
     if (!kookie_gpu_copy_world_texture(
             pixels + world_texture_offset,
             world_texture_bytes,
@@ -1683,8 +1619,8 @@ static bool kookie_gpu_prepare_resources(
     source.transfer_buffer = transfer;
     SDL_GPUTextureRegion destination = {0};
     destination.texture = gpu_resources.texture;
-    destination.w = KOOKIE_GPU_ATLAS_WIDTH;
-    destination.h = KOOKIE_GPU_ATLAS_HEIGHT;
+    destination.w = KOOKIE_GPU_UI_TEXTURE_WIDTH;
+    destination.h = KOOKIE_GPU_UI_TEXTURE_HEIGHT;
     destination.d = 1;
     SDL_UploadToGPUTexture(copy_pass, &source, &destination, false);
     SDL_GPUTextureTransferInfo world_source = source;
@@ -1730,7 +1666,6 @@ cleanup:
         SDL_ReleaseGPUTransferBuffer(device, transfer);
     }
     free(fragment_code);
-    free(scene_vertex_code);
     free(world_vertex_code);
     free(vertex_code);
     if (!success) {
@@ -1884,7 +1819,7 @@ bool kookie_gpu_world_begin(int vertex_count) {
     }
     if (vertex_count <= 0 || vertex_count % 3 != 0 ||
         gpu_world_scene.open ||
-        !kookie_gpu_scene_reserve(
+        !kookie_gpu_world_scene_reserve(
             &gpu_world_scene.vertices, &gpu_world_scene.capacity,
             vertex_count, 5)) {
         return false;
@@ -2121,7 +2056,7 @@ static bool kookie_gpu_world_upload(
 }
 
 bool kookie_gpu_scene_begin(int vertex_count) {
-    if (vertex_count <= 0 || vertex_count % 3 != 0) {
+    if (vertex_count < 0 || vertex_count % 3 != 0) {
         return false;
     }
     KookieGpuScene *scene = &gpu_scene;
@@ -2133,12 +2068,16 @@ bool kookie_gpu_scene_begin(int vertex_count) {
     } else if (gpu_scene.open) {
         return false;
     }
-    if (!kookie_gpu_scene_reserve(
-            &scene->vertices, &scene->capacity, vertex_count, 4)) {
+    if (vertex_count > 0 &&
+        !kookie_gpu_scene_reserve_data(scene, vertex_count)) {
         return false;
     }
     scene->expected = vertex_count;
     scene->count = 0;
+    scene->text_count = 0;
+    scene->text_codepoint_count = 0;
+    scene->text_open_start = 0;
+    scene->text_open = false;
     scene->open = true;
     scene->committed = false;
     scene->active = false;
@@ -2151,12 +2090,11 @@ bool kookie_gpu_scene_reserve_capacity(int vertex_capacity) {
     if (vertex_capacity <= 0 || gpu_reload.pending_generation != 0) {
         return false;
     }
-    return kookie_gpu_scene_reserve(
-        &gpu_scene.vertices, &gpu_scene.capacity, vertex_capacity, 4);
+    return kookie_gpu_scene_reserve_data(&gpu_scene, vertex_capacity);
 }
 
 static bool kookie_gpu_scene_push_vertex_internal(
-    int x, int y, int depth, int encoded_u, int encoded_v
+    int resource, int x, int y, int depth, int u, int v
 ) {
     KookieGpuScene *scene = NULL;
     if (gpu_pending_scene.open) {
@@ -2165,18 +2103,13 @@ static bool kookie_gpu_scene_push_vertex_internal(
         scene = &gpu_scene;
     }
     if (scene == NULL || scene->count >= scene->expected ||
-        x < -100 || x > 100 || y < -100 || y > 100 ||
-        depth < 0 || depth > 100 ||
-        encoded_u < 0 || encoded_u > 255 ||
-        encoded_v < 0 || encoded_v > 255) {
+        resource <= 0 || x < -100 || x > 100 || y < -100 || y > 100 ||
+        depth < 0 || depth > 100 || u < 0 || u > 100 || v < 0 || v > 100) {
         return false;
     }
-    size_t offset = (size_t)scene->count * 4u;
-    scene->vertices[offset] = (float)x / 100.0f;
-    scene->vertices[offset + 1u] = (float)y / 100.0f;
-    scene->vertices[offset + 2u] = (float)depth / 100.0f;
-    scene->vertices[offset + 3u] =
-        (float)(encoded_u + encoded_v * 256);
+    scene->ui_vertices[scene->count] = (KookieUiVertex){
+        resource, x, y, depth, u, v
+    };
     scene->count += 1;
     return true;
 }
@@ -2191,11 +2124,71 @@ static bool kookie_gpu_world_camera_matrix_floats(float out[16]) {
 }
 
 
-bool kookie_gpu_scene_push_vertex_uv(
-    int x, int y, int depth, int encoded_u, int encoded_v
+bool kookie_gpu_scene_push_vertex_resource(
+    int resource, int x, int y, int depth, int u, int v
 ) {
     return kookie_gpu_scene_push_vertex_internal(
-        x, y, depth, encoded_u, encoded_v);
+        resource, x, y, depth, u, v);
+}
+
+static KookieGpuScene *kookie_gpu_open_scene(void) {
+    if (gpu_pending_scene.open) {
+        return &gpu_pending_scene;
+    }
+    if (gpu_scene.open) {
+        return &gpu_scene;
+    }
+    return NULL;
+}
+
+bool kookie_gpu_scene_text_run_begin(
+    int font, int color, int left, int bottom, int scale
+) {
+    KookieGpuScene *scene = kookie_gpu_open_scene();
+    if (scene == NULL || scene->text_open || font < 0 || font > 1 ||
+        color < 0 || color > 4 || left < -100 || left > 100 ||
+        bottom < -100 || bottom > 100 || scale <= 0 || scale > 100 ||
+        !kookie_gpu_scene_reserve_text_runs(
+            scene, (size_t)scene->text_count + 1u)) {
+        return false;
+    }
+    size_t index = (size_t)scene->text_count;
+    scene->text_runs[index] = (KookieUiTextRun){
+        font, color, left, bottom, scale, NULL, 0
+    };
+    scene->text_run_starts[index] = (size_t)scene->text_codepoint_count;
+    scene->text_open_start = scene->text_run_starts[index];
+    scene->text_open = true;
+    return true;
+}
+
+bool kookie_gpu_scene_text_codepoint(int codepoint) {
+    KookieGpuScene *scene = kookie_gpu_open_scene();
+    if (scene == NULL || !scene->text_open || codepoint < 0 ||
+        codepoint > 0x10ffff ||
+        !kookie_gpu_scene_reserve_codepoints(
+            scene, (size_t)scene->text_codepoint_count + 1u)) {
+        return false;
+    }
+    scene->text_codepoints[scene->text_codepoint_count] = (uint32_t)codepoint;
+    scene->text_codepoint_count += 1;
+    return true;
+}
+
+bool kookie_gpu_scene_text_run_commit(void) {
+    KookieGpuScene *scene = kookie_gpu_open_scene();
+    if (scene == NULL || !scene->text_open ||
+        scene->text_codepoint_count <= (int)scene->text_open_start) {
+        return false;
+    }
+    size_t index = (size_t)scene->text_count;
+    scene->text_runs[index].codepoints =
+        scene->text_codepoints + scene->text_open_start;
+    scene->text_runs[index].codepoint_count =
+        (size_t)scene->text_codepoint_count - scene->text_open_start;
+    scene->text_count += 1;
+    scene->text_open = false;
+    return true;
 }
 
 bool kookie_gpu_scene_commit(void) {
@@ -2205,7 +2198,8 @@ bool kookie_gpu_scene_commit(void) {
     } else if (gpu_scene.open) {
         scene = &gpu_scene;
     }
-    if (scene == NULL || scene->count != scene->expected) {
+    if (scene == NULL || scene->text_open ||
+        scene->count != scene->expected) {
         return false;
     }
     scene->open = false;
@@ -2218,51 +2212,100 @@ bool kookie_gpu_scene_commit(void) {
     return true;
 }
 
-static bool kookie_gpu_upload_scene_async(
-    SDL_GPUDevice *device, const KookieGpuScene *scene
-) {
-    if (device == NULL || scene == NULL || !scene->committed ||
-        gpu_resources.scene_vertex_buffer == NULL ||
-        gpu_resources.scene_transfer == NULL) {
-        return false;
-    }
-    float *vertices = (float *)SDL_MapGPUTransferBuffer(
-        device, gpu_resources.scene_transfer, true);
-    if (vertices == NULL) {
-        return false;
-    }
-    size_t byte_count = (size_t)scene->count * 4u * sizeof(float);
-    memcpy(vertices, scene->vertices, byte_count);
-    SDL_UnmapGPUTransferBuffer(device, gpu_resources.scene_transfer);
 
-    SDL_GPUCommandBuffer *command_buffer =
-        SDL_AcquireGPUCommandBuffer(device);
-    if (command_buffer == NULL) {
+
+
+static bool kookie_gpu_upload_ui_texture(
+    SDL_GPUCommandBuffer *command_buffer,
+    const KookieGpuScene *scene,
+    Uint32 width,
+    Uint32 height
+) {
+    if (command_buffer == NULL || scene == NULL || !scene->committed ||
+        width == 0 || height == 0 ||
+        width > KOOKIE_GPU_UI_TEXTURE_WIDTH ||
+        height > KOOKIE_GPU_UI_TEXTURE_HEIGHT ||
+        gpu_resources.ui_transfer == NULL ||
+        gpu_resources.ui_quad_transfer == NULL) {
         return false;
     }
+    if (gpu_ui_renderer == NULL) {
+        gpu_ui_renderer = kookie_ui_renderer_create();
+        if (gpu_ui_renderer == NULL) {
+            return false;
+        }
+    }
+    const uint8_t *pixels = NULL;
+    size_t pixel_bytes = 0;
+    if (!kookie_ui_renderer_render(
+            gpu_ui_renderer, scene->ui_vertices, (size_t)scene->count,
+            scene->text_runs, (size_t)scene->text_count,
+            width, height, &pixels, &pixel_bytes)) {
+        return false;
+    }
+    size_t row_bytes = (size_t)width * 4u;
+    size_t transfer_row_bytes =
+        (size_t)KOOKIE_GPU_UI_TEXTURE_WIDTH * 4u;
+    if (pixel_bytes < row_bytes * (size_t)height) {
+        return false;
+    }
+    Uint8 *texture_transfer = (Uint8 *)SDL_MapGPUTransferBuffer(
+        gpu_slot.device, gpu_resources.ui_transfer, true);
+    float *quad_transfer = (float *)SDL_MapGPUTransferBuffer(
+        gpu_slot.device, gpu_resources.ui_quad_transfer, true);
+    if (texture_transfer == NULL || quad_transfer == NULL) {
+        if (texture_transfer != NULL) {
+            SDL_UnmapGPUTransferBuffer(gpu_slot.device, gpu_resources.ui_transfer);
+        }
+        if (quad_transfer != NULL) {
+            SDL_UnmapGPUTransferBuffer(
+                gpu_slot.device, gpu_resources.ui_quad_transfer);
+        }
+        return false;
+    }
+    for (Uint32 row = 0; row < height; row += 1u) {
+        memcpy(texture_transfer + (size_t)row * transfer_row_bytes,
+            pixels + (size_t)row * row_bytes, row_bytes);
+    }
+    float u_max = (float)width / (float)KOOKIE_GPU_UI_TEXTURE_WIDTH;
+    float v_max = (float)height / (float)KOOKIE_GPU_UI_TEXTURE_HEIGHT;
+    const float quad[24] = {
+        -1.0f, -1.0f, 0.0f, v_max,
+         1.0f, -1.0f, u_max, v_max,
+         1.0f,  1.0f, u_max, 0.0f,
+        -1.0f, -1.0f, 0.0f, v_max,
+         1.0f,  1.0f, u_max, 0.0f,
+        -1.0f,  1.0f, 0.0f, 0.0f
+    };
+    memcpy(quad_transfer, quad, sizeof(quad));
+    SDL_UnmapGPUTransferBuffer(gpu_slot.device, gpu_resources.ui_transfer);
+    SDL_UnmapGPUTransferBuffer(gpu_slot.device, gpu_resources.ui_quad_transfer);
+
     SDL_GPUCopyPass *copy_pass = SDL_BeginGPUCopyPass(command_buffer);
     if (copy_pass == NULL) {
-        SDL_CancelGPUCommandBuffer(command_buffer);
         return false;
     }
-    SDL_GPUTransferBufferLocation source = {0};
-    source.transfer_buffer = gpu_resources.scene_transfer;
-    SDL_GPUBufferRegion destination = {0};
-    destination.buffer = gpu_resources.scene_vertex_buffer;
-    destination.size = (Uint32)byte_count;
-    SDL_UploadToGPUBuffer(copy_pass, &source, &destination, true);
+    SDL_GPUTextureTransferInfo texture_source = {0};
+    texture_source.transfer_buffer = gpu_resources.ui_transfer;
+    texture_source.pixels_per_row = KOOKIE_GPU_UI_TEXTURE_WIDTH;
+    texture_source.rows_per_layer = height;
+    SDL_GPUTextureRegion texture_destination = {0};
+    texture_destination.texture = gpu_resources.texture;
+    texture_destination.w = width;
+    texture_destination.h = height;
+    texture_destination.d = 1;
+    SDL_UploadToGPUTexture(
+        copy_pass, &texture_source, &texture_destination, true);
+    SDL_GPUTransferBufferLocation quad_source = {0};
+    quad_source.transfer_buffer = gpu_resources.ui_quad_transfer;
+    SDL_GPUBufferRegion quad_destination = {0};
+    quad_destination.buffer = gpu_resources.vertex_buffer;
+    quad_destination.size = sizeof(quad);
+    SDL_UploadToGPUBuffer(
+        copy_pass, &quad_source, &quad_destination, true);
     SDL_EndGPUCopyPass(copy_pass);
-    return SDL_SubmitGPUCommandBuffer(command_buffer);
+    return true;
 }
-
-static bool kookie_gpu_upload_scene(
-    SDL_GPUDevice *device, const KookieGpuScene *scene
-) {
-    return kookie_gpu_upload_scene_async(device, scene) &&
-        SDL_WaitForGPUIdle(device);
-}
-
-
 
 static bool kookie_gpu_draw_test_internal(
     SDL_Window *window,
@@ -2324,7 +2367,7 @@ static bool kookie_gpu_draw_test_internal(
     bool scene_draw = (gpu_render_policy_active
         ? gpu_render_scene : true) &&
         gpu_scene.active && gpu_scene.committed &&
-        gpu_scene.count > 0;
+        (gpu_scene.count > 0 || gpu_scene.text_count > 0);
     float world_camera_matrix[16] = {0};
     if (world_draw &&
         !kookie_gpu_world_camera_matrix_floats(world_camera_matrix)) {
@@ -2347,7 +2390,12 @@ static bool kookie_gpu_draw_test_internal(
         depth_target.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
         depth_target_ptr = &depth_target;
     }
-
+    if (scene_draw &&
+        !kookie_gpu_upload_ui_texture(
+            command_buffer, &gpu_scene, target_width, target_height)) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return false;
+    }
     SDL_GPUColorTargetInfo target = {0};
 
     target.texture = render_target;
@@ -2385,12 +2433,15 @@ static bool kookie_gpu_draw_test_internal(
     if (scene_draw) {
         binding.texture = gpu_resources.texture;
         binding.sampler = gpu_resources.sampler;
-        vertex_binding.buffer = gpu_resources.scene_vertex_buffer;
-        SDL_BindGPUGraphicsPipeline(render_pass, gpu_resources.scene_pipeline);
+        vertex_binding.buffer = gpu_resources.vertex_buffer;
+        SDL_BindGPUGraphicsPipeline(render_pass, gpu_resources.pipeline);
         SDL_BindGPUVertexBuffers(render_pass, 0, &vertex_binding, 1);
         SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
-        SDL_DrawGPUPrimitives(
-            render_pass, 3, (Uint32)(gpu_scene.count / 3), 0, 0);
+        SDL_GPUBufferBinding index_binding = {0};
+        index_binding.buffer = gpu_resources.index_buffer;
+        SDL_BindGPUIndexBuffer(
+            render_pass, &index_binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+        SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
         last_gpu_scene_draw_calls += 1;
     }
     if (!world_draw && !scene_draw && !gpu_render_policy_active) {
@@ -2452,7 +2503,8 @@ bool kookie_gpu_draw_scene(void) {
     bool requested_world = gpu_render_world &&
         gpu_world_scene.committed && gpu_world_scene.count > 0;
     bool requested_scene = gpu_render_scene &&
-        scene->committed && scene->count > 0;
+        scene->committed &&
+        (scene->count > 0 || scene->text_count > 0);
     if ((!requested_scene && !requested_world) ||
         gpu_slot.device == NULL ||
         gpu_slot.window_slot < 0 ||
@@ -2477,12 +2529,6 @@ bool kookie_gpu_draw_scene(void) {
     if (requested_world &&
         !kookie_gpu_world_upload(gpu_slot.device, &gpu_world_scene)) {
         fprintf(stderr, "KOOKIE gpu_draw_scene world upload failed: %s\n",
-            SDL_GetError());
-        return false;
-    }
-    if (requested_scene &&
-        !kookie_gpu_upload_scene_async(gpu_slot.device, scene)) {
-        fprintf(stderr, "KOOKIE gpu_draw_scene upload failed: %s\n",
             SDL_GetError());
         return false;
     }
@@ -2601,7 +2647,7 @@ int kookie_gpu_window_screenshot_checksum(void) {
     bool world_draw = gpu_world_scene.committed &&
         gpu_world_scene.count > 0;
     bool scene_draw = gpu_scene.active && gpu_scene.committed &&
-        gpu_scene.count > 0;
+        (gpu_scene.count > 0 || gpu_scene.text_count > 0);
     float world_camera_matrix[16] = {0};
     if (world_draw &&
         !kookie_gpu_world_camera_matrix_floats(world_camera_matrix)) {
@@ -2623,6 +2669,12 @@ int kookie_gpu_window_screenshot_checksum(void) {
         depth_target.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
         depth_target.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
         depth_target_ptr = &depth_target;
+    }
+    if (scene_draw &&
+        !kookie_gpu_upload_ui_texture(
+            command_buffer, &gpu_scene, target_width, target_height)) {
+        SDL_CancelGPUCommandBuffer(command_buffer);
+        return 0;
     }
     SDL_GPUColorTargetInfo target = {0};
     target.texture = render_target;
@@ -2656,12 +2708,15 @@ int kookie_gpu_window_screenshot_checksum(void) {
     if (scene_draw) {
         binding.texture = gpu_resources.texture;
         binding.sampler = gpu_resources.sampler;
-        vertex_binding.buffer = gpu_resources.scene_vertex_buffer;
-        SDL_BindGPUGraphicsPipeline(render_pass, gpu_resources.scene_pipeline);
+        vertex_binding.buffer = gpu_resources.vertex_buffer;
+        SDL_BindGPUGraphicsPipeline(render_pass, gpu_resources.pipeline);
         SDL_BindGPUVertexBuffers(render_pass, 0, &vertex_binding, 1);
         SDL_BindGPUFragmentSamplers(render_pass, 0, &binding, 1);
-        SDL_DrawGPUPrimitives(
-            render_pass, 3, (Uint32)(gpu_scene.count / 3), 0, 0);
+        SDL_GPUBufferBinding index_binding = {0};
+        index_binding.buffer = gpu_resources.index_buffer;
+        SDL_BindGPUIndexBuffer(
+            render_pass, &index_binding, SDL_GPU_INDEXELEMENTSIZE_16BIT);
+        SDL_DrawGPUIndexedPrimitives(render_pass, 6, 1, 0, 0, 0);
     }
     if (!world_draw && !scene_draw) {
         binding.texture = gpu_resources.texture;
@@ -2780,8 +2835,6 @@ int kookie_gpu_capture_headless_scene(void) {
         return 0;
     }
     bool activate_pending = kookie_gpu_pending_scene_ready();
-    KookieGpuScene *scene =
-        activate_pending ? &gpu_pending_scene : &gpu_scene;
     if (activate_pending && gpu_reload.completed_fence >= 1000000) {
         return 0;
     }
@@ -2789,11 +2842,6 @@ int kookie_gpu_capture_headless_scene(void) {
     SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
     if (!kookie_gpu_prepare_resources(device, format)) {
         fprintf(stderr, "KOOKIE G5 renderer-failure=prepare-resources: %s\n",
-            SDL_GetError());
-        return 0;
-    }
-    if (!kookie_gpu_upload_scene(device, scene)) {
-        fprintf(stderr, "KOOKIE G5 renderer-failure=upload-scene: %s\n",
             SDL_GetError());
         return 0;
     }
@@ -3096,8 +3144,7 @@ int kookie_gpu_measure_reference_scene(
             SDL_ReleaseGPUFence(device, fences[slot]);
             fences[slot] = NULL;
         }
-        if (!kookie_gpu_upload_scene_async(device, &gpu_scene) ||
-            !kookie_gpu_draw_test_internal(
+        if (!kookie_gpu_draw_test_internal(
                 NULL, targets[slot], &fences[slot])) {
             success = false;
             break;

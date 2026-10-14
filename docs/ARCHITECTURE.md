@@ -86,12 +86,11 @@ only generated mechanical shader metadata and GPU handles. Kof continues to own
 camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
-The active Kof4j `0.6.0` pin implements byte-only `Buffer(U8)` for JVM,
+The active Kof4j `0.6.4` pin implements byte-only `Buffer(U8)` for JVM,
 JS and native x86-64; `scripts/verify_simd_dispatch.sh` qualifies the
-synchronous JVM/native x86-64 INOUT shape. The pinned source comments claim
-riscv64/aarch64 support, while newer upstream docs still report Native
-`FFI001`; KOOKIE treats cross support as unqualified. `Buffer(U8)` does not
-define a typed, asynchronous GPU/audio ownership contract.
+synchronous JVM/native x86-64 INOUT shape. Cross-target support remains
+unqualified. `Buffer(U8)` does not define a typed, asynchronous GPU/audio
+ownership contract.
 
 KOOKIE therefore keeps `FrameStaging`/content wires as bounded Kof-owned arrays,
 uses C-owned storage for native work and retains the checked scalar adapter.
@@ -222,8 +221,9 @@ resources, scalar transfers and draw submission.
 ### Native adapter
 
 The native stack is SDL3 + SDL_GPU + SDL_mixer 3.2.4, with Vulkan/SPIR-V
-first. Future distributed mechanism libraries must remain permissively
-licensed; current candidates include FreeType/HarfBuzz, SDL3_image and zstd.
+first, FreeType for TrueType rasterization and HarfBuzz for shaping. Future
+distributed mechanism libraries must remain permissively licensed; current
+candidates include SDL3_image and zstd.
 
 The adapter owns:
 

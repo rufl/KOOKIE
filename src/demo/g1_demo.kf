@@ -437,7 +437,7 @@ class G1Demo {
             if (!arena.stage(worldFrame, frame, 1, camera) ||
                 !hud.stage(hudFrame, frame, 9) ||
                 worldFrame.stagedCount() != arena.renderVertexCount() ||
-                hudFrame.stagedCount() != hud.renderVertexCount()) {
+                hudFrame.stagedCount() > hud.renderVertexCount()) {
                 return failAt(25)
             }
             if (frame == 1) {

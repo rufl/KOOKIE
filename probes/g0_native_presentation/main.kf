@@ -25,9 +25,16 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_reserve_capacity(
     Int vertexCapacity
 ): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_uv(
-    Int x, Int y, Int depth, Int encodedU, Int encodedV
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_resource(
+    Int resource, Int x, Int y, Int depth, Int u, Int v
 ): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_text_run_begin(
+    Int font, Int color, Int left, Int bottom, Int scale
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_text_codepoint(
+    Int codepoint
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_text_run_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_capacity(): Int
@@ -948,14 +955,29 @@ class G1NativePresentation {
     }
 
     Bool uploadSceneVertex(FrameStaging frame, Int index) {
-        var encodedU = kookieUiNativeTextureU(
-            frame.resourceAt(index), frame.uAt(index))
-        var encodedV = kookieUiNativeTextureV(
-            frame.resourceAt(index), frame.vAt(index))
-        if (encodedU < 0 || encodedV < 0) { return false }
-        return kookie_gpu_scene_push_vertex_uv(
-            frame.xAt(index), frame.yAt(index), frame.depthAt(index),
-            encodedU, encodedV)
+        return kookie_gpu_scene_push_vertex_resource(
+            frame.resourceAt(index), frame.xAt(index), frame.yAt(index),
+            frame.depthAt(index), frame.uAt(index), frame.vAt(index))
+    }
+
+    Bool uploadTextRuns(FrameStaging frame) {
+        for (var run = 0; run < frame.textRuns(); run = run + 1) {
+            if (!kookie_gpu_scene_text_run_begin(
+                    frame.textFontAt(run), frame.textColorAt(run),
+                    frame.textLeftAt(run), frame.textBottomAt(run),
+                    frame.textScaleAt(run))) {
+                return false
+            }
+            for (var index = 0;
+                index < frame.textCodepointCountAt(run); index = index + 1) {
+                if (!kookie_gpu_scene_text_codepoint(
+                        frame.textCodepointAt(run, index))) {
+                    return false
+                }
+            }
+            if (!kookie_gpu_scene_text_run_commit()) { return false }
+        }
+        return true
     }
 
     Bool upload(FrameStaging frame) {
@@ -980,7 +1002,7 @@ class G1NativePresentation {
             }
             index = index + 1
         }
-        return true
+        return uploadTextRuns(frame)
     }
 
     Bool uploadWorldVertex(FrameStaging frame, Int index) {
@@ -2051,11 +2073,8 @@ main() {
         assert(kookie_gpu_reload_stage(
                 2, shell.kutter().renderChecksum()) &&
             kookie_gpu_scene_begin(3) &&
-            kookie_gpu_scene_push_vertex_uv(
-                0, 0, 0,
-                kookieUiNativeTextureU(1, 0),
-                kookieUiNativeTextureV(1, 0)) &&
-            !kookie_gpu_scene_push_vertex_uv(0, 0, 0, -1, 0) &&
+            kookie_gpu_scene_push_vertex_resource(1, 0, 0, 0, 0, 100) &&
+            !kookie_gpu_scene_push_vertex_resource(0, 0, 0, 0, 0, 0) &&
             kookie_gpu_reload_cancel(2) &&
             kookie_gpu_reload_pending_generation() == 0 &&
             kookie_gpu_reload_active_generation() == 1 &&

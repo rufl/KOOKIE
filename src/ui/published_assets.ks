@@ -8,7 +8,7 @@ Int kookieUiPublishedUiGatogansoMarkKind() {
     return kookieUiScriptAssetSvg()
 }
 String kookieUiPublishedUiGatogansoMarkAlt() { return "GatoGanso mark" }
-String kookieUiPublishedUiGatogansoMarkChecksum() { return "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e" }
+String kookieUiPublishedUiGatogansoMarkChecksum() { return "de5501848990296b4c399d85d4acad8ac7ccf4a38a5fce4f94cd5042a030545c" }
 
 String kookieUiPublishedUiPlayerHeartsId() { return "ui.player-hearts" }
 String kookieUiPublishedUiPlayerHeartsSource() { return "content/prototype/runtime/ui/hearts_0001.png" }

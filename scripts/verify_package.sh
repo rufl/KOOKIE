@@ -98,7 +98,8 @@ for font_asset in fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt \
   fonts/readme.txt fonts/manifest.json; do
   test -f "$PACKAGE_ROOT/$font_asset"
 done
-for ui_asset in assets/ui/kookie-ui.css assets/ui/manifest.json; do
+for ui_asset in assets/ui/kookie-ui.css assets/ui/manifest.json \
+  assets/ui/gatoganso-mark.svg; do
   test -f "$PACKAGE_ROOT/$ui_asset"
 done
 python3 - "$PACKAGE_ROOT/fonts/manifest.json" "$PACKAGE_ROOT/fonts" <<'PY'
@@ -392,7 +393,7 @@ else
     echo 'package smoke: presentation packaging unexpectedly ignored missing dependencies' >&2
     exit 1
   fi
-  grep -Eq 'glslc is required|spirv-val is required|pkg-config is required|SDL3 or SDL_mixer development files are required|KOOKIE requires SDL3' \
+  grep -Eq 'glslc is required|spirv-val is required|pkg-config is required|SDL3 or SDL_mixer development files are required|KOOKIE requires SDL3|native text renderer requires|native text renderer dependency' \
     "$WORK_DIR/presentation-unavailable.out"
 fi
 python3 - "$MANIFEST" native \

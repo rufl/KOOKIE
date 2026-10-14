@@ -18,8 +18,8 @@ paragraph. The recorded artifact uses the pinned Kof 0.5.0-beta source commit
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c` and remains a pre-release
 qualification artifact because target-hardware evidence was not retained.
 
-New release candidates use the corrected source-built Kof `0.6.0` at commit
-`bb90986d065118e4f63978e8e6985256ff714203`; the qualification records below
+New release candidates use the source-built Kof `0.6.4` at commit
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; the qualification records below
 retain their historical Kof identities.
 The D1 contract qualification dispatch
 [`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)

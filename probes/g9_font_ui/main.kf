@@ -25,24 +25,21 @@ main() {
     var baselineChecksum = frame.checksum()
     var sawBodyFont = false
     var sawDisplayFont = false
-    for (var vertex = 0; vertex < frame.stagedCount(); vertex = vertex + 1) {
-        assert(frame.xAt(vertex) >= -100 &&
-            frame.xAt(vertex) <= 100 &&
-            frame.yAt(vertex) >= -100 &&
-            frame.yAt(vertex) <= 100,
-            "main shell vertices must stay inside native clip bounds")
-        var resource = frame.resourceAt(vertex)
-        if (resource >= uiFontResourceBase() &&
-            resource < uiFontResourceBase() + uiFontResourceStride()) {
+    assert(frame.textRuns() > 0,
+        "main shell must stage native text runs")
+    for (var run = 0; run < frame.textRuns(); run = run + 1) {
+        assert(frame.textCodepointCountAt(run) > 0 &&
+            frame.textScaleAt(run) > 0,
+            "native text runs must retain shaped input bounds")
+        if (frame.textFontAt(run) == uiFontJaredLite()) {
             sawBodyFont = true
         }
-        if (resource >= uiFontResourceBase() + uiFontResourceStride() &&
-            resource < uiFontResourceBase() + uiFontResourceStride() * 2) {
+        if (frame.textFontAt(run) == uiFontPixand()) {
             sawDisplayFont = true
         }
     }
     assert(sawBodyFont && sawDisplayFont,
-        "main shell must stage Jared Lite and Pixand resources")
+        "main shell must stage Jared Lite and Pixand text runs")
     assert(frame.retire(1) &&
         shell.handleAction(gameShellActionDown()) &&
         shell.handleAction(gameShellActionDown()) &&

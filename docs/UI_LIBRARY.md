@@ -119,7 +119,7 @@ package host that keeps the CSS under `assets/ui` and the bundled fonts under
 ```
 
 `KookieUiText` applies the family, line-height, size, weight and color to the
-same Label handle. The current Kof `0.6.0` `Font` handle records metadata
+same Label handle. The current Kof `0.6.4` `Font` handle records metadata
 but does not attach a CSS font to a Label; this slice therefore uses the
 supported Label style path instead of claiming that assignment is rendered.
 
@@ -131,10 +131,10 @@ supported Label style path instead of claiming that assignment is rendered.
   `@font-face` loads the packaged TTF files through `assets/ui/kookie-ui.css`.
 - JVM/native: the same source compiles and the facade retains deterministic
   metadata/state. `kof.ui` handles are no-op by Kof contract. The SDL native
-  gameplay HUD continues to use `FrameStaging` and the checked native adapter;
-  this library does not silently create a second native renderer. Native text
-  uses the bounded atlas generated from the packaged TTF files at build time;
-  it does not load TTF or SVG bytes at runtime.
+  gameplay HUD uses `FrameStaging` and the checked native adapter. Native text
+  runs cross the adapter boundary as UTF-16 codepoints; HarfBuzz shapes them
+  and FreeType rasterizes the packaged TTF files at runtime. The SVG mark is
+  parsed and rasterized by the same native UI renderer.
 
 - KofScript: `KookieUiScriptDocument` is the bounded semantic layer. It has no
   `kof.ui` handles and therefore cannot render on its own; the host must map
@@ -145,9 +145,9 @@ supported Label style path instead of claiming that assignment is rendered.
 `src/ui/kookie_ui_native.kf` is the native counterpart of the same palette,
 font roles and focus semantics. It does not create a second renderer:
 `KookieUiNativeTheme` owns semantic colors/resources and the bounded helper
-primitives write directly to the existing `FrameStaging` contract. The native
-skin lays out the seven-column atlas glyphs in a four-by-seven logical cell so
-their pixels remain square in the supported 16:9 presentation clip space.
+primitives write quads and text runs directly to the `FrameStaging` contract.
+The native adapter owns FreeType/HarfBuzz shaping/rasterization and SVG
+decoding; Kof remains responsible for bounded semantic layout.
 
 The engine menus (`GameShell`) now consume that skin for frame surfaces,
 selection rails, text colors, volume bars and accessibility contrast. The
@@ -156,10 +156,10 @@ vital/build/encounter/combat layers; actor nameplates, minimap and scoreboard
 use the same native primitives and contrast setting. Geometry remains
 preallocated and bounded; the HUD budget is 438 vertices.
 
-The native adapter atlas maps the same tokens to the package palette:
+The native adapter maps the same semantic tokens to the package palette:
 background `#0f172a`, surface `#0f1f2b`, accent `#d97706`, focus `#15803d`,
-danger `#dc2626` and success `#22c55e`. This is presentation styling only;
-simulation/session ownership remains unchanged.
+danger `#dc2626` and success `#22c55e`. The raster surface is transient GPU
+upload data; simulation/session ownership remains unchanged.
 
 ### Render budget
 
@@ -247,7 +247,7 @@ semantic node with `bindSound(..., defaultGain)`, `nodeClipId()` and
 and media handles, while a future upstream playback API must define ownership,
 close, gain, looping, spatialization and target failure semantics before this
 slice can move to Kof4j. See
-[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) for the current `0.6.0` ABI
+[`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) for the current `0.6.4` ABI
 audit and the buffer migration boundary.
 
 

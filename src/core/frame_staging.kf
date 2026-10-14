@@ -15,6 +15,16 @@ class FrameStaging {
     Int count
     Int writes
     Bool open
+    Int[] textRunFonts
+    Int[] textRunColors
+    Int[] textRunLefts
+    Int[] textRunBottoms
+    Int[] textRunScales
+    Int[] textRunStarts
+    Int[] textRunLengths
+    Int[] textCodepoints
+    Int textRunCount
+    Int textCodepointCount
 
     public constructor(Int capacity) {
         this.resources = new Int[capacity]
@@ -31,6 +41,16 @@ class FrameStaging {
         this.count = 0
         this.writes = 0
         this.open = false
+        this.textRunFonts = new Int[capacity]
+        this.textRunColors = new Int[capacity]
+        this.textRunLefts = new Int[capacity]
+        this.textRunBottoms = new Int[capacity]
+        this.textRunScales = new Int[capacity]
+        this.textRunStarts = new Int[capacity]
+        this.textRunLengths = new Int[capacity]
+        this.textCodepoints = new Int[capacity]
+        this.textRunCount = 0
+        this.textCodepointCount = 0
     }
     Bool begin(Int nextFrame) {
         if (open || nextFrame <= 0 || nextFrame <= published) {
@@ -39,6 +59,8 @@ class FrameStaging {
         frame = nextFrame
         count = 0
         writes = 0
+        textRunCount = 0
+        textCodepointCount = 0
         open = true
         return true
     }
@@ -182,7 +204,7 @@ class FrameStaging {
     }
 
     Bool publish() {
-        if (!open || count == 0) {
+        if (!open || (count == 0 && textRunCount == 0)) {
             return false
         }
         published = frame
@@ -204,6 +226,8 @@ class FrameStaging {
         }
         count = 0
         writes = 0
+        textRunCount = 0
+        textCodepointCount = 0
         open = false
         return true
     }
@@ -299,6 +323,67 @@ class FrameStaging {
         }
         return vs[index]
     }
+    Bool pushTextRun(
+        Int font, Int color, String text,
+        Int left, Int bottom, Int scale
+    ) {
+        if (!open || font < 0 || font > 1 ||
+            color < 0 || color > 4 || scale <= 0 ||
+            text.length() == 0 ||
+            textRunCount >= textRunFonts.length ||
+            text.length() > textCodepoints.length - textCodepointCount) {
+            return false
+        }
+        var run = textRunCount
+        textRunFonts[run] = font
+        textRunColors[run] = color
+        textRunLefts[run] = left
+        textRunBottoms[run] = bottom
+        textRunScales[run] = scale
+        textRunStarts[run] = textCodepointCount
+        textRunLengths[run] = text.length()
+        for (var index = 0; index < text.length(); index = index + 1) {
+            textCodepoints[textCodepointCount + index] =
+                text.charAt(index) as Int
+        }
+        textRunCount = textRunCount + 1
+        textCodepointCount = textCodepointCount + text.length()
+        return true
+    }
+
+    Int textRuns() { return textRunCount }
+    Int textFontAt(Int index) {
+        if (index < 0 || index >= textRunCount) { return -1 }
+        return textRunFonts[index]
+    }
+    Int textColorAt(Int index) {
+        if (index < 0 || index >= textRunCount) { return -1 }
+        return textRunColors[index]
+    }
+    Int textLeftAt(Int index) {
+        if (index < 0 || index >= textRunCount) { return 0 }
+        return textRunLefts[index]
+    }
+    Int textBottomAt(Int index) {
+        if (index < 0 || index >= textRunCount) { return 0 }
+        return textRunBottoms[index]
+    }
+    Int textScaleAt(Int index) {
+        if (index < 0 || index >= textRunCount) { return 0 }
+        return textRunScales[index]
+    }
+    Int textCodepointCountAt(Int index) {
+        if (index < 0 || index >= textRunCount) { return 0 }
+        return textRunLengths[index]
+    }
+    Int textCodepointAt(Int run, Int index) {
+        if (run < 0 || run >= textRunCount ||
+            index < 0 || index >= textRunLengths[run]) {
+            return 0
+        }
+        return textCodepoints[textRunStarts[run] + index]
+    }
+
 
 
     Int checksum() {
@@ -306,6 +391,13 @@ class FrameStaging {
         for (var index = 0; index < count; index = index + 1) {
             total = total + resources[index] + xs[index] + ys[index] +
                 zs[index] + depths[index] + us[index] + vs[index]
+        }
+        for (var run = 0; run < textRunCount; run = run + 1) {
+            total = total + textRunFonts[run] + textRunColors[run] +
+                textRunLefts[run] + textRunBottoms[run] + textRunScales[run]
+            for (var index = 0; index < textRunLengths[run]; index = index + 1) {
+                total = total + textCodepoints[textRunStarts[run] + index]
+            }
         }
         return total
     }

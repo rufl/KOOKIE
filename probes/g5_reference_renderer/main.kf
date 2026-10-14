@@ -11,8 +11,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_reserve_capacity(
     Int vertexCapacity
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_begin(Int vertexCount): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_uv(
-    Int x, Int y, Int depth, Int encodedU, Int encodedV
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_resource(
+    Int resource, Int x, Int y, Int depth, Int u, Int v
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
@@ -25,14 +25,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_reference_scene(
 
 Bool uploadReferenceFrame(FrameStaging frame) {
     for (var index = 0; index < frame.stagedCount(); index = index + 1) {
-        var encodedU = kookieUiNativeTextureU(
-            frame.resourceAt(index), frame.uAt(index))
-        var encodedV = kookieUiNativeTextureV(
-            frame.resourceAt(index), frame.vAt(index))
-        if (encodedU < 0 || encodedV < 0 ||
-            !kookie_gpu_scene_push_vertex_uv(
-                frame.xAt(index), frame.yAt(index), frame.depthAt(index),
-                encodedU, encodedV)) {
+        if (!kookie_gpu_scene_push_vertex_resource(
+                frame.resourceAt(index), frame.xAt(index), frame.yAt(index),
+                frame.depthAt(index), frame.uAt(index), frame.vAt(index))) {
             return false
         }
     }

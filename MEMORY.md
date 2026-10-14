@@ -82,16 +82,17 @@ historical unless explicitly attached to that manifest.
 
 ## G5 completion batch
 
-- Release and CI now build exact Kof `0.6.0` source commit
-  `bb90986d065118e4f63978e8e6985256ff714203`; the first corrected
-  source-built Linux x86-64 distribution observed in this qualification had
-  SHA-256
-  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`.
-  The compiler JAR SHA-256 is
-  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`;
-  CI computes the distribution digest per build because tar metadata varies.
-  The prior 64 MiB scalar/AVX2 timing below was measured with the 0.5.0-beta
-  toolchain and is historical, not a 0.6.0 performance result.
+- Release and CI now build Kof `0.6.4` from source commit
+  `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; the upstream public Linux
+  archive SHA-256 is
+  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`.
+  The source build applies
+  `scripts/kof-0.6.4-native-gc-cycle.patch` (SHA-256
+  `073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`);
+  the patched compiler JAR observed in qualification has SHA-256
+  `7a2211d0450fe57d1001007079cb12b880d74481b54fef1bb335a5f1d558724d`.
+  The prior G5 measurements below were recorded with older toolchains and are
+  not 0.6.4 performance evidence.
 - The complete bounded scene has 192 authored vertices, 64 loaded collision
   triangles, 64 enemies, 256 projectiles, 512 pickups, 24 lights and 64 effects.
   The 30-minute 60 Hz soak kept simulation p95 at 3.202 ms and RSS within
@@ -265,30 +266,29 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 
 ## Pinned research identities
 
-- Current KOOKIE build toolchain: Kof `0.6.0` source
-  `bb90986d065118e4f63978e8e6985256ff714203`; the first corrected source-built
-  Linux x86-64 distribution observed had SHA-256
-  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`
-  and compiler JAR SHA-256
-  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`.
-  The archive digest is per build because tar metadata varies; the source
-  commit and compiler JAR hash are the stable toolchain identity. The tagged
-  public archive digest
-  `498de70b3fbc81e42f3387c110da72d52af3a180627010f9cf55260c6d8975f1` is
-  rejected because its embedded CLI reports `kof 0.5.0-beta`.
-- Kof4j: `22a186b9bf9df37c03809ba6ef4af85085386f63`, VERSION `0.4.9-beta`.
+- Current KOOKIE build toolchain: Kof `0.6.4` source
+  `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; the upstream public Linux
+  distribution archive SHA-256 is
+  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`.
+  The source build applies
+  `scripts/kof-0.6.4-native-gc-cycle.patch` (SHA-256
+  `073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`);
+  the patched compiler JAR SHA-256 is
+  `7a2211d0450fe57d1001007079cb12b880d74481b54fef1bb335a5f1d558724d`.
+  The archive digest is per release asset; the source commit, patch digest
+  and compiler JAR hash identify the release toolchain.
+- Kof4j: `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`, VERSION `0.6.4`.
 - Executed release: `kof-0.4.9-beta-linux-x86_64`, published 2026-09-20; standalone jar SHA-256 `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`.
 - Kof Editor: `bed6ae7d567b090497a447583a10b8522acaf66a`, VERSION `0.1.4-beta`; now installed with a project-restricted, network-isolated launcher and visually verified in private X11.
 - Do not infer release state from README 0.4.0 or website 0.4.1. Source SHA and release jar are separately identified, not assumed byte-equivalent.
 - Complete course: [`lunalully/curso-completo-de-kof@d6fc8318e77f30ab0d6be87055d86a7eb63960d3`](https://github.com/lunalully/curso-completo-de-kof/tree/d6fc8318e77f30ab0d6be87055d86a7eb63960d3), baseline 0.3.7-beta. [Official portal](https://koflang.github.io/docs) snapshot was generated 2026-09-17; several pages differ from pinned compiler source. See [KOF_COURSE](docs/KOF_COURSE.md).
 - Minecraft Java26.3, released2026-09-15; exact version-metadata SHA-1 `96c00d95a31328714d3811cfade2804bb050e455`. Uses SDL3/LWJGL3.4.3 and JOML1.10.9; source/version/license matrix in [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Temporary research clones/jars were under `/tmp/kookie-*`; not project dependencies. Durable evidence and full probe sources live in [RESEARCH_PROBES](docs/RESEARCH_PROBES.md), [COURSE_PROBES](docs/COURSE_PROBES.md) and [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- The active CLI is the patched source-built Kof `0.6.0` distribution at
-  `~/.local/share/kof4j/0.6.0-bb90986e-gcfix2`, using the host Java runtime and
-  compiler JAR SHA-256
-  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`.
-  The prior 0.5.0-beta installation remains side by side for historical
-  comparison only.
+- The active CLI is the source-built, GC-patched Kof `0.6.4` distribution selected by
+  `scripts/kof_pin.sh`; its compiler JAR SHA-256 is
+  `7a2211d0450fe57d1001007079cb12b880d74481b54fef1bb335a5f1d558724d`.
+  The prior 0.5.0-beta and 0.6.0 installations remain historical comparison
+  artifacts only.
 
 ## Proposed decisions
 
@@ -313,7 +313,7 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 1. Functions use `Int f(Int x)` / `f(Int x): Int`, **not fun/fn**. `record` and `class X(...)` are immutable/record-style; mutable classes use fields + explicit constructor. No top-level ordinary variables, array literals or Kotlin safe-call/coalesce assumptions.
 2. `.kf` modules/imports work. Measured directory import on JVM/native; `run` collects siblings and rejects multiple `main()` functions (`PKG002`). Separate application entry scopes.
 3. Native **scalar** `extern` works now; old blanket “native FFI unsupported” claims are stale. Measured sqrt → `3.0`, SDL_GetVersion → `3004018` on both targets.
-4. Kof 0.6.0 `Buffer(U8, INOUT)` plus token FFI is qualified locally by the
+4. Kof 0.6.4 `Buffer(U8, INOUT)` plus token FFI is qualified locally by the
    JVM/native x86-64 SIMD gate. The pinned source also implements synchronous
    callbacks on JVM, host JS and native x86-64/riscv64/aarch64, but KOOKIE has
    not yet promoted that callback surface as an engine ABI. Cross Buffer,
@@ -348,7 +348,7 @@ management remains unimplemented.
 24. `RemoteSessionEndpoint` validates IPv4/port and non-zero SipHash keys, freezes peer/key mutation while active, permits key changes only while inactive, and is used by live host/client role orchestration; production secret distribution remains external.
 25. `RemoteSessionLink` gates snapshots on endpoint activation and strictly increasing send/receive sequences. JVM/native three-process qualification carries gameplay, feedback and encounter state through the real session loop.
 26. `BoundedRayTargetWorld` now performs bounded integer ray/pellet selection with nearest-hit and stable-ID tie ordering, source exclusion through `SpatialAimContract`, and target removal. `CombatWorld.resolveShotgunPelletTargets` and the session wrappers preserve one selected target per pellet, including repeated hits and bounded misses. `LoopbackSession.resolvePlayerSpatialShotgun` now connects that selection to authoritative player combat.
-27. Native SIMD dispatch selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps checked scalar fallbacks. The packaged Kof `0.6.0` benchmark routes a 1 MiB `Buffer(U8)` through the dispatcher for 64 rounds and retains scalar parity across vector tails. The current native run measured `609013420 ns` scalar versus `2455576 ns` SIMD; the JVM run measured `64154425 ns` versus `31676267 ns`. The older 217.3x AVX2 result is historical Kof 0.5 evidence; no gameplay or general engine speedup is inferred.
+27. Native SIMD dispatch selects AVX2/SSE2 on x86, has an AArch64 NEON source path and keeps checked scalar fallbacks. The historical packaged Kof `0.6.0` benchmark routes a 1 MiB `Buffer(U8)` through the dispatcher for 64 rounds and retains scalar parity across vector tails. The recorded native run measured `609013420 ns` scalar versus `2455576 ns` SIMD; the JVM run measured `64154425 ns` versus `31676267 ns`. The older 217.3x AVX2 result is historical Kof 0.5 evidence; no gameplay or general engine speedup is inferred.
 28. The historical G3 focused gate was 75 JVM/native tests, plus Kof lint/LSP
     and the SIMD host/scalar/AArch64 proof. See [CHANGELOG](CHANGELOG.md) for
     current focused verification.

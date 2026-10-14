@@ -3,9 +3,9 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root_dir"
-source "$root_dir/scripts/sdl3_dependencies.sh"
 source "$root_dir/scripts/kof_pin.sh"
-
+source "$root_dir/scripts/sdl3_dependencies.sh"
+source "$root_dir/scripts/native_text_dependencies.sh"
 command -v kof >/dev/null || { echo "kof is required" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
 
@@ -98,7 +98,8 @@ fi
 
 isolation_wrapper="${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:-$root_dir/scripts/linux_gamescope_isolated_display}"
 presentation_dependencies_available=0
-if kookie_prepare_sdl3_dependencies "$root_dir"; then
+if kookie_prepare_sdl3_dependencies "$root_dir" &&
+   kookie_require_native_text_dependencies "$root_dir"; then
   presentation_dependencies_available=1
 fi
 if command -v gcc >/dev/null && command -v glslc >/dev/null &&
@@ -142,9 +143,10 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
   gcc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     -I"$adapter_build_dir" \
     native/kookie_sdl_adapter.c \
+    native/kookie_ui_renderer.c \
     native/kookie_transport.c \
     -o "$adapter_build_dir/libkookie_sdl_adapter.so" \
-    $(pkg-config --cflags --libs sdl3 sdl3-mixer) -lm
+    $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
   SDL_AUDIODRIVER=dummy kof build probes/g0_native_adapter/main.kf \
     --target native --output "$adapter_build_dir/native-adapter"
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then

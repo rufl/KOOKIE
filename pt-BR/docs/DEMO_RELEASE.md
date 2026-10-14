@@ -18,8 +18,8 @@ parágrafo. O artefato registrado usa o commit Kof 0.5.0-beta fixado em
 `bf17ac7e736471c8a04b4153e5b0f607be75e70c` e continua pré-release porque não
 reteve evidência de hardware-alvo.
 
-Novos candidatos de release usam o Kof `0.6.0` corrigido e construído a partir
-da fonte no commit `bb90986d065118e4f63978e8e6985256ff714203`; os registros de
+Novos candidatos de release usam o Kof `0.6.4` construído a partir da fonte
+no commit `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; os registros de
 qualificação abaixo mantêm suas identidades históricas do Kof.
 O dispatch de qualificação do contrato D1
 [`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)

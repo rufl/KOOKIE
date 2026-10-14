@@ -193,11 +193,11 @@ with zipfile.ZipFile(archive) as source:
 PY
   PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
   for required in kookie.cmd kookie.exe kookie-launcher.exe kookie-launcher.cmd \
-    SDL3.dll SDL3_mixer.dll \
-    build/SDL3.dll build/SDL3_mixer.dll build/g0_triangle.vert.spv \
-    build/g5_triangle_instance.vert.spv build/g6_world.vert.spv \
-    build/g0_triangle.frag.spv build/g0_triangle.vert.dxil \
-    build/g5_triangle_instance.vert.dxil build/g6_world.vert.dxil \
+    SDL3.dll SDL3_mixer.dll libfreetype-6.dll libharfbuzz-0.dll \
+    build/SDL3.dll build/SDL3_mixer.dll build/libfreetype-6.dll \
+    build/libharfbuzz-0.dll build/g0_triangle.vert.spv \
+    build/g6_world.vert.spv build/g0_triangle.frag.spv \
+    build/g0_triangle.vert.dxil build/g6_world.vert.dxil \
     build/g0_triangle.frag.dxil RELEASE_PUBLIC_KEY.pem \
     PROVENANCE.txt THIRD_PARTY_NOTICES.txt \
     fonts/OFL.txt fonts/readme.txt fonts/manifest.json; do
@@ -219,8 +219,7 @@ else
   PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
   for required in kookie kookie.bin kookie-launcher kookie-smoke.bin \
     build/libkookie_sdl_adapter.so build/g0_triangle.vert.spv \
-    build/g5_triangle_instance.vert.spv build/g6_world.vert.spv \
-    build/g0_triangle.frag.spv kookie-server kookie-server.bin LICENSE \
+    build/g6_world.vert.spv \
     THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt \
     fonts/jared-lite.ttf fonts/pixand.ttf fonts/OFL.txt fonts/readme.txt \
     fonts/manifest.json; do

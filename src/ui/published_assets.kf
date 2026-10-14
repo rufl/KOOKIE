@@ -9,7 +9,7 @@ KookieUiAsset kookieUiPublishedUiGatogansoMark() {
         "assets/ui/gatoganso-mark.svg",
         kookieUiAssetSvg(),
         "GatoGanso mark",
-        "b8a5fa320e49bf41d06969ae8d918a70a5525a9c7271fbe073c7878798b0f17e")
+        "de5501848990296b4c399d85d4acad8ac7ccf4a38a5fce4f94cd5042a030545c")
     return asset
 }
 

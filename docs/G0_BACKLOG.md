@@ -21,7 +21,7 @@ player-facing demo release. The open D1 gate is tracked in
 - Native adapter probe applying real adapter events to Kof state and running the first SPIR-V texture upload/draw path.
 - Bounded Kof frame staging contract measured at 15 scalar writes for a three-vertex textured triangle, with publish/discard ownership checks.
 - Native exception-lifetime probe and negative controls recorded in the
-  verification gate; Kof `0.6.0` now rejects the deliberately failing assertion
+  verification gate; Kof `0.6.4` now rejects the deliberately failing assertion
   on both JVM and native.
 - Native adapter exposes elapsed GPU draw timing after GPU-idle retirement.
 - G1 fixed-step clock, bounded input commands with fire/jump edge transitions, loopback server/client snapshot sync, and bounded integer component storage.
@@ -110,7 +110,7 @@ player-facing demo release. The open D1 gate is tracked in
   replay history automatically and round-trip through checkpoint sidecars;
   JVM/native coverage verifies the path. The isolated DRI3 screenshot gate now
   passes; crash-durable save publication is no longer deferred.
-- DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and AArch64 cross-target syntax proof. The original entry's “FFI001 array/buffer boundary” refers to the older research baseline; the active `0.6.0` source pin now has a bounded synchronous `Buffer(U8)` SIMD fixture. Typed/asynchronous GPU bulk integration remains unqualified and no speedup is claimed.
+- DXPERF-051 now has a production-safe native dispatch mechanism: runtime AVX2/SSE2 selection on x86, NEON source coverage on AArch64, checked scalar fallback, thread-safe initialization, host/scalar execution proof and AArch64 cross-target syntax proof. The original entry's “FFI001 array/buffer boundary” refers to the older research baseline; the active `0.6.4` source pin has a bounded synchronous `Buffer(U8)` SIMD fixture. Typed/asynchronous GPU bulk integration remains unqualified and no speedup is claimed.
 - `BoundedRayTargetWorld` now provides bounded integer ray and shotgun-pellet target selection with nearest-hit ordering, stable-ID ties, spread offsets, source exclusion through `SpatialAimContract`, target removal and invalid-input rejection; JVM/native coverage proves center and offset pellet hits.
 - `CombatWorld.resolveShotgunPelletTargets` and player/enemy session wrappers now accept exactly one validated target per pellet, preserve repeated target IDs when multiple pellets hit the same actor, allow bounded misses, and publish ordered combat events; JVM/native coverage proves target order and rejects wrong-length selections.
 - `LoopbackSession.resolvePlayerSpatialShotgun` now builds one shared `SpatialAimContract`, derives weapon pellet offsets from the authoritative combat state, selects spatial targets, and resolves the selected IDs through the authoritative per-pellet combat path; JVM/native coverage proves spread-specific damage, source exclusion, target removal and target health.
@@ -365,18 +365,16 @@ indefinitely.
 
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
-- Release qualification now uses source-built Kof `0.6.0` at source commit
-  `bb90986d065118e4f63978e8e6985256ff714203`; the first corrected local
-  distribution observed had SHA-256
-  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`, and
-  the compiler JAR SHA-256 is
-  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`.
-  CI computes the distribution digest per build because tar metadata varies.
-  The tagged public archive is rejected because its embedded CLI reports
-  `kof 0.5.0-beta` despite the `0.6.0` source version.
-  Its native assembler emits Linux ELF; the Windows Kof PE bridge separately
-  emits deterministic AMD64 PE/COFF for the qualified reachable gameplay and
-  presentation graphs.
+- Release qualification now uses source-built Kof `0.6.4` at source commit
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; the compiler JAR SHA-256 is
+recorded from each patched source build. CI computes the distribution digest
+per build because tar metadata varies. The preparation gate applies and
+verifies `scripts/kof-0.6.4-native-gc-cycle.patch` (SHA-256
+`073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`), which
+makes the native mark worklist discard already-marked blocks instead of
+requeueing cyclic object graphs. Its native assembler emits Linux ELF; the
+Windows Kof PE bridge separately emits deterministic AMD64 PE/COFF for the
+qualified reachable gameplay and presentation graphs.
 - Local release qualification covers native Linux and the native Windows SDL3 +
   SDL_mixer platform shell. The Windows presentation package links native Kof
   PE to the SDL_GPU adapter and bundles SPIR-V/DXIL products; the native-shell

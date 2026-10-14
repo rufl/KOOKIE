@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 
 for command_name in cp find grep mkdir openssl python3 rm sha256sum tar; do
   command -v "$command_name" >/dev/null || {
@@ -110,7 +111,6 @@ PACKAGE_ROOT="$EXTRACTED/$PACKAGE_NAME"
 }
 for required in kookie kookie.bin kookie-launcher kookie-smoke.bin \
   build/libkookie_sdl_adapter.so build/libkookie_persistence_adapter.so \
-  build/g0_triangle.vert.spv build/g5_triangle_instance.vert.spv \
   build/g6_world.vert.spv build/g0_triangle.frag.spv kookie-server \
   kookie-server.bin LICENSE \
   THIRD_PARTY_NOTICES.txt DEMO_CONTROLS.txt PROVENANCE.txt \
@@ -120,7 +120,8 @@ for required in kookie kookie.bin kookie-launcher kookie-smoke.bin \
     exit 1
   }
 done
-for library_pattern in 'libSDL3.so*' 'libSDL3_mixer.so*'; do
+for library_pattern in 'libSDL3.so*' 'libSDL3_mixer.so*' \
+  'libfreetype.so*' 'libharfbuzz.so*'; do
   [[ -n "$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -name "$library_pattern" \
     -print -quit)" ]] || {
     echo "verify_linux_presentation_package: missing package library $library_pattern" >&2
@@ -153,6 +154,14 @@ if expected_epoch is not None:
 assert manifest["sha256"] == hashlib.sha256(archive.read_bytes()).hexdigest()
 assert manifest["signing"] == "ed25519"
 assert manifest["windows_presentation"] is False
+assert manifest["freetype_version"] not in ("", "not-bundled")
+assert manifest["harfbuzz_version"] not in ("", "not-bundled")
+assert len(manifest["freetype_runtime_sha256"]) == 64
+assert len(manifest["harfbuzz_runtime_sha256"]) == 64
+assert manifest["runtime_dependencies"] == "SDL3+SDL_mixer+FreeType+HarfBuzz"
+assert (package_root / "fonts/jared-lite.ttf").is_file()
+assert (package_root / "fonts/pixand.ttf").is_file()
+assert (package_root / "assets/ui/gatoganso-mark.svg").is_file()
 assert (package_root / "PROVENANCE.txt").is_file()
 PY
 package_source_commit="$(

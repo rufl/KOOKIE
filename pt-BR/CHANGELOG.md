@@ -3,16 +3,15 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
-- Restauramos a geração do atlas nativo de UI antes do upload da textura no
-  SDL_GPU. A apresentação Windows agora renderiza menu/HUD em vez de um frame
-  apenas limpo, e o smoke de screenshot rejeita um frame capturado uniforme.
-- Corrigimos o layout do texto nativo para o clip de apresentação SDL 16:9: o
-  atlas derivado do TTF com sete colunas agora usa quatro unidades horizontais
-  lógicas e avanço de cinco unidades, mantendo pixels quadrados em vez de
-  esticar cada rótulo horizontalmente. O caminho CSS/SVG do KofJS não muda.
-- Documentamos a fronteira dos alvos: KofJS carrega assets SVG/TTF no host,
-  enquanto SDL nativo consome o atlas gerado no build a partir dos TTF e não
-  decodifica bytes SVG/TTF em runtime.
+- Substituímos o atlas nativo de UI gerado no build por runs semânticos UTF-16.
+  A apresentação SDL agora faz shaping com HarfBuzz e rasterização em runtime
+  das fontes TTF empacotadas com FreeType; a largura lógica de quatro unidades
+  e o avanço de cinco preservam o contrato de layout 16:9.
+- A UI nativa agora renderiza a marca SVG empacotada do Gatoganso pelo
+  adaptador SDL; o caminho CSS/SVG do KofJS permanece inalterado.
+- O gate de dependências nativas e a procedência do release agora registram
+  versões de FreeType e HarfBuzz e hashes dos runtimes nativos empacotados da
+  apresentação.
 - Fortalecemos o runner de desktop privado Windows para iniciar a apresentação
   nativa pelo `cmd.exe` sem handles padrão herdados, desabilitar a conversão
   de paths do MSYS para argumentos nativos, executar scripts `.cmd` temporários
@@ -28,15 +27,15 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   de desktop privado antes do smoke PE.
 - A publicação agora exige `source_commit` imutável; qualificação e publicação
   não podem derivar silenciosamente para um `main` mais novo.
-- Atualizamos o gate de release e CI do Kof para o commit de fonte `0.6.0`
-  `bb90986d065118e4f63978e8e6985256ff714203`; a primeira distribuição Linux
-  corrigida construída a partir da fonte nesta qualificação teve SHA-256
-  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`.
-  O SHA-256 do JAR do compilador é
-  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`;
-  a CI calcula o digest do archive por build porque os metadados tar não são
-  estáveis. O archive público marcado foi rejeitado porque sua CLI embutida
-  reporta `kof 0.5.0-beta` apesar da versão de fonte `0.6.0`.
+- Atualizamos o gate de release e CI do Kof para o commit de fonte `0.6.4`
+  `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. O archive Linux público
+  upstream é `kof-0.6.4-linux-x86_64.tar.gz`, com SHA-256
+  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`;
+  a CI de release constrói seu próprio archive da fonte. A preparação aplica
+  e verifica `scripts/kof-0.6.4-native-gc-cycle.patch` (SHA-256
+  `073287ac363bbc5f28ae8b6b62d60239d1d06bb9e5a148ac6dc712fd8116714e`) para
+  que blocos já marcados saiam da worklist do GC nativo em vez de recolocar
+  grafos cíclicos.
 - Revalidamos a pinagem do archive oficial Zig `0.17.0` com SHA-256
   `1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026`.
 - O workflow de release agora constrói a distribuição Kof fixada uma vez em um
@@ -74,11 +73,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   opcional de GLB verifica a existência do arquivo antes da leitura, então
   assets de protótipo ausentes selecionam o fallback limitado em vez de
   desreferenciar um resultado de arquivo inválido.
-- Corrigimos o staging e o smoke da apresentação nativa: o atlas de fonte UI
-  agora usa corretamente o stride da fonte padrão, eventos de janela SDL são
-  drenados antes das asserções de teclas sintéticas, a geometria do menu
-  reserva capacidade GPU explicitamente e o smoke de release percorre o
-  caminho real do menu principal até o Kutter.
+- Corrigimos o staging e o smoke da apresentação nativa: runs semânticos UTF-16
+  agora atravessam a fronteira do adaptador, a marca SVG é renderizada pelo
+  renderer nativo de UI, eventos de janela SDL são drenados antes das
+  asserções de teclas sintéticas, a geometria do menu reserva capacidade GPU
+  explicitamente e o smoke de release percorre o caminho real do menu principal
+  até o Kutter.
 - Restauramos o staging determinístico do objeto PE com stripping COFF do LLVM,
   fallback para `objcopy` do GNU e um stripper COFF portátil em Python quando as
   ferramentas standalone não estão disponíveis. O Zig 0.17.0 emite uma seção

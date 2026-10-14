@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Keep every local/package gate on the same Kof source and CLI identity.
-KOF_PIN_VERSION='0.6.0'
+KOF_PIN_VERSION='0.6.4'
 KOF_PIN_CLI_VERSION="kof $KOF_PIN_VERSION"
-KOF_PIN_SOURCE_COMMIT='bb90986d065118e4f63978e8e6985256ff714203'
+KOF_PIN_SOURCE_COMMIT='aaab7523ea6fddc818beee27ab46ccbb9fd9734a'
 KOF_PIN_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 KOF_AS_WRAPPER_DIR="$KOF_PIN_ROOT/scripts/kof-as"
 if [[ -x "$KOF_AS_WRAPPER_DIR/as" &&

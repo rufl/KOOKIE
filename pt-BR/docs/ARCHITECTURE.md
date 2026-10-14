@@ -79,11 +79,9 @@ responsável pela semântica de câmera/projeção, staging limitado, seleção 
 material/passe e ordenação de renderização; ele nunca faz parse nem composição
 de SPIR-V no runtime.
 
-A versão `0.6.0` fixada do Kof4j implementa `Buffer(U8)` somente em
+A versão `0.6.4` fixada do Kof4j implementa `Buffer(U8)` somente em
 bytes para JVM, JS e nativo x86-64; `scripts/verify_simd_dispatch.sh` qualifica
-o formato síncrono INOUT em JVM/nativo x86-64. Os comentários da fonte fixada
-afirmam suporte a riscv64/aarch64, enquanto a documentação upstream mais nova
-continua reportando `FFI001` no Native; o KOOKIE trata o suporte cross como não
+o formato síncrono INOUT em JVM/nativo x86-64. O suporte cross continua não
 qualificado. `Buffer(U8)` não define um contrato tipado e assíncrono de posse de
 GPU/áudio.
 

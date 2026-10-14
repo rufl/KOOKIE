@@ -2,7 +2,7 @@
 
 Research date: **2026-09-22**. This is a library/architecture assessment, not an implemented engine or a measured performance comparison. Native Linux x86-64 and Kof-owned CPU behavior remain the baseline in [ENGINE_PLAN](ENGINE_PLAN.md). Foreign ECS/GUI/physics ownership is a possible explicit alternative, not silently approved by this research.
 
-The active KOOKIE source/CI baseline is Kof `0.6.0`; this research keeps
+The active KOOKIE source/CI baseline is Kof `0.6.4`; this research keeps
 its dated Minecraft snapshot and does not approve foreign dependencies for the
 engine without a separate contract and qualification gate.
 
@@ -46,7 +46,7 @@ There is no named Ashley, Artemis, Dominion, Bullet, Jolt or PhysX dependency. D
 | Route | What works in principle | Actual cost / boundary |
 |---|---|---|
 | Kof JVM + Java library | Java classes on the dependency classpath | JOML constructor/method math was exercised below. Other Java libraries remain untested; reflection, generics, interface callbacks, JNI and classpath resolution need separate proof. Does not satisfy native-ELF shipping by itself |
-| Native Kof + C/C++ library | Narrow checked adapter over an allowed foreign subsystem | The pinned Kof `0.6.0` source exposes a synchronous byte-only `Buffer(U8)` shape qualified by KOOKIE only on JVM/native x86-64; arbitrary typed arrays, structs, pointers, out-buffers and callbacks remain outside the portable contract. Adapter owns native memory/resources; Kof receives checked tokens and copied values. C++ virtual interfaces require real adapter implementations |
+| Native Kof + C/C++ library | Narrow checked adapter over an allowed foreign subsystem | The pinned Kof `0.6.4` source exposes a synchronous byte-only `Buffer(U8)` shape qualified by KOOKIE only on JVM/native x86-64; arbitrary typed arrays, structs, pointers, out-buffers and callbacks remain outside the portable contract. Adapter owns native memory/resources; Kof receives checked tokens and copied values. C++ virtual interfaces require real adapter implementations |
 | Native `.kf` port or independent implementation | Selected algorithms and data/lifecycle contracts | Best for portable engine-owned CPU logic. A Java source translation does not bring the JVM/reflection/JNI with it. Source-derived ports retain upstream license obligations |
 
 A token adapter does **not** make a Java JAR native. Embedding a JVM or moving gameplay into a foreign engine would be a separate architecture decision. Native `spawn` currently disables automatic GC; begin on one Kof thread. Foreign library threads must not retain Kof heap references or call into Kof. See [KOF_LANGUAGE](KOF_LANGUAGE.md) and [COURSE_PROBES](COURSE_PROBES.md).

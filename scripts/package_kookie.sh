@@ -11,8 +11,9 @@ fi
 
 BASE_URL="${KOOKIE_PACKAGE_BASE_URL:-}"
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
 source "$ROOT_DIR/scripts/kof_pin.sh"
+source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
+source "$ROOT_DIR/scripts/native_text_dependencies.sh"
 TARGET="linux-x86_64"
 RUNTIME="${KOOKIE_RUNTIME:-native}"
 VERSION="${KOOKIE_VERSION:-0.1.0-dogfood.1}"
@@ -37,7 +38,12 @@ SHADER_MANIFEST_SHA256="not-bundled"
 SDL3_ARCHIVE_SHA256="${KOOKIE_SDL3_ARCHIVE_SHA256:-not-pinned}"
 SDL3_MIXER_ARCHIVE_SHA256="${KOOKIE_SDL3_MIXER_ARCHIVE_SHA256:-not-pinned}"
 SDL3_RUNTIME_SHA256=not-bundled
+WINDOWS_FREETYPE_PREFIX="${KOOKIE_WINDOWS_FREETYPE_PREFIX:-}"
+WINDOWS_HARFBUZZ_PREFIX="${KOOKIE_WINDOWS_HARFBUZZ_PREFIX:-}"
+WINDOWS_TEXT_PKG_CONFIG_PATH=""
 SDL3_MIXER_RUNTIME_SHA256=not-bundled
+FREETYPE_RUNTIME_SHA256=not-bundled
+HARFBUZZ_RUNTIME_SHA256=not-bundled
 JAVA_TOOL_VERSION=not-used
 JAVAC_TOOL_VERSION=not-used
 JAVA_TOOL_SHA256=not-used
@@ -64,7 +70,7 @@ signed target release from GitHub before launching; Windows adds `.exe` and
 
 Native Linux packages contain the Kof executable and use the host's system
 runtime. Presentation packages contain the persistent native Kof SDL_GPU
-application, SDL3, SDL_mixer, the adapter, and shaders.
+application, SDL3, SDL_mixer, FreeType, HarfBuzz, the adapter, and shaders.
 Every Linux package also contains a graphics-free Kof dedicated workload server,
 a native bounded content kooker, and a Kof `Buffer(U8)` SIMD benchmark with
 native timing.
@@ -80,6 +86,9 @@ identity. The archive is hashed again before the compiler is packaged.
 Linux presentation packaging
 auto-discovers `.kookie-deps/sdl3-mixer-3.2.4`; run
 `bash scripts/bootstrap_sdl3_mixer.sh` when the host lacks SDL_mixer.
+Windows native/presentation packaging additionally requires
+`KOOKIE_WINDOWS_FREETYPE_PREFIX` and `KOOKIE_WINDOWS_HARFBUZZ_PREFIX`
+with MinGW import libraries and runtime DLLs.
 EOF
 }
 
@@ -266,9 +275,9 @@ if [[ "$RUNTIME" == presentation && "$TARGET" == linux-x86_64 ]]; then
   command -v ldd >/dev/null || { echo 'package_kookie: ldd is required for presentation packaging' >&2; exit 2; }
   command -v cc >/dev/null || { echo 'package_kookie: cc is required for presentation packaging' >&2; exit 2; }
   command -v glslc >/dev/null || { echo 'package_kookie: glslc is required for presentation packaging' >&2; exit 2; }
-  command -v spirv-val >/dev/null || { echo 'package_kookie: spirv-val is required for presentation packaging' >&2; exit 2; }
   command -v pkg-config >/dev/null || { echo 'package_kookie: pkg-config is required for presentation packaging' >&2; exit 2; }
   kookie_require_sdl3_dependencies "$ROOT_DIR" || exit 2
+  kookie_require_native_text_dependencies "$ROOT_DIR" || exit 2
 fi
 if [[ "$TARGET" == windows-x86_64 &&
       ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
@@ -286,6 +295,31 @@ if [[ "$TARGET" == windows-x86_64 &&
     echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_SDL_MIXER_PREFIX containing the SDL_mixer MinGW package' >&2
     exit 2
   }
+  [[ -n "$WINDOWS_FREETYPE_PREFIX" &&
+    ( -f "$WINDOWS_FREETYPE_PREFIX/include/freetype2/ft2build.h" ||
+      -f "$WINDOWS_FREETYPE_PREFIX/include/ft2build.h" ) &&
+    -f "$WINDOWS_FREETYPE_PREFIX/lib/libfreetype.dll.a" &&
+    -f "$WINDOWS_FREETYPE_PREFIX/bin/libfreetype-6.dll" ]] || {
+    echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_FREETYPE_PREFIX containing the FreeType MinGW package' >&2
+    exit 2
+  }
+  [[ -n "$WINDOWS_HARFBUZZ_PREFIX" &&
+    -f "$WINDOWS_HARFBUZZ_PREFIX/include/harfbuzz/hb-ft.h" &&
+    -f "$WINDOWS_HARFBUZZ_PREFIX/lib/libharfbuzz.dll.a" &&
+    -f "$WINDOWS_HARFBUZZ_PREFIX/bin/libharfbuzz-0.dll" ]] || {
+    echo 'package_kookie: Windows packaging requires KOOKIE_WINDOWS_HARFBUZZ_PREFIX containing the HarfBuzz MinGW package' >&2
+    exit 2
+  }
+  command -v pkg-config >/dev/null || {
+    echo 'package_kookie: pkg-config is required for Windows text dependency provenance' >&2
+    exit 2
+  }
+  [[ -f "$WINDOWS_FREETYPE_PREFIX/lib/pkgconfig/freetype2.pc" &&
+    -f "$WINDOWS_HARFBUZZ_PREFIX/lib/pkgconfig/harfbuzz.pc" ]] || {
+    echo 'package_kookie: Windows text prefixes must contain freetype2.pc and harfbuzz.pc' >&2
+    exit 2
+  }
+  WINDOWS_TEXT_PKG_CONFIG_PATH="$WINDOWS_FREETYPE_PREFIX/lib/pkgconfig:$WINDOWS_HARFBUZZ_PREFIX/lib/pkgconfig"
   [[ "$SDL3_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ &&
     "$SDL3_MIXER_ARCHIVE_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || {
     echo 'package_kookie: Windows SDL archive SHA-256 pins are required' >&2
@@ -516,7 +550,7 @@ bundle_ui_assets() {
     exit 1
   }
   mkdir -p "$destination_root"
-  for name in kookie-ui.css manifest.json; do
+  for name in kookie-ui.css manifest.json gatoganso-mark.svg; do
     [[ -f "$source_root/$name" && ! -L "$source_root/$name" ]] || {
       echo "package_kookie: UI asset missing: $name" >&2
       exit 1
@@ -613,6 +647,8 @@ bundle_linux_native() {
   strip_linux_native_debug "$PACKAGE_ROOT/kookie.bin"
   if [[ "$presentation_package" == 1 ]]; then
     mkdir "$PACKAGE_ROOT/lib"
+    local found_freetype=0
+    local found_harfbuzz=0
     local found_sdl=0
     local found_mixer=0
     for dependency in "$binary" "$@"; do
@@ -626,7 +662,15 @@ bundle_linux_native() {
             cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
             found_sdl=1
             ;;
-          ld-linux-x86-64.so*|libc.so*|libm.so*|libdl.so*|libpthread.so*|librt.so*|libgcc_s.so*|libz.so*)
+          libfreetype.so*)
+            cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
+            found_freetype=1
+            ;;
+          libharfbuzz.so*)
+            cp -L -- "$library" "$PACKAGE_ROOT/lib/$(basename "$library")"
+            found_harfbuzz=1
+            ;;
+          ld-linux-x86-64.so*|libc.so*|libm.so*|libdl.so*|libpthread.so*|librt.so*|libgcc_s.so*|libz.so*|libbz2.so*|libglib-2.0.so*|libgraphite2.so*|libpng16.so*|libbrotlidec.so*|libbrotlicommon.so*|libpcre2-8.so*)
             ;;
           *)
             echo "package_kookie: unreviewed Linux runtime dependency: $(basename "$library")" >&2
@@ -635,8 +679,9 @@ bundle_linux_native() {
         esac
       done < <(ldd "$dependency" | sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p')
     done
-    [[ "$found_sdl" == 1 && "$found_mixer" == 1 ]] || {
-      echo 'package_kookie: SDL3 and SDL_mixer runtime libraries must resolve' >&2
+    [[ "$found_sdl" == 1 && "$found_mixer" == 1 &&
+       "$found_freetype" == 1 && "$found_harfbuzz" == 1 ]] || {
+      echo 'package_kookie: SDL3, SDL_mixer, FreeType, and HarfBuzz runtime libraries must resolve' >&2
       exit 1
     }
     {
@@ -833,6 +878,7 @@ bundle_windows_kof_sdl() {
   local presentation_root="$WORK_DIR/presentation-source"
   local pe_build="$WORK_DIR/kof-pe-presentation"
   local adapter_obj="$WORK_DIR/kookie-sdl-adapter.obj"
+  local renderer_obj="$WORK_DIR/kookie-ui-renderer.obj"
   local transport_obj="$WORK_DIR/kookie-transport.obj"
   local persistence_obj="$WORK_DIR/kookie-persistence-adapter.obj"
   mkdir -p "$presentation_root"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
@@ -877,9 +923,19 @@ bundle_windows_kof_sdl() {
     -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$KOOKIE_WINDOWS_SDL_PREFIX/include" \
     -I "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/include" \
+    -I "$WINDOWS_FREETYPE_PREFIX/include" \
+    -I "$WINDOWS_FREETYPE_PREFIX/include/freetype2" \
+    -I "$WINDOWS_HARFBUZZ_PREFIX/include" \
     -I "$PACKAGE_ROOT/build" \
     -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_sdl_adapter.c" -o "$adapter_obj"
+  zig cc -target x86_64-windows-gnu -std=c11 \
+    -Wall -Wextra -Werror -O2 -fno-ident \
+    -I "$WINDOWS_FREETYPE_PREFIX/include" \
+    -I "$WINDOWS_FREETYPE_PREFIX/include/freetype2" \
+    -I "$WINDOWS_HARFBUZZ_PREFIX/include" \
+    -I "$ROOT_DIR/native" \
+    -c "$ROOT_DIR/native/kookie_ui_renderer.c" -o "$renderer_obj"
   zig cc -target x86_64-windows-gnu -std=c11 \
     -Wall -Wextra -Werror -O2 -fno-ident \
     -I "$ROOT_DIR/native" \
@@ -891,8 +947,10 @@ bundle_windows_kof_sdl() {
   zig cc -target x86_64-windows-gnu -s -fno-ident \
     -Wl,/subsystem:console -Wl,/Brepro \
     "$ROOT_DIR/native/kookie_pe_entry.c" \
-    "$pe_build/kof-module.obj" "$adapter_obj" "$transport_obj" \
+    "$pe_build/kof-module.obj" "$adapter_obj" "$renderer_obj" "$transport_obj" \
     "$persistence_obj" \
+    "$WINDOWS_HARFBUZZ_PREFIX/lib/libharfbuzz.dll.a" \
+    "$WINDOWS_FREETYPE_PREFIX/lib/libfreetype.dll.a" \
     "$KOOKIE_WINDOWS_SDL_MIXER_PREFIX/lib/libSDL3_mixer.dll.a" \
     "$KOOKIE_WINDOWS_SDL_PREFIX/lib/libSDL3.dll.a" \
     -lws2_32 -lpsapi -o "$PACKAGE_ROOT/kookie.exe"
@@ -902,6 +960,22 @@ bundle_windows_kof_sdl() {
     "$PACKAGE_ROOT/SDL3_mixer.dll"
   cp -- "$PACKAGE_ROOT/SDL3.dll" "$PACKAGE_ROOT/build/SDL3.dll"
   cp -- "$PACKAGE_ROOT/SDL3_mixer.dll" "$PACKAGE_ROOT/build/SDL3_mixer.dll"
+  for text_runtime_dll in \
+    "$WINDOWS_FREETYPE_PREFIX"/bin/*.dll \
+    "$WINDOWS_HARFBUZZ_PREFIX"/bin/*.dll; do
+    [[ -f "$text_runtime_dll" ]] || continue
+    text_runtime_name="$(basename "$text_runtime_dll")"
+    for text_runtime_destination in \
+      "$PACKAGE_ROOT/$text_runtime_name" \
+      "$PACKAGE_ROOT/build/$text_runtime_name"; do
+      if [[ -e "$text_runtime_destination" ]] &&
+         ! cmp -s "$text_runtime_dll" "$text_runtime_destination"; then
+        echo "package_kookie: conflicting Windows text runtime DLL $text_runtime_name" >&2
+        exit 2
+      fi
+      cp -- "$text_runtime_dll" "$text_runtime_destination"
+    done
+  done
   {
     cat <<'EOF'
 @echo off
@@ -1085,12 +1159,13 @@ else
       ln -s -- "$source" "$PRESENTATION_ROOT/$module/$(basename "$source")"
     done
   done
-  IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
+  IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz)"
   python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
     --root "$ROOT_DIR" --output "$PACKAGE_ROOT/build" --target linux
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     -I"$PACKAGE_ROOT/build" \
     "$ROOT_DIR/native/kookie_sdl_adapter.c" \
+    "$ROOT_DIR/native/kookie_ui_renderer.c" \
     "$ROOT_DIR/native/kookie_transport.c" \
     -o "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so" \
     "${SDL_FLAGS[@]}" -lm
@@ -1165,6 +1240,8 @@ WINDOWS_STATUS=not-applicable
 DEPENDENCY_POLICY=permissive-distributed-only
 SDL_VERSION=not-bundled
 SDL_MIXER_VERSION=not-bundled
+FREETYPE_VERSION=not-bundled
+HARFBUZZ_VERSION=not-bundled
 RUNTIME_DEPENDENCIES=system-only
 if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
   WINDOWS_STATUS=kof-jvm-bundled-runtime
@@ -1173,40 +1250,67 @@ if [[ "$TARGET" == windows-x86_64 && "$RUNTIME" == jvm ]]; then
 elif [[ "$TARGET" == windows-x86_64 &&
         ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
   WINDOWS_STATUS=kof-native-pe-sdl-gpu-bundled-runtime
-  DEPENDENCY_POLICY=bundled-sdl-and-shader-assets-license-files-retained
+  DEPENDENCY_POLICY=bundled-sdl-text-and-shader-assets-notices-retained
   SDL_VERSION=3.4.18
   SDL_MIXER_VERSION=3.2.4
-  RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL
+  FREETYPE_VERSION="$(
+    PKG_CONFIG_PATH="$WINDOWS_TEXT_PKG_CONFIG_PATH" pkg-config --modversion freetype2
+  )"
+  HARFBUZZ_VERSION="$(
+    PKG_CONFIG_PATH="$WINDOWS_TEXT_PKG_CONFIG_PATH" pkg-config --modversion harfbuzz
+  )"
+  RUNTIME_DEPENDENCIES=Kof-PE+SDL3+SDL_mixer+FreeType+HarfBuzz+SPIR-V+DXIL
 elif [[ "$RUNTIME" == presentation ]]; then
   SDL_VERSION=3.4.18
   SDL_MIXER_VERSION=3.2.4
-  RUNTIME_DEPENDENCIES=SDL3+SDL_mixer
+  FREETYPE_VERSION="$(pkg-config --modversion freetype2)"
+  HARFBUZZ_VERSION="$(pkg-config --modversion harfbuzz)"
+  RUNTIME_DEPENDENCIES=SDL3+SDL_mixer+FreeType+HarfBuzz
 fi
 if [[ -f "$PACKAGE_ROOT/build/kookie_shader_manifest.json" ]]; then
   SHADER_MANIFEST_SHA256="$(
     sha256sum "$PACKAGE_ROOT/build/kookie_shader_manifest.json" | cut -d ' ' -f 1
   )"
 fi
-if [[ "$RUNTIME" == presentation ]]; then
-  if [[ "$TARGET" == windows-x86_64 ]]; then
-    SDL3_RUNTIME_SHA256="$(sha256sum "$PACKAGE_ROOT/SDL3.dll" | cut -d ' ' -f 1)"
-    SDL3_MIXER_RUNTIME_SHA256="$(
-      sha256sum "$PACKAGE_ROOT/SDL3_mixer.dll" | cut -d ' ' -f 1
-    )"
-  else
-    sdl3_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
-      -name 'libSDL3.so*' -print -quit)"
-    sdl3_mixer_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
-      -name 'libSDL3_mixer.so*' -print -quit)"
-    [[ -n "$sdl3_runtime" && -n "$sdl3_mixer_runtime" ]] || {
-      echo 'package_kookie: bundled SDL runtime files are missing' >&2
-      exit 1
-    }
-    SDL3_RUNTIME_SHA256="$(sha256sum "$sdl3_runtime" | cut -d ' ' -f 1)"
-    SDL3_MIXER_RUNTIME_SHA256="$(
-      sha256sum "$sdl3_mixer_runtime" | cut -d ' ' -f 1
-    )"
-  fi
+if [[ "$TARGET" == windows-x86_64 &&
+      ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
+  SDL3_RUNTIME_SHA256="$(sha256sum "$PACKAGE_ROOT/SDL3.dll" | cut -d ' ' -f 1)"
+  SDL3_MIXER_RUNTIME_SHA256="$(
+    sha256sum "$PACKAGE_ROOT/SDL3_mixer.dll" | cut -d ' ' -f 1
+  )"
+  FREETYPE_RUNTIME_SHA256="$(
+    sha256sum "$PACKAGE_ROOT/libfreetype-6.dll" | cut -d ' ' -f 1
+  )"
+  HARFBUZZ_RUNTIME_SHA256="$(
+    sha256sum "$PACKAGE_ROOT/libharfbuzz-0.dll" | cut -d ' ' -f 1
+  )"
+elif [[ "$RUNTIME" == presentation ]]; then
+  sdl3_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
+    -name 'libSDL3.so*' -print -quit)"
+  sdl3_mixer_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
+    -name 'libSDL3_mixer.so*' -print -quit)"
+  [[ -n "$sdl3_runtime" && -n "$sdl3_mixer_runtime" ]] || {
+    echo 'package_kookie: bundled SDL runtime files are missing' >&2
+    exit 1
+  }
+  SDL3_RUNTIME_SHA256="$(sha256sum "$sdl3_runtime" | cut -d ' ' -f 1)"
+  SDL3_MIXER_RUNTIME_SHA256="$(
+    sha256sum "$sdl3_mixer_runtime" | cut -d ' ' -f 1
+  )"
+  freetype_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
+    -name 'libfreetype.so*' -print -quit)"
+  harfbuzz_runtime="$(find "$PACKAGE_ROOT/lib" -maxdepth 1 -type f \
+    -name 'libharfbuzz.so*' -print -quit)"
+  [[ -n "$freetype_runtime" && -n "$harfbuzz_runtime" ]] || {
+    echo 'package_kookie: bundled FreeType and HarfBuzz runtime files are missing' >&2
+    exit 1
+  }
+  FREETYPE_RUNTIME_SHA256="$(
+    sha256sum "$freetype_runtime" | cut -d ' ' -f 1
+  )"
+  HARFBUZZ_RUNTIME_SHA256="$(
+    sha256sum "$harfbuzz_runtime" | cut -d ' ' -f 1
+  )"
 fi
 if [[ "$TARGET" == windows-x86_64 &&
       ( "$RUNTIME" == native || "$RUNTIME" == presentation ) ]]; then
@@ -1257,10 +1361,14 @@ windows_status=$WINDOWS_STATUS
 dependency_policy=$DEPENDENCY_POLICY
 sdl_version=$SDL_VERSION
 sdl_mixer_version=$SDL_MIXER_VERSION
+freetype_version=$FREETYPE_VERSION
+harfbuzz_version=$HARFBUZZ_VERSION
 sdl3_archive_sha256=$SDL3_ARCHIVE_SHA256
 sdl_mixer_archive_sha256=$SDL3_MIXER_ARCHIVE_SHA256
 sdl3_runtime_sha256=$SDL3_RUNTIME_SHA256
 sdl_mixer_runtime_sha256=$SDL3_MIXER_RUNTIME_SHA256
+freetype_runtime_sha256=$FREETYPE_RUNTIME_SHA256
+harfbuzz_runtime_sha256=$HARFBUZZ_RUNTIME_SHA256
 java_tool_version=$JAVA_TOOL_VERSION
 javac_tool_version=$JAVAC_TOOL_VERSION
 java_tool_sha256=$JAVA_TOOL_SHA256
@@ -1354,12 +1462,15 @@ python3 - "$ARCHIVE" "$MANIFEST" "$TARGET" "$VERSION" "$BUILD_ID" \
   "$PROTOTYPE_MODELS_POLICY" "$SHADER_MANIFEST_SHA256" \
   "$SDL3_ARCHIVE_SHA256" "$SDL3_MIXER_ARCHIVE_SHA256" \
   "$SDL3_RUNTIME_SHA256" "$SDL3_MIXER_RUNTIME_SHA256" \
+  "$FREETYPE_RUNTIME_SHA256" "$HARFBUZZ_RUNTIME_SHA256" \
   "$JAVA_TOOL_VERSION" "$JAVAC_TOOL_VERSION" \
   "$JAVA_TOOL_SHA256" "$JAVAC_TOOL_SHA256" \
   "$GLSLC_TOOL_VERSION" "$GLSLC_TOOL_SHA256" \
   "$SPIRV_VAL_TOOL_VERSION" "$SPIRV_VAL_TOOL_SHA256" \
   "$DXC_TOOL_SHA256" "$ZIG_VERSION_USED" "$ZIG_ARCHIVE_SHA256" \
-  "$ZIG_BINARY_SHA256" <<'PY'
+  "$ZIG_BINARY_SHA256" "$FREETYPE_VERSION" "$HARFBUZZ_VERSION" \
+  "$SDL_VERSION" "$SDL_MIXER_VERSION" "$DEPENDENCY_POLICY" \
+  "$RUNTIME_DEPENDENCIES" <<'PY'
 import hashlib, json, pathlib, sys
 archive = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
@@ -1372,12 +1483,14 @@ manifest_path = pathlib.Path(sys.argv[2])
     prototype_content_sha256, prototype_content_asset_count,
     prototype_content_file_count, prototype_models_policy,
     shader_manifest_sha256, sdl3_archive_sha256, sdl_mixer_archive_sha256,
-    sdl3_runtime_sha256, sdl_mixer_runtime_sha256, java_tool_version,
-    javac_tool_version, java_tool_sha256, javac_tool_sha256,
+    sdl3_runtime_sha256, sdl_mixer_runtime_sha256,
+    freetype_runtime_sha256, harfbuzz_runtime_sha256,
+    java_tool_version, javac_tool_version, java_tool_sha256, javac_tool_sha256,
     glslc_tool_version, glslc_tool_sha256, spirv_val_tool_version,
     spirv_val_tool_sha256, dxc_tool_sha256, zig_version, zig_archive_sha256,
-    zig_binary_sha256
-) = sys.argv[3:44]
+    zig_binary_sha256, freetype_version, harfbuzz_version, sdl_version,
+    sdl_mixer_version, dependency_policy, runtime_dependencies
+) = sys.argv[3:]
 encoded = base_url.rstrip("/")
 manifest = {
     "schema": schema,
@@ -1404,6 +1517,14 @@ manifest = {
     "sdl_mixer_archive_sha256": sdl_mixer_archive_sha256,
     "sdl3_runtime_sha256": sdl3_runtime_sha256,
     "sdl_mixer_runtime_sha256": sdl_mixer_runtime_sha256,
+    "freetype_runtime_sha256": freetype_runtime_sha256,
+    "harfbuzz_runtime_sha256": harfbuzz_runtime_sha256,
+    "sdl_version": sdl_version,
+    "sdl_mixer_version": sdl_mixer_version,
+    "freetype_version": freetype_version,
+    "harfbuzz_version": harfbuzz_version,
+    "dependency_policy": dependency_policy,
+    "runtime_dependencies": runtime_dependencies,
     "java_tool_version": java_tool_version,
     "javac_tool_version": javac_tool_version,
     "java_tool_sha256": java_tool_sha256,

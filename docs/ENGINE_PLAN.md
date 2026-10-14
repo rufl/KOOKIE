@@ -3,9 +3,9 @@
 Status: **living architecture and acceptance gates; the bounded G0–G6 implementation is complete within explicit qualification limits, while the D1 playable-demo release remains open**.
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Current qualification gate:
-Kof 0.6.0 source commit
-`bb90986d065118e4f63978e8e6985256ff714203`. Project architecture is
-[ARCHITECTURE.md](ARCHITECTURE.md). See [language/runtime evidence](KOF_LANGUAGE.md),
+Kof 0.6.4 source commit
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. Project architecture is
+`ARCHITECTURE.md`. See [language/runtime evidence](KOF_LANGUAGE.md),
 [initial probes](RESEARCH_PROBES.md), [course deep dive](KOF_COURSE.md),
 and [game-system survey](GAME_ECOSYSTEM.md) for evidence boundaries.
 
@@ -61,13 +61,13 @@ mechanisms stay native; engine semantics move to Kof:
 Any GLB/content migration must size storage from the declared asset data, not
 introduce another arbitrary asset cap. Pointer, struct, buffer and callback
 marshaling remains C only where the Kof ABI cannot express it.
-The current cutover is scalar and explicit: `src/core/camera.kf` builds the
-fixed-point view/projection matrix; `src/content/gpu_world_texture.kf` builds
-the bounded RGBA atlas and resolves world resource IDs to normalized UV words;
-`src/ui/kookie_ui_native.kf` resolves UI resource IDs to encoded atlas
-coordinates; and the presentation stages the render pass plan. C only validates
-those scalars, owns native storage/transfers, decodes the validated cat PNG
-range through SDL and submits the selected GPU draws.
+The current cutover is scalar and explicit: `src/core/camera.kf` builds
+the fixed-point view/projection matrix; `src/content/gpu_world_texture.kf`
+builds the bounded RGBA atlas and resolves world resource IDs to normalized UV
+words; `src/ui/kookie_ui_native.kf` stages validated resource quads and
+semantic UTF-16 text runs; and the presentation stages the render pass plan.
+C owns FreeType/HarfBuzz shaping/rasterization, SVG decoding, native storage
+and transfers, while Kof owns bounded layout and pass policy.
 The same rule applies to persistence: `BoundedDurableSaveFileCodec` owns the
 redundant envelope, checksum and slot selection; C receives only bounded file
 bytes for safe create/read/fsync/rename operations.
@@ -209,7 +209,7 @@ Versioned UI sources and additional license boundaries are in
 
 ## 3. The FFI boundary must be proven first
 
-The pinned Kof `0.6.0` runtime exposes byte-only `Buffer(U8)` on the JVM
+The pinned Kof `0.6.4` runtime exposes byte-only `Buffer(U8)` on the JVM
 and native x86-64 paths; `scripts/verify_simd_dispatch.sh` qualifies its
 synchronous INOUT shape on those targets. Generic typed arrays, structs, raw
 pointers, arbitrary out-buffers and native callbacks remain outside the
@@ -909,7 +909,7 @@ per-frame upload. The visually reviewed 320×240 readback checksum was
 Crash-durable saves validate a staged file, fsync file data, rename atomically
 and fsync the parent directory. Save migrations cover multi-step old schemas;
 replay v3 binds engine/content/seed identity and a whole-payload checksum.
-Release packaging requires an exact Kof 0.6.0 toolchain, clean source
+Release packaging requires an exact Kof 0.6.4 toolchain, clean source
 tree and owner-private Ed25519 key, then signs the archive, provenance manifest
 and checksum set. The packaged headless server remains graphics-independent.
 
@@ -964,10 +964,9 @@ initialization is thread-safe; unsupported or forced-scalar builds remain
 valid. The `kookie_simd_sum_u8_buffer` entry point maps one Kof
 `Buffer(U8)` plus its Kof-validated extent to the selected reduction.
 
-Kof 0.6.0 source commit `bb90986d065118e4f63978e8e6985256ff714203`
+Kof 0.6.4 source commit `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`
 provides the native `Buffer(U8, INOUT)` contract. CI builds that exact source
-after normalizing its stale embedded version metadata; the public tagged archive
-is rejected because its CLI reports `kof 0.5.0-beta`. The pinned source also
+after normalizing its embedded version metadata. The pinned source also
 implements synchronous callbacks on JVM, host JS and native x86-64/riscv64/
 aarch64, but KOOKIE has not rerun that cross-target callback/Buffer matrix.
 `scripts/verify_simd_dispatch.sh` is the local x86-64 JVM/native qualification.
@@ -975,11 +974,11 @@ aarch64, but KOOKIE has not rerun that cross-target callback/Buffer matrix.
 `scripts/verify_simd_dispatch.sh` verifies `i32` and `u8` vector-tail parity
 through host-selected and forced-scalar C paths, runs the same Kof
 `Buffer(U8)` benchmark on JVM and native, and syntax-checks the AArch64 NEON
-source. The current corrected Kof `0.6.0` run reduced 64 MiB in native
-`609013420 ns` through the scalar loop and `2455576 ns` through the SIMD buffer
-route; the JVM run measured `64154425 ns` and `31676267 ns`. Both targets
-matched `scalar-total=simd-total=expected-total=16844324864`, and the AArch64
-syntax proof passed. This is ABI and representative reduction evidence, not a
+source. The retained benchmark record below was produced by the previous
+qualified Kof distribution; it is ABI and representative reduction evidence,
+not a current Kof 0.6.4 performance claim. Both targets matched
+`scalar-total=simd-total=expected-total=16844324864`, and the AArch64 syntax
+proof passed. This is ABI and representative reduction evidence, not a
 frame-time, gameplay or general engine-speed claim; production gameplay
 remains Kof-owned and scalar.
 
@@ -1006,14 +1005,14 @@ display/session isolation, render-node restrictions, timeouts or cleanup.
 
 | Risk | Current evidence | Action / release gate |
 |---|---|---|
-| Bulk FFI remains target-specific; structs/pointers and callbacks are not a locally qualified engine contract | Pinned 0.6.0 `Buffer(U8, INOUT)` passes the packaged JVM/native x86-64 `u8` reduction benchmark; the pinned source implements synchronous callbacks across JVM, host JS and native targets, but KOOKIE has not rerun that callback/cross matrix | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
+| Bulk FFI remains target-specific; structs/pointers and callbacks are not a locally qualified engine contract | Pinned 0.6.4 `Buffer(U8, INOUT)` passes the focused JVM/native x86-64 qualification; the pinned source implements synchronous callbacks across JVM, host JS and native targets, but KOOKIE has not rerun that callback/cross matrix | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
 | Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows native Kof PE gameplay passes through the Kof SDL smoke, and the presentation package gate verifies native PE/SDL_GPU linkage and shader products | Keep separate platform/GPU gates; do not infer DRI3-capable Windows presentation from package linkage or graphics-free smoke |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
 | Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |
 | Distribution runtime closure | The Windows JVM profile retains a digest-pinned full OpenJDK runtime and legal tree; native compiler pruning still emits its known warning | Keep the JVM choice explicit, record runtime identity/size, compare reproducible archives and never treat it as silent native fallback |
 | Native stale exception handler | Later assertion re-entered a completed try/catch and exited 0; failure-path hangs remain externally bounded | Validate expected failures before throw; use external timeout/exit/output gates; no control-flow shim |
 | Native JSON/split parity | Fractional mixed-record JSON corrupted values; escaped-pipe split differed from JVM | Repair/prove exact content/save schemas and parser contracts before G3/G4 reliance |
-| Language/docs rapidly diverge | 0.3.7 course / older portal pages / 0.6.0 release gate | Pin exact toolchain identity and archive digest; upgrade through focused behavior probes, not compile-only claims |
+| Language/docs rapidly diverge | 0.3.7 course / older portal pages / 0.6.4 release gate | Pin exact toolchain identity and archive digest; upgrade through focused behavior probes, not compile-only claims |
 | Editor reliability/security | Single-file run, JS UI, privileged unauthenticated handlers | CLI + separate LSP-capable editor; no dependency on editor fork |
 | Kutter pipeline becomes second engine | Multiple monolithic runtimes or authorities | Shared .kf runtime/query/content contracts; staged frame-boundary publish |
 | License/asset assumptions | Unclear code/asset rights; unlicensed DoomKof source | Preserve provenance, resolve grants, own/test assets initially |

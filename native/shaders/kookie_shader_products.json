@@ -17,22 +17,6 @@
       "resources": []
     },
     {
-      "name": "g5_triangle_instance.vert",
-      "stage": "vertex",
-      "entrypoint": "main",
-      "glsl_source": "native/shaders/g5_triangle_instance.vert",
-      "hlsl_source": "native/shaders/g5_triangle_instance.vert.hlsl",
-      "inputs": [
-        {"location": 0, "type": "float4"},
-        {"location": 1, "type": "float4"},
-        {"location": 2, "type": "float4"}
-      ],
-      "outputs": [
-        {"location": 0, "type": "float2"}
-      ],
-      "resources": []
-    },
-    {
       "name": "g6_world.vert",
       "stage": "vertex",
       "entrypoint": "main",

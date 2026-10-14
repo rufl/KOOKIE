@@ -1,5 +1,5 @@
 diff --git a/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java b/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java
-index c958b7c8..ad57fa57 100644
+index c958b7c89..ad57fa57c 100644
 --- a/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java
 +++ b/kof-compiler/src/main/java/dev/kof/compiler/runtime/RuntimeGc.java
 @@ -135,7 +135,7 @@ public final class RuntimeGc {
@@ -11,7 +11,7 @@ index c958b7c8..ad57fa57 100644
                  movb $1, 24(%rbx)
                  jmp .Ltry_done
              .Ltry_next:
-@@ -171,6 +171,6 @@ public final class RuntimeGc {
+@@ -171,7 +171,7 @@ public final class RuntimeGc {
                  je .Ltry_done_pop
                  leaq -32(%r12), %rbx
                  cmpb $0, 24(%rbx)

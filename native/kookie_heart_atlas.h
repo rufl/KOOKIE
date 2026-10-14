@@ -1,7 +1,9 @@
 #ifndef KOOKIE_HEART_ATLAS_H
 #define KOOKIE_HEART_ATLAS_H
 
-static const Uint8 kookie_heart_tiles[5][8][8][4] = {
+#include <stdint.h>
+
+static const uint8_t kookie_heart_tiles[5][8][8][4] = {
     {
         {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}},
         {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 255}, {0, 0, 0, 0}, {0, 0, 0, 255}, {0, 0, 0, 255}, {0, 0, 0, 0}, {0, 0, 0, 0}},

@@ -194,8 +194,8 @@ class BoundedRayTargetWorld {
         Int aimEndX, Int aimEndY, Int aimEndZ,
         Int offsetX, Int offsetY, Int range, Int radius
     ) {
-        return query(
-            startX, startY, startZ,
+        return queryFrom(
+            0, startX, startY, startZ,
             aimEndX + offsetX, aimEndY + offsetY, aimEndZ,
             range, radius)
     }

@@ -708,22 +708,6 @@ class GameShell {
         return activateMultiplayer()
     }
 
-    Int glyph(Char value) {
-        return kookieUiNativeGlyph(value)
-    }
-
-    Int textResourceWithFont(Int font, Int color, Int glyphValue) {
-        if (font < 0 || font >= uiFontCount() ||
-            color < 0 || color > 4 ||
-            glyphValue < 1 || glyphValue > 44) { return 0 }
-        return uiFontResourceBase() + font * uiFontResourceStride() +
-            color * 48 + glyphValue - 1
-    }
-    Int textResource(Int color, Int glyphValue) {
-        return textResourceWithFont(
-            uiFontDefaultBody(), color, glyphValue)
-    }
-
     Bool pushQuad(
         FrameStaging target, Int resource,
         Int left, Int bottom, Int right, Int top
@@ -731,6 +715,7 @@ class GameShell {
         return kookieUiNativePushQuad(
             target, resource, left, bottom, right, top)
     }
+
     Bool pushScreenFrame(FrameStaging target) {
         return pushQuad(
                 target, kookieUiNativeResourceBackground(),
@@ -749,7 +734,10 @@ class GameShell {
                 -94, -90, -92, 88) &&
             pushQuad(
                 target, kookieUiNativeResourceFocus(),
-                92, -90, 94, 88)
+                92, -90, 94, 88) &&
+            pushQuad(
+                target, kookieUiNativeResourceBrandMark(),
+                78, 70, 90, 82)
     }
 
     Int selectedTextColor() {
@@ -796,23 +784,8 @@ class GameShell {
             safeLeft = 100 - width
             if (safeLeft < -100) { safeLeft = -100 }
         }
-        var x = safeLeft
-
-        for (var index = 0; index < text.length(); index = index + 1) {
-            var glyphValue = glyph(text.charAt(index))
-            var glyphRight = x + uiFontGlyphWidth() * scale
-            var glyphTop = bottom + uiFontGlyphHeight() * scale
-            if (glyphValue > 0 &&
-                x >= -100 && glyphRight <= 100 &&
-                bottom >= -100 && glyphTop <= 100 &&
-                !pushQuad(target,
-                    textResourceWithFont(font, color, glyphValue),
-                    x, bottom, glyphRight, glyphTop)) {
-                return false
-            }
-            x = x + uiFontGlyphAdvance() * scale
-        }
-        return true
+        return kookieUiNativePushTextWithFont(
+            target, text, safeLeft, bottom, scale, color, font)
     }
     Bool pushText(
         FrameStaging target, String text,
@@ -875,6 +848,20 @@ class GameShell {
         return digits * uiFontGlyphAdvance() * scale - scale
     }
 
+    String digitText(Int digit) {
+        if (digit == 0) { return "0" }
+        if (digit == 1) { return "1" }
+        if (digit == 2) { return "2" }
+        if (digit == 3) { return "3" }
+        if (digit == 4) { return "4" }
+        if (digit == 5) { return "5" }
+        if (digit == 6) { return "6" }
+        if (digit == 7) { return "7" }
+        if (digit == 8) { return "8" }
+        if (digit == 9) { return "9" }
+        return ""
+    }
+
     Bool pushNumber(
         FrameStaging target, Int value,
         Int left, Int bottom, Int scale, Int color
@@ -885,10 +872,7 @@ class GameShell {
         var x = left
         while (divisor > 0) {
             var digit = (value / divisor) % 10
-            if (!pushQuad(target, textResource(color, 27 + digit),
-                    x, bottom,
-                    x + uiFontGlyphWidth() * scale,
-                    bottom + uiFontGlyphHeight() * scale)) {
+            if (!pushText(target, digitText(digit), x, bottom, scale, color)) {
                 return false
             }
             x = x + uiFontGlyphAdvance() * scale
@@ -896,6 +880,7 @@ class GameShell {
         }
         return true
     }
+
     Bool pushSignedNumber(
         FrameStaging target, Int value,
         Int left, Int bottom, Int scale, Int color

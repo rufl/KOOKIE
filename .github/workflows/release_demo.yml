@@ -40,9 +40,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  KOF_VERSION: 0.6.0
-  KOF_SOURCE_COMMIT: bb90986d065118e4f63978e8e6985256ff714203
-  KOOKIE_KOF_SOURCE_COMMIT: bb90986d065118e4f63978e8e6985256ff714203
+  KOF_VERSION: 0.6.4
+  KOF_SOURCE_COMMIT: aaab7523ea6fddc818beee27ab46ccbb9fd9734a
+  KOOKIE_KOF_SOURCE_COMMIT: aaab7523ea6fddc818beee27ab46ccbb9fd9734a
   ZIG_VERSION: 0.17.0
   ZIG_ARCHIVE_SHA256: b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428
   ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
@@ -583,7 +583,19 @@ jobs:
           }
           : "${KOOKIE_WINDOWS_SDL_PREFIX:?configure KOOKIE_WINDOWS_SDL_PREFIX on this runner}"
           : "${KOOKIE_WINDOWS_SDL_MIXER_PREFIX:?configure KOOKIE_WINDOWS_SDL_MIXER_PREFIX on this runner}"
+          : "${KOOKIE_WINDOWS_FREETYPE_PREFIX:?configure KOOKIE_WINDOWS_FREETYPE_PREFIX on this runner}"
+          : "${KOOKIE_WINDOWS_HARFBUZZ_PREFIX:?configure KOOKIE_WINDOWS_HARFBUZZ_PREFIX on this runner}"
           : "${KOOKIE_DXC:?configure KOOKIE_DXC on this runner}"
+          command -v pkg-config >/dev/null
+          test -f "$KOOKIE_WINDOWS_FREETYPE_PREFIX/lib/pkgconfig/freetype2.pc"
+          test -f "$KOOKIE_WINDOWS_HARFBUZZ_PREFIX/lib/pkgconfig/harfbuzz.pc"
+          test -f "$KOOKIE_WINDOWS_FREETYPE_PREFIX/include/freetype2/ft2build.h" ||
+            test -f "$KOOKIE_WINDOWS_FREETYPE_PREFIX/include/ft2build.h"
+          test -f "$KOOKIE_WINDOWS_FREETYPE_PREFIX/lib/libfreetype.dll.a"
+          test -f "$KOOKIE_WINDOWS_FREETYPE_PREFIX/bin/libfreetype-6.dll"
+          test -f "$KOOKIE_WINDOWS_HARFBUZZ_PREFIX/include/harfbuzz/hb-ft.h"
+          test -f "$KOOKIE_WINDOWS_HARFBUZZ_PREFIX/lib/libharfbuzz.dll.a"
+          test -f "$KOOKIE_WINDOWS_HARFBUZZ_PREFIX/bin/libharfbuzz-0.dll"
           printf '%s\n' "$KOOKIE_SIGNING_KEY_PEM" >"$RUNNER_TEMP/kookie-signing.pem"
           chmod 600 "$RUNNER_TEMP/kookie-signing.pem"
           printf 'KOOKIE_SIGNING_KEY=%s\n' "$RUNNER_TEMP/kookie-signing.pem" >>"$GITHUB_ENV"
@@ -769,7 +781,7 @@ jobs:
 
           Signed native presentation packages built from source commit
           \`$source_commit\` with Kof source commit
-          \`${KOOKIE_KOF_SOURCE_COMMIT:-bb90986d065118e4f63978e8e6985256ff714203}\`.
+          \`${KOOKIE_KOF_SOURCE_COMMIT:-aaab7523ea6fddc818beee27ab46ccbb9fd9734a}\`.
 
           This bounded first demo contains local \`Play\`, fixed two-player
           \`Host/Join\`, explicit \`READY\` gating and the host-authoritative

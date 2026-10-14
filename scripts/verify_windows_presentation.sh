@@ -2,7 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/kof_pin.sh"
 command -v openssl >/dev/null || { echo 'verify_windows_presentation: openssl is required' >&2; exit 2; }
 command -v python3 >/dev/null || { echo 'verify_windows_presentation: python3 is required' >&2; exit 2; }
 
@@ -121,16 +121,17 @@ for relative in (
     "kookie.exe",
     "kookie-launcher.exe",
     "kookie-launcher.cmd",
-    "kookie-visual.exe",
     "build/SDL3.dll",
     "SDL3.dll",
     "SDL3_mixer.dll",
+    "libfreetype-6.dll",
+    "libharfbuzz-0.dll",
+    "build/libfreetype-6.dll",
+    "build/libharfbuzz-0.dll",
     "build/g0_triangle.vert.spv",
-    "build/g5_triangle_instance.vert.spv",
     "build/g6_world.vert.spv",
     "build/g0_triangle.frag.spv",
     "build/g0_triangle.vert.dxil",
-    "build/g5_triangle_instance.vert.dxil",
     "build/g6_world.vert.dxil",
     "build/g0_triangle.frag.dxil",
     "RELEASE_PUBLIC_KEY.pem",
@@ -157,8 +158,12 @@ provenance = dict(
     if "=" in line
 )
 assert provenance["windows_status"] == "kof-native-pe-sdl-gpu-bundled-runtime"
-assert provenance["dependency_policy"] == "bundled-sdl-and-shader-assets-license-files-retained"
-assert provenance["runtime_dependencies"] == "Kof-PE+SDL3+SDL_mixer+SPIR-V+DXIL"
+assert provenance["dependency_policy"] == "bundled-sdl-text-and-shader-assets-notices-retained"
+assert provenance["runtime_dependencies"] == "Kof-PE+SDL3+SDL_mixer+FreeType+HarfBuzz+SPIR-V+DXIL"
+assert provenance["freetype_version"] not in ("", "not-bundled")
+assert provenance["harfbuzz_version"] not in ("", "not-bundled")
+assert len(provenance["freetype_runtime_sha256"]) == 64
+assert len(provenance["harfbuzz_runtime_sha256"]) == 64
 assert provenance["game_display_name"] == "GatoGanso"
 assert provenance["font_default_body"] == "Jared-Lite"
 assert provenance["font_default_display"] == "Pixand"

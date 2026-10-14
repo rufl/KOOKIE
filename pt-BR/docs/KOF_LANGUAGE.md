@@ -2,34 +2,28 @@
 
 Data da pesquisa: 2026-09-22. Esta é uma referência de trabalho, não uma afirmação de conformidade completa com a linguagem.
 
-A baseline ativa de qualificação do KOOKIE é o commit de fonte do Kof
-`0.6.0` listado abaixo. As medições mais antigas de `0.4.9-beta` nesta
-página continuam sendo pesquisa histórica e não descrevem a entrada de build
-atual.
+A baseline ativa de qualificação do KOOKIE é o Kof `0.6.4`. As medições mais
+antigas de `0.4.9-beta` nesta página continuam sendo pesquisa histórica e não
+descrevem a entrada de build atual.
 
 ## Base de evidências
 
 ### Toolchain atual de release
 
-- O gate de release/CI do KOOKIE é o commit de fonte
-  [`bb90986d065118e4f63978e8e6985256ff714203`](https://github.com/KofLang/Kof4j/tree/bb90986d065118e4f63978e8e6985256ff714203)
-  A primeira distribuição Linux x86-64 corrigida construída a partir da fonte
-  observada nesta qualificação teve SHA-256
-  `94ed47a8385e58ccc15e0d85a5dbb26c7ba99b1a2962f175bb50ad562fa59520`;
-  o SHA-256 do JAR do compilador é
-  `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9`.
-- O digest do archive é por build porque os metadados tar do pacote de fonte
-  variam; o commit de fonte e o hash do JAR do compilador são a identidade
-  estável da toolchain.
-  O arquivo público marcado `kof-0.6.0-linux-x86_64.tar.gz` tem digest
-  `498de70b3fbc81e42f3387c110da72d52af3a180627010f9cf55260c6d8975f1`,
-  mas sua CLI embutida reporta `kof 0.5.0-beta`; ele é rejeitado e não é a
-  entrada de build do KOOKIE.
-- O build da fonte aplica o guard downstream de GC native em
-  `scripts/kof-0.6.0-native-gc.patch` (SHA-256
-  `641a2591690d4fbd569faf4771d550cd05320218eb7c0290f61957fc4097607e`).
-  O Kof `0.6.0` sem ele reinsere blocos já marcados nos dois caminhos de mark
-  native e pode entrar em loop durante alocações repetidas de sessões da engine.
+- O gate de release/CI do KOOKIE é o commit de fonte Kof `0.6.4`
+  [`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`](https://github.com/KofLang/Kof4j/tree/aaab7523ea6fddc818beee27ab46ccbb9fd9734a).
+- O archive Linux público
+  [`kof-0.6.4-linux-x86_64.tar.gz`](https://github.com/KofLang/Kof4j/releases/download/kof-0.6.4-linux-x86_64/kof-0.6.4-linux-x86_64.tar.gz)
+  tem SHA-256
+  `c1ffdaa9222237f9e0ed254d88683306d75c0280f3163fc9a35187ca3d01f136`
+  e reporta `kof 0.6.4`. O `lib/kof.jar` embutido observado na qualificação
+  tem SHA-256
+  `137a838d38757e317545474d55ad6a3ad291fb86d263ae77d9197cf705829c62`.
+- A fonte fixada contém a varredura iterativa upstream do GC native, mas os
+  ramos de bloco já marcado neste pin retornavam o bloco para a worklist.
+  `scripts/prepare_kof_source.sh` aplica e verifica o patch rastreado
+  `scripts/kof-0.6.4-native-gc-cycle.patch`, que retorna zero nesses ramos e
+  impede que grafos cíclicos sejam recolocados indefinidamente.
 - Gates de fonte devem executar `source scripts/kof_pin.sh`; ele coloca o
   wrapper rastreado `scripts/kof-as/as` no início do `PATH`. O wrapper usa o
   assembler integrado do Clang nas chamadas Kof `as -o OBJECT FILE.s` e delega
@@ -37,7 +31,7 @@ atual.
 - `scripts/verify_simd_dispatch.sh` é a prova ABI local atual do formato
   síncrono `Buffer(U8, INOUT)` em JVM/nativo x86-64. O suporte cross continua
   não qualificado até a mesma sonda ser executada contra este build de fonte
-  `0.6.0`.
+  `0.6.4`.
 - O material de 0.4.9 e 0.5.0 abaixo é mantido como pesquisa histórica.
 
 
@@ -173,7 +167,7 @@ Conjunto escalar verificado na fonte: `Int`, `Long`, `Float`, `Double`,
 exige uma string de biblioteca e faz a ligação por uso com uma chamada ABI
 direta, não com `dlopen` em tempo de execução.
 
-O `0.6.0` atual também possui o contrato de bytes `Buffer(U8)`. A
+O `0.6.4` atual também possui o contrato de bytes `Buffer(U8)`. A
 implementação fixada o mapeia para o token FFI `B` e um ponteiro de payload
 síncrono; `scripts/verify_simd_dispatch.sh` prova cópia de entrada/retorno e
 uma redução INOUT em JVM e nativo x86-64. Os comentários da fonte fixada
@@ -183,10 +177,10 @@ upstream, não um resultado de qualificação do KOOKIE.
 
 A sonda antiga de 0.4.9 rejeitou `extern ... upload(Float[] values): void` na
 JVM e no nativo. Esse resultado permanece histórico; o binding de arrays/records
-do 0.6.0 é específico por target e não estabelece ABI portátil de upload da
+do 0.6.4 é específico por target e não estabelece ABI portátil de upload da
 engine. Retornar ponteiros SDL como `Long` nunca é substituto suportado.
 
-Callbacks FFI são suportados no `0.6.0` em JVM, no host JS e nos targets
+Callbacks FFI são suportados no `0.6.4` em JVM, no host JS e nos targets
 Native x86-64/riscv64/aarch64 para argumentos escalares e `String`, com retorno
 primitivo ou `void`, sob contrato síncrono/não-escapante. KOOKIE ainda precisa
 de uma sonda local de callback antes de promover essa superfície como ABI da
@@ -213,13 +207,13 @@ Consequências:
    da biblioteca gráfica. Uma consulta de versão não comprova caminhos que
    usam intensivamente alocador/TLS/threads.
 
-Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/bb90986d065118e4f63978e8e6985256ff714203),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/bb90986d065118e4f63978e8e6985256ff714203/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/bb90986d065118e4f63978e8e6985256ff714203/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/aaab7523ea6fddc818beee27ab46ccbb9fd9734a),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [gate local de Buffer](../scripts/verify_simd_dispatch.sh),
-[ABI do runtime](https://github.com/KofLang/Kof4j/blob/bb90986d065118e4f63978e8e6985256ff714203/docs/runtime/RUNTIME_ABI.md).
+[ABI do runtime](https://github.com/KofLang/Kof4j/blob/aaab7523ea6fddc818beee27ab46ccbb9fd9734a/docs/runtime/RUNTIME_ABI.md).
 
-### Atualização da ABI do 0.6.0
+### Atualização da ABI do 0.6.4
 
 `Buffer(U8)` é agora uma fronteira síncrona de bytes, não uma API genérica de
 zero-copy ou recursos assíncronos. `KofBuffer` possui a alocação e `bytes()`

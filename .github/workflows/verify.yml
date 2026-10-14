@@ -19,9 +19,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  KOF_VERSION: 0.6.0
-  KOF_SOURCE_COMMIT: bb90986d065118e4f63978e8e6985256ff714203
-  WINDOWS_JAVA_ARCHIVE_SHA256: e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd
+  KOF_VERSION: 0.6.4
+  KOF_SOURCE_COMMIT: aaab7523ea6fddc818beee27ab46ccbb9fd9734a
   WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
   # Hosted runners are shared; keep the recorded 4 ms local target separate
   # from this scheduling-tolerant CI ceiling.
@@ -120,13 +119,14 @@ jobs:
             >> "$GITHUB_ENV"
 
 
-      - name: Install Clang, Wine, and initialize console prefix
+      - name: Install Clang, Wine, and native text dependencies
         run: |
           set -euo pipefail
           sudo dpkg --add-architecture i386
           sudo apt-get -o Acquire::Retries=3 update
           sudo apt-get -o Acquire::Retries=3 install \
-            --no-install-recommends -y clang wine wine64 wine32:i386
+            --no-install-recommends -y clang wine wine64 wine32:i386 \
+            libfreetype-dev libharfbuzz-dev
           clang --version
           wine --version
           smoke_prefix="$RUNNER_TEMP/wine-ci-smoke"

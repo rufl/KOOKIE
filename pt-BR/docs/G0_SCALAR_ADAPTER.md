@@ -4,9 +4,10 @@
 
 Status: **implementado e exercitado na JVM/nativo e em apresentação isolada com janela real**. A fronteira C estreita cobre ciclo de vida SDL, streams SDL_mixer de efeitos/música, tracks OGG Vorbis pré-decodadas com limites exatos de loop por frame de amostra, clips sintetizados limitados, upload/draw SPIR-V da cena com projeção em perspectiva e depth testing D16, e estado de eventos pertencente ao Kof. A sonda de apresentação reporta capacidade válida de swapchain, desenha e captura a arena autoral (142 vértices únicos, 178 triângulos, 534 vértices triangulados) e consome o clip `201` do evento autoritativo; evidências da máquina permanecem fora do repositório.
 
-O gate atual de fonte/CI usa Kof `0.6.0` no commit de fonte fixado; esta
-página registra o contrato limitado do adaptador, enquanto a evidência de
-apresentação específica da máquina continua sendo requisito separado da release.
+O gate atual de fonte/CI usa Kof `0.6.4` no commit de fonte
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; esta página registra o contrato
+limitado do adaptador, enquanto a evidência de apresentação específica da
+máquina continua sendo requisito separado da release.
 
 
 ## Limite do ciclo de vida SDL
@@ -21,7 +22,7 @@ apresentação específica da máquina continua sendo requisito separado da rele
 
 O binding direto do Kof ainda não carrega ponteiro SDL, struct, união de evento,
 callback, janela, dispositivo GPU ou dispositivo de áudio. A versão fixada do
-Kof `0.6.0` suporta `Buffer(U8)` somente em chamadas INOUT síncronas e
+Kof `0.6.4` suporta `Buffer(U8)` somente em chamadas INOUT síncronas e
 qualificadas por target; isso não forma uma binding portável tipada ou
 assíncrona para a engine.
 
@@ -98,7 +99,7 @@ recursos, ciclo de vida de plataforma/áudio, entrada de fonte OGG, staging de
 frame e transação menu/opções/lobby do GameShell.
 
 `scripts/verify_exception.sh` agora verifica o lifetime de exceções nativas
-corrigido no Kof `0.6.0`: a asserção deliberadamente falha com status 1 e
+corrigido no Kof `0.6.4`: a asserção deliberadamente falha com status 1 e
 imprime `no-throw`/`false` na JVM e `no-throw`/`false`/`expected failure` no
 native. O falso sucesso histórico do Kof `0.5.0-beta` continua registrado em
 [COURSE_PROBES](COURSE_PROBES.md); ele não é um contrato ativo da engine.

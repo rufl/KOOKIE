@@ -120,7 +120,7 @@ host de pacote que mantenha o CSS em `assets/ui` e as fontes empacotadas em
 ```
 
 `KookieUiText` aplica família, altura de linha, tamanho, peso e cor ao mesmo
-handle de `Label`. O `Font` do Kof `0.6.0` registra metadados, mas não anexa
+handle de `Label`. O `Font` do Kof `0.6.4` registra metadados, mas não anexa
 a fonte CSS a um Label; esta fatia usa portanto o caminho de estilo suportado,
 sem alegar que uma atribuição isolada é renderizada.
 
@@ -132,22 +132,22 @@ sem alegar que uma atribuição isolada é renderizada.
   empacotados por `assets/ui/kookie-ui.css`.
 - JVM/native: o mesmo código compila e a fachada mantém metadados/estado
   determinísticos. Os handles `kof.ui` são no-op por contrato do Kof. O HUD de
-  gameplay SDL continua usando `FrameStaging` e o adaptador nativo verificado;
-  esta biblioteca não cria silenciosamente um segundo renderer nativo. O texto
-  nativo usa o atlas limitado gerado a partir dos TTF empacotados no build; ele
-  não carrega bytes TTF ou SVG em runtime.
+  gameplay SDL usa `FrameStaging` e o adaptador nativo verificado. Runs de
+  texto cruzam a fronteira como codepoints UTF-16; HarfBuzz faz shaping e
+  FreeType rasteriza os TTF empacotados em runtime. O símbolo SVG é
+  rasterizado pelo mesmo renderer nativo.
 - KofScript: `KookieUiScriptDocument` é a camada semântica limitada. Ela não
   possui handles `kof.ui` e não renderiza sozinha; o host deve mapear seus
   descritores para a fachada Kof/KofJS baseada em handles.
 
 ### Skin nativo da engine
 
-`src/ui/kookie_ui_native.kf` é o contraparte nativo da mesma paleta, métricas
-de fonte e semântica de foco. Ele não cria um segundo renderer:
+`src/ui/kookie_ui_native.kf` é o contraparte nativo da mesma paleta, papéis de
+fonte e semântica de foco. Ele não cria um segundo renderer:
 `KookieUiNativeTheme` possui as cores/recursos semânticos e os helpers limitados
-escrevem diretamente no contrato existente de `FrameStaging`. A skin nativa
-organiza os glifos de sete colunas do atlas em uma célula lógica de quatro por
-sete para manter pixels quadrados no clip de apresentação 16:9 suportado.
+escrevem quads e runs de texto diretamente no contrato de `FrameStaging`.
+O adaptador nativo possui shaping/rasterização FreeType/HarfBuzz e decodificação
+SVG; o Kof continua responsável pelo layout semântico limitado.
 
 Os menus da engine (`GameShell`) agora usam esse skin para superfícies,
 trilhos de seleção, cores de texto, barras de volume e contraste. O HUD de
@@ -156,10 +156,10 @@ de vida/build/encontro/combate; nameplates, minimapa e scoreboard usam os
 mesmos primitivos nativos e a mesma configuração de contraste. A geometria
 continua pré-alocada e limitada; o orçamento do HUD é de 438 vértices.
 
-O atlas nativo mapeia os mesmos tokens para a paleta do pacote:
+O adaptador nativo mapeia os mesmos tokens semânticos para a paleta do pacote:
 background `#0f172a`, surface `#0f1f2b`, accent `#d97706`, focus `#15803d`,
-danger `#dc2626` e success `#22c55e`. Isto é somente estilo de apresentação;
-a autoridade de simulação/sessão não muda.
+danger `#dc2626` e success `#22c55e`. A superfície rasterizada é um upload
+transiente para a GPU; a autoridade de simulação/sessão não muda.
 
 ### Orçamento de renderização
 
@@ -248,7 +248,7 @@ de mídia, enquanto uma futura API upstream de playback precisa definir
 ownership, close, gain, loop, espacialização e falha por target antes desta
 fatia migrar para o Kof4j. Veja
 [`KOF4J_UI_MIGRATION.md`](KOF4J_UI_MIGRATION.md) para a auditoria da ABI
-0.6.0 e a fronteira de migração de buffers.
+`0.6.4` e a fronteira de migração de buffers.
 
 
 ## Acessibilidade e estilo

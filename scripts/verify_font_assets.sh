@@ -14,17 +14,20 @@ import sys
 font_dir = pathlib.Path(sys.argv[1])
 manifest_path = pathlib.Path(sys.argv[2])
 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-assert manifest["schema"] == "kookie.gatoganso-font-catalog/v1"
+assert manifest["schema"] == "kookie.gatoganso-font-catalog/v2"
 assert manifest["game"] == "GatoGanso"
 assert manifest["defaults"]["body"] == {
     "family": "Jared Lite",
     "file": "jared-lite.ttf",
-    "atlas": "JARED_LITE",
 }
 assert manifest["defaults"]["display"] == {
     "family": "Pixand",
     "file": "pixand.ttf",
-    "atlas": "PIXAND",
+}
+assert manifest["native_renderer"] == {
+    "rasterizer": "FreeType",
+    "shaper": "HarfBuzz",
+    "source_format": "TrueType",
 }
 for entry in manifest["files"]:
     path = font_dir / entry["path"]

@@ -221,9 +221,10 @@ test "HUD scale keeps the bounded overlay readable and staged" {
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 3, 0, 1, true) &&
         hud.updateEncounterReplication(0, 0, true, 1, 1) &&
-        hud.stage(frame, 1, 9) &&
-        frame.stagedCount() == hud.renderVertexCount(),
+        hud.stage(frame, 1, 9),
         "HUD scale baseline must stage")
+    assert(frame.stagedCount() <= hud.renderVertexCount(),
+        "HUD scale baseline must stay within the fixed budget")
     var baseline = frame.checksum()
     assert(frame.retire(1) &&
         hud.setScale(115) &&
@@ -243,16 +244,14 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
         hud.updateEncounterReplication(0, 0, true, 1, 1) &&
-        hud.stage(frame, 1, 9) &&
-        frame.stagedCount() == hud.renderVertexCount(),
+        hud.stage(frame, 1, 9),
         "ready HUD must stage panels icons crosshair network and encounter status")
-    assert(frame.resourceAt(372) ==
-            kookieUiNativeTextResource(
-                kookieUiNativeColorForeground(), kookieUiNativeGlyph('H')) &&
-        frame.resourceAt(384) ==
-            kookieUiNativeTextResource(
-                kookieUiNativeColorForeground(), kookieUiNativeGlyph('A')),
-        "ready HUD must stage HP and AMMO semantic labels")
+    assert(frame.stagedCount() <= hud.renderVertexCount(),
+        "ready HUD must stay within the fixed geometry budget")
+    assert(frame.textRuns() >= 2 &&
+        frame.textCodepointCountAt(0) > 0 &&
+        frame.textCodepointCountAt(1) > 0,
+        "ready HUD must stage HP and AMMO as native text runs")
     var readyChecksum = frame.checksum()
 
     var outgoing = ImpactPresentationEvent(
@@ -361,13 +360,15 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
     assert(hud.updateInventoryStatus(7, 8, true) &&
         hud.updateSkillStatus(2, 60, 100) &&
         hud.updateWorldLootStatus(2, 3) &&
-        hud.stage(frame, 12, 9) &&
-        frame.stagedCount() == hud.renderVertexCount() &&
-        hud.inventoryItems() == 7 && hud.inventoryCapacity() == 8 &&
+        hud.stage(frame, 12, 9),
+        "G3 build status must stage inventory equipment skill and ranked loot")
+    assert(frame.stagedCount() <= hud.renderVertexCount(),
+        "G3 build status must stay within the fixed geometry budget")
+    assert(hud.inventoryItems() == 7 && hud.inventoryCapacity() == 8 &&
         hud.equipmentReady() && hud.skillRank() == 2 &&
         hud.skillExperience() == 60 && hud.skillGoal() == 100 &&
         hud.worldLootCount() == 2 && hud.worldLootRank() == 3,
-        "G3 build status must stage inventory equipment skill and ranked loot")
+        "G3 build status must preserve inventory equipment skill and ranked loot")
     var buildChecksum = frame.checksum()
     assert(frame.retire(12))
     assert(!hud.updateInventoryStatus(9, 8, false) &&
@@ -583,7 +584,7 @@ test "camera aim projection follows the crosshair ray", "camera" {
         camera.aimDirectionZ() == 0,
         "mouse yaw must rotate the authoritative camera ray")
 }
-test "Kof staging emits bounded GPU camera and texture coordinates", "gpu-staging" {
+test "Kof staging emits bounded GPU camera and world texture coordinates", "gpu-staging" {
     var camera = CameraState(-450, 450)
     assert(!camera.buildGpuCameraMatrix(0, 720) &&
         camera.buildGpuCameraMatrix(1280, 720) &&
@@ -600,14 +601,17 @@ test "Kof staging emits bounded GPU camera and texture coordinates", "gpu-stagin
         worldTexture.textureV(15, 100) > worldTexture.textureV(15, 0) &&
         worldTexture.textureU(16, 0) < 0,
         "world texture resources must map to bounded Kof-owned UV words")
-    assert(kookieUiNativeTextureU(1, 0) >= 0 &&
-        kookieUiNativeTextureV(101, 0) >= 0 &&
-        kookieUiNativeTextureU(
-            kookieUiNativeTextResource(2, 1), 0) >= 0 &&
-        kookieUiNativeTextResource(2, 1) ==
-            uiFontResourceBase() + 2 * 48 &&
-        kookieUiNativeTextureU(0, 0) < 0,
-        "UI resources must map to bounded encoded atlas coordinates")
+    var textFrame = FrameStaging(16)
+    assert(textFrame.begin(1) &&
+        textFrame.pushTextRun(
+            uiFontDefaultBody(), kookieUiNativeColorForeground(),
+            "AA", -10, 10, 1) &&
+        textFrame.textRuns() == 1 &&
+        textFrame.textCodepointCountAt(0) == 2 &&
+        textFrame.textCodepointAt(0, 0) == ('A' as Int) &&
+        textFrame.textCodepointAt(0, 1) == ('A' as Int) &&
+        textFrame.publish() && textFrame.retire(1),
+        "native text must stage bounded UTF-16 runs without an atlas")
     var sections = BoundedSaveSections(2, 4)
     var payload = new Int[2]
     payload[0] = 41
@@ -5633,10 +5637,12 @@ test "G3 authoritative loot progression replication and save reload" {
         "replicated G3 authority must map into bounded HUD state")
     var replicatedHudFrame = FrameStaging(
         replicatedHud.renderVertexCount())
-    assert(replicatedHud.stage(replicatedHudFrame, 1, 9) &&
-        replicatedHudFrame.stagedCount() ==
-            replicatedHud.renderVertexCount() &&
-        replicatedHud.inventoryItems() == 1 &&
+    assert(replicatedHud.stage(replicatedHudFrame, 1, 9),
+        "replicated inventory skill equipment and ranked loot must render")
+    assert(replicatedHudFrame.stagedCount() <=
+        replicatedHud.renderVertexCount(),
+        "replicated HUD must stay within the fixed geometry budget")
+    assert(replicatedHud.inventoryItems() == 1 &&
         replicatedHud.equipmentReady() &&
         replicatedHud.skillRank() == 1 &&
         replicatedHud.worldLootCount() == 1 &&
@@ -5644,7 +5650,7 @@ test "G3 authoritative loot progression replication and save reload" {
         replicatedHud.eliteThreats() == 0 &&
         replicatedHud.bossThreats() == 0 &&
         replicatedHud.defeatedThreatKind() == enemyDefinitionBossKind(),
-        "replicated inventory skill equipment and ranked loot must render")
+        "replicated inventory skill equipment and ranked loot must preserve state")
     assert(replicatedHudFrame.retire(1))
 
     var full = LoopbackSession(8, 4)

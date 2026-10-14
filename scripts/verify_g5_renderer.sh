@@ -6,6 +6,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 source "$ROOT_DIR/scripts/kof_pin.sh"
 source "$ROOT_DIR/scripts/sdl3_dependencies.sh"
+source "$ROOT_DIR/scripts/native_text_dependencies.sh"
 
 for command_name in kof cc glslc spirv-val ldd pkg-config python3; do
   command -v "$command_name" >/dev/null || {
@@ -25,6 +26,10 @@ if [[ -z "$ISOLATION_WRAPPER" ]] || ! command -v "$ISOLATION_WRAPPER" >/dev/null
 fi
 kookie_require_sdl3_dependencies "$ROOT_DIR" || {
   echo 'G5 renderer gate requires SDL3 and SDL_mixer development files' >&2
+  exit 75
+}
+kookie_require_native_text_dependencies "$ROOT_DIR" || {
+  echo 'G5 renderer gate requires FreeType and HarfBuzz development files' >&2
   exit 75
 }
 
@@ -61,9 +66,11 @@ python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   -I"$SOURCE_DIR/build" \
   "$ROOT_DIR/native/kookie_sdl_adapter.c" \
+  "$ROOT_DIR/native/kookie_ui_renderer.c" \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SOURCE_DIR/build/libkookie_sdl_adapter.so" \
-  "${SDL_FLAGS[@]}" -lm
+  "${SDL_FLAGS[@]}" \
+  $(pkg-config --cflags --libs freetype2 harfbuzz) -lm
 while IFS= read -r library; do
   case "$(basename "$library")" in
     libSDL3.so*|libSDL3_mixer.so*)

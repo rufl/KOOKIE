@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Latest KOOKIE dogfood release" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Project status: experimental" src="https://img.shields.io/badge/status-experimental-f59e0b">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.0" src="https://img.shields.io/badge/Kof-0.6.0-64748b">
+  <img alt="Kof 0.6.4" src="https://img.shields.io/badge/Kof-0.6.4-64748b">
 </p>
 
 <p align="center">
@@ -87,14 +87,15 @@ release when one is published.
 
 ### Run qualification from source
 
-Install [Kof 0.6.0](https://github.com/KofLang/Kof4j) for the source
+Install [Kof 0.6.4](https://github.com/KofLang/Kof4j) for the source
 entrypoint:
 
 Use the source-built distribution from Kof commit
-`bb90986d065118e4f63978e8e6985256ff714203`. The tagged public Linux archive
-has stale embedded `0.5.0-beta` CLI metadata despite `VERSION=0.6.0`; CI
-applies `scripts/kof-0.6.0-native-gc.patch` and
-`scripts/prepare_kof_source.sh` before packaging and rejects that archive.
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. `scripts/prepare_kof_source.sh`
+applies and verifies `scripts/kof-0.6.4-native-gc-cycle.patch`, which makes
+the native mark worklist discard already-marked blocks instead of requeueing
+cyclic object graphs, then normalizes the compiler metadata before Maven
+packaging.
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
@@ -107,6 +108,10 @@ kof run src/main.kf --target native
 repository verification, packaging, evidence-validation and rendezvous scripts
 such as `scripts/verify.sh`, `scripts/package_kookie.sh` and
 `scripts/kookie_rendezvous.py`.
+Native SDL presentation requires `pkg-config` entries for FreeType 2 and
+HarfBuzz at build time. The adapter loads the packaged TrueType files, shapes
+text with HarfBuzz, rasterizes glyphs with FreeType, and decodes the shipped
+SVG mark at runtime; there is no generated font atlas.
 
 Run the focused gameplay and replay path:
 
@@ -223,7 +228,7 @@ descriptor metadata separate from the bounded native queue and applies
 registered UI spatial gains in SDL_mixer. The 14 supplied JDSherbert OGG files
 remain license-blocked for redistribution until provenance is confirmed.
 [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) records the current
-Kof4j `0.6.0` UI/FFI boundary: the active pin qualifies synchronous
+Kof4j `0.6.4` UI/FFI boundary: the active pin qualifies synchronous
 `Buffer(U8)` on JVM/native x86-64, while cross support is unqualified and
 `Buffer(U8)` is not a portable typed/asynchronous upload ABI. `bash
 scripts/verify_package.sh` validates the `none` package profile and

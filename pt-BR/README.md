@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Release dogfood mais recente do KOOKIE" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Estado do projeto: experimental" src="https://img.shields.io/badge/estado-experimental-f59e0b">
   <a href="../LICENSE"><img alt="Licença MIT" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.0" src="https://img.shields.io/badge/Kof-0.6.0-64748b">
+  <img alt="Kof 0.6.4" src="https://img.shields.io/badge/Kof-0.6.4-64748b">
 </p>
 
 <p align="center">
@@ -91,14 +91,14 @@ Windows quando ela for publicada.
 
 ### Executar a qualificação a partir da fonte
 
-Instale [Kof 0.6.0](https://github.com/KofLang/Kof4j) para o entrypoint
+Instale [Kof 0.6.4](https://github.com/KofLang/Kof4j) para o entrypoint
 de fonte:
 
 Use a distribuição construída a partir da fonte no commit Kof
-`bb90986d065118e4f63978e8e6985256ff714203`. O archive público Linux marcado
-tem metadados de CLI embutidos antigos (`0.5.0-beta`) apesar de
-`VERSION=0.6.0`; o CI aplica `scripts/kof-0.6.0-native-gc.patch` e executa
-`scripts/prepare_kof_source.sh` antes do empacotamento e rejeita esse archive.
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`. `scripts/prepare_kof_source.sh`
+aplica e verifica `scripts/kof-0.6.4-native-gc-cycle.patch`, que impede que
+grafos cíclicos do GC native recoloquem blocos já marcados indefinidamente,
+e normaliza os metadados do compilador antes do empacotamento Maven.
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git
@@ -111,6 +111,10 @@ O próprio `kof run` não exige Python. Python 3 é exigido atualmente pelos
 scripts de verificação, empacotamento, validação de evidências e rendezvous,
 como `scripts/verify.sh`, `scripts/package_kookie.sh` e
 `scripts/kookie_rendezvous.py`.
+A apresentação SDL native exige entradas `pkg-config` para FreeType 2 e
+HarfBuzz no build. O adaptador carrega os TTF empacotados, faz shaping com
+HarfBuzz, rasteriza glifos com FreeType e decodifica o símbolo SVG em runtime;
+não existe atlas de fonte gerado.
 
 Execute o caminho focado de gameplay/replay:
 
@@ -211,7 +215,7 @@ manifesto de assets publicados. O adaptador de sound cues mantém metadados
 registrados no SDL_mixer. Os 14 OGG JDSherbert fornecidos
 continuam bloqueados para redistribuição até a procedência/licença ser
 confirmada. [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) registra
-a fronteira atual de UI/FFI do Kof4j `0.6.0`: a pinagem ativa qualifica
+a fronteira atual de UI/FFI do Kof4j `0.6.4`: a pinagem ativa qualifica
 `Buffer(U8)` síncrono em JVM/nativo x86-64, enquanto o suporte cross não é
 qualificado e `Buffer(U8)` não é uma ABI portátil tipada/assíncrona de upload.
 `bash scripts/verify_package.sh` valida o perfil de pacote `none` e

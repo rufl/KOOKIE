@@ -4,11 +4,11 @@ Data da pesquisa e instalação: 2026-09-22. A auditoria da fonte original abaix
 
 Fonte fixada: [`KofLang/Kof-Editor@bed6ae7d567b090497a447583a10b8522acaf66a`](https://github.com/KofLang/Kof-Editor/tree/bed6ae7d567b090497a447583a10b8522acaf66a), `VERSION` = `0.1.4-beta`. Referência cruzada do compilador: [Kof4j 22a186b9](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), 0.4.9-beta. O empacotamento upstream pode selecionar compiladores mais antigos. A combinação instalada localmente foi verificada apenas para os fluxos de trabalho listados abaixo, não para todos os recursos upstream.
 
-O gate ativo de fonte/CI do KOOKIE usa Kof `0.6.0` no commit
-`bb90986d065118e4f63978e8e6985256ff714203`; as descobertas do editor/compilador
+O gate ativo de fonte/CI do KOOKIE usa Kof `0.6.4` no commit
+`aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; as descobertas do editor/compilador
 ligadas à combinação antiga `0.4.9-beta` abaixo continuam históricas. A
 verificação local do editor nesta página usou essa combinação antiga e não é
-qualificação do Kof `0.6.0`.
+uma qualificação do Kof `0.6.4`.
 
 ## Arquitetura real
 
@@ -145,9 +145,9 @@ Todos os acréscimos são locais ao usuário. Nenhuma substituição de pacote d
 
 | Componente | Local de instalação / versão |
 |---|---|
-| CLI do Kof | `~/.local/bin/kof` → `~/.local/share/kof4j/0.6.0-bb90986e-gcfix2/bin/kof` |
-| Código-fonte do compilador | Kof `0.6.0` corrigido, construído a partir da fonte no commit `bb90986d065118e4f63978e8e6985256ff714203`; o checkout de pesquisa específico do editor 0.4.9 permanece histórico |
-| JAR do compilador | SHA-256 `9492729ac63327e6c57e4cfa9272e8c86b5dd2e7bcdfe1a0cdd42fa018a2eec9` |
+| CLI do Kof | Distribuição Kof `0.6.4` construída a partir da fonte, selecionada pelo pin do repositório e corrigida para terminar ciclos do GC native |
+| Código-fonte do compilador | Kof `0.6.4` construído a partir da fonte no commit `aaab7523ea6fddc818beee27ab46ccbb9fd9734a`; com `scripts/kof-0.6.4-native-gc-cycle.patch`; o checkout de pesquisa específico do editor 0.4.9 permanece histórico |
+| JAR do compilador | SHA-256 `7a2211d0450fe57d1001007079cb12b880d74481b54fef1bb335a5f1d558724d` |
 | Maven | `~/.local/bin/mvn`, Apache Maven 3.9.16; retido para o trabalho histórico de fonte/ferramentas |
 | Java | Java 27 do Arch Linux no host, informado por `kof info --json`; sem JDK embutido |
 | Kof Editor | `~/.local/bin/kof-editor`, código-fonte 0.1.4-beta em `~/.local/share/kof-editor/source` |
@@ -221,7 +221,8 @@ Para manutenção, mantenha o JSON histórico da instalação 0.4.9, o JAR upstr
 original e `artifacts/tooling-fixes.patch` em
 `~/.local/share/kof4j/0.4.9-beta/`;
 eles não são o compilador ativo.
-O release empacotado ativo está em `~/.local/share/kof4j/0.6.0-bb90986e`.
+O release empacotado ativo é a distribuição Kof `0.6.4` construída a partir da
+fonte e selecionada pelo pin do repositório.
 A verificação do editor acima usou a combinação histórica 0.4.9; repita as
 sondas específicas de CLI/LSP/DAP após qualquer mudança do compilador.
 O código-fonte do editor, o launcher e a proveniência são mantidos em

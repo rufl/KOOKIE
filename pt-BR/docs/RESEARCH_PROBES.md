@@ -3,10 +3,9 @@
 Data: 2026-09-22. Estes são experimentos restritos de CLI, não testes do mecanismo nem certificação gráfica.
 
 Estes resultados preservam intencionalmente o artefato histórico Kof
-`0.4.9-beta`. O gate ativo de fonte/CI do KOOKIE usa Kof `0.6.0` no commit
+`0.4.9-beta`. O gate ativo de fonte/CI do KOOKIE usa Kof `0.6.4` no commit
 fixado em [`KOF_LANGUAGE`](KOF_LANGUAGE.md); não use a identidade do jar desta
 página como entrada de build atual. A evidência atual e limitada de
-`Buffer(U8)` é mantida por
 [`scripts/verify_simd_dispatch.sh`](../../scripts/verify_simd_dispatch.sh) e
 pela decisão de ABI em [KOF_LANGUAGE](KOF_LANGUAGE.md).
 
