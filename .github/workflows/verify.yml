@@ -22,6 +22,7 @@ env:
   KOF_VERSION: 0.6.5
   KOF_SOURCE_COMMIT: 940f3bd81c25e564afc60f9d32d49652e47edcbc
   WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
+  WINDOWS_JAVA_ARCHIVE_SHA256: e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd
   # Hosted runners are shared; keep the recorded 4 ms local target separate
   # from this scheduling-tolerant CI ceiling.
   KOOKIE_SERVER_P95_BUDGET_US: "8000"
@@ -59,6 +60,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "27"
+          cache: maven
+          cache-dependency-path: _kof/pom.xml
       - name: Install pinned Zig cross-toolchain
         shell: bash
         run: |

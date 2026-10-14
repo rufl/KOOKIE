@@ -87,6 +87,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "27"
+          cache: maven
+          cache-dependency-path: _kof/pom.xml
       - name: Build pinned Kof distribution
         shell: bash
         run: |
