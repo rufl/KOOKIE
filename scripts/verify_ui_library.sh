@@ -23,7 +23,7 @@ ln -s "$root_dir/src/ui/published_assets.kf" \
 cat "$root_dir/src/ui/kookie_ui.ks" \
   "$root_dir/src/ui/published_assets.ks" \
   "$root_dir/probes/g10_ui_library/main.ks" > "$work_dir/kofscript.ks"
-read -r -a targets <<< "${KOOKIE_UI_LIBRARY_TARGETS:-jvm native}"
+IFS=' ' read -r -a targets <<< "${KOOKIE_UI_LIBRARY_TARGETS:-jvm native}"
 (( ${#targets[@]} > 0 )) || {
   echo 'verify_ui_library: at least one target is required' >&2
   exit 2

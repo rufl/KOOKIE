@@ -179,6 +179,26 @@ bits, so the package gate restricts transient signing keys with `icacls.exe`.
 The Windows package gate also excludes linker options beginning with `-Wl,/`
 from Git Bash MSYS path conversion.
 
+### Runner preflight and cache contract
+
+Before release packaging, the workflow runs
+`scripts/runner_preflight.sh release-linux` or
+`scripts/runner_preflight.sh release-windows`. The preflight records OS, CPU,
+memory and free disk in the GitHub step summary, then rejects a runner that
+lacks the pinned Kof archive, Zig, SDL, shader, text-runtime or DXC inputs
+required by its target.
+
+The workflow caches only immutable downloaded archives, keyed by their
+version and SHA-256. Every cache hit is hashed again before extraction. A cache
+does not replace the Kof `SHA256SUMS`/`SOURCE_COMMIT` checks or the release
+runner's GPU/display preflight.
+
+The hosted `verify.yml` workflow builds the Kof archive once per run. Its
+static/JVM, native/package and Windows JVM jobs consume that exact archive in
+parallel. Native verification has a separate longer timeout because Kof native
+code generation is materially slower than the static/JVM path.
+
+
 Create `kookie-demo-release` in repository **Settings → Environments** and add
 required reviewers before allowing `publish=true`.
 

@@ -195,6 +195,14 @@ provenance JSON. Provenance binds the clean source commit, pinned Kof source
 commit, compiler JAR hash and distribution archive hash.
 The archive path and digest are checked, and its `lib/kof.jar` must match the
 installed compiler JAR before packaging; digest metadata alone is not trusted.
+The CI package gates may set
+`KOOKIE_PREBUILT_NATIVE_BUILD`/`KOOKIE_PREBUILT_NATIVE_MANIFEST` or
+`KOOKIE_PREBUILT_JVM_BUILD`/`KOOKIE_PREBUILT_JVM_MANIFEST` after compiling
+`src` once for that target. Each manifest must match the current source commit
+and `src` tree hash, target, Kof version, Kof source commit and compiler JAR
+SHA-256. A missing or mismatched manifest fails closed; local packaging
+without these variables still performs its own build.
+
 
 Every Linux archive also contains the native `kookie-launcher` update entrypoint:
 
@@ -778,10 +786,12 @@ all text-runtime DLLs. The tracked Windows wrapper owns the private desktop,
 timeout and process-tree cleanup. Native Windows smoke records the PCI adapter
 PNP identity and driver version.
 
-The hosted `verify.yml` job has a 45-minute budget because installing Wine
-with both `wine64` and `wine32:i386` can exceed the old core budget on a cold
-Ubuntu runner. The i386 architecture remains required because a win64 prefix
-needs the `syswow64/rundll32.exe` helper.
+The hosted `verify.yml` workflow builds the pinned Kof archive once per run,
+then runs static/JVM, native/package and Windows JVM jobs in parallel. The
+static job has a 20-minute budget, the Windows JVM job 30 minutes and the
+native/package job 90 minutes because Kof native code generation is materially
+slower. Zig and Windows JRE archives are cached by SHA-256 and revalidated on
+every use; the runner preflight records hardware and free-disk capacity.
 
 Configure the `KOOKIE_SIGNING_KEY_PEM` repository secret. The Kof digest is
 generated and verified from the per-run toolchain artifact; it is not a static

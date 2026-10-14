@@ -169,10 +169,17 @@ jobs:
             >> "$GITHUB_ENV"
           export PATH="$kof_bin:$PATH"
           [[ "$(kof version)" == "kof $KOF_VERSION" ]]
+      - name: Cache pinned Linux Zig archive
+        id: linux-zig-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/kookie/toolchains/zig
+          key: kookie-release-zig-linux-${{ env.ZIG_VERSION }}-${{ env.ZIG_LINUX_ARCHIVE_SHA256 }}
       - name: Install pinned Linux Zig toolchain
         shell: bash
         run: |
           set -euo pipefail
+          zig_dir=""
           if [[ -n "${KOOKIE_ZIG_BIN:-}" ]]; then
             test -x "$KOOKIE_ZIG_BIN"
             [[ "$("$KOOKIE_ZIG_BIN" version)" == "$ZIG_VERSION" ]] || {
@@ -186,22 +193,27 @@ jobs:
                 exit 2
               }
             fi
-            printf '%s\n' "$(dirname "$KOOKIE_ZIG_BIN")" >> "$GITHUB_PATH"
+            zig_dir="$(dirname "$KOOKIE_ZIG_BIN")"
           else
-            archive="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
+            cache_dir="$HOME/.cache/kookie/toolchains/zig"
+            mkdir -p "$cache_dir"
+            archive="$cache_dir/zig-x86_64-linux-${ZIG_VERSION}.tar.xz"
             install_dir="$RUNNER_TEMP/zig-x86_64-linux-${ZIG_VERSION}"
-            curl --fail --location --retry 3 --connect-timeout 15 --max-time 180 \
-              --output "$archive" "$ZIG_LINUX_ARCHIVE_URL"
+            if [[ ! -f "$archive" ]]; then
+              curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
+                --output "$archive" "$ZIG_LINUX_ARCHIVE_URL"
+            fi
             echo "$ZIG_LINUX_ARCHIVE_SHA256  $archive" | sha256sum --check -
             rm -rf -- "$install_dir"
             tar -xJf "$archive" -C "$RUNNER_TEMP"
             test -x "$install_dir/zig"
-            printf '%s\n' "$install_dir" >> "$GITHUB_PATH"
+            zig_dir="$install_dir"
           fi
+          printf '%s\n' "$zig_dir" >> "$GITHUB_PATH"
           printf 'KOOKIE_ZIG_VERSION=%s\n' "$ZIG_VERSION" >> "$GITHUB_ENV"
           printf 'KOOKIE_ZIG_ARCHIVE_SHA256=%s\n' \
             "$ZIG_LINUX_ARCHIVE_SHA256" >> "$GITHUB_ENV"
-          export PATH="${KOOKIE_ZIG_BIN:+$(dirname "$KOOKIE_ZIG_BIN"):}${PATH}"
+          export PATH="$zig_dir:$PATH"
           [[ "$(zig version)" == "$ZIG_VERSION" ]]
       - name: Configure isolated Linux presentation wrapper
         if: ${{ inputs.run_linux_presentation_smoke }}
@@ -302,6 +314,8 @@ jobs:
           if ! kookie_prepare_sdl3_dependencies "$PWD"; then
             bash scripts/bootstrap_sdl3_mixer.sh
           fi
+      - name: Preflight Linux release runner
+        run: bash scripts/runner_preflight.sh release-linux
 
       - name: Build deterministic Linux artifact
         shell: bash
@@ -310,7 +324,8 @@ jobs:
           KOOKIE_CONTENT_PROFILE: none
         run: |
           set -euo pipefail
-          scripts/build_demo_release.sh \
+          bash scripts/ci_timed.sh linux-release \
+            scripts/build_demo_release.sh \
             --target linux-x86_64 \
             --version "$DEMO_VERSION" \
             --output "$RUNNER_TEMP/kookie-demo-linux"
@@ -323,10 +338,11 @@ jobs:
         run: |
           set -euo pipefail
           : "${KOOKIE_PRESENTATION_ISOLATION_WRAPPER:?configure an isolated presentation wrapper on this runner}"
-          KOOKIE_PACKAGE_DIR="$RUNNER_TEMP/kookie-demo-linux" \
-          KOOKIE_PACKAGE_NAME="kookie-${DEMO_VERSION}-linux-x86_64" \
-          KOOKIE_PRESENTATION_EVIDENCE_DIR="$RUNNER_TEMP/kookie-d1-evidence-linux" \
-          KOOKIE_RUN_PRESENTATION=1 \
+          bash scripts/ci_timed.sh linux-presentation env \
+            KOOKIE_PACKAGE_DIR="$RUNNER_TEMP/kookie-demo-linux" \
+            KOOKIE_PACKAGE_NAME="kookie-${DEMO_VERSION}-linux-x86_64" \
+            KOOKIE_PRESENTATION_EVIDENCE_DIR="$RUNNER_TEMP/kookie-d1-evidence-linux" \
+            KOOKIE_RUN_PRESENTATION=1 \
             scripts/verify_linux_presentation_package.sh
 
       - name: Upload Linux artifact set
@@ -367,12 +383,20 @@ jobs:
         with:
           distribution: temurin
           java-version: "27"
+      - name: Cache pinned Windows release archives
+        id: windows-release-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/kookie/toolchains/windows-release
+          key: kookie-release-windows-${{ env.ZIG_ARCHIVE_SHA256 }}-${{ env.SDL3_ARCHIVE_SHA256 }}-${{ env.SDL3_MIXER_ARCHIVE_SHA256 }}
       - name: Configure pinned Windows release tools
         shell: bash
         run: |
           set -euo pipefail
           runner_temp="$(cygpath -u "$RUNNER_TEMP")"
           workspace="$(cygpath -u "$GITHUB_WORKSPACE")"
+          cache_dir="$HOME/.cache/kookie/toolchains/windows-release"
+          mkdir -p "$cache_dir"
           archive="$runner_temp/kookie-kof/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
           checksum_file="$runner_temp/kookie-kof/SHA256SUMS"
           source_file="$runner_temp/kookie-kof/SOURCE_COMMIT"
@@ -400,10 +424,12 @@ jobs:
           export PATH="$kof_bin:$PATH"
           [[ "$(kof version)" == "kof $KOF_VERSION" ]]
 
-          zig_archive="$runner_temp/zig-x86_64-windows-${ZIG_VERSION}.zip"
+          zig_archive="$cache_dir/zig-x86_64-windows-${ZIG_VERSION}.zip"
           zig_install="$runner_temp/zig-x86_64-windows-${ZIG_VERSION}"
-          curl --fail --location --retry 3 --output "$zig_archive" \
-            "$ZIG_ARCHIVE_URL"
+          if [[ ! -f "$zig_archive" ]]; then
+            curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
+              --output "$zig_archive" "$ZIG_ARCHIVE_URL"
+          fi
           echo "$ZIG_ARCHIVE_SHA256  $zig_archive" | sha256sum --check -
           rm -rf -- "$zig_install"
           python3 - "$zig_archive" "$runner_temp" <<'PY'
@@ -428,13 +454,17 @@ jobs:
           printf 'KOOKIE_ZIG_ARCHIVE_SHA256=%s\n' "$ZIG_ARCHIVE_SHA256" \
             >> "$GITHUB_ENV"
           sdl_root="$runner_temp/kookie-sdl"
-          sdl_archive="$runner_temp/SDL3-devel-${SDL3_VERSION}-mingw.tar.gz"
-          sdl_mixer_archive="$runner_temp/SDL3_mixer-devel-${SDL3_MIXER_VERSION}-mingw.tar.gz"
-          curl --fail --location --retry 3 --output "$sdl_archive" \
-            "$SDL3_ARCHIVE_URL"
+          sdl_archive="$cache_dir/SDL3-devel-${SDL3_VERSION}-mingw.tar.gz"
+          sdl_mixer_archive="$cache_dir/SDL3_mixer-devel-${SDL3_MIXER_VERSION}-mingw.tar.gz"
+          if [[ ! -f "$sdl_archive" ]]; then
+            curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
+              --output "$sdl_archive" "$SDL3_ARCHIVE_URL"
+          fi
           echo "$SDL3_ARCHIVE_SHA256  $sdl_archive" | sha256sum --check -
-          curl --fail --location --retry 3 --output "$sdl_mixer_archive" \
-            "$SDL3_MIXER_ARCHIVE_URL"
+          if [[ ! -f "$sdl_mixer_archive" ]]; then
+            curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
+              --output "$sdl_mixer_archive" "$SDL3_MIXER_ARCHIVE_URL"
+          fi
           echo "$SDL3_MIXER_ARCHIVE_SHA256  $sdl_mixer_archive" | sha256sum --check -
           rm -rf -- "$sdl_root"
           mkdir -p "$sdl_root"
@@ -503,6 +533,9 @@ jobs:
             printf 'Windows presentation target: %s (%s)\n' \
               "${gpu_identity[1]}" "${gpu_identity[2]}"
           fi
+      - name: Record Windows release cache result
+        run: |
+          printf '%s\n' '- Windows release archive cache hit: `${{ steps.windows-release-cache.outputs.cache-hit || false }}`' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Preflight Windows presentation capability
         if: ${{ inputs.run_windows_presentation_smoke || inputs.run_windows_wine_smoke }}
@@ -610,6 +643,8 @@ jobs:
           }
           zig version
           "$KOOKIE_DXC" --version
+      - name: Preflight Windows release runner
+        run: bash scripts/runner_preflight.sh release-windows
 
       - name: Build deterministic Windows artifact
         shell: bash
@@ -618,7 +653,8 @@ jobs:
           KOOKIE_CONTENT_PROFILE: none
         run: |
           set -euo pipefail
-          scripts/build_demo_release.sh \
+          bash scripts/ci_timed.sh windows-release \
+            scripts/build_demo_release.sh \
             --target windows-x86_64 \
             --version "$DEMO_VERSION" \
             --output "$RUNNER_TEMP/kookie-demo-windows"
@@ -634,7 +670,8 @@ jobs:
           KOOKIE_PRESENTATION_EVIDENCE_DIR: ${{ runner.temp }}/kookie-d1-evidence-windows
         run: |
           set -euo pipefail
-          scripts/verify_windows_presentation.sh
+          bash scripts/ci_timed.sh windows-presentation \
+            scripts/verify_windows_presentation.sh
 
       - name: Upload Windows artifact set
         if: ${{ always() && inputs.run_windows_presentation_smoke }}

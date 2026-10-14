@@ -185,6 +185,24 @@ as chaves Ed25519 transitórias com `icacls.exe`. O gate do pacote Windows
 também exclui da conversão de caminhos do MSYS as opções do linker que começam
 com `-Wl,/`.
 
+### Preflight e cache dos runners
+
+Antes do empacotamento, o workflow executa
+`scripts/runner_preflight.sh release-linux` ou
+`scripts/runner_preflight.sh release-windows`. O preflight registra SO, CPU,
+memória e disco livre no resumo do job e rejeita um runner sem o archive Kof,
+Zig, SDL, shaders, runtime de texto ou DXC exigido pelo alvo.
+
+O workflow cacheia somente archives imutáveis, usando versão e SHA-256 na
+chave. Cada cache hit é hashado novamente antes da extração. O cache não
+substitui as verificações `SHA256SUMS`/`SOURCE_COMMIT` do Kof nem o preflight
+de GPU/display da release.
+
+O `verify.yml` hospedado constrói o archive Kof uma vez por execução. Os jobs
+static/JVM, native/package e Windows JVM consomem exatamente esse archive em
+paralelo. A verificação native possui timeout separado e maior porque a
+geração de código native do Kof é materialmente mais lenta.
+
 Crie `kookie-demo-release` em **Settings → Environments** e adicione
 aprovadores obrigatórios antes de permitir `publish=true`.
 

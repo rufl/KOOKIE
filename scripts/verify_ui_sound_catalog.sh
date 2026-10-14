@@ -14,7 +14,7 @@ ln -s -- "$root_dir/src/ui/kookie_ui_audio_catalog.kf" \
   "$work_dir/ui/kookie_ui_audio_catalog.kf"
 ln -s -- "$root_dir/src/core/audio_queue.kf" "$work_dir/core/audio_queue.kf"
 
-read -r -a targets <<< "${KOOKIE_UI_SOUND_TARGETS:-jvm native}"
+IFS=' ' read -r -a targets <<< "${KOOKIE_UI_SOUND_TARGETS:-jvm native}"
 (( ${#targets[@]} > 0 )) || {
   echo 'verify_ui_sound_catalog: at least one target is required' >&2
   exit 2

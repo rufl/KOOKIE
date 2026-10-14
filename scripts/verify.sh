@@ -41,8 +41,6 @@ bash scripts/verify_goose_game.sh
 bash scripts/verify_pe_durable_save.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh
-bash scripts/verify_package.sh
-bash scripts/verify_prototype_package.sh
 
 
 if [[ -f /usr/lib/libSDL3.so ]]; then
@@ -52,6 +50,20 @@ if [[ -f /usr/lib/libSDL3.so ]]; then
 else
   echo "SDL3 scalar platform probe skipped: /usr/lib/libSDL3.so is unavailable"
 fi
+canonical_build_dir="$(mktemp -d -t kookie-canonical-build-XXXXXX)"
+canonical_jvm_build="$canonical_build_dir/jvm"
+canonical_native_build="$canonical_build_dir/native"
+canonical_native_manifest="$canonical_build_dir/native.identity"
+trap 'rm -rf -- "$canonical_build_dir"' EXIT
+kof build src --target jvm --output "$canonical_jvm_build"
+kof build src --target native --output "$canonical_native_build"
+bash scripts/write_build_identity.sh native \
+  "$canonical_native_build" "$canonical_native_manifest"
+export KOOKIE_PREBUILT_NATIVE_BUILD="$canonical_native_build"
+export KOOKIE_PREBUILT_NATIVE_MANIFEST="$canonical_native_manifest"
+bash scripts/verify_package.sh
+bash scripts/verify_prototype_package.sh
+
 
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
 adapter_build_dir="$build_dir/adapter"
@@ -76,7 +88,7 @@ rm -rf "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" \
   "$presentation_probe_core_dir" "$presentation_probe_content_dir" \
   "$presentation_probe_session_dir" "$presentation_probe_world_dir" \
   "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"
-trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" "$presentation_probe_core_dir" "$presentation_probe_content_dir" "$presentation_probe_session_dir" "$presentation_probe_world_dir" "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"' EXIT
+trap 'rm -rf "$canonical_build_dir" "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" "$presentation_probe_core_dir" "$presentation_probe_content_dir" "$presentation_probe_session_dir" "$presentation_probe_world_dir" "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"' EXIT
 render_node="${KOOKIE_RENDER_NODE:-}"
 if [[ -z "$render_node" ]]; then
   for candidate in /dev/dri/renderD*; do
@@ -236,21 +248,17 @@ else
   echo "native SDL adapter smoke skipped: SDL3/SDL_mixer development files, gcc, glslc, spirv-val, pkg-config, or isolated-display wrapper unavailable"
 fi
 
-kof build src --target jvm --output "$build_dir/jvm"
-# `kof build` and `kof check` share the same CompilerDriver pipeline; the
-# final native build therefore covers native compilation without a duplicate.
-kof build src --target native --output "$build_dir/native"
-# Build once and execute the emitted artifacts directly; `kof run` would
-# compile the same source tree again and does not add runtime coverage here.
+# The canonical JVM/native builds were produced before package gates and are
+# reused here as direct runtime smoke artifacts.
 expected_output=$'KOOKIE G0 session foundation\n60\ntrue\nKOOKIE G0 resource tokens verified\nKOOKIE G0 scalar adapter contracts verified\nKOOKIE G0 frame staging verified\nKOOKIE G1 authoritative shooter verified'
 jvm_output="$(
   cd "$root_dir"
-  java --enable-native-access=ALL-UNNAMED -cp "$build_dir/jvm" Default.Main
+  java --enable-native-access=ALL-UNNAMED -cp "$canonical_jvm_build" Default.Main
 )"
 [[ "$jvm_output" == "$expected_output" ]]
 native_output="$(
   cd "$root_dir"
-  "$build_dir/native/Default/Main" 2>/dev/null
+  "$canonical_native_build/Default/Main" 2>/dev/null
 )"
 [[ "$native_output" == "$expected_output" ]]
 

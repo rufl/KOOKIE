@@ -195,6 +195,14 @@ commit limpo, o commit fixado do código-fonte Kof, o hash do JAR do compilador
 e o hash do arquivo da distribuição.
 O caminho e o digest do archive são conferidos, e seu `lib/kof.jar` deve bater
 com o JAR do compilador instalado antes do pacote; metadata sozinho não é aceito.
+Os gates de pacote do CI podem definir
+`KOOKIE_PREBUILT_NATIVE_BUILD`/`KOOKIE_PREBUILT_NATIVE_MANIFEST` ou
+`KOOKIE_PREBUILT_JVM_BUILD`/`KOOKIE_PREBUILT_JVM_MANIFEST` depois de compilar
+`src` uma vez para aquele alvo. Cada manifesto deve coincidir com o commit
+atual, o hash da árvore `src`, o alvo, a versão Kof, o commit-fonte Kof e o
+SHA-256 do JAR do compilador. Manifesto ausente ou incompatível falha fechado;
+o empacotamento local sem essas variáveis continua fazendo seu próprio build.
+
 
 Todo arquivo Linux também contém o entrypoint nativo de atualização:
 - `kookie-launcher`, que descobre a release assinada mais nova antes de iniciar
@@ -771,10 +779,12 @@ versionado possui o desktop privado, o timeout e a limpeza da árvore de
 processos. O smoke nativo Windows registra a identidade PNP do adaptador PCI e
 a versão do driver.
 
-O job hospedado `verify.yml` tem orçamento de 45 minutos porque instalar o
-Wine com `wine64` e `wine32:i386` pode exceder o orçamento anterior em um
-runner Ubuntu frio. A arquitetura i386 continua necessária porque um prefixo
-win64 precisa do helper `syswow64/rundll32.exe`.
+O `verify.yml` hospedado constrói o archive Kof fixado uma vez por execução e
+executa em paralelo os jobs static/JVM, native/package e Windows JVM. O job
+static tem orçamento de 20 minutos, o Windows JVM de 30 minutos e o
+native/package de 90 minutos porque a geração de código native do Kof é
+materialmente mais lenta. Archives Zig e JRE Windows são cacheados por SHA-256
+e revalidados a cada uso; o preflight registra hardware e disco livre.
 
 Configure o secret de repositório `KOOKIE_SIGNING_KEY_PEM`. O digest do Kof é
 gerado e verificado a partir do artefato de toolchain de cada execução; ele não
