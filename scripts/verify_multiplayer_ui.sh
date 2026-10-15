@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root_dir/scripts/kof_pin.sh"
 work_dir="$(mktemp -d -t kookie-multiplayer-ui-XXXXXX)"
-trap 'rm -rf -- "$work_dir"' EXIT
 
 cp "$root_dir/probes/g8_multiplayer_ui/main.kf" "$work_dir/main.kf"
 for module in content core session ui; do
@@ -14,13 +14,15 @@ for module in content core session ui; do
 done
 
 jvm_status=0
-jvm_output="$(cd "$work_dir" && kof run main.kf --target jvm)" || jvm_status=$?
+jvm_output="$(cd "$work_dir" && \
+  kookie_kof_observed multiplayer-ui-jvm kof run main.kf --target jvm)" || jvm_status=$?
 if (( jvm_status != 0 )); then
   printf '%s\n' "$jvm_output" >&2
   exit "$jvm_status"
 fi
 native_status=0
-native_output="$(cd "$work_dir" && kof run main.kf --target native)" || native_status=$?
+native_output="$(cd "$work_dir" && \
+  kookie_kof_observed multiplayer-ui-native kof run main.kf --target native)" || native_status=$?
 if (( native_status != 0 )); then
   printf '%s\n' "$native_output" >&2
   exit "$native_status"

@@ -27,7 +27,8 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   -o "$WORK_DIR/lib/libkookie_persistence_adapter.so"
 (
   cd "$WORK_DIR"
-  kof build main.kf --target native --output native
+  kookie_kof_observed durable-save kof build main.kf \
+    --target native --output native
   env -u KOOKIE_DURABLE_FAULT ./native/Default/Main >baseline.log
   set +e
   KOOKIE_DURABLE_FAULT=before-file-sync ./native/Default/Main >before-file-sync.log 2>&1

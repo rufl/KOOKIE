@@ -31,3 +31,6 @@ pin de CI atual de fontes upstream revisadas e medições históricas.
 O plano proposto de migração Kof/nativo está em
 [KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md); o contrato normativo
 de cópia/lifetime e batch está em [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
+
+Timeout de build, heartbeat, ETA histórico e artifacts de diagnóstico estão
+descritos em [CI_BUILD_OBSERVABILITY](CI_BUILD_OBSERVABILITY.md).

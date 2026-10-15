@@ -797,8 +797,11 @@ bundle_linux_server() {
   cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
     "$ROOT_DIR/native/kookie_persistence_adapter.c" \
     -o "$server_root/lib/libkookie_persistence_adapter.so"
-  (cd "$server_root" && kof build main.kf --target native \
-    --output "$server_build" >/dev/null)
+  (
+    cd "$server_root"
+    kookie_kof_observed package-linux-server kof build main.kf \
+      --target native --output "$server_build"
+  )
   local server_binary="$server_build/Default/Main"
   test -x "$server_binary" || {
     echo "package_kookie: dedicated server executable missing: $server_binary" >&2
@@ -838,8 +841,11 @@ bundle_linux_kooker() {
       ln -s -- "$source" "$kooker_root/$module/$(basename "$source")"
     done
   done
-  (cd "$kooker_root" && kof build main.kf --target native \
-    --output "$kooker_build" >/dev/null)
+  (
+    cd "$kooker_root"
+    kookie_kof_observed package-linux-kooker kof build main.kf \
+      --target native --output "$kooker_build"
+  )
   local kooker_binary="$kooker_build/Default/Main"
   test -x "$kooker_binary" || {
     echo "package_kookie: content kooker executable missing: $kooker_binary" >&2
@@ -918,8 +924,11 @@ bundle_linux_simd_benchmark() {
     -o "$benchmark_root/lib/libkookie_simd_dispatch.so"
   cp -- "$PACKAGE_ROOT/lib/libkookie_headless_adapter.so" \
     "$benchmark_root/lib/libkookie_headless_adapter.so"
-  (cd "$benchmark_root" && kof build main.kf --target native \
-    --output "$benchmark_build" >/dev/null)
+  (
+    cd "$benchmark_root"
+    kookie_kof_observed package-linux-simd kof build main.kf \
+      --target native --output "$benchmark_build"
+  )
   local benchmark_binary="$benchmark_build/Default/Main"
   test -x "$benchmark_binary" || {
     echo "package_kookie: SIMD benchmark executable missing: $benchmark_binary" >&2
@@ -1162,7 +1171,8 @@ PY
   if [[ -n "$PREBUILT_JVM_BUILD" ]]; then
     jvm_source="$PREBUILT_JVM_BUILD"
   else
-    kof build "$ROOT_DIR/src" --target jvm --output "$jvm_build" >/dev/null
+    kookie_kof_observed package-jvm kof build "$ROOT_DIR/src" \
+      --target jvm --output "$jvm_build"
   fi
   test -f "$jvm_source/Default/Main.class" || {
     echo 'package_kookie: Kof JVM main class is missing' >&2
@@ -1224,7 +1234,8 @@ elif [[ "$RUNTIME" == native ]]; then
   if [[ -n "$PREBUILT_NATIVE_BUILD" ]]; then
     BINARY="$PREBUILT_NATIVE_BUILD/Default/Main"
   else
-    kof build "$ROOT_DIR/src" --target native --output "$WORK_DIR/build" >/dev/null
+    kookie_kof_observed package-native kof build "$ROOT_DIR/src" \
+      --target native --output "$WORK_DIR/build"
     BINARY="$WORK_DIR/build/Default/Main"
   fi
   test -x "$BINARY" || { echo "package_kookie: native executable missing: $BINARY" >&2; exit 1; }
@@ -1255,15 +1266,21 @@ else
   cc -std=c11 -Wall -Wextra -Werror -fPIC -shared \
     "$ROOT_DIR/native/kookie_persistence_adapter.c" \
     -o "$PACKAGE_ROOT/build/libkookie_persistence_adapter.so"
-  (cd "$PACKAGE_ROOT" && kof build "$PRESENTATION_ROOT/main.kf" --target native --output "$WORK_DIR/build" >/dev/null)
+  (
+    cd "$PACKAGE_ROOT"
+    kookie_kof_observed package-presentation kof build \
+      "$PRESENTATION_ROOT/main.kf" --target native \
+      --output "$WORK_DIR/build"
+  )
   BINARY="$WORK_DIR/build/Default/Main"
   test -x "$BINARY" || { echo "package_kookie: presentation executable missing: $BINARY" >&2; exit 1; }
   bundle_linux_native "$BINARY" 1 "$PACKAGE_ROOT/build/libkookie_sdl_adapter.so"
   if [[ -n "$PREBUILT_NATIVE_BUILD" ]]; then
     SMOKE_BINARY="$PREBUILT_NATIVE_BUILD/Default/Main"
   else
-    kof build "$ROOT_DIR/src" --target native \
-      --output "$WORK_DIR/smoke-build" >/dev/null
+    kookie_kof_observed package-presentation-smoke \
+      kof build "$ROOT_DIR/src" --target native \
+      --output "$WORK_DIR/smoke-build"
     SMOKE_BINARY="$WORK_DIR/smoke-build/Default/Main"
   fi
   test -x "$SMOKE_BINARY" || {

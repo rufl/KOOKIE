@@ -8,6 +8,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   `a14a7cd47d74192dcc977c9d4cbf87d407694560` and keeps the immutable commit in
   CI. The scheduled `update_kof_lab.yml` workflow opens a qualification PR when
   lab advances.
+- Native and packaging Kof commands now run through
+  `scripts/kof_observed.sh`: a 30-second heartbeat, 30-minute hard timeout,
+  bounded termination grace, full logs and a historical ETA from the last five
+  successful runs. CI publishes the build diagnostics artifact.
 - `scripts/install_kof_lab.sh` builds the current lab commit, validates that
   the mutable ref did not move, then updates the tracked pin and atomically
   updates the local `kof` launcher without deleting older installations.

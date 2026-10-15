@@ -14,5 +14,5 @@ for module in content core session; do
   done
 done
 cd "$work_dir"
-kof run main.kf --target jvm
-kof run main.kf --target native
+kookie_kof_observed interactions-jvm kof run main.kf --target jvm
+kookie_kof_observed interactions-native kof run main.kf --target native

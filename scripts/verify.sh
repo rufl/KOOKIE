@@ -46,8 +46,11 @@ bash scripts/verify_dedicated_network.sh
 
 if [[ -f /usr/lib/libSDL3.so ]]; then
   platform_output=$'KOOKIE G0 scalar platform probe\n3004018\ntrue'
-  [[ "$(kof run probes/g0_platform/main.kf --target jvm)" == "$platform_output" ]]
-  [[ "$(kof run probes/g0_platform/main.kf --target native 2>/dev/null)" == "$platform_output" ]]
+  [[ "$(kookie_kof_observed platform-jvm kof run \
+    probes/g0_platform/main.kf --target jvm)" == "$platform_output" ]]
+  [[ "$(kookie_kof_observed platform-native kof run \
+    probes/g0_platform/main.kf --target native 2>/dev/null)" == \
+    "$platform_output" ]]
 else
   echo "SDL3 scalar platform probe skipped: /usr/lib/libSDL3.so is unavailable"
 fi
@@ -75,8 +78,10 @@ fi
 if (( canonical_cache_valid == 0 )); then
   rm -rf -- "$canonical_build_dir"
   mkdir -p "$canonical_jvm_build" "$canonical_native_build"
-  kof build src --target jvm --output "$canonical_jvm_build"
-  kof build src --target native --output "$canonical_native_build"
+  kookie_kof_observed canonical-jvm kof build src --target jvm \
+    --output "$canonical_jvm_build"
+  kookie_kof_observed canonical-native kof build src --target native \
+    --output "$canonical_native_build"
   bash scripts/write_build_identity.sh jvm \
     "$canonical_jvm_build" "$canonical_jvm_manifest"
   bash scripts/write_build_identity.sh native \
@@ -193,13 +198,15 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     -o "$adapter_build_dir/build/libkookie_persistence_adapter.so"
   (
     cd "$adapter_build_dir"
-    SDL_AUDIODRIVER=dummy kof build "$root_dir/probes/g0_native_adapter/main.kf" \
+    kookie_kof_observed g0-native-adapter kof build \
+      "$root_dir/probes/g0_native_adapter/main.kf" \
       --target native --output "$adapter_build_dir/native-adapter"
   )
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
     (
       cd "$adapter_build_dir"
-      SDL_AUDIODRIVER=dummy kof build "$root_dir/probes/g0_native_presentation/main.kf" \
+      kookie_kof_observed g0-native-presentation kof build \
+        "$root_dir/probes/g0_native_presentation/main.kf" \
         --target native --output "$adapter_build_dir/native-presentation"
     )
   fi

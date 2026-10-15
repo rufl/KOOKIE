@@ -17,7 +17,9 @@ run_case() {
   local status
 
   set +e
-  kof run probes/g0_exception/main.kf --target "$target" >"$output_file" 2>"$work_dir/$target.err"
+  kookie_kof_observed "exception-$target" \
+    kof run probes/g0_exception/main.kf --target "$target" \
+    >"$output_file" 2>"$work_dir/$target.err"
   status=$?
   set -e
 

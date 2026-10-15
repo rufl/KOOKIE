@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root_dir/scripts/kof_pin.sh"
 serve=0
 port=8767
 host=127.0.0.1
@@ -58,7 +59,8 @@ js_check="$(cd "$work_dir" && kof check main.kf --target js)"
 [[ "$js_check" == *"checked 1 file(s)"* ]]
 (
   cd "$work_dir"
-  kof build main.kf --target js --output "$output_dir" >/dev/null
+  kookie_kof_observed ui-demo kof build main.kf \
+    --target js --output "$output_dir"
 )
 mkdir -p "$output_dir/assets/ui" "$output_dir/fonts"
 cp -- "$work_dir/assets/ui/manifest.json" \

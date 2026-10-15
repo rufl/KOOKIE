@@ -21,7 +21,8 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$root_dir/native/kookie_persistence_adapter.c" \
   -o "$work_dir/lib/libkookie_persistence_adapter.so"
 
-output="$(cd "$work_dir" && kof run main.kf --target native)"
+output="$(cd "$work_dir" && \
+  kookie_kof_observed goose-game kof run main.kf --target native)"
 [[ "$output" == *"KOOKIE G7 goose WAN gameplay verified"* ]] || {
   printf '%s\n' "$output" >&2
   echo "verify_goose_game: marker missing" >&2

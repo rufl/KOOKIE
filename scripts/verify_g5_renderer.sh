@@ -85,7 +85,8 @@ done < <(ldd "$SOURCE_DIR/build/libkookie_sdl_adapter.so" |
   sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p')
 (
   cd "$SOURCE_DIR"
-  kof build main.kf --target native --output "$BINARY_DIR"
+  kookie_kof_observed g5-renderer kof build main.kf \
+    --target native --output "$BINARY_DIR"
 )
 BINARY="$BINARY_DIR/Default/Main"
 test -x "$BINARY"

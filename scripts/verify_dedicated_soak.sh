@@ -26,8 +26,8 @@ cp -- "$ROOT_DIR/apps/server/main.kf" "$SOURCE_DIR/main.kf"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SOURCE_DIR/lib/libkookie_headless_adapter.so"
-(cd "$SOURCE_DIR" && kof build main.kf --target native \
-  --output "$BUILD_DIR" >/dev/null)
+(cd "$SOURCE_DIR" && kookie_kof_observed dedicated-soak \
+  kof build main.kf --target native --output "$BUILD_DIR")
 
 warmup_ticks="${KOOKIE_SOAK_WARMUP_TICKS:-600}"
 measured_ticks="${KOOKIE_SOAK_TICKS:-108000}"

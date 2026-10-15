@@ -28,14 +28,14 @@ cp -- "$root/apps/simd_benchmark/main.kf" "$benchmark_root/main.kf"
 
 if ! (
     cd "$benchmark_root"
-    kof run main.kf --target jvm
+    kookie_kof_observed simd-benchmark-jvm kof run main.kf --target jvm
 ) >"$tmp/benchmark-jvm.log"; then
     cat "$tmp/benchmark-jvm.log" >&2
     exit 1
 fi
 if ! (
     cd "$benchmark_root"
-    kof run main.kf --target native
+    kookie_kof_observed simd-benchmark-native kof run main.kf --target native
 ) >"$tmp/benchmark-native.log"; then
     cat "$tmp/benchmark-native.log" >&2
     exit 1

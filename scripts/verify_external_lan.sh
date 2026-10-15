@@ -109,31 +109,23 @@ if [[ "$target" == native ]]; then
     -o "$runtime_dir/build/libkookie_sdl_adapter.so" \
     $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
 fi
+run_build() {
+  local role="$1"
+  local output="$2"
+  (
+    cd "$runtime_dir"
+    kookie_kof_observed "external-lan-${target}-${role}" \
+      kof build "$source_dir/main.kf" \
+      --target "$target" --output "$output"
+  )
+}
 if [[ "$lan_mode" == "processes" ]]; then
   for role in host client-a client-b; do
     export KOOKIE_EXTERNAL_LAN_ROLE="$role"
-    if [[ "$target" == native ]]; then
-      (
-        cd "$runtime_dir"
-        kof build "$source_dir/main.kf" \
-          --target "$target" --output "$build_dir/$target-$role"
-      )
-    else
-      kof build "$source_dir/main.kf" \
-        --target "$target" --output "$build_dir/$target-$role"
-    fi
+    run_build "$role" "$build_dir/$target-$role"
   done
 else
-  if [[ "$target" == native ]]; then
-    (
-      cd "$runtime_dir"
-      kof build "$source_dir/main.kf" \
-        --target "$target" --output "$build_dir/$target"
-    )
-  else
-    kof build "$source_dir/main.kf" \
-      --target "$target" --output "$build_dir/$target"
-  fi
+  run_build single "$build_dir/$target"
 fi
 binary="$build_dir/$target/Default/Main"
 if [[ "$lan_mode" == "processes" ]]; then

@@ -30,7 +30,8 @@ run_probe() {
   local marker="$2"
   local output
   output="$(cd "$WORK_DIR/$probe" &&
-    kof build main.kf --target native --output build/native >/dev/null &&
+    kookie_kof_observed "g6-$probe" kof build main.kf \
+      --target native --output build/native &&
     ./build/native/Default/Main)"
   [[ "$output" == *"$marker"* ]] || {
     printf '%s\n' "$output" >&2

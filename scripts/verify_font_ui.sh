@@ -24,7 +24,9 @@ for target in "${targets[@]}"; do
     jvm|native) ;;
     *) echo "verify_font_ui: unsupported target: $target" >&2; exit 2 ;;
   esac
-  output="$(cd "$work_dir" && kof run main.kf --target "$target")"
+  output="$(cd "$work_dir" && \
+    kookie_kof_observed "font-ui-$target" \
+      kof run main.kf --target "$target")"
   [[ "$output" == *"KOOKIE G9 GatoGanso font defaults verified"* ]] || {
     printf '%s\n' "$output" >&2
     echo "verify_font_ui: marker missing for $target" >&2

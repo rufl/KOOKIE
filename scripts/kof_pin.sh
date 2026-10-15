@@ -12,3 +12,10 @@ if [[ -x "$KOF_AS_WRAPPER_DIR/as" &&
 fi
 export KOF_PIN_VERSION KOF_PIN_CLI_VERSION KOF_PIN_SOURCE_COMMIT \
   KOF_PIN_ROOT KOF_AS_WRAPPER_DIR
+
+kookie_kof_observed() {
+  local stage="${1:?kookie_kof_observed: stage name is required}"
+  shift
+  "$KOF_PIN_ROOT/scripts/kof_observed.sh" \
+    --name "$stage" --key "$stage" -- "$@"
+}

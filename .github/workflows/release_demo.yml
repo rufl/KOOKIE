@@ -43,6 +43,9 @@ env:
   KOF_VERSION: 0.6.5
   KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
   KOOKIE_KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
+  KOOKIE_KOF_BUILD_TIMEOUT_SECONDS: "1800"
+  KOOKIE_KOF_BUILD_HEARTBEAT_SECONDS: "30"
+  KOOKIE_KOF_BUILD_KILL_AFTER_SECONDS: "30"
   ZIG_VERSION: 0.17.0
   ZIG_ARCHIVE_SHA256: b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428
   ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
@@ -150,6 +153,9 @@ jobs:
     needs: [toolchain]
     runs-on: [self-hosted, linux, x64, kookie-demo-release]
     timeout-minutes: 60
+    env:
+      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
+      KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history
     steps:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -384,11 +390,23 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Upload Kof build diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: kookie-kof-build-diagnostics-linux-${{ inputs.version }}
+          path: .kookie-build-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
   windows:
     name: Windows x86-64 presentation package
     needs: [toolchain]
     runs-on: [self-hosted, windows, x64, kookie-demo-release]
     timeout-minutes: 60
+    env:
+      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
+      KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history
     steps:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -712,6 +730,15 @@ jobs:
           path: ${{ runner.temp }}/kookie-d1-evidence-windows
           if-no-files-found: ignore
           retention-days: 30
+
+      - name: Upload Kof build diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: kookie-kof-build-diagnostics-windows-${{ inputs.version }}
+          path: .kookie-build-logs
+          if-no-files-found: ignore
+          retention-days: 7
 
   publish:
     name: Publish approved Linux/Windows pair

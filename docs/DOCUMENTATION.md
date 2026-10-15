@@ -31,3 +31,6 @@ current CI pin from older reviewed upstream source and historical measurements.
 The proposed Kof/native migration is tracked in
 [KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md); its normative
 copy/lifetime and batch contract is [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
+
+Build timeout, heartbeat, historical ETA and diagnostic artifacts are described
+in [CI_BUILD_OBSERVABILITY](CI_BUILD_OBSERVABILITY.md).

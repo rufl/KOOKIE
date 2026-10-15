@@ -183,6 +183,7 @@ jobs:
             scripts/verify_font_ui.sh \
             scripts/runner_preflight.sh \
             scripts/ci_timed.sh \
+            scripts/kof_observed.sh \
             scripts/write_build_identity.sh
 
   verify:
@@ -190,7 +191,12 @@ jobs:
     needs: [toolchain]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-
+    env:
+      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
+      KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history
+      KOOKIE_KOF_BUILD_TIMEOUT_SECONDS: "1800"
+      KOOKIE_KOF_BUILD_HEARTBEAT_SECONDS: "30"
+      KOOKIE_KOF_BUILD_KILL_AFTER_SECONDS: "30"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -214,7 +220,9 @@ jobs:
         id: canonical-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: .cache/kookie/canonical-native
+          path: |
+            .cache/kookie/canonical-native
+            .cache/kookie/build-history
           key: kookie-canonical-native-${{ github.sha }}-${{ env.KOF_SOURCE_COMMIT }}
       - name: Cache pinned Zig archive
         id: zig-cache
@@ -266,6 +274,14 @@ jobs:
           bash scripts/ci_timed.sh native-package env \
             KOOKIE_CANONICAL_BUILD_CACHE_DIR="$GITHUB_WORKSPACE/.cache/kookie/canonical-native" \
             KOOKIE_VERIFY_SKIP_STATIC=1 bash scripts/verify.sh
+      - name: Upload Kof build diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: kookie-kof-build-diagnostics-${{ github.run_id }}
+          path: .kookie-build-logs
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Record canonical build cache result
         run: |
           printf '%s\n' \

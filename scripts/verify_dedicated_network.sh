@@ -34,8 +34,8 @@ cp -- "$ROOT_DIR/probes/g5_dedicated_network/main.kf" "$SOURCE_DIR/main.kf"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SOURCE_DIR/lib/libkookie_headless_adapter.so"
-(cd "$SOURCE_DIR" && kof build main.kf --target native \
-  --output "$BUILD_DIR" >/dev/null)
+(cd "$SOURCE_DIR" && kookie_kof_observed dedicated-network \
+  kof build main.kf --target native --output "$BUILD_DIR")
 BINARY="$BUILD_DIR/Default/Main"
 test -x "$BINARY"
 if ldd "$SOURCE_DIR/lib/libkookie_headless_adapter.so" 2>/dev/null | \

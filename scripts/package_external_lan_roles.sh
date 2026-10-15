@@ -105,9 +105,10 @@ javac --release "$JAVA_RELEASE" \
 
 for role in host client-a client-b; do
   role_build="$WORK_DIR/build-$role"
-  KOOKIE_EXTERNAL_LAN_ROLE="$role" kof build \
-    "$source_dir/main.kf" \
-    --target jvm --output "$role_build" >/dev/null
+  KOOKIE_EXTERNAL_LAN_ROLE="$role" \
+    kookie_kof_observed "package-external-lan-$role" \
+    kof build "$source_dir/main.kf" \
+    --target jvm --output "$role_build"
   jar --create --file "$PACKAGE_ROOT/kookie-external-lan-$role.jar" \
     --main-class Default.Main \
     -C "$role_build" . \

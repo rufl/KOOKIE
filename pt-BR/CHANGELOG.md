@@ -8,6 +8,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   `a14a7cd47d74192dcc977c9d4cbf87d407694560` e mantém o commit imutável na CI.
   O workflow agendado `update_kof_lab.yml` abre um PR de qualificação quando a
   lab avança.
+- Comandos Kof native e de empacotamento agora passam por
+  `scripts/kof_observed.sh`: heartbeat de 30 segundos, timeout rígido de 30
+  minutos, graça de encerramento limitada, logs completos e ETA histórico das
+  últimas cinco execuções bem-sucedidas. A CI publica o artifact de diagnóstico.
 - `scripts/install_kof_lab.sh` constrói o commit atual da lab, valida que a
   ref mutável não avançou, depois atualiza o pin rastreado e atualiza
   atomicamente o launcher local `kof`, sem apagar instalações antigas.

@@ -3,6 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$root_dir/scripts/kof_pin.sh"
 work_dir="$(mktemp -d -t kookie-ui-library-XXXXXX)"
 trap 'rm -rf -- "$work_dir"' EXIT INT TERM
 
@@ -35,7 +36,9 @@ for target in "${targets[@]}"; do
     jvm|native) ;;
     *) echo "verify_ui_library: unsupported target: $target" >&2; exit 2 ;;
   esac
-  ui_output="$(cd "$work_dir" && kof run main.kf --target "$target")"
+  ui_output="$(cd "$work_dir" && \
+    kookie_kof_observed "ui-library-run-$target" \
+      kof run main.kf --target "$target")"
   kofscript_output="$(
     cd "$work_dir" && kof script kofscript.ks --target "$target"
   )"
@@ -48,7 +51,8 @@ if [[ "${KOOKIE_UI_LIBRARY_SKIP_JS:-0}" != 1 ]]; then
   js_build_dir="$work_dir/js-build"
   (
     cd "$work_dir"
-    kof build main.kf --target js --output "$js_build_dir" >/dev/null
+    kookie_kof_observed ui-library-js kof build main.kf \
+      --target js --output "$js_build_dir"
   )
   [[ "$js_check" == *"checked 1 file(s) — no errors"* ]]
   [[ -f "$js_build_dir/Default.mjs" ]]

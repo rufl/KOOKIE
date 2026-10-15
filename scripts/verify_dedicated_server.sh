@@ -22,8 +22,10 @@ for module in core content session; do
 done
 ln -s "$ROOT_DIR/probes/g5_dedicated_server/main.kf" "$WORK_DIR/main.kf"
 
-jvm_output="$(kof run "$WORK_DIR/main.kf" --target jvm)"
-native_output="$(kof run "$WORK_DIR/main.kf" --target native)"
+jvm_output="$(kookie_kof_observed dedicated-server-jvm \
+  kof run "$WORK_DIR/main.kf" --target jvm)"
+native_output="$(kookie_kof_observed dedicated-server-native \
+  kof run "$WORK_DIR/main.kf" --target native)"
 [[ "$jvm_output" == "$native_output" ]]
 
 SERVER_ROOT="$WORK_DIR/server"
@@ -39,8 +41,8 @@ cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   "$ROOT_DIR/native/kookie_transport.c" \
   -o "$SERVER_ROOT/lib/libkookie_headless_adapter.so"
 SERVER_BUILD="$WORK_DIR/server-build"
-(cd "$SERVER_ROOT" && kof build main.kf --target native \
-  --output "$SERVER_BUILD" >/dev/null)
+(cd "$SERVER_ROOT" && kookie_kof_observed dedicated-server \
+  kof build main.kf --target native --output "$SERVER_BUILD")
 server_status=0
 p95_budget_us="${KOOKIE_SERVER_P95_BUDGET_US:-4000}"
 server_output="$(

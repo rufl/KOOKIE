@@ -126,7 +126,8 @@ if [[ "$target" == native ]]; then
     $(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz) -lm
   (
     cd "$runtime_dir"
-    kof build "$source_dir/main.kf" \
+    kookie_kof_observed "external-lan-role-${target}-${role}" \
+      kof build "$source_dir/main.kf" \
       --target native --output "$build_dir/native-$role"
   )
 else
@@ -137,7 +138,8 @@ else
     -d "$jvm_metadata_classes" \
     "$root_dir/jvm/src/dev/rufl/kookie/KookieExternalLanMetadata.java"
   jar --create --file "$jvm_metadata_jar" -C "$jvm_metadata_classes" .
-  kof build "$source_dir/main.kf" --target jvm \
+  kookie_kof_observed "external-lan-role-${target}-${role}" \
+    kof build "$source_dir/main.kf" --target jvm \
     --output "$build_dir/jvm-$role"
 fi
 
