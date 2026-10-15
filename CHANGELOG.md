@@ -3,6 +3,14 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- The active Kof lab pin is now resolved from `refs/heads/lab` by
+  `scripts/update_kof_lab.py`; it tracks commit
+  `f42ed91dfbceae09880b7d0619d98f67490149d1` and keeps the immutable commit in
+  CI. The scheduled `update_kof_lab.yml` workflow opens a qualification PR when
+  lab advances.
+- `scripts/install_kof_lab.sh` builds the current lab commit, validates that
+  the mutable ref did not move, then updates the tracked pin and atomically
+  updates the local `kof` launcher without deleting older installations.
 - Rebuilt the bounded G1 deathmatch arena as a non-oppressive boomer-shooter
   greybox with connected lower routes, raised side lanes, towers, covered
   galleries, central pool crossings, an east water-channel crossing and an
@@ -16,22 +24,18 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   separates static/JVM, native/package and Windows JVM gates, caches Maven/Zig/
   JRE/SDL toolchains with SHA-256 revalidation, reuses source/toolchain-bound
   JVM/native build artifacts, records runner preflight and gate timings, and
-  fails closed on build-identity mismatches. Static/JVM and Windows JVM gates
-  pass; full native/package qualification remains runner-bound.
-- The active Kof gate follows the source-built `0.6.5` toolchain from the last
-  green Kof `lab` ancestor,
-  `940f3bd81c25e564afc60f9d32d49652e47edcbc`. The upstream native GC cycle
+  fails closed on build-identity mismatches. The exact-pin static/JVM gate
+  passes; full native/package qualification remains runner-bound.
+- The active Kof gate follows the source-built `0.6.5` toolchain at the
+  pinned Kof `lab` commit,
+  `f42ed91dfbceae09880b7d0619d98f67490149d1`. The upstream native GC cycle
   guard is verified by `scripts/prepare_kof_source.sh`; the obsolete local
   0.6.4 patch is no longer applied. Remaining 0.6.4 performance/UI
   measurements stay historical until rerun against 0.6.5.
-- The current Kof `lab` head,
-  `3a6454c0acce1c74d015bd45c4a52bb149a025c6`, is not promoted yet. Its
-  initial native KofScript UI gate exposed mixed-arity descriptor forwarding;
-  KOOKIE now keeps numeric descriptor fields in native-safe positions and the
-  focused UI gate passes on both the pinned toolchain and this candidate. Full
-  lab-head qualification, including the native source build and package smoke,
-  remains pending; the earlier LEA/SIMD regression in its lineage still needs
-  revalidation before changing the active pin.
+- The previously reviewed Kof `lab` candidate
+  `3a6454c0acce1c74d015bd45c4a52bb149a025c6` remains historical evidence; its
+  mixed-arity KofScript UI finding and earlier LEA/SIMD regression are not
+  claims about the current lab pin.
 - `scripts/verify.sh` keeps the per-file Kof test-runner gate on the JVM; the
   final native `kof build` is the native compile gate, builds `src` once per
   JVM/native target and executes the emitted artifacts for the final runtime
@@ -39,6 +43,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The G6 Kof Buffer/SIMD benchmark now materializes scalar and native
   reductions before validation, avoiding repeated mixed native FFI evaluation
   while retaining the JVM/native totals and timing checks.
+- Final local verification with the exact Kof pin passed `static-jvm` in 67
+  seconds with 140/140 JVM tests and passed the SIMD dispatch gate in 9
+  seconds. The full native/package gate did not complete within 900 seconds
+  on the current host, so no native/package pass is claimed here.
 - Loot drops now render animated crossed vertical beams with rank colors, while
   cat scratches and goose beaks stage distinct world-space attack VFX.
 - Lobby customization now selects goose or cat alongside nickname and color;

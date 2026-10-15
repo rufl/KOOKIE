@@ -8,7 +8,7 @@
 - Escreva o status como um colega escreveria: diga o que funciona, o que foi realmente verificado e o que continua bloqueado. Evite linguagem de milestone que pareça mais completa do que a evidência.
 
 A baseline ativa de fonte/CI é o Kof `0.6.5` da branch `lab` no commit
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`. A documentação atual da sessão deve
+`f42ed91dfbceae09880b7d0619d98f67490149d1`. A documentação atual da sessão deve
 descrever ordenação estrita por tick, revisões no mesmo tick com sequência de
 estado mais nova e histórico de rewind novo após restaurar checkpoint. As páginas
 de pesquisa mantêm intencionalmente seus snapshots datados de toolchain; atualize

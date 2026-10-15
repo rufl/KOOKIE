@@ -4,7 +4,7 @@ Data da pesquisa: 2026-09-22. Esta é uma referência de trabalho, não uma afir
 
 A baseline ativa de qualificação do KOOKIE é a fonte Kof `0.6.5` da branch
 `lab`, no commit
-[`940f3bd81c25e564afc60f9d32d49652e47edcbc`](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc).
+[`f42ed91dfbceae09880b7d0619d98f67490149d1`](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1).
 O Kof `0.6.5` é construído a partir da fonte na CI; nenhum archive público é
 usado como pin. `scripts/prepare_kof_source.sh` verifica a guarda upstream de
 ciclos do GC native e normaliza os metadados antes do empacotamento.
@@ -192,11 +192,11 @@ Consequências:
    da biblioteca gráfica. Uma consulta de versão não comprova caminhos que
    usam intensivamente alocador/TLS/threads.
 
-Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [gate local de Buffer](../scripts/verify_simd_dispatch.sh),
-[ABI do runtime](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/docs/runtime/RUNTIME_ABI.md).
+[ABI do runtime](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/docs/runtime/RUNTIME_ABI.md).
 
 ### Atualização da ABI do 0.6.5
 

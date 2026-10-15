@@ -4,7 +4,7 @@ Status: **arquitetura viva e gates de aceitação; a implementação limitada de
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de
 qualificação: fonte Kof `0.6.5` da branch `lab`, no commit
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`. A arquitetura do projeto está em
+`f42ed91dfbceae09880b7d0619d98f67490149d1`. A arquitetura do projeto está em
 `ARCHITECTURE.md`. Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md)
 e [levantamento de sistemas de jogo](GAME_ECOSYSTEM.md) para os limites das
@@ -1017,8 +1017,8 @@ válidos. O ponto de entrada `kookie_simd_sum_u8_buffer` mapeia um
 `Buffer(U8)` do Kof mais sua extensão validada pelo Kof para a redução
 selecionada.
 
-O commit de fonte `940f3bd81c25e564afc60f9d32d49652e47edcbc` do Kof `0.6.5` é
-agora a entrada do toolchain `Buffer(U8, INOUT)`. A CI constrói essa fonte exata
+O commit de fonte `f42ed91dfbceae09880b7d0619d98f67490149d1` do Kof `0.6.5` é
+a entrada do toolchain `Buffer(U8, INOUT)`. A CI constrói essa fonte exata
 depois de normalizar seus metadados de versão embutidos. A fonte fixada também
 implementa callbacks síncronos em JVM, host JS e native x86-64/riscv64/aarch64,
 mas o KOOKIE não repetiu a matriz cross de callback/Buffer contra o 0.6.5.

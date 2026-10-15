@@ -20,7 +20,7 @@ concurrency:
 
 env:
   KOF_VERSION: 0.6.5
-  KOF_SOURCE_COMMIT: 940f3bd81c25e564afc60f9d32d49652e47edcbc
+  KOF_SOURCE_COMMIT: f42ed91dfbceae09880b7d0619d98f67490149d1
   WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
   WINDOWS_JAVA_ARCHIVE_SHA256: e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd
   # Hosted runners are shared; keep the recorded 4 ms local target separate
@@ -48,6 +48,12 @@ jobs:
           source scripts/kof_pin.sh
           [[ "$KOF_VERSION" == "$KOF_PIN_VERSION" ]]
           [[ "$KOF_SOURCE_COMMIT" == "$KOF_PIN_SOURCE_COMMIT" ]]
+      - name: Cache pinned Kof archive
+        id: kof-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/kookie/kof
+          key: kookie-kof-linux-${{ env.KOF_VERSION }}-${{ env.KOF_SOURCE_COMMIT }}
       - name: Checkout pinned Kof source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -63,6 +69,7 @@ jobs:
           cache: maven
           cache-dependency-path: _kof/pom.xml
       - name: Build pinned Kof distribution
+        if: steps.kof-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -76,19 +83,33 @@ jobs:
           mvn -q -f _kof/pom.xml clean package \
             -DskipTests -Drevision="$KOF_VERSION" \
             -DcreateDependencyReducedPom=false
-          bash _kof/scripts/package.sh \
-            --output "$RUNNER_TEMP/kof-dist" --skip-build
-          archive="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
-          test -f "$archive"
-          artifact_dir="$RUNNER_TEMP/kookie-kof-artifact"
+          artifact_dir="$HOME/.cache/kookie/kof"
+          rm -rf -- "$artifact_dir"
           mkdir -p "$artifact_dir"
-          cp -- "$archive" "$artifact_dir/"
+          bash _kof/scripts/package.sh \
+            --output "$artifact_dir" --skip-build
+          archive="$artifact_dir/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          test -f "$archive"
           (
             cd "$artifact_dir"
             sha256sum "$(basename "$archive")" > SHA256SUMS
             printf '%s\n' "$KOF_SOURCE_COMMIT" > SOURCE_COMMIT
           )
           rm -rf -- _kof
+      - name: Validate pinned Kof archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_dir="$HOME/.cache/kookie/kof"
+          archive="$artifact_dir/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          test -f "$archive"
+          (cd "$artifact_dir" && sha256sum --check SHA256SUMS)
+          [[ "$(tr -d '\r\n' < "$artifact_dir/SOURCE_COMMIT")" == "$KOF_SOURCE_COMMIT" ]]
+          upload_dir="$RUNNER_TEMP/kookie-kof-artifact"
+          rm -rf -- "$upload_dir"
+          mkdir -p "$upload_dir"
+          cp "$artifact_dir"/kof-*.tar.gz "$artifact_dir"/SHA256SUMS \
+            "$artifact_dir"/SOURCE_COMMIT "$upload_dir"/
       - name: Upload pinned Kof archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -189,6 +210,12 @@ jobs:
         run: |
           bash scripts/configure_kof_archive.sh \
             "$RUNNER_TEMP/kookie-kof/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+      - name: Cache canonical source builds
+        id: canonical-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/kookie/canonical-native
+          key: kookie-canonical-native-${{ github.sha }}-${{ env.KOF_SOURCE_COMMIT }}
       - name: Cache pinned Zig archive
         id: zig-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -235,7 +262,15 @@ jobs:
       - name: Preflight native runner
         run: bash scripts/runner_preflight.sh native
       - name: Run native and package verification
-        run: bash scripts/ci_timed.sh native-package env KOOKIE_VERIFY_SKIP_STATIC=1 bash scripts/verify.sh
+        run: |
+          bash scripts/ci_timed.sh native-package env \
+            KOOKIE_CANONICAL_BUILD_CACHE_DIR="$GITHUB_WORKSPACE/.cache/kookie/canonical-native" \
+            KOOKIE_VERIFY_SKIP_STATIC=1 bash scripts/verify.sh
+      - name: Record canonical build cache result
+        run: |
+          printf '%s\n' \
+            '- Canonical source build cache hit: `${{ steps.canonical-cache.outputs.cache-hit || false }}`' \
+            >> "$GITHUB_STEP_SUMMARY"
       - name: Verify G6 runtime probes
         run: bash scripts/ci_timed.sh g6-runtime bash scripts/verify_g6_runtime.sh
       - name: Verify Kof PE backend

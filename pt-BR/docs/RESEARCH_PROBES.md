@@ -4,7 +4,7 @@ Data: 2026-09-22. Estes são experimentos restritos de CLI, não testes do mecan
 
 Estes resultados preservam intencionalmente o artefato histórico Kof
 `0.4.9-beta`. O gate ativo de fonte/CI do KOOKIE agora usa Kof `0.6.5` da
-branch `lab`, no commit `940f3bd81c25e564afc60f9d32d49652e47edcbc`; não use a
+branch `lab`, no commit `f42ed91dfbceae09880b7d0619d98f67490149d1`; não use a
 identidade do jar desta página como entrada de build atual. A evidência atual e
 limitada de [`scripts/verify_simd_dispatch.sh`](../../scripts/verify_simd_dispatch.sh)
 e a decisão de ABI em [KOF_LANGUAGE](KOF_LANGUAGE.md) mantêm a fronteira atual.

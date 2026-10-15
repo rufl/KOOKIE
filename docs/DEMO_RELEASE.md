@@ -19,7 +19,7 @@ paragraph. The recorded artifact uses the pinned Kof 0.5.0-beta source commit
 qualification artifact because target-hardware evidence was not retained.
 
 New release candidates use the source-built Kof `0.6.5` from the Kof `lab`
-branch at commit `940f3bd81c25e564afc60f9d32d49652e47edcbc`; the qualification
+branch at commit `f42ed91dfbceae09880b7d0619d98f67490149d1`; the qualification
 records below retain their historical Kof identities. The workflow builds the
 distribution from source because no public 0.6.5 archive is used as the pin.
 The D1 contract qualification dispatch

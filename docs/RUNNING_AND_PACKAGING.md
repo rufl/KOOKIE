@@ -12,9 +12,17 @@ Install [Kof 0.6.5](https://github.com/KofLang/Kof4j) to run the
 authoritative source entrypoint from the repository root:
 
 Use the source-built distribution from the Kof `lab` commit
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`. The release build runs
+`f42ed91dfbceae09880b7d0619d98f67490149d1`. The release build runs
 `scripts/prepare_kof_source.sh` before Maven packaging; it verifies the
 upstream native GC cycle guard, then normalizes compiler metadata.
+
+To refresh this environment from the current Kof lab head, run
+`bash scripts/install_kof_lab.sh`. It builds the current lab commit, checks that
+the branch did not move during the build, then updates the tracked source pin,
+installs the result under `~/.local/share/kof4j/`, and atomically points
+`~/.local/bin/kof` at the new installation. Existing installations remain
+available for rollback. If `lab` advances during the build, the installer
+fails closed without switching `kof`; rerun it.
 
 Before any native Kof command, source `scripts/kof_pin.sh`. The pin script
 prepends `scripts/kof-as/as`, so native gates require `clang`; the wrapper
@@ -181,7 +189,7 @@ verified Kof distribution digest and an owner-private Ed25519 key:
 
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.N \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -202,6 +210,10 @@ The CI package gates may set
 and `src` tree hash, target, Kof version, Kof source commit and compiler JAR
 SHA-256. A missing or mismatched manifest fails closed; local packaging
 without these variables still performs its own build.
+The CI toolchain also caches the immutable pinned Kof distribution and the
+canonical JVM/native `src` builds by source/toolchain identity. Cache hits are
+still checked with the archive checksum or build identity manifest; a miss
+falls back to the normal build.
 
 
 Every Linux archive also contains the native `kookie-launcher` update entrypoint:
@@ -235,7 +247,7 @@ format. It is opt-in so existing runtime packages remain content-free:
 ```bash
 KOOKIE_VERSION=0.1.0-dogfood.prototype \
 KOOKIE_BUILD_ID=prototype-content \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -247,7 +259,7 @@ To run the native SDL presentation with the prototype goose and cat models,
 build the presentation profile explicitly:
 
 ```bash
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -392,7 +404,7 @@ qualification and signed dogfood releases:
 ```bash
 KOOKIE_RUNTIME=presentation \
 KOOKIE_VERSION=0.1.0-dogfood.N \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -404,7 +416,7 @@ For a clean-tree package extraction and signature smoke, use:
 ```bash
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/verify_linux_presentation_package.sh
 ```
@@ -416,7 +428,7 @@ verified artifact set to an empty output directory:
 KOOKIE_VERSION=0.1.0-demo.N \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
 scripts/build_demo_release.sh \
   --target linux-x86_64 \
@@ -647,7 +659,7 @@ KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_FREETYPE_PREFIX=/path/to/freetype/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/path/to/harfbuzz/x86_64-w64-mingw32 \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -679,7 +691,7 @@ x64 OpenJDK runtime:
 ```bash
 KOOKIE_WINDOWS_JAVA_ARCHIVE=/path/to/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip \
 KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256=e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -705,7 +717,7 @@ KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_FREETYPE_PREFIX=/path/to/freetype/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/path/to/harfbuzz/x86_64-w64-mingw32 \
 KOOKIE_DXC=/path/to/dxc \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \
@@ -730,7 +742,7 @@ For the publishable Windows artifact, use the clean-tree deterministic builder:
 KOOKIE_WINDOWS_SDL_PREFIX=/path/to/SDL3/x86_64-w64-mingw32 \
 KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/path/to/SDL3_mixer-3.2.4/x86_64-w64-mingw32 \
 KOOKIE_DXC=/path/to/dxc \
-KOOKIE_KOF_SOURCE_COMMIT=940f3bd81c25e564afc60f9d32d49652e47edcbc \
+KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1 \
 KOOKIE_KOF_ARCHIVE_SHA256=<verified-distribution-sha256> \
 KOOKIE_KOF_ARCHIVE=/secure/path/kof-0.6.5-linux-x86_64.tar.gz \
 KOOKIE_SIGNING_KEY=/secure/path/kookie-ed25519.pem \

@@ -95,9 +95,22 @@ Instale [Kof 0.6.5](https://github.com/KofLang/Kof4j) para o entrypoint
 de fonte:
 
 Use a distribuição construída a partir da branch `lab` do Kof no commit
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`. `scripts/prepare_kof_source.sh`
+`f42ed91dfbceae09880b7d0619d98f67490149d1`. `scripts/prepare_kof_source.sh`
 verifica que a guarda de ciclos do GC native upstream está presente e depois
 normaliza os metadados do compilador antes do empacotamento Maven.
+
+Para atualizar o ambiente local a partir do head atual da `lab`, execute:
+
+```bash
+bash scripts/install_kof_lab.sh
+```
+
+O instalador constrói o commit atual da lab, verifica que a branch mutável não
+avançou durante o build, depois atualiza o pin rastreado e instala atomicamente
+esse commit exato. A CI atualiza o pin a cada 15 minutos por meio de
+`.github/workflows/update_kof_lab.yml` e abre um PR para os gates normais. Se a
+branch mutável lab avançar enquanto o build local executa, o instalador sai sem
+trocar o launcher; execute-o novamente.
 
 ```bash
 git clone https://github.com/rufl/KOOKIE.git

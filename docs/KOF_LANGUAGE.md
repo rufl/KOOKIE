@@ -4,7 +4,7 @@ Research date: 2026-09-22. This is a working reference, not a claim of complete 
 
 The active KOOKIE qualification baseline is the Kof `0.6.5` source from the
 `lab` branch at commit
-[`940f3bd81c25e564afc60f9d32d49652e47edcbc`](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc).
+[`f42ed91dfbceae09880b7d0619d98f67490149d1`](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1).
 Kof `0.6.5` is built from source in CI; no public archive is used as the
 pin. `scripts/prepare_kof_source.sh` verifies the upstream native GC cycle
 guard and normalizes compiler metadata before packaging.
@@ -193,11 +193,11 @@ Consequences:
    initialization proof. A version query does not prove allocator/TLS/thread-
    heavy library paths.
 
-Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [local Buffer gate](../scripts/verify_simd_dispatch.sh),
-[runtime ABI](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/docs/runtime/RUNTIME_ABI.md).
+[runtime ABI](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/docs/runtime/RUNTIME_ABI.md).
 
 ### Current 0.6.5 ABI boundary
 `bytes()` returns a managed copy; the native FFI payload is valid only for the

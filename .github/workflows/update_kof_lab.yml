@@ -1,0 +1,60 @@
+name: Update Kof lab pin
+
+on:
+  schedule:
+    - cron: "2,17,32,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-kof-lab
+  cancel-in-progress: true
+
+jobs:
+  update:
+    name: Resolve latest Kof lab
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout KOOKIE
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Apply latest lab pin
+        id: update
+        run: |
+          set -euo pipefail
+          python3 scripts/update_kof_lab.py --apply
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Open update pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          branch='automation/kof-lab'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B "$branch" "$BASE_BRANCH"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git add .github/workflows/release_demo.yml \
+            .github/workflows/verify.yml README.md pt-BR/README.md \
+            scripts/kof-as/as scripts/kof_pin.sh docs pt-BR/docs
+          git commit -m 'chore: update Kof lab pin'
+          git push --force origin "HEAD:$branch"
+          if [[ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')" ]]; then
+            gh pr create \
+              --base "$BASE_BRANCH" \
+              --head "$branch" \
+              --title 'chore: update Kof lab pin' \
+              --body 'Automated update from refs/heads/lab. The normal verification workflow must qualify the new immutable Kof commit before merge.'
+          fi

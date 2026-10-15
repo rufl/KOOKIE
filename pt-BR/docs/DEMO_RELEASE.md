@@ -19,7 +19,7 @@ parágrafo. O artefato registrado usa o commit Kof 0.5.0-beta fixado em
 reteve evidência de hardware-alvo.
 
 Novos candidatos de release usam o Kof `0.6.5` construído a partir da branch
-`lab`, no commit `940f3bd81c25e564afc60f9d32d49652e47edcbc`; os registros de
+`lab`, no commit `f42ed91dfbceae09880b7d0619d98f67490149d1`; os registros de
 qualificação abaixo mantêm suas identidades históricas do Kof. O workflow
 constrói a distribuição a partir da fonte porque o pin não usa archive público
 do 0.6.5.

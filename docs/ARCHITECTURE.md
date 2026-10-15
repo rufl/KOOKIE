@@ -87,7 +87,7 @@ camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
 The active Kof4j `0.6.5` pin is the Kof `lab` source commit
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`. The existing
+`f42ed91dfbceae09880b7d0619d98f67490149d1`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies `Buffer(U8)` on JVM and native
 x86-64 with the active pin. Cross-target support remains unqualified, and
 `Buffer(U8)` does not define a typed, asynchronous GPU/audio ownership

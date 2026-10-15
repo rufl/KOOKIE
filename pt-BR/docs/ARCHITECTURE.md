@@ -80,7 +80,7 @@ material/passe e ordenação de renderização; ele nunca faz parse nem composi�
 de SPIR-V no runtime.
 
 A pinagem ativa do Kof4j `0.6.5` é o commit da fonte `lab` do Kof
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`. O gate
+`f42ed91dfbceae09880b7d0619d98f67490149d1`. O gate
 `scripts/verify_simd_dispatch.sh` qualifica `Buffer(U8)` na JVM e no native
 x86-64 com o pin ativo. O suporte cross continua não qualificado. `Buffer(U8)`
 não define um contrato tipado e assíncrono de posse de GPU/áudio.

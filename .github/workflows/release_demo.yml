@@ -41,8 +41,8 @@ concurrency:
 
 env:
   KOF_VERSION: 0.6.5
-  KOF_SOURCE_COMMIT: 940f3bd81c25e564afc60f9d32d49652e47edcbc
-  KOOKIE_KOF_SOURCE_COMMIT: 940f3bd81c25e564afc60f9d32d49652e47edcbc
+  KOF_SOURCE_COMMIT: f42ed91dfbceae09880b7d0619d98f67490149d1
+  KOOKIE_KOF_SOURCE_COMMIT: f42ed91dfbceae09880b7d0619d98f67490149d1
   ZIG_VERSION: 0.17.0
   ZIG_ARCHIVE_SHA256: b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428
   ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
@@ -75,6 +75,12 @@ jobs:
         with:
           ref: ${{ inputs.source_commit }}
           persist-credentials: false
+      - name: Cache pinned Kof archive
+        id: kof-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/kookie/kof
+          key: kookie-kof-linux-${{ env.KOF_VERSION }}-${{ env.KOF_SOURCE_COMMIT }}
       - name: Checkout pinned Kof source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -90,6 +96,7 @@ jobs:
           cache: maven
           cache-dependency-path: _kof/pom.xml
       - name: Build pinned Kof distribution
+        if: steps.kof-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -103,18 +110,33 @@ jobs:
           mvn -q -f _kof/pom.xml clean package \
             -DskipTests -Drevision="$KOF_VERSION" \
             -DcreateDependencyReducedPom=false
-          bash _kof/scripts/package.sh \
-            --output "$RUNNER_TEMP/kof-dist" --skip-build
-          archive="$RUNNER_TEMP/kof-dist/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
-          test -f "$archive"
-          artifact_dir="$RUNNER_TEMP/kookie-kof-artifact"
+          artifact_dir="$HOME/.cache/kookie/kof"
+          rm -rf -- "$artifact_dir"
           mkdir -p "$artifact_dir"
-          cp -- "$archive" "$artifact_dir/"
+          bash _kof/scripts/package.sh \
+            --output "$artifact_dir" --skip-build
+          archive="$artifact_dir/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          test -f "$archive"
           (
             cd "$artifact_dir"
             sha256sum "$(basename "$archive")" > SHA256SUMS
             printf '%s\n' "$KOF_SOURCE_COMMIT" > SOURCE_COMMIT
           )
+          rm -rf -- _kof
+      - name: Validate pinned Kof archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_dir="$HOME/.cache/kookie/kof"
+          archive="$artifact_dir/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
+          test -f "$archive"
+          (cd "$artifact_dir" && sha256sum --check SHA256SUMS)
+          [[ "$(tr -d '\r\n' < "$artifact_dir/SOURCE_COMMIT")" == "$KOF_SOURCE_COMMIT" ]]
+          upload_dir="$RUNNER_TEMP/kookie-kof-artifact"
+          rm -rf -- "$upload_dir"
+          mkdir -p "$upload_dir"
+          cp "$artifact_dir"/kof-*.tar.gz "$artifact_dir"/SHA256SUMS \
+            "$artifact_dir"/SOURCE_COMMIT "$upload_dir"/
       - name: Upload pinned Kof archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -820,7 +842,7 @@ jobs:
 
           Signed native presentation packages built from source commit
           \`$source_commit\` with Kof source commit
-          \`${KOOKIE_KOF_SOURCE_COMMIT:-940f3bd81c25e564afc60f9d32d49652e47edcbc}\`.
+          \`${KOOKIE_KOF_SOURCE_COMMIT:-f42ed91dfbceae09880b7d0619d98f67490149d1}\`.
 
           This bounded first demo contains local \`Play\`, fixed two-player
           \`Host/Join\`, explicit \`READY\` gating and the host-authoritative

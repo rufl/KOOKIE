@@ -254,13 +254,13 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 ## Identidades de pesquisa fixadas
 
 - Toolchain atual de build do KOOKIE: fonte Kof `0.6.5`
-  `940f3bd81c25e564afc60f9d32d49652e47edcbc` da branch `lab`; nenhum archive
-  público 0.6.5 é usado como pin. O SHA-256 observado do archive Linux
-  construído a partir da fonte é
-  `c4db94ad085b13475e5eb6074f01b50370d709b15eb5d7148bacbccc2303c856`, e o
+  `efc99703a57948839012008bb128e776b487f5c9` da branch `lab`; nenhum archive
+  público 0.6.5 é usado como pin. O SHA-256 do archive Linux construído a
+  partir da fonte é
+  `ae533e7afb85de01c154aff227f8dd0c8a108e15c063f13afd92c92c8447d3f1`, e o
   SHA-256 do JAR do compilador é
-  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
-- Kof4j: `940f3bd81c25e564afc60f9d32d49652e47edcbc`, VERSION `0.6.5`.
+  `a54f0bfb16a55641c5dc59000c0585bf1e34ecb1049ca4511cfa044d0254ba88`.
+- Kof4j: `efc99703a57948839012008bb128e776b487f5c9`, VERSION `0.6.5`.
 - Release executado: `kof-0.4.9-beta-linux-x86_64`, publicado em 2026-09-20; SHA-256 do jar independente `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`.
 - Kof Editor: `bed6ae7d567b090497a447583a10b8522acaf66a`, VERSION `0.1.4-beta`; agora instalado com um launcher restrito ao projeto e isolado da rede, e verificado visualmente em X11 privado.
 - Não inferir o estado do release a partir do README 0.4.0 ou do site 0.4.1. O SHA do código-fonte e o jar do release são identificados separadamente, sem assumir equivalência binária.
@@ -269,7 +269,7 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 - Clones/jars temporários de pesquisa ficaram em `/tmp/kookie-*`; não são dependências do projeto. As evidências duráveis e todas as fontes das sondas estão em [RESEARCH_PROBES](docs/RESEARCH_PROBES.md), [COURSE_PROBES](docs/COURSE_PROBES.md) e [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - A CLI ativa é a distribuição Kof `0.6.5` construída a partir da fonte,
   `scripts/kof_pin.sh`; o SHA-256 do JAR do compilador é
-  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
+  `a54f0bfb16a55641c5dc59000c0585bf1e34ecb1049ca4511cfa044d0254ba88`.
   As instalações 0.5.0-beta e 0.6.0 anteriores permanecem apenas para
   comparação histórica.
 

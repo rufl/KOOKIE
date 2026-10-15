@@ -3,7 +3,7 @@
 Research date: 2026-09-22. This extends [KOF_LANGUAGE](KOF_LANGUAGE.md), not an engine implementation. Complete executed sources/results are in [COURSE_PROBES](COURSE_PROBES.md).
 
 The active KOOKIE qualification gate uses Kof `0.6.5` from the `lab` branch at
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`; the `0.4.9-beta` artifact identity
+`f42ed91dfbceae09880b7d0619d98f67490149d1`; the `0.4.9-beta` artifact identity
 below is intentionally retained as historical course evidence, not as the
 current engine build input.
 

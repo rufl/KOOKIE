@@ -3,7 +3,7 @@
 Data da pesquisa: **2026-09-22**. Esta é uma avaliação de bibliotecas/arquitetura, não um engine implementado nem uma comparação de desempenho medida. Linux nativo x86-64 e comportamento de CPU pertencente ao Kof continuam sendo a baseline em [ENGINE_PLAN](ENGINE_PLAN.md). A propriedade estrangeira de ECS/GUI/física é uma alternativa possível que exige aprovação explícita; esta pesquisa não a aprova silenciosamente.
 
 O baseline ativo de fonte/CI do KOOKIE é Kof `0.6.5` da branch `lab`, no
-`940f3bd81c25e564afc60f9d32d49652e47edcbc`; esta pesquisa mantém seu
+`f42ed91dfbceae09880b7d0619d98f67490149d1`; esta pesquisa mantém seu
 snapshot datado do Minecraft e não aprova dependências estrangeiras para a
 engine sem um contrato e gate de qualificação separados.
 

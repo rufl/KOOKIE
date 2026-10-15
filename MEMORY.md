@@ -266,12 +266,12 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 ## Pinned research identities
 
 - Current KOOKIE build toolchain: Kof `0.6.5` source
-  `940f3bd81c25e564afc60f9d32d49652e47edcbc` from `lab`; no public 0.6.5
-  archive is used as the pin. The observed source-built Linux archive SHA-256
-  is `c4db94ad085b13475e5eb6074f01b50370d709b15eb5d7148bacbccc2303c856`,
-  and its compiler JAR SHA-256 is
-  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
-- Kof4j: `940f3bd81c25e564afc60f9d32d49652e47edcbc`, VERSION `0.6.5`.
+  `efc99703a57948839012008bb128e776b487f5c9` from `lab`; no public 0.6.5
+  archive is used as the pin. The source-built Linux archive SHA-256 is
+  `ae533e7afb85de01c154aff227f8dd0c8a108e15c063f13afd92c92c8447d3f1`, and
+  its compiler JAR SHA-256 is
+  `a54f0bfb16a55641c5dc59000c0585bf1e34ecb1049ca4511cfa044d0254ba88`.
+- Kof4j: `efc99703a57948839012008bb128e776b487f5c9`, VERSION `0.6.5`.
 - Executed release: `kof-0.4.9-beta-linux-x86_64`, published 2026-09-20; standalone jar SHA-256 `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`.
 - Kof Editor: `bed6ae7d567b090497a447583a10b8522acaf66a`, VERSION `0.1.4-beta`; now installed with a project-restricted, network-isolated launcher and visually verified in private X11.
 - Do not infer release state from README 0.4.0 or website 0.4.1. Source SHA and release jar are separately identified, not assumed byte-equivalent.
@@ -280,7 +280,7 @@ Build a boomer-shooter / looter-shooter / ARPG FPS engine with **native Kof `.kf
 - Temporary research clones/jars were under `/tmp/kookie-*`; not project dependencies. Durable evidence and full probe sources live in [RESEARCH_PROBES](docs/RESEARCH_PROBES.md), [COURSE_PROBES](docs/COURSE_PROBES.md) and [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - The active CLI is the source-built Kof `0.6.5` distribution selected by
   `scripts/kof_pin.sh`; its compiler JAR SHA-256 is
-  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
+  `a54f0bfb16a55641c5dc59000c0585bf1e34ecb1049ca4511cfa044d0254ba88`.
   The prior 0.5.0-beta and 0.6.0 installations remain historical comparison
   artifacts only.
 

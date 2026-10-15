@@ -50,15 +50,39 @@ if [[ -f /usr/lib/libSDL3.so ]]; then
 else
   echo "SDL3 scalar platform probe skipped: /usr/lib/libSDL3.so is unavailable"
 fi
-canonical_build_dir="$(mktemp -d -t kookie-canonical-build-XXXXXX)"
+canonical_build_cache_dir="${KOOKIE_CANONICAL_BUILD_CACHE_DIR:-}"
+canonical_build_cleanup=1
+if [[ -n "$canonical_build_cache_dir" ]]; then
+  canonical_build_dir="$canonical_build_cache_dir"
+  mkdir -p "$canonical_build_dir"
+  canonical_build_cleanup=0
+else
+  canonical_build_dir="$(mktemp -d -t kookie-canonical-build-XXXXXX)"
+fi
 canonical_jvm_build="$canonical_build_dir/jvm"
+canonical_jvm_manifest="$canonical_build_dir/jvm.identity"
 canonical_native_build="$canonical_build_dir/native"
 canonical_native_manifest="$canonical_build_dir/native.identity"
-trap 'rm -rf -- "$canonical_build_dir"' EXIT
-kof build src --target jvm --output "$canonical_jvm_build"
-kof build src --target native --output "$canonical_native_build"
-bash scripts/write_build_identity.sh native \
-  "$canonical_native_build" "$canonical_native_manifest"
+canonical_cache_valid=0
+if (( canonical_build_cleanup == 0 )) &&
+   bash scripts/write_build_identity.sh --check jvm \
+     "$canonical_jvm_build" "$canonical_jvm_manifest" &&
+   bash scripts/write_build_identity.sh --check native \
+     "$canonical_native_build" "$canonical_native_manifest"; then
+  canonical_cache_valid=1
+fi
+if (( canonical_cache_valid == 0 )); then
+  rm -rf -- "$canonical_build_dir"
+  mkdir -p "$canonical_jvm_build" "$canonical_native_build"
+  kof build src --target jvm --output "$canonical_jvm_build"
+  kof build src --target native --output "$canonical_native_build"
+  bash scripts/write_build_identity.sh jvm \
+    "$canonical_jvm_build" "$canonical_jvm_manifest"
+  bash scripts/write_build_identity.sh native \
+    "$canonical_native_build" "$canonical_native_manifest"
+else
+  echo "Reusing canonical JVM/native builds from $canonical_build_dir"
+fi
 export KOOKIE_PREBUILT_NATIVE_BUILD="$canonical_native_build"
 export KOOKIE_PREBUILT_NATIVE_MANIFEST="$canonical_native_manifest"
 bash scripts/verify_package.sh
@@ -88,7 +112,11 @@ rm -rf "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" \
   "$presentation_probe_core_dir" "$presentation_probe_content_dir" \
   "$presentation_probe_session_dir" "$presentation_probe_world_dir" \
   "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"
-trap 'rm -rf "$canonical_build_dir" "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" "$presentation_probe_core_dir" "$presentation_probe_content_dir" "$presentation_probe_session_dir" "$presentation_probe_world_dir" "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"' EXIT
+if (( canonical_build_cleanup == 1 )); then
+  trap 'rm -rf "$canonical_build_dir" "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" "$presentation_probe_core_dir" "$presentation_probe_content_dir" "$presentation_probe_session_dir" "$presentation_probe_world_dir" "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"' EXIT
+else
+  trap 'rm -rf "$build_dir" "$adapter_build_dir" "$probe_core_dir" "$probe_content_dir" "$probe_session_dir" "$probe_world_dir" "$probe_ui_dir" "$probe_demo_dir" "$presentation_probe_core_dir" "$presentation_probe_content_dir" "$presentation_probe_session_dir" "$presentation_probe_world_dir" "$presentation_probe_ui_dir" "$presentation_probe_demo_dir"' EXIT
+fi
 render_node="${KOOKIE_RENDER_NODE:-}"
 if [[ -z "$render_node" ]]; then
   for candidate in /dev/dri/renderD*; do

@@ -28,17 +28,17 @@ decodifica mídia e não cria outro renderer.
 ## Fronteira da ABI do Kof 0.6.5 fixado atualmente
 
 A baseline ativa de qualificação do KOOKIE é o fonte do Kof4j
-[`940f3bd81c25e564afc60f9d32d49652e47edcbc`](https://github.com/KofLang/Kof4j/tree/940f3bd81c25e564afc60f9d32d49652e47edcbc).
+[`f42ed91dfbceae09880b7d0619d98f67490149d1`](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1).
 A CLI de qualificação reporta `kof 0.6.5`; a qualificação focada de Buffer
 abaixo passa na JVM e no native x86-64 com este pin.
 
 A implementação fixada e a documentação upstream mais recente não são
 idênticas:
 
-- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
+- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
   expõe `buffer.alloc(Int)` e `Buffer.bytes()` em JVM, JS e nativo
   x86-64; os comentários da fonte também afirmam suporte a riscv64/aarch64.
-- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
+- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
   baixa `Buffer(U8)` como token `B` e ponteiro de payload síncrono na
   implementação nativa fixada. `scripts/verify_simd_dispatch.sh` exercita
   cópia de entrada/retorno e uma redução INOUT em JVM e nativo x86-64.
@@ -46,7 +46,7 @@ idênticas:
   fixada expõe a implementação nativa limitada usada pelo KOOKIE. O suporte
   cross é, portanto, uma afirmação da fonte upstream, não um resultado de
   qualificação do KOOKIE.
-- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/940f3bd81c25e564afc60f9d32d49652e47edcbc/docs/runtime/RUNTIME_ABI.md)
+- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/docs/runtime/RUNTIME_ABI.md)
   é um contrato comportamental do runtime, não uma ABI C pública estável.
   O KOOKIE não deve copiar headers de objetos, layouts de arrays ou detalhes
   do alocador para uma biblioteca de engine.
