@@ -26,10 +26,11 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   baixado e o forçam à frente de entradas antigas do `PATH` dos runners
   self-hosted; o resumo de cache do Windows declara Bash explicitamente nos
   runners Git Bash.
-- A reprodutibilidade do release agora desabilita gravações de bytecode Python
-  entre as duas passagens de empacotamento. O Windows valida os archives SDL
-  pinados antes de extraí-los com o `tar` do Git Bash, evitando diferenças do
-  `tarfile` do Python nos runners self-hosted.
+- Os jobs de release agora mantêm diagnósticos e histórico do Kof fora do
+  checkout, para que a própria passagem de reprodutibilidade não suje a árvore
+  de fontes. O Windows valida os archives SDL pinados antes de extraí-los com
+  o `tar` do Git Bash, evitando diferenças do `tarfile` do Python nos runners
+  self-hosted.
 - `scripts/install_kof_lab.sh` constrói o commit atual da lab, valida que a
   ref mutável não avançou, depois atualiza o pin rastreado e atualiza
   atomicamente o launcher local `kof`, sem apagar instalações antigas.

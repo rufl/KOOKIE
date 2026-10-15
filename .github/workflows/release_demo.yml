@@ -160,8 +160,8 @@ jobs:
     runs-on: [self-hosted, linux, x64, kookie-demo-release]
     timeout-minutes: 120
     env:
-      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
-      KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history
+      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/../kookie-build-logs
+      KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/../kookie-build-history
     steps:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -402,7 +402,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-kof-build-diagnostics-linux-${{ inputs.version }}
-          path: .kookie-build-logs
+          path: ${{ github.workspace }}/../kookie-build-logs
           if-no-files-found: ignore
           retention-days: 7
 
@@ -412,8 +412,8 @@ jobs:
     runs-on: [self-hosted, windows, x64, kookie-demo-release]
     timeout-minutes: 120
     env:
-      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
-      KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history
+      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/../kookie-build-logs
+      KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/../kookie-build-history
     steps:
       - name: Checkout requested source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -550,7 +550,21 @@ jobs:
             >> "$GITHUB_ENV"
           printf 'KOOKIE_SDL3_MIXER_ARCHIVE_SHA256=%s\n' \
             "$SDL3_MIXER_ARCHIVE_SHA256" >> "$GITHUB_ENV"
-          command -v pkg-config >/dev/null
+          mingw_candidates=(/mingw64 /c/msys64/mingw64 /c/msys64/clang64)
+          if ! command -v pkg-config >/dev/null; then
+            for candidate in "${mingw_candidates[@]}"; do
+              if [[ -x "$candidate/bin/pkg-config.exe" ||
+                    -x "$candidate/bin/pkg-config" ]]; then
+                export PATH="$candidate/bin:$PATH"
+                printf '%s\n' "$candidate/bin" >> "$GITHUB_PATH"
+                break
+              fi
+            done
+          fi
+          command -v pkg-config >/dev/null || {
+            echo 'release_demo: pkg-config is required on the Windows release runner' >&2
+            exit 2
+          }
           freetype_pkg_prefix="$(pkg-config --variable=prefix freetype2 2>/dev/null || true)"
           harfbuzz_pkg_prefix="$(pkg-config --variable=prefix harfbuzz 2>/dev/null || true)"
           for prefix_variable in freetype_pkg_prefix harfbuzz_pkg_prefix; do
@@ -562,7 +576,7 @@ jobs:
           done
           freetype_prefix="${KOOKIE_WINDOWS_FREETYPE_PREFIX:-$freetype_pkg_prefix}"
           harfbuzz_prefix="${KOOKIE_WINDOWS_HARFBUZZ_PREFIX:-$harfbuzz_pkg_prefix}"
-          for candidate in /mingw64 /c/msys64/mingw64 /c/msys64/clang64; do
+          for candidate in "${mingw_candidates[@]}"; do
             if [[ ! -f "$freetype_prefix/lib/pkgconfig/freetype2.pc" &&
                   -f "$candidate/lib/pkgconfig/freetype2.pc" ]]; then
               freetype_prefix="$candidate"
@@ -808,7 +822,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-kof-build-diagnostics-windows-${{ inputs.version }}
-          path: .kookie-build-logs
+          path: ${{ github.workspace }}/../kookie-build-logs
           if-no-files-found: ignore
           retention-days: 7
 
