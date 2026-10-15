@@ -625,12 +625,24 @@ jobs:
               '/c/Program Files/DirectXShaderCompiler/bin/x64/dxc.exe' \
               '/c/Program Files/DirectX Shader Compiler/bin/x64/dxc.exe' \
               '/c/Program Files/DXC/bin/x64/dxc.exe' \
+              '/c/Program Files (x86)/Windows Kits/10/bin/'*/x64/dxc.exe \
+              '/c/Program Files/Windows Kits/10/bin/'*/x64/dxc.exe \
               /c/Windows/Microsoft.NET/Framework64/*/dxc.exe; do
               if [[ -x "$candidate" ]]; then
                 dxc="$candidate"
                 break
               fi
             done
+          fi
+          if [[ -z "$dxc" ]]; then
+            while IFS= read -r windows_candidate; do
+              windows_candidate="$(cygpath -u "$windows_candidate")"
+              if [[ -x "$windows_candidate" ]]; then
+                dxc="$windows_candidate"
+                break
+              fi
+            done < <(/c/Windows/System32/where.exe dxc.exe 2>/dev/null |
+              tr -d '\r' || true)
           fi
           [[ -n "$dxc" && -x "$dxc" ]] || {
             echo 'release_demo: unable to resolve dxc from KOOKIE_DXC, PATH, or known runner locations' >&2
