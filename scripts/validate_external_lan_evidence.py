@@ -30,7 +30,7 @@ def marker_value(lines, marker: str):
 
 
 RUN_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{7,127}")
-EXPECTED_ARENA_TRIANGLES = 178
+EXPECTED_ARENA_TRIANGLES = 190
 ROLE_NAMES = ("host", "client-a", "client-b")
 
 

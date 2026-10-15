@@ -3,6 +3,16 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- A arena de deathmatch G1 foi reconstruída como um greybox de boomer shooter
+  sem temática opressiva, com rotas inferiores conectadas, faixas laterais
+  elevadas, torres, galerias cobertas, travessias da piscina central, uma
+  travessia do canal de água a leste e um pátio de céu aberto. O orçamento
+  autorado fica em 140 vértices e 190 triângulos, abaixo do limite de 192
+  triângulos da colisão.
+- Quads autorados agora usam índices; a colisão autorada carrega todos os
+  triângulos antes de reconstruir o BVH uma única vez; e frames de gameplay
+  somente geométricos não reservam buffers de texto. As evidências LAN externas
+  agora esperam a arena de 190 triângulos.
 - O CI/CD P1 agora constrói o toolchain Kof fixado uma vez por execução de
   verificação, separa os gates static/JVM, native/package e Windows JVM,
   cacheia toolchains Maven/Zig/JRE/SDL com revalidação SHA-256, reutiliza

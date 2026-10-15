@@ -3,6 +3,15 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Rebuilt the bounded G1 deathmatch arena as a non-oppressive boomer-shooter
+  greybox with connected lower routes, raised side lanes, towers, covered
+  galleries, central pool crossings, an east water-channel crossing and an
+  open-sky court. The authored budget is fixed at 140 vertices and 190
+  triangles, below the existing 192-triangle collision limit.
+- Indexed authored quads, bulk-loaded authored collision triangles with one BVH
+  rebuild, and added geometry-only `FrameStaging` allocations so gameplay
+  frames do not reserve text buffers. External LAN evidence now expects the
+  190-triangle arena.
 - CI/CD P1 now builds the pinned Kof toolchain once per verification run,
   separates static/JVM, native/package and Windows JVM gates, caches Maven/Zig/
   JRE/SDL toolchains with SHA-256 revalidation, reuses source/toolchain-bound

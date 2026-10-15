@@ -445,26 +445,55 @@ class BoundedTriangleCollection {
                 authored.maxX(), authored.maxY(), authored.maxZ())) {
             return false
         }
-        if (!clearTriangles()) {
-            return false
+
+        var hadActiveTriangles = activeCountValue > 0
+        for (var index = 0; index < triangleCountValue; index = index + 1) {
+            active[index] = false
         }
+        triangleCountValue = 0
+        activeCountValue = 0
+        if (hadActiveTriangles) {
+            geometryRevisionValue = geometryRevisionValue + 1
+        }
+        authoredChecksumValue = 0
+        authoredRevisionValue = 0
+
         for (var index = 0; index < authored.triangleCount(); index = index + 1) {
             var first = authored.triangleVertex(index, 0)
             var second = authored.triangleVertex(index, 1)
             var third = authored.triangleVertex(index, 2)
-            if (!addTriangle(
-                    authored.vertexCoordinate(first, 0),
-                    authored.vertexCoordinate(first, 1),
-                    authored.vertexCoordinate(first, 2),
-                    authored.vertexCoordinate(second, 0),
-                    authored.vertexCoordinate(second, 1),
-                    authored.vertexCoordinate(second, 2),
-                    authored.vertexCoordinate(third, 0),
-                    authored.vertexCoordinate(third, 1),
-                    authored.vertexCoordinate(third, 2))) {
+            var nextAx = authored.vertexCoordinate(first, 0)
+            var nextAy = authored.vertexCoordinate(first, 1)
+            var nextAz = authored.vertexCoordinate(first, 2)
+            var nextBx = authored.vertexCoordinate(second, 0)
+            var nextBy = authored.vertexCoordinate(second, 1)
+            var nextBz = authored.vertexCoordinate(second, 2)
+            var nextCx = authored.vertexCoordinate(third, 0)
+            var nextCy = authored.vertexCoordinate(third, 1)
+            var nextCz = authored.vertexCoordinate(third, 2)
+            if (!validTriangle(
+                    nextAx, nextAy, nextAz,
+                    nextBx, nextBy, nextBz,
+                    nextCx, nextCy, nextCz)) {
+                rebuildBvh()
                 return false
             }
+            ax[index] = nextAx
+            ay[index] = nextAy
+            az[index] = nextAz
+            bx[index] = nextBx
+            by[index] = nextBy
+            bz[index] = nextBz
+            cx[index] = nextCx
+            cy[index] = nextCy
+            cz[index] = nextCz
+            active[index] = true
+            revisions[index] = revisions[index] + 1
+            triangleCountValue = triangleCountValue + 1
+            activeCountValue = activeCountValue + 1
+            geometryRevisionValue = geometryRevisionValue + 1
         }
+        rebuildBvh()
         authoredChecksumValue = authored.checksum()
         authoredRevisionValue = authored.geometryRevision()
         return true

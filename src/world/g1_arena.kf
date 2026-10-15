@@ -14,25 +14,13 @@ class G1Arena {
     Bool readyValue
 
     public constructor() {
-        authoredValue = BoundedAuthoredCollision(256, 256)
+        authoredValue = BoundedAuthoredCollision(160, 192)
         collisionValue = BoundedTriangleCollection(192, 64)
         contactValue = BoundedTriangleContactController(
             collisionValue, 1, 64, 60, 2)
         readyValue = buildArena()
     }
 
-    Bool appendTriangle(
-        Int ax, Int ay, Int az,
-        Int bx, Int by, Int bz,
-        Int cx, Int cy, Int cz,
-        Int surface
-    ) {
-        var base = authoredValue.vertexCount()
-        return authoredValue.addVertex(ax, ay, az) &&
-            authoredValue.addVertex(bx, by, bz) &&
-            authoredValue.addVertex(cx, cy, cz) &&
-            authoredValue.addTriangle(base, base + 1, base + 2, surface)
-    }
 
     Bool appendQuad(
         Int ax, Int ay, Int az,
@@ -41,10 +29,12 @@ class G1Arena {
         Int dx, Int dy, Int dz,
         Int surface
     ) {
-        return appendTriangle(
-                ax, ay, az, bx, by, bz, cx, cy, cz, surface) &&
-            appendTriangle(
-                ax, ay, az, cx, cy, cz, dx, dy, dz, surface)
+        var base = authoredValue.vertexCount()
+        return authoredValue.addVertex(ax, ay, az) &&
+            authoredValue.addVertex(bx, by, bz) &&
+            authoredValue.addVertex(cx, cy, cz) &&
+            authoredValue.addVertex(dx, dy, dz) &&
+            appendIndexedQuad(base, base + 1, base + 2, base + 3, surface)
     }
 
     Bool appendIndexedQuad(
@@ -84,12 +74,6 @@ class G1Arena {
                 base + 4, base + 5, base + 1, base, surface)
     }
 
-    Bool appendCover(
-        Int left, Int front, Int right, Int back, Int surface
-    ) {
-        return appendBox(
-            left, 0, front, right, 14, back, surface)
-    }
 
     Bool buildArena() {
         var maxX = g1ArenaMaxX()
@@ -102,12 +86,14 @@ class G1Arena {
             return false
         }
 
+        // One continuous floor keeps movement deterministic; the liquid
+        // sectors overlay its central and eastern lanes.
         if (!appendQuad(
-                0, 0, 0, maxX, 0, 0, maxX, 0, maxZ, 0, 0, maxZ, 6)) {
+                0, 0, 0, maxX, 0, 0, maxX, 0, maxZ, 0, 0, maxZ, 1)) {
             return false
         }
 
-        // Perimeter walls are solid six-sided volumes, not camera-facing planes.
+        // A dark perimeter frames the arena while preserving an open roof.
         if (!appendBox(
                 0, 0, 0, thickness, maxY, maxZ, 8) ||
             !appendBox(
@@ -119,37 +105,51 @@ class G1Arena {
                 maxX - thickness, maxY, maxZ, 8)) {
             return false
         }
-        // The raised room keeps vertical collision and snapshot coverage in G1.
+
+        // Two raised crossings turn the central pool into a four-way combat
+        // junction instead of a dead zone.
+        if (!appendBox(92, 6, 146, 228, 9, 158, 5) ||
+            !appendBox(154, 6, 92, 166, 9, 212, 5) ||
+            // The east channel has a second route above the water.
+            !appendBox(228, 6, 66, 308, 9, 78, 5)) {
+            return false
+        }
+
+        // Upper side lanes create height changes without sealing the ground
+        // loop. Their open undersides preserve alternate escape routes.
+        if (!appendBox(36, 8, 64, 96, 11, 216, 6) ||
+            !appendBox(224, 8, 64, 284, 11, 216, 6)) {
+            return false
+        }
+
+        // Covered galleries contrast with the open central sky court.
+        if (!appendBox(48, 16, 16, 272, 18, 48, 7) ||
+            !appendBox(48, 16, 232, 272, 18, 264, 7)) {
+            return false
+        }
+
+        // Tall colored towers provide vertical cover and readable landmarks.
+        if (!appendBox(64, 0, 112, 88, 14, 136, 4) ||
+            !appendBox(232, 0, 144, 256, 14, 168, 4)) {
+            return false
+        }
+
+        // Low center cover breaks long sight lines while leaving four exits.
+        if (!appendBox(112, 0, 72, 132, 5, 92, 3) ||
+            !appendBox(188, 0, 184, 208, 5, 204, 3)) {
+            return false
+        }
+
+        // Short ramps and ledges make the upper lanes reachable and keep
+        // vertical combat readable from the open court.
         if (!appendQuad(
-                20, 8, 16, 32, 8, 16, 32, 8, 28, 20, 8, 28, 7) ||
+                20, 0, 56, 20, 0, 80, 40, 8, 80, 40, 8, 56, 6) ||
             !appendQuad(
-                20, 0, 16, 20, 8, 16, 20, 8, 28, 20, 0, 28, 7) ||
+                280, 8, 200, 280, 8, 224, 300, 0, 224, 300, 0, 200, 6) ||
             !appendQuad(
-                32, 0, 28, 32, 8, 28, 32, 8, 16, 32, 0, 16, 7) ||
+                116, 5, 76, 140, 5, 76, 140, 5, 96, 116, 5, 96, 4) ||
             !appendQuad(
-                20, 0, 28, 20, 8, 28, 32, 8, 28, 32, 0, 28, 7)) {
-            return false
-        }
-
-        // Central cross-corridor leaves a wide, camera-safe room junction.
-        if (!appendBox(158, 0, 4, 162, maxY, 96, 3) ||
-            !appendBox(158, 0, 184, 162, maxY, 276, 3) ||
-            !appendBox(4, 0, 138, 100, maxY, 142, 4) ||
-            !appendBox(220, 0, 138, 316, maxY, 142, 4)) {
-            return false
-        }
-
-        // Offset partitions preserve long sight lines without dead ends.
-        if (!appendBox(78, 0, 200, 82, maxY, 276, 5) ||
-            !appendBox(238, 0, 4, 242, maxY, 80, 5)) {
-            return false
-        }
-
-        // Two solid L-shaped cover clusters.
-        if (!appendCover(116, 108, 120, 128, 2) ||
-            !appendCover(116, 108, 136, 112, 7) ||
-            !appendCover(200, 156, 204, 176, 2) ||
-            !appendCover(188, 172, 204, 176, 7)) {
+                180, 5, 184, 204, 5, 184, 204, 5, 204, 180, 5, 204, 4)) {
             return false
         }
 

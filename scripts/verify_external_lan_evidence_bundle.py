@@ -18,7 +18,7 @@ EXPECTED_FILES = {
     "evidence/evidence.json",
 }
 ROLES = ("host", "client-a", "client-b")
-EXPECTED_ARENA_TRIANGLES = 178
+EXPECTED_ARENA_TRIANGLES = 190
 
 
 RUN_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{7,127}")

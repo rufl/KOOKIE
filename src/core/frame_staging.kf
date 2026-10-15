@@ -26,7 +26,7 @@ class FrameStaging {
     Int textRunCount
     Int textCodepointCount
 
-    public constructor(Int capacity) {
+    void initialize(Int capacity, Int textCapacity) {
         this.resources = new Int[capacity]
         this.xs = new Int[capacity]
         this.ys = new Int[capacity]
@@ -41,16 +41,24 @@ class FrameStaging {
         this.count = 0
         this.writes = 0
         this.open = false
-        this.textRunFonts = new Int[capacity]
-        this.textRunColors = new Int[capacity]
-        this.textRunLefts = new Int[capacity]
-        this.textRunBottoms = new Int[capacity]
-        this.textRunScales = new Int[capacity]
-        this.textRunStarts = new Int[capacity]
-        this.textRunLengths = new Int[capacity]
-        this.textCodepoints = new Int[capacity]
+        this.textRunFonts = new Int[textCapacity]
+        this.textRunColors = new Int[textCapacity]
+        this.textRunLefts = new Int[textCapacity]
+        this.textRunBottoms = new Int[textCapacity]
+        this.textRunScales = new Int[textCapacity]
+        this.textRunStarts = new Int[textCapacity]
+        this.textRunLengths = new Int[textCapacity]
+        this.textCodepoints = new Int[textCapacity]
         this.textRunCount = 0
         this.textCodepointCount = 0
+    }
+
+    public constructor(Int capacity) {
+        initialize(capacity, capacity)
+    }
+
+    public constructor(Int capacity, Int textCapacity) {
+        initialize(capacity, textCapacity)
     }
     Bool begin(Int nextFrame) {
         if (open || nextFrame <= 0 || nextFrame <= published) {

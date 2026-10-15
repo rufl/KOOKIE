@@ -723,11 +723,11 @@ Bool externalRoleHostQualification() {
         "external host must authenticate two client snapshots")
     assert(host.clientBroadPhaseTriangleCount() == arena.triangleCount(),
         "external host must receive the complete authored arena")
-    var upperFloor = host.queryClientBroadPhasePath(
+    var upperLane = host.queryClientBroadPhasePath(
         host.clientBroadPhaseRevision(),
-        SpatialPoint(24, 12, 20), SpatialPoint(24, 6, 20))
-    assert(upperFloor.accepted() && upperFloor.collided(),
-        "transported arena must retain stacked-room collision")
+        SpatialPoint(60, 12, 100), SpatialPoint(60, 6, 100))
+    assert(upperLane.accepted() && upperLane.collided(),
+        "transported arena must retain raised-lane collision")
 
     assert(externalRoleHostReceiveCommand(
             host, 0, 1, 1, gameplayProgressionAction()) &&
@@ -1463,11 +1463,11 @@ main() {
         clientA.clientBroadPhaseTriangleCount() == arena.triangleCount() &&
         clientB.clientBroadPhaseTriangleCount() == arena.triangleCount(),
         "host must serve the complete authored arena to both clients")
-    var clientUpperFloor = clientA.queryClientBroadPhasePath(
+    var clientUpperLane = clientA.queryClientBroadPhasePath(
         clientA.clientBroadPhaseRevision(),
-        SpatialPoint(24, 12, 20), SpatialPoint(24, 6, 20))
-    assert(clientUpperFloor.accepted() && clientUpperFloor.collided(),
-        "client arena snapshot must retain stacked-room collision")
+        SpatialPoint(60, 12, 100), SpatialPoint(60, 6, 100))
+    assert(clientUpperLane.accepted() && clientUpperLane.collided(),
+        "client arena snapshot must retain raised-lane collision")
     assert(kookie_transport_select_slot(2) &&
         kookie_transport_replay_last_datagram() &&
         kookie_transport_select_slot(0) &&

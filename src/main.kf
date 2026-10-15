@@ -579,28 +579,34 @@ test "arena staging emits perspective depth" {
     assert(frame.retire(1))
 }
 
-test "large arena links rooms, raised room, cover and open sky" {
+test "deathmatch arena links routes, height, water crossings and open sky" {
     var arena = G1Arena()
-    var wall = arena.query(140, 10, 20, 180, 10, 20)
-    var corridor = arena.query(140, 10, 140, 180, 10, 140)
-    var pillar = arena.query(100, 6, 118, 150, 6, 118)
-    var raisedRoom = arena.query(24, 12, 20, 24, 6, 20)
-    var sky = arena.query(40, 5, 60, 40, 23, 60)
-    assert(raisedRoom.accepted(),
-        "raised-room query must stay within the collision budget")
-    assert(raisedRoom.collided(),
-        "raised-room query must retain the raised surface")
+    var wall = arena.query(20, 10, 20, 0, 10, 20)
+    var lowerRoute = arena.query(100, 1, 120, 150, 1, 120)
+    var bridge = arena.query(80, 8, 152, 140, 8, 152)
+    var channelBridge = arena.query(220, 8, 72, 280, 8, 72)
+    var upperLane = arena.query(60, 12, 100, 60, 6, 100)
+    var tower = arena.query(70, 15, 120, 70, 6, 120)
+    var gallery = arena.query(100, 14, 32, 100, 20, 32)
+    var sky = arena.query(140, 5, 120, 140, 23, 120)
+    assert(upperLane.accepted() && upperLane.collided(),
+        "upper side lane must retain a reachable raised surface")
+    assert(gallery.accepted() && gallery.collided(),
+        "covered gallery must retain its overhead sector")
     assert(arena.ready() &&
-        arena.vertexCount() == 142 &&
-        arena.triangleCount() == 178 &&
+        arena.vertexCount() == 140 &&
+        arena.triangleCount() == 190 &&
         arena.authoredCollision().maxX() == g1ArenaMaxX() &&
         arena.authoredCollision().maxZ() == g1ArenaMaxZ() &&
         wall.accepted() && wall.collided() &&
-        corridor.accepted() && !corridor.collided() &&
-        pillar.accepted() && pillar.collided() &&
-        raisedRoom.accepted() && raisedRoom.collided() &&
+        lowerRoute.accepted() && !lowerRoute.collided() &&
+        bridge.accepted() && bridge.collided() &&
+        channelBridge.accepted() && channelBridge.collided() &&
+        upperLane.accepted() && upperLane.collided() &&
+        tower.accepted() && tower.collided() &&
+        gallery.accepted() && gallery.collided() &&
         sky.accepted() && !sky.collided(),
-        "large arena must connect rooms, retain raised room and open sky")
+        "deathmatch arena must preserve alternate routes, vertical landmarks and open sky")
 }
 
 test "WASD movement axes match gameplay controls" {
@@ -774,21 +780,22 @@ test "third person camera eases animal follow and zoom" {
         "camera follow must ease instead of teleporting")
 }
 
-test "third person camera resolves authored wall collision" {
+test "third person camera resolves authored tower collision" {
     var arena = G1Arena()
     var camera = CameraState(-450, 450)
     assert(arena.ready() &&
-        camera.applyLook(270, -20) &&
-        camera.setFollowTarget(150, 1, 20) &&
+        camera.applyLook(90, -20) &&
+        camera.setFollowTarget(98, 1, 124) &&
         camera.snapFollowTarget() &&
-        camera.currentX() == 160 &&
+        camera.currentX() == 88 &&
         camera.resolveFollowCollision(arena.collisionGeometry()) &&
-        camera.currentX() <= 156,
-        "camera follow must stop two world units before a solid interior wall")
+        camera.currentX() >= 90 &&
+        camera.currentX() < 98,
+        "camera follow must stop two world units before a solid tower")
     var clear = arena.query(
-        150, 1, 20, camera.currentX(), camera.currentY(), camera.currentZ())
+        98, 1, 124, camera.currentX(), camera.currentY(), camera.currentZ())
     assert(clear.accepted() && !clear.collided(),
-        "resolved camera position must remain on the safe side of the wall")
+        "resolved camera position must remain on the safe side of the tower")
 }
 
 test "arena animal meshes animate goose and cat silhouettes" {
@@ -3114,6 +3121,15 @@ test "frame staging ownership and scalar measurement" {
     assert(staging.begin(8))
     assert(staging.discard())
     assert(!staging.publish())
+
+    var geometryOnly = FrameStaging(2, 0)
+    assert(geometryOnly.begin(9) &&
+        geometryOnly.pushWorldVertex(2, 0, 0, 0, 0, 0) &&
+        !geometryOnly.pushTextRun(0, 0, "A", 0, 0, 1) &&
+        geometryOnly.textRuns() == 0 &&
+        geometryOnly.publish() &&
+        geometryOnly.retire(9),
+        "geometry-only staging must not reserve or accept text buffers")
 }
 
 test "authoritative loopback foundation" {

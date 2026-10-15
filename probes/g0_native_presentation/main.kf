@@ -857,25 +857,29 @@ class G1NativePresentation {
         nativeAnimalModelsValue = false
         gooseModelVertexCountValue = 0
         catModelVertexCountValue = 0
-        worldFrame = FrameStaging(arena.renderVertexCount())
+        worldFrame = FrameStaging(arena.renderVertexCount(), 0)
         waterFrame = FrameStaging(
-            liquidMaximumBodies() * liquidWaterVerticesPerBody())
-        waterSplashFrame = FrameStaging(waterSplashVfxValue.renderVertexCapacity())
+            liquidMaximumBodies() * liquidWaterVerticesPerBody(), 0)
+        waterSplashFrame = FrameStaging(
+            waterSplashVfxValue.renderVertexCapacity(), 0)
         floatingObjectFrame = FrameStaging(
-            liquidDefaultObjectCapacity() * liquidObjectVerticesPerObject())
+            liquidDefaultObjectCapacity() * liquidObjectVerticesPerObject(), 0)
         powerUpFrame = FrameStaging(
-            powerUpMaximumDefinitions() * powerUpVerticesPerDefinition())
+            powerUpMaximumDefinitions() * powerUpVerticesPerDefinition(), 0)
         hudFrame = FrameStaging(hud.renderVertexCount())
-        doorFrame = FrameStaging(36)
-        animalFrame = FrameStaging(animalMeshes.renderVertexCapacity())
-        shadowFrame = FrameStaging(animalMeshes.actorCapacity() * 24)
-        attackVfxFrame = FrameStaging(attackVfx.renderVertexCapacity())
-        lootBeamFrame = FrameStaging(8 * 18)
-        actorFrame = FrameStaging(gooseOverlay.renderVertexCapacity())
-        minimapFrame = FrameStaging(minimap.renderVertexCapacity())
+        doorFrame = FrameStaging(36, 0)
+        animalFrame = FrameStaging(animalMeshes.renderVertexCapacity(), 0)
+        shadowFrame = FrameStaging(animalMeshes.actorCapacity() * 24, 0)
+        attackVfxFrame = FrameStaging(
+            attackVfx.renderVertexCapacity(), 0)
+        lootBeamFrame = FrameStaging(8 * 18, 0)
+        actorFrame = FrameStaging(
+            gooseOverlay.renderVertexCapacity(), 72)
+        minimapFrame = FrameStaging(minimap.renderVertexCapacity(), 0)
         scoreboardFrame = FrameStaging(scoreboardUi.renderVertexCapacity())
         consoleFrame = FrameStaging(consoleValue.renderVertexCapacity())
-        projectileFrame = FrameStaging(projectileOverlay.renderVertexCapacity())
+        projectileFrame = FrameStaging(
+            projectileOverlay.renderVertexCapacity(), 0)
         worldCapacity = worldFrame.vertexCapacity()
         waterCapacity = waterFrame.vertexCapacity()
         waterSplashCapacity = waterSplashFrame.vertexCapacity()
