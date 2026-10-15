@@ -35,7 +35,7 @@ if [[ "$profile" == static || "$profile" == native ]]; then
 fi
 
 if [[ "$profile" == native ]]; then
-  for command_name in clang gcc pkg-config wine zig; do
+  for command_name in clang gcc glslc spirv-val pkg-config wine zig; do
     require_command "$command_name"
   done
   pkg-config --exists freetype2 harfbuzz || {
@@ -44,6 +44,8 @@ if [[ "$profile" == native ]]; then
   }
   printf 'Clang: %s\n' "$(clang --version | head -n 1)"
   printf 'GCC: %s\n' "$(gcc --version | head -n 1)"
+  printf 'GLSLC: %s\n' "$(glslc --version 2>&1 | head -n 1)"
+  printf 'SPIRV-VAL: %s\n' "$(spirv-val --version 2>&1 | head -n 1)"
   printf 'pkg-config: %s\n' "$(pkg-config --version)"
   printf 'Wine: %s\n' "$(wine --version 2>&1 | head -n 1)"
   printf 'Zig: %s\n' "$(zig version)"

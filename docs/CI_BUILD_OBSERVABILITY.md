@@ -54,6 +54,12 @@ The Verify workflow stores build logs as an artifact named
 history file so later runs can display an ETA. Release Linux/Windows jobs
 store their build logs as separate diagnostic artifacts.
 
+The native Verify step also captures the complete `verify.sh` stdout/stderr in
+`native-package-verification.log`; this distinguishes dependency gates from
+Kof command failures. The hosted native runner bootstraps the pinned SDL3
+3.4.18 and SDL_mixer 3.2.4 prefixes, and installs `glslc` plus `spirv-tools`
+because the external-LAN parity gate validates generated SPIR-V.
+
 The wrapper does not infer percentage completion because Kof does not expose a
 stable machine-readable native compilation progress protocol. The reliable
 signals are stage, elapsed time, historical ETA, timeout countdown, exit code

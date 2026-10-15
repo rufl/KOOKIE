@@ -6,6 +6,11 @@ KOF_PIN_CLI_VERSION="kof $KOF_PIN_VERSION"
 KOF_PIN_SOURCE_COMMIT='a14a7cd47d74192dcc977c9d4cbf87d407694560'
 KOF_PIN_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 KOF_AS_WRAPPER_DIR="$KOF_PIN_ROOT/scripts/kof-as"
+if [[ -n "${KOOKIE_KOF_BIN_DIR:-}" &&
+      -x "$KOOKIE_KOF_BIN_DIR/kof" &&
+      ":${PATH:-}:" != *":$KOOKIE_KOF_BIN_DIR:"* ]]; then
+  export PATH="$KOOKIE_KOF_BIN_DIR${PATH:+:$PATH}"
+fi
 if [[ -x "$KOF_AS_WRAPPER_DIR/as" &&
       ":${PATH:-}:" != *":$KOF_AS_WRAPPER_DIR:"* ]]; then
   export PATH="$KOF_AS_WRAPPER_DIR${PATH:+:$PATH}"

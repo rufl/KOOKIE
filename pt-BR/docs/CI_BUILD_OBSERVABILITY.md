@@ -56,6 +56,12 @@ O workflow Verify publica os logs como artifact
 histórico para que execuções futuras exibam ETA. Os jobs de release Linux/Windows
 publicam artifacts próprios de diagnóstico.
 
+O step native do Verify também captura todo o stdout/stderr de `verify.sh` em
+`native-package-verification.log`; isso distingue gates de dependência de falhas
+nos comandos Kof. O runner native hospedado prepara os prefixes pinados do
+SDL3 3.4.18 e SDL_mixer 3.2.4 e instala `glslc` e `spirv-tools`, porque o
+gate de paridade LAN externa valida o SPIR-V gerado.
+
 O wrapper não infere porcentagem concluída porque Kof não oferece um protocolo
 estável e legível por máquina para progresso da compilação native. Os sinais
 confiáveis são stage, tempo decorrido, ETA histórico, contagem regressiva do

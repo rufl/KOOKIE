@@ -13,6 +13,13 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   (45 minutes for Verify and release native jobs), bounded termination grace,
   full logs and a historical ETA from the last five successful runs. CI
   publishes the build diagnostics artifact.
+- The native Verify job is named `Native/package verification`, bootstraps the
+  pinned SDL3 3.4.18 and SDL_mixer 3.2.4 prefixes, installs the `glslc` and
+  `spirv-tools` prerequisites required by external-LAN parity, and archives
+  the complete native verification output alongside observed Kof logs.
+- Release Linux and Windows jobs now persist the downloaded Kof `bin` directory
+  and force it ahead of stale self-hosted PATH entries; the Windows cache
+  summary step explicitly uses Bash on Git Bash runners.
 - `scripts/install_kof_lab.sh` builds the current lab commit, validates that
   the mutable ref did not move, then updates the tracked pin and atomically
   updates the local `kof` launcher without deleting older installations.

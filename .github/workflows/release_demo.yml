@@ -190,6 +190,7 @@ jobs:
           kof_bin="$kof_root/bin"
           test -x "$kof_bin/kof"
           printf '%s\n' "$kof_bin" >> "$GITHUB_PATH"
+          printf 'KOOKIE_KOF_BIN_DIR=%s\n' "$kof_bin" >> "$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$archive" >> "$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' \
             "$(cut -d ' ' -f 1 "$checksum_file")" >> "$GITHUB_ENV"
@@ -456,6 +457,7 @@ jobs:
           kof_bin="$kof_root/bin"
           test -f "$kof_bin/kof"
           printf '%s\n' "$kof_bin" >> "$GITHUB_PATH"
+          printf 'KOOKIE_KOF_BIN_DIR=%s\n' "$kof_bin" >> "$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$archive" >> "$GITHUB_ENV"
           printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' \
             "$(cut -d ' ' -f 1 "$checksum_file")" >> "$GITHUB_ENV"
@@ -574,6 +576,7 @@ jobs:
               "${gpu_identity[1]}" "${gpu_identity[2]}"
           fi
       - name: Record Windows release cache result
+        shell: bash
         run: |
           printf '%s\n' '- Windows release archive cache hit: `${{ steps.windows-release-cache.outputs.cache-hit || false }}`' >> "$GITHUB_STEP_SUMMARY"
 

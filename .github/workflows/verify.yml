@@ -28,7 +28,9 @@ env:
   KOOKIE_SERVER_P95_BUDGET_US: "8000"
   ZIG_VERSION: 0.17.0
   ZIG_ARCHIVE_SHA256: 1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026
-  ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
+  SDL3_VERSION: 3.4.18
+  SDL3_SOURCE_ARCHIVE_URL: https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-3.4.18.tar.gz
+  SDL3_SOURCE_ARCHIVE_SHA256: 9c75cf16330322c217dedd2e0609f1124f1b54b8633e763467b4684d0f4334a3
 
 jobs:
   toolchain:
@@ -165,6 +167,7 @@ jobs:
       - name: Check repository scripts
         run: |
           bash -n scripts/build_demo_release.sh \
+            scripts/bootstrap_sdl3.sh \
             scripts/bootstrap_sdl3_mixer.sh \
             scripts/check_release_readiness.sh \
             scripts/bootstrap_release.sh \
@@ -187,7 +190,7 @@ jobs:
             scripts/write_build_identity.sh
 
   verify:
-    name: LSP, linter, compiler, and build
+    name: Native/package verification
     needs: [toolchain]
     runs-on: ubuntu-24.04
     timeout-minutes: 150
@@ -252,29 +255,57 @@ jobs:
       - name: Record Zig cache result
         run: |
           printf '%s\n' '- Zig archive cache hit: `${{ steps.zig-cache.outputs.cache-hit || false }}`' >> "$GITHUB_STEP_SUMMARY"
-      - name: Install Clang, Wine, and native text dependencies
+      - name: Cache pinned SDL3 host
+        id: sdl3-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/kookie/sdl3
+      - name: Install native compiler, shader, Wine, and text dependencies
         run: |
-          set -euo pipefail
           sudo dpkg --add-architecture i386
           sudo apt-get -o Acquire::Retries=3 update
           sudo apt-get -o Acquire::Retries=3 install \
-            --no-install-recommends -y clang wine wine64 wine32:i386 \
+            --no-install-recommends -y \
+            cmake clang glslc spirv-tools wine wine64 wine32:i386 \
             libfreetype-dev libharfbuzz-dev
           clang --version
+          glslc --version
+          spirv-val --version
           wine --version
           smoke_prefix="$RUNNER_TEMP/wine-ci-smoke"
           WINEARCH=win64 WINEPREFIX="$smoke_prefix" WINEDEBUG=-all \
             wineboot --init
           rm -rf -- "$smoke_prefix"
+      - name: Prepare pinned SDL3 and SDL_mixer development prefixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          export KOOKIE_SDL3_PREFIX="$HOME/.cache/kookie/sdl3/SDL3-${SDL3_VERSION}"
+          bash scripts/bootstrap_sdl3.sh
+          bash scripts/bootstrap_sdl3_mixer.sh
+          source scripts/sdl3_dependencies.sh
+          kookie_require_sdl3_dependencies "$GITHUB_WORKSPACE"
+          printf 'KOOKIE_SDL3_PREFIX=%s\n' "$KOOKIE_SDL3_PREFIX" >> "$GITHUB_ENV"
+          printf 'KOOKIE_SDL3_MIXER_PREFIX=%s\n' \
+            "$GITHUB_WORKSPACE/.kookie-deps/sdl3-mixer-3.2.4" >> "$GITHUB_ENV"
+          printf '%s\n' \
+            '- SDL3 host cache hit: `${{ steps.sdl3-cache.outputs.cache-hit || false }}`' \
+            >> "$GITHUB_STEP_SUMMARY"
       - name: Preflight native runner
         run: bash scripts/runner_preflight.sh native
       - name: Run native and package verification
         env:
           KOOKIE_BUILD_LOG_DIR: ${{ runner.temp }}/kookie-build-logs
         run: |
+          mkdir -p "$KOOKIE_BUILD_LOG_DIR"
+          set +e
           bash scripts/ci_timed.sh native-package env \
             KOOKIE_CANONICAL_BUILD_CACHE_DIR="$GITHUB_WORKSPACE/.cache/kookie/canonical-native" \
-            KOOKIE_VERIFY_SKIP_STATIC=1 bash scripts/verify.sh
+            KOOKIE_VERIFY_SKIP_STATIC=1 bash scripts/verify.sh \
+            2>&1 | tee "$KOOKIE_BUILD_LOG_DIR/native-package-verification.log"
+          status=${PIPESTATUS[0]}
+          set -e
+          exit "$status"
       - name: Upload Kof build diagnostics
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

@@ -52,6 +52,7 @@ kof_bin="$kof_root/bin"
 }
 
 export PATH="$kof_bin${PATH:+:$PATH}"
+export KOOKIE_KOF_BIN_DIR="$kof_bin"
 export KOOKIE_KOF_ARCHIVE="$archive"
 export KOOKIE_KOF_ARCHIVE_SHA256="$actual_sha256"
 export KOOKIE_KOF_SOURCE_COMMIT="$source_commit"
@@ -67,6 +68,7 @@ fi
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   {
     printf 'KOOKIE_KOF_ARCHIVE=%s\n' "$archive"
+    printf 'KOOKIE_KOF_BIN_DIR=%s\n' "$kof_bin"
     printf 'KOOKIE_KOF_ARCHIVE_SHA256=%s\n' "$actual_sha256"
     printf 'KOOKIE_KOF_SOURCE_COMMIT=%s\n' "$source_commit"
   } >>"$GITHUB_ENV"
