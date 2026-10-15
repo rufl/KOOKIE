@@ -971,6 +971,7 @@ jobs:
           zig version
           "$KOOKIE_DXC" --version
       - name: Preflight Windows release runner
+        shell: bash
         run: bash scripts/runner_preflight.sh release-windows
 
       - name: Build deterministic Windows artifact
