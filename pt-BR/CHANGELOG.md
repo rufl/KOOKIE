@@ -26,8 +26,8 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Os jobs de release Linux e Windows agora persistem o diretório `bin` do Kof
   baixado e o forçam à frente de entradas antigas do `PATH` dos runners
   self-hosted; o resumo de cache do Windows declara Bash explicitamente nos
-  runners Git Bash, e o resolvedor de ferramentas procura DXC e pkg-config
-  no Windows Kits e via `where.exe`.
+  runners Git Bash, e o resolvedor de ferramentas procura DXC e
+  pkg-config/pkgconf no Windows Kits e via `where.exe`.
 - Os jobs de release agora mantêm diagnósticos e histórico do Kof fora do
   checkout, para que a própria passagem de reprodutibilidade não suje a árvore
   de fontes. O Windows valida os archives SDL pinados antes de extraí-los com

@@ -551,28 +551,51 @@ jobs:
           mingw_candidates=(/mingw64 /c/msys64/mingw64 /c/msys64/clang64)
           pkg_config_candidates=(
             /usr /mingw64 /c/msys64/usr /c/msys64/mingw64 /c/msys64/clang64
+            '/c/Program Files/Git/usr' '/c/Program Files/Git/mingw64'
             '/c/Program Files/pkg-config' '/c/Program Files/pkgconf'
           )
-          if ! command -v pkg-config >/dev/null; then
+          pkg_config_exe="$(command -v pkg-config || true)"
+          if [[ -z "$pkg_config_exe" ]]; then
+            pkg_config_exe="$(command -v pkgconf || true)"
+          fi
+          if [[ -z "$pkg_config_exe" ]]; then
             for candidate in "${pkg_config_candidates[@]}"; do
-              if [[ -f "$candidate/bin/pkg-config.exe" ||
-                    -f "$candidate/bin/pkg-config" ]]; then
-                export PATH="$candidate/bin:$PATH"
-                printf '%s\n' "$candidate/bin" >> "$GITHUB_PATH"
-                break
-              fi
+              for executable in pkg-config.exe pkg-config pkgconf.exe pkgconf; do
+                if [[ -f "$candidate/bin/$executable" ]]; then
+                  pkg_config_exe="$candidate/bin/$executable"
+                  break 2
+                fi
+              done
             done
           fi
-          if ! command -v pkg-config >/dev/null; then
-            while IFS= read -r windows_candidate; do
-              windows_candidate="$(cygpath -u "$windows_candidate")"
-              if [[ -f "$windows_candidate" ]]; then
-                export PATH="$(dirname "$windows_candidate"):$PATH"
-                printf '%s\n' "$(dirname "$windows_candidate")" >> "$GITHUB_PATH"
-                break
-              fi
-            done < <(/c/Windows/System32/where.exe pkg-config.exe 2>/dev/null |
-              tr -d '\r' || true)
+          if [[ -z "$pkg_config_exe" ]]; then
+            for query in pkg-config.exe pkgconf.exe; do
+              while IFS= read -r windows_candidate; do
+                windows_candidate="$(cygpath -u "$windows_candidate")"
+                if [[ -f "$windows_candidate" ]]; then
+                  pkg_config_exe="$windows_candidate"
+                  break 2
+                fi
+              done < <(/c/Windows/System32/where.exe "$query" 2>/dev/null |
+                tr -d '\r' || true)
+            done
+          fi
+          [[ -n "$pkg_config_exe" && -f "$pkg_config_exe" ]] || {
+            echo 'release_demo: pkg-config or pkgconf is required on the Windows release runner' >&2
+            exit 2
+          }
+          pkg_config_dir="$(dirname "$pkg_config_exe")"
+          if [[ "$(basename "$pkg_config_exe")" == pkgconf* ]]; then
+            pkg_config_shim="$runner_temp/kookie-pkg-config"
+            mkdir -p "$pkg_config_shim"
+            printf '#!/usr/bin/env bash\nexec %q "$@"\n' \
+              "$pkg_config_exe" > "$pkg_config_shim/pkg-config"
+            chmod +x "$pkg_config_shim/pkg-config"
+            export PATH="$pkg_config_shim:$pkg_config_dir:$PATH"
+            printf '%s\n' "$pkg_config_shim" >> "$GITHUB_PATH"
+          else
+            export PATH="$pkg_config_dir:$PATH"
+            printf '%s\n' "$pkg_config_dir" >> "$GITHUB_PATH"
           fi
           command -v pkg-config >/dev/null || {
             echo 'release_demo: pkg-config is required on the Windows release runner' >&2

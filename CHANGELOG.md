@@ -26,7 +26,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Release Linux and Windows jobs now persist the downloaded Kof `bin` directory
   and force it ahead of stale self-hosted PATH entries; the Windows cache
   summary step explicitly uses Bash on Git Bash runners and the tool resolver
-  searches Windows Kits plus `where.exe` for DXC and pkg-config.
+  searches Windows Kits plus `where.exe` for DXC and pkg-config/pkgconf.
 - Release jobs now keep Kof diagnostics and history outside the checkout so
   the reproducibility pass cannot turn its own source tree dirty. Windows
   validates the pinned SDL archives before extracting them with Git Bash
