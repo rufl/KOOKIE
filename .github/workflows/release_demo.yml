@@ -541,6 +541,66 @@ jobs:
             >> "$GITHUB_ENV"
           printf 'KOOKIE_SDL3_MIXER_ARCHIVE_SHA256=%s\n' \
             "$SDL3_MIXER_ARCHIVE_SHA256" >> "$GITHUB_ENV"
+          command -v pkg-config >/dev/null
+          freetype_pkg_prefix="$(pkg-config --variable=prefix freetype2 2>/dev/null || true)"
+          harfbuzz_pkg_prefix="$(pkg-config --variable=prefix harfbuzz 2>/dev/null || true)"
+          for prefix_variable in freetype_pkg_prefix harfbuzz_pkg_prefix; do
+            prefix_value="${!prefix_variable}"
+            if [[ -n "$prefix_value" ]]; then
+              prefix_value="$(cygpath -u "$prefix_value" 2>/dev/null || printf '%s' "$prefix_value")"
+              printf -v "$prefix_variable" '%s' "$prefix_value"
+            fi
+          done
+          freetype_prefix="${KOOKIE_WINDOWS_FREETYPE_PREFIX:-$freetype_pkg_prefix}"
+          harfbuzz_prefix="${KOOKIE_WINDOWS_HARFBUZZ_PREFIX:-$harfbuzz_pkg_prefix}"
+          for candidate in /mingw64 /c/msys64/mingw64 /c/msys64/clang64; do
+            if [[ ! -f "$freetype_prefix/lib/pkgconfig/freetype2.pc" &&
+                  -f "$candidate/lib/pkgconfig/freetype2.pc" ]]; then
+              freetype_prefix="$candidate"
+            fi
+            if [[ ! -f "$harfbuzz_prefix/lib/pkgconfig/harfbuzz.pc" &&
+                  -f "$candidate/lib/pkgconfig/harfbuzz.pc" ]]; then
+              harfbuzz_prefix="$candidate"
+            fi
+          done
+          [[ -f "$freetype_prefix/lib/pkgconfig/freetype2.pc" ]] || {
+            echo 'release_demo: unable to resolve a MinGW FreeType prefix from pkg-config or the runner' >&2
+            exit 2
+          }
+          [[ -f "$harfbuzz_prefix/lib/pkgconfig/harfbuzz.pc" ]] || {
+            echo 'release_demo: unable to resolve a MinGW HarfBuzz prefix from pkg-config or the runner' >&2
+            exit 2
+          }
+          printf 'KOOKIE_WINDOWS_FREETYPE_PREFIX=%s\n' "$freetype_prefix" >> "$GITHUB_ENV"
+          printf 'KOOKIE_WINDOWS_HARFBUZZ_PREFIX=%s\n' "$harfbuzz_prefix" >> "$GITHUB_ENV"
+          dxc="${KOOKIE_DXC:-}"
+          if [[ "$dxc" == [A-Za-z]:* ]]; then
+            dxc="$(cygpath -u "$dxc")"
+          fi
+          if [[ -n "$dxc" && ! -x "$dxc" ]]; then
+            dxc=
+          fi
+          if [[ -z "$dxc" ]]; then
+            dxc="$(command -v dxc || true)"
+          fi
+          if [[ -z "$dxc" ]]; then
+            for candidate in \
+              '/c/Program Files/LLVM/bin/dxc.exe' \
+              '/c/Program Files/DirectXShaderCompiler/bin/x64/dxc.exe' \
+              '/c/Program Files/DirectX Shader Compiler/bin/x64/dxc.exe' \
+              '/c/Program Files/DXC/bin/x64/dxc.exe' \
+              /c/Windows/Microsoft.NET/Framework64/*/dxc.exe; do
+              if [[ -x "$candidate" ]]; then
+                dxc="$candidate"
+                break
+              fi
+            done
+          fi
+          [[ -n "$dxc" && -x "$dxc" ]] || {
+            echo 'release_demo: unable to resolve dxc from KOOKIE_DXC, PATH, or known runner locations' >&2
+            exit 2
+          }
+          printf 'KOOKIE_DXC=%s\n' "$dxc" >> "$GITHUB_ENV"
 
 
           wrapper="$workspace/scripts/windows_isolated_display"

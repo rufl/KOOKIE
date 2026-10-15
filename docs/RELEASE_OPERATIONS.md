@@ -151,18 +151,19 @@ uses SDL's X11 backend through Gamescope's Xwayland server inside it. The
 workflow prepares the pinned SDL_mixer prefix when its `pkg-config` entry is
 absent.
 
-The Windows runner needs `KOOKIE_DXC`, Git Bash, Windows PowerShell 5,
-`pkg-config`, and MinGW prefixes for FreeType and HarfBuzz. The workflow
-downloads and verifies the official MinGW development archives for SDL3 `3.4.18`
-(SHA-256
+The Windows runner needs Git Bash, Windows PowerShell 5, `pkg-config`, a
+MinGW prefix containing FreeType and HarfBuzz, and `dxc`; the release
+configure step resolves those text prefixes through `pkg-config` and discovers
+`dxc` from `PATH` or known installed locations before exporting the required
+variables. It downloads and verifies the official MinGW development archives
+for SDL3 `3.4.18` (SHA-256
 `049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf`) and
 SDL_mixer `3.2.4` (SHA-256
 `2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6`) on
 each release run. The configured text prefixes must provide the FreeType and
 HarfBuzz headers, MinGW import libraries, `freetype2.pc`/`harfbuzz.pc`, and all
-runtime DLLs required by `package_kookie.sh`. It also downloads and verifies the
-official Zig `0.17.0`
-Windows archive with SHA-256
+runtime DLLs required by `package_kookie.sh`. It also downloads and verifies
+the official Zig `0.17.0` Windows archive with SHA-256
 `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428`, then
 uses the tracked `scripts/windows_isolated_display` wrapper. Native Windows
 presentation smoke also records the first PCI display adapter's PNP identity,

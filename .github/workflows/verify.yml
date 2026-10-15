@@ -260,6 +260,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/kookie/sdl3
+          key: kookie-sdl3-linux-${{ env.SDL3_VERSION }}-${{ env.SDL3_SOURCE_ARCHIVE_SHA256 }}
       - name: Install native compiler, shader, Wine, and text dependencies
         run: |
           sudo dpkg --add-architecture i386

@@ -21,6 +21,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   baixado e o forçam à frente de entradas antigas do `PATH` dos runners
   self-hosted; o resumo de cache do Windows declara Bash explicitamente nos
   runners Git Bash.
+- A configuração do release Windows agora resolve os prefixes MinGW de
+  FreeType/HarfBuzz por `pkg-config` e descobre `dxc` pelo `PATH` ou por
+  locais instalados conhecidos antes do gate de empacotamento.
 - `scripts/install_kof_lab.sh` constrói o commit atual da lab, valida que a
   ref mutável não avançou, depois atualiza o pin rastreado e atualiza
   atomicamente o launcher local `kof`, sem apagar instalações antigas.
