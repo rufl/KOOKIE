@@ -611,28 +611,44 @@ jobs:
             fi
             echo "$MINGW_PKGCONF_ARCHIVE_SHA256  $pkgconf_archive" |
               sha256sum --check -
-            seven_zip="$(command -v 7z || command -v 7z.exe || true)"
-            if [[ -z "$seven_zip" ]]; then
+            pkgconf_root="$runner_temp/kookie-pkgconf"
+            rm -rf -- "$pkgconf_root"
+            mkdir -p "$pkgconf_root"
+            zstd_bin="$(command -v zstd || command -v zstd.exe || true)"
+            if [[ -z "$zstd_bin" ]]; then
               for candidate in \
-                '/c/Program Files/7-Zip/7z.exe' \
-                '/c/Program Files (x86)/7-Zip/7z.exe'; do
+                '/c/Program Files/Git/usr/bin/zstd.exe' \
+                '/c/Program Files/Git/usr/bin/zstd'; do
                 if [[ -f "$candidate" ]]; then
-                  seven_zip="$candidate"
+                  zstd_bin="$candidate"
                   break
                 fi
               done
             fi
-            [[ -n "$seven_zip" && -f "$seven_zip" ]] || {
-              echo 'release_demo: 7-Zip is required to extract the pinned pkgconf archive' >&2
-              exit 2
-            }
-            pkgconf_root="$runner_temp/kookie-pkgconf"
-            rm -rf -- "$pkgconf_root"
-            mkdir -p "$pkgconf_root"
-            "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_archive" >/dev/null
-            pkgconf_tar="$pkgconf_root/mingw-w64-x86_64-pkgconf-${MINGW_PKGCONF_VERSION}-any.pkg.tar"
-            test -f "$pkgconf_tar"
-            "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_tar" >/dev/null
+            if [[ -n "$zstd_bin" ]]; then
+              "$zstd_bin" -q -d -c "$pkgconf_archive" |
+                tar -xf - -C "$pkgconf_root"
+            else
+              seven_zip="$(command -v 7z || command -v 7z.exe || true)"
+              if [[ -z "$seven_zip" ]]; then
+                for candidate in \
+                  '/c/Program Files/7-Zip/7z.exe' \
+                  '/c/Program Files (x86)/7-Zip/7z.exe'; do
+                  if [[ -f "$candidate" ]]; then
+                    seven_zip="$candidate"
+                    break
+                  fi
+                done
+              fi
+              [[ -n "$seven_zip" && -f "$seven_zip" ]] || {
+                echo 'release_demo: zstd or 7-Zip is required to extract the pinned pkgconf archive' >&2
+                exit 2
+              }
+              "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_archive" >/dev/null
+              pkgconf_tar="$pkgconf_root/mingw-w64-x86_64-pkgconf-${MINGW_PKGCONF_VERSION}-any.pkg.tar"
+              test -f "$pkgconf_tar"
+              "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_tar" >/dev/null
+            fi
             pkg_config_exe="$pkgconf_root/mingw64/bin/pkgconf.exe"
           fi
           [[ -n "$pkg_config_exe" && -f "$pkg_config_exe" ]] || {
