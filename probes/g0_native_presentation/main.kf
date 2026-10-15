@@ -979,40 +979,40 @@ class G1NativePresentation {
         var loader = LiquidConfigFileLoader()
         if (!loader.loadPhysics(
                 liquidPhysicsValue,
-                "assets/prototype/runtime/liquid_physics.json") ||
+                liquidRuntimeConfigPath("liquid_physics.json")) ||
             !loader.loadWaterBody(
                 waterPoolConfigValue,
-                "assets/prototype/runtime/water_bodies/pool.json") ||
+                liquidRuntimeConfigPath("water_bodies/pool.json")) ||
             !loader.loadWaterBody(
                 waterChannelConfigValue,
-                "assets/prototype/runtime/water_bodies/channel.json") ||
+                liquidRuntimeConfigPath("water_bodies/channel.json")) ||
             !loader.loadFloatable(
                 crateConfigValue,
-                "assets/prototype/runtime/floatables/crate.json") ||
+                liquidRuntimeConfigPath("floatables/crate.json")) ||
             !loader.loadFloatable(
                 stoneConfigValue,
-                "assets/prototype/runtime/floatables/stone.json")) {
+                liquidRuntimeConfigPath("floatables/stone.json"))) {
             return false
         }
         var powerUpLoader = PowerUpConfigFileLoader()
         if (!powerUpLoader.load(
                 coffeeMugConfigValue,
-                "assets/prototype/runtime/power_ups/coffee_mug.json") ||
+                liquidRuntimeConfigPath("power_ups/coffee_mug.json")) ||
             !powerUpLoader.load(
                 jetpackConfigValue,
-                "assets/prototype/runtime/power_ups/jetpack.json") ||
+                liquidRuntimeConfigPath("power_ups/jetpack.json")) ||
             !powerUpLoader.load(
                 megaphoneConfigValue,
-                "assets/prototype/runtime/power_ups/megaphone.json") ||
+                liquidRuntimeConfigPath("power_ups/megaphone.json")) ||
             !powerUpLoader.load(
                 scubaKitConfigValue,
-                "assets/prototype/runtime/power_ups/scuba_kit.json") ||
+                liquidRuntimeConfigPath("power_ups/scuba_kit.json")) ||
             !powerUpLoader.load(
                 watermelonConfigValue,
-                "assets/prototype/runtime/power_ups/watermelon.json") ||
+                liquidRuntimeConfigPath("power_ups/watermelon.json")) ||
             !powerUpLoader.load(
                 woolBallConfigValue,
-                "assets/prototype/runtime/power_ups/wool_ball.json")) {
+                liquidRuntimeConfigPath("power_ups/wool_ball.json"))) {
             return false
         }
         liquidWorldValue = BoundedLiquidWorld(liquidMaximumBodies())

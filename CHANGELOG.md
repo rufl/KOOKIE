@@ -12,6 +12,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The Windows presentation artifact verifier now resolves the repository root
   from its own script path, so the CI gate does not depend on an inherited
   `ROOT_DIR`.
+- Presentation packages now carry the project-authored liquid and power-up
+  runtime JSON under `config/runtime`; the native presentation probe prefers
+  that packaged path and falls back to the source-tree path for local probes.
 - Release toolchain builds apply
   `patches/kof-native-emitter-performance.patch` to the pinned Kof `0.6.5`
   source. It removes the native emitter's whole-buffer split/join from the

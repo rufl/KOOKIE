@@ -177,6 +177,10 @@ Windows archive with SHA-256
 uses the tracked `scripts/windows_isolated_display` wrapper. Native Windows
 presentation smoke also records the first PCI display adapter's PNP identity,
 name and driver version as target hardware evidence.
+Presentation packages also stage the project-authored liquid and power-up
+runtime JSON under `config/runtime`; this is separate from the optional
+prototype-content profile and keeps the native presentation probe runnable in
+the `content-profile=none` dogfood package.
 
 Both native presentation runners must set non-empty
 `KOOKIE_PRESENTATION_HARDWARE_ID` and `KOOKIE_PRESENTATION_GPU_DRIVER`

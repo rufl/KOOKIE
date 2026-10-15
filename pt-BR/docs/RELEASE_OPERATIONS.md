@@ -177,6 +177,10 @@ Zig `0.17.0` para Windows com SHA-256
 wrapper versionado `scripts/windows_isolated_display`. O smoke nativo Windows
 também registra a identidade PNP, o nome e a versão do driver do primeiro
 adaptador PCI de vídeo como evidência do hardware alvo.
+Os pacotes de apresentação também carregam os JSONs de runtime de líquido e
+power-ups autorados pelo projeto em `config/runtime`; isso é separado do
+perfil opcional de conteúdo prototype e mantém a sonda native executável no
+pacote dogfood com `content-profile=none`.
 
 Ambos os runners de apresentação nativa devem definir as variáveis não vazias
 `KOOKIE_PRESENTATION_HARDWARE_ID` e `KOOKIE_PRESENTATION_GPU_DRIVER`. Esses

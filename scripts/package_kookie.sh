@@ -591,6 +591,35 @@ bundle_g3_configs() {
     exit 1
   }
 }
+bundle_demo_runtime_configs() {
+  local source_root="$ROOT_DIR/assets/prototype/runtime"
+  local destination_root="$PACKAGE_ROOT/config/runtime"
+  local relative_path
+  local -a paths=(
+    liquid_physics.json
+    water_bodies/pool.json
+    water_bodies/channel.json
+    floatables/crate.json
+    floatables/stone.json
+    power_ups/coffee_mug.json
+    power_ups/jetpack.json
+    power_ups/megaphone.json
+    power_ups/scuba_kit.json
+    power_ups/watermelon.json
+    power_ups/wool_ball.json
+  )
+  for relative_path in "${paths[@]}"; do
+    [[ -f "$source_root/$relative_path" &&
+      ! -L "$source_root/$relative_path" ]] || {
+      echo "package_kookie: project runtime config missing: $relative_path" >&2
+      exit 1
+    }
+    mkdir -p "$destination_root/$(dirname "$relative_path")"
+    cp -- "$source_root/$relative_path" "$destination_root/$relative_path"
+  done
+}
+
+bundle_demo_runtime_configs
 
 bundle_g3_configs
 bundle_font_assets() {

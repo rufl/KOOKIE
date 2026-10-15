@@ -14,6 +14,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O verificador do artefato de apresentação Windows agora resolve a raiz do
   repositório pelo próprio caminho do script, sem depender de `ROOT_DIR`
   herdado na CI.
+- Os pacotes de apresentação agora carregam os JSONs de runtime autorados do
+  projeto em `config/runtime`; a sonda native prefere esse caminho empacotado
+  e usa o caminho da árvore-fonte como fallback nas sondas locais.
 - O toolchain de release aplica
   `patches/kof-native-emitter-performance.patch` ao fonte pinado do Kof
   `0.6.5`. Ele remove o split/join do buffer inteiro no caminho de

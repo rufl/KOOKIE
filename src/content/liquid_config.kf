@@ -6,6 +6,11 @@ Int liquidConfigSchemaVersion() { return 1 }
 Int liquidConfigMaximumBytes() { return 32768 }
 Int liquidConfigMaximumFields() { return 32 }
 Int liquidConfigMaximumValue() { return 1000000 }
+String liquidRuntimeConfigPath(String relativePath) {
+    var packagedPath = "config/runtime/" + relativePath
+    if (File(packagedPath).exists()) { return packagedPath }
+    return "assets/prototype/runtime/" + relativePath
+}
 
 class BoundedLiquidJsonObject {
     String[] fieldNames
