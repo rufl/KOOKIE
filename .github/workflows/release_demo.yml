@@ -548,11 +548,18 @@ jobs:
             >> "$GITHUB_ENV"
           printf 'KOOKIE_SDL3_MIXER_ARCHIVE_SHA256=%s\n' \
             "$SDL3_MIXER_ARCHIVE_SHA256" >> "$GITHUB_ENV"
-          mingw_candidates=(/mingw64 /c/msys64/mingw64 /c/msys64/clang64)
+          mingw_candidates=(
+            /mingw64 /c/msys64/mingw64 /c/msys64/clang64 /c/msys64/ucrt64
+            '/c/Program Files/Git/mingw64' '/c/Program Files/msys64/mingw64'
+            '/c/tools/msys64/mingw64'
+          )
           pkg_config_candidates=(
             /usr /mingw64 /c/msys64/usr /c/msys64/mingw64 /c/msys64/clang64
-            '/c/Program Files/Git/usr' '/c/Program Files/Git/mingw64'
-            '/c/Program Files/pkg-config' '/c/Program Files/pkgconf'
+            /c/msys64/ucrt64 '/c/Program Files/Git/usr'
+            '/c/Program Files/Git/mingw64' '/c/Program Files/msys64/usr'
+            '/c/Program Files/msys64/mingw64' '/c/tools/msys64/usr'
+            '/c/tools/msys64/mingw64' '/c/Program Files/pkg-config'
+            '/c/Program Files/pkgconf'
           )
           pkg_config_exe="$(command -v pkg-config || true)"
           if [[ -z "$pkg_config_exe" ]]; then
@@ -578,6 +585,19 @@ jobs:
                 fi
               done < <(/c/Windows/System32/where.exe "$query" 2>/dev/null |
                 tr -d '\r' || true)
+            done
+          fi
+          if [[ -z "$pkg_config_exe" ]]; then
+            for search_root in \
+              /c/msys64 /c/tools/msys64 '/c/Program Files/msys64' \
+              '/c/Program Files/Git' /c/ProgramData/chocolatey; do
+              [[ -d "$search_root" ]] || continue
+              while IFS= read -r windows_candidate; do
+                pkg_config_exe="$windows_candidate"
+                break 2
+              done < <(find "$search_root" -maxdepth 6 -type f \
+                \( -iname pkg-config.exe -o -iname pkgconf.exe \) \
+                -print 2>/dev/null)
             done
           fi
           [[ -n "$pkg_config_exe" && -f "$pkg_config_exe" ]] || {
