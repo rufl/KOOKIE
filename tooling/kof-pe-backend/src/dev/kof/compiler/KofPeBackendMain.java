@@ -134,6 +134,7 @@ public final class KofPeBackendMain {
         String emit() {
             planModule();
             StringBuilder out = new StringBuilder(32_768);
+
             emitPreamble(out);
             emitFfiDeclarations(out);
             emitStrings(out);
@@ -384,26 +385,11 @@ public final class KofPeBackendMain {
                 validateFfiCall(plan, index, call);
                 return;
             }
-            if (isStringLength(call) || isStringCharAt(call)) return;
+            if (isStringConcat(call) || isStringEquals(call) || isStringSubstring(call)
+                    || isBufferCall(call) || isIoCall(call)
+                    || isStringLength(call) || isStringCharAt(call)) return;
             if (isPrintCall(call)) return;
-            if (isWrapperValueOf(call)) {
-                if (index + 1 >= operations.size()
-                        || !(operations.get(index + 1) instanceof KofCall next)
-                        || !isStringValueOf(next)) {
-                    throw unsupported(plan, index, call,
-                            "primitive boxing is supported only in the compiler print pipeline");
-                }
-                return;
-            }
-            if (isStringValueOf(call)) {
-                if (index + 1 >= operations.size()
-                        || !(operations.get(index + 1) instanceof KofCall next)
-                        || !isPrintCall(next)) {
-                    throw unsupported(plan, index, call,
-                            "String.valueOf is supported only immediately before print/println");
-                }
-                return;
-            }
+            if (isWrapperValueOf(call) || isStringValueOf(call)) return;
             MethodKey key = callKey(call);
             MethodPlan target = methodsByKey.get(key);
             if (target == null) {
@@ -560,7 +546,7 @@ public final class KofPeBackendMain {
                     #include <stdio.h>
                     #include <stdlib.h>
                     #include <string.h>
-                    #include <limits.h>
+                    #include <sys/stat.h>
 
                     #if defined(__GNUC__)
                     #define KOF_UNUSED __attribute__((unused))
@@ -575,13 +561,15 @@ public final class KofPeBackendMain {
                         KOF_STRING = 3,
                         KOF_OBJECT = 4,
                         KOF_ARRAY = 5,
-                        KOF_OUT = 6
+                        KOF_OUT = 6,
+                        KOF_BUFFER = 7
                     } KofTag;
 
                     typedef struct KofValue KofValue;
                     typedef struct KofString KofString;
                     typedef struct KofObject KofObject;
                     typedef struct KofArray KofArray;
+                    typedef struct KofBuffer KofBuffer;
 
                     struct KofValue {
                         KofTag tag;
@@ -604,6 +592,11 @@ public final class KofPeBackendMain {
                         KofTag element_tag;
                         size_t length;
                         KofValue *values;
+                    };
+
+                    struct KofBuffer {
+                        unsigned char *bytes;
+                        size_t length;
                     };
 
                     static KOF_UNUSED void kof_fail(const char *message) {
@@ -744,6 +737,23 @@ public final class KofPeBackendMain {
                         return (KofValue){KOF_STRING, 0, kof_string_new(bytes, length, 0)};
                     }
 
+                    static KOF_UNUSED KofValue kof_string_concat(
+                            KofValue left, KofValue right) {
+                        if (left.tag != KOF_STRING || right.tag != KOF_STRING) {
+                            kof_fail("string concatenation requires strings");
+                        }
+                        KofString *a = (KofString *)left.ref;
+                        KofString *b = (KofString *)right.ref;
+                        if (a->length > SIZE_MAX - b->length) {
+                            kof_fail("string concatenation overflow");
+                        }
+                        size_t length = a->length + b->length;
+                        unsigned char *bytes = (unsigned char *)malloc(length == 0 ? 1 : length);
+                        if (bytes == NULL) kof_fail("string allocation failed");
+                        if (a->length != 0) memcpy(bytes, a->bytes, a->length);
+                        if (b->length != 0) memcpy(bytes + a->length, b->bytes, b->length);
+                        return (KofValue){KOF_STRING, 0, kof_string_new(bytes, length, 0)};
+                    }
                     static KOF_UNUSED KofValue kof_string_value_of(KofValue value) {
                         if (value.tag == KOF_STRING) return value;
                         char buffer[64];
@@ -775,6 +785,23 @@ public final class KofPeBackendMain {
                         KofString *b = (KofString *)right.ref;
                         return a->length == b->length &&
                             (a->length == 0 || memcmp(a->bytes, b->bytes, a->length) == 0);
+                    }
+                    static KOF_UNUSED KofValue kof_string_equals(
+                            KofValue left, KofValue right) {
+                        return kof_bool(kof_string_equal(left, right));
+                    }
+
+                    static KOF_UNUSED KofValue kof_string_substring(
+                            KofValue value, int64_t start, int64_t end) {
+                        if (value.tag != KOF_STRING) kof_fail("expected string");
+                        KofString *string = (KofString *)value.ref;
+                        if (start < 0 || end < start ||
+                            (uint64_t)end > string->length) {
+                            kof_fail("string substring out of bounds");
+                        }
+                        return (KofValue){KOF_STRING, 0,
+                            kof_string_new(string->bytes + start,
+                                (size_t)(end - start), 1)};
                     }
 
                     static KOF_UNUSED KofValue kof_string_length(KofValue value) {
@@ -859,6 +886,131 @@ public final class KofPeBackendMain {
                         if (value.tag != KOF_ARRAY) kof_fail("expected array");
                         return ((KofArray *)value.ref)->length;
                     }
+                    static KOF_UNUSED KofBuffer *kof_buffer_ref(KofValue value) {
+                        if (value.tag != KOF_BUFFER || value.ref == NULL) {
+                            kof_fail("expected Buffer");
+                        }
+                        return (KofBuffer *)value.ref;
+                    }
+
+                    static KOF_UNUSED KofValue kof_buffer_alloc_value(KofValue length_value) {
+                        int64_t length = kof_integral(length_value);
+                        if (length < 0 || (uint64_t)length > SIZE_MAX) {
+                            kof_fail("invalid Buffer length");
+                        }
+                        KofBuffer *buffer = (KofBuffer *)calloc(1, sizeof(*buffer));
+                        if (buffer == NULL) kof_fail("Buffer allocation failed");
+                        buffer->length = (size_t)length;
+                        buffer->bytes = (unsigned char *)calloc(
+                            buffer->length == 0 ? 1 : buffer->length, 1);
+                        if (buffer->bytes == NULL) kof_fail("Buffer allocation failed");
+                        return (KofValue){KOF_BUFFER, 0, buffer};
+                    }
+
+                    static KOF_UNUSED void kof_buffer_bounds(
+                            KofBuffer *buffer, int64_t offset, size_t width) {
+                        if (offset < 0 || (uint64_t)offset > buffer->length ||
+                            width > buffer->length - (size_t)offset) {
+                            kof_fail("Buffer access out of bounds");
+                        }
+                    }
+
+                    static KOF_UNUSED void kof_buffer_poke(
+                            KofValue buffer_value, int64_t offset, uint64_t value, size_t width) {
+                        KofBuffer *buffer = kof_buffer_ref(buffer_value);
+                        kof_buffer_bounds(buffer, offset, width);
+                        for (size_t index = 0; index < width; ++index) {
+                            buffer->bytes[(size_t)offset + index] =
+                                (unsigned char)(value >> (index * 8u));
+                        }
+                    }
+
+                    static KOF_UNUSED KofValue kof_buffer_peek(
+                            KofValue buffer_value, int64_t offset, size_t width) {
+                        KofBuffer *buffer = kof_buffer_ref(buffer_value);
+                        kof_buffer_bounds(buffer, offset, width);
+                        uint64_t value = 0;
+                        for (size_t index = 0; index < width; ++index) {
+                            value |= (uint64_t)buffer->bytes[(size_t)offset + index]
+                                << (index * 8u);
+                        }
+                        return kof_int((int64_t)value);
+                    }
+
+                    static KOF_UNUSED KofValue kof_buffer_bytes(KofValue buffer_value) {
+                        KofBuffer *buffer = kof_buffer_ref(buffer_value);
+                        KofValue result = kof_array_new(buffer->length, KOF_INT);
+                        for (size_t index = 0; index < buffer->length; ++index) {
+                            kof_array_store(result, (int64_t)index,
+                                kof_int((int64_t)buffer->bytes[index]));
+                        }
+                        return result;
+                    }
+
+                    static KOF_UNUSED unsigned char *kof_buffer_pointer(KofValue value) {
+                        if (value.tag == KOF_NIL) return NULL;
+                        return kof_buffer_ref(value)->bytes;
+                    }
+                    static KOF_UNUSED char *kof_io_path(KofValue value) {
+                        if (value.tag != KOF_STRING || value.ref == NULL) {
+                            kof_fail("expected path string");
+                        }
+                        KofString *string = (KofString *)value.ref;
+                        char *path = (char *)malloc(string->length + 1);
+                        if (path == NULL) kof_fail("path allocation failed");
+                        if (string->length != 0) memcpy(path, string->bytes, string->length);
+                        path[string->length] = 0;
+                        return path;
+                    }
+
+                    static KOF_UNUSED KofValue kof_io_file_exists(KofValue value) {
+                        char *path = kof_io_path(value);
+                        int exists;
+                    #if defined(_WIN32)
+                        struct _stat64 status;
+                        exists = _stat64(path, &status) == 0;
+                    #else
+                        struct stat status;
+                        exists = stat(path, &status) == 0;
+                    #endif
+                        free(path);
+                        return kof_bool(exists);
+                    }
+                    static KOF_UNUSED KofValue kof_io_read_range(
+                            KofValue path_value, int64_t offset, int64_t length) {
+                        if (offset < 0 || length < 0 || (uint64_t)length > SIZE_MAX ||
+                            (uint64_t)offset > LONG_MAX) {
+                            return kof_array_new(0, KOF_INT);
+                        }
+                        char *path = kof_io_path(path_value);
+                        FILE *file = fopen(path, "rb");
+                        free(path);
+                        if (file == NULL || fseek(file, (long)offset, SEEK_SET) != 0) {
+                            if (file != NULL) fclose(file);
+                            return kof_array_new(0, KOF_INT);
+                        }
+                        size_t requested = (size_t)length;
+                        unsigned char *bytes = (unsigned char *)malloc(
+                            requested == 0 ? 1 : requested);
+                        if (bytes == NULL) {
+                            fclose(file);
+                            kof_fail("file read allocation failed");
+                        }
+                        size_t count = fread(bytes, 1, requested, file);
+                        int failed = ferror(file);
+                        fclose(file);
+                        if (failed != 0) {
+                            free(bytes);
+                            return kof_array_new(0, KOF_INT);
+                        }
+                        KofValue result = kof_array_new(count, KOF_INT);
+                        for (size_t index = 0; index < count; ++index) {
+                            kof_array_store(result, (int64_t)index,
+                                kof_int((int64_t)bytes[index]));
+                        }
+                        free(bytes);
+                        return result;
+                    }
 
                     static KOF_UNUSED void kof_print(
                             KofValue out, KofValue value, int newline) {
@@ -913,6 +1065,7 @@ public final class KofPeBackendMain {
         private String cAbiType(Type type) {
             if (Type.isVoid(type)) return "void";
             if (isBool(type)) return "bool";
+            if (isBufferPtr(type)) return "unsigned char *";
             return isLong(type) ? "int64_t" : "int32_t";
         }
 
@@ -940,7 +1093,9 @@ public final class KofPeBackendMain {
                     .append("    for (size_t i = 0; i < ").append(plan.localCount())
                     .append("; ++i) locals[i] = kof_nil();\n")
                     .append("    (void)locals;\n")
-                    .append("    (void)args;\n");
+                    .append("    (void)args;\n")
+                    .append("    (void)stack;\n")
+                    .append("    (void)sp;\n");
             int offset = plan.hasReceiver() ? 1 : 0;
             if (plan.hasReceiver()) {
                 out.append("    locals[0] = args[0];\n");
@@ -1136,6 +1291,40 @@ public final class KofPeBackendMain {
         }
 
         private void emitCall(StringBuilder out, KofCall call, String limit, int index) {
+            if (isStringConcat(call)) {
+                out.append("    { KofValue right_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue left_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ")
+                        .append(limit).append(", kof_string_concat(left_").append(index)
+                        .append(", right_").append(index).append(")); }\n");
+                return;
+            }
+            if (isStringEquals(call)) {
+                out.append("    { KofValue right_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue left_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ")
+                        .append(limit).append(", kof_string_equals(left_").append(index)
+                        .append(", right_").append(index).append(")); }\n");
+                return;
+            }
+            if (isStringSubstring(call)) {
+                out.append("    { KofValue end_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue start_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue receiver_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                        .append(", kof_string_substring(receiver_").append(index)
+                        .append(", kof_integral(start_").append(index)
+                        .append("), kof_integral(end_").append(index).append("))); }\n");
+                return;
+            }
+            if (isBufferCall(call)) {
+                emitBufferCall(out, call, limit, index);
+                return;
+            }
+            if (isIoCall(call)) {
+                emitIoCall(out, call, limit, index);
+                return;
+            }
             if (isFfiCall(call)) {
                 emitFfiCall(out, call, limit, index);
                 return;
@@ -1199,6 +1388,67 @@ public final class KofPeBackendMain {
             }
             out.append("    }\n");
         }
+        private void emitIoCall(StringBuilder out, KofCall call, String limit, int index) {
+            if (call.methodName().equals("kof_io_file_exists")) {
+                out.append("    { KofValue path_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ")
+                        .append(limit).append(", kof_io_file_exists(path_")
+                        .append(index).append(")); }\n");
+                return;
+            }
+            if (call.methodName().equals("kof_io_read_range")) {
+                out.append("    { KofValue length_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue offset_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue path_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ")
+                        .append(limit).append(", kof_io_read_range(path_").append(index)
+                        .append(", kof_integral(offset_").append(index)
+                        .append("), kof_integral(length_").append(index).append("))); }\n");
+                return;
+            }
+            throw fail("unsupported IO call " + call.methodName());
+        }
+
+        private void emitBufferCall(StringBuilder out, KofCall call, String limit, int index) {
+            String method = call.methodName();
+            if (method.equals("kof_buffer_alloc")) {
+                out.append("    { KofValue length_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ")
+                        .append(limit).append(", kof_buffer_alloc_value(length_")
+                        .append(index).append(")); }\n");
+                return;
+            }
+            if (method.equals("kof_buffer_bytes")) {
+                out.append("    { KofValue buffer_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ")
+                        .append(limit).append(", kof_buffer_bytes(buffer_")
+                        .append(index).append(")); }\n");
+                return;
+            }
+            int width = switch (method) {
+                case "kof_buffer_poke8_buf", "kof_buffer_peek8_buf" -> 1;
+                case "kof_buffer_poke32_buf", "kof_buffer_peek32_buf" -> 4;
+                case "kof_buffer_poke64_buf", "kof_buffer_peek64_buf" -> 8;
+                default -> throw fail("unsupported Buffer call " + method);
+            };
+            if (method.startsWith("kof_buffer_poke")) {
+                out.append("    { KofValue value_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue offset_").append(index)
+                        .append(" = kof_pop(stack, &sp); KofValue buffer_").append(index)
+                        .append(" = kof_pop(stack, &sp); kof_buffer_poke(buffer_")
+                        .append(index).append(", kof_integral(offset_").append(index)
+                        .append("), (uint64_t)kof_integral(value_").append(index)
+                        .append("), ").append(width).append("); }\n");
+                return;
+            }
+            out.append("    { KofValue offset_").append(index)
+                    .append(" = kof_pop(stack, &sp); KofValue buffer_").append(index)
+                    .append(" = kof_pop(stack, &sp); kof_push(stack, &sp, ").append(limit)
+                    .append(", kof_buffer_peek(buffer_").append(index)
+                    .append(", kof_integral(offset_").append(index)
+                    .append(", ").append(width).append(")); }\n");
+        }
+
         private void emitFfiCall(StringBuilder out, KofCall call, String limit, int index) {
             String symbol = ffiSymbol(call);
             int count = call.parameterTypes().size();
@@ -1216,9 +1466,14 @@ public final class KofPeBackendMain {
             out.append(symbol).append('(');
             for (int parameter = 0; parameter < count; parameter++) {
                 if (parameter != 0) out.append(", ");
-                out.append('(').append(cAbiType(call.parameterTypes().get(parameter))).append(")")
-                        .append("kof_integral(ffi_arg_").append(index).append('_').append(parameter)
-                        .append(')');
+                if (isBufferPtr(call.parameterTypes().get(parameter))) {
+                    out.append("(unsigned char *)kof_buffer_pointer(ffi_arg_")
+                            .append(index).append('_').append(parameter).append(')');
+                } else {
+                    out.append('(').append(cAbiType(call.parameterTypes().get(parameter))).append(")")
+                            .append("kof_integral(ffi_arg_").append(index).append('_').append(parameter)
+                            .append(')');
+                }
             }
             out.append(");\n");
             if (!Type.isVoid(call.returnType())) {
@@ -1318,6 +1573,54 @@ public final class KofPeBackendMain {
                     && Set.of("java/lang/Integer", "java/lang/Long", "java/lang/Boolean",
                             "java/lang/Byte", "java/lang/Short", "java/lang/Character").contains(owner);
         }
+        private boolean isStringConcat(KofCall call) {
+            return call.kind() == KofCallKind.FUNCTION
+                    && internalName(call.ownerType()).equals("java/lang/String")
+                    && call.methodName().equals("kof_string_concat")
+                    && call.parameterTypes().size() == 2
+                    && call.parameterTypes().stream().allMatch(Type::isString)
+                    && Type.isString(call.returnType());
+        }
+        private boolean isStringEquals(KofCall call) {
+            return call.kind() == KofCallKind.FUNCTION
+                    && internalName(call.ownerType()).equals("java/lang/String")
+                    && call.methodName().equals("kof_string_equals")
+                    && call.parameterTypes().size() == 2
+                    && call.parameterTypes().stream().allMatch(Type::isString)
+                    && isBool(call.returnType());
+        }
+
+        private boolean isStringSubstring(KofCall call) {
+            return call.kind() == KofCallKind.INSTANCE
+                    && internalName(call.ownerType()).equals("java/lang/String")
+                    && call.methodName().equals("substring")
+                    && call.parameterTypes().size() == 2
+                    && call.parameterTypes().stream().allMatch(this::isIntegral)
+                    && Type.isString(call.returnType());
+        }
+
+        private boolean isBufferCall(KofCall call) {
+            return call.kind() == KofCallKind.FUNCTION
+                    && internalName(call.ownerType()).equals("kof/Buffer")
+                    && Set.of("kof_buffer_alloc", "kof_buffer_bytes",
+                            "kof_buffer_poke8_buf", "kof_buffer_poke32_buf",
+                            "kof_buffer_poke64_buf", "kof_buffer_peek8_buf",
+                            "kof_buffer_peek32_buf", "kof_buffer_peek64_buf")
+                            .contains(call.methodName());
+        }
+
+        private boolean isBufferPtr(Type type) {
+            return internalName(type).equals("kof/ffi/bufferptr");
+        }
+        private boolean isIoCall(KofCall call) {
+            return call.kind() == KofCallKind.FUNCTION
+                    && internalName(call.ownerType()).equals("kof/io/Io")
+                    && Set.of("kof_io_file_exists", "kof_io_read_range")
+                            .contains(call.methodName());
+        }
+
+
+
         private boolean isStringValueOf(KofCall call) {
             return call.kind() == KofCallKind.STATIC
                     && internalName(call.ownerType()).equals("java/lang/String")
@@ -1375,8 +1678,8 @@ public final class KofPeBackendMain {
                 throw fail("FFI calls must use the function call convention");
             }
             for (Type parameter : call.parameterTypes()) {
-                if (!isIntegral(parameter)) {
-                    throw fail("FFI parameter type is outside the integral ABI: "
+                if (!isIntegral(parameter) && !isBufferPtr(parameter)) {
+                    throw fail("FFI parameter type is outside the integral/buffer ABI: "
                             + Type.display(parameter));
                 }
             }
@@ -1394,7 +1697,10 @@ public final class KofPeBackendMain {
                     || type instanceof Type.ArrayType;
         }
         private boolean isSupportedExternal(KofCall call) {
-            return isPrintCall(call) || isWrapperValueOf(call) || isStringValueOf(call)
+            return isStringConcat(call) || isStringEquals(call) || isStringSubstring(call)
+                    || isBufferCall(call) || isIoCall(call)
+                    || isPrintCall(call) || isWrapperValueOf(call)
+                    || isStringValueOf(call)
                     || isStringLength(call) || isStringCharAt(call) || isFfiCall(call);
         }
 

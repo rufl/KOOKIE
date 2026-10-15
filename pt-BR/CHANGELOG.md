@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O backend PE do Windows agora traduz as operações de concatenação, igualdade
+  e substring de `String` do grafo de apresentação, leituras limitadas de
+  existência/faixa de arquivos, armazenamento de bytes `Buffer(U8)` e chamadas
+  FFI com ponteiro de buffer, em vez de rejeitar essas operações alcançáveis
+  com `PE001`.
 - O toolchain de release aplica
   `patches/kof-native-emitter-performance.patch` ao fonte pinado do Kof
   `0.6.5`. Ele remove o split/join do buffer inteiro no caminho de

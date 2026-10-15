@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- The Windows PE backend now lowers the presentation graph's String
+  concatenation/equality/substring operations, bounded file existence/range
+  reads, `Buffer(U8)` byte storage and buffer-pointer FFI calls instead of
+  rejecting these reachable operations with `PE001`.
 - Release toolchain builds apply
   `patches/kof-native-emitter-performance.patch` to the pinned Kof `0.6.5`
   source. It removes the native emitter's whole-buffer split/join from the

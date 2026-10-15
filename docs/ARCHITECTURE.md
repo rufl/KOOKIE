@@ -248,10 +248,11 @@ The Windows compiler boundary consumes optimized IR from the exact pinned Kof
 frontend and emits deterministic C11 and AMD64 COFF. Standalone builds emit a
 console PE; library builds export `kookie_kof_gameplay_main` for a native host.
 The admitted reachable subset covers current gameplay/presentation classes,
-heap objects, arrays, integral/Boolean/String values, control flow, printing,
-String indexing and integral FFI/SDL calls. Floating-point IR,
-catchable exceptions and concurrency still fail closed with `PE001`. Generated
-C is a compiler intermediate, not a second hand-written engine authority.
+heap objects, arrays, integral/Boolean/String values, bounded String/File
+operations, Buffer values, control flow, printing, String indexing and
+integral/buffer FFI/SDL calls. Floating-point IR, catchable exceptions and
+concurrency still fail closed with `PE001`. Generated C is a compiler
+intermediate, not a second hand-written engine authority.
 
 ## 4. Runtime modes
 
