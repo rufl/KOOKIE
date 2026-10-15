@@ -9,6 +9,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   rejecting these reachable operations with `PE001`.
 - The Windows native release compile now adds the pinned MinGW HarfBuzz
   include directory, matching the upstream `hb-ft.h` header layout.
+- The Windows presentation artifact verifier now resolves the repository root
+  from its own script path, so the CI gate does not depend on an inherited
+  `ROOT_DIR`.
 - Release toolchain builds apply
   `patches/kof-native-emitter-performance.patch` to the pinned Kof `0.6.5`
   source. It removes the native emitter's whole-buffer split/join from the
