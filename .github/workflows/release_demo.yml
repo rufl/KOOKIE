@@ -549,8 +549,12 @@ jobs:
           printf 'KOOKIE_SDL3_MIXER_ARCHIVE_SHA256=%s\n' \
             "$SDL3_MIXER_ARCHIVE_SHA256" >> "$GITHUB_ENV"
           mingw_candidates=(/mingw64 /c/msys64/mingw64 /c/msys64/clang64)
+          pkg_config_candidates=(
+            /usr /mingw64 /c/msys64/usr /c/msys64/mingw64 /c/msys64/clang64
+            '/c/Program Files/pkg-config' '/c/Program Files/pkgconf'
+          )
           if ! command -v pkg-config >/dev/null; then
-            for candidate in "${mingw_candidates[@]}"; do
+            for candidate in "${pkg_config_candidates[@]}"; do
               if [[ -x "$candidate/bin/pkg-config.exe" ||
                     -x "$candidate/bin/pkg-config" ]]; then
                 export PATH="$candidate/bin:$PATH"
@@ -558,6 +562,17 @@ jobs:
                 break
               fi
             done
+          fi
+          if ! command -v pkg-config >/dev/null; then
+            while IFS= read -r windows_candidate; do
+              windows_candidate="$(cygpath -u "$windows_candidate")"
+              if [[ -x "$windows_candidate" ]]; then
+                export PATH="$(dirname "$windows_candidate"):$PATH"
+                printf '%s\n' "$(dirname "$windows_candidate")" >> "$GITHUB_PATH"
+                break
+              fi
+            done < <(/c/Windows/System32/where.exe pkg-config.exe 2>/dev/null |
+              tr -d '\r' || true)
           fi
           command -v pkg-config >/dev/null || {
             echo 'release_demo: pkg-config is required on the Windows release runner' >&2
