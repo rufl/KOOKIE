@@ -58,6 +58,24 @@ env:
   ZSTD_VERSION: 1.5.7
   ZSTD_ARCHIVE_URL: https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-v1.5.7-win64.zip
   ZSTD_ARCHIVE_SHA256: acb4e8111511749dc7a3ebedca9b04190e37a17afeb73f55d4425dbf0b90fad9
+  MINGW_TEXT_PACKAGE_SET: freetype-2.15.0-harfbuzz-14.6.0-runtime-16.2.0
+  MINGW_TEXT_PACKAGE_BASE_URL: https://repo.msys2.org/mingw/mingw64
+  MINGW_TEXT_PACKAGE_MANIFEST: |
+    mingw-w64-x86_64-freetype-2.15.0-1-any.pkg.tar.zst|426bd4e0e979118682be881ace475ef4d3ff1668084ac796350fb7e0504b82ef
+    mingw-w64-x86_64-harfbuzz-14.6.0-1-any.pkg.tar.zst|23a9b505159b3b9086ca918cc437c20e496d2f411aa25a050bd82b1070a079d1
+    mingw-w64-x86_64-libgcc-16.2.0-6-any.pkg.tar.zst|e0815432c4225892b0eef57055fe507fa0b9a036436f046605f6629696bd1b88
+    mingw-w64-x86_64-libstdc%2B%2B-16.2.0-6-any.pkg.tar.zst|924b47e8c3e20b6448e29d3333acc638a4f4783c1c45230e09673532f9c4f198
+    mingw-w64-x86_64-gettext-runtime-1.0-1-any.pkg.tar.zst|be68d7f260633284b910c588c6d82ee304a81c8817a686d2cd9df83f872c27af
+    mingw-w64-x86_64-brotli-1.2.0-1-any.pkg.tar.zst|f5f2f7e723a08378241d15f0537386950c1a48e2d82bc47bedd632bd61852aba
+    mingw-w64-x86_64-bzip2-1.0.8-4-any.pkg.tar.zst|123768f30ae14ba654a6feb70f8526146a331bc85f831a91a549ffb3f6cbffc7
+    mingw-w64-x86_64-libpng-1.6.59-1-any.pkg.tar.zst|e1830319ea6c601c1e4d146b8e78264bcbb6326f0935b82c14a9b282af2127e1
+    mingw-w64-x86_64-zlib-1.3.2-2-any.pkg.tar.zst|9e75842a070ba648e986e12424e1c92c9d7d77200e85f6a34eeb600819f2e694
+    mingw-w64-x86_64-glib2-2.90.1-1-any.pkg.tar.zst|152ba3b2cfb35feebc0fcb690889b16a6f0c2b89ced52e65aea45d089f86d219
+    mingw-w64-x86_64-graphite2-1.3.15-1-any.pkg.tar.zst|6ad20d6c16e559f7c4b06fe71248e1201c7edf494d04e5721ed7f9b3f7fd1f74
+    mingw-w64-x86_64-libffi-3.8.0-1-any.pkg.tar.zst|6dad7f3c6c900d3c64a4fe0c2764b405e678b22df3521d2284ffaeff0198b84b
+    mingw-w64-x86_64-pcre2-10.49-1-any.pkg.tar.zst|0abc5313085a0f9b4a77a1580d92b09761371cb3a1f31d01051a94a289fb9413
+    mingw-w64-x86_64-libiconv-1.19-1-any.pkg.tar.zst|21e334d0911f25de75d3e18e0697648bcecfa9658256d600cad0827d719c2f35
+    mingw-w64-x86_64-libwinpthread-14.0.0.r426.g4564ee4b5-2-any.pkg.tar.zst|ac791deaf730ef7aa6fa66f31ce6ec53a02c43fa85562233a981c84c93456760
   SDL3_VERSION: 3.4.18
   SDL3_ARCHIVE_URL: https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-devel-3.4.18-mingw.tar.gz
   SDL3_ARCHIVE_SHA256: 049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf
@@ -437,7 +455,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/kookie/toolchains/windows-release
-          key: kookie-release-windows-${{ env.ZIG_ARCHIVE_SHA256 }}-${{ env.SDL3_ARCHIVE_SHA256 }}-${{ env.SDL3_MIXER_ARCHIVE_SHA256 }}-${{ env.MINGW_PKGCONF_ARCHIVE_SHA256 }}-${{ env.ZSTD_ARCHIVE_SHA256 }}
+          key: kookie-release-windows-${{ env.ZIG_ARCHIVE_SHA256 }}-${{ env.SDL3_ARCHIVE_SHA256 }}-${{ env.SDL3_MIXER_ARCHIVE_SHA256 }}-${{ env.MINGW_PKGCONF_ARCHIVE_SHA256 }}-${{ env.ZSTD_ARCHIVE_SHA256 }}-${{ env.MINGW_TEXT_PACKAGE_SET }}
       - name: Configure pinned Windows release tools
         shell: bash
         run: |
@@ -448,6 +466,49 @@ jobs:
           workspace="$(cygpath -u "$GITHUB_WORKSPACE")"
           cache_dir="$HOME/.cache/kookie/toolchains/windows-release"
           mkdir -p "$cache_dir"
+          ensure_zstd() {
+            if [[ -n "${zstd_bin:-}" && -f "$zstd_bin" ]]; then
+              return
+            fi
+            zstd_bin="$(command -v zstd || command -v zstd.exe || true)"
+            if [[ -z "$zstd_bin" ]]; then
+              for candidate in \
+                '/c/Program Files/Git/usr/bin/zstd.exe' \
+                '/c/Program Files/Git/usr/bin/zstd'; do
+                if [[ -f "$candidate" ]]; then
+                  zstd_bin="$candidate"
+                  break
+                fi
+              done
+            fi
+            if [[ -z "$zstd_bin" ]]; then
+              zstd_archive="$cache_dir/zstd-v${ZSTD_VERSION}-win64.zip"
+              if [[ ! -f "$zstd_archive" ]]; then
+                curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
+                  --output "$zstd_archive" "$ZSTD_ARCHIVE_URL"
+              fi
+              echo "$ZSTD_ARCHIVE_SHA256  $zstd_archive" | sha256sum --check -
+              zstd_install="$runner_temp/zstd-v${ZSTD_VERSION}-win64"
+              rm -rf -- "$zstd_install"
+              mkdir -p "$zstd_install"
+              python3 - "$zstd_archive" "$zstd_install" <<'PY'
+          import pathlib
+          import sys
+          import zipfile
+
+          archive = pathlib.Path(sys.argv[1])
+          destination = pathlib.Path(sys.argv[2]).resolve()
+          with zipfile.ZipFile(archive) as source:
+              for entry in source.infolist():
+                  target = (destination / entry.filename).resolve()
+                  if destination not in target.parents and target != destination:
+                      raise SystemExit(f"unsafe zstd archive entry: {entry.filename}")
+              source.extractall(destination)
+          PY
+              zstd_bin="$zstd_install/zstd-v${ZSTD_VERSION}-win64/zstd.exe"
+            fi
+            test -f "$zstd_bin"
+          }
           archive="$runner_temp/kookie-kof/kof-${KOF_VERSION}-linux-x86_64.tar.gz"
           checksum_file="$runner_temp/kookie-kof/SHA256SUMS"
           source_file="$runner_temp/kookie-kof/SOURCE_COMMIT"
@@ -623,68 +684,9 @@ jobs:
             else
               rm -rf -- "$pkgconf_root"
               mkdir -p "$pkgconf_root"
-              zstd_bin="$(command -v zstd || command -v zstd.exe || true)"
-              if [[ -z "$zstd_bin" ]]; then
-                for candidate in \
-                  '/c/Program Files/Git/usr/bin/zstd.exe' \
-                  '/c/Program Files/Git/usr/bin/zstd'; do
-                  if [[ -f "$candidate" ]]; then
-                    zstd_bin="$candidate"
-                    break
-                  fi
-                done
-              fi
-              if [[ -z "$zstd_bin" ]]; then
-                zstd_archive="$cache_dir/zstd-v${ZSTD_VERSION}-win64.zip"
-                if [[ ! -f "$zstd_archive" ]]; then
-                  curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
-                    --output "$zstd_archive" "$ZSTD_ARCHIVE_URL"
-                fi
-                echo "$ZSTD_ARCHIVE_SHA256  $zstd_archive" | sha256sum --check -
-                zstd_install="$runner_temp/zstd-v${ZSTD_VERSION}-win64"
-                rm -rf -- "$zstd_install"
-                mkdir -p "$zstd_install"
-                python3 - "$zstd_archive" "$zstd_install" <<'PY'
-          import pathlib
-          import sys
-          import zipfile
-
-          archive = pathlib.Path(sys.argv[1])
-          destination = pathlib.Path(sys.argv[2]).resolve()
-          with zipfile.ZipFile(archive) as source:
-              for entry in source.infolist():
-                  target = (destination / entry.filename).resolve()
-                  if destination not in target.parents and target != destination:
-                      raise SystemExit(f"unsafe zstd archive entry: {entry.filename}")
-              source.extractall(destination)
-          PY
-                zstd_bin="$zstd_install/zstd-v${ZSTD_VERSION}-win64/zstd.exe"
-                test -f "$zstd_bin"
-              fi
-              if [[ -n "$zstd_bin" ]]; then
-                "$zstd_bin" -q -d -c "$pkgconf_archive" |
-                  tar -xf - -C "$pkgconf_root"
-              else
-                seven_zip="$(command -v 7z || command -v 7z.exe || true)"
-                if [[ -z "$seven_zip" ]]; then
-                  for candidate in \
-                    '/c/Program Files/7-Zip/7z.exe' \
-                    '/c/Program Files (x86)/7-Zip/7z.exe'; do
-                    if [[ -f "$candidate" ]]; then
-                      seven_zip="$candidate"
-                      break
-                    fi
-                  done
-                fi
-                [[ -n "$seven_zip" && -f "$seven_zip" ]] || {
-                  echo 'release_demo: tar zstd, zstd, or 7-Zip is required to extract the pinned pkgconf archive' >&2
-                  exit 2
-                }
-                "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_archive" >/dev/null
-                pkgconf_tar="$pkgconf_root/mingw-w64-x86_64-pkgconf-${MINGW_PKGCONF_VERSION}-any.pkg.tar"
-                test -f "$pkgconf_tar"
-                "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_tar" >/dev/null
-              fi
+              ensure_zstd
+              "$zstd_bin" -q -d -c "$pkgconf_archive" |
+                tar -xf - -C "$pkgconf_root"
             fi
             pkg_config_exe="$pkgconf_root/mingw64/bin/pkgconf.exe"
           fi
@@ -709,6 +711,30 @@ jobs:
             echo 'release_demo: pkg-config is required on the Windows release runner' >&2
             exit 2
           }
+          mingw_text_root="$runner_temp/kookie-mingw-text"
+          ensure_zstd
+          rm -rf -- "$mingw_text_root"
+          mkdir -p "$mingw_text_root"
+          while IFS='|' read -r package_archive package_sha256; do
+            [[ -n "$package_archive" ]] || continue
+            package_path="$cache_dir/$package_archive"
+            if [[ ! -f "$package_path" ]]; then
+              curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
+                --output "$package_path" \
+                "$MINGW_TEXT_PACKAGE_BASE_URL/$package_archive"
+            fi
+            echo "$package_sha256  $package_path" | sha256sum --check -
+            "$zstd_bin" -q -d -c "$package_path" |
+              tar -xf - -C "$mingw_text_root"
+          done <<<"$MINGW_TEXT_PACKAGE_MANIFEST"
+          mingw_text_prefix="$mingw_text_root/mingw64"
+          test -f "$mingw_text_prefix/include/freetype2/ft2build.h"
+          test -f "$mingw_text_prefix/include/harfbuzz/hb-ft.h"
+          test -f "$mingw_text_prefix/lib/libfreetype.dll.a"
+          test -f "$mingw_text_prefix/lib/libharfbuzz.dll.a"
+          test -f "$mingw_text_prefix/lib/pkgconfig/freetype2.pc"
+          test -f "$mingw_text_prefix/lib/pkgconfig/harfbuzz.pc"
+          mingw_candidates=("$mingw_text_prefix" "${mingw_candidates[@]}")
           pkg_config_paths=(
             "$sdl_prefix/lib/pkgconfig"
             "$sdl_mixer_prefix/lib/pkgconfig"

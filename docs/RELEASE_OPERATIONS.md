@@ -155,26 +155,24 @@ uses SDL's X11 backend through Gamescope's Xwayland server inside it. The
 workflow prepares the pinned SDL_mixer prefix when its `pkg-config` entry is
 absent.
 
-The Windows runner needs Git Bash, Windows PowerShell 5, a MinGW prefix
-containing FreeType and HarfBuzz, and `dxc`. If `pkg-config`/`pkgconf` is
-not already installed, the release configure step downloads and verifies the
-pinned MSYS2 `pkgconf` archive (version `1~3.0.8-1`, SHA-256
-`b8ef0afd0f5da42c40a455491148c6e8ca5436ab2f0167f0a93074d4eeb9249b`) and
-extracts it with the runner's `tar --zstd` support. If that is unavailable, the
-step downloads and verifies the pinned zstd `1.5.7` Windows archive (SHA-256
-`acb4e8111511749dc7a3ebedca9b04190e37a17afeb73f55d4425dbf0b90fad9`) and
-uses it to stream extraction; 7-Zip remains the final fallback. The configure
-step resolves the text prefixes through `pkg-config` and discovers `dxc` from
-`PATH` or known installed locations before exporting the required variables. It
-downloads and verifies the official MinGW development archives for SDL3
-3.4.18 (SHA-256
+The Windows runner needs Git Bash, Windows PowerShell 5, and `dxc`. The release
+configure step downloads and verifies a pinned MSYS2 `pkgconf` archive (version
+`1~3.0.8-1`, SHA-256
+`b8ef0afd0f5da42c40a455491148c6e8ca5436ab2f0167f0a93074d4eeb9249b`) plus the
+pinned MinGW FreeType/HarfBuzz runtime bundle
+`freetype-2.15.0-harfbuzz-14.6.0-runtime-16.2.0`; every package URL and
+SHA-256 is tracked in `MINGW_TEXT_PACKAGE_MANIFEST` in the workflow. It uses
+the runner's `tar --zstd` support, or downloads and verifies the pinned zstd
+`1.5.7` Windows archive (SHA-256
+`acb4e8111511749dc7a3ebedca9b04190e37a17afeb73f55d4425dbf0b90fad9`) to
+stream extraction. It then exports the generated MinGW text prefixes and
+discovers `dxc` from `PATH` or known installed locations. It downloads and
+verifies the official MinGW development archives for SDL3 `3.4.18` (SHA-256
 `049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf`) and
 SDL_mixer `3.2.4` (SHA-256
 `2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6`) on
-each release run. The configured text prefixes must provide the FreeType and
-HarfBuzz headers, MinGW import libraries, `freetype2.pc`/`harfbuzz.pc`, and
-all runtime DLLs required by `package_kookie.sh`. It also downloads and
-verifies the official Zig `0.17.0` Windows archive with SHA-256
+each release run. It also downloads and verifies the official Zig `0.17.0`
+Windows archive with SHA-256
 `b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428`, then
 uses the tracked `scripts/windows_isolated_display` wrapper. Native Windows
 presentation smoke also records the first PCI display adapter's PNP identity,
