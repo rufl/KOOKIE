@@ -464,6 +464,11 @@ jobs:
           printf 'KOOKIE_BUILD_LOG_DIR=%s\n' "$runner_temp/kookie-build-logs" >> "$GITHUB_ENV"
           printf 'KOOKIE_KOF_BUILD_HISTORY_DIR=%s\n' "$runner_temp/kookie-build-history" >> "$GITHUB_ENV"
           workspace="$(cygpath -u "$GITHUB_WORKSPACE")"
+          powershell_dir=/c/Windows/System32/WindowsPowerShell/v1.0
+          if [[ -d "$powershell_dir" ]]; then
+            export PATH="$powershell_dir:$PATH"
+            printf '%s\n' "$powershell_dir" >> "$GITHUB_PATH"
+          fi
           cache_dir="$HOME/.cache/kookie/toolchains/windows-release"
           mkdir -p "$cache_dir"
           ensure_zstd() {
