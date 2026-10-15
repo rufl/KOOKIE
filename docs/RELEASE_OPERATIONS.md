@@ -160,11 +160,14 @@ containing FreeType and HarfBuzz, and `dxc`. If `pkg-config`/`pkgconf` is
 not already installed, the release configure step downloads and verifies the
 pinned MSYS2 `pkgconf` archive (version `1~3.0.8-1`, SHA-256
 `b8ef0afd0f5da42c40a455491148c6e8ca5436ab2f0167f0a93074d4eeb9249b`) and
-extracts it with the runner's `zstd`/`tar` tools, or 7-Zip as fallback.
-The configure step resolves the text prefixes through `pkg-config` and discovers
-`dxc` from `PATH` or known installed locations before exporting the required
-variables. It downloads and verifies the
-official MinGW development archives for SDL3 `3.4.18` (SHA-256
+extracts it with the runner's `tar --zstd` support. If that is unavailable, the
+step downloads and verifies the pinned zstd `1.5.7` Windows archive (SHA-256
+`acb4e8111511749dc7a3ebedca9b04190e37a17afeb73f55d4425dbf0b90fad9`) and
+uses it to stream extraction; 7-Zip remains the final fallback. The configure
+step resolves the text prefixes through `pkg-config` and discovers `dxc` from
+`PATH` or known installed locations before exporting the required variables. It
+downloads and verifies the official MinGW development archives for SDL3
+3.4.18 (SHA-256
 `049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf`) and
 SDL_mixer `3.2.4` (SHA-256
 `2ff5f59be4683e0afb4339c4fa73c6228651e52d37b040ecf80da08edb3cecd6`) on
