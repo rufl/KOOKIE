@@ -52,6 +52,9 @@ env:
   ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
   ZIG_LINUX_ARCHIVE_SHA256: 1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026
   ZIG_LINUX_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-linux-0.17.0.tar.xz
+  MINGW_PKGCONF_VERSION: "1~3.0.8-1"
+  MINGW_PKGCONF_ARCHIVE_URL: https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-pkgconf-1~3.0.8-1-any.pkg.tar.zst
+  MINGW_PKGCONF_ARCHIVE_SHA256: b8ef0afd0f5da42c40a455491148c6e8ca5436ab2f0167f0a93074d4eeb9249b
   SDL3_VERSION: 3.4.18
   SDL3_ARCHIVE_URL: https://github.com/libsdl-org/SDL/releases/download/release-3.4.18/SDL3-devel-3.4.18-mingw.tar.gz
   SDL3_ARCHIVE_SHA256: 049b9dd711e3fb3f8d84feb998dfec54a75e17cf539c4a80ff4d058d839771cf
@@ -431,7 +434,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/kookie/toolchains/windows-release
-          key: kookie-release-windows-${{ env.ZIG_ARCHIVE_SHA256 }}-${{ env.SDL3_ARCHIVE_SHA256 }}-${{ env.SDL3_MIXER_ARCHIVE_SHA256 }}
+          key: kookie-release-windows-${{ env.ZIG_ARCHIVE_SHA256 }}-${{ env.SDL3_ARCHIVE_SHA256 }}-${{ env.SDL3_MIXER_ARCHIVE_SHA256 }}-${{ env.MINGW_PKGCONF_ARCHIVE_SHA256 }}
       - name: Configure pinned Windows release tools
         shell: bash
         run: |
@@ -600,6 +603,38 @@ jobs:
                 -print 2>/dev/null)
             done
           fi
+          if [[ -z "$pkg_config_exe" ]]; then
+            pkgconf_archive="$cache_dir/mingw-w64-x86_64-pkgconf-${MINGW_PKGCONF_VERSION}-any.pkg.tar.zst"
+            if [[ ! -f "$pkgconf_archive" ]]; then
+              curl --fail --location --retry 3 --connect-timeout 15 --max-time 300 \
+                --output "$pkgconf_archive" "$MINGW_PKGCONF_ARCHIVE_URL"
+            fi
+            echo "$MINGW_PKGCONF_ARCHIVE_SHA256  $pkgconf_archive" |
+              sha256sum --check -
+            seven_zip="$(command -v 7z || command -v 7z.exe || true)"
+            if [[ -z "$seven_zip" ]]; then
+              for candidate in \
+                '/c/Program Files/7-Zip/7z.exe' \
+                '/c/Program Files (x86)/7-Zip/7z.exe'; do
+                if [[ -f "$candidate" ]]; then
+                  seven_zip="$candidate"
+                  break
+                fi
+              done
+            fi
+            [[ -n "$seven_zip" && -f "$seven_zip" ]] || {
+              echo 'release_demo: 7-Zip is required to extract the pinned pkgconf archive' >&2
+              exit 2
+            }
+            pkgconf_root="$runner_temp/kookie-pkgconf"
+            rm -rf -- "$pkgconf_root"
+            mkdir -p "$pkgconf_root"
+            "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_archive" >/dev/null
+            pkgconf_tar="$pkgconf_root/mingw-w64-x86_64-pkgconf-${MINGW_PKGCONF_VERSION}-any.pkg.tar"
+            test -f "$pkgconf_tar"
+            "$seven_zip" x -y "-o$pkgconf_root" "$pkgconf_tar" >/dev/null
+            pkg_config_exe="$pkgconf_root/mingw64/bin/pkgconf.exe"
+          fi
           [[ -n "$pkg_config_exe" && -f "$pkg_config_exe" ]] || {
             echo 'release_demo: pkg-config or pkgconf is required on the Windows release runner' >&2
             exit 2
@@ -621,6 +656,20 @@ jobs:
             echo 'release_demo: pkg-config is required on the Windows release runner' >&2
             exit 2
           }
+          pkg_config_paths=(
+            "$sdl_prefix/lib/pkgconfig"
+            "$sdl_mixer_prefix/lib/pkgconfig"
+          )
+          for candidate in "${mingw_candidates[@]}"; do
+            if [[ -d "$candidate/lib/pkgconfig" ]]; then
+              pkg_config_paths+=("$candidate/lib/pkgconfig")
+            fi
+          done
+          if ((${#pkg_config_paths[@]})); then
+            joined_pkg_config_path="$(IFS=:; printf '%s' "${pkg_config_paths[*]}")"
+            export PKG_CONFIG_PATH="$joined_pkg_config_path${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+            printf 'PKG_CONFIG_PATH=%s\n' "$PKG_CONFIG_PATH" >> "$GITHUB_ENV"
+          fi
           freetype_pkg_prefix="$(pkg-config --variable=prefix freetype2 2>/dev/null || true)"
           harfbuzz_pkg_prefix="$(pkg-config --variable=prefix harfbuzz 2>/dev/null || true)"
           for prefix_variable in freetype_pkg_prefix harfbuzz_pkg_prefix; do
