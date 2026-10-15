@@ -39,6 +39,12 @@ was exceeded while the hard timeout is still active.
 | `KOOKIE_BUILD_LOG_DIR` | `/tmp/kookie-build-logs` | Directory for full command logs. |
 | `KOOKIE_KOF_BUILD_HISTORY_DIR` | `$XDG_CACHE_HOME/kookie` | Directory for `build-times.tsv`. |
 
+The Verify native and release jobs override `KOOKIE_KOF_BUILD_TIMEOUT_SECONDS`
+to `2700` seconds (45 minutes); the Verify native/package job has a
+150-minute outer timeout. Individual stages can override the value through
+`KOOKIE_KOF_BUILD_TIMEOUT_<STAGE>_SECONDS`; the helper normalizes stage names
+to uppercase underscores.
+
 `KOOKIE_KOF_BUILD_HISTORY_FILE` can override the history file directly.
 Successful durations are recorded only after exit code zero, so a timeout does
 not become a false ETA baseline.

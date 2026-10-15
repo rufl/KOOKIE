@@ -222,6 +222,11 @@ record_success() {
   fi
 }
 
+write_summary() {
+  [[ -n "${GITHUB_STEP_SUMMARY:-}" ]] || return 0
+  printf '%s\n' "- \`kof-observed\`: $*" >>"$GITHUB_STEP_SUMMARY" || true
+}
+
 child_pid=""
 forward_signal() {
   local signal="$1"
@@ -238,6 +243,7 @@ printf 'kof-observed: name=%s state=start timeout=%ss heartbeat=%ss estimate=%s 
   "$name" "$timeout_seconds" "$heartbeat_seconds" "$estimate_display" \
   "$estimate_basis" "$log_file" >&2
 printf 'kof-observed: name=%s command=%s\n' "$name" "$(print_command)" >&2
+write_summary "name=$name state=start timeout=${timeout_seconds}s estimate=$estimate_display log=$log_file"
 
 set +e
 timeout --foreground --kill-after="${kill_after_seconds}s" "$timeout_seconds" \
@@ -285,13 +291,16 @@ if ((status == 0)); then
   record_success "$duration"
   printf 'kof-observed: name=%s state=passed duration=%ss duration_human=%s log=%s\n' \
     "$name" "$duration" "$(format_duration "$duration")" "$log_file" >&2
+  write_summary "name=$name state=passed duration=${duration}s log=$log_file"
 else
   if ((timed_out == 1)); then
     printf 'kof-observed: name=%s state=timeout duration=%ss limit=%ss log=%s\n' \
       "$name" "$duration" "$timeout_seconds" "$log_file" >&2
+    write_summary "name=$name state=timeout duration=${duration}s limit=${timeout_seconds}s log=$log_file"
   else
     printf 'kof-observed: name=%s state=failed exit=%s duration=%ss log=%s\n' \
       "$name" "$status" "$duration" "$log_file" >&2
+    write_summary "name=$name state=failed exit=${status} duration=${duration}s log=$log_file"
   fi
 fi
 exit "$status"

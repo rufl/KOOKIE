@@ -40,6 +40,13 @@ ativo.
 | `KOOKIE_BUILD_LOG_DIR` | `/tmp/kookie-build-logs` | Diretório dos logs completos. |
 | `KOOKIE_KOF_BUILD_HISTORY_DIR` | `$XDG_CACHE_HOME/kookie` | Diretório de `build-times.tsv`. |
 
+Os jobs native do Verify e de release sobrescrevem
+`KOOKIE_KOF_BUILD_TIMEOUT_SECONDS` para `2700` segundos (45 minutos); o job
+native/package do Verify recebe timeout externo de 150 minutos. Stages
+individuais podem sobrescrever o valor por
+`KOOKIE_KOF_BUILD_TIMEOUT_<STAGE>_SECONDS`; o helper normaliza o nome do stage
+para maiúsculas com underscores.
+
 `KOOKIE_KOF_BUILD_HISTORY_FILE` pode substituir diretamente o arquivo de
 histórico. Durações só são registradas após exit code zero; timeout não vira uma
 base falsa para ETA.

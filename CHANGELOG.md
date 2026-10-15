@@ -9,9 +9,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   CI. The scheduled `update_kof_lab.yml` workflow opens a qualification PR when
   lab advances.
 - Native and packaging Kof commands now run through
-  `scripts/kof_observed.sh`: a 30-second heartbeat, 30-minute hard timeout,
-  bounded termination grace, full logs and a historical ETA from the last five
-  successful runs. CI publishes the build diagnostics artifact.
+  `scripts/kof_observed.sh`: a 30-second heartbeat, a 30-minute local default
+  (45 minutes for Verify and release native jobs), bounded termination grace,
+  full logs and a historical ETA from the last five successful runs. CI
+  publishes the build diagnostics artifact.
 - `scripts/install_kof_lab.sh` builds the current lab commit, validates that
   the mutable ref did not move, then updates the tracked pin and atomically
   updates the local `kof` launcher without deleting older installations.

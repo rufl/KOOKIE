@@ -190,11 +190,10 @@ jobs:
     name: LSP, linter, compiler, and build
     needs: [toolchain]
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
-      KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
       KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history
-      KOOKIE_KOF_BUILD_TIMEOUT_SECONDS: "1800"
+      KOOKIE_KOF_BUILD_TIMEOUT_SECONDS: "2700"
       KOOKIE_KOF_BUILD_HEARTBEAT_SECONDS: "30"
       KOOKIE_KOF_BUILD_KILL_AFTER_SECONDS: "30"
     steps:
@@ -270,6 +269,8 @@ jobs:
       - name: Preflight native runner
         run: bash scripts/runner_preflight.sh native
       - name: Run native and package verification
+        env:
+          KOOKIE_BUILD_LOG_DIR: ${{ runner.temp }}/kookie-build-logs
         run: |
           bash scripts/ci_timed.sh native-package env \
             KOOKIE_CANONICAL_BUILD_CACHE_DIR="$GITHUB_WORKSPACE/.cache/kookie/canonical-native" \
@@ -279,8 +280,10 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: kookie-kof-build-diagnostics-${{ github.run_id }}
-          path: .kookie-build-logs
-          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/kookie-build-logs
+            .cache/kookie/build-history
+          if-no-files-found: warn
           retention-days: 7
       - name: Record canonical build cache result
         run: |
