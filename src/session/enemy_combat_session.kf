@@ -574,7 +574,7 @@ class AuthoritativeEnemySession {
         return combat.addActor(id, health, armor)
     }
     Bool hasActor(Int actorId) {
-        return combat.hasActor(actorId)
+        return combat.actorPresent(actorId)
     }
 
     Bool restoreHealth(Int actorId, Int amount) {

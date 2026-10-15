@@ -485,7 +485,7 @@ class CombatWorld {
         alive[index] = true
         return true
     }
-    Bool hasActor(Int actorId) {
+    Bool actorPresent(Int actorId) {
         return findActor(actorId) >= 0
     }
 

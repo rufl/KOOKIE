@@ -510,7 +510,9 @@ jobs:
           echo "$SDL3_MIXER_ARCHIVE_SHA256  $sdl_mixer_archive" | sha256sum --check -
           rm -rf -- "$sdl_root"
           mkdir -p "$sdl_root"
-          python3 - "$sdl_root" "$sdl_archive" "$sdl_mixer_archive" <<'PY'
+          python3 - "$(cygpath -w "$sdl_root")" \
+            "$(cygpath -w "$sdl_archive")" \
+            "$(cygpath -w "$sdl_mixer_archive")" <<'PY'
           import pathlib
           import sys
           import tarfile
@@ -524,7 +526,12 @@ jobs:
                           raise SystemExit(f"unsafe SDL archive entry: {entry.name}")
                       if entry.issym() or entry.islnk():
                           raise SystemExit(f"link in SDL archive is not allowed: {entry.name}")
-                  archive.extractall(destination)
+                  try:
+                      archive.extractall(destination, filter="data")
+                  except TypeError as error:
+                      if "filter" not in str(error):
+                          raise
+                      archive.extractall(destination)
           PY
           sdl_prefix="$sdl_root/SDL3-${SDL3_VERSION}/x86_64-w64-mingw32"
           sdl_mixer_prefix="$sdl_root/SDL3_mixer-${SDL3_MIXER_VERSION}/x86_64-w64-mingw32"
