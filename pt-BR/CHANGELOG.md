@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O toolchain de release aplica
+  `patches/kof-native-emitter-performance.patch` ao fonte pinado do Kof
+  `0.6.5`. Ele remove o split/join do buffer inteiro no caminho de
+  constantes do emissor native, mantendo grandes builds native práticos; o
+  digest exato do patch faz parte da identidade do cache Kof.
 - O pin ativo da lab do Kof agora é resolvido de `refs/heads/lab` por
   `scripts/update_kof_lab.py`; ele acompanha o commit
   `a14a7cd47d74192dcc977c9d4cbf87d407694560` e mantém o commit imutável na CI.

@@ -43,7 +43,8 @@ env:
   KOF_VERSION: 0.6.5
   KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
   KOOKIE_KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
-  KOOKIE_KOF_BUILD_TIMEOUT_SECONDS: "2700"
+  KOF_PATCH_SHA256: 69e8892c7d75fb33c70d57b3f41ec685c0ef9f293e55ffacc2df7d90ed468890
+  KOOKIE_KOF_BUILD_TIMEOUT_SECONDS: "5400"
   KOOKIE_KOF_BUILD_HEARTBEAT_SECONDS: "30"
   KOOKIE_KOF_BUILD_KILL_AFTER_SECONDS: "30"
   ZIG_VERSION: 0.17.0
@@ -83,7 +84,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/kookie/kof
-          key: kookie-kof-linux-${{ env.KOF_VERSION }}-${{ env.KOF_SOURCE_COMMIT }}
+          key: kookie-kof-linux-${{ env.KOF_VERSION }}-${{ env.KOF_SOURCE_COMMIT }}-${{ env.KOF_PATCH_SHA256 }}
       - name: Checkout pinned Kof source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -104,6 +105,11 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/prepare_kof_source.sh _kof "$KOF_VERSION"
+          patch_file="$GITHUB_WORKSPACE/patches/kof-native-emitter-performance.patch"
+          test -f "$patch_file"
+          test "$(sha256sum "$patch_file" | cut -d ' ' -f 1)" = "$KOF_PATCH_SHA256"
+          git -C _kof apply --check "$patch_file"
+          git -C _kof apply "$patch_file"
           mvn -q -f _kof/pom.xml flatten:flatten \
             -Drevision="$KOF_VERSION"
           for pom_dir in _kof _kof/kof-compiler _kof/kof-cli \
@@ -152,7 +158,7 @@ jobs:
     name: Linux x86-64 presentation package
     needs: [toolchain]
     runs-on: [self-hosted, linux, x64, kookie-demo-release]
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
       KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history
@@ -404,7 +410,7 @@ jobs:
     name: Windows x86-64 presentation package
     needs: [toolchain]
     runs-on: [self-hosted, windows, x64, kookie-demo-release]
-    timeout-minutes: 60
+    timeout-minutes: 120
     env:
       KOOKIE_BUILD_LOG_DIR: ${{ github.workspace }}/.kookie-build-logs
       KOOKIE_KOF_BUILD_HISTORY_DIR: ${{ github.workspace }}/.cache/kookie/build-history

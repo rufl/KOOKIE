@@ -24,10 +24,14 @@ export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 
 `KOF_ARCHIVE` must be a source-built, metadata-normalized Kof `0.6.5`
 distribution from the pinned Kof `lab` commit. `scripts/prepare_kof_source.sh`
-verifies the upstream native GC cycle guard before Maven packaging; no local
-GC patch is applied. Its compiler JAR must match the resulting source build;
-the release workflow rechecks `kof version` before packaging. Native package
-gates also require `pkg-config`, FreeType 2 and HarfBuzz for the text renderer.
+verifies the upstream native GC cycle guard before Maven packaging; the
+release toolchain then applies
+`patches/kof-native-emitter-performance.patch` and checks its SHA-256
+`69e8892c7d75fb33c70d57b3f41ec685c0ef9f293e55ffacc2df7d90ed468890`.
+No local GC patch is applied. Its compiler JAR must match the resulting source
+build; the release workflow rechecks `kof version` before packaging. Native
+package gates also require `pkg-config`, FreeType 2 and HarfBuzz for the text
+renderer.
 
 The existing `/tmp/kookie-release-qualification.pem` is ephemeral and must not
 be uploaded as the public release identity. Use an owner-controlled permanent
