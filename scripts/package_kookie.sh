@@ -1007,6 +1007,7 @@ bundle_windows_kof_sdl() {
     -I "$WINDOWS_FREETYPE_PREFIX/include" \
     -I "$WINDOWS_FREETYPE_PREFIX/include/freetype2" \
     -I "$WINDOWS_HARFBUZZ_PREFIX/include" \
+    -I "$WINDOWS_HARFBUZZ_PREFIX/include/harfbuzz" \
     -I "$PACKAGE_ROOT/build" \
     -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_sdl_adapter.c" -o "$adapter_obj"
@@ -1015,6 +1016,7 @@ bundle_windows_kof_sdl() {
     -I "$WINDOWS_FREETYPE_PREFIX/include" \
     -I "$WINDOWS_FREETYPE_PREFIX/include/freetype2" \
     -I "$WINDOWS_HARFBUZZ_PREFIX/include" \
+    -I "$WINDOWS_HARFBUZZ_PREFIX/include/harfbuzz" \
     -I "$ROOT_DIR/native" \
     -c "$ROOT_DIR/native/kookie_ui_renderer.c" -o "$renderer_obj"
   zig cc -target x86_64-windows-gnu -std=c11 \

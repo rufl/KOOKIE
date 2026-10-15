@@ -8,6 +8,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   existência/faixa de arquivos, armazenamento de bytes `Buffer(U8)` e chamadas
   FFI com ponteiro de buffer, em vez de rejeitar essas operações alcançáveis
   com `PE001`.
+- A compilação native de release no Windows agora adiciona o diretório de
+  includes do HarfBuzz MinGW pinado, compatível com o layout upstream do
+  header `hb-ft.h`.
 - O toolchain de release aplica
   `patches/kof-native-emitter-performance.patch` ao fonte pinado do Kof
   `0.6.5`. Ele remove o split/join do buffer inteiro no caminho de
