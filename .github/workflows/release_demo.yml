@@ -555,8 +555,8 @@ jobs:
           )
           if ! command -v pkg-config >/dev/null; then
             for candidate in "${pkg_config_candidates[@]}"; do
-              if [[ -x "$candidate/bin/pkg-config.exe" ||
-                    -x "$candidate/bin/pkg-config" ]]; then
+              if [[ -f "$candidate/bin/pkg-config.exe" ||
+                    -f "$candidate/bin/pkg-config" ]]; then
                 export PATH="$candidate/bin:$PATH"
                 printf '%s\n' "$candidate/bin" >> "$GITHUB_PATH"
                 break
@@ -566,7 +566,7 @@ jobs:
           if ! command -v pkg-config >/dev/null; then
             while IFS= read -r windows_candidate; do
               windows_candidate="$(cygpath -u "$windows_candidate")"
-              if [[ -x "$windows_candidate" ]]; then
+              if [[ -f "$windows_candidate" ]]; then
                 export PATH="$(dirname "$windows_candidate"):$PATH"
                 printf '%s\n' "$(dirname "$windows_candidate")" >> "$GITHUB_PATH"
                 break
@@ -613,7 +613,7 @@ jobs:
           if [[ "$dxc" == [A-Za-z]:* ]]; then
             dxc="$(cygpath -u "$dxc")"
           fi
-          if [[ -n "$dxc" && ! -x "$dxc" ]]; then
+          if [[ -n "$dxc" && ! -f "$dxc" ]]; then
             dxc=
           fi
           if [[ -z "$dxc" ]]; then
@@ -628,7 +628,7 @@ jobs:
               '/c/Program Files (x86)/Windows Kits/10/bin/'*/x64/dxc.exe \
               '/c/Program Files/Windows Kits/10/bin/'*/x64/dxc.exe \
               /c/Windows/Microsoft.NET/Framework64/*/dxc.exe; do
-              if [[ -x "$candidate" ]]; then
+              if [[ -f "$candidate" ]]; then
                 dxc="$candidate"
                 break
               fi
@@ -637,14 +637,14 @@ jobs:
           if [[ -z "$dxc" ]]; then
             while IFS= read -r windows_candidate; do
               windows_candidate="$(cygpath -u "$windows_candidate")"
-              if [[ -x "$windows_candidate" ]]; then
+              if [[ -f "$windows_candidate" ]]; then
                 dxc="$windows_candidate"
                 break
               fi
             done < <(/c/Windows/System32/where.exe dxc.exe 2>/dev/null |
               tr -d '\r' || true)
           fi
-          [[ -n "$dxc" && -x "$dxc" ]] || {
+          [[ -n "$dxc" && -f "$dxc" ]] || {
             echo 'release_demo: unable to resolve dxc from KOOKIE_DXC, PATH, or known runner locations' >&2
             exit 2
           }
