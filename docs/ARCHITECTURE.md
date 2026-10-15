@@ -48,18 +48,18 @@ Current result:
 
 | Group | Files | Lines | Share |
 |---|---:|---:|---:|
-| Kof (`.kf`) | 151 | 75,497 | 79.54% |
-| KofScript (`.ks`) | 4 | 658 | 0.69% |
-| C/header (`.c`, `.h`) | 16 | 7,378 | 7.77% |
-| Shell tooling (`.sh`) | 46 | 6,737 | 7.10% |
-| Python tooling (`.py`) | 19 | 3,024 | 3.19% |
-| PE bridge Java (`.java`) | 1 | 1,504 | 1.58% |
-| GPU shaders | 8 | 115 | 0.12% |
-| **Total** | **245** | **94,913** | **100%** |
+| Kof (`.kf`) | 170 | 83,128 | 77.89% |
+| KofScript (`.ks`) | 4 | 764 | 0.72% |
+| C/header (`.c`, `.h`) | 17 | 8,660 | 8.11% |
+| Shell tooling (`.sh`) | 55 | 8,103 | 7.59% |
+| Python tooling (`.py`) | 21 | 4,346 | 4.07% |
+| PE bridge Java (`.java`) | 1 | 1,504 | 1.41% |
+| GPU shaders | 8 | 215 | 0.20% |
+| **Total** | **276** | **106,720** | **100%** |
 
 The runtime slice (Kof/KofScript/C/shaders, excluding build tooling and the PE
-bridge) is 83,648 lines: Kof 90.26%, KofScript 0.79%, C/header 8.82% and
-shaders 0.14%. This is a composition measure, not a performance claim.
+bridge) is 92,767 lines: Kof 89.61%, KofScript 0.82%, C/header 9.34% and
+shaders 0.23%. This is a composition measure, not a performance claim.
 
 Do not translate code only to increase the Kof percentage. Keep SDL/SDL_GPU,
 SDL_mixer, Winsock, filesystem durability, thread scheduling, SIMD intrinsics,
@@ -87,11 +87,12 @@ camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
 The active Kof4j `0.6.5` pin is the Kof `lab` source commit
-`f42ed91dfbceae09880b7d0619d98f67490149d1`. The existing
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies `Buffer(U8)` on JVM and native
 x86-64 with the active pin. Cross-target support remains unqualified, and
-`Buffer(U8)` does not define a typed, asynchronous GPU/audio ownership
-contract.
+`Buffer(U8)` does not define a generic typed, asynchronous GPU/audio ownership
+contract. The bounded `GPU_SCENE_VERTEX_V1` path is an explicit synchronous
+copy-in exception; its native adapter/GPU runtime gate remains pending.
 KOOKIE therefore keeps `FrameStaging`/content wires as bounded Kof-owned arrays,
 uses C-owned storage for native work and retains the checked scalar adapter.
 At startup, `main.kf` transfers each bounded GLB as packed 32-bit words,
@@ -100,6 +101,9 @@ cat PNG byte range crosses back to SDL for image decoding. No native model
 pointer or scene/vertex callback crosses the ABI.
 See [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md) for the versioned buffer
 decision and reusable UI/audio boundary.
+The remaining batch and transport work is tracked in
+[KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md) and constrained by
+[KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
 The redundant durable-save envelope, checksum and slot selection are also
 Kof-owned (`BoundedDurableSaveFileCodec`); the native persistence adapter only
 transfers bounded bytes and performs path-safe fsync/rename durability.

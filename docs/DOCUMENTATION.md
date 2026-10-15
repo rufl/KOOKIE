@@ -8,7 +8,7 @@
 - Write status like a teammate would: say what works, what was actually checked and what is still blocked. Avoid milestone language that sounds more complete than the evidence.
 
 The active source/CI baseline is Kof `0.6.5` from the `lab` branch at
-`f42ed91dfbceae09880b7d0619d98f67490149d1`. Current session documentation must
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`. Current session documentation must
 describe strict tick ordering, newer same-tick state-sequence revisions and
 fresh rewind history after checkpoint restore. Research pages retain their
 dated toolchain snapshots intentionally; refresh their scope and evidence
@@ -28,3 +28,6 @@ The reusable UI/media boundary and the independently audited upstream ABI are
 recorded in
 [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md); it deliberately distinguishes the
 current CI pin from older reviewed upstream source and historical measurements.
+The proposed Kof/native migration is tracked in
+[KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md); its normative
+copy/lifetime and batch contract is [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).

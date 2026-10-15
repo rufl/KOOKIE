@@ -1,0 +1,38 @@
+Int kookie_transport_codec_unsigned_byte(Byte value) {
+    if (value < 0) {
+        return value + 256
+    }
+    return value
+}
+
+Long kookie_transport_codec_unsigned_int(Int value) {
+    var result: Long = value
+    if (value < 0) {
+        result = result + 4294967296L
+    }
+    return result
+}
+
+void kookie_transport_codec_put_word(Byte[] wire, Int offset, Int value) {
+    wire[offset] = (value >> 24) & 255
+    wire[offset + 1] = (value >> 16) & 255
+    wire[offset + 2] = (value >> 8) & 255
+    wire[offset + 3] = value & 255
+}
+
+Int kookie_transport_codec_read_word(Byte[] wire, Int offset) {
+    return (kookie_transport_codec_unsigned_byte(wire[offset]) << 24) |
+        (kookie_transport_codec_unsigned_byte(wire[offset + 1]) << 16) |
+        (kookie_transport_codec_unsigned_byte(wire[offset + 2]) << 8) |
+        kookie_transport_codec_unsigned_byte(wire[offset + 3])
+}
+
+Long kookie_transport_codec_load_u64_le(Byte[] wire, Int offset) {
+    var result: Long = 0L
+    for (var index = 0; index < 8; index = index + 1) {
+        var octet: Long =
+            kookie_transport_codec_unsigned_byte(wire[offset + index])
+        result = result | (octet << (index * 8))
+    }
+    return result
+}

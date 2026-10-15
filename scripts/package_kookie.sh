@@ -954,6 +954,8 @@ bundle_windows_kof_sdl() {
   mkdir -p "$presentation_root"/{core,content,session,world,ui,demo} "$PACKAGE_ROOT/build"
   cp -- "$ROOT_DIR/probes/g0_native_presentation/main.kf" \
     "$presentation_root/main.kf"
+  cp -- "$ROOT_DIR/probes/shared/gpu_scene_batch.kf" \
+    "$presentation_root/core/gpu_scene_batch.kf"
   cp -- "$ROOT_DIR/probes/shared/pe_durable_save_coordinator.kf" \
     "$presentation_root/session/pe_durable_save_coordinator.kf"
   cp -- "$ROOT_DIR/probes/shared/pe_glb_asset_store.kf" \
@@ -1238,6 +1240,8 @@ else
       ln -s -- "$source" "$PRESENTATION_ROOT/$module/$(basename "$source")"
     done
   done
+  cp -- "$ROOT_DIR/probes/shared/gpu_scene_batch.kf" \
+    "$PRESENTATION_ROOT/core/gpu_scene_batch.kf"
   IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer freetype2 harfbuzz)"
   python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
     --root "$ROOT_DIR" --output "$PACKAGE_ROOT/build" --target linux

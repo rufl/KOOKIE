@@ -8,7 +8,7 @@
 - Escreva o status como um colega escreveria: diga o que funciona, o que foi realmente verificado e o que continua bloqueado. Evite linguagem de milestone que pareça mais completa do que a evidência.
 
 A baseline ativa de fonte/CI é o Kof `0.6.5` da branch `lab` no commit
-`f42ed91dfbceae09880b7d0619d98f67490149d1`. A documentação atual da sessão deve
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`. A documentação atual da sessão deve
 descrever ordenação estrita por tick, revisões no mesmo tick com sequência de
 estado mais nova e histórico de rewind novo após restaurar checkpoint. As páginas
 de pesquisa mantêm intencionalmente seus snapshots datados de toolchain; atualize
@@ -28,3 +28,6 @@ A fronteira reutilizável de UI/mídia e a ABI upstream auditada estão registra
 em
 [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md); ela distingue intencionalmente o
 pin de CI atual de fontes upstream revisadas e medições históricas.
+O plano proposto de migração Kof/nativo está em
+[KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md); o contrato normativo
+de cópia/lifetime e batch está em [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).

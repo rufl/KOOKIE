@@ -4,6 +4,9 @@ extern "./lib/libkookie_simd_dispatch.so" kookie_simd_sum_u8_buffer(
 ): Long
 extern "./lib/libkookie_headless_adapter.so" kookie_headless_monotonic_nanoseconds(): Long
 extern "libc.so.6" memset(Buffer(U8) values, Int value, Long count)
+extern "./lib/libkookie_simd_dispatch.so" kookie_simd_invert_u8_buffer(
+    Buffer(U8) values, Int count
+): Int
 
 Int unsignedByte(Byte value) {
     if (value < 0) { return value + 256 }
@@ -34,6 +37,26 @@ main() {
         kookie_simd_sum_u8_buffer(boundary, 32) == 8160L &&
         kookie_simd_sum_u8_buffer(boundary, 33) == 8415L,
         "SIMD Buffer(U8) reduction must preserve scalar results across vector tails")
+    var producer = buffer.alloc(8)
+    buffer.poke8(producer, 0, 0)
+    buffer.poke8(producer, 1, 1)
+    buffer.poke8(producer, 2, 2)
+    buffer.poke8(producer, 3, 127)
+    buffer.poke8(producer, 4, 128)
+    buffer.poke8(producer, 5, 254)
+    buffer.poke8(producer, 6, 255)
+    buffer.poke8(producer, 7, 42)
+    assert(kookie_simd_sum_u8_buffer(producer, 8) == 809L &&
+        kookie_simd_sum_u8_buffer(producer, -1) == -1L &&
+        kookie_simd_sum_u8_buffer(producer, 0) == 0L,
+        "Kof Buffer(U8) poke producer must cross in one bounded call")
+    assert(kookie_simd_invert_u8_buffer(producer, 8) == 0 &&
+        kookie_simd_invert_u8_buffer(producer, -1) == -1 &&
+        scalarByteSum(producer.bytes()) == 1231L,
+        "native Buffer(U8) INOUT must copy back mutated bytes")
+    println("buffer-fixture-sum=809")
+    println("buffer-inout-sum=1231")
+
 
     var byteCount = 1048576
     var rounds = 64

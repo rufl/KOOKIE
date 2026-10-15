@@ -4,12 +4,15 @@ Status: **living architecture and acceptance gates; the bounded G0–G6 implemen
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Current qualification gate:
 Kof `0.6.5` source from the `lab` branch at
-`f42ed91dfbceae09880b7d0619d98f67490149d1`. Project architecture is
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`. Project architecture is
 `ARCHITECTURE.md`. See [language/runtime evidence](KOF_LANGUAGE.md),
 [initial probes](RESEARCH_PROBES.md), [course deep dive](KOF_COURSE.md),
 and [game-system survey](GAME_ECOSYSTEM.md) for evidence boundaries.
 
 The current release gap is tracked in [Demo release readiness](DEMO_RELEASE.md).
+The proposed follow-on work for the C/Kof boundary, batch qualification and
+the upstream pin is tracked in [KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md)
+and specified in [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
 The published dogfood record `0.1.0-dogfood.38` passed the signed
 Linux/Windows artifact, checksum, extraction and publication gates. That record
 is historical relative to the current checkout; new candidates are authoritative
@@ -965,7 +968,7 @@ valid. The `kookie_simd_sum_u8_buffer` entry point maps one Kof
 `Buffer(U8)` plus its Kof-validated extent to the selected reduction.
 
 The active Kof `0.6.5` source commit
-`f42ed91dfbceae09880b7d0619d98f67490149d1` is the current Buffer(U8, INOUT)
+`a14a7cd47d74192dcc977c9d4cbf87d407694560` is the current Buffer(U8, INOUT)
 toolchain input. CI builds that exact source after normalizing its embedded
 version metadata. The pinned source also implements synchronous callbacks on
 JVM, host JS and native x86-64/riscv64/aarch64; KOOKIE has not rerun that

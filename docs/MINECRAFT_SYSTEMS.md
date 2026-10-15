@@ -3,7 +3,7 @@
 Research date: **2026-09-22**. This is a library/architecture assessment, not an implemented engine or a measured performance comparison. Native Linux x86-64 and Kof-owned CPU behavior remain the baseline in [ENGINE_PLAN](ENGINE_PLAN.md). Foreign ECS/GUI/physics ownership is a possible explicit alternative, not silently approved by this research.
 
 The active KOOKIE source/CI baseline is Kof `0.6.5` from the `lab` branch at
-`f42ed91dfbceae09880b7d0619d98f67490149d1`; this research keeps its dated
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`; this research keeps its dated
 Minecraft snapshot and does not approve foreign dependencies for the engine
 without a separate contract and qualification gate.
 

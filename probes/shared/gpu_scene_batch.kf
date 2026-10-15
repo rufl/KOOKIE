@@ -1,0 +1,55 @@
+package core
+
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_batch_v1(
+    Buffer(U8) values, Int schemaVersion, Int byteLength,
+    Int vertexCount, Int stride, Int generation, Long checksum
+): Bool
+
+Bool kookie_gpu_scene_encode_batch(FrameStaging frame, Int generation) {
+    var count = frame.stagedCount()
+    if (count <= 0 || count > 65536 || generation <= 0) { return false }
+    var byteLength = count * 24
+    var values = buffer.alloc(byteLength)
+    var checksum: Long = 0L
+    for (var index = 0; index < count; index = index + 1) {
+        var offset = index * 24
+        var value = frame.resourceAt(index)
+        buffer.poke8(values, offset, value & 255)
+        buffer.poke8(values, offset + 1, (value >> 8) & 255)
+        buffer.poke8(values, offset + 2, (value >> 16) & 255)
+        buffer.poke8(values, offset + 3, (value >> 24) & 255)
+        checksum = checksum + value
+        value = frame.xAt(index)
+        buffer.poke8(values, offset + 4, value & 255)
+        buffer.poke8(values, offset + 5, (value >> 8) & 255)
+        buffer.poke8(values, offset + 6, (value >> 16) & 255)
+        buffer.poke8(values, offset + 7, (value >> 24) & 255)
+        checksum = checksum + value
+        value = frame.yAt(index)
+        buffer.poke8(values, offset + 8, value & 255)
+        buffer.poke8(values, offset + 9, (value >> 8) & 255)
+        buffer.poke8(values, offset + 10, (value >> 16) & 255)
+        buffer.poke8(values, offset + 11, (value >> 24) & 255)
+        checksum = checksum + value
+        value = frame.depthAt(index)
+        buffer.poke8(values, offset + 12, value & 255)
+        buffer.poke8(values, offset + 13, (value >> 8) & 255)
+        buffer.poke8(values, offset + 14, (value >> 16) & 255)
+        buffer.poke8(values, offset + 15, (value >> 24) & 255)
+        checksum = checksum + value
+        value = frame.uAt(index)
+        buffer.poke8(values, offset + 16, value & 255)
+        buffer.poke8(values, offset + 17, (value >> 8) & 255)
+        buffer.poke8(values, offset + 18, (value >> 16) & 255)
+        buffer.poke8(values, offset + 19, (value >> 24) & 255)
+        checksum = checksum + value
+        value = frame.vAt(index)
+        buffer.poke8(values, offset + 20, value & 255)
+        buffer.poke8(values, offset + 21, (value >> 8) & 255)
+        buffer.poke8(values, offset + 22, (value >> 16) & 255)
+        buffer.poke8(values, offset + 23, (value >> 24) & 255)
+        checksum = checksum + value
+    }
+    return kookie_gpu_scene_push_vertex_batch_v1(
+        values, 1, byteLength, count, 24, generation, checksum)
+}

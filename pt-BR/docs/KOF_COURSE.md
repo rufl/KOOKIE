@@ -3,7 +3,7 @@
 Data da pesquisa: 2026-09-22. Isto estende [KOF_LANGUAGE](KOF_LANGUAGE.md), não é uma implementação de engine. As fontes/resultados completos executados estão em [COURSE_PROBES](COURSE_PROBES.md).
 
 O gate ativo de qualificação do KOOKIE usa Kof `0.6.5` da branch `lab`, no
-`f42ed91dfbceae09880b7d0619d98f67490149d1`; a identidade do artefato
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`; a identidade do artefato
 `0.4.9-beta` abaixo é mantida intencionalmente como evidência histórica do
 curso, não como entrada de build atual da engine.
 

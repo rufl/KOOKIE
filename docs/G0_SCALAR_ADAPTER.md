@@ -5,7 +5,7 @@
 Status: **implemented and exercised on JVM/native plus isolated real-window presentation**. The narrow C boundary now covers SDL lifecycle, SDL_mixer effects/music streams, predecoded OGG Vorbis tracks with exact sample-frame loop bounds, bounded synthesized clips, SPIR-V scene upload/draw with perspective projection and D16 depth testing, and Kof-owned event state. The current native presentation probe reports a valid swapchain capability, draws and captures the authored arena (142 unique vertices, 178 triangles, 534 staged vertices) and consumes the authoritative combat event's clip `201`; machine-specific evidence remains outside the repository.
 
 The current source/CI gate uses Kof `0.6.5` from the `lab` branch at
-`f42ed91dfbceae09880b7d0619d98f67490149d1`; this page records the bounded
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`; this page records the bounded
 adapter contract, while focused exception/SIMD gates pass on the active pin
 and machine-specific presentation evidence remains a separate release
 requirement.

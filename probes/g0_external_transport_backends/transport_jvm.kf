@@ -1,3 +1,4 @@
+import session
 import java.lang.Exception
 import java.lang.Integer
 import java.lang.System
@@ -52,43 +53,6 @@ Int kookie_transport_max_words() {
     return KookieJvmTransportState.maxWords
 }
 
-Int kookie_transport_unsigned_byte(Byte value) {
-    if (value < 0) {
-        return value + 256
-    }
-    return value
-}
-
-Long kookie_transport_unsigned_int(Int value) {
-    var result: Long = value
-    if (value < 0) {
-        result = result + 4294967296L
-    }
-    return result
-}
-
-void kookie_transport_put_word(Byte[] wire, Int offset, Int value) {
-    wire[offset] = (value >> 24) & 255
-    wire[offset + 1] = (value >> 16) & 255
-    wire[offset + 2] = (value >> 8) & 255
-    wire[offset + 3] = value & 255
-}
-
-Int kookie_transport_read_word(Byte[] wire, Int offset) {
-    return (kookie_transport_unsigned_byte(wire[offset]) << 24) |
-        (kookie_transport_unsigned_byte(wire[offset + 1]) << 16) |
-        (kookie_transport_unsigned_byte(wire[offset + 2]) << 8) |
-        kookie_transport_unsigned_byte(wire[offset + 3])
-}
-
-Long kookie_transport_load_u64_le(Byte[] wire, Int offset) {
-    var result: Long = 0L
-    for (var index = 0; index < 8; index = index + 1) {
-        var octet: Long = kookie_transport_unsigned_byte(wire[offset + index])
-        result = result | (octet << (index * 8))
-    }
-    return result
-}
 
 void kookie_transport_sip_round(Long v0, Long v1, Long v2, Long v3) {
     v0 = v0 + v1
@@ -119,7 +83,7 @@ Long kookie_transport_mac(Byte[] wire, Int length) {
     var v3: Long = 0x7465646279746573L ^ KookieJvmTransportState.key1[slot]
     var offset = 0
     while (offset + 8 <= length) {
-        var message = kookie_transport_load_u64_le(wire, offset)
+        var message = kookie_transport_codec_load_u64_le(wire, offset)
         v3 = v3 ^ message
         kookie_transport_sip_round(v0, v1, v2, v3)
         v0 = KookieJvmTransportState.macState[0]
@@ -137,7 +101,7 @@ Long kookie_transport_mac(Byte[] wire, Int length) {
     var finalMessage: Long = length
     finalMessage = finalMessage << 56
     for (var index = 0; offset + index < length; index = index + 1) {
-        var octet: Long = kookie_transport_unsigned_byte(wire[offset + index])
+        var octet: Long = kookie_transport_codec_unsigned_byte(wire[offset + index])
         finalMessage = finalMessage | (octet << (index * 8))
     }
     v3 = v3 ^ finalMessage
@@ -165,7 +129,7 @@ Long kookie_transport_mac(Byte[] wire, Int length) {
 
 Long kookie_transport_parse_hex_word(String encoded, Int offset) {
     var word = Integer.parseUnsignedInt(encoded.substring(offset, offset + 8), 16)
-    return kookie_transport_unsigned_int(word)
+    return kookie_transport_codec_unsigned_int(word)
 }
 
 Bool kookie_transport_set_key_from_environment() {
@@ -346,10 +310,10 @@ Bool kookie_transport_open_remote_environment(Int port) {
     }
     var bytes = address.getAddress()
     return kookie_transport_open_remote_ipv4(
-        kookie_transport_unsigned_byte(bytes[0]),
-        kookie_transport_unsigned_byte(bytes[1]),
-        kookie_transport_unsigned_byte(bytes[2]),
-        kookie_transport_unsigned_byte(bytes[3]),
+        kookie_transport_codec_unsigned_byte(bytes[0]),
+        kookie_transport_codec_unsigned_byte(bytes[1]),
+        kookie_transport_codec_unsigned_byte(bytes[2]),
+        kookie_transport_codec_unsigned_byte(bytes[3]),
         port)
 }
 
@@ -361,7 +325,7 @@ Int kookie_transport_external_host_octet(Int index) {
     if (!KookieJvmTransportState.addressValid) {
         return -1
     }
-    return kookie_transport_unsigned_byte(address.getAddress()[index])
+    return kookie_transport_codec_unsigned_byte(address.getAddress()[index])
 }
 
 Bool kookie_transport_set_peer_ipv4(
@@ -405,8 +369,8 @@ Int kookie_transport_local_port() {
 Bool kookie_transport_received_sequence_at_least(Int minimum) {
     var slot = KookieJvmTransportState.activeSlot
     return minimum >= 0 &&
-        kookie_transport_unsigned_int(KookieJvmTransportState.receiveSequences[slot]) >=
-        kookie_transport_unsigned_int(minimum)
+        kookie_transport_codec_unsigned_int(KookieJvmTransportState.receiveSequences[slot]) >=
+        kookie_transport_codec_unsigned_int(minimum)
 }
 
 Bool kookie_transport_external_is_host() {
@@ -446,7 +410,7 @@ Bool kookie_transport_send_commit() {
     if (!KookieJvmTransportState.socketOpen[slot] ||
         !KookieJvmTransportState.peerValid[slot] ||
         KookieJvmTransportState.sendCounts[slot] <= 0 ||
-        kookie_transport_unsigned_int(KookieJvmTransportState.sendSequences[slot]) ==
+        kookie_transport_codec_unsigned_int(KookieJvmTransportState.sendSequences[slot]) ==
             4294967295L) {
         return false
     }
@@ -454,20 +418,20 @@ Bool kookie_transport_send_commit() {
     var frameWords = KookieJvmTransportState.headerWords + payloadCount
     var byteCount = frameWords * 4
     var wire = new Byte[KookieJvmTransportState.maxWireBytes]
-    kookie_transport_put_word(wire, 0, KookieJvmTransportState.magic)
-    kookie_transport_put_word(wire, 4, KookieJvmTransportState.version)
-    kookie_transport_put_word(wire, 8, payloadCount)
-    kookie_transport_put_word(wire, 12, KookieJvmTransportState.sendSequences[slot] + 1)
-    kookie_transport_put_word(wire, 16, 0)
-    kookie_transport_put_word(wire, 20, 0)
+    kookie_transport_codec_put_word(wire, 0, KookieJvmTransportState.magic)
+    kookie_transport_codec_put_word(wire, 4, KookieJvmTransportState.version)
+    kookie_transport_codec_put_word(wire, 8, payloadCount)
+    kookie_transport_codec_put_word(wire, 12, KookieJvmTransportState.sendSequences[slot] + 1)
+    kookie_transport_codec_put_word(wire, 16, 0)
+    kookie_transport_codec_put_word(wire, 20, 0)
     for (var index = 0; index < payloadCount; index = index + 1) {
-        kookie_transport_put_word(
+        kookie_transport_codec_put_word(
             wire, (KookieJvmTransportState.headerWords + index) * 4,
             KookieJvmTransportState.sendWords[slot][index])
     }
     var mac = kookie_transport_mac(wire, byteCount)
-    kookie_transport_put_word(wire, 16, mac.toInt())
-    kookie_transport_put_word(wire, 20, (mac >>> 32).toInt())
+    kookie_transport_codec_put_word(wire, 16, mac.toInt())
+    kookie_transport_codec_put_word(wire, 20, (mac >>> 32).toInt())
     KookieJvmTransportState.sendCounts[slot] = 0
     try {
         var packet = new DatagramPacket(
@@ -560,28 +524,28 @@ Int kookie_transport_receive() {
         return 0
     }
     var frameWords = byteCount / 4
-    var payloadCount = kookie_transport_read_word(wire, 8)
-    var sequence = kookie_transport_read_word(wire, 12)
-    if (kookie_transport_read_word(wire, 0) != KookieJvmTransportState.magic ||
-        kookie_transport_read_word(wire, 4) != KookieJvmTransportState.version ||
+    var payloadCount = kookie_transport_codec_read_word(wire, 8)
+    var sequence = kookie_transport_codec_read_word(wire, 12)
+    if (kookie_transport_codec_read_word(wire, 0) != KookieJvmTransportState.magic ||
+        kookie_transport_codec_read_word(wire, 4) != KookieJvmTransportState.version ||
         payloadCount <= 0 || payloadCount > KookieJvmTransportState.maxWords ||
         frameWords != KookieJvmTransportState.headerWords + payloadCount ||
         sequence == 0 ||
-        kookie_transport_unsigned_int(sequence) <=
-            kookie_transport_unsigned_int(KookieJvmTransportState.receiveSequences[slot])) {
+        kookie_transport_codec_unsigned_int(sequence) <=
+            kookie_transport_codec_unsigned_int(KookieJvmTransportState.receiveSequences[slot])) {
         KookieJvmTransportState.receiveCounts[slot] = 0
         KookieJvmTransportState.lastStatuses[slot] = 3
         return 0
     }
-    var expectedMac = kookie_transport_unsigned_int(kookie_transport_read_word(wire, 16)) |
-        (kookie_transport_unsigned_int(kookie_transport_read_word(wire, 20)) << 32)
-    var receivedMacLow = kookie_transport_read_word(wire, 16)
-    var receivedMacHigh = kookie_transport_read_word(wire, 20)
-    kookie_transport_put_word(wire, 16, 0)
-    kookie_transport_put_word(wire, 20, 0)
+    var expectedMac = kookie_transport_codec_unsigned_int(kookie_transport_codec_read_word(wire, 16)) |
+        (kookie_transport_codec_unsigned_int(kookie_transport_codec_read_word(wire, 20)) << 32)
+    var receivedMacLow = kookie_transport_codec_read_word(wire, 16)
+    var receivedMacHigh = kookie_transport_codec_read_word(wire, 20)
+    kookie_transport_codec_put_word(wire, 16, 0)
+    kookie_transport_codec_put_word(wire, 20, 0)
     var actualMac = kookie_transport_mac(wire, byteCount)
-    kookie_transport_put_word(wire, 16, receivedMacLow)
-    kookie_transport_put_word(wire, 20, receivedMacHigh)
+    kookie_transport_codec_put_word(wire, 16, receivedMacLow)
+    kookie_transport_codec_put_word(wire, 20, receivedMacHigh)
     if (actualMac != expectedMac) {
         KookieJvmTransportState.receiveCounts[slot] = 0
         KookieJvmTransportState.lastStatuses[slot] = 3
@@ -595,7 +559,7 @@ Int kookie_transport_receive() {
     KookieJvmTransportState.receiveSequences[slot] = sequence
     for (var index = 0; index < payloadCount; index = index + 1) {
         KookieJvmTransportState.receiveWords[slot][index] =
-            kookie_transport_read_word(wire, (KookieJvmTransportState.headerWords + index) * 4)
+            kookie_transport_codec_read_word(wire, (KookieJvmTransportState.headerWords + index) * 4)
     }
     KookieJvmTransportState.lastStatuses[slot] = 1
     return payloadCount

@@ -45,18 +45,18 @@ fontes não rastreadas e exclui saída gerada de build. Resultado atual:
 
 | Grupo | Arquivos | Linhas | Participação |
 |---|---:|---:|---:|
-| Kof (`.kf`) | 151 | 75.497 | 79,54% |
-| KofScript (`.ks`) | 4 | 658 | 0,69% |
-| C/header (`.c`, `.h`) | 16 | 7.378 | 7,77% |
-| Ferramentas shell (`.sh`) | 46 | 6.737 | 7,10% |
-| Ferramentas Python (`.py`) | 19 | 3.024 | 3,19% |
-| Ponte PE Java (`.java`) | 1 | 1.504 | 1,58% |
-| Shaders GPU | 8 | 115 | 0,12% |
-| **Total** | **245** | **94.913** | **100%** |
+| Kof (`.kf`) | 170 | 83.128 | 77,89% |
+| KofScript (`.ks`) | 4 | 764 | 0,72% |
+| C/header (`.c`, `.h`) | 17 | 8.660 | 8,11% |
+| Ferramentas shell (`.sh`) | 55 | 8.103 | 7,59% |
+| Ferramentas Python (`.py`) | 21 | 4.346 | 4,07% |
+| Ponte PE Java (`.java`) | 1 | 1.504 | 1,41% |
+| Shaders GPU | 8 | 215 | 0,20% |
+| **Total** | **276** | **106.720** | **100%** |
 
 A fatia de runtime (Kof/KofScript/C/shaders, excluindo ferramentas de build e a
-ponte PE) tem 83.648 linhas: Kof 90,26%, KofScript 0,79%, C/header 8,82% e
-shaders 0,14%. Isso mede composição; não é uma afirmação de performance.
+ponte PE) tem 92.767 linhas: Kof 89,61%, KofScript 0,82%, C/header 9,34% e
+shaders 0,23%. Isso mede composição; não é uma afirmação de performance.
 
 Não traduza código apenas para aumentar a porcentagem de Kof. SDL/SDL_GPU,
 SDL_mixer, Winsock, durabilidade de filesystem, agendamento de threads,
@@ -80,10 +80,12 @@ material/passe e ordenação de renderização; ele nunca faz parse nem composi�
 de SPIR-V no runtime.
 
 A pinagem ativa do Kof4j `0.6.5` é o commit da fonte `lab` do Kof
-`f42ed91dfbceae09880b7d0619d98f67490149d1`. O gate
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`. O gate
 `scripts/verify_simd_dispatch.sh` qualifica `Buffer(U8)` na JVM e no native
 x86-64 com o pin ativo. O suporte cross continua não qualificado. `Buffer(U8)`
-não define um contrato tipado e assíncrono de posse de GPU/áudio.
+não define um contrato genérico, tipado e assíncrono de posse de GPU/áudio.
+`GPU_SCENE_VERTEX_V1` é uma exceção síncrona explícita de copy-in; seu gate
+runtime do adapter/GPU native continua pendente.
 Por isso o KOOKIE mantém `FrameStaging`/wires de conteúdo como arrays limitados
 possuídos pelo Kof, usa memória possuída pelo C no trabalho nativo e conserva o
 adaptador escalar verificado. No startup, `main.kf` transfere cada GLB limitado
@@ -93,6 +95,9 @@ decodificação. Nenhum ponteiro nativo de modelo nem callback de cena/vértice
 atravessa a ABI. Veja
 [KOF4J_UI_MIGRATION](KOF4J_UI_MIGRATION.md) para a decisão versionada de
 buffers e a fronteira reutilizável de UI/áudio.
+O trabalho restante de batch e transporte está em
+[KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md) e é limitado por
+[KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
 
 
 ## 3. Modelo de camadas

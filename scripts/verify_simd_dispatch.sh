@@ -48,6 +48,8 @@ for runtime in jvm native; do
     grep -Eq '^simd-path=[1-4]$' "$log"
     grep -Fqx 'bytes=1048576' "$log"
     grep -Fqx 'rounds=64' "$log"
+    grep -Fqx 'buffer-fixture-sum=809' "$log"
+    grep -Fqx 'buffer-inout-sum=1231' "$log"
     grep -Fqx 'sum=263192576' "$log"
     grep -Fqx "scalar-total=$expected_total" "$log"
     grep -Fqx "simd-total=$expected_total" "$log"

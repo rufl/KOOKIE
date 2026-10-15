@@ -1279,6 +1279,7 @@ class G1NativePresentation {
             frame.depthAt(index), frame.uAt(index), frame.vAt(index))
     }
 
+
     Bool uploadTextRuns(FrameStaging frame) {
         for (var run = 0; run < frame.textRuns(); run = run + 1) {
             if (!kookie_gpu_scene_text_run_begin(
@@ -1299,7 +1300,7 @@ class G1NativePresentation {
         return true
     }
 
-    Bool upload(FrameStaging frame) {
+    Bool uploadScalar(FrameStaging frame) {
         var index = 0
         while (index < frame.stagedCount()) {
             var span = frame.primitiveSpanAt(index)
@@ -1320,6 +1321,18 @@ class G1NativePresentation {
                 return false
             }
             index = index + 1
+        }
+        return true
+    }
+
+    Bool upload(FrameStaging frame) {
+        var generation = kookie_gpu_reload_pending_generation()
+        if (generation == 0) {
+            generation = kookie_gpu_reload_active_generation()
+        }
+        if (!kookie_gpu_scene_encode_batch(frame, generation) &&
+            !uploadScalar(frame)) {
+            return false
         }
         return uploadTextRuns(frame)
     }

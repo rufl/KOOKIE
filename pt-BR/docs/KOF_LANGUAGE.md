@@ -4,7 +4,7 @@ Data da pesquisa: 2026-09-22. Esta é uma referência de trabalho, não uma afir
 
 A baseline ativa de qualificação do KOOKIE é a fonte Kof `0.6.5` da branch
 `lab`, no commit
-[`f42ed91dfbceae09880b7d0619d98f67490149d1`](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1).
+[`a14a7cd47d74192dcc977c9d4cbf87d407694560`](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560).
 O Kof `0.6.5` é construído a partir da fonte na CI; nenhum archive público é
 usado como pin. `scripts/prepare_kof_source.sh` verifica a guarda upstream de
 ciclos do GC native e normaliza os metadados antes do empacotamento.
@@ -152,13 +152,14 @@ Conjunto escalar verificado na fonte: `Int`, `Long`, `Float`, `Double`,
 exige uma string de biblioteca e faz a ligação por uso com uma chamada ABI
 direta, não com `dlopen` em tempo de execução.
 
-O `0.6.5` atual também possui o contrato de bytes `Buffer(U8)`. A
-implementação fixada o mapeia para o token FFI `B` e um ponteiro de payload
-síncrono; o gate local prova cópia de entrada/retorno e uma redução INOUT em
-JVM e nativo x86-64. Os comentários da fonte fixada afirmam a mesma superfície
-para riscv64/aarch64, mas o KOOKIE ainda não repetiu essa matriz. O suporte
-cross de Buffer continua sendo uma afirmação da fonte upstream, não um
-resultado de qualificação do KOOKIE.
+O `0.6.5` atual também possui um contrato de bytes `Buffer(U8)` com
+`buffer.alloc`, `buffer.peek8/32/64`, `buffer.poke8/32/64` e `Buffer.bytes()`.
+A implementação fixada o mapeia para o token FFI `B` e um ponteiro de payload
+síncrono; o gate local prova dados produzidos por `buffer.poke8` do Kof,
+cópia de entrada/retorno e uma redução INOUT em JVM e nativo x86-64. Os
+comentários da fonte fixada afirmam a mesma superfície para riscv64/aarch64,
+mas o KOOKIE ainda não repetiu essa matriz. O suporte cross continua sendo uma
+afirmação da fonte upstream, não um resultado de qualificação do KOOKIE.
 
 A sonda antiga de 0.4.9 rejeitou `extern ... upload(Float[] values): void` na
 JVM e no nativo. Esse resultado permanece histórico; o binding de arrays/records
@@ -192,25 +193,25 @@ Consequências:
    da biblioteca gráfica. Uma consulta de versão não comprova caminhos que
    usam intensivamente alocador/TLS/threads.
 
-Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [gate local de Buffer](../scripts/verify_simd_dispatch.sh),
-[ABI do runtime](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/docs/runtime/RUNTIME_ABI.md).
+[ABI do runtime](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/docs/runtime/RUNTIME_ABI.md).
 
-### Atualização da ABI do 0.6.5
+### ABI atual do 0.6.5
+`bytes()` retorna uma cópia gerenciada; o payload FFI nativo só é válido
+durante a chamada. O caminho qualificado agora usa `Buffer(U8)` limitado
+diretamente para `GPU_SCENE_VERTEX_V1`: Kof codifica seis campos `i32_le`, C
+valida e copia para storage de cena pertencente ao adapter, e a chamada scalar
+de resource continua como fallback.
 
-`Buffer(U8)` é agora uma fronteira síncrona de bytes, não uma API genérica de
-zero-copy ou recursos assíncronos. `KofBuffer` possui a alocação e `bytes()`
-retorna uma cópia gerenciada; o payload FFI nativo só é válido durante a
-chamada. Por isso o KOOKIE mantém wires de bytes em `Int[]`, arrays paralelos
-de `FrameStaging` e o adaptador C escalar verificado para UI/gráficos/áudio.
-
-Um caminho em lote futuro precisa definir schema, comprimento, stride,
-capacidade, generation e checksum, copiar para memória do adapter antes de
-retornar e manter o fallback escalar até passar cobertura por target e um
-orçamento de frame representativo. `RUNTIME_ABI.md` continua comportamental,
-não um layout C público.
+Isso não é uma API genérica de zero-copy ou assíncrona. Transporte e
+persistência continuam com seus arrays semânticos e regras de ownership em C.
+Qualquer novo caminho batch precisa definir schema, comprimento, stride,
+capacidade, generation e checksum, copiar antes de retornar e passar gates
+runtime específicos por target. `RUNTIME_ABI.md` continua comportamental, não
+um layout C público.
 
 ## Riscos de memória e desempenho
 

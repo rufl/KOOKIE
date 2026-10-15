@@ -34,6 +34,7 @@ bash scripts/verify_exception.sh
 bash scripts/verify_simd_dispatch.sh
 bash scripts/verify_transport.sh
 python3 scripts/verify_external_lan_metadata.py
+bash scripts/verify_external_lan_parity.sh
 python3 scripts/verify_model_loader_sanitizer.py
 bash scripts/verify_interactions.sh
 bash scripts/verify_durable_save.sh
@@ -172,6 +173,10 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     ln -s "$demo_file" "$probe_demo_dir/$(basename "$demo_file")"
     ln -s "$demo_file" "$presentation_probe_demo_dir/$(basename "$demo_file")"
   done
+  cp "$root_dir/probes/shared/gpu_scene_batch.kf" \
+    "$probe_core_dir/gpu_scene_batch.kf"
+  cp "$root_dir/probes/shared/gpu_scene_batch.kf" \
+    "$presentation_probe_core_dir/gpu_scene_batch.kf"
   cp "$root_dir/probes/shared/pe_durable_save_coordinator.kf" \
     "$presentation_probe_session_dir/pe_durable_save_coordinator.kf"
   python3 scripts/shader_pipeline.py \

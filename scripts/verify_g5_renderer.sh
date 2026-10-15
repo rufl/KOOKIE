@@ -58,6 +58,8 @@ done
 for source_file in "$ROOT_DIR/src/ui/"*.kf; do
   ln -s "$source_file" "$SOURCE_DIR/ui/$(basename "$source_file")"
 done
+cp -- "$ROOT_DIR/probes/shared/gpu_scene_batch.kf" \
+  "$SOURCE_DIR/core/gpu_scene_batch.kf"
 cp -- "$ROOT_DIR/probes/g5_reference_renderer/main.kf" "$SOURCE_DIR/main.kf"
 IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
 IFS=' ' read -r -a TEXT_FLAGS <<<"$(pkg-config --cflags freetype2 harfbuzz)"

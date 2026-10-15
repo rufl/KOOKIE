@@ -28,41 +28,44 @@ decodifica mídia e não cria outro renderer.
 ## Fronteira da ABI do Kof 0.6.5 fixado atualmente
 
 A baseline ativa de qualificação do KOOKIE é o fonte do Kof4j
-[`f42ed91dfbceae09880b7d0619d98f67490149d1`](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1).
+[`a14a7cd47d74192dcc977c9d4cbf87d407694560`](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560).
 A CLI de qualificação reporta `kof 0.6.5`; a qualificação focada de Buffer
 abaixo passa na JVM e no native x86-64 com este pin.
 
 A implementação fixada e a documentação upstream mais recente não são
 idênticas:
 
-- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
-  expõe `buffer.alloc(Int)` e `Buffer.bytes()` em JVM, JS e nativo
-  x86-64; os comentários da fonte também afirmam suporte a riscv64/aarch64.
-- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
+- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
+  expõe `buffer.alloc(Int)`, `buffer.peek8/32/64`, `buffer.poke8/32/64` e
+  `Buffer.bytes()` na JVM, JS e nativo x86-64; os comentários da fonte também
+  afirmam suporte a riscv64/aarch64.
+- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
   baixa `Buffer(U8)` como token `B` e ponteiro de payload síncrono na
   implementação nativa fixada. `scripts/verify_simd_dispatch.sh` exercita
   cópia de entrada/retorno e uma redução INOUT em JVM e nativo x86-64.
+- O fixture P1 também preenche oito bytes com `buffer.poke8` do Kof, cruza uma
+  chamada C INOUT e verifica os bytes invertidos no copy-back. Passou com
+  `buffer-fixture-sum=809` e `buffer-inout-sum=1231` nos dois targets.
   O guia upstream ainda documenta Native como `FFI001`, enquanto a fonte
   fixada expõe a implementação nativa limitada usada pelo KOOKIE. O suporte
   cross é, portanto, uma afirmação da fonte upstream, não um resultado de
   qualificação do KOOKIE.
-- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/docs/runtime/RUNTIME_ABI.md)
+- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/docs/runtime/RUNTIME_ABI.md)
   é um contrato comportamental do runtime, não uma ABI C pública estável.
   O KOOKIE não deve copiar headers de objetos, layouts de arrays ou detalhes
   do alocador para uma biblioteca de engine.
 
-Decisão no KOOKIE: usar `Buffer(U8)` somente em fixtures síncronas, limitadas
-e qualificadas por target, como a sonda SIMD. Não inferir uma ABI tipada de
-vértices/áudio, reter o ponteiro do payload nem entregá-lo a trabalho que
-sobrevive à chamada. Manter `FrameStaging`, `QueuedAudio` e wires de conteúdo
-como arrays limitados possuídos pelo Kof; o nativo copia para sua própria
-memória.
+Decisão no KOOKIE: usar `Buffer(U8)` somente em chamadas síncronas,
+limitadas e qualificadas por target. A prova producer P1 e o caminho fonte
+`GPU_SCENE_VERTEX_V1` não estabelecem zero-copy genérico, ponteiros retidos de
+payload nem trabalho que sobreviva à chamada. O Kof mantém `FrameStaging`,
+`QueuedAudio` e wires de conteúdo como arrays semânticos limitados; o nativo
+copia o payload GPU para storage próprio.
 
-Um upload em lote futuro poderá usar descritor explícito de cópia de entrada
-com schema, comprimento em bytes/palavras, stride, capacidade, generation e
-checksum. Ele precisa de fixtures C específicas por target e deve preservar o
-adaptador escalar verificado até ownership, lifetime e frame-time serem medidos.
-Nenhum ponteiro cru, array Kof retido ou segundo renderer atravessa a fronteira.
+O descriptor GPU V1 fixa schema, comprimento, stride, generation e checksum;
+`kookie_gpu_scene_push_vertex_resource` scalar permanece como fallback. A
+qualificação runtime do adapter/GPU native continua pendente porque o build
+native local do Kof excedeu o timeout e não havia dispositivo GPU headless.
 
 ## Mapa de responsabilidade
 

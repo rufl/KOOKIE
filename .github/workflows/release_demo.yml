@@ -41,8 +41,8 @@ concurrency:
 
 env:
   KOF_VERSION: 0.6.5
-  KOF_SOURCE_COMMIT: f42ed91dfbceae09880b7d0619d98f67490149d1
-  KOOKIE_KOF_SOURCE_COMMIT: f42ed91dfbceae09880b7d0619d98f67490149d1
+  KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
+  KOOKIE_KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
   ZIG_VERSION: 0.17.0
   ZIG_ARCHIVE_SHA256: b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428
   ZIG_ARCHIVE_URL: https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip
@@ -842,7 +842,7 @@ jobs:
 
           Signed native presentation packages built from source commit
           \`$source_commit\` with Kof source commit
-          \`${KOOKIE_KOF_SOURCE_COMMIT:-f42ed91dfbceae09880b7d0619d98f67490149d1}\`.
+          \`${KOOKIE_KOF_SOURCE_COMMIT:-a14a7cd47d74192dcc977c9d4cbf87d407694560}\`.
 
           This bounded first demo contains local \`Play\`, fixed two-player
           \`Host/Join\`, explicit \`READY\` gating and the host-authoritative

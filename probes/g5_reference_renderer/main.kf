@@ -16,6 +16,8 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_push_vertex_resource(
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_batch_calls(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_scalar_calls(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_draw_calls(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_instances(): Int
@@ -23,7 +25,11 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_reference_scene(
     Int warmupFrames, Int measuredFrames, Int width, Int height
 ): Int
 
+
 Bool uploadReferenceFrame(FrameStaging frame) {
+    if (kookie_gpu_scene_encode_batch(frame, 1)) {
+        return true
+    }
     for (var index = 0; index < frame.stagedCount(); index = index + 1) {
         if (!kookie_gpu_scene_push_vertex_resource(
                 frame.resourceAt(index), frame.xAt(index), frame.yAt(index),
@@ -61,8 +67,10 @@ main() {
         "native adapter must accept the complete staged batch")
     var instanceCount = kookie_gpu_scene_instances()
     assert(kookie_gpu_scene_count() == renderer.vertexCount() &&
-        instanceCount == 984,
-        "GPU instance count must match staged triangles")
+        instanceCount == 984 &&
+        kookie_gpu_scene_batch_calls() == 1 &&
+        kookie_gpu_scene_scalar_calls() == 0,
+        "GPU scene must use one V1 batch without scalar fallback")
     assert(kookie_gpu_capture_headless_scene() > 0,
         "hardware renderer must capture the reference scene")
     assert(kookie_gpu_scene_draw_calls() == 1,
@@ -81,6 +89,10 @@ main() {
     println(renderer.batchedDrawCalls())
     println("g5-renderer-instances")
     println(instanceCount)
+    println("g5-renderer-batch-calls")
+    println(kookie_gpu_scene_batch_calls())
+    println("g5-renderer-scalar-calls")
+    println(kookie_gpu_scene_scalar_calls())
     println("g5-renderer-p95-us")
     println(p95Micros)
 }

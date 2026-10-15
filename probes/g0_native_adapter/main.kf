@@ -39,6 +39,9 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_text_codepoint(
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_text_run_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_commit(): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_count(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_batch_calls(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_scalar_calls(): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_draw_calls(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_capture_headless_scene(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_reload_stage(
     Int generation, Int productChecksum
@@ -163,6 +166,8 @@ class G1HeadlessPresentation {
             frame.depthAt(index), frame.uAt(index), frame.vAt(index))
     }
 
+
+
     Bool uploadTextRuns(FrameStaging frame) {
         for (var run = 0; run < frame.textRuns(); run = run + 1) {
             if (!kookie_gpu_scene_text_run_begin(
@@ -183,7 +188,7 @@ class G1HeadlessPresentation {
         return true
     }
 
-    Bool upload(FrameStaging frame) {
+    Bool uploadScalar(FrameStaging frame) {
         var index = 0
         while (index < frame.stagedCount()) {
             var span = frame.primitiveSpanAt(index)
@@ -198,6 +203,18 @@ class G1HeadlessPresentation {
             }
             if (!uploadSceneVertex(frame, index)) { return false }
             index = index + 1
+        }
+        return true
+    }
+
+    Bool upload(FrameStaging frame) {
+        var generation = kookie_gpu_reload_pending_generation()
+        if (generation == 0) {
+            generation = kookie_gpu_reload_active_generation()
+        }
+        if (!kookie_gpu_scene_encode_batch(frame, generation) &&
+            !uploadScalar(frame)) {
+            return false
         }
         return uploadTextRuns(frame)
     }
@@ -230,7 +247,36 @@ class G1HeadlessPresentation {
             !upload(hudFrame) ||
             !kookie_gpu_scene_commit() ||
             kookie_gpu_scene_count() != vertexCount ||
-            kookie_gpu_capture_headless_scene() <= 0) {
+            kookie_gpu_scene_batch_calls() != 3 ||
+            kookie_gpu_scene_scalar_calls() != 0) {
+            return false
+        }
+        var batchCapture = kookie_gpu_capture_headless_scene()
+        var batchDrawCalls = kookie_gpu_scene_draw_calls()
+        var batchCalls = kookie_gpu_scene_batch_calls()
+        var batchScalarCalls = kookie_gpu_scene_scalar_calls()
+        if (batchCapture <= 0 || batchDrawCalls <= 0 ||
+            batchCalls != 3 || batchScalarCalls != 0) {
+            return false
+        }
+        println("gpu-scene-batch-calls")
+        println(batchCalls)
+        println("gpu-scene-batch-scalar-calls")
+        println(batchScalarCalls)
+        if (!kookie_gpu_scene_begin(vertexCount) ||
+            !uploadScalar(worldFrame) || !uploadScalar(doorFrame) ||
+            !uploadScalar(hudFrame) ||
+            !uploadTextRuns(worldFrame) || !uploadTextRuns(doorFrame) ||
+            !uploadTextRuns(hudFrame) ||
+            !kookie_gpu_scene_commit() ||
+            kookie_gpu_scene_count() != vertexCount ||
+            kookie_gpu_scene_batch_calls() != 0 ||
+            kookie_gpu_scene_scalar_calls() != vertexCount) {
+            return false
+        }
+        var scalarCapture = kookie_gpu_capture_headless_scene()
+        if (scalarCapture <= 0 || scalarCapture != batchCapture ||
+            kookie_gpu_scene_draw_calls() != batchDrawCalls) {
             return false
         }
         return worldFrame.retire(1) &&
@@ -244,6 +290,8 @@ class G1HeadlessPresentation {
         var shell = GameShell()
         var shellFrame = FrameStaging(shell.renderVertexCapacity())
         var reload = BoundedGpuReloadCoordinator()
+        var invalidBatch = buffer.alloc(24)
+        buffer.poke8(invalidBatch, 0, 0)
         if (!reload.bindInitial(
                 1, shell.kutter().worldChecksum(),
                 shell.kutter().collisionChecksum(),
@@ -251,6 +299,10 @@ class G1HeadlessPresentation {
                 shell.renderVertexCapacity(), 0) ||
             !kookie_gpu_reload_stage(2, shell.kutter().renderChecksum()) ||
             !kookie_gpu_scene_begin(3) ||
+            !kookie_gpu_scene_push_vertex_batch_v1(
+                invalidBatch, 1, 23, 1, 24, 2, 0L) ||
+            !kookie_gpu_scene_push_vertex_batch_v1(
+                invalidBatch, 1, 24, 1, 24, 2, 0L) ||
             !kookie_gpu_scene_push_vertex_resource(1, 0, 0, 0, 0, 100) ||
             !kookie_gpu_scene_push_vertex_resource(0, 0, 0, 0, 0, 0) ||
             !kookie_gpu_reload_cancel(2) ||
@@ -786,6 +838,8 @@ main() {
         assert(g1Presentation.capture(),
             "G1 arena, G2 door and authoritative HUD must render headlessly")
         println("KOOKIE G1 native arena HUD verified")
+        println("gpu-scene-scalar-calls")
+        println(kookie_gpu_scene_scalar_calls())
         println("KOOKIE G2 native 3D door verified")
         assert(g1Presentation.captureKutterReload(),
             "Kutter scene reload must preserve, fence and activate GPU products")

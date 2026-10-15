@@ -5,7 +5,7 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 ## Unreleased
 - The active Kof lab pin is now resolved from `refs/heads/lab` by
   `scripts/update_kof_lab.py`; it tracks commit
-  `f42ed91dfbceae09880b7d0619d98f67490149d1` and keeps the immutable commit in
+  `a14a7cd47d74192dcc977c9d4cbf87d407694560` and keeps the immutable commit in
   CI. The scheduled `update_kof_lab.yml` workflow opens a qualification PR when
   lab advances.
 - `scripts/install_kof_lab.sh` builds the current lab commit, validates that
@@ -26,12 +26,24 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   JVM/native build artifacts, records runner preflight and gate timings, and
   fails closed on build-identity mismatches. The exact-pin static/JVM gate
   passes; full native/package qualification remains runner-bound.
-- The active Kof gate follows the source-built `0.6.5` toolchain at the
-  pinned Kof `lab` commit,
-  `f42ed91dfbceae09880b7d0619d98f67490149d1`. The upstream native GC cycle
+- The active Kof gate follows the source-built `0.6.5` toolchain at the pinned
+  Kof `lab` commit,
+  `a14a7cd47d74192dcc977c9d4cbf87d407694560`. The upstream native GC cycle
   guard is verified by `scripts/prepare_kof_source.sh`; the obsolete local
   0.6.4 patch is no longer applied. Remaining 0.6.4 performance/UI
   measurements stay historical until rerun against 0.6.5.
+- P1 now qualifies `Buffer(U8)` producer/copy-back semantics with one bounded
+  C INOUT call on JVM and native x86-64; the fixture records sums `809` and
+  `1231` and keeps scalar fallback behavior explicit.
+- P2 moved endian and payload codec helpers into
+  `src/session/transport_codec.kf`; the JVM external-LAN gate passed in 9
+  seconds. Native external-LAN compilation exceeded the local 600-second
+  limit, so wire parity and the MAC/key ownership gate remain unclaimed.
+- P3 implements `GPU_SCENE_VERTEX_V1` batch encoding in the three native
+  adapter probes and validates/copies it in C before SDL_GPU upload, while
+  retaining scalar fallback. Static/JVM passed; native adapter/GPU runtime
+  qualification remains unclaimed because native Kof builds exceeded the local
+  timeout and no headless GPU device was available.
 - The previously reviewed Kof `lab` candidate
   `3a6454c0acce1c74d015bd45c4a52bb149a025c6` remains historical evidence; its
   mixed-arity KofScript UI finding and earlier LEA/SIMD regression are not
@@ -43,8 +55,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The G6 Kof Buffer/SIMD benchmark now materializes scalar and native
   reductions before validation, avoiding repeated mixed native FFI evaluation
   while retaining the JVM/native totals and timing checks.
-- Final local verification with the exact Kof pin passed `static-jvm` in 67
-  seconds with 140/140 JVM tests and passed the SIMD dispatch gate in 9
+- Final local verification with the exact Kof pin passed `static-jvm` in 65
+  seconds with 140/140 JVM tests and passed the SIMD dispatch gate in 10
   seconds. The full native/package gate did not complete within 900 seconds
   on the current host, so no native/package pass is claimed here.
 - Loot drops now render animated crossed vertical beams with rank colors, while

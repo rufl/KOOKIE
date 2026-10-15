@@ -267,3 +267,13 @@ int64_t kookie_simd_sum_u8_buffer(const uint8_t *values, int32_t count) {
     }
     return result;
 }
+
+int kookie_simd_invert_u8_buffer(uint8_t *values, int32_t count) {
+    if (count < 0 || (values == NULL && count != 0)) {
+        return -1;
+    }
+    for (int32_t index = 0; index < count; ++index) {
+        values[index] = (uint8_t)(255U - values[index]);
+    }
+    return 0;
+}

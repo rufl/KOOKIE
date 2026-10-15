@@ -4,13 +4,16 @@ Status: **arquitetura viva e gates de aceitação; a implementação limitada de
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de
 qualificação: fonte Kof `0.6.5` da branch `lab`, no commit
-`f42ed91dfbceae09880b7d0619d98f67490149d1`. A arquitetura do projeto está em
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`. A arquitetura do projeto está em
 `ARCHITECTURE.md`. Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md)
 e [levantamento de sistemas de jogo](GAME_ECOSYSTEM.md) para os limites das
 evidências.
 
 A lacuna atual de release é acompanhada em [Prontidão da release demo](DEMO_RELEASE.md).
+O trabalho proposto para a fronteira C/Kof, a qualificação batch e a pinagem
+upstream está em [KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md) e é
+especificado em [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
 O registro dogfood público `0.1.0-dogfood.38` passou os gates de artefato
 Linux/Windows assinado, checksum, extração e publicação. Esse registro é
 histórico em relação ao checkout atual; candidatos novos só são autoridade por
@@ -1017,7 +1020,7 @@ válidos. O ponto de entrada `kookie_simd_sum_u8_buffer` mapeia um
 `Buffer(U8)` do Kof mais sua extensão validada pelo Kof para a redução
 selecionada.
 
-O commit de fonte `f42ed91dfbceae09880b7d0619d98f67490149d1` do Kof `0.6.5` é
+O commit de fonte `a14a7cd47d74192dcc977c9d4cbf87d407694560` do Kof `0.6.5` é
 a entrada do toolchain `Buffer(U8, INOUT)`. A CI constrói essa fonte exata
 depois de normalizar seus metadados de versão embutidos. A fonte fixada também
 implementa callbacks síncronos em JVM, host JS e native x86-64/riscv64/aarch64,

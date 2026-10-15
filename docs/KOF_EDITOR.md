@@ -5,7 +5,7 @@ Research and installation date: 2026-09-22. The original source audit below prec
 Pinned source: [`KofLang/Kof-Editor@bed6ae7d567b090497a447583a10b8522acaf66a`](https://github.com/KofLang/Kof-Editor/tree/bed6ae7d567b090497a447583a10b8522acaf66a), `VERSION` = `0.1.4-beta`. Compiler cross-reference: [Kof4j 22a186b9](https://github.com/KofLang/Kof4j/tree/22a186b9bf9df37c03809ba6ef4af85085386f63), 0.4.9-beta. Upstream packaging may select older compilers. The locally installed pairing is verified only for the workflows listed below, not every upstream feature.
 
 The active KOOKIE source/CI gate now uses Kof `0.6.5` at source commit
-`f42ed91dfbceae09880b7d0619d98f67490149d1`; editor/compiler findings tied to
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`; editor/compiler findings tied to
 the older `0.4.9-beta` pairing below remain historical. The local editor
 verification on this page used the older compiler pairing and is not a Kof
 `0.6.5` qualification.
@@ -151,7 +151,7 @@ background editor service or global IDE settings change was made.
 | Component | Installed location / version |
 |---|---|
 | Kof CLI | Source-built qualification distribution: Kof `0.6.5` from the repository pin; the upstream native-GC cycle guard is verified |
-| Compiler source | Source-built Kof `0.6.5` at commit `f42ed91dfbceae09880b7d0619d98f67490149d1`; no local GC patch; the editor-specific 0.4.9 research checkout remains historical |
+| Compiler source | Source-built Kof `0.6.5` at commit `a14a7cd47d74192dcc977c9d4cbf87d407694560`; no local GC patch; the editor-specific 0.4.9 research checkout remains historical |
 | Compiler JAR | SHA-256 `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436` |
 | Maven | `~/.local/bin/mvn`, Apache Maven 3.9.16; retained for historical source/tooling work |
 | Java | Host Arch Linux Java 27 reported by `kof info --json`; no embedded JDK |

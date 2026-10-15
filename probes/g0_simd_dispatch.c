@@ -73,6 +73,20 @@ int main(void) {
         fprintf(stderr, "u8 pointer/count contract failed\n");
         return 1;
     }
+    {
+        uint8_t mutable_bytes[8] = {0, 1, 2, 127, 128, 254, 255, 42};
+        if (kookie_simd_invert_u8_buffer(mutable_bytes, 8) != 0 ||
+            mutable_bytes[0] != 255 || mutable_bytes[1] != 254 ||
+            mutable_bytes[2] != 253 || mutable_bytes[3] != 128 ||
+            mutable_bytes[4] != 127 || mutable_bytes[5] != 1 ||
+            mutable_bytes[6] != 0 || mutable_bytes[7] != 213 ||
+            kookie_simd_invert_u8_buffer(NULL, -1) != -1 ||
+            kookie_simd_invert_u8_buffer(NULL, 1) != -1) {
+            fprintf(stderr, "u8 Buffer(U8) INOUT fixture failed\n");
+            return 1;
+        }
+    }
+    printf("u8-buffer-inout=ok\n");
     printf("simd-path=%d i32-sum=%lld u8-sum=%lld\n",
            (int)path, (long long)i32_sum, (long long)u8_sum);
     return 0;

@@ -27,41 +27,44 @@ renderer.
 ## Current pinned Kof 0.6.5 ABI boundary
 
 The active KOOKIE qualification baseline is Kof4j source
-[`f42ed91dfbceae09880b7d0619d98f67490149d1`](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1).
+[`a14a7cd47d74192dcc977c9d4cbf87d407694560`](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560).
 The qualification CLI reports `kof 0.6.5`; the focused Buffer qualification
 below passes on JVM and native x86-64 with this pin.
 
 The pinned implementation and the latest upstream documentation are not
 identical:
 
-- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
-  exposes `buffer.alloc(Int)` and `Buffer.bytes()` on JVM, JS and native
-  x86-64; its source comments also claim riscv64/aarch64 support.
-- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
-  lowers `Buffer(U8)` as the `B` token and a synchronous payload pointer on
-  the pinned native implementation. `scripts/verify_simd_dispatch.sh`
-  exercises copy-in/copy-back and an INOUT reduction on JVM and native
-  x86-64.
+- [`KofBuffer.java`](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java)
+  exposes `buffer.alloc(Int)`, `buffer.peek8/32/64`, `buffer.poke8/32/64` and
+  `Buffer.bytes()` on JVM, JS and native x86-64; its source comments also claim
+  riscv64/aarch64 support.
+- [`CompilerFfiBinding.java`](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java)
+  lowers `Buffer(U8)` as the `B` token and a synchronous payload pointer on the
+  pinned native implementation. `scripts/verify_simd_dispatch.sh` exercises
+  copy-in/copy-back and an INOUT reduction on JVM and native x86-64.
+- The P1 fixture additionally fills eight bytes with Kof `buffer.poke8`, crosses
+  one C INOUT call and checks the copied-back inverted bytes. It passed with
+  `buffer-fixture-sum=809` and `buffer-inout-sum=1231` on both targets.
 - The pinned upstream buffer guide still documents Native as an honest gap,
   while the pinned compiler/runtime source exposes the bounded native
   implementation used by KOOKIE. Cross-target support therefore remains an
   upstream source claim, not a KOOKIE qualification result.
-- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/docs/runtime/RUNTIME_ABI.md)
+- [`RUNTIME_ABI.md`](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/docs/runtime/RUNTIME_ABI.md)
   is a behavioral runtime contract, not a stable public C wire ABI. KOOKIE
   must not copy object headers, array layouts or allocator details into an
   engine-facing library.
 
 Decision for KOOKIE: use `Buffer(U8)` only for synchronous, bounded,
-target-qualified byte fixtures such as the SIMD probe. Do not infer a typed
-vertex/audio ABI from it, retain its payload pointer, or hand it to work that
-outlives the call. Keep `FrameStaging`, `QueuedAudio` and content wires as
-Kof-owned bounded arrays; native code copies into its own storage.
+target-qualified byte calls. The P1 producer proof and the
+`GPU_SCENE_VERTEX_V1` source path do not establish generic zero-copy, retained
+payload pointers or work that outlives the call. Kof keeps `FrameStaging`,
+`QueuedAudio` and content wires as bounded semantic arrays; native code copies
+the GPU payload into owned storage.
 
-A future bulk upload may use an explicit copy-in descriptor with schema,
-byte/word length, stride, capacity, generation and checksum. It must be
-proven by target-specific C fixtures and preserve the checked scalar adapter
-until ownership, lifetime and frame budget are measured. No raw pointer,
-retained Kof array or second renderer crosses the current boundary.
+The GPU V1 descriptor fixes schema, length, stride, generation and checksum,
+and scalar `kookie_gpu_scene_push_vertex_resource` remains the fallback.
+Native adapter/GPU runtime qualification is still pending because the local
+native Kof build exceeded its timeout and no headless GPU device was available.
 
 ## Ownership map
 

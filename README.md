@@ -91,7 +91,7 @@ Install [Kof 0.6.5](https://github.com/KofLang/Kof4j) for the source
 entrypoint:
 
 Use the source-built distribution from the Kof `lab` branch at commit
-`f42ed91dfbceae09880b7d0619d98f67490149d1`. `scripts/prepare_kof_source.sh`
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`. `scripts/prepare_kof_source.sh`
 verifies that the upstream native GC cycle guard is present, then normalizes
 the compiler metadata before Maven packaging.
 

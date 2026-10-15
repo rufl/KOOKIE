@@ -28,6 +28,11 @@ int kookie_simd_sum_u8(const uint8_t *values, size_t count, int64_t *result);
  * extent; negative counts return -1. Valid sums are always non-negative.
  */
 int64_t kookie_simd_sum_u8_buffer(const uint8_t *values, int32_t count);
+/*
+ * Buffer(U8) INOUT fixture: returns 0 after in-place inversion, -1 for a
+ * negative count or a null pointer with a non-zero count.
+ */
+int kookie_simd_invert_u8_buffer(uint8_t *values, int32_t count);
 
 #ifdef __cplusplus
 }

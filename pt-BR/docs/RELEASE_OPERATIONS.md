@@ -18,7 +18,7 @@ export KOOKIE_WINDOWS_FREETYPE_PREFIX=/tmp/kookie-release-deps/freetype/x86_64-w
 export KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/tmp/kookie-release-deps/harfbuzz/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=f42ed91dfbceae09880b7d0619d98f67490149d1
+export KOOKIE_KOF_SOURCE_COMMIT=a14a7cd47d74192dcc977c9d4cbf87d407694560
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
 
@@ -138,7 +138,7 @@ self-hosted, windows, x64, kookie-demo-release
 Ambos precisam de suporte ao shell do Git conforme o sistema, Python 3,
 OpenSSL, `glslc`, `spirv-val` e o checkout do repositório. O job hospedado
 `toolchain` constrói o Kof `0.6.5` a partir de
-`f42ed91dfbceae09880b7d0619d98f67490149d1`; cada job self-hosted baixa,
+`a14a7cd47d74192dcc977c9d4cbf87d407694560`; cada job self-hosted baixa,
 verifica esse archive exato e adiciona seu binário `kof` ao `PATH`. Archive Kof
 pré-instalado, secret de digest do compilador Kof e Zig pré-instalado não fazem
 parte do contrato dos runners de release.

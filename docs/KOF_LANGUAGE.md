@@ -4,7 +4,7 @@ Research date: 2026-09-22. This is a working reference, not a claim of complete 
 
 The active KOOKIE qualification baseline is the Kof `0.6.5` source from the
 `lab` branch at commit
-[`f42ed91dfbceae09880b7d0619d98f67490149d1`](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1).
+[`a14a7cd47d74192dcc977c9d4cbf87d407694560`](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560).
 Kof `0.6.5` is built from source in CI; no public archive is used as the
 pin. `scripts/prepare_kof_source.sh` verifies the upstream native GC cycle
 guard and normalizes compiler metadata before packaging.
@@ -154,12 +154,14 @@ Source-verified scalar set: `Int`, `Long`, `Float`, `Double`, `Bool`/`Boolean`,
 `String`; `void` additionally allowed as a return. Native requires a library
 string and links by use with a direct ABI call, not runtime `dlopen`.
 
-Current `0.6.5` also has a byte-only `Buffer(U8)` contract. The pinned
-implementation maps it to the `B` FFI token and a synchronous payload pointer;
-the local gate proves copy-in/copy-back and an INOUT reduction on JVM and
-native x86-64. The pinned source comments claim the same surface for native
-riscv64/aarch64, but KOOKIE has not rerun that matrix. Cross-target support
-remains an upstream source claim, not a KOOKIE result.
+Current `0.6.5` also has a byte-only `Buffer(U8)` contract with
+`buffer.alloc`, `buffer.peek8/32/64`, `buffer.poke8/32/64` and `Buffer.bytes()`.
+The pinned implementation maps it to the `B` FFI token and a synchronous
+payload pointer; the local gate proves Kof `buffer.poke8` producer data,
+copy-in/copy-back and an INOUT reduction on JVM and native x86-64. The pinned
+source comments claim the same surface for native riscv64/aarch64, but KOOKIE
+has not rerun that matrix. Cross-target support remains an upstream source
+claim, not a KOOKIE result.
 
 The older 0.4.9 probe rejected `extern ... upload(Float[] values): void` on JVM
 and native. That result remains historical; current 0.6.5 array/record binding
@@ -193,20 +195,23 @@ Consequences:
    initialization proof. A version query does not prove allocator/TLS/thread-
    heavy library paths.
 
-Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/f42ed91dfbceae09880b7d0619d98f67490149d1),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Sources: [pinned Kof4j source](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [local Buffer gate](../scripts/verify_simd_dispatch.sh),
-[runtime ABI](https://github.com/KofLang/Kof4j/blob/f42ed91dfbceae09880b7d0619d98f67490149d1/docs/runtime/RUNTIME_ABI.md).
+[runtime ABI](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/docs/runtime/RUNTIME_ABI.md).
 
 ### Current 0.6.5 ABI boundary
-`bytes()` returns a managed copy; the native FFI payload is valid only for the
-downcall. KOOKIE therefore keeps `Int[]` byte wires, parallel `FrameStaging`
-arrays and the checked scalar C adapter for UI/graphics/audio.
+`bytes()` returns a managed copy; a native FFI payload is valid only for the
+downcall. The qualified source path now uses a bounded `Buffer(U8)` directly
+for `GPU_SCENE_VERTEX_V1`: Kof encodes six `i32_le` fields, C validates and
+copies them into adapter-owned scene storage, and the scalar resource call
+remains the fallback.
 
-A future bulk path must define schema, length, stride, capacity, generation and
-checksum, copy into adapter-owned storage before returning, and retain the
-scalar fallback until target coverage and a representative frame budget pass.
+This is not a generic zero-copy or asynchronous API. Transport and persistence
+still use their existing semantic arrays and C ownership rules. Any further
+batch path must define schema, length, stride, capacity, generation and
+checksum, copy before returning, and pass target-specific runtime gates.
 `RUNTIME_ABI.md` remains behavioral, not a public C layout.
 
 ## Memory and performance risks

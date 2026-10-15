@@ -26,6 +26,8 @@
 #define KOOKIE_TRANSPORT_MAX_WORDS 1740
 #define KOOKIE_GPU_UI_TEXTURE_WIDTH 2048
 #define KOOKIE_GPU_UI_TEXTURE_HEIGHT 2048
+#define KOOKIE_GPU_SCENE_VERTEX_V1_STRIDE 24
+#define KOOKIE_GPU_MAX_SCENE_BATCH_VERTICES 65536
 #define KOOKIE_GPU_RECOVERY_UNAVAILABLE 0
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_REOPEN 1
 #define KOOKIE_GPU_RECOVERY_CAPABILITY_LOSS_MARKER 2
@@ -443,6 +445,8 @@ static KookieGpuReload gpu_reload;
 static SDL_GPUFence *gpu_scene_frame_fences[3];
 static int gpu_scene_frame_slot;
 static int last_gpu_scene_draw_calls;
+static int gpu_scene_batch_calls;
+static int gpu_scene_scalar_calls;
 
 static void kookie_gpu_reload_reset(int active_generation) {
     memset(&gpu_reload, 0, sizeof(gpu_reload));
@@ -1787,6 +1791,14 @@ int kookie_gpu_scene_draw_calls(void) {
     return last_gpu_scene_draw_calls;
 }
 
+int kookie_gpu_scene_batch_calls(void) {
+    return gpu_scene_batch_calls;
+}
+
+int kookie_gpu_scene_scalar_calls(void) {
+    return gpu_scene_scalar_calls;
+}
+
 bool kookie_gpu_reload_stage(int generation, int product_checksum) {
     if (gpu_slot.device == NULL || gpu_scene.open || gpu_pending_scene.open ||
         generation <= gpu_reload.active_generation || generation > 1000000 ||
@@ -2164,6 +2176,8 @@ bool kookie_gpu_scene_begin(int vertex_count) {
     }
     scene->expected = vertex_count;
     scene->count = 0;
+    gpu_scene_batch_calls = 0;
+    gpu_scene_scalar_calls = 0;
     scene->text_count = 0;
     scene->text_codepoint_count = 0;
     scene->text_open_start = 0;
@@ -2201,6 +2215,7 @@ static bool kookie_gpu_scene_push_vertex_internal(
         resource, x, y, depth, u, v
     };
     scene->count += 1;
+    gpu_scene_scalar_calls += 1;
     return true;
 }
 static bool kookie_gpu_world_camera_matrix_floats(float out[16]) {
@@ -2219,6 +2234,83 @@ bool kookie_gpu_scene_push_vertex_resource(
 ) {
     return kookie_gpu_scene_push_vertex_internal(
         resource, x, y, depth, u, v);
+}
+
+static int32_t kookie_gpu_scene_batch_read_i32(
+    const uint8_t *values, size_t offset
+) {
+    uint32_t encoded =
+        ((uint32_t)values[offset]) |
+        ((uint32_t)values[offset + 1] << 8) |
+        ((uint32_t)values[offset + 2] << 16) |
+        ((uint32_t)values[offset + 3] << 24);
+    return (int32_t)encoded;
+}
+
+/*
+ * GPU_SCENE_VERTEX_V1 uses the common descriptor: schemaVersion, byteLength,
+ * vertexCount, stride, generation and checksum. The payload contains six
+ * little-endian i32 values per vertex: resource, x, y, depth, u, v.
+ */
+bool kookie_gpu_scene_push_vertex_batch_v1(
+    const uint8_t *values, int32_t schema_version, int32_t byte_length,
+    int32_t vertex_count, int32_t stride, int32_t generation,
+    int64_t checksum
+) {
+    if (values == NULL || schema_version != 1 || byte_length <= 0 ||
+        vertex_count <= 0 || vertex_count > KOOKIE_GPU_MAX_SCENE_BATCH_VERTICES ||
+        vertex_count > INT32_MAX / KOOKIE_GPU_SCENE_VERTEX_V1_STRIDE ||
+        stride != KOOKIE_GPU_SCENE_VERTEX_V1_STRIDE ||
+        generation <= 0 || generation != gpu_reload.scene_generation ||
+        byte_length != vertex_count * KOOKIE_GPU_SCENE_VERTEX_V1_STRIDE) {
+        return false;
+    }
+    KookieGpuScene *scene = NULL;
+    if (gpu_pending_scene.open) {
+        scene = &gpu_pending_scene;
+    } else if (gpu_scene.open) {
+        scene = &gpu_scene;
+    }
+    if (scene == NULL || scene->count < 0 ||
+        vertex_count > scene->expected - scene->count) {
+        return false;
+    }
+    int64_t actual_checksum = 0;
+    for (int32_t index = 0; index < vertex_count; index += 1) {
+        size_t offset = (size_t)index *
+            (size_t)KOOKIE_GPU_SCENE_VERTEX_V1_STRIDE;
+        int32_t resource = kookie_gpu_scene_batch_read_i32(values, offset);
+        int32_t x = kookie_gpu_scene_batch_read_i32(values, offset + 4u);
+        int32_t y = kookie_gpu_scene_batch_read_i32(values, offset + 8u);
+        int32_t depth = kookie_gpu_scene_batch_read_i32(values, offset + 12u);
+        int32_t u = kookie_gpu_scene_batch_read_i32(values, offset + 16u);
+        int32_t v = kookie_gpu_scene_batch_read_i32(values, offset + 20u);
+        if (resource <= 0 || x < -100 || x > 100 ||
+            y < -100 || y > 100 || depth < 0 || depth > 100 ||
+            u < 0 || u > 100 || v < 0 || v > 100) {
+            return false;
+        }
+        actual_checksum += (int64_t)resource + (int64_t)x + (int64_t)y +
+            (int64_t)depth + (int64_t)u + (int64_t)v;
+    }
+    if (actual_checksum != checksum) {
+        return false;
+    }
+    for (int32_t index = 0; index < vertex_count; index += 1) {
+        size_t offset = (size_t)index *
+            (size_t)KOOKIE_GPU_SCENE_VERTEX_V1_STRIDE;
+        scene->ui_vertices[scene->count + index] = (KookieUiVertex){
+            kookie_gpu_scene_batch_read_i32(values, offset),
+            kookie_gpu_scene_batch_read_i32(values, offset + 4u),
+            kookie_gpu_scene_batch_read_i32(values, offset + 8u),
+            kookie_gpu_scene_batch_read_i32(values, offset + 12u),
+            kookie_gpu_scene_batch_read_i32(values, offset + 16u),
+            kookie_gpu_scene_batch_read_i32(values, offset + 20u)
+        };
+    }
+    scene->count += vertex_count;
+    gpu_scene_batch_calls += 1;
+    return true;
 }
 
 static KookieGpuScene *kookie_gpu_open_scene(void) {

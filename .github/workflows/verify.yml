@@ -20,7 +20,7 @@ concurrency:
 
 env:
   KOF_VERSION: 0.6.5
-  KOF_SOURCE_COMMIT: f42ed91dfbceae09880b7d0619d98f67490149d1
+  KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
   WINDOWS_JAVA_ARCHIVE_URL: https://github.com/adoptium/temurin27-binaries/releases/download/jdk-27%2B35/OpenJDK27U-jre_x64_windows_hotspot_27_35.zip
   WINDOWS_JAVA_ARCHIVE_SHA256: e9cf542d5ffe2a894637b18c27a7802853976deaa3abe3e04dfbb8a307a145dd
   # Hosted runners are shared; keep the recorded 4 ms local target separate
