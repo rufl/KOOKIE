@@ -6,8 +6,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Release toolchain builds apply
   `patches/kof-native-emitter-performance.patch` to the pinned Kof `0.6.5`
   source. It removes the native emitter's whole-buffer split/join from the
-  constant-folding path, keeping large native package builds practical; the
-  exact patch digest is part of the Kof cache identity.
+  constant-folding path and makes native register-allocation spill tie-breaks
+  deterministic across JVM processes; the exact patch digest is part of the Kof
+  cache identity.
 - The active Kof lab pin is now resolved from `refs/heads/lab` by
   `scripts/update_kof_lab.py`; it tracks commit
   `a14a7cd47d74192dcc977c9d4cbf87d407694560` and keeps the immutable commit in

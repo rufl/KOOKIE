@@ -27,7 +27,7 @@ distribution from the pinned Kof `lab` commit. `scripts/prepare_kof_source.sh`
 verifies the upstream native GC cycle guard before Maven packaging; the
 release toolchain then applies
 `patches/kof-native-emitter-performance.patch` and checks its SHA-256
-`69e8892c7d75fb33c70d57b3f41ec685c0ef9f293e55ffacc2df7d90ed468890`.
+`746b95235341e463bedc9b4d960ce1607d7d23e5340619ca67e1c12c9a8bbb25`.
 No local GC patch is applied. Its compiler JAR must match the resulting source
 build; the release workflow rechecks `kof version` before packaging. Native
 package gates also require `pkg-config`, FreeType 2 and HarfBuzz for the text

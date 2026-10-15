@@ -27,7 +27,7 @@ fonte, com metadados normalizados, no commit `lab` fixado.
 `scripts/prepare_kof_source.sh` verifica a guarda upstream de ciclos do GC
 native antes do Maven; depois o toolchain de release aplica
 `patches/kof-native-emitter-performance.patch` e verifica o SHA-256
-`69e8892c7d75fb33c70d57b3f41ec685c0ef9f293e55ffacc2df7d90ed468890`.
+`746b95235341e463bedc9b4d960ce1607d7d23e5340619ca67e1c12c9a8bbb25`.
 Nenhum patch local de GC é aplicado. O JAR do compilador deve corresponder ao
 build da fonte; o workflow repete `kof version` antes do empacotamento. Os
 gates nativos também exigem `pkg-config`, FreeType 2 e HarfBuzz para o

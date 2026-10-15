@@ -108,4 +108,16 @@ index 024dd5c..72043bf 100644
      }
  
      static void emitBinary(StringBuilder sb, KofBinary kb) {
-*** End Patch
+diff --git a/kof-compiler/src/main/java/dev/kof/compiler/backend/InterferenceGraph.java b/kof-compiler/src/main/java/dev/kof/compiler/backend/InterferenceGraph.java
+index 1b87c58..6ae5dd9 100644
+--- a/kof-compiler/src/main/java/dev/kof/compiler/backend/InterferenceGraph.java
++++ b/kof-compiler/src/main/java/dev/kof/compiler/backend/InterferenceGraph.java
+@@ -47,5 +47,7 @@
+     /** The neighbours of a slot (the slots it interferes with), ascending. */
+     public Set<Integer> neighbors(int slot) {
+         TreeSet<Integer> n = adjacency.get(slot);
+-        return n == null ? Set.of() : Set.copyOf(n);
++        return n == null
++                ? Set.of()
++                : java.util.Collections.unmodifiableSet(n);
+     }
