@@ -532,13 +532,9 @@ jobs:
                           raise SystemExit(f"unsafe SDL archive entry: {entry.name}")
                       if entry.issym() or entry.islnk():
                           raise SystemExit(f"link in SDL archive is not allowed: {entry.name}")
-                  try:
-                      archive.extractall(destination, filter="data")
-                  except TypeError as error:
-                      if "filter" not in str(error):
-                          raise
-                      archive.extractall(destination)
           PY
+          tar -xzf "$sdl_archive" -C "$sdl_root"
+          tar -xzf "$sdl_mixer_archive" -C "$sdl_root"
           sdl_prefix="$sdl_root/SDL3-${SDL3_VERSION}/x86_64-w64-mingw32"
           sdl_mixer_prefix="$sdl_root/SDL3_mixer-${SDL3_MIXER_VERSION}/x86_64-w64-mingw32"
           test -f "$sdl_prefix/include/SDL3/SDL_version.h"

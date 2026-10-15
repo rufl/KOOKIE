@@ -26,9 +26,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   baixado e o forçam à frente de entradas antigas do `PATH` dos runners
   self-hosted; o resumo de cache do Windows declara Bash explicitamente nos
   runners Git Bash.
-- A configuração do release Windows agora resolve os prefixes MinGW de
-  FreeType/HarfBuzz por `pkg-config` e descobre `dxc` pelo `PATH` ou por
-  locais instalados conhecidos antes do gate de empacotamento.
+- A reprodutibilidade do release agora desabilita gravações de bytecode Python
+  entre as duas passagens de empacotamento. O Windows valida os archives SDL
+  pinados antes de extraí-los com o `tar` do Git Bash, evitando diferenças do
+  `tarfile` do Python nos runners self-hosted.
 - `scripts/install_kof_lab.sh` constrói o commit atual da lab, valida que a
   ref mutável não avançou, depois atualiza o pin rastreado e atualiza
   atomicamente o launcher local `kof`, sem apagar instalações antigas.

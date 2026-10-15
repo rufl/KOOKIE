@@ -25,9 +25,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Release Linux and Windows jobs now persist the downloaded Kof `bin` directory
   and force it ahead of stale self-hosted PATH entries; the Windows cache
   summary step explicitly uses Bash on Git Bash runners.
-- The Windows release configure step now resolves the runner's MinGW
-  FreeType/HarfBuzz prefixes through `pkg-config` and discovers `dxc` from
-  `PATH` or known installed locations before the package gate.
+- Release reproducibility now disables Python bytecode writes between the two
+  package passes. Windows validates the pinned SDL archives before extracting
+  them with Git Bash `tar`, avoiding Python tarfile behavior differences on
+  self-hosted runners.
 - `scripts/install_kof_lab.sh` builds the current lab commit, validates that
   the mutable ref did not move, then updates the tracked pin and atomically
   updates the local `kof` launcher without deleting older installations.
