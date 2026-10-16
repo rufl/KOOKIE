@@ -62,6 +62,18 @@ nos comandos Kof. O runner native hospedado prepara os prefixes pinados do
 SDL3 3.4.18 e SDL_mixer 3.2.4 e instala `glslc` e `spirv-tools`, porque o
 gate de paridade LAN externa valida o SPIR-V gerado.
 
+## Observação atual da release
+
+A execução Verify KOOKIE
+[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
+passou para o commit de fonte
+`e8cad301b566607a3b8095a219d05441de3240e5`. A execução de release
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) já
+concluiu os jobs do toolchain Kof e do pacote Linux, mas o job de apresentação
+Windows está na fila. O runner self-hosted exigido
+`kookie-windows-01` estava offline na última observação; o workflow ainda não
+chegou ao job de publicação e nenhuma release `.64` existe.
+
 O wrapper não infere porcentagem concluída porque Kof não oferece um protocolo
 estável e legível por máquina para progresso da compilação native. Os sinais
 confiáveis são stage, tempo decorrido, ETA histórico, contagem regressiva do

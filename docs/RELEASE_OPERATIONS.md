@@ -4,6 +4,24 @@ This is the concrete release procedure for the current qualification
 workstation and the GitHub Actions workflow. It does not generate or replace
 the owner-controlled release signing key.
 
+## Current publication state
+
+The latest published dogfood is
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+a signed Linux/Windows x86-64 pair from source commit
+`3bd382a072817fe545ae9a80abfd1dd344878ada`.
+
+The current source commit
+`e8cad301b566607a3b8095a219d05441de3240e5` passed Verify KOOKIE run
+[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).
+Release dispatch
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
+targets `0.1.0-dogfood.64`; its Kof toolchain and Linux package passed, but
+the Windows package job is queued because `kookie-windows-01` is offline. Do
+not treat the candidate as published. After the Windows job passes, the
+`kookie-demo-release` environment approval is still required before the
+workflow can create the pre-release.
+
 ## Current checkout and local toolchain paths
 
 ```bash

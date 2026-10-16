@@ -8,6 +8,23 @@ This historical G0 exit records engine and package qualification, not a
 player-facing demo release. The open D1 gate is tracked in
 [Demo release readiness](DEMO_RELEASE.md).
 
+## Current dogfood publication status
+
+- The latest published pre-release is
+  [`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+  a signed Linux/Windows x86-64 pair from source commit
+  `3bd382a072817fe545ae9a80abfd1dd344878ada`.
+- Verify KOOKIE run
+  [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
+  passed for source commit `e8cad301b566607a3b8095a219d05441de3240e5`,
+  including the native/package and PE backend gates.
+- Candidate `0.1.0-dogfood.64` is running in
+  [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223).
+  Its Kof toolchain and Linux package passed; its Windows presentation job is
+  queued because self-hosted runner `kookie-windows-01` is offline. No `.64`
+  release exists yet. Publication remains gated by the Windows result and the
+  `kookie-demo-release` environment approval.
+
 ## Completed
 
 - Modular `core`/`session` Kof source and scalar SDL3 probe.
@@ -304,20 +321,17 @@ These contracts are complete because the focused JVM/native source suite
 currently passes 94 scenarios and both external evidence gates pass. No G0
 release blocker remains; D1 remains a separate player-facing package gate.
 
-- Local release qualification covers native Linux and the native Windows SDL3 +
-  SDL_mixer platform shell. The historical `.38` presentation artifacts
-  passed deterministic packaging, signatures, safe extraction and package-smoke
-  gates; the Windows presentation package links native Kof PE to the SDL_GPU
-  adapter and bundles SPIR-V/DXIL products. Wine remains a compatibility smoke,
-  not target-hardware evidence.
+- The latest published `0.1.0-dogfood.63` pair passed deterministic packaging,
+  signatures, safe extraction and package-smoke gates; its Windows
+  presentation package links native Kof PE to the SDL_GPU adapter and bundles
+  SPIR-V/DXIL products. Wine remains a compatibility smoke, not target-hardware
+  evidence.
 - The fixed-tick session path now has bounded input/ACK redundancy, authenticated
   endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
   interpolation and prediction-correction metrics; these focused checks do not
   prove a player-facing release.
-- The published `.38` tag is a historical dogfood record. D1 still needs a
-  clean extracted interactive smoke outside the checkout, fresh-host
-  verification and native Linux/Windows target-hardware evidence. New
-  candidates are authoritative only through signed
+- D1 promotion remains separate from the published dogfood record. The current
+  `.64` candidate still needs the paired Windows job and retained signed
   `RELEASE_QUALIFICATION.json`; cross-host multiplayer evidence is required
   only if advertised.
 - The executable D1 contract is fail-closed: Linux requires
@@ -382,12 +396,11 @@ The roadmap is not complete; completed work remains recorded here rather than ar
   endpoint pinning, a 12-tick hitscan rewind history, six-tick remote
   interpolation and prediction-correction metrics; these focused checks do not
   prove a player-facing release.
-- The published `.38` tag is a historical dogfood record. D1 still needs a
-  clean extracted interactive smoke outside the checkout, fresh-host
-  verification, native Linux/Windows target-hardware evidence and release
-  policy/notes. New candidates are authoritative only through signed
-  `RELEASE_QUALIFICATION.json`; cross-host multiplayer evidence is required
-  only if advertised.
+- The published `.63` tag is the current dogfood record. D1 promotion still
+  requires a current candidate's clean extracted interactive smoke outside the
+  checkout, fresh-host verification, retained signed qualification manifest
+  and target-specific release policy; cross-host multiplayer evidence is
+  required only if advertised.
 - Operational deployment records and cross-host evidence are intentionally
   retained outside this repository.
 

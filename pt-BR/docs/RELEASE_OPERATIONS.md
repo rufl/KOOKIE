@@ -4,6 +4,24 @@ Este é o procedimento concreto para a workstation de qualificação atual e o
 workflow do GitHub Actions. Ele não gera nem substitui a chave de assinatura
 permanente do proprietário.
 
+## Estado atual da publicação
+
+O dogfood público mais recente é
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+um par assinado Linux/Windows x86-64 do commit de fonte
+`3bd382a072817fe545ae9a80abfd1dd344878ada`.
+
+O commit de fonte atual
+`e8cad301b566607a3b8095a219d05441de3240e5` passou na execução Verify KOOKIE
+[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).
+O dispatch de release
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
+alvo de `0.1.0-dogfood.64` passou pelo toolchain Kof e pelo pacote Linux, mas o
+job do pacote Windows está na fila porque `kookie-windows-01` está offline.
+Não trate o candidato como publicado. Depois que o job Windows passar, a
+aprovação do ambiente `kookie-demo-release` ainda será necessária antes que o
+workflow crie a pré-release.
+
 ## Checkout e paths locais atuais
 
 ```bash

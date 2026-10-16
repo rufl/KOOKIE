@@ -58,16 +58,16 @@ Examples:
   scripts/bootstrap_release.sh --apply \
     --reviewer release-admin \
     --signing-key "$HOME/.config/kookie/release/kookie-ed25519.pem" \
-    --kof-archive /path/to/kof-0.6.5-linux-x86_64.tar.gz
-    --version 0.1.0-dogfood.38 --qualify
+    --kof-archive /path/to/kof-0.6.5-linux-x86_64.tar.gz \
+    --version 0.1.0-dogfood.64 --qualify
 
   # Configure, qualify native target presentation, then publish only after
   # hardware evidence and environment approval
   scripts/bootstrap_release.sh --apply \
     --reviewer release-admin \
     --signing-key "$HOME/.config/kookie/release/kookie-ed25519.pem" \
-    --kof-archive /path/to/kof-0.6.5-linux-x86_64.tar.gz
-    --version 0.1.0-dogfood.38 --qualify \
+    --kof-archive /path/to/kof-0.6.5-linux-x86_64.tar.gz \
+    --version 0.1.0-dogfood.64 --qualify \
     --linux-presentation-smoke \
     --windows-presentation-smoke \
     --publish --confirm-hardware-evidence
@@ -86,6 +86,7 @@ require_value() {
 
 while (($#)); do
   case "$1" in
+    --help|-h) usage; exit 0 ;;
     --repo) require_value "$1" "${2-}"; REPO="$2"; shift 2 ;;
     --signing-key) require_value "$1" "${2-}"; SIGNING_KEY="$2"; shift 2 ;;
     --kof-archive) require_value "$1" "${2-}"; KOF_ARCHIVE="$2"; shift 2 ;;

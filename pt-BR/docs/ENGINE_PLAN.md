@@ -1,9 +1,12 @@
 # Plano do engine KOOKIE
 
-Status: **arquitetura viva e gates de aceitação; a implementação limitada de G0–G6 está completa dentro dos limites explícitos de qualificação, enquanto a release de demo jogável D1 continua aberta**.
+Status: **arquitetura viva e gates de aceitação; a implementação limitada de
+G0–G6 está completa dentro dos limites explícitos de qualificação, enquanto a
+release de demo jogável D1 continua aberta e o próximo par dogfood aguarda um
+runner self-hosted Windows**.
 
-Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de
-qualificação: fonte Kof `0.6.5` da branch `lab`, no commit
+Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de qualificação:
+fonte Kof `0.6.5` da branch `lab`, no commit
 `8e59b24acc978eb2546509b5cfca867a06e7283a`. A arquitetura do projeto está em
 `ARCHITECTURE.md`. Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md)
@@ -14,12 +17,15 @@ A lacuna atual de release é acompanhada em [Prontidão da release demo](DEMO_RE
 O trabalho proposto para a fronteira C/Kof, a qualificação batch e a pinagem
 upstream está em [KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md) e é
 especificado em [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
-O registro dogfood público `0.1.0-dogfood.38` passou os gates de artefato
-Linux/Windows assinado, checksum, extração e publicação. Esse registro é
-histórico em relação ao checkout atual; candidatos novos só são autoridade por
-meio do `RELEASE_QUALIFICATION.json` assinado. Smoke interativo fora do
-checkout, evidência de apresentação no host-alvo e promoção D1 voltada ao
-jogador continuam abertas até o manifesto informar `releaseEligible=true`.
+O dogfood público mais recente é `0.1.0-dogfood.63`, um pré-release assinado
+Linux/Windows do commit de fonte
+`3bd382a072817fe545ae9a80abfd1dd344878ada`. A execução Verify
+[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862) passou
+para o commit `e8cad301b566607a3b8095a219d05441de3240e5`.
+O candidato `0.1.0-dogfood.64` está em
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223); seu
+pacote Linux passou, enquanto o job Windows aguarda o runner offline
+`kookie-windows-01`. O candidato ainda não foi publicado.
 
 ## 1. Produto e responsabilidade não negociável
 

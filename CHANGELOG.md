@@ -3,6 +3,14 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Verify KOOKIE passed for source commit
+  `e8cad301b566607a3b8095a219d05441de3240e5` in
+  [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).
+  The next dogfood candidate `0.1.0-dogfood.64` is dispatched in
+  [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223);
+  Linux packaging passed, while the Windows job waits for offline runner
+  `kookie-windows-01`, so no `.64` release is claimed.
+
 - Updated the release Kof patch for source commit
   `8e59b24acc978eb2546509b5cfca867a06e7283a`: the pinned source already
   contains the native emitter allocation optimization, so the patch now carries
@@ -862,10 +870,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 
 ### Playable demo release readiness
 
-- The latest public `0.1.0-dogfood.34` artifact remains a signed Linux x86-64
-  presentation dogfood build from source commit
-  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; it predates the current source
-  presentation/lobby/score path and no current Windows demo archive is public.
+- At that time, the latest public artifact was
+  `0.1.0-dogfood.34`, a signed Linux x86-64 presentation dogfood build from
+  source commit `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; it predates the
+  current source presentation/lobby/score path. The current public record is
+  maintained in `docs/DEMO_RELEASE.md`.
 - The current source path now covers local `Play`, fixed two-player `Host/Join`,
   explicit readiness and the deterministic player screen. Remaining D1 work is
   clean-tree Linux/Windows presentation packaging, outside-checkout repeated

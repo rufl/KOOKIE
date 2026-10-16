@@ -8,6 +8,19 @@ emitem `QUALIFICATION_MANIFEST.json` com
 `hardwarePresentation.status=not-run` até existir evidência do alvo. Registros
 de versão/hash abaixo são históricos salvo quando anexados a esse manifesto.
 
+## Estado atual da publicação
+
+- Commit de fonte atual: `e8cad301b566607a3b8095a219d05441de3240e5`.
+- Dogfood público mais recente: [`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+  um par assinado Linux/Windows x86-64 do commit de fonte
+  `3bd382a072817fe545ae9a80abfd1dd344878ada`.
+- A execução Verify KOOKIE
+  [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
+  passou por todos os gates hospedados exigidos para a fonte atual.
+- O candidato `0.1.0-dogfood.64` está na execução de release
+  [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223).
+  Kof e Linux passaram; Windows está na fila porque o runner self-hosted
+  `kookie-windows-01` está offline. A release `.64` ainda não existe.
 
 ## Lote atual de qualificação
 
@@ -92,15 +105,18 @@ de versão/hash abaixo são históricos salvo quando anexados a esse manifesto.
 
 ## Lote de conclusão G5
 
-- Release e CI agora constroem o Kof `0.6.5` a partir do commit de fonte
-  `940f3bd81c25e564afc60f9d32d49652e47edcbc` na branch `lab`; nenhum archive
-  público 0.6.5 é usado como pin. `scripts/prepare_kof_source.sh` verifica as
-  três guardas upstream `.Ltry_done_pop`; o patch local do 0.6.4 foi removido.
-  O SHA-256 observado do archive Linux construído a partir da fonte é
-  `c4db94ad085b13475e5eb6074f01b50370d709b15eb5d7148bacbccc2303c856`, e o
-  SHA-256 do JAR do compilador é
-  `ec0727d7d3d0f8c7ca22cf4295a3cd5c849df6de669deb1746f326d8ecb24436`.
-  As medições G5 abaixo foram registradas com toolchains antigos e não são
+- Release e CI constroem o Kof `0.6.5` a partir do commit de fonte
+  `8e59b24acc978eb2546509b5cfca867a06e7283a` na branch `lab`; nenhum archive
+  público 0.6.5 é usado como pin. `scripts/prepare_kof_source.sh` verifica a
+  guarda upstream de ciclos do GC native. O digest do patch de release é
+  `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`; a
+  otimização de alocação do emissor native já está na fonte upstream, e o patch
+  mantém somente a mudança determinística do grafo de interferência. O digest
+  do archive é calculado por build porque os metadados tar variam.
+- A execução Verify KOOKIE
+  [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
+  reconstruiu e validou a distribuição pinada exata para a fonte atual. As
+  medições G5 abaixo foram registradas com toolchains antigos e não são
   evidência de desempenho do 0.6.5.
 - A cena limitada completa tem 192 vértices criados, 64 triângulos de colisão
   carregados, 64 inimigos, 256 projéteis, 512 itens, 24 luzes e 64 efeitos. O
@@ -143,12 +159,10 @@ de versão/hash abaixo são históricos salvo quando anexados a esse manifesto.
 
 ## Estado público do dogfood e da demo jogável
 
-- O artefato público mais recente é
-  [`0.1.0-dogfood.34`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.34),
-  um arquivo de apresentação Linux x86-64 assinado do commit
-  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`. Ele antecede o caminho atual
-  de apresentação, lobby/placar e fonte PE/SDL Windows; nenhum arquivo atual
-  de demo Windows é público.
+- O artefato público mais recente é o par assinado
+  [`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+  com pacotes Linux e Windows x86-64 do commit de fonte
+  `3bd382a072817fe545ae9a80abfd1dd344878ada`.
 - A fonte atual de apresentação executa `Play` local pela sessão autoritativa
   limitada: input SDL de teclado/mouse, três bots gansos, dano, nomes,
   corações de 20 pontos, HUD e reset ao sair/entrar novamente em `Play`.
@@ -157,24 +171,25 @@ de versão/hash abaixo são históricos salvo quando anexados a esse manifesto.
   lobby/placar valida identidade, ciclo de vida, capacidade, checksum, rejeição
   de estado obsoleto/duplicado, adulteração e ordenação determinística na JVM e
   no nativo.
-- D1 continua aberto para um par atual de apresentação Linux/Windows de árvore
-  limpa, smoke repetido fora do checkout de jogar/reiniciar/sair, verificação em
-  host novo/piso de runtime, evidência nativa de hardware-alvo e operação final
-  de release. Ligação de pacote ou marcador PE isolado não é release de demo
-  jogável.
-- A imagem de sistema Linux padrão não possui o header de desenvolvimento
-  SDL3_mixer. Um prefixo temporário fixado de SDL_mixer 3.2.4 permitiu que
-  `verify_linux_presentation_package.sh` passasse artefato assinado, extração
-  segura e package-smoke em 2026-10-02. O smoke visual Xvfb/DRM isolado
-  reportou `No DRI3 support detected` e `No supported SDL_GPU backend`, então
-  nenhuma evidência atual de hardware-alvo Linux foi retida.
+- A promoção D1 continua aberta para o candidato atual de árvore limpa,
+  embora o par dogfood `.63` esteja disponível. O candidato `.64` usa o commit
+  `e8cad301b566607a3b8095a219d05441de3240e5`; o Verify passou, enquanto o job
+  de apresentação Windows na execução de release
+  [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
+  está na fila porque `kookie-windows-01` está offline.
+- A imagem Linux padrão não possuía o header de desenvolvimento SDL3_mixer na
+  qualificação local de 2026-10-02. Um prefixo temporário fixado de SDL_mixer
+  3.2.4 permitiu que `verify_linux_presentation_package.sh` passasse artefato
+  assinado, extração segura e package-smoke; o smoke visual isolado local
+  reportou `No DRI3 support detected` e
+  `No supported SDL_GPU backend`.
 - O gate de artefato de apresentação Windows de 2026-10-02 passou com
   prefixos temporários fixados de MinGW SDL3/SDL_mixer e DXC, incluindo saídas
-  PE/SDL/SPIR-V/DXIL assinadas e reprodutíveis. Nenhuma evidência nativa
-  Windows de hardware/input/áudio/GPU foi retida.
+  PE/SDL/SPIR-V/DXIL assinadas e reprodutíveis. É evidência histórica de
+  qualificação local, não o registro da release `.64`.
 - `scripts/build_demo_release.sh` gera dois artefatos de apresentação
   idênticos por alvo a partir de árvore limpa, e o workflow pareado aprovado
-  só os publica após aprovação do ambiente; a release pública permanece igual.
+  só os publica depois que o job Windows e a aprovação do ambiente passarem.
 
 ## Lote anterior de execução de hooks confiáveis
 
@@ -254,24 +269,23 @@ Construir uma engine de boomer shooter / looter shooter / ARPG FPS com **código
 ## Identidades de pesquisa fixadas
 
 - Toolchain atual de build do KOOKIE: fonte Kof `0.6.5`
-  `efc99703a57948839012008bb128e776b487f5c9` da branch `lab`; nenhum archive
-  público 0.6.5 é usado como pin. O SHA-256 do archive Linux construído a
-  partir da fonte é
-  `ae533e7afb85de01c154aff227f8dd0c8a108e15c063f13afd92c92c8447d3f1`, e o
-  SHA-256 do JAR do compilador é
-  `a54f0bfb16a55641c5dc59000c0585bf1e34ecb1049ca4511cfa044d0254ba88`.
-- Kof4j: `efc99703a57948839012008bb128e776b487f5c9`, VERSION `0.6.5`.
+  `8e59b24acc978eb2546509b5cfca867a06e7283a` da branch `lab`; nenhum archive
+  público 0.6.5 é usado como pin. O SHA-256 do patch de release é
+  `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`; os
+  digests dos archives construídos a partir da fonte são registrados por build
+  porque os metadados tar variam.
+- Kof4j: `8e59b24acc978eb2546509b5cfca867a06e7283a`, VERSION `0.6.5`.
 - Release executado: `kof-0.4.9-beta-linux-x86_64`, publicado em 2026-09-20; SHA-256 do jar independente `01fbda96e550bd0e115c53769a849284c221d6103aaa0e84bbcc63553fc5d2ca`.
 - Kof Editor: `bed6ae7d567b090497a447583a10b8522acaf66a`, VERSION `0.1.4-beta`; agora instalado com um launcher restrito ao projeto e isolado da rede, e verificado visualmente em X11 privado.
 - Não inferir o estado do release a partir do README 0.4.0 ou do site 0.4.1. O SHA do código-fonte e o jar do release são identificados separadamente, sem assumir equivalência binária.
 - Curso completo: [`lunalully/curso-completo-de-kof@d6fc8318e77f30ab0d6be87055d86a7eb63960d3`](https://github.com/lunalully/curso-completo-de-kof/tree/d6fc8318e77f30ab0d6be87055d86a7eb63960d3), baseline 0.3.7-beta. O snapshot do [portal oficial](https://koflang.github.io/docs) foi gerado em 2026-09-17; várias páginas diferem do código-fonte fixado do compilador. Consulte [KOF_COURSE](docs/KOF_COURSE.md).
 - Minecraft Java26.3, lançado em 2026-09-15; SHA-1 exato dos metadados de versão `96c00d95a31328714d3811cfade2804bb050e455`. Usa SDL3/LWJGL3.4.3 e JOML1.10.9; matriz de código-fonte/versão/licença em [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
 - Clones/jars temporários de pesquisa ficaram em `/tmp/kookie-*`; não são dependências do projeto. As evidências duráveis e todas as fontes das sondas estão em [RESEARCH_PROBES](docs/RESEARCH_PROBES.md), [COURSE_PROBES](docs/COURSE_PROBES.md) e [MINECRAFT_SYSTEMS](docs/MINECRAFT_SYSTEMS.md).
-- A CLI ativa é a distribuição Kof `0.6.5` construída a partir da fonte,
-  `scripts/kof_pin.sh`; o SHA-256 do JAR do compilador é
-  `a54f0bfb16a55641c5dc59000c0585bf1e34ecb1049ca4511cfa044d0254ba88`.
-  As instalações 0.5.0-beta e 0.6.0 anteriores permanecem apenas para
-  comparação histórica.
+- A CLI ativa é a distribuição Kof `0.6.5` construída a partir da fonte
+  selecionada por `scripts/kof_pin.sh`, no commit
+  `8e59b24acc978eb2546509b5cfca867a06e7283a`. O digest do archive é verificado
+  por build; as instalações 0.5.0-beta, 0.6.0 e 0.6.5 anteriores permanecem
+  apenas para comparação histórica.
 
 ## Decisões propostas
 

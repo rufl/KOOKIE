@@ -566,32 +566,33 @@ enquanto os dois clientes podem rodar em Linux ou Windows.
 
 ### Executar o dogfood Linux publicado atualmente
 
-O dogfood público mais recente registrado é
-[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38).
-Este exemplo é histórico em relação ao checkout atual. Ele contém artefatos
-Linux e Windows x86-64 assinados construídos do commit
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Para candidatos novos, use o
-`RELEASE_QUALIFICATION.json` assinado como identidade da release. Para o pacote
-Linux histórico, baixe os assets e valide o conjunto de checksums e assinaturas:
+O dogfood público mais recente é
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63).
+Ele é um pré-release pareado assinado para Linux/Windows x86-64, construído a
+partir do commit de fonte
+`3bd382a072817fe545ae9a80abfd1dd344878ada`. Para candidatos novos, use o
+`RELEASE_QUALIFICATION.json` assinado como identidade da release. Para validar
+o pacote Linux publicado, baixe os assets e execute:
 
 ```bash
 sha256sum --check SHA256SUMS
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
+  -inkey kookie-0.1.0-dogfood.63-linux-x86_64.pub.pem \
   -in SHA256SUMS -sigfile SHA256SUMS.sig
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
-  -in kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz \
-  -sigfile kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz.sig
-tar -xzf kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz
-cd kookie-0.1.0-dogfood.38-linux-x86_64
+  -inkey kookie-0.1.0-dogfood.63-linux-x86_64.pub.pem \
+  -in kookie-0.1.0-dogfood.63-linux-x86_64.tar.gz \
+  -sigfile kookie-0.1.0-dogfood.63-linux-x86_64.tar.gz.sig
+tar -xzf kookie-0.1.0-dogfood.63-linux-x86_64.tar.gz
+cd kookie-0.1.0-dogfood.63-linux-x86_64
 ./kookie
 ```
 
 O arquivo inclui SDL3, SDL_mixer e os adaptadores nativos, mas usa o
 loader/libc dinâmico do host e exige uma GPU Linux suportada para apresentação.
-O exemplo comprova apenas artefato/pacote; a evidência de hardware só é
-autoridade quando o `RELEASE_QUALIFICATION.json` a retém.
+O pacote comprova integridade do artefato e comportamento do package; a
+evidência de hardware só é autoridade quando o
+`RELEASE_QUALIFICATION.json` assinado a retém.
 
 ## Pacotes Windows x86-64
 

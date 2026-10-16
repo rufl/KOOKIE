@@ -28,7 +28,7 @@ body:
     attributes:
       label: Revision
       description: Commit SHA or release tag.
-      placeholder: 4fdc25d or 0.1.0-dogfood.34
+      placeholder: 4fdc25d or 0.1.0-dogfood.63
     validations:
       required: true
   - type: input

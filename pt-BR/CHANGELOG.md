@@ -3,6 +3,14 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O Verify KOOKIE passou para o commit de fonte
+  `e8cad301b566607a3b8095a219d05441de3240e5` em
+  [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).
+  O próximo candidato dogfood `0.1.0-dogfood.64` está no dispatch
+  [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223);
+  o empacotamento Linux passou, enquanto o job Windows aguarda o runner offline
+  `kookie-windows-01`, portanto nenhuma release `.64` é declarada.
+
 - Atualizamos o patch de release do Kof para o commit fonte
   `8e59b24acc978eb2546509b5cfca867a06e7283a`: a fonte pinada já contém a
   otimização de alocação do emissor native, então o patch agora carrega apenas
@@ -815,10 +823,11 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ### Prontidão da release de demo jogável
 
-- O artefato público mais recente `0.1.0-dogfood.34` continua sendo um dogfood
-  de apresentação Linux x86-64 assinado do commit
-  `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; ele antecede o caminho atual de
-  apresentação/lobby/placar e nenhum arquivo atual de demo Windows é público.
+- Naquele momento, o artefato público mais recente era
+  `0.1.0-dogfood.34`, um dogfood de apresentação Linux x86-64 assinado do
+  commit `4fdc25d7ed377c72cdcb7cf0f4ed35ea992cc947`; ele antecede o caminho
+  atual de apresentação/lobby/placar. O registro público atual é mantido em
+  `pt-BR/docs/DEMO_RELEASE.md`.
 - A fonte atual cobre `Play` local, `Host/Join` fixo de dois jogadores,
   prontidão explícita e tela determinística de jogadores. O trabalho D1 restante
   é empacotamento de apresentação Linux/Windows em árvore limpa, smoke repetido

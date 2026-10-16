@@ -8,6 +8,24 @@ Este backlog histórico G0 registra a qualificação da engine e dos pacotes, n�
 uma release de demo voltada ao jogador. O gate D1 aberto está em
 [Prontidão da release demo](DEMO_RELEASE.md).
 
+## Estado atual da publicação dogfood
+
+- A pré-release publicada mais recente é
+  [`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+  um par assinado Linux/Windows x86-64 do commit de fonte
+  `3bd382a072817fe545ae9a80abfd1dd344878ada`.
+- A execução Verify KOOKIE
+  [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
+  passou para o commit de fonte
+  `e8cad301b566607a3b8095a219d05441de3240e5`, incluindo os gates
+  native/package e do backend PE.
+- O candidato `0.1.0-dogfood.64` está em execução em
+  [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223).
+  O toolchain Kof e o pacote Linux passaram; o job de apresentação Windows
+  está na fila porque o runner self-hosted `kookie-windows-01` está offline.
+  A release `.64` ainda não existe. A publicação continua bloqueada pelo
+  resultado Windows e pela aprovação do ambiente `kookie-demo-release`.
+
 ## Concluído
 
 - Fontes Kof modulares `core`/`session` e sonda escalar de SDL3.
@@ -224,21 +242,19 @@ O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos c
   O assembler nativo emite ELF Linux; a ponte Kof PE Windows emite PE/COFF
   AMD64 determinístico para os grafos alcançáveis qualificados de
   gameplay/apresentação.
-- A qualificação local cobre Linux nativo e o shell de plataforma Windows
-  SDL3 + SDL_mixer. Os artefatos `presentation` históricos `.38` passaram
-  gates de empacotamento determinístico, assinaturas, extração segura e
-  package-smoke; o pacote de apresentação Windows liga Kof PE nativo ao
-  adaptador SDL_GPU e inclui produtos SPIR-V/DXIL. Wine continua sendo smoke de
-  compatibilidade, não evidência de hardware-alvo.
+- O par público mais recente `0.1.0-dogfood.63` passou os gates de
+  empacotamento determinístico, assinaturas, extração segura e package-smoke;
+  seu pacote de apresentação Windows liga Kof PE nativo ao adaptador SDL_GPU e
+  inclui produtos SPIR-V/DXIL. Wine continua sendo smoke de compatibilidade,
+  não evidência de hardware-alvo.
 - A sessão agora possui redundância limitada de input/ACK em passo fixo,
   fixação de endpoint autenticado, histórico de rewind de hitscan de 12 ticks,
   interpolação remota de seis ticks e métricas de correção da predição; esses
   checks focados não comprovam uma release voltada ao jogador.
-- A tag pública `.38` é um registro dogfood histórico. D1 ainda exige smoke
-  interativo extraído fora do checkout, verificação em host novo e evidência de
-  hardware nativo Linux/Windows. Candidatos novos só têm autoridade pelo
-  `RELEASE_QUALIFICATION.json` assinado; evidência entre hosts só é necessária
-  se o multiplayer for anunciado.
+- A promoção D1 continua separada do dogfood publicado. O candidato `.64`
+  ainda precisa do job Windows pareado e do `RELEASE_QUALIFICATION.json`
+  assinado retido; evidência entre hosts só é necessária se o multiplayer for
+  anunciado.
 - O contrato executável D1 falha fechado: Linux exige
   `KOOKIE_RUN_PRESENTATION=1`, `KOOKIE_PRESENTATION_ISOLATION_WRAPPER` revisado
   e nó de renderização real; Windows nativo exige

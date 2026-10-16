@@ -10,24 +10,33 @@ hardware.
 
 ## Current public state
 
-The latest published dogfood record is [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38), built from source commit
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. This is historical release
-metadata, not the identity of the current checkout. New candidate versions
-must be judged from their signed `RELEASE_QUALIFICATION.json`, not from this
-paragraph. The recorded artifact uses the pinned Kof 0.5.0-beta source commit
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c` and remains a pre-release
-qualification artifact because target-hardware evidence was not retained.
+The latest published dogfood record is
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+built from source commit
+`3bd382a072817fe545ae9a80abfd1dd344878ada`. It is a signed Linux/Windows
+x86-64 pre-release pair. New candidate versions remain authoritative only
+through their signed `RELEASE_QUALIFICATION.json`.
+
+The current source commit is
+`e8cad301b566607a3b8095a219d05441de3240e5`. Verify KOOKIE run
+[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
+passed the pinned Kof build, static/JVM checks, native/package checks, PE
+backend checks and Windows JVM package checks.
+
+Candidate `0.1.0-dogfood.64` is dispatched in
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
+from that commit with both native presentation smokes enabled. At the last
+observation, the Kof toolchain and Linux package jobs passed; the Windows
+presentation job remained queued because the required self-hosted runner
+`kookie-windows-01` was offline. No `.64` release was published. Publication
+still requires the Windows job, both passed presentation evidence records and
+approval of the `kookie-demo-release` environment.
 
 New release candidates use the source-built Kof `0.6.5` from the Kof `lab`
-branch at commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; the qualification
-records below retain their historical Kof identities. The workflow builds the
-distribution from source because no public 0.6.5 archive is used as the pin.
-The D1 contract qualification dispatch
-[`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
-passed both deterministic package builds, then failed closed before target
-presentation: Linux has no `KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, and Windows
-has no `KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. No target-hardware
-evidence was produced or claimed.
+branch at commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; the workflow builds
+the distribution from source because no public 0.6.5 archive is used as the
+pin. The release patch digest is
+`4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 
 The current source tree has these release-capable paths:
 
@@ -75,7 +84,7 @@ font files and their SIL Open Font License notice ship with the package.
   for compatibility/qualification. The JVM package is not a native-game
   fallback.
 
-### Current local qualification record — 2026-10-12
+### Historical local qualification record — 2026-10-12
 
 Source commit `69b16d9312ebe6b86c34fda1f665ad1b8665558b` produced the paired
 outside-checkout, deterministic signed qualification artifacts:

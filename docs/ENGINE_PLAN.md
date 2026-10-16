@@ -1,6 +1,9 @@
 # KOOKIE engine plan
 
-Status: **living architecture and acceptance gates; the bounded G0–G6 implementation is complete within explicit qualification limits, while the D1 playable-demo release remains open**.
+Status: **living architecture and acceptance gates; the bounded G0–G6
+implementation is complete within explicit qualification limits, while the D1
+playable-demo release remains open and the next dogfood pair is waiting for a
+self-hosted Windows runner**.
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Current qualification gate:
 Kof `0.6.5` source from the `lab` branch at
@@ -13,12 +16,15 @@ The current release gap is tracked in [Demo release readiness](DEMO_RELEASE.md).
 The proposed follow-on work for the C/Kof boundary, batch qualification and
 the upstream pin is tracked in [KOF_NATIVE_BOUNDARY_PLAN](KOF_NATIVE_BOUNDARY_PLAN.md)
 and specified in [KOF_NATIVE_BOUNDARY_SPEC](KOF_NATIVE_BOUNDARY_SPEC.md).
-The published dogfood record `0.1.0-dogfood.38` passed the signed
-Linux/Windows artifact, checksum, extraction and publication gates. That record
-is historical relative to the current checkout; new candidates are authoritative
-only through signed `RELEASE_QUALIFICATION.json`. Outside-checkout interactive
-smoke, target-host presentation evidence and the player-facing D1 promotion
-gate remain open until that manifest reports `releaseEligible=true`.
+The latest published dogfood record is `0.1.0-dogfood.63`, a signed
+Linux/Windows pre-release from source commit
+`3bd382a072817fe545ae9a80abfd1dd344878ada`. Verify run
+[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862) passed
+for source commit `e8cad301b566607a3b8095a219d05441de3240e5`.
+Candidate `0.1.0-dogfood.64` is in
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223);
+its Linux package passed, while its Windows job is queued for the offline
+`kookie-windows-01` runner. The candidate is not published.
 
 ## 1. Product and non-negotiable ownership
 

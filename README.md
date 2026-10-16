@@ -33,7 +33,7 @@
 | If you want to… | Go here |
 |---|---|
 | Run the current authoritative check | [Quick start](#quick-start) |
-| Download the latest public Linux artifact | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Download the latest public artifact | [Releases](https://github.com/rufl/KOOKIE/releases) |
 | Try the current lobby and player screen | [Multiplayer lobby and score screen](#multiplayer-lobby-and-score-screen) |
 | Assess Windows/Linux playable-demo readiness | [Demo release readiness](docs/DEMO_RELEASE.md) |
 | Understand the boundaries | [Architecture](docs/ARCHITECTURE.md) |
@@ -80,10 +80,10 @@ nor Python:
 The launcher fetches the newest published package for Linux or Windows,
 verifies its signed manifest and archive digest, updates atomically, and then
 starts the game. `./kookie` remains the direct local-package wrapper.
-The currently public GitHub release is Linux-only and predates this updater;
-it can be run through `./kookie`. Windows packages built by the same script
-include `kookie-launcher.exe` and `kookie-launcher.cmd`, which select a Windows
-release when one is published.
+The currently public GitHub release is the signed paired
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63)
+pre-release with Linux and Windows x86-64 artifacts. The updater selects the
+matching target asset.
 
 ### Run qualification from source
 
@@ -200,13 +200,17 @@ when the optional model/content path is unavailable.
 
 ## Current demo and release status
 
-The latest published dogfood artifact recorded by this repository is
-[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38),
-built from source commit `a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. That
-record is historical relative to the current checkout. For every new
-candidate, `RELEASE_QUALIFICATION.json` is the signed authority: deterministic
-artifact gates may pass while target-hardware presentation evidence remains
-required for `releaseEligible=true`.
+The latest published dogfood artifact is
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+built from source commit `3bd382a072817fe545ae9a80abfd1dd344878ada`. For every
+new candidate, `RELEASE_QUALIFICATION.json` is the signed authority:
+deterministic artifact gates may pass while target-specific presentation
+evidence and publication approval remain required.
+
+Candidate `0.1.0-dogfood.64` uses source commit
+`e8cad301b566607a3b8095a219d05441de3240e5`; Verify passed, but its Windows
+self-hosted presentation job is queued because `kookie-windows-01` is offline.
+It is not public yet.
 
 The current source tree has a bounded player-facing slice:
 

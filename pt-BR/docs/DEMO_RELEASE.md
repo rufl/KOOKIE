@@ -10,32 +10,40 @@ exercitado no hardware-alvo.
 
 ## Estado público atual
 
-A última ficha dogfood publicada é [`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38), construída a partir do commit de fonte
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Esses dados são históricos em
-relação a este checkout e não identificam a fonte atual. Candidatos novos
-devem ser julgados pelo `RELEASE_QUALIFICATION.json` assinado, não por este
-parágrafo. O artefato registrado usa o commit Kof 0.5.0-beta fixado em
-`bf17ac7e736471c8a04b4153e5b0f607be75e70c` e continua pré-release porque não
-reteve evidência de hardware-alvo.
+O dogfood público mais recente é
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
+construído a partir do commit de fonte
+`3bd382a072817fe545ae9a80abfd1dd344878ada`. É um par de pré-releases
+assinado para Linux/Windows x86-64. Candidatos novos continuam tendo como
+autoridade somente o `RELEASE_QUALIFICATION.json` assinado de cada um.
 
-Novos candidatos de release usam o Kof `0.6.5` construído a partir da branch
-`lab`, no commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; os registros de
-qualificação abaixo mantêm suas identidades históricas do Kof. O workflow
-constrói a distribuição a partir da fonte porque o pin não usa archive público
-do 0.6.5.
-O dispatch de qualificação do contrato D1
-[`37833381881`](https://github.com/rufl/KOOKIE/actions/runs/37833381881)
-passou os dois builds determinísticos de pacote e depois falhou fechado antes
-da apresentação no alvo: o Linux não possui
-`KOOKIE_PRESENTATION_ISOLATION_WRAPPER`, e o Windows não possui
-`KOOKIE_WINDOWS_PRESENTATION_ISOLATION_WRAPPER`. Nenhuma evidência de hardware
-alvo foi produzida ou reivindicada.
+O commit de fonte atual é
+`e8cad301b566607a3b8095a219d05441de3240e5`. A execução Verify KOOKIE
+[`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
+passou pelo build do Kof pinado, verificações estática/JVM, verificações
+native/package, verificações do backend PE e pacote JVM Windows.
+
+O candidato `0.1.0-dogfood.64` está no dispatch
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
+a partir desse commit, com os dois smokes de apresentação native habilitados.
+Na última observação, os jobs do toolchain Kof e do pacote Linux passaram; o
+job de apresentação Windows continuava na fila porque o runner self-hosted
+exigido `kookie-windows-01` estava offline. Nenhuma release `.64` foi
+publicada. A publicação ainda exige o job Windows, os dois registros de
+evidência de apresentação com sucesso e a aprovação do ambiente
+`kookie-demo-release`.
+
+Novos candidatos usam o Kof `0.6.5` construído a partir da branch `lab`, no
+commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; o workflow constrói a
+distribuição a partir da fonte porque o pin não usa archive público do 0.6.5.
+O digest do patch de release é
+`4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 
 O jogo voltado ao jogador se chama **GatoGanso**. A apresentação usa `Pixand`
 para texto de UI limitado e `Jared Lite` para display/título; os dois arquivos
 de fonte e o aviso da SIL Open Font License seguem no pacote.
 
-### Registro atual de qualificação local — 2026-10-12
+### Registro histórico de qualificação local — 2026-10-12
 
 O commit de fonte `69b16d9312ebe6b86c34fda1f665ad1b8665558b` produziu os
 artefatos pareados de qualificação, determinísticos, assinados e verificados

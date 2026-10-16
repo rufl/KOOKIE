@@ -34,7 +34,7 @@
 | Se você quer… | Vá para |
 |---|---|
 | Executar a verificação autoritativa atual | [Início rápido](#início-rápido) |
-| Baixar o artefato Linux público mais recente | [Releases](https://github.com/rufl/KOOKIE/releases) |
+| Baixar o artefato público mais recente | [Releases](https://github.com/rufl/KOOKIE/releases) |
 | Experimentar o lobby e a tela de jogadores atuais | [Lobby multiplayer e tela de placar](#lobby-multiplayer-e-tela-de-placar) |
 | Avaliar a prontidão da demo jogável Windows/Linux | [Prontidão da release demo](docs/DEMO_RELEASE.md) |
 | Entender as fronteiras | [Arquitetura](docs/ARCHITECTURE.md) |
@@ -84,10 +84,9 @@ toolchain Kof nem Python:
 O launcher busca o pacote publicado mais novo para Linux ou Windows, verifica
 manifesto e digest do arquivo, atualiza atomicamente e inicia o jogo.
 `./kookie` continua sendo o wrapper direto do pacote local. A release pública
-atual no GitHub é somente Linux e antecede este updater; ela pode ser executada
-com `./kookie`. Pacotes Windows produzidos pelo mesmo script incluem
-`kookie-launcher.exe` e `kookie-launcher.cmd`, que selecionam uma release
-Windows quando ela for publicada.
+atual no GitHub é o pré-release pareado assinado
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63)
+com artefatos Linux e Windows x86-64; o updater seleciona o asset do alvo.
 
 ### Executar a qualificação a partir da fonte
 
@@ -188,14 +187,18 @@ fallback.
 
 ## Estado atual da demo e da release
 
-O artefato dogfood público registrado neste repositório é
-[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38),
+O dogfood público mais recente é
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63),
 construído a partir do commit de fonte
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. Esse registro é histórico em
-relação ao checkout atual. Para cada candidato novo,
+`3bd382a072817fe545ae9a80abfd1dd344878ada`. Para cada candidato novo,
 `RELEASE_QUALIFICATION.json` é a autoridade assinada: os gates determinísticos
-do artefato podem passar enquanto a evidência de apresentação em hardware ainda
-é necessária para `releaseEligible=true`.
+do artefato podem passar enquanto a evidência de apresentação específica do
+alvo e a aprovação da publicação continuam necessárias.
+
+O candidato `0.1.0-dogfood.64` usa o commit
+`e8cad301b566607a3b8095a219d05441de3240e5`; o Verify passou, mas o job de
+apresentação Windows self-hosted está na fila porque `kookie-windows-01` está
+offline. Ele ainda não é público.
 
 A árvore de fontes atual contém uma fatia limitada voltada ao jogador:
 

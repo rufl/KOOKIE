@@ -580,32 +580,31 @@ on Linux while both game clients run Linux or Windows.
 ### Run the currently published Linux dogfood
 
 The latest published dogfood record is
-[`0.1.0-dogfood.38`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.38).
-This example is historical relative to the current checkout. It contains
-signed Linux and Windows x86-64 artifacts built from source commit
-`a86d55eddb0aae2f0a7e05fb59033560d34c95c7`. For a new candidate, use its
-signed `RELEASE_QUALIFICATION.json` as the release identity. For the historical
-Linux package, download the release assets, then verify the checksum set and
-detached signatures:
+[`0.1.0-dogfood.63`](https://github.com/rufl/KOOKIE/releases/tag/0.1.0-dogfood.63).
+It is a signed Linux/Windows x86-64 pre-release built from source commit
+`3bd382a072817fe545ae9a80abfd1dd344878ada`. For a new candidate, use its
+signed `RELEASE_QUALIFICATION.json` as the release identity. To verify the
+published Linux package, download the release assets and run:
 
 ```bash
 sha256sum --check SHA256SUMS
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
+  -inkey kookie-0.1.0-dogfood.63-linux-x86_64.pub.pem \
   -in SHA256SUMS -sigfile SHA256SUMS.sig
 openssl pkeyutl -verify -rawin -pubin \
-  -inkey kookie-0.1.0-dogfood.38-linux-x86_64.pub.pem \
-  -in kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz \
-  -sigfile kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz.sig
-tar -xzf kookie-0.1.0-dogfood.38-linux-x86_64.tar.gz
-cd kookie-0.1.0-dogfood.38-linux-x86_64
+  -inkey kookie-0.1.0-dogfood.63-linux-x86_64.pub.pem \
+  -in kookie-0.1.0-dogfood.63-linux-x86_64.tar.gz \
+  -sigfile kookie-0.1.0-dogfood.63-linux-x86_64.tar.gz.sig
+tar -xzf kookie-0.1.0-dogfood.63-linux-x86_64.tar.gz
+cd kookie-0.1.0-dogfood.63-linux-x86_64
 ./kookie
 ```
 
 The archive bundles SDL3, SDL_mixer and the native adapters, but uses the host
 dynamic loader/libc and requires a supported presentation-capable Linux GPU.
-The example is package/artifact evidence only; target-hardware presentation
-evidence is authoritative only when `RELEASE_QUALIFICATION.json` reports it.
+The package proves artifact integrity and package behavior; target-hardware
+presentation evidence is authoritative only when the signed
+`RELEASE_QUALIFICATION.json` retains it.
 
 
 ## Windows x86-64 packages
