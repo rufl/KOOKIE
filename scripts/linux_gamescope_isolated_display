@@ -4,11 +4,11 @@ set -euo pipefail
 sandbox_wrapper="${KOOKIE_LINUX_DISPLAY_SANDBOX:-overzeer-isolated-display}"
 command -v "$sandbox_wrapper" >/dev/null || {
   echo "linux-gamescope-isolated-display: missing sandbox wrapper: $sandbox_wrapper" >&2
-  exit 1
+  exit 75
 }
 command -v gamescope >/dev/null || {
   echo 'linux-gamescope-isolated-display: gamescope is required' >&2
-  exit 1
+  exit 75
 }
 export OVERZEER_DISPLAY_BACKEND=gamescope
 export OVERZEER_DISPLAY_PRESSURE_GATE="${OVERZEER_DISPLAY_PRESSURE_GATE:-0}"

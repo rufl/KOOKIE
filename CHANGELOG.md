@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- The tracked Linux presentation wrapper now returns the repository's
+  "safety gate unavailable" status when `overzeer-isolated-display` or
+  `gamescope` is absent, so generic CI records an explicit presentation skip
+  instead of failing the native verification job before the target-hardware
+  release smoke.
+
 - Updated the prototype package provenance gate to the current 42-asset,
   152-file content tree; the gate had remained pinned to the previous
   142-file baseline.

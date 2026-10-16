@@ -3,6 +3,12 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O wrapper rastreado de apresentação Linux agora retorna o status de
+  "gate de segurança indisponível" do repositório quando
+  `overzeer-isolated-display` ou `gamescope` não está disponível; assim, a CI
+  genérica registra um skip explícito de apresentação em vez de falhar o job
+  native antes do smoke de release no hardware-alvo.
+
 - Atualizamos o gate de proveniência do pacote prototype para a árvore atual
   com 42 assets e 152 arquivos; o gate ainda estava fixado no baseline
   anterior de 142 arquivos.
