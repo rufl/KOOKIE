@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Atualizamos o gate de proveniência do pacote prototype para a árvore atual
+  com 42 assets e 152 arquivos; o gate ainda estava fixado no baseline
+  anterior de 142 arquivos.
+
 - O staging PE/COFF agora usa consistentemente o stripper COFF portátil em
   Python, em vez de variantes de `objcopy` do host; isso evita índices de
   símbolos `.llvm_addrsig` inválidos no gate native hospedado e mantém a

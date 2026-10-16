@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Updated the prototype package provenance gate to the current 42-asset,
+  152-file content tree; the gate had remained pinned to the previous
+  142-file baseline.
+
 - PE/COFF staging now uses the portable Python stripper consistently instead of
   host `objcopy` variants; this avoids invalid `.llvm_addrsig` symbol indexes
   on the hosted native gate while retaining CodeView cleanup for reproducible
