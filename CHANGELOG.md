@@ -3,6 +3,11 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- PE/COFF staging now uses the portable Python stripper consistently instead of
+  host `objcopy` variants; this avoids invalid `.llvm_addrsig` symbol indexes
+  on the hosted native gate while retaining CodeView cleanup for reproducible
+  objects.
+
 - Added a bounded textured VFX path for the prototype: particles, 8x8
   flipbooks and predrawn sheets are packed into the world atlas, staged as
   camera-facing billboards and triggered for projectile, hit, death and liquid

@@ -40,19 +40,16 @@ OUTPUT_DIR="$3"
   echo "kof-pe-build: source does not exist: $SOURCE" >&2
   exit 2
 }
-for tool in cmp kof python3 zig readlink; do
+for tool in cmp kof python3 readlink; do
   command -v "$tool" >/dev/null || {
     echo "kof-pe-build: $tool is required" >&2
     exit 2
   }
 done
-if command -v llvm-objcopy >/dev/null; then
-  objcopy_tool=(llvm-objcopy)
-elif command -v objcopy >/dev/null; then
-  objcopy_tool=(objcopy)
-else
-  objcopy_tool=(python3 "$ROOT_DIR/scripts/strip_coff_debug.py")
-fi
+# Keep COFF cleanup independent of the host LLVM/binutils version. With Zig
+# 0.17.0 and -g0 the portable stripper is a no-op unless CodeView sections are
+# present; system objcopy variants can rewrite .llvm_addrsig symbol indexes.
+objcopy_tool=(python3 "$ROOT_DIR/scripts/strip_coff_debug.py")
 actual_zig_version="$(zig version)"
 [[ "$actual_zig_version" == "$EXPECTED_ZIG_VERSION" ]] || {
   echo "kof-pe-build: expected Zig $EXPECTED_ZIG_VERSION; found $actual_zig_version" >&2

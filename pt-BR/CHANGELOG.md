@@ -3,6 +3,11 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O staging PE/COFF agora usa consistentemente o stripper COFF portátil em
+  Python, em vez de variantes de `objcopy` do host; isso evita índices de
+  símbolos `.llvm_addrsig` inválidos no gate native hospedado e mantém a
+  remoção de CodeView necessária para objetos reprodutíveis.
+
 - O backend PE do Windows agora traduz as operações de concatenação, igualdade
   e substring de `String` do grafo de apresentação, leituras limitadas de
   existência/faixa de arquivos, armazenamento de bytes `Buffer(U8)` e chamadas
