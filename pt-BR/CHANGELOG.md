@@ -43,6 +43,11 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   30 minutos (45 minutos nos jobs native do Verify e de release), graça de
   encerramento limitada, logs completos e ETA histórico das últimas cinco
   execuções bem-sucedidas. A CI publica o artifact de diagnóstico.
+- Os workflows Verify e de release agora resolvem a versão e o commit-fonte do
+  Kof em runtime a partir de `scripts/kof_pin.sh`, em vez de duplicar o pin no
+  YAML dos workflows; assim, a atualização agendada da lab pode enviar sua PR
+  de qualificação com o token do GitHub App do repositório. O Verify também
+  instala `libxcursor-dev`, exigido pelo backend X11 do SDL3.
 - O job native do Verify agora se chama `Native/package verification`, prepara
   os prefixes pinados do SDL3 3.4.18 e SDL_mixer 3.2.4, instala os
   pré-requisitos `glslc` e `spirv-tools` exigidos pela paridade LAN externa e

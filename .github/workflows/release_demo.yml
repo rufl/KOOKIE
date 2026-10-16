@@ -40,9 +40,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  KOF_VERSION: 0.6.5
-  KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
-  KOOKIE_KOF_SOURCE_COMMIT: a14a7cd47d74192dcc977c9d4cbf87d407694560
   KOF_PATCH_SHA256: 746b95235341e463bedc9b4d960ce1607d7d23e5340619ca67e1c12c9a8bbb25
   KOOKIE_KOF_BUILD_TIMEOUT_SECONDS: "5400"
   KOOKIE_KOF_BUILD_HEARTBEAT_SECONDS: "30"
@@ -103,17 +100,20 @@ jobs:
         with:
           ref: ${{ inputs.source_commit }}
           persist-credentials: false
+      - name: Resolve repository Kof pin
+        id: kof-pin
+        run: bash scripts/resolve_kof_pin.sh
       - name: Cache pinned Kof archive
         id: kof-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/kookie/kof
-          key: kookie-kof-linux-${{ env.KOF_VERSION }}-${{ env.KOF_SOURCE_COMMIT }}-${{ env.KOF_PATCH_SHA256 }}
+          key: kookie-kof-linux-${{ steps.kof-pin.outputs.version }}-${{ steps.kof-pin.outputs.commit }}-${{ env.KOF_PATCH_SHA256 }}
       - name: Checkout pinned Kof source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: KofLang/Kof4j
-          ref: ${{ env.KOF_SOURCE_COMMIT }}
+          ref: ${{ steps.kof-pin.outputs.commit }}
           path: _kof
           persist-credentials: false
       - name: Install Java runtime for Kof build
@@ -189,6 +189,8 @@ jobs:
         with:
           ref: ${{ inputs.source_commit }}
           persist-credentials: false
+      - name: Resolve repository Kof pin
+        run: bash scripts/resolve_kof_pin.sh
       - name: Download pinned Kof archive
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -440,6 +442,8 @@ jobs:
         with:
           ref: ${{ inputs.source_commit }}
           persist-credentials: false
+      - name: Resolve repository Kof pin
+        run: bash scripts/resolve_kof_pin.sh
       - name: Download pinned Kof archive
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
@@ -1065,6 +1069,8 @@ jobs:
         with:
           ref: ${{ inputs.source_commit }}
           persist-credentials: false
+      - name: Resolve repository Kof pin
+        run: bash scripts/resolve_kof_pin.sh
 
       - name: Download Linux artifact set
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
@@ -1157,7 +1163,7 @@ jobs:
 
           Signed native presentation packages built from source commit
           \`$source_commit\` with Kof source commit
-          \`${KOOKIE_KOF_SOURCE_COMMIT:-a14a7cd47d74192dcc977c9d4cbf87d407694560}\`.
+          \`${KOF_SOURCE_COMMIT}\`.
 
           This bounded first demo contains local \`Play\`, fixed two-player
           \`Host/Join\`, explicit \`READY\` gating and the host-authoritative

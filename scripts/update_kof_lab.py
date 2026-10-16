@@ -29,9 +29,10 @@ PIN_FILE = ROOT / "scripts/kof_pin.sh"
 
 # These files describe the active build baseline. Historical changelogs,
 # MEMORY.md, generated artifacts and dated research evidence stay immutable.
+# The CI workflows resolve this pin at runtime from scripts/kof_pin.sh. Keep
+# them out of the replacement set so the scheduled GitHub App can update the
+# pin without requiring the forbidden workflow-file push permission.
 ACTIVE_PATHS = (
-    Path(".github/workflows/release_demo.yml"),
-    Path(".github/workflows/verify.yml"),
     Path("README.md"),
     Path("pt-BR/README.md"),
     Path("scripts/kof-as/as"),
