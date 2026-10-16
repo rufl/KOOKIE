@@ -26,8 +26,10 @@ export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 fonte, com metadados normalizados, no commit `lab` fixado.
 `scripts/prepare_kof_source.sh` verifica a guarda upstream de ciclos do GC
 native antes do Maven; depois o toolchain de release aplica
-`patches/kof-native-emitter-performance.patch` e verifica o SHA-256
-`746b95235341e463bedc9b4d960ce1607d7d23e5340619ca67e1c12c9a8bbb25`.
+`patches/kof-native-emitter-performance.patch` (a fonte pinada já contém a
+mudança de alocação do emissor native; o patch mantém o desempate
+determinístico da alocação de registradores) e verifica o SHA-256
+`4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 Nenhum patch local de GC é aplicado. O JAR do compilador deve corresponder ao
 build da fonte; o workflow repete `kof version` antes do empacotamento. Os
 gates nativos também exigem `pkg-config`, FreeType 2 e HarfBuzz para o

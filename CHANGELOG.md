@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Updated the release Kof patch for source commit
+  `8e59b24acc978eb2546509b5cfca867a06e7283a`: the pinned source already
+  contains the native emitter allocation optimization, so the patch now carries
+  only the deterministic interference-graph tie-break and has digest
+  `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
+
 - The PE/COFF backend now emits `<limits.h>` with its generated C preamble,
   keeping `LONG_MAX`-based file-range validation valid under standalone host
   compilation as well as the pinned Windows target toolchain.

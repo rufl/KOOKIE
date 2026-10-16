@@ -26,8 +26,10 @@ export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 distribution from the pinned Kof `lab` commit. `scripts/prepare_kof_source.sh`
 verifies the upstream native GC cycle guard before Maven packaging; the
 release toolchain then applies
-`patches/kof-native-emitter-performance.patch` and checks its SHA-256
-`746b95235341e463bedc9b4d960ce1607d7d23e5340619ca67e1c12c9a8bbb25`.
+`patches/kof-native-emitter-performance.patch` (the pinned source already
+contains the native emitter allocation change; the patch retains the
+deterministic register-allocation tie-break) and checks its SHA-256
+`4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 No local GC patch is applied. Its compiler JAR must match the resulting source
 build; the release workflow rechecks `kof version` before packaging. Native
 package gates also require `pkg-config`, FreeType 2 and HarfBuzz for the text

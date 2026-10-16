@@ -3,6 +3,12 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Atualizamos o patch de release do Kof para o commit fonte
+  `8e59b24acc978eb2546509b5cfca867a06e7283a`: a fonte pinada já contém a
+  otimização de alocação do emissor native, então o patch agora carrega apenas
+  o desempate determinístico do grafo de interferência e tem digest
+  `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
+
 - O backend PE/COFF agora emite `<limits.h>` no preâmbulo C gerado, mantendo
   válida a validação de faixa de arquivos baseada em `LONG_MAX` tanto na
   compilação host independente quanto na toolchain Windows pinada.
