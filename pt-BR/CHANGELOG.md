@@ -17,6 +17,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - Os pacotes de apresentação agora carregam os JSONs de runtime autorados do
   projeto em `config/runtime`; a sonda native prefere esse caminho empacotado
   e usa o caminho da árvore-fonte como fallback nas sondas locais.
+- O smoke de apresentação native agora envia o fallback procedural limitado
+  dos animais quando os modelos opcionais não estão disponíveis e registra a
+  capacidade de staging do minimapa antes do primeiro frame.
 - O toolchain de release aplica
   `patches/kof-native-emitter-performance.patch` ao fonte pinado do Kof
   `0.6.5`. Ele remove o split/join do buffer inteiro no caminho de

@@ -892,6 +892,7 @@ class G1NativePresentation {
         shadowCapacity = shadowFrame.vertexCapacity()
         attackVfxCapacity = attackVfxFrame.vertexCapacity()
         lootBeamCapacity = lootBeamFrame.vertexCapacity()
+        minimapCapacity = minimapFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
         consoleCapacity = consoleFrame.vertexCapacity()
         projectileCapacity = projectileFrame.vertexCapacity()
@@ -2479,7 +2480,8 @@ class G1NativePresentation {
                 !uploadWorld(waterSplashFrame)) ||
             (attackVfx.active() && !uploadWorld(attackVfxFrame)) ||
             (lootBeamActiveValue && !uploadWorld(lootBeamFrame)) ||
-            (nativeAnimalModelsValue && !uploadAnimalModels()) ||
+            ((!nativeAnimalModelsValue && !uploadWorld(animalFrame)) ||
+                (nativeAnimalModelsValue && !uploadAnimalModels())) ||
             !kookie_gpu_world_commit() ||
             kookie_gpu_world_count() != worldVertexCount) {
             println("KOOKIE gameplay world GPU pass failed")

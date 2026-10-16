@@ -15,6 +15,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Presentation packages now carry the project-authored liquid and power-up
   runtime JSON under `config/runtime`; the native presentation probe prefers
   that packaged path and falls back to the source-tree path for local probes.
+- The native presentation smoke now uploads its bounded procedural animal
+  fallback when optional model assets are absent and records the minimap
+  staging capacity before the first frame.
 - Release toolchain builds apply
   `patches/kof-native-emitter-performance.patch` to the pinned Kof `0.6.5`
   source. It removes the native emitter's whole-buffer split/join from the
