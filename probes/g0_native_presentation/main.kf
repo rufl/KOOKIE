@@ -60,7 +60,7 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_commit(
     Int model
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_texture_stage_begin(
-    Int width, Int height,
+    Int width, Int height, Int vfxX,
     Int gooseX, Int gooseY, Int gooseWidth, Int gooseHeight,
     Int catX, Int catY, Int catWidth, Int catHeight
 ): Bool
@@ -729,6 +729,7 @@ class G1NativePresentation {
     BoundedHostGameplaySaveOwner saveOwner
     ArenaAnimalMeshes animalMeshes
     AnimalAttackVfx attackVfx
+    VfxParticleRenderer texturedVfx
     ShooterHud hud
     GooseStatusOverlay gooseOverlay
     GooseMinimap minimap
@@ -777,6 +778,7 @@ class G1NativePresentation {
     FrameStaging animalFrame
     FrameStaging shadowFrame
     FrameStaging attackVfxFrame
+    FrameStaging texturedVfxFrame
     FrameStaging lootBeamFrame
     FrameStaging minimapFrame
     FrameStaging scoreboardFrame
@@ -793,6 +795,7 @@ class G1NativePresentation {
     Int animalCapacity
     Int shadowCapacity
     Int attackVfxCapacity
+    Int texturedVfxCapacity
     Int lootBeamCapacity
     Int minimapCapacity
     Int projectileCapacity
@@ -824,6 +827,7 @@ class G1NativePresentation {
         minimap = GooseMinimap(8)
         animalMeshes = ArenaAnimalMeshes(6)
         attackVfx = AnimalAttackVfx(animalMeshes.actorCapacity())
+        texturedVfx = VfxParticleRenderer(24)
         scoreboardUi = MultiplayerScoreboard()
         consoleValue = DevConsole()
         scoreboardState = MatchScoreboardState(2)
@@ -876,6 +880,8 @@ class G1NativePresentation {
         shadowFrame = FrameStaging(animalMeshes.actorCapacity() * 24, 0)
         attackVfxFrame = FrameStaging(
             attackVfx.renderVertexCapacity(), 0)
+        texturedVfxFrame = FrameStaging(
+            texturedVfx.renderVertexCapacity(), 0)
         lootBeamFrame = FrameStaging(8 * 18, 0)
         actorFrame = FrameStaging(
             gooseOverlay.renderVertexCapacity(), 72)
@@ -895,6 +901,7 @@ class G1NativePresentation {
         animalCapacity = animalFrame.vertexCapacity()
         shadowCapacity = shadowFrame.vertexCapacity()
         attackVfxCapacity = attackVfxFrame.vertexCapacity()
+        texturedVfxCapacity = texturedVfxFrame.vertexCapacity()
         lootBeamCapacity = lootBeamFrame.vertexCapacity()
         minimapCapacity = minimapFrame.vertexCapacity()
         scoreboardCapacity = scoreboardFrame.vertexCapacity()
@@ -1144,7 +1151,8 @@ class G1NativePresentation {
             !minimap.clear() ||
             !minimap.setVisible(preservedMinimap) ||
             !camera.clearFollowTarget() ||
-            !projectileOverlay.clear()) {
+            !projectileOverlay.clear() ||
+            !texturedVfx.clear()) {
             return false
         }
         scoreboardState = MatchScoreboardState(2)
@@ -1225,10 +1233,12 @@ class G1NativePresentation {
             catWidth = 0
             catHeight = 0
         }
-        if (!worldTextureAsset.build(
-                gooseWidth, gooseHeight, catWidth, catHeight) ||
+        if (!worldTextureAsset.buildWithVfx(
+                gooseWidth, gooseHeight, catWidth, catHeight,
+                nativeAnimalModelsValue) ||
             !kookie_gpu_world_texture_stage_begin(
                 worldTextureAsset.width(), worldTextureAsset.height(),
+                worldTextureAsset.vfxX(),
                 worldTextureAsset.gooseX(), worldTextureAsset.gooseY(),
                 worldTextureAsset.gooseWidth(), worldTextureAsset.gooseHeight(),
                 worldTextureAsset.catX(), worldTextureAsset.catY(),
@@ -1590,6 +1600,21 @@ class G1NativePresentation {
         return attackVfx.stage(
             attackVfxFrame, frame, animalMeshes, localAttacking,
             localAnimalKindValue, localX, localY, localZ, localFacing)
+    }
+    Bool spawnTexturedVfx(
+        Int asset, Int x, Int y, Int z, Int size, Int lifetime
+    ) {
+        if (!nativeAnimalModelsValue) { return true }
+        return texturedVfx.emit(asset, x, y, z, size, lifetime)
+    }
+    Bool stageTexturedVfx(Int frame) {
+        if (!nativeAnimalModelsValue || texturedVfx.activeCount() <= 0) {
+            return true
+        }
+        return texturedVfx.stage(
+            texturedVfxFrame, frame,
+            camera.viewRightX(), camera.viewRightY(), camera.viewRightZ(),
+            camera.viewUpX(), camera.viewUpY(), camera.viewUpZ())
     }
 
     Int phaseWave(Int phase, Int period) {
@@ -2089,11 +2114,16 @@ class G1NativePresentation {
                 targetY = interactionSession.enemySpatialPositionY(target)
                 targetZ = interactionSession.enemySpatialPositionZ(target)
             }
-            return projectileOverlay.addShot(
-                0, 0, 1,
-                arena.projectX(targetX, targetZ, camera),
-                arena.projectY(targetX, targetY, targetZ, camera),
-                arena.projectDepthAt(targetX, targetY, targetZ, camera))
+            if (!projectileOverlay.addShot(
+                    0, 0, 1,
+                    arena.projectX(targetX, targetZ, camera),
+                    arena.projectY(targetX, targetY, targetZ, camera),
+                    arena.projectDepthAt(targetX, targetY, targetZ, camera))) {
+                return false
+            }
+            return spawnTexturedVfx(
+                worldVfxParticleSparkAsset(),
+                sourceX, sourceY, sourceZ, 5, 6)
         }
         var targetX = sourceX + 12
         var targetY = sourceY
@@ -2103,13 +2133,18 @@ class G1NativePresentation {
             targetY = interactionSession.enemySpatialPositionY(target)
             targetZ = interactionSession.enemySpatialPositionZ(target)
         }
-        return projectileOverlay.addShot(
-            arena.projectX(sourceX, sourceZ, camera),
-            arena.projectY(sourceX, sourceY, sourceZ, camera),
-            arena.projectDepthAt(sourceX, sourceY, sourceZ, camera),
-            arena.projectX(targetX, targetZ, camera),
-            arena.projectY(targetX, targetY, targetZ, camera),
-            arena.projectDepthAt(targetX, targetY, targetZ, camera))
+        if (!projectileOverlay.addShot(
+                arena.projectX(sourceX, sourceZ, camera),
+                arena.projectY(sourceX, sourceY, sourceZ, camera),
+                arena.projectDepthAt(sourceX, sourceY, sourceZ, camera),
+                arena.projectX(targetX, targetZ, camera),
+                arena.projectY(targetX, targetY, targetZ, camera),
+                arena.projectDepthAt(targetX, targetY, targetZ, camera))) {
+            return false
+        }
+        return spawnTexturedVfx(
+            worldVfxParticleSparkAsset(),
+            sourceX, sourceY, sourceZ, 5, 6)
     }
 
     Bool drainPlayerWeaponPresentations() {
@@ -2186,11 +2221,28 @@ class G1NativePresentation {
                 target >= 3 && !triggerDamageFlash(target)) {
                 return false
             }
+            if (result.accepted() && result.applied() > 0 &&
+                !spawnTexturedVfx(
+                    worldVfxPredrawnImpactAsset(),
+                    interactionSession.enemySpatialPositionX(target),
+                    interactionSession.enemySpatialPositionY(target) + 4,
+                    interactionSession.enemySpatialPositionZ(target),
+                    12, 8)) {
+                return false
+            }
             if (result.accepted() && result.died()) {
                 if (player == 1) {
                     playerKillsOneValue = playerKillsOneValue + 1
                 } else {
                     playerKillsTwoValue = playerKillsTwoValue + 1
+                }
+                if (!spawnTexturedVfx(
+                        worldVfxFlipbookExplosionAsset(),
+                        interactionSession.enemySpatialPositionX(target),
+                        interactionSession.enemySpatialPositionY(target) + 4,
+                        interactionSession.enemySpatialPositionZ(target),
+                        18, 16)) {
+                    return false
                 }
             }
         }
@@ -2213,13 +2265,21 @@ class G1NativePresentation {
             previousBody = playerTwoLiquidBodyValue
         }
         if (bodyId <= 0) { bodyId = previousBody }
+        var surfaceY = if (bodyId > 0) {
+            liquidWorldValue.surfaceYAt(bodyId)
+        } else { 0 }
         if (underwater != previous && bodyId > 0 &&
             !waterSplashVfxValue.trigger(
-                x, z, liquidWorldValue.surfaceYAt(bodyId),
+                x, z, surfaceY,
                 liquidWorldValue.styleIdAt(bodyId),
                 liquidWorldValue.splashDurationAt(bodyId),
                 liquidWorldValue.splashRadiusAt(bodyId),
                 liquidWorldValue.splashHeightAt(bodyId))) {
+            return false
+        }
+        if (underwater != previous && bodyId > 0 &&
+            !spawnTexturedVfx(
+                worldVfxParticleCircleAsset(), x, surfaceY, z, 12, 8)) {
             return false
         }
         if (player == 1) {
@@ -2236,7 +2296,9 @@ class G1NativePresentation {
         Bool host, NativeGameNetworkState state,
         Int moveForward, Int moveStrafe, Int fire, Int jump
     ) {
-        if (!advanceDamageFlashes() || !projectileOverlay.advance()) {
+        if (!advanceDamageFlashes() ||
+            !projectileOverlay.advance() ||
+            !texturedVfx.advance()) {
             return false
         }
         var player = if (host) 1 else 2
@@ -2392,6 +2454,7 @@ class G1NativePresentation {
         if (!stageGooseActors(frame, network, shell) ||
             !stageAnimalMeshes(frame, network) ||
             !stageAnimalAttackVfx(frame) ||
+            !stageTexturedVfx(frame) ||
             !stageLootBeams(frame)) {
             println("KOOKIE gameplay animal/loot stage failed")
             return false
@@ -2441,6 +2504,8 @@ class G1NativePresentation {
             (if (waterSplashVfxValue.active())
                 waterSplashFrame.stagedCount() else 0) +
             (if (attackVfx.active()) attackVfxFrame.stagedCount() else 0) +
+            (if (texturedVfx.activeCount() > 0)
+                texturedVfxFrame.stagedCount() else 0) +
             (if (lootBeamActiveValue) lootBeamFrame.stagedCount() else 0)
         if (animalVertexCount <= 0) {
             println("KOOKIE gameplay animal model count failed")
@@ -2502,6 +2567,8 @@ class G1NativePresentation {
             (waterSplashVfxValue.active() &&
                 !uploadWorld(waterSplashFrame)) ||
             (attackVfx.active() && !uploadWorld(attackVfxFrame)) ||
+            (texturedVfx.activeCount() > 0 &&
+                !uploadWorld(texturedVfxFrame)) ||
             (lootBeamActiveValue && !uploadWorld(lootBeamFrame)) ||
             ((!nativeAnimalModelsValue && !uploadWorld(animalFrame)) ||
                 (nativeAnimalModelsValue && !uploadAnimalModels())) ||
@@ -2556,6 +2623,8 @@ class G1NativePresentation {
             (!nativeAnimalModelsValue && !animalFrame.retire(frame)) ||
             !shadowFrame.retire(frame) ||
             (attackVfx.active() && !attackVfxFrame.retire(frame)) ||
+            (texturedVfx.activeCount() > 0 &&
+                !texturedVfxFrame.retire(frame)) ||
             (lootBeamActiveValue && !lootBeamFrame.retire(frame)) ||
             !actorFrame.retire(frame) ||
             !doorFrame.retire(frame) ||
@@ -2608,6 +2677,7 @@ class G1NativePresentation {
             animalFrame.vertexCapacity() == animalCapacity &&
             shadowFrame.vertexCapacity() == shadowCapacity &&
             attackVfxFrame.vertexCapacity() == attackVfxCapacity &&
+            texturedVfxFrame.vertexCapacity() == texturedVfxCapacity &&
             lootBeamFrame.vertexCapacity() == lootBeamCapacity &&
             doorFrame.vertexCapacity() == doorCapacity &&
             hudFrame.vertexCapacity() == hudCapacity &&

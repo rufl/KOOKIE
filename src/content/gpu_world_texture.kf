@@ -1,5 +1,87 @@
 package content
 
+Int worldVfxResourceBase() { return 1000 }
+Int worldVfxResourceStride() { return 128 }
+Int worldVfxAssetCount() { return 16 }
+Int worldVfxAtlasCellSize() { return 256 }
+Int worldVfxAtlasColumns() { return 4 }
+Int worldVfxAtlasRows() { return 4 }
+Int worldVfxAtlasWidth() {
+    return worldVfxAtlasCellSize() * worldVfxAtlasColumns()
+}
+Int worldVfxAtlasHeight() {
+    return worldVfxAtlasCellSize() * worldVfxAtlasRows()
+}
+Int worldVfxParticleCircleAsset() { return 0 }
+Int worldVfxParticleFireAsset() { return 1 }
+Int worldVfxParticleSmokeAsset() { return 2 }
+Int worldVfxParticleSparkAsset() { return 3 }
+Int worldVfxParticleMagicAsset() { return 4 }
+Int worldVfxParticleSlashAsset() { return 5 }
+Int worldVfxParticleFlareAsset() { return 6 }
+Int worldVfxParticleScorchAsset() { return 7 }
+Int worldVfxFlipbookExplosionAsset() { return 8 }
+Int worldVfxFlipbookExplosionSmokeAsset() { return 9 }
+Int worldVfxFlipbookFireAsset() { return 10 }
+Int worldVfxFlipbookWispySmokeAsset() { return 11 }
+Int worldVfxPredrawnExplosionAsset() { return 12 }
+Int worldVfxPredrawnElectricRingAsset() { return 13 }
+Int worldVfxPredrawnFirePointAsset() { return 14 }
+Int worldVfxPredrawnImpactAsset() { return 15 }
+
+Int worldVfxAssetFrameColumns(Int asset) {
+    if (asset < 0 || asset >= worldVfxAssetCount()) { return 0 }
+    if (asset < 8) { return 1 }
+    if (asset < 12) { return 8 }
+    return 6
+}
+
+Int worldVfxAssetFrameRows(Int asset) {
+    if (asset < 0 || asset >= worldVfxAssetCount()) { return 0 }
+    if (asset < 8) { return 1 }
+    if (asset < 12) { return 8 }
+    if (asset == worldVfxPredrawnImpactAsset()) { return 4 }
+    return 5
+}
+
+Int worldVfxAssetFrameCount(Int asset) {
+    return worldVfxAssetFrameColumns(asset) *
+        worldVfxAssetFrameRows(asset)
+}
+
+Int worldVfxAssetWidth(Int asset) {
+    if (asset < 0 || asset >= worldVfxAssetCount()) { return 0 }
+    return if (asset < 8) 128 else 256
+}
+
+Int worldVfxAssetHeight(Int asset) {
+    return worldVfxAssetWidth(asset)
+}
+
+Int worldVfxResource(Int asset, Int frame) {
+    if (asset < 0 || asset >= worldVfxAssetCount() ||
+        frame < 0 || frame >= worldVfxAssetFrameCount(asset)) {
+        return 0
+    }
+    return worldVfxResourceBase() + asset * worldVfxResourceStride() + frame
+}
+
+Int worldVfxResourceAsset(Int resource) {
+    if (resource < worldVfxResourceBase() ||
+        resource >= worldVfxResourceBase() +
+            worldVfxAssetCount() * worldVfxResourceStride()) {
+        return -1
+    }
+    return (resource - worldVfxResourceBase()) / worldVfxResourceStride()
+}
+
+Int worldVfxResourceFrame(Int resource) {
+    var asset = worldVfxResourceAsset(resource)
+    if (asset < 0) { return -1 }
+    return (resource - worldVfxResourceBase()) %
+        worldVfxResourceStride()
+}
+
 class BoundedWorldTextureAsset {
     Int widthValue
     Int heightValue
@@ -11,6 +93,8 @@ class BoundedWorldTextureAsset {
     Int catYValue
     Int catWidthValue
     Int catHeightValue
+    Int vfxXValue
+    Bool vfxEnabledValue
     Int[] words
 
     public constructor() {
@@ -20,6 +104,7 @@ class BoundedWorldTextureAsset {
 
     Bool clear() {
         widthValue = 0
+        heightValue = 0
         gooseXValue = 0
         gooseYValue = 0
         gooseWidthValue = 0
@@ -28,6 +113,8 @@ class BoundedWorldTextureAsset {
         catYValue = 0
         catWidthValue = 0
         catHeightValue = 0
+        vfxXValue = 0
+        vfxEnabledValue = false
         words = new Int[0]
         return true
     }
@@ -131,6 +218,14 @@ class BoundedWorldTextureAsset {
         Int gooseWidth, Int gooseHeight,
         Int catWidth, Int catHeight
     ) {
+        return buildWithVfx(
+            gooseWidth, gooseHeight, catWidth, catHeight, false)
+    }
+
+    Bool buildWithVfx(
+        Int gooseWidth, Int gooseHeight,
+        Int catWidth, Int catHeight, Bool includeVfx
+    ) {
         clear()
         if (gooseWidth < 0 || gooseHeight < 0 ||
             (gooseWidth == 0 && gooseHeight != 0) ||
@@ -142,10 +237,16 @@ class BoundedWorldTextureAsset {
             catWidth > 3840 || catHeight > 4096) {
             return false
         }
-        widthValue = 256 + gooseWidth + catWidth
+        var modelWidth = 256 + gooseWidth + catWidth
+        var vfxWidth = 0
+        if (includeVfx) { vfxWidth = worldVfxAtlasWidth() }
+        widthValue = modelWidth + vfxWidth
         heightValue = 256
         if (gooseHeight > heightValue) { heightValue = gooseHeight }
         if (catHeight > heightValue) { heightValue = catHeight }
+        if (includeVfx && worldVfxAtlasHeight() > heightValue) {
+            heightValue = worldVfxAtlasHeight()
+        }
         if (widthValue > 4096 || heightValue > 4096) {
             return false
         }
@@ -155,6 +256,8 @@ class BoundedWorldTextureAsset {
             return false
         }
         words = new Int[pixelCount.toInt()]
+        vfxEnabledValue = includeVfx
+        vfxXValue = if (includeVfx) modelWidth else 0
         gooseXValue = if (gooseWidth > 0) 256 else 0
         gooseYValue = 0
         gooseWidthValue = gooseWidth
@@ -190,14 +293,49 @@ class BoundedWorldTextureAsset {
     Int textureCoordinate(
         Int resource, Int coordinate, Bool vertical
     ) {
-        if (resource <= 0 || resource > 16 ||
-            coordinate < 0 || coordinate > 100) {
+        if (resource <= 0 || coordinate < 0 || coordinate > 100) {
             return -1
         }
+        var isVfx = resource >= worldVfxResourceBase() &&
+            resource < worldVfxResourceBase() +
+                worldVfxAssetCount() * worldVfxResourceStride()
+        if (!isVfx && resource > 16) { return -1 }
         var offset = 0
         var span = 63
         var textureSize = if (vertical) { heightValue } else { widthValue }
-        if (resource == 16) {
+        if (isVfx) {
+            if (!vfxEnabledValue) { return -1 }
+            var asset = worldVfxResourceAsset(resource)
+            var frame = worldVfxResourceFrame(resource)
+            var frameCount = worldVfxAssetFrameCount(asset)
+            if (asset < 0 || frame < 0 || frame >= frameCount) {
+                return -1
+            }
+            var columns = worldVfxAssetFrameColumns(asset)
+            var rows = worldVfxAssetFrameRows(asset)
+            var imageWidth = worldVfxAssetWidth(asset)
+            var imageHeight = worldVfxAssetHeight(asset)
+            var frameColumn = frame % columns
+            var frameRow = frame / columns
+            var cellX = (asset % worldVfxAtlasColumns()) *
+                worldVfxAtlasCellSize()
+            var cellY = (asset / worldVfxAtlasColumns()) *
+                worldVfxAtlasCellSize()
+            var frameStartX = frameColumn * imageWidth / columns
+            var frameEndX = (frameColumn + 1) * imageWidth / columns - 1
+            var frameStartY = frameRow * imageHeight / rows
+            var frameEndY = (frameRow + 1) * imageHeight / rows - 1
+            offset = if (vertical) {
+                cellY + frameStartY
+            } else {
+                vfxXValue + cellX + frameStartX
+            }
+            span = if (vertical) {
+                frameEndY - frameStartY
+            } else {
+                frameEndX - frameStartX
+            }
+        } else if (resource == 16) {
             if (gooseWidthValue <= 0 || gooseHeightValue <= 0) {
                 return -1
             }
@@ -234,6 +372,7 @@ class BoundedWorldTextureAsset {
         return (numerator / denominator).toInt()
     }
 
+
     Int textureU(Int resource, Int coordinate) {
         return textureCoordinate(resource, coordinate, false)
     }
@@ -252,6 +391,8 @@ class BoundedWorldTextureAsset {
     Int catY() { return catYValue }
     Int catWidth() { return catWidthValue }
     Int catHeight() { return catHeightValue }
+    Int vfxX() { return vfxXValue }
+    Bool vfxEnabled() { return vfxEnabledValue }
     Int wordCount() { return words.length }
 
     Int word(Int index) {

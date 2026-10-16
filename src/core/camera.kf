@@ -512,4 +512,15 @@ class CameraState {
     Int currentPitch() {
         return pitch
     }
+
+    Int viewRightX() { return cosineFixed(yaw) }
+    Int viewRightY() { return 0 }
+    Int viewRightZ() { return -sineFixed(yaw) }
+    Int viewUpX() {
+        return -sineFixed(pitch) * sineFixed(yaw) / 1000
+    }
+    Int viewUpY() { return cosineFixed(pitch) }
+    Int viewUpZ() {
+        return -sineFixed(pitch) * cosineFixed(yaw) / 1000
+    }
 }

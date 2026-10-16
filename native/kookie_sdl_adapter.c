@@ -41,6 +41,18 @@
 #define KOOKIE_GPU_MAX_SHADER_BYTES (16u * 1024u * 1024u)
 #define KOOKIE_GPU_MAX_MODEL_TEXTURE_BYTES (1024u * 1024u)
 #define KOOKIE_GPU_WORLD_TEXTURE_COORDINATE_LIMIT 2000000
+#define KOOKIE_GPU_VFX_RESOURCE_BASE 1000
+#define KOOKIE_GPU_VFX_RESOURCE_STRIDE 128
+#define KOOKIE_GPU_VFX_ASSET_COUNT 16
+#define KOOKIE_GPU_VFX_CELL_SIZE 256
+#define KOOKIE_GPU_VFX_ATLAS_COLUMNS 4
+#define KOOKIE_GPU_VFX_ATLAS_ROWS 4
+#define KOOKIE_GPU_VFX_ATLAS_WIDTH \
+    (KOOKIE_GPU_VFX_CELL_SIZE * KOOKIE_GPU_VFX_ATLAS_COLUMNS)
+#define KOOKIE_GPU_VFX_ATLAS_HEIGHT \
+    (KOOKIE_GPU_VFX_CELL_SIZE * KOOKIE_GPU_VFX_ATLAS_ROWS)
+#define KOOKIE_GPU_VFX_PATH_MAX 256
+#define KOOKIE_GPU_VFX_SURFACE_COUNT KOOKIE_GPU_VFX_ASSET_COUNT
 #define KOOKIE_GPU_WATER_STYLE_COUNT 4
 #define KOOKIE_WINDOW_KIND 1
 #define KOOKIE_AUDIO_KIND 2
@@ -135,6 +147,7 @@ typedef struct {
 typedef struct {
     Uint32 width;
     Uint32 height;
+    Uint32 vfx_x;
     Uint32 goose_x;
     Uint32 goose_y;
     Uint32 goose_width;
@@ -159,6 +172,7 @@ typedef struct {
     size_t bytes;
     Uint32 width;
     Uint32 height;
+    Uint32 vfx_x;
     Uint32 goose_x;
     Uint32 goose_y;
     Uint32 goose_width;
@@ -402,6 +416,7 @@ static bool kookie_gpu_prepare_world_texture_layout(void) {
         }
         gpu_world_texture_layout.width = 256u;
         gpu_world_texture_layout.height = 256u;
+        gpu_world_texture_layout.vfx_x = 0;
         gpu_world_texture_layout.goose_x = 0;
         gpu_world_texture_layout.goose_y = 0;
         gpu_world_texture_layout.goose_width = 0;
@@ -426,7 +441,15 @@ static bool kookie_gpu_prepare_world_texture_layout(void) {
         (gpu_world_texture_staging.cat_width > 0u &&
             gpu_world_texture_staging.cat_height == 0u) ||
         (gpu_world_texture_staging.cat_width == 0u &&
-            gpu_world_texture_staging.cat_height > 0u)) {
+            gpu_world_texture_staging.cat_height > 0u) ||
+        (gpu_world_texture_staging.vfx_x > 0u &&
+            (gpu_world_texture_staging.vfx_x >=
+                gpu_world_texture_staging.width ||
+             KOOKIE_GPU_VFX_ATLAS_WIDTH >
+                gpu_world_texture_staging.width -
+                    gpu_world_texture_staging.vfx_x ||
+             gpu_world_texture_staging.height <
+                KOOKIE_GPU_VFX_ATLAS_HEIGHT))) {
         return false;
     }
     if (gpu_world_texture_staging.goose_width > 0u &&
@@ -451,6 +474,7 @@ static bool kookie_gpu_prepare_world_texture_layout(void) {
     }
     gpu_world_texture_layout.width = gpu_world_texture_staging.width;
     gpu_world_texture_layout.height = gpu_world_texture_staging.height;
+    gpu_world_texture_layout.vfx_x = gpu_world_texture_staging.vfx_x;
     gpu_world_texture_layout.goose_x = gpu_world_texture_staging.goose_x;
     gpu_world_texture_layout.goose_y = gpu_world_texture_staging.goose_y;
     gpu_world_texture_layout.goose_width =
@@ -1235,6 +1259,170 @@ static bool kookie_gpu_model_texture_region(
     return false;
 }
 
+static const char *kookie_gpu_vfx_relative_paths[
+    KOOKIE_GPU_VFX_SURFACE_COUNT
+] = {
+    "runtime/vfx/particles/circle_01_a.png",
+    "runtime/vfx/particles/fire_01_a.png",
+    "runtime/vfx/particles/smoke_01_a.png",
+    "runtime/vfx/particles/spark_01_a.png",
+    "runtime/vfx/particles/magic_01_a.png",
+    "runtime/vfx/particles/slash_01_a.png",
+    "runtime/vfx/particles/flare_01_a.png",
+    "runtime/vfx/particles/scorch_01_a.png",
+    "runtime/vfx/flipbooks/explosion_01_8x8.png",
+    "runtime/vfx/flipbooks/explosion_smoke_01_8x8.png",
+    "runtime/vfx/flipbooks/fire_01_8x8.png",
+    "runtime/vfx/flipbooks/wispy_smoke_01_8x8.png",
+    "runtime/vfx/predrawn/explosion_6x5.png",
+    "runtime/vfx/predrawn/electric_ring_6x5.png",
+    "runtime/vfx/predrawn/fire_point_6x5.png",
+    "runtime/vfx/predrawn/impact_white_6x4.png"
+};
+
+static bool kookie_gpu_vfx_dimensions(
+    int asset, int *width, int *height
+) {
+    if (width == NULL || height == NULL ||
+        asset < 0 || asset >= KOOKIE_GPU_VFX_SURFACE_COUNT) {
+        return false;
+    }
+    *width = asset < 8 ? 128 : 256;
+    *height = *width;
+    return true;
+}
+
+static SDL_Surface *kookie_gpu_load_vfx_png_path(
+    const char *path, int expected_width, int expected_height
+) {
+    if (path == NULL || path[0] == '\0') {
+        return NULL;
+    }
+    SDL_IOStream *input = SDL_IOFromFile(path, "rb");
+    if (input == NULL) {
+        return NULL;
+    }
+    SDL_Surface *decoded = SDL_LoadPNG_IO(input, true);
+    if (decoded == NULL) {
+        return NULL;
+    }
+    SDL_Surface *rgba = SDL_ConvertSurface(
+        decoded, SDL_PIXELFORMAT_RGBA32);
+    if (rgba == NULL) {
+        SDL_DestroySurface(decoded);
+        return NULL;
+    }
+    if (rgba != decoded) {
+        SDL_DestroySurface(decoded);
+    }
+    if (rgba->w != expected_width || rgba->h != expected_height ||
+        rgba->pitch < rgba->w * 4) {
+        SDL_DestroySurface(rgba);
+        return NULL;
+    }
+    return rgba;
+}
+
+static SDL_Surface *kookie_gpu_load_vfx_texture(int asset) {
+    if (asset < 0 || asset >= KOOKIE_GPU_VFX_SURFACE_COUNT) {
+        return NULL;
+    }
+    int expected_width = 0;
+    int expected_height = 0;
+    if (!kookie_gpu_vfx_dimensions(
+            asset, &expected_width, &expected_height)) {
+        return NULL;
+    }
+    const char *relative = kookie_gpu_vfx_relative_paths[asset];
+    char path[KOOKIE_GPU_VFX_PATH_MAX] = {0};
+    const char *content_root = getenv("KOOKIE_CONTENT_DIR");
+    if (content_root != NULL && content_root[0] != '\0') {
+        int written = snprintf(
+            path, sizeof(path), "%s/%s", content_root, relative);
+        if (written >= 0 && (size_t)written < sizeof(path)) {
+            SDL_Surface *surface = kookie_gpu_load_vfx_png_path(
+                path, expected_width, expected_height);
+            if (surface != NULL) { return surface; }
+        }
+    }
+    const char *asset_root = getenv("KOOKIE_ASSET_DIR");
+    if (asset_root != NULL && asset_root[0] != '\0') {
+        int written = snprintf(
+            path, sizeof(path), "%s/../content/prototype/%s",
+            asset_root, relative);
+        if (written >= 0 && (size_t)written < sizeof(path)) {
+            SDL_Surface *surface = kookie_gpu_load_vfx_png_path(
+                path, expected_width, expected_height);
+            if (surface != NULL) { return surface; }
+        }
+        written = snprintf(
+            path, sizeof(path), "%s/prototype/%s", asset_root, relative);
+        if (written >= 0 && (size_t)written < sizeof(path)) {
+            SDL_Surface *surface = kookie_gpu_load_vfx_png_path(
+                path, expected_width, expected_height);
+            if (surface != NULL) { return surface; }
+        }
+    }
+    const char *roots[4] = {
+        "content/prototype", "assets/prototype",
+        "../content/prototype", "../assets/prototype"
+    };
+    for (size_t index = 0; index < 4u; index += 1u) {
+        int written = snprintf(
+            path, sizeof(path), "%s/%s", roots[index], relative);
+        if (written < 0 || (size_t)written >= sizeof(path)) {
+            continue;
+        }
+        SDL_Surface *surface = kookie_gpu_load_vfx_png_path(
+            path, expected_width, expected_height);
+        if (surface != NULL) { return surface; }
+    }
+    return NULL;
+}
+
+static bool kookie_gpu_copy_vfx_texture(
+    Uint8 *pixels, size_t bytes, const SDL_Surface *texture, int asset
+) {
+    if (pixels == NULL || texture == NULL ||
+        bytes != gpu_world_texture_staging.bytes ||
+        gpu_world_texture_staging.vfx_x == 0u) {
+        return false;
+    }
+    int expected_width = 0;
+    int expected_height = 0;
+    if (!kookie_gpu_vfx_dimensions(
+            asset, &expected_width, &expected_height) ||
+        texture->w != expected_width || texture->h != expected_height ||
+        texture->pitch < texture->w * 4) {
+        return false;
+    }
+    Uint32 x = gpu_world_texture_staging.vfx_x +
+        (Uint32)(asset % KOOKIE_GPU_VFX_ATLAS_COLUMNS) *
+            KOOKIE_GPU_VFX_CELL_SIZE;
+    Uint32 y = (Uint32)(asset / KOOKIE_GPU_VFX_ATLAS_COLUMNS) *
+        KOOKIE_GPU_VFX_CELL_SIZE;
+    if (x >= gpu_world_texture_staging.width ||
+        y >= gpu_world_texture_staging.height ||
+        (Uint32)texture->w >
+            gpu_world_texture_staging.width - x ||
+        (Uint32)texture->h >
+            gpu_world_texture_staging.height - y) {
+        return false;
+    }
+    for (int row = 0; row < texture->h; row += 1) {
+        size_t destination = (size_t)(y + (Uint32)row) *
+            (size_t)gpu_world_texture_staging.width + (size_t)x;
+        const Uint8 *source =
+            (const Uint8 *)texture->pixels +
+            (size_t)row * (size_t)texture->pitch;
+        memcpy(
+            pixels + destination * 4u,
+            source,
+            (size_t)texture->w * 4u);
+    }
+    return true;
+}
+
 static SDL_Surface *kookie_gpu_load_model_texture(int model) {
     KookieGpuModelTextureStaging *staging =
         kookie_gpu_model_texture_staging_for(model);
@@ -1316,7 +1504,8 @@ static bool kookie_gpu_copy_model_texture(
 
 static bool kookie_gpu_copy_world_texture(
     Uint8 *pixels, size_t bytes,
-    const SDL_Surface *goose_texture, const SDL_Surface *cat_texture
+    const SDL_Surface *goose_texture, const SDL_Surface *cat_texture,
+    SDL_Surface *const *vfx_textures
 ) {
     if (pixels == NULL) {
         return false;
@@ -1325,6 +1514,12 @@ static bool kookie_gpu_copy_world_texture(
         if ((gpu_world_scene.committed && gpu_world_scene.count > 0) ||
             goose_texture != NULL || cat_texture != NULL) {
             return false;
+        }
+        if (vfx_textures != NULL) {
+            for (int index = 0; index < KOOKIE_GPU_VFX_SURFACE_COUNT;
+                 index += 1) {
+                if (vfx_textures[index] != NULL) { return false; }
+            }
         }
         memset(pixels, 0, bytes);
         return true;
@@ -1340,6 +1535,16 @@ static bool kookie_gpu_copy_world_texture(
     if (cat_texture != NULL &&
         !kookie_gpu_copy_model_texture(pixels, bytes, cat_texture, 2)) {
         return false;
+    }
+    if (vfx_textures != NULL) {
+        for (int index = 0; index < KOOKIE_GPU_VFX_SURFACE_COUNT;
+             index += 1) {
+            if (vfx_textures[index] != NULL &&
+                !kookie_gpu_copy_vfx_texture(
+                    pixels, bytes, vfx_textures[index], index)) {
+                return false;
+            }
+        }
     }
     return true;
 }
@@ -1387,6 +1592,7 @@ static bool kookie_gpu_prepare_resources(
     SDL_GPUCommandBuffer *command_buffer = NULL;
     SDL_Surface *goose_texture = NULL;
     SDL_Surface *cat_texture = NULL;
+    SDL_Surface *vfx_textures[KOOKIE_GPU_VFX_SURFACE_COUNT] = {0};
     if (!kookie_gpu_prepare_world_texture_layout()) {
         return false;
     }
@@ -1457,6 +1663,12 @@ static bool kookie_gpu_prepare_resources(
         (gpu_world_texture_layout.cat_embedded &&
             cat_texture == NULL)) {
         goto cleanup;
+    }
+    if (gpu_world_texture_layout.vfx_x > 0u) {
+        for (int index = 0; index < KOOKIE_GPU_VFX_SURFACE_COUNT;
+             index += 1) {
+            vfx_textures[index] = kookie_gpu_load_vfx_texture(index);
+        }
     }
 
     SDL_GPUShaderFormat shader_format =
@@ -1781,7 +1993,7 @@ static bool kookie_gpu_prepare_resources(
     if (!kookie_gpu_copy_world_texture(
             pixels + world_texture_offset,
             world_texture_bytes,
-            goose_texture, cat_texture)) {
+            goose_texture, cat_texture, vfx_textures)) {
         SDL_UnmapGPUTransferBuffer(device, transfer);
         goto cleanup;
     }
@@ -1838,6 +2050,12 @@ static bool kookie_gpu_prepare_resources(
     success = true;
 
 cleanup:
+    for (int index = 0; index < KOOKIE_GPU_VFX_SURFACE_COUNT;
+         index += 1) {
+        if (vfx_textures[index] != NULL) {
+            SDL_DestroySurface(vfx_textures[index]);
+        }
+    }
     if (goose_texture != NULL) {
         SDL_DestroySurface(goose_texture);
     }
@@ -2130,7 +2348,7 @@ bool kookie_gpu_model_texture_stage_commit(int model) {
 }
 
 bool kookie_gpu_world_texture_stage_begin(
-    int width, int height,
+    int width, int height, int vfx_x,
     int goose_x, int goose_y, int goose_width, int goose_height,
     int cat_x, int cat_y, int cat_width, int cat_height
 ) {
@@ -2138,6 +2356,11 @@ bool kookie_gpu_world_texture_stage_begin(
         gpu_world_texture_staging.open ||
         width < 256 || height < 256 ||
         width > 4096 || height > 4096 ||
+        vfx_x < 0 ||
+        (vfx_x > 0 &&
+            (vfx_x >= width ||
+             KOOKIE_GPU_VFX_ATLAS_WIDTH > width - vfx_x ||
+             height < KOOKIE_GPU_VFX_ATLAS_HEIGHT)) ||
         goose_x < 0 || goose_y < 0 ||
         goose_width < 0 || goose_height < 0 ||
         (goose_width == 0) != (goose_height == 0) ||
@@ -2167,6 +2390,7 @@ bool kookie_gpu_world_texture_stage_begin(
     gpu_world_texture_staging.bytes = pixels * 4u;
     gpu_world_texture_staging.width = (Uint32)width;
     gpu_world_texture_staging.height = (Uint32)height;
+    gpu_world_texture_staging.vfx_x = (Uint32)vfx_x;
     gpu_world_texture_staging.goose_x = (Uint32)goose_x;
     gpu_world_texture_staging.goose_y = (Uint32)goose_y;
     gpu_world_texture_staging.goose_width = (Uint32)goose_width;

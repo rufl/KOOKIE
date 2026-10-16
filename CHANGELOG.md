@@ -3,6 +3,12 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Added a bounded textured VFX path for the prototype: particles, 8x8
+  flipbooks and predrawn sheets are packed into the world atlas, staged as
+  camera-facing billboards and triggered for projectile, hit, death and liquid
+  transitions when native animal assets are available.
+- `kof test src/main.kf --target jvm` passes `141/141`, including atlas UV,
+  animated-frame and billboard staging coverage.
 - Corrected native keyboard routing so Space updates the gameplay jump state
   instead of firing; keyboard fire remains on `F`, and the input regression
   covers press/release ownership for both keys.
@@ -14,7 +20,6 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - Native presentation now stages embedded model PNGs independently for the
   goose and cat atlas regions, and model UVs select the matching region instead
   of using cat-only texture staging.
-- `kof test src/main.kf --target jvm` passes `140/140`.
 - Focused native input and triangle-contact probes each pass `1/1`.
 - `bash scripts/verify_ui_demo.sh` passes with two staged UI assets.
 - The Windows PE backend now lowers the presentation graph's String

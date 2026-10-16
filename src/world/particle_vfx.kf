@@ -1,0 +1,191 @@
+package world
+
+import content
+import core
+
+Int vfxParticleMaximumCapacity() { return 64 }
+Int vfxParticleMaximumSize() { return 96 }
+Int vfxParticleMaximumLifetime() { return 240 }
+
+class VfxParticleRenderer {
+    Int[] assets
+    Int[] xs
+    Int[] ys
+    Int[] zs
+    Int[] sizes
+    Int[] ages
+    Int[] lifetimes
+    Bool[] activeValues
+    Int activeCountValue
+
+    public constructor(Int capacity) {
+        var actualCapacity = capacity
+        if (actualCapacity <= 0) { actualCapacity = 1 }
+        if (actualCapacity > vfxParticleMaximumCapacity()) {
+            actualCapacity = vfxParticleMaximumCapacity()
+        }
+        assets = new Int[actualCapacity]
+        xs = new Int[actualCapacity]
+        ys = new Int[actualCapacity]
+        zs = new Int[actualCapacity]
+        sizes = new Int[actualCapacity]
+        ages = new Int[actualCapacity]
+        lifetimes = new Int[actualCapacity]
+        activeValues = new Bool[actualCapacity]
+        clear()
+    }
+
+    Bool clear() {
+        activeCountValue = 0
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            assets[index] = 0
+            xs[index] = 0
+            ys[index] = 0
+            zs[index] = 0
+            sizes[index] = 0
+            ages[index] = 0
+            lifetimes[index] = 0
+            activeValues[index] = false
+        }
+        return true
+    }
+
+    Int freeSlot() {
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (!activeValues[index]) { return index }
+        }
+        var oldest = 0
+        for (var index = 1; index < ages.length; index = index + 1) {
+            if (ages[index] > ages[oldest]) { oldest = index }
+        }
+        return oldest
+    }
+
+    Bool validPosition(Int x, Int y, Int z) {
+        return x >= -1000 && x <= 1000 &&
+            y >= -1000 && y <= 1000 &&
+            z >= -1000 && z <= 1000
+    }
+
+    Bool emit(
+        Int asset, Int x, Int y, Int z, Int size, Int lifetime
+    ) {
+        if (asset < 0 || asset >= worldVfxAssetCount() ||
+            !validPosition(x, y, z) || size <= 0 ||
+            size > vfxParticleMaximumSize() || lifetime <= 0 ||
+            lifetime > vfxParticleMaximumLifetime()) {
+            return false
+        }
+        var slot = freeSlot()
+        if (!activeValues[slot]) {
+            activeCountValue = activeCountValue + 1
+        }
+        assets[slot] = asset
+        xs[slot] = x
+        ys[slot] = y
+        zs[slot] = z
+        sizes[slot] = size
+        ages[slot] = 0
+        lifetimes[slot] = lifetime
+        activeValues[slot] = true
+        return true
+    }
+
+    Bool advance() {
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (!activeValues[index]) { continue }
+            ages[index] = ages[index] + 1
+            if (ages[index] >= lifetimes[index]) {
+                activeValues[index] = false
+                activeCountValue = activeCountValue - 1
+            }
+        }
+        return true
+    }
+
+    Int activeCount() { return activeCountValue }
+    Int capacity() { return activeValues.length }
+    Int renderVertexCapacity() { return activeValues.length * 6 }
+
+    Int frameAt(Int index) {
+        if (index < 0 || index >= activeValues.length ||
+            !activeValues[index]) {
+            return 0
+        }
+        var frameCount = worldVfxAssetFrameCount(assets[index])
+        if (frameCount <= 1 || lifetimes[index] <= 1) { return 0 }
+        var frame = ages[index] * frameCount / lifetimes[index]
+        if (frame >= frameCount) { frame = frameCount - 1 }
+        return frame
+    }
+
+    Int resourceAt(Int index) {
+        if (index < 0 || index >= activeValues.length ||
+            !activeValues[index]) {
+            return 0
+        }
+        return worldVfxResource(assets[index], frameAt(index))
+    }
+
+    Bool pushBillboard(
+        FrameStaging target, Int resource,
+        Int centerX, Int centerY, Int centerZ, Int size,
+        Int rightX, Int rightY, Int rightZ,
+        Int upX, Int upY, Int upZ
+    ) {
+        var half = size / 2
+        if (half <= 0) { half = 1 }
+        var rightHalfX = rightX * half / 1000
+        var rightHalfY = rightY * half / 1000
+        var rightHalfZ = rightZ * half / 1000
+        var upHalfX = upX * half / 1000
+        var upHalfY = upY * half / 1000
+        var upHalfZ = upZ * half / 1000
+        var bottomLeftX = centerX - rightHalfX - upHalfX
+        var bottomLeftY = centerY - rightHalfY - upHalfY
+        var bottomLeftZ = centerZ - rightHalfZ - upHalfZ
+        var bottomRightX = centerX + rightHalfX - upHalfX
+        var bottomRightY = centerY + rightHalfY - upHalfY
+        var bottomRightZ = centerZ + rightHalfZ - upHalfZ
+        var topRightX = centerX + rightHalfX + upHalfX
+        var topRightY = centerY + rightHalfY + upHalfY
+        var topRightZ = centerZ + rightHalfZ + upHalfZ
+        var topLeftX = centerX - rightHalfX + upHalfX
+        var topLeftY = centerY - rightHalfY + upHalfY
+        var topLeftZ = centerZ - rightHalfZ + upHalfZ
+        return target.pushWorldVertex(resource, bottomLeftX, bottomLeftY,
+                bottomLeftZ, 0, 100) &&
+            target.pushWorldVertex(resource, bottomRightX, bottomRightY,
+                bottomRightZ, 100, 100) &&
+            target.pushWorldVertex(resource, topRightX, topRightY,
+                topRightZ, 100, 0) &&
+            target.pushWorldVertex(resource, bottomLeftX, bottomLeftY,
+                bottomLeftZ, 0, 100) &&
+            target.pushWorldVertex(resource, topRightX, topRightY,
+                topRightZ, 100, 0) &&
+            target.pushWorldVertex(resource, topLeftX, topLeftY,
+                topLeftZ, 0, 0)
+    }
+
+    Bool stage(
+        FrameStaging target, Int frame,
+        Int rightX, Int rightY, Int rightZ,
+        Int upX, Int upY, Int upZ
+    ) {
+        if (activeCountValue <= 0 ||
+            target.vertexCapacity() < activeCountValue * 6 ||
+            !target.begin(frame)) {
+            return false
+        }
+        for (var index = 0; index < activeValues.length; index = index + 1) {
+            if (!activeValues[index]) { continue }
+            if (!pushBillboard(
+                    target, resourceAt(index), xs[index], ys[index], zs[index],
+                    sizes[index], rightX, rightY, rightZ, upX, upY, upZ)) {
+                target.discard()
+                return false
+            }
+        }
+        return target.publish()
+    }
+}

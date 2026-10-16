@@ -685,6 +685,24 @@ test "Kof staging emits bounded GPU camera and world texture coordinates", "gpu-
         worldTexture.textureV(14, 100) > worldTexture.textureV(14, 0) &&
         worldTexture.textureU(17, 0) < 0,
         "world texture resources must map bounded goose/cat GLB UV words")
+    var vfxTexture = BoundedWorldTextureAsset()
+    var explosionFrame0 = worldVfxResource(
+        worldVfxFlipbookExplosionAsset(), 0)
+    var explosionFrame1 = worldVfxResource(
+        worldVfxFlipbookExplosionAsset(), 1)
+    assert(vfxTexture.buildWithVfx(64, 64, 64, 64, true) &&
+        vfxTexture.vfxEnabled() &&
+        vfxTexture.width() == 1408 &&
+        vfxTexture.height() == 1024 &&
+        vfxTexture.vfxX() == 384 &&
+        vfxTexture.textureU(explosionFrame0, 0) > 0 &&
+        vfxTexture.textureU(explosionFrame1, 0) >
+            vfxTexture.textureU(explosionFrame0, 0) &&
+        vfxTexture.textureV(explosionFrame0, 100) >
+            vfxTexture.textureV(explosionFrame0, 0) &&
+        vfxTexture.textureU(worldVfxResource(
+            worldVfxPredrawnImpactAsset(), 24), 0) < 0,
+        "VFX atlas resources must map flipbook and predrawn frame UVs")
     var textFrame = FrameStaging(16)
     assert(textFrame.begin(1) &&
         textFrame.pushTextRun(
@@ -876,6 +894,40 @@ test "animal attack VFX stage scratches and beaks" {
         !attack.active(),
         "inactive attack VFX must not publish stale geometry")
 }
+test "textured VFX renderer stages animated billboards" {
+    var vfx = VfxParticleRenderer(3)
+    var frame = FrameStaging(vfx.renderVertexCapacity())
+    var slash = worldVfxParticleSlashAsset()
+    var explosion = worldVfxFlipbookExplosionAsset()
+    var impact = worldVfxPredrawnImpactAsset()
+    assert(vfx.emit(slash, 10, 20, 30, 8, 4) &&
+        vfx.emit(explosion, 12, 20, 30, 12, 8) &&
+        vfx.emit(impact, 14, 20, 30, 10, 6) &&
+        vfx.activeCount() == 3 &&
+        vfx.stage(frame, 1, 1000, 0, 0, 0, 1000, 0) &&
+        frame.stagedCount() == 18 &&
+        frame.resourceAt(0) == worldVfxResource(slash, 0) &&
+        frame.resourceAt(6) == worldVfxResource(explosion, 0) &&
+        frame.resourceAt(12) == worldVfxResource(impact, 0) &&
+        frame.retire(1),
+        "textured VFX must stage one camera-facing quad per active asset")
+    assert(vfx.advance() &&
+        vfx.stage(frame, 2, 1000, 0, 0, 0, 1000, 0) &&
+        frame.resourceAt(6) == worldVfxResource(explosion, 8) &&
+        frame.retire(2),
+        "flipbooks must advance through their atlas frames")
+    assert(vfx.advance() && vfx.advance() && vfx.advance() &&
+        vfx.activeCount() == 2 &&
+        vfx.stage(frame, 5, 1000, 0, 0, 0, 1000, 0) &&
+        frame.stagedCount() == 12 &&
+        frame.retire(5),
+        "expired particle slots must stop staging geometry")
+    assert(vfx.advance() && vfx.advance() && vfx.advance() && vfx.advance() &&
+        vfx.activeCount() == 0 &&
+        !vfx.stage(frame, 9, 1000, 0, 0, 0, 1000, 0),
+        "expired flipbooks must leave no stale billboard geometry")
+}
+
 
 test "goose projectile tracers stage in the foreground" {
     var overlay = GooseProjectileOverlay(1)

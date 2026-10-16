@@ -191,6 +191,11 @@ bash scripts/verify_multiplayer_ui.sh
 Native presentation now resolves both animal GLB assets and stages each model's
 embedded PNG texture into its own bounded atlas region; model UVs select the
 goose or cat region, with procedural material tiles retained only as fallback.
+The prototype world atlas also carries all declared particle, flipbook and
+predrawn VFX PNGs. `VfxParticleRenderer` stages bounded camera-facing quads
+with atlas-frame animation; the native presentation triggers projectile sparks,
+hit/death effects and liquid-transition splashes while retaining procedural VFX
+when the optional model/content path is unavailable.
 
 
 ## Current demo and release status
