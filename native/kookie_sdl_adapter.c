@@ -2750,14 +2750,17 @@ bool kookie_gpu_draw_scene(void) {
         return false;
     }
     int slot = gpu_scene_frame_slot;
-    if (gpu_scene_frame_fences[slot] != NULL) {
+    for (int pending_slot = 0; pending_slot < 3; pending_slot += 1) {
+        if (gpu_scene_frame_fences[pending_slot] == NULL) {
+            continue;
+        }
         Uint64 start = SDL_GetPerformanceCounter();
-        SDL_GPUFence *wait_fence = gpu_scene_frame_fences[slot];
+        SDL_GPUFence *wait_fence = gpu_scene_frame_fences[pending_slot];
         if (!SDL_WaitForGPUFences(
                 gpu_slot.device, true, &wait_fence, 1)) {
             fprintf(stderr,
                 "KOOKIE gpu_draw_scene fence wait failed slot=%d: %s\n",
-                slot, SDL_GetError());
+                pending_slot, SDL_GetError());
             gpu_scene.active = false;
             return false;
         }
@@ -2766,8 +2769,8 @@ bool kookie_gpu_draw_scene(void) {
         last_gpu_fence_wait_microseconds =
             kookie_elapsed_microseconds(elapsed, frequency);
         SDL_ReleaseGPUFence(
-            gpu_slot.device, gpu_scene_frame_fences[slot]);
-        gpu_scene_frame_fences[slot] = NULL;
+            gpu_slot.device, gpu_scene_frame_fences[pending_slot]);
+        gpu_scene_frame_fences[pending_slot] = NULL;
     }
     if (requested_world &&
         !kookie_gpu_world_upload(gpu_slot.device, &gpu_world_scene)) {
