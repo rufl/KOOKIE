@@ -5,7 +5,7 @@
 Status: **implementado e exercitado na JVM/nativo e em apresentação isolada com janela real**. A fronteira C estreita cobre ciclo de vida SDL, streams SDL_mixer de efeitos/música, tracks OGG Vorbis pré-decodadas com limites exatos de loop por frame de amostra, clips sintetizados limitados, upload/draw SPIR-V da cena com projeção em perspectiva e depth testing D16, e estado de eventos pertencente ao Kof. A sonda de apresentação reporta capacidade válida de swapchain, desenha e captura a arena autoral (142 vértices únicos, 178 triângulos, 534 vértices triangulados) e consome o clip `201` do evento autoritativo; evidências da máquina permanecem fora do repositório.
 
 O gate atual de fonte/CI usa Kof `0.6.5` da branch `lab`, no commit
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`; esta página registra o contrato
+`8e59b24acc978eb2546509b5cfca867a06e7283a`; esta página registra o contrato
 limitado do adaptador, enquanto os gates focados de exceção/SIMD passam no pin
 ativo e a evidência de apresentação específica da máquina continua sendo
 requisito separado da release.

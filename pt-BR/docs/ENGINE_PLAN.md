@@ -4,7 +4,7 @@ Status: **arquitetura viva e gates de aceitação; a implementação limitada de
 
 Baseline de pesquisa: 2026-09-22, Kof 0.4.9-beta. Gate atual de
 qualificação: fonte Kof `0.6.5` da branch `lab`, no commit
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`. A arquitetura do projeto está em
+`8e59b24acc978eb2546509b5cfca867a06e7283a`. A arquitetura do projeto está em
 `ARCHITECTURE.md`. Consulte [evidências de linguagem/runtime](KOF_LANGUAGE.md),
 [sondagens iniciais](RESEARCH_PROBES.md), [análise aprofundada do curso](KOF_COURSE.md)
 e [levantamento de sistemas de jogo](GAME_ECOSYSTEM.md) para os limites das
@@ -1020,7 +1020,7 @@ válidos. O ponto de entrada `kookie_simd_sum_u8_buffer` mapeia um
 `Buffer(U8)` do Kof mais sua extensão validada pelo Kof para a redução
 selecionada.
 
-O commit de fonte `a14a7cd47d74192dcc977c9d4cbf87d407694560` do Kof `0.6.5` é
+O commit de fonte `8e59b24acc978eb2546509b5cfca867a06e7283a` do Kof `0.6.5` é
 a entrada do toolchain `Buffer(U8, INOUT)`. A CI constrói essa fonte exata
 depois de normalizar seus metadados de versão embutidos. A fonte fixada também
 implementa callbacks síncronos em JVM, host JS e native x86-64/riscv64/aarch64,

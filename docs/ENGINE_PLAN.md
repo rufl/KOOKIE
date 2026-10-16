@@ -4,7 +4,7 @@ Status: **living architecture and acceptance gates; the bounded G0–G6 implemen
 
 Research baseline: 2026-09-22, Kof 0.4.9-beta. Current qualification gate:
 Kof `0.6.5` source from the `lab` branch at
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`. Project architecture is
+`8e59b24acc978eb2546509b5cfca867a06e7283a`. Project architecture is
 `ARCHITECTURE.md`. See [language/runtime evidence](KOF_LANGUAGE.md),
 [initial probes](RESEARCH_PROBES.md), [course deep dive](KOF_COURSE.md),
 and [game-system survey](GAME_ECOSYSTEM.md) for evidence boundaries.
@@ -968,7 +968,7 @@ valid. The `kookie_simd_sum_u8_buffer` entry point maps one Kof
 `Buffer(U8)` plus its Kof-validated extent to the selected reduction.
 
 The active Kof `0.6.5` source commit
-`a14a7cd47d74192dcc977c9d4cbf87d407694560` is the current Buffer(U8, INOUT)
+`8e59b24acc978eb2546509b5cfca867a06e7283a` is the current Buffer(U8, INOUT)
 toolchain input. CI builds that exact source after normalizing its embedded
 version metadata. The pinned source also implements synchronous callbacks on
 JVM, host JS and native x86-64/riscv64/aarch64; KOOKIE has not rerun that

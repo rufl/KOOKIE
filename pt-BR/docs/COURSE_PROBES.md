@@ -5,7 +5,7 @@ Data da pesquisa: 2026-09-22. Complemento de [KOF_COURSE](KOF_COURSE.md).
 Estas sondas preservam intencionalmente a identidade histórica do artefato em
 [`RESEARCH_PROBES`](RESEARCH_PROBES.md). O gate ativo de qualificação do KOOKIE
 agora usa Kof `0.6.5` da branch `lab`, no commit
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`; estas saídas foram registradas
+`8e59b24acc978eb2546509b5cfca867a06e7283a`; estas saídas foram registradas
 contra o artefato antigo `0.5.0-beta` e não são resultados atuais do gate da engine.
 
 ## Escopo e reprodução

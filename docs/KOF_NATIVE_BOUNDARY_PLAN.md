@@ -9,7 +9,7 @@ Normative boundary and batch ABI: [Kof native-boundary and synchronous batch
 ABI](KOF_NATIVE_BOUNDARY_SPEC.md).
 
 Current source pin: Kof `0.6.5` at
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`. Qualification of this pin is in
+`8e59b24acc978eb2546509b5cfca867a06e7283a`. Qualification of this pin is in
 progress; the previous local proof was for
 `f42ed91dfbceae09880b7d0619d98f67490149d1` and does not transfer
 automatically.
@@ -50,7 +50,7 @@ is:
 This is physical source composition, not a performance claim.
 
 With the exact pinned Kof `0.6.5` source
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`, the installer recorded archive
+`8e59b24acc978eb2546509b5cfca867a06e7283a`, the installer recorded archive
 SHA-256
 `300e4200386b53d8e64796e110946340a6fe74ea9b2145af9aac8ade4caa86ef`
 and completed in 173.76 seconds. The following gates passed:
@@ -99,7 +99,7 @@ qualify this source.
 1. Re-run `python3 scripts/update_kof_lab.py --check` immediately before the
    change.
 2. If adopting the candidate, apply it with
-   `--expected-commit a14a7cd47d74192dcc977c9d4cbf87d407694560` and
+   `--expected-commit 8e59b24acc978eb2546509b5cfca867a06e7283a` and
    `--expected-version 0.6.5`; do not update a moving `lab` ref implicitly.
 3. Build the exact source archive and record source commit and archive hash.
 4. Re-run static/JVM, SIMD and the native/package gate with the exact source.
@@ -107,7 +107,7 @@ qualify this source.
    limits are explicitly recorded.
 
 **Exit gate:** all active pin references name
-`a14a7cd47d74192dcc977c9d4cbf87d407694560` and the exact qualification
+`8e59b24acc978eb2546509b5cfca867a06e7283a` and the exact qualification
 results and remaining native/package limit are recorded. No migration claims
 “latest” before this gate.
 

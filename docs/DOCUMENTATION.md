@@ -8,7 +8,7 @@
 - Write status like a teammate would: say what works, what was actually checked and what is still blocked. Avoid milestone language that sounds more complete than the evidence.
 
 The active source/CI baseline is Kof `0.6.5` from the `lab` branch at
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`. Current session documentation must
+`8e59b24acc978eb2546509b5cfca867a06e7283a`. Current session documentation must
 describe strict tick ordering, newer same-tick state-sequence revisions and
 fresh rewind history after checkpoint restore. Research pages retain their
 dated toolchain snapshots intentionally; refresh their scope and evidence

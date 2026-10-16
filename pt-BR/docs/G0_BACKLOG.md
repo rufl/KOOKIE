@@ -217,7 +217,7 @@ O bundle e os logs operacionais não devem ser commitados.
 O G0 está encerrado; trabalho posterior exige um novo milestone. Os contratos concluídos continuam registrados aqui.
 
 - A qualificação de release agora usa Kof `0.6.5` construído a partir da
-  fonte no commit `a14a7cd47d74192dcc977c9d4cbf87d407694560`; a identidade do
+  fonte no commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; a identidade do
   JAR do compilador é registrada em `MEMORY.md`, e a CI calcula o digest da
   distribuição por build porque os metadados tar variam. A preparação verifica
   a guarda upstream de ciclos do GC native; nenhum patch local de GC é aplicado.

@@ -366,7 +366,7 @@ indefinitely.
 The roadmap is not complete; completed work remains recorded here rather than archiving the active backlog.
 
 - Release qualification now uses source-built Kof `0.6.5` at source commit
-  `a14a7cd47d74192dcc977c9d4cbf87d407694560`; the compiler JAR identity is
+  `8e59b24acc978eb2546509b5cfca867a06e7283a`; the compiler JAR identity is
   recorded in `MEMORY.md`, and CI computes the distribution digest per build
   because tar metadata varies. The preparation gate verifies the upstream native
   GC cycle guard; no local GC patch is applied. Its native assembler emits Linux

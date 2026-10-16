@@ -3,7 +3,7 @@
 # Keep every local/package gate on the same Kof source and CLI identity.
 KOF_PIN_VERSION='0.6.5'
 KOF_PIN_CLI_VERSION="kof $KOF_PIN_VERSION"
-KOF_PIN_SOURCE_COMMIT='a14a7cd47d74192dcc977c9d4cbf87d407694560'
+KOF_PIN_SOURCE_COMMIT='8e59b24acc978eb2546509b5cfca867a06e7283a'
 KOF_PIN_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 KOF_AS_WRAPPER_DIR="$KOF_PIN_ROOT/scripts/kof-as"
 kookie_prepend_path() {

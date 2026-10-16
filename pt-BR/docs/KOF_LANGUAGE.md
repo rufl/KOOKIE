@@ -4,7 +4,7 @@ Data da pesquisa: 2026-09-22. Esta é uma referência de trabalho, não uma afir
 
 A baseline ativa de qualificação do KOOKIE é a fonte Kof `0.6.5` da branch
 `lab`, no commit
-[`a14a7cd47d74192dcc977c9d4cbf87d407694560`](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560).
+[`8e59b24acc978eb2546509b5cfca867a06e7283a`](https://github.com/KofLang/Kof4j/tree/8e59b24acc978eb2546509b5cfca867a06e7283a).
 O Kof `0.6.5` é construído a partir da fonte na CI; nenhum archive público é
 usado como pin. `scripts/prepare_kof_source.sh` verifica a guarda upstream de
 ciclos do GC native e normaliza os metadados antes do empacotamento.
@@ -193,11 +193,11 @@ Consequências:
    da biblioteca gráfica. Uma consulta de versão não comprova caminhos que
    usam intensivamente alocador/TLS/threads.
 
-Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/a14a7cd47d74192dcc977c9d4cbf87d407694560),
-[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
-[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
+Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/8e59b24acc978eb2546509b5cfca867a06e7283a),
+[KofBuffer.java](https://github.com/KofLang/Kof4j/blob/8e59b24acc978eb2546509b5cfca867a06e7283a/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
+[CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/8e59b24acc978eb2546509b5cfca867a06e7283a/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
 [gate local de Buffer](../scripts/verify_simd_dispatch.sh),
-[ABI do runtime](https://github.com/KofLang/Kof4j/blob/a14a7cd47d74192dcc977c9d4cbf87d407694560/docs/runtime/RUNTIME_ABI.md).
+[ABI do runtime](https://github.com/KofLang/Kof4j/blob/8e59b24acc978eb2546509b5cfca867a06e7283a/docs/runtime/RUNTIME_ABI.md).
 
 ### ABI atual do 0.6.5
 `bytes()` retorna uma cópia gerenciada; o payload FFI nativo só é válido

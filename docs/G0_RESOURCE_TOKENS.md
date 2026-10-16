@@ -5,7 +5,7 @@
 Status: **implemented and exercised on JVM/native Kof targets**. This is the first bounded G0 engine contract; it is not a native SDL registry yet.
 
 The current source/CI gate uses Kof `0.6.5` from the `lab` branch at
-`a14a7cd47d74192dcc977c9d4cbf87d407694560`; the bounded resource-token
+`8e59b24acc978eb2546509b5cfca867a06e7283a`; the bounded resource-token
 contract is exercised by the active JVM/native gate.
 
 ## Contract
