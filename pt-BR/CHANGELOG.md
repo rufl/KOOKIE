@@ -20,6 +20,9 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O smoke de apresentação native agora envia o fallback procedural limitado
   dos animais quando os modelos opcionais não estão disponíveis e registra a
   capacidade de staging do minimapa antes do primeiro frame.
+- O caminho de draw GPU native agora aguarda o fence do frame anterior antes
+  de reutilizar o transfer buffer compartilhado do mundo, evitando perda de
+  dispositivo Vulkan no Windows quando frames sucessivos enviam geometria.
 - O toolchain de release aplica
   `patches/kof-native-emitter-performance.patch` ao fonte pinado do Kof
   `0.6.5`. Ele remove o split/join do buffer inteiro no caminho de

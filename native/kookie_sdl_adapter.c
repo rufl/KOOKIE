@@ -2749,16 +2749,6 @@ bool kookie_gpu_draw_scene(void) {
             SDL_GetError());
         return false;
     }
-    if (requested_world &&
-        !kookie_gpu_world_upload(gpu_slot.device, &gpu_world_scene)) {
-        fprintf(stderr, "KOOKIE gpu_draw_scene world upload failed: %s\n",
-            SDL_GetError());
-        return false;
-    }
-    if (activate_pending && !kookie_gpu_activate_pending_scene()) {
-        return false;
-    }
-    gpu_scene.active = requested_scene;
     int slot = gpu_scene_frame_slot;
     if (gpu_scene_frame_fences[slot] != NULL) {
         Uint64 start = SDL_GetPerformanceCounter();
@@ -2779,6 +2769,16 @@ bool kookie_gpu_draw_scene(void) {
             gpu_slot.device, gpu_scene_frame_fences[slot]);
         gpu_scene_frame_fences[slot] = NULL;
     }
+    if (requested_world &&
+        !kookie_gpu_world_upload(gpu_slot.device, &gpu_world_scene)) {
+        fprintf(stderr, "KOOKIE gpu_draw_scene world upload failed: %s\n",
+            SDL_GetError());
+        return false;
+    }
+    if (activate_pending && !kookie_gpu_activate_pending_scene()) {
+        return false;
+    }
+    gpu_scene.active = requested_scene;
     gpu_render_policy_active = true;
     bool drawn = kookie_gpu_draw_test_internal(
         window, NULL, &gpu_scene_frame_fences[slot]);

@@ -18,6 +18,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The native presentation smoke now uploads its bounded procedural animal
   fallback when optional model assets are absent and records the minimap
   staging capacity before the first frame.
+- The native GPU draw path now retires the prior frame fence before reusing
+  the shared world transfer buffer, preventing Windows Vulkan device loss when
+  successive presentation frames upload world geometry.
 - Release toolchain builds apply
   `patches/kof-native-emitter-performance.patch` to the pinned Kof `0.6.5`
   source. It removes the native emitter's whole-buffer split/join from the
