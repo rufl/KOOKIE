@@ -21,6 +21,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
 - The native GPU draw path now retires every in-flight frame fence before
   reusing the shared world transfer buffer, preventing Windows Vulkan device
   loss when successive presentation frames upload world geometry.
+- World lighting uniforms now follow SDL GPU's fragment uniform layout
+  (`set=3`, slot 0), and screenshot draws push the same data before rendering.
+  This prevents invalid Vulkan descriptor bindings on Windows.
 - Release toolchain builds apply
   `patches/kof-native-emitter-performance.patch` to the pinned Kof `0.6.5`
   source. It removes the native emitter's whole-buffer split/join from the

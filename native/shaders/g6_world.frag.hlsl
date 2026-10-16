@@ -1,7 +1,7 @@
 Texture2D<float4> albedo : register(t0, space2);
 SamplerState albedo_sampler : register(s0, space2);
 
-cbuffer Lighting : register(b1, space2) {
+cbuffer Lighting : register(b0, space3) {
     float4 light_position_range;
     float4 light_color;
     float4 ambient_color;

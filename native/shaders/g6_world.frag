@@ -1,7 +1,7 @@
 #version 450
 
 layout(set = 2, binding = 0) uniform sampler2D albedo;
-layout(set = 2, binding = 1) uniform Lighting {
+layout(set = 3, binding = 0) uniform Lighting {
     vec4 light_position_range;
     vec4 light_color;
     vec4 ambient_color;

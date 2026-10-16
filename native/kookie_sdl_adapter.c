@@ -2489,6 +2489,47 @@ static bool kookie_gpu_upload_ui_texture(
     return true;
 }
 
+static void kookie_gpu_world_lighting_floats(
+    float out[64], bool animate
+) {
+    memset(out, 0, sizeof(float) * 64u);
+    out[0] = 160.0f;
+    out[1] = 72.0f;
+    out[2] = 140.0f;
+    out[3] = 260.0f;
+    out[4] = 1.0f;
+    out[5] = 0.78f;
+    out[6] = 0.56f;
+    out[7] = 1.0f;
+    out[8] = 0.42f;
+    out[9] = 0.48f;
+    out[10] = 0.58f;
+    out[11] = 1.0f;
+    if (animate) {
+        Uint32 phase = (SDL_GetTicks() / 32u) % 512u;
+        Uint32 sweep = phase < 256u ? phase : 512u - phase;
+        out[0] = 64.0f + (float)sweep * 0.75f;
+        out[2] = 96.0f + (float)(256u - sweep) * 0.5f;
+    }
+    out[12] = (float)gpu_water_time_ticks / 60.0f;
+    for (int style_index = 0;
+         style_index < KOOKIE_GPU_WATER_STYLE_COUNT;
+         style_index++) {
+        const KookieWaterStyle *style = &gpu_water_styles[style_index];
+        int base = 16 + style_index * 12;
+        out[base] = style->enabled ? 1.0f : 0.0f;
+        out[base + 1] = (float)style->caustic_scale / 10.0f;
+        out[base + 2] = (float)style->caustic_speed / 100.0f;
+        out[base + 3] = (float)style->caustic_strength / 1000.0f;
+        out[base + 4] = (float)style->tint_r / 1000.0f;
+        out[base + 5] = (float)style->tint_g / 1000.0f;
+        out[base + 6] = (float)style->tint_b / 1000.0f;
+        out[base + 8] = (float)style->toon_base / 1000.0f;
+        out[base + 9] = (float)style->toon_contrast / 1000.0f;
+        out[base + 10] = (float)style->opacity / 1000.0f;
+    }
+}
+
 static bool kookie_gpu_draw_test_internal(
     SDL_Window *window,
     SDL_GPUTexture *offscreen_target,
@@ -2589,44 +2630,8 @@ static bool kookie_gpu_draw_test_internal(
     target.store_op = SDL_GPU_STOREOP_STORE;
     SDL_GPURenderPass *render_pass = SDL_BeginGPURenderPass(
         command_buffer, &target, 1, depth_target_ptr);
-    float world_lighting[64] = {0.0f};
-    world_lighting[0] = 160.0f;
-    world_lighting[1] = 72.0f;
-    world_lighting[2] = 140.0f;
-    world_lighting[3] = 260.0f;
-    world_lighting[4] = 1.0f;
-    world_lighting[5] = 0.78f;
-    world_lighting[6] = 0.56f;
-    world_lighting[7] = 1.0f;
-    world_lighting[8] = 0.42f;
-    world_lighting[9] = 0.48f;
-    world_lighting[10] = 0.58f;
-    world_lighting[11] = 1.0f;
-    if (world_draw) {
-        Uint32 phase = (SDL_GetTicks() / 32u) % 512u;
-        Uint32 sweep = phase < 256u ? phase : 512u - phase;
-        world_lighting[0] = 64.0f + (float)sweep * 0.75f;
-        world_lighting[2] = 96.0f + (float)(256u - sweep) * 0.5f;
-    }
-    world_lighting[12] = (float)gpu_water_time_ticks / 60.0f;
-    for (int style_index = 0;
-         style_index < KOOKIE_GPU_WATER_STYLE_COUNT;
-         style_index++) {
-        const KookieWaterStyle *style = &gpu_water_styles[style_index];
-        int base = 16 + style_index * 12;
-        world_lighting[base] = style->enabled ? 1.0f : 0.0f;
-        world_lighting[base + 1] = (float)style->caustic_scale / 10.0f;
-        world_lighting[base + 2] = (float)style->caustic_speed / 100.0f;
-        world_lighting[base + 3] =
-            (float)style->caustic_strength / 1000.0f;
-        world_lighting[base + 4] = (float)style->tint_r / 1000.0f;
-        world_lighting[base + 5] = (float)style->tint_g / 1000.0f;
-        world_lighting[base + 6] = (float)style->tint_b / 1000.0f;
-        world_lighting[base + 8] = (float)style->toon_base / 1000.0f;
-        world_lighting[base + 9] =
-            (float)style->toon_contrast / 1000.0f;
-        world_lighting[base + 10] = (float)style->opacity / 1000.0f;
-    }
+    float world_lighting[64];
+    kookie_gpu_world_lighting_floats(world_lighting, world_draw);
     if (render_pass == NULL) {
         fprintf(stderr, "KOOKIE gpu_draw begin render pass failed: %s\n",
             SDL_GetError());
@@ -2641,7 +2646,7 @@ static bool kookie_gpu_draw_test_internal(
             command_buffer, 0, world_camera_matrix,
             sizeof(world_camera_matrix));
         SDL_PushGPUFragmentUniformData(
-            command_buffer, 1, world_lighting,
+            command_buffer, 0, world_lighting,
             sizeof(world_lighting));
         binding.texture = gpu_resources.world_texture;
         binding.sampler = gpu_resources.sampler;
@@ -2918,10 +2923,15 @@ int kookie_gpu_window_screenshot_checksum(void) {
     }
     SDL_GPUTextureSamplerBinding binding = {0};
     SDL_GPUBufferBinding vertex_binding = {0};
+    float world_lighting[64];
     if (world_draw) {
         SDL_PushGPUVertexUniformData(
             command_buffer, 0, world_camera_matrix,
             sizeof(world_camera_matrix));
+        kookie_gpu_world_lighting_floats(world_lighting, true);
+        SDL_PushGPUFragmentUniformData(
+            command_buffer, 0, world_lighting,
+            sizeof(world_lighting));
         binding.texture = gpu_resources.world_texture;
         binding.sampler = gpu_resources.sampler;
         vertex_binding.buffer = gpu_resources.world_vertex_buffer;

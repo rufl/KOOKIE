@@ -65,7 +65,7 @@
       ],
       "resources": [
         {"name": "albedo", "set": 2, "binding": 0, "kind": "sampler"},
-        {"name": "Lighting", "set": 2, "binding": 1,
+        {"name": "Lighting", "set": 3, "binding": 0,
          "kind": "uniform_buffer", "size": 256}
       ]
     }

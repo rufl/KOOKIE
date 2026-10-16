@@ -23,6 +23,10 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 - O caminho de draw GPU native agora aguarda todos os fences de frames em voo
   antes de reutilizar o transfer buffer compartilhado do mundo, evitando perda
   de dispositivo Vulkan no Windows quando frames sucessivos enviam geometria.
+- Os uniforms de iluminação do mundo agora seguem o layout de uniforms de
+  fragmento do SDL GPU (`set=3`, slot 0), e os draws de screenshot enviam os
+  mesmos dados antes de renderizar. Isso evita bindings inválidos de
+  descritores Vulkan no Windows.
 - O toolchain de release aplica
   `patches/kof-native-emitter-performance.patch` ao fonte pinado do Kof
   `0.6.5`. Ele remove o split/join do buffer inteiro no caminho de
