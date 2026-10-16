@@ -196,7 +196,7 @@ Consequências:
 Fontes: [fonte Kof4j fixada](https://github.com/KofLang/Kof4j/tree/8e59b24acc978eb2546509b5cfca867a06e7283a),
 [KofBuffer.java](https://github.com/KofLang/Kof4j/blob/8e59b24acc978eb2546509b5cfca867a06e7283a/kof-compiler/src/main/java/dev/kof/compiler/KofBuffer.java),
 [CompilerFfiBinding.java](https://github.com/KofLang/Kof4j/blob/8e59b24acc978eb2546509b5cfca867a06e7283a/kof-compiler/src/main/java/dev/kof/compiler/CompilerFfiBinding.java),
-[gate local de Buffer](../scripts/verify_simd_dispatch.sh),
+[gate local de Buffer](../../scripts/verify_simd_dispatch.sh),
 [ABI do runtime](https://github.com/KofLang/Kof4j/blob/8e59b24acc978eb2546509b5cfca867a06e7283a/docs/runtime/RUNTIME_ABI.md).
 
 ### ABI atual do 0.6.5
