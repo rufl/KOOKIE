@@ -3,6 +3,10 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- The PE/COFF backend now emits `<limits.h>` with its generated C preamble,
+  keeping `LONG_MAX`-based file-range validation valid under standalone host
+  compilation as well as the pinned Windows target toolchain.
+
 - The tracked Linux presentation wrapper now returns the repository's
   "safety gate unavailable" status when `overzeer-isolated-display` or
   `gamescope` is absent, so generic CI records an explicit presentation skip

@@ -543,6 +543,7 @@ public final class KofPeBackendMain {
                     #include <stdint.h>
                     #include <stdbool.h>
                     #include <stddef.h>
+                    #include <limits.h>
                     #include <stdio.h>
                     #include <stdlib.h>
                     #include <string.h>

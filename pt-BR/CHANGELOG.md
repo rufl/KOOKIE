@@ -3,6 +3,10 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- O backend PE/COFF agora emite `<limits.h>` no preâmbulo C gerado, mantendo
+  válida a validação de faixa de arquivos baseada em `LONG_MAX` tanto na
+  compilação host independente quanto na toolchain Windows pinada.
+
 - O wrapper rastreado de apresentação Linux agora retorna o status de
   "gate de segurança indisponível" do repositório quando
   `overzeer-isolated-display` ou `gamescope` não está disponível; assim, a CI
