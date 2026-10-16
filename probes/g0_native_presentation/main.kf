@@ -51,14 +51,18 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_set_water_style(
     Int toonBase, Int toonContrast, Int opacity
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_begin(
-    Int byteLength
+    Int model, Int byteLength
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_byte(
-    Int index, Int value
+    Int model, Int index, Int value
 ): Bool
-extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_model_texture_stage_commit(
+    Int model
+): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_texture_stage_begin(
-    Int width, Int height, Int catX, Int catY, Int catWidth, Int catHeight
+    Int width, Int height,
+    Int gooseX, Int gooseY, Int gooseWidth, Int gooseHeight,
+    Int catX, Int catY, Int catWidth, Int catHeight
 ): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_texture_stage_word(
     Int index, Int value
@@ -1170,22 +1174,24 @@ class G1NativePresentation {
             reader.read(source, model) && reader.valid()
     }
 
-    Bool stageCatTexture() {
-        var textureLength = catModelReader.textureLength()
-        if (catModelReader.textureOffset() < 0 || textureLength <= 0) {
+    Bool stageModelTexture(
+        BoundedExternalGlbModelReader reader, Int model
+    ) {
+        var textureLength = reader.textureLength()
+        if (reader.textureOffset() < 0 || textureLength <= 0) {
             return true
         }
-        if (!kookie_gpu_model_texture_stage_begin(textureLength)) {
+        if (!kookie_gpu_model_texture_stage_begin(model, textureLength)) {
             return false
         }
         for (var index = 0; index < textureLength; index = index + 1) {
-            var value = catModelReader.textureByte(index)
+            var value = reader.textureByte(index)
             if (value < 0 ||
-                !kookie_gpu_model_texture_stage_byte(index, value)) {
+                !kookie_gpu_model_texture_stage_byte(model, index, value)) {
                 return false
             }
         }
-        return kookie_gpu_model_texture_stage_commit()
+        return kookie_gpu_model_texture_stage_commit(model)
     }
 
     Bool prepareModelAssets() {
@@ -1203,18 +1209,28 @@ class G1NativePresentation {
             catModelVertexCountValue % 3 != 0) {
             return false
         }
-        return stageCatTexture()
+        return stageModelTexture(gooseModelReader, kookieModelGoose()) &&
+            stageModelTexture(catModelReader, kookieModelCat())
     }
     Bool prepareWorldTexture() {
+        var gooseWidth = gooseModelReader.textureWidth()
+        var gooseHeight = gooseModelReader.textureHeight()
+        if (!gooseModelReader.valid() || gooseWidth <= 0 || gooseHeight <= 0) {
+            gooseWidth = 0
+            gooseHeight = 0
+        }
         var catWidth = catModelReader.textureWidth()
         var catHeight = catModelReader.textureHeight()
         if (!catModelReader.valid() || catWidth <= 0 || catHeight <= 0) {
             catWidth = 0
             catHeight = 0
         }
-        if (!worldTextureAsset.build(catWidth, catHeight) ||
+        if (!worldTextureAsset.build(
+                gooseWidth, gooseHeight, catWidth, catHeight) ||
             !kookie_gpu_world_texture_stage_begin(
                 worldTextureAsset.width(), worldTextureAsset.height(),
+                worldTextureAsset.gooseX(), worldTextureAsset.gooseY(),
+                worldTextureAsset.gooseWidth(), worldTextureAsset.gooseHeight(),
                 worldTextureAsset.catX(), worldTextureAsset.catY(),
                 worldTextureAsset.catWidth(), worldTextureAsset.catHeight())) {
             return false
@@ -1584,6 +1600,7 @@ class G1NativePresentation {
 
     Bool uploadModel(
         BoundedExternalGlbModelReader reader,
+        Int model,
         Int resourceBase,
         Int x,
         Int y,
@@ -1619,9 +1636,13 @@ class G1NativePresentation {
                 worldZ = z - localX
             }
             var resource = resourceBase + reader.vertexMaterial(index)
+            var hasTexture = reader.textureOffset() >= 0 &&
+                reader.textureLength() > 0
             if (flashed) {
                 resource = 3
-            } else if (resourceBase == 12) {
+            } else if (hasTexture && model == kookieModelGoose()) {
+                resource = 16
+            } else if (hasTexture && model == kookieModelCat()) {
                 resource = 15
             }
             var textureU = worldTextureAsset.textureU(
@@ -1642,18 +1663,20 @@ class G1NativePresentation {
              index = index + 1) {
             if (!animalMeshes.actorCurrentAt(index)) { continue }
             var kind = animalMeshes.actorKindAt(index)
+            var model = kookieModelGoose()
             var reader = gooseModelReader
             var resourceBase = 9
             var animationState = animalMeshes.gooseAnimationState()
             var animationTick = animalMeshes.gooseAnimationTick()
             if (kind == 2) {
+                model = kookieModelCat()
                 reader = catModelReader
                 resourceBase = 12
                 animationState = animalMeshes.catAnimationState()
                 animationTick = animalMeshes.catAnimationTick()
             }
             if (!uploadModel(
-                    reader, resourceBase,
+                    reader, model, resourceBase,
                     animalMeshes.actorXAt(index),
                     animalMeshes.actorYAt(index),
                     animalMeshes.actorZAt(index),

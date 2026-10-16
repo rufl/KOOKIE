@@ -3,6 +3,20 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Corrected native keyboard routing so Space updates the gameplay jump state
+  instead of firing; keyboard fire remains on `F`, and the input regression
+  covers press/release ownership for both keys.
+- Kept `Enter` as the menu-confirm action and removed `Space` from the shared
+  menu action path, preventing a gameplay jump from also activating UI.
+- Triangle contact now attempts deterministic X/Z axis-ordered wall slides
+  after a blocked diagonal move; the runtime contact regression covers a
+  two-triangle wall and preserves the free-axis endpoint.
+- Native presentation now stages embedded model PNGs independently for the
+  goose and cat atlas regions, and model UVs select the matching region instead
+  of using cat-only texture staging.
+- `kof test src/main.kf --target jvm` passes `140/140`.
+- Focused native input and triangle-contact probes each pass `1/1`.
+- `bash scripts/verify_ui_demo.sh` passes with two staged UI assets.
 - The Windows PE backend now lowers the presentation graph's String
   concatenation/equality/substring operations, bounded file existence/range
   reads, `Buffer(U8)` byte storage and buffer-pointer FFI calls instead of

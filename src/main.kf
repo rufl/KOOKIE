@@ -670,17 +670,21 @@ test "Kof staging emits bounded GPU camera and world texture coordinates", "gpu-
         camera.gpuCameraMatrixElement(5) > 0,
         "camera matrix staging must stay bounded and positive on the focal axes")
     var worldTexture = BoundedWorldTextureAsset()
-    assert(worldTexture.build(64, 64) &&
-        worldTexture.width() == 320 &&
+    assert(worldTexture.build(64, 64, 64, 64) &&
+        worldTexture.width() == 384 &&
         worldTexture.height() == 256 &&
+        worldTexture.gooseX() == 256 &&
+        worldTexture.catX() == 320 &&
         worldTexture.textureU(1, 0) > 0 &&
         worldTexture.textureU(1, 100) > worldTexture.textureU(1, 0) &&
-        worldTexture.textureU(15, 0) > 0 &&
+        worldTexture.textureU(16, 0) > 0 &&
+        worldTexture.textureV(16, 100) > worldTexture.textureV(16, 0) &&
+        worldTexture.textureU(15, 0) > worldTexture.textureU(16, 0) &&
         worldTexture.textureV(15, 100) > worldTexture.textureV(15, 0) &&
         worldTexture.textureU(9, 100) > worldTexture.textureU(9, 0) &&
         worldTexture.textureV(14, 100) > worldTexture.textureV(14, 0) &&
-        worldTexture.textureU(16, 0) < 0,
-        "world texture resources must map to bounded Kof-owned UV words")
+        worldTexture.textureU(17, 0) < 0,
+        "world texture resources must map bounded goose/cat GLB UV words")
     var textFrame = FrameStaging(16)
     assert(textFrame.begin(1) &&
         textFrame.pushTextRun(
@@ -3015,6 +3019,9 @@ test "platform state and audio queue lifecycle" {
 }
 test "Kof native input owns raw bindings and focus reset", "input" {
     var input = NativeInputState()
+    assert(nativeInputAction(13) == 5 &&
+        nativeInputAction(32) == 0,
+        "Enter must own menu activation while Space remains gameplay jump")
     assert(input.applyKey(119, 1) &&
         input.forwardHeld() == 1 &&
         input.applyKey(119, 2) &&
@@ -3022,6 +3029,18 @@ test "Kof native input owns raw bindings and focus reset", "input" {
         input.applyKey(119, 0) &&
         input.forwardHeld() == 0,
         "Kof raw key phases must own held movement")
+    assert(input.applyKey(32, 1) &&
+        input.jumpHeld() == 1 &&
+        input.fireHeld() == 0 &&
+        input.applyKey(32, 0) &&
+        input.jumpHeld() == 0 &&
+        input.fireHeld() == 0,
+        "Space must own jump instead of fire")
+    assert(input.applyKey(102, 1) &&
+        input.fireHeld() == 1 &&
+        input.applyKey(102, 0) &&
+        input.fireHeld() == 0,
+        "F must own keyboard fire")
     assert(input.applyKey(9, 1) &&
         input.consumeScoreboardToggle() == 1 &&
         input.consumeScoreboardToggle() == 0,
@@ -4736,13 +4755,18 @@ test "runtime generation contact projectile and session navigation" {
 
     var wall = BoundedTriangleCollection(2, 20)
     assert(wall.configureBounds(-10, -10, -10, 20, 20, 20) &&
-        wall.addTriangle(5, 0, 0, 5, 5, 0, 5, 0, 5),
+        wall.addTriangle(5, 0, 0, 5, 5, 0, 5, 0, 5) &&
+        wall.addTriangle(5, 5, 0, 5, 5, 5, 5, 0, 5),
         "triangle contact geometry must admit a convex wall face")
     var contact = BoundedTriangleContactController(wall, 1, 20, 60, 0)
     var wallHit = contact.move(0, 2, 2, 10, 2, 2)
     assert(wallHit.accepted() && wallHit.collided() &&
         !wallHit.slopeAccepted() && wallHit.resolvedX() == 3,
         "triangle contact must sweep capsule offsets and reject wall slopes")
+    var wallSlide = contact.move(0, 2, 2, 10, 2, 8)
+    assert(wallSlide.accepted() && wallSlide.collided() &&
+        wallSlide.resolvedX() == 10 && wallSlide.resolvedZ() == 8,
+        "triangle contact must slide along the free axis after a wall hit")
 
     var floor = BoundedTriangleCollection(2, 20)
     assert(floor.configureBounds(-10, -10, -10, 20, 20, 20) &&

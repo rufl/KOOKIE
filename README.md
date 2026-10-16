@@ -188,6 +188,9 @@ The focused model and staging proof is:
 ```bash
 bash scripts/verify_multiplayer_ui.sh
 ```
+Native presentation now resolves both animal GLB assets and stages each model's
+embedded PNG texture into its own bounded atlas region; model UVs select the
+goose or cat region, with procedural material tiles retained only as fallback.
 
 
 ## Current demo and release status
@@ -210,6 +213,9 @@ the original TTF files and SIL Open Font License notice remain in
 - `Play` starts the local authoritative listen-server/client encounter,
   accepts keyboard and mouse input, runs three goose bots and resets when
   leaving and entering `Play` again.
+- Native gameplay defaults: `WASD`/arrow keys move, `Space` jumps, `F` or the
+  mouse fires, `Tab` toggles the scoreboard, `Enter` confirms menus, and
+  `Escape` returns to the menu.
 - `Multiplayer > Host/Join` admits the second player through the KOF-owned
   lobby, requires both connected players to select `READY`, and publishes the
   deterministic `Tab` scoreboard with player, status, score, HP, K/D and ping.

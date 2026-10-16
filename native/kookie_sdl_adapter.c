@@ -135,10 +135,15 @@ typedef struct {
 typedef struct {
     Uint32 width;
     Uint32 height;
+    Uint32 goose_x;
+    Uint32 goose_y;
+    Uint32 goose_width;
+    Uint32 goose_height;
     Uint32 cat_x;
     Uint32 cat_y;
     Uint32 cat_width;
     Uint32 cat_height;
+    bool goose_embedded;
     bool cat_embedded;
     bool ready;
 } KookieGpuWorldTextureLayout;
@@ -154,6 +159,10 @@ typedef struct {
     size_t bytes;
     Uint32 width;
     Uint32 height;
+    Uint32 goose_x;
+    Uint32 goose_y;
+    Uint32 goose_width;
+    Uint32 goose_height;
     Uint32 cat_x;
     Uint32 cat_y;
     Uint32 cat_width;
@@ -177,6 +186,7 @@ typedef struct {
 
 static KookieWaterStyle gpu_water_styles[KOOKIE_GPU_WATER_STYLE_COUNT];
 static int gpu_water_time_ticks;
+static KookieGpuModelTextureStaging gpu_goose_texture_staging;
 static KookieGpuModelTextureStaging gpu_model_texture_staging;
 static KookieGpuWorldTextureStaging gpu_world_texture_staging;
 static int gpu_world_camera_matrix[16];
@@ -189,9 +199,33 @@ static bool gpu_render_world;
 static bool gpu_render_scene;
 static bool gpu_render_policy_active;
 
+static KookieGpuModelTextureStaging *kookie_gpu_model_texture_staging_for(
+    int model
+) {
+    if (model == 1) {
+        return &gpu_goose_texture_staging;
+    }
+    if (model == 2) {
+        return &gpu_model_texture_staging;
+    }
+    return NULL;
+}
+
+static void kookie_gpu_model_texture_staging_release_one(
+    KookieGpuModelTextureStaging *staging
+) {
+    if (staging == NULL) {
+        return;
+    }
+    free(staging->bytes);
+    memset(staging, 0, sizeof(*staging));
+}
+
 static void kookie_gpu_model_texture_staging_release(void) {
-    free(gpu_model_texture_staging.bytes);
-    memset(&gpu_model_texture_staging, 0, sizeof(gpu_model_texture_staging));
+    kookie_gpu_model_texture_staging_release_one(
+        &gpu_goose_texture_staging);
+    kookie_gpu_model_texture_staging_release_one(
+        &gpu_model_texture_staging);
 }
 
 static void kookie_gpu_world_texture_staging_release(void) {
@@ -368,10 +402,15 @@ static bool kookie_gpu_prepare_world_texture_layout(void) {
         }
         gpu_world_texture_layout.width = 256u;
         gpu_world_texture_layout.height = 256u;
+        gpu_world_texture_layout.goose_x = 0;
+        gpu_world_texture_layout.goose_y = 0;
+        gpu_world_texture_layout.goose_width = 0;
+        gpu_world_texture_layout.goose_height = 0;
         gpu_world_texture_layout.cat_x = 0;
         gpu_world_texture_layout.cat_y = 0;
         gpu_world_texture_layout.cat_width = 0;
         gpu_world_texture_layout.cat_height = 0;
+        gpu_world_texture_layout.goose_embedded = false;
         gpu_world_texture_layout.cat_embedded = false;
         gpu_world_texture_layout.ready = true;
         return true;
@@ -380,10 +419,25 @@ static bool kookie_gpu_prepare_world_texture_layout(void) {
         gpu_world_texture_staging.height < 256u ||
         gpu_world_texture_staging.width > 4096u ||
         gpu_world_texture_staging.height > 4096u ||
+        (gpu_world_texture_staging.goose_width > 0u &&
+            gpu_world_texture_staging.goose_height == 0u) ||
+        (gpu_world_texture_staging.goose_width == 0u &&
+            gpu_world_texture_staging.goose_height > 0u) ||
         (gpu_world_texture_staging.cat_width > 0u &&
             gpu_world_texture_staging.cat_height == 0u) ||
         (gpu_world_texture_staging.cat_width == 0u &&
             gpu_world_texture_staging.cat_height > 0u)) {
+        return false;
+    }
+    if (gpu_world_texture_staging.goose_width > 0u &&
+        (gpu_world_texture_staging.goose_x >= gpu_world_texture_staging.width ||
+         gpu_world_texture_staging.goose_y >= gpu_world_texture_staging.height ||
+         gpu_world_texture_staging.goose_width >
+             gpu_world_texture_staging.width -
+                 gpu_world_texture_staging.goose_x ||
+         gpu_world_texture_staging.goose_height >
+             gpu_world_texture_staging.height -
+                 gpu_world_texture_staging.goose_y)) {
         return false;
     }
     if (gpu_world_texture_staging.cat_width > 0u &&
@@ -397,10 +451,18 @@ static bool kookie_gpu_prepare_world_texture_layout(void) {
     }
     gpu_world_texture_layout.width = gpu_world_texture_staging.width;
     gpu_world_texture_layout.height = gpu_world_texture_staging.height;
+    gpu_world_texture_layout.goose_x = gpu_world_texture_staging.goose_x;
+    gpu_world_texture_layout.goose_y = gpu_world_texture_staging.goose_y;
+    gpu_world_texture_layout.goose_width =
+        gpu_world_texture_staging.goose_width;
+    gpu_world_texture_layout.goose_height =
+        gpu_world_texture_staging.goose_height;
     gpu_world_texture_layout.cat_x = gpu_world_texture_staging.cat_x;
     gpu_world_texture_layout.cat_y = gpu_world_texture_staging.cat_y;
     gpu_world_texture_layout.cat_width = gpu_world_texture_staging.cat_width;
     gpu_world_texture_layout.cat_height = gpu_world_texture_staging.cat_height;
+    gpu_world_texture_layout.goose_embedded =
+        gpu_world_texture_staging.goose_width > 0u;
     gpu_world_texture_layout.cat_embedded =
         gpu_world_texture_staging.cat_width > 0u;
     gpu_world_texture_layout.ready = true;
@@ -1146,14 +1208,50 @@ static bool read_shader_binary(
     *size = (size_t)length;
     return true;
 }
-static SDL_Surface *kookie_gpu_load_cat_texture(void) {
-    if (!gpu_world_texture_layout.cat_embedded) {
+static bool kookie_gpu_model_texture_region(
+    int model, Uint32 *x, Uint32 *y, Uint32 *width, Uint32 *height,
+    bool *embedded
+) {
+    if (x == NULL || y == NULL || width == NULL || height == NULL ||
+        embedded == NULL) {
+        return false;
+    }
+    if (model == 1) {
+        *x = gpu_world_texture_layout.goose_x;
+        *y = gpu_world_texture_layout.goose_y;
+        *width = gpu_world_texture_layout.goose_width;
+        *height = gpu_world_texture_layout.goose_height;
+        *embedded = gpu_world_texture_layout.goose_embedded;
+        return true;
+    }
+    if (model == 2) {
+        *x = gpu_world_texture_layout.cat_x;
+        *y = gpu_world_texture_layout.cat_y;
+        *width = gpu_world_texture_layout.cat_width;
+        *height = gpu_world_texture_layout.cat_height;
+        *embedded = gpu_world_texture_layout.cat_embedded;
+        return true;
+    }
+    return false;
+}
+
+static SDL_Surface *kookie_gpu_load_model_texture(int model) {
+    KookieGpuModelTextureStaging *staging =
+        kookie_gpu_model_texture_staging_for(model);
+    Uint32 x = 0;
+    Uint32 y = 0;
+    Uint32 width = 0;
+    Uint32 height = 0;
+    bool embedded = false;
+    if (staging == NULL ||
+        !kookie_gpu_model_texture_region(
+            model, &x, &y, &width, &height, &embedded) ||
+        !embedded) {
         return NULL;
     }
-    const unsigned char *encoded = gpu_model_texture_staging.bytes;
-    size_t encoded_length = gpu_model_texture_staging.length;
-    if (!gpu_model_texture_staging.committed ||
-        encoded == NULL || encoded_length == 0) {
+    const unsigned char *encoded = staging->bytes;
+    size_t encoded_length = staging->length;
+    if (!staging->committed || encoded == NULL || encoded_length == 0) {
         return NULL;
     }
     SDL_IOStream *input = SDL_IOFromConstMem(encoded, encoded_length);
@@ -1171,8 +1269,7 @@ static SDL_Surface *kookie_gpu_load_cat_texture(void) {
         return NULL;
     }
     if (rgba->w <= 0 || rgba->h <= 0 ||
-        (Uint32)rgba->w != gpu_world_texture_layout.cat_width ||
-        (Uint32)rgba->h != gpu_world_texture_layout.cat_height ||
+        (Uint32)rgba->w != width || (Uint32)rgba->h != height ||
         rgba->pitch < rgba->w * 4) {
         if (rgba != decoded) {
             SDL_DestroySurface(decoded);
@@ -1186,15 +1283,47 @@ static SDL_Surface *kookie_gpu_load_cat_texture(void) {
     return rgba;
 }
 
+static bool kookie_gpu_copy_model_texture(
+    Uint8 *pixels, size_t bytes, const SDL_Surface *texture, int model
+) {
+    Uint32 x = 0;
+    Uint32 y = 0;
+    Uint32 width = 0;
+    Uint32 height = 0;
+    bool embedded = false;
+    if (pixels == NULL || texture == NULL ||
+        !kookie_gpu_model_texture_region(
+            model, &x, &y, &width, &height, &embedded) ||
+        !embedded || texture->w <= 0 || texture->h <= 0 ||
+        texture->pitch < texture->w * 4 ||
+        (Uint32)texture->w != width || (Uint32)texture->h != height ||
+        bytes != gpu_world_texture_staging.bytes) {
+        return false;
+    }
+    for (int row = 0; row < texture->h; row += 1) {
+        size_t destination = (size_t)(y + (Uint32)row) *
+            (size_t)gpu_world_texture_layout.width + (size_t)x;
+        const Uint8 *source =
+            (const Uint8 *)texture->pixels +
+            (size_t)row * (size_t)texture->pitch;
+        memcpy(
+            pixels + destination * 4u,
+            source,
+            (size_t)texture->w * 4u);
+    }
+    return true;
+}
+
 static bool kookie_gpu_copy_world_texture(
-    Uint8 *pixels, size_t bytes, const SDL_Surface *cat_texture
+    Uint8 *pixels, size_t bytes,
+    const SDL_Surface *goose_texture, const SDL_Surface *cat_texture
 ) {
     if (pixels == NULL) {
         return false;
     }
     if (!gpu_world_texture_staging.committed) {
         if ((gpu_world_scene.committed && gpu_world_scene.count > 0) ||
-            cat_texture != NULL) {
+            goose_texture != NULL || cat_texture != NULL) {
             return false;
         }
         memset(pixels, 0, bytes);
@@ -1204,28 +1333,13 @@ static bool kookie_gpu_copy_world_texture(
         return false;
     }
     memcpy(pixels, gpu_world_texture_staging.pixels, bytes);
-    if (cat_texture == NULL) {
-        return true;
-    }
-    if (!gpu_world_texture_layout.cat_embedded ||
-        cat_texture->w <= 0 || cat_texture->h <= 0 ||
-        cat_texture->pitch < cat_texture->w * 4 ||
-        (Uint32)cat_texture->w != gpu_world_texture_layout.cat_width ||
-        (Uint32)cat_texture->h != gpu_world_texture_layout.cat_height) {
+    if (goose_texture != NULL &&
+        !kookie_gpu_copy_model_texture(pixels, bytes, goose_texture, 1)) {
         return false;
     }
-    for (int y = 0; y < cat_texture->h; y += 1) {
-        size_t destination = (size_t)(
-            (size_t)gpu_world_texture_layout.cat_y + (size_t)y) *
-            (size_t)gpu_world_texture_layout.width +
-            (size_t)gpu_world_texture_layout.cat_x;
-        const Uint8 *source =
-            (const Uint8 *)cat_texture->pixels +
-            (size_t)y * (size_t)cat_texture->pitch;
-        memcpy(
-            pixels + destination * 4u,
-            source,
-            (size_t)cat_texture->w * 4u);
+    if (cat_texture != NULL &&
+        !kookie_gpu_copy_model_texture(pixels, bytes, cat_texture, 2)) {
+        return false;
     }
     return true;
 }
@@ -1271,6 +1385,7 @@ static bool kookie_gpu_prepare_resources(
     bool success = false;
     SDL_GPUTransferBuffer *transfer = NULL;
     SDL_GPUCommandBuffer *command_buffer = NULL;
+    SDL_Surface *goose_texture = NULL;
     SDL_Surface *cat_texture = NULL;
     if (!kookie_gpu_prepare_world_texture_layout()) {
         return false;
@@ -1335,7 +1450,14 @@ static bool kookie_gpu_prepare_resources(
     }
 
 
-    cat_texture = kookie_gpu_load_cat_texture();
+    goose_texture = kookie_gpu_load_model_texture(1);
+    cat_texture = kookie_gpu_load_model_texture(2);
+    if ((gpu_world_texture_layout.goose_embedded &&
+            goose_texture == NULL) ||
+        (gpu_world_texture_layout.cat_embedded &&
+            cat_texture == NULL)) {
+        goto cleanup;
+    }
 
     SDL_GPUShaderFormat shader_format =
         kookie_gpu_shader_format(device);
@@ -1659,7 +1781,7 @@ static bool kookie_gpu_prepare_resources(
     if (!kookie_gpu_copy_world_texture(
             pixels + world_texture_offset,
             world_texture_bytes,
-            cat_texture)) {
+            goose_texture, cat_texture)) {
         SDL_UnmapGPUTransferBuffer(device, transfer);
         goto cleanup;
     }
@@ -1716,6 +1838,9 @@ static bool kookie_gpu_prepare_resources(
     success = true;
 
 cleanup:
+    if (goose_texture != NULL) {
+        SDL_DestroySurface(goose_texture);
+    }
     if (cat_texture != NULL) {
         SDL_DestroySurface(cat_texture);
     }
@@ -1957,62 +2082,76 @@ bool kookie_gpu_world_push_vertex_uv(
     gpu_world_scene.count += 1;
     return true;
 }
-bool kookie_gpu_model_texture_stage_begin(int byte_length) {
+bool kookie_gpu_model_texture_stage_begin(int model, int byte_length) {
+    KookieGpuModelTextureStaging *staging =
+        kookie_gpu_model_texture_staging_for(model);
     if (gpu_world_texture_layout.ready ||
-        gpu_model_texture_staging.open ||
+        staging == NULL || staging->open ||
         byte_length <= 0 ||
         byte_length > (int)KOOKIE_GPU_MAX_MODEL_TEXTURE_BYTES) {
         return false;
     }
-    kookie_gpu_model_texture_staging_release();
-    gpu_model_texture_staging.bytes = (Uint8 *)malloc((size_t)byte_length);
-    if (gpu_model_texture_staging.bytes == NULL) {
+    kookie_gpu_model_texture_staging_release_one(staging);
+    staging->bytes = (Uint8 *)malloc((size_t)byte_length);
+    if (staging->bytes == NULL) {
         return false;
     }
-    gpu_model_texture_staging.length = (size_t)byte_length;
-    gpu_model_texture_staging.next_byte = 0;
-    gpu_model_texture_staging.open = true;
-    gpu_model_texture_staging.committed = false;
+    staging->length = (size_t)byte_length;
+    staging->next_byte = 0;
+    staging->open = true;
+    staging->committed = false;
     return true;
 }
 
-bool kookie_gpu_model_texture_stage_byte(int index, int value) {
-    if (!gpu_model_texture_staging.open ||
-        index < 0 || (size_t)index != gpu_model_texture_staging.next_byte ||
-        gpu_model_texture_staging.next_byte >=
-            gpu_model_texture_staging.length ||
+bool kookie_gpu_model_texture_stage_byte(int model, int index, int value) {
+    KookieGpuModelTextureStaging *staging =
+        kookie_gpu_model_texture_staging_for(model);
+    if (staging == NULL || !staging->open ||
+        index < 0 || (size_t)index != staging->next_byte ||
+        staging->next_byte >= staging->length ||
         value < 0 || value > 255) {
         return false;
     }
-    gpu_model_texture_staging.bytes[
-        gpu_model_texture_staging.next_byte] = (Uint8)value;
-    gpu_model_texture_staging.next_byte += 1;
+    staging->bytes[staging->next_byte] = (Uint8)value;
+    staging->next_byte += 1;
     return true;
 }
 
-bool kookie_gpu_model_texture_stage_commit(void) {
-    if (!gpu_model_texture_staging.open ||
-        gpu_model_texture_staging.next_byte !=
-            gpu_model_texture_staging.length) {
+bool kookie_gpu_model_texture_stage_commit(int model) {
+    KookieGpuModelTextureStaging *staging =
+        kookie_gpu_model_texture_staging_for(model);
+    if (staging == NULL || !staging->open ||
+        staging->next_byte != staging->length) {
         return false;
     }
-    gpu_model_texture_staging.open = false;
-    gpu_model_texture_staging.committed = true;
+    staging->open = false;
+    staging->committed = true;
     return true;
 }
 
 bool kookie_gpu_world_texture_stage_begin(
-    int width, int height, int cat_x, int cat_y, int cat_width, int cat_height
+    int width, int height,
+    int goose_x, int goose_y, int goose_width, int goose_height,
+    int cat_x, int cat_y, int cat_width, int cat_height
 ) {
     if (gpu_world_texture_layout.ready ||
         gpu_world_texture_staging.open ||
         width < 256 || height < 256 ||
         width > 4096 || height > 4096 ||
-        cat_x < 0 || cat_y < 0 || cat_width < 0 || cat_height < 0 ||
+        goose_x < 0 || goose_y < 0 ||
+        goose_width < 0 || goose_height < 0 ||
+        (goose_width == 0) != (goose_height == 0) ||
+        (goose_width > 0 &&
+            (goose_x >= width || goose_y >= height ||
+             goose_width > width - goose_x ||
+             goose_height > height - goose_y)) ||
+        cat_x < 0 || cat_y < 0 ||
+        cat_width < 0 || cat_height < 0 ||
         (cat_width == 0) != (cat_height == 0) ||
         (cat_width > 0 &&
             (cat_x >= width || cat_y >= height ||
-             cat_width > width - cat_x || cat_height > height - cat_y)) ||
+             cat_width > width - cat_x ||
+             cat_height > height - cat_y)) ||
         (size_t)width > SIZE_MAX / (size_t)height) {
         return false;
     }
@@ -2028,6 +2167,10 @@ bool kookie_gpu_world_texture_stage_begin(
     gpu_world_texture_staging.bytes = pixels * 4u;
     gpu_world_texture_staging.width = (Uint32)width;
     gpu_world_texture_staging.height = (Uint32)height;
+    gpu_world_texture_staging.goose_x = (Uint32)goose_x;
+    gpu_world_texture_staging.goose_y = (Uint32)goose_y;
+    gpu_world_texture_staging.goose_width = (Uint32)goose_width;
+    gpu_world_texture_staging.goose_height = (Uint32)goose_height;
     gpu_world_texture_staging.cat_x = (Uint32)cat_x;
     gpu_world_texture_staging.cat_y = (Uint32)cat_y;
     gpu_world_texture_staging.cat_width = (Uint32)cat_width;

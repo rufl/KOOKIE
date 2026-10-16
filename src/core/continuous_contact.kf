@@ -205,28 +205,111 @@ class BoundedTriangleContactController {
             movement.resolvedX(), movement.resolvedY(), movement.resolvedZ())
     }
 
+    TriangleContactResult slideCandidate(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ, Bool xFirst
+    ) {
+        var first = rejected(startX, startY, startZ, endX, endY, endZ)
+        if (xFirst) {
+            first = sweep(
+                startX, startY, startZ, endX, endY, startZ)
+        } else {
+            first = sweep(
+                startX, startY, startZ, startX, endY, endZ)
+        }
+        if (!first.accepted()) { return first }
+
+        var second = rejected(startX, startY, startZ, endX, endY, endZ)
+        if (xFirst) {
+            second = sweep(
+                first.resolvedX(), first.resolvedY(), startZ,
+                first.resolvedX(), endY, endZ)
+        } else {
+            second = sweep(
+                startX, first.resolvedY(), first.resolvedZ(),
+                endX, endY, first.resolvedZ())
+        }
+        if (!second.accepted()) { return second }
+
+        var slopeAccepted = first.slopeAccepted()
+        if (second.collided()) {
+            slopeAccepted = second.slopeAccepted()
+        }
+        var hitStep = first.hitStep()
+        if (!first.collided()) {
+            hitStep = second.hitStep()
+        }
+        return TriangleContactResult(
+            true, first.collided() || second.collided(), false, false,
+            slopeAccepted, hitStep,
+            startX, startY, startZ, endX, endY, endZ,
+            second.resolvedX(), second.resolvedY(), second.resolvedZ())
+    }
+
+    Int horizontalProgress(
+        TriangleContactResult result, Int startX, Int startZ
+    ) {
+        return absolute(result.resolvedX() - startX) +
+            absolute(result.resolvedZ() - startZ)
+    }
+
+    TriangleContactResult slide(
+        Int startX, Int startY, Int startZ,
+        Int endX, Int endY, Int endZ, Int hitStep
+    ) {
+        var xFirst = slideCandidate(
+            startX, startY, startZ, endX, endY, endZ, true)
+        var zFirst = slideCandidate(
+            startX, startY, startZ, endX, endY, endZ, false)
+        if (!xFirst.accepted() && !zFirst.accepted()) {
+            return rejected(startX, startY, startZ, endX, endY, endZ)
+        }
+        var chosen = xFirst
+        if (!chosen.accepted() ||
+            (zFirst.accepted() &&
+                horizontalProgress(zFirst, startX, startZ) >
+                horizontalProgress(chosen, startX, startZ))) {
+            chosen = zFirst
+        }
+        return TriangleContactResult(
+            true, true, false, false, chosen.slopeAccepted(), hitStep,
+            startX, startY, startZ, endX, endY, endZ,
+            chosen.resolvedX(), chosen.resolvedY(), chosen.resolvedZ())
+    }
+
     TriangleContactResult move(
         Int startX, Int startY, Int startZ,
         Int endX, Int endY, Int endZ
     ) {
         var direct = sweep(startX, startY, startZ, endX, endY, endZ)
-        if (!direct.accepted() || !direct.collided() || stepHeightValue <= 0) {
+        if (!direct.accepted() || !direct.collided()) {
             return groundState(direct, radiusValue + 1)
         }
-        var raised = sweep(
-            startX, startY + stepHeightValue, startZ,
-            endX, endY + stepHeightValue, endZ)
-        if (raised.accepted() && !raised.collided()) {
-            var lowered = sweep(
-                endX, endY + stepHeightValue, endZ,
-                endX, endY, endZ)
-            if (lowered.accepted() && (!lowered.collided() || lowered.slopeAccepted())) {
-                var stepped = TriangleContactResult(
-                    true, true, false, true, lowered.slopeAccepted(),
-                    direct.hitStep(), startX, startY, startZ, endX, endY, endZ,
-                    lowered.resolvedX(), lowered.resolvedY(), lowered.resolvedZ())
-                return groundState(stepped, radiusValue + 1)
+        if (stepHeightValue > 0) {
+            var raised = sweep(
+                startX, startY + stepHeightValue, startZ,
+                endX, endY + stepHeightValue, endZ)
+            if (raised.accepted() && !raised.collided()) {
+                var lowered = sweep(
+                    endX, endY + stepHeightValue, endZ,
+                    endX, endY, endZ)
+                if (lowered.accepted() &&
+                    (!lowered.collided() || lowered.slopeAccepted())) {
+                    var stepped = TriangleContactResult(
+                        true, true, false, true, lowered.slopeAccepted(),
+                        direct.hitStep(), startX, startY, startZ,
+                        endX, endY, endZ,
+                        lowered.resolvedX(), lowered.resolvedY(),
+                        lowered.resolvedZ())
+                    return groundState(stepped, radiusValue + 1)
+                }
             }
+        }
+        var slid = slide(
+            startX, startY, startZ, endX, endY, endZ,
+            direct.hitStep())
+        if (slid.accepted()) {
+            return groundState(slid, radiusValue + 1)
         }
         return groundState(direct, radiusValue + 1)
     }
