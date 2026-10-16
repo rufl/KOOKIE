@@ -7,6 +7,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   flipbooks and predrawn sheets are packed into the world atlas, staged as
   camera-facing billboards and triggered for projectile, hit, death and liquid
   transitions when native animal assets are available.
+- Native GPU preparation now fails closed when a declared VFX PNG is missing or
+  invalid, instead of presenting a successful but transparent atlas region.
 - `kof test src/main.kf --target jvm` passes `141/141`, including atlas UV,
   animated-frame and billboard staging coverage.
 - Corrected native keyboard routing so Space updates the gameplay jump state

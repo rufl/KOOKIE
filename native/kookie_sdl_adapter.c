@@ -1668,6 +1668,11 @@ static bool kookie_gpu_prepare_resources(
         for (int index = 0; index < KOOKIE_GPU_VFX_SURFACE_COUNT;
              index += 1) {
             vfx_textures[index] = kookie_gpu_load_vfx_texture(index);
+            if (vfx_textures[index] == NULL) {
+                fprintf(stderr,
+                    "KOOKIE gpu_prepare VFX asset %d load failed\n", index);
+                goto cleanup;
+            }
         }
     }
 
