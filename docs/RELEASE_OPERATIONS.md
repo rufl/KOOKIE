@@ -28,19 +28,19 @@ workflow can create the pre-release.
 cd /home/lich/lichforge/code/monorepo/engines/KOOKIE
 source scripts/kof_pin.sh
 
-export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.5-linux-x86_64
-export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.5-linux-x86_64.tar.gz
+export KOF_ROOT=/tmp/kof-debug/dist-ci/kof-0.6.6-linux-x86_64
+export KOF_ARCHIVE=/tmp/kof-debug/dist-ci/kof-0.6.6-linux-x86_64.tar.gz
 export KOOKIE_WINDOWS_SDL_PREFIX=/tmp/kookie-release-deps/sdl/SDL3-3.4.18/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_SDL_MIXER_PREFIX=/tmp/kookie-release-deps/mixer/SDL3_mixer-3.2.4/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_FREETYPE_PREFIX=/tmp/kookie-release-deps/freetype/x86_64-w64-mingw32
 export KOOKIE_WINDOWS_HARFBUZZ_PREFIX=/tmp/kookie-release-deps/harfbuzz/x86_64-w64-mingw32
 export KOOKIE_DXC=/tmp/kookie-release-deps/dxc/bin/dxc
 export PATH="$KOF_ROOT/bin:$PATH"
-export KOOKIE_KOF_SOURCE_COMMIT=8e59b24acc978eb2546509b5cfca867a06e7283a
+export KOOKIE_KOF_SOURCE_COMMIT=611317cf3e73301bcaf9907b2f0b11e1f6178301
 export KOOKIE_KOF_ARCHIVE_SHA256="$(sha256sum "$KOF_ARCHIVE" | cut -d ' ' -f 1)"
 ```
 
-`KOF_ARCHIVE` must be a source-built, metadata-normalized Kof `0.6.5`
+`KOF_ARCHIVE` must be a source-built, metadata-normalized Kof `0.6.6`
 distribution from the pinned Kof `lab` commit. `scripts/prepare_kof_source.sh`
 verifies the upstream native GC cycle guard before Maven packaging; the
 release toolchain then applies
@@ -155,8 +155,8 @@ self-hosted, windows, x64, kookie-demo-release
 
 Both runners need Git for Windows/Linux shell support as applicable, Python 3,
 OpenSSL, `glslc`, `spirv-val` and the repository checkout. The hosted
-`toolchain` job builds Kof `0.6.5` from
-`8e59b24acc978eb2546509b5cfca867a06e7283a`; each self-hosted job downloads
+`toolchain` job builds Kof `0.6.6` from
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`; each self-hosted job downloads
 and verifies that exact archive and prepends its `kof` binary. A preinstalled
 archive, Kof compiler digest secret or preinstalled Zig is not part of the
 release-runner contract.

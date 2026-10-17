@@ -7,8 +7,8 @@
 - Preserve comandos medidos, pins de origem, hashes e limites de comprovação. Não traduza identificadores de código, caminhos, nomes de comandos ou produtos upstream.
 - Escreva o status como um colega escreveria: diga o que funciona, o que foi realmente verificado e o que continua bloqueado. Evite linguagem de milestone que pareça mais completa do que a evidência.
 
-A baseline ativa de fonte/CI é o Kof `0.6.5` da branch `lab` no commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. A documentação atual da sessão deve
+A baseline ativa de fonte/CI é o Kof `0.6.6` da branch `lab` no commit
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`. A documentação atual da sessão deve
 descrever ordenação estrita por tick, revisões no mesmo tick com sequência de
 estado mais nova e histórico de rewind novo após restaurar checkpoint. As páginas
 de pesquisa mantêm intencionalmente seus snapshots datados de toolchain; atualize

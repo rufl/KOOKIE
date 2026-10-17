@@ -3,7 +3,7 @@
 Research date: 2026-09-22. Internet/API/source research only; none of these games was built or launched here.
 
 This is a dated ecosystem survey, not the current KOOKIE qualification record.
-The active source/CI baseline is now Kof `0.6.5` from `lab`; the projects below
+The active source/CI baseline is now Kof `0.6.6` from `lab`; the projects below
 remain research references and were not used as engine dependencies.
 
 ## Answer

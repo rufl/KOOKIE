@@ -7,7 +7,7 @@
   <a href="https://github.com/rufl/KOOKIE/releases"><img alt="Latest KOOKIE dogfood release" src="https://img.shields.io/github/v/release/rufl/KOOKIE?include_prereleases&amp;sort=semver&amp;label=dogfood&amp;color=38bdf8"></a>
   <img alt="Project status: experimental" src="https://img.shields.io/badge/status-experimental-f59e0b">
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/rufl/KOOKIE?color=22c55e"></a>
-  <img alt="Kof 0.6.5" src="https://img.shields.io/badge/Kof-0.6.5-64748b">
+  <img alt="Kof 0.6.6" src="https://img.shields.io/badge/Kof-0.6.6-64748b">
 </p>
 
 <p align="center">
@@ -87,11 +87,11 @@ matching target asset.
 
 ### Run qualification from source
 
-Install [Kof 0.6.5](https://github.com/KofLang/Kof4j) for the source
+Install [Kof 0.6.6](https://github.com/KofLang/Kof4j) for the source
 entrypoint:
 
 Use the source-built distribution from the Kof `lab` branch at commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. `scripts/prepare_kof_source.sh`
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`. `scripts/prepare_kof_source.sh`
 verifies that the upstream native GC cycle guard is present, then normalizes
 the compiler metadata before Maven packaging.
 
@@ -269,7 +269,7 @@ descriptor metadata separate from the bounded native queue and applies
 registered UI spatial gains in SDL_mixer. The 14 supplied JDSherbert OGG files
 remain license-blocked for redistribution until provenance is confirmed.
 [`docs/KOF4J_UI_MIGRATION.md`](docs/KOF4J_UI_MIGRATION.md) records the current
-Kof4j `0.6.5` UI/FFI boundary. The synchronous `Buffer(U8)` qualification
+Kof4j `0.6.6` UI/FFI boundary. The synchronous `Buffer(U8)` qualification
 passes on JVM and native x86-64 with the active pin; cross support remains
 unqualified and `Buffer(U8)` is not a portable typed/asynchronous upload ABI.
 `bash scripts/verify_package.sh` validates the `none` package profile and

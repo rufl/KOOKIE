@@ -7,8 +7,8 @@
 - Preserve measured commands, source pins, hashes and proof limits. Do not translate code identifiers, paths, command names or upstream product names.
 - Write status like a teammate would: say what works, what was actually checked and what is still blocked. Avoid milestone language that sounds more complete than the evidence.
 
-The active source/CI baseline is Kof `0.6.5` from the `lab` branch at
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. Current session documentation must
+The active source/CI baseline is Kof `0.6.6` from the `lab` branch at
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`. Current session documentation must
 describe strict tick ordering, newer same-tick state-sequence revisions and
 fresh rewind history after checkpoint restore. Research pages retain their
 dated toolchain snapshots intentionally; refresh their scope and evidence

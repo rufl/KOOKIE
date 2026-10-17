@@ -86,8 +86,8 @@ only generated mechanical shader metadata and GPU handles. Kof continues to own
 camera/projection semantics, bounded staging, material/pass selection and render
 ordering; it never parses or composes SPIR-V at runtime.
 
-The active Kof4j `0.6.5` pin is the Kof `lab` source commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. The existing
+The active Kof4j `0.6.6` pin is the Kof `lab` source commit
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies `Buffer(U8)` on JVM and native
 x86-64 with the active pin. Cross-target support remains unqualified, and
 `Buffer(U8)` does not define a generic typed, asynchronous GPU/audio ownership

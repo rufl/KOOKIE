@@ -8,8 +8,8 @@ Status: **PROPOSED**. This plan is the execution document for decision
 Normative boundary and batch ABI: [Kof native-boundary and synchronous batch
 ABI](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Current source pin: Kof `0.6.5` at
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. Qualification of this pin is in
+Current source pin: Kof `0.6.6` at
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`. Qualification of this pin is in
 progress; the previous local proof was for
 `f42ed91dfbceae09880b7d0619d98f67490149d1` and does not transfer
 automatically.
@@ -49,8 +49,8 @@ is:
 
 This is physical source composition, not a performance claim.
 
-With the exact pinned Kof `0.6.5` source
-`8e59b24acc978eb2546509b5cfca867a06e7283a`, the installer recorded archive
+With the exact pinned Kof `0.6.6` source
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`, the installer recorded archive
 SHA-256
 `300e4200386b53d8e64796e110946340a6fe74ea9b2145af9aac8ade4caa86ef`
 and completed in 173.76 seconds. The following gates passed:
@@ -99,15 +99,15 @@ qualify this source.
 1. Re-run `python3 scripts/update_kof_lab.py --check` immediately before the
    change.
 2. If adopting the candidate, apply it with
-   `--expected-commit 8e59b24acc978eb2546509b5cfca867a06e7283a` and
-   `--expected-version 0.6.5`; do not update a moving `lab` ref implicitly.
+   `--expected-commit 611317cf3e73301bcaf9907b2f0b11e1f6178301` and
+   `--expected-version 0.6.6`; do not update a moving `lab` ref implicitly.
 3. Build the exact source archive and record source commit and archive hash.
 4. Re-run static/JVM, SIMD and the native/package gate with the exact source.
 5. Refresh active documentation only after the new baseline is green or its
    limits are explicitly recorded.
 
 **Exit gate:** all active pin references name
-`8e59b24acc978eb2546509b5cfca867a06e7283a` and the exact qualification
+`611317cf3e73301bcaf9907b2f0b11e1f6178301` and the exact qualification
 results and remaining native/package limit are recorded. No migration claims
 “latest” before this gate.
 

@@ -4,8 +4,8 @@
 
 Status: **implementado e exercitado nos alvos Kof JVM/nativo**. Este é o primeiro contrato limitado do G0; ainda não é um registry nativo de SDL.
 
-O gate atual de fonte/CI usa Kof `0.6.5` da branch `lab`, no commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`; o contrato limitado de tokens de
+O gate atual de fonte/CI usa Kof `0.6.6` da branch `lab`, no commit
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`; o contrato limitado de tokens de
 recursos é exercitado pelo gate JVM/native ativo.
 
 ## Contrato

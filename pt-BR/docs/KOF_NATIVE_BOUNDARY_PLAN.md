@@ -7,8 +7,8 @@ Status: **PROPOSTO**. Este plano é o documento de execução da decisão
 
 Fronteira normativa e ABI batch: [Fronteira nativa Kof e ABI batch síncrona](KOF_NATIVE_BOUNDARY_SPEC.md).
 
-Pin de fonte atual: Kof `0.6.5` no commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. A qualificação deste pin está em
+Pin de fonte atual: Kof `0.6.6` no commit
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`. A qualificação deste pin está em
 andamento; a prova local anterior era do commit
 `f42ed91dfbceae09880b7d0619d98f67490149d1` e não se transfere
 automaticamente.
@@ -48,8 +48,8 @@ A composição medida por `scripts/report_code_mix.py` na working tree atual é:
 
 Isso é composição física de fonte, não uma afirmação de performance.
 
-Com a fonte Kof `0.6.5` pinada no commit
-`8e59b24acc978eb2546509b5cfca867a06e7283a`, o instalador registrou o SHA-256
+Com a fonte Kof `0.6.6` pinada no commit
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`, o instalador registrou o SHA-256
 do archive
 `300e4200386b53d8e64796e110946340a6fe74ea9b2145af9aac8ade4caa86ef`
 e terminou em 173,76 segundos. Os gates abaixo passaram:
@@ -98,8 +98,8 @@ referências ativas de CI/documentação.
 1. Rodar `python3 scripts/update_kof_lab.py --check` imediatamente antes da
    mudança.
 2. Se o candidato for adotado, aplicar com
-   `--expected-commit 8e59b24acc978eb2546509b5cfca867a06e7283a` e
-   `--expected-version 0.6.5`; nunca atualizar uma referência `lab` móvel de
+   `--expected-commit 611317cf3e73301bcaf9907b2f0b11e1f6178301` e
+   `--expected-version 0.6.6`; nunca atualizar uma referência `lab` móvel de
    forma implícita.
 3. Construir o archive exato e registrar commit de origem e hash do archive.
 4. Rodar novamente os gates static/JVM, SIMD e native/package com a fonte exata.
@@ -107,7 +107,7 @@ referências ativas de CI/documentação.
    de seus limites estarem registrados de forma explícita.
 
 **Gate de saída:** todas as referências ativas nomeiam
-`8e59b24acc978eb2546509b5cfca867a06e7283a` e os resultados exatos da
+`611317cf3e73301bcaf9907b2f0b11e1f6178301` e os resultados exatos da
 qualificação, incluindo o limite restante do native/package, estão registrados.
 Nenhuma migração chama a fonte de “latest” antes desse gate.
 

@@ -2,8 +2,8 @@
 
 Data da pesquisa: **2026-09-22**. Esta é uma avaliação de bibliotecas/arquitetura, não um engine implementado nem uma comparação de desempenho medida. Linux nativo x86-64 e comportamento de CPU pertencente ao Kof continuam sendo a baseline em [ENGINE_PLAN](ENGINE_PLAN.md). A propriedade estrangeira de ECS/GUI/física é uma alternativa possível que exige aprovação explícita; esta pesquisa não a aprova silenciosamente.
 
-O baseline ativo de fonte/CI do KOOKIE é Kof `0.6.5` da branch `lab`, no
-`8e59b24acc978eb2546509b5cfca867a06e7283a`; esta pesquisa mantém seu
+O baseline ativo de fonte/CI do KOOKIE é Kof `0.6.6` da branch `lab`, no
+`611317cf3e73301bcaf9907b2f0b11e1f6178301`; esta pesquisa mantém seu
 snapshot datado do Minecraft e não aprova dependências estrangeiras para a
 engine sem um contrato e gate de qualificação separados.
 
@@ -47,7 +47,7 @@ Não há dependência nomeada de Ashley, Artemis, Dominion, Bullet, Jolt ou Phys
 | Rota | O que funciona em princípio | Custo/fronteira real |
 |---|---|---|
 | Kof JVM + biblioteca Java | Classes Java no classpath de dependências | A matemática de construtor/método do JOML foi exercitada abaixo. Outras bibliotecas Java continuam sem teste; reflexão, genéricos, callbacks de interface, JNI e classpath exigem provas separadas. Não satisfaz distribuição nativa-ELF por si só |
-| Kof nativo + biblioteca C/C++ | Adaptador verificado e estreito sobre subsistema estrangeiro permitido | A fonte Kof `0.6.5` fixada expõe um formato síncrono de bytes `Buffer(U8)`, qualificado pelo KOOKIE em JVM/nativo x86-64; arrays tipados arbitrários, structs, ponteiros, buffers de saída e callbacks continuam fora do contrato portátil. O adaptador possui memória/recursos nativos; o Kof recebe tokens verificados e valores copiados. Interfaces virtuais C++ exigem adaptadores reais |
+| Kof nativo + biblioteca C/C++ | Adaptador verificado e estreito sobre subsistema estrangeiro permitido | A fonte Kof `0.6.6` fixada expõe um formato síncrono de bytes `Buffer(U8)`, qualificado pelo KOOKIE em JVM/nativo x86-64; arrays tipados arbitrários, structs, ponteiros, buffers de saída e callbacks continuam fora do contrato portátil. O adaptador possui memória/recursos nativos; o Kof recebe tokens verificados e valores copiados. Interfaces virtuais C++ exigem adaptadores reais |
 | Port `.kf` nativo ou implementação independente | Algoritmos selecionados e contratos de dados/ciclo de vida | Melhor para CPU portátil pertencente ao engine. Traduzir fonte Java não traz JVM/reflexão/JNI. Ports derivados da fonte conservam obrigações da licença upstream |
 
 Um adaptador de tokens **não** torna um JAR Java nativo. Embutir uma JVM ou mover gameplay para um engine estrangeiro é uma decisão arquitetural separada. `spawn` nativo atualmente desabilita GC automático; comece com uma thread Kof. Threads de bibliotecas estrangeiras não podem reter referências ao heap Kof nem chamar Kof. Consulte [KOF_LANGUAGE](KOF_LANGUAGE.md) e [COURSE_PROBES](COURSE_PROBES.md).

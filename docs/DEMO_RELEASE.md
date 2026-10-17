@@ -32,9 +32,9 @@ presentation job remained queued because the required self-hosted runner
 still requires the Windows job, both passed presentation evidence records and
 approval of the `kookie-demo-release` environment.
 
-New release candidates use the source-built Kof `0.6.5` from the Kof `lab`
-branch at commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; the workflow builds
-the distribution from source because no public 0.6.5 archive is used as the
+New release candidates use the source-built Kof `0.6.6` from the Kof `lab`
+branch at commit `611317cf3e73301bcaf9907b2f0b11e1f6178301`; the workflow builds
+the distribution from source because no public 0.6.6 archive is used as the
 pin. The release patch digest is
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 

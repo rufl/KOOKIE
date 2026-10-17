@@ -33,9 +33,9 @@ publicada. A publicação ainda exige o job Windows, os dois registros de
 evidência de apresentação com sucesso e a aprovação do ambiente
 `kookie-demo-release`.
 
-Novos candidatos usam o Kof `0.6.5` construído a partir da branch `lab`, no
-commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; o workflow constrói a
-distribuição a partir da fonte porque o pin não usa archive público do 0.6.5.
+Novos candidatos usam o Kof `0.6.6` construído a partir da branch `lab`, no
+commit `611317cf3e73301bcaf9907b2f0b11e1f6178301`; o workflow constrói a
+distribuição a partir da fonte porque o pin não usa archive público do 0.6.6.
 O digest do patch de release é
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
 
