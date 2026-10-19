@@ -74,6 +74,7 @@
     projectile: [1.0, 0.88, 0.20, 1],
     pickup: [0.30, 1.0, 0.58, 1],
     vfx: [1.0, 0.35, 0.72, 1],
+    shadow: [0.015, 0.020, 0.025, 0.42],
     water: [0.05, 0.34, 0.45, 0.72],
   });
 
@@ -367,6 +368,17 @@
       indices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
     }
     return createMesh(gl, positions, normals, null, indices, color);
+  }
+  function diamondGeometry(gl, color) {
+    const positions = new Float32Array([
+      0, 0.5, 0, 0.5, 0, 0, 0, 0, 0.5,
+      -0.5, 0, 0, 0, -0.5, 0, 0, 0, -0.5,
+    ]);
+    const indices = [
+      0, 4, 1, 0, 1, 5, 0, 5, 3, 0, 3, 4,
+      2, 1, 4, 2, 5, 1, 2, 3, 5, 2, 4, 3,
+    ];
+    return createMesh(gl, positions, null, null, indices, color);
   }
   function planeGeometry(gl, color, texture) {
     const positions = new Float32Array([
@@ -1034,15 +1046,16 @@
     const fallbackMeshes = {
       solid: boxGeometry(gl, [1, 1, 1], [1, 1, 1, 1]),
       water: horizontalPlaneGeometry(gl, [1, 1, 1, 1]),
+      shadow: horizontalPlaneGeometry(gl, COLORS.shadow),
       actor: boxGeometry(gl, [8, 14, 8], COLORS.actor),
-      pickup: boxGeometry(gl, [5, 5, 5], COLORS.pickup),
+      pickup: diamondGeometry(gl, COLORS.pickup),
       projectile: boxGeometry(gl, [2.5, 2.5, 2.5], COLORS.projectile),
       vfx: boxGeometry(gl, [12, 1, 12], COLORS.vfx),
     };
     const rampMeshes = ARENA_RAMPS.map((ramp) =>
       rampGeometry(gl, ramp.vertices, ramp.color));
 
-    const assets = { goose: null, cat: null };
+    const assets = { goose: null, cat: null, hearts: null };
     const vfxTextures = new Array(VFX_ASSETS.length).fill(null);
     const vfxMeshes = new Array(VFX_ASSETS.length).fill(null);
     const assetFailures = [];
@@ -1050,9 +1063,12 @@
     const assetLoads = [
       ["goose", assetBase + "goose/goose.glb"],
       ["cat", assetBase + "cat/cat.glb"],
+      ["hearts", "content/prototype/runtime/ui/hearts_0001.png"],
     ].map(async ([name, url]) => {
       try {
-        assets[name] = await loadGlb(url, gl);
+        assets[name] = name === "hearts"
+          ? await loadTextureUrl(gl, url)
+          : await loadGlb(url, gl);
       } catch (error) {
         assets[name] = null;
         assetFailures.push(name + ": " + error.message);
@@ -1068,6 +1084,7 @@
     });
     let assetReady = false;
     let contextLost = false;
+    let heartMesh = null;
     Promise.all([...assetLoads, ...vfxLoads]).then(() => { assetReady = true; });
     function rendererStatus() {
       if (contextLost) return "WebGL2 / context lost";
@@ -1189,8 +1206,26 @@
       }
       gl.disable(gl.BLEND);
 
+      const actors = scene.actors || [];
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      for (const actor of actors) {
+        if (actor.health <= 0) continue;
+        draw(
+          [fallbackMeshes.shadow],
+          transform([actor.x, 0.04, actor.z], [8, 1, 6]),
+          COLORS.shadow, time, viewProjection,
+        );
+      }
+      draw(
+        [fallbackMeshes.shadow],
+        transform([scene.playerX, 0.04, scene.playerZ], [8, 1, 6]),
+        COLORS.shadow, time, viewProjection,
+      );
+      gl.disable(gl.BLEND);
+
       const modelForActor = (actor) => actor.kind === 2 ? assets.cat : assets.goose;
-      for (const actor of scene.actors || []) {
+      for (const actor of actors) {
         if (actor.health <= 0) continue;
         const model = modelForActor(actor);
         const tint = actor.health < 50 ? COLORS.damaged : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor;
@@ -1210,12 +1245,39 @@
       draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
         [scene.playerX, scene.playerY, scene.playerZ], [8, 8, 8], yaw,
       ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
+
+      if (assets.hearts) {
+        if (!heartMesh) heartMesh = planeGeometry(gl, [1, 1, 1, 1], assets.hearts);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.depthMask(false);
+        for (const actor of actors) {
+          if (actor.health <= 0) continue;
+          const health = Math.max(0, Math.min(100, actor.health));
+          const heartState = Math.max(0, Math.min(4, Math.floor(health * 4 / 100)));
+          const actorLift = actorAnimationLift(actor, scene.tick);
+          const heartHeight = actor.kind === 2 ? 15 : 19;
+          draw(
+            [heartMesh],
+            transform(
+              [actor.x, actor.y + actorLift + heartHeight, actor.z],
+              [4, 4, 1], yaw,
+            ),
+            [1, 1, 1, 1], time, viewProjection,
+            [heartState / 5, 0, 1 / 5, 1],
+          );
+        }
+        gl.depthMask(true);
+        gl.disable(gl.BLEND);
+      }
       if (scene.pickup) {
         const bob = Math.sin(time * 0.004) * 0.7;
         draw([fallbackMeshes.pickup], transform(
-          [scene.pickup.x, scene.pickup.y + 3 + bob, scene.pickup.z], [1, 1, 1], time * 0.001,
+          [scene.pickup.x, scene.pickup.y + 3 + bob, scene.pickup.z],
+          [5, 5, 5], time * 0.001,
         ), COLORS.pickup, time, viewProjection);
       }
+
       for (const projectile of scene.projectiles || []) {
         draw([fallbackMeshes.projectile], transform(
           [projectile.x, projectile.y, projectile.z], [1, 1, 1], time * 0.003,

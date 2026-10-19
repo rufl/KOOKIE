@@ -78,6 +78,16 @@ player-facing demo release. The open D1 gate is tracked in
   skins authored goose/cat skeletons with bounded `JOINTS_0`/`WEIGHTS_0`,
   inverse-bind palettes and `LINEAR`/`STEP` TRS clips. State-to-clip fallback
   remains explicit for assets with fewer authored clips.
+- The fidelity claim is deliberately semantic, not pixel-equivalence. The
+  browser applies authored GLB skeletal skinning and animation clips; the
+  native presentation currently uploads the same GLB geometry with procedural
+  bob/gait/attack lift and does not yet apply the authored joint deformation.
+  Native also stages projected names/hearts, doors, floating liquid objects,
+  power-ups and loot beams that are not present in the bounded 68-word browser
+  snapshot. The browser now uses the authored five-state heart sheet for
+  replicated actors, camera-facing blob shadows and diamond pickup geometry,
+  but browser/native visual equality remains uncertified until the native
+  skinning path and the missing authoritative scene fields converge.
 - Queue-controlled Linux presentation qualification passed through
   `scripts/verify_presentation.sh` on ticket 31. The native smoke used X11
   under gamescope, render node `/dev/dri/renderD128`, positive present

@@ -393,7 +393,19 @@ movimento e atacando. Os GLBs autorados de ganso/gato usam
 `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind limitadas a 32 juntas e clipes TRS
 `LINEAR`/`STEP` com fallback explícito. Ele segue a câmera autoritativa e
 redimensiona para pixels do dispositivo.
-cena completa, oferece reconexão automática limitada com estados visíveis de
+Isso é paridade semântica de renderização, não uma afirmação de equivalência
+pixel a pixel. Os atores do navegador usam deformação esquelética autorada dos
+GLBs e clipes de animação `LINEAR`/`STEP` amostrados; a apresentação nativa
+atual envia a geometria GLB compartilhada com elevação procedural de
+repouso/marcha/ataque. Nomes e corações projetados, portas, objetos líquidos
+flutuantes, power-ups e feixes de loot exclusivos do nativo ficam fora do
+snapshot limitado do navegador. O navegador adiciona a folha autorada de
+cinco estados de coração, sombras de atores voltadas para a câmera e pickup em
+diamante quando o snapshot tem dados autoritativos suficientes, mas a paridade
+visual continua não certificada até convergirem o skinning nativo e os campos
+de cena ausentes.
+O cliente bloqueia os controles de gameplay até receber a cena completa,
+oferece reconexão automática limitada com estados visíveis de
 carregamento/falha e persiste localmente as preferências de minimapa, pointer
 lock e movimento reduzido. O navegador exige WebGL2 para a cena 3D e falha
 fechado quando esse renderer está indisponível. O gateway suporta terminação WSS

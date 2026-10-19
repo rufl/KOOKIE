@@ -60,6 +60,17 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   com `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind e clipes TRS `LINEAR`/`STEP`.
   O fallback entre estados e clipes permanece explícito para assets com menos
   animações.
+- A certificação de fidelidade é deliberadamente semântica, não de
+  equivalência pixel a pixel. O navegador aplica skinning esquelético e clipes
+  de animação autorados no GLB; a apresentação nativa atualmente envia a mesma
+  geometria GLB com elevação procedural de repouso/marcha/ataque e ainda não
+  aplica a deformação autorada das juntas. O nativo também desenha nomes/corações
+  projetados, portas, objetos líquidos flutuantes, power-ups e feixes de loot
+  que não existem no snapshot limitado de 68 palavras do navegador. O navegador
+  agora usa a folha autorada de cinco estados de coração para atores replicados,
+  sombras blob voltadas para a câmera e pickup em forma de diamante, mas a
+  igualdade visual navegador/nativo continua não certificada até convergirem o
+  skinning nativo e os campos autoritativos de cena ausentes.
 - A qualificação de apresentação Linux controlada pela fila passou pelo
   `scripts/verify_presentation.sh` no ticket 31. O smoke nativo usou X11 sob
   gamescope, `/dev/dri/renderD128`, capacidade positiva de present, áudio,

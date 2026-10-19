@@ -402,6 +402,15 @@ and attack actor states. Authored goose/cat GLBs use `JOINTS_0`/`WEIGHTS_0`,
 inverse-bind palettes capped at 32 joints, and `LINEAR`/`STEP` TRS clips with
 fallback selection. It follows the authoritative camera and resizes for device
 pixels.
+This is semantic rendering parity, not a pixel-equivalence claim. Browser
+actors use authored GLB skeletal deformation and sampled `LINEAR`/`STEP`
+animation clips; the current native presentation uploads the shared GLB
+geometry with procedural bob/gait/attack lift. Native-only projected labels and
+hearts, doors, floating liquid objects, power-ups and loot beams are outside
+the bounded browser snapshot. The browser adds the authored five-state heart
+sheet, camera-facing actor shadows and diamond pickup where the snapshot has
+enough authoritative data, but visual parity remains uncertified until native
+skinning and the missing scene fields converge.
 The client gates gameplay controls until the full scene arrives, exposes bounded
 automatic reconnect with visible loading/failure states, and persists minimap,
 pointer-lock and reduced-motion preferences locally. The browser requires
