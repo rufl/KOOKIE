@@ -303,27 +303,29 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
   elif [[ "$adapter_status" -ne 0 ]]; then
     exit "$adapter_status"
   fi
-  g5_timeout_seconds="${KOOKIE_G5_VERIFY_TIMEOUT_SECONDS:-900}"
-  [[ "$g5_timeout_seconds" =~ ^[1-9][0-9]*$ ]] || {
-    echo 'KOOKIE_G5_VERIFY_TIMEOUT_SECONDS must be a positive integer' >&2
-    exit 2
-  }
-  command -v timeout >/dev/null || {
-    echo 'G5 renderer gate requires timeout(1) for bounded verification' >&2
-    exit 75
-  }
-  echo "KOOKIE verification phase=g5-renderer start timeout=${g5_timeout_seconds}s"
-  set +e
-  KOOKIE_PRESENTATION_ISOLATION_WRAPPER="$isolation_wrapper" \
-    timeout --signal=TERM --kill-after=15s "$g5_timeout_seconds" \
-      bash scripts/verify_g5_renderer.sh
-  g5_status=$?
-  set -e
-  if [[ "$g5_status" -ne 0 ]]; then
-    echo "KOOKIE verification phase=g5-renderer failed status=${g5_status}" >&2
-    exit "$g5_status"
+  if [[ "$adapter_status" -eq 0 ]]; then
+    g5_timeout_seconds="${KOOKIE_G5_VERIFY_TIMEOUT_SECONDS:-900}"
+    [[ "$g5_timeout_seconds" =~ ^[1-9][0-9]*$ ]] || {
+      echo 'KOOKIE_G5_VERIFY_TIMEOUT_SECONDS must be a positive integer' >&2
+      exit 2
+    }
+    command -v timeout >/dev/null || {
+      echo 'G5 renderer gate requires timeout(1) for bounded verification' >&2
+      exit 75
+    }
+    echo "KOOKIE verification phase=g5-renderer start timeout=${g5_timeout_seconds}s"
+    set +e
+    KOOKIE_PRESENTATION_ISOLATION_WRAPPER="$isolation_wrapper" \
+      timeout --signal=TERM --kill-after=15s "$g5_timeout_seconds" \
+        bash scripts/verify_g5_renderer.sh
+    g5_status=$?
+    set -e
+    if [[ "$g5_status" -ne 0 ]]; then
+      echo "KOOKIE verification phase=g5-renderer failed status=${g5_status}" >&2
+      exit "$g5_status"
+    fi
+    echo "KOOKIE verification phase=g5-renderer passed"
   fi
-  echo "KOOKIE verification phase=g5-renderer passed"
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
     if [[ -n "$requested_screenshot_path" &&
           "$requested_screenshot_path" != "$presentation_screenshot_path" ]]; then

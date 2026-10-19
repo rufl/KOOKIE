@@ -338,8 +338,8 @@
     gl.bindVertexArray(null);
     return Object.freeze({
       vao, vbo, skinVbo, ibo, count: indices.length, color: color || COLORS.wall,
-      texture, localModel: localModel || identity(), skinned: Boolean(skinning),
-      skinNode,
+      texture, localModel: localModel || identity(),
+      skinned: Boolean(skinning && skinNode !== null), skinNode,
     });
   }
 
@@ -607,7 +607,8 @@
   function normalizeQuaternion(quaternion) {
     const length = Math.hypot(
       quaternion[0], quaternion[1], quaternion[2], quaternion[3],
-    ) || 1;
+    );
+    if (!Number.isFinite(length) || length < 1e-8) return [0, 0, 0, 1];
     return quaternion.map((value) => value / length);
   }
 
@@ -777,14 +778,17 @@
         const times = accessorValues(json, binary, sampler.input);
         const components = target.path === "rotation" ? 4 : 3;
         const values = accessorValues(json, binary, sampler.output);
-        if (times.length !== inputAccessor.count ||
+        if (times.length === 0 ||
+            times.length !== inputAccessor.count ||
             values.length !== outputAccessor.count * components ||
             outputAccessor.count !== inputAccessor.count) {
           throw new Error("GLB animation key count mismatch");
         }
         if (times.some((time, index) =>
-          !Number.isFinite(time) || (index > 0 && time < times[index - 1]))) {
-          throw new Error("GLB animation time order rejected");
+          !Number.isFinite(time) || time < 0 ||
+          (index > 0 && time < times[index - 1])) ||
+            values.some((value) => !Number.isFinite(value))) {
+          throw new Error("GLB animation values rejected");
         }
         duration = Math.max(duration, times[times.length - 1] || 0);
         channels.push(Object.freeze({
@@ -842,10 +846,30 @@
       if (skinNode !== null && jointsIndex === undefined) {
         throw new Error("GLB skinned primitive attributes missing");
       }
-      const joints = jointsIndex === undefined
+      const jointsAccessor = jointsIndex === undefined
+        ? null : json.accessors?.[jointsIndex];
+      const weightsAccessor = weightsIndex === undefined
+        ? null : json.accessors?.[weightsIndex];
+      if (jointsAccessor && jointsAccessor.type !== "VEC4") {
+        throw new Error("GLB JOINTS_0 accessor rejected");
+      }
+      if (weightsAccessor && weightsAccessor.type !== "VEC4") {
+        throw new Error("GLB WEIGHTS_0 accessor rejected");
+      }
+      const joints = skinNode === null || jointsIndex === undefined
         ? null : accessorValues(json, binary, jointsIndex);
-      const weights = weightsIndex === undefined
+      const weights = skinNode === null || weightsIndex === undefined
         ? null : accessorValues(json, binary, weightsIndex);
+      if (skinNode !== null) {
+        const skin = skins[nodes[skinNode].skin];
+        if (joints.some((joint) =>
+          !Number.isInteger(joint) || joint < 0 || joint >= skin.joints.length)) {
+          throw new Error("GLB JOINTS_0 value rejected");
+        }
+        if (weights.some((weight) => !Number.isFinite(weight) || weight < 0)) {
+          throw new Error("GLB WEIGHTS_0 value rejected");
+        }
+      }
       const material = json.materials?.[primitive.material || 0];
       const pbr = material?.pbrMetallicRoughness;
       const factor = pbr?.baseColorFactor || [1, 1, 1, 1];
@@ -875,7 +899,8 @@
         }
       }
     }
-    const skinnedNodes = Object.freeze(meshes.filter((mesh) => mesh.skinned)
+    const skinnedNodes = Object.freeze(meshes.filter((mesh) =>
+      mesh.skinned && mesh.skinNode !== null)
       .map((mesh) => mesh.skinNode).filter((node, index, all) => all.indexOf(node) === index));
     const skinCache = new Map();
     const sampleSkinForState = (state, timeMs) => {

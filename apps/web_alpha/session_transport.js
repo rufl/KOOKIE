@@ -361,7 +361,7 @@
   panel.appendChild(status);
   root.appendChild(panel);
 
-  function defaultScene() {
+  function previewScene() {
     return {
       tick: 0,
       playerX: 32,
@@ -387,7 +387,7 @@
     };
   }
 
-  let sceneState = defaultScene();
+  let sceneState = previewScene();
   let sceneRenderer = null;
   let renderFrameHandle = 0;
 
@@ -524,24 +524,39 @@
     sceneRenderer = createFallbackRenderer(sceneCanvas);
   }
   hudValues.renderer.textContent = sceneRenderer.reason || "WebGL2";
-  setRuntimeState("idle / renderer ready");
+  setRuntimeState("idle / preview renderer ready");
   if (rendererInitializationError) {
     activateFallbackRenderer("initialization failed: " + rendererInitializationError);
   }
 
+  function annotateScreenshot(capture, renderer) {
+    return Object.freeze({
+      ...capture,
+      renderer,
+      authoritative: authoritativeReady,
+      sceneSource: authoritativeReady ? "authoritative" : "preview",
+      sceneTick: sceneState.tick,
+    });
+  }
   let lastScreenshot = null;
   function captureScreenshot() {
     if (!sceneRenderer || typeof sceneRenderer.captureScreenshot !== "function") {
       throw new Error("renderer screenshot capture unavailable");
     }
-    lastScreenshot = sceneRenderer.captureScreenshot();
+    const renderer = typeof sceneRenderer.getStatus === "function"
+      ? sceneRenderer.getStatus() : sceneRenderer.reason || "unavailable";
+    lastScreenshot = annotateScreenshot(sceneRenderer.captureScreenshot(), renderer);
+    const captureLabel = authoritativeReady
+      ? "SCREENSHOT CAPTURED" : "PREVIEW SCREENSHOT CAPTURED";
+    const captureColor = authoritativeReady ? "#4ade80" : "#fbbf24";
     setRuntimeState(
-      "ready / screenshot " + lastScreenshot.width + "x" + lastScreenshot.height,
-      "#4ade80",
+      (authoritativeReady ? "ready" : "preview") +
+        " / screenshot " + lastScreenshot.width + "x" + lastScreenshot.height,
+      captureColor,
     );
     setStatus(
-      "SCREENSHOT CAPTURED / P6 / checksum=" + lastScreenshot.checksum,
-      "#4ade80",
+      captureLabel + " / P6 / checksum=" + lastScreenshot.checksum,
+      captureColor,
     );
     return lastScreenshot;
   }
@@ -551,7 +566,7 @@
     canvas.height = sceneCanvas.height || 480;
     const fallback = createFallbackRenderer(canvas);
     fallback.render(sceneState);
-    return fallback.captureScreenshot();
+    return annotateScreenshot(fallback.captureScreenshot(), "2D fallback");
   }
   captureButton.addEventListener("click", () => {
     try {

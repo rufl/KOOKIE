@@ -45,7 +45,9 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   WebGL2 reads the preserved framebuffer through `readPixels`, while the
   2D fallback reads `ImageData`. `window.KookieBrowserCapture` exposes the
   active capture and an isolated fallback capture with dimensions, checksum,
-  non-black-pixel count and base64 PPM bytes for validation.
+  non-black-pixel count and base64 PPM bytes; each capture also reports
+  `authoritative`, `sceneSource` and `sceneTick`, so disconnected preview
+  frames cannot be mistaken for authoritative evidence.
 - Replaced independent per-axis FPS velocity approach with fixed-point
   normalized wish-vector projection and acceleration. Fixed-step coyote time,
   jump buffering, air control and eased braking remain in the authoritative

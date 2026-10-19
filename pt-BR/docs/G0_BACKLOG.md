@@ -45,7 +45,9 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   qualificação: WebGL2 preserva e lê o framebuffer, enquanto o fallback 2D lê
   `ImageData`. `window.KookieBrowserCapture` retorna a captura ativa e uma
   captura isolada do fallback com dimensões, checksum, contagem de pixels não
-  pretos e bytes PPM em base64.
+  pretos e bytes PPM em base64, além dos metadados `authoritative`,
+  `sceneSource` e `sceneTick`. Capturas desconectadas são explicitamente
+  marcadas como preview.
 - O movimento FPS nativo agora usa wish vectors normalizados em ponto fixo e
   aceleração por projeção, preservando coyote time, buffer de pulo, controle
   aéreo e frenagem suave no passo fixo. A regressão de diagonalização é segura

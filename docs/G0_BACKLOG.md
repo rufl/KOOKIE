@@ -59,7 +59,8 @@ player-facing demo release. The open D1 gate is tracked in
   WebGL2 preserves and reads the framebuffer while the 2D fallback reads its
   `ImageData`. `window.KookieBrowserCapture` returns the active screenshot and
   an isolated fallback screenshot with dimensions, checksum, non-black-pixel
-  count and base64 PPM bytes.
+  count and base64 PPM bytes, plus `authoritative`, `sceneSource` and
+  `sceneTick` metadata. Disconnected captures are explicitly labeled preview.
 - The browser gateway full-scene path now applies normalized wish-vector
   acceleration, ground friction, air braking, coyote time, jump buffering,
   one air jump, bounded swept axis collision and floor/platform support.
