@@ -46,6 +46,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 mkdir -p "$SOURCE_DIR"/{core,content,session,ui,build} "$EVIDENCE_DIR"
+echo "KOOKIE G5 phase=stage-assets"
 mkdir -p "$SOURCE_DIR"/assets/{fonts,ui,prototype/runtime}
 cp -- "$ROOT_DIR/assets/fonts/jared-lite.ttf" \
   "$SOURCE_DIR/assets/fonts/jared-lite.ttf"
@@ -75,8 +76,10 @@ cp -- "$ROOT_DIR/probes/shared/gpu_world_texture_batch.kf" \
   "$SOURCE_DIR/content/gpu_world_texture_batch.kf"
 IFS=' ' read -r -a TEXT_FLAGS <<<"$(pkg-config --cflags freetype2 harfbuzz)"
 IFS=' ' read -r -a TEXT_LIBS <<<"$(pkg-config --libs freetype2 harfbuzz)"
+echo "KOOKIE G5 phase=shader-pipeline"
 python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
   --root "$ROOT_DIR" --output "$SOURCE_DIR/build" --target linux
+echo "KOOKIE G5 phase=compile-adapter"
 cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
   -I"$SOURCE_DIR/build" \
   "$ROOT_DIR/native/kookie_sdl_adapter.c" \
@@ -94,6 +97,7 @@ while IFS= read -r library; do
   esac
 done < <(ldd "$SOURCE_DIR/build/libkookie_sdl_adapter.so" |
   sed -n -E 's/.*=> (\/[^ ]+) .*/\1/p')
+echo "KOOKIE G5 phase=compile-renderer"
 (
   cd "$SOURCE_DIR"
   kookie_kof_observed g5-renderer kof build main.kf \
@@ -120,6 +124,7 @@ fi
 render_args=(--render-node "$render_node")
 render_status=75
 for attempt in 1 2 3; do
+  echo "KOOKIE G5 phase=render attempt=${attempt}"
   set +e
   (
     cd "$SOURCE_DIR"
@@ -146,6 +151,7 @@ if [[ "$render_status" -ne 0 ]]; then
   exit "$render_status"
 fi
 cp -- "$INNER_SCREENSHOT_PATH" "$SCREENSHOT_PATH"
+echo "KOOKIE G5 phase=validate-evidence"
 
 python3 - "$LOG_PATH" "$SCREENSHOT_PATH" <<'PY'
 import pathlib
