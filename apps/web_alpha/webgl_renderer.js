@@ -1011,7 +1011,7 @@
     } catch (error) {
       return { supported: false, reason: "WebGL2 unavailable: " + error.message };
     }
-    if (!gl) return { supported: false, reason: "WebGL2 unavailable; 2D fallback" };
+    if (!gl) return { supported: false, reason: "WebGL2 unavailable" };
     let program;
     try {
       program = createProgram(gl);

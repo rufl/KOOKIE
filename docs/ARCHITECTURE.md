@@ -123,7 +123,7 @@ flowchart TB
     Server[Authoritative server session\nfixed tick and world state]
     Client[Client session\ninput, prediction, reconciliation]
     Core[Kof core\nIDs, storage, math, clock, commands, events, RNG]
-    Browser[Browser presentation\nKofJS, WebSocket, WebGL2 / 2D fallback\nGLB skinning, animation, VFX]
+    Browser[Browser presentation\nKofJS, WebSocket, WebGL2 3D\nGLB skinning, animation, VFX]
     Native[Native presentation adapter\nSDL3, SDL_GPU, audio, fonts, images]
     GPU[GPU/audio/window mechanisms]
 
@@ -404,10 +404,10 @@ fallback selection. It follows the authoritative camera and resizes for device
 pixels.
 The client gates gameplay controls until the full scene arrives, exposes bounded
 automatic reconnect with visible loading/failure states, and persists minimap,
-pointer-lock and reduced-motion preferences locally. The browser falls back to
-a visible 2D canvas when WebGL2 is unavailable. The gateway supports optional
-WSS termination, bounded bearer-token admission plus `GET /healthz` and
-`GET /metrics` routes:
+pointer-lock and reduced-motion preferences locally. The browser requires
+WebGL2 for its 3D scene and fails closed when that renderer is unavailable.
+The gateway supports optional WSS termination, bounded bearer-token admission
+plus `GET /healthz` and `GET /metrics` routes:
 `--auth-token` requires the browser's `bearer.<token>` WebSocket subprotocol
 alongside `kookie.v1` and rejects missing or incorrect tokens before admission.
 `--auth-token-file` provides the same admission contract without exposing the

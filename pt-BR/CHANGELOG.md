@@ -9,14 +9,12 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   evento, além de comandos limitados de movimento, olhar, pulo e tiro. O
   cliente KofJS renderiza texturas base-color embutidas ou anexas dos GLBs,
   transforms de nós autorados, materiais WebGL2/GLSL ES 3.00 com bandas toon e
-  sheets de VFX anexos para eventos autoritativos reais, mantendo fallback 2D
-  visível quando WebGL2 não está disponível; o build do navegador publica os
-  assets necessários.
-- Os dois caminhos de renderer do navegador agora expõem captura interna P6:
-  WebGL2 lê o framebuffer preservado por `readPixels`, enquanto o fallback 2D
-  lê `ImageData`. `window.KookieBrowserCapture` retorna captura ativa e
-  fallback isolado com dimensões, checksum, pixels não pretos e bytes PPM em
-  base64 para validação.
+  sheets de VFX anexos para eventos autoritativos reais. WebGL2 é obrigatório
+  para a cena 3D; o cliente falha fechado quando o renderer não está disponível.
+- A qualificação de captura do navegador usa somente WebGL2: lê o framebuffer
+  preservado por `readPixels` e expõe dimensões, checksum, pixels não pretos,
+  bytes PPM em base64 e os metadados `authoritative`, `sceneSource` e
+  `sceneTick`. Capturas desconectadas são explicitamente marcadas como preview.
 - Ampliamos o campo autoritativo de VFX do navegador para IDs nativos de asset
   `0..15`; o gateway agora emite slash (5), flare (6) e explosão (8) para
   ações aceitas de melee, tiro e especial. O loader WebGL2 publica os 16 PNGs
@@ -91,8 +89,8 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   ciclo de vida, entrada por teclado/botão, estado autoritativo validado, HUD
   acessível e renderer WebGL2 direto
   (`apps/web_alpha/webgl_renderer.js`) para jogador, três atores, barras de
-  vida, VFX e projéteis. O navegador usa fallback 2D visível quando WebGL2 não
-  está disponível.
+  vida, VFX e projéteis. O navegador exige WebGL2 para a cena 3D e falha
+  fechado quando o renderer está indisponível.
   `scripts/kookie_websocket_session.py` fornece o gateway local sem
   dependências externas, com terminação TLS opcional, autoridade limitada de
   tick/estado, admissão opcional por bearer pelos subprotocolos WebSocket

@@ -14,14 +14,15 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   (13), hit (15), death (12) and liquid-enter (14, rendered with particle
   asset 0) cues. Native presentation consumes the authoritative per-player
   jump edge and stages the magic particle at the resolved movement position.
-- The WebGL2 renderer now writes its fragment output explicitly, stages the
-  canonical G1 perimeter, covers, towers, raised crossings and water sectors,
-  and exports the same arena geometry to the 2D fallback. Camera yaw uses the
-  same forward convention as the authoritative browser state.
+- The WebGL2 renderer now writes its fragment output explicitly and stages the
+  canonical G1 perimeter, covers, towers, raised crossings and water sectors.
+  The browser presentation is strictly 3D and fails closed if WebGL2 cannot
+  initialize. Camera yaw uses the same forward convention as the
+  authoritative browser state.
 - Added the two authored G1 ramp surfaces to the browser authority and
-  renderers. The gateway now resolves deterministic ramp floor heights while
-  the WebGL and 2D paths draw the same sloped crossings instead of reducing
-  them to flat-box geometry.
+  renderer. The gateway now resolves deterministic ramp floor heights while
+  WebGL2 draws the same sloped crossings instead of reducing them to
+  flat-box geometry.
 - Native presentation smoke now stages its adapter build and required PPM
   under the workspace-visible `build/` tree before entering the private
   display sandbox, then copies an explicitly requested screenshot path after
@@ -39,15 +40,12 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   GLB base-color images, authored node transforms, toon-banded materials and
   all 16 VFX sheets; native presentation retains the self-contained embedded
   GLB subset and requires external images to be resolved by the offline cook,
-  not by frame-time filesystem access. A visible 2D fallback remains available
-  when WebGL2 is unavailable.
-- Both browser renderer paths now expose internal P6 screenshot capture:
-  WebGL2 reads the preserved framebuffer through `readPixels`, while the
-  2D fallback reads `ImageData`. `window.KookieBrowserCapture` exposes the
-  active capture and an isolated fallback capture with dimensions, checksum,
-  non-black-pixel count and base64 PPM bytes; each capture also reports
-  `authoritative`, `sceneSource` and `sceneTick`, so disconnected preview
-  frames cannot be mistaken for authoritative evidence.
+  not by frame-time filesystem access. The browser has no 2D scene fallback.
+- Browser screenshot qualification now exposes the WebGL2 capture through
+  `window.KookieBrowserCapture` with dimensions, checksum, non-black-pixel
+  count and base64 PPM bytes; each capture also reports `authoritative`,
+  `sceneSource` and `sceneTick`, so disconnected preview frames cannot be
+  mistaken for authoritative evidence.
 - Replaced independent per-axis FPS velocity approach with fixed-point
   normalized wish-vector projection and acceleration. Fixed-step coyote time,
   jump buffering, air control and eased braking remain in the authoritative
@@ -110,8 +108,8 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   publishes a WebSocket lifecycle client with keyboard/button input, validated
   authoritative scene state, accessible HUD, and a direct WebGL2 renderer
   (`apps/web_alpha/webgl_renderer.js`) for the player, three actors, health bars,
-  VFX and projectiles. The browser uses a visible 2D fallback when WebGL2 is
-  unavailable.
+  VFX and projectiles. The browser requires WebGL2 for its 3D scene and fails
+  closed when that renderer is unavailable.
   `scripts/kookie_websocket_session.py` provides the dependency-free local
   gateway with optional TLS termination, bounded tick/state authority,
   optional bearer-token admission through the `kookie.v1` /

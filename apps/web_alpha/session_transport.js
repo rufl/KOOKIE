@@ -391,142 +391,46 @@
   let sceneRenderer = null;
   let renderFrameHandle = 0;
 
-  function createFallbackRenderer(canvas) {
-    const context = typeof canvas.getContext === "function"
-      ? canvas.getContext("2d", { willReadFrequently: true }) : null;
-    return {
-      supported: Boolean(context),
-      reason: context ? "WebGL2 unavailable; 2D fallback" : "canvas unavailable",
-      render(scene) {
-        if (!context) return;
-        const width = canvas.width;
-        const height = canvas.height;
-        context.clearRect(0, 0, width, height);
-        context.fillStyle = "#081018";
-        context.fillRect(0, 0, width, height);
-        context.strokeStyle = "#1e3a4a";
-        for (let x = 32; x < width - 32; x += 48) {
-          context.beginPath();
-          context.moveTo(x, 48);
-          context.lineTo(x, height - 28);
-          context.stroke();
-        }
-        const worldToCanvas = (x, z) => [
-          width / 2 + (x - scene.playerX) * (width - 64) / 240,
-          height / 2 + z * (height - 96) / 120,
-        ];
-        const arena = window.KookieArenaGeometry;
-        for (const [minX, surfaceY, minZ, maxX, maxZ] of arena?.water || []) {
-          const [left, top] = worldToCanvas(minX, minZ);
-          const [right, bottom] = worldToCanvas(maxX, maxZ);
-          context.fillStyle = "rgba(20, 128, 158, .42)";
-          context.fillRect(left, top, right - left, bottom - top);
-        }
-        for (const entry of arena?.solids || []) {
-          const [minX, , minZ, maxX, , maxZ] = entry.box;
-          const [left, top] = worldToCanvas(minX, minZ);
-          const [right, bottom] = worldToCanvas(maxX, maxZ);
-          context.fillStyle = "rgba(51, 87, 92, .45)";
-          context.fillRect(left, top, right - left, bottom - top);
-        }
-        for (const ramp of arena?.ramps || []) {
-          const points = ramp.vertices.map(([x, , z]) => worldToCanvas(x, z));
-          context.fillStyle = "rgba(74, 112, 78, .62)";
-          context.beginPath();
-          context.moveTo(points[0][0], points[0][1]);
-          for (const [x, z] of points.slice(1)) context.lineTo(x, z);
-          context.closePath();
-          context.fill();
-          context.strokeStyle = "rgba(145, 190, 120, .75)";
-          context.stroke();
-        }
-
-        for (const actor of scene.actors) {
-          if (actor.health <= 0) continue;
-          const [x, z] = worldToCanvas(actor.x, actor.z);
-          context.fillStyle = "#ef5366";
-          context.beginPath();
-          context.moveTo(x, z - 16);
-          context.lineTo(x + 14, z);
-          context.lineTo(x, z + 16);
-          context.lineTo(x - 14, z);
-          context.closePath();
-          context.fill();
-        }
-        const [playerX, playerZ] = worldToCanvas(scene.playerX, scene.playerZ);
-        context.fillStyle = "#60a5fa";
-        context.fillRect(playerX - 13, playerZ - 13, 26, 26);
-        context.fillStyle = "#f8fafc";
-        context.fillRect(playerX - 7, playerZ - 28, 14, 10);
-        if (scene.vfxEvent) {
-          const [effectX, effectZ] = worldToCanvas(scene.vfxEvent.x, scene.vfxEvent.z);
-          const assetId = scene.vfxEvent.assetId;
-          context.strokeStyle = assetId === 0
-            ? "#38bdf8"
-            : assetId === 8 || scene.vfxEvent.style === 2
-              ? "#f59e0b" : "#f0abfc";
-          context.lineWidth = 4;
-          context.strokeRect(effectX - 18, effectZ - 18, 36, 36);
-          context.lineWidth = 1;
-        }
-        context.fillStyle = "#e2e8f0";
-        context.font = "12px monospace";
-        context.fillText("WebGL2 unavailable", 16, 22);
-      },
-      captureScreenshot() {
-        if (!context) throw new Error("2D canvas unavailable");
-        const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-        const encoder = window.KookieWebRenderer?.encodeScreenshot;
-        if (typeof encoder !== "function") {
-          throw new Error("screenshot encoder unavailable");
-        }
-        return encoder(canvas.width, canvas.height, pixels.data, false, 0);
-      },
-    };
-  }
   let rendererFailureActive = false;
-  function activateFallbackRenderer(reason) {
+  function failRenderer(reason) {
     if (rendererFailureActive) return;
     rendererFailureActive = true;
-    const replacement = document.createElement("canvas");
-    replacement.id = "kookie-authoritative-scene";
-    replacement.width = sceneCanvas.width || 960;
-    replacement.height = sceneCanvas.height || 480;
-    replacement.setAttribute("role", "img");
-    replacement.setAttribute("tabindex", "0");
-    replacement.setAttribute("aria-label", "Authoritative 2D fallback game scene");
-    if (typeof sceneCanvas.replaceWith === "function") {
-      sceneCanvas.replaceWith(replacement);
-      sceneCanvas = replacement;
-    }
+    rendererInitializationError = reason;
     try {
       if (sceneRenderer && typeof sceneRenderer.destroy === "function") sceneRenderer.destroy();
     } catch (error) {
-      // Failed GPU cleanup must not hide the visible fallback surface.
+      // GPU cleanup failure cannot restore a valid 3D renderer.
     }
-    sceneRenderer = createFallbackRenderer(sceneCanvas);
-    hudValues.renderer.textContent = sceneRenderer.reason || "2D fallback";
-    setRuntimeState("fallback / " + reason, "#fbbf24");
-    setStatus("RENDERER FALLBACK / " + reason, "#fbbf24");
-    bindSceneInput();
+    sceneRenderer = null;
+    captureButton.disabled = true;
+    pingButton.disabled = true;
+    gameButton.disabled = true;
+    setGameControlsEnabled(false);
+    hudValues.renderer.textContent = "WebGL2 unavailable";
+    sceneCanvas.setAttribute("aria-label", "WebGL2 3D renderer unavailable");
+    setRuntimeState("failed / WebGL2 3D renderer required", "#f87171");
+    setStatus("3D RENDERER REQUIRED / " + reason, "#f87171");
   }
 
   let rendererInitializationError = "";
   try {
-    if (window.KookieWebRenderer && typeof window.KookieWebRenderer.create === "function") {
-      sceneRenderer = window.KookieWebRenderer.create(sceneCanvas);
+    if (!window.KookieWebRenderer ||
+        typeof window.KookieWebRenderer.create !== "function") {
+      throw new Error("WebGL2 renderer unavailable");
+    }
+    sceneRenderer = window.KookieWebRenderer.create(sceneCanvas);
+    if (!sceneRenderer || !sceneRenderer.supported) {
+      throw new Error(sceneRenderer?.reason || "WebGL2 unavailable");
     }
   } catch (error) {
     rendererInitializationError = error.message;
     sceneRenderer = null;
   }
-  if (!sceneRenderer || !sceneRenderer.supported) {
-    sceneRenderer = createFallbackRenderer(sceneCanvas);
-  }
-  hudValues.renderer.textContent = sceneRenderer.reason || "WebGL2";
-  setRuntimeState("idle / preview renderer ready");
-  if (rendererInitializationError) {
-    activateFallbackRenderer("initialization failed: " + rendererInitializationError);
+  if (sceneRenderer) {
+    hudValues.renderer.textContent = sceneRenderer.reason || "WebGL2";
+    setRuntimeState("idle / preview WebGL2 renderer ready");
+  } else {
+    failRenderer(rendererInitializationError || "WebGL2 unavailable");
   }
 
   function annotateScreenshot(capture, renderer) {
@@ -541,7 +445,7 @@
   let lastScreenshot = null;
   function captureScreenshot() {
     if (!sceneRenderer || typeof sceneRenderer.captureScreenshot !== "function") {
-      throw new Error("renderer screenshot capture unavailable");
+      throw new Error("WebGL2 3D screenshot capture unavailable");
     }
     const renderer = typeof sceneRenderer.getStatus === "function"
       ? sceneRenderer.getStatus() : sceneRenderer.reason || "unavailable";
@@ -560,14 +464,6 @@
     );
     return lastScreenshot;
   }
-  function captureFallbackScreenshot() {
-    const canvas = document.createElement("canvas");
-    canvas.width = sceneCanvas.width || 960;
-    canvas.height = sceneCanvas.height || 480;
-    const fallback = createFallbackRenderer(canvas);
-    fallback.render(sceneState);
-    return annotateScreenshot(fallback.captureScreenshot(), "2D fallback");
-  }
   captureButton.addEventListener("click", () => {
     try {
       captureScreenshot();
@@ -577,11 +473,11 @@
   });
   window.KookieBrowserCapture = Object.freeze({
     captureScreenshot,
-    captureFallbackScreenshot,
     getLastScreenshot: () => lastScreenshot,
     getRenderer: () => typeof sceneRenderer?.getStatus === "function"
       ? sceneRenderer.getStatus() : sceneRenderer?.reason || "unavailable",
   });
+
 
 
   function setStatus(value, color) {
@@ -655,26 +551,25 @@
   }
 
   function renderFrame(time) {
+    if (!sceneRenderer) return;
     try {
-      if (sceneRenderer && typeof sceneRenderer.render === "function") {
-        sceneRenderer.render(sceneState, time);
-        if (typeof sceneRenderer.getStatus === "function") {
-          const rendererStatus = sceneRenderer.getStatus();
-          if (hudValues.renderer.textContent !== rendererStatus) {
-            hudValues.renderer.textContent = rendererStatus;
-          }
-          if (rendererStatus.includes("context lost")) {
-            activateFallbackRenderer("WebGL context lost");
-          }
+      sceneRenderer.render(sceneState, time);
+      if (typeof sceneRenderer.getStatus === "function") {
+        const rendererStatus = sceneRenderer.getStatus();
+        if (hudValues.renderer.textContent !== rendererStatus) {
+          hudValues.renderer.textContent = rendererStatus;
+        }
+        if (rendererStatus.includes("context lost")) {
+          failRenderer("WebGL context lost");
         }
       }
     } catch (error) {
-      activateFallbackRenderer(error.message || "WebGL render failure");
+      failRenderer(error.message || "WebGL render failure");
     }
-    renderFrameHandle = window.requestAnimationFrame(renderFrame);
+    if (sceneRenderer) renderFrameHandle = window.requestAnimationFrame(renderFrame);
   }
   updateScene(sceneState);
-  renderFrameHandle = window.requestAnimationFrame(renderFrame);
+  if (sceneRenderer) renderFrameHandle = window.requestAnimationFrame(renderFrame);
 
   function validAuthToken(value) {
     return value.length >= AUTH_TOKEN_MINIMUM_LENGTH &&
@@ -953,7 +848,8 @@
   }
 
   function sendGameCommand(command, value) {
-    if (!socket || socket.readyState !== WebSocket.OPEN || !authoritativeReady) return;
+    if (!sceneRenderer || !socket || socket.readyState !== WebSocket.OPEN ||
+        !authoritativeReady) return;
     const gameSequence = nextSequence();
     const words = [NETCODE_PROTOCOL_VERSION, GAME, gameSequence,
       GAME_COMMAND_MARKER, command, value];
@@ -1046,13 +942,17 @@
     gameButton.disabled = true;
     setGameControlsEnabled(false);
     remoteState.textContent = "AUTHORITATIVE STATE / disconnected";
-    setRuntimeState(explicit ? "idle / disconnected" : "disconnected");
-    if (activeSocket &&
-        (activeSocket.readyState === WebSocket.OPEN ||
-          activeSocket.readyState === WebSocket.CONNECTING)) {
-      activeSocket.close(1000, "client disconnect");
+    if (rendererFailureActive) {
+      setRuntimeState("failed / WebGL2 3D renderer required", "#f87171");
+      setStatus(
+        "3D RENDERER REQUIRED / " +
+          (rendererInitializationError || "WebGL2 renderer unavailable"),
+        "#f87171",
+      );
+    } else {
+      setRuntimeState(explicit ? "idle / disconnected" : "disconnected");
+      if (explicit) setStatus("IDLE / disconnected");
     }
-    if (explicit) setStatus("IDLE / disconnected");
   }
 
   function scheduleReconnect(reason) {
@@ -1077,6 +977,10 @@
   }
 
   function connect(isReconnect = false) {
+    if (!sceneRenderer) {
+      failRenderer(rendererInitializationError || "WebGL2 unavailable");
+      return;
+    }
     clearReconnectTimer();
     intentionalDisconnect = false;
     if (!isReconnect) reconnectAttempt = 0;
@@ -1191,6 +1095,10 @@
       setGameControlsEnabled(false);
       remoteState.textContent = "AUTHORITATIVE STATE / disconnected";
       connectButton.textContent = "CONNECT";
+      if (rendererFailureActive) {
+        failRenderer(rendererInitializationError || "WebGL2 renderer unavailable");
+        return;
+      }
       if (intentionalDisconnect || shuttingDown) {
         setRuntimeState("idle / disconnected");
         return;

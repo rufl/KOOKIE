@@ -41,13 +41,12 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   o fechamento completo do pacote: manifest, catálogo, JSON de runtime, 82 GLBs
   e 16 PNGs de VFX.
 
-- Os dois renderers do navegador agora expõem captura interna P6 para
-  qualificação: WebGL2 preserva e lê o framebuffer, enquanto o fallback 2D lê
-  `ImageData`. `window.KookieBrowserCapture` retorna a captura ativa e uma
-  captura isolada do fallback com dimensões, checksum, contagem de pixels não
+- O renderer WebGL2 do navegador expõe captura interna P6 para qualificação:
+  preserva e lê o framebuffer por `readPixels`. `window.KookieBrowserCapture`
+  retorna a captura WebGL2 com dimensões, checksum, contagem de pixels não
   pretos e bytes PPM em base64, além dos metadados `authoritative`,
-  `sceneSource` e `sceneTick`. Capturas desconectadas são explicitamente
-  marcadas como preview.
+  `sceneSource` e `sceneTick`. Capturas desconectadas são marcadas
+  explicitamente como preview; nenhuma captura 2D qualifica o cliente.
 - O movimento FPS nativo agora usa wish vectors normalizados em ponto fixo e
   aceleração por projeção, preservando coyote time, buffer de pulo, controle
   aéreo e frenagem suave no passo fixo. A regressão de diagonalização é segura

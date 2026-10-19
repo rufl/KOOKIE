@@ -115,7 +115,7 @@ flowchart TB
     Server[Authoritative server session\nfixed tick and world state]
     Client[Client session\ninput, prediction, reconciliation]
     Core[Kof core\nIDs, storage, math, clock, commands, events, RNG]
-    Browser[Browser presentation\nKofJS, WebSocket, WebGL2 / 2D fallback\nGLB skinning, animation, VFX]
+    Browser[Browser presentation\nKofJS, WebSocket, WebGL2 3D\nGLB skinning, animation, VFX]
     Native[Native presentation adapter\nSDL3, SDL_GPU, audio, fonts, images]
     GPU[GPU/audio/window mechanisms]
 
@@ -395,8 +395,9 @@ movimento e atacando. Os GLBs autorados de ganso/gato usam
 redimensiona para pixels do dispositivo.
 cena completa, oferece reconexão automática limitada com estados visíveis de
 carregamento/falha e persiste localmente as preferências de minimapa, pointer
-lock e movimento reduzido. O navegador usa fallback 2D visível quando WebGL2 não
-está disponível. O gateway suporta terminação WSS opcional, admissão limitada por
+lock e movimento reduzido. O navegador exige WebGL2 para a cena 3D e falha
+fechado quando esse renderer está indisponível. O gateway suporta terminação WSS
+opcional, admissão limitada por
 `--auth-token` exige o subprotocolo WebSocket `bearer.<token>` do navegador
 junto com `kookie.v1` e rejeita tokens ausentes ou incorretos antes da admissão.
 `--auth-token-file` fornece o mesmo contrato sem expor o token nos argumentos

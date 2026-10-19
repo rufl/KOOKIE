@@ -62,8 +62,8 @@ O alpha exercita os handles atuais de UI Kof e um slice real de cliente web:
 hello/ack/heartbeat binário por WebSocket, eco de protocolo, sonda de cena
 autoritativa, ações por teclado/botão, snapshots limitados e um renderer direto
 WebGL2. O renderer desenha o jogador autoritativo, três atores limitados,
-barras de vida, VFX e projéteis sem dependência de Three.js; um fallback 2D
-visível continua disponível quando WebGL2 não está disponível.
+barras de vida, VFX e projéteis sem dependência de Three.js. WebGL2 é obrigatório
+para a cena 3D do navegador; o cliente falha fechado quando indisponível.
 
 Execute a qualificação de transporte local:
 

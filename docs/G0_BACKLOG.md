@@ -42,25 +42,25 @@ player-facing demo release. The open D1 gate is tracked in
   The browser build verifies the complete package closure: manifest, catalog,
   runtime JSON, 82 GLBs and 16 VFX PNGs. Runtime placement stays authoritative;
   editor catalog entries are not invented into the live arena.
-- WebGL2 and the 2D fallback now consume the exported G1 arena geometry:
-  perimeter, raised crossings, upper lanes, galleries, towers, center covers
-  and water sectors. The WebGL fragment shader assigns its output explicitly;
-  the camera uses the authoritative yaw-forward convention.
+- The WebGL2 renderer consumes the exported G1 arena geometry: perimeter,
+  raised crossings, upper lanes, galleries, towers, center covers and water
+  sectors. The WebGL fragment shader assigns its output explicitly; the camera
+  uses the authoritative yaw-forward convention.
 - The two authored G1 slopes are now represented in the browser authority:
   deterministic ramp-floor resolution keeps traversal aligned with native
-  movement, while WebGL and 2D draw the same sloped surfaces.
+  movement, while WebGL2 draws the same sloped surfaces.
 - Browser accepted events now cover melee/slash (5), fire/flare (6),
   special/explosion (8), jump/electric ring (13), hit/impact (15),
   death/predrawn explosion (12) and liquid-enter/particle circle (14 → 0).
   Native presentation consumes per-player authoritative jump edges and stages
   the magic particle at the resolved FPS position.
 
-- Both browser renderer paths expose internal P6 captures for qualification:
-  WebGL2 preserves and reads the framebuffer while the 2D fallback reads its
-  `ImageData`. `window.KookieBrowserCapture` returns the active screenshot and
-  an isolated fallback screenshot with dimensions, checksum, non-black-pixel
-  count and base64 PPM bytes, plus `authoritative`, `sceneSource` and
-  `sceneTick` metadata. Disconnected captures are explicitly labeled preview.
+- The browser WebGL2 renderer exposes internal P6 captures for qualification:
+  it preserves and reads the framebuffer through `readPixels`.
+  `window.KookieBrowserCapture` returns the WebGL2 screenshot with dimensions,
+  checksum, non-black-pixel count and base64 PPM bytes, plus `authoritative`,
+  `sceneSource` and `sceneTick` metadata. Disconnected captures are explicitly
+  labeled preview; no 2D scene capture qualifies.
 - The browser gateway full-scene path now applies normalized wish-vector
   acceleration, ground friction, air braking, coyote time, jump buffering,
   one air jump, bounded swept axis collision and floor/platform support.

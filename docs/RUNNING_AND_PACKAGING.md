@@ -62,8 +62,8 @@ The alpha exercises the current Kof UI handles and a browser client slice:
 binary WebSocket hello/ack/heartbeat, protocol echo, authoritative scene
 probe, keyboard/button actions, bounded scene snapshots, and a direct WebGL2
 renderer. The renderer draws the authoritative player, three bounded actors,
-health bars, VFX and projectiles without a Three.js dependency; a visible
-2D fallback remains available when WebGL2 is unavailable.
+health bars, VFX and projectiles without a Three.js dependency. WebGL2 is
+required for the browser's 3D scene; the client fails closed when unavailable.
 
 Run the local transport qualification path:
 
@@ -84,8 +84,9 @@ full authoritative scene snapshot before enabling the action controls. The
 local gateway maintains bounded tick, 3D player position/camera, stamina, ammo,
 combo, VFX, four actor states, one projectile and one pickup. The WebGL2 client
 loads the staged goose, cat, ground and wall GLB assets, displays an accessible
-HUD and top-down minimap, persists bounded settings, reconnects up to five times
-when enabled, and falls back to a visible 2D canvas when WebGL2 is unavailable.
+HUD and top-down minimap, persists bounded settings, and reconnects up to five
+times when enabled. WebGL2 is required for the browser's 3D scene; the client
+fails closed when unavailable.
 Click `CHECK GATEWAY` to query the gateway's unauthenticated `GET /healthz`
 route. It reports transport, protocol, bearer-admission mode and active
 sessions. `GET /metrics` exposes bounded counters for upgrades, rejections,
