@@ -309,9 +309,42 @@ class CameraState {
                 followYValue = result.startY()
                 followZValue = result.startZ()
             } else {
-                followXValue = result.startX() + deltaX * safeStep / pathDistance
-                followYValue = result.startY() + deltaY * safeStep / pathDistance
-                followZValue = result.startZ() + deltaZ * safeStep / pathDistance
+                var candidateX = result.startX() +
+                    deltaX * safeStep / pathDistance
+                var candidateY = result.startY() +
+                    deltaY * safeStep / pathDistance
+                var candidateZ = result.startZ() +
+                    deltaZ * safeStep / pathDistance
+                while (safeStep > 0) {
+                    var safety = geometry.query(
+                        result.startX(), result.startY(), result.startZ(),
+                        candidateX, candidateY, candidateZ)
+                    if (!safety.accepted()) {
+                        safeStep = 0
+                        break
+                    }
+                    if (!safety.collided()) {
+                        break
+                    }
+                    safeStep = safeStep - 1
+                    if (safeStep > 0) {
+                        candidateX = result.startX() +
+                            deltaX * safeStep / pathDistance
+                        candidateY = result.startY() +
+                            deltaY * safeStep / pathDistance
+                        candidateZ = result.startZ() +
+                            deltaZ * safeStep / pathDistance
+                    }
+                }
+                if (safeStep == 0) {
+                    followXValue = result.startX()
+                    followYValue = result.startY()
+                    followZValue = result.startZ()
+                } else {
+                    followXValue = candidateX
+                    followYValue = candidateY
+                    followZValue = candidateZ
+                }
             }
         }
         return true

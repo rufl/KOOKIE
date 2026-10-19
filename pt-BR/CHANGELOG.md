@@ -3,6 +3,127 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Concluímos a fatia limitada de cena 3D no navegador: o gateway WebSocket
+  agora serve um snapshot autoritativo de 61 palavras com estado do jogador e
+  câmera, quatro atores, um projétil e um pickup, além de comandos limitados
+  de movimento, olhar, pulo e tiro. O cliente KofJS renderiza os GLBs staged de
+  ganso, gato, chão e parede por um renderer WebGL2/GLSL ES 3.00 direto, expõe
+  controles por teclado/botão/mouse, HUD ampliado com minimapa superior, pointer
+  lock, preferências persistentes de acessibilidade/configuração, reconexão
+  automática limitada e fallback 2D visível; o build do navegador agora publica
+  os assets necessários.
+- Adicionamos `scripts/dev_test.sh` ao loop interno rápido priorizando JVM:
+  ele executa a suíte de regressão de 144 testes de `src/main.kf` sem
+  montagem, linkedição, empacotamento ou gates de apresentação nativos;
+  defina `KOOKIE_DEV_TARGET=native` para uma iteração específica do nativo.
+- As execuções locais de `scripts/verify.sh` agora reutilizam por padrão
+  artefatos canônicos JVM/nativos no cache do usuário; os manifestos de
+  identidade invalidam artefatos antigos quando a fonte ou as entradas do
+  compilador Kof fixado mudam.
+- Documentamos a configuração do gate local de empacotamento:
+  `scripts/configure_kof_archive.sh` verifica o digest do arquivo Kof por build
+  e o commit-fonte fixado, enquanto os metadados do Zig fixado são exigidos
+  pelo check de falha fechada do Windows.
+- `scripts/verify.sh` agora falha em segundos quando a configuração do toolchain
+  de empacotamento está incompleta, em vez de executar toda a matriz antes de
+  informar a ausência do arquivo ou da identidade do Zig.
+- Os checks de identidade do pacote agora fazem hash de todo arquivo regular
+  sob `src/`, em acordo com a identidade do cache canônico e protegendo módulos
+  Kof não rastreados contra reutilização de artefatos antigos.
+- Requalificamos o pin Kof `0.6.5` construído da fonte pelo gate local completo:
+  os checks de pacote, PE/Wine, LAN externo e renderer Vulkan passaram. O plano
+  de fronteira native agora registra as evidências locais P0/P2/P3 e seus
+  limites específicos de alvo.
+- `verify_package.sh` agora reutiliza builds nativos temporários do servidor,
+  kooker de conteúdo e SIMD entre os smokes de pacote nativo e de apresentação;
+  o smoke caiu de 426,6 s para 230,0 s.
+- Preservamos o contrato de estilos literais do KofJS em
+  `apps/web_alpha/main.kf` ao dividir declarações CSS longas em linhas de
+  fonte escapadas; os gates de lint e do build do alpha do navegador agora
+  passam juntos.
+- Reexecutamos a qualificação da fronteira batch com o Kof `0.6.5` exato e
+  fixado: copy-in/copy-back em JVM/native x86-64 passou com somas de fixture
+  `809` e `1231`, os totais scalar/SIMD coincidiram, a rota SIMD foi
+  selecionada e a prova de sintaxe AArch64 passou. Isso qualifica somente a
+  fronteira síncrona limitada de `Buffer(U8)`; ownership retido ou assíncrono
+  de payload continua sem qualificação.
+- Reconciliamos as páginas de arquitetura e da fronteira Kof4j com o vertical
+  slice GPU local concluído: Intel `Graphics (ARL)`, uma draw call, 984
+  instâncias e p95 de frame de `1710` microssegundos. Evidência de hardware
+  adicional e apresentação cross-platform continuam gates de release D1.
+- Corrigimos o passo do pin Kof no workflow de release para declarar
+  `shell: bash` no Windows. A execução self-hosted anterior falhou antes de
+  gerar artefatos porque o runner invocou um comando `powershell` ausente; o
+  runner agora está online e os pré-requisitos remotos de release passam.
+
+
+
+
+- Adicionamos a fatia limitada de cliente/renderizador do navegador:
+  `session/web_session_protocol.kf` agora carrega marcador de snapshot de cena
+  e comando de sonda de cena. `apps/web_alpha` publica um cliente WebSocket com
+  ciclo de vida, entrada por teclado/botão, estado autoritativo validado, HUD
+  acessível e renderer WebGL2 direto
+  (`apps/web_alpha/webgl_renderer.js`) para jogador, três atores, barras de
+  vida, VFX e projéteis. O navegador usa fallback 2D visível quando WebGL2 não
+  está disponível.
+  `scripts/kookie_websocket_session.py` fornece o gateway local sem
+  dependências externas, com terminação TLS opcional, autoridade limitada de
+  tick/estado, admissão opcional por bearer pelos subprotocolos WebSocket
+  `kookie.v1` / `bearer.<token>` e rotas limitadas `/healthz` e `/metrics`.
+  `--auth-token-file` oferece o mesmo contrato de admissão a partir de um
+  arquivo regular com modo `0600` ou mais restritivo e relê a credencial a cada
+  upgrade; a opção é mutuamente exclusiva com `--auth-token`.
+  `scripts/verify_websocket_session.py` cobre handshake, heartbeat, eco de jogo,
+  snapshots legados de comandos, snapshots de cena, qualificação WSS,
+  rejeição/admissão autenticada nos modos de flag e arquivo de credencial,
+  respostas de health/metrics e rejeição de frames malformados. Continua sendo
+  gateway de qualificação, não o caminho de produção de identidade/sessão,
+  observabilidade, operações WSS ou servidor autoritativo.
+
+- O cliente do navegador pede um snapshot de cena limitado após a admissão e
+  rejeita mensagens vazias, com checksum inválido ou fora de ordem antes de
+  fechar a sessão.
+
+- Adicionamos `src/session/runtime_plan.kf`, um contrato limitado de rotas Kof
+  para clientes KofJS no navegador, WebView zero-native, desktop native e
+  Android. Ele separa IPC tipado de controle do tráfego serializado de jogo,
+  reserva WebRTC para host par-a-par com ICE/STUN/TURN e mantém UDP native como
+  opcional explícito. A matriz de rotas está documentada nas páginas de
+  arquitetura em inglês e português; operações WSS de produção, sinalização
+  WebRTC e o host zero-native continuam sendo fatias de entrega não
+  implementadas.
+
+- Polimos o shell de menus native: as linhas compactas de opções agora limitam
+  a escala do texto ao espaço visual, a seleção ganhou trilhos superior/inferior
+  de foco, e as linhas de acessibilidade seguem o tamanho configurado sem
+  sobreposição.
+- Refinamos o kit de UI Kof/KofJS com bordas explícitas em painéis/controles,
+  alvos de 44px, espaçamento de corpo legível, faixas reais de progresso,
+  transições de visibilidade para modal/toast, selects limitados e keybind como
+  rótulo não interativo.
+- A apresentação prototype agora falha fechada quando a textura embutida do
+  GLB de ganso ou gato está ausente/inválida; os botões melee e special
+  selecionado também dirigem o estado visível de ataque da malha/VFX animal.
+- Adicionamos o contrato autoritativo de ações do gameplay Kof: Ctrl para
+  agachar/rolar, mouse esquerdo para melee, mouse direito para o
+  special/power-up selecionado, dashes direcionais por dois toques,
+  double jump no segundo Espaço e glide no ar. Roll, dash, double jump e
+  glide usam uma stamina compartilhada com recuperação lenta por tick fixo;
+  bundles, replay, apresentação nativa e HUD carregam esse estado limitado.
+- As consultas de colisão triangular agora usam interseção contínua limitada
+  por ponto fixo entre segmento e triângulo, em vez de depender apenas de
+  amostras inteiras. O spring arm da câmera não pula mais rampas ou superfícies
+  diagonais autoradas entre amostras; cada candidato discreto da câmera é
+  revalidado e recua para o alvo se a quantização o colocar além da superfície.
+- Recolocamos a malha do animal local no staging do gameplay native. A câmera
+  de follow com spring arm agora mostra o personagem jogável em terceira pessoa,
+  incluindo o movimento vertical do pulo; o caminho dos GLBs enviados de ganso
+  e gato continua selecionado quando o perfil de conteúdo `prototype` é
+  empacotado.
+- O smoke da apresentação native agora cobre um salto em passo fixo e os cinco
+  animais do gameplay, em vez de fixar o caminho em primeira pessoa com quatro
+  atores.
 - O Verify KOOKIE passou para o commit de fonte
   `e8cad301b566607a3b8095a219d05441de3240e5` em
   [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).

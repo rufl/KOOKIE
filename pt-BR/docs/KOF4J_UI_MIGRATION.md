@@ -63,9 +63,12 @@ payload nem trabalho que sobreviva à chamada. O Kof mantém `FrameStaging`,
 copia o payload GPU para storage próprio.
 
 O descriptor GPU V1 fixa schema, comprimento, stride, generation e checksum;
-`kookie_gpu_scene_push_vertex_resource` scalar permanece como fallback. A
-qualificação runtime do adapter/GPU native continua pendente porque o build
-native local do Kof excedeu o timeout e não havia dispositivo GPU headless.
+`kookie_gpu_scene_push_vertex_resource` scalar permanece como fallback. O gate
+focado do adapter nativo e renderer Vulkan agora passa com evidência local em
+`Intel(R) Graphics (ARL)`, uma draw call, 984 instâncias e p95 de frame de
+`1710` microssegundos. Isso qualifica o vertical slice Linux local selecionado;
+hardware adicional e apresentação multiplataforma continuam gates de release.
+
 
 ## Mapa de responsabilidade
 

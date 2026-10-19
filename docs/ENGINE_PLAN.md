@@ -21,10 +21,13 @@ Linux/Windows pre-release from source commit
 `3bd382a072817fe545ae9a80abfd1dd344878ada`. Verify run
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862) passed
 for source commit `e8cad301b566607a3b8095a219d05441de3240e5`.
-Candidate `0.1.0-dogfood.64` is in
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223);
-its Linux package passed, while its Windows job is queued for the offline
-`kookie-windows-01` runner. The candidate is not published.
+Candidate `0.1.0-dogfood.64` was dispatched in
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223).
+Its Linux package passed; the Windows presentation job ran on the now-online
+`kookie-windows-01` runner but failed before artifact work because `powershell`
+was unavailable. The workflow fix declares `shell: bash` for the Kof-pin step.
+The candidate is not published.
+
 
 ## 1. Product and non-negotiable ownership
 

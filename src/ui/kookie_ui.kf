@@ -229,14 +229,13 @@ class KookieUiText {
         labelValue.color = color
         if (roleValue == kookieUiTextRoleDisplay()) {
             labelValue.setStyle(Style(
-                "font-family: 'Jared Lite', Pixand, sans-serif; line-height: 1.2"
-            ))
+                "font-family:'Jared Lite',Pixand,sans-serif;line-height:1.2;letter-spacing:.04em"))
         } else {
             labelValue.setStyle(Style(
-                "font-family: Pixand, sans-serif; line-height: 1.35"
-            ))
+                "font-family:Pixand,sans-serif;line-height:1.5;letter-spacing:.01em"))
         }
-    }
+
+        }
 
     Label widget() { return labelValue }
     String text() { return textValue }
@@ -255,15 +254,18 @@ class KookieUiText {
 }
 
 Style kookieUiSurfaceStyle() {
-    return Style(kookieUiSurface(), kookieUiForeground(), 16, 8)
+    return Style(
+        "background:#0f1f2b;color:#f8fafc;padding:16px;border:1px solid #334155;border-radius:12px")
 }
 
 Style kookieUiRaisedStyle() {
-    return Style(kookieUiSurfaceRaised(), kookieUiForeground(), 12, 6)
+    return Style(
+        "background:#162a37;color:#f8fafc;padding:12px;border:1px solid #475569;border-radius:10px")
 }
 
 Style kookieUiRootStyle() {
-    return Style(kookieUiBackground(), kookieUiForeground(), 20, 0)
+    return Style(
+        "box-sizing:border-box;background:#0b1320;color:#f8fafc;padding:20px;min-height:100%;")
 }
 
 class KookieUiDocument {
@@ -349,6 +351,8 @@ class KookieUiDocument {
             kookieUiMuted())
         var content = Column(listOf(
             titleText.widget(), subtitleText.widget(), hintText.widget()))
+        content.setStyle(Style(
+            "display:flex;flex-direction:column;gap:16px"))
         var panel = View(kookieUiSurfaceStyle())
         panel.bind(content)
         return bindView(panel)
@@ -370,6 +374,8 @@ class KookieUiDocument {
         var stats = Row(listOf(
             healthText.widget(), ammunitionText.widget(),
             buildText.widget(), xpText.widget()))
+        stats.setStyle(Style(
+            "display:flex;flex-direction:row;align-items:center;gap:16px"))
         var panel = View(kookieUiRaisedStyle())
         panel.bind(stats)
         return bindView(panel)

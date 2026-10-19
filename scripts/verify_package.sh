@@ -21,6 +21,7 @@ openssl genpkey -algorithm ED25519 -out "$SIGNING_KEY" 2>/dev/null
 chmod 600 "$SIGNING_KEY"
 export KOOKIE_SIGNING_KEY="$SIGNING_KEY"
 export KOOKIE_ALLOW_DIRTY_PACKAGE=1
+export KOOKIE_PACKAGE_AUX_BUILD_CACHE_DIR="$WORK_DIR/aux-builds"
 verify_signature_set() {
   local archive="$1"
   local manifest="$2"

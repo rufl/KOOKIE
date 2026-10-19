@@ -16,11 +16,13 @@ The current source commit
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).
 Release dispatch
 [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
-targets `0.1.0-dogfood.64`; its Kof toolchain and Linux package passed, but
-the Windows package job is queued because `kookie-windows-01` is offline. Do
-not treat the candidate as published. After the Windows job passes, the
-`kookie-demo-release` environment approval is still required before the
-workflow can create the pre-release.
+targets `0.1.0-dogfood.64`; its Kof toolchain and Linux package passed. The
+Windows package job ran on the now-online `kookie-windows-01` runner but failed
+before artifact work because `powershell` was unavailable. The workflow fix
+declares `shell: bash` for the Kof-pin step. Do not treat the candidate as
+published; rerun from the committed source, then retain both target evidence
+records and obtain `kookie-demo-release` approval.
+
 
 ## Current checkout and local toolchain paths
 

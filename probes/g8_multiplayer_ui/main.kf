@@ -68,6 +68,51 @@ main() {
         optionsFrame.stagedCount() <= optionsShell.renderVertexCapacity() &&
         optionsFrame.retire(2),
         "options shell must render the polished settings frame")
+    assert(optionsShell.resolutionIndex() == 0 &&
+        optionsShell.handleAction(gameShellActionLeft()) &&
+        optionsShell.resolutionIndex() == 3 &&
+        optionsShell.handleAction(gameShellActionRight()) &&
+        optionsShell.resolutionIndex() == 0 &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionRight()) &&
+        optionsShell.displayMode() == 1 &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionRight()) &&
+        optionsShell.effectsVolume() == 90 &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionRight()) &&
+        optionsShell.musicVolume() == 70 &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionRight()) &&
+        optionsShell.textSize() == 3 &&
+        optionsShell.settingsRevision() > 1,
+        "options must wrap and adjust resolution, display, audio, and text settings")
+    assert(optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionRight()) &&
+        optionsShell.localNickname() == "WADDLE" &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionRight()) &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionActivate()) &&
+        optionsShell.displayApplyPending() &&
+        optionsShell.acknowledgeDisplayApply(true) &&
+        optionsShell.displayApplyResult() == 1 &&
+        optionsShell.handleAction(gameShellActionDown()) &&
+        optionsShell.handleAction(gameShellActionActivate()) &&
+        optionsShell.screen() == gameShellScreenMain(),
+        "options must expose profile cycling, display apply feedback, and Back")
+    var pointerOptions = GameShell()
+    assert(pointerOptions.handlePointer(0, -9) &&
+        pointerOptions.screen() == gameShellScreenOptions() &&
+        pointerOptions.resolutionIndex() == 0 &&
+        pointerOptions.handlePointer(0, -60) &&
+        pointerOptions.displayApplyPending() &&
+        pointerOptions.acknowledgeDisplayApply(false) &&
+        pointerOptions.displayApplyResult() == 2 &&
+        pointerOptions.handlePointer(0, -73) &&
+        pointerOptions.screen() == gameShellScreenMain(),
+        "options pointer rows must route to adjustment, Apply, and Back")
     var profileShell = GameShell()
     assert(profileShell.configureLobbyIdentity(1, 2, 1, 4, 4242) &&
         profileShell.handleAction(gameShellActionDown()) &&

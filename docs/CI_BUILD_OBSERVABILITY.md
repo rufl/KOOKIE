@@ -66,11 +66,13 @@ Verify KOOKIE run
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
 passed for source commit `e8cad301b566607a3b8095a219d05441de3240e5`.
 Release run
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) has
-already completed the Kof toolchain and Linux package jobs, but its Windows
-presentation job is queued. The required self-hosted runner
-`kookie-windows-01` was offline at the last observation; the workflow has not
-reached the publish job and no `.64` release exists.
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) completed
+the Kof toolchain and Linux package jobs successfully. Its Windows
+presentation job ran on the now-online `kookie-windows-01` runner but failed
+before artifact work because the runner could not find `powershell`; the
+workflow fix declares `shell: bash` for the Kof-pin step. The publish job was
+skipped and no `.64` release exists.
+
 
 The wrapper does not infer percentage completion because Kof does not expose a
 stable machine-readable native compilation progress protocol. The reliable

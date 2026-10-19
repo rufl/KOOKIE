@@ -49,6 +49,47 @@ module, so the gate records its known `PKG004`/`PKG006` package diagnostics and
 fails on every other LSP error. Full package/import correctness is covered by
 the JVM/native compiler checks.
 
+### Inner development loop
+
+Use the JVM regression suite while iterating on Kof logic:
+
+```bash
+bash scripts/dev_test.sh
+```
+
+The default run executes the 144 tests from `src/main.kf` without the native
+assembly, linker, packaging and presentation gates. Use
+`KOOKIE_DEV_TARGET=native bash scripts/dev_test.sh` for a native-specific
+check. This is an iteration gate, not a replacement for `verify.sh`.
+
+Full verification reuses canonical JVM/native artifacts under
+`${XDG_CACHE_HOME:-$HOME/.cache}/kookie/canonical`; identity manifests
+invalidate the cache when the source tree or pinned Kof toolchain changes.
+Set `KOOKIE_CANONICAL_BUILD_CACHE_DIR` to override that location.
+
+### Local package gate
+
+The release package checks require the exact Kof distribution used by `kof`,
+plus the pinned Zig toolchain metadata used by the Windows fail-closed check.
+When the archive directory contains `SHA256SUMS` and `SOURCE_COMMIT`, configure
+the current shell before running the full gate:
+
+```bash
+source scripts/configure_kof_archive.sh /path/to/kof-0.6.5-linux-x86_64.tar.gz
+export KOOKIE_ZIG_VERSION=0.17.0
+export KOOKIE_ZIG_ARCHIVE_SHA256=1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026
+bash scripts/verify.sh
+```
+
+The archive digest is generated per Kof build because tar metadata varies;
+`configure_kof_archive.sh` verifies it and the pinned Kof source commit before
+exporting the package inputs. `verify.sh` runs the same package identity
+preflight before starting the expensive static and runtime matrix.
+During package smoke, `verify_package.sh` reuses a per-run cache for the
+server, content kooker and SIMD benchmark native builds across the native and
+presentation archives. The cache is temporary and is never treated as a
+release artifact.
+
 When a session or replay contract changes, update the matching English and
 Portuguese pages and the nearby source comments together. Document same-tick
 state revisions and checkpoint/rewind epoch rules explicitly; do not leave those

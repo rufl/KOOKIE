@@ -206,6 +206,15 @@ world-atlas and camera-word staging only where an existing scalar path already
 has a declared count and capacity. It does not grant C authority over texture
 admission or camera semantics.
 
+The implemented `kookie_gpu_world_texture_stage_batch_v1` entry point uses
+`GPU_WORLD_TEXTURE_V1`: the descriptor carries atlas width/height, VFX origin,
+goose/cat regions, and a bounded little-endian packed-pixel payload. Kof
+encodes the existing `BoundedWorldTextureAsset` words once; C validates the
+checksum and descriptor, copies the payload into adapter-owned staging, and
+publishes it only after the copy completes. The G5 hardware gate renders the
+world-only VFX pass and requires its checksum to differ from the clear-frame
+baseline.
+
 ### `GPU_TEXTURE_BYTES_V1`
 
 A bounded opaque byte payload. Kof MUST admit and checksum the source range

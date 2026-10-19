@@ -97,9 +97,9 @@ class BoundedReplayBundleFileStore {
                 wordCount = 0
                 return false
             }
-            writeCommand(9 + index * 8, command)
+            writeCommand(9 + index * 9, command)
         }
-        var interactionOffset = 9 + commandCount * 8
+        var interactionOffset = 9 + commandCount * 9
         for (var index = 0; index < interactionCount; index = index + 1) {
             var command = timeline.interactionAt(index)
             var offset = interactionOffset + index * 4
@@ -183,7 +183,7 @@ class BoundedReplayBundleFileStore {
             commandOffset = 9
             interactionCount = wire[8]
         }
-        var interactionOffset = commandOffset + commandCount * 8
+        var interactionOffset = commandOffset + commandCount * 9
         var checkpointOffset = interactionOffset + interactionCount * 4
         var metadataEnd = checkpointOffset + checkpointCount * 4
         if (metadataEnd > payloadLength) {
@@ -229,10 +229,11 @@ class BoundedReplayBundleFileStore {
             }
         }
         for (var index = 0; index < commandCount; index = index + 1) {
-            var offset = commandOffset + index * 8
+            var offset = commandOffset + index * 9
             if (!staged.append(InputCommand(
                 wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
-                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7],
+                wire[offset + 8]))) {
                 return false
             }
         }
@@ -343,17 +344,19 @@ class BoundedReplayBundleFileStore {
             command.lookX() >= -1000000 && command.lookX() <= 1000000 &&
             command.lookY() >= -1000000 && command.lookY() <= 1000000 &&
             command.fire() >= 0 && command.fire() <= 1 &&
-            command.jump() >= 0 && command.jump() <= 1
+            command.jump() >= 0 && command.jump() <= 1 &&
+            command.buttons() >= 0 && command.buttons() <= inputButtonMask()
     }
 
     Bool validCommands(Int[] wire, Int start, Int count) {
         var previousTick = -1
         var previousSequence = -1
         for (var index = 0; index < count; index = index + 1) {
-            var offset = start + index * 8
+            var offset = start + index * 9
             var command = InputCommand(
                 wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
-                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7])
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7],
+                wire[offset + 8])
             if (!validCommand(command) ||
                 (index > 0 && command.tick() < previousTick) ||
                 command.sequence() <= previousSequence) {
@@ -374,6 +377,7 @@ class BoundedReplayBundleFileStore {
         words[offset + 5] = command.lookY()
         words[offset + 6] = command.fire()
         words[offset + 7] = command.jump()
+        words[offset + 8] = command.buttons()
         return true
     }
 

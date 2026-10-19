@@ -179,8 +179,8 @@ retidos para apps, jogos e superfícies do Kutter/editor:
 | Camada | Superfície reutilizável |
 | --- | --- |
 | Layout | `KookieUiLayoutSpec`, `KookieUiLayout`, `KookieUiPanel` |
-| Controles | `KookieUiButton`, `KookieUiTextField`, `KookieUiToggle`, `KookieUiSlider` |
-| Feedback | `KookieUiProgressBar`, `KookieUiBadge` |
+| Controles | `KookieUiButton`, `KookieUiTextField`, `KookieUiToggle`, `KookieUiCheckbox`, `KookieUiSlider`, `KookieUiSelect`, `KookieUiKeybind` |
+| Feedback | `KookieUiProgressBar`, `KookieUiBadge`, `KookieUiToast`, `KookieUiModal` |
 | Composição | `KookieUiToolbar`, `KookieUiTabs`, `KookieUiInspector` |
 
 `KookieUiLayoutSpec` possui direção, gap/padding limitados, alinhamento,
@@ -189,15 +189,20 @@ semântica de preenchimento e uma descrição CSS determinística.
 adiciona variantes de superfície sem criar outro renderer. Os controles comuns
 mantêm estado no Kof e no handle KofJS, portanto os probes JVM/native não
 dependem de propriedades no-op de `kof.ui`. Botões expõem
-`pressed`/`consumePressed`, toggles expõem `checked`, sliders limitam a faixa
-declarada, e tabs/inspectors rejeitam overflow de capacidade.
+`pressed`/`consumePressed`, toggles e checkboxes expõem `checked`, sliders
+limitam a faixa declarada, selects percorrem suas opções limitadas, e
+tabs/inspectors rejeitam overflow de capacidade.
+Toasts e modais atualizam juntos o estado visível e o display renderizado;
+keybinds são rótulos semânticos não interativos, não botões vazios.
 
 O kit é neutro em relação ao host: KofJS renderiza os handles, enquanto o
 gameplay nativo continua usando `kookie_ui_native.kf` e `FrameStaging`. Os
 controles mantêm alvo mínimo de toque de 44px, rótulos visíveis e a paleta
-semântica escura compartilhada. `KookieUiToolbar`, `KookieUiTabs` e
-`KookieUiInspector` cobrem as superfícies comuns de editores de jogos sem
-importar autoridade do editor ou ponteiros nativos para o pacote de UI.
+semântica escura compartilhada. Painéis, botões, campos, badges e feedback
+transitório usam bordas explícitas e estados de foco/visibilidade.
+`KookieUiToolbar`, `KookieUiTabs` e `KookieUiInspector` cobrem as superfícies
+comuns de editores de jogos sem importar autoridade do editor ou ponteiros
+nativos para o pacote de UI.
 
 Exemplo:
 

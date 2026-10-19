@@ -40,6 +40,106 @@ interativo empacotado. O próprio `kof run` não exige Python 3; Python é usado
 atualmente pelo lint do repositório, validação de pacote/procedência,
 validação de evidências e tooling de rendezvous.
 
+## Alpha de navegador (KofJS, não WASM)
+
+O Kof 0.6.5 expõe os alvos `jvm`, `native` e `js`; ele não possui alvo WASM.
+O entrypoint completo de `src` também depende das APIs nativas de SDL/GPU e
+filesystem que o alvo JS não fornece. Portanto, o repositório publica um alpha
+limitado de navegador a partir de `apps/web_alpha/main.kf`, não um build do jogo
+native nem WASM:
+
+```bash
+bash scripts/build_web_alpha.sh
+```
+
+A saída padrão é o site LichForge irmão em
+`../../LICHFORGEWEB/assets/kookie-alpha`. Use `--output DIR` para preparar o
+bundle KofJS em outro local. Sirva o site por HTTP e abra `/#kookie-alpha`; a
+página informa falha de carregamento em vez de apresentar o preview como
+paridade native ou WASM.
+
+O alpha exercita os handles atuais de UI Kof e um slice real de cliente web:
+hello/ack/heartbeat binário por WebSocket, eco de protocolo, sonda de cena
+autoritativa, ações por teclado/botão, snapshots limitados e um renderer direto
+WebGL2. O renderer desenha o jogador autoritativo, três atores limitados,
+barras de vida, VFX e projéteis sem dependência de Three.js; um fallback 2D
+visível continua disponível quando WebGL2 não está disponível.
+
+Execute a qualificação de transporte local:
+
+```bash
+python3 scripts/kookie_websocket_session.py --port 8765
+browser_dir="$(mktemp -d -t kookie-web-alpha-XXXXXX)"
+bash scripts/build_web_alpha.sh --output "$browser_dir"
+python3 -m http.server 8080 --directory "$browser_dir"
+```
+
+Abra
+`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8765/session`, clique em `CONNECT` e
+use `PING`, `PROTOCOL ECHO` ou uma ação autoritativa (`WASD`/setas para mover,
+`Q`/`E` para olhar, `ESPAÇO` para pular, `F` para atirar, `M` corpo a corpo,
+`X` especial, `R` reset). Clique no canvas para capturar pointer lock e usar o
+mouse. A admissão pede o snapshot de cena autoritativo completo antes de
+habilitar os controles de ação. O gateway local mantém tick, posição/câmera 3D,
+stamina, munição, combo, VFX, quatro estados de atores, um projétil e um
+pickup dentro dos limites. O cliente WebGL2 carrega os GLBs staged de ganso,
+gato, chão e parede, exibe HUD acessível e minimapa superior, persiste
+configurações limitadas, reconecta até cinco vezes quando habilitado e usa um
+canvas 2D visível quando WebGL2 não está disponível.
+Para qualificar a admissão com token, inicie o gateway com um bearer limitado:
+
+```bash
+python3 scripts/kookie_websocket_session.py --port 8765 \
+  --auth-token qualification-token
+```
+
+Para um arquivo local de credencial, mantenha o token fora dos argumentos do
+processo:
+
+```bash
+printf '%s\n' qualification-token > gateway.token
+chmod 600 gateway.token
+python3 scripts/kookie_websocket_session.py --port 8765 \
+  --auth-token-file gateway.token
+```
+
+O arquivo deve ser regular, ter modo `0600` ou mais restritivo e conter um
+token válido; o gateway o relê a cada upgrade WebSocket. `--auth-token` e
+`--auth-token-file` são mutuamente exclusivos.
+
+Abra
+`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8765/session&kookie_token=qualification-token`.
+O navegador negocia `kookie.v1` mais `bearer.<token>`; o gateway seleciona
+`kookie.v1`. Um token ausente ou incorreto recebe rejeição HTTP `401` antes da
+admissão da sessão WebSocket. Sem `--auth-token`, o gateway local mantém a
+admissão somente por protocolo para qualificação do transporte.
+
+Para qualificar WSS, forneça certificado e chave:
+
+```bash
+python3 scripts/kookie_websocket_session.py --port 8765 \
+  --tls-certfile localhost.crt --tls-keyfile localhost.key \
+  --auth-token qualification-token
+```
+
+Use `kookie_ws=wss://127.0.0.1:8765/session` no navegador e informe o token no campo
+de autenticação da sessão. O bearer e o gateway são controles de qualificação;
+a produção hospedada ainda exige serviço real de identidade/sessão,
+observabilidade, política TLS de deploy e o serviço de servidor autoritativo.
+
+A verificação do protocolo sem navegador é:
+
+```bash
+python3 scripts/verify_websocket_session.py
+```
+
+Esse caminho valida o limite do frame binário, checksum do handshake Kof,
+resposta de admissão, heartbeat, eco do plano de jogo, snapshots de cena
+autoritativos, rejeição/admissão por token configurado e rejeição de frame
+malformado sem dependência Python de terceiros. Ele não substitui
+`kof run src/main.kf --target native`; a produção hospedada ainda exige os
+serviços de identidade/sessão e operações descritos abaixo.
+
 O pacote publicado inclui um launcher nativo de atualização:
 
 - Linux: `kookie-launcher`
@@ -442,9 +542,11 @@ ganso e gato.
 - `Play`: encounter autoritativo local servidor listen/cliente; voltar com
   Escape e entrar novamente em `Play` redefine o encounter limitado.
 - Gameplay: `W`/`S` movem para frente/trás e `A`/`D` fazem strafe relativo
-  ao olhar horizontal do mouse; o olhar vertical inclina a câmera acoplada,
-  a roda do mouse aplica zoom e a colisão criada para a arena para nas paredes.
-- Disparo: `F` ou botão esquerdo do mouse. Salto: `Ctrl`.
+  ao olhar horizontal do mouse; o olhar vertical inclina a câmera de follow em
+  terceira pessoa, a roda do mouse aplica zoom e a colisão criada para a arena
+  para o spring arm em paredes e rampas. As consultas segmento/triângulo são
+  contínuas em ponto fixo limitado e então resolvidas na amostra segura anterior.
+- Disparo: `F` ou botão esquerdo do mouse. Salto: `Espaço` ou `Ctrl`.
 - Opções: 1280×720 até 2560×1440, janela/sem borda/tela cheia exclusiva,
   volumes separados para efeitos e música e três tamanhos de texto.
 - Acessibilidade: escala do HUD (`SMALL` 85%, `MEDIUM` 100%, `LARGE` 115%),

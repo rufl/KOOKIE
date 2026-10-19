@@ -31,6 +31,7 @@ PREBUILT_NATIVE_BUILD="${KOOKIE_PREBUILT_NATIVE_BUILD:-}"
 PREBUILT_NATIVE_MANIFEST="${KOOKIE_PREBUILT_NATIVE_MANIFEST:-}"
 PREBUILT_JVM_BUILD="${KOOKIE_PREBUILT_JVM_BUILD:-}"
 PREBUILT_JVM_MANIFEST="${KOOKIE_PREBUILT_JVM_MANIFEST:-}"
+PACKAGE_AUX_BUILD_CACHE_DIR="${KOOKIE_PACKAGE_AUX_BUILD_CACHE_DIR:-}"
 WINDOWS_JAVA_ARCHIVE="${KOOKIE_WINDOWS_JAVA_ARCHIVE:-}"
 WINDOWS_JAVA_ARCHIVE_SHA256="${KOOKIE_WINDOWS_JAVA_ARCHIVE_SHA256:-}"
 WINDOWS_JAVA_VERSION="not-bundled"
@@ -202,11 +203,14 @@ archive_kof_compiler_sha256="$(
   exit 2
 }
 source_tree_sha256() {
-  git -C "$ROOT_DIR" ls-files -z -- src |
-    while IFS= read -r -d '' source_path; do
-      printf '%s\0' "$source_path"
-      sha256sum "$ROOT_DIR/$source_path" | cut -d ' ' -f 1
-    done | sha256sum | cut -d ' ' -f 1
+  (
+    cd "$ROOT_DIR"
+    find src -type f -print0 | sort -z |
+      while IFS= read -r -d '' source_path; do
+        printf '%s\0' "$source_path"
+        sha256sum "$source_path" | cut -d ' ' -f 1
+      done
+  ) | sha256sum | cut -d ' ' -f 1
 }
 
 if [[ -n "$PREBUILT_NATIVE_BUILD" ]]; then
@@ -813,6 +817,10 @@ EOF
 bundle_linux_server() {
   local server_root="$WORK_DIR/server-source"
   local server_build="$WORK_DIR/server-build"
+  if [[ -n "$PACKAGE_AUX_BUILD_CACHE_DIR" ]]; then
+    mkdir -p "$PACKAGE_AUX_BUILD_CACHE_DIR"
+    server_build="$PACKAGE_AUX_BUILD_CACHE_DIR/server"
+  fi
   mkdir -p "$server_root"/{core,content,session,lib} "$PACKAGE_ROOT/lib"
   cp -- "$ROOT_DIR/apps/server/main.kf" "$server_root/main.kf"
   for module in core content session; do
@@ -826,11 +834,16 @@ bundle_linux_server() {
   cc -std=c11 -Wall -Wextra -Werror -O2 -fPIC -shared \
     "$ROOT_DIR/native/kookie_persistence_adapter.c" \
     -o "$server_root/lib/libkookie_persistence_adapter.so"
-  (
-    cd "$server_root"
-    kookie_kof_observed package-linux-server kof build main.kf \
-      --target native --output "$server_build"
-  )
+  if [[ -x "$server_build/Default/Main" ]]; then
+    echo "package_kookie: reusing auxiliary build key=server"
+  else
+    rm -rf -- "$server_build"
+    (
+      cd "$server_root"
+      kookie_kof_observed package-linux-server kof build main.kf \
+        --target native --output "$server_build"
+    )
+  fi
   local server_binary="$server_build/Default/Main"
   test -x "$server_binary" || {
     echo "package_kookie: dedicated server executable missing: $server_binary" >&2
@@ -863,6 +876,10 @@ EOF
 bundle_linux_kooker() {
   local kooker_root="$WORK_DIR/kooker-source"
   local kooker_build="$WORK_DIR/kooker-build"
+  if [[ -n "$PACKAGE_AUX_BUILD_CACHE_DIR" ]]; then
+    mkdir -p "$PACKAGE_AUX_BUILD_CACHE_DIR"
+    kooker_build="$PACKAGE_AUX_BUILD_CACHE_DIR/kooker"
+  fi
   mkdir -p "$kooker_root"/{core,content}
   cp -- "$ROOT_DIR/apps/kooker/main.kf" "$kooker_root/main.kf"
   for module in core content; do
@@ -870,11 +887,16 @@ bundle_linux_kooker() {
       ln -s -- "$source" "$kooker_root/$module/$(basename "$source")"
     done
   done
-  (
-    cd "$kooker_root"
-    kookie_kof_observed package-linux-kooker kof build main.kf \
-      --target native --output "$kooker_build"
-  )
+  if [[ -x "$kooker_build/Default/Main" ]]; then
+    echo "package_kookie: reusing auxiliary build key=kooker"
+  else
+    rm -rf -- "$kooker_build"
+    (
+      cd "$kooker_root"
+      kookie_kof_observed package-linux-kooker kof build main.kf \
+        --target native --output "$kooker_build"
+    )
+  fi
   local kooker_binary="$kooker_build/Default/Main"
   test -x "$kooker_binary" || {
     echo "package_kookie: content kooker executable missing: $kooker_binary" >&2
@@ -946,6 +968,10 @@ EOF
 bundle_linux_simd_benchmark() {
   local benchmark_root="$WORK_DIR/simd-benchmark-source"
   local benchmark_build="$WORK_DIR/simd-benchmark-build"
+  if [[ -n "$PACKAGE_AUX_BUILD_CACHE_DIR" ]]; then
+    mkdir -p "$PACKAGE_AUX_BUILD_CACHE_DIR"
+    benchmark_build="$PACKAGE_AUX_BUILD_CACHE_DIR/simd"
+  fi
   mkdir -p "$benchmark_root/lib"
   cp -- "$ROOT_DIR/apps/simd_benchmark/main.kf" "$benchmark_root/main.kf"
   cc -std=c11 -Wall -Wextra -Werror -O3 -fPIC -shared \
@@ -953,11 +979,16 @@ bundle_linux_simd_benchmark() {
     -o "$benchmark_root/lib/libkookie_simd_dispatch.so"
   cp -- "$PACKAGE_ROOT/lib/libkookie_headless_adapter.so" \
     "$benchmark_root/lib/libkookie_headless_adapter.so"
-  (
-    cd "$benchmark_root"
-    kookie_kof_observed package-linux-simd kof build main.kf \
-      --target native --output "$benchmark_build"
-  )
+  if [[ -x "$benchmark_build/Default/Main" ]]; then
+    echo "package_kookie: reusing auxiliary build key=simd"
+  else
+    rm -rf -- "$benchmark_build"
+    (
+      cd "$benchmark_root"
+      kookie_kof_observed package-linux-simd kof build main.kf \
+        --target native --output "$benchmark_build"
+    )
+  fi
   local benchmark_binary="$benchmark_build/Default/Main"
   test -x "$benchmark_binary" || {
     echo "package_kookie: SIMD benchmark executable missing: $benchmark_binary" >&2

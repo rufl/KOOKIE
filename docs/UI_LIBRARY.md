@@ -179,8 +179,8 @@ apps, games and Kutter/editor surfaces:
 | Layer | Reusable surface |
 | --- | --- |
 | Layout | `KookieUiLayoutSpec`, `KookieUiLayout`, `KookieUiPanel` |
-| Controls | `KookieUiButton`, `KookieUiTextField`, `KookieUiToggle`, `KookieUiSlider` |
-| Feedback | `KookieUiProgressBar`, `KookieUiBadge` |
+| Controls | `KookieUiButton`, `KookieUiTextField`, `KookieUiToggle`, `KookieUiCheckbox`, `KookieUiSlider`, `KookieUiSelect`, `KookieUiKeybind` |
+| Feedback | `KookieUiProgressBar`, `KookieUiBadge`, `KookieUiToast`, `KookieUiModal` |
 | Composition | `KookieUiToolbar`, `KookieUiTabs`, `KookieUiInspector` |
 
 `KookieUiLayoutSpec` owns direction, bounded gap/padding, alignment, fill
@@ -188,16 +188,20 @@ semantics and a deterministic CSS description. `KookieUiLayout` applies it to
 `Column`/`Row` children; `KookieUiPanel` adds surface variants without
 introducing a second renderer. Common controls keep their state in Kof as well
 as in the KofJS handle, so JVM/native contract probes do not depend on no-op
-`kof.ui` properties. Buttons expose `pressed`/`consumePressed`, toggles expose
-`checked`, sliders clamp to their declared range, tabs and inspectors reject
-capacity overflow.
+`kof.ui` properties. Buttons expose `pressed`/`consumePressed`, toggles and
+checkboxes expose `checked`, sliders clamp to their declared range, selects
+wrap their bounded choices, tabs and inspectors reject capacity overflow.
+Toasts and modals update their visible state and rendered display together;
+keybinds render as non-interactive semantic labels rather than empty buttons.
 
 The component kit is intentionally host-neutral: KofJS renders the handles,
 while the native gameplay path continues to use `kookie_ui_native.kf` and
 `FrameStaging`. Controls keep a 44px minimum touch target, visible text labels
-and the shared dark semantic palette. `KookieUiToolbar`, `KookieUiTabs` and
-`KookieUiInspector` cover the common game-editor surfaces without importing
-editor authority or native pointers into the UI package.
+and the shared dark semantic palette. Panels, buttons, fields, badges and
+transient feedback use explicit borders and focus/visibility states.
+`KookieUiToolbar`, `KookieUiTabs` and `KookieUiInspector` cover the common
+game-editor surfaces without importing editor authority or native pointers into
+the UI package.
 
 Example:
 

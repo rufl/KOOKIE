@@ -48,9 +48,9 @@ class BoundedReplayWireCodec {
                 wordCount = 0
                 return false
             }
-            writeCommand(6 + index * 8, command)
+            writeCommand(6 + index * 9, command)
         }
-        wordCount = 6 + count * 8
+        wordCount = 6 + count * 9
         engineVersionValue = engineVersion
         contentVersionValue = contentVersion
         seedValue = seed
@@ -98,9 +98,9 @@ class BoundedReplayWireCodec {
                 wordCount = 0
                 return false
             }
-            writeCommand(8 + index * 8, command)
+            writeCommand(8 + index * 9, command)
         }
-        var checkpointOffset = 8 + commandCount * 8
+        var checkpointOffset = 8 + commandCount * 9
         for (var index = 0; index < checkpointCount; index = index + 1) {
             var offset = checkpointOffset + index * 3
             words[offset] = timeline.checkpointTick(index)
@@ -140,7 +140,7 @@ class BoundedReplayWireCodec {
     }
     Bool decode(Int[] wire, InputReplayRecorder target) {
         if (!validHeader(wire, 1) ||
-            wire.length != 6 + wire[5] * 8) {
+            wire.length != 6 + wire[5] * 9) {
             return false
         }
         var count = wire[5]
@@ -149,10 +149,11 @@ class BoundedReplayWireCodec {
         }
         target.reset()
         for (var index = 0; index < count; index = index + 1) {
-            var offset = 6 + index * 8
+            var offset = 6 + index * 9
             if (!target.append(InputCommand(
                 wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
-                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7],
+                wire[offset + 8]))) {
                 target.reset()
                 return false
             }
@@ -188,7 +189,7 @@ class BoundedReplayWireCodec {
         if (version == 4) {
             checkpointEntryWidth = 3
         }
-        var checkpointOffset = commandOffset + commandCount * 8
+        var checkpointOffset = commandOffset + commandCount * 9
         var checkpointSnapshotCount = 0
         for (var index = 0; index < checkpointCount; index = index + 1) {
             var metadataOffset = checkpointOffset + index * checkpointEntryWidth
@@ -235,10 +236,11 @@ class BoundedReplayWireCodec {
         }
         target.reset()
         for (var index = 0; index < commandCount; index = index + 1) {
-            var offset = commandOffset + index * 8
+            var offset = commandOffset + index * 9
             if (!target.append(InputCommand(
                 wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
-                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7]))) {
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7],
+                wire[offset + 8]))) {
                 target.reset()
                 return false
             }
@@ -294,17 +296,19 @@ class BoundedReplayWireCodec {
             command.lookX() >= -1000000 && command.lookX() <= 1000000 &&
             command.lookY() >= -1000000 && command.lookY() <= 1000000 &&
             command.fire() >= 0 && command.fire() <= 1 &&
-            command.jump() >= 0 && command.jump() <= 1
+            command.jump() >= 0 && command.jump() <= 1 &&
+            command.buttons() >= 0 && command.buttons() <= inputButtonMask()
     }
 
     Bool validCommands(Int[] wire, Int start, Int count) {
         var previousTick = -1
         var previousSequence = -1
         for (var index = 0; index < count; index = index + 1) {
-            var offset = start + index * 8
+            var offset = start + index * 9
             var command = InputCommand(
                 wire[offset], wire[offset + 1], wire[offset + 2], wire[offset + 3],
-                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7])
+                wire[offset + 4], wire[offset + 5], wire[offset + 6], wire[offset + 7],
+                wire[offset + 8])
             if (!validCommand(command) ||
                 (index > 0 && command.tick() < previousTick) ||
                 command.sequence() <= previousSequence) {
@@ -325,6 +329,7 @@ class BoundedReplayWireCodec {
         words[offset + 5] = command.lookY()
         words[offset + 6] = command.fire()
         words[offset + 7] = command.jump()
+        words[offset + 8] = command.buttons()
         return true
     }
 

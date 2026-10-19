@@ -197,9 +197,10 @@ class BoundedTriangleContactController {
         if (!ground.accepted() || !ground.collided()) {
             return movement
         }
+        var walkable = walkableTriangle(geometry.lastHitTriangle())
         return TriangleContactResult(
-            true, movement.collided(), true, movement.stepped(),
-            walkableTriangle(geometry.lastHitTriangle()), movement.hitStep(),
+            true, movement.collided(), walkable, movement.stepped(),
+            walkable, movement.hitStep(),
             movement.startX(), movement.startY(), movement.startZ(),
             movement.endX(), movement.endY(), movement.endZ(),
             movement.resolvedX(), movement.resolvedY(), movement.resolvedZ())
@@ -286,10 +287,14 @@ class BoundedTriangleContactController {
             return groundState(direct, radiusValue + 1)
         }
         if (stepHeightValue > 0) {
+            var rise = sweep(
+                startX, startY, startZ,
+                startX, startY + stepHeightValue, startZ)
             var raised = sweep(
                 startX, startY + stepHeightValue, startZ,
                 endX, endY + stepHeightValue, endZ)
-            if (raised.accepted() && !raised.collided()) {
+            if (rise.accepted() && !rise.collided() &&
+                raised.accepted() && !raised.collided()) {
                 var lowered = sweep(
                     endX, endY + stepHeightValue, endZ,
                     endX, endY, endZ)

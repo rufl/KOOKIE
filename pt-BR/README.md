@@ -209,9 +209,15 @@ TTFs originais e o aviso da SIL Open Font License permanecem em `assets/fonts`.
 - `Play` inicia o encounter autoritativo local servidor listen/cliente, aceita
   teclado/mouse, executa três bots gansos e reinicia ao sair e entrar novamente
   em `Play`.
-- Controles nativos padrão: `WASD`/setas movem, `Espaço` pula, `F` ou o mouse
-  atiram, `Tab` alterna o placar, `Enter` confirma menus e `Escape` retorna ao
-  menu.
+- Controles nativos padrão: `WASD`/setas movem, `Espaço` pula, `F` dispara
+  a arma, `Ctrl` agacha, o mouse esquerdo executa melee autoritativo e o mouse
+  direito usa o special/power-up selecionado. Dois toques em `W`/`A`/`S`/`D`
+  fazem dash naquela direção; um segundo toque em `Espaço` faz double jump, e
+  manter o salto no ar faz glide.
+- Roll, dash, double jump e glide compartilham uma barra de stamina de 100
+  pontos. Roll custa 25, dash 30, double jump 20 e glide 2 por tick aéreo;
+  a stamina recupera 1 ponto por tick fixo. `Tab` alterna o placar, `Enter`
+  confirma menus e `Escape` retorna ao menu.
 - `Multiplayer > Host/Join` admite o segundo jogador pelo lobby Kof-first,
   exige `READY` dos dois peers conectados e publica o placar determinístico por
   `Tab`, com jogador, status, score, vida, K/D e ping.

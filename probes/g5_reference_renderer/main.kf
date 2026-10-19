@@ -1,6 +1,6 @@
 import core
 import session
-import ui
+import content
 
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_init(Int flags): Bool
 extern "./build/libkookie_sdl_adapter.so" kookie_sdl_shutdown(): void
@@ -24,6 +24,21 @@ extern "./build/libkookie_sdl_adapter.so" kookie_gpu_scene_instances(): Int
 extern "./build/libkookie_sdl_adapter.so" kookie_gpu_measure_reference_scene(
     Int warmupFrames, Int measuredFrames, Int width, Int height
 ): Int
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_begin(
+    Int vertexCount
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_push_vertex_uv(
+    Int x, Int y, Int z, Int textureU, Int textureV
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_camera_stage_begin(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_camera_stage_word(
+    Int index, Int value
+): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_camera_stage_commit(): Bool
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_render_set_passes(
+    Int world, Int scene
+): Bool
 
 
 Bool uploadReferenceFrame(FrameStaging frame) {
@@ -40,6 +55,41 @@ Bool uploadReferenceFrame(FrameStaging frame) {
     return true
 }
 
+Bool stageVfxWorld(
+    BoundedWorldTextureAsset texture, CameraState camera
+) {
+    if (!texture.buildWithVfx(0, 0, 0, 0, true) ||
+        !stageGpuWorldTextureBatch(texture) ||
+        !camera.buildGpuCameraMatrix(320, 240) ||
+        !kookie_gpu_world_camera_stage_begin()) {
+        return false
+    }
+    for (var index = 0; index < 16; index = index + 1) {
+        if (!kookie_gpu_world_camera_stage_word(
+                index, camera.gpuCameraMatrixElement(index))) {
+            return false
+        }
+    }
+    if (!kookie_gpu_world_camera_stage_commit()) {
+        return false
+    }
+    var resource = worldVfxResource(worldVfxParticleSlashAsset(), 0)
+    var leftU = texture.textureU(resource, 0)
+    var rightU = texture.textureU(resource, 100)
+    var bottomV = texture.textureV(resource, 0)
+    var topV = texture.textureV(resource, 100)
+    return leftU >= 0 && rightU > leftU &&
+        bottomV >= 0 && topV > bottomV &&
+        kookie_gpu_world_begin(6) &&
+        kookie_gpu_world_push_vertex_uv(-20, -5, 100, leftU, bottomV) &&
+        kookie_gpu_world_push_vertex_uv(20, -5, 100, rightU, bottomV) &&
+        kookie_gpu_world_push_vertex_uv(20, 25, 100, rightU, topV) &&
+        kookie_gpu_world_push_vertex_uv(-20, -5, 100, leftU, bottomV) &&
+        kookie_gpu_world_push_vertex_uv(20, 25, 100, rightU, topV) &&
+        kookie_gpu_world_push_vertex_uv(-20, 25, 100, leftU, topV) &&
+        kookie_gpu_world_commit()
+}
+
 main() {
     assert(kookie_sdl_init(32), "SDL video adapter must initialize")
     assert(kookie_gpu_open_headless_ready(),
@@ -47,6 +97,8 @@ main() {
     var server = BoundedDedicatedServer(64, 256, 512, 16, 64, 128)
     var renderer = BoundedScaleReferenceRenderer()
     var frame = FrameStaging(renderer.vertexCount())
+    var vfxTexture = BoundedWorldTextureAsset()
+    var camera = CameraState(-450, 450)
     assert(server.configureReferenceWorkload(),
         "reference server must configure authored collision")
     assert(server.runTicks(8), "reference server must advance")
@@ -71,10 +123,24 @@ main() {
         kookie_gpu_scene_batch_calls() == 1 &&
         kookie_gpu_scene_scalar_calls() == 0,
         "GPU scene must use one V1 batch without scalar fallback")
-    assert(kookie_gpu_capture_headless_scene() > 0,
+    assert(stageVfxWorld(vfxTexture, camera),
+        "native adapter must stage the complete VFX atlas and world quad")
+    assert(kookie_gpu_render_set_passes(0, 0),
+        "headless capture must accept the empty render policy")
+    var baselineChecksum = kookie_gpu_capture_headless_scene()
+    assert(baselineChecksum > 0 && kookie_gpu_scene_draw_calls() == 0,
+        "headless capture must produce the clear-frame baseline")
+    assert(kookie_gpu_render_set_passes(1, 0),
+        "headless capture must select the world VFX pass")
+    var vfxChecksum = kookie_gpu_capture_headless_scene()
+    assert(vfxChecksum > 0 && vfxChecksum != baselineChecksum &&
+        kookie_gpu_scene_draw_calls() == 1,
+        "hardware renderer must capture visible VFX atlas pixels")
+    assert(kookie_gpu_render_set_passes(0, 1),
+        "headless capture must select the reference UI pass")
+    var referenceChecksum = kookie_gpu_capture_headless_scene()
+    assert(referenceChecksum > 0 && kookie_gpu_scene_draw_calls() == 1,
         "hardware renderer must capture the reference scene")
-    assert(kookie_gpu_scene_draw_calls() == 1,
-        "reference scene must use one GPU draw call")
     var p95Micros = kookie_gpu_measure_reference_scene(
         60, 600, 1920, 1080)
     assert(p95Micros > 0 && p95Micros <= 8333 &&
@@ -93,6 +159,12 @@ main() {
     println(kookie_gpu_scene_batch_calls())
     println("g5-renderer-scalar-calls")
     println(kookie_gpu_scene_scalar_calls())
+    println("g5-renderer-vfx-baseline-checksum")
+    println(baselineChecksum)
+    println("g5-renderer-vfx-checksum")
+    println(vfxChecksum)
+    println("g5-renderer-reference-checksum")
+    println(referenceChecksum)
     println("g5-renderer-p95-us")
     println(p95Micros)
 }

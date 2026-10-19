@@ -50,6 +50,48 @@ arquivo único. Por isso o gate registra os diagnósticos conhecidos de pacote
 `PKG004`/`PKG006` e falha para qualquer outro erro de LSP. A correção completa
 de pacotes/imports é coberta pelas verificações do compilador JVM/nativo.
 
+### Loop interno de desenvolvimento
+
+Use a suíte de regressão JVM enquanto itera na lógica Kof:
+
+```bash
+bash scripts/dev_test.sh
+```
+
+A execução padrão roda os 144 testes de `src/main.kf` sem montagem,
+linkedição, empacotamento e gates de apresentação nativos. Use
+`KOOKIE_DEV_TARGET=native bash scripts/dev_test.sh` para uma verificação
+específica do nativo. Isto é um gate de iteração, não substitui
+`verify.sh`.
+
+A verificação completa reutiliza artefatos canônicos JVM/nativos em
+`${XDG_CACHE_HOME:-$HOME/.cache}/kookie/canonical`; os manifestos de identidade
+invalidam o cache quando a árvore de fontes ou o toolchain Kof fixado muda.
+Defina `KOOKIE_CANONICAL_BUILD_CACHE_DIR` para substituir esse local.
+
+### Gate local de empacotamento
+
+Os checks de release exigem a distribuição Kof exata usada por `kof` e os
+metadados do toolchain Zig fixado usados pelo check de falha fechada do
+Windows. Quando o diretório do arquivo contiver `SHA256SUMS` e
+`SOURCE_COMMIT`, configure o shell atual antes do gate completo:
+
+```bash
+source scripts/configure_kof_archive.sh /path/to/kof-0.6.5-linux-x86_64.tar.gz
+export KOOKIE_ZIG_VERSION=0.17.0
+export KOOKIE_ZIG_ARCHIVE_SHA256=1cbe9df9f27e6b78d14ccbca43b6703a404ef79ef1c463de901d7f088d4e2026
+bash scripts/verify.sh
+```
+
+O digest do arquivo é gerado a cada build do Kof porque os metadados do tar
+variam; `configure_kof_archive.sh` verifica esse digest e o commit Kof fixado
+antes de exportar as entradas do pacote. `verify.sh` executa o mesmo preflight
+de identidade antes de iniciar a matriz estática e de runtime, mais demorada.
+Durante o smoke do pacote, `verify_package.sh` reutiliza um cache por execução
+para os builds nativos do servidor, do kooker de conteúdo e do benchmark SIMD
+entre os archives nativo e de apresentação. O cache é temporário e nunca é
+tratado como artefato de release.
+
 Quando um contrato de sessão ou replay mudar, atualize juntas as páginas
 correspondentes em inglês e português e os comentários próximos no código-fonte.
 Documente explicitamente revisões de estado no mesmo tick e as regras de época de

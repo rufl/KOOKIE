@@ -17,6 +17,8 @@ class NativeInputState {
     Int rightValue
     Int fireValue
     Int jumpValue
+    Int crouchValue
+    Int pendingButtonsValue
     Bool scoreboardToggleValue
 
     public constructor() {
@@ -26,7 +28,17 @@ class NativeInputState {
         rightValue = 0
         fireValue = 0
         jumpValue = 0
+        crouchValue = 0
+        pendingButtonsValue = 0
         scoreboardToggleValue = false
+    }
+
+    Bool addPendingButton(Int button) {
+        if (button <= 0 || button > inputButtonMask()) {
+            return false
+        }
+        pendingButtonsValue = pendingButtonsValue | button
+        return true
     }
 
     Bool applyKey(Int key, Int phase) {
@@ -34,18 +46,23 @@ class NativeInputState {
         var pressed = if (phase == 0) 0 else 1
         if (key == 119 || key == 1073741906) {
             forwardValue = pressed
+            if (phase == 1) { return addPendingButton(inputButtonDashForward()) }
         } else if (key == 115 || key == 1073741905) {
             backwardValue = pressed
+            if (phase == 1) { return addPendingButton(inputButtonDashBackward()) }
         } else if (key == 97 || key == 1073741904) {
             leftValue = pressed
+            if (phase == 1) { return addPendingButton(inputButtonDashLeft()) }
         } else if (key == 100 || key == 1073741903) {
             rightValue = pressed
+            if (phase == 1) { return addPendingButton(inputButtonDashRight()) }
         } else if (key == 32) {
             jumpValue = pressed
         } else if (key == 102) {
             fireValue = pressed
         } else if (key == 1073742048 || key == 1073742052) {
-            jumpValue = pressed
+            crouchValue = pressed
+            if (phase == 1) { return addPendingButton(inputButtonRoll()) }
         }
         if (key == 9 && phase == 1) {
             scoreboardToggleValue = true
@@ -53,10 +70,22 @@ class NativeInputState {
         return true
     }
 
-    Bool applyMouseButton(Int pressed) {
-        if (pressed != 0 && pressed != 1) { return false }
-        fireValue = pressed
+    Bool applyMouseButtonCode(Int button, Int pressed) {
+        if ((button != 1 && button != 3) ||
+            (pressed != 0 && pressed != 1)) {
+            return false
+        }
+        if (pressed == 1 && button == 1) {
+            return addPendingButton(inputButtonMelee())
+        }
+        if (pressed == 1 && button == 3) {
+            return addPendingButton(inputButtonSpecial())
+        }
         return true
+    }
+
+    Bool applyMouseButton(Int pressed) {
+        return applyMouseButtonCode(1, pressed)
     }
 
     Bool clearHeld() {
@@ -66,6 +95,8 @@ class NativeInputState {
         rightValue = 0
         fireValue = 0
         jumpValue = 0
+        crouchValue = 0
+        pendingButtonsValue = 0
         scoreboardToggleValue = false
         return true
     }
@@ -76,6 +107,16 @@ class NativeInputState {
     Int rightHeld() { return rightValue }
     Int fireHeld() { return fireValue }
     Int jumpHeld() { return jumpValue }
+    Int crouchHeld() { return crouchValue }
+
+    Int consumeActionButtons() {
+        var value = pendingButtonsValue
+        if (crouchValue != 0) {
+            value = value | inputButtonCrouch()
+        }
+        pendingButtonsValue = 0
+        return value
+    }
 
     Int consumeScoreboardToggle() {
         var value = if (scoreboardToggleValue) 1 else 0

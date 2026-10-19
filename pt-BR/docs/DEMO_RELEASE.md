@@ -23,21 +23,38 @@ O commit de fonte atual é
 passou pelo build do Kof pinado, verificações estática/JVM, verificações
 native/package, verificações do backend PE e pacote JVM Windows.
 
-O candidato `0.1.0-dogfood.64` está no dispatch
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
-a partir desse commit, com os dois smokes de apresentação native habilitados.
-Na última observação, os jobs do toolchain Kof e do pacote Linux passaram; o
-job de apresentação Windows continuava na fila porque o runner self-hosted
-exigido `kookie-windows-01` estava offline. Nenhuma release `.64` foi
-publicada. A publicação ainda exige o job Windows, os dois registros de
-evidência de apresentação com sucesso e a aprovação do ambiente
-`kookie-demo-release`.
+O candidato `0.1.0-dogfood.64` foi despachado em
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) a
+partir desse commit, com os dois smokes de apresentação native habilitados. O
+toolchain Kof e o pacote Linux passaram; o job de apresentação Windows rodou no
+`kookie-windows-01` e falhou antes de gerar artefatos porque o runner não
+encontrou o comando `powershell`. A correção do workflow agora declara
+`shell: bash` para esse passo do pin Kof. Nenhuma release `.64` foi publicada.
+A publicação ainda exige uma nova execução a partir da fonte commitada, os
+dois registros de evidência de apresentação com sucesso e a aprovação do
+ambiente `kookie-demo-release`.
+
 
 Novos candidatos usam o Kof `0.6.5` construído a partir da branch `lab`, no
 commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; o workflow constrói a
 distribuição a partir da fonte porque o pin não usa archive público do 0.6.5.
 O digest do patch de release é
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
+
+### Qualificação de engenharia da working tree atual
+
+A working tree atual passou pelo gate local com o Kof `0.6.5` exato e fixado em
+`1482,16s`. O smoke de pacote passou em `230,01s` após reutilizar
+temporariamente os builds nativos do servidor, kooker de conteúdo e SIMD. O
+gate também passou o adapter nativo local e o renderer Vulkan em Intel
+`Graphics (ARL)`, com uma draw call, 984 instâncias e p95 de frame de `1710`
+microssegundos.
+
+Isto é evidência de engenharia, não uma identidade de release: a working tree
+está suja, o smoke de pacote usou uma chave de qualificação efêmera e este host
+não possui nó `/dev/dri/renderD*` para o smoke interativo isolado exigido. Os
+gates de hardware-alvo D1 e publicação pareada continuam abertos.
+
 
 O jogo voltado ao jogador se chama **GatoGanso**. A apresentação usa `Pixand`
 para texto de UI limitado e `Jared Lite` para display/título; os dois arquivos

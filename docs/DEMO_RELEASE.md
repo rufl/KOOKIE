@@ -23,20 +23,36 @@ The current source commit is
 passed the pinned Kof build, static/JVM checks, native/package checks, PE
 backend checks and Windows JVM package checks.
 
-Candidate `0.1.0-dogfood.64` is dispatched in
+Candidate `0.1.0-dogfood.64` was dispatched in
 [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
-from that commit with both native presentation smokes enabled. At the last
-observation, the Kof toolchain and Linux package jobs passed; the Windows
-presentation job remained queued because the required self-hosted runner
-`kookie-windows-01` was offline. No `.64` release was published. Publication
-still requires the Windows job, both passed presentation evidence records and
-approval of the `kookie-demo-release` environment.
+from that commit with both native presentation smokes enabled. Its Kof
+toolchain and Linux package passed; the Windows presentation job ran on
+`kookie-windows-01` and failed before artifact work because the runner could
+not find the `powershell` command. The workflow fix now declares `shell: bash`
+for that Kof-pin step. No `.64` release was published. Publication still
+requires a rerun from the committed source, both passed presentation evidence
+records and approval of the `kookie-demo-release` environment.
+
 
 New release candidates use the source-built Kof `0.6.5` from the Kof `lab`
 branch at commit `8e59b24acc978eb2546509b5cfca867a06e7283a`; the workflow builds
 the distribution from source because no public 0.6.5 archive is used as the
 pin. The release patch digest is
 `4898952c8f4130d1b5a9e8effb56b0dd7a58d228596b50f69427639c15843664`.
+
+### Current working-tree engineering qualification
+
+The current working tree passed the exact pinned Kof `0.6.5` local gate in
+`1482.16s`. Package smoke passed in `230.01s` after temporary reuse of the
+server, content-kooker and SIMD native builds. The gate also passed the local
+native adapter and Vulkan renderer on Intel `Graphics (ARL)` with one draw
+call, 984 instances and p95 frame time of `1710` microseconds.
+
+This is engineering evidence, not a release identity: the working tree is
+dirty, the package smoke used an ephemeral qualification key, and this host
+has no `/dev/dri/renderD*` node for the required isolated interactive smoke.
+The D1 target-hardware and paired-publication gates therefore remain open.
+
 
 The current source tree has these release-capable paths:
 

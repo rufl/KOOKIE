@@ -40,6 +40,112 @@ interactive packaged game. `kof run` itself does not require Python 3; Python
 is currently used by repository lint, package/provenance validation, evidence
 validation and rendezvous tooling.
 
+## Browser alpha (KofJS, not WASM)
+
+Kof 0.6.5 exposes `jvm`, `native`, and `js` targets; it has no WASM target.
+The full `src` entrypoint also depends on native SDL/GPU and filesystem APIs
+that the JS target does not provide. The repository therefore publishes a
+bounded browser alpha from `apps/web_alpha/main.kf`, not a native-game or WASM
+build:
+
+```bash
+bash scripts/build_web_alpha.sh
+```
+
+The default output is the sibling LichForge static site at
+`../../LICHFORGEWEB/assets/kookie-alpha`. Use `--output DIR` to stage the
+generated KofJS bundle elsewhere. Serve the site over HTTP, then open
+`/#kookie-alpha`; the page reports a load failure instead of presenting the
+preview as native or WASM parity.
+
+The alpha exercises the current Kof UI handles and a browser client slice:
+binary WebSocket hello/ack/heartbeat, protocol echo, authoritative scene
+probe, keyboard/button actions, bounded scene snapshots, and a direct WebGL2
+renderer. The renderer draws the authoritative player, three bounded actors,
+health bars, VFX and projectiles without a Three.js dependency; a visible
+2D fallback remains available when WebGL2 is unavailable.
+
+Run the local transport qualification path:
+
+```bash
+python3 scripts/kookie_websocket_session.py --port 8765
+browser_dir="$(mktemp -d -t kookie-web-alpha-XXXXXX)"
+bash scripts/build_web_alpha.sh --output "$browser_dir"
+python3 -m http.server 8080 --directory "$browser_dir"
+```
+
+
+Open
+`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8765/session`, click `CONNECT`, then
+use `PING`, `PROTOCOL ECHO`, or an authoritative action (`WASD`/arrow movement,
+`Q`/`E` look, `SPACE` jump, `F` fire, `M` melee, `X` special, `R` reset).
+Click the canvas to capture pointer lock for mouse look. Admission requests the
+full authoritative scene snapshot before enabling the action controls. The
+local gateway maintains bounded tick, 3D player position/camera, stamina, ammo,
+combo, VFX, four actor states, one projectile and one pickup. The WebGL2 client
+loads the staged goose, cat, ground and wall GLB assets, displays an accessible
+HUD and top-down minimap, persists bounded settings, reconnects up to five times
+when enabled, and falls back to a visible 2D canvas when WebGL2 is unavailable.
+Click `CHECK GATEWAY` to query the gateway's unauthenticated `GET /healthz`
+route. It reports transport, protocol, bearer-admission mode and active
+sessions. `GET /metrics` exposes bounded counters for upgrades, rejections,
+frames, commands and health requests; both routes include CORS headers for the
+qualification page.
+
+To qualify token-gated admission, start the gateway with a bounded bearer token:
+
+```bash
+python3 scripts/kookie_websocket_session.py --port 8765 \
+  --auth-token qualification-token
+```
+
+For a local credential file, keep the token out of the process arguments:
+
+```bash
+printf '%s\n' qualification-token > gateway.token
+chmod 600 gateway.token
+python3 scripts/kookie_websocket_session.py --port 8765 \
+  --auth-token-file gateway.token
+```
+
+The file must be a regular file with mode `0600` or stricter and one valid
+token; the gateway rereads it for each WebSocket upgrade. `--auth-token` and
+`--auth-token-file` are mutually exclusive.
+
+Open
+`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8765/session&kookie_token=qualification-token`.
+The browser negotiates `kookie.v1` plus `bearer.<token>`; the gateway selects
+`kookie.v1`. A missing or incorrect token is rejected with HTTP `401` before
+the WebSocket session is admitted. Without `--auth-token`, the local gateway
+keeps protocol-only admission for transport qualification.
+
+For WSS qualification, provide a certificate and key:
+
+```bash
+python3 scripts/kookie_websocket_session.py --port 8765 \
+  --tls-certfile localhost.crt --tls-keyfile localhost.key \
+  --auth-token qualification-token
+```
+
+Use `kookie_ws=wss://127.0.0.1:8765/session` in the browser and enter the token in the
+session authentication field. The bearer token and gateway are qualification
+controls only; hosted production still requires a real identity/session
+service, observability, deployment TLS policy, and the authoritative server
+service.
+
+The non-browser protocol check is:
+
+```bash
+python3 scripts/verify_websocket_session.py
+```
+
+This path validates the binary frame limit, Kof handshake checksum, admission
+response, heartbeat, game-plane echo, authoritative scene snapshots, configured
+token rejection/admission and malformed-frame rejection without a third-party
+Python dependency. It is not a replacement for `kof run src/main.kf --target
+native`; hosted production still requires the identity/session and operations
+services described below.
+
 The published package includes a self-contained update launcher:
 
 - Linux: `kookie-launcher`
@@ -461,9 +567,11 @@ demo explicitly.
 - `Play`: local authoritative listen-server/client encounter; re-enter `Play`
   after Escape to reset the bounded encounter.
 - Gameplay: `W`/`S` move forward/backward and `A`/`D` strafe relative to
-  horizontal mouse look; vertical mouse look pitches the locked follow camera,
-  the mouse wheel zooms it, and authored collision stops it at walls.
-- Fire: `F` or left mouse button. Jump: `Ctrl`.
+  horizontal mouse look; the vertical mouse look pitches the third-person
+  follow camera, the mouse wheel zooms it, and authored collision stops the
+  spring arm at walls and ramps. Segment/triangle checks are continuous in
+  bounded fixed-point space, then resolve to the previous safe sample.
+- Fire: `F` or left mouse button. Jump: `Space` or `Ctrl`.
 - Options: 1280×720 through 2560×1440, windowed/borderless/exclusive
   fullscreen, separate effects/music volume and three text sizes.
 - Accessibility: HUD scale (`SMALL` 85%, `MEDIUM` 100%, `LARGE` 115%),

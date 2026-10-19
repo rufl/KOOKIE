@@ -1,13 +1,27 @@
 import content
 
 main() {
-    var source = File("content/prototype/models/goose/goose.glb").readRange(
+    var gooseSource = File("content/prototype/models/goose/goose.glb").readRange(
         0, 1048577)
-    var reader = BoundedExternalGlbModelReader()
-    var valid = source.length > 0 && reader.read(source, 1) && reader.valid()
-    if (valid) {
+    var catSource = File("content/prototype/models/cat/cat.glb").readRange(
+        0, 1048577)
+    var gooseReader = BoundedExternalGlbModelReader()
+    var catReader = BoundedExternalGlbModelReader()
+    var gooseValid = gooseSource.length > 0 &&
+        gooseReader.read(gooseSource, 1) && gooseReader.valid()
+    if (gooseValid) {
         println("model-valid=1")
+        println("model-vertices=" + gooseReader.vertexCount())
     } else {
         println("model-valid=0")
+    }
+    if (catSource != null && catSource.length > 0) {
+        var catValid = catReader.read(catSource, 2) && catReader.valid()
+        if (catValid) {
+            println("cat-model-valid=1")
+            println("cat-model-vertices=" + catReader.vertexCount())
+        } else {
+            println("cat-model-valid=0")
+        }
     }
 }

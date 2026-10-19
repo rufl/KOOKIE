@@ -67,12 +67,14 @@ gate de paridade LAN externa valida o SPIR-V gerado.
 A execução Verify KOOKIE
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
 passou para o commit de fonte
-`e8cad301b566607a3b8095a219d05441de3240e5`. A execução de release
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) já
-concluiu os jobs do toolchain Kof e do pacote Linux, mas o job de apresentação
-Windows está na fila. O runner self-hosted exigido
-`kookie-windows-01` estava offline na última observação; o workflow ainda não
-chegou ao job de publicação e nenhuma release `.64` existe.
+A execução de release
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) concluiu
+com sucesso os jobs do toolchain Kof e do pacote Linux. O job de apresentação
+Windows rodou no runner agora online `kookie-windows-01`, mas falhou antes de
+gerar artefatos porque o runner não encontrou `powershell`; a correção do
+workflow declara `shell: bash` para o passo do pin Kof. O job de publicação foi
+ignorado e nenhuma release `.64` existe.
+
 
 O wrapper não infere porcentagem concluída porque Kof não oferece um protocolo
 estável e legível por máquina para progresso da compilação native. Os sinais

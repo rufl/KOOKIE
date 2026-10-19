@@ -205,18 +205,106 @@ class BoundedTriangleWorld {
                 startX, startY, startZ, endX, endY, endZ,
                 startX, startY, startZ)
         }
-        for (var step = 1; step <= steps; step = step + 1) {
-            var sampleX = startX + (deltaX * step) / steps
-            var sampleY = startY + (deltaY * step) / steps
-            var sampleZ = startZ + (deltaZ * step) / steps
-            if (pointOnTriangle(sampleX, sampleY, sampleZ)) {
-                var previousX = startX + (deltaX * (step - 1)) / steps
-                var previousY = startY + (deltaY * (step - 1)) / steps
-                var previousZ = startZ + (deltaZ * (step - 1)) / steps
-                return SegmentCollisionResult(
-                    true, true, step,
-                    startX, startY, startZ, endX, endY, endZ,
-                    previousX, previousY, previousZ)
+
+        var startLongX: Long = startX
+        var startLongY: Long = startY
+        var startLongZ: Long = startZ
+        var deltaLongX: Long = deltaX
+        var deltaLongY: Long = deltaY
+        var deltaLongZ: Long = deltaZ
+        var edgeOneX: Long = bx - ax
+        var edgeOneY: Long = by - ay
+        var edgeOneZ: Long = bz - az
+        var edgeTwoX: Long = cx - ax
+        var edgeTwoY: Long = cy - ay
+        var edgeTwoZ: Long = cz - az
+        var perpendicularX = deltaLongY * edgeTwoZ - deltaLongZ * edgeTwoY
+        var perpendicularY = deltaLongZ * edgeTwoX - deltaLongX * edgeTwoZ
+        var perpendicularZ = deltaLongX * edgeTwoY - deltaLongY * edgeTwoX
+        var determinant = edgeOneX * perpendicularX +
+            edgeOneY * perpendicularY + edgeOneZ * perpendicularZ
+
+        if (determinant != 0L) {
+            var offsetX: Long = startLongX - ax
+            var offsetY: Long = startLongY - ay
+            var offsetZ: Long = startLongZ - az
+            var uNumerator = offsetX * perpendicularX +
+                offsetY * perpendicularY + offsetZ * perpendicularZ
+            var crossX = offsetY * edgeOneZ - offsetZ * edgeOneY
+            var crossY = offsetZ * edgeOneX - offsetX * edgeOneZ
+            var crossZ = offsetX * edgeOneY - offsetY * edgeOneX
+            var vNumerator = deltaLongX * crossX +
+                deltaLongY * crossY + deltaLongZ * crossZ
+            var barycentric = true
+            if (determinant > 0L) {
+                if (uNumerator < 0L || vNumerator < 0L ||
+                    uNumerator + vNumerator > determinant) {
+                    barycentric = false
+                }
+            } else if (uNumerator > 0L || vNumerator > 0L ||
+                uNumerator + vNumerator < determinant) {
+                barycentric = false
+            }
+
+            if (barycentric) {
+                var hitNumerator = edgeTwoX * crossX +
+                    edgeTwoY * crossY + edgeTwoZ * crossZ
+                var positiveNumerator = hitNumerator
+                var positiveDenominator = determinant
+                if (positiveDenominator < 0L) {
+                    positiveNumerator = -positiveNumerator
+                    positiveDenominator = -positiveDenominator
+                }
+                if (positiveNumerator >= 0L &&
+                    positiveNumerator <= positiveDenominator) {
+                    var scaledStep = positiveNumerator * steps
+                    var stepLong: Long = scaledStep / positiveDenominator
+                    if (scaledStep % positiveDenominator != 0L) {
+                        stepLong = stepLong + 1L
+                    }
+                    if (stepLong < 0L) {
+                        stepLong = 0L
+                    }
+                    if (stepLong > steps) {
+                        stepLong = steps
+                    }
+                    var hitStep = stepLong.toInt()
+                    if (hitStep == 0) {
+                        return SegmentCollisionResult(
+                            true, true, 0,
+                            startX, startY, startZ, endX, endY, endZ,
+                            startX, startY, startZ)
+                    }
+                    var previousStep = hitStep - 1
+                    var previousX = (
+                        startLongX + deltaLongX * previousStep.toLong() / steps.toLong()
+                    ).toInt()
+                    var previousY = (
+                        startLongY + deltaLongY * previousStep.toLong() / steps.toLong()
+                    ).toInt()
+                    var previousZ = (
+                        startLongZ + deltaLongZ * previousStep.toLong() / steps.toLong()
+                    ).toInt()
+                    return SegmentCollisionResult(
+                        true, true, hitStep,
+                        startX, startY, startZ, endX, endY, endZ,
+                        previousX, previousY, previousZ)
+                }
+            }
+        } else {
+            for (var step = 1; step <= steps; step = step + 1) {
+                var sampleX = startX + (deltaX * step) / steps
+                var sampleY = startY + (deltaY * step) / steps
+                var sampleZ = startZ + (deltaZ * step) / steps
+                if (pointOnTriangle(sampleX, sampleY, sampleZ)) {
+                    var previousX = startX + (deltaX * (step - 1)) / steps
+                    var previousY = startY + (deltaY * (step - 1)) / steps
+                    var previousZ = startZ + (deltaZ * (step - 1)) / steps
+                    return SegmentCollisionResult(
+                        true, true, step,
+                        startX, startY, startZ, endX, endY, endZ,
+                        previousX, previousY, previousZ)
+                }
             }
         }
         return SegmentCollisionResult(

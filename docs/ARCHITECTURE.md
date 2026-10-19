@@ -88,13 +88,17 @@ ordering; it never parses or composes SPIR-V at runtime.
 
 The active Kof4j `0.6.5` pin is the Kof `lab` source commit
 `8e59b24acc978eb2546509b5cfca867a06e7283a`. The existing
-`scripts/verify_simd_dispatch.sh` qualifies `Buffer(U8)` on JVM and native
-x86-64 with the active pin. Cross-target support remains unqualified, and
-`Buffer(U8)` does not define a generic typed, asynchronous GPU/audio ownership
-contract. The bounded `GPU_SCENE_VERTEX_V1` path is an explicit synchronous
-copy-in exception; its native adapter/GPU runtime gate remains pending.
+`scripts/verify_simd_dispatch.sh` qualifies the bounded synchronous
+`Buffer(U8)` producer/copy-back path on JVM and native x86-64; cross-target
+support remains unqualified. The selected `GPU_SCENE_VERTEX_V1` path is a
+synchronous copy-in batch with C-owned storage. The focused native adapter and
+Vulkan renderer gate passed on local `Intel(R) Graphics (ARL)` evidence with
+one draw call, 984 instances and p95 frame time of `1710` microseconds.
+Generic asynchronous or retained-payload ownership remains unqualified, and
+broader hardware/cross-platform presentation remains a release gate.
 KOOKIE therefore keeps `FrameStaging`/content wires as bounded Kof-owned arrays,
 uses C-owned storage for native work and retains the checked scalar adapter.
+
 At startup, `main.kf` transfers each bounded GLB as packed 32-bit words,
 unpacks it into Kof-owned bytes, and parses the scene there; only the validated
 cat PNG byte range crosses back to SDL for image decoding. No native model
@@ -290,21 +294,82 @@ a local client; authority remains in the server session.
 The dedicated server contains no graphics requirement and runs the same server
 modules, content admission, extension roles, save system and replication code.
 
+### Runtime target matrix
+
+The client and authority are selected independently from the simulation. The
+bounded `BoundedSessionRuntimePlan` in `src/session/runtime_plan.kf` rejects
+routes that would require a browser to launch a process or that mix the
+control and game planes:
+
+| Client | Authority | Control plane | Game plane | Presentation |
+|---|---|---|---|---|
+| Browser KofJS | Hosted remote | WSS | WSS | Three.js/WebGL2, GLSL ES 3.00 |
+| zero-native desktop WebView | Hosted remote | WSS | WSS | Native SDK host, web shaders |
+| zero-native desktop WebView | Local sidecar | typed host IPC | localhost WebSocket | Native SDK host, web shaders |
+| Native desktop | Hosted remote | WSS | WSS; native UDP is optional | SDL3/SDL_GPU, native shader products |
+| Android SDL client | Hosted remote | WSS | WSS | SDL3/SDL_GPU, native shader products |
+| Native desktop or Android | Local authority | loopback | loopback | SDL3/SDL_GPU, native shader products |
+| Browser or zero-native WebView | Peer host | WSS signaling | WebRTC data channel | Web renderer, web shaders |
+
+The browser never launches or binds the authoritative server. A local
+zero-native session asks the host `ServerManager` through typed IPC; the host
+owns the headless Kof sidecar and exposes only the serialized game connection.
+Remote peers use the same game protocol. WebRTC is an optional peer-host route:
+ICE gathers candidates with STUN and falls back to TURN when direct candidates
+fail. It is not raw UDP hole punching.
+
+The web and native clients share Kof session semantics and wire schemas, not GPU
+objects or shader binaries. The current browser client uses a direct WebGL2
+renderer with GLSL ES 3.00 shaders; a Three.js scene layer remains an optional
+future presentation choice. Native desktop and Android clients keep SDL3/SDL_GPU
+and the existing SPIR-V/DXIL/native shader pipeline. Kof remains the owner of
+camera, material and replication policy on both sides.
+
 ### Transport contract
 
 The protocol is transport-independent:
 
-- Reliable ordered control channel for handshake, admission, join/leave,
-  required commands and session metadata.
-- Fixed-tick input channel over authenticated UDP: up to three ordered inputs
-  are repeated, the latest snapshot is acknowledged, and the host returns an
-  input acknowledgement; newer authoritative snapshots supersede older ticks,
-  while a higher state sequence may replace the latest sample at the same tick.
+- The control plane is reliable and ordered: session creation, admission,
+  handshake, join/leave, capability negotiation and host-side lifecycle.
+- The game plane carries serialized fixed-tick inputs, snapshots and events.
+  WSS is the baseline for browser, zero-native, hosted native and Android
+  clients; loopback is used only for an in-process/local-authority route.
+- WebRTC is reserved for peer-hosted game data after WSS signaling and ICE
+  negotiation. STUN discovers candidates; TURN provides the required relay
+  fallback.
+- Native authenticated UDP is an explicit later optimization, not the browser
+  contract. The existing direct IPv4/UDP implementation remains a qualified
+  dogfood path and is not WSS, WebRTC, a relay, or NAT traversal.
 - Explicit tick, sequence, acknowledgement, baseline and content-revision
-  fields.
-- Bounded packet size, decode work, queue length and entity count.
-- Rejection of stale commands, invalid handles, incompatible content and
-  unsupported capabilities.
+  fields remain identical across every game transport.
+- Packet size, decode work, queue length and entity count are bounded.
+- Stale commands, invalid handles, incompatible content and unsupported
+  capabilities are rejected before authoritative mutation.
+
+The current web output is a bounded KofJS UI and browser client. It includes a
+binary WebSocket handshake/heartbeat, protocol echo, full authoritative scene
+probe, keyboard/button/mouse input, pointer-lock look, validated bounded scene
+snapshots, an accessible HUD with a top-down minimap, and a direct WebGL2
+renderer in `apps/web_alpha/webgl_renderer.js`. The full scene snapshot carries
+the player camera, four actors with health/state/kind, one bounded projectile,
+and one pickup; the renderer uses the staged goose, cat, ground and wall GLB
+assets without a Three.js dependency. It follows the authoritative camera and
+resizes for device pixels. The client gates gameplay controls until the full
+scene arrives, exposes bounded automatic reconnect with visible loading/failure
+states, and persists minimap, pointer-lock and reduced-motion preferences
+locally. The browser falls back to a visible 2D canvas when WebGL2 is
+unavailable. The gateway supports optional WSS termination, bounded bearer-token
+admission plus `GET /healthz` and `GET /metrics` routes:
+`--auth-token` requires the browser's `bearer.<token>` WebSocket subprotocol
+alongside `kookie.v1` and rejects missing or incorrect tokens before admission.
+`--auth-token-file` provides the same admission contract without exposing the
+token in process arguments; it requires a regular `0600`-or-stricter file and
+is reread for each upgrade. Health reports only bounded readiness metadata;
+metrics expose bounded counters.
+It still does not provide the production identity/session service, credential
+lifecycle, observability deployment, zero-native host process or WebRTC
+signaling service described by the target matrix; those are separate delivery
+slices over this route contract.
 
 
 The implemented G2 protocol uses fixed 11-word commands and recipient-specific

@@ -22,10 +22,13 @@ Linux/Windows do commit de fonte
 `3bd382a072817fe545ae9a80abfd1dd344878ada`. A execução Verify
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862) passou
 para o commit `e8cad301b566607a3b8095a219d05441de3240e5`.
-O candidato `0.1.0-dogfood.64` está em
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223); seu
-pacote Linux passou, enquanto o job Windows aguarda o runner offline
-`kookie-windows-01`. O candidato ainda não foi publicado.
+O candidato `0.1.0-dogfood.64` foi despachado em
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223). Seu
+pacote Linux passou; o job de apresentação Windows rodou no runner agora online
+`kookie-windows-01`, mas falhou antes de gerar artefatos porque `powershell`
+estava indisponível. A correção do workflow declara `shell: bash` para o passo
+do pin Kof. O candidato não foi publicado.
+
 
 ## 1. Produto e responsabilidade não negociável
 

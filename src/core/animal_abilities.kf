@@ -15,6 +15,9 @@ Int animalAbilityKick() { return 4 }
 Int animalAbilityHonk() { return 5 }
 Int animalAbilitySeedFire() { return 6 }
 Int animalAbilityWoolMelee() { return 7 }
+Int animalAbilityDoubleJump() { return 8 }
+Int animalAbilityGlide() { return 9 }
+Int animalAbilityBasicMelee() { return 10 }
 
 Int animalAbilityRollDurationTicks() { return 8 }
 Int animalAbilityRollCooldownTicks() { return 12 }
@@ -28,6 +31,14 @@ Int animalAbilityMeleeRange() { return 10 }
 Int animalAbilityHonkRange() { return 24 }
 Int animalAbilityHonkPushDistance() { return 8 }
 Int animalAbilitySeedRange() { return 40 }
+Int animalAbilityBasicMeleeDamage() { return 10 }
+Int animalAbilityMaximumStamina() { return 100 }
+Int animalAbilityStaminaRecovery() { return 1 }
+Int animalAbilityRollStaminaCost() { return 25 }
+Int animalAbilityDashStaminaCost() { return 30 }
+Int animalAbilityDoubleJumpStaminaCost() { return 20 }
+Int animalAbilityGlideStaminaCost() { return 2 }
+Int animalAbilityTapWindowTicks() { return 10 }
 
 
 record AnimalAbilityResult(
@@ -43,6 +54,7 @@ class AnimalAbilityController {
     Int[] rollCooldownTicks
     Int[] flapExpiryTicks
     Bool[] activeValues
+    Int[] staminaValues
     Int actualCapacityValue
     AnimalAbilityResult lastResultValue
 
@@ -59,6 +71,7 @@ class AnimalAbilityController {
         rollCooldownTicks = new Int[actualCapacityValue]
         flapExpiryTicks = new Int[actualCapacityValue]
         activeValues = new Bool[actualCapacityValue]
+        staminaValues = new Int[actualCapacityValue]
         lastResultValue = AnimalAbilityResult(
             false, 0, animalAbilityNone(), 0, 0, false)
         clear()
@@ -72,6 +85,7 @@ class AnimalAbilityController {
             rollExpiryTicks[index] = 0
             rollCooldownTicks[index] = 0
             flapExpiryTicks[index] = 0
+            staminaValues[index] = animalAbilityMaximumStamina()
             activeValues[index] = false
         }
         lastResultValue = AnimalAbilityResult(
@@ -93,6 +107,7 @@ class AnimalAbilityController {
         rollExpiryTicks[slot] = 0
         rollCooldownTicks[slot] = 0
         flapExpiryTicks[slot] = 0
+        staminaValues[slot] = animalAbilityMaximumStamina()
         activeValues[slot] = true
         return true
     }
@@ -104,6 +119,7 @@ class AnimalAbilityController {
         dashExpiryTicks[slot] = 0
         rollExpiryTicks[slot] = 0
         flapExpiryTicks[slot] = 0
+        staminaValues[slot] = 0
         return true
     }
 
@@ -112,12 +128,42 @@ class AnimalAbilityController {
         if (slot < 0 || !activeValues[slot]) { return 0 }
         return animalKinds[slot]
     }
+    Bool consumeStamina(Int actorId, Int amount) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot] || amount < 0 ||
+            amount > staminaValues[slot]) {
+            return false
+        }
+        staminaValues[slot] = staminaValues[slot] - amount
+        return true
+    }
+
+    Int stamina(Int actorId) {
+        var slot = slotFor(actorId)
+        if (slot < 0 || !activeValues[slot]) { return 0 }
+        return staminaValues[slot]
+    }
+
+    Int maximumStamina() { return animalAbilityMaximumStamina() }
+
+    Bool recoverAll() {
+        for (var index = 0; index < actualCapacityValue; index = index + 1) {
+            if (activeValues[index]) {
+                staminaValues[index] = staminaValues[index] +
+                    animalAbilityStaminaRecovery()
+                if (staminaValues[index] > animalAbilityMaximumStamina()) {
+                    staminaValues[index] = animalAbilityMaximumStamina()
+                }
+            }
+        }
+        return true
+    }
 
     Bool allowed(Int actorId, Int ability) {
         var kind = animalKind(actorId)
         if (kind == 0) { return false }
         if (ability == animalAbilityRoll() || ability == animalAbilityDash()) {
-            return kind == animalKindCat()
+            return true
         }
         if (ability == animalAbilityFlap() || ability == animalAbilityKick() ||
             ability == animalAbilityHonk() ||
@@ -138,13 +184,15 @@ class AnimalAbilityController {
         if (slot >= 0 && activeValues[slot] && tick >= 0 &&
             targetId >= 0 && allowed(actorId, ability)) {
             if (ability == animalAbilityRoll() &&
-                tick >= rollCooldownTicks[slot]) {
+                tick >= rollCooldownTicks[slot] &&
+                consumeStamina(actorId, animalAbilityRollStaminaCost())) {
                 rollExpiryTicks[slot] = tick + animalAbilityRollDurationTicks()
                 rollCooldownTicks[slot] = tick + animalAbilityRollCooldownTicks()
                 displacement = animalAbilityRollDistance()
                 accepted = true
             } else if (ability == animalAbilityDash() &&
-                tick >= dashCooldownTicks[slot]) {
+                tick >= dashCooldownTicks[slot] &&
+                consumeStamina(actorId, animalAbilityDashStaminaCost())) {
                 dashExpiryTicks[slot] = tick + animalAbilityDashDurationTicks()
                 dashCooldownTicks[slot] = tick + animalAbilityDashCooldownTicks()
                 displacement = animalAbilityDashDistance()

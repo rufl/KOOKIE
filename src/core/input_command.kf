@@ -1,6 +1,18 @@
 package core
 
-record InputCommand(Int tick, Int sequence, Int moveX, Int moveY, Int lookX, Int lookY, Int fire, Int jump)
+Int inputButtonCrouch() { return 1 }
+Int inputButtonMelee() { return 2 }
+Int inputButtonSpecial() { return 4 }
+Int inputButtonDashForward() { return 8 }
+Int inputButtonDashBackward() { return 16 }
+Int inputButtonDashLeft() { return 32 }
+Int inputButtonDashRight() { return 64 }
+Int inputButtonRoll() { return 128 }
+Int inputButtonMask() { return 255 }
+record InputCommand(
+    Int tick, Int sequence, Int moveX, Int moveY,
+    Int lookX, Int lookY, Int fire, Int jump, Int buttons
+)
 record InputEdges(Int firePressed, Int fireReleased, Int jumpPressed, Int jumpReleased)
 
 class InputEdgeState {
@@ -80,6 +92,7 @@ class InputCommandBuffer {
     Int[] lookYs
     Int[] fires
     Int[] jumps
+    Int[] buttons
     Int head
     Int count
     Int lastSequence
@@ -94,10 +107,11 @@ class InputCommandBuffer {
         lookYs = new Int[capacity]
         fires = new Int[capacity]
         jumps = new Int[capacity]
+        buttons = new Int[capacity]
         head = 0
         count = 0
         lastSequence = -1
-        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0, 0)
     }
 
     Bool queue(InputCommand command) {
@@ -105,7 +119,10 @@ class InputCommandBuffer {
             command.sequence() <= lastSequence || count >= ticks.length) {
             return false
         }
-        if (command.fire() < 0 || command.fire() > 1 || command.jump() < 0 || command.jump() > 1) {
+        if (command.fire() < 0 || command.fire() > 1 ||
+            command.jump() < 0 || command.jump() > 1 ||
+            command.buttons() < 0 ||
+            command.buttons() > inputButtonMask()) {
             return false
         }
         var index = head + count
@@ -120,6 +137,7 @@ class InputCommandBuffer {
         lookYs[index] = command.lookY()
         fires[index] = command.fire()
         jumps[index] = command.jump()
+        buttons[index] = command.buttons()
         count = count + 1
         lastSequence = command.sequence()
         return true
@@ -142,7 +160,8 @@ class InputCommandBuffer {
         }
         consumed = InputCommand(
             ticks[head], sequences[head], moveXs[head], moveYs[head],
-            lookXs[head], lookYs[head], fires[head], jumps[head])
+            lookXs[head], lookYs[head], fires[head], jumps[head],
+            buttons[head])
         head = head + 1
         if (head >= ticks.length) {
             head = 0
@@ -160,7 +179,7 @@ class InputCommandBuffer {
     Bool resetForReplay() {
         clearPending()
         lastSequence = -1
-        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0, 0)
         return true
     }
 

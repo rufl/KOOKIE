@@ -27,12 +27,17 @@ Int kookieUiComponentColorSuccess() { return 4 }
 
 String kookieUiCssToken(Int token) {
     if (token == kookieUiComponentColorForeground()) { return "#f8fafc" }
-    if (token == kookieUiComponentColorMuted()) { return "#64748b" }
+    if (token == kookieUiComponentColorMuted()) { return "#cbd5e1" }
     if (token == kookieUiComponentColorAccent()) { return "#d97706" }
     if (token == kookieUiComponentColorDanger()) { return "#dc2626" }
     if (token == kookieUiComponentColorSuccess()) { return "#22c55e" }
     return "#0f172a"
 }
+Int kookieUiSpacingUnit() { return 8 }
+Int kookieUiMinimumTargetSize() { return 44 }
+String kookieUiBorderColor() { return "#334155" }
+String kookieUiFocusBorderColor() { return "#15803d" }
+
 
 String kookieUiCssAlign(Int value) {
     if (value == kookieUiLayoutCenter()) { return "center" }
@@ -159,29 +164,27 @@ KookieUiLayoutSpec kookieUiRowLayout(Int gap, Int padding) {
         kookieUiLayoutCenter(), kookieUiLayoutStart())
 }
 
+
 Style kookieUiStackStyle(KookieUiLayoutSpec spec, Int direction) {
+    if (spec.gap() >= 16) {
+        if (direction == kookieUiLayoutRow()) {
+            return Style("display:flex;flex-direction:row;gap:16px;align-items:center")
+        }
+        return Style("display:flex;flex-direction:column;gap:16px;align-items:stretch")
+    }
+    if (spec.gap() >= 8) {
+        if (direction == kookieUiLayoutRow()) {
+            return Style("display:flex;flex-direction:row;gap:8px;align-items:center")
+        }
+        return Style("display:flex;flex-direction:column;gap:8px;align-items:stretch")
+    }
     if (direction == kookieUiLayoutRow()) {
-        if (spec.justify() == kookieUiLayoutCenter()) {
-            return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:center")
-        }
-        if (spec.justify() == kookieUiLayoutEnd()) {
-            return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-end")
-        }
-        if (spec.justify() == kookieUiLayoutStretch()) {
-            return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:space-between")
-        }
-        return Style("display:flex;flex-direction:row;gap:8px;align-items:center;justify-content:flex-start")
+        return Style("display:flex;flex-direction:row;gap:0;align-items:center")
     }
-    if (spec.align() == kookieUiLayoutCenter()) {
-        return Style("display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:flex-start")
-    }
-    if (spec.align() == kookieUiLayoutEnd()) {
-        return Style("display:flex;flex-direction:column;gap:8px;align-items:flex-end;justify-content:flex-start")
-    }
-    return Style("display:flex;flex-direction:column;gap:8px;align-items:stretch;justify-content:flex-start")
-
-
+    return Style("display:flex;flex-direction:column;gap:0;align-items:stretch")
 }
+
+
 class KookieUiLayout {
     View viewValue
     KookieUiLayoutSpec specValue
@@ -238,16 +241,47 @@ class KookieUiLayout {
 }
 
 Style kookieUiPanelStyle(Int variant, Int padding) {
-    if (variant == kookieUiPanelRaised()) {
-        return Style(kookieUiSurfaceRaised(), kookieUiForeground(), padding, 6)
-    }
     if (variant == kookieUiPanelTransparent()) {
-        return Style(kookieUiBackground(), kookieUiForeground(), padding, 0)
+        return Style("box-sizing:border-box;background:transparent;color:#f8fafc;padding:0;border:0;border-radius:0")
     }
     if (variant == kookieUiPanelDanger()) {
-        return Style(Color(59, 23, 32), kookieUiForeground(), padding, 8)
+        if (padding >= 16) {
+            return Style("background:#3b1720;color:#f8fafc;padding:16px;border:1px solid #ef4444;border-radius:10px")
+        }
+        if (padding <= 8) {
+            return Style("background:#3b1720;color:#f8fafc;padding:8px;border:1px solid #ef4444;border-radius:10px")
+        }
+        return Style("background:#3b1720;color:#f8fafc;padding:12px;border:1px solid #ef4444;border-radius:10px")
     }
-    return Style(kookieUiSurface(), kookieUiForeground(), padding, 8)
+    if (variant == kookieUiPanelRaised()) {
+        if (padding >= 16) {
+            return Style("background:#162a37;color:#f8fafc;padding:16px;border:1px solid #475569;border-radius:8px")
+        }
+        if (padding <= 8) {
+            return Style("background:#162a37;color:#f8fafc;padding:8px;border:1px solid #475569;border-radius:8px")
+        }
+        return Style("background:#162a37;color:#f8fafc;padding:12px;border:1px solid #475569;border-radius:8px")
+    }
+    if (padding >= 16) {
+        return Style("background:#0f1f2b;color:#f8fafc;padding:16px;border:1px solid #334155;border-radius:10px")
+    }
+    if (padding <= 8) {
+        return Style("background:#0f1f2b;color:#f8fafc;padding:8px;border:1px solid #334155;border-radius:10px")
+    }
+    return Style("background:#0f1f2b;color:#f8fafc;padding:12px;border:1px solid #334155;border-radius:10px")
+}
+
+Style kookieUiButtonStyle(Int variant, Bool selected) {
+    if (selected || variant == kookieUiButtonPrimary()) {
+        return Style("min-width:44px;min-height:44px;border:1px solid #fbbf24;background:#d97706;color:#f8fafc")
+    }
+    if (variant == kookieUiButtonDanger()) {
+        return Style("min-width:44px;min-height:44px;border:1px solid #fecaca;background:#dc2626;color:#f8fafc")
+    }
+    if (variant == kookieUiButtonGhost()) {
+        return Style("min-width:44px;min-height:44px;border:1px solid #64748b;background:transparent;color:#f8fafc")
+    }
+    return Style("min-width:44px;min-height:44px;border:1px solid #3b5568;background:#162a37;color:#f8fafc")
 }
 
 class KookieUiPanel {
@@ -292,19 +326,6 @@ class KookieUiPanel {
     }
 }
 
-Style kookieUiButtonStyle(Int variant, Bool selected) {
-    if (selected || variant == kookieUiButtonPrimary()) {
-        return Style("min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:#d97706;color:#f8fafc")
-    }
-    if (variant == kookieUiButtonDanger()) {
-        return Style("min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:#dc2626;color:#f8fafc")
-    }
-    if (variant == kookieUiButtonGhost()) {
-        return Style(
-            "min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:transparent;color:#f8fafc")
-    }
-    return Style("min-width:44px;min-height:44px;padding:8px;border-radius:6px;background:#162a37;color:#f8fafc")
-}
 
 class KookieUiButton {
     Button buttonValue
@@ -373,13 +394,13 @@ class KookieUiTextField {
         valueValue = initial
         captionValue = Label(labelValue)
         captionValue.setStyle(Style(
-            "font-family: Pixand, sans-serif; color: #f8fafc;"))
+            "font-family:Pixand,sans-serif;font-size:14px;letter-spacing:.04em;color:#f8fafc;"))
         inputValue = Input(initial)
-        inputValue.setStyle(
-            Style("min-height:44px;padding:8px;border:1px solid #24566a;background:#0f172a;color:#f8fafc"))
+        inputValue.setStyle(Style(
+            "min-height:44px;padding:8px;border:1px solid #3b5568;border-radius:8px;background:#0f172a;color:#f8fafc"))
         var content = Column(listOf(captionValue, inputValue))
-        content.setStyle(Style("display:flex;flex-direction:column;gap:6px"))
-        viewValue = View(Style("display:flex;flex-direction:column;gap:6px"))
+        content.setStyle(Style("display:flex;flex-direction:column;gap:8px"))
+        viewValue = View(Style("display:flex;flex-direction:column;gap:8px"))
         viewValue.bind(content)
     }
 
@@ -463,9 +484,15 @@ class KookieUiSlider {
             if (valueValue > maximumValue) { valueValue = maximumValue }
             valueLabel.text = valueValue + " / " + maximumValue
         })
+        decrementButton.setStyle(kookieUiButtonStyle(
+            kookieUiButtonSecondary(), false))
+        incrementButton.setStyle(kookieUiButtonStyle(
+            kookieUiButtonSecondary(), false))
         var row = Row(listOf(decrementButton, valueLabel, incrementButton))
-        row.setStyle(Style("display:flex;align-items:center;gap:8px;min-height:44px"))
-        viewValue = View(Style("display:flex;flex-direction:row;align-items:center"))
+        row.setStyle(Style(
+            "display:flex;align-items:center;gap:8px;min-height:44px"))
+        viewValue = View(Style(
+            "display:flex;flex-direction:row;align-items:center"))
         viewValue.bind(row)
         refresh()
     }
@@ -501,8 +528,10 @@ class KookieUiProgressBar {
         minimumValue = minimum
         maximumValue = maximum
         if (maximumValue <= minimumValue) { maximumValue = minimumValue + 1 }
-        trackValue = View(Style("width:100%;height:12px;overflow:hidden;border-radius:6px;background:#0f172a"))
-        fillValue = View(Style("height:100%;border-radius:6px;background:#22c55e"))
+        trackValue = View(Style(
+            "width:100%;height:14px;overflow:hidden;border:1px solid #475569;border-radius:7px;background:#0f172a"))
+        fillValue = View(Style(
+            "height:100%;border-radius:6px;background:#22c55e;transition:width 150ms ease,background-color 150ms ease"))
         trackValue.bind(fillValue)
         valueValue = initial
         setValue(initial)
@@ -525,33 +554,55 @@ class KookieUiProgressBar {
 }
 
 Style kookieUiProgressFillStyle(Int percent) {
-    if (percent >= 88) {
-        return Style("width:100%;height:100%;border-radius:6px;background:#22c55e")
+    if (percent <= 0) {
+        return Style("width:0%;height:100%;border-radius:6px;background:#ef4444")
     }
-    if (percent >= 63) {
-        return Style("width:75%;height:100%;border-radius:6px;background:#22c55e")
+    if (percent <= 10) {
+        return Style("width:10%;height:100%;border-radius:6px;background:#ef4444")
     }
-    if (percent >= 38) {
-        return Style("width:50%;height:100%;border-radius:6px;background:#22c55e")
+    if (percent <= 20) {
+        return Style("width:20%;height:100%;border-radius:6px;background:#ef4444")
     }
-    if (percent >= 13) {
-        return Style("width:25%;height:100%;border-radius:6px;background:#22c55e")
+    if (percent <= 30) {
+        return Style("width:30%;height:100%;border-radius:6px;background:#ef4444")
     }
-    return Style("width:0%;height:100%;border-radius:6px;background:#22c55e")
+    if (percent <= 40) {
+        return Style("width:40%;height:100%;border-radius:6px;background:#f59e0b")
+    }
+    if (percent <= 50) {
+        return Style("width:50%;height:100%;border-radius:6px;background:#f59e0b")
+    }
+    if (percent <= 60) {
+        return Style("width:60%;height:100%;border-radius:6px;background:#f59e0b")
+    }
+    if (percent <= 70) {
+        return Style("width:70%;height:100%;border-radius:6px;background:#22c55e")
+    }
+    if (percent <= 80) {
+        return Style("width:80%;height:100%;border-radius:6px;background:#22c55e")
+    }
+    if (percent <= 90) {
+        return Style("width:90%;height:100%;border-radius:6px;background:#22c55e")
+    }
+    return Style("width:100%;height:100%;border-radius:6px;background:#22c55e")
 }
 
 Style kookieUiBadgeStyle(Int color) {
     if (color == kookieUiComponentColorDanger()) {
-        return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#dc2626;color:#f8fafc")
+        return Style("padding:4px 10px;border:1px solid #fecaca;background:#dc2626;color:#f8fafc")
     }
     if (color == kookieUiComponentColorSuccess()) {
-        return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#22c55e;color:#f8fafc")
+        return Style("padding:4px 10px;border:1px solid #bbf7d0;background:#22c55e;color:#f8fafc")
     }
     if (color == kookieUiComponentColorMuted()) {
-        return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#64748b;color:#f8fafc")
+        return Style("padding:4px 10px;border:1px solid #cbd5e1;background:#475569;color:#f8fafc")
     }
-    return Style("min-height:28px;padding:4px 10px;border-radius:14px;background:#d97706;color:#f8fafc")
+    if (color == kookieUiComponentColorForeground()) {
+        return Style("padding:4px 10px;border:1px solid #cbd5e1;background:#0f172a;color:#f8fafc")
+    }
+    return Style("padding:4px 10px;border:1px solid #fbbf24;background:#d97706;color:#f8fafc")
 }
+
 
 class KookieUiBadge {
     Label labelValue
@@ -685,10 +736,11 @@ class KookieUiInspector {
         }
         var keyLabel = Label(key)
         var valueLabel = Label(value)
-        keyLabel.setStyle(Style("min-width: 140px; color: #94a3b8;"))
-        valueLabel.setStyle(Style("color: #f8fafc;"))
+        keyLabel.setStyle(Style("min-width:140px;color:#cbd5e1;"))
+        valueLabel.setStyle(Style("color:#f8fafc;"))
         var row = Row(listOf(keyLabel, valueLabel))
-        row.setStyle(Style("display:flex;flex-direction:row;gap:12px;min-height:32px;align-items:center"))
+        row.setStyle(Style(
+            "display:flex;flex-direction:row;gap:16px;min-height:36px;align-items:center"))
         rowsValue.add(row)
         rebuild()
         return true
@@ -696,8 +748,8 @@ class KookieUiInspector {
 
     void rebuild() {
         var content = Column(rowsValue)
-        content.setStyle(Style("display:flex;flex-direction:column;gap:4px"))
-        viewValue = View(Style(kookieUiSurface(), kookieUiForeground(), 12, 8))
+        content.setStyle(Style("display:flex;flex-direction:column;gap:8px"))
+        viewValue = View(kookieUiPanelStyle(kookieUiPanelSurface(), 12))
         viewValue.bind(content)
     }
 
@@ -717,7 +769,11 @@ class KookieUiCheckbox {
         checkedValue = checked
         buttonValue = Button("", () -> {
             checkedValue = !checkedValue
-            refresh()
+            var mark = "[ ] "
+            if (checkedValue) { mark = "[x] " }
+            buttonValue.text = mark + labelValue
+            buttonValue.setStyle(kookieUiButtonStyle(
+                kookieUiButtonSecondary(), checkedValue))
         })
         refresh()
     }
@@ -760,11 +816,27 @@ class KookieUiSelect {
         selectedValue = -1
         valueLabel = Label("")
         previousButton = Button("<", () -> {
-            select(selectedValue - 1)
+            if (countValue > 0) {
+                selectedValue = selectedValue - 1
+                if (selectedValue < 0) { selectedValue = countValue - 1 }
+                valueLabel.text = optionsValue[selectedValue]
+            }
+            valueLabel.setStyle(Style(
+                "min-width:96px;text-align:center;color:#f8fafc"))
         })
         nextButton = Button(">", () -> {
-            select(selectedValue + 1)
+            if (countValue > 0) {
+                selectedValue = selectedValue + 1
+                if (selectedValue >= countValue) { selectedValue = 0 }
+                valueLabel.text = optionsValue[selectedValue]
+            }
+            valueLabel.setStyle(Style(
+                "min-width:96px;text-align:center;color:#f8fafc"))
         })
+        previousButton.setStyle(kookieUiButtonStyle(
+            kookieUiButtonSecondary(), false))
+        nextButton.setStyle(kookieUiButtonStyle(
+            kookieUiButtonSecondary(), false))
         var row = Row(listOf(previousButton, valueLabel, nextButton))
         row.setStyle(Style(
             "display:flex;align-items:center;gap:8px;min-height:44px"))
@@ -814,6 +886,7 @@ class KookieUiSelect {
 
 class KookieUiModal {
     View viewValue
+    View cardValue
     Label titleValue
     Label bodyValue
     Bool openValue
@@ -822,15 +895,18 @@ class KookieUiModal {
         titleValue = Label(title)
         bodyValue = Label(body)
         titleValue.setStyle(Style(
-            "font-family:'Jared Lite',Pixand,sans-serif;font-weight:700;color:#f8fafc"))
+            "font-family:'Jared Lite',Pixand,sans-serif;font-size:22px;font-weight:700;color:#f8fafc"))
         bodyValue.setStyle(Style(
-            "font-family:Pixand,sans-serif;line-height:1.35;color:#f8fafc"))
+            "font-family:Pixand,sans-serif;line-height:1.5;color:#cbd5e1"))
         var content = Column(listOf(titleValue, bodyValue))
         content.setStyle(Style(
-            "display:flex;flex-direction:column;gap:12px"))
+            "display:flex;flex-direction:column;gap:16px"))
+        cardValue = View(Style(
+            "background:#162a37;color:#f8fafc;padding:24px;border:1px solid #64748b"))
+        cardValue.bind(content)
         viewValue = View(Style(
-            "background:#162a37;color:#f8fafc;padding:20px;border-radius:8px;border:1px solid #475569"))
-        viewValue.bind(content)
+            "position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0f172a"))
+        viewValue.bind(cardValue)
         openValue = false
     }
 
@@ -840,10 +916,12 @@ class KookieUiModal {
     Bool open() { return openValue }
     Bool show() {
         openValue = true
+        refresh()
         return true
     }
     Bool close() {
         openValue = false
+        refresh()
         return true
     }
     Bool setTitle(String title) {
@@ -856,6 +934,35 @@ class KookieUiModal {
         bodyValue.text = body
         return true
     }
+
+    void refresh() {
+        if (openValue) {
+            viewValue.setStyle(Style(
+                "position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0f172a"))
+        } else {
+            viewValue.setStyle(Style(
+                "position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0f172a"))
+        }
+    }
+}
+
+Style kookieUiToastStyle(Int color, Bool visible) {
+    if (!visible) {
+        return Style("display:none;padding:4px 10px;border:1px solid #64748b;background:#475569;color:#f8fafc")
+    }
+    if (color == kookieUiComponentColorDanger()) {
+        return Style("display:inline-flex;padding:4px 10px;border:1px solid #fecaca;background:#dc2626;color:#f8fafc")
+    }
+    if (color == kookieUiComponentColorSuccess()) {
+        return Style("display:inline-flex;padding:4px 10px;border:1px solid #bbf7d0;background:#22c55e;color:#f8fafc")
+    }
+    if (color == kookieUiComponentColorMuted()) {
+        return Style("display:inline-flex;padding:4px 10px;border:1px solid #cbd5e1;background:#475569;color:#f8fafc")
+    }
+    if (color == kookieUiComponentColorForeground()) {
+        return Style("display:inline-flex;padding:4px 10px;border:1px solid #cbd5e1;background:#0f172a;color:#f8fafc")
+    }
+    return Style("display:inline-flex;padding:4px 10px;border:1px solid #fbbf24;background:#d97706;color:#f8fafc")
 }
 
 class KookieUiToast {
@@ -869,7 +976,7 @@ class KookieUiToast {
         colorValue = kookieUiComponentColorMuted()
         remainingValue = 0
         visibleValue = false
-        labelValue.setStyle(kookieUiBadgeStyle(colorValue))
+        refresh()
     }
 
     Label widget() { return labelValue }
@@ -888,7 +995,7 @@ class KookieUiToast {
         remainingValue = durationTicks
         visibleValue = true
         labelValue.text = text
-        labelValue.setStyle(kookieUiBadgeStyle(colorValue))
+        refresh()
         return true
     }
 
@@ -899,18 +1006,24 @@ class KookieUiToast {
             remainingValue = 0
             visibleValue = false
         }
+        refresh()
         return true
     }
 
     Bool dismiss() {
         remainingValue = 0
         visibleValue = false
+        refresh()
         return true
+    }
+
+    void refresh() {
+        labelValue.setStyle(kookieUiToastStyle(colorValue, visibleValue))
     }
 }
 
 class KookieUiKeybind {
-    Button buttonValue
+    Label labelValue
     String actionValue
     String keyValue
 
@@ -919,11 +1032,11 @@ class KookieUiKeybind {
         keyValue = key
         if (actionValue.length() == 0) { actionValue = "Action" }
         if (keyValue.length() == 0) { keyValue = "UNBOUND" }
-        buttonValue = Button("", () -> {})
+        labelValue = Label("")
         refresh()
     }
 
-    Button widget() { return buttonValue }
+    Label widget() { return labelValue }
     String action() { return actionValue }
     String key() { return keyValue }
 
@@ -935,7 +1048,8 @@ class KookieUiKeybind {
     }
 
     void refresh() {
-        buttonValue.text = actionValue + ": " + keyValue
-        buttonValue.setStyle(kookieUiButtonStyle(kookieUiButtonGhost(), false))
+        labelValue.text = actionValue + ": " + keyValue
+        labelValue.setStyle(Style(
+            "min-width:160px;padding:4px 10px;border:1px solid #cbd5e1;background:#475569"))
     }
 }

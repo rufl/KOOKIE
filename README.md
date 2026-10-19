@@ -222,9 +222,15 @@ the original TTF files and SIL Open Font License notice remain in
 - `Play` starts the local authoritative listen-server/client encounter,
   accepts keyboard and mouse input, runs three goose bots and resets when
   leaving and entering `Play` again.
-- Native gameplay defaults: `WASD`/arrow keys move, `Space` jumps, `F` or the
-  mouse fires, `Tab` toggles the scoreboard, `Enter` confirms menus, and
-  `Escape` returns to the menu.
+- Native gameplay defaults: `WASD`/arrow keys move, `Space` jumps, `F`
+  fires the ranged weapon, `Ctrl` crouches, left mouse performs authoritative
+  melee, and right mouse uses the selected special/power-up. Double-tapping
+  `W`/`A`/`S`/`D` dashes in that direction; a second `Space` press performs
+  the stamina-backed double jump, and holding jump while airborne glides.
+- Roll, dash, double jump and glide share a 100-point stamina bar. Roll costs
+  25, dash 30, double jump 20 and glide 2 per airborne tick; stamina recovers
+  by 1 point per fixed tick. `Tab` toggles the scoreboard, `Enter` confirms
+  menus, and `Escape` returns to the menu.
 - `Multiplayer > Host/Join` admits the second player through the KOF-owned
   lobby, requires both connected players to select `READY`, and publishes the
   deterministic `Tab` scoreboard with player, status, score, HP, K/D and ping.

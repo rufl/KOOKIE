@@ -46,6 +46,15 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 mkdir -p "$SOURCE_DIR"/{core,content,session,ui,build} "$EVIDENCE_DIR"
+mkdir -p "$SOURCE_DIR"/assets/{fonts,ui,prototype/runtime}
+cp -- "$ROOT_DIR/assets/fonts/jared-lite.ttf" \
+  "$SOURCE_DIR/assets/fonts/jared-lite.ttf"
+cp -- "$ROOT_DIR/assets/fonts/pixand.ttf" \
+  "$SOURCE_DIR/assets/fonts/pixand.ttf"
+cp -- "$ROOT_DIR/assets/ui/gatoganso-mark.svg" \
+  "$SOURCE_DIR/assets/ui/gatoganso-mark.svg"
+cp -a -- "$ROOT_DIR/assets/prototype/runtime/vfx" \
+  "$SOURCE_DIR/assets/prototype/runtime/"
 for source_file in "$ROOT_DIR/src/core/"*.kf; do
   ln -s "$source_file" "$SOURCE_DIR/core/$(basename "$source_file")"
 done
@@ -62,6 +71,8 @@ cp -- "$ROOT_DIR/probes/shared/gpu_scene_batch.kf" \
   "$SOURCE_DIR/core/gpu_scene_batch.kf"
 cp -- "$ROOT_DIR/probes/g5_reference_renderer/main.kf" "$SOURCE_DIR/main.kf"
 IFS=' ' read -r -a SDL_FLAGS <<<"$(pkg-config --cflags --libs sdl3 sdl3-mixer)"
+cp -- "$ROOT_DIR/probes/shared/gpu_world_texture_batch.kf" \
+  "$SOURCE_DIR/content/gpu_world_texture_batch.kf"
 IFS=' ' read -r -a TEXT_FLAGS <<<"$(pkg-config --cflags freetype2 harfbuzz)"
 IFS=' ' read -r -a TEXT_LIBS <<<"$(pkg-config --libs freetype2 harfbuzz)"
 python3 "$ROOT_DIR/scripts/shader_pipeline.py" \
@@ -115,7 +126,9 @@ for attempt in 1 2 3; do
     LIBGL_ALWAYS_SOFTWARE=0 "$ISOLATION_WRAPPER" \
       --timeout "$RENDER_TIMEOUT_SECONDS" --screen 1920x1080x24 \
       "${render_args[@]}" -- \
-      env KOOKIE_SHADER_DIR="$SOURCE_DIR/build" \
+      env KOOKIE_ASSET_DIR="$SOURCE_DIR/assets" \
+      KOOKIE_CONTENT_DIR="$SOURCE_DIR/assets/prototype" \
+      KOOKIE_SHADER_DIR="$SOURCE_DIR/build" \
       KOOKIE_SCREENSHOT_PATH="$INNER_SCREENSHOT_PATH" \
       LD_LIBRARY_PATH="$SOURCE_DIR/build" \
       SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=offscreen \
@@ -145,6 +158,16 @@ for line in log:
     if line.startswith("KOOKIE G5 renderer-") and "=" in line:
         key, value = line.split("=", 1)
         fields[key.removeprefix("KOOKIE G5 renderer-")] = value
+def scalar_marker(marker):
+    index = log.index(marker)
+    return int(log[index + 1])
+
+vfx_baseline = scalar_marker("g5-renderer-vfx-baseline-checksum")
+vfx_checksum = scalar_marker("g5-renderer-vfx-checksum")
+reference_checksum = scalar_marker("g5-renderer-reference-checksum")
+assert vfx_baseline > 0
+assert vfx_checksum > 0 and vfx_checksum != vfx_baseline
+assert reference_checksum > 0
 assert fields["resolution"] == "1920x1080"
 assert fields["driver"] == "vulkan"
 device_name = fields["device"].lower()

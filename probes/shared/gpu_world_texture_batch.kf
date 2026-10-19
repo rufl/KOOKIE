@@ -1,0 +1,32 @@
+package content
+
+extern "./build/libkookie_sdl_adapter.so" kookie_gpu_world_texture_stage_batch_v1(
+    Buffer(U8) values, Int schemaVersion, Int byteLength,
+    Int width, Int height, Int vfxX,
+    Int gooseX, Int gooseY, Int gooseWidth, Int gooseHeight,
+    Int catX, Int catY, Int catWidth, Int catHeight,
+    Long checksum
+): Bool
+
+Bool stageGpuWorldTextureBatch(BoundedWorldTextureAsset asset) {
+    var wordCount = asset.wordCount()
+    if (wordCount <= 0 || wordCount > 16777216) { return false }
+    var byteLength = wordCount * 4
+    var values = buffer.alloc(byteLength)
+    var checksum: Long = 0L
+    for (var index = 0; index < wordCount; index = index + 1) {
+        var value = asset.word(index)
+        var offset = index * 4
+        buffer.poke8(values, offset, value & 255)
+        buffer.poke8(values, offset + 1, (value >> 8) & 255)
+        buffer.poke8(values, offset + 2, (value >> 16) & 255)
+        buffer.poke8(values, offset + 3, (value >> 24) & 255)
+        checksum = checksum + value
+    }
+    return kookie_gpu_world_texture_stage_batch_v1(
+        values, 1, byteLength,
+        asset.width(), asset.height(), asset.vfxX(),
+        asset.gooseX(), asset.gooseY(), asset.gooseWidth(), asset.gooseHeight(),
+        asset.catX(), asset.catY(), asset.catWidth(), asset.catHeight(),
+        checksum)
+}

@@ -18,12 +18,14 @@ player-facing demo release. The open D1 gate is tracked in
   [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
   passed for source commit `e8cad301b566607a3b8095a219d05441de3240e5`,
   including the native/package and PE backend gates.
-- Candidate `0.1.0-dogfood.64` is running in
+- Candidate `0.1.0-dogfood.64` was dispatched in
   [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223).
-  Its Kof toolchain and Linux package passed; its Windows presentation job is
-  queued because self-hosted runner `kookie-windows-01` is offline. No `.64`
-  release exists yet. Publication remains gated by the Windows result and the
-  `kookie-demo-release` environment approval.
+  Its Kof toolchain and Linux package passed; the Windows presentation job ran
+  on `kookie-windows-01` but failed before artifact work because `powershell`
+  was unavailable. The workflow now declares `shell: bash` for the Kof-pin
+  step. No `.64` release exists yet; publication remains gated by a rerun,
+  target evidence and `kookie-demo-release` approval.
+
 
 ## Completed
 

@@ -313,8 +313,11 @@ test "shooter HUD stages semantic combat feedback hierarchy" {
     var hud = ShooterHud(100, 30)
     assert(hud.renderVertexCount() == 474 &&
         hud.updateOxygen(60, 100, true) &&
+        hud.updateStamina(75, 100) &&
         hud.updatePowerUpStatus(powerUpKindCoffeeMug(), 9),
-        "HUD geometry must retain a fixed bounded budget with power-up status")
+        "HUD geometry must retain a fixed bounded budget with stamina status")
+    assert(hud.stamina() == 75 && hud.maxStamina() == 100,
+        "HUD must expose the authoritative stamina bar values")
     var frame = FrameStaging(hud.renderVertexCount())
     assert(hud.update(100, 30, 0, 1, true) &&
         hud.updateEncounterReplication(0, 0, true, 1, 1) &&
@@ -818,6 +821,20 @@ test "third person camera resolves authored tower collision" {
         98, 1, 124, camera.currentX(), camera.currentY(), camera.currentZ())
     assert(clear.accepted() && !clear.collided(),
         "resolved camera position must remain on the safe side of the tower")
+    var ramp = arena.query(20, 1, 60, 26, 2, 60)
+    assert(ramp.accepted() && ramp.collided() && ramp.hitStep() == 5 &&
+        ramp.resolvedX() == 24 && ramp.resolvedY() == 1,
+        "camera path must collide continuously with the authored ramp")
+    var guardGeometry = BoundedTriangleCollection(4, 20)
+    var guardCamera = CameraState(-450, 450)
+    assert(guardGeometry.configureBounds(-16, -16, -16, 16, 16, 16) &&
+        guardGeometry.addTriangle(
+            0, -1, 1, 0, 3, -5, 10, 1, -2) &&
+        guardCamera.setFollowTarget(0, 0, 0) &&
+        guardCamera.snapFollowTarget() &&
+        guardCamera.resolveFollowCollision(guardGeometry) &&
+        guardCamera.currentY() == 0 && guardCamera.currentZ() == 0,
+        "camera collision must reject an integer candidate beyond the surface")
 }
 
 test "arena animal meshes animate goose and cat silhouettes" {
@@ -961,17 +978,17 @@ test "G2 gameplay wire validates commands and authoritative state" {
     assert(!validGameplayCommandMessage(command),
         "gameplay commands must reject checksum-breaking mutation")
     var inputHistory = NetcodeInputHistory(3)
-    assert(inputHistory.push(10, 1, 1, 0, 0, 0) &&
-        inputHistory.push(11, 2, 0, 1, 1, 1) &&
-        inputHistory.push(12, 3, -1, 0, 0, 0) &&
+    assert(inputHistory.push(10, 1, 1, 0, 0, 0, 0) &&
+        inputHistory.push(11, 2, 0, 1, 1, 1, 0) &&
+        inputHistory.push(12, 3, -1, 0, 0, 0, 0) &&
         inputHistory.count() == 3 &&
         inputHistory.latestSequence() == 3,
         "input history must retain a bounded ordered command window")
     var inputWords = inputHistory.commandWords()
     var inputBundle = newGameplayInputBundleMessage(
         2, 1, 4, inputWords)
-    assert(inputWords.length == 18,
-        "input history must flatten 2D jump commands")
+    assert(inputWords.length == 21,
+        "input history must flatten movement, jump and action commands")
     assert(validGameplayInputBundleMessage(inputBundle),
         "input bundles must pass typed validation")
     assert(gameplayInputBundleCount(inputBundle) == 3 &&
@@ -979,8 +996,9 @@ test "G2 gameplay wire validates commands and authoritative state" {
         gameplayInputBundleValue(inputBundle, 1, 3) == 1 &&
         gameplayInputBundleValue(inputBundle, 1, 4) == 1 &&
         gameplayInputBundleValue(inputBundle, 1, 5) == 1 &&
+        gameplayInputBundleValue(inputBundle, 1, 6) == 0 &&
         gameplayInputBundleSnapshotAck(inputBundle) == 4,
-        "input bundles must carry 2D jump commands and ACKs")
+        "input bundles must carry movement, jump, action commands and ACKs")
     inputBundle[10] = inputBundle[10] + 1
     assert(!validGameplayInputBundleMessage(inputBundle),
         "input bundles must reject checksum corruption")
@@ -2593,16 +2611,16 @@ test "pause reset discards debt and one-shot input" {
 
 test "bounded input replay records tick commands" {
     var replay = InputReplayRecorder(2)
-    var first = InputCommand(4, 1, 3, 0, 2, -1, 1, 0)
-    var second = InputCommand(5, 2, 0, 1, -2, 3, 0, 1)
+    var first = InputCommand(4, 1, 3, 0, 2, -1, 1, 0, 0)
+    var second = InputCommand(5, 2, 0, 1, -2, 3, 0, 1, 0)
     assert(replay.append(first) && replay.append(second) &&
         replay.pending() == 2 &&
         replay.lastRecordedTick() == 5 &&
         replay.lastRecordedSequence() == 2,
         "replay must retain ordered resulting tick commands")
-    assert(!replay.append(InputCommand(3, 3, 0, 0, 0, 0, 0, 0)) &&
-        !replay.append(InputCommand(6, 2, 0, 0, 0, 0, 0, 0)) &&
-        !replay.append(InputCommand(6, 3, 0, 0, 0, 0, 2, 0)),
+    assert(!replay.append(InputCommand(3, 3, 0, 0, 0, 0, 0, 0, 0)) &&
+        !replay.append(InputCommand(6, 2, 0, 0, 0, 0, 0, 0, 0)) &&
+        !replay.append(InputCommand(6, 3, 0, 0, 0, 0, 2, 0, 0)),
         "replay must reject stale, duplicate and invalid commands")
     assert(replay.playNext() &&
         replay.lastPlayed().tick() == 4 &&
@@ -2617,7 +2635,7 @@ test "bounded input replay records tick commands" {
         "replay playback must preserve FIFO command values")
     assert(replay.reset() && replay.pending() == 0 &&
         replay.lastRecordedSequence() == -1 &&
-        replay.append(InputCommand(0, 0, 0, 0, 0, 0, 0, 0)),
+        replay.append(InputCommand(0, 0, 0, 0, 0, 0, 0, 0, 0)),
         "replay reset must rearm deterministic recording")
 }
 
@@ -2651,8 +2669,8 @@ test "loopback replay stages commands into simulation" {
     var initial = new Int[1]
     initial[0] = 0
     assert(timeline.setInitialSnapshot(initial) &&
-        timeline.append(InputCommand(1, 1, 3, 0, 0, 0, 0, 0)) &&
-        timeline.append(InputCommand(2, 2, -2, 0, 0, 0, 0, 0)))
+        timeline.append(InputCommand(1, 1, 3, 0, 0, 0, 0, 0, 0)) &&
+        timeline.append(InputCommand(2, 2, -2, 0, 0, 0, 0, 0, 0)))
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1 &&
         loopback.queueReplayCommands(1, timeline, 2) &&
@@ -2669,7 +2687,7 @@ test "loopback replay applies checkpoint state" {
     snapshot[2] = 0
     snapshot[3] = 9
     assert(timeline.appendCheckpointSnapshot(3, 101, snapshot) &&
-        timeline.append(InputCommand(4, 1, 1, 0, 0, 0, 0, 0)))
+        timeline.append(InputCommand(4, 1, 1, 0, 0, 0, 0, 0, 0)))
     var loopback = LoopbackSession(4, 2)
     assert(loopback.start() && loopback.connectPlayer() == 1 &&
         loopback.applyReplayCheckpoint(timeline, 4) &&
@@ -2856,11 +2874,11 @@ test "loopback replay restores enemy combat checkpoint state" {
 
 test "bounded replay wire and file codecs" {
     var replay = InputReplayRecorder(2)
-    assert(replay.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
-        replay.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1)))
+    assert(replay.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0, 0)) &&
+        replay.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1, 0)))
     var codec = BoundedReplayWireCodec(2)
     assert(codec.encode(replay, 7, 11, -19) &&
-        codec.encodedLength() == 22,
+        codec.encodedLength() == 24,
         "replay wire codec must frame metadata and commands")
     var wire = new Int[codec.encodedLength()]
     for (var index = 0; index < wire.length; index = index + 1) {
@@ -2909,8 +2927,8 @@ test "bounded replay timeline checkpoints" {
     checkpointSnapshot[0] = 30
     checkpointSnapshot[1] = -7
     var staged = InputReplayRecorder(2)
-    assert(timeline.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0)) &&
-        timeline.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1)) &&
+    assert(timeline.append(InputCommand(4, 1, 3, 0, 2, -1, 1, 0, 0)) &&
+        timeline.append(InputCommand(5, 2, 0, 1, -2, 3, 0, 1, 0)) &&
         timeline.setInitialSnapshot(snapshot) &&
         timeline.appendCheckpointSnapshot(4, 101, checkpointSnapshot) &&
         timeline.appendCheckpoint(9, 202) &&
@@ -3079,8 +3097,19 @@ test "Kof native input owns raw bindings and focus reset", "input" {
         input.applyKey(119, 2) &&
         input.forwardHeld() == 1 &&
         input.applyKey(119, 0) &&
-        input.forwardHeld() == 0,
-        "Kof raw key phases must own held movement")
+        input.forwardHeld() == 0 &&
+        input.consumeActionButtons() == inputButtonDashForward(),
+        "Kof raw key phases must own held movement and tap pulses")
+    assert(input.applyKey(1073742048, 1) &&
+        input.crouchHeld() == 1 &&
+        (input.consumeActionButtons() & inputButtonRoll()) != 0 &&
+        input.applyKey(1073742048, 0) &&
+        input.crouchHeld() == 0,
+        "Ctrl must own crouch and roll input")
+    assert(input.applyMouseButtonCode(3, 1) &&
+        (input.consumeActionButtons() & inputButtonSpecial()) != 0 &&
+        input.applyMouseButtonCode(3, 0),
+        "right mouse must emit selected-special input")
     assert(input.applyKey(32, 1) &&
         input.jumpHeld() == 1 &&
         input.fireHeld() == 0 &&
@@ -3098,11 +3127,108 @@ test "Kof native input owns raw bindings and focus reset", "input" {
         input.consumeScoreboardToggle() == 0,
         "Kof Tab binding must own scoreboard toggle")
     assert(input.applyMouseButton(1) &&
-        input.fireHeld() == 1 &&
+        input.fireHeld() == 0 &&
+        (input.consumeActionButtons() & inputButtonMelee()) != 0 &&
         input.clearHeld() &&
         input.fireHeld() == 0,
-        "Kof focus policy must clear mouse fire")
+        "Kof focus policy must clear mouse melee state")
 }
+test "runtime plans keep browser, wrapper and native routes explicit" {
+    var browser = BoundedSessionRuntimePlan(
+        sessionClientTargetBrowser(), sessionAuthorityRemote(),
+        sessionControlWebSocket(), sessionGameWebSocket())
+    assert(browser.valid() && browser.webRenderer() &&
+        !browser.nativeRenderer() && browser.requiresTls() &&
+        !browser.requiresHostProcess(),
+        "browser remote sessions must use the web renderer and secure control")
+
+    var wrapper = BoundedSessionRuntimePlan(
+        sessionClientTargetZeroNative(), sessionAuthorityLocalSidecar(),
+        sessionControlHostIpc(), sessionGameWebSocket())
+    assert(wrapper.valid() && wrapper.webRenderer() &&
+        wrapper.requiresHostProcess() && !wrapper.requiresTls(),
+        "zero-native local sessions must use typed host control")
+
+    var nativeLocal = BoundedSessionRuntimePlan(
+        sessionClientTargetNativeDesktop(), sessionAuthorityLocalSidecar(),
+        sessionControlLoopback(), sessionGameLoopback())
+    assert(nativeLocal.valid() && nativeLocal.nativeRenderer() &&
+        nativeLocal.usesNativeShaderProducts() && !nativeLocal.requiresTls(),
+        "native local sessions must use loopback and native shader products")
+
+    var peer = BoundedSessionRuntimePlan(
+        sessionClientTargetBrowser(), sessionAuthorityPeerHost(),
+        sessionControlWebSocket(), sessionGameWebRtc())
+    assert(peer.valid() && peer.requiresIce() &&
+        peer.usesWebShaderProducts() && peer.usesExperimentalGameTransport(),
+        "peer-hosted browser sessions must reserve WebRTC for the game plane")
+
+    var invalid = BoundedSessionRuntimePlan(
+        sessionClientTargetBrowser(), sessionAuthorityLocalSidecar(),
+        sessionControlLoopback(), sessionGameLoopback())
+    assert(!invalid.valid(),
+        "browser sessions must not claim to launch a local server")
+
+    var nativeUdp = BoundedSessionRuntimePlan(
+        sessionClientTargetNativeDesktop(), sessionAuthorityRemote(),
+        sessionControlWebSocket(), sessionGameNativeUdp())
+    assert(nativeUdp.valid() && nativeUdp.usesExperimentalGameTransport(),
+        "native UDP must remain an explicit opt-in transport")
+}
+
+test "browser WebSocket handshake and heartbeat words are bounded" {
+    var hello = newSessionWebHello(1)
+    assert(validSessionWebHello(hello) &&
+        hello[3] == sessionClientTargetBrowser() &&
+        hello[5] == sessionGameWebSocket(),
+        "browser handshake must advertise the remote WebSocket route")
+
+    var malformed = new Int[hello.length]
+    for (var index = 0; index < hello.length; index = index + 1) {
+        malformed[index] = hello[index]
+    }
+    malformed[2] = 2
+    assert(!validSessionWebHello(malformed),
+        "browser handshake must reject checksum-invalid sequence changes")
+
+    var accepted = newSessionWebAck(hello[2], true)
+    var rejected = newSessionWebAck(hello[2], false)
+    assert(validSessionWebAck(accepted) && validSessionWebAck(rejected) &&
+        accepted[3] == 1 && rejected[3] == 0,
+        "server acknowledgement must carry explicit admission state")
+
+    var ping = newSessionWebPing(sessionWebPingKind(), 2)
+    var pong = newSessionWebPing(sessionWebPongKind(), 2)
+    assert(validSessionWebPing(ping, sessionWebPingKind()) &&
+        validSessionWebPing(pong, sessionWebPongKind()) &&
+        sessionWebMaximumFrameBytes() == 272,
+        "WebSocket heartbeat frames must remain bounded and checksummed")
+
+    var move = newSessionWebGameCommand(
+        3, sessionWebGameMoveLeftCommand())
+    assert(validSessionWebGameCommand(move) &&
+        move[5] == -8,
+        "browser game commands must carry bounded authoritative input")
+    var snapshot = newSessionWebGameSnapshot(3, 1, -8, 100, 90, 1, 1)
+    assert(validSessionWebGameSnapshot(snapshot) &&
+        snapshot[5] == -8 && snapshot[7] == 90,
+        "browser game snapshots must carry bounded authoritative state")
+    var invalidSnapshot = new Int[snapshot.length]
+    for (var index = 0; index < snapshot.length; index = index + 1) {
+        invalidSnapshot[index] = snapshot[index]
+    }
+    invalidSnapshot[5] = 101
+    assert(!validSessionWebGameSnapshot(invalidSnapshot),
+        "browser snapshots must reject positions outside the authority bound")
+
+    assert(sessionWebSubprotocolVersion() == 1 &&
+        validSessionWebAuthTokenLength(8) &&
+        validSessionWebAuthTokenLength(128) &&
+        !validSessionWebAuthTokenLength(7) &&
+        !validSessionWebAuthTokenLength(129),
+        "browser authentication subprotocol bounds must remain explicit")
+}
+
 test "remote endpoint and key lifecycle" {
     var endpoint = RemoteSessionEndpoint(
         127, 0, 0, 1, 4000, 1, 2, 3, 4)
@@ -3441,6 +3567,12 @@ test "bounded triangle query" {
     var miss = triangle.queryTriangle(9, 9, 0, 9, 9, 10)
     assert(miss.accepted() && !miss.collided(),
         "segment outside triangle must miss")
+    assert(triangle.configureTriangle(0, 0, 0, 5, 0, 10, 0, 10, 10),
+        "sloped triangle must configure")
+    var continuous = triangle.queryTriangle(0, 0, 1, 9, 0, 0)
+    assert(continuous.accepted() && continuous.collided() &&
+        continuous.hitStep() == 1 && continuous.resolvedZ() == 1,
+        "triangle query must resolve a continuous hit between integer samples")
     assert(!triangle.configureTriangle(0, 0, 0, 1, 1, 1, 2, 2, 2),
         "degenerate triangle must reject")
 }
@@ -4829,6 +4961,35 @@ test "runtime generation contact projectile and session navigation" {
     assert(groundHit.accepted() && groundHit.grounded() &&
         groundHit.slopeAccepted(),
         "triangle contact must expose grounded walkable-slope state")
+    var lowCeiling = BoundedTriangleCollection(8, 20)
+    assert(lowCeiling.configureBounds(-10, -10, -10, 30, 20, 30) &&
+        lowCeiling.addTriangle(5, 0, 1, 5, 3, 1, 5, 0, 3) &&
+        lowCeiling.addTriangle(5, 3, 1, 5, 3, 3, 5, 0, 3) &&
+        lowCeiling.addTriangle(-2, 3, 1, 2, 3, 1, -2, 3, 3) &&
+        lowCeiling.addTriangle(2, 3, 1, 2, 3, 3, -2, 3, 3),
+        "step geometry must admit both the obstacle and the overhead blocker")
+    var stepContact = BoundedTriangleContactController(
+        lowCeiling, 1, 20, 60, 2)
+    var blockedStep = stepContact.move(0, 2, 2, 10, 2, 2)
+    assert(blockedStep.accepted(),
+        "triangle stepping test must accept the bounded movement")
+    assert(blockedStep.collided(),
+        "triangle stepping test must report the obstacle")
+    assert(!blockedStep.stepped(),
+        "triangle stepping must reject a rise that collides with a low ceiling")
+    assert(blockedStep.resolvedX() < 10,
+        "triangle stepping must stop before the obstacle when the rise is blocked")
+    var steepFloor = BoundedTriangleCollection(2, 20)
+    assert(steepFloor.configureBounds(-10, -10, -10, 10, 10, 10) &&
+        steepFloor.addTriangle(0, 0, 0, 4, 0, 0, 0, 4, 4),
+        "steep contact geometry must admit a non-walkable floor")
+    var steepContact = BoundedTriangleContactController(
+        steepFloor, 1, 20, 60, 0)
+    var steepState = steepContact.move(1, 3, 1, 1, 3, 1)
+    assert(steepState.accepted() && !steepState.grounded() &&
+        !steepState.slopeAccepted(),
+        "steep contacts must not report grounded state")
+
 
     var dynamic = BoundedDynamicBroadPhase(2, 20)
     assert(dynamic.add(7, 6, 0, 0, 7, 10, 10))
@@ -5175,14 +5336,15 @@ test "power-up state applies configurable effects" {
             10, animalKindGoose()),
         "role-specific power-up effects must apply without watermelon healing")
 }
-test "animal abilities enforce role actions and defenses" {
+test "animal abilities enforce role actions and stamina" {
     var abilities = AnimalAbilityController(2)
     assert(abilities.configureActor(1, animalKindGoose()) &&
         abilities.configureActor(2, animalKindCat()) &&
-        !abilities.use(1, animalAbilityRoll(), 0, 10) &&
+        abilities.use(1, animalAbilityRoll(), 0, 10) &&
         abilities.use(2, animalAbilityRoll(), 0, 10) &&
         abilities.evadesProjectile(2, 10) &&
         abilities.use(2, animalAbilityDash(), 0, 20) &&
+        abilities.stamina(2) == 45 &&
         abilities.dashActive(2, 20) &&
         abilities.use(1, animalAbilityKick(), 2, 20) &&
         abilities.lastCanceledDash() &&
@@ -5191,7 +5353,7 @@ test "animal abilities enforce role actions and defenses" {
         abilities.flapping(1, 20) &&
         abilities.mitigateFallDamage(1, 20, 20) == 10 &&
         abilities.mitigateFallDamage(2, 20, 20) == 20,
-        "animal roles must gate roll, dash, flap, kick, evasion and fall mitigation")
+        "movement abilities must share stamina while animal powers retain role gates")
 }
 
 
@@ -5543,6 +5705,111 @@ test "FPS session routes authored movement and pose" {
         session.fpsVelocityX(1) > 0 &&
         session.enemySpatialPositionX(1) == session.fpsPositionX(1),
         "FPS session must publish authoritative accelerated pose")
+}
+test "FPS action input drives melee special dash double jump glide and stamina" {
+    var arena = G1Arena()
+    var world = PowerUpWorld(powerUpMaximumDefinitions())
+    assert(world.add(PowerUpDefinition(
+            1, powerUpKindWatermelon(), 50, 1, 50, 3, 600, 6, 2, 13)),
+        "action input fixture must admit a watermelon powerup")
+    var session = LoopbackSession(32, 8)
+    assert(arena.ready() &&
+        session.configureEnemySpatialBounds(0, 0, 0, 50, 10, 50) &&
+        session.loadAuthoredBroadPhase(arena.authoredCollision()) &&
+        session.enableFpsMovement(true) &&
+        session.configurePowerUps(world),
+        "action input fixture must configure arena, movement and powerups")
+    assert(session.configureEnemyRules(100, 20, 2) &&
+        session.defineEnemyWeapon(9, 4, 0, 3, 1) &&
+        session.setEnemyWeaponRange(9, 20) &&
+        session.defineEnemyEncounter(4, 1, 2),
+        "action input fixture must configure enemy rules")
+    assert(session.definePlayerWeapon(8, 4, 0, 3, 1) &&
+        session.setPlayerWeaponRange(8, 20),
+        "action input fixture must configure player weapon")
+    assert(session.addEnemyCombatActor(1, 100, 0),
+        "action input fixture must add enemy actor one")
+    assert(session.addEnemyCombatActor(2, 100, 0),
+        "action input fixture must add enemy actor two")
+    assert(session.start() &&
+        session.connectPlayer() == 1 &&
+        session.connectPlayer() == 2,
+        "action input fixture must start and connect both players")
+    assert(session.addPlayerCombatActor(1, 100, 0) &&
+        session.addPlayerCombatActor(2, 100, 0) &&
+        session.equipPlayerCombatWeapon(1, 8) &&
+        session.equipPlayerCombatWeapon(2, 8),
+        "action input fixture must add and equip player combat actors")
+    assert(session.admitEnemyAt(4, 3, 0, 100, 0, 9, 28, 1, 20) &&
+        session.setEnemySpatialPosition(1, 20, 1, 20) &&
+        session.setEnemySpatialPosition(2, 40, 1, 20),
+        "action input fixture must admit nearby enemy spatial state")
+    assert(session.applyPowerUpPickup(
+            1, PowerUpPickup(
+                true, 1, powerUpKindWatermelon(), 600, 6, 13), 0) &&
+        session.playerStamina(1) == session.playerMaximumStamina(),
+        "action input fixture must apply the selected powerup")
+    assert(session.enemySpatialPositionX(1) == 20 &&
+        session.enemySpatialPositionY(1) == 1 &&
+        session.enemySpatialPositionX(3) == 28 &&
+        session.enemySpatialPositionY(3) == 1 &&
+        session.enemyCombatHealth(3) == 100,
+        "action input fixture must place the player and enemy for melee")
+    assert(session.receiveInputWithButtons(
+            1, 1, 1, 0, 0, 0, 0, 0, 0, inputButtonMelee()),
+        "left action input must queue the authoritative command")
+    var meleeSteps = session.advance(16667)
+    assert(meleeSteps == 1,
+        "left action input must advance the authoritative command")
+    assert(session.enemyCombatHealth(3) == 90,
+        "left action input must resolve the authoritative basic melee")
+    assert(session.receiveInputWithButtons(
+            1, 2, 2, 0, 0, 0, 0, 0, 0, inputButtonSpecial()) &&
+        session.advance(16667) == 1 &&
+        session.enemyCombatHealth(3) == 84,
+        "right action input must use the selected watermelon powerup")
+    assert(session.receiveInputWithButtons(
+            1, 3, 3, 4, 0, 0, 0, 0, 0,
+            inputButtonCrouch() | inputButtonRoll()) &&
+        session.advance(16667) == 1 &&
+        session.fpsCrouched(1) &&
+        session.playerStamina(1) == 75,
+        "Ctrl movement must crouch and spend roll stamina")
+    assert(session.receiveInputWithButtons(
+            1, 4, 4, 0, 4, 0, 0, 0, 0,
+            inputButtonDashForward()) &&
+        session.receiveInputWithButtons(
+            1, 5, 5, 0, 4, 0, 0, 0, 0,
+            inputButtonDashForward()) &&
+        session.advance(2 * 16667) == 2 &&
+        session.playerStamina(1) == 47,
+        "double-tap direction must dash and spend dash stamina")
+    assert(session.receiveInput(1, 6, 6, 0, 0, 0, 0, 0, 1) &&
+        session.advance(16667) == 1 &&
+        session.receiveInput(1, 7, 7, 0, 0, 0, 0, 0, 0) &&
+        session.advance(16667) == 1 &&
+        session.receiveInput(1, 8, 8, 0, 0, 0, 0, 0, 1) &&
+        session.advance(16667) == 1 &&
+        session.fpsLastDoubleJump() &&
+        session.playerStamina(1) == 30,
+        "second Space press must double jump and spend stamina")
+    var glided = false
+    var glideSpentStamina = false
+    for (var tick = 9; tick <= 32; tick = tick + 1) {
+        var staminaBeforeGlide = session.playerStamina(1)
+        assert(session.receiveInput(
+                1, tick, tick, 0, 0, 0, 0, 0, 1) &&
+            session.advance(16667) == 1,
+            "held jump must remain a valid glide command")
+        if (session.fpsGliding(1)) {
+            glided = true
+            if (session.playerStamina(1) < staminaBeforeGlide) {
+                glideSpentStamina = true
+            }
+        }
+    }
+    assert(glided && glideSpentStamina,
+        "airborne held jump must glide and consume regenerating stamina")
 }
 test "FPS session accepts idle arena enemy tick" {
     var arena = G1Arena()

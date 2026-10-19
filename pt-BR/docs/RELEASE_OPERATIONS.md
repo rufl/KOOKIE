@@ -15,12 +15,15 @@ O commit de fonte atual
 `e8cad301b566607a3b8095a219d05441de3240e5` passou na execução Verify KOOKIE
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).
 O dispatch de release
-[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
-alvo de `0.1.0-dogfood.64` passou pelo toolchain Kof e pelo pacote Linux, mas o
-job do pacote Windows está na fila porque `kookie-windows-01` está offline.
-Não trate o candidato como publicado. Depois que o job Windows passar, a
-aprovação do ambiente `kookie-demo-release` ainda será necessária antes que o
-workflow crie a pré-release.
+[`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) tinha
+como alvo `0.1.0-dogfood.64`; seu toolchain Kof e pacote Linux passaram. O job
+do pacote Windows rodou no runner agora online `kookie-windows-01`, mas falhou
+antes de gerar artefatos porque `powershell` estava indisponível. A correção do
+workflow declara `shell: bash` para o passo do pin Kof. Não trate o candidato
+como publicado; faça novo dispatch a partir da fonte commitada, retenha os dois
+registros de evidência dos alvos e obtenha a aprovação de
+`kookie-demo-release`.
+
 
 ## Checkout e paths locais atuais
 

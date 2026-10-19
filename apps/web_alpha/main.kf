@@ -1,0 +1,197 @@
+import ui
+import session
+
+class WebAlphaState {
+    Label telemetryValue
+    Label statusValue
+    KookieUiProgressBar healthValue
+    KookieUiProgressBar staminaValue
+    Int tickValue
+    Int positionValue
+    Int healthAmount
+    Int staminaAmount
+    Int comboValue
+    Int vfxValue
+    String statusText
+
+    public constructor(
+        Label telemetry, Label status,
+        KookieUiProgressBar health, KookieUiProgressBar stamina
+    ) {
+        telemetryValue = telemetry
+        statusValue = status
+        healthValue = health
+        staminaValue = stamina
+        reset()
+    }
+
+    void refresh() {
+        telemetryValue.text =
+            "TICK " + tickValue + "   POS " + positionValue +
+            "   COMBO " + comboValue + "   VFX " + vfxValue
+        statusValue.text = statusText
+        healthValue.setValue(healthAmount)
+        staminaValue.setValue(staminaAmount)
+    }
+
+    void move(Int delta) {
+        positionValue = positionValue + delta
+        if (positionValue < -100) { positionValue = -100 }
+        if (positionValue > 100) { positionValue = 100 }
+        tickValue = tickValue + 1
+        vfxValue = 0
+        statusText = "MOVE / authoritative input staged"
+        refresh()
+    }
+
+    void melee() {
+        tickValue = tickValue + 1
+        if (staminaAmount < 10) {
+            statusText = "MELEE / blocked: stamina too low"
+            refresh()
+            return
+        }
+        staminaAmount = staminaAmount - 10
+        comboValue = comboValue + 1
+        vfxValue = 1
+        statusText = "MELEE / slash VFX staged"
+        refresh()
+    }
+
+    void special() {
+        tickValue = tickValue + 1
+        if (staminaAmount < 25) {
+            statusText = "SPECIAL / blocked: stamina too low"
+            refresh()
+            return
+        }
+        staminaAmount = staminaAmount - 25
+        comboValue = 0
+        vfxValue = 2
+        statusText = "SPECIAL / flare VFX staged"
+        refresh()
+    }
+
+    void reset() {
+        tickValue = 0
+        positionValue = 0
+        healthAmount = 100
+        staminaAmount = 100
+        comboValue = 0
+        vfxValue = 0
+        statusText = "READY / browser-safe KofJS preview"
+        refresh()
+    }
+}
+
+Style webAlphaButtonStyle() {
+    return Style("min-height:44px;padding:10px 14px;background:#162a37;\
+color:#f8fafc;border:1px solid #475569;border-radius:8px;\
+cursor:pointer")
+}
+
+Style webAlphaHeadingStyle() {
+    return Style("font-family:'Jared Lite',Pixand,sans-serif;font-size:28px;\
+font-weight:bold;line-height:1.15;letter-spacing:.05em;\
+color:#f8fafc")
+}
+
+Style webAlphaBodyStyle() {
+    return Style("font-family:Pixand,sans-serif;font-size:15px;font-weight:normal;line-height:1.45;color:#cbd5e1")
+}
+
+Style webAlphaBoundaryStyle() {
+    return Style("font-family:Pixand,sans-serif;font-size:13px;font-weight:normal;line-height:1.45;color:#fbbf24")
+}
+
+Style webAlphaTelemetryStyle() {
+    return Style("font-family:Pixand,sans-serif;font-size:16px;font-weight:bold;line-height:1.45;color:#f8fafc")
+}
+
+Style webAlphaStatusStyle() {
+    return Style("font-family:Pixand,sans-serif;font-size:14px;font-weight:normal;line-height:1.45;color:#cbd5e1")
+}
+
+Style webAlphaMeterStyle() {
+    return Style("font-family:Pixand,sans-serif;font-size:13px;font-weight:bold;line-height:1.45;color:#f8fafc")
+}
+
+Style webAlphaControlsStyle() {
+    return Style("display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px")
+}
+
+Style webAlphaMetersStyle() {
+    return Style("display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:24px")
+}
+
+Style webAlphaColumnStyle() {
+    return Style("display:flex;flex-direction:column;gap:6px")
+}
+
+Style webAlphaContentStyle() {
+    return Style("display:flex;flex-direction:column;gap:16px")
+}
+
+main() {
+    var document = KookieUiDocument("GatoGanso KofJS browser alpha", 960, 540)
+
+    var title = Label("GATOGANSO / KOOKIE WEB ALPHA")
+    title.setStyle(webAlphaHeadingStyle())
+    var subtitle = Label(
+        "A deterministic UI and action-state slice from the latest Kof alpha.")
+    subtitle.setStyle(webAlphaBodyStyle())
+    var route = BoundedSessionRuntimePlan(
+        sessionClientTargetBrowser(), sessionAuthorityRemote(),
+        sessionControlWebSocket(), sessionGameWebSocket())
+    var routeText = "BROWSER REMOTE / WSS route contract valid"
+    if (!route.valid()) { routeText = "BROWSER REMOTE / route rejected" }
+    var boundary = Label(
+        "KofJS browser alpha / " + routeText +
+        " / native SDL and WASM are not included in this preview.")
+
+    var telemetry = Label("")
+    telemetry.setStyle(webAlphaTelemetryStyle())
+    var status = Label("")
+    status.setStyle(webAlphaStatusStyle())
+
+    var healthLabel = Label("HEALTH")
+    healthLabel.setStyle(webAlphaMeterStyle())
+    var staminaLabel = Label("STAMINA")
+    staminaLabel.setStyle(webAlphaMeterStyle())
+    var health = KookieUiProgressBar(0, 100, 100)
+    var stamina = KookieUiProgressBar(0, 100, 100)
+
+    var state = WebAlphaState(telemetry, status, health, stamina)
+
+    var moveLeft = Button("MOVE LEFT", () -> { state.move(-8) })
+    var moveRight = Button("MOVE RIGHT", () -> { state.move(8) })
+    var melee = Button("MELEE", () -> { state.melee() })
+    var special = Button("SPECIAL", () -> { state.special() })
+    var reset = Button("RESET", () -> { state.reset() })
+    moveLeft.setStyle(webAlphaButtonStyle())
+    moveRight.setStyle(webAlphaButtonStyle())
+    melee.setStyle(webAlphaButtonStyle())
+    special.setStyle(webAlphaButtonStyle())
+    reset.setStyle(webAlphaButtonStyle())
+
+    var controls = Row(listOf(moveLeft, moveRight, melee, special, reset))
+    controls.setStyle(webAlphaControlsStyle())
+
+    var healthRow = Column(listOf(healthLabel, health.widget()))
+    healthRow.setStyle(webAlphaColumnStyle())
+    var staminaRow = Column(listOf(staminaLabel, stamina.widget()))
+    staminaRow.setStyle(webAlphaColumnStyle())
+    var meters = Row(listOf(healthRow, staminaRow))
+    meters.setStyle(webAlphaMetersStyle())
+
+    var statusPanel = View(kookieUiRaisedStyle())
+    statusPanel.bind(Column(listOf(telemetry, status)))
+    var content = Column(listOf(title, subtitle, boundary, meters, statusPanel, controls))
+    content.setStyle(webAlphaContentStyle())
+    var panel = View(kookieUiSurfaceStyle())
+    panel.bind(content)
+
+    state.refresh()
+    document.bindView(panel)
+    document.show()
+}

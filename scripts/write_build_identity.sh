@@ -32,11 +32,14 @@ kof_compiler_jar="$(dirname "$(dirname "$kof_launcher")")/lib/kof.jar"
   exit 2
 }
 source_tree_sha256="$(
-  git -C "$root_dir" ls-files -z -- src |
-    while IFS= read -r -d '' source_path; do
-      printf '%s\0' "$source_path"
-      sha256sum "$root_dir/$source_path" | cut -d ' ' -f 1
-    done | sha256sum | cut -d ' ' -f 1
+  (
+    cd "$root_dir"
+    find src -type f -print0 | sort -z |
+      while IFS= read -r -d '' source_path; do
+        printf '%s\0' "$source_path"
+        sha256sum "$source_path" | cut -d ' ' -f 1
+      done
+  ) | sha256sum | cut -d ' ' -f 1
 )"
 source_commit="$(git -C "$root_dir" rev-parse HEAD)"
 kof_version="$(kof version)"

@@ -63,6 +63,10 @@ native/package é alegado. O build LAN externo native separadamente excedeu o
 limite local de 600 segundos. A tentativa anterior no `f42` também excedeu
 900 segundos e não qualifica esta fonte.
 
+**Resultado local atual:** P0 passou para a árvore atual e o archive exato
+`0.6.5`. O limite de qualificação restante é evidência específica de alvo e
+hardware, não o gate local Linux de fonte/empacotamento.
+
 ## 3. Escopo
 
 ### Dentro do escopo
@@ -133,6 +137,14 @@ fixtures C nativos.
 zero/máximo e paridade escalar. Comentário de fonte ou afirmação upstream não é
 suficiente.
 
+**Status atual:** o gate focado `scripts/verify_simd_dispatch.sh` passou com o
+arquivo Kof `0.6.5` exato e fixado em JVM e native x86-64. O fixture reportou
+`buffer-fixture-sum=809`, `buffer-inout-sum=1231`, totais scalar/SIMD iguais,
+rota SIMD selecionada e a prova de sintaxe AArch64. Isso qualifica somente a
+fronteira síncrona limitada de producer/copy-back; ownership assíncrono ou de
+payload retido genérico continua sem qualificação.
+
+
 ### P2 — Extração da semântica de transporte
 
 **Arquivos candidatos:** `native/kookie_transport.c`,
@@ -160,11 +172,12 @@ proposto `src/session/transport_codec.kf`.
 payload malformado, replay, sequência stale e peer errado mantêm resultados;
 nenhuma chave ou versão de wire muda.
 
-**Status atual:** `src/session/transport_codec.kf` agora possui os helpers
-comuns de endianess/payload; o backend JVM o chama, enquanto C mantém
-socket, framing, MAC e chave. O gate LAN externo JVM passou em 9 segundos. O
-`kof build --target native` do LAN externo native excedeu o limite local de 600
-segundos; portanto o gate de saída P2 não é alegado.
+**Status atual:** `src/session/transport_codec.kf` possui os helpers comuns de
+endianess/payload; o backend JVM o chama, enquanto C mantém socket, framing,
+MAC e chave. O gate completo atual passou a paridade LAN externa JVM/native,
+codec, sequência stale/replay e ownership do peer. O gate de saída P2 local
+agora está verde; claims de host separado e WAN mais ampla permanecem fora
+desse resultado.
 
 ### P3 — Um vertical slice de batch GPU
 
@@ -189,13 +202,14 @@ texto, áudio ou handles de dispositivo.
 nenhuma regressão p95 além da tolerância especificada e fallback escalar ainda
 passando.
 
-**Status atual:** os três probes de adapter agora codificam um batch
-`GPU_SCENE_VERTEX_V1` por frame staged; C valida o descriptor em duas passagens
-e copia para storage de cena próprio. O adapter G0 repete o mesmo fixture por
-batch e scalar e compara count, draw calls e checksum da captura headless quando
-o runtime native está disponível. Static/JVM passou; runtime do adapter/GPU
-native e qualificação p95 continuam pendentes porque builds native do Kof
-excederam o timeout local e este host não tem dispositivo GPU headless.
+**Status atual:** os três probes de adapter codificam um batch
+`GPU_SCENE_VERTEX_V1` `Buffer(U8)` por frame staged; C valida o descriptor em
+duas passagens e copia para storage de cena próprio. O gate completo otimizado
+passou o adapter native e o renderer de referência Vulkan em
+`Intel(R) Graphics (ARL)`, com uma draw call, 984 instâncias e p95 de
+`1710` microssegundos. Isto é evidência Linux local; hardware adicional e
+apresentação multiplataforma continuam sendo gates separados.
+
 
 ### P4 — Batch opcional de persistência
 

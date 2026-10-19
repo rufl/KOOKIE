@@ -1,0 +1,158 @@
+package session
+
+Int sessionClientTargetBrowser() { return 1 }
+Int sessionClientTargetZeroNative() { return 2 }
+Int sessionClientTargetNativeDesktop() { return 3 }
+Int sessionClientTargetAndroid() { return 4 }
+
+Int sessionAuthorityRemote() { return 1 }
+Int sessionAuthorityLocalSidecar() { return 2 }
+Int sessionAuthorityPeerHost() { return 3 }
+
+Int sessionControlWebSocket() { return 1 }
+Int sessionControlHostIpc() { return 2 }
+Int sessionControlLoopback() { return 3 }
+
+Int sessionGameWebSocket() { return 1 }
+Int sessionGameWebRtc() { return 2 }
+Int sessionGameLoopback() { return 3 }
+Int sessionGameNativeUdp() { return 4 }
+
+Bool sessionClientTargetValid(Int target) {
+    return target >= sessionClientTargetBrowser() &&
+        target <= sessionClientTargetAndroid()
+}
+
+Bool sessionAuthorityValid(Int authority) {
+    return authority >= sessionAuthorityRemote() &&
+        authority <= sessionAuthorityPeerHost()
+}
+
+Bool sessionControlValid(Int control) {
+    return control >= sessionControlWebSocket() &&
+        control <= sessionControlLoopback()
+}
+
+Bool sessionGameValid(Int game) {
+    return game >= sessionGameWebSocket() &&
+        game <= sessionGameNativeUdp()
+}
+
+Bool sessionRuntimeRouteValid(
+    Int target, Int authority, Int control, Int game
+) {
+    if (!sessionClientTargetValid(target) ||
+        !sessionAuthorityValid(authority) ||
+        !sessionControlValid(control) || !sessionGameValid(game)) {
+        return false
+    }
+
+    if (authority == sessionAuthorityPeerHost()) {
+        return control == sessionControlWebSocket() &&
+            game == sessionGameWebRtc() &&
+            (target == sessionClientTargetBrowser() ||
+                target == sessionClientTargetZeroNative())
+    }
+
+    if (authority == sessionAuthorityLocalSidecar()) {
+        if (target == sessionClientTargetBrowser()) {
+            return false
+        }
+        if (target == sessionClientTargetZeroNative()) {
+            return control == sessionControlHostIpc() &&
+                game == sessionGameWebSocket()
+        }
+        return control == sessionControlLoopback() &&
+            game == sessionGameLoopback()
+    }
+
+    if (control != sessionControlWebSocket()) {
+        return false
+    }
+    if (game == sessionGameWebSocket()) {
+        return true
+    }
+    return (target == sessionClientTargetNativeDesktop() ||
+        target == sessionClientTargetAndroid()) &&
+        game == sessionGameNativeUdp()
+}
+
+class BoundedSessionRuntimePlan {
+    Int clientTargetValue
+    Int authorityValue
+    Int controlValue
+    Int gameValue
+    Bool configuredValue
+
+    public constructor(
+        Int clientTarget, Int authority, Int control, Int game
+    ) {
+        clientTargetValue = 0
+        authorityValue = 0
+        controlValue = 0
+        gameValue = 0
+        configuredValue = configure(clientTarget, authority, control, game)
+    }
+
+    Bool configure(
+        Int clientTarget, Int authority, Int control, Int game
+    ) {
+        if (!sessionRuntimeRouteValid(
+                clientTarget, authority, control, game)) {
+            return false
+        }
+        clientTargetValue = clientTarget
+        authorityValue = authority
+        controlValue = control
+        gameValue = game
+        configuredValue = true
+        return true
+    }
+
+    Bool valid() { return configuredValue }
+    Int clientTarget() { return clientTargetValue }
+    Int authority() { return authorityValue }
+    Int controlTransport() { return controlValue }
+    Int gameTransport() { return gameValue }
+
+    Bool webRenderer() {
+        return configuredValue &&
+            (clientTargetValue == sessionClientTargetBrowser() ||
+                clientTargetValue == sessionClientTargetZeroNative())
+    }
+
+    Bool nativeRenderer() {
+        return configuredValue &&
+            (clientTargetValue == sessionClientTargetNativeDesktop() ||
+                clientTargetValue == sessionClientTargetAndroid())
+    }
+
+    Bool requiresHostProcess() {
+        return configuredValue &&
+            clientTargetValue == sessionClientTargetZeroNative() &&
+            authorityValue == sessionAuthorityLocalSidecar()
+    }
+
+    Bool requiresTls() {
+        return configuredValue && controlValue == sessionControlWebSocket() &&
+            authorityValue != sessionAuthorityLocalSidecar()
+    }
+
+    Bool requiresIce() {
+        return configuredValue && gameValue == sessionGameWebRtc()
+    }
+
+    Bool usesNativeShaderProducts() {
+        return nativeRenderer()
+    }
+
+    Bool usesWebShaderProducts() {
+        return webRenderer()
+    }
+
+    Bool usesExperimentalGameTransport() {
+        return configuredValue &&
+            (gameValue == sessionGameWebRtc() ||
+                gameValue == sessionGameNativeUdp())
+    }
+}

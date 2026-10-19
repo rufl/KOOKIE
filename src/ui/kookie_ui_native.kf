@@ -50,9 +50,7 @@ class KookieUiNativeTheme {
     }
 
     Int foregroundColor() {
-        return if (highContrastValue)
-            kookieUiNativeColorSuccess()
-        else kookieUiNativeColorForeground()
+        return kookieUiNativeColorForeground()
     }
     Int accentColor() {
         return if (highContrastValue)
@@ -61,7 +59,7 @@ class KookieUiNativeTheme {
     }
     Int mutedColor() {
         return if (highContrastValue)
-            kookieUiNativeColorSuccess()
+            kookieUiNativeColorForeground()
         else kookieUiNativeColorMuted()
     }
     Int dangerColor() { return kookieUiNativeColorDanger() }

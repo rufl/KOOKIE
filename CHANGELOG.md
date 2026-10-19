@@ -3,6 +3,123 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Completed the bounded browser 3D scene slice: the WebSocket gateway now
+  serves a 61-word authoritative snapshot with player/camera state, four
+  actors, a projectile and a pickup, plus bounded movement, look, jump and
+  fire commands. The KofJS client renders the staged goose, cat, ground and
+  wall GLB assets through a direct WebGL2/GLSL ES 3.00 renderer, exposes
+  keyboard/button/mouse controls, an expanded HUD with a top-down minimap,
+  pointer lock, persistent accessibility/settings preferences, bounded automatic
+  reconnect, and a visible 2D fallback; the browser build stages the required
+  assets.
+- Added `scripts/dev_test.sh` as the fast JVM-first inner loop: it runs the
+  144-test `src/main.kf` regression suite without native assembly, linking,
+  packaging or presentation gates; set `KOOKIE_DEV_TARGET=native` for a
+  native-specific iteration.
+- Local `scripts/verify.sh` runs now reuse canonical JVM/native artifacts under
+  the user cache by default, with identity manifests invalidating stale
+  artifacts when source or pinned Kof compiler inputs change.
+- Documented the local package-gate setup: `scripts/configure_kof_archive.sh`
+  verifies the per-build Kof archive digest and pinned source commit, while
+  the pinned Zig metadata is required for the Windows fail-closed check.
+- `scripts/verify.sh` now fails package-toolchain misconfiguration within
+  seconds instead of spending the full verification matrix before reporting
+  missing archive or Zig identity inputs.
+- Package identity checks now hash every regular file under `src/`, matching
+  canonical-cache identity and protecting untracked Kof source modules from
+  stale-artifact reuse.
+- Requalified the exact source-built Kof `0.6.5` pin through the complete local
+  release gate: package, PE/Wine, external-LAN and Vulkan renderer checks passed.
+  The native-boundary plan now records the local P0/P2/P3 evidence and its
+  target-specific limits.
+- `verify_package.sh` now reuses temporary server, content-kooker and SIMD
+  native builds across the native and presentation package smokes; the
+  package smoke measured 426.6s before the change and 230.0s after it.
+- Preserved the KofJS literal-style contract in `apps/web_alpha/main.kf`
+  while splitting long CSS declarations across escaped source lines, so the
+  lint and browser-alpha build gates both pass.
+- Re-ran the exact pinned Kof `0.6.5` batch-boundary qualification:
+  JVM/native x86-64 copy-in/copy-back passed with fixture sums `809` and
+  `1231`, scalar/SIMD totals matched, SIMD routing was selected, and the
+  AArch64 syntax proof passed. This qualifies only the bounded synchronous
+  `Buffer(U8)` boundary; retained or asynchronous payload ownership remains
+  unqualified.
+- Reconciled the architecture and Kof4j boundary pages with the completed
+  local GPU vertical slice: Intel `Graphics (ARL)`, one draw call, 984
+  instances and p95 frame time of `1710` microseconds. Broader target-hardware
+  and cross-platform presentation evidence remains a D1 release gate.
+- Fixed the release workflow's Windows Kof-pin step to declare `shell: bash`.
+  The prior self-hosted run failed before artifact work because the Windows
+  runner invoked a missing `powershell` command; the runner is now online and
+  remote release prerequisites pass.
+
+
+
+
+- Added the bounded browser client/renderer slice: `session/web_session_protocol.kf`
+  now carries a scene snapshot marker and scene-probe command. `apps/web_alpha`
+  publishes a WebSocket lifecycle client with keyboard/button input, validated
+  authoritative scene state, accessible HUD, and a direct WebGL2 renderer
+  (`apps/web_alpha/webgl_renderer.js`) for the player, three actors, health bars,
+  VFX and projectiles. The browser uses a visible 2D fallback when WebGL2 is
+  unavailable.
+  `scripts/kookie_websocket_session.py` provides the dependency-free local
+  gateway with optional TLS termination, bounded tick/state authority,
+  optional bearer-token admission through the `kookie.v1` /
+  `bearer.<token>` WebSocket subprotocols, and bounded `/healthz` and
+  `/metrics` operations routes.
+  `--auth-token-file` provides the same admission contract from a regular
+  `0600`-or-stricter file and rereads the credential for each upgrade; the
+  flag is mutually exclusive with `--auth-token`.
+  `scripts/verify_websocket_session.py` covers handshake, heartbeat, game echo,
+  legacy command snapshots, scene snapshots, WSS qualification, authenticated
+  rejection/admission for flag and credential-file modes, health/metrics
+  responses, and malformed-frame rejection. This remains a qualification
+  gateway, not the production identity/session, observability, WSS operations
+  or authoritative server path.
+
+- The browser client requests a bounded scene snapshot after admission and
+  rejects empty, invalid-checksum or out-of-order game messages before closing
+  the session.
+
+- Added `src/session/runtime_plan.kf`, a bounded Kof route contract for browser
+  KofJS, zero-native WebView, native desktop and Android clients. It separates
+  typed control IPC from serialized game traffic, reserves WebRTC for
+  ICE/STUN/TURN peer-hosting, and keeps native UDP explicitly optional. The
+  route matrix is documented in the English and Portuguese architecture pages;
+  production WSS operations, WebRTC signaling and the zero-native host remain
+  unimplemented delivery slices.
+
+- Added a reproducible KofJS browser alpha from `apps/web_alpha/main.kf`;
+  `scripts/build_web_alpha.sh` publishes the current UI/action-state slice to
+  the LichForge page and states the Kof 0.6.5 boundary explicitly: this is not
+  a WASM or native SDL/GPU build.
+- Polished the native menu shell: compact options rows now clamp text scales to
+  their visual bounds, selected rows gain top/bottom focus rails, and
+  accessibility rows follow the configured text size without overlap.
+- Refined the Kof/KofJS UI kit with explicit panel/control borders, 44px
+  targets, readable body spacing, real progress bands, modal/toast visibility
+  transitions, bounded select controls and a non-interactive keybind label.
+- Prototype presentation now fails closed when the embedded goose or cat GLB
+  texture is absent/invalid, while melee and selected-special action buttons
+  drive the visible animal attack mesh/VFX state.
+- Added the authoritative Kof gameplay action contract: Ctrl crouch/roll,
+  left-mouse melee, right-mouse selected special/power-up, directional
+  double-tap dashes, second-Space double jump and airborne glide. Roll, dash,
+  double jump and glide consume a shared stamina pool with slow fixed-tick
+  recovery; input bundles, replay records, native presentation forwarding and
+  the HUD carry the bounded action/stamina state.
+- Triangle collision queries now use bounded fixed-point segment/triangle
+  intersection instead of relying only on integer samples. Camera spring arms
+  no longer skip authored ramps or diagonal surfaces between samples; each
+  discrete camera candidate is revalidated and backs up toward the target if
+  quantization would place it beyond the surface.
+- Restored the local animal mesh to native gameplay staging. The spring-arm
+  follow camera now presents the playable actor in third person, including
+  vertical jump motion; the uploaded goose/cat GLB path remains selected when
+  the `prototype` content profile is packaged.
+- Native presentation smoke now covers a fixed-step jump and all five staged
+  gameplay animals instead of pinning the first-person four-actor path.
 - Verify KOOKIE passed for source commit
   `e8cad301b566607a3b8095a219d05441de3240e5` in
   [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862).
@@ -42,6 +159,10 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   transitions when native animal assets are available.
 - Native GPU preparation now fails closed when a declared VFX PNG is missing or
   invalid, instead of presenting a successful but transparent atlas region.
+- The G5 hardware renderer gate now supplies the packaged asset root, stages
+  the complete world texture atlas through a checked `GPU_WORLD_TEXTURE_V1`
+  batch, and captures a world-only VFX frame whose checksum must differ from
+  the clear-frame baseline before the UI reference timing run.
 - `kof test src/main.kf --target jvm` passes `141/141`, including atlas UV,
   animated-frame and billboard staging coverage.
 - Corrected native keyboard routing so Space updates the gameplay jump state

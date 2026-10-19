@@ -80,15 +80,20 @@ material/passe e ordenação de renderização; ele nunca faz parse nem composi�
 de SPIR-V no runtime.
 
 A pinagem ativa do Kof4j `0.6.5` é o commit da fonte `lab` do Kof
-`8e59b24acc978eb2546509b5cfca867a06e7283a`. O gate
-`scripts/verify_simd_dispatch.sh` qualifica `Buffer(U8)` na JVM e no native
-x86-64 com o pin ativo. O suporte cross continua não qualificado. `Buffer(U8)`
-não define um contrato genérico, tipado e assíncrono de posse de GPU/áudio.
-`GPU_SCENE_VERTEX_V1` é uma exceção síncrona explícita de copy-in; seu gate
-runtime do adapter/GPU native continua pendente.
-Por isso o KOOKIE mantém `FrameStaging`/wires de conteúdo como arrays limitados
-possuídos pelo Kof, usa memória possuída pelo C no trabalho nativo e conserva o
-adaptador escalar verificado. No startup, `main.kf` transfere cada GLB limitado
+`8e59b24acc978eb2546509b5cfca867a06e7283a`. O
+`scripts/verify_simd_dispatch.sh` qualifica o caminho síncrono e limitado de
+producer/copy-back `Buffer(U8)` em JVM e native x86-64; o suporte cross continua
+sem qualificação. O caminho selecionado `GPU_SCENE_VERTEX_V1` é um batch de
+copy-in síncrono com storage próprio do C. O gate focado do adapter nativo e
+renderer Vulkan passou com evidência local em `Intel(R) Graphics (ARL)`, uma
+draw call, 984 instâncias e p95 de frame de `1710` microssegundos. Ownership
+assíncrono ou de payload retido genérico continua sem qualificação, e hardware
+mais amplo/apresentação multiplataforma continuam gates de release. Por isso o
+KOOKIE mantém `FrameStaging`/wires de conteúdo como arrays limitados possuídos
+pelo Kof, usa memória possuída pelo C no trabalho nativo e conserva o adapter
+escalar verificado.
+
+No startup, `main.kf` transfere cada GLB limitado
 como palavras de 32 bits empacotadas, desempacota para bytes possuídos pelo Kof
 e faz o parse da cena; somente o intervalo PNG validado do cat volta ao SDL para
 decodificação. Nenhum ponteiro nativo de modelo nem callback de cena/vértice
@@ -275,22 +280,84 @@ O servidor dedicado não exige recursos gráficos e executa os mesmos módulos d
 servidor, admissão de conteúdo, funções de extensão, sistema de salvamento e
 código de replicação.
 
+### Matriz de alvos de runtime
+
+O cliente e a autoridade são selecionados independentemente da simulação. O
+`BoundedSessionRuntimePlan` limitado em `src/session/runtime_plan.kf` rejeita
+rotas que exigiriam que um navegador lançasse um processo ou misturassem os
+planos de controle e de jogo:
+
+| Cliente | Autoridade | Plano de controle | Plano de jogo | Apresentação |
+|---|---|---|---|---|
+| KofJS no navegador | Remota hospedada | WSS | WSS | Three.js/WebGL2, GLSL ES 3.00 |
+| WebView desktop zero-native | Remota hospedada | WSS | WSS | Host Native SDK, shaders web |
+| WebView desktop zero-native | Sidecar local | IPC tipado do host | WebSocket localhost | Host Native SDK, shaders web |
+| Desktop native | Remota hospedada | WSS | WSS; UDP native opcional | SDL3/SDL_GPU, produtos de shader native |
+| Cliente SDL Android | Remota hospedada | WSS | WSS | SDL3/SDL_GPU, produtos de shader native |
+| Desktop native ou Android | Autoridade local | loopback | loopback | SDL3/SDL_GPU, produtos de shader native |
+| Navegador ou WebView zero-native | Host par-a-par | sinalização WSS | canal de dados WebRTC | Renderização web, shaders web |
+
+O navegador nunca inicia nem associa o servidor autoritativo. Uma sessão local
+zero-native pede ao `ServerManager` do host por IPC tipado; o host possui o
+sidecar Kof sem interface e expõe somente a conexão de jogo serializada. Os
+pares remotos usam o mesmo protocolo de jogo. WebRTC é uma rota opcional de host
+par-a-par: ICE coleta candidatos com STUN e usa TURN como fallback quando os
+candidatos diretos falham. Isso não é hole punching UDP bruto.
+
+Os clientes web e native compartilham semântica de sessão e esquemas wire Kof,
+não objetos de GPU nem binários de shader. O cliente de navegador atual usa um
+renderer WebGL2 direto com shaders GLSL ES 3.00; uma camada de cena Three.js
+continua sendo uma escolha futura opcional. Clientes desktop e Android native
+mantêm SDL3/SDL_GPU e o pipeline existente de shaders SPIR-V/DXIL/native. Kof
+continua dono da política de câmera, material e replicação nos dois lados.
+
 ### Contrato de transporte
 
 O protocolo é independente do transporte:
 
-- Canal de controle confiável e ordenado para handshake, admissão, entrada/saída,
-  comandos obrigatórios e metadados da sessão.
-- Canal de input em passo fixo sobre UDP autenticado: até três inputs ordenados
-  são repetidos, o último snapshot é confirmado e o host retorna um ACK de
-  input; snapshots autoritativos mais novos substituem ticks antigos, enquanto
-  uma sequência de estado maior pode substituir a amostra mais recente no mesmo tick.
+- O plano de controle é confiável e ordenado: criação da sessão, admissão,
+  handshake, entrada/saída, negociação de capacidades e ciclo de vida no host.
+- O plano de jogo carrega inputs, snapshots e eventos serializados em passo
+  fixo. WSS é a base para clientes de navegador, zero-native, native hospedado
+  e Android; loopback é usado somente em uma rota de autoridade
+  local/em-processo.
+- WebRTC é reservado para dados de jogo hospedados por um par, depois da
+  sinalização WSS e da negociação ICE. STUN descobre candidatos; TURN fornece
+  o fallback de relay necessário.
+- UDP native autenticado é uma otimização posterior explícita, não o contrato
+  do navegador. A implementação IPv4/UDP direta existente continua sendo um
+  caminho dogfood qualificado e não é WSS, WebRTC, relay ou traversal de NAT.
 - Campos explícitos de tick, sequência, confirmação, baseline e revisão de
-  conteúdo.
-- Tamanho de pacote, trabalho de decodificação, comprimento de fila e quantidade
-  de entidades limitados.
-- Rejeição de comandos obsoletos, identificadores inválidos, conteúdo
-  incompatível e capacidades não suportadas.
+  conteúdo permanecem idênticos em todos os transportes de jogo.
+- Tamanho de pacote, trabalho de decode, comprimento de fila e quantidade de
+  entidades são limitados.
+- Comandos obsoletos, handles inválidos, conteúdo incompatível e capacidades
+  não suportadas são rejeitados antes da mutação autoritativa.
+
+A saída web atual é uma UI KofJS limitada e um cliente de navegador completo.
+Inclui handshake/heartbeat binário WebSocket, eco de protocolo, sonda de cena
+autoritativa completa, entrada por teclado/botão/mouse, look com pointer lock,
+snapshots limitados validados, HUD acessível com minimapa superior e renderer
+WebGL2 direto em `apps/web_alpha/webgl_renderer.js`. O snapshot completo leva a
+câmera do jogador, quatro atores com vida/estado/tipo, um projétil limitado e um
+pickup; o renderer usa os GLBs staged de ganso, gato, chão e parede sem
+dependência de Three.js. Ele segue a câmera autoritativa e redimensiona para
+pixels do dispositivo. O cliente bloqueia os controles de jogo até a chegada da
+cena completa, oferece reconexão automática limitada com estados visíveis de
+carregamento/falha e persiste localmente as preferências de minimapa, pointer
+lock e movimento reduzido. O navegador usa fallback 2D visível quando WebGL2 não
+está disponível. O gateway suporta terminação WSS opcional, admissão limitada por
+`--auth-token` exige o subprotocolo WebSocket `bearer.<token>` do navegador
+junto com `kookie.v1` e rejeita tokens ausentes ou incorretos antes da admissão.
+`--auth-token-file` fornece o mesmo contrato sem expor o token nos argumentos
+do processo; exige arquivo regular com modo `0600` ou mais restritivo e é relido
+a cada upgrade. Health informa somente metadados limitados de prontidão; metrics
+expõe contadores limitados.
+Ele ainda não fornece o serviço de identidade/sessão de produção, ciclo de vida
+de credenciais, observabilidade de deploy, processo host zero-native ou serviço
+de sinalização WebRTC da matriz-alvo; essas são fatias de entrega separadas
+sobre este contrato de rotas.
+
 
 O protocolo G2 implementado usa comandos fixos de 11 palavras e estado de
 jogador/progressão com 20 palavras específico por destinatário. Uma mensagem
@@ -315,7 +382,6 @@ checksum de compatibilidade identifica conteúdo e detecta erros; ele não é um
 autenticador criptográfico. Processos de papéis JVM e nativos usam o mesmo
 caminho wire; a evidência G4 atual não retém uma execução recente em três
 máquinas.
-
 
 O lobby de apresentação e a tela de jogadores permanecem na mesma fronteira
 Kof-first. `Play` local usa o caminho autoritativo servidor listen/cliente;

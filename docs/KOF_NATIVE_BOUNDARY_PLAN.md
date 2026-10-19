@@ -65,6 +65,13 @@ claimed. The native external-LAN build separately exceeded its 600-second
 local limit. The previous `f42` attempt also exceeded 900 seconds and does not
 qualify this source.
 
+**Current local qualification:** the exact pinned Kof `0.6.5` archive built from
+`8e59b24acc978eb2546509b5cfca867a06e7283a` was configured with archive digest
+`dd4e7cdedf9fc0bf0c1d5cbe4427c7f1581906e6e58754fec7c85edbe18aa959`.
+`bash scripts/verify.sh` passed the current tree end to end in 1,724 seconds,
+including static/JVM, native runtime, package, PE/Wine, LAN, and Vulkan
+renderer gates. The archive digest is per-build because tar metadata varies.
+
 ## 3. Scope
 
 ### In scope
@@ -111,6 +118,10 @@ qualify this source.
 results and remaining native/package limit are recorded. No migration claims
 “latest” before this gate.
 
+**Current local result:** P0 passed for the current tree and exact `0.6.5`
+archive. The remaining qualification boundary is target-specific CI and
+hardware evidence, not the local Linux source/package gate.
+
 ### P1 — Batch ABI qualification
 
 **Inputs:** `docs/KOF_NATIVE_BOUNDARY_SPEC.md`, current SIMD probe and native
@@ -132,6 +143,14 @@ C fixtures.
 **Exit gate:** the fixture proves lifetime, bounds, copy semantics, checksum,
 zero/maximum cases and scalar parity. A source comment or an upstream claim is
 not sufficient.
+
+**Current status:** the focused `scripts/verify_simd_dispatch.sh` gate passed
+with the exact pinned Kof `0.6.5` archive on JVM and native x86-64. The fixture
+reported `buffer-fixture-sum=809`, `buffer-inout-sum=1231`, equal scalar/SIMD
+totals, selected SIMD routing and the AArch64 syntax proof. This qualifies the
+bounded synchronous producer/copy-back boundary only; generic asynchronous or
+retained-payload ownership remains unqualified.
+
 
 ### P2 — Transport semantic extraction
 
@@ -159,11 +178,12 @@ common `src/session/transport_codec.kf`.
 replay, stale-sequence and wrong-peer cases retain their outcomes; no key or
 wire-version change is introduced.
 
-**Current status:** `src/session/transport_codec.kf` now owns the common
+**Current status:** `src/session/transport_codec.kf` owns the common
 endian/payload helpers; the JVM backend calls it, while native C retains
-socket, framing, MAC and key handling. The JVM external-LAN gate passed in
-9 seconds. The native external-LAN `kof build --target native` exceeded the
-local 600-second limit, so the P2 exit gate is not claimed.
+socket, framing, MAC and key handling. The current full gate passed the
+external-LAN JVM/native parity, codec, stale/replay and peer-ownership checks.
+The P2 local exit gate is now green; separate-host and broader WAN claims remain
+outside this result.
 
 ### P3 — One GPU batch vertical slice
 
@@ -187,14 +207,14 @@ text shaping or device handles.
 **Exit gate:** exact semantic and capture parity, no retained pointer, no p95
 regression beyond the specified tolerance, and scalar fallback still passes.
 
-**Current status:** the three adapter probes now encode one
+**Current status:** the three adapter probes encode one
 `GPU_SCENE_VERTEX_V1` `Buffer(U8)` batch per staged frame; C validates the
-descriptor in two passes and copies into owned scene storage. The G0 adapter
-replays the same staged fixture through batch and scalar paths and compares
-count, draw calls and headless capture checksum when the native runtime is
-available. Static/JVM passed; native adapter/GPU runtime and p95 qualification
-remain pending because native Kof builds exceeded the local timeout and this
-host has no headless GPU device.
+descriptor in two passes and copies into owned scene storage. The optimized
+full gate passed the native adapter and Vulkan reference renderer on
+`Intel(R) Graphics (ARL)`, with one draw call, 984 instances and p95
+`1710` microseconds. This is local Linux evidence; broader target hardware
+and cross-platform presentation evidence remain separate gates.
+
 
 ### P4 — Optional persistence batch
 

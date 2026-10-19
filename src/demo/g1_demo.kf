@@ -267,9 +267,9 @@ class G1Demo {
             loopback.pendingPredictionInputs(playerId) != 1) {
             return failAt(10)
         }
-        var firstCommand = InputCommand(1, 1, 3, 0, 0, 0, 1, 0)
-        var secondCommand = InputCommand(1, 1, 2, 0, 0, 0, 0, 1)
-        var staleCommand = InputCommand(1, 1, 4, 0, 0, 0, 1, 0)
+        var firstCommand = InputCommand(1, 1, 3, 0, 0, 0, 1, 0, 0)
+        var secondCommand = InputCommand(1, 1, 2, 0, 0, 0, 0, 1, 0)
+        var staleCommand = InputCommand(1, 1, 4, 0, 0, 0, 1, 0, 0)
         if (!loopback.receiveInputCommand(playerId, firstCommand) ||
             !loopback.receiveInputCommand(secondaryPlayerId, secondCommand) ||
             loopback.receiveInputCommand(playerId, staleCommand) ||
@@ -333,21 +333,21 @@ class G1Demo {
     Bool verifyFocusRecovery() {
         var playerId = g3Config.value("playerActorId")
         var position = loopback.serverPosition(playerId)
-        var pending = InputCommand(2, 2, 4, 0, 0, 0, 1, 0)
+        var pending = InputCommand(2, 2, 4, 0, 0, 0, 1, 0, 0)
         if (!loopback.receiveInputCommand(playerId, pending) ||
             !loopback.applyPlayerFocus(playerId, 0) ||
             loopback.playerFocused(playerId) ||
             loopback.lastInputEdges(playerId).fireReleased() != 1) {
             return failAt(15)
         }
-        var unfocused = InputCommand(3, 3, 4, 0, 0, 0, 1, 0)
+        var unfocused = InputCommand(3, 3, 4, 0, 0, 0, 1, 0, 0)
         if (loopback.advance(16667) != 1 ||
             loopback.serverPosition(playerId) != position ||
             loopback.playerWeaponPresentationCount() != 0 ||
             loopback.receiveInputCommand(playerId, unfocused)) {
             return failAt(16)
         }
-        var resumed = InputCommand(3, 3, 2, 0, 0, 0, 1, 0)
+        var resumed = InputCommand(3, 3, 2, 0, 0, 0, 1, 0, 0)
         if (!loopback.applyPlayerFocus(playerId, 1) ||
             !loopback.receiveInputCommand(playerId, resumed) ||
             loopback.advance(16667) != 1 ||

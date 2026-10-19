@@ -421,6 +421,7 @@ class NativeGameNetworkState {
     Int remoteMoveValue
     Int remoteMoveZValue
     Int remoteJumpValue
+    Int remoteButtonsValue
     Bool remoteFireValue
     Int remoteInputSequenceValue
     Int remoteSnapshotAckValue
@@ -441,6 +442,7 @@ class NativeGameNetworkState {
         remoteMoveValue = 0
         remoteMoveZValue = 0
         remoteJumpValue = 0
+        remoteButtonsValue = 0
         remoteFireValue = false
         remoteInputSequenceValue = 0
         remoteSnapshotAckValue = 0
@@ -461,8 +463,8 @@ class NativeGameNetworkState {
         remoteMoveValue = 0
         remoteMoveZValue = 0
         remoteJumpValue = 0
+        remoteButtonsValue = 0
         remoteFireValue = false
-        remoteFireTickValue = 0
         lastRemoteSnapshotSequenceValue = 0
         lastRemoteInputAckValue = 0
         remotePlayerOneHealthValue = 100
@@ -485,10 +487,10 @@ class NativeGameNetworkState {
 
     Bool recordLocalInput(
         Int tick, Int sequence, Int moveX, Int moveZ,
-        Int fire, Int jump
+        Int fire, Int jump, Int buttons
     ) {
         return localInputHistoryValue.push(
-            tick, sequence, moveX, moveZ, fire, jump)
+            tick, sequence, moveX, moveZ, fire, jump, buttons)
     }
 
     Int[] localInputWords() {
@@ -520,6 +522,19 @@ class NativeGameNetworkState {
         remoteJumpValue = value
         if (remoteJumpValue < 0) { remoteJumpValue = 0 }
         if (remoteJumpValue > 1) { remoteJumpValue = 1 }
+    }
+    void setRemoteButtons(Int value) {
+        remoteButtonsValue = value
+        if (remoteButtonsValue < 0 ||
+            remoteButtonsValue > inputButtonMask()) {
+            remoteButtonsValue = 0
+        }
+    }
+
+    Int consumeRemoteButtons() {
+        var result = remoteButtonsValue
+        remoteButtonsValue = 0
+        return result
     }
 
     Int remoteJump() { return remoteJumpValue }
@@ -673,6 +688,8 @@ Bool processGamePackets(
                     }
                     state.setRemoteJump(
                         gameplayInputBundleValue(words, index, 5))
+                    state.setRemoteButtons(
+                        gameplayInputBundleValue(words, index, 6))
                     state.setRemoteInputSequence(
                         gameplayInputBundleValue(words, index, 1))
                 }
@@ -707,12 +724,12 @@ Bool processGamePackets(
 
 Bool sendLocalGameInput(
     LoopbackSession session, NativeGameNetworkState state,
-    Int player, Int moveX, Int moveZ, Int fire, Int jump
+    Int player, Int moveX, Int moveZ, Int fire, Int jump, Int buttons
 ) {
     var tick = session.currentServerTick() + 1
     var sequence = state.nextLocalSequence()
     if (!state.recordLocalInput(
-            tick, sequence, moveX, moveZ, fire, jump)) {
+            tick, sequence, moveX, moveZ, fire, jump, buttons)) {
         return false
     }
     var bundle = newGameplayInputBundleMessage(
@@ -815,6 +832,8 @@ class G1NativePresentation {
     Int playerDeathsTwoValue
     Bool localShotValue
     Bool remoteShotValue
+    Int localActionButtonsValue
+    Int remoteActionButtonsValue
     Int[] damageFlashTicks
     public constructor() {
         var g3Config = BoundedG3Config()
@@ -921,6 +940,8 @@ class G1NativePresentation {
         playerDeathsTwoValue = 0
         localShotValue = false
         remoteShotValue = false
+        localActionButtonsValue = 0
+        remoteActionButtonsValue = 0
         damageFlashTicks = new Int[6]
         for (var flashIndex = 0;
              flashIndex < damageFlashTicks.length;
@@ -954,6 +975,13 @@ class G1NativePresentation {
 
     Bool applyNativeMouseButton(Int pressed) {
         return inputStateValue.applyMouseButton(pressed)
+    }
+    Bool applyNativeMouseButtonCode(Int button, Int pressed) {
+        return inputStateValue.applyMouseButtonCode(button, pressed)
+    }
+
+    Int consumeActionButtons() {
+        return inputStateValue.consumeActionButtons()
     }
 
     Bool applyNativeWindowEvent(Int kind, Int dataA, Int dataB) {
@@ -1163,6 +1191,8 @@ class G1NativePresentation {
         playerDeathsTwoValue = 0
         localShotValue = false
         remoteShotValue = false
+        localActionButtonsValue = 0
+        remoteActionButtonsValue = 0
         for (var flashIndex = 0;
              flashIndex < damageFlashTicks.length;
              flashIndex = flashIndex + 1) {
@@ -1186,8 +1216,9 @@ class G1NativePresentation {
         BoundedExternalGlbModelReader reader, Int model
     ) {
         var textureLength = reader.textureLength()
-        if (reader.textureOffset() < 0 || textureLength <= 0) {
-            return true
+        if (reader.textureOffset() < 0 || textureLength <= 0 ||
+            reader.textureWidth() <= 0 || reader.textureHeight() <= 0) {
+            return false
         }
         if (!kookie_gpu_model_texture_stage_begin(model, textureLength)) {
             return false
@@ -1583,13 +1614,24 @@ class G1NativePresentation {
         return highest
     }
 
+    Bool actionAttackActive(Int buttons) {
+        return (buttons & inputButtonMelee()) != 0 ||
+            (buttons & inputButtonSpecial()) != 0
+    }
+    Int actionButtonsForPlayer(Int player) {
+        if (player == localPlayerValue) {
+            return localActionButtonsValue
+        }
+        return remoteActionButtonsValue
+    }
     Bool stageAnimalAttackVfx(Int frame) {
         var localPlayer = if (mirrorRemoteValue) 2 else 1
         var localX = interactionSession.serverPosition(localPlayer)
         var localY = interactionSession.enemySpatialPositionY(localPlayer)
         var localZ = interactionSession.enemySpatialPositionZ(localPlayer)
         var localAttacking =
-            interactionSession.lastInputEdges(localPlayer).firePressed() != 0
+            interactionSession.lastInputEdges(localPlayer).firePressed() != 0 ||
+            actionAttackActive(actionButtonsForPlayer(localPlayer))
         if (interactionSession.fpsMovementEnabled()) {
             localX = interactionSession.fpsPositionX(localPlayer)
             localY = interactionSession.fpsPositionY(localPlayer)
@@ -1964,9 +2006,26 @@ class G1NativePresentation {
             playerTwoZ = interactionSession.clientRemotePlayerZ(2)
         }
         var playerOneAttack =
-            interactionSession.lastInputEdges(1).firePressed() != 0
+            interactionSession.lastInputEdges(1).firePressed() != 0 ||
+            actionAttackActive(actionButtonsForPlayer(1))
         var playerTwoAttack =
-            interactionSession.lastInputEdges(2).firePressed() != 0
+            interactionSession.lastInputEdges(2).firePressed() != 0 ||
+            actionAttackActive(actionButtonsForPlayer(2))
+        var localPlayerId = if (mirrorRemoteValue) 2 else 1
+        var localPlayerX = if (localPlayerId == 1) playerOneX else playerTwoX
+        var localPlayerY = if (localPlayerId == 1) playerOneY else playerTwoY
+        var localPlayerZ = if (localPlayerId == 1) playerOneZ else playerTwoZ
+        var localPlayerMoving =
+            if (localPlayerId == 1) playerOneMoving else playerTwoMoving
+        var localPlayerAttack =
+            if (localPlayerId == 1) playerOneAttack else playerTwoAttack
+        if (!animalMeshes.setActor(
+                localPlayerId, localAnimalKindValue,
+                localPlayerX, localPlayerY, localPlayerZ,
+                localPlayerMoving, localPlayerAttack)) {
+            println("KOOKIE gameplay local player mesh staging failed")
+            return false
+        }
         var remotePlayerId = if (mirrorRemoteValue) 1 else 2
         var remotePlayerX = if (remotePlayerId == 1) playerOneX else playerTwoX
         var remotePlayerY = if (remotePlayerId == 1) playerOneY else playerTwoY
@@ -2296,6 +2355,14 @@ class G1NativePresentation {
         Bool host, NativeGameNetworkState state,
         Int moveForward, Int moveStrafe, Int fire, Int jump
     ) {
+        return advanceGameplayInputWithButtons(
+            host, state, moveForward, moveStrafe, fire, jump, 0)
+    }
+
+    Bool advanceGameplayInputWithButtons(
+        Bool host, NativeGameNetworkState state,
+        Int moveForward, Int moveStrafe, Int fire, Int jump, Int buttons
+    ) {
         if (!advanceDamageFlashes() ||
             !projectileOverlay.advance() ||
             !texturedVfx.advance()) {
@@ -2303,6 +2370,8 @@ class G1NativePresentation {
         }
         var player = if (host) 1 else 2
         localPlayerValue = player
+        localActionButtonsValue = buttons
+        remoteActionButtonsValue = 0
         var tick = interactionSession.currentServerTick() + 1
         var playerOneHealthBefore = interactionSession.enemyCombatHealth(1)
         var playerTwoHealthBefore = interactionSession.enemyCombatHealth(2)
@@ -2310,20 +2379,26 @@ class G1NativePresentation {
         var moveZ = camera.movementWorldZ(moveForward, moveStrafe)
         if (!host &&
             !sendLocalGameInput(
-                interactionSession, state, player, moveX, moveZ, fire, jump)) {
+                interactionSession, state, player, moveX, moveZ,
+                fire, jump, buttons)) {
             return false
         }
-        if (!interactionSession.receiveInput(
+        if (!interactionSession.receiveInputWithButtons(
                 player, tick, state.nextLocalSequence(),
-                moveX, moveZ, 0, 0, fire, jump)) {
+                moveX, moveZ, 0, 0, fire, jump, buttons)) {
             println("KOOKIE gameplay input admission failed")
             return false
         }
+        var remoteButtons = 0
+        if (host) {
+            remoteButtons = state.consumeRemoteButtons()
+            remoteActionButtonsValue = remoteButtons
+        }
         if (host &&
-            !interactionSession.receiveInput(
+            !interactionSession.receiveInputWithButtons(
                 2, tick, state.nextRemoteSequence(),
                 state.remoteMove(), state.remoteMoveZ(), 0, 0,
-                0, state.remoteJump())) {
+                0, state.remoteJump(), remoteButtons)) {
             println("KOOKIE gameplay remote input admission failed")
             return false
         }
@@ -2399,10 +2474,11 @@ class G1NativePresentation {
     Bool advanceGameplay(
         Bool host, NativeGameNetworkState state
     ) {
-        return advanceGameplayInput(
+        return advanceGameplayInputWithButtons(
             host, state, localMoveForwardAxis(inputStateValue),
             localMoveStrafeAxis(inputStateValue),
-            inputStateValue.fireHeld(), inputStateValue.jumpHeld())
+            inputStateValue.fireHeld(), inputStateValue.jumpHeld(),
+            inputStateValue.consumeActionButtons())
     }
     Int projectileOverlayCount() {
         return projectileOverlay.activeCount()
@@ -2472,6 +2548,9 @@ class G1NativePresentation {
             !hud.updateOxygen(
                 oxygenMeterValue.current(), oxygenMeterValue.maximum(),
                 interactionSession.fpsUnderwater(localPlayerValue)) ||
+            !hud.updateStamina(
+                interactionSession.playerStamina(localPlayerValue),
+                interactionSession.playerMaximumStamina()) ||
             !hud.updatePowerUpStatus(
                 interactionSession.powerUpKind(localPlayerValue),
                 interactionSession.powerUpResource(localPlayerValue)) ||
@@ -2955,6 +3034,12 @@ main() {
             presentation.gameplaySession().fpsPositionX(1) != movementStartX ||
             presentation.gameplaySession().fpsPositionZ(1) != movementStartZ,
             "WASD movement must change the authoritative FPS pose")
+        var jumpStartY = presentation.gameplaySession().fpsPositionY(1)
+        assert(presentation.advanceGameplayInput(
+                true, network, 0, 0, 0, 1) &&
+            presentation.gameplaySession().fpsPositionY(1) > jumpStartY,
+            "jump input must move the authoritative FPS pose")
+
         var stagedProjectile = false
         for (var shotTick = 0; shotTick < 40;
              shotTick = shotTick + 1) {
@@ -2984,8 +3069,8 @@ main() {
             "restarting Play must arrive through the SDL return event path")
         assert(presentation.drawGameFrame(frame, network, shell),
             "authored arena and authoritative HUD must draw")
-        assert(presentation.visibleAnimalActorCount() == 4,
-            "first-person presentation must omit the local goose world mesh")
+        assert(presentation.visibleAnimalActorCount() == 5,
+            "third-person presentation must include the local animal world mesh")
         assert(driveSmokeKeyboardAction(
                 shell, presentation, 27, gameShellActionBack()) &&
             !shell.gameplayVisible(),
@@ -3101,6 +3186,10 @@ main() {
             } else if (eventKind == 9) {
                 assert(presentation.applyNativeMouseButton(0),
                     "Kof input policy must admit mouse release")
+            } else if (eventKind == 10) {
+                assert(presentation.applyNativeMouseButtonCode(
+                        kookie_last_event_a(), kookie_last_event_b()),
+                    "Kof input policy must admit right mouse special input")
             }
             eventKind = kookie_poll_event()
         }

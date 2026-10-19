@@ -72,15 +72,22 @@ def make_glb(
     )
 
 
-def write_fixture(root: Path, data: bytes) -> None:
-    path = root / "content/prototype/models/goose/goose.glb"
+def write_fixture(
+    root: Path, data: bytes, relative: str = "models/goose/goose.glb"
+) -> None:
+    path = root / "content/prototype" / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
 
 
-def exercise(kof: str, root: Path, expected: int) -> None:
+def exercise(
+    kof: str, root: Path, expected: int, cat_expected: int | None = None
+) -> None:
     content_dir = root / "content"
     content_dir.mkdir(exist_ok=True)
+    cat_path = content_dir / "prototype/models/cat/cat.glb"
+    if not cat_path.exists():
+        write_fixture(root, make_glb(), "models/cat/cat.glb")
     (content_dir / "glb_model.kf").symlink_to(ROOT / "src/content/glb_model.kf")
     shutil.copy2(PROBE, root / "main.kf")
     result = subprocess.run(
@@ -92,11 +99,18 @@ def exercise(kof: str, root: Path, expected: int) -> None:
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr or result.stdout)
+    lines = result.stdout.splitlines()
     marker = "model-valid=1" if expected else "model-valid=0"
-    if marker not in result.stdout.splitlines():
+    if marker not in lines:
         raise RuntimeError(
             f"expected {marker}, got {result.stdout.strip() or result.stderr.strip()}"
         )
+    if cat_expected is not None:
+        marker = "cat-model-valid=1" if cat_expected else "cat-model-valid=0"
+        if marker not in lines:
+            raise RuntimeError(
+                f"expected {marker}, got {result.stdout.strip() or result.stderr.strip()}"
+            )
 
 
 def main() -> int:
@@ -110,9 +124,14 @@ def main() -> int:
         real_root = work / "real"
         write_fixture(
             real_root,
-            (ROOT / "assets/prototype/models/cat/cat.glb").read_bytes(),
+            (ROOT / "assets/prototype/models/goose/goose.glb").read_bytes(),
         )
-        exercise(kof, real_root, 1)
+        write_fixture(
+            real_root,
+            (ROOT / "assets/prototype/models/cat/cat.glb").read_bytes(),
+            "models/cat/cat.glb",
+        )
+        exercise(kof, real_root, 1, 1)
 
         valid_root = work / "valid"
         write_fixture(valid_root, make_glb())

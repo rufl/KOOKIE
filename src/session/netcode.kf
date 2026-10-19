@@ -66,6 +66,7 @@ class NetcodeInputHistory {
     Int[] moveZs
     Int[] fires
     Int[] jumps
+    Int[] buttons
 
     public constructor(Int capacity) {
         var actualCapacity = capacity
@@ -85,6 +86,7 @@ class NetcodeInputHistory {
         moveZs = new Int[actualCapacity]
         fires = new Int[actualCapacity]
         jumps = new Int[actualCapacity]
+        buttons = new Int[actualCapacity]
     }
 
     void clear() {
@@ -97,20 +99,21 @@ class NetcodeInputHistory {
             ticks[index] = 0
             sequences[index] = 0
             moveXs[index] = 0
-            moveZs[index] = 0
             fires[index] = 0
             jumps[index] = 0
+            buttons[index] = 0
         }
     }
 
     Bool push(
         Int tick, Int sequence, Int moveX, Int moveZ,
-        Int fire, Int jump
+        Int fire, Int jump, Int buttonsValue
     ) {
         if (tick <= 0 || tick > 1000000 || sequence <= 0 ||
             sequence > 1000000 || moveX < -4 || moveX > 4 ||
             moveZ < -4 || moveZ > 4 ||
-            (fire != 0 && fire != 1) || (jump != 0 && jump != 1)) {
+            (fire != 0 && fire != 1) || (jump != 0 && jump != 1) ||
+            buttonsValue < 0 || buttonsValue > inputButtonMask()) {
             diagnosticValue = netcodeDiagnosticFrame()
             return false
         }
@@ -128,6 +131,7 @@ class NetcodeInputHistory {
                 moveZs[index - 1] = moveZs[index]
                 fires[index - 1] = fires[index]
                 jumps[index - 1] = jumps[index]
+                buttons[index - 1] = buttons[index]
             }
             target = capacityValue - 1
         } else {
@@ -139,6 +143,7 @@ class NetcodeInputHistory {
         moveZs[target] = moveZ
         fires[target] = fire
         jumps[target] = jump
+        buttons[target] = buttonsValue
         latestTickValue = tick
         latestSequenceValue = sequence
         diagnosticValue = netcodeDiagnosticNone()
@@ -165,6 +170,7 @@ class NetcodeInputHistory {
                 moveZs[index] = moveZs[index + removed]
                 fires[index] = fires[index + removed]
                 jumps[index] = jumps[index + removed]
+                buttons[index] = buttons[index + removed]
             }
             countValue = remaining
         }
@@ -209,16 +215,22 @@ class NetcodeInputHistory {
         return jumps[index]
     }
 
+    Int buttonsAt(Int index) {
+        if (index < 0 || index >= countValue) { return 0 }
+        return buttons[index]
+    }
+
     Int[] commandWords() {
-        var words = new Int[countValue * 6]
+        var words = new Int[countValue * 7]
         for (var index = 0; index < countValue; index = index + 1) {
-            var offset = index * 6
+            var offset = index * 7
             words[offset] = ticks[index]
             words[offset + 1] = sequences[index]
             words[offset + 2] = moveXs[index]
             words[offset + 3] = moveZs[index]
             words[offset + 4] = fires[index]
             words[offset + 5] = jumps[index]
+            words[offset + 6] = buttons[index]
         }
         return words
     }

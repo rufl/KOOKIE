@@ -390,7 +390,7 @@ Bool verifyReplayFileBoundaries() {
     var initial = new Int[1]
     initial[0] = 4
     assert(timeline.setInitialSnapshot(initial))
-    assert(timeline.append(InputCommand(2, 1, 2, 0, 0, 0, 0, 0)))
+    assert(timeline.append(InputCommand(2, 1, 2, 0, 0, 0, 0, 0, 0)))
     assert(timeline.appendInteraction(2, 1, 1, 10))
     var store = BoundedReplayBundleFileStore(2)
     assert(store.writeTimeline("replay-boundaries.dat", timeline, 1, 1, 7))

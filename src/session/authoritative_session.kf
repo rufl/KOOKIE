@@ -154,6 +154,10 @@ class LoopbackSession {
     PowerUpEffectState playerTwoPowerUps
     AnimalAbilityController animalAbilities
     Int[] playerAnimalKinds
+    Int[] lastDashForwardTapTicks
+    Int[] lastDashBackwardTapTicks
+    Int[] lastDashLeftTapTicks
+    Int[] lastDashRightTapTicks
     Bool powerUpWorldConfiguredValue
     Bool fpsMovementEnabledValue
     Bool playerOneConnected
@@ -245,6 +249,10 @@ class LoopbackSession {
         playerTwoPowerUps = PowerUpEffectState()
         animalAbilities = AnimalAbilityController(entityCapacity)
         playerAnimalKinds = new Int[3]
+        lastDashForwardTapTicks = new Int[3]
+        lastDashBackwardTapTicks = new Int[3]
+        lastDashLeftTapTicks = new Int[3]
+        lastDashRightTapTicks = new Int[3]
         playerAnimalKinds[0] = 0
         playerAnimalKinds[1] = animalKindGoose()
         playerAnimalKinds[2] = animalKindCat()
@@ -371,6 +379,10 @@ class LoopbackSession {
             playerAuthorityStateSequences[player] = 0
             worldLootStateSequences[player] = 0
             playerEquipmentDamageBonuses[player] = 0
+            lastDashForwardTapTicks[player] = -1000000
+            lastDashBackwardTapTicks[player] = -1000000
+            lastDashLeftTapTicks[player] = -1000000
+            lastDashRightTapTicks[player] = -1000000
         }
         for (var index = 0; index < clientInteractionFlags.length; index = index + 1) {
             clientInteractionFlags[index] = false
@@ -979,6 +991,21 @@ class LoopbackSession {
     Bool fpsGrounded(Int player) {
         return fpsMovement.grounded(player)
     }
+    Bool fpsCrouched(Int player) {
+        return fpsMovement.crouched(player)
+    }
+
+    Bool fpsGliding(Int player) {
+        return fpsMovement.gliding(player)
+    }
+
+    Int playerStamina(Int player) {
+        return animalAbilities.stamina(player)
+    }
+
+    Int playerMaximumStamina() {
+        return animalAbilities.maximumStamina()
+    }
 
     Bool fpsLastJumped() {
         return fpsMovement.lastJumped()
@@ -1035,6 +1062,10 @@ class LoopbackSession {
             }
             playerOneConnected = true
             playerOneFocused = true
+            lastDashForwardTapTicks[1] = -1000000
+            lastDashBackwardTapTicks[1] = -1000000
+            lastDashLeftTapTicks[1] = -1000000
+            lastDashRightTapTicks[1] = -1000000
         } else {
             if (playerTwoConnected) {
                 return false
@@ -1061,6 +1092,10 @@ class LoopbackSession {
             }
             playerTwoConnected = true
             playerTwoFocused = true
+            lastDashForwardTapTicks[2] = -1000000
+            lastDashBackwardTapTicks[2] = -1000000
+            lastDashLeftTapTicks[2] = -1000000
+            lastDashRightTapTicks[2] = -1000000
         }
         if (recovering) {
             interactionSequences[player] = 0
@@ -1106,6 +1141,10 @@ class LoopbackSession {
             playerOneInputs.clearPending()
             playerOneEdges.clearHeld()
             playerOnePowerUps.clear()
+            lastDashForwardTapTicks[1] = -1000000
+            lastDashBackwardTapTicks[1] = -1000000
+            lastDashLeftTapTicks[1] = -1000000
+            lastDashRightTapTicks[1] = -1000000
             animalAbilities.removeActor(1)
             enemyCombat.setProjectileDefense(1, false, false)
             interactionTargets[1] = 0
@@ -1121,6 +1160,10 @@ class LoopbackSession {
             playerTwoPowerUps.clear()
             animalAbilities.removeActor(2)
             enemyCombat.setProjectileDefense(2, false, false)
+            lastDashForwardTapTicks[2] = -1000000
+            lastDashBackwardTapTicks[2] = -1000000
+            lastDashLeftTapTicks[2] = -1000000
+            lastDashRightTapTicks[2] = -1000000
             interactionTargets[2] = 0
             interactionTicks[2] = 0
             disconnectReasons[2] = reason
@@ -5034,6 +5077,25 @@ class LoopbackSession {
         lastAnimalAttackDamageValue = result.applied()
         return result
     }
+    AreaDamageResult playerBasicMeleeAttack(
+        Int player, Int targetId, Int tick
+    ) {
+        lastAnimalAttackDamageValue = 0
+        lastAnimalPushValue = false
+        if (player < 1 || player > 2 ||
+            !playerCombat.isAlive(player) ||
+            enemyCombat.enemyState(targetId) < 0 ||
+            enemyCombat.spatialDistance(player, targetId) < 0 ||
+            enemyCombat.spatialDistance(player, targetId) >
+                animalAbilityMeleeRange()) {
+            return AreaDamageResult(false, 0, 0, 0)
+        }
+        var result = enemyCombat.playerMelee(
+            player, targetId, tick, animalAbilityMeleeRange(),
+            animalAbilityBasicMeleeDamage(), 0, 0)
+        lastAnimalAttackDamageValue = result.applied()
+        return result
+    }
 
     AreaDamageResult playerMegaphoneHonk(
         Int player, Int targetId, Int tick, Int critical
@@ -5135,6 +5197,162 @@ class LoopbackSession {
         var targetId = nearestLiveEnemy(player)
         if (targetId > 0) {
             playerWoolMaceAttack(player, targetId, tick, 0)
+        }
+        return true
+    }
+    Int actionSign(Int value) {
+        if (value < 0) { return -1 }
+        if (value > 0) { return 1 }
+        return 0
+    }
+    Bool syncFpsActorPosition(Int player) {
+        var x = fpsMovement.positionX(player)
+        var y = fpsMovement.positionY(player)
+        var z = fpsMovement.positionZ(player)
+        if (!serverMovement.setPosition(player, x)) {
+            return false
+        }
+        if (enemyCombat.hasSpatialPosition(player) &&
+            !enemyCombat.setSpatialPosition(player, x, y, z)) {
+            return false
+        }
+        return true
+    }
+
+    Bool burstPlayerMovement(
+        Int player, Int directionX, Int directionZ, Int distance
+    ) {
+        if (!fpsMovementEnabledValue ||
+            !fpsMovement.burst(player, directionX, directionZ, distance)) {
+            return false
+        }
+        return syncFpsActorPosition(player)
+    }
+
+    Bool activateSelectedPlayerSpecial(Int player, Int tick) {
+        if (playerWatermelonActive(player, tick)) {
+            var watermelonTarget = nearestLiveEnemy(player)
+            if (watermelonTarget <= 0) { return true }
+            return fireWatermelonSeed(
+                player, watermelonTarget, tick, 0).accepted()
+        }
+        if (playerMegaphoneActive(player, tick)) {
+            var megaphoneTarget = nearestLiveEnemy(player)
+            if (megaphoneTarget <= 0) { return true }
+            return playerMegaphoneHonk(
+                player, megaphoneTarget, tick, 0).accepted()
+        }
+        if (playerWoolMaceActive(player, tick)) {
+            var woolTarget = nearestLiveEnemy(player)
+            if (woolTarget <= 0) { return true }
+            return playerWoolMaceAttack(
+                player, woolTarget, tick, 0).accepted()
+        }
+        if (powerUpKind(player) == powerUpKindJetpack()) {
+            return activatePlayerAnimalAbility(
+                player, animalAbilityFlap(), 0, 0, 0, tick)
+        }
+        return true
+    }
+
+    Bool stepPlayerActionButtons(
+        Int player, Int moveX, Int moveZ, Int buttons, Int tick
+    ) {
+        if (player < 1 || player > 2 || tick < 0) {
+            return false
+        }
+        if ((buttons & inputButtonMelee()) != 0 &&
+            playerCombat.isAlive(player)) {
+            var meleeTarget = nearestLiveEnemy(player)
+            if (meleeTarget > 0) {
+                playerBasicMeleeAttack(player, meleeTarget, tick)
+            }
+        }
+        if ((buttons & inputButtonSpecial()) != 0 &&
+            playerCombat.isAlive(player) &&
+            !activateSelectedPlayerSpecial(player, tick)) {
+            return false
+        }
+        if (!fpsMovementEnabledValue) {
+            return true
+        }
+        var dashRequested = false
+        var dashX = 0
+        var dashZ = 0
+        if ((buttons & inputButtonDashForward()) != 0) {
+            if (lastDashForwardTapTicks[player] >= 0 &&
+                tick - lastDashForwardTapTicks[player] <=
+                    animalAbilityTapWindowTicks()) {
+                dashRequested = true
+                dashZ = 1
+                lastDashForwardTapTicks[player] = -1000000
+            } else {
+                lastDashForwardTapTicks[player] = tick
+            }
+        }
+        if ((buttons & inputButtonDashBackward()) != 0) {
+            if (lastDashBackwardTapTicks[player] >= 0 &&
+                tick - lastDashBackwardTapTicks[player] <=
+                    animalAbilityTapWindowTicks()) {
+                if (!dashRequested) {
+                    dashRequested = true
+                    dashZ = -1
+                }
+                lastDashBackwardTapTicks[player] = -1000000
+            } else {
+                lastDashBackwardTapTicks[player] = tick
+            }
+        }
+        if ((buttons & inputButtonDashLeft()) != 0) {
+            if (lastDashLeftTapTicks[player] >= 0 &&
+                tick - lastDashLeftTapTicks[player] <=
+                    animalAbilityTapWindowTicks()) {
+                if (!dashRequested) {
+                    dashRequested = true
+                    dashX = -1
+                }
+                lastDashLeftTapTicks[player] = -1000000
+            } else {
+                lastDashLeftTapTicks[player] = tick
+            }
+        }
+        if ((buttons & inputButtonDashRight()) != 0) {
+            if (lastDashRightTapTicks[player] >= 0 &&
+                tick - lastDashRightTapTicks[player] <=
+                    animalAbilityTapWindowTicks()) {
+                if (!dashRequested) {
+                    dashRequested = true
+                    dashX = 1
+                }
+                lastDashRightTapTicks[player] = -1000000
+            } else {
+                lastDashRightTapTicks[player] = tick
+            }
+        }
+        if ((buttons & inputButtonRoll()) != 0 &&
+            (moveX != 0 || moveZ != 0) &&
+            animalAbilities.use(player, animalAbilityRoll(), 0, tick)) {
+            var roll = animalAbilities.lastResult()
+            if (!burstPlayerMovement(
+                    player, moveX, moveZ, roll.displacement())) {
+                return false
+            }
+        }
+        if (dashRequested) {
+            if (dashX == 0 && dashZ == 0) {
+                dashX = actionSign(moveX)
+                dashZ = actionSign(moveZ)
+            }
+            if (dashX == 0 && dashZ == 0) {
+                dashZ = 1
+            }
+            if (animalAbilities.use(player, animalAbilityDash(), 0, tick)) {
+                var dash = animalAbilities.lastResult()
+                if (!burstPlayerMovement(
+                        player, dashX, dashZ, dash.displacement())) {
+                    return false
+                }
+            }
         }
         return true
     }
@@ -5255,6 +5473,10 @@ class LoopbackSession {
                 playerOneEdges.clearHeld()
                 interactionTargets[1] = 0
                 interactionTicks[1] = 0
+                lastDashForwardTapTicks[1] = -1000000
+                lastDashBackwardTapTicks[1] = -1000000
+                lastDashLeftTapTicks[1] = -1000000
+                lastDashRightTapTicks[1] = -1000000
             }
             return true
         }
@@ -5265,6 +5487,10 @@ class LoopbackSession {
                 playerTwoEdges.clearHeld()
                 interactionTargets[2] = 0
                 interactionTicks[2] = 0
+                lastDashForwardTapTicks[2] = -1000000
+                lastDashBackwardTapTicks[2] = -1000000
+                lastDashLeftTapTicks[2] = -1000000
+                lastDashRightTapTicks[2] = -1000000
             }
             return true
         }
@@ -6198,10 +6424,20 @@ class LoopbackSession {
         Int player, Int tick, Int sequence, Int moveX, Int moveY,
         Int lookX, Int lookY, Int fire, Int jump
     ) {
+        return receiveInputWithButtons(
+            player, tick, sequence, moveX, moveY,
+            lookX, lookY, fire, jump, 0)
+    }
+
+    Bool receiveInputWithButtons(
+        Int player, Int tick, Int sequence, Int moveX, Int moveY,
+        Int lookX, Int lookY, Int fire, Int jump, Int buttons
+    ) {
         if (!started || paused) {
             return false
         }
-        var command = InputCommand(tick, sequence, moveX, moveY, lookX, lookY, fire, jump)
+        var command = InputCommand(
+            tick, sequence, moveX, moveY, lookX, lookY, fire, jump, buttons)
         return receiveInputCommand(player, command)
     }
 
@@ -6260,7 +6496,8 @@ class LoopbackSession {
         }
         for (var step = 0; step < steps; step = step + 1) {
             var simulationTick = clock.tick() - steps + step + 1
-            if (!advancePowerUpStates(simulationTick)) {
+            if (!animalAbilities.recoverAll() ||
+                !advancePowerUpStates(simulationTick)) {
                 return -1
             }
             if (playerOneConnected && playerOneInputs.queuedCount() > 0 &&
@@ -6274,7 +6511,13 @@ class LoopbackSession {
                     return -1
                 }
                 if (!applyCommandMovement(
-                        1, commandOne, playerOneEdges.lastEdges())) {
+                        1, commandOne, playerOneEdges.lastEdges(),
+                        simulationTick)) {
+                    return -1
+                }
+                if (!stepPlayerActionButtons(
+                        1, commandOne.moveX(), commandOne.moveY(),
+                        commandOne.buttons(), simulationTick)) {
                     return -1
                 }
                 if (fpsMovement.lastFlapped()) {
@@ -6315,7 +6558,13 @@ class LoopbackSession {
                 }
                 playerTwoEdges.apply(commandTwo.fire(), commandTwo.jump())
                 if (!applyCommandMovement(
-                        2, commandTwo, playerTwoEdges.lastEdges())) {
+                        2, commandTwo, playerTwoEdges.lastEdges(),
+                        simulationTick)) {
+                    return -1
+                }
+                if (!stepPlayerActionButtons(
+                        2, commandTwo.moveX(), commandTwo.moveY(),
+                        commandTwo.buttons(), simulationTick)) {
                     return -1
                 }
                 if (fpsMovement.lastFlapped()) {
@@ -6407,19 +6656,20 @@ class LoopbackSession {
     }
 
     Bool applyCommandMovement(
-        Int player, InputCommand command, InputEdges edges
+        Int player, InputCommand command, InputEdges edges, Int tick
     ) {
         if (fpsMovementEnabledValue) {
             return applyFpsMovement(
                 player, command.moveX(), command.moveY(),
-                edges.jumpPressed() != 0, command.jump() != 0)
+                edges.jumpPressed() != 0, command.jump() != 0,
+                command.buttons(), tick)
         }
         return applyDoorAwareMovement(player, command.moveX())
     }
 
     Bool applyFpsMovement(
         Int player, Int moveX, Int moveZ,
-        Bool jumpPressed, Bool jumpHeld
+        Bool jumpPressed, Bool jumpHeld, Int buttons, Int tick
     ) {
         var liquid = false
         if (liquidMovementConfiguredValue) {
@@ -6433,21 +6683,30 @@ class LoopbackSession {
                 player, powerUpSpeedBonus(player), powerUpJumpBonus(player)) ||
             !fpsMovement.configureLiquidActor(
                 player, liquid, liquidMovementProfileValue) ||
+            !fpsMovement.setCrouched(
+                player, (buttons & inputButtonCrouch()) != 0)) {
+            return false
+        }
+        if (jumpPressed && !liquid &&
+            !fpsMovement.grounded(player) &&
+            fpsMovement.coyoteTicks(player) == 0 &&
+            fpsMovement.airJumpsUsed(player) == 0 &&
+            !animalAbilities.consumeStamina(
+                player, animalAbilityDoubleJumpStaminaCost())) {
+            jumpPressed = false
+        }
+        var gliding = false
+        if (!liquid && !fpsMovement.grounded(player) && jumpHeld &&
+            fpsMovement.velocityY(player) < 0) {
+            gliding = animalAbilities.consumeStamina(
+                player, animalAbilityGlideStaminaCost())
+        }
+        if (!fpsMovement.setGliding(player, gliding) ||
             !fpsMovement.step(
                 player, moveX, moveZ, jumpPressed, jumpHeld)) {
             return false
         }
-        var x = fpsMovement.positionX(player)
-        var y = fpsMovement.positionY(player)
-        var z = fpsMovement.positionZ(player)
-        if (!serverMovement.setPosition(player, x)) {
-            return false
-        }
-        if (enemyCombat.hasSpatialPosition(player) &&
-            !enemyCombat.setSpatialPosition(player, x, y, z)) {
-            return false
-        }
-        return true
+        return syncFpsActorPosition(player)
     }
 
     Bool applyDoorAwareMovement(Int player, Int requestedStep) {

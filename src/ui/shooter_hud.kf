@@ -30,6 +30,8 @@ class ShooterHud {
     Int skillGoalValue
     Int oxygenValue
     Int maxOxygenValue
+    Int staminaValue
+    Int maxStaminaValue
     Bool underwaterValue
     Int powerUpKindValue
     Int powerUpResourceValue
@@ -77,6 +79,8 @@ class ShooterHud {
         skillGoalValue = 1
         oxygenValue = 1
         maxOxygenValue = 1
+        staminaValue = 0
+        maxStaminaValue = 1
         underwaterValue = false
         powerUpKindValue = 0
         powerUpResourceValue = 0
@@ -177,6 +181,14 @@ class ShooterHud {
         oxygenValue = current
         maxOxygenValue = maximum
         underwaterValue = underwater
+        return true
+    }
+    Bool updateStamina(Int current, Int maximum) {
+        if (maximum <= 0 || current < 0 || current > maximum) {
+            return false
+        }
+        staminaValue = current
+        maxStaminaValue = maximum
         return true
     }
     Bool updatePowerUpStatus(Int kind, Int resource) {
@@ -316,6 +328,12 @@ class ShooterHud {
             pushQuad(target, ammunitionResource, 93, -92, 95, -81)
     }
 
+    Bool pushStaminaStatus(FrameStaging target, Int resourceBase) {
+        var staminaRight = 49 +
+            (staminaValue * 28) / maxStaminaValue
+        return pushQuad(target, resourceBase + 2, 48, 72, 78, 77) &&
+            pushQuad(target, resourceBase + 3, 49, 73, staminaRight, 76)
+    }
     Bool pushCrosshair(
         FrameStaging target, Int resource,
         Int gap, Int reach, Int thickness
@@ -793,6 +811,7 @@ class ShooterHud {
             !pushPowerUpStatus(target, resourceBase) ||
             !pushPowerUpText(target) ||
             !pushOxygenStatus(target, resourceBase) ||
+            !pushStaminaStatus(target, resourceBase) ||
             !pushText(
                 target, "O2", 48, 68, 1, themeValue.foregroundColor())) {
             target.discard()
@@ -811,6 +830,8 @@ class ShooterHud {
     Int oxygen() { return oxygenValue }
     Int maxOxygen() { return maxOxygenValue }
     Bool underwater() { return underwaterValue }
+    Int stamina() { return staminaValue }
+    Int maxStamina() { return maxStaminaValue }
     Int powerUpKind() { return powerUpKindValue }
     Int powerUpResource() { return powerUpResourceValue }
 

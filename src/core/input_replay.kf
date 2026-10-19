@@ -9,6 +9,7 @@ class InputReplayRecorder {
     Int[] lookYs
     Int[] fires
     Int[] jumps
+    Int[] buttons
     Int head
     Int count
     Int lastRecordedTickValue
@@ -28,11 +29,12 @@ class InputReplayRecorder {
         lookYs = new Int[actualCapacity]
         fires = new Int[actualCapacity]
         jumps = new Int[actualCapacity]
+        buttons = new Int[actualCapacity]
         head = 0
         count = 0
         lastRecordedTickValue = -1
         lastRecordedSequenceValue = -1
-        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0, 0)
     }
 
     Bool append(InputCommand command) {
@@ -43,6 +45,7 @@ class InputReplayRecorder {
         if (tick < 0 || command.sequence() < 0 ||
             command.fire() < 0 || command.fire() > 1 ||
             command.jump() < 0 || command.jump() > 1 ||
+            command.buttons() < 0 || command.buttons() > inputButtonMask() ||
             count >= ticks.length ||
             (count > 0 && tick < lastRecordedTickValue) ||
             command.sequence() <= lastRecordedSequenceValue) {
@@ -60,6 +63,7 @@ class InputReplayRecorder {
         lookYs[index] = command.lookY()
         fires[index] = command.fire()
         jumps[index] = command.jump()
+        buttons[index] = command.buttons()
         count = count + 1
         lastRecordedTickValue = tick
         lastRecordedSequenceValue = command.sequence()
@@ -68,7 +72,7 @@ class InputReplayRecorder {
 
     InputCommand at(Int offset) {
         if (offset < 0 || offset >= count) {
-            return InputCommand(-1, -1, 0, 0, 0, 0, 0, 0)
+            return InputCommand(-1, -1, 0, 0, 0, 0, 0, 0, 0)
         }
         var index = head + offset
         if (index >= ticks.length) {
@@ -76,7 +80,8 @@ class InputReplayRecorder {
         }
         return InputCommand(
             ticks[index], sequences[index], moveXs[index], moveYs[index],
-            lookXs[index], lookYs[index], fires[index], jumps[index])
+            lookXs[index], lookYs[index], fires[index], jumps[index],
+            buttons[index])
     }
 
     Int pending() {
@@ -89,7 +94,8 @@ class InputReplayRecorder {
         }
         consumed = InputCommand(
             ticks[head], sequences[head], moveXs[head], moveYs[head],
-            lookXs[head], lookYs[head], fires[head], jumps[head])
+            lookXs[head], lookYs[head], fires[head], jumps[head],
+            buttons[head])
         head = head + 1
         if (head >= ticks.length) {
             head = 0
@@ -115,7 +121,7 @@ class InputReplayRecorder {
         count = 0
         lastRecordedTickValue = -1
         lastRecordedSequenceValue = -1
-        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0)
+        consumed = InputCommand(0, 0, 0, 0, 0, 0, 0, 0, 0)
         return true
     }
 }

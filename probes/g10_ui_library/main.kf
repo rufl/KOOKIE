@@ -122,6 +122,24 @@ main() {
         tabs.selected() == 0 && tabs.select(1) && tabs.selected() == 1 &&
         inspector.addEntry("Position", "0, 0, 0") && inspector.count() == 1,
         "Kookie UI widgets must expose bounded state transitions")
+    var checkbox = KookieUiCheckbox("Map", false)
+    var select = KookieUiSelect(3)
+    var modal = KookieUiModal("Paused", "Return to the run?")
+    var toast = KookieUiToast()
+    var keybind = KookieUiKeybind("Jump", "SPACE")
+    assert(!checkbox.checked() &&
+        checkbox.setChecked(true) && checkbox.checked() &&
+        select.addOption("GOOSE") &&
+        select.addOption("CAT") &&
+        select.selected() == 0 &&
+        select.select(-1) && select.selected() == 1 &&
+        modal.show() && modal.open() &&
+        modal.close() && !modal.open() &&
+        toast.show("Saved", kookieUiComponentColorSuccess(), 2) &&
+        toast.visible() && toast.advance() && toast.visible() &&
+        toast.advance() && !toast.visible() &&
+        keybind.setKey("J") && keybind.key() == "J",
+        "Kookie UI transient, choice, and keybind widgets must expose real state")
     var componentContent = Column(listOf(
         field.widget(), toggle.widget(), slider.widget(), progress.widget(),
         badge.widget(), toolbar.widget(), tabs.widget(), inspector.widget()))

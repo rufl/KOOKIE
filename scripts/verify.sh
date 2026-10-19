@@ -17,6 +17,8 @@ if [[ "$actual_kof_version" != "$expected_kof_version" ]]; then
   exit 1
 fi
 
+bash scripts/verify_package_preflight.sh
+
 if [[ "${KOOKIE_VERIFY_SKIP_STATIC:-0}" != 1 ]]; then
   bash scripts/verify_static.sh
 else
@@ -54,7 +56,7 @@ if [[ -f /usr/lib/libSDL3.so ]]; then
 else
   echo "SDL3 scalar platform probe skipped: /usr/lib/libSDL3.so is unavailable"
 fi
-canonical_build_cache_dir="${KOOKIE_CANONICAL_BUILD_CACHE_DIR:-}"
+canonical_build_cache_dir="${KOOKIE_CANONICAL_BUILD_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/kookie/canonical}"
 canonical_build_cleanup=1
 if [[ -n "$canonical_build_cache_dir" ]]; then
   canonical_build_dir="$canonical_build_cache_dir"
@@ -98,6 +100,17 @@ bash scripts/verify_prototype_package.sh
 build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
 adapter_build_dir="$build_dir/adapter"
 mkdir -p "$adapter_build_dir/build"
+mkdir -p "$adapter_build_dir"/assets/{fonts,ui,prototype/runtime,audio}
+cp -- "$root_dir/assets/fonts/jared-lite.ttf" \
+  "$adapter_build_dir/assets/fonts/jared-lite.ttf"
+cp -- "$root_dir/assets/fonts/pixand.ttf" \
+  "$adapter_build_dir/assets/fonts/pixand.ttf"
+cp -- "$root_dir/assets/ui/gatoganso-mark.svg" \
+  "$adapter_build_dir/assets/ui/gatoganso-mark.svg"
+cp -a -- "$root_dir/assets/prototype/runtime/vfx" \
+  "$adapter_build_dir/assets/prototype/runtime/"
+cp -a -- "$root_dir/assets/audio/ui" \
+  "$adapter_build_dir/assets/audio/"
 transport_key_file="$adapter_build_dir/transport.key"
 printf '%s' '00000001000000020000000300000004' >"$transport_key_file"
 chmod 600 "$transport_key_file"
@@ -254,11 +267,13 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
   set +e
   "$isolation_wrapper" --timeout 90 "${render_node_args[@]}" -- \
     env "${presentation_env[@]}" \
+    KOOKIE_ASSET_DIR="$adapter_build_dir/assets" \
+    KOOKIE_CONTENT_DIR="$adapter_build_dir/assets/prototype" \
     KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
     KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
     KOOKIE_PRESENTATION_SMOKE="${KOOKIE_REQUIRE_PRESENTATION:-0}" \
     KOOKIE_SCREENSHOT_PATH="${KOOKIE_SCREENSHOT_PATH:-}" \
-    KOOKIE_AUDIO_MUSIC_OGG="$root_dir/assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg" \
+    KOOKIE_AUDIO_MUSIC_OGG="$adapter_build_dir/assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg" \
     KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
     SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
     "${presentation_command[@]}" \

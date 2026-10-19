@@ -858,6 +858,19 @@ class GameShell {
         }
         return scale
     }
+    Int menuRowTextScale(Int desiredScale, Int rowHeight) {
+        var scale = desiredScale
+        if (scale < 1) { scale = 1 }
+        var safeHeight = rowHeight - 2
+        if (safeHeight < uiFontGlyphHeight()) {
+            safeHeight = uiFontGlyphHeight()
+        }
+        while (scale > 1 &&
+            uiFontGlyphHeight() * scale > safeHeight) {
+            scale = scale - 1
+        }
+        return scale
+    }
 
 
     Bool pushTextWithFont(
@@ -1000,14 +1013,20 @@ class GameShell {
                     -88, bottom, -86, top) &&
                     pushQuad(
                         target, themeValue.focusRailResource(),
-                        86, bottom, 88, top)
+                        86, bottom, 88, top) &&
+                    pushQuad(
+                        target, themeValue.focusRailResource(),
+                        -86, top - 1, 86, top) &&
+                    pushQuad(
+                        target, themeValue.focusRailResource(),
+                        -86, bottom, 86, bottom + 1)
             else true)
 
     }
 
 
     Bool stageMain(FrameStaging target) {
-        var scale = textSize()
+        var scale = menuRowTextScale(textSize(), 20)
         var itemColor = normalTextColor()
         return pushScreenFrame(target) &&
             pushCenteredTextWithFontFitted(
@@ -1085,7 +1104,7 @@ class GameShell {
     }
 
     Bool stageOptions(FrameStaging target) {
-        var scale = textSize()
+        var scale = menuRowTextScale(textSize(), 12)
         var rowColor = normalTextColor()
         var resultColor = successTextColor()
         var resultText = "APPLY"
@@ -1165,6 +1184,7 @@ class GameShell {
     }
 
     Bool stageAccessibility(FrameStaging target) {
+        var scale = menuRowTextScale(textSize(), 16)
         var rowColor = normalTextColor()
         return pushScreenFrame(target) &&
             pushCenteredText(target, "ACCESSIBILITY",
@@ -1172,19 +1192,19 @@ class GameShell {
             pushCenteredText(target, "CLEARER CONTROL",
                 menuSubtitleBottom(), 1, mutedTextColor()) &&
             pushSelectionPanel(target, 0, 36, 52) &&
-            pushText(target, "HUD SCALE", -84, 39, 1, rowColor) &&
-            pushText(target, hudScaleLabel(), 20, 39, 1,
+            pushText(target, "HUD SCALE", -84, 39, scale, rowColor) &&
+            pushText(target, hudScaleLabel(), 20, 39, scale,
                 mutedTextColor()) &&
             pushSelectionPanel(target, 1, 16, 32) &&
-            pushText(target, "TACTICAL MAP", -84, 19, 1, rowColor) &&
-            pushText(target, toggleLabel(tacticalMapValue), 20, 19, 1,
+            pushText(target, "TACTICAL MAP", -84, 19, scale, rowColor) &&
+            pushText(target, toggleLabel(tacticalMapValue), 20, 19, scale,
                 mutedTextColor()) &&
             pushSelectionPanel(target, 2, -4, 12) &&
-            pushText(target, "HIGH CONTRAST", -84, -1, 1, rowColor) &&
-            pushText(target, toggleLabel(highContrastValue), 20, -1, 1,
+            pushText(target, "HIGH CONTRAST", -84, -1, scale, rowColor) &&
+            pushText(target, toggleLabel(highContrastValue), 20, -1, scale,
                 mutedTextColor()) &&
             pushSelectionPanel(target, 3, -28, -12) &&
-            pushCenteredText(target, "BACK", -25, 1,
+            pushCenteredText(target, "BACK", -25, scale,
                 if (selectionValue == 3) selectedTextColor() else rowColor) &&
             pushCenteredText(target, "L/R CHANGE ENTER APPLY ESC BACK",
                 -43, 1, mutedTextColor())

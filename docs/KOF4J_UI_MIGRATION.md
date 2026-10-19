@@ -62,9 +62,13 @@ payload pointers or work that outlives the call. Kof keeps `FrameStaging`,
 the GPU payload into owned storage.
 
 The GPU V1 descriptor fixes schema, length, stride, generation and checksum,
-and scalar `kookie_gpu_scene_push_vertex_resource` remains the fallback.
-Native adapter/GPU runtime qualification is still pending because the local
-native Kof build exceeded its timeout and no headless GPU device was available.
+and scalar `kookie_gpu_scene_push_vertex_resource` remains the fallback. The
+focused native adapter and Vulkan renderer gate now passes on local
+`Intel(R) Graphics (ARL)` evidence with one draw call, 984 instances and p95
+frame time of `1710` microseconds. This qualifies the selected local Linux
+vertical slice; broader target hardware and cross-platform presentation remain
+release gates.
+
 
 ## Ownership map
 
