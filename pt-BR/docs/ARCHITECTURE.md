@@ -393,6 +393,10 @@ movimento e atacando. Os GLBs autorados de ganso/gato usam
 `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind limitadas a 32 juntas e clipes TRS
 `LINEAR`/`STEP` com fallback explícito. Ele segue a câmera autoritativa e
 redimensiona para pixels do dispositivo.
+Os sólidos e as rampas da arena também usam os mesmos oito tiles de material
+de mundo gerados e o mesmo mapeamento recurso→tile de
+`BoundedWorldTextureAsset` nativo; a arena do navegador não depende mais apenas
+de superfícies com cor plana.
 Isso é paridade semântica de renderização, não uma afirmação de equivalência
 pixel a pixel. Os atores do navegador usam deformação esquelética autorada dos
 GLBs e clipes de animação `LINEAR`/`STEP` amostrados; a apresentação nativa

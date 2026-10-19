@@ -402,6 +402,9 @@ and attack actor states. Authored goose/cat GLBs use `JOINTS_0`/`WEIGHTS_0`,
 inverse-bind palettes capped at 32 joints, and `LINEAR`/`STEP` TRS clips with
 fallback selection. It follows the authoritative camera and resizes for device
 pixels.
+Arena solids and ramps also sample the same eight generated world-material
+tiles and resource-to-tile mapping as native `BoundedWorldTextureAsset`; the
+browser arena no longer relies on flat-color-only surfaces.
 This is semantic rendering parity, not a pixel-equivalence claim. Browser
 actors use authored GLB skeletal deformation and sampled `LINEAR`/`STEP`
 animation clips; the current native presentation uploads the shared GLB

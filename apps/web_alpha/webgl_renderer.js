@@ -44,10 +44,24 @@
     uniform vec4 uColor;
     uniform vec3 uLight;
     uniform float uTime;
+    uniform float uWaterTime;
     uniform sampler2D uAlbedo;
     uniform bool uUseTexture;
+    uniform bool uWater;
+    uniform vec4 uWaterStyle;
+    uniform vec4 uWaterTint;
+    uniform vec4 uWaterToon;
     out vec4 outColor;
     void main() {
+      if (uWater) {
+        float phase = (vWorld.x + vWorld.z) * uWaterStyle.y +
+          uWaterTime * uWaterStyle.z;
+        float wave = sin(phase) * sin(phase * 0.73 + uWaterTime);
+        float caustic = step(0.0, wave) * uWaterStyle.w;
+        float toonLight = uWaterToon.x + caustic * uWaterToon.y;
+        outColor = vec4(uWaterTint.rgb * toonLight, uWaterToon.z);
+        return;
+      }
       vec3 normal = normalize(vNormal);
       float diffuse = max(dot(normal, normalize(uLight)), 0.0);
       float toon = floor(clamp(diffuse * 0.86 + 0.14, 0.0, 1.0) * 3.0) / 3.0;
@@ -79,33 +93,47 @@
   });
 
   const ARENA_SOLIDS = Object.freeze([
-    { box: [0, 0, 0, 4, 24, 280], color: COLORS.wall },
-    { box: [316, 0, 0, 320, 24, 280], color: COLORS.wall },
-    { box: [4, 0, 0, 316, 24, 4], color: COLORS.wall },
-    { box: [4, 0, 276, 316, 24, 280], color: COLORS.wall },
-    { box: [92, 6, 146, 228, 9, 158], color: [0.24, 0.30, 0.38, 1] },
-    { box: [154, 6, 92, 166, 9, 212], color: [0.24, 0.30, 0.38, 1] },
-    { box: [228, 6, 66, 308, 9, 78], color: [0.24, 0.30, 0.38, 1] },
-    { box: [36, 8, 64, 96, 11, 216], color: [0.30, 0.36, 0.28, 1] },
-    { box: [224, 8, 64, 284, 11, 216], color: [0.30, 0.36, 0.28, 1] },
-    { box: [48, 16, 16, 272, 18, 48], color: [0.18, 0.25, 0.28, 1] },
-    { box: [48, 16, 232, 272, 18, 264], color: [0.18, 0.25, 0.28, 1] },
-    { box: [64, 0, 112, 88, 14, 136], color: [0.48, 0.18, 0.22, 1] },
-    { box: [232, 0, 144, 256, 14, 168], color: [0.48, 0.18, 0.22, 1] },
-    { box: [112, 0, 72, 132, 5, 92], color: COLORS.cover },
-    { box: [188, 0, 184, 208, 5, 204], color: COLORS.cover },
+    { box: [0, 0, 0, 4, 24, 280], material: 8, color: COLORS.wall },
+    { box: [316, 0, 0, 320, 24, 280], material: 8, color: COLORS.wall },
+    { box: [4, 0, 0, 316, 24, 4], material: 8, color: COLORS.wall },
+    { box: [4, 0, 276, 316, 24, 280], material: 8, color: COLORS.wall },
+    { box: [92, 6, 146, 228, 9, 158], material: 5, color: [0.24, 0.30, 0.38, 1] },
+    { box: [154, 6, 92, 166, 9, 212], material: 5, color: [0.24, 0.30, 0.38, 1] },
+    { box: [228, 6, 66, 308, 9, 78], material: 5, color: [0.24, 0.30, 0.38, 1] },
+    { box: [36, 8, 64, 96, 11, 216], material: 6, color: [0.30, 0.36, 0.28, 1] },
+    { box: [224, 8, 64, 284, 11, 216], material: 6, color: [0.30, 0.36, 0.28, 1] },
+    { box: [48, 16, 16, 272, 18, 48], material: 7, color: [0.18, 0.25, 0.28, 1] },
+    { box: [48, 16, 232, 272, 18, 264], material: 7, color: [0.18, 0.25, 0.28, 1] },
+    { box: [64, 0, 112, 88, 14, 136], material: 4, color: [0.48, 0.18, 0.22, 1] },
+    { box: [232, 0, 144, 256, 14, 168], material: 4, color: [0.48, 0.18, 0.22, 1] },
+    { box: [112, 0, 72, 132, 5, 92], material: 3, color: COLORS.cover },
+    { box: [188, 0, 184, 208, 5, 204], material: 3, color: COLORS.cover },
+  ]);
+  const WATER_STYLES = Object.freeze([
+    Object.freeze({
+      style: [1, 0.7, 0.12, 0.16],
+      tint: [0.12, 0.56, 0.90, 1],
+      toon: [0.68, 0.28, 0.84, 1],
+    }),
+    Object.freeze({
+      style: [1, 0.9, 0.10, 0.12],
+      tint: [0.09, 0.47, 0.82, 1],
+      toon: [0.65, 0.25, 0.80, 1],
+    }),
   ]);
   const ARENA_WATER = Object.freeze([
-    [96, 5, 96, 224, 208],
-    [232, 4, 32, 304, 112],
+    Object.freeze({ bounds: [96, 5, 96, 224, 208], style: WATER_STYLES[0] }),
+    Object.freeze({ bounds: [232, 4, 32, 304, 112], style: WATER_STYLES[1] }),
   ]);
   const ARENA_RAMPS = Object.freeze([
     {
       vertices: [[20, 0, 56], [20, 0, 80], [40, 8, 80], [40, 8, 56]],
+      material: 6,
       color: [0.30, 0.38, 0.32, 1],
     },
     {
       vertices: [[280, 8, 200], [280, 8, 224], [300, 0, 224], [300, 0, 200]],
+      material: 6,
       color: [0.30, 0.38, 0.32, 1],
     },
   ]);
@@ -344,7 +372,7 @@
     });
   }
 
-  function boxGeometry(gl, size, color) {
+  function boxGeometry(gl, size, color, texture = null) {
     const [width, height, depth] = size.map((value) => value / 2);
     const positions = new Float32Array([
       -width, -height, depth, width, -height, depth, width, height, depth, -width, height, depth,
@@ -362,12 +390,20 @@
       0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
       0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
     ]);
+    const uvs = new Float32Array([
+      0, 0, 1, 0, 1, 1, 0, 1,
+      0, 0, 1, 0, 1, 1, 0, 1,
+      0, 0, 1, 0, 1, 1, 0, 1,
+      0, 0, 1, 0, 1, 1, 0, 1,
+      0, 0, 1, 0, 1, 1, 0, 1,
+      0, 0, 1, 0, 1, 1, 0, 1,
+    ]);
     const indices = [];
     for (let face = 0; face < 6; face += 1) {
       const offset = face * 4;
       indices.push(offset, offset + 1, offset + 2, offset, offset + 2, offset + 3);
     }
-    return createMesh(gl, positions, normals, null, indices, color);
+    return createMesh(gl, positions, normals, uvs, indices, color, texture);
   }
   function diamondGeometry(gl, color) {
     const positions = new Float32Array([
@@ -379,6 +415,64 @@
       2, 1, 4, 2, 5, 1, 2, 3, 5, 2, 4, 3,
     ];
     return createMesh(gl, positions, null, null, indices, color);
+  }
+  function createWorldMaterialTexture(gl) {
+    const width = 256;
+    const height = 128;
+    const tileSize = 64;
+    const colors = [
+      [92, 102, 112], [42, 118, 156], [156, 68, 52], [126, 116, 88],
+      [54, 124, 74], [172, 128, 42], [86, 68, 142], [36, 42, 50],
+    ];
+    const pixels = new Uint8Array(width * height * 4);
+    for (let material = 0; material < colors.length; material += 1) {
+      const tileX = (material % 4) * tileSize;
+      const tileY = Math.floor(material / 4) * tileSize;
+      for (let y = 0; y < tileSize; y += 1) {
+        for (let x = 0; x < tileSize; x += 1) {
+          let shade = -8;
+          if ((Math.floor(x / 8) + Math.floor(y / 8) + material) % 2 === 0) {
+            shade = 14;
+          }
+          if (material === 2 &&
+              (y % 16 < 2 || (x + Math.floor(y / 16) * 12) % 32 < 2)) {
+            shade = -30;
+          }
+          if (material === 5 && (x + y) % 20 < 8) shade = 26;
+          if (material === 7 && (x % 16 < 2 || y % 16 < 2)) shade = 28;
+          const offset = ((tileY + y) * width + tileX + x) * 4;
+          pixels[offset] = Math.max(0, Math.min(255, colors[material][0] + shade));
+          pixels[offset + 1] = Math.max(0, Math.min(255, colors[material][1] + shade));
+          pixels[offset + 2] = Math.max(0, Math.min(255, colors[material][2] + shade));
+          pixels[offset + 3] = 255;
+        }
+      }
+    }
+    const texture = gl.createTexture();
+    if (!texture) return null;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(
+      gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, pixels,
+    );
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return texture;
+  }
+
+  const WORLD_MATERIAL_UVS = Object.freeze([
+    [0, 0.5, 0.25, 0.5], [0.25, 0.5, 0.25, 0.5],
+    [0.5, 0.5, 0.25, 0.5], [0.75, 0.5, 0.25, 0.5],
+    [0, 0, 0.25, 0.5], [0.25, 0, 0.25, 0.5],
+    [0.5, 0, 0.25, 0.5], [0.75, 0, 0.25, 0.5],
+  ]);
+  function worldMaterialUv(resource) {
+    const tile = Math.max(0, Math.min(7, resource - 1));
+    return WORLD_MATERIAL_UVS[tile];
   }
   function planeGeometry(gl, color, texture) {
     const positions = new Float32Array([
@@ -405,9 +499,13 @@
       gl, positions, normals, uvs, [0, 1, 2, 0, 2, 3], color,
     );
   }
-  function rampGeometry(gl, top, color) {
+  function rampGeometry(gl, top, color, texture = null) {
     const bottom = top.map(([x, , z]) => [x, 0, z]);
     const positions = new Float32Array([...top, ...bottom].flat());
+    const uvs = new Float32Array([
+      0, 0, 1, 0, 1, 1, 0, 1,
+      0, 0, 1, 0, 1, 1, 0, 1,
+    ]);
     const indices = [
       0, 1, 2, 0, 2, 3,
       4, 6, 5, 4, 7, 6,
@@ -416,7 +514,7 @@
       2, 6, 7, 2, 7, 3,
       3, 7, 4, 3, 4, 0,
     ];
-    return createMesh(gl, positions, null, null, indices, color);
+    return createMesh(gl, positions, null, uvs, indices, color, texture);
   }
 
 
@@ -1036,15 +1134,21 @@
       color: gl.getUniformLocation(program, "uColor"),
       light: gl.getUniformLocation(program, "uLight"),
       time: gl.getUniformLocation(program, "uTime"),
+      waterTime: gl.getUniformLocation(program, "uWaterTime"),
       uvScale: gl.getUniformLocation(program, "uUvScale"),
       uvOffset: gl.getUniformLocation(program, "uUvOffset"),
       albedo: gl.getUniformLocation(program, "uAlbedo"),
       useTexture: gl.getUniformLocation(program, "uUseTexture"),
+      water: gl.getUniformLocation(program, "uWater"),
+      waterStyle: gl.getUniformLocation(program, "uWaterStyle"),
+      waterTint: gl.getUniformLocation(program, "uWaterTint"),
+      waterToon: gl.getUniformLocation(program, "uWaterToon"),
       joints: gl.getUniformLocation(program, "uJoints[0]"),
       useSkinning: gl.getUniformLocation(program, "uUseSkinning"),
     };
+    const worldMaterialTexture = createWorldMaterialTexture(gl);
     const fallbackMeshes = {
-      solid: boxGeometry(gl, [1, 1, 1], [1, 1, 1, 1]),
+      solid: boxGeometry(gl, [1, 1, 1], [1, 1, 1, 1], worldMaterialTexture),
       water: horizontalPlaneGeometry(gl, [1, 1, 1, 1]),
       shadow: horizontalPlaneGeometry(gl, COLORS.shadow),
       actor: boxGeometry(gl, [8, 14, 8], COLORS.actor),
@@ -1053,7 +1157,7 @@
       vfx: boxGeometry(gl, [12, 1, 12], COLORS.vfx),
     };
     const rampMeshes = ARENA_RAMPS.map((ramp) =>
-      rampGeometry(gl, ramp.vertices, ramp.color));
+      rampGeometry(gl, ramp.vertices, [1, 1, 1, 1], worldMaterialTexture));
 
     const assets = { goose: null, cat: null, hearts: null };
     const vfxTextures = new Array(VFX_ASSETS.length).fill(null);
@@ -1108,10 +1212,25 @@
 
     function draw(
       meshes, model, tint, time, viewProjection, uvRect = [0, 0, 1, 1],
-      skinMatricesByNode = null,
+      skinMatricesByNode = null, waterStyle = null,
     ) {
       gl.uniform2f(locations.uvScale, uvRect[2], uvRect[3]);
       gl.uniform2f(locations.uvOffset, uvRect[0], uvRect[1]);
+      gl.uniform1i(locations.water, waterStyle ? 1 : 0);
+      if (waterStyle) {
+        gl.uniform4f(
+          locations.waterStyle, waterStyle.style[0], waterStyle.style[1],
+          waterStyle.style[2], waterStyle.style[3],
+        );
+        gl.uniform4f(
+          locations.waterTint, waterStyle.tint[0], waterStyle.tint[1],
+          waterStyle.tint[2], waterStyle.tint[3],
+        );
+        gl.uniform4f(
+          locations.waterToon, waterStyle.toon[0], waterStyle.toon[1],
+          waterStyle.toon[2], waterStyle.toon[3],
+        );
+      }
       for (const mesh of meshes || []) {
         const skinMatrices = mesh.skinned && skinMatricesByNode
           ? skinMatricesByNode[mesh.skinNode] : null;
@@ -1167,11 +1286,15 @@
       gl.uniformMatrix4fv(locations.viewProjection, false, new Float32Array(viewProjection));
       gl.uniform3f(locations.light, -0.45, 0.9, 0.35);
       gl.uniform1f(locations.time, time * 0.001);
+      gl.uniform1f(
+        locations.waterTime,
+        Number.isFinite(scene.tick) ? Math.max(0, scene.tick) / 60 : time * 0.001,
+      );
 
       draw(
         [fallbackMeshes.solid],
         transform([160, -0.5, 140], [320, 1, 280]),
-        COLORS.floor, time, viewProjection,
+        [1, 1, 1, 1], time, viewProjection, worldMaterialUv(1),
       );
       for (const entry of ARENA_SOLIDS) {
         const [left, bottom, front, right, top, back] = entry.box;
@@ -1181,27 +1304,29 @@
             [(left + right) / 2, (bottom + top) / 2, (front + back) / 2],
             [right - left, top - bottom, back - front],
           ),
-          entry.color, time, viewProjection,
+          [1, 1, 1, 1], time, viewProjection, worldMaterialUv(entry.material),
         );
       }
       for (let index = 0; index < ARENA_RAMPS.length; index += 1) {
         draw(
           [rampMeshes[index]],
           identity(),
-          ARENA_RAMPS[index].color, time, viewProjection,
+          [1, 1, 1, 1], time, viewProjection,
+          worldMaterialUv(ARENA_RAMPS[index].material),
         );
       }
 
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      for (const [minX, surfaceY, minZ, maxX, maxZ] of ARENA_WATER) {
+      for (const entry of ARENA_WATER) {
+        const [minX, surfaceY, minZ, maxX, maxZ] = entry.bounds;
         draw(
           [fallbackMeshes.water],
           transform(
             [(minX + maxX) / 2, surfaceY, (minZ + maxZ) / 2],
             [maxX - minX, 1, maxZ - minZ],
           ),
-          COLORS.water, time, viewProjection,
+          [1, 1, 1, 1], time, viewProjection, undefined, null, entry.style,
         );
       }
       gl.disable(gl.BLEND);

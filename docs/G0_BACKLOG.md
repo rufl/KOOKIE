@@ -49,6 +49,13 @@ player-facing demo release. The open D1 gate is tracked in
 - The two authored G1 slopes are now represented in the browser authority:
   deterministic ramp-floor resolution keeps traversal aligned with native
   movement, while WebGL2 draws the same sloped surfaces.
+- Arena solid and ramp surfaces now sample a browser-generated 8-tile
+  material atlas whose colors, checker/detail rules and resource mapping match
+  the native `BoundedWorldTextureAsset`; untextured flat-color geometry is no
+  longer the browser's arena presentation path.
+- Browser water now uses the native style parameters for pool/channel tint,
+  toon base/contrast, caustic scale/speed/strength and animated phase rather
+  than a single translucent flat color.
 - Browser accepted events now cover melee/slash (5), fire/flare (6),
   special/explosion (8), jump/electric ring (13), hit/impact (15),
   death/predrawn explosion (12) and liquid-enter/particle circle (14 → 0).

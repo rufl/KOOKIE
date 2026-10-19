@@ -40,6 +40,14 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   flipbooks e imagens predrawn. `scripts/build_web_alpha.sh` publica e verifica
   o fechamento completo do pacote: manifest, catálogo, JSON de runtime, 82 GLBs
   e 16 PNGs de VFX.
+- As superfícies sólidas e rampas da arena agora usam um atlas de materiais
+  de 8 tiles gerado no navegador, cujas cores, regras de checker/detalhe e
+  mapeamento de recursos correspondem ao `BoundedWorldTextureAsset` nativo;
+  geometria da arena sem textura e apenas com cor plana deixou de ser o caminho
+  de apresentação do navegador.
+- A água do navegador agora usa os parâmetros nativos de estilo para tintas,
+  toon base/contraste, escala/velocidade/força de caústica e fase animada da
+  piscina/canal, em vez de uma única cor translúcida plana.
 
 - O renderer WebGL2 do navegador expõe captura interna P6 para qualificação:
   preserva e lê o framebuffer por `readPixels`. `window.KookieBrowserCapture`
