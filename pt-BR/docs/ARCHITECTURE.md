@@ -212,6 +212,43 @@ geometria room-over-room é resolvida pela câmera/profundidade da GPU, não por
 projeção inteira para a tela. Kof possui a entrada da câmera e a extração
 mundial; o adaptador nativo possui apenas recursos, uploads e submissão GPU.
 
+### Investigação do Blockcraft: lições de apresentação limitada
+
+A investigação do Blockcraft fornece somente observações de design; ela não
+altera a divisão de autoridade nem as afirmações de implementação do KOOKIE.
+O runtime usa um framebuffer/alvo de renderização interno cujas dimensões podem
+ser menores que a viewport CSS/janela, e depois o apresenta no tamanho da
+janela; a filtragem nearest/pixelated é uma política de apresentação. Para o
+KOOKIE, qualquer alvo interno futuro e contrato explícito e limitado de
+visão do frame/apresentação pertencem à apresentação do cliente e permanecem
+limitados por `FrameStaging`/wires de conteúdo como arrays possuídos pelo Kof.
+O código nativo valida escalares verificados, copia buffers limitados para
+armazenamento possuído pelo C, e o SDL_GPU faz upload/draw/present. GPU ou
+WebGL é mecanismo de apresentação, nunca autoridade de jogabilidade.
+
+Kof continua responsável pela extração de renderização, culling, ordenação e
+política de passes; o lado nativo fornece somente mecanismos de apresentação.
+
+A política do cliente PODE expor controles limitados de orçamento de renderização
+para resolução interna, FOV, distância de renderização e framerate máximo.
+Esses controles afetam somente o trabalho de extração e apresentação, não a
+simulação autoritativa. A arquitetura atual permanece com uma única thread Kof;
+trabalho independente por tiles é somente uma futura fronteira limitada, não
+um recurso atual nem evidência para jobs nativos sem qualificação.
+
+Observou-se `bcPresent(ptr,w,h,smooth)` do Blockcraft como um framebuffer WASM
+copiado para staging persistente de bytes em JavaScript, seguido de upload de
+textura WebGL e desenho de um triângulo em tela cheia. Isso estabelece um
+caminho de apresentação/blit, não rasterização de cena pela GPU nem um algoritmo
+específico de rasterização do WASM. O WASM removido/ofuscado não expôs um
+algoritmo confiável de tiles/binning; o KOOKIE não faz essa afirmação e não
+adiciona um rasterizador de CPU.
+
+Nenhum código, WASM ou asset do Blockcraft é importado ou copiado. Os créditos
+públicos identificam uso privado/não comercial e não fornecem licença de
+redistribuição para seus assets; portanto nenhum código ou asset é reutilizado
+sem liberação separada de licença e proveniência.
+
 
 ### Adaptador nativo
 
@@ -338,11 +375,19 @@ A saída web atual é uma UI KofJS limitada e um cliente de navegador completo.
 Inclui handshake/heartbeat binário WebSocket, eco de protocolo, sonda de cena
 autoritativa completa, entrada por teclado/botão/mouse, look com pointer lock,
 snapshots limitados validados, HUD acessível com minimapa superior e renderer
-WebGL2 direto em `apps/web_alpha/webgl_renderer.js`. O snapshot completo leva a
-câmera do jogador, quatro atores com vida/estado/tipo, um projétil limitado e um
-pickup; o renderer usa os GLBs staged de ganso, gato, chão e parede sem
-dependência de Three.js. Ele segue a câmera autoritativa e redimensiona para
-pixels do dispositivo. O cliente bloqueia os controles de jogo até a chegada da
+WebGL2 direto em `apps/web_alpha/webgl_renderer.js`. O snapshot completo de 68
+palavras leva a câmera do jogador, quatro atores com vida/estado/tipo/direção,
+um projétil limitado, um pickup e um evento de VFX com ID de asset e posição.
+O renderer usa os GLBs staged de ganso, gato, chão, parede e cobertura sem
+dependência de Three.js, incluindo imagens base-color embutidas/anexas,
+transforms de nós autorados e materiais em bandas toon; os 16 assets nativos de
+partículas, flipbooks e predrawn são publicados e os IDs 5/6/8 mapeiam
+melee/tiro/especial. Nativo e web compartilham deliberadamente o subconjunto
+material base-color; o renderer também aplica uma elevação procedural
+determinística orientada por estado para atores parados, em movimento e
+atacando. O navegador ainda não faz skin das animações de esqueleto autoradas
+do ganso/gato; esse continua sendo o limite explícito de paridade esquelética.
+Ele segue a câmera autoritativa e redimensiona para pixels do dispositivo.
 cena completa, oferece reconexão automática limitada com estados visíveis de
 carregamento/falha e persiste localmente as preferências de minimapa, pointer
 lock e movimento reduzido. O navegador usa fallback 2D visível quando WebGL2 não

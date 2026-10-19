@@ -340,11 +340,12 @@ class BoundedPhysicsBodyWorld {
             }
         }
 
+        var requestedX = positionsX[slot] + velocitiesX[slot]
+        var requestedY = positionsY[slot] + velocitiesY[slot]
+        var requestedZ = positionsZ[slot] + velocitiesZ[slot]
         var movement = contact.move(
             positionsX[slot], positionsY[slot], positionsZ[slot],
-            positionsX[slot] + velocitiesX[slot],
-            positionsY[slot] + velocitiesY[slot],
-            positionsZ[slot] + velocitiesZ[slot])
+            requestedX, requestedY, requestedZ)
         if (!movement.accepted()) {
             return rejected(id, slot)
         }
@@ -362,6 +363,18 @@ class BoundedPhysicsBodyWorld {
             nextX = dynamicMovement.resolvedX()
             nextY = dynamicMovement.resolvedY()
             nextZ = dynamicMovement.resolvedZ()
+        }
+        if (movement.collided()) {
+            if (nextX != requestedX) { velocitiesX[slot] = 0 }
+            if (nextY != requestedY && !movement.grounded()) {
+                velocitiesY[slot] = 0
+            }
+            if (nextZ != requestedZ) { velocitiesZ[slot] = 0 }
+        }
+        if (dynamicMovement.collided()) {
+            if (nextX != movement.resolvedX()) { velocitiesX[slot] = 0 }
+            if (nextY != movement.resolvedY()) { velocitiesY[slot] = 0 }
+            if (nextZ != movement.resolvedZ()) { velocitiesZ[slot] = 0 }
         }
         positionsX[slot] = nextX
         positionsY[slot] = nextY

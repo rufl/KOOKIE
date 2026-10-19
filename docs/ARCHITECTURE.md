@@ -225,6 +225,41 @@ and overlaid by SDL. Kof owns camera input, world extraction, texture
 generation, UV mapping and pass selection. The native adapter only owns GPU
 resources, scalar transfers and draw submission.
 
+### Blockcraft investigation: bounded presentation lessons
+
+The Blockcraft investigation contributes design observations only; it does not
+change KOOKIE's authority split or implementation claims. Its runtime uses an
+internal framebuffer/render target whose dimensions can be lower than the
+CSS/window viewport, then presents it at window size; nearest/pixelated
+filtering is a presentation policy. For KOOKIE, any future internal target and
+explicit bounded frame-view/presentation contract belong to client presentation
+and remain bounded by `FrameStaging`/content wires as Kof-owned arrays. Native
+code validates checked scalars, copies bounded buffers into C-owned storage,
+and SDL_GPU performs upload/draw/present. GPU or WebGL is a presentation
+mechanism, never gameplay authority.
+
+Kof continues to own render extraction, culling, sorting and pass policy; the
+native side only provides presentation mechanisms.
+
+Client-side policy MAY expose bounded render-budget controls for internal
+resolution, FOV, render distance and maximum framerate. These controls affect
+extraction and presentation work only, not authoritative simulation. The
+current architecture remains one Kof thread; independent tiles are only a
+future bounded implementation seam, not a current feature or evidence for
+unqualified native worker jobs.
+
+Blockcraft's `bcPresent(ptr,w,h,smooth)` was observed as a WASM framebuffer
+copied into persistent JavaScript byte staging, followed by WebGL texture
+upload and fullscreen-triangle drawing. This establishes a presentation/blit
+path, not GPU scene rasterization or a particular WASM raster algorithm. The
+stripped/obfuscated WASM did not expose a trustworthy tile/binning algorithm;
+KOOKIE makes no such claim and adds no CPU rasterizer.
+
+No Blockcraft code, WASM or assets are imported or copied. Public credits
+identify private/non-commercial use and do not provide a redistribution license
+for its assets; therefore no code or assets are reused without separate
+license and provenance clearance.
+
 
 ### Native adapter
 
@@ -350,16 +385,25 @@ The current web output is a bounded KofJS UI and browser client. It includes a
 binary WebSocket handshake/heartbeat, protocol echo, full authoritative scene
 probe, keyboard/button/mouse input, pointer-lock look, validated bounded scene
 snapshots, an accessible HUD with a top-down minimap, and a direct WebGL2
-renderer in `apps/web_alpha/webgl_renderer.js`. The full scene snapshot carries
-the player camera, four actors with health/state/kind, one bounded projectile,
-and one pickup; the renderer uses the staged goose, cat, ground and wall GLB
-assets without a Three.js dependency. It follows the authoritative camera and
-resizes for device pixels. The client gates gameplay controls until the full
-scene arrives, exposes bounded automatic reconnect with visible loading/failure
-states, and persists minimap, pointer-lock and reduced-motion preferences
-locally. The browser falls back to a visible 2D canvas when WebGL2 is
-unavailable. The gateway supports optional WSS termination, bounded bearer-token
-admission plus `GET /healthz` and `GET /metrics` routes:
+renderer in `apps/web_alpha/webgl_renderer.js`. The 68-word full scene snapshot
+carries the player camera, four actors with health/state/kind/facing, one
+bounded projectile, one pickup and a positioned VFX asset event. The renderer
+consumes staged goose, cat, ground, wall and cover GLBs without a Three.js
+dependency, including embedded or attached base-color images, authored node
+transforms and toon-banded materials; all 16 native-registered particle,
+flipbook and predrawn VFX sheets are staged, with event IDs 5/6/8 currently
+mapped to melee/fire/special. Native and web intentionally share the
+base-color-only material subset; the renderer also applies a deterministic,
+state-driven procedural lift for idle, moving and attack actor states. The
+browser still does not skin the authored goose/cat skeleton animations; that
+remains the explicit skeletal-animation parity boundary. It follows the
+authoritative camera and resizes for device pixels.
+The client gates gameplay controls until the full scene arrives, exposes bounded
+automatic reconnect with visible loading/failure states, and persists minimap,
+pointer-lock and reduced-motion preferences locally. The browser falls back to
+a visible 2D canvas when WebGL2 is unavailable. The gateway supports optional
+WSS termination, bounded bearer-token admission plus `GET /healthz` and
+`GET /metrics` routes:
 `--auth-token` requires the browser's `bearer.<token>` WebSocket subprotocol
 alongside `kookie.v1` and rejects missing or incorrect tokens before admission.
 `--auth-token-file` provides the same admission contract without exposing the

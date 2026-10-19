@@ -27,6 +27,44 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   o passo do pin Kof. A release `.64` ainda não existe; a publicação continua
   bloqueada por uma nova execução, evidência de alvo e aprovação de
   `kookie-demo-release`.
+## Corte de paridade navegador/nativo
+
+- O contrato de cena completa do navegador agora tem 68 palavras: carrega o
+  ID de asset de VFX autoritativo e a posição do evento junto de atores,
+  projétil, pickup e um yaw por ator. Os IDs 0–15 correspondem ao registro
+  nativo `worldVfxAsset*`; o gateway mapeia melee para slash (5), tiro para
+  flare (6) e especial para explosão (8).
+- O renderer WebGL2 direto consome imagens base-color embutidas ou anexas aos
+  GLBs, transforms de nós autorados, direção dos atores, elevação procedural
+  orientada por estado, materiais em bandas toon e os 16 sheets de partículas,
+  flipbooks e imagens predrawn. `scripts/build_web_alpha.sh` publica e verifica
+  o fechamento completo do pacote: manifest, catálogo, JSON de runtime, 82 GLBs
+  e 16 PNGs de VFX.
+
+- Os dois renderers do navegador agora expõem captura interna P6 para
+  qualificação: WebGL2 preserva e lê o framebuffer, enquanto o fallback 2D lê
+  `ImageData`. `window.KookieBrowserCapture` retorna a captura ativa e uma
+  captura isolada do fallback com dimensões, checksum, contagem de pixels não
+  pretos e bytes PPM em base64.
+- O movimento FPS nativo agora usa wish vectors normalizados em ponto fixo e
+  aceleração por projeção, preservando coyote time, buffer de pulo, controle
+  aéreo e frenagem suave no passo fixo. A regressão de diagonalização é segura
+  para JVM/nativo e não exige execução de GPU.
+- Contatos físicos estáticos e dinâmicos agora zeram componentes de velocidade
+  bloqueados; a regressão verifica que um bloqueador dinâmico não retém
+  velocidade horizontal obsoleta.
+- O caminho GLB atual do navegador cobre malha/material/níveis de nós/direção e
+  agora consome o estado autoritativo dos atores para uma elevação determinística
+  de repouso/movimento/ataque, mas ainda não faz skin dos esqueletos animados do
+  ganso/gato. Skin esquelético continua um próximo corte explícito, não um
+  fallback oculto.
+- A qualificação de apresentação Linux controlada pela fila passou pelo
+  `scripts/verify_presentation.sh` no ticket 31. O smoke nativo usou X11 sob
+  gamescope, `/dev/dri/renderD128`, capacidade positiva de present, áudio,
+  captura PPM e saída limpa; a evidência está em
+  `build/kookie-presentation-wrapper.json`. O log identifica Intel Graphics
+  (ARL) via Vulkan; isso não é declarado como evidência de hardware A770.
+
 
 
 ## Concluído
@@ -77,6 +115,10 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   A evidência valida resize/foco, draw GPU, áudio, screenshot e saída limpa sem
   registrar o host operacional neste repositório.
 - Quando uma janela compatível com apresentação está disponível, `KOOKIE_SCREENSHOT_PATH` exporta o frame capturado do swapchain como PPM binário; o caminho continua protegido por capacidade e não é definido por padrão.
+- O gate focado `scripts/verify_native_presentation_smoke.sh` usa X11 dentro
+  do gamescope, publica o build e o PPM em caminhos visíveis ao sandbox e
+  carrega todo o JSON de runtime antes de validar markers GPU, áudio, captura
+  PPM e saída limpa.
 - `CombatWorld` agora fornece definições autoritativas limitadas de armas, estado de recarga de magazine/reserva, disparos atômicos protegidos por cooldown, dano com armadura, críticos e exatamente uma transição de vivo para morto por ator; testes JVM/nativos cobrem atomicidade de munição e invariantes de dano/morte.
 - `CombatWorld` agora resolve disparos hitscan e projéteis limitados pela mesma autoridade de arma/alcance/dano, consome slots de projéteis deterministicamente e publica eventos sequenciados de hit/morte sem descartar silenciosamente eventos críticos; testes JVM/nativos cobrem rejeição por alcance, atomicidade de munição, aposentadoria de projéteis e ordem de eventos.
 - `EnemyStateWorld` agora implementa transições determinísticas idle/patrol/investigate/chase/attack/recover/stagger/dead com percepção e deadlines de ataque inteiros; `EncounterDirector` impõe limites ativos e orçamentos de spawn, com testes JVM/nativos para cooldown, morte terminal e overflow de admissão.

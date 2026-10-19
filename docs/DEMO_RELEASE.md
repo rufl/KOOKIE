@@ -42,16 +42,18 @@ pin. The release patch digest is
 
 ### Current working-tree engineering qualification
 
-The current working tree passed the exact pinned Kof `0.6.5` local gate in
-`1482.16s`. Package smoke passed in `230.01s` after temporary reuse of the
-server, content-kooker and SIMD native builds. The gate also passed the local
-native adapter and Vulkan renderer on Intel `Graphics (ARL)` with one draw
-call, 984 instances and p95 frame time of `1710` microseconds.
+The focused native presentation gate passed through
+`scripts/verify_presentation.sh` on queue ticket 31. The smoke used X11 under
+gamescope, a real window on `/dev/dri/renderD128`, positive present capability,
+audio, P6 screenshot capture and clean exit. Evidence is retained in
+`build/kookie-presentation-wrapper.json`; the log identifies Intel `Graphics
+(ARL)` through Vulkan.
 
 This is engineering evidence, not a release identity: the working tree is
-dirty, the package smoke used an ephemeral qualification key, and this host
-has no `/dev/dri/renderD*` node for the required isolated interactive smoke.
-The D1 target-hardware and paired-publication gates therefore remain open.
+dirty, the package smoke uses an ephemeral qualification key, and the clean
+extracted Linux/Windows publication plus target Windows presentation evidence
+remain required for D1 promotion. The queue result is not claimed as A770
+hardware evidence.
 
 
 The current source tree has these release-capable paths:

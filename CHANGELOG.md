@@ -3,15 +3,62 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Completed the bounded browser 3D scene slice: the WebSocket gateway now
-  serves a 61-word authoritative snapshot with player/camera state, four
-  actors, a projectile and a pickup, plus bounded movement, look, jump and
-  fire commands. The KofJS client renders the staged goose, cat, ground and
-  wall GLB assets through a direct WebGL2/GLSL ES 3.00 renderer, exposes
-  keyboard/button/mouse controls, an expanded HUD with a top-down minimap,
-  pointer lock, persistent accessibility/settings preferences, bounded automatic
-  reconnect, and a visible 2D fallback; the browser build stages the required
-  assets.
+- Browser/native parity work now keeps the 68-word scene payload authoritative
+  for player/camera state, four actors, a projectile, a pickup and
+  event-positioned VFX. The gateway's full-scene movement path now uses
+  normalized wish acceleration, ground friction, air braking, coyote time,
+  jump buffering, one air jump, swept axis collision against the G1 arena
+  boxes and floor/platform support; the native Kof controller remains the
+  canonical fixed-step implementation.
+- Accepted browser events now emit slash (5), flare (6), explosion (8), jump
+  (13), hit (15), death (12) and liquid-enter (14, rendered with particle
+  asset 0) cues. Native presentation consumes the authoritative per-player
+  jump edge and stages the magic particle at the resolved movement position.
+- The WebGL2 renderer now writes its fragment output explicitly, stages the
+  canonical G1 perimeter, covers, towers, raised crossings and water sectors,
+  and exports the same arena geometry to the 2D fallback. Camera yaw uses the
+  same forward convention as the authoritative browser state.
+- Added the two authored G1 ramp surfaces to the browser authority and
+  renderers. The gateway now resolves deterministic ramp floor heights while
+  the WebGL and 2D paths draw the same sloped crossings instead of reducing
+  them to flat-box geometry.
+- Native presentation smoke now stages its adapter build and required PPM
+  under the workspace-visible `build/` tree before entering the private
+  display sandbox, then copies an explicitly requested screenshot path after
+  the sandbox exits.
+- Added `scripts/verify_native_presentation_smoke.sh` as the focused,
+  queue-safe presentation gate. Required presentation defaults to X11 inside
+  gamescope and stages the complete runtime JSON, preventing offscreen
+  assertion dialogs and missing liquid configuration during the native smoke.
+- The browser build stages the complete prototype package closure: manifest,
+  editor catalog, runtime JSON, 82 GLBs and 16 VFX PNGs. The live renderer
+  intentionally consumes only the canonical goose/cat actors and the
+  authoritative arena placement; editor-only catalog entries are not
+  fabricated into runtime placements.
+- The WebGL2 client consumes embedded `bufferView` or external `uri`
+  GLB base-color images, authored node transforms, toon-banded materials and
+  all 16 VFX sheets; native presentation retains the self-contained embedded
+  GLB subset and requires external images to be resolved by the offline cook,
+  not by frame-time filesystem access. A visible 2D fallback remains available
+  when WebGL2 is unavailable.
+- Both browser renderer paths now expose internal P6 screenshot capture:
+  WebGL2 reads the preserved framebuffer through `readPixels`, while the
+  2D fallback reads `ImageData`. `window.KookieBrowserCapture` exposes the
+  active capture and an isolated fallback capture with dimensions, checksum,
+  non-black-pixel count and base64 PPM bytes for validation.
+- Replaced independent per-axis FPS velocity approach with fixed-point
+  normalized wish-vector projection and acceleration. Fixed-step coyote time,
+  jump buffering, air control and eased braking remain in the authoritative
+  Kof controller; diagonal normalization has JVM/native regression coverage.
+- The browser WebGL2 actor pass now consumes authoritative actor state for a
+  deterministic procedural lift across idle, moving and attack states, matching
+  the native presentation's bounded state cues without pretending to skin the
+  authored goose/cat skeletons. Skeletal GLB animation remains the explicit
+  parity boundary.
+- Physics body integration now clips blocked velocity components that are
+  blocked by static or dynamic capsule contacts instead of carrying stale
+  velocity into colliders; the regression contract covers the clipped dynamic
+  response.
 - Added `scripts/dev_test.sh` as the fast JVM-first inner loop: it runs the
   144-test `src/main.kf` regression suite without native assembly, linking,
   packaging or presentation gates; set `KOOKIE_DEV_TARGET=native` for a

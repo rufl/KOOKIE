@@ -20,20 +20,28 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from kookie_websocket_session import (  # noqa: E402
-    GAME,
+    AuthoritativeGameState,
     ERROR,
+    GAME,
     GAME_COMMAND_MARKER,
-    GAME_MOVE_LEFT,
+    GAME_FIRE,
     GAME_FULL_SCENE_PROBE,
     GAME_FULL_SCENE_SNAPSHOT_MARKER,
-    GAME_SNAPSHOT_MARKER,
+    GAME_JUMP,
     GAME_MELEE,
     GAME_MOVE_FORWARD,
+    GAME_MOVE_LEFT,
+    GAME_PROBE_PAYLOAD,
     GAME_RESET,
     GAME_SCENE_PROBE,
     GAME_SCENE_SNAPSHOT_MARKER,
+    GAME_SNAPSHOT_MARKER,
+    GAME_STRAFE_LEFT,
+    GAME_STRAFE_RIGHT,
     GAME_SPECIAL,
-    GAME_PROBE_PAYLOAD,
+    GAME_VFX_DEATH,
+    GAME_VFX_HIT,
+    GAME_VFX_LIQUID,
     HELLO,
     PING,
     PONG,
@@ -43,7 +51,7 @@ from kookie_websocket_session import (  # noqa: E402
 )
 
 
-MAX_PAYLOAD = 16 + 64 * 4
+MAX_PAYLOAD = 16 + 68 * 4
 
 
 def recv_exact(sock: socket.socket, count: int) -> bytes:
@@ -202,8 +210,65 @@ def admit_hello(sock: socket.socket) -> None:
     ack = decode_session_frame(payload)
     assert ack.kind == 2 and ack.sequence == 1 and ack.words[3] == 1
 
+def run_authoritative_physics() -> None:
+    state = AuthoritativeGameState(full_mode=True)
+    state.apply_command(GAME_MOVE_FORWARD, 8)
+    assert (state.player_z, state.velocity_z, state.grounded) == (55, 3, True)
+    state.apply_command(GAME_FIRE, 0)
+    assert (state.player_z, state.velocity_z) == (56, 1)
+    state.apply_command(GAME_JUMP, 0)
+    assert state.player_y == 12 and not state.grounded
+
+    state = AuthoritativeGameState(full_mode=True)
+    state.player_x = 35
+    state.player_y = 11
+    state.player_z = 100
+    state.grounded = True
+    state.apply_command(GAME_STRAFE_LEFT, -8)
+    assert not state.grounded and state.coyote_ticks > 0
+    state.apply_command(GAME_JUMP, 0)
+    assert state.player_y > 11 and not state.grounded
+
+    state = AuthoritativeGameState(full_mode=True)
+    state.player_x = 60
+    state.player_z = 124
+    for _ in range(8):
+        state.apply_command(GAME_STRAFE_RIGHT, 8)
+    assert state.player_x == 62 and state.velocity_x == 0
+    state = AuthoritativeGameState(full_mode=True)
+    state.player_x = 20
+    state.player_y = 0
+    state.player_z = 68
+    state.grounded = True
+    state.apply_command(GAME_STRAFE_RIGHT, 8)
+    assert (state.player_x, state.player_y, state.grounded) == (23, 1, True)
 
 
+    state = AuthoritativeGameState(full_mode=True)
+    state.player_x = 96
+    state.player_z = 80
+    state.apply_command(GAME_MELEE, 0)
+    assert state.vfx == GAME_VFX_HIT and state.actor_health[0] == 82
+    for _ in range(5):
+        state.apply_command(GAME_MELEE, 0)
+    assert state.vfx == GAME_VFX_DEATH and state.actor_state[0] == 4
+
+    state = AuthoritativeGameState(full_mode=True)
+    state.player_x = 96
+    state.player_z = 96
+    state.apply_command(GAME_FIRE, 0)
+    assert state.vfx == GAME_VFX_LIQUID and state.vfx_y == 5
+
+    state = AuthoritativeGameState(full_mode=True)
+    state.player_y = 2
+    state.velocity_y = -1
+    state.grounded = False
+    state.coyote_ticks = 0
+    state.air_jumps = 1
+    state.apply_command(GAME_JUMP, 0)
+    assert state.grounded and state.jump_buffer_ticks > 0
+    state.apply_command(GAME_FIRE, 0)
+    assert state.player_y == 9 and not state.grounded
 
 
 def run_health_and_metrics() -> None:
@@ -281,7 +346,7 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             melee = decode_session_frame(payload)
-            assert melee.words[4:10] == (2, -8, 100, 90, 1, 1)
+            assert melee.words[4:10] == (2, -8, 100, 90, 1, 5)
 
             special_words = [2, GAME, 6, GAME_COMMAND_MARKER, GAME_SPECIAL, 0]
             special_words.append(message_checksum(special_words))
@@ -289,7 +354,7 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             special = decode_session_frame(payload)
-            assert special.words[4:10] == (3, -8, 100, 65, 0, 2)
+            assert special.words[4:10] == (3, -8, 100, 65, 0, 8)
 
             reset_words = [2, GAME, 7, GAME_COMMAND_MARKER, GAME_RESET, 0]
             reset_words.append(message_checksum(reset_words))
@@ -319,7 +384,7 @@ def run_valid_session() -> None:
             assert opcode == 2
             scene_special = decode_session_frame(payload)
             assert scene_special.words[3] == GAME_SCENE_SNAPSHOT_MARKER
-            assert scene_special.words[4:13] == (5, 0, 0, 0, 100, 75, 0, 2, 3)
+            assert scene_special.words[4:13] == (5, 0, 0, 0, 100, 75, 0, 8, 3)
             assert scene_special.words[25] == 1
             assert scene_special.words[26:29] == (12, 0, 6)
 
@@ -341,12 +406,14 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             full_scene = decode_session_frame(payload)
-            assert full_scene.words[3] == GAME_FULL_SCENE_SNAPSHOT_MARKER
-            assert len(full_scene.words) == 61
+            assert len(full_scene.words) == 68
             assert full_scene.words[4:15] == (6, 32, 1, 52, 0, -8, 100, 100, 24, 0, 0)
             assert full_scene.words[20] == 4
-            assert full_scene.words[49:61] == (0, 0, 0, 0, 0, 0, 1, 1, 128, 1, 112,
-                                                full_scene.words[60])
+            assert full_scene.words[28] == 90 and full_scene.words[36] == 180
+            assert full_scene.words[53:68] == (
+                0, 0, 0, 0, 0, 0, 1, 1, 128, 1, 112, 32, 1, 52,
+                full_scene.words[67],
+            )
 
             forward_words = [2, GAME, 12, GAME_COMMAND_MARKER, GAME_MOVE_FORWARD, 8]
             forward_words.append(message_checksum(forward_words))
@@ -356,7 +423,7 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             forward = decode_session_frame(payload)
-            assert forward.words[4] == 7 and forward.words[7] == 60
+            assert forward.words[4] == 7 and forward.words[7] == 55
 
             fire_words = [2, GAME, 13, GAME_COMMAND_MARKER, 14, 0]
             fire_words.append(message_checksum(fire_words))
@@ -365,7 +432,7 @@ def run_valid_session() -> None:
             assert opcode == 2
             fired = decode_session_frame(payload)
             assert fired.words[4] == 8 and fired.words[12] == 23
-            assert fired.words[50] == 1 and fired.words[54] == 10
+            assert fired.words[54] == 1 and fired.words[58] == 10
 
             jump_words = [2, GAME, 14, GAME_COMMAND_MARKER, 15, 0]
             jump_words.append(message_checksum(jump_words))
@@ -373,7 +440,31 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             jumped = decode_session_frame(payload)
-            assert jumped.words[4] == 9 and jumped.words[6] == 8
+            assert jumped.words[4] == 9 and jumped.words[6] == 12
+            assert jumped.words[14] == 13
+            for sequence in (15, 16, 17, 18):
+                ceiling_jump_words = [
+                    2, GAME, sequence, GAME_COMMAND_MARKER, 15, 0
+                ]
+                ceiling_jump_words.append(message_checksum(ceiling_jump_words))
+                sock.sendall(client_frame(encode_session_frame(
+                    GAME, sequence, ceiling_jump_words
+                )))
+                opcode, payload = read_server_frame(sock)
+                assert opcode == 2
+                ceiling_jump = decode_session_frame(payload)
+                assert ceiling_jump.words[3] == GAME_FULL_SCENE_SNAPSHOT_MARKER
+            edge_fire_words = [2, GAME, 19, GAME_COMMAND_MARKER, 14, 0]
+            edge_fire_words.append(message_checksum(edge_fire_words))
+            sock.sendall(client_frame(encode_session_frame(
+                GAME, 19, edge_fire_words
+            )))
+            opcode, payload = read_server_frame(sock)
+            assert opcode == 2
+            edge_fired = decode_session_frame(payload)
+            assert edge_fired.words[6] == 20
+            assert edge_fired.words[56] == 20
+            assert edge_fired.words[65] == 20
             sock.sendall(client_frame(struct.pack(">H", 1000), opcode=8))
         process.wait(timeout=5)
         assert process.returncode == 0
@@ -563,6 +654,7 @@ def run_out_of_order_rejection_session() -> None:
 
 
 def main() -> int:
+    run_authoritative_physics()
     run_health_and_metrics()
     run_valid_session()
     run_tls_session()

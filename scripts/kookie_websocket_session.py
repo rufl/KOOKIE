@@ -14,11 +14,12 @@ import argparse
 import base64
 import hashlib
 import hmac
-import os
 import json
+import math
+import os
 import socket
-import stat
 import ssl
+import stat
 import struct
 
 from dataclasses import dataclass, field
@@ -26,7 +27,7 @@ from dataclasses import dataclass, field
 MAGIC = b"KWS1"
 FRAME_VERSION = 1
 NETCODE_PROTOCOL_VERSION = 2
-MAX_WORDS = 64
+MAX_WORDS = 68
 MAX_FRAME_BYTES = 16 + MAX_WORDS * 4
 MAX_HTTP_HEADER_BYTES = 8192
 MAX_WEBSOCKET_PAYLOAD_BYTES = MAX_FRAME_BYTES
@@ -88,7 +89,48 @@ GAME_MAXIMUM_HEALTH = 100
 GAME_MAXIMUM_STAMINA = 100
 GAME_MAXIMUM_AMMO = 99
 GAME_MAXIMUM_COMBO = 1_000_000
-GAME_MAXIMUM_VFX = 2
+GAME_MAXIMUM_VFX = 15
+GAME_VFX_MELEE = 5
+GAME_VFX_FIRE = 6
+GAME_VFX_SPECIAL = 8
+GAME_VFX_JUMP = 13
+GAME_VFX_HIT = 15
+GAME_VFX_DEATH = 12
+GAME_VFX_LIQUID = 14
+GAME_LIQUID_BOUNDS = (
+    (96, 224, 96, 208, 5),
+    (232, 304, 32, 112, 4),
+)
+GAME_MOVEMENT_GROUND_ACCELERATION = 3
+GAME_MOVEMENT_AIR_ACCELERATION = 1
+GAME_MOVEMENT_GROUND_BRAKING = 2
+GAME_MOVEMENT_AIR_BRAKING = 1
+GAME_MOVEMENT_GRAVITY = 1
+GAME_MOVEMENT_JUMP_VELOCITY = 9
+GAME_MOVEMENT_MAX_FALL_SPEED = 16
+GAME_MOVEMENT_COYOTE_TICKS = 6
+GAME_MOVEMENT_JUMP_BUFFER_TICKS = 6
+GAME_MOVEMENT_MAXIMUM_AIR_JUMPS = 1
+GAME_MOVEMENT_RADIUS = 2
+GAME_MOVEMENT_HEIGHT = 4
+GAME_MOVEMENT_BOXES = (
+    (92, 6, 146, 228, 9, 158),
+    (154, 6, 92, 166, 9, 212),
+    (228, 6, 66, 308, 9, 78),
+    (36, 8, 64, 96, 11, 216),
+    (224, 8, 64, 284, 11, 216),
+    (48, 16, 16, 272, 18, 48),
+    (48, 16, 232, 272, 18, 264),
+    (64, 0, 112, 88, 14, 136),
+    (232, 0, 144, 256, 14, 168),
+    (112, 0, 72, 132, 5, 92),
+    (188, 0, 184, 208, 5, 204),
+)
+GAME_MOVEMENT_RAMPS = (
+    (20, 0, 56, 40, 8, 80),
+    (280, 8, 200, 300, 0, 224),
+)
+
 GAME_LEGACY_ACTORS = 3
 GAME_FULL_ACTORS = 4
 GAME_MAXIMUM_PROJECTILES = 1
@@ -225,6 +267,9 @@ class AuthoritativeGameState:
     stamina: int = GAME_MAXIMUM_STAMINA
     combo: int = 0
     vfx: int = 0
+    vfx_x: int = 32
+    vfx_y: int = 1
+    vfx_z: int = 52
     player_x: int = 32
     player_y: int = 1
     player_z: int = 52
@@ -232,6 +277,14 @@ class AuthoritativeGameState:
     player_pitch: int = -8
     ammo: int = 24
     full_mode: bool = False
+    player_liquid: bool = False
+    velocity_x: int = 0
+    velocity_y: int = 0
+    velocity_z: int = 0
+    grounded: bool = True
+    coyote_ticks: int = GAME_MOVEMENT_COYOTE_TICKS
+    jump_buffer_ticks: int = 0
+    air_jumps: int = 0
     actor_health: list[int] = field(
         default_factory=lambda: [GAME_MAXIMUM_HEALTH] * GAME_FULL_ACTORS
     )
@@ -240,6 +293,7 @@ class AuthoritativeGameState:
     actor_z: list[int] = field(default_factory=lambda: [80, 160, 220, 210])
     actor_state: list[int] = field(default_factory=lambda: [1, 1, 2, 3])
     actor_kind: list[int] = field(default_factory=lambda: [1, 2, 1, 2])
+    actor_yaw: list[int] = field(default_factory=lambda: [90, 180, 0, 270])
     projectile_x: int = 0
     projectile_y: int = 0
     projectile_z: int = 0
@@ -253,8 +307,6 @@ class AuthoritativeGameState:
     pickup_z: int = 112
 
     def _advance_projectile(self) -> None:
-        if self.player_y > GAME_WORLD_MINIMUM_Y:
-            self.player_y = max(GAME_WORLD_MINIMUM_Y, self.player_y - 1)
         if self.projectile_ttl <= 0:
             self.projectile_x = 0
             self.projectile_y = 0
@@ -273,6 +325,235 @@ class AuthoritativeGameState:
         )
         self.projectile_ttl -= 1
 
+    def _advance_legacy_vertical(self) -> None:
+        if self.player_y > GAME_WORLD_MINIMUM_Y:
+            self.player_y = max(GAME_WORLD_MINIMUM_Y, self.player_y - 1)
+
+    def _movement_axes(self, command: int) -> tuple[int, int]:
+        facing = int((self.player_yaw + 45) // 90) % 4
+        forward_x, forward_z = ((0, 1), (1, 0), (0, -1), (-1, 0))[facing]
+        right_x, right_z = forward_z, -forward_x
+        if command in (GAME_MOVE_FORWARD,):
+            return forward_x, forward_z
+        if command in (GAME_MOVE_BACK,):
+            return -forward_x, -forward_z
+        if command in (GAME_MOVE_LEFT, GAME_STRAFE_LEFT):
+            return -right_x, -right_z
+        if command in (GAME_MOVE_RIGHT, GAME_STRAFE_RIGHT):
+            return right_x, right_z
+        return 0, 0
+
+    def _horizontal_overlap(
+        self, x: int, z: int, box: tuple[int, int, int, int, int, int]
+    ) -> bool:
+        left, _, front, right, _, back = box
+        return (
+            left - GAME_MOVEMENT_RADIUS <= x <= right + GAME_MOVEMENT_RADIUS
+            and front - GAME_MOVEMENT_RADIUS <= z <= back + GAME_MOVEMENT_RADIUS
+        )
+
+    def _vertical_overlap(
+        self, y: int, box: tuple[int, int, int, int, int, int]
+    ) -> bool:
+        _, bottom, _, _, top, _ = box
+        return (
+            y < top
+            and y + GAME_MOVEMENT_HEIGHT > bottom
+        )
+    def _ramp_floor_y(self, x: int, z: int) -> int | None:
+        floor: int | None = None
+        for left, start_y, front, right, end_y, back in GAME_MOVEMENT_RAMPS:
+            if not left <= x <= right or not front <= z <= back:
+                continue
+            span = right - left
+            height = max(
+                GAME_WORLD_MINIMUM_Y,
+                start_y + (x - left) * (end_y - start_y) // span,
+            )
+            if floor is None or height > floor:
+                floor = height
+        return floor
+
+
+
+    def _sweep_horizontal(self, axis: str, amount: int) -> int:
+        if amount == 0:
+            return self.player_x if axis == "x" else self.player_z
+        current = self.player_x if axis == "x" else self.player_z
+        other = self.player_z if axis == "x" else self.player_x
+        target = current + amount
+        for box in GAME_MOVEMENT_BOXES:
+            left, _, front, right, top, back = box
+            if not self._vertical_overlap(self.player_y, box):
+                continue
+            minimum = (left if axis == "x" else front) - GAME_MOVEMENT_RADIUS
+            maximum = (right if axis == "x" else back) + GAME_MOVEMENT_RADIUS
+            other_minimum = (
+                front if axis == "x" else left
+            ) - GAME_MOVEMENT_RADIUS
+            other_maximum = (
+                back if axis == "x" else right
+            ) + GAME_MOVEMENT_RADIUS
+            if not other_minimum <= other <= other_maximum:
+                continue
+            if minimum < current < maximum:
+                target = current
+            elif amount > 0 and current <= minimum <= target:
+                target = minimum
+            elif amount < 0 and current >= maximum >= target:
+                target = maximum
+        resolved = (
+            max(GAME_WORLD_MINIMUM_X, min(GAME_WORLD_MAXIMUM_X, target))
+            if axis == "x" else
+            max(GAME_WORLD_MINIMUM_Z, min(GAME_WORLD_MAXIMUM_Z, target))
+        )
+        if resolved != current + amount:
+            if axis == "x":
+                self.velocity_x = 0
+            else:
+                self.velocity_z = 0
+        return resolved
+
+    def _step_full_physics(
+        self, move_x: int, move_z: int, jump_pressed: bool
+    ) -> None:
+        was_grounded = self.grounded
+        if was_grounded:
+            self.coyote_ticks = GAME_MOVEMENT_COYOTE_TICKS
+        elif self.coyote_ticks > 0:
+            self.coyote_ticks -= 1
+        if self.jump_buffer_ticks > 0:
+            self.jump_buffer_ticks -= 1
+        if jump_pressed:
+            self.jump_buffer_ticks = GAME_MOVEMENT_JUMP_BUFFER_TICKS
+
+        input_magnitude = math.isqrt(move_x * move_x + move_z * move_z)
+        if input_magnitude > 0:
+            wish_x = move_x * 1024 // input_magnitude
+            wish_z = move_z * 1024 // input_magnitude
+            current_speed = (
+                self.velocity_x * wish_x + self.velocity_z * wish_z
+            ) // 1024
+            acceleration = (
+                GAME_MOVEMENT_GROUND_ACCELERATION
+                if was_grounded else GAME_MOVEMENT_AIR_ACCELERATION
+            )
+            add_speed = min(8 - current_speed, acceleration)
+            if add_speed > 0:
+                self.velocity_x += wish_x * add_speed // 1024
+                self.velocity_z += wish_z * add_speed // 1024
+        elif was_grounded:
+            speed = math.isqrt(
+                self.velocity_x * self.velocity_x +
+                self.velocity_z * self.velocity_z
+            )
+            next_speed = max(0, speed - GAME_MOVEMENT_GROUND_BRAKING)
+            if speed <= 0 or next_speed <= 0:
+                self.velocity_x = 0
+                self.velocity_z = 0
+            else:
+                self.velocity_x = self.velocity_x * next_speed // speed
+                self.velocity_z = self.velocity_z * next_speed // speed
+        else:
+            self.velocity_x = self._approach(
+                self.velocity_x, 0, GAME_MOVEMENT_AIR_BRAKING
+            )
+            self.velocity_z = self._approach(
+                self.velocity_z, 0, GAME_MOVEMENT_AIR_BRAKING
+            )
+
+        jumped = False
+        if self.jump_buffer_ticks > 0 and (
+            was_grounded or self.coyote_ticks > 0
+        ):
+            self.velocity_y = GAME_MOVEMENT_JUMP_VELOCITY
+            self.jump_buffer_ticks = 0
+            self.coyote_ticks = 0
+            self.air_jumps = 0
+            self.grounded = False
+            jumped = True
+        elif (
+            self.jump_buffer_ticks > 0 and
+            not was_grounded and
+            self.coyote_ticks <= 0 and
+            self.air_jumps < GAME_MOVEMENT_MAXIMUM_AIR_JUMPS
+        ):
+            self.velocity_y = GAME_MOVEMENT_JUMP_VELOCITY
+            self.jump_buffer_ticks = 0
+            self.air_jumps += 1
+            self.grounded = False
+            jumped = True
+
+        if not was_grounded or jumped:
+            self.velocity_y = max(
+                -GAME_MOVEMENT_MAX_FALL_SPEED,
+                self.velocity_y - GAME_MOVEMENT_GRAVITY,
+            )
+        else:
+            self.velocity_y = 0
+
+        self.player_x = self._sweep_horizontal("x", self.velocity_x)
+        self.player_z = self._sweep_horizontal("z", self.velocity_z)
+        old_y = self.player_y
+        target_y = old_y + self.velocity_y
+        landing_y: list[int] = []
+        ceiling_y: list[int] = []
+        for box in GAME_MOVEMENT_BOXES:
+            if not self._horizontal_overlap(self.player_x, self.player_z, box):
+                continue
+            _, bottom, _, _, top, _ = box
+            if (
+                self.velocity_y <= 0 and
+                old_y >= top and
+                target_y <= top
+            ):
+                landing_y.append(top)
+            elif (
+                self.velocity_y > 0 and
+                old_y + GAME_MOVEMENT_HEIGHT <= bottom and
+                target_y + GAME_MOVEMENT_HEIGHT >= bottom
+            ):
+                ceiling_y.append(bottom - GAME_MOVEMENT_HEIGHT)
+        ramp_floor_y = self._ramp_floor_y(self.player_x, self.player_z)
+        if (
+            ramp_floor_y is not None and
+            self.velocity_y <= 0 and
+            target_y <= ramp_floor_y
+        ):
+            landing_y.append(ramp_floor_y)
+        elif (
+            ramp_floor_y is not None and
+            was_grounded and
+            self.velocity_y == 0 and
+            ramp_floor_y < old_y
+        ):
+            landing_y.append(ramp_floor_y)
+        if landing_y:
+            self.player_y = max(landing_y)
+            self.velocity_y = 0
+            self.grounded = True
+            self.air_jumps = 0
+        elif target_y <= GAME_WORLD_MINIMUM_Y:
+            self.player_y = GAME_WORLD_MINIMUM_Y
+            self.velocity_y = 0
+            self.grounded = True
+            self.air_jumps = 0
+        elif ceiling_y:
+            self.player_y = min(ceiling_y)
+            self.velocity_y = 0
+            self.grounded = False
+        else:
+            self.player_y = min(GAME_WORLD_MAXIMUM_Y, target_y)
+            self.grounded = False
+
+    @staticmethod
+    def _approach(value: int, target: int, delta: int) -> int:
+        if value < target:
+            return min(target, value + delta)
+        if value > target:
+            return max(target, value - delta)
+        return value
+
     def _damage_nearest_actor(self, amount: int) -> None:
         actor_positions = (-70, 8, 72)
         nearest_index = min(
@@ -284,7 +565,7 @@ class AuthoritativeGameState:
                 0, self.actor_health[nearest_index] - amount
             )
 
-    def _damage_nearest_world_actor(self, amount: int) -> None:
+    def _damage_nearest_world_actor(self, amount: int) -> tuple[int, int]:
         nearest_index = min(
             range(GAME_FULL_ACTORS),
             key=lambda index: (
@@ -296,16 +577,40 @@ class AuthoritativeGameState:
             (self.actor_x[nearest_index] - self.player_x) ** 2 +
             (self.actor_z[nearest_index] - self.player_z) ** 2
         )
-        if distance_squared <= 42 ** 2:
-            self.actor_health[nearest_index] = max(
-                0, self.actor_health[nearest_index] - amount
+        if distance_squared > 42 ** 2:
+            return -1, 0
+        self.actor_health[nearest_index] = max(
+            0, self.actor_health[nearest_index] - amount
+        )
+        if self.actor_health[nearest_index] == 0:
+            self.actor_state[nearest_index] = 4
+            return nearest_index, GAME_VFX_DEATH
+        return nearest_index, GAME_VFX_HIT
+
+    def _set_vfx(self, asset: int, x: int, y: int, z: int) -> None:
+        self.vfx = asset
+        self.vfx_x = x
+        self.vfx_y = y
+        self.vfx_z = z
+
+    def _liquid_surface_y(self) -> int | None:
+        for min_x, max_x, min_z, max_z, surface_y in GAME_LIQUID_BOUNDS:
+            if min_x <= self.player_x <= max_x and min_z <= self.player_z <= max_z:
+                return surface_y
+        return None
+
+    def _update_liquid_event(self) -> None:
+        surface_y = self._liquid_surface_y()
+        liquid = surface_y is not None and self.player_y <= surface_y
+        if liquid and not self.player_liquid:
+            self._set_vfx(
+                GAME_VFX_LIQUID, self.player_x, surface_y, self.player_z
             )
-            if self.actor_health[nearest_index] == 0:
-                self.actor_state[nearest_index] = 4
+        self.player_liquid = liquid
 
     def _facing_step(self) -> tuple[int, int]:
         facing = int((self.player_yaw + 45) // 90) % 4
-        return ((12, 0), (0, 12), (-12, 0), (0, -12))[facing]
+        return ((0, 12), (12, 0), (0, -12), (-12, 0))[facing]
 
     def _collect_pickup(self) -> None:
         if not self.pickup_active:
@@ -320,20 +625,33 @@ class AuthoritativeGameState:
 
     def apply_command(self, command: int, value: int) -> None:
         self._advance_projectile()
+        if self.full_mode and command != GAME_RESET:
+            move_x, move_z = self._movement_axes(command)
+            self._step_full_physics(
+                move_x, move_z, command == GAME_JUMP and value == 0
+            )
+        elif not self.full_mode:
+            self._advance_legacy_vertical()
         if command == GAME_MOVE_LEFT and value == -8:
-            self.position = max(GAME_MINIMUM_POSITION, self.position - 8)
-            self.player_x = max(GAME_WORLD_MINIMUM_X, self.player_x - 8)
+            if not self.full_mode:
+                self.position = max(GAME_MINIMUM_POSITION, self.position - 8)
+                self.player_x = max(GAME_WORLD_MINIMUM_X, self.player_x - 8)
         elif command == GAME_MOVE_RIGHT and value == 8:
-            self.position = min(GAME_MAXIMUM_POSITION, self.position + 8)
-            self.player_x = min(GAME_WORLD_MAXIMUM_X, self.player_x + 8)
+            if not self.full_mode:
+                self.position = min(GAME_MAXIMUM_POSITION, self.position + 8)
+                self.player_x = min(GAME_WORLD_MAXIMUM_X, self.player_x + 8)
         elif command == GAME_MOVE_FORWARD and value == 8:
-            self.player_z = min(GAME_WORLD_MAXIMUM_Z, self.player_z + 8)
+            if not self.full_mode:
+                self.player_z = min(GAME_WORLD_MAXIMUM_Z, self.player_z + 8)
         elif command == GAME_MOVE_BACK and value == -8:
-            self.player_z = max(GAME_WORLD_MINIMUM_Z, self.player_z - 8)
+            if not self.full_mode:
+                self.player_z = max(GAME_WORLD_MINIMUM_Z, self.player_z - 8)
         elif command == GAME_STRAFE_LEFT and value == -8:
-            self.player_x = max(GAME_WORLD_MINIMUM_X, self.player_x - 8)
+            if not self.full_mode:
+                self.player_x = max(GAME_WORLD_MINIMUM_X, self.player_x - 8)
         elif command == GAME_STRAFE_RIGHT and value == 8:
-            self.player_x = min(GAME_WORLD_MAXIMUM_X, self.player_x + 8)
+            if not self.full_mode:
+                self.player_x = min(GAME_WORLD_MAXIMUM_X, self.player_x + 8)
         elif command == GAME_LOOK_LEFT and value == -15:
             self.player_yaw = (self.player_yaw - 15) % 360
         elif command == GAME_LOOK_RIGHT and value == 15:
@@ -342,19 +660,42 @@ class AuthoritativeGameState:
             if self.stamina >= 10:
                 self.stamina -= 10
                 self.combo = min(GAME_MAXIMUM_COMBO, self.combo + 1)
-                self.vfx = 1
-                self._damage_nearest_actor(18)
-                self._damage_nearest_world_actor(18)
+                if self.full_mode:
+                    actor_index, impact = self._damage_nearest_world_actor(18)
+                    if impact:
+                        self._set_vfx(
+                            impact,
+                            self.actor_x[actor_index],
+                            min(GAME_WORLD_MAXIMUM_Y, self.actor_y[actor_index] + 2),
+                            self.actor_z[actor_index],
+                        )
+                    else:
+                        self._set_vfx(
+                            GAME_VFX_MELEE,
+                            self.player_x,
+                            min(GAME_WORLD_MAXIMUM_Y, self.player_y + 2),
+                            self.player_z,
+                        )
+                else:
+                    self._set_vfx(
+                        GAME_VFX_MELEE,
+                        self.player_x,
+                        min(GAME_WORLD_MAXIMUM_Y, self.player_y + 2),
+                        self.player_z,
+                    )
+                    self._damage_nearest_actor(18)
         elif command == GAME_SPECIAL and value == 0:
             if self.stamina >= 25:
                 self.stamina -= 25
                 self.combo = 0
-                self.vfx = 2
+                self.vfx = GAME_VFX_SPECIAL
                 if self.full_mode:
                     self.projectile_x = min(
                         GAME_WORLD_MAXIMUM_X, self.player_x + 12
                     )
-                    self.projectile_y = self.player_y + 4
+                    self.projectile_y = min(
+                        GAME_WORLD_MAXIMUM_Y, self.player_y + 4
+                    )
                     self.projectile_z = self.player_z
                 else:
                     self.projectile_x = min(
@@ -362,26 +703,49 @@ class AuthoritativeGameState:
                     )
                     self.projectile_y = 0
                     self.projectile_z = 0
+                self.vfx_x = self.projectile_x
+                self.vfx_y = self.projectile_y
+                self.vfx_z = self.projectile_z
                 self.projectile_dx = 12
                 self.projectile_dz = 0
                 self.projectile_ttl = 6
         elif command == GAME_FIRE and value == 0:
             if self.ammo > 0:
                 self.ammo -= 1
-                self.vfx = 1
+                self.vfx = GAME_VFX_FIRE
                 self.projectile_dx, self.projectile_dz = self._facing_step()
-                self.projectile_x = self.player_x + self.projectile_dx
-                self.projectile_y = self.player_y + 4
-                self.projectile_z = self.player_z + self.projectile_dz
+                self.projectile_x = max(
+                    GAME_WORLD_MINIMUM_X,
+                    min(GAME_WORLD_MAXIMUM_X, self.player_x + self.projectile_dx),
+                )
+                self.projectile_y = min(
+                    GAME_WORLD_MAXIMUM_Y, self.player_y + 4
+                )
+                self.projectile_z = max(
+                    GAME_WORLD_MINIMUM_Z,
+                    min(GAME_WORLD_MAXIMUM_Z, self.player_z + self.projectile_dz),
+                )
+                self.vfx_x = self.projectile_x
+                self.vfx_y = self.projectile_y
+                self.vfx_z = self.projectile_z
                 self.projectile_ttl = 10
         elif command == GAME_JUMP and value == 0:
-            self.player_y = min(GAME_WORLD_MAXIMUM_Y, self.player_y + 7)
+            if not self.full_mode:
+                self.player_y = min(
+                    GAME_WORLD_MAXIMUM_Y, self.player_y + 7
+                )
+            self._set_vfx(
+                GAME_VFX_JUMP, self.player_x, self.player_y, self.player_z
+            )
         elif command == GAME_RESET and value == 0:
             self.position = 0
             self.health = GAME_MAXIMUM_HEALTH
             self.stamina = GAME_MAXIMUM_STAMINA
             self.combo = 0
             self.vfx = 0
+            self.vfx_x = 32
+            self.vfx_y = 1
+            self.vfx_z = 52
             self.player_x = 32
             self.player_y = 1
             self.player_z = 52
@@ -396,7 +760,14 @@ class AuthoritativeGameState:
             self.projectile_dx = 0
             self.projectile_dz = 0
             self.projectile_ttl = 0
-            self.pickup_active = True
+            self.player_liquid = False
+            self.velocity_x = 0
+            self.velocity_y = 0
+            self.velocity_z = 0
+            self.grounded = True
+            self.coyote_ticks = GAME_MOVEMENT_COYOTE_TICKS
+            self.jump_buffer_ticks = 0
+            self.air_jumps = 0
         else:
             raise ProtocolError("invalid authoritative game command")
         self._collect_pickup()
@@ -406,6 +777,10 @@ class AuthoritativeGameState:
             GAME_MOVE_BACK, GAME_STRAFE_LEFT, GAME_STRAFE_RIGHT,
         ):
             self.vfx = 0
+            self.vfx_x = self.player_x
+            self.vfx_y = self.player_y
+            self.vfx_z = self.player_z
+        self._update_liquid_event()
 
     def snapshot_words(self, sequence: int) -> list[int]:
         words = [
@@ -454,6 +829,7 @@ class AuthoritativeGameState:
                 actor_id + 1, self.actor_x[actor_id], self.actor_y[actor_id],
                 self.actor_z[actor_id], self.actor_health[actor_id],
                 self.actor_state[actor_id], self.actor_kind[actor_id],
+                self.actor_yaw[actor_id],
             ))
         words.extend((
             1 if self.projectile_ttl > 0 else 0,
@@ -464,6 +840,7 @@ class AuthoritativeGameState:
             self.projectile_ttl,
             1 if self.pickup_active else 0, self.pickup_kind,
             self.pickup_x, self.pickup_y, self.pickup_z,
+            self.vfx_x, self.vfx_y, self.vfx_z,
         ))
         words.append(message_checksum(words))
         return words
@@ -606,8 +983,14 @@ def _validate_message(frame_kind: int, sequence: int, words: tuple[int, ...]) ->
                     words[27] > GAME_MAXIMUM_DEPTH or \
                     words[28] < 0 or words[28] > 6:
                 raise ProtocolError("invalid authoritative scene snapshot")
-        elif len(words) == 61:
-            actor_health_indices = (25, 32, 39, 46)
+        elif len(words) == 68:
+            actor_health_indices = (25, 33, 41, 49)
+            actor_state_indices = (26, 34, 42, 50)
+            actor_kind_indices = (27, 35, 43, 51)
+            actor_yaw_indices = (28, 36, 44, 52)
+            actor_x_indices = (22, 30, 38, 46)
+            actor_y_indices = (23, 31, 39, 47)
+            actor_z_indices = (24, 32, 40, 48)
             if words[3] != GAME_FULL_SCENE_SNAPSHOT_MARKER or \
                     words[4] < 0 or words[4] > GAME_MAXIMUM_TICK or \
                     words[5] < GAME_WORLD_MINIMUM_X or \
@@ -633,44 +1016,69 @@ def _validate_message(frame_kind: int, sequence: int, words: tuple[int, ...]) ->
                     words[19] < -90 or words[19] > 90 or \
                     words[20] != GAME_FULL_ACTORS or \
                     any(
+                        words[index] < GAME_WORLD_MINIMUM_X or
+                        words[index] > GAME_WORLD_MAXIMUM_X
+                        for index in actor_x_indices
+                    ) or \
+                    any(
+                        words[index] < GAME_WORLD_MINIMUM_Y or
+                        words[index] > GAME_WORLD_MAXIMUM_Y
+                        for index in actor_y_indices
+                    ) or \
+                    any(
+                        words[index] < GAME_WORLD_MINIMUM_Z or
+                        words[index] > GAME_WORLD_MAXIMUM_Z
+                        for index in actor_z_indices
+                    ) or \
+                    any(
                         words[index] < 0 or
                         words[index] > GAME_MAXIMUM_HEALTH
                         for index in actor_health_indices
                     ) or \
                     any(
                         words[index] < 1 or words[index] > 4
-                        for index in (26, 33, 40, 47)
+                        for index in actor_state_indices
                     ) or \
                     any(
                         words[index] < 1 or words[index] > 2
-                        for index in (27, 34, 41, 48)
+                        for index in actor_kind_indices
                     ) or \
-                    words[49] < 0 or \
-                    words[49] > GAME_MAXIMUM_PROJECTILES or \
-                    words[50] not in (0, 1) or \
+                    any(
+                        words[index] < 0 or words[index] > 359
+                        for index in actor_yaw_indices
+                    ) or \
+                    words[53] < 0 or \
+                    words[53] > GAME_MAXIMUM_PROJECTILES or \
+                    words[54] not in (0, 1) or \
                     (
-                        words[50] == 0 and
-                        any(words[index] != 0 for index in (51, 52, 53, 54))
+                        words[54] == 0 and
+                        any(words[index] != 0 for index in (55, 56, 57, 58))
                     ) or \
                     (
-                        words[50] == 1 and (
-                            words[51] < GAME_WORLD_MINIMUM_X or
-                            words[51] > GAME_WORLD_MAXIMUM_X or
-                            words[52] < GAME_WORLD_MINIMUM_Y or
-                            words[52] > GAME_WORLD_MAXIMUM_Y or
-                            words[53] < GAME_WORLD_MINIMUM_Z or
-                            words[53] > GAME_WORLD_MAXIMUM_Z or
-                            words[54] < 1 or words[54] > 10
+                        words[54] == 1 and (
+                            words[55] < GAME_WORLD_MINIMUM_X or
+                            words[55] > GAME_WORLD_MAXIMUM_X or
+                            words[56] < GAME_WORLD_MINIMUM_Y or
+                            words[56] > GAME_WORLD_MAXIMUM_Y or
+                            words[57] < GAME_WORLD_MINIMUM_Z or
+                            words[57] > GAME_WORLD_MAXIMUM_Z or
+                            words[58] < 1 or words[58] > 10
                         )
                     ) or \
-                    words[55] not in (0, 1) or \
-                    words[56] < 0 or words[56] > GAME_MAXIMUM_PICKUP_KIND or \
-                    words[57] < GAME_WORLD_MINIMUM_X or \
-                    words[57] > GAME_WORLD_MAXIMUM_X or \
-                    words[58] < GAME_WORLD_MINIMUM_Y or \
-                    words[58] > GAME_WORLD_MAXIMUM_Y or \
-                    words[59] < GAME_WORLD_MINIMUM_Z or \
-                    words[59] > GAME_WORLD_MAXIMUM_Z:
+                    words[59] not in (0, 1) or \
+                    words[60] < 0 or words[60] > GAME_MAXIMUM_PICKUP_KIND or \
+                    words[61] < GAME_WORLD_MINIMUM_X or \
+                    words[61] > GAME_WORLD_MAXIMUM_X or \
+                    words[62] < GAME_WORLD_MINIMUM_Y or \
+                    words[62] > GAME_WORLD_MAXIMUM_Y or \
+                    words[63] < GAME_WORLD_MINIMUM_Z or \
+                    words[63] > GAME_WORLD_MAXIMUM_Z or \
+                    words[64] < GAME_WORLD_MINIMUM_X or \
+                    words[64] > GAME_WORLD_MAXIMUM_X or \
+                    words[65] < GAME_WORLD_MINIMUM_Y or \
+                    words[65] > GAME_WORLD_MAXIMUM_Y or \
+                    words[66] < GAME_WORLD_MINIMUM_Z or \
+                    words[66] > GAME_WORLD_MAXIMUM_Z:
                 raise ProtocolError("invalid authoritative full scene snapshot")
         else:
             raise ProtocolError("game payload length outside contract")

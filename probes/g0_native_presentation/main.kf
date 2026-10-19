@@ -2309,6 +2309,17 @@ class G1NativePresentation {
             spawnPlayerProjectile(player, target, cameraAim)
     }
 
+
+    Bool spawnPlayerJumpVfx(Int player) {
+        if (player != 1 && player != 2) { return false }
+        return spawnTexturedVfx(
+            worldVfxParticleMagicAsset(),
+            interactionSession.fpsPositionX(player),
+            interactionSession.fpsPositionY(player),
+            interactionSession.fpsPositionZ(player),
+            8, 6)
+    }
+
     Bool updatePlayerLiquidPresentation(Int player, Bool underwater) {
         if (player != 1 && player != 2) { return false }
         var x = interactionSession.fpsPositionX(player)
@@ -2407,6 +2418,10 @@ class G1NativePresentation {
             println("KOOKIE gameplay step result")
             println(steps)
             println(interactionSession.currentServerTick())
+            return false
+        }
+        if (interactionSession.fpsLastJumpedFor(player) &&
+            !spawnPlayerJumpVfx(player)) {
             return false
         }
         var oxygenDrain = liquidPhysicsValue.oxygenDrainPerTick()

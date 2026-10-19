@@ -166,6 +166,8 @@ class LoopbackSession {
     Bool playerTwoConnected
     Int lastAnimalAttackDamageValue
     Bool lastAnimalPushValue
+    Bool fpsJumpedPlayerOneValue
+    Bool fpsJumpedPlayerTwoValue
     Int serverTick
     Int clientTick
     Int snapshotSequence
@@ -264,6 +266,8 @@ class LoopbackSession {
         playerTwoConnected = false
         lastAnimalAttackDamageValue = 0
         lastAnimalPushValue = false
+        fpsJumpedPlayerOneValue = false
+        fpsJumpedPlayerTwoValue = false
         serverTick = 0
         clientTick = 0
         snapshotSequence = 0
@@ -1009,6 +1013,11 @@ class LoopbackSession {
 
     Bool fpsLastJumped() {
         return fpsMovement.lastJumped()
+    }
+    Bool fpsLastJumpedFor(Int player) {
+        if (player == 1) { return fpsJumpedPlayerOneValue }
+        if (player == 2) { return fpsJumpedPlayerTwoValue }
+        return false
     }
 
     Bool fpsLastDoubleJump() {
@@ -6496,6 +6505,8 @@ class LoopbackSession {
         }
         for (var step = 0; step < steps; step = step + 1) {
             var simulationTick = clock.tick() - steps + step + 1
+            fpsJumpedPlayerOneValue = false
+            fpsJumpedPlayerTwoValue = false
             if (!animalAbilities.recoverAll() ||
                 !advancePowerUpStates(simulationTick)) {
                 return -1
@@ -6705,6 +6716,11 @@ class LoopbackSession {
             !fpsMovement.step(
                 player, moveX, moveZ, jumpPressed, jumpHeld)) {
             return false
+        }
+        if (player == 1) {
+            fpsJumpedPlayerOneValue = fpsMovement.lastJumpedFor(player)
+        } else {
+            fpsJumpedPlayerTwoValue = fpsMovement.lastJumpedFor(player)
         }
         return syncFpsActorPosition(player)
     }

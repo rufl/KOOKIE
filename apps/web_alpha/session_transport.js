@@ -4,7 +4,7 @@
   const MAGIC = [0x4b, 0x57, 0x53, 0x31];
   const FRAME_VERSION = 1;
   const NETCODE_PROTOCOL_VERSION = 2;
-  const MAX_WORDS = 64;
+  const MAX_WORDS = 68;
   const MAX_FRAME_BYTES = 16 + MAX_WORDS * 4;
   const MAX_SEQUENCE = 1000000;
   const HELLO = 1;
@@ -57,7 +57,8 @@
   const GAME_MAXIMUM_STAMINA = 100;
   const GAME_MAXIMUM_AMMO = 99;
   const GAME_MAXIMUM_COMBO = 1000000;
-  const GAME_MAXIMUM_VFX = 2;
+  const GAME_MAXIMUM_VFX = 15;
+  const GAME_VFX_LIQUID = 14;
   const GAME_MAXIMUM_ACTORS = 4;
 
   const root = document.getElementById("kof-root") || document.body;
@@ -250,7 +251,7 @@
   const pingButton = createButton("PING", true);
   const gameButton = createButton("PROTOCOL ECHO", true);
   const healthButton = createButton("CHECK GATEWAY");
-
+  const captureButton = createButton("CAPTURE SCREENSHOT");
   const gameControls = document.createElement("div");
   gameControls.style.cssText = "display:flex;flex-wrap:wrap;gap:8px";
   const gameActionButtons = [];
@@ -374,6 +375,7 @@
       ammo: 24,
       combo: 0,
       vfx: 0,
+      vfxEvent: null,
       actors: [
         { id: 1, x: 96, y: 1, z: 80, health: 100, state: 1, kind: 1 },
         { id: 2, x: 208, y: 1, z: 160, health: 100, state: 1, kind: 2 },
@@ -391,7 +393,7 @@
 
   function createFallbackRenderer(canvas) {
     const context = typeof canvas.getContext === "function"
-      ? canvas.getContext("2d") : null;
+      ? canvas.getContext("2d", { willReadFrequently: true }) : null;
     return {
       supported: Boolean(context),
       reason: context ? "WebGL2 unavailable; 2D fallback" : "canvas unavailable",
@@ -413,6 +415,32 @@
           width / 2 + (x - scene.playerX) * (width - 64) / 240,
           height / 2 + z * (height - 96) / 120,
         ];
+        const arena = window.KookieArenaGeometry;
+        for (const [minX, surfaceY, minZ, maxX, maxZ] of arena?.water || []) {
+          const [left, top] = worldToCanvas(minX, minZ);
+          const [right, bottom] = worldToCanvas(maxX, maxZ);
+          context.fillStyle = "rgba(20, 128, 158, .42)";
+          context.fillRect(left, top, right - left, bottom - top);
+        }
+        for (const entry of arena?.solids || []) {
+          const [minX, , minZ, maxX, , maxZ] = entry.box;
+          const [left, top] = worldToCanvas(minX, minZ);
+          const [right, bottom] = worldToCanvas(maxX, maxZ);
+          context.fillStyle = "rgba(51, 87, 92, .45)";
+          context.fillRect(left, top, right - left, bottom - top);
+        }
+        for (const ramp of arena?.ramps || []) {
+          const points = ramp.vertices.map(([x, , z]) => worldToCanvas(x, z));
+          context.fillStyle = "rgba(74, 112, 78, .62)";
+          context.beginPath();
+          context.moveTo(points[0][0], points[0][1]);
+          for (const [x, z] of points.slice(1)) context.lineTo(x, z);
+          context.closePath();
+          context.fill();
+          context.strokeStyle = "rgba(145, 190, 120, .75)";
+          context.stroke();
+        }
+
         for (const actor of scene.actors) {
           if (actor.health <= 0) continue;
           const [x, z] = worldToCanvas(actor.x, actor.z);
@@ -430,9 +458,29 @@
         context.fillRect(playerX - 13, playerZ - 13, 26, 26);
         context.fillStyle = "#f8fafc";
         context.fillRect(playerX - 7, playerZ - 28, 14, 10);
+        if (scene.vfxEvent) {
+          const [effectX, effectZ] = worldToCanvas(scene.vfxEvent.x, scene.vfxEvent.z);
+          const assetId = scene.vfxEvent.assetId;
+          context.strokeStyle = assetId === 0
+            ? "#38bdf8"
+            : assetId === 8 || scene.vfxEvent.style === 2
+              ? "#f59e0b" : "#f0abfc";
+          context.lineWidth = 4;
+          context.strokeRect(effectX - 18, effectZ - 18, 36, 36);
+          context.lineWidth = 1;
+        }
         context.fillStyle = "#e2e8f0";
         context.font = "12px monospace";
         context.fillText("WebGL2 unavailable", 16, 22);
+      },
+      captureScreenshot() {
+        if (!context) throw new Error("2D canvas unavailable");
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+        const encoder = window.KookieWebRenderer?.encodeScreenshot;
+        if (typeof encoder !== "function") {
+          throw new Error("screenshot encoder unavailable");
+        }
+        return encoder(canvas.width, canvas.height, pixels.data, false, 0);
       },
     };
   }
@@ -480,6 +528,45 @@
   if (rendererInitializationError) {
     activateFallbackRenderer("initialization failed: " + rendererInitializationError);
   }
+
+  let lastScreenshot = null;
+  function captureScreenshot() {
+    if (!sceneRenderer || typeof sceneRenderer.captureScreenshot !== "function") {
+      throw new Error("renderer screenshot capture unavailable");
+    }
+    lastScreenshot = sceneRenderer.captureScreenshot();
+    setRuntimeState(
+      "ready / screenshot " + lastScreenshot.width + "x" + lastScreenshot.height,
+      "#4ade80",
+    );
+    setStatus(
+      "SCREENSHOT CAPTURED / P6 / checksum=" + lastScreenshot.checksum,
+      "#4ade80",
+    );
+    return lastScreenshot;
+  }
+  function captureFallbackScreenshot() {
+    const canvas = document.createElement("canvas");
+    canvas.width = sceneCanvas.width || 960;
+    canvas.height = sceneCanvas.height || 480;
+    const fallback = createFallbackRenderer(canvas);
+    fallback.render(sceneState);
+    return fallback.captureScreenshot();
+  }
+  captureButton.addEventListener("click", () => {
+    try {
+      captureScreenshot();
+    } catch (error) {
+      setStatus("SCREENSHOT FAILED / " + error.message, "#f87171");
+    }
+  });
+  window.KookieBrowserCapture = Object.freeze({
+    captureScreenshot,
+    captureFallbackScreenshot,
+    getLastScreenshot: () => lastScreenshot,
+    getRenderer: () => typeof sceneRenderer?.getStatus === "function"
+      ? sceneRenderer.getStatus() : sceneRenderer?.reason || "unavailable",
+  });
 
 
   function setStatus(value, color) {
@@ -708,17 +795,21 @@
           words[28] >= 0 && words[28] <= 6 &&
           words[29] === messageChecksum(words.slice(0, 29));
       }
-      if (words.length === 61) {
-        const actorHealthIndices = [25, 32, 39, 46];
-        const actorStateIndices = [26, 33, 40, 47];
-        const actorKindIndices = [27, 34, 41, 48];
-        const projectileValid = words[50] === 0
-          ? [51, 52, 53, 54].every((index) => words[index] === 0)
-          : words[50] === 1 &&
-            words[51] >= GAME_WORLD_MINIMUM_X && words[51] <= GAME_WORLD_MAXIMUM_X &&
-            words[52] >= GAME_WORLD_MINIMUM_Y && words[52] <= GAME_WORLD_MAXIMUM_Y &&
-            words[53] >= GAME_WORLD_MINIMUM_Z && words[53] <= GAME_WORLD_MAXIMUM_Z &&
-            words[54] >= 1 && words[54] <= 10;
+      if (words.length === 68) {
+        const actorXIndices = [22, 30, 38, 46];
+        const actorYIndices = [23, 31, 39, 47];
+        const actorZIndices = [24, 32, 40, 48];
+        const actorHealthIndices = [25, 33, 41, 49];
+        const actorStateIndices = [26, 34, 42, 50];
+        const actorKindIndices = [27, 35, 43, 51];
+        const actorYawIndices = [28, 36, 44, 52];
+        const projectileValid = words[54] === 0
+          ? [55, 56, 57, 58].every((index) => words[index] === 0)
+          : words[54] === 1 &&
+            words[55] >= GAME_WORLD_MINIMUM_X && words[55] <= GAME_WORLD_MAXIMUM_X &&
+            words[56] >= GAME_WORLD_MINIMUM_Y && words[56] <= GAME_WORLD_MAXIMUM_Y &&
+            words[57] >= GAME_WORLD_MINIMUM_Z && words[57] <= GAME_WORLD_MAXIMUM_Z &&
+            words[58] >= 1 && words[58] <= 10;
         return words[3] === GAME_FULL_SCENE_SNAPSHOT_MARKER &&
           words[4] >= 0 && words[4] <= GAME_MAXIMUM_TICK &&
           words[5] >= GAME_WORLD_MINIMUM_X && words[5] <= GAME_WORLD_MAXIMUM_X &&
@@ -732,16 +823,27 @@
           words[13] >= 0 && words[13] <= GAME_MAXIMUM_COMBO &&
           words[14] >= 0 && words[14] <= GAME_MAXIMUM_VFX &&
           words[20] === GAME_MAXIMUM_ACTORS &&
-          actorHealthIndices.every((index) => words[index] >= 0 && words[index] <= GAME_MAXIMUM_HEALTH) &&
+          actorXIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_X &&
+            words[index] <= GAME_WORLD_MAXIMUM_X) &&
+          actorYIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_Y &&
+            words[index] <= GAME_WORLD_MAXIMUM_Y) &&
+          actorZIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_Z &&
+            words[index] <= GAME_WORLD_MAXIMUM_Z) &&
+          actorHealthIndices.every((index) => words[index] >= 0 &&
+            words[index] <= GAME_MAXIMUM_HEALTH) &&
           actorStateIndices.every((index) => words[index] >= 1 && words[index] <= 4) &&
           actorKindIndices.every((index) => words[index] >= 1 && words[index] <= 2) &&
-          words[49] >= 0 && words[49] <= 1 && projectileValid &&
-          words[55] >= 0 && words[55] <= 1 &&
-          words[56] >= 0 && words[56] <= 6 &&
-          words[57] >= GAME_WORLD_MINIMUM_X && words[57] <= GAME_WORLD_MAXIMUM_X &&
-          words[58] >= GAME_WORLD_MINIMUM_Y && words[58] <= GAME_WORLD_MAXIMUM_Y &&
-          words[59] >= GAME_WORLD_MINIMUM_Z && words[59] <= GAME_WORLD_MAXIMUM_Z &&
-          words[60] === messageChecksum(words.slice(0, 60));
+          actorYawIndices.every((index) => words[index] >= 0 && words[index] <= 359) &&
+          words[53] >= 0 && words[53] <= 1 && projectileValid &&
+          words[59] >= 0 && words[59] <= 1 &&
+          words[60] >= 0 && words[60] <= 6 &&
+          words[61] >= GAME_WORLD_MINIMUM_X && words[61] <= GAME_WORLD_MAXIMUM_X &&
+          words[62] >= GAME_WORLD_MINIMUM_Y && words[62] <= GAME_WORLD_MAXIMUM_Y &&
+          words[63] >= GAME_WORLD_MINIMUM_Z && words[63] <= GAME_WORLD_MAXIMUM_Z &&
+          words[64] >= GAME_WORLD_MINIMUM_X && words[64] <= GAME_WORLD_MAXIMUM_X &&
+          words[65] >= GAME_WORLD_MINIMUM_Y && words[65] <= GAME_WORLD_MAXIMUM_Y &&
+          words[66] >= GAME_WORLD_MINIMUM_Z && words[66] <= GAME_WORLD_MAXIMUM_Z &&
+          words[67] === messageChecksum(words.slice(0, 67));
       }
     }
     if (kind === ERROR) {
@@ -848,7 +950,7 @@
   function parseScene(words) {
     const actors = [];
     for (let index = 0; index < GAME_MAXIMUM_ACTORS; index += 1) {
-      const offset = 21 + index * 7;
+      const offset = 21 + index * 8;
       actors.push({
         id: words[offset],
         x: words[offset + 1],
@@ -857,13 +959,14 @@
         health: words[offset + 4],
         state: words[offset + 5],
         kind: words[offset + 6],
+        yaw: words[offset + 7],
       });
     }
-    const projectiles = words[50] === 1
-      ? [{ x: words[51], y: words[52], z: words[53], ttl: words[54] }]
+    const projectiles = words[54] === 1
+      ? [{ x: words[55], y: words[56], z: words[57], ttl: words[58] }]
       : [];
-    const pickup = words[55] === 1
-      ? { kind: words[56], x: words[57], y: words[58], z: words[59] }
+    const pickup = words[59] === 1
+      ? { kind: words[60], x: words[61], y: words[62], z: words[63] }
       : null;
     return {
       tick: words[4],
@@ -877,6 +980,14 @@
       ammo: words[12],
       combo: words[13],
       vfx: words[14],
+      vfxEvent: words[14] > 0
+        ? {
+          style: words[14],
+          assetId: words[14] === GAME_VFX_LIQUID ? 0
+            : words[14] > 2 ? words[14] : undefined,
+          x: words[64], y: words[65], z: words[66], tick: words[4],
+        }
+        : null,
       camera: { x: words[15], y: words[16], z: words[17], yaw: words[18], pitch: words[19] },
       actors,
       projectiles,

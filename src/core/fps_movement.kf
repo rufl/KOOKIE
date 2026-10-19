@@ -261,6 +261,77 @@ class FpsMovementController {
         }
         return value
     }
+    Int absolute(Int value) {
+        return if (value < 0) -value else value
+    }
+
+    Int horizontalMagnitude(Int x, Int z) {
+        var major = absolute(x)
+        var minor = absolute(z)
+        if (minor > major) {
+            var swap = major
+            major = minor
+            minor = swap
+        }
+        return major + minor * 3 / 8
+    }
+
+    Int horizontalMagnitudeFixed(Int x, Int z) {
+        var major = absolute(x)
+        var minor = absolute(z)
+        if (minor > major) {
+            var swap = major
+            major = minor
+            minor = swap
+        }
+        return major * 1024 + minor * 384
+    }
+
+    Int wishComponent(Int value, Int magnitudeFixed) {
+        if (magnitudeFixed <= 0) { return 0 }
+        return value * 1024 * 1024 / magnitudeFixed
+    }
+
+    void applyHorizontalFriction(Int slot, Int braking) {
+        var speed = horizontalMagnitude(
+            velocityXValues[slot], velocityZValues[slot])
+        if (speed <= 0) { return }
+        var nextSpeed = speed - braking
+        if (nextSpeed <= 0) {
+            velocityXValues[slot] = 0
+            velocityZValues[slot] = 0
+            return
+        }
+        velocityXValues[slot] = velocityXValues[slot] * nextSpeed / speed
+        velocityZValues[slot] = velocityZValues[slot] * nextSpeed / speed
+    }
+
+    void accelerateHorizontal(
+        Int slot, Int moveX, Int moveZ, Int targetSpeed, Int acceleration
+    ) {
+        var inputMagnitude = horizontalMagnitude(moveX, moveZ)
+        var inputMagnitudeFixed = horizontalMagnitudeFixed(moveX, moveZ)
+        if (inputMagnitude <= 0 || targetSpeed <= 0 || acceleration <= 0) {
+            return
+        }
+        var wishX = wishComponent(moveX, inputMagnitudeFixed)
+        var wishZ = wishComponent(moveZ, inputMagnitudeFixed)
+        var currentSpeed = (
+            velocityXValues[slot] * wishX +
+            velocityZValues[slot] * wishZ
+        ) / 1024
+        var addSpeed = targetSpeed - currentSpeed
+        if (addSpeed <= 0) { return }
+        var accelerationSpeed = acceleration
+        if (accelerationSpeed > addSpeed) {
+            accelerationSpeed = addSpeed
+        }
+        velocityXValues[slot] = velocityXValues[slot] +
+            wishX * accelerationSpeed / 1024
+        velocityZValues[slot] = velocityZValues[slot] +
+            wishZ * accelerationSpeed / 1024
+    }
+
 
     Bool configure(BoundedAuthoredCollision authored) {
         configuredValue = false
@@ -524,8 +595,6 @@ class FpsMovementController {
             baseSpeed = fpsMovementCrouchSpeed()
         }
         var targetSpeed = baseSpeed + powerUpSpeedBonuses[slot]
-        var targetX = sign(moveX) * targetSpeed
-        var targetZ = sign(moveZ) * targetSpeed
         var acceleration = if (liquid)
             liquidHorizontalAccelerations[slot] else fpsMovementAirAcceleration()
         var braking = if (liquid)
@@ -534,17 +603,15 @@ class FpsMovementController {
             acceleration = fpsMovementGroundAcceleration()
             braking = fpsMovementGroundBraking()
         }
-        if (moveX != 0) {
-            velocityXValues[slot] = approach(
-                velocityXValues[slot], targetX, acceleration)
+        if (moveX != 0 || moveZ != 0) {
+            accelerateHorizontal(
+                slot, moveX, moveZ, baseSpeed + powerUpSpeedBonuses[slot],
+                acceleration)
+        } else if (!liquid && wasGrounded) {
+            applyHorizontalFriction(slot, braking)
         } else {
             velocityXValues[slot] = approach(
                 velocityXValues[slot], 0, braking)
-        }
-        if (moveZ != 0) {
-            velocityZValues[slot] = approach(
-                velocityZValues[slot], targetZ, acceleration)
-        } else {
             velocityZValues[slot] = approach(
                 velocityZValues[slot], 0, braking)
         }
@@ -758,6 +825,9 @@ class FpsMovementController {
     Bool lastCollided() { return lastCollidedValue }
     Bool lastGrounded() { return lastGroundedValue }
     Bool lastJumped() { return lastJumpedValue }
+    Bool lastJumpedFor(Int actorId) {
+        return lastActorValue == actorId && lastJumpedValue
+    }
     Bool lastDoubleJump() { return lastDoubleJumpValue }
     Bool lastFlapped() { return lastFlappedValue }
     Bool lastCoyoteJump() { return lastCoyoteJumpValue }

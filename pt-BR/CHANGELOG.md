@@ -4,14 +4,40 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
 
 ## Não lançado
 - Concluímos a fatia limitada de cena 3D no navegador: o gateway WebSocket
-  agora serve um snapshot autoritativo de 61 palavras com estado do jogador e
-  câmera, quatro atores, um projétil e um pickup, além de comandos limitados
-  de movimento, olhar, pulo e tiro. O cliente KofJS renderiza os GLBs staged de
-  ganso, gato, chão e parede por um renderer WebGL2/GLSL ES 3.00 direto, expõe
-  controles por teclado/botão/mouse, HUD ampliado com minimapa superior, pointer
-  lock, preferências persistentes de acessibilidade/configuração, reconexão
-  automática limitada e fallback 2D visível; o build do navegador agora publica
-  os assets necessários.
+  agora serve um snapshot autoritativo de 68 palavras com estado do jogador e
+  câmera, quatro atores, um projétil, um pickup e payload de VFX com posição do
+  evento, além de comandos limitados de movimento, olhar, pulo e tiro. O
+  cliente KofJS renderiza texturas base-color embutidas ou anexas dos GLBs,
+  transforms de nós autorados, materiais WebGL2/GLSL ES 3.00 com bandas toon e
+  sheets de VFX anexos para eventos autoritativos reais, mantendo fallback 2D
+  visível quando WebGL2 não está disponível; o build do navegador publica os
+  assets necessários.
+- Os dois caminhos de renderer do navegador agora expõem captura interna P6:
+  WebGL2 lê o framebuffer preservado por `readPixels`, enquanto o fallback 2D
+  lê `ImageData`. `window.KookieBrowserCapture` retorna captura ativa e
+  fallback isolado com dimensões, checksum, pixels não pretos e bytes PPM em
+  base64 para validação.
+- Ampliamos o campo autoritativo de VFX do navegador para IDs nativos de asset
+  `0..15`; o gateway agora emite slash (5), flare (6) e explosão (8) para
+  ações aceitas de melee, tiro e especial. O loader WebGL2 publica os 16 PNGs
+  de partículas, flipbooks e predrawn, mantendo leitura dos estilos legados 1/2.
+- Substituímos a aproximação independente por eixo da velocidade FPS por wish
+  vector normalizado em ponto fixo, projeção e aceleração. Coyote time, buffer
+  de pulo, controle aéreo e frenagem suave continuam no controlador Kof
+  autoritativo; a diagonalização tem regressão JVM/nativa.
+- O renderer WebGL2 de atores agora consome o estado autoritativo para uma
+  elevação procedural determinística nos estados de repouso, movimento e
+  ataque, acompanhando as pistas de estado limitadas da apresentação nativa
+  sem fingir fazer skin dos esqueletos autorados do ganso/gato. Animação GLB
+  esquelética continua o limite explícito de paridade.
+- Limite de paridade conhecido: nativo e navegador consomem as mesmas malhas e
+  materiais GLB autorados, transforms de nós e direção dos atores, mas o
+  navegador ainda não faz skin das animações de esqueleto do ganso/gato; o
+  backlog marca skin esquelético como o próximo corte explícito de paridade.
+- A integração de corpos físicos agora zera os componentes de velocidade
+  bloqueados por contatos de cápsula estáticos ou dinâmicos, sem carregar
+  velocidade obsoleta para dentro dos colisores; a regressão cobre a resposta
+  dinâmica bloqueada.
 - Adicionamos `scripts/dev_test.sh` ao loop interno rápido priorizando JVM:
   ele executa a suíte de regressão de 144 testes de `src/main.kf` sem
   montagem, linkedição, empacotamento ou gates de apresentação nativos;

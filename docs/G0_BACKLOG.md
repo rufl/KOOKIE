@@ -27,6 +27,62 @@ player-facing demo release. The open D1 gate is tracked in
   target evidence and `kookie-demo-release` approval.
 
 
+## Browser/native parity cut
+
+- The browser full-scene contract remains 68 words: it carries authoritative
+  player/camera state, actor positions/yaw/state, projectile, pickup, VFX asset
+  cue and event position. Native registry IDs 0–15 remain the content source;
+  browser liquid-enter uses wire cue 14 and resolves to particle asset 0.
+- The direct WebGL2 renderer consumes embedded `bufferView` or external `uri`
+  GLB base-color images, authored node transforms, actor facing, state-driven
+  procedural lift, toon-banded materials and all 16 staged particle,
+  flipbook and predrawn VFX sheets. Native presentation consumes the
+  self-contained embedded-image GLB subset; arbitrary external native paths
+  remain an offline-cook boundary, avoiding frame-time filesystem escape.
+  The browser build verifies the complete package closure: manifest, catalog,
+  runtime JSON, 82 GLBs and 16 VFX PNGs. Runtime placement stays authoritative;
+  editor catalog entries are not invented into the live arena.
+- WebGL2 and the 2D fallback now consume the exported G1 arena geometry:
+  perimeter, raised crossings, upper lanes, galleries, towers, center covers
+  and water sectors. The WebGL fragment shader assigns its output explicitly;
+  the camera uses the authoritative yaw-forward convention.
+- The two authored G1 slopes are now represented in the browser authority:
+  deterministic ramp-floor resolution keeps traversal aligned with native
+  movement, while WebGL and 2D draw the same sloped surfaces.
+- Browser accepted events now cover melee/slash (5), fire/flare (6),
+  special/explosion (8), jump/electric ring (13), hit/impact (15),
+  death/predrawn explosion (12) and liquid-enter/particle circle (14 → 0).
+  Native presentation consumes per-player authoritative jump edges and stages
+  the magic particle at the resolved FPS position.
+
+- Both browser renderer paths expose internal P6 captures for qualification:
+  WebGL2 preserves and reads the framebuffer while the 2D fallback reads its
+  `ImageData`. `window.KookieBrowserCapture` returns the active screenshot and
+  an isolated fallback screenshot with dimensions, checksum, non-black-pixel
+  count and base64 PPM bytes.
+- The browser gateway full-scene path now applies normalized wish-vector
+  acceleration, ground friction, air braking, coyote time, jump buffering,
+  one air jump, bounded swept axis collision and floor/platform support.
+  Native `FpsMovementController` remains the fixed-step source of truth for
+  production gameplay; the gateway is a bounded qualification implementation.
+- Native FPS movement uses fixed-point normalized wish vectors and
+  projection-based acceleration, while preserving fixed-step coyote time,
+  jump buffering, air control and eased braking. The diagonal normalization
+  regression is JVM/native-safe and does not require GPU execution.
+- Static and dynamic physics contacts clip blocked velocity components; the
+  physics regression now asserts that a dynamic blocker does not retain stale
+  horizontal velocity.
+- The browser GLB path is mesh/material/node/facing compatible and now
+  consumes authoritative actor state for deterministic idle/moving/attack
+  lift, but does not yet skin animated goose/cat skeletons. Skeletal animation
+  remains an explicit next parity cut, not a hidden fallback claim.
+- Queue-controlled Linux presentation qualification passed through
+  `scripts/verify_presentation.sh` on ticket 31. The native smoke used X11
+  under gamescope, render node `/dev/dri/renderD128`, positive present
+  capability, audio, PPM capture and clean exit; evidence is retained in
+  `build/kookie-presentation-wrapper.json`. The log identifies Intel Graphics
+  (ARL) through Vulkan; this is not claimed as A770 hardware evidence.
+
 ## Completed
 
 - Modular `core`/`session` Kof source and scalar SDL3 probe.
@@ -77,6 +133,14 @@ player-facing demo release. The open D1 gate is tracked in
   GPU draw, audio, screenshot capture and clean exit without recording the
   operational host in this repository.
 - When a presentable window is available, `KOOKIE_SCREENSHOT_PATH` exports the captured swapchain frame as a binary PPM; the path remains capability-gated and unset by default.
+- The private display sandbox now receives adapter builds and required
+  screenshots from workspace-visible `build/` paths; `verify.sh` copies an
+  explicitly requested PPM back after the isolated process exits, preserving
+  evidence validation outside the sandbox.
+- `scripts/verify_native_presentation_smoke.sh` isolates the presentation
+  path for queue-controlled GPU qualification. It uses X11 under gamescope,
+  stages all runtime JSON and validates the native window, audio, GPU markers,
+  PPM capture and clean quit without rerunning the entire static suite.
 - `CombatWorld` now provides bounded authoritative weapon definitions, magazine/reserve reload state, cooldown-gated atomic shots, armor-aware damage, critical hits, and exactly one alive-to-dead transition per actor; JVM/native tests cover ammo atomicity and damage/death invariants.
 - `CombatWorld` now resolves bounded hitscan and projectile shots through the same weapon/range/damage authority, consumes projectile slots deterministically, and publishes sequenced hit/death events without silently dropping critical events; JVM/native tests cover range rejection, ammo atomicity, projectile retirement, and event order.
 - `EnemyStateWorld` now implements deterministic idle/patrol/investigate/chase/attack/recover/stagger/dead transitions with integer perception and attack deadlines; `EncounterDirector` enforces bounded active counts and spawn budgets, with JVM/native tests for cooldown, terminal death, and admission overflow.

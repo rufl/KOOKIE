@@ -3,7 +3,7 @@ Int sessionWebGameProtocolVersion() { return 2 }
 
 Int sessionWebFrameMagic() { return 0x4B575331 }
 Int sessionWebFrameVersion() { return 1 }
-Int sessionWebMaximumWords() { return 64 }
+Int sessionWebMaximumWords() { return 68 }
 Int sessionWebMaximumFrameBytes() {
     return 16 + sessionWebMaximumWords() * 4
 }
@@ -61,7 +61,7 @@ Int sessionWebGameMaximumHealth() { return 100 }
 Int sessionWebGameMaximumStamina() { return 100 }
 Int sessionWebGameMaximumAmmo() { return 99 }
 Int sessionWebGameMaximumCombo() { return 1000000 }
-Int sessionWebGameMaximumVfx() { return 2 }
+Int sessionWebGameMaximumVfx() { return 15 }
 Int sessionWebGameMaximumPickupKind() { return 6 }
 
 
@@ -324,8 +324,65 @@ Bool validSessionWebGameSceneSnapshot(Int[] words) {
         words[29] == sessionWebMessageChecksum(words, 29)
 }
 
+Int[] newSessionWebGameFullSceneSnapshot(
+    Int sequence, Int tick,
+    Int playerX, Int playerY, Int playerZ, Int playerYaw, Int playerPitch,
+    Int health, Int stamina, Int ammo, Int combo, Int vfx,
+    Int cameraX, Int cameraY, Int cameraZ, Int cameraYaw, Int cameraPitch,
+    Int[] actors, Int[] projectile, Int[] pickup,
+    Int vfxX, Int vfxY, Int vfxZ
+) {
+    if (sequence <= 0 || sequence > 1000000 ||
+        actors.length != 32 || projectile.length != 6 ||
+        pickup.length != 5) {
+        return new Int[0]
+    }
+    var words = new Int[68]
+    words[0] = sessionWebGameProtocolVersion()
+    words[1] = sessionWebGameKind()
+    words[2] = sequence
+    words[3] = sessionWebGameFullSceneSnapshotMarker()
+    words[4] = tick
+    words[5] = playerX
+    words[6] = playerY
+    words[7] = playerZ
+    words[8] = playerYaw
+    words[9] = playerPitch
+    words[10] = health
+    words[11] = stamina
+    words[12] = ammo
+    words[13] = combo
+    words[14] = vfx
+    words[15] = cameraX
+    words[16] = cameraY
+    words[17] = cameraZ
+    words[18] = cameraYaw
+    words[19] = cameraPitch
+    words[20] = 4
+    for (var actorIndex = 0; actorIndex < actors.length;
+         actorIndex = actorIndex + 1) {
+        words[21 + actorIndex] = actors[actorIndex]
+    }
+    for (var projectileIndex = 0; projectileIndex < projectile.length;
+         projectileIndex = projectileIndex + 1) {
+        words[53 + projectileIndex] = projectile[projectileIndex]
+    }
+    for (var pickupIndex = 0; pickupIndex < pickup.length;
+         pickupIndex = pickupIndex + 1) {
+        words[59 + pickupIndex] = pickup[pickupIndex]
+    }
+    words[64] = vfxX
+    words[65] = vfxY
+    words[66] = vfxZ
+    words[67] = sessionWebMessageChecksum(words, 67)
+    if (!validSessionWebGameFullSceneSnapshot(words)) {
+        return new Int[0]
+    }
+    return words
+}
+
 Bool validSessionWebGameFullSceneSnapshot(Int[] words) {
-    return words.length == 61 &&
+    return words.length == 68 &&
         words[0] == sessionWebGameProtocolVersion() &&
         words[1] == sessionWebGameKind() &&
         words[2] > 0 && words[2] <= 1000000 &&
@@ -355,52 +412,70 @@ Bool validSessionWebGameFullSceneSnapshot(Int[] words) {
         words[20] == 4 &&
         words[22] >= sessionWebGameWorldMinimumX() &&
         words[22] <= sessionWebGameWorldMaximumX() &&
+        words[23] >= sessionWebGameWorldMinimumY() &&
+        words[23] <= sessionWebGameWorldMaximumY() &&
         words[24] >= sessionWebGameWorldMinimumZ() &&
         words[24] <= sessionWebGameWorldMaximumZ() &&
         words[25] >= 0 && words[25] <= sessionWebGameMaximumHealth() &&
         words[26] >= 1 && words[26] <= 4 &&
         words[27] >= 1 && words[27] <= 2 &&
-        words[29] >= sessionWebGameWorldMinimumX() &&
-        words[29] <= sessionWebGameWorldMaximumX() &&
-        words[31] >= sessionWebGameWorldMinimumZ() &&
-        words[31] <= sessionWebGameWorldMaximumZ() &&
-        words[32] >= 0 && words[32] <= sessionWebGameMaximumHealth() &&
-        words[33] >= 1 && words[33] <= 4 &&
-        words[34] >= 1 && words[34] <= 2 &&
-        words[36] >= sessionWebGameWorldMinimumX() &&
-        words[36] <= sessionWebGameWorldMaximumX() &&
-        words[38] >= sessionWebGameWorldMinimumZ() &&
-        words[38] <= sessionWebGameWorldMaximumZ() &&
-        words[39] >= 0 && words[39] <= sessionWebGameMaximumHealth() &&
-        words[40] >= 1 && words[40] <= 4 &&
-        words[41] >= 1 && words[41] <= 2 &&
-        words[43] >= sessionWebGameWorldMinimumX() &&
-        words[43] <= sessionWebGameWorldMaximumX() &&
-        words[45] >= sessionWebGameWorldMinimumZ() &&
-        words[45] <= sessionWebGameWorldMaximumZ() &&
-        words[46] >= 0 && words[46] <= sessionWebGameMaximumHealth() &&
-        words[47] >= 1 && words[47] <= 4 &&
-        words[48] >= 1 && words[48] <= 2 &&
-        words[49] >= 0 && words[49] <= 1 &&
-        ((words[50] == 0 && words[51] == 0 && words[52] == 0 &&
-            words[53] == 0 && words[54] == 0) ||
-            (words[50] == 1 &&
-                words[51] >= sessionWebGameWorldMinimumX() &&
-                words[51] <= sessionWebGameWorldMaximumX() &&
-                words[52] >= sessionWebGameWorldMinimumY() &&
-                words[52] <= sessionWebGameWorldMaximumY() &&
-                words[53] >= sessionWebGameWorldMinimumZ() &&
-                words[53] <= sessionWebGameWorldMaximumZ() &&
-                words[54] >= 1 && words[54] <= 10)) &&
-        (words[55] == 0 || words[55] == 1) &&
-        words[56] >= 0 && words[56] <= sessionWebGameMaximumPickupKind() &&
-        words[57] >= sessionWebGameWorldMinimumX() &&
-        words[57] <= sessionWebGameWorldMaximumX() &&
-        words[58] >= sessionWebGameWorldMinimumY() &&
-        words[58] <= sessionWebGameWorldMaximumY() &&
-        words[59] >= sessionWebGameWorldMinimumZ() &&
-        words[59] <= sessionWebGameWorldMaximumZ() &&
-        words[60] == sessionWebMessageChecksum(words, 60)
+        words[28] >= 0 && words[28] <= 359 &&
+        words[30] >= sessionWebGameWorldMinimumX() &&
+        words[30] <= sessionWebGameWorldMaximumX() &&
+        words[31] >= sessionWebGameWorldMinimumY() &&
+        words[31] <= sessionWebGameWorldMaximumY() &&
+        words[32] >= sessionWebGameWorldMinimumZ() &&
+        words[32] <= sessionWebGameWorldMaximumZ() &&
+        words[33] >= 0 && words[33] <= sessionWebGameMaximumHealth() &&
+        words[34] >= 1 && words[34] <= 4 &&
+        words[35] >= 1 && words[35] <= 2 &&
+        words[36] >= 0 && words[36] <= 359 &&
+        words[38] >= sessionWebGameWorldMinimumX() &&
+        words[38] <= sessionWebGameWorldMaximumX() &&
+        words[39] >= sessionWebGameWorldMinimumY() &&
+        words[39] <= sessionWebGameWorldMaximumY() &&
+        words[40] >= sessionWebGameWorldMinimumZ() &&
+        words[40] <= sessionWebGameWorldMaximumZ() &&
+        words[41] >= 0 && words[41] <= sessionWebGameMaximumHealth() &&
+        words[42] >= 1 && words[42] <= 4 &&
+        words[43] >= 1 && words[43] <= 2 &&
+        words[44] >= 0 && words[44] <= 359 &&
+        words[46] >= sessionWebGameWorldMinimumX() &&
+        words[46] <= sessionWebGameWorldMaximumX() &&
+        words[47] >= sessionWebGameWorldMinimumY() &&
+        words[47] <= sessionWebGameWorldMaximumY() &&
+        words[48] >= sessionWebGameWorldMinimumZ() &&
+        words[48] <= sessionWebGameWorldMaximumZ() &&
+        words[49] >= 0 && words[49] <= sessionWebGameMaximumHealth() &&
+        words[50] >= 1 && words[50] <= 4 &&
+        words[51] >= 1 && words[51] <= 2 &&
+        words[52] >= 0 && words[52] <= 359 &&
+        words[53] >= 0 && words[53] <= 1 &&
+        ((words[54] == 0 && words[55] == 0 &&
+            words[56] == 0 && words[57] == 0 && words[58] == 0) ||
+            (words[54] == 1 &&
+                words[55] >= sessionWebGameWorldMinimumX() &&
+                words[55] <= sessionWebGameWorldMaximumX() &&
+                words[56] >= sessionWebGameWorldMinimumY() &&
+                words[56] <= sessionWebGameWorldMaximumY() &&
+                words[57] >= sessionWebGameWorldMinimumZ() &&
+                words[57] <= sessionWebGameWorldMaximumZ() &&
+                words[58] >= 1 && words[58] <= 10)) &&
+        (words[59] == 0 || words[59] == 1) &&
+        words[60] >= 0 && words[60] <= sessionWebGameMaximumPickupKind() &&
+        words[61] >= sessionWebGameWorldMinimumX() &&
+        words[61] <= sessionWebGameWorldMaximumX() &&
+        words[62] >= sessionWebGameWorldMinimumY() &&
+        words[62] <= sessionWebGameWorldMaximumY() &&
+        words[63] >= sessionWebGameWorldMinimumZ() &&
+        words[63] <= sessionWebGameWorldMaximumZ() &&
+        words[64] >= sessionWebGameWorldMinimumX() &&
+        words[64] <= sessionWebGameWorldMaximumX() &&
+        words[65] >= sessionWebGameWorldMinimumY() &&
+        words[65] <= sessionWebGameWorldMaximumY() &&
+        words[66] >= sessionWebGameWorldMinimumZ() &&
+        words[66] <= sessionWebGameWorldMaximumZ() &&
+        words[67] == sessionWebMessageChecksum(words, 67)
 }
 
 Int[] newSessionWebGameSnapshot(

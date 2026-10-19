@@ -97,7 +97,8 @@ bash scripts/verify_package.sh
 bash scripts/verify_prototype_package.sh
 
 
-build_dir="$(mktemp -d -t kookie-build-XXXXXX)"
+mkdir -p "$root_dir/build"
+build_dir="$(mktemp -d "$root_dir/build/kookie-build-XXXXXX")"
 adapter_build_dir="$build_dir/adapter"
 mkdir -p "$adapter_build_dir/build"
 mkdir -p "$adapter_build_dir"/assets/{fonts,ui,prototype/runtime,audio}
@@ -107,7 +108,7 @@ cp -- "$root_dir/assets/fonts/pixand.ttf" \
   "$adapter_build_dir/assets/fonts/pixand.ttf"
 cp -- "$root_dir/assets/ui/gatoganso-mark.svg" \
   "$adapter_build_dir/assets/ui/gatoganso-mark.svg"
-cp -a -- "$root_dir/assets/prototype/runtime/vfx" \
+cp -a -- "$root_dir/assets/prototype/runtime/." \
   "$adapter_build_dir/assets/prototype/runtime/"
 cp -a -- "$root_dir/assets/audio/ui" \
   "$adapter_build_dir/assets/audio/"
@@ -225,6 +226,18 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
   fi
   adapter_log="${KOOKIE_PRESENTATION_ADAPTER_LOG:-$build_dir/native-adapter.log}"
   mkdir -p "$(dirname "$adapter_log")"
+  requested_screenshot_path="${KOOKIE_SCREENSHOT_PATH:-}"
+  presentation_screenshot_path="$requested_screenshot_path"
+  if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
+    presentation_screenshot_path="$build_dir/presentation.ppm"
+  fi
+  presentation_video_driver="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}"
+  if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" &&
+        -z "${KOOKIE_SDL_VIDEO_DRIVER:-}" ]]; then
+    presentation_video_driver="x11"
+  fi
+
+
   presentation_compositor_bin="${KOOKIE_PRESENTATION_COMPOSITOR_BIN:-}"
   presentation_compositor_libdir="${KOOKIE_PRESENTATION_COMPOSITOR_LIBDIR:-}"
   presentation_env=()
@@ -272,10 +285,11 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
     KOOKIE_TRANSPORT_KEY_FILE="$transport_key_file" \
     KOOKIE_TRANSPORT_KEY_HEX=00000001000000020000000300000004 \
     KOOKIE_PRESENTATION_SMOKE="${KOOKIE_REQUIRE_PRESENTATION:-0}" \
-    KOOKIE_SCREENSHOT_PATH="${KOOKIE_SCREENSHOT_PATH:-}" \
+    KOOKIE_SCREENSHOT_PATH="$presentation_screenshot_path" \
+
     KOOKIE_AUDIO_MUSIC_OGG="$adapter_build_dir/assets/audio/ui/JDSherbert - Ultimate UI SFX Pack - Cursor - 1.ogg" \
     KOOKIE_SHADER_DIR="$adapter_build_dir" SDL_AUDIODRIVER=dummy \
-    SDL_VIDEODRIVER="${KOOKIE_SDL_VIDEO_DRIVER:-offscreen}" \
+    SDL_VIDEODRIVER="$presentation_video_driver" \
     "${presentation_command[@]}" \
     >"$adapter_log" 2>&1
   adapter_status=$?
@@ -294,9 +308,14 @@ if command -v gcc >/dev/null && command -v glslc >/dev/null &&
       bash scripts/verify_g5_renderer.sh
   fi
   if [[ "${KOOKIE_REQUIRE_PRESENTATION:-0}" == "1" ]]; then
+    if [[ -n "$requested_screenshot_path" &&
+          "$requested_screenshot_path" != "$presentation_screenshot_path" ]]; then
+      mkdir -p "$(dirname "$requested_screenshot_path")"
+      cp -- "$presentation_screenshot_path" "$requested_screenshot_path"
+    fi
     KOOKIE_RENDER_NODE="$render_node" \
       python3 scripts/validate_presentation_evidence.py \
-        "$adapter_log" "${KOOKIE_SCREENSHOT_PATH:-}" \
+        "$adapter_log" "$presentation_screenshot_path" \
         "${KOOKIE_PRESENTATION_EVIDENCE_JSON:-}"
   fi
 else

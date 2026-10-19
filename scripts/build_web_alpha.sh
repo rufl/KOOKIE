@@ -52,23 +52,37 @@ js_check="$(cd "$work_dir" && kof check main.kf --target js)"
     --target js --output "$work_dir/build"
 )
 
-mkdir -p "$work_dir/build/assets/ui" "$work_dir/build/assets/prototype/models/goose" \
-  "$work_dir/build/assets/prototype/models/cat" \
-  "$work_dir/build/assets/prototype/models/modular" "$work_dir/build/fonts"
+mkdir -p "$work_dir/build/assets/ui" "$work_dir/build/assets/prototype" \
+  "$work_dir/build/fonts"
 cp -- "$work_dir/assets/ui/manifest.json" \
   "$work_dir/assets/ui/kookie-ui.css" "$work_dir/build/assets/ui/"
 python3 "$root_dir/scripts/stage_ui_manifest.py" \
   "$work_dir/build/assets/ui/manifest.json" "$root_dir" "$work_dir/build" --profile demo
 cp -- "$work_dir/fonts/jared-lite.ttf" "$work_dir/fonts/pixand.ttf" \
   "$work_dir/build/fonts/"
-cp -- "$root_dir/assets/prototype/models/goose/goose.glb" \
-  "$work_dir/build/assets/prototype/models/goose/goose.glb"
-cp -- "$root_dir/assets/prototype/models/cat/cat.glb" \
-  "$work_dir/build/assets/prototype/models/cat/cat.glb"
-cp -- "$root_dir/assets/prototype/models/modular/ground.glb" \
-  "$work_dir/build/assets/prototype/models/modular/ground.glb"
-cp -- "$root_dir/assets/prototype/models/modular/wall.glb" \
-  "$work_dir/build/assets/prototype/models/modular/wall.glb"
+cp -- "$root_dir/assets/prototype/manifest.json" \
+  "$root_dir/assets/prototype/greybox_modules.json" \
+  "$work_dir/build/assets/prototype/"
+cp -R -- "$root_dir/assets/prototype/runtime" \
+  "$work_dir/build/assets/prototype/"
+while IFS= read -r -d '' asset; do
+  relative="${asset#"$root_dir/assets/prototype/"}"
+  destination="$work_dir/build/assets/prototype/$relative"
+  mkdir -p "$(dirname "$destination")"
+  cp -- "$asset" "$destination"
+done < <(
+  find "$root_dir/assets/prototype/models" -type f -name '*.glb' -print0 |
+    sort -z
+)
+while IFS= read -r -d '' asset; do
+  relative="${asset#"$root_dir/assets/prototype/"}"
+  destination="$work_dir/build/assets/prototype/$relative"
+  mkdir -p "$(dirname "$destination")"
+  cp -- "$asset" "$destination"
+done < <(
+  find "$root_dir/assets/prototype/vfx" -type f -name '*.png' -print0 |
+    sort -z
+)
 cp -- "$root_dir/apps/web_alpha/webgl_renderer.js" \
   "$work_dir/build/kookie-webgl-renderer.js"
 cp -- "$root_dir/apps/web_alpha/session_transport.js" \
@@ -97,20 +111,46 @@ if script not in html:
 path.write_text(html, encoding="utf-8")
 PY
 
-for required in index.html Default.mjs kof-runtime.mjs kof-runtime-io.mjs \
-  kookie-webgl-renderer.js kookie-session.js assets/ui/manifest.json \
-  assets/ui/kookie-ui.css fonts/jared-lite.ttf fonts/pixand.ttf \
-  assets/prototype/models/goose/goose.glb \
-  assets/prototype/models/cat/cat.glb \
-  assets/prototype/models/modular/ground.glb \
-  assets/prototype/models/modular/wall.glb; do
+for required in \
+  assets/prototype/manifest.json \
+  assets/prototype/greybox_modules.json \
+  assets/prototype/runtime/liquid_physics.json \
+  assets/prototype/runtime/power_ups/watermelon.json \
+  assets/prototype/runtime/water_bodies/pool.json \
+  assets/prototype/runtime/floatables/crate.json; do
   [[ -f "$work_dir/build/$required" ]] || {
     echo "build_web_alpha: missing generated asset: $required" >&2
     exit 1
   }
 done
+expected_model_count="$(
+  find "$root_dir/assets/prototype/models" -type f -name '*.glb' | wc -l
+)"
+actual_model_count="$(
+  find "$work_dir/build/assets/prototype/models" -type f -name '*.glb' | wc -l
+)"
+[[ "$actual_model_count" == "$expected_model_count" ]] || {
+  echo "build_web_alpha: model closure mismatch: $actual_model_count/$expected_model_count" >&2
+  exit 1
+}
+expected_vfx_count="$(
+  find "$root_dir/assets/prototype/vfx" -type f -name '*.png' | wc -l
+)"
+actual_vfx_count="$(
+  find "$work_dir/build/assets/prototype/vfx" -type f -name '*.png' | wc -l
+)"
+[[ "$actual_vfx_count" == "$expected_vfx_count" ]] || {
+  echo "build_web_alpha: VFX closure mismatch: $actual_vfx_count/$expected_vfx_count" >&2
+  exit 1
+}
+[[ ! -e "$work_dir/build/assets/prototype/models/cat/source" ]] || {
+  echo "build_web_alpha: restricted cat sources leaked into output" >&2
+  exit 1
+}
 grep -Fq 'KofJS browser alpha' "$work_dir/build/index.html"
 grep -Fq 'kofUiButtonNewAction' "$work_dir/build/Default.mjs"
+grep -Fq 'captureScreenshot' "$work_dir/build/kookie-webgl-renderer.js"
+grep -Fq 'KookieBrowserCapture' "$work_dir/build/kookie-session.js"
 python3 "$root_dir/scripts/verify_ui_manifest.py" \
   "$work_dir/build/assets/ui/manifest.json" "$work_dir/build" --profile demo
 

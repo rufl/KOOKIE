@@ -43,17 +43,18 @@ O digest do patch de release é
 
 ### Qualificação de engenharia da working tree atual
 
-A working tree atual passou pelo gate local com o Kof `0.6.5` exato e fixado em
-`1482,16s`. O smoke de pacote passou em `230,01s` após reutilizar
-temporariamente os builds nativos do servidor, kooker de conteúdo e SIMD. O
-gate também passou o adapter nativo local e o renderer Vulkan em Intel
-`Graphics (ARL)`, com uma draw call, 984 instâncias e p95 de frame de `1710`
-microssegundos.
+O gate focado de apresentação nativa passou pelo
+`scripts/verify_presentation.sh` no ticket 31 da fila. O smoke usou X11 sob
+gamescope, uma janela real em `/dev/dri/renderD128`, capacidade positiva de
+present, áudio, captura PPM e saída limpa. A evidência está em
+`build/kookie-presentation-wrapper.json`; o log identifica Intel `Graphics
+(ARL)` via Vulkan.
 
 Isto é evidência de engenharia, não uma identidade de release: a working tree
-está suja, o smoke de pacote usou uma chave de qualificação efêmera e este host
-não possui nó `/dev/dri/renderD*` para o smoke interativo isolado exigido. Os
-gates de hardware-alvo D1 e publicação pareada continuam abertos.
+está suja, o smoke de pacote usa uma chave de qualificação efêmera, e a
+publicação Linux/Windows extraída de forma limpa junto da apresentação
+Windows-alvo ainda são necessárias para promover D1. O resultado da fila não
+é declarado como evidência de hardware A770.
 
 
 O jogo voltado ao jogador se chama **GatoGanso**. A apresentação usa `Pixand`

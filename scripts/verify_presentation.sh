@@ -68,7 +68,7 @@ if [[ -n "$presentation_compositor_libdir" && ! -d "$presentation_compositor_lib
 fi
 
 set +e
-bash scripts/verify.sh
+bash scripts/verify_native_presentation_smoke.sh
 verification_status=$?
 set -e
 if [[ "$verification_status" -ne 0 ]]; then

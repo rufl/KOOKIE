@@ -706,6 +706,14 @@ test "Kof staging emits bounded GPU camera and world texture coordinates", "gpu-
         vfxTexture.textureU(worldVfxResource(
             worldVfxPredrawnImpactAsset(), 24), 0) < 0,
         "VFX atlas resources must map flipbook and predrawn frame UVs")
+    var allVfxAssets = worldVfxAssetCount() == 16
+    for (var asset = 0; asset < worldVfxAssetCount(); asset = asset + 1) {
+        allVfxAssets = allVfxAssets &&
+            worldVfxResource(asset, 0) > 0 &&
+            worldVfxResource(asset, worldVfxAssetFrameCount(asset) - 1) > 0
+    }
+    assert(allVfxAssets,
+        "native VFX registry must expose every staged asset and frame range")
     var textFrame = FrameStaging(16)
     assert(textFrame.begin(1) &&
         textFrame.pushTextRun(
@@ -3201,7 +3209,7 @@ test "browser WebSocket handshake and heartbeat words are bounded" {
     var pong = newSessionWebPing(sessionWebPongKind(), 2)
     assert(validSessionWebPing(ping, sessionWebPingKind()) &&
         validSessionWebPing(pong, sessionWebPongKind()) &&
-        sessionWebMaximumFrameBytes() == 272,
+        sessionWebMaximumFrameBytes() == 288,
         "WebSocket heartbeat frames must remain bounded and checksummed")
 
     var move = newSessionWebGameCommand(
@@ -3221,12 +3229,41 @@ test "browser WebSocket handshake and heartbeat words are bounded" {
     assert(!validSessionWebGameSnapshot(invalidSnapshot),
         "browser snapshots must reject positions outside the authority bound")
 
+    var actors = new Int[32]
+    for (var actorIndex = 0; actorIndex < 4; actorIndex = actorIndex + 1) {
+        var actorOffset = actorIndex * 8
+        actors[actorOffset] = actorIndex + 1
+        actors[actorOffset + 1] = 96 + actorIndex * 24
+        actors[actorOffset + 2] = 1
+        actors[actorOffset + 3] = 80 + actorIndex * 24
+        actors[actorOffset + 4] = 100
+        actors[actorOffset + 5] = 1
+        actors[actorOffset + 6] = if (actorIndex % 2 == 0) 1 else 2
+        actors[actorOffset + 7] = actorIndex * 90
+    }
+    var projectile = new Int[6]
+    var pickup = new Int[5]
+    pickup[0] = 1
+    pickup[1] = 1
+    pickup[2] = 128
+    pickup[3] = 1
+    pickup[4] = 112
+    var full = newSessionWebGameFullSceneSnapshot(
+        4, 6, 32, 1, 52, 0, -8, 100, 100, 24, 0, 1,
+        32, 9, 36, 0, -8, actors, projectile, pickup, 32, 3, 52)
+    assert(validSessionWebGameFullSceneSnapshot(full) &&
+        full.length == 68 && full[14] == 1 &&
+        full[28] == 0 && full[36] == 90 &&
+        full[64] == 32 && full[65] == 3 && full[66] == 52,
+        "full browser snapshots must carry actor facing and VFX positions")
+
     assert(sessionWebSubprotocolVersion() == 1 &&
+        sessionWebGameMaximumVfx() == 15 &&
         validSessionWebAuthTokenLength(8) &&
         validSessionWebAuthTokenLength(128) &&
         !validSessionWebAuthTokenLength(7) &&
         !validSessionWebAuthTokenLength(129),
-        "browser authentication subprotocol bounds must remain explicit")
+        "browser authentication and VFX bounds must remain explicit")
 }
 
 test "remote endpoint and key lifecycle" {
@@ -5098,8 +5135,8 @@ test "bounded physics bodies integrate gravity friction and dynamic collision" {
     var blocked = physics.stepBody(1, 0, 0)
     assert(blocked.accepted() && blocked.collided() &&
         blocked.dynamicCollision() && blocked.colliderId() == 2 &&
-        blocked.x() < 8 && blocked.velocityX() == 2,
-        "physics must stop a moving body at a dynamic collider")
+        blocked.x() < 8 && blocked.velocityX() == 0,
+        "physics must clip velocity into a dynamic collider")
 }
 
 test "shared capsule and spatial admission" {
@@ -5135,6 +5172,16 @@ test "tuned FPS movement preserves air control and jump assists" {
     assert(controller.positionX(1) > startingX &&
         controller.velocityX(1) > 0,
         "ground acceleration must move and build horizontal speed")
+    var diagonal = FpsMovementController(1)
+    assert(diagonal.configure(arena.authoredCollision()) &&
+        diagonal.addActor(1, 6, 1, 6) &&
+        diagonal.step(1, 4, 4, false, false),
+        "diagonal movement must accept bounded input")
+    assert(diagonal.velocityX(1) > 0 &&
+        diagonal.velocityZ(1) > 0 &&
+        diagonal.velocityX(1) <= fpsMovementWalkSpeed() &&
+        diagonal.velocityZ(1) <= fpsMovementWalkSpeed(),
+        "diagonal acceleration must normalize the wish direction")
     var movingVelocity = controller.velocityX(1)
     assert(controller.step(1, 0, 0, false, false) &&
         controller.velocityX(1) < movingVelocity,
