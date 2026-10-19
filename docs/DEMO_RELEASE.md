@@ -49,11 +49,11 @@ audio, P6 screenshot capture and clean exit. Evidence is retained in
 `build/kookie-presentation-wrapper.json`; the log identifies Intel `Graphics
 (ARL)` through Vulkan.
 
-This is engineering evidence, not a release identity: the working tree is
-dirty, the package smoke uses an ephemeral qualification key, and the clean
-extracted Linux/Windows publication plus target Windows presentation evidence
-remain required for D1 promotion. The queue result is not claimed as A770
-hardware evidence.
+This is engineering evidence, not a release identity: ticket 31 predates the
+current commit `206bc08`, the package smoke uses an ephemeral qualification key,
+and the clean extracted Linux/Windows publication plus target Windows
+presentation evidence remain required for D1 promotion. The queue result is
+not claimed as A770 hardware evidence.
 
 
 The current source tree has these release-capable paths:

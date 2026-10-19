@@ -50,11 +50,11 @@ present, áudio, captura PPM e saída limpa. A evidência está em
 `build/kookie-presentation-wrapper.json`; o log identifica Intel `Graphics
 (ARL)` via Vulkan.
 
-Isto é evidência de engenharia, não uma identidade de release: a working tree
-está suja, o smoke de pacote usa uma chave de qualificação efêmera, e a
-publicação Linux/Windows extraída de forma limpa junto da apresentação
-Windows-alvo ainda são necessárias para promover D1. O resultado da fila não
-é declarado como evidência de hardware A770.
+Isto é evidência de engenharia, não uma identidade de release: o ticket 31
+precede o commit atual `206bc08`, o smoke de pacote usa uma chave de
+qualificação efêmera, e a publicação Linux/Windows extraída de forma limpa
+junto da apresentação Windows-alvo ainda são necessárias para promover D1. O
+resultado da fila não é declarado como evidência de hardware A770.
 
 
 O jogo voltado ao jogador se chama **GatoGanso**. A apresentação usa `Pixand`
