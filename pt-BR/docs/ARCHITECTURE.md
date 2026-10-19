@@ -115,7 +115,8 @@ flowchart TB
     Server[Authoritative server session\nfixed tick and world state]
     Client[Client session\ninput, prediction, reconciliation]
     Core[Kof core\nIDs, storage, math, clock, commands, events, RNG]
-    Native[Native adapter\nSDL3, SDL_GPU, audio, fonts, images]
+    Browser[Browser presentation\nKofJS, WebSocket, WebGL2 / 2D fallback\nGLB skinning, animation, VFX]
+    Native[Native presentation adapter\nSDL3, SDL_GPU, audio, fonts, images]
     GPU[GPU/audio/window mechanisms]
 
     Tools --> Packages
@@ -126,8 +127,11 @@ flowchart TB
     Core --> Server
     Core --> Client
     Server --> Client
+    Client --> Browser
     Client --> Native
+    Browser --> GPU
     Native --> GPU
+
 ```
 
 ### Núcleo Kof
