@@ -51,7 +51,7 @@ present, áudio, captura PPM e saída limpa. A evidência está em
 (ARL)` via Vulkan.
 
 Isto é evidência de engenharia, não uma identidade de release: o ticket 31
-precede o commit atual `206bc08`, o smoke de pacote usa uma chave de
+precede o commit de código corrigido `206bc08`, o smoke de pacote usa uma chave de
 qualificação efêmera, e a publicação Linux/Windows extraída de forma limpa
 junto da apresentação Windows-alvo ainda são necessárias para promover D1. O
 resultado da fila não é declarado como evidência de hardware A770.
