@@ -72,10 +72,11 @@ player-facing demo release. The open D1 gate is tracked in
 - Static and dynamic physics contacts clip blocked velocity components; the
   physics regression now asserts that a dynamic blocker does not retain stale
   horizontal velocity.
-- The browser GLB path is mesh/material/node/facing compatible and now
-  consumes authoritative actor state for deterministic idle/moving/attack
-  lift, but does not yet skin animated goose/cat skeletons. Skeletal animation
-  remains an explicit next parity cut, not a hidden fallback claim.
+- The browser GLB path is mesh/material/node/facing compatible, consumes
+  authoritative actor state for deterministic idle/moving/attack lift, and
+  skins authored goose/cat skeletons with bounded `JOINTS_0`/`WEIGHTS_0`,
+  inverse-bind palettes and `LINEAR`/`STEP` TRS clips. State-to-clip fallback
+  remains explicit for assets with fewer authored clips.
 - Queue-controlled Linux presentation qualification passed through
   `scripts/verify_presentation.sh` on ticket 31. The native smoke used X11
   under gamescope, render node `/dev/dri/renderD128`, positive present

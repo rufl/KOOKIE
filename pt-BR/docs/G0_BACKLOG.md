@@ -53,11 +53,12 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
 - Contatos físicos estáticos e dinâmicos agora zeram componentes de velocidade
   bloqueados; a regressão verifica que um bloqueador dinâmico não retém
   velocidade horizontal obsoleta.
-- O caminho GLB atual do navegador cobre malha/material/níveis de nós/direção e
-  agora consome o estado autoritativo dos atores para uma elevação determinística
-  de repouso/movimento/ataque, mas ainda não faz skin dos esqueletos animados do
-  ganso/gato. Skin esquelético continua um próximo corte explícito, não um
-  fallback oculto.
+- O caminho GLB atual do navegador cobre malha/material/níveis de nós/direção,
+  consome o estado autoritativo dos atores para uma elevação determinística de
+  repouso/movimento/ataque e faz skin dos esqueletos autorados de ganso/gato
+  com `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind e clipes TRS `LINEAR`/`STEP`.
+  O fallback entre estados e clipes permanece explícito para assets com menos
+  animações.
 - A qualificação de apresentação Linux controlada pela fila passou pelo
   `scripts/verify_presentation.sh` no ticket 31. O smoke nativo usou X11 sob
   gamescope, `/dev/dri/renderD128`, capacidade positiva de present, áudio,

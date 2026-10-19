@@ -50,11 +50,11 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   normalized wish-vector projection and acceleration. Fixed-step coyote time,
   jump buffering, air control and eased braking remain in the authoritative
   Kof controller; diagonal normalization has JVM/native regression coverage.
-- The browser WebGL2 actor pass now consumes authoritative actor state for a
-  deterministic procedural lift across idle, moving and attack states, matching
-  the native presentation's bounded state cues without pretending to skin the
-  authored goose/cat skeletons. Skeletal GLB animation remains the explicit
-  parity boundary.
+- The browser WebGL2 actor pass now consumes authoritative actor state for
+  deterministic procedural lift and bounded skeletal animation. Authored
+  goose/cat GLBs admit `JOINTS_0`/`WEIGHTS_0`, inverse-bind palettes capped at
+  32 joints, and `LINEAR`/`STEP` translation/rotation/scale clips with state
+  fallback selection.
 - Physics body integration now clips blocked velocity components that are
   blocked by static or dynamic capsule contacts instead of carrying stale
   velocity into colliders; the regression contract covers the clipped dynamic

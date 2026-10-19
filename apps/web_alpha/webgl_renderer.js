@@ -6,17 +6,32 @@
     layout(location = 0) in vec3 aPosition;
     layout(location = 1) in vec3 aNormal;
     layout(location = 2) in vec2 aUv;
+    layout(location = 3) in vec4 aJoints;
+    layout(location = 4) in vec4 aWeights;
     uniform mat4 uViewProjection;
     uniform mat4 uModel;
+    uniform mat4 uJoints[32];
     uniform vec2 uUvScale;
     uniform vec2 uUvOffset;
+    uniform bool uUseSkinning;
     out vec3 vNormal;
     out vec3 vWorld;
     out vec2 vUv;
     void main() {
-      vec4 world = uModel * vec4(aPosition, 1.0);
+      vec4 localPosition = vec4(aPosition, 1.0);
+      vec3 localNormal = aNormal;
+      if (uUseSkinning) {
+        mat4 skin = mat4(0.0);
+        skin += aWeights.x * uJoints[int(clamp(aJoints.x, 0.0, 31.0))];
+        skin += aWeights.y * uJoints[int(clamp(aJoints.y, 0.0, 31.0))];
+        skin += aWeights.z * uJoints[int(clamp(aJoints.z, 0.0, 31.0))];
+        skin += aWeights.w * uJoints[int(clamp(aJoints.w, 0.0, 31.0))];
+        localPosition = skin * localPosition;
+        localNormal = mat3(skin) * localNormal;
+      }
+      vec4 world = uModel * localPosition;
       vWorld = world.xyz;
-      vNormal = mat3(uModel) * aNormal;
+      vNormal = mat3(uModel) * localNormal;
       vUv = aUv * uUvScale + uUvOffset;
       gl_Position = uViewProjection * world;
     }
@@ -47,6 +62,7 @@
     }
   `;
 
+  const MAX_SKIN_JOINTS = 32;
   const COLORS = Object.freeze({
     floor: [0.055, 0.14, 0.19, 1],
     wall: [0.12, 0.25, 0.30, 1],
@@ -231,6 +247,7 @@
 
   function createMesh(
     gl, positions, normals, uvs, indices, color, texture = null, localModel = null,
+    joints = null, weights = null, skinNode = null,
   ) {
     const vertexCount = positions.length / 3;
     if (!Number.isInteger(vertexCount) || vertexCount <= 0 ||
@@ -278,10 +295,27 @@
       interleaved.set(generatedNormals.slice(index * 3, index * 3 + 3), vertexOffset + 3);
       interleaved.set(generatedUvs.slice(index * 2, index * 2 + 2), vertexOffset + 6);
     }
+    const hasJoints = joints !== null;
+    const hasWeights = weights !== null;
+    if (hasJoints !== hasWeights) throw new Error("incomplete WebGL skin attributes");
+    const skinning = hasJoints &&
+      joints.length === vertexCount * 4 && weights.length === vertexCount * 4;
+    if (hasJoints && !skinning) throw new Error("invalid WebGL skin attributes");
+    const skinInterleaved = skinning ? new Float32Array(vertexCount * 8) : null;
+    if (skinning) {
+      for (let index = 0; index < vertexCount; index += 1) {
+        const vertexOffset = index * 8;
+        skinInterleaved.set(joints.slice(index * 4, index * 4 + 4), vertexOffset);
+        skinInterleaved.set(weights.slice(index * 4, index * 4 + 4), vertexOffset + 4);
+      }
+    }
     const vao = gl.createVertexArray();
     const vbo = gl.createBuffer();
+    const skinVbo = skinning ? gl.createBuffer() : null;
     const ibo = gl.createBuffer();
-    if (!vao || !vbo || !ibo) throw new Error("WebGL mesh allocation failed");
+    if (!vao || !vbo || !ibo || (skinning && !skinVbo)) {
+      throw new Error("WebGL mesh allocation failed");
+    }
     gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
     gl.bufferData(gl.ARRAY_BUFFER, interleaved, gl.STATIC_DRAW);
@@ -291,12 +325,21 @@
     gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 32, 12);
     gl.enableVertexAttribArray(2);
     gl.vertexAttribPointer(2, 2, gl.FLOAT, false, 32, 24);
+    if (skinning) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, skinVbo);
+      gl.bufferData(gl.ARRAY_BUFFER, skinInterleaved, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(3);
+      gl.vertexAttribPointer(3, 4, gl.FLOAT, false, 32, 0);
+      gl.enableVertexAttribArray(4);
+      gl.vertexAttribPointer(4, 4, gl.FLOAT, false, 32, 16);
+    }
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), gl.STATIC_DRAW);
     gl.bindVertexArray(null);
     return Object.freeze({
-      vao, vbo, ibo, count: indices.length, color: color || COLORS.wall,
-      texture, localModel: localModel || identity(),
+      vao, vbo, skinVbo, ibo, count: indices.length, color: color || COLORS.wall,
+      texture, localModel: localModel || identity(), skinned: Boolean(skinning),
+      skinNode,
     });
   }
 
@@ -388,9 +431,9 @@
   function accessorValues(json, binary, accessorIndex) {
     const accessor = json.accessors?.[accessorIndex];
     const bufferView = accessor && json.bufferViews?.[accessor.bufferView];
-    const componentCount = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[
-      accessor?.type
-    ];
+    const componentCount = {
+      SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16,
+    }[accessor?.type];
     const componentSize = {
       5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4,
     }[accessor?.componentType];
@@ -515,6 +558,112 @@
     ];
   }
 
+  function composeNodeMatrix(translation, rotation, scale) {
+    return nodeMatrix({ translation, rotation, scale });
+  }
+
+  function invertMatrix(matrix) {
+    const a00 = matrix[0], a01 = matrix[1], a02 = matrix[2], a03 = matrix[3];
+    const a10 = matrix[4], a11 = matrix[5], a12 = matrix[6], a13 = matrix[7];
+    const a20 = matrix[8], a21 = matrix[9], a22 = matrix[10], a23 = matrix[11];
+    const a30 = matrix[12], a31 = matrix[13], a32 = matrix[14], a33 = matrix[15];
+    const b00 = a00 * a11 - a01 * a10;
+    const b01 = a00 * a12 - a02 * a10;
+    const b02 = a00 * a13 - a03 * a10;
+    const b03 = a01 * a12 - a02 * a11;
+    const b04 = a01 * a13 - a03 * a11;
+    const b05 = a02 * a13 - a03 * a12;
+    const b06 = a20 * a31 - a21 * a30;
+    const b07 = a20 * a32 - a22 * a30;
+    const b08 = a20 * a33 - a23 * a30;
+    const b09 = a21 * a32 - a22 * a31;
+    const b10 = a21 * a33 - a23 * a31;
+    const b11 = a22 * a33 - a23 * a32;
+    const determinant =
+      b00 * b11 - b01 * b10 + b02 * b09 +
+      b03 * b08 - b04 * b07 + b05 * b06;
+    if (Math.abs(determinant) < 1e-8) return null;
+    const inverse = 1 / determinant;
+    return [
+      (a11 * b11 - a12 * b10 + a13 * b09) * inverse,
+      (a02 * b10 - a01 * b11 - a03 * b09) * inverse,
+      (a31 * b05 - a32 * b04 + a33 * b03) * inverse,
+      (a22 * b04 - a21 * b05 - a23 * b03) * inverse,
+      (a12 * b08 - a10 * b11 - a13 * b07) * inverse,
+      (a00 * b11 - a02 * b08 + a03 * b07) * inverse,
+      (a32 * b02 - a30 * b05 - a33 * b01) * inverse,
+      (a20 * b05 - a22 * b02 + a23 * b01) * inverse,
+      (a10 * b10 - a11 * b08 + a13 * b06) * inverse,
+      (a30 * b04 - a31 * b02 + a33 * b00) * inverse,
+      (a21 * b02 - a20 * b04 - a23 * b00) * inverse,
+      (a20 * b03 - a21 * b01 + a22 * b00) * inverse,
+      (a11 * b07 - a10 * b09 - a12 * b06) * inverse,
+      (a01 * b09 - a00 * b07 + a02 * b06) * inverse,
+      (a31 * b01 - a30 * b03 - a32 * b00) * inverse,
+      (a30 * b02 - a31 * b00 + a32 * b01) * inverse,
+    ];
+  }
+
+  function normalizeQuaternion(quaternion) {
+    const length = Math.hypot(
+      quaternion[0], quaternion[1], quaternion[2], quaternion[3],
+    ) || 1;
+    return quaternion.map((value) => value / length);
+  }
+
+  function slerpQuaternion(first, second, amount) {
+    let b = second;
+    let cosine = first[0] * second[0] + first[1] * second[1] +
+      first[2] * second[2] + first[3] * second[3];
+    if (cosine < 0) {
+      cosine = -cosine;
+      b = second.map((value) => -value);
+    }
+    if (cosine > 0.9995) {
+      return normalizeQuaternion(first.map((value, index) =>
+        value + (b[index] - value) * amount));
+    }
+    const angle = Math.acos(Math.max(-1, Math.min(1, cosine)));
+    const sine = Math.sin(angle) || 1;
+    const firstScale = Math.sin((1 - amount) * angle) / sine;
+    const secondScale = Math.sin(amount * angle) / sine;
+    return [
+      first[0] * firstScale + b[0] * secondScale,
+      first[1] * firstScale + b[1] * secondScale,
+      first[2] * firstScale + b[2] * secondScale,
+      first[3] * firstScale + b[3] * secondScale,
+    ];
+  }
+
+  function sampleAnimationChannel(channel, time) {
+    const times = channel.times;
+    const values = channel.values;
+    const components = channel.components;
+    if (times.length === 0) return values.slice(0, components);
+    let index = times.length - 1;
+    for (let candidate = 0; candidate < times.length - 1; candidate += 1) {
+      if (time < times[candidate + 1]) {
+        index = candidate;
+        break;
+      }
+    }
+    const firstOffset = index * components;
+    if (index === times.length - 1) {
+      return values.slice(firstOffset, firstOffset + components);
+    }
+    const nextOffset = (index + 1) * components;
+    const span = times[index + 1] - times[index];
+    const amount = span > 0 ? (time - times[index]) / span : 0;
+    if (channel.interpolation === "STEP") {
+      return values.slice(firstOffset, firstOffset + components);
+    }
+    const first = values.slice(firstOffset, firstOffset + components);
+    const second = values.slice(nextOffset, nextOffset + components);
+    if (channel.path === "rotation") return slerpQuaternion(first, second, amount);
+    return first.map((value, component) =>
+      value + (second[component] - value) * amount);
+  }
+
   async function loadGlb(url, gl) {
     const response = await fetch(url, { cache: "force-cache" });
     if (!response.ok) throw new Error("GLB HTTP " + response.status + " / " + url);
@@ -552,7 +701,127 @@
       textureCache.set(textureIndex, promise);
       return promise;
     };
-    const meshForPrimitive = async (primitive, localModel) => {
+    const nodes = Array.isArray(json.nodes) ? json.nodes : [];
+    const nodeParents = new Array(nodes.length).fill(undefined);
+    nodes.forEach((node, parent) => (node.children || []).forEach((child) => {
+      if (!Number.isInteger(child) || child < 0 || child >= nodes.length) {
+        throw new Error("GLB child node index invalid");
+      }
+      if (nodeParents[child] !== undefined) throw new Error("GLB multiple node parents");
+      nodeParents[child] = parent;
+    }));
+    const resolveWorldMatrices = (localMatrices) => {
+      const worldMatrices = new Array(nodes.length);
+      const resolveNode = (index, visiting = new Set()) => {
+        if (worldMatrices[index]) return worldMatrices[index];
+        if (visiting.has(index)) throw new Error("GLB node cycle");
+        visiting.add(index);
+        const node = nodes[index];
+        if (!node) throw new Error("GLB node missing");
+        const parent = nodeParents[index] === undefined
+          ? identity() : resolveNode(nodeParents[index], visiting);
+        const result = multiply(parent, localMatrices[index]);
+        worldMatrices[index] = result;
+        visiting.delete(index);
+        return result;
+      };
+      for (let index = 0; index < nodes.length; index += 1) resolveNode(index);
+      return worldMatrices;
+    };
+    const baseLocalMatrices = nodes.map((node) => nodeMatrix(node));
+    const baseWorldMatrices = resolveWorldMatrices(baseLocalMatrices);
+    const skins = (json.skins || []).map((skin) => {
+      if (!Array.isArray(skin.joints) || skin.joints.length === 0 ||
+          skin.joints.length > MAX_SKIN_JOINTS) {
+        throw new Error("GLB skin joint count exceeds WebGL limit");
+      }
+      for (const joint of skin.joints) {
+        if (!Number.isInteger(joint) || joint < 0 || joint >= nodes.length) {
+          throw new Error("GLB skin joint index invalid");
+        }
+      }
+      const inverseValues = skin.inverseBindMatrices === undefined
+        ? null : accessorValues(json, binary, skin.inverseBindMatrices);
+      if (inverseValues && inverseValues.length !== skin.joints.length * 16) {
+        throw new Error("GLB inverse bind matrix count mismatch");
+      }
+      const inverseBindMatrices = skin.joints.map((_, index) =>
+        inverseValues ? inverseValues.slice(index * 16, index * 16 + 16) : identity());
+      return Object.freeze({
+        joints: Object.freeze(skin.joints.slice()),
+        inverseBindMatrices: Object.freeze(inverseBindMatrices),
+      });
+    });
+    const clips = (json.animations || []).map((animation, animationIndex) => {
+      const channels = [];
+      let duration = 0;
+      for (const channel of animation.channels || []) {
+        const sampler = animation.samplers?.[channel.sampler];
+        const target = channel.target;
+        if (!sampler || !target || !Number.isInteger(target.node) ||
+            target.node < 0 || target.node >= nodes.length ||
+            !["translation", "rotation", "scale"].includes(target.path)) {
+          throw new Error("GLB animation target rejected");
+        }
+        const inputAccessor = json.accessors?.[sampler.input];
+        const outputAccessor = json.accessors?.[sampler.output];
+        if (!inputAccessor || inputAccessor.type !== "SCALAR" ||
+            !outputAccessor || (target.path === "rotation"
+              ? outputAccessor.type !== "VEC4" : outputAccessor.type !== "VEC3")) {
+          throw new Error("GLB animation accessor rejected");
+        }
+        const interpolation = sampler.interpolation || "LINEAR";
+        if (interpolation !== "LINEAR" && interpolation !== "STEP") {
+          throw new Error("GLB animation interpolation rejected");
+        }
+        const times = accessorValues(json, binary, sampler.input);
+        const components = target.path === "rotation" ? 4 : 3;
+        const values = accessorValues(json, binary, sampler.output);
+        if (times.length !== inputAccessor.count ||
+            values.length !== outputAccessor.count * components ||
+            outputAccessor.count !== inputAccessor.count) {
+          throw new Error("GLB animation key count mismatch");
+        }
+        if (times.some((time, index) =>
+          !Number.isFinite(time) || (index > 0 && time < times[index - 1]))) {
+          throw new Error("GLB animation time order rejected");
+        }
+        duration = Math.max(duration, times[times.length - 1] || 0);
+        channels.push(Object.freeze({
+          node: target.node,
+          path: target.path,
+          times: Object.freeze(times),
+          values: Object.freeze(values),
+          components,
+          interpolation,
+        }));
+      }
+      const fullName = typeof animation.name === "string" && animation.name.length > 0
+        ? animation.name : "animation-" + animationIndex;
+      const separator = fullName.lastIndexOf("|");
+      const shortName = separator >= 0 ? fullName.slice(separator + 1) : fullName;
+      return Object.freeze({
+        name: shortName,
+        fullName,
+        duration,
+        channels: Object.freeze(channels),
+      });
+    });
+    const clipsByName = new Map();
+    for (const clip of clips) if (!clipsByName.has(clip.name)) clipsByName.set(clip.name, clip);
+    const meshNodes = [];
+    for (let index = 0; index < nodes.length; index += 1) {
+      const node = nodes[index];
+      if (node.mesh === undefined) continue;
+      const mesh = json.meshes[node.mesh];
+      if (!mesh) throw new Error("GLB node mesh missing");
+      if (node.skin !== undefined &&
+          (!Number.isInteger(node.skin) || !skins[node.skin])) {
+        throw new Error("GLB node skin missing");
+      }
+      meshNodes.push({ index, node, mesh });
+    }
+    const meshForPrimitive = async (primitive, localModel, skinNode) => {
       if (primitive.mode !== undefined && primitive.mode !== 4) return null;
       if (primitive.attributes?.POSITION === undefined) {
         throw new Error("GLB primitive POSITION missing");
@@ -565,6 +834,18 @@
       const indices = primitive.indices === undefined
         ? Array.from({ length: positions.length / 3 }, (_, index) => index)
         : accessorValues(json, binary, primitive.indices);
+      const jointsIndex = primitive.attributes?.JOINTS_0;
+      const weightsIndex = primitive.attributes?.WEIGHTS_0;
+      if ((jointsIndex === undefined) !== (weightsIndex === undefined)) {
+        throw new Error("GLB skin attributes incomplete");
+      }
+      if (skinNode !== null && jointsIndex === undefined) {
+        throw new Error("GLB skinned primitive attributes missing");
+      }
+      const joints = jointsIndex === undefined
+        ? null : accessorValues(json, binary, jointsIndex);
+      const weights = weightsIndex === undefined
+        ? null : accessorValues(json, binary, weightsIndex);
       const material = json.materials?.[primitive.material || 0];
       const pbr = material?.pbrMetallicRoughness;
       const factor = pbr?.baseColorFactor || [1, 1, 1, 1];
@@ -573,47 +854,82 @@
       return createMesh(
         gl, new Float32Array(positions), normals && new Float32Array(normals),
         uvs && new Float32Array(uvs), indices, factor, texture, localModel,
+        joints && new Float32Array(joints), weights && new Float32Array(weights), skinNode,
       );
     };
-    const nodes = Array.isArray(json.nodes) ? json.nodes : [];
-    const nodeParents = new Array(nodes.length).fill(undefined);
-    nodes.forEach((node, parent) => (node.children || []).forEach((child) => {
-      if (nodeParents[child] !== undefined) throw new Error("GLB multiple node parents");
-      nodeParents[child] = parent;
-    }));
-    const worldMatrices = new Array(nodes.length);
-    const resolveNode = (index, visiting = new Set()) => {
-      if (worldMatrices[index]) return worldMatrices[index];
-      if (visiting.has(index)) throw new Error("GLB node cycle");
-      visiting.add(index);
-      const node = nodes[index];
-      if (!node) throw new Error("GLB node missing");
-      const parent = nodeParents[index] === undefined
-        ? identity() : resolveNode(nodeParents[index], visiting);
-      const result = multiply(parent, nodeMatrix(node));
-      worldMatrices[index] = result;
-      visiting.delete(index);
-      return result;
-    };
     const meshes = [];
-    for (let index = 0; index < nodes.length; index += 1) {
-      const node = nodes[index];
-      if (node.mesh === undefined) continue;
-      const mesh = json.meshes[node.mesh];
-      if (!mesh) throw new Error("GLB node mesh missing");
-      for (const primitive of mesh.primitives || []) {
-        const loaded = await meshForPrimitive(primitive, resolveNode(index));
+    for (const meshNode of meshNodes) {
+      for (const primitive of meshNode.mesh.primitives || []) {
+        const loaded = await meshForPrimitive(
+          primitive, baseWorldMatrices[meshNode.index],
+          meshNode.node.skin === undefined ? null : meshNode.index,
+        );
         if (loaded) meshes.push(loaded);
       }
     }
-    if (meshes.length > 0) return meshes;
-    for (const mesh of json.meshes) {
-      for (const primitive of mesh.primitives || []) {
-        const loaded = await meshForPrimitive(primitive, identity());
-        if (loaded) meshes.push(loaded);
+    if (meshes.length === 0) {
+      for (const mesh of json.meshes) {
+        for (const primitive of mesh.primitives || []) {
+          const loaded = await meshForPrimitive(primitive, identity(), null);
+          if (loaded) meshes.push(loaded);
+        }
       }
     }
-    return meshes;
+    const skinnedNodes = Object.freeze(meshes.filter((mesh) => mesh.skinned)
+      .map((mesh) => mesh.skinNode).filter((node, index, all) => all.indexOf(node) === index));
+    const skinCache = new Map();
+    const sampleSkinForState = (state, timeMs) => {
+      if (skinnedNodes.length === 0 || skins.length === 0 || clips.length === 0) return null;
+      const requested = state === 3 ? "attack" : state === 4 ? "death"
+        : state === 2 ? "run" : "idle";
+      const clip = clipsByName.get(requested) || clipsByName.get("walk") || clips[0];
+      const seconds = Math.max(0, Number.isFinite(timeMs) ? timeMs : 0) / 1000;
+      const sampleTime = clip.duration > 0 ? seconds % clip.duration : 0;
+      const cacheKey = clip.fullName + ":" + Math.floor(seconds * 60);
+      if (skinCache.has(cacheKey)) return skinCache.get(cacheKey);
+      const translations = nodes.map((node) =>
+        (node.translation || [0, 0, 0]).slice());
+      const rotations = nodes.map((node) =>
+        normalizeQuaternion((node.rotation || [0, 0, 0, 1]).slice()));
+      const scales = nodes.map((node) => (node.scale || [1, 1, 1]).slice());
+      for (const channel of clip.channels) {
+        const value = sampleAnimationChannel(channel, sampleTime);
+        if (channel.path === "translation") translations[channel.node] = value;
+        if (channel.path === "rotation") rotations[channel.node] = normalizeQuaternion(value);
+        if (channel.path === "scale") scales[channel.node] = value;
+      }
+      const localMatrices = nodes.map((node, index) =>
+        clip.channels.some((channel) => channel.node === index)
+          ? composeNodeMatrix(translations[index], rotations[index], scales[index])
+          : baseLocalMatrices[index]);
+      const worldMatrices = resolveWorldMatrices(localMatrices);
+      const matricesByNode = new Array(nodes.length);
+      for (const nodeIndex of skinnedNodes) {
+        const node = nodes[nodeIndex];
+        const skin = skins[node.skin];
+        const meshInverse = invertMatrix(worldMatrices[nodeIndex]);
+        if (!meshInverse) throw new Error("GLB skinned mesh transform is singular");
+        const matrices = new Float32Array(skin.joints.length * 16);
+        skin.joints.forEach((joint, jointIndex) => {
+          const matrix = multiply(
+            multiply(meshInverse, worldMatrices[joint]),
+            skin.inverseBindMatrices[jointIndex],
+          );
+          matrices.set(matrix, jointIndex * 16);
+        });
+        matricesByNode[nodeIndex] = matrices;
+      }
+      if (skinCache.size >= 32) skinCache.delete(skinCache.keys().next().value);
+      skinCache.set(cacheKey, matricesByNode);
+      return matricesByNode;
+    };
+    return Object.freeze({
+      meshes: Object.freeze(meshes),
+      skinned: skinnedNodes.length > 0,
+      animationNames: Object.freeze(clips.map((clip) => clip.name)),
+      defaultAnimation: clipsByName.has("idle") ? "idle" : clips[0]?.name || null,
+      sampleSkinForState,
+    });
   }
   async function loadTextureUrl(gl, url) {
     const response = await fetch(url, { cache: "force-cache" });
@@ -687,6 +1003,8 @@
       uvOffset: gl.getUniformLocation(program, "uUvOffset"),
       albedo: gl.getUniformLocation(program, "uAlbedo"),
       useTexture: gl.getUniformLocation(program, "uUseTexture"),
+      joints: gl.getUniformLocation(program, "uJoints[0]"),
+      useSkinning: gl.getUniformLocation(program, "uUseSkinning"),
     };
     const fallbackMeshes = {
       solid: boxGeometry(gl, [1, 1, 1], [1, 1, 1, 1]),
@@ -746,11 +1064,18 @@
       gl.viewport(0, 0, canvas.width, canvas.height);
     }
 
-    function draw(meshes, model, tint, time, viewProjection, uvRect = [0, 0, 1, 1]) {
+    function draw(
+      meshes, model, tint, time, viewProjection, uvRect = [0, 0, 1, 1],
+      skinMatricesByNode = null,
+    ) {
       gl.uniform2f(locations.uvScale, uvRect[2], uvRect[3]);
       gl.uniform2f(locations.uvOffset, uvRect[0], uvRect[1]);
       for (const mesh of meshes || []) {
+        const skinMatrices = mesh.skinned && skinMatricesByNode
+          ? skinMatricesByNode[mesh.skinNode] : null;
         gl.bindVertexArray(mesh.vao);
+        gl.uniform1i(locations.useSkinning, skinMatrices ? 1 : 0);
+        if (skinMatrices) gl.uniformMatrix4fv(locations.joints, false, skinMatrices);
         gl.uniformMatrix4fv(
           locations.model, false, new Float32Array(multiply(model, mesh.localModel)),
         );
@@ -847,13 +1172,19 @@
         const scale = actor.kind === 2 ? [2.2, 2.2, 2.2] : [8, 8, 8];
         const actorYaw = actor.yaw === undefined ? 0 : actor.yaw * Math.PI / 180;
         const actorLift = actorAnimationLift(actor, scene.tick);
-        draw(model || [fallbackMeshes.actor], transform(
+        const animationTime = time + (Number.isInteger(actor.id) ? actor.id * 137 : 0);
+        const skinMatrices = model?.sampleSkinForState?.(actor.state, animationTime);
+        draw(model?.meshes || [fallbackMeshes.actor], transform(
           [actor.x, actor.y + actorLift, actor.z], scale, actorYaw,
-        ), tint, time, viewProjection);
+        ), tint, time, viewProjection, [0, 0, 1, 1], skinMatrices);
       }
-      draw(assets.goose || [fallbackMeshes.actor], transform(
+      const playerModel = assets.goose;
+      const playerSkinMatrices = playerModel?.sampleSkinForState?.(
+        scene.playerState === undefined ? 1 : scene.playerState, time,
+      );
+      draw(playerModel?.meshes || [fallbackMeshes.actor], transform(
         [scene.playerX, scene.playerY, scene.playerZ], [8, 8, 8], yaw,
-      ), COLORS.player, time, viewProjection);
+      ), COLORS.player, time, viewProjection, [0, 0, 1, 1], playerSkinMatrices);
       if (scene.pickup) {
         const bob = Math.sin(time * 0.004) * 0.7;
         draw([fallbackMeshes.pickup], transform(
@@ -934,7 +1265,7 @@
       destroy() {
         const meshes = [
           ...Object.values(fallbackMeshes),
-          ...Object.values(assets).flatMap((value) => value || []),
+          ...Object.values(assets).flatMap((value) => value?.meshes || []),
           ...Object.values(vfxMeshes).filter(Boolean),
           ...rampMeshes,
 
@@ -943,6 +1274,7 @@
         for (const mesh of meshes) {
           if (!mesh) continue;
           gl.deleteBuffer(mesh.vbo);
+          if (mesh.skinVbo) gl.deleteBuffer(mesh.skinVbo);
           gl.deleteBuffer(mesh.ibo);
           gl.deleteVertexArray(mesh.vao);
           if (mesh.texture) textures.add(mesh.texture);

@@ -394,10 +394,11 @@ transforms and toon-banded materials; all 16 native-registered particle,
 flipbook and predrawn VFX sheets are staged, with event IDs 5/6/8 currently
 mapped to melee/fire/special. Native and web intentionally share the
 base-color-only material subset; the renderer also applies a deterministic,
-state-driven procedural lift for idle, moving and attack actor states. The
-browser still does not skin the authored goose/cat skeleton animations; that
-remains the explicit skeletal-animation parity boundary. It follows the
-authoritative camera and resizes for device pixels.
+state-driven procedural lift and bounded skeletal animation for idle, moving
+and attack actor states. Authored goose/cat GLBs use `JOINTS_0`/`WEIGHTS_0`,
+inverse-bind palettes capped at 32 joints, and `LINEAR`/`STEP` TRS clips with
+fallback selection. It follows the authoritative camera and resizes for device
+pixels.
 The client gates gameplay controls until the full scene arrives, exposes bounded
 automatic reconnect with visible loading/failure states, and persists minimap,
 pointer-lock and reduced-motion preferences locally. The browser falls back to

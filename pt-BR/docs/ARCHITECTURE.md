@@ -383,11 +383,12 @@ dependência de Three.js, incluindo imagens base-color embutidas/anexas,
 transforms de nós autorados e materiais em bandas toon; os 16 assets nativos de
 partículas, flipbooks e predrawn são publicados e os IDs 5/6/8 mapeiam
 melee/tiro/especial. Nativo e web compartilham deliberadamente o subconjunto
-material base-color; o renderer também aplica uma elevação procedural
-determinística orientada por estado para atores parados, em movimento e
-atacando. O navegador ainda não faz skin das animações de esqueleto autoradas
-do ganso/gato; esse continua sendo o limite explícito de paridade esquelética.
-Ele segue a câmera autoritativa e redimensiona para pixels do dispositivo.
+material base-color; o renderer também aplica elevação procedural determinística
+orientada por estado e animação esquelética limitada para atores parados, em
+movimento e atacando. Os GLBs autorados de ganso/gato usam
+`JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind limitadas a 32 juntas e clipes TRS
+`LINEAR`/`STEP` com fallback explícito. Ele segue a câmera autoritativa e
+redimensiona para pixels do dispositivo.
 cena completa, oferece reconexão automática limitada com estados visíveis de
 carregamento/falha e persiste localmente as preferências de minimapa, pointer
 lock e movimento reduzido. O navegador usa fallback 2D visível quando WebGL2 não
