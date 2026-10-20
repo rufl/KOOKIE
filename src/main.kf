@@ -3209,7 +3209,7 @@ test "browser WebSocket handshake and heartbeat words are bounded" {
     var pong = newSessionWebPing(sessionWebPongKind(), 2)
     assert(validSessionWebPing(ping, sessionWebPingKind()) &&
         validSessionWebPing(pong, sessionWebPongKind()) &&
-        sessionWebMaximumFrameBytes() == 288,
+        sessionWebMaximumFrameBytes() == 1104,
         "WebSocket heartbeat frames must remain bounded and checksummed")
 
     var move = newSessionWebGameCommand(
@@ -3250,12 +3250,16 @@ test "browser WebSocket handshake and heartbeat words are bounded" {
     pickup[4] = 112
     var full = newSessionWebGameFullSceneSnapshot(
         4, 6, 32, 1, 52, 0, -8, 100, 100, 24, 0, 1,
-        32, 9, 36, 0, -8, actors, projectile, pickup, 32, 3, 52)
+        32, 9, 36, 0, -8, 3, actors, projectile, pickup, 32, 3, 52)
     assert(validSessionWebGameFullSceneSnapshot(full) &&
-        full.length == 68 && full[14] == 1 &&
+        full.length == 185 && full[14] == 1 &&
         full[28] == 0 && full[36] == 90 &&
-        full[64] == 32 && full[65] == 3 && full[66] == 52,
-        "full browser snapshots must carry actor facing and VFX positions")
+        full[64] == 32 && full[65] == 3 && full[66] == 52 &&
+        full[67] == 3 && full[68] == 10 &&
+        full[159] == 4 && full[160] == 1 && full[161] == 1 &&
+        full[162] == 96 && full[163] == 1 && full[164] == 80 &&
+        full[165] == 1,
+        "full browser snapshots must carry scene loot beams and projected labels")
 
     assert(sessionWebSubprotocolVersion() == 1 &&
         sessionWebGameMaximumVfx() == 15 &&
@@ -8262,4 +8266,25 @@ test "compatibility handshake gates remote gameplay transport" {
     var corrupt = BoundedContentCompatibility()
     assert(!decodeCompatibilityHandshakeOffer(rejectedOffer, corrupt),
         "handshake corruption must reject before identity comparison")
+}
+test "authored GLB clips sample bounded CPU poses" {
+    var assets = BoundedExternalGlbAssetStore()
+    var goose = BoundedExternalGlbModelReader()
+    var cat = BoundedExternalGlbModelReader()
+    assert(assets.available(1) && assets.available(2),
+        "prototype GLB assets must be available")
+    assert(goose.read(assets.bytes(1), 1) &&
+        cat.read(assets.bytes(2), 2) &&
+        goose.valid() && cat.valid(),
+        "prototype GLBs must load with valid geometry")
+    assert(goose.authoredAnimationAvailable() &&
+        cat.authoredAnimationAvailable(),
+        "prototype GLBs must expose authored animation channels")
+    assert(goose.prepareAnimationPose(1, 0) &&
+        goose.animationPoseDiagnostic() == 0 &&
+        cat.prepareAnimationPose(1, 0) &&
+        cat.animationPoseDiagnostic() == 0,
+        "authored GLB clips must produce valid bounded CPU poses")
+    assert(goose.vertexCount() == 708 && cat.vertexCount() == 2400,
+        "authored GLB pose deformation must expose normalized vertices")
 }

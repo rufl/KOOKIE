@@ -91,6 +91,19 @@
     shadow: [0.015, 0.020, 0.025, 0.42],
     water: [0.05, 0.34, 0.45, 0.72],
   });
+  const SCENE_OBJECT_KINDS = Object.freeze({
+    door: 1,
+    floatable: 2,
+    powerup: 3,
+    lootBeam: 4,
+  });
+  const SCENE_OBJECT_COLORS = Object.freeze({
+    doorClosed: [0.76, 0.34, 0.16, 1],
+    doorOpen: [0.30, 0.78, 0.44, 1],
+    floatable: [0.44, 0.58, 0.70, 1],
+    powerup: [0.30, 1.0, 0.58, 1],
+    lootBeam: [1.0, 0.70, 0.22, 1],
+  });
 
   const ARENA_SOLIDS = Object.freeze([
     { box: [0, 0, 0, 4, 24, 280], material: 8, color: COLORS.wall },
@@ -1255,6 +1268,46 @@
 
     let vfxKey = null;
     let vfxStartedAt = 0;
+    function projectWorld(scene, x, y, z) {
+      const camera = scene.camera || {
+        x: scene.playerX, y: scene.playerY + 8, z: scene.playerZ - 16,
+        yaw: scene.yaw, pitch: scene.pitch,
+      };
+      const yaw = (camera.yaw || 0) * Math.PI / 180;
+      const pitch = (camera.pitch || 0) * Math.PI / 180;
+      const direction = [
+        Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch),
+      ];
+      const eye = [camera.x, camera.y, camera.z];
+      const target = [
+        eye[0] + direction[0] * 30,
+        eye[1] + direction[1] * 30,
+        eye[2] + direction[2] * 30,
+      ];
+      const viewProjection = multiply(
+        perspective(Math.PI / 3, canvas.width / Math.max(1, canvas.height), 0.2, 900),
+        lookAt(eye, target, [0, 1, 0]),
+      );
+      const clip = [
+        viewProjection[0] * x + viewProjection[4] * y +
+          viewProjection[8] * z + viewProjection[12],
+        viewProjection[1] * x + viewProjection[5] * y +
+          viewProjection[9] * z + viewProjection[13],
+        viewProjection[2] * x + viewProjection[6] * y +
+          viewProjection[10] * z + viewProjection[14],
+        viewProjection[3] * x + viewProjection[7] * y +
+          viewProjection[11] * z + viewProjection[15],
+      ];
+      if (!clip.every(Number.isFinite) || clip[3] <= 0) return null;
+      const normalized = [clip[0] / clip[3], clip[1] / clip[3], clip[2] / clip[3]];
+      if (normalized[2] < -1 || normalized[2] > 1) return null;
+      return Object.freeze({
+        x: normalized[0] * 0.5 + 0.5,
+        y: 0.5 - normalized[1] * 0.5,
+        depth: normalized[2],
+      });
+    }
+
     function render(scene, time = 0) {
       if (contextLost || (typeof gl.isContextLost === "function" && gl.isContextLost())) return;
       resize();
@@ -1330,6 +1383,55 @@
         );
       }
       gl.disable(gl.BLEND);
+      for (const object of scene.sceneObjects || []) {
+        const width = Math.max(0.5, object.sizeX * 2);
+        const height = Math.max(0.5, object.sizeY * 2);
+        const depth = Math.max(0.5, object.sizeZ * 2);
+        if (object.kind === SCENE_OBJECT_KINDS.door) {
+          draw(
+            [fallbackMeshes.solid],
+            transform([object.x, object.y, object.z], [width, height, depth]),
+            object.state > 0 ? SCENE_OBJECT_COLORS.doorOpen : SCENE_OBJECT_COLORS.doorClosed,
+            time, viewProjection,
+          );
+        } else if (object.kind === SCENE_OBJECT_KINDS.floatable) {
+          const bob = object.state > 0 ? Math.sin(time * 0.003 + object.id) * 0.45 : 0;
+          draw(
+            [fallbackMeshes.solid],
+            transform([object.x, object.y + bob, object.z], [width, height, depth]),
+            SCENE_OBJECT_COLORS.floatable, time, viewProjection,
+          );
+        } else if (object.kind === SCENE_OBJECT_KINDS.powerup) {
+          const bob = Math.sin(time * 0.004 + object.id) * 0.65;
+          draw(
+            [fallbackMeshes.pickup],
+            transform(
+              [object.x, object.y + object.sizeY + bob, object.z],
+              [Math.max(2, width), Math.max(2, height), Math.max(2, depth)],
+              time * 0.001,
+            ),
+            SCENE_OBJECT_COLORS.powerup, time, viewProjection,
+          );
+        } else if (object.kind === SCENE_OBJECT_KINDS.lootBeam) {
+          draw(
+            [fallbackMeshes.solid],
+            transform(
+              [object.x, object.y + object.sizeY / 2, object.z],
+              [width, Math.max(1, object.sizeY), depth],
+            ),
+            SCENE_OBJECT_COLORS.lootBeam, time, viewProjection,
+          );
+          draw(
+            [fallbackMeshes.pickup],
+            transform(
+              [object.x, object.y + object.sizeY + 1, object.z],
+              [Math.max(2, width), Math.max(2, height), Math.max(2, depth)],
+              time * 0.001,
+            ),
+            SCENE_OBJECT_COLORS.lootBeam, time, viewProjection,
+          );
+        }
+      }
 
       const actors = scene.actors || [];
       gl.enable(gl.BLEND);
@@ -1351,9 +1453,10 @@
 
       const modelForActor = (actor) => actor.kind === 2 ? assets.cat : assets.goose;
       for (const actor of actors) {
-        if (actor.health <= 0) continue;
         const model = modelForActor(actor);
-        const tint = actor.health < 50 ? COLORS.damaged : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor;
+        const tint = actor.health <= 0 ? COLORS.damaged
+          : actor.health < 50 ? COLORS.damaged
+          : actor.kind === 2 ? COLORS.actorAlt : COLORS.actor;
         const scale = actor.kind === 2 ? [2.2, 2.2, 2.2] : [8, 8, 8];
         const actorYaw = actor.yaw === undefined ? 0 : actor.yaw * Math.PI / 180;
         const actorLift = actorAnimationLift(actor, scene.tick);
@@ -1471,6 +1574,7 @@
       supported: true,
       reason: rendererStatus(),
       getStatus: rendererStatus,
+      projectWorld,
       render,
       captureScreenshot,
       resize,
@@ -1504,7 +1608,14 @@
     solids: Object.freeze(ARENA_SOLIDS.map((entry) => Object.freeze({
       box: Object.freeze(entry.box.slice()),
     }))),
-    water: Object.freeze(ARENA_WATER.map((entry) => Object.freeze(entry.slice()))),
+    water: Object.freeze(ARENA_WATER.map((entry) => Object.freeze({
+      bounds: Object.freeze(entry.bounds.slice()),
+      style: Object.freeze({
+        style: Object.freeze(entry.style.style.slice()),
+        tint: Object.freeze(entry.style.tint.slice()),
+        toon: Object.freeze(entry.style.toon.slice()),
+      }),
+    }))),
     ramps: Object.freeze(ARENA_RAMPS.map((ramp) => Object.freeze({
       vertices: Object.freeze(ramp.vertices.map((vertex) => Object.freeze(vertex.slice()))),
     }))),

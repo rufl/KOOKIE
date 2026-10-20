@@ -51,7 +51,7 @@ from kookie_websocket_session import (  # noqa: E402
 )
 
 
-MAX_PAYLOAD = 16 + 68 * 4
+MAX_PAYLOAD = 16 + 272 * 4
 
 
 def recv_exact(sock: socket.socket, count: int) -> bytes:
@@ -406,14 +406,19 @@ def run_valid_session() -> None:
             opcode, payload = read_server_frame(sock)
             assert opcode == 2
             full_scene = decode_session_frame(payload)
-            assert len(full_scene.words) == 68
+            assert len(full_scene.words) == 185
             assert full_scene.words[4:15] == (6, 32, 1, 52, 0, -8, 100, 100, 24, 0, 0)
             assert full_scene.words[20] == 4
             assert full_scene.words[28] == 90 and full_scene.words[36] == 180
             assert full_scene.words[53:68] == (
-                0, 0, 0, 0, 0, 0, 1, 1, 128, 1, 112, 32, 1, 52,
-                full_scene.words[67],
+                0, 0, 0, 0, 0, 0, 1, 1, 128, 1, 112, 32, 1, 52, 1,
             )
+            assert full_scene.words[68] == 10
+            assert full_scene.words[69:78] == (1, 2, 0, 5, 5, 5, 3, 5, 1)
+            assert full_scene.words[150:159] == (4, 100, 1, 128, 1, 112, 2, 4, 2)
+            assert full_scene.words[159] == 4
+            assert full_scene.words[160:166] == (1, 1, 96, 1, 80, 1)
+            assert full_scene.words[-1] == message_checksum(full_scene.words[:-1])
 
             forward_words = [2, GAME, 12, GAME_COMMAND_MARKER, GAME_MOVE_FORWARD, 8]
             forward_words.append(message_checksum(forward_words))

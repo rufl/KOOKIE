@@ -33,7 +33,7 @@ mkdir -p "$root_dir/build"
 build_dir="$(mktemp -d "$root_dir/build/kookie-presentation-XXXXXX")"
 adapter_build_dir="$build_dir/adapter"
 mkdir -p "$adapter_build_dir/build"
-mkdir -p "$adapter_build_dir"/assets/{fonts,ui,prototype/runtime,audio}
+mkdir -p "$adapter_build_dir"/assets/{fonts,ui,prototype/runtime,prototype/models,audio}
 cp -- "$root_dir/assets/fonts/jared-lite.ttf" \
   "$adapter_build_dir/assets/fonts/jared-lite.ttf"
 cp -- "$root_dir/assets/fonts/pixand.ttf" \
@@ -42,6 +42,14 @@ cp -- "$root_dir/assets/ui/gatoganso-mark.svg" \
   "$adapter_build_dir/assets/ui/gatoganso-mark.svg"
 cp -a -- "$root_dir/assets/prototype/runtime/." \
   "$adapter_build_dir/assets/prototype/runtime/"
+cp -- "$root_dir/assets/prototype/manifest.json" \
+  "$adapter_build_dir/assets/prototype/manifest.json"
+mkdir -p "$adapter_build_dir/assets/prototype/models/goose" \
+  "$adapter_build_dir/assets/prototype/models/cat"
+cp -- "$root_dir/assets/prototype/models/goose/goose.glb" \
+  "$adapter_build_dir/assets/prototype/models/goose/goose.glb"
+cp -- "$root_dir/assets/prototype/models/cat/cat.glb" \
+  "$adapter_build_dir/assets/prototype/models/cat/cat.glb"
 cp -a -- "$root_dir/assets/audio/ui" \
   "$adapter_build_dir/assets/audio/"
 transport_key_file="$adapter_build_dir/transport.key"

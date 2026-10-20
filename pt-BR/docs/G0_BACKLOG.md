@@ -29,11 +29,15 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   `kookie-demo-release`.
 ## Corte de paridade navegador/nativo
 
-- O contrato de cena completa do navegador agora tem 68 palavras: carrega o
-  ID de asset de VFX autoritativo e a posição do evento junto de atores,
-  projétil, pickup e um yaw por ator. Os IDs 0–15 correspondem ao registro
-  nativo `worldVfxAsset*`; o gateway mapeia melee para slash (5), tiro para
-  flare (6) e especial para explosão (8).
+- O contrato de cena completa do navegador tem 185 palavras no estado padrão
+  com pickup ativo: a base de 69 palavras carrega câmera/estado autoritativo do
+  jogador, estado de animação, posições/direção/estado dos atores, projétil,
+  pickup e evento VFX; uma cauda variável de entradas de 9 palavras carrega
+  portas, objetos flutuantes, power-ups e o feixe de loot ativo, seguida por
+  quatro registros de label projetado de 6 palavras. O limite de 272 palavras
+  admite 17 objetos e 8 labels. Os IDs 0–15 correspondem ao registro nativo
+  `worldVfxAsset*`; o gateway mapeia melee para slash (5), tiro para flare (6)
+  e especial para explosão (8).
 - O renderer WebGL2 direto consome imagens base-color embutidas ou anexas aos
   GLBs, transforms de nós autorados, direção dos atores, elevação procedural
   orientada por estado, materiais em bandas toon e os 16 sheets de partículas,
@@ -55,6 +59,19 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
   pretos e bytes PPM em base64, além dos metadados `authoritative`,
   `sceneSource` e `sceneTick`. Capturas desconectadas são marcadas
   explicitamente como preview; nenhuma captura 2D qualifica o cliente.
+- O cliente reconstruído agora tem um smoke determinístico de contrato:
+  `scripts/verify_web_alpha_contract.js` executa o `kookie-session.js` gerado
+  contra um DOM/WebSocket limitado, percorre HELLO/ACK/cena completa e verifica
+  dez objetos autoritativos, um feixe de loot ativo e quatro registros de label
+  projetado. É o fallback não visual quando o host do navegador não alcança um
+  servidor local ou não fornece pintura/framebuffer.
+- A fatia do servidor web native sob posse do Kof agora executa o contrato local
+  do navegador de ponta a ponta: `apps/web_server/main.kf` possui as rotas HTTP,
+  upgrade RFC 6455, frames Kof limitados, handshake, movimento autoritativo da
+  cena completa e respostas de health/metrics. `native/kookie_web_server.c/.h`
+  continua um adaptador estreito de TCP/I/O/SHA-1.
+  `scripts/verify_kof_web_server.sh` cobre health, metrics, upgrade, comandos
+  da cena e rejeição de requisição malformada.
 - O movimento FPS nativo agora usa wish vectors normalizados em ponto fixo e
   aceleração por projeção, preservando coyote time, buffer de pulo, controle
   aéreo e frenagem suave no passo fixo. A regressão de diagonalização é segura
@@ -62,29 +79,35 @@ uma release de demo voltada ao jogador. O gate D1 aberto está em
 - Contatos físicos estáticos e dinâmicos agora zeram componentes de velocidade
   bloqueados; a regressão verifica que um bloqueador dinâmico não retém
   velocidade horizontal obsoleta.
-- O caminho GLB atual do navegador cobre malha/material/níveis de nós/direção,
+- O caminho GLB do navegador cobre malha/material/níveis de nós/direção,
   consome o estado autoritativo dos atores para uma elevação determinística de
   repouso/movimento/ataque e faz skin dos esqueletos autorados de ganso/gato
   com `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind e clipes TRS `LINEAR`/`STEP`.
   O fallback entre estados e clipes permanece explícito para assets com menos
   animações.
-- A certificação de fidelidade é deliberadamente semântica, não de
-  equivalência pixel a pixel. O navegador aplica skinning esquelético e clipes
-  de animação autorados no GLB; a apresentação nativa atualmente envia a mesma
-  geometria GLB com elevação procedural de repouso/marcha/ataque e ainda não
-  aplica a deformação autorada das juntas. O nativo também desenha nomes/corações
-  projetados, portas, objetos líquidos flutuantes, power-ups e feixes de loot
-  que não existem no snapshot limitado de 68 palavras do navegador. O navegador
-  agora usa a folha autorada de cinco estados de coração para atores replicados,
-  sombras blob voltadas para a câmera e pickup em forma de diamante, mas a
-  igualdade visual navegador/nativo continua não certificada até convergirem o
-  skinning nativo e os campos autoritativos de cena ausentes.
+- A certificação de fidelidade é deliberadamente semântica, não de equivalência
+  pixel a pixel. O navegador aplica skinning esquelético e clipes autorados no
+  GLB; a apresentação nativa envia a mesma geometria, amostra clipes autorados
+  nomeados e aplica deformação de pose limitada em CPU ponderada por
+  `JOINTS_0`/`WEIGHTS_0`, usando a elevação procedural anterior somente como
+fallback. O navegador desenha as portas, objetos flutuantes, power-ups e o feixe
+de loot ativo da cauda de objetos e projeta os quatro labels autoritativos
+limitados pelo overlay do canvas. O gateway remove o feixe após coleta ou reset
+do pickup autoritativo. O navegador desenha a folha autoritativa de cinco estados
+de coração. A igualdade visual navegador/nativo continua não certificada porque
+o smoke visual do navegador está bloqueado pelo host indisponível.
 - A qualificação de apresentação Linux controlada pela fila passou pelo
-  `scripts/verify_presentation.sh` no ticket 31. O smoke nativo usou X11 sob
-  gamescope, `/dev/dri/renderD128`, capacidade positiva de present, áudio,
-  captura PPM e saída limpa; a evidência está em
-  `build/kookie-presentation-wrapper.json`. O log identifica Intel Graphics
-  (ARL) via Vulkan; isso não é declarado como evidência de hardware A770.
+  `scripts/verify_presentation.sh` no ticket 74 após habilitar a pose GLB
+  autorada. O smoke nativo usou X11 sob gamescope, `/dev/dri/renderD128`,
+  capacidade positiva de present, áudio, captura PPM e saída limpa; os
+  artefatos duráveis estão em
+  `docs/evidence/kookie-presentation-ticket74.json`, com o log de adapter
+  exato em `docs/evidence/kookie-presentation-ticket74.log`. A captura PPM
+  bruta permanece no artefato local `build/kookie-presentation-ticket74/`;
+  o registro preserva seu SHA-256. A evidência registrou
+  `gpu-present-capabilities=11`, `gpu-draw-us=6488` e checksum de screenshot
+  `321528432`. O log identifica Intel Graphics (ARL) via Vulkan; isso não é
+  declarado como evidência de hardware A770.
 
 
 

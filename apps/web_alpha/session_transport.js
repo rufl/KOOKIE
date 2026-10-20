@@ -4,9 +4,24 @@
   const MAGIC = [0x4b, 0x57, 0x53, 0x31];
   const FRAME_VERSION = 1;
   const NETCODE_PROTOCOL_VERSION = 2;
-  const MAX_WORDS = 68;
+  const MAX_WORDS = 272;
   const MAX_FRAME_BYTES = 16 + MAX_WORDS * 4;
   const MAX_SEQUENCE = 1000000;
+  const SCENE_OBJECT_ENTRY_WIDTH = 9;
+  const SCENE_LABEL_ENTRY_WIDTH = 6;
+  const SCENE_OBJECTS_OFFSET = 69;
+  const MAX_SCENE_OBJECTS = 17;
+  const MAX_SCENE_LABELS = 8;
+  const SCENE_LABEL_TEXT = Object.freeze({
+    1: "GOOSE",
+    2: "BOT WADDLE",
+    3: "BOT HONK",
+    4: "BOT POND",
+  });
+  const SCENE_OBJECT_DOOR = 1;
+  const SCENE_OBJECT_FLOATABLE = 2;
+  const SCENE_OBJECT_POWERUP = 3;
+  const SCENE_OBJECT_LOOT_BEAM = 4;
   const HELLO = 1;
   const ACK = 2;
   const PING = 3;
@@ -304,6 +319,13 @@
   sceneCanvas.setAttribute("tabindex", "0");
   sceneCanvas.setAttribute("aria-label", "Authoritative WebGL2 game scene");
   sceneCanvasWrap.appendChild(sceneCanvas);
+  const labelOverlay = document.createElement("div");
+  labelOverlay.id = "kookie-scene-labels";
+  labelOverlay.setAttribute("aria-label", "Projected authoritative actor labels");
+  labelOverlay.style.cssText = [
+    "position:absolute;inset:0;pointer-events:none;overflow:hidden",
+  ].join(";");
+  sceneCanvasWrap.appendChild(labelOverlay);
   const minimapCanvas = document.createElement("canvas");
   minimapCanvas.className = "kookie-session-minimap";
   minimapCanvas.width = 360;
@@ -381,6 +403,12 @@
         { id: 2, x: 208, y: 1, z: 160, health: 100, state: 1, kind: 2 },
         { id: 3, x: 260, y: 1, z: 220, health: 100, state: 2, kind: 1 },
         { id: 4, x: 150, y: 1, z: 210, health: 100, state: 3, kind: 2 },
+      ],
+      labels: [
+        { id: 1, textId: 1, x: 96, y: 1, z: 80, visible: true },
+        { id: 2, textId: 2, x: 208, y: 1, z: 160, visible: true },
+        { id: 3, textId: 3, x: 260, y: 1, z: 220, visible: true },
+        { id: 4, textId: 4, x: 150, y: 1, z: 210, visible: true },
       ],
       projectiles: [],
       pickup: null,
@@ -522,8 +550,42 @@
     }
   }
 
+  function updateProjectedLabels(scene) {
+    if (typeof labelOverlay.replaceChildren === "function") {
+      labelOverlay.replaceChildren();
+    } else {
+      labelOverlay.children.length = 0;
+    }
+    const bounds = typeof labelOverlay.getBoundingClientRect === "function"
+      ? labelOverlay.getBoundingClientRect()
+      : { width: sceneCanvas.width, height: sceneCanvas.height };
+    for (const label of scene.labels || []) {
+      if (!label.visible) continue;
+      const projection = sceneRenderer?.projectWorld?.(
+        scene, label.x, label.y + 8, label.z,
+      );
+      if (!projection || projection.x < 0 || projection.x > 1 ||
+          projection.y < 0 || projection.y > 1) continue;
+      const element = document.createElement("span");
+      element.className = "kookie-scene-label";
+      element.textContent = SCENE_LABEL_TEXT[label.textId] || "ACTOR";
+      element.setAttribute("aria-label", element.textContent);
+      element.style.cssText = [
+        "position:absolute;transform:translate(-50%,-100%)",
+        "padding:2px 5px;border-radius:4px",
+        "background:rgba(4,15,23,.82);color:#f8fafc",
+        "font:600 11px/1.2 monospace;white-space:nowrap",
+        "text-shadow:0 1px 2px #000",
+        `left:${projection.x * bounds.width}px`,
+        `top:${projection.y * bounds.height}px`,
+      ].join(";");
+      labelOverlay.appendChild(element);
+    }
+  }
+
   function updateScene(scene) {
     sceneState = scene;
+    updateProjectedLabels(scene);
     drawMinimap(scene);
     hudValues.tick.textContent = String(scene.tick);
     hudValues.position.textContent = scene.playerX + " / " + scene.playerZ;
@@ -705,7 +767,7 @@
           words[28] >= 0 && words[28] <= 6 &&
           words[29] === messageChecksum(words.slice(0, 29));
       }
-      if (words.length === 68) {
+      if (words.length >= 70) {
         const actorXIndices = [22, 30, 38, 46];
         const actorYIndices = [23, 31, 39, 47];
         const actorZIndices = [24, 32, 40, 48];
@@ -720,40 +782,93 @@
             words[56] >= GAME_WORLD_MINIMUM_Y && words[56] <= GAME_WORLD_MAXIMUM_Y &&
             words[57] >= GAME_WORLD_MINIMUM_Z && words[57] <= GAME_WORLD_MAXIMUM_Z &&
             words[58] >= 1 && words[58] <= 10;
-        return words[3] === GAME_FULL_SCENE_SNAPSHOT_MARKER &&
-          words[4] >= 0 && words[4] <= GAME_MAXIMUM_TICK &&
-          words[5] >= GAME_WORLD_MINIMUM_X && words[5] <= GAME_WORLD_MAXIMUM_X &&
-          words[6] >= GAME_WORLD_MINIMUM_Y && words[6] <= GAME_WORLD_MAXIMUM_Y &&
-          words[7] >= GAME_WORLD_MINIMUM_Z && words[7] <= GAME_WORLD_MAXIMUM_Z &&
-          words[8] >= 0 && words[8] <= 359 &&
-          words[9] >= -90 && words[9] <= 90 &&
-          words[10] >= 0 && words[10] <= GAME_MAXIMUM_HEALTH &&
-          words[11] >= 0 && words[11] <= GAME_MAXIMUM_STAMINA &&
-          words[12] >= 0 && words[12] <= GAME_MAXIMUM_AMMO &&
-          words[13] >= 0 && words[13] <= GAME_MAXIMUM_COMBO &&
-          words[14] >= 0 && words[14] <= GAME_MAXIMUM_VFX &&
-          words[20] === GAME_MAXIMUM_ACTORS &&
-          actorXIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_X &&
-            words[index] <= GAME_WORLD_MAXIMUM_X) &&
-          actorYIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_Y &&
-            words[index] <= GAME_WORLD_MAXIMUM_Y) &&
-          actorZIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_Z &&
-            words[index] <= GAME_WORLD_MAXIMUM_Z) &&
-          actorHealthIndices.every((index) => words[index] >= 0 &&
-            words[index] <= GAME_MAXIMUM_HEALTH) &&
-          actorStateIndices.every((index) => words[index] >= 1 && words[index] <= 4) &&
-          actorKindIndices.every((index) => words[index] >= 1 && words[index] <= 2) &&
-          actorYawIndices.every((index) => words[index] >= 0 && words[index] <= 359) &&
-          words[53] >= 0 && words[53] <= 1 && projectileValid &&
-          words[59] >= 0 && words[59] <= 1 &&
-          words[60] >= 0 && words[60] <= 6 &&
-          words[61] >= GAME_WORLD_MINIMUM_X && words[61] <= GAME_WORLD_MAXIMUM_X &&
-          words[62] >= GAME_WORLD_MINIMUM_Y && words[62] <= GAME_WORLD_MAXIMUM_Y &&
-          words[63] >= GAME_WORLD_MINIMUM_Z && words[63] <= GAME_WORLD_MAXIMUM_Z &&
-          words[64] >= GAME_WORLD_MINIMUM_X && words[64] <= GAME_WORLD_MAXIMUM_X &&
-          words[65] >= GAME_WORLD_MINIMUM_Y && words[65] <= GAME_WORLD_MAXIMUM_Y &&
-          words[66] >= GAME_WORLD_MINIMUM_Z && words[66] <= GAME_WORLD_MAXIMUM_Z &&
-          words[67] === messageChecksum(words.slice(0, 67));
+        if (!(words[3] === GAME_FULL_SCENE_SNAPSHOT_MARKER &&
+            words[4] >= 0 && words[4] <= GAME_MAXIMUM_TICK &&
+            words[5] >= GAME_WORLD_MINIMUM_X && words[5] <= GAME_WORLD_MAXIMUM_X &&
+            words[6] >= GAME_WORLD_MINIMUM_Y && words[6] <= GAME_WORLD_MAXIMUM_Y &&
+            words[7] >= GAME_WORLD_MINIMUM_Z && words[7] <= GAME_WORLD_MAXIMUM_Z &&
+            words[8] >= 0 && words[8] <= 359 &&
+            words[9] >= -90 && words[9] <= 90 &&
+            words[10] >= 0 && words[10] <= GAME_MAXIMUM_HEALTH &&
+            words[11] >= 0 && words[11] <= GAME_MAXIMUM_STAMINA &&
+            words[12] >= 0 && words[12] <= GAME_MAXIMUM_AMMO &&
+            words[13] >= 0 && words[13] <= GAME_MAXIMUM_COMBO &&
+            words[14] >= 0 && words[14] <= GAME_MAXIMUM_VFX &&
+            words[20] === GAME_MAXIMUM_ACTORS &&
+            actorXIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_X &&
+              words[index] <= GAME_WORLD_MAXIMUM_X) &&
+            actorYIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_Y &&
+              words[index] <= GAME_WORLD_MAXIMUM_Y) &&
+            actorZIndices.every((index) => words[index] >= GAME_WORLD_MINIMUM_Z &&
+              words[index] <= GAME_WORLD_MAXIMUM_Z) &&
+            actorHealthIndices.every((index) => words[index] >= 0 &&
+              words[index] <= GAME_MAXIMUM_HEALTH) &&
+            actorStateIndices.every((index) => words[index] >= 1 && words[index] <= 4) &&
+            actorKindIndices.every((index) => words[index] >= 1 && words[index] <= 2) &&
+            actorYawIndices.every((index) => words[index] >= 0 && words[index] <= 359) &&
+            words[53] >= 0 && words[53] <= 1 && projectileValid &&
+            words[59] >= 0 && words[59] <= 1 &&
+            words[60] >= 0 && words[60] <= 6 &&
+            words[61] >= GAME_WORLD_MINIMUM_X && words[61] <= GAME_WORLD_MAXIMUM_X &&
+            words[62] >= GAME_WORLD_MINIMUM_Y && words[62] <= GAME_WORLD_MAXIMUM_Y &&
+            words[63] >= GAME_WORLD_MINIMUM_Z && words[63] <= GAME_WORLD_MAXIMUM_Z &&
+            words[64] >= GAME_WORLD_MINIMUM_X && words[64] <= GAME_WORLD_MAXIMUM_X &&
+            words[65] >= GAME_WORLD_MINIMUM_Y && words[65] <= GAME_WORLD_MAXIMUM_Y &&
+            words[66] >= GAME_WORLD_MINIMUM_Z && words[66] <= GAME_WORLD_MAXIMUM_Z &&
+            words[67] >= 1 && words[67] <= 4)) {
+          return false;
+        }
+        const objectCount = words[68];
+        if (!Number.isInteger(objectCount) || objectCount < 0 ||
+            objectCount > MAX_SCENE_OBJECTS) {
+          return false;
+        }
+        const labelsOffset = SCENE_OBJECTS_OFFSET +
+          objectCount * SCENE_OBJECT_ENTRY_WIDTH;
+        if (labelsOffset >= words.length) return false;
+        const labelCount = words[labelsOffset];
+        if (!Number.isInteger(labelCount) || labelCount < 0 ||
+            labelCount > MAX_SCENE_LABELS ||
+            words.length !== labelsOffset + 1 +
+              labelCount * SCENE_LABEL_ENTRY_WIDTH + 1) {
+          return false;
+        }
+        for (let index = 0; index < objectCount; index += 1) {
+          const offset = SCENE_OBJECTS_OFFSET + index * SCENE_OBJECT_ENTRY_WIDTH;
+          const kind = words[offset];
+          const state = words[offset + 2];
+          if (kind < SCENE_OBJECT_DOOR || kind > SCENE_OBJECT_LOOT_BEAM ||
+              words[offset + 1] <= 0 ||
+              words[offset + 3] < GAME_WORLD_MINIMUM_X ||
+              words[offset + 3] > GAME_WORLD_MAXIMUM_X ||
+              words[offset + 4] < GAME_WORLD_MINIMUM_Y ||
+              words[offset + 4] > GAME_WORLD_MAXIMUM_Y ||
+              words[offset + 5] < GAME_WORLD_MINIMUM_Z ||
+              words[offset + 5] > GAME_WORLD_MAXIMUM_Z ||
+              words[offset + 6] <= 0 || words[offset + 6] > 32 ||
+              words[offset + 7] <= 0 || words[offset + 7] > 32 ||
+              words[offset + 8] <= 0 || words[offset + 8] > 32 ||
+              (kind === SCENE_OBJECT_LOOT_BEAM
+                ? state < 1 || state > 3 : state < 0 || state > 1)) {
+            return false;
+          }
+        }
+        for (let index = 0; index < labelCount; index += 1) {
+          const offset = labelsOffset + 1 + index * SCENE_LABEL_ENTRY_WIDTH;
+          if (words[offset] <= 0 || words[offset + 1] < 1 ||
+              words[offset + 1] > 4 ||
+              words[offset + 2] < GAME_WORLD_MINIMUM_X ||
+              words[offset + 2] > GAME_WORLD_MAXIMUM_X ||
+              words[offset + 3] < GAME_WORLD_MINIMUM_Y ||
+              words[offset + 3] > GAME_WORLD_MAXIMUM_Y ||
+              words[offset + 4] < GAME_WORLD_MINIMUM_Z ||
+              words[offset + 4] > GAME_WORLD_MAXIMUM_Z ||
+              words[offset + 5] < 0 || words[offset + 5] > 1) {
+            return false;
+          }
+        }
+        return words[words.length - 1] ===
+          messageChecksum(words.slice(0, -1));
       }
     }
     if (kind === ERROR) {
@@ -879,11 +994,41 @@
     const pickup = words[59] === 1
       ? { kind: words[60], x: words[61], y: words[62], z: words[63] }
       : null;
+    const sceneObjects = [];
+    for (let index = 0; index < words[68]; index += 1) {
+      const offset = SCENE_OBJECTS_OFFSET + index * SCENE_OBJECT_ENTRY_WIDTH;
+      sceneObjects.push({
+        kind: words[offset],
+        id: words[offset + 1],
+        state: words[offset + 2],
+        x: words[offset + 3],
+        y: words[offset + 4],
+        z: words[offset + 5],
+        sizeX: words[offset + 6],
+        sizeY: words[offset + 7],
+        sizeZ: words[offset + 8],
+      });
+    }
+    const labels = [];
+    const labelsOffset = SCENE_OBJECTS_OFFSET +
+      words[68] * SCENE_OBJECT_ENTRY_WIDTH;
+    for (let index = 0; index < words[labelsOffset]; index += 1) {
+      const offset = labelsOffset + 1 + index * SCENE_LABEL_ENTRY_WIDTH;
+      labels.push({
+        id: words[offset],
+        textId: words[offset + 1],
+        x: words[offset + 2],
+        y: words[offset + 3],
+        z: words[offset + 4],
+        visible: words[offset + 5] === 1,
+      });
+    }
     return {
       tick: words[4],
       playerX: words[5],
       playerY: words[6],
       playerZ: words[7],
+      playerState: words[67],
       yaw: words[8],
       pitch: words[9],
       health: words[10],
@@ -903,6 +1048,8 @@
       actors,
       projectiles,
       pickup,
+      sceneObjects,
+      labels,
     };
   }
 

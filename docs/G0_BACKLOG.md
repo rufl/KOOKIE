@@ -29,10 +29,14 @@ player-facing demo release. The open D1 gate is tracked in
 
 ## Browser/native parity cut
 
-- The browser full-scene contract remains 68 words: it carries authoritative
-  player/camera state, actor positions/yaw/state, projectile, pickup, VFX asset
-  cue and event position. Native registry IDs 0–15 remain the content source;
-  browser liquid-enter uses wire cue 14 and resolves to particle asset 0.
+- The browser full-scene contract has 185 words in the default active-pickup
+  state: a 69-word base carries authoritative player/camera state, player
+  animation state, actor positions/yaw/state, projectile, pickup and VFX event;
+  a variable 9-word object tail carries the door, floatable, power-up and active
+  loot-beam fields, followed by four 6-word projected-label records. The
+  272-word bound admits 17 objects and 8 labels. Native registry IDs 0–15 remain
+  the content source; browser liquid-enter uses wire cue 14 and resolves to
+  particle asset 0.
 - The direct WebGL2 renderer consumes embedded `bufferView` or external `uri`
   GLB base-color images, authored node transforms, actor facing, state-driven
   procedural lift, toon-banded materials and all 16 staged particle,
@@ -68,6 +72,19 @@ player-facing demo release. The open D1 gate is tracked in
   checksum, non-black-pixel count and base64 PPM bytes, plus `authoritative`,
   `sceneSource` and `sceneTick` metadata. Disconnected captures are explicitly
   labeled preview; no 2D scene capture qualifies.
+- The rebuilt browser client now has a deterministic contract smoke:
+  `scripts/verify_web_alpha_contract.js` executes the generated
+  `kookie-session.js` against a bounded DOM/WebSocket fixture, exercises the
+  HELLO/ACK/full-scene path and asserts ten authoritative scene objects, one
+  active loot beam and four projected-label records. It is the nonvisual
+  fallback when the browser host cannot reach a local server or provides no
+  paint/framebuffer.
+- The Kof-owned native web server slice now runs the local browser contract
+  end to end: `apps/web_server/main.kf` owns HTTP routing, RFC 6455 upgrade,
+  bounded Kof frames, handshake, authoritative full-scene movement and
+  health/metrics responses. `native/kookie_web_server.c/.h` remains a narrow
+  TCP/I/O/SHA-1 adapter. `scripts/verify_kof_web_server.sh` covers successful
+  health, metrics, upgrade, scene commands and malformed-request rejection.
 - The browser gateway full-scene path now applies normalized wish-vector
   acceleration, ground friction, air braking, coyote time, jump buffering,
   one air jump, bounded swept axis collision and floor/platform support.
@@ -81,26 +98,33 @@ player-facing demo release. The open D1 gate is tracked in
   physics regression now asserts that a dynamic blocker does not retain stale
   horizontal velocity.
 - The browser GLB path is mesh/material/node/facing compatible, consumes
-  authoritative actor state for deterministic idle/moving/attack lift, and
-  skins authored goose/cat skeletons with bounded `JOINTS_0`/`WEIGHTS_0`,
+  authoritative actor state for deterministic idle/moving/attack lift, and skins
+  authored goose/cat skeletons with bounded `JOINTS_0`/`WEIGHTS_0`,
   inverse-bind palettes and `LINEAR`/`STEP` TRS clips. State-to-clip fallback
   remains explicit for assets with fewer authored clips.
 - The fidelity claim is deliberately semantic, not pixel-equivalence. The
-  browser applies authored GLB skeletal skinning and animation clips; the
-  native presentation currently uploads the same GLB geometry with procedural
-  bob/gait/attack lift and does not yet apply the authored joint deformation.
-  Native also stages projected names/hearts, doors, floating liquid objects,
-  power-ups and loot beams that are not present in the bounded 68-word browser
-  snapshot. The browser now uses the authored five-state heart sheet for
-  replicated actors, camera-facing blob shadows and diamond pickup geometry,
-  but browser/native visual equality remains uncertified until the native
-  skinning path and the missing authoritative scene fields converge.
+  browser applies authored GLB skeletal skinning and animation clips; the native
+  presentation uploads the same GLB geometry, samples named authored clips and
+  applies bounded CPU `JOINTS_0`/`WEIGHTS_0` pose deformation, with the prior
+procedural lift only as a fallback. The browser renders the authoritative door,
+floatable, power-up and active loot-beam scene-object fields, and projects the
+four bounded authoritative actor labels through the canvas overlay. The gateway
+removes the loot beam after authoritative pickup collection or reset. The
+browser renders the authoritative five-state heart sheet. Browser/native visual
+equality remains uncertified because the browser visual smoke is blocked by the
+unavailable browser host.
 - Queue-controlled Linux presentation qualification passed through
-  `scripts/verify_presentation.sh` on ticket 31. The native smoke used X11
-  under gamescope, render node `/dev/dri/renderD128`, positive present
-  capability, audio, PPM capture and clean exit; evidence is retained in
-  `build/kookie-presentation-wrapper.json`. The log identifies Intel Graphics
-  (ARL) through Vulkan; this is not claimed as A770 hardware evidence.
+  `scripts/verify_presentation.sh` on ticket 74 after the authored GLB pose
+  path was enabled. The smoke used X11 under gamescope, render node
+  `/dev/dri/renderD128`, positive present capability, audio, PPM capture and
+  clean exit; the durable record is
+  `docs/evidence/kookie-presentation-ticket74.json` with the exact adapter log
+  in `docs/evidence/kookie-presentation-ticket74.log`. The raw PPM capture
+  remains in the local `build/kookie-presentation-ticket74/` artifact; the
+  record preserves its SHA-256. The evidence recorded
+  `gpu-present-capabilities=11`, `gpu-draw-us=6488` and screenshot checksum
+  `321528432`. The log identifies Intel Graphics (ARL) through Vulkan; this
+  is not claimed as A770 hardware evidence.
 
 ## Completed
 

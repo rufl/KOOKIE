@@ -65,11 +65,11 @@ KofScript continua sendo a camada limitada de comportamento/artefatos; não é
 substituto de loops quentes compilados em Kof. O executável Windows agora entra
 em `probes/g0_native_presentation/main.kf`; `native/kookie_pe_entry.c` e
 `native/kookie_sdl_adapter.c` são somente mecanismos de ABI/plataforma. Cena
-GLB, meshes, hierarquia, normalização, UVs e staging de animação vivem em
-`src/content/glb_model.kf`; ele também possui a descoberta limitada de arquivos,
+GLB, meshes, hierarquia, normalização, UV, amostragem de clipes autorados
+`LINEAR`/`STEP` e deformação de pose limitada por pesos em CPU ficam em
+`src/content/glb_model.kf`. Ele também possui a descoberta limitada de arquivos,
 os bytes GLB e a seleção do intervalo de imagem. O adapter SDL recebe somente
 os bytes PNG validados do gato por uma ABI escalar de staging.
-
 Os produtos de shader continuam sendo uma exceção gráfica explícita. A lista em
 `native/shaders/kookie_shader_products.json` é construída por
 `scripts/shader_pipeline.py`; o SPIR-V é validado e refletido em
@@ -375,24 +375,46 @@ O protocolo é independente do transporte:
 - Comandos obsoletos, handles inválidos, conteúdo incompatível e capacidades
   não suportadas são rejeitados antes da mutação autoritativa.
 
+### Servidor web local sob posse do Kof
+
+O caminho local de qualificação da cena completa pode executar inteiramente no
+Kof: `apps/web_server/main.kf` possui as rotas HTTP, o upgrade WebSocket, o
+decode/encode limitado de frames, o handshake Kof, o estado autoritativo da
+sessão e as respostas de health/metrics. `native/kookie_web_server.c/.h` é uma
+fronteira estreita de mecanismo C para sockets TCP, I/O limitado, timeouts,
+digest SHA-1 de aceitação WebSocket e limites de porta/conexões vindos do
+ambiente; ele não possui política de sessão ou gameplay. `scripts/build_web_server.sh`
+empacota o executável native do Kof com esse adaptador, e
+`scripts/verify_kof_web_server.sh` qualifica health, metrics, upgrade,
+handshake, movimento da cena completa e rejeição de requisição malformada.
+
+Esse servidor local é somente TCP e é qualificado com `ws://`. Ele não afirma
+identidade hospedada, admissão bearer ou terminação TLS. A matriz de runtime
+continua usando WSS para sessões de navegador hospedadas; o gateway Python
+abaixo fica apenas como fixture de compatibilidade bearer/WSS sem dependências
+até existir a fronteira hospedada de identidade/sessão.
+
 A saída web atual é uma UI KofJS limitada e um cliente de navegador completo.
 Inclui handshake/heartbeat binário WebSocket, eco de protocolo, sonda de cena
 autoritativa completa, entrada por teclado/botão/mouse, look com pointer lock,
 snapshots limitados validados, HUD acessível com minimapa superior e renderer
-WebGL2 direto em `apps/web_alpha/webgl_renderer.js`. O snapshot completo de 68
-palavras leva a câmera do jogador, quatro atores com vida/estado/tipo/direção,
-um projétil limitado, um pickup e um evento de VFX com ID de asset e posição.
-O renderer usa os GLBs staged de ganso, gato, chão, parede e cobertura sem
-dependência de Three.js, incluindo imagens base-color embutidas/anexas,
-transforms de nós autorados e materiais em bandas toon; os 16 assets nativos de
-partículas, flipbooks e predrawn são publicados e os IDs 5/6/8 mapeiam
-melee/tiro/especial. Nativo e web compartilham deliberadamente o subconjunto
-material base-color; o renderer também aplica elevação procedural determinística
-orientada por estado e animação esquelética limitada para atores parados, em
-movimento e atacando. Os GLBs autorados de ganso/gato usam
-`JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind limitadas a 32 juntas e clipes TRS
-`LINEAR`/`STEP` com fallback explícito. Ele segue a câmera autoritativa e
-redimensiona para pixels do dispositivo.
+WebGL2 direto em `apps/web_alpha/webgl_renderer.js`. O snapshot completo padrão
+tem 185 palavras no estado padrão com pickup ativo: a base de 69 palavras
+leva câmera/estado do jogador, quatro atores com vida/estado/tipo/direção, um
+projétil limitado, um pickup e um evento VFX posicionado; uma cauda variável de
+entradas de 9 palavras leva portas, objetos flutuantes, power-ups e o feixe de
+loot ativo. Quatro registros de label projetado, de 6 palavras cada, seguem a
+cauda de objetos. O limite de 272 palavras admite até 17 objetos e 8 labels.
+usa os GLBs staged de ganso, gato, chão, parede e cobertura sem dependência de
+Three.js, incluindo imagens base-color embutidas/anexas, transforms de nós
+autorados e materiais em bandas toon; os 16 assets nativos de partículas,
+flipbooks e predrawn são publicados e os IDs 5/6/8 mapeiam melee/tiro/especial.
+Nativo e web compartilham deliberadamente o subconjunto material base-color; o
+renderer também aplica elevação procedural determinística orientada por estado
+e animação esquelética limitada para atores parados, em movimento e atacando.
+Os GLBs autorados de ganso/gato usam `JOINTS_0`/`WEIGHTS_0`, paletas inverse-bind
+limitadas a 32 juntas e clipes TRS `LINEAR`/`STEP` com fallback explícito. Ele
+segue a câmera autoritativa e redimensiona para pixels do dispositivo.
 Os sólidos e as rampas da arena também usam os mesmos oito tiles de material
 de mundo gerados e o mesmo mapeamento recurso→tile de
 `BoundedWorldTextureAsset` nativo; a arena do navegador não depende mais apenas
@@ -400,20 +422,25 @@ de superfícies com cor plana.
 Isso é paridade semântica de renderização, não uma afirmação de equivalência
 pixel a pixel. Os atores do navegador usam deformação esquelética autorada dos
 GLBs e clipes de animação `LINEAR`/`STEP` amostrados; a apresentação nativa
-atual envia a geometria GLB compartilhada com elevação procedural de
-repouso/marcha/ataque. Nomes e corações projetados, portas, objetos líquidos
-flutuantes, power-ups e feixes de loot exclusivos do nativo ficam fora do
-snapshot limitado do navegador. O navegador adiciona a folha autorada de
-cinco estados de coração, sombras de atores voltadas para a câmera e pickup em
-diamante quando o snapshot tem dados autoritativos suficientes, mas a paridade
-visual continua não certificada até convergirem o skinning nativo e os campos
-de cena ausentes.
+envia a geometria GLB compartilhada, amostra clipes autorados nomeados e aplica
+deformação de pose limitada em CPU ponderada por
+`JOINTS_0`/`WEIGHTS_0`, usando a elevação procedural anterior somente como
+fallback explícito quando o clipe não está disponível. A cauda de objetos do
+navegador desenha portas, objetos flutuantes, power-ups e o feixe de loot ativo.
+O gateway emite o feixe tipo 4 enquanto o pickup autoritativo está ativo e o
+remove após coleta ou reset. Quatro registros limitados de label carregam IDs
+de texto determinísticos e posições dos atores; o navegador projeta os registros
+visíveis no overlay do canvas. O navegador mantém a folha autorada de cinco
+estados de coração, sombras voltadas para a câmera e pickup diamante quando há
+dados autoritativos suficientes; a paridade visual continua não certificada
+porque o smoke visual do navegador está bloqueado pelo host indisponível.
 O cliente bloqueia os controles de gameplay até receber a cena completa,
 oferece reconexão automática limitada com estados visíveis de
 carregamento/falha e persiste localmente as preferências de minimapa, pointer
 lock e movimento reduzido. O navegador exige WebGL2 para a cena 3D e falha
-fechado quando esse renderer está indisponível. O gateway suporta terminação WSS
-opcional, admissão limitada por
+fechado quando esse renderer está indisponível. O gateway Python de qualificação
+legado suporta terminação WSS opcional, admissão limitada por bearer e rotas
+`GET /healthz` e `GET /metrics`:
 `--auth-token` exige o subprotocolo WebSocket `bearer.<token>` do navegador
 junto com `kookie.v1` e rejeita tokens ausentes ou incorretos antes da admissão.
 `--auth-token-file` fornece o mesmo contrato sem expor o token nos argumentos

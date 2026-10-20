@@ -65,35 +65,62 @@ renderer. The renderer draws the authoritative player, three bounded actors,
 health bars, VFX and projectiles without a Three.js dependency. WebGL2 is
 required for the browser's 3D scene; the client fails closed when unavailable.
 
-Run the local transport qualification path:
+Run the canonical local full-scene qualification path through the native Kof
+server. Build it once:
 
 ```bash
-python3 scripts/kookie_websocket_session.py --port 8765
+server_dir="$(mktemp -d -t kookie-web-server-XXXXXX)"
+bash scripts/build_web_server.sh --output "$server_dir"
+```
+
+Start the server in a separate terminal from its package directory; the
+executable loads `lib/libkookie_web_server.so` relative to its current
+directory:
+
+```bash
+cd "$server_dir"
+KOOKIE_WEB_PORT=8766 KOOKIE_WEB_MAX_CONNECTIONS=0 ./kookie-web-server
+```
+
+Build and serve the browser package in another terminal:
+
+```bash
 browser_dir="$(mktemp -d -t kookie-web-alpha-XXXXXX)"
 bash scripts/build_web_alpha.sh --output "$browser_dir"
 python3 -m http.server 8080 --directory "$browser_dir"
 ```
 
-
 Open
-`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8765/session`, click `CONNECT`, then
-use `PING`, `PROTOCOL ECHO`, or an authoritative action (`WASD`/arrow movement,
-`Q`/`E` look, `SPACE` jump, `F` fire, `M` melee, `X` special, `R` reset).
-Click the canvas to capture pointer lock for mouse look. Admission requests the
-full authoritative scene snapshot before enabling the action controls. The
-local gateway maintains bounded tick, 3D player position/camera, stamina, ammo,
+`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8766/session`, click `CONNECT`,
+then use `PING`, `PROTOCOL ECHO`, or an authoritative action (`WASD`/arrow
+movement, `Q`/`E` look, `SPACE` jump, `F` fire, `M` melee, `X` special, `R`
+reset). Click the canvas to capture pointer lock for mouse look. Admission
+requests the full authoritative scene snapshot before enabling action controls.
+The Kof server maintains bounded tick, 3D player position/camera, stamina, ammo,
 combo, VFX, four actor states, one projectile and one pickup. The WebGL2 client
 loads the staged goose, cat, ground and wall GLB assets, displays an accessible
 HUD and top-down minimap, persists bounded settings, and reconnects up to five
 times when enabled. WebGL2 is required for the browser's 3D scene; the client
 fails closed when unavailable.
-Click `CHECK GATEWAY` to query the gateway's unauthenticated `GET /healthz`
-route. It reports transport, protocol, bearer-admission mode and active
-sessions. `GET /metrics` exposes bounded counters for upgrades, rejections,
-frames, commands and health requests; both routes include CORS headers for the
-qualification page.
 
-To qualify token-gated admission, start the gateway with a bounded bearer token:
+Click `CHECK GATEWAY` to query the configured `GET /healthz` route. It reports
+transport, protocol, bearer-admission mode and active sessions. `GET /metrics`
+exposes bounded counters for upgrades, rejections, frames, commands and health
+requests. The Kof server is TCP-only and supports local `ws://` qualification;
+it does not provide hosted identity, bearer admission or TLS termination.
+
+Run the Kof server end-to-end gate:
+
+```bash
+bash scripts/verify_kof_web_server.sh
+```
+
+The dependency-free Python gateway remains a legacy compatibility fixture for
+bearer-token and WSS qualification. It is not the Kof server path or a
+production identity/session service.
+
+For the legacy Python gateway, qualify token-gated admission with a bounded
+bearer token:
 
 ```bash
 python3 scripts/kookie_websocket_session.py --port 8765 \

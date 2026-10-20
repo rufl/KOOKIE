@@ -65,28 +65,63 @@ WebGL2. O renderer desenha o jogador autoritativo, três atores limitados,
 barras de vida, VFX e projéteis sem dependência de Three.js. WebGL2 é obrigatório
 para a cena 3D do navegador; o cliente falha fechado quando indisponível.
 
-Execute a qualificação de transporte local:
+Execute o caminho canônico local da cena completa pelo servidor native do Kof.
+Faça o build uma vez:
 
 ```bash
-python3 scripts/kookie_websocket_session.py --port 8765
+server_dir="$(mktemp -d -t kookie-web-server-XXXXXX)"
+bash scripts/build_web_server.sh --output "$server_dir"
+```
+
+Inicie o servidor em outro terminal a partir do diretório do pacote; o
+executável carrega `lib/libkookie_web_server.so` relativo ao diretório atual:
+
+```bash
+cd "$server_dir"
+KOOKIE_WEB_PORT=8766 KOOKIE_WEB_MAX_CONNECTIONS=0 ./kookie-web-server
+```
+
+Faça o build e sirva o pacote do navegador em outro terminal:
+
+```bash
 browser_dir="$(mktemp -d -t kookie-web-alpha-XXXXXX)"
 bash scripts/build_web_alpha.sh --output "$browser_dir"
 python3 -m http.server 8080 --directory "$browser_dir"
 ```
 
 Abra
-`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8765/session`, clique em `CONNECT` e
-use `PING`, `PROTOCOL ECHO` ou uma ação autoritativa (`WASD`/setas para mover,
-`Q`/`E` para olhar, `ESPAÇO` para pular, `F` para atirar, `M` corpo a corpo,
-`X` especial, `R` reset). Clique no canvas para capturar pointer lock e usar o
-mouse. A admissão pede o snapshot de cena autoritativo completo antes de
-habilitar os controles de ação. O gateway local mantém tick, posição/câmera 3D,
-stamina, munição, combo, VFX, quatro estados de atores, um projétil e um
-pickup dentro dos limites. O cliente WebGL2 carrega os GLBs staged de ganso,
-gato, chão e parede, exibe HUD acessível e minimapa superior, persiste
-configurações limitadas, reconecta até cinco vezes quando habilitado e usa um
-canvas 2D visível quando WebGL2 não está disponível.
-Para qualificar a admissão com token, inicie o gateway com um bearer limitado:
+`http://127.0.0.1:8080/?kookie_ws=ws://127.0.0.1:8766/session`, clique em
+`CONNECT` e use `PING`, `PROTOCOL ECHO` ou uma ação autoritativa
+(`WASD`/setas para mover, `Q`/`E` para olhar, `ESPAÇO` para pular, `F` para
+atirar, `M` corpo a corpo, `X` especial, `R` reset). Clique no canvas para
+capturar pointer lock e usar o mouse. A admissão pede o snapshot de cena
+autoritativo completo antes de habilitar os controles de ação. O servidor Kof
+mantém tick, posição/câmera 3D, stamina, munição, combo, VFX, quatro estados de
+atores, um projétil e um pickup dentro dos limites. O cliente WebGL2 carrega os
+GLBs staged de ganso, gato, chão e parede, exibe HUD acessível e minimapa
+superior, persiste configurações limitadas e reconecta até cinco vezes quando
+habilitado. WebGL2 é obrigatório para a cena 3D; o cliente falha fechado quando
+não está disponível.
+
+Clique em `CHECK GATEWAY` para consultar a rota configurada `GET /healthz`. Ela
+informa transporte, protocolo, modo de admissão bearer e sessões ativas.
+`GET /metrics` expõe contadores limitados de upgrades, rejeições, frames,
+comandos e requisições de health. O servidor Kof é somente TCP e suporta
+qualificação local com `ws://`; ele não fornece identidade hospedada, admissão
+bearer ou terminação TLS.
+
+Execute o gate end-to-end do servidor Kof:
+
+```bash
+bash scripts/verify_kof_web_server.sh
+```
+
+O gateway Python sem dependências continua como fixture legada de compatibilidade
+para qualificação bearer-token e WSS. Ele não é o caminho do servidor Kof nem um
+serviço de identidade/sessão de produção.
+
+Para o gateway Python legado, qualifique a admissão por token com um bearer
+limitado:
 
 ```bash
 python3 scripts/kookie_websocket_session.py --port 8765 \

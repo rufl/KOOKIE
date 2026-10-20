@@ -3,13 +3,25 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
-- Browser/native parity work now keeps the 68-word scene payload authoritative
+- Added the Kof-owned native HTTP/WebSocket qualification server in
+  `apps/web_server/main.kf`. It owns the bounded HTTP routes, RFC 6455 upgrade,
+  Kof framing, handshake, authoritative full-scene movement and live health/
+  metrics counters; `native/kookie_web_server.c/.h` remains a narrow TCP/I/O
+  and SHA-1 mechanism adapter. `scripts/verify_kof_web_server.sh` now covers
+  health, metrics, upgrade, scene commands and malformed-request rejection.
+- Fixed browser WebGL2 startup and screenshot capture: the arena water
+  geometry export now copies structured bounds/styles without throwing during
+  script initialization, and the renderer exposes its `captureScreenshot`
+  method to the session client.
+- Browser/native parity work now keeps the 69-word scene base authoritative
   for player/camera state, four actors, a projectile, a pickup and
-  event-positioned VFX. The gateway's full-scene movement path now uses
-  normalized wish acceleration, ground friction, air braking, coyote time,
-  jump buffering, one air jump, swept axis collision against the G1 arena
-  boxes and floor/platform support; the native Kof controller remains the
-  canonical fixed-step implementation.
+  event-positioned VFX. Full-scene snapshots now append active loot-beam state
+  and four bounded projected-label records under a 272-word frame limit; the
+  gateway removes the beam after authoritative pickup collection or reset.
+- The gateway's full-scene movement path now uses normalized wish acceleration,
+  ground friction, air braking, coyote time, jump buffering, one air jump,
+  swept axis collision against the G1 arena boxes and floor/platform support;
+  the native Kof controller remains the canonical fixed-step implementation.
 - Accepted browser events now emit slash (5), flare (6), explosion (8), jump
   (13), hit (15), death (12) and liquid-enter (14, rendered with particle
   asset 0) cues. Native presentation consumes the authoritative per-player

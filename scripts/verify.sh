@@ -44,6 +44,7 @@ bash scripts/verify_goose_game.sh
 bash scripts/verify_pe_durable_save.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh
+bash scripts/verify_kof_web_server.sh
 
 
 if [[ -f /usr/lib/libSDL3.so ]]; then

@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 MAGIC = b"KWS1"
 FRAME_VERSION = 1
 NETCODE_PROTOCOL_VERSION = 2
-MAX_WORDS = 68
+MAX_WORDS = 272
 MAX_FRAME_BYTES = 16 + MAX_WORDS * 4
 MAX_HTTP_HEADER_BYTES = 8192
 MAX_WEBSOCKET_PAYLOAD_BYTES = MAX_FRAME_BYTES
@@ -135,6 +135,26 @@ GAME_LEGACY_ACTORS = 3
 GAME_FULL_ACTORS = 4
 GAME_MAXIMUM_PROJECTILES = 1
 GAME_MAXIMUM_PICKUP_KIND = 6
+GAME_SCENE_OBJECT_ENTRY_WIDTH = 9
+GAME_SCENE_LABEL_ENTRY_WIDTH = 6
+GAME_SCENE_OBJECTS_OFFSET = 69
+GAME_MAXIMUM_SCENE_OBJECTS = 17
+GAME_MAXIMUM_SCENE_LABELS = 8
+GAME_SCENE_OBJECT_DOOR = 1
+GAME_SCENE_OBJECT_FLOATABLE = 2
+GAME_SCENE_OBJECT_POWERUP = 3
+GAME_SCENE_OBJECT_LOOT_BEAM = 4
+GAME_STATIC_SCENE_OBJECTS = (
+    (GAME_SCENE_OBJECT_DOOR, 2, 0, 5, 5, 5, 3, 5, 1),
+    (GAME_SCENE_OBJECT_FLOATABLE, 1, 1, 150, 9, 140, 2, 2, 2),
+    (GAME_SCENE_OBJECT_FLOATABLE, 2, 0, 180, 9, 150, 2, 2, 2),
+    (GAME_SCENE_OBJECT_POWERUP, 1, 1, 32, 1, 52, 2, 2, 2),
+    (GAME_SCENE_OBJECT_POWERUP, 2, 1, 72, 1, 64, 3, 3, 3),
+    (GAME_SCENE_OBJECT_POWERUP, 3, 1, 120, 1, 96, 2, 2, 2),
+    (GAME_SCENE_OBJECT_POWERUP, 4, 1, 150, 5, 140, 3, 3, 3),
+    (GAME_SCENE_OBJECT_POWERUP, 5, 1, 260, 1, 60, 2, 2, 2),
+    (GAME_SCENE_OBJECT_POWERUP, 6, 1, 200, 1, 120, 2, 2, 2),
+)
 
 
 class ProtocolError(ValueError):
@@ -275,6 +295,7 @@ class AuthoritativeGameState:
     player_z: int = 52
     player_yaw: int = 0
     player_pitch: int = -8
+    player_state: int = 1
     ammo: int = 24
     full_mode: bool = False
     player_liquid: bool = False
@@ -624,6 +645,7 @@ class AuthoritativeGameState:
             self.stamina = min(GAME_MAXIMUM_STAMINA, self.stamina + 20)
 
     def apply_command(self, command: int, value: int) -> None:
+        self.player_state = 1
         self._advance_projectile()
         if self.full_mode and command != GAME_RESET:
             move_x, move_z = self._movement_axes(command)
@@ -657,6 +679,7 @@ class AuthoritativeGameState:
         elif command == GAME_LOOK_RIGHT and value == 15:
             self.player_yaw = (self.player_yaw + 15) % 360
         elif command == GAME_MELEE and value == 0:
+            self.player_state = 3
             if self.stamina >= 10:
                 self.stamina -= 10
                 self.combo = min(GAME_MAXIMUM_COMBO, self.combo + 1)
@@ -685,6 +708,7 @@ class AuthoritativeGameState:
                     )
                     self._damage_nearest_actor(18)
         elif command == GAME_SPECIAL and value == 0:
+            self.player_state = 3
             if self.stamina >= 25:
                 self.stamina -= 25
                 self.combo = 0
@@ -752,6 +776,7 @@ class AuthoritativeGameState:
             self.player_yaw = 0
             self.player_pitch = -8
             self.ammo = 24
+            self.player_state = 1
             self.actor_health = [GAME_MAXIMUM_HEALTH] * GAME_FULL_ACTORS
             self.actor_state = [1, 1, 2, 3]
             self.projectile_x = 0
@@ -760,6 +785,11 @@ class AuthoritativeGameState:
             self.projectile_dx = 0
             self.projectile_dz = 0
             self.projectile_ttl = 0
+            self.pickup_active = True
+            self.pickup_kind = 1
+            self.pickup_x = 128
+            self.pickup_y = 1
+            self.pickup_z = 112
             self.player_liquid = False
             self.velocity_x = 0
             self.velocity_y = 0
@@ -777,10 +807,13 @@ class AuthoritativeGameState:
             GAME_MOVE_BACK, GAME_STRAFE_LEFT, GAME_STRAFE_RIGHT,
         ):
             self.vfx = 0
+            self.player_state = 2
             self.vfx_x = self.player_x
             self.vfx_y = self.player_y
             self.vfx_z = self.player_z
         self._update_liquid_event()
+        if command == GAME_JUMP and value == 0:
+            self.player_state = 2
 
     def snapshot_words(self, sequence: int) -> list[int]:
         words = [
@@ -831,6 +864,22 @@ class AuthoritativeGameState:
                 self.actor_state[actor_id], self.actor_kind[actor_id],
                 self.actor_yaw[actor_id],
             ))
+        scene_objects = list(GAME_STATIC_SCENE_OBJECTS)
+        if self.pickup_active:
+            scene_objects.append((
+                GAME_SCENE_OBJECT_LOOT_BEAM, 100,
+                max(1, min(3, self.pickup_kind)),
+                self.pickup_x, self.pickup_y, self.pickup_z, 2, 4, 2,
+            ))
+        labels = [
+            (
+                actor_id + 1, actor_id + 1,
+                self.actor_x[actor_id], self.actor_y[actor_id],
+                self.actor_z[actor_id],
+                1 if self.actor_health[actor_id] > 0 else 0,
+            )
+            for actor_id in range(GAME_FULL_ACTORS)
+        ]
         words.extend((
             1 if self.projectile_ttl > 0 else 0,
             1 if self.projectile_ttl > 0 else 0,
@@ -841,7 +890,14 @@ class AuthoritativeGameState:
             1 if self.pickup_active else 0, self.pickup_kind,
             self.pickup_x, self.pickup_y, self.pickup_z,
             self.vfx_x, self.vfx_y, self.vfx_z,
+            self.player_state,
+            len(scene_objects),
         ))
+        for scene_object in scene_objects:
+            words.extend(scene_object)
+        words.append(len(labels))
+        for label in labels:
+            words.extend(label)
         words.append(message_checksum(words))
         return words
 
@@ -983,14 +1039,7 @@ def _validate_message(frame_kind: int, sequence: int, words: tuple[int, ...]) ->
                     words[27] > GAME_MAXIMUM_DEPTH or \
                     words[28] < 0 or words[28] > 6:
                 raise ProtocolError("invalid authoritative scene snapshot")
-        elif len(words) == 68:
-            actor_health_indices = (25, 33, 41, 49)
-            actor_state_indices = (26, 34, 42, 50)
-            actor_kind_indices = (27, 35, 43, 51)
-            actor_yaw_indices = (28, 36, 44, 52)
-            actor_x_indices = (22, 30, 38, 46)
-            actor_y_indices = (23, 31, 39, 47)
-            actor_z_indices = (24, 32, 40, 48)
+        elif len(words) >= 70:
             if words[3] != GAME_FULL_SCENE_SNAPSHOT_MARKER or \
                     words[4] < 0 or words[4] > GAME_MAXIMUM_TICK or \
                     words[5] < GAME_WORLD_MINIMUM_X or \
@@ -1014,72 +1063,83 @@ def _validate_message(frame_kind: int, sequence: int, words: tuple[int, ...]) ->
                     words[17] > GAME_WORLD_MAXIMUM_Z or \
                     words[18] < 0 or words[18] > 359 or \
                     words[19] < -90 or words[19] > 90 or \
-                    words[20] != GAME_FULL_ACTORS or \
-                    any(
-                        words[index] < GAME_WORLD_MINIMUM_X or
-                        words[index] > GAME_WORLD_MAXIMUM_X
-                        for index in actor_x_indices
-                    ) or \
-                    any(
-                        words[index] < GAME_WORLD_MINIMUM_Y or
-                        words[index] > GAME_WORLD_MAXIMUM_Y
-                        for index in actor_y_indices
-                    ) or \
-                    any(
-                        words[index] < GAME_WORLD_MINIMUM_Z or
-                        words[index] > GAME_WORLD_MAXIMUM_Z
-                        for index in actor_z_indices
-                    ) or \
-                    any(
-                        words[index] < 0 or
-                        words[index] > GAME_MAXIMUM_HEALTH
-                        for index in actor_health_indices
-                    ) or \
-                    any(
-                        words[index] < 1 or words[index] > 4
-                        for index in actor_state_indices
-                    ) or \
-                    any(
-                        words[index] < 1 or words[index] > 2
-                        for index in actor_kind_indices
-                    ) or \
-                    any(
-                        words[index] < 0 or words[index] > 359
-                        for index in actor_yaw_indices
-                    ) or \
-                    words[53] < 0 or \
-                    words[53] > GAME_MAXIMUM_PROJECTILES or \
-                    words[54] not in (0, 1) or \
-                    (
-                        words[54] == 0 and
-                        any(words[index] != 0 for index in (55, 56, 57, 58))
-                    ) or \
-                    (
-                        words[54] == 1 and (
-                            words[55] < GAME_WORLD_MINIMUM_X or
-                            words[55] > GAME_WORLD_MAXIMUM_X or
-                            words[56] < GAME_WORLD_MINIMUM_Y or
-                            words[56] > GAME_WORLD_MAXIMUM_Y or
-                            words[57] < GAME_WORLD_MINIMUM_Z or
-                            words[57] > GAME_WORLD_MAXIMUM_Z or
-                            words[58] < 1 or words[58] > 10
-                        )
-                    ) or \
-                    words[59] not in (0, 1) or \
-                    words[60] < 0 or words[60] > GAME_MAXIMUM_PICKUP_KIND or \
-                    words[61] < GAME_WORLD_MINIMUM_X or \
-                    words[61] > GAME_WORLD_MAXIMUM_X or \
-                    words[62] < GAME_WORLD_MINIMUM_Y or \
-                    words[62] > GAME_WORLD_MAXIMUM_Y or \
-                    words[63] < GAME_WORLD_MINIMUM_Z or \
-                    words[63] > GAME_WORLD_MAXIMUM_Z or \
-                    words[64] < GAME_WORLD_MINIMUM_X or \
-                    words[64] > GAME_WORLD_MAXIMUM_X or \
-                    words[65] < GAME_WORLD_MINIMUM_Y or \
-                    words[65] > GAME_WORLD_MAXIMUM_Y or \
-                    words[66] < GAME_WORLD_MINIMUM_Z or \
-                    words[66] > GAME_WORLD_MAXIMUM_Z:
+                    words[20] != GAME_FULL_ACTORS:
                 raise ProtocolError("invalid authoritative full scene snapshot")
+            actor_offsets = tuple(21 + index * 8 for index in range(GAME_FULL_ACTORS))
+            for offset in actor_offsets:
+                if words[offset] <= 0 or \
+                        not GAME_WORLD_MINIMUM_X <= words[offset + 1] <= GAME_WORLD_MAXIMUM_X or \
+                        not GAME_WORLD_MINIMUM_Y <= words[offset + 2] <= GAME_WORLD_MAXIMUM_Y or \
+                        not GAME_WORLD_MINIMUM_Z <= words[offset + 3] <= GAME_WORLD_MAXIMUM_Z or \
+                        not 0 <= words[offset + 4] <= GAME_MAXIMUM_HEALTH or \
+                        not 1 <= words[offset + 5] <= 4 or \
+                        not 1 <= words[offset + 6] <= 2 or \
+                        not 0 <= words[offset + 7] <= 359:
+                    raise ProtocolError("invalid authoritative actor entry")
+            if words[53] < 0 or words[53] > GAME_MAXIMUM_PROJECTILES or \
+                    words[54] not in (0, 1):
+                raise ProtocolError("invalid authoritative projectile state")
+            if words[54] == 0 and any(
+                    words[index] != 0 for index in (55, 56, 57, 58)):
+                raise ProtocolError("invalid inactive projectile state")
+            if words[54] == 1 and not (
+                    GAME_WORLD_MINIMUM_X <= words[55] <= GAME_WORLD_MAXIMUM_X and
+                    GAME_WORLD_MINIMUM_Y <= words[56] <= GAME_WORLD_MAXIMUM_Y and
+                    GAME_WORLD_MINIMUM_Z <= words[57] <= GAME_WORLD_MAXIMUM_Z and
+                    1 <= words[58] <= 10):
+                raise ProtocolError("invalid active projectile state")
+            if words[59] not in (0, 1) or \
+                    not 0 <= words[60] <= GAME_MAXIMUM_PICKUP_KIND or \
+                    not GAME_WORLD_MINIMUM_X <= words[61] <= GAME_WORLD_MAXIMUM_X or \
+                    not GAME_WORLD_MINIMUM_Y <= words[62] <= GAME_WORLD_MAXIMUM_Y or \
+                    not GAME_WORLD_MINIMUM_Z <= words[63] <= GAME_WORLD_MAXIMUM_Z:
+                raise ProtocolError("invalid authoritative pickup state")
+            if not GAME_WORLD_MINIMUM_X <= words[64] <= GAME_WORLD_MAXIMUM_X or \
+                    not GAME_WORLD_MINIMUM_Y <= words[65] <= GAME_WORLD_MAXIMUM_Y or \
+                    not GAME_WORLD_MINIMUM_Z <= words[66] <= GAME_WORLD_MAXIMUM_Z or \
+                    not 1 <= words[67] <= 4:
+                raise ProtocolError("invalid authoritative presentation state")
+            object_count = words[68]
+            if not 0 <= object_count <= GAME_MAXIMUM_SCENE_OBJECTS:
+                raise ProtocolError("invalid authoritative scene object count")
+            labels_offset = GAME_SCENE_OBJECTS_OFFSET + \
+                object_count * GAME_SCENE_OBJECT_ENTRY_WIDTH
+            if labels_offset >= len(words):
+                raise ProtocolError("missing authoritative scene labels")
+            label_count = words[labels_offset]
+            expected_length = labels_offset + 1 + \
+                label_count * GAME_SCENE_LABEL_ENTRY_WIDTH + 1
+            if not 0 <= label_count <= GAME_MAXIMUM_SCENE_LABELS or \
+                    len(words) != expected_length:
+                raise ProtocolError("invalid authoritative scene label count")
+            for index in range(object_count):
+                offset = GAME_SCENE_OBJECTS_OFFSET + \
+                    index * GAME_SCENE_OBJECT_ENTRY_WIDTH
+                kind, object_id, state = words[offset : offset + 3]
+                if not 1 <= kind <= GAME_SCENE_OBJECT_LOOT_BEAM or \
+                        object_id <= 0 or \
+                        not GAME_WORLD_MINIMUM_X <= words[offset + 3] <= GAME_WORLD_MAXIMUM_X or \
+                        not GAME_WORLD_MINIMUM_Y <= words[offset + 4] <= GAME_WORLD_MAXIMUM_Y or \
+                        not GAME_WORLD_MINIMUM_Z <= words[offset + 5] <= GAME_WORLD_MAXIMUM_Z or \
+                        not 0 < words[offset + 6] <= 32 or \
+                        not 0 < words[offset + 7] <= 32 or \
+                        not 0 < words[offset + 8] <= 32:
+                    raise ProtocolError("invalid authoritative scene object")
+                if kind == GAME_SCENE_OBJECT_LOOT_BEAM:
+                    if not 1 <= state <= 3:
+                        raise ProtocolError("invalid authoritative loot beam rank")
+                elif not 0 <= state <= 1:
+                    raise ProtocolError("invalid authoritative scene object state")
+            for index in range(label_count):
+                offset = labels_offset + 1 + \
+                    index * GAME_SCENE_LABEL_ENTRY_WIDTH
+                label_id, text_id = words[offset : offset + 2]
+                if label_id <= 0 or not 1 <= text_id <= 4 or \
+                        not GAME_WORLD_MINIMUM_X <= words[offset + 2] <= GAME_WORLD_MAXIMUM_X or \
+                        not GAME_WORLD_MINIMUM_Y <= words[offset + 3] <= GAME_WORLD_MAXIMUM_Y or \
+                        not GAME_WORLD_MINIMUM_Z <= words[offset + 4] <= GAME_WORLD_MAXIMUM_Z or \
+                        not 0 <= words[offset + 5] <= 1:
+                    raise ProtocolError("invalid authoritative projected label")
         else:
             raise ProtocolError("game payload length outside contract")
     elif frame_kind != ERROR:

@@ -1,0 +1,787 @@
+import session
+import kof.process
+
+extern "./lib/libkookie_web_server.so" kookie_web_server_open(Int port): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_accept(): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_read_byte(): Int
+extern "./lib/libkookie_web_server.so" kookie_web_server_send_begin(Int length): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_send_byte(Int index, Int value): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_send_commit(): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_set_websocket_key_byte(
+    Int index, Int value
+): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_websocket_accept_length(): Int
+extern "./lib/libkookie_web_server.so" kookie_web_server_websocket_accept_byte(
+    Int index
+): Int
+extern "./lib/libkookie_web_server.so" kookie_web_server_close_client(): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_close(): Bool
+extern "./lib/libkookie_web_server.so" kookie_web_server_port(): Int
+extern "./lib/libkookie_web_server.so" kookie_web_server_max_connections(): Int
+
+Int webMaximumRequestBytes() { return 8192 }
+Int webMaximumWebSocketPayloadBytes() { return 1104 }
+Int webMaximumResponseBytes() { return 16384 }
+Int webWebSocketOpcodeContinuation() { return 0 }
+Int webWebSocketOpcodeText() { return 1 }
+Int webWebSocketOpcodeBinary() { return 2 }
+Int webWebSocketOpcodeClose() { return 8 }
+Int webWebSocketOpcodePing() { return 9 }
+Int webWebSocketOpcodePong() { return 10 }
+
+Int webAsciiLower(Int value) {
+    if (value >= 65 && value <= 90) { return value + 32 }
+    return value
+}
+
+Bool webRangeEquals(Int[] source, Int start, Int end, String expected) {
+    if (start < 0 || end < start || end - start != expected.length() ||
+        end > source.length) {
+        return false
+    }
+    for (var index = 0; index < expected.length(); index = index + 1) {
+        if (source[start + index] != (expected.charAt(index) as Int)) {
+            return false
+        }
+    }
+    return true
+}
+
+Bool webRangeEqualsIgnoreCase(
+    Int[] source, Int start, Int end, String expected
+) {
+    if (start < 0 || end < start || end - start != expected.length() ||
+        end > source.length) {
+        return false
+    }
+    for (var index = 0; index < expected.length(); index = index + 1) {
+        if (webAsciiLower(source[start + index]) !=
+                webAsciiLower(expected.charAt(index) as Int)) {
+            return false
+        }
+    }
+    return true
+}
+
+Int webFindCrlf(Int[] source, Int start, Int limit) {
+    if (start < 0 || limit < start || limit > source.length) { return -1 }
+    for (var index = start; index + 1 < limit; index = index + 1) {
+        if (source[index] == 13 && source[index + 1] == 10) {
+            return index
+        }
+    }
+    return -1
+}
+
+Int webFindHeaderValueStart(
+    Int[] source, Int requestLength, String name
+) {
+    var firstLineEnd = webFindCrlf(source, 0, requestLength)
+    if (firstLineEnd < 0) { return -1 }
+    var cursor = firstLineEnd + 2
+    while (cursor < requestLength) {
+        var lineEnd = webFindCrlf(source, cursor, requestLength)
+        if (lineEnd < 0 || lineEnd == cursor) { return -1 }
+        if (lineEnd - cursor > name.length() &&
+            webRangeEqualsIgnoreCase(source, cursor, cursor + name.length(), name) &&
+            source[cursor + name.length()] == 58) {
+            var value = cursor + name.length() + 1
+            while (value < lineEnd &&
+                (source[value] == 32 || source[value] == 9)) {
+                value = value + 1
+            }
+            return value * 100000 + lineEnd
+        }
+        cursor = lineEnd + 2
+    }
+    return -1
+}
+
+Bool webHeaderContainsToken(
+    Int[] source, Int requestLength, String name, String expected
+) {
+    var packed = webFindHeaderValueStart(source, requestLength, name)
+    if (packed < 0) { return false }
+    var start = packed / 100000
+    var end = packed % 100000
+    var cursor = start
+    while (cursor < end) {
+        while (cursor < end &&
+            (source[cursor] == 32 || source[cursor] == 9 || source[cursor] == 44)) {
+            cursor = cursor + 1
+        }
+        var tokenEnd = cursor
+        while (tokenEnd < end && source[tokenEnd] != 44) {
+            tokenEnd = tokenEnd + 1
+        }
+        while (tokenEnd > cursor &&
+            (source[tokenEnd - 1] == 32 || source[tokenEnd - 1] == 9)) {
+            tokenEnd = tokenEnd - 1
+        }
+        if (webRangeEqualsIgnoreCase(source, cursor, tokenEnd, expected)) {
+            return true
+        }
+        cursor = tokenEnd + 1
+    }
+    return false
+}
+
+Bool webRequestLine(
+    Int[] source, Int requestLength, String method, String path
+) {
+    var lineEnd = webFindCrlf(source, 0, requestLength)
+    if (lineEnd < 0) { return false }
+    var expected = method + " " + path + " HTTP/1.1"
+    return webRangeEquals(source, 0, lineEnd, expected)
+}
+
+Int webReadHttpRequest(Int[] request) {
+    var count = 0
+    while (count < request.length) {
+        var value = kookie_web_server_read_byte()
+        if (value < 0) { return -1 }
+        request[count] = value
+        count = count + 1
+        if (count >= 4 && request[count - 4] == 13 &&
+            request[count - 3] == 10 && request[count - 2] == 13 &&
+            request[count - 1] == 10) {
+            return count
+        }
+    }
+    return -1
+}
+
+Bool webSendBytes(Int[] bytes) {
+    if (bytes.length <= 0 || bytes.length > webMaximumResponseBytes() ||
+        !kookie_web_server_send_begin(bytes.length)) {
+        return false
+    }
+    for (var index = 0; index < bytes.length; index = index + 1) {
+        if (!kookie_web_server_send_byte(index, bytes[index])) { return false }
+    }
+    return kookie_web_server_send_commit()
+}
+
+Bool webSendAscii(String text) {
+    if (text.length() <= 0 || text.length() > webMaximumResponseBytes()) {
+        return false
+    }
+    var bytes = new Int[text.length()]
+    for (var index = 0; index < bytes.length; index = index + 1) {
+        bytes[index] = text.charAt(index) as Int
+    }
+    return webSendBytes(bytes)
+}
+
+Bool webSendTextResponse(String status, String contentType, String body) {
+    var response = "HTTP/1.1 " + status + "\r\n" +
+        "Content-Type: " + contentType + "\r\n" +
+        "Content-Length: " + body.length() + "\r\n" +
+        "Connection: close\r\n" +
+        "Access-Control-Allow-Origin: *\r\n\r\n" + body
+    return webSendAscii(response)
+}
+
+Bool webSendNotFound() {
+    return webSendTextResponse(
+        "404 Not Found", "text/plain; charset=utf-8", "not found\n")
+}
+
+Bool webSendBadRequest() {
+    return webSendTextResponse(
+        "400 Bad Request", "text/plain; charset=utf-8", "bad request\n")
+}
+
+Bool webSendUpgradeResponse() {
+    var acceptLength = kookie_web_server_websocket_accept_length()
+    if (acceptLength != 28) { return false }
+    var response = new Int[256]
+    var cursor = 0
+    var prefix = "HTTP/1.1 101 Switching Protocols\r\n" +
+        "Upgrade: websocket\r\n" +
+        "Connection: Upgrade\r\n" +
+        "Sec-WebSocket-Accept: "
+    for (var index = 0; index < prefix.length(); index = index + 1) {
+        response[cursor] = prefix.charAt(index) as Int
+        cursor = cursor + 1
+    }
+    for (var index = 0; index < acceptLength; index = index + 1) {
+        var value = kookie_web_server_websocket_accept_byte(index)
+        if (value < 0) { return false }
+        response[cursor] = value
+        cursor = cursor + 1
+    }
+    var suffix = "\r\nSec-WebSocket-Protocol: kookie.v1\r\n\r\n"
+    for (var index = 0; index < suffix.length(); index = index + 1) {
+        response[cursor] = suffix.charAt(index) as Int
+        cursor = cursor + 1
+    }
+    var result = new Int[cursor]
+    for (var index = 0; index < cursor; index = index + 1) {
+        result[index] = response[index]
+    }
+    return webSendBytes(result)
+}
+
+Int webWireChecksum(Int[] wire) {
+    if (wire.length < 16) { return -1 }
+    var result = 0
+    for (var index = 0; index < wire.length; index = index + 1) {
+        var value = wire[index]
+        if (index == 14 || index == 15) { value = 0 }
+        result = (result + value * (index + 1)) % 65536
+    }
+    return result
+}
+
+Int[] webEncodeSessionFrame(Int kind, Int sequence, Int[] words) {
+    if (kind < sessionWebHelloKind() || kind > sessionWebGameKind() ||
+        sequence <= 0 || sequence > 1000000 || words.length <= 0 ||
+        words.length > sessionWebMaximumWords() || words[0] != sessionWebGameProtocolVersion() ||
+        words[1] != kind || words[2] != sequence) {
+        return new Int[0]
+    }
+    var wire = new Int[16 + words.length * 4]
+    wire[0] = 75; wire[1] = 87; wire[2] = 83; wire[3] = 49
+    wire[4] = 1; wire[5] = kind; wire[6] = 0; wire[7] = 0
+    wire[8] = (sequence >>> 24) & 255
+    wire[9] = (sequence >>> 16) & 255
+    wire[10] = (sequence >>> 8) & 255
+    wire[11] = sequence & 255
+    wire[12] = (words.length >>> 8) & 255
+    wire[13] = words.length & 255
+    wire[14] = 0; wire[15] = 0
+    for (var index = 0; index < words.length; index = index + 1) {
+        var offset = 16 + index * 4
+        wire[offset] = (words[index] >>> 24) & 255
+        wire[offset + 1] = (words[index] >>> 16) & 255
+        wire[offset + 2] = (words[index] >>> 8) & 255
+        wire[offset + 3] = words[index] & 255
+    }
+    var checksum = webWireChecksum(wire)
+    wire[14] = (checksum >>> 8) & 255
+    wire[15] = checksum & 255
+    return wire
+}
+
+Bool webSendWebSocketFrame(Int opcode, Int[] payload) {
+    if (opcode < 0 || opcode > 15 || payload.length >
+        webMaximumWebSocketPayloadBytes() ||
+        (opcode >= 8 && payload.length > 125)) {
+        return false
+    }
+    var headerLength = if (payload.length < 126) 2 else 4
+    var frame = new Int[headerLength + payload.length]
+    frame[0] = 128 | opcode
+    if (payload.length < 126) {
+        frame[1] = payload.length
+    } else {
+        frame[1] = 126
+        frame[2] = (payload.length >>> 8) & 255
+        frame[3] = payload.length & 255
+    }
+    for (var index = 0; index < payload.length; index = index + 1) {
+        frame[headerLength + index] = payload[index]
+    }
+    return webSendBytes(frame)
+}
+
+Bool webSendSessionWords(Int kind, Int sequence, Int[] words) {
+    var wire = webEncodeSessionFrame(kind, sequence, words)
+    return wire.length > 0 && webSendWebSocketFrame(
+        webWebSocketOpcodeBinary(), wire)
+}
+
+class WebSocketFrameReader {
+    Int opcodeValue
+    Int[] payloadValue
+    Bool readValue
+
+    public constructor() {
+        opcodeValue = -1
+        payloadValue = new Int[0]
+        readValue = false
+    }
+
+    Int readByte() { return kookie_web_server_read_byte() }
+
+    Bool readExact(Int[] target, Int length) {
+        for (var index = 0; index < length; index = index + 1) {
+            var value = readByte()
+            if (value < 0) { return false }
+            target[index] = value
+        }
+        return true
+    }
+
+    Bool read() {
+        opcodeValue = -1
+        payloadValue = new Int[0]
+        readValue = false
+        var first = readByte()
+        var second = readByte()
+        if (first < 0 || second < 0 || (first & 128) == 0 ||
+            (first & 112) != 0) {
+            return false
+        }
+        opcodeValue = first & 15
+        var length = second & 127
+        if (length == 126) {
+            var extended = new Int[2]
+            if (!readExact(extended, 2)) { return false }
+            length = extended[0] * 256 + extended[1]
+        } else if (length == 127) {
+            return false
+        }
+        if (length > webMaximumWebSocketPayloadBytes() ||
+            ((opcodeValue & 8) != 0 && length > 125) ||
+            (second & 128) == 0) {
+            return false
+        }
+        var mask = new Int[4]
+        if (!readExact(mask, 4)) { return false }
+        payloadValue = new Int[length]
+        if (!readExact(payloadValue, length)) { return false }
+        for (var index = 0; index < length; index = index + 1) {
+            payloadValue[index] = payloadValue[index] ^ mask[index % 4]
+        }
+        readValue = true
+        return true
+    }
+
+    Int opcode() { return opcodeValue }
+    Int[] payload() { return payloadValue }
+    Bool valid() { return readValue }
+}
+
+class WebSessionFrame {
+    Int kindValue
+    Int sequenceValue
+    Int[] wordsValue
+    Bool validValue
+
+    public constructor(Int[] wire) {
+        kindValue = 0
+        sequenceValue = 0
+        wordsValue = new Int[0]
+        validValue = false
+        if (wire.length < 16 || wire.length > sessionWebMaximumFrameBytes() ||
+            wire[0] != 75 || wire[1] != 87 || wire[2] != 83 || wire[3] != 49 ||
+            wire[4] != sessionWebFrameVersion() || wire[6] != 0 || wire[7] != 0) {
+            return
+        }
+        kindValue = wire[5]
+        sequenceValue = (wire[8] << 24) | (wire[9] << 16) |
+            (wire[10] << 8) | wire[11]
+        var wordCount = wire[12] * 256 + wire[13]
+        if (kindValue < sessionWebHelloKind() || kindValue > sessionWebGameKind() ||
+            sequenceValue <= 0 || sequenceValue > 1000000 || wordCount <= 0 ||
+            wordCount > sessionWebMaximumWords() ||
+            wire.length != 16 + wordCount * 4 ||
+            webWireChecksum(wire) != wire[14] * 256 + wire[15]) {
+            return
+        }
+        wordsValue = new Int[wordCount]
+        for (var index = 0; index < wordCount; index = index + 1) {
+            var offset = 16 + index * 4
+            wordsValue[index] = (wire[offset] << 24) |
+                (wire[offset + 1] << 16) | (wire[offset + 2] << 8) |
+                wire[offset + 3]
+        }
+        validValue = wordsValue[0] == sessionWebGameProtocolVersion() &&
+            wordsValue[1] == kindValue && wordsValue[2] == sequenceValue &&
+            wordsValue[wordsValue.length - 1] ==
+                sessionWebMessageChecksum(wordsValue, wordsValue.length - 1)
+    }
+
+    Bool valid() { return validValue }
+    Int kind() { return kindValue }
+    Int sequence() { return sequenceValue }
+    Int[] words() { return wordsValue }
+}
+
+class WebServerMetrics {
+    Int upgradeCountValue
+    Int rejectionCountValue
+    Int frameCountValue
+    Int commandCountValue
+    Int healthCountValue
+    Int metricsCountValue
+    Int activeSessionsValue
+
+    public constructor() {
+        upgradeCountValue = 0
+        rejectionCountValue = 0
+        frameCountValue = 0
+        commandCountValue = 0
+        healthCountValue = 0
+        metricsCountValue = 0
+        activeSessionsValue = 0
+    }
+
+    void recordUpgrade() { upgradeCountValue = upgradeCountValue + 1 }
+    void recordRejection() { rejectionCountValue = rejectionCountValue + 1 }
+    void recordFrame() { frameCountValue = frameCountValue + 1 }
+    void recordCommand() { commandCountValue = commandCountValue + 1 }
+    void recordHealth() { healthCountValue = healthCountValue + 1 }
+    void recordMetrics() { metricsCountValue = metricsCountValue + 1 }
+    void beginSession() { activeSessionsValue = activeSessionsValue + 1 }
+    void endSession() {
+        if (activeSessionsValue > 0) {
+            activeSessionsValue = activeSessionsValue - 1
+        }
+    }
+
+    String healthBody() {
+        return "{\"status\":\"ok\",\"protocol\":\"kookie.v1\",\"transport\":\"tcp\",\"auth_required\":false,\"active_sessions\":" +
+            activeSessionsValue + "}\n"
+    }
+
+    String metricsBody() {
+        return "# TYPE kookie_gateway_transport gauge\n" +
+            "kookie_gateway_transport{name=\"tcp\"} 1\n" +
+            "# TYPE kookie_gateway_active_sessions gauge\n" +
+            "kookie_gateway_active_sessions " + activeSessionsValue + "\n" +
+            "# TYPE kookie_gateway_upgrades_total counter\n" +
+            "kookie_gateway_upgrades_total " + upgradeCountValue + "\n" +
+            "# TYPE kookie_gateway_rejections_total counter\n" +
+            "kookie_gateway_rejections_total " + rejectionCountValue + "\n" +
+            "# TYPE kookie_gateway_frames_total counter\n" +
+            "kookie_gateway_frames_total " + frameCountValue + "\n" +
+            "# TYPE kookie_gateway_commands_total counter\n" +
+            "kookie_gateway_commands_total " + commandCountValue + "\n" +
+            "# TYPE kookie_gateway_health_requests_total counter\n" +
+            "kookie_gateway_health_requests_total " + healthCountValue + "\n" +
+            "# TYPE kookie_gateway_metrics_requests_total counter\n" +
+            "kookie_gateway_metrics_requests_total " + metricsCountValue + "\n"
+    }
+}
+
+class WebAuthoritativeState {
+    Int tickValue
+    Int playerXValue
+    Int playerYValue
+    Int playerZValue
+    Int playerYawValue
+    Int playerPitchValue
+    Int healthValue
+    Int staminaValue
+    Int ammoValue
+    Int comboValue
+    Int vfxValue
+    Int vfxXValue
+    Int vfxYValue
+    Int vfxZValue
+    Int playerStateValue
+
+    public constructor() {
+        tickValue = 0
+        playerXValue = 32
+        playerYValue = 1
+        playerZValue = 52
+        playerYawValue = 0
+        playerPitchValue = -8
+        healthValue = 100
+        staminaValue = 100
+        ammoValue = 24
+        comboValue = 0
+        vfxValue = 0
+        vfxXValue = 32
+        vfxYValue = 1
+        vfxZValue = 52
+        playerStateValue = 1
+    }
+
+    Bool apply(Int[] words) {
+        if (!validSessionWebGameCommand(words)) { return false }
+        var command = words[4]
+        if (command == sessionWebGameMoveLeftCommand() ||
+            command == sessionWebGameStrafeLeftCommand()) {
+            playerXValue = playerXValue - 8
+        } else if (command == sessionWebGameMoveRightCommand() ||
+            command == sessionWebGameStrafeRightCommand()) {
+            playerXValue = playerXValue + 8
+        } else if (command == sessionWebGameMoveForwardCommand()) {
+            playerZValue = playerZValue + 8
+        } else if (command == sessionWebGameMoveBackCommand()) {
+            playerZValue = playerZValue - 8
+        } else if (command == sessionWebGameLookLeftCommand()) {
+            playerYawValue = (playerYawValue + 345) % 360
+        } else if (command == sessionWebGameLookRightCommand()) {
+            playerYawValue = (playerYawValue + 15) % 360
+        } else if (command == sessionWebGameMeleeCommand()) {
+            vfxValue = 5
+            vfxXValue = playerXValue
+            vfxYValue = playerYValue + 2
+            vfxZValue = playerZValue
+            comboValue = comboValue + 1
+            staminaValue = staminaValue - 10
+            if (staminaValue < 0) { staminaValue = 0 }
+            playerStateValue = 3
+        } else if (command == sessionWebGameSpecialCommand()) {
+            vfxValue = 8
+            vfxXValue = playerXValue + 12
+            vfxYValue = playerYValue + 4
+            vfxZValue = playerZValue
+            staminaValue = staminaValue - 25
+            if (staminaValue < 0) { staminaValue = 0 }
+            comboValue = 0
+            playerStateValue = 3
+        } else if (command == sessionWebGameFireCommand()) {
+            if (ammoValue > 0) { ammoValue = ammoValue - 1 }
+            vfxValue = 6
+            vfxXValue = playerXValue + 12
+            vfxYValue = playerYValue + 4
+            vfxZValue = playerZValue
+        } else if (command == sessionWebGameJumpCommand()) {
+            vfxValue = 13
+            vfxXValue = playerXValue
+            vfxYValue = playerYValue + 7
+            vfxZValue = playerZValue
+            playerStateValue = 2
+        } else if (command == sessionWebGameResetCommand()) {
+            playerXValue = 32
+            playerYValue = 1
+            playerZValue = 52
+            playerYawValue = 0
+            healthValue = 100
+            staminaValue = 100
+            ammoValue = 24
+            comboValue = 0
+            vfxValue = 0
+            vfxXValue = 32
+            vfxYValue = 1
+            vfxZValue = 52
+            playerStateValue = 1
+        }
+        if (playerXValue < sessionWebGameWorldMinimumX()) {
+            playerXValue = sessionWebGameWorldMinimumX()
+        }
+        if (playerXValue > sessionWebGameWorldMaximumX()) {
+            playerXValue = sessionWebGameWorldMaximumX()
+        }
+        if (playerZValue < sessionWebGameWorldMinimumZ()) {
+            playerZValue = sessionWebGameWorldMinimumZ()
+        }
+        if (playerZValue > sessionWebGameWorldMaximumZ()) {
+            playerZValue = sessionWebGameWorldMaximumZ()
+        }
+        tickValue = tickValue + 1
+        return true
+    }
+
+    Int[] fullScene(Int sequence) {
+        var actors = new Int[32]
+        var actorValues = new Int[32]
+        actorValues[0] = 1; actorValues[1] = 96; actorValues[2] = 1
+        actorValues[3] = 80; actorValues[4] = 100; actorValues[5] = 1
+        actorValues[6] = 1; actorValues[7] = 90
+        actorValues[8] = 2; actorValues[9] = 208; actorValues[10] = 1
+        actorValues[11] = 160; actorValues[12] = 100; actorValues[13] = 1
+        actorValues[14] = 2; actorValues[15] = 180
+        actorValues[16] = 3; actorValues[17] = 260; actorValues[18] = 1
+        actorValues[19] = 220; actorValues[20] = 100; actorValues[21] = 2
+        actorValues[22] = 1; actorValues[23] = 0
+        actorValues[24] = 4; actorValues[25] = 150; actorValues[26] = 1
+        actorValues[27] = 210; actorValues[28] = 100; actorValues[29] = 3
+        actorValues[30] = 2; actorValues[31] = 270
+        for (var index = 0; index < actors.length; index = index + 1) {
+            actors[index] = actorValues[index]
+        }
+        var projectile = new Int[6]
+        projectile[0] = 0; projectile[1] = 0; projectile[2] = 0
+        projectile[3] = 0; projectile[4] = 0; projectile[5] = 0
+        var pickup = new Int[5]
+        pickup[0] = 1; pickup[1] = 1; pickup[2] = 128
+        pickup[3] = 1; pickup[4] = 112
+        return newSessionWebGameFullSceneSnapshot(
+            sequence, tickValue, playerXValue, playerYValue, playerZValue,
+            playerYawValue, playerPitchValue, healthValue, staminaValue,
+            ammoValue, comboValue, vfxValue, playerXValue, playerYValue + 8,
+            playerZValue - 16, playerYawValue, playerPitchValue, playerStateValue,
+            actors, projectile, pickup, vfxXValue, vfxYValue, vfxZValue)
+    }
+}
+
+Bool webServeSession(WebServerMetrics metrics) {
+    var reader = WebSocketFrameReader()
+    metrics.beginSession()
+    if (!reader.read()) {
+        metrics.recordRejection()
+        metrics.endSession()
+        return false
+    }
+    metrics.recordFrame()
+    if (!reader.valid() ||
+        reader.opcode() != webWebSocketOpcodeBinary()) {
+        metrics.recordRejection()
+        metrics.endSession()
+        return false
+    }
+    var hello = WebSessionFrame(reader.payload())
+    if (!hello.valid() || hello.kind() != sessionWebHelloKind() ||
+        !validSessionWebHello(hello.words()) ||
+        !webSendSessionWords(sessionWebAckKind(), hello.sequence(),
+            newSessionWebAck(hello.sequence(), true))) {
+        metrics.recordRejection()
+        metrics.endSession()
+        return false
+    }
+    var state = WebAuthoritativeState()
+    while (reader.read()) {
+        metrics.recordFrame()
+        if (reader.opcode() == webWebSocketOpcodeClose()) {
+            webSendWebSocketFrame(webWebSocketOpcodeClose(), new Int[0])
+            metrics.endSession()
+            return true
+        }
+        if (reader.opcode() == webWebSocketOpcodePing()) {
+            if (!webSendWebSocketFrame(
+                    webWebSocketOpcodePong(), reader.payload())) {
+                metrics.recordRejection()
+                metrics.endSession()
+                return false
+            }
+            continue
+        }
+        if (reader.opcode() != webWebSocketOpcodeBinary()) {
+            metrics.recordRejection()
+            metrics.endSession()
+            return false
+        }
+        var frame = WebSessionFrame(reader.payload())
+        if (!frame.valid()) {
+            metrics.recordRejection()
+            metrics.endSession()
+            return false
+        }
+        if (frame.kind() == sessionWebPingKind()) {
+            if (!validSessionWebPing(frame.words(), sessionWebPingKind()) ||
+                !webSendSessionWords(
+                    sessionWebPongKind(), frame.sequence(),
+                    newSessionWebPing(sessionWebPongKind(), frame.sequence()))) {
+                metrics.recordRejection()
+                metrics.endSession()
+                return false
+            }
+        } else if (frame.kind() == sessionWebGameKind()) {
+            var words = frame.words()
+            if (validSessionWebGameProbe(words)) {
+                if (!webSendSessionWords(
+                        sessionWebGameKind(), frame.sequence(), words)) {
+                    metrics.recordRejection()
+                    metrics.endSession()
+                    return false
+                }
+            } else if (validSessionWebGameCommand(words)) {
+                if (!state.apply(words)) {
+                    metrics.recordRejection()
+                    metrics.endSession()
+                    return false
+                }
+                metrics.recordCommand()
+                var snapshot = state.fullScene(frame.sequence())
+                if (snapshot.length <= 0 || !webSendSessionWords(
+                        sessionWebGameKind(), frame.sequence(), snapshot)) {
+                    metrics.recordRejection()
+                    metrics.endSession()
+                    return false
+                }
+            } else {
+                metrics.recordRejection()
+                metrics.endSession()
+                return false
+            }
+        } else {
+            metrics.recordRejection()
+            metrics.endSession()
+            return false
+        }
+    }
+    metrics.endSession()
+    return true
+}
+
+Bool webServeRequest(
+    WebServerMetrics metrics, Int[] request, Int requestLength
+) {
+    if (webRequestLine(request, requestLength, "GET", "/healthz")) {
+        metrics.recordHealth()
+        return webSendTextResponse(
+            "200 OK", "application/json; charset=utf-8",
+            metrics.healthBody())
+    }
+    if (webRequestLine(request, requestLength, "GET", "/metrics")) {
+        metrics.recordMetrics()
+        return webSendTextResponse(
+            "200 OK", "text/plain; version=0.0.4; charset=utf-8",
+            metrics.metricsBody())
+    }
+    if (!webRequestLine(request, requestLength, "GET", "/session")) {
+        return webSendNotFound()
+    }
+    if (!webHeaderContainsToken(request, requestLength, "Upgrade", "websocket") ||
+        !webHeaderContainsToken(request, requestLength, "Connection", "Upgrade") ||
+        !webHeaderContainsToken(
+            request, requestLength, "Sec-WebSocket-Protocol", "kookie.v1")) {
+        metrics.recordRejection()
+        return webSendBadRequest()
+    }
+    var version = webFindHeaderValueStart(
+        request, requestLength, "Sec-WebSocket-Version")
+    if (version < 0 || !webRangeEquals(
+            request, version / 100000, version % 100000, "13")) {
+        metrics.recordRejection()
+        return webSendBadRequest()
+    }
+    var key = webFindHeaderValueStart(
+        request, requestLength, "Sec-WebSocket-Key")
+    if (key < 0 || key % 100000 - key / 100000 != 24) {
+        metrics.recordRejection()
+        return webSendBadRequest()
+    }
+    var keyStart = key / 100000
+    for (var index = 0; index < 24; index = index + 1) {
+        if (!kookie_web_server_set_websocket_key_byte(
+                index, request[keyStart + index])) {
+            metrics.recordRejection()
+            return false
+        }
+    }
+    if (!webSendUpgradeResponse()) {
+        metrics.recordRejection()
+        return false
+    }
+    metrics.recordUpgrade()
+    return webServeSession(metrics)
+}
+
+main() {
+    var port = kookie_web_server_port()
+    if (!kookie_web_server_open(port)) {
+        println("KOOKIE Kof web server bind rejected")
+        process.exit(1)
+    }
+    println("KOOKIE Kof web server listening port=" + port)
+    var metrics = WebServerMetrics()
+    var maximumConnections = kookie_web_server_max_connections()
+    var acceptedConnections = 0
+    while (maximumConnections == 0 || acceptedConnections < maximumConnections) {
+        if (!kookie_web_server_accept()) {
+            println("KOOKIE Kof web server accept rejected")
+            kookie_web_server_close()
+            process.exit(1)
+        }
+        var request = new Int[webMaximumRequestBytes()]
+        var requestLength = webReadHttpRequest(request)
+        if (requestLength > 0) {
+            webServeRequest(metrics, request, requestLength)
+        } else {
+            metrics.recordRejection()
+        }
+        kookie_web_server_close_client()
+        acceptedConnections = acceptedConnections + 1
+    }
+    kookie_web_server_close()
+    println("KOOKIE Kof web server qualification complete")
+}

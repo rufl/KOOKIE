@@ -3,6 +3,17 @@
 Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. Ele não promete que um milestone terminou; o plano e as verificações focadas continuam sendo a fonte de verdade.
 
 ## Não lançado
+- Adicionamos o servidor native de qualificação HTTP/WebSocket sob posse do Kof
+  em `apps/web_server/main.kf`. Ele possui as rotas HTTP limitadas, upgrade RFC
+  6455, framing Kof, handshake, movimento autoritativo da cena completa e
+  contadores vivos de health/metrics; `native/kookie_web_server.c/.h` continua
+  um adaptador estreito de mecanismo TCP/I/O e SHA-1.
+  `scripts/verify_kof_web_server.sh` agora cobre health, metrics, upgrade,
+  comandos da cena e rejeição de requisição malformada.
+- Corrigimos a inicialização WebGL2 e a captura de screenshots no navegador:
+  a exportação da geometria de água agora copia limites/estilos estruturados
+  sem lançar exceção durante a inicialização, e o renderer expõe
+  `captureScreenshot` ao cliente de sessão.
 - Concluímos a fatia limitada de cena 3D no navegador: o gateway WebSocket
   agora serve um snapshot autoritativo de 68 palavras com estado do jogador e
   câmera, quatro atores, um projétil, um pickup e payload de VFX com posição do

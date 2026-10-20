@@ -1,0 +1,22 @@
+{
+  "queueTicket": 74,
+  "command": "bash scripts/verify_presentation.sh",
+  "status": "passed",
+  "exitStatus": 0,
+  "host": "chopper",
+  "machine": "x86_64",
+  "os": "Linux",
+  "osRelease": "6.18.56-1-lts",
+  "renderNode": "/dev/dri/renderD128",
+  "isolationWrapper": "scripts/linux_gamescope_isolated_display",
+  "videoDriver": "x11",
+  "gpuPresentCapabilities": 11,
+  "gpuDrawUs": 6488,
+  "gpuWindowScreenshotChecksum": 321528432,
+  "screenshotWidth": 1280,
+  "screenshotHeight": 720,
+  "screenshotSha256": "e0952aaefd9ea4381a3f599705d702f8dba0b6eec2e818317c74df0494b28813",
+  "adapterLogSha256": "57e504c91d4e3bb7de9022ecaead377357fbdd516add93d6fd77af04e6570930",
+  "hardwareObservation": "Intel(R) Graphics (ARL) via Vulkan; not A770 hardware evidence",
+  "rawArtifactNote": "The PPM capture is retained by the local build artifact when available; this tracked record preserves the qualification result and SHA-256 values."
+}

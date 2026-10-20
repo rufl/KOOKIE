@@ -68,11 +68,11 @@ bounded behavior/artifact tier; it is not a hot-loop replacement for compiled
 Kof. The Windows executable now enters
 `probes/g0_native_presentation/main.kf`; `native/kookie_pe_entry.c` and
 `native/kookie_sdl_adapter.c` are ABI/platform mechanisms only. GLB scene,
-mesh, hierarchy, normalization, UV and animation
-staging now live in `src/content/glb_model.kf`; it also owns bounded file
-discovery, GLB bytes and image-range selection. The SDL adapter receives only
-the validated cat PNG bytes through a scalar byte staging ABI.
-`src/core/camera.kf` emits the fixed-point view/projection matrix and
+mesh, hierarchy, normalization, UV, authored `LINEAR`/`STEP` clip sampling and
+bounded CPU skin-weight pose deformation now live in `src/content/glb_model.kf`.
+It also owns bounded file discovery, GLB bytes and image-range selection. The
+SDL adapter receives only the validated cat PNG bytes through a scalar byte
+staging ABI.
 `src/content/gpu_world_texture.kf` emits packed RGBA words plus normalized
 world UVs. The presentation stages those words, camera scalars, encoded UI UVs
 and the world/scene pass plan; C only validates scalar ranges, copies/uploads
@@ -384,42 +384,69 @@ The protocol is transport-independent:
 - Stale commands, invalid handles, incompatible content and unsupported
   capabilities are rejected before authoritative mutation.
 
+### Kof-owned local web server
+
+The local full-scene qualification path can run entirely from Kof:
+`apps/web_server/main.kf` owns HTTP routing, the WebSocket upgrade, bounded
+frame decode/encode, the Kof handshake, authoritative session state and the
+health/metrics responses. `native/kookie_web_server.c/.h` is a narrow C
+mechanism boundary for TCP sockets, bounded I/O, socket timeouts, the
+WebSocket SHA-1 accept digest and environment-provided port/connection limits;
+it owns no session or gameplay policy. `scripts/build_web_server.sh` packages
+the native Kof executable with that adapter, and
+`scripts/verify_kof_web_server.sh` qualifies health, metrics, upgrade,
+handshake, full-scene movement and malformed-request rejection.
+
+This local server is TCP-only and is qualified with `ws://`. It does not claim
+hosted identity, bearer admission or TLS termination. The runtime target matrix
+therefore remains WSS for hosted browser sessions; the Python gateway below is
+retained only as a dependency-free bearer/WSS compatibility fixture until the
+hosted identity/session boundary exists.
+
 The current web output is a bounded KofJS UI and browser client. It includes a
 binary WebSocket handshake/heartbeat, protocol echo, full authoritative scene
 probe, keyboard/button/mouse input, pointer-lock look, validated bounded scene
 snapshots, an accessible HUD with a top-down minimap, and a direct WebGL2
-renderer in `apps/web_alpha/webgl_renderer.js`. The 68-word full scene snapshot
-carries the player camera, four actors with health/state/kind/facing, one
-bounded projectile, one pickup and a positioned VFX asset event. The renderer
-consumes staged goose, cat, ground, wall and cover GLBs without a Three.js
-dependency, including embedded or attached base-color images, authored node
-transforms and toon-banded materials; all 16 native-registered particle,
-flipbook and predrawn VFX sheets are staged, with event IDs 5/6/8 currently
-mapped to melee/fire/special. Native and web intentionally share the
-base-color-only material subset; the renderer also applies a deterministic,
-state-driven procedural lift and bounded skeletal animation for idle, moving
-and attack actor states. Authored goose/cat GLBs use `JOINTS_0`/`WEIGHTS_0`,
-inverse-bind palettes capped at 32 joints, and `LINEAR`/`STEP` TRS clips with
-fallback selection. It follows the authoritative camera and resizes for device
-pixels.
+renderer in `apps/web_alpha/webgl_renderer.js`. The default full scene snapshot
+has 185 words in the default active-pickup state: the 69-word base carries
+player/camera state, four actors with health/state/kind/facing, one bounded
+projectile, one pickup and a positioned VFX event; a variable 9-word
+scene-object tail carries the authoritative door, floatable, power-up and
+active loot-beam fields. Four 6-word projected-label records follow the object
+tail. The 272-word bound admits up to 17 objects and 8 labels.
+ground, wall and cover GLBs without a Three.js dependency, including embedded
+or attached base-color images, authored node transforms and toon-banded
+materials; all 16 native-registered particle, flipbook and predrawn VFX sheets
+are staged, with event IDs 5/6/8 currently mapped to melee/fire/special. Native
+and web intentionally share the base-color-only material subset; the renderer
+also applies a deterministic, state-driven procedural lift and bounded
+skeletal animation for idle, moving and attack actor states. Authored goose/cat
+GLBs use `JOINTS_0`/`WEIGHTS_0`, inverse-bind palettes capped at 32 joints, and
+`LINEAR`/`STEP` TRS clips with fallback selection. It follows the authoritative
+camera and resizes for device pixels.
 Arena solids and ramps also sample the same eight generated world-material
 tiles and resource-to-tile mapping as native `BoundedWorldTextureAsset`; the
 browser arena no longer relies on flat-color-only surfaces.
 This is semantic rendering parity, not a pixel-equivalence claim. Browser
 actors use authored GLB skeletal deformation and sampled `LINEAR`/`STEP`
-animation clips; the current native presentation uploads the shared GLB
-geometry with procedural bob/gait/attack lift. Native-only projected labels and
-hearts, doors, floating liquid objects, power-ups and loot beams are outside
-the bounded browser snapshot. The browser adds the authored five-state heart
+animation clips; the native presentation uploads the shared GLB geometry,
+samples named authored clips and applies bounded CPU
+`JOINTS_0`/`WEIGHTS_0`-weighted pose deformation, with the prior procedural lift
+as an explicit fallback when a clip is unavailable. The browser scene-object
+tail renders the authoritative door, floatable, power-up and active loot-beam
+fields. The gateway emits the kind-4 loot beam while the authoritative pickup
+is active and removes it after collection or reset. Four bounded label records
+carry deterministic text IDs and actor positions; the browser projects visible
+records into the canvas overlay. The browser adds the authored five-state heart
 sheet, camera-facing actor shadows and diamond pickup where the snapshot has
-enough authoritative data, but visual parity remains uncertified until native
-skinning and the missing scene fields converge.
+enough authoritative data; visual parity remains uncertified because the
+browser visual smoke is still blocked by the unavailable browser host.
 The client gates gameplay controls until the full scene arrives, exposes bounded
 automatic reconnect with visible loading/failure states, and persists minimap,
 pointer-lock and reduced-motion preferences locally. The browser requires
 WebGL2 for its 3D scene and fails closed when that renderer is unavailable.
-The gateway supports optional WSS termination, bounded bearer-token admission
-plus `GET /healthz` and `GET /metrics` routes:
+The legacy Python qualification gateway supports optional WSS termination,
+bounded bearer-token admission plus `GET /healthz` and `GET /metrics` routes:
 `--auth-token` requires the browser's `bearer.<token>` WebSocket subprotocol
 alongside `kookie.v1` and rejects missing or incorrect tokens before admission.
 `--auth-token-file` provides the same admission contract without exposing the

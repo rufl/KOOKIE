@@ -23,15 +23,66 @@ class BoundedExternalGlbModelReader {
     Int[] primitiveMesh
     Int[] primitiveMode
     Int[] primitiveMaterial
+    Int[] primitiveJoints
+    Int[] primitiveWeights
     Int primitiveCountValue
     Int meshCountValue
     Int[] nodeMesh
     Int[] nodeParent
+    Int[] nodeSkin
     Int[] nodeMatrices
     Int[] nodeWorldMatrices
     Bool[] nodeWorldReady
     Bool[] nodeWorldVisiting
+    Int[] nodeTranslation
+    Int[] nodeRotation
+    Int[] nodeScale
+    Bool[] nodeHasTrs
     Int nodeCountValue
+    Int[] skinJointOffsets
+    Int[] skinJointCounts
+    Int[] skinJoints
+    Int[] skinInverseBindAccessors
+    Int skinCountValue
+    Int skinJointCountValue
+    Int[] skinInverseBindMatrices
+    Int[] animationChannelNodes
+    Int[] animationChannelPaths
+    Int[] animationChannelInputs
+    Int[] animationChannelOutputs
+    Int[] animationChannelInterpolations
+    Int[] animationStateStarts
+    Int[] animationStateCounts
+    Int[] animationStateDurations
+    Int animationChannelCount
+    Int[] animationSampleValue
+    Int[] animationLeftValue
+    Int[] animationRightValue
+    Int[] poseScratchMatrix
+    Int[] poseScratchMatrixTwo
+    Int[] poseTranslation
+    Int[] poseRotation
+    Int[] poseScale
+    Int[] poseLocalMatrices
+    Int[] poseWorldMatrices
+    Int[] poseMeshInverseMatrices
+    Bool[] poseWorldReady
+    Bool[] poseWorldVisiting
+    Bool[] poseMeshInverseReady
+    Int[] poseVertexX
+    Int[] poseVertexY
+    Int[] poseVertexZ
+    Bool poseValidValue
+    Int animationPoseDiagnosticValue
+    Int[] vertexSourceXValue
+    Int[] vertexSourceYValue
+    Int[] vertexSourceZValue
+    Int[] vertexNodeValue
+    Int[] vertexSkinValue
+    Int modelCenterXValue
+    Int modelMinYValue
+    Int modelCenterZValue
+    Int modelHeightValue
     Int[] scratch
     Int modelValue
     Int coordinateScaleValue
@@ -41,6 +92,8 @@ class BoundedExternalGlbModelReader {
     Int[] vertexZValue
     Int[] vertexUValue
     Int[] vertexVValue
+    Int[] vertexJointValue
+    Int[] vertexWeightValue
     Int[] vertexMaterialValue
     Int vertexCountValue
     Int triangleCountValue
@@ -65,15 +118,57 @@ class BoundedExternalGlbModelReader {
         primitivePosition = new Int[128]
         primitiveIndex = new Int[128]
         primitiveTexcoord = new Int[128]
+        primitiveJoints = new Int[128]
+        primitiveWeights = new Int[128]
         primitiveMesh = new Int[128]
         primitiveMode = new Int[128]
         primitiveMaterial = new Int[128]
         nodeMesh = new Int[256]
         nodeParent = new Int[256]
+        nodeSkin = new Int[256]
         nodeMatrices = new Int[256 * 12]
         nodeWorldMatrices = new Int[256 * 12]
         nodeWorldReady = new Bool[256]
         nodeWorldVisiting = new Bool[256]
+        nodeTranslation = new Int[256 * 3]
+        nodeRotation = new Int[256 * 4]
+        nodeScale = new Int[256 * 3]
+        nodeHasTrs = new Bool[256]
+        skinJointOffsets = new Int[64]
+        skinJointCounts = new Int[64]
+        skinJoints = new Int[2048]
+        skinInverseBindAccessors = new Int[64]
+        skinInverseBindMatrices = new Int[2048 * 12]
+        animationChannelNodes = new Int[256]
+        animationChannelPaths = new Int[256]
+        animationChannelInputs = new Int[256]
+        animationChannelOutputs = new Int[256]
+        animationChannelInterpolations = new Int[256]
+        animationStateStarts = new Int[8]
+        animationStateCounts = new Int[8]
+        animationStateDurations = new Int[8]
+        animationSampleValue = new Int[4]
+        animationLeftValue = new Int[4]
+        animationRightValue = new Int[4]
+        poseScratchMatrix = new Int[12]
+        poseScratchMatrixTwo = new Int[12]
+        poseTranslation = new Int[256 * 3]
+        poseRotation = new Int[256 * 4]
+        poseScale = new Int[256 * 3]
+        poseLocalMatrices = new Int[256 * 12]
+        poseWorldMatrices = new Int[256 * 12]
+        poseMeshInverseMatrices = new Int[256 * 12]
+        poseWorldReady = new Bool[256]
+        poseWorldVisiting = new Bool[256]
+        poseMeshInverseReady = new Bool[256]
+        poseVertexX = new Int[0]
+        poseVertexY = new Int[0]
+        poseVertexZ = new Int[0]
+        vertexSourceXValue = new Int[0]
+        vertexSourceYValue = new Int[0]
+        vertexSourceZValue = new Int[0]
+        vertexNodeValue = new Int[0]
+        vertexSkinValue = new Int[0]
         scratch = new Int[16]
         vertexXValue = new Int[0]
         vertexYValue = new Int[0]
@@ -81,6 +176,8 @@ class BoundedExternalGlbModelReader {
         vertexUValue = new Int[0]
         vertexVValue = new Int[0]
         vertexMaterialValue = new Int[0]
+        vertexJointValue = new Int[0]
+        vertexWeightValue = new Int[0]
         clear()
     }
 
@@ -94,22 +191,44 @@ class BoundedExternalGlbModelReader {
         primitiveCountValue = 0
         meshCountValue = 0
         nodeCountValue = 0
+        skinCountValue = 0
+        skinJointCountValue = 0
+        animationChannelCount = 0
         modelValue = 0
         coordinateScaleValue = 100000
         transformScaleValue = 1000000
+        modelCenterXValue = 0
+        modelMinYValue = 0
+        modelCenterZValue = 0
+        modelHeightValue = 0
         vertexCountValue = 0
         triangleCountValue = 0
         textureOffsetValue = -1
         textureLengthValue = 0
-        textureWidthValue = 0
-        textureHeightValue = 0
         textureValidValue = false
+        poseValidValue = false
+        animationPoseDiagnosticValue = 0
         readValue = false
         for (var index = 0; index < nodeWorldReady.length; index = index + 1) {
             nodeWorldReady[index] = false
             nodeWorldVisiting[index] = false
+            poseWorldReady[index] = false
+            poseWorldVisiting[index] = false
+            poseMeshInverseReady[index] = false
             nodeMesh[index] = -1
             nodeParent[index] = -1
+            nodeSkin[index] = -1
+            nodeHasTrs[index] = false
+        }
+        for (var index = 0; index < skinJointOffsets.length; index = index + 1) {
+            skinJointOffsets[index] = 0
+            skinJointCounts[index] = 0
+            skinInverseBindAccessors[index] = -1
+        }
+        for (var index = 0; index < animationStateStarts.length; index = index + 1) {
+            animationStateStarts[index] = -1
+            animationStateCounts[index] = 0
+            animationStateDurations[index] = 0
         }
         return true
     }
@@ -435,6 +554,19 @@ class BoundedExternalGlbModelReader {
             sy = scratch[1]
             sz = scratch[2]
         }
+        nodeHasTrs[nodeIndex] = true
+        var transformOffset = nodeIndex * 3
+        nodeTranslation[transformOffset] = tx
+        nodeTranslation[transformOffset + 1] = ty
+        nodeTranslation[transformOffset + 2] = tz
+        nodeScale[transformOffset] = sx
+        nodeScale[transformOffset + 1] = sy
+        nodeScale[transformOffset + 2] = sz
+        var rotationOffset = nodeIndex * 4
+        nodeRotation[rotationOffset] = qx
+        nodeRotation[rotationOffset + 1] = qy
+        nodeRotation[rotationOffset + 2] = qz
+        nodeRotation[rotationOffset + 3] = qw
         var norm: Long = qx
         norm = norm * qx
         var term: Long = qy
@@ -501,6 +633,12 @@ class BoundedExternalGlbModelReader {
                 start, limit, 16, transformScaleValue, 0)) {
             return false
         }
+        scratch[12] = scaled(
+            scratch[12], coordinateScaleValue, transformScaleValue)
+        scratch[13] = scaled(
+            scratch[13], coordinateScaleValue, transformScaleValue)
+        scratch[14] = scaled(
+            scratch[14], coordinateScaleValue, transformScaleValue)
         var offset = nodeIndex * 12
         nodeMatrices[offset] = scratch[0]
         nodeMatrices[offset + 1] = scratch[4]
@@ -521,6 +659,7 @@ class BoundedExternalGlbModelReader {
     Bool parseNodeMatrix(Int objectStart, Int objectLimit, Int nodeIndex) {
         var matrix = fieldValueStart(objectStart, objectLimit, "matrix")
         if (matrix >= 0) {
+            nodeHasTrs[nodeIndex] = false
             return parseMatrixValues(matrix, objectLimit, nodeIndex)
         }
         return buildTrsMatrix(objectStart, objectLimit, nodeIndex)
@@ -678,17 +817,33 @@ class BoundedExternalGlbModelReader {
                 var position = integerField(attributes, attributesEnd, "POSITION")
                 var indices = integerField(primitiveCursor, primitiveLimit, "indices")
                 var texcoord = integerField(attributes, attributesEnd, "TEXCOORD_0")
+                var joints = integerField(attributes, attributesEnd, "JOINTS_0")
+                var weights = integerField(attributes, attributesEnd, "WEIGHTS_0")
                 var mode = integerField(primitiveCursor, primitiveLimit, "mode")
                 var material = integerField(primitiveCursor, primitiveLimit, "material")
                 if (mode < 0) { mode = 4 }
                 if (material < 0) { material = 0 }
+                var skinPresent = joints >= 0 || weights >= 0
                 if (position < 0 || indices < 0 || mode != 4 ||
-                    position >= accessorCountValue || indices >= accessorCountValue) {
+                    position >= accessorCountValue || indices >= accessorCountValue ||
+                    skinPresent && (joints < 0 || weights < 0 ||
+                        joints >= accessorCountValue || weights >= accessorCountValue)) {
+                    return false
+                }
+                if (skinPresent &&
+                    (accessorKinds[joints] != 4 || accessorKinds[weights] != 4 ||
+                        (accessorComponents[joints] != 5121 &&
+                            accessorComponents[joints] != 5123) ||
+                        accessorComponents[weights] != 5126 ||
+                        accessorCounts[joints] != accessorCounts[position] ||
+                        accessorCounts[weights] != accessorCounts[position])) {
                     return false
                 }
                 primitivePosition[primitiveCountValue] = position
                 primitiveIndex[primitiveCountValue] = indices
                 primitiveTexcoord[primitiveCountValue] = texcoord
+                primitiveJoints[primitiveCountValue] = joints
+                primitiveWeights[primitiveCountValue] = weights
                 primitiveMesh[primitiveCountValue] = meshCountValue
                 primitiveMode[primitiveCountValue] = mode
                 primitiveMaterial[primitiveCountValue] = material
@@ -725,6 +880,8 @@ class BoundedExternalGlbModelReader {
             if (objectLimit < 0) { return false }
             nodeMesh[nodeCountValue] = integerField(cursor, objectLimit, "mesh")
             if (nodeMesh[nodeCountValue] < 0) { nodeMesh[nodeCountValue] = -1 }
+            nodeSkin[nodeCountValue] = integerField(cursor, objectLimit, "skin")
+            if (nodeSkin[nodeCountValue] < 0) { nodeSkin[nodeCountValue] = -1 }
             nodeParent[nodeCountValue] = -1
             if (!parseNodeMatrix(cursor, objectLimit, nodeCountValue)) {
                 return false
@@ -766,6 +923,267 @@ class BoundedExternalGlbModelReader {
         }
         return nodeCountValue > 0
     }
+    Bool stringEndsWith(Int start, Int end, String suffix) {
+        if (start < 0 || end <= start + 1 || json[start] != 34 ||
+            end <= start || suffix.length() > end - start - 1) {
+            return false
+        }
+        var contentEnd = end
+        for (var index = 0; index < suffix.length(); index = index + 1) {
+            if (json[contentEnd - suffix.length() + index] !=
+                    suffix.charAt(index) as Int) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Int animationStateForName(Int objectStart, Int objectLimit) {
+        var name = fieldValueStart(objectStart, objectLimit, "name")
+        if (name < 0) { return 0 }
+        var end = stringEnd(name, objectLimit)
+        if (end < 0) { return 0 }
+        if (stringEndsWith(name, end, "idle")) { return 1 }
+        if (stringEndsWith(name, end, "run")) { return 2 }
+        if (stringEndsWith(name, end, "attack")) { return 3 }
+        if (stringEndsWith(name, end, "death")) { return 4 }
+        if (stringEndsWith(name, end, "walk")) { return 5 }
+        if (stringEndsWith(name, end, "damage_taken")) { return 6 }
+        if (stringEndsWith(name, end, "eat")) { return 7 }
+        return 0
+    }
+
+    Int animationPathKind(Int start, Int end) {
+        if (start < 0 || end < 0 || json[start] != 34) { return 0 }
+        if (keyEquals(start, end, "translation")) { return 1 }
+        if (keyEquals(start, end, "rotation")) { return 2 }
+        if (keyEquals(start, end, "scale")) { return 3 }
+        return 0
+    }
+
+    Int animationInterpolationKind(
+        Int objectStart, Int objectLimit
+    ) {
+        var interpolation = fieldValueStart(
+            objectStart, objectLimit, "interpolation")
+        if (interpolation < 0) { return 0 }
+        var end = stringEnd(interpolation, objectLimit)
+        if (end < 0) { return -1 }
+        if (keyEquals(interpolation, end, "LINEAR")) { return 0 }
+        if (keyEquals(interpolation, end, "STEP")) { return 1 }
+        return -1
+    }
+
+    Bool parseSkins() {
+        var start = fieldValueStart(0, jsonLengthValue, "skins")
+        if (start < 0) { return true }
+        var end = arrayEnd(start, jsonLengthValue)
+        if (end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123 || skinCountValue >= skinJointOffsets.length) {
+                return false
+            }
+            var objectLimit = objectEnd(cursor, end)
+            if (objectLimit < 0) { return false }
+            var joints = fieldValueStart(cursor, objectLimit, "joints")
+            var jointsEnd = arrayEnd(joints, objectLimit)
+            if (joints < 0 || jointsEnd < 0) { return false }
+            var jointCursor = skipWhitespace(joints + 1, jointsEnd)
+            var firstJoint = skinJointCountValue
+            var jointCount = 0
+            while (jointCursor < jointsEnd) {
+                if (skinJointCountValue >= skinJoints.length) { return false }
+                var joint = integerAt(jointCursor, jointsEnd)
+                if (joint < 0 || joint >= nodeCountValue) { return false }
+                skinJoints[skinJointCountValue] = joint
+                skinJointCountValue = skinJointCountValue + 1
+                jointCount = jointCount + 1
+                var jointEnd = numberEnd(jointCursor, jointsEnd)
+                jointCursor = skipWhitespace(jointEnd, jointsEnd)
+                if (jointCursor < jointsEnd && json[jointCursor] == 44) {
+                    jointCursor = skipWhitespace(jointCursor + 1, jointsEnd)
+                } else if (jointCursor != jointsEnd) {
+                    return false
+                }
+            }
+            if (jointCount <= 0 || jointCount > 32) { return false }
+            skinJointOffsets[skinCountValue] = firstJoint
+            skinJointCounts[skinCountValue] = jointCount
+            skinInverseBindAccessors[skinCountValue] =
+                integerField(cursor, objectLimit, "inverseBindMatrices")
+            if (skinInverseBindAccessors[skinCountValue] < 0) {
+                skinInverseBindAccessors[skinCountValue] = -1
+            } else if (
+                skinInverseBindAccessors[skinCountValue] >= accessorCountValue ||
+                accessorKinds[skinInverseBindAccessors[skinCountValue]] != 44 ||
+                accessorComponents[skinInverseBindAccessors[skinCountValue]] != 5126 ||
+                accessorCounts[skinInverseBindAccessors[skinCountValue]] != jointCount) {
+                return false
+            }
+            skinCountValue = skinCountValue + 1
+            cursor = skipWhitespace(objectLimit + 1, end)
+            if (cursor < end && json[cursor] == 44) {
+                cursor = skipWhitespace(cursor + 1, end)
+            } else if (cursor != end) {
+                return false
+            }
+        }
+        for (var skin = 0; skin < skinCountValue; skin = skin + 1) {
+            var inverseAccessor = skinInverseBindAccessors[skin]
+            for (var joint = 0; joint < skinJointCounts[skin]; joint = joint + 1) {
+                var matrixOffset = (skinJointOffsets[skin] + joint) * 12
+                if (inverseAccessor < 0) {
+                    for (var element = 0; element < 12; element = element + 1) {
+                        skinInverseBindMatrices[matrixOffset + element] =
+                            if (element == 0 || element == 5 || element == 10)
+                                transformScaleValue else 0
+                    }
+                } else if (!readMatrix(
+                        inverseAccessor, joint,
+                        skinInverseBindMatrices, matrixOffset)) {
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    Bool parseAnimations() {
+        var start = fieldValueStart(0, jsonLengthValue, "animations")
+        if (start < 0) { return true }
+        var end = arrayEnd(start, jsonLengthValue)
+        if (end < 0) { return false }
+        var cursor = skipWhitespace(start + 1, end)
+        while (cursor < end) {
+            if (json[cursor] != 123) { return false }
+            var animationLimit = objectEnd(cursor, end)
+            if (animationLimit < 0) { return false }
+            var state = animationStateForName(cursor, animationLimit)
+            var samplers = fieldValueStart(cursor, animationLimit, "samplers")
+            var samplerEnd = arrayEnd(samplers, animationLimit)
+            var channels = fieldValueStart(cursor, animationLimit, "channels")
+            var channelEnd = arrayEnd(channels, animationLimit)
+            if (samplers < 0 || samplerEnd < 0 ||
+                channels < 0 || channelEnd < 0) {
+                return false
+            }
+            var samplerCount = 0
+            var samplerCursor = skipWhitespace(samplers + 1, samplerEnd)
+            while (samplerCursor < samplerEnd) {
+                if (json[samplerCursor] != 123 || samplerCount >= 256) {
+                    return false
+                }
+                samplerCount = samplerCount + 1
+                var samplerLimit = objectEnd(samplerCursor, samplerEnd)
+                if (samplerLimit < 0) { return false }
+                samplerCursor = skipWhitespace(samplerLimit + 1, samplerEnd)
+                if (samplerCursor < samplerEnd && json[samplerCursor] == 44) {
+                    samplerCursor = skipWhitespace(samplerCursor + 1, samplerEnd)
+                } else if (samplerCursor != samplerEnd) {
+                    return false
+                }
+            }
+            var channelCursor = skipWhitespace(channels + 1, channelEnd)
+            var firstChannel = animationChannelCount
+            var addedChannels = 0
+            var duration = if (state > 0) animationStateDurations[state] else 0
+            while (channelCursor < channelEnd) {
+                if (json[channelCursor] != 123 ||
+                    animationChannelCount >= animationChannelNodes.length) {
+                    return false
+                }
+                var channelLimit = objectEnd(channelCursor, channelEnd)
+                if (channelLimit < 0) { return false }
+                var sampler = integerField(channelCursor, channelLimit, "sampler")
+                var target = fieldValueStart(channelCursor, channelLimit, "target")
+                var targetLimit = objectEnd(target, channelLimit)
+                if (sampler < 0 || sampler >= samplerCount ||
+                    target < 0 || targetLimit < 0) {
+                    return false
+                }
+                var targetNode = integerField(target, targetLimit, "node")
+                var path = fieldValueStart(target, targetLimit, "path")
+                var pathEnd = stringEnd(path, targetLimit)
+                var pathKind = animationPathKind(path, pathEnd)
+                if (targetNode < 0 || targetNode >= nodeCountValue ||
+                    pathKind == 0) {
+                    return false
+                }
+                var samplerCursorForIndex = skipWhitespace(samplers + 1, samplerEnd)
+                var samplerIndex = 0
+                var input = -1
+                var output = -1
+                var interpolation = 0
+                while (samplerIndex < sampler) {
+                    var samplerLimit = objectEnd(
+                        samplerCursorForIndex, samplerEnd)
+                    if (samplerLimit < 0) { return false }
+                    samplerCursorForIndex = skipWhitespace(
+                        samplerLimit + 1, samplerEnd)
+                    if (samplerCursorForIndex < samplerEnd &&
+                        json[samplerCursorForIndex] == 44) {
+                        samplerCursorForIndex = skipWhitespace(
+                            samplerCursorForIndex + 1, samplerEnd)
+                    }
+                    samplerIndex = samplerIndex + 1
+                }
+                var selectedSamplerLimit = objectEnd(
+                    samplerCursorForIndex, samplerEnd)
+                if (selectedSamplerLimit < 0) { return false }
+                input = integerField(
+                    samplerCursorForIndex, selectedSamplerLimit, "input")
+                output = integerField(
+                    samplerCursorForIndex, selectedSamplerLimit, "output")
+                interpolation = animationInterpolationKind(
+                    samplerCursorForIndex, selectedSamplerLimit)
+                if (input < 0 || input >= accessorCountValue ||
+                    output < 0 || output >= accessorCountValue ||
+                    interpolation < 0 ||
+                    accessorKinds[input] != 1 ||
+                    accessorComponents[input] != 5126 ||
+                    accessorComponents[output] != 5126 ||
+                    accessorKinds[output] != if (pathKind == 2) 4 else 3) {
+                    return false
+                }
+                if (state > 0) {
+                    animationChannelNodes[animationChannelCount] = targetNode
+                    animationChannelPaths[animationChannelCount] = pathKind
+                    animationChannelInputs[animationChannelCount] = input
+                    animationChannelOutputs[animationChannelCount] = output
+                    animationChannelInterpolations[animationChannelCount] =
+                        interpolation
+                    animationChannelCount = animationChannelCount + 1
+                    addedChannels = addedChannels + 1
+                    var inputCount = accessorCounts[input]
+                    for (var key = 0; key < inputCount; key = key + 1) {
+                        var keyTime = readAnimationValue(input, key, 0, 1000)
+                        if (keyTime < 0 || keyTime > 1000000) { return false }
+                        if (keyTime > duration) { duration = keyTime }
+                    }
+                }
+                channelCursor = skipWhitespace(channelLimit + 1, channelEnd)
+                if (channelCursor < channelEnd && json[channelCursor] == 44) {
+                    channelCursor = skipWhitespace(channelCursor + 1, channelEnd)
+                } else if (channelCursor != channelEnd) {
+                    return false
+                }
+            }
+            if (state > 0) {
+                animationStateStarts[state] = firstChannel
+                animationStateCounts[state] = addedChannels
+                animationStateDurations[state] = duration
+            }
+            cursor = skipWhitespace(animationLimit + 1, end)
+            if (cursor < end && json[cursor] == 44) {
+                cursor = skipWhitespace(cursor + 1, end)
+            } else if (cursor != end) {
+                return false
+            }
+        }
+        return true
+    }
+
 
     Bool parseTextureRange(Int[] source) {
         var start = fieldValueStart(0, jsonLengthValue, "images")
@@ -834,9 +1252,61 @@ class BoundedExternalGlbModelReader {
         result[0] = offset
         return true
     }
+    Int readAnimationValue(
+        Int accessor, Int element, Int component, Int scale
+    ) {
+        if (accessor < 0 || accessor >= accessorCountValue ||
+            component < 0 || component >= accessorKinds[accessor] ||
+            (accessorKinds[accessor] != 1 &&
+                accessorKinds[accessor] != 3 &&
+                accessorKinds[accessor] != 4) ||
+            !accessorSpan(
+                accessor, accessorKinds[accessor], 5126, element,
+                accessorKinds[accessor] * 4, scratch)) {
+            return 2000000000
+        }
+        return readFloatFixed(
+            scratch[0] + component * 4, scale)
+    }
+
+    Bool readMatrix(
+        Int accessor, Int element, Int[] result, Int resultOffset
+    ) {
+        if (resultOffset < 0 || resultOffset + 12 > result.length ||
+            !accessorSpan(accessor, 44, 5126, element, 64, scratch)) {
+            return false
+        }
+        var matrixOffset = scratch[0]
+        for (var index = 0; index < 16; index = index + 1) {
+            var scale = if (index == 12 || index == 13 || index == 14)
+                coordinateScaleValue else transformScaleValue
+            scratch[index] = readFloatFixedLimited(
+                matrixOffset + index * 4, scale, 1000000000)
+            if (scratch[index] == 2000000000) { return false }
+        }
+        result[resultOffset] = scratch[0]
+        result[resultOffset + 1] = scratch[4]
+        result[resultOffset + 2] = scratch[8]
+        result[resultOffset + 3] = scratch[12]
+        result[resultOffset + 4] = scratch[1]
+        result[resultOffset + 5] = scratch[5]
+        result[resultOffset + 6] = scratch[9]
+        result[resultOffset + 7] = scratch[13]
+        result[resultOffset + 8] = scratch[2]
+        result[resultOffset + 9] = scratch[6]
+        result[resultOffset + 10] = scratch[10]
+        result[resultOffset + 11] = scratch[14]
+        return scratch[3] == 0 && scratch[7] == 0 &&
+            scratch[11] == 0 && scratch[15] == transformScaleValue
+    }
+
 
     Int readFloatFixed(Int offset, Int scale) {
-        if (offset < 0 || offset + 4 > sourceValue.length || scale <= 0) {
+        return readFloatFixedLimited(offset, scale, 1000000)
+    }
+    Int readFloatFixedLimited(Int offset, Int scale, Int maximum) {
+        if (offset < 0 || offset + 4 > sourceValue.length ||
+            scale <= 0 || maximum <= 0) {
             return 2000000000
         }
         var b0 = sourceValue[offset]
@@ -853,7 +1323,7 @@ class BoundedExternalGlbModelReader {
         var shift = exponent - 150
         if (shift >= 0) {
             for (var index = 0; index < shift; index = index + 1) {
-                if (result > 1000000L) { return 2000000000 }
+                if (result > maximum.toLong()) { return 2000000000 }
                 result = result * 2L
             }
         } else {
@@ -862,7 +1332,10 @@ class BoundedExternalGlbModelReader {
             }
         }
         if (b3 >= 128) { result = -result }
-        if (result < -1000000L || result > 1000000L) { return 2000000000 }
+        var maximumLong: Long = maximum
+        if (result < -maximumLong || result > maximumLong) {
+            return 2000000000
+        }
         return result.toInt()
     }
 
@@ -920,11 +1393,647 @@ class BoundedExternalGlbModelReader {
         return value
     }
 
+    Int readJoint(Int accessor, Int element, Int component) {
+        if (accessor < 0 || component < 0 || component > 3) { return -1 }
+        var componentType = accessorComponents[accessor]
+        var bytes = 0
+        if (componentType == 5121) { bytes = 1 }
+        if (componentType == 5123) { bytes = 2 }
+        if (bytes == 0 ||
+            !accessorSpan(accessor, 4, componentType, element, bytes * 4, scratch)) {
+            return -1
+        }
+        var offset = scratch[0] + component * bytes
+        if (componentType == 5121) { return sourceValue[offset] }
+        return sourceValue[offset] + sourceValue[offset + 1] * 256
+    }
+
+    Int readWeight(Int accessor, Int element, Int component) {
+        if (accessor < 0 || component < 0 || component > 3 ||
+            !accessorSpan(accessor, 4, 5126, element, 16, scratch)) {
+            return -1
+        }
+        var value = readFloatFixed(scratch[0] + component * 4, 1000)
+        if (value == 2000000000 || value < 0 || value > 1000) { return -1 }
+        return value
+    }
+
+    Int animationWave(Int phase, Int period) {
+        if (period <= 0) { return 0 }
+        var value = phase % period
+        if (value < 0) { value = value + period }
+        return if (value < period / 2) -1 else 1
+    }
+
+    Int jointPoseLift(Int joint, Int animationState, Int animationTick,
+        Int moving, Int attacking) {
+        var lift = 0
+        var wave = animationWave(animationTick, 8)
+        if (moving != 0 || animationState == 2) {
+            if (modelValue == 1) {
+                if (joint == 5 || joint == 6) { lift = wave }
+                if (joint == 7 || joint == 8) { lift = -wave }
+            } else if (modelValue == 2) {
+                if (joint >= 12 && joint <= 14) { lift = wave }
+                if (joint >= 15) { lift = -wave }
+            }
+        }
+        if (attacking != 0 || animationState == 3) {
+            if ((modelValue == 1 && joint <= 4) ||
+                (modelValue == 2 && joint <= 10)) {
+                lift = lift + 2
+            }
+        }
+        if (animationState == 4) { lift = lift - 1 }
+        return lift
+    }
+
+    Int vertexAnimationLift(Int index, Int animationState, Int animationTick,
+        Int moving, Int attacking) {
+        if (!readValue || index < 0 || index >= vertexCountValue ||
+            vertexJointValue.length < vertexCountValue * 4 ||
+            vertexWeightValue.length < vertexCountValue * 4) {
+            return 0
+        }
+        var offset = index * 4
+        var total = 0
+        var weighted: Long = 0L
+        for (var slot = 0; slot < 4; slot = slot + 1) {
+            var weight = vertexWeightValue[offset + slot]
+            if (weight < 0) { return 0 }
+            total = total + weight
+            weighted = weighted +
+                weight * jointPoseLift(
+                    vertexJointValue[offset + slot], animationState,
+                    animationTick, moving, attacking)
+        }
+        if (total <= 0) { return 0 }
+        return (weighted / total).toInt()
+    }
+
+
     Int bounded(Int value) {
         if (value < -1000000000) { return -1000000000 }
         if (value > 1000000000) { return 1000000000 }
         return value
     }
+    Bool buildPoseTrsMatrix(Int node) {
+        if (node < 0 || node >= nodeCountValue || !nodeHasTrs[node]) {
+            return false
+        }
+        var transformOffset = node * 3
+        var tx = poseTranslation[transformOffset]
+        var ty = poseTranslation[transformOffset + 1]
+        var tz = poseTranslation[transformOffset + 2]
+        var sx = poseScale[transformOffset]
+        var sy = poseScale[transformOffset + 1]
+        var sz = poseScale[transformOffset + 2]
+        var rotationOffset = node * 4
+        var qx = poseRotation[rotationOffset]
+        var qy = poseRotation[rotationOffset + 1]
+        var qz = poseRotation[rotationOffset + 2]
+        var qw = poseRotation[rotationOffset + 3]
+        var norm: Long = qx
+        norm = norm * qx
+        var term: Long = qy
+        term = term * qy
+        norm = norm + term
+        term = qz
+        term = term * qz
+        norm = norm + term
+        term = qw
+        term = term * qw
+        norm = norm + term
+        var expected: Long = transformScaleValue
+        expected = expected * transformScaleValue
+        var difference = norm - expected
+        if (difference < 0L) { difference = -difference }
+        if (difference > expected / 25L + transformScaleValue) {
+            return false
+        }
+        var xx = scaled(qx, qx, transformScaleValue)
+        var yy = scaled(qy, qy, transformScaleValue)
+        var zz = scaled(qz, qz, transformScaleValue)
+        var xy = scaled(qx, qy, transformScaleValue)
+        var xz = scaled(qx, qz, transformScaleValue)
+        var yz = scaled(qy, qz, transformScaleValue)
+        var xw = scaled(qx, qw, transformScaleValue)
+        var yw = scaled(qy, qw, transformScaleValue)
+        var zw = scaled(qz, qw, transformScaleValue)
+        if (xx == 2000000000 || yy == 2000000000 ||
+            zz == 2000000000 || xy == 2000000000 ||
+            xz == 2000000000 || yz == 2000000000 ||
+            xw == 2000000000 || yw == 2000000000 ||
+            zw == 2000000000) {
+            return false
+        }
+        var r00 = transformScaleValue - 2 * (yy + zz)
+        var r01 = 2 * (xy - zw)
+        var r02 = 2 * (xz + yw)
+        var r10 = 2 * (xy + zw)
+        var r11 = transformScaleValue - 2 * (xx + zz)
+        var r12 = 2 * (yz - xw)
+        var r20 = 2 * (xz - yw)
+        var r21 = 2 * (yz + xw)
+        var r22 = transformScaleValue - 2 * (xx + yy)
+        var offset = node * 12
+        poseLocalMatrices[offset] = scaled(r00, sx, transformScaleValue)
+        poseLocalMatrices[offset + 1] = scaled(r01, sy, transformScaleValue)
+        poseLocalMatrices[offset + 2] = scaled(r02, sz, transformScaleValue)
+        poseLocalMatrices[offset + 3] = tx
+        poseLocalMatrices[offset + 4] = scaled(r10, sx, transformScaleValue)
+        poseLocalMatrices[offset + 5] = scaled(r11, sy, transformScaleValue)
+        poseLocalMatrices[offset + 6] = scaled(r12, sz, transformScaleValue)
+        poseLocalMatrices[offset + 7] = ty
+        poseLocalMatrices[offset + 8] = scaled(r20, sx, transformScaleValue)
+        poseLocalMatrices[offset + 9] = scaled(r21, sy, transformScaleValue)
+        poseLocalMatrices[offset + 10] = scaled(r22, sz, transformScaleValue)
+        poseLocalMatrices[offset + 11] = tz
+        for (var element = 0; element < 12; element = element + 1) {
+            if (poseLocalMatrices[offset + element] == 2000000000) {
+                return false
+            }
+        }
+        return true
+    }
+
+    Bool multiplyAffine(
+        Int[] left, Int leftOffset, Int[] right, Int rightOffset,
+        Int[] result, Int resultOffset
+    ) {
+        if (leftOffset < 0 || leftOffset + 12 > left.length ||
+            rightOffset < 0 || rightOffset + 12 > right.length ||
+            resultOffset < 0 || resultOffset + 12 > result.length) {
+            return false
+        }
+        for (var row = 0; row < 3; row = row + 1) {
+            for (var column = 0; column < 3; column = column + 1) {
+                var value: Long = left[leftOffset + row * 4]
+                value = value * right[rightOffset + column]
+                var term: Long = left[leftOffset + row * 4 + 1]
+                term = term * right[rightOffset + 4 + column]
+                value = value + term
+                term = left[leftOffset + row * 4 + 2]
+                term = term * right[rightOffset + 8 + column]
+                value = value + term
+                result[resultOffset + row * 4 + column] =
+                    bounded((value / transformScaleValue).toInt())
+            }
+            var translation: Long = left[leftOffset + row * 4]
+            translation = translation * right[rightOffset + 3]
+            var term: Long = left[leftOffset + row * 4 + 1]
+            term = term * right[rightOffset + 7]
+            translation = translation + term
+            term = left[leftOffset + row * 4 + 2]
+            term = term * right[rightOffset + 11]
+            translation = translation + term
+            translation = translation / transformScaleValue +
+                left[leftOffset + row * 4 + 3]
+            result[resultOffset + row * 4 + 3] =
+                bounded(translation.toInt())
+        }
+        return true
+    }
+
+    Bool invertAffine(
+        Int[] source, Int sourceOffset, Int[] result, Int resultOffset
+    ) {
+        if (sourceOffset < 0 || sourceOffset + 12 > source.length ||
+            resultOffset < 0 || resultOffset + 12 > result.length) {
+            return false
+        }
+        var a = source[sourceOffset]
+        var b = source[sourceOffset + 1]
+        var c = source[sourceOffset + 2]
+        var d = source[sourceOffset + 4]
+        var e = source[sourceOffset + 5]
+        var f = source[sourceOffset + 6]
+        var g = source[sourceOffset + 8]
+        var h = source[sourceOffset + 9]
+        var i = source[sourceOffset + 10]
+        var cofactorA: Long = e * i - f * h
+        var cofactorB: Long = c * h - b * i
+        var cofactorC: Long = b * f - c * e
+        var determinant: Long = a * cofactorA +
+            b * (f * g - d * i) + c * (d * h - e * g)
+        var normalizedDeterminant: Long =
+            determinant / transformScaleValue
+        if (normalizedDeterminant > -1L &&
+            normalizedDeterminant < 1L) { return false }
+        result[resultOffset] =
+            bounded((cofactorA * transformScaleValue /
+                normalizedDeterminant).toInt())
+        result[resultOffset + 1] =
+            bounded((cofactorB * transformScaleValue /
+                normalizedDeterminant).toInt())
+        result[resultOffset + 2] =
+            bounded((cofactorC * transformScaleValue /
+                normalizedDeterminant).toInt())
+        var cofactorD: Long = f * g - d * i
+        var cofactorE: Long = a * i - c * g
+        var cofactorF: Long = c * d - a * f
+        result[resultOffset + 4] =
+            bounded((cofactorD * transformScaleValue /
+                normalizedDeterminant).toInt())
+        result[resultOffset + 5] =
+            bounded((cofactorE * transformScaleValue /
+                normalizedDeterminant).toInt())
+        result[resultOffset + 6] =
+            bounded((cofactorF * transformScaleValue /
+                normalizedDeterminant).toInt())
+        var cofactorG: Long = d * h - e * g
+        var cofactorH: Long = b * g - a * h
+        var cofactorI: Long = a * e - b * d
+        result[resultOffset + 8] =
+            bounded((cofactorG * transformScaleValue /
+                normalizedDeterminant).toInt())
+        result[resultOffset + 9] =
+            bounded((cofactorH * transformScaleValue /
+                normalizedDeterminant).toInt())
+        result[resultOffset + 10] =
+            bounded((cofactorI * transformScaleValue /
+                normalizedDeterminant).toInt())
+        var tx = source[sourceOffset + 3]
+        var ty = source[sourceOffset + 7]
+        var tz = source[sourceOffset + 11]
+        var translation: Long = result[resultOffset]
+        translation = translation * tx
+        var term: Long = result[resultOffset + 1]
+        translation = translation + term * ty
+        term = result[resultOffset + 2]
+        translation = translation + term * tz
+        result[resultOffset + 3] = bounded((-translation / transformScaleValue).toInt())
+        translation = result[resultOffset + 4]
+        translation = translation * tx
+        term = result[resultOffset + 5]
+        translation = translation + term * ty
+        term = result[resultOffset + 6]
+        translation = translation + term * tz
+        result[resultOffset + 7] = bounded((-translation / transformScaleValue).toInt())
+        translation = result[resultOffset + 8]
+        translation = translation * tx
+        term = result[resultOffset + 9]
+        translation = translation + term * ty
+        term = result[resultOffset + 10]
+        translation = translation + term * tz
+        result[resultOffset + 11] = bounded((-translation / transformScaleValue).toInt())
+        return true
+    }
+    Bool sampleAnimationChannel(
+        Int channel, Int sampleTime
+    ) {
+        if (channel < 0 || channel >= animationChannelCount) { return false }
+        var input = animationChannelInputs[channel]
+        var output = animationChannelOutputs[channel]
+        var path = animationChannelPaths[channel]
+        var keyCount = accessorCounts[input]
+        if (keyCount <= 0) { return false }
+        var left = 0
+        var right = keyCount - 1
+        for (var key = 0; key + 1 < keyCount; key = key + 1) {
+            var nextTime = readAnimationValue(input, key + 1, 0, 1000)
+            if (nextTime == 2000000000) { return false }
+            if (sampleTime <= nextTime) {
+                left = key
+                right = key + 1
+                break
+            }
+        }
+        var leftTime = readAnimationValue(input, left, 0, 1000)
+        var rightTime = readAnimationValue(input, right, 0, 1000)
+        if (leftTime == 2000000000 || rightTime == 2000000000) {
+            return false
+        }
+        var components = if (path == 2) 4 else 3
+        var alpha = 0
+        if (right != left && rightTime > leftTime &&
+            animationChannelInterpolations[channel] == 0) {
+            var numerator: Long = sampleTime - leftTime
+            numerator = numerator * transformScaleValue
+            alpha = (numerator / (rightTime - leftTime)).toInt()
+            if (alpha < 0) { alpha = 0 }
+            if (alpha > transformScaleValue) { alpha = transformScaleValue }
+        }
+        var leftValues = animationLeftValue
+        var rightValues = animationRightValue
+        var outputScale = if (path == 1)
+            coordinateScaleValue else transformScaleValue
+        for (var component = 0; component < components; component = component + 1) {
+            leftValues[component] =
+                readAnimationValue(output, left, component, outputScale)
+            rightValues[component] =
+                readAnimationValue(output, right, component, outputScale)
+            if (leftValues[component] == 2000000000 ||
+                rightValues[component] == 2000000000) {
+                return false
+            }
+        }
+        if (path == 2) {
+            var dot: Long = leftValues[0]
+            dot = dot * rightValues[0]
+            dot = dot + leftValues[1].toLong() * rightValues[1]
+            dot = dot + leftValues[2].toLong() * rightValues[2]
+            dot = dot + leftValues[3].toLong() * rightValues[3]
+            if (dot < 0L) {
+                for (var component = 0; component < 4; component = component + 1) {
+                    rightValues[component] = -rightValues[component]
+                }
+            }
+        }
+        for (var component = 0; component < components; component = component + 1) {
+            var value: Long = leftValues[component]
+            if (alpha > 0) {
+                value = value + (rightValues[component] -
+                    leftValues[component]).toLong() * alpha /
+                    transformScaleValue
+            }
+            animationSampleValue[component] = bounded(value.toInt())
+        }
+        return true
+    }
+
+    Bool poseMultiplyWorld(Int node) {
+        if (node < 0 || node >= nodeCountValue) { return false }
+        if (poseWorldReady[node] || poseWorldVisiting[node]) {
+            return poseWorldReady[node]
+        }
+        poseWorldVisiting[node] = true
+        var parent = nodeParent[node]
+        if (parent >= 0 && !poseMultiplyWorld(parent)) {
+            poseWorldVisiting[node] = false
+            return false
+        }
+        var localOffset = node * 12
+        var worldOffset = node * 12
+        if (parent < 0) {
+            for (var index = 0; index < 12; index = index + 1) {
+                poseWorldMatrices[worldOffset + index] =
+                    poseLocalMatrices[localOffset + index]
+            }
+        } else if (!multiplyAffine(
+                poseWorldMatrices, parent * 12,
+                poseLocalMatrices, localOffset,
+                poseWorldMatrices, worldOffset)) {
+            poseWorldVisiting[node] = false
+            return false
+        }
+        poseWorldReady[node] = true
+        poseWorldVisiting[node] = false
+        return true
+    }
+
+    Bool ensurePoseMeshInverse(Int node) {
+        if (node < 0 || node >= nodeCountValue) { return false }
+        if (poseMeshInverseReady[node]) { return true }
+        if (!poseMultiplyWorld(node) ||
+            !invertAffine(
+                poseWorldMatrices, node * 12,
+                poseMeshInverseMatrices, node * 12)) {
+            return false
+        }
+        poseMeshInverseReady[node] = true
+        return true
+    }
+
+    Int poseTransform(
+        Int matrixOffset, Int x, Int y, Int z, Int component
+    ) {
+        if (matrixOffset < 0 || matrixOffset + 12 > poseWorldMatrices.length ||
+            component < 0 || component > 2) {
+            return 2000000000
+        }
+        var rowOffset = matrixOffset + component * 4
+        var value: Long = poseWorldMatrices[rowOffset]
+        value = value * x
+        var term: Long = poseWorldMatrices[rowOffset + 1]
+        value = value + term * y
+        term = poseWorldMatrices[rowOffset + 2]
+        value = value + term * z
+        value = value / transformScaleValue +
+            poseWorldMatrices[rowOffset + 3]
+        return bounded(value.toInt())
+    }
+    Int animationClipState(Int animationState) {
+        if (animationState == 1 && animationStateCounts[1] > 0) { return 1 }
+        if (animationState == 2 && animationStateCounts[2] > 0) { return 2 }
+        if (animationState == 3 && animationStateCounts[3] > 0) { return 3 }
+        if (animationState == 4 && animationStateCounts[4] > 0) { return 4 }
+        if (animationStateCounts[5] > 0) { return 5 }
+        if (animationStateCounts[1] > 0) { return 1 }
+        if (animationStateCounts[2] > 0) { return 2 }
+        if (animationStateCounts[3] > 0) { return 3 }
+        if (animationStateCounts[4] > 0) { return 4 }
+        return 0
+    }
+
+    Bool prepareAnimationPose(Int animationState, Int animationTick) {
+        poseValidValue = false
+        animationPoseDiagnosticValue = 0
+        if (!readValue || animationChannelCount <= 0 ||
+            animationTick < 0) {
+            animationPoseDiagnosticValue = 1
+            return false
+        }
+        var clipState = animationClipState(animationState)
+        if (clipState <= 0 || animationStateCounts[clipState] <= 0) {
+            animationPoseDiagnosticValue = 2
+            return false
+        }
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            var transformOffset = node * 3
+            var rotationOffset = node * 4
+            for (var component = 0; component < 3; component = component + 1) {
+                poseTranslation[transformOffset + component] =
+                    nodeTranslation[transformOffset + component]
+                poseScale[transformOffset + component] =
+                    nodeScale[transformOffset + component]
+            }
+            for (var component = 0; component < 4; component = component + 1) {
+                poseRotation[rotationOffset + component] =
+                    nodeRotation[rotationOffset + component]
+            }
+            for (var element = 0; element < 12; element = element + 1) {
+                poseLocalMatrices[node * 12 + element] =
+                    nodeMatrices[node * 12 + element]
+            }
+        }
+        var duration = animationStateDurations[clipState]
+        var sampleTime: Long = animationTick
+        sampleTime = sampleTime * 1000L / 60L
+        if (duration > 0) {
+            sampleTime = sampleTime % duration
+        } else {
+            sampleTime = 0
+        }
+        var first = animationStateStarts[clipState]
+        var last = first + animationStateCounts[clipState]
+        for (var channel = first; channel < last; channel = channel + 1) {
+            var node = animationChannelNodes[channel]
+            if (node < 0 || node >= nodeCountValue) {
+                animationPoseDiagnosticValue = 3
+                return false
+            }
+            if (!nodeHasTrs[node]) {
+                animationPoseDiagnosticValue = 4
+                return false
+            }
+            if (!sampleAnimationChannel(channel, sampleTime.toInt())) {
+                animationPoseDiagnosticValue = 5
+                return false
+            }
+            var transformOffset = node * 3
+            var rotationOffset = node * 4
+            var path = animationChannelPaths[channel]
+            if (path == 1) {
+                poseTranslation[transformOffset] = animationSampleValue[0]
+                poseTranslation[transformOffset + 1] = animationSampleValue[1]
+                poseTranslation[transformOffset + 2] = animationSampleValue[2]
+            } else if (path == 2) {
+                poseRotation[rotationOffset] = animationSampleValue[0]
+                poseRotation[rotationOffset + 1] = animationSampleValue[1]
+                poseRotation[rotationOffset + 2] = animationSampleValue[2]
+                poseRotation[rotationOffset + 3] = animationSampleValue[3]
+            } else {
+                poseScale[transformOffset] = animationSampleValue[0]
+                poseScale[transformOffset + 1] = animationSampleValue[1]
+                poseScale[transformOffset + 2] = animationSampleValue[2]
+            }
+        }
+        for (var node = 0; node < nodeCountValue; node = node + 1) {
+            if (nodeHasTrs[node] && !buildPoseTrsMatrix(node)) {
+                animationPoseDiagnosticValue = 6
+                return false
+            }
+            poseWorldReady[node] = false
+            poseWorldVisiting[node] = false
+            poseMeshInverseReady[node] = false
+        }
+        for (var index = 0; index < vertexCountValue; index = index + 1) {
+            var node = vertexNodeValue[index]
+            if (node < 0 || node >= nodeCountValue) {
+                animationPoseDiagnosticValue = 7
+                return false
+            }
+            if (!poseMultiplyWorld(node)) {
+                animationPoseDiagnosticValue = 8
+                return false
+            }
+            var sourceX = vertexSourceXValue[index]
+            var sourceY = vertexSourceYValue[index]
+            var sourceZ = vertexSourceZValue[index]
+            var worldX = poseTransform(
+                node * 12, sourceX, sourceY, sourceZ, 0)
+            var worldY = poseTransform(
+                node * 12, sourceX, sourceY, sourceZ, 1)
+            var worldZ = poseTransform(
+                node * 12, sourceX, sourceY, sourceZ, 2)
+            var skin = vertexSkinValue[index]
+            if (skin >= 0) {
+                if (skin >= skinCountValue) {
+                    animationPoseDiagnosticValue = 9
+                    return false
+                }
+                if (!ensurePoseMeshInverse(node)) {
+                    animationPoseDiagnosticValue = 10
+                    return false
+                }
+                var weightTotal = 0
+                var weightedX: Long = 0L
+                var weightedY: Long = 0L
+                var weightedZ: Long = 0L
+                for (var slot = 0; slot < 4; slot = slot + 1) {
+                    var weight = vertexWeightValue[index * 4 + slot]
+                    if (weight <= 0) { continue }
+                    var joint = vertexJointValue[index * 4 + slot]
+                    if (joint < 0 || joint >= skinJointCounts[skin]) {
+                        animationPoseDiagnosticValue = 11
+                        return false
+                    }
+                    var jointNode = skinJoints[
+                        skinJointOffsets[skin] + joint]
+                    if (!poseMultiplyWorld(jointNode)) {
+                        animationPoseDiagnosticValue = 12
+                        return false
+                    }
+                    if (!multiplyAffine(
+                            poseMeshInverseMatrices, node * 12,
+                            poseWorldMatrices, jointNode * 12,
+                            poseScratchMatrix, 0) ||
+                        !multiplyAffine(
+                            poseScratchMatrix, 0,
+                            skinInverseBindMatrices,
+                            (skinJointOffsets[skin] + joint) * 12,
+                            poseScratchMatrixTwo, 0)) {
+                        animationPoseDiagnosticValue = 13
+                        return false
+                    }
+                    var matrixX: Long = poseScratchMatrixTwo[0]
+                    matrixX = matrixX * sourceX
+                    var term: Long = poseScratchMatrixTwo[1]
+                    matrixX = matrixX + term * sourceY
+                    term = poseScratchMatrixTwo[2]
+                    matrixX = matrixX + term * sourceZ
+                    matrixX = matrixX / transformScaleValue +
+                        poseScratchMatrixTwo[3]
+                    var matrixY: Long = poseScratchMatrixTwo[4]
+                    matrixY = matrixY * sourceX
+                    term = poseScratchMatrixTwo[5]
+                    matrixY = matrixY + term * sourceY
+                    term = poseScratchMatrixTwo[6]
+                    matrixY = matrixY + term * sourceZ
+                    matrixY = matrixY / transformScaleValue +
+                        poseScratchMatrixTwo[7]
+                    var matrixZ: Long = poseScratchMatrixTwo[8]
+                    matrixZ = matrixZ * sourceX
+                    term = poseScratchMatrixTwo[9]
+                    matrixZ = matrixZ + term * sourceY
+                    term = poseScratchMatrixTwo[10]
+                    matrixZ = matrixZ + term * sourceZ
+                    matrixZ = matrixZ / transformScaleValue +
+                        poseScratchMatrixTwo[11]
+                    weightedX = weightedX + matrixX * weight
+                    weightedY = weightedY + matrixY * weight
+                    weightedZ = weightedZ + matrixZ * weight
+                    weightTotal = weightTotal + weight
+                }
+                if (weightTotal <= 0) {
+                    animationPoseDiagnosticValue = 14
+                    return false
+                }
+                worldX = (weightedX / weightTotal).toInt()
+                worldY = (weightedY / weightTotal).toInt()
+                worldZ = (weightedZ / weightTotal).toInt()
+            }
+            if (worldX == 2000000000 || worldY == 2000000000 ||
+                worldZ == 2000000000) {
+                animationPoseDiagnosticValue = 15
+                return false
+            }
+            poseVertexX[index] = roundFixed(
+                normalized(worldX, modelCenterXValue, modelHeightValue))
+            poseVertexY[index] = roundFixed(
+                normalized(worldY, modelMinYValue, modelHeightValue))
+            poseVertexZ[index] = roundFixed(
+                normalized(worldZ, modelCenterZValue, modelHeightValue))
+        }
+        poseValidValue = true
+        return true
+    }
+
+    Int animationPoseDiagnostic() {
+        return animationPoseDiagnosticValue
+    }
+    Bool authoredAnimationAvailable() {
+        return animationChannelCount > 0
+    }
+    Int authoredAnimationChannelCount() {
+        return animationChannelCount
+    }
+    Int authoredAnimationStateChannelCount(Int state) {
+        if (state < 0 || state >= animationStateCounts.length) { return 0 }
+        return animationStateCounts[state]
+    }
+
 
     Bool multiplyWorld(Int node) {
         if (node < 0 || node >= nodeCountValue) { return false }
@@ -1080,6 +2189,16 @@ class BoundedExternalGlbModelReader {
         vertexUValue = new Int[vertices]
         vertexVValue = new Int[vertices]
         vertexMaterialValue = new Int[vertices]
+        vertexJointValue = new Int[vertices * 4]
+        vertexWeightValue = new Int[vertices * 4]
+        vertexSourceXValue = new Int[vertices]
+        vertexSourceYValue = new Int[vertices]
+        vertexSourceZValue = new Int[vertices]
+        vertexNodeValue = new Int[vertices]
+        vertexSkinValue = new Int[vertices]
+        poseVertexX = new Int[vertices]
+        poseVertexY = new Int[vertices]
+        poseVertexZ = new Int[vertices]
         return true
     }
 
@@ -1090,6 +2209,10 @@ class BoundedExternalGlbModelReader {
         centerX = (centerX + maxValues[0]) / 2L
         var centerZ: Long = minValues[2]
         centerZ = (centerZ + maxValues[2]) / 2L
+        modelCenterXValue = centerX.toInt()
+        modelMinYValue = minValues[1]
+        modelCenterZValue = centerZ.toInt()
+        modelHeightValue = height
         var position = new Int[3]
         var output = 0
         for (var node = 0; node < nodeCountValue; node = node + 1) {
@@ -1111,9 +2234,39 @@ class BoundedExternalGlbModelReader {
                             !readPosition(positions, sourceIndex, position)) {
                             return false
                         }
-                        var worldX = worldCoordinate(node, position[0], position[1], position[2], 0)
-                        var worldY = worldCoordinate(node, position[0], position[1], position[2], 1)
-                        var worldZ = worldCoordinate(node, position[0], position[1], position[2], 2)
+                        var skinJoints = primitiveJoints[primitive]
+                        var skinWeights = primitiveWeights[primitive]
+                        var skinWeightTotal = 0
+                        for (var slot = 0; slot < 4; slot = slot + 1) {
+                            var jointValue = 0
+                            var weightValue = 0
+                            if (skinJoints >= 0) {
+                                jointValue = readJoint(skinJoints, sourceIndex, slot)
+                                weightValue = readWeight(skinWeights, sourceIndex, slot)
+                                if (jointValue < 0 || jointValue > 31 ||
+                                    weightValue < 0) {
+                                    return false
+                                }
+                            }
+                            var skinOffset = output * 4 + slot
+                            vertexJointValue[skinOffset] = jointValue
+                            vertexWeightValue[skinOffset] = weightValue
+                            skinWeightTotal = skinWeightTotal + weightValue
+                        }
+                        if (skinJoints >= 0 && skinWeightTotal <= 0) {
+                            return false
+                        }
+                        vertexSourceXValue[output] = position[0]
+                        vertexSourceYValue[output] = position[1]
+                        vertexSourceZValue[output] = position[2]
+                        vertexNodeValue[output] = node
+                        vertexSkinValue[output] = nodeSkin[node]
+                        var worldX = worldCoordinate(
+                            node, position[0], position[1], position[2], 0)
+                        var worldY = worldCoordinate(
+                            node, position[0], position[1], position[2], 1)
+                        var worldZ = worldCoordinate(
+                            node, position[0], position[1], position[2], 2)
                         if (worldX == 2000000000 || worldY == 2000000000 || worldZ == 2000000000) {
                             return false
                         }
@@ -1139,7 +2292,9 @@ class BoundedExternalGlbModelReader {
 
     Bool read(Int[] source, Int model) {
         clear()
-        if ((model != 1 && model != 2) || source.length < 20) { return false }
+        if ((model != 1 && model != 2) || source.length < 20) {
+            return false
+        }
         sourceValue = source
         modelValue = model
         if (!loadJson(source)) { return false }
@@ -1147,7 +2302,8 @@ class BoundedExternalGlbModelReader {
         var rootEnd = objectEnd(rootStart, jsonLengthValue)
         if (rootStart < 0 || rootEnd < 0 || rootStart >= jsonLengthValue ||
             json[rootStart] != 123 || !parseViews() || !parseAccessors() ||
-            !parseMeshes() || !parseNodes() || !parseTextureRange(source)) {
+            !parseMeshes() || !parseNodes() || !parseSkins() ||
+            !parseAnimations() || !parseTextureRange(source)) {
             return false
         }
         if (!allocateGeometry()) {
@@ -1162,7 +2318,6 @@ class BoundedExternalGlbModelReader {
         readValue = true
         return true
     }
-
     Bool valid() {
         return readValue && vertexCountValue > 0 && triangleCountValue > 0 &&
             vertexCountValue == triangleCountValue * 3
@@ -1173,15 +2328,15 @@ class BoundedExternalGlbModelReader {
 
     Int vertexX(Int index) {
         if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
-        return vertexXValue[index]
+        return if (poseValidValue) poseVertexX[index] else vertexXValue[index]
     }
     Int vertexY(Int index) {
         if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
-        return vertexYValue[index]
+        return if (poseValidValue) poseVertexY[index] else vertexYValue[index]
     }
     Int vertexZ(Int index) {
         if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }
-        return vertexZValue[index]
+        return if (poseValidValue) poseVertexZ[index] else vertexZValue[index]
     }
     Int vertexU(Int index) {
         if (!readValue || index < 0 || index >= vertexCountValue) { return 0 }

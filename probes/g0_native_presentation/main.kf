@@ -751,6 +751,7 @@ class G1NativePresentation {
     GooseStatusOverlay gooseOverlay
     GooseMinimap minimap
     Bool nativeAnimalModelsValue
+    Int authoredPoseCountValue
     Int gooseModelVertexCountValue
     Int catModelVertexCountValue
     BoundedExternalGlbModelReader gooseModelReader
@@ -882,8 +883,8 @@ class G1NativePresentation {
         playerOneLiquidBodyValue = 0
         playerTwoLiquidBodyValue = 0
         nativeAnimalModelsValue = false
+        authoredPoseCountValue = 0
         gooseModelVertexCountValue = 0
-        catModelVertexCountValue = 0
         worldFrame = FrameStaging(arena.renderVertexCount(), 0)
         waterFrame = FrameStaging(
             liquidMaximumBodies() * liquidWaterVerticesPerBody(), 0)
@@ -1215,12 +1216,14 @@ class G1NativePresentation {
     Bool stageModelTexture(
         BoundedExternalGlbModelReader reader, Int model
     ) {
+        if (!reader.valid()) { return false }
+        var textureOffset = reader.textureOffset()
         var textureLength = reader.textureLength()
-        if (reader.textureOffset() < 0 || textureLength <= 0 ||
-            reader.textureWidth() <= 0 || reader.textureHeight() <= 0) {
-            return false
+        if (textureOffset < 0 || textureLength <= 0) {
+            return true
         }
-        if (!kookie_gpu_model_texture_stage_begin(model, textureLength)) {
+        if (reader.textureWidth() <= 0 || reader.textureHeight() <= 0 ||
+            !kookie_gpu_model_texture_stage_begin(model, textureLength)) {
             return false
         }
         for (var index = 0; index < textureLength; index = index + 1) {
@@ -1240,6 +1243,13 @@ class G1NativePresentation {
             loadModel(gooseModelReader, kookieModelGoose()) &&
             loadModel(catModelReader, kookieModelCat())
         if (!modelsAvailable) { return false }
+        if (!gooseModelReader.authoredAnimationAvailable() ||
+            !catModelReader.authoredAnimationAvailable()) {
+            println("KOOKIE authored GLB animation parse failed")
+            println(gooseModelReader.authoredAnimationChannelCount())
+            println(catModelReader.authoredAnimationChannelCount())
+            return false
+        }
         gooseModelVertexCountValue = gooseModelReader.vertexCount()
         catModelVertexCountValue = catModelReader.vertexCount()
         if (gooseModelVertexCountValue != 708 ||
@@ -1681,17 +1691,26 @@ class G1NativePresentation {
         Bool flashed
     ) {
         if (!reader.valid() || facing == 0) { return false }
+        var authoredPose = reader.prepareAnimationPose(
+            animationState, animationTick)
+        if (authoredPose) { authoredPoseCountValue = authoredPoseCountValue + 1 }
         var idleBob = 0
-        if (animationState == 1 && phaseWave(animationTick, 8) > 0) {
+        if (!authoredPose &&
+            animationState == 1 && phaseWave(animationTick, 8) > 0) {
             idleBob = 1
         }
         var gaitBob = 0
-        if (moving != 0 && phaseWave(phase, 8) > 0) { gaitBob = 1 }
-        var attackLift = if (attacking != 0) 2 else 0
+        if (!authoredPose &&
+            moving != 0 && phaseWave(phase, 8) > 0) { gaitBob = 1 }
+        var attackLift = if (!authoredPose && attacking != 0) 2 else 0
         var bob = idleBob + gaitBob + attackLift
         for (var index = 0; index < reader.vertexCount(); index = index + 1) {
             var localX = reader.vertexX(index)
             var localY = reader.vertexY(index) + bob
+            if (!authoredPose) {
+                localY = localY + reader.vertexAnimationLift(
+                    index, animationState, animationTick, moving, attacking)
+            }
             var localZ = reader.vertexZ(index)
             var worldX = x
             var worldZ = z
@@ -2501,6 +2520,9 @@ class G1NativePresentation {
     Int visibleAnimalActorCount() {
         return animalMeshes.actorCount()
     }
+    Int authoredPoseCount() {
+        return authoredPoseCountValue
+    }
 
     Bool drawGameFrame(
         Int frame, NativeGameNetworkState network, GameShell shell
@@ -3084,8 +3106,9 @@ main() {
             "restarting Play must arrive through the SDL return event path")
         assert(presentation.drawGameFrame(frame, network, shell),
             "authored arena and authoritative HUD must draw")
-        assert(presentation.visibleAnimalActorCount() == 5,
-            "third-person presentation must include the local animal world mesh")
+        assert(presentation.visibleAnimalActorCount() == 5 &&
+            presentation.authoredPoseCount() > 0,
+            "native GLB actors must use an authored sampled pose")
         assert(driveSmokeKeyboardAction(
                 shell, presentation, 27, gameShellActionBack()) &&
             !shell.gameplayVisible(),

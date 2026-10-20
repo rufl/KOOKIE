@@ -397,8 +397,9 @@ class ArenaAnimalMeshes {
     Bool stageGoose(
         FrameStaging target, Int index, Int resourceBase
     ) {
-        // Low-poly proportions mirror the prototype goose asset; pose motion
-        // stays procedural so the native world path needs no skeletal upload.
+        // Low-poly proportions mirror the prototype goose asset; the native
+        // model path applies bounded JOINTS_0/WEIGHTS_0 pose lift, while this
+        // procedural mesh remains the content=none fallback.
         var phase = actorPhases[index]
         var bob = if (arenaAnimalAnimationWave(phase, 8) > 0) 1 else 0
         var gait = if (actorMoving[index])
