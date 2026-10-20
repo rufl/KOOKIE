@@ -21,6 +21,15 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   scratch de chamadas tem gaps conhecidos de correção. O caminho de release
   agora usa o emissor baseado em slots de frame até a correção upstream do
   compilador.
+- Concluímos a qualificação de cross-build limpa no host Linux para o pacote de
+  apresentação Windows atual. As entradas oficiais fixadas de SDL3/SDL_mixer,
+  FreeType/HarfBuzz MSYS2, DXC e Zig produziram um arquivo PE determinístico e
+  assinado, contendo o conjunto de DLLs de runtime e os produtos SPIR-V/DXIL;
+  o SHA-256 do arquivo é
+  `c1dc8b215ab0602bf8ce6b4b927769cff82215afaedebdade323ba5ab8af32e6`.
+  O launch nativo Windows e a apresentação no hardware-alvo continuam sem
+  execução; por isso o manifesto de qualificação mantém
+  `releaseEligible=false`.
 - Corrigimos a inicialização WebGL2 e a captura de screenshots no navegador:
   a exportação da geometria de água agora copia limites/estilos estruturados
   sem lançar exceção durante a inicialização, e o renderer expõe

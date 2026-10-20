@@ -19,6 +19,14 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   across invocations and whose call-scratch path has known correctness gaps.
   The release path now uses the frame-local emitter until the compiler path is
   fixed upstream.
+- Completed a clean Linux-host cross-build qualification for the current
+  Windows presentation package. Official pinned SDL3/SDL_mixer, MSYS2
+  FreeType/HarfBuzz, DXC and Zig inputs produced a deterministic signed PE
+  archive containing the runtime DLL closure and SPIR-V/DXIL products;
+  archive SHA-256 is
+  `c1dc8b215ab0602bf8ce6b4b927769cff82215afaedebdade323ba5ab8af32e6`.
+  Native Windows launch and target-hardware presentation remain unrun, so the
+  qualification manifest correctly keeps `releaseEligible=false`.
 - Fixed browser WebGL2 startup and screenshot capture: the arena water
   geometry export now copies structured bounds/styles without throwing during
   script initialization, and the renderer exposes its `captureScreenshot`

@@ -142,6 +142,22 @@ A árvore de fontes atual possui estes caminhos aptos a release:
   e ao pacote de apresentação SDL_GPU, com produtos SPIR-V/DXIL e gates
   reproduzíveis. O gate de artefato assinado passou com MinGW SDL3/SDL_mixer e
   DXC fixados; não há evidência de hardware Windows alvo retida.
+- Um cross-build atual, limpo e em worktree destacado no host Linux produziu
+  `0.1.0-d1-win-cross.1` a partir do commit de fonte
+  `2b0ef88fff8f284939691a4cac1c535a2ecfb607`, com o commit de fonte Kof
+  `8e59b24acc978eb2546509b5cfca867a06e7283a`. O SHA-256 do arquivo é
+  `c1dc8b215ab0602bf8ce6b4b927769cff82215afaedebdade323ba5ab8af32e6`;
+  o SHA-256 do manifesto é
+  `d28eac7d12930917cdf4e0133191085f13075689d399f61a787e10e2b87927c0`.
+  Builds duplicados, assinaturas destacadas, `SHA256SUMS`, extração ZIP segura,
+  PE `MZ`, o conjunto de DLLs SDL3/SDL_mixer/FreeType/HarfBuzz empacotado e
+  as entradas SPIR-V/DXIL passaram. O manifesto registra SDL3 3.4.18,
+  SDL_mixer 3.2.4, HarfBuzz 14.6.0, o conjunto fixado de pacotes MSYS2 de
+  FreeType/HarfBuzz, DXC 1.9.2609 e Zig 0.17.0. Isto fecha somente a lacuna
+  de dependências e do pacote estático: o build usou o cross-compiler Zig
+  Linux, portanto launch nativo Windows, input/áudio/GPU e evidência de
+  hardware-alvo continuam sem execução. A chave foi efêmera e
+  `releaseEligible=false`.
 - Smoke em Wine do runtime Kof SDL nativo Windows com marcadores de gameplay. O
   smoke visual nativo Windows está disponível por
   `KOOKIE_RUN_NATIVE_PRESENTATION=1` e pelo

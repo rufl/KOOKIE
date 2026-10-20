@@ -408,6 +408,21 @@ informational, not release authority.
   `MZ` header, clean-tree/Windows-presentation manifest fields and bundled
   SPIR-V/DXIL entries. The qualification key was temporary, so this is not a
   public release artifact.
+- A current clean detached-worktree Linux-host cross-build produced
+  `0.1.0-d1-win-cross.1` from source commit
+  `2b0ef88fff8f284939691a4cac1c535a2ecfb607` with Kof source commit
+  `8e59b24acc978eb2546509b5cfca867a06e7283a`. The archive SHA-256 is
+  `c1dc8b215ab0602bf8ce6b4b927769cff82215afaedebdade323ba5ab8af32e6`;
+  the manifest SHA-256 is
+  `d28eac7d12930917cdf4e0133191085f13075689d399f61a787e10e2b87927c0`.
+  Duplicate builds, detached signatures, `SHA256SUMS`, safe ZIP extraction,
+  PE `MZ`, the bundled SDL3/SDL_mixer/FreeType/HarfBuzz DLL closure and
+  SPIR-V/DXIL entries passed. The manifest records SDL3 3.4.18, SDL_mixer
+  3.2.4, HarfBuzz 14.6.0, the pinned MSYS2 FreeType/HarfBuzz package set,
+  DXC 1.9.2609 and Zig 0.17.0. This closes the dependency and static-package
+  gap only: the build used the Linux Zig cross-compiler, so native Windows
+  launch, input/audio/GPU presentation and target-hardware evidence remain
+  unrun. The key was ephemeral and `releaseEligible=false`.
 - An optional isolated Wine presentation smoke reached the native SDL shell but
   exited with code 70 and `kookie_gpu_open: No supported SDL_GPU backend
   found!`. This is environment evidence only and does not replace Windows
