@@ -10,6 +10,17 @@ Este arquivo registra as mudanças importantes do KOOKIE em linguagem direta. El
   um adaptador estreito de mecanismo TCP/I/O e SHA-1.
   `scripts/verify_kof_web_server.sh` agora cobre health, metrics, upgrade,
   comandos da cena e rejeição de requisição malformada.
+- Corrigimos a qualificação de apresentação native D1 para
+  `content_profile=none`: a pose GLB autorada é obrigatória quando os modelos
+  estão empacotados, enquanto o fallback procedural documentado dos atores é
+  aceito quando os modelos prototype são excluídos. O gate do pacote Linux agora
+  passa extração, smoke do pacote e apresentação isolada no host qualificado.
+- Tornamos o empacotamento de release Linux determinístico e mais seguro:
+  os builds native locais do Kof no pacote desativam o emissor de locais em
+  registradores fixado, cuja saída variava entre invocações e cujo caminho de
+  scratch de chamadas tem gaps conhecidos de correção. O caminho de release
+  agora usa o emissor baseado em slots de frame até a correção upstream do
+  compilador.
 - Corrigimos a inicialização WebGL2 e a captura de screenshots no navegador:
   a exportação da geometria de água agora copia limites/estilos estruturados
   sem lançar exceção durante a inicialização, e o renderer expõe

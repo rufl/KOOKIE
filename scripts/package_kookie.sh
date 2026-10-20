@@ -475,6 +475,12 @@ esac
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/kookie-package.XXXXXX")"
 cleanup() { rm -rf -- "$WORK_DIR"; }
 trap cleanup EXIT INT TERM
+if [[ "$TARGET" == linux-x86_64 ]]; then
+  # The pinned Kof native register-local path is not reproducible and has
+  # known call-scratch correctness gaps. Release packages use the stable
+  # frame-local emitter until that compiler path is fixed upstream.
+  export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:+$JAVA_TOOL_OPTIONS }-Dkof.native.register.locals=false"
+fi
 
 PACKAGE_NAME="kookie-$VERSION-$TARGET"
 PACKAGE_ROOT="$WORK_DIR/$PACKAGE_NAME"

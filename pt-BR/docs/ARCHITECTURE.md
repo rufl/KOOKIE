@@ -432,8 +432,9 @@ remove após coleta ou reset. Quatro registros limitados de label carregam IDs
 de texto determinísticos e posições dos atores; o navegador projeta os registros
 visíveis no overlay do canvas. O navegador mantém a folha autorada de cinco
 estados de coração, sombras voltadas para a câmera e pickup diamante quando há
-dados autoritativos suficientes; a paridade visual continua não certificada
-porque o smoke visual do navegador está bloqueado pelo host indisponível.
+dados autoritativos suficientes. O smoke visual do navegador exercita o runtime
+WebGL2 e o caminho de captura; a paridade visual continua não certificada
+porque o alvo é paridade semântica, não equivalência pixel a pixel.
 O cliente bloqueia os controles de gameplay até receber a cena completa,
 oferece reconexão automática limitada com estados visíveis de
 carregamento/falha e persiste localmente as preferências de minimapa, pointer

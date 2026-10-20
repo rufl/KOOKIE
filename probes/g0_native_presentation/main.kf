@@ -2520,6 +2520,9 @@ class G1NativePresentation {
     Int visibleAnimalActorCount() {
         return animalMeshes.actorCount()
     }
+    Bool nativeAnimalModels() {
+        return nativeAnimalModelsValue
+    }
     Int authoredPoseCount() {
         return authoredPoseCountValue
     }
@@ -3107,8 +3110,9 @@ main() {
         assert(presentation.drawGameFrame(frame, network, shell),
             "authored arena and authoritative HUD must draw")
         assert(presentation.visibleAnimalActorCount() == 5 &&
-            presentation.authoredPoseCount() > 0,
-            "native GLB actors must use an authored sampled pose")
+            (!presentation.nativeAnimalModels() ||
+                presentation.authoredPoseCount() > 0),
+            "native GLB actors must use authored sampled pose when models are packaged")
         assert(driveSmokeKeyboardAction(
                 shell, presentation, 27, gameShellActionBack()) &&
             !shell.gameplayVisible(),

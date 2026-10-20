@@ -95,7 +95,8 @@ de loot ativo da cauda de objetos e projeta os quatro labels autoritativos
 limitados pelo overlay do canvas. O gateway remove o feixe após coleta ou reset
 do pickup autoritativo. O navegador desenha a folha autoritativa de cinco estados
 de coração. A igualdade visual navegador/nativo continua não certificada porque
-o smoke visual do navegador está bloqueado pelo host indisponível.
+o smoke visual do navegador exercita comportamento semântico de runtime/captura,
+não equivalência pixel a pixel.
 - A qualificação de apresentação Linux controlada pela fila passou pelo
   `scripts/verify_presentation.sh` no ticket 74 após habilitar a pose GLB
   autorada. O smoke nativo usou X11 sob gamescope, `/dev/dri/renderD128`,

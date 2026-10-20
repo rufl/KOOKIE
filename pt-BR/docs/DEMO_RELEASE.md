@@ -17,11 +17,13 @@ construído a partir do commit de fonte
 assinado para Linux/Windows x86-64. Candidatos novos continuam tendo como
 autoridade somente o `RELEASE_QUALIFICATION.json` assinado de cada um.
 
-O commit de fonte atual é
-`e8cad301b566607a3b8095a219d05441de3240e5`. A execução Verify KOOKIE
+O commit base do repositório para este trabalho de qualificação é
+`285fc927c265e9ff0ae25fd01a15035cb6972ad2`. A última execução registrada do
+Verify KOOKIE
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
 passou pelo build do Kof pinado, verificações estática/JVM, verificações
-native/package, verificações do backend PE e pacote JVM Windows.
+native/package, verificações do backend PE e pacote JVM Windows no commit
+candidato anterior.
 
 O candidato `0.1.0-dogfood.64` foi despachado em
 [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223) a
@@ -309,9 +311,37 @@ informativos, não autoridade de release.
   máquina, driver, wrapper, screenshot e saída. A imagem de sistema padrão não
   possui os arquivos de desenvolvimento SDL3_mixer; configure um prefixo
   SDL_mixer 3.2.4 fixado antes de invocar o gate do pacote.
-- O Xvfb/DRM isolado desta workstation reportou `No DRI3 support detected` e
-  `No supported SDL_GPU backend`; isso não é evidência de apresentação em
-  hardware Linux.
+
+- Uma qualificação atual com árvore suja também passou
+  `scripts/verify_linux_presentation_package.sh` de ponta a ponta: pacote
+  assinado, extração segura, self-test do launcher, smoke do pacote e
+  apresentação isolada em Intel(R) Graphics (ARL) com Mesa 26.2.4-arch1.1 em
+  `/dev/dri/renderD128`. Ela registrou capacidades de present `11`, draw da GPU
+  de `14658us`, checksum de screenshot `321528432` e saída limpa. Isso não é
+  evidência de release: usou `KOOKIE_ALLOW_DIRTY_PACKAGE=1` e chave de assinatura
+  efêmera; ela não é uma identidade de release.
+- A nova execução do builder de árvore limpa passou
+  `scripts/build_demo_release.sh --target linux-x86_64` com a versão
+  `0.1.0-d1-fix.1`, commit de fonte
+  `5201286aa67c718b6d10460bff203ebf0118aada`, commit de fonte Kof
+  `8e59b24acc978eb2546509b5cfca867a06e7283a` e SHA-256 do arquivo
+  `f292e7a975c9563de7409eb3bfa06c13249cdb7d4de834ef181f487107916cc5`.
+  Builds duplicados, assinaturas/checksums, extração segura e smoke do pacote
+  passaram.
+- Esse artefato de árvore limpa passou então o gate de GPU do pacote extraído
+  no mesmo host Intel(R) Graphics (ARL)/Mesa 26.2.4-arch1.1 em
+  `/dev/dri/renderD128`: capacidades de present `11`, draw da GPU `15285us`,
+  checksum de screenshot `321528432` e saída limpa. Os registros de evidência
+  informam SHA-256 do arquivo
+  `f292e7a975c9563de7409eb3bfa06c13249cdb7d4de834ef181f487107916cc5` e do
+  manifesto `6096f5c054dee0cea1475f69e8bf963e7586a1540bd25af8aa4e13e737eb6d8e`.
+  Esta é evidência de qualificação local, não uma release pública: a chave é
+  efêmera e ainda é necessária a extração em um sistema suportado novo.
+
+
+- A tentativa isolada anterior com Xvfb/DRM reportou `No DRI3 support detected` e
+  `No supported SDL_GPU backend`; essa tentativa continua não sendo evidência de
+  apresentação Linux em hardware.
 - Documentar o piso de loader/libc/GPU testado. SDL3 e SDL_mixer são
   empacotados, mas compatibilidade com qualquer distribuição não é implícita.
 

@@ -9,6 +9,16 @@ This file records meaningful changes to KOOKIE in plain language. It is not a pr
   metrics counters; `native/kookie_web_server.c/.h` remains a narrow TCP/I/O
   and SHA-1 mechanism adapter. `scripts/verify_kof_web_server.sh` now covers
   health, metrics, upgrade, scene commands and malformed-request rejection.
+- Corrected the D1 native presentation qualification for
+  `content_profile=none`: authored GLB pose is required when packaged models
+  are present, while the documented procedural actor fallback is accepted
+  when prototype models are excluded. The Linux package gate now passes
+  extraction, package smoke and isolated presentation on the qualified host.
+- Made Linux release packaging deterministic and safer: package-local native
+  Kof builds disable the pinned register-local emitter, whose output varied
+  across invocations and whose call-scratch path has known correctness gaps.
+  The release path now uses the frame-local emitter until the compiler path is
+  fixed upstream.
 - Fixed browser WebGL2 startup and screenshot capture: the arena water
   geometry export now copies structured bounds/styles without throwing during
   script initialization, and the renderer exposes its `captureScreenshot`

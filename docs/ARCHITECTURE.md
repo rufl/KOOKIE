@@ -439,8 +439,9 @@ is active and removes it after collection or reset. Four bounded label records
 carry deterministic text IDs and actor positions; the browser projects visible
 records into the canvas overlay. The browser adds the authored five-state heart
 sheet, camera-facing actor shadows and diamond pickup where the snapshot has
-enough authoritative data; visual parity remains uncertified because the
-browser visual smoke is still blocked by the unavailable browser host.
+enough authoritative data. The browser visual smoke exercises the WebGL2
+runtime and capture path; visual parity remains uncertified because the target
+is semantic parity rather than pixel equivalence.
 The client gates gameplay controls until the full scene arrives, exposes bounded
 automatic reconnect with visible loading/failure states, and persists minimap,
 pointer-lock and reduced-motion preferences locally. The browser requires

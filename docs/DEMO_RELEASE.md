@@ -17,11 +17,12 @@ built from source commit
 x86-64 pre-release pair. New candidate versions remain authoritative only
 through their signed `RELEASE_QUALIFICATION.json`.
 
-The current source commit is
-`e8cad301b566607a3b8095a219d05441de3240e5`. Verify KOOKIE run
+The repository base commit for this qualification work is
+`285fc927c265e9ff0ae25fd01a15035cb6972ad2`. The last recorded Verify KOOKIE
+run
 [`38978943862`](https://github.com/rufl/KOOKIE/actions/runs/38978943862)
 passed the pinned Kof build, static/JVM checks, native/package checks, PE
-backend checks and Windows JVM package checks.
+backend checks and Windows JVM package checks on its earlier candidate commit.
 
 Candidate `0.1.0-dogfood.64` was dispatched in
 [`38981016223`](https://github.com/rufl/KOOKIE/actions/runs/38981016223)
@@ -346,8 +347,36 @@ informational, not release authority.
   wrapper, screenshot and exit evidence. The default system image lacks
   SDL3_mixer development files; configure a pinned SDL_mixer 3.2.4 prefix
   before invoking the package gate.
-- This workstation's isolated Xvfb/DRM run reported `No DRI3 support
-  detected` and `No supported SDL_GPU backend`; it is not Linux hardware
+
+- A current dirty-tree qualification also passed
+  `scripts/verify_linux_presentation_package.sh` end to end: signed package,
+  safe extraction, launcher self-test, package smoke and isolated presentation
+  on Intel(R) Graphics (ARL) with Mesa 26.2.4-arch1.1 at
+  `/dev/dri/renderD128`. It recorded present capabilities `11`, GPU draw time
+  `14658us`, screenshot checksum `321528432` and clean exit. This is not release
+  evidence: it used `KOOKIE_ALLOW_DIRTY_PACKAGE=1` and an ephemeral signing key;
+  it is not a release identity.
+- The clean-tree rerun passed
+  `scripts/build_demo_release.sh --target linux-x86_64` with version
+  `0.1.0-d1-fix.1`, source commit
+  `5201286aa67c718b6d10460bff203ebf0118aada`, Kof source commit
+  `8e59b24acc978eb2546509b5cfca867a06e7283a`, and archive SHA-256
+  `f292e7a975c9563de7409eb3bfa06c13249cdb7d4de834ef181f487107916cc5`.
+  Duplicate builds, signatures/checksums, safe extraction and package smoke
+  passed.
+- That clean artifact then passed the extracted-package GPU gate on the same
+  Intel(R) Graphics (ARL)/Mesa 26.2.4-arch1.1 host at
+  `/dev/dri/renderD128`: present capabilities `11`, GPU draw time `15285us`,
+  screenshot checksum `321528432`, and clean exit. The evidence records
+  archive SHA-256 `f292e7a975c9563de7409eb3bfa06c13249cdb7d4de834ef181f487107916cc5`
+  and manifest SHA-256
+  `6096f5c054dee0cea1475f69e8bf963e7586a1540bd25af8aa4e13e737eb6d8e`.
+  This is local qualification evidence, not a public release: the signing key
+  is ephemeral and fresh supported-system extraction evidence remains required.
+
+
+- The earlier isolated Xvfb/DRM attempt reported `No DRI3 support detected` and
+  `No supported SDL_GPU backend`; that attempt remains invalid Linux hardware
   presentation evidence.
 - Document the tested loader/libc/GPU floor. SDL3 and SDL_mixer are bundled,
   but arbitrary distribution compatibility is not implied.

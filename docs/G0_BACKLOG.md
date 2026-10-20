@@ -111,8 +111,8 @@ floatable, power-up and active loot-beam scene-object fields, and projects the
 four bounded authoritative actor labels through the canvas overlay. The gateway
 removes the loot beam after authoritative pickup collection or reset. The
 browser renders the authoritative five-state heart sheet. Browser/native visual
-equality remains uncertified because the browser visual smoke is blocked by the
-unavailable browser host.
+equality remains uncertified because the browser visual smoke exercises semantic
+runtime/capture behavior rather than pixel equivalence.
 - Queue-controlled Linux presentation qualification passed through
   `scripts/verify_presentation.sh` on ticket 74 after the authored GLB pose
   path was enabled. The smoke used X11 under gamescope, render node
