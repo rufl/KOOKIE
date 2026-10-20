@@ -67,6 +67,18 @@ Full verification reuses canonical JVM/native artifacts under
 invalidate the cache when the source tree or pinned Kof toolchain changes.
 Set `KOOKIE_CANONICAL_BUILD_CACHE_DIR` to override that location.
 
+Run the bounded cross-target performance diagnostic when changing hot
+simulation, allocation or native-boundary code:
+
+```bash
+python3 scripts/profile_kookie.py --target all --verify \
+  --output build/kookie-performance-profile.json
+```
+
+This is a diagnostic gate, not a substitute for the full verification matrix.
+Use `--require-perf` only on hosts with permitted hardware performance
+counters.
+
 ### Local package gate
 
 The release package checks require the exact Kof distribution used by `kof`,

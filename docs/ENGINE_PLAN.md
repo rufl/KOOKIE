@@ -967,6 +967,20 @@ Targets to measure on explicitly recorded CPU/GPU/driver/resolution/build: 60 Hz
 
 These thresholds are design goals. Correctness may be tested under software rendering, but software-renderer timings cannot certify hardware targets. Graphics/input proof must be serialized inside an isolated disposable display environment.
 
+`scripts/profile_kookie.py` is the repeatable diagnostic gate for this target.
+It runs the same 64-enemy/256-projectile/512-pickup workload on JVM and native,
+records compiler wall time, per-phase p50/p95/p99/max, bounded RSS/resource
+plateau, isolated child CPU/fault/context-switch counters, JVM GC events and
+`perf stat` counters when the host permits them. `--verify` enforces the
+simulation and plateau budgets; `KOOKIE_VERIFY_PERFORMANCE=1 bash
+scripts/verify.sh` adds it to the full verification run. Missing hardware
+counters are explicit evidence limits, not a substituted performance claim.
+
+The profiler does not imply that JVM and native timings are interchangeable.
+The JVM remains a differential/runtime oracle; native is the Linux shipping
+path. Any SIMD or bulk-FFI change still requires a measured production kernel,
+scalar parity and target-specific ownership/lifetime proof.
+
 ### DXPERF-051 SIMD dispatch evidence
 
 `native/kookie_simd_dispatch.c` is a narrow native mechanism, not a gameplay
@@ -981,17 +995,19 @@ The active Kof `0.6.5` source commit
 toolchain input. CI builds that exact source after normalizing its embedded
 version metadata. The pinned source also implements synchronous callbacks on
 JVM, host JS and native x86-64/riscv64/aarch64; KOOKIE has not rerun that
-cross-target callback/Buffer matrix against 0.6.5.
-`scripts/verify_simd_dispatch.sh` is the local x86-64 JVM/native
-qualification and must be rerun against this pin.
+cross-target callback/Buffer runtime matrix against 0.6.5.
+`scripts/verify_simd_dispatch.sh` qualifies the local x86-64 JVM/native
+execution path and, when Clang is available, freestanding syntax for
+AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS targets.
 
-The retained benchmark record below was produced by the previous qualified Kof
-distribution; it is ABI and representative reduction evidence, not a current
-0.6.5 performance claim. Both targets matched
-`scalar-total=simd-total=expected-total=16844324864`, and the AArch64 syntax
-proof passed. This is ABI and representative reduction evidence, not a
-frame-time or gameplay speed claim; production gameplay remains Kof-owned and
-scalar.
+The current 0.6.5 gate reruns the exact bounded workload on JVM/native x86-64:
+both targets match
+`scalar-total=simd-total=expected-total=16844324864`, the SIMD route is
+selected, and the portability syntax matrix passes. These are ABI,
+compiler-target and representative reduction results, not runtime
+qualification for those foreign targets or a frame-time/gameplay speed claim;
+production gameplay remains Kof-owned and scalar until `profile_kookie.py`
+identifies a matching production bulk kernel.
 
 
 ## 11. Verification and decision risks
@@ -1019,7 +1035,7 @@ display/session isolation, render-node restrictions, timeouts or cleanup.
 | Bulk FFI remains target-specific; structs/pointers and callbacks are not a locally qualified engine contract | Pinned 0.6.5 `Buffer(U8, INOUT)` passes the focused JVM/native x86-64 qualification; the pinned source implements synchronous callbacks across JVM, host JS and native targets, but KOOKIE has not rerun that callback/cross matrix | Use only measured targets, retain scalar fallback, and route production work only when a profile identifies the same bulk-reduction shape |
 | Native C-runtime/driver initialization | Real SDL3 GPU/audio/input paths pass on qualified Linux; Windows native Kof PE gameplay passes through the Kof SDL smoke, and the presentation package gate verifies native PE/SDL_GPU linkage and shader products | Keep separate platform/GPU gates; do not infer DRI3-capable Windows presentation from package linkage or graphics-free smoke |
 | Native collector after spawn | Cumulative spawn gate in allocator source | Single Kof thread; long soak; no unsafe manual-GC bypass |
-| Native codegen performance | Minimal optimization pipeline | Measure representative arrays/math/FFI; use batching/preallocation; no C gameplay rewrite |
+| Native codegen performance | `scripts/profile_kookie.py` now records native/JVM compiler timing, isolated child CPU/resource counters, phase percentiles, RSS plateau and JVM GC evidence on the reference workload | Use the profile to select one production kernel; retain Kof ownership and scalar parity before adding bulk/SIMD paths |
 | Distribution runtime closure | The Windows JVM profile retains a digest-pinned full OpenJDK runtime and legal tree; native compiler pruning still emits its known warning | Keep the JVM choice explicit, record runtime identity/size, compare reproducible archives and never treat it as silent native fallback |
 | Native stale exception handler | Kof `0.6.5` JVM/native assertion gate exits 1 with the expected diagnostic; failure-path hangs remain externally bounded | Validate expected failures before throw; use external timeout/exit/output gates; no control-flow shim |
 | Native JSON/split parity | Fractional mixed-record JSON corrupted values; escaped-pipe split differed from JVM | Repair/prove exact content/save schemas and parser contracts before G3/G4 reliance |

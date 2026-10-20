@@ -147,9 +147,11 @@ not sufficient.
 **Current status:** the focused `scripts/verify_simd_dispatch.sh` gate passed
 with the exact pinned Kof `0.6.5` archive on JVM and native x86-64. The fixture
 reported `buffer-fixture-sum=809`, `buffer-inout-sum=1231`, equal scalar/SIMD
-totals, selected SIMD routing and the AArch64 syntax proof. This qualifies the
-bounded synchronous producer/copy-back boundary only; generic asynchronous or
-retained-payload ownership remains unqualified.
+totals and selected SIMD routing. The same gate now adds freestanding syntax
+proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64 macOS when Clang is
+available. This qualifies bounded synchronous producer/copy-back plus target
+compilation only; cross-target runtime and generic asynchronous or retained-
+payload ownership remain unqualified.
 
 
 ### P2 — Transport semantic extraction

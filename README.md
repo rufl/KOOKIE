@@ -372,6 +372,21 @@ performance claims.
 | Kof buffer SIMD probe | 64 MiB batch: scalar **233.350 ms**, AVX2 **1.074 ms** | Exact reduction ABI/workload only; not a gameplay-wide speedup claim |
 | Release chain | Ed25519-signed archive, manifest and checksum set | Clean source tree, pinned Kof source and verified distribution digest required |
 
+For repeatable CPU and memory evidence across the Kof targets:
+
+```sh
+python3 scripts/profile_kookie.py --target all --verify \
+  --output build/kookie-performance-profile.json
+```
+
+The profile records compiler wall time, simulation phase p50/p95/p99/max,
+RSS/resource plateau, child-process CPU/fault/context-switch counters, JVM GC
+events, and `perf stat` counters when the host grants `perf_event` access.
+Set `KOOKIE_VERIFY_PERFORMANCE=1` to add the same bounded gate to
+`scripts/verify.sh`; set `KOOKIE_VERIFY_REQUIRE_PERF=1` when hardware counters
+are a release requirement. Missing `perf` is reported explicitly rather than
+silently substituting a frame-time claim.
+
 ## Content that crosses the boundary
 
 The kooker accepts documented subsets rather than claiming general format

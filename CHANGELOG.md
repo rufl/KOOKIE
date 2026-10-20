@@ -3,6 +3,18 @@
 This file records meaningful changes to KOOKIE in plain language. It is not a promise that a milestone is finished; the roadmap and focused checks are the source of truth.
 
 ## Unreleased
+- Reduced hot enemy AI evaluation cost: sealed behavior programs no longer run
+  full topology/checksum validation for every enemy step; the public validation
+  path remains available for admission and serialization. The pinned Kof 0.6.5
+  reference profile on this host improved simulation p95 from 246 to 186 µs on
+  JVM and 485 to 370 µs native; the 147-test suite passed. Profile `--verify`
+  still fails the JVM RSS plateau gate, so no RSS improvement is claimed.
+- Added `scripts/profile_kookie.py` and isolated `profile_process.py` for
+  repeatable JVM/native reference-workload profiling. Reports compiler timing,
+  per-phase simulation percentiles, RSS/resource plateau, child CPU/fault/
+  context-switch counters, JVM GC events and permitted `perf stat` counters.
+  `KOOKIE_VERIFY_PERFORMANCE=1` can add the verified profile to `verify.sh`;
+  unavailable hardware counters remain explicit evidence limits.
 - Fixed goose traversal and follow-camera safety: camera-relative WASD now uses
   smooth yaw vectors, mouse-wheel zoom stays within a bounded third-person
   range, walkable ramps are climbed through a raised sweep and grounded

@@ -45,6 +45,14 @@ bash scripts/verify_pe_durable_save.sh
 bash scripts/verify_dedicated_server.sh
 bash scripts/verify_dedicated_network.sh
 bash scripts/verify_kof_web_server.sh
+if [[ "${KOOKIE_VERIFY_PERFORMANCE:-0}" == 1 ]]; then
+  performance_output="${KOOKIE_PERFORMANCE_PROFILE_OUTPUT:-$root_dir/build/kookie-performance-profile.json}"
+  performance_args=(--target all --verify --output "$performance_output")
+  if [[ "${KOOKIE_VERIFY_REQUIRE_PERF:-0}" == 1 ]]; then
+    performance_args+=(--require-perf)
+  fi
+  python3 scripts/profile_kookie.py "${performance_args[@]}"
+fi
 
 
 if [[ -f /usr/lib/libSDL3.so ]]; then

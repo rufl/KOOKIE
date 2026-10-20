@@ -158,10 +158,12 @@ Current `0.6.5` also has a byte-only `Buffer(U8)` contract with
 `buffer.alloc`, `buffer.peek8/32/64`, `buffer.poke8/32/64` and `Buffer.bytes()`.
 The pinned implementation maps it to the `B` FFI token and a synchronous
 payload pointer; the local gate proves Kof `buffer.poke8` producer data,
-copy-in/copy-back and an INOUT reduction on JVM and native x86-64. The pinned
-source comments claim the same surface for native riscv64/aarch64, but KOOKIE
-has not rerun that matrix. Cross-target support remains an upstream source
-claim, not a KOOKIE result.
+copy-in/copy-back and an INOUT reduction on JVM and native x86-64. The pinned source comments claim
+the same surface for native riscv64/aarch64, but KOOKIE has not rerun that
+runtime matrix. `scripts/verify_simd_dispatch.sh` additionally performs
+freestanding syntax-only proofs for AArch64 Linux, RISC-V Linux and
+x86-64/AArch64 macOS when Clang is available. Those proofs cover target
+compilation only; cross-target runtime support remains unqualified.
 
 The older 0.4.9 probe rejected `extern ... upload(Float[] values): void` on JVM
 and native. That result remains historical; current 0.6.5 array/record binding
@@ -221,7 +223,7 @@ Current x86 source is more useful than the older memory overview:
 - Native objects use Kof-managed allocation and a conservative collector. `RuntimeMemory` checks the free list, attempts collection, then uses `mmap`.
 - **Source-verified:** auto-collection on free-list exhaustion is conditional on cumulative `kof_spawn_count == 0`. Once the process has used Kof `spawn`, this gate stays closed because worker stacks are not scanned. `await` does not reset the counter.
 - Do not schedule native Kof jobs yet or call manual GC around live worker state to bypass the gate. Begin with one Kof simulation/render thread. A library's own audio/driver threads may operate only on its owned memory, without retaining Kof heap pointers or calling Kof code.
-- Preallocate entity arrays, event buffers, collision scratch and render lists. No per-bullet class allocation, transient lambda creation, string logging or generic collection churn in the frame loop.
+- Preallocate entity arrays, event buffers, collision scratch and render lists. No per-bullet class allocation, transient lambda creation, string logging or generic collection churn in the frame loop. Sealed behavior programs are immutable through their public mutation API; hot evaluation checks the sealed/configured invariant rather than recomputing full topology validation and checksums per enemy/tick. Keep explicit `validate()` at admission and serialization boundaries.
 - The optimizer source lists constant folding, dead-effect elimination, reachability and jump cleanup. It is not an LLVM-class optimizing pipeline. `as` and `ld` do not supply high-level loop/vectorization optimization. Native is not automatically faster than JVM JIT.
 - Small probes establish language viability, not an FPS budget or memory plateau. Require a bounded allocation/GC soak and representative gameplay timing before committing to large crowds.
 - Do not hardcode internal object/header/array layouts from docs. The older MEMORY_MODEL page still describes a 16-byte allocation header while current allocator code adds 32 bytes.

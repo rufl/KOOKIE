@@ -89,9 +89,11 @@ ordering; it never parses or composes SPIR-V at runtime.
 The active Kof4j `0.6.5` pin is the Kof `lab` source commit
 `8e59b24acc978eb2546509b5cfca867a06e7283a`. The existing
 `scripts/verify_simd_dispatch.sh` qualifies the bounded synchronous
-`Buffer(U8)` producer/copy-back path on JVM and native x86-64; cross-target
-support remains unqualified. The selected `GPU_SCENE_VERTEX_V1` path is a
-synchronous copy-in batch with C-owned storage. The focused native adapter and
+`Buffer(U8)` producer/copy-back path on JVM and native x86-64, and provides
+freestanding syntax proofs for AArch64 Linux, RISC-V Linux and x86-64/AArch64
+macOS when Clang is available; cross-target runtime support remains unqualified.
+The selected `GPU_SCENE_VERTEX_V1` path is a synchronous copy-in batch with C-owned
+storage. The focused native adapter and
 Vulkan renderer gate passed on local `Intel(R) Graphics (ARL)` evidence with
 one draw call, 984 instances and p95 frame time of `1710` microseconds.
 Generic asynchronous or retained-payload ownership remains unqualified, and

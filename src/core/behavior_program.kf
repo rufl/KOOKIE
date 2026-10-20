@@ -542,7 +542,8 @@ class BoundedBehaviorProgram {
         Int perceptionRange,
         Int attackRange
     ) {
-        if (!validate() || targetId < 0 || distance < 0 ||
+        if (!sealedValue || !configuredValue ||
+            targetId < 0 || distance < 0 ||
             perceptionRange <= 0 || attackRange <= 0 ||
             attackRange > perceptionRange ||
             (targetVisible && targetId <= 0)) {

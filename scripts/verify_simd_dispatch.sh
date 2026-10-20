@@ -64,18 +64,43 @@ fi
 cat "$tmp/benchmark-jvm.log"
 cat "$tmp/benchmark-native.log"
 
-if command -v clang >/dev/null 2>&1; then
-    # This is a syntax proof, not a libc/linking check. Never mix host libc
-    # headers with the AArch64 target; the kernel uses only freestanding C11.
-    clang_resource_dir=$(clang -print-resource-dir)
-    clang --target=aarch64-linux-gnu -ffreestanding -nostdinc \
+syntax_proof_clang() {
+    local target="$1"
+    clang --target="$target" -ffreestanding -nostdinc \
         -isystem "$clang_resource_dir/include" \
         "${common[@]}" -fsyntax-only "$source"
-    echo "aarch64 syntax proof: passed"
-elif command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
-    aarch64-linux-gnu-gcc "${common[@]}" -fsyntax-only "$source"
-    echo "aarch64 syntax proof: passed"
+    echo "$target syntax proof: passed"
+}
+
+syntax_proof_gcc() {
+    local compiler="$1"
+    local target="$2"
+    "$compiler" "${common[@]}" -fsyntax-only "$source"
+    echo "$target syntax proof: passed"
+}
+
+if command -v clang >/dev/null 2>&1; then
+    # The freestanding source uses only compiler-provided headers, so these
+    # proofs cover target code generation without requiring foreign libc/SDKs.
+    clang_resource_dir=$(clang -print-resource-dir)
+    for target in \
+        aarch64-linux-gnu \
+        riscv64-linux-gnu \
+        x86_64-apple-darwin \
+        aarch64-apple-darwin; do
+        syntax_proof_clang "$target"
+    done
 else
-    echo "aarch64 syntax proof: unavailable (install clang or aarch64-linux-gnu-gcc)" >&2
-    exit 1
+    if command -v aarch64-linux-gnu-gcc >/dev/null 2>&1; then
+        syntax_proof_gcc aarch64-linux-gnu-gcc aarch64-linux-gnu
+    else
+        echo "aarch64 syntax proof: unavailable (install clang or aarch64-linux-gnu-gcc)" >&2
+        exit 1
+    fi
+    if command -v riscv64-linux-gnu-gcc >/dev/null 2>&1; then
+        syntax_proof_gcc riscv64-linux-gnu-gcc riscv64-linux-gnu
+    else
+        echo "riscv64 syntax proof: unavailable (install clang or riscv64-linux-gnu-gcc)" >&2
+    fi
+    echo "macOS syntax proofs: unavailable (install clang)" >&2
 fi
